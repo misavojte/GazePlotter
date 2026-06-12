@@ -4,14 +4,12 @@ import {
   getPrevNextLinks,
   normalizeDocPath,
 } from '../src/routes/docs/navigation'
-import type { SidebarSection, SidebarLink } from '../src/routes/docs/sidebarConfig'
+import type { SidebarItem, SidebarLink } from '../src/routes/docs/sidebarConfig'
 
-const mockSections: readonly SidebarSection[] = [
+const mockSections: readonly SidebarItem[] = [
   {
-    title: 'Getting Started',
-    links: [
-      { name: 'Introduction', href: '/docs' }
-    ]
+    name: 'Getting Started',
+    href: '/docs',
   },
   {
     title: 'Workspace & Setup',
@@ -24,7 +22,7 @@ const mockSections: readonly SidebarSection[] = [
 
 ] as const
 
-const allLinks: readonly SidebarLink[] = mockSections.flatMap(s => s.links)
+const allLinks: readonly SidebarLink[] = mockSections.flatMap(item => 'links' in item ? item.links : [item])
 
 describe('docs navigation helpers', () => {
   it('normalizes docs paths', () => {

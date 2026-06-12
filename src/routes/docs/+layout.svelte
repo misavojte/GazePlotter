@@ -10,9 +10,11 @@
 
   // Find the active section title based on the current pathname
   let activeSectionTitle = $derived.by(() => {
-    for (const section of data.sections) {
-      if (section.links.some(link => isMatchingDocPath(link.href, page.url.pathname))) {
-        return section.title
+    for (const item of data.sections) {
+      if ('links' in item) {
+        if (item.links.some(link => isMatchingDocPath(link.href, page.url.pathname))) {
+          return item.title
+        }
       }
     }
     return null
@@ -22,9 +24,9 @@
   $effect(() => {
     if (activeSectionTitle) {
       manualToggles[activeSectionTitle] = true
-      for (const section of data.sections) {
-        if (section.title !== activeSectionTitle) {
-          manualToggles[section.title] = false
+      for (const item of data.sections) {
+        if ('title' in item && item.title !== activeSectionTitle) {
+          manualToggles[item.title] = false
         }
       }
     }
@@ -146,46 +148,57 @@
       <div class="sidebar-spacer"></div>
       <div class="sidebar-main">
         <nav class="docs-nav">
-          {#each data.sections as section}
+          {#each data.sections as item}
             <div class="nav-section">
-              <button
-                type="button"
-                class="nav-section-trigger"
-                onclick={() => toggleSection(section.title)}
-                aria-expanded={isSectionExpanded(section.title)}
-              >
-                <span class="nav-title">{section.title}</span>
-                <svg
-                  class="chevron-icon"
-                  class:rotated={isSectionExpanded(section.title)}
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="3"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
+              {#if 'links' in item}
+                <button
+                  type="button"
+                  class="nav-section-trigger"
+                  onclick={() => toggleSection(item.title)}
+                  aria-expanded={isSectionExpanded(item.title)}
                 >
-                  <polyline points="9 18 15 12 9 6" />
-                </svg>
-              </button>
-              {#if isSectionExpanded(section.title)}
-                <ul class="nav-links" transition:slide={{ duration: 200 }}>
-                  {#each section.links as link}
-                    <li>
-                      <a
-                        href={link.href}
-                        class="nav-link"
-                        class:active={isMatchingDocPath(link.href, page.url.pathname)}
-                        onclick={() => (sidebarOpen = false)}
-                      >
-                        {link.name}
-                      </a>
-                    </li>
-                  {/each}
-                </ul>
+                  <span class="nav-title">{item.title}</span>
+                  <svg
+                    class="chevron-icon"
+                    class:rotated={isSectionExpanded(item.title)}
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+                {#if isSectionExpanded(item.title)}
+                  <ul class="nav-links" transition:slide={{ duration: 200 }}>
+                    {#each item.links as link}
+                      <li>
+                        <a
+                          href={link.href}
+                          class="nav-link"
+                          class:active={isMatchingDocPath(link.href, page.url.pathname)}
+                          onclick={() => (sidebarOpen = false)}
+                        >
+                          {link.name}
+                        </a>
+                      </li>
+                    {/each}
+                  </ul>
+                {/if}
+              {:else}
+                <a
+                  href={item.href}
+                  class="nav-section-link"
+                  class:active={isMatchingDocPath(item.href, page.url.pathname)}
+                  onclick={() => (sidebarOpen = false)}
+                >
+                  <span class="nav-title">{item.name}</span>
+                </a>
               {/if}
             </div>
           {/each}
@@ -278,7 +291,8 @@
     gap: 0.75rem;
   }
 
-  .nav-section-trigger {
+  .nav-section-trigger,
+  .nav-section-link {
     display: flex;
     align-items: center;
     justify-content: space-between;
@@ -289,12 +303,23 @@
     border: none;
     cursor: pointer;
     text-align: left;
+    text-decoration: none;
     border-radius: 6px;
     transition: all 0.2s ease;
+    box-sizing: border-box;
   }
 
-  .nav-section-trigger:hover {
+  .nav-section-trigger:hover,
+  .nav-section-link:hover {
     background-color: #f1f5f9;
+  }
+
+  .nav-section-link.active {
+    background-color: #fce7e8;
+  }
+
+  .nav-section-link.active .nav-title {
+    color: var(--c-brand, #cd1404);
   }
 
   .nav-title {
@@ -326,7 +351,7 @@
   .nav-link {
     display: block;
     padding: 0.5rem 0.75rem;
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
     color: #64748b;
     text-decoration: none;
     border-radius: 6px;

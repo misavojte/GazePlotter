@@ -6,8 +6,10 @@ export interface DocNavigationData {
 }
 
 export async function load(): Promise<DocNavigationData> {
+  const allLinks = SIDEBAR.flatMap(item => 'links' in item ? item.links : [item])
+
   return {
     sections: SIDEBAR,
-    allLinks: SIDEBAR.flatMap(section => section.links)
+    allLinks
   }
 }

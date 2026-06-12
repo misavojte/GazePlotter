@@ -11,14 +11,13 @@ export async function GET() {
   ]
 
   // Add all documentation pages from the sidebar configuration
-  for (const section of SIDEBAR) {
-    for (const link of section.links) {
-      let path = link.href
-      if (path.startsWith('/')) {
-        path = path.slice(1)
-      }
-      urls.push(path)
+  const allLinks = SIDEBAR.flatMap(item => 'links' in item ? item.links : [item])
+  for (const link of allLinks) {
+    let path = link.href
+    if (path.startsWith('/')) {
+      path = path.slice(1)
     }
+    urls.push(path)
   }
 
   // Deduplicate and filter empty elements or unwanted entries

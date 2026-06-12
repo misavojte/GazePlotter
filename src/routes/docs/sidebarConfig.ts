@@ -11,15 +11,12 @@ export interface SidebarSection {
   links: SidebarLink[]
 }
 
-export const SIDEBAR: readonly SidebarSection[] = [
+export type SidebarItem = SidebarSection | SidebarLink
+
+export const SIDEBAR: readonly SidebarItem[] = [
   {
-    title: 'Getting Started',
-    links: [
-      {
-        name: 'Introduction',
-        href: '/docs',
-      },
-    ],
+    name: 'Getting Started',
+    href: '/docs',
   },
   {
     title: 'Uploading Data',
