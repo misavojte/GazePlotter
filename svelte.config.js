@@ -28,7 +28,7 @@ const config = {
       '$survey/*': './src/survey/*',
     },
     prerender: {
-      entries: ['*', '/sitemap.xml']
+      entries: ['*', '/sitemap.xml', '/llms.txt']
     }
   },
 }

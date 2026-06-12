@@ -144,8 +144,8 @@ export function calculateOverlayLayout(
 
   let scale = minScale
   if (getWrapHeightForScale(minScale) <= targetPitch) {
-    let low = minScale
-    let high = maxScale
+    let low: number = minScale
+    let high: number = maxScale
     // Binary search to find the largest scale where wrap height <= targetPitch.
     // 15 iterations provide highly precise scaling (1 in 32,768 precision).
     for (let iter = 0; iter < 15; iter++) {

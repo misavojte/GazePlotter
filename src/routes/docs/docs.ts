@@ -33,7 +33,8 @@ export async function getDoc(
   if (link) {
     metadata = {
       title: link.name,
-      seoTitle: `${link.name} | GazePlotter Docs`
+      seoTitle: `${link.name} | GazePlotter Docs`,
+      description: link.description
     }
   }
 
