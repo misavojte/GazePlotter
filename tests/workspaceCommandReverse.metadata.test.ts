@@ -134,7 +134,7 @@ describe('workspaceCommandReverse metadata commands', () => {
 
     // Applying updateEventData resets the hidden list and order vector,
     // so the inverse must always carry both — even when the forward
-    // command (here: a prune-style payload) set neither.
+    // command set neither.
     expect(
       reverseCommand(
         createChainedCommand({

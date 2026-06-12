@@ -99,8 +99,9 @@ read first as one group, then stream files sequentially in upload order
 (dictionary ids are assigned first-seen, so order is observable).
 Enrichment sources are claimed during the main-thread partition (a lone
 .json upload is never claimed — workspace precedence) and processed after
-the dataset exists; fresh datasets that gained event channels then open
-the one-time prune review.
+the dataset exists; fresh datasets that gained event channels surface a
+non-blocking toast pointing at Event customization — no import-time
+prompt, since events are additive and curated later.
 
 ## Hosts
 

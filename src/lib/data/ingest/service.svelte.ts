@@ -1,5 +1,4 @@
 import { eventFileMappingModal } from '$lib/modals/import/definitions'
-import { eventPruneModal } from '$lib/modals/modification/definitions'
 import {
   processAoiVisibilityFromText,
   buildEventChannelsFromParsed,
@@ -614,9 +613,11 @@ export class IngestService {
               }
             }
 
-            // Pass 3: fresh datasets that brought event channels get the
-            // one-time prune review (restored workspaces are already curated).
-            if (data.freshDataset) this.maybeOpenEventPrune()
+            // Pass 3: fresh datasets that brought event channels get a
+            // non-blocking heads-up (restored workspaces stay silent).
+            // No decision is needed at import time — events are additive
+            // and curated later in Event customization.
+            if (data.freshDataset) this.notifyImportedEventChannels()
             resolve(true)
           },
           failureMetadata => {
@@ -664,16 +665,19 @@ export class IngestService {
   }
 
   /**
-   * Opens the one-time prune review when the just-loaded dataset carries
-   * event channels. No channels → no modal (identical to today's flow).
+   * Toasts a heads-up when the just-loaded dataset carries event
+   * channels, pointing at Event customization. No channels → silence.
    */
-  private maybeOpenEventPrune(): void {
+  private notifyImportedEventChannels(): void {
     const meta = this.deps.engine.metadata
     if (!meta) return
-    if (!meta.eventData.data.some(defs => defs.length > 0)) return
-    void this.deps.modalState.open(eventPruneModal, {
-      source: 'ingest.eventPrune',
-    })
+    const channelCount = new Set(
+      meta.eventData.data.flatMap(defs => (defs ?? []).map(def => def[0]))
+    ).size
+    if (channelCount === 0) return
+    this.deps.toastState.addInfo(
+      `Imported ${channelCount} event channel${channelCount === 1 ? '' : 's'} — manage them in Event customization`
+    )
   }
 
   applyFailure(failureMetadata: FileMetadataFailureType): void {

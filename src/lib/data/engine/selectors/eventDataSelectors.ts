@@ -100,7 +100,7 @@ export const getVisibleEventChannels = (
 
 /**
  * Aggregated view of event channels across ALL stimuli, keyed by original
- * name — the unit the post-upload prune operates on ("remove MouseClick
+ * name — the unit channel-level operations act on ("delete 'task'
  * everywhere"). occurrenceCount counts stride-2 buffer entries;
  * firstOnset is the earliest occurrence start anywhere (Infinity when the
  * channel has no occurrences) — `detectSuffixPair` uses it to orient

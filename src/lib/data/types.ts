@@ -196,7 +196,7 @@ export interface MigratedJsonFormat {
 export type ParsedData = JsonImportNewFormat & {
   current: FileInputType
   /** True for freshly parsed datasets (not restored workspaces) —
-      gates post-upload flows like the imported-events prune. */
+      gates post-upload notices like the imported-events toast. */
   freshDataset?: boolean
 }
 

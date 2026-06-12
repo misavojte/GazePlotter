@@ -76,6 +76,27 @@
   const oneSided = $derived(
     proposePairsBySuffix(channelNames, startSuffix, endSuffix).oneSided
   )
+  const oneSidedStarts = $derived(
+    oneSided.filter(name => name.endsWith(startSuffix))
+  )
+  const oneSidedEnds = $derived(
+    oneSided.filter(name => name.endsWith(endSuffix))
+  )
+
+  const addManualPairFromOneSided = (start: string, end: string) => {
+    rows = [
+      ...rows,
+      {
+        draft: {
+          name: defaultManualName(start, end),
+          startName: start,
+          endName: end,
+        },
+        origin: 'manual',
+        checked: true,
+      },
+    ]
+  }
   const previews = $derived(
     previewIntervalDrafts(
       engine,
@@ -208,52 +229,91 @@
       stimulus and participant; the original channels stay untouched.
     </p>
 
-    {#if createdIntervals.length > 0}
-      <div class="created-section">
-        <span class="created-label">Created interval channels</span>
-        <div class="created-list">
-          {#each createdIntervals as entry (entry.name)}
-            <div class="created-row">
-              <span class="created-name">{entry.name}</span>
-              <span class="created-count">
-                {entry.occurrenceCount} interval{entry.occurrenceCount === 1
-                  ? ''
-                  : 's'}
-              </span>
-              <button
-                class="remove-button"
-                onclick={() => handleDelete(entry.name)}
-                aria-label={`Delete interval channel ${entry.name}`}
-              >
-                ×
-              </button>
-            </div>
-          {/each}
-        </div>
-      </div>
-    {/if}
-
-    <div class="suffix-section">
-      <span class="suffix-label">Detect pairs by name suffix</span>
-      <div class="suffix-inputs">
+    <div class="modal-section">
+      <span class="section-label">A. Detect pairs by name suffix</span>
+      <div class="suffix-inputs-grid">
         <InputText
           bind:value={startSuffix}
           label="Start suffix"
           placeholder="-0"
-          oninput={regenerateProposals}
         />
         <InputText
           bind:value={endSuffix}
           label="End suffix"
           placeholder="-1"
-          oninput={regenerateProposals}
         />
       </div>
+      <p class="suffix-tip">
+        Note: Event channels must share a common prefix (base) to be automatically paired by suffix.
+      </p>
       {#if oneSided.length > 0}
-        <p class="one-sided">
-          Matched on one side only: {oneSided.join(', ')}
-        </p>
+        <div class="one-sided-section">
+          <p class="one-sided">
+            Matched on one side only: {oneSided.join(', ')}
+          </p>
+          {#if oneSidedStarts.length > 0 && oneSidedEnds.length > 0}
+            <div class="quick-pairs">
+              <span class="quick-pair-label">Quick pair unmatched:</span>
+              {#each oneSidedStarts as start}
+                {#each oneSidedEnds as end}
+                  <button
+                    class="quick-pair-button"
+                    onclick={() => addManualPairFromOneSided(start, end)}
+                  >
+                    {start} → {end}
+                  </button>
+                {/each}
+              {/each}
+            </div>
+          {/if}
+        </div>
       {/if}
+      <div class="action-row">
+        <button
+          class="add-button"
+          onclick={regenerateProposals}
+          disabled={!startSuffix || !endSuffix}
+        >
+          Add
+        </button>
+      </div>
+    </div>
+
+    <hr class="modal-divider" />
+
+    <div class="modal-section">
+      <span class="section-label">B. Add pair manually</span>
+      <div class="inputs-grid manual-inputs-grid">
+        <Select
+          compact
+          placeholder="Start event"
+          options={channelOptions}
+          value={manualStart}
+          onchange={event => (manualStart = event.detail as string)}
+        />
+        <Select
+          compact
+          placeholder="End event"
+          options={channelOptions}
+          value={manualEnd}
+          onchange={event => (manualEnd = event.detail as string)}
+        />
+        <InputText
+          bind:value={manualName}
+          label="New channel name"
+          showLabel={false}
+          placeholder={manualNamePlaceholder || 'Name'}
+        />
+      </div>
+      <div class="action-row">
+        <button
+          class="add-button"
+          disabled={!canAddManual}
+          onclick={addManualPair}
+        >
+          Add
+        </button>
+      </div>
     </div>
 
     {#if rows.length > 0}
@@ -320,48 +380,46 @@
           </div>
         {/each}
       </div>
+
+      <div class="options-row">
+        <Radio
+          legend="Pairs with errors"
+          appearance="compact"
+          direction="row"
+          options={POLICY_OPTIONS}
+          value={policy}
+          onchange={event => (policy = event.detail as ErrorPairPolicy)}
+        />
+      </div>
     {/if}
 
-    <div class="manual-row">
-      <span class="manual-label">Add pair manually</span>
-      <Select
-        compact
-        placeholder="Start event"
-        options={channelOptions}
-        value={manualStart}
-        onchange={event => (manualStart = event.detail as string)}
-      />
-      <Select
-        compact
-        placeholder="End event"
-        options={channelOptions}
-        value={manualEnd}
-        onchange={event => (manualEnd = event.detail as string)}
-      />
-      <InputText
-        bind:value={manualName}
-        label="New channel name"
-        showLabel={false}
-        placeholder={manualNamePlaceholder || 'Name'}
-      />
-      <button
-        class="add-button"
-        disabled={!canAddManual}
-        onclick={addManualPair}
-      >
-        Add
-      </button>
-    </div>
+    <hr class="modal-divider" />
 
-    <div class="options-row">
-      <Radio
-        legend="Pairs with errors"
-        appearance="compact"
-        direction="row"
-        options={POLICY_OPTIONS}
-        value={policy}
-        onchange={event => (policy = event.detail as ErrorPairPolicy)}
-      />
+    <div class="created-section">
+      <span class="created-label">Created interval channels</span>
+      {#if createdIntervals.length > 0}
+        <div class="created-list">
+          {#each createdIntervals as entry (entry.name)}
+            <div class="created-row">
+              <span class="created-name">{entry.name}</span>
+              <span class="created-count">
+                {entry.occurrenceCount} interval{entry.occurrenceCount === 1
+                  ? ''
+                  : 's'}
+              </span>
+              <button
+                class="remove-button"
+                onclick={() => handleDelete(entry.name)}
+                aria-label={`Delete interval channel ${entry.name}`}
+              >
+                ×
+              </button>
+            </div>
+          {/each}
+        </div>
+      {:else}
+        <p class="empty-message">No interval channels created yet.</p>
+      {/if}
     </div>
   {/if}
 </Section>
@@ -430,21 +488,40 @@
     white-space: nowrap;
   }
 
-  .suffix-section {
+  .modal-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
     margin-bottom: 0.75rem;
   }
 
-  .suffix-label {
+  .section-label {
     display: block;
-    font-size: 12px;
+    font-size: 13px;
     font-weight: 600;
     color: var(--c-darkgrey);
-    margin-bottom: 0.25rem;
   }
 
-  .suffix-inputs {
-    display: flex;
+  .inputs-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
     gap: 0.75rem;
+  }
+
+  .suffix-inputs-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 140px));
+    gap: 0.75rem;
+  }
+
+  .manual-inputs-grid {
+    grid-template-columns: 1fr 1fr 1.2fr;
+  }
+
+  .action-row {
+    display: flex;
+    justify-content: flex-start;
+    margin-top: 0.25rem;
   }
 
   .one-sided {
@@ -549,29 +626,15 @@
     color: var(--c-error);
   }
 
-  .manual-row {
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1fr) auto;
-    align-items: center;
-    gap: 0.5rem;
-    margin-bottom: 0.75rem;
-  }
-
-  .manual-label {
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--c-darkgrey);
-    white-space: nowrap;
-  }
-
   .add-button {
     border: 1px solid var(--c-border);
     background: var(--c-lightgrey);
     border-radius: var(--rounded);
-    padding: 0.35rem 0.9rem;
+    padding: 0.35rem 1.4rem;
     font-size: 12.5px;
     font-weight: 600;
     cursor: pointer;
+    transition: all 0.15s ease;
   }
 
   .add-button:hover:not(:disabled) {
@@ -590,5 +653,63 @@
     justify-content: space-between;
     gap: 0.75rem;
     margin-bottom: 1.25rem;
+  }
+
+  .modal-divider {
+    border: 0;
+    border-top: 1px solid var(--c-border);
+    margin: 1.25rem 0;
+  }
+
+  .suffix-tip {
+    margin: 0.35rem 0 0 0;
+    font-size: 11.5px;
+    color: var(--c-darkgrey);
+    line-height: 1.3;
+  }
+
+  .one-sided-section {
+    margin-top: 0.4rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .quick-pairs {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .quick-pair-label {
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--c-darkgrey);
+  }
+
+  .quick-pair-button {
+    background: none;
+    border: 1px dashed var(--c-warning);
+    color: var(--c-warning);
+    border-radius: var(--rounded-md);
+    padding: 0.15rem 0.4rem;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.12s ease-in-out;
+  }
+
+  .quick-pair-button:hover {
+    background: var(--c-warning);
+    color: white;
+    border-style: solid;
+  }
+
+  .empty-message {
+    color: var(--c-darkgrey);
+    font-size: 0.9rem;
+    text-align: center;
+    margin: 1rem 0;
   }
 </style>

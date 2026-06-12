@@ -1,7 +1,8 @@
 /**
- * Selectors backing the post-upload event prune: the cross-stimulus
- * channel summary and the per-stimulus replacement payloads that drop
- * channels by original name.
+ * Event-channel selectors backing the Create-intervals step: the
+ * cross-stimulus channel summary (names, counts, onsets, interval
+ * marker) and the per-stimulus replacement payloads that drop channels
+ * by original name (used to delete derived interval channels).
  */
 
 import { describe, expect, test } from 'vitest'
