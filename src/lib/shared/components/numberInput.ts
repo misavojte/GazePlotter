@@ -1,8 +1,8 @@
-export function isInputNumberValueEmpty(rawValue: string): boolean {
+function isInputNumberValueEmpty(rawValue: string): boolean {
   return rawValue.trim().length === 0
 }
 
-export function parseInputNumberValue(
+function parseInputNumberValue(
   rawValue: string
 ): number | undefined {
   if (isInputNumberValueEmpty(rawValue)) {

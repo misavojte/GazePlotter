@@ -2,7 +2,7 @@ import {
   type SegmentInterpretedDataType,
   type ExtendedInterpretedDataType,
 } from '$lib/data/types'
-import type { DataEngine } from '../DataEngine.svelte'
+import type { DataEngine } from '../dataEngine.svelte'
 import { getNumberOfParticipants } from './baseSelectors'
 import { getHiddenAois } from './aoiSelectors'
 import { getAoiRaw, getCategoryRaw } from '../utils/interpreters'
@@ -38,7 +38,7 @@ export const getStimulusHighestEndTime = (
   )
 }
 
-export const getSegments = (
+const getSegments = (
   engine: DataEngine,
   stimulusId: number,
   participantId: number,
@@ -175,7 +175,7 @@ export const getSegment = (
  * Returns the list of logical (mapped) AOI IDs for a segment.
  * Legacy compatibility helper moved from AoiGroupReader.
  */
-export const getSegmentAoiIds = (
+const getSegmentAoiIds = (
   engine: DataEngine,
   stimulusId: number,
   participantId: number,

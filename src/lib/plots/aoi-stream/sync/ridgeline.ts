@@ -1,4 +1,4 @@
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { getParticipants, getParticipantEndTime } from '$lib/data/engine'
 import { getAoiStreamPlotData } from '../core/transformer'
 import { computeMTop } from '../core/ridgeline'

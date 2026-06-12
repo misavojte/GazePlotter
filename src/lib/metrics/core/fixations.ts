@@ -1,4 +1,4 @@
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { buildAoiSlots } from './aoiSlots'
 import { resolveParams } from './params'
 import { getRecipe } from './defineMetric'
@@ -72,22 +72,3 @@ export function extractFixationSequence(
   return { seq, timestamps, endTimestamps }
 }
 
-/**
- * Evaluate a fixation-windowed metric on a pre-extracted sub-sequence. The
- * instance's recipe must expose a `windowedFinalize` hook (all metrics with
- * `windowUnit: 'fixations'` do). The synthetic accumulator only needs a `.seq`
- * — recipes accumulating additional state on whole-participant scans should
- * still produce a correct scalar from just the sequence, since that's the only
- * input available to the plot here.
- */
-export function computeSequenceScalar(
-  instance: MetricInstance,
-  subSeq: readonly number[],
-): number {
-  const recipe = getRecipe(instance.baseId)
-  if (!recipe || !recipe.windowedFinalize) return Number.NaN
-  const params = resolveParams(recipe.params, instance.params)
-  const acc: { seq: number[] } = { seq: [...subSeq] }
-  const slots = { totalSlots: 0, noAoiSlot: 0, anyFixationSlot: 0 }
-  return recipe.windowedFinalize(acc, 0, subSeq.length, { params, slots })
-}

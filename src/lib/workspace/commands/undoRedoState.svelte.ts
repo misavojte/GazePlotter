@@ -1,5 +1,4 @@
-// src/lib/workspace/commands/store.svelte.ts
-import type { WorkspaceCommandChain } from '$lib/workspace/commands'
+import type { WorkspaceCommandChain } from './types'
 
 /**
  * Maximum number of command chains to keep in the undo stack

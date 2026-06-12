@@ -4,7 +4,7 @@
 // out via Svelte 5 reactivity so components re-render on breakpoint
 // crossing without each one installing its own listener.
 
-export const MOBILE_BREAKPOINT_PX = 768
+const MOBILE_BREAKPOINT_PX = 768
 
 const QUERY = `(max-width: ${MOBILE_BREAKPOINT_PX}px)`
 

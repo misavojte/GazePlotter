@@ -2,7 +2,7 @@
   import { onDestroy } from 'svelte'
   import { getGazePlotterSession } from '$lib/session'
 
-  import { TransitionMatrixPlotFigure } from '$lib/plots/transition-matrix/components'
+  import TransitionMatrixPlotFigure from './TransitionMatrixPlotFigure.svelte'
   import { BasePlot } from '$lib/plots/shared/components'
 
   import { getTransitionView } from '$lib/plots/transition-matrix/core/view'

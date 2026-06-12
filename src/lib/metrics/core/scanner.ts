@@ -1,4 +1,4 @@
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { SEGMENT_STRIDE, SegmentField } from '$lib/data/binary'
 import { buildAoiSlots } from './aoiSlots'
 import { resolveParams } from './params'

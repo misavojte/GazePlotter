@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getGazePlotterSession } from '$lib/session'
-  import { downloadWorkspaceModal, metadataInfoModal } from '$lib/modals/definitions'
+  import { exportWorkspaceModal, metadataInfoModal } from '$lib/modals/definitions'
   import { createRibbonItems } from './config'
   import RibbonItem from './RibbonItem.svelte'
 
@@ -29,7 +29,7 @@
   }
 
   const handleExport = () => {
-    modalState.open(downloadWorkspaceModal, {})
+    modalState.open(exportWorkspaceModal, {})
   }
 
   const handleOpenMetadata = () => {

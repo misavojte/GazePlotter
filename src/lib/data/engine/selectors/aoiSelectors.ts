@@ -3,7 +3,7 @@ import {
   type ExtendedInterpretedDataType,
 } from '$lib/data/types'
 import type { BinaryBufferReader } from '$lib/data/binary'
-import type { DataEngine } from '../DataEngine.svelte'
+import type { DataEngine } from '../dataEngine.svelte'
 import { getAoiRaw } from '../utils/interpreters'
 
 /**
@@ -41,7 +41,7 @@ const getAoiOrderVectorFromData = (
 /**
  * Get all AOIs for a stimulus from a data snapshot
  */
-export const getAoisRawFromData = (
+const getAoisRawFromData = (
   stimulusId: number,
   dataSnapshot: DataType
 ): ExtendedInterpretedDataType[] => {
@@ -50,7 +50,7 @@ export const getAoisRawFromData = (
   )
 }
 
-export const getAoiOrderVector = (
+const getAoiOrderVector = (
   engine: DataEngine,
   stimulusId: number
 ): number[] => {
@@ -125,7 +125,7 @@ export const getAois = (
   return list
 }
 
-export const getAoi = (
+const getAoi = (
   engine: DataEngine,
   stimulusId: number,
   aoiId: number

@@ -1,6 +1,6 @@
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { ErrorService } from '$lib/errors'
-import type { GridState } from '$lib/workspace/grid/store.svelte'
+import type { GridState } from '$lib/workspace/grid/gridState.svelte'
 import type { IngestService } from '$lib/data/ingest'
 import type { ToastState } from '$lib/toaster/toastState.svelte'
 import {

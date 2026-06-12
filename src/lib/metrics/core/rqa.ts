@@ -101,7 +101,7 @@ export function computeRqaWithDuration(
  * recurrent iff they share the same category. Returns null when the sequence
  * is too short to have any recurrence pairs.
  */
-export function computeRqaFromSequence(seq: readonly number[], minLineLength: number): RqaResult | null {
+function computeRqaFromSequence(seq: readonly number[], minLineLength: number): RqaResult | null {
   const N = seq.length
   if (N < 2) return null
   const matrix = buildCategoricalRecurrenceMatrix(seq)
@@ -128,7 +128,7 @@ export function rqaScalar(
 }
 
 /** Build a binary recurrence matrix from a categorical sequence (upper triangle only). */
-export function buildCategoricalRecurrenceMatrix(seq: readonly number[]): Uint8Array {
+function buildCategoricalRecurrenceMatrix(seq: readonly number[]): Uint8Array {
   const N = seq.length
   const matrix = new Uint8Array(N * N)
   for (let i = 0; i < N - 1; i++) {

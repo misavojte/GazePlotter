@@ -27,7 +27,7 @@ import {
   getYAxisLabelOffset,
 } from './axisUtils'
 import { drawCanvasPlaceholder } from './drawCanvasPlaceholder'
-import type { BlockedRegion } from './canvasBlockSelectAction'
+import type { BlockedRegion } from './canvasBlockSelect.action'
 import { FONT_PRIMARY, PLOT_AXIS_TITLE_GAP, PLOT_TICK_LABEL_GAP } from './const'
 import { measureTextHeight, calculateLabelOffset } from '$lib/shared/utils/textUtils'
 

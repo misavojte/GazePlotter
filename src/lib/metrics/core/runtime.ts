@@ -1,4 +1,4 @@
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { type BinaryBufferReader, SEGMENT_STRIDE, SegmentField } from '$lib/data/binary'
 import { getAois, getParticipantEndTime } from '$lib/data/engine'
 import { buildAoiSlots } from './aoiSlots'

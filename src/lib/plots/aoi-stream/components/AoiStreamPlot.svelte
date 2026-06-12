@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte'
 
-  import { AoiStreamPlotFigure } from '$lib/plots/aoi-stream/components'
+  import AoiStreamPlotFigure from './AoiStreamPlotFigure.svelte'
   import { BasePlot } from '$lib/plots/shared/components'
 
   import { computeAoiStreamData } from '../core/view'

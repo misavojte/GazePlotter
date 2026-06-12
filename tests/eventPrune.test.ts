@@ -9,7 +9,7 @@ import {
   buildEventDataWithoutChannels,
   getEventChannelSummary,
 } from '$lib/data/engine/selectors/eventDataSelectors'
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 
 function engineWith(eventData: {
   data: string[][][]

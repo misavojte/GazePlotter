@@ -1,4 +1,4 @@
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { ExtendedInterpretedDataType } from '$lib/data/types'
 import { FIXATION_CATEGORY_ID } from '$lib/data/binary'
 

@@ -1,4 +1,4 @@
-import type { WorkspaceCommand } from '$lib/workspace/commands'
+import type { WorkspaceCommand } from './types'
 
 /**
  * Command Label Registry
@@ -19,7 +19,7 @@ export interface CommandLabels {
 /**
  * Registry mapping workspace command types to their human-readable labels.
  */
-export const WORKSPACE_COMMAND_LABELS: Record<
+const WORKSPACE_COMMAND_LABELS: Record<
   WorkspaceCommand['type'],
   CommandLabels
 > = {

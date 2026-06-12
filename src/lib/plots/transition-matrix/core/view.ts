@@ -1,5 +1,5 @@
 import type { ComponentProps } from 'svelte'
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { CanvasExportProps } from '$lib/plots/shared'
 import type { PlotView } from '$lib/plots/definePlot'
 import { getMetric, resolveInstance } from '$lib/metrics'

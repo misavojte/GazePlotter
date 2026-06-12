@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte'
   import ButtonMajor from '$lib/shared/components/ButtonMajor.svelte'
-  import type { ModalStackEntry } from '$lib/modals/modal.state.svelte'
+  import type { ModalStackEntry } from '$lib/modals/modalState.svelte'
   import { getGazePlotterSession } from '$lib/session'
 
   const { errorService, modalState } = getGazePlotterSession()

@@ -6,7 +6,7 @@
   } from '$lib/data/engine'
   import { getGazePlotterSession } from '$lib/session'
   import { onDestroy } from 'svelte'
-  import { ScarfPlotFigure } from '$lib/plots/scarf/components'
+  import ScarfPlotFigure from './ScarfPlotFigure.svelte'
   import { BasePlot } from '$lib/plots/shared/components'
   import type {
     ScarfPlotItem,

@@ -75,9 +75,6 @@ export function getRecipe(id: string): MetricRecipe<any, any> | undefined {
   return _recipes.get(id)
 }
 
-export function listRecipeIds(): readonly string[] {
-  return _order
-}
 
 export function getMetric(id: string): Metric | undefined {
   const r = _recipes.get(id)

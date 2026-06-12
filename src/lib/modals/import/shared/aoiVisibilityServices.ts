@@ -4,7 +4,7 @@
  * @module services/aoiVisibilityServices
  */
 import { getStimulusHighestEndTime } from '$lib/data/engine'
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 
 type AoiVisibilityResult = {
   multipleAoiNames: string[]
@@ -86,7 +86,7 @@ const processSmiFromXml = (
  * @param highestEndTime end time in ms to close open-ended visibility intervals
  * @returns an array of alternating [start, end, ...] timestamps in ms
  */
-export const processSmiKeyFrames = (
+const processSmiKeyFrames = (
   keyFrames: HTMLCollectionOf<Element>,
   highestEndTime: number
 ): number[] => {

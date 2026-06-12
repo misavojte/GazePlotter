@@ -1,4 +1,4 @@
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotView, PlotViewContext } from '$lib/plots/definePlot'
 import { getParticipants, getParticipantEndTime } from '$lib/data/engine'
 import AoiStreamPlotFigure from '../components/AoiStreamPlotFigure.svelte'

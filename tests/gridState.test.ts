@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { GridState } from '$lib/workspace/grid/store.svelte'
+import { GridState } from '$lib/workspace/grid/gridState.svelte'
 
 describe('GridState', () => {
   it('uses the injected available-column strategy for deterministic placement', () => {

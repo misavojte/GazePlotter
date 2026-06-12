@@ -1,5 +1,5 @@
 import { type ExtendedInterpretedDataType } from '$lib/data/types'
-import type { DataEngine } from '../DataEngine.svelte'
+import type { DataEngine } from '../dataEngine.svelte'
 import { getAoiRaw } from '../utils/interpreters'
 
 /**
@@ -88,7 +88,7 @@ export const updateMultipleAoi = (
 /**
  * Updates hidden AOIs for a stimulus.
  */
-export const updateHiddenAois = (
+const updateHiddenAois = (
   engine: DataEngine,
   stimulusId: number,
   hiddenAois: number[]

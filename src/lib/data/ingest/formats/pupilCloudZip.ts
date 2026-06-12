@@ -59,7 +59,7 @@ export const pupilCloudZipFormat: ArchiveFormatDefinition = {
  * @param namePart - Substring to identify the entry (e.g., 'sections.csv')
  * @throws If no matching file is found or the entry is a directory
  */
-export async function readZipText(
+async function readZipText(
   zip: JSZip,
   namePart: string
 ): Promise<string> {
@@ -83,7 +83,7 @@ export async function readZipText(
  * @param csv - The CSV content as UTF-8 string
  * @returns Immutable Map keyed by composite "recordingId:fixationId" with a Set of AOI names
  */
-export function buildFixationToAoiMap(
+function buildFixationToAoiMap(
   csv: string
 ): ReadonlyMap<string, ReadonlySet<string>> {
   const map = new Map<string, Set<string>>()
@@ -114,7 +114,7 @@ export function buildFixationToAoiMap(
  * @param csv - The CSV content as UTF-8 string
  * @returns Immutable Map keyed by recordingId with recordingName value
  */
-export function buildRecordingToParticipantMap(
+function buildRecordingToParticipantMap(
   csv: string
 ): ReadonlyMap<string, string> {
   const rawMap = new Map<string, string>()
@@ -152,7 +152,7 @@ export function buildRecordingToParticipantMap(
  * @param recordingName - Original recording name with timestamp
  * @returns Recording name with timestamp stripped if pattern matches, otherwise original
  */
-export function stripTimestampFromRecordingName(recordingName: string): string {
+function stripTimestampFromRecordingName(recordingName: string): string {
   // Pattern: _YYYY-MM-DD_HH:MM:SS at the end
   const timestampPattern = /_\d{4}-\d{2}-\d{2}_\d{2}:\d{2}:\d{2}$/
   return recordingName.replace(timestampPattern, '')
@@ -245,7 +245,7 @@ export function addFixationsToSink(params: {
  * @param csv - CSV string (LF or CRLF)
  * @param fn - Callback receiving [columns, isHeader]
  */
-export function forEachCsvRow(
+function forEachCsvRow(
   csv: string,
   fn: (cols: string[], isHeader: boolean) => void
 ): void {

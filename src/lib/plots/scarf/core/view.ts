@@ -1,4 +1,4 @@
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotView } from '$lib/plots/definePlot'
 import { getParticipants } from '$lib/data/engine'
 import ScarfPlotFigure from '../components/ScarfPlotFigure.svelte'

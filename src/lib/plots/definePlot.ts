@@ -1,5 +1,5 @@
 import type { Component } from 'svelte'
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { DataCapabilityRequirements } from '$lib/data/types'
 import type { PlotMetricContract } from '$lib/metrics'
 import type { WorkspaceCommand, WorkspaceCommandChain } from '$lib/workspace/commands'

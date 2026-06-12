@@ -1,4 +1,4 @@
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { RecurrencePlotSettings, RecurrenceData, RecurrenceMethod } from '../types'
 import { collectRecurrenceData } from './collector'
 

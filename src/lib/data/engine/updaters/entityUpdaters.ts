@@ -2,7 +2,7 @@ import {
   type BaseInterpretedDataType,
   type ParticipantsGroup,
 } from '$lib/data/types'
-import type { DataEngine } from '../DataEngine.svelte'
+import type { DataEngine } from '../dataEngine.svelte'
 
 /**
  * Updates multiple participant records and their display order.

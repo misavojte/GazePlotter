@@ -1,5 +1,5 @@
 import { getParticipant, getSegment } from '$lib/data/engine'
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { updateTooltip } from '$lib/tooltip'
 import type { ScarfTooltipData } from '$lib/plots/scarf/types'
 import { FIXATION_CATEGORY_ID } from '$lib/data/binary'

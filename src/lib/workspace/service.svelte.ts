@@ -1,7 +1,7 @@
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { ErrorService } from '$lib/errors'
 import type { ToastState } from '$lib/toaster/toastState.svelte'
-import { GridState } from '$lib/workspace/grid/store.svelte'
+import { GridState } from '$lib/workspace/grid/gridState.svelte'
 import {
   createCommandHandler,
   createRootCommand,

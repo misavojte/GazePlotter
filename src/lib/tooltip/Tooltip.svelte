@@ -12,7 +12,7 @@
   /**
    * Custom animation that decides whether to slide or snap based on distance.
    */
-  export function tooltipMove(
+  function tooltipMove(
     node: HTMLElement,
     { from, to }: { from: DOMRect; to: DOMRect }
   ) {

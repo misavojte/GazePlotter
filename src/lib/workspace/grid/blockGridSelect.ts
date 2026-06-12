@@ -12,7 +12,7 @@ import type { Action } from 'svelte/action'
  *
  * Detection lives in `GridItem.svelte` (click handler + CSS `:has()` rule).
  */
-export const BLOCK_SELECT_ATTR = 'data-block-select'
+const BLOCK_SELECT_ATTR = 'data-block-select'
 
 export const blockGridSelect: Action<HTMLElement> = node => {
   node.setAttribute(BLOCK_SELECT_ATTR, '')

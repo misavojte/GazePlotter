@@ -4,7 +4,7 @@
 
   import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared'
-  import { PlotPlaceholder } from '$lib/plots/shared/components'
+  import PlotPlaceholder from './PlotPlaceholder.svelte'
   import {
     PLOT_HEADER_HEIGHT,
     PLOT_BASE_CHROME_HEIGHT,

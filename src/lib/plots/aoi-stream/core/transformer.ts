@@ -3,7 +3,7 @@ import {
   getParticipantsIds,
   getParticipantEndTime,
 } from '$lib/data/engine'
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
 import { formatMetricLabel } from '$lib/plots/shared/metricLabels'
 import {

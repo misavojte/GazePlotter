@@ -1,10 +1,10 @@
 import { type DataType } from '$lib/data/types'
-import type { DataEngine } from '../DataEngine.svelte'
+import type { DataEngine } from '../dataEngine.svelte'
 
 /**
  * Loads a complete dataset into the engine.
  */
-export const setData = (engine: DataEngine, newData: DataType): void => {
+const setData = (engine: DataEngine, newData: DataType): void => {
   engine.loadDataset(newData)
 }
 

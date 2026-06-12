@@ -1,7 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte'
 
-  import { EvolvingMetricsPlotFigure } from '$lib/plots/evolving-metrics/components'
+  import EvolvingMetricsPlotFigure from './EvolvingMetricsPlotFigure.svelte'
   import { BasePlot } from '$lib/plots/shared/components'
 
   import { computeEvolvingData } from '../core/view'

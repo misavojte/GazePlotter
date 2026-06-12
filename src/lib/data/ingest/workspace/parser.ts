@@ -5,22 +5,7 @@ import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace/grid/const'
 import { runMigrations } from './migrations'
 import { processAndValidateData, validateBasicStructure } from './validator'
 
-/**
- * Processes a JSON file and returns the parsed and validated data.
- * Uses the migration chain to normalize legacy files.
- *
- * @param fileContent - The content of the JSON file as a string
- * @returns The processed DataType object
- * @throws Error if parsing or processing fails
- */
-export function processJsonFile(fileContent: string) {
-  const rawParsed = JSON.parse(fileContent)
-  const modernData = runMigrations(rawParsed)
 
-  validateBasicStructure(modernData.data)
-
-  return processAndValidateData(modernData.data)
-}
 
 /**
  * Type for the result of processing a JSON file

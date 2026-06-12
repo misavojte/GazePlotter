@@ -4,7 +4,7 @@ export const MODAL_Z_INDEX = 1010
 /**
  * Check if the given element is inside a modal.
  */
-export const isElementInModal = (element: HTMLElement): boolean => {
+const isElementInModal = (element: HTMLElement): boolean => {
   return element.closest('[role="dialog"], [role="alertdialog"]') !== null
 }
 

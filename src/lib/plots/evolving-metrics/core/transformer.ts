@@ -23,7 +23,7 @@
  *     wide centred on each `centerMs` (overlapping). Both give gap-free
  *     coverage on the ms axis.
  */
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import {
   getParticipants,
   getParticipantsIds,

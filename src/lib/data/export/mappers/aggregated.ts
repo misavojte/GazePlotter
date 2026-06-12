@@ -4,7 +4,7 @@ import {
   getParticipantsIds,
   getStimulus,
 } from '$lib/data/engine'
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { query, type MetricInstance, type Scope } from '$lib/metrics'
 import {
   escapeCsvField,

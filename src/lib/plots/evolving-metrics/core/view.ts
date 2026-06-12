@@ -1,4 +1,4 @@
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotView } from '$lib/plots/definePlot'
 import { getParticipants, getParticipantEndTime } from '$lib/data/engine'
 import EvolvingMetricsPlotFigure from '../components/EvolvingMetricsPlotFigure.svelte'

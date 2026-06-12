@@ -33,10 +33,10 @@ import type {
   FileMetadataSuccessType,
   FileMetadataType,
 } from './types'
-import type { ModalState } from '$lib/modals/modal.state.svelte'
+import type { ModalState } from '$lib/modals/modalState.svelte'
 import type { ToastState } from '$lib/toaster/toastState.svelte'
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
-import type { GridState } from '$lib/workspace/grid/store.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import type { GridState } from '$lib/workspace/grid/gridState.svelte'
 import type { GridItemSnapshot } from '$lib/workspace/grid/types'
 
 export type IngestStatus = 'loading' | 'ready' | 'error'

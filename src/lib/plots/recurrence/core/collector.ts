@@ -1,4 +1,4 @@
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { RecurrenceData, RecurrenceMethod, FixationRecord } from '../types'
 import { computeRqa, computeRqaWithDuration } from '$lib/metrics/core/rqa'
 import { FIXATION_CATEGORY_ID } from '$lib/data/binary'

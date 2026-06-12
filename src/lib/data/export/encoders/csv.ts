@@ -48,7 +48,7 @@ export function escapeCsvField(
  * Knows NOTHING about Gaze data or application state.
  */
 
-export function encodeCsvRow(fields: unknown[], delimiter: string): string {
+function encodeCsvRow(fields: unknown[], delimiter: string): string {
   return fields.map(f => escapeCsvField(String(f), delimiter)).join(delimiter)
 }
 

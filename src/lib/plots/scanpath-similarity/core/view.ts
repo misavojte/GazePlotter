@@ -1,4 +1,4 @@
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotView } from '$lib/plots/definePlot'
 import { getMetric, resolveInstance } from '$lib/metrics'
 import SimilarityMatrixFigure from '../components/SimilarityMatrixFigure.svelte'

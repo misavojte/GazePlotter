@@ -1,11 +1,11 @@
 import { getContext, hasContext, setContext } from 'svelte'
-import { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { ExportService } from '$lib/data/export'
 import { ErrorService } from '$lib/errors'
 import { IngestService } from '$lib/data/ingest'
-import { ModalState } from '$lib/modals/modal.state.svelte'
+import { ModalState } from '$lib/modals/modalState.svelte'
 import { ToastState } from '$lib/toaster/toastState.svelte'
-import { GridState } from '$lib/workspace/grid/store.svelte'
+import { GridState } from '$lib/workspace/grid/gridState.svelte'
 import { WorkspaceService } from '$lib/workspace/service.svelte'
 
 const GAZEPLOTTER_SESSION_CONTEXT = Symbol.for('gazeplotter-session')

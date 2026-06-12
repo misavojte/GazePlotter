@@ -2,7 +2,7 @@ import {
   type ParticipantsGroup,
   type BaseInterpretedDataType,
 } from '$lib/data/types'
-import type { DataEngine } from '../DataEngine.svelte'
+import type { DataEngine } from '../dataEngine.svelte'
 import {
   getParticipant,
   getAllParticipants,
@@ -10,7 +10,7 @@ import {
 } from './entitySelectors'
 import { getNumberOfSegments } from './segmentSelectors'
 
-export const getNonEmptyParticipants = (
+const getNonEmptyParticipants = (
   engine: DataEngine,
   stimulusId: number
 ): BaseInterpretedDataType[] => {
@@ -45,7 +45,7 @@ export const getParticipantsGroups = (
   return [...defaultGroups, ...meta.participantsGroups]
 }
 
-export const getParticipantsGroup = (
+const getParticipantsGroup = (
   engine: DataEngine,
   groupId: number
 ): ParticipantsGroup => {

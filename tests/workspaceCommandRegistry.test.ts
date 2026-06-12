@@ -7,7 +7,7 @@ import {
   createScarfGridItem,
 } from './helpers/workspaceCommandFixtures'
 import { createCommandHandler } from '$lib/workspace/commands/handler'
-import { UndoRedoStateStore } from '$lib/workspace/commands/store.svelte'
+import { UndoRedoStateStore } from '$lib/workspace/commands/undoRedoState.svelte'
 
 const engineMocks = vi.hoisted(() => ({
   updateMultipleAoi: vi.fn(),

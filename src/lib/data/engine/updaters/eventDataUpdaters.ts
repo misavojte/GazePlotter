@@ -1,5 +1,5 @@
 import type { ExtendedInterpretedDataType } from '$lib/data/types'
-import type { DataEngine } from '../DataEngine.svelte'
+import type { DataEngine } from '../dataEngine.svelte'
 
 /**
  * Updates event channels and their event buffers for a stimulus.

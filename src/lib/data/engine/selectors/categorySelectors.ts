@@ -1,5 +1,5 @@
 import type { ExtendedInterpretedDataType } from '$lib/data/types'
-import type { DataEngine } from '../DataEngine.svelte'
+import type { DataEngine } from '../dataEngine.svelte'
 import { getCategoryRaw } from '../utils/interpreters'
 
 export const getHiddenCategories = (engine: DataEngine): number[] => {

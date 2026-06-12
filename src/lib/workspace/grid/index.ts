@@ -1,4 +1,4 @@
-export { GridState } from './store.svelte'
+export { GridState } from './gridState.svelte'
 
 export * from './types'
 export * from './sizing'

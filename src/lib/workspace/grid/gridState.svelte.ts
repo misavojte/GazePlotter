@@ -1,4 +1,4 @@
-// src/lib/workspace/grid/store.svelte.ts
+// src/lib/workspace/grid/gridState.svelte.ts
 import type {
   GridItemMap,
   AllGridTypes,

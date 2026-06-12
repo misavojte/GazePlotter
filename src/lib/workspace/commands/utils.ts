@@ -6,7 +6,7 @@ import type { GridItemBase, PlotType } from '$lib/workspace'
  * Each command chain represents a sequence of related commands (e.g., original command + collision resolution commands).
  */
 let chainIdCounter = 0
-export function generateChainId(): number {
+function generateChainId(): number {
   return ++chainIdCounter
 }
 

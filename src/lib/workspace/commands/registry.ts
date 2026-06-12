@@ -1,9 +1,9 @@
 import type {
   WorkspaceCommand,
   WorkspaceCommandChain,
-} from '$lib/workspace/commands'
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
-import { createChildCommand } from '$lib/workspace/commands'
+} from './types'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import { createChildCommand } from './utils'
 import { resolvePlotDefinition } from '$lib/plots/registry'
 import { GridState } from '$lib/workspace/grid'
 import {

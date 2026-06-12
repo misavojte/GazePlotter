@@ -42,7 +42,7 @@ export function rgbToHex(r: number, g: number, b: number): string {
 /**
  * Parses RGB string to components
  */
-export function parseRgb(
+function parseRgb(
   rgb: string
 ): { r: number; g: number; b: number; a: number } | null {
   const rgbRegex = /rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/
@@ -63,7 +63,7 @@ export function parseRgb(
 /**
  * Parses RGBA string to components
  */
-export function parseRgba(
+function parseRgba(
   rgba: string
 ): { r: number; g: number; b: number; a: number } | null {
   const rgbaRegex =

@@ -11,7 +11,7 @@
   import Section from '$lib/modals/shared/components/Section.svelte'
   import { getGazePlotterSession } from '$lib/session'
   import type { AllGridTypes } from '$lib/workspace/grid'
-  import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+  import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
   import type { PlotExportProps } from './types'
 
   interface Props {

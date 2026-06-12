@@ -30,7 +30,7 @@ export function isAreaAvailable(
   )
 }
 
-export function findCollisions(
+function findCollisions(
   x: number,
   y: number,
   w: number,
@@ -83,72 +83,6 @@ export function findOptimalPosition(
     }
   }
   return { x: 0, y: maxY }
-}
-
-export function findBestConflictResolutionPosition(
-  item: GridItemPosition,
-  priorityItem: GridItemPosition,
-  positions: GridItemPosition[],
-  availableColumns: number,
-  excludeId: number
-): { x: number; y: number } | null {
-  const { x: itemX, y: itemY, w: itemW, h: itemH } = item
-  const {
-    x: priorityX,
-    y: priorityY,
-    w: priorityW,
-    h: priorityH,
-  } = priorityItem
-
-  const potentialPositions = [
-    {
-      x: priorityX + priorityW,
-      y: itemY,
-      distance: Math.abs(priorityX + priorityW - itemX),
-    },
-    {
-      x: priorityX - itemW,
-      y: itemY,
-      distance: Math.abs(priorityX - itemW - itemX),
-    },
-    {
-      x: itemX,
-      y: priorityY + priorityH,
-      distance: Math.abs(priorityY + priorityH - itemY),
-    },
-    {
-      x: itemX,
-      y: priorityY - itemH,
-      distance: Math.abs(priorityY - itemH - itemY),
-    },
-    {
-      x: priorityX + priorityW,
-      y: priorityY,
-      distance:
-        Math.abs(priorityX + priorityW - itemX) + Math.abs(priorityY - itemY),
-    },
-    {
-      x: priorityX - itemW,
-      y: priorityY,
-      distance:
-        Math.abs(priorityX - itemW - itemX) + Math.abs(priorityY - itemY),
-    },
-  ]
-
-  const validPositions = potentialPositions.filter(
-    pos =>
-      pos.x >= 0 &&
-      pos.y >= 0 &&
-      isAreaAvailable(pos.x, pos.y, itemW, itemH, positions, excludeId)
-  )
-
-  if (validPositions.length === 0) {
-    return findOptimalPosition(itemW, itemH, positions, availableColumns)
-  }
-
-  return validPositions.reduce((best, current) =>
-    current.distance < best.distance ? current : best
-  )
 }
 
 type ResolutionCommand = {

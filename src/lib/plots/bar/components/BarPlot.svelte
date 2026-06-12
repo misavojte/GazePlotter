@@ -2,7 +2,7 @@
   import { onDestroy } from 'svelte'
   import { getGazePlotterSession } from '$lib/session'
 
-  import { BarPlotFigure } from '$lib/plots/bar/components'
+  import BarPlotFigure from './BarPlotFigure.svelte'
   import { BasePlot } from '$lib/plots/shared/components'
 
   import { getBarView } from '$lib/plots/bar/core/view'

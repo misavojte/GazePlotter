@@ -12,7 +12,7 @@ import {
   generateScanpathSimilarityCsv,
 } from './mappers/scanpath-similarity'
 import { generateWorkspaceJson } from './mappers/workspace'
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { AllGridTypes } from '$lib/workspace'
 import type { FileMetadataType } from '$lib/data/ingest/types'
 

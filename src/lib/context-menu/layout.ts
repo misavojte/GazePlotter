@@ -7,7 +7,7 @@ import {
 import type { MenuItem } from './types'
 import type { Dimensions } from '$lib/shared/placement'
 
-export const estimateMenuHeight = (
+const estimateMenuHeight = (
   items: MenuItem[] | undefined,
   hasContent: boolean
 ): number => {

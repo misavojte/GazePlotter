@@ -1,5 +1,5 @@
 export { downloadPlotModal } from './download-plot/definition'
-export { downloadWorkspaceModal } from './workspace-export/definition'
+export { exportWorkspaceModal } from './export-workspace/definition'
 export { exportAggregatedDataModal } from './export-aggregated-data/definition'
 export { exportScanpathSimilarityModal } from './export-scanpath-similarity/definition'
 export { exportScangraphModal } from './export-scangraph/definition'
