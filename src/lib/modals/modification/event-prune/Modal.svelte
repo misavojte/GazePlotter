@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Section, ModalButtons } from '$lib/modals'
+  import { createEventIntervalsModal } from '$lib/modals/definitions'
   import { getGazePlotterSession } from '$lib/session'
   import {
     buildEventDataWithoutChannels,
@@ -13,9 +14,10 @@
   let { source }: Props = $props()
   const { engine, modalState, workspace } = getGazePlotterSession()
 
-  const summary = getEventChannelSummary(engine)
+  const initialSummary = getEventChannelSummary(engine)
+  let summary = $state(initialSummary)
   // Checked = keep. Default everything kept; pruning is opt-out.
-  let kept: boolean[] = $state(summary.map(() => true))
+  let kept: boolean[] = $state(initialSummary.map(() => true))
 
   const removedCount = $derived(kept.filter(k => !k).length)
 
@@ -23,14 +25,23 @@
     kept = summary.map(() => value)
   }
 
+  // The pushed Create-intervals step appends derived channels and hides
+  // their sources — re-pull the list, preserving keep/remove choices by
+  // name (new channels default to kept).
+  const refreshSummary = () => {
+    const keptByName = new Map(summary.map((entry, i) => [entry.name, kept[i]]))
+    summary = getEventChannelSummary(engine)
+    kept = summary.map(entry => keptByName.get(entry.name) ?? true)
+  }
+
   const handleApply = () => {
     const namesToRemove = new Set(
       summary.filter((_, i) => !kept[i]).map(entry => entry.name)
     )
     if (namesToRemove.size > 0) {
-      // One undoable updateEventData command per affected stimulus.
-      // (Hidden-channel lists are empty right after an import, so no
-      // stale hidden ids can survive the replacement.)
+      // One undoable updateEventData command per affected stimulus; the
+      // payload carries the hidden ids remapped to the new indexing, so
+      // channels hidden by Create intervals stay hidden after pruning.
       for (const update of buildEventDataWithoutChannels(
         engine,
         namesToRemove
@@ -39,7 +50,8 @@
           update.stimulusId,
           update.channelDefs,
           update.eventBuffers,
-          source
+          source,
+          update.hiddenChannels
         )
       }
     }
@@ -51,7 +63,8 @@
   <p class="description">
     These event channels were imported with your data. Uncheck any you do
     not want to keep — you can also rename, recolor, or hide channels later
-    via Event customization.
+    via Event customization, or merge start/end markers into duration
+    events.
   </p>
 
   <div class="toggle-row">
@@ -87,6 +100,14 @@
       label: removedCount > 0 ? `Remove ${removedCount} selected` : 'Keep all',
       onclick: handleApply,
       variant: 'primary',
+    },
+    {
+      label: 'Create intervals…',
+      onclick: () => {
+        modalState.push(createEventIntervalsModal, { source }).then(created => {
+          if (created) refreshSummary()
+        })
+      },
     },
     { label: 'Cancel', onclick: () => modalState.close() },
   ]}

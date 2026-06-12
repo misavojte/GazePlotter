@@ -1,5 +1,6 @@
 export { aoiModificationModal } from './aoi-modification/definition'
 export { eventChannelModificationModal } from './event-channel-modification/definition'
+export { createEventIntervalsModal } from './event-channel-modification/definition-steps'
 export { eventPruneModal } from './event-prune/definition'
 export { metricLibraryModal } from './metric-library/definition'
 export { pickCategoryModal, pickMetricModal, configureMetricModal } from './metric-library/definition-steps'

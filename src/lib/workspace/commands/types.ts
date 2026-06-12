@@ -50,6 +50,12 @@ export interface UpdateEventDataCommand extends BaseCommandInterface {
   stimulusId: number
   channelDefs: string[][]
   eventBuffers: number[][][]
+  /** Hidden ids valid for the NEW channel indexing (omit to clear: the
+      engine resets the hidden list whenever defs are replaced). */
+  hiddenChannels?: number[]
+  /** Display order for the NEW defs (omit for identity). Inverse commands
+      carry it so undo restores a custom channel order. */
+  orderVector?: number[]
 }
 
 export interface UpdateEventChannelsCommand extends BaseCommandInterface {

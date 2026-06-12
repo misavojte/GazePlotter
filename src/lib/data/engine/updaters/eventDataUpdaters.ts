@@ -9,9 +9,17 @@ export const updateEventData = (
   engine: DataEngine,
   stimulusId: number,
   channelDefs: string[][],
-  eventBuffers: number[][][]
+  eventBuffers: number[][][],
+  orderVector?: number[]
 ): void => {
-  engine.updateEventDataBatch([{ stimulusId, channelDefs, eventBuffers }])
+  engine.updateEventDataBatch([
+    {
+      stimulusId,
+      channelDefs,
+      eventBuffers,
+      ...(orderVector !== undefined ? { orderVector } : {}),
+    },
+  ])
 }
 
 /**

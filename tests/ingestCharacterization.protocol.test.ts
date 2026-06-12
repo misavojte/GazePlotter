@@ -123,6 +123,46 @@ describe('worker protocol', () => {
     expect(done!.message.result.data.stimuli.data).toEqual([['geostul_snap']])
   })
 
+  it('tobii with custom events: a single prompt suffices and events import as discrete', async () => {
+    const tsv = [
+      [
+        'Recording timestamp',
+        'Sensor',
+        'Participant name',
+        'Recording name',
+        'Event',
+        'Eye movement type',
+        'Eye movement type index',
+      ].join('\t'),
+      ['1000', '', 'P1', 'R1', 'Stim1 IntervalStart', '', ''].join('\t'),
+      ['2000', 'Eye Tracker', 'P1', 'R1', '', 'Fixation', '1'].join('\t'),
+      ['3000', '', 'P1', 'R1', 'Click', '', ''].join('\t'),
+      ['6000', 'Eye Tracker', 'P1', 'R1', '', 'Fixation', '1'].join('\t'),
+      ['9000', '', 'P1', 'R1', 'Stim1 IntervalEnd', '', ''].join('\t'),
+    ].join('\n')
+
+    await send('file-names', ['tobii-events.tsv'])
+    const processing = send('buffer', toBuffer(tsv))
+
+    await vi.waitFor(() => {
+      expect(posted.some(p => p.message.type === 'prompt')).toBe(true)
+    })
+    await send(
+      'prompt-response',
+      '{"stimulusStartSuffix":"IntervalStart","stimulusEndSuffix":"IntervalEnd"}'
+    )
+    await processing
+
+    const done = posted.find(p => p.message.type === 'done')
+    expect(done).toBeDefined()
+    // Exactly ONE prompt — event extraction never prompts.
+    expect(posted.filter(p => p.message.type === 'prompt')).toHaveLength(1)
+    // The event landed as a discrete (duration 0) stride-2 entry.
+    const ed = done!.message.result.data.eventData
+    expect(ed.data[0].map((def: string[]) => def[0])).toEqual(['Click'])
+    expect(ed.events[0][0][0]).toEqual([2, 0])
+  })
+
   it("unclassifiable content surfaces as a 'fail' message with the original error", async () => {
     await send('file-names', ['mystery.bin'])
     await send('buffer', toBuffer('hello world\nfoo bar'))

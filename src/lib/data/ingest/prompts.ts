@@ -23,6 +23,6 @@ export const INGEST_PROMPTS: Record<string, IngestPromptSpec> = {
     modal: tobiiParsingInputModal,
     cancelValue: '',
     cancelToast:
-      'User input was not provided. The file will be processed as Tobii without events',
+      'User input was not provided. The file will be processed with media-column stimulus parsing',
   },
 }

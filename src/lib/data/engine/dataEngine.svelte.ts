@@ -203,6 +203,7 @@ export class DataEngine {
       stimulusId: number
       channelDefs: string[][]
       eventBuffers: number[][][]
+      orderVector?: number[]
     }[]
   ) {
     const meta = this.metadata
@@ -210,7 +211,7 @@ export class DataEngine {
 
     const ed = meta.eventData
     for (let i = 0; i < updates.length; i++) {
-      const { stimulusId, channelDefs, eventBuffers } = updates[i]
+      const { stimulusId, channelDefs, eventBuffers, orderVector } = updates[i]
       while (ed.data.length <= stimulusId) {
         ed.data.push([])
         ed.events.push([])
@@ -218,12 +219,20 @@ export class DataEngine {
       ed.data[stimulusId] = channelDefs
       ed.events[stimulusId] = eventBuffers
 
+      // Replacing the defs invalidates every channel id referring into
+      // them, so the engine owns the reset: order falls back to identity
+      // and the hidden list is cleared. Callers that want either to
+      // survive must supply ids valid for the NEW defs.
       if (!ed.orderVector) ed.orderVector = []
       while (ed.orderVector.length <= stimulusId) ed.orderVector.push([])
-      ed.orderVector[stimulusId] = channelDefs.map((_, idx) => idx)
+      ed.orderVector[stimulusId] =
+        orderVector && orderVector.length === channelDefs.length
+          ? [...orderVector]
+          : channelDefs.map((_, idx) => idx)
 
       if (!ed.hiddenChannels) ed.hiddenChannels = []
       while (ed.hiddenChannels.length <= stimulusId) ed.hiddenChannels.push([])
+      ed.hiddenChannels[stimulusId] = []
     }
 
     meta.capabilities.event = ed.events.some(channels =>
@@ -249,7 +258,14 @@ export class DataEngine {
         const ch = channels[j]
         const id = ch.id
         if (id >= 0 && id < stimulusData.length) {
-          stimulusData[id] = [ch.originalName, ch.displayedName, ch.color]
+          // Preserve anything beyond [original, displayed, color] — e.g.
+          // the derived-interval marker at index 3.
+          stimulusData[id] = [
+            ch.originalName,
+            ch.displayedName,
+            ch.color,
+            ...stimulusData[id].slice(3),
+          ]
         }
       }
 

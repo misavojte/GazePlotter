@@ -7,6 +7,7 @@ import {
   createEmptyMockMetadata,
   createMockEngine,
   createMockGridStore,
+  createMockMetadata,
   setMockEngineMetadata,
   type MockEngine,
 } from './helpers/workspaceCommandFixtures'
@@ -111,6 +112,51 @@ describe('workspaceCommandReverse metadata commands', () => {
     },
   ])('reverses $label using the current metadata snapshot', ({ command, expected }) => {
     expect(reverseCommand(command)).toEqual(expected)
+  })
+
+  it('reverses updateEventData restoring defs, hidden ids, and order', () => {
+    setMockEngineMetadata(
+      mockEngine,
+      createMockMetadata({
+        eventData: {
+          data: [
+            [
+              ['X', 'X', '#111111'],
+              ['Y', 'Y', '#222222'],
+            ],
+          ],
+          events: [[[[10, 0]], [[20, 0]]]],
+          orderVector: [[1, 0]],
+          hiddenChannels: [[1]],
+        },
+      })
+    )
+
+    // Applying updateEventData resets the hidden list and order vector,
+    // so the inverse must always carry both — even when the forward
+    // command (here: a prune-style payload) set neither.
+    expect(
+      reverseCommand(
+        createChainedCommand({
+          type: 'updateEventData',
+          stimulusId: 0,
+          channelDefs: [],
+          eventBuffers: [],
+        })
+      )
+    ).toEqual(
+      createChainedCommand({
+        type: 'updateEventData',
+        stimulusId: 0,
+        channelDefs: [
+          ['X', 'X', '#111111'],
+          ['Y', 'Y', '#222222'],
+        ],
+        eventBuffers: [[[10, 0]], [[20, 0]]],
+        hiddenChannels: [1],
+        orderVector: [1, 0],
+      })
+    )
   })
 
   it('returns an empty AOI list when the target stimulus has no AOIs', () => {

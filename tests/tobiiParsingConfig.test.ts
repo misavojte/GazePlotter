@@ -19,8 +19,6 @@ describe('parseTobiiUserInput', () => {
     const config = {
       stimulusStartSuffix: 'IntervalStart',
       stimulusEndSuffix: 'IntervalEnd',
-      eventStartSuffix: ' start',
-      eventEndSuffix: ' end',
     }
     expect(parseTobiiUserInput(serializeTobiiConfig(config))).toEqual(config)
   })
@@ -45,7 +43,10 @@ describe('serializeTobiiConfig', () => {
 
   test('drops empty-string and undefined values', () => {
     expect(
-      serializeTobiiConfig({ stimulusStartSuffix: '', eventEndSuffix: undefined })
+      serializeTobiiConfig({
+        stimulusStartSuffix: '',
+        stimulusEndSuffix: undefined,
+      })
     ).toBe('')
   })
 
@@ -58,7 +59,6 @@ describe('serializeTobiiConfig', () => {
 describe('hasEventDrivenStimuli', () => {
   test('false for empty config, true for interval and web modes', () => {
     expect(hasEventDrivenStimuli({})).toBe(false)
-    expect(hasEventDrivenStimuli({ eventEndSuffix: ' end' })).toBe(false)
     expect(hasEventDrivenStimuli({ stimulusWeb: true })).toBe(true)
     expect(
       hasEventDrivenStimuli({

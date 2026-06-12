@@ -163,8 +163,12 @@ export function createWorkspaceCommandRegistry(
     },
 
     updateEventData: command => {
-      const { stimulusId, channelDefs, eventBuffers } = command
-      updateEventData(engine, stimulusId, channelDefs, eventBuffers)
+      const { stimulusId, channelDefs, eventBuffers, hiddenChannels, orderVector } =
+        command
+      updateEventData(engine, stimulusId, channelDefs, eventBuffers, orderVector)
+      if (hiddenChannels !== undefined) {
+        updateHiddenEventChannels(engine, stimulusId, hiddenChannels)
+      }
       gridStore.triggerRedraw()
     },
 
@@ -330,6 +334,11 @@ export function createWorkspaceCommandRegistry(
       const ed = dataMeta.eventData
       const currentDefs = ed.data[cmd.stimulusId] ?? []
       const currentBuffers = ed.events[cmd.stimulusId] ?? []
+      // Applying the command resets the hidden list and the order vector
+      // (the engine owns that invariant), so the inverse must always carry
+      // both — not only when the forward command set them.
+      const hidden = ed.hiddenChannels?.[cmd.stimulusId] ?? []
+      const order = ed.orderVector?.[cmd.stimulusId] ?? []
       return withMeta(
         {
           type: 'updateEventData',
@@ -338,6 +347,8 @@ export function createWorkspaceCommandRegistry(
           eventBuffers: currentBuffers.map(ch =>
             ch.map(p => [...p])
           ),
+          hiddenChannels: [...hidden],
+          ...(order.length > 0 ? { orderVector: [...order] } : {}),
         },
         meta
       )

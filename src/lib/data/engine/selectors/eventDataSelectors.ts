@@ -1,5 +1,6 @@
 import type { ExtendedInterpretedDataType } from '$lib/data/types'
 import type { DataEngine } from '../dataEngine.svelte'
+import { INTERVAL_CHANNEL_MARKER } from '../eventIntervals'
 
 /**
  * Returns true if the stimulus has any event channels defined.
@@ -100,17 +101,32 @@ export const getVisibleEventChannels = (
 /**
  * Aggregated view of event channels across ALL stimuli, keyed by original
  * name — the unit the post-upload prune operates on ("remove MouseClick
- * everywhere"). occurrenceCount counts stride-2 buffer entries.
+ * everywhere"). occurrenceCount counts stride-2 buffer entries;
+ * firstOnset is the earliest occurrence start anywhere (Infinity when the
+ * channel has no occurrences) — `detectSuffixPair` uses it to orient
+ * start/end suffix pairs. isInterval flags channels derived by the
+ * Create-intervals step (marker at def index 3).
  */
 export const getEventChannelSummary = (
   engine: DataEngine
-): { name: string; stimulusCount: number; occurrenceCount: number }[] => {
+): {
+  name: string
+  stimulusCount: number
+  occurrenceCount: number
+  firstOnset: number
+  isInterval: boolean
+}[] => {
   const meta = engine.metadata
   if (!meta) return []
   const ed = meta.eventData
   const byName = new Map<
     string,
-    { stimulusCount: number; occurrenceCount: number }
+    {
+      stimulusCount: number
+      occurrenceCount: number
+      firstOnset: number
+      isInterval: boolean
+    }
   >()
   for (let s = 0; s < ed.data.length; s++) {
     const defs = ed.data[s] ?? []
@@ -118,12 +134,21 @@ export const getEventChannelSummary = (
       const name = defs[c][0]
       let entry = byName.get(name)
       if (!entry) {
-        entry = { stimulusCount: 0, occurrenceCount: 0 }
+        entry = {
+          stimulusCount: 0,
+          occurrenceCount: 0,
+          firstOnset: Infinity,
+          isInterval: false,
+        }
         byName.set(name, entry)
       }
       entry.stimulusCount++
+      if (defs[c][3] === INTERVAL_CHANNEL_MARKER) entry.isInterval = true
       for (const buffer of ed.events[s]?.[c] ?? []) {
         entry.occurrenceCount += (buffer?.length ?? 0) / 2
+        for (let i = 0; i + 1 < (buffer?.length ?? 0); i += 2) {
+          if (buffer[i] < entry.firstOnset) entry.firstOnset = buffer[i]
+        }
       }
     }
   }
@@ -133,12 +158,19 @@ export const getEventChannelSummary = (
 /**
  * Per-stimulus replacement payloads (for `updateEventData` commands) that
  * drop every channel whose original name is in `namesToRemove`. Stimuli
- * with no matching channel are omitted.
+ * with no matching channel are omitted. `hiddenChannels` carries the
+ * stimulus's hidden set remapped to the new ids — surviving channels stay
+ * hidden across the re-indexing.
  */
 export const buildEventDataWithoutChannels = (
   engine: DataEngine,
   namesToRemove: ReadonlySet<string>
-): { stimulusId: number; channelDefs: string[][]; eventBuffers: number[][][] }[] => {
+): {
+  stimulusId: number
+  channelDefs: string[][]
+  eventBuffers: number[][][]
+  hiddenChannels: number[]
+}[] => {
   const meta = engine.metadata
   if (!meta) return []
   const ed = meta.eventData
@@ -146,6 +178,7 @@ export const buildEventDataWithoutChannels = (
     stimulusId: number
     channelDefs: string[][]
     eventBuffers: number[][][]
+    hiddenChannels: number[]
   }[] = []
   for (let s = 0; s < ed.data.length; s++) {
     const defs = ed.data[s]
@@ -154,12 +187,17 @@ export const buildEventDataWithoutChannels = (
       .map((_, i) => i)
       .filter(i => !namesToRemove.has(defs[i][0]))
     if (keepIds.length === defs.length) continue
+    const newIdByOldId = new Map(keepIds.map((oldId, newId) => [oldId, newId]))
     updates.push({
       stimulusId: s,
       channelDefs: keepIds.map(i => [...defs[i]]),
       eventBuffers: keepIds.map(i =>
         (ed.events[s]?.[i] ?? []).map(buffer => [...buffer])
       ),
+      hiddenChannels: (ed.hiddenChannels?.[s] ?? [])
+        .map(id => newIdByOldId.get(id))
+        .filter((id): id is number => id !== undefined)
+        .sort((a, b) => a - b),
     })
   }
   return updates

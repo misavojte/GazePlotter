@@ -67,7 +67,8 @@ export interface EventDataType {
   /**
    * Per-stimulus channel definitions.
    * [stimulusId][channelId][fieldIndex]
-   * Fields: 0=originalName, 1=displayedName, 2=color
+   * Fields: 0=originalName, 1=displayedName, 2=color,
+   * 3=optional INTERVAL_CHANNEL_MARKER on derived interval channels.
    *
    * Same shape as AoiDataType.data. displayedName drives grouping.
    */

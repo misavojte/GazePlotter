@@ -1,6 +1,7 @@
 <script lang="ts">
   import Select from '$lib/shared/components/Select.svelte'
   import { Section, ModalButtons } from '$lib/modals'
+  import { createEventIntervalsModal } from './definition-steps'
   import { getGazePlotterSession } from '$lib/session'
   import { getEventChannels, getHiddenEventChannels } from '$lib/data/engine'
   import { getStimuliOptions } from '$lib/plots/shared'
@@ -68,20 +69,35 @@
     }}
   />
 
-  {#if editor.groups.length > 0}
-    <ModalButtons
-      buttons={[
-        {
-          label: 'Apply',
-          onclick: () => {
-            if (workspace.updateEventChannels(editor.getCleanedItems(), parseInt(selectedStimulus), source, editor.getCleanedHiddenIds())) {
-              modalState.close()
-            }
-          },
-          variant: 'primary',
+  <ModalButtons
+    buttons={[
+      ...(editor.groups.length > 0
+        ? [
+            {
+              label: 'Apply',
+              onclick: () => {
+                if (workspace.updateEventChannels(editor.getCleanedItems(), parseInt(selectedStimulus), source, editor.getCleanedHiddenIds())) {
+                  modalState.close()
+                }
+              },
+              variant: 'primary' as const,
+            },
+          ]
+        : []),
+      {
+        label: 'Create intervals…',
+        onclick: () => {
+          // Re-pull only when the step actually created intervals (it
+          // resolves `true`) — a plain Back must not discard the user's
+          // unapplied edits.
+          modalState
+            .push(createEventIntervalsModal, { source })
+            .then(created => {
+              if (created) editor.refresh()
+            })
         },
-        { label: 'Cancel', onclick: () => modalState.close() },
-      ]}
-    />
-  {/if}
+      },
+      { label: 'Cancel', onclick: () => modalState.close() },
+    ]}
+  />
 </Section>

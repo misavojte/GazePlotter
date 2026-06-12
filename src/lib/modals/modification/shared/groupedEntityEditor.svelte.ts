@@ -78,6 +78,15 @@ export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
     lastHiddenSnapshot = [...nextHidden]
   }
 
+  /** Re-pull the current stimulus, discarding unapplied edits — for when
+      a pushed step (e.g. Create intervals) changed the data underneath. */
+  function refresh() {
+    items = deepCopy(config.getItems(lastStimulusId))
+    const nextHidden = config.getHidden(lastStimulusId)
+    hiddenIds = [...nextHidden]
+    lastHiddenSnapshot = [...nextHidden]
+  }
+
   function toggleActive(group: EntityGroup, active: boolean) {
     const affectedIds = group.members.map(m => m.id)
     if (active) {
@@ -194,6 +203,7 @@ export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
       return hiddenIds
     },
     syncStimulus,
+    refresh,
     toggleActive,
     handleColorInput,
     handleNameInput,

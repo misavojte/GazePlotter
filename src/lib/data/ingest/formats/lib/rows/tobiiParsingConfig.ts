@@ -6,9 +6,11 @@
  * value that fails to parse is a programming error, not a data condition.
  *
  * Every key is opt-in by presence; the empty config ('') means
- * media-column stimulus parsing with no event extraction. Stimulus keys
- * match Event-row names by suffix EXACTLY like event keys do — the
- * stripped remainder names the stimulus / event channel respectively.
+ * media-column stimulus parsing. Stimulus keys match Event-row names by
+ * suffix — the stripped remainder names the stimulus. Event extraction
+ * carries no config at all: every non-system Event row imports as a
+ * discrete event; interval semantics are applied post-import by the
+ * event library's interval derivation (`$lib/data/engine/eventIntervals.ts`).
  */
 export interface TobiiParsingConfig {
   /** Suffix of Event rows that OPEN a stimulus interval (name = rest). */
@@ -17,10 +19,6 @@ export interface TobiiParsingConfig {
   stimulusEndSuffix?: string
   /** Present when URLStart/URLEnd web-stimulus events define stimuli. */
   stimulusWeb?: true
-  /** Suffix of Event rows that OPEN a duration event (channel = rest). */
-  eventStartSuffix?: string
-  /** Suffix of Event rows that CLOSE a duration event. */
-  eventEndSuffix?: string
 }
 
 export function parseTobiiUserInput(userInput: string): TobiiParsingConfig {
@@ -57,8 +55,7 @@ export function hasEventDrivenStimuli(config: TobiiParsingConfig): boolean {
 /**
  * Tobii Pro Lab system events that never become event channels — recording
  * lifecycle, sync pulses, and web-navigation markers (the latter drive
- * web-stimulus parsing). Format-owned, not user config; applies only to
- * the discrete remainder — suffix-declared pairs always win. Exact names,
+ * web-stimulus parsing). Format-owned, not user config. Exact names,
  * compared byte-for-byte against the Event column.
  */
 export const TOBII_SYSTEM_EVENTS: readonly string[] = [

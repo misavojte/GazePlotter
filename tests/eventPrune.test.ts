@@ -9,11 +9,13 @@ import {
   buildEventDataWithoutChannels,
   getEventChannelSummary,
 } from '$lib/data/engine/selectors/eventDataSelectors'
+import { INTERVAL_CHANNEL_MARKER } from '$lib/data/engine/eventIntervals'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 
 function engineWith(eventData: {
   data: string[][][]
   events: number[][][][]
+  hiddenChannels?: number[][]
 }): DataEngine {
   return { metadata: { eventData } } as unknown as DataEngine
 }
@@ -47,8 +49,54 @@ const twoStimuli = () =>
 describe('getEventChannelSummary', () => {
   test('aggregates by original name across stimuli', () => {
     expect(getEventChannelSummary(twoStimuli())).toEqual([
-      { name: 'Click', stimulusCount: 2, occurrenceCount: 4 },
-      { name: 'Task', stimulusCount: 1, occurrenceCount: 1 },
+      {
+        name: 'Click',
+        stimulusCount: 2,
+        occurrenceCount: 4,
+        firstOnset: 5,
+        isInterval: false,
+      },
+      {
+        name: 'Task',
+        stimulusCount: 1,
+        occurrenceCount: 1,
+        firstOnset: 100,
+        isInterval: false,
+      },
+    ])
+  })
+
+  test('a channel with no occurrences reports an Infinity first onset', () => {
+    expect(
+      getEventChannelSummary(
+        engineWith({ data: [[['Empty', 'Empty', '#888888']]], events: [[[]]] })
+      )
+    ).toEqual([
+      {
+        name: 'Empty',
+        stimulusCount: 1,
+        occurrenceCount: 0,
+        firstOnset: Infinity,
+        isInterval: false,
+      },
+    ])
+  })
+
+  test('flags derived interval channels via the def marker', () => {
+    const summary = getEventChannelSummary(
+      engineWith({
+        data: [
+          [
+            ['task-0', 'task-0', '#888888'],
+            ['task', 'task', '#888888', INTERVAL_CHANNEL_MARKER],
+          ],
+        ],
+        events: [[[[1, 0]], [[1, 5]]]],
+      })
+    )
+    expect(summary.map(entry => [entry.name, entry.isInterval])).toEqual([
+      ['task-0', false],
+      ['task', true],
     ])
   })
 
@@ -75,8 +123,33 @@ describe('buildEventDataWithoutChannels', () => {
             [30, 0],
           ],
         ],
+        hiddenChannels: [],
       },
     ])
+  })
+
+  test('hidden ids are remapped to the new indexing, removed ids dropped', () => {
+    const engine = engineWith({
+      data: [
+        [
+          ['task-0', 'task-0', '#888888'],
+          ['Click', 'Click', '#888888'],
+          ['task-1', 'task-1', '#888888'],
+          ['task', 'task', '#888888'],
+        ],
+      ],
+      events: [[[[]], [[]], [[]], [[]]]],
+      // Click (1) and task-1 (2) hidden; Click is being removed.
+      hiddenChannels: [[1, 2]],
+    })
+    const [update] = buildEventDataWithoutChannels(engine, new Set(['Click']))
+    expect(update.channelDefs.map(def => def[0])).toEqual([
+      'task-0',
+      'task-1',
+      'task',
+    ])
+    // task-1 stays hidden under its new id (2 → 1); Click's id is dropped.
+    expect(update.hiddenChannels).toEqual([1])
   })
 
   test('removing a cross-stimulus channel updates every stimulus', () => {

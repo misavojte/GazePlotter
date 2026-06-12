@@ -279,7 +279,8 @@ export class WorkspaceService {
     stimulusId: number,
     channelDefs: string[][],
     eventBuffers: number[][][],
-    source: string
+    source: string,
+    hiddenChannels?: number[]
   ): boolean {
     const command: UpdateEventDataCommand = {
       type: 'updateEventData',
@@ -287,6 +288,7 @@ export class WorkspaceService {
       channelDefs,
       eventBuffers,
       source,
+      ...(hiddenChannels !== undefined ? { hiddenChannels } : {}),
     }
     return this.applyRoot(command)
   }
