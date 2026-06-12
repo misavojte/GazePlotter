@@ -31,7 +31,7 @@ Make sure that columns are separated by a tabulator (`tab`) and decimal separato
 
 Then click `Export` to export the data.
 
-The exported `.csv` file can be then simply uploaded to the workspace by clicking the `Upload data` button (see [GazePlotter GUI overview](/docs/basic/)) and selecting this file for upload.
+The exported `.csv` file can be then simply uploaded to the workspace by clicking the `Upload data` button (see [Workspace & Setup overview](/docs/setup/)) and selecting this file for upload.
 
 ### Data with overlaying AOIs
 
@@ -58,7 +58,7 @@ Make sure that columns are separated by a comma (`,`) and decimal separator is a
 
 Then click `Export` to export the data.
 
-After that, click the `Upload data` button (see [GazePlotter GUI overview](/docs/basic/)) and select both the first exported `.csv` file and the second one for starting the upload and visualization.
+After that, click the `Upload data` button (see [Workspace & Setup overview](/docs/setup/)) and select both the first exported `.csv` file and the second one for starting the upload and visualization.
 
 ## Event data
 

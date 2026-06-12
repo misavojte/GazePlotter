@@ -23,7 +23,7 @@ A workspace JSON export comprehensively captures:
 ### Granular Configurations
 
 - **Visualization State**: The specific configurations active within every single plot (e.g., active grouping, exact zoom bounds, rendering modes).
-- **Setup State**: Every semantic adjustment created in [Participant groupings](/docs/basic/groups/), [AOI customizations](/docs/basic/aoi-customization/), [Participant modifications](/docs/basic/participants-customization/), and [Stimuli modifications](/docs/basic/stimuli-customization/).
+- **Setup State**: Every semantic adjustment created in [Participant Groups](/docs/setup/participant-groups/), [AOI Library](/docs/setup/aoi-library/), [Participant Library](/docs/setup/participant-library/), and [Stimuli Library](/docs/setup/stimuli-library/).
 
 ## Execution Workflows
 
@@ -31,7 +31,7 @@ A workspace JSON export comprehensively captures:
 
 To serialize and download your current setup:
 
-1. **Locate Tool**: Click the **Export workspace or data** button in the left [Workspace Toolbar](/docs/basic/workspace/#workspace-toolbar).
+1. **Locate Tool**: Click the **Export workspace or data** button in the left [Workspace Toolbar](/docs/setup/workspace/#workspace-toolbar).
 2. **Naming**: Input a descriptive file identifier into the **File name** text field.
 3. **Execution**: Click the primary **Export Workspace** button to serialize and save the `.json` file to your local machine.
 
@@ -39,7 +39,7 @@ To serialize and download your current setup:
 
 To restore a previously saved analytical state:
 
-1. **Locate Tool**: Click the **Import workspace or data** button situated in the persistent left [Workspace Toolbar](/docs/basic/workspace/#workspace-toolbar).
+1. **Locate Tool**: Click the **Import workspace or data** button situated in the persistent left [Workspace Toolbar](/docs/setup/workspace/#workspace-toolbar).
 2. **File Selection**: Navigate your local file system and select the targeted workspace `.json` file.
 3. **Execution**: The system will automatically overwrite the active interface, immediately loading all original plots, configurations, and spatial grid arrangements verbatim.
 

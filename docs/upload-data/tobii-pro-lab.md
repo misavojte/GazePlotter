@@ -47,7 +47,7 @@ Once safely serialized, the array can be imported seamlessly into the spatial ca
 
 ### Upload Routine
 
-1. **Target Area**: Ensure you are occupying the main [GazePlotter GUI dashboard](/docs/basic/).
+1. **Target Area**: Ensure you are occupying the main [Workspace & Setup overview](/docs/setup/).
 2. **Command Interaction**: Depress the primary **Upload data** action button.
 3. **Selection Details**: Utilize your local OS modal window to target the recently configured `.tsv` file generated directly from the Tobii system.
 

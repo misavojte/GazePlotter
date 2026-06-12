@@ -1,13 +1,13 @@
-# Participant Grouping
+# Participant Groups
 
-Participant grouping in GazePlotter allows you to logically organize participants into distinct groups for rigorous comparative eye-tracking analysis. The grouping interface offers comprehensive management capabilities, including targeted search filtering, bulk participant assignment, and session change tracking.
+Participant Groups in GazePlotter allow you to logically organize participants into distinct groups for rigorous comparative eye-tracking analysis. The grouping interface offers comprehensive management capabilities, including targeted search filtering, bulk participant assignment, and session change tracking.
 
 ## Accessing the Tool
 
-To create or modify your participant groupings:
+To open the Participant Groups configuration:
 
-1. Click the **More options** button positioned in the top right corner of any visible plot.
-2. Select **Setup participant grouping** from the contextual pop-up menu.
+1. Click the settings icon (cog wheel) in the top-right corner of any plot to toggle its configuration panel.
+2. Under the **Participant group** section, click **Edit groups…**.
 
 Executing this action opens the centralized participant grouping modal window.
 

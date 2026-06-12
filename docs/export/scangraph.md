@@ -22,7 +22,7 @@ A generated ScanGraph export strictly utilizes basic `.txt` syntax formatted spe
 
 To serialize your active data into ScanGraph compliance strings:
 
-1. **Access Export**: Click the **Export workspace or data** button in the [Workspace Toolbar](/docs/basic/workspace/#workspace-toolbar).
+1. **Access Export**: Click the **Export workspace or data** button in the [Workspace Toolbar](/docs/setup/workspace/#workspace-toolbar).
 2. **Select Format**: In the **Research Data Formats** section, click on the **ScanGraph Format** card.
 3. **Configure Settings**: Select the desired **Stimulus** from the dropdown menu and define the **File name**.
 4. **Download**: Click the **Export ScanGraph** button. A success toast will confirm the file generation.

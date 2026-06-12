@@ -1,18 +1,20 @@
 ---
-title: Event Customization
+title: Event Library
 order: 9
 ---
 
-# Event Customization
+# Event Library
 
-Event Customization in GazePlotter provides control over event channel names, colors, ordering, grouping, and visibility. Each stimulus has its own independent set of event channels.
+The **Event Library** in GazePlotter provides control over event channel names, colors, ordering, grouping, and visibility. Each stimulus has its own independent set of event channels.
 
 For information on uploading event data, see [Event Data](/docs/upload-data/events/).
 
 ## Accessing the Tool
 
-1. Click the **More options** button (⋮) in the top right corner of any scarf plot.
-2. Select **Event customization** from the menu.
+To open the Event Library:
+
+1. Click the settings icon (cog wheel) in the top-right corner of a Scarf Plot to toggle its configuration panel.
+2. Under the **Events** section, click **Configure Event Library…**.
 
 ## Stimulus Selection
 
@@ -54,7 +56,7 @@ Clicking the same header toggles between ascending and descending order. The alg
 
 ## Event Channel Grouping
 
-GazePlotter implements automatic grouping based on name matching, identical to the [AOI grouping system](/docs/basic/aoi-customization/#aoi-grouping-system).
+GazePlotter implements automatic grouping based on name matching, identical to the [AOI grouping system](/docs/setup/aoi-library/#aoi-grouping-system).
 
 ### How Grouping Works
 
@@ -72,4 +74,4 @@ Event channels that share an identical **Displayed name** are automatically aggr
 
 Click **Apply** to commit modifications. Changes are applied exclusively to the currently selected stimulus.
 
-> **Note**: Unlike AOI customization, event customization does not support cross-stimulus propagation. Each stimulus must be modified independently.
+> **Note**: Unlike the AOI Library, the Event Library does not support cross-stimulus propagation. Each stimulus must be modified independently.

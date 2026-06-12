@@ -6,11 +6,11 @@ AOI Metrics in GazePlotter provides quantitative analysis of eye-tracking data t
 
 > Interested on how to operate with plots in general within the workspace? See:
 >
-> - [How to move a plot around workspace?](/docs/basic/workspace/#moving-a-plot)
-> - [How to resize a plot?](/docs/basic/workspace/#resizing-a-plot)
-> - [How to duplicate a plot?](/docs/basic/workspace/#duplicating-a-plot)
-> - [How to add a new plot?](/docs/basic/workspace/#adding-visualizations)
-> - [How to remove a plot?](/docs/basic/workspace/#removing-a-plot)
+> - [How to move a plot around workspace?](/docs/setup/workspace/#moving-a-plot)
+> - [How to resize a plot?](/docs/setup/workspace/#resizing-a-plot)
+> - [How to duplicate a plot?](/docs/setup/workspace/#duplicating-a-plot)
+> - [How to add a new plot?](/docs/setup/workspace/#adding-visualizations)
+> - [How to remove a plot?](/docs/setup/workspace/#removing-a-plot)
 
 ## Metric Contract
 

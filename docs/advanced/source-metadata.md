@@ -6,7 +6,7 @@ The persistent Source Metadata dashboard inside GazePlotter grants analysts comp
 
 To command the Source Metadata system:
 
-1. Locate the persistent left [Workspace Toolbar](/docs/basic/workspace/#workspace-toolbar).
+1. Locate the persistent left [Workspace Toolbar](/docs/setup/workspace/#workspace-toolbar).
 2. Click the specialized **Source Metadata button** (represented by a document icon).
 
 ## Exposed Structural Information

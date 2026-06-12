@@ -55,9 +55,9 @@ Understanding the physical structure of the resulting CSV is crucial for program
 The system automatically outputs a strict long-format structure comprising these specific column headers:
 
 - **Participant_ID**: The numeric tracking identifier of the participant.
-- **Participant_Name**: The semantically defined [Participant Display Name](/docs/basic/participants-customization/).
-- **Stimulus**: The semantically defined [Stimulus Display Name](/docs/basic/stimuli-customization/).
-- **AOI_Group**: The assigned [AOI Display Name](/docs/basic/aoi-customization/), or one of the internal system variables.
+- **Participant_Name**: The semantically defined [Participant Library](/docs/setup/participant-library/).
+- **Stimulus**: The semantically defined [Stimuli Library](/docs/setup/stimuli-library/).
+- **AOI_Group**: The assigned [AOI Library](/docs/setup/aoi-library/), or one of the internal system variables.
 - **Metric**: The string literal representing the specific metric type (e.g., `"Dwell_Time"`).
 - **Value**: The final integer or floating-point mathematical calculation.
 
@@ -79,7 +79,7 @@ Participant_ID,Participant_Name,Stimulus,AOI_Group,Metric,Value
 
 ## Execution Workflow
 
-1. **Access Export**: Click the **Export workspace or data** button in the [Workspace Toolbar](/docs/basic/workspace/#workspace-toolbar).
+1. **Access Export**: Click the **Export workspace or data** button in the [Workspace Toolbar](/docs/setup/workspace/#workspace-toolbar).
 2. **Select Format**: In the **Research Data Formats** section, click on the **Aggregated Data (CSV)** card.
 3. **Configure Settings**: Define the **File name**, target **Participant Group**, and preferred **Delimiter** and **Decimal Separator**.
 4. **Target Data**: Manually select the target **Stimuli** and target statistical **Metrics** to be calculated.

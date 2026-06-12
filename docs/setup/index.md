@@ -1,4 +1,4 @@
-# GazePlotter Basic Guide
+# Workspace & Setup Overview
 
 GazePlotter is a free web application for analyzing eye-tracking data. Simply visit [gazeplotter.com](https://gazeplotter.com) to start analyzing your data immediately. No registration or installation required.
 
@@ -18,8 +18,8 @@ GazePlotter is a free web application for analyzing eye-tracking data. Simply vi
 **Step 3: Explore Your Data**
 
 - Use the controls in each plot to switch between participants, stimuli, and time views
-- Click and drag plots to [move them around](/docs/basic/workspace/#moving-a-plot)
-- Use the [workspace toolbar](/docs/basic/workspace/#workspace-toolbar) to add more visualizations
+- Click and drag plots to [move them around](/docs/setup/workspace/#moving-a-plot)
+- Use the [workspace toolbar](/docs/setup/workspace/#workspace-toolbar) to add more visualizations
 
 **Step 4: Save Your Work**
 
@@ -55,10 +55,10 @@ For detailed information about each visualization type and how to interpret them
 
 You can personalize how your data appears and is organized:
 
-- **[AOI Customization](/docs/basic/aoi-customization/)** - Change colors, names, and order of areas of interest
-- **[Stimuli Customization](/docs/basic/stimuli-customization/)** - Rename and organize your images/screens
-- **[Participant Grouping](/docs/basic/groups/)** - Create groups to compare different types of participants
-- **[Participant Customization](/docs/basic/participants-customization/)** - Rename participants for easier identification
+- **[AOI Library](/docs/setup/aoi-library/)** - Change colors, names, and order of areas of interest
+- **[Stimuli Library](/docs/setup/stimuli-library/)** - Rename and organize your images/screens
+- **[Participant Groups](/docs/setup/participant-groups/)** - Create groups to compare different types of participants
+- **[Participant Library](/docs/setup/participant-library/)** - Rename participants for easier identification
 
 ## What You Can Do
 

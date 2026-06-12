@@ -4,6 +4,13 @@ import { getDoc } from '../docs'
 import type { PageLoad } from './$types'
 
 const REDIRECTS: Record<string, string> = {
+  'basic': '/docs/setup',
+  'basic/workspace': '/docs/setup/workspace',
+  'basic/aoi-customization': '/docs/setup/aoi-library',
+  'basic/event-customization': '/docs/setup/event-library',
+  'basic/groups': '/docs/setup/participant-groups',
+  'basic/participants-customization': '/docs/setup/participant-library',
+  'basic/stimuli-customization': '/docs/setup/stimuli-library',
   'basic/bar-plot': '/docs/visualizations/aoi-metrics',
   'basic/scarf-plot': '/docs/visualizations/scarf-plot',
   'basic/transition-matrix': '/docs/visualizations/transition-matrix',

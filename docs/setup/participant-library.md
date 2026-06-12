@@ -1,15 +1,15 @@
-# Participants Customization
+# Participant Library
 
-Participants Customization in GazePlotter offers a comprehensive interface to semantically rename participants and dictate their global rendering order across all relevant eye-tracking plots. The tool provides granular row-level editing combined with a powerful, deterministic regex-based batch processing engine.
+The **Participant Library** in GazePlotter offers a comprehensive interface to semantically rename participants and dictate their global rendering order across all relevant eye-tracking plots. The tool provides granular row-level editing combined with a powerful, deterministic regex-based batch processing engine.
 
-![Participant customization table with displayed name and order controls.](/docs/images/participant-customization_1.jpg)
+![Participant library table with displayed name and order controls.](/docs/images/participant-customization_1.jpg)
 
 ## Accessing the Tool
 
-To customize your analysis participants:
+To open the Participant Library:
 
-1. Click the **More options** button positioned in the top right corner of any visible plot.
-2. Select **Participant customization** from the contextual pop-up menu.
+1. Click the settings icon (cog wheel) in the top-right corner of any plot to toggle its configuration panel.
+2. Under the **Participant** or **Participant group** section, click **Edit participants…**.
 
 ## Modifying Participants
 
@@ -40,7 +40,7 @@ _Note: Clicking a header successively toggles between ascending and descending l
 
 For datasets consisting of dozens or hundreds of subjects with systemic naming errors or unwanted metadata, Pattern Renaming provides a global find-and-replace mechanism driven by Regular Expressions (Regex).
 
-![Participant customization pattern renaming panel with regex-based find and replace fields.](/docs/images/participant-customization_2.jpg)
+![Participant library pattern renaming panel with regex-based find and replace fields.](/docs/images/participant-customization_2.jpg)
 
 ### Execution Workflow
 

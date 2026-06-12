@@ -32,7 +32,7 @@ To generate segmented CSV files, you can configure several parameters to filter 
 
 ## Execution Workflow
 
-1. **Access Export**: Click the **Export workspace or data** button in the [Workspace Toolbar](/docs/basic/workspace/#workspace-toolbar).
+1. **Access Export**: Click the **Export workspace or data** button in the [Workspace Toolbar](/docs/setup/workspace/#workspace-toolbar).
 2. **Select Format**: In the **Research Data Formats** section, click on the **Segmented Data (CSV)** card.
 3. **Configure Settings**: Select your preferred **Export Type**, **File name**, **Delimiter**, and **Decimal Separator**.
 4. **Target Data**: Select the target **Stimuli** and apply any **Filters** (e.g., Export only fixations).

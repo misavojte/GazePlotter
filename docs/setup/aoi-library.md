@@ -1,13 +1,13 @@
-# AOI Customization
+# AOI Library
 
-AOI Customization in GazePlotter acts as a centralized tool to modify the visual aesthetics, names, and processing order of Areas of Interest (AOIs). Use this module to construct AOI groups, map custom color palettes, and seamlessly propagate naming conventions across multiple target stimuli.
+The **AOI Library** in GazePlotter acts as a centralized tool to modify the visual aesthetics, names, and processing order of Areas of Interest (AOIs). Use this module to construct AOI groups, map custom color palettes, and seamlessly propagate naming conventions across multiple target stimuli.
 
 ## Accessing the Tool
 
-To customize your underlying AOIs:
+To open the AOI Library:
 
-1. Click the **More options** button positioned in the top right corner of any visible plot.
-2. Select **AOI customization** from the contextual pop-up menu.
+1. Click the settings icon (cog wheel) in the top-right corner of any plot to toggle its configuration panel.
+2. Under the **Areas of Interest** section, click **Configure AOI Library…**.
 
 ## Core Setup
 
@@ -87,4 +87,4 @@ Choose how broadly to apply your targeted modifications across the dataset:
 
 - **Save**: Click the **Apply** button to execute the changes using the specified scope. Closing the window before clicking Apply immediately discards your session.
 
-![Workspace screenshot showing the plot controls used to open AOI customization.](/docs/images/1.png)
+![Workspace screenshot showing the plot controls used to open the AOI Library.](/docs/images/1.png)

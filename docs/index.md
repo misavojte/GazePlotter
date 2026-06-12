@@ -29,9 +29,9 @@ Whether you're a researcher analyzing attention patterns, a student learning abo
 
 ### Workspace Management
 
-- **[Workspace Operations](/docs/basic/workspace)** - Add, duplicate, move, and resize plots with drag-and-drop functionality.
-- **[Participant Grouping](/docs/basic/groups)** - Comparative analysis between different participant groups.
-- **[AOI Customization](/docs/basic/aoi-customization)** - Full control over colors, names, and visual properties.
+- **[Workspace Operations](/docs/setup/workspace)** - Add, duplicate, move, and resize plots with drag-and-drop functionality.
+- **[Participant Groups](/docs/setup/participant-groups)** - Comparative analysis between different participant groups.
+- **[AOI Library](/docs/setup/aoi-library)** - Full control over colors, names, and visual properties.
 
 ### Universal Data Compatibility
 
@@ -62,7 +62,7 @@ GazePlotter supports data from all major eye-tracking platforms:
 Ready to visualize your eye-tracking data? Choose your path:
 
 - **New to GazePlotter?** Start by [uploading your data](/docs/upload-data) to configure your first visualization.
-- **Ready to analyze?** Explore [basic functionality](/docs/basic) to learn about workspace setup and custom participant groups.
+- **Ready to analyze?** Explore [Workspace & Setup overview](/docs/setup) to learn about workspace setup and custom participant groups.
 - **Want to calculate metrics?** Learn how to customize calculations using the [Metrics Library](/docs/metrics) to define durations, counts, transitions, and sequence alignments.
 - **Ready to visualize?** Review our full list of [Eye-tracking Visualizations](/docs/visualizations) to configure plot options.
 - **Need to export?** Check out [export options](/docs/export) for workspaces, segmented data, or similarity matrices.

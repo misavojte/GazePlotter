@@ -63,35 +63,36 @@ export const SIDEBAR: readonly SidebarSection[] = [
     ],
   },
   {
-    title: 'Basic Usage',
+    title: 'Workspace & Setup',
     links: [
       {
-        name: 'Basic',
-        href: '/docs/basic',
+        name: 'Overview',
+        breadcrumbName: 'Workspace & Setup',
+        href: '/docs/setup',
       },
       {
         name: 'Workspace',
-        href: '/docs/basic/workspace',
+        href: '/docs/setup/workspace',
       },
       {
-        name: 'AOI Customization',
-        href: '/docs/basic/aoi-customization',
+        name: 'AOI Library',
+        href: '/docs/setup/aoi-library',
       },
       {
-        name: 'Event Customization',
-        href: '/docs/basic/event-customization',
+        name: 'Event Library',
+        href: '/docs/setup/event-library',
       },
       {
-        name: 'Groups',
-        href: '/docs/basic/groups',
+        name: 'Participant Groups',
+        href: '/docs/setup/participant-groups',
       },
       {
-        name: 'Participants Customization',
-        href: '/docs/basic/participants-customization',
+        name: 'Participant Library',
+        href: '/docs/setup/participant-library',
       },
       {
-        name: 'Stimuli Customization',
-        href: '/docs/basic/stimuli-customization',
+        name: 'Stimuli Library',
+        href: '/docs/setup/stimuli-library',
       },
     ],
   },

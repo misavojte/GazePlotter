@@ -29,5 +29,5 @@ The Settings Pane is structured into collapsible accordion sections:
 - **Areas of Interest**: Filters which AOIs are visible and links to the global AOI customization interface.
 - **Export**: Down at the bottom of the pane, provides a **Download plot…** action to export high-quality images.
 
-> **Plot Configuration**: Every individual visualization plot functions as an independent, interactive card in the workspace. For general actions such as moving, resizing, duplicating, or removing plots, see the [Workspace documentation](/docs/basic/workspace/).
+> **Plot Configuration**: Every individual visualization plot functions as an independent, interactive card in the workspace. For general actions such as moving, resizing, duplicating, or removing plots, see the [Workspace documentation](/docs/setup/workspace/).
 

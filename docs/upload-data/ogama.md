@@ -23,7 +23,7 @@ In the OGAMA software, select:
 
 Then click `OK` to export the data.
 
-Select the exported file after clicking `Upload data` button (see more information in [GazePlotter GUI overview](/docs/basic/)) in to start the upload and visualization.
+Select the exported file after clicking `Upload data` button (see more information in [Workspace & Setup overview](/docs/setup/)) in to start the upload and visualization.
 
 ## Sample data
 
