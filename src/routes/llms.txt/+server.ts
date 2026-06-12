@@ -6,7 +6,7 @@ export async function GET() {
   const baseUrl = 'https://gazeplotter.com'
 
   let md = `# GazePlotter Documentation\n\n`
-  md += `> GazePlotter is a free web application for eye-tracking data analysis and visualization. Built with a commitment to open science, GazePlotter transforms complex gaze data into intuitive, interactive visualizations without requiring registration, subscriptions, or server uploads.\n\n`
+  md += `> Free, open-source, serverless web app for client-side eye-tracking analysis. Data is processed locally in the browser with absolute privacy (no server uploads). No registration or subscriptions required.\n\n`
 
   for (const item of SIDEBAR) {
     if ('links' in item) {
