@@ -8,17 +8,30 @@ Whether you're a researcher analyzing attention patterns, a student learning abo
 
 ### Multiple Visualization Types
 
-- **[Scarf Plots](/docs/visualizations/scarf-plot/)** - Interactive timeline visualizations showing gaze sequences and patterns over time
-- **[AOI Metrics](/docs/visualizations/aoi-metrics/)** - Statistical analysis with metrics like dwell time, fixation count, and time to first fixation
-- **[Transition Matrices](/docs/visualizations/transition-matrix/)** - Heat map visualizations of gaze movement patterns between Areas of Interest
-- **[Time-binned AOI Occupancy](/docs/visualizations/aoi-occupancy/)** - Flowing visualizations showing the distribution of attention over time
-- **[Recurrence Plots](/docs/visualizations/recurrence-plot/)** - N×N matrix revealing temporal self-similarity in a single participant's fixation sequence
+- **[Scarf Plot](/docs/visualizations/scarf-plot)** - Interactive timeline visualizations showing gaze sequences and events over time.
+- **[AOI Metrics](/docs/visualizations/aoi-metrics)** - Statistical analysis bar charts with metrics like dwell time, fixation count, and time to first fixation.
+- **[Transition Matrix](/docs/visualizations/transition-matrix)** - Heat map visualizations of gaze movement patterns between Areas of Interest.
+- **[Time-binned AOI Occupancy](/docs/visualizations/aoi-occupancy)** - Flowing river, stacked distribution, ridgeline, or heatmap binned visualizations over time.
+- **[Recurrence Plot](/docs/visualizations/recurrence-plot)** - N×N matrix revealing temporal self-similarity in a single participant's fixation sequence.
+- **[Scanpath Plot](/docs/visualizations/scanpath)** - 2D spatial trajectory overlay plot showing fixation locations, index order, and sequence overlays on the stimulus.
+- **[Scanpath Similarity](/docs/visualizations/scanpath-similarity)** - Pairwise comparison matrix of sequence alignments with graph-based ScanGraph network thresholding.
+- **[Evolving Metrics](/docs/visualizations/evolving-metrics)** - Rolling temporal binned heatmap matrices or line trend overlays tracing scalar metrics.
+- **[Metric Correlation](/docs/visualizations/metric-correlation)** - Multi-select correlation heatmaps and Scatter Plot Matrices (SPLOM) with Pearson/Spearman algorithms.
+
+### Metrics Library
+
+- **[Metrics Library Overview](/docs/metrics)** - Central DSL engine for configuring, parameterizing, and projecting eye-tracking metrics.
+- **[Fixation & Dwell Durations](/docs/metrics/durations)** - Duration-based calculations like absolute time, relative time, and average/first/visit durations.
+- **[Gaze Counts & Latency](/docs/metrics/counts-latency)** - Gaze frequency metrics (fixations, visits) and Time to First Fixation (TTFF) latency.
+- **[Transitions & Markov Metrics](/docs/metrics/transitions)** - Shift counts, k-step Markov probabilities, and cell/row/col projections.
+- **[Recurrence Quantitative Analysis (RQA)](/docs/metrics/rqa)** - Non-linear recurrences, laminarity, and determinism metrics.
+- **[Scanpath Similarity Metrics](/docs/metrics/scanpath-similarity)** - Sequence alignment similarity calculations (Levenshtein, Needleman-Wunsch).
 
 ### Workspace Management
 
-- **[Workspace Operations](/docs/basic/workspace/)** - Add, duplicate, move, and resize plots with drag-and-drop functionality
-- **[Participant Grouping](/docs/basic/groups/)** - Comparative analysis between different participant groups
-- **[AOI Customization](/docs/basic/aoi-customization/)** - Full control over colors, names, and visual properties
+- **[Workspace Operations](/docs/basic/workspace)** - Add, duplicate, move, and resize plots with drag-and-drop functionality.
+- **[Participant Grouping](/docs/basic/groups)** - Comparative analysis between different participant groups.
+- **[AOI Customization](/docs/basic/aoi-customization)** - Full control over colors, names, and visual properties.
 
 ### Universal Data Compatibility
 
@@ -48,10 +61,12 @@ GazePlotter supports data from all major eye-tracking platforms:
 
 Ready to visualize your eye-tracking data? Choose your path:
 
-- **New to GazePlotter?** Start with [uploading your data](/docs/upload-data/#upload-data-button) to see your first visualization
-- **Ready to analyze?** Explore [basic functionality](/docs/basic/) to learn about plots and customization
-- **Need advanced features?** Check out [export options](/docs/export/) and [advanced capabilities](/docs/advanced/)
-- **Want to edit your data?** Use [Segmented Data workflows](/docs/advanced/segmented-data-workflows/) to crop segments or split stimuli
+- **New to GazePlotter?** Start by [uploading your data](/docs/upload-data) to configure your first visualization.
+- **Ready to analyze?** Explore [basic functionality](/docs/basic) to learn about workspace setup and custom participant groups.
+- **Want to calculate metrics?** Learn how to customize calculations using the [Metrics Library](/docs/metrics) to define durations, counts, transitions, and sequence alignments.
+- **Ready to visualize?** Review our full list of [Eye-tracking Visualizations](/docs/visualizations) to configure plot options.
+- **Need to export?** Check out [export options](/docs/export) for workspaces, segmented data, or similarity matrices.
+- **Want to edit your data?** Use [Segmented Data workflows](/docs/advanced/segmented-data-workflows) to crop segments or split stimuli.
 
 ## Open Source & Community
 

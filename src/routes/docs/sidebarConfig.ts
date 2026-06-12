@@ -96,6 +96,36 @@ export const SIDEBAR: readonly SidebarSection[] = [
     ],
   },
   {
+    title: 'Metrics Library',
+    links: [
+      {
+        name: 'Overview',
+        breadcrumbName: 'Metrics',
+        href: '/docs/metrics',
+      },
+      {
+        name: 'Fixation & Dwell Durations',
+        href: '/docs/metrics/durations',
+      },
+      {
+        name: 'Gaze Counts & Latency',
+        href: '/docs/metrics/counts-latency',
+      },
+      {
+        name: 'Transitions & Markov Metrics',
+        href: '/docs/metrics/transitions',
+      },
+      {
+        name: 'Recurrence Quantitative Analysis (RQA)',
+        href: '/docs/metrics/rqa',
+      },
+      {
+        name: 'Scanpath Similarity',
+        href: '/docs/metrics/scanpath-similarity',
+      },
+    ],
+  },
+  {
     title: 'Visualizations',
     links: [
       {
@@ -122,6 +152,22 @@ export const SIDEBAR: readonly SidebarSection[] = [
       {
         name: 'Recurrence Plot',
         href: '/docs/visualizations/recurrence-plot',
+      },
+      {
+        name: 'Scanpath Plot',
+        href: '/docs/visualizations/scanpath',
+      },
+      {
+        name: 'Scanpath Similarity',
+        href: '/docs/visualizations/scanpath-similarity',
+      },
+      {
+        name: 'Evolving Metrics',
+        href: '/docs/visualizations/evolving-metrics',
+      },
+      {
+        name: 'Metric Correlation',
+        href: '/docs/visualizations/metric-correlation',
       },
     ],
   },

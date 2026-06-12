@@ -12,161 +12,78 @@ AOI Metrics in GazePlotter provides quantitative analysis of eye-tracking data t
 > - [How to add a new plot?](/docs/basic/workspace/#adding-visualizations)
 > - [How to remove a plot?](/docs/basic/workspace/#removing-a-plot)
 
-## Overview
+## Metric Contract
 
-The AOI Metrics visualization displays quantitative metrics for each AOI in your selected stimulus, allowing you to compare attention patterns, fixation durations, and other gaze measurements across different areas of interest.
+To render an AOI Metrics plot, GazePlotter queries the workspace's metric library. This visualization requires a metric configuration that satisfies the following contract:
 
-## Basic Controls
+- **Output Shape**: `aoi-vector` (computes a value or distribution for each Area of Interest individually).
+- **Windowing**: `forbidden` (calculated across the selected time range as a single aggregate).
 
-In GazePlotter, AOI metrics plots have the following main controls:
+> **Metrics Documentation**: For details on how these raw metrics are calculated, see [Fixation & Dwell Durations](/docs/metrics/durations) and [Gaze Counts & Latency](/docs/metrics/counts-latency).
 
-- **[Stimulus](#stimulus)** - a drop-down menu for selecting the stimulus to be analyzed.
-- **[Group](#group)** - a drop-down menu for selecting the participant group.
-- **[View](#view)** - a drop-down menu for selecting the data representation or aggregation method.
-- **[More options](#more-options)** (⋮) - a button for accessing additional customization and export options.
+## Configuration via Settings Pane
+
+Clicking the AOI Metrics plot card in the workspace selects the plot and opens its configuration options in the sidebar **Settings Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
 
 ### Stimulus
+Choose the stimulus to analyze. Each stimulus contains its own set of Areas of Interest (AOIs) which will be displayed as bars in the chart.
+- **Edit stimulus library…**: Opens the Stimuli Modification modal to manage stimulus files and dimensions.
 
-Choose which stimulus to analyze. Each stimulus contains its own set of AOIs that will be displayed as bars in the chart.
+### Participant group
+Filter the eye-tracking data by group or individual participant.
+- **Select group**: A dropdown containing *All participants* and any custom participant groups defined.
+- **Edit groups…**: Opens the Participant Groups modal to create or modify comparative groups.
+- **Edit participants…**: Opens the Participant Modification modal to customize participant properties and metadata.
 
-### Group
+### Metric
+Configure the quantitative metric displayed on the value axis.
+- **Select metric**: A dropdown of all metric instances in the library that satisfy the `aoi-vector` shape contract. Standard metrics include:
+  - *Time on AOI* (`absoluteTime`): Total duration spent looking within the boundary (see [Durations](/docs/metrics/durations)).
+  - *Relative time on AOI* (`relativeTime`): Proportion of total time spent in each AOI (see [Durations](/docs/metrics/durations)).
+  - *Visit count per AOI* (`visitCount`): Number of distinct entries into the boundary (see [Counts & Latency](/docs/metrics/counts-latency)).
+  - *Visit duration* (`visitDuration`): Average duration of visits (consecutive fixations) (see [Durations](/docs/metrics/durations)).
+  - *Fixation count per AOI* (`fixationCount`): Number of fixations within the boundary (see [Counts & Latency](/docs/metrics/counts-latency)).
+  - *Average fixation duration* (`fixationDuration`): Mean length of individual fixations (see [Durations](/docs/metrics/durations)).
+  - *Time to first fixation* (`timeToFirstFixation`): Average latency until initial entry (see [Counts & Latency](/docs/metrics/counts-latency)).
+  - *First fixation duration* (`firstFixationDuration`): Mean length of the first fixation (see [Durations](/docs/metrics/durations)).
+- **Edit metric library…**: Opens the Metric Library modal where you can customize parameters or define entirely new **custom metrics** to calculate across the AOIs.
 
-Select participant groups:
+### Visualisation
+Configure the visual layout and rendering options for the bar chart.
+- **Statistical overlay**: Render statistical summaries over the raw data bars:
+  - *None*: Shows only the mean bars.
+  - *Mean ± 95% CI*: Draws error bars showing the 95% Confidence Interval.
+  - *Mean ± SD*: Draws error bars showing the Standard Deviation.
+  - *Boxplot*: Overlays a standard box-and-whisker plot mapping the quartile distribution.
+- **Orientation**: Select *Horizontal* (default) or *Vertical* bar layout.
+- **Order by**: Sort bars by *Value* or by *AOI order*.
+- **Direction**: Sort bars ascending (*ASC*) or descending (*DESC*).
+- **Scale range**: Explicitly set the value axis minimum and maximum (*0 = Auto*).
+- **Hide data**: Check *No AOI data* to hide participants who have zero registered fixations/events across all AOIs.
 
-- **All participants** - includes data from all participants
-- **Custom groups** - analyze specific participant groups created in the grouping interface. See [Participant Groups](/docs/basic/groups/).
+### Time range [ms]
+Filter the temporal range from which fixations and saccades are fetched.
+- **Start**: Limit the minimum time boundary (ms).
+- **End (0 = Auto)**: Limit the maximum time boundary (ms) or leave at 0 for automatic duration matching.
 
-### View
+### Areas of Interest
+Filters which Areas of Interest (AOIs) are rendered in the bar chart.
+- **Configure AOI Library…**: Opens the AOI Modification modal to add, remove, rename, or color-code AOIs.
 
-The `View` dropdown determines what metric is calculated and displayed. Clicking on a view option opens a settings dialog with customizable parameters for the plot.
-
-#### Absolute dwell time
-
-Total time spent in each AOI across all participants, summing all fixation durations.
-
-| Parameter                       | Description                                                                             |
-| ------------------------------- | --------------------------------------------------------------------------------------- |
-| Bar orientation                 | Choose whether bars are Horizontal (default) or Vertical                                |
-| Order by                        | Control the bar sorting (by Value or by AOI order)                                      |
-| Direction                       | Sort bars ascending (ASC) or descending (DESC)                                          |
-| Scale range [ms]                | Customize the value axis minimum and maximum (0 = Auto)                                 |
-| Calculated from Time Range [ms] | Limit the time bounds from which the metric is calculated (Start / End, where 0 = Auto) |
-
-#### Relative dwell time
-
-Proportional time spent in each AOI as percentages of total viewing time.
-
-| Parameter                       | Description                                                                             |
-| ------------------------------- | --------------------------------------------------------------------------------------- |
-| Bar orientation                 | Choose whether bars are Horizontal (default) or Vertical                                |
-| Order by                        | Control the bar sorting (by Value or by AOI order)                                      |
-| Direction                       | Sort bars ascending (ASC) or descending (DESC)                                          |
-| Scale range [ms]                | Customize the value axis minimum and maximum (0 = Auto)                                 |
-| Calculated from Time Range [ms] | Limit the time bounds from which the metric is calculated (Start / End, where 0 = Auto) |
-
-#### Visit count
-
-Average number of distinct encounters participants had with each AOI.
-
-| Parameter                       | Description                                                                             |
-| ------------------------------- | --------------------------------------------------------------------------------------- |
-| Bar orientation                 | Choose whether bars are Horizontal (default) or Vertical                                |
-| Order by                        | Control the bar sorting (by Value or by AOI order)                                      |
-| Direction                       | Sort bars ascending (ASC) or descending (DESC)                                          |
-| Scale range [ms]                | Customize the value axis minimum and maximum (0 = Auto)                                 |
-| Calculated from Time Range [ms] | Limit the time bounds from which the metric is calculated (Start / End, where 0 = Auto) |
-
-#### Visit duration
-
-Average duration of each visit (consecutive fixations) to each AOI.
-
-| Parameter                       | Description                                                                             |
-| ------------------------------- | --------------------------------------------------------------------------------------- |
-| Bar orientation                 | Choose whether bars are Horizontal (default) or Vertical                                |
-| Order by                        | Control the bar sorting (by Value or by AOI order)                                      |
-| Direction                       | Sort bars ascending (ASC) or descending (DESC)                                          |
-| Scale range [ms]                | Customize the value axis minimum and maximum (0 = Auto)                                 |
-| Calculated from Time Range [ms] | Limit the time bounds from which the metric is calculated (Start / End, where 0 = Auto) |
-
-#### Fixation count
-
-Average number of separate fixations per participant for each AOI.
-
-| Parameter                       | Description                                                                             |
-| ------------------------------- | --------------------------------------------------------------------------------------- |
-| Bar orientation                 | Choose whether bars are Horizontal (default) or Vertical                                |
-| Order by                        | Control the bar sorting (by Value or by AOI order)                                      |
-| Direction                       | Sort bars ascending (ASC) or descending (DESC)                                          |
-| Scale range [ms]                | Customize the value axis minimum and maximum (0 = Auto)                                 |
-| Calculated from Time Range [ms] | Limit the time bounds from which the metric is calculated (Start / End, where 0 = Auto) |
-
-#### Fixation duration
-
-Average length of all individual fixations within each AOI across participants.
-
-| Parameter                       | Description                                                                             |
-| ------------------------------- | --------------------------------------------------------------------------------------- |
-| Bar orientation                 | Choose whether bars are Horizontal (default) or Vertical                                |
-| Order by                        | Control the bar sorting (by Value or by AOI order)                                      |
-| Direction                       | Sort bars ascending (ASC) or descending (DESC)                                          |
-| Scale range [ms]                | Customize the value axis minimum and maximum (0 = Auto)                                 |
-| Calculated from Time Range [ms] | Limit the time bounds from which the metric is calculated (Start / End, where 0 = Auto) |
-
-#### Time to first fixation
-
-Average time when participants first looked at each AOI (from stimulus start).
-
-| Parameter                       | Description                                                                             |
-| ------------------------------- | --------------------------------------------------------------------------------------- |
-| Bar orientation                 | Choose whether bars are Horizontal (default) or Vertical                                |
-| Order by                        | Control the bar sorting (by Value or by AOI order)                                      |
-| Direction                       | Sort bars ascending (ASC) or descending (DESC)                                          |
-| Scale range [ms]                | Customize the value axis minimum and maximum (0 = Auto)                                 |
-| Calculated from Time Range [ms] | Limit the time bounds from which the metric is calculated (Start / End, where 0 = Auto) |
-
-#### First fixation duration
-
-Average duration of the very first fixation each participant made on each AOI.
-
-| Parameter                       | Description                                                                             |
-| ------------------------------- | --------------------------------------------------------------------------------------- |
-| Bar orientation                 | Choose whether bars are Horizontal (default) or Vertical                                |
-| Order by                        | Control the bar sorting (by Value or by AOI order)                                      |
-| Direction                       | Sort bars ascending (ASC) or descending (DESC)                                          |
-| Scale range [ms]                | Customize the value axis minimum and maximum (0 = Auto)                                 |
-| Calculated from Time Range [ms] | Limit the time bounds from which the metric is calculated (Start / End, where 0 = Auto) |
-
-### More options
-
-The AOI metrics menu (⋮) provides quick access to customization and specific features:
-
-#### Customization Options
-
-- **AOI customization** - Modify colors, names, and order of Areas of Interest. See [AOI Customization](/docs/basic/aoi-customization/) for details.
-- **Stimulus customization** - Manage stimulus properties and settings. See [Stimuli Customization](/docs/basic/stimuli-customization/) for details.
-- **Setup participants groups** - Create and modify participant groups for comparative analysis. See [Participant Groups](/docs/basic/groups/) for details.
-
-#### Download plot
-
-Export individual AOI metrics plots as image files:
-
-- **File formats**: PNG (recommended) or JPG
-- **Dimensions**: Customizable width (height calculated automatically at 5:3 aspect ratio)
-- **Quality**: Adjustable DPI setting for print or web use
-- **Margins**: Configurable top, right, bottom, left margins
-- **Preview**: Live preview of your exported plot before downloading
-
-#### Export Data
-
-Export the calculated statistical data for external analysis.
-
-This provides access to all computed eye-tracking metrics (absolute time, relative time, fixation counts, etc.) in CSV format for analysis in R, Python, SPSS, or other statistical software. For detailed information about data export options and formats, see [Aggregated Data Export](/docs/export/aggregated-data/).
+### Export
+Located at the bottom of the Settings Pane:
+- **Download plot…**: Opens the export modal to download the bar plot.
+  - *File formats*: PNG (transparent background) or JPG (white background).
+  - *Dimensions*: Customizable width (height maintains a 5:3 aspect ratio).
+  - *Quality*: Adjustable DPI setting.
+  - *Margins*: Configurable top, right, bottom, left margins.
+  - *Preview*: Live render of the output before saving.
+- **Export Data**: To export raw statistical values in CSV format for R, Python, SPSS, or other analytical software, see the [Aggregated Data Export](/docs/export/aggregated-data/) documentation.
 
 ## Interpretation
 
 Use AOI Metrics to:
-
-- **Compare AOI performance** - identify which areas attract most/least attention
-- **Quantify differences** - get precise measurements rather than visual estimates
-- **Group comparisons** - analyze how different participant groups behave
-- **Statistical analysis** - export exact values for further statistical processing
+- **Compare AOI performance**: Identify which areas attract most/least attention.
+- **Quantify differences**: Obtain precise measurements rather than visual estimates.
+- **Perform group comparisons**: Analyze how different participant groups behave comparative to each other.
+- **Conduct statistical analysis**: Export exact computed metric values per participant for further processing.

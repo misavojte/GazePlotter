@@ -15,6 +15,10 @@ The Recurrence Plot (RP) in GazePlotter reveals temporal self-similarity in a si
 > - [How to add a new plot?](/docs/basic/workspace/#adding-visualizations)
 > - [How to remove a plot?](/docs/basic/workspace/#removing-a-plot)
 
+- **Metric Contract**: This visualization computes recurrence patterns directly from the participant's fixation sequence and does not consume metrics from the Metric Library.
+
+> **Quantitative RQA Analysis**: While this plot visualizes recurrences spatially, the quantitative metrics describing these recurrence structures (Recurrence Rate, Determinism, Laminarity) are managed separately in the Metric Library. See [Recurrence Quantitative Analysis (RQA) Metrics](/docs/metrics/rqa) for details on their mathematical definitions and ordinal windowing parameters.
+
 ## Axis Convention
 
 Interpretation of line structures in a recurrence plot is axis-convention-dependent. GazePlotter uses the following convention:
@@ -27,110 +31,71 @@ Interpretation of line structures in a recurrence plot is axis-convention-depend
 
 All directional terms in this document refer to this visual layout.
 
-## Basic Controls
+## Configuration via Settings Pane
 
-In GazePlotter, recurrence plots have the following main controls:
-
-- **[Stimulus](#stimulus)** — a drop-down menu for selecting the stimulus to be analyzed.
-- **[Participant](#participant)** — a drop-down menu for selecting which participant's fixation sequence to plot.
-- **[View](#view)** — a drop-down menu for selecting the recurrence method and adjusting all plot settings.
-- **[More options](#more-options)** (⋮) — a button for accessing additional customization and export options.
+Clicking the Recurrence Plot card in the workspace selects the plot and opens its configuration options in the sidebar **Settings Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
 
 ### Stimulus
-
-Choose which stimulus to analyze. Only fixations recorded for that stimulus are included.
+Choose the stimulus to analyze. Only fixations recorded for that stimulus are included.
+- **Edit stimulus library…**: Opens the Stimuli Modification modal to manage stimulus files and dimensions.
 
 ### Participant
-
 Select which participant's fixation sequence to analyze. The recurrence plot operates on a single participant at a time. The fixation index order follows the temporal order of recorded fixations for the selected stimulus.
+- **Edit participants…**: Opens the Participant Modification modal to customize participant properties and metadata.
 
-### View
+### Method
+Configure the criteria and rules used to decide whether two fixations are recurrent.
+- **Recurrence method**: Choose the rule that determines when two fixations are counted as recurrent:
+  - *Fixed distance*: Two fixations i and j are recurrent if their Euclidean distance on the stimulus plane is ≤ the specified radius.
+  - *Fixed grid*: The stimulus plane is partitioned into a uniform grid. Two fixations are recurrent if they fall within the same grid cell.
+  - *AOI*: Two fixations are recurrent if they share at least one Area of Interest. Fixations not assigned to any AOI are never recurrent with any other fixation under this criterion.
+- **Radius [px]** (visible only in *Fixed distance* mode): Maximum screen-space distance (in pixels) between two fixation centroids for them to be counted as recurrent.
+- **Cells per axis** (visible only in *Fixed grid* mode): Number of grid divisions along each axis (e.g. 10 creates a 10×10 grid).
+- **Duration weighting**: When checked, each recurrent dot's radius and opacity scale with the combined duration of the two fixations (t_i + t_j). Larger, more opaque dots indicate pairs of longer-duration fixations.
+- **Min line length**: Minimum run length (in consecutive recurrent cells) required for a line structure to be recognized in highlight mode (from 2 to 20).
 
-The **View** dropdown selects the recurrence criterion — the rule used to decide whether two fixations are recurrent. Clicking a view option opens a settings panel containing all plot parameters.
-
-#### Fixed distance
-
-Two fixations i and j are recurrent if their Euclidean distance on the stimulus plane is ≤ the specified radius.
-
-| Parameter   | Description                                                                                                   |
-| ----------- | ------------------------------------------------------------------------------------------------------------- |
-| Radius [px] | Maximum screen-space distance (in pixels) between two fixation centroids for them to be counted as recurrent. |
-
-#### Fixed grid
-
-The stimulus plane is partitioned into a uniform grid. Two fixations are recurrent if they fall within the same grid cell.
-
-| Parameter      | Description                                                                                      |
-| -------------- | ------------------------------------------------------------------------------------------------ |
-| Cells per axis | Number of grid divisions along each axis. The total grid is (Cells per axis) × (Cells per axis). |
-
-#### AOI
-
-Two fixations are recurrent if they share at least one Area of Interest. Fixations not assigned to any AOI are never recurrent with any other fixation under this criterion.
-
----
-
-All three views share the following common settings:
-
-#### Highlight
-
-Emphasizes recurrent points that form qualifying line structures. Non-highlighted points are dimmed.
-
-| Option           | Description                                                                                                                                                                                                                    |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| None             | No highlighting. All recurrent points rendered at full opacity.                                                                                                                                                                |
-| Diagonal lines   | Highlights points belonging to diagonal line runs (parallel to the main diagonal) of length ≥ **Min line length**. Indicates periodic recurrence — the gaze returned to the same region after a consistent time lag.           |
-| Horizontal lines | Highlights horizontal line runs of length ≥ **Min line length**. In the visual lower triangle (i &lt; j, fixed row i): fixation i recurs with many consecutive later fixations, indicating a laminar state anchored at time i. |
-| Vertical lines   | Highlights vertical line runs of length ≥ **Min line length**. In the visual lower triangle (i &lt; j, fixed column j): many early fixations recur with fixation j, indicating a region revisited heavily before time j.       |
+### Visualisation
+Configure highlights and masking options.
+- **Highlight**: Emphasizes recurrent points that form qualifying line structures. Non-highlighted points are dimmed:
+  - *None*: No highlighting. All recurrent points rendered at full opacity.
+  - *Diagonal lines*: Highlights points belonging to diagonal line runs (parallel to the main diagonal) of length ≥ **Min line length**. Indicates periodic recurrence — the gaze returned to the same region after a consistent time lag.
+  - *Horizontal lines*: Highlights horizontal line runs of length ≥ **Min line length**. In the visual lower triangle (i &lt; j, fixed row i): fixation i recurs with many consecutive later fixations, indicating a laminar state anchored at time i.
+  - *Vertical lines*: Highlights vertical line runs of length ≥ **Min line length**. In the visual lower triangle (i &lt; j, fixed column j): many early fixations recur with fixation j, indicating a region revisited heavily before time j.
+- **Masking**: Controls which cells of the N×N matrix are rendered:
+  - *None*: All N×N cells rendered, including the main diagonal.
+  - *Diagonal*: Main diagonal cells (i = j) are rendered as solid gray squares. All off-diagonal recurrent cells are rendered as dots (Default).
+  - *Diagonal + lower*: The main diagonal and the entire visual lower triangle (i &lt; j) are rendered as a solid gray region. Only the visual upper triangle (i &gt; j) is plotted as recurrent dots.
 
 > **Symmetry note**: Because the recurrence matrix is symmetric (R[i,j] = R[j,i]), horizontal structures in the visual lower triangle are reflected as vertical structures in the visual upper triangle, and vice versa. The highlight is mirrored accordingly.
 
-#### Masking
+### Time range [ms]
+Filter the temporal range of fixations.
+- **Start**: Limit the minimum time boundary (ms).
+- **End (0 = Auto)**: Limit the maximum time boundary (ms) or leave at 0 for automatic duration matching.
 
-Controls which cells of the N×N matrix are rendered.
+### Areas of Interest
+Filters which Areas of Interest (AOIs) are active when using the *AOI* recurrence method.
+- **Configure AOI Library…**: Opens the AOI Modification modal to add, remove, rename, or color-code AOIs.
 
-| Option           | Description                                                                                                                                                                    |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| None             | All N×N cells rendered, including the main diagonal.                                                                                                                           |
-| Diagonal         | Main diagonal cells (i = j) are rendered as solid gray squares. All off-diagonal recurrent cells are rendered as dots. **Default.**                                            |
-| Diagonal + lower | The main diagonal and the entire visual lower triangle (i &lt; j) are rendered as a solid gray region. Only the visual upper triangle (i &gt; j) is plotted as recurrent dots. |
-
-#### Duration weighting
-
-When enabled, each recurrent dot's radius and opacity scale with the combined duration of the two fixations (t_i + t_j). Larger, more opaque dots indicate pairs of longer-duration fixations. Duration weighting is independent of the active highlight mode.
-
-#### Min line length [L]
-
-Minimum run length (in consecutive recurrent cells) required for a line structure to be recognized in highlight mode. Default: 2.
-
-### More options
-
-The recurrence plot menu (⋮) provides quick access to:
-
-#### Customization Options
-
-- **Stimulus customization** — Manage stimulus properties and settings. See [Stimuli Customization](/docs/basic/stimuli-customization/) for details.
-
-#### Download plot
-
-Export the recurrence plot as an image file:
-
-- **File formats**: PNG (recommended, transparent background) or JPG (white background)
-- **Dimensions**: Customizable width (height maintained as square)
-- **Quality**: Adjustable DPI for screen (96 DPI) or print (300 DPI)
-- **Margins**: Configurable top, right, bottom, left margins
-- **Preview**: Live preview before downloading
+### Export
+Located at the bottom of the Settings Pane:
+- **Download plot…**: Opens the export modal to download the plot.
+  - *File formats*: PNG (transparent background) or JPG (white background).
+  - *Dimensions*: Customizable width (height maintained as square).
+  - *Quality*: Adjustable DPI setting.
+  - *Margins*: Configurable margins.
+  - *Preview*: Live render of the output before saving.
 
 ## Interpretation
 
-| Pattern                                                        | What it suggests                                                                                                                                                   |
-| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Diagonal lines (upward, parallel to main diagonal)             | Periodic revisitation — the participant repeated a similar scanpath segment after a consistent time lag. Longer diagonal lines indicate more sustained repetition. |
-| Anti-diagonal lines (downward, perpendicular to main diagonal) | The fixation sequence was traversed in reverse order — the gaze retraced its earlier path backwards.                                                               |
-| Horizontal lines                                               | Fixation i recurred with many consecutive later fixations — the gaze was "trapped" in a region that was revisited repeatedly over an extended period.              |
-| Vertical lines                                                 | Many consecutive earlier fixations recurred with fixation j — a region that had been visited persistently was returned to at time j.                               |
-| Recurrences clustered near the diagonal                        | Short-range temporal repetition — gaze returned quickly to the same regions.                                                                                       |
-| Recurrences spread far from the diagonal                       | Long-range recurrence — the participant returned to the same regions after long intervals.                                                                         |
-| Visible block structure                                        | Distinct fixation phases, each confined to a different spatial region. Block boundaries mark transitions between phases.                                           |
+| Pattern | What it suggests |
+| --- | --- |
+| **Diagonal lines** (parallel to main diagonal) | Periodic revisitation — the participant repeated a similar scanpath segment after a consistent time lag. Longer diagonal lines indicate more sustained repetition. |
+| **Anti-diagonal lines** (perpendicular to main diagonal) | The fixation sequence was traversed in reverse order — the gaze retraced its earlier path backwards. |
+| **Horizontal lines** | Fixation i recurred with many consecutive later fixations — the gaze was "trapped" in a region that was revisited repeatedly over an extended period. |
+| **Vertical lines** | Many consecutive earlier fixations recurred with fixation j — a region that had been visited persistently was returned to at time j. |
+| **Recurrences clustered near the diagonal** | Short-range temporal repetition — gaze returned quickly to the same regions. |
+| **Recurrences spread far from the diagonal** | Long-range recurrence — the participant returned to the same regions after long intervals. |
+| **Visible block structure** | Distinct fixation phases, each confined to a different spatial region. Block boundaries mark transitions between phases. |
 
 > **Axis convention reminder**: All directional descriptions above assume GazePlotter's convention: Fixation i on the y-axis increasing upward, Fixation j on the x-axis increasing rightward. The main diagonal runs bottom-left to top-right.

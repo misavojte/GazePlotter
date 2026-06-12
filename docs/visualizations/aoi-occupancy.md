@@ -12,98 +12,71 @@ Time-binned AOI Occupancy in GazePlotter provides a continuous visualization of 
 > - [How to add a new plot?](/docs/basic/workspace/#adding-visualizations)
 > - [How to remove a plot?](/docs/basic/workspace/#removing-a-plot)
 
-## Overview
+## Metric Contract
 
-The Time-binned AOI Occupancy plot calculates the proportion of participants looking at each AOI within specific time intervals (bins). It offers multiple alignments (Stream, Distribution, Ridgeline, and Heatmap) to accommodate different analytical needs regarding temporal attention flow.
+To render a Time-binned AOI Occupancy plot, GazePlotter queries the workspace's metric library. This visualization requires a metric configuration that satisfies the following contract:
 
-## Basic Controls
+- **Output Shape**: `aoi-vector` (computes a value or distribution for each Area of Interest individually).
+- **Windowing**: `required` (must specify a window/bin size and step size to calculate the time course of attention).
 
-In GazePlotter, the occupancy plots have the following main controls:
+> **Metrics & Windowing Documentation**: For details on windowed calculations and Svelte-side frame math (like sub-bin overlap vs. midpoint-gating), see the [Metrics Library Overview](/docs/metrics), [Fixation & Dwell Durations](/docs/metrics/durations), and [Gaze Counts & Latency](/docs/metrics/counts-latency).
 
-- **[Stimulus](#stimulus)** - a drop-down menu for selecting the stimulus to be analyzed.
-- **[Group](#group)** - a drop-down menu for selecting the participant group.
-- **[View](#view)** - a drop-down menu for selecting the visual representation of the binned data.
-- **[More options](#more-options)** (⋮) - a button for accessing additional customization and export options.
+## Configuration via Settings Pane
+
+Clicking the Time-binned AOI Occupancy plot card in the workspace selects the plot and opens its configuration options in the sidebar **Settings Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
 
 ### Stimulus
+Choose the stimulus to analyze. Each stimulus contains its own set of Areas of Interest (AOIs) which will be displayed in the occupancy plot.
+- **Edit stimulus library…**: Opens the Stimuli Modification modal to manage stimulus files and dimensions.
 
-Choose which stimulus to analyze. Each stimulus contains its own set of AOIs that will be displayed in the occupancy plot.
+### Participant group
+Filter the eye-tracking data by group.
+- **Select group**: A dropdown containing *All participants* and custom participant groups.
+- **Edit groups…**: Opens the Participant Groups modal to create or modify comparative groups.
+- **Edit participants…**: Opens the Participant Modification modal to customize participant properties and metadata.
 
-### Group
+### Metric
+Configure the quantitative metric calculated inside each time bin.
+- **Select metric**: A dropdown of all metric instances in the library that satisfy the windowed `aoi-vector` contract. Standard metric templates include:
+  - *Time on AOI* (`absoluteTime-aoi-windowed-500`): Total duration spent looking within the boundary per bin (see [Durations](/docs/metrics/durations)).
+  - *Relative time on AOI* (`relativeTime-aoi-windowed-500`): Proportion of time spent in each AOI relative to the bin size (see [Durations](/docs/metrics/durations)).
+  - *Fixation count per AOI* (`fixationCount-aoi-windowed-500`): Number of fixations registered in each AOI per bin (see [Counts & Latency](/docs/metrics/counts-latency)).
+  - *Visit count per AOI* (`visitCount-aoi-windowed-500`): Number of visits registered in each AOI per bin (see [Counts & Latency](/docs/metrics/counts-latency)).
+- **Edit metric library…**: Opens the Metric Library modal where you can customize bin sizes (window size and step size) or define **custom windowed metrics**.
 
-Select participant groups:
+### Visualisation
+Configure the visual layout and alignment.
+- **Select view**: Choose how the time-binned data is visually arrayed:
+  - *Stream*: A centered, flowing river-like visualization. Highlights the shifting volume of attention across AOIs without pinning data to a flat baseline, making broad temporal trends easily visible.
+  - *Distribution*: A stacked area chart using a flat zero-baseline. Tracking the exact proportion or total occupancy of specific AOIs over time is easier.
+  - *Ridgeline*: Overlapping density curves for each AOI, resembling a mountain range. Excellent for comparing peak attention times across AOIs independently.
+  - *Heatmap*: A grid-based visualization where rows represent AOIs and color intensity represents the proportion of attention during each bin.
+- **Ridge scale** (visible only when *Ridgeline* is selected): Controls the vertical overlap (scale factor) between adjacent AOI density "mountains" (from 1 to 10).
+- **Color scale picker** (visible only when *Heatmap* is selected): Select the minimum, middle, and maximum colors for the heatmap intensity gradient.
+- **Hide data**: Check *No AOI data* to hide participants who have zero registered fixations/events across all AOIs.
 
-- **All participants** - includes data from all participants
-- **Custom groups** - analyze specific participant groups created in the grouping interface. See [Participant Groups](/docs/basic/groups/).
+### Time range [ms]
+Filter the temporal range from which data is fetched.
+- **Start**: Limit the minimum time boundary (ms).
+- **End (0 = Auto)**: Limit the maximum time boundary (ms) or leave at 0 for automatic duration matching.
 
-### View
+### Areas of Interest
+Filters which Areas of Interest (AOIs) are rendered.
+- **Configure AOI Library…**: Opens the AOI Modification modal to add, remove, rename, or color-code AOIs.
 
-The `View` dropdown determines how the time-binned data is visually arrayed. Clicking on a view option opens a settings dialog with customizable parameters for the plot.
-
-#### Stream
-
-A centered, flowing river-like visualization. It highlights the shifting volume of attention across AOIs without pinning data to a flat baseline, making broad temporal trends easily visible.
-
-| Parameter     | Description                                                                   |
-| ------------- | ----------------------------------------------------------------------------- |
-| Bin Size [ms] | The temporal duration of each individual analysis bin                         |
-| Timeline [ms] | Limit the temporal bounds displayed in the plot (Start / End, where 0 = Auto) |
-
-#### Distribution
-
-A stacked area chart that uses a flat zero-baseline. This makes it easier to track the exact proportion or total occupancy of specific AOIs over time compared to the stream view.
-
-| Parameter     | Description                                                                   |
-| ------------- | ----------------------------------------------------------------------------- |
-| Bin Size [ms] | The temporal duration of each individual analysis bin                         |
-| Timeline [ms] | Limit the temporal bounds displayed in the plot (Start / End, where 0 = Auto) |
-
-#### Ridgeline
-
-Overlapping density curves for each AOI, resembling a mountain range. This view is excellent for comparing peak attention times across AOIs independently.
-
-| Parameter     | Description                                                                           |
-| ------------- | ------------------------------------------------------------------------------------- |
-| Bin Size [ms] | The temporal duration of each individual analysis bin                                 |
-| Ridge Scale   | Controls the vertical overlap (scale factor) between adjacent AOI density "mountains" |
-| Timeline [ms] | Limit the temporal bounds displayed in the plot (Start / End, where 0 = Auto)         |
-
-#### Heatmap
-
-A grid-based visualization where rows represent AOIs, and color intensity represents the proportion of attention during each bin.
-
-| Parameter     | Description                                                                       |
-| ------------- | --------------------------------------------------------------------------------- |
-| Bin Size [ms] | The temporal duration of each individual analysis bin                             |
-| Timeline [ms] | Limit the temporal bounds displayed in the plot (Start / End, where 0 = Auto)     |
-| Color Scale   | Select the minimum, middle, and maximum colors for the heatmap intensity gradient |
-
-### More options
-
-The occupancy plot menu (⋮) provides quick access to customization and specific features:
-
-#### Customization Options
-
-- **AOI customization** - Modify colors, names, and order of Areas of Interest. See [AOI Customization](/docs/basic/aoi-customization/) for details.
-- **Stimulus customization** - Manage stimulus properties and settings. See [Stimuli Customization](/docs/basic/stimuli-customization/) for details.
-- **Participant customization** - Customize individual participant properties and metadata. See [Participants Customization](/docs/basic/participants-customization/) for details.
-- **Setup participants groups** - Create and modify participant groups for comparative analysis. See [Participant Groups](/docs/basic/groups/) for details.
-
-#### Download plot
-
-Export individual occupancy plots as image files:
-
-- **File formats**: PNG (recommended, transparent background) or JPG (white background)
-- **Dimensions**: Customizable width (height calculated automatically based on content)
-- **Quality**: Adjustable DPI setting for screen (96 DPI) or print (300 DPI) use
-- **Margins**: Configurable top, right, bottom, left margins
-- **Preview**: Live preview of your exported plot before downloading
+### Export
+Located at the bottom of the Settings Pane:
+- **Download plot…**: Opens the export modal to download the plot.
+  - *File formats*: PNG (recommended, transparent background) or JPG (white background).
+  - *Dimensions*: Customizable width (height calculated automatically based on contents).
+  - *Quality*: Adjustable DPI setting.
+  - *Margins*: Configurable margins.
+  - *Preview*: Live render of the output before saving.
 
 ## Interpretation
 
 Use Time-binned AOI Occupancy to:
-
-- **Analyze attention shifts** - observe when participants collectively move their gaze from one AOI to another
-- **Identify peak engagement** - pinpoint the exact moments when specific features receive maximum visual attention
-- **Compare group synchrony** - assess whether different participant groups exhibit distinct or synchronized gaze behaviors over time
-- **Evaluate temporal distribution** - gauge whether an AOI receives sustained attention or quick, concentrated bursts
+- **Analyze attention shifts**: Observe when participants collectively move their gaze from one AOI to another.
+- **Identify peak engagement**: Pinpoint the exact moments when specific features receive maximum visual attention.
+- **Compare group synchrony**: Assess whether different participant groups exhibit distinct or synchronized gaze behaviors over time.
+- **Evaluate temporal distribution**: Gauge whether an AOI receives sustained attention or quick, concentrated bursts.
