@@ -311,6 +311,10 @@
 
   const canRender = $derived.by(() => {
     const count = data.participants.length
+    if (isEventsOnlyMode) {
+      const minPitch = (data.totalLanesPerParticipant ?? 1) * 2 // 2px is the minimum laneHeight
+      return netAvailableHeight >= count * minPitch
+    }
     if (isOverlayMode) {
       const minPitch = calculateOverlayMinRowPitch(data.eventZoneConcurrency ?? 0)
       return netAvailableHeight >= Math.max(count * minPitch, SCARF_LAYOUT.MIN_PLOT_HEIGHT_COMPACT)

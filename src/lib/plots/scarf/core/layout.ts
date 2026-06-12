@@ -127,10 +127,38 @@ export function calculateOverlayLayout(
   const targetPitch =
     participantCount > 0 ? availableHeight / participantCount : naturalPitch
 
-  const scale = Math.max(
-    SCARF_LAYOUT.MIN_BAR_HEIGHT / baseBar,
-    Math.min(SCARF_LAYOUT.MAX_BAR_SCALE, targetPitch / naturalPitch)
-  )
+  // Helper function to compute the height of the bar wrap for a given scale.
+  const getWrapHeightForScale = (s: number) => {
+    const isComp = baseBar * s < SCARF_LAYOUT.COMPACT_MODE_THRESHOLD
+    const hBar = baseBar * s
+    const sSAR = isComp ? 0 : baseSAR * s
+    const eLaneH = lanes > 0 ? Math.max(SCARF_LAYOUT.MIN_EVENT_LANE_H, baseLane * s) : 0
+    const eZoneH = lanes * eLaneH
+    const sGap = lanes > 0 ? Math.max(2, baseSeamGap * s) : 0
+    const rGap = Math.max(baseRowGap, baseRowGap * s)
+    return sSAR + hBar + sGap + eZoneH + rGap
+  }
+
+  const minScale = SCARF_LAYOUT.MIN_BAR_HEIGHT / baseBar
+  const maxScale = SCARF_LAYOUT.MAX_BAR_SCALE
+
+  let scale = minScale
+  if (getWrapHeightForScale(minScale) <= targetPitch) {
+    let low = minScale
+    let high = maxScale
+    // Binary search to find the largest scale where wrap height <= targetPitch.
+    // 15 iterations provide highly precise scaling (1 in 32,768 precision).
+    for (let iter = 0; iter < 15; iter++) {
+      const mid = (low + high) / 2
+      if (getWrapHeightForScale(mid) <= targetPitch) {
+        scale = mid
+        low = mid
+      } else {
+        high = mid
+      }
+    }
+  }
+
   const isCompact = baseBar * scale < SCARF_LAYOUT.COMPACT_MODE_THRESHOLD
 
   const heightOfBar = baseBar * scale
