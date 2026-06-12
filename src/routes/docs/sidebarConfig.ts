@@ -230,6 +230,11 @@ export const SIDEBAR: readonly SidebarItem[] = [
         href: '/docs/export/segmented-data',
         description: 'Export raw gaze metrics partitioned by stimulus, participant, and time window, formatted for custom pipeline processing.'
       },
+      {
+        name: 'Scanpath Similarity',
+        href: '/docs/export/scanpath-similarity',
+        description: 'Export a scanpath similarity matrix as CSV for comparing participant scanpaths.'
+      },
     ],
   },
   {
