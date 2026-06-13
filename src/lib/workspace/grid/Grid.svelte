@@ -18,7 +18,6 @@
   } from './itemCommands'
   import {
     GridInteractionOverlay,
-    panSurfaceAction,
     type GridInteractionController,
   } from './interaction'
   import { responsive } from '../responsive.svelte'
@@ -71,7 +70,6 @@
     gridWidth: number
     gridIsEmpty: boolean
     interaction: GridInteractionController
-    workspaceContainer: HTMLElement | null
   }
 
   const {
@@ -81,7 +79,6 @@
     gridWidth,
     gridIsEmpty,
     interaction,
-    workspaceContainer,
   }: Props = $props()
 
   // Duplicate commits immediately. The store's findOptimalPosition
@@ -166,16 +163,6 @@
   style="width: {gridWidth}px; height: {gridHeight}px;"
   role="application"
 >
-  <div
-    class="grid-pan-surface"
-    use:panSurfaceAction={{
-      enabled: !gridIsEmpty && workspaceContainer !== null,
-      interaction,
-      workspaceContainer,
-    }}
-    aria-hidden="true"
-  ></div>
-
   {#if !gridIsEmpty}
     {#each gridItems as item (item.id)}
       {@const plotLabel = getPlotDisplayName(item.type)}
@@ -263,12 +250,6 @@
 
   .grid-container {
     position: relative;
-  }
-
-  .grid-pan-surface {
-    position: absolute;
-    inset: 0;
-    z-index: 0;
   }
 
   /* Solid bounding box around a multi-selection. Sits above unselected

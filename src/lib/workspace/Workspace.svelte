@@ -15,7 +15,10 @@
     calculateGridHeight,
     calculateGridWidth,
   } from './grid'
-  import { GridInteractionController } from './grid/interaction'
+  import {
+    GridInteractionController,
+    panSurfaceAction,
+  } from './grid/interaction'
   import { plotRegistry } from '$lib/plots/registry'
   import { generateUniqueId } from '$lib/shared/utils/idUtils'
   import { clampZoom, ZOOM_WHEEL_SENSITIVITY, ZOOM_STEP } from './zoom'
@@ -40,6 +43,20 @@
     if (!target) return
     if (target.closest('.grid-item')) return
     grid.setSelectedItem(null)
+  }
+
+  // Drag-to-pan starts from anywhere in the scroll container's empty
+  // space — including the 35px padding band and any blank area past the
+  // grid content, not just the content box. Bail when the gesture begins
+  // on a grid item (it owns its own move/select gesture) or on an
+  // interactive overlay control (e.g. the off-screen SelectionIndicator
+  // arrow), so those keep their own pointer semantics.
+  function shouldStartPan(event: PointerEvent): boolean {
+    const target = event.target as HTMLElement | null
+    if (!target) return false
+    return !target.closest(
+      '.grid-item, button, a, input, select, textarea, [role="button"]'
+    )
   }
 
   const gridConfig = DEFAULT_GRID_CONFIG
@@ -293,6 +310,12 @@
       ondragleave={handleDragLeave}
       ondrop={handleDrop}
       onclick={handleWorkspaceBackgroundClick}
+      use:panSurfaceAction={{
+        enabled: !grid.isEmpty && !grid.isLoading && !ingest.isLoading,
+        interaction,
+        workspaceContainer,
+        shouldStart: shouldStartPan,
+      }}
     >
       <SelectionIndicator
         {workspaceContainer}
@@ -325,7 +348,6 @@
               {gridHeight}
               {gridWidth}
               gridIsEmpty={grid.isEmpty}
-              {workspaceContainer}
             />
           </div>
         </div>
