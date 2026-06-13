@@ -28,14 +28,12 @@ export interface ScarfLayoutContext {
   marginLeft: number
   /** Combined-mode: height of one event lane (strip slot). 0 otherwise. */
   eventLaneHeight: number
-  /** Combined-mode: total event-band height (capped at the gaze bar). 0 otherwise. */
+  /** Combined-mode: total event-band height = lanes × eventLaneHeight (every
+   * lane gets its own non-overlapping strip; never capped into overlap). 0 otherwise. */
   eventZoneHeight: number
   /** Combined-mode: y within a row where the event band begins, just below the
    * AOI bar's bottom seam (events hang downward from here). 0 otherwise. */
   eventBandTop: number
-  /** Combined-mode: lanes were collapsed into a single presence strip because the
-   * band cap squeezed them below the legibility floor — draw every strip in lane 0. */
-  eventLanesMerged: boolean
   /** Combined (overlay) mode: non-fixations are centred on the seam (bar bottom)
    * rather than within the gaze bar, for a symmetric layout. */
   isOverlay: boolean
@@ -163,9 +161,40 @@ export function drawScarfGrid(
 }
 
 /**
- * Core drawing for the scarf segments (rectangles).
+ * Shared fill resolution for every scarf band: an active band keeps its colour,
+ * a dimmed one washes toward white. Gaze rectangles and event strips dim by the
+ * SAME rule — this is the single place that rule lives.
  */
-export function drawScarfRectangles(
+function bandFill(color: string, dimmed: boolean): string {
+  return dimmed ? desaturateToWhite(color, 0.85) : color
+}
+
+/**
+ * Draws every coloured band of the plot in one pass — gaze segments (rectangles
+ * rising to the seam) and, when an event band exists, the overlaid event strips
+ * (packed lanes hanging below the seam). Both are "a colour per (style × row)"
+ * dimmed by the same highlight rule; they differ only in geometry, split into
+ * the two painters below. `paintEventStrips` no-ops without an event band, so
+ * this single entry point serves gaze-only and combined plots identically.
+ */
+export function drawScarfBands(
+  ctx: CanvasRenderingContext2D,
+  data: ScarfData,
+  layout: ScarfLayoutContext,
+  rectStyleArray: ScarfRectStyle[],
+  eventStyleArray: ScarfEventStyle[],
+  highlightMask: Uint8Array | null
+) {
+  paintGazeRects(ctx, data, layout, rectStyleArray, highlightMask)
+  paintEventStrips(ctx, data, layout, eventStyleArray, highlightMask)
+}
+
+/**
+ * Gaze segments: fixation/AOI bars rise from the top pad to the seam baseline;
+ * non-fixations are a thin bar bottom-aligned to the seam (overlay) or centred
+ * in the gaze bar (otherwise).
+ */
+function paintGazeRects(
   ctx: CanvasRenderingContext2D,
   data: ScarfData,
   layout: ScarfLayoutContext,
@@ -182,10 +211,7 @@ export function drawScarfRectangles(
     if (buffer.length === 0) continue
 
     const isDimmed = isHighlightActive ? highlightMask[styleIdx] !== 1 : false
-    const styleSet = styleArray[styleIdx]
-    ctx.fillStyle = isDimmed
-      ? desaturateToWhite(styleSet.normal.fill, 0.85)
-      : styleSet.normal.fill
+    ctx.fillStyle = bandFill(styleArray[styleIdx].normal.fill, isDimmed)
 
     const segmentCount = buffer.length / RECT_STRIDE
     for (let i = 0; i < segmentCount; i++) {
@@ -240,7 +266,7 @@ export function drawScarfRectangles(
  *   interval rectangles even at the legibility floor.
  * - Colour is keyed by event type. The AOI bar (above the seam) is never overdrawn.
  */
-export function drawOverlayEventStrips(
+function paintEventStrips(
   ctx: CanvasRenderingContext2D,
   data: ScarfData,
   layout: ScarfLayoutContext,
@@ -272,7 +298,7 @@ export function drawOverlayEventStrips(
       styleArray[styleIdx]?.normal?.fill ??
       styleArray[styleIdx]?.normal?.stroke ??
       '#888888'
-    ctx.fillStyle = isDimmed ? desaturateToWhite(base, 0.85) : base
+    ctx.fillStyle = bandFill(base, isDimmed)
 
     const count = buffer.length / OVERLAY_EVENT_STRIDE
     for (let i = 0; i < count; i++) {
@@ -280,8 +306,8 @@ export function drawOverlayEventStrips(
       const xNorm = buffer[idx]
       const pIdx = buffer[idx + 1]
       const wNorm = buffer[idx + 2]
-      // Merged presence strip: ignore the per-event lane, paint all in lane 0.
-      const lane = layout.eventLanesMerged ? 0 : buffer[idx + 3] | 0
+      // Every concurrent event keeps its own lane — never stacked into one strip.
+      const lane = buffer[idx + 3] | 0
       const isPoint = buffer[idx + 4] | 0
 
       // Band hangs down from the seam: lane 0 nearest the bar, stacking downward.
@@ -389,54 +415,59 @@ export function drawScarfHighlightMarkers(
     else b.visible.push(x0, x0 + wPx)
   }
 
-  // --- AOI + category rectangles ---
-  {
-    const buckets = data.visualRectBuckets
-    const pitch = layout.heightOfBarWrap
-    // Ring the bar's vertical centre regardless of AOI-stacking, so every
-    // segment of one identifier in a row shares a band.
-    const barCenter = layout.spaceAboveRect + layout.heightOfBar / 2
-    for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
-      if (highlightMask[styleIdx] !== 1) continue
-      const buffer = buckets[styleIdx]
-      if (buffer.length === 0) continue
-      const color = opts.rectStyleArray[styleIdx]?.normal?.fill
-      if (!color) continue
-      const count = buffer.length / RECT_STRIDE
-      for (let i = 0; i < count; i++) {
-        const idx = i * RECT_STRIDE
-        const rowTop = buffer[idx + 1] * pitch + top
-        const cy = rowTop + barCenter
-        const b = band(`r${styleIdx}@${cy}`, color, cy, rowTop, rowTop + pitch)
-        add(b, pLeft + buffer[idx] * pWidth, buffer[idx + 2] * pWidth)
-      }
-    }
-  }
+  // Gaze rectangles and overlaid event strips are one thing here: a colour band
+  // per (style × row) that gets ringed wherever a highlighted member is too
+  // brief to paint. They feed the SAME pass — an empty event bucket simply
+  // contributes nothing, so whether events are shown changes neither the code
+  // path nor the ring geometry. Point (zero-duration) events are intentional
+  // always-visible diamonds, so they count as visible spans, never candidates.
+  const pitch = layout.heightOfBarWrap
+  const hw = SCARF_LAYOUT.MIN_POINT_PX / 2
+  type RingStyle = { normal?: { fill?: string; stroke?: string } }
+  const sources = [
+    {
+      tag: 'r',
+      buckets: data.visualRectBuckets,
+      stride: RECT_STRIDE,
+      styles: opts.rectStyleArray as RingStyle[],
+      hasPoints: false,
+    },
+    {
+      tag: 'e',
+      buckets: data.visualEventBuckets,
+      stride: OVERLAY_EVENT_STRIDE,
+      styles: opts.eventStyleArray as RingStyle[],
+      hasPoints: true,
+    },
+  ]
 
-  // --- Overlaid event strips ---
-  if (layout.isOverlay && layout.eventLaneHeight > 0) {
-    const buckets = data.visualEventBuckets
-    const pitch = layout.heightOfBarWrap
-    const bandCenter = layout.eventBandTop + layout.eventZoneHeight / 2
-    const hw = SCARF_LAYOUT.MIN_POINT_PX / 2
-    for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
+  for (const src of sources) {
+    for (let styleIdx = 0; styleIdx < src.buckets.length; styleIdx++) {
       if (highlightMask[styleIdx] !== 1) continue
-      const buffer = buckets[styleIdx]
+      const buffer = src.buckets[styleIdx]
       if (buffer.length === 0) continue
-      const style = opts.eventStyleArray[styleIdx]?.normal
+      const style = src.styles[styleIdx]?.normal
       const color = style?.fill ?? style?.stroke
       if (!color) continue
-      const count = buffer.length / OVERLAY_EVENT_STRIDE
+      const count = buffer.length / src.stride
       for (let i = 0; i < count; i++) {
-        const idx = i * OVERLAY_EVENT_STRIDE
+        const idx = i * src.stride
+        const pIndex = buffer[idx + 1]
+        const rowTop = pIndex * pitch + top
+        // Locator rings sit at the ROW centre — one rule for gaze and event
+        // bands alike, independent of how a row's height splits between the gaze
+        // bar and the event band. In a gaze-only row the row centre IS the bar
+        // centre, so existing plots are unchanged; with events on the ring no
+        // longer shrinks below the threshold and vanishes as the bar yields
+        // height to the band.
+        const cy = rowTop + pitch / 2
         const x0 = pLeft + buffer[idx] * pWidth
-        const rowTop = buffer[idx + 1] * pitch + top
-        const cy = rowTop + bandCenter
-        const b = band(`e${styleIdx}@${cy}`, color, cy, rowTop, rowTop + pitch)
-        // Point (zero-duration) events are intentional, always-visible diamonds:
-        // never ringed, but they count as a visible span of their type.
-        if ((buffer[idx + 4] | 0) === 1) b.visible.push(x0 - hw, x0 + hw)
-        else add(b, x0, buffer[idx + 2] * pWidth)
+        const b = band(`${src.tag}${styleIdx}@${pIndex}`, color, cy, rowTop, rowTop + pitch)
+        if (src.hasPoints && (buffer[idx + 4] | 0) === 1) {
+          b.visible.push(x0 - hw, x0 + hw)
+        } else {
+          add(b, x0, buffer[idx + 2] * pWidth)
+        }
       }
     }
   }

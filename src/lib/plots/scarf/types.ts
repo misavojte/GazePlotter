@@ -181,7 +181,7 @@ export type ScarfData = {
    * This eliminates the need for runtime bucketing in Svelte.
    *
    * Rectangle buffer layout per style (RECT_STRIDE = 8):
-   * [x, y, width, height, participantId, segmentId, orderId, reserved0]
+   * [x, participantIndex, width, height, participantId, segmentId, orderId, internalY]
    *
    * Combined-mode (overlay) event-strip buffer per style
    * (OVERLAY_EVENT_STRIDE = 5):

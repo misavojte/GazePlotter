@@ -61,6 +61,7 @@
     hintText={editor.hasGroups ? undefined : 'Name channels the same to <strong>group</strong> them together'}
     onSort={editor.sort}
     onReorder={editor.reorderGroups}
+    onRename={editor.renameAll}
     grouped={{
       hiddenSet: editor.hiddenSet,
       onNameInput: editor.handleNameInput,

@@ -152,6 +152,20 @@ export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
     items = sortItems(items, column, direction)
   }
 
+  /** Bulk find/replace over every member's displayed name. In-place
+      mutation so `groups` re-derives (and regroups) reactively. */
+  function renameAll(pattern: string, replacement: string) {
+    let regex: RegExp
+    try {
+      regex = new RegExp(pattern, 'g')
+    } catch {
+      return
+    }
+    for (const item of items) {
+      item.displayedName = (item.displayedName || '').replace(regex, replacement)
+    }
+  }
+
   function reorderGroups(fromIndex: number, toIndex: number) {
     const currentGroups = buildGroups(items)
     const dragged = currentGroups[fromIndex]
@@ -208,6 +222,7 @@ export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
     handleColorInput,
     handleNameInput,
     sort,
+    renameAll,
     reorderGroups,
     getCleanedItems,
     getCleanedHiddenIds,

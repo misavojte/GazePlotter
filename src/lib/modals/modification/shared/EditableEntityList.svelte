@@ -1,5 +1,4 @@
 <script lang="ts">
-  import type { Snippet } from 'svelte'
   import { flip } from 'svelte/animate'
   import { cubicOut } from 'svelte/easing'
   import Empty from '$lib/shared/components/Empty.svelte'
@@ -7,10 +6,20 @@
   import ArrowDownAZ from 'lucide-svelte/icons/arrow-down-a-z'
   import GripVertical from 'lucide-svelte/icons/grip-vertical'
   import Info from 'lucide-svelte/icons/info'
+  import SlidersHorizontal from 'lucide-svelte/icons/sliders-horizontal'
+  import Replace from 'lucide-svelte/icons/replace'
+  import Eye from 'lucide-svelte/icons/eye'
   import { tooltipAction } from '$lib/tooltip'
+  import {
+    contextMenuAction,
+    createMenuComponentItem,
+    type MenuItem,
+  } from '$lib/context-menu'
   import { createListReorder, type ListReorderConfig } from './listReorder.action'
-  import { clickOutside } from './clickOutside.action'
   import type { EntityGroup } from './groupedEntityEditor.svelte'
+  import BulkActionsFlyout, {
+    type BulkActionsFlyoutProps,
+  } from './BulkActionsFlyout.svelte'
   import type {
     BaseInterpretedDataType,
     ExtendedInterpretedDataType,
@@ -53,7 +62,8 @@
     onItemChange?: (id: number, key: string, value: string) => void
     onSort: (column: string, direction: 'asc' | 'desc') => void
     onReorder: ListReorderConfig['onReorder']
-    toolbar?: Snippet
+    /** Replace `pattern` with `replacement` across every matching name. */
+    onRename: (pattern: string, replacement: string) => void
   }
 
   let {
@@ -67,13 +77,51 @@
     onItemChange,
     onSort,
     onReorder,
-    toolbar,
+    onRename,
   }: Props = $props()
 
   const gridTemplate = $derived(columns.map(c => c.width).join(' '))
 
-  let showSortMenu = $state(false)
   let dragItemKey: number | null = $state(null)
+  let bulkOpen = $state(false)
+  let sortOpen = $state(false)
+
+  // Toggle the matching groups; invert is resolved inside the flyout, so this
+  // just applies the visibility the flyout asks for.
+  const onSetVisibility = (targets: EntityGroup[], visible: boolean) => {
+    if (!grouped) return
+    for (const group of targets) grouped.onToggleActive(group, visible)
+  }
+
+  const bulkItems = $derived.by((): MenuItem[] => {
+    const rename = createMenuComponentItem<BulkActionsFlyoutProps>({
+      label: 'Rename items…',
+      value: 'rename',
+      icon: Replace,
+      component: BulkActionsFlyout,
+      componentProps: { mode: 'rename', items, grouped: !!grouped, onRename },
+      componentWidth: 300,
+      componentHeight: 240,
+    })
+    if (!grouped) return [rename]
+    const visibility = createMenuComponentItem<BulkActionsFlyoutProps>({
+      label: 'Change visibility…',
+      value: 'visibility',
+      icon: Eye,
+      component: BulkActionsFlyout,
+      componentProps: { mode: 'visibility', items, onSetVisibility },
+      componentWidth: 300,
+      componentHeight: 240,
+    })
+    return [rename, visibility]
+  })
+
+  const sortMenuItems = $derived.by((): MenuItem[] =>
+    sortColumns.flatMap(col => [
+      { label: `${col.label} A–Z`, onAction: () => onSort(col.column, 'asc') },
+      { label: `${col.label} Z–A`, onAction: () => onSort(col.column, 'desc') },
+    ])
+  )
 
   const dragHandle = createListReorder({
     itemSelector: '.entity-card',
@@ -92,34 +140,36 @@
   <span class="section-title">{title}</span>
   {#if items.length > 0}
     <div class="title-actions">
-      {#if toolbar}
-        {@render toolbar()}
-      {/if}
-      <div class="sort-wrapper" use:clickOutside={() => { showSortMenu = false }}>
-        <button
-          class="tool-button"
-          class:active={showSortMenu}
-          onclick={() => { showSortMenu = !showSortMenu }}
-          aria-label="Sort {title.toLowerCase()}"
-          use:tooltipAction={{ content: 'Sort', position: 'bottom', disabled: showSortMenu }}
-        >
-          <ArrowDownAZ size={'1em'} />
-        </button>
-        {#if showSortMenu}
-          <div class="sort-menu">
-            {#each sortColumns as col}
-              <button
-                class="sort-option"
-                onclick={() => { onSort(col.column, 'asc'); showSortMenu = false }}
-              >{col.label} A–Z</button>
-              <button
-                class="sort-option"
-                onclick={() => { onSort(col.column, 'desc'); showSortMenu = false }}
-              >{col.label} Z–A</button>
-            {/each}
-          </div>
-        {/if}
-      </div>
+      <button
+        class="tool-button"
+        class:active={bulkOpen}
+        aria-label="Bulk actions"
+        use:tooltipAction={{ content: 'Bulk actions', position: 'bottom', disabled: bulkOpen }}
+        use:contextMenuAction={{
+          items: bulkItems,
+          position: 'bottom',
+          horizontalAlign: 'end',
+          onOpen: () => { bulkOpen = true },
+          onClose: () => { bulkOpen = false },
+        }}
+      >
+        <SlidersHorizontal size={'1em'} />
+      </button>
+      <button
+        class="tool-button"
+        class:active={sortOpen}
+        aria-label="Sort {title.toLowerCase()}"
+        use:tooltipAction={{ content: 'Sort', position: 'bottom', disabled: sortOpen }}
+        use:contextMenuAction={{
+          items: sortMenuItems,
+          position: 'bottom',
+          horizontalAlign: 'end',
+          onOpen: () => { sortOpen = true },
+          onClose: () => { sortOpen = false },
+        }}
+      >
+        <ArrowDownAZ size={'1em'} />
+      </button>
     </div>
   {/if}
 </div>
@@ -261,10 +311,6 @@
     align-items: center;
   }
 
-  .sort-wrapper {
-    position: relative;
-  }
-
   .tool-button {
     display: flex;
     align-items: center;
@@ -287,42 +333,7 @@
   .tool-button.active {
     color: var(--c-brand);
     border-color: var(--c-brand);
-    background-color: #f0f4ff;
-  }
-
-  .sort-menu {
-    position: absolute;
-    right: 0;
-    top: 100%;
-    margin-top: 4px;
-    background: var(--c-white);
-    border: 1px solid var(--c-border);
-    border-radius: var(--rounded-md);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
-    z-index: 10;
-    min-width: 180px;
-    overflow: hidden;
-  }
-
-  .sort-option {
-    display: block;
-    width: 100%;
-    padding: 8px 12px;
-    background: none;
-    border: none;
-    text-align: left;
-    font-size: 13px;
-    color: var(--c-black);
-    cursor: pointer;
-    transition: background-color 0.1s ease;
-  }
-
-  .sort-option:hover {
-    background-color: var(--c-darkwhite);
-  }
-
-  .sort-option:not(:last-child) {
-    border-bottom: 1px solid var(--c-border);
+    background-color: color-mix(in srgb, var(--c-brand) 8%, var(--c-white));
   }
 
   .entity-grid {

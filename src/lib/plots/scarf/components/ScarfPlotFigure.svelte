@@ -50,11 +50,10 @@
     mapDataToLegendGroups,
   } from '../core/transformer'
   import {
-    drawOverlayEventStrips,
+    drawScarfBands,
     drawScarfGrid,
     drawScarfHighlightMarkers,
     drawScarfLabels,
-    drawScarfRectangles,
     type ScarfLayoutContext,
   } from '../core/renderer'
   import type { ScarfData, ScarfPlotSettings } from '../types'
@@ -147,7 +146,6 @@
       eventLaneHeight: 0,
       eventZoneHeight: 0,
       eventBandTop: 0,
-      eventLanesMerged: false,
     }
   })
   const isCompactMode = $derived(layout.isCompact)
@@ -334,17 +332,20 @@
       eventLaneHeight: layout.eventLaneHeight,
       eventZoneHeight: layout.eventZoneHeight,
       eventBandTop: layout.eventBandTop,
-      eventLanesMerged: (layout as any).eventLanesMerged,
       isOverlay: isOverlayMode,
     }
 
     drawScarfLabels(ctx, data, renderCtx)
     drawScarfGrid(ctx, data, renderCtx)
 
-    drawScarfRectangles(ctx, data, renderCtx, rectStyleArray, highlightMaskByIndex)
-    if (isOverlayMode) {
-      drawOverlayEventStrips(ctx, data, renderCtx, eventStyleArray, highlightMaskByIndex)
-    }
+    drawScarfBands(
+      ctx,
+      data,
+      renderCtx,
+      rectStyleArray,
+      eventStyleArray,
+      highlightMaskByIndex
+    )
 
     drawScarfHighlightMarkers(ctx, data, renderCtx, {
       rectStyleArray,

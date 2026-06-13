@@ -149,6 +149,18 @@
     items = sortItems(items, column, direction)
   }
 
+  function renameAll(pattern: string, replacement: string) {
+    let regex: RegExp
+    try {
+      regex = new RegExp(pattern, 'g')
+    } catch {
+      return
+    }
+    for (const item of items) {
+      item.displayedName = (item.displayedName || '').replace(regex, replacement)
+    }
+  }
+
   const COLUMNS = [
     { label: 'Move', width: '28px', type: 'handle' as const },
     { label: 'Original', width: '1fr', type: 'readonly' as const, key: 'originalName' },
@@ -173,6 +185,7 @@
     hintText={hasGroups ? undefined : 'Name Eye-movement Types the same to <strong>group</strong> them together'}
     onSort={sort}
     onReorder={reorderGroups}
+    onRename={renameAll}
     grouped={{
       hiddenSet,
       onNameInput: handleNameInput,

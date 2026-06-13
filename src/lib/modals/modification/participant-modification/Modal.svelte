@@ -4,7 +4,6 @@
   import { getGazePlotterSession } from '$lib/session'
   import type { BaseInterpretedDataType } from '$lib/data/types'
   import EditableEntityList from '../shared/EditableEntityList.svelte'
-  import RenameToolbar from '../shared/RenameToolbar.svelte'
   import { sortItems, reorderItems } from '../shared/sort'
 
   interface Props {
@@ -43,18 +42,13 @@
     onItemChange={(id, key, value) => {
       items = items.map(p => p.id === id ? { ...p, [key]: value } : p)
     }}
-  >
-    {#snippet toolbar()}
-      <RenameToolbar
-        onRename={(find, replace) => {
-          items = items.map(p => ({
-            ...p,
-            displayedName: p.displayedName.replace(new RegExp(find, 'g'), replace),
-          }))
-        }}
-      />
-    {/snippet}
-  </EditableEntityList>
+    onRename={(find, replace) => {
+      items = items.map(p => ({
+        ...p,
+        displayedName: p.displayedName.replace(new RegExp(find, 'g'), replace),
+      }))
+    }}
+  />
 
   {#if items.length > 0}
     <ModalButtons

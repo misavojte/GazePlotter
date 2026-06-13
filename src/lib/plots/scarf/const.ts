@@ -58,11 +58,12 @@ export const SCARF_LAYOUT = {
   // by ≥ MIN_ROW_GAP of whitespace; if that cannot be met at the legibility
   // floor, the plot does not render.
   EVENT_LANE_H: 6, // lane (strip slot) height at scale 1
-  MIN_EVENT_LANE_H: 4, // legibility floor (export/projector survival) — NOT 2px
-  // The event band is capped at the gaze bar height so events never dwarf the
-  // gaze they annotate (deep-compact / high-concurrency). When the cap squeezes
-  // a lane below this floor, the lanes collapse into ONE presence strip instead.
-  MIN_COMPRESSED_EVENT_LANE_H: 2,
+  // Legibility floor for a single lane (export/projector survival). EVERY
+  // concurrent event always gets its own lane at ≥ this height — events are
+  // never stacked into one strip, because overlapping them hides that something
+  // is happening. High concurrency therefore demands a taller band (and more
+  // plot height), never an occluding overlay.
+  MIN_EVENT_LANE_H: 4,
   EVENT_LANE_GAP: 1, // gap inside a lane slot → texture separation between stacked strips
   EVENT_ZONE_GAP: 3, // whitespace gap between the gaze baseline (seam) and the event band
   MIN_ROW_GAP: 3, // minimum whitespace between participant rows (hard floor)

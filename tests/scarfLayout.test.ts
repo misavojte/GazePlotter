@@ -37,10 +37,14 @@ describe('calculateOverlayLayout (combined mode: AOI top-anchored, events hang b
     }
   })
 
-  test('lane height merges into a presence strip when below the compressed legibility floor', () => {
+  test('keeps every concurrent lane separate even when cramped (never overlaps)', () => {
     const tight = calculateOverlayLayout(80, 3, 500) // very cramped
-    expect(tight.eventLanesMerged).toBe(true)
-    expect(tight.eventLaneHeight).toBe(tight.heightOfBar)
+    // All 3 lanes survive as separate strips at >= the legibility floor; the
+    // band is lanes x laneHeight (never collapsed into one occluding strip).
+    expect(tight.eventLaneHeight).toBeGreaterThanOrEqual(
+      SCARF_LAYOUT.MIN_EVENT_LANE_H
+    )
+    expect(tight.eventZoneHeight).toBeCloseTo(3 * tight.eventLaneHeight)
   })
 
   test('zero concurrency → no band (degenerates to a plain bar row)', () => {
@@ -58,7 +62,7 @@ describe('calculateOverlayMinRowPitch', () => {
     expect(calculateOverlayMinRowPitch(3)).toBe(
       SCARF_LAYOUT.MIN_BAR_HEIGHT +
         2 +
-        SCARF_LAYOUT.MIN_BAR_HEIGHT +
+        3 * SCARF_LAYOUT.MIN_EVENT_LANE_H +
         SCARF_LAYOUT.MIN_ROW_GAP
     )
   })

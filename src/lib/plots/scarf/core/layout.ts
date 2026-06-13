@@ -96,30 +96,24 @@ export function calculatePlotLayout(
 }
 
 /**
- * Resolves the event band given the gaze bar height it must sit beneath.
+ * Resolves the event band: ONE separate, non-overlapping strip per concurrent
+ * lane, always.
  *
- * Invariant: the band NEVER exceeds the gaze bar — gaze is the primary datum,
- * events only annotate it. So:
- *  - band fits naturally (lanes × naturalLaneH ≤ bar) → use it unchanged;
- *  - otherwise the band is capped at the bar and the lanes compress to share it;
- *  - if that squeezes lanes below the legibility floor, the lanes collapse into
- *    a SINGLE presence strip (height ≤ bar) — at that density per-lane timing is
- *    illegible anyway, so we show only "an event was active here".
+ * Overlapping events are never acceptable — painting one event on top of another
+ * hides that something is happening, silently destroying data. So the band shows
+ * every lane (band = lanes × laneHeight) and is NOT capped at the gaze bar; if
+ * concurrency is high the band may grow taller than the bar, which is correct —
+ * an oversized-but-honest band beats a compact-but-lying one. Lanes shrink with
+ * the plot scale only down to `laneHeight`'s legibility floor (see
+ * `naturalLaneHForScale`); when even that no longer fits the available height the
+ * plot asks for more room (`calculateOverlayMinRowPitch`) rather than merging.
  */
 function resolveEventBand(
-  heightOfBar: number,
   lanes: number,
-  naturalLaneH: number
-): { bandHeight: number; laneHeight: number; merged: boolean } {
-  if (lanes <= 0) return { bandHeight: 0, laneHeight: 0, merged: false }
-
-  const bandHeight = Math.min(lanes * naturalLaneH, heightOfBar)
-  const perLane = bandHeight / lanes
-  if (perLane >= SCARF_LAYOUT.MIN_COMPRESSED_EVENT_LANE_H) {
-    return { bandHeight, laneHeight: perLane, merged: false }
-  }
-  const strip = Math.min(naturalLaneH, heightOfBar)
-  return { bandHeight: strip, laneHeight: strip, merged: true }
+  laneHeight: number
+): { bandHeight: number; laneHeight: number } {
+  if (lanes <= 0) return { bandHeight: 0, laneHeight: 0 }
+  return { bandHeight: lanes * laneHeight, laneHeight }
 }
 
 /**
@@ -128,10 +122,10 @@ function resolveEventBand(
  * The row is symmetric about a central SEAM = the shared baseline (bottom edge)
  * of the gaze segments. Fixations and non-fixations are both bottom-aligned to
  * the seam; the gaze sequence rises UP from it and the event band HANGS DOWN
- * from it. The band height is capped at the gaze bar height (see
- * `resolveEventBand`) so events never dominate the gaze; `concurrency` is the
- * OBSERVED max simultaneous events, so the band — and the row pitch — is uniform
- * across rows. A single scale drives bar and band; the bar is floored at
+ * from it. Every concurrent lane gets its own non-overlapping strip (see
+ * `resolveEventBand`) — the band is never capped into overlap; `concurrency` is
+ * the OBSERVED max simultaneous events, so the band — and the row pitch — is
+ * uniform across rows. A single scale drives bar and band; the bar is floored at
  * MIN_BAR_HEIGHT and the row gap at MIN_ROW_GAP.
  */
 export function calculateOverlayLayout(
@@ -156,7 +150,7 @@ export function calculateOverlayLayout(
     baseSAR +
     baseBar +
     seamGap1 +
-    resolveEventBand(baseBar, lanes, naturalLaneHForScale(1)).bandHeight +
+    resolveEventBand(lanes, naturalLaneHForScale(1)).bandHeight +
     baseRowGap
 
   const targetPitch =
@@ -167,7 +161,7 @@ export function calculateOverlayLayout(
     const isComp = baseBar * s < SCARF_LAYOUT.COMPACT_MODE_THRESHOLD
     const hBar = baseBar * s
     const sSAR = isComp ? 0 : baseSAR * s
-    const { bandHeight } = resolveEventBand(hBar, lanes, naturalLaneHForScale(s))
+    const { bandHeight } = resolveEventBand(lanes, naturalLaneHForScale(s))
     const sGap = lanes > 0 ? Math.max(2, baseSeamGap * s) : 0
     const rGap = Math.max(baseRowGap, baseRowGap * s)
     return sSAR + hBar + sGap + bandHeight + rGap
@@ -198,7 +192,7 @@ export function calculateOverlayLayout(
   const heightOfBar = baseBar * scale
   const spaceAboveRect = isCompact ? 0 : baseSAR * scale
   const nonFixationHeight = baseNFH * scale
-  const band = resolveEventBand(heightOfBar, lanes, naturalLaneHForScale(scale))
+  const band = resolveEventBand(lanes, naturalLaneHForScale(scale))
   const eventLaneHeight = band.laneHeight
   const eventZoneHeight = band.bandHeight
   // A real whitespace gap separates the gaze baseline (seam) from the event band
@@ -222,20 +216,21 @@ export function calculateOverlayLayout(
     eventLaneHeight,
     eventZoneHeight,
     eventBandTop,
-    eventLanesMerged: band.merged,
   }
 }
 
 /**
  * The minimum row pitch for overlay mode at the legibility floor — used to
- * decide whether the plot can render or must ask for more height. Because the
- * event band is now capped at the gaze bar, concurrency no longer inflates this:
- * at the smallest bar the band is at most MIN_BAR_HEIGHT.
+ * decide whether the plot can render or must ask for more height. Because every
+ * lane keeps its own non-overlapping strip (no merging, ever), concurrency DOES
+ * inflate this: the band needs `lanes × MIN_EVENT_LANE_H` at the floor, so a
+ * high-concurrency stimulus genuinely demands more height rather than stacking
+ * events on top of each other.
  */
 export function calculateOverlayMinRowPitch(concurrency: number): number {
   const lanes = Math.max(0, Math.floor(concurrency))
   const seamGap = lanes > 0 ? 2 : 0
-  const band = lanes > 0 ? SCARF_LAYOUT.MIN_BAR_HEIGHT : 0
+  const band = lanes * SCARF_LAYOUT.MIN_EVENT_LANE_H
   return (
     SCARF_LAYOUT.MIN_BAR_HEIGHT + seamGap + band + SCARF_LAYOUT.MIN_ROW_GAP
   )
