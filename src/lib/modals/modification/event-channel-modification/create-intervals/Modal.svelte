@@ -229,18 +229,19 @@
       stimulus and participant; the original channels stay untouched.
     </p>
 
-    <div class="modal-section">
-      <span class="section-label">A. Detect pairs by name suffix</span>
+    <Section title="A. Detect pairs by name suffix">
       <div class="suffix-inputs-grid">
         <InputText
           bind:value={startSuffix}
           label="Start suffix"
           placeholder="-0"
+          fill={true}
         />
         <InputText
           bind:value={endSuffix}
           label="End suffix"
           placeholder="-1"
+          fill={true}
         />
       </div>
       <p class="suffix-tip">
@@ -277,15 +278,13 @@
           Add
         </button>
       </div>
-    </div>
+    </Section>
 
-    <hr class="modal-divider" />
-
-    <div class="modal-section">
-      <span class="section-label">B. Add pair manually</span>
+    <Section title="B. Add pair manually">
       <div class="inputs-grid manual-inputs-grid">
         <Select
           compact
+          label="Start event"
           placeholder="Start event"
           options={channelOptions}
           value={manualStart}
@@ -293,6 +292,7 @@
         />
         <Select
           compact
+          label="End event"
           placeholder="End event"
           options={channelOptions}
           value={manualEnd}
@@ -301,8 +301,8 @@
         <InputText
           bind:value={manualName}
           label="New channel name"
-          showLabel={false}
           placeholder={manualNamePlaceholder || 'Name'}
+          fill={true}
         />
       </div>
       <div class="action-row">
@@ -314,89 +314,88 @@
           Add
         </button>
       </div>
-    </div>
+    </Section>
 
     {#if rows.length > 0}
-      <div class="pair-list">
-        <div class="pair-row header">
-          <span></span>
-          <span>New channel</span>
-          <span>From → To</span>
-          <span>Occurrences</span>
-          <span>Status</span>
-          <span></span>
-        </div>
-        {#each rows as row, i (row)}
-          {@const preview = previews[i]}
-          {@const includable = rowIncludable(preview, policy)}
-          <div class="pair-row" class:excluded={!includable}>
-            <input
-              type="checkbox"
-              checked={row.checked && includable}
-              disabled={!includable}
-              onchange={event => {
-                row.checked = (event.currentTarget as HTMLInputElement).checked
-              }}
-              aria-label={`Include ${row.draft.name}`}
-            />
-            <div class="name-cell" class:name-error={preview.nameError}>
-              <InputText
-                bind:value={row.draft.name}
-                label={`Name for ${row.draft.startName}`}
-                showLabel={false}
-                fill
-              />
-            </div>
-            <span class="from-to" title={`${row.draft.startName} → ${row.draft.endName}`}>
-              {row.draft.startName} → {row.draft.endName}
-            </span>
-            <span class="counts">{occurrencesFor(row)}</span>
-            <span
-              class="status"
-              class:status-ok={preview.skippedCount === 0 && !preview.nameError}
-              class:status-bad={!includable}
-            >
-              {preview.nameError ?? statusFor(preview)}
-            </span>
-            <button
-              class="remove-button"
-              onclick={() => removeRow(i)}
-              aria-label={`Remove pair ${row.draft.name}`}
-            >
-              ×
-            </button>
-            {#if preview.errors.length > 0}
-              <div class="details">
-                {#each preview.errors.slice(0, MAX_DETAIL_LINES) as _, j}
-                  <div class="detail-line">{describeDetail(preview, j)}</div>
-                {/each}
-                {#if preview.errors.length > MAX_DETAIL_LINES}
-                  <div class="detail-line">
-                    +{preview.errors.length - MAX_DETAIL_LINES} more
-                  </div>
-                {/if}
-              </div>
-            {/if}
+      <Section title="Intervals to create">
+        <div class="pair-list">
+          <div class="pair-row header">
+            <span></span>
+            <span>New channel</span>
+            <span>From → To</span>
+            <span>Occurrences</span>
+            <span>Status</span>
+            <span></span>
           </div>
-        {/each}
-      </div>
+          {#each rows as row, i (row)}
+            {@const preview = previews[i]}
+            {@const includable = rowIncludable(preview, policy)}
+            <div class="pair-row" class:excluded={!includable}>
+              <input
+                type="checkbox"
+                checked={row.checked && includable}
+                disabled={!includable}
+                onchange={event => {
+                  row.checked = (event.currentTarget as HTMLInputElement).checked
+                }}
+                aria-label={`Include ${row.draft.name}`}
+              />
+              <div class="name-cell" class:name-error={preview.nameError}>
+                <InputText
+                  bind:value={row.draft.name}
+                  label={`Name for ${row.draft.startName}`}
+                  showLabel={false}
+                  fill
+                />
+              </div>
+              <span class="from-to" title={`${row.draft.startName} → ${row.draft.endName}`}>
+                {row.draft.startName} → {row.draft.endName}
+              </span>
+              <span class="counts">{occurrencesFor(row)}</span>
+              <span
+                class="status"
+                class:status-ok={preview.skippedCount === 0 && !preview.nameError}
+                class:status-bad={!includable}
+              >
+                {preview.nameError ?? statusFor(preview)}
+              </span>
+              <button
+                class="remove-button"
+                onclick={() => removeRow(i)}
+                aria-label={`Remove pair ${row.draft.name}`}
+              >
+                ×
+              </button>
+              {#if preview.errors.length > 0}
+                <div class="details">
+                  {#each preview.errors.slice(0, MAX_DETAIL_LINES) as _, j}
+                    <div class="detail-line">{describeDetail(preview, j)}</div>
+                  {/each}
+                  {#if preview.errors.length > MAX_DETAIL_LINES}
+                    <div class="detail-line">
+                      +{preview.errors.length - MAX_DETAIL_LINES} more
+                    </div>
+                  {/if}
+                </div>
+              {/if}
+            </div>
+          {/each}
+        </div>
 
-      <div class="options-row">
-        <Radio
-          legend="Pairs with errors"
-          appearance="compact"
-          direction="row"
-          options={POLICY_OPTIONS}
-          value={policy}
-          onchange={event => (policy = event.detail as ErrorPairPolicy)}
-        />
-      </div>
+        <div class="options-row">
+          <Radio
+            legend="Pairs with errors"
+            appearance="compact"
+            direction="row"
+            options={POLICY_OPTIONS}
+            value={policy}
+            onchange={event => (policy = event.detail as ErrorPairPolicy)}
+          />
+        </div>
+      </Section>
     {/if}
 
-    <hr class="modal-divider" />
-
-    <div class="created-section">
-      <span class="created-label">Created interval channels</span>
+    <Section title="Created interval channels">
       {#if createdIntervals.length > 0}
         <div class="created-list">
           {#each createdIntervals as entry (entry.name)}
@@ -420,7 +419,7 @@
       {:else}
         <p class="empty-message">No interval channels created yet.</p>
       {/if}
-    </div>
+    </Section>
   {/if}
 </Section>
 
@@ -446,17 +445,7 @@
     line-height: 1.4;
   }
 
-  .created-section {
-    margin-bottom: 0.75rem;
-  }
 
-  .created-label {
-    display: block;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--c-darkgrey);
-    margin-bottom: 0.25rem;
-  }
 
   .created-list {
     border: 1px solid var(--c-border);
@@ -488,19 +477,7 @@
     white-space: nowrap;
   }
 
-  .modal-section {
-    display: flex;
-    flex-direction: column;
-    gap: 0.75rem;
-    margin-bottom: 0.75rem;
-  }
 
-  .section-label {
-    display: block;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--c-darkgrey);
-  }
 
   .inputs-grid {
     display: grid;
@@ -655,11 +632,7 @@
     margin-bottom: 1.25rem;
   }
 
-  .modal-divider {
-    border: 0;
-    border-top: 1px solid var(--c-border);
-    margin: 1.25rem 0;
-  }
+
 
   .suffix-tip {
     margin: 0.35rem 0 0 0;
