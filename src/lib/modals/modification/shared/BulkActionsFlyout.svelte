@@ -79,7 +79,7 @@
   <InputText
     label="Pattern (regex)"
     value={pattern}
-    fill={true}
+    appearance="compact"
     oninput={e => { pattern = e.detail }}
   />
 
@@ -107,7 +107,7 @@
         <InputText
           label="Replace with"
           value={replacement}
-          fill={true}
+          appearance="compact"
           oninput={e => { replacement = e.detail }}
         />
       </div>
@@ -180,28 +180,5 @@
   .grow {
     flex: 1;
     min-width: 0;
-  }
-
-  /* Compact the shared inputs to fit the narrow flyout. Scoped to this
-     component — no global !important overrides. */
-  .flyout :global(input[type='text']) {
-    padding: 0.3rem 0.45rem;
-    font-size: 12px;
-  }
-
-  .flyout :global(label) {
-    font-size: 11px;
-  }
-
-  /* InputCheck's compact sublabel defaults to 0.8rem — larger than its
-     11px main label. Shrink it so the hint reads as secondary text, and
-     tighten the gap between the label and its hint. */
-  .flyout :global(.label-content) {
-    gap: 1px;
-  }
-
-  .flyout :global(.sub-label) {
-    font-size: 10px;
-    line-height: 1.2;
   }
 </style>

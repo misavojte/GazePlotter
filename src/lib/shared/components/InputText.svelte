@@ -5,7 +5,7 @@
     value?: string
     label: string
     id?: string
-    appearance?: 'default' | 'selectMatched'
+    appearance?: 'default' | 'selectMatched' | 'compact'
     placeholder?: string
     fill?: boolean
     showLabel?: boolean
@@ -35,13 +35,22 @@
 
   const generatedId = untrack(() => `text-${crypto.randomUUID()}`)
   const inputId = $derived(id ?? generatedId)
+  const isCompact = $derived(appearance === 'compact')
 </script>
 
-<InputScaffold {label} id={inputId} {fill} {showLabel}>
+<InputScaffold
+  {label}
+  id={inputId}
+  compact={isCompact}
+  fill={fill || isCompact}
+  labelSize={isCompact ? 'compact' : 'default'}
+  {showLabel}
+>
   <input
     id={inputId}
     type="text"
     class:select-matched={appearance === 'selectMatched'}
+    class:compact={isCompact}
     class:fill
     bind:value
     {disabled}
@@ -79,6 +88,22 @@
   input.select-matched:focus-visible {
     outline: 2px solid var(--c-primary, #1976d2);
     outline-offset: 2px;
+  }
+
+  input.compact {
+    width: 100%;
+    padding: 3px 6px;
+    border-color: var(--c-midgrey);
+    border-radius: var(--rounded, 4px);
+    font-size: 11px;
+    font-weight: 400;
+    color: var(--c-black);
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input.compact:focus {
+    border-color: var(--c-brand);
   }
 
   input:disabled {

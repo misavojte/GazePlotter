@@ -215,7 +215,13 @@
     margin-top: 0.1rem;
   }
 
+  label.compact .label-content {
+    gap: 1px;
+  }
+
   label.compact .sub-label {
     margin-top: 0;
+    font-size: 10px;
+    line-height: 1.2;
   }
 </style>
