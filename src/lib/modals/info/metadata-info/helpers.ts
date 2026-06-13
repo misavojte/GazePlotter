@@ -47,6 +47,7 @@ export interface MetadataCsvReportInput {
   currentFileInput: FileInputType | null
   isSameAsSource: boolean
   fileMetadata: FileMetadataType | null
+  hasValidData: boolean
   recentErrors: ErrorRecord[]
   generatedAt: string
 }
@@ -264,9 +265,13 @@ export function buildMetadataCsvReport(
 
   if (input.fileMetadata === null) {
     lines.push('Section,Source Parsing')
-    lines.push(
-      'Note,This data was parsed before GazePlotter version 1.7.0 and original parsing metadata is not available.'
-    )
+    if (input.hasValidData) {
+      lines.push(
+        'Note,This data was parsed before GazePlotter version 1.7.0 and original parsing metadata is not available.'
+      )
+    } else {
+      lines.push('Note,No data has been loaded.')
+    }
     lines.push('')
   } else if (input.fileMetadata.status === 'failure') {
     lines.push('Section,Source Parsing - FAILED')

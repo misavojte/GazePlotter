@@ -4,16 +4,14 @@
   import { base } from '$app/paths'
   import { browser } from '$app/environment'
 
-  const demoDataPath = `${base}/data/demo.json?v=2`
+  const preloadedDataPath = `${base}/data/etvis26.json`
 
-  // Read `?dataUrl=` once at mount. Switching sources mid-session needs a
-  // page reload — matches GazePlotter's "load is one-shot" contract.
   const dataUrl = browser
     ? new URL(window.location.href).searchParams.get('dataUrl')
     : null
   const load = fromUrl(
-    dataUrl ?? demoDataPath,
-    dataUrl ? 'data.json' : 'demo.json'
+    dataUrl ?? preloadedDataPath,
+    dataUrl ? 'data.json' : 'etvis26.json'
   )
 </script>
 
@@ -164,14 +162,12 @@
     color: var(--c-darkgrey);
   }
 
-  /* .box styles moved to Card.svelte */
   .box-title {
     line-height: 30px;
     font-size: 20px;
     font-weight: bold;
     margin: 0;
   }
-  /* .box styles moved to Card.svelte */
   :global(.card.long) {
     grid-row: span 2;
   }

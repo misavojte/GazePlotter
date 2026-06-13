@@ -565,20 +565,28 @@ class IngestWorkerClient {
 }
 
 export class IngestService {
-  status = $state<IngestStatus>('loading')
+  private explicitStatus = $state<IngestStatus>('loading')
   metadata = $state<FileMetadataType | null>(null)
   input = $state<FileInputType | null>(null)
   progressPercent = $state(0)
 
+  // Any `errorService.fatalLoad` — regardless of `origin` — implies the dataset
+  // is unusable, so ingest reflects 'error' without each fatal-load reporter
+  // having to mark ingest separately. Today all `fatal-load` reports come from
+  // bootstrap/ingest; a future caller reporting one from another origin
+  // (plot/export/…) will also flip ingest into error state via this derivation.
+  status = $derived<IngestStatus>(
+    this.deps.errorService.fatalLoad ? 'error' : this.explicitStatus
+  )
   isLoading = $derived(this.status === 'loading')
 
   constructor(private readonly deps: IngestDependencies) {}
 
-  async loadFiles(files: FileList): Promise<boolean> {
+  async loadFiles(files: FileList | readonly File[]): Promise<boolean> {
     if (files.length === 0) return false
 
     this.deps.errorService.clearAll()
-    this.status = 'loading'
+    this.explicitStatus = 'loading'
     this.progressPercent = 0
 
     try {
@@ -645,9 +653,26 @@ export class IngestService {
           fileCount: files.length,
         },
       })
-      this.status = 'error'
+      this.explicitStatus = 'error'
       return false
     }
+  }
+
+  /**
+   * Reset the workspace to an empty, ready state — no dataset, no grid,
+   * no error, no in-flight loading. Used when a {@link DataLoader} resolves
+   * with `[]` (host signals "open with no preloaded data, upload UI ready").
+   * Also valid as a public "clear data" entry point for hosts.
+   */
+  applyEmpty(): void {
+    this.deps.errorService.clearAll()
+    this.progressPercent = 0
+    this.metadata = null
+    this.input = null
+    this.deps.engine.loadDataset(EMPTY_DATASET)
+    this.deps.grid.reset(DEFAULT_GRID_STATE_DATA as GridItemSnapshot[])
+    this.deps.resetWorkspaceHistory()
+    this.explicitStatus = 'ready'
   }
 
   applyParsedData(parsedData: ParsedData): void {
@@ -661,7 +686,7 @@ export class IngestService {
       (parsedData.gridItems ?? DEFAULT_GRID_STATE_DATA) as GridItemSnapshot[]
     )
     this.deps.resetWorkspaceHistory()
-    this.status = 'ready'
+    this.explicitStatus = 'ready'
   }
 
   /**
@@ -691,7 +716,7 @@ export class IngestService {
     }
     this.deps.engine.loadDataset(EMPTY_DATASET)
     this.deps.resetWorkspaceHistory()
-    this.status = 'error'
+    this.explicitStatus = 'error'
   }
 
   private async processStandaloneEventFiles(

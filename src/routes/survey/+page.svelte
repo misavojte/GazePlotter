@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { GazePlotter } from '$lib'
+  import { GazePlotter, fromUrl } from '$lib'
   import { Card } from '$lib/shared/components'
   import { base } from '$app/paths'
   import { browser } from '$app/environment'
@@ -24,30 +24,12 @@
       'https://eyetracking.upol.cz/GPsurvey/GazePlotterSurveyEndpoint.php',
   }
 
-  const pathToData = `${base}/data/etvis.json`
+  const load = fromUrl(`${base}/data/etvis.json`, 'demo.json')
+
   let gazePlotterRef = $state<{
     resetLayout: () => void
     getSession: () => GazePlotterSession
   } | null>(null)
-
-  async function loadInitialData(session: GazePlotterSession): Promise<void> {
-    if (!pathToData || !browser)
-      return Promise.reject('No path to data or not in browser')
-
-    const blob = await fetch(pathToData).then(response => response.blob())
-    const file = new File([blob], 'demo.json', {
-      type: 'application/json',
-    })
-    const fileList = Object.assign([file], {
-      item: () => file,
-      length: 1,
-      [Symbol.iterator]: function* () {
-        yield file
-      },
-    }) as FileList
-
-    await session.ingest.loadFiles(fileList)
-  }
 
   // Create condition stores for automatic task completion
   const consentCondition = createCondition() // Monitor for consent confirmation
@@ -572,7 +554,7 @@
   <section>
     <GazePlotter
       bind:this={gazePlotterRef}
-      {loadInitialData}
+      {load}
       onWorkspaceCommandChain={handleWorkspaceCommand}
     />
   </section>
