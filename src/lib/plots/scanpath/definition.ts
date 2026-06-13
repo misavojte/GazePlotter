@@ -1,6 +1,11 @@
 import ScanpathPlot from './components/ScanpathPlot.svelte'
 import { deriveScanpathView } from './core/view'
-import ScanpathPlotPaneSettings from './components/ScanpathPlotPaneSettings.svelte'
+import {
+  StimulusSection,
+  ParticipantSection,
+  AoiSection,
+} from '$lib/plots/shared/components/sections'
+import ScanpathDisplaySection from './components/sections/ScanpathDisplaySection.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import type { PlotSubtitleParts } from '$lib/plots/definePlot'
 import {
@@ -13,7 +18,12 @@ export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSetting
   type: 'scanpath',
   name: 'Scanpath Plot',
   component: ScanpathPlot,
-  paneSettings: ScanpathPlotPaneSettings,
+  paneSections: [
+    { key: 'stimulus', component: StimulusSection },
+    { key: 'participant', component: ParticipantSection },
+    { key: 'scanpath:display', component: ScanpathDisplaySection },
+    { key: 'aoi', component: AoiSection },
+  ],
   export: { deriveView: deriveScanpathView },
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []

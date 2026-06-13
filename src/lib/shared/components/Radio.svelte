@@ -9,6 +9,9 @@
     value?: string
     appearance?: 'default' | 'compact'
     direction?: 'column' | 'row'
+    /** Multi-selection "Mixed": the bound plots disagree on this field. Shows no
+     *  option selected; picking one applies it to all (and resolves it). */
+    mixed?: boolean
     onchange?: (event: CustomEvent<string>) => void
   }
 
@@ -19,6 +22,7 @@
     value = $bindable(options[0].value),
     appearance = 'default',
     direction = 'column',
+    mixed = false,
     onchange,
   }: Props = $props()
 
@@ -56,7 +60,7 @@
           id={optionId}
           name={`group-${uniqueID}`}
           value={optionValue}
-          checked={value === optionValue}
+          checked={!mixed && value === optionValue}
           onchange={() => {
             value = optionValue
             onchange?.(new CustomEvent('change', { detail: optionValue }))

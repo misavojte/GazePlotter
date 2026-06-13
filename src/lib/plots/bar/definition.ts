@@ -1,6 +1,13 @@
 import BarPlot from './components/BarPlot.svelte'
 import { deriveBarView } from './core/view'
-import BarPlotPaneSettings from './components/BarPlotPaneSettings.svelte'
+import {
+  StimulusSection,
+  GroupSection,
+  MetricSection,
+  TimelineRangeSection,
+  AoiSection,
+} from '$lib/plots/shared/components/sections'
+import BarVisualisationSection from './components/sections/BarVisualisationSection.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import type { PlotSubtitleParts } from '$lib/plots/definePlot'
 import {
@@ -13,7 +20,14 @@ export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
   type: 'barPlot',
   name: 'AOI Metrics',
   component: BarPlot,
-  paneSettings: BarPlotPaneSettings,
+  paneSections: [
+    { key: 'stimulus', component: StimulusSection },
+    { key: 'group', component: GroupSection },
+    { key: 'metric', component: MetricSection },
+    { key: 'barPlot:visualisation', component: BarVisualisationSection },
+    { key: 'timelineRange', component: TimelineRangeSection },
+    { key: 'aoi', component: AoiSection },
+  ],
   export: { deriveView: deriveBarView },
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []

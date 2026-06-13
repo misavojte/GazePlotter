@@ -5,9 +5,14 @@ import type { GridInteractionRect, InteractionPoint } from './model'
 
 export type MoveHandleActionParams = {
   enabled: boolean
-  item: GridInteractionRect
+  /**
+   * The item(s) to move. A single-item drag passes one rect; when the grabbed
+   * item is part of a multi-selection, all selected rects are passed so they
+   * move together as a group.
+   */
+  items: GridInteractionRect[]
   interaction: GridInteractionController
-  onCommit: (rect: GridInteractionRect) => void
+  onCommit: (rects: GridInteractionRect[]) => void
   /**
    * Optional pointerdown gate. Return false to skip this pointerdown —
    * e.g. when the target sits inside a `[data-block-select]` region or
@@ -48,7 +53,7 @@ export function moveHandleAction(
       return false
     }
     document.body.style.cursor = 'grabbing'
-    params.interaction.beginMove(params.item, pendingDownPoint)
+    params.interaction.beginMove(params.items, pendingDownPoint)
     moveActive = true
     return true
   }

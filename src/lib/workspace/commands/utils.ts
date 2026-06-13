@@ -38,7 +38,10 @@ export function createChildCommand<T extends WorkspaceCommand>(
 }
 
 export function createCommandSourcePlotPattern(
-  settings: Partial<GridItemBase> & { type: PlotType },
+  // `type`/`id` only feed the `${type}.${id}.${placement}` source string, so a
+  // plain string type is enough (lets selection-aware pane sections, which hold
+  // a loosely-typed item, build a source without a plot-type cycle).
+  settings: { type: string; id?: number },
   placement: 'plot' | 'modal' | 'workspace' | 'pane'
 ) {
   return `${settings.type}.${settings.id}.${placement}`

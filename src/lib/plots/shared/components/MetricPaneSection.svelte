@@ -14,6 +14,9 @@
     metricInstanceIds: string[]
     onchange: (ids: string[]) => void
     label?: string
+    /** Multi-selection "Mixed": the selected plots disagree on the metric.
+     *  Shows an empty picker flagged "Mixed"; picking a metric applies to all. */
+    mixed?: boolean
   }
 
   let {
@@ -21,15 +24,21 @@
     metricInstanceIds,
     onchange,
     label = 'Metric',
+    mixed = false,
   }: Props = $props()
 
   const { engine, modalState } = getGazePlotterSession()
 
   const contract = $derived(resolvePlotDefinition(item.type).consumesMetrics!)
 
+  // When mixed, treat as an empty selection for the picker and flag it in the
+  // summary; picking a metric applies it to all.
+  const safeIds = $derived(mixed ? [] : metricInstanceIds)
+
   const metricSummary = $derived.by(() => {
+    if (mixed) return 'Mixed (varies)'
     const lib = engine.metadata?.metricInstances ?? []
-    const picked = metricInstanceIds
+    const picked = safeIds
       .map(id => lib.find(i => i.id === id))
       .filter((x): x is (typeof lib)[number] => !!x)
     if (picked.length === 0) return ''
@@ -42,14 +51,14 @@
     const handlers = contract.multiSelect
       ? multiSelectMetricHandlers(
           engine,
-          () => metricInstanceIds,
+          () => safeIds,
           ids => {
             onchange(ids)
           }
         )
       : singleSelectMetricHandlers(
           engine,
-          () => metricInstanceIds[0] ?? null,
+          () => safeIds[0] ?? null,
           id => {
             onchange(id == null ? [] : [id])
           }
@@ -63,7 +72,8 @@
     <ContractMetricSelect
       {engine}
       {contract}
-      {metricInstanceIds}
+      {mixed}
+      metricInstanceIds={safeIds}
       onMetricsChange={ids => {
         onchange(ids)
       }}

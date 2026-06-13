@@ -62,13 +62,25 @@ export class GridInteractionController {
     return this.#session.kind === 'panning'
   }
 
-  get activeItemId(): number | null {
-    return isTransformSession(this.#session) ? this.#session.itemId : null
+  get activeItemIds(): number[] {
+    if (this.#session.kind === 'moving')
+      return this.#session.members.map(m => m.id)
+    if (this.#session.kind === 'resizing') return [this.#session.itemId]
+    return []
   }
 
-  get previewRect(): GridInteractionRect | null {
-    if (isTransformSession(this.#session)) return this.#session.preview
+  get activeItemId(): number | null {
+    if (this.#session.kind === 'resizing') return this.#session.itemId
+    if (this.#session.kind === 'moving')
+      return this.#session.members[0]?.id ?? null
     return null
+  }
+
+  get previewRects(): GridInteractionRect[] {
+    if (this.#session.kind === 'moving')
+      return this.#session.members.map(m => m.preview)
+    if (this.#session.kind === 'resizing') return [this.#session.preview]
+    return []
   }
 
   get workspaceWidthHint(): number | null {
@@ -80,14 +92,14 @@ export class GridInteractionController {
   }
 
   isGhostedItem(itemId: number): boolean {
-    return this.activeItemId === itemId && this.isTransforming
+    return this.isTransforming && this.activeItemIds.includes(itemId)
   }
 
-  beginMove(item: GridInteractionRect, point: InteractionPoint): void {
-    if (!this.#config) return
+  beginMove(items: GridInteractionRect[], point: InteractionPoint): void {
+    if (!this.#config || items.length === 0) return
     this.#viewport.stopAutoScroll()
     this.#session = startMoveSession(
-      item,
+      items,
       point,
       this.#viewport.getScrollOffset()
     )
@@ -107,11 +119,11 @@ export class GridInteractionController {
     this.#syncWorkspaceGrowthHint(point)
   }
 
-  finishMove(): GridInteractionRect | null {
+  finishMove(): GridInteractionRect[] | null {
     if (this.#session.kind !== 'moving') return null
-    const preview = this.#session.preview
+    const previews = this.#session.members.map(m => m.preview)
     this.cancel()
-    return preview
+    return previews
   }
 
   beginResize(
@@ -191,7 +203,7 @@ export class GridInteractionController {
   getPositionsWithPreview<T extends { id: number; x: number; y: number; w: number; h: number }>(
     positions: T[]
   ): T[] {
-    return mergePreviewPosition(positions, this.previewRect) as T[]
+    return mergePreviewPosition(positions, this.previewRects) as T[]
   }
 
   #refreshTransformSession(): void {
@@ -238,20 +250,32 @@ export class GridInteractionController {
 
     const edgeThreshold = 25
     const expandByCells = 5
-    const preview = this.#session.preview
+    // Use the furthest edge across all moving previews (a group move can grow
+    // the workspace from whichever member reaches the viewport edge).
+    const previews = this.previewRects
+    if (previews.length === 0) {
+      this.#workspaceGrowthHint = { width: null, height: null }
+      return
+    }
     const cellWidth = this.#config.cellSize.width + this.#config.gap
     const cellHeight = this.#config.cellSize.height + this.#config.gap
+    const maxRightEdge = Math.max(
+      ...previews.map(p =>
+        calculateRightEdgePosition(p.x, p.w, this.#config!)
+      )
+    )
+    const maxBottomEdge = Math.max(
+      ...previews.map(p =>
+        calculateBottomEdgePosition(p.y, p.h, this.#config!)
+      )
+    )
     const nextWidthCandidate =
       point.x >= window.innerWidth - edgeThreshold
-        ? calculateRightEdgePosition(preview.x, preview.w, this.#config) +
-          WORKSPACE_RIGHT_PADDING +
-          expandByCells * cellWidth
+        ? maxRightEdge + WORKSPACE_RIGHT_PADDING + expandByCells * cellWidth
         : null
     const nextHeightCandidate =
       point.y >= window.innerHeight - edgeThreshold
-        ? calculateBottomEdgePosition(preview.y, preview.h, this.#config) +
-          WORKSPACE_BOTTOM_PADDING +
-          expandByCells * cellHeight
+        ? maxBottomEdge + WORKSPACE_BOTTOM_PADDING + expandByCells * cellHeight
         : null
 
     this.#workspaceGrowthHint = {

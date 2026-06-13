@@ -32,6 +32,8 @@
      *  selection is multi- or single-valued. */
     contract: PlotMetricContract
     label?: string
+    /** Multi-selection "Mixed": the bound plots disagree on the metric. */
+    mixed?: boolean
   }
 
   let {
@@ -43,6 +45,7 @@
     ondeleteInstance,
     contract,
     label,
+    mixed = false,
   }: Props = $props()
 
   const { modalState } = getGazePlotterSession()
@@ -116,6 +119,7 @@
   {value}
   {subLabel}
   {placeholder}
+  {mixed}
   multiple={!isSingleSelect}
   emptyMessage="No metrics yet."
   onchange={handleChange}

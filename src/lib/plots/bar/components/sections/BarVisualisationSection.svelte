@@ -1,73 +1,49 @@
 <script lang="ts">
   import { PaneSection } from '$lib/workspace/pane'
-  import { InputNumber, Radio, InputCheck, Select } from '$lib/shared/components'
-  import {
-    TimelineRangeSection,
-    AoiPaneSection,
-    StimulusPaneSection,
-    ParticipantGroupPaneSection,
-    MetricPaneSection,
-  } from '$lib/plots/shared/components'
-  import { getGazePlotterSession } from '$lib/session'
-  import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
-  import type { BarPlotItem, BarPlotSettings } from '../types'
+  import { InputNumber, Radio, InputCheck } from '$lib/shared/components'
+  import { createBulkContext } from '$lib/plots/shared/components/sections'
+  import type { BarPlotItem, BarPlotSettings } from '../../types'
 
-  interface Props {
-    item: BarPlotItem
-  }
+  let { item }: { item: BarPlotItem } = $props()
+  const bulk = createBulkContext<BarPlotSettings>(() => item)
 
-  let { item }: Props = $props()
-  const { workspace } = getGazePlotterSession()
-  const settings = $derived(item.settings)
-
-  const source = $derived(createCommandSourcePlotPattern(item, 'pane'))
-
-  function update(patch: Partial<BarPlotSettings>) {
-    workspace.updateItemSettings(item.id, patch, source)
-  }
-
-  const minScale = $derived(settings.scaleRange?.[0] ?? 0)
-  const maxScale = $derived(settings.scaleRange?.[1] ?? 0)
+  // Divergence per field from the real selection — never a sentinel.
+  const overlay = $derived(bulk.common(s => s.statisticalOverlay))
+  const orientation = $derived(bulk.common(s => s.barPlottingType))
+  const orderBy = $derived(bulk.common(s => s.orderBy))
+  const orderDirection = $derived(bulk.common(s => s.orderDirection))
+  const minScale = $derived(bulk.common(s => s.scaleRange?.[0] ?? 0))
+  const maxScale = $derived(bulk.common(s => s.scaleRange?.[1] ?? 0))
+  const hideNoAoi = $derived(bulk.common(s => s.hideNoAoi ?? false))
 
   function updateScale(patch: { min?: number; max?: number }) {
-    const next: [number, number] = [
-      patch.min ?? minScale,
-      patch.max ?? maxScale,
-    ]
-    update({ scaleRange: next })
+    // Per item from each plot's OWN scaleRange so a partial edit (only min or
+    // only max) doesn't pull the untouched bound from a peer and overwrite it.
+    bulk.updateEach(s => {
+      const cur = s.scaleRange ?? [0, 0]
+      return {
+        scaleRange: [patch.min ?? cur[0], patch.max ?? cur[1]] as [
+          number,
+          number,
+        ],
+      }
+    })
   }
 
   const visSummary = $derived.by(() => {
-    const orientation = settings.barPlottingType === 'horizontal' ? 'Horizontal' : 'Vertical'
-    const overlay = settings.statisticalOverlay === 'none'
-      ? 'No overlay'
-      : settings.statisticalOverlay === 'meanCi95'
-        ? 'M ± 95% CI'
-        : settings.statisticalOverlay === 'meanSd'
-          ? 'M ± SD'
-          : 'Boxplot'
-    return `${orientation} (${overlay})`
+    if (orientation.mixed || overlay.mixed) return 'Mixed'
+    const o = orientation.value === 'horizontal' ? 'Horizontal' : 'Vertical'
+    const ov =
+      overlay.value === 'none'
+        ? 'No overlay'
+        : overlay.value === 'meanCi95'
+          ? 'M ± 95% CI'
+          : overlay.value === 'meanSd'
+            ? 'M ± SD'
+            : 'Boxplot'
+    return `${o} (${ov})`
   })
 </script>
-
-<StimulusPaneSection
-  stimulusId={settings.stimulusId}
-  onchange={id => update({ stimulusId: id })}
-  {source}
-/>
-
-<ParticipantGroupPaneSection
-  groupId={settings.groupId}
-  stimulusId={settings.stimulusId}
-  onchange={id => update({ groupId: id })}
-  {source}
-/>
-
-<MetricPaneSection
-  {item}
-  metricInstanceIds={settings.metricInstanceIds}
-  onchange={ids => update({ metricInstanceIds: ids })}
-/>
 
 <PaneSection title="Visualisation" summary={visSummary}>
   <div class="statistical-overlay-group">
@@ -80,10 +56,11 @@
         { label: 'Boxplot', value: 'boxplot' },
       ]}
       appearance="compact"
-      value={settings.statisticalOverlay}
+      value={overlay.value}
+      mixed={overlay.mixed}
       onchange={e => {
         const v = (e as CustomEvent<string>).detail as BarPlotSettings['statisticalOverlay']
-        update({ statisticalOverlay: v })
+        bulk.update({ statisticalOverlay: v })
       }}
     />
   </div>
@@ -95,10 +72,11 @@
     ]}
     appearance="compact"
     direction="row"
-    value={settings.barPlottingType}
+    value={orientation.value}
+    mixed={orientation.mixed}
     onchange={e => {
       const v = (e as CustomEvent<string>).detail as BarPlotSettings['barPlottingType']
-      update({ barPlottingType: v })
+      bulk.update({ barPlottingType: v })
     }}
   />
   <Radio
@@ -109,10 +87,11 @@
     ]}
     appearance="compact"
     direction="row"
-    value={settings.orderBy}
+    value={orderBy.value}
+    mixed={orderBy.mixed}
     onchange={e => {
       const v = (e as CustomEvent<string>).detail as BarPlotSettings['orderBy']
-      update({ orderBy: v })
+      bulk.update({ orderBy: v })
     }}
   />
   <Radio
@@ -123,10 +102,11 @@
     ]}
     appearance="compact"
     direction="row"
-    value={settings.orderDirection}
+    value={orderDirection.value}
+    mixed={orderDirection.mixed}
     onchange={e => {
       const v = (e as CustomEvent<string>).detail as BarPlotSettings['orderDirection']
-      update({ orderDirection: v })
+      bulk.update({ orderDirection: v })
     }}
   />
   <div class="scale-range-group">
@@ -135,7 +115,8 @@
       <InputNumber
         id="bar-min-scale"
         label="Min"
-        value={minScale}
+        value={minScale.value}
+        mixed={minScale.mixed}
         min={0}
         appearance="compact"
         onValueChange={v => updateScale({ min: v ?? 0 })}
@@ -143,7 +124,8 @@
       <InputNumber
         id="bar-max-scale"
         label="Max (0 = Auto)"
-        value={maxScale}
+        value={maxScale.value}
+        mixed={maxScale.mixed}
         min={0}
         appearance="compact"
         onValueChange={v => updateScale({ max: v ?? 0 })}
@@ -156,16 +138,12 @@
       label="No AOI data"
       appearance="compact"
       size="xs"
-      checked={settings.hideNoAoi ?? false}
-      onchange={e => update({ hideNoAoi: (e as CustomEvent<boolean>).detail })}
+      checked={hideNoAoi.value}
+      mixed={hideNoAoi.mixed}
+      onchange={e => bulk.update({ hideNoAoi: (e as CustomEvent<boolean>).detail })}
     />
   </div>
 </PaneSection>
-
-<TimelineRangeSection {item} />
-
-<AoiPaneSection stimulusId={settings.stimulusId} {source} />
-
 
 <style>
   .inline-pair {

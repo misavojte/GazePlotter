@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { createGridItem } from '$lib/workspace/grid/itemFactory'
 import {
   commitGridItemDuplication,
+  commitGridItemGroupMove,
   commitGridItemMove,
   commitGridItemRemoval,
   commitGridItemResize,
@@ -20,6 +21,7 @@ const gridConfig: GridConfig = {
 function createWorkspacePort() {
   return {
     updateItemLayout: vi.fn(() => true),
+    updateItemsLayout: vi.fn(() => true),
     removeVisualization: vi.fn(() => true),
     duplicateVisualization: vi.fn(() => true),
   }
@@ -83,6 +85,45 @@ describe('gridItemCommands', () => {
       21,
       'barPlot.21.workspace',
       { duplicateId: undefined, position: undefined }
+    )
+  })
+
+  it('commits a group move as one atomic updateItemsLayout call', () => {
+    const workspace = createWorkspacePort()
+    const a = createGridItem('barPlot', { type: 'barPlot', id: 21 })
+    const b = createGridItem('barPlot', { type: 'barPlot', id: 22 })
+    const items = [a, b]
+
+    expect(
+      commitGridItemGroupMove(workspace, items, [
+        { id: 21, x: 7, y: 5 },
+        { id: 22, x: 9, y: 5 },
+      ])
+    ).toBe(true)
+    // One bulk command (single undo step), not two updateItemLayout calls.
+    expect(workspace.updateItemLayout).not.toHaveBeenCalled()
+    expect(workspace.updateItemsLayout).toHaveBeenCalledWith(
+      [
+        { itemId: 21, layout: { x: 7, y: 5 } },
+        { itemId: 22, layout: { x: 9, y: 5 } },
+      ],
+      'barPlot.21.workspace'
+    )
+  })
+
+  it('group move drops commits for items that no longer exist', () => {
+    const workspace = createWorkspacePort()
+    const a = createGridItem('barPlot', { type: 'barPlot', id: 21 })
+
+    expect(
+      commitGridItemGroupMove(workspace, [a], [
+        { id: 21, x: 1, y: 1 },
+        { id: 999, x: 2, y: 2 },
+      ])
+    ).toBe(true)
+    expect(workspace.updateItemsLayout).toHaveBeenCalledWith(
+      [{ itemId: 21, layout: { x: 1, y: 1 } }],
+      'barPlot.21.workspace'
     )
   })
 

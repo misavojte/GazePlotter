@@ -83,6 +83,33 @@ export type PlotSubtitlePart = { label: string; value: string }
 
 export type PlotSubtitleParts = PlotSubtitlePart[]
 
+/**
+ * A pane section: a self-contained, selection-aware unit of the settings pane.
+ * It takes the (representative) grid item, reads the edit-target items from the
+ * `paneEditItems` context (default: just its own item), shows the common value
+ * / "Mixed" across them, and writes the same change to all of them. So it works
+ * identically for one item or N — single and bulk are the same code path.
+ */
+/**
+ * The item type pane sections accept. Deliberately loose (any settings) and
+ * defined HERE rather than as `AllGridTypes` — `AllGridTypes` derives from the
+ * plot registry, which references section components, so importing it into the
+ * sections would create a type cycle.
+ */
+export type PaneSectionItem = PlotItemContract<string, any>
+
+export type PaneSection = Component<{ item: any }>
+
+/**
+ * One entry in a plot's ordered pane. `key` is the section's stable identity:
+ * shared cross-type sections use a canonical key ('stimulus', 'group',
+ * 'participant', 'timelineRange', 'aoi', 'event', 'eyeMovement'); plot-specific
+ * sections use a namespaced key (e.g. 'scarf:visualisation') so they never
+ * count as common across types. The multi-select Pane derives which sections to
+ * show purely by intersecting these keys across the selection.
+ */
+export type PaneSectionEntry = { key: string; component: PaneSection }
+
 export type PlotDefinition<
   TType extends string,
   TSettings,
@@ -104,12 +131,14 @@ export type PlotDefinition<
   /** Export configuration for the generic download modal. */
   export?: PlotExportConfig<TSettings>
   /**
-   * Optional: the component rendered inside the workspace Pane when this
-   * plot instance is selected. Receives the grid item as its prop and wires
-   * all edits live via `workspace.updateItemSettings(...)`. Plots without
-   * `paneSettings` simply don't open a Pane when selected.
+   * The plot's settings pane, declared as an ordered list of sections. The
+   * single-plot pane renders this list; a multi-selection of one type renders
+   * the same list (edits applied to all); a mixed-type selection renders the
+   * intersection of the selected types' section keys. This list IS the pane —
+   * the single source of truth for both single and bulk editing. Plots with an
+   * empty list don't open a Pane when selected.
    */
-  paneSettings?: Component<{ item: PlotItemContract<TType, TSettings> }>
+  paneSections: PaneSectionEntry[]
 
   /**
    * Optional: builds the captioned label/value parts shown under the

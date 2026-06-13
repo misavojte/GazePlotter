@@ -1,6 +1,13 @@
 import RecurrencePlot from './components/RecurrencePlot.svelte'
 import { deriveRecurrenceView } from './core/view'
-import RecurrencePlotPaneSettings from './components/RecurrencePlotPaneSettings.svelte'
+import {
+  StimulusSection,
+  ParticipantSection,
+  AoiSection,
+  TimelineRangeSection,
+} from '$lib/plots/shared/components/sections'
+import RecurrenceMethodSection from './components/sections/RecurrenceMethodSection.svelte'
+import RecurrenceVisualisationSection from './components/sections/RecurrenceVisualisationSection.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import type { PlotSubtitleParts } from '$lib/plots/definePlot'
 import {
@@ -16,7 +23,17 @@ export const recurrencePlotDefinition = definePlot<
   type: 'recurrencePlot',
   name: 'Recurrence Plot',
   component: RecurrencePlot,
-  paneSettings: RecurrencePlotPaneSettings,
+  paneSections: [
+    { key: 'stimulus', component: StimulusSection },
+    { key: 'participant', component: ParticipantSection },
+    { key: 'recurrencePlot:method', component: RecurrenceMethodSection },
+    {
+      key: 'recurrencePlot:visualisation',
+      component: RecurrenceVisualisationSection,
+    },
+    { key: 'timelineRange', component: TimelineRangeSection },
+    { key: 'aoi', component: AoiSection },
+  ],
   export: { deriveView: deriveRecurrenceView },
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []

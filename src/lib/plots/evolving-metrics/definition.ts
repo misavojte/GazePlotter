@@ -1,6 +1,13 @@
 import EvolvingMetricsPlot from './components/EvolvingMetricsPlot.svelte'
 import { deriveEvolvingMetricsView } from './core/view'
-import EvolvingMetricsPlotPaneSettings from './components/EvolvingMetricsPlotPaneSettings.svelte'
+import {
+  StimulusSection,
+  GroupSection,
+  MetricSection,
+  TimelineRangeSection,
+  AoiSection,
+} from '$lib/plots/shared/components/sections'
+import EvolvingMetricsVisualisationSection from './components/sections/EvolvingMetricsVisualisationSection.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import type { PlotSubtitleParts } from '$lib/plots/definePlot'
 import {
@@ -16,7 +23,17 @@ export const evolvingMetricsDefinition = definePlot<
   type: 'evolvingMetrics',
   name: 'Evolving Metrics',
   component: EvolvingMetricsPlot,
-  paneSettings: EvolvingMetricsPlotPaneSettings,
+  paneSections: [
+    { key: 'stimulus', component: StimulusSection },
+    { key: 'group', component: GroupSection },
+    { key: 'metric', component: MetricSection },
+    {
+      key: 'evolvingMetrics:visualisation',
+      component: EvolvingMetricsVisualisationSection,
+    },
+    { key: 'timelineRange', component: TimelineRangeSection },
+    { key: 'aoi', component: AoiSection },
+  ],
   export: { deriveView: deriveEvolvingMetricsView },
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []

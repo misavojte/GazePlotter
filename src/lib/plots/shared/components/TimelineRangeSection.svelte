@@ -1,4 +1,4 @@
-<script lang="ts" generics="TType extends PlotType, TSettings extends { timelineStart?: number; timelineEnd?: number }">
+<script lang="ts" generics="TType extends string, TSettings extends { timelineStart?: number; timelineEnd?: number }">
   /**
    * Shared "range" section used by every plot pane that has start/end bounds.
    *
@@ -11,11 +11,11 @@
    * (e.g. the Scarf plot uses "Ordinal range [indices]" when in ordinal mode).
    */
   import { InputNumber } from '$lib/shared/components'
-  import { PaneSection } from '$lib/workspace/pane'
+  import { PaneSection, getPaneEditItems } from '$lib/workspace/pane'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
+  import { computeCommonValue } from './sections/common'
   import type { PlotItemContract } from '../../definePlot'
-  import type { PlotType } from '$lib/workspace'
 
   interface Props {
     item: PlotItemContract<TType, TSettings>
@@ -44,8 +44,16 @@
   const settings = $derived(item.settings)
   const source = $derived(createCommandSourcePlotPattern(item, 'pane'))
 
+  // Edits target this item, or every selected item in a bulk (multi-select)
+  // pane. Same command either way (single = set of one).
+  const editItems = getPaneEditItems()
   function update(patch: Partial<TSettings>): void {
-    workspace.updateItemSettings(item.id, patch, source)
+    const targets = editItems ? editItems() : [item]
+    workspace.updateItemsSettings(
+      targets.map(t => t.id),
+      patch,
+      source
+    )
   }
 
   // Stable per-plot ids to keep label associations correct when multiple
@@ -53,16 +61,33 @@
   const startId = $derived(`timeline-start-${item.type}-${item.id}`)
   const endId = $derived(`timeline-end-${item.type}-${item.id}`)
 
-  // Resolve displayed values and heading based on mode
-  const effectiveStart = $derived(ordinal ? ordinalStart : settings.timelineStart)
-  const effectiveEnd = $derived(ordinal ? ordinalEnd : settings.timelineEnd)
+  // Bulk-aware display: in ms mode, show the value common to the whole edit
+  // set, or "Mixed" when the selected plots disagree (any edit then makes them
+  // agree). Ordinal mode is only used in a same-type scarf context, where the
+  // representative's ordinal bounds are shown.
+  const targets = $derived(editItems ? editItems() : [item])
+  const commonStart = $derived(
+    ordinal
+      ? { value: ordinalStart, mixed: false }
+      : computeCommonValue(targets.map(t => t.settings.timelineStart))
+  )
+  const commonEnd = $derived(
+    ordinal
+      ? { value: ordinalEnd, mixed: false }
+      : computeCommonValue(targets.map(t => t.settings.timelineEnd))
+  )
+  const effectiveStart = $derived(commonStart.mixed ? undefined : commonStart.value)
+  const effectiveEnd = $derived(commonEnd.mixed ? undefined : commonEnd.value)
   const defaultTitle = $derived(ordinal ? 'Ordinal range [indices]' : 'Time range [ms]')
   const effectiveTitle = $derived(title ?? defaultTitle)
 
   const rangeSummary = $derived(
-    (!effectiveStart && !effectiveEnd) || (effectiveStart === 0 && effectiveEnd === 0)
-      ? 'Full'
-      : `${effectiveStart ?? 0}-${effectiveEnd || 'Auto'}`
+    commonStart.mixed || commonEnd.mixed
+      ? 'Mixed'
+      : (!effectiveStart && !effectiveEnd) ||
+          (effectiveStart === 0 && effectiveEnd === 0)
+        ? 'Full'
+        : `${effectiveStart ?? 0}-${effectiveEnd || 'Auto'}`
   )
 
   function handleStartChange(v: number | undefined) {
@@ -87,7 +112,8 @@
     <InputNumber
       id={startId}
       label="Start"
-      value={effectiveStart}
+      value={commonStart.value}
+      mixed={commonStart.mixed}
       min={0}
       appearance="compact"
       allowEmpty={true}
@@ -96,7 +122,8 @@
     <InputNumber
       id={endId}
       label="End (0 = Auto)"
-      value={effectiveEnd}
+      value={commonEnd.value}
+      mixed={commonEnd.mixed}
       min={0}
       appearance="compact"
       allowEmpty={true}

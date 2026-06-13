@@ -1,6 +1,14 @@
 import ScarfPlot from './components/ScarfPlot.svelte'
 import { deriveScarfView } from './core/view'
-import ScarfPlotPaneSettings from './components/ScarfPlotPaneSettings.svelte'
+import {
+  StimulusSection,
+  GroupSection,
+  AoiSection,
+  EventSection,
+  EyeMovementSection,
+} from '$lib/plots/shared/components/sections'
+import ScarfVisualisationSection from './components/sections/ScarfVisualisationSection.svelte'
+import ScarfTimelineSection from './components/sections/ScarfTimelineSection.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import type { PlotSubtitleParts } from '$lib/plots/definePlot'
 import {
@@ -16,7 +24,15 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
   type: 'scarf',
   name: 'Scarf Plot',
   component: ScarfPlot,
-  paneSettings: ScarfPlotPaneSettings,
+  paneSections: [
+    { key: 'stimulus', component: StimulusSection },
+    { key: 'group', component: GroupSection },
+    { key: 'scarf:visualisation', component: ScarfVisualisationSection },
+    { key: 'timelineRange', component: ScarfTimelineSection },
+    { key: 'aoi', component: AoiSection },
+    { key: 'eyeMovement', component: EyeMovementSection },
+    { key: 'event', component: EventSection },
+  ],
   export: { deriveView: deriveScarfView },
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []
@@ -52,8 +68,9 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
     // Case 1: stimulus switch on this item — clear all AOI highlights
     if (
       command.type === 'updateSettings' &&
-      command.itemId === item.id &&
-      'stimulusId' in command.settings
+      command.updates.some(
+        u => u.itemId === item.id && 'stimulusId' in u.settings
+      )
     ) {
       const kept = highlights.filter(h =>
         h.startsWith(SCARF_IDENTIFIERS.CATEGORY) ||
@@ -62,8 +79,7 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
       if (kept.length < highlights.length) {
         dispatch({
           type: 'updateSettings',
-          itemId: item.id,
-          settings: { highlights: kept },
+          updates: [{ itemId: item.id, settings: { highlights: kept } }],
           source: 'plot.onCommand',
         })
       }
@@ -85,8 +101,7 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
       if (kept.length < highlights.length) {
         dispatch({
           type: 'updateSettings',
-          itemId: item.id,
-          settings: { highlights: kept },
+          updates: [{ itemId: item.id, settings: { highlights: kept } }],
           source: 'plot.onCommand',
         })
       }

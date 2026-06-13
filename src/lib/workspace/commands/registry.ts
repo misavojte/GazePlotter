@@ -105,19 +105,23 @@ export function createWorkspaceCommandRegistry(
   }
 
   function emitCollisionResolutionChildren(
-    priorityItemId: number,
+    priorityItemIds: number | number[],
     chainId: number,
     context: WorkspaceCommandExecutionContext
   ): void {
     const collisionCommands =
-      gridStore.resolveItemPositionCollisions(priorityItemId)
+      gridStore.resolveItemPositionCollisions(priorityItemIds)
     collisionCommands.forEach(collisionCommand => {
       context.dispatch(
         createChildCommand(
           {
             type: 'updateLayout',
-            itemId: collisionCommand.itemId,
-            layout: collisionCommand.settings,
+            updates: [
+              {
+                itemId: collisionCommand.itemId,
+                layout: collisionCommand.settings,
+              },
+            ],
             source: 'collision',
           },
           chainId
@@ -197,33 +201,41 @@ export function createWorkspaceCommandRegistry(
       gridStore.triggerRedraw()
     },
 
-    updateSettings: (command, context) => {
-      const { itemId, settings } = command
-      const currentItem = gridStore.items.find(item => item.id === itemId)
-      if (!currentItem) throw new Error(`Grid item ${itemId} not found`)
+    updateSettings: command => {
+      for (const { itemId, settings } of command.updates) {
+        const currentItem = gridStore.items.find(item => item.id === itemId)
+        if (!currentItem) throw new Error(`Grid item ${itemId} not found`)
 
-      gridStore.updateItem(itemId, settings)
-      gridStore.updateLayout(itemId, {
-        redrawTimestamp: Date.now(),
-      })
-
-      if (command.isRootCommand && !context.isUndoRedoOperation) {
-        emitCollisionResolutionChildren(itemId, command.chainId, context)
+        gridStore.updateItem(itemId, settings)
+        gridStore.updateLayout(itemId, {
+          redrawTimestamp: Date.now(),
+        })
       }
+
+      // No collision resolution here: settings patches never touch x/y/w/h, so
+      // a settings change can't introduce overlaps (unlike updateLayout).
     },
 
     updateLayout: (command, context) => {
-      const { itemId, layout } = command
-      const currentItem = gridStore.items.find(item => item.id === itemId)
-      if (!currentItem) throw new Error(`Grid item ${itemId} not found`)
+      for (const { itemId, layout } of command.updates) {
+        const currentItem = gridStore.items.find(item => item.id === itemId)
+        if (!currentItem) throw new Error(`Grid item ${itemId} not found`)
 
-      gridStore.updateLayout(itemId, {
-        ...layout,
-        redrawTimestamp: Date.now(),
-      })
+        gridStore.updateLayout(itemId, {
+          ...layout,
+          redrawTimestamp: Date.now(),
+        })
+      }
 
       if (command.isRootCommand && !context.isUndoRedoOperation) {
-        emitCollisionResolutionChildren(itemId, command.chainId, context)
+        // All moved items are priority (fixed) for collision resolution, so
+        // a group move pushes only non-members aside — members keep their
+        // relative layout.
+        emitCollisionResolutionChildren(
+          command.updates.map(u => u.itemId),
+          command.chainId,
+          context
+        )
       }
     },
 
@@ -441,24 +453,26 @@ export function createWorkspaceCommandRegistry(
 
     updateSettings: (cmd, meta) => {
       const currentItems = gridStore.items
-      const currentItem = currentItems.find(item => item.id === cmd.itemId)
-      if (!currentItem) {
-        throw new Error(
-          `Cannot reverse updateSettings: item ${cmd.itemId} not found`
-        )
-      }
-      const reverseSettings: Partial<AllPlotSettings> = {}
-      Object.keys(cmd.settings).forEach(key => {
-        const typedKey = key as keyof typeof currentItem.settings
-        Object.assign(reverseSettings, {
-          [typedKey]: currentItem.settings[typedKey],
+      const reverseUpdates = cmd.updates.map(({ itemId, settings }) => {
+        const currentItem = currentItems.find(item => item.id === itemId)
+        if (!currentItem) {
+          throw new Error(
+            `Cannot reverse updateSettings: item ${itemId} not found`
+          )
+        }
+        const reverseSettings: Partial<AllPlotSettings> = {}
+        Object.keys(settings).forEach(key => {
+          const typedKey = key as keyof typeof currentItem.settings
+          Object.assign(reverseSettings, {
+            [typedKey]: currentItem.settings[typedKey],
+          })
         })
+        return { itemId, settings: reverseSettings }
       })
       return withMeta(
         {
           type: 'updateSettings',
-          itemId: cmd.itemId,
-          settings: reverseSettings,
+          updates: reverseUpdates,
         },
         meta
       )
@@ -466,26 +480,27 @@ export function createWorkspaceCommandRegistry(
 
     updateLayout: (cmd, meta) => {
       const currentItems = gridStore.items
-      const currentItem = currentItems.find(item => item.id === cmd.itemId)
-      if (!currentItem) {
-        throw new Error(
-          `Cannot reverse updateLayout: item ${cmd.itemId} not found`
-        )
-      }
-
-      const reverseLayout: GridItemLayoutUpdate = {}
-      Object.keys(cmd.layout).forEach(key => {
-        const typedKey = key as keyof GridItemLayoutUpdate
-        Object.assign(reverseLayout, {
-          [typedKey]: currentItem[typedKey as keyof typeof currentItem],
+      const reverseUpdates = cmd.updates.map(({ itemId, layout }) => {
+        const currentItem = currentItems.find(item => item.id === itemId)
+        if (!currentItem) {
+          throw new Error(
+            `Cannot reverse updateLayout: item ${itemId} not found`
+          )
+        }
+        const reverseLayout: GridItemLayoutUpdate = {}
+        Object.keys(layout).forEach(key => {
+          const typedKey = key as keyof GridItemLayoutUpdate
+          Object.assign(reverseLayout, {
+            [typedKey]: currentItem[typedKey as keyof typeof currentItem],
+          })
         })
+        return { itemId, layout: reverseLayout }
       })
 
       return withMeta(
         {
           type: 'updateLayout',
-          itemId: cmd.itemId,
-          layout: reverseLayout,
+          updates: reverseUpdates,
         },
         meta
       )

@@ -7,6 +7,9 @@
   import PaneSection from './PaneSection.svelte'
   import PaneEditLink from './PaneEditLink.svelte'
   import PaneSheet from './PaneSheet.svelte'
+  import PaneSectionList from './PaneSectionList.svelte'
+  import BulkPaneSettings from './BulkPaneSettings.svelte'
+  import { setPaneEditItems } from './paneEditItems'
   import { PANE_ACCORDION_KEY, type PaneAccordion } from './accordion'
   import { PANE_TRANSITION, slideFlex } from './transition'
   import { markInPane } from '$lib/shared/components/paneContext'
@@ -41,16 +44,31 @@
     paneItem ? (plotRegistry as Record<string, any>)[paneItem.type] : null
   )
 
-  const PaneSettings = $derived(definition?.paneSettings ?? null)
+  const paneSections = $derived(definition?.paneSections ?? [])
+
+  // Single-plot pane: sections edit just this item. (BulkPaneSettings overrides
+  // this context for the multi-selection subtree.) Reactive via the getter.
+  setPaneEditItems(() => (paneItem ? [paneItem] : []))
 
   const title = $derived(paneItem ? getPlotDisplayName(paneItem.type) : '')
 
-  // Desktop: closing the pane also deselects (setSelectedItem(null)
-  // clears paneOpenId transitively). Mobile: keep the plot selected so
-  // the FAB returns and the user can still drag — closePane() only
-  // closes the sheet.
+  // Multi-selection (desktop): the pane shows the sections shared by every
+  // selected plot for bulk editing, instead of one plot's full settings.
+  // `selectedCount` is the single source — single vs bulk is just cardinality.
+  const isBulk = $derived(grid.selectedCount > 1)
+  const bulkTitle = $derived(`${grid.selectedCount} plots selected`)
+  const desktopAriaLabel = $derived(
+    isBulk ? 'Bulk plot settings' : `${title} settings`
+  )
+
+  // Desktop: closing the pane also deselects (setSelectedItem(null)/
+  // clearSelection() clears paneOpenId transitively). Mobile: keep the plot
+  // selected so the FAB returns and the user can still drag — closePane()
+  // only closes the sheet.
   function close() {
-    if (responsive.isMobile) {
+    if (isBulk) {
+      grid.clearSelection()
+    } else if (responsive.isMobile) {
       grid.closePane()
     } else {
       grid.setSelectedItem(null)
@@ -80,11 +98,11 @@
       window.removeEventListener('scroll', detectOnScrollBannerHeight)
   })
 
-  // Escape closes whichever surface is open (desktop pane or mobile
-  // sheet). Keyed on paneItem so the listener detaches when nothing is
-  // open, avoiding a global key handler that'd fire on every keystroke.
+  // Escape closes whichever surface is open (desktop pane, bulk pane, or
+  // mobile sheet). Keyed on paneItem/isBulk so the listener detaches when
+  // nothing is open, avoiding a global key handler that'd fire on every keystroke.
   $effect(() => {
-    if (!paneItem) return
+    if (!paneItem && !isBulk) return
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         e.preventDefault()
@@ -103,14 +121,32 @@
   </PaneSection>
 {/snippet}
 
+<!-- Desktop pane body: bulk shared-sections when several plots are selected,
+     otherwise the single plot's full settings. One shell, one transition —
+     only the content branches on cardinality. -->
+{#snippet desktopBody()}
+  {#if isBulk}
+    <PaneHeader title={bulkTitle} onClose={close} />
+    <div class="body">
+      <BulkPaneSettings items={grid.selectedItems} />
+    </div>
+  {:else if paneItem && paneSections.length}
+    <PaneHeader {title} onClose={close} />
+    <div class="body">
+      <PaneSectionList sections={paneSections} item={paneItem} />
+      {@render exportSection()}
+    </div>
+  {/if}
+{/snippet}
+
 {#if responsive.isMobile}
-  {#if paneItem && PaneSettings}
+  {#if paneItem && paneSections.length}
     <PaneSheet {title} onClose={close}>
-      <PaneSettings item={paneItem} />
+      <PaneSectionList sections={paneSections} item={paneItem} />
       {@render exportSection()}
     </PaneSheet>
   {/if}
-{:else if paneItem && PaneSettings}
+{:else if isBulk || (paneItem && paneSections.length)}
   <!-- Desktop side pane. Conditionally mounted with `slideFlex` on the
        x axis. We animate both `width` AND `flex-basis` — the built-in
        `slide` only animates width, which is silently ignored by a flex
@@ -120,7 +156,7 @@
        read as one sweep. -->
   <aside
     class="pane"
-    aria-label={`${title} settings`}
+    aria-label={desktopAriaLabel}
     transition:slideFlex={{
       axis: 'x',
       duration: PANE_TRANSITION.duration,
@@ -131,11 +167,7 @@
       class="pane-content"
       style="top: {contentTop}px; max-height: calc(100vh - {contentTop}px);"
     >
-      <PaneHeader {title} onClose={close} />
-      <div class="body">
-        <PaneSettings item={paneItem} />
-        {@render exportSection()}
-      </div>
+      {@render desktopBody()}
     </div>
   </aside>
 {/if}

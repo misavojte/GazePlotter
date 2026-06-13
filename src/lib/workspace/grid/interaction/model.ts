@@ -29,6 +29,22 @@ export type PanSession = {
   scrollStart: ScrollOffset
 }
 
+export type MoveMember = {
+  id: number
+  origin: GridInteractionRect
+  preview: GridInteractionRect
+}
+
+// A move targets one OR many items dragged together by a shared, clamped
+// delta. A single-item move is simply a group of one — same code path.
+export type MoveSession = {
+  kind: 'moving'
+  members: MoveMember[]
+  pointerStart: InteractionPoint
+  pointerCurrent: InteractionPoint
+  scrollStart: ScrollOffset
+}
+
 type TransformSessionBase = {
   itemId: number
   origin: GridInteractionRect
@@ -37,10 +53,6 @@ type TransformSessionBase = {
   pointerCurrent: InteractionPoint
   scrollStart: ScrollOffset
   min: { w: number; h: number }
-}
-
-export type MoveSession = TransformSessionBase & {
-  kind: 'moving'
 }
 
 export type ResizeDirection = 'tl' | 'tr' | 'bl' | 'br'
@@ -83,19 +95,20 @@ export function updatePanSession(
 }
 
 export function startMoveSession(
-  rect: GridInteractionRect,
+  rects: GridInteractionRect[],
   point: InteractionPoint,
   scroll: ScrollOffset
 ): MoveSession {
   return {
     kind: 'moving',
-    itemId: rect.id,
-    origin: { ...rect },
-    preview: { ...rect },
+    members: rects.map(rect => ({
+      id: rect.id,
+      origin: { ...rect },
+      preview: { ...rect },
+    })),
     pointerStart: point,
     pointerCurrent: point,
     scrollStart: scroll,
-    min: { w: rect.w, h: rect.h },
   }
 }
 
@@ -170,14 +183,25 @@ export function updateMoveSession(
     zoom
   )
 
+  // Clamp the shared delta so no member crosses the grid origin — this keeps
+  // the group's relative layout intact when dragged toward the top-left
+  // (and reduces to `Math.max(0, origin + delta)` for a single member).
+  const minOriginX = Math.min(...session.members.map(m => m.origin.x))
+  const minOriginY = Math.min(...session.members.map(m => m.origin.y))
+  const dx = Math.max(delta.x, -minOriginX)
+  const dy = Math.max(delta.y, -minOriginY)
+
   return {
     ...session,
     pointerCurrent: point,
-    preview: {
-      ...session.origin,
-      x: Math.max(0, session.origin.x + delta.x),
-      y: Math.max(0, session.origin.y + delta.y),
-    },
+    members: session.members.map(member => ({
+      ...member,
+      preview: {
+        ...member.origin,
+        x: member.origin.x + dx,
+        y: member.origin.y + dy,
+      },
+    })),
   }
 }
 
@@ -230,14 +254,16 @@ export function updateResizeSession(
 
 export function mergePreviewPosition(
   positions: GridItemPosition[],
-  preview: GridInteractionRect | null
+  previews: GridInteractionRect[]
 ): GridItemPosition[] {
-  if (!preview) return positions
+  if (previews.length === 0) return positions
 
-  let found = false
+  const byId = new Map(previews.map(p => [p.id, p]))
+  const seen = new Set<number>()
   const next = positions.map(position => {
-    if (position.id !== preview.id) return position
-    found = true
+    const preview = byId.get(position.id)
+    if (!preview) return position
+    seen.add(preview.id)
     return {
       id: preview.id,
       x: preview.x,
@@ -247,7 +273,8 @@ export function mergePreviewPosition(
     }
   })
 
-  if (!found) {
+  for (const preview of previews) {
+    if (seen.has(preview.id)) continue
     next.push({
       id: preview.id,
       x: preview.x,

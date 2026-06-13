@@ -284,12 +284,57 @@ function runRelocateResolution(
   return { updates, cost }
 }
 
-// Resolves collisions introduced by a move/resize/add of `priorityItemId`.
-// Runs two strategies — a BFS cascade and a bulk relocate — then returns
-// whichever has the lower total Manhattan displacement. Ties go to the
-// cascade, which keeps moved items local to the user's action.
+// Relocates every non-priority item overlapping the *set* of priority items
+// to the first free cell, treating all priority items as fixed. Used for a
+// group move: the dragged members hold their relative layout and only items
+// in the way get pushed off. (Single-item moves keep the nicer directional
+// cascade below — relocate-to-free-cell is the robust choice when the
+// "obstacle" is an arbitrary, possibly non-contiguous union of rects.)
+function resolveGroupCollisions(
+  priorityIds: number[],
+  positions: GridItemPosition[],
+  availableColumns: number
+): Array<{ itemId: number; settings: GridItemLayoutUpdate }> {
+  const prioritySet = new Set(priorityIds)
+  const colliders = new Set<number>()
+  for (const id of priorityIds) {
+    const rect = positions.find(p => p.id === id)
+    if (!rect) continue
+    for (const cid of findCollisions(
+      rect.x,
+      rect.y,
+      rect.w,
+      rect.h,
+      positions,
+      rect.id
+    )) {
+      if (!prioritySet.has(cid)) colliders.add(cid)
+    }
+  }
+  if (colliders.size === 0) return []
+
+  const sim = new Map(positions.map(p => [p.id, { ...p }]))
+  const updates: Array<{ itemId: number; settings: GridItemLayoutUpdate }> = []
+  for (const id of colliders) {
+    const current = sim.get(id)
+    if (!current) continue
+    // Search free cells against everything else, including the (fixed)
+    // priority items and already-relocated colliders.
+    const others = Array.from(sim.values()).filter(p => p.id !== id)
+    const next = findOptimalPosition(current.w, current.h, others, availableColumns)
+    if (next.x === current.x && next.y === current.y) continue
+    sim.set(id, { ...current, x: next.x, y: next.y })
+    updates.push({ itemId: id, settings: { x: next.x, y: next.y } })
+  }
+  return updates
+}
+
+// Resolves collisions introduced by a move/resize/add. Accepts a single
+// priority id or a set (group move). One id → the directional cascade /
+// bulk-relocate comparison (cheapest wins; ties favor the local cascade).
+// Many ids → group relocate (above).
 export function resolveItemPositionCollisions(
-  priorityItemId: number,
+  priorityItemIds: number | number[],
   positions: GridItemPosition[],
   _items: AllGridTypes[],
   availableColumns: number
@@ -297,7 +342,15 @@ export function resolveItemPositionCollisions(
   itemId: number
   settings: GridItemLayoutUpdate
 }> {
-  const priorityItem = positions.find(i => i.id === priorityItemId)
+  const ids = Array.isArray(priorityItemIds)
+    ? priorityItemIds
+    : [priorityItemIds]
+
+  if (ids.length > 1) {
+    return resolveGroupCollisions(ids, positions, availableColumns)
+  }
+
+  const priorityItem = positions.find(i => i.id === ids[0])
   if (!priorityItem) return []
 
   const directColliders = findCollisions(

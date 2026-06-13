@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import InputScaffold from './InputScaffold.svelte'
   import {
     formatInputNumberValue,
@@ -16,6 +17,10 @@
     step?: number | string
     placeholder?: string
     allowEmpty?: boolean
+    /** Multi-selection "Mixed": the bound plots disagree on this field. Shows an
+     *  empty field with a "Mixed" placeholder; typing a value commits it (and
+     *  resolves the divergence across the set). */
+    mixed?: boolean
     id?: string
   }
 
@@ -30,10 +35,14 @@
     step = 1,
     placeholder,
     allowEmpty = false,
+    mixed = false,
     id,
   }: Props = $props()
 
-  let inputValue = $state(formatInputNumberValue(value))
+  // Initial only; the $effect below keeps it in sync with `value`/`mixed`.
+  let inputValue = $state(
+    untrack(() => (mixed ? '' : formatInputNumberValue(value)))
+  )
   let isFocused = $state(false)
 
   function commitValue(nextValue: number | undefined) {
@@ -57,11 +66,11 @@
 
   function handleBlur() {
     isFocused = false
-    inputValue = formatInputNumberValue(value)
+    inputValue = mixed ? '' : formatInputNumberValue(value)
   }
 
   $effect(() => {
-    const nextValue = formatInputNumberValue(value)
+    const nextValue = mixed ? '' : formatInputNumberValue(value)
 
     if (!isFocused && inputValue !== nextValue) {
       inputValue = nextValue
@@ -90,7 +99,7 @@
     {max}
     {disabled}
     {step}
-    {placeholder}
+    placeholder={mixed ? 'Mixed' : placeholder}
     oninput={handleInput}
     onfocus={handleFocus}
     onblur={handleBlur}

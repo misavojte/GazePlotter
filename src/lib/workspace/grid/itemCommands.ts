@@ -4,7 +4,10 @@ import type { GridConfig } from './types'
 
 type WorkspaceGridCommands = Pick<
   WorkspaceService,
-  'duplicateVisualization' | 'removeVisualization' | 'updateItemLayout'
+  | 'duplicateVisualization'
+  | 'removeVisualization'
+  | 'updateItemLayout'
+  | 'updateItemsLayout'
 >
 
 type GridItemIdentity = Pick<AllGridTypes, 'id' | 'type'>
@@ -59,6 +62,25 @@ export function commitGridItemMove(
     { x: commit.x, y: commit.y },
     getGridItemCommandSource(item)
   )
+}
+
+export function commitGridItemGroupMove(
+  workspace: WorkspaceGridCommands,
+  items: AllGridTypes[],
+  commits: GridMoveCommit[]
+): boolean {
+  // Keep only commits that still map to a live item; build one atomic
+  // layout command so the whole group moves (and undoes) in one step.
+  const updates = commits
+    .filter(commit => items.some(item => item.id === commit.id))
+    .map(commit => ({
+      itemId: commit.id,
+      layout: { x: commit.x, y: commit.y },
+    }))
+  if (updates.length === 0) return false
+
+  const anchor = findGridItem(items, commits[0].id) ?? items[0]
+  return workspace.updateItemsLayout(updates, getGridItemCommandSource(anchor))
 }
 
 export function commitGridItemResize(

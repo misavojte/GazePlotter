@@ -15,6 +15,7 @@
   } from '$survey'
   import type { SurveyTask, SurveyModalState } from '$survey/types'
   import type { WorkspaceCommandChain } from '$lib/workspace/commands'
+  import type { AllPlotSettings } from '$lib/workspace'
   import type { GazePlotterSession } from '$lib/session'
   import { onMount } from 'svelte'
 
@@ -398,12 +399,17 @@
       return
     }
 
+    // A settings change targets a SET of items (`updates`); a single edit is
+    // a list of one. A condition fires when ANY targeted item matches.
+    const settingsUpdateMatches = (
+      predicate: (settings: Partial<AllPlotSettings>) => boolean
+    ): boolean =>
+      command.type === 'updateSettings' &&
+      command.updates.some(u => predicate(u.settings))
+
     // Check for stimulus change to Task 2 (stimulusId === 1) from scarf plot
     if (
-      command.type === 'updateSettings' &&
-      command.settings &&
-      'stimulusId' in command.settings &&
-      command.settings.stimulusId === 1 &&
+      settingsUpdateMatches(s => 'stimulusId' in s && s.stimulusId === 1) &&
       isCommandFromPlotType(command.source, 'scarf')
     ) {
       stimulusCondition.set(true)
@@ -411,10 +417,7 @@
 
     // Check for timeline change to relative from scarf plot
     if (
-      command.type === 'updateSettings' &&
-      command.settings &&
-      'timeline' in command.settings &&
-      command.settings.timeline === 'relative' &&
+      settingsUpdateMatches(s => 'timeline' in s && s.timeline === 'relative') &&
       isCommandFromPlotType(command.source, 'scarf')
     ) {
       timelineCondition.set(true)
@@ -422,10 +425,7 @@
 
     // Check for group change to Analytics (groupId === 1) from scarf plot
     if (
-      command.type === 'updateSettings' &&
-      command.settings &&
-      'groupId' in command.settings &&
-      command.settings.groupId === 1 &&
+      settingsUpdateMatches(s => 'groupId' in s && s.groupId === 1) &&
       isCommandFromPlotType(command.source, 'scarf')
     ) {
       groupCondition.set(true)
@@ -433,10 +433,7 @@
 
     // Check for group change to Holistics (groupId === 2) from scarf plot
     if (
-      command.type === 'updateSettings' &&
-      command.settings &&
-      'groupId' in command.settings &&
-      command.settings.groupId === 2 &&
+      settingsUpdateMatches(s => 'groupId' in s && s.groupId === 2) &&
       isCommandFromPlotType(command.source, 'scarf')
     ) {
       group2Condition.set(true)
@@ -488,10 +485,9 @@
 
     // Check for Transition Matrix aggregation change to '1-step probability'
     if (
-      command.type === 'updateSettings' &&
-      command.settings &&
-      'aggregationMethod' in command.settings &&
-      command.settings.aggregationMethod === 'probability' &&
+      settingsUpdateMatches(
+        s => 'aggregationMethod' in s && s.aggregationMethod === 'probability'
+      ) &&
       isCommandFromPlotType(command.source, 'transitionMatrix')
     ) {
       transitionMatrixCondition.set(true)
@@ -499,11 +495,12 @@
 
     // Check for AOI Metrics aggregation change to 'Visit count'
     if (
-      command.type === 'updateSettings' &&
-      command.settings &&
-      'metricInstanceIds' in command.settings &&
-      Array.isArray(command.settings.metricInstanceIds) &&
-      command.settings.metricInstanceIds[0] === 'visitCount' &&
+      settingsUpdateMatches(
+        s =>
+          'metricInstanceIds' in s &&
+          Array.isArray(s.metricInstanceIds) &&
+          s.metricInstanceIds[0] === 'visitCount'
+      ) &&
       isCommandFromPlotType(command.source, 'barPlot')
     ) {
       barPlotCondition.set(true)
@@ -511,10 +508,7 @@
 
     // Check for Transition Matrix stimulus change to Task 2
     if (
-      command.type === 'updateSettings' &&
-      command.settings &&
-      'stimulusId' in command.settings &&
-      command.settings.stimulusId === 1 &&
+      settingsUpdateMatches(s => 'stimulusId' in s && s.stimulusId === 1) &&
       isCommandFromPlotType(command.source, 'transitionMatrix')
     ) {
       transitionMatrixStimulusCondition.set(true)
@@ -522,10 +516,7 @@
 
     // Check for AOI Metrics stimulus change to Task 2
     if (
-      command.type === 'updateSettings' &&
-      command.settings &&
-      'stimulusId' in command.settings &&
-      command.settings.stimulusId === 1 &&
+      settingsUpdateMatches(s => 'stimulusId' in s && s.stimulusId === 1) &&
       isCommandFromPlotType(command.source, 'barPlot')
     ) {
       barPlotStimulusCondition.set(true)

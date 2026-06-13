@@ -191,4 +191,40 @@ describe('gridEngine', () => {
     )
     expect(collidingWithPriority).toEqual([])
   })
+
+  it('treats every member of a group move as fixed and relocates only outsiders', () => {
+    // Two members (1, 2) moved together so they now sit on top of two
+    // unrelated items (3, 4). Members must stay put; only 3 and 4 relocate,
+    // and members must not be reported as moved.
+    const positions: Rect[] = [
+      { id: 1, x: 0, y: 0, w: 2, h: 2 }, // group member
+      { id: 2, x: 2, y: 0, w: 2, h: 2 }, // group member
+      { id: 3, x: 1, y: 1, w: 1, h: 1 }, // outsider overlapped by member 1
+      { id: 4, x: 3, y: 1, w: 1, h: 1 }, // outsider overlapped by member 2
+    ]
+    const commands = resolveItemPositionCollisions(
+      [1, 2],
+      positions,
+      positions as any,
+      8
+    )
+    const final = applyPlan(positions, commands)
+
+    // Neither group member is moved by collision resolution.
+    expect(commands.every(c => c.itemId !== 1 && c.itemId !== 2)).toBe(true)
+    // Both outsiders are relocated and nothing overlaps afterward.
+    expect(commands.map(c => c.itemId).sort()).toEqual([3, 4])
+    expect(anyOverlap(final)).toBe(false)
+  })
+
+  it('returns no moves for a group move into empty space', () => {
+    const positions: Rect[] = [
+      { id: 1, x: 0, y: 0, w: 2, h: 2 },
+      { id: 2, x: 3, y: 0, w: 2, h: 2 },
+      { id: 3, x: 0, y: 5, w: 1, h: 1 }, // far away, untouched
+    ]
+    expect(
+      resolveItemPositionCollisions([1, 2], positions, positions as any, 8)
+    ).toEqual([])
+  })
 })

@@ -50,9 +50,11 @@ export class WorkspaceService {
 
   private readonly handleCommand: (command: WorkspaceCommandChain) => void
   private readonly errorService: Pick<ErrorService, 'report'>
+  private readonly grid: GridState
 
   constructor(deps: WorkspaceServiceDeps) {
     this.errorService = deps.errorService
+    this.grid = deps.grid
     this.handleCommand = createCommandHandler(
       deps.grid,
       deps.engine,
@@ -180,10 +182,52 @@ export class WorkspaceService {
   ): boolean {
     return this.applyRoot({
       type: 'updateSettings',
-      itemId,
-      settings,
+      updates: [{ itemId, settings }],
       source,
     })
+  }
+
+  /**
+   * Applies the same settings patch to several items as ONE atomic command
+   * (single undo step). Single-item edits are just `updateItemSettings`
+   * (a set of one) — same command, same code path.
+   */
+  updateItemsSettings(
+    itemIds: number[],
+    settings: Partial<AllPlotSettings>,
+    source: string
+  ): boolean {
+    if (itemIds.length === 0) return true
+    return this.applyRoot({
+      type: 'updateSettings',
+      updates: itemIds.map(itemId => ({ itemId, settings })),
+      source,
+    })
+  }
+
+  /**
+   * Applies a patch computed PER ITEM from that item's own current settings,
+   * as one atomic command. Use this for read-modify-write edits (e.g. a
+   * per-stimulus range keyed by each plot's own stimulusId) where broadcasting
+   * one item's merged value would clobber the others. `computePatch` returns
+   * null to skip an item. Single-item edits are just a set of one — same path.
+   */
+  updateEachItemSettings(
+    itemIds: number[],
+    computePatch: (settings: AllPlotSettings) => Partial<AllPlotSettings> | null,
+    source: string
+  ): boolean {
+    const updates: { itemId: number; settings: Partial<AllPlotSettings> }[] = []
+    for (const itemId of itemIds) {
+      const item = this.grid.items.find(i => i.id === itemId)
+      if (!item) continue
+      const patch = computePatch(item.settings as AllPlotSettings)
+      if (patch && Object.keys(patch).length > 0) {
+        updates.push({ itemId, settings: patch })
+      }
+    }
+    if (updates.length === 0) return true
+    return this.applyRoot({ type: 'updateSettings', updates, source })
   }
 
   updateItemLayout(
@@ -193,8 +237,24 @@ export class WorkspaceService {
   ): boolean {
     return this.applyRoot({
       type: 'updateLayout',
-      itemId,
-      layout,
+      updates: [{ itemId, layout }],
+      source,
+    })
+  }
+
+  /**
+   * Moves/resizes several items as ONE atomic command (single undo step) —
+   * used by group move. A single-item layout change is just `updateItemLayout`
+   * (a set of one); same command, same code path.
+   */
+  updateItemsLayout(
+    updates: { itemId: number; layout: GridItemLayoutUpdate }[],
+    source: string
+  ): boolean {
+    if (updates.length === 0) return true
+    return this.applyRoot({
+      type: 'updateLayout',
+      updates,
       source,
     })
   }

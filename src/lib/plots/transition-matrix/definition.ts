@@ -1,6 +1,13 @@
 import TransitionMatrixPlot from './components/TransitionMatrixPlot.svelte'
 import { deriveTransitionMatrixView } from './core/view'
-import TransitionMatrixPlotPaneSettings from './components/TransitionMatrixPlotPaneSettings.svelte'
+import {
+  StimulusSection,
+  GroupSection,
+  MetricSection,
+  TimelineRangeSection,
+  AoiSection,
+} from '$lib/plots/shared/components/sections'
+import TransitionMatrixVisualisationSection from './components/sections/TransitionMatrixVisualisationSection.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import type { PlotSubtitleParts } from '$lib/plots/definePlot'
 import { INACTIVE_COLOR, PRESET_PALETTES } from '$lib/color/palettes'
@@ -17,7 +24,17 @@ export const transitionMatrixDefinition = definePlot<
   type: 'transitionMatrix',
   name: 'Transition Matrix',
   component: TransitionMatrixPlot,
-  paneSettings: TransitionMatrixPlotPaneSettings,
+  paneSections: [
+    { key: 'stimulus', component: StimulusSection },
+    { key: 'group', component: GroupSection },
+    { key: 'metric', component: MetricSection },
+    {
+      key: 'transitionMatrix:visualisation',
+      component: TransitionMatrixVisualisationSection,
+    },
+    { key: 'timelineRange', component: TimelineRangeSection },
+    { key: 'aoi', component: AoiSection },
+  ],
   export: { deriveView: deriveTransitionMatrixView },
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []

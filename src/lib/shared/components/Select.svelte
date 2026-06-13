@@ -38,6 +38,10 @@
     topAction?: TopAction
     /** Message rendered as a disabled item when `options` is empty. */
     emptyMessage?: string
+    /** Multi-selection "Mixed": the bound plots disagree on this field. Shows a
+     *  neutral "varies" trigger with nothing highlighted; picking an option
+     *  still applies normally (and resolves the divergence). */
+    mixed?: boolean
     onchange?: (event: CustomEvent<string | string[]>) => void
     onClose?: () => void
   }
@@ -53,6 +57,7 @@
     subLabel,
     topAction,
     emptyMessage,
+    mixed = false,
     onchange = () => {},
     onClose = () => {},
   }: Props = $props()
@@ -80,15 +85,21 @@
   )}`
 
   const currentSelection = $derived(
-    multiple ? (Array.isArray(value) ? value : []) : value
+    mixed
+      ? (multiple ? [] : '')
+      : multiple
+        ? (Array.isArray(value) ? value : [])
+        : value
   )
 
   const triggerLabel = $derived(
-    getSelectLabel(currentSelection, options, placeholder)
+    mixed
+      ? (placeholder ?? 'Mixed (varies)')
+      : getSelectLabel(currentSelection, options, placeholder)
   )
 
   const showPlaceholder = $derived(
-    Boolean(placeholder) && isSelectionEmpty(currentSelection, options)
+    mixed || (Boolean(placeholder) && isSelectionEmpty(currentSelection, options))
   )
 
   function handleSelectionChange(nextValue: string) {

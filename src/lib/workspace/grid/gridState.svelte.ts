@@ -27,9 +27,10 @@ export class GridState {
   // UI sync state that needs to survive outside local components.
   isLoading = $state(false)
 
-  // Ephemeral: which grid item the right-side Pane is currently configuring.
-  // Not persisted to workspace JSON; lives only in runtime state.
-  selectedItemId = $state<number | null>(null)
+  // Ephemeral selection set: which grid items are currently selected.
+  // A single selection is just a set of size 1; a multi-selection is a set
+  // of N. Not persisted to workspace JSON; lives only in runtime state.
+  selectedItemIds = $state<number[]>([])
 
   // Ephemeral: which grid item currently has its settings pane/sheet open.
   // On desktop this mirrors `selectedItemId` — click a plot, pane opens.
@@ -43,11 +44,34 @@ export class GridState {
 
   isEmpty = $derived(this.items.length === 0)
 
-  selectedItem = $derived(
-    this.selectedItemId === null
-      ? null
-      : (this.items.find(i => i.id === this.selectedItemId) ?? null)
-  )
+  // Selection projections are plain getters over the `selectedItemIds`
+  // $state: trivial, always-fresh, and reactive inside components (the
+  // $state read during the getter call is tracked by the caller). Using
+  // getters rather than $derived avoids memoization that can go stale when
+  // read outside a tracking scope (e.g. unit tests).
+  get selectedCount(): number {
+    return this.selectedItemIds.length
+  }
+
+  // The single-selection id: the one selected item, or null when zero OR
+  // more than one are selected. This is the single place the "exactly one"
+  // notion is expressed — single-only consumers (mobile FAB, off-screen
+  // indicator, Delete/Escape, the per-plot Pane) read this and behave
+  // exactly as before whenever 0 or 1 items are selected.
+  get selectedItemId(): number | null {
+    return this.selectedItemIds.length === 1 ? this.selectedItemIds[0] : null
+  }
+
+  get selectedItem(): AllGridTypes | null {
+    const id = this.selectedItemId
+    return id === null ? null : (this.items.find(i => i.id === id) ?? null)
+  }
+
+  get selectedItems(): AllGridTypes[] {
+    return this.selectedItemIds
+      .map(id => this.items.find(i => i.id === id))
+      .filter((i): i is AllGridTypes => i != null)
+  }
 
   constructor(options: GridStateOptions = {}) {
     this.getAvailableColumnsFn =
@@ -162,25 +186,50 @@ export class GridState {
 
   removeItem(id: number) {
     this.items = this.items.filter(i => i.id !== id)
-    if (this.selectedItemId === id) this.selectedItemId = null
+    this.selectedItemIds = this.selectedItemIds.filter(x => x !== id)
     if (this.paneOpenId === id) this.paneOpenId = null
   }
 
   setSelectedItem(id: number | null) {
     if (id === null) {
-      this.selectedItemId = null
-      // Deselect always closes any open pane/sheet. A pane is always
-      // bound to a selected item — keeping it open without a selection
-      // would strand the "drag/duplicate/remove" chrome that the
-      // selection also owns.
-      this.paneOpenId = null
+      this.clearSelection()
       return
     }
-    if (this.items.some(i => i.id === id)) this.selectedItemId = id
+    // Single-select entry point: collapse the set to exactly this item.
+    // Used by add/duplicate flows that then call `openPane(newId)`.
+    if (this.items.some(i => i.id === id)) this.selectedItemIds = [id]
   }
 
-  toggleSelectedItem(id: number) {
-    this.setSelectedItem(this.selectedItemId === id ? null : id)
+  /** Replace the selection with exactly this item (plain click). */
+  selectOnly(id: number) {
+    if (this.items.some(i => i.id === id)) this.selectedItemIds = [id]
+  }
+
+  /** Add/remove this item from the selection (Cmd/Ctrl-click). */
+  toggleInSelection(id: number) {
+    if (!this.items.some(i => i.id === id)) return
+    const next = this.selectedItemIds.includes(id)
+      ? this.selectedItemIds.filter(x => x !== id)
+      : [...this.selectedItemIds, id]
+    this.selectedItemIds = next
+    // Close the pane when the selection empties, and keep an ALREADY-OPEN
+    // single pane in sync when collapsing from a multi-selection. Never OPEN a
+    // pane that wasn't open: additive (Cmd/Ctrl/Shift) clicks build a
+    // selection without triggering click-to-edit (see GridItem.onFrameClick).
+    // (A selection of 2+ shows the bulk pane regardless of paneOpenId.)
+    if (next.length === 0) {
+      this.paneOpenId = null
+    } else if (next.length === 1 && this.paneOpenId !== null) {
+      this.paneOpenId = next[0]
+    }
+  }
+
+  clearSelection() {
+    this.selectedItemIds = []
+    // Deselect always closes any open pane/sheet. A pane is always bound to
+    // a selection — keeping it open without one would strand the
+    // drag/duplicate/remove chrome that the selection also owns.
+    this.paneOpenId = null
   }
 
   openPane(id: number) {
@@ -234,7 +283,7 @@ export class GridState {
     }
     // Single atomic assignment — one reactive update instead of N+1
     this.items = newItems
-    this.selectedItemId = null
+    this.selectedItemIds = []
     this.paneOpenId = null
   }
 
@@ -288,12 +337,12 @@ export class GridState {
   /**
    * Resolves conflicts by moving colliding items to available positions with minimal movement
    */
-  resolveItemPositionCollisions(priorityItemId: number): Array<{
+  resolveItemPositionCollisions(priorityItemIds: number | number[]): Array<{
     itemId: number
     settings: GridItemLayoutUpdate
   }> {
     return GridEngine.resolveItemPositionCollisions(
-      priorityItemId,
+      priorityItemIds,
       this.createPositionsSnapshot(),
       this.items,
       this.getAvailableColumns()

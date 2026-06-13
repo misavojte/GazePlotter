@@ -1,6 +1,14 @@
 import MetricCorrelationPlot from './components/MetricCorrelationPlot.svelte'
 import { deriveMetricCorrelationView } from './core/view'
-import MetricCorrelationPlotPaneSettings from './components/MetricCorrelationPlotPaneSettings.svelte'
+import {
+  StimulusSection,
+  GroupSection,
+  AoiSection,
+  TimelineRangeSection,
+} from '$lib/plots/shared/components/sections'
+import MetricCorrelationMetricSection from './components/sections/MetricCorrelationMetricSection.svelte'
+import MetricCorrelationVisualisationSection from './components/sections/MetricCorrelationVisualisationSection.svelte'
+import MetricCorrelationMethodSection from './components/sections/MetricCorrelationMethodSection.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import type { PlotSubtitleParts } from '$lib/plots/definePlot'
 import {
@@ -16,7 +24,21 @@ export const metricCorrelationDefinition = definePlot<
   type: 'metricCorrelation',
   name: 'Metric Correlation',
   component: MetricCorrelationPlot,
-  paneSettings: MetricCorrelationPlotPaneSettings,
+  paneSections: [
+    { key: 'stimulus', component: StimulusSection },
+    { key: 'group', component: GroupSection },
+    { key: 'metric', component: MetricCorrelationMetricSection },
+    {
+      key: 'metricCorrelation:visualisation',
+      component: MetricCorrelationVisualisationSection,
+    },
+    {
+      key: 'metricCorrelation:correlationMethod',
+      component: MetricCorrelationMethodSection,
+    },
+    { key: 'timelineRange', component: TimelineRangeSection },
+    { key: 'aoi', component: AoiSection },
+  ],
   export: { deriveView: deriveMetricCorrelationView },
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []

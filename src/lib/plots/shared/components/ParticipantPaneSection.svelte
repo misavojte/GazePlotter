@@ -9,15 +9,21 @@
     participantId: number
     onchange: (id: number) => void
     source: string
+    /** Bulk mode: selected plots have differing participants. Shows "Mixed"
+     *  instead of a concrete value; picking an option applies it to all. */
+    mixed?: boolean
   }
 
-  let { participantId, onchange, source }: Props = $props()
+  let { participantId, onchange, source, mixed = false }: Props = $props()
 
   const { engine, modalState } = getGazePlotterSession()
 
   const participantOptions = $derived(getParticipantOptions(engine))
   const participantSummary = $derived(
-    participantOptions.find(o => o.value === String(participantId))?.label ?? ''
+    mixed
+      ? 'Mixed'
+      : (participantOptions.find(o => o.value === String(participantId))
+          ?.label ?? '')
   )
 
   function openParticipants() {
@@ -29,6 +35,7 @@
   <Select
     options={participantOptions}
     value={String(participantId)}
+    {mixed}
     onchange={e => {
       onchange(Number(e.detail))
     }}

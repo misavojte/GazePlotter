@@ -1,6 +1,13 @@
 import ScanpathSimilarityPlot from './components/ScanpathSimilarityPlot.svelte'
 import { deriveScanpathSimilarityView } from './core/view'
-import ScanpathSimilarityPlotPaneSettings from './components/ScanpathSimilarityPlotPaneSettings.svelte'
+import {
+  StimulusSection,
+  GroupSection,
+  MetricSection,
+  TimelineRangeSection,
+  AoiSection,
+} from '$lib/plots/shared/components/sections'
+import ScanpathSimilarityVisualisationSection from './components/sections/ScanpathSimilarityVisualisationSection.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import type { PlotSubtitleParts } from '$lib/plots/definePlot'
 import { PRESET_PALETTES } from '$lib/color/palettes'
@@ -17,7 +24,17 @@ export const scanpathSimilarityDefinition = definePlot<
   type: 'scanpathSimilarity',
   name: 'Scanpath Similarity',
   component: ScanpathSimilarityPlot,
-  paneSettings: ScanpathSimilarityPlotPaneSettings,
+  paneSections: [
+    { key: 'stimulus', component: StimulusSection },
+    { key: 'group', component: GroupSection },
+    { key: 'metric', component: MetricSection },
+    {
+      key: 'scanpathSimilarity:visualisation',
+      component: ScanpathSimilarityVisualisationSection,
+    },
+    { key: 'timelineRange', component: TimelineRangeSection },
+    { key: 'aoi', component: AoiSection },
+  ],
   export: { deriveView: deriveScanpathSimilarityView },
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []

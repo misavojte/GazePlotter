@@ -20,6 +20,9 @@
     ariaLabel?: string
     compact?: boolean
     size?: 'xs' | 'sm' | 'md' | 'lg'
+    /** Multi-selection "Mixed": the bound plots disagree on this color. Shows a
+     *  neutral "Mixed" swatch; picking a color applies it to all. */
+    mixed?: boolean
     oninput?: (event: CustomEvent<string>) => void
   }
 
@@ -32,6 +35,7 @@
     ariaLabel,
     compact = false,
     size = 'sm',
+    mixed = false,
     oninput = () => {},
   }: Props = $props()
 
@@ -79,11 +83,14 @@
       class:compact={isCompact}
       onclick={() => picker.toggle()}
       aria-label={ariaLabel ?? (!showLabel ? label : undefined)}
-      style:background-color={formatColorValue}
+      class:mixed
+      style:background-color={mixed ? 'var(--c-lightgrey, #f0f0f0)' : formatColorValue}
       style:width="{actualWidth}px"
       bind:this={picker.triggerElement}
     >
-      {#if showHexCode}
+      {#if mixed}
+        <span class="color-value mixed-label">Mixed</span>
+      {:else if showHexCode}
         <span class="color-value" style:color={contrastTextColor}>
           {formatColorValue}
         </span>
@@ -151,6 +158,16 @@
     font-weight: 500;
     text-align: center;
     flex-grow: 1;
+  }
+
+  .color-preview.mixed {
+    border-style: dashed;
+  }
+
+  .mixed-label {
+    font-family: inherit;
+    font-size: 11px;
+    color: var(--c-darkgrey);
   }
 
   .color-popup {

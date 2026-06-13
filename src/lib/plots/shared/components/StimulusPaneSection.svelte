@@ -9,15 +9,20 @@
     stimulusId: number
     onchange: (id: number) => void
     source: string
+    /** Bulk mode: the selected plots have differing stimuli. Shows "Mixed"
+     *  instead of a concrete value; picking an option applies it to all. */
+    mixed?: boolean
   }
 
-  let { stimulusId, onchange, source }: Props = $props()
+  let { stimulusId, onchange, source, mixed = false }: Props = $props()
 
   const { engine, modalState } = getGazePlotterSession()
 
   const stimulusOptions = $derived(getStimuliOptions(engine))
   const stimulusSummary = $derived(
-    stimulusOptions.find(o => o.value === String(stimulusId))?.label ?? ''
+    mixed
+      ? 'Mixed'
+      : (stimulusOptions.find(o => o.value === String(stimulusId))?.label ?? '')
   )
 
   function openStimuli() {
@@ -29,6 +34,7 @@
   <Select
     options={stimulusOptions}
     value={String(stimulusId)}
+    {mixed}
     onchange={e => {
       onchange(Number(e.detail))
     }}

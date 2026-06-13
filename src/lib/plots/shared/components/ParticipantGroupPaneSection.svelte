@@ -13,9 +13,12 @@
     stimulusId: number
     onchange: (id: number) => void
     source: string
+    /** Bulk mode: the selected plots have differing groups. Shows "Mixed"
+     *  instead of a concrete value; picking an option applies it to all. */
+    mixed?: boolean
   }
 
-  let { groupId, stimulusId, onchange, source }: Props = $props()
+  let { groupId, stimulusId, onchange, source, mixed = false }: Props = $props()
 
   const { engine, modalState } = getGazePlotterSession()
 
@@ -23,7 +26,9 @@
     getParticipantsGroupOptions(engine, true, stimulusId)
   )
   const groupSummary = $derived(
-    groupOptions.find(o => o.value === String(groupId))?.label ?? ''
+    mixed
+      ? 'Mixed'
+      : (groupOptions.find(o => o.value === String(groupId))?.label ?? '')
   )
 
   function openGroups() {
@@ -38,6 +43,7 @@
   <Select
     options={groupOptions}
     value={String(groupId)}
+    {mixed}
     onchange={e => {
       onchange(Number(e.detail))
     }}

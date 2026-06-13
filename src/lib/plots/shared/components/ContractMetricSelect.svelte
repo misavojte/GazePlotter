@@ -30,6 +30,8 @@
      */
     onMetricsChange: (ids: string[]) => void
     label?: string
+    /** Multi-selection "Mixed": the bound plots disagree on the metric. */
+    mixed?: boolean
   }
 
   let {
@@ -38,6 +40,7 @@
     metricInstanceIds,
     onMetricsChange,
     label = 'Metric',
+    mixed = false,
   }: Props = $props()
 
   // Routing single- vs multi-select handlers from `contract.multiSelect` —
@@ -62,6 +65,7 @@
 <MetricSelect
   {label}
   {contract}
+  {mixed}
   instances={engine.metadata?.metricInstances ?? []}
   selectedIds={metricInstanceIds}
   {...handlers}

@@ -39,7 +39,7 @@
     body?: Snippet
     children?: Snippet
     interaction: GridInteractionController
-    onmove?: GridEvent<GridRect>
+    onmove?: GridEvent<GridRect[]>
     onresize?: GridEvent<GridRect>
     onremove?: GridEvent<IdOnly>
     onduplicate?: GridEvent<DuplicateRequest>
@@ -73,13 +73,30 @@
   const item = $derived({ id, x, y, w, h })
   const minimumSize = $derived({ w: minW, h: minH })
   const isDragging = $derived(
-    interaction.activeItemId === id && interaction.mode === 'moving'
+    interaction.mode === 'moving' && interaction.activeItemIds.includes(id)
   )
   const isResizing = $derived(
     interaction.activeItemId === id && interaction.mode === 'resizing'
   )
   const isGhosted = $derived(interaction.isGhostedItem(id))
-  const isSelected = $derived(grid.selectedItemId === id)
+  // Visual selection: every selected item shows the outline.
+  const isSelected = $derived(grid.selectedItemIds.includes(id))
+  // Sole selection: this is the only selected item. Resize handles and the
+  // duplicate/remove toolbar are sole-only (they're inherently single-item).
+  const isSoleSelection = $derived(grid.selectedItemId === id)
+  // Group member: selected as part of a multi-selection. Members get a
+  // subtler dashed outline (the solid group box bounds them) and drag the
+  // whole group.
+  const isGroupMember = $derived(isSelected && grid.selectedCount > 1)
+
+  // What a drag of this item moves: the whole selection when it belongs to a
+  // multi-selection, otherwise just this item. Dragging any member moves the
+  // group together (the controller applies one shared, clamped delta).
+  const moveItems = $derived(
+    isGroupMember
+      ? grid.selectedItems.map(i => ({ id: i.id, x: i.x, y: i.y, w: i.w, h: i.h }))
+      : [item]
+  )
 
   // Any of these — either native interactive controls OR elements explicitly
   // opted out via the `data-block-select` attribute (see blockGridSelect
@@ -91,13 +108,24 @@
   function onFrameClick(e: MouseEvent) {
     const target = e.target as HTMLElement | null
     if (target?.closest(BLOCK_SELECTOR)) return
-    const wasSelected = grid.selectedItemId === id
-    grid.toggleSelectedItem(id)
-    // Desktop: selection immediately opens the settings pane — the two
-    // are conceptually one action. Mobile: decouple — tap only selects
-    // (so the plot becomes draggable), and the floating Edit FAB drives
-    // the explicit second step that opens the sheet.
-    if (!wasSelected && !responsive.isMobile) {
+    // Cmd (mac) / Ctrl (win) / Shift: additive multi-select. A 2D grid has no
+    // linear range, so Shift behaves like Cmd/Ctrl (toggle in/out) rather than
+    // a range-select. Building a multi-set does not auto-open the pane — the
+    // Pane reacts to the selection count.
+    if (e.metaKey || e.ctrlKey || e.shiftKey) {
+      // Shift-click can start a browser text selection; clear it so the
+      // gesture reads purely as a selection toggle.
+      window.getSelection?.()?.removeAllRanges?.()
+      grid.toggleInSelection(id)
+      return
+    }
+    // Plain click: select only this item. Desktop: selection immediately
+    // opens the settings pane — the two are conceptually one action.
+    // Mobile: decouple — tap only selects (so the plot becomes draggable),
+    // and the floating Edit FAB drives the explicit step that opens the sheet.
+    const wasSole = grid.selectedItemId === id
+    grid.selectOnly(id)
+    if (!wasSole && !responsive.isMobile) {
       grid.openPane(id)
     }
   }
@@ -142,9 +170,9 @@
   // selection cleanly rather than spawning a no-op move session.
   const frameMoveActionParams = $derived({
     enabled: isDraggableEnabled && isSelected,
-    item,
+    items: moveItems,
     interaction,
-    onCommit: (rect: GridRect) => onmove(rect),
+    onCommit: (rects: GridRect[]) => onmove(rects),
     shouldStart: (event: PointerEvent) => {
       const target = event.target as HTMLElement | null
       if (!target) return false
@@ -205,7 +233,7 @@
     onpointercancelcapture={onPointerUp}
     onpointerleavecapture={onPointerUp}
   >
-    {#if isSelected}
+    {#if isSoleSelection}
     <!-- Solid blue square tucked behind the plot frame at the top-right.
          The frame has a rounded top-right corner, which normally lets the
          workspace background bleed through the 8×8 arc cutout — breaking
@@ -223,6 +251,7 @@
   <div
     class="grid-item-frame"
     class:selected={isSelected}
+    class:group-member={isGroupMember}
     onclick={onFrameClick}
     use:moveHandleAction={frameMoveActionParams}
   >
@@ -252,7 +281,7 @@
     </div>
   </div>
 
-  {#if resizable && isSelected}
+  {#if resizable && isSoleSelection}
     <!-- Corner resize affordances. Placed outside the .grid-item-frame
          (which has overflow:hidden) so their half-outside-half-inside
          positioning isn't clipped. Only the bottom-right is currently
@@ -285,7 +314,7 @@
     ></div>
   {/if}
 
-  {#if isSelected && (isDraggableEnabled || removable)}
+  {#if isSoleSelection && (isDraggableEnabled || removable)}
     <!-- Compact action chip anchored at the top-left, sitting on the
          selection outline's top edge. Pill-shaped with both top corners
          rounded; sibling of the frame so it isn't clipped by
@@ -420,15 +449,24 @@
 
   .grid-item-frame.selected {
     outline-color: var(--c-info);
-    /* Signals the selected-frame "drag-from-anywhere" affordance: once an
-       item is selected, the whole frame becomes a grab target (see
-       frameMoveActionParams in the script). Children that have their own
+    /* Signals the selected-frame "drag-from-anywhere" affordance: once
+       selected, the whole frame becomes a grab target (see
+       frameMoveActionParams in the script). Dragging any selected member
+       moves the whole selection together. Children that have their own
        click semantics — anything inside `[data-block-select]` — reset to
        `auto` so the plot canvas, inputs, buttons etc. keep their own
-       cursors. Interactive elements like buttons/links already carry
-       their own `cursor: pointer`, so this mostly matters for canvas
-       and static chrome inside figures. */
+       cursors. Interactive elements like buttons/links already carry their
+       own `cursor: pointer`, so this mostly matters for canvas and static
+       chrome inside figures. */
     cursor: move;
+  }
+
+  /* Members of a multi-selection get a subtler, thinner dashed outline; the
+     solid group bounding box (drawn by the grid) provides the strong
+     emphasis and disambiguates which enclosed plots are actually selected. */
+  .grid-item-frame.group-member {
+    outline-width: 1px;
+    outline-style: dashed;
   }
 
   .grid-item-frame.selected [data-block-select] {

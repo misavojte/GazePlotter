@@ -1,6 +1,13 @@
 import AoiStreamPlot from './components/AoiStreamPlot.svelte'
 import { deriveAoiStreamView } from './core/view'
-import AoiStreamPlotPaneSettings from './components/AoiStreamPlotPaneSettings.svelte'
+import {
+  StimulusSection,
+  GroupSection,
+  MetricSection,
+  TimelineRangeSection,
+  AoiSection,
+} from '$lib/plots/shared/components/sections'
+import AoiStreamVisualisationSection from './components/sections/AoiStreamVisualisationSection.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import type { PlotSubtitleParts } from '$lib/plots/definePlot'
 import {
@@ -16,7 +23,17 @@ export const aoiStreamPlotDefinition = definePlot<
   type: 'aoiStreamPlot',
   name: 'Time-binned AOI Occupancy',
   component: AoiStreamPlot,
-  paneSettings: AoiStreamPlotPaneSettings,
+  paneSections: [
+    { key: 'stimulus', component: StimulusSection },
+    { key: 'group', component: GroupSection },
+    { key: 'metric', component: MetricSection },
+    {
+      key: 'aoiStreamPlot:visualisation',
+      component: AoiStreamVisualisationSection,
+    },
+    { key: 'timelineRange', component: TimelineRangeSection },
+    { key: 'aoi', component: AoiSection },
+  ],
   export: { deriveView: deriveAoiStreamView },
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []

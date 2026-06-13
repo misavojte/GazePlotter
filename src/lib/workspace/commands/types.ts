@@ -82,17 +82,22 @@ export interface UpdateCategoriesCommand extends BaseCommandInterface {
   hiddenCategories?: number[]
 }
 
-// Settings change command
+// Settings change command.
+// Operates on a *set* of items: a single edit is a list of one, a bulk edit
+// is a list of N. There is no separate "bulk" command — single and bulk are
+// the same operation at different cardinality, so they share one handler,
+// one reverse, and one undo step.
 export interface UpdateSettingsCommand extends BaseCommandInterface {
   type: 'updateSettings'
-  itemId: number
-  settings: Partial<AllPlotSettings>
+  updates: { itemId: number; settings: Partial<AllPlotSettings> }[]
 }
 
+// Layout change command. Like updateSettings, it targets a *set* of items:
+// a single move/resize is a list of one; a group move is a list of N,
+// committed and reversed as one atomic undo step.
 export interface UpdateLayoutCommand extends BaseCommandInterface {
   type: 'updateLayout'
-  itemId: number
-  layout: GridItemLayoutUpdate
+  updates: { itemId: number; layout: GridItemLayoutUpdate }[]
 }
 
 // Grid item management commands

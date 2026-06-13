@@ -4,36 +4,33 @@
   import type { GridInteractionRect } from './model'
 
   interface Props {
-    preview: GridInteractionRect | null
+    previews: GridInteractionRect[]
     gridConfig: GridConfig
     mode: 'moving' | 'resizing' | 'idle' | 'panning'
   }
 
-  const { preview, gridConfig, mode }: Props = $props()
+  const { previews, gridConfig, mode }: Props = $props()
 
-  const overlayStyle = $derived.by(() => {
-    if (!preview) return ''
-
-    const position = gridToPixelPosition(preview.x, preview.y, gridConfig)
-    const size = gridToPixelDimensions(preview.w, preview.h, gridConfig)
-
+  function rectStyle(rect: GridInteractionRect): string {
+    const position = gridToPixelPosition(rect.x, rect.y, gridConfig)
+    const size = gridToPixelDimensions(rect.w, rect.h, gridConfig)
     return `
       transform: translate(${position.left}px, ${position.top}px);
       width: ${size.width}px;
       height: ${size.height}px;
     `
-  })
+  }
 </script>
 
-{#if preview}
+{#each previews as preview (preview.id)}
   <div
     class="grid-interaction-overlay"
     class:moving={mode === 'moving'}
     class:resizing={mode === 'resizing'}
-    style={overlayStyle}
+    style={rectStyle(preview)}
     aria-hidden="true"
   ></div>
-{/if}
+{/each}
 
 <style>
   .grid-interaction-overlay {
