@@ -2,10 +2,9 @@ import { LEGACY_VISUALIZATION_TYPES } from '$lib/plots/legacyTypes'
 import {
   createDefaultMetricInstances,
   createMetricInstance,
-  defaultInstanceLabel,
   type MetricInstance,
 } from '$lib/metrics/instances'
-import type { MigratedJsonFormat } from '$lib/data/types'
+import { type MigratedJsonFormat, CURRENT_SCHEMA_VERSION } from '$lib/data/types'
 
 const CORE_LAYOUT_KEYS = new Set([
   'id',
@@ -125,14 +124,25 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
     version = 4
   }
 
-  // V4 to V5: consolidated migration for the 1.9.0 metrics refactor.
+  // V4 → V5: the 1.9.0 metrics-system migration — the single schema bump above
+  // `main` (v4). v5 is the current format. (An earlier in-branch split into a
+  // separate v5 → v6 step was collapsed here; both halves now run as one bump,
+  // so the export's stamped version always matches the data it writes. Since
+  // `main` never released v5 or v6, there are no intermediate files to migrate,
+  // and the former baseId-rename / label-upgrade passes — which only ever fired
+  // on hand-authored intermediate v5 files — were dropped as unreachable.)
   //   1. Materialize `eventData` from legacy `aois.dynamicVisibility`.
   //   2. Seed `payload.metricInstances` with the slug-keyed starter library.
-  //   3. Translate legacy plot settings to reference that library:
+  //   3. Translate legacy bar / transition-matrix settings to reference that
+  //      library:
   //      - barPlot:          aggregationMethod (string) → metricInstanceId (slug)
   //      - transitionMatrix: aggregationMethod (string) → metricInstanceId
   //        (slug for the 4 starter-backed methods; new UUID-keyed custom
   //        instance for frequencyRelative / probability2 / probability3).
+  //   4. Migrate `aoiStreamPlot` off its bespoke `binSize` onto a windowed ×
+  //      identity-aoi-vector metric instance.
+  //   5. Normalize every metric-reference settings field to the canonical
+  //      `metricInstanceIds: string[]` shape.
   if (version === 4) {
     const payload = data.data
     const stimuliCount: number = payload.stimuli?.data?.length ?? 0
@@ -300,61 +310,11 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
       })
     }
 
-    data = { ...data, version: 5, data: payload }
-    version = 5
-  }
-
-  // V5 → V6: 1.9.0 metrics-system consolidation. Two coordinated rewrites:
-  //   1. `MetricInstance.baseId` rename — earlier recipe ids
-  //      (`averageEntries`, `avgDwellDuration`, …) diverged from their labels
-  //      and starter slugs; V6 collapses both into a single canonical name
-  //      per metric. Slugs (`id`) are append-only and remain untouched.
-  //   2. `aoiStreamPlot` migrated off its bespoke per-bin collector onto the
-  //      shared metric library. Settings used to carry `binSize: number`;
-  //      now they carry `metricInstanceId: string` pointing at a windowed ×
-  //      identity-aoi-vector instance. For each unique `binSize` an item
-  //      references, ensure a matching `absoluteTime` windowed instance
-  //      exists in the library and rewrite the item's settings.
-  //
-  // Schema bumps: 5 → 6. (V6 is unreleased, so no v6 → v7 is needed; new 1.9
-  // changes belong here.) `metricInstances` may be missing on older v5 files
-  // that predate the seed-on-v4→v5 step (e.g. workspaces created without
-  // ingesting data); hydrate via `createDefaultMetricInstances()` so the
-  // starter library is always present after migration.
-  if (version === 5) {
-    const BASEID_RENAMES: Record<string, string> = {
-      averageEntries:           'visitCount',
-      avgDwellDuration:         'visitDuration',
-      averageFixationCount:     'fixationCount',
-      avgFixationDuration:      'fixationDuration',
-      avgFirstFixationDuration: 'firstFixationDuration',
-    }
-    const payload = data?.data
-    let instances: MetricInstance[] = Array.isArray(payload?.metricInstances)
-      ? payload.metricInstances.map((inst: any) => {
-          if (!inst || typeof inst.baseId !== 'string') return inst
-          const next = BASEID_RENAMES[inst.baseId]
-          const baseId = next ?? inst.baseId
-          let label = inst.label
-
-          // Upgrade legacy default bare labels to be projection-aware
-          if (baseId && inst.projection) {
-            const bareLabel = defaultInstanceLabel(baseId, inst.params ?? {}, undefined)
-            const fullLabel = defaultInstanceLabel(baseId, inst.params ?? {}, inst.projection)
-            if (!label || label.trim() === bareLabel) {
-              label = fullLabel
-            }
-          }
-
-          return { ...inst, baseId, label }
-        })
-      : createDefaultMetricInstances()
-
-    // Migrate aoi-stream gridItems' `binSize → metricInstanceId`. Each
-    // distinct `binSize` maps to a deterministic slug. Slug collision is
-    // resolved by validating the existing instance's shape against the one
-    // we'd create; on mismatch we generate a UUID-suffixed slug rather than
-    // hijacking a user-authored instance.
+    // 4. Migrate aoi-stream gridItems' `binSize → metricInstanceId`. Each
+    //    distinct `binSize` maps to a deterministic slug. Slug collision is
+    //    resolved by validating the existing instance's shape against the one
+    //    we'd create; on mismatch we generate a UUID-suffixed slug rather than
+    //    hijacking a starter or user-authored instance.
     const slugByBinSize = new Map<number, string>()
     const matchesExpectedShape = (inst: any, binSize: number): boolean => {
       if (!inst || inst.baseId !== 'absoluteTime') return false
@@ -369,7 +329,7 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
       const cached = slugByBinSize.get(binSize)
       if (cached !== undefined) return cached
       const baseSlug = `absoluteTime-aoi-windowed-${binSize}`
-      const existing = instances.find((i: any) => i && i.id === baseSlug)
+      const existing = metricInstances.find((i: any) => i && i.id === baseSlug)
       if (existing && matchesExpectedShape(existing, binSize)) {
         slugByBinSize.set(binSize, baseSlug)
         return baseSlug
@@ -389,7 +349,7 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
         },
       })
       if (!inst) throw new Error('Migration: recipe "absoluteTime" missing')
-      instances.push(inst)
+      metricInstances.push(inst)
       slugByBinSize.set(binSize, slug)
       return slug
     }
@@ -409,7 +369,7 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
       })
     }
 
-    // Normalize all metric-reference settings fields to `metricInstanceIds: string[]`.
+    // 5. Normalize all metric-reference settings fields to `metricInstanceIds: string[]`.
     // Per the 1.9.0 plan ("collapse equivalent variants"): three legacy field names
     // (`metricInstanceId`, `selectedMetricId`, `enabledMetricIds`) collapse into one
     // canonical array shape. Singleton plots store length-0 (none) or length-1
@@ -446,11 +406,11 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
       })
     }
 
-    if (payload && typeof payload === 'object') {
-      payload.metricInstances = instances
-    }
-    data = { ...data, version: 6 }
-    version = 6
+    // `payload.metricInstances` already references the seeded `metricInstances`
+    // array (mutated in place by the aoi-stream pass above), so no reassignment
+    // is needed here.
+    data = { ...data, version: CURRENT_SCHEMA_VERSION, data: payload }
+    version = CURRENT_SCHEMA_VERSION
   }
 
   // Version-independent normalization: rewrite any legacy gridItem `type`

@@ -152,8 +152,17 @@ export type JsonImportOldFormat = Omit<DataType, 'segments'> & {
   spatialData?: (number[] | null)[][][]
 }
 
+/**
+ * Current workspace-schema version. `main` ships v4; the 1.9.0 metrics refactor
+ * is the single bump above it (v4 → v5). Both the export mapper (the version it
+ * stamps) and the migration ceiling (the version it produces) source this one
+ * constant, so a freshly-exported file always carries the version of the data
+ * inside it — no re-import migration is relied upon to reconcile a mislabel.
+ */
+export const CURRENT_SCHEMA_VERSION = 5
+
 export interface JsonImportNewFormat {
-  version: 2 | 3 | 4 | 5 | 6
+  version: 2 | 3 | 4 | 5
   data: DataType
   gridItems?: GridItemSnapshot[]
   fileMetadata?: FileMetadataType | null

@@ -310,45 +310,50 @@ describe('queryGroup: windowed × aoi-vector cross-participant aggregation', () 
   }
 
   it('aggregates per-participant aoi-vector-timeseries via the recipe groupAggregation (default mean)', () => {
-    // 3 participants, each with 1 fixation entirely inside one of the
-    // three 100 ms windows. fixationCount per AOI per window aggregated
-    // via mean = (1 + 0 + 0) / 3 ≈ 0.333... per windowed slot occupied.
+    // 3 full-length participants, each recording across the whole [0,200]
+    // range (two 100 ms windows), so the per-participant data-end clamp is a
+    // no-op — this isolates the mean-aggregation mechanism. fixationCount per
+    // AOI per window is averaged across participants:
+    //   P0, P1: AOI1 in both windows → AOI1 [1,1], AOI2 [0,0]
+    //   P2:     AOI2 in both windows → AOI1 [0,0], AOI2 [1,1]
+    // mean AOI1 = (1+1+0)/3 = 2/3 per window; mean AOI2 = 1/3 per window.
     const engine = createMultiParticipantEngine([
-      [[10, 80, 0, 1]],   // P0: AOI1 in [0,100)
-      [[110, 180, 0, 1]], // P1: AOI1 in [100,200)
-      [[210, 280, 0, 1]], // P2: AOI1 in [200,300)
+      [[10, 90, 0, 1], [110, 200, 0, 1]], // P0: AOI1 in w0 (mid 50) & w1 (mid 155)
+      [[10, 90, 0, 1], [110, 200, 0, 1]], // P1: AOI1 in both windows
+      [[10, 90, 0, 2], [110, 200, 0, 2]], // P2: AOI2 in both windows
     ])
     const result = queryGroup(
       windowedAoiVectorInst('fixationCount'),
-      groupScope(engine, [0, 1, 2], 0, 300),
+      groupScope(engine, [0, 1, 2], 0, 200),
     )
 
     if (result.shape !== 'aoi-vector-timeseries') throw new Error('wrong shape')
-    expect(result.vectors).toHaveLength(3)
-    // Each participant contributes 1 to its own window. Mean across the
-    // three participants is 1/3 ≈ 0.333... in each window.
-    for (let w = 0; w < 3; w++) {
-      expect(result.vectors[w][0]).toBeCloseTo(1 / 3, 6)
+    expect(result.vectors).toHaveLength(2)
+    for (let w = 0; w < 2; w++) {
+      expect(result.vectors[w][0]).toBeCloseTo(2 / 3, 6) // AOI1
+      expect(result.vectors[w][1]).toBeCloseTo(1 / 3, 6) // AOI2
     }
   })
 
   it('respects per-recipe groupAggregation: absoluteTime defaults to mean', () => {
-    // Same fixture as above but absoluteTime: each participant contributes
-    // 70 ms to one window. Mean across N=3 participants = 70/3.
+    // Same full-length fixture, absoluteTime (dwell ms). Each fixation is
+    // fully inside its window, so its clipped duration equals its full length
+    // (80 ms in w0, 90 ms in w1). AOI1 dwell is averaged over the 3
+    // participants (P2 contributes 0 ms to AOI1).
     const engine = createMultiParticipantEngine([
-      [[10, 80, 0, 1]],
-      [[110, 180, 0, 1]],
-      [[210, 280, 0, 1]],
+      [[10, 90, 0, 1], [110, 200, 0, 1]], // P0: AOI1 80 ms + 90 ms
+      [[10, 90, 0, 1], [110, 200, 0, 1]], // P1: AOI1 80 ms + 90 ms
+      [[10, 90, 0, 2], [110, 200, 0, 2]], // P2: AOI2 (AOI1 = 0)
     ])
     const result = queryGroup(
       windowedAoiVectorInst('absoluteTime'),
-      groupScope(engine, [0, 1, 2], 0, 300),
+      groupScope(engine, [0, 1, 2], 0, 200),
     )
 
     if (result.shape !== 'aoi-vector-timeseries') throw new Error('wrong shape')
-    expect(result.vectors[0][0]).toBeCloseTo(70 / 3, 6)
-    expect(result.vectors[1][0]).toBeCloseTo(70 / 3, 6)
-    expect(result.vectors[2][0]).toBeCloseTo(70 / 3, 6)
+    expect(result.vectors).toHaveLength(2)
+    expect(result.vectors[0][0]).toBeCloseTo(160 / 3, 6) // AOI1 w0: (80+80+0)/3
+    expect(result.vectors[1][0]).toBeCloseTo(180 / 3, 6) // AOI1 w1: (90+90+0)/3
   })
 
   it('threads result.slots so consumers never reconstruct slot layout', () => {

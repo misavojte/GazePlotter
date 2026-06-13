@@ -1,4 +1,8 @@
-import { type DataType, type JsonImportOldFormat } from '$lib/data/types'
+import {
+  type DataType,
+  type JsonImportOldFormat,
+  CURRENT_SCHEMA_VERSION,
+} from '$lib/data/types'
 import { binarySegmentsToJsonWithSpatial } from '$lib/data/binary'
 import type { FileMetadataType } from '$lib/data/ingest/types'
 import { encodeJson, wrapProjectPayload } from '../encoders/json'
@@ -23,14 +27,16 @@ export function generateWorkspaceJson(
     ...(spatialData ? { spatialData } : {}),
   }
 
-  // 2. Wrap into project schema
+  // 2. Wrap into project schema. The stamped version is sourced from the same
+  //    constant the migration ceiling uses, so the stamp matches the shape of
+  //    `exportData` rather than a hardcoded (and previously stale) literal.
   const payload = wrapProjectPayload(
     {
       data: exportData,
       gridItems,
       fileMetadata,
     },
-    5
+    CURRENT_SCHEMA_VERSION
   )
 
   // 3. Encode to JSON string

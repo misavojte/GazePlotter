@@ -52,7 +52,7 @@ describe('V4 → V5 consolidated migration: metric-instance seeding', () => {
   it('seeds metricInstances with the slug-keyed starter library', () => {
     const migrated = runMigrations(buildV4File())
 
-    expect(migrated.version).toBe(6)
+    expect(migrated.version).toBe(5)
     const seeded = migrated.data.metricInstances as MetricInstance[]
     expect(Array.isArray(seeded)).toBe(true)
     expect(seeded.length).toBe(STARTER_COUNT)
@@ -101,7 +101,7 @@ describe('V4 → V5 transition-matrix settings migration', () => {
   }
 
   it('bumps version to 5', () => {
-    expect(runMigrations(buildTMFile('sum')).version).toBe(6)
+    expect(runMigrations(buildTMFile('sum')).version).toBe(5)
   })
 
   it('drops aggregationMethod from migrated settings', () => {
@@ -229,7 +229,7 @@ describe('V4 → V5 bar-plot settings migration', () => {
   }
 
   it('bumps version to 5', () => {
-    expect(runMigrations(buildBarFile('absoluteTime')).version).toBe(6)
+    expect(runMigrations(buildBarFile('absoluteTime')).version).toBe(5)
   })
 
   it('drops aggregationMethod from migrated settings', () => {
@@ -354,126 +354,39 @@ describe('V4 → V5 bar-plot settings migration', () => {
   })
 })
 
-describe('V5 → V6 baseId rename migration', () => {
-  function buildV5File(metricInstances: MetricInstance[]): Record<string, unknown> {
-    return {
-      version: 5,
-      data: {
-        stimuli: { data: [['S1']], orderVector: [0] },
-        participants: { data: [['P1']], orderVector: [0] },
-        participantsGroups: [],
-        categories: { data: [], orderVector: [] },
-        aois: { data: [[]], orderVector: [[]], hiddenAois: [], dynamicVisibility: {} },
-        eventData: { data: [[]], hiddenChannels: [[]], events: [] },
-        capabilities: { segmented: true, spatial: false, event: false },
-        noAoiTreatment: { color: '#cbd5e1', displayedName: 'No AOI' },
-        isOrdinalOnly: false,
-        metricInstances,
-      },
-      gridItems: [],
-      fileMetadata: null,
-    }
-  }
-
-  it('bumps version to 6', () => {
-    const migrated = runMigrations(buildV5File([]))
-    expect(migrated.version).toBe(6)
-  })
-
-  const renames: Array<[string, string]> = [
-    ['averageEntries',           'visitCount'],
-    ['avgDwellDuration',         'visitDuration'],
-    ['averageFixationCount',     'fixationCount'],
-    ['avgFixationDuration',      'fixationDuration'],
-    ['avgFirstFixationDuration', 'firstFixationDuration'],
-  ]
-
-  for (const [legacy, canonical] of renames) {
-    it(`rewrites stored baseId ${legacy} → ${canonical}`, () => {
-      const legacyInst: MetricInstance = {
-        id: 'custom-uuid',
-        baseId: legacy,
-        params: {},
-        projection: { kind: 'identity-aoi-vector' },
-        label: 'legacy',
-      }
-      const migrated = runMigrations(buildV5File([legacyInst]))
-      const result = (migrated.data.metricInstances as MetricInstance[])[0]
-      expect(result.baseId).toBe(canonical)
-      expect(result.id).toBe('custom-uuid')
-    })
-  }
-
-  it('leaves unknown baseIds untouched', () => {
-    const inst: MetricInstance = {
-      id: 'custom-uuid',
-      baseId: 'someFutureRecipe',
-      params: {},
-      projection: { kind: 'identity-aoi-vector' },
-      label: 'future',
-    }
-    const migrated = runMigrations(buildV5File([inst]))
-    expect((migrated.data.metricInstances as MetricInstance[])[0].baseId).toBe('someFutureRecipe')
-  })
-})
-
-describe('V5 → V6 aoi-stream binSize → metricInstanceId migration', () => {
-  function buildV5FileWithAoiStream(
-    metricInstances: MetricInstance[],
-    aoiStreamBinSizes: number[]
-  ): Record<string, unknown> {
-    const gridItems = aoiStreamBinSizes.map((binSize, idx) => ({
-      id: idx + 1,
+describe('V4 → V5 aoi-stream binSize → metricInstanceIds migration', () => {
+  function aoiStreamItems(binSizes: number[]): V4GridItem[] {
+    return binSizes.map((binSize, idx) => ({
+      id: `stream-${idx}`,
       type: 'aoiStreamPlot',
       x: 0,
-      y: idx,
+      y: idx * 10,
       w: 12,
       h: 10,
-      settings: {
-        stimulusId: 0,
-        groupId: -1,
-        binSize,
-        absoluteStimuliLimits: [],
-      },
+      settings: { stimulusId: 0, groupId: -1, binSize, absoluteStimuliLimits: [] },
     }))
-    return {
-      version: 5,
-      data: {
-        stimuli: { data: [['S1']], orderVector: [0] },
-        participants: { data: [['P1']], orderVector: [0] },
-        participantsGroups: [],
-        categories: { data: [], orderVector: [] },
-        aois: { data: [[]], orderVector: [[]], hiddenAois: [], dynamicVisibility: {} },
-        eventData: { data: [[]], hiddenChannels: [[]], events: [] },
-        capabilities: { segmented: true, spatial: false, event: false },
-        noAoiTreatment: { color: '#cbd5e1', displayedName: 'No AOI' },
-        isOrdinalOnly: false,
-        metricInstances,
-      },
-      gridItems,
-      fileMetadata: null,
-    }
   }
 
-  it('replaces aoi-stream binSize with metricInstanceId pointing at a deterministic slug', () => {
-    const m = runMigrations(buildV5FileWithAoiStream([], [500]))
+  it('replaces binSize with metricInstanceIds → the matching starter slug', () => {
+    const m = runMigrations(buildV4File(aoiStreamItems([500])))
     const item = m.gridItems[0]
     expect(item.settings.binSize).toBeUndefined()
-    expect(item.settings.metricInstanceIds[0]).toBe('absoluteTime-aoi-windowed-500')
+    // binSize 500 reuses the seeded `absoluteTime-aoi-windowed-500` starter.
+    expect(item.settings.metricInstanceIds).toEqual(['absoluteTime-aoi-windowed-500'])
   })
 
-  it('reuses one MetricInstance for multiple items sharing a binSize (deduped slug)', () => {
-    const m = runMigrations(buildV5FileWithAoiStream([], [500, 500, 500]))
+  it('reuses the matching starter for repeated binSizes (no duplicate minted)', () => {
+    const m = runMigrations(buildV4File(aoiStreamItems([500, 500, 500])))
     const ids = m.gridItems.map((g: any) => g.settings.metricInstanceIds[0])
     expect(new Set(ids).size).toBe(1)
-    const seeded = (m.data.metricInstances as MetricInstance[]).filter(
+    const matches = (m.data.metricInstances as MetricInstance[]).filter(
       (i: any) => i.id === 'absoluteTime-aoi-windowed-500'
     )
-    expect(seeded).toHaveLength(1)
+    expect(matches).toHaveLength(1)
   })
 
-  it('mints distinct MetricInstances per distinct binSize', () => {
-    const m = runMigrations(buildV5FileWithAoiStream([], [500, 1000, 250]))
+  it('mints a distinct windowed instance for each non-starter binSize', () => {
+    const m = runMigrations(buildV4File(aoiStreamItems([500, 1000, 250])))
     const ids = new Set<string>(
       m.gridItems.map((g: any) => g.settings.metricInstanceIds[0])
     )
@@ -484,155 +397,68 @@ describe('V5 → V6 aoi-stream binSize → metricInstanceId migration', () => {
         'absoluteTime-aoi-windowed-250',
       ])
     )
+    const lib = new Set((m.data.metricInstances as MetricInstance[]).map(i => i.id))
+    expect(lib.has('absoluteTime-aoi-windowed-1000')).toBe(true)
+    expect(lib.has('absoluteTime-aoi-windowed-250')).toBe(true)
   })
 
-  it('does NOT hijack a user-authored slug — assigns a UUID-suffixed slug on shape mismatch', () => {
-    // User's pre-existing instance shares the deterministic slug but has a
-    // wildly different shape (different baseId + projection). Migration must
-    // preserve it and mint a new slug for the aoi-stream item.
-    const userInstance: MetricInstance = {
-      id: 'absoluteTime-aoi-windowed-500',
-      baseId: 'fixationCount',
-      params: { foo: 'bar' },
-      projection: { kind: 'identity-aoi-vector' },
-      label: "user's metric",
-    }
-    const m = runMigrations(buildV5FileWithAoiStream([userInstance], [500]))
-    const itemInstanceId: string = m.gridItems[0].settings.metricInstanceIds[0]
-    expect(itemInstanceId).not.toBe('absoluteTime-aoi-windowed-500')
-    expect(itemInstanceId).toMatch(/^absoluteTime-aoi-windowed-500-[0-9a-f]{8}$/)
-    // Original user instance is preserved unchanged.
-    const preserved = (m.data.metricInstances as MetricInstance[]).find(
-      (i: any) => i.id === 'absoluteTime-aoi-windowed-500'
-    )
-    expect(preserved).toBeDefined()
-    expect(preserved!.baseId).toBe('fixationCount')
-    // The new aoi-stream-pointed instance carries the right shape.
-    const minted = (m.data.metricInstances as MetricInstance[]).find(
-      (i: any) => i.id === itemInstanceId
-    )
-    expect(minted).toBeDefined()
-    expect(minted!.baseId).toBe('absoluteTime')
-    expect((minted!.projection as any).window.windowSize).toBe(500)
-  })
-
-  it('reuses an existing MetricInstance when its shape matches exactly', () => {
-    const matchingInstance: MetricInstance = {
-      id: 'absoluteTime-aoi-windowed-500',
-      baseId: 'absoluteTime',
-      params: {},
-      projection: {
-        kind: 'windowed',
-        window: { windowSize: 500, stepSize: 500 },
-        inner: { kind: 'identity-aoi-vector' },
+  it('falls back to a 500 ms bin when binSize is missing', () => {
+    const items: V4GridItem[] = [
+      {
+        id: 'stream-x',
+        type: 'aoiStreamPlot',
+        x: 0,
+        y: 0,
+        w: 12,
+        h: 10,
+        settings: { stimulusId: 0, groupId: -1, absoluteStimuliLimits: [] },
       },
-      label: 'Time on AOI (per 500 ms bin)',
-    }
-    const m = runMigrations(
-      buildV5FileWithAoiStream([matchingInstance], [500])
-    )
-    expect(m.gridItems[0].settings.metricInstanceIds[0]).toBe(
-      'absoluteTime-aoi-windowed-500'
-    )
-    // No duplicate added.
-    const matches = (m.data.metricInstances as MetricInstance[]).filter(
-      (i: any) => i.id === 'absoluteTime-aoi-windowed-500'
-    )
-    expect(matches).toHaveLength(1)
+    ]
+    const m = runMigrations(buildV4File(items))
+    expect(m.gridItems[0].settings.metricInstanceIds).toEqual([
+      'absoluteTime-aoi-windowed-500',
+    ])
   })
 
-  it('hydrates the starter library when metricInstances is missing entirely', () => {
-    // V5 file without `metricInstances` array — must populate via
-    // createDefaultMetricInstances() rather than ending up with `[]` (which
-    // would leave the user without their starter metrics post-upgrade).
-    const file = buildV5FileWithAoiStream([], [500])
-    delete (file.data as any).metricInstances
-    const m = runMigrations(file)
-    const instances = m.data.metricInstances as MetricInstance[]
-    expect(instances.length).toBeGreaterThan(5) // starter library is non-trivial
-    // The aoi-stream's slug also lands.
-    expect(instances.find((i: any) => i.id === 'absoluteTime-aoi-windowed-500')).toBeDefined()
-  })
-
-  it('leaves already-migrated aoi-stream items alone', () => {
-    const file: Record<string, unknown> = {
-      version: 5,
-      data: {
-        stimuli: { data: [['S1']], orderVector: [0] },
-        participants: { data: [['P1']], orderVector: [0] },
-        participantsGroups: [],
-        categories: { data: [], orderVector: [] },
-        aois: { data: [[]], orderVector: [[]], hiddenAois: [], dynamicVisibility: {} },
-        eventData: { data: [[]], hiddenChannels: [[]], events: [] },
-        capabilities: { segmented: true, spatial: false, event: false },
-        noAoiTreatment: { color: '#cbd5e1', displayedName: 'No AOI' },
-        isOrdinalOnly: false,
-        metricInstances: [],
-      },
-      gridItems: [
-        {
-          id: 1,
-          type: 'aoiStreamPlot',
-          x: 0,
-          y: 0,
-          w: 12,
-          h: 10,
-          settings: {
-            stimulusId: 0,
-            groupId: -1,
-            metricInstanceId: 'pre-existing-slug',
-            absoluteStimuliLimits: [],
-          },
+  it('skips an aoi-stream item that already carries a metricInstanceId', () => {
+    const items: V4GridItem[] = [
+      {
+        id: 'stream-pre',
+        type: 'aoiStreamPlot',
+        x: 0,
+        y: 0,
+        w: 12,
+        h: 10,
+        settings: {
+          stimulusId: 0,
+          groupId: -1,
+          metricInstanceId: 'pre-existing-slug',
+          absoluteStimuliLimits: [],
         },
-      ],
-      fileMetadata: null,
-    }
-    const m = runMigrations(file)
-    expect(m.gridItems[0].settings.metricInstanceIds[0]).toBe('pre-existing-slug')
+      },
+    ]
+    const m = runMigrations(buildV4File(items))
+    // The binSize pass skips it; the normalization pass folds the singular id
+    // into the canonical array.
+    expect(m.gridItems[0].settings.metricInstanceIds).toEqual(['pre-existing-slug'])
+    expect(m.gridItems[0].settings.binSize).toBeUndefined()
   })
 })
 
-describe('V5 → V6 metric-reference field rename to metricInstanceIds: string[]', () => {
-  function buildV5File(gridItems: V4GridItem[]): Record<string, unknown> {
-    return {
-      version: 5,
-      data: {
-        stimuli: { data: [['S1']], orderVector: [0] },
-        participants: { data: [['P1']], orderVector: [0] },
-        participantsGroups: [],
-        categories: { data: [], orderVector: [] },
-        aois: { data: [[]], orderVector: [[]], hiddenAois: [], dynamicVisibility: {} },
-        eventData: { data: [[]], hiddenChannels: [[]], events: [] },
-        capabilities: { segmented: true, spatial: false, event: false },
-        noAoiTreatment: { color: '#cbd5e1', displayedName: 'No AOI' },
-        isOrdinalOnly: false,
-        metricInstances: [],
-      },
-      gridItems,
-      fileMetadata: null,
-    }
-  }
-
-  it('barPlot settings.metricInstanceId (string) → metricInstanceIds: [id]', () => {
-    const m = runMigrations(buildV5File([{
+describe('V4 → V5 metric-reference normalization to metricInstanceIds: string[]', () => {
+  it('barPlot aggregationMethod is translated and folded into metricInstanceIds', () => {
+    const m = runMigrations(buildV4File([{
       id: 'b', type: 'barPlot', x: 0, y: 0, w: 6, h: 6,
-      settings: { stimulusId: 0, groupId: -1, metricInstanceId: 'absoluteTime' },
+      settings: { stimulusId: 0, groupId: -1, aggregationMethod: 'averageEntries' },
     }]))
     const s = m.gridItems[0].settings
-    expect(s.metricInstanceIds).toEqual(['absoluteTime'])
+    expect(s.metricInstanceIds).toEqual(['visitCount'])
     expect(s.metricInstanceId).toBeUndefined()
-  })
-
-  it('barPlot settings.metricInstanceId === null → metricInstanceIds: []', () => {
-    const m = runMigrations(buildV5File([{
-      id: 'b', type: 'barPlot', x: 0, y: 0, w: 6, h: 6,
-      settings: { stimulusId: 0, groupId: -1, metricInstanceId: null },
-    }]))
-    expect(m.gridItems[0].settings.metricInstanceIds).toEqual([])
+    expect(s.aggregationMethod).toBeUndefined()
   })
 
   it('evolvingMetrics settings.selectedMetricId → metricInstanceIds: [id]', () => {
-    const m = runMigrations(buildV5File([{
+    const m = runMigrations(buildV4File([{
       id: 'e', type: 'evolvingMetrics', x: 0, y: 0, w: 6, h: 6,
       settings: { stimulusId: 0, groupId: -1, selectedMetricId: 'avgFixationDuration-any-windowed' },
     }]))
@@ -641,8 +467,16 @@ describe('V5 → V6 metric-reference field rename to metricInstanceIds: string[]
     expect(s.selectedMetricId).toBeUndefined()
   })
 
+  it('evolvingMetrics settings.selectedMetricId === null → metricInstanceIds: []', () => {
+    const m = runMigrations(buildV4File([{
+      id: 'e', type: 'evolvingMetrics', x: 0, y: 0, w: 6, h: 6,
+      settings: { stimulusId: 0, groupId: -1, selectedMetricId: null },
+    }]))
+    expect(m.gridItems[0].settings.metricInstanceIds).toEqual([])
+  })
+
   it('metricCorrelation settings.enabledMetricIds → metricInstanceIds (rename only)', () => {
-    const m = runMigrations(buildV5File([{
+    const m = runMigrations(buildV4File([{
       id: 'mc', type: 'metricCorrelation', x: 0, y: 0, w: 6, h: 6,
       settings: { stimulusId: 0, groupId: -1, enabledMetricIds: ['rqaRec', 'rqaDet'] },
     }]))
@@ -651,40 +485,23 @@ describe('V5 → V6 metric-reference field rename to metricInstanceIds: string[]
     expect(s.enabledMetricIds).toBeUndefined()
   })
 
-  it('is idempotent: an already-migrated v6-shape grid item is left alone', () => {
-    const m = runMigrations(buildV5File([{
-      id: 'b', type: 'barPlot', x: 0, y: 0, w: 6, h: 6,
-      settings: { stimulusId: 0, groupId: -1, metricInstanceIds: ['absoluteTime'] },
-    }]))
-    expect(m.gridItems[0].settings.metricInstanceIds).toEqual(['absoluteTime'])
-  })
-
-  it('combines with the aoi-stream binSize migration end-to-end', () => {
-    // V4 → V5 → V6 chain: an aoi-stream with `binSize` first becomes
-    // `metricInstanceId`, then folds into `metricInstanceIds: [...]`.
-    const v4: Record<string, unknown> = {
-      version: 4,
-      data: {
-        stimuli: { data: [['S1']], orderVector: [0] },
-        participants: { data: [['P1']], orderVector: [0] },
-        participantsGroups: [],
-        categories: { data: [], orderVector: [] },
-        aois: { data: [[]], orderVector: [[]], hiddenAois: [], dynamicVisibility: {} },
-        capabilities: { segmented: true, spatial: false, event: false },
-        noAoiTreatment: { color: '#cbd5e1', displayedName: 'No AOI' },
-        isOrdinalOnly: false,
+  it('combines bar-plot translation and aoi-stream binSize migration end-to-end', () => {
+    const m = runMigrations(buildV4File([
+      {
+        id: 'b', type: 'barPlot', x: 0, y: 0, w: 6, h: 6,
+        settings: { stimulusId: 0, groupId: -1, aggregationMethod: 'averageEntries' },
       },
-      gridItems: [{
-        id: 'a', type: 'aoiStreamPlot', x: 0, y: 0, w: 12, h: 10,
+      {
+        id: 'a', type: 'aoiStreamPlot', x: 0, y: 6, w: 12, h: 10,
         settings: { stimulusId: 0, groupId: -1, binSize: 500, absoluteStimuliLimits: [] },
-      }],
-      fileMetadata: null,
-    }
-    const m = runMigrations(v4)
-    const s = m.gridItems[0].settings
-    expect(s.binSize).toBeUndefined()
-    expect(s.metricInstanceId).toBeUndefined()
-    expect(s.metricInstanceIds).toEqual(['absoluteTime-aoi-windowed-500'])
+      },
+    ]))
+    const bar = m.gridItems.find((g: any) => g.type === 'barPlot').settings
+    const stream = m.gridItems.find((g: any) => g.type === 'aoiStreamPlot').settings
+    expect(bar.metricInstanceIds).toEqual(['visitCount'])
+    expect(stream.binSize).toBeUndefined()
+    expect(stream.metricInstanceId).toBeUndefined()
+    expect(stream.metricInstanceIds).toEqual(['absoluteTime-aoi-windowed-500'])
   })
 })
 

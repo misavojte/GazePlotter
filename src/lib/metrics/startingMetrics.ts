@@ -16,11 +16,10 @@ export interface StartingMetricSpec {
    * Append-only: never rename a slug that's already shipped, and never reuse
    * a deleted one — some saved workspace out there might still reference it.
    *
-   * Some slugs carry the legacy recipe-id prefix (`avgFixationDuration-any-windowed`)
-   * even though the `baseId` has since been renamed (`fixationDuration`). This
-   * drift is deliberate: slugs are workspace-persisted identifiers and never
-   * renamed; `baseId` is the recipe key and was normalised in the v5→v6
-   * migration. Do NOT "fix" the slug spellings.
+   * Some slugs carry a legacy recipe-id prefix (`avgFixationDuration-any-windowed`)
+   * even though the `baseId` reads as the canonical name (`fixationDuration`).
+   * This drift is deliberate: slugs are workspace-persisted identifiers and are
+   * never renamed; `baseId` is the recipe key. Do NOT "fix" the slug spellings.
    */
   id: string
   baseId: string
