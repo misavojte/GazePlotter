@@ -6,13 +6,18 @@
  * keyed by their grid item id. Reads consult `getSyncedMax(match)` to find
  * the largest `dataMax` across entries that satisfy a match predicate.
  *
- * The `$state`-backed map is the only Svelte-aware piece — readers depend on
- * it for reactivity, so subclasses don't need their own state plumbing. Each
+ * The `SvelteMap` is the only Svelte-aware piece — readers depend on it for
+ * reactivity, so subclasses don't need their own state plumbing. A plain
+ * `$state(new Map())` would NOT do: `$state` only reacts to reassignment, so
+ * in-place `.set()`/`.delete()` would never notify readers and synced maxima
+ * would silently go stale. `SvelteMap` makes those mutations reactive. Each
  * concrete registry is a 5–10-line subclass that wraps `getSyncedMax` with a
  * shape-specific signature.
  */
+import { SvelteMap } from 'svelte/reactivity'
+
 export class PlotSyncRegistry<E extends { dataMax: number }> {
-  protected entries = $state(new Map<number, E>())
+  protected entries = new SvelteMap<number, E>()
 
   /** Register or update a plot's contribution to its matching sync group. */
   setEntry(plotId: number, entry: E): void {
