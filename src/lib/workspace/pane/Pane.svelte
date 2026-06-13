@@ -14,11 +14,9 @@
 
   markInPane()
 
-  // Single-open accordion shared by every PaneSection inside this Pane.
-  // Opening one section sets `openId` to that section's id, which closes
-  // whichever section was previously open. Reset to `null` on plot swap
-  // so the new plot's `defaultOpen` section gets to claim it on mount.
-  const accordion = $state<PaneAccordion>({ openId: null })
+  // Shared open states for every PaneSection inside this Pane.
+  // Opening or closing one section does not affect other sections.
+  const accordion = $state<PaneAccordion>({ openStates: {} })
   setContext(PANE_ACCORDION_KEY, accordion)
 
   const { grid, modalState } = getGazePlotterSession()

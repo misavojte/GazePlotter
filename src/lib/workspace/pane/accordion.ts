@@ -6,7 +6,7 @@
  */
 
 export interface PaneAccordion {
-  openId: string | null
+  openStates: Record<string, boolean>
 }
 
 export const PANE_ACCORDION_KEY = Symbol('paneAccordion')

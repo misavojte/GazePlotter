@@ -1,5 +1,5 @@
 <script lang="ts">
-import { getContext, onMount, untrack } from 'svelte'
+import { getContext, untrack } from 'svelte'
   import type { Snippet } from 'svelte'
   import { slide } from 'svelte/transition'
   import { cubicOut } from 'svelte/easing'
@@ -43,28 +43,19 @@ import { getContext, onMount, untrack } from 'svelte'
     !isCollapsible
       ? true
       : accordion
-        ? accordion.openId === id
+        ? (accordion.openStates[id] ?? defaultOpen)
         : standaloneExpanded,
   )
 
   function toggle() {
     if (!isCollapsible) return
     if (accordion) {
-      accordion.openId = accordion.openId === id ? null : id
+      const current = accordion.openStates[id] ?? defaultOpen
+      accordion.openStates[id] = !current
     } else {
       standaloneExpanded = !standaloneExpanded
     }
   }
-
-  // `defaultOpen` claims openId on mount if no section is currently open.
-  // This allows it to open by default on the first plot, but respects the
-  // user's active selection (e.g. 'Group') when switching to a different plot
-  // which shares the same parent Pane accordion state.
-  onMount(() => {
-    if (defaultOpen && isCollapsible && accordion && accordion.openId === null) {
-      accordion.openId = id
-    }
-  })
 </script>
 
 <section class="pane-section">
