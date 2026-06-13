@@ -96,15 +96,43 @@ export function calculatePlotLayout(
 }
 
 /**
+ * Resolves the event band given the gaze bar height it must sit beneath.
+ *
+ * Invariant: the band NEVER exceeds the gaze bar — gaze is the primary datum,
+ * events only annotate it. So:
+ *  - band fits naturally (lanes × naturalLaneH ≤ bar) → use it unchanged;
+ *  - otherwise the band is capped at the bar and the lanes compress to share it;
+ *  - if that squeezes lanes below the legibility floor, the lanes collapse into
+ *    a SINGLE presence strip (height ≤ bar) — at that density per-lane timing is
+ *    illegible anyway, so we show only "an event was active here".
+ */
+function resolveEventBand(
+  heightOfBar: number,
+  lanes: number,
+  naturalLaneH: number
+): { bandHeight: number; laneHeight: number; merged: boolean } {
+  if (lanes <= 0) return { bandHeight: 0, laneHeight: 0, merged: false }
+
+  const bandHeight = Math.min(lanes * naturalLaneH, heightOfBar)
+  const perLane = bandHeight / lanes
+  if (perLane >= SCARF_LAYOUT.MIN_COMPRESSED_EVENT_LANE_H) {
+    return { bandHeight, laneHeight: perLane, merged: false }
+  }
+  const strip = Math.min(naturalLaneH, heightOfBar)
+  return { bandHeight: strip, laneHeight: strip, merged: true }
+}
+
+/**
  * Computes the vertical layout for COMBINED (overlay) mode.
  *
  * The row is symmetric about a central SEAM = the shared baseline (bottom edge)
  * of the gaze segments. Fixations and non-fixations are both bottom-aligned to
- * the seam; the gaze sequence rises UP from it and the event band (height =
- * concurrency × lane height) HANGS DOWN from it. `concurrency` is the OBSERVED
- * max simultaneous events, so the band — and the row pitch — is uniform across
- * rows. A single scale drives bar and band; lane height is floored at the
- * legibility minimum, the bar at MIN_BAR_HEIGHT, the row gap at MIN_ROW_GAP.
+ * the seam; the gaze sequence rises UP from it and the event band HANGS DOWN
+ * from it. The band height is capped at the gaze bar height (see
+ * `resolveEventBand`) so events never dominate the gaze; `concurrency` is the
+ * OBSERVED max simultaneous events, so the band — and the row pitch — is uniform
+ * across rows. A single scale drives bar and band; the bar is floored at
+ * MIN_BAR_HEIGHT and the row gap at MIN_ROW_GAP.
  */
 export function calculateOverlayLayout(
   participantCount: number,
@@ -119,10 +147,17 @@ export function calculateOverlayLayout(
   const baseRowGap = SCARF_LAYOUT.MIN_ROW_GAP
   const lanes = Math.max(0, Math.floor(concurrency))
 
+  const naturalLaneHForScale = (s: number) =>
+    lanes > 0 ? Math.max(SCARF_LAYOUT.MIN_EVENT_LANE_H, baseLane * s) : 0
+
   // Natural (scale 1) pitch: top pad + bar + seam gap + band + bottom gap.
   const seamGap1 = lanes > 0 ? baseSeamGap : 0
   const naturalPitch =
-    baseSAR + baseBar + seamGap1 + lanes * baseLane + baseRowGap
+    baseSAR +
+    baseBar +
+    seamGap1 +
+    resolveEventBand(baseBar, lanes, naturalLaneHForScale(1)).bandHeight +
+    baseRowGap
 
   const targetPitch =
     participantCount > 0 ? availableHeight / participantCount : naturalPitch
@@ -132,11 +167,10 @@ export function calculateOverlayLayout(
     const isComp = baseBar * s < SCARF_LAYOUT.COMPACT_MODE_THRESHOLD
     const hBar = baseBar * s
     const sSAR = isComp ? 0 : baseSAR * s
-    const eLaneH = lanes > 0 ? Math.max(SCARF_LAYOUT.MIN_EVENT_LANE_H, baseLane * s) : 0
-    const eZoneH = lanes * eLaneH
+    const { bandHeight } = resolveEventBand(hBar, lanes, naturalLaneHForScale(s))
     const sGap = lanes > 0 ? Math.max(2, baseSeamGap * s) : 0
     const rGap = Math.max(baseRowGap, baseRowGap * s)
-    return sSAR + hBar + sGap + eZoneH + rGap
+    return sSAR + hBar + sGap + bandHeight + rGap
   }
 
   const minScale = SCARF_LAYOUT.MIN_BAR_HEIGHT / baseBar
@@ -164,9 +198,9 @@ export function calculateOverlayLayout(
   const heightOfBar = baseBar * scale
   const spaceAboveRect = isCompact ? 0 : baseSAR * scale
   const nonFixationHeight = baseNFH * scale
-  const eventLaneHeight =
-    lanes > 0 ? Math.max(SCARF_LAYOUT.MIN_EVENT_LANE_H, baseLane * scale) : 0
-  const eventZoneHeight = lanes * eventLaneHeight
+  const band = resolveEventBand(heightOfBar, lanes, naturalLaneHForScale(scale))
+  const eventLaneHeight = band.laneHeight
+  const eventZoneHeight = band.bandHeight
   // A real whitespace gap separates the gaze baseline (seam) from the event band
   // — a hue-independent separator so same-coloured events never merge into the
   // gaze. Kept ≥ 2px even when scaled down.
@@ -188,41 +222,23 @@ export function calculateOverlayLayout(
     eventLaneHeight,
     eventZoneHeight,
     eventBandTop,
+    eventLanesMerged: band.merged,
   }
 }
 
 /**
  * The minimum row pitch for overlay mode at the legibility floor — used to
- * decide whether the plot can render or must ask for more height. Matches the
- * floored components of calculateOverlayLayout (compact: no top pad).
+ * decide whether the plot can render or must ask for more height. Because the
+ * event band is now capped at the gaze bar, concurrency no longer inflates this:
+ * at the smallest bar the band is at most MIN_BAR_HEIGHT.
  */
 export function calculateOverlayMinRowPitch(concurrency: number): number {
   const lanes = Math.max(0, Math.floor(concurrency))
   const seamGap = lanes > 0 ? 2 : 0
-  const band = lanes * SCARF_LAYOUT.MIN_EVENT_LANE_H
+  const band = lanes > 0 ? SCARF_LAYOUT.MIN_BAR_HEIGHT : 0
   return (
     SCARF_LAYOUT.MIN_BAR_HEIGHT + seamGap + band + SCARF_LAYOUT.MIN_ROW_GAP
   )
-}
-
-/**
- * Computes layout for events-only display mode.
- * Each participant row is divided into sub-lanes for event channels.
- */
-export function calculateEventOnlyLayout(
-  participantCount: number,
-  totalLanesPerParticipant: number,
-  availableHeight: number
-) {
-  if (participantCount === 0 || totalLanesPerParticipant === 0) {
-    return { laneHeight: 10, rowHeight: 10, scaleFactor: 1 }
-  }
-
-  const targetRowHeight = availableHeight / participantCount
-  const laneHeight = Math.max(2, Math.min(20, targetRowHeight / totalLanesPerParticipant))
-  const rowHeight = laneHeight * totalLanesPerParticipant
-
-  return { laneHeight, rowHeight, scaleFactor: 1 }
 }
 
 /**

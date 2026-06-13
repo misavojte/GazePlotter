@@ -7,7 +7,6 @@ import {
 import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
 import { desaturateToWhite } from '$lib/color'
 import {
-  EVENT_CHANNEL_STRIDE,
   OVERLAY_EVENT_STRIDE,
   RECT_STRIDE,
   SCARF_LAYOUT,
@@ -29,11 +28,14 @@ export interface ScarfLayoutContext {
   marginLeft: number
   /** Combined-mode: height of one event lane (strip slot). 0 otherwise. */
   eventLaneHeight: number
-  /** Combined-mode: total event-band height (lanes × laneHeight). 0 otherwise. */
+  /** Combined-mode: total event-band height (capped at the gaze bar). 0 otherwise. */
   eventZoneHeight: number
   /** Combined-mode: y within a row where the event band begins, just below the
    * AOI bar's bottom seam (events hang downward from here). 0 otherwise. */
   eventBandTop: number
+  /** Combined-mode: lanes were collapsed into a single presence strip because the
+   * band cap squeezed them below the legibility floor — draw every strip in lane 0. */
+  eventLanesMerged: boolean
   /** Combined (overlay) mode: non-fixations are centred on the seam (bar bottom)
    * rather than within the gaze bar, for a symmetric layout. */
   isOverlay: boolean
@@ -278,7 +280,8 @@ export function drawOverlayEventStrips(
       const xNorm = buffer[idx]
       const pIdx = buffer[idx + 1]
       const wNorm = buffer[idx + 2]
-      const lane = buffer[idx + 3] | 0
+      // Merged presence strip: ignore the per-event lane, paint all in lane 0.
+      const lane = layout.eventLanesMerged ? 0 : buffer[idx + 3] | 0
       const isPoint = buffer[idx + 4] | 0
 
       // Band hangs down from the seam: lane 0 nearest the bar, stacking downward.
@@ -306,55 +309,6 @@ export function drawOverlayEventStrips(
   }
 }
 
-/**
- * Core drawing for event channel rectangles (events-only mode).
- * Renders gantt-style colored rectangles from the event channel buffer.
- */
-export function drawEventChannelRects(
-  ctx: CanvasRenderingContext2D,
-  data: ScarfData,
-  layout: ScarfLayoutContext,
-  laneHeight: number,
-  rowHeight: number,
-  highlightMask: Uint8Array | null,
-  channelStyleIndices: number[] | null
-) {
-  const buffer = data.visualEventChannelBuffer
-  if (!buffer || buffer.length === 0) return
-  const channels = data.eventChannels
-  if (!channels || channels.length === 0) return
-
-  const pLeft = Math.floor(layout.leftLabelWidth + layout.marginLeft)
-  const pWidth = Math.floor(layout.plotAreaWidth)
-  const segmentCount = buffer.length / EVENT_CHANNEL_STRIDE
-  const isHighlightActive = highlightMask !== null
-
-  for (let i = 0; i < segmentCount; i++) {
-    const idx = i * EVENT_CHANNEL_STRIDE
-    const xNorm = buffer[idx]
-    const wNorm = buffer[idx + 1]
-    const laneIndex = buffer[idx + 2] | 0
-    const pIdx = buffer[idx + 3] | 0
-    const chIdx = buffer[idx + 4] | 0
-
-    const channel = channels[chIdx]
-    if (!channel) continue
-
-    const pxX = pLeft + xNorm * pWidth
-    const pxW = Math.max(1, wNorm * pWidth)
-    const pxY =
-      pIdx * rowHeight + laneIndex * laneHeight + layout.effectiveMarginTop
-
-    const styleIdx = channelStyleIndices ? channelStyleIndices[chIdx] : -1
-    const isDimmed =
-      isHighlightActive && styleIdx >= 0 ? highlightMask[styleIdx] !== 1 : false
-    ctx.fillStyle = isDimmed
-      ? desaturateToWhite(channel.color, 0.85)
-      : channel.color
-    ctx.fillRect(pxX, pxY, pxW, laneHeight)
-  }
-}
-
 /** Accumulates one identifier's segments within a single vertical band
  * (participant row × element type). `vanished` holds the logical x-intervals of
  * segments that don't fill a device pixel of colour on their own — the ring
@@ -376,11 +330,7 @@ interface MarkerBand {
 export interface ScarfHighlightMarkerOptions {
   rectStyleArray: ScarfRectStyle[]
   eventStyleArray: ScarfEventStyle[]
-  channelStyleIndices: number[] | null
   highlightMask: Uint8Array | null
-  isEventsOnly: boolean
-  eventOnlyRowHeight: number
-  eventOnlyLaneHeight: number
   /** Device pixels per logical pixel (devicePixelRatio, or dpiOverride/96 on
    * export). Vanishing is judged in DEVICE pixels: a segment that's sub-pixel on
    * screen may paint solid colour at export DPI, and then needs no ring. */
@@ -391,8 +341,8 @@ export interface ScarfHighlightMarkerOptions {
  * Rings the location of HIGHLIGHTED segments whose true duration is so brief
  * they render sub-pixel-wide and would otherwise vanish among the desaturated
  * neighbours. Covers every highlightable type — AOI fixations, category
- * (saccade/other) segments, combined-mode event strips and events-only channel
- * rects — keyed off the same highlight mask the dimming uses.
+ * (saccade/other) segments and overlaid event strips — keyed off the same
+ * highlight mask the dimming uses.
  *
  * The ring is an annotation, not a resized datum: it never inflates the
  * segment's width, so the timeline stays truthful. Adjacent vanished segments
@@ -439,8 +389,8 @@ export function drawScarfHighlightMarkers(
     else b.visible.push(x0, x0 + wPx)
   }
 
-  // --- AOI + category rectangles (bars & overlay modes) ---
-  if (!opts.isEventsOnly) {
+  // --- AOI + category rectangles ---
+  {
     const buckets = data.visualRectBuckets
     const pitch = layout.heightOfBarWrap
     // Ring the bar's vertical centre regardless of AOI-stacking, so every
@@ -463,8 +413,8 @@ export function drawScarfHighlightMarkers(
     }
   }
 
-  // --- Combined-mode event strips ---
-  if (!opts.isEventsOnly && layout.isOverlay && layout.eventLaneHeight > 0) {
+  // --- Overlaid event strips ---
+  if (layout.isOverlay && layout.eventLaneHeight > 0) {
     const buckets = data.visualEventBuckets
     const pitch = layout.heightOfBarWrap
     const bandCenter = layout.eventBandTop + layout.eventZoneHeight / 2
@@ -487,36 +437,6 @@ export function drawScarfHighlightMarkers(
         // never ringed, but they count as a visible span of their type.
         if ((buffer[idx + 4] | 0) === 1) b.visible.push(x0 - hw, x0 + hw)
         else add(b, x0, buffer[idx + 2] * pWidth)
-      }
-    }
-  }
-
-  // --- Events-only channel rects ---
-  if (opts.isEventsOnly && opts.channelStyleIndices) {
-    const buffer = data.visualEventChannelBuffer
-    const channels = data.eventChannels
-    if (buffer && buffer.length > 0 && channels && channels.length > 0) {
-      const rowHeight = opts.eventOnlyRowHeight
-      const laneHeight = opts.eventOnlyLaneHeight
-      const count = buffer.length / EVENT_CHANNEL_STRIDE
-      for (let i = 0; i < count; i++) {
-        const idx = i * EVENT_CHANNEL_STRIDE
-        const chIdx = buffer[idx + 4] | 0
-        const styleIdx = opts.channelStyleIndices[chIdx]
-        if (styleIdx < 0 || highlightMask[styleIdx] !== 1) continue
-        const channel = channels[chIdx]
-        if (!channel) continue
-        const laneTop =
-          buffer[idx + 3] * rowHeight + (buffer[idx + 2] | 0) * laneHeight + top
-        const cy = laneTop + laneHeight / 2
-        const b = band(
-          `c${styleIdx}@${cy}`,
-          channel.color,
-          cy,
-          laneTop,
-          laneTop + laneHeight
-        )
-        add(b, pLeft + buffer[idx] * pWidth, buffer[idx + 1] * pWidth)
       }
     }
   }

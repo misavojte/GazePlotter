@@ -1,6 +1,6 @@
 <script lang="ts">
   import { PaneSection } from '$lib/workspace/pane'
-  import { InputCheck, Radio, Select } from '$lib/shared/components'
+  import { InputCheck, Select } from '$lib/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { hasEventsForStimulus } from '$lib/data/engine'
@@ -13,7 +13,6 @@
     EyeMovementTypePaneSection,
   } from '$lib/plots/shared/components'
   import type {
-    ScarfDisplayMode,
     ScarfPlotItem,
     ScarfPlotSettings,
   } from '../types'
@@ -39,13 +38,10 @@
   )
   const stimulusHasSegments = $derived(engine.capabilities.segmented)
 
-  const displayMode = $derived<ScarfDisplayMode>(
-    settings.displayMode ?? 'overlay'
-  )
-  const showDisplayMode = $derived(stimulusHasEvents && !isOrdinal)
-  const showHideNonFixations = $derived(
-    stimulusHasSegments && (isOrdinal || displayMode !== 'events')
-  )
+  // Events ride as an overlay on the gaze segments; not shown in the
+  // segment-index-based ordinal view.
+  const showHideEvents = $derived(stimulusHasEvents && !isOrdinal)
+  const showHideNonFixations = $derived(stimulusHasSegments)
 
   // Ordinal range title override for the shared TimelineRangeSection
   const rangeTitle = $derived(
@@ -96,34 +92,27 @@
     />
   </div>
 
-  {#if showDisplayMode}
-    <Radio
-      legend="Event display"
-      options={[
-        { label: 'None', value: 'segments' },
-        { label: 'Overlay', value: 'overlay' },
-        { label: 'Only events', value: 'events' },
-      ]}
-      appearance="compact"
-      direction="row"
-      value={displayMode}
-      onchange={e => {
-        const v = (e as CustomEvent<string>).detail as ScarfDisplayMode
-        update({ displayMode: v })
-      }}
-    />
-  {/if}
-
-  {#if showHideNonFixations}
+  {#if showHideNonFixations || showHideEvents}
     <div class="sub-group">
       <div class="legend">Hide data</div>
-      <InputCheck
-        label="Non-fixations"
-        appearance="compact"
-        size="xs"
-        checked={settings.hideNonFixations ?? false}
-        onchange={e => update({ hideNonFixations: (e as CustomEvent<boolean>).detail })}
-      />
+      {#if showHideNonFixations}
+        <InputCheck
+          label="Non-fixations"
+          appearance="compact"
+          size="xs"
+          checked={settings.hideNonFixations ?? false}
+          onchange={e => update({ hideNonFixations: (e as CustomEvent<boolean>).detail })}
+        />
+      {/if}
+      {#if showHideEvents}
+        <InputCheck
+          label="Events"
+          appearance="compact"
+          size="xs"
+          checked={settings.hideEvents ?? false}
+          onchange={e => update({ hideEvents: (e as CustomEvent<boolean>).detail })}
+        />
+      {/if}
     </div>
   {/if}
 </PaneSection>

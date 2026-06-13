@@ -31,10 +31,9 @@
   } from '$lib/plots/shared'
   import { onDestroy } from 'svelte'
   import { measureTextHeight } from '$lib/shared/utils/textUtils'
-  import { RECT_STRIDE, SCARF_IDENTIFIERS, SCARF_LAYOUT } from '../const'
+  import { RECT_STRIDE, SCARF_LAYOUT } from '../const'
   import {
     calculateEffectiveMarginTop,
-    calculateEventOnlyLayout,
     calculateIntrinsicContentHeight,
     calculateIsCompactMode,
     calculateLegendStructuralHeight,
@@ -51,7 +50,6 @@
     mapDataToLegendGroups,
   } from '../core/transformer'
   import {
-    drawEventChannelRects,
     drawOverlayEventStrips,
     drawScarfGrid,
     drawScarfHighlightMarkers,
@@ -102,8 +100,7 @@
   const INTERNAL_PADDING_TOP = 6
   const INTERNAL_PADDING_BOTTOM = 0
 
-  const resolvedDisplayMode = $derived(data.resolvedDisplayMode ?? 'overlay')
-  const isEventsOnlyMode = $derived(resolvedDisplayMode === 'events')
+  const isOverlayMode = $derived(data.isOverlay)
 
   const xAxisLabel = $derived(
     getXAxisLabel(settings.timeline, settings.timelineStart, settings.timelineEnd)
@@ -138,18 +135,6 @@
     Math.max(1, height - fixedOverheadAbove - fixedOverheadBelow)
   )
 
-  const eventOnlyLayout = $derived.by(() =>
-    !isEventsOnlyMode
-      ? null
-      : calculateEventOnlyLayout(
-          data.participants.length,
-          data.totalLanesPerParticipant ?? 1,
-          netAvailableHeight
-        )
-  )
-
-  const isOverlayMode = $derived(resolvedDisplayMode === 'overlay')
-
   const layout = $derived.by(() => {
     const count = data.participants.length
     if (isOverlayMode) {
@@ -157,7 +142,13 @@
     }
     const compact = calculateIsCompactMode(count, netAvailableHeight)
     const base = calculatePlotLayout(count, netAvailableHeight, compact)
-    return { ...base, eventLaneHeight: 0, eventZoneHeight: 0, eventBandTop: 0 }
+    return {
+      ...base,
+      eventLaneHeight: 0,
+      eventZoneHeight: 0,
+      eventBandTop: 0,
+      eventLanesMerged: false,
+    }
   })
   const isCompactMode = $derived(layout.isCompact)
 
@@ -174,9 +165,7 @@
   )
 
   const participantBarsHeight = $derived(
-    isEventsOnlyMode && eventOnlyLayout
-      ? data.participants.length * eventOnlyLayout.rowHeight
-      : data.participants.length * layout.heightOfBarWrap
+    data.participants.length * layout.heightOfBarWrap
   )
   const legendY = $derived(
     participantBarsHeight + xAxisHeight + (legendHeight > 0 ? PLOT_LEGEND_GAP : 0)
@@ -302,19 +291,8 @@
 
   const highlightMaskByIndex = $derived(calculateHighlightMask(usedHighlights, identifierSystem))
 
-  const channelStyleIndices = $derived.by(() => {
-    if (!data.eventChannels) return null
-    return data.eventChannels.map(
-      ch => identifierSystem.idToIndex.get(`${SCARF_IDENTIFIERS.EVENT}${ch.id}`) ?? -1
-    )
-  })
-
   const canRender = $derived.by(() => {
     const count = data.participants.length
-    if (isEventsOnlyMode) {
-      const minPitch = (data.totalLanesPerParticipant ?? 1) * 2 // 2px is the minimum laneHeight
-      return netAvailableHeight >= count * minPitch
-    }
     if (isOverlayMode) {
       const minPitch = calculateOverlayMinRowPitch(data.eventZoneConcurrency ?? 0)
       return netAvailableHeight >= Math.max(count * minPitch, SCARF_LAYOUT.MIN_PLOT_HEIGHT_COMPACT)
@@ -341,14 +319,12 @@
     const scarfPlotWidth = Math.floor(plotAreaWidth)
 
     const renderCtx: ScarfLayoutContext = {
-      heightOfBar:
-        isEventsOnlyMode && eventOnlyLayout ? eventOnlyLayout.rowHeight : layout.heightOfBar,
-      spaceAboveRect: isEventsOnlyMode ? 0 : layout.spaceAboveRect,
-      nonFixationHeight: isEventsOnlyMode ? 0 : layout.nonFixationHeight,
-      heightOfBarWrap:
-        isEventsOnlyMode && eventOnlyLayout ? eventOnlyLayout.rowHeight : layout.heightOfBarWrap,
-      scaleFactor: isEventsOnlyMode ? 1 : layout.scaleFactor,
-      isCompact: isEventsOnlyMode ? false : layout.isCompact,
+      heightOfBar: layout.heightOfBar,
+      spaceAboveRect: layout.spaceAboveRect,
+      nonFixationHeight: layout.nonFixationHeight,
+      heightOfBarWrap: layout.heightOfBarWrap,
+      scaleFactor: layout.scaleFactor,
+      isCompact: layout.isCompact,
       leftLabelWidth: LEFT_LABEL_WIDTH,
       plotAreaWidth,
       effectiveMarginTop,
@@ -358,38 +334,28 @@
       eventLaneHeight: layout.eventLaneHeight,
       eventZoneHeight: layout.eventZoneHeight,
       eventBandTop: layout.eventBandTop,
+      eventLanesMerged: (layout as any).eventLanesMerged,
       isOverlay: isOverlayMode,
     }
 
     drawScarfLabels(ctx, data, renderCtx)
     drawScarfGrid(ctx, data, renderCtx)
 
-    if (isEventsOnlyMode && eventOnlyLayout) {
-      drawEventChannelRects(
-        ctx, data, renderCtx, eventOnlyLayout.laneHeight, eventOnlyLayout.rowHeight,
-        highlightMaskByIndex, channelStyleIndices
-      )
-    } else {
-      drawScarfRectangles(ctx, data, renderCtx, rectStyleArray, highlightMaskByIndex)
-      if (resolvedDisplayMode === 'overlay') {
-        drawOverlayEventStrips(ctx, data, renderCtx, eventStyleArray, highlightMaskByIndex)
-      }
+    drawScarfRectangles(ctx, data, renderCtx, rectStyleArray, highlightMaskByIndex)
+    if (isOverlayMode) {
+      drawOverlayEventStrips(ctx, data, renderCtx, eventStyleArray, highlightMaskByIndex)
     }
 
     drawScarfHighlightMarkers(ctx, data, renderCtx, {
       rectStyleArray,
       eventStyleArray,
-      channelStyleIndices,
       highlightMask: highlightMaskByIndex,
-      isEventsOnly: isEventsOnlyMode,
-      eventOnlyRowHeight: eventOnlyLayout?.rowHeight ?? 0,
-      eventOnlyLaneHeight: eventOnlyLayout?.laneHeight ?? 0,
       deviceScale: plot.canvasState.pixelRatio ?? 1,
     })
 
     drawCrosshairHighlight(
       ctx, scarfPlotLeft, effectiveMarginTop, scarfPlotWidth, participantBarsHeight,
-      isEventsOnlyMode && eventOnlyLayout ? eventOnlyLayout.rowHeight : layout.heightOfBarWrap
+      layout.heightOfBarWrap
     )
 
     const scarfXTicks = niceTimelineTicks(data.timeline)
@@ -527,8 +493,7 @@
 
     plot.setCursor('crosshair')
 
-    const rowHeight =
-      isEventsOnlyMode && eventOnlyLayout ? eventOnlyLayout.rowHeight : layout.heightOfBarWrap
+    const rowHeight = layout.heightOfBarWrap
     const newRowIndex = Math.floor((my - effectiveMarginTop) / rowHeight)
     hoveredRowIndex =
       newRowIndex >= 0 && newRowIndex < data.participants.length ? newRowIndex : null

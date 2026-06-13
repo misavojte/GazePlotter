@@ -37,9 +37,10 @@ describe('calculateOverlayLayout (combined mode: AOI top-anchored, events hang b
     }
   })
 
-  test('lane height never drops below the legibility floor when events exist', () => {
+  test('lane height merges into a presence strip when below the compressed legibility floor', () => {
     const tight = calculateOverlayLayout(80, 3, 500) // very cramped
-    expect(tight.eventLaneHeight).toBeGreaterThanOrEqual(SCARF_LAYOUT.MIN_EVENT_LANE_H)
+    expect(tight.eventLanesMerged).toBe(true)
+    expect(tight.eventLaneHeight).toBe(tight.heightOfBar)
   })
 
   test('zero concurrency → no band (degenerates to a plain bar row)', () => {
@@ -57,7 +58,7 @@ describe('calculateOverlayMinRowPitch', () => {
     expect(calculateOverlayMinRowPitch(3)).toBe(
       SCARF_LAYOUT.MIN_BAR_HEIGHT +
         2 +
-        3 * SCARF_LAYOUT.MIN_EVENT_LANE_H +
+        SCARF_LAYOUT.MIN_BAR_HEIGHT +
         SCARF_LAYOUT.MIN_ROW_GAP
     )
   })

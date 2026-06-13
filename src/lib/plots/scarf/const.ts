@@ -59,6 +59,10 @@ export const SCARF_LAYOUT = {
   // floor, the plot does not render.
   EVENT_LANE_H: 6, // lane (strip slot) height at scale 1
   MIN_EVENT_LANE_H: 4, // legibility floor (export/projector survival) — NOT 2px
+  // The event band is capped at the gaze bar height so events never dwarf the
+  // gaze they annotate (deep-compact / high-concurrency). When the cap squeezes
+  // a lane below this floor, the lanes collapse into ONE presence strip instead.
+  MIN_COMPRESSED_EVENT_LANE_H: 2,
   EVENT_LANE_GAP: 1, // gap inside a lane slot → texture separation between stacked strips
   EVENT_ZONE_GAP: 3, // whitespace gap between the gaze baseline (seam) and the event band
   MIN_ROW_GAP: 3, // minimum whitespace between participant rows (hard floor)
@@ -82,7 +86,5 @@ export const SCARF_LAYOUT = {
 
 // --- Buffer Strides ---
 export const RECT_STRIDE = 8
-/** Events-only mode channel-rect buffer: [xNorm, wNorm, laneIndex, pIndex, channelIndex]. */
-export const EVENT_CHANNEL_STRIDE = 5
-/** Combined-mode (overlay) event-strip buffer: [xNorm, pIndex, wNorm, laneIndex, isPoint]. */
+/** Event overlay strip buffer: [xNorm, pIndex, wNorm, laneIndex, isPoint]. */
 export const OVERLAY_EVENT_STRIDE = 5
