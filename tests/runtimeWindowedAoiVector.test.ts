@@ -383,6 +383,65 @@ describe('queryGroup: windowed × aoi-vector cross-participant aggregation', () 
     expect(result.vectors.length).toBeGreaterThanOrEqual(2)
   })
 
+  it('ragged-length recordings: a short participant does not dilute later windows toward zero', () => {
+    // Two participants, 100 ms windows, requested range [0, 200] → 2 windows
+    // ([0,100), [100,200)). AOI1 = slot 0, noAoi = slot 2, anyFixation = 3.
+    //
+    //   P0 (full-length): F[10,90] AOI1 (mid 50 → w0) + F[110,200] AOI1
+    //                     (mid 155 → w1). Recording ends at 200 → fully
+    //                     covers BOTH windows. AOI1 count = [1, 1].
+    //   P1 (short):       F[10,100] AOI1 (mid 55 → w0) only. Recording ends
+    //                     at 100 → fully covers w0, has NO data in w1.
+    //                     AOI1 count = [1] (w1 absent).
+    //
+    // Window [0,100): both participants present → mean(1, 1) = 1.
+    // Window [100,200): only P0 has data. The fix clamps P1's scan to its
+    // own data-end (100), so P1 contributes NOTHING to w1 → mean(1) = 1.
+    // WITHOUT the clamp, P1's empty w1 would finalize to a real 0 and the
+    // mean would be (1 + 0) / 2 = 0.5 — silently-wrong dilution toward zero.
+    const engine = createMultiParticipantEngine([
+      [[10, 90, 0, 1], [110, 200, 0, 1]], // P0: ends at 200
+      [[10, 100, 0, 1]],                   // P1: ends at 100
+    ])
+    const result = queryGroup(
+      windowedAoiVectorInst('fixationCount'),
+      groupScope(engine, [0, 1], 0, 200),
+    )
+
+    if (result.shape !== 'aoi-vector-timeseries') throw new Error('wrong shape')
+    expect(result.vectors).toHaveLength(2)
+    // w0: both participants contribute 1.
+    expect(result.vectors[0][0]).toBeCloseTo(1, 6) // AOI1
+    expect(result.vectors[0][3]).toBeCloseTo(1, 6) // anyFixation
+    // w1: P1's recording ended at 100, so only P0 (count 1) is averaged.
+    // The mean is 1 — NOT 0.5 (which is what counting P1's empty window
+    // as a real 0 would give).
+    expect(result.vectors[1][0]).toBeCloseTo(1, 6) // AOI1 — undiluted
+    expect(result.vectors[1][3]).toBeCloseTo(1, 6) // anyFixation — undiluted
+  })
+
+  it('ragged-length recordings: relativeTime tail is not diluted by absent participants', () => {
+    // Same ragged fixture as above, but with relativeTime (%). An empty
+    // window finalizes to all-zeros (total fixation time = 0 → share = 0),
+    // so without the clamp the short participant's absent tail would drag
+    // the percentage mean down too. With the clamp, w1 reflects only P0,
+    // whose entire windowed dwell is on AOI1 → 100%.
+    const engine = createMultiParticipantEngine([
+      [[10, 90, 0, 1], [110, 200, 0, 1]], // P0: ends at 200, all on AOI1
+      [[10, 100, 0, 1]],                   // P1: ends at 100
+    ])
+    const result = queryGroup(
+      windowedAoiVectorInst('relativeTime'),
+      groupScope(engine, [0, 1], 0, 200),
+    )
+
+    if (result.shape !== 'aoi-vector-timeseries') throw new Error('wrong shape')
+    expect(result.vectors).toHaveLength(2)
+    // w1: only P0 present, 100% of its dwell on AOI1. A spurious 0 from P1
+    // would have made this mean(100, 0) = 50.
+    expect(result.vectors[1][0]).toBeCloseTo(100, 6)
+  })
+
   it('relativeTime declares a groupAggregationGuard rejecting `sum` over windowed projections', () => {
     // Cross-participant `sum` of percentages is incoherent (yields
     // `≈ N · share`, no physical meaning). The guard returns a non-null

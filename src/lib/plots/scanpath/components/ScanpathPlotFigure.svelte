@@ -12,9 +12,10 @@
   import type { ScanpathData } from '../types'
 
   interface Props extends CanvasExportProps {
-    data: ScanpathData
+    data: ScanpathData | null
     showFixationOrder?: boolean
     showNumbers?: boolean
+    unavailableMessage?: string | null
   }
 
   let {
@@ -25,6 +26,7 @@
     height = 400,
     dpiOverride = null,
     margins = NO_MARGINS,
+    unavailableMessage = null,
   }: Props = $props()
 
   const L = SCANPATH_LAYOUT
@@ -52,6 +54,18 @@
 
   /** Padded data bounding box + its tick scales. */
   const scale = $derived.by(() => {
+    if (!data) {
+      return {
+        dataMinX: 0,
+        dataMaxX: 1,
+        dataMinY: 0,
+        dataMaxY: 1,
+        dataW: 1,
+        dataH: 1,
+        xTicks: { positions: [], labels: [] },
+        yTicks: { positions: [], labels: [] },
+      }
+    }
     const { minX, maxX, minY, maxY } = data.bbox
     const rawW = maxX - minX
     const rawH = maxY - minY
@@ -78,25 +92,32 @@
     height: () => height,
     margins: () => margins,
     dpiOverride: () => dpiOverride,
-    deps: () => [data, showFixationOrder, showNumbers],
-    gutters: () => ({
-      left: { tickLabels: scale.yTicks.labels, title: 'Y' },
-      bottom: { tickLabels: scale.xTicks.labels, title: 'X' },
-      pad: {
-        top: L.topSafetyPx,
-        right: L.rightSafetyPx,
-        bottom: L.bottomSafetyPx,
-        left: L.leftSafetyPx,
-      },
-    }),
+    deps: () => [data, showFixationOrder, showNumbers, unavailableMessage],
+    placeholder: () => unavailableMessage,
+    gutters: () => {
+      if (unavailableMessage) return {}
+      return {
+        left: { tickLabels: scale.yTicks.labels, title: 'Y' },
+        bottom: { tickLabels: scale.xTicks.labels, title: 'X' },
+        pad: {
+          top: L.topSafetyPx,
+          right: L.rightSafetyPx,
+          bottom: L.bottomSafetyPx,
+          left: L.leftSafetyPx,
+        },
+      }
+    },
     drawData: drawScanpath,
     // Marks may slightly overflow the plot area (edge fixations); the axis
     // frame is drawn on top afterwards, matching the pre-frame behaviour.
     clipData: false,
-    axes: () => ({
-      bottom: { ticks: scale.xTicks, title: 'X' },
-      left: { ticks: scale.yTicks, title: 'Y' },
-    }),
+    axes: () => {
+      if (unavailableMessage) return {}
+      return {
+        bottom: { ticks: scale.xTicks, title: 'X' },
+        left: { ticks: scale.yTicks, title: 'Y' },
+      }
+    },
   })
 
   function projectX(x: number, frame: PlotFrame): number {
@@ -111,12 +132,13 @@
   function radiusFor(duration: number): number {
     // Area linear in duration → radius ∝ √duration (Tobii Pro Lab / BeGaze /
     // OGAMA convention).
-    if (data.maxDuration <= 0) return (L.minRadius + L.maxRadius) / 2
+    if (!data || data.maxDuration <= 0) return (L.minRadius + L.maxRadius) / 2
     const t = Math.sqrt(Math.max(0, duration) / data.maxDuration)
     return L.minRadius + (L.maxRadius - L.minRadius) * t
   }
 
   function drawScanpath(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+    if (!data) return
     // Polyline (under the circles).
     if (showFixationOrder && data.fixations.length > 1) {
       ctx.save()

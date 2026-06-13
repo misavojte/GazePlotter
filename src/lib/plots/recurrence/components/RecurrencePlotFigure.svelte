@@ -16,7 +16,7 @@
   } from '../types'
 
   interface Props extends CanvasExportProps {
-    data: RecurrenceData
+    data: RecurrenceData | null
     highlight?: RecurrenceHighlight
     masking?: RecurrenceMasking
     highlightMask?: Uint8Array | null
@@ -37,11 +37,11 @@
 
   let hoveredCell = $state<{ row: number; col: number } | null>(null)
 
-  const N = $derived(data.fixationCount)
+  const N = $derived(data?.fixationCount ?? 0)
   const tickStep = $derived(N <= 20 ? 1 : Math.ceil(N / 10))
 
   const maxDuration = $derived.by(() => {
-    if (!data.durationMatrix) return 0
+    if (!data?.durationMatrix) return 0
     let max = 0
     for (let i = 0; i < data.durationMatrix.length; i++) {
       if (data.durationMatrix[i] > max) max = data.durationMatrix[i]
@@ -56,24 +56,31 @@
     dpiOverride: () => dpiOverride,
     deps: () => [data, highlight, masking, highlightMask],
     placeholder: () => (N < 2 ? 'Not enough fixations' : null),
-    gutters: () => ({
-      square: true,
-      left: { tickLabels: [String(N)], title: 'Fixation i' },
-      bottom: { tickLabels: [String(N)], title: 'Fixation j' },
-    }),
+    gutters: () => {
+      if (N < 2) return {}
+      return {
+        square: true,
+        left: { tickLabels: [String(N)], title: 'Fixation i' },
+        bottom: { tickLabels: [String(N)], title: 'Fixation j' },
+      }
+    },
     drawData: drawGrid,
-    axes: () => ({
-      bottom: {
-        ticks: categoryTicks(N, { step: tickStep, edgesAlways: true }),
-        title: 'Fixation j',
-      },
-      left: {
-        ticks: categoryTicks(N, { step: tickStep, edgesAlways: true, invert: true }),
-        title: 'Fixation i',
-      },
-    }),
+    axes: () => {
+      if (N < 2) return {}
+      return {
+        bottom: {
+          ticks: categoryTicks(N, { step: tickStep, edgesAlways: true }),
+          title: 'Fixation j',
+        },
+        left: {
+          ticks: categoryTicks(N, { step: tickStep, edgesAlways: true, invert: true }),
+          title: 'Fixation i',
+        },
+      }
+    },
     drawOverlay: drawHoverCrosshair,
     hitTest: (x, y, frame) => {
+      if (!data || N < 2) return null
       const cell = cellAt(x, y, frame)
       if (!cell) return null
       const idx = cell.row * N + cell.col
@@ -137,6 +144,7 @@
   }
 
   function drawGrid(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+    if (!data) return
     const cellSize = frame.width / N
     const gridSize = frame.width
     const { x: xOffset, y: yOffset } = frame

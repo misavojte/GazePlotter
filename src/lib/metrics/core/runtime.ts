@@ -222,10 +222,13 @@ function runFixationWindowed(
  *   1. Resolve a canonical time range from `group.{timeStart,timeEnd}`,
  *      falling back to `[0, max participant end]` when bounds are absent.
  *   2. Generate the timeline once from the projection's window/step.
- *   3. Per participant, run `runTimeWindowed` over the canonical range,
+ *   3. Per participant, run `runTimeWindowed` over the canonical range
+ *      clamped to that participant's own data-end (`min(tEnd, participantEnd)`),
  *      collecting per-cell values (window × slot for vector, window for
  *      scalar). Participants whose data ends earlier produce shorter
- *      timeseries; missing cells contribute `NaN` to the reduction.
+ *      timeseries; their absent trailing windows are simply skipped by the
+ *      per-cell gather (rather than synthesised as a misleading 0), so each
+ *      window is reduced only over the participants present there.
  *   4. Per (window[, slot]) cell, drop NaNs and apply `reduceFinite` with
  *      the recipe's `groupAggregation` (or `mean` if the recipe's
  *      `groupAggregationGuard` rejects the requested method).
@@ -286,12 +289,25 @@ export function runWindowedGroup(
   const perPValues: (number[])[] = []
   let aoiMissing = false
   for (const pid of group.participantIds) {
+    // Clamp each participant's window range to their own recording end.
+    // `runTimeWindowed` only emits windows that fully fit within the scope,
+    // so without this clamp a participant whose data ends before `tEnd`
+    // still gets windows synthesised past their last fixation — and those
+    // empty windows finalize to a real 0 (counts, dwell) or 0% (relativeTime),
+    // not NaN, so `reduceFinite` keeps them and drags the group mean toward
+    // zero in the tail. Clamping drops those windows entirely (a shorter
+    // per-participant array → `undefined` at trailing indices, which the
+    // per-cell gather below skips), so each window is averaged only over the
+    // participants that actually have data there. Mirrors evolving-metrics'
+    // `timeEnd: min(range, participantEnd)` clamp; `getParticipantEndTime`
+    // is an O(1) index-table lookup.
+    const pEnd = getParticipantEndTime(group.engine, group.stimulusId, pid)
     const scope: Scope = {
       engine: group.engine,
       stimulusId: group.stimulusId,
       participantId: pid,
       timeStart: tStart,
-      timeEnd: tEnd,
+      timeEnd: Math.min(tEnd, pEnd),
     }
     const r = runTimeWindowed(recipe, instance, scope, p, slots)
     if (r.aoiMissing) aoiMissing = true

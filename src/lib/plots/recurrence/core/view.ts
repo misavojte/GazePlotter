@@ -15,25 +15,25 @@ export type RecurrenceFigureProps = Omit<
 /**
  * Single source of truth for "what a recurrence plot draws". Applies the
  * no-spatial-data fallback (`recurrenceMethod: 'aoi'`) so screen and export
- * agree — previously the export path skipped this fallback. Returns null when
- * there's no recurrence data to draw.
+ * agree — previously the export path skipped this fallback.
  */
 export function getRecurrenceView(
   engine: DataEngine,
   settings: RecurrencePlotSettings
-): { props: RecurrenceFigureProps } | null {
+): { props: RecurrenceFigureProps } {
   const effectiveSettings = engine.capabilities.spatial
     ? settings
     : { ...settings, recurrenceMethod: 'aoi' as const }
   const data = getRecurrenceData(engine, effectiveSettings)
-  if (!data) return null
-  const highlightMask = buildHighlightMask(
-    data.matrix,
-    data.fixationCount,
-    effectiveSettings.highlight,
-    effectiveSettings.masking,
-    effectiveSettings.minLineLength
-  )
+  const highlightMask = data
+    ? buildHighlightMask(
+        data.matrix,
+        data.fixationCount,
+        effectiveSettings.highlight,
+        effectiveSettings.masking,
+        effectiveSettings.minLineLength
+      )
+    : null
   return {
     props: {
       data,
@@ -47,7 +47,7 @@ export function getRecurrenceView(
 export function deriveRecurrenceView(
   engine: DataEngine,
   settings: RecurrencePlotSettings
-): PlotView | null {
+): PlotView {
   const v = getRecurrenceView(engine, settings)
-  return v ? { component: RecurrencePlotFigure, props: v.props as Record<string, unknown> } : null
+  return { component: RecurrencePlotFigure, props: v.props as Record<string, unknown> }
 }

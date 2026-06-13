@@ -19,12 +19,10 @@
   const view = $derived(getRecurrenceView(engine, item.settings))
 </script>
 
-<BasePlot {item} hasData={view !== null} unavailableMessage={null}>
+<BasePlot {item}>
   {#snippet figure({ width, height })}
     <div class="figure-container">
-      {#if view}
-        <RecurrencePlotFigure {...view.props} {width} {height} />
-      {/if}
+      <RecurrencePlotFigure {...view.props} {width} {height} />
     </div>
   {/snippet}
 </BasePlot>
