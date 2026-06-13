@@ -416,32 +416,29 @@
       const binWidth = floorWidth / data.binCount
       const binX = floorLeft + hoveredBinIndex * binWidth
 
-      const binStartTime = data.timeline.minValue + hoveredBinIndex * data.stepSize
-      const binCenterTime = binStartTime + data.stepSize / 2
-      const windowStartTime = binCenterTime - data.windowSize / 2
-      const windowEndTime = binCenterTime + data.windowSize / 2
-
-      const timelineMin = data.timeline.minValue
-      const timelineMax = data.timeline.maxValue
-      const duration = Math.max(1, timelineMax - timelineMin)
-      const invMsPerPx = floorWidth / duration
-
-      const windowXStart = floorLeft + (windowStartTime - timelineMin) * invMsPerPx
-      const windowXEnd = floorLeft + (windowEndTime - timelineMin) * invMsPerPx
-      const xStart = Math.max(floorLeft, windowXStart)
-      const xEnd = Math.min(floorLeft + floorWidth, windowXEnd)
+      // Draw the window highlight in the SAME bin-index space as the step so the
+      // two stay concentric. Positioning it in time space (floorWidth / duration)
+      // instead diverges from the bin-index step for sliding windows: the offset
+      // is proportional to (windowSize - stepSize) and grows with the bin index,
+      // so the band visibly slides off the step the further into time you hover.
+      // The window spans `windowSize / stepSize` bins, centred on the hovered bin.
+      const windowBins = data.stepSize > 0 ? data.windowSize / data.stepSize : 1
+      const binCenterX = binX + binWidth / 2
+      const halfWindowPx = (windowBins * binWidth) / 2
+      const xStart = Math.max(floorLeft, binCenterX - halfWindowPx)
+      const xEnd = Math.min(floorLeft + floorWidth, binCenterX + halfWindowPx)
       const rectWidth = xEnd - xStart
 
       ctx.save()
       ctx.fillStyle = '#007acc'
 
-      // 1. Draw the lighter window highlight (1000ms)
+      // 1. Draw the lighter window highlight (the full window span)
       if (rectWidth > 0) {
         ctx.globalAlpha = 0.08
         ctx.fillRect(xStart, floorTop, rectWidth, floorHeight)
       }
 
-      // 2. Draw the darker step highlight (100ms)
+      // 2. Draw the darker step highlight (one bin)
       ctx.globalAlpha = 0.15
       ctx.fillRect(binX, floorTop, binWidth, floorHeight)
 
