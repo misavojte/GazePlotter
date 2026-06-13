@@ -35,7 +35,7 @@ export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
     barPlottingType: 'horizontal',
     orderBy: 'aoi',
     orderDirection: 'asc',
-    metricInstanceIds: [],
+    metricInstanceIds: ['absoluteTime'],
     scaleRange: [0, 0],
     statisticalOverlay: 'meanCi95',
     timelineStart: 0,
