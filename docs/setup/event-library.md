@@ -5,73 +5,36 @@ order: 9
 
 # Event Library
 
-The **Event Library** in GazePlotter provides control over event channel names, colors, ordering, grouping, and visibility. Each stimulus has its own independent set of event channels.
+The Event Library controls the display names, colors, order, and visibility of event channels. Channels are defined per stimulus.
 
-For information on uploading event data, see [Event Data](/docs/upload-data/events/).
+For how to upload event data, see [Event Data](/docs/upload-data/events/).
 
-## Accessing the Tool
+## Opening the library
 
-To open the Event Library:
+1. Select a Scarf Plot to open its [Settings Pane](/docs/visualizations/#configuration-and-settings-pane).
+2. In the **Events** section, click **Configure Event Library…**.
 
-1. Click the settings icon (cog wheel) in the top-right corner of a Scarf Plot to toggle its configuration panel.
-2. Under the **Events** section, click **Configure Event Library…**.
+Pick the stimulus to edit from the **For stimulus** dropdown.
 
-## Stimulus Selection
+## Editing channels
 
-Event channels are bound to specific stimuli. Select the target stimulus from the **For stimulus** dropdown before making modifications.
+Each channel is a row with the same controls as the [AOI Library](/docs/setup/aoi-library/):
 
-## Modifying Event Channels
+- **Displayed name** — Rename the channel; the original name is preserved.
+- **Color** — Set the line color.
+- **Visible** — Uncheck to hide the channel from the scarf plot.
+- **Move handle** — Drag to reorder. Order sets the sequence in legends and in the event lines beneath each scarf row.
 
-Every event channel within the selected stimulus is listed in a table with the following columns.
+The **Sort** and **Bulk actions** buttons above the list work the same as in the AOI Library (sort by name, regex rename, bulk show/hide).
 
-### Renaming
+## Grouping channels
 
-- **Action**: Modify the **Displayed name** text field.
-- **Behavior**: Overrides the visual label of the event channel in all legends and plots, while preserving the original source name.
+Channels that share the same **Displayed name** merge into one group. The first channel is the leader and controls the group's color and visibility. This is identical to [AOI grouping](/docs/setup/aoi-library/#grouping-aois).
 
-### Recoloring
+## Creating interval channels
 
-- **Action**: Click the color picker in the **Color** column.
-- **Behavior**: Overrides the default color of the event channel line.
-- _Constraint_: This option is only available for individual ungrouped channels or designated group leaders (see Grouping section below).
+**Create intervals…** derives new interval channels from existing event markers — for example, pairing start/end markers into visibility intervals. The original imported events are never modified; interval channels are added alongside them.
 
-### Reordering
+## Applying changes
 
-- **Action**: Click the up and down arrows in the **Order** column.
-- **Behavior**: Alters the rendering order of the event channel. This dictates the sequence in legends and in the stacked event lines beneath the scarf plot rows.
-
-### Hiding and Showing
-
-- **Action**: Toggle the checkbox in the **Is active** column.
-- **Behavior**: Hidden channels are excluded from the scarf plot rendering. They remain in the data and can be re-activated at any time.
-
-### Bulk Sorting
-
-Use the column header controls to sort:
-
-- **Name** — Sorts alphanumerically by original channel name.
-- **Displayed name** — Sorts alphanumerically by the customized displayed name.
-
-Clicking the same header toggles between ascending and descending order. The algorithm uses natural ordering (e.g., Channel 2 precedes Channel 10).
-
-## Event Channel Grouping
-
-GazePlotter implements automatic grouping based on name matching, identical to the [AOI grouping system](/docs/setup/aoi-library/#aoi-grouping-system).
-
-### How Grouping Works
-
-Event channels that share an identical **Displayed name** are automatically aggregated into a single group in all visualizations.
-
-- **Color inheritance**: The first listed channel in a group acts as the leader. The leader's color propagates to all group members.
-- **UI behavior**: Only the leader channel exposes color and order controls.
-
-### Managing Groups
-
-- **Creating a group**: Give two or more channels the exact same text in their **Displayed name** field.
-- **Detaching from a group**: Change a channel's **Displayed name** to a unique value.
-
-## Applying Changes
-
-Click **Apply** to commit modifications. Changes are applied exclusively to the currently selected stimulus.
-
-> **Note**: Unlike the AOI Library, the Event Library does not support cross-stimulus propagation. Each stimulus must be modified independently.
+Click **Apply** to save, or **Cancel** to discard. Unlike the AOI Library, the Event Library applies only to the selected stimulus — there is no cross-stimulus propagation.

@@ -1,91 +1,25 @@
 # Stimuli Library
 
-The **Stimuli Library** in GazePlotter provides a robust mechanism to rename stimuli and reorder their sequence within all eye-tracking plots. The tool supports granular item-by-item editing as well as powerful, regex-driven pattern renaming for massive batch operations.
+The Stimuli Library renames stimuli and sets their order across all plots and dropdowns. Renaming changes only the displayed label; the original source name is preserved.
 
-![Stimuli library table with displayed name and order controls.](/docs/images/stimuli-customization_1.jpg)
+## Opening the library
 
-## Accessing the Tool
+1. Select a plot to open its [Settings Pane](/docs/visualizations/#configuration-and-settings-pane).
+2. In the **Stimulus** section, click **Edit stimulus library…**.
 
-To open the Stimuli Library:
+## Editing stimuli
 
-1. Click the settings icon (cog wheel) in the top-right corner of any plot to toggle its configuration panel.
-2. Under the **Stimulus** section, click **Edit stimulus library…**.
+Each stimulus is a row showing its original name and an editable **Displayed name**. Drag the grip handle to reorder; the order sets how stimuli appear in dropdowns and menus. Two buttons sit above the list:
 
-## Modifying Stimuli
+- **Sort** — Order by original or displayed name, ascending or descending. Sorting uses natural ordering, so `Stimulus_2` comes before `Stimulus_10`.
+- **Bulk actions** — Opens **Rename items…** for pattern-based renaming.
 
-For manual adjustments and specific organizational tasks, use the individual editing table.
+## Pattern renaming
 
-### Individual Operations
+For systematic renames, use **Bulk actions → Rename items…**. It finds a regular expression in the displayed names and replaces every match. The wildcard buttons append common tokens (`\d+`, `\s`, `[A-Za-z]`, `.`). For a full walkthrough, see [Pattern renaming](/docs/setup/participant-library/#pattern-renaming).
 
-#### Renaming
+Example: turn `SMI Base` into `Base` with pattern `SMI\s` and an empty replacement.
 
-- **Action**: Modify the text field in the **Displayed name** column.
-- **Behavior**: Updates the visual label used in all drop-downs and plots, while securely leaving the original source name intact within the raw dataset.
+## Saving
 
-#### Reordering
-
-- **Action**: Click the up and down arrows located in the **Order** column.
-- **Behavior**: Adjusts the index rendering order of the stimulus. This dictates their sequential appearance in global dropdowns and menus.
-
-### Bulk Sorting Actions
-
-To quickly organize the configuration list, utilize the column header controls:
-
-- **Original Name**: Sorts the list alphanumerically based on the raw stimulus names imported from the source data.
-- **Displayed Name**: Sorts the list alphanumerically based on the currently customized displayed names.
-
-_Note: Clicking the same header multiple times toggles between ascending and descending sort directions. The algorithm strictly utilizes natural ordering (e.g., Stimulus_2 correctly precedes Stimulus_10)._
-
-## Pattern Renaming (Batch Processing)
-
-For high-volume datasets containing systemic naming flaws, Pattern Renaming enables global find-and-replace mechanics powered by Regular Expressions (Regex).
-
-![Stimuli library pattern renaming panel with regex-based find and replace fields.](/docs/images/stimuli-customization_2.jpg)
-
-### Execution Workflow
-
-1. **Targeting**: Input the target text or regex pattern into the **Find text** parameter field.
-2. **Replacement**: Input the desired replacement string into the **Replace with** parameter field.
-3. **Execution**: Click the **Apply renaming to all** button to instantly compute and map the transformations.
-
-### Quick Wildcard Insertions
-
-For users unfamiliar with writing regex, pre-configured buttons automatically insert common wildcard patterns directly into the targeting field:
-
-- **Any number**: Inserts `\d+` — Matches any contiguous sequence of digits (e.g., 1, 42, 1024).
-- **Any space**: Inserts `\s` — Matches any single whitespace character.
-- **Any letter**: Inserts `[A-Za-z]` — Matches any single alphabetical character, irrespective of case.
-- **Any character**: Inserts `.` — Matches absolutely any single character (except line breaks).
-
-### Practical Applications
-
-#### Basic Cleanup
-
-- **Strip numerical suffixes**: Find `\d+`, Replace with `(empty)`
-- **Condense spacing**: Find `\s`, Replace with `(empty)`
-- **Standardize delimitations**: Find `_`, Replace with `-`
-- **Abbreviate terminology**: Find `Stimulus`, Replace with `S`
-
-#### Advanced Regex Combinations
-
-A complex transformation example involving multiple regex concepts.
-
-**Objective**: Mutate the string `SMI Base` to output `Base`.
-
-- **Find text**: `SMI\s`
-- **Replace with**: `(empty)`
-- **Result**: `SMI Base` → `Base`
-
-**Deconstruction**:
-
-- `SMI`: Targets the literal text string "SMI".
-- `\s`: Targets the immediate trailing space character following the string.
-
-### Regex Assistance
-
-GazePlotter's engine processes pure regular expressions. Because the regex syntax is completely standard, you can utilize external LLM tools (like ChatGPT or Claude) to reliably generate complex extraction patterns by describing your exact transformation parameters.
-
-## Committing Changes
-
-- **Finalize**: Click the **Apply** button located at the bottom of the module to save all semantic modifications globally.
-- **Discard**: Closing the modal window without clicking Apply will safely terminate your session and discard all pending edits.
+Click **Apply** to save, or **Cancel** to discard all changes.

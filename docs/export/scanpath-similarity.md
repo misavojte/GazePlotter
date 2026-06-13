@@ -26,7 +26,7 @@ The Scanpath Similarity Export generates a similarity matrix computed from parti
 
 ## Execution Workflow
 
-1. Click the **Export workspace or data** button in the [Workspace Toolbar](/docs/setup/workspace/#workspace-toolbar).
+1. Click **Export** in the workspace top bar.
 2. In the **Research Data Formats** section, click the **Scanpath Similarity (CSV)** card.
 3. Configure **File name**, **Stimulus**, **Participant Group**, and **Similarity Method**.
 4. Click **Export Similarity Matrix** to download the CSV.

@@ -1,44 +1,29 @@
 # Segmented Data Export
 
-The Segmented Data Export pipeline serializes raw eye-tracking vectors into structured CSV files meticulously formatted for advanced manipulation in spreadsheet software (Excel, Google Sheets) or command-line scripting architectures (Python, R).
+Segmented Data Export writes raw, row-level gaze segments as CSV — for spreadsheets or custom scripts (Python, R). The layout matches the [Segmented Duration CSV](/docs/upload-data/custom-csv/#format-3-segmented-duration-csv) import format, so you can export, edit, and re-upload (see [Segmented Data workflows](/docs/advanced/segmented-data-workflows/)).
 
-## Data Structure
+## CSV structure
 
-Segmented CSV file outputs contain highly granular, row-level sequential eye-tracking logic exposing:
+| Column | Description |
+| :--- | :--- |
+| `stimulus` | Stimulus name |
+| `participant` | Participant name |
+| `timestamp` | Segment start time |
+| `duration` | Segment duration |
+| `eyemovementtype` | `0` = fixation, otherwise saccade |
+| `AOI` | AOI name(s); multiple are `;`-separated |
+| `x`, `y` | Segment coordinate, when spatial data is available |
 
-- Unified participant identifiers.
-- Stimulus metadata connections.
-- Raw fixation coordinates (X, Y) and localized duration metrics.
-- Segment spatial coordinates (when available from source data).
-- Hardcoded AOI collision assignments.
-- Absolute micro-second timestamp delineations.
-- Computed gaze event classifications.
+## Options
 
-## Export Configuration
+- **Export Type** — **Single CSV File**, or **Individual CSV Files (Zipped)** (one file per participant).
+- **File name**, **Delimiter** (`,` or `;`), **Decimal Separator** (`.` or `,`).
+- **Stimuli** — Select which stimuli to include.
+- **Export only fixations** — Exclude saccades, blinks, and other non-fixation segments.
 
-To generate segmented CSV files, you can configure several parameters to filter and format the output.
+## Exporting
 
-### Global Settings
-
-- **Export Type**: Choose between **Single CSV File** (monolithic) or **Individual CSV Files (Zipped)** (sharded by participant).
-- **File name**: Specify the root output filename.
-- **Delimiter**: Choose between **Comma (,)** or **Semicolon (;)**.
-- **Decimal Separator**: Choose between **Dot (.)** or **Comma (,)**.
-
-### Data Filtering
-
-- **Stimuli**: Select one or more specific stimuli to include in the export.
-- **Fixations Only**: Enable this filter to exclude saccades, blinks, and other non-fixation gaze movements from the output.
-
-## Execution Workflow
-
-1. **Access Export**: Click the **Export workspace or data** button in the [Workspace Toolbar](/docs/setup/workspace/#workspace-toolbar).
-2. **Select Format**: In the **Research Data Formats** section, click on the **Segmented Data (CSV)** card.
-3. **Configure Settings**: Select your preferred **Export Type**, **File name**, **Delimiter**, and **Decimal Separator**.
-4. **Target Data**: Select the target **Stimuli** and apply any **Filters** (e.g., Export only fixations).
-5. **Download**: Click the **Export Data** button. A success toast will confirm the file generation.
-
-## Analytical Use Cases
-
-- **Single CSV**: Best for programmatic ingestion (R, Python `pandas`) where algorithmic filtering of monolithic dataframes is required.
-- **Zipped Individual CSVs**: Optimal for manual spreadsheet analysis or when research protocols require isolation of subject data arrays.
+1. Click **Export** in the workspace top bar.
+2. In **Research Data Formats**, click the **Segmented Data (CSV)** card.
+3. Configure the options above and select your **Stimuli**.
+4. Click **Export Data**.

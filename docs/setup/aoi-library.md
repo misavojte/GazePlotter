@@ -1,90 +1,48 @@
 # AOI Library
 
-The **AOI Library** in GazePlotter acts as a centralized tool to modify the visual aesthetics, names, and processing order of Areas of Interest (AOIs). Use this module to construct AOI groups, map custom color palettes, and seamlessly propagate naming conventions across multiple target stimuli.
+The AOI Library controls the display names, colors, order, and visibility of Areas of Interest (AOIs). AOIs are defined per stimulus.
 
-## Accessing the Tool
+## Opening the library
 
-To open the AOI Library:
+1. Select a plot to open its [Settings Pane](/docs/visualizations/#configuration-and-settings-pane).
+2. In the **Areas of Interest** section, click **Configure AOI Library…**.
 
-1. Click the settings icon (cog wheel) in the top-right corner of any plot to toggle its configuration panel.
-2. Under the **Areas of Interest** section, click **Configure AOI Library…**.
+## Choosing the stimulus
 
-## Core Setup
+AOIs belong to a stimulus. Pick the one to edit from the **For stimulus** dropdown. When you apply changes, you can keep them on this stimulus or propagate them to others (see [Applying changes](#applying-changes)).
 
-### Stimulus Selection
+## Editing AOIs
 
-AOIs are inherently bound to specific stimuli. Before making modifications, you must declare your operational context.
+Each AOI is a row with these controls:
 
-- **Action**: Open the **For stimulus** dropdown menu.
-- **Behavior**: Determines which specific stimulus data structure you are currently editing.
+- **Displayed name** — Rename the AOI. The original source name is kept and shown alongside; only the displayed name changes in plots and legends.
+- **Color** — Set the AOI color via the color picker.
+- **Visible** — Uncheck to hide the AOI from plots. It stays in the data and can be re-shown anytime.
+- **Move handle** — Drag the grip icon to reorder. Order sets the sequence in legends and stacked plots.
 
-_Note: Changes made here can later be applied selectively to just this stimulus or broadcast globally across all stimuli in the dataset._
+Two buttons sit above the list:
 
-## Modifying AOIs
+- **Sort** — Order rows by original or displayed name, ascending or descending (natural ordering, so `AOI-2` comes before `AOI-10`).
+- **Bulk actions** — **Rename items…** (regex find-and-replace on displayed names) and **Change visibility…** (show or hide all AOIs matching a pattern). See [Pattern renaming](/docs/setup/participant-library/#pattern-renaming) for how the regex flyout works.
 
-Every AOI within the declared stimulus is listed individually.
+## Grouping AOIs
 
-### Individual Operations
+AOIs that share the same **Displayed name** merge into one group across all plots. To group AOIs (e.g. `Target 1`, `Target 2`, `Target 3` → `Target`), give them the same displayed name. To split one off, give it a unique name.
 
-#### Renaming
+The first AOI in a group is the leader: its color and visibility apply to the whole group, and only the leader exposes the color and visibility controls.
 
-- **Action**: Modify the **Displayed name** text field.
-- **Behavior**: Overrides the visual name of the AOI in all legends and plots, while securely preserving the original source name in the dataset.
+## No AOI Hit treatment
 
-#### Recoloring
+Fixations that land outside every AOI are grouped as **No AOI**. Set their display name and color in the **No AOI Hit Treatment** section.
 
-- **Action**: Click the color picker in the **Color** column.
-- **Behavior**: Overrides the default color mapping.
-- _Constraint_: This option is only available for individual ungrouped AOIs or designated group leaders (see Grouping section below).
+## Applying changes
 
-#### Reordering
+Choose the scope, then click **Apply** (or **Cancel** to discard):
 
-- **Action**: Click the up and down arrows in the **Order** column.
-- **Behavior**: Alters the rendering index of the AOI. This dictates their sequence in legends and stacked visualizations.
+- **This stimulus** — Apply only to the selected stimulus.
+- **All by original name** — Apply to AOIs with matching original names across all stimuli.
+- **All by displayed name** — Apply to AOIs with matching displayed names across all stimuli.
 
-### Bulk Sorting Actions
+Reordering only applies to the selected stimulus; it never propagates to others.
 
-To quickly organize large numbers of AOIs, utilize the column header controls:
-
-- **Original Name**: Sorts the list alphanumerically based on the raw AOI names imported from the source data.
-- **Displayed Name**: Sorts the list alphanumerically based on the currently customized displayed names.
-
-_Clicking the same header multiple times toggles between ascending and descending sort directions. The algorithm uses natural ordering logic (e.g., AOI-2 correctly precedes AOI-10)._
-
-## AOI Grouping System
-
-GazePlotter implements an automatic, semantic grouping architecture based entirely on nomenclature matching.
-
-### How Grouping Works
-
-Any AOIs that share an identical **Displayed Name** are automatically aggregated and treated as a singular, unified group entity in all downstream visualizations.
-
-- **Color Inheritance**: The first listed AOI in any group acts as the leader. The leader's configured color propagates strictly to all other group members automatically.
-- **UI Behavior**: To prevent conflicts, only the leader AOI exposes color and order modification controls within the interface.
-
-### Group Management
-
-- **Creating a group**: Give two or more independent AOIs the exact same text string in their **Displayed name** field.
-- **Detaching from a group**: Alter a specific AOI's **Displayed name** to be uniquely distinct from the rest of the group.
-
-> **Semantic Grouping Example**: If your study features multiple discrete targets that all represent the same conceptual element (e.g., "Target 1", "Target 2", "Target 3"), simply rename all of their Displayed Names to "Target". They will instantly fuse into a single "Target" group with a unified color in all plots.
-
-## Committing Changes
-
-When finished modifying properties, you must select the scope of your update.
-
-### Application Scopes
-
-Choose how broadly to apply your targeted modifications across the dataset:
-
-- **This stimulus**: Commits modifications exclusively to the single stimulus selected in the dropdown.
-- **All by original name**: Broadcasts the modifications to every stimulus in the dataset that contains AOIs matching the **Original Names** you edited.
-- **All by displayed name**: Broadcasts the modifications to every stimulus in the dataset that contains AOIs matching the **Displayed Names** you edited.
-
-> **Ordering Constraint**: When applying changes globally to all stimuli, understand that **AOI ordering adjustments** are strictly sandboxed to the currently selected active stimulus. Order does not broadcast.
-
-### Finalizing
-
-- **Save**: Click the **Apply** button to execute the changes using the specified scope. Closing the window before clicking Apply immediately discards your session.
-
-![Workspace screenshot showing the plot controls used to open the AOI Library.](/docs/images/1.png)
+![Workspace plot controls used to open the AOI Library.](/docs/images/1.png)

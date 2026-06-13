@@ -11,7 +11,7 @@ GazePlotter is a free web application for analyzing eye-tracking data. Simply vi
 
 **Step 2: Upload Your Data**
 
-- Click ["Import workspace or data"](/docs/upload-data/#upload-data-button) at the top
+- Click ["Import"](/docs/upload-data/#import-button) in the top bar
 - Select your eye-tracking data file
 - GazePlotter automatically detects the file type and creates visualizations
 
@@ -23,18 +23,18 @@ GazePlotter is a free web application for analyzing eye-tracking data. Simply vi
 
 **Step 4: Save Your Work**
 
-- Click ["Export workspace or data"](/docs/export/) to save your analysis
+- Click ["Export"](/docs/export/) to save your analysis
 - Choose ["Workspace"](/docs/export/workspace/) to save everything for later or sharing with colleagues
 
 ## Main Workspace Controls
 
-At the top of the GazePlotter workspace, you'll find these essential controls:
+The top bar of the workspace holds three controls:
 
-1. **[Import workspace or data](/docs/upload-data/#upload-data-button)** - Upload your eye-tracking data files (automatically detects file type)
-2. **[Reload Demo](/docs/upload-data/#reload-demo-button)** - Reset to the sample data if you want to start over
-3. **[Export workspace or data](/docs/export/)** - Save your analysis or export data for other tools
+1. **[Import](/docs/upload-data/#import-button)** - Upload eye-tracking data or a saved workspace (file type is detected automatically)
+2. **[Export](/docs/export/)** - Save your workspace or export data for other tools
+3. **[Metadata](/docs/advanced/source-metadata/)** - View source and parsing details for the loaded data
 
-![GazePlotter workspace header with import, demo reload, and export controls.](/docs/images/1.png)
+![GazePlotter workspace header with import, export, and metadata controls.](/docs/images/1.png)
 
 ## Understanding the Interface
 

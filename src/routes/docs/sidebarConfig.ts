@@ -223,7 +223,7 @@ export const SIDEBAR: readonly SidebarItem[] = [
       {
         name: 'Aggregated Data',
         href: '/docs/export/aggregated-data',
-        description: 'Export summarized statistical tables in CSV or XLSX format, structured for import into R, SPSS, Jamovi, or Python Pandas.'
+        description: 'Export summarized statistical tables in long-format CSV, structured for import into R, SPSS, Jamovi, or Python Pandas.'
       },
       {
         name: 'Segmented Data',

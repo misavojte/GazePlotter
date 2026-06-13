@@ -4,11 +4,11 @@ GazePlotter is a web application for visualizing gaze data from eye-tracking sof
 
 The workspace is designed to be easy to use and to provide a quick overview of the data and is available at [gazeplotter.com](https://gazeplotter.com).
 
-On loading the workspace, you will see a demo data visualization. The demo data is a sample of the data from the [Tobii Pro Lab](/docs/upload-data/tobii-pro-lab/) software. The demo data contains information about _fixations_ (and AOI hits) and _saccades_. Only other eye-movement category is _EyesNotFound_.
+On loading the workspace, you will see a demo data visualization. The demo data is a sample from the [Tobii Pro Lab](/docs/upload-data/tobii-pro-lab/) software, with _fixations_ (and AOI hits), _saccades_, and _EyesNotFound_ segments.
 
-## Upload data button
+## Import button
 
-You can upload your own eye-tracking data files to the GazePlotter workspace. The platform will automatically detect the file type and start a visualization of your data.
+Click **Import** in the workspace to upload your own files. GazePlotter detects the file type automatically and builds the visualizations.
 
 ### Supported file types
 
@@ -22,14 +22,14 @@ The workspace supports the following file types:
 - [Pupil Cloud](/docs/upload-data/pupil-cloud/)
 - [Custom CSV](/docs/upload-data/custom-csv/)
 
-### workspace data import
+### Workspace import
 
-You can also select `.json` data from the GazePlotter workspace for data upload. This is useful if you want to share your data with someone else.
+You can also select a GazePlotter workspace `.json` file to restore a saved session — useful for sharing analyses. A single `.json` file is always treated as a workspace import.
 
 ### Event files
 
-When uploading eye-tracking data, you can include event files (`.xml` or `.json`) in the same file selection. GazePlotter automatically detects event files and prompts you to map them to stimuli and participants after the eye-tracking data is parsed. See [Event Data](/docs/upload-data/events/) for details.
+Include event files (`.xml`, or `.json` alongside other files) in the same selection. GazePlotter detects them and prompts you to map them to stimuli and participants after the eye-tracking data is parsed. See [Event Data](/docs/upload-data/events/) for details.
 
-## Reload Demo button
+## Starting over
 
-To revert the workspace to its initial state, hit `Reload Demo` button. This will remove all the data from the workspace and load the demo data again.
+There is no demo-reload button. To return to the demo data, reload the page; to replace the current data, import new files.

@@ -1,46 +1,27 @@
 # Workspace Export
 
-Workspace Export serialization allows you to download your entire active GazePlotter session as a lightweight JSON file. This format preserves all visualization layouts, granular plot settings, and semantic global customizations exactly as they appear in your browser.
+Workspace Export saves your whole session — data, layout, plot settings, and library customizations — as a single JSON file. Re-import it to restore the session exactly, or share it with a colleague.
 
-## Strategic Use Cases
+It is the recommended way to save your work, since the workspace is not saved automatically.
 
-Exporting the entire workspace state enables advanced analytical continuity:
+## What it includes
 
-- **Incremental Backup**: Save daily workspace checkpoints to prevent accidental analytical loss.
-- **Collaborative Sharing**: Distribute complete, ready-to-view dashboards to colleagues.
-- **Environment Transfer**: Seamlessly move specific active analysis sessions between different laboratory devices.
-- **Standardized Templates**: Construct reusable grid configurations and color palettes for rigorous multi-study standard operating procedures.
+- The full dataset (parsed gaze segments, AOIs, events).
+- Grid layout: each plot's position and size.
+- Every plot's settings (group, stimulus, metric, axis bounds, colors, view modes).
+- Library customizations: [participant groups](/docs/setup/participant-groups/), [AOI names and colors](/docs/setup/aoi-library/), [participant names](/docs/setup/participant-library/), and [stimulus names](/docs/setup/stimuli-library/).
 
-## State Preservation Scope
+Because the data is embedded, file size scales with your dataset.
 
-A workspace JSON export comprehensively captures:
+## Exporting
 
-### Global Architecture
+1. Click **Export** in the workspace top bar.
+2. In the **Export Workspace** section, enter a **File name**.
+3. Click **Export Workspace** to download the `.json` file.
 
-- The absolute positioning and sizing dimensions of all instantiated plot cards.
-- Core global filtering states applied to the root dataset.
+## Importing
 
-### Granular Configurations
+1. Click **Import** in the workspace top bar.
+2. Select a workspace `.json` file. A single `.json` file is always loaded as a workspace.
 
-- **Visualization State**: The specific configurations active within every single plot (e.g., active grouping, exact zoom bounds, rendering modes).
-- **Setup State**: Every semantic adjustment created in [Participant Groups](/docs/setup/participant-groups/), [AOI Library](/docs/setup/aoi-library/), [Participant Library](/docs/setup/participant-library/), and [Stimuli Library](/docs/setup/stimuli-library/).
-
-## Execution Workflows
-
-### Exporting the Workspace
-
-To serialize and download your current setup:
-
-1. **Locate Tool**: Click the **Export workspace or data** button in the left [Workspace Toolbar](/docs/setup/workspace/#workspace-toolbar).
-2. **Naming**: Input a descriptive file identifier into the **File name** text field.
-3. **Execution**: Click the primary **Export Workspace** button to serialize and save the `.json` file to your local machine.
-
-### Importing a Workspace
-
-To restore a previously saved analytical state:
-
-1. **Locate Tool**: Click the **Import workspace or data** button situated in the persistent left [Workspace Toolbar](/docs/setup/workspace/#workspace-toolbar).
-2. **File Selection**: Navigate your local file system and select the targeted workspace `.json` file.
-3. **Execution**: The system will automatically overwrite the active interface, immediately loading all original plots, configurations, and spatial grid arrangements verbatim.
-
-> **File Footprint**: Workspace state files contain only logic and parameters, not raw gaze vectors. They result in extraordinarily small JSON files (often mere kilobytes), making them perfect for email distribution or strict version control system tracking.
+Importing replaces the current workspace with the saved plots, settings, and layout.

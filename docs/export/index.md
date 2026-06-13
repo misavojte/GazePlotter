@@ -1,6 +1,6 @@
 # Export
 
-GazePlotter provides five export options for different eye-tracking analysis use cases. Access export functionality through the **Export workspace or data** button in the workspace toolbar.
+GazePlotter provides five export options for different eye-tracking analysis use cases. Access them through the **Export** button in the workspace top bar.
 
 ## Export Types
 
@@ -26,7 +26,6 @@ Export fixation sequences for scanpath analysis in the ScanGraph tool. Converts 
 
 ## Export Access
 
-1. Click **Export workspace or data** button in workspace toolbar
-2. Select desired export format from dropdown
-3. Configure export options
-4. Click **Download** to save file
+1. Click **Export** in the workspace top bar.
+2. Use the **Export Workspace** section, or pick a card under **Research Data Formats**.
+3. Configure the options and download the file.

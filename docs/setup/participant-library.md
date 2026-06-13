@@ -1,92 +1,37 @@
 # Participant Library
 
-The **Participant Library** in GazePlotter offers a comprehensive interface to semantically rename participants and dictate their global rendering order across all relevant eye-tracking plots. The tool provides granular row-level editing combined with a powerful, deterministic regex-based batch processing engine.
+The Participant Library renames participants and sets their order across all plots. Renaming changes only the displayed label; the original source name is preserved.
 
-![Participant library table with displayed name and order controls.](/docs/images/participant-customization_1.jpg)
+## Opening the library
 
-## Accessing the Tool
+1. Select a plot to open its [Settings Pane](/docs/visualizations/#configuration-and-settings-pane).
+2. In the **Participant** or **Participant group** section, click **Edit participants…**.
 
-To open the Participant Library:
+## Editing participants
 
-1. Click the settings icon (cog wheel) in the top-right corner of any plot to toggle its configuration panel.
-2. Under the **Participant** or **Participant group** section, click **Edit participants…**.
+Each participant is a row showing its original name and an editable **Displayed name**. Drag the grip handle to reorder; the order sets how participants appear in every plot. Two buttons sit above the list:
 
-## Modifying Participants
+- **Sort** — Order by original or displayed name, ascending or descending. Sorting uses natural ordering, so `Participant_2` comes before `Participant_10`.
+- **Bulk actions** — Opens **Rename items…** for pattern-based renaming.
 
-For specific, targeted adjustments to individual subjects, utilize the primary editing table.
+## Pattern renaming
 
-### Individual Operations
+For systematic renames across many participants, use **Bulk actions → Rename items…**. The flyout finds a regular expression in the displayed names and replaces every match:
 
-#### Renaming
+1. Enter a **Pattern (regex)**. The status line shows how many names match.
+2. Enter **Replace with** text (leave empty to delete the matched part).
+3. Click **Replace**.
 
-- **Action**: Modify the text field placed in the **Displayed name** column.
-- **Behavior**: Directly overrides the visual label output in all legends, axes, and grouping menus without permanently altering the underlying raw dataset architecture.
+The wildcard buttons append common tokens to the pattern: `\d+` (any number), `\s` (any space), `[A-Za-z]` (any letter), and `.` (any character).
 
-#### Reordering
+Examples:
 
-- **Action**: Click the up and down arrows situated in the **Order** column.
-- **Behavior**: Adjusts the global index rendering order of the participant. This order directly dictates their sequential baseline appearance from top-to-bottom or left-to-right in all visualizations.
+- Strip a prefix: pattern `Participant`, replace with `P`.
+- Remove a file extension: pattern `\.tsv`, replace with empty.
+- Drop a recording prefix: pattern `Recording\d+\s`, replace with empty — turns `Recording34 P20` into `P20`.
 
-### Bulk Sorting Actions
+The engine uses standard JavaScript regular expressions, so an external LLM can help you craft a pattern from example strings.
 
-To quickly structure large participant pools, click directly on the column header labels:
+## Saving
 
-- **Original Name**: Sorts alphanumerically based on the raw participant strings ingested from the source files.
-- **Displayed Name**: Sorts alphanumerically based on your currently applied semantic labels.
-
-_Note: Clicking a header successively toggles between ascending and descending logic. The sorting engine utilizes natural alphanumeric ordering, ensuring that `Participant_2` correctly precedes `Participant_10`._
-
-## Pattern Renaming (Batch Processing)
-
-For datasets consisting of dozens or hundreds of subjects with systemic naming errors or unwanted metadata, Pattern Renaming provides a global find-and-replace mechanism driven by Regular Expressions (Regex).
-
-![Participant library pattern renaming panel with regex-based find and replace fields.](/docs/images/participant-customization_2.jpg)
-
-### Execution Workflow
-
-1. **Targeting**: Input the target text or strict regex pattern into the **Find text** parameter field.
-2. **Replacement**: Input the finalized replacement string into the **Replace with** parameter field.
-3. **Execution**: Click the **Apply renaming to all** button to instantly map the transformations across the entire participant array.
-
-### Quick Wildcard Insertions
-
-Pre-configured macro buttons are available to automatically append standard wildcard patterns into the targeting field:
-
-- **Any number**: Appends `\d+` — Matches any contiguous sequence of digits (e.g., 1, 42, 1024).
-- **Any space**: Appends `\s` — Matches any isolated whitespace character.
-- **Any letter**: Appends `[A-Za-z]` — Matches any single alphabetical character.
-- **Any character**: Appends `.` — Matches absolutely any generic character entity.
-
-### Practical Applications
-
-#### Basic Iterations
-
-- **Strip prefixes**: Find `Participant`, Replace with `P`
-- **Strip auto-generated spacing**: Find `\s`, Replace with `(empty)`
-- **Remove file extensions**: Find `.tsv`, Replace with `(empty)`
-- **Standardize terminology**: Find `_`, Replace with `-`
-
-#### Advanced Regex Combinations
-
-A complex transformation mapping multiple regex components in sequence.
-
-**Objective**: Mutate the verbose string `Recording34 P20` exclusively down to `P20`.
-
-- **Find text**: `Recording\d+\s`
-- **Replace with**: `(empty)`
-- **Result**: `Recording34 P20` → `P20`
-
-**Deconstruction**:
-
-- `Recording`: Targets the exact literal string.
-- `\d+`: Captures the dynamic, variable numerical sequence attached to the string (e.g., 34).
-- `\s`: Captures the explicit blank space delimiting the two segments.
-
-### Regex Assistance
-
-The processing engine strictly interprets standard regular expressions. For intricate pattern isolation routines, it is highly recommended to offload the pattern generation to external AI models by describing your raw string formats and your ideal output state.
-
-## Committing Changes
-
-- **Finalize**: Click the **Apply** button to commit all structural modifications to the workspace engine.
-- **Discard**: Exiting the modal component entirely without depressing the Apply button immediately discards all pending session updates.
+Click **Apply** to save, or **Cancel** to discard all changes.
