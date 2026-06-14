@@ -125,16 +125,20 @@
   <span class="mobile-docs-label">Documentation Chapters</span>
 </div>
 
-{#if sidebarOpen}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div
-    class="sidebar-backdrop"
-    onclick={() => (sidebarOpen = false)}
-    onkeydown={() => {}}
-  ></div>
-{/if}
-
 <div class="docs-container">
+  <!-- Backdrop lives inside .docs-container so it shares the sidebar's
+       stacking context. Placed as a sibling of .docs-sidebar (z-index 100)
+       below it (z-index 200), so taps on the menu reach the menu and only
+       taps on the dimmed area close it. -->
+  {#if sidebarOpen}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="sidebar-backdrop"
+      onclick={() => (sidebarOpen = false)}
+      onkeydown={() => {}}
+    ></div>
+  {/if}
+
   <!-- Sidebar -->
   <aside class="docs-sidebar" class:open={sidebarOpen}>
     <!-- Layer 1: Persistent Background & Border -->
@@ -564,6 +568,14 @@
   }
 
   @media (max-width: 1024px) {
+    /* Lift the whole docs stacking context above the in-flow header
+       (z-index 100) and mobile bar (z-index 50) so the open drawer and its
+       backdrop overlay them at every scroll position. The sidebar (z-index
+       200) and backdrop (z-index 100) inside then layer correctly. */
+    .docs-container {
+      z-index: 300;
+    }
+
     .mobile-docs-bar {
       display: flex;
       align-items: center;
