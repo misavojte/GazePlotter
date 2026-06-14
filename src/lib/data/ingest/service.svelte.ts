@@ -354,12 +354,9 @@ class IngestWorkerClient {
       return
     }
     if (result.warnings?.length) {
-      const count = result.warnings.length
-      this.ui.toastState.addWarning(
-        `Parsing: ${count} warning${count > 1 ? 's' : ''} (${result.warnings
-          .slice(0, 3)
-          .join('; ')}${count > 3 ? '...' : ''})`
-      )
+      for (const warning of result.warnings) {
+        this.ui.toastState.addWarning(warning)
+      }
     }
     const excluded = result.data.dataExclusions
     if (excluded?.length) {
