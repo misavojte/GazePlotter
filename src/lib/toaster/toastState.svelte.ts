@@ -90,7 +90,7 @@ export class ToastState {
       title: 'Warning',
       message,
       type: 'warning',
-      duration: 6000,
+      duration: 12000,
     })
   }
 

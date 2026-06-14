@@ -159,6 +159,17 @@ class ByteDictionary {
     return this.items
   }
 
+  /** Lookup-only: id of an existing value, or -1. Never inserts. */
+  findId(value: Uint8Array): number {
+    const existing = this.hashMap.get(this.hashBytes(value))
+    if (existing) {
+      for (let i = 0; i < existing.length; i++) {
+        if (bytesEqual(value, this.items[existing[i]])) return existing[i]
+      }
+    }
+    return -1
+  }
+
   private hashBytes(bytes: Uint8Array): number {
     let hash = 2166136261
     for (let i = 0; i < bytes.length; i++) {
@@ -253,6 +264,24 @@ export class SegmentWriter {
     this.totalSegments++
   }
 
+  /**
+   * Retract every segment for one (stimulus, participant) group, addressed by
+   * the same byte keys `addSegmentBytes` used. `buildFinalData` skips
+   * zero-count buckets, so the group drops out of the dataset entirely (the
+   * stimulus and participant themselves remain for their other groups).
+   * `totalSegments`/`totalAoiHits` are left as upper bounds — the final
+   * buffers are sized from them and trimmed to the actually-written length, so
+   * over-allocation is harmless. No-op if the group never produced segments.
+   */
+  excludeGroup(stimulus: Uint8Array, participant: Uint8Array): void {
+    const sIdx = this.stimuli.findId(stimulus)
+    if (sIdx === -1) return
+    const pIdx = this.participants.findId(participant)
+    if (pIdx === -1) return
+    const bucket = this.buckets[sIdx]?.[pIdx]
+    if (bucket) bucket.count = 0
+  }
+
   add(row: SegmentRow): void {
     const stimBytes = encodeString(row.stimulus, this.encoding)
     const participantBytes = encodeString(row.participant, this.encoding)
@@ -313,10 +342,19 @@ export class SegmentWriter {
     let poolPtr = 0
     let spatialPtr = 0
 
+    // Half-open [start, end) range of `aoiPool` written for each stimulus, so
+    // the unreferenced-AOI prune below can scan exactly that stimulus's hits.
+    const aoiRangeStart = new Uint32Array(maxStimuli)
+    const aoiRangeEnd = new Uint32Array(maxStimuli)
+
     // Iterate Stimuli -> Participants
     for (let s = 0; s < maxStimuli; s++) {
+      aoiRangeStart[s] = poolPtr
       const pBuckets = this.buckets[s]
-      if (!pBuckets) continue
+      if (!pBuckets) {
+        aoiRangeEnd[s] = poolPtr
+        continue
+      }
 
       for (let p = 0; p < maxParticipants; p++) {
         const bucket = pBuckets[p]
@@ -408,6 +446,35 @@ export class SegmentWriter {
 
         indexTable[tableIdx + 1] = segPtr
       }
+
+      aoiRangeEnd[s] = poolPtr
+    }
+
+    // Prune AOIs no surviving segment references. A name registers in a
+    // stimulus's AOI list the moment any segment hits it, but segments can be
+    // dropped afterwards (excludeGroup), leaving names that no remaining
+    // segment points at. Keep only AOIs actually referenced in each stimulus's
+    // pool range and remap the pool ids to the compacted (original-order) list.
+    const prunedAoisPerStimulus: Uint8Array[][] = []
+    for (let s = 0; s < maxStimuli; s++) {
+      const fullList = this.aoisPerStimulus[s] ?? []
+      const used = new Uint8Array(fullList.length)
+      for (let i = aoiRangeStart[s]; i < aoiRangeEnd[s]; i++) used[aoiPool[i]] = 1
+
+      const remap = new Int32Array(fullList.length)
+      const pruned: Uint8Array[] = []
+      for (let id = 0; id < fullList.length; id++) {
+        if (used[id]) {
+          remap[id] = pruned.length
+          pruned.push(fullList[id])
+        }
+      }
+      if (pruned.length !== fullList.length) {
+        for (let i = aoiRangeStart[s]; i < aoiRangeEnd[s]; i++) {
+          aoiPool[i] = remap[aoiPool[i]]
+        }
+      }
+      prunedAoisPerStimulus.push(pruned)
     }
 
     // Natural sort comparator that handles numeric sequences correctly (2, 3, ..., 10 instead of 10, 2, 3, ...)
@@ -457,7 +524,7 @@ export class SegmentWriter {
       )
     )
 
-    const aoisOrderVectors = this.aoisPerStimulus.map(list => {
+    const aoisOrderVectors = prunedAoisPerStimulus.map(list => {
       const indices: number[] = Array.from({ length: list.length }, (_, i) => i)
       indices.sort((a, b) =>
         naturalSort(
@@ -487,7 +554,7 @@ export class SegmentWriter {
       metricInstances: createDefaultMetricInstances(),
       categories: { data: [['Fixation'], ['Saccade']], orderVector: [] },
       aois: {
-        data: this.aoisPerStimulus.map(list =>
+        data: prunedAoisPerStimulus.map(list =>
           list.map(a => [decodeBytes(a, this.decoder)])
         ),
         orderVector: aoisOrderVectors,

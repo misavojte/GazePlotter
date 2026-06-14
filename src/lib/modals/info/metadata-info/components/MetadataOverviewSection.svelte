@@ -23,6 +23,14 @@
       <span class="value">{overview.aoiCounts.total}</span>
     </div>
     <div class="info-item">
+      <span class="label">Event channels:</span>
+      <span class="value">{overview.eventCounts.distinctChannels}</span>
+    </div>
+    <div class="info-item">
+      <span class="label">Total events:</span>
+      <span class="value">{overview.eventCounts.totalEvents}</span>
+    </div>
+    <div class="info-item">
       <span class="label">Capabilities:</span>
     </div>
     <div class="aoi-list">
@@ -52,6 +60,25 @@
             <span class="stimulus-name">{stimulus.stimulusName}</span>
             <span class="aoi-count"
               >{stimulus.count} AOI{stimulus.count !== 1 ? 's' : ''}</span
+            >
+          </div>
+        {/each}
+      </div>
+    </Card>
+  {/if}
+
+  {#if overview.eventCounts.distinctChannels > 0}
+    <Card padding="sm" gap="0.5rem">
+      <div class="info-item">
+        <span class="label">Events per stimulus:</span>
+      </div>
+      <div class="aoi-list">
+        {#each overview.eventCounts.perStimulus as stimulus}
+          <div class="aoi-item">
+            <span class="stimulus-name">{stimulus.stimulusName}</span>
+            <span class="aoi-count"
+              >{stimulus.channels} channel{stimulus.channels !== 1 ? 's' : ''},
+              {stimulus.events} event{stimulus.events !== 1 ? 's' : ''}</span
             >
           </div>
         {/each}

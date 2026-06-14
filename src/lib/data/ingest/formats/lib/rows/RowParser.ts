@@ -1,4 +1,5 @@
 import type { EventContribution } from '../../../kernel/sink'
+import type { DatasetExclusionIssue } from '$lib/data/types'
 
 type TextEncoding = 'utf-8' | 'utf-16le' | 'utf-16be'
 
@@ -35,6 +36,21 @@ export abstract class RowParser {
 
   /** Non-fatal issue reporting (surfaced as a toast after the upload). */
   onWarning: ((message: string) => void) | null = null
+
+  /**
+   * Drop every already-emitted segment for one (stimulus, participant) group
+   * and record WHY. Called at finalize when a parser determines a group's data
+   * is invalid (e.g. a stimulus whose interval markers don't pair for that
+   * participant). The bytes must match those passed to `onSegment`; `issues`
+   * is persisted as dataset metadata for user-facing feedback.
+   */
+  onExcludeSegmentGroup:
+    | ((
+        stimulus: Uint8Array,
+        participant: Uint8Array,
+        issues: DatasetExclusionIssue[]
+      ) => void)
+    | null = null
   protected readonly delim: string
   protected readonly encoding: TextEncoding
   private readonly encodingKind: 0 | 1 | 2

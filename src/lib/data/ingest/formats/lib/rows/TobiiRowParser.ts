@@ -4,6 +4,7 @@ import {
   parseTobiiUserInput,
   TOBII_SYSTEM_EVENTS,
 } from './tobiiParsingConfig'
+import { pairIntervalTimes } from '$lib/data/intervalPairing'
 import {
   bytesEqual,
   encodeString,
@@ -49,12 +50,41 @@ type RawEventOccurrence = {
   micros: number
 }
 
+/**
+ * Every interval-marker occurrence for one (interval stimulus, participant),
+ * accumulated in interval-stimulus mode so the whole start/end stream can be
+ * validated at finalize. `stimulusBytes`/`participantBytes` are copies (the
+ * row buffer is reused) and carry the exact keys the segments were emitted
+ * under, so an invalid group can be dropped via `onExcludeSegmentGroup`.
+ */
+type IntervalMarkerGroup = {
+  starts: number[]
+  ends: number[]
+  stimulusBytes: Uint8Array
+  participantBytes: Uint8Array
+}
+
+/**
+ * Open-addressing (linear-probing) map from a bigint key to a number.
+ *
+ * `delete()` writes a tombstone (state 2) rather than freeing the slot, so the
+ * probe chains stay intact. The rehash trigger therefore counts OCCUPIED slots
+ * (live + tombstones), not just live entries: a delete-heavy workload — e.g.
+ * `intervalStartTimes`, which sets a key on every interval open and deletes it
+ * once a gaze sample consumes it — otherwise fills the table with tombstones
+ * while `_size` stays low, never rehashing, until no empty slot remains and the
+ * `while (states[idx] !== 0)` probe loops spin forever. Rehashing on occupancy
+ * and re-sizing to the live count purges tombstones and keeps the invariant
+ * `occupied < capacity`, which guarantees every probe loop terminates.
+ */
 class BigIntNumberMap {
   private keys: bigint[]
   private values: Float64Array
   private states: Uint8Array
   private mask: number
   private _size = 0
+  // Non-empty slots (state 1 live + state 2 tombstone). Drives rehashing.
+  private _occupied = 0
 
   constructor(initialCapacity = 64) {
     const cap = this.nextPow2(initialCapacity)
@@ -79,14 +109,20 @@ class BigIntNumberMap {
   }
 
   set(key: bigint, value: number): void {
-    if ((this._size + 1) * 10 >= this.keys.length * 7) {
-      this.rehash(this.keys.length * 2)
+    // Trigger on occupied slots (live + tombstones) at a 0.7 load factor; size
+    // the rehash to the LIVE count so tombstones are dropped and the table
+    // shrinks back under set/delete churn instead of growing unbounded.
+    if ((this._occupied + 1) * 10 >= this.keys.length * 7) {
+      this.rehash((this._size + 1) * 2)
     }
     const slot = this.findSlotForInsert(key)
     if (slot.found) {
       this.values[slot.index] = value
       return
     }
+    // A reused tombstone (state 2) was already counted in `_occupied`; only a
+    // fresh (state 0) slot consumes new occupancy.
+    if (this.states[slot.index] === 0) this._occupied++
     this.keys[slot.index] = key
     this.values[slot.index] = value
     this.states[slot.index] = 1
@@ -96,6 +132,7 @@ class BigIntNumberMap {
   delete(key: bigint): boolean {
     const idx = this.findExisting(key)
     if (idx === -1) return false
+    // Tombstone: `_size` drops but the slot stays occupied until the next rehash.
     this.states[idx] = 2
     this._size--
     return true
@@ -104,6 +141,7 @@ class BigIntNumberMap {
   clear(): void {
     this.states.fill(0)
     this._size = 0
+    this._occupied = 0
   }
 
   private nextPow2(n: number): number {
@@ -148,12 +186,16 @@ class BigIntNumberMap {
     const oldValues = this.values
     const oldStates = this.states
 
-    const cap = this.nextPow2(newCapacity)
+    // Floor keeps a delete-heavy table from collapsing to a thrashing-small
+    // size. Only live (state 1) slots are re-inserted, so tombstones vanish and
+    // `_occupied` is rebuilt from scratch to equal `_size`.
+    const cap = this.nextPow2(Math.max(newCapacity, 16))
     this.keys = new Array(cap)
     this.values = new Float64Array(cap)
     this.states = new Uint8Array(cap)
     this.mask = cap - 1
     this._size = 0
+    this._occupied = 0
 
     for (let i = 0; i < oldKeys.length; i++) {
       if (oldStates[i] !== 1) continue
@@ -273,6 +315,12 @@ export class TobiiRowParser extends RowParser {
   private readonly stimuliBaseTimes = new BigIntNumberMap(512)
   private readonly intervalStack: Map<number, Uint8Array> = new Map()
   private readonly intervalStartTimes = new BigIntNumberMap(256)
+  /* ── Interval-marker validation (interval-stimulus mode only) ────────
+   * Every start/end occurrence per (interval stimulus, participant), checked
+   * at finalize with the shared strict-alternation rule. A group with any
+   * malformed sequence is reported and its segments are dropped — a corrupt
+   * interval extent makes that participant's data for that stimulus invalid. */
+  private readonly intervalMarkers = new Map<bigint, IntervalMarkerGroup>()
 
   /* ── Optimization Caches ────────────────────────────────────────── */
   private cachedParticipantKey: bigint | null = null
@@ -471,6 +519,58 @@ export class TobiiRowParser extends RowParser {
 
   /* ── Helpers ────────────────────────────────────────────────────── */
 
+  /** `recording participant` join — the participant key segments are bucketed under. */
+  private joinParticipantBytes(
+    recordingBytes: Uint8Array,
+    participantBytes: Uint8Array
+  ): Uint8Array {
+    const out = new Uint8Array(
+      recordingBytes.length + this.spaceBytes.length + participantBytes.length
+    )
+    out.set(recordingBytes, 0)
+    out.set(this.spaceBytes, recordingBytes.length)
+    out.set(participantBytes, recordingBytes.length + this.spaceBytes.length)
+    return out
+  }
+
+  /**
+   * Record one interval-marker occurrence (start or end) for its (interval
+   * stimulus, participant) group, for finalize-time validation. Captures EVERY
+   * occurrence — including starts the live stack dedups away, which are exactly
+   * the `double-start` errors the validator must see.
+   */
+  private recordIntervalMarker(
+    rawStimBytes: Uint8Array,
+    stimKey: number,
+    recordingBytes: Uint8Array,
+    participantBytes: Uint8Array,
+    recordingKey: number,
+    participantKey: number,
+    micros: number,
+    isStart: boolean
+  ): void {
+    if (!Number.isFinite(micros)) return
+    const groupKey = this.makeCompositeKey32x64(
+      stimKey,
+      this.makeCompositeKey64(recordingKey, participantKey)
+    )
+    let group = this.intervalMarkers.get(groupKey)
+    if (!group) {
+      group = {
+        starts: [],
+        ends: [],
+        stimulusBytes: rawStimBytes.slice(),
+        participantBytes: this.joinParticipantBytes(
+          recordingBytes,
+          participantBytes
+        ),
+      }
+      this.intervalMarkers.set(groupKey, group)
+    }
+    if (isStart) group.starts.push(micros)
+    else group.ends.push(micros)
+  }
+
   private updateCachedStimulusStackBinary(): void {
     if (!this.intervalStack.size) {
       this.cachedStimulusStackBytes = []
@@ -652,7 +752,16 @@ export class TobiiRowParser extends RowParser {
       const lastStimulusKey =
         stimLen > 0 ? this.cachedStimulusStackKeys[stimLen - 1] : EMPTY_KEY
 
-      if (lastStimulusKey === this.mStimulusKey) {
+      // Continue the open segment only within the SAME participant. The
+      // category/index/stimulus can coincide across a recording boundary (e.g.
+      // an interval reopened for the next participant whose movement index
+      // happens to restart at the same value); without the participant guard,
+      // that participant's gaze — and its AOI hits — would bleed into the
+      // previous participant's segment.
+      if (
+        lastStimulusKey === this.mStimulusKey &&
+        sampleKey === this.mParticipantKey
+      ) {
         this.mRecordingLast = currentTimestampNum
         this.trackAoiHitsInline()
         this.updateSegmentSpatial()
@@ -680,6 +789,39 @@ export class TobiiRowParser extends RowParser {
   finalize(): void {
     this.finalizeSegments()
     this.flushEvents()
+    // Runs last: segments are all in the sink, so dropping an invalid group
+    // retracts exactly what was emitted for it.
+    this.excludeMalformedIntervals()
+  }
+
+  /**
+   * Validate every interval-stimulus marker stream per participant with the
+   * shared strict-alternation rule. A group with any malformed sequence
+   * (double-start, orphan-end, unclosed-start) has an undefined temporal
+   * extent for that participant, so its data is scientifically invalid: report
+   * each problem and drop the (stimulus, participant) segments entirely. Clean
+   * groups are untouched (the live stack already paired them correctly).
+   */
+  private excludeMalformedIntervals(): void {
+    if (this.intervalMarkers.size === 0 || !this.onExcludeSegmentGroup) return
+
+    for (const group of this.intervalMarkers.values()) {
+      const starts = group.starts.slice().sort((a, b) => a - b)
+      const ends = group.ends.slice().sort((a, b) => a - b)
+      const { errors } = pairIntervalTimes(starts, ends)
+      if (errors.length === 0) continue
+
+      // micros → seconds of recording time, for human-readable provenance.
+      const issues = errors.map(e => ({
+        kind: e.kind,
+        timeSeconds: e.time * TIME_MODIFIER * 0.001,
+      }))
+      this.onExcludeSegmentGroup(
+        group.stimulusBytes,
+        group.participantBytes,
+        issues
+      )
+    }
   }
 
   private finalizeSegments(): void {
@@ -788,16 +930,10 @@ export class TobiiRowParser extends RowParser {
     this.mActiveStimuliBytes = activeStimuliBytes.slice()
     this.mActiveStimuliKeys = activeStimuliKeys.slice()
 
-    const fullParticipantBytes = new Uint8Array(
-      recordingBytes.length + this.spaceBytes.length + participantBytes.length
+    this.mParticipantBytes = this.joinParticipantBytes(
+      recordingBytes,
+      participantBytes
     )
-    fullParticipantBytes.set(recordingBytes, 0)
-    fullParticipantBytes.set(this.spaceBytes, recordingBytes.length)
-    fullParticipantBytes.set(
-      participantBytes,
-      recordingBytes.length + this.spaceBytes.length
-    )
-    this.mParticipantBytes = fullParticipantBytes
 
     this.mParticipantKey = participantFull
     this.mRecordingStart = correctedStart
@@ -1058,16 +1194,28 @@ export class TobiiRowParser extends RowParser {
           this.encoding
         )
         const stimKey = this.makeKey(rawStimBytes)
+        const recordingBytes = this.getBytes(this.pRecording)
+        const participantBytes = this.getBytes(this.pParticipant)
+        const recordingKey = this.makeKey(recordingBytes)
+        const participantKey = this.makeKey(participantBytes)
+        const tsNum = this.getRecordingTimestampMicros()
+        this.recordIntervalMarker(
+          rawStimBytes,
+          stimKey,
+          recordingBytes,
+          participantBytes,
+          recordingKey,
+          participantKey,
+          tsNum,
+          true
+        )
         if (!this.intervalStack.has(stimKey)) {
           this.intervalStack.set(stimKey, rawStimBytes)
-          const recordingKey = this.makeKey(this.getBytes(this.pRecording))
-          const participantKey = this.makeKey(this.getBytes(this.pParticipant))
           const key = this.makeCompositeKey96(
             stimKey,
             recordingKey,
             participantKey
           )
-          const tsNum = this.getRecordingTimestampMicros()
           if (Number.isFinite(tsNum)) this.intervalStartTimes.set(key, tsNum)
           this.updateCachedStimulusStackBinary()
         }
@@ -1079,6 +1227,16 @@ export class TobiiRowParser extends RowParser {
           this.encoding
         )
         const stimKey = this.makeKey(rawStimBytes)
+        this.recordIntervalMarker(
+          rawStimBytes,
+          stimKey,
+          this.getBytes(this.pRecording),
+          this.getBytes(this.pParticipant),
+          this.makeKey(this.getBytes(this.pRecording)),
+          this.makeKey(this.getBytes(this.pParticipant)),
+          this.getRecordingTimestampMicros(),
+          false
+        )
         if (this.intervalStack.delete(stimKey)) {
           this.updateCachedStimulusStackBinary()
         }

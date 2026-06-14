@@ -361,6 +361,12 @@ class IngestWorkerClient {
           .join('; ')}${count > 3 ? '...' : ''})`
       )
     }
+    const excluded = result.data.dataExclusions
+    if (excluded?.length) {
+      this.ui.toastState.addWarning(
+        `${excluded.length} participant-stimulus group${excluded.length > 1 ? 's were' : ' was'} excluded for malformed interval markers. Open Metadata for the full report.`
+      )
+    }
     this.handleData({ data: result.data, classified: result.settings })
   }
 
@@ -637,11 +643,6 @@ export class IngestService {
               }
             }
 
-            // Pass 3: fresh datasets that brought event channels get a
-            // non-blocking heads-up (restored workspaces stay silent).
-            // No decision is needed at import time — events are additive
-            // and curated later in Event customization.
-            if (data.freshDataset) this.notifyImportedEventChannels()
             resolve(true)
           },
           failureMetadata => {
@@ -703,22 +704,6 @@ export class IngestService {
     )
     this.deps.resetWorkspaceHistory()
     this.explicitStatus = 'ready'
-  }
-
-  /**
-   * Toasts a heads-up when the just-loaded dataset carries event
-   * channels, pointing at Event customization. No channels → silence.
-   */
-  private notifyImportedEventChannels(): void {
-    const meta = this.deps.engine.metadata
-    if (!meta) return
-    const channelCount = new Set(
-      meta.eventData.data.flatMap(defs => (defs ?? []).map(def => def[0]))
-    ).size
-    if (channelCount === 0) return
-    this.deps.toastState.addInfo(
-      `Imported ${channelCount} event channel${channelCount === 1 ? '' : 's'} — manage them in Event customization`
-    )
   }
 
   applyFailure(failureMetadata: FileMetadataFailureType): void {

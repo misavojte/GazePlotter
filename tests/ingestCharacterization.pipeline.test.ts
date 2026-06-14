@@ -38,7 +38,7 @@ function streamFromString(content: string, chunkSize = 64 * 1024) {
 async function runPipeline(
   files: Array<{ name: string; content: string }>,
   options: { userInput?: string; chunkSize?: number } = {}
-): Promise<{ data: DataType; settings: ParseSettings }> {
+): Promise<{ data: DataType; settings: ParseSettings; warnings: string[] }> {
   const job = new IngestJob(
     files.map(f => f.name),
     FORMAT_REGISTRY,
@@ -55,7 +55,11 @@ async function runPipeline(
   }
   if (!result) throw new Error('job did not produce a final result')
   if (result.kind !== 'dataset') throw new Error('expected a dataset result')
-  return { data: result.data, settings: result.settings }
+  return {
+    data: result.data,
+    settings: result.settings,
+    warnings: result.warnings ?? [],
+  }
 }
 
 /**
@@ -524,39 +528,32 @@ Map_A,P1,150,150,0,Region_2`
 })
 
 describe('pipeline end-to-end: tobii with events (user-input flow)', () => {
-  test('interval-based media parsing produces the pinned dataset shape', async () => {
+  test('an interval that opens but never closes is reported and excluded', async () => {
+    // The fixture's only stimulus marker is a `geostul_snap IntervalStart`
+    // with no matching `IntervalEnd` — an unclosed interval whose extent is
+    // undefined. The parser used to fabricate a segment spanning to the last
+    // sample (460.841 ms); that is scientifically wrong, so the impacted
+    // (stimulus, participant) is now dropped and the problem is reported.
     const { data, settings } = await runPipeline(
       [{ name: 'tobii.tsv', content: testMobileTsvData }],
       { userInput: '{"stimulusStartSuffix":"IntervalStart","stimulusEndSuffix":"IntervalEnd"}' }
     )
     expect(settings.type).toBe('tobii-with-event')
-    expect(settings.userInputSetting).toBe('{"stimulusStartSuffix":"IntervalStart","stimulusEndSuffix":"IntervalEnd"}')
     const d = digest(data)
+    // The stimulus and participant are still discovered from the markers …
     expect(d.stimuli).toEqual([['geostul_snap']])
-    // Characterized: Tobii participants are "<recording name> <participant name>".
     expect(d.participants).toEqual([['Recording 16 Y1']])
-    expect(d.categories).toEqual([['Fixation'], ['Saccade']])
-    // Pin the full segment tuple list for the one (stimulus, participant) pair.
-    expect(d.segments['geostul_snap/Recording 16 Y1']).toMatchInlineSnapshot(`
-      [
-        [
-          0,
-          460.841,
-          0,
-          [
-            0,
-          ],
-        ],
-      ]
-    `)
-    expect(d.capabilities).toMatchInlineSnapshot(`
+    // … but the malformed group contributes NO segments.
+    expect(d.segments['geostul_snap/Recording 16 Y1']).toBeUndefined()
+    // The exclusion is cemented into the dataset as persisted metadata,
+    // naming the participant, the stimulus, and the malformed-sequence kind.
+    expect(data.dataExclusions).toEqual([
       {
-        "event": false,
-        "segmented": true,
-        "spatial": true,
-      }
-    `)
-    expect(d.hasSpatialData).toMatchInlineSnapshot(`true`)
+        stimulus: 'geostul_snap',
+        participant: 'Recording 16 Y1',
+        issues: [expect.objectContaining({ kind: 'unclosed-start' })],
+      },
+    ])
   })
 })
 

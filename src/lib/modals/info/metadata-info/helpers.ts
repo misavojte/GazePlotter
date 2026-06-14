@@ -1,9 +1,13 @@
-import type { DataType } from '$lib/data/types'
+import type { DataType, DatasetExclusionNotice } from '$lib/data/types'
 import type { DataCapabilities } from '$lib/data/types'
 import type { ErrorRecord } from '$lib/errors'
 import type { FileInputType, FileMetadataType } from '$lib/data/ingest/types'
+import { describePairingError } from '$lib/data/intervalPairing'
 
-type MetadataSource = Pick<DataType, 'aois' | 'participants' | 'stimuli'>
+type MetadataSource = Pick<
+  DataType,
+  'aois' | 'participants' | 'stimuli' | 'eventData'
+>
 
 type BrowserPerformanceMemory = {
   usedJSHeapSize: number
@@ -23,6 +27,12 @@ export interface MetadataAoiCount {
   count: number
 }
 
+export interface MetadataEventCount {
+  stimulusName: string
+  channels: number
+  events: number
+}
+
 export interface MetadataOverview {
   numberOfStimuli: number
   numberOfParticipants: number
@@ -32,6 +42,13 @@ export interface MetadataOverview {
   aoiCounts: {
     perStimulus: MetadataAoiCount[]
     total: number
+  }
+  eventCounts: {
+    perStimulus: MetadataEventCount[]
+    /** Distinct channel names across all stimuli (channels are often shared). */
+    distinctChannels: number
+    /** Total event occurrences across every channel and participant. */
+    totalEvents: number
   }
 }
 
@@ -49,6 +66,7 @@ export interface MetadataCsvReportInput {
   fileMetadata: FileMetadataType | null
   hasValidData: boolean
   recentErrors: ErrorRecord[]
+  dataExclusions: DatasetExclusionNotice[]
   generatedAt: string
 }
 
@@ -62,6 +80,11 @@ function createEmptyMetadataOverview(): MetadataOverview {
     aoiCounts: {
       perStimulus: [],
       total: 0,
+    },
+    eventCounts: {
+      perStimulus: [],
+      distinctChannels: 0,
+      totalEvents: 0,
     },
   }
 }
@@ -147,6 +170,21 @@ export function buildMetadataOverview(
     }
   })
 
+  const ed = metadata.eventData
+  const eventPerStimulus: MetadataEventCount[] = metadata.stimuli.data.map(
+    (stimulus, index) => {
+      const channels = ed?.data?.[index]?.length ?? 0
+      let events = 0
+      for (const channel of ed?.events?.[index] ?? []) {
+        for (const buffer of channel) events += (buffer?.length ?? 0) / 2
+      }
+      return { stimulusName: stimulus[0] ?? '', channels, events }
+    }
+  )
+  const distinctChannels = new Set(
+    (ed?.data ?? []).flatMap(defs => (defs ?? []).map(def => def[0]))
+  ).size
+
   return {
     numberOfStimuli: metadata.stimuli.data.length,
     numberOfParticipants: metadata.participants.data.length,
@@ -156,6 +194,11 @@ export function buildMetadataOverview(
     aoiCounts: {
       perStimulus,
       total: perStimulus.reduce((sum, stimulus) => sum + stimulus.count, 0),
+    },
+    eventCounts: {
+      perStimulus: eventPerStimulus,
+      distinctChannels,
+      totalEvents: eventPerStimulus.reduce((sum, s) => sum + s.events, 0),
     },
   }
 }
@@ -207,6 +250,10 @@ export function buildMetadataCsvReport(
   lines.push(`Spatial,${input.overview.spatial ? 'Yes' : 'No'}`)
   lines.push(`Event,${input.overview.event ? 'Yes' : 'No'}`)
   lines.push(`Total Number of AOIs,${input.overview.aoiCounts.total}`)
+  lines.push(
+    `Distinct Event Channels,${input.overview.eventCounts.distinctChannels}`
+  )
+  lines.push(`Total Events,${input.overview.eventCounts.totalEvents}`)
   lines.push('')
 
   if (input.memoryInfo.available) {
@@ -232,6 +279,17 @@ export function buildMetadataCsvReport(
     lines.push('Stimulus Name,AOI Count')
     for (const stimulus of input.overview.aoiCounts.perStimulus) {
       lines.push(`${stimulus.stimulusName},${stimulus.count}`)
+    }
+    lines.push('')
+  }
+
+  if (input.overview.eventCounts.distinctChannels > 0) {
+    lines.push('Section,Events per Stimulus')
+    lines.push('Stimulus Name,Channels,Events')
+    for (const stimulus of input.overview.eventCounts.perStimulus) {
+      lines.push(
+        `${csvCell(stimulus.stimulusName)},${stimulus.channels},${stimulus.events}`
+      )
     }
     lines.push('')
   }
@@ -356,6 +414,24 @@ export function buildMetadataCsvReport(
         `User Input Setting,${input.fileMetadata.parseSettings.userInputSetting || '(empty)'}`
       )
     }
+  }
+
+  if (input.dataExclusions.length > 0) {
+    lines.push('Section,Excluded Data (malformed interval markers)')
+    lines.push('Stimulus,Participant,Issue,Time (s)')
+    for (const notice of input.dataExclusions) {
+      for (const issue of notice.issues) {
+        lines.push(
+          [
+            csvCell(notice.stimulus),
+            csvCell(notice.participant),
+            csvCell(describePairingError(issue.kind)),
+            csvCell(issue.timeSeconds.toFixed(2)),
+          ].join(',')
+        )
+      }
+    }
+    lines.push('')
   }
 
   if (input.recentErrors.length > 0) {

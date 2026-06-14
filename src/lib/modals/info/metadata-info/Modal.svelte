@@ -6,6 +6,7 @@
   import { formatFileSize } from '$lib/shared/utils/fileUtils'
   import { formatDuration } from '$lib/shared/utils/timeUtils'
   import { Card } from '$lib/shared/components'
+  import MetadataExclusionsSection from './components/MetadataExclusionsSection.svelte'
   import MetadataFileList from './components/MetadataFileList.svelte'
   import MetadataMemorySection from './components/MetadataMemorySection.svelte'
   import MetadataOverviewSection from './components/MetadataOverviewSection.svelte'
@@ -53,6 +54,8 @@
     buildMetadataOverview(engine.metadata, engine.capabilities)
   )
 
+  const dataExclusions = $derived(engine.metadata?.dataExclusions ?? [])
+
   /**
    * Keyed user-input settings (the Tobii parsing config) render as
    * label/value rows; any other value renders raw.
@@ -80,6 +83,7 @@
           fileMetadata,
           hasValidData: engine.hasValidData,
           recentErrors,
+          dataExclusions,
           generatedAt: exportDate.toISOString(),
         },
         {
@@ -111,6 +115,8 @@
 
 <div class="container">
   <MetadataOverviewSection overview={dataOverview} />
+
+  <MetadataExclusionsSection exclusions={dataExclusions} />
 
   {#if currentFileInput !== null && !isSameAsSource}
     <MetadataSection title="Current parsing">

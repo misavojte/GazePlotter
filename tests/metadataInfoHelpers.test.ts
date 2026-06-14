@@ -102,7 +102,40 @@ describe('metadata-info helpers', () => {
         ],
         total: 2,
       },
+      eventCounts: {
+        perStimulus: [
+          { stimulusName: 'Stimulus1', channels: 0, events: 0 },
+          { stimulusName: 'Stimulus2', channels: 0, events: 0 },
+        ],
+        distinctChannels: 0,
+        totalEvents: 0,
+      },
     })
+  })
+
+  it('counts event channels (distinct) and occurrences per stimulus', () => {
+    const metadata = createMockMetadata({
+      eventData: {
+        // Stimulus1: channel 'Click' with 2 occurrences for participant 0.
+        // Stimulus2: channels 'Click' (shared name) + 'Key', 1 occurrence each.
+        data: [[['Click', 'Click', '#888']], [['Click', 'Click', '#888'], ['Key', 'Key', '#999']]],
+        orderVector: [],
+        hiddenChannels: [],
+        events: [
+          [[[0, 0, 100, 0]]], // Stimulus1 / Click / P0 → 2 events (stride 2)
+          [[[0, 0]], [[50, 0]]], // Stimulus2: Click 1 event, Key 1 event
+        ],
+      },
+    })
+
+    const overview = buildMetadataOverview(metadata)
+    expect(overview.eventCounts.perStimulus).toEqual([
+      { stimulusName: 'Stimulus1', channels: 1, events: 2 },
+      { stimulusName: 'Stimulus2', channels: 2, events: 2 },
+    ])
+    // 'Click' is shared, so distinct channel names = {Click, Key} = 2.
+    expect(overview.eventCounts.distinctChannels).toBe(2)
+    expect(overview.eventCounts.totalEvents).toBe(4)
   })
 
   it('includes spatial availability in overview when provided', () => {
@@ -163,7 +196,16 @@ describe('metadata-info helpers', () => {
   it('builds a success CSV report with overview, current parsing, source parsing, and recent errors', () => {
     const csv = buildMetadataCsvReport(
       {
-        overview: buildMetadataOverview(createMockMetadata()),
+        overview: buildMetadataOverview(
+          createMockMetadata({
+            eventData: {
+              data: [[['Click', 'Click', '#888']], []],
+              orderVector: [],
+              hiddenChannels: [],
+              events: [[[[10, 0, 20, 0]]], []],
+            },
+          })
+        ),
         memoryInfo: {
           used: 25,
           total: 50,
@@ -179,6 +221,13 @@ describe('metadata-info helpers', () => {
         fileMetadata: createSuccessMetadata(),
         hasValidData: true,
         recentErrors: [createRecentError()],
+        dataExclusions: [
+          {
+            stimulus: '01-c',
+            participant: 'Recording 16 Y1',
+            issues: [{ kind: 'unclosed-start', timeSeconds: 365.74 }],
+          },
+        ],
         generatedAt: '2026-03-14T12:00:00.000Z',
       },
       csvFormatters
@@ -196,6 +245,14 @@ describe('metadata-info helpers', () => {
     expect(csv).toContain('Status,SUCCESS')
     expect(csv).toContain('Parse Duration,DURATION(3)')
     expect(csv).toContain('User Input Setting,manual')
+    expect(csv).toContain('Distinct Event Channels,1')
+    expect(csv).toContain('Total Events,2')
+    expect(csv).toContain('Section,Events per Stimulus')
+    expect(csv).toContain('"Stimulus1",1,2')
+    expect(csv).toContain('Section,Excluded Data (malformed interval markers)')
+    expect(csv).toContain(
+      '"01-c","Recording 16 Y1","started but never ended","365.74"'
+    )
     expect(csv).toContain('Section,Recent Errors')
     expect(csv).toContain('"recoverable"')
     expect(csv).toContain('Memory utilization,25.0% of limit')
@@ -221,6 +278,7 @@ describe('metadata-info helpers', () => {
         fileMetadata,
         hasValidData: false,
         recentErrors: [],
+        dataExclusions: [],
         generatedAt: '2026-03-14T12:00:00.000Z',
       },
       csvFormatters

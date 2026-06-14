@@ -2,6 +2,7 @@ import type { FileInputType, FileMetadataType } from './ingest/types'
 import type { GridItemSnapshot } from '$lib/workspace/grid/types'
 import type { BinarySegmentBuffers } from './binary'
 import type { MetricInstance } from '$lib/metrics/instances'
+import type { PairingErrorKind } from './intervalPairing'
 export type { MetricInstance } from '$lib/metrics/instances'
 
 import { DEFAULT_NO_AOI_COLOR } from '../color/palettes'
@@ -127,6 +128,26 @@ export type DataCapabilityRequirement = DataCapabilityKey | DataCapabilityKey[]
  */
 export type DataCapabilityRequirements = DataCapabilityRequirement[]
 
+/** One malformed marker occurrence behind a data exclusion. */
+export interface DatasetExclusionIssue {
+  kind: PairingErrorKind
+  /** When the offending marker occurred, in seconds of recording time. */
+  timeSeconds: number
+}
+
+/**
+ * A (stimulus, participant) group dropped during import because its source
+ * data was judged scientifically invalid — currently interval-stimulus markers
+ * that don't pair by strict alternation (a start while one is open, an end with
+ * none open, or a start that never ends). Persisted with the dataset so the
+ * reason survives workspace save/load and can be reviewed in the metadata view.
+ */
+export interface DatasetExclusionNotice {
+  stimulus: string
+  participant: string
+  issues: DatasetExclusionIssue[]
+}
+
 /**
  * Data for workspace are stored in this unique format.
  */
@@ -142,6 +163,8 @@ export interface DataType {
   segments: BinarySegmentBuffers
   noAoiTreatment: NoAoiTreatmentType
   eventData: EventDataType
+  /** Groups dropped at import time, with why. Absent when nothing was dropped. */
+  dataExclusions?: DatasetExclusionNotice[]
 }
 
 /**
@@ -193,6 +216,7 @@ export interface RawIngestPayload {
   noAoiTreatment?: NoAoiTreatmentType
   eventData?: RawEventDataType
   spatialData?: unknown
+  dataExclusions?: DatasetExclusionNotice[]
 }
 
 export interface MigratedJsonFormat {
