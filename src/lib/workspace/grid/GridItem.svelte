@@ -284,10 +284,9 @@
   {#if resizable && isSoleSelection}
     <!-- Corner resize affordances. Placed outside the .grid-item-frame
          (which has overflow:hidden) so their half-outside-half-inside
-         positioning isn't clipped. Only the bottom-right is currently
-         wired to the resize action; the other three are visual for now
-         so the selected state reads symmetrically. Each carries
-         data-block-select so its clicks don't toggle selection. -->
+         positioning isn't clipped. All four corners are wired to the
+         resize action, each with its own direction (tl/tr/bl/br). Each
+         carries data-block-select so its clicks don't toggle selection. -->
     <div
       class="corner-handle top-left"
       data-block-select

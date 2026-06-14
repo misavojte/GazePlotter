@@ -5,10 +5,7 @@
   import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared'
   import PlotPlaceholder from './PlotPlaceholder.svelte'
-  import {
-    PLOT_HEADER_HEIGHT,
-    PLOT_BASE_CHROME_HEIGHT,
-  } from '$lib/plots/shared/const'
+  import { PLOT_BASE_CHROME_HEIGHT } from '$lib/plots/shared/const'
 
   interface LayoutConfig {
     headerHeight?: number
@@ -35,7 +32,6 @@
     contentHeight?: number
 
     // Snippets
-    header?: Snippet
     figure?: Snippet<[{ width: number; height: number }]>
   }
 
@@ -46,23 +42,14 @@
     unavailableMessage = null,
     dimensions: parentDimensions,
     contentHeight,
-    header,
     figure,
   }: Props = $props()
 
-  // Default layout constants
-  const DEFAULT_LAYOUT = {
-    HEADER_HEIGHT: PLOT_HEADER_HEIGHT,
-  }
-
-  // For plots with an inline header: use the classic PLOT_HEADER_HEIGHT
-  // (which already bakes in the grid-item header + body padding + the
-  // inline controls strip). For plots without one (metric-correlation
-  // post-Pane refactor): subtract only the base chrome — grid-item
-  // header + body padding — so the figure fills the rest of the body.
+  // Plots render through the Pane (no inline header), so the figure subtracts
+  // only the base chrome — grid-item header + body padding — and fills the rest
+  // of the body. `layoutConfig.headerHeight` can still override per plot.
   const effectiveHeaderHeight = $derived(
-    layoutConfig.headerHeight ??
-      (header ? DEFAULT_LAYOUT.HEADER_HEIGHT : PLOT_BASE_CHROME_HEIGHT)
+    layoutConfig.headerHeight ?? PLOT_BASE_CHROME_HEIGHT
   )
 
   const dimensions = $derived.by(() => {
@@ -84,12 +71,6 @@
 </script>
 
 <div class="base-plot-container">
-  {#if header}
-    <div class="header">
-      {@render header()}
-    </div>
-  {/if}
-
   <!-- Figure is plain selectable surface now: individual plot figures
        declare spatial blocked regions (plot area + interactive legend)
        on their own canvas via `canvasBlockSelect`. That way the chrome
@@ -141,19 +122,6 @@
     height: 100%;
     width: 100%;
     /* overflow handled by inline style */
-  }
-
-  .header {
-    padding: 0 0 8px 0;
-    margin-bottom: 12px;
-    background-color: var(--c-white);
-  }
-
-  .header :global(.plot-controls) {
-    display: flex;
-    gap: 6px;
-    flex-wrap: wrap;
-    background: inherit;
   }
 
   .figure {

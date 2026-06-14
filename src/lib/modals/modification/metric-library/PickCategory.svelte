@@ -2,7 +2,7 @@
   import ArrowLeft from 'lucide-svelte/icons/arrow-left'
   import { getGazePlotterSession } from '$lib/session'
   import { listMetrics } from '$lib/metrics/core/defineMetric'
-  import { getCategoryLabels } from '$lib/metrics/categories'
+  import { listCategories } from '$lib/metrics/categories'
   import {
     metricIsCreatableInContract,
     type PlotMetricContract,
@@ -29,17 +29,8 @@
   const { modalState } = getGazePlotterSession()
 
   const METRICS = listMetrics()
-  const CATEGORY_LABELS = getCategoryLabels()
-
-  const CATEGORIES = [
-    { id: 'duration', label: 'Duration' },
-    { id: 'counts', label: 'Counts' },
-    { id: 'ttf', label: 'Time to first fixation' },
-    { id: 'rqa-aoi', label: 'RQA (AOI-based)' },
-    { id: 'rqa-spatial', label: 'RQA (spatial)' },
-    { id: 'transition', label: 'Transitions' },
-    { id: 'scanpath', label: 'Scanpath structure' },
-  ]
+  // Single source of truth: the metric category registry (ordered).
+  const CATEGORIES = listCategories()
 
   const addableMetrics = $derived(
     METRICS.filter(m => metricIsCreatableInContract(m, contract))

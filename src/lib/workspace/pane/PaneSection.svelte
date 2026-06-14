@@ -15,10 +15,10 @@ import { getContext, untrack } from 'svelte'
      */
     summary?: string
     /**
-     * If true and no section is currently claimed in the accordion, this
-     * section opens itself on mount. Use it to nominate the most-likely-
-     * useful section to be expanded first (e.g., Stimulus). Only the first
-     * `defaultOpen` section to mount claims openId; subsequent ones don't.
+     * Initial expanded state used until the user toggles this section (i.e.
+     * while its `openStates` entry is unset). Use it to nominate the most-
+     * likely-useful section to start expanded (e.g., Stimulus). Sections are
+     * independent, so several may set this.
      */
     defaultOpen?: boolean
     children: Snippet

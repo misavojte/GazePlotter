@@ -54,7 +54,6 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
     timeline: 'absolute',
     absoluteStimuliLimits: [],
     ordinalStimuliLimits: [],
-    dynamicAOI: true,
   }),
   getMinSize: () => ({ w: 14, h: 10 }),
   getDefaultHeight: () => 12,

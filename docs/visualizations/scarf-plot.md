@@ -34,12 +34,9 @@ Configure the timeline representation mode, event layers, and data visibility.
   - *Absolute*: Displays fixations and events plotted in their exact chronological timing (in milliseconds).
   - *Relative*: Scales and displays sequences proportional to the participant with the longest dwell time for cross-participant comparability.
   - *Ordinal*: Displays strict sequential order indices of individual fixations, saccades, and other events, discarding exact durations.
-- **Event display** (visible only in *Absolute* and *Relative* modes, and if the selected stimulus has event data):
-  - *None*: Hides event strips and displays only the AOI gaze sequences.
-  - *Overlay*: The gaze sequence is displayed above a baseline, and time-coded event channels are rendered below it as colored strips.
-  - *Only events*: Hides the gaze sequences entirely, displaying only the event channel strips.
-- **Hide data**: 
-  - *Non-fixations* (visible in *Ordinal* mode, or if event display is not *Only events*): When checked, saccades, blinks, and other non-fixation events are hidden to declutter the visual scanpath sequence.
+- **Hide data**: Toggle secondary layers off to declutter the sequence. Event channels always render as an overlay — time-coded colored strips below each participant's gaze baseline — whenever the stimulus has event data; the *Events* toggle hides that overlay.
+  - *Non-fixations* (visible when the data contains segments): When checked, saccades, blinks, and other non-fixation segments are hidden to declutter the visual scanpath sequence.
+  - *Events* (visible in *Absolute* and *Relative* modes when the selected stimulus has event data): When checked, the event overlay is hidden. Events are shown by default.
 
 ### Time range [ms] / Ordinal range [indices]
 Defines temporal or index boundaries. GazePlotter automatically matches this section to the active timeline mode:

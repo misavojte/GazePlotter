@@ -19,7 +19,6 @@ import type {
 // Mock dependencies
 vi.mock('$lib/plots/shared', () => ({
   calculatePlotDimensionsWithHeader: () => ({ width: 800, height: 600 }),
-  PLOT_HEADER_HEIGHT: 138,
 }))
 
 vi.mock('$lib/plots/shared/legendRendering', () => ({

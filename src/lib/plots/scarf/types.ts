@@ -14,7 +14,6 @@ export type ScarfPlotSettings = {
   timeline: 'absolute' | 'relative' | 'ordinal'
   absoluteStimuliLimits: [number, number][]
   ordinalStimuliLimits: [number, number][]
-  dynamicAOI: boolean
   highlights?: string[]
   timelineStart?: number
   timelineEnd?: number
@@ -61,11 +60,10 @@ export interface ScarfStyling {
 
 /**
  * Style type for legend items, determining how the icon is rendered.
- * - 'fixation': Full-height rectangle (AOI fixations)
+ * - 'fixation': Full-height rectangle (AOI fixations, event channels)
  * - 'nonFixation': Thin rectangle (saccades, other events)
- * - 'visibility': Paired directional start/end markers for event intervals
  */
-export type ScarfLegendStyleType = 'fixation' | 'nonFixation' | 'visibility'
+export type ScarfLegendStyleType = 'fixation' | 'nonFixation'
 
 /**
  * A single legend item with its display properties.
@@ -135,32 +133,25 @@ export interface ScarfStimulus {
 
 /**
  * Object that contains all information needed to draw a scarf plot for a single stimulus.
- * It is generated from raw data and scarf settings (height of bars etc.) by ScarfService.
+ * It is generated from raw data and scarf settings by ScarfService.
  * Raw data are too complicated to be used directly in the scarf component.
  *
+ * Layout geometry (bar/wrap/chart heights, label/plot-area widths) is computed
+ * at render time from the live layout context, not stored here.
+ *
  * @property id - Unique identifier for this scarf data instance
- * @property timelineType - Type of timeline ('absolute', 'relative', 'ordinal')
  * @property stimulusId - ID of the stimulus to be plotted
  * @property timeline - AdaptiveTimeline object containing information about the timeline ticks and bounds
  * @property stylingAndLegend - ScarfStyling object containing styling info for rendering segments
  * @property legendData - Group-aware legend data for viewport-driven legend rendering
- * @property barHeight - height of the bar representing a single participant
- * @property heightOfBarWrap - height of the bar with all the elements (participant bar, aoi bars, non-fixation bars)
- * @property chartHeight - height of the whole chart
  * @property participants - array of ScarfParticipant objects containing information about participants
  * @property stimuli - array of ScarfStimulus objects containing information about stimuli (for stimuli selection)
- * @property leftLabelWidth - Precomputed layout width for left labels
- * @property plotAreaWidth - Precomputed layout width for the plot area
  * @property visualRectBuckets - Precomputed visual buffers for rectangle rendering
  * @property visualEventBuckets - Precomputed visual buffers for visibility event markers
  */
 export type ScarfData = {
   id: number
-  timelineType: 'absolute' | 'relative' | 'ordinal'
-  barHeight: number
   stimulusId: number
-  heightOfBarWrap: number
-  chartHeight: number
   stimuli: ScarfStimulus[]
   participants: ScarfParticipant[]
   timeline: AdaptiveTimeline
@@ -168,12 +159,6 @@ export type ScarfData = {
   stylingAndLegend: ScarfStyling
   /** Group-aware legend data - geometry is computed at render time based on viewport */
   legendData: ScarfLegendData
-  /**
-   * Precomputed layout widths used by the renderer.
-   * These must match the values used when constructing the visual buffers.
-   */
-  leftLabelWidth: number
-  plotAreaWidth: number
 
   /**
    * Precomputed visual buffers (pixel coordinates) for canvas rendering.

@@ -41,7 +41,6 @@
   })
 
   // State management
-  let tooltipArea = $state<HTMLElement | SVGElement | null>(null)
   let timeout = 0
 
   const currentGroupId = $derived(effectiveSettings.groupId)
@@ -227,7 +226,6 @@
             bottom: PLOT_MARGIN.BOTTOM,
             left: PLOT_MARGIN.LEFT,
           }}
-          tooltipAreaElement={tooltipArea}
         />
       {/if}
     </div>

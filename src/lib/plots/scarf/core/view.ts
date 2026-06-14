@@ -44,7 +44,6 @@ export function deriveScarfView(
       data,
       settings,
       highlights: settings.highlights ?? [],
-      tooltipAreaElement: null,
       onLegendClick: noop,
       onTooltipActivation: noop,
       onTooltipDeactivation: noop,

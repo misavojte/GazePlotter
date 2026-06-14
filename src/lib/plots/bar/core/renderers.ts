@@ -355,9 +355,11 @@ function drawBoxplotOverlay(
 
 /**
  * Computes deterministic beeswarm positions to avoid dot overlap.
- * For each dot (sorted by value), tries center first, then expands in
- * symmetric rings: +1×step, −1×step, +2×step, −2×step, ...
- * Clamps to maxCategorySpread so dots stay within the AOI strip.
+ * Dots are binned by value position (bin width = minimum inter-dot
+ * distance); each bin is laid out as a single row centered on the category
+ * axis (offset = (i − (n−1)/2) × spacing). Spacing tightens when a bin's row
+ * would exceed maxCategorySpread, and positions are clamped to it so dots stay
+ * within the AOI strip. Caps at 200 sampled points per AOI for performance.
  */
 export function computeBeeswarmPositions(
   values: number[],

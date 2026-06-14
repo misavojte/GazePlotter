@@ -161,7 +161,6 @@ export function createScarfGridItem(
     timeline: 'absolute',
     absoluteStimuliLimits: [],
     ordinalStimuliLimits: [],
-    dynamicAOI: true,
   }
   Object.assign(settings, settingsOverrides)
 

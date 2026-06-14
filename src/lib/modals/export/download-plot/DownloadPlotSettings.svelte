@@ -10,7 +10,7 @@
 
   // Define the props interface
   interface Props {
-    typeOfExport: '.svg' | '.png' | '.jpg' | '.webp'
+    typeOfExport: '.png' | '.jpg'
     width: number
     height: number
     fileName: string
@@ -33,9 +33,6 @@
     marginBottom = $bindable(),
     marginLeft = $bindable(),
   }: Props = $props()
-
-  // Check if DPI should be enabled (only for canvas-based formats)
-  const isDpiEnabled = $derived(typeOfExport !== '.svg')
 
   // Common DPI presets
   const dpiPresets = [
@@ -97,29 +94,26 @@
 
       <!-- DPI Settings -->
       <div class="settings-item">
-        <div class="dpi-container" class:disabled={!isDpiEnabled}>
+        <div class="dpi-container">
           <InputNumber
             label="Resolution [DPI]"
             bind:value={dpi}
             min={72}
-            disabled={!isDpiEnabled}
             appearance="selectMatched"
           />
         </div>
       </div>
       <!-- DPI Presets -->
-      {#if isDpiEnabled}
-        <div class="dpi-presets">
-          <span class="presets-label">DPI Presets:</span>
-          {#each dpiPresets as preset}
-            <ButtonPreset
-              label={preset.label}
-              isActive={dpi === preset.value}
-              onclick={() => setDpi(preset.value)}
-            />
-          {/each}
-        </div>
-      {/if}
+      <div class="dpi-presets">
+        <span class="presets-label">DPI Presets:</span>
+        {#each dpiPresets as preset}
+          <ButtonPreset
+            label={preset.label}
+            isActive={dpi === preset.value}
+            onclick={() => setDpi(preset.value)}
+          />
+        {/each}
+      </div>
     </div>
   </Section>
 
@@ -202,10 +196,6 @@
 
   .dpi-container {
     position: relative;
-  }
-
-  .dpi-container.disabled {
-    opacity: 0.7;
   }
 
   .dpi-presets {

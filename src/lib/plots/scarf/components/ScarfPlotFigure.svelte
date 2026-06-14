@@ -61,7 +61,6 @@
   // `width`/`height` are the standard total-canvas sizing props (CanvasExportProps),
   // matching every other figure — the on-screen grid cell or the export dimensions.
   interface Props extends CanvasExportProps {
-    tooltipAreaElement: HTMLElement | SVGElement | null
     data: ScarfData
     settings: ScarfPlotSettings
     highlights: string[]
@@ -78,7 +77,6 @@
   }
 
   let {
-    tooltipAreaElement,
     data,
     settings,
     highlights = [],

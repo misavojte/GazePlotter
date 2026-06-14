@@ -12,7 +12,6 @@ export type RecurrenceMasking = 'none' | 'diagonal' | 'diagonalLower'
 
 export type RecurrencePlotSettings = {
   stimulusId: number
-  groupId: number
   participantId: number
   recurrenceMethod: RecurrenceMethod
   radius: number

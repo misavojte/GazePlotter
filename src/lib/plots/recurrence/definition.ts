@@ -50,7 +50,6 @@ export const recurrencePlotDefinition = definePlot<
   },
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
-    groupId: params.groupId ?? -1,
     participantId: 0,
     recurrenceMethod: 'fixedDistance',
     radius: 50,

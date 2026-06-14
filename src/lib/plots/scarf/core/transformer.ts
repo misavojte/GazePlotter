@@ -122,18 +122,6 @@ class Float32GrowBuffer {
 }
 
 /**
- * Calculates the participant bar height based on configuration parameters
- */
-export function getScarfParticipantBarHeight(): number {
-  const { HEIGHT_BAR_DEFAULT, SPACE_ABOVE_RECT_DEFAULT } = SCARF_LAYOUT
-  const rectWrappedHeight = HEIGHT_BAR_DEFAULT + SPACE_ABOVE_RECT_DEFAULT * 2
-
-  // Events are drawn centered on the participant bar – do not increase
-  // participant bar height for visibility rows (no toggle/backcompat needed).
-  return rectWrappedHeight
-}
-
-/**
  * Calculates the timeline range for the plot based on settings and participant data
  */
 function calculateTimelineRange(
@@ -510,7 +498,6 @@ export function transformDataToScarfPlot(
     HEIGHT_BAR_DEFAULT,
     HEIGHT_NON_FIXATION_DEFAULT,
     SPACE_ABOVE_RECT_DEFAULT,
-    HEIGHT_X_AXIS,
   } = SCARF_LAYOUT
 
   const aoiData = getAois(engine, stimulusId)
@@ -530,7 +517,6 @@ export function transformDataToScarfPlot(
     groupEventChannelsByDisplayedName(visibleEventChannels)
   const showVisibilityMarkers =
     showEventOverlay && groupedEventChannels.length > 0
-  const barWrapHeight = getScarfParticipantBarHeight()
   const categoryData = getAllCategories(engine)
   const hiddenCategories = getHiddenCategories(engine)
   const hiddenCategoryIds = new Set(hiddenCategories)
@@ -768,11 +754,7 @@ export function transformDataToScarfPlot(
 
   return {
     id: stimulusId,
-    timelineType: settings.timeline,
-    barHeight: HEIGHT_BAR_DEFAULT,
     stimulusId,
-    heightOfBarWrap: barWrapHeight,
-    chartHeight: participantIds.length * barWrapHeight + HEIGHT_X_AXIS,
     stimuli: getStimuli(engine).map(s => ({ id: s.id, name: s.displayedName })),
     participants,
     timeline,
@@ -782,8 +764,6 @@ export function transformDataToScarfPlot(
       settings.hideNonFixations,
       showVisibilityMarkers
     ),
-    leftLabelWidth: 0,
-    plotAreaWidth: 0,
     visualRectBuckets: rectBuckets.map(b => b.finalize()),
     visualEventBuckets: eventBuckets.map(b => b.finalize()),
     isOverlay: showVisibilityMarkers,
@@ -803,8 +783,6 @@ export function mapDataToLegendGroups(
         return { type: 'fixation' as const }
       case 'nonFixation':
         return { type: 'nonFixation' as const }
-      case 'visibility':
-        return { type: 'eventPair' as const }
       default:
         return { type: 'fixation' as const }
     }

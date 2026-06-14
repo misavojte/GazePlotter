@@ -10,11 +10,11 @@ import { FIXATION_CATEGORY_ID } from '$lib/data/binary'
 /**
  * Collects a single participant's fixation sequence on a stimulus.
  *
- * Per the metric library convention (`metrics/core/scanner.ts:55`), segment
- * category 0 is a fixation; saccades, blinks, and unclassified segments are
- * skipped at the source. Each fixation contributes one point at its recorded
- * spatial coordinate; segments with missing spatial data are excluded from
- * the rendered set (and therefore from the 1..N rank as well).
+ * A segment counts as a fixation when its category equals `FIXATION_CATEGORY_ID`
+ * (see `$lib/data/binary`); saccades, blinks, and unclassified segments are
+ * skipped. Each fixation contributes one point at its recorded spatial
+ * coordinate; segments with missing spatial data are excluded from the
+ * rendered set (and therefore from the 1..N rank as well).
  */
 export function getScanpathData(
   engine: DataEngine,

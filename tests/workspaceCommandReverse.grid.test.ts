@@ -68,7 +68,6 @@ describe('workspaceCommandReverse grid commands', () => {
           timeline: 'absolute',
           absoluteStimuliLimits: [],
           ordinalStimuliLimits: [],
-          dynamicAOI: true,
         },
       },
       source: 'source',

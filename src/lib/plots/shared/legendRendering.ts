@@ -37,8 +37,8 @@ export interface LegendItem {
   /** Color for the icon */
   color: string
 
-  /** Icon type: 'fixation' for filled rectangles, 'nonFixation' for thin rectangles, 'eventPair' for start/end markers */
-  type: 'fixation' | 'nonFixation' | 'eventPair'
+  /** Icon type: 'fixation' for filled rectangles, 'nonFixation' for thin rectangles */
+  type: 'fixation' | 'nonFixation'
 }
 
 /** A group of legend items with a title (for scarf-style grouped legends) */
@@ -92,7 +92,7 @@ export interface LegendItemGeometry {
   x: number
   y: number
   width: number
-  type: 'fixation' | 'nonFixation' | 'eventPair'
+  type: 'fixation' | 'nonFixation'
   rowHeight: number
   groupTitle?: string
 }
@@ -152,72 +152,6 @@ export const STREAM_LEGEND_CONFIG: LegendConfig = {
   lineDash: [2, 2] as const,
   nonFixationHeight: 4,
   titleGutterGap: 16,
-}
-
-function drawDirectionalLegendCompositeMarker(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  radius: number,
-  isStart: boolean,
-  color: string | null
-) {
-  const r = radius * 0.85
-  const offset = radius * 0.3
-  const tipOffset = radius * 1.2
-
-  ctx.beginPath()
-  if (isStart) {
-    const cx = x - offset
-    const px = x + tipOffset
-
-    ctx.arc(cx, y, r, Math.PI / 2, (3 * Math.PI) / 2, false)
-    ctx.bezierCurveTo(cx + r * 0.8, y - r, px - r * 0.6, y - r * 0.15, px, y)
-    ctx.bezierCurveTo(
-      px - r * 0.6,
-      y + r * 0.15,
-      cx + r * 0.8,
-      y + r,
-      cx,
-      y + r
-    )
-  } else {
-    const cx = x + offset
-    const px = x - tipOffset
-
-    ctx.arc(cx, y, r, Math.PI / 2, -Math.PI / 2, true)
-    ctx.bezierCurveTo(cx - r * 0.8, y - r, px + r * 0.6, y - r * 0.15, px, y)
-    ctx.bezierCurveTo(
-      px + r * 0.6,
-      y + r * 0.15,
-      cx - r * 0.8,
-      y + r,
-      cx,
-      y + r
-    )
-  }
-  ctx.closePath()
-
-  if (color === null) {
-    ctx.lineJoin = 'round'
-    ctx.lineWidth = 5.5
-    ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'
-    ctx.stroke()
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.9)'
-    ctx.fill()
-  } else {
-    ctx.fillStyle = color
-    ctx.fill()
-
-    ctx.lineJoin = 'miter'
-    ctx.strokeStyle = 'rgba(0, 0, 0, 0.4)'
-    ctx.lineWidth = 1
-    ctx.stroke()
-  }
-}
-
-function getLegendEventOutlineColor(baseColor: string): string {
-  return 'rgba(0, 0, 0, 0.4)'
 }
 
 // ============================================================================
@@ -341,7 +275,7 @@ export function computeFlatLegendGeometry(
     const item = items[i]
     // Determine icon height based on type
     let iconH = fontSize // Default fallback
-    if (item.type === 'fixation' || item.type === 'eventPair') {
+    if (item.type === 'fixation') {
       iconH = itemHeight
     } else if (item.type === 'nonFixation') {
       iconH = config.nonFixationHeight
@@ -535,7 +469,7 @@ export function computeGroupedLegendGeometry(
 
       // Determine icon height
       let iconH = fontSize // Default
-      if (item.type === 'fixation' || item.type === 'eventPair') {
+      if (item.type === 'fixation') {
         iconH = itemHeight
       } else if (item.type === 'nonFixation') {
         iconH = config.nonFixationHeight
@@ -631,7 +565,6 @@ export function drawLegend(
   highlightedIds: ReadonlySet<string> | readonly string[] | null = null
 ): void {
   const {
-    itemHeight,
     iconWidth,
     textPadding,
     fontSize,
@@ -658,33 +591,15 @@ export function drawLegend(
     // Opacity logic replaced by desaturation - always opaque
     const isDimmed = isHighlightActive && !isHighlighted
 
-    if (item.type === 'fixation' || item.type === 'nonFixation') {
-      const effectiveColor = isDimmed
-        ? desaturateToWhite(item.color, 0.85)
-        : item.color
-      ctx.fillStyle = effectiveColor
-      // Center the icon vertically in the item row
-      const iconY = alignToPixelCenter(
-        item.y + (item.rowHeight - item.height) / 2
-      )
-      ctx.fillRect(item.x, iconY, iconWidth, item.height)
-    } else if (item.type === 'eventPair') {
-      // Simple circle for events
-      const radius = 5
-      const centerY = alignToPixelCenter(item.y + itemHeight / 2)
-      const centerX = alignToPixelCenter(item.x + iconWidth / 2)
-
-      const isDimmed = isHighlightActive && !isHighlighted
-      const effectiveColor = isDimmed
-        ? desaturateToWhite(item.color, 0.85)
-        : item.color
-
-      ctx.beginPath()
-      ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI)
-      ctx.closePath()
-      ctx.fillStyle = effectiveColor
-      ctx.fill()
-    }
+    const effectiveColor = isDimmed
+      ? desaturateToWhite(item.color, 0.85)
+      : item.color
+    ctx.fillStyle = effectiveColor
+    // Center the icon vertically in the item row
+    const iconY = alignToPixelCenter(
+      item.y + (item.rowHeight - item.height) / 2
+    )
+    ctx.fillRect(item.x, iconY, iconWidth, item.height)
   }
 
   // -------------------------------------------------------------------------
@@ -747,71 +662,11 @@ export function drawLegendGroupTitles(
     const group = geometry.groupTitles[i]
     const labelY = alignToPixelCenter(group.y)
 
-    if (group.title === 'Events') {
-      ctx.textAlign = 'left'
-      ctx.textBaseline = 'top'
-
-      const baseX = group.x
-
-      // Main "Events" text
-      ctx.font = `600 ${fontSize}px ${fontFamily}`
-      ctx.fillStyle = fontColor
-      ctx.fillText('Events', baseX, labelY)
-      let currentX = baseX + ctx.measureText('Events').width + 6
-
-      // Secondary styling
-      ctx.font = `400 ${fontSize - 1}px ${fontFamily}`
-      ctx.fillStyle = fontColor
-      ctx.textBaseline = 'middle'
-      const midY = labelY + fontSize / 2
-
-      ctx.fillText('(', currentX, midY)
-      currentX += ctx.measureText('(').width + 4
-
-      // Start Marker
-      drawDirectionalLegendCompositeMarker(
-        ctx,
-        currentX + 4.5,
-        midY,
-        4.5,
-        true,
-        '#aaa'
-      )
-      currentX += 9 + 4
-      ctx.fillText('start /', currentX, midY)
-      currentX += ctx.measureText('start /').width + 6
-
-      // End Marker
-      drawDirectionalLegendCompositeMarker(
-        ctx,
-        currentX + 4.5,
-        midY,
-        4.5,
-        false,
-        '#aaa'
-      )
-      currentX += 9 + 4
-      ctx.fillText('end /', currentX, midY)
-      currentX += ctx.measureText('end /').width + 6
-
-      // Circle Marker
-      ctx.beginPath()
-      ctx.arc(currentX + 4, midY, 4, 0, Math.PI * 2)
-      ctx.fillStyle = '#aaa'
-      ctx.fill()
-      ctx.strokeStyle = '#666'
-      ctx.lineWidth = 1
-      ctx.stroke()
-      currentX += 8 + 4
-
-      ctx.fillText('generalised )', currentX, midY)
-    } else {
-      ctx.font = `600 ${fontSize}px ${fontFamily}` // Semi-bold
-      ctx.fillStyle = fontColor
-      ctx.textAlign = 'left'
-      ctx.textBaseline = 'top'
-      ctx.fillText(group.title, group.x, labelY)
-    }
+    ctx.font = `600 ${fontSize}px ${fontFamily}` // Semi-bold
+    ctx.fillStyle = fontColor
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'top'
+    ctx.fillText(group.title, group.x, labelY)
   }
 }
 

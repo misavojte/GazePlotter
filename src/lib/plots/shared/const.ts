@@ -24,12 +24,9 @@ export const LEGEND_FONT = {
   COLOR: FONT_PRIMARY.COLOR,
 }
 
-export const PLOT_HEADER_HEIGHT = 155
-
 /**
- * Chrome height outside a plot's own (inline) header that has to be
- * reclaimed from the grid-item's pixel dimensions before sizing the
- * figure. Composition:
+ * Chrome height that has to be reclaimed from the grid-item's pixel
+ * dimensions before sizing the figure. Composition:
  *   47 — grid-item header (`min-height: 47px` in GridItem.svelte)
  *   50 — `.grid-item-body` padding top + bottom
  *        (GRID_ITEM_BODY_PADDING = 25 on each side)
