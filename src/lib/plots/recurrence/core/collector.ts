@@ -1,6 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { RecurrenceData, RecurrenceMethod, FixationRecord } from '../types'
-import { computeRqa, computeRqaWithDuration } from '$lib/metrics/core/rqa'
 import { FIXATION_CATEGORY_ID } from '$lib/data/binary'
 
 /**
@@ -120,20 +119,7 @@ export function collectRecurrenceData(
     }
   }
 
-  // Compute RQA metrics
-  let rqa
-  if (showDuration && durationMatrix) {
-    const totalDuration = fixations.reduce((sum, f) => sum + f.duration, 0)
-    rqa = computeRqaWithDuration(
-      matrix,
-      durationMatrix,
-      N,
-      minLineLength,
-      totalDuration
-    )
-  } else {
-    rqa = computeRqa(matrix, N, minLineLength)
-  }
+
 
   // Build per-fixation AOI colors for AOI highlight mode
   const meta = engine.metadata
@@ -148,7 +134,7 @@ export function collectRecurrenceData(
     }
   }
 
-  return { matrix, durationMatrix, fixationCount: N, rqa, fixationAoiColors }
+  return { matrix, durationMatrix, fixationCount: N, fixationAoiColors }
 }
 
 function buildFixedDistanceMatrix(

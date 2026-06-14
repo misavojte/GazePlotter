@@ -41,8 +41,6 @@ export const RECURRENCE_LAYOUT = {
   labelFontSize: 12,
   tickFontSize: 10,
   tickLength: 4,
-  rqaFontSize: 11,
-  rqaRowHeight: 22,
   minCellSize: 2,
   dotColor: '#1a56db',
   diagonalColor: '#e5e7eb',
