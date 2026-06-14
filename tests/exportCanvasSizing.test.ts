@@ -21,7 +21,7 @@ describe('getWorkspaceCanvasExportDimensions', () => {
       )
     ).toEqual({
       width: 580,
-      height: 475,
+      height: 531,
     })
   })
 
@@ -34,7 +34,7 @@ describe('getWorkspaceCanvasExportDimensions', () => {
       )
     ).toEqual({
       width: 41,
-      height: 41,
+      height: 81,
     })
   })
 })

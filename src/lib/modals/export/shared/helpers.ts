@@ -1,5 +1,5 @@
 import type { DecimalSeparator } from '$lib/data/export'
-import { PLOT_HEADER_HEIGHT } from '$lib/plots/shared/const'
+import { PLOT_BASE_CHROME_HEIGHT } from '$lib/plots/shared/const'
 import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/plotSizeUtility'
 import type { GridConfig } from '$lib/workspace/grid'
 
@@ -45,11 +45,15 @@ export function getWorkspaceCanvasExportDimensions(
   gridConfig: GridConfig,
   margin: number = DEFAULT_CANVAS_EXPORT_MARGIN
 ) {
+  // Mirror BasePlot's headerless sizing: every plot now renders without an
+  // inline header, so the figure reclaims only the base chrome (grid-item
+  // header + body padding + frame border), not the legacy inline-header
+  // reserve. Keeps the default export aspect ratio matching the screen.
   const dimensions = calculatePlotDimensionsWithHeader(
     item.w,
     item.h,
     gridConfig,
-    PLOT_HEADER_HEIGHT
+    PLOT_BASE_CHROME_HEIGHT
   )
 
   const contentWidth = Math.max(1, Math.round(dimensions.width))
