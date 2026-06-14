@@ -8,6 +8,7 @@ import { SHARED_SECTIONS } from '$lib/plots/shared/components/sections'
  */
 describe('paneSections / SHARED_SECTIONS consistency', () => {
   const defs = Object.values(plotRegistry) as Array<{
+    type: string
     paneSections: { key: string; component: unknown }[]
   }>
 
@@ -15,9 +16,11 @@ describe('paneSections / SHARED_SECTIONS consistency', () => {
     for (const def of defs) {
       const keys = def.paneSections.map(e => e.key)
       expect(keys.length).toBeGreaterThan(0)
-      // stimulus and AOI exist on every plot — they must always be common.
+      // stimulus is universal; AOI is common to all plots except scanpath.
       expect(keys).toContain('stimulus')
-      expect(keys).toContain('aoi')
+      if (def.type !== 'scanpath') {
+        expect(keys).toContain('aoi')
+      }
     }
   })
 

@@ -3,7 +3,6 @@ import { deriveScanpathView } from './core/view'
 import {
   StimulusSection,
   ParticipantSection,
-  AoiSection,
 } from '$lib/plots/shared/components/sections'
 import ScanpathDisplaySection from './components/sections/ScanpathDisplaySection.svelte'
 import { definePlot } from '$lib/plots/definePlot'
@@ -22,7 +21,6 @@ export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSetting
     { key: 'stimulus', component: StimulusSection },
     { key: 'participant', component: ParticipantSection },
     { key: 'scanpath:display', component: ScanpathDisplaySection },
-    { key: 'aoi', component: AoiSection },
   ],
   export: { deriveView: deriveScanpathView },
   getSubtitle: ({ item, engine }) => {
