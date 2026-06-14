@@ -65,7 +65,8 @@ export function collectFixations(
 }
 
 /**
- * Build the NxN recurrence matrix and compute RQA metrics.
+ * Build the NxN recurrence matrix (plus optional duration weighting and
+ * per-fixation AOI colors) for a participant's fixation sequence.
  */
 export function collectRecurrenceData(
   engine: DataEngine,
@@ -118,8 +119,6 @@ export function collectRecurrenceData(
       }
     }
   }
-
-
 
   // Build per-fixation AOI colors for AOI highlight mode
   const meta = engine.metadata

@@ -2,8 +2,7 @@
  * Recurrence Quantification Analysis (RQA) primitives.
  *
  * Everything needed to compute RQA scalars and visualise recurrence plots:
- *   • scalar metrics from a binary recurrence matrix (both unweighted and
- *     duration-weighted);
+ *   • scalar metrics from a binary recurrence matrix;
  *   • scalar metrics directly from a categorical fixation sequence;
  *   • line masks for highlighting diagonal / horizontal / vertical runs.
  *
@@ -57,41 +56,6 @@ export function computeRqa(matrix: Uint8Array, N: number, minLineLength: number)
   const CORM = (100 * weightedDistanceSum) / ((N - 1) * R)
 
   return { R, REC, DET, LAM, CORM }
-}
-
-/** Duration-weighted RQA: each recurrent cell contributes its duration instead of 1. */
-export function computeRqaWithDuration(
-  matrix: Uint8Array,
-  durationMatrix: Float32Array,
-  N: number,
-  minLineLength: number,
-  totalDuration: number,
-): RqaResult {
-  if (N < 2 || totalDuration === 0) return EMPTY
-
-  let Rt = 0
-  let weightedDistanceSum = 0
-  for (let i = 0; i < N - 1; i++) {
-    const rowOffset = i * N
-    for (let j = i + 1; j < N; j++) {
-      const val = durationMatrix[rowOffset + j]
-      if (val > 0) {
-        Rt += val
-        weightedDistanceSum += (j - i) * val
-      }
-    }
-  }
-
-  if (Rt === 0) return EMPTY
-
-  const REC = (100 * Rt) / ((N - 1) * totalDuration)
-  const DLt = sumDiagonalLineDurations(matrix, durationMatrix, N, minLineLength)
-  const DET = (100 * DLt) / Rt
-  const { HLt, VLt } = sumHorizontalVerticalLineDurations(matrix, durationMatrix, N, minLineLength)
-  const LAM = (100 * (HLt + VLt)) / (2 * Rt)
-  const CORM = (100 * weightedDistanceSum) / ((N - 1) * (N - 1) * totalDuration)
-
-  return { R: Rt, REC, DET, LAM, CORM }
 }
 
 // ─── Scalar metrics from a categorical sequence ─────────────────────────────
@@ -264,77 +228,4 @@ function countHorizontalVerticalLinePoints(matrix: Uint8Array, N: number, L: num
   }
 
   return { HL, VL }
-}
-
-function sumDiagonalLineDurations(
-  matrix: Uint8Array,
-  durationMatrix: Float32Array,
-  N: number,
-  L: number,
-): number {
-  let total = 0
-  for (let k = 1; k < N; k++) {
-    let runLength = 0
-    let runSum = 0
-    for (let i = 0; i + k < N; i++) {
-      const idx = i * N + (i + k)
-      if (matrix[idx]) {
-        runLength++
-        runSum += durationMatrix[idx]
-      } else {
-        if (runLength >= L) total += runSum
-        runLength = 0
-        runSum = 0
-      }
-    }
-    if (runLength >= L) total += runSum
-  }
-  return total
-}
-
-function sumHorizontalVerticalLineDurations(
-  matrix: Uint8Array,
-  durationMatrix: Float32Array,
-  N: number,
-  L: number,
-): { HLt: number; VLt: number } {
-  let HLt = 0
-  let VLt = 0
-
-  for (let i = 0; i < N - 1; i++) {
-    let runLength = 0
-    let runSum = 0
-    const rowOffset = i * N
-    for (let j = i + 1; j < N; j++) {
-      const idx = rowOffset + j
-      if (matrix[idx]) {
-        runLength++
-        runSum += durationMatrix[idx]
-      } else {
-        if (runLength >= L) HLt += runSum
-        runLength = 0
-        runSum = 0
-      }
-    }
-    if (runLength >= L) HLt += runSum
-  }
-
-  for (let j = 1; j < N; j++) {
-    let runLength = 0
-    let runSum = 0
-    for (let i = 0; i < j; i++) {
-      const idx = i * N + j
-      if (matrix[idx]) {
-        runLength++
-        runSum += durationMatrix[idx]
-      } else {
-        if (runLength >= L) VLt += runSum
-        runLength = 0
-        runSum = 0
-      }
-    }
-    if (runLength >= L) VLt += runSum
-  }
-
-  return { HLt, VLt }
 }
