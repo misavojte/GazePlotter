@@ -14,9 +14,6 @@
 
 import type { EnrichmentFormatDefinition } from '../kernel/format'
 import type { EventContribution } from '../kernel/sink'
-import type { DataType } from '$lib/data/types'
-import { DEFAULT_NO_AOI_TREATMENT } from '$lib/data/types'
-import { createDefaultMetricInstances } from '$lib/metrics/instances'
 
 const REQUIRED_COLUMNS = [
   'stimulus',
@@ -252,120 +249,6 @@ export function mergeIntoStimulusMap(
   }
 }
 
-/**
- * Build a complete DataType from event contributions alone (no gaze data).
- * Extracts stimuli and participants from the contributions themselves.
- */
-export function buildDataTypeFromCsvEvents(contributions: EventContribution[]): {
-  data: DataType
-  warnings: string[]
-} {
-  const warnings: string[] = []
-
-  // Extract unique stimulus names (insertion order)
-  const stimulusNames = [...new Set(contributions.map(c => c.stimulus))]
-  const stimuliData: string[][] = stimulusNames.map(name => [name, name])
-
-  // Extract unique participant names, excluding "*"
-  const participantNames = [
-    ...new Set(contributions.map(c => c.participant).filter(p => p !== '*')),
-  ]
-  if (participantNames.length === 0) {
-    participantNames.push('Participant')
-    warnings.push(
-      'All rows use wildcard participant "*". Created a default participant.'
-    )
-  }
-  const participantsData: string[][] = participantNames.map(name => [
-    name,
-    name,
-  ])
-
-  const stimuliCount = stimuliData.length
-  const participantCount = participantsData.length
-
-  // Resolve events using the shared engine resolution
-  const { stimulusMap, warnings: resolveWarnings } =
-    resolveContributionsForEngine(
-      contributions,
-      stimuliData,
-      participantsData,
-      participantCount
-    )
-  warnings.push(...resolveWarnings)
-
-  // Convert stimulus map to EventDataType arrays
-  const eventDataArr: string[][][] = []
-  const eventOrderVector: number[][] = []
-  const eventHiddenChannels: number[][] = []
-  const eventEvents: number[][][][] = []
-
-  for (let s = 0; s < stimuliCount; s++) {
-    const channelMap = stimulusMap.get(s)
-    if (!channelMap || channelMap.size === 0) {
-      eventDataArr.push([])
-      eventOrderVector.push([])
-      eventHiddenChannels.push([])
-      eventEvents.push([])
-      continue
-    }
-
-    const channelDefs: string[][] = []
-    const channelBuffers: number[][][] = []
-    for (const { def, perParticipant } of channelMap.values()) {
-      channelDefs.push(def)
-      channelBuffers.push(perParticipant)
-    }
-
-    eventDataArr.push(channelDefs)
-    eventOrderVector.push(channelDefs.map((_, i) => i))
-    eventHiddenChannels.push([])
-    eventEvents.push(channelBuffers)
-  }
-
-  const hasAnyEvents = eventEvents.some(stim =>
-    stim.some(ch => ch.some(buf => buf.length > 0))
-  )
-
-  const data: DataType = {
-    isOrdinalOnly: false,
-    capabilities: {
-      segmented: false,
-      spatial: false,
-      event: hasAnyEvents,
-    },
-    stimuli: {
-      data: stimuliData,
-      orderVector: stimuliData.map((_, i) => i),
-    },
-    participants: {
-      data: participantsData,
-      orderVector: participantsData.map((_, i) => i),
-    },
-    participantsGroups: [],
-    metricInstances: createDefaultMetricInstances(),
-    categories: { data: [], orderVector: [] },
-    noAoiTreatment: DEFAULT_NO_AOI_TREATMENT,
-    aois: {
-      data: Array.from({ length: stimuliCount }, () => []),
-      orderVector: Array.from({ length: stimuliCount }, () => []),
-      hiddenAois: Array.from({ length: stimuliCount }, () => []),
-    },
-    segments: {
-      segmentBuffer: new Float32Array(0),
-      indexTable: new Uint32Array(stimuliCount * participantCount * 2),
-      aoiPool: new Uint16Array(0),
-      hasSpatialData: false,
-      maxParticipants: participantCount,
-      stimuliCount,
-    },
-    eventData: {
-      data: eventDataArr,
-      orderVector: eventOrderVector,
-      hiddenChannels: eventHiddenChannels,
-      events: eventEvents,
-    },
-  }
-
-  return { data, warnings }
-}
+// NOTE: standalone event-only datasets were removed (1.9.0). Event files
+// annotate eye-tracking data; they are resolved against a loaded engine via
+// `resolveContributionsForEngine`, never built into a dataset on their own.

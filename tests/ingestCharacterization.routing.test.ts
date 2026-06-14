@@ -8,8 +8,8 @@
  *     to the worker; the first-file-wins JSON rule became the explicit
  *     workspace-precedence policy inside IngestJob (pinned at the worker
  *     protocol level in ingestCharacterization.protocol.test.ts),
- *   - event-only uploads with no CSV event file fail with a specific message,
- *   - standalone CSV event files build an event-only dataset,
+ *   - event-only uploads (any format, CSV included) fail fast: event files
+ *     annotate eye-tracking data and have no standalone visualisation,
  *   - a worker 'done' IngestResult envelope becomes a version-4 ParsedData
  *     envelope.
  *
@@ -182,90 +182,39 @@ describe('IngestService routing', () => {
     expect(service.status).toBe('error')
   })
 
-  it('event-only upload without CSV event files fails with the pinned message', async () => {
-    const { service, report } = loadHarness()
+  it('event-only XML upload fails fast with the pinned message', async () => {
+    const { service, report, posted } = loadHarness()
     const xml = fakeFile('events.xml', '<KeyFrames></KeyFrames>')
 
     const result = await service.loadFiles(createFileList([xml]))
 
     expect(result).toBe(false)
+    expect(posted).toEqual([]) // never went near the worker
     expect(report).toHaveBeenCalledWith(
       expect.objectContaining({
         userMessage:
-          'Only event files were uploaded. XML and JSON event files require eye-tracking data. Use custom CSV event files for standalone upload.',
+          'Only event files were uploaded. Event files annotate eye-tracking data and must be uploaded together with it.',
       })
     )
     expect(service.status).toBe('error')
   })
 
-  it('standalone CSV event file builds an event-only dataset without the worker', async () => {
-    const { service, deps, posted } = loadHarness()
+  it('event-only CSV upload fails fast (no standalone event-only dataset)', async () => {
+    const { service, report, deps, posted } = loadHarness()
     const csv = fakeFile('events.csv', eventCsv)
 
     const result = await service.loadFiles(createFileList([csv]))
 
-    expect(result).toBe(true)
+    expect(result).toBe(false)
     expect(posted).toEqual([]) // never went near the worker
-    expect(service.status).toBe('ready')
-    expect(deps.toastState.addSuccess).toHaveBeenCalledWith(
-      expect.stringMatching(/^Event data loaded: events\.csv/)
+    expect(deps.engine.loadDataset).not.toHaveBeenCalled() // no dataset built
+    expect(report).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userMessage:
+          'Only event files were uploaded. Event files annotate eye-tracking data and must be uploaded together with it.',
+      })
     )
-
-    const data = deps.engine.loadDataset.mock.calls[0][0]
-    expect({
-      capabilities: data.capabilities,
-      stimuli: data.stimuli.data,
-      participants: data.participants.data,
-      eventChannels: data.eventData.data,
-      eventBuffers: data.eventData.events,
-    }).toMatchInlineSnapshot(`
-      {
-        "capabilities": {
-          "event": true,
-          "segmented": false,
-          "spatial": false,
-        },
-        "eventBuffers": [
-          [
-            [
-              [
-                100,
-                50,
-              ],
-              [
-                200,
-                0,
-              ],
-            ],
-          ],
-        ],
-        "eventChannels": [
-          [
-            [
-              "Blink",
-              "Blink",
-              "#888888",
-            ],
-          ],
-        ],
-        "participants": [
-          [
-            "P1",
-            "P1",
-          ],
-          [
-            "P2",
-            "P2",
-          ],
-        ],
-        "stimuli": [
-          [
-            "Stim1",
-            "Stim1",
-          ],
-        ],
-      }
-    `)
+    expect(service.status).toBe('error')
   })
 
   it("a worker 'done' message becomes a version-4 success envelope", async () => {
