@@ -41,6 +41,15 @@ function resolveTimeline(
   return { min, max }
 }
 
+/**
+ * Approximate on-screen pixels per grid unit, used to size the display budget
+ * (windows worth evaluating). Matches `DEFAULT_GRID_CONFIG` (cell 40 + gap 10);
+ * `ctx.itemWidth` is in grid units. A window finer than a pixel can't be shown,
+ * so this caps how many windows are computed. It errs slightly high (no margin
+ * subtraction) to avoid ever under-sampling visible detail.
+ */
+const PX_PER_GRID_UNIT = 50
+
 /** Shared data derivation (cross-plot-sync aware via `ctx`). */
 export function computeAoiStreamData(
   engine: DataEngine,
@@ -48,7 +57,16 @@ export function computeAoiStreamData(
   ctx?: PlotViewContext
 ): AoiStreamPlotResult {
   const { min, max } = resolveTimeline(engine, settings, ctx)
-  return getAoiStreamPlotData(engine, { ...settings, timelineMin: min, timelineMax: max })
+  const maxColumns =
+    ctx && ctx.itemWidth > 0
+      ? Math.min(2048, Math.max(256, Math.round(ctx.itemWidth * PX_PER_GRID_UNIT)))
+      : undefined
+  return getAoiStreamPlotData(engine, {
+    ...settings,
+    timelineMin: min,
+    timelineMax: max,
+    ...(maxColumns !== undefined ? { maxColumns } : {}),
+  })
 }
 
 export function deriveAoiStreamView(

@@ -13,7 +13,7 @@ import {
   type WindowedProjection,
 } from './projection'
 import { buildWindowFrame } from './dsl'
-import type { AoiSlotInfo, GroupAggregation, GroupScope, MetricRecipe, OutputShape } from './dsl'
+import type { AoiSlotInfo, FixationEvent, GroupAggregation, GroupScope, MetricRecipe, OutputShape, WindowFrame } from './dsl'
 import type { MetricInstance } from '../instances'
 
 export interface Scope {
@@ -40,6 +40,9 @@ export interface Scope {
  * `clearCache()` plumbing at every call site.
  */
 const _cache = new WeakMap<BinaryBufferReader, Map<string, number[]>>()
+
+/** Shared placeholder for a reused ApplyContext's `rawValues` (always overwritten before use). */
+const EMPTY_NUMBER_ARRAY: number[] = []
 
 /**
  * Scalar / vector / matrix result for a single metric instance over a scope.
@@ -128,6 +131,24 @@ function runWindowed(
     : runTimeWindowed(recipe, instance, scope, p, slots)
 }
 
+/**
+ * Time-windowed projection over one participant.
+ *
+ * Single-scan fan-out: the participant's fixations are read from the binary
+ * reader ONCE, resolved to AOI slots ONCE, and each resolved fixation is
+ * dispatched to every window it overlaps — instead of re-scanning (and
+ * re-resolving slots) per window. Equivalent to running an isolated
+ * `scanAccumulator` per window: each window keeps its own accumulator, sees
+ * the same fixations in time order, with the same per-window {@link WindowFrame}
+ * (clip + midpoint) and the same per-window fixation index. Output is therefore
+ * bit-identical to the former per-window loop, but the cost drops from
+ * `windows × fixationsPerWindow` to `fixations × overlapFactor`
+ * (`overlapFactor = windowSize / stepSize`, 1 for non-overlapping epochs), with
+ * the heavy AOI resolution paid once per fixation rather than once per window.
+ *
+ * `runFixationWindowed` already single-scans (into `acc.seq`); only the
+ * time-windowed path carried the redundant rescan.
+ */
 function runTimeWindowed(
   recipe: MetricRecipe<any, any>,
   instance: MetricInstance,
@@ -140,27 +161,184 @@ function runTimeWindowed(
   const tEnd = scope.timeEnd ?? 0
   const isVector = PROJECTION_LEAVES[inner.kind].outputShape === 'aoi-vector'
   const outShape: OutputShape = isVector ? 'aoi-vector-timeseries' : 'scalar-timeseries'
-  if (tEnd <= tStart) {
-    return isVector
+  const empty = (): ProjectedResult =>
+    isVector
       ? { shape: outShape, values: [], vectors: [], slots, aoiMissing: false, timeline: [] }
       : { shape: outShape, values: [], slots, aoiMissing: false, timeline: [] }
-  }
 
-  const step = window.stepSize
-  const values: number[] = []
-  const vectors: number[][] = []
+  if (tEnd <= tStart) return empty()
+  // No per-participant trio → nothing to scan (group-shape recipes never reach here).
+  if (!recipe.init || !recipe.onFixation || !recipe.finalize) return empty()
+
+  const windowSize = window.windowSize
+  const step = window.stepSize > 0 ? window.stepSize : windowSize
+
+  // Timeline: window start times that fully fit within the scope.
   const timeline: number[] = []
-  const aoiNames = getAoiNames(scope)
-  let aoiMissing = false
-
-  for (let wStart = tStart; wStart + window.windowSize <= tEnd; wStart += step) {
-    const raw = runSingleWindow(recipe, instance, scope, wStart, wStart + window.windowSize)
-    const out = applyProjection(inner, { aoiNames, rawValues: raw })
-    if (out.aoiMissing) aoiMissing = true
-    if (isVector) vectors.push(out.values)
-    else values.push(out.values[0] ?? Number.NaN)
+  for (let wStart = tStart; wStart + windowSize <= tEnd; wStart += step) {
     timeline.push(wStart)
   }
+  const W = timeline.length
+  if (W === 0) return empty()
+
+  // Resolved slots (reader + AOI lookup) built ONCE per participant, the
+  // redundancy the former per-window `scanAccumulator` paid every window.
+  const resolved = buildAoiSlots(scope.engine, scope.stimulusId)
+  if (!resolved) return empty()
+
+  // Resolve params once. Window accumulators are created LAZILY when the scan
+  // reaches a window and FINALIZED + FREED the instant the scan cursor passes
+  // the window's end — so at most ~overlapFactor (windowSize/stepSize) live at
+  // once, never all W. Holding all W alive was a heap blow-up on huge datasets:
+  // one heavyweight accumulator (visitDuration keeps per-AOI dwell lists, Maps,
+  // Sets) times tens of thousands of windows reached ~1 GB.
+  const params = resolveParams(recipe.params, instance.params)
+  const ctx = { params, slots }
+  const init = recipe.init
+  const onFixation = recipe.onFixation
+  const finalize = recipe.finalize
+  const aoiNames = getAoiNames(scope)
+
+  // accs[w] holds an accumulator only while window w is open (sparse).
+  const accs: any[] = new Array(W)
+  // Per-window fixation ordinal — matches the `index` an isolated per-window
+  // scan would assign (0-based, in time order, over that window's fixations).
+  const indices = new Int32Array(W)
+  const values: number[] = isVector ? [] : new Array(W)
+  const vectors: number[][] = isVector ? new Array(W) : []
+  let aoiMissing = false
+  let nextClose = 0
+
+  // Identity leaves (`identity-aoi-vector` / `identity-scalar`) pass the recipe's
+  // finalize output straight through, so we use it directly and skip the
+  // `applyProjection` call + its `ApplyContext` literal + the copy it returns.
+  // Non-identity leaves reduce/reshape; they reuse one `ApplyContext` object.
+  const isIdentity = inner.kind === 'identity-aoi-vector' || inner.kind === 'identity-scalar'
+  const projCtx = { aoiNames, rawValues: EMPTY_NUMBER_ARRAY }
+
+  const finalizeWindow = (w: number): void => {
+    // Untouched window (no fixation landed in it) → finalize a fresh empty acc,
+    // the same result the former per-window scan produced for an empty range.
+    const acc = accs[w] ?? init(ctx)
+    const raw = finalize(acc, slots, ctx)
+    accs[w] = undefined // free the accumulator and anything it retained
+    if (isIdentity) {
+      if (isVector) vectors[w] = raw
+      else values[w] = raw[0] ?? Number.NaN
+      return
+    }
+    projCtx.rawValues = raw
+    const out = applyProjection(inner, projCtx)
+    if (out.aoiMissing) aoiMissing = true
+    if (isVector) vectors[w] = out.values
+    else values[w] = out.values[0] ?? Number.NaN
+  }
+
+  // Single pass over the participant's fixations.
+  const { reader, hiddenAoisSet, aoiLookup } = resolved
+  const { startIndex: fStart, endIndex: fEnd } = reader.getFixationRange(
+    scope.stimulusId,
+    scope.participantId,
+  )
+  const segBuf = reader.segmentBufferRaw
+  const aoiPool = reader.aoiPoolRaw
+  const stim = scope.stimulusId
+  const engine = scope.engine
+  const resolvedSlots: number[] = []
+
+  // Reused across every (fixation, window) dispatch — no per-dispatch
+  // allocation. onFixation reads these synchronously and never retains them
+  // (same invariant that lets `resolvedSlots` be shared). On a huge dataset
+  // with heavy window overlap this is the difference between millions of
+  // short-lived frame/event objects (GC churn) and none.
+  const frame: WindowFrame = {
+    windowStart: 0,
+    windowEnd: 0,
+    start: 0,
+    end: 0,
+    duration: 0,
+    isClipped: false,
+    midpointInWindow: true,
+  }
+  const fixEvent: FixationEvent = {
+    start: 0,
+    duration: 0,
+    frame,
+    slots: resolvedSlots,
+    index: 0,
+  }
+
+  for (let k = fStart; k < fEnd; k++) {
+    const i = reader.getFixationSegmentIndex(k)
+    const base = i * SEGMENT_STRIDE
+    const start = segBuf[base + SegmentField.START_TIME]
+    const end = segBuf[base + SegmentField.END_TIME]
+    // Fixations are time-ordered by start; once past the scope none can overlap.
+    if (start >= tEnd) break
+    if (end <= tStart) continue
+
+    // Sweep: close every window the cursor has passed. `start` only grows, so a
+    // window with `wEnd <= start` can receive no further fixation → finalize+free.
+    while (nextClose < W && timeline[nextClose] + windowSize <= start) {
+      finalizeWindow(nextClose)
+      nextClose++
+    }
+
+    // Resolve AOI slots ONCE; reused across every window this fixation hits.
+    resolvedSlots.length = 0
+    const aoiCount = segBuf[base + SegmentField.AOI_COUNT] | 0
+    const aoiPtr = segBuf[base + SegmentField.AOI_POINTER] | 0
+    for (let r = 0; r < aoiCount; r++) {
+      const rawId = aoiPool[aoiPtr + r]
+      if (hiddenAoisSet?.has(rawId)) continue
+      const slot = aoiLookup.get(engine.getAoiMapping(stim, rawId))
+      if (slot !== undefined && resolvedSlots.indexOf(slot) === -1) resolvedSlots.push(slot)
+    }
+
+    const duration = end - start
+    fixEvent.start = start
+    fixEvent.duration = duration
+    // Overlapping window range. A fixation overlaps window w iff
+    // `start < timeline[w] + windowSize && end > timeline[w]`. Compute a
+    // superset range arithmetically, then trim both edges with the exact
+    // predicate (robust to float ms); the satisfying windows are contiguous
+    // since timeline[w] is monotonic.
+    let wLo = Math.floor((start - windowSize - tStart) / step)
+    let wHi = Math.ceil((end - tStart) / step)
+    // Lower edge never precedes `nextClose` — those windows are already closed.
+    if (wLo < nextClose) wLo = nextClose
+    if (wHi > W - 1) wHi = W - 1
+    while (wLo <= wHi && !(start < timeline[wLo] + windowSize && end > timeline[wLo])) wLo++
+    while (wHi >= wLo && !(start < timeline[wHi] + windowSize && end > timeline[wHi])) wHi--
+
+    const mid = start + duration * 0.5
+    for (let w = wLo; w <= wHi; w++) {
+      let acc = accs[w]
+      if (acc === undefined) acc = accs[w] = init(ctx)
+      const wStart = timeline[w]
+      const wEnd = wStart + windowSize
+      // Inlined `fillWindowFrame` (bounded case — windowed scope is always
+      // bounded) to avoid a call per dispatch in the hot loop.
+      const fStartClip = start > wStart ? start : wStart
+      const fEndClip = end < wEnd ? end : wEnd
+      frame.windowStart = wStart
+      frame.windowEnd = wEnd
+      frame.start = fStartClip
+      frame.end = fEndClip
+      frame.duration = fEndClip - fStartClip
+      frame.isClipped = start < wStart || end > wEnd
+      frame.midpointInWindow = mid >= wStart && mid < wEnd
+      fixEvent.index = indices[w]++
+      onFixation(acc, fixEvent, ctx)
+    }
+  }
+
+  // Finalize every window still open after the last fixation (incl. trailing gaps).
+  while (nextClose < W) {
+    finalizeWindow(nextClose)
+    nextClose++
+  }
+
   return isVector
     ? { shape: outShape, values: [], vectors, slots, aoiMissing, timeline }
     : { shape: outShape, values, slots, aoiMissing, timeline }
@@ -282,25 +460,32 @@ export function runWindowedGroup(
   }
   const W = timeline.length
 
-  // Per-participant timeseries collection. `runTimeWindowed` already does
-  // the per-window scan + projection — we just gather the per-cell values
-  // across participants and reduce.
-  const perPVectors: (number[][])[] = []
-  const perPValues: (number[])[] = []
+  const stride = isVector ? slots.totalSlots : 1
+
+  // Cross-participant reduction is STREAMING for mean / sum / proportion: each
+  // participant's windowed result folds into flat typed sufficient-statistics
+  // (sum + finite-count per window·slot) and is then discarded. Peak memory is
+  // O(W·slots), not O(P·W·slots) — the former retained `number[][][]` for every
+  // participant was the ~500 MB / GC blow-up on huge datasets. `median` needs
+  // the full per-cell sample, so it keeps the collect path (currently
+  // unreachable: no windowable metric declares `median`).
+  const streaming = effectiveMethod !== 'median'
+  const groupSum = streaming ? new Float64Array(W * stride) : null
+  const groupCount = streaming ? new Int32Array(W * stride) : null
+  const perPVectors: number[][][] = []
+  const perPValues: number[][] = []
   let aoiMissing = false
+
   for (const pid of group.participantIds) {
     // Clamp each participant's window range to their own recording end.
-    // `runTimeWindowed` only emits windows that fully fit within the scope,
-    // so without this clamp a participant whose data ends before `tEnd`
-    // still gets windows synthesised past their last fixation — and those
-    // empty windows finalize to a real 0 (counts, dwell) or 0% (relativeTime),
-    // not NaN, so `reduceFinite` keeps them and drags the group mean toward
-    // zero in the tail. Clamping drops those windows entirely (a shorter
-    // per-participant array → `undefined` at trailing indices, which the
-    // per-cell gather below skips), so each window is averaged only over the
-    // participants that actually have data there. Mirrors evolving-metrics'
-    // `timeEnd: min(range, participantEnd)` clamp; `getParticipantEndTime`
-    // is an O(1) index-table lookup.
+    // `runTimeWindowed` only emits windows that fully fit within the scope, so
+    // without this clamp a participant whose data ends before `tEnd` still gets
+    // windows synthesised past their last fixation — and those empty windows
+    // finalize to a real 0 (counts, dwell) or 0% (relativeTime), not NaN, so
+    // they would drag the group mean toward zero in the tail. Clamping drops
+    // them (a shorter per-participant array → no contribution at trailing
+    // windows, so `groupCount` stays lower there and each window is reduced
+    // only over participants present in it). `getParticipantEndTime` is O(1).
     const pEnd = getParticipantEndTime(group.engine, group.stimulusId, pid)
     const scope: Scope = {
       engine: group.engine,
@@ -311,10 +496,67 @@ export function runWindowedGroup(
     }
     const r = runTimeWindowed(recipe, instance, scope, p, slots)
     if (r.aoiMissing) aoiMissing = true
-    if (isVector) perPVectors.push(r.vectors ?? [])
-    else perPValues.push(r.values ?? [])
+
+    if (!streaming) {
+      if (isVector) perPVectors.push(r.vectors ?? [])
+      else perPValues.push(r.values ?? [])
+      continue
+    }
+
+    // Fold this participant into the typed sufficient-statistics, then drop it.
+    if (isVector) {
+      const vs = r.vectors ?? []
+      const wMax = Math.min(vs.length, W)
+      for (let w = 0; w < wMax; w++) {
+        const row = vs[w]
+        const base = w * stride
+        for (let s = 0; s < stride; s++) {
+          const x = row[s]
+          if (Number.isFinite(x)) {
+            groupSum![base + s] += x
+            groupCount![base + s]++
+          }
+        }
+      }
+    } else {
+      const vals = r.values ?? []
+      const wMax = Math.min(vals.length, W)
+      for (let w = 0; w < wMax; w++) {
+        const x = vals[w]
+        if (Number.isFinite(x)) {
+          groupSum![w] += x
+          groupCount![w]++
+        }
+      }
+    }
   }
 
+  // Finalize. mean/proportion = sum/count, sum = sum, NaN when count 0 — the
+  // exact result `reduceFinite` produces over the same finite values per cell.
+  if (streaming) {
+    const isSum = effectiveMethod === 'sum'
+    if (isVector) {
+      const vectors: number[][] = new Array(W)
+      for (let w = 0; w < W; w++) {
+        const v = new Array<number>(stride)
+        const base = w * stride
+        for (let s = 0; s < stride; s++) {
+          const c = groupCount![base + s]
+          v[s] = c === 0 ? Number.NaN : isSum ? groupSum![base + s] : groupSum![base + s] / c
+        }
+        vectors[w] = v
+      }
+      return { shape: outShape, values: [], vectors, slots, aoiMissing, timeline }
+    }
+    const values = new Array<number>(W)
+    for (let w = 0; w < W; w++) {
+      const c = groupCount![w]
+      values[w] = c === 0 ? Number.NaN : isSum ? groupSum![w] : groupSum![w] / c
+    }
+    return { shape: outShape, values, slots, aoiMissing, timeline }
+  }
+
+  // median fallback: per-cell reduce over the collected per-participant sample.
   if (isVector) {
     const vectors: number[][] = new Array(W)
     const cell: number[] = []
@@ -331,19 +573,18 @@ export function runWindowedGroup(
       vectors[w] = v
     }
     return { shape: outShape, values: [], vectors, slots, aoiMissing, timeline }
-  } else {
-    const values: number[] = new Array(W).fill(Number.NaN)
-    const cell: number[] = []
-    for (let w = 0; w < W; w++) {
-      cell.length = 0
-      for (const pv of perPValues) {
-        const x = pv[w]
-        if (typeof x === 'number') cell.push(x)
-      }
-      values[w] = reduce(cell, effectiveMethod)
-    }
-    return { shape: outShape, values, slots, aoiMissing, timeline }
   }
+  const values: number[] = new Array(W).fill(Number.NaN)
+  const cell: number[] = []
+  for (let w = 0; w < W; w++) {
+    cell.length = 0
+    for (const pv of perPValues) {
+      const x = pv[w]
+      if (typeof x === 'number') cell.push(x)
+    }
+    values[w] = reduce(cell, effectiveMethod)
+  }
+  return { shape: outShape, values, slots, aoiMissing, timeline }
 }
 
 // ─── Internals ────────────────────────────────────────────────────────────────

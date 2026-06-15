@@ -16,12 +16,21 @@ import {
   windowLabel,
   type GroupScope,
   type PlotMetricContract,
+  type WindowedProjection,
 } from '$lib/metrics'
 import type { AoiStreamPlotResult, AoiStreamPlotSeries } from '../types'
 import type { AoiStreamPlotSettings } from '../types'
 import { COLOR_FALLBACKS } from '$lib/color'
 
 const CONTRACT = { outputShape: 'aoi-vector', windowing: 'required' } as const satisfies PlotMetricContract
+
+/**
+ * Upper bound on windows evaluated when no display budget is supplied (export /
+ * headless). A stream can't show more bins than pixels; a fine step over a long
+ * recording would otherwise produce millions of windows. The interactive view
+ * passes a tighter budget derived from the plot's on-screen width.
+ */
+const DEFAULT_MAX_COLUMNS = 4096
 
 /**
  * Empty result shell. Used for both "no metric configured" and "no data"
@@ -69,6 +78,14 @@ export function getAoiStreamPlotData(
   > & {
     timelineMin?: number
     timelineMax?: number
+    /**
+     * Display budget: the most windows to evaluate/draw. Honors `stepSize` by
+     * drawing every Nth configured window (`N = ceil(W / maxColumns)`) — each
+     * drawn window is a real configured-step window, so a sub-pixel step is not
+     * fabricated, only down-sampled to what the screen can show. Defaults to
+     * {@link DEFAULT_MAX_COLUMNS}.
+     */
+    maxColumns?: number
   }
 ): AoiStreamPlotResult {
   const meta = engine.metadata
@@ -97,20 +114,47 @@ export function getAoiStreamPlotData(
   }
   const timelineMin = settings.timelineMin ?? 0
   const timelineMax = settings.timelineMax ?? maxTime
-  // Pass the user's requested range straight through to the metric library.
-  // `runWindowedGroup` produces `floor((range - windowSize) / stepSize) + 1`
-  // windows (or zero if the range is shorter than the window); we use the
-  // returned `vectors.length` as the canonical bin count rather than a
-  // pre-computed `ceil(range / windowSize)` that silently truncated sliding
-  // results.
+  const timeStart = timelineMin
+  const timeEnd = Math.max(timelineMin + windowSize, timelineMax)
+
+  // Honor windowSize + stepSize, but never compute more windows than the display
+  // can show. `fullW` is the configured-step window count; `stride` is how many
+  // configured windows fall between drawn columns, so `displayStep = stride ×
+  // stepSize` and every drawn window is a real configured-step window
+  // (`timeStart + i × displayStep` = configured position at step-index `i × stride`).
+  const maxColumns = Math.max(1, Math.floor(settings.maxColumns ?? DEFAULT_MAX_COLUMNS))
+  const fullW = Math.max(1, Math.floor((timeEnd - timeStart - windowSize) / stepSize) + 1)
+  const stride = Math.max(1, Math.ceil(fullW / maxColumns))
+  const displayStep = stride * stepSize
+
   const groupScope: GroupScope = {
     engine,
     stimulusId,
     participantIds,
-    timeStart: timelineMin,
-    timeEnd: Math.max(timelineMin + windowSize, timelineMax),
+    timeStart,
+    timeEnd,
   }
-  const result = asAoiVectorTimeseries(queryGroup(instance, groupScope))
+
+  // Decimate by querying at the strided step. `displayStep` is an integer
+  // multiple of the configured step, so the windows land on real configured
+  // positions (every Nth window) — the step is honored, just sub-sampled to the
+  // display. This drives the existing single-scan fan-out (`queryGroup`), which
+  // resolves each fixation's AOI slots ONCE and dispatches to its windows, far
+  // cheaper than re-resolving per drawn window. With `stride === 1` the step is
+  // unchanged and this is the full-resolution path. Either way only ~maxColumns
+  // windows are produced, so cost and memory stay bounded by the display.
+  const effInstance =
+    stride === 1
+      ? instance
+      : {
+          ...instance,
+          projection: {
+            kind: 'windowed' as const,
+            window: { windowSize, stepSize: displayStep },
+            inner: (instance.projection as WindowedProjection).inner,
+          },
+        }
+  const result = asAoiVectorTimeseries(queryGroup(effInstance, groupScope))
   if (!result) return emptyAoiStreamResult(true)
 
   // Reshape the library's per-window aoi-vectors into per-AOI time series.
@@ -178,7 +222,9 @@ export function getAoiStreamPlotData(
   // For sliding (step < window) it is shorter than the user-requested
   // timelineMax when (timelineMax - timelineMin) is not on a step boundary —
   // the trailing partial window simply doesn't fit and is correctly dropped.
-  const plotRange = (binCount - 1) * stepSize + windowSize
+  // Bins are spaced by `displayStep` (the drawn windows). `windowLabel` below
+  // still reports the configured `window` (real windowSize/stepSize).
+  const plotRange = (binCount - 1) * displayStep + windowSize
   const plotStart = timelineMin
   const plotEnd = plotStart + plotRange
 
@@ -188,7 +234,10 @@ export function getAoiStreamPlotData(
     timeline: createAdaptiveTimeline(plotStart, plotEnd, 6),
     binCount,
     windowSize,
-    stepSize,
+    // Reported step is the on-screen bin spacing (`displayStep`), which the
+    // layout and tooltip use as `binIndex × stepSize`. Equals the configured
+    // step when no down-sampling occurs (stride 1).
+    stepSize: displayStep,
     maxTime: plotEnd,
     participants: participantIds.length,
     maxTotal,

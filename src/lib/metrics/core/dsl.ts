@@ -111,23 +111,56 @@ export function buildWindowFrame(
   timeStart: number,
   timeEnd: number,
 ): WindowFrame {
+  return fillWindowFrame(
+    {
+      windowStart: 0,
+      windowEnd: 0,
+      start: 0,
+      end: 0,
+      duration: 0,
+      isClipped: false,
+      midpointInWindow: true,
+    },
+    start,
+    end,
+    duration,
+    timeStart,
+    timeEnd,
+  )
+}
+
+/**
+ * In-place variant of {@link buildWindowFrame} — writes the frame fields into
+ * `out` and returns it, allocating nothing. The single-scan windowed driver
+ * (`runTimeWindowed`) reuses one frame object across every (fixation, window)
+ * dispatch instead of allocating millions of short-lived frames on huge
+ * datasets. Safe because `onFixation` reads frame fields synchronously and
+ * never retains the object (the same invariant that lets the scan reuse one
+ * `slots` array). The math is identical to `buildWindowFrame`; both live here
+ * so SW-RQA midpoint, occupancy-duration, and clip rules stay in one place.
+ */
+export function fillWindowFrame(
+  out: WindowFrame,
+  start: number,
+  end: number,
+  duration: number,
+  timeStart: number,
+  timeEnd: number,
+): WindowFrame {
   const bounded = timeEnd > 0
   const windowStart = bounded ? timeStart : 0
   const windowEnd = bounded ? timeEnd : Number.POSITIVE_INFINITY
   const frameStart = Math.max(start, windowStart)
   const frameEnd = bounded ? Math.min(end, windowEnd) : end
-  const isClipped = bounded && (start < windowStart || end > windowEnd)
   const mid = start + duration / 2
-  const midpointInWindow = bounded ? mid >= windowStart && mid < windowEnd : true
-  return {
-    windowStart,
-    windowEnd,
-    start: frameStart,
-    end: frameEnd,
-    duration: frameEnd - frameStart,
-    isClipped,
-    midpointInWindow,
-  }
+  out.windowStart = windowStart
+  out.windowEnd = windowEnd
+  out.start = frameStart
+  out.end = frameEnd
+  out.duration = frameEnd - frameStart
+  out.isClipped = bounded && (start < windowStart || end > windowEnd)
+  out.midpointInWindow = bounded ? mid >= windowStart && mid < windowEnd : true
+  return out
 }
 
 /**
