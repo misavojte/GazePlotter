@@ -119,6 +119,7 @@ export const getEventChannelSummary = (
   const meta = engine.metadata
   if (!meta) return []
   const ed = meta.eventData
+  const reader = engine.getEventReader()
   const byName = new Map<
     string,
     {
@@ -144,12 +145,9 @@ export const getEventChannelSummary = (
       }
       entry.stimulusCount++
       if (defs[c][3] === INTERVAL_CHANNEL_MARKER) entry.isInterval = true
-      for (const buffer of ed.events[s]?.[c] ?? []) {
-        entry.occurrenceCount += (buffer?.length ?? 0) / 2
-        for (let i = 0; i + 1 < (buffer?.length ?? 0); i += 2) {
-          if (buffer[i] < entry.firstOnset) entry.firstOnset = buffer[i]
-        }
-      }
+      entry.occurrenceCount += reader.getChannelOccurrenceCount(s, c)
+      const onset = reader.getChannelFirstOnset(s, c)
+      if (onset < entry.firstOnset) entry.firstOnset = onset
     }
   }
   return Array.from(byName, ([name, counts]) => ({ name, ...counts }))
@@ -174,6 +172,7 @@ export const buildEventDataWithoutChannels = (
   const meta = engine.metadata
   if (!meta) return []
   const ed = meta.eventData
+  const reader = engine.getEventReader()
   const updates: {
     stimulusId: number
     channelDefs: string[][]
@@ -187,12 +186,13 @@ export const buildEventDataWithoutChannels = (
       .map((_, i) => i)
       .filter(i => !namesToRemove.has(defs[i][0]))
     if (keepIds.length === defs.length) continue
+    const buffers = reader.getStimulusJson(s)
     const newIdByOldId = new Map(keepIds.map((oldId, newId) => [oldId, newId]))
     updates.push({
       stimulusId: s,
       channelDefs: keepIds.map(i => [...defs[i]]),
       eventBuffers: keepIds.map(i =>
-        (ed.events[s]?.[i] ?? []).map(buffer => [...buffer])
+        (buffers[i] ?? []).map(buffer => [...buffer])
       ),
       hiddenChannels: (ed.hiddenChannels?.[s] ?? [])
         .map(id => newIdByOldId.get(id))
@@ -204,19 +204,19 @@ export const buildEventDataWithoutChannels = (
 }
 
 /**
- * Returns the stride-2 event buffer [start, duration, ...] for a specific channel and participant.
- * Returns null if channel has no events for this participant.
+ * Returns the stride-2 event buffer [start, duration, ...] for a specific
+ * channel and participant as a zero-allocation `Float32Array` view into the
+ * binary store. Returns null if the channel has no events for this
+ * participant. Hot path — read directly, never inside reactive tracking.
  */
 export const getEventBuffer = (
   engine: DataEngine,
   stimulusId: number,
   channelId: number,
   participantId: number
-): number[] | null => {
-  const meta = engine.metadata
-  if (!meta) throw new Error('Data engine metadata not available')
-
-  const buffer = meta.eventData.events[stimulusId]?.[channelId]?.[participantId]
-  if (!buffer || buffer.length === 0) return null
-  return buffer
+): Float32Array | null => {
+  const buffer = engine
+    .getEventReader()
+    .getOccurrences(stimulusId, channelId, participantId)
+  return buffer.length === 0 ? null : buffer
 }

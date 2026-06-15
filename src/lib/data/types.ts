@@ -168,6 +168,25 @@ export interface DataType {
 }
 
 /**
+ * Reactive slice of {@link EventDataType}: channel definitions, display
+ * order and hidden state — the small, UI-edited metadata that stays inside
+ * Svelte runes. The heavy per-occurrence buffers (`events`) are NOT here;
+ * the data engine holds them in a non-reactive binary `EventBufferReader`,
+ * mirroring how `segments` stay out of runes.
+ */
+export type EventChannelMeta = Omit<EventDataType, 'events'>
+
+/**
+ * The data engine's reactive metadata: the full workspace dataset minus the
+ * two binary stores it owns outside runes — `segments` (occurrence-free
+ * segment buffers) and the event occurrence buffers (so `eventData` is
+ * narrowed to {@link EventChannelMeta}).
+ */
+export type EngineMetadata = Omit<DataType, 'segments' | 'eventData'> & {
+  eventData: EventChannelMeta
+}
+
+/**
  * Type for legacy JSON import/export format with nested array segments.
  */
 export type JsonImportOldFormat = Omit<DataType, 'segments'> & {

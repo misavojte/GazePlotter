@@ -50,9 +50,14 @@
     isCurrentParsingSameAsSource(currentFileInput, fileMetadata)
   )
 
-  const dataOverview = $derived(
-    buildMetadataOverview(engine.metadata, engine.capabilities)
-  )
+  const dataOverview = $derived.by(() => {
+    void engine.eventVersion // recompute when event occurrence buffers change
+    return buildMetadataOverview(
+      engine.metadata,
+      engine.capabilities,
+      engine.getEventReader()
+    )
+  })
 
   const dataExclusions = $derived(engine.metadata?.dataExclusions ?? [])
 

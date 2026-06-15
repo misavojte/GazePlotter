@@ -1,13 +1,17 @@
-import type { DataType, DatasetExclusionNotice } from '$lib/data/types'
+import type {
+  DataType,
+  DatasetExclusionNotice,
+  EventChannelMeta,
+} from '$lib/data/types'
 import type { DataCapabilities } from '$lib/data/types'
+import type { EventBufferReader } from '$lib/data/binary'
 import type { ErrorRecord } from '$lib/errors'
 import type { FileInputType, FileMetadataType } from '$lib/data/ingest/types'
 import { describePairingError } from '$lib/data/intervalPairing'
 
-type MetadataSource = Pick<
-  DataType,
-  'aois' | 'participants' | 'stimuli' | 'eventData'
->
+type MetadataSource = Pick<DataType, 'aois' | 'participants' | 'stimuli'> & {
+  eventData: EventChannelMeta
+}
 
 type BrowserPerformanceMemory = {
   usedJSHeapSize: number
@@ -157,7 +161,8 @@ export function buildMetadataOverview(
     segmented: false,
     spatial: false,
     event: false,
-  }
+  },
+  eventReader: EventBufferReader | null = null
 ): MetadataOverview {
   if (metadata === null || metadata === undefined) {
     return createEmptyMetadataOverview()
@@ -175,8 +180,8 @@ export function buildMetadataOverview(
     (stimulus, index) => {
       const channels = ed?.data?.[index]?.length ?? 0
       let events = 0
-      for (const channel of ed?.events?.[index] ?? []) {
-        for (const buffer of channel) events += (buffer?.length ?? 0) / 2
+      for (let c = 0; c < channels; c++) {
+        events += eventReader?.getChannelOccurrenceCount(index, c) ?? 0
       }
       return { stimulusName: stimulus[0] ?? '', channels, events }
     }

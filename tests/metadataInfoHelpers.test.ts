@@ -14,7 +14,25 @@ import type {
   FileMetadataFailureType,
   FileMetadataSuccessType,
 } from '$lib/data/ingest'
+import { EventBufferReader } from '$lib/data/binary'
+import type { DataCapabilities } from '$lib/data/types'
 import { createMockMetadata } from './helpers/workspaceCommandFixtures'
+
+/**
+ * Occurrence buffers now live in the engine's binary reader, not metadata.
+ * Build one from the fixture's `events` and feed it the production way.
+ */
+function overviewWith(
+  metadata: ReturnType<typeof createMockMetadata>,
+  capabilities?: DataCapabilities
+) {
+  const reader = new EventBufferReader()
+  reader.load(
+    (metadata as { eventData?: { events?: number[][][][] } }).eventData
+      ?.events ?? []
+  )
+  return buildMetadataOverview(metadata, capabilities, reader)
+}
 
 const csvFormatters = {
   formatDate: (value: string) => `DATE(${value})`,
@@ -128,7 +146,7 @@ describe('metadata-info helpers', () => {
       },
     })
 
-    const overview = buildMetadataOverview(metadata)
+    const overview = overviewWith(metadata)
     expect(overview.eventCounts.perStimulus).toEqual([
       { stimulusName: 'Stimulus1', channels: 1, events: 2 },
       { stimulusName: 'Stimulus2', channels: 2, events: 2 },
@@ -196,7 +214,7 @@ describe('metadata-info helpers', () => {
   it('builds a success CSV report with overview, current parsing, source parsing, and recent errors', () => {
     const csv = buildMetadataCsvReport(
       {
-        overview: buildMetadataOverview(
+        overview: overviewWith(
           createMockMetadata({
             eventData: {
               data: [[['Click', 'Click', '#888']], []],

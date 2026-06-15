@@ -17,6 +17,7 @@ import {
   proposePairsBySuffix,
 } from '$lib/data/engine/eventIntervals'
 import type { IntervalDraftPreview } from '$lib/data/engine/eventIntervals'
+import { EventBufferReader } from '$lib/data/binary'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import {
   defaultManualName,
@@ -30,12 +31,20 @@ function engineWith(eventData: {
   orderVector?: number[][]
   hiddenChannels?: number[][]
 }): DataEngine {
+  // Occurrence buffers live in the engine's binary reader, not metadata.
+  const reader = new EventBufferReader()
+  reader.load(eventData.events)
   return {
     metadata: {
-      eventData,
+      eventData: {
+        data: eventData.data,
+        orderVector: eventData.orderVector,
+        hiddenChannels: eventData.hiddenChannels,
+      },
       stimuli: { data: eventData.data.map((_, i) => [`S${i}`]) },
       participants: { data: [['P0'], ['P1']] },
     },
+    getEventReader: () => reader,
   } as unknown as DataEngine
 }
 
@@ -441,7 +450,7 @@ describe('buildEventDataWithIntervalChannels', () => {
       { name: 'music', startName: 'music-0', endName: 'music-1' },
     ])
     update.eventBuffers[1][0][0] = 999
-    expect(engine.metadata!.eventData.events[0][1][0][0]).toBe(55)
+    expect(engine.getEventReader().getOccurrences(0, 1, 0)[0]).toBe(55)
   })
 
   test('throws on empty or duplicate draft names (programming error)', () => {

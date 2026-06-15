@@ -300,13 +300,14 @@ export const buildEventDataWithIntervalChannels = (
   }
 
   const ed = meta.eventData
+  const reader = engine.getEventReader()
   const updates: IntervalUpdate[] = []
 
   for (let s = 0; s < ed.data.length; s++) {
     const defs = ed.data[s]
     if (!defs?.length) continue
     const idByName = new Map(defs.map((def, id) => [def[0], id] as const))
-    const buffers = ed.events[s] ?? []
+    const buffers = reader.getStimulusJson(s)
     const participantCount = buffers[0]?.length ?? 0
 
     const appendedDefs: string[][] = []
@@ -385,6 +386,7 @@ const forEachPairing = (
   visit: (stimulusId: number, participantId: number, result: PairingResult) => void
 ): void => {
   const ed = engine.metadata!.eventData
+  const reader = engine.getEventReader()
   for (let s = 0; s < ed.data.length; s++) {
     const defs = ed.data[s]
     if (!defs?.length) continue
@@ -393,7 +395,7 @@ const forEachPairing = (
     const endId = idByName.get(draft.endName)
     if (startId === undefined && endId === undefined) continue
 
-    const buffers = ed.events[s] ?? []
+    const buffers = reader.getStimulusJson(s)
     const startBuffers = startId !== undefined ? (buffers[startId] ?? []) : []
     const endBuffers = endId !== undefined ? (buffers[endId] ?? []) : []
     const slots = Math.max(startBuffers.length, endBuffers.length)

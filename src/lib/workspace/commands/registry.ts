@@ -345,7 +345,7 @@ export function createWorkspaceCommandRegistry(
       const dataMeta = requireMetadata()
       const ed = dataMeta.eventData
       const currentDefs = ed.data[cmd.stimulusId] ?? []
-      const currentBuffers = ed.events[cmd.stimulusId] ?? []
+      const currentBuffers = engine.getEventReader().getStimulusJson(cmd.stimulusId)
       // Applying the command resets the hidden list and the order vector
       // (the engine owns that invariant), so the inverse must always carry
       // both — not only when the forward command set them.

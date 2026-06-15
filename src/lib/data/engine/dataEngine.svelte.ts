@@ -1,8 +1,9 @@
-import { BinaryBufferReader, AoiGroupReader } from '../binary'
+import { BinaryBufferReader, AoiGroupReader, EventBufferReader } from '../binary'
 import type {
   DataCapabilityRequirements,
   DataCapabilities,
   DataType,
+  EngineMetadata,
   ExtendedInterpretedDataType,
   MetricInstance,
   ParticipantsGroup,
@@ -12,13 +13,26 @@ import type { Projection } from '$lib/metrics/core/projection'
 
 export class DataEngine {
   // --- Private Memory (Non-Reactive) ---
-  // We keep binary data outside runes to prevent proxy overhead on 8GB buffers.
+  // We keep binary data outside runes to prevent proxy overhead on large
+  // buffers. Segments AND event occurrences both live here; only their light
+  // metadata (defs, order, hidden) rides in the reactive `metadata` below.
   private _binary: DataType['segments'] | null = null
   private _reader: BinaryBufferReader | null = null
   private _aoiGroupReader: AoiGroupReader | null = null
+  private _eventReader = new EventBufferReader()
 
   // --- Public Reactive State ---
-  metadata = $state<Omit<DataType, 'segments'> | null>(null)
+  metadata = $state<EngineMetadata | null>(null)
+
+  /**
+   * Bumps on every change to the binary event occurrence buffers (load,
+   * `updateEventDataBatch`). Reactive consumers that read occurrences through
+   * the non-reactive `_eventReader` depend on this so they recompute when the
+   * buffers change — the event analogue of mutating `$state` metadata while
+   * the heavy data sits in a reader. Channel def/order/hidden edits flow
+   * through `metadata.eventData` and need no bump.
+   */
+  eventVersion = $state(0)
 
   hasValidData = $derived(
     !!this.metadata && this.metadata.stimuli.data.length > 0
@@ -36,25 +50,34 @@ export class DataEngine {
     return this.metadata.capabilities
   })
 
-  /** Per-stimulus boolean: true if that stimulus has any event channels. */
-  eventsPerStimulus = $derived(
-    this.metadata?.eventData.events.map(channels =>
-      channels.some(participants =>
-        participants.some(buffer => (buffer?.length ?? 0) > 0)
-      )
-    ) ?? []
-  )
+  /** Per-stimulus boolean: true if that stimulus has any event occurrences. */
+  eventsPerStimulus = $derived.by((): boolean[] => {
+    void this.eventVersion
+    return this._eventReader.presencePerStimulus()
+  })
 
   // ==========================================
   // Core Engine Logic
   // ==========================================
 
   loadDataset(fullData: DataType) {
-    const { segments, ...meta } = fullData
+    const { segments, eventData, ...rest } = fullData
     this._binary = segments
     this._reader = new BinaryBufferReader(segments)
     this._aoiGroupReader = new AoiGroupReader(this._reader)
+    // Heavy occurrence buffers go binary + non-reactive; only the channel
+    // metadata stays in runes (same split as segments vs aois.data).
+    this._eventReader.load(eventData.events)
+    const meta: EngineMetadata = {
+      ...rest,
+      eventData: {
+        data: eventData.data,
+        orderVector: eventData.orderVector,
+        hiddenChannels: eventData.hiddenChannels,
+      },
+    }
     this.metadata = meta
+    this.eventVersion++
     this._aoiGroupReader.updateMap(meta)
   }
 
@@ -210,14 +233,18 @@ export class DataEngine {
     if (!meta) return
 
     const ed = meta.eventData
+    // The occurrence buffers are binary + non-reactive, so a mutation
+    // reconstructs the full nested form, overlays the changed stimuli, and
+    // rebuilds the reader wholesale — the AoiGroupReader.updateMap pattern.
+    // Events change only on import / interval derivation / deletion, never in
+    // a render loop, so the rebuild cost is irrelevant.
+    const events = this._eventReader.toJson()
     for (let i = 0; i < updates.length; i++) {
       const { stimulusId, channelDefs, eventBuffers, orderVector } = updates[i]
-      while (ed.data.length <= stimulusId) {
-        ed.data.push([])
-        ed.events.push([])
-      }
+      while (ed.data.length <= stimulusId) ed.data.push([])
+      while (events.length <= stimulusId) events.push([])
       ed.data[stimulusId] = channelDefs
-      ed.events[stimulusId] = eventBuffers
+      events[stimulusId] = eventBuffers
 
       // Replacing the defs invalidates every channel id referring into
       // them, so the engine owns the reset: order falls back to identity
@@ -235,11 +262,9 @@ export class DataEngine {
       ed.hiddenChannels[stimulusId] = []
     }
 
-    meta.capabilities.event = ed.events.some(channels =>
-      channels.some(participants =>
-        participants.some(buffer => (buffer?.length ?? 0) > 0)
-      )
-    )
+    this._eventReader.load(events)
+    this.eventVersion++
+    meta.capabilities.event = this._eventReader.hasAnyEvents()
   }
 
   updateEventChannelsBatch(
@@ -336,6 +361,20 @@ export class DataEngine {
 
   getAoiGroupReader() {
     return this._aoiGroupReader
+  }
+
+  /** Non-reactive binary event occurrence store (see {@link EventBufferReader}). */
+  getEventReader() {
+    return this._eventReader
+  }
+
+  /**
+   * Reconstruct the serializable `number[][][][]` event buffers from the
+   * binary store — the wire shape export/round-trip expects, the inverse of
+   * the strip performed in {@link loadDataset}.
+   */
+  getEventBuffersJson(): number[][][][] {
+    return this._eventReader.toJson()
   }
 
   get segments() {

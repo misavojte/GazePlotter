@@ -1,4 +1,4 @@
-import type { DataType, ExtendedInterpretedDataType } from '$lib/data/types'
+import type { EngineMetadata, ExtendedInterpretedDataType } from '$lib/data/types'
 import { DEFAULT_AOI_COLORS, DEFAULT_CATEGORY_COLORS } from '$lib/color/palettes'
 
 const getDefaultColor = (index: number): string =>
@@ -12,7 +12,7 @@ export const getDefaultCategoryColor = (index: number): string => {
 export const getAoiRaw = (
   stimulusId: number,
   aoiId: number,
-  metadata: Omit<DataType, 'segments'>
+  metadata: EngineMetadata
 ): ExtendedInterpretedDataType => {
   const aoiArray = metadata.aois.data[stimulusId]?.[aoiId]
   if (!aoiArray) {
@@ -32,7 +32,7 @@ export const getAoiRaw = (
 
 export const getCategoryRaw = (
   categoryId: number,
-  metadata: Omit<DataType, 'segments'>
+  metadata: EngineMetadata
 ): ExtendedInterpretedDataType => {
   const categoryArray = metadata.categories.data[categoryId]
   if (!categoryArray) {

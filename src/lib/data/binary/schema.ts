@@ -81,6 +81,61 @@ export interface BinarySegmentBuffers {
 }
 
 /**
+ * Stride of the flat event occurrence buffer: [start, duration, ...].
+ * Mirrors the stride-2 layout the legacy `number[][][][]` events used.
+ */
+export const EVENT_STRIDE = 2 as const
+
+/**
+ * Field offsets within one stride-2 event occurrence.
+ */
+export const enum EventField {
+  START_TIME = 0,
+  DURATION = 1,
+}
+
+/**
+ * Binary buffers for event-occurrence storage — the event analogue of
+ * {@link BinarySegmentBuffers}. The hot scarf overlay loop iterates these
+ * directly instead of paying a Svelte `$state` proxy `get` per element,
+ * which is what the previous `number[][][][]` (held inside reactive
+ * `metadata`) cost. Channel definitions, ordering and hidden state stay in
+ * reactive metadata (small, UI-edited); only the heavy occurrence numbers
+ * live here, outside the proxy.
+ */
+export interface BinaryEventBuffers {
+  /**
+   * Flat occurrence storage: Float32Array, EVENT_STRIDE fields per
+   * occurrence, all (stimulus, channel, participant) buffers concatenated.
+   * Layout per occurrence: [startMs, durationMs]; duration 0 = instant.
+   */
+  occurrenceBuffer: Float32Array
+
+  /**
+   * Cumulative channel counts, length `stimuliCount + 1`.
+   * `channelOffsets[s]` is the first global channel index for stimulus `s`;
+   * `channelOffsets[stimuliCount]` is the total channel count. A stimulus's
+   * channel count is `channelOffsets[s + 1] - channelOffsets[s]`.
+   */
+  channelOffsets: Uint32Array
+
+  /**
+   * [start, end) element ranges into `occurrenceBuffer`, per
+   * (globalChannel, participant). Entry index =
+   * `(globalChannel * maxParticipants + participantId) * 2`, where
+   * `globalChannel = channelOffsets[stimulusId] + localChannelId`.
+   * Occurrence count for a cell is `(end - start) / EVENT_STRIDE`.
+   */
+  indexTable: Uint32Array
+
+  /** Maximum participants across all channels (index-table stride). */
+  maxParticipants: number
+
+  /** Total number of stimuli. */
+  stimuliCount: number
+}
+
+/**
  * Builder for constructing binary segment buffers incrementally.
  */
 export interface BinarySegmentBuilder {

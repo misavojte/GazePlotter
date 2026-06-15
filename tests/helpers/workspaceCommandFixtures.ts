@@ -1,5 +1,6 @@
 import { vi } from 'vitest'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import { EventBufferReader } from '$lib/data/binary'
 import type {
   DataType,
   NoAoiTreatmentType,
@@ -124,6 +125,16 @@ export function setMockEngineMetadata(
 ): void {
   Object.defineProperty(engine, 'metadata', {
     value: metadata,
+    writable: true,
+    configurable: true,
+  })
+  // Occurrence buffers live in the engine's binary reader, not metadata —
+  // mirror the production split so reader-backed reads (command inverses,
+  // selectors) work against the mock.
+  const reader = new EventBufferReader()
+  reader.load(metadata?.eventData?.events ?? [])
+  Object.defineProperty(engine, 'getEventReader', {
+    value: () => reader,
     writable: true,
     configurable: true,
   })

@@ -1,4 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import type { DataType } from '$lib/data/types'
 import type { ErrorService } from '$lib/errors'
 import type { GridState } from '$lib/workspace/grid/gridState.svelte'
 import type { IngestService } from '$lib/data/ingest'
@@ -48,13 +49,22 @@ export type { ScanpathSimilarityExportOptions }
 export class ExportService {
   constructor(private readonly deps: ExportServiceDeps) {}
 
-  private getExportData() {
+  private getExportData(): DataType {
     const meta = this.deps.engine.metadata
     const segments = this.deps.engine.segments
     if (!meta || !segments) {
       throw new Error('Data engine metadata or segments not available')
     }
-    return { ...meta, segments }
+    // Re-stitch the binary stores the engine holds outside `metadata` back
+    // into the serializable shape: segments and the event occurrence buffers.
+    return {
+      ...meta,
+      segments,
+      eventData: {
+        ...meta.eventData,
+        events: this.deps.engine.getEventBuffersJson(),
+      },
+    }
   }
 
   private resolveFileName(fileName: string): string {

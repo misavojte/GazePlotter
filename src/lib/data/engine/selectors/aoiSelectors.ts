@@ -1,5 +1,5 @@
 import {
-  type DataType,
+  type EngineMetadata,
   type ExtendedInterpretedDataType,
 } from '$lib/data/types'
 import type { BinaryBufferReader } from '$lib/data/binary'
@@ -25,7 +25,7 @@ const _aoisCache = new WeakMap<
 
 const getAoiOrderVectorFromData = (
   stimulusId: number,
-  metadata: Omit<DataType, 'segments'>
+  metadata: EngineMetadata
 ): number[] => {
   const stimulusAois = metadata.aois.data[stimulusId]
   if (!stimulusAois)
@@ -43,7 +43,7 @@ const getAoiOrderVectorFromData = (
  */
 const getAoisRawFromData = (
   stimulusId: number,
-  dataSnapshot: DataType
+  dataSnapshot: EngineMetadata
 ): ExtendedInterpretedDataType[] => {
   return getAoiOrderVectorFromData(stimulusId, dataSnapshot).map(id =>
     getAoiRaw(stimulusId, id, dataSnapshot)

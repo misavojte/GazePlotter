@@ -11,6 +11,7 @@ import {
   getEventChannelSummary,
 } from '$lib/data/engine/selectors/eventDataSelectors'
 import { INTERVAL_CHANNEL_MARKER } from '$lib/data/engine/eventIntervals'
+import { EventBufferReader } from '$lib/data/binary'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 
 function engineWith(eventData: {
@@ -18,7 +19,16 @@ function engineWith(eventData: {
   events: number[][][][]
   hiddenChannels?: number[][]
 }): DataEngine {
-  return { metadata: { eventData } } as unknown as DataEngine
+  // The occurrence buffers live in the engine's binary reader, not metadata;
+  // mirror that split so the selectors read them the production way.
+  const reader = new EventBufferReader()
+  reader.load(eventData.events)
+  return {
+    metadata: {
+      eventData: { data: eventData.data, hiddenChannels: eventData.hiddenChannels },
+    },
+    getEventReader: () => reader,
+  } as unknown as DataEngine
 }
 
 const twoStimuli = () =>
@@ -174,6 +184,7 @@ describe('buildEventDataWithoutChannels', () => {
     const engine = twoStimuli()
     const [update] = buildEventDataWithoutChannels(engine, new Set(['Task']))
     update.eventBuffers[0][0][0] = 999
-    expect(engine.metadata!.eventData.events[0][0][0][0]).toBe(10)
+    // Click (kept channel) S0/P0 first occurrence start must be untouched.
+    expect(engine.getEventReader().getOccurrences(0, 0, 0)[0]).toBe(10)
   })
 })
