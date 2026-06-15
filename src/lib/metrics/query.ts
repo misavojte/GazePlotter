@@ -10,6 +10,7 @@ import {
 } from './core/runtime'
 import { scanBatch } from './core/scanner'
 import { buildAoiSlots } from './core/aoiSlots'
+import type { GroupAggregation } from './core/dsl'
 import {
   applyProjection,
   projectionOutputShape,
@@ -246,12 +247,13 @@ function emptyResult(
  */
 export function reduceFinite(
   values: readonly number[],
-  method: 'mean' | 'median' | 'sum',
+  method: GroupAggregation,
 ): number {
   const valid = values.filter(Number.isFinite)
   if (valid.length === 0) return Number.NaN
   if (method === 'sum') return valid.reduce((a, b) => a + b, 0)
-  if (method === 'mean') return valid.reduce((a, b) => a + b, 0) / valid.length
+  // `proportion` (the fraction of finite 0/1 values) is numerically the mean.
+  if (method === 'mean' || method === 'proportion') return valid.reduce((a, b) => a + b, 0) / valid.length
   
   // median
   const s = [...valid].sort((a, b) => a - b)
@@ -264,7 +266,7 @@ export function reduceFinite(
  * `reduceFinite` — keeps the per-slot iteration here while the actual
  * reduction maths lives in one place.
  */
-function reducePerSlot(rows: number[][], method: 'mean' | 'median' | 'sum'): number[] {
+function reducePerSlot(rows: number[][], method: GroupAggregation): number[] {
   if (rows.length === 0) return []
   const slotCount = rows[0].length
   const out = new Array<number>(slotCount)

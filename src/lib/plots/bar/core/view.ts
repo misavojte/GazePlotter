@@ -39,7 +39,9 @@ export function getBarView(engine: DataEngine, settings: BarPlotSettings): BarVi
         resolvedInstance,
         settings.timelineStart,
         settings.timelineEnd,
-        settings.statisticalOverlay
+        // Proportion metrics render as plain bars (no overlay), so the label must
+        // not claim a mean ± CI / SD / boxplot statistic.
+        result.proportion ? 'none' : settings.statisticalOverlay
       ),
       barPlottingType: settings.barPlottingType,
       barWidth: 200,
@@ -47,6 +49,7 @@ export function getBarView(engine: DataEngine, settings: BarPlotSettings): BarVi
       onDataHover: () => {},
       statisticalOverlay: settings.statisticalOverlay,
       noMetric: result.noMetric ?? false,
+      proportion: result.proportion ?? false,
     },
     dataMax: result.dataMax,
     syncKey: resolvedInstance?.id ?? null,

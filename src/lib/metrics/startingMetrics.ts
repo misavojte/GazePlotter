@@ -41,6 +41,7 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
   { id: 'visitDuration', baseId: 'visitDuration' },
   { id: 'fixationCount', baseId: 'fixationCount' },
   { id: 'fixationDuration', baseId: 'fixationDuration' },
+  { id: 'fixated', baseId: 'fixated' },
   { id: 'timeToFirstFixation', baseId: 'timeToFirstFixation' },
   { id: 'firstFixationDuration', baseId: 'firstFixationDuration' },
 

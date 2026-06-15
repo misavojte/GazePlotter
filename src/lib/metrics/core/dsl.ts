@@ -161,6 +161,14 @@ export interface InitCtx<P> {
   slots: AoiSlotInfo
 }
 
+/**
+ * Cross-participant aggregation methods. `proportion` (mean of finite 0/1 = the
+ * fraction of participants) is numerically `mean` but a distinct key: it marks a
+ * metric as a [0,1] rate, which is the single signal the bar plot uses to render a
+ * proportional bar instead of a beeswarm.
+ */
+export type GroupAggregation = 'mean' | 'median' | 'sum' | 'proportion'
+
 export interface MetricMeta {
   readonly id: string
   readonly label: string
@@ -183,7 +191,7 @@ export interface MetricMeta {
   readonly windowUnit: WindowUnit
   readonly params: readonly ParamDef<any>[]
   readonly searchTags: readonly string[]
-  readonly groupAggregation: 'mean' | 'median' | 'sum'
+  readonly groupAggregation: GroupAggregation
   /**
    * Whether `queryGroup` reduces this metric across participants via per-slot
    * aggregation. Defaults to true. Set to false for shapes whose computation
@@ -228,7 +236,7 @@ export interface MetricRecipe<P, A> {
   windowUnit: WindowUnit
   params?: readonly ParamDef<any>[]
   searchTags?: readonly string[]
-  groupAggregation?: 'mean' | 'median' | 'sum'
+  groupAggregation?: GroupAggregation
   /** Defaults to true. Set to false when windowing is not meaningful (e.g. TTFF). */
   supportsWindowing?: boolean
   /**
@@ -270,7 +278,7 @@ export interface MetricRecipe<P, A> {
    */
   groupAggregationGuard?(
     projection: Projection,
-    method: 'mean' | 'median' | 'sum',
+    method: GroupAggregation,
   ): string | null
   defaultLabel?: (params: P) => string
 

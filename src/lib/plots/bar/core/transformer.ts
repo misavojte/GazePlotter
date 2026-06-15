@@ -19,6 +19,7 @@ import type {
 import {
   query,
   queryIndividuals,
+  getMetric,
   type MetricInstance,
   type PlotMetricContract,
   type Scope,
@@ -65,6 +66,9 @@ export function getBarPlotData(
     return { data: [], timeline: createAdaptiveTimeline(0, 100, 6), dataMax: 0 }
   }
   const { instance } = resolved
+  // A `proportion`-aggregated metric (e.g. `fixated`) is a [0,1] rate: render it
+  // as a plain proportional bar (value as percent), not a beeswarm of 0/1 dots.
+  const isProportion = getMetric(instance.baseId)?.meta.groupAggregation === 'proportion'
 
   const timeStart = settings.timelineStart ?? 0
   const timeEnd = settings.timelineEnd ?? 0
@@ -98,9 +102,13 @@ export function getBarPlotData(
     statsArrays[i] = computeSummaryStatistics(individualArrays[i])
   }
 
+  // Proportion metrics are displayed as percent: the bar value is scaled to [0,100]
+  // so the existing numeric axis and `%` label read correctly. Other metrics keep
+  // their native value (mean of individuals). Rendered as plain descriptive bars —
+  // no confidence band (see drawProportionalBars for why).
   const rawData = new Array<number>(totalSlots)
   for (let i = 0; i < totalSlots; i++) {
-    rawData[i] = statsArrays[i].mean
+    rawData[i] = isProportion ? statsArrays[i].mean * 100 : statsArrays[i].mean
   }
 
   const labeledData = createLabeledData(
@@ -120,15 +128,22 @@ export function getBarPlotData(
   )
 
   let dataMax = 0
-  for (let i = 0; i < individualArrays.length; i++) {
-    const vals = individualArrays[i]
-    for (let j = 0; j < vals.length; j++) {
-      if (vals[j] > dataMax) dataMax = vals[j]
+  if (isProportion) {
+    // Percent bar values; the axis is data-driven (space-efficient).
+    for (let i = 0; i < totalSlots; i++) {
+      if (rawData[i] > dataMax) dataMax = rawData[i]
     }
-  }
-  if (overlay === 'boxplot') {
-    for (let i = 0; i < statsArrays.length; i++) {
-      if (statsArrays[i].whiskerHigh > dataMax) dataMax = statsArrays[i].whiskerHigh
+  } else {
+    for (let i = 0; i < individualArrays.length; i++) {
+      const vals = individualArrays[i]
+      for (let j = 0; j < vals.length; j++) {
+        if (vals[j] > dataMax) dataMax = vals[j]
+      }
+    }
+    if (overlay === 'boxplot') {
+      for (let i = 0; i < statsArrays.length; i++) {
+        if (statsArrays[i].whiskerHigh > dataMax) dataMax = statsArrays[i].whiskerHigh
+      }
     }
   }
 
@@ -145,6 +160,7 @@ export function getBarPlotData(
     data: sortedData,
     timeline,
     dataMax,
+    proportion: isProportion,
   }
 }
 

@@ -25,6 +25,7 @@
     drawOverlayBackgrounds,
     drawCategoryDelimiters,
     drawBeeswarmPoints,
+    drawProportionalBars,
     drawStatisticalOverlay,
     computeDotStyle,
     valueToPixel,
@@ -56,6 +57,7 @@
     ) => void
     statisticalOverlay?: StatisticalOverlayType
     noMetric?: boolean
+    proportion?: boolean
   }
 
   let {
@@ -72,6 +74,7 @@
     dpiOverride = null,
     margins = NO_MARGINS,
     noMetric = false,
+    proportion = false,
   }: Props = $props()
 
   const isVertical = $derived(barPlottingType === 'vertical')
@@ -125,7 +128,7 @@
     height: () => height,
     margins: () => margins,
     dpiOverride: () => dpiOverride,
-    deps: () => [data, timeline, axisLabel, barPlottingType, barWidth, barSpacing, statisticalOverlay, noMetric],
+    deps: () => [data, timeline, axisLabel, barPlottingType, barWidth, barSpacing, statisticalOverlay, noMetric, proportion],
     placeholder: () => (noMetric ? METRIC_MISSING_MESSAGE : null),
     gutters: () =>
       isVertical
@@ -242,10 +245,16 @@
     ctx.rect(frame.x, frame.y, frame.width, frame.height)
     ctx.clip()
     fillPlotAreaBackground(ctx, frame.x, frame.y, frame.width, frame.height, 'white')
-    drawOverlayBackgrounds(ctx, rendererLayout, statisticalOverlay)
     drawCategoryDelimiters(ctx, rendererLayout)
-    drawBeeswarmPoints(ctx, rendererLayout)
-    drawStatisticalOverlay(ctx, rendererLayout, statisticalOverlay)
+    if (proportion) {
+      // Proportion metrics (e.g. noticed-rate): a plain proportional bar,
+      // never a beeswarm of 0/1 dots.
+      drawProportionalBars(ctx, rendererLayout)
+    } else {
+      drawOverlayBackgrounds(ctx, rendererLayout, statisticalOverlay)
+      drawBeeswarmPoints(ctx, rendererLayout)
+      drawStatisticalOverlay(ctx, rendererLayout, statisticalOverlay)
+    }
     ctx.restore()
 
     drawCategoryLabels(ctx, frame)

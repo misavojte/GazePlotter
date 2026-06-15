@@ -197,6 +197,44 @@ export function drawCategoryDelimiters(
   }
 }
 
+// --- Proportional bars (primary layer for proportion metrics) ---
+
+/**
+ * Draws a filled bar from the value baseline to each AOI's value. Used instead of
+ * the beeswarm for proportion metrics (e.g. the noticed-rate `fixated`), where a
+ * 0/1 dot cloud is meaningless. Values are already scaled to percent by the
+ * transformer.
+ *
+ * Deliberately plain — NO error band. The per-AOI value is a descriptive proportion
+ * over the participant group (every bar shares the same n, so the bars are directly
+ * comparable), and a confidence interval would import a sampling + homogeneous-exposure
+ * assumption the data model does not guarantee (a participant never exposed to an ad is
+ * still counted as a 0). If noticed-rate is later computed conditional on exposure and a
+ * sampling inference is intended, a Wilson band can be reintroduced as a deliberate choice.
+ */
+export function drawProportionalBars(
+  ctx: CanvasRenderingContext2D,
+  layout: BarPlotLayout
+): void {
+  const isVertical = layout.barPlottingType === 'vertical'
+  const basePx = valueToPixel(layout, 0)
+
+  for (const item of layout.items) {
+    const center = item.categoryCenter
+    const halfWidth = item.categoryWidth / 2
+    const valuePx = valueToPixel(layout, item.data.value)
+
+    ctx.fillStyle = item.data.color
+    if (isVertical) {
+      const top = Math.min(valuePx, basePx)
+      ctx.fillRect(center - halfWidth, top, halfWidth * 2, Math.abs(valuePx - basePx))
+    } else {
+      const left = Math.min(valuePx, basePx)
+      ctx.fillRect(left, center - halfWidth, Math.abs(valuePx - basePx), halfWidth * 2)
+    }
+  }
+}
+
 // --- Beeswarm (primary layer) ---
 
 export function drawBeeswarmPoints(

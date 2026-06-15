@@ -73,6 +73,12 @@ export interface BarPlotResult {
   dataMax: number
   /** True when the plot's `metricInstanceIds[0]` points to a missing instance. */
   noMetric?: boolean
+  /**
+   * True when the metric aggregates as a `proportion` (e.g. `fixated`): the bar
+   * plot renders a plain proportional bar, not a beeswarm. The value is already
+   * scaled to percent.
+   */
+  proportion?: boolean
 }
 
 export interface ParticipantSegmentData {

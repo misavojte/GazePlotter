@@ -13,7 +13,7 @@ import {
   type WindowedProjection,
 } from './projection'
 import { buildWindowFrame } from './dsl'
-import type { AoiSlotInfo, GroupScope, MetricRecipe, OutputShape } from './dsl'
+import type { AoiSlotInfo, GroupAggregation, GroupScope, MetricRecipe, OutputShape } from './dsl'
 import type { MetricInstance } from '../instances'
 
 export interface Scope {
@@ -241,8 +241,8 @@ export function runWindowedGroup(
   instance: MetricInstance,
   group: GroupScope,
   p: WindowedProjection,
-  method: 'mean' | 'median' | 'sum',
-  reduce: (values: readonly number[], method: 'mean' | 'median' | 'sum') => number,
+  method: GroupAggregation,
+  reduce: (values: readonly number[], method: GroupAggregation) => number,
 ): ProjectedResult | null {
   const slots = buildAoiSlots(group.engine, group.stimulusId)
   if (!slots) return null

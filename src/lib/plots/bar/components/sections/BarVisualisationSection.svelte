@@ -2,13 +2,24 @@
   import { PaneSection } from '$lib/workspace/pane'
   import { InputNumber, Radio, InputCheck } from '$lib/shared/components'
   import { createBulkContext } from '$lib/plots/shared/components/sections'
+  import { getGazePlotterSession } from '$lib/session'
+  import { resolveInstance, getMetric } from '$lib/metrics'
   import type { BarPlotItem, BarPlotSettings } from '../../types'
 
   let { item }: { item: BarPlotItem } = $props()
   const bulk = createBulkContext<BarPlotSettings>(() => item)
+  const { engine } = getGazePlotterSession()
 
   // Divergence per field from the real selection — never a sentinel.
   const overlay = $derived(bulk.common(s => s.statisticalOverlay))
+  // Proportion metrics (e.g. noticed-rate) render as plain bars; the beeswarm
+  // statistical-overlay paradigm does not apply, so its picker is hidden.
+  const metricId = $derived(bulk.common(s => s.metricInstanceIds?.[0] ?? null))
+  const isProportion = $derived.by(() => {
+    if (metricId.mixed || !metricId.value) return false
+    const inst = resolveInstance(engine.metadata?.metricInstances ?? [], metricId.value)
+    return inst ? getMetric(inst.baseId)?.meta.groupAggregation === 'proportion' : false
+  })
   const orientation = $derived(bulk.common(s => s.barPlottingType))
   const orderBy = $derived(bulk.common(s => s.orderBy))
   const orderDirection = $derived(bulk.common(s => s.orderDirection))
@@ -31,8 +42,13 @@
   }
 
   const visSummary = $derived.by(() => {
+    const o = orientation.mixed
+      ? 'Mixed'
+      : orientation.value === 'horizontal'
+        ? 'Horizontal'
+        : 'Vertical'
+    if (isProportion) return `${o} (Bars)`
     if (orientation.mixed || overlay.mixed) return 'Mixed'
-    const o = orientation.value === 'horizontal' ? 'Horizontal' : 'Vertical'
     const ov =
       overlay.value === 'none'
         ? 'No overlay'
@@ -46,24 +62,26 @@
 </script>
 
 <PaneSection title="Visualisation" summary={visSummary}>
-  <div class="statistical-overlay-group">
-    <Radio
-      legend="Statistical overlay"
-      options={[
-        { label: 'None', value: 'none' },
-        { label: 'Mean ± 95% CI', value: 'meanCi95' },
-        { label: 'Mean ± SD', value: 'meanSd' },
-        { label: 'Boxplot', value: 'boxplot' },
-      ]}
-      appearance="compact"
-      value={overlay.value}
-      mixed={overlay.mixed}
-      onchange={e => {
-        const v = (e as CustomEvent<string>).detail as BarPlotSettings['statisticalOverlay']
-        bulk.update({ statisticalOverlay: v })
-      }}
-    />
-  </div>
+  {#if !isProportion}
+    <div class="statistical-overlay-group">
+      <Radio
+        legend="Statistical overlay"
+        options={[
+          { label: 'None', value: 'none' },
+          { label: 'Mean ± 95% CI', value: 'meanCi95' },
+          { label: 'Mean ± SD', value: 'meanSd' },
+          { label: 'Boxplot', value: 'boxplot' },
+        ]}
+        appearance="compact"
+        value={overlay.value}
+        mixed={overlay.mixed}
+        onchange={e => {
+          const v = (e as CustomEvent<string>).detail as BarPlotSettings['statisticalOverlay']
+          bulk.update({ statisticalOverlay: v })
+        }}
+      />
+    </div>
+  {/if}
   <Radio
     legend="Orientation"
     options={[
