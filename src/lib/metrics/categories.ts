@@ -16,15 +16,18 @@ export function defineCategory(cat: MetricCategoryDef): MetricCategoryDef {
 }
 
 // ─── Seeded categories ──────────────────────────────────────────────────────
-// The six metric categories shipped with GazePlotter. `order` drives the
-// sidebar sort in the metric-library modal.
+// The metric categories shipped with GazePlotter. `order` drives the sidebar
+// sort in the metric-library modal. `binary` (dichotomous detection: whether an
+// AOI was fixated/noticed) sits next to `ttf` — they are the "whether" and "when"
+// of attention capture — and is the home for future binary metrics.
 
 defineCategory({ id: 'duration',     label: 'Duration',               order: 0 })
 defineCategory({ id: 'counts',       label: 'Counts',                 order: 1 })
 defineCategory({ id: 'ttf',          label: 'Time to first fixation', order: 2 })
-defineCategory({ id: 'rqa-aoi',      label: 'RQA (AOI-based)',        order: 3 })
-defineCategory({ id: 'transition',   label: 'Transitions',            order: 4 })
-defineCategory({ id: 'scanpath',     label: 'Scanpath structure',     order: 5 })
+defineCategory({ id: 'binary',       label: 'Binary detection',       order: 3 })
+defineCategory({ id: 'rqa-aoi',      label: 'RQA (AOI-based)',        order: 4 })
+defineCategory({ id: 'transition',   label: 'Transitions',            order: 5 })
+defineCategory({ id: 'scanpath',     label: 'Scanpath structure',     order: 6 })
 
 export function listCategories(): MetricCategoryDef[] {
   return [..._cats.values()].sort((a, b) => a.order - b.order)

@@ -12,7 +12,8 @@ import { integerParam, numberParam } from '../../core/params'
  *
  * - **Shape:** `aoi-vector`
  * - **Unit:** `%` (the cross-participant aggregate is a proportion in [0,1])
- * - **Category:** `counts`
+ * - **Category:** `binary` (dichotomous detection — whether, not how many; the
+ *   companion to time-to-first-fixation's "when")
  * - **Windowing:** not supported (presence is a recording-lifetime concept)
  *
  * ### Parameters
@@ -41,7 +42,7 @@ defineMetric({
   description:
     'Per AOI: whether the participant fixated it (1) or not (0), meeting the optional fixation-count / dwell threshold. Aggregated across participants as a proportion, this is the per-AOI noticed rate — the fraction of participants who looked at it.',
   unit: '%',
-  category: 'counts',
+  category: 'binary',
   rawShape: 'aoi-vector',
   windowUnit: 'ms',
   groupAggregation: 'proportion',
