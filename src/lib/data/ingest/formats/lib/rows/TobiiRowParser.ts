@@ -53,15 +53,16 @@ type RawEventOccurrence = {
 /**
  * Every interval-marker occurrence for one (interval stimulus, participant),
  * accumulated in interval-stimulus mode so the whole start/end stream can be
- * validated at finalize. `stimulusBytes`/`participantBytes` are copies (the
- * row buffer is reused) and carry the exact keys the segments were emitted
- * under, so an invalid group can be dropped via `onExcludeSegmentGroup`.
+ * validated at finalize. `stimulusName`/`participantName` are decoded once for
+ * the exclusion NOTICE only — they are never used to address segments. Dropping
+ * is done by handle through the provisional-group lifecycle (see
+ * `gateGroup`/`resolveIntervalGroups`), so it can never miss the bucket.
  */
 type IntervalMarkerGroup = {
   starts: number[]
   ends: number[]
-  stimulusBytes: Uint8Array
-  participantBytes: Uint8Array
+  stimulusName: string
+  participantName: string
 }
 
 /**
@@ -321,6 +322,29 @@ export class TobiiRowParser extends RowParser {
    * malformed sequence is reported and its segments are dropped — a corrupt
    * interval extent makes that participant's data for that stimulus invalid. */
   private readonly intervalMarkers = new Map<bigint, IntervalMarkerGroup>()
+  /* ── Provisional-group gating (interval-stimulus mode only) ──────────
+   * True only in interval-suffix mode. When set, every emitted interval
+   * segment opens its (stimulus, participant) bucket as PROVISIONAL via
+   * `gateGroup`; `resolveIntervalGroups` then commits only the groups whose
+   * markers pair cleanly and drops the rest — so a malformed or never-validated
+   * group (including gaze a stale interval bled onto from another recording)
+   * never reaches the dataset. `gatedGroups` maps each gated (gaze-side) group
+   * key to its writer handle, so a group is gated once, not per segment. */
+  private gatingEnabled = false
+  private readonly gatedGroups = new Map<bigint, number>()
+  /* (recording, participant) block key of the intervals currently on the live
+   * stack. Tobii rows are contiguous per recording, so when a start marker
+   * arrives from a DIFFERENT block while intervals are still open, those
+   * leftovers were never closed by the previous recording — abandon them. This
+   * stops a stale interval from (a) bleeding onto the new block's gaze and
+   * (b) swallowing the open slot of a REUSED interval name, which would skip the
+   * IntervalStart base-time correction and mis-base the reused interval. The
+   * abandoned intervals stay recorded in `intervalMarkers` (unclosed → excluded).
+   * Stored as the two 32-bit key halves (not a composite bigint) so the
+   * per-start-marker check stays integer-only; meaningful whenever the stack is
+   * non-empty (a prior open set them). */
+  private openIntervalsRecKey = 0
+  private openIntervalsPartKey = 0
 
   /* ── Optimization Caches ────────────────────────────────────────── */
   private cachedParticipantKey: bigint | null = null
@@ -497,6 +521,10 @@ export class TobiiRowParser extends RowParser {
         if (canHaveEvents) this.handleEventRow(evtBytes)
       }
     } else if (config.stimulusStartSuffix || config.stimulusEndSuffix) {
+      // Interval-stimulus mode is the one mode whose segment validity is only
+      // knowable at finalize (markers must pair). Gate its segments so invalid
+      // groups never reach the dataset.
+      this.gatingEnabled = true
       const interval = this.constructIntervalStimulusUpdaterBinary(config)
       this.stimulusUpdater = (): void => {
         const evtBytes = this.getBytes(this.pEvent)
@@ -559,8 +587,8 @@ export class TobiiRowParser extends RowParser {
       group = {
         starts: [],
         ends: [],
-        stimulusBytes: rawStimBytes.slice(),
-        participantBytes: this.joinParticipantBytes(
+        stimulusName: this.eventTextDecoder.decode(rawStimBytes),
+        participantName: this.decodeParticipantName(
           recordingBytes,
           participantBytes
         ),
@@ -789,38 +817,64 @@ export class TobiiRowParser extends RowParser {
   finalize(): void {
     this.finalizeSegments()
     this.flushEvents()
-    // Runs last: segments are all in the sink, so dropping an invalid group
-    // retracts exactly what was emitted for it.
-    this.excludeMalformedIntervals()
+    // After finalizeSegments so the last open interval's segment is gated too,
+    // then commit the clean groups and drop the rest.
+    this.resolveIntervalGroups()
+  }
+
+  /**
+   * Open the (stimulus, participant) bucket these EXACT emission bytes land in
+   * as PROVISIONAL, once per group. Called from the segment-creation helpers in
+   * interval mode just before `emitSegment`, so the bucket the writer interns is
+   * the one `resolveIntervalGroups` later commits or drops — no byte re-matching.
+   */
+  private gateGroup(
+    groupKey: bigint,
+    stimulusBytes: Uint8Array,
+    participantBytes: Uint8Array
+  ): void {
+    if (!this.gatingEnabled || !this.onBeginProvisionalGroup) return
+    if (this.gatedGroups.has(groupKey)) return
+    this.gatedGroups.set(
+      groupKey,
+      this.onBeginProvisionalGroup(stimulusBytes, participantBytes)
+    )
   }
 
   /**
    * Validate every interval-stimulus marker stream per participant with the
-   * shared strict-alternation rule. A group with any malformed sequence
-   * (double-start, orphan-end, unclosed-start) has an undefined temporal
-   * extent for that participant, so its data is scientifically invalid: report
-   * each problem and drop the (stimulus, participant) segments entirely. Clean
-   * groups are untouched (the live stack already paired them correctly).
+   * shared strict-alternation rule, then resolve every gated group:
+   *  - a group whose markers pair cleanly is COMMITTED (its segments survive);
+   *  - every other gated group is DROPPED — that covers groups with a malformed
+   *    sequence (double-start, orphan-end, unclosed-start) AND gated buckets
+   *    with no clean marker group at all (gaze a stale interval from another
+   *    recording bled onto). Safe-by-default: only confirmed-valid data is kept.
+   * Each malformed marker group also records a persisted exclusion notice.
    */
-  private excludeMalformedIntervals(): void {
-    if (this.intervalMarkers.size === 0 || !this.onExcludeSegmentGroup) return
+  private resolveIntervalGroups(): void {
+    if (!this.gatingEnabled) return
 
-    for (const group of this.intervalMarkers.values()) {
+    // (gaze-side) group keys whose interval markers pair cleanly.
+    const validKeys = new Set<bigint>()
+    for (const [groupKey, group] of this.intervalMarkers) {
       const starts = group.starts.slice().sort((a, b) => a - b)
       const ends = group.ends.slice().sort((a, b) => a - b)
       const { errors } = pairIntervalTimes(starts, ends)
-      if (errors.length === 0) continue
-
+      if (errors.length === 0) {
+        validKeys.add(groupKey)
+        continue
+      }
       // micros → seconds of recording time, for human-readable provenance.
       const issues = errors.map(e => ({
         kind: e.kind,
         timeSeconds: e.time * TIME_MODIFIER * 0.001,
       }))
-      this.onExcludeSegmentGroup(
-        group.stimulusBytes,
-        group.participantBytes,
-        issues
-      )
+      this.onRecordExclusion?.(group.stimulusName, group.participantName, issues)
+    }
+
+    for (const [groupKey, handle] of this.gatedGroups) {
+      if (validKeys.has(groupKey)) this.onCommitProvisionalGroup?.(handle)
+      else this.onDropProvisionalGroup?.(handle)
     }
   }
 
@@ -1040,6 +1094,8 @@ export class TobiiRowParser extends RowParser {
         this.mSegmentSpatialX !== null && this.mSegmentSpatialY !== null
           ? { x: this.mSegmentSpatialX, y: this.mSegmentSpatialY }
           : null
+      // Reuse the composite key already computed for baseTime above.
+      this.gateGroup(key, stimulusBytes, this.mParticipantBytes)
       this.emitSegment(
         start,
         end,
@@ -1068,6 +1124,10 @@ export class TobiiRowParser extends RowParser {
       this.mSegmentSpatialX !== null && this.mSegmentSpatialY !== null
         ? { x: this.mSegmentSpatialX, y: this.mSegmentSpatialY }
         : null
+    // In interval mode an interval can close before its last segment is flushed,
+    // routing it here; gate it too so a malformed group's tail can't slip through
+    // ungated. No-op in media/base mode (gatingEnabled is false there).
+    this.gateGroup(key, this.mStimulusBytes, this.mParticipantBytes)
     this.emitSegment(
       start,
       end,
@@ -1199,6 +1259,20 @@ export class TobiiRowParser extends RowParser {
         const recordingKey = this.makeKey(recordingBytes)
         const participantKey = this.makeKey(participantBytes)
         const tsNum = this.getRecordingTimestampMicros()
+        // Abandon any still-open intervals left by a previous recording/
+        // participant block before opening this one, so a reused interval name
+        // opens fresh (gets its IntervalStart base time) instead of being a
+        // no-op against the stale entry. Integer compare only (no bigint).
+        if (
+          this.intervalStack.size > 0 &&
+          (this.openIntervalsRecKey !== recordingKey ||
+            this.openIntervalsPartKey !== participantKey)
+        ) {
+          this.intervalStack.clear()
+          this.updateCachedStimulusStackBinary()
+        }
+        this.openIntervalsRecKey = recordingKey
+        this.openIntervalsPartKey = participantKey
         this.recordIntervalMarker(
           rawStimBytes,
           stimKey,

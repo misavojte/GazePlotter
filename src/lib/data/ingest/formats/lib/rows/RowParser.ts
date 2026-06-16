@@ -38,16 +38,28 @@ export abstract class RowParser {
   onWarning: ((message: string) => void) | null = null
 
   /**
-   * Drop every already-emitted segment for one (stimulus, participant) group
-   * and record WHY. Called at finalize when a parser determines a group's data
-   * is invalid (e.g. a stimulus whose interval markers don't pair for that
-   * participant). The bytes must match those passed to `onSegment`; `issues`
-   * is persisted as dataset metadata for user-facing feedback.
+   * Open a (stimulus, participant) group as provisional and get a stable handle.
+   * Segments written under these byte keys are held back until the group is
+   * committed; an uncommitted group is dropped. A gating parser (Tobii interval
+   * mode) opens every interval group it emits, then commits only the validated
+   * ones — so invalid data is never released to the writer. The keys must match
+   * those passed to `onSegment`.
    */
-  onExcludeSegmentGroup:
+  onBeginProvisionalGroup:
+    | ((stimulus: Uint8Array, participant: Uint8Array) => number)
+    | null = null
+  /** Confirm a provisional group valid (by the handle `onBeginProvisionalGroup` returned). */
+  onCommitProvisionalGroup: ((handle: number) => void) | null = null
+  /** Reject a provisional group: its segments are discarded. */
+  onDropProvisionalGroup: ((handle: number) => void) | null = null
+  /**
+   * Record a persisted exclusion notice (decoded names + the pairing `issues`),
+   * surfaced to the user after import. Independent of dropping.
+   */
+  onRecordExclusion:
     | ((
-        stimulus: Uint8Array,
-        participant: Uint8Array,
+        stimulus: string,
+        participant: string,
         issues: DatasetExclusionIssue[]
       ) => void)
     | null = null

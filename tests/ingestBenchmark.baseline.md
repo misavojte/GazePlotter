@@ -31,6 +31,16 @@ implementation with a separate per-row event updater measured +8% and was
 rejected. getBytes now returns a shared EMPTY_BYTES (allocation removed
 from the per-row path).
 
+Paired run for provisional-group gating (B3, 2026-06-16, macOS, vitest
+4.1.5): interval-stimulus segments are now gated PROVISIONAL at emission and
+only committed if their markers validate, replacing post-hoc `excludeGroup`.
+pre 18.84 ms vs post 18.81 ms on tobii (mean −0.2%, min 17.62 → 17.79 ms,
++1.0% — within budget); csv path untouched (97.97 → 97.37 ms min). The gate
+is one `Map.has` per emitted SEGMENT (not per row, in `createSegmentsFor-
+Intervals`), reusing the composite key already computed for the base-time
+lookup; the per-row hot path is unchanged. A first noisy sample showed a
+188 ms GC outlier — discarded; the clean re-run (rme ±0.65%) is the figure.
+
 Workloads are defined in `tests/ingestPipeline.bench.ts`:
 - **csv**: synthetic 4 stimuli × 25 participants × 1200 rows, generic
   compiled row parser + byte dictionaries.

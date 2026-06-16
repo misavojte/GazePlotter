@@ -65,15 +65,21 @@ const gaze = (
 
 /** Drive a parse through the real DatasetBuilder so exclusions drop segments,
  *  events, and orphaned AOIs, and accrue the persisted `dataExclusions`. */
+function wire(parser: TobiiRowParser, sink: DatasetBuilder): void {
+  parser.onSegment = sink.addSegmentBytes
+  parser.onEvent = e => sink.addEvent(e)
+  parser.onBeginProvisionalGroup = (s, p) => sink.beginProvisionalGroup(s, p)
+  parser.onCommitProvisionalGroup = h => sink.commitProvisionalGroup(h)
+  parser.onDropProvisionalGroup = h => sink.dropProvisionalGroup(h)
+  parser.onRecordExclusion = (s, p, issues) => sink.recordExclusion(s, p, issues)
+  parser.onWarning = m => sink.addWarning(m)
+}
+
 function run(rows: string[]) {
   const parser = new TobiiRowParser(HEADER, CONFIG, '\t')
   const sink = new DatasetBuilder()
   sink.beginFile(SETTINGS)
-  parser.onSegment = sink.addSegmentBytes
-  parser.onEvent = e => sink.addEvent(e)
-  parser.onExcludeSegmentGroup = (s, p, issues) =>
-    sink.excludeSegmentGroup(s, p, issues)
-  parser.onWarning = m => sink.addWarning(m)
+  wire(parser, sink)
   processAdapterRows(parser, rows, { finalize: true })
 
   const data = sink.buildFinalData()
@@ -113,12 +119,26 @@ function run(rows: string[]) {
     })
     return [...out]
   }
+  const segmentExtents = (
+    stimulus: string,
+    participant: string
+  ): Array<[number, number]> => {
+    const s = sIdx.get(stimulus)
+    const p = pIdx.get(participant)
+    if (s === undefined || p === undefined) return []
+    const out: Array<[number, number]> = []
+    reader.forEachSegment(s, p, i => {
+      out.push([reader.getSegmentStart(i), reader.getSegmentEnd(i)])
+    })
+    return out
+  }
   return {
     exclusions: data.dataExclusions ?? [],
     segmentCount,
     eventCount,
     aoiNames,
     aoisOf,
+    segmentExtents,
   }
 }
 
@@ -230,5 +250,105 @@ describe('TobiiRowParser — interval-stimulus marker validation', () => {
     expect(segmentCount('I', 'Rb Pb')).toBeGreaterThan(0)
     expect(aoisOf('I', 'Ra Pa')).toEqual(['X'])
     expect(aoisOf('I', 'Rb Pb')).toEqual(['Y'])
+  })
+
+  it('excludes an unclosed outer interval while keeping its cleanly-closed inner one', () => {
+    const { exclusions, segmentCount } = run([
+      evt(1000, 'Out-0', 'Pa', 'Ra'),
+      evt(1500, 'In-0', 'Pa', 'Ra'), // nested inside Out
+      gaze(2000, 1, 'Pa', 'Ra'),
+      evt(2500, 'In-1', 'Pa', 'Ra'), // In closes cleanly
+      gaze(3000, 2, 'Pa', 'Ra'),
+      // Out never closes
+    ])
+    expect(segmentCount('In', 'Ra Pa')).toBeGreaterThan(0)
+    expect(segmentCount('Out', 'Ra Pa')).toBe(0)
+    expect(exclusions).toHaveLength(1)
+    expect(exclusions[0].stimulus).toBe('Out')
+    expect(exclusions[0].issues.map(i => i.kind)).toContain('unclosed-start')
+  })
+
+  it('does not let an unclosed interval bleed its extent onto a later participant', () => {
+    // Pa opens interval Z and never closes it; the parser's interval stack is
+    // shared, so Pb's gaze (Pb never opened Z) would otherwise be attributed to
+    // Z and run the length of Pb's recording. Pb's Z group has no markers to
+    // validate, so it must be dropped — only confirmed-valid data survives.
+    const { exclusions, segmentCount } = run([
+      evt(1000, 'Z-0', 'Pa', 'Ra'),
+      gaze(2000, 1, 'Pa', 'Ra'),
+      // Pb: gaze only, no Z markers.
+      gaze(9000, 1, 'Pb', 'Rb'),
+      gaze(9100, 1, 'Pb', 'Rb'),
+    ])
+    expect(segmentCount('Z', 'Ra Pa')).toBe(0) // Pa's Z is unclosed
+    expect(segmentCount('Z', 'Rb Pb')).toBe(0) // Pb never opened Z — no bleed
+    expect(exclusions).toHaveLength(1)
+    expect(exclusions[0].stimulus).toBe('Z')
+    expect(exclusions[0].participant).toBe('Ra Pa')
+    expect(exclusions[0].issues.map(i => i.kind)).toContain('unclosed-start')
+  })
+
+  it('bases a reused interval at its own start, even after a prior participant left it unclosed', () => {
+    // Pb reuses interval name W. Whether or not Pa left W unclosed, Pb's W must
+    // be based at Pb's IntervalStart marker (1_000_000), not at Pb's first gaze
+    // (1_010_000) — i.e. a stale open interval from Pa must not steal Pb's open
+    // slot and skip the start-time correction. The two runs must be identical.
+    const pbBlock = [
+      evt(1_000_000, 'W-0', 'Pb', 'Rb'),
+      gaze(1_010_000, 1, 'Pb', 'Rb'),
+      gaze(1_026_700, 1, 'Pb', 'Rb'),
+      gaze(1_043_400, 1, 'Pb', 'Rb'),
+      evt(1_100_000, 'W-1', 'Pb', 'Rb'),
+    ]
+    const clean = run([
+      evt(100_000, 'W-0', 'Pa', 'Ra'),
+      gaze(110_000, 1, 'Pa', 'Ra'),
+      evt(200_000, 'W-1', 'Pa', 'Ra'), // Pa closes W
+      ...pbBlock,
+    ])
+    const stale = run([
+      evt(100_000, 'W-0', 'Pa', 'Ra'),
+      gaze(110_000, 1, 'Pa', 'Ra'),
+      // Pa never closes W
+      ...pbBlock,
+    ])
+    const cleanPb = clean.segmentExtents('W', 'Rb Pb')
+    const stalePb = stale.segmentExtents('W', 'Rb Pb')
+    expect(cleanPb.length).toBeGreaterThan(0)
+    expect(stalePb).toEqual(cleanPb) // prior unclosed W must not shift Pb's timing
+    expect(stalePb[0][0]).toBe(0) // first segment starts at the interval origin
+  })
+
+  it('a later file may validly fill a group a previous file dropped as invalid', () => {
+    // Two Tobii files in one upload share the sink. File 1's (A, R1 P1) is
+    // unclosed (dropped); File 2 supplies a clean (A, R1 P1). The valid data
+    // must survive and File 1's exclusion notice must persist.
+    const sink = new DatasetBuilder()
+
+    const p1 = new TobiiRowParser(HEADER, CONFIG, '\t')
+    sink.beginFile(SETTINGS)
+    wire(p1, sink)
+    processAdapterRows(p1, [evt(1000, 'A-0'), gaze(2000, 1)], { finalize: true })
+
+    const p2 = new TobiiRowParser(HEADER, CONFIG, '\t')
+    sink.beginFile(SETTINGS)
+    wire(p2, sink)
+    processAdapterRows(p2, [evt(1000, 'A-0'), gaze(2000, 1), evt(3000, 'A-1')], {
+      finalize: true,
+    })
+
+    const data = sink.buildFinalData()
+    const reader = new BinaryBufferReader(data.segments)
+    const s = data.stimuli.data.findIndex(r => r[0] === 'A')
+    const p = data.participants.data.findIndex(r => r[0] === 'R1 P1')
+    let count = 0
+    reader.forEachSegment(s, p, () => {
+      count++
+    })
+    expect(count).toBeGreaterThan(0) // File 2's valid data survives
+    expect(data.dataExclusions ?? []).toHaveLength(1) // File 1's notice persists
+    expect(data.dataExclusions?.[0].issues.map(i => i.kind)).toContain(
+      'unclosed-start'
+    )
   })
 })

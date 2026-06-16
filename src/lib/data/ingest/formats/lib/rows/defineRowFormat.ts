@@ -93,8 +93,13 @@ async function readRows(
       parser.onSegment = sink.addSegmentBytes
       parser.onEvent = event => sink.addEvent(event)
       parser.onWarning = message => sink.addWarning(message)
-      parser.onExcludeSegmentGroup = (stimulus, participant, issues) =>
-        sink.excludeSegmentGroup(stimulus, participant, issues)
+      parser.onBeginProvisionalGroup = (stimulus, participant) =>
+        sink.beginProvisionalGroup(stimulus, participant)
+      parser.onCommitProvisionalGroup = handle =>
+        sink.commitProvisionalGroup(handle)
+      parser.onDropProvisionalGroup = handle => sink.dropProvisionalGroup(handle)
+      parser.onRecordExclusion = (stimulus, participant, issues) =>
+        sink.recordExclusion(stimulus, participant, issues)
       state.parser = parser
       rowIndex++
       return

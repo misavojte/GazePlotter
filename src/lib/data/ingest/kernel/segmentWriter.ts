@@ -10,6 +10,11 @@ import {
   encodeString,
 } from '$lib/data/ingest/utils/byteUtils'
 
+/** Bucket lifecycle states. See `SegmentBucket.state`. */
+const BUCKET_AUTO = 0
+const BUCKET_PROVISIONAL = 1
+const BUCKET_COMMITTED = 2
+
 /**
  * OPTIMIZED BUCKET
  * Uses Flat Buffers for EVERYTHING. Zero object allocation per row.
@@ -33,6 +38,14 @@ class SegmentBucket {
 
   count = 0
   aoiTotalCount = 0 // Pointer for aoiBuffer
+
+  // Group lifecycle. AUTO (0): materialized if count > 0 — the default, so
+  // non-gating formats need no calls. PROVISIONAL (1): a gating format opened
+  // this group; skipped by buildFinalData unless committed. COMMITTED (2):
+  // confirmed valid, materialized like AUTO. See SegmentWriter.beginProvisionalGroup.
+  state: 0 | 1 | 2 = 0
+  // Index into SegmentWriter.provisional while PROVISIONAL; -1 otherwise.
+  handle = -1
 
   constructor(initialCapacity = 2000) {
     this.data = new Float64Array(initialCapacity * 3)
@@ -200,6 +213,11 @@ export class SegmentWriter {
   private totalSegments = 0
   private totalAoiHits = 0
 
+  // Provisional groups in handle order: provisional[handle] is the bucket a
+  // gating format opened and must commit to keep. Only ever appended to and
+  // indexed; never per-row.
+  private provisional: SegmentBucket[] = []
+
   private encoding: TextEncoding = 'utf-8'
   private decoder: TextDecoder = new TextDecoder('utf-8')
 
@@ -265,21 +283,67 @@ export class SegmentWriter {
   }
 
   /**
-   * Retract every segment for one (stimulus, participant) group, addressed by
-   * the same byte keys `addSegmentBytes` used. `buildFinalData` skips
-   * zero-count buckets, so the group drops out of the dataset entirely (the
-   * stimulus and participant themselves remain for their other groups).
-   * `totalSegments`/`totalAoiHits` are left as upper bounds — the final
-   * buffers are sized from them and trimmed to the actually-written length, so
-   * over-allocation is harmless. No-op if the group never produced segments.
+   * Mark the (stimulus, participant) group PROVISIONAL and return a stable
+   * handle. A gating format calls this for the EXACT byte keys it emits segments
+   * under, so the handle addresses the same bucket those segments land in — no
+   * re-matching at finalize. Provisional buckets are dropped by `buildFinalData`
+   * unless `commitProvisionalGroup` confirms them (safe-by-default: an
+   * unconfirmed group never reaches the dataset). Interns the keys via the same
+   * path `addSegmentBytes` uses, so it works whether called before or after the
+   * group's first segment. Idempotent: re-marking returns the existing handle.
+   * COLD PATH — once per gated group, never per row.
    */
-  excludeGroup(stimulus: Uint8Array, participant: Uint8Array): void {
-    const sIdx = this.stimuli.findId(stimulus)
-    if (sIdx === -1) return
-    const pIdx = this.participants.findId(participant)
-    if (pIdx === -1) return
-    const bucket = this.buckets[sIdx]?.[pIdx]
-    if (bucket) bucket.count = 0
+  beginProvisionalGroup(stimulus: Uint8Array, participant: Uint8Array): number {
+    const sIdx = this.getOrAddBytes(
+      this.stimuli,
+      stimulus,
+      this.stimuliBytes,
+      true
+    )
+    const pIdx = this.getOrAddBytes(
+      this.participants,
+      participant,
+      this.participantBytes
+    )
+    if (!this.buckets[sIdx]) this.buckets[sIdx] = []
+    let bucket = this.buckets[sIdx][pIdx]
+    if (!bucket) {
+      bucket = new SegmentBucket()
+      this.buckets[sIdx][pIdx] = bucket
+    }
+    if (bucket.state === BUCKET_PROVISIONAL) return bucket.handle
+    // Never demote a committed group back to provisional.
+    if (bucket.state === BUCKET_AUTO) {
+      bucket.state = BUCKET_PROVISIONAL
+      bucket.handle = this.provisional.length
+      this.provisional.push(bucket)
+    }
+    return bucket.handle
+  }
+
+  /** Confirm a provisional group valid — it will be materialized. O(1). */
+  commitProvisionalGroup(handle: number): void {
+    const bucket = this.provisional[handle]
+    if (bucket && bucket.state === BUCKET_PROVISIONAL) {
+      bucket.state = BUCKET_COMMITTED
+    }
+  }
+
+  /**
+   * Reject a provisional group: zero its segments and return it to AUTO so a
+   * later file writing the same (stimulus, participant) starts clean.
+   * `totalSegments`/`totalAoiHits` are left as upper bounds — final buffers are
+   * sized from them and trimmed to the written length, so over-allocation is
+   * harmless. Any AOI a dropped segment registered is removed by the orphan-AOI
+   * prune in `buildFinalData`.
+   */
+  dropProvisionalGroup(handle: number): void {
+    const bucket = this.provisional[handle]
+    if (bucket && bucket.state === BUCKET_PROVISIONAL) {
+      bucket.count = 0
+      bucket.state = BUCKET_AUTO
+      bucket.handle = -1
+    }
   }
 
   add(row: SegmentRow): void {
@@ -358,7 +422,10 @@ export class SegmentWriter {
 
       for (let p = 0; p < maxParticipants; p++) {
         const bucket = pBuckets[p]
-        if (!bucket || bucket.count === 0) continue
+        // Skip empty buckets and PROVISIONAL groups never committed — the
+        // safe-by-default drop: an unconfirmed gated group is not materialized.
+        if (!bucket || bucket.count === 0 || bucket.state === BUCKET_PROVISIONAL)
+          continue
 
         const tableIdx = (s * maxParticipants + p) * 2
         indexTable[tableIdx] = segPtr
@@ -451,10 +518,11 @@ export class SegmentWriter {
     }
 
     // Prune AOIs no surviving segment references. A name registers in a
-    // stimulus's AOI list the moment any segment hits it, but segments can be
-    // dropped afterwards (excludeGroup), leaving names that no remaining
-    // segment points at. Keep only AOIs actually referenced in each stimulus's
-    // pool range and remap the pool ids to the compacted (original-order) list.
+    // stimulus's AOI list the moment any segment hits it (in addSegmentBytes,
+    // before validity is known), but a never-committed provisional group is
+    // skipped above, leaving names that no remaining segment points at. Keep
+    // only AOIs actually referenced in each stimulus's pool range and remap the
+    // pool ids to the compacted (original-order) list.
     const prunedAoisPerStimulus: Uint8Array[][] = []
     for (let s = 0; s < maxStimuli; s++) {
       const fullList = this.aoisPerStimulus[s] ?? []
