@@ -7,9 +7,9 @@ The workspace is your analysis area. It holds multiple plots at once, arranged o
 Uploading data creates four plots automatically:
 
 - **[Scarf Plot](/docs/visualizations/scarf-plot/)** — gaze sequences over time.
-- **[AOI Metrics](/docs/visualizations/aoi-metrics/)** — bar charts of per-AOI metrics.
+- **[AOI Comparison](/docs/visualizations/aoi-comparison/)** — bar charts of per-AOI metrics.
 - **[Transition Matrix](/docs/visualizations/transition-matrix/)** — heat map of gaze transitions between AOIs.
-- **[Time-binned AOI Occupancy](/docs/visualizations/aoi-occupancy/)** — attention distribution over time.
+- **[AOI Timeline](/docs/visualizations/aoi-timeline/)** — attention distribution over time.
 
 ## Workspace toolbar
 
@@ -20,7 +20,7 @@ The workspace has two control areas:
 
 ### Adding Visualizations
 
-**Add Visualization** opens a menu to add any plot type: Scarf Plot, AOI Metrics, Transition Matrix, Time-binned AOI Occupancy, [Recurrence Plot](/docs/visualizations/recurrence-plot/), [Scanpath Plot](/docs/visualizations/scanpath/), [Scanpath Similarity](/docs/visualizations/scanpath-similarity/), [Evolving Metrics](/docs/visualizations/evolving-metrics/), and [Metric Correlation](/docs/visualizations/metric-correlation/). New plots are placed in the first free space on the grid.
+**Add Visualization** opens a menu to add any plot type: Scarf Plot, AOI Comparison, Transition Matrix, AOI Timeline, [Recurrence Plot](/docs/visualizations/recurrence-plot/), [Scanpath](/docs/visualizations/scanpath/), [Scanpath Similarity](/docs/visualizations/scanpath-similarity/), [Metric Timeline](/docs/visualizations/metric-timeline/), and [Metric Correlation](/docs/visualizations/metric-correlation/). New plots are placed in the first free space on the grid.
 
 ## Plot Manipulation
 

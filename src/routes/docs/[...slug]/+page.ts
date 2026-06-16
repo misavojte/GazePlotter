@@ -11,10 +11,8 @@ const REDIRECTS: Record<string, string> = {
   'basic/groups': '/docs/setup/participant-groups',
   'basic/participants-customization': '/docs/setup/participant-library',
   'basic/stimuli-customization': '/docs/setup/stimuli-library',
-  'basic/bar-plot': '/docs/visualizations/aoi-metrics',
   'basic/scarf-plot': '/docs/visualizations/scarf-plot',
   'basic/transition-matrix': '/docs/visualizations/transition-matrix',
-  'basic/aoi-occupancy': '/docs/visualizations/aoi-occupancy',
   'basic/recurrence-plot': '/docs/visualizations/recurrence-plot'
 }
 

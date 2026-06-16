@@ -208,22 +208,73 @@ function buildFixedGridMatrix(
   }
 }
 
-function buildAoiMatrix(
+/**
+ * Two fixations recur in AOI mode when they share at least one AOI. Testing
+ * that with `aoiIds.some(a => other.includes(a))` is a nested scan inside the
+ * O(N^2) pair loop and dominates the build on long scanpaths (~69 ms at
+ * N=1000). Instead encode each fixation's membership as a bitmask -- one bit
+ * per AOI id -- so the shared test collapses to a single bitwise AND. Mapped
+ * AOI ids are small non-negative indices into the stimulus AOI list; ids beyond
+ * 31 spill into additional 32-bit words, so any AOI count is handled, with a
+ * tight single-word fast path for the common case (<= 32 AOIs).
+ */
+export function buildAoiMatrix(
   fixations: FixationRecord[],
   matrix: Uint8Array,
   N: number
 ): void {
-  for (let i = 0; i < N; i++) {
-    matrix[i * N + i] = 1
-    if (fixations[i].aoiIds.length === 0) continue
+  // The diagonal always recurs, independent of AOI membership.
+  for (let i = 0; i < N; i++) matrix[i * N + i] = 1
 
+  let maxId = -1
+  for (let i = 0; i < N; i++) {
+    const ids = fixations[i].aoiIds
+    for (let k = 0; k < ids.length; k++) {
+      if (ids[k] > maxId) maxId = ids[k]
+    }
+  }
+  if (maxId < 0) return // no AOIs anywhere -> only the diagonal recurs
+
+  const words = (maxId >> 5) + 1 // 32-bit words needed to hold ids 0..maxId
+  const masks = new Int32Array(N * words)
+  for (let i = 0; i < N; i++) {
+    const ids = fixations[i].aoiIds
+    const base = i * words
+    for (let k = 0; k < ids.length; k++) {
+      const id = ids[k]
+      masks[base + (id >> 5)] |= 1 << (id & 31)
+    }
+  }
+
+  if (words === 1) {
+    // Fast path: every fixation's membership fits in one 32-bit word.
+    for (let i = 0; i < N; i++) {
+      const mi = masks[i]
+      if (mi === 0) continue // a fixation with no AOIs never shares
+      const rowOffset = i * N
+      for (let j = i + 1; j < N; j++) {
+        if ((mi & masks[j]) !== 0) {
+          matrix[rowOffset + j] = 1
+          matrix[j * N + i] = 1
+        }
+      }
+    }
+    return
+  }
+
+  // General path: AOI ids span multiple 32-bit words.
+  for (let i = 0; i < N; i++) {
+    const baseI = i * words
     const rowOffset = i * N
     for (let j = i + 1; j < N; j++) {
-      if (fixations[j].aoiIds.length === 0) continue
-
-      // Check if any AOI is shared
-      const shared = fixations[i].aoiIds.some(aoi => fixations[j].aoiIds.includes(aoi))
-
+      const baseJ = j * words
+      let shared = false
+      for (let w = 0; w < words; w++) {
+        if ((masks[baseI + w] & masks[baseJ + w]) !== 0) {
+          shared = true
+          break
+        }
+      }
       if (shared) {
         matrix[rowOffset + j] = 1
         matrix[j * N + i] = 1

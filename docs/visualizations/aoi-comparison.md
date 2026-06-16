@@ -1,8 +1,8 @@
-# AOI Metrics
+# AOI Comparison
 
-AOI Metrics in GazePlotter provides quantitative analysis of eye-tracking data through bar charts. It aggregates gaze metrics across Areas of Interest (AOIs) for statistical comparison and analysis.
+AOI Comparison in GazePlotter provides quantitative analysis of eye-tracking data through bar charts. It aggregates gaze metrics across Areas of Interest (AOIs) for statistical comparison and analysis.
 
-![AOI Metrics showing aggregated AOI metrics for a selected stimulus.](/docs/images/eyetracking-bar-plot-gazeplotter.jpg)
+![AOI Comparison showing aggregated AOI metrics for a selected stimulus.](/docs/images/eyetracking-bar-plot-gazeplotter.jpg)
 
 > Interested on how to operate with plots in general within the workspace? See:
 >
@@ -14,7 +14,7 @@ AOI Metrics in GazePlotter provides quantitative analysis of eye-tracking data t
 
 ## Metric Contract
 
-To render an AOI Metrics plot, GazePlotter queries the workspace's metric library. This visualization requires a metric configuration that satisfies the following contract:
+To render an AOI Comparison plot, GazePlotter queries the workspace's metric library. This visualization requires a metric configuration that satisfies the following contract:
 
 - **Output Shape**: `aoi-vector` (computes a value or distribution for each Area of Interest individually).
 - **Windowing**: `forbidden` (calculated across the selected time range as a single aggregate).
@@ -23,7 +23,7 @@ To render an AOI Metrics plot, GazePlotter queries the workspace's metric librar
 
 ## Configuration via Settings Pane
 
-Clicking the AOI Metrics plot card in the workspace selects the plot and opens its configuration options in the sidebar **Settings Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
+Clicking the AOI Comparison plot card in the workspace selects the plot and opens its configuration options in the sidebar **Settings Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
 
 ### Stimulus
 Choose the stimulus to analyze. Each stimulus contains its own set of Areas of Interest (AOIs) which will be displayed as bars in the chart.
@@ -82,7 +82,7 @@ Located at the bottom of the Settings Pane:
 
 ## Interpretation
 
-Use AOI Metrics to:
+Use AOI Comparison to:
 - **Compare AOI performance**: Identify which areas attract most/least attention.
 - **Quantify differences**: Obtain precise measurements rather than visual estimates.
 - **Perform group comparisons**: Analyze how different participant groups behave comparative to each other.

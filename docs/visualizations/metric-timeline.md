@@ -1,6 +1,6 @@
-# Evolving Metrics
+# Metric Timeline
 
-Evolving Metrics in GazePlotter provides a temporal visualization of how eye-tracking metrics evolve across a stimulus timeline. By calculating scalar metrics within moving temporal windows, this plot shows trends, patterns, and fluctuations in visual attention and processing load over time, rendered either as a color-coded heatmap grid or a multi-line line chart overlay.
+Metric Timeline in GazePlotter provides a temporal visualization of how eye-tracking metrics evolve across a stimulus timeline. By calculating scalar metrics within moving temporal windows, this plot shows trends, patterns, and fluctuations in visual attention and processing load over time, rendered either as a color-coded heatmap grid or a multi-line line chart overlay.
 
 > Interested on how to operate with plots in general within the workspace? See:
 >
@@ -12,7 +12,7 @@ Evolving Metrics in GazePlotter provides a temporal visualization of how eye-tra
 
 ## Metric Contract
 
-To render an Evolving Metrics plot, GazePlotter queries the workspace's metric library. This visualization requires a metric configuration that satisfies the following contract:
+To render an Metric Timeline plot, GazePlotter queries the workspace's metric library. This visualization requires a metric configuration that satisfies the following contract:
 
 - **Output Shape**: `scalar` (computes a single numerical value per temporal window).
 - **Windowing**: `required` (must specify a window/bin size and step size to trace the metric value sequentially over the timeline).
@@ -21,7 +21,7 @@ To render an Evolving Metrics plot, GazePlotter queries the workspace's metric l
 
 ## Configuration via Settings Pane
 
-Clicking the Evolving Metrics plot card in the workspace selects the plot and opens its configuration options in the sidebar **Settings Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
+Clicking the Metric Timeline plot card in the workspace selects the plot and opens its configuration options in the sidebar **Settings Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
 
 ### Stimulus
 Choose the stimulus to analyze. Gaze data will be filtered and binned along this stimulus's recorded timeline.
@@ -67,7 +67,7 @@ Located at the bottom of the Settings Pane:
 
 ## Interpretation
 
-Use Evolving Metrics to:
+Use Metric Timeline to:
 - **Track cognitive processing load**: An increase in average fixation duration over a timeline segment can indicate areas of high visual complexity or cognitive load.
 - **Observe search trends**: Track when participants are scanning rapidly (low fixation duration, high count) vs. processing deeply (high fixation duration).
 - **Compare group responses**: Overlay trend lines for custom groups to see if different demographics exhibit distinct temporal patterns during stimulus presentation.

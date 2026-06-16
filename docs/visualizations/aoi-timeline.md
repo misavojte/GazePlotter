@@ -1,6 +1,6 @@
-# Time-binned AOI Occupancy
+# AOI Timeline
 
-Time-binned AOI Occupancy in GazePlotter provides a continuous visualization of how visual attention is distributed across Areas of Interest (AOIs) over time. By segmenting the timeline into discrete bins, this plot reveals the dynamic flow and density of participants' gaze, making it easier to identify peak attention periods and shifts between AOIs.
+AOI Timeline in GazePlotter provides a continuous visualization of how visual attention is distributed across Areas of Interest (AOIs) over time. By segmenting the timeline into discrete bins, this plot reveals the dynamic flow and density of participants' gaze, making it easier to identify peak attention periods and shifts between AOIs.
 
 <!-- ![](/docs/images/eyetracking-aoi-stream-gazeplotter.jpg) -->
 
@@ -14,7 +14,7 @@ Time-binned AOI Occupancy in GazePlotter provides a continuous visualization of 
 
 ## Metric Contract
 
-To render a Time-binned AOI Occupancy plot, GazePlotter queries the workspace's metric library. This visualization requires a metric configuration that satisfies the following contract:
+To render a AOI Timeline plot, GazePlotter queries the workspace's metric library. This visualization requires a metric configuration that satisfies the following contract:
 
 - **Output Shape**: `aoi-vector` (computes a value or distribution for each Area of Interest individually).
 - **Windowing**: `required` (must specify a window/bin size and step size to calculate the time course of attention).
@@ -23,7 +23,7 @@ To render a Time-binned AOI Occupancy plot, GazePlotter queries the workspace's 
 
 ## Configuration via Settings Pane
 
-Clicking the Time-binned AOI Occupancy plot card in the workspace selects the plot and opens its configuration options in the sidebar **Settings Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
+Clicking the AOI Timeline plot card in the workspace selects the plot and opens its configuration options in the sidebar **Settings Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
 
 ### Stimulus
 Choose the stimulus to analyze. Each stimulus contains its own set of Areas of Interest (AOIs) which will be displayed in the occupancy plot.
@@ -75,7 +75,7 @@ Located at the bottom of the Settings Pane:
 
 ## Interpretation
 
-Use Time-binned AOI Occupancy to:
+Use AOI Timeline to:
 - **Analyze attention shifts**: Observe when participants collectively move their gaze from one AOI to another.
 - **Identify peak engagement**: Pinpoint the exact moments when specific features receive maximum visual attention.
 - **Compare group synchrony**: Assess whether different participant groups exhibit distinct or synchronized gaze behaviors over time.

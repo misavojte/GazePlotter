@@ -161,8 +161,8 @@ export const SIDEBAR: readonly SidebarItem[] = [
         description: 'Timeline visualization mapping gaze sequences over time. Overlays time-coded events, highlights specific categories, and compares participant rows.'
       },
       {
-        name: 'AOI Metrics',
-        href: '/docs/visualizations/aoi-metrics',
+        name: 'AOI Comparison',
+        href: '/docs/visualizations/aoi-comparison',
         description: 'Generate comparative bar charts of dwell times, fixation counts, and latencies across Areas of Interest, filtered by custom participant groups.'
       },
       {
@@ -171,8 +171,8 @@ export const SIDEBAR: readonly SidebarItem[] = [
         description: 'Model visual search paths with probability matrices. Visualizes gaze shift frequencies and Markov transition rates between Areas of Interest.'
       },
       {
-        name: 'AOI Occupancy Plot',
-        href: '/docs/visualizations/aoi-occupancy',
+        name: 'AOI Timeline',
+        href: '/docs/visualizations/aoi-timeline',
         description: 'Trace temporal attention trends with stacked distributions, ridgelines, and heatmaps showing participant gaze distribution across AOIs over time.'
       },
       {
@@ -181,7 +181,7 @@ export const SIDEBAR: readonly SidebarItem[] = [
         description: 'N×N recurrence matrices mapping temporal self-similarity in individual scanpaths. Reveals repeating visual check patterns and search loops.'
       },
       {
-        name: 'Scanpath Plot',
+        name: 'Scanpath',
         href: '/docs/visualizations/scanpath',
         description: 'Plot 2D spatial scanpaths on coordinate axes. Visualizes fixation coordinates, chronological sequence, durations (via circle radius), and saccade paths.'
       },
@@ -191,8 +191,8 @@ export const SIDEBAR: readonly SidebarItem[] = [
         description: 'Compute sequence alignments using Levenshtein distance and Needleman-Wunsch. Visualizes networks to cluster similar search behaviors.'
       },
       {
-        name: 'Evolving Metrics',
-        href: '/docs/visualizations/evolving-metrics',
+        name: 'Metric Timeline',
+        href: '/docs/visualizations/metric-timeline',
         description: 'Analyze temporal changes in scalar metrics (such as fixation duration or count) over time using rolling windowed charts and heatmaps.'
       },
       {

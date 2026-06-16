@@ -5,13 +5,13 @@ GazePlotter offers several advanced eye-tracking visualization tools to analyze 
 ## Available Plots
 
 - **[Scarf Plot](/docs/visualizations/scarf-plot/)**: A comprehensive chronological sequence chart showing where participants looked over time, with support for event data overlays.
-- **[AOI Metrics](/docs/visualizations/aoi-metrics/)**: Quantitative bar charts that aggregate fixation durations, visit counts, dwell times, and other gaze measurements across Areas of Interest (AOIs).
+- **[AOI Comparison](/docs/visualizations/aoi-comparison/)**: Quantitative bar charts that aggregate fixation durations, visit counts, dwell times, and other gaze measurements across Areas of Interest (AOIs).
 - **[Transition Matrix](/docs/visualizations/transition-matrix/)**: A heat map matrix showing the frequency and probability of gaze transitions between different Areas of Interest (AOIs), highlighting visual flow and search sequences.
-- **[Time-binned AOI Occupancy](/docs/visualizations/aoi-occupancy/)**: Visualizations (Stream, Distribution, Ridgeline, and Heatmap) showing how attention is distributed across Areas of Interest (AOIs) over time in discrete intervals.
+- **[AOI Timeline](/docs/visualizations/aoi-timeline/)**: Visualizations (Stream, Distribution, Ridgeline, and Heatmap) showing how attention is distributed across Areas of Interest (AOIs) over time in discrete intervals.
 - **[Recurrence Plot](/docs/visualizations/recurrence-plot/)**: An N×N matrix revealing temporal self-similarity, showing when and how often a single participant's gaze returned to the same spatial region.
-- **[Scanpath Plot](/docs/visualizations/scanpath/)**: A 2D spatial visualization displaying the sequence of fixations (as circles scaled by duration) and saccades (as connecting lines) directly on top of the stimulus image.
+- **[Scanpath](/docs/visualizations/scanpath/)**: A 2D spatial visualization displaying the sequence of fixations (as circles scaled by duration) and saccades (as connecting lines) directly on top of the stimulus image.
 - **[Scanpath Similarity](/docs/visualizations/scanpath-similarity/)**: Comparison of participant scanpaths using sequence alignment algorithms (Levenshtein or Needleman-Wunsch), rendered as a similarity matrix or a ScanGraph network.
-- **[Evolving Metrics](/docs/visualizations/evolving-metrics/)**: A temporal visualization (Heatmap or Line Overlay) showing the progression of a windowed scalar metric (e.g. average fixation duration) across the timeline.
+- **[Metric Timeline](/docs/visualizations/metric-timeline/)**: A temporal visualization (Heatmap or Line Overlay) showing the progression of a windowed scalar metric (e.g. average fixation duration) across the timeline.
 - **[Metric Correlation](/docs/visualizations/metric-correlation/)**: A statistical visualization (Heatmap or Scatter Plot Matrix/Splom) showing correlations (Pearson or Spearman) between multiple scalar metrics across participants.
 
 ## Configuration and Settings Pane

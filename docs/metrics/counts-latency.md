@@ -17,7 +17,7 @@ All count and latency metrics naturally output an `aoi-vector` (an array of valu
 You can pass the vector through directly to analyze the values for all Areas of Interest (AOIs) simultaneously:
 - **Identity (`identity-aoi-vector`)**: Outputs the array of counts or latencies for all active AOI slots.
 
-> **Visualizer Compatibility**: Passing the raw vector through allows you to select the metric in the [AOI Metrics](/docs/visualizations/aoi-metrics) plot (non-windowed, aggregate) or the [AOI Occupancy Plot](/docs/visualizations/aoi-occupancy) (windowed, timeseries). Note that `timeToFirstFixation` forbids windowing and is incompatible with the AOI Occupancy Plot.
+> **Visualizer Compatibility**: Passing the raw vector through allows you to select the metric in the [AOI Comparison](/docs/visualizations/aoi-comparison) plot (non-windowed, aggregate) or the [AOI Timeline](/docs/visualizations/aoi-timeline) (windowed, timeseries). Note that `timeToFirstFixation` forbids windowing and is incompatible with the AOI Timeline.
 
 ### 2. Translating Vector to Scalar (`scalar`)
 You can reduce the vector into a single numerical value:
@@ -25,7 +25,7 @@ You can reduce the vector into a single numerical value:
 - **Pick Any Fixation (`pick-any-fixation`)**: Extracts the total stimulus-wide value from the `anyFixation` sentinel slot.
 - **Aggregate AOIs (`aggregate-aoi`)**: Reduces all active AOI cells into a single scalar using a reducer (`max` or `min`).
 
-> **Visualizer Compatibility**: Projecting a count/latency vector into a scalar allows you to select it in the [Metric Correlation](/docs/visualizations/metric-correlation) plot (non-windowed, aggregate) or the [Evolving Metrics](/docs/visualizations/evolving-metrics) plot (windowed, timeseries).
+> **Visualizer Compatibility**: Projecting a count/latency vector into a scalar allows you to select it in the [Metric Correlation](/docs/visualizations/metric-correlation) plot (non-windowed, aggregate) or the [Metric Timeline](/docs/visualizations/metric-timeline) plot (windowed, timeseries).
 
 ---
 

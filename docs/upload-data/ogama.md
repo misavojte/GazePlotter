@@ -4,7 +4,7 @@ GazePlotter supports the upload of data from the [OGAMA](https://ogama.net) eye-
 
 > **Limited analysis capabilities**: Since OGAMA data is limited to ordinal timeline representation, this affects all analysis capabilities in GazePlotter:
 >
-> - **[AOI Metrics](/docs/visualizations/aoi-metrics/)** - Temporal metrics (like dwell time, time to first fixation) cannot be calculated accurately
+> - **[AOI Comparison](/docs/visualizations/aoi-comparison/)** - Temporal metrics (like dwell time, time to first fixation) cannot be calculated accurately
 > - **[Transition matrices](/docs/visualizations/transition-matrix/)** - Dwell time aggregation methods will not work properly
 > - **[Scarf plots](/docs/visualizations/scarf-plot/)** - Only sequence order is preserved, not actual timing information
 > - **[Export segmented data](/docs/export/segmented-data/)** - Temporal analysis in external tools will be limited

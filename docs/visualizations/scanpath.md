@@ -1,6 +1,6 @@
-# Scanpath Plot
+# Scanpath
 
-The Scanpath Plot provides a 2D spatial visualization of a participant's gaze trajectory directly overlaid on top of the stimulus image. It displays fixations as circles (where the circle's radius corresponds to the fixation duration) and saccades as connecting lines, mapping the exact sequence of visual attention.
+The Scanpath plot provides a 2D spatial visualization of a participant's gaze trajectory directly overlaid on top of the stimulus image. It displays fixations as circles (where the circle's radius corresponds to the fixation duration) and saccades as connecting lines, mapping the exact sequence of visual attention.
 
 > Interested on how to operate with plots in general within the workspace? See:
 >
@@ -16,14 +16,14 @@ The Scanpath Plot provides a 2D spatial visualization of a participant's gaze tr
 
 ## Configuration via Settings Pane
 
-Clicking the Scanpath Plot card in the workspace selects the plot and opens its configuration options in the sidebar **Settings Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
+Clicking the Scanpath plot card in the workspace selects the plot and opens its configuration options in the sidebar **Settings Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
 
 ### Stimulus
 Select the stimulus on which to overlay the scanpath. The stimulus dimensions and image will serve as the background for the 2D coordinate plot.
 - **Edit stimulus library…**: Opens the Stimuli Modification modal to manage stimulus files and backgrounds.
 
 ### Participant
-Select the individual participant whose gaze trajectory you want to visualize. The Scanpath Plot displays one participant's scanpath at a time.
+Select the individual participant whose gaze trajectory you want to visualize. The Scanpath plot displays one participant's scanpath at a time.
 - **Edit participants…**: Opens the Participant Modification modal to customize participant properties and metadata.
 
 ### Display
@@ -46,7 +46,7 @@ Located at the bottom of the Settings Pane:
 
 ## Interpretation
 
-Use the Scanpath Plot to:
+Use the Scanpath plot to:
 - **Analyze spatial trajectory**: See exactly where a participant looked and trace the path they took through the stimulus.
 - **Observe duration density**: Identify regions of sustained visual processing based on larger fixation circles.
 - **Verify AOI alignment**: Check if a participant's fixations landed precisely within target boundaries or hovered around edges.

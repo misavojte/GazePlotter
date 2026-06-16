@@ -19,14 +19,14 @@ You can project the N×N matrix into an array of values per AOI:
 - **Outgoing Transitions (`matrix-row`)**: Extracts a single row for a specific source AOI. This outputs the transitions *from* that AOI to all other active AOIs.
 - **Incoming Transitions (`matrix-col`)**: Extracts a single column for a specific target AOI. This outputs the transitions from all active AOIs *to* that target AOI.
 
-> **Visualizer Compatibility**: Projecting a transition matrix into a vector allows you to select it in the [AOI Metrics](/docs/visualizations/aoi-metrics) plot (non-windowed) or the [AOI Occupancy Plot](/docs/visualizations/aoi-occupancy) (windowed).
+> **Visualizer Compatibility**: Projecting a transition matrix into a vector allows you to select it in the [AOI Comparison](/docs/visualizations/aoi-comparison) plot (non-windowed) or the [AOI Timeline](/docs/visualizations/aoi-timeline) (windowed).
 
 ### 2. Translating Matrix to Scalar (`scalar`)
 You can reduce the N×N matrix into a single numerical value:
 - **Specific Transition Cell (`matrix-cell`)**: Extracts the value of a specific directional link (e.g., AOI A &gt; AOI B).
 - **Matrix Aggregate (`matrix-aggregate`)**: Reduces the entire grid using a reducer (`sum`, `mean`, `max`, or `min`), optionally excluding diagonal self-transitions.
 
-> **Visualizer Compatibility**: Projecting a transition matrix into a scalar allows you to select it in the [Metric Correlation](/docs/visualizations/metric-correlation) plot (non-windowed) or the [Evolving Metrics](/docs/visualizations/evolving-metrics) plot (windowed).
+> **Visualizer Compatibility**: Projecting a transition matrix into a scalar allows you to select it in the [Metric Correlation](/docs/visualizations/metric-correlation) plot (non-windowed) or the [Metric Timeline](/docs/visualizations/metric-timeline) plot (windowed).
 
 ---
 

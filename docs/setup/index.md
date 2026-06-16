@@ -47,7 +47,7 @@ When you first open GazePlotter, you'll see a **scarf plot** (timeline visualiza
 
 ## Visualizations
 
-To help you analyze eye-tracking data, GazePlotter provides a set of visualization plots, including Scarf Plot, AOI Metrics, Transition Matrix, Time-binned AOI Occupancy, and Recurrence Plot.
+To help you analyze eye-tracking data, GazePlotter provides a set of visualization plots, including Scarf Plot, AOI Comparison, Transition Matrix, AOI Timeline, and Recurrence Plot.
 
 For detailed information about each visualization type and how to interpret them, see the [Visualizations section](/docs/visualizations/).
 
