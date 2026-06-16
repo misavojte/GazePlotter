@@ -18,7 +18,7 @@ import type {
 } from '../types'
 import {
   query,
-  queryIndividuals,
+  queryIndividualsAllSlots,
   getMetric,
   type MetricInstance,
   type PlotMetricContract,
@@ -82,20 +82,18 @@ export function getBarPlotData(
 
   const individualArrays = new Array<number[]>(totalSlots)
   const individualNameArrays = new Array<string[]>(totalSlots)
-  for (let i = 0; i < totalSlots; i++) {
-    const result = extractIndividualValuesWithIdentity(
-      engine,
-      instance,
-      settings.stimulusId,
-      participantIds,
-      i,
-      timeStart,
-      timeEnd,
-      participantDisplayNames
-    )
-    individualArrays[i] = result.values
-    individualNameArrays[i] = result.names
-  }
+  extractIndividualValues(
+    engine,
+    instance,
+    settings.stimulusId,
+    participantIds,
+    totalSlots,
+    timeStart,
+    timeEnd,
+    participantDisplayNames,
+    individualArrays,
+    individualNameArrays
+  )
 
   const statsArrays = new Array<AoiSummaryStatistics>(totalSlots)
   for (let i = 0; i < totalSlots; i++) {
@@ -164,38 +162,74 @@ export function getBarPlotData(
   }
 }
 
-function extractIndividualValuesWithIdentity(
+/**
+ * Fills `valuesOut[slot]` / `namesOut[slot]` with the per-participant individual
+ * values for every AOI slot, scanning each participant ONCE.
+ *
+ * The previous shape scanned per (slot × participant): for a metric with an
+ * `individuals` recipe (e.g. "Was fixated") that meant a full, uncached fixation
+ * scan per slot per participant — a `totalSlots`× redundant scan that stalled
+ * large datasets. Here each participant is scanned once: `queryIndividualsAllSlots`
+ * returns every slot's individuals from a single accumulator, and metrics without
+ * an individuals recipe read the cached aggregate vector once per participant.
+ *
+ * Output is identical to the old per-slot routine: within each slot the values
+ * stay in participant order, and a participant/slot with no individuals falls back
+ * to that participant's aggregate value for the slot.
+ */
+function extractIndividualValues(
   engine: DataEngine,
   instance: MetricInstance,
   stimulusId: number,
   participantIds: number[],
-  aoiIndex: number,
+  totalSlots: number,
   timeStart: number,
   timeEnd: number,
-  participantNames: string[]
-): { values: number[]; names: string[] } {
-  if (participantIds.length === 0) return { values: [], names: [] }
-
-  const values: number[] = []
-  const names: string[] = []
+  participantNames: string[],
+  valuesOut: number[][],
+  namesOut: string[][]
+): void {
+  for (let s = 0; s < totalSlots; s++) {
+    valuesOut[s] = []
+    namesOut[s] = []
+  }
 
   for (let p = 0; p < participantIds.length; p++) {
     const scope: Scope = {
       engine, stimulusId, participantId: participantIds[p],
       timeStart, timeEnd,
     }
-    const individuals = queryIndividuals(instance, scope, aoiIndex)
-    const expanded = individuals.length > 0
-      ? individuals
-      : [asAoiVector(query(instance, scope))?.values[aoiIndex] ?? Number.NaN]
-    for (const v of expanded) {
-      if (Number.isFinite(v)) {
-        values.push(v)
-        names.push(participantNames[p])
+    const name = participantNames[p]
+    const perSlot = queryIndividualsAllSlots(instance, scope)
+    // Aggregate vector, fetched lazily and reused: the fallback for slots a
+    // participant has no individuals for, and the only source for metrics
+    // without an individuals recipe. `query` is cached, so it scans at most once
+    // per participant.
+    let aggregate: number[] | undefined
+    const aggregateAt = (slot: number): number => {
+      aggregate ??= asAoiVector(query(instance, scope))?.values ?? []
+      return aggregate[slot] ?? Number.NaN
+    }
+
+    for (let s = 0; s < totalSlots; s++) {
+      const individuals = perSlot?.[s]
+      if (individuals && individuals.length > 0) {
+        for (let k = 0; k < individuals.length; k++) {
+          const v = individuals[k]
+          if (Number.isFinite(v)) {
+            valuesOut[s].push(v)
+            namesOut[s].push(name)
+          }
+        }
+      } else {
+        const v = aggregateAt(s)
+        if (Number.isFinite(v)) {
+          valuesOut[s].push(v)
+          namesOut[s].push(name)
+        }
       }
     }
   }
-  return { values, names }
 }
 
 function createLabeledData(

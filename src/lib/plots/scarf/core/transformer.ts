@@ -123,6 +123,32 @@ class Float32GrowBuffer {
 }
 
 /**
+ * Per-bucket row index for hover hit-testing. The pIndex column (RECT_STRIDE
+ * offset +1) is non-decreasing within a bucket -- segments are pushed in
+ * ascending participant order -- so the first segment of each row is found in a
+ * single forward pass. `rowStart[r]` is the segment index of the first segment
+ * with pIndex >= r; the segments of row r are exactly the half-open slice
+ * [rowStart[r], rowStart[r + 1]). This lets the hover hit-test scan only the
+ * hovered row instead of the whole buffer (O(segments-in-row) vs
+ * O(all-segments) per pointer move).
+ */
+export function buildRectRowOffsets(
+  buckets: Float32Array[],
+  rows: number
+): Int32Array[] {
+  return buckets.map(buffer => {
+    const segCount = buffer.length / RECT_STRIDE
+    const rowStart = new Int32Array(rows + 1)
+    let seg = 0
+    for (let r = 0; r <= rows; r++) {
+      while (seg < segCount && buffer[seg * RECT_STRIDE + 1] < r) seg++
+      rowStart[r] = seg
+    }
+    return rowStart
+  })
+}
+
+/**
  * Per-(stimulus, participant-count, style-count, timeline) memory of the last
  * run's per-bucket float counts. Re-deriving on every pan/zoom frame writes
  * almost the same number of rects each time, so seeding each grow-buffer at the
@@ -789,6 +815,10 @@ export function transformDataToScarfPlot(
 
   const visualRectBuckets = rectBuckets.map(b => b.finalize())
   const visualEventBuckets = eventBuckets.map(b => b.finalize())
+  const rectRowOffsets = buildRectRowOffsets(
+    visualRectBuckets,
+    participantIds.length
+  )
 
   // Remember this run's per-bucket sizes to seed the next frame's buffers.
   const rectSizes = new Int32Array(totalStyleCount)
@@ -816,6 +846,7 @@ export function transformDataToScarfPlot(
     ),
     visualRectBuckets,
     visualEventBuckets,
+    rectRowOffsets,
     isOverlay: showVisibilityMarkers,
     eventZoneConcurrency: observedMaxConcurrency,
   }

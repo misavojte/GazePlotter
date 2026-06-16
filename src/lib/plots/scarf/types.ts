@@ -175,6 +175,16 @@ export type ScarfData = {
   visualRectBuckets: Float32Array[]
   visualEventBuckets: Float32Array[]
 
+  /**
+   * Per-rect-bucket row index for hover hit-testing. `rectRowOffsets[styleIdx]`
+   * is an Int32Array of length (participants + 1) where entry r is the first
+   * segment index in that bucket with participantIndex >= r. The segments of
+   * row r are the half-open slice [r, r + 1), so the hover hit-test scans only
+   * the hovered row instead of the whole buffer. Same length/order as
+   * `visualRectBuckets`.
+   */
+  rectRowOffsets: Int32Array[]
+
   /** Whether the event overlay (strips below the gaze baseline) is drawn. */
   isOverlay: boolean
 

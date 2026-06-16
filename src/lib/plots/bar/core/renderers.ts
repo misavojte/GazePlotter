@@ -80,15 +80,24 @@ export function computeDotStyle(layout: BarPlotLayout): { radius: number } {
     // Map values to pixel positions
     const positions = values.map(v => valueToPixel(layout, v, true))
 
-    // Bin positions into windows to measure local density
+    // Bin positions into windows to measure local density. Reduce in explicit
+    // loops, never `Math.min(...positions)` / `Math.max(peakDensity, ...bins)`:
+    // a metric whose individuals are per-fixation (e.g. fixation duration) can
+    // produce hundreds of thousands of values, and spreading that many
+    // arguments overflows the call stack ("Maximum call stack size exceeded").
     if (positions.length === 0) continue
-    const minPos = Math.min(...positions)
-    const maxPos = Math.max(...positions)
+    let minPos = positions[0]
+    let maxPos = positions[0]
+    for (let i = 1; i < positions.length; i++) {
+      const p = positions[i]
+      if (p < minPos) minPos = p
+      else if (p > maxPos) maxPos = p
+    }
     const range = maxPos - minPos
 
     if (range < 1) {
       // All values at same position
-      peakDensity = Math.max(peakDensity, positions.length)
+      if (positions.length > peakDensity) peakDensity = positions.length
       continue
     }
 
@@ -98,7 +107,9 @@ export function computeDotStyle(layout: BarPlotLayout): { radius: number } {
       const bin = Math.min(numBins - 1, Math.floor((p - minPos) / DENSITY_BIN_SIZE))
       bins[bin]++
     }
-    peakDensity = Math.max(peakDensity, ...bins)
+    for (let b = 0; b < numBins; b++) {
+      if (bins[b] > peakDensity) peakDensity = bins[b]
+    }
   }
 
   if (peakDensity === 0) return { radius: DOT_RADIUS_MAX }

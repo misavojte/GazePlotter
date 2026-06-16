@@ -15,7 +15,7 @@ export type { SimilarityMethod } from './core/scanpathSimilarity'
 export { collectScanpath, collectAllScanpaths } from './core/scanpathEncoding'
 
 // ─── Consumer surface (what plots + export pipelines call at runtime) ──────
-export { query, queryBatch, queryGroup, queryIndividuals } from './query'
+export { query, queryBatch, queryGroup, queryIndividuals, queryIndividualsAllSlots } from './query'
 export { getMetric, listMetrics } from './core/defineMetric'
 export { getCategoryLabels } from './categories'
 export {

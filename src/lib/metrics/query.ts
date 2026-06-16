@@ -4,6 +4,7 @@ import { resolveParams } from './core/params'
 import {
   runProjected,
   runIndividuals,
+  runIndividualsAllSlots,
   runRaw,
   runWindowedGroup,
   type Scope,
@@ -173,6 +174,18 @@ export function queryIndividuals(instance: MetricInstance, scope: Scope, slotInd
   const recipe = getRecipe(instance.baseId)
   if (!recipe) return []
   return runIndividuals(recipe, instance, scope, slotIndex)
+}
+
+/**
+ * Per-fixation individual values for every slot from ONE participant scan
+ * (indexed by slot). For callers that need all slots — the AOI-comparison bar
+ * plot — this avoids the per-slot rescan of {@link queryIndividuals}. Returns
+ * `null` for recipes without an individuals recipe (use the aggregate `query`).
+ */
+export function queryIndividualsAllSlots(instance: MetricInstance, scope: Scope): number[][] | null {
+  const recipe = getRecipe(instance.baseId)
+  if (!recipe) return null
+  return runIndividualsAllSlots(recipe, instance, scope)
 }
 
 // ─── Internal helpers ────────────────────────────────────────────────────────

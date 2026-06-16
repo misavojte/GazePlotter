@@ -12,7 +12,7 @@ import {
   type Projection,
   type WindowedProjection,
 } from './projection'
-import { buildWindowFrame } from './dsl'
+import { fillWindowFrame } from './dsl'
 import type { AoiSlotInfo, FixationEvent, GroupAggregation, GroupScope, MetricRecipe, OutputShape, WindowFrame } from './dsl'
 import type { MetricInstance } from '../instances'
 
@@ -115,6 +115,33 @@ export function runIndividuals(
   // individuals inspects the accumulator.
   recipe.finalize(out.acc, out.slots, { params: out.params, slots: out.slots })
   return recipe.individuals(out.acc, slotIndex)
+}
+
+/**
+ * Per-fixation individual values for EVERY slot from a SINGLE participant scan.
+ *
+ * `runIndividuals` re-scans the participant for each slot it is asked about, so
+ * a caller iterating slots (the AOI-comparison bar plot) pays one full fixation
+ * scan per (slot × participant) — and unlike the aggregate `query` path it is
+ * uncached, so a per-fixation metric with an `individuals` recipe (e.g. "Was
+ * fixated") stalls on large datasets. The accumulator is identical for every
+ * slot (one scan fills all slots), so scan + finalize once and read each slot
+ * out of the shared accumulator. Returns `null` for recipes without an
+ * individuals/finalize pair (the caller falls back to the cached aggregate).
+ */
+export function runIndividualsAllSlots(
+  recipe: MetricRecipe<any, any>,
+  instance: MetricInstance,
+  scope: Scope,
+): number[][] | null {
+  if (!recipe.individuals || !recipe.finalize) return null
+  const out = scanAccumulator(recipe, instance, scope, scope.timeStart ?? 0, scope.timeEnd ?? 0)
+  if (!out) return null
+  recipe.finalize(out.acc, out.slots, { params: out.params, slots: out.slots })
+  const total = out.slots.totalSlots
+  const perSlot: number[][] = new Array(total)
+  for (let s = 0; s < total; s++) perSlot[s] = recipe.individuals(out.acc, s)
+  return perSlot
 }
 
 // ─── Windowed dispatch ────────────────────────────────────────────────────────
@@ -634,6 +661,29 @@ export function scanAccumulator(
   const stim = scope.stimulusId
   const engine = scope.engine
   const resolvedSlots: number[] = []
+
+  // Reused across every fixation — no per-fixation allocation. onFixation reads
+  // these synchronously and never retains them (same invariant as resolvedSlots
+  // and the windowed driver above). Re-deriving a per-fixation metric over a
+  // huge dataset (e.g. switching to "Was fixated") otherwise allocates a fresh
+  // frame + event object per fixation — millions of short-lived objects, which
+  // dominated the scan in profiling.
+  const frame: WindowFrame = {
+    windowStart: 0,
+    windowEnd: 0,
+    start: 0,
+    end: 0,
+    duration: 0,
+    isClipped: false,
+    midpointInWindow: true,
+  }
+  const fixEvent: FixationEvent = {
+    start: 0,
+    duration: 0,
+    frame,
+    slots: resolvedSlots,
+    index: 0,
+  }
   let index = 0
 
   for (let k = fStart; k < fEnd; k++) {
@@ -660,8 +710,11 @@ export function scanAccumulator(
     }
 
     const duration = end - start
-    const frame = buildWindowFrame(start, end, duration, timeStart, timeEnd)
-    recipe.onFixation(acc, { start, duration, frame, slots: resolvedSlots, index }, ctx)
+    fillWindowFrame(frame, start, end, duration, timeStart, timeEnd)
+    fixEvent.start = start
+    fixEvent.duration = duration
+    fixEvent.index = index
+    recipe.onFixation(acc, fixEvent, ctx)
     index++
   }
   return { acc, slots, params }

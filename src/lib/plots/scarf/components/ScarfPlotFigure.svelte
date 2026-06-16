@@ -302,6 +302,7 @@
 
   const visualRectBuckets = $derived(data.visualRectBuckets)
   const visualEventBuckets = $derived(data.visualEventBuckets)
+  const rectRowOffsets = $derived(data.rectRowOffsets)
   const styleArrays = $derived(
     createStyleArrays(
       identifierSystem, rectStyleMap, eventStyleMap,
@@ -575,6 +576,7 @@
     const buckets = visualRectBuckets
     if (buckets.length === 0) return null
 
+    const offsets = rectRowOffsets
     const { indexToId } = identifierSystem
     const scale = layout.scaleFactor
     const floorLeft = Math.floor(LEFT_LABEL_WIDTH + margins.left)
@@ -584,10 +586,14 @@
       const buffer = buckets[styleIdx]
       if (buffer.length === 0) continue
 
-      for (let i = buffer.length / RECT_STRIDE - 1; i >= 0; i--) {
+      // Scan only the hovered row's contiguous slice (topmost first = backward)
+      // rather than the whole buffer; pIndex is constant (== rowIndex) within it.
+      const rowStart = offsets[styleIdx]
+      const lo = rowStart[rowIndex]
+      const hi = rowStart[rowIndex + 1]
+      for (let i = hi - 1; i >= lo; i--) {
         const idx = i * RECT_STRIDE
         const pIndex = buffer[idx + 1]
-        if (pIndex !== rowIndex) continue
 
         const xNormalized = buffer[idx]
         const widthNormalized = buffer[idx + 2]

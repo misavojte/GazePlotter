@@ -700,8 +700,18 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
 
   const wantsHover = hasHitLogic || !!options.pointer?.onMove
 
-  // Raw canvas mouse events → projected coords → onHover.
-  function rawMouseMove(event: MouseEvent) {
+  // Raw canvas mouse events → projected coords → onHover, coalesced to one
+  // hit-test per animation frame. A high-poll mouse fires mousemove 100+ times
+  // a second and onHover's legend + data hit-test can be costly on dense plots
+  // (e.g. a scarf with >1M segments); processing only the latest move per frame
+  // caps that work at the frame rate, and the tooltip/crosshair update is
+  // visually identical. Drag uses a separate window listener (see onDown) and is
+  // unaffected, so panning stays per-event responsive.
+  let pendingMoveEvent: MouseEvent | null = null
+  let moveFrameScheduled = false
+  let moveFrameId = 0
+
+  function processMove(event: MouseEvent) {
     if (!canvasState.canvas) return
     const pos = getScaledMousePosition(canvasState, event)
     mouseX = pos.x
@@ -710,7 +720,22 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
       pos.x >= plotLeft && pos.x <= plotRight && pos.y >= plotTop && pos.y <= plotBottom
     onHover(pos.x, pos.y, isOver)
   }
+
+  function rawMouseMove(event: MouseEvent) {
+    pendingMoveEvent = event
+    if (moveFrameScheduled) return
+    moveFrameScheduled = true
+    moveFrameId = requestAnimationFrame(() => {
+      moveFrameScheduled = false
+      const e = pendingMoveEvent
+      pendingMoveEvent = null
+      if (e) processMove(e)
+    })
+  }
   function rawMouseLeave() {
+    // Drop a move still queued for this frame so it cannot re-show hover after
+    // the pointer has already left.
+    pendingMoveEvent = null
     mouseX = null
     mouseY = null
     onHover(null, null, false)
@@ -802,6 +827,11 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
         if (wantsHover) {
           node.removeEventListener('mousemove', rawMouseMove)
           node.removeEventListener('mouseleave', rawMouseLeave)
+          if (moveFrameScheduled) {
+            cancelAnimationFrame(moveFrameId)
+            moveFrameScheduled = false
+            pendingMoveEvent = null
+          }
         }
         if (pointer && browser) node.removeEventListener('mousedown', onDown)
         teardownDrag()
