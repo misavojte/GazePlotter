@@ -90,7 +90,6 @@
     scarfTimelineSync.setEntry(item.id, {
       timeline: effectiveSettings.timeline as 'absolute' | 'ordinal',
       w: item.w,
-      h: item.h,
       dataMax: ownDataMax,
     })
   })
@@ -99,7 +98,7 @@
   const syncedSettings = $derived.by(() => {
     if (!isDefaultRange) return effectiveSettings
     const timeline = effectiveSettings.timeline as 'absolute' | 'ordinal'
-    const syncedMax = scarfTimelineSync.getSyncedMax(timeline, item.w, item.h)
+    const syncedMax = scarfTimelineSync.getSyncedMax(timeline, item.w)
     if (syncedMax <= ownDataMax) return effectiveSettings
     return timeline === 'absolute'
       ? { ...effectiveSettings, timelineEnd: syncedMax }
