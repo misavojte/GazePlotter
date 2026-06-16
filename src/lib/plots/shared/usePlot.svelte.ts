@@ -429,6 +429,15 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   const scheduleRender = createRenderScheduler(() => untrack(render))
   const scheduleOverlayRender = createRenderScheduler(() => untrack(renderOverlay))
 
+  // A hit-test figure's hover change only moves the overlay (crosshair,
+  // highlight). When the plot has a `drawOverlay`, its `drawData` is
+  // hover-independent and the data layer is cached, so repaint via the overlay
+  // blit instead of re-running `drawData` — on a dense plot a full redraw per
+  // mouse move is the difference between instant and laggy hover. Plots without
+  // an overlay fall back to a full render.
+  const scheduleHoverRepaint = () =>
+    options.drawOverlay ? scheduleOverlayRender() : scheduleRender()
+
   const registerExportSource = (getCanvas: () => HTMLCanvasElement | null) =>
     registerCanvasExportSource(exportRegistrar, getCanvas)
 
@@ -664,7 +673,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
         const changed = options.onHoverChange?.(null, null, null) ?? false
         setCursor('default')
         hideTooltip(0)
-        if (changed) scheduleRender()
+        if (changed) scheduleHoverRepaint()
       }
       options.pointer?.onMove?.({ x: 0, y: 0, isOver: false, buttons: 0 })
       return
@@ -692,7 +701,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
         setCursor('default')
         hideTooltip(0)
       }
-      if (changed) scheduleRender()
+      if (changed) scheduleHoverRepaint()
     }
 
     options.pointer?.onMove?.({ x, y, isOver, buttons: 0 })

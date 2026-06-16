@@ -200,6 +200,7 @@
     }),
     clipData: false,
     drawData: drawStream,
+    drawOverlay: drawStreamOverlay,
     legend: { hitTest: hitTestLegendBand },
     hitTest: hitTestBin,
     onHoverChange: (hit, x, y) => {
@@ -412,51 +413,9 @@
 
     ctx.globalAlpha = 1.0
 
-    if (hoveredBinIndex !== null) {
-      const binWidth = floorWidth / data.binCount
-      const binX = floorLeft + hoveredBinIndex * binWidth
-
-      // Draw the window highlight in the SAME bin-index space as the step so the
-      // two stay concentric. Positioning it in time space (floorWidth / duration)
-      // instead diverges from the bin-index step for sliding windows: the offset
-      // is proportional to (windowSize - stepSize) and grows with the bin index,
-      // so the band visibly slides off the step the further into time you hover.
-      // The window spans `windowSize / stepSize` bins, centred on the hovered bin.
-      const windowBins = data.stepSize > 0 ? data.windowSize / data.stepSize : 1
-      const binCenterX = binX + binWidth / 2
-      const halfWindowPx = (windowBins * binWidth) / 2
-      const xStart = Math.max(floorLeft, binCenterX - halfWindowPx)
-      const xEnd = Math.min(floorLeft + floorWidth, binCenterX + halfWindowPx)
-      const rectWidth = xEnd - xStart
-
-      ctx.save()
-      ctx.fillStyle = '#007acc'
-
-      // 1. Draw the lighter window highlight (the full window span)
-      if (rectWidth > 0) {
-        ctx.globalAlpha = 0.08
-        ctx.fillRect(xStart, floorTop, rectWidth, floorHeight)
-      }
-
-      // 2. Draw the darker step highlight (one bin)
-      ctx.globalAlpha = 0.15
-      ctx.fillRect(binX, floorTop, binWidth, floorHeight)
-
-      ctx.restore()
-    }
-
-    if (mouseXPx !== null) {
-      ctx.save()
-      ctx.strokeStyle = '#007acc'
-      ctx.lineWidth = 1
-      ctx.setLineDash([2, 2])
-      ctx.beginPath()
-      const x = alignToPixelCenter(mouseXPx)
-      ctx.moveTo(x, floorTop)
-      ctx.lineTo(x, floorBottom)
-      ctx.stroke()
-      ctx.restore()
-    }
+    // Hover highlight (window/step bands) and the cursor line are drawn in
+    // drawStreamOverlay on the overlay layer, so a bin hover blits the cached
+    // stream instead of re-running this whole render.
 
     ctx.restore()
 
@@ -573,6 +532,67 @@
       setUpFont(ctx)
       drawLegend(ctx, legendGeometry, STREAM_LEGEND_CONFIG, usedHighlights)
     }
+  }
+
+  // ── HOVER OVERLAY ──
+  // The hovered-bin window/step bands and the cursor line are pure bin-index
+  // geometry (no dependency on the transformed stream coordinates), so they live
+  // here on the overlay layer. usePlot caches the hover-free stream, so a bin
+  // hover blits it back and repaints only this instead of re-running drawStream
+  // (which re-derives every series' coordinates).
+  function drawStreamOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+    if (hoveredBinIndex === null && mouseXPx === null) return
+    const floorLeft = Math.floor(frame.x)
+    const floorTop = Math.floor(frame.y)
+    const floorWidth = Math.floor(frame.width)
+    const floorHeight = Math.floor(frame.height)
+    if (floorWidth <= 0 || floorHeight <= 0 || data.binCount <= 0) return
+    const floorBottom = floorTop + floorHeight
+
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(floorLeft, floorTop, floorWidth, floorHeight)
+    ctx.clip()
+
+    if (hoveredBinIndex !== null) {
+      const binWidth = floorWidth / data.binCount
+      const binX = floorLeft + hoveredBinIndex * binWidth
+
+      // Window highlight stays in the SAME bin-index space as the step so the two
+      // stay concentric (time space would slide the band off the step for sliding
+      // windows). The window spans windowSize / stepSize bins, centred on the bin.
+      const windowBins = data.stepSize > 0 ? data.windowSize / data.stepSize : 1
+      const binCenterX = binX + binWidth / 2
+      const halfWindowPx = (windowBins * binWidth) / 2
+      const xStart = Math.max(floorLeft, binCenterX - halfWindowPx)
+      const xEnd = Math.min(floorLeft + floorWidth, binCenterX + halfWindowPx)
+      const rectWidth = xEnd - xStart
+
+      ctx.save()
+      ctx.fillStyle = '#007acc'
+      if (rectWidth > 0) {
+        ctx.globalAlpha = 0.08
+        ctx.fillRect(xStart, floorTop, rectWidth, floorHeight)
+      }
+      ctx.globalAlpha = 0.15
+      ctx.fillRect(binX, floorTop, binWidth, floorHeight)
+      ctx.restore()
+    }
+
+    if (mouseXPx !== null) {
+      ctx.save()
+      ctx.strokeStyle = '#007acc'
+      ctx.lineWidth = 1
+      ctx.setLineDash([2, 2])
+      ctx.beginPath()
+      const x = alignToPixelCenter(mouseXPx)
+      ctx.moveTo(x, floorTop)
+      ctx.lineTo(x, floorBottom)
+      ctx.stroke()
+      ctx.restore()
+    }
+
+    ctx.restore()
   }
 
   function hitTestLegendBand(

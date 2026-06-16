@@ -131,6 +131,7 @@
     }),
     clipData: false,
     drawData: drawEvolving,
+    drawOverlay: drawEvolvingOverlay,
     hitTest: computeHit,
     onHoverChange: (hit) => {
       const tag = hit?.data
@@ -264,6 +265,172 @@
     }
   }
 
+  // ── HOVER OVERLAY ──
+  // The hover visuals (highlight bands, cursor line, emphasised participant
+  // line) are drawn here on the overlay layer. usePlot caches the hover-free
+  // data layer, so a mouse move blits that back and repaints only this — instead
+  // of re-running the full heatmap/overlay draw on every move.
+  function drawEvolvingOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+    if (hoveredMsTime === null && hoveredParticipantIndex === null) return
+    const floorLeft = Math.floor(frame.x)
+    const floorTop = Math.floor(frame.y)
+    const floorWidth = Math.floor(frame.width)
+    const floorHeight = Math.floor(frame.height)
+    const participantCount = data.participants.length
+    if (floorWidth <= 0 || floorHeight <= 0 || participantCount === 0) return
+    const floorBottom = floorTop + floorHeight
+    const floorRight = floorLeft + floorWidth
+
+    ctx.save()
+    ctx.beginPath()
+    ctx.rect(floorLeft, floorTop, floorWidth, floorHeight)
+    ctx.clip()
+    if (alignment === 'overlay') {
+      drawOverlayHover(ctx, floorLeft, floorTop, floorWidth, floorHeight, floorBottom, floorRight)
+    } else {
+      drawHeatmapHover(ctx, floorLeft, floorTop, floorWidth, floorHeight, floorBottom, floorRight, participantCount)
+    }
+    ctx.restore()
+  }
+
+  function drawHeatmapHover(
+    ctx: CanvasRenderingContext2D,
+    floorLeft: number, floorTop: number, floorWidth: number, floorHeight: number,
+    floorBottom: number, floorRight: number, participantCount: number
+  ) {
+    if (hoveredMsTime === null) return
+    const rowHeight = floorHeight / participantCount
+    const timelineMin = data.timeline.minValue
+    const duration = Math.max(1, data.timeline.maxValue - timelineMin)
+    const invMsPerPx = floorWidth / duration
+
+    let w: EvolvingMetricsWindow | null = null
+    if (hoveredParticipantIndex !== null) {
+      w = findWindowAt(data.participants[hoveredParticipantIndex].windows, hoveredMsTime)
+    }
+    if (!w) {
+      for (const p of data.participants) {
+        w = findWindowAt(p.windows, hoveredMsTime)
+        if (w) break
+      }
+    }
+    if (w) {
+      // Step boundaries (the 100ms step)
+      const stepXStart = floorLeft + (w.startMs - timelineMin) * invMsPerPx
+      const stepXEnd = floorLeft + (w.endMs - timelineMin) * invMsPerPx
+      const stepX = Math.max(floorLeft, stepXStart)
+      const stepWidth = Math.min(floorRight, stepXEnd) - stepX
+
+      // Window boundaries (the 1000ms window)
+      const winStart = w.dataStartMs ?? (w.centerMs - 500)
+      const winEnd = w.dataEndMs ?? (w.centerMs + 500)
+      const winXStart = floorLeft + (winStart - timelineMin) * invMsPerPx
+      const winXEnd = floorLeft + (winEnd - timelineMin) * invMsPerPx
+      const x = Math.max(floorLeft, winXStart)
+      const rectWidth = Math.min(floorRight, winXEnd) - x
+
+      ctx.save()
+      ctx.fillStyle = '#007acc'
+      if (rectWidth > 0) {
+        ctx.globalAlpha = 0.08
+        ctx.fillRect(x, floorTop, rectWidth, floorHeight)
+      }
+      if (stepWidth > 0) {
+        ctx.globalAlpha = 0.15
+        ctx.fillRect(stepX, floorTop, stepWidth, floorHeight)
+      }
+      if (hoveredParticipantIndex !== null && stepWidth > 0) {
+        const rowY = floorTop + hoveredParticipantIndex * rowHeight
+        ctx.globalAlpha = 0.15
+        ctx.fillRect(stepX, rowY, stepWidth, rowHeight)
+      }
+      ctx.restore()
+    }
+
+    const cx = alignToPixelCenter(floorLeft + (hoveredMsTime - timelineMin) * invMsPerPx)
+    ctx.save()
+    ctx.strokeStyle = '#007acc'
+    ctx.lineWidth = 1
+    ctx.setLineDash([2, 2])
+    ctx.beginPath()
+    ctx.moveTo(cx, floorTop)
+    ctx.lineTo(cx, floorBottom)
+    ctx.stroke()
+    ctx.restore()
+  }
+
+  function drawOverlayHover(
+    ctx: CanvasRenderingContext2D,
+    floorLeft: number, floorTop: number, floorWidth: number, floorHeight: number,
+    floorBottom: number, floorRight: number
+  ) {
+    const axisMax = yAxisMax
+    const timelineMin = data.timeline.minValue
+    const duration = Math.max(1, data.timeline.maxValue - timelineMin)
+    const invMsPerPx = floorWidth / duration
+    const valueToY = (v: number) => floorBottom - (v / axisMax) * floorHeight
+    const msToX = (ms: number) => floorLeft + (ms - timelineMin) * invMsPerPx
+
+    if (hoveredMsTime !== null) {
+      let w: EvolvingMetricsWindow | null = null
+      if (hoveredParticipantIndex !== null) {
+        w = findWindowAt(data.participants[hoveredParticipantIndex].windows, hoveredMsTime)
+      }
+      if (!w) {
+        for (const p of data.participants) {
+          w = findWindowAt(p.windows, hoveredMsTime)
+          if (w) break
+        }
+      }
+      if (w) {
+        const stepXStart = msToX(w.startMs)
+        const stepXEnd = msToX(w.endMs)
+        const stepX = Math.max(floorLeft, stepXStart)
+        const stepWidth = Math.min(floorRight, stepXEnd) - stepX
+
+        const winStart = w.dataStartMs ?? (w.centerMs - 500)
+        const winEnd = w.dataEndMs ?? (w.centerMs + 500)
+        const winXStart = msToX(winStart)
+        const winXEnd = msToX(winEnd)
+        const x = Math.max(floorLeft, winXStart)
+        const rectWidth = Math.min(floorRight, winXEnd) - x
+
+        ctx.save()
+        ctx.fillStyle = '#007acc'
+        if (rectWidth > 0) {
+          ctx.globalAlpha = 0.08
+          ctx.fillRect(x, floorTop, rectWidth, floorHeight)
+        }
+        if (stepWidth > 0) {
+          ctx.globalAlpha = 0.15
+          ctx.fillRect(stepX, floorTop, stepWidth, floorHeight)
+        }
+        ctx.restore()
+      }
+
+      const cx = alignToPixelCenter(msToX(hoveredMsTime))
+      ctx.save()
+      ctx.strokeStyle = '#007acc'
+      ctx.lineWidth = 1
+      ctx.setLineDash([2, 2])
+      ctx.beginPath()
+      ctx.moveTo(cx, floorTop)
+      ctx.lineTo(cx, floorBottom)
+      ctx.stroke()
+      ctx.restore()
+    }
+
+    if (hoveredParticipantIndex !== null) {
+      const wins = data.participants[hoveredParticipantIndex].windows
+      if (wins.length > 0) {
+        ctx.strokeStyle = '#007acc'
+        ctx.lineWidth = 1
+        drawStepLinePath(ctx, wins, msToX, valueToY)
+        ctx.stroke()
+      }
+    }
+  }
+
   // ── HEATMAP ──
   function renderHeatmap(
     ctx: CanvasRenderingContext2D,
@@ -309,70 +476,8 @@
       ctx.lineTo(floorRight, y)
       ctx.stroke()
     }
-
-    if (hoveredMsTime !== null) {
-      let w: EvolvingMetricsWindow | null = null
-      if (hoveredParticipantIndex !== null) {
-        w = findWindowAt(data.participants[hoveredParticipantIndex].windows, hoveredMsTime)
-      }
-      if (!w) {
-        for (const p of data.participants) {
-          w = findWindowAt(p.windows, hoveredMsTime)
-          if (w) break
-        }
-      }
-      if (w) {
-        // Calculate step boundaries (the 100ms step)
-        const stepXStart = floorLeft + (w.startMs - timelineMin) * invMsPerPx
-        const stepXEnd = floorLeft + (w.endMs - timelineMin) * invMsPerPx
-        const stepX = Math.max(floorLeft, stepXStart)
-        const stepWidth = Math.min(floorRight, stepXEnd) - stepX
-
-        // Calculate window boundaries (the 1000ms window)
-        const winStart = w.dataStartMs ?? (w.centerMs - 500)
-        const winEnd = w.dataEndMs ?? (w.centerMs + 500)
-        const winXStart = floorLeft + (winStart - timelineMin) * invMsPerPx
-        const winXEnd = floorLeft + (winEnd - timelineMin) * invMsPerPx
-        const x = Math.max(floorLeft, winXStart)
-        const rectWidth = Math.min(floorRight, winXEnd) - x
-
-        ctx.save()
-        ctx.fillStyle = '#007acc'
-
-        // 1. Draw the lighter window highlight (1000ms)
-        if (rectWidth > 0) {
-          ctx.globalAlpha = 0.08
-          ctx.fillRect(x, floorTop, rectWidth, floorHeight)
-        }
-
-        // 2. Draw the darker step highlight (100ms)
-        if (stepWidth > 0) {
-          ctx.globalAlpha = 0.15
-          ctx.fillRect(stepX, floorTop, stepWidth, floorHeight)
-        }
-
-        // 3. If a specific participant is hovered, highlight that cell slightly more
-        if (hoveredParticipantIndex !== null && stepWidth > 0) {
-          const rowY = floorTop + hoveredParticipantIndex * rowHeight
-          ctx.globalAlpha = 0.15
-          ctx.fillRect(stepX, rowY, stepWidth, rowHeight)
-        }
-
-        ctx.restore()
-      }
-
-      // Draw dashed interactive line showcasing where the cursor currently is
-      const cx = alignToPixelCenter(floorLeft + (hoveredMsTime - timelineMin) * invMsPerPx)
-      ctx.save()
-      ctx.strokeStyle = '#007acc'
-      ctx.lineWidth = 1
-      ctx.setLineDash([2, 2])
-      ctx.beginPath()
-      ctx.moveTo(cx, floorTop)
-      ctx.lineTo(cx, floorBottom)
-      ctx.stroke()
-      ctx.restore()
-    }
+    // Hover highlight is drawn in `drawEvolvingOverlay` (overlay layer) so a
+    // mouse move blits the cached heatmap instead of re-running this loop.
   }
 
   function renderHeatmapLabels(
@@ -469,8 +574,10 @@
 
     const alpha = Math.max(0.04, Math.min(0.5, 2 / Math.sqrt(participantCount)))
     ctx.lineWidth = participantCount > 30 ? 0.5 : 1
+    // Draw every participant's faint line here (hover-independent) so the data
+    // layer caches cleanly; the hovered participant's emphasised line is painted
+    // on top in drawEvolvingOverlay.
     for (let p = 0; p < participantCount; p++) {
-      if (hoveredParticipantIndex === p) continue
       const wins = data.participants[p].windows
       if (wins.length === 0) continue
       ctx.strokeStyle = `rgba(${OVERLAY_INDIVIDUAL_RGB}, ${alpha})`
@@ -511,71 +618,8 @@
     ctx.stroke()
     ctx.restore()
 
-    if (hoveredMsTime !== null) {
-      let w: EvolvingMetricsWindow | null = null
-      if (hoveredParticipantIndex !== null) {
-        w = findWindowAt(data.participants[hoveredParticipantIndex].windows, hoveredMsTime)
-      }
-      if (!w) {
-        for (const p of data.participants) {
-          w = findWindowAt(p.windows, hoveredMsTime)
-          if (w) break
-        }
-      }
-      if (w) {
-        // Calculate step boundaries (the 100ms step)
-        const stepXStart = msToX(w.startMs)
-        const stepXEnd = msToX(w.endMs)
-        const stepX = Math.max(floorLeft, stepXStart)
-        const stepWidth = Math.min(floorRight, stepXEnd) - stepX
-
-        // Calculate window boundaries (the 1000ms window)
-        const winStart = w.dataStartMs ?? (w.centerMs - 500)
-        const winEnd = w.dataEndMs ?? (w.centerMs + 500)
-        const winXStart = msToX(winStart)
-        const winXEnd = msToX(winEnd)
-        const x = Math.max(floorLeft, winXStart)
-        const rectWidth = Math.min(floorRight, winXEnd) - x
-
-        ctx.save()
-        ctx.fillStyle = '#007acc'
-
-        // 1. Draw the lighter window highlight (1000ms)
-        if (rectWidth > 0) {
-          ctx.globalAlpha = 0.08
-          ctx.fillRect(x, floorTop, rectWidth, floorHeight)
-        }
-
-        // 2. Draw the darker step highlight (100ms)
-        if (stepWidth > 0) {
-          ctx.globalAlpha = 0.15
-          ctx.fillRect(stepX, floorTop, stepWidth, floorHeight)
-        }
-
-        ctx.restore()
-      }
-
-      const cx = alignToPixelCenter(msToX(hoveredMsTime))
-      ctx.save()
-      ctx.strokeStyle = '#007acc'
-      ctx.lineWidth = 1
-      ctx.setLineDash([2, 2])
-      ctx.beginPath()
-      ctx.moveTo(cx, floorTop)
-      ctx.lineTo(cx, floorBottom)
-      ctx.stroke()
-      ctx.restore()
-    }
-
-    if (hoveredParticipantIndex !== null) {
-      const wins = data.participants[hoveredParticipantIndex].windows
-      if (wins.length > 0) {
-        ctx.strokeStyle = '#007acc'
-        ctx.lineWidth = 1
-        drawStepLinePath(ctx, wins, msToX, valueToY)
-        ctx.stroke()
-      }
-    }
+    // Hover highlight (window/step bands, cursor line, emphasised participant
+    // line) is drawn in drawEvolvingOverlay on the overlay layer.
   }
 
   function drawStepLinePath(
