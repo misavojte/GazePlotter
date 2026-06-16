@@ -33,12 +33,12 @@ describe('add-visualization menu grouping', () => {
   it('groups plots into submenus ordered by PLOT_GROUPS, dropping empty groups', () => {
     const actions = addVisualizationActions([
       { id: 'a', label: 'A', group: 'per-aoi' },
-      { id: 'b', label: 'B', group: 'gaze-sequence' },
+      { id: 'b', label: 'B', group: 'gaze-behavior' },
       { id: 'c', label: 'C', group: 'per-aoi' },
     ])
 
-    // gaze-sequence precedes per-aoi in PLOT_GROUPS; the three unused groups drop.
-    expect(actions.map(a => a.label)).toEqual(['Gaze sequence', 'Per AOI'])
+    // gaze-behavior precedes per-aoi in PLOT_GROUPS; the three unused groups drop.
+    expect(actions.map(a => a.label)).toEqual(['Gaze behavior', 'Per AOI'])
     expect(actions[0].children?.map(c => c.label)).toEqual(['B'])
     expect(actions[1].children?.map(c => c.label)).toEqual(['A', 'C'])
   })
@@ -46,7 +46,7 @@ describe('add-visualization menu grouping', () => {
   it('makes group parents pure submenu openers and leaves the run on the leaves', () => {
     const added: string[] = []
     const actions = addVisualizationActions(
-      [{ id: 'scarf', label: 'Scarf Plot', group: 'gaze-sequence' }],
+      [{ id: 'scarf', label: 'Scarf Plot', group: 'gaze-behavior' }],
       id => added.push(id)
     )
 
@@ -79,7 +79,7 @@ describe('add-visualization menu grouping', () => {
     ])
 
     expect(layout).toEqual([
-      ['Gaze sequence', ['Scarf Plot', 'Scanpath', 'Recurrence Plot']],
+      ['Gaze behavior', ['Scarf Plot', 'Scanpath', 'Recurrence Plot']],
       ['Per AOI', ['AOI Comparison', 'AOI Timeline']],
       ['Inter-AOI', ['Transition Matrix']],
       ['Per participant', ['Metric Timeline', 'Metric Correlation']],

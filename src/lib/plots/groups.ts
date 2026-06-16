@@ -3,13 +3,13 @@
  * human reading of the metric `outputShape` axis (scalar -> participant,
  * aoi-vector -> AOI, aoi-pair-matrix -> inter-AOI, participant-pair-matrix ->
  * inter-participant), extended to cover the raw-gaze plots that consume no
- * metric (their unit is the gaze sequence itself).
+ * metric (their unit is the gaze itself, spatial or temporal).
  *
  * Read in exactly one place: the add-visualization menu groups plots by this
  * field. It never appears in a plot's own chrome.
  */
 export type PlotGroup =
-  | 'gaze-sequence'
+  | 'gaze-behavior'
   | 'per-aoi'
   | 'inter-aoi'
   | 'per-participant'
@@ -22,7 +22,7 @@ export type PlotGroup =
  * heading; the register is ET-field precise ("Inter-AOI", not "Between AOIs").
  */
 export const PLOT_GROUPS: readonly { key: PlotGroup; label: string }[] = [
-  { key: 'gaze-sequence', label: 'Gaze sequence' },
+  { key: 'gaze-behavior', label: 'Gaze behavior' },
   { key: 'per-aoi', label: 'Per AOI' },
   { key: 'inter-aoi', label: 'Inter-AOI' },
   { key: 'per-participant', label: 'Per participant' },
