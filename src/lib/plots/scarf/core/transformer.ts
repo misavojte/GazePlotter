@@ -19,6 +19,7 @@ import {
   FIXATION_CATEGORY_ID,
   type ExtendedInterpretedDataType,
 } from '$lib/data/types'
+import { SEGMENT_STRIDE, SegmentField } from '$lib/data/binary/schema'
 import {
   createAdaptiveTimeline,
   type AdaptiveTimeline,
@@ -119,6 +120,32 @@ class Float32GrowBuffer {
   finalize(): Float32Array {
     return this.buffer.subarray(0, this.writeIndex)
   }
+}
+
+/**
+ * Per-(stimulus, participant-count, style-count, timeline) memory of the last
+ * run's per-bucket float counts. Re-deriving on every pan/zoom frame writes
+ * almost the same number of rects each time, so seeding each grow-buffer at the
+ * previous size avoids the repeated double-and-copy (the `ensureCapacity` cost)
+ * with no extra retained memory — the seed matches the actual fill. A cache miss
+ * (first run, zoom, stimulus switch) just falls back to the default and the next
+ * frame is seeded. Bounded; cleared wholesale past a small cap.
+ */
+interface BucketSizes {
+  rect: Int32Array
+  event: Int32Array
+}
+const scarfBucketSizeCache = new Map<string, BucketSizes>()
+const SCARF_BUCKET_CACHE_CAP = 48
+
+function seedCapacity(
+  hint: Int32Array | undefined,
+  index: number,
+  fallback: number
+): number {
+  const last = hint && index < hint.length ? hint[index] : 0
+  // +12.5% headroom so a slightly-larger frame still fits without a realloc.
+  return last > 0 ? Math.max(64, Math.ceil(last * 1.125)) : fallback
 }
 
 /**
@@ -568,17 +595,28 @@ export function transformDataToScarfPlot(
     aoiStyleCount +
     stylingAndLegend.category.length +
     stylingAndLegend.visibility.length
+  const sizeCacheKey = `${stimulusId}|${participantIds.length}|${totalStyleCount}|${settings.timeline}`
+  const sizeHint = scarfBucketSizeCache.get(sizeCacheKey)
   const rectBuckets = Array.from(
     { length: totalStyleCount },
-    () => new Float32GrowBuffer(1024)
+    (_, i) => new Float32GrowBuffer(seedCapacity(sizeHint?.rect, i, 1024))
   )
   const eventBuckets = Array.from(
     { length: totalStyleCount },
-    () => new Float32GrowBuffer(512)
+    (_, i) => new Float32GrowBuffer(seedCapacity(sizeHint?.event, i, 512))
   )
 
   const isOrdinal = settings.timeline === 'ordinal'
   const isRelative = settings.timeline === 'relative'
+  // Hoist every reactive `settings` read OUT of the per-segment loop: `settings`
+  // is a deep $state proxy (item.settings), so each property read is a proxy
+  // `get` — reading `hideNonFixations` per segment cost ~190 ms on a large set.
+  const hideNonFixations = settings.hideNonFixations
+  const relTimelineStart = settings.timelineStart
+  const relTimelineEnd = settings.timelineEnd
+  // Raw segment buffer for direct indexing in the hot loop (no per-call method
+  // dispatch through getSegmentStart/End/Category).
+  const segBuf = reader.segmentBufferRaw
   const participants: ScarfParticipant[] = new Array(participantIds.length)
   const overlapAoiBuffer = new Uint16Array(aoiBufferSize)
   // Observed (not theoretical) max simultaneous events across all participants.
@@ -594,8 +632,8 @@ export function transformDataToScarfPlot(
     let scale = invVisibleRange
 
     if (isRelative) {
-      const tStart = settings.timelineStart
-      const tEnd = settings.timelineEnd
+      const tStart = relTimelineStart
+      const tEnd = relTimelineEnd
       clipMin = typeof tStart === 'number' && !isNaN(tStart) ? tStart : 0
       clipMax = typeof tEnd === 'number' && !isNaN(tEnd) ? tEnd : 0
 
@@ -612,13 +650,10 @@ export function transformDataToScarfPlot(
 
     for (let i = startIndex; i < endIndex; i++) {
       const localId = i - startIndex
-      const categoryId = reader.getSegmentCategory(i)
-      let start = isOrdinal
-        ? localId
-        : reader.getSegmentStart(i)
-      let end = isOrdinal
-        ? localId + 1
-        : reader.getSegmentEnd(i)
+      const segBase = i * SEGMENT_STRIDE
+      const categoryId = segBuf[segBase + SegmentField.CATEGORY_ID] | 0
+      let start = isOrdinal ? localId : segBuf[segBase + SegmentField.START_TIME]
+      let end = isOrdinal ? localId + 1 : segBuf[segBase + SegmentField.END_TIME]
 
       if (end <= clipMin || start >= clipMax) continue
       start = Math.max(clipMin, start)
@@ -628,7 +663,7 @@ export function transformDataToScarfPlot(
       const width = (end - start) * scale
 
       if (categoryId !== FIXATION_CATEGORY_ID) {
-        if (settings.hideNonFixations) continue
+        if (hideNonFixations) continue
         if (hiddenCategoryIds.has(categoryId)) continue
 
         const styleIdx = categoryId >= 0 && categoryId < categoryStyleIdxMap.length
@@ -752,6 +787,21 @@ export function transformDataToScarfPlot(
     }
   }
 
+  const visualRectBuckets = rectBuckets.map(b => b.finalize())
+  const visualEventBuckets = eventBuckets.map(b => b.finalize())
+
+  // Remember this run's per-bucket sizes to seed the next frame's buffers.
+  const rectSizes = new Int32Array(totalStyleCount)
+  const eventSizes = new Int32Array(totalStyleCount)
+  for (let i = 0; i < totalStyleCount; i++) {
+    rectSizes[i] = visualRectBuckets[i].length
+    eventSizes[i] = visualEventBuckets[i].length
+  }
+  if (!scarfBucketSizeCache.has(sizeCacheKey) && scarfBucketSizeCache.size >= SCARF_BUCKET_CACHE_CAP) {
+    scarfBucketSizeCache.clear()
+  }
+  scarfBucketSizeCache.set(sizeCacheKey, { rect: rectSizes, event: eventSizes })
+
   return {
     id: stimulusId,
     stimulusId,
@@ -764,8 +814,8 @@ export function transformDataToScarfPlot(
       settings.hideNonFixations,
       showVisibilityMarkers
     ),
-    visualRectBuckets: rectBuckets.map(b => b.finalize()),
-    visualEventBuckets: eventBuckets.map(b => b.finalize()),
+    visualRectBuckets,
+    visualEventBuckets,
     isOverlay: showVisibilityMarkers,
     eventZoneConcurrency: observedMaxConcurrency,
   }

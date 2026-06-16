@@ -223,8 +223,16 @@ export interface UsePlotHandle {
   readonly blockedRegions: BlockedRegion[]
   /** Resolved frame geometry (reactive). */
   readonly frame: PlotFrame
-  /** Throttled rAF render scheduler. */
+  /** Throttled rAF render scheduler (re-runs the full drawData). */
   readonly scheduleRender: () => void
+  /**
+   * Throttled rAF scheduler that repaints ONLY `drawOverlay`, blitting the
+   * cached data layer back instead of re-running the (expensive) `drawData`.
+   * Use for hover-only visuals — crosshairs, hovered-cell highlights, tooltip
+   * guide lines — that don't change the data layer. Falls back to a full render
+   * if no data layer is cached yet or `drawOverlay` isn't declared.
+   */
+  readonly scheduleOverlayRender: () => void
 
   // Lower-level surface (for the rare figure that needs it directly)
   readonly canvasState: CanvasState
@@ -402,9 +410,24 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     canvasState = next
   }
 
+  // Cached data layer (everything a full render draws EXCEPT `drawOverlay`),
+  // kept at device resolution so an overlay-only repaint can blit it back 1:1
+  // instead of re-running drawData. Only maintained when `drawOverlay` exists.
+  let dataLayer: OffscreenCanvas | HTMLCanvasElement | null = null
+  let dataLayerCtx:
+    | OffscreenCanvasRenderingContext2D
+    | CanvasRenderingContext2D
+    | null = null
+  let dataLayerValid = false
+
   // Wrapped in untrack: the render runs via rAF / lifecycle, never as a tracked
   // effect, so reading the deriveds below must not establish subscriptions.
+  // Two schedulers: a FULL render (drawData + overlay, recaches the data layer)
+  // and an OVERLAY-only render (blit cache + drawOverlay). Under a same-frame
+  // race the full render's data always ends up shown — it either runs last, or
+  // the overlay blit re-shows the data layer the full render just captured.
   const scheduleRender = createRenderScheduler(() => untrack(render))
+  const scheduleOverlayRender = createRenderScheduler(() => untrack(renderOverlay))
 
   const registerExportSource = (getCanvas: () => HTMLCanvasElement | null) =>
     registerCanvasExportSource(exportRegistrar, getCanvas)
@@ -554,8 +577,79 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
         drawYAxisMainLabel(ctx, axes.left.title, r.x, r.y, r.height, resolved.leftTitleOffset)
     }
 
+    // Snapshot the data layer (data + axes, no overlay) so overlay-only repaints
+    // can blit it back. Captures device pixels, so the active dpr transform is
+    // irrelevant to the copy.
+    if (options.drawOverlay) captureDataLayer()
+
     options.drawOverlay?.(ctx, f)
 
+    finishCanvasDrawing(canvasState)
+  }
+
+  // Cap on the cached layer's device-pixel area. The main canvas of a very
+  // large/tall plot is already near the browser's canvas limits; mirroring it
+  // would double an already-huge buffer (and `new OffscreenCanvas(hugeDims)`
+  // can throw). Above the cap we skip the cache and overlay renders fall back to
+  // a full render — correct, just not accelerated.
+  const MAX_CACHE_PX = 64 * 1024 * 1024 // ~256 MB at 4 bytes/px
+
+  function captureDataLayer() {
+    const canvas = canvasState.canvas
+    if (!canvas) return
+    const w = canvas.width
+    const h = canvas.height
+    if (w === 0 || h === 0 || w > 16384 || h > 16384 || w * h > MAX_CACHE_PX) {
+      dataLayerValid = false
+      return
+    }
+    if (!dataLayer || dataLayer.width !== w || dataLayer.height !== h) {
+      try {
+        dataLayer =
+          typeof OffscreenCanvas !== 'undefined'
+            ? new OffscreenCanvas(w, h)
+            : Object.assign(document.createElement('canvas'), { width: w, height: h })
+        dataLayerCtx = dataLayer.getContext('2d') as
+          | OffscreenCanvasRenderingContext2D
+          | CanvasRenderingContext2D
+          | null
+      } catch {
+        dataLayer = null
+        dataLayerCtx = null
+      }
+    }
+    if (!dataLayerCtx) {
+      dataLayerValid = false
+      return
+    }
+    dataLayerCtx.clearRect(0, 0, w, h)
+    dataLayerCtx.drawImage(canvas, 0, 0)
+    dataLayerValid = true
+  }
+
+  // Overlay-only repaint: blit the cached data layer (device pixels, 1:1) then
+  // draw just the overlay. Falls back to a full render if the cache is missing,
+  // stale-sized, or there is no overlay to draw.
+  function renderOverlay() {
+    const canvas = canvasState.canvas
+    const ctx = canvasState.context
+    if (!ctx || !canvas) return
+    if (
+      !options.drawOverlay ||
+      !dataLayer ||
+      !dataLayerValid ||
+      dataLayer.width !== canvas.width ||
+      dataLayer.height !== canvas.height
+    ) {
+      render()
+      return
+    }
+    beginCanvasDrawing(canvasState, true)
+    ctx.save()
+    ctx.setTransform(1, 0, 0, 1, 0, 0) // device pixels for the 1:1 blit
+    ctx.drawImage(dataLayer, 0, 0)
+    ctx.restore() // back to the dpr-scaled transform for the overlay
+    options.drawOverlay(ctx, frame)
     finishCanvasDrawing(canvasState)
   }
 
@@ -731,6 +825,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
       return frame
     },
     scheduleRender,
+    scheduleOverlayRender,
     get canvasState() {
       return canvasState
     },

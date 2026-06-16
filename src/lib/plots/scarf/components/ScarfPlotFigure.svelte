@@ -195,6 +195,7 @@
     gutters: () => ({}),
     clipData: false,
     drawData: renderScarf,
+    drawOverlay: drawScarfOverlay,
     blockedRegions: () => blockedRegions,
     pointer: {
       onMove: handleHover,
@@ -352,11 +353,6 @@
       deviceScale: plot.canvasState.pixelRatio ?? 1,
     })
 
-    drawCrosshairHighlight(
-      ctx, scarfPlotLeft, effectiveMarginTop, scarfPlotWidth, participantBarsHeight,
-      layout.heightOfBarWrap
-    )
-
     const scarfXTicks = niceTimelineTicks(data.timeline)
     drawPlotArea(ctx, {
       x: scarfPlotLeft,
@@ -372,6 +368,19 @@
 
     drawLegendGroupTitles(ctx, legendGeometry, SCARF_LEGEND_CONFIG)
     drawLegend(ctx, legendGeometry, SCARF_LEGEND_CONFIG, usedHighlights)
+  }
+
+  // Overlay layer: only the hover crosshair. Drawn on top of the cached data
+  // layer so mouse-moves repaint via blit instead of re-running renderScarf.
+  function drawScarfOverlay(ctx: CanvasRenderingContext2D) {
+    drawCrosshairHighlight(
+      ctx,
+      Math.floor(LEFT_LABEL_WIDTH + margins.left),
+      effectiveMarginTop,
+      Math.floor(plotAreaWidth),
+      participantBarsHeight,
+      layout.heightOfBarWrap
+    )
   }
 
   function drawCrosshairHighlight(
@@ -438,7 +447,7 @@
       if (hoveredRowIndex !== null || mouseXPx !== null) {
         hoveredRowIndex = null
         mouseXPx = null
-        plot.scheduleRender()
+        plot.scheduleOverlayRender()
       }
       if (currentHoveredSegment) {
         currentHoveredSegment = null
@@ -471,7 +480,7 @@
       if (hoveredRowIndex !== null) {
         hoveredRowIndex = null
         mouseXPx = null
-        plot.scheduleRender()
+        plot.scheduleOverlayRender()
       }
       return
     }
@@ -481,7 +490,7 @@
       if (hoveredRowIndex !== null) {
         hoveredRowIndex = null
         mouseXPx = null
-        plot.scheduleRender()
+        plot.scheduleOverlayRender()
       }
       if (currentHoveredSegment) {
         currentHoveredSegment = null
@@ -497,7 +506,7 @@
     hoveredRowIndex =
       newRowIndex >= 0 && newRowIndex < data.participants.length ? newRowIndex : null
     mouseXPx = mx
-    plot.scheduleRender()
+    plot.scheduleOverlayRender()
 
     const hoveredSegment =
       hoveredRowIndex !== null ? findSegmentAtRowAndTime(hoveredRowIndex, mx) : null

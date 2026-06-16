@@ -221,10 +221,16 @@ export function createWorkspaceCommandRegistry(
         const currentItem = gridStore.items.find(item => item.id === itemId)
         if (!currentItem) throw new Error(`Grid item ${itemId} not found`)
 
-        gridStore.updateLayout(itemId, {
-          ...layout,
-          redrawTimestamp: Date.now(),
-        })
+        // A layout change (move OR resize) never bumps redrawTimestamp.
+        // `redrawTimestamp` means "engine data changed, re-derive" — that is what
+        // `triggerRedraw` uses it for, and the scarf data transform (normalized,
+        // size-independent rect buckets) keys off it. A resize must repaint but
+        // NOT re-transform: the canvas already repaints reactively on its measured
+        // width/height (usePlot's width/height effect), and a move just
+        // repositions the existing canvas via CSS transform. Bumping here forced
+        // every resized plot to rebuild all rect buckets (the dominant scarf
+        // manipulation cost) for output that doesn't depend on size.
+        gridStore.updateLayout(itemId, layout)
       }
 
       if (command.isRootCommand && !context.isUndoRedoOperation) {
