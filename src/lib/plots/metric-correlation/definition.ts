@@ -23,6 +23,7 @@ export const metricCorrelationDefinition = definePlot<
 >({
   type: 'metricCorrelation',
   name: 'Metric Correlation',
+  group: 'per-participant',
   component: MetricCorrelationPlot,
   paneSections: [
     { key: 'stimulus', component: StimulusSection },

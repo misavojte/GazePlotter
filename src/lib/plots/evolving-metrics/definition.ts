@@ -21,7 +21,8 @@ export const evolvingMetricsDefinition = definePlot<
   EvolvingMetricsSettings
 >({
   type: 'evolvingMetrics',
-  name: 'Evolving Metrics',
+  name: 'Metric Timeline',
+  group: 'per-participant',
   component: EvolvingMetricsPlot,
   paneSections: [
     { key: 'stimulus', component: StimulusSection },

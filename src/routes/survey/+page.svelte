@@ -279,19 +279,19 @@
       ),
     },
     {
-      text: 'Pan to AOI Metrics and set its stimulus to Task 2',
+      text: 'Pan to AOI Comparison and set its stimulus to Task 2',
       condition: barPlotStimulusCondition, // Auto-completes when stimulus is set to Task 2
       onSkip: createSkipHandler(
         9,
-        'Pan to AOI Metrics and set its stimulus to Task 2'
+        'Pan to AOI Comparison and set its stimulus to Task 2'
       ),
     },
     {
-      text: "On AOI Metrics, set aggregation method to 'Visit count'",
+      text: "On AOI Comparison, set aggregation method to 'Visit count'",
       condition: barPlotCondition, // Auto-completes when aggregation is changed
       onSkip: createSkipHandler(
         10,
-        "On AOI Metrics, set aggregation method to 'Visit count'"
+        "On AOI Comparison, set aggregation method to 'Visit count'"
       ),
     },
     {

@@ -23,6 +23,7 @@ export const transitionMatrixDefinition = definePlot<
 >({
   type: 'transitionMatrix',
   name: 'Transition Matrix',
+  group: 'inter-aoi',
   component: TransitionMatrixPlot,
   paneSections: [
     { key: 'stimulus', component: StimulusSection },

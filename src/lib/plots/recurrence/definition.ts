@@ -22,6 +22,7 @@ export const recurrencePlotDefinition = definePlot<
 >({
   type: 'recurrencePlot',
   name: 'Recurrence Plot',
+  group: 'gaze-sequence',
   component: RecurrencePlot,
   paneSections: [
     { key: 'stimulus', component: StimulusSection },

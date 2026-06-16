@@ -23,6 +23,7 @@ export const scanpathSimilarityDefinition = definePlot<
 >({
   type: 'scanpathSimilarity',
   name: 'Scanpath Similarity',
+  group: 'inter-participant',
   component: ScanpathSimilarityPlot,
   paneSections: [
     { key: 'stimulus', component: StimulusSection },

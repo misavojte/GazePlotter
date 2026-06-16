@@ -126,6 +126,7 @@
   const visualizations = Object.entries(plotRegistry).map(([id, config]) => ({
     id,
     label: config.name,
+    group: config.group,
   }))
 
   function handleAddVisualization(vizType: string): void {

@@ -3,6 +3,7 @@ import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { DataCapabilityRequirements } from '$lib/data/types'
 import type { PlotMetricContract } from '$lib/metrics'
 import type { WorkspaceCommand, WorkspaceCommandChain } from '$lib/workspace/commands'
+import type { PlotGroup } from './groups'
 
 export type DefaultPlotParams = {
   stimulusId?: number
@@ -122,6 +123,12 @@ export type PlotDefinition<
 > = {
   type: TType
   name: string
+  /**
+   * Taxonomy bucket: the plot's unit of analysis. Read in exactly one place,
+   * the add-visualization menu, which groups plots by this field (group =
+   * parent item, its plots = submenu). Never surfaced in the plot's own chrome.
+   */
+  group: PlotGroup
   component: Component<TPlotProps>
   getDefaultSettings: (params?: TParams) => TSettings
   getDefaultHeight: (params?: PlotLayoutInput<TSettings>) => number

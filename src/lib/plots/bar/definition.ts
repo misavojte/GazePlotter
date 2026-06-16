@@ -18,7 +18,8 @@ import type { BarPlotSettings } from './types'
 
 export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
   type: 'barPlot',
-  name: 'AOI Metrics',
+  name: 'AOI Comparison',
+  group: 'per-aoi',
   component: BarPlot,
   paneSections: [
     { key: 'stimulus', component: StimulusSection },

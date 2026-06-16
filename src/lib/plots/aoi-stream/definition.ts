@@ -21,7 +21,8 @@ export const aoiStreamPlotDefinition = definePlot<
   AoiStreamPlotSettings
 >({
   type: 'aoiStreamPlot',
-  name: 'Time-binned AOI Occupancy',
+  name: 'AOI Timeline',
+  group: 'per-aoi',
   component: AoiStreamPlot,
   paneSections: [
     { key: 'stimulus', component: StimulusSection },

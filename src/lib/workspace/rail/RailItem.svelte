@@ -10,7 +10,8 @@
 
   interface ActionItem {
     label: string
-    run: () => void
+    run?: () => void
+    children?: ActionItem[]
   }
 
   interface Props {
@@ -35,12 +36,21 @@
     showLabel = false,
   }: Props = $props()
 
-  const menuItems = $derived.by((): MenuItem[] => {
-    return actions.map(action => ({
-      label: action.label,
-      onAction: action.run,
-    }))
-  })
+  function toMenuItem(action: ActionItem): MenuItem {
+    if (action.children && action.children.length > 0) {
+      return { label: action.label, children: action.children.map(toMenuItem) }
+    }
+    return { label: action.label, onAction: action.run }
+  }
+
+  const menuItems = $derived.by((): MenuItem[] => actions.map(toMenuItem))
+
+  // The item opens a menu when it has more than one entry, or a single entry
+  // that is itself a submenu (e.g. only one plot group is available).
+  const hasMenu = $derived(
+    actions.length > 1 ||
+      (actions.length === 1 && (actions[0].children?.length ?? 0) > 0)
+  )
 
   // Press-feedback (icon scale-down) is pure CSS — see the
   // `.toolbar-item:active ... .toolbar-item-icon` rule below. The
@@ -49,7 +59,9 @@
   // multi-action falls through to `contextMenuAction`.
   function handleClick() {
     if (disabled) return
-    if (actions.length === 1) actions[0].run()
+    if (actions.length === 1 && actions[0].run && !actions[0].children?.length) {
+      actions[0].run()
+    }
   }
 
   const isMenuVisible = $derived(contextMenuState.current !== null)
@@ -69,13 +81,13 @@
       disabled: isMenuVisible || responsive.isMobile,
     }}
     use:contextMenuAction={{
-      items: actions.length > 1 ? menuItems : undefined,
+      items: hasMenu ? menuItems : undefined,
       position: responsive.isMobile ? 'top' : 'right',
       horizontalAlign: responsive.isMobile ? 'center' : 'start',
       verticalAlign: responsive.isMobile ? 'end' : undefined,
       offset: 8,
       slideFrom: responsive.isMobile ? 'top' : 'left',
-      disabled: disabled || actions.length <= 1,
+      disabled: disabled || !hasMenu,
     }}
   >
     <div class="toolbar-item-icon">

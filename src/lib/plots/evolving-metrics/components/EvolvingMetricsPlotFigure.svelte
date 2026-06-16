@@ -702,5 +702,5 @@
 <canvas
   use:plot.plotAction
   use:canvasBlockSelect={{ regions: plot.blockedRegions }}
-  aria-label="Evolving Metrics visualization"
+  aria-label="Metric Timeline visualization"
 ></canvas>

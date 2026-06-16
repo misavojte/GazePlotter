@@ -15,7 +15,8 @@ import type { ScanpathPlotSettings } from './types'
 
 export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSettings>({
   type: 'scanpath',
-  name: 'Scanpath Plot',
+  name: 'Scanpath',
+  group: 'gaze-sequence',
   component: ScanpathPlot,
   paneSections: [
     { key: 'stimulus', component: StimulusSection },

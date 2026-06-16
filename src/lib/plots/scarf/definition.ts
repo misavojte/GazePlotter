@@ -23,6 +23,7 @@ import type { WorkspaceCommand } from '$lib/workspace/commands'
 export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
   type: 'scarf',
   name: 'Scarf Plot',
+  group: 'gaze-sequence',
   component: ScarfPlot,
   paneSections: [
     { key: 'stimulus', component: StimulusSection },

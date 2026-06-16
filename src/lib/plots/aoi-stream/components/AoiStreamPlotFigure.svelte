@@ -650,5 +650,5 @@
   use:plot.plotAction
   use:canvasBlockSelect={{ regions: plot.blockedRegions }}
   onclick={handleClick}
-  aria-label="Time-binned AOI Occupancy visualization"
+  aria-label="AOI Timeline visualization"
 ></canvas>
