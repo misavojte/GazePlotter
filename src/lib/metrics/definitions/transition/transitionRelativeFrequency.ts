@@ -33,10 +33,6 @@ defineTransitionMetric<Params>({
     'expressed as a percentage. Matrix sums to 100% per participant.',
   unit: '%',
   groupAggregation: 'mean',
-  defaultLabel: p =>
-    p.mode === 'visit'
-      ? 'Transition relative frequency (visit)'
-      : 'Transition relative frequency (fixation)',
   searchTags: ['transition', 'frequency', 'relative', 'percent', 'proportion', 'aoi', 'pair'],
   onTransition: (acc, cellIdx) => { acc.matrix[cellIdx]++ },
   finalize: acc => {

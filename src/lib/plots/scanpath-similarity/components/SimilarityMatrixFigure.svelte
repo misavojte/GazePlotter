@@ -25,6 +25,8 @@
     colorScale?: string[]
     colorValueRange: [number, number]
     legendTitle?: string
+    /** Bare quantity name for the per-cell tooltip key (no plot-level qualifiers). */
+    valueLabel?: string
     noMetric?: boolean
   }
 
@@ -36,6 +38,7 @@
     colorScale = ['#f7fbff', '#08306b'],
     colorValueRange = [0, 1],
     legendTitle = 'Similarity',
+    valueLabel = 'Similarity',
     noMetric = false,
     dpiOverride = null,
     margins = NO_MARGINS,
@@ -160,8 +163,6 @@
     maxLabelLength: SIMILARITY_MATRIX_LAYOUT.maxLabelLength,
     xAxisTitle: 'Participant',
     yAxisTitle: 'Participant',
-    compactUnitText: '[indices]',
-    standardUnitText: '[names]',
     formatCellValue: (v: number) => v.toFixed(2),
     getCellColor: getColor,
   })
@@ -210,7 +211,7 @@
       content: [
         { key: 'Row', value: labels[row] },
         { key: 'Column', value: labels[col] },
-        { key: legendTitle, value: value.toFixed(3) },
+        { key: valueLabel, value: value.toFixed(3) },
       ],
       anchorX: xOffset + col * cellSize + cellSize,
       anchorY: yOffset + row * cellSize + cellSize,

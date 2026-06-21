@@ -48,13 +48,15 @@ defineTransitionMetric<Params>({
     '100%, where the remainder is the probability the gaze sequence ended before completing k transitions.',
   unit: '%',
   groupAggregation: 'mean',
-  defaultLabel: p => {
-    const pair = p.mode === 'visit' ? 'Visit-to-visit' : 'Fixation-to-fixation'
-    const stepPhrase = p.step > 1 ? `${p.step}-step transition probability` : 'transition probability'
-    return `${pair} ${stepPhrase}`
-  },
   searchTags: ['transition', 'probability', 'markov', 'chain', 'aoi', 'pair', 'k-step'],
-  extraParams: [integerParam('step', 'Step', 1, { min: 1, max: 10 })],
+  extraParams: [
+    integerParam('step', 'Step', 1, {
+      min: 1,
+      max: 10,
+      // Omit at the default 1-step; "2-step", "3-step", … otherwise.
+      toLabel: v => (v > 1 ? `${v}-step` : null),
+    }),
+  ],
   onTransition: (acc, cellIdx) => { acc.matrix[cellIdx]++ },
   finalize: (acc, params) => {
     const n = acc.size

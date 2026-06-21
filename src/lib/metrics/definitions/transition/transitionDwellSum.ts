@@ -36,10 +36,6 @@ defineTransitionMetric<Params>({
   unit: 'ms',
   groupAggregation: 'sum',
   additive: true,
-  defaultLabel: p =>
-    p.mode === 'visit'
-      ? 'Transition dwell sum (visit)'
-      : 'Transition dwell sum (fixation)',
   searchTags: ['transition', 'dwell', 'duration', 'pair', 'aoi', 'time', 'sum'],
   onTransition: (acc, cellIdx, prevDuration) => {
     acc.matrix[cellIdx] += prevDuration

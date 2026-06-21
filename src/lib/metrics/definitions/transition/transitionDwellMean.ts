@@ -34,10 +34,6 @@ defineTransitionMetric<Params>({
     'of the preceding visit.',
   unit: 'ms',
   groupAggregation: 'mean',
-  defaultLabel: p =>
-    p.mode === 'visit'
-      ? 'Mean visit-to-visit transition dwell'
-      : 'Mean fixation-to-fixation transition dwell',
   searchTags: ['transition', 'dwell', 'mean', 'average', 'duration', 'pair', 'aoi', 'time'],
   withAux: true,
   onTransition: (acc, cellIdx, prevDuration) => {

@@ -12,7 +12,9 @@ const params = [
     { value: 'levenshtein',     label: 'Levenshtein' },
     { value: 'needlemanWunsch', label: 'Needleman-Wunsch' },
   ]),
-  boolParam('collapsed', 'Collapse consecutive AOIs', false),
+  boolParam('collapsed', 'Collapse consecutive AOIs', false, {
+    toLabel: v => (v ? 'collapsed' : null),
+  }),
 ] as const
 
 /**
@@ -55,7 +57,9 @@ defineMetric({
   description:
     "Per participant pair: normalized similarity between participants' AOI-letter scanpaths. " +
     'Symmetric, with diagonal = 1. Levenshtein uses edit distance; Needleman-Wunsch uses global alignment.',
-  unit: '0–1',
+  // Dimensionless ratio in [0, 1] — the range is shown by the colorbar ticks,
+  // not as a unit (`/` is reserved for real IUPAC units).
+  unit: '',
   category: 'scanpath',
   rawShape: 'participant-pair-matrix',
   windowUnit: 'ms',
@@ -63,12 +67,6 @@ defineMetric({
   supportsGroupAggregation: false,
   searchTags: ['scanpath', 'similarity', 'levenshtein', 'needleman-wunsch', 'pairwise', 'comparison'],
   params,
-  defaultLabel: (p) => {
-    const methodLabel = p.method === 'needlemanWunsch' ? 'Needleman-Wunsch' : 'Levenshtein'
-    return p.collapsed
-      ? `Scanpath similarity (${methodLabel}, collapsed)`
-      : `Scanpath similarity (${methodLabel})`
-  },
   scanGroup: (scope, { method, collapsed }) => {
     const meta = scope.engine.metadata
     const aois = meta?.aois.data[scope.stimulusId] ? getAois(scope.engine, scope.stimulusId) : []

@@ -164,8 +164,6 @@
     maxLabelLength: TRANSITION_MATRIX_LAYOUT.maxLabelLength,
     xAxisTitle: xLabel,
     yAxisTitle: yLabel,
-    compactUnitText: '[order indices]',
-    standardUnitText: '[names]',
     formatCellValue: (v: number) => (Number.isInteger(v) ? v.toString() : v.toFixed(1)),
     getCellColor,
     showCellValue: (v: number) =>

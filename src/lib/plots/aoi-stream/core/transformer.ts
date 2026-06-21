@@ -5,7 +5,7 @@ import {
 } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
-import { formatMetricLabel } from '$lib/plots/shared/metricLabels'
+import { formatMetricLabel } from '$lib/plots/shared/labels'
 import {
   asAoiVectorTimeseries,
   resolveMetric,

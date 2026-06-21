@@ -297,17 +297,19 @@ export function supportedLeaves(metric: Metric): LeafKind[] {
  * labels, instance readouts, and the metric library UI. Format:
  *
  *   - non-overlapping (`stepSize === windowSize`):   `"500 ms window"`
- *   - sliding         (`stepSize !== windowSize`):   `"1000 ms window / 100 ms step"`
+ *   - sliding         (`stepSize !== windowSize`):   `"1000 ms window, 100 ms step"`
  *
  * `unit` is the recipe's `windowUnit` ('ms' for time-windowed, 'fixations'
- * for fixation-windowed RQA recipes; rendered as 'fix' for compactness).
+ * for fixation-windowed RQA recipes; rendered as 'fix' for compactness). The
+ * window/step pair is comma-separated, not slash-separated: `/` is reserved
+ * for the IUPAC quantity/unit separator in axis/legend labels.
  */
 export function windowLabel(w: WindowSpec, unit: WindowUnit): string {
   const u = unit === 'fixations' ? 'fix' : 'ms'
   if (w.stepSize === w.windowSize) {
     return `${w.windowSize} ${u} window`
   }
-  return `${w.windowSize} ${u} window / ${w.stepSize} ${u} step`
+  return `${w.windowSize} ${u} window, ${w.stepSize} ${u} step`
 }
 
 export function windowKey(w: WindowSpec): string {

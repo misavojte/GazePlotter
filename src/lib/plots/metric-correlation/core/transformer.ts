@@ -83,6 +83,8 @@ export function getMetricCorrelationData(
     correlationMethod: settings.correlationMethod,
     sampleSize: participantIds.length,
     participantLabels,
+    timelineStart: settings.timelineStart ?? 0,
+    timelineEnd: settings.timelineEnd ?? 0,
   }
 }
 

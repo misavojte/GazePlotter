@@ -84,7 +84,7 @@ describe('bar plot — proportion metric (noticed rate)', () => {
       statisticalOverlay: 'meanCi95', // set, but must be ignored for a proportion
     }
     const view = getBarView(engine as any, settings as any)
-    expect(view.props.axisLabel).toBe('Was fixated [%]')
+    expect(view.props.axisLabel).toBe('Was fixated / %')
     expect(view.props.axisLabel).not.toMatch(/CI|SD|IQR/)
   })
 

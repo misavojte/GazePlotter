@@ -3,6 +3,7 @@ import {
   GRIDLINE_SECONDARY,
   GRIDLINE_PRIMARY,
 } from '$lib/plots/shared/const'
+import { withQualifiers } from '$lib/plots/shared/labels'
 import { FIXATION_CATEGORY_ID } from '$lib/data/binary/schema'
 export { FIXATION_CATEGORY_ID }
 
@@ -24,9 +25,9 @@ export const AXIS_CONFIG = {
   labelOffset: 24,
 }
 
+// Time is the main axis here, so the binning window trails as a mid-dot
+// qualifier (e.g. "Elapsed time / ms · 1000 ms window / 100 ms step"); no
+// time-range qualifier — the axis itself shows the range.
 export function getEvolvingMetricsXAxisLabel(windowDesc: string): string {
-  if (windowDesc) {
-    return `Elapsed time [ms; ${windowDesc}]`
-  }
-  return 'Elapsed time [ms]'
+  return withQualifiers('Elapsed time / ms', windowDesc)
 }

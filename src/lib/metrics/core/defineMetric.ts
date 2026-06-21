@@ -101,6 +101,5 @@ function toMeta(r: MetricRecipe<any, any>): MetricMeta {
     supportsWindowing: r.supportsWindowing ?? true,
     additive: r.additive ?? false,
     providesAnyFixation: r.providesAnyFixation ?? false,
-    defaultLabel: r.defaultLabel as ((p: Record<string, unknown>) => string) | undefined,
   }
 }

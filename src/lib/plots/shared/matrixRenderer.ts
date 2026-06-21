@@ -14,8 +14,6 @@ export type MatrixRenderConfig = {
   maxLabelLength: number
   xAxisTitle: string
   yAxisTitle: string
-  compactUnitText: string
-  standardUnitText: string
   formatCellValue: (value: number) => string
   getCellColor: (value: number) => string
   showCellValue?: (value: number) => boolean
@@ -107,9 +105,6 @@ export function drawMatrixAxisLabels(
 ) {
   setUpFont(ctx)
   const { layout } = config
-  const unitText = layout.isCompactMode
-    ? config.compactUnitText
-    : config.standardUnitText
   const {
     xOffset,
     yOffset,
@@ -123,11 +118,7 @@ export function drawMatrixAxisLabels(
   ctx.textAlign = 'center'
   ctx.textBaseline = 'bottom'
   const xTitleY = yOffset - xAxisLabelHeight - axisTitleGap
-  ctx.fillText(
-    `${config.xAxisTitle} ${unitText}`,
-    xOffset + gridWidth * 0.5,
-    xTitleY
-  )
+  ctx.fillText(config.xAxisTitle, xOffset + gridWidth * 0.5, xTitleY)
 
   ctx.save()
   const yTitleX = xOffset - yAxisLabelWidth - axisTitleGap
@@ -136,7 +127,7 @@ export function drawMatrixAxisLabels(
   ctx.rotate(-Math.PI / 2)
   ctx.textAlign = 'center'
   ctx.textBaseline = 'bottom'
-  ctx.fillText(`${config.yAxisTitle} ${unitText}`, 0, 0)
+  ctx.fillText(config.yAxisTitle, 0, 0)
   ctx.restore()
 }
 

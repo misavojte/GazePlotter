@@ -21,10 +21,7 @@ export const METRIC_CORRELATION_VIEWS: {
 
 /**
  * Minimum complete-pair sample size for a correlation cell to be shown. Below
- * this the coefficient is statistically uninformative (at very small n an
- * extreme r/ρ is near-certain by chance — e.g. Spearman at n=3 can only be
- * ±1 or ±0.5), so the cell renders as missing ("—") rather than painting noise
- * as signal. Per the project's statistical-rigor stance, an unsound low-n
- * coefficient is suppressed, not shown with a caveat.
+ * this (n < 3) the coefficient is mathematically degenerate or undefined,
+ * so the cell renders as missing ("—").
  */
-export const MIN_CORRELATION_SAMPLES = 10
+export const MIN_CORRELATION_SAMPLES = 3

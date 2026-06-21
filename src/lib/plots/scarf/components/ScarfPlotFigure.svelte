@@ -100,7 +100,13 @@
   const isOverlayMode = $derived(data.isOverlay)
 
   const xAxisLabel = $derived(
-    getXAxisLabel(settings.timeline, settings.timelineStart, settings.timelineEnd)
+    getXAxisLabel(
+      settings.timeline,
+      settings.timelineStart,
+      settings.timelineEnd,
+      settings.ordinalStart,
+      settings.ordinalEnd
+    )
   )
   const legendHeight = $derived(
     calculateLegendStructuralHeight(data.legendData?.groups ?? [], width)

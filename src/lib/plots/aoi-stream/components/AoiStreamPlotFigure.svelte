@@ -4,6 +4,7 @@
     usePlot,
     NO_MARGINS,
     canvasBlockSelect,
+    withQualifiers,
     type BlockedRegion,
     type CanvasExportProps,
     type PlotFrame,
@@ -94,7 +95,10 @@
     colorScale && colorScale.length > 0 ? colorScale : [...PRESET_PALETTES.HEAT.colors]
   )
 
-  const X_AXIS_LABEL = $derived(`Elapsed time [${data.windowLabel}]`)
+  // Time is the main axis here, so the binning window is a mid-dot qualifier on
+  // the time label (e.g. "Elapsed time / ms · 500 ms window / 100 ms step"); no
+  // time-range qualifier — the axis itself shows the range.
+  const X_AXIS_LABEL = $derived(withQualifiers('Elapsed time / ms', data.windowLabel))
   const AREA_DIVIDER = { COLOR: 'rgba(255, 255, 255, 0.4)', WIDTH: 1 }
   const MARGIN = AOI_MARGIN
 

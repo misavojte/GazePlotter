@@ -42,7 +42,6 @@ export interface DefineTransitionMetricSpec<P> {
   groupAggregation: 'mean' | 'median' | 'sum'
   /** Defaults to `false`. Counts and summed durations opt in. */
   additive?: boolean
-  defaultLabel?: (params: P) => string
   searchTags: readonly string[]
   /**
    * Extra params *after* the built-in `mode`. Use for recipe-specific knobs
@@ -81,9 +80,6 @@ export function defineTransitionMetric<P>(
     windowUnit: 'ms',
     groupAggregation: spec.groupAggregation,
     additive: spec.additive,
-    defaultLabel: spec.defaultLabel
-      ? (p: Record<string, unknown>) => spec.defaultLabel!(p as unknown as P)
-      : undefined,
     searchTags: spec.searchTags,
     params,
     init: ({ slots }) => initTransitionAcc(slots.totalSlots, spec.withAux ?? false),

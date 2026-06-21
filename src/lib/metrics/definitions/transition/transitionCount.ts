@@ -33,10 +33,6 @@ defineTransitionMetric<Params>({
   unit: 'count',
   groupAggregation: 'sum',
   additive: true,
-  defaultLabel: p =>
-    p.mode === 'visit'
-      ? 'Visit-to-visit transitions'
-      : 'Fixation-to-fixation transitions',
   searchTags: ['transition', 'matrix', 'pair', 'aoi', 'count', 'sequence', 'markov'],
   onTransition: (acc, cellIdx) => { acc.matrix[cellIdx]++ },
   finalize: acc => Array.from(acc.matrix),

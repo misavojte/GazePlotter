@@ -67,6 +67,9 @@ export interface MetricCorrelationResult {
   sampleSize: number
   /** Participant labels parallel to vectors' rows (for SPLOM tooltips). */
   participantLabels?: string[]
+  /** Sub-stimulus analysis window, disclosed on the colorbar (0 = unbounded). */
+  timelineStart?: number
+  timelineEnd?: number
   /** True when fewer than 2 enabled metric instances exist / resolve. */
   noMetric?: boolean
 }

@@ -1,4 +1,5 @@
 import { INACTIVE_COLOR, PRESET_PALETTES } from '$lib/color'
+import { formatQuantity, withQualifiers, timeRangeQualifier } from '$lib/plots/shared'
 
 export { MATRIX_LAYOUT as TRANSITION_MATRIX_LAYOUT } from '$lib/plots/shared'
 
@@ -12,21 +13,28 @@ export const TRANSITION_MATRIX_DEFAULTS = {
 } as const
 
 /**
- * Legend title derived from the selected metric. Labels come straight from the
- * metric's `meta.label` + `meta.unit` — no plot-side display switch needed now
- * that transforms live on the metric.
+ * Colorbar title for the selected metric, in the shared label grammar:
+ * `"<quantity> / <unit> · <qualifier> · …"`. The quantity + unit come from the
+ * metric (`meta.label` / `meta.unit`); shaping facts trail as mid-dot
+ * qualifiers — never brackets or parentheticals.
+ *
+ *   - `"No-AOI excluded"` discloses that the No-AOI (Outside) row/column is
+ *     hidden: for normalised metrics the visible rows then exclude that mass
+ *     and may not sum to 100%.
+ *   - the time-range qualifier signals a sub-stimulus extent — the matrix has
+ *     no time axis, so the range would otherwise be invisible.
  */
 export function getLegendTitle(
   metricLabel: string,
   metricUnit: string,
-  hideNoAoi = false
+  hideNoAoi = false,
+  timelineStart = 0,
+  timelineEnd = 0
 ): string {
-  const base = !metricLabel
-    ? 'Transition value'
-    : metricUnit
-      ? `${metricLabel} [${metricUnit}]`
-      : metricLabel
-  // Disclose that the No-AOI (Outside) row/column is hidden: for normalised
-  // metrics the visible rows then exclude that mass and may not sum to 100%.
-  return hideNoAoi ? `${base} (No AOI hidden)` : base
+  const primary = metricLabel ? formatQuantity(metricLabel, metricUnit) : 'Transition value'
+  return withQualifiers(
+    primary,
+    hideNoAoi && 'No-AOI excluded',
+    timeRangeQualifier(timelineStart, timelineEnd)
+  )
 }

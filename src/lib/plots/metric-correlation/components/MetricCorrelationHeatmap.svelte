@@ -11,6 +11,8 @@
     renderMatrixContent,
     canvasBlockSelect,
     MATRIX_LEGEND_GAP,
+    withQualifiers,
+    timeRangeQualifier,
     type BlockedRegion,
     type CanvasExportProps,
     type FrameHit,
@@ -89,9 +91,12 @@
       const c = result.cells[i]
       if (c.r !== null && c.n < minN) minN = c.n
     }
-    return minN < baseN
-      ? `${method} correlation — N = ${baseN} (min pairwise n = ${minN})`
-      : `${method} correlation — N = ${baseN}`
+    return withQualifiers(
+      `${method} correlation coefficient`,
+      `N = ${baseN}`,
+      minN < baseN ? `min pairwise n = ${minN}` : null,
+      timeRangeQualifier(result.timelineStart ?? 0, result.timelineEnd ?? 0)
+    )
   })
 
   const layout = $derived.by(() =>
@@ -154,8 +159,6 @@
     maxLabelLength: MATRIX_LAYOUT.maxLabelLength,
     xAxisTitle: 'Metric',
     yAxisTitle: 'Metric',
-    compactUnitText: `[${methodLabel}]`,
-    standardUnitText: `[${methodLabel}]`,
     formatCellValue,
     getCellColor: cellColor,
     showCellValue,

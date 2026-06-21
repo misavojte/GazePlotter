@@ -1,6 +1,6 @@
 import './init'
 import { getMetric, getRecipe } from './core/defineMetric'
-import { resolveParams, type ParamDef } from './core/params'
+import { resolveParams, paramToLabel, type ParamDef } from './core/params'
 import {
   identityFor,
   projectionToLabel,
@@ -95,18 +95,18 @@ export function resolveInstance(
 // ─── Label / readout helpers ─────────────────────────────────────────────────
 
 /**
- * Human-readable default label for a metric instance. Combines the bare
- * semantic name from the recipe with the projection suffix (when the
- * projection is not an identity leaf).
+ * Human-readable default label for a metric instance, composed from declarative
+ * parts in the shared mid-dot grammar — `"<quantity> · <param> · … · <projection>"`.
+ * No per-metric label callbacks: the quantity is the recipe's bare `meta.label`,
+ * each param renders itself via {@link paramToLabel} (so the same param reads
+ * identically across every metric, with no ad-hoc brackets/parens), and the
+ * projection readout (leaf + window) trails last.
  *
  * Examples:
- *   - identity projection:         `"Transitions"`
- *   - matrix-row from AOI "CTA":   `"Transitions from AOI "CTA""`
- *   - matrix-diagonal:             `"Transitions self-transitions"`
- *
- * Recipes can supply `meta.defaultLabel(params)` when the bare name varies
- * with a param (e.g., a mode switch that changes the quantity entirely);
- * those callbacks must also return a bare semantic name.
+ *   - default fixation transitions:  `"Transitions · Fixation pairs"`
+ *   - visit, 2-step, windowed:        `"Transition probability · Visit changes · 2-step · 500 ms window"`
+ *   - matrix-row from AOI "CTA":      `"Transitions · Fixation pairs · from AOI "CTA""`
+ *   - similarity, collapsed:          `"Scanpath similarity · Levenshtein · collapsed"`
  */
 export function defaultInstanceLabel(
   baseId: string,
@@ -115,11 +115,16 @@ export function defaultInstanceLabel(
 ): string {
   const m = getMetric(baseId)
   if (!m) return baseId
-  const baseName = m.meta.defaultLabel ? m.meta.defaultLabel(params) : m.meta.label
-  if (!projection) return baseName
-  const unit = m.meta.windowUnit ?? 'ms'
-  const projSuffix = projectionToLabel(projection, unit)
-  return projSuffix.length > 0 ? `${baseName} ${projSuffix}` : baseName
+  const parts: string[] = [m.meta.label]
+  for (const def of m.meta.params) {
+    const q = paramToLabel(def, params[def.id] ?? def.default)
+    if (q) parts.push(q)
+  }
+  if (projection) {
+    const projSuffix = projectionToLabel(projection, m.meta.windowUnit ?? 'ms')
+    if (projSuffix.length > 0) parts.push(projSuffix)
+  }
+  return parts.join(' · ')
 }
 
 /** Human-readable readout of the projection (including window suffix). */

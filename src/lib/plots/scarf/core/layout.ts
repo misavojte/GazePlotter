@@ -2,6 +2,9 @@ import {
   FONT_PRIMARY,
   computeGroupedLegendGeometry,
   SCARF_LEGEND_CONFIG,
+  withQualifiers,
+  timeRangeQualifier,
+  rangeQualifier,
 } from '$lib/plots/shared'
 import { calculateTextMetrics } from '$lib/shared/utils/textUtils'
 import { SCARF_LAYOUT } from '../const'
@@ -237,27 +240,25 @@ export function calculateOverlayMinRowPitch(concurrency: number): number {
 }
 
 /**
- * Computes the x-axis label.
+ * Computes the x-axis label: bare quantity + IUPAC unit (`"Elapsed time / ms"`,
+ * `"Elapsed time / %"`, or the categorical `"Order index"`). When the view is
+ * clipped to a sub-extent (not the full stimulus) the range trails as a mid-dot
+ * qualifier in math-interval notation, so a researcher (and a static export)
+ * can see the analysis is not on the full recording — relative `%` ticks and
+ * order-index ticks otherwise hide the absolute / index bounds.
  */
 export function getXAxisLabel(
   timelineType: 'absolute' | 'relative' | 'ordinal',
   timelineStart = 0,
-  timelineEnd = 0
+  timelineEnd = 0,
+  ordinalStart = 0,
+  ordinalEnd = 0
 ): string {
-  if (timelineType === 'ordinal') return 'Order index'
-  if (timelineType === 'absolute') return 'Elapsed time [ms]'
-
-  // Scientific notation for relative view
-  let label = `Elapsed time [%]`
-  if (timelineStart > 0 && timelineEnd > 0) {
-    label += `, t ∈ [${timelineStart}, ${timelineEnd}] ms`
-  } else if (timelineStart > 0) {
-    label += `, t ≥ ${timelineStart} ms`
-  } else if (timelineEnd > 0) {
-    label += `, t ≤ ${timelineEnd} ms`
+  if (timelineType === 'ordinal') {
+    return withQualifiers('Order index', rangeQualifier('i', ordinalStart, ordinalEnd))
   }
-
-  return label
+  const quantity = timelineType === 'absolute' ? 'Elapsed time / ms' : 'Elapsed time / %'
+  return withQualifiers(quantity, timeRangeQualifier(timelineStart, timelineEnd))
 }
 /**
  * Creates a unified identifier mapping system for Scarf Plots.

@@ -67,7 +67,9 @@ export function getTransitionView(
       legendTitle: getLegendTitle(
         resolvedInstance?.label ?? resolvedMetric?.meta.label ?? '',
         resolvedMetric?.meta.unit ?? '',
-        settings.hideNoAoi ?? false
+        settings.hideNoAoi ?? false,
+        settings.timelineStart ?? 0,
+        settings.timelineEnd ?? 0
       ),
       colorValueRange: currentStimulusColorRange,
       belowMinColor: settings.belowMinColor,

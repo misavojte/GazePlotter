@@ -192,13 +192,13 @@ describe('projectionToLabel', () => {
     }
     expect(projectionToLabel(p, 'ms')).toBe('500 ms window')
   })
-  it('sliding window: "<N> ms window / <S> ms step"', () => {
+  it('sliding window: "<N> ms window, <S> ms step" (comma, not slash — / is for units)', () => {
     const p: Projection = {
       kind: 'windowed',
       window: { windowSize: 1000, stepSize: 100 },
       inner: { kind: 'identity-scalar' },
     }
-    expect(projectionToLabel(p, 'ms')).toBe('1000 ms window / 100 ms step')
+    expect(projectionToLabel(p, 'ms')).toBe('1000 ms window, 100 ms step')
   })
   it('fixation-windowed RQA renders unit as "fix"', () => {
     const p: Projection = {
@@ -206,7 +206,7 @@ describe('projectionToLabel', () => {
       window: { windowSize: 20, stepSize: 1 },
       inner: { kind: 'identity-scalar' },
     }
-    expect(projectionToLabel(p, 'fixations')).toBe('20 fix window / 1 fix step')
+    expect(projectionToLabel(p, 'fixations')).toBe('20 fix window, 1 fix step')
   })
   it('inner-leaf label joined with the window via "·"', () => {
     const p: Projection = {

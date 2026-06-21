@@ -17,6 +17,15 @@ export interface ParamDef<T> {
   step?: number
   unit?: string
   options?: readonly { value: T & string; label: string }[]
+  /**
+   * Render this param's value as an instance-label qualifier (mid-dot grammar),
+   * or `null`/`''` to omit it (e.g. at a default value that carries no
+   * information). When absent, {@link paramToLabel} falls back to a type
+   * default: enums show the selected option's label, booleans show the param
+   * label when true, numeric/string params are omitted. Opt in here for
+   * bespoke phrasing (e.g. `step` → `"2-step"`, shown only when `> 1`).
+   */
+  toLabel?: (value: T) => string | null | undefined
 }
 
 export const integerParam = <ID extends string>(
@@ -52,12 +61,14 @@ export const numberParam = <ID extends string>(
 export const boolParam = <ID extends string>(
   id: ID,
   label: string,
-  defaultValue: boolean
+  defaultValue: boolean,
+  opts: Partial<Pick<ParamDef<boolean>, 'description' | 'toLabel'>> = {}
 ): ParamDef<boolean> & { id: ID } => ({
   id,
   label,
   type: 'boolean',
   default: defaultValue,
+  ...opts,
 })
 
 export const enumParam = <ID extends string, V extends string>(
@@ -102,5 +113,27 @@ function coerceParam<T>(def: ParamDef<T>, raw: unknown): T {
       return String(raw) as T
     case 'string':
       return String(raw) as T
+  }
+}
+
+/**
+ * Render a single param value as an instance-label qualifier, or `null` to omit
+ * it. The single rule every metric's auto-label composes from — so a param
+ * renders identically wherever it appears, with no per-metric punctuation.
+ * `toLabel` wins; otherwise enums show the selected option's label, booleans
+ * show the param label when true, numeric/string params are omitted.
+ */
+export function paramToLabel<T>(def: ParamDef<T>, value: T): string | null {
+  if (def.toLabel) {
+    const s = def.toLabel(value)
+    return s && s.trim() ? s : null
+  }
+  switch (def.type) {
+    case 'enum':
+      return def.options?.find(o => o.value === value)?.label ?? null
+    case 'boolean':
+      return value ? def.label : null
+    default:
+      return null
   }
 }

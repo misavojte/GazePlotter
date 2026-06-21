@@ -254,7 +254,6 @@ export interface MetricMeta {
    * Required for the `pick-any-fixation` projection to be allowed.
    */
   readonly providesAnyFixation: boolean
-  readonly defaultLabel?: (p: Record<string, unknown>) => string
 }
 
 export interface Metric { readonly meta: MetricMeta }
@@ -313,7 +312,6 @@ export interface MetricRecipe<P, A> {
     projection: Projection,
     method: GroupAggregation,
   ): string | null
-  defaultLabel?: (params: P) => string
 
   /**
    * Per-participant scan trio. Required for recipes whose `rawShape` is one of

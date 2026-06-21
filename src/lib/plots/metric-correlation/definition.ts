@@ -73,9 +73,9 @@ export const metricCorrelationDefinition = definePlot<
       'rqaLam',
     ],
   }),
-  getMinSize: () => ({ w: 11, h: 11 }),
-  getDefaultHeight: () => 13,
-  getDefaultWidth: () => 13,
+  getMinSize: () => ({ w: 11, h: 10 }),
+  getDefaultHeight: () => 12,
+  getDefaultWidth: () => 12,
   requireCapabilities: ['segmented'],
   consumesMetrics: {
     outputShape: 'scalar',

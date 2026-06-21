@@ -203,8 +203,6 @@
     maxLabelLength: MATRIX_LAYOUT.maxLabelLength,
     xAxisTitle: 'Metric',
     yAxisTitle: 'Metric',
-    compactUnitText: `[${methodLabel}]`,
-    standardUnitText: `[${methodLabel}]`,
     formatCellValue: () => '',
     getCellColor: () => '#fff',
     showCellValue: () => false,

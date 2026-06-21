@@ -1,11 +1,27 @@
 import { getMetric, type MetricInstance } from '$lib/metrics'
+import { formatInstanceLabel, withQualifiers, timeRangeQualifier } from '$lib/plots/shared'
 import type { StatisticalOverlayType } from './types'
 
+/** The statistic an overlay summarises, as a mid-dot qualifier (never brackets). */
+function statisticQualifier(overlay: StatisticalOverlayType): string | null {
+  switch (overlay) {
+    case 'meanSd':
+      return 'mean ± SD'
+    case 'meanCi95':
+      return 'mean ± 95% CI'
+    case 'boxplot':
+      return 'median, IQR'
+    default:
+      return null
+  }
+}
+
 /**
- * Generate the bar plot axis label for a resolved metric instance.
- *
- * Scientific bracket notation: `${label} [unit, stat indicator]`
- * with an optional `, t ∈ [start, end] ms` time-range suffix.
+ * Value-axis label for the bar plot, in the shared label grammar:
+ * `"<quantity> / <unit> · <statistic> · t ∈ [a, b] ms"`. The quantity is the
+ * instance name (carries its projection), the unit comes from the metric, and
+ * the statistic + sub-stimulus time range trail as mid-dot qualifiers. The bar
+ * plot has no time axis, so the time range is disclosed here.
  */
 export function getBarPlotAxisLabel(
   instance: MetricInstance | null | undefined,
@@ -15,28 +31,9 @@ export function getBarPlotAxisLabel(
 ): string {
   if (!instance) return ''
   const metric = getMetric(instance.baseId)
-  const unit = metric?.meta.unit ?? ''
-
-  let bracketContent = unit
-  if (overlay === 'meanSd') {
-    bracketContent += bracketContent ? ', x̄ ± SD' : 'x̄ ± SD'
-  } else if (overlay === 'meanCi95') {
-    bracketContent += bracketContent ? ', x̄ ± 95% CI' : 'x̄ ± 95% CI'
-  } else if (overlay === 'boxplot') {
-    bracketContent += bracketContent ? ', x̃/IQR' : 'x̃/IQR'
-  }
-
-  let label = bracketContent
-    ? `${instance.label} [${bracketContent}]`
-    : instance.label
-
-  if (timelineStart > 0 && timelineEnd > 0) {
-    label += `, t ∈ [${timelineStart}, ${timelineEnd}] ms`
-  } else if (timelineStart > 0) {
-    label += `, t ≥ ${timelineStart} ms`
-  } else if (timelineEnd > 0) {
-    label += `, t ≤ ${timelineEnd} ms`
-  }
-
-  return label
+  return withQualifiers(
+    formatInstanceLabel(instance, metric, instance.label),
+    statisticQualifier(overlay),
+    timeRangeQualifier(timelineStart, timelineEnd)
+  )
 }
