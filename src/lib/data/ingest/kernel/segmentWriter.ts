@@ -1,14 +1,11 @@
-import { SEGMENT_STRIDE, SegmentField, FIXATION_CATEGORY_ID } from '$lib/data/binary'
+import { SEGMENT_STRIDE, SegmentField } from '$lib/data/binary'
 import type { DataType } from '$lib/data/types'
 import { DEFAULT_NO_AOI_TREATMENT } from '$lib/data/types'
 import { createDefaultMetricInstances } from '$lib/metrics/instances'
 import type { SegmentRow } from '../types'
 import type { TextEncoding } from '$lib/data/ingest/utils/byteUtils'
-import {
-  bytesEqual,
-  decodeBytes,
-  encodeString,
-} from '$lib/data/ingest/utils/byteUtils'
+import { decodeBytes, encodeString } from '$lib/data/ingest/utils/byteUtils'
+import { ByteDictionary } from '$lib/data/ingest/utils/byteDictionary'
 
 /** Bucket lifecycle states. See `SegmentBucket.state`. */
 const BUCKET_AUTO = 0
@@ -148,51 +145,6 @@ class SegmentBucket {
   }
 }
 
-class ByteDictionary {
-  private items: Uint8Array[] = []
-  private hashMap = new Map<number, number[]>()
-
-  getId(value: Uint8Array): number {
-    const hash = this.hashBytes(value)
-    const existing = this.hashMap.get(hash)
-    if (existing) {
-      for (let i = 0; i < existing.length; i++) {
-        const id = existing[i]
-        if (bytesEqual(value, this.items[id])) return id
-      }
-    }
-    const id = this.items.length
-    this.items.push(value)
-    if (existing) existing.push(id)
-    else this.hashMap.set(hash, [id])
-    return id
-  }
-
-  getValues(): Uint8Array[] {
-    return this.items
-  }
-
-  /** Lookup-only: id of an existing value, or -1. Never inserts. */
-  findId(value: Uint8Array): number {
-    const existing = this.hashMap.get(this.hashBytes(value))
-    if (existing) {
-      for (let i = 0; i < existing.length; i++) {
-        if (bytesEqual(value, this.items[existing[i]])) return existing[i]
-      }
-    }
-    return -1
-  }
-
-  private hashBytes(bytes: Uint8Array): number {
-    let hash = 2166136261
-    for (let i = 0; i < bytes.length; i++) {
-      hash ^= bytes[i]
-      hash = Math.imul(hash, 16777619)
-    }
-    return hash >>> 0
-  }
-}
-
 /**
  * Accumulates parsed segments (from any number of files and formats) into
  * the final binary `DataType`. The segment backend of `DatasetSink`.
@@ -203,6 +155,17 @@ export class SegmentWriter {
   private participants = new ByteDictionary()
   private stimuliBytes: Uint8Array[] = []
   private participantBytes: Uint8Array[] = []
+
+  // Eye-movement categories, interned by DECODED NAME so `categories.data`
+  // reflects the types actually present (no phantom "Saccade" for fixation-only
+  // data) and preserves distinct source types (Tobii Unclassified/EyesNotFound,
+  // GazePoint Blink, …) instead of collapsing them. Fixation is reserved at id 0
+  // (FIXATION_CATEGORY_ID), matching the binary/scarf convention. Keying on the
+  // string (not raw bytes) keeps identity encoding-independent, so the same type
+  // name from files of different encodings in one upload coalesces to one id.
+  private categoryIds = new Map<string, number>()
+  private categoryNames: string[] = []
+  private categorySeeded = false
 
   // AOI Mapping
   private aoiMaps: ByteDictionary[] = []
@@ -236,6 +199,30 @@ export class SegmentWriter {
    */
   setEmptyDatasetError(message: string | null): void {
     this.emptyDatasetError = message
+  }
+
+  /** Reserve Fixation at id 0 before any other category is interned. */
+  private ensureCategorySeed(): void {
+    if (this.categorySeeded) return
+    this.categoryIds.set('Fixation', 0)
+    this.categoryNames.push('Fixation')
+    this.categorySeeded = true
+  }
+
+  /**
+   * Intern an eye-movement-category NAME to a stable id (Fixation reserved at
+   * 0). Parsers call this (via `RowParser.resolveCategoryId`, which decodes the
+   * source bytes) for every segment's category so `buildFinalData` emits only
+   * the categories actually seen, with their real names.
+   */
+  internCategory(name: string): number {
+    this.ensureCategorySeed()
+    const existing = this.categoryIds.get(name)
+    if (existing !== undefined) return existing
+    const id = this.categoryNames.length
+    this.categoryIds.set(name, id)
+    this.categoryNames.push(name)
+    return id
   }
 
   addSegmentBytes(
@@ -352,7 +339,7 @@ export class SegmentWriter {
     const aoiBytes = row.aoi
       ? row.aoi.map(a => encodeString(a, this.encoding))
       : null
-    const cat = row.category.charCodeAt(0) === 70 ? FIXATION_CATEGORY_ID : 1
+    const cat = this.internCategory(row.category)
     const start = Number(row.start)
     const end = Number(row.end)
     this.addSegmentBytes(start, end, cat, stimBytes, participantBytes, aoiBytes)
@@ -620,7 +607,7 @@ export class SegmentWriter {
       },
       participantsGroups: [],
       metricInstances: createDefaultMetricInstances(),
-      categories: { data: [['Fixation'], ['Saccade']], orderVector: [] },
+      categories: { data: this.buildCategoriesData(), orderVector: [] },
       aois: {
         data: prunedAoisPerStimulus.map(list =>
           list.map(a => [decodeBytes(a, this.decoder)])
@@ -647,6 +634,16 @@ export class SegmentWriter {
         events: Array.from({ length: maxStimuli }, () => [] as number[][][]),
       },
     }
+  }
+
+  /**
+   * Build `categories.data` from the interned category names — only the types
+   * actually emitted, in id order, with Fixation guaranteed at id 0. Replaces
+   * the former fixed `[['Fixation'],['Saccade']]` seed.
+   */
+  private buildCategoriesData(): string[][] {
+    this.ensureCategorySeed()
+    return this.categoryNames.map(name => [name])
   }
 
   private getOrAddBytes(

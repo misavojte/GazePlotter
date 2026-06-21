@@ -15,6 +15,7 @@ import {
   getHiddenCategories,
 } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import { groupByDisplayedName } from '$lib/data/engine/utils/grouping'
 import {
   FIXATION_CATEGORY_ID,
   type ExtendedInterpretedDataType,
@@ -298,40 +299,7 @@ type GroupedCategory = ExtendedInterpretedDataType & {
 export function groupCategoriesByDisplayedName(
   categories: ExtendedInterpretedDataType[]
 ): GroupedCategory[] {
-  if (categories.length === 0) return []
-
-  const grouped: GroupedCategory[] = []
-  const processed = new Set<number>()
-
-  for (let i = 0; i < categories.length; i++) {
-    const category = categories[i]
-    if (processed.has(category.id)) continue
-
-    const trimmedName = (category.displayedName || '').trim()
-    const memberIds = [category.id]
-    processed.add(category.id)
-
-    if (trimmedName.length > 0) {
-      for (let j = i + 1; j < categories.length; j++) {
-        const candidate = categories[j]
-        if (processed.has(candidate.id)) continue
-        if ((candidate.displayedName || '').trim() === trimmedName) {
-          memberIds.push(candidate.id)
-          processed.add(candidate.id)
-        }
-      }
-    }
-
-    grouped.push({
-      id: category.id,
-      originalName: category.originalName,
-      displayedName: category.displayedName,
-      color: category.color,
-      memberIds,
-    })
-  }
-
-  return grouped
+  return groupByDisplayedName(categories)
 }
 
 /**
@@ -396,40 +364,7 @@ type GroupedEventChannel = ExtendedInterpretedDataType & {
 export function groupEventChannelsByDisplayedName(
   eventChannels: ExtendedInterpretedDataType[]
 ): GroupedEventChannel[] {
-  if (eventChannels.length === 0) return []
-
-  const grouped: GroupedEventChannel[] = []
-  const processed = new Set<number>()
-
-  for (let i = 0; i < eventChannels.length; i++) {
-    const channel = eventChannels[i]
-    if (processed.has(channel.id)) continue
-
-    const trimmedName = (channel.displayedName || '').trim()
-    const memberIds = [channel.id]
-    processed.add(channel.id)
-
-    if (trimmedName.length > 0) {
-      for (let j = i + 1; j < eventChannels.length; j++) {
-        const candidate = eventChannels[j]
-        if (processed.has(candidate.id)) continue
-        if ((candidate.displayedName || '').trim() === trimmedName) {
-          memberIds.push(candidate.id)
-          processed.add(candidate.id)
-        }
-      }
-    }
-
-    grouped.push({
-      id: channel.id,
-      originalName: channel.originalName,
-      displayedName: channel.displayedName,
-      color: channel.color,
-      memberIds,
-    })
-  }
-
-  return grouped
+  return groupByDisplayedName(eventChannels)
 }
 
 /**

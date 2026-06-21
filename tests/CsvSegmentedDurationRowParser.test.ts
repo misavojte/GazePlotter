@@ -14,6 +14,7 @@ import {
   collectAdapterOutputs as collectOutputs,
   processAdapterRow as processRow,
 } from './helpers/ingestAdapterHarness'
+import { encodeString } from '$lib/data/ingest/utils/byteUtils'
 
 /**
  * Mock CSV data representing eye-tracking segments with duration-based timing.
@@ -539,6 +540,68 @@ describe('CsvSegmentedDurationRowParser - Eye movement type classification', () 
 
     // Any non-zero value should be treated as Saccade
     expect(outputs[0].categoryId).toEqual(1)
+  })
+
+  // GazePlotter's own segmented export writes the category NAME (e.g.
+  // "Fixation") into eyemovementtype, so re-import must recognise it by name.
+  const fixationHeader = [
+    'stimulus',
+    'participant',
+    'timestamp',
+    'duration',
+    'eyemovementtype',
+    'AOI',
+  ]
+
+  test.each(['Fixation', 'fixation', 'FIXATION'])(
+    'Eye movement type "%s" maps to Fixation',
+    token => {
+      const sut = new CsvSegmentedDurationRowParser(fixationHeader, ',')
+      const outputs = collectOutputs(sut)
+      processRow(sut, `Stimulus,Participant,100,50,${token},Region`)
+      expect(outputs[0].categoryId).toEqual(0)
+    }
+  )
+
+  test('numeric non-zero codes have no name and collapse to one Saccade category', () => {
+    const sut = new CsvSegmentedDurationRowParser(fixationHeader, ',')
+    const outputs = collectOutputs(sut)
+    processRow(sut, 'Stimulus,Participant,100,50,1,Region')
+    processRow(sut, 'Stimulus,Participant,200,50,2,Region')
+    processRow(sut, 'Stimulus,Participant,300,50,3,Region')
+    expect(outputs.map(o => o.categoryId)).toEqual([1, 1, 1])
+  })
+
+  test('named non-fixation types are preserved as distinct categories', () => {
+    const sut = new CsvSegmentedDurationRowParser(fixationHeader, ',')
+    const outputs = collectOutputs(sut)
+    processRow(sut, 'Stimulus,Participant,100,50,Fixation,Region')
+    processRow(sut, 'Stimulus,Participant,200,50,Saccade,Region')
+    processRow(sut, 'Stimulus,Participant,300,50,Unclassified,Region')
+    processRow(sut, 'Stimulus,Participant,400,50,EyesNotFound,Region')
+    // Fixation reserved at 0; each new name gets the next id.
+    expect(outputs.map(o => o.categoryId)).toEqual([0, 1, 2, 3])
+  })
+
+  test('an empty eyemovementtype collapses to Saccade, not a phantom blank category', () => {
+    const sut = new CsvSegmentedDurationRowParser(fixationHeader, ',')
+    const outputs = collectOutputs(sut)
+    processRow(sut, 'Stimulus,Participant,100,50,,Region') // empty type
+    processRow(sut, 'Stimulus,Participant,200,50,1,Region') // numeric Saccade
+    // Both share the single Saccade category; no extra empty-named category.
+    expect(outputs.map(o => o.categoryId)).toEqual([1, 1])
+  })
+
+  test('classifies tokens correctly under utf-16le encoding', () => {
+    const sut = new CsvSegmentedDurationRowParser(fixationHeader, ',', 'utf-16le')
+    const outputs = collectOutputs(sut)
+    const dec = new TextDecoder()
+    const feed = (row: string) =>
+      sut.processRowBytes(encodeString(row, 'utf-16le'), dec)
+    feed('Stimulus,Participant,100,50,0,Region') // "0" -> Fixation
+    feed('Stimulus,Participant,200,50,Saccade,Region') // named -> distinct
+    feed('Stimulus,Participant,300,50,5,Region') // numeric non-zero -> Saccade
+    expect(outputs.map(o => o.categoryId)).toEqual([0, 1, 1])
   })
 })
 

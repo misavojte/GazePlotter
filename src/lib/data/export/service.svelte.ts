@@ -6,12 +6,15 @@ import type { IngestService } from '$lib/data/ingest'
 import type { ToastState } from '$lib/toaster/toastState.svelte'
 import {
   downloadBatchZip,
+  downloadEventBatchZip,
+  downloadEventUnifiedCsv,
   downloadScanpathSimilarity,
   downloadScanGraph,
   downloadUnifiedCsv,
   downloadWorkspace,
 } from './controller'
 import type { CsvFormatOptions } from './encoders/csv'
+import type { ExportNaming } from './types'
 import {
   type AggregatedExportOptions,
   generateAggregatedCsv,
@@ -37,6 +40,15 @@ export type SegmentedExportOptions = {
   stimulusIds: Set<string>
   filterFixations?: boolean
   csvOptions?: CsvFormatOptions
+  naming?: ExportNaming
+}
+
+export type EventExportOptions = {
+  fileName: string
+  exportType: 'csv' | 'individual-csv'
+  stimulusIds: Set<string>
+  csvOptions?: CsvFormatOptions
+  naming?: ExportNaming
 }
 
 export type ScangraphExportOptions = {
@@ -120,6 +132,7 @@ export class ExportService {
 
       const data = this.getExportData()
       const fileName = this.resolveFileName(options.fileName)
+      const naming = options.naming ?? 'displayed'
 
       if (options.exportType === 'csv') {
         downloadUnifiedCsv(
@@ -127,7 +140,8 @@ export class ExportService {
           fileName,
           options.stimulusIds,
           options.filterFixations ?? false,
-          options.csvOptions
+          options.csvOptions,
+          naming
         )
         return
       }
@@ -137,7 +151,8 @@ export class ExportService {
         fileName,
         options.stimulusIds,
         options.filterFixations ?? false,
-        options.csvOptions
+        options.csvOptions,
+        naming
       )
     },
       options.exportType === 'csv'
@@ -148,6 +163,48 @@ export class ExportService {
         fileName: options.fileName,
         stimulusCount: options.stimulusIds.size,
         filterFixations: options.filterFixations ?? false,
+        naming: options.naming ?? 'displayed',
+      }
+    )
+  }
+
+  async exportEventData(options: EventExportOptions): Promise<boolean> {
+    return this.runExport(async () => {
+      if (options.stimulusIds.size === 0) {
+        throw new Error('Select at least one stimulus to export')
+      }
+
+      const data = this.getExportData()
+      const fileName = this.resolveFileName(options.fileName)
+      const naming = options.naming ?? 'displayed'
+
+      if (options.exportType === 'csv') {
+        downloadEventUnifiedCsv(
+          data,
+          fileName,
+          options.stimulusIds,
+          options.csvOptions,
+          naming
+        )
+        return
+      }
+
+      await downloadEventBatchZip(
+        data,
+        fileName,
+        options.stimulusIds,
+        options.csvOptions,
+        naming
+      )
+    },
+      options.exportType === 'csv'
+        ? 'Single CSV file exported successfully'
+        : 'Individual CSV files exported and zipped successfully',
+      {
+        exportType: options.exportType,
+        fileName: options.fileName,
+        stimulusCount: options.stimulusIds.size,
+        naming: options.naming ?? 'displayed',
       }
     )
   }

@@ -31,6 +31,14 @@ export abstract class RowParser {
       ) => void)
     | null = null
 
+  /**
+   * Intern an eye-movement-category NAME (decoded string) to a stable id
+   * (Fixation reserved at 0). Wired to the dataset sink in production so ids are
+   * consistent across files of any encoding; null when a parser runs standalone
+   * (see `resolveCategoryId`).
+   */
+  internCategory: ((name: string) => number) | null = null
+
   /** Event-channel emission callback (cold path — event rows are sparse). */
   onEvent: ((event: EventContribution) => void) | null = null
 
@@ -140,6 +148,35 @@ export abstract class RowParser {
     if (!this.onSegment) return
     this.onSegment(start, end, categoryId, stimulus, participant, aoi, spatial)
   }
+
+  /**
+   * Resolve an eye-movement-category to a category id from the source's raw type
+   * bytes (or canonical name bytes a parser substitutes). The bytes are decoded
+   * to a string and interned by name, so identity is encoding-independent and a
+   * type from a differently-encoded file in the same upload coalesces correctly.
+   * Uses the sink's interner when wired; otherwise interns locally with the same
+   * Fixation-reserved-at-0 rule so standalone parsers (unit tests) behave
+   * identically. Pass the canonical "Fixation" bytes for fixations so they map
+   * to id 0.
+   */
+  protected resolveCategoryId(nameBytes: Uint8Array): number {
+    if (!this.categoryDecoder) {
+      this.categoryDecoder = new TextDecoder(this.encoding)
+    }
+    const name = this.categoryDecoder.decode(nameBytes)
+    if (this.internCategory) return this.internCategory(name)
+    if (!this.localCategoryIds) this.localCategoryIds = new Map([['Fixation', 0]])
+    let id = this.localCategoryIds.get(name)
+    if (id === undefined) {
+      id = this.localCategoryIds.size
+      this.localCategoryIds.set(name, id)
+    }
+    return id
+  }
+
+  /** Decoder + local interner used only when no sink is wired (see above). */
+  private categoryDecoder: TextDecoder | null = null
+  private localCategoryIds: Map<string, number> | null = null
 
   protected setupColumns(indices: number[]): void {
     const count = indices.length

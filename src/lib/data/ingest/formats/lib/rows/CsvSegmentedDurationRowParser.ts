@@ -78,6 +78,14 @@ export class CsvSegmentedDurationRowParser extends RowParser {
 
   protected readonly pipeDelimiterBytes: Uint8Array
 
+  /** Decoder + byte length used to recognise the fixation category by name. */
+  private readonly fixationDecoder: TextDecoder
+  private readonly fixationByteLength: number
+
+  /** Canonical category-name bytes for the two non-named codes (0, non-zero). */
+  private readonly fixationNameBytes: Uint8Array
+  private readonly saccadeNameBytes: Uint8Array
+
   /**
    * Constructs a new CsvSegmentedDurationRowParser.
    *
@@ -107,6 +115,10 @@ export class CsvSegmentedDurationRowParser extends RowParser {
     this.cX = this.findOptionalColumn(trimmedHeader, 'x')
     this.cY = this.findOptionalColumn(trimmedHeader, 'y')
     this.pipeDelimiterBytes = encodeString('|', encoding)
+    this.fixationDecoder = new TextDecoder(encoding)
+    this.fixationByteLength = encodeString('fixation', encoding).length
+    this.fixationNameBytes = encodeString('Fixation', encoding)
+    this.saccadeNameBytes = encodeString('Saccade', encoding)
 
     this.setupColumns([
       this.cTimestamp,
@@ -134,7 +146,8 @@ export class CsvSegmentedDurationRowParser extends RowParser {
    * Validation rules:
    * - Returns null if any required field (timestamp, duration, participant, stimulus) is empty
    * - Empty AOI values are converted to null
-   * - Eye movement types: 0 = Fixation, all other values = Saccade
+   * - Eye movement types: "0" or "fixation" (case-insensitive) = Fixation,
+   *   all other values = Saccade
    *
    * Time calculation:
    * - Normalized start time = timestamp - baseTime
@@ -176,7 +189,20 @@ export class CsvSegmentedDurationRowParser extends RowParser {
     const normalizedStartTime = timestampNum - baseTime
     const normalizedEndTime = normalizedStartTime + durationNum
 
-    const categoryId = this.isZero(eyeMovementTypeBytes) ? 0 : 1
+    // Resolve the eye-movement type to a category. "0"/"fixation" canonicalise
+    // to Fixation (id 0). A non-negative integer code (or an empty cell) has no
+    // name, so it keeps the legacy single "Saccade" category. Any other token
+    // (e.g. "Saccade", "Unclassified", or an unusual code like "-1") is
+    // preserved verbatim as its own category — this is what lets a GazePlotter
+    // named export round-trip with distinct types.
+    const categoryName =
+      this.isFixation(eyeMovementTypeBytes)
+        ? this.fixationNameBytes
+        : this.isAllDigits(eyeMovementTypeBytes) ||
+            eyeMovementTypeBytes.length === 0
+          ? this.saccadeNameBytes
+          : eyeMovementTypeBytes
+    const categoryId = this.resolveCategoryId(categoryName)
     const aoi = splitAoiColumn(aoiBytes, this.pipeDelimiterBytes)
     const x = this.getNumber(this.pX)
     const y = this.getNumber(this.pY)
@@ -211,6 +237,19 @@ export class CsvSegmentedDurationRowParser extends RowParser {
     return
   }
 
+  /**
+   * Whether the eye-movement-type token denotes a fixation. Accepts the numeric
+   * code "0" as well as the category name "fixation" (case-insensitive), so a
+   * GazePlotter segmented CSV exported with named movement types re-imports with
+   * the fixation class intact. The length guard keeps the common numeric path
+   * (e.g. "1") free of any per-row string decode.
+   */
+  private isFixation(bytes: Uint8Array): boolean {
+    if (this.isZero(bytes)) return true
+    if (bytes.length !== this.fixationByteLength) return false
+    return this.fixationDecoder.decode(bytes).toLowerCase() === 'fixation'
+  }
+
   private isZero(bytes: Uint8Array): boolean {
     if (this.encoding === 'utf-16le') {
       return bytes.length === 2 && bytes[0] === 48 && bytes[1] === 0
@@ -221,4 +260,30 @@ export class CsvSegmentedDurationRowParser extends RowParser {
     return bytes.length === 1 && bytes[0] === 48
   }
 
+  /**
+   * Whether the token is a non-empty run of ASCII digits (a numeric code with
+   * no associated name, e.g. "1", "2"). Such codes collapse to the single
+   * "Saccade" category since no source name is available.
+   */
+  private isAllDigits(bytes: Uint8Array): boolean {
+    if (bytes.length === 0) return false
+    if (this.encoding === 'utf-16le') {
+      if (bytes.length % 2 !== 0) return false
+      for (let i = 0; i < bytes.length; i += 2) {
+        if (bytes[i + 1] !== 0 || bytes[i] < 48 || bytes[i] > 57) return false
+      }
+      return true
+    }
+    if (this.encoding === 'utf-16be') {
+      if (bytes.length % 2 !== 0) return false
+      for (let i = 0; i < bytes.length; i += 2) {
+        if (bytes[i] !== 0 || bytes[i + 1] < 48 || bytes[i + 1] > 57) return false
+      }
+      return true
+    }
+    for (let i = 0; i < bytes.length; i++) {
+      if (bytes[i] < 48 || bytes[i] > 57) return false
+    }
+    return true
+  }
 }

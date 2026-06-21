@@ -2,18 +2,25 @@
   import { Section } from '$lib/modals'
   import { getGazePlotterSession } from '$lib/session'
   import { exportSegmentedDataModal } from '../export-segmented-data/definition'
+  import { exportEventDataModal } from '../export-event-data/definition'
   import { exportScangraphModal } from '../export-scangraph/definition'
   import { exportAggregatedDataModal } from '../export-aggregated-data/definition'
   import { exportScanpathSimilarityModal } from '../export-scanpath-similarity/definition'
 
-  const { exportService, modalState } = getGazePlotterSession()
+  const { engine, exportService, modalState } = getGazePlotterSession()
   let fileName = $state('GazePlotter-Export')
 
   const researchExportOptions = [
     {
       definition: exportSegmentedDataModal,
       title: 'Segmented Data (CSV)',
-      subtitle: 'Raw eye-tracking segments with timing and AOI information',
+      subtitle: 'Per-segment eye-tracking data with timing and AOI information',
+    },
+    {
+      definition: exportEventDataModal,
+      title: 'Event Data (CSV)',
+      subtitle: 'Event occurrences with timing per participant and stimulus',
+      requiresEvents: true,
     },
     {
       definition: exportAggregatedDataModal,
@@ -32,6 +39,12 @@
       subtitle: 'Scanpath data for similarity analysis and visualization',
     },
   ]
+
+  const visibleExportOptions = $derived(
+    researchExportOptions.filter(
+      option => !option.requiresEvents || engine.capabilities.event
+    )
+  )
 
   const handleSubmit = async () => {
     await exportService.exportWorkspace({ fileName })
@@ -73,7 +86,7 @@
         Choose from specialized data structures for detailed analysis:
       </p>
       <div class="export-options">
-        {#each researchExportOptions as option (option.title)}
+        {#each visibleExportOptions as option (option.title)}
           <button
             class="export-option-card"
             onclick={() => openExportModal(option.definition)}

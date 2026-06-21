@@ -151,9 +151,6 @@ describe('pipeline end-to-end: csv', () => {
           [
             "Fixation",
           ],
-          [
-            "Saccade",
-          ],
         ],
         "hasSpatialData": false,
         "isOrdinalOnly": false,
@@ -394,9 +391,6 @@ describe('pipeline end-to-end: csv-segmented (From/To)', () => {
         "categories": [
           [
             "Fixation",
-          ],
-          [
-            "Saccade",
           ],
         ],
         "hasSpatialData": false,

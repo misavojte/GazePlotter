@@ -15,16 +15,13 @@
   } from '../shared/helpers'
 
   const { engine, exportService, modalState } = getGazePlotterSession()
-  let fileName = $state('GazePlotter-SegmentedData')
+  let fileName = $state('GazePlotter-EventData')
   let exportType = $state('csv')
   let delimiter = $state(',')
   let decimalSeparator = $state<DecimalSeparator>('.')
   let naming = $state<ExportNaming>('displayed')
-  let exportFixationsOnly = $state(false)
   let selectedStimuliIds = $state(new Set<string>())
   let isExporting = $state(false)
-
-  const hasSpatialData = $derived(engine.capabilities.spatial)
 
   const exportOptions = [
     {
@@ -62,11 +59,10 @@
 
     try {
       await waitForExportUi()
-      await exportService.exportSegmentedData({
+      await exportService.exportEventData({
         fileName,
         exportType: exportType as 'csv' | 'individual-csv',
         stimulusIds: selectedStimuliIds,
-        filterFixations: exportFixationsOnly,
         naming,
         csvOptions: {
           delimiter,
@@ -93,8 +89,7 @@
   <Section>
     <div class="content">
       <p class="purpose-description">
-        Export eye-tracking segments with timing, movement classifications, and
-        AOI information.
+        Export event occurrences with their timing per participant and stimulus.
       </p>
     </div>
   </Section>
@@ -140,54 +135,23 @@
           errorMessage="Select at least one stimulus to export"
         />
       </div>
-
-      <div class="settings-column">
-        <CheckboxListField
-          title="Filters"
-          showControls={false}
-          items={[
-            {
-              key: 'fixationsOnly',
-              label: 'Export only fixations',
-              checked: exportFixationsOnly,
-            },
-          ]}
-          onItemChange={(_key: string, checked: boolean) =>
-            (exportFixationsOnly = checked)}
-        />
-      </div>
     </div>
   </Section>
 
   <Section title="Format Details">
     <div class="content">
-      {#if hasSpatialData}
-        <p class="format-description">
-          <strong>CSV format</strong> with columns: stimulus, participant, timestamp,
-          duration, eyemovementtype, AOI, x, y. Output respects selected stimuli and
-          filter settings.
-        </p>
-        <p class="format-description">
-          Spatial coordinates are exported per segment. Segments without
-          coordinates keep empty x/y fields.
-        </p>
-      {:else}
-        <p class="format-description">
-          <strong>CSV format</strong> with columns: stimulus, participant, timestamp,
-          duration, eyemovementtype, AOI. Output respects selected stimuli and filter
-          settings.
-        </p>
-        <p class="format-description">
-          Load spatially annotated data to unlock x/y coordinate export for each
-          segment.
-        </p>
-      {/if}
       <p class="format-description">
-        Naming: "Displayed" uses your renamed movement-type and AOI names,
-        merges AOIs grouped under the same name, and excludes hidden AOIs (the
-        on-screen result). "Raw" uses the original imported names with no
-        grouping and lists every AOI a segment references, including hidden
-        ones. The AOI column contains semicolon-separated area names.
+        <strong>CSV format</strong> with columns: stimulus, participant,
+        eventName, start, duration. Times are in milliseconds; a duration of 0
+        marks an instant event. A single-file export can be re-imported as an
+        event file alongside its eye-tracking data.
+      </p>
+      <p class="format-description">
+        Naming: "Displayed" uses your renamed event names, merges channels
+        grouped under the same name, hides hidden channels, and includes derived
+        interval channels (the on-screen result). "Raw" uses the original
+        imported channel names with no grouping and excludes derived interval
+        channels.
       </p>
     </div>
   </Section>

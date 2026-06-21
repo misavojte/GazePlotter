@@ -58,7 +58,7 @@ describe('segmented export spatial columns', () => {
     expect(lines[0]).toBe(
       'stimulus,participant,timestamp,duration,eyemovementtype,AOI'
     )
-    expect(lines[1]).toBe('Stimulus A,Participant A,0,100,0,AOI 1')
+    expect(lines[1]).toBe('Stimulus A,Participant A,0,100,Fixation,AOI 1')
   })
 
   it('exports x and y columns for segmented CSV when spatial data exists', () => {
@@ -79,8 +79,8 @@ describe('segmented export spatial columns', () => {
     expect(lines[0]).toBe(
       'stimulus,participant,timestamp,duration,eyemovementtype,AOI,x,y'
     )
-    expect(lines[1]).toBe('Stimulus A,Participant A,0,100,0,AOI 1,10,20')
-    expect(lines[2]).toBe('Stimulus A,Participant A,100,100,0,,,')
+    expect(lines[1]).toBe('Stimulus A,Participant A,0,100,Fixation,AOI 1,10,20')
+    expect(lines[2]).toBe('Stimulus A,Participant A,100,100,Fixation,,,')
   })
 
   it('exports batch CSV with x/y columns when spatial data exists', () => {
@@ -94,6 +94,6 @@ describe('segmented export spatial columns', () => {
     const lines = batch[0].content.split('\n')
 
     expect(lines[0]).toBe('timestamp,duration,eyemovementtype,AOI,x,y')
-    expect(lines[1]).toBe('0,100,0,AOI 1,15,25')
+    expect(lines[1]).toBe('0,100,Fixation,AOI 1,15,25')
   })
 })

@@ -1,4 +1,4 @@
-import type { DecimalSeparator } from '$lib/data/export'
+import type { DecimalSeparator, ExportNaming } from '$lib/data/export'
 import { PLOT_BASE_CHROME_HEIGHT } from '$lib/plots/shared/const'
 import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/plotSizeUtility'
 import type { GridConfig } from '$lib/workspace/grid'
@@ -38,6 +38,14 @@ export const CSV_DECIMAL_SEPARATOR_OPTIONS: Array<{
 }> = [
   { value: '.', label: 'Dot (.)' },
   { value: ',', label: 'Comma (,)' },
+]
+
+export const EXPORT_NAMING_OPTIONS: Array<{
+  value: ExportNaming
+  label: string
+}> = [
+  { value: 'displayed', label: 'Displayed (grouped, renamed)' },
+  { value: 'raw', label: 'Raw (original imported)' },
 ]
 
 export function getWorkspaceCanvasExportDimensions(

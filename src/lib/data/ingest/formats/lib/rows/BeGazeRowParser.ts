@@ -19,7 +19,7 @@ export class BeGazeRowParser extends RowParser {
   private readonly separatorBytes: Uint8Array
   private readonly dashBytes: Uint8Array
   private readonly whiteSpaceBytes: Uint8Array
-  private readonly fixationBytes: Uint8Array
+  private readonly saccadeNameBytes: Uint8Array
 
   constructor(
     header: string[],
@@ -30,7 +30,7 @@ export class BeGazeRowParser extends RowParser {
     this.separatorBytes = encodeString('Separator', this.encoding)
     this.dashBytes = encodeString('-', this.encoding)
     this.whiteSpaceBytes = encodeString('White Space', this.encoding)
-    this.fixationBytes = encodeString('Fixation', this.encoding)
+    this.saccadeNameBytes = encodeString('Saccade', this.encoding)
     this.cStart = this.getIndex(header, 'Event Start Trial Time [ms]')
     this.cEnd = this.getIndex(header, 'Event End Trial Time [ms]')
     this.cStimulus = this.getIndex(header, 'Stimulus')
@@ -69,7 +69,13 @@ export class BeGazeRowParser extends RowParser {
       aoi = [aoiBytes]
     }
 
-    const categoryId = bytesEqual(categoryBytes, this.fixationBytes) ? 0 : 1
+    // Preserve BeGaze's real event types as distinct categories (Fixation maps
+    // to id 0 via the interner seed) instead of collapsing them to "Saccade".
+    // A blank category cell has no name; fold it into Saccade (the prior
+    // behaviour) rather than interning an empty-named category.
+    const categoryId = this.resolveCategoryId(
+      categoryBytes.length === 0 ? this.saccadeNameBytes : categoryBytes
+    )
     this.emitSegment(
       startNum,
       endNum,

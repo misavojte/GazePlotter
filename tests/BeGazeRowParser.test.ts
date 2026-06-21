@@ -75,3 +75,25 @@ describe('BeGaze Deserializer - Single data', () => {
     expect(outputs).toHaveLength(0)
   })
 })
+
+describe('BeGaze Deserializer - categories', () => {
+  const header = begazeMockData.split('\n')[0].split(',')
+
+  it('preserves distinct event types as distinct categories', () => {
+    const sut = new BeGazeRowParser(header, ',')
+    const { outputs, processRow } = createAdapterHarness(sut)
+    processRow('0,100,Map_A,P1,Fixation,Region_1')
+    processRow('100,150,Map_A,P1,Saccade,Region_1')
+    processRow('150,200,Map_A,P1,Blink,Region_1')
+    // Fixation reserved at 0; Saccade and Blink stay distinct (not collapsed).
+    expect(outputs.map(o => o.categoryId)).toEqual([0, 1, 2])
+  })
+
+  it('folds an empty category cell into Saccade (no blank-named category)', () => {
+    const sut = new BeGazeRowParser(header, ',')
+    const { outputs, processRow } = createAdapterHarness(sut)
+    processRow('0,100,Map_A,P1,,Region_1') // empty category
+    processRow('100,150,Map_A,P1,Saccade,Region_1')
+    expect(outputs.map(o => o.categoryId)).toEqual([1, 1])
+  })
+})

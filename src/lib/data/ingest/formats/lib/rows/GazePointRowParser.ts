@@ -55,6 +55,8 @@ export class GazePointRowParser extends RowParser {
   private prevFixIDBytes: Uint8Array | null = null
   private prevFixDur: number = 0
   private participantBytes: Uint8Array
+  private readonly fixationNameBytes: Uint8Array
+  private readonly blinkNameBytes: Uint8Array
 
   // Packed columns (strings)
   private readonly pTime = 0
@@ -83,6 +85,8 @@ export class GazePointRowParser extends RowParser {
     this.idx.stim = header.indexOf('MEDIA_NAME')
     this.idx.id = header.indexOf('FPOGID')
     this.participantBytes = encodeString(fileName.split('_')[0], this.encoding)
+    this.fixationNameBytes = encodeString('Fixation', this.encoding)
+    this.blinkNameBytes = encodeString('Blink', this.encoding)
 
     this.setupColumns([
       this.idx.time,
@@ -134,7 +138,7 @@ export class GazePointRowParser extends RowParser {
         this.emitSegment(
           this.blinkBuffer.start,
           this.blinkBuffer.end,
-          1,
+          this.resolveCategoryId(this.blinkNameBytes),
           stimBytes,
           this.participantBytes,
           null
@@ -211,7 +215,7 @@ export class GazePointRowParser extends RowParser {
         this.emitSegment(
           buf.start,
           buf.end,
-          1,
+          this.resolveCategoryId(this.blinkNameBytes),
           stimBytes,
           this.participantBytes,
           null
@@ -232,7 +236,7 @@ export class GazePointRowParser extends RowParser {
     this.emitSegment(
       this.currentFix.start,
       this.currentFix.end,
-      0,
+      this.resolveCategoryId(this.fixationNameBytes),
       stimBytes,
       this.participantBytes,
       aoi

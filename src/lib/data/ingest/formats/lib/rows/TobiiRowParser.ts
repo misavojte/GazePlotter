@@ -359,7 +359,6 @@ export class TobiiRowParser extends RowParser {
   private readonly aoiHitPrefixBytes: Uint8Array
   private readonly aoiHitSuffixBytes: Uint8Array
   private readonly aoiDashBytes: Uint8Array
-  private readonly fixationBytes: Uint8Array
   private readonly spaceBytes: Uint8Array
 
   static readonly TYPE = 'tobii'
@@ -378,7 +377,6 @@ export class TobiiRowParser extends RowParser {
     this.aoiHitPrefixBytes = encodeString(AOI_HIT_PREFIX, this.encoding)
     this.aoiHitSuffixBytes = encodeString(']', this.encoding)
     this.aoiDashBytes = encodeString(' - ', this.encoding)
-    this.fixationBytes = encodeString('Fixation', this.encoding)
     this.spaceBytes = encodeString(' ', this.encoding)
     this.cRecordingTimestamp = this.findColumnByNameOrUnit(
       header,
@@ -992,7 +990,10 @@ export class TobiiRowParser extends RowParser {
     this.mParticipantKey = participantFull
     this.mRecordingStart = correctedStart
     this.mCategoryBytes = categoryBytes
-    this.mCategoryId = this.getCategoryId(categoryBytes)
+    // Preserve the real eye-movement type (Fixation, Saccade, Unclassified,
+    // EyesNotFound, …) as a distinct category instead of collapsing every
+    // non-fixation into one. Fixation maps to id 0 (the interner's seed).
+    this.mCategoryId = this.resolveCategoryId(categoryBytes)
     if (this.aoiHitFlags.length) this.aoiHitFlags.fill(0)
     this.aoiHitCount = 0
     /* Reset spatial state for new segment */
@@ -1483,10 +1484,6 @@ export class TobiiRowParser extends RowParser {
 
   private makeCompositeKey32x64(a: number, b: bigint): bigint {
     return (BigInt(a >>> 0) << 64n) | (b & MASK_64)
-  }
-
-  private getCategoryId(categoryBytes: Uint8Array): number {
-    return bytesEqual(categoryBytes, this.fixationBytes) ? 0 : 1
   }
 
   private findColumnByPrefix(header: string[], prefix: string): number | null {
