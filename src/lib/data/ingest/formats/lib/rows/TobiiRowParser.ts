@@ -1426,11 +1426,16 @@ export class TobiiRowParser extends RowParser {
    * are applied post-import by the event-library merge tool, never here.
    */
   private flushEvents(): void {
-    let droppedNoContext = 0
+    // Two distinct drop reasons, reported separately so the warning points at
+    // the real cause: (a) no stimulus was active when the event occurred;
+    // (b) the event's stimulus produced no usable gaze (no base time — e.g. its
+    // interval group was excluded for malformed markers), so it cannot be timed.
+    let droppedNoStimulus = 0
+    let droppedNoBaseTime = 0
     if (this.onEvent) {
       for (const event of this.eventOccurrences) {
         if (event.stimuli.length === 0) {
-          droppedNoContext++
+          droppedNoStimulus++
           continue
         }
         let emitted = false
@@ -1451,14 +1456,19 @@ export class TobiiRowParser extends RowParser {
           })
           emitted = true
         }
-        if (!emitted) droppedNoContext++
+        if (!emitted) droppedNoBaseTime++
       }
     }
     this.eventOccurrences.length = 0
 
-    if (this.onWarning && droppedNoContext > 0) {
+    if (this.onWarning && droppedNoStimulus > 0) {
       this.onWarning(
-        `${droppedNoContext} event(s) occurred outside any stimulus and were dropped`
+        `${droppedNoStimulus} event(s) occurred outside any stimulus and were dropped`
+      )
+    }
+    if (this.onWarning && droppedNoBaseTime > 0) {
+      this.onWarning(
+        `${droppedNoBaseTime} event(s) could not be timed against their stimulus (no usable gaze / the stimulus was excluded) and were dropped`
       )
     }
   }

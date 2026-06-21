@@ -1,5 +1,13 @@
 import type { CorrelationMethod } from '../types'
-import { MIN_CORRELATION_SAMPLES } from '../const'
+
+/**
+ * Mathematical minimum below which a coefficient is degenerate/undefined (n<3
+ * forces |r|=1 or 0/0). This is the FLOOR FOR COMPUTING a number, not the floor
+ * for DISPLAYING one — the statistical-soundness display floor is
+ * `MIN_CORRELATION_SAMPLES` in const.ts, applied by the transformer, so these
+ * pure functions stay testable at small n.
+ */
+const MIN_COMPUTABLE_SAMPLES = 3
 
 export interface CorrelationOutcome {
   r: number | null
@@ -10,7 +18,7 @@ export interface CorrelationOutcome {
  * Computes Pearson correlation coefficient over paired samples.
  * Pairs where either value is NaN (used here as the missing-data sentinel)
  * are dropped before the count is taken. Returns r=null when either the
- * effective n is below MIN_CORRELATION_SAMPLES or either vector is constant
+ * effective n is below the computable minimum or either vector is constant
  * (zero variance — correlation is mathematically undefined there).
  */
 export function pearson(xs: readonly number[], ys: readonly number[]): CorrelationOutcome {
@@ -30,7 +38,7 @@ export function pearson(xs: readonly number[], ys: readonly number[]): Correlati
     n++
   }
 
-  if (n < MIN_CORRELATION_SAMPLES) return { r: null, n }
+  if (n < MIN_COMPUTABLE_SAMPLES) return { r: null, n }
 
   const meanX = sumX / n
   const meanY = sumY / n
@@ -74,7 +82,7 @@ export function spearman(xs: readonly number[], ys: readonly number[]): Correlat
     cleanY.push(y)
   }
 
-  if (cleanX.length < MIN_CORRELATION_SAMPLES) {
+  if (cleanX.length < MIN_COMPUTABLE_SAMPLES) {
     return { r: null, n: cleanX.length }
   }
 

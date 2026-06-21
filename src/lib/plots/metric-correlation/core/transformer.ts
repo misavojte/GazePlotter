@@ -11,6 +11,7 @@ import type {
   MetricVector,
 } from '../types'
 import { correlate } from './correlations'
+import { MIN_CORRELATION_SAMPLES } from '../const'
 
 interface BuildOptions {
   /** Whether to populate paired-sample points for SPLOM rendering. */
@@ -117,7 +118,13 @@ function computeCells(
     for (let col = 0; col < metrics.length; col++) {
       const rowVec = vectors[row].values
       const colVec = vectors[col].values
-      const { r, n } = correlate(colVec, rowVec, method)
+      const outcome = correlate(colVec, rowVec, method)
+      const n = outcome.n
+      // Statistical-soundness display floor: a coefficient over too few complete
+      // pairs is uninformative, so render the cell as missing ("—") rather than
+      // painting near-deterministic noise as signal. The math is unchanged; only
+      // the display is gated. (n is still carried for the tooltip.)
+      const r = n < MIN_CORRELATION_SAMPLES ? null : outcome.r
 
       let points: CorrelationPoint[] | undefined
       if (includePoints && row !== col) {

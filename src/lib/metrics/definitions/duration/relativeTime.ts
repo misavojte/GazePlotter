@@ -29,7 +29,11 @@ import { defineMetric } from '../../core/defineMetric'
  * - Normalised by `anyFixationSlot` total, NOT the sum across AOI slots —
  *   summing AOI slots would double-count every fixation (once in its slot,
  *   once in anyFixation) and halve every percentage.
- * - Participants with zero total fixation time get all-zero output.
+ * - A participant (or window) with zero total fixation time has an UNDEFINED
+ *   relative dwell (0/0): every slot is `NaN`, not 0, so it drops out of
+ *   cross-participant / cross-window reduction instead of deflating the mean.
+ *   (A participant who HAS fixations but none on AOI X legitimately gets 0% on
+ *   X — that case keeps a real 0, only the zero-total case is NaN.)
  */
 defineMetric({
   id: 'relativeTime',
@@ -67,7 +71,11 @@ defineMetric({
     // slot, once in anyFixation) and halve every reported percentage.
     const total = acc[slots.anyFixationSlot]
     const out = new Array<number>(acc.length)
-    for (let i = 0; i < acc.length; i++) out[i] = total > 0 ? (acc[i] / total) * 100 : 0
+    // total === 0 → 0/0 is undefined (no gaze to normalise against): NaN, not a
+    // real 0% that would deflate group/window means. acc[i] === 0 with total > 0
+    // is a genuine 0% (fixated elsewhere, not here) and stays 0.
+    for (let i = 0; i < acc.length; i++)
+      out[i] = total > 0 ? (acc[i] / total) * 100 : Number.NaN
     return out
   },
 })

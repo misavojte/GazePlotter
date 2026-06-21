@@ -49,6 +49,7 @@ function emptyAoiStreamResult(noMetric = false): AoiStreamPlotResult {
     maxTotal: 0,
     maxValue: 0,
     yAxisLabel: '',
+    unit: '',
     windowLabel: '',
     ...(noMetric ? { noMetric: true as const } : {}),
   }
@@ -243,6 +244,7 @@ export function getAoiStreamPlotData(
     maxTotal,
     maxValue,
     yAxisLabel: formatMetricLabel(metric),
+    unit: metric?.meta.unit ?? '',
     windowLabel: windowLabel(window, metric?.meta.windowUnit ?? 'ms'),
   }
 }

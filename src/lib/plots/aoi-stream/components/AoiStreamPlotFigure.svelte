@@ -629,21 +629,27 @@
       { key: 'Bin', value: `${binIndex + 1} of ${data.binCount}` },
     ]
 
-    const aoiShares: { label: string; percentage: number }[] = []
+    // Show each AOI's value in the metric's native unit, matching the y-axis.
+    // (Do NOT synthesise a "%" — `values` are ms/count/% group-aggregated
+    // values, not participant shares.)
+    const unitSuffix = data.unit ? ` ${data.unit}` : ''
+    const fmt = (v: number) =>
+      `${Number.isInteger(v) ? v : v.toFixed(1)}${unitSuffix}`
+    const aoiValues: { label: string; value: number }[] = []
     for (const seriesItem of data.series) {
       const value = seriesItem.values[binIndex]
-      if (value > 0.001) {
-        aoiShares.push({ label: seriesItem.label, percentage: (value / data.participants) * 100 })
+      if (Number.isFinite(value) && value > 0) {
+        aoiValues.push({ label: seriesItem.label, value })
       }
     }
-    aoiShares.sort((a, b) => b.percentage - a.percentage)
-    for (const aoi of aoiShares.slice(0, 4)) {
-      content.push({ key: aoi.label, value: `${aoi.percentage.toFixed(1)}%` })
+    aoiValues.sort((a, b) => b.value - a.value)
+    for (const aoi of aoiValues.slice(0, 4)) {
+      content.push({ key: aoi.label, value: fmt(aoi.value) })
     }
-    if (aoiShares.length > 4) {
-      const remaining = aoiShares.slice(4)
-      const otherSum = remaining.reduce((sum, aoi) => sum + aoi.percentage, 0)
-      content.push({ key: `other ${remaining.length} areas`, value: `${otherSum.toFixed(1)}%` })
+    if (aoiValues.length > 4) {
+      const remaining = aoiValues.slice(4)
+      const otherSum = remaining.reduce((sum, aoi) => sum + aoi.value, 0)
+      content.push({ key: `other ${remaining.length} areas`, value: fmt(otherSum) })
     }
 
     return {

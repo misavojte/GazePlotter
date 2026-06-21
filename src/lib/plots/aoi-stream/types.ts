@@ -75,6 +75,12 @@ export interface AoiStreamPlotResult {
    */
   yAxisLabel: string
   /**
+   * The metric's native unit (`ms`, `count`, `%`, …), used by the bin tooltip
+   * to show each AOI's value in the same unit as the axis. Empty when the
+   * metric declares no unit.
+   */
+  unit: string
+  /**
    * Standardised windowing descriptor — `"500 ms window"` (non-overlapping)
    * or `"1000 ms window / 100 ms step"` (sliding). Built via the shared
    * `windowLabel(window, windowUnit)` helper so every plot surfaces the

@@ -10,9 +10,10 @@ const params = [
 /**
  * ## Laminarity (LAM)
  *
- * Fraction of recurrent fixation pairs that form vertical lines in the
- * recurrence matrix, as a percentage. High values indicate gaze repeatedly
- * dwells on the same AOI before transitioning.
+ * Fraction of recurrent fixation pairs that form vertical OR horizontal lines
+ * in the recurrence matrix, as a percentage (`(HL + VL) / 2R`, the standard
+ * eye-tracking LAM for a symmetric recurrence plot). High values indicate gaze
+ * repeatedly dwells on the same AOI before transitioning.
  *
  * - **Shape:** `scalar`
  * - **Unit:** `%`
@@ -39,7 +40,7 @@ const params = [
 defineMetric({
   id: 'rqaLam',
   label: 'Laminarity',
-  description: 'Stimulus-level: laminarity (%) — fraction of recurrent fixation pairs forming vertical lines in the recurrence matrix. Higher values indicate the gaze repeatedly dwells on the same AOI before transitioning.',
+  description: 'Stimulus-level: laminarity (%) — fraction of recurrent fixation pairs forming vertical or horizontal lines in the recurrence matrix. Higher values indicate the gaze repeatedly dwells on the same AOI before transitioning.',
   unit: '%',
   category: 'rqa-aoi',
   rawShape: 'scalar',

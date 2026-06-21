@@ -258,11 +258,13 @@ describe('relativeTime — (absolute / total fixation time) × 100', () => {
     expect(result[3]).toBe(100)
   })
 
-  it('zero fixations → zeros (no divide-by-zero)', () => {
+  it('zero fixations → NaN (0/0 is undefined, not a real 0%)', () => {
+    // No gaze to normalise against: every slot is undefined, so the participant
+    // drops out of cross-participant/window reduction instead of deflating it.
     const engine = createEngine([])
     const result = values(query(inst('relativeTime'), scope(engine)))
-    expect(result[0]).toBe(0)
-    expect(result[3]).toBe(0)
+    expect(result[0]).toBeNaN()
+    expect(result[3]).toBeNaN()
   })
 })
 

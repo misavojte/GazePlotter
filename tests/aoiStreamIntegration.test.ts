@@ -78,6 +78,31 @@ describe('AOI Stream Plot Transformer (Integration)', () => {
     expect(result.series[2].label).toBe('Outside')
   })
 
+  it('exposes the metric native unit so the bin tooltip can show real values (not a fabricated %)', () => {
+    const engine = createMockEngine([
+      [
+        [
+          [0, 100, 0, 0],
+          [100, 300, 0, 1],
+        ],
+      ],
+    ])
+
+    const result = getAoiStreamPlotData(
+      engine as any,
+      {
+        stimulusId,
+        groupId,
+        metricInstanceIds: [WINDOWED_TIME_INSTANCE_ID],
+      } as any
+    )
+
+    // Windowed absolute dwell is in ms; the tooltip shows native values in this
+    // unit, matching the axis — never `(value / participants) * 100 + "%"`.
+    expect(result.unit).toBe('ms')
+    expect(result.yAxisLabel).toContain('ms')
+  })
+
   it('correctly filters out Outside (No AOI) when hideNoAoi is true', () => {
     const engine = createMockEngine([
       [
