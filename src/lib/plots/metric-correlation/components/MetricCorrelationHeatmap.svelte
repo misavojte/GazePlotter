@@ -17,6 +17,7 @@
     type CanvasExportProps,
     type FrameHit,
     type MatrixRenderConfig,
+    type PlotFrame,
   } from '$lib/plots/shared'
 
   import type { MetricCorrelationResult } from '../types'
@@ -33,7 +34,39 @@
     margins = NO_MARGINS,
   }: Props = $props()
 
-  const plot = usePlot({
+  let hoveredCell = $state<{ row: number; col: number } | null>(null)
+
+  function drawHoverCrosshair(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+    if (!hoveredCell) return
+    const { xOffset, yOffset, cellSize, gridWidth, gridHeight } = layout
+    const colX = xOffset + hoveredCell.col * cellSize
+    const rowY = yOffset + hoveredCell.row * cellSize
+
+    ctx.save()
+    ctx.globalAlpha = 0.18
+    ctx.fillStyle = '#007acc'
+    ctx.fillRect(colX, yOffset, cellSize, gridHeight)
+    ctx.fillRect(xOffset, rowY, gridWidth, cellSize)
+    ctx.restore()
+
+    ctx.save()
+    ctx.strokeStyle = '#007acc'
+    ctx.lineWidth = 1
+    ctx.setLineDash([2, 2])
+    ctx.beginPath()
+    ctx.moveTo(colX, yOffset)
+    ctx.lineTo(colX, yOffset + gridHeight)
+    ctx.moveTo(colX + cellSize, yOffset)
+    ctx.lineTo(colX + cellSize, yOffset + gridHeight)
+    ctx.moveTo(xOffset, rowY)
+    ctx.lineTo(xOffset + gridWidth, rowY)
+    ctx.moveTo(xOffset, rowY + cellSize)
+    ctx.lineTo(xOffset + gridWidth, rowY + cellSize)
+    ctx.stroke()
+    ctx.restore()
+  }
+
+  const plot = usePlot<{ row: number; col: number }>({
     width: () => width,
     height: () => height,
     margins: () => margins,
@@ -54,6 +87,15 @@
       drawLegend(ctx)
     },
     hitTest: computeHit,
+    onHoverChange: (hit) => {
+      const cell = hit?.data ?? null
+      const changed =
+        (cell?.row ?? null) !== (hoveredCell?.row ?? null) ||
+        (cell?.col ?? null) !== (hoveredCell?.col ?? null)
+      hoveredCell = cell
+      return changed
+    },
+    drawOverlay: drawHoverCrosshair,
     blockedRegions: () => blockedRegions,
   })
 
@@ -195,7 +237,7 @@
     }
   }
 
-  function computeHit(mx: number, my: number): FrameHit | null {
+  function computeHit(mx: number, my: number): FrameHit<{ row: number; col: number }> | null {
     const { xOffset, yOffset, cellSize } = layout
     const col = Math.floor((mx - xOffset) / cellSize)
     const row = Math.floor((my - yOffset) / cellSize)
@@ -215,7 +257,8 @@
       anchorY: yOffset + row * cellSize + (cellSize >> 1),
       offset: { x: 10, y: 0 },
       tooltipWidth: 200,
-      cursor: 'pointer',
+      cursor: 'crosshair',
+      data: { row, col },
     }
   }
 </script>
