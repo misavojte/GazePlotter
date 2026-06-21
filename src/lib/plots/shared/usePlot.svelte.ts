@@ -25,6 +25,7 @@ import {
   getXAxisLabelOffset,
   getXAxisHeight,
   getYAxisLabelOffset,
+  measureAxisTitleHeight,
 } from './axisUtils'
 import { drawCanvasPlaceholder } from './drawCanvasPlaceholder'
 import type { BlockedRegion } from './canvasBlockSelect.action'
@@ -284,11 +285,12 @@ function maxLabelHeight(labels: string[]): number {
   return h
 }
 
-/** Reserve a horizontal (top/bottom) edge: tick labels stack + optional title. */
-function resolveHorizontalEdge(edge: FrameGutterEdge | undefined): EdgeMetrics {
+/** Reserve a horizontal (top/bottom) edge: tick labels stack + optional title.
+ *  `wrapWidth` is the plot width the title wraps to (`Infinity` for a 1-line pass). */
+function resolveHorizontalEdge(edge: FrameGutterEdge | undefined, wrapWidth: number): EdgeMetrics {
   if (!edge) return { space: 0, titleOffset: 0 }
   const tickH = edge.tickLabels?.length ? maxLabelHeight(edge.tickLabels) : 0
-  const titleH = edge.title ? measureTextHeight(edge.title, FONT) : 0
+  const titleH = edge.title ? measureAxisTitleHeight(edge.title, wrapWidth) : 0
   const titleOffset = tickH ? getXAxisLabelOffset(tickH) : PLOT_AXIS_TITLE_GAP
   let space = 0
   if (tickH && titleH) space = getXAxisHeight(tickH, titleH)
@@ -297,11 +299,12 @@ function resolveHorizontalEdge(edge: FrameGutterEdge | undefined): EdgeMetrics {
   return { space, titleOffset }
 }
 
-/** Reserve a vertical (left/right) edge: tick label width + rotated title. */
-function resolveVerticalEdge(edge: FrameGutterEdge | undefined): EdgeMetrics {
+/** Reserve a vertical (left/right) edge: tick label width + rotated title.
+ *  `wrapHeight` is the plot height the rotated title wraps to. */
+function resolveVerticalEdge(edge: FrameGutterEdge | undefined, wrapHeight: number): EdgeMetrics {
   if (!edge) return { space: 0, titleOffset: 0 }
   const tickW = edge.tickLabels?.length ? calculateLabelOffset(edge.tickLabels, FONT) : 0
-  const titleH = edge.title ? measureTextHeight(edge.title, FONT) : 0
+  const titleH = edge.title ? measureAxisTitleHeight(edge.title, wrapHeight) : 0
   const titleOffset = tickW ? getYAxisLabelOffset(tickW) : PLOT_AXIS_TITLE_GAP
   let space = 0
   if (tickW) space += getYAxisLabelOffset(tickW)
@@ -347,16 +350,32 @@ export function resolveFrameLayout(
   // top/right reserve gutter from their tick labels (mirrored matrix edges);
   // axis *titles* are only drawn on the bottom + left, so only those offsets
   // are returned.
-  const left = resolveVerticalEdge(gutters.left)
-  const right = resolveVerticalEdge(gutters.right)
-  const top = resolveHorizontalEdge(gutters.top)
-  const bottom = resolveHorizontalEdge(gutters.bottom)
   const legendHeight = gutters.legendHeight ?? 0
+  const frameW = bounds.right - bounds.left
+  const frameH = bounds.bottom - bounds.top
 
-  const insetLeft = left.space + (pad.left ?? 0)
-  const insetRight = right.space + (pad.right ?? 0)
-  const insetTop = top.space + (pad.top ?? 0)
-  const insetBottom = bottom.space + (pad.bottom ?? 0)
+  // Two-pass title reservation: pass 1 sizes the gutters with single-line titles
+  // (wrap to ∞) to learn the plot extent; pass 2 re-wraps each title to that
+  // extent (bottom/top → width, left/right → height) so a long title reserves its
+  // real (≤2-line) gutter — no overflow, and no wasted whitespace for short ones.
+  const reserve = (wrapW: number, wrapH: number) => {
+    const left = resolveVerticalEdge(gutters.left, wrapH)
+    const right = resolveVerticalEdge(gutters.right, wrapH)
+    const top = resolveHorizontalEdge(gutters.top, wrapW)
+    const bottom = resolveHorizontalEdge(gutters.bottom, wrapW)
+    return {
+      left,
+      bottom,
+      insetLeft: left.space + (pad.left ?? 0),
+      insetRight: right.space + (pad.right ?? 0),
+      insetTop: top.space + (pad.top ?? 0),
+      insetBottom: bottom.space + (pad.bottom ?? 0),
+    }
+  }
+  const p1 = reserve(Infinity, Infinity)
+  const plotW = Math.max(0, frameW - p1.insetLeft - p1.insetRight)
+  const plotH = Math.max(0, frameH - p1.insetTop - p1.insetBottom - legendHeight)
+  const { left, bottom, insetLeft, insetRight, insetTop, insetBottom } = reserve(plotW, plotH)
 
   let x0 = bounds.left + insetLeft
   let y0 = bounds.top + insetTop

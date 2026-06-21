@@ -23,6 +23,7 @@
     drawYAxisMainLabel,
     getXAxisHeight,
     getXAxisLabelOffset,
+    maxAxisTitleHeight,
   } from '$lib/plots/shared/axisUtils'
   import {
     drawPlotArea,
@@ -76,9 +77,11 @@
     }
     return maxHeight
   })
-  const axisTitleHeight = $derived(
-    X_AXIS_LABEL ? measureTextHeight(X_AXIS_LABEL, AXIS_CONFIG.fontSize, AXIS_CONFIG.fontFamily) : 0
-  )
+  // Reserve the worst-case (2-line) x-title height. The wrap width would be the
+  // plot width, but the left margin depends (via compact mode → content height →
+  // bottom margin) back on this height, so wrapping exactly here would cycle.
+  // The draw still wraps to the real width.
+  const axisTitleHeight = $derived(X_AXIS_LABEL ? maxAxisTitleHeight(AXIS_CONFIG.fontSize) : 0)
   const xAxisHeight = $derived(
     X_AXIS_LABEL
       ? getXAxisHeight(tickLabelHeight, axisTitleHeight, AXIS_CONFIG.tickLabelOffset)

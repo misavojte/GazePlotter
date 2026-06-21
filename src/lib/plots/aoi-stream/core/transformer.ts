@@ -5,7 +5,7 @@ import {
 } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
-import { formatMetricLabel } from '$lib/plots/shared/labels'
+import { buildMetricLabel } from '$lib/plots/shared/labels'
 import {
   asAoiVectorTimeseries,
   resolveMetric,
@@ -243,7 +243,9 @@ export function getAoiStreamPlotData(
     participants: participantIds.length,
     maxTotal,
     maxValue,
-    yAxisLabel: formatMetricLabel(metric),
+    // Time-axis plot: quantity + param qualifiers, NO projection (the window
+    // lives on the x axis). Respects a renamed instance.
+    yAxisLabel: buildMetricLabel(instance, metric),
     unit: metric?.meta.unit ?? '',
     windowLabel: windowLabel(window, metric?.meta.windowUnit ?? 'ms'),
   }

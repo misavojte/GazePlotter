@@ -204,6 +204,50 @@ export function truncateTextToPixelWidth(
 }
 
 /**
+ * Greedy word-wrap of `text` into lines that each fit within `maxWidthPx`.
+ * A single word wider than the limit still occupies its own line (never split
+ * mid-word). When the wrap would exceed `maxLines`, the overflow is collapsed
+ * into the last line and truncated with an ellipsis — so the result is always
+ * ≤ `maxLines` lines and nothing is silently dropped.
+ *
+ * Used for axis / legend / colorbar titles, which can grow long once the metric
+ * quantity, unit and qualifiers are composed onto one line.
+ */
+export function wrapTextToWidth(
+  text: string,
+  maxWidthPx: number,
+  fontSize: number = 12,
+  fontFamily: string = SYSTEM_SANS_SERIF_STACK,
+  maxLines: number = Infinity
+): string[] {
+  const trimmed = text.trim()
+  if (!trimmed) return []
+  if (maxWidthPx <= 0) return [trimmed]
+
+  const words = trimmed.split(/\s+/)
+  const lines: string[] = []
+  let current = ''
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word
+    if (!current || estimateTextWidth(candidate, fontSize, fontFamily) <= maxWidthPx) {
+      current = candidate
+    } else {
+      lines.push(current)
+      current = word
+    }
+  }
+  if (current) lines.push(current)
+
+  if (lines.length <= maxLines) return lines
+
+  // Collapse the overflow into the last allowed line, truncated to fit.
+  const kept = lines.slice(0, maxLines - 1)
+  const rest = lines.slice(maxLines - 1).join(' ')
+  kept.push(truncateTextToPixelWidth(rest, maxWidthPx, fontSize, fontFamily, '…'))
+  return kept
+}
+
+/**
  * Measures the actual height of a text string using Canvas API.
  * Falls back to estimated height if in SSR or if canvas is not available.
  *

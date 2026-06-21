@@ -84,7 +84,8 @@ describe('bar plot — proportion metric (noticed rate)', () => {
       statisticalOverlay: 'meanCi95', // set, but must be ignored for a proportion
     }
     const view = getBarView(engine as any, settings as any)
-    expect(view.props.axisLabel).toBe('Was fixated / %')
+    // Full params on the plot (reproducible); the point here is NO statistic suffix.
+    expect(view.props.axisLabel).toBe('Was fixated / % · Min fixations 1 · Min dwell 0 ms')
     expect(view.props.axisLabel).not.toMatch(/CI|SD|IQR/)
   })
 

@@ -93,7 +93,12 @@ function createMultiParticipantEngine(perParticipantSegments: number[][][]) {
   }
 }
 
-function windowedAoiVectorInst(baseId: string, windowSize = 100, stepSize = 100): MetricInstance {
+function windowedAoiVectorInst(
+  baseId: string,
+  windowSize = 100,
+  stepSize = 100,
+  groupAggregation?: MetricInstance['groupAggregation'],
+): MetricInstance {
   return {
     id: 't1', baseId, params: {}, label: '',
     projection: {
@@ -101,6 +106,7 @@ function windowedAoiVectorInst(baseId: string, windowSize = 100, stepSize = 100)
       window: { windowSize, stepSize },
       inner: { kind: 'identity-aoi-vector' },
     },
+    ...(groupAggregation ? { groupAggregation } : {}),
   }
 }
 
@@ -425,6 +431,57 @@ describe('queryGroup: windowed × aoi-vector cross-participant aggregation', () 
     expect(result.vectors[1][3]).toBeCloseTo(1, 6) // anyFixation — undiluted
   })
 
+  it('per-instance groupAggregation `sum` overrides the recipe default and tapers the tail as the cohort drops out', () => {
+    // The AOI Timeline starter pins `sum` on absoluteTime precisely so a window
+    // reflects the COHORT TOTAL, which falls as participants stop recording —
+    // unlike the recipe-default mean, which averages only the participants still
+    // present and so never tapers (a late window with one straggler reads as
+    // full height). Ragged fixture: P0 ends at 200, P1 ends at 100. AOI1 dwell:
+    //   w0: P0 80 ms + P1 90 ms       sum = 170 ; mean = 85
+    //   w1: P0 90 ms (P1 clamped out) sum =  90 ; mean = 90
+    // → sum tapers 170 → 90; mean RISES 85 → 90, hiding the drop-off.
+    const engine = createMultiParticipantEngine([
+      [[10, 90, 0, 1], [110, 200, 0, 1]], // P0: ends at 200
+      [[10, 100, 0, 1]],                   // P1: ends at 100
+    ])
+
+    const summed = queryGroup(
+      windowedAoiVectorInst('absoluteTime', 100, 100, 'sum'),
+      groupScope(engine, [0, 1], 0, 200),
+    )
+    if (summed.shape !== 'aoi-vector-timeseries') throw new Error('wrong shape')
+    expect(summed.vectors[0][0]).toBeCloseTo(170, 6) // w0 AOI1: 80 + 90
+    expect(summed.vectors[1][0]).toBeCloseTo(90, 6)  // w1 AOI1: P0 only → tapers
+    expect(summed.vectors[1][0]).toBeLessThan(summed.vectors[0][0])
+
+    // Default (mean) on the SAME data does not taper — the contrast the fix targets.
+    const meaned = queryGroup(
+      windowedAoiVectorInst('absoluteTime'),
+      groupScope(engine, [0, 1], 0, 200),
+    )
+    if (meaned.shape !== 'aoi-vector-timeseries') throw new Error('wrong shape')
+    expect(meaned.vectors[0][0]).toBeCloseTo(85, 6)
+    expect(meaned.vectors[1][0]).toBeCloseTo(90, 6)
+    expect(meaned.vectors[1][0]).toBeGreaterThanOrEqual(meaned.vectors[0][0])
+  })
+
+  it('a per-instance `sum` override that the recipe guard rejects falls back to mean', () => {
+    // relativeTime's guard vetoes `sum` (summing per-participant shares is
+    // incoherent). A stale instance carrying `sum` must not produce nonsense —
+    // runWindowedGroup falls back to mean, matching the un-overridden result.
+    const engine = createMultiParticipantEngine([
+      [[10, 90, 0, 1], [110, 200, 0, 1]],
+      [[10, 100, 0, 1]],
+    ])
+    const forced = queryGroup(
+      windowedAoiVectorInst('relativeTime', 100, 100, 'sum'),
+      groupScope(engine, [0, 1], 0, 200),
+    )
+    if (forced.shape !== 'aoi-vector-timeseries') throw new Error('wrong shape')
+    // Falls back to mean: w1 is P0 only, 100% on AOI1 (not a summed 100+).
+    expect(forced.vectors[1][0]).toBeCloseTo(100, 6)
+  })
+
   it('ragged-length recordings: relativeTime tail is not diluted by absent participants', () => {
     // Same ragged fixture as above, but with relativeTime (%). An empty
     // window finalizes to all-zeros (total fixation time = 0 → share = 0),
@@ -447,23 +504,27 @@ describe('queryGroup: windowed × aoi-vector cross-participant aggregation', () 
     expect(result.vectors[1][0]).toBeCloseTo(100, 6)
   })
 
-  it('relativeTime declares a groupAggregationGuard rejecting `sum` over windowed projections', () => {
+  it('relativeTime declares a groupAggregationGuard rejecting `sum` under ANY projection', () => {
     // Cross-participant `sum` of percentages is incoherent (yields
-    // `≈ N · share`, no physical meaning). The guard returns a non-null
-    // reason for `sum + windowed`; mean and median pass through. UI/
-    // validator should consume this; runtime in `runWindowedGroup` falls
-    // back to mean if a stale instance trips it.
-    const projection = {
+    // `≈ N · share`, no physical meaning) regardless of windowing — each
+    // participant's value is already a per-participant share. The guard
+    // returns a non-null reason for `sum` whether the projection is windowed
+    // or a plain identity leaf; mean and median pass through. UI/validator
+    // consume this; runtime falls back to mean if a stale instance trips it.
+    const windowed = {
       kind: 'windowed' as const,
       window: { windowSize: 100, stepSize: 100 },
       inner: { kind: 'identity-aoi-vector' as const },
     }
+    const identity = { kind: 'identity-aoi-vector' as const }
     const r = getRecipeForTest('relativeTime')
     expect(typeof r.groupAggregationGuard).toBe('function')
-    const sumReason = r.groupAggregationGuard!(projection, 'sum')
-    expect(typeof sumReason).toBe('string')
-    expect(sumReason).toMatch(/sum/i)
-    expect(r.groupAggregationGuard!(projection, 'mean')).toBeNull()
-    expect(r.groupAggregationGuard!(projection, 'median')).toBeNull()
+    for (const projection of [windowed, identity]) {
+      const sumReason = r.groupAggregationGuard!(projection, 'sum')
+      expect(typeof sumReason).toBe('string')
+      expect(sumReason).toMatch(/sum/i)
+      expect(r.groupAggregationGuard!(projection, 'mean')).toBeNull()
+      expect(r.groupAggregationGuard!(projection, 'median')).toBeNull()
+    }
   })
 })

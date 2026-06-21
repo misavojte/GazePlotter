@@ -1,5 +1,5 @@
 import { getMetric, type MetricInstance } from '$lib/metrics'
-import { formatInstanceLabel, withQualifiers, timeRangeQualifier } from '$lib/plots/shared'
+import { buildMetricLabel, timeRangeQualifier } from '$lib/plots/shared'
 import type { StatisticalOverlayType } from './types'
 
 /** The statistic an overlay summarises, as a mid-dot qualifier (never brackets). */
@@ -29,11 +29,8 @@ export function getBarPlotAxisLabel(
   timelineEnd = 0,
   overlay: StatisticalOverlayType = 'none'
 ): string {
-  if (!instance) return ''
-  const metric = getMetric(instance.baseId)
-  return withQualifiers(
-    formatInstanceLabel(instance, metric, instance.label),
-    statisticQualifier(overlay),
-    timeRangeQualifier(timelineStart, timelineEnd)
-  )
+  return buildMetricLabel(instance, instance ? getMetric(instance.baseId) : undefined, {
+    includeProjection: true,
+    extra: [statisticQualifier(overlay), timeRangeQualifier(timelineStart, timelineEnd)],
+  })
 }

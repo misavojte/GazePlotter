@@ -45,14 +45,14 @@ defineMetric({
   windowUnit: 'ms',
   searchTags: ['dwell', 'gaze', 'time', 'relative', 'percent', 'proportion', 'duration', 'aoi'],
   params: [] as const,
-  // Cross-participant `sum` over a windowed projection is incoherent here:
-  // each participant's per-window value is already a per-participant share
-  // (0..100); summing across N participants yields a scalar of
-  // `≈ N · share` with no physical meaning. Mean/median preserve the
-  // "share" semantics.
-  groupAggregationGuard: (projection, method) => {
-    if (projection.kind === 'windowed' && method === 'sum') {
-      return 'Cross-participant `sum` of relativeTime over a windowed projection is not meaningful — each participant\'s per-window value is already a per-participant share. Use `mean` or `median`.'
+  // Cross-participant `sum` is incoherent here under ANY projection: each
+  // participant's value is already a per-participant share (0..100), so summing
+  // across N participants yields `≈ N · share` with no physical meaning.
+  // Mean/median preserve the "share" semantics. (For total attention that
+  // scales with the cohort, use absoluteTime with `sum`.)
+  groupAggregationGuard: (_projection, method) => {
+    if (method === 'sum') {
+      return 'Cross-participant `sum` of relativeTime is not meaningful — each participant\'s value is already a per-participant share. Use `mean` or `median` (or absoluteTime for a cohort total).'
     }
     return null
   },

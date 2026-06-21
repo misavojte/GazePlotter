@@ -1,4 +1,4 @@
-import type { Metric, MetricInstance } from '$lib/metrics'
+import { formatParamReadout, formatProjectionReadout, type Metric, type MetricInstance } from '$lib/metrics'
 
 /**
  * Axis / legend / colorbar label grammar — ONE format for every plot.
@@ -26,7 +26,7 @@ import type { Metric, MetricInstance } from '$lib/metrics'
  */
 
 /** The mid-dot qualifier separator. Shared with the metrics-layer readouts. */
-export const QUALIFIER_SEPARATOR = ' · '
+const QUALIFIER_SEPARATOR = ' · '
 
 /**
  * IUPAC quantity/unit: `"<quantity> / <unit>"`, or just `"<quantity>"` when the
@@ -36,18 +36,6 @@ export function formatQuantity(quantity: string, unit?: string | null): string {
   const q = quantity.trim()
   const u = (unit ?? '').trim()
   return u ? `${q} / ${u}` : q
-}
-
-/**
- * Quantity label for a `Metric` — the bare, generic quantity name + unit
- * (`meta.label` / `meta.unit`). Use for value axes whose quantity is the metric
- * itself and whose shaping (window, projection) is disclosed elsewhere
- * (e.g. the time axis of aoi-stream / evolving-metrics). `null` → `"Value"` so
- * a figure never renders a blank axis.
- */
-export function formatMetricLabel(metric: Metric | null | undefined): string {
-  if (!metric) return 'Value'
-  return formatQuantity(metric.meta.label, metric.meta.unit)
 }
 
 /**
@@ -102,6 +90,66 @@ export function rangeQualifier(
   if (start > 0) return `${symbol} ≥ ${start}${u}`
   if (end > 0) return `${symbol} ≤ ${end}${u}`
   return null
+}
+
+/**
+ * The instance's DERIVED qualifier tail for a plot axis/legend — its full param
+ * readout (`formatParamReadout`, the same the metric selector shows, so panel and
+ * figure agree and exports self-document; this already includes an explicit
+ * group-aggregation override), plus the projection when `includeProjection`
+ * (aggregate plots; omit for time-axis plots whose window already lives on the
+ * time axis). Always derived, so a rename never drops these.
+ */
+export function metricQualifiers(
+  instance: MetricInstance | null | undefined,
+  includeProjection = false
+): string[] {
+  if (!instance) return []
+  const qualifiers = [...formatParamReadout(instance)]
+  if (includeProjection) {
+    const projection = formatProjectionReadout(instance)
+    if (projection) qualifiers.push(projection)
+  }
+  return qualifiers
+}
+
+export interface MetricLabelOptions {
+  /** Fallback quantity name when no instance/metric resolves. */
+  fallback?: string
+  /** Append the projection readout (aggregate plots). Omit for time-axis plots
+   *  whose window already lives on the time axis (avoids printing it twice). */
+  includeProjection?: boolean
+  /** Append the IUPAC unit after the quantity. Default `true`; pass `false` for an
+   *  axis carrying several metrics of differing units (correlation rows/cols). */
+  unit?: boolean
+  /** Plot-specific trailing qualifiers (statistic, "No-AOI excluded", time range). */
+  extra?: Array<string | null | undefined | false>
+}
+
+/**
+ * THE single builder for a metric-instance label — every plot calls this, so the
+ * composition is identical everywhere:
+ *
+ *     <quantity>[ / <unit>] · <param qualifiers>[ · <projection>] · <plot extras>
+ *
+ * Per-plot differences are DATA (the options), never branching code in each plot.
+ * The quantity is the (renamable) instance name; unit + qualifiers are derived,
+ * so a rename can't drop them.
+ */
+export function buildMetricLabel(
+  instance: MetricInstance | null | undefined,
+  metric: Metric | null | undefined,
+  opts: MetricLabelOptions = {}
+): string {
+  const primary =
+    opts.unit === false
+      ? instance?.label?.trim() || metric?.meta.label?.trim() || opts.fallback || 'Value'
+      : formatInstanceLabel(instance, metric, opts.fallback)
+  return withQualifiers(
+    primary,
+    ...metricQualifiers(instance, opts.includeProjection ?? false),
+    ...(opts.extra ?? [])
+  )
 }
 
 /**

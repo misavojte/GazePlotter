@@ -10,6 +10,7 @@ import type {
 } from '../types'
 import { createMetricInstance } from '$lib/metrics/instances'
 import type { Projection } from '$lib/metrics/core/projection'
+import type { GroupAggregation } from '$lib/metrics/core/dsl'
 
 export class DataEngine {
   // --- Private Memory (Non-Reactive) ---
@@ -206,10 +207,11 @@ export class DataEngine {
     params: Record<string, unknown>,
     label: string | undefined,
     projection: Projection,
+    groupAggregation?: GroupAggregation,
   ): string | null {
     const meta = this.metadata
     if (!meta) return null
-    const inst = createMetricInstance({ baseId, params, projection, label })
+    const inst = createMetricInstance({ baseId, params, projection, label, groupAggregation })
     if (!inst) return null
     meta.metricInstances = [...(meta.metricInstances ?? []), inst]
     return inst.id

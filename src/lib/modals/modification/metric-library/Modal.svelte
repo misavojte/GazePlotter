@@ -113,6 +113,7 @@
       initialParams: params,
       initialProjection: projection,
       initialLabel: label,
+      initialAggregation: inst.groupAggregation,
       oncreateInstance,
     })
   }

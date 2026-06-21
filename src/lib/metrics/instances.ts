@@ -1,6 +1,6 @@
 import './init'
 import { getMetric, getRecipe } from './core/defineMetric'
-import { resolveParams, paramToLabel, type ParamDef } from './core/params'
+import { resolveParams, paramToLabel } from './core/params'
 import {
   identityFor,
   projectionToLabel,
@@ -8,6 +8,7 @@ import {
   type LeafProjection,
 } from './core/projection'
 import { STARTING_METRICS } from './startingMetrics'
+import type { GroupAggregation } from './core/dsl'
 
 export type { Projection, LeafProjection, AoiRef, AoiReducer, MatrixReducer, WindowSpec } from './core/projection'
 
@@ -22,6 +23,17 @@ export interface MetricInstance {
   params: Record<string, unknown>
   label: string
   projection: Projection
+  /**
+   * Per-instance override of the cross-participant reduction used by
+   * {@link queryGroup} (mean / median / sum). Absent ⇒ the recipe's declared
+   * `groupAggregation` applies. This lets two instances of the SAME recipe carry
+   * different group statistics — e.g. a windowed "Time on AOI" summed for an AOI
+   * Timeline (a cohort total that tapers as participants drop out of late
+   * windows) vs. the recipe's default mean for a per-AOI bar comparison. The
+   * override is validated against the recipe's `groupAggregationGuard`; a stale
+   * or incoherent value falls back to mean at query time.
+   */
+  groupAggregation?: GroupAggregation
 }
 
 // ─── Instance construction ──────────────────────────────────────────────────
@@ -38,7 +50,7 @@ export interface MetricInstance {
  *                  filled with the recipe's declared defaults (and primitive
  *                  values get coerced to the declared type).
  *   - `projection` defaults to the recipe's identity leaf (`identityFor`).
- *   - `label`      defaults to `defaultInstanceLabel(baseId, params, projection)`.
+ *   - `label`      defaults to `defaultInstanceLabel(baseId)` (the bare quantity name).
  *
  * Returns `null` when `baseId` does not name a registered recipe — callers
  * (UI, starter loader, agent) handle the miss in their own way.
@@ -49,18 +61,23 @@ export function createMetricInstance(opts: {
   projection?: Projection
   label?: string
   id?: string
+  groupAggregation?: GroupAggregation
 }): MetricInstance | null {
   const recipe = getRecipe(opts.baseId)
   if (!recipe) return null
   const projection = opts.projection ?? identityFor(recipe.rawShape)
   const params = resolveParams(recipe.params, opts.params) as Record<string, unknown>
-  const label = opts.label?.trim() || defaultInstanceLabel(opts.baseId, params, projection)
+  const label = opts.label?.trim() || defaultInstanceLabel(opts.baseId)
   return {
     id: opts.id ?? crypto.randomUUID(),
     baseId: opts.baseId,
     params,
     projection,
     label,
+    // Only carry the field when explicitly set, so instances that ride the
+    // recipe default stay free of a redundant override (keeps the exported
+    // workspace and the label provenance clean).
+    ...(opts.groupAggregation ? { groupAggregation: opts.groupAggregation } : {}),
   }
 }
 
@@ -74,6 +91,7 @@ export function buildStarterInstances(): MetricInstance[] {
       params: spec.params,
       projection: spec.projection,
       label: spec.label,
+      groupAggregation: spec.groupAggregation,
     })
     if (!inst) throw new Error(`Starter "${spec.id}" references unknown recipe: ${spec.baseId}`)
     return inst
@@ -95,36 +113,18 @@ export function resolveInstance(
 // ─── Label / readout helpers ─────────────────────────────────────────────────
 
 /**
- * Human-readable default label for a metric instance, composed from declarative
- * parts in the shared mid-dot grammar — `"<quantity> · <param> · … · <projection>"`.
- * No per-metric label callbacks: the quantity is the recipe's bare `meta.label`,
- * each param renders itself via {@link paramToLabel} (so the same param reads
- * identically across every metric, with no ad-hoc brackets/parens), and the
- * projection readout (leaf + window) trails last.
+ * Default display NAME for a metric instance: the recipe's bare quantity name
+ * (`meta.label`), e.g. `"Transition probability"`, `"Scanpath similarity"`.
  *
- * Examples:
- *   - default fixation transitions:  `"Transitions · Fixation pairs"`
- *   - visit, 2-step, windowed:        `"Transition probability · Visit changes · 2-step · 500 ms window"`
- *   - matrix-row from AOI "CTA":      `"Transitions · Fixation pairs · from AOI "CTA""`
- *   - similarity, collapsed:          `"Scanpath similarity · Levenshtein · collapsed"`
+ * Parameters, projection and unit are deliberately NOT baked into the name —
+ * they are derived separately ({@link formatParamReadout},
+ * {@link formatProjectionReadout}, `meta.unit`) and shown as chips in the metric
+ * selector / as mid-dot qualifiers on a plot axis. A user rename overrides only
+ * this name, so it can never destroy the derived metadata (the unit and the
+ * operational params always remain visible and correct).
  */
-export function defaultInstanceLabel(
-  baseId: string,
-  params: Record<string, unknown>,
-  projection?: Projection,
-): string {
-  const m = getMetric(baseId)
-  if (!m) return baseId
-  const parts: string[] = [m.meta.label]
-  for (const def of m.meta.params) {
-    const q = paramToLabel(def, params[def.id] ?? def.default)
-    if (q) parts.push(q)
-  }
-  if (projection) {
-    const projSuffix = projectionToLabel(projection, m.meta.windowUnit ?? 'ms')
-    if (projSuffix.length > 0) parts.push(projSuffix)
-  }
-  return parts.join(' · ')
+export function defaultInstanceLabel(baseId: string): string {
+  return getMetric(baseId)?.meta.label ?? baseId
 }
 
 /** Human-readable readout of the projection (including window suffix). */
@@ -135,21 +135,48 @@ export function formatProjectionReadout(instance: MetricInstance): string | null
   return label.length > 0 ? label : null
 }
 
-export function formatParamReadout(instance: MetricInstance): string[] {
-  const m = getMetric(instance.baseId)
-  if (!m || m.meta.params.length === 0) return []
-  return m.meta.params
-    .map(p => formatParamShort(p, instance.params[p.id] ?? p.default))
-    .filter((s): s is string => s.length > 0)
+/**
+ * Cross-participant statistic as a readout qualifier, but ONLY when the instance
+ * pins an explicit `groupAggregation` override. An instance riding the recipe
+ * default emits nothing (the conventional statistic needs no disclosure); a
+ * pinned non-default one is surfaced so a summed AOI Timeline reads
+ * `… · summed` rather than silently differing from a mean. `proportion` (an
+ * intrinsic [0,1] rate, never user-selectable) is not a shaping choice and is
+ * omitted. Lives here, beside {@link formatParamReadout}, so the SINGLE readout
+ * the selector and the figure both consume carries it identically.
+ */
+const AGGREGATION_QUALIFIER: Record<GroupAggregation, string | null> = {
+  mean: 'mean',
+  median: 'median',
+  sum: 'summed',
+  proportion: null,
+}
+export function aggregationQualifier(
+  instance: MetricInstance | null | undefined
+): string | null {
+  const method = instance?.groupAggregation
+  return method ? AGGREGATION_QUALIFIER[method] : null
 }
 
-function formatParamShort(def: ParamDef<unknown>, value: unknown): string {
-  if (value === undefined || value === null) return ''
-  if (def.type === 'enum') {
-    const opt = def.options?.find(o => o.value === value)
-    return opt?.label ?? String(value)
-  }
-  if (def.type === 'boolean') return value ? def.id : ''
-  return `${def.id}=${value}`
+/**
+ * The instance's settable qualifiers — every param with its current value via
+ * the single {@link paramToLabel} rule, plus an explicit group-aggregation
+ * override ({@link aggregationQualifier}). This is the SAME readout used by the
+ * metric selector AND by plot axes/legends, so the panel and the figure agree
+ * exactly and a static export is self-documenting. Always derived from the
+ * instance, so a renamed display name never drops these.
+ */
+export function formatParamReadout(instance: MetricInstance): string[] {
+  const m = getMetric(instance.baseId)
+  if (!m) return []
+  const out =
+    m.meta.params.length === 0
+      ? []
+      : m.meta.params
+          .map(p => paramToLabel(p, instance.params[p.id] ?? p.default))
+          .filter((s): s is string => !!s)
+  const agg = aggregationQualifier(instance)
+  if (agg) out.push(agg)
+  return out
 }
 

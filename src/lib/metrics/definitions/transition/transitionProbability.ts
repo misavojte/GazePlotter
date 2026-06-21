@@ -49,14 +49,7 @@ defineTransitionMetric<Params>({
   unit: '%',
   groupAggregation: 'mean',
   searchTags: ['transition', 'probability', 'markov', 'chain', 'aoi', 'pair', 'k-step'],
-  extraParams: [
-    integerParam('step', 'Step', 1, {
-      min: 1,
-      max: 10,
-      // Omit at the default 1-step; "2-step", "3-step", … otherwise.
-      toLabel: v => (v > 1 ? `${v}-step` : null),
-    }),
-  ],
+  extraParams: [integerParam('step', 'Step', 1, { min: 1, max: 10 })],
   onTransition: (acc, cellIdx) => { acc.matrix[cellIdx]++ },
   finalize: (acc, params) => {
     const n = acc.size

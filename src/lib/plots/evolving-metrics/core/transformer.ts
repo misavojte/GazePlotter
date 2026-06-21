@@ -30,7 +30,7 @@ import {
   getParticipantEndTime,
 } from '$lib/data/engine'
 import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
-import { formatMetricLabel } from '$lib/plots/shared/labels'
+import { buildMetricLabel } from '$lib/plots/shared/labels'
 import {
   asScalarTimeseries,
   resolveMetric,
@@ -298,7 +298,8 @@ export function getEvolvingMetricsData(
   const timeline = createAdaptiveTimeline(timelineMin, timelineMax, 6)
 
   const xAxisLabel = getEvolvingMetricsXAxisLabel(windowLabel(window, windowUnit))
-  const yAxisLabel = formatMetricLabel(metric)
+  // Time-axis plot: quantity + param qualifiers, NO projection (window on x).
+  const yAxisLabel = buildMetricLabel(instance, metric)
 
   return {
     participants,

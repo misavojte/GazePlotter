@@ -27,6 +27,7 @@
     type LegendItemGeometry,
     getXAxisHeight,
     getXAxisLabelOffset,
+    maxAxisTitleHeight,
     PLOT_LEGEND_GAP,
   } from '$lib/plots/shared'
   import { onDestroy } from 'svelte'
@@ -121,9 +122,11 @@
     }
     return maxHeight
   })
-  const axisTitleHeight = $derived(
-    xAxisLabel ? measureTextHeight(xAxisLabel, FONT_PRIMARY.SIZE, FONT_PRIMARY.FAMILY) : 0
-  )
+  // Reserve the worst-case (2-line) x-title height — the plot width the title
+  // wraps to depends on the left-label width, which depends (via compact mode →
+  // plot height → bottom margin) back on this height, so it can't be wrapped
+  // exactly here without a cycle. The draw still wraps to the real width.
+  const axisTitleHeight = $derived(xAxisLabel ? maxAxisTitleHeight(FONT_PRIMARY.SIZE) : 0)
   const xAxisHeight = $derived(
     xAxisLabel ? getXAxisHeight(tickLabelHeight, axisTitleHeight, 10) : 10 + tickLabelHeight
   )

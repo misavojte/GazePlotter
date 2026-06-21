@@ -523,6 +523,20 @@ describe('STARTING_METRICS — settings-file integrity', () => {
     expect(instances.map(i => i.id)).toEqual(STARTING_METRICS.map(s => s.id))
   })
 
+  it('windowed AOI starters (the AOI Timeline consumers) pin `sum` so the band is a cohort total, except the relativeTime share', () => {
+    const byId = new Map(createDefaultMetricInstances().map(i => [i.id, i]))
+    for (const slug of [
+      'absoluteTime-aoi-windowed-500',
+      'fixationCount-aoi-windowed-500',
+      'visitCount-aoi-windowed-500',
+    ]) {
+      expect(byId.get(slug)?.groupAggregation, slug).toBe('sum')
+    }
+    // relativeTime is already a per-participant share — it stays mean (no
+    // override), and summing it is guarded as incoherent.
+    expect(byId.get('relativeTime-aoi-windowed-500')?.groupAggregation).toBeUndefined()
+  })
+
   it('matrix starters exist with the curated 5-instance library', () => {
     const matrixSlugs = [
       'transitionCount-fix',

@@ -118,10 +118,12 @@ function coerceParam<T>(def: ParamDef<T>, raw: unknown): T {
 
 /**
  * Render a single param value as an instance-label qualifier, or `null` to omit
- * it. The single rule every metric's auto-label composes from — so a param
- * renders identically wherever it appears, with no per-metric punctuation.
- * `toLabel` wins; otherwise enums show the selected option's label, booleans
- * show the param label when true, numeric/string params are omitted.
+ * it. THE single rule every label composes from — a param renders identically in
+ * the metric selector and on every plot, with no per-metric punctuation. Shows
+ * the full operational definition (so a static export is reproducible): enums
+ * show the selected option, booleans show the param label when on, numerics show
+ * `"Label value [unit]"` (incl. defaults). `toLabel` overrides for short phrasing
+ * (e.g. `collapsed` → `"collapsed"`); return `null` from it to omit a value.
  */
 export function paramToLabel<T>(def: ParamDef<T>, value: T): string | null {
   if (def.toLabel) {
@@ -133,6 +135,11 @@ export function paramToLabel<T>(def: ParamDef<T>, value: T): string | null {
       return def.options?.find(o => o.value === value)?.label ?? null
     case 'boolean':
       return value ? def.label : null
+    case 'integer':
+    case 'number': {
+      const u = def.unit ? ` ${def.unit}` : ''
+      return `${def.label} ${value}${u}`
+    }
     default:
       return null
   }

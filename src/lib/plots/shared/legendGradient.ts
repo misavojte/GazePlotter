@@ -13,6 +13,11 @@ import { strokeCrispRect } from '$lib/plots/shared/canvasUtils'
 
 import { GRIDLINE_PRIMARY, LEGEND_FONT } from './const'
 import { COLOR_FALLBACKS } from '$lib/color'
+import { wrapTextToWidth } from '$lib/shared/utils/textUtils'
+
+/** Max wrapped lines for the colorbar title before it ellipsises (bounds the
+ *  reserved legend height so the layout never has to grow unpredictably). */
+const MAX_LEGEND_TITLE_LINES = 2
 
 export interface GradientLegendConfig {
   /** Top X coordinate */
@@ -54,8 +59,9 @@ export interface GradientLegendGeometry {
   x: number
   y: number
 
-  // Layout components
-  title?: { text: string; x: number; y: number }
+  // Layout components. `title.lines` is the (1–2) wrapped title lines, drawn
+  // stacked from `title.y`.
+  title?: { lines: string[]; x: number; y: number }
   gradientRect: { x: number; y: number; width: number; height: number }
   labels?: {
     min?: { text: string; x: number; y: number }
@@ -100,7 +106,7 @@ export function getGradientLegendRequiredHeight(
   // nearest integer so canvas pixel math stays sharp.
   const titleLineHeight = Math.ceil(fontSize * 1.25)
   return (
-    titleLineHeight +
+    MAX_LEGEND_TITLE_LINES * titleLineHeight + // reserve for a wrapped (≤2-line) title
     GRADIENT_LEGEND_TITLE_GAP +
     GRADIENT_LEGEND_BAR_HEIGHT +
     GRADIENT_LEGEND_LABEL_GAP +
@@ -175,11 +181,11 @@ export function computeGradientLegendGeometry(
       },
     }
 
-    // Centered title helper
+    // Centered title helper (minimalist stays a single, truncated line)
     const titleObj =
       barY - y > 15
         ? {
-            text: title,
+            lines: wrapTextToWidth(title, availableWidth, 10, LEGEND_FONT.FAMILY, 1),
             x: x + (availableWidth >> 1),
             y: barY - 2,
           }
@@ -217,7 +223,12 @@ export function computeGradientLegendGeometry(
   const { SIZE: legendFontSize } = LEGEND_FONT
   const showTitle = availableHeight >= GRADIENT_LEGEND_MINIMALIST_THRESHOLD
   const titleLineHeight = Math.ceil(legendFontSize * 1.25)
-  const titleHeight = showTitle ? titleLineHeight : 0
+  // Wrap the title to the legend's width (≤2 lines); height grows with the
+  // line count, and the matrix/heatmap layouts already reserve room for 2.
+  const titleLines = showTitle
+    ? wrapTextToWidth(title, availableWidth, legendFontSize, LEGEND_FONT.FAMILY, MAX_LEGEND_TITLE_LINES)
+    : []
+  const titleHeight = titleLines.length * titleLineHeight
 
   const TITLE_GAP = GRADIENT_LEGEND_TITLE_GAP
   const LABEL_GAP = GRADIENT_LEGEND_LABEL_GAP
@@ -225,19 +236,19 @@ export function computeGradientLegendGeometry(
 
   // Total height the legend block occupies, derived from font size.
   const requiredHeight =
-    titleHeight + (showTitle ? TITLE_GAP : 0) + BAR_HEIGHT + LABEL_GAP + legendFontSize
+    titleHeight + (titleLines.length ? TITLE_GAP : 0) + BAR_HEIGHT + LABEL_GAP + legendFontSize
 
   // Center vertically
   const startY = y + Math.max(0, (availableHeight - requiredHeight) / 2)
 
   const titleY = startY
-  const gradientY = showTitle ? titleY + titleHeight + TITLE_GAP : startY
+  const gradientY = titleLines.length ? titleY + titleHeight + TITLE_GAP : startY
   const valuesY = gradientY + BAR_HEIGHT + LABEL_GAP
 
   // Title
-  const titleObj = showTitle
+  const titleObj = titleLines.length
     ? {
-        text: title,
+        lines: titleLines,
         x: x + (availableWidth >> 1),
         y: titleY,
       }
@@ -364,17 +375,17 @@ export function drawGradientLegend(
     }
   }
 
-  // 2. Draw Title
-  if (title) {
-    // Minimalist uses bottom align, Full uses top align?
-    // Let's standardise based on geometry config
-    ctx.font = geometry.isMinimalist
-      ? `10px ${fontFamily}`
-      : `12px ${fontFamily}`
+  // 2. Draw Title (1–2 wrapped lines, stacked from title.y)
+  if (title && title.lines.length > 0) {
+    const titleFontSize = geometry.isMinimalist ? 10 : 12
+    ctx.font = `${titleFontSize}px ${fontFamily}`
     ctx.fillStyle = fontColor
     ctx.textAlign = 'center'
     ctx.textBaseline = geometry.isMinimalist ? 'bottom' : 'top'
-    ctx.fillText(title.text, title.x, title.y)
+    const lineHeight = Math.ceil(titleFontSize * 1.25)
+    for (let i = 0; i < title.lines.length; i++) {
+      ctx.fillText(title.lines[i], title.x, title.y + i * lineHeight)
+    }
   }
 
   // 3. Draw Gradient Bar

@@ -65,8 +65,8 @@ export function getTransitionView(
       xLabel: 'To AOI',
       yLabel: 'From AOI',
       legendTitle: getLegendTitle(
-        resolvedInstance?.label ?? resolvedMetric?.meta.label ?? '',
-        resolvedMetric?.meta.unit ?? '',
+        resolvedInstance,
+        resolvedMetric,
         settings.hideNoAoi ?? false,
         settings.timelineStart ?? 0,
         settings.timelineEnd ?? 0

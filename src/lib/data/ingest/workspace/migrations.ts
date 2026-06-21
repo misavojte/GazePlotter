@@ -342,6 +342,9 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
         id: slug,
         baseId: 'absoluteTime',
         label: `Time on AOI (per ${binSize} ms bin)`,
+        // Match the fresh `absoluteTime-aoi-windowed-500` starter: a cohort
+        // total per window so the timeline tapers as participants drop out.
+        groupAggregation: 'sum',
         projection: {
           kind: 'windowed',
           window: { windowSize: binSize, stepSize: binSize },

@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import {
   formatQuantity,
-  formatMetricLabel,
   formatInstanceLabel,
   withQualifiers,
   rangeQualifier,
@@ -46,21 +45,6 @@ describe('formatQuantity (IUPAC)', () => {
   })
   it('trims whitespace on both parts', () => {
     expect(formatQuantity('  Fixation count  ', ' count ')).toBe('Fixation count / count')
-  })
-})
-
-describe('formatMetricLabel', () => {
-  it('renders "<label> / <unit>" for ms / count / %', () => {
-    expect(formatMetricLabel(buildMetric('Absolute dwell time', 'ms'))).toBe('Absolute dwell time / ms')
-    expect(formatMetricLabel(buildMetric('Fixation count', 'count'))).toBe('Fixation count / count')
-    expect(formatMetricLabel(buildMetric('Relative dwell time', '%'))).toBe('Relative dwell time / %')
-  })
-  it('drops the unit suffix when unit is empty', () => {
-    expect(formatMetricLabel(buildMetric('Some metric', ''))).toBe('Some metric')
-  })
-  it('returns "Value" fallback for null/undefined metric', () => {
-    expect(formatMetricLabel(null)).toBe('Value')
-    expect(formatMetricLabel(undefined)).toBe('Value')
   })
 })
 

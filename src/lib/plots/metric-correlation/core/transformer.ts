@@ -1,7 +1,7 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { getParticipantsIds } from '$lib/data/engine'
 import { getMetric, queryBatch, type MetricInstance, type Scope } from '$lib/metrics'
-import { asScalar } from '$lib/plots/shared'
+import { asScalar, buildMetricLabel } from '$lib/plots/shared'
 import type {
   CorrelationCell,
   CorrelationPoint,
@@ -102,7 +102,11 @@ function resolveMetrics(
   for (const inst of selected) {
     const metric = getMetric(inst.baseId)
     if (!metric) continue
-    metrics.push({ id: inst.id, label: inst.label, unit: metric.meta.unit })
+    // Correlation rows/cols must self-distinguish: name + derived qualifiers (so
+    // two variants of one base metric don't collide). Unit is shown on the
+    // diagonal, not here — hence `unit: false`.
+    const label = buildMetricLabel(inst, metric, { unit: false, includeProjection: true })
+    metrics.push({ id: inst.id, label, unit: metric.meta.unit })
     instances.push(inst)
   }
   return { metrics, instances }

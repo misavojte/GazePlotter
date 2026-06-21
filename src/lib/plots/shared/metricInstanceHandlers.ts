@@ -1,5 +1,5 @@
 import type { DataEngine } from '$lib/data/engine'
-import type { Projection } from '$lib/metrics'
+import type { GroupAggregation, Projection } from '$lib/metrics'
 
 interface BaseHandlers {
   onrenameInstance: (id: string, label: string) => void
@@ -9,6 +9,7 @@ interface BaseHandlers {
     label: string,
     projection: Projection,
     replacingId?: string,
+    groupAggregation?: GroupAggregation,
   ) => void
   ondeleteInstance: (id: string) => void
 }
@@ -29,9 +30,9 @@ export function singleSelectMetricHandlers(
   return {
     onchange: ids => setSelected(ids[0] ?? null),
     onrenameInstance: (id, label) => engine.updateMetricInstanceLabel(id, label),
-    oncreateInstance: (baseId, params, label, projection, replacingId) => {
+    oncreateInstance: (baseId, params, label, projection, replacingId, groupAggregation) => {
       if (replacingId != null) engine.deleteMetricInstance(replacingId)
-      const newId = engine.addMetricInstance(baseId, params, label, projection)
+      const newId = engine.addMetricInstance(baseId, params, label, projection, groupAggregation)
       if (newId !== null) setSelected(newId)
     },
     ondeleteInstance: id => {
@@ -49,8 +50,8 @@ export function multiSelectMetricHandlers(
   return {
     onchange: ids => setSelected(ids),
     onrenameInstance: (id, label) => engine.updateMetricInstanceLabel(id, label),
-    oncreateInstance: (baseId, params, label, projection, replacingId) => {
-      const newId = engine.addMetricInstance(baseId, params, label, projection)
+    oncreateInstance: (baseId, params, label, projection, replacingId, groupAggregation) => {
+      const newId = engine.addMetricInstance(baseId, params, label, projection, groupAggregation)
       if (newId === null) return
       const current = getSelected()
       if (replacingId != null) {

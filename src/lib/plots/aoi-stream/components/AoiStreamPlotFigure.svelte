@@ -42,6 +42,7 @@
     drawYAxisMainLabel,
     getXAxisHeight,
     getXAxisLabelOffset,
+    measureAxisTitleHeight,
   } from '$lib/plots/shared/axisUtils'
   import {
     drawPlotArea,
@@ -172,8 +173,12 @@
     }
     return maxHeight
   })
+  // Wrap width = the plot area width (total minus L/R margins); reserving the
+  // wrapped (≤2-line) title height keeps a long x-axis label from overflowing.
+  // Uses L/R margins only (not bottom), so no reservation cycle.
+  const xTitleWrapWidth = $derived(Math.max(0, width - effectiveLeftMargin - effectiveRightMargin))
   const axisTitleHeight = $derived(
-    X_AXIS_LABEL ? measureTextHeight(X_AXIS_LABEL, AXIS_CONFIG.fontSize, AXIS_CONFIG.fontFamily) : 0
+    measureAxisTitleHeight(X_AXIS_LABEL, xTitleWrapWidth, AXIS_CONFIG.fontSize, AXIS_CONFIG.fontFamily)
   )
   const xAxisHeight = $derived(
     X_AXIS_LABEL

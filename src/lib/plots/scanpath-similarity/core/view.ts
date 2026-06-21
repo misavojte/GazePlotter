@@ -1,7 +1,7 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotView } from '$lib/plots/definePlot'
 import { getMetric, resolveInstance } from '$lib/metrics'
-import { formatInstanceLabel, withQualifiers, timeRangeQualifier } from '$lib/plots/shared'
+import { buildMetricLabel, formatInstanceLabel, timeRangeQualifier } from '$lib/plots/shared'
 import SimilarityMatrixFigure from '../components/SimilarityMatrixFigure.svelte'
 import ScangraphFigure from '../components/ScangraphFigure.svelte'
 import { getScanpathSimilarityData, buildScangraphData } from './transformer'
@@ -68,11 +68,12 @@ export function getScanpathSimilarityView(
       // Similarity is a dimensionless [0,1] score — no unit, exactly like the
       // (dimensionless) correlation coefficient. The 0/1 bounds are shown by the
       // colorbar's end ticks; we don't fabricate a "%" or a "0–1" pseudo-unit.
-      legendTitle: withQualifiers(
-        formatInstanceLabel(resolvedInstance, resolvedMetric, 'Similarity'),
-        timeRangeQualifier(settings.timelineStart ?? 0, settings.timelineEnd ?? 0)
-      ),
-      // Bare quantity (no plot-level qualifiers) for the per-cell tooltip key.
+      legendTitle: buildMetricLabel(resolvedInstance, resolvedMetric, {
+        fallback: 'Similarity',
+        includeProjection: true,
+        extra: [timeRangeQualifier(settings.timelineStart ?? 0, settings.timelineEnd ?? 0)],
+      }),
+      // Bare quantity (no qualifiers) for the per-cell tooltip key.
       valueLabel: formatInstanceLabel(resolvedInstance, resolvedMetric, 'Similarity'),
     },
     hasData,

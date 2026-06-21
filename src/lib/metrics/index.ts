@@ -26,6 +26,7 @@ export {
   defaultInstanceLabel,
   formatParamReadout,
   formatProjectionReadout,
+  aggregationQualifier,
 } from './instances'
 export { STARTING_METRICS } from './startingMetrics'
 export type { StartingMetricSpec } from './startingMetrics'
@@ -73,6 +74,7 @@ export type {
   FixationEvent,
   OutputShape,
   WindowUnit,
+  GroupAggregation,
 } from './core/dsl'
 export type { ParamDef, ParamType, ParamsOf } from './core/params'
 export type { MetricInstance } from './instances'

@@ -132,13 +132,17 @@ export function queryGroup(instance: MetricInstance, group: GroupScope): MetricR
       provenance,
     }
   }
+  // The instance may pin a cross-participant statistic (mean / sum / median)
+  // overriding the recipe default; absent ⇒ recipe default ⇒ mean. The
+  // recipe's `groupAggregationGuard` is the last-ditch veto on an incoherent
+  // combination (e.g. summing a per-participant percentage) — UI/validators
+  // catch it upstream, but a stale instance falls back to mean here.
+  const method = effectiveGroupMethod(recipe, instance)
   if (instance.projection.kind === 'windowed') {
     // Native cross-participant aggregation for windowed projections —
     // dispatched into the runtime so plot transformers don't reimplement
-    // per-cell reduction. The recipe's `groupAggregation` (mean / sum /
-    // median) drives the reducer; `groupAggregationGuard` provides a
-    // recipe-level veto with a defensive fallback to mean.
-    const method = recipe.groupAggregation ?? 'mean'
+    // per-cell reduction. (runWindowedGroup re-applies the guard internally;
+    // passing the already-resolved method is idempotent.)
     const projected = runWindowedGroup(
       recipe,
       instance,
@@ -156,7 +160,7 @@ export function queryGroup(instance: MetricInstance, group: GroupScope): MetricR
       timeStart: group.timeStart, timeEnd: group.timeEnd,
     })
   )
-  const reduced = reducePerSlot(perParticipant, recipe.groupAggregation ?? 'mean')
+  const reduced = reducePerSlot(perParticipant, method)
   const aoiNames = getAois(group.engine, group.stimulusId).map(a => a.displayedName)
   const applied = applyProjection(instance.projection, { aoiNames, rawValues: reduced })
   const slots = buildAoiSlots(group.engine, group.stimulusId)
@@ -189,6 +193,20 @@ export function queryIndividualsAllSlots(instance: MetricInstance, scope: Scope)
 }
 
 // ─── Internal helpers ────────────────────────────────────────────────────────
+
+/**
+ * Resolve the cross-participant reduction for a group query: the instance's
+ * `groupAggregation` override wins, else the recipe default, else `mean`. The
+ * recipe's `groupAggregationGuard` then has a final veto — if the resolved
+ * method is incoherent for this projection it falls back to `mean`.
+ */
+function effectiveGroupMethod(
+  recipe: { groupAggregation?: GroupAggregation; groupAggregationGuard?: (p: Projection, m: GroupAggregation) => string | null },
+  instance: MetricInstance,
+): GroupAggregation {
+  const requested = instance.groupAggregation ?? recipe.groupAggregation ?? 'mean'
+  return recipe.groupAggregationGuard?.(instance.projection, requested) ? 'mean' : requested
+}
 
 function wrapProjectedResult(
   metricId: string,
