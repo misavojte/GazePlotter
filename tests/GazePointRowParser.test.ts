@@ -83,4 +83,40 @@ describe('GazePoint Reducer', () => {
     processRow(rawRow8)
     processRow(rawRow9)
   })
+
+  it('reclassifies FPOGV=0 (lost-track) runs as a distinct Invalid segment, not a fixation', () => {
+    // Header WITH the FPOGV validity flag (1 = valid, 0 = lost track).
+    const headerV =
+      'MEDIA_ID,MEDIA_NAME,TIME,FPOGS,FPOGD,FPOGID,BKID,BKDUR,AOI,FPOGV'.split(
+        separator
+      )
+    const reducer = new GazePointRowParser(headerV, 'P1', separator)
+    const { outputs, processRow, finalize } = createAdapterHarness(reducer)
+    // valid fixation, then two lost-track samples (FPOGD>0 so they would have
+    // polluted a fixation if validity were ignored), then a valid fixation.
+    processRow('0,Slide0,0.10,0.00,0.10,1,0,0.0,,1')
+    processRow('0,Slide0,0.20,0.00,0.10,1,0,0.0,,0')
+    processRow('0,Slide0,0.30,0.00,0.10,1,0,0.0,,0')
+    processRow('0,Slide0,0.40,0.40,0.05,2,0,0.0,,1')
+    finalize()
+
+    // The lost-track run becomes its own segment, distinct from Fixation.
+    const invalid = outputs[1]
+    expect(invalid.categoryId).not.toBe(0) // not a fixation
+    expect(invalid.start).toBeCloseTo(0.2, 5)
+    expect(invalid.end).toBeCloseTo(0.3, 5)
+    // The surrounding fixations are still fixations.
+    expect(outputs[0].categoryId).toBe(0)
+    expect(outputs[2].categoryId).toBe(0)
+  })
+
+  it('ignores validity when no FPOGV column is present (unchanged behaviour)', () => {
+    const reducer = new GazePointRowParser(header, 'P1', separator)
+    const { outputs, processRow, finalize } = createAdapterHarness(reducer)
+    processRow(fixRow1)
+    processRow(fixRow2)
+    finalize()
+    // Same two fixations as the original test — no Invalid category introduced.
+    expect(outputs.every(o => o.categoryId === 0)).toBe(true)
+  })
 })

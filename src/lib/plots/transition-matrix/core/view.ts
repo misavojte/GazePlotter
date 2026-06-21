@@ -66,7 +66,8 @@ export function getTransitionView(
       yLabel: 'From AOI',
       legendTitle: getLegendTitle(
         resolvedInstance?.label ?? resolvedMetric?.meta.label ?? '',
-        resolvedMetric?.meta.unit ?? ''
+        resolvedMetric?.meta.unit ?? '',
+        settings.hideNoAoi ?? false
       ),
       colorValueRange: currentStimulusColorRange,
       belowMinColor: settings.belowMinColor,

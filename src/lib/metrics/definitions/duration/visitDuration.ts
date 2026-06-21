@@ -123,7 +123,12 @@ defineMetric({
   finalize: (acc, slots) => {
     for (const [idx, d] of acc.activeDwells) acc.dwells[idx].push(d)
     if (acc.wasInNoAoi) acc.dwells[slots.noAoiSlot].push(acc.currentNoAoiDwell)
-    if (acc.currentAnyFixationDwell > 0) acc.dwells[slots.anyFixationSlot].push(acc.currentAnyFixationDwell)
+    // Flush the trailing any-fixation visit whenever one is OPEN (mirroring the
+    // per-AOI/no-AOI flushes above), not only when its dwell is > 0 — a visit
+    // built solely from zero-duration fixations is real and must still count,
+    // so anyFixation summarises the same visits as the per-AOI slots.
+    if (acc.wasInNoAoi || acc.previousAois.size > 0)
+      acc.dwells[slots.anyFixationSlot].push(acc.currentAnyFixationDwell)
     return acc.dwells.map(arr => {
       if (arr.length === 0) return Number.NaN
       let sum = 0

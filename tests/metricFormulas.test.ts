@@ -345,6 +345,16 @@ describe('visitDuration — mean sum-of-durations per visit', () => {
     expect(result[1]).toBe(100)
     expect(queryIndividuals(inst('visitDuration'), scope(engine), 0)).toEqual([200, 100])
   })
+
+  it('counts a trailing zero-duration visit (anyFixation = 0, not dropped to NaN)', () => {
+    // A single zero-duration fixation on AOI1 is a real (degenerate) visit; it
+    // must be flushed to the anyFixation aggregate as 0, not silently dropped,
+    // so anyFixation summarises the same visits as the per-AOI slots.
+    const engine = createEngine([[100, 100, 0, 1]])
+    const result = values(query(inst('visitDuration'), scope(engine)))
+    expect(result[0]).toBe(0) // AOI1 visit dwell = 0 (recorded)
+    expect(result[3]).toBe(0) // anyFixation = 0 (counted), not NaN
+  })
 })
 
 // ─── timeToFirstFixation ────────────────────────────────────────────────────
@@ -1123,6 +1133,21 @@ describe('transitionProbability — row-normalised Markov transition matrix, in 
     const engine = createEngine([[0, 100, 0, 1]])
     const result = values(query(inst('transitionProbability', { mode: 'fixation', step: 1 }), scope(engine)))
     expect(result.every(v => Number.isNaN(v))).toBe(true)
+  })
+
+  it('emits NaN (not 0%) for a "from" AOI with no out-transitions', () => {
+    // AOI1 → AOI2, then the scan ends: AOI2 is never left, so its row is an
+    // undefined distribution. It must be NaN so it drops from cross-participant
+    // reduction (keeping group rows summing to 100%), not a row of real 0%.
+    const engine = createEngine([
+      [0, 100, 0, 1],
+      [100, 200, 0, 2],
+    ])
+    const result = values(query(inst('transitionProbability', { mode: 'fixation', step: 1 }), scope(engine)))
+    expect(result[0 * 3 + 1]).toBe(100) // from AOI1 → AOI2 (real)
+    expect(result[1 * 3 + 0]).toBeNaN() // from AOI2: no out-transition
+    expect(result[1 * 3 + 1]).toBeNaN()
+    expect(result[1 * 3 + 2]).toBeNaN()
   })
 })
 

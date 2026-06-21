@@ -74,6 +74,26 @@
     result.correlationMethod === 'spearman' ? 'ρ' : 'r'
   )
 
+  // Legend N is the group's participant count, but cells with missing data rest
+  // on fewer complete pairs. Surface the smallest pairwise n among shown
+  // (off-diagonal, non-null) cells so the figure — and its static export —
+  // doesn't claim more support than any cell actually has.
+  const legendTitle = $derived.by(() => {
+    const method =
+      result.correlationMethod === 'spearman' ? 'Spearman' : 'Pearson'
+    const baseN = result.sampleSize
+    const size = result.metrics.length
+    let minN = baseN
+    for (let i = 0; i < result.cells.length; i++) {
+      if (Math.floor(i / size) === i % size) continue // skip diagonal
+      const c = result.cells[i]
+      if (c.r !== null && c.n < minN) minN = c.n
+    }
+    return minN < baseN
+      ? `${method} correlation — N = ${baseN} (min pairwise n = ${minN})`
+      : `${method} correlation — N = ${baseN}`
+  })
+
   const layout = $derived.by(() =>
     computeSquareMatrixLayout({
       // width/height are the TOTAL canvas; the layout carves margins out of it.
@@ -153,7 +173,7 @@
       colorScale: ['#2166ac', '#ffffff', '#ca0020'],
       valueRange: [-1, 1],
       effectiveMaxValue: 1,
-      title: `${result.correlationMethod === 'spearman' ? 'Spearman' : 'Pearson'} correlation — N = ${result.sampleSize}`,
+      title: legendTitle,
     })
   })
 
@@ -167,7 +187,7 @@
         colorScale: ['#2166ac', '#ffffff', '#ca0020'],
         valueRange: [-1, 1],
         effectiveMaxValue: 1,
-        title: `${result.correlationMethod === 'spearman' ? 'Spearman' : 'Pearson'} correlation — N = ${result.sampleSize}`,
+        title: legendTitle,
       })
     }
   }

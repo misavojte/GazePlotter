@@ -16,7 +16,17 @@ export const TRANSITION_MATRIX_DEFAULTS = {
  * metric's `meta.label` + `meta.unit` — no plot-side display switch needed now
  * that transforms live on the metric.
  */
-export function getLegendTitle(metricLabel: string, metricUnit: string): string {
-  if (!metricLabel) return 'Transition value'
-  return metricUnit ? `${metricLabel} [${metricUnit}]` : metricLabel
+export function getLegendTitle(
+  metricLabel: string,
+  metricUnit: string,
+  hideNoAoi = false
+): string {
+  const base = !metricLabel
+    ? 'Transition value'
+    : metricUnit
+      ? `${metricLabel} [${metricUnit}]`
+      : metricLabel
+  // Disclose that the No-AOI (Outside) row/column is hidden: for normalised
+  // metrics the visible rows then exclude that mass and may not sum to 100%.
+  return hideNoAoi ? `${base} (No AOI hidden)` : base
 }
