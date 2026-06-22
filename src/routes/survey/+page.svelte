@@ -1,6 +1,5 @@
 <script lang="ts">
   import { GazePlotter, fromUrl } from '$lib'
-  import { Card } from '$lib/shared/components'
   import { base } from '$app/paths'
   import { browser } from '$app/environment'
   import {
@@ -560,58 +559,69 @@
   </section>
   <section class="main-section" id="about">
     <div class="about-grid">
-      <Card padding="lg">
-        <h2 class="box-title">Open source Svelte library</h2>
+      <div class="card">
+        <h2 class="box-title">Cite work</h2>
         <p>
-          GazePlotter is an open source library, written in Svelte and
-          TypeScript. You can use it for free or modify its code to fit your
-          specific needs in your projects.
+          Vojtechovska,&nbsp;M., Popelka,&nbsp;S. GazePlotter:
+          An&nbsp;open-source solution for&nbsp;the automatic generation
+          of&nbsp;scarf plots from&nbsp;eye-tracking data. Behav&nbsp;Res
+          58,&nbsp;85 (2026). <a href="https://doi.org/10.3758/s13428-026-02959-5" target="_blank" rel="noopener noreferrer">doi:10.3758/s13428-026-02959-5</a>
         </p>
-        <a href="https://github.com/misavojte/GazePlotter">See GitHub repo</a>
-      </Card>
-      <Card padding="lg">
-        <h2 class="box-title">Works with Tobii, SMI & more</h2>
+        <a
+          target="_blank"
+          href="https://link.springer.com/article/10.3758/s13428-026-02959-5"
+        >
+          Go to article
+        </a>
+      </div>
+      <div class="card">
+        <h2 class="box-title">Found bug?</h2>
         <p>
-          The app creates interactive sequence charts and other analysis from
-          Tobii, SMI, GazePoint and other eye trackers. Just upload your data
-          and see the results.
+          Help us improve GazePlotter. Report issues, request new visualizations, or contribute to our open-source code directly on GitHub. Community feedback is essential to keeping GazePlotter stable and up-to-date.
         </p>
-        <a href="/docs/upload-data"> Which files to upload? </a>
-      </Card>
-      <Card padding="lg" class="long">
-        <h2 class="box-title">Interactive scarf plots</h2>
+        <a
+          target="_blank"
+          href="https://github.com/misavojte/GazePlotter/issues"
+        >
+          Open GitHub Issues
+        </a>
+      </div>
+      <div class="card long">
+        <h2 class="box-title">About us</h2>
         <p>
-          Scarf plots (sequence charts) are a great way to visualise
-          eye-tracking data. They show the order of fixations in time and their
-          hits on areas of interest (AOI). In GazePlotter, they are interactive,
-          customisable and easy to share.
+          Created by <a href="https://vojtechovska.com" target="_blank" rel="noopener noreferrer">Michaela Vojtechovska</a> under the supervision of <a href="https://www.geoinformatics.upol.cz/lide/stanislav-popelka/?lang=en" target="_blank" rel="noopener noreferrer">Stanislav Popelka</a>, GazePlotter allows researchers and non-programmers to visualize eye gaze data without writing code. This tool is and will remain free.
         </p>
         <img
           width="500"
-          height="220"
-          src="/images/gazeplotter_scarf_plot.png"
-          alt="Simplest scarf plot in GazePlotter"
+          height="500"
+          src="/images/gazeplotter_presentation.png"
+          alt="Michaela presenting GazePlotter at Cognition and Artificial Life conference"
         />
-      </Card>
-      <Card padding="lg">
-        <h2 class="box-title">Runs without Internet</h2>
-        <p>
-          GazePlotter does not store your data on a server, thus ensuring data
-          privacy. All is done in your browser. You can use it on PCs, Macs,
-          tablets, even off-line!
-        </p>
-        <a href="/docs/advanced/download-gazeplotter"
-          >How to download GazePlotter?</a
+        <a
+          target="_blank"
+          href="https://eyetracking.upol.cz"
         >
-      </Card>
-      <Card padding="lg">
-        <h2 class="box-title">Other eye tracking tools</h2>
+          See our lab
+        </a>
+      </div>
+      <div class="card">
+        <h2 class="box-title">User guide</h2>
         <p>
-          Eye-Tracking Group at Department of Geoinformatics, Palacký University
-          Olomouc, develops other eye tracking tools for free use.
+          Learn how to get started, configure your custom workspace, customize metrics, and import Tobii, SMI, GazePoint, Varjo, or Pupil Labs data. Explore our step-by-step instructions for advanced features.
         </p>
-        <a href="https://eyetracking.upol.cz/tools/">More eye tracking tools</a>
-      </Card>
+        <a href="/docs">
+          Read the guide
+        </a>
+      </div>
+      <div class="card">
+        <h2 class="box-title">Data import</h2>
+        <p>
+          GazePlotter supports data from all major eye-tracking platforms including Tobii, SMI, GazePoint, OGAMA, Varjo, and Pupil Cloud. You can also import custom CSV files from any other eye tracker.
+        </p>
+        <a href="/docs/upload-data">
+          Supported formats
+        </a>
+      </div>
     </div>
   </section>
 </main>
@@ -726,11 +736,16 @@
   }
 
   .about-grid {
+    --grid-gap: 10px;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(310px, auto));
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    grid-template-rows: auto auto;
     margin-top: 80px;
     margin-bottom: 80px;
-    gap: 24px;
+    gap: var(--grid-gap);
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
   }
 
   p {
@@ -745,26 +760,61 @@
     font-weight: bold;
     margin: 0;
   }
-  :global(.card.long) {
+  .card {
+    background: var(--c-lightgrey);
+    border-radius: var(--rounded-lg);
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-xl);
+    box-sizing: border-box;
+    gap: var(--grid-gap);
+  }
+  .card p {
+    margin: 0;
+    text-align: justify;
+  }
+  .card.long {
     grid-row: span 2;
   }
-
-  :global(.card img) {
-    width: 102%;
+  .card.long img {
+    width: 100%;
     height: auto;
-    margin-block: auto;
+    border-radius: var(--rounded-md);
+    margin-top: 15px;
+    margin-bottom: 15px;
+    object-fit: cover;
   }
-
-  :global(.card a) {
+  .card > a {
     font-size: 18px;
     font-weight: 600;
     color: var(--c-brand);
     text-decoration: none;
     margin-top: auto;
   }
-  :global(.card a:hover),
-  :global(.card a:focus) {
+  .card > a:hover,
+  .card > a:focus {
     color: var(--c-brand-dark);
+    text-decoration: underline;
+  }
+  .card > a::after {
+    content: "→";
+    display: inline-block;
+    text-decoration: none;
+    margin-left: 8px;
+    transition: transform var(--transition-fast) ease-in-out;
+  }
+  .card > a:hover::after,
+  .card > a:focus::after {
+    transform: translateX(4px);
+  }
+  .card p a {
+    color: inherit;
+    text-decoration: underline dotted;
+  }
+  .card p a:hover,
+  .card p a:focus {
+    color: inherit;
+    text-decoration: underline solid;
   }
 
   @media only screen and (max-width: 1100px) {
@@ -825,9 +875,6 @@
   }
 
   @media only screen and (max-width: 540px) {
-    .about-grid {
-      gap: 18px;
-    }
     .main-section {
       padding-inline: 18px;
     }
