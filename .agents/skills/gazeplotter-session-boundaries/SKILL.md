@@ -7,7 +7,7 @@ description: Session ownership, dependency access, and failure-boundary rules fo
 
 ## Overview
 
-Use this skill when changing how GazePlotter creates shared state, accesses session services, or reports failures to the user. The goal is to keep session ownership explicit, keep deep code dependency-free, and route actionable failures through the correct boundary.
+Use this skill when changing how GazePlotter creates shared state, accesses session services, or reports failures. Goals: keep session ownership explicit, keep deep code dependency-free, and route actionable failures through the correct boundary.
 
 ## Architecture Anchors
 
@@ -15,62 +15,43 @@ Use this skill when changing how GazePlotter creates shared state, accesses sess
 - Runtime entrypoint that creates and installs the session: `src/lib/GazePlotter.svelte`
 - Session context accessor for components: `$lib/session`
 
-Current core subsystems created in `createGazePlotterSession()`:
-
-- `engine`
-- `errorService`
-- `exportService`
-- `ingest`
-- `grid`
-- `workspace`
-- `modalState`
-- `toastState`
-
-If a change affects ownership between these subsystems, check `src/lib/session/session.ts` first.
+Core subsystems created in `createGazePlotterSession()`: `engine`, `errorService`, `exportService`, `ingest`, `grid`, `workspace`, `modalState`, `toastState`. If a change affects ownership between these, check `src/lib/session/session.ts` first.
 
 ## Session Access Rules
 
-- Svelte components inside the GazePlotter tree use `$lib/session`.
-- Plain TypeScript modules do not read Svelte context directly.
-- Non-component code receives dependencies explicitly in parameters or constructor inputs.
-- Do not introduce ambient globals, singleton bridges, or current-session fallbacks.
-- Workers cannot use session services directly. They post terminal messages back to the main thread.
+- Svelte components inside the GazePlotter tree read services/state via `$lib/session`.
+- Plain TypeScript modules do not read Svelte context; they receive dependencies explicitly as parameters or constructor inputs. (Deliberate exception: `src/lib/plots/shared/components/sections/common.ts` reads context because it runs during component init.)
+- Do not introduce ambient globals, singleton bridges, or current-session fallbacks; `getGazePlotterSession()` throws rather than falling back.
+- Workers cannot use session services. They post terminal messages back to the main thread.
 
 ## Failure Boundary Rules
 
-- Deep helpers, parsers, updaters, and worker internals throw or post failure upward.
-- Session-owned services and UI boundaries call `errorService.report(...)`.
-- Put render boundaries at host surfaces, not inside every deep helper.
+- Deep helpers, parsers, updaters, and worker internals throw or post failure upward; they do not report.
+- Only session-owned services and UI boundary hosts call `errorService.report(...)`. Put render boundaries at host surfaces, not inside every deep helper. Prefer one reporting point per terminal failure path.
+- Keep `ErrorService` a synchronous reporting sink, not a retry/cancellation/progress orchestrator.
 
-Primary boundary hosts in this repo:
+Boundary hosts in this repo:
 
 - Workspace plot host: `src/lib/workspace/grid/Grid.svelte`
 - Shared modal host: `src/lib/modals/shared/components/Modal.svelte`
-- Export preview host: `src/lib/modals/shared/components/CanvasPreview.svelte`
+- Export preview host: `src/lib/modals/export/download-plot/CanvasPreview.svelte`
 - Session bootstrap/load boundary: `src/lib/GazePlotter.svelte`
 
-## Severity And User Acknowledgement
+Worker handoff example: the ingest worker posts `{ type: 'fail', data: error }` (`src/lib/data/ingest/worker.ts`); the main-thread ingest service handles `case 'fail'` -> `handleError` -> `errorService.report` (`src/lib/data/ingest/service.svelte.ts`).
 
-- Use `recoverable` when the UI can continue and the user should be told something failed.
-- Use `fatal-load` when dataset/session loading is unusable and the workspace should reflect that state.
-- Toast actionable user-facing failures.
-- Keep console-only diagnostics for non-actionable safety brakes or developer-only traces.
-- Do not silently replace broken state with plausible fallback data unless the UI clearly acknowledges the partial failure.
+## Severity And Reporting
 
-## Core Patterns
-
-- Components read session services from `$lib/session`.
-- Plain modules receive service dependencies explicitly.
-- Worker failures are posted back and reported on the main thread.
-- Prefer one reporting point per terminal failure path.
-- Keep `ErrorService` as a reporting sink, not an async orchestrator.
+- `recoverable`: the UI can continue but the user should be told something failed.
+- `fatal-load`: dataset/session loading is unusable; the workspace should reflect that state.
+- `errorService.report(...)` ALWAYS toasts (via `toastState.addError`) and console-groups a debug trace. So the choice to call `report()` (vs not) IS the toast choice; there is no separate severity-gated toast switch. For non-actionable developer traces, do not call `report()`.
+- Do not silently replace broken state with plausible fallback data unless the UI acknowledges the partial failure.
 
 ## Anti-Patterns
 
-- Raw `console.warn` or `console.error` for actionable failures that should be acknowledged by the user.
+- Raw `console.warn`/`console.error` for actionable failures the user should be told about.
 - Swallowed exceptions that leave the UI loading or stale.
 - Calling session accessors from plain TypeScript modules or workers.
-- Duplicating toast and console handling locally when the boundary can report once through `errorService`.
+- Duplicating toast + console handling locally instead of reporting once through `errorService`.
 - Expanding the errors module into retry, cancellation, progress, or runtime orchestration.
 
 ## Change Checklist
@@ -81,4 +62,3 @@ Primary boundary hosts in this repo:
 - Should this code throw upward or report directly?
 - Is a worker/main-thread handoff involved?
 - Does this change preserve explicit dependency injection for non-component code?
-- Should a focused regression test be added for the boundary path?

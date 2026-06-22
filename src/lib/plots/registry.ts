@@ -1,19 +1,30 @@
 import type { Component } from 'svelte'
-import { aoiStreamPlotDefinition } from './aoi-stream/definition'
-import { barPlotDefinition } from './bar/definition'
-import { scarfPlotDefinition } from './scarf/definition'
-import { transitionMatrixDefinition } from './transition-matrix/definition'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import type { PlotSubtitleParts, PlotItemContract, PlotDefinition } from './definePlot'
+import { aoiStreamPlotDefinition } from './aoi-stream'
+import { barPlotDefinition } from './bar'
+import { scarfPlotDefinition } from './scarf'
+import { transitionMatrixDefinition } from './transition-matrix'
+import { scanpathSimilarityDefinition } from './scanpath-similarity'
+import { scanpathPlotDefinition } from './scanpath'
+import { recurrencePlotDefinition } from './recurrence'
+import { evolvingMetricsDefinition } from './evolving-metrics'
+import { metricCorrelationDefinition } from './metric-correlation'
 
 export const plotRegistry = {
   scarf: scarfPlotDefinition,
   transitionMatrix: transitionMatrixDefinition,
   barPlot: barPlotDefinition,
   aoiStreamPlot: aoiStreamPlotDefinition,
+  scanpathSimilarity: scanpathSimilarityDefinition,
+  scanpath: scanpathPlotDefinition,
+  recurrencePlot: recurrencePlotDefinition,
+  evolvingMetrics: evolvingMetricsDefinition,
+  metricCorrelation: metricCorrelationDefinition,
 } as const
 
-const LEGACY_VISUALIZATION_TYPES = {
-  TransitionMatrix: 'transitionMatrix',
-} as const
+export { LEGACY_VISUALIZATION_TYPES } from './legacyTypes'
+import { LEGACY_VISUALIZATION_TYPES } from './legacyTypes'
 
 type VisualizationType = keyof typeof plotRegistry
 type LegacyVisualizationType = keyof typeof LEGACY_VISUALIZATION_TYPES
@@ -62,4 +73,14 @@ export function resolvePlotComponent(type: string): PlotHostComponent {
 export function getPlotDisplayName(type: string): string {
   const normalizedType = normalizeVisualizationType(type)
   return normalizedType ? plotRegistry[normalizedType].name : type
+}
+
+export function getPlotSubtitle(
+  item: PlotItemContract<string, unknown>,
+  engine: DataEngine
+): PlotSubtitleParts | undefined {
+  const normalizedType = normalizeVisualizationType(item.type)
+  if (!normalizedType) return undefined
+  const def = plotRegistry[normalizedType] as PlotDefinition<string, any>
+  return def.getSubtitle?.({ item, engine })
 }

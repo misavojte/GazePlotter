@@ -1,5 +1,15 @@
 <script lang="ts">
-  let { width, height } = $props<{ width: number; height: number }>()
+  let {
+    width,
+    height,
+    message = 'Loading visualization...',
+    loading = true,
+  } = $props<{
+    width: number
+    height: number
+    message?: string
+    loading?: boolean
+  }>()
 </script>
 
 <div
@@ -7,8 +17,10 @@
   style="width: {width}px; height: {height}px;"
 >
   <div class="loader">
-    <div class="spinner"></div>
-    <div class="text">Loading visualization...</div>
+    {#if loading}
+      <div class="spinner"></div>
+    {/if}
+    <div class="text">{message}</div>
   </div>
 </div>
 
@@ -40,7 +52,7 @@
     color: var(--c-darkgrey);
     font-size: 14px;
     font-weight: 400;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.02em;
   }
 
   @keyframes spin {

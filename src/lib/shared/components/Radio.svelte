@@ -1,5 +1,6 @@
 <script lang="ts">
   import { generateUniqueId } from '$lib/shared/utils/idUtils'
+  import { isInPane } from './paneContext'
 
   interface Props {
     options: { value: string; label: string }[]
@@ -8,6 +9,10 @@
     value?: string
     appearance?: 'default' | 'compact'
     direction?: 'column' | 'row'
+    /** Multi-selection "Mixed": the bound plots disagree on this field. Shows no
+     *  option selected; picking one applies it to all (and resolves it). */
+    mixed?: boolean
+    onchange?: (event: CustomEvent<string>) => void
   }
 
   let {
@@ -17,11 +22,15 @@
     value = $bindable(options[0].value),
     appearance = 'default',
     direction = 'column',
+    mixed = false,
+    onchange,
   }: Props = $props()
 
   const uniqueID: number = generateUniqueId()
   const hasLegend = $derived(legend.trim().length > 0)
-  const isCompact = $derived(appearance === 'compact')
+  /** Inside a Pane / PaneSheet → auto-apply compact appearance. */
+  const inPane = isInPane()
+  const isCompact = $derived(appearance === 'compact' || inPane)
   const isRow = $derived(direction === 'row')
 
   const slugify = (str = ''): string =>
@@ -51,8 +60,11 @@
           id={optionId}
           name={`group-${uniqueID}`}
           value={optionValue}
-          checked={value === optionValue}
-          onchange={() => (value = optionValue)}
+          checked={!mixed && value === optionValue}
+          onchange={() => {
+            value = optionValue
+            onchange?.(new CustomEvent('change', { detail: optionValue }))
+          }}
         />
         <label for={optionId}>
           {label}
@@ -71,7 +83,7 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 5px;
+    gap: var(--spacing-xxs);
   }
 
   .group-container.compact {
@@ -85,7 +97,7 @@
   .options {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: var(--spacing-xxs);
   }
 
   .group-container.compact .options {
@@ -167,8 +179,8 @@
     width: var(--radio-size);
     height: var(--radio-size);
     transform: translateY(-50%);
-    background: var(--c-white, #fff);
-    border: 1px solid var(--c-midgrey, #ccc);
+    background: var(--c-white);
+    border: 1px solid var(--c-midgrey);
     border-radius: 50%;
     box-sizing: border-box;
   }
@@ -181,15 +193,15 @@
     left: 3px;
     top: 50%;
     transform: translateY(-50%) scale(0);
-    background: var(--c-brand, #282828);
-    border: 1px solid var(--c-brand, #282828);
+    background: var(--c-brand);
+    border: 1px solid var(--c-brand);
     border-radius: 50%;
     box-sizing: border-box;
-    transition: transform 0.1s ease-out;
+    transition: transform var(--transition-fast) ease-out;
   }
 
   input[type='radio']:checked + label::before {
-    border-color: var(--c-brand, #282828);
+    border-color: var(--c-brand);
   }
 
   input[type='radio']:checked + label::after {

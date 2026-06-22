@@ -62,16 +62,3 @@ export async function canvasToBlobWithWhiteBackground(
   return blob
 }
 
-/**
- * Downloads a canvas as an image.
- */
-export async function downloadCanvasAsImage(
-  canvas: HTMLCanvasElement,
-  fileName: string,
-  fileType: ExportFileType
-) {
-  const mimeType = getMimeType(fileType)
-  const quality = getQuality(fileType)
-  const blob = await canvasToBlobWithWhiteBackground(canvas, mimeType, quality)
-  triggerDownload(blob, fileName, fileType)
-}

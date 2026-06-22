@@ -1,298 +1,248 @@
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
-import { getAoiRaw } from '$lib/data/engine/utils/interpreters'
-import {
-  createAdaptiveTimeline,
-  type AdaptiveTimeline,
-} from '$lib/plots/shared'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import { getAois, getParticipantsIds } from '$lib/data/engine'
 import type { ExtendedInterpretedDataType } from '$lib/data/types'
 import {
+  asAoiVector,
+  createAdaptiveTimeline,
+  resolveMetric,
+  type AdaptiveTimeline,
+} from '$lib/plots/shared'
+import {
   formatDecimal,
-  normalizeToPercentages,
 } from '$lib/shared/utils/mathUtils'
-import type { BarPlotResult, BarPlotDataItem, BarPlotSettings } from '../types'
-import { collectParticipantBarMetrics } from './collector'
+import type {
+  BarPlotResult,
+  BarPlotDataItem,
+  BarPlotSettings,
+  AoiSummaryStatistics,
+} from '../types'
+import {
+  query,
+  queryIndividualsAllSlots,
+  getMetric,
+  type MetricInstance,
+  type PlotMetricContract,
+  type Scope,
+} from '$lib/metrics'
 
-/**
- * Main function to get bar plot data based on selected settings.
- * Now uses a single pass collector for all participants.
- */
+const CONTRACT = { outputShape: 'aoi-vector', windowing: 'forbidden', crossParticipant: 'distribution' } as const satisfies PlotMetricContract
+
 export function getBarPlotData(
   engine: DataEngine,
   settings: Pick<
     BarPlotSettings,
     | 'stimulusId'
     | 'groupId'
-    | 'aggregationMethod'
+    | 'metricInstanceIds'
     | 'orderBy'
     | 'orderDirection'
     | 'scaleRange'
     | 'timelineStart'
     | 'timelineEnd'
+    | 'statisticalOverlay'
+    | 'hideNoAoi'
   >
 ): BarPlotResult {
   const meta = engine.metadata
   if (!meta) throw new Error('No metadata found')
 
-  const aois = getVisibleAois(engine, settings.stimulusId)
-  const participantIds = getParticipantIdsForGroup(
+  const aois = getAois(engine, settings.stimulusId)
+  const participantIds = getParticipantsIds(
     engine,
     settings.groupId,
     settings.stimulusId
   )
-  const aggregationMethod = settings.aggregationMethod || 'absoluteTime'
+  const overlay = settings.statisticalOverlay ?? 'none'
 
-  if (participantIds.length === 0) {
-    return { data: [], timeline: createAdaptiveTimeline(0, 100, 6) }
+  const resolved = resolveMetric({
+    instances: meta.metricInstances,
+    id: settings.metricInstanceIds?.[0] ?? null,
+    contract: CONTRACT,
+  })
+  if (!resolved.ok) {
+    return { data: [], timeline: createAdaptiveTimeline(0, 100, 6), dataMax: 0, noMetric: true }
   }
+  if (participantIds.length === 0) {
+    return { data: [], timeline: createAdaptiveTimeline(0, 100, 6), dataMax: 0 }
+  }
+  const { instance } = resolved
+  // A `proportion`-class metric (e.g. `fixated`) is a [0,1] rate: render it as a
+  // plain proportional bar (value as percent), not a beeswarm of 0/1 dots.
+  const isProportion = getMetric(instance.baseId)?.meta.measurementClass === 'proportion'
 
-  // Single pass collection of all metrics for all participants
-  const participantMetrics = collectParticipantBarMetrics(
+  const timeStart = settings.timelineStart ?? 0
+  const timeEnd = settings.timelineEnd ?? 0
+  const hideNoAoi = settings.hideNoAoi ?? false
+  const totalSlots = hideNoAoi ? aois.length : aois.length + 1
+
+  const participantDisplayNames = participantIds.map(id => {
+    const pData = meta.participants.data[id]
+    return pData?.[1] ?? pData?.[0] ?? `P${id}`
+  })
+
+  const individualArrays = new Array<number[]>(totalSlots)
+  const individualNameArrays = new Array<string[]>(totalSlots)
+  extractIndividualValues(
     engine,
+    instance,
     settings.stimulusId,
     participantIds,
-    aois,
-    settings.timelineStart ?? 0,
-    settings.timelineEnd ?? 0
+    totalSlots,
+    timeStart,
+    timeEnd,
+    participantDisplayNames,
+    individualArrays,
+    individualNameArrays
   )
 
-  // Aggregate participant metrics into final bar values
-  const rawData = aggregateMetrics(
-    participantMetrics,
-    aggregationMethod,
-    aois.length
-  )
+  const statsArrays = new Array<AoiSummaryStatistics>(totalSlots)
+  for (let i = 0; i < totalSlots; i++) {
+    statsArrays[i] = computeSummaryStatistics(individualArrays[i])
+  }
 
-  // Create labeled data with AOI information
+  // Proportion metrics are displayed as percent: the bar value is scaled to [0,100]
+  // so the existing numeric axis and `%` label read correctly. Other metrics keep
+  // their native value (mean of individuals). Rendered as plain descriptive bars —
+  // no confidence band (see drawProportionalBars for why).
+  const rawData = new Array<number>(totalSlots)
+  for (let i = 0; i < totalSlots; i++) {
+    rawData[i] = isProportion ? statsArrays[i].mean * 100 : statsArrays[i].mean
+  }
+
   const labeledData = createLabeledData(
     rawData,
     aois,
     meta.noAoiTreatment,
-    aggregationMethod
+    instance,
+    individualArrays,
+    statsArrays,
+    individualNameArrays
   )
 
-  // Apply sorting if needed
   const sortedData = applySorting(
     labeledData,
     settings.orderBy || 'aoi',
     settings.orderDirection || 'asc'
   )
 
-  // Create timeline with appropriate scale
-  const timeline = createTimeline(rawData, settings.scaleRange)
+  let dataMax = 0
+  if (isProportion) {
+    // Percent bar values; the axis is data-driven (space-efficient).
+    for (let i = 0; i < totalSlots; i++) {
+      if (rawData[i] > dataMax) dataMax = rawData[i]
+    }
+  } else {
+    for (let i = 0; i < individualArrays.length; i++) {
+      const vals = individualArrays[i]
+      for (let j = 0; j < vals.length; j++) {
+        if (vals[j] > dataMax) dataMax = vals[j]
+      }
+    }
+    if (overlay === 'boxplot') {
+      for (let i = 0; i < statsArrays.length; i++) {
+        if (statsArrays[i].whiskerHigh > dataMax) dataMax = statsArrays[i].whiskerHigh
+      }
+    }
+  }
+
+  let timelineMin = 0
+  let timelineMax = dataMax || 100
+  if (settings.scaleRange) {
+    if (settings.scaleRange[0] !== 0) timelineMin = settings.scaleRange[0]
+    if (settings.scaleRange[1] !== 0) timelineMax = settings.scaleRange[1]
+  }
+  if (timelineMax <= timelineMin) timelineMax = timelineMin + 1
+  const timeline = createAdaptiveTimeline(timelineMin, timelineMax, 6)
 
   return {
     data: sortedData,
     timeline,
-  }
-}
-
-function getParticipantOrderVector(engine: DataEngine): number[] {
-  const meta = engine.metadata
-  if (!meta) throw new Error('Data engine metadata not available')
-  const order = meta.participants.orderVector
-  if (order.length === 0) {
-    return Array.from({ length: meta.participants.data.length }, (_, i) => i)
-  }
-  return order
-}
-
-function getParticipantIdsForGroup(
-  engine: DataEngine,
-  groupId = -1,
-  stimulusId = 0
-): number[] {
-  const meta = engine.metadata
-  const reader = engine.getReader()
-  if (!meta || !reader) throw new Error('Data engine metadata not available')
-
-  const participantOrder = getParticipantOrderVector(engine)
-  if (groupId === -1) return participantOrder
-
-  if (groupId === -2) {
-    return participantOrder.filter(
-      participantId => reader.getSegmentCount(stimulusId, participantId) > 0
-    )
-  }
-
-  const group = meta.participantsGroups.find(candidate => candidate.id === groupId)
-  if (!group && groupId === 0) return participantOrder
-  if (!group) throw new Error(`Participants group with id ${groupId} does not exist`)
-  return group.participantsIds
-}
-
-function getVisibleAois(
-  engine: DataEngine,
-  stimulusId: number
-): ExtendedInterpretedDataType[] {
-  const meta = engine.metadata
-  if (!meta) throw new Error('Data engine metadata not available')
-
-  const stimulusAois = meta.aois.data[stimulusId]
-  if (!stimulusAois) throw new Error(`AOI data for stimulus ${stimulusId} not found`)
-
-  const order = meta.aois.orderVector?.[stimulusId]
-  const ids =
-    order == null || order.length === 0
-      ? Array.from({ length: stimulusAois.length }, (_, i) => i)
-      : order
-
-  const hidden = meta.aois.hiddenAois?.[stimulusId] ?? []
-  const hiddenSet = hidden.length ? new Set<number>(hidden) : null
-  const uniqueMappedIds = new Set<number>()
-
-  for (let i = 0; i < ids.length; i++) {
-    const rawId = ids[i]
-    if (hiddenSet?.has(rawId)) continue
-    uniqueMappedIds.add(engine.getAoiMapping(stimulusId, rawId))
-  }
-
-  const aois: ExtendedInterpretedDataType[] = []
-  for (const aoiId of uniqueMappedIds) {
-    aois.push(getAoiRaw(stimulusId, aoiId, meta))
-  }
-
-  return aois
-}
-
-/**
- * Aggregates individual participant metrics into the final bar values.
- * Optimized for performance: avoids intermediate arrays and closures in hot loops.
- */
-export function aggregateMetrics(
-  metrics: ReturnType<typeof collectParticipantBarMetrics>,
-  method: string,
-  aoiCount: number
-): number[] {
-  const totalSlots = aoiCount + 1 // We only show up to No-AOI (exclude AnyFixation for now unless needed)
-  const result = new Array(totalSlots).fill(0)
-  const participantCount = metrics.length
-
-  if (participantCount === 0) return result
-
-  switch (method) {
-    case 'absoluteTime':
-    case 'relativeTime': {
-      for (let p = 0; p < participantCount; p++) {
-        const dwell = metrics[p].dwellTime
-        for (let i = 0; i < totalSlots; i++) {
-          result[i] += dwell[i]
-        }
-      }
-      return method === 'relativeTime' ? normalizeToPercentages(result) : result
-    }
-
-    case 'timeToFirstFixation': {
-      for (let i = 0; i < totalSlots; i++) {
-        let sum = 0
-        let count = 0
-        for (let p = 0; p < participantCount; p++) {
-          const val = metrics[p].ttff[i]
-          if (val !== -1) {
-            sum += val
-            count++
-          }
-        }
-        result[i] = count > 0 ? sum / count : 0
-      }
-      return result
-    }
-
-    case 'avgFixationDuration': {
-      for (let i = 0; i < totalSlots; i++) {
-        let sum = 0
-        let count = 0
-        for (let p = 0; p < participantCount; p++) {
-          const durations = metrics[p].avgFixationDuration[i]
-          for (let d = 0; d < durations.length; d++) {
-            sum += durations[d]
-            count++
-          }
-        }
-        result[i] = count > 0 ? sum / count : 0
-      }
-      return result
-    }
-
-    case 'avgFirstFixationDuration': {
-      for (let i = 0; i < totalSlots; i++) {
-        let sum = 0
-        let count = 0
-        for (let p = 0; p < participantCount; p++) {
-          const val = metrics[p].firstFixationDuration[i]
-          if (val !== -1) {
-            sum += val
-            count++
-          }
-        }
-        result[i] = count > 0 ? sum / count : 0
-      }
-      return result
-    }
-
-    case 'averageFixationCount': {
-      for (let i = 0; i < totalSlots; i++) {
-        let sum = 0
-        for (let p = 0; p < participantCount; p++) {
-          sum += metrics[p].fixationCount[i]
-        }
-        result[i] = sum / participantCount
-      }
-      return result
-    }
-
-    case 'hitRatio': {
-      for (let i = 0; i < totalSlots; i++) {
-        let seenCount = 0
-        for (let p = 0; p < participantCount; p++) {
-          seenCount += metrics[p].hitRatio[i]
-        }
-        result[i] = (seenCount / participantCount) * 100
-      }
-      return result
-    }
-
-    case 'averageEntries': {
-      for (let i = 0; i < totalSlots; i++) {
-        let sum = 0
-        for (let p = 0; p < participantCount; p++) {
-          sum += metrics[p].entryCount[i]
-        }
-        result[i] = sum / participantCount
-      }
-      return result
-    }
-
-    case 'avgDwellDuration': {
-      for (let i = 0; i < totalSlots; i++) {
-        let sum = 0
-        let count = 0
-        for (let p = 0; p < participantCount; p++) {
-          const durations = metrics[p].dwellDurations[i]
-          for (let d = 0; d < durations.length; d++) {
-            sum += durations[d]
-            count++
-          }
-        }
-        result[i] = count > 0 ? sum / count : 0
-      }
-      return result
-    }
-
-    default:
-      return result
+    dataMax,
+    proportion: isProportion,
   }
 }
 
 /**
- * Creates labeled data items from raw numeric values
+ * Fills `valuesOut[slot]` / `namesOut[slot]` with the per-participant individual
+ * values for every AOI slot, scanning each participant ONCE.
+ *
+ * The previous shape scanned per (slot × participant): for a metric with an
+ * `individuals` recipe (e.g. "Was fixated") that meant a full, uncached fixation
+ * scan per slot per participant — a `totalSlots`× redundant scan that stalled
+ * large datasets. Here each participant is scanned once: `queryIndividualsAllSlots`
+ * returns every slot's individuals from a single accumulator, and metrics without
+ * an individuals recipe read the cached aggregate vector once per participant.
+ *
+ * Output is identical to the old per-slot routine: within each slot the values
+ * stay in participant order, and a participant/slot with no individuals falls back
+ * to that participant's aggregate value for the slot.
  */
+function extractIndividualValues(
+  engine: DataEngine,
+  instance: MetricInstance,
+  stimulusId: number,
+  participantIds: number[],
+  totalSlots: number,
+  timeStart: number,
+  timeEnd: number,
+  participantNames: string[],
+  valuesOut: number[][],
+  namesOut: string[][]
+): void {
+  for (let s = 0; s < totalSlots; s++) {
+    valuesOut[s] = []
+    namesOut[s] = []
+  }
+
+  for (let p = 0; p < participantIds.length; p++) {
+    const scope: Scope = {
+      engine, stimulusId, participantId: participantIds[p],
+      timeStart, timeEnd,
+    }
+    const name = participantNames[p]
+    const perSlot = queryIndividualsAllSlots(instance, scope)
+    // Aggregate vector, fetched lazily and reused: the fallback for slots a
+    // participant has no individuals for, and the only source for metrics
+    // without an individuals recipe. `query` is cached, so it scans at most once
+    // per participant.
+    let aggregate: number[] | undefined
+    const aggregateAt = (slot: number): number => {
+      aggregate ??= asAoiVector(query(instance, scope))?.values ?? []
+      return aggregate[slot] ?? Number.NaN
+    }
+
+    for (let s = 0; s < totalSlots; s++) {
+      const individuals = perSlot?.[s]
+      if (individuals && individuals.length > 0) {
+        for (let k = 0; k < individuals.length; k++) {
+          const v = individuals[k]
+          if (Number.isFinite(v)) {
+            valuesOut[s].push(v)
+            namesOut[s].push(name)
+          }
+        }
+      } else {
+        const v = aggregateAt(s)
+        if (Number.isFinite(v)) {
+          valuesOut[s].push(v)
+          namesOut[s].push(name)
+        }
+      }
+    }
+  }
+}
+
 function createLabeledData(
   rawData: number[],
-  aois: ExtendedInterpretedDataType[],
+  aois: readonly ExtendedInterpretedDataType[],
   noAoiTreatment: { displayedName: string; color: string },
-  aggregationMethod: string
+  instance: MetricInstance,
+  individualArrays: number[][] | null = null,
+  statsArrays: AoiSummaryStatistics[] | null = null,
+  individualNameArrays: string[][] | null = null
 ): BarPlotDataItem[] {
   const result: BarPlotDataItem[] = new Array(rawData.length)
+  const isTimeToFirstFixation = instance.baseId === 'timeToFirstFixation'
 
   for (let i = 0; i < rawData.length; i++) {
     const value = rawData[i]
@@ -300,21 +250,22 @@ function createLabeledData(
     const label = isNoAoi ? noAoiTreatment.displayedName : aois[i].displayedName
     const color = isNoAoi ? noAoiTreatment.color : aois[i].color
 
-    // Special case for TTFF where 0 might mean "never looked" in some contexts,
-    // though the collector uses -1 for that. Here we stick to clean labels.
-    if (aggregationMethod === 'timeToFirstFixation' && value === 0) {
-      result[i] = { value: 0, label, color }
-    } else {
-      result[i] = { value: formatDecimal(value), label, color }
+    const formattedValue =
+      isTimeToFirstFixation && value === 0 ? 0 : formatDecimal(value)
+
+    result[i] = {
+      value: formattedValue,
+      label,
+      color,
+      stats: statsArrays ? statsArrays[i] : null,
+      individualValues: individualArrays ? individualArrays[i] : null,
+      individualParticipantNames: individualNameArrays ? individualNameArrays[i] : null,
     }
   }
 
   return result
 }
 
-/**
- * Applies sorting to labeled data based on user selection
- */
 function applySorting(
   data: BarPlotDataItem[],
   orderBy: 'value' | 'aoi',
@@ -331,48 +282,100 @@ function applySorting(
   )
 }
 
-/**
- * Creates a timeline with appropriate scale based on data and user settings
- */
-function createTimeline(
-  rawData: number[],
-  scaleRange?: [number, number]
-): AdaptiveTimeline {
-  let maxValue = 0
-  let hasData = false
+function computeSummaryStatistics(
+  values: number[]
+): AoiSummaryStatistics {
+  const empty: AoiSummaryStatistics = {
+    mean: 0,
+    median: 0,
+    q1: 0,
+    q3: 0,
+    min: 0,
+    max: 0,
+    sd: 0,
+    sem: 0,
+    whiskerLow: 0,
+    whiskerHigh: 0,
+    count: 0,
+    outliers: [],
+  }
 
-  for (let i = 0; i < rawData.length; i++) {
-    const val = rawData[i]
-    if (!isNaN(val)) {
-      if (val > maxValue) {
-        maxValue = val
-      }
-      hasData = true
+  if (values.length === 0) return empty
+
+  const sorted = [...values].sort((a, b) => a - b)
+  const n = sorted.length
+
+  let sum = 0
+  for (let i = 0; i < n; i++) sum += sorted[i]
+  const mean = sum / n
+
+  const median =
+    n % 2 === 0
+      ? (sorted[n / 2 - 1] + sorted[n / 2]) / 2
+      : sorted[Math.floor(n / 2)]
+
+  const q1 = percentile(sorted, 0.25)
+  const q3 = percentile(sorted, 0.75)
+
+  const min = sorted[0]
+  const max = sorted[n - 1]
+
+  let sumSqDiff = 0
+  for (let i = 0; i < n; i++) {
+    const diff = sorted[i] - mean
+    sumSqDiff += diff * diff
+  }
+  const sd = n > 1 ? Math.sqrt(sumSqDiff / (n - 1)) : 0
+  const sem = n > 0 ? sd / Math.sqrt(n) : 0
+
+  const iqr = q3 - q1
+  const whiskerLowBound = q1 - 1.5 * iqr
+  const whiskerHighBound = q3 + 1.5 * iqr
+
+  let whiskerLow = min
+  for (let i = 0; i < n; i++) {
+    if (sorted[i] >= whiskerLowBound) {
+      whiskerLow = sorted[i]
+      break
     }
   }
 
-  // Handle empty or invalid data
-  if (!hasData) {
-    return createAdaptiveTimeline(0, 100, 6)
+  let whiskerHigh = max
+  for (let i = n - 1; i >= 0; i--) {
+    if (sorted[i] <= whiskerHighBound) {
+      whiskerHigh = sorted[i]
+      break
+    }
   }
 
-  let min = 0
-  let max = maxValue
-
-  const hasCustomScale =
-    scaleRange && (scaleRange[0] !== 0 || scaleRange[1] !== 0)
-
-  if (scaleRange) {
-    if (scaleRange[0] !== 0) min = scaleRange[0]
-    if (scaleRange[1] !== 0) max = scaleRange[1]
+  const outliers: number[] = []
+  for (let i = 0; i < n; i++) {
+    if (sorted[i] < whiskerLow || sorted[i] > whiskerHigh) {
+      outliers.push(sorted[i])
+    }
   }
 
-  // Ensure min < max
-  if (max <= min) {
-    max = min + 1
+  return {
+    mean,
+    median,
+    q1,
+    q3,
+    min,
+    max,
+    sd,
+    sem,
+    whiskerLow,
+    whiskerHigh,
+    count: n,
+    outliers,
   }
+}
 
-  // If we are in "Auto" mode (no custom scale range), use nice max rounding
-  // so bars have some breathing room.
-  return createAdaptiveTimeline(min, max, 6, !hasCustomScale)
+function percentile(sorted: number[], p: number): number {
+  if (sorted.length === 1) return sorted[0]
+  const index = p * (sorted.length - 1)
+  const lower = Math.floor(index)
+  const upper = Math.ceil(index)
+  if (lower === upper) return sorted[lower]
+  return sorted[lower] + (sorted[upper] - sorted[lower]) * (index - lower)
 }

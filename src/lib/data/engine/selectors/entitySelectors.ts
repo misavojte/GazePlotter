@@ -2,7 +2,7 @@ import {
   type BaseInterpretedDataType,
   type ExtendedInterpretedDataType,
 } from '$lib/data/types'
-import type { DataEngine } from '../DataEngine.svelte'
+import type { DataEngine } from '../dataEngine.svelte'
 import { getCategoryRaw } from '../utils/interpreters'
 
 export const getStimuliOrderVector = (engine: DataEngine): number[] => {
@@ -33,12 +33,7 @@ export const getStimulus = (
 }
 
 export const getStimuli = (engine: DataEngine): BaseInterpretedDataType[] => {
-  const ids = getStimuliOrderVector(engine)
-  const result = new Array(ids.length)
-  for (let i = 0; i < ids.length; i++) {
-    result[i] = getStimulus(engine, ids[i])
-  }
-  return result
+  return getStimuliOrderVector(engine).map(id => getStimulus(engine, id))
 }
 
 export const getParticipantOrderVector = (engine: DataEngine): number[] => {
@@ -72,15 +67,10 @@ export const getParticipant = (
 export const getAllParticipants = (
   engine: DataEngine
 ): BaseInterpretedDataType[] => {
-  const ids = getParticipantOrderVector(engine)
-  const result = new Array(ids.length)
-  for (let i = 0; i < ids.length; i++) {
-    result[i] = getParticipant(engine, ids[i])
-  }
-  return result
+  return getParticipantOrderVector(engine).map(id => getParticipant(engine, id))
 }
 
-export const getCategory = (
+const getCategory = (
   engine: DataEngine,
   id: number
 ): ExtendedInterpretedDataType => {

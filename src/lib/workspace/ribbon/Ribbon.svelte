@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getGazePlotterSession } from '$lib/session'
-  import { downloadWorkspaceModal, metadataInfoModal } from '$lib/modals/definitions'
+  import { exportWorkspaceModal, metadataInfoModal } from '$lib/modals/definitions'
   import { createRibbonItems } from './config'
   import RibbonItem from './RibbonItem.svelte'
 
@@ -29,7 +29,7 @@
   }
 
   const handleExport = () => {
-    modalState.open(downloadWorkspaceModal, {})
+    modalState.open(exportWorkspaceModal, {})
   }
 
   const handleOpenMetadata = () => {
@@ -52,7 +52,7 @@
   name="GP-ribbon-file-upload"
   class="hidden-file-input"
   multiple
-  accept=".csv, .txt, .tsv, .json, .zip"
+  accept=".csv,.txt,.tsv,.json,.zip,.xml"
   onchange={handleFileUpload}
   bind:this={fileInput}
 />
@@ -82,10 +82,10 @@
   .ribbon {
     width: 100%;
     height: 48px;
-    background-color: var(--c-lightgrey, #f1f5f9);
+    background-color: var(--c-lightgrey);
     box-sizing: border-box;
     z-index: 2;
-    transition: background-color 0.3s ease;
+    transition: background-color var(--transition-slow) ease;
     font-family: inherit;
   }
 
@@ -102,6 +102,6 @@
   .divider {
     width: 1px;
     height: 16px;
-    background-color: #e2e8f0;
+    background-color: var(--c-grey);
   }
 </style>

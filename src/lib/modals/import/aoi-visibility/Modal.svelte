@@ -4,7 +4,10 @@
   import { InputFile } from '$lib/shared/components'
   import { ModalButtons } from '$lib/modals'
   import { getGazePlotterSession } from '$lib/session'
-  import { processAoiVisibility } from '$lib/modals/import/shared/aoiVisibilityServices'
+  import {
+    processAoiVisibility,
+    buildEventChannelsFromParsed,
+  } from '$lib/modals/import/shared/aoiVisibilityServices'
   import { getStimuliOptions, getParticipantOptions } from '$lib/plots/shared'
 
   interface Props {
@@ -49,15 +52,18 @@
         participantId,
         files
       )
-      if (
-        workspace.updateAoiVisibility(
-          data.stimulusId,
-          data.multipleAoiNames,
-          data.multipleAoiVisibilityArrays,
-          source,
-          data.participantId
-        )
-      ) {
+
+      // Convert parsed visibility data to event channel format
+      const participantCount = engine.metadata?.participants.data.length ?? 0
+      const aoiData = engine.metadata?.aois.data[stimulusId]
+      const { channelDefs, eventBuffers } = buildEventChannelsFromParsed(
+        data,
+        participantId,
+        participantCount,
+        aoiData
+      )
+
+      if (workspace.updateEventData(stimulusId, channelDefs, eventBuffers, source)) {
         modalState.close()
       }
     } catch (error) {

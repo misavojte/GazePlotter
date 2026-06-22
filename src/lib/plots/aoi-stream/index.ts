@@ -12,3 +12,5 @@ export * from './sync'
 
 // Export Time-binned AOI Occupancy constants
 export * from './const'
+
+export { aoiStreamPlotDefinition } from './definition'

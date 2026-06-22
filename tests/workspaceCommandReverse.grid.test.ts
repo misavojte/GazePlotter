@@ -68,7 +68,6 @@ describe('workspaceCommandReverse grid commands', () => {
           timeline: 'absolute',
           absoluteStimuliLimits: [],
           ordinalStimuliLimits: [],
-          dynamicAOI: true,
         },
       },
       source: 'source',
@@ -135,29 +134,32 @@ describe('workspaceCommandReverse grid commands', () => {
       label: 'updateLayout',
       command: createChainedCommand({
         type: 'updateLayout',
-        itemId: 1,
-        layout: { x: 10, y: 20, w: 8 },
+        updates: [{ itemId: 1, layout: { x: 10, y: 20, w: 8 } }],
       }),
       expected: createChainedCommand({
         type: 'updateLayout',
-        itemId: 1,
-        layout: { x: 0, y: 0, w: 6 },
+        updates: [{ itemId: 1, layout: { x: 0, y: 0, w: 6 } }],
       }),
     },
     {
       label: 'updateSettings',
       command: createChainedCommand({
         type: 'updateSettings',
-        itemId: 1,
-        settings: { timeline: 'relative', hideNonFixations: true },
+        updates: [
+          {
+            itemId: 1,
+            settings: { timeline: 'relative', hideNonFixations: true },
+          },
+        ],
       }),
       expected: createChainedCommand({
         type: 'updateSettings',
-        itemId: 1,
-        settings: {
-          timeline: 'absolute',
-          hideNonFixations: undefined,
-        },
+        updates: [
+          {
+            itemId: 1,
+            settings: { timeline: 'absolute', hideNonFixations: undefined },
+          },
+        ],
       }),
     },
   ])('reverses $label using the current item state', ({ command, expected }) => {
@@ -169,8 +171,7 @@ describe('workspaceCommandReverse grid commands', () => {
       reverseCommand(
         createChainedCommand({
           type: 'updateLayout',
-          itemId: 999,
-          layout: { x: 10, y: 20 },
+          updates: [{ itemId: 999, layout: { x: 10, y: 20 } }],
         })
       )
     ).toBeNull()
@@ -179,8 +180,7 @@ describe('workspaceCommandReverse grid commands', () => {
   it('does not mutate the command passed to reverse()', () => {
     const command = createChainedCommand({
       type: 'updateSettings',
-      itemId: 1,
-      settings: { timeline: 'relative' },
+      updates: [{ itemId: 1, settings: { timeline: 'relative' } }],
     })
     const snapshot = JSON.parse(JSON.stringify(command))
 

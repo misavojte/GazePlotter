@@ -4,24 +4,33 @@
 
 import {
   getAois,
-  getAoiVisibility,
   getNumberOfSegments,
   getParticipant,
   getParticipantEndTime,
   getStimuli,
-  hasStimulusAoiVisibility,
+  hasEventsForStimulus,
+  getVisibleEventChannels,
+  getEventBuffer,
+  getAllCategories,
+  getHiddenCategories,
 } from '$lib/data/engine'
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import { groupByDisplayedName } from '$lib/data/engine/utils/grouping'
 import {
-  SegmentField,
-  SEGMENT_STRIDE,
+  FIXATION_CATEGORY_ID,
   type ExtendedInterpretedDataType,
 } from '$lib/data/types'
+import { SEGMENT_STRIDE, SegmentField } from '$lib/data/binary/schema'
 import {
   createAdaptiveTimeline,
   type AdaptiveTimeline,
 } from '$lib/plots/shared'
-import { SCARF_IDENTIFIERS, SCARF_LAYOUT } from '../const'
+import {
+  OVERLAY_EVENT_STRIDE,
+  RECT_STRIDE,
+  SCARF_IDENTIFIERS,
+  SCARF_LAYOUT,
+} from '../const'
 import type {
   ScarfData,
   ScarfLegendData,
@@ -32,13 +41,12 @@ import type {
   ScarfPlotSettings,
   ScarfStyleItem,
   ScarfStyling,
+  ScarfRectStyle,
+  ScarfEventStyle,
 } from '../types'
 import type { LegendGroup } from '$lib/plots/shared'
 
-const RECT_STRIDE = 8
-const EVENT_STRIDE = 5
-
-export class Float32GrowBuffer {
+class Float32GrowBuffer {
   private buffer: Float32Array
   private writeIndex: number
 
@@ -88,25 +96,26 @@ export class Float32GrowBuffer {
     this.writeIndex += RECT_STRIDE
   }
 
-  pushEvent(
+  /** Event overlay strip: [xNorm, pIndex, wNorm, laneIndex, isPoint]. */
+  pushStrip(
     x: number,
     pIndex: number,
-    eventType: number,
-    participantId: number,
-    internalY: number
+    width: number,
+    laneIndex: number,
+    isPoint: number
   ) {
-    this.ensureCapacity(EVENT_STRIDE)
+    this.ensureCapacity(OVERLAY_EVENT_STRIDE)
 
     const idx = this.writeIndex
     const b = this.buffer
 
     b[idx] = x
     b[idx + 1] = pIndex
-    b[idx + 2] = eventType
-    b[idx + 3] = participantId
-    b[idx + 4] = internalY
+    b[idx + 2] = width
+    b[idx + 3] = laneIndex
+    b[idx + 4] = isPoint
 
-    this.writeIndex += EVENT_STRIDE
+    this.writeIndex += OVERLAY_EVENT_STRIDE
   }
 
   finalize(): Float32Array {
@@ -115,24 +124,61 @@ export class Float32GrowBuffer {
 }
 
 /**
- * Calculates the participant bar height based on configuration parameters
+ * Per-bucket row index for hover hit-testing. The pIndex column (RECT_STRIDE
+ * offset +1) is non-decreasing within a bucket -- segments are pushed in
+ * ascending participant order -- so the first segment of each row is found in a
+ * single forward pass. `rowStart[r]` is the segment index of the first segment
+ * with pIndex >= r; the segments of row r are exactly the half-open slice
+ * [rowStart[r], rowStart[r + 1]). This lets the hover hit-test scan only the
+ * hovered row instead of the whole buffer (O(segments-in-row) vs
+ * O(all-segments) per pointer move).
  */
-export function getScarfParticipantBarHeight(
-  aoiCount: number,
-  showAoiVisibility: boolean
-): number {
-  const { HEIGHT_BAR_DEFAULT, SPACE_ABOVE_RECT_DEFAULT } = SCARF_LAYOUT
-  const rectWrappedHeight = HEIGHT_BAR_DEFAULT + SPACE_ABOVE_RECT_DEFAULT * 2
+export function buildRectRowOffsets(
+  buckets: Float32Array[],
+  rows: number
+): Int32Array[] {
+  return buckets.map(buffer => {
+    const segCount = buffer.length / RECT_STRIDE
+    const rowStart = new Int32Array(rows + 1)
+    let seg = 0
+    for (let r = 0; r <= rows; r++) {
+      while (seg < segCount && buffer[seg * RECT_STRIDE + 1] < r) seg++
+      rowStart[r] = seg
+    }
+    return rowStart
+  })
+}
 
-  // Events are drawn centered on the participant bar – do not increase
-  // participant bar height for visibility rows (no toggle/backcompat needed).
-  return rectWrappedHeight
+/**
+ * Per-(stimulus, participant-count, style-count, timeline) memory of the last
+ * run's per-bucket float counts. Re-deriving on every pan/zoom frame writes
+ * almost the same number of rects each time, so seeding each grow-buffer at the
+ * previous size avoids the repeated double-and-copy (the `ensureCapacity` cost)
+ * with no extra retained memory — the seed matches the actual fill. A cache miss
+ * (first run, zoom, stimulus switch) just falls back to the default and the next
+ * frame is seeded. Bounded; cleared wholesale past a small cap.
+ */
+interface BucketSizes {
+  rect: Int32Array
+  event: Int32Array
+}
+const scarfBucketSizeCache = new Map<string, BucketSizes>()
+const SCARF_BUCKET_CACHE_CAP = 48
+
+function seedCapacity(
+  hint: Int32Array | undefined,
+  index: number,
+  fallback: number
+): number {
+  const last = hint && index < hint.length ? hint[index] : 0
+  // +12.5% headroom so a slightly-larger frame still fits without a realloc.
+  return last > 0 ? Math.max(64, Math.ceil(last * 1.125)) : fallback
 }
 
 /**
  * Calculates the timeline range for the plot based on settings and participant data
  */
-export function calculateTimelineRange(
+function calculateTimelineRange(
   engine: DataEngine,
   participantIds: number[],
   stimulusId: number,
@@ -216,7 +262,7 @@ export function calculateTimelineRange(
 /**
  * Creates the axis breaks for the scarf plot
  */
-export function createScarfPlotAxis(
+function createScarfPlotAxis(
   engine: DataEngine,
   participantIds: number[],
   stimulusId: number,
@@ -246,10 +292,25 @@ export function createScarfPlotAxis(
  * Creates styling information for scarf plot segments.
  * Data-only: no sizing properties (heights computed in presentation layer).
  */
-export function createStylingAndLegend(
-  aoiData: ExtendedInterpretedDataType[],
+type GroupedCategory = ExtendedInterpretedDataType & {
+  memberIds: number[]
+}
+
+export function groupCategoriesByDisplayedName(
+  categories: ExtendedInterpretedDataType[]
+): GroupedCategory[] {
+  return groupByDisplayedName(categories)
+}
+
+/**
+ * Creates styling information for scarf plot segments.
+ * Data-only: no sizing properties (heights computed in presentation layer).
+ */
+function createStylingAndLegend(
+  aoiData: readonly ExtendedInterpretedDataType[],
   noAoiTreatment: { displayedName: string; color: string },
-  showAoiVisibility = false
+  eventChannelData: readonly ExtendedInterpretedDataType[] = [],
+  categoryData: readonly ExtendedInterpretedDataType[] = []
 ): ScarfStyling {
   const aoi: ScarfStyleItem[] = []
   for (let i = 0; i < aoiData.length; i++) {
@@ -266,49 +327,53 @@ export function createStylingAndLegend(
     color: noAoiTreatment.color,
   })
 
-  const category: ScarfStyleItem[] = [
-    {
-      identifier: `${SCARF_IDENTIFIERS.CATEGORY}1`,
-      name: 'Saccade',
-      color: '#555555',
-    },
-    {
-      identifier: `${SCARF_IDENTIFIERS.CATEGORY}${SCARF_IDENTIFIERS.NOT_DEFINED}`,
-      name: 'Other',
-      color: '#a6a6a6',
-    },
-  ]
+  const category: ScarfStyleItem[] = []
+  const groupedCategories = groupCategoriesByDisplayedName(
+    categoryData.filter(c => c.id !== FIXATION_CATEGORY_ID)
+  )
+  for (let i = 0; i < groupedCategories.length; i++) {
+    const g = groupedCategories[i]
+    category.push({
+      identifier: `${SCARF_IDENTIFIERS.CATEGORY}${g.id}`,
+      name: g.displayedName,
+      color: g.color,
+    })
+  }
 
   const visibility: ScarfStyleItem[] = []
-  if (showAoiVisibility) {
-    for (let i = 0; i < aoiData.length; i++) {
-      const a = aoiData[i]
-      visibility.push({
-        identifier: `${SCARF_IDENTIFIERS.EVENT}${a.id}`,
-        name: a.displayedName,
-        color: a.color,
-      })
-    }
+  for (let i = 0; i < eventChannelData.length; i++) {
+    const ch = eventChannelData[i]
+    visibility.push({
+      identifier: `${SCARF_IDENTIFIERS.EVENT}${ch.id}`,
+      name: ch.displayedName,
+      color: ch.color,
+    })
   }
 
   return { aoi, category, visibility }
 }
 
+type GroupedEventChannel = ExtendedInterpretedDataType & {
+  memberIds: number[]
+}
+
+/**
+ * Groups channels by trimmed displayed name while preserving first occurrence order.
+ * Channels with empty displayed names stay as standalone entries.
+ */
+export function groupEventChannelsByDisplayedName(
+  eventChannels: ExtendedInterpretedDataType[]
+): GroupedEventChannel[] {
+  return groupByDisplayedName(eventChannels)
+}
+
 /**
  * Creates group-aware legend data from styling information.
- * This is a data-only transformation - no layout geometry is computed here.
- * Layout geometry (including icon heights) is computed in the Svelte component
- * based on viewport width and layout constants.
- *
- * @param styling - The styling information from createStylingAndLegend
- * @returns A ScarfLegendData object with categorized groups
  */
-/**
- * Creates group-aware legend data from styling information.
- */
-export function createScarfLegendData(
+function createScarfLegendData(
   styling: ScarfStyling,
-  hideNonFixations = false
+  hideNonFixations = false,
+  showEvents = false
 ): ScarfLegendData {
   const groups: ScarfLegendGroup[] = []
 
@@ -330,49 +395,73 @@ export function createScarfLegendData(
   if (!hideNonFixations) {
     addGroup('Non-fixations', styling.category, 'nonFixation')
   }
-  addGroup('Events (start/end)', styling.visibility, 'visibility')
+
+  // Overlaid events render as solid colour strips, so the legend swatch is a
+  // rectangle keyed by event type.
+  if (showEvents) {
+    addGroup('Event Channels', styling.visibility, 'fixation')
+  }
 
   return { groups }
 }
 
 /**
- * Directly appends visibility events to the provided buffer builder.
- * Avoids any intermediate object or array allocation.
+ * One event for combined-mode lane packing.
+ * `end === start` denotes a point (zero-duration) event.
  */
-export function appendVisibilityEventsToBuffer(
-  builder: Float32GrowBuffer,
-  visibility: number[],
-  minValue: number,
-  maxValue: number,
-  visibleRange: number,
-  pIndex: number,
-  participantId: number,
-  internalY: number
-): void {
-  if (!visibility || visibility.length === 0) return
+export interface OverlayEvent {
+  start: number
+  end: number
+  /** event-type display order — tiebreak when starts are equal (lower → lower lane) */
+  order: number
+}
 
-  const len = visibility.length
-  // Process pairs (start, end)
-  for (let i = 0; i < len; i += 2) {
-    const s = visibility[i]
-    const e = visibility[i + 1]
+/**
+ * Greedy lane packing for combined-mode events, SHARED across all event types.
+ *
+ * Sort by (start asc, type-order asc); assign each event the lowest lane whose
+ * previous interval has already ended (laneEnd ≤ start), else open a new lane.
+ * Lane 0 is closest to the seam. Deterministic for a given event set — the
+ * type-order tiebreak makes ties between equal-start events resolve the same
+ * way every render, so the column scan is stable.
+ *
+ * @returns per-event lane indices (in INPUT order) and the lane count used.
+ */
+export function assignOverlayLanes(events: OverlayEvent[]): {
+  lanes: number[]
+  laneCount: number
+} {
+  const n = events.length
+  if (n === 0) return { lanes: [], laneCount: 0 }
 
-    if (e === undefined || e === null) {
-      // Open-ended interval - emit start-only if in range
-      if (s >= minValue && s < maxValue) {
-        const x1 = (Math.max(minValue, s) - minValue) / visibleRange
-        builder.pushEvent(x1, pIndex, 0, participantId, internalY)
+  const indices = Array.from({ length: n }, (_, i) => i)
+  indices.sort((a, b) => {
+    const ds = events[a].start - events[b].start
+    if (ds !== 0) return ds
+    return events[a].order - events[b].order
+  })
+
+  const lanes = new Array<number>(n)
+  const laneEnds: number[] = []
+
+  for (const i of indices) {
+    const { start, end } = events[i]
+    let assigned = -1
+    for (let lane = 0; lane < laneEnds.length; lane++) {
+      if (laneEnds[lane] <= start) {
+        assigned = lane
+        laneEnds[lane] = end
+        break
       }
-      continue
     }
-    if (e <= minValue || s >= maxValue) continue
-    const x1 = (Math.max(minValue, s) - minValue) / visibleRange
-    const x2 = (Math.min(maxValue, e) - minValue) / visibleRange
-    if (x2 > x1) {
-      builder.pushEvent(x1, pIndex, 0, participantId, internalY)
-      builder.pushEvent(x2, pIndex, 1, participantId, internalY)
+    if (assigned === -1) {
+      assigned = laneEnds.length
+      laneEnds.push(end)
     }
+    lanes[i] = assigned
   }
+
+  return { lanes, laneCount: laneEnds.length }
 }
 
 /**
@@ -385,15 +474,18 @@ export function transformDataToScarfPlot(
   settings: ScarfPlotSettings,
   noAoiTreatment: { displayedName: string; color: string }
 ): ScarfData {
-  if (!engine.segments) throw new Error('Data engine not initialized')
-  const aoiGroupReader = engine.getAoiGroupReader()
-  if (!aoiGroupReader) throw new Error('AOI reader not initialized')
+  const stimulusHasEvents = hasEventsForStimulus(engine, stimulusId)
+  // Events ride as an overlay on the gaze segments. The ordinal view is
+  // segment-index-based, so the time-based event overlay is never shown there.
+  const showEventOverlay =
+    stimulusHasEvents &&
+    settings.timeline !== 'ordinal' &&
+    !(settings.hideEvents ?? false)
 
   const {
     HEIGHT_BAR_DEFAULT,
     HEIGHT_NON_FIXATION_DEFAULT,
     SPACE_ABOVE_RECT_DEFAULT,
-    HEIGHT_X_AXIS,
   } = SCARF_LAYOUT
 
   const aoiData = getAois(engine, stimulusId)
@@ -406,23 +498,51 @@ export function transformDataToScarfPlot(
   const { minValue, maxValue } = timeline
   const invVisibleRange = 1 / (maxValue - minValue || 1)
 
-  const showAoiVisibility =
-    hasStimulusAoiVisibility(engine, stimulusId) &&
-    settings.timeline !== 'ordinal'
-  const barWrapHeight = getScarfParticipantBarHeight(
-    aoiData.length,
-    showAoiVisibility
-  )
+  const visibleEventChannels = hasEventsForStimulus(engine, stimulusId)
+    ? getVisibleEventChannels(engine, stimulusId)
+    : []
+  const groupedEventChannels =
+    groupEventChannelsByDisplayedName(visibleEventChannels)
+  const showVisibilityMarkers =
+    showEventOverlay && groupedEventChannels.length > 0
+  const categoryData = getAllCategories(engine)
+  const hiddenCategories = getHiddenCategories(engine)
+  const hiddenCategoryIds = new Set(hiddenCategories)
+
   const stylingAndLegend = createStylingAndLegend(
     aoiData,
     noAoiTreatment,
-    showAoiVisibility
+    showVisibilityMarkers ? groupedEventChannels : [],
+    categoryData
   )
+
+  // --- Gaze segments + optional event overlay ---
+  const reader = engine.getReader()
+  if (!reader) throw new Error('Data engine reader not initialized')
+  const aoiGroupReader = engine.getAoiGroupReader()
+  if (!aoiGroupReader) throw new Error('AOI reader not initialized')
 
   // Style mapping: pre-calculate indices for the hot loop
   const aoiStyleCount = stylingAndLegend.aoi.length
-  const saccadeStyleIdx = aoiStyleCount
-  const otherCategoryStyleIdx = aoiStyleCount + 1
+  
+  const groupedCategories = groupCategoriesByDisplayedName(
+    categoryData.filter(c => c.id !== FIXATION_CATEGORY_ID)
+  )
+  const categoryStyleIdxMap = new Int16Array(categoryData.length).fill(-1)
+  for (let i = 0; i < stylingAndLegend.category.length; i++) {
+    const item = stylingAndLegend.category[i]
+    if (item.identifier.endsWith(SCARF_IDENTIFIERS.NOT_DEFINED)) continue
+    const repId = parseInt(item.identifier.slice(SCARF_IDENTIFIERS.CATEGORY.length))
+    const group = groupedCategories.find(g => g.id === repId)
+    if (group) {
+      for (const memberId of group.memberIds) {
+        if (memberId >= 0 && memberId < categoryStyleIdxMap.length) {
+          categoryStyleIdxMap[memberId] = aoiStyleCount + i
+        }
+      }
+    }
+  }
+
   const visibilityBaseStyleIdx =
     aoiStyleCount + stylingAndLegend.category.length
 
@@ -436,20 +556,33 @@ export function transformDataToScarfPlot(
     aoiStyleCount +
     stylingAndLegend.category.length +
     stylingAndLegend.visibility.length
+  const sizeCacheKey = `${stimulusId}|${participantIds.length}|${totalStyleCount}|${settings.timeline}`
+  const sizeHint = scarfBucketSizeCache.get(sizeCacheKey)
   const rectBuckets = Array.from(
     { length: totalStyleCount },
-    () => new Float32GrowBuffer(1024)
+    (_, i) => new Float32GrowBuffer(seedCapacity(sizeHint?.rect, i, 1024))
   )
   const eventBuckets = Array.from(
     { length: totalStyleCount },
-    () => new Float32GrowBuffer(512)
+    (_, i) => new Float32GrowBuffer(seedCapacity(sizeHint?.event, i, 512))
   )
 
   const isOrdinal = settings.timeline === 'ordinal'
   const isRelative = settings.timeline === 'relative'
-  const { segmentBuffer, indexTable, maxParticipants } = engine.segments
+  // Hoist every reactive `settings` read OUT of the per-segment loop: `settings`
+  // is a deep $state proxy (item.settings), so each property read is a proxy
+  // `get` — reading `hideNonFixations` per segment cost ~190 ms on a large set.
+  const hideNonFixations = settings.hideNonFixations
+  const relTimelineStart = settings.timelineStart
+  const relTimelineEnd = settings.timelineEnd
+  // Raw segment buffer for direct indexing in the hot loop (no per-call method
+  // dispatch through getSegmentStart/End/Category).
+  const segBuf = reader.segmentBufferRaw
   const participants: ScarfParticipant[] = new Array(participantIds.length)
   const overlapAoiBuffer = new Uint16Array(aoiBufferSize)
+  // Observed (not theoretical) max simultaneous events across all participants.
+  // Sizes the event band uniformly so the AOI seam is at a constant y.
+  let observedMaxConcurrency = 0
 
   for (let pIndex = 0; pIndex < participantIds.length; pIndex++) {
     const pid = participantIds[pIndex]
@@ -460,8 +593,8 @@ export function transformDataToScarfPlot(
     let scale = invVisibleRange
 
     if (isRelative) {
-      const tStart = settings.timelineStart
-      const tEnd = settings.timelineEnd
+      const tStart = relTimelineStart
+      const tEnd = relTimelineEnd
       clipMin = typeof tStart === 'number' && !isNaN(tStart) ? tStart : 0
       clipMax = typeof tEnd === 'number' && !isNaN(tEnd) ? tEnd : 0
 
@@ -474,19 +607,14 @@ export function transformDataToScarfPlot(
       scale = 1 / (clipMax - clipMin)
     }
 
-    const rangeIdx = (stimulusId * maxParticipants + pid) * 2
-    const startIndex = indexTable[rangeIdx]
-    const segmentCount = indexTable[rangeIdx + 1] - startIndex
+    const { startIndex, endIndex } = reader.getSegmentRange(stimulusId, pid)
 
-    for (let localId = 0; localId < segmentCount; localId++) {
-      const base = (startIndex + localId) * SEGMENT_STRIDE
-      const categoryId = segmentBuffer[base + SegmentField.CATEGORY_ID] | 0
-      let start = isOrdinal
-        ? localId
-        : segmentBuffer[base + SegmentField.START_TIME]
-      let end = isOrdinal
-        ? localId + 1
-        : segmentBuffer[base + SegmentField.END_TIME]
+    for (let i = startIndex; i < endIndex; i++) {
+      const localId = i - startIndex
+      const segBase = i * SEGMENT_STRIDE
+      const categoryId = segBuf[segBase + SegmentField.CATEGORY_ID] | 0
+      let start = isOrdinal ? localId : segBuf[segBase + SegmentField.START_TIME]
+      let end = isOrdinal ? localId + 1 : segBuf[segBase + SegmentField.END_TIME]
 
       if (end <= clipMin || start >= clipMax) continue
       start = Math.max(clipMin, start)
@@ -495,12 +623,17 @@ export function transformDataToScarfPlot(
       const x = (start - clipMin) * scale
       const width = (end - start) * scale
 
-      if (categoryId !== 0) {
-        if (settings.hideNonFixations) continue
+      if (categoryId !== FIXATION_CATEGORY_ID) {
+        if (hideNonFixations) continue
+        if (hiddenCategoryIds.has(categoryId)) continue
 
-        rectBuckets[
-          categoryId === 1 ? saccadeStyleIdx : otherCategoryStyleIdx
-        ].pushRect(
+        const styleIdx = categoryId >= 0 && categoryId < categoryStyleIdxMap.length
+          ? categoryStyleIdxMap[categoryId]
+          : -1
+
+        if (styleIdx === -1) continue
+
+        rectBuckets[styleIdx].pushRect(
           x,
           pIndex,
           width,
@@ -513,7 +646,7 @@ export function transformDataToScarfPlot(
         )
       } else {
         const count = aoiGroupReader.getSegmentAoisIntoUniqueTyped(
-          startIndex + localId,
+          i,
           stimulusId,
           overlapAoiBuffer
         )
@@ -530,8 +663,8 @@ export function transformDataToScarfPlot(
           )
         } else {
           const h = HEIGHT_BAR_DEFAULT / count
-          for (let i = 0; i < count; i++) {
-            const bucketIdx = aoiOrderMap[overlapAoiBuffer[i]]
+          for (let idx = 0; idx < count; idx++) {
+            const bucketIdx = aoiOrderMap[overlapAoiBuffer[idx]]
             if (bucketIdx < 0) continue
             rectBuckets[bucketIdx].pushRect(
               x,
@@ -541,32 +674,68 @@ export function transformDataToScarfPlot(
               pid,
               localId,
               localId,
-              SPACE_ABOVE_RECT_DEFAULT + i * h
+              SPACE_ABOVE_RECT_DEFAULT + idx * h
             )
           }
         }
       }
     }
 
-    if (showAoiVisibility) {
-      const internalY = SPACE_ABOVE_RECT_DEFAULT + HEIGHT_BAR_DEFAULT * 0.5
-      for (let aoiIdx = 0; aoiIdx < aoiData.length; aoiIdx++) {
-        const vis = getAoiVisibility(
-          engine,
-          stimulusId,
-          aoiData[aoiIdx].id,
-          pid
-        )
-        if (vis?.length) {
-          appendVisibilityEventsToBuffer(
-            eventBuckets[visibilityBaseStyleIdx + aoiIdx],
-            vis,
-            clipMin,
-            clipMax,
-            clipMax - clipMin || 1,
+    if (showVisibilityMarkers) {
+      // Merge this participant's events across ALL visible channels, pack them
+      // into shared lanes (greedy, type-order tiebreak), then push each as a
+      // strip into its channel bucket so the renderer can colour it by type.
+      const merged: OverlayEvent[] = []
+      const mStyleIdx: number[] = []
+      const mX: number[] = []
+      const mW: number[] = []
+      const mPoint: number[] = []
+      const clipRange = clipMax - clipMin || 1
+
+      for (let chIdx = 0; chIdx < groupedEventChannels.length; chIdx++) {
+        const group = groupedEventChannels[chIdx]
+        const styleIdx = visibilityBaseStyleIdx + chIdx
+        for (let mIdx = 0; mIdx < group.memberIds.length; mIdx++) {
+          const buf = getEventBuffer(engine, stimulusId, group.memberIds[mIdx], pid)
+          if (!buf || buf.length < 2) continue
+          for (let i = 0; i + 1 < buf.length; i += 2) {
+            const start = buf[i]
+            const duration = buf[i + 1]
+            if (duration === 0) {
+              // Point (instant) event
+              if (start < clipMin || start >= clipMax) continue
+              merged.push({ start, end: start, order: chIdx })
+              mStyleIdx.push(styleIdx)
+              mX.push((start - clipMin) / clipRange)
+              mW.push(0)
+              mPoint.push(1)
+            } else {
+              const end = start + duration
+              if (end <= clipMin || start >= clipMax) continue
+              const cs = Math.max(clipMin, start)
+              const ce = Math.min(clipMax, end)
+              const w = (ce - cs) / clipRange
+              if (w <= 0) continue
+              merged.push({ start: cs, end: ce, order: chIdx })
+              mStyleIdx.push(styleIdx)
+              mX.push((cs - clipMin) / clipRange)
+              mW.push(w)
+              mPoint.push(0)
+            }
+          }
+        }
+      }
+
+      if (merged.length > 0) {
+        const { lanes, laneCount } = assignOverlayLanes(merged)
+        if (laneCount > observedMaxConcurrency) observedMaxConcurrency = laneCount
+        for (let i = 0; i < merged.length; i++) {
+          eventBuckets[mStyleIdx[i]].pushStrip(
+            mX[i],
             pIndex,
-            pid,
-            internalY
+            mW[i],
+            lanes[i],
+            mPoint[i]
           )
         }
       }
@@ -579,64 +748,43 @@ export function transformDataToScarfPlot(
     }
   }
 
+  const visualRectBuckets = rectBuckets.map(b => b.finalize())
+  const visualEventBuckets = eventBuckets.map(b => b.finalize())
+  const rectRowOffsets = buildRectRowOffsets(
+    visualRectBuckets,
+    participantIds.length
+  )
+
+  // Remember this run's per-bucket sizes to seed the next frame's buffers.
+  const rectSizes = new Int32Array(totalStyleCount)
+  const eventSizes = new Int32Array(totalStyleCount)
+  for (let i = 0; i < totalStyleCount; i++) {
+    rectSizes[i] = visualRectBuckets[i].length
+    eventSizes[i] = visualEventBuckets[i].length
+  }
+  if (!scarfBucketSizeCache.has(sizeCacheKey) && scarfBucketSizeCache.size >= SCARF_BUCKET_CACHE_CAP) {
+    scarfBucketSizeCache.clear()
+  }
+  scarfBucketSizeCache.set(sizeCacheKey, { rect: rectSizes, event: eventSizes })
+
   return {
     id: stimulusId,
-    timelineType: settings.timeline,
-    barHeight: HEIGHT_BAR_DEFAULT,
     stimulusId,
-    heightOfBarWrap: barWrapHeight,
-    chartHeight: participantIds.length * barWrapHeight + HEIGHT_X_AXIS,
     stimuli: getStimuli(engine).map(s => ({ id: s.id, name: s.displayedName })),
     participants,
     timeline,
     stylingAndLegend,
     legendData: createScarfLegendData(
       stylingAndLegend,
-      settings.hideNonFixations
+      settings.hideNonFixations,
+      showVisibilityMarkers
     ),
-    leftLabelWidth: 0,
-    plotAreaWidth: 0,
-    visualRectBuckets: rectBuckets.map(b => b.finalize()),
-    visualEventBuckets: eventBuckets.map(b => b.finalize()),
+    visualRectBuckets,
+    visualEventBuckets,
+    rectRowOffsets,
+    isOverlay: showVisibilityMarkers,
+    eventZoneConcurrency: observedMaxConcurrency,
   }
-}
-
-/**
- * Testable helper for visibility interval transformation.
- * Primarily used by unit tests to verify interval logic without Float32Array management.
- */
-export function convertVisibilityIntervalsToEvents(
-  visibility: number[],
-  minValue: number,
-  maxValue: number,
-  visibleRange: number
-): Array<{ x: number; type: number }> {
-  const events: Array<{ x: number; type: number }> = []
-  if (!visibility || visibility.length === 0) return events
-
-  const len = visibility.length
-  for (let i = 0; i < len; i += 2) {
-    const s = visibility[i]
-    const e = visibility[i + 1]
-
-    if (e === undefined || e === null) {
-      if (s >= minValue && s < maxValue) {
-        events.push({
-          x: (Math.max(minValue, s) - minValue) / visibleRange,
-          type: 0,
-        })
-      }
-      continue
-    }
-    if (e <= minValue || s >= maxValue) continue
-    const x1 = (Math.max(minValue, s) - minValue) / visibleRange
-    const x2 = (Math.min(maxValue, e) - minValue) / visibleRange
-    if (x2 > x1) {
-      events.push({ x: x1, type: 0 })
-      events.push({ x: x2, type: 1 })
-    }
-  }
-  return events
 }
 
 /**
@@ -651,8 +799,6 @@ export function mapDataToLegendGroups(
         return { type: 'fixation' as const }
       case 'nonFixation':
         return { type: 'nonFixation' as const }
-      case 'visibility':
-        return { type: 'eventPair' as const }
       default:
         return { type: 'fixation' as const }
     }
@@ -697,8 +843,8 @@ export function calculateHighlightMask(
  */
 export function createStyleArrays(
   identifierSystem: { indexToId: Map<number, string> },
-  rectStyleMap: Map<string, { normal: any; dimmed: any }>,
-  eventStyleMap: Map<string, { normal: any; dimmed: any }>,
+  rectStyleMap: Map<string, ScarfRectStyle>,
+  eventStyleMap: Map<string, ScarfEventStyle>,
   rectBucketCount: number,
   eventBucketCount: number
 ) {
@@ -723,106 +869,4 @@ export function createStyleArrays(
   }
 
   return { rectStyles, eventStyles }
-}
-
-/**
- * Calculates vertical offsets for overlapping events to avoid visual clutter.
- */
-export function calculateEventLayoutOverrides(
-  isCompactMode: boolean,
-  visualEventBuckets: Float32Array[],
-  barHeight: number,
-  barWrapHeight: number
-): Map<number, number> {
-  if (isCompactMode) return new Map<number, number>()
-  if (visualEventBuckets.length === 0) return new Map<number, number>()
-
-  const EVENT_STRIDE = 5
-  const size = Math.max(7, Math.min(20, barHeight * 0.8))
-  const normalizedThreshold = (size * 0.25) / 1000
-  const KEY_MULTIPLIER = 1000000
-
-  let totalEvents = 0
-  for (let i = 0; i < visualEventBuckets.length; i++) {
-    totalEvents += visualEventBuckets[i].length / EVENT_STRIDE
-  }
-
-  if (totalEvents === 0) return new Map<number, number>()
-
-  const indices = new Int32Array(totalEvents)
-  const xPos = new Float32Array(totalEvents)
-  const pIds = new Int16Array(totalEvents)
-  const styleIds = new Int16Array(totalEvents)
-  const eventIndices = new Int32Array(totalEvents)
-
-  let ptr = 0
-  for (let styleIdx = 0; styleIdx < visualEventBuckets.length; styleIdx++) {
-    const buffer = visualEventBuckets[styleIdx]
-    const count = buffer.length / EVENT_STRIDE
-
-    for (let i = 0; i < count; i++) {
-      const idx = i * EVENT_STRIDE
-      xPos[ptr] = buffer[idx]
-      pIds[ptr] = buffer[idx + 1]
-      styleIds[ptr] = styleIdx
-      eventIndices[ptr] = i
-      indices[ptr] = ptr
-      ptr++
-    }
-  }
-
-  indices.sort((a, b) => {
-    const pDiff = pIds[a] - pIds[b]
-    if (pDiff !== 0) return pDiff
-    return xPos[a] - xPos[b]
-  })
-
-  const overrides = new Map<number, number>()
-  let clusterStart = 0
-  const radius = size / 2
-  const margin = radius + 2
-  const minY = margin
-  const maxY = barWrapHeight - margin
-  const rangeY = maxY - minY
-  const clusterIndices: number[] = []
-
-  for (let i = 0; i < totalEvents; i++) {
-    const currIdx = indices[i]
-    const nextIdx = i < totalEvents - 1 ? indices[i + 1] : -1
-    let breakCluster =
-      nextIdx === -1 ||
-      pIds[currIdx] !== pIds[nextIdx] ||
-      xPos[nextIdx] - xPos[currIdx] >= normalizedThreshold
-
-    if (breakCluster) {
-      const clusterLen = i - clusterStart + 1
-      if (clusterLen > 1) {
-        clusterIndices.length = 0
-        for (let k = clusterStart; k <= i; k++) clusterIndices.push(indices[k])
-
-        clusterIndices.sort((a, b) => styleIds[a] - styleIds[b])
-
-        if (minY < maxY) {
-          const step = rangeY / Math.max(1, clusterLen - 1)
-          for (let k = 0; k < clusterLen; k++) {
-            const originalIdx = clusterIndices[k]
-            const key =
-              styleIds[originalIdx] * KEY_MULTIPLIER + eventIndices[originalIdx]
-            overrides.set(key, minY + step * k)
-          }
-        } else {
-          const center = barWrapHeight / 2
-          for (let k = 0; k < clusterLen; k++) {
-            const originalIdx = clusterIndices[k]
-            const key =
-              styleIds[originalIdx] * KEY_MULTIPLIER + eventIndices[originalIdx]
-            overrides.set(key, center)
-          }
-        }
-      }
-      clusterStart = i + 1
-    }
-  }
-
-  return overrides
 }

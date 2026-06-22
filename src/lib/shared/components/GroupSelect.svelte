@@ -91,7 +91,7 @@
     flex-direction: column;
     width: 140px;
     margin-bottom: 0;
-    gap: 5px;
+    gap: var(--spacing-xxs);
   }
 
   .select-wrapper.compact label {
@@ -117,8 +117,8 @@
     top: -0.9em;
     z-index: 2;
     transition:
-      background-color 0.2s ease,
-      color 0.2s ease;
+      background-color var(--transition-normal) ease,
+      color var(--transition-normal) ease;
   }
 
   .select-wrapper.compact:has(.trigger.open) label {
@@ -135,7 +135,7 @@
   }
 
   .select-wrapper:has(.trigger:disabled) {
-    --gp-field-bg: var(--c-lightgrey, #f5f5f5);
+    --gp-field-bg: var(--c-lightgrey);
   }
 
   .trigger {
@@ -153,7 +153,7 @@
     align-items: center;
     justify-content: space-between;
     position: relative;
-    transition: all 0.2s ease;
+    transition: all var(--transition-normal) ease;
     font-weight: 400;
     line-height: 1.5rem;
     letter-spacing: 0.00938em;
@@ -163,7 +163,7 @@
 
   .trigger:disabled {
     border-color: var(--c-grey);
-    background-color: var(--c-lightgrey, #f5f5f5);
+    background-color: var(--c-lightgrey);
     color: var(--c-darkgrey);
     cursor: not-allowed;
   }
@@ -204,8 +204,8 @@
     justify-content: center;
     color: var(--c-darkgrey);
     transition:
-      transform 0.2s ease,
-      color 0.2s ease;
+      transform var(--transition-normal) ease,
+      color var(--transition-normal) ease;
   }
 
   .select-wrapper:not(:has(.trigger:disabled)):hover .svg-wrap {

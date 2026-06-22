@@ -17,6 +17,29 @@ export class AoiGroupReader {
   private indexTable = new Uint32Array(0) // [pointer, length] per stimulus
   private groupPool = new Uint16Array(0) // Flat pool of mapped IDs
 
+  /**
+   * Structural version. Bumps inside `updateMap()` only when the rebuilt
+   * `groupPool` actually differs byte-for-byte from the previous one — i.e.
+   * grouping, visibility, or order *materially* changed. The metric cache
+   * (`runtime.ts`) keys off this; cosmetic edits (color, no-op hidden saves)
+   * leave it untouched without any per-mutator detection.
+   */
+  private _version = 0
+  get version(): number {
+    return this._version
+  }
+
+  /**
+   * Appearance version. Bumps every time `updateMap()` is called, regardless
+   * of whether `groupPool` changed. Display-side caches (memoized `getAois`)
+   * key off this — they must refresh on any potential metadata mutation
+   * (color, displayedName) since the diff only inspects `groupPool`.
+   */
+  private _appearanceVersion = 0
+  get appearanceVersion(): number {
+    return this._appearanceVersion
+  }
+
   // Direct buffer access optimization
   private segmentBuffer: Float32Array
   private aoiPool: Uint16Array
@@ -61,7 +84,7 @@ export class AoiGroupReader {
       this.indexTable = new Uint32Array(sCount * 2)
     }
 
-    const { aois: aoisMeta, stimuli } = meta
+    const { aois: aoisMeta } = meta
     let totalCap = 0
     for (let sId = 0; sId < sCount; sId++) {
       const len = aoisMeta.data[sId]?.length ?? 0
@@ -70,9 +93,12 @@ export class AoiGroupReader {
       totalCap += len
     }
 
-    if (this.groupPool.length !== totalCap) {
-      this.groupPool = new Uint16Array(totalCap)
-    }
+    // Build into a fresh buffer so we can diff against the previous one and
+    // decide whether the structural version needs to bump. The allocation
+    // (~2 bytes per AOI per stimulus) is negligible compared to keeping the
+    // "did anything actually change?" decision out of every caller.
+    const prevPool = this.groupPool
+    const nextPool = new Uint16Array(totalCap)
 
     const { sharedMap, sharedSet } = this
     for (let sId = 0; sId < sCount; sId++) {
@@ -108,14 +134,31 @@ export class AoiGroupReader {
       // Populate groupPool with mapped IDs or HIDDEN_ID sentinel
       for (let id = 0; id < len; id++) {
         if (sharedSet.has(id)) {
-          this.groupPool[ptr + id] = AoiGroupReader.HIDDEN_ID
+          nextPool[ptr + id] = AoiGroupReader.HIDDEN_ID
         } else {
           const row = aois[id]
           const name = row ? (row[1] ?? row[0]).trim() : ''
-          this.groupPool[ptr + id] = sharedMap.get(name) ?? id
+          nextPool[ptr + id] = sharedMap.get(name) ?? id
         }
       }
     }
+
+    // Single decision point: structural version bumps iff groupPool actually
+    // changed. Appearance always bumps because metadata fields not encoded in
+    // groupPool (color, displayedName-when-name-unchanged) may have moved.
+    let structurallyChanged = prevPool.length !== nextPool.length
+    if (!structurallyChanged) {
+      for (let i = 0; i < nextPool.length; i++) {
+        if (prevPool[i] !== nextPool[i]) {
+          structurallyChanged = true
+          break
+        }
+      }
+    }
+
+    this.groupPool = nextPool
+    if (structurallyChanged) this._version++
+    this._appearanceVersion++
   }
 
   /**
@@ -223,7 +266,9 @@ export class AoiGroupReader {
     const ptr = this.indexTable[idx]
     const len = this.indexTable[idx + 1]
     if (rawId < 0 || rawId >= len) {
-      throw new Error(`getAoiMapping: rawId ${rawId} out of range for stimulus ${stimulusId} (len=${len})`)
+      throw new Error(
+        `getAoiMapping: rawId ${rawId} out of range for stimulus ${stimulusId} (len=${len})`
+      )
     }
     return this.groupPool[ptr + rawId]
   }

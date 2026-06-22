@@ -1,8 +1,8 @@
 # App dev & build
 
-GazePlotter uses Vite.js to build the app from Svelte components and TypeScript modules. The development set-up requires that you have Node (16 or higher) installed.
+GazePlotter uses Vite to build the app from Svelte components and TypeScript modules. The development set-up requires Node 20.19+ (or 22.12+), as required by Vite 8.
 
-The project uses VitePress for documentation, more in the [Docs dev & build](/docs/advanced/docs-dev-build) section.
+The project integrates documentation directly in the codebase as `.md` files, which are prerendered by SvelteKit. More details can be found in the [Docs dev & build](/docs/advanced/docs-dev-build) section.
 
 ## Download the source code
 
@@ -22,7 +22,7 @@ git clone https://github.com/misavojte/GazePlotter.git
 
 ## Quick start
 
-In the terminal, make sure you are in the project's root directory. Then, to start Vite server and run dev version of project locally on `http://localhost:5174/`, use:
+In the terminal, make sure you are in the project's root directory. Then, to start the Vite dev server (default `http://localhost:5173/`), use:
 
 ```bash
 npm install
@@ -37,24 +37,18 @@ To build the app, use:
 npm run build
 ```
 
-Production build is located in the `dist` directory. For its preview on `http://localhost:4173/`, use:
+Production build is located in the `build` directory. For its preview on `http://localhost:4173/` (or the port specified by Vite), use:
 
 ```bash
 npm run preview
 ```
 
-## Before commit
+## Code Quality & Types
 
-Make sure you comply with the standards of projects (implementing MVC interfaces to Front components) and there are no errors and warnings produced by ESLint:
+Before committing, run type checking and Svelte verification:
 
-```
-npx eslint src/ts
-```
-
-You can automatically beautify code by using --fix flag:
-
-```
-npx eslint src/ts --fix
+```bash
+npm run check
 ```
 
-Make sure there are no errors and warnings produced by TypeScript and try to comply with the coding standards of projects.
+This ensures there are no Svelte compilation errors, TypeScript type mismatch issues, or compiler warnings.

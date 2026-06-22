@@ -105,7 +105,8 @@
     font-weight: 500;
     color: #64748b;
     text-decoration: none;
-    border-radius: 6px;
+    border-radius: var(--rounded-md);
+    transition: all var(--transition-normal) ease;
   }
 
   .nav-item:hover {
@@ -114,7 +115,7 @@
   }
 
   .nav-item.active {
-    color: var(--c-brand, #cd1404);
+    color: var(--c-brand);
     background-color: #fff1f2;
     font-weight: 600;
   }
@@ -125,13 +126,14 @@
     justify-content: center;
     margin-left: 8px;
     padding-left: 12px;
-    border-left: 1px solid #e2e8f0;
+    border-left: 1px solid var(--c-grey);
     color: #1f2328;
     text-decoration: none;
+    transition: color var(--transition-normal) ease;
   }
 
   .gh-link:hover {
-    color: var(--c-brand, #cd1404);
+    color: var(--c-brand);
   }
 
   @media only screen and (max-width: 1000px) {

@@ -7,6 +7,10 @@
     appearance?: 'default' | 'compact'
     id?: string
     ariaLabel?: string
+    /** Multi-selection "Mixed": the bound plots disagree on this field. Renders
+     *  the indeterminate (tri-state) box; the first click resolves it to a
+     *  concrete value applied to all. */
+    mixed?: boolean
     onchange?: (event: CustomEvent) => void
   }
   import { untrack } from 'svelte'
@@ -19,6 +23,7 @@
     appearance = 'default',
     id,
     ariaLabel,
+    mixed = false,
     onchange = () => {},
   }: Props = $props()
 
@@ -26,6 +31,8 @@
   const inputId = $derived(id ?? generatedId)
 
   const hasLabel = $derived(!!label || !!sublabel)
+
+  const displayChecked = $derived(mixed ? false : !!checked)
 
   function handleChange(event: Event) {
     const target = event.currentTarget as HTMLInputElement
@@ -40,7 +47,8 @@
       type="checkbox"
       class="check"
       id={inputId}
-      {checked}
+      checked={displayChecked}
+      indeterminate={mixed}
       aria-label={ariaLabel}
       onchange={handleChange}
     />
@@ -51,6 +59,14 @@
       focusable="false"
     >
       <path pathLength="1" d="M2.85 8.2L6.3 11.45L13.15 4.65" />
+    </svg>
+    <svg
+      class="dash-icon"
+      viewBox="0 0 16 16"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M3.5 8 L12.5 8" />
     </svg>
   </span>
   {#if hasLabel}
@@ -139,10 +155,10 @@
     border-radius: var(--rounded);
     box-sizing: border-box;
     transition:
-      background-color 140ms ease,
-      border-color 140ms ease,
-      box-shadow 140ms ease,
-      transform 160ms ease;
+      background-color var(--transition-fast) ease,
+      border-color var(--transition-fast) ease,
+      box-shadow var(--transition-fast) ease,
+      transform var(--transition-fast) ease;
   }
 
   .check:hover {
@@ -187,6 +203,34 @@
     opacity: 1;
   }
 
+  /* Indeterminate = "Mixed" across a multi-selection: filled box with a dash. */
+  .check:indeterminate {
+    background: var(--c-brand);
+    border-color: var(--c-brand);
+  }
+
+  .dash-icon {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: var(--check-icon-size);
+    height: var(--check-icon-size);
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-50%, -50%);
+  }
+
+  .dash-icon path {
+    fill: none;
+    stroke: var(--c-white);
+    stroke-width: var(--check-stroke);
+    stroke-linecap: round;
+  }
+
+  .check:indeterminate ~ .dash-icon {
+    opacity: 1;
+  }
+
   .label-content {
     display: flex;
     flex-direction: column;
@@ -215,7 +259,13 @@
     margin-top: 0.1rem;
   }
 
+  label.compact .label-content {
+    gap: 1px;
+  }
+
   label.compact .sub-label {
     margin-top: 0;
+    font-size: 10px;
+    line-height: 1.2;
   }
 </style>

@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest'
 import {
   formatNumberForCsv,
   escapeCsvField,
-  encodeCsvRow,
   generateCsvString,
 } from '../src/lib/data/export/encoders/csv'
 

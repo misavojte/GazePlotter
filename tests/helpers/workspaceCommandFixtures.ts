@@ -1,5 +1,6 @@
 import { vi } from 'vitest'
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import { EventBufferReader } from '$lib/data/binary'
 import type {
   DataType,
   NoAoiTreatmentType,
@@ -38,10 +39,6 @@ export function createMockMetadata(
           ['AOI2', 'AOI 2', '#00FF00', '100,100,200,200'],
         ],
       ],
-      dynamicVisibility: {
-        '1_0_1': [0, 100, 104, 120],
-        '1_1_1': [10, 20, 30, 40],
-      },
       hiddenAois: [],
       orderVector: [],
     },
@@ -70,8 +67,20 @@ export function createMockMetadata(
         participantsIds: [1, 2],
       },
     ],
+    metricInstances: [],
     noAoiTreatment: createNoAoiTreatment(),
     isOrdinalOnly: false,
+    capabilities: {
+      segmented: true,
+      spatial: false,
+      event: false,
+    },
+    eventData: {
+      data: [[], []],
+      orderVector: [],
+      hiddenChannels: [],
+      events: [[], []],
+    },
     ...overrides,
   }
 }
@@ -82,7 +91,6 @@ export function createEmptyMockMetadata(
   return createMockMetadata({
     aois: {
       data: [],
-      dynamicVisibility: {},
       hiddenAois: [],
       orderVector: [],
     },
@@ -120,6 +128,16 @@ export function setMockEngineMetadata(
     writable: true,
     configurable: true,
   })
+  // Occurrence buffers live in the engine's binary reader, not metadata —
+  // mirror the production split so reader-backed reads (command inverses,
+  // selectors) work against the mock.
+  const reader = new EventBufferReader()
+  reader.load(metadata?.eventData?.events ?? [])
+  Object.defineProperty(engine, 'getEventReader', {
+    value: () => reader,
+    writable: true,
+    configurable: true,
+  })
 }
 
 export function createMockGridStore(
@@ -154,7 +172,6 @@ export function createScarfGridItem(
     timeline: 'absolute',
     absoluteStimuliLimits: [],
     ordinalStimuliLimits: [],
-    dynamicAOI: true,
   }
   Object.assign(settings, settingsOverrides)
 
@@ -184,8 +201,9 @@ export function createBarPlotGridItem(
     barPlottingType: 'horizontal',
     orderBy: 'aoi',
     orderDirection: 'asc',
-    aggregationMethod: 'absoluteTime',
+    metricInstanceIds: ['absoluteTime'],
     scaleRange: [0, 0],
+    statisticalOverlay: 'none',
   }
   Object.assign(settings, settingsOverrides)
 

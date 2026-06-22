@@ -7,6 +7,7 @@ import {
   createEmptyMockMetadata,
   createMockEngine,
   createMockGridStore,
+  createMockMetadata,
   setMockEngineMetadata,
   type MockEngine,
 } from './helpers/workspaceCommandFixtures'
@@ -113,6 +114,51 @@ describe('workspaceCommandReverse metadata commands', () => {
     expect(reverseCommand(command)).toEqual(expected)
   })
 
+  it('reverses updateEventData restoring defs, hidden ids, and order', () => {
+    setMockEngineMetadata(
+      mockEngine,
+      createMockMetadata({
+        eventData: {
+          data: [
+            [
+              ['X', 'X', '#111111'],
+              ['Y', 'Y', '#222222'],
+            ],
+          ],
+          events: [[[[10, 0]], [[20, 0]]]],
+          orderVector: [[1, 0]],
+          hiddenChannels: [[1]],
+        },
+      })
+    )
+
+    // Applying updateEventData resets the hidden list and order vector,
+    // so the inverse must always carry both — even when the forward
+    // command set neither.
+    expect(
+      reverseCommand(
+        createChainedCommand({
+          type: 'updateEventData',
+          stimulusId: 0,
+          channelDefs: [],
+          eventBuffers: [],
+        })
+      )
+    ).toEqual(
+      createChainedCommand({
+        type: 'updateEventData',
+        stimulusId: 0,
+        channelDefs: [
+          ['X', 'X', '#111111'],
+          ['Y', 'Y', '#222222'],
+        ],
+        eventBuffers: [[[10, 0]], [[20, 0]]],
+        hiddenChannels: [1],
+        orderVector: [1, 0],
+      })
+    )
+  })
+
   it('returns an empty AOI list when the target stimulus has no AOIs', () => {
     expect(
       reverseCommand(
@@ -171,45 +217,6 @@ describe('workspaceCommandReverse metadata commands', () => {
     setMockEngineMetadata(mockEngine, createEmptyMockMetadata())
 
     expect(reverseCommand(command)).toEqual(expected)
-  })
-
-  it('reverses updateAoiVisibility by restoring the current visibility arrays', () => {
-    expect(
-      reverseCommand(
-        createChainedCommand({
-          type: 'updateAoiVisibility',
-          stimulusId: 1,
-          aoiNames: ['AOI1'],
-          visibilityArr: [[1, 0, 1]],
-          participantId: 1,
-        })
-      )
-    ).toEqual(
-      createChainedCommand({
-        type: 'updateAoiVisibility',
-        stimulusId: 1,
-        aoiNames: ['AOI 1', 'AOI 2'],
-        visibilityArr: [
-          [0, 100, 104, 120],
-          [10, 20, 30, 40],
-        ],
-        participantId: 1,
-      })
-    )
-  })
-
-  it('returns null when updateAoiVisibility has no matching visibility data', () => {
-    expect(
-      reverseCommand(
-        createChainedCommand({
-          type: 'updateAoiVisibility',
-          stimulusId: 999,
-          aoiNames: ['AOI1'],
-          visibilityArr: [[1, 0, 1]],
-          participantId: 1,
-        })
-      )
-    ).toBeNull()
   })
 
   it.each([null, undefined] as const)(

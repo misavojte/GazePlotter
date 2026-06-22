@@ -2,7 +2,7 @@ import {
   getParticipants,
   getParticipantEndTime,
 } from '$lib/data/engine'
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { AoiStreamPlotSettings } from '../types'
 
 type TimelineSyncItem = {

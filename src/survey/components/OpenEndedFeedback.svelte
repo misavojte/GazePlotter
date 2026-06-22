@@ -118,7 +118,7 @@
     font-size: 0.9rem;
     line-height: 1.5;
     resize: vertical;
-    transition: border-color 0.3s ease;
+    transition: border-color var(--transition-normal) ease;
     box-sizing: border-box;
   }
 

@@ -161,7 +161,7 @@
     border: 2px solid var(--c-lightgrey);
     border-radius: var(--rounded-md);
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--transition-normal) cubic-bezier(0.4, 0, 0.2, 1);
     text-align: center;
     font-size: 0.95rem;
     font-weight: 500;

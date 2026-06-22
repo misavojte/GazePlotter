@@ -1,3 +1,14 @@
+import { untrack } from 'svelte'
+
+/**
+ * Returns a new array with `item` toggled: removed if present, appended if absent.
+ */
+export function toggleInArray<T>(array: T[], item: T): T[] {
+  return array.includes(item)
+    ? array.filter(v => v !== item)
+    : [...array, item]
+}
+
 const NO_PREVIEW = Symbol('no-preview')
 
 type Equality<T> = (left: T, right: T) => boolean
@@ -105,4 +116,23 @@ export class PreviewModel<
       this.fields[key].reset()
     }
   }
+
+  /**
+   * Auto-diff fields that map 1:1 from preview to settings.
+   * Returns a partial object with only the changed fields.
+   */
+  static buildSimplePatch<T extends PreviewFields>(
+    draft: Readonly<T>,
+    committed: Readonly<T>,
+    keys: (keyof T)[]
+  ): Partial<T> {
+    const updates: Partial<T> = {}
+    for (const key of keys) {
+      if (draft[key] !== committed[key]) {
+        updates[key] = draft[key]
+      }
+    }
+    return updates
+  }
 }
+

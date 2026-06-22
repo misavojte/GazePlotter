@@ -6,7 +6,7 @@ import type { GridItemBase, PlotType } from '$lib/workspace'
  * Each command chain represents a sequence of related commands (e.g., original command + collision resolution commands).
  */
 let chainIdCounter = 0
-export function generateChainId(): number {
+function generateChainId(): number {
   return ++chainIdCounter
 }
 
@@ -38,8 +38,11 @@ export function createChildCommand<T extends WorkspaceCommand>(
 }
 
 export function createCommandSourcePlotPattern(
-  settings: Partial<GridItemBase> & { type: PlotType },
-  placement: 'plot' | 'modal' | 'workspace'
+  // `type`/`id` only feed the `${type}.${id}.${placement}` source string, so a
+  // plain string type is enough (lets selection-aware pane sections, which hold
+  // a loosely-typed item, build a source without a plot-type cycle).
+  settings: { type: string; id?: number },
+  placement: 'plot' | 'modal' | 'workspace' | 'pane'
 ) {
   return `${settings.type}.${settings.id}.${placement}`
 }

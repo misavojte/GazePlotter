@@ -1,5 +1,5 @@
-import type { DecimalSeparator } from '$lib/data/export'
-import { PLOT_HEADER_HEIGHT } from '$lib/plots/shared/const'
+import type { DecimalSeparator, ExportNaming } from '$lib/data/export'
+import { PLOT_BASE_CHROME_HEIGHT } from '$lib/plots/shared/const'
 import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/plotSizeUtility'
 import type { GridConfig } from '$lib/workspace/grid'
 
@@ -40,16 +40,28 @@ export const CSV_DECIMAL_SEPARATOR_OPTIONS: Array<{
   { value: ',', label: 'Comma (,)' },
 ]
 
+export const EXPORT_NAMING_OPTIONS: Array<{
+  value: ExportNaming
+  label: string
+}> = [
+  { value: 'displayed', label: 'Displayed (grouped, renamed)' },
+  { value: 'raw', label: 'Raw (original imported)' },
+]
+
 export function getWorkspaceCanvasExportDimensions(
   item: GridSizedFrame,
   gridConfig: GridConfig,
   margin: number = DEFAULT_CANVAS_EXPORT_MARGIN
 ) {
+  // Mirror BasePlot's headerless sizing: every plot now renders without an
+  // inline header, so the figure reclaims only the base chrome (grid-item
+  // header + body padding + frame border), not the legacy inline-header
+  // reserve. Keeps the default export aspect ratio matching the screen.
   const dimensions = calculatePlotDimensionsWithHeader(
     item.w,
     item.h,
     gridConfig,
-    PLOT_HEADER_HEIGHT
+    PLOT_BASE_CHROME_HEIGHT
   )
 
   const contentWidth = Math.max(1, Math.round(dimensions.width))
@@ -95,8 +107,6 @@ export function createExportButtons({
   isExporting,
   onCancel,
   onExport,
-  onOpenFormats,
-  openFormatsLabel = 'All Data Formats',
 }: ExportButtonConfig) {
   const buttons = [
     {
@@ -111,14 +121,6 @@ export function createExportButtons({
       isDisabled: false,
     },
   ]
-
-  if (onOpenFormats) {
-    buttons.splice(1, 0, {
-      label: openFormatsLabel,
-      onclick: onOpenFormats,
-      isDisabled: false,
-    })
-  }
 
   return buttons
 }

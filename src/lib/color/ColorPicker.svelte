@@ -10,7 +10,7 @@
     rgbToHex,
     rgbToHsl,
     hexToRgb,
-  } from '$lib/color/utility'
+  } from '$lib/color'
   import { CATEGORICAL_PALETTE } from '$lib/color/palettes'
 
   interface Props {
@@ -339,7 +339,7 @@
     border-radius: 3px;
     border: 1px solid rgba(0, 0, 0, 0.1);
     cursor: pointer;
-    transition: transform 0.1s;
+    transition: transform var(--transition-fast);
     padding: 0;
   }
 

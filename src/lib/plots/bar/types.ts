@@ -4,7 +4,31 @@ import type {
   SegmentInterpretedDataType,
 } from '$lib/data/types'
 import type { PlotItemContract } from '$lib/plots/definePlot'
-import type { BarPlotAggregationMethodId } from './const'
+
+// --- Visualization overlay on top of beeswarm points ---
+
+export type StatisticalOverlayType =
+  | 'none'
+  | 'meanCi95'
+  | 'meanSd'
+  | 'boxplot'
+
+// --- Per-AOI statistics bundle ---
+
+export interface AoiSummaryStatistics {
+  mean: number
+  median: number
+  q1: number
+  q3: number
+  min: number
+  max: number
+  sd: number
+  sem: number
+  whiskerLow: number // max(min, Q1 - 1.5*IQR)
+  whiskerHigh: number // min(max, Q3 + 1.5*IQR)
+  count: number
+  outliers: number[] // values beyond whiskers
+}
 
 export type BarPlotSettings = {
   stimulusId: number
@@ -12,10 +36,19 @@ export type BarPlotSettings = {
   barPlottingType: 'vertical' | 'horizontal'
   orderBy: 'value' | 'aoi'
   orderDirection: 'asc' | 'desc'
-  aggregationMethod: string
+  /**
+   * Workspace-level metric library reference, stored as an array even for
+   * single-select plots so persistence is uniform with multi-select plots
+   * like metric-correlation. Length 0 = no selection; length 1 = the chosen
+   * instance id. The plot's contract (`multiSelect: false`) constrains the
+   * UI to a single choice; the array shape is the canonical wire format.
+   */
+  metricInstanceIds: string[]
   scaleRange: [number, number]
   timelineStart?: number
   timelineEnd?: number
+  statisticalOverlay: StatisticalOverlayType
+  hideNoAoi?: boolean
 }
 
 export type BarPlotItem = PlotItemContract<'barPlot', BarPlotSettings>
@@ -24,11 +57,28 @@ export interface BarPlotDataItem {
   value: number
   label: string
   color: string
+  stats: AoiSummaryStatistics | null
+  individualValues: number[] | null
+  individualParticipantNames: string[] | null
 }
 
 export interface BarPlotResult {
   data: BarPlotDataItem[]
   timeline: AdaptiveTimeline
+  /**
+   * Raw maximum across individual values (and whiskers for the boxplot
+   * overlay), before nice-rounding is applied to the timeline. Exposed so
+   * cross-plot sync can compare apples to apples between plots.
+   */
+  dataMax: number
+  /** True when the plot's `metricInstanceIds[0]` points to a missing instance. */
+  noMetric?: boolean
+  /**
+   * True when the metric aggregates as a `proportion` (e.g. `fixated`): the bar
+   * plot renders a plain proportional bar, not a beeswarm. The value is already
+   * scaled to percent.
+   */
+  proportion?: boolean
 }
 
 export interface ParticipantSegmentData {
@@ -50,13 +100,3 @@ export type AggregationFunction = (
   participantIds: number[]
 ) => ParticipantAggregationData[]
 
-export interface ParticipantBarMetrics {
-  dwellTime: number[] // [aoi0, aoi1, ..., noAoi, anyFixation]
-  ttff: number[] // [aoi0, aoi1, ..., noAoi, anyFixation] (-1 if not seen)
-  fixationCount: number[] // [aoi0, aoi1, ..., noAoi, anyFixation]
-  hitRatio: number[] // [aoi0, aoi1, ..., noAoi, anyFixation] (binary 0/1)
-  entryCount: number[] // [aoi0, aoi1, ..., noAoi, anyFixation]
-  dwellDurations: number[][] // [aoi0[], aoi1[], ..., noAoi[], anyFixation[]]
-  firstFixationDuration: number[] // [aoi0, aoi1, ..., noAoi, anyFixation] (-1 if not seen)
-  avgFixationDuration: number[][] // [aoi0[], aoi1[], ..., noAoi[], anyFixation[]]
-}

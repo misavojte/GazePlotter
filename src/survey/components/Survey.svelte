@@ -343,10 +343,10 @@
     border-radius: var(--rounded-md);
     background: var(--c-white);
     transition:
-      border-color 0.3s ease,
-      background-color 0.3s ease,
-      box-shadow 0.3s ease,
-      transform 0.3s ease;
+      border-color var(--transition-normal) ease,
+      background-color var(--transition-normal) ease,
+      box-shadow var(--transition-normal) ease,
+      transform var(--transition-normal) ease;
     font-weight: 500;
     font-size: 0.9rem;
     text-align: center;
@@ -385,12 +385,12 @@
     margin: 0.5rem auto 0.25rem;
     padding: 0.5rem 1rem;
     background: var(--c-brand);
-    color: white;
+    color: var(--c-white);
     border: none;
     border-radius: var(--rounded);
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all var(--transition-normal) ease;
     box-shadow: 0 2px 8px rgba(205, 20, 4, 0.3);
     transform: translateY(0);
     font-size: 0.85rem;
@@ -462,9 +462,9 @@
     line-height: 1.5;
     resize: vertical;
     transition:
-      border-color 0.3s ease,
-      opacity 0.3s ease,
-      background-color 0.3s ease;
+      border-color var(--transition-normal) ease,
+      opacity var(--transition-normal) ease,
+      background-color var(--transition-normal) ease;
     box-sizing: border-box;
     min-height: 4rem;
   }
@@ -511,14 +511,14 @@
     border-radius: var(--rounded);
     font-weight: 500;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all var(--transition-normal) ease;
     font-size: 0.85rem;
     flex-shrink: 0;
   }
 
   .skip-button:hover:not(:disabled) {
     background: var(--c-darkgrey);
-    color: white;
+    color: var(--c-white);
     transform: translateY(-1px);
     box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
   }
@@ -559,7 +559,7 @@
     font-size: 0.9rem;
     background: white;
     padding: 0.5rem 1rem;
-    border-radius: var(--rounded-sm);
+    border-radius: var(--rounded);
     color: #0ea5e9;
     font-weight: 600;
     letter-spacing: 0.05em;
@@ -611,14 +611,14 @@
   .banner-button {
     padding: 0.5rem 1rem;
     background: var(--c-brand);
-    color: white;
+    color: var(--c-white);
     border: none;
     border-radius: var(--rounded);
     font-weight: 500;
     cursor: pointer;
     transition:
-      all 0.3s ease,
-      opacity 0.2s ease;
+      all var(--transition-normal) ease,
+      opacity var(--transition-normal) ease;
     font-size: 0.85rem;
     white-space: nowrap;
     min-width: 6rem; /* Prevent button width jitter */

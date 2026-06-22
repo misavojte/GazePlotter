@@ -60,7 +60,7 @@
     font-size: 14px;
     cursor: pointer;
     font-weight: 600;
-    transition: all 0.2s ease;
+    transition: all var(--transition-normal) ease;
   }
 
   /* Disabled state - applies to all variants */
@@ -93,13 +93,13 @@
 
   /* Info variant */
   .info {
-    background-color: rgba(0, 127, 255, 0.1);
-    color: rgba(0, 127, 255, 0.9);
-    border: 1px solid rgba(0, 127, 255, 0.3);
+    background-color: color-mix(in srgb, var(--c-info) 10%, transparent);
+    color: var(--c-info);
+    border: 1px solid color-mix(in srgb, var(--c-info) 30%, transparent);
   }
   .info:hover:not(:disabled) {
-    background-color: rgba(0, 127, 255, 0.15);
-    border-color: rgba(0, 127, 255, 0.4);
+    background-color: color-mix(in srgb, var(--c-info) 15%, transparent);
+    border-color: color-mix(in srgb, var(--c-info) 40%, transparent);
   }
 
   /* Sizes */

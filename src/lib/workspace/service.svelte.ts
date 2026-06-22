@@ -1,13 +1,15 @@
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { ErrorService } from '$lib/errors'
 import type { ToastState } from '$lib/toaster/toastState.svelte'
-import { GridState } from '$lib/workspace/grid/store.svelte'
+import { GridState } from '$lib/workspace/grid/gridState.svelte'
 import {
   createCommandHandler,
   createRootCommand,
-  type UpdateAoiVisibilityCommand,
   type UpdateAoisCommand,
+  type UpdateEventDataCommand,
+  type UpdateEventChannelsCommand,
   type UpdateNoAoiTreatmentCommand,
+  type UpdateCategoriesCommand,
   type UpdateParticipantsCommand,
   type UpdateParticipantsGroupsCommand,
   type UpdateStimuliCommand,
@@ -48,9 +50,11 @@ export class WorkspaceService {
 
   private readonly handleCommand: (command: WorkspaceCommandChain) => void
   private readonly errorService: Pick<ErrorService, 'report'>
+  private readonly grid: GridState
 
   constructor(deps: WorkspaceServiceDeps) {
     this.errorService = deps.errorService
+    this.grid = deps.grid
     this.handleCommand = createCommandHandler(
       deps.grid,
       deps.engine,
@@ -156,12 +160,18 @@ export class WorkspaceService {
     })
   }
 
-  addVisualization(vizType: string, source: string, itemId?: number): boolean {
+  addVisualization(
+    vizType: string,
+    source: string,
+    itemId?: number,
+    position?: { x: number; y: number }
+  ): boolean {
     return this.applyRoot({
       type: 'addGridItem',
       vizType: vizType as keyof GridItemMap,
       source,
       itemId: itemId ?? generateUniqueId(),
+      ...(position ? { position } : {}),
     })
   }
 
@@ -172,10 +182,52 @@ export class WorkspaceService {
   ): boolean {
     return this.applyRoot({
       type: 'updateSettings',
-      itemId,
-      settings,
+      updates: [{ itemId, settings }],
       source,
     })
+  }
+
+  /**
+   * Applies the same settings patch to several items as ONE atomic command
+   * (single undo step). Single-item edits are just `updateItemSettings`
+   * (a set of one) — same command, same code path.
+   */
+  updateItemsSettings(
+    itemIds: number[],
+    settings: Partial<AllPlotSettings>,
+    source: string
+  ): boolean {
+    if (itemIds.length === 0) return true
+    return this.applyRoot({
+      type: 'updateSettings',
+      updates: itemIds.map(itemId => ({ itemId, settings })),
+      source,
+    })
+  }
+
+  /**
+   * Applies a patch computed PER ITEM from that item's own current settings,
+   * as one atomic command. Use this for read-modify-write edits (e.g. a
+   * per-stimulus range keyed by each plot's own stimulusId) where broadcasting
+   * one item's merged value would clobber the others. `computePatch` returns
+   * null to skip an item. Single-item edits are just a set of one — same path.
+   */
+  updateEachItemSettings(
+    itemIds: number[],
+    computePatch: (settings: AllPlotSettings) => Partial<AllPlotSettings> | null,
+    source: string
+  ): boolean {
+    const updates: { itemId: number; settings: Partial<AllPlotSettings> }[] = []
+    for (const itemId of itemIds) {
+      const item = this.grid.items.find(i => i.id === itemId)
+      if (!item) continue
+      const patch = computePatch(item.settings as AllPlotSettings)
+      if (patch && Object.keys(patch).length > 0) {
+        updates.push({ itemId, settings: patch })
+      }
+    }
+    if (updates.length === 0) return true
+    return this.applyRoot({ type: 'updateSettings', updates, source })
   }
 
   updateItemLayout(
@@ -185,8 +237,24 @@ export class WorkspaceService {
   ): boolean {
     return this.applyRoot({
       type: 'updateLayout',
-      itemId,
-      layout,
+      updates: [{ itemId, layout }],
+      source,
+    })
+  }
+
+  /**
+   * Moves/resizes several items as ONE atomic command (single undo step) —
+   * used by group move. A single-item layout change is just `updateItemLayout`
+   * (a set of one); same command, same code path.
+   */
+  updateItemsLayout(
+    updates: { itemId: number; layout: GridItemLayoutUpdate }[],
+    source: string
+  ): boolean {
+    if (updates.length === 0) return true
+    return this.applyRoot({
+      type: 'updateLayout',
+      updates,
       source,
     })
   }
@@ -202,13 +270,17 @@ export class WorkspaceService {
   duplicateVisualization(
     itemId: number,
     source: string,
-    duplicateId?: number
+    options: {
+      duplicateId?: number
+      position?: { x: number; y: number }
+    } = {}
   ): boolean {
     return this.applyRoot({
       type: 'duplicateGridItem',
       itemId,
-      duplicateId: duplicateId ?? generateUniqueId(),
+      duplicateId: options.duplicateId ?? generateUniqueId(),
       source,
+      ...(options.position ? { position: options.position } : {}),
     })
   }
 
@@ -263,20 +335,36 @@ export class WorkspaceService {
     return this.applyRoot(command)
   }
 
-  updateAoiVisibility(
+  updateEventData(
     stimulusId: number,
-    aoiNames: string[],
-    visibilityArr: number[][],
+    channelDefs: string[][],
+    eventBuffers: number[][][],
     source: string,
-    participantId?: number | null
+    hiddenChannels?: number[]
   ): boolean {
-    const command: UpdateAoiVisibilityCommand = {
-      type: 'updateAoiVisibility',
+    const command: UpdateEventDataCommand = {
+      type: 'updateEventData',
       stimulusId,
-      aoiNames,
-      visibilityArr,
+      channelDefs,
+      eventBuffers,
       source,
-      participantId,
+      ...(hiddenChannels !== undefined ? { hiddenChannels } : {}),
+    }
+    return this.applyRoot(command)
+  }
+
+  updateEventChannels(
+    channels: ExtendedInterpretedDataType[],
+    stimulusId: number,
+    source: string,
+    hiddenChannels?: number[]
+  ): boolean {
+    const command: UpdateEventChannelsCommand = {
+      type: 'updateEventChannels',
+      channels,
+      stimulusId,
+      source,
+      ...(hiddenChannels !== undefined ? { hiddenChannels } : {}),
     }
     return this.applyRoot(command)
   }
@@ -289,6 +377,20 @@ export class WorkspaceService {
       type: 'updateNoAoiTreatment',
       noAoiTreatment,
       source,
+    }
+    return this.applyRoot(command)
+  }
+
+  updateCategories(
+    categories: ExtendedInterpretedDataType[],
+    source: string,
+    hiddenCategories?: number[]
+  ): boolean {
+    const command: UpdateCategoriesCommand = {
+      type: 'updateCategories',
+      categories,
+      source,
+      ...(hiddenCategories !== undefined ? { hiddenCategories } : {}),
     }
     return this.applyRoot(command)
   }

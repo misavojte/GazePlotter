@@ -1,0 +1,6 @@
+User-agent: *
+Disallow: /survey/
+Disallow: /survey
+Allow: /
+
+Sitemap: https://gazeplotter.com/sitemap.xml

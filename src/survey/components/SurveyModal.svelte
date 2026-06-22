@@ -292,7 +292,7 @@
     height: 10px;
     border-radius: 50%;
     background: var(--c-lightgrey);
-    transition: all 0.3s ease;
+    transition: all var(--transition-normal) ease;
   }
 
   .dot.active {
@@ -354,7 +354,7 @@
     font-weight: 500;
     font-size: 0.9rem;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all var(--transition-normal) ease;
     min-width: 120px;
   }
 
@@ -371,7 +371,7 @@
 
   .nav-button.next {
     background: var(--c-success);
-    color: white;
+    color: var(--c-white);
   }
 
   .nav-button.next:hover:not(:disabled) {
@@ -414,7 +414,7 @@
     text-align: center;
     padding: 2rem;
     background: linear-gradient(135deg, var(--c-success), #16a34a);
-    color: white;
+    color: var(--c-white);
     border-radius: var(--rounded-md);
     box-shadow: 0 8px 32px rgba(34, 197, 94, 0.3);
   }
@@ -442,7 +442,7 @@
     font-weight: 500;
     font-size: 0.9rem;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all var(--transition-normal) ease;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   }
 

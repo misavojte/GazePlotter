@@ -27,7 +27,6 @@
   let { item }: Props = $props()
   const { exportService, modalState, engine } = getGazePlotterSession()
   const settings = $derived(item?.settings)
-  const canReturnToFormats = $derived(modalState.stack.length > 1)
 
   let fileName = $state('GazePlotter-AggregatedData')
   let selectedGroupId = $state(
@@ -113,8 +112,6 @@
       isExporting,
       onCancel: () => modalState.close(),
       onExport: handleExport,
-      onOpenFormats: canReturnToFormats ? () => modalState.close() : undefined,
-      openFormatsLabel: 'Back to All Data Formats',
     })
   )
 </script>
@@ -122,11 +119,11 @@
 <div class="container">
   <Section>
     <div class="content">
-    <p class="purpose-description">
-      Export statistical metrics (dwell time, fixation counts, durations) in
-      long format for analysis in R, Python, or SPSS.
-    </p>
-  </div>
+      <p class="purpose-description">
+        Export statistical metrics (dwell time, fixation counts, durations) in
+        long format for analysis in R, Python, or SPSS.
+      </p>
+    </div>
   </Section>
 
   <Section title="Export Settings">
@@ -245,8 +242,6 @@
     gap: 0.5rem;
     min-height: 0;
   }
-
-
 
   .format-description {
     margin: 0;

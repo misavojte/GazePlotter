@@ -1,3 +1,11 @@
+import { LEGACY_VISUALIZATION_TYPES } from '$lib/plots/legacyTypes'
+import {
+  createDefaultMetricInstances,
+  createMetricInstance,
+  type MetricInstance,
+} from '$lib/metrics/instances'
+import { type MigratedJsonFormat, CURRENT_SCHEMA_VERSION } from '$lib/data/types'
+
 const CORE_LAYOUT_KEYS = new Set([
   'id',
   'type',
@@ -10,11 +18,11 @@ const CORE_LAYOUT_KEYS = new Set([
 ])
 
 /**
- * Sequentially upgrades raw JSON data to the modern Version 4 schema.
+ * Sequentially upgrades raw JSON data to the current schema.
  * Operates entirely on raw data objects to ensure Web Worker safety.
  */
-export function runMigrations(parsedJson: any): any {
-  let data = parsedJson
+export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
+  let data = parsedJson as any
   let version = data.version || 1 // Fallback for unversioned legacy files
 
   // V1/V2 to V3: Standardize the version marker
@@ -113,7 +121,366 @@ export function runMigrations(parsedJson: any): any {
       gridItems: migratedItems,
       fileMetadata: data.fileMetadata ?? null,
     }
+    version = 4
   }
 
-  return data
+  // V4 → V5: the 1.9.0 metrics-system migration — the single schema bump above
+  // `main` (v4). v5 is the current format. (An earlier in-branch split into a
+  // separate v5 → v6 step was collapsed here; both halves now run as one bump,
+  // so the export's stamped version always matches the data it writes. Since
+  // `main` never released v5 or v6, there are no intermediate files to migrate,
+  // and the former baseId-rename / label-upgrade passes — which only ever fired
+  // on hand-authored intermediate v5 files — were dropped as unreachable.)
+  //   1. Materialize `eventData` from legacy `aois.dynamicVisibility`.
+  //   2. Seed `payload.metricInstances` with the slug-keyed starter library.
+  //   3. Translate legacy bar / transition-matrix settings to reference that
+  //      library:
+  //      - barPlot:          aggregationMethod (string) → metricInstanceId (slug)
+  //      - transitionMatrix: aggregationMethod (string) → metricInstanceId
+  //        (slug for the 4 starter-backed methods; new UUID-keyed custom
+  //        instance for frequencyRelative / probability2 / probability3).
+  //   4. Migrate `aoiStreamPlot` off its bespoke `binSize` onto a windowed ×
+  //      identity-aoi-vector metric instance.
+  //   5. Normalize every metric-reference settings field to the canonical
+  //      `metricInstanceIds: string[]` shape.
+  if (version === 4) {
+    const payload = data.data
+    const stimuliCount: number = payload.stimuli?.data?.length ?? 0
+    const participantCount: number = payload.participants?.data?.length ?? 0
+
+    // 1. dynamicVisibility → eventData
+    const eventDataData: string[][][] = Array.from(
+      { length: stimuliCount },
+      () => [] as string[][]
+    )
+    // events: [stimulusId][channelId][participantId] → stride-2 number[]
+    const eventDataEvents: number[][][][] = Array.from(
+      { length: stimuliCount },
+      () => [] as number[][][]
+    )
+
+    const dv = payload.aois?.dynamicVisibility
+    if (dv && typeof dv === 'object') {
+      // Group keys by stimulus+AOI, collecting per-participant intervals
+      const grouped: Record<string, Record<number, number[]>> = {}
+      for (const oldKey in dv) {
+        const parts = oldKey.split('_')
+        const stimulusId = parseInt(parts[0], 10)
+        const aoiId = parseInt(parts[1], 10)
+        if (isNaN(stimulusId) || stimulusId < 0 || stimulusId >= stimuliCount)
+          continue
+        if (isNaN(aoiId)) continue
+
+        const groupKey = `${stimulusId}_${aoiId}`
+        if (!grouped[groupKey]) grouped[groupKey] = {}
+
+        // Convert alternating [start, end, ...] → stride-2 [start, duration, ...]
+        const intervals: number[] = dv[oldKey]
+        const events: number[] = []
+        for (let i = 0; i < intervals.length; i += 2) {
+          const start = intervals[i]
+          const end = intervals[i + 1]
+          if (end === undefined || end === null) {
+            events.push(start, 0)
+          } else {
+            events.push(start, end - start)
+          }
+        }
+
+        if (parts.length > 2) {
+          // Per-participant key: stimulusId_aoiId_participantId
+          const participantId = parseInt(parts[2], 10)
+          if (!isNaN(participantId) && participantId >= 0 && participantId < participantCount) {
+            grouped[groupKey][participantId] = events
+          }
+        } else {
+          // Global key: apply same events to all participants
+          for (let p = 0; p < participantCount; p++) {
+            grouped[groupKey][p] = events
+          }
+        }
+      }
+
+      for (const groupKey in grouped) {
+        const [stimStr, aoiStr] = groupKey.split('_')
+        const stimulusId = parseInt(stimStr, 10)
+        const aoiId = parseInt(aoiStr, 10)
+
+        const aoiRow = payload.aois?.data?.[stimulusId]?.[aoiId]
+        const originalName = aoiRow?.[0] ?? `AOI ${aoiId}`
+        const displayedName = aoiRow?.[1] ?? originalName
+        const color = aoiRow?.[2] ?? '#888888'
+
+        // Build per-participant buffer array
+        const perParticipant: number[][] = Array.from({ length: participantCount }, () => [])
+        const participantEvents = grouped[groupKey]
+        for (const pStr in participantEvents) {
+          perParticipant[parseInt(pStr, 10)] = participantEvents[parseInt(pStr, 10)]
+        }
+
+        eventDataData[stimulusId].push([originalName, displayedName, color])
+        eventDataEvents[stimulusId].push(perParticipant)
+      }
+    }
+
+    payload.eventData = {
+      data: eventDataData,
+      orderVector: eventDataData.map(channels =>
+        channels.map((_, i) => i)
+      ),
+      hiddenChannels: Array.from({ length: stimuliCount }, () => []),
+      events: eventDataEvents,
+    }
+
+    // 2. Seed metric-instance library with the slug-keyed starter set.
+    const metricInstances: MetricInstance[] = createDefaultMetricInstances()
+    payload.metricInstances = metricInstances
+
+    // 3. Translate legacy plot settings.
+    // Slugs below match STARTING_METRICS in src/lib/metrics/startingMetrics.ts.
+    const BAR_BASEID_TO_SLUG: Record<string, string> = {
+      absoluteTime:             'absoluteTime',
+      relativeTime:             'relativeTime',
+      averageEntries:           'visitCount',
+      avgDwellDuration:         'visitDuration',
+      averageFixationCount:     'fixationCount',
+      avgFixationDuration:      'fixationDuration',
+      timeToFirstFixation:      'timeToFirstFixation',
+      avgFirstFixationDuration: 'firstFixationDuration',
+    }
+
+    // Cache of on-demand custom instances so repeated grid items sharing
+    // the same legacy aggregationMethod share a single MetricInstance.
+    const customCache = new Map<string, string>()
+    function ensureCustomMatrix(
+      baseId: string,
+      params: Record<string, unknown>,
+    ): string {
+      const key = `${baseId}|${JSON.stringify(params)}`
+      const cached = customCache.get(key)
+      if (cached !== undefined) return cached
+      const inst = createMetricInstance({
+        baseId,
+        params,
+        projection: { kind: 'identity-aoi-pair-matrix' },
+      })
+      if (!inst) throw new Error(`Migration: unknown recipe "${baseId}"`)
+      metricInstances.push(inst)
+      customCache.set(key, inst.id)
+      return inst.id
+    }
+
+    function mapTransitionAggregation(method: unknown): string {
+      switch (method) {
+        case 'sum':              return 'transitionCount-fix'
+        case 'probability':      return 'transitionProbability-fix'
+        case 'dwellTime':        return 'transitionDwellMean-fix'
+        case 'segmentDwellTime': return 'transitionDwellMean-visit'
+        case 'frequencyRelative':
+          return ensureCustomMatrix('transitionRelativeFrequency', { mode: 'fixation' })
+        case 'probability2':
+          return ensureCustomMatrix('transitionProbability', { mode: 'fixation', step: 2 })
+        case 'probability3':
+          return ensureCustomMatrix('transitionProbability', { mode: 'fixation', step: 3 })
+        default: return 'transitionCount-fix'
+      }
+    }
+
+    if (Array.isArray(data.gridItems)) {
+      data.gridItems = data.gridItems.map((item: any) => {
+        if (!item || typeof item.type !== 'string') return item
+        const s = item.settings
+        if (!s || typeof s !== 'object') return item
+
+        if (item.type === 'barPlot') {
+          const baseId =
+            typeof s.aggregationMethod === 'string' ? s.aggregationMethod : 'absoluteTime'
+          const metricInstanceId = BAR_BASEID_TO_SLUG[baseId] ?? 'absoluteTime'
+          const { aggregationMethod: _drop, ...rest } = s
+          return { ...item, settings: { ...rest, metricInstanceId } }
+        }
+
+        if (item.type === 'transitionMatrix') {
+          const metricInstanceId = mapTransitionAggregation(s.aggregationMethod)
+          const { aggregationMethod: _drop, ...rest } = s
+          return { ...item, settings: { ...rest, metricInstanceId } }
+        }
+
+        return item
+      })
+    }
+
+    // 4. Migrate aoi-stream gridItems' `binSize → metricInstanceId`. Each
+    //    distinct `binSize` maps to a deterministic slug. Slug collision is
+    //    resolved by validating the existing instance's shape against the one
+    //    we'd create; on mismatch we generate a UUID-suffixed slug rather than
+    //    hijacking a starter or user-authored instance.
+    const slugByBinSize = new Map<number, string>()
+    const matchesExpectedShape = (inst: any, binSize: number): boolean => {
+      if (!inst || inst.baseId !== 'absoluteTime') return false
+      const proj = inst.projection
+      if (!proj || proj.kind !== 'windowed') return false
+      const w = proj.window
+      if (!w || w.windowSize !== binSize || w.stepSize !== binSize) return false
+      const inner = proj.inner
+      return !!inner && inner.kind === 'identity-aoi-vector'
+    }
+    function ensureWindowedAoiInstance(binSize: number): string {
+      const cached = slugByBinSize.get(binSize)
+      if (cached !== undefined) return cached
+      const baseSlug = `absoluteTime-aoi-windowed-${binSize}`
+      const existing = metricInstances.find((i: any) => i && i.id === baseSlug)
+      if (existing && matchesExpectedShape(existing, binSize)) {
+        slugByBinSize.set(binSize, baseSlug)
+        return baseSlug
+      }
+      // No collision → claim the deterministic slug.
+      // Collision with a differently-shaped instance → mint a UUID-suffixed
+      // slug so we never silently hijack a user-authored entry.
+      const slug = existing ? `${baseSlug}-${crypto.randomUUID().slice(0, 8)}` : baseSlug
+      const inst = createMetricInstance({
+        id: slug,
+        baseId: 'absoluteTime',
+        label: `Time on AOI (per ${binSize} ms bin)`,
+        // Match the fresh `absoluteTime-aoi-windowed-500` starter: a cohort
+        // total per window so the timeline tapers as participants drop out.
+        reduction: 'sum',
+        projection: {
+          kind: 'windowed',
+          window: { windowSize: binSize, stepSize: binSize },
+          inner: { kind: 'identity-aoi-vector' },
+        },
+      })
+      if (!inst) throw new Error('Migration: recipe "absoluteTime" missing')
+      metricInstances.push(inst)
+      slugByBinSize.set(binSize, slug)
+      return slug
+    }
+
+    if (Array.isArray(data.gridItems)) {
+      data.gridItems = data.gridItems.map((item: any) => {
+        if (!item || item.type !== 'aoiStreamPlot') return item
+        const s = item.settings
+        if (!s || typeof s !== 'object') return item
+        if (Array.isArray(s.metricInstanceIds)) return item // already migrated
+        if (typeof s.metricInstanceId === 'string') return item // first-pass binSize migration done; field-name pass below picks it up
+        const binSize =
+          typeof s.binSize === 'number' && s.binSize > 0 ? s.binSize : 500
+        const metricInstanceId = ensureWindowedAoiInstance(binSize)
+        const { binSize: _drop, ...rest } = s
+        return { ...item, settings: { ...rest, metricInstanceId } }
+      })
+    }
+
+    // 5. Normalize all metric-reference settings fields to `metricInstanceIds: string[]`.
+    // Per the 1.9.0 plan ("collapse equivalent variants"): three legacy field names
+    // (`metricInstanceId`, `selectedMetricId`, `enabledMetricIds`) collapse into one
+    // canonical array shape. Singleton plots store length-0 (none) or length-1
+    // arrays; multi-select plots (metric-correlation) store N. Idempotent — if
+    // `metricInstanceIds` already exists, the pass is a no-op.
+    if (Array.isArray(data.gridItems)) {
+      data.gridItems = data.gridItems.map((item: any) => {
+        if (!item || typeof item !== 'object') return item
+        const s = item.settings
+        if (!s || typeof s !== 'object') return item
+        if (Array.isArray(s.metricInstanceIds)) return item // already on the new shape
+
+        let nextIds: string[] | null = null
+        let dropKey: 'metricInstanceId' | 'selectedMetricId' | 'enabledMetricIds' | null = null
+        if (typeof s.metricInstanceId === 'string') {
+          nextIds = [s.metricInstanceId]
+          dropKey = 'metricInstanceId'
+        } else if (s.metricInstanceId === null) {
+          nextIds = []
+          dropKey = 'metricInstanceId'
+        } else if (typeof s.selectedMetricId === 'string') {
+          nextIds = [s.selectedMetricId]
+          dropKey = 'selectedMetricId'
+        } else if (s.selectedMetricId === null) {
+          nextIds = []
+          dropKey = 'selectedMetricId'
+        } else if (Array.isArray(s.enabledMetricIds)) {
+          nextIds = s.enabledMetricIds.filter((id: unknown): id is string => typeof id === 'string')
+          dropKey = 'enabledMetricIds'
+        }
+        if (nextIds === null || dropKey === null) return item
+        const { [dropKey]: _drop, ...rest } = s
+        return { ...item, settings: { ...rest, metricInstanceIds: nextIds } }
+      })
+    }
+
+    // `payload.metricInstances` already references the seeded `metricInstances`
+    // array (mutated in place by the aoi-stream pass above), so no reassignment
+    // is needed here.
+    data = { ...data, version: CURRENT_SCHEMA_VERSION, data: payload }
+    version = CURRENT_SCHEMA_VERSION
+  }
+
+  // Version-independent normalization: rewrite any legacy gridItem `type`
+  // keys (e.g. capital-T 'TransitionMatrix' → 'transitionMatrix') to the
+  // current registry key. Runs on every load — including already-current
+  // files and URL-loaded layouts — so downstream lookups like
+  // `plotRegistry[item.type]` always hit.
+  if (Array.isArray(data.gridItems)) {
+    data.gridItems = data.gridItems.map((item: any) => {
+      if (!item || typeof item.type !== 'string') return item
+      const normalized =
+        LEGACY_VISUALIZATION_TYPES[
+          item.type as keyof typeof LEGACY_VISUALIZATION_TYPES
+        ]
+      const nextItem = normalized ? { ...item, type: normalized } : item
+      if ((nextItem.type === 'barPlot' || nextItem.type === 'aoiStreamPlot' || nextItem.type === 'transitionMatrix') && nextItem.settings && typeof nextItem.settings === 'object') {
+        if (nextItem.settings.hideNoAoi === undefined) {
+          nextItem.settings = { ...nextItem.settings, hideNoAoi: false }
+        }
+      }
+      return nextItem
+    })
+  }
+
+  // Version-independent normalization: collapse legacy WindowSpec `mode` field
+  // into an explicit `stepSize`. Epoch was always `stepSize === windowSize`;
+  // sliding without a stepSize defaulted to windowSize too. After this,
+  // projections only carry `{ windowSize, stepSize }`.
+  const instances = data?.data?.metricInstances
+  if (Array.isArray(instances)) {
+    data.data.metricInstances = instances.map((inst: any) => {
+      const proj = inst?.projection
+      if (!proj || proj.kind !== 'windowed' || !proj.window) return inst
+      const w = proj.window
+      if (!('mode' in w) && typeof w.stepSize === 'number') return inst
+      const windowSize = typeof w.windowSize === 'number' ? w.windowSize : 0
+      const stepSize =
+        typeof w.stepSize === 'number'
+          ? w.stepSize
+          : windowSize
+      const { mode: _mode, ...restWindow } = w
+      return {
+        ...inst,
+        projection: {
+          ...proj,
+          window: { ...restWindow, windowSize, stepSize },
+        },
+      }
+    })
+  }
+
+  // Version-independent normalization: the cross-participant statistic field was
+  // renamed `groupAggregation` → `reduction` and narrowed to {mean, sum} (median
+  // moved to the bar's distribution overlay; proportion became a metric class).
+  // Carry a serialized value across, keeping only the two sound reductions; an
+  // unsound legacy value (median / proportion) is dropped so the instance rides
+  // its metric's default reduction.
+  const reductionInstances = data?.data?.metricInstances
+  if (Array.isArray(reductionInstances)) {
+    data.data.metricInstances = reductionInstances.map((inst: any) => {
+      if (!inst || typeof inst !== 'object' || !('groupAggregation' in inst)) return inst
+      const { groupAggregation, ...rest } = inst
+      return groupAggregation === 'sum' || groupAggregation === 'mean'
+        ? { ...rest, reduction: groupAggregation }
+        : rest
+    })
+  }
+
+  return data as MigratedJsonFormat
 }

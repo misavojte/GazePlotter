@@ -1,6 +1,9 @@
 import { describe, it, expect } from 'vitest'
 import { createReaderFromJson } from '../src/lib/data/binary/converters'
 import { getBarPlotData } from '../src/lib/plots/bar/core/transformer'
+import { createDefaultMetricInstances } from '../src/lib/metrics/instances'
+
+const ABSOLUTE_TIME_INSTANCE_ID = 'absoluteTime'
 
 function createMockEngine(segments: number[][][][]) {
   const reader = createReaderFromJson(segments)
@@ -8,13 +11,19 @@ function createMockEngine(segments: number[][][][]) {
   return {
     metadata: {
       isOrdinalOnly: false,
+      capabilities: {
+        segmented: true,
+        spatial: false,
+        event: false,
+      },
       aois: {
-        data: [[
-          ['AOI A', 'AOI A', 'red'],
-          ['AOI B', 'AOI B', 'blue'],
-        ]],
+        data: [
+          [
+            ['AOI A', 'AOI A', 'red'],
+            ['AOI B', 'AOI B', 'blue'],
+          ],
+        ],
         orderVector: [[]],
-        dynamicVisibility: {},
         hiddenAois: [[]],
       },
       categories: {
@@ -31,6 +40,7 @@ function createMockEngine(segments: number[][][][]) {
         orderVector: [0],
       },
       noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
+      metricInstances: createDefaultMetricInstances(),
     },
     getReader: () => reader,
     getAoiMapping: (_stimulusId: number, rawId: number) => rawId,
@@ -39,7 +49,7 @@ function createMockEngine(segments: number[][][][]) {
 
 describe('Bar Plot Transformer (Integration)', () => {
   const stimulusId = 0
-  const groupId = 0
+  const groupId = -1
 
   it('transforms raw segments into labeled and sorted bar data', () => {
     const engine = createMockEngine([
@@ -52,14 +62,17 @@ describe('Bar Plot Transformer (Integration)', () => {
       ],
     ])
 
-    const result = getBarPlotData(engine as any, {
-      stimulusId,
-      groupId,
-      aggregationMethod: 'absoluteTime',
-      orderBy: 'aoi',
-      orderDirection: 'asc',
-      scaleRange: [0, 0],
-    } as any)
+    const result = getBarPlotData(
+      engine as any,
+      {
+        stimulusId,
+        groupId,
+        metricInstanceIds: [ABSOLUTE_TIME_INSTANCE_ID],
+        orderBy: 'aoi',
+        orderDirection: 'asc',
+        scaleRange: [0, 0],
+      } as any
+    )
 
     expect(result.data).toHaveLength(3)
     expect(result.data[0].label).toBe('AOI A')
@@ -80,52 +93,49 @@ describe('Bar Plot Transformer (Integration)', () => {
       ],
     ])
 
-    const result = getBarPlotData(engine as any, {
-      stimulusId,
-      groupId,
-      aggregationMethod: 'absoluteTime',
-      orderBy: 'value',
-      orderDirection: 'desc',
-      scaleRange: [0, 0],
-    } as any)
+    const result = getBarPlotData(
+      engine as any,
+      {
+        stimulusId,
+        groupId,
+        metricInstanceIds: [ABSOLUTE_TIME_INSTANCE_ID],
+        orderBy: 'value',
+        orderDirection: 'desc',
+        scaleRange: [0, 0],
+      } as any
+    )
 
     expect(result.data[0].label).toBe('AOI B')
     expect(result.data[1].label).toBe('AOI A')
   })
 
   it('generates a nice timeline based on data max value', () => {
-    const engine = createMockEngine([
-      [
-        [
-          [0, 450, 0, 0],
-        ],
-      ],
-    ])
+    const engine = createMockEngine([[[[0, 450, 0, 0]]]])
 
-    const result = getBarPlotData(engine as any, {
-      stimulusId,
-      groupId,
-      aggregationMethod: 'absoluteTime',
-    } as any)
+    const result = getBarPlotData(
+      engine as any,
+      {
+        stimulusId,
+        groupId,
+        metricInstanceIds: [ABSOLUTE_TIME_INSTANCE_ID],
+      } as any
+    )
 
     expect(result.timeline.maxValue).toBeGreaterThanOrEqual(450)
   })
 
   it('handles custom scale range', () => {
-    const engine = createMockEngine([
-      [
-        [
-          [0, 100, 0, 0],
-        ],
-      ],
-    ])
+    const engine = createMockEngine([[[[0, 100, 0, 0]]]])
 
-    const result = getBarPlotData(engine as any, {
-      stimulusId,
-      groupId,
-      aggregationMethod: 'absoluteTime',
-      scaleRange: [0, 1000],
-    } as any)
+    const result = getBarPlotData(
+      engine as any,
+      {
+        stimulusId,
+        groupId,
+        metricInstanceIds: [ABSOLUTE_TIME_INSTANCE_ID],
+        scaleRange: [0, 1000],
+      } as any
+    )
 
     expect(result.timeline.maxValue).toBe(1000)
   })
@@ -135,11 +145,100 @@ describe('Bar Plot Transformer (Integration)', () => {
     engine.metadata.participants.data = []
     engine.metadata.participants.orderVector = []
 
-    const result = getBarPlotData(engine as any, {
-      stimulusId,
-      groupId: -1,
-    } as any)
+    const result = getBarPlotData(
+      engine as any,
+      {
+        stimulusId,
+        groupId: -1,
+      } as any
+    )
 
     expect(result.data).toEqual([])
+  })
+
+  it('flags noMetric when metricInstanceIds[0] references a deleted instance', () => {
+    const engine = createMockEngine([
+      [
+        [
+          [0, 100, 0, 0],
+          [100, 300, 0, 1],
+        ],
+      ],
+    ])
+
+    const result = getBarPlotData(
+      engine as any,
+      {
+        stimulusId,
+        groupId,
+        metricInstanceIds: ['nonexistent-id'], // does not exist in the library
+        orderBy: 'aoi',
+        orderDirection: 'asc',
+        scaleRange: [0, 0],
+      } as any
+    )
+
+    expect(result.noMetric).toBe(true)
+    expect(result.data).toEqual([])
+  })
+
+  it('correctly filters out Outside (No AOI) when hideNoAoi is true', () => {
+    const engine = createMockEngine([
+      [
+        [
+          [0, 100, 0, 0],
+          [100, 300, 0, 1],
+          [300, 350, 0],
+        ],
+      ],
+    ])
+
+    const result = getBarPlotData(
+      engine as any,
+      {
+        stimulusId,
+        groupId,
+        metricInstanceIds: [ABSOLUTE_TIME_INSTANCE_ID],
+        orderBy: 'aoi',
+        orderDirection: 'asc',
+        scaleRange: [0, 0],
+        hideNoAoi: true,
+      } as any
+    )
+
+    expect(result.data).toHaveLength(2)
+    expect(result.data[0].label).toBe('AOI A')
+    expect(result.data[0].value).toBe(100)
+    expect(result.data[1].label).toBe('AOI B')
+    expect(result.data[1].value).toBe(200)
+    expect(result.data.find(d => d.label === 'Outside')).toBeUndefined()
+  })
+
+  it('excludes Outside (No AOI) from dataMax calculation when hideNoAoi is true', () => {
+    const engine = createMockEngine([
+      [
+        [
+          [0, 100, 0, 0], // AOI A (100 ms)
+          [100, 200, 0, 1], // AOI B (100 ms)
+          [200, 700, 0], // Outside (500 ms)
+        ],
+      ],
+    ])
+
+    const result = getBarPlotData(
+      engine as any,
+      {
+        stimulusId,
+        groupId,
+        metricInstanceIds: [ABSOLUTE_TIME_INSTANCE_ID],
+        orderBy: 'aoi',
+        orderDirection: 'asc',
+        scaleRange: [0, 0],
+        hideNoAoi: true,
+      } as any
+    )
+
+    // Max AOI value is 100 (Outside has 500 but should be excluded from scale dataMax calculation)
+    expect(result.dataMax).toBe(100)
   })
 })

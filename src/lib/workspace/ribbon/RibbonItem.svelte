@@ -18,28 +18,16 @@
     disabled = false,
   }: Props = $props()
 
-  let iconElement: HTMLDivElement | null = $state(null)
-
-  function handleClick() {
-    if (disabled) return
-
-    if (iconElement) {
-      iconElement.style.transform = 'scale(0.85)'
-      setTimeout(() => {
-        if (iconElement) {
-          iconElement.style.transform = 'scale(1)'
-        }
-      }, 100)
-    }
-
-    action()
-  }
+  // Press-feedback (icon scale-down) is pure CSS — see the
+  // `.ribbon-item:active ... .ribbon-item-icon` rule in the stylesheet.
+  // The button's `disabled` attribute suppresses clicks at the platform
+  // level, so no JS guard is needed.
 </script>
 
 <button
   class="ribbon-item"
   class:disabled
-  onclick={handleClick}
+  onclick={action}
   {disabled}
   aria-label={label}
   use:tooltipAction={{
@@ -47,7 +35,7 @@
     position: 'bottom',
   }}
 >
-  <div class="ribbon-item-icon" bind:this={iconElement}>
+  <div class="ribbon-item-icon">
     <Icon size={16} strokeWidth={1.75} />
   </div>
   <span class="ribbon-item-label">{shortLabel}</span>
@@ -64,17 +52,17 @@
     min-width: 48px;
     height: 38px;
     padding: 4px;
-    border-radius: 6px;
-    color: var(--c-darkgrey, #666);
+    border-radius: var(--rounded-md);
+    color: var(--c-darkgrey);
     background: transparent;
     border: none;
-    transition: all 0.15s ease-out;
+    transition: all var(--transition-fast) ease-out;
     gap: 4px;
     font-family: inherit;
   }
 
   .ribbon-item:hover:not(.disabled) {
-    background-color: var(--c-midgrey, #e0e0e0);
+    background-color: var(--c-midgrey);
     color: var(--c-black);
   }
 
@@ -93,7 +81,11 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.1s ease;
+    transition: transform var(--transition-fast) ease;
+  }
+
+  .ribbon-item:active:not(.disabled) .ribbon-item-icon {
+    transform: scale(0.85);
   }
 
   .ribbon-item-label {

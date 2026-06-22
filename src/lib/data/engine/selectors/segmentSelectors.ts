@@ -2,7 +2,7 @@ import {
   type SegmentInterpretedDataType,
   type ExtendedInterpretedDataType,
 } from '$lib/data/types'
-import type { DataEngine } from '../DataEngine.svelte'
+import type { DataEngine } from '../dataEngine.svelte'
 import { getNumberOfParticipants } from './baseSelectors'
 import { getHiddenAois } from './aoiSelectors'
 import { getAoiRaw, getCategoryRaw } from '../utils/interpreters'
@@ -31,20 +31,14 @@ export const getStimulusHighestEndTime = (
   engine: DataEngine,
   stimulusIndex: number
 ): number => {
-  let max = 0
   const numParticipants = getNumberOfParticipants(engine)
-  for (
-    let participantIndex = 0;
-    participantIndex < numParticipants;
-    participantIndex++
-  ) {
-    const end = getParticipantEndTime(engine, stimulusIndex, participantIndex)
-    if (end > max) max = end
-  }
-  return max
+  return Array.from({ length: numParticipants }).reduce<number>(
+    (max, _, i) => Math.max(max, getParticipantEndTime(engine, stimulusIndex, i)),
+    0
+  )
 }
 
-export const getSegments = (
+const getSegments = (
   engine: DataEngine,
   stimulusId: number,
   participantId: number,
@@ -156,18 +150,15 @@ export const getSegment = (
   const hidden = getHiddenAois(engine, stimulusId)
   const hiddenSet = hidden.length ? new Set<number>(hidden) : null
   const rawIds = reader.getRawAois(absoluteIndex)
-  const aoi: ExtendedInterpretedDataType[] = []
-  const uniqueAois = new Set<number>()
 
-  for (let i = 0; i < rawIds.length; i++) {
-    const rawId = rawIds[i]
-    if (hiddenSet?.has(rawId)) continue
-    uniqueAois.add(engine.getAoiMapping(stimulusId, rawId))
-  }
-
-  for (const aoiId of uniqueAois) {
-    aoi.push(getAoiRaw(stimulusId, aoiId, metadata))
-  }
+  const uniqueAois = new Set(
+    rawIds
+      .filter(rawId => !hiddenSet?.has(rawId))
+      .map(rawId => engine.getAoiMapping(stimulusId, rawId))
+  )
+  const aoi = Array.from(uniqueAois).map(aoiId =>
+    getAoiRaw(stimulusId, aoiId, metadata)
+  )
 
   const categoryId = reader.getSegmentCategory(absoluteIndex)
 
@@ -184,7 +175,7 @@ export const getSegment = (
  * Returns the list of logical (mapped) AOI IDs for a segment.
  * Legacy compatibility helper moved from AoiGroupReader.
  */
-export const getSegmentAoiIds = (
+const getSegmentAoiIds = (
   engine: DataEngine,
   stimulusId: number,
   participantId: number,

@@ -2,52 +2,166 @@
   import ChevronDown from 'lucide-svelte/icons/chevron-down'
   import { untrack } from 'svelte'
   import { contextMenuAction } from '$lib/context-menu'
+  import type {
+    MenuActionItem,
+    MenuDividerItem,
+    MenuItem,
+  } from '$lib/context-menu'
+  import type { LucideIconComponent } from '$lib/shared/types'
+  import { isInPane } from './paneContext'
   import InputScaffold from './InputScaffold.svelte'
   import {
     createSelectChangeEvent,
     createSelectMenuItems,
     getSelectLabel,
+    isSelectionEmpty,
     type SelectOption,
   } from './select'
+
+  interface TopAction {
+    label: string
+    icon?: LucideIconComponent
+    onAction: () => void
+  }
 
   interface Props {
     options?: readonly SelectOption[]
     disabled?: boolean
-    label: string
-    value?: string
+    label?: string
+    value?: string | string[]
+    multiple?: boolean
     compact?: boolean
-    onchange?: (event: CustomEvent<string>) => void
+    placeholder?: string
+    /** Optional secondary line rendered below the trigger (e.g. parameter readout). */
+    subLabel?: string
+    /** Optional action item rendered at the top of the dropdown above a divider. */
+    topAction?: TopAction
+    /** Message rendered as a disabled item when `options` is empty. */
+    emptyMessage?: string
+    /** Multi-selection "Mixed": the bound plots disagree on this field. Shows a
+     *  neutral "varies" trigger with nothing highlighted; picking an option
+     *  still applies normally (and resolves the divergence). */
+    mixed?: boolean
+    onchange?: (event: CustomEvent<string | string[]>) => void
     onClose?: () => void
   }
 
   let {
     options = [],
     disabled = false,
-    label,
-    value = $bindable(options[0]?.value ?? ''),
+    label = '',
+    multiple = false,
+    value = $bindable<string | string[]>(multiple ? [] : (options[0]?.value ?? '')),
     compact = false,
+    placeholder,
+    subLabel,
+    topAction,
+    emptyMessage,
+    mixed = false,
     onchange = () => {},
     onClose = () => {},
   }: Props = $props()
 
+  /** Rendered inside a Pane? Auto-activate compact so panes don't have to pass it. */
+  const inPane = isInPane()
+  const isCompact = $derived(compact || inPane)
+
   let isOpen = $state(false)
+  let wrapperEl = $state<HTMLDivElement | null>(null)
+  let wrapperWidth = $state<number | undefined>(undefined)
+
+  $effect(() => {
+    if (!wrapperEl) return
+    const ro = new ResizeObserver(entries => {
+      const entry = entries[0]
+      if (entry) wrapperWidth = entry.contentRect.width
+    })
+    ro.observe(wrapperEl)
+    return () => ro.disconnect()
+  })
 
   const triggerId = `select-${untrack(() =>
-    label.toLowerCase().replace(/\s+/g, '-')
+    (label || 'select').toLowerCase().replace(/\s+/g, '-')
   )}`
 
-  const menuItems = $derived(
-    createSelectMenuItems(options, value, nextValue => {
-      value = nextValue
-      onchange(createSelectChangeEvent(nextValue))
-    })
+  const currentSelection = $derived(
+    mixed
+      ? (multiple ? [] : '')
+      : multiple
+        ? (Array.isArray(value) ? value : [])
+        : value
   )
+
+  const triggerLabel = $derived(
+    mixed
+      ? (placeholder ?? 'Mixed (varies)')
+      : getSelectLabel(currentSelection, options, placeholder)
+  )
+
+  const showPlaceholder = $derived(
+    mixed || (Boolean(placeholder) && isSelectionEmpty(currentSelection, options))
+  )
+
+  function handleSelectionChange(nextValue: string) {
+    if (multiple) {
+      const arr = Array.isArray(value) ? value : []
+      const next = arr.includes(nextValue)
+        ? arr.filter(v => v !== nextValue)
+        : [...arr, nextValue]
+      try {
+        value = next
+      } catch (e) {
+        // Safe safeguard: ignore read-only mutation crashes in Svelte 5 when passed a derived prop
+      }
+      onchange(createSelectChangeEvent(next))
+    } else {
+      try {
+        value = nextValue
+      } catch (e) {
+        // Safe safeguard: ignore read-only mutation crashes in Svelte 5 when passed a derived prop
+      }
+      onchange(createSelectChangeEvent(nextValue))
+    }
+  }
+
+  const optionItems = $derived(
+    createSelectMenuItems(options, currentSelection, handleSelectionChange)
+  )
+
+  const menuItems = $derived.by<MenuItem[]>(() => {
+    const out: MenuItem[] = []
+    if (topAction) {
+      const action: MenuActionItem = {
+        label: topAction.label,
+        icon: topAction.icon,
+        onAction: () => topAction.onAction(),
+        closeOnAction: true,
+      }
+      out.push(action)
+      if (optionItems.length > 0) {
+        const divider: MenuDividerItem = { isDivider: true }
+        out.push(divider)
+      }
+    }
+    out.push(...optionItems)
+    if (optionItems.length === 0 && emptyMessage) {
+      const empty: MenuActionItem = {
+        label: emptyMessage,
+        disabled: true,
+        closeOnAction: false,
+      }
+      out.push(empty)
+    }
+    return out
+  })
 
   const menuConfig = $derived({
     items: menuItems,
     position: 'bottom' as const,
     horizontalAlign: 'start' as const,
-    offset: 8,
+    offset: 4,
+    selectionMode: (multiple ? 'checkbox' : 'radio') as 'radio' | 'checkbox',
+    width: wrapperWidth,
     disabled,
     onOpen: () => {
       isOpen = true
@@ -59,11 +173,12 @@
   })
 </script>
 
-<InputScaffold label={label} id={triggerId} {compact}>
-  <div class="select-wrapper" class:compact use:contextMenuAction={menuConfig}>
+<InputScaffold {label} id={triggerId} compact={isCompact} showLabel={!!label}>
+  <div bind:this={wrapperEl} class="select-wrapper" class:compact={isCompact} use:contextMenuAction={menuConfig}>
     <button
       id={triggerId}
       class="trigger"
+      class:compact={isCompact}
       class:disabled
       class:open={isOpen}
       {disabled}
@@ -71,12 +186,15 @@
       aria-haspopup="listbox"
     >
       <span class="trigger-content">
-        <span class="label">{getSelectLabel(value, options)}</span>
+        <span class="label" class:placeholder={showPlaceholder}>{triggerLabel}</span>
         <div class="svg-wrap" class:open={isOpen}>
           <ChevronDown strokeWidth={1} />
         </div>
       </span>
     </button>
+    {#if subLabel}
+      <div class="sub-label">{subLabel}</div>
+    {/if}
   </div>
 </InputScaffold>
 
@@ -98,9 +216,11 @@
   .select-wrapper.compact {
     display: flex;
     flex-direction: column;
-    width: 140px;
+    /* Fills the container in dense UI surfaces (panes, sidesheets) — replaces
+       the old `.body :global(.select-wrapper) { width: 100% }` override. */
+    width: 100%;
     margin-bottom: 0;
-    gap: 5px;
+    gap: 4px;
   }
 
   .select-wrapper:not(:has(.trigger:disabled)):hover,
@@ -109,7 +229,7 @@
   }
 
   .select-wrapper:has(.trigger:disabled) {
-    --gp-field-bg: var(--c-lightgrey, #f5f5f5);
+    --gp-field-bg: var(--c-lightgrey);
   }
 
   .trigger {
@@ -126,7 +246,7 @@
     align-items: center;
     justify-content: space-between;
     position: relative;
-    transition: all 0.2s ease;
+    transition: all var(--transition-normal) ease;
     font-weight: 400;
     line-height: 1.5rem;
     letter-spacing: 0.00938em;
@@ -136,7 +256,7 @@
 
   .trigger:disabled {
     border-color: var(--c-grey);
-    background-color: var(--c-lightgrey, #f5f5f5);
+    background-color: var(--c-lightgrey);
     color: var(--c-darkgrey);
     cursor: not-allowed;
   }
@@ -152,7 +272,7 @@
   }
 
   .trigger:not(.disabled):focus-visible {
-    outline: 2px solid var(--c-primary, #1976d2);
+    outline: 2px solid var(--c-brand);
     outline-offset: 2px;
   }
 
@@ -170,7 +290,14 @@
     text-overflow: ellipsis;
   }
 
-  .compact .trigger {
+  .label.placeholder {
+    color: var(--c-darkgrey);
+  }
+
+  .compact .trigger,
+  .trigger.compact {
+    height: 30px;
+    font-size: 12px;
     padding-left: 14px;
     padding-right: 22px;
   }
@@ -187,8 +314,8 @@
     justify-content: center;
     color: var(--c-darkgrey);
     transition:
-      transform 0.2s ease,
-      color 0.2s ease;
+      transform var(--transition-normal) ease,
+      color var(--transition-normal) ease;
   }
 
   .select-wrapper:not(:has(.trigger:disabled)):hover .svg-wrap,
@@ -202,6 +329,18 @@
 
   .svg-wrap.open {
     transform: rotate(180deg);
+  }
+
+  .sub-label {
+    color: var(--c-darkgrey);
+    font-size: 11px;
+    line-height: 1.2;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-left: 2px;
+    box-sizing: border-box;
   }
 
   * {

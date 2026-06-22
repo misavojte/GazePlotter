@@ -1,6 +1,5 @@
 <script lang="ts">
   import { GazePlotter, fromUrl } from '$lib'
-  import { Card } from '$lib/shared/components'
   import { base } from '$app/paths'
   import { browser } from '$app/environment'
   import {
@@ -15,6 +14,7 @@
   } from '$survey'
   import type { SurveyTask, SurveyModalState } from '$survey/types'
   import type { WorkspaceCommandChain } from '$lib/workspace/commands'
+  import type { AllPlotSettings } from '$lib/workspace'
   import type { GazePlotterSession } from '$lib/session'
   import { onMount } from 'svelte'
 
@@ -39,10 +39,10 @@
   const group2Condition = createCondition() // Monitor for "Group 2" selection
   const aoiCustomizationCondition = createCondition() // Monitor for AOI grouping
   const transitionMatrixCondition = createCondition() // Monitor for Transition Matrix aggregation
-  const barPlotCondition = createCondition() // Monitor for Bar Plot aggregation
+  const barPlotCondition = createCondition() // Monitor for AOI Metrics aggregation
   const explorationCondition = createCondition() // Monitor for UI exploration completion
   const transitionMatrixStimulusCondition = createCondition() // Monitor for Transition Matrix stimulus
-  const barPlotStimulusCondition = createCondition() // Monitor for Bar Plot stimulus
+  const barPlotStimulusCondition = createCondition() // Monitor for AOI Metrics stimulus
 
   // State for forcing banner to close on any modal content
   let forceCloseBanner = $state(false)
@@ -278,19 +278,19 @@
       ),
     },
     {
-      text: 'Pan to Bar Plot and set its stimulus to Task 2',
+      text: 'Pan to AOI Comparison and set its stimulus to Task 2',
       condition: barPlotStimulusCondition, // Auto-completes when stimulus is set to Task 2
       onSkip: createSkipHandler(
         9,
-        'Pan to Bar Plot and set its stimulus to Task 2'
+        'Pan to AOI Comparison and set its stimulus to Task 2'
       ),
     },
     {
-      text: "On Bar Plot, set aggregation method to 'Mean visits'",
+      text: "On AOI Comparison, set aggregation method to 'Visit count'",
       condition: barPlotCondition, // Auto-completes when aggregation is changed
       onSkip: createSkipHandler(
         10,
-        "On Bar Plot, set aggregation method to 'Mean visits'"
+        "On AOI Comparison, set aggregation method to 'Visit count'"
       ),
     },
     {
@@ -380,12 +380,17 @@
       return
     }
 
+    // A settings change targets a SET of items (`updates`); a single edit is
+    // a list of one. A condition fires when ANY targeted item matches.
+    const settingsUpdateMatches = (
+      predicate: (settings: Partial<AllPlotSettings>) => boolean
+    ): boolean =>
+      command.type === 'updateSettings' &&
+      command.updates.some(u => predicate(u.settings))
+
     // Check for stimulus change to Task 2 (stimulusId === 1) from scarf plot
     if (
-      command.type === 'updateSettings' &&
-      command.settings &&
-      'stimulusId' in command.settings &&
-      command.settings.stimulusId === 1 &&
+      settingsUpdateMatches(s => 'stimulusId' in s && s.stimulusId === 1) &&
       isCommandFromPlotType(command.source, 'scarf')
     ) {
       stimulusCondition.set(true)
@@ -393,10 +398,7 @@
 
     // Check for timeline change to relative from scarf plot
     if (
-      command.type === 'updateSettings' &&
-      command.settings &&
-      'timeline' in command.settings &&
-      command.settings.timeline === 'relative' &&
+      settingsUpdateMatches(s => 'timeline' in s && s.timeline === 'relative') &&
       isCommandFromPlotType(command.source, 'scarf')
     ) {
       timelineCondition.set(true)
@@ -404,10 +406,7 @@
 
     // Check for group change to Analytics (groupId === 1) from scarf plot
     if (
-      command.type === 'updateSettings' &&
-      command.settings &&
-      'groupId' in command.settings &&
-      command.settings.groupId === 1 &&
+      settingsUpdateMatches(s => 'groupId' in s && s.groupId === 1) &&
       isCommandFromPlotType(command.source, 'scarf')
     ) {
       groupCondition.set(true)
@@ -415,10 +414,7 @@
 
     // Check for group change to Holistics (groupId === 2) from scarf plot
     if (
-      command.type === 'updateSettings' &&
-      command.settings &&
-      'groupId' in command.settings &&
-      command.settings.groupId === 2 &&
+      settingsUpdateMatches(s => 'groupId' in s && s.groupId === 2) &&
       isCommandFromPlotType(command.source, 'scarf')
     ) {
       group2Condition.set(true)
@@ -470,21 +466,22 @@
 
     // Check for Transition Matrix aggregation change to '1-step probability'
     if (
-      command.type === 'updateSettings' &&
-      command.settings &&
-      'aggregationMethod' in command.settings &&
-      command.settings.aggregationMethod === 'probability' &&
+      settingsUpdateMatches(
+        s => 'aggregationMethod' in s && s.aggregationMethod === 'probability'
+      ) &&
       isCommandFromPlotType(command.source, 'transitionMatrix')
     ) {
       transitionMatrixCondition.set(true)
     }
 
-    // Check for Bar Plot aggregation change to 'Mean visits'
+    // Check for AOI Metrics aggregation change to 'Visit count'
     if (
-      command.type === 'updateSettings' &&
-      command.settings &&
-      'aggregationMethod' in command.settings &&
-      command.settings.aggregationMethod === 'averageEntries' &&
+      settingsUpdateMatches(
+        s =>
+          'metricInstanceIds' in s &&
+          Array.isArray(s.metricInstanceIds) &&
+          s.metricInstanceIds[0] === 'visitCount'
+      ) &&
       isCommandFromPlotType(command.source, 'barPlot')
     ) {
       barPlotCondition.set(true)
@@ -492,21 +489,15 @@
 
     // Check for Transition Matrix stimulus change to Task 2
     if (
-      command.type === 'updateSettings' &&
-      command.settings &&
-      'stimulusId' in command.settings &&
-      command.settings.stimulusId === 1 &&
+      settingsUpdateMatches(s => 'stimulusId' in s && s.stimulusId === 1) &&
       isCommandFromPlotType(command.source, 'transitionMatrix')
     ) {
       transitionMatrixStimulusCondition.set(true)
     }
 
-    // Check for Bar Plot stimulus change to Task 2
+    // Check for AOI Metrics stimulus change to Task 2
     if (
-      command.type === 'updateSettings' &&
-      command.settings &&
-      'stimulusId' in command.settings &&
-      command.settings.stimulusId === 1 &&
+      settingsUpdateMatches(s => 'stimulusId' in s && s.stimulusId === 1) &&
       isCommandFromPlotType(command.source, 'barPlot')
     ) {
       barPlotStimulusCondition.set(true)
@@ -518,6 +509,7 @@
   <title
     >GazePlotter | Free eye-tracking data visualisation via scarf plots</title
   >
+  <meta name="robots" content="noindex, nofollow" />
 </svelte:head>
 
 <main>
@@ -567,58 +559,69 @@
   </section>
   <section class="main-section" id="about">
     <div class="about-grid">
-      <Card padding="lg">
-        <h2 class="box-title">Open source Svelte library</h2>
+      <div class="card">
+        <h2 class="box-title">Cite work</h2>
         <p>
-          GazePlotter is an open source library, written in Svelte and
-          TypeScript. You can use it for free or modify its code to fit your
-          specific needs in your projects.
+          Vojtechovska,&nbsp;M., Popelka,&nbsp;S. GazePlotter:
+          An&nbsp;open-source solution for&nbsp;the automatic generation
+          of&nbsp;scarf plots from&nbsp;eye-tracking data. Behav&nbsp;Res
+          58,&nbsp;85 (2026). <a href="https://doi.org/10.3758/s13428-026-02959-5" target="_blank" rel="noopener noreferrer">doi:10.3758/s13428-026-02959-5</a>
         </p>
-        <a href="https://github.com/misavojte/GazePlotter">See GitHub repo</a>
-      </Card>
-      <Card padding="lg">
-        <h2 class="box-title">Works with Tobii, SMI & more</h2>
+        <a
+          target="_blank"
+          href="https://link.springer.com/article/10.3758/s13428-026-02959-5"
+        >
+          Go to article
+        </a>
+      </div>
+      <div class="card">
+        <h2 class="box-title">Found bug?</h2>
         <p>
-          The app creates interactive sequence charts and other analysis from
-          Tobii, SMI, GazePoint and other eye trackers. Just upload your data
-          and see the results.
+          Help us improve GazePlotter. Report issues, request new visualizations, or contribute to our open-source code directly on GitHub. Community feedback is essential to keeping GazePlotter stable and up-to-date.
         </p>
-        <a href="/docs/upload-data"> Which files to upload? </a>
-      </Card>
-      <Card padding="lg" class="long">
-        <h2 class="box-title">Interactive scarf plots</h2>
+        <a
+          target="_blank"
+          href="https://github.com/misavojte/GazePlotter/issues"
+        >
+          Open GitHub Issues
+        </a>
+      </div>
+      <div class="card long">
+        <h2 class="box-title">About us</h2>
         <p>
-          Scarf plots (sequence charts) are a great way to visualise
-          eye-tracking data. They show the order of fixations in time and their
-          hits on areas of interest (AOI). In GazePlotter, they are interactive,
-          customisable and easy to share.
+          Created by <a href="https://vojtechovska.com" target="_blank" rel="noopener noreferrer">Michaela Vojtechovska</a> under the supervision of <a href="https://www.geoinformatics.upol.cz/lide/stanislav-popelka/?lang=en" target="_blank" rel="noopener noreferrer">Stanislav Popelka</a>, GazePlotter allows researchers and non-programmers to visualize eye gaze data without writing code. This tool is and will remain free.
         </p>
         <img
           width="500"
-          height="220"
-          src="/images/gazeplotter_scarf_plot.png"
-          alt="Simplest scarf plot in GazePlotter"
+          height="500"
+          src="/images/gazeplotter_presentation.png"
+          alt="Michaela presenting GazePlotter at Cognition and Artificial Life conference"
         />
-      </Card>
-      <Card padding="lg">
-        <h2 class="box-title">Runs without Internet</h2>
-        <p>
-          GazePlotter does not store your data on a server, thus ensuring data
-          privacy. All is done in your browser. You can use it on PCs, Macs,
-          tablets, even off-line!
-        </p>
-        <a href="/docs/advanced/download-gazeplotter"
-          >How to download GazePlotter?</a
+        <a
+          target="_blank"
+          href="https://eyetracking.upol.cz"
         >
-      </Card>
-      <Card padding="lg">
-        <h2 class="box-title">Other eye tracking tools</h2>
+          See our lab
+        </a>
+      </div>
+      <div class="card">
+        <h2 class="box-title">User guide</h2>
         <p>
-          Eye-Tracking Group at Department of Geoinformatics, Palacký University
-          Olomouc, develops other eye tracking tools for free use.
+          Learn how to get started, configure your custom workspace, customize metrics, and import Tobii, SMI, GazePoint, Varjo, or Pupil Labs data. Explore our step-by-step instructions for advanced features.
         </p>
-        <a href="https://eyetracking.upol.cz/tools/">More eye tracking tools</a>
-      </Card>
+        <a href="/docs">
+          Read the guide
+        </a>
+      </div>
+      <div class="card">
+        <h2 class="box-title">Data import</h2>
+        <p>
+          GazePlotter supports data from all major eye-tracking platforms including Tobii, SMI, GazePoint, OGAMA, Varjo, and Pupil Cloud. You can also import custom CSV files from any other eye tracker.
+        </p>
+        <a href="/docs/upload-data">
+          Supported formats
+        </a>
+      </div>
     </div>
   </section>
 </main>
@@ -691,7 +694,7 @@
   .previous-consent-banner__link {
     color: #0d63e0;
     text-decoration: underline;
-    transition: color 0.2s ease-in-out;
+    transition: color var(--transition-normal) ease-in-out;
   }
 
   .previous-consent-banner__link:hover,
@@ -708,7 +711,7 @@
     border-radius: 999px;
     font-size: 0.9rem;
     cursor: pointer;
-    transition: background 0.2s ease-in-out;
+    transition: background var(--transition-normal) ease-in-out;
   }
 
   .previous-consent-banner__dismiss:hover,
@@ -733,11 +736,16 @@
   }
 
   .about-grid {
+    --grid-gap: 10px;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(310px, auto));
+    grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+    grid-template-rows: auto auto;
     margin-top: 80px;
     margin-bottom: 80px;
-    gap: 24px;
+    gap: var(--grid-gap);
+    max-width: 1200px;
+    margin-left: auto;
+    margin-right: auto;
   }
 
   p {
@@ -752,26 +760,61 @@
     font-weight: bold;
     margin: 0;
   }
-  :global(.card.long) {
+  .card {
+    background: var(--c-lightgrey);
+    border-radius: var(--rounded-lg);
+    display: flex;
+    flex-direction: column;
+    padding: var(--spacing-xl);
+    box-sizing: border-box;
+    gap: var(--grid-gap);
+  }
+  .card p {
+    margin: 0;
+    text-align: justify;
+  }
+  .card.long {
     grid-row: span 2;
   }
-
-  :global(.card img) {
-    width: 102%;
+  .card.long img {
+    width: 100%;
     height: auto;
-    margin-block: auto;
+    border-radius: var(--rounded-md);
+    margin-top: 15px;
+    margin-bottom: 15px;
+    object-fit: cover;
   }
-
-  :global(.card a) {
+  .card > a {
     font-size: 18px;
     font-weight: 600;
     color: var(--c-brand);
     text-decoration: none;
     margin-top: auto;
   }
-  :global(.card a:hover),
-  :global(.card a:focus) {
+  .card > a:hover,
+  .card > a:focus {
     color: var(--c-brand-dark);
+    text-decoration: underline;
+  }
+  .card > a::after {
+    content: "→";
+    display: inline-block;
+    text-decoration: none;
+    margin-left: 8px;
+    transition: transform var(--transition-fast) ease-in-out;
+  }
+  .card > a:hover::after,
+  .card > a:focus::after {
+    transform: translateX(4px);
+  }
+  .card p a {
+    color: inherit;
+    text-decoration: underline dotted;
+  }
+  .card p a:hover,
+  .card p a:focus {
+    color: inherit;
+    text-decoration: underline solid;
   }
 
   @media only screen and (max-width: 1100px) {
@@ -832,9 +875,6 @@
   }
 
   @media only screen and (max-width: 540px) {
-    .about-grid {
-      gap: 18px;
-    }
     .main-section {
       padding-inline: 18px;
     }

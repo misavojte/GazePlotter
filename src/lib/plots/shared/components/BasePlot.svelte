@@ -4,8 +4,8 @@
 
   import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
   import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared'
-  import { PlotPlaceholder } from '$lib/plots/shared/components'
-  import { PLOT_HEADER_HEIGHT } from '$lib/plots/shared/const'
+  import PlotPlaceholder from './PlotPlaceholder.svelte'
+  import { PLOT_BASE_CHROME_HEIGHT } from '$lib/plots/shared/const'
 
   interface LayoutConfig {
     headerHeight?: number
@@ -22,6 +22,8 @@
     // If provided, controls the fade in. If not provided, it assumes data is always ready or handled by parent.
     // If false is passed, it shows placeholder.
     hasData?: boolean
+    // If provided and hasData is false, shows a static message instead of spinner.
+    unavailableMessage?: string | null
 
     // Optional dimensions override if parent already calculated them
     dimensions?: { width: number; height: number }
@@ -30,7 +32,6 @@
     contentHeight?: number
 
     // Snippets
-    header?: Snippet
     figure?: Snippet<[{ width: number; height: number }]>
   }
 
@@ -38,16 +39,18 @@
     item,
     layoutConfig = {},
     hasData = true,
+    unavailableMessage = null,
     dimensions: parentDimensions,
     contentHeight,
-    header,
     figure,
   }: Props = $props()
 
-  // Default layout constants
-  const DEFAULT_LAYOUT = {
-    HEADER_HEIGHT: PLOT_HEADER_HEIGHT,
-  }
+  // Plots render through the Pane (no inline header), so the figure subtracts
+  // only the base chrome — grid-item header + body padding — and fills the rest
+  // of the body. `layoutConfig.headerHeight` can still override per plot.
+  const effectiveHeaderHeight = $derived(
+    layoutConfig.headerHeight ?? PLOT_BASE_CHROME_HEIGHT
+  )
 
   const dimensions = $derived.by(() => {
     if (parentDimensions) return parentDimensions
@@ -56,7 +59,7 @@
       item.w,
       item.h,
       DEFAULT_GRID_CONFIG,
-      layoutConfig.headerHeight ?? DEFAULT_LAYOUT.HEADER_HEIGHT
+      effectiveHeaderHeight
     )
   })
 
@@ -68,12 +71,12 @@
 </script>
 
 <div class="base-plot-container">
-  <div class="header">
-    {#if header}
-      {@render header()}
-    {/if}
-  </div>
-
+  <!-- Figure is plain selectable surface now: individual plot figures
+       declare spatial blocked regions (plot area + interactive legend)
+       on their own canvas via `canvasBlockSelect`. That way the chrome
+       around the plot — title, axis labels, padding, non-interactive
+       legend — is clickable-to-select, matching the user expectation
+       that clicking a plot opens its Pane. -->
   <div
     class="figure"
     style="height: {contentHeight
@@ -101,7 +104,12 @@
       </div>
     {:else}
       <div class="figure-content" style="height: {dimensions.height}px">
-        <PlotPlaceholder width={dimensions.width} height={dimensions.height} />
+        <PlotPlaceholder
+          width={dimensions.width}
+          height={dimensions.height}
+          message={unavailableMessage ?? 'Loading visualization...'}
+          loading={!unavailableMessage}
+        />
       </div>
     {/if}
   </div>
@@ -114,12 +122,6 @@
     height: 100%;
     width: 100%;
     /* overflow handled by inline style */
-  }
-
-  .header {
-    padding: 0 0 8px 0;
-    margin-bottom: 12px;
-    background-color: var(--c-white);
   }
 
   .figure {

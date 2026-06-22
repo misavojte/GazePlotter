@@ -2,7 +2,7 @@ import type { DataLoader } from './types'
 
 /**
  * Build a {@link DataLoader} that fetches a single file from a URL and feeds
- * it to GazePlotter's normal ingest pipeline (extension-based classification,
+ * it to GazePlotter's normal ingest job (extension-based detection,
  * worker parsing, error reporting).
  *
  * @param url       URL to fetch.

@@ -2,7 +2,7 @@ import {
   type BaseInterpretedDataType,
   type ParticipantsGroup,
 } from '$lib/data/types'
-import type { DataEngine } from '../DataEngine.svelte'
+import type { DataEngine } from '../dataEngine.svelte'
 
 /**
  * Updates multiple participant records and their display order.
@@ -14,14 +14,10 @@ export const updateMultipleParticipants = (
   const meta = engine.metadata
   if (!meta) return
 
-  const updates: { id: number; data: string[] }[] = []
-  const newOrder = [...participants.map(p => p.id)]
-
-  participants.forEach(p => {
-    if (p.id >= 0 && p.id < meta.participants.data.length) {
-      updates.push({ id: p.id, data: [p.originalName, p.displayedName] })
-    }
-  })
+  const updates = participants
+    .filter(p => p.id >= 0 && p.id < meta.participants.data.length)
+    .map(p => ({ id: p.id, data: [p.originalName, p.displayedName] }))
+  const newOrder = participants.map(p => p.id)
 
   engine.updateParticipantsBatch(updates, newOrder)
 }
@@ -47,14 +43,10 @@ export const updateMultipleStimuli = (
   const meta = engine.metadata
   if (!meta) return
 
-  const updates: { id: number; data: string[] }[] = []
-  const newOrder = [...stimuli.map(p => p.id)]
-
-  stimuli.forEach(s => {
-    if (s.id >= 0 && s.id < meta.stimuli.data.length) {
-      updates.push({ id: s.id, data: [s.originalName, s.displayedName] })
-    }
-  })
+  const updates = stimuli
+    .filter(s => s.id >= 0 && s.id < meta.stimuli.data.length)
+    .map(s => ({ id: s.id, data: [s.originalName, s.displayedName] }))
+  const newOrder = stimuli.map(s => s.id)
 
   engine.updateStimuliBatch(updates, newOrder)
 }

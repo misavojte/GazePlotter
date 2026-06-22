@@ -4,13 +4,23 @@ import type { PlotItemContract } from '$lib/plots/definePlot'
 export type TransitionMatrixPlotSettings = {
   stimulusId: number
   groupId: number
+  /**
+   * Slug(s) of the aoi-pair-matrix MetricInstance(s) this plot renders.
+   * Stored as an array for uniformity with multi-select plots; the contract
+   * is single-select so length is 0 (none) or 1 (selected). Presentation
+   * transforms (probability, relative frequency, mean dwell) live on the
+   * metric — the plot just renders whatever matrix the metric produces.
+   */
+  metricInstanceIds: string[]
+  timelineStart?: number
+  timelineEnd?: number
   stimuliColorValueRanges: [number, number][]
-  aggregationMethod: string
   belowMinColor: string
   aboveMaxColor: string
   showBelowMinLabels: boolean
   showAboveMaxLabels: boolean
   colorScale: string[]
+  hideNoAoi?: boolean
 }
 
 export type TransitionMatrixPlotItem = PlotItemContract<
@@ -18,22 +28,10 @@ export type TransitionMatrixPlotItem = PlotItemContract<
   TransitionMatrixPlotSettings
 >
 
-/**
- * Interface representing an Transition Matrix with labels
- */
 export interface TransitionMatrixData {
-  /** Flat row-major array: [row * size + col] */
   matrix: Float64Array | number[]
   aoiLabels: string[]
-  aoiList: ExtendedInterpretedDataType[]
-}
-
-export interface TransitionMetrics {
-  /** Flat row-major array: [row * size + col] */
-  sumMatrix: Float64Array
-  /** Flat row-major array: [row * size + col] */
-  dwellTimeMatrix: Float64Array
-  /** Flat row-major array: [row * size + col] */
-  dwellCountMatrix: Int32Array
-  totalTransitions: number
+  aoiList: readonly ExtendedInterpretedDataType[]
+  /** True when the plot's `metricInstanceIds[0]` points to a missing instance. */
+  noMetric?: boolean
 }

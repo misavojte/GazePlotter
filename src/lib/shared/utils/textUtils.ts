@@ -119,15 +119,8 @@ export function calculateTextMetrics(
     estimateTextWidth(text, fontSize, fontFamily)
   )
 
-  // Use a loop for maxWidth to prevent stack overflow on extremely large sets
-  let maxWidth = 0
-  let totalWidth = 0
-  for (let i = 0; i < widths.length; i++) {
-    const w = widths[i]
-    if (w > maxWidth) maxWidth = w
-    totalWidth += w
-  }
-
+  const totalWidth = widths.reduce((sum, w) => sum + w, 0)
+  const maxWidth = widths.reduce((max, w) => (w > max ? w : max), 0)
   const averageWidth = totalWidth / widths.length
 
   return {
@@ -208,4 +201,89 @@ export function truncateTextToPixelWidth(
 
   // Return the truncated text with ellipsis
   return text.substring(0, low) + ellipsis
+}
+
+/**
+ * Greedy word-wrap of `text` into lines that each fit within `maxWidthPx`.
+ * A single word wider than the limit still occupies its own line (never split
+ * mid-word). When the wrap would exceed `maxLines`, the overflow is collapsed
+ * into the last line and truncated with an ellipsis — so the result is always
+ * ≤ `maxLines` lines and nothing is silently dropped.
+ *
+ * Used for axis / legend / colorbar titles, which can grow long once the metric
+ * quantity, unit and qualifiers are composed onto one line.
+ */
+export function wrapTextToWidth(
+  text: string,
+  maxWidthPx: number,
+  fontSize: number = 12,
+  fontFamily: string = SYSTEM_SANS_SERIF_STACK,
+  maxLines: number = Infinity
+): string[] {
+  const trimmed = text.trim()
+  if (!trimmed) return []
+  if (maxWidthPx <= 0) return [trimmed]
+
+  const words = trimmed.split(/\s+/)
+  const lines: string[] = []
+  let current = ''
+  for (const word of words) {
+    const candidate = current ? `${current} ${word}` : word
+    if (!current || estimateTextWidth(candidate, fontSize, fontFamily) <= maxWidthPx) {
+      current = candidate
+    } else {
+      lines.push(current)
+      current = word
+    }
+  }
+  if (current) lines.push(current)
+
+  if (lines.length <= maxLines) return lines
+
+  // Collapse the overflow into the last allowed line, truncated to fit.
+  const kept = lines.slice(0, maxLines - 1)
+  const rest = lines.slice(maxLines - 1).join(' ')
+  kept.push(truncateTextToPixelWidth(rest, maxWidthPx, fontSize, fontFamily, '…'))
+  return kept
+}
+
+/**
+ * Measures the actual height of a text string using Canvas API.
+ * Falls back to estimated height if in SSR or if canvas is not available.
+ *
+ * @param text The text string to measure
+ * @param fontSize Font size in pixels
+ * @param fontFamily Font family defaults to system sans-serif stack
+ * @returns Height in pixels
+ */
+export function measureTextHeight(
+  text: string,
+  fontSize: number,
+  fontFamily: string = SYSTEM_SANS_SERIF_STACK
+): number {
+  if (typeof document !== 'undefined') {
+    const fontKey = `${fontSize}px ${fontFamily}`
+    let ctx = contextCache.get(fontKey)
+
+    if (!ctx) {
+      const canvas = document.createElement('canvas')
+      const newCtx = canvas.getContext('2d')
+      if (newCtx) {
+        newCtx.font = fontKey
+        contextCache.set(fontKey, newCtx)
+        ctx = newCtx
+      }
+    }
+
+    if (ctx && text) {
+      const metrics = ctx.measureText(text)
+      const ascent = metrics.actualBoundingBoxAscent
+      const descent = metrics.actualBoundingBoxDescent
+      if (Number.isFinite(ascent) && Number.isFinite(descent)) {
+        return ascent + descent
+      }
+    }
+  }
+
+  return fontSize
 }

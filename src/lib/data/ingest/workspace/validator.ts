@@ -1,11 +1,11 @@
-import type { DataType } from '$lib/data/types'
+import type { DataCapabilities, DataType, RawIngestPayload, BinarySegmentBuffers } from '$lib/data/types'
 import { jsonSegmentsToBinary, DEFAULT_NO_AOI_TREATMENT } from '$lib/data/types'
 
 /**
  * Validates the basic structure of the data
  * @throws Error if the data structure is invalid
  */
-export function validateBasicStructure(data: DataType): void {
+export function validateBasicStructure(data: RawIngestPayload): void {
   if (!data.stimuli?.data || !Array.isArray(data.stimuli.data)) {
     throw new Error('Invalid data structure: missing or invalid stimuli data')
   }
@@ -21,7 +21,7 @@ export function validateBasicStructure(data: DataType): void {
  * Ensures required fields exist and segments are properly formatted and sorted.
  */
 export function processAndValidateData(
-  data: Omit<DataType, 'segments'> & { segments?: any }
+  data: RawIngestPayload
 ): DataType {
   const stimuliCount = data.stimuli.data.length
 
@@ -33,6 +33,29 @@ export function processAndValidateData(
   for (let s = data.aois.hiddenAois.length; s < stimuliCount; s++) {
     data.aois.hiddenAois.push([])
   }
+
+  // Normalize eventData
+  const ed = (data.eventData ??= {
+    data: [],
+    orderVector: [],
+    hiddenChannels: [],
+    events: [],
+  })
+  ed.data ??= []
+  ed.orderVector ??= []
+  ed.hiddenChannels ??= []
+  ed.events ??= []
+  for (let s = ed.data.length; s < stimuliCount; s++) ed.data.push([])
+  for (let s = ed.events.length; s < stimuliCount; s++) ed.events.push([])
+  for (let s = ed.hiddenChannels.length; s < stimuliCount; s++)
+    ed.hiddenChannels.push([])
+
+  const events = ed.events ?? []
+  const hasEventData = events.some((channels: number[][][]) =>
+    channels.some((participants: number[][]) =>
+      participants.some((buffer: number[]) => (buffer?.length ?? 0) > 0)
+    )
+  )
 
   // 2. Validate and sort segments
   if (!data.segments) {
@@ -74,12 +97,14 @@ export function processAndValidateData(
       }
     }
 
-    // Phase 1 note: workspace JSON does not hydrate spatial segment coordinates yet.
-    data.segments = jsonSegmentsToBinary(rawSegments)
+    const rawSpatialData = data.spatialData as (number[] | null)[][][] | undefined
+    delete data.spatialData
+    data.segments = jsonSegmentsToBinary(rawSegments, rawSpatialData)
   } else {
     // Basic structural validation for binary segments to ensure they aren't plain objects
-    const bins = data.segments as any
+    const bins = data.segments as Partial<BinarySegmentBuffers> & Record<string, unknown>
     if (
+      !bins ||
       !(bins.segmentBuffer instanceof Float32Array) ||
       !(bins.indexTable instanceof Uint32Array) ||
       !(bins.aoiPool instanceof Uint16Array) ||
@@ -94,6 +119,22 @@ export function processAndValidateData(
     if (typeof bins.hasSpatialData !== 'boolean') {
       bins.hasSpatialData = false
     }
+  }
+
+  const bins = data.segments as DataType['segments']
+  const segmentCount = (bins.segmentBuffer?.length ?? 0) / 6
+  const normalizedCapabilities: DataCapabilities = {
+    segmented: segmentCount > 0,
+    spatial: bins.hasSpatialData ?? false,
+    event: hasEventData,
+  }
+
+  data.capabilities = {
+    ...normalizedCapabilities,
+    ...(data.capabilities ?? {}),
+    segmented: normalizedCapabilities.segmented,
+    spatial: normalizedCapabilities.spatial,
+    event: normalizedCapabilities.event,
   }
 
   return data as DataType

@@ -1,4 +1,4 @@
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { getParticipants, getParticipantEndTime } from '$lib/data/engine'
 import { getAoiStreamPlotData } from '../core/transformer'
 import { computeMTop } from '../core/ridgeline'
@@ -39,7 +39,7 @@ export function scanForDynamicRidgelineReferenceHeight(
   currentContext: CurrentPlotContext
 ): number | null {
   // Ensure reactivity for Svelte 5 when called from $derived
-  const _ = engine.metadata
+  void engine.metadata
 
   const targetScale = currentContext.settings.ridgelineScale ?? RIDGELINE_SCALE
 
@@ -98,18 +98,18 @@ export function scanForDynamicRidgelineReferenceHeight(
         }
       }
 
-      const { data } = getAoiStreamPlotData(
+      const data = getAoiStreamPlotData(
         engine,
         {
           stimulusId,
           groupId,
-          binSize: s.binSize ?? 500,
+          metricInstanceIds: s.metricInstanceIds,
           timelineMin: tMin,
           timelineMax: tMax,
         },
-        null
       )
 
+      if (data.noMetric || data.series.length === 0) continue
       streamData = data
     }
 

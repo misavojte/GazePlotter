@@ -1,50 +1,72 @@
 <script lang="ts">
   import { ZOOM_MIN, ZOOM_MAX, ZOOM_STEP } from '$lib/workspace/zoom'
   import { tooltipAction } from '$lib/tooltip'
+  import { responsive } from '../responsive.svelte'
 
   interface Props {
     value: number
     label?: string
     disabled?: boolean
+    orientation?: 'vertical' | 'horizontal'
   }
 
   let {
     value = $bindable(1),
     label = 'Zoom',
     disabled = false,
+    orientation = 'vertical',
   }: Props = $props()
 
   const displayValue = $derived(`${value.toFixed(2)}x`)
 </script>
 
 <div
-  class="zoom-control"
+  class="zoom-control {orientation}"
   class:disabled
   use:tooltipAction={{
     content: label,
-    position: 'right',
+    position: orientation === 'horizontal' ? 'top' : 'right',
+    disabled: responsive.isMobile,
   }}
 >
-  <input
-    class="zoom-slider"
-    type="range"
-    min={ZOOM_MIN}
-    max={ZOOM_MAX}
-    step={ZOOM_STEP}
-    bind:value
-    {disabled}
-    aria-label="Workspace zoom level"
-  />
+  <div class="slider-wrapper">
+    <input
+      class="zoom-slider"
+      type="range"
+      min={ZOOM_MIN}
+      max={ZOOM_MAX}
+      step={ZOOM_STEP}
+      bind:value
+      {disabled}
+      aria-label="Workspace zoom level"
+    />
+  </div>
   <span class="zoom-value">{displayValue}</span>
 </div>
 
 <style>
+  /* One visual identity, two orientations. The slider uses a single
+     thumb + track style; `writing-mode: vertical-lr` rotates the
+     whole control for the vertical variant. The only orientation-
+     specific rules below are the wrapper layout, the slider's outer
+     dimensions, and the cross-axis margin needed to center the thumb
+     on the 2px track. */
+
   .zoom-control {
     display: flex;
-    flex-direction: column;
     align-items: center;
-    gap: 6px;
+  }
+
+  .zoom-control.vertical {
+    flex-direction: column;
+    gap: var(--spacing-xs);
     padding: 4px 0;
+  }
+
+  .zoom-control.horizontal {
+    flex-direction: row;
+    gap: 8px;
+    padding: 0 4px;
   }
 
   .zoom-control.disabled {
@@ -55,16 +77,12 @@
   .zoom-slider {
     -webkit-appearance: none;
     appearance: none;
-    writing-mode: vertical-lr;
-    direction: rtl;
-    width: 12px;
-    height: 64px;
     margin: 0;
     padding: 0;
     cursor: pointer;
     background: transparent;
     opacity: 0.8;
-    transition: opacity 0.15s;
+    transition: opacity var(--transition-fast);
   }
 
   .zoom-slider:focus {
@@ -75,38 +93,65 @@
     opacity: 1;
   }
 
-  /* WebKit Track */
+  .vertical .slider-wrapper {
+    width: 12px;
+    height: 64px;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* Vertical variant: horizontal slider rotated -90deg inside the slider-wrapper.
+     This maintains custom styled track and thumb elements without native rendering. */
+  .vertical .zoom-slider {
+    position: absolute;
+    width: 64px;
+    height: 12px;
+    transform: rotate(-90deg);
+    transform-origin: center;
+    margin: 0;
+  }
+
+  .horizontal .zoom-slider {
+    width: 120px;
+    height: 20px;
+  }
+
+  /* Track: thin (2px) line stretching the full main-axis length.
+     Because the vertical slider is rotated via transform, it also uses 
+     the standard horizontal track styling beneath the rotation. */
   .zoom-slider::-webkit-slider-runnable-track {
-    width: 2px;
-    background: var(--c-border, rgba(136, 136, 136, 0.3));
+    width: 100%;
+    height: 2px;
+    background: var(--c-border);
     border-radius: 1px;
   }
-
-  /* Mozilla Track */
   .zoom-slider::-moz-range-track {
-    width: 2px;
-    background: var(--c-border, rgba(136, 136, 136, 0.3));
+    width: 100%;
+    height: 2px;
+    background: var(--c-border);
     border-radius: 1px;
   }
 
-  /* WebKit Thumb */
+  /* Shared thumb: a 10×10 circle. The margin-top of -4px centers 
+     the 10px thumb on the 2px track: (10 − 2) / 2 = 4px. */
   .zoom-slider::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 12px;
-    height: 3px;
-    background: var(--c-darkgrey, #888);
-    border-radius: 2px;
+    width: 10px;
+    height: 10px;
+    background: var(--c-darkgrey);
+    border-radius: 50%;
     border: none;
-    margin-left: -5px;
+    margin-top: -4px;
   }
 
-  /* Mozilla Thumb */
   .zoom-slider::-moz-range-thumb {
-    width: 12px;
-    height: 3px;
-    background: var(--c-darkgrey, #888);
-    border-radius: 2px;
+    width: 10px;
+    height: 10px;
+    background: var(--c-darkgrey);
+    border-radius: 50%;
     border: none;
   }
 
@@ -114,9 +159,15 @@
     font-size: 8px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--c-darkgrey, #888);
+    letter-spacing: 0.06em;
+    color: var(--c-darkgrey);
     user-select: none;
     font-variant-numeric: tabular-nums;
+  }
+
+  .horizontal .zoom-value {
+    font-size: 10px;
+    min-width: 38px;
+    text-align: right;
   }
 </style>

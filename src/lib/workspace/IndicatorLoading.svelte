@@ -40,7 +40,7 @@
     width: 100%;
     box-sizing: border-box;
     background-color: var(--c-lightgrey);
-    border-radius: var(--rounded-lg, 8px);
+    border-radius: var(--rounded-lg);
     border: 1px solid var(--c-border);
     overflow: hidden;
     display: flex;
@@ -78,7 +78,7 @@
     width: 32px;
     height: 32px;
     border: 3px solid var(--c-lightgrey);
-    border-top-color: var(--c-primary);
+    border-top-color: var(--c-brand);
     border-radius: 50%;
     animation: spin 1.2s linear infinite;
     flex-shrink: 0;

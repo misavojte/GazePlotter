@@ -4,39 +4,66 @@ import {
   getParticipantsIds,
   getStimulus,
 } from '$lib/data/engine'
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
-import { collectParticipantBarMetrics } from '$lib/plots/bar/core/collector'
-import type { ParticipantBarMetrics } from '$lib/plots/bar/types'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import { query, type MetricInstance, type Scope } from '$lib/metrics'
 import {
   escapeCsvField,
   formatNumberForCsv,
   type CsvFormatOptions,
 } from '../encoders/csv'
 
-export const AGGREGATED_METRIC_CONFIG = [
+type ComputeFn = (
+  engine: DataEngine,
+  stimulusId: number,
+  participantId: number,
+  aoiIndex: number,
+  anyFixationSlot: number
+) => number
+
+function _computeAtSlot(baseId: string): ComputeFn {
+  const inst: MetricInstance = {
+    id: '', baseId, params: {}, label: '',
+    projection: { kind: 'identity-aoi-vector' },
+  }
+  return (engine, stimulusId, participantId, aoiIdx) => {
+    const scope: Scope = { engine, stimulusId, participantId, timeStart: 0, timeEnd: 0 }
+    const result = query(inst, scope)
+    if (result.shape === 'aoi-vector') return result.values[aoiIdx] ?? Number.NaN
+    if (result.shape === 'scalar') return result.value
+    if (result.shape === 'aoi-pair-matrix') return result.matrix[aoiIdx] ?? Number.NaN
+    return Number.NaN
+  }
+}
+
+function _nanToNeg(v: number): number {
+  return Number.isNaN(v) ? -1 : v
+}
+
+export const AGGREGATED_METRIC_CONFIG: ReadonlyArray<{
+  readonly key: string
+  readonly label: string
+  readonly sublabel: string
+  readonly csvName: string
+  readonly compute: ComputeFn
+}> = [
   {
     key: 'absoluteDwellTime',
     label: 'Absolute Dwell Time',
     sublabel: 'Total time spent in each AOI (ms)',
     csvName: 'Absolute_Dwell_Time',
-    metricKey: 'dwellTime',
+    compute: (engine, sId, pId, aoiIdx) => {
+      const v = _computeAtSlot('absoluteTime')(engine, sId, pId, aoiIdx, 0)
+      return Number.isFinite(v) ? v : -1
+    },
   },
   {
     key: 'relativeDwellTime',
     label: 'Relative Dwell Time (%)',
     sublabel: 'Dwell time as percentage of total viewing time',
     csvName: 'Relative_Dwell_Time',
-    metricKey: 'dwellTime',
-    processFunction: (
-      _values: number[] | number,
-      participantData?: ParticipantBarMetrics,
-      aoiIndex?: number
-    ) => {
-      if (!participantData || aoiIndex === undefined) return 0
-      const dwellTime = participantData.dwellTime[aoiIndex]
-      const totalTime =
-        participantData.dwellTime[participantData.dwellTime.length - 1]
-      return totalTime > 0 ? (dwellTime / totalTime) * 100 : 0
+    compute: (engine, sId, pId, aoiIdx) => {
+      const v = _computeAtSlot('relativeTime')(engine, sId, pId, aoiIdx, 0)
+      return Number.isFinite(v) ? v : 0
     },
   },
   {
@@ -44,51 +71,52 @@ export const AGGREGATED_METRIC_CONFIG = [
     label: 'Time to First Fixation',
     sublabel: 'Time until first fixation on each AOI (-1 if never fixated)',
     csvName: 'Time_To_First_Fixation',
-    metricKey: 'ttff',
+    compute: (engine, sId, pId, aoiIdx) =>
+      _nanToNeg(_computeAtSlot('timeToFirstFixation')(engine, sId, pId, aoiIdx, 0)),
   },
   {
     key: 'firstFixationDuration',
     label: 'First Fixation Duration',
-    sublabel:
-      'Duration of the first fixation on each AOI (-1 if never fixated)',
+    sublabel: 'Duration of the first fixation on each AOI (-1 if never fixated)',
     csvName: 'First_Fixation_Duration',
-    metricKey: 'firstFixationDuration',
+    compute: (engine, sId, pId, aoiIdx) =>
+      _nanToNeg(_computeAtSlot('firstFixationDuration')(engine, sId, pId, aoiIdx, 0)),
   },
   {
     key: 'fixationCount',
     label: 'Fixation Count',
     sublabel: 'Number of fixations on each AOI',
     csvName: 'Fixation_Count',
-    metricKey: 'fixationCount',
+    compute: (engine, sId, pId, aoiIdx) => {
+      const v = _computeAtSlot('fixationCount')(engine, sId, pId, aoiIdx, 0)
+      return Number.isFinite(v) ? v : -1
+    },
   },
   {
     key: 'meanFixationDuration',
     label: 'Mean Fixation Duration',
     sublabel: 'Average duration of fixations on each AOI',
     csvName: 'Mean_Fixation_Duration',
-    metricKey: 'avgFixationDuration',
-    processFunction: (values: number[] | number) =>
-      !Array.isArray(values) || values.length === 0
-        ? -1
-        : values.reduce((sum, value) => sum + value, 0) / values.length,
+    compute: (engine, sId, pId, aoiIdx) =>
+      _nanToNeg(_computeAtSlot('fixationDuration')(engine, sId, pId, aoiIdx, 0)),
   },
   {
     key: 'visitCount',
     label: 'Visit Count',
     sublabel: 'Number of distinct visits to each AOI',
     csvName: 'Visit_Count',
-    metricKey: 'entryCount',
+    compute: (engine, sId, pId, aoiIdx) => {
+      const v = _computeAtSlot('visitCount')(engine, sId, pId, aoiIdx, 0)
+      return Number.isFinite(v) ? v : -1
+    },
   },
   {
     key: 'meanVisitDuration',
     label: 'Mean Visit Duration',
     sublabel: 'Average duration of visits to each AOI',
     csvName: 'Mean_Visit_Duration',
-    metricKey: 'dwellDurations',
-    processFunction: (values: number[] | number) =>
-      !Array.isArray(values) || values.length === 0
-        ? -1
-        : values.reduce((sum, value) => sum + value, 0) / values.length,
+    compute: (engine, sId, pId, aoiIdx) =>
+      _nanToNeg(_computeAtSlot('visitDuration')(engine, sId, pId, aoiIdx, 0)),
   },
 ] as const
 
@@ -102,10 +130,11 @@ export type AggregatedExportOptions = {
   csvOptions?: CsvFormatOptions
 }
 
-function getAoiName(aoiIndex: number, aois: Array<{ displayedName: string }>): string {
+function getAoiName(aoiIndex: number, aois: Array<{ displayedName: string }>, totalSlots: number): string {
   if (aoiIndex < aois.length) return aois[aoiIndex].displayedName
   if (aoiIndex === aois.length) return 'No_AOI'
-  return 'Any_Fixation'
+  if (aoiIndex === totalSlots - 1) return 'Any_Fixation'
+  return `Slot_${aoiIndex}`
 }
 
 export function generateAggregatedCsv(
@@ -115,7 +144,7 @@ export function generateAggregatedCsv(
   const delimiter = options.csvOptions?.delimiter ?? ','
   const decimalSeparator = options.csvOptions?.decimalSeparator ?? '.'
   const activeMetrics = AGGREGATED_METRIC_CONFIG.filter(config =>
-    options.metrics.includes(config.key)
+    options.metrics.includes(config.key as AggregatedMetricKey)
   )
 
   const csvRows = [
@@ -135,43 +164,24 @@ export function generateAggregatedCsv(
     const stimulus = getStimulus(engine, stimulusId)
     const participantIds = getParticipantsIds(engine, options.groupId, stimulusId)
     const aois = getAllAois(engine, stimulusId)
-    const participantMetrics = collectParticipantBarMetrics(
-      engine,
-      stimulusId,
-      participantIds,
-      aois
-    )
+    const totalSlots = aois.length + 2
+    const anyFixationSlot = totalSlots - 1
 
-    for (let participantIndex = 0; participantIndex < participantIds.length; participantIndex++) {
-      const participantId = participantIds[participantIndex]
+    for (const participantId of participantIds) {
       const participant = getParticipant(engine, participantId)
-      const participantFullMetrics = participantMetrics[participantIndex]
 
       for (const config of activeMetrics) {
-        const metricDataArray = participantFullMetrics[config.metricKey]
-
-        for (let aoiIndex = 0; aoiIndex < metricDataArray.length; aoiIndex++) {
-          const rawValue = metricDataArray[aoiIndex]
-          const value =
-            'processFunction' in config
-              ? config.processFunction(
-                  rawValue as number[] | number,
-                  participantFullMetrics,
-                  aoiIndex
-                )
-              : (rawValue as number)
+        for (let aoiIndex = 0; aoiIndex < totalSlots; aoiIndex++) {
+          const value = config.compute(engine, stimulusId, participantId, aoiIndex, anyFixationSlot)
 
           csvRows.push(
             [
               escapeCsvField(participantId.toString(), delimiter),
               escapeCsvField(participant.displayedName, delimiter),
               escapeCsvField(stimulus.displayedName, delimiter),
-              escapeCsvField(getAoiName(aoiIndex, aois), delimiter),
+              escapeCsvField(getAoiName(aoiIndex, aois, totalSlots), delimiter),
               escapeCsvField(config.csvName, delimiter),
-              escapeCsvField(
-                formatNumberForCsv(value, decimalSeparator),
-                delimiter
-              ),
+              escapeCsvField(formatNumberForCsv(value, decimalSeparator), delimiter),
             ].join(delimiter)
           )
         }

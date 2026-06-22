@@ -2,6 +2,7 @@ import {
   type BinarySegmentBuffers,
   SEGMENT_STRIDE,
   SegmentField,
+  FIXATION_CATEGORY_ID,
 } from './schema'
 
 /**
@@ -13,6 +14,8 @@ export class BinaryBufferReader {
   private segmentBuffer: Float32Array
   private indexTable: Uint32Array
   private aoiPool: Uint16Array
+  private fixationIndex: Uint32Array
+  private fixationIndexTable: Uint32Array
   public readonly hasSpatialData: boolean
   private spatialBuffer?: Float32Array
   private maxParticipants: number
@@ -26,6 +29,54 @@ export class BinaryBufferReader {
     this.spatialBuffer = buffers.spatialBuffer
     this.maxParticipants = buffers.maxParticipants
     this.stimuliCount = buffers.stimuliCount
+
+    // Back-fill fixation-only index for legacy buffers (e.g. workspaces saved
+    // before this field existed). Newly-built buffers always carry it.
+    if (buffers.fixationIndex && buffers.fixationIndexTable) {
+      this.fixationIndex = buffers.fixationIndex
+      this.fixationIndexTable = buffers.fixationIndexTable
+    } else {
+      const built = buildFixationIndex(
+        this.segmentBuffer,
+        this.indexTable,
+        this.stimuliCount,
+        this.maxParticipants,
+      )
+      this.fixationIndex = built.fixationIndex
+      this.fixationIndexTable = built.fixationIndexTable
+    }
+  }
+
+  /**
+   * Get the [startIndex, endIndex) range into `fixationIndex` for a stimulus
+   * and participant. Hot loops (scanAccumulator, scanBatch) iterate this
+   * range and dereference `fixationIndex[k]` to get the actual segment index,
+   * skipping the per-segment category filter entirely.
+   */
+  getFixationRange(
+    stimulusId: number,
+    participantId: number,
+  ): { startIndex: number; endIndex: number } {
+    const idx = (stimulusId * this.maxParticipants + participantId) * 2
+    return {
+      startIndex: this.fixationIndexTable[idx],
+      endIndex: this.fixationIndexTable[idx + 1],
+    }
+  }
+
+  /** Resolve a position in `fixationIndex` to the actual segment index. */
+  getFixationSegmentIndex(k: number): number {
+    return this.fixationIndex[k]
+  }
+
+  /** Raw segment buffer, exposed for hot-loop direct indexing. */
+  get segmentBufferRaw(): Float32Array {
+    return this.segmentBuffer
+  }
+
+  /** Raw AOI pool, exposed for hot-loop direct indexing. */
+  get aoiPoolRaw(): Uint16Array {
+    return this.aoiPool
   }
 
   /**
@@ -156,6 +207,8 @@ export class BinaryBufferReader {
     return {
       segmentBuffer: this.segmentBuffer,
       indexTable: this.indexTable,
+      fixationIndex: this.fixationIndex,
+      fixationIndexTable: this.fixationIndexTable,
       aoiPool: this.aoiPool,
       hasSpatialData: this.hasSpatialData,
       spatialBuffer: this.spatialBuffer,
@@ -163,4 +216,54 @@ export class BinaryBufferReader {
       stimuliCount: this.stimuliCount,
     }
   }
+}
+
+/**
+ * Build `fixationIndex` + `fixationIndexTable` from an existing segment buffer
+ * by scanning each (stimulus, participant) range for category-0 segments.
+ * Used as a fallback when constructing a reader from a legacy
+ * BinarySegmentBuffers that lacks the precomputed fixation index.
+ */
+function buildFixationIndex(
+  segmentBuffer: Float32Array,
+  indexTable: Uint32Array,
+  stimuliCount: number,
+  maxParticipants: number,
+): { fixationIndex: Uint32Array; fixationIndexTable: Uint32Array } {
+  // Pass 1: count fixations to size the output exactly.
+  let total = 0
+  for (let s = 0; s < stimuliCount; s++) {
+    for (let p = 0; p < maxParticipants; p++) {
+      const idx = (s * maxParticipants + p) * 2
+      const startIndex = indexTable[idx]
+      const endIndex = indexTable[idx + 1]
+      for (let i = startIndex; i < endIndex; i++) {
+        if ((segmentBuffer[i * SEGMENT_STRIDE + SegmentField.CATEGORY_ID] | 0) === FIXATION_CATEGORY_ID) {
+          total++
+        }
+      }
+    }
+  }
+
+  const fixationIndex = new Uint32Array(total)
+  const fixationIndexTable = new Uint32Array(stimuliCount * maxParticipants * 2)
+  let cursor = 0
+
+  for (let s = 0; s < stimuliCount; s++) {
+    for (let p = 0; p < maxParticipants; p++) {
+      const idx = (s * maxParticipants + p) * 2
+      const startIndex = indexTable[idx]
+      const endIndex = indexTable[idx + 1]
+      const fixStart = cursor
+      for (let i = startIndex; i < endIndex; i++) {
+        if ((segmentBuffer[i * SEGMENT_STRIDE + SegmentField.CATEGORY_ID] | 0) === FIXATION_CATEGORY_ID) {
+          fixationIndex[cursor++] = i
+        }
+      }
+      fixationIndexTable[idx] = fixStart
+      fixationIndexTable[idx + 1] = cursor
+    }
+  }
+
+  return { fixationIndex, fixationIndexTable }
 }

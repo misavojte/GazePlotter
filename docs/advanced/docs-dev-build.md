@@ -1,43 +1,43 @@
 # Docs dev & build
 
-GazePlotterDocs uses VitePress to build and serve the documentation site from `.md` files. The development set-up requires that you have Node (14 or higher) installed.
+The GazePlotter documentation is integrated directly into the main application codebase. The files are written in Markdown (`.md`) and preprocessed using **MDsveX**, allowing them to be compiled as Svelte components and prerendered by **SvelteKit** at build time.
 
-More about the dev & build process of the main app can be found [here](/docs/advanced/app-dev-build).
+More about the dev & build process of the main app can be found in the [App dev & build](/docs/advanced/app-dev-build) section.
 
-## Download the source code
+## File Locations
 
-The code can be downloaded as a zip file, but it is highly recommended to either fork the repository or clone it.
+- **Content files**: All documentation pages are located in the `docs/` directory at the root of the project (e.g., `docs/setup/workspace.md`).
+- **Sidebar Configuration**: The sidebar menu and descriptions are managed in `src/routes/docs/sidebarConfig.ts`.
+- **Routing**: SvelteKit dynamic routing is configured in `src/routes/docs/[...slug]`.
 
-### Fork the repository
+## Quick Start
 
-To fork the repository, click the `Fork` button in the top-right corner of the [GitHub repository](https://github.com/misavojte/GazePlotterDocs).
+To preview the documentation locally:
 
-### Clone the repository
+1. In the terminal, make sure you are in the project's root directory.
+2. Run the main development server:
+   ```bash
+   npm run dev
+   ```
+3. Open `http://localhost:5173/docs` (or the port specified by Vite) in your browser. The documentation pages will reload automatically as you edit the `.md` files.
 
-To clone the repository, open the terminal and run the following command:
+## Adding or Modifying Pages
 
-```bash
-git clone https://github.com/misavojte/GazePlotterDocs.git
-```
+When adding a new documentation page:
 
-## Quick start
+1. Create a new `.md` file inside the appropriate subfolder under the root `docs/` directory.
+2. Add standard Markdown headers and content.
+3. Open `src/routes/docs/sidebarConfig.ts` and add the page to the `SIDEBAR` array under the correct section, specifying its `name`, `href` (matching `/docs/...`), and a short `description`.
 
-In the terminal, make sure you are in the project's root directory. Then, to start Vite server and run dev version of project locally on `http://localhost:5174/`, use:
+## Building the Docs
 
-```bash
-npm install
-npm run dev
-```
-
-## Build the docs
-
-To build the docs, use:
+Since the documentation is part of the SvelteKit app, it is built automatically when compiling the main application:
 
 ```bash
 npm run build
 ```
 
-Production build is located in the `.vitepress/dist` directory. For its preview on `http://localhost:4173/`, use:
+The production assets, including the prerendered HTML for all documentation routes, will be placed in the `build/` directory. To preview the production build locally, run:
 
 ```bash
 npm run preview

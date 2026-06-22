@@ -5,7 +5,7 @@ import {
   createColorGradient,
   isDarkColor,
   getContrastTextColor,
-} from '$lib/color/utility'
+} from '$lib/color'
 
 // Helper function to normalize hex colors for comparison
 const normalizeHex = (hex: string) => hex.toLowerCase()

@@ -2,6 +2,7 @@ import {
   type BinarySegmentBuffers,
   SEGMENT_STRIDE,
   SegmentField,
+  FIXATION_CATEGORY_ID,
 } from './schema'
 import { BinaryBufferReader } from './reader.segment'
 
@@ -17,7 +18,6 @@ type SegmentsWithSpatialJson = {
  */
 export function jsonSegmentsToBinary(
   segments: number[][][][],
-  groupMap?: Uint16Array,
   spatialData?: SpatialDataJson
 ): BinarySegmentBuffers {
   const stimuliCount = segments.length
@@ -25,6 +25,8 @@ export function jsonSegmentsToBinary(
     return {
       segmentBuffer: new Float32Array(0),
       indexTable: new Uint32Array(0),
+      fixationIndex: new Uint32Array(0),
+      fixationIndexTable: new Uint32Array(0),
       aoiPool: new Uint16Array(0),
       hasSpatialData: false,
       maxParticipants: 0,
@@ -39,6 +41,7 @@ export function jsonSegmentsToBinary(
 
   let totalSegments = 0
   let totalAois = 0
+  let totalFixations = 0
 
   for (let s = 0; s < stimuliCount; s++) {
     const stimulus = segments[s] ?? []
@@ -49,12 +52,15 @@ export function jsonSegmentsToBinary(
       for (const segment of participantSegments) {
         const aoiCount = Math.max(0, segment.length - 3)
         totalAois += aoiCount
+        if ((segment[2] | 0) === FIXATION_CATEGORY_ID) totalFixations++
       }
     }
   }
 
   const segmentBuffer = new Float32Array(totalSegments * SEGMENT_STRIDE)
   const indexTable = new Uint32Array(stimuliCount * maxParticipants * 2)
+  const fixationIndex = new Uint32Array(totalFixations)
+  const fixationIndexTable = new Uint32Array(stimuliCount * maxParticipants * 2)
   const aoiPool = new Uint16Array(totalAois)
   const hasSpatialData = spatialData !== undefined
   const spatialBuffer = hasSpatialData
@@ -63,6 +69,7 @@ export function jsonSegmentsToBinary(
 
   let segmentIndex = 0
   let aoiPoolIndex = 0
+  let fixationCursor = 0
 
   for (let s = 0; s < stimuliCount; s++) {
     const stimulus = segments[s] ?? []
@@ -71,6 +78,7 @@ export function jsonSegmentsToBinary(
     for (let p = 0; p < maxParticipants; p++) {
       const indexTableIdx = (s * maxParticipants + p) * 2
       const startSegmentIndex = segmentIndex
+      const startFixationCursor = fixationCursor
 
       const participantSegments = stimulus[p] ?? []
       const participantSpatial = spatialStimulus[p] ?? []
@@ -78,10 +86,11 @@ export function jsonSegmentsToBinary(
       for (let i = 0; i < participantSegments.length; i++) {
         const segment = participantSegments[i]
         const base = segmentIndex * SEGMENT_STRIDE
+        const categoryId = segment[2]
 
         segmentBuffer[base + SegmentField.START_TIME] = segment[0]
         segmentBuffer[base + SegmentField.END_TIME] = segment[1]
-        segmentBuffer[base + SegmentField.CATEGORY_ID] = segment[2]
+        segmentBuffer[base + SegmentField.CATEGORY_ID] = categoryId
 
         const aoiCount = Math.max(0, segment.length - 3)
         segmentBuffer[base + SegmentField.AOI_COUNT] = aoiCount
@@ -100,17 +109,25 @@ export function jsonSegmentsToBinary(
           }
         }
 
+        if ((categoryId | 0) === FIXATION_CATEGORY_ID) {
+          fixationIndex[fixationCursor++] = segmentIndex
+        }
+
         segmentIndex++
       }
 
       indexTable[indexTableIdx] = startSegmentIndex
       indexTable[indexTableIdx + 1] = segmentIndex
+      fixationIndexTable[indexTableIdx] = startFixationCursor
+      fixationIndexTable[indexTableIdx + 1] = fixationCursor
     }
   }
 
   return {
     segmentBuffer,
     indexTable,
+    fixationIndex,
+    fixationIndexTable,
     aoiPool,
     hasSpatialData,
     spatialBuffer,
@@ -130,9 +147,6 @@ export function binarySegmentsToJson(
 
 /**
  * Convert binary buffers back to legacy JSON segments format with optional spatial data.
- *
- * NOTE: Phase 1 intentionally keeps workspace JSON import/export segment-only.
- * This helper exists for segmented-data export and controlled internal use.
  */
 export function binarySegmentsToJsonWithSpatial(
   buffers: BinarySegmentBuffers
@@ -206,7 +220,7 @@ export function createReaderFromJson(
   segments: number[][][][],
   spatialData?: SpatialDataJson
 ): BinaryBufferReader {
-  const buffers = jsonSegmentsToBinary(segments, undefined, spatialData)
+  const buffers = jsonSegmentsToBinary(segments, spatialData)
   return new BinaryBufferReader(buffers)
 }
 
@@ -217,7 +231,7 @@ export function validateRoundtrip(
   original: number[][][][],
   spatialData?: SpatialDataJson
 ): boolean {
-  const buffers = jsonSegmentsToBinary(original, undefined, spatialData)
+  const buffers = jsonSegmentsToBinary(original, spatialData)
   const converted = binarySegmentsToJson(buffers)
   const convertedWithSpatial = binarySegmentsToJsonWithSpatial(buffers)
 

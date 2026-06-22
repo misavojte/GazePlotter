@@ -3,13 +3,9 @@
   import { Section, ModalButtons } from '$lib/modals'
   import { getStimuliOptions } from '$lib/plots/shared'
   import { getGazePlotterSession } from '$lib/session'
-  import {
-    createExportButtons,
-    waitForExportUi,
-  } from '../shared/helpers'
+  import { createExportButtons, waitForExportUi } from '../shared/helpers'
 
   const { engine, exportService, modalState } = getGazePlotterSession()
-  const canReturnToFormats = $derived(modalState.stack.length > 1)
   let fileName = $state('GazePlotter-ScanGraph')
   let stimulusId = $state('0')
   let isExporting = $state(false)
@@ -41,8 +37,6 @@
       isExporting,
       onCancel: () => modalState.close(),
       onExport: handleExport,
-      onOpenFormats: canReturnToFormats ? () => modalState.close() : undefined,
-      openFormatsLabel: 'Back to All Data Formats',
     })
   )
 </script>
@@ -50,11 +44,11 @@
 <div class="container">
   <Section>
     <div class="content">
-    <p class="purpose-description">
-      Export scanpath data for similarity analysis and visualization.
-      Compatible with eyetracking.upol.cz/scangraph tool.
-    </p>
-  </div>
+      <p class="purpose-description">
+        Export scanpath data for similarity analysis and visualization.
+        Compatible with eyetracking.upol.cz/scangraph tool.
+      </p>
+    </div>
   </Section>
 
   <Section title="Export Settings">

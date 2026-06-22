@@ -1,13 +1,13 @@
-import type { WorkspaceCommandChain } from '$lib/workspace/commands'
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
-import { isHistoryCommand } from '$lib/workspace/commands'
+import type { WorkspaceCommandChain } from './types'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import { isHistoryCommand } from './utils'
 import { GridState } from '$lib/workspace/grid'
 import {
   createWorkspaceCommandRegistry,
   type WorkspaceCommandRegistryErrorContext,
-  UndoRedoStateStore,
-} from '$lib/workspace/commands'
-import { getCommandLabel } from '$lib/workspace/commands/labels'
+} from './registry'
+import { UndoRedoStateStore } from './undoRedoState.svelte'
+import { getCommandLabel } from './labels'
 
 /**
  * Creates a command handler for workspace changes with integrated undo/redo support.

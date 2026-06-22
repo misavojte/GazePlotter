@@ -1,19 +1,25 @@
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import type { DataType } from '$lib/data/types'
 import type { ErrorService } from '$lib/errors'
-import type { GridState } from '$lib/workspace/grid/store.svelte'
+import type { GridState } from '$lib/workspace/grid/gridState.svelte'
 import type { IngestService } from '$lib/data/ingest'
 import type { ToastState } from '$lib/toaster/toastState.svelte'
 import {
   downloadBatchZip,
+  downloadEventBatchZip,
+  downloadEventUnifiedCsv,
+  downloadScanpathSimilarity,
   downloadScanGraph,
   downloadUnifiedCsv,
   downloadWorkspace,
 } from './controller'
 import type { CsvFormatOptions } from './encoders/csv'
+import type { ExportNaming } from './types'
 import {
   type AggregatedExportOptions,
   generateAggregatedCsv,
 } from './mappers/aggregated'
+import type { ScanpathSimilarityExportOptions } from './mappers/scanpath-similarity'
 import { triggerDownload } from './download'
 
 type ExportServiceDeps = {
@@ -34,6 +40,15 @@ export type SegmentedExportOptions = {
   stimulusIds: Set<string>
   filterFixations?: boolean
   csvOptions?: CsvFormatOptions
+  naming?: ExportNaming
+}
+
+export type EventExportOptions = {
+  fileName: string
+  exportType: 'csv' | 'individual-csv'
+  stimulusIds: Set<string>
+  csvOptions?: CsvFormatOptions
+  naming?: ExportNaming
 }
 
 export type ScangraphExportOptions = {
@@ -41,16 +56,27 @@ export type ScangraphExportOptions = {
   stimulusId: number
 }
 
+export type { ScanpathSimilarityExportOptions }
+
 export class ExportService {
   constructor(private readonly deps: ExportServiceDeps) {}
 
-  private getExportData() {
+  private getExportData(): DataType {
     const meta = this.deps.engine.metadata
     const segments = this.deps.engine.segments
     if (!meta || !segments) {
       throw new Error('Data engine metadata or segments not available')
     }
-    return { ...meta, segments }
+    // Re-stitch the binary stores the engine holds outside `metadata` back
+    // into the serializable shape: segments and the event occurrence buffers.
+    return {
+      ...meta,
+      segments,
+      eventData: {
+        ...meta.eventData,
+        events: this.deps.engine.getEventBuffersJson(),
+      },
+    }
   }
 
   private resolveFileName(fileName: string): string {
@@ -106,6 +132,7 @@ export class ExportService {
 
       const data = this.getExportData()
       const fileName = this.resolveFileName(options.fileName)
+      const naming = options.naming ?? 'displayed'
 
       if (options.exportType === 'csv') {
         downloadUnifiedCsv(
@@ -113,7 +140,8 @@ export class ExportService {
           fileName,
           options.stimulusIds,
           options.filterFixations ?? false,
-          options.csvOptions
+          options.csvOptions,
+          naming
         )
         return
       }
@@ -123,7 +151,8 @@ export class ExportService {
         fileName,
         options.stimulusIds,
         options.filterFixations ?? false,
-        options.csvOptions
+        options.csvOptions,
+        naming
       )
     },
       options.exportType === 'csv'
@@ -134,6 +163,48 @@ export class ExportService {
         fileName: options.fileName,
         stimulusCount: options.stimulusIds.size,
         filterFixations: options.filterFixations ?? false,
+        naming: options.naming ?? 'displayed',
+      }
+    )
+  }
+
+  async exportEventData(options: EventExportOptions): Promise<boolean> {
+    return this.runExport(async () => {
+      if (options.stimulusIds.size === 0) {
+        throw new Error('Select at least one stimulus to export')
+      }
+
+      const data = this.getExportData()
+      const fileName = this.resolveFileName(options.fileName)
+      const naming = options.naming ?? 'displayed'
+
+      if (options.exportType === 'csv') {
+        downloadEventUnifiedCsv(
+          data,
+          fileName,
+          options.stimulusIds,
+          options.csvOptions,
+          naming
+        )
+        return
+      }
+
+      await downloadEventBatchZip(
+        data,
+        fileName,
+        options.stimulusIds,
+        options.csvOptions,
+        naming
+      )
+    },
+      options.exportType === 'csv'
+        ? 'Single CSV file exported successfully'
+        : 'Individual CSV files exported and zipped successfully',
+      {
+        exportType: options.exportType,
+        fileName: options.fileName,
+        stimulusCount: options.stimulusIds.size,
+        naming: options.naming ?? 'displayed',
       }
     )
   }
@@ -151,6 +222,28 @@ export class ExportService {
         exportType: 'scangraph',
         fileName: options.fileName,
         stimulusId: options.stimulusId,
+      }
+    )
+  }
+
+  async exportScanpathSimilarity(
+    options: ScanpathSimilarityExportOptions
+  ): Promise<boolean> {
+    const fileName = this.resolveFileName(options.fileName)
+    return this.runExport(
+      () =>
+        downloadScanpathSimilarity(this.deps.engine, {
+          ...options,
+          fileName,
+        }),
+      'Scanpath similarity matrix exported successfully',
+      {
+        exportType: 'scanpath-similarity',
+        fileName: options.fileName,
+        stimulusId: options.stimulusId,
+        groupId: options.groupId,
+        similarityMethod: options.similarityMethod,
+        collapsed: options.collapsed,
       }
     )
   }

@@ -6,10 +6,12 @@
     type MenuItem,
     contextMenuState,
   } from '$lib/context-menu'
+  import { responsive } from '../responsive.svelte'
 
   interface ActionItem {
     label: string
-    run: () => void
+    run?: () => void
+    children?: ActionItem[]
   }
 
   interface Props {
@@ -17,34 +19,48 @@
     icon: LucideIconComponent
     actions: ActionItem[]
     disabled?: boolean
+    /**
+     * When true, renders the `label` text inline beside the icon
+     * instead of exposing it only through tooltip/aria. Used by the
+     * rail's mobile plot-selected mode where the single Edit action
+     * carries a readable label so there's no tooltip dependency.
+     */
+    showLabel?: boolean
   }
 
-  let { label, icon: Icon, actions = [], disabled = false }: Props = $props()
+  let {
+    label,
+    icon: Icon,
+    actions = [],
+    disabled = false,
+    showLabel = false,
+  }: Props = $props()
 
-  let iconElement: HTMLDivElement | null = $state(null)
+  function toMenuItem(action: ActionItem): MenuItem {
+    if (action.children && action.children.length > 0) {
+      return { label: action.label, children: action.children.map(toMenuItem) }
+    }
+    return { label: action.label, onAction: action.run }
+  }
 
-  const menuItems = $derived.by((): MenuItem[] => {
-    return actions.map(action => ({
-      label: action.label,
-      onAction: action.run,
-    }))
-  })
+  const menuItems = $derived.by((): MenuItem[] => actions.map(toMenuItem))
 
+  // The item opens a menu when it has more than one entry, or a single entry
+  // that is itself a submenu (e.g. only one plot group is available).
+  const hasMenu = $derived(
+    actions.length > 1 ||
+      (actions.length === 1 && (actions[0].children?.length ?? 0) > 0)
+  )
+
+  // Press-feedback (icon scale-down) is pure CSS — see the
+  // `.toolbar-item:active ... .toolbar-item-icon` rule below. The
+  // button's `disabled` attribute suppresses clicks at the platform
+  // level. `handleClick` only routes the single-action case here;
+  // multi-action falls through to `contextMenuAction`.
   function handleClick() {
     if (disabled) return
-
-    if (iconElement) {
-      iconElement.style.transform = 'scale(0.85)'
-      setTimeout(() => {
-        if (iconElement) {
-          iconElement.style.transform = 'scale(1)'
-        }
-      }, 100)
-    }
-
-    if (actions.length === 1) {
+    if (actions.length === 1 && actions[0].run && !actions[0].children?.length) {
       actions[0].run()
-      return
     }
   }
 
@@ -55,26 +71,31 @@
   <button
     class="toolbar-item"
     class:disabled
+    class:with-label={showLabel}
     onclick={handleClick}
     {disabled}
     aria-label={label}
     use:tooltipAction={{
       content: label,
-      position: 'right',
-      disabled: isMenuVisible,
+      position: responsive.isMobile ? 'top' : 'right',
+      disabled: isMenuVisible || responsive.isMobile,
     }}
     use:contextMenuAction={{
-      items: actions.length > 1 ? menuItems : undefined,
-      position: 'right',
-      horizontalAlign: 'start',
+      items: hasMenu ? menuItems : undefined,
+      position: responsive.isMobile ? 'top' : 'right',
+      horizontalAlign: responsive.isMobile ? 'center' : 'start',
+      verticalAlign: responsive.isMobile ? 'end' : undefined,
       offset: 8,
-      slideFrom: 'left',
-      disabled: disabled || actions.length <= 1,
+      slideFrom: responsive.isMobile ? 'top' : 'left',
+      disabled: disabled || !hasMenu,
     }}
   >
-    <div class="toolbar-item-icon" bind:this={iconElement}>
+    <div class="toolbar-item-icon">
       <Icon size={16} strokeWidth={1.75} />
     </div>
+    {#if showLabel}
+      <span class="toolbar-item-label">{label}</span>
+    {/if}
   </button>
 </div>
 
@@ -94,8 +115,8 @@
     width: 24px;
     height: 24px;
     padding: 4px;
-    border-radius: 6px;
-    color: var(--c-darkgrey, #666);
+    border-radius: var(--rounded-md);
+    color: var(--c-darkgrey);
     background: transparent;
     border: none;
     stroke: var(--c-darkgrey);
@@ -103,12 +124,12 @@
     stroke-linecap: round;
     stroke-linejoin: round;
     fill: none;
-    transition: all 0.15s ease-out;
+    transition: all var(--transition-fast) ease-out;
   }
 
   .toolbar-item:hover:not(.disabled) {
     transform: scale(1.05);
-    background-color: var(--c-midgrey, #e0e0e0);
+    background-color: var(--c-midgrey);
     color: var(--c-black);
     stroke: var(--c-black);
   }
@@ -118,13 +139,35 @@
     cursor: not-allowed;
   }
 
+  /* Label variant: reuses the same toolbar-item base styles; just
+     widens the button to fit an inline label beside the icon. No
+     new color or shape tokens — the button keeps its existing
+     transparent-background + darkgrey/black hover behavior. */
+  .toolbar-item.with-label {
+    width: auto;
+    height: auto;
+    padding: 6px 10px;
+    gap: var(--spacing-xs);
+  }
+
   .toolbar-item-icon {
     width: 16px;
     height: 16px;
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.1s ease;
+    transition: transform var(--transition-fast) ease;
+  }
+
+  .toolbar-item:active:not(.disabled) .toolbar-item-icon {
+    transform: scale(0.85);
+  }
+
+  .toolbar-item-label {
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1;
+    white-space: nowrap;
   }
 </style>
 

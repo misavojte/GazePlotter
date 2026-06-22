@@ -1,77 +1,72 @@
 <script lang="ts">
   import {
-    beginCanvasDrawing,
-    canvasLifecycleAction,
-    createRenderScheduler,
-    createCanvasState,
-    finishCanvasDrawing,
-    getScaledMousePosition,
+    alignToPixelCenter,
     getTooltipPosition,
-    refreshCanvasLifecycle,
-    type CanvasState,
   } from '$lib/plots/shared/canvasUtils'
-  import {
-    EXPORT_SOURCE_CONTEXT,
-    type ExportSourceRegistrar,
-    registerCanvasExportSource,
-  } from '$lib/data/export'
   import {
     computeGroupedLegendGeometry,
     drawLegend,
     drawLegendGroupTitles,
-    drawTimelineLabels,
-    drawTopXAxisTicksAndBorder,
+    drawPlotArea,
     drawXAxisLabel,
-    drawXAxisTicksAndBorder,
     getLegendTooltipContent,
     getLegendTooltipPosition,
     hitTestLegend,
+    niceTimelineTicks,
     SCARF_LEGEND_CONFIG,
+    usePlot,
+    NO_MARGINS,
+    canvasBlockSelect,
+    FONT_PRIMARY,
+    type BlockedRegion,
+    type CanvasExportProps,
+    type FramePointer,
+    type FrameDrag,
     type LegendGeometry,
     type LegendGroup,
     type LegendItemGeometry,
+    getXAxisHeight,
+    getXAxisLabelOffset,
+    maxAxisTitleHeight,
+    PLOT_LEGEND_GAP,
   } from '$lib/plots/shared'
-  import { UI_COLORS } from '$lib/color'
-  import { updateTooltip } from '$lib/tooltip'
-  import { getContext, onDestroy, untrack } from 'svelte'
-  import { SCARF_LAYOUT } from '../const'
+  import { onDestroy } from 'svelte'
+  import { measureTextHeight } from '$lib/shared/utils/textUtils'
+  import { RECT_STRIDE, SCARF_LAYOUT } from '../const'
   import {
     calculateEffectiveMarginTop,
     calculateIntrinsicContentHeight,
     calculateIsCompactMode,
     calculateLegendStructuralHeight,
     calculateLeftLabelWidth,
+    calculateOverlayLayout,
+    calculateOverlayMinRowPitch,
     calculatePlotLayout,
     getScarfIdentifierSystem,
     getXAxisLabel,
   } from '../core/layout'
   import {
-    calculateEventLayoutOverrides,
     calculateHighlightMask,
     createStyleArrays,
     mapDataToLegendGroups,
   } from '../core/transformer'
   import {
-    drawScarfEvents,
+    drawScarfBands,
     drawScarfGrid,
+    drawScarfHighlightMarkers,
     drawScarfLabels,
-    drawScarfRectangles,
     type ScarfLayoutContext,
   } from '../core/renderer'
   import type { ScarfData, ScarfPlotSettings } from '../types'
 
-  interface Props {
-    tooltipAreaElement: HTMLElement | SVGElement | null
+  // `width`/`height` are the standard total-canvas sizing props (CanvasExportProps),
+  // matching every other figure — the on-screen grid cell or the export dimensions.
+  interface Props extends CanvasExportProps {
     data: ScarfData
     settings: ScarfPlotSettings
     highlights: string[]
     onLegendClick: (identifier: string) => void
-    onTooltipActivation: ({
-      segmentOrderId,
-      participantId,
-      x,
-      y,
-    }: {
+    onTooltipActivation: (args: {
       segmentOrderId: number
       participantId: number
       x: number
@@ -80,18 +75,9 @@
     onTooltipDeactivation: () => void
     onDragStepX?: (stepChange: number) => void
     onDragEnd?: () => void
-    chartWidth: number
-    availableHeight: number // The actual pixel height from the Grid
-    dpiOverride?: number | null // Override for DPI settings when exporting
-    marginTop?: number
-    marginRight?: number
-    marginBottom?: number
-    marginLeft?: number
   }
 
-  // Component props using Svelte 5 $props rune
   let {
-    tooltipAreaElement,
     data,
     settings,
     highlights = [],
@@ -100,185 +86,188 @@
     onTooltipDeactivation = () => {},
     onDragStepX = () => {},
     onDragEnd = () => {},
-    chartWidth = 0,
-    availableHeight,
+    width = 0,
+    height,
     dpiOverride = null,
-    marginTop = 0,
-    marginRight = 0,
-    marginBottom = 0,
-    marginLeft = 0,
+    margins = NO_MARGINS,
   }: Props = $props()
 
-  // Internal layout constants for compact rendering
-  const INTERNAL_PADDING_TOP = 6 // Space for top ticks
-  const INTERNAL_PADDING_BOTTOM = 0 // Zero padding at bottom as it serves no purpose (only top needs space for ticks)
+  const HIGHLIGHT_COLOR = '#007acc'
+  const HIGHLIGHT_FILL_ALPHA = 0.2
+  const HIGHLIGHT_DASH: number[] = [2, 2]
+  const INTERNAL_PADDING_TOP = 6
+  const INTERNAL_PADDING_BOTTOM = 0
 
-  // 1. Calculate Legend structural metrics (data-only, no layout dependency)
-  // This breaks the circular dependency: legend structural height depends only on data.
-  const legendHeight = $derived(
-    calculateLegendStructuralHeight(data.legendData?.groups ?? [], chartWidth)
-  )
+  const isOverlayMode = $derived(data.isOverlay)
 
-  // 2. Fixed vertical overhead (margins, padding, legend, axis space)
-  const fixedOverheadAbove = $derived(marginTop + INTERNAL_PADDING_TOP)
-  const fixedOverheadBelow = $derived(
-    45 + legendHeight + marginBottom + INTERNAL_PADDING_BOTTOM
-  )
-  const totalFixedOverhead = $derived(fixedOverheadAbove + fixedOverheadBelow)
-
-  const netAvailableHeight = $derived(
-    Math.max(1, availableHeight - totalFixedOverhead)
-  )
-
-  const isCompactMode = $derived(
-    calculateIsCompactMode(data.participants.length, netAvailableHeight)
-  )
-
-  // Extract participant labels only when needed (normal mode)
-  // Stops mapping thousands of names in compact mode
-  const participantLabels = $derived.by(() => {
-    if (isCompactMode) return []
-    return data.participants.map(p => p.label)
-  })
-
-  const LEFT_LABEL_WIDTH = $derived(
-    calculateLeftLabelWidth(isCompactMode, participantLabels)
-  )
-
-  const plotAreaWidth = $derived(
-    Math.max(
-      0,
-      chartWidth -
-        marginLeft -
-        marginRight -
-        LEFT_LABEL_WIDTH -
-        SCARF_LAYOUT.RIGHT_MARGIN
-    )
-  )
-
-  // 2. Dynamic Layout Logic - handles both shrinking AND scaling up
-  // Unified scale approach: single scaleFactor applied to bar dimensions
-  // Compact mode: when bars get too small, remove labels/gaps for density
-  // Iterative scaling: recalculate scale in compact mode to fill freed space
-  const layout = $derived(
-    calculatePlotLayout(
-      data.participants.length,
-      netAvailableHeight,
-      isCompactMode
-    )
-  )
-
-  // 3. Derived dimensions using dynamic layout
-  const participantBarsHeight = $derived(
-    data.participants.length * layout.heightOfBarWrap
-  )
-  const axisLabelY = $derived(participantBarsHeight + 30)
-  const legendY = $derived(participantBarsHeight + 45)
-
-  // State management with Svelte 5 runes
-  let isDragging = $state(false) // New state to track if actively dragging
-  let isHoveringSegment = $state(false) // Track if hovering or recently hovering a segment
-  let hoverTimeout: number | null = $state(null) // Timeout ID
-  let canvas = $state<HTMLCanvasElement | null>(null)
-  let canvasState = $state<CanvasState>(createCanvasState())
-
-  const exportRegistrar = getContext<ExportSourceRegistrar | undefined>(
-    EXPORT_SOURCE_CONTEXT
-  )
-
-  $effect(() => {
-    return registerCanvasExportSource(exportRegistrar, () => canvas)
-  })
-  let dragStartX = $state(0) // Track drag start position
-  let dragStartY = $state(0) // Track drag start position
-  let hasDragStarted = $state(false) // Track if drag threshold has been exceeded
-  let preparedForDragging = $state(false) // Track if prepared for dragging (shows draggable cursor)
-  let hoveredLegendItem = $state<LegendItemGeometry | null>(null) // Track currently hovered legend item
-
-  // Use highlights directly from props - workspace is the single source of truth
-  const usedHighlights = $derived(highlights)
   const xAxisLabel = $derived(
     getXAxisLabel(
       settings.timeline,
       settings.timelineStart,
-      settings.timelineEnd
+      settings.timelineEnd,
+      settings.ordinalStart,
+      settings.ordinalEnd
+    )
+  )
+  const legendHeight = $derived(
+    calculateLegendStructuralHeight(data.legendData?.groups ?? [], width)
+  )
+
+  const tickLabelHeight = $derived.by(() => {
+    let maxHeight = 0
+    const ticks = niceTimelineTicks(data.timeline).labels || []
+    for (const t of ticks) {
+      const h = measureTextHeight(t, FONT_PRIMARY.SIZE, FONT_PRIMARY.FAMILY)
+      if (h > maxHeight) maxHeight = h
+    }
+    return maxHeight
+  })
+  // Reserve the worst-case (2-line) x-title height — the plot width the title
+  // wraps to depends on the left-label width, which depends (via compact mode →
+  // plot height → bottom margin) back on this height, so it can't be wrapped
+  // exactly here without a cycle. The draw still wraps to the real width.
+  const axisTitleHeight = $derived(xAxisLabel ? maxAxisTitleHeight(FONT_PRIMARY.SIZE) : 0)
+  const xAxisHeight = $derived(
+    xAxisLabel ? getXAxisHeight(tickLabelHeight, axisTitleHeight, 10) : 10 + tickLabelHeight
+  )
+  const xAxisLabelOffset = $derived(getXAxisLabelOffset(tickLabelHeight, 10))
+
+  const fixedOverheadAbove = $derived(margins.top + INTERNAL_PADDING_TOP)
+  const fixedOverheadBelow = $derived.by(() => {
+    const legendSpace = legendHeight > 0 ? PLOT_LEGEND_GAP + legendHeight : 0
+    return xAxisHeight + legendSpace + margins.bottom + INTERNAL_PADDING_BOTTOM
+  })
+  const netAvailableHeight = $derived(
+    Math.max(1, height - fixedOverheadAbove - fixedOverheadBelow)
+  )
+
+  const layout = $derived.by(() => {
+    const count = data.participants.length
+    if (isOverlayMode) {
+      return calculateOverlayLayout(count, data.eventZoneConcurrency ?? 0, netAvailableHeight)
+    }
+    const compact = calculateIsCompactMode(count, netAvailableHeight)
+    const base = calculatePlotLayout(count, netAvailableHeight, compact)
+    return {
+      ...base,
+      eventLaneHeight: 0,
+      eventZoneHeight: 0,
+      eventBandTop: 0,
+    }
+  })
+  const isCompactMode = $derived(layout.isCompact)
+
+  const participantLabels = $derived.by(() =>
+    isCompactMode ? [] : data.participants.map(p => p.label)
+  )
+  const LEFT_LABEL_WIDTH = $derived(calculateLeftLabelWidth(isCompactMode, participantLabels))
+
+  const plotAreaWidth = $derived(
+    Math.max(
+      0,
+      width - margins.left - margins.right - LEFT_LABEL_WIDTH - SCARF_LAYOUT.RIGHT_MARGIN
     )
   )
 
-  // Convert ScarfLegendItem (data-only) to LegendItem (with presentation details)
-  // Heights are determined here in the presentation layer using layout constants
+  const participantBarsHeight = $derived(
+    data.participants.length * layout.heightOfBarWrap
+  )
+  const legendY = $derived(
+    participantBarsHeight + xAxisHeight + (legendHeight > 0 ? PLOT_LEGEND_GAP : 0)
+  )
+
+  // Hover state
+  let hoveredRowIndex = $state<number | null>(null)
+  let mouseXPx = $state<number | null>(null)
+  let hoveredLegendItem = $state<LegendItemGeometry | null>(null)
+  let currentHoveredSegment = $state<{ participantId: string | number; orderId: number } | null>(null)
+  // Pointer/drag scratch (not reactive — read only inside pointer callbacks)
+  let canDrag = false
+  let dragActive = false
+  let lastDragX = 0
+
+  const totalWidth = $derived(width)
+  const totalHeight = $derived(height)
+  const usedHighlights = $derived(highlights)
+
+  const plot = usePlot({
+    width: () => totalWidth,
+    height: () => totalHeight,
+    margins: () => margins,
+    dpiOverride: () => dpiOverride,
+    deps: () => [
+      data, settings, totalWidth, totalHeight, highlights, usedHighlights,
+      width, height, dpiOverride,
+      margins.left, margins.right, effectiveMarginTop, margins.bottom,
+    ],
+    placeholder: () => (canRender ? null : 'Increase height to view plot'),
+    gutters: () => ({}),
+    clipData: false,
+    drawData: renderScarf,
+    drawOverlay: drawScarfOverlay,
+    blockedRegions: () => blockedRegions,
+    pointer: {
+      onMove: handleHover,
+      onDown: handlePointerDown,
+      onDrag: handlePointerDrag,
+      onUp: handlePointerUp,
+      dragThreshold: 5,
+    },
+  })
+
   const legendGroups: LegendGroup[] = $derived(
     mapDataToLegendGroups(data.legendData?.groups ?? [])
   )
 
-  // Required height for all content (excluding explicit margins)
-  // This is the intrinsic height of the visualization content
-  // USES legendHeight (static) instead of legendGeometry.totalHeight (which depends on margins)
   const intrinsicContentHeight = $derived(
     calculateIntrinsicContentHeight(
-      legendHeight,
-      legendY,
-      axisLabelY,
-      INTERNAL_PADDING_BOTTOM
+      legendHeight, legendY, xAxisHeight, participantBarsHeight, INTERNAL_PADDING_BOTTOM
     )
   )
 
-  // Vertical centering offset: if available space exceeds content, center vertically
-  // Subtracting INTERNAL_PADDING_TOP ensures the centering feels balanced with the top safe area
   const effectiveMarginTop = $derived(
     calculateEffectiveMarginTop(
-      availableHeight,
-      intrinsicContentHeight,
-      marginTop,
-      marginBottom,
-      INTERNAL_PADDING_TOP
+      height, intrinsicContentHeight, margins.top, margins.bottom, INTERNAL_PADDING_TOP
     )
   )
 
-  // Compute final legend geometry using the actual effectiveMarginTop
-  // This depends on effectiveMarginTop, but nothing depends back on this geometry's totalHeight
   const legendGeometry: LegendGeometry = $derived.by(() => {
     if (legendGroups.length === 0) {
-      return {
-        items: [],
-        height: 0,
-        groupTitles: [],
-        totalHeight: 0,
-        itemsPerRow: 3,
-      }
+      return { items: [], height: 0, groupTitles: [], totalHeight: 0, itemsPerRow: 3 }
     }
-
-    const legendX = marginLeft
-    const lY = legendY + effectiveMarginTop
-
     return computeGroupedLegendGeometry(
       legendGroups,
       SCARF_LEGEND_CONFIG,
-      legendX,
-      lY,
-      chartWidth
+      margins.left,
+      legendY + effectiveMarginTop,
+      width
     )
   })
 
-  // Canvas size exactly matches available chartWidth
-  const totalWidth = $derived(chartWidth)
+  const blockedRegions = $derived.by<BlockedRegion[]>(() => {
+    const pad = Math.ceil(SCARF_LEGEND_CONFIG.itemSpacing / 2)
+    const regions: BlockedRegion[] = [
+      {
+        x: LEFT_LABEL_WIDTH + margins.left,
+        y: effectiveMarginTop,
+        w: plotAreaWidth,
+        h: participantBarsHeight,
+      },
+    ]
+    for (const item of legendGeometry.items) {
+      regions.push({
+        x: item.x - pad,
+        y: item.y - pad,
+        w: item.width + pad * 2,
+        h: SCARF_LEGEND_CONFIG.itemHeight + pad * 2,
+      })
+    }
+    return regions
+  })
 
-  // Track the currently hovered segment
-  let currentHoveredSegment = $state<{
-    participantId: string | number
-    orderId: number
-  } | null>(null)
-
-  // Create a unified identifier mapping system for all style types
   const identifierSystem = $derived.by(() => {
     if (!data.stylingAndLegend)
-      return {
-        idToIndex: new Map(),
-        indexToId: new Map(),
-        idToType: new Map(),
-        totalIdentifiers: 0,
-      }
-
+      return { idToIndex: new Map(), indexToId: new Map(), idToType: new Map(), totalIdentifiers: 0 }
     return getScarfIdentifierSystem(
       data.stylingAndLegend.aoi.map(i => i.identifier),
       data.stylingAndLegend.category.map(i => i.identifier),
@@ -286,159 +275,54 @@
     )
   })
 
-  // Style lookup maps for efficient style access - O(1) instead of O(n)
   const rectStyleMap = $derived.by(() => {
-    if (!data.stylingAndLegend) return new Map()
-
     const map = new Map()
-    const aoi = data.stylingAndLegend.aoi
-    const category = data.stylingAndLegend.category
-    const aoiLen = aoi.length
-    const catLen = category.length
-
-    // Pre-compute all rectangle styles (AOI and category) with dimmed state
-    for (let i = 0; i < aoiLen; i++) {
-      const style = aoi[i]
+    if (!data.stylingAndLegend) return map
+    for (const style of [...data.stylingAndLegend.aoi, ...data.stylingAndLegend.category]) {
       const baseStyle = { fill: style.color }
-      map.set(style.identifier, {
-        normal: baseStyle,
-        dimmed: {
-          ...baseStyle,
-          opacity: 0.15,
-        },
-      })
+      map.set(style.identifier, { normal: baseStyle, dimmed: { ...baseStyle, opacity: 0.15 } })
     }
-
-    for (let i = 0; i < catLen; i++) {
-      const style = category[i]
-      const baseStyle = { fill: style.color }
-      map.set(style.identifier, {
-        normal: baseStyle,
-        dimmed: {
-          ...baseStyle,
-          opacity: 0.15,
-        },
-      })
-    }
-
     return map
   })
 
   const eventStyleMap = $derived.by(() => {
-    if (!data.stylingAndLegend) return new Map()
-
     const map = new Map()
-    const visibility = data.stylingAndLegend.visibility
-    const len = visibility.length
-
-    // Visibility events use fixed stroke width
-    const strokeWidth = 1
-
-    // Pre-compute all event styles (visibility) with dimmed state
-    for (let i = 0; i < len; i++) {
-      const style = visibility[i]
-      const baseStyle = {
-        stroke: style.color,
-        strokeWidth,
-      }
-      map.set(style.identifier, {
-        normal: baseStyle,
-        dimmed: {
-          ...baseStyle,
-          opacity: 0.15,
-        },
-      })
+    if (!data.stylingAndLegend) return map
+    for (const style of data.stylingAndLegend.visibility) {
+      const baseStyle = { fill: style.color, stroke: style.color, strokeWidth: 1 }
+      map.set(style.identifier, { normal: baseStyle, dimmed: { ...baseStyle, opacity: 0.15 } })
     }
-
     return map
   })
 
-  // Highlight mask by style index (computed once per highlight change)
-  const highlightMaskByIndex = $derived(
-    calculateHighlightMask(usedHighlights, identifierSystem)
-  )
+  const highlightMaskByIndex = $derived(calculateHighlightMask(usedHighlights, identifierSystem))
 
-  // Total content height with effective margins
-  const totalContentHeight = $derived(
-    intrinsicContentHeight + effectiveMarginTop + marginBottom
-  )
-
-  // Canvas height is strictly the available height (no scrolling)
-  const totalHeight = $derived(availableHeight)
-  const getCanvasDimensions = () => ({ width: totalWidth, height: totalHeight })
-
-  // Check if we have enough space to render
-  // In compact mode, we can render with much less space (min 1px per participant)
-  // but we enforce a minimum plot area height to avoid cropping the rotated axis label
   const canRender = $derived.by(() => {
-    // Minimum plot height to avoid complete collapse
+    const count = data.participants.length
+    if (isOverlayMode) {
+      const minPitch = calculateOverlayMinRowPitch(data.eventZoneConcurrency ?? 0)
+      return netAvailableHeight >= Math.max(count * minPitch, SCARF_LAYOUT.MIN_PLOT_HEIGHT_COMPACT)
+    }
     const minPlotHeight = isCompactMode
-      ? Math.max(
-          data.participants.length * SCARF_LAYOUT.MIN_BAR_HEIGHT,
-          SCARF_LAYOUT.MIN_PLOT_HEIGHT_COMPACT
-        )
-      : SCARF_LAYOUT.MIN_PLOT_HEIGHT_COMPACT // Fallback min height
-
+      ? Math.max(count * SCARF_LAYOUT.MIN_BAR_HEIGHT, SCARF_LAYOUT.MIN_PLOT_HEIGHT_COMPACT)
+      : SCARF_LAYOUT.MIN_PLOT_HEIGHT_COMPACT
     return netAvailableHeight >= minPlotHeight
   })
 
-  // These MUST be declared before any derived values that use them
   const visualRectBuckets = $derived(data.visualRectBuckets)
   const visualEventBuckets = $derived(data.visualEventBuckets)
-
-  // Optimize lookups: Convert Maps to dense Arrays once per dependency change
+  const rectRowOffsets = $derived(data.rectRowOffsets)
   const styleArrays = $derived(
     createStyleArrays(
-      identifierSystem,
-      rectStyleMap,
-      eventStyleMap,
-      visualRectBuckets.length,
-      visualEventBuckets.length
+      identifierSystem, rectStyleMap, eventStyleMap,
+      visualRectBuckets.length, visualEventBuckets.length
     )
   )
   const rectStyleArray = $derived(styleArrays.rectStyles)
   const eventStyleArray = $derived(styleArrays.eventStyles)
 
-  // Calculate layout overrides for overlapping events
-  // IMPORTANT: This computation is expensive. We minimize reactive dependencies
-  // by using source data values directly and computing in normalized space.
-  const eventLayoutOverrides = $derived(
-    calculateEventLayoutOverrides(
-      isCompactMode,
-      visualEventBuckets,
-      data.barHeight,
-      data.heightOfBarWrap
-    )
-  )
-
-  // Interaction handlers
-  function handleLegendIdentifier(identifier: string) {
-    // Propagate to parent component - workspace is single source of truth
-    onLegendClick(identifier)
-  }
-
-  // Canvas drawing functions
-  function renderCanvas() {
-    beginCanvasDrawing(canvasState, true)
-
-    const ctx = canvasState.context
-    if (!ctx) return
-
-    if (!canRender) {
-      ctx.textAlign = 'center'
-      ctx.textBaseline = 'middle'
-      ctx.fillStyle = UI_COLORS.TEXT_SECONDARY
-      ctx.font = '14px sans-serif'
-      ctx.fillText(
-        'Increase height to view plot',
-        totalWidth / 2,
-        totalHeight / 2
-      )
-      finishCanvasDrawing(canvasState)
-      return
-    }
-
-    const scarfPlotLeft = Math.floor(LEFT_LABEL_WIDTH + marginLeft)
+  function renderScarf(ctx: CanvasRenderingContext2D) {
+    const scarfPlotLeft = Math.floor(LEFT_LABEL_WIDTH + margins.left)
     const scarfPlotWidth = Math.floor(plotAreaWidth)
 
     const renderCtx: ScarfLayoutContext = {
@@ -449,162 +333,194 @@
       scaleFactor: layout.scaleFactor,
       isCompact: layout.isCompact,
       leftLabelWidth: LEFT_LABEL_WIDTH,
-      plotAreaWidth: plotAreaWidth,
-      effectiveMarginTop: effectiveMarginTop,
-      participantBarsHeight: participantBarsHeight,
-      totalWidth: totalWidth,
-      marginLeft: marginLeft,
+      plotAreaWidth,
+      effectiveMarginTop,
+      participantBarsHeight,
+      totalWidth,
+      marginLeft: margins.left,
+      eventLaneHeight: layout.eventLaneHeight,
+      eventZoneHeight: layout.eventZoneHeight,
+      eventBandTop: layout.eventBandTop,
+      isOverlay: isOverlayMode,
     }
 
-    // 1. Draw Axis/Grid structure
     drawScarfLabels(ctx, data, renderCtx)
     drawScarfGrid(ctx, data, renderCtx)
 
-    drawTopXAxisTicksAndBorder(
-      ctx,
-      data.timeline,
-      scarfPlotLeft,
-      scarfPlotWidth,
-      effectiveMarginTop
-    )
-
-    // 2. Draw Data segments
-    drawScarfRectangles(
+    drawScarfBands(
       ctx,
       data,
       renderCtx,
       rectStyleArray,
+      eventStyleArray,
       highlightMaskByIndex
     )
-    drawScarfEvents(
-      ctx,
-      data,
-      renderCtx,
+
+    drawScarfHighlightMarkers(ctx, data, renderCtx, {
+      rectStyleArray,
       eventStyleArray,
-      highlightMaskByIndex,
-      eventLayoutOverrides
-    )
+      highlightMask: highlightMaskByIndex,
+      deviceScale: plot.canvasState.pixelRatio ?? 1,
+    })
 
-    // 3. Draw Axis labels and details
-    drawTimelineLabels(
-      ctx,
-      data.timeline,
-      scarfPlotLeft,
-      scarfPlotWidth,
-      participantBarsHeight + effectiveMarginTop
-    )
-
+    const scarfXTicks = niceTimelineTicks(data.timeline)
+    drawPlotArea(ctx, {
+      x: scarfPlotLeft,
+      y: effectiveMarginTop,
+      width: scarfPlotWidth,
+      height: participantBarsHeight,
+      ticks: { bottom: scarfXTicks, top: { positions: scarfXTicks.positions } },
+    })
     drawXAxisLabel(
-      ctx,
-      xAxisLabel,
-      scarfPlotLeft,
-      scarfPlotWidth,
-      participantBarsHeight + effectiveMarginTop,
-      30
+      ctx, xAxisLabel, scarfPlotLeft, scarfPlotWidth,
+      participantBarsHeight + effectiveMarginTop, xAxisLabelOffset
     )
 
-    drawXAxisTicksAndBorder(
-      ctx,
-      data.timeline,
-      scarfPlotLeft,
-      scarfPlotWidth,
-      participantBarsHeight + effectiveMarginTop
-    )
-
-    // 4. Draw legend
     drawLegendGroupTitles(ctx, legendGeometry, SCARF_LEGEND_CONFIG)
     drawLegend(ctx, legendGeometry, SCARF_LEGEND_CONFIG, usedHighlights)
-
-    finishCanvasDrawing(canvasState)
   }
 
-  // Check if a mouse click or hover is on a legend item
-  function isMouseOverLegendItem(
-    mouseX: number,
-    mouseY: number
-  ): LegendItemGeometry | null {
+  // Overlay layer: only the hover crosshair. Drawn on top of the cached data
+  // layer so mouse-moves repaint via blit instead of re-running renderScarf.
+  function drawScarfOverlay(ctx: CanvasRenderingContext2D) {
+    drawCrosshairHighlight(
+      ctx,
+      Math.floor(LEFT_LABEL_WIDTH + margins.left),
+      effectiveMarginTop,
+      Math.floor(plotAreaWidth),
+      participantBarsHeight,
+      layout.heightOfBarWrap
+    )
+  }
+
+  function drawCrosshairHighlight(
+    ctx: CanvasRenderingContext2D,
+    plotLeft: number, plotTop: number, plotWidth: number, plotHeight: number, rowHeight: number
+  ) {
+    if (hoveredRowIndex === null || mouseXPx === null) return
+    const rowY = plotTop + hoveredRowIndex * rowHeight
+
+    ctx.save()
+    ctx.globalAlpha = HIGHLIGHT_FILL_ALPHA
+    ctx.fillStyle = HIGHLIGHT_COLOR
+    ctx.fillRect(plotLeft, rowY, plotWidth, rowHeight)
+    ctx.restore()
+
+    ctx.save()
+    ctx.strokeStyle = HIGHLIGHT_COLOR
+    ctx.lineWidth = 1
+    ctx.setLineDash(HIGHLIGHT_DASH)
+    ctx.beginPath()
+    const topEdge = alignToPixelCenter(rowY)
+    const bottomEdge = alignToPixelCenter(rowY + rowHeight)
+    ctx.moveTo(plotLeft, topEdge)
+    ctx.lineTo(plotLeft + plotWidth, topEdge)
+    ctx.moveTo(plotLeft, bottomEdge)
+    ctx.lineTo(plotLeft + plotWidth, bottomEdge)
+    ctx.stroke()
+    ctx.restore()
+
+    ctx.save()
+    ctx.strokeStyle = HIGHLIGHT_COLOR
+    ctx.lineWidth = 1
+    ctx.setLineDash(HIGHLIGHT_DASH)
+    ctx.beginPath()
+    const x = alignToPixelCenter(mouseXPx)
+    ctx.moveTo(x, plotTop)
+    ctx.lineTo(x, plotTop + plotHeight)
+    ctx.stroke()
+    ctx.restore()
+  }
+
+  function isMouseOverLegendItem(mouseX: number, mouseY: number): LegendItemGeometry | null {
     if (!data.stylingAndLegend || !legendGeometry.items.length) return null
     return hitTestLegend(legendGeometry, SCARF_LEGEND_CONFIG, mouseX, mouseY)
   }
 
-  // Mouse event handling for canvas
-  function handleMouseMove(event: MouseEvent) {
-    if (!canvas) return
+  function inPlotArea(mx: number, my: number): boolean {
+    return (
+      mx >= LEFT_LABEL_WIDTH + margins.left &&
+      mx <= LEFT_LABEL_WIDTH + plotAreaWidth + margins.left &&
+      my >= effectiveMarginTop &&
+      my <= participantBarsHeight + effectiveMarginTop
+    )
+  }
 
-    // Get mouse position with correct scaling
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
+  // ── Hover (via the frame's pointer.onMove) ──
+  function handleHover(p: FramePointer) {
+    const { x: mx, y: my, isOver } = p
+    if (!isOver) {
+      if (hoveredLegendItem) {
+        hoveredLegendItem = null
+        plot.hideTooltip(0)
+      }
+      if (hoveredRowIndex !== null || mouseXPx !== null) {
+        hoveredRowIndex = null
+        mouseXPx = null
+        plot.scheduleOverlayRender()
+      }
+      if (currentHoveredSegment) {
+        currentHoveredSegment = null
+        onTooltipDeactivation()
+      }
+      plot.setCursor('default')
+      return
+    }
 
-    // Check if mouse is over a legend item
-    const legendItem = isMouseOverLegendItem(mouseX, mouseY)
-
-    // Handle legend item tooltips
-    // Use identifier comparison to avoid "state_proxy_equality_mismatch"
-    // Svelte 5 proxies and raw objects are not equal, so we compare unique IDs
-    const currentId = legendItem?.identifier
-    const hoveredId = hoveredLegendItem?.identifier
-
-    if (currentId !== hoveredId) {
+    const legendItem = isMouseOverLegendItem(mx, my)
+    if (legendItem?.identifier !== hoveredLegendItem?.identifier) {
       if (legendItem) {
-        // Show tooltip with "Highlight [FULLNAMEOFAOI]" or "Dehighlight [FULLNAMEOFAOI]" text
         hoveredLegendItem = legendItem
-        const isHighlighted = usedHighlights.includes(legendItem.identifier)
-
-        // Use utility functions for tooltip
-        const tooltipContent = getLegendTooltipContent(
-          legendItem,
-          isHighlighted
-        )
-        const tooltipItemPos = getLegendTooltipPosition(
-          legendItem,
-          SCARF_LEGEND_CONFIG
-        )
-        const tooltipPos = getTooltipPosition(
-          canvasState,
-          tooltipItemPos.x,
-          tooltipItemPos.y,
+        const pos = getLegendTooltipPosition(legendItem, SCARF_LEGEND_CONFIG)
+        plot.showTooltip(
+          legendItem.identifier,
+          getLegendTooltipContent(legendItem, usedHighlights.includes(legendItem.identifier)),
+          pos.x,
+          pos.y,
           { x: 0, y: 7 }
         )
-
-        updateTooltip({
-          id: legendItem.identifier,
-          visible: true,
-          content: tooltipContent,
-          x: tooltipPos.x,
-          y: tooltipPos.y,
-        })
       } else if (hoveredLegendItem) {
-        // Hide tooltip when mouse leaves legend item
         hoveredLegendItem = null
-        updateTooltip(null)
+        plot.hideTooltip(0)
       }
     }
 
     if (hoveredLegendItem) {
-      canvas.style.cursor = 'pointer'
+      plot.setCursor('pointer')
+      if (hoveredRowIndex !== null) {
+        hoveredRowIndex = null
+        mouseXPx = null
+        plot.scheduleOverlayRender()
+      }
       return
     }
 
-    // Check if mouse is in the draggable area
-    const inDraggableArea =
-      mouseX >= LEFT_LABEL_WIDTH + marginLeft &&
-      mouseX <= LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft &&
-      mouseY >= effectiveMarginTop &&
-      mouseY <=
-        data.participants.length * layout.heightOfBarWrap + effectiveMarginTop
-
-    // Update cursor based on dragging state and location
-    if (isDragging || preparedForDragging) {
-      canvas.style.cursor = 'grabbing'
-    } else if (inDraggableArea && !isHoveringSegment) {
-      canvas.style.cursor = 'grab'
-    } else {
-      canvas.style.cursor = 'default'
+    if (!inPlotArea(mx, my)) {
+      plot.setCursor('default')
+      if (hoveredRowIndex !== null) {
+        hoveredRowIndex = null
+        mouseXPx = null
+        plot.scheduleOverlayRender()
+      }
+      if (currentHoveredSegment) {
+        currentHoveredSegment = null
+        onTooltipDeactivation()
+      }
+      return
     }
 
-    // Find the segment under the mouse pointer using TypedArray
-    const hoveredSegment = findHoveredRectSegment(mouseX, mouseY)
+    plot.setCursor('crosshair')
 
-    // If hovering over a new segment, handle it
+    const rowHeight = layout.heightOfBarWrap
+    const newRowIndex = Math.floor((my - effectiveMarginTop) / rowHeight)
+    hoveredRowIndex =
+      newRowIndex >= 0 && newRowIndex < data.participants.length ? newRowIndex : null
+    mouseXPx = mx
+    plot.scheduleOverlayRender()
+
+    const hoveredSegment =
+      hoveredRowIndex !== null ? findSegmentAtRowAndTime(hoveredRowIndex, mx) : null
+
     if (
       hoveredSegment &&
       (!currentHoveredSegment ||
@@ -615,39 +531,11 @@
         participantId: hoveredSegment.participantId,
         orderId: hoveredSegment.orderId,
       }
-
-      // Set hovering state to true
-      isHoveringSegment = true
-
-      // Clear any existing timeout
-      if (hoverTimeout !== null) {
-        window.clearTimeout(hoverTimeout)
-        hoverTimeout = null
-      }
-
-      // Get consistent tooltip position
-      const xNormalized = hoveredSegment.x
-      const widthNormalized = hoveredSegment.width
-      const pIndex = hoveredSegment.y
-      const rectH = hoveredSegment.height
-      const internalY = hoveredSegment.internalY
-
-      // Floor dimensions for pixel-perfect synchronization
-      const floorLeft = Math.floor(LEFT_LABEL_WIDTH + marginLeft)
+      const floorLeft = Math.floor(LEFT_LABEL_WIDTH + margins.left)
       const floorWidth = Math.floor(plotAreaWidth)
-
-      const pxX1 = floorLeft + xNormalized * floorWidth
-      const pxW = widthNormalized * floorWidth
-      const pxY =
-        pIndex * layout.heightOfBarWrap + internalY + effectiveMarginTop
-
-      const tooltipPos = getTooltipPosition(
-        canvasState,
-        pxX1 + pxW,
-        pxY + rectH / 2,
-        { x: 5, y: 0 }
-      )
-
+      const segEndX = floorLeft + (hoveredSegment.x + hoveredSegment.width) * floorWidth
+      const rowBottomY = hoveredSegment.y * rowHeight + rowHeight + effectiveMarginTop
+      const tooltipPos = getTooltipPosition(plot.canvasState, segEndX, rowBottomY, { x: 5, y: 5 })
       onTooltipActivation({
         segmentOrderId: hoveredSegment.orderId,
         participantId: hoveredSegment.participantId,
@@ -655,245 +543,89 @@
         y: tooltipPos.y,
       })
     } else if (!hoveredSegment && currentHoveredSegment) {
-      // If moved out of a segment but still in canvas
       currentHoveredSegment = null
       onTooltipDeactivation()
-
-      // Set delayed reset of hovering state
-      if (hoverTimeout !== null) {
-        window.clearTimeout(hoverTimeout)
-      }
-
-      hoverTimeout = window.setTimeout(() => {
-        isHoveringSegment = false
-        hoverTimeout = null
-      }, 150) // Keep default cursor for 150ms after leaving segment
     }
   }
 
-  function handleMouseLeave() {
-    // Hide legend tooltip when mouse leaves canvas
-    if (hoveredLegendItem) {
-      hoveredLegendItem = null
-      updateTooltip(null)
-    }
-
-    // If there was a hovered segment, log that hover has stopped
-    if (currentHoveredSegment) {
-      currentHoveredSegment = null
-      onTooltipDeactivation()
-
-      // Set delayed reset of hovering state
-      if (hoverTimeout !== null) {
-        window.clearTimeout(hoverTimeout)
-      }
-
-      hoverTimeout = window.setTimeout(() => {
-        isHoveringSegment = false
-        hoverTimeout = null
-      }, 150) // Keep default cursor for 150ms after leaving segment
-    }
-
-    // Reset dragging if mouse leaves during drag
-    if (isDragging) {
-      isDragging = false
-    }
-    // Reset all drag state
-    hasDragStarted = false
-    preparedForDragging = false
-    dragStartX = 0
-    dragStartY = 0
-  }
-
-  // Drag handlers
-  function handleMouseDown(event: MouseEvent) {
-    if (!canvas) return
-
-    // Get mouse position with correct scaling
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
-
-    // Check if clicking on a legend item
-    const clickedLegendItem = isMouseOverLegendItem(mouseX, mouseY)
-    if (clickedLegendItem) {
-      // Handle legend item click
-      handleLegendIdentifier(clickedLegendItem.identifier)
+  // ── Pointer / drag (via the frame's generic pointer lifecycle) ──
+  function handlePointerDown(p: FramePointer) {
+    const item = isMouseOverLegendItem(p.x, p.y)
+    if (item) {
+      onLegendClick(item.identifier)
+      canDrag = false
       return
     }
-
-    // Only prepare for potential drag in the chart area
-    if (
-      mouseX >= LEFT_LABEL_WIDTH + marginLeft &&
-      mouseX <= LEFT_LABEL_WIDTH + plotAreaWidth + marginLeft &&
-      mouseY >= effectiveMarginTop &&
-      mouseY <=
-        data.participants.length * layout.heightOfBarWrap +
-          effectiveMarginTop &&
-      !isHoveringSegment
-    ) {
-      // Store initial position and prepare for dragging
-      dragStartX = mouseX
-      dragStartY = mouseY
-      hasDragStarted = false
-      preparedForDragging = true
-      // Show grabbing cursor immediately
-      if (canvas) {
-        canvas.style.cursor = 'grabbing'
-      }
-    }
+    canDrag = inPlotArea(p.x, p.y)
+    dragActive = false
+    lastDragX = p.x
   }
 
-  function handleMouseUp() {
-    if (isDragging) {
-      isDragging = false
-      onDragEnd() // Call drag end handler
-      if (canvas) {
-        canvas.style.cursor = 'grab'
-      }
-    }
-    // Reset all drag state
-    hasDragStarted = false
-    preparedForDragging = false
-    dragStartX = 0
-    dragStartY = 0
-  }
-
-  function handleDrag(event: MouseEvent) {
-    if (!canvas) return
-
-    // Get mouse position with correct scaling
-    const { x: mouseX, y: mouseY } = getScaledMousePosition(canvasState, event)
-
-    // If we haven't started dragging yet, check if we should
-    if (!hasDragStarted && dragStartX !== 0) {
-      const deltaX = Math.abs(mouseX - dragStartX)
-      const deltaY = Math.abs(mouseY - dragStartY)
-      const threshold = 5 // 5px threshold to distinguish click from drag
-
-      if (deltaX > threshold || deltaY > threshold) {
-        // Start actual dragging
-        hasDragStarted = true
-        isDragging = true
-        preparedForDragging = false // No longer just prepared, now actively dragging
-        if (canvas) {
-          canvas.style.cursor = 'grabbing'
-        }
-      } else {
-        // Still within threshold, don't start dragging yet
-        return
-      }
-    }
-
-    // Only proceed if we're actually dragging
-    if (!isDragging) return
-
-    // Check if mouse is over legend - stop dragging if it is
-    const hoveredLegendItem = isMouseOverLegendItem(mouseX, mouseY)
-    if (hoveredLegendItem) {
-      isDragging = false
-      hasDragStarted = false
-      preparedForDragging = false
-      dragStartX = 0
-      dragStartY = 0
-      if (canvas) {
-        canvas.style.cursor = 'pointer'
-      }
+  function handlePointerDrag(d: FrameDrag) {
+    if (!canDrag) return
+    if (isMouseOverLegendItem(d.x, d.y)) {
+      canDrag = false
       return
     }
-
-    const dragDeltaX = mouseX - dragStartX
-
-    if (Math.abs(dragDeltaX) > 1) {
-      // Call the drag step handler with the delta
-      onDragStepX(dragDeltaX)
-
-      // Reset the drag start position for continuous dragging
-      dragStartX = mouseX
+    const inc = d.x - lastDragX
+    if (Math.abs(inc) > 1) {
+      dragActive = true
+      onDragStepX(inc)
+      lastDragX = d.x
     }
   }
 
-  const scheduleRender = createRenderScheduler(renderCanvas)
+  function handlePointerUp(_p: FramePointer & { dragged: boolean }) {
+    if (dragActive) onDragEnd()
+    canDrag = false
+    dragActive = false
+  }
 
-  $effect(() => {
-    const deps = [
-      data,
-      settings,
-      totalWidth,
-      totalHeight,
-      highlights,
-      usedHighlights,
-      chartWidth,
-      availableHeight,
-      dpiOverride,
-      marginLeft,
-      marginRight,
-      effectiveMarginTop,
-      marginBottom,
-    ]
-
-    // Schedule a render instead of immediate execution
-    untrack(() => {
-      refreshCanvasLifecycle({
-        getState: () => canvasState,
-        setState: newState => {
-          canvasState = newState
-        },
-        getDimensions: getCanvasDimensions,
-        getDpiOverride: () => dpiOverride,
-        scheduleRender,
-      })
-    })
-  })
-
-  function findHoveredRectSegment(mouseX: number, mouseY: number) {
+  function findSegmentAtRowAndTime(rowIndex: number, mouseX: number) {
     const buckets = visualRectBuckets
     if (buckets.length === 0) return null
 
-    const RECT_STRIDE = 8
+    const offsets = rectRowOffsets
     const { indexToId } = identifierSystem
     const scale = layout.scaleFactor
-    const barWrapHeight = layout.heightOfBarWrap
-    const floorLeft = Math.floor(LEFT_LABEL_WIDTH + marginLeft)
+    const floorLeft = Math.floor(LEFT_LABEL_WIDTH + margins.left)
     const floorWidth = Math.floor(plotAreaWidth)
 
     for (let styleIdx = buckets.length - 1; styleIdx >= 0; styleIdx--) {
       const buffer = buckets[styleIdx]
       if (buffer.length === 0) continue
 
-      for (let i = buffer.length / RECT_STRIDE - 1; i >= 0; i--) {
+      // Scan only the hovered row's contiguous slice (topmost first = backward)
+      // rather than the whole buffer; pIndex is constant (== rowIndex) within it.
+      const rowStart = offsets[styleIdx]
+      const lo = rowStart[rowIndex]
+      const hi = rowStart[rowIndex + 1]
+      for (let i = hi - 1; i >= lo; i--) {
         const idx = i * RECT_STRIDE
-        const xNormalized = buffer[idx]
         const pIndex = buffer[idx + 1]
+
+        const xNormalized = buffer[idx]
         const widthNormalized = buffer[idx + 2]
         const origRectH = buffer[idx + 3]
         const origInternalY = buffer[idx + 7]
 
-        let rectH = origRectH
-        let internalY = origInternalY
-
-        if (scale !== 1) {
-          if (origRectH === SCARF_LAYOUT.HEIGHT_NON_FIXATION_DEFAULT) {
-            rectH = layout.nonFixationHeight
-            internalY =
-              layout.spaceAboveRect +
-              (layout.heightOfBar - layout.nonFixationHeight) / 2
-          } else {
-            rectH = origRectH * scale
-            internalY =
-              layout.spaceAboveRect +
-              (origInternalY - SCARF_LAYOUT.SPACE_ABOVE_RECT_DEFAULT) * scale
-          }
-        }
-
         const pxX = floorLeft + xNormalized * floorWidth
         const pxW = widthNormalized * floorWidth
-        const pxY = pIndex * barWrapHeight + internalY + effectiveMarginTop
 
-        if (
-          mouseX >= pxX &&
-          mouseX <= pxX + pxW &&
-          mouseY >= pxY &&
-          mouseY <= pxY + rectH
-        ) {
+        if (mouseX >= pxX && mouseX <= pxX + pxW) {
+          let rectH = origRectH
+          let internalY = origInternalY
+          if (scale !== 1) {
+            if (origRectH === SCARF_LAYOUT.HEIGHT_NON_FIXATION_DEFAULT) {
+              rectH = layout.nonFixationHeight
+              internalY = layout.spaceAboveRect + (layout.heightOfBar - layout.nonFixationHeight) / 2
+            } else {
+              rectH = origRectH * scale
+              internalY =
+                layout.spaceAboveRect +
+                (origInternalY - SCARF_LAYOUT.SPACE_ABOVE_RECT_DEFAULT) * scale
+            }
+          }
           return {
             x: xNormalized,
             y: pIndex,
@@ -911,39 +643,16 @@
     return null
   }
 
-  // Clean up tooltip when unmounting
   onDestroy(() => {
-    if (hoverTimeout !== null) {
-      window.clearTimeout(hoverTimeout)
-    }
-
-    if (hoveredLegendItem) {
-      updateTooltip(null)
-    }
+    if (hoveredLegendItem) plot.hideTooltip(0)
   })
 </script>
-
-<svelte:window onmousemove={handleDrag} onmouseup={handleMouseUp} />
 
 <canvas
   class="scarf-plot-figure"
   style:pointer-events={canRender ? 'auto' : 'none'}
-  width={totalWidth}
-  height={totalHeight}
-  use:canvasLifecycleAction={{
-    getState: () => canvasState,
-    setState: newState => {
-      canvasState = newState
-    },
-    getDimensions: getCanvasDimensions,
-    getDpiOverride: () => dpiOverride,
-    render: renderCanvas,
-    scheduleRender,
-  }}
-  onmousemove={handleMouseMove}
-  onmouseleave={handleMouseLeave}
-  onmousedown={handleMouseDown}
-  bind:this={canvas}
+  use:plot.plotAction
+  use:canvasBlockSelect={{ regions: plot.blockedRegions }}
   data-component="scarfplot"
   aria-label="Scarf plot visualization"
 ></canvas>

@@ -1,97 +1,40 @@
-// Bar Plot Aggregation Methods Registry
-// This centralized registry ensures type safety and maintainability
-// Optimized to directly match Select component expectations
+import { getMetric, type MetricInstance } from '$lib/metrics'
+import { buildMetricLabel, timeRangeQualifier } from '$lib/plots/shared'
+import type { StatisticalOverlayType } from './types'
 
-/**
- * Registry of all available aggregation methods for bar plots
- * Structured to directly work with Select component
- * Add new methods here to automatically make them available throughout the application
- */
-export const BAR_PLOT_AGGREGATION_METHODS = [
-  {
-    value: 'absoluteTime',
-    label: 'Absolute times',
-    unit: 'ms',
-  },
-  {
-    value: 'relativeTime',
-    label: 'Relative times',
-    unit: '%',
-  },
-  {
-    value: 'averageEntries',
-    label: 'Mean visits',
-    unit: 'count',
-  },
-  {
-    value: 'avgDwellDuration',
-    label: 'Mean visit durations',
-    unit: 'ms',
-  },
-  {
-    value: 'averageFixationCount',
-    label: 'Mean fixation counts',
-    unit: 'count',
-  },
-  {
-    value: 'avgFixationDuration',
-    label: 'Mean fixation durations',
-    unit: 'ms',
-  },
-  {
-    value: 'timeToFirstFixation',
-    label: 'Mean times to first fixation',
-    unit: 'ms',
-  },
-  {
-    value: 'avgFirstFixationDuration',
-    label: 'Mean first fixation durations',
-    unit: 'ms',
-  },
-  {
-    value: 'hitRatio',
-    label: 'Hit ratios (seen)',
-    unit: '%',
-  },
-] as const
-
-/**
- * Inferred type for aggregation method IDs
- * Automatically derived from the registry above
- */
-export type BarPlotAggregationMethodId =
-  (typeof BAR_PLOT_AGGREGATION_METHODS)[number]['value']
-
-/**
- * Utility function to get aggregation method label by value
- */
-export function getAggregationMethodLabel(
-  value: BarPlotAggregationMethodId
-): string {
-  const method = BAR_PLOT_AGGREGATION_METHODS.find(m => m.value === value)
-  return method?.label || value
+/** The statistic an overlay summarises, as a mid-dot qualifier (never brackets). */
+function statisticQualifier(overlay: StatisticalOverlayType): string | null {
+  switch (overlay) {
+    case 'meanSd':
+      return 'mean ± SD'
+    case 'meanCi95':
+      return 'mean ± 95% CI'
+    case 'boxplot':
+      return 'median, IQR'
+    default:
+      return null
+  }
 }
 
 /**
- * Utility function to generate the full axis label for the bar plot including metric, unit and time range
+ * Value-axis label for the bar plot, in the shared label grammar:
+ * `"<quantity> / <unit> · <statistic> · t ∈ [a, b] ms"`. The quantity is the
+ * instance name (carries its projection), the unit comes from the metric, and
+ * the statistic + sub-stimulus time range trail as mid-dot qualifiers. The bar
+ * plot has no time axis, so the time range is disclosed here.
  */
 export function getBarPlotAxisLabel(
-  methodId: BarPlotAggregationMethodId,
+  instance: MetricInstance | null | undefined,
   timelineStart = 0,
-  timelineEnd = 0
+  timelineEnd = 0,
+  overlay: StatisticalOverlayType = 'none'
 ): string {
-  const method = BAR_PLOT_AGGREGATION_METHODS.find(m => m.value === methodId)
-  if (!method) return methodId
-
-  let label = `${method.label} [${method.unit}]`
-
-  if (timelineStart > 0 && timelineEnd > 0) {
-    label += `, t ∈ [${timelineStart}, ${timelineEnd}] ms`
-  } else if (timelineStart > 0) {
-    label += `, t ≥ ${timelineStart} ms`
-  } else if (timelineEnd > 0) {
-    label += `, t ≤ ${timelineEnd} ms`
-  }
-
-  return label
+  return buildMetricLabel(instance, instance ? getMetric(instance.baseId) : undefined, {
+    includeProjection: true,
+    // The bar is a distribution plot: its value is the per-participant mean and
+    // the overlay states the statistic (mean ± CI / median, IQR), so it discloses
+    // the cross-participant treatment there rather than via the generic chip.
+    includeReduction: false,
+    extra: [statisticQualifier(overlay), timeRangeQualifier(timelineStart, timelineEnd)],
+  })
 }

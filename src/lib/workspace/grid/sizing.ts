@@ -22,7 +22,7 @@ export function calculateRightEdgePosition(
   return (x + w) * (gridConfig.cellSize.width + gridConfig.gap)
 }
 
-export function calculateRequiredWorkspaceHeight(
+function calculateRequiredWorkspaceHeight(
   positions: { y: number; h: number }[],
   gridConfig: GridConfig,
   minHeight: number = 300,
@@ -56,7 +56,7 @@ export function calculateGridHeight(
   return calculateRequiredWorkspaceHeight(positions, gridConfig)
 }
 
-export function calculateRequiredWorkspaceWidth(
+function calculateRequiredWorkspaceWidth(
   positions: { x: number; w: number }[],
   gridConfig: GridConfig
 ): number {

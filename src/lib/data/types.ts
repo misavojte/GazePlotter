@@ -1,6 +1,9 @@
-import type { FileInputType, FileMetadataType } from '$lib/data/ingest'
-import type { GridItemSnapshot } from '$lib/workspace'
+import type { FileInputType, FileMetadataType } from './ingest/types'
+import type { GridItemSnapshot } from '$lib/workspace/grid/types'
 import type { BinarySegmentBuffers } from './binary'
+import type { MetricInstance } from '$lib/metrics/instances'
+import type { PairingErrorKind } from './intervalPairing'
+export type { MetricInstance } from '$lib/metrics/instances'
 
 import { DEFAULT_NO_AOI_COLOR } from '../color/palettes'
 
@@ -57,19 +60,92 @@ export interface ParticipantsGroup {
 }
 
 /**
- * An object that represents the visibility blocks for AOIs.
+ * All event data for the workspace.
+ * Mirrors AoiDataType structure: per-stimulus channel definitions,
+ * ordering, hiding, grouping (by displayedName), and per-channel event buffers.
  */
-export interface VisibilityAoiDataType {
-  [key: string]: number[]
+export interface EventDataType {
+  /**
+   * Per-stimulus channel definitions.
+   * [stimulusId][channelId][fieldIndex]
+   * Fields: 0=originalName, 1=displayedName, 2=color,
+   * 3=optional INTERVAL_CHANNEL_MARKER on derived interval channels.
+   *
+   * Same shape as AoiDataType.data. displayedName drives grouping.
+   */
+  data: string[][][]
+
+  /** Per-stimulus display order of channels. */
+  orderVector: number[][]
+
+  /** Per-stimulus hidden channel IDs. */
+  hiddenChannels: number[][]
+
+  /**
+   * Per-stimulus per-channel per-participant event buffers.
+   * [stimulusId][channelId][participantId] → stride-2 number[]
+   * Layout: [start₀, duration₀, start₁, duration₁, ...] in ms.
+   * Duration = 0 for discrete/instant events.
+   */
+  events: number[][][][]
 }
 
 export interface AoiDataType {
   /** Nested array mapping: [stimulusIndex][aoiIndex][fieldIndex] where fieldIndex: 0=originalName, 1=displayedName, 2=color (optional) */
   data: string[][][]
   orderVector: number[][]
-  dynamicVisibility: VisibilityAoiDataType
   /** Per-stimulus list of raw AOI ids that should be treated as nonexistent in visualizations. */
   hiddenAois: number[][]
+}
+
+/**
+ * Canonical dataset-level capabilities used for feature gating.
+ */
+export interface DataCapabilities {
+  /** True when the dataset contains at least one segment row. */
+  segmented: boolean
+  /** True when at least one segment has valid spatial coordinates (x, y). */
+  spatial: boolean
+  /** True when at least one event channel has at least one event buffer entry. */
+  event: boolean
+}
+
+/**
+ * Declarative capability keys used by plot/view availability requirements.
+ */
+export type DataCapabilityKey = keyof DataCapabilities
+
+/**
+ * A single capability requirement item.
+ *
+ * - `"segmented"` means the capability is required directly.
+ * - `["spatial", "event"]` means either capability is enough for that item.
+ */
+export type DataCapabilityRequirement = DataCapabilityKey | DataCapabilityKey[]
+
+/**
+ * Capability requirements are evaluated as AND across the list.
+ */
+export type DataCapabilityRequirements = DataCapabilityRequirement[]
+
+/** One malformed marker occurrence behind a data exclusion. */
+export interface DatasetExclusionIssue {
+  kind: PairingErrorKind
+  /** When the offending marker occurred, in seconds of recording time. */
+  timeSeconds: number
+}
+
+/**
+ * A (stimulus, participant) group dropped during import because its source
+ * data was judged scientifically invalid — currently interval-stimulus markers
+ * that don't pair by strict alternation (a start while one is open, an end with
+ * none open, or a start that never ends). Persisted with the dataset so the
+ * reason survives workspace save/load and can be reviewed in the metadata view.
+ */
+export interface DatasetExclusionNotice {
+  stimulus: string
+  participant: string
+  issues: DatasetExclusionIssue[]
 }
 
 /**
@@ -77,13 +153,37 @@ export interface AoiDataType {
  */
 export interface DataType {
   isOrdinalOnly: boolean
+  capabilities: DataCapabilities
   aois: AoiDataType
-  categories: AttributeDataType
+  categories: AttributeDataType & { hiddenCategories?: number[] }
   participants: AttributeDataType
   participantsGroups: ParticipantsGroup[]
+  metricInstances: MetricInstance[]
   stimuli: AttributeDataType
   segments: BinarySegmentBuffers
   noAoiTreatment: NoAoiTreatmentType
+  eventData: EventDataType
+  /** Groups dropped at import time, with why. Absent when nothing was dropped. */
+  dataExclusions?: DatasetExclusionNotice[]
+}
+
+/**
+ * Reactive slice of {@link EventDataType}: channel definitions, display
+ * order and hidden state — the small, UI-edited metadata that stays inside
+ * Svelte runes. The heavy per-occurrence buffers (`events`) are NOT here;
+ * the data engine holds them in a non-reactive binary `EventBufferReader`,
+ * mirroring how `segments` stay out of runes.
+ */
+export type EventChannelMeta = Omit<EventDataType, 'events'>
+
+/**
+ * The data engine's reactive metadata: the full workspace dataset minus the
+ * two binary stores it owns outside runes — `segments` (occurrence-free
+ * segment buffers) and the event occurrence buffers (so `eventData` is
+ * narrowed to {@link EventChannelMeta}).
+ */
+export type EngineMetadata = Omit<DataType, 'segments' | 'eventData'> & {
+  eventData: EventChannelMeta
 }
 
 /**
@@ -91,16 +191,66 @@ export interface DataType {
  */
 export type JsonImportOldFormat = Omit<DataType, 'segments'> & {
   segments: number[][][][]
+  spatialData?: (number[] | null)[][][]
 }
 
+/**
+ * Current workspace-schema version. `main` ships v4; the 1.9.0 metrics refactor
+ * is the single bump above it (v4 → v5). Both the export mapper (the version it
+ * stamps) and the migration ceiling (the version it produces) source this one
+ * constant, so a freshly-exported file always carries the version of the data
+ * inside it — no re-import migration is relied upon to reconcile a mislabel.
+ */
+export const CURRENT_SCHEMA_VERSION = 5
+
 export interface JsonImportNewFormat {
-  version: 2 | 3 | 4
+  version: 2 | 3 | 4 | 5
   data: DataType
   gridItems?: GridItemSnapshot[]
   fileMetadata?: FileMetadataType | null
 }
 
-export type ParsedData = JsonImportNewFormat & { current: FileInputType }
+export interface RawEventDataType {
+  data?: string[][][]
+  orderVector?: number[][]
+  hiddenChannels?: number[][]
+  events?: number[][][][]
+}
+
+export interface RawIngestPayload {
+  isOrdinalOnly?: boolean
+  capabilities?: Partial<DataCapabilities>
+  aois: {
+    data: string[][][]
+    orderVector?: number[][]
+    hiddenAois?: number[][]
+    dynamicVisibility?: Record<string, unknown>
+  }
+  categories?: AttributeDataType
+  participants: AttributeDataType
+  participantsGroups?: ParticipantsGroup[]
+  metricInstances?: MetricInstance[]
+  stimuli: AttributeDataType
+  segments?: unknown
+  noAoiTreatment?: NoAoiTreatmentType
+  eventData?: RawEventDataType
+  spatialData?: unknown
+  dataExclusions?: DatasetExclusionNotice[]
+}
+
+export interface MigratedJsonFormat {
+  version: number
+  data: RawIngestPayload
+  gridItems?: unknown[]
+  fileMetadata?: unknown
+}
+
+export type ParsedData = JsonImportNewFormat & {
+  current: FileInputType
+  /** True for freshly parsed datasets (not restored workspaces) —
+      gates post-upload notices like the imported-events toast. */
+  freshDataset?: boolean
+}
 
 // Binary relational memory model
 export * from './binary'

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte'
   import ButtonMajor from '$lib/shared/components/ButtonMajor.svelte'
-  import type { ModalStackEntry } from '$lib/modals/modal.state.svelte'
+  import type { ModalStackEntry } from '$lib/modals/modalState.svelte'
   import { getGazePlotterSession } from '$lib/session'
 
   const { errorService, modalState } = getGazePlotterSession()
@@ -322,10 +322,7 @@
     flex-direction: column;
     overflow: hidden;
     border: 1px solid var(--c-border);
-    box-shadow:
-      0 1px 2px 0 rgba(60, 64, 67, 0.3),
-      0 1px 3px 1px rgba(60, 64, 67, 0.15),
-      0 0 0 1px rgba(60, 64, 67, 0.05);
+    box-shadow: var(--shadow-xl);
   }
 
   @media (min-width: 768px) {

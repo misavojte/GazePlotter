@@ -1,29 +1,48 @@
-import { tobiiParsingInputModal } from '$lib/modals/definitions'
-import { processJsonFileWithGrid } from './workspace/parser'
+import { eventFileMappingModal } from '$lib/modals/import/definitions'
+import {
+  processAoiVisibilityFromText,
+  buildEventChannelsFromParsed,
+} from '$lib/modals/import/shared/aoiVisibilityServices'
+import {
+  parseCsvEventText,
+  resolveContributionsForEngine,
+  mergeIntoStimulusMap,
+} from './formats/csvEvent'
+import {
+  detectEnrichmentFormat,
+} from './formats/registry'
+import type { EnrichmentFormatDefinition } from './kernel/format'
+import { probeFromText } from './kernel/source'
+import { getStimuliOptions, getParticipantOptions } from '$lib/plots/shared'
+import { getStimulusHighestEndTime } from '$lib/data/engine'
+import { isArchiveFileName } from './formats/routing'
+import { INGEST_PROMPTS } from './prompts'
+import type { IngestResult } from './kernel/result'
 import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace'
 import type { ErrorService } from '$lib/errors'
 import { formatDuration } from '$lib/shared/utils/timeUtils'
 import { formatFileSize } from '$lib/shared/utils/fileUtils'
 import type { DataType, ParsedData } from '$lib/data/types'
+import { createDefaultMetricInstances } from '$lib/metrics/instances'
 import type {
-  EyeSettingsType,
+  ParseSettings,
   FileInputType,
   FileMetadataFailureType,
   FileMetadataSuccessType,
   FileMetadataType,
-} from '$lib/data/ingest'
-import type { ModalState } from '$lib/modals/modal.state.svelte'
+} from './types'
+import type { ModalState } from '$lib/modals/modalState.svelte'
 import type { ToastState } from '$lib/toaster/toastState.svelte'
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
-import type { GridState } from '$lib/workspace/grid/store.svelte'
-import type { GridItemSnapshot } from '$lib/workspace'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import type { GridState } from '$lib/workspace/grid/gridState.svelte'
+import type { GridItemSnapshot } from '$lib/workspace/grid/types'
 
 export type IngestStatus = 'loading' | 'ready' | 'error'
 
 type IngestUiServices = {
   errorService: Pick<ErrorService, 'report'>
   modalState: Pick<ModalState, 'open' | 'close'>
-  toastState: Pick<ToastState, 'addInfo' | 'addSuccess'>
+  toastState: Pick<ToastState, 'addInfo' | 'addSuccess' | 'addWarning'>
 }
 
 type IngestDependencies = {
@@ -37,9 +56,15 @@ type IngestDependencies = {
 
 const EMPTY_DATASET: DataType = {
   isOrdinalOnly: false,
+  capabilities: {
+    segmented: false,
+    spatial: false,
+    event: false,
+  },
   stimuli: { data: [], orderVector: [] },
   participants: { data: [], orderVector: [] },
   participantsGroups: [],
+  metricInstances: createDefaultMetricInstances(),
   categories: { data: [], orderVector: [] },
   noAoiTreatment: {
     color: '#cbd5e1',
@@ -48,7 +73,6 @@ const EMPTY_DATASET: DataType = {
   aois: {
     data: [],
     orderVector: [],
-    dynamicVisibility: {},
     hiddenAois: [],
   },
   segments: {
@@ -58,6 +82,12 @@ const EMPTY_DATASET: DataType = {
     hasSpatialData: false,
     maxParticipants: 0,
     stimuliCount: 0,
+  },
+  eventData: {
+    data: [],
+    orderVector: [],
+    hiddenChannels: [],
+    events: [],
   },
 }
 
@@ -85,6 +115,46 @@ function formatFileInfo(fileNames: string[], fileSizes: number[]): string {
   }
 
   return fileInfo
+}
+
+/** An upload file claimed by an enrichment format during partition. */
+type ClaimedEventFile = {
+  file: File
+  format: EnrichmentFormatDefinition
+}
+
+/**
+ * Partitions uploaded files into eye-tracking sources (for the worker job)
+ * and event files (claimed by ENRICHMENT_FORMATS, consumed post-load).
+ * Detection is registry-driven — the same ordered contract as gaze
+ * formats. One routing policy lives here, not in a format: a LONE .json
+ * upload is never an event file (workspace first-file-wins precedence).
+ */
+async function partitionUploadFiles(
+  files: File[]
+): Promise<{ eyeFiles: File[]; eventFiles: ClaimedEventFile[] }> {
+  const eyeFiles: File[] = []
+  const eventFiles: ClaimedEventFile[] = []
+  for (const file of files) {
+    const ext = file.name.split('.').pop()?.toLowerCase()
+    if (ext === 'json' && files.length === 1) {
+      eyeFiles.push(file)
+      continue
+    }
+    try {
+      const slice = await file.slice(0, 256 * 1024).text()
+      const probe = probeFromText(slice, { fileName: file.name })
+      const format = detectEnrichmentFormat(probe)
+      if (format) {
+        eventFiles.push({ file, format })
+        continue
+      }
+    } catch {
+      // Unreadable probe → let the worker job report the real error.
+    }
+    eyeFiles.push(file)
+  }
+  return { eyeFiles, eventFiles }
 }
 
 class IngestWorkerClient {
@@ -121,23 +191,14 @@ class IngestWorkerClient {
       )
   }
 
-  sendFiles(files: FileList | readonly File[]): void {
-    const fileArray = Array.from(files)
+  sendFiles(files: File[]): void {
+    const fileArray = files
     this.fileNames = fileArray.map(file => file.name)
     this.fileSizes = fileArray.map(file => file.size)
     this.totalFileSize = this.fileSizes.reduce((sum, size) => sum + size, 0)
     this.parsingSumTime = 0
     this.parsingAnchorTime = Date.now()
     this.onProgress(0)
-
-    const firstFile = fileArray[0]
-    const parts = firstFile.name.split('.')
-    const extension = parts.length > 1 ? parts.pop()?.toLowerCase() : undefined
-
-    if (extension === 'json') {
-      this.processJsonWorkspace(firstFile)
-      return
-    }
 
     if (
       !this.postWorkerMessage(
@@ -149,7 +210,9 @@ class IngestWorkerClient {
       return
     }
 
-    if (extension === 'zip') {
+    // Archive formats need fully-materialized buffers (JSZip can't stream);
+    // everything else — including workspace JSON — streams to the worker.
+    if (isArchiveFileName(fileArray[0].name)) {
       void this.processZipFiles(fileArray)
     } else if (this.isStreamTransferable()) {
       this.processDataAsStream(fileArray)
@@ -285,41 +348,49 @@ class IngestWorkerClient {
     }
   }
 
-  private processJsonWorkspace(file: File): void {
-    const reader = new FileReader()
-    reader.onload = () => {
-      try {
-        const result = processJsonFileWithGrid(reader.result as string)
-        this.onProgress(100)
-        const timeString = formatDuration(
-          Date.now() - this.parsingAnchorTime + this.parsingSumTime
-        )
-        const formattedFileInfo = formatFileInfo([file.name], [file.size])
-        this.ui.toastState.addSuccess(
-          `${formattedFileInfo} workspace loaded successfully in ${timeString}`
-        )
-        if (!this.markSettled()) return
-
-        this.onData({
-          ...result,
-          current: {
-            fileNames: [file.name],
-            fileSizes: [file.size],
-            parseDate: new Date().toISOString(),
-          },
-        })
-      } catch (error) {
-        this.handleError(
-          error instanceof Error
-            ? error
-            : new Error('Failed to parse JSON file')
-        )
+  private handleDone(result: IngestResult): void {
+    if (result.kind === 'workspace') {
+      this.handleWorkspaceDone(result)
+      return
+    }
+    if (result.warnings?.length) {
+      for (const warning of result.warnings) {
+        this.ui.toastState.addWarning(warning)
       }
     }
-    reader.onerror = () => {
-      this.handleError(new Error('Failed to read JSON file'))
+    const excluded = result.data.dataExclusions
+    if (excluded?.length) {
+      this.ui.toastState.addWarning(
+        `${excluded.length} participant-stimulus group${excluded.length > 1 ? 's were' : ' was'} excluded for malformed interval markers. Open Metadata for the full report.`
+      )
     }
-    reader.readAsText(file)
+    this.handleData({ data: result.data, classified: result.settings })
+  }
+
+  private handleWorkspaceDone(
+    result: Extract<IngestResult, { kind: 'workspace' }>
+  ): void {
+    this.onProgress(100)
+    const timeString = formatDuration(
+      Date.now() - this.parsingAnchorTime + this.parsingSumTime
+    )
+    const formattedFileInfo = formatFileInfo(this.fileNames, this.fileSizes)
+    this.ui.toastState.addSuccess(
+      `${formattedFileInfo} workspace loaded successfully in ${timeString}`
+    )
+    if (!this.markSettled()) return
+
+    this.onData({
+      version: result.version as ParsedData['version'],
+      data: result.data,
+      gridItems: result.gridItems,
+      fileMetadata: result.fileMetadata,
+      current: {
+        fileNames: this.fileNames,
+        fileSizes: this.fileSizes,
+        parseDate: new Date().toISOString(),
+      },
+    })
   }
 
   private handleData({
@@ -327,7 +398,7 @@ class IngestWorkerClient {
     classified,
   }: {
     data: DataType
-    classified: EyeSettingsType
+    classified: ParseSettings
   }): void {
     const parseDuration =
       Date.now() - this.parsingAnchorTime + this.parsingSumTime
@@ -360,6 +431,7 @@ class IngestWorkerClient {
         fileSizes: this.fileSizes,
         parseDate: new Date().toISOString(),
       },
+      freshDataset: true,
     } as ParsedData)
   }
 
@@ -369,16 +441,13 @@ class IngestWorkerClient {
         this.handleProgress(event.data.processedBytes)
         break
       case 'done':
-        this.handleData({
-          data: event.data.data,
-          classified: event.data.classified,
-        })
+        this.handleDone(event.data.result)
         break
       case 'fail':
         this.handleError(event.data.data)
         break
-      case 'request-user-input':
-        this.handleUserInputProcess()
+      case 'prompt':
+        this.handlePromptRequest(event.data.promptId)
         break
       default: {
         const workerMessageType =
@@ -457,15 +526,17 @@ class IngestWorkerClient {
     this.onFail(failureMetadata)
   }
 
-  private handleUserInputProcess(): void {
+  private handlePromptRequest(promptId: string): void {
     this.parsingSumTime += Date.now() - this.parsingAnchorTime
-    this.requestUserInput()
+    this.openPrompt(promptId)
       .then(userInput => {
         this.parsingAnchorTime = Date.now()
         if (
-          !this.postWorkerMessage({ type: 'user-input', data: userInput }, [], {
-            stage: 'dispatch-user-input',
-          })
+          !this.postWorkerMessage(
+            { type: 'prompt-response', data: userInput },
+            [],
+            { stage: 'dispatch-prompt-response', promptId }
+          )
         ) {
           this.ui.modalState.close()
           return
@@ -473,20 +544,24 @@ class IngestWorkerClient {
         this.ui.modalState.close()
       })
       .catch(error => {
-        this.handleError(error, { stage: 'request-user-input' })
+        this.handleError(error, { stage: 'ingest-prompt', promptId })
       })
   }
 
-  private requestUserInput(): Promise<string> {
-    return this.ui.modalState.open(tobiiParsingInputModal, {}).then(value => {
+  private openPrompt(promptId: string): Promise<string> {
+    const spec = INGEST_PROMPTS[promptId]
+    if (!spec) {
+      return Promise.reject(
+        new Error(`Unknown ingest prompt requested by worker: ${promptId}`)
+      )
+    }
+    return this.ui.modalState.open(spec.modal, {}).then(value => {
       if (value !== null) {
         return value
       }
 
-      this.ui.toastState.addInfo(
-        'User input was not provided. The file will be processed as Tobii without events'
-      )
-      return ''
+      if (spec.cancelToast) this.ui.toastState.addInfo(spec.cancelToast)
+      return spec.cancelValue
     })
   }
 }
@@ -517,10 +592,54 @@ export class IngestService {
     this.progressPercent = 0
 
     try {
-      return await new Promise<boolean>((resolve, reject) => {
+      const allFiles = Array.from(files)
+      const { eyeFiles, eventFiles } = await partitionUploadFiles(allFiles)
+
+      if (eyeFiles.length === 0 && eventFiles.length > 0) {
+        // Event files annotate eye-tracking data — they have no standalone
+        // visualisation (scarf renders events as overlays on segment bars,
+        // and every plot requires `segmented`). Fail fast rather than load a
+        // dataset that no plot can show.
+        this.deps.errorService.report({
+          origin: 'ingest',
+          severity: 'fatal-load',
+          userMessage:
+            'Only event files were uploaded. Event files annotate eye-tracking data and must be uploaded together with it.',
+          cause: new Error(
+            'Event-only upload has no eye-tracking data to annotate'
+          ),
+          context: {
+            eventFileNames: eventFiles.map(e => e.file.name),
+          },
+        })
+        this.explicitStatus = 'error'
+        return false
+      }
+
+      return await new Promise<boolean>(resolve => {
         const client = new IngestWorkerClient(
-          data => {
+          async data => {
+            // Pass 1: load eye-tracking data into engine
             this.applyParsedData(data)
+
+            // Pass 2: if event files exist, process them using the now-loaded engine
+            if (eventFiles.length > 0) {
+              try {
+                await this.processEventFilesPostLoad(eventFiles)
+              } catch (error) {
+                this.deps.errorService.report({
+                  origin: 'ingest',
+                  severity: 'recoverable',
+                  userMessage:
+                    'Event files could not be processed. Eye-tracking data was loaded without events.',
+                  cause: error,
+                  context: {
+                    eventFileNames: eventFiles.map(e => e.file.name),
+                  },
+                })
+              }
+            }
+
             resolve(true)
           },
           failureMetadata => {
@@ -536,7 +655,7 @@ export class IngestService {
             toastState: this.deps.toastState,
           }
         )
-        client.sendFiles(files)
+        client.sendFiles(eyeFiles)
       })
     } catch (error) {
       this.deps.errorService.report({
@@ -596,5 +715,136 @@ export class IngestService {
     this.deps.engine.loadDataset(EMPTY_DATASET)
     this.deps.resetWorkspaceHistory()
     this.explicitStatus = 'error'
+  }
+
+  private async processEventFilesPostLoad(
+    eventFiles: ClaimedEventFile[]
+  ): Promise<void> {
+    const engine = this.deps.engine
+    const meta = engine.metadata
+    if (!meta) return
+
+    const participantCount = meta.participants.data.length
+
+    // Partition by consumption mode (claimed formats from the registry)
+    const csvFiles: File[] = []
+    const legacyFiles: File[] = []
+    for (const { file, format } of eventFiles) {
+      if (format.consume === 'contributions') {
+        csvFiles.push(file)
+      } else {
+        legacyFiles.push(file)
+      }
+    }
+
+    // Unified stimulus map for merging both sources
+    const stimulusMap = new Map<
+      number,
+      Map<string, { def: string[]; perParticipant: number[][] }>
+    >()
+
+    // --- Process legacy (XML/JSON) event files via mapping modal ---
+    if (legacyFiles.length > 0) {
+      const mapping = await this.deps.modalState.open(eventFileMappingModal, {
+        fileNames: legacyFiles.map(f => f.name),
+        stimuliOptions: getStimuliOptions(engine),
+        participantOptions: getParticipantOptions(engine),
+      })
+
+      if (!mapping && csvFiles.length === 0) {
+        this.deps.toastState.addInfo(
+          'Event file mapping was cancelled. Data loaded without events.'
+        )
+        return
+      }
+
+      if (mapping) {
+        for (let i = 0; i < legacyFiles.length; i++) {
+          if (mapping[i].skip) continue
+          const { stimulusId, participantId } = mapping[i]
+          const text = await legacyFiles[i].text()
+          const highestEndTime = getStimulusHighestEndTime(engine, stimulusId)
+          const parsed = processAoiVisibilityFromText(text, highestEndTime)
+          const aoiData = meta.aois.data[stimulusId]
+          const { channelDefs, eventBuffers } = buildEventChannelsFromParsed(
+            parsed,
+            participantId,
+            participantCount,
+            aoiData
+          )
+
+          const legacyMap = new Map<
+            string,
+            { def: string[]; perParticipant: number[][] }
+          >()
+          for (let ch = 0; ch < channelDefs.length; ch++) {
+            legacyMap.set(channelDefs[ch][0], {
+              def: channelDefs[ch],
+              perParticipant: eventBuffers[ch].map(buf => [...buf]),
+            })
+          }
+
+          if (!stimulusMap.has(stimulusId)) {
+            stimulusMap.set(stimulusId, new Map())
+          }
+          mergeIntoStimulusMap(stimulusMap, new Map([[stimulusId, legacyMap]]))
+        }
+      }
+    }
+
+    // --- Process CSV event files (no modal needed) ---
+    const csvWarnings: string[] = []
+    for (const file of csvFiles) {
+      const text = await file.text()
+      const { contributions, warnings: parseWarnings } =
+        parseCsvEventText(text)
+      csvWarnings.push(...parseWarnings.map(w => `${file.name}: ${w}`))
+
+      const { stimulusMap: csvMap, warnings: resolveWarnings } =
+        resolveContributionsForEngine(
+          contributions,
+          meta.stimuli.data,
+          meta.participants.data,
+          participantCount,
+          meta.aois.data
+        )
+      csvWarnings.push(...resolveWarnings.map(w => `${file.name}: ${w}`))
+      mergeIntoStimulusMap(stimulusMap, csvMap)
+    }
+
+    if (csvWarnings.length > 0) {
+      this.deps.toastState.addWarning(
+        `Event CSV: ${csvWarnings.length} warning${csvWarnings.length > 1 ? 's' : ''} (${csvWarnings.slice(0, 3).join('; ')}${csvWarnings.length > 3 ? '...' : ''})`
+      )
+    }
+
+    // --- Build merged updates and apply ---
+    const mergedUpdates: {
+      stimulusId: number
+      channelDefs: string[][]
+      eventBuffers: number[][][]
+    }[] = []
+
+    for (const [stimulusId, channelMap] of stimulusMap) {
+      const channelDefs: string[][] = []
+      const eventBuffers: number[][][] = []
+      for (const { def, perParticipant } of channelMap.values()) {
+        channelDefs.push(def)
+        eventBuffers.push(perParticipant)
+      }
+      mergedUpdates.push({ stimulusId, channelDefs, eventBuffers })
+    }
+
+    if (mergedUpdates.length === 0) {
+      this.deps.toastState.addInfo('All event files were set to Ignore.')
+      return
+    }
+
+    engine.updateEventDataBatch(mergedUpdates)
+    const totalProcessed =
+      csvFiles.length + (legacyFiles.length > 0 ? legacyFiles.length : 0)
+    this.deps.toastState.addSuccess(
+      `${totalProcessed} event file${totalProcessed > 1 ? 's' : ''} processed successfully`
+    )
   }
 }

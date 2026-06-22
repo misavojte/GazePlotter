@@ -133,9 +133,9 @@
     flex-direction: column;
     border: 1px solid var(--c-border);
     border-radius: var(--rounded-md);
-    background-color: var(--c-bg);
+    background-color: var(--c-white);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-    transition: border-color 0.2s;
+    transition: border-color var(--transition-normal);
     overflow: hidden;
     flex: 1;
     min-height: 0;
@@ -153,7 +153,7 @@
     padding: 0.35rem 0.5rem 0.35rem 0.75rem;
     min-height: 2.2rem;
     border-bottom: 1px solid var(--c-border);
-    background-color: var(--c-bg-s);
+    background-color: var(--c-lightgrey);
   }
 
   .group-title {
@@ -177,7 +177,7 @@
   .group-content {
     display: block;
     overflow-y: auto;
-    background-color: var(--c-bg);
+    background-color: var(--c-white);
     min-height: 0;
     flex: 1;
     overscroll-behavior: contain;
@@ -223,7 +223,7 @@
   }
 
   .group-content::-webkit-scrollbar-track {
-    background: var(--c-bg-s);
+    background: var(--c-lightgrey);
     border-radius: 3px;
   }
 
@@ -238,7 +238,7 @@
 
   .group-content {
     scrollbar-width: thin;
-    scrollbar-color: var(--c-border) var(--c-bg-s);
+    scrollbar-color: var(--c-border) var(--c-lightgrey);
   }
 
   @media (max-width: 600px) {

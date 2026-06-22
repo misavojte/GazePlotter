@@ -4,25 +4,22 @@
     isMenuActionActivationKey,
     shouldCloseMenuOnAction,
   } from './behavior'
+  import Check from 'lucide-svelte/icons/check'
   import { contextMenuState } from './contextMenuState.svelte'
   import { MENU_MAX_HEIGHT, MENU_WIDTH } from './const'
   import {
-    type ContextMenuState,
     type MenuInteractiveItem,
-    type Point,
-    type Position,
     isMenuDivider,
     isMenuFlyoutItem,
   } from './types'
-  import { portal, getArrowStyle } from './utils'
+  import { portal } from '$lib/shared/placement'
   import ContextSubMenu from './ContextSubMenu.svelte'
 
   // State for which inner submenu is active.
   let activeItemLabel = $state<string | null>(null)
 
-  // KISS Reset: When a NEW menu session opens, reset the local state.
-  // This ensures a fresh experience (Fixes regressions) while allowing
-  // the old state to remain stable during the 150ms fade-out transition.
+  // Reset local state when a new menu session opens, so a fresh menu doesn't
+  // inherit the previous session's open submenu during the fade transition.
   $effect(() => {
     if (contextMenuState.current) {
       activeItemLabel = null
@@ -32,7 +29,6 @@
   const onClose = () => contextMenuState.reset()
 
   let container: HTMLUListElement | null = $state(null)
-  let menuElement: HTMLDivElement | null = $state(null)
 
   const onKeydown = (ev: KeyboardEvent) => {
     if (ev.key === 'Escape') onClose()
@@ -78,7 +74,11 @@
       it.onAction?.()
     }
 
-    highlightMenuItem(menu.items, it.label)
+    if (menu.selectionMode === 'checkbox') {
+      it.isHighlighted = !it.isHighlighted
+    } else {
+      highlightMenuItem(menu.items, it.label)
+    }
 
     if (shouldCloseMenuOnAction(it)) {
       onClose()
@@ -91,27 +91,6 @@
   })
 </script>
 
-{#snippet Arrow(position: Position, anchor: Point, menu: ContextMenuState)}
-  <div
-    class="menu-arrow"
-    data-position={position}
-    style={getArrowStyle(position, anchor, {
-      ...menu,
-      height: menuElement?.clientHeight,
-    })}
-  >
-    <svg viewBox="0 0 16 8" width="16" height="8">
-      <!-- A professional triangle with an open base and clean stroke -->
-      <path
-        d="M 0,8 L 8,0 L 16,8"
-        fill="var(--c-white)"
-        stroke="var(--menu-border-color)"
-        stroke-width="1"
-      />
-    </svg>
-  </div>
-{/snippet}
-
 <!-- Stable Portal Host: Never unmounts, stays as a child of document.body -->
 <div class="gp-context-menu-portal-root" use:portal>
   {#if contextMenuState.current}
@@ -119,59 +98,85 @@
     <!-- Transition Unit: Contains main menu AND submenus, fades as one unit -->
     <div class="context-menu-transition-unit">
       <div
-        bind:this={menuElement}
-        class="menu-wrapper"
-        style={`left:${menu.x}px; top:${menu.y}px; z-index:${menu.zIndex}; --menu-width: ${MENU_WIDTH}px;`}
+        class="menu"
+        role="menu"
+        style={`left:${menu.x}px; top:${menu.y}px; z-index:${menu.zIndex}; --menu-width: ${menu.width ?? MENU_WIDTH}px;`}
       >
-        {#if menu.position && menu.anchorCenter}
-          {@render Arrow(menu.position, menu.anchorCenter, menu)}
-        {/if}
-
-        <div class="menu" role="menu">
-          <div
-            class="menu-content"
-            onscroll={e => e.stopPropagation()}
-            style={`max-height:${MENU_MAX_HEIGHT}px;`}
-          >
-            {#if menu.items && menu.items.length}
-              <ul bind:this={container}>
-                {#each menu.items as it}
-                  {#if isMenuDivider(it)}
-                    <li class="divider" role="presentation"></li>
-                  {:else if isMenuFlyoutItem(it)}
-                    <ContextSubMenu
-                      item={it}
-                      siblings={menu.items}
-                      parentZIndex={menu.zIndex}
-                      isOpen={activeItemLabel === it.label}
-                      onToggle={() =>
-                        (activeItemLabel =
-                          activeItemLabel === it.label
-                            ? null
-                            : (it.label ?? null))}
-                    />
-                  {:else}
-                    <li>
-                      <button
-                        role="menuitem"
-                        class:selected={it.isHighlighted}
-                        disabled={it.disabled}
-                        onclick={() => handleItemClick(it)}
-                      >
-                        {#if it.icon}
-                          {@const Icon = it.icon}
-                          <Icon size={'1em'} strokeWidth={1} />
-                        {/if}
+        <div
+          class="menu-content"
+          onscroll={e => e.stopPropagation()}
+          style={`max-height:${MENU_MAX_HEIGHT}px;`}
+        >
+          {#if menu.items && menu.items.length}
+            <ul bind:this={container}>
+              {#each menu.items as it}
+                {#if isMenuDivider(it)}
+                  <li class="divider" role="presentation"></li>
+                {:else if isMenuFlyoutItem(it)}
+                  <ContextSubMenu
+                    item={it}
+                    siblings={menu.items}
+                    parentZIndex={menu.zIndex}
+                    isOpen={activeItemLabel === it.label}
+                    onToggle={() =>
+                      (activeItemLabel =
+                        activeItemLabel === it.label
+                          ? null
+                          : (it.label ?? null))}
+                  />
+                {:else}
+                  {@const showIndicator =
+                    menu.selectionMode !== undefined && it.value !== undefined}
+                  <li class:has-secondary={!!it.secondaryAction}>
+                    <button
+                      role="menuitem"
+                      class:selected={it.isHighlighted}
+                      class:has-secondary={!!it.secondaryAction}
+                      disabled={it.disabled}
+                      onclick={() => handleItemClick(it)}
+                    >
+                      {#if showIndicator}
+                        <span class={`indicator ${menu.selectionMode}`} class:checked={it.isHighlighted}>
+                          {#if menu.selectionMode === 'checkbox' && it.isHighlighted}
+                            <Check size={10} strokeWidth={2.5} />
+                          {/if}
+                        </span>
+                      {:else if it.icon}
+                        {@const Icon = it.icon}
+                        <Icon size={'1em'} strokeWidth={1} />
+                      {/if}
+                      {#if it.detail}
+                        <span class="item-body">
+                          <span class="item-label">{it.label}</span>
+                          <span class="item-detail">{it.detail}</span>
+                        </span>
+                      {:else}
                         {it.label}
+                      {/if}
+                    </button>
+                    {#if it.secondaryAction}
+                      {@const SecIcon = it.secondaryAction.icon}
+                      <button
+                        type="button"
+                        class="secondary-action"
+                        aria-label={it.secondaryAction.label}
+                        title={it.secondaryAction.label}
+                        onclick={ev => {
+                          ev.stopPropagation()
+                          it.secondaryAction!.onAction()
+                          onClose()
+                        }}
+                      >
+                        <SecIcon size={13} strokeWidth={1.5} />
                       </button>
-                    </li>
-                  {/if}
-                {/each}
-              </ul>
-            {:else if menu.content}
-              <div class="custom">{menu.content}</div>
-            {/if}
-          </div>
+                    {/if}
+                  </li>
+                {/if}
+              {/each}
+            </ul>
+          {:else if menu.content}
+            <div class="custom">{menu.content}</div>
+          {/if}
         </div>
       </div>
 
@@ -192,24 +197,19 @@
     pointer-events: none;
   }
 
-  /* But the transition unit should allow pointer events for the menu */
   .context-menu-transition-unit {
     pointer-events: none;
   }
 
-  .menu-wrapper {
-    position: fixed;
-    /* Unified shadow that wraps both arrow and menu */
-    filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.1));
-    pointer-events: none;
-  }
-
   .menu {
+    position: fixed;
     pointer-events: auto;
     background: var(--c-white);
     border: var(--menu-border-width) solid var(--menu-border-color);
-    border-radius: 8px;
-    width: var(--menu-width, 220px);
+    border-radius: var(--rounded-md);
+    --menu-width: 220px;
+    width: var(--menu-width);
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--c-black) 12%, transparent);
     overflow: hidden;
   }
 
@@ -217,49 +217,6 @@
     overflow-y: auto;
     overflow-x: hidden;
     padding: 4px 0;
-  }
-
-  .menu-arrow {
-    position: absolute;
-    width: 16px;
-    height: 8px;
-    z-index: 10;
-  }
-
-  .menu-arrow svg {
-    display: block;
-  }
-
-  /* Correctly rotate and align the arrow based on position */
-  .menu-arrow[data-position='top'] {
-    transform: translateY(-1px); /* Slight overlap to merge borders */
-  }
-  .menu-arrow[data-position='top'] svg {
-    transform: rotate(180deg);
-  }
-
-  .menu-arrow[data-position='bottom'] {
-    transform: translateY(1px); /* Slight overlap to merge borders */
-  }
-
-  .menu-arrow[data-position='left'] {
-    width: 8px;
-    height: 16px;
-    transform: translateX(-1px);
-  }
-  .menu-arrow[data-position='left'] svg {
-    transform: rotate(90deg) translate(-4px, -4px);
-    transform-origin: center;
-  }
-
-  .menu-arrow[data-position='right'] {
-    width: 8px;
-    height: 16px;
-    transform: translateX(1px);
-  }
-  .menu-arrow[data-position='right'] svg {
-    transform: rotate(-90deg) translate(4px, -4px);
-    transform-origin: center;
   }
 
   ul {
@@ -277,24 +234,23 @@
   button[role='menuitem'] {
     background: none;
     border: none;
-    padding: 8px 12px;
+    padding: 6px 12px;
     font-size: 13px;
     color: var(--c-text);
     cursor: pointer;
-    width: 100%;
     text-align: left;
     display: flex;
     align-items: center;
     gap: 8px;
-    transition: background 0.1s ease;
-    border-radius: 4px;
+    transition: background var(--transition-fast) ease;
+    border-radius: var(--rounded);
     margin: 0 4px;
     width: calc(100% - 8px);
   }
 
-  button.selected {
-    color: var(--c-brand);
-    font-weight: 500;
+  button[role='menuitem']:focus-visible {
+    outline: 2px solid var(--c-brand);
+    outline-offset: -2px;
   }
 
   button:hover {
@@ -302,7 +258,141 @@
     color: var(--c-black);
   }
 
+  button.selected {
+    background: color-mix(in srgb, var(--c-brand) 6%, var(--c-white));
+  }
+
+  button.selected:hover {
+    background: color-mix(in srgb, var(--c-brand) 10%, var(--c-white));
+  }
+
+  button.selected:not(:has(.indicator)) {
+    color: var(--c-brand);
+    font-weight: 500;
+  }
+
+  .indicator {
+    flex-shrink: 0;
+    width: 10px;
+    height: 10px;
+    border: 1.5px solid var(--c-midgrey);
+    transition:
+      background var(--transition-fast),
+      border-color var(--transition-fast);
+  }
+
+  .indicator.radio {
+    border-radius: 50%;
+    position: relative;
+  }
+
+  .indicator.radio.checked {
+    border-color: var(--c-brand);
+  }
+
+  .indicator.radio.checked::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    background: var(--c-brand);
+  }
+
+  .indicator.checkbox {
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--c-white);
+    background: var(--c-white);
+  }
+
+  .indicator.checkbox.checked {
+    background: var(--c-brand);
+    border-color: var(--c-brand);
+  }
+
+  .item-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .item-label {
+    line-height: 1.3;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .item-detail {
+    font-size: 10px;
+    color: var(--c-darkgrey);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  button.selected .item-detail {
+    color: color-mix(in srgb, var(--c-brand) 70%, var(--c-darkgrey));
+  }
+
+  li.has-secondary {
+    position: relative;
+  }
+
+  button[role='menuitem'].has-secondary {
+    padding-right: 32px;
+  }
+
+  .secondary-action {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    opacity: 0;
+    pointer-events: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: var(--rounded);
+    padding: 4px;
+    color: var(--c-darkgrey);
+    cursor: pointer;
+    transition:
+      opacity var(--transition-fast) ease,
+      background var(--transition-fast) ease,
+      color var(--transition-fast) ease;
+  }
+
+  li.has-secondary:hover .secondary-action,
+  li.has-secondary:focus-within .secondary-action {
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .secondary-action:hover {
+    background: var(--c-grey);
+    color: var(--c-brand);
+  }
+
+  .secondary-action:focus-visible {
+    outline: 2px solid var(--c-brand);
+    outline-offset: -2px;
+    opacity: 1;
+    pointer-events: auto;
+  }
+
   .custom {
-    padding: 10px 12px;
+    padding: 8px 12px;
   }
 </style>

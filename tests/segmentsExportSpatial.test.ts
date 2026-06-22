@@ -9,6 +9,11 @@ import {
 function createData(segments: DataType['segments']): DataType {
   return {
     isOrdinalOnly: false,
+    capabilities: {
+      segmented: segments.segmentBuffer.length / 6 > 0,
+      spatial: segments.hasSpatialData,
+      event: false,
+    },
     stimuli: {
       data: [['Stimulus A', 'Stimulus A']],
       orderVector: [0],
@@ -18,6 +23,7 @@ function createData(segments: DataType['segments']): DataType {
       orderVector: [0],
     },
     participantsGroups: [],
+    metricInstances: [],
     categories: {
       data: [['Fixation', 'Fixation', '#000000']],
       orderVector: [0],
@@ -29,10 +35,15 @@ function createData(segments: DataType['segments']): DataType {
     aois: {
       data: [[['AOI 1', 'AOI 1', '#ff0000']]],
       orderVector: [[0]],
-      dynamicVisibility: {},
       hiddenAois: [[]],
     },
     segments,
+    eventData: {
+      data: [[]],
+      orderVector: [],
+      hiddenChannels: [],
+      events: [[]],
+    },
   }
 }
 
@@ -47,7 +58,7 @@ describe('segmented export spatial columns', () => {
     expect(lines[0]).toBe(
       'stimulus,participant,timestamp,duration,eyemovementtype,AOI'
     )
-    expect(lines[1]).toBe('Stimulus A,Participant A,0,100,0,AOI 1')
+    expect(lines[1]).toBe('Stimulus A,Participant A,0,100,Fixation,AOI 1')
   })
 
   it('exports x and y columns for segmented CSV when spatial data exists', () => {
@@ -60,9 +71,7 @@ describe('segmented export spatial columns', () => {
       ],
     ]
     const spatialData: (number[] | null)[][][] = [[[[10, 20], null]]]
-    const data = createData(
-      jsonSegmentsToBinary(segmentsJson, undefined, spatialData)
-    )
+    const data = createData(jsonSegmentsToBinary(segmentsJson, spatialData))
 
     const csv = generateUnifiedCsv(data)
     const lines = csv.split('\n')
@@ -70,16 +79,14 @@ describe('segmented export spatial columns', () => {
     expect(lines[0]).toBe(
       'stimulus,participant,timestamp,duration,eyemovementtype,AOI,x,y'
     )
-    expect(lines[1]).toBe('Stimulus A,Participant A,0,100,0,AOI 1,10,20')
-    expect(lines[2]).toBe('Stimulus A,Participant A,100,100,0,,,')
+    expect(lines[1]).toBe('Stimulus A,Participant A,0,100,Fixation,AOI 1,10,20')
+    expect(lines[2]).toBe('Stimulus A,Participant A,100,100,Fixation,,,')
   })
 
   it('exports batch CSV with x/y columns when spatial data exists', () => {
     const segmentsJson: number[][][][] = [[[[0, 100, 0, 0]]]]
     const spatialData: (number[] | null)[][][] = [[[[15, 25]]]]
-    const data = createData(
-      jsonSegmentsToBinary(segmentsJson, undefined, spatialData)
-    )
+    const data = createData(jsonSegmentsToBinary(segmentsJson, spatialData))
 
     const batch = generateMetadataForBatchCsv(data)
 
@@ -87,6 +94,6 @@ describe('segmented export spatial columns', () => {
     const lines = batch[0].content.split('\n')
 
     expect(lines[0]).toBe('timestamp,duration,eyemovementtype,AOI,x,y')
-    expect(lines[1]).toBe('0,100,0,AOI 1,15,25')
+    expect(lines[1]).toBe('0,100,Fixation,AOI 1,15,25')
   })
 })

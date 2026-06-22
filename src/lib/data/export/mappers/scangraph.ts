@@ -1,4 +1,4 @@
-import { type DataType } from '$lib/data/types'
+import { type EngineMetadata } from '$lib/data/types'
 import { type BinaryBufferReader } from '$lib/data/types'
 import { AoiGroupReader } from '$lib/data/binary'
 import { getAoiRaw } from '$lib/data/engine/utils/interpreters'
@@ -8,7 +8,7 @@ import { getAoiRaw } from '$lib/data/engine/utils/interpreters'
  * Uses ASCII characters (A, B, C...) to represent AOIs.
  */
 export async function generateScanGraph(
-  metadata: Omit<DataType, 'segments'>,
+  metadata: EngineMetadata,
   reader: BinaryBufferReader,
   aoiGroupReader: AoiGroupReader,
   stimulusId: number

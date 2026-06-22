@@ -45,12 +45,25 @@ export interface UpdateStimuliCommand extends BaseCommandInterface {
   stimuli: BaseInterpretedDataType[]
 }
 
-export interface UpdateAoiVisibilityCommand extends BaseCommandInterface {
-  type: 'updateAoiVisibility'
+export interface UpdateEventDataCommand extends BaseCommandInterface {
+  type: 'updateEventData'
   stimulusId: number
-  aoiNames: string[]
-  visibilityArr: number[][]
-  participantId?: number | null
+  channelDefs: string[][]
+  eventBuffers: number[][][]
+  /** Hidden ids valid for the NEW channel indexing (omit to clear: the
+      engine resets the hidden list whenever defs are replaced). */
+  hiddenChannels?: number[]
+  /** Display order for the NEW defs (omit for identity). Inverse commands
+      carry it so undo restores a custom channel order. */
+  orderVector?: number[]
+}
+
+export interface UpdateEventChannelsCommand extends BaseCommandInterface {
+  type: 'updateEventChannels'
+  stimulusId: number
+  channels: ExtendedInterpretedDataType[]
+  /** Optional raw channel ids to hide for this stimulus (treated as inactive). */
+  hiddenChannels?: number[]
 }
 
 export interface UpdateParticipantsGroupsCommand extends BaseCommandInterface {
@@ -63,17 +76,28 @@ export interface UpdateNoAoiTreatmentCommand extends BaseCommandInterface {
   noAoiTreatment: { displayedName: string; color: string }
 }
 
-// Settings change command
-export interface UpdateSettingsCommand extends BaseCommandInterface {
-  type: 'updateSettings'
-  itemId: number
-  settings: Partial<AllPlotSettings>
+export interface UpdateCategoriesCommand extends BaseCommandInterface {
+  type: 'updateCategories'
+  categories: ExtendedInterpretedDataType[]
+  hiddenCategories?: number[]
 }
 
+// Settings change command.
+// Operates on a *set* of items: a single edit is a list of one, a bulk edit
+// is a list of N. There is no separate "bulk" command — single and bulk are
+// the same operation at different cardinality, so they share one handler,
+// one reverse, and one undo step.
+export interface UpdateSettingsCommand extends BaseCommandInterface {
+  type: 'updateSettings'
+  updates: { itemId: number; settings: Partial<AllPlotSettings> }[]
+}
+
+// Layout change command. Like updateSettings, it targets a *set* of items:
+// a single move/resize is a list of one; a group move is a list of N,
+// committed and reversed as one atomic undo step.
 export interface UpdateLayoutCommand extends BaseCommandInterface {
   type: 'updateLayout'
-  itemId: number
-  layout: GridItemLayoutUpdate
+  updates: { itemId: number; layout: GridItemLayoutUpdate }[]
 }
 
 // Grid item management commands
@@ -82,6 +106,8 @@ export interface AddGridItemCommand extends BaseCommandInterface {
   vizType: string
   options?: GridItemSnapshot & { skipCollisionResolution?: boolean }
   itemId: number // Required itemId for command reversal
+  /** Explicit grid-coord placement; omit to fall back to auto-placement. */
+  position?: { x: number; y: number }
 }
 
 export interface RemoveGridItemCommand extends BaseCommandInterface {
@@ -93,6 +119,8 @@ export interface DuplicateGridItemCommand extends BaseCommandInterface {
   type: 'duplicateGridItem'
   itemId: number
   duplicateId: number
+  /** Explicit grid-coord placement; omit to fall back to auto-placement. */
+  position?: { x: number; y: number }
 }
 
 export interface SetLayoutStateCommand extends BaseCommandInterface {
@@ -104,9 +132,11 @@ export type WorkspaceCommand =
   | UpdateAoisCommand
   | UpdateParticipantsCommand
   | UpdateStimuliCommand
-  | UpdateAoiVisibilityCommand
+  | UpdateEventDataCommand
+  | UpdateEventChannelsCommand
   | UpdateParticipantsGroupsCommand
   | UpdateNoAoiTreatmentCommand
+  | UpdateCategoriesCommand
   | UpdateSettingsCommand // includes position and size updates
   | UpdateLayoutCommand
   | AddGridItemCommand

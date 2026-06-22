@@ -22,8 +22,7 @@ import {
   estimateTextWidth,
 } from '$lib/shared/utils/textUtils'
 import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
-import { desaturateToWhite } from '$lib/color/utility'
-import { COLOR_FALLBACKS, UI_COLORS } from '$lib/color'
+import { desaturateToWhite } from '$lib/color'
 
 // ============================================================================
 // TYPES
@@ -38,8 +37,8 @@ export interface LegendItem {
   /** Color for the icon */
   color: string
 
-  /** Icon type: 'fixation' for filled rectangles, 'nonFixation' for thin rectangles, 'eventPair' for start/end markers */
-  type: 'fixation' | 'nonFixation' | 'eventPair'
+  /** Icon type: 'fixation' for filled rectangles, 'nonFixation' for thin rectangles */
+  type: 'fixation' | 'nonFixation'
 }
 
 /** A group of legend items with a title (for scarf-style grouped legends) */
@@ -80,6 +79,8 @@ export interface LegendConfig {
   lineDash: readonly [number, number]
   /** Height of non-fixation items */
   nonFixationHeight: number
+  /** Gap between the inline title gutter and the item grid (grouped legends) */
+  titleGutterGap: number
 }
 
 /** Pre-computed geometry for a single legend item */
@@ -91,7 +92,7 @@ export interface LegendItemGeometry {
   x: number
   y: number
   width: number
-  type: 'fixation' | 'nonFixation' | 'eventPair'
+  type: 'fixation' | 'nonFixation'
   rowHeight: number
   groupTitle?: string
 }
@@ -131,6 +132,7 @@ export const SCARF_LEGEND_CONFIG: LegendConfig = {
   topPadding: 0,
   lineDash: [2, 2] as const,
   nonFixationHeight: 4,
+  titleGutterGap: 16,
 }
 
 /** Default configuration matching existing stream plot legend */
@@ -146,14 +148,22 @@ export const STREAM_LEGEND_CONFIG: LegendConfig = {
   fontFamily: FONT_PRIMARY.FAMILY,
   fontSize: FONT_PRIMARY.SIZE,
   fontColor: FONT_PRIMARY.COLOR,
-  topPadding: 5,
+  topPadding: 0,
   lineDash: [2, 2] as const,
   nonFixationHeight: 4,
+  titleGutterGap: 16,
 }
 
 // ============================================================================
 // GEOMETRY COMPUTATION FUNCTIONS
 // ============================================================================
+
+/**
+ * Max fraction of the legend width the inline title gutter may occupy before the
+ * grouped legend falls back to the stacked (title-above) layout. Keeps the item
+ * grid from being starved on narrow tiles.
+ */
+const MAX_GUTTER_FRACTION = 0.45
 
 /**
  * Calculate optimal items per row for visually pleasing layout.
@@ -164,7 +174,7 @@ export const STREAM_LEGEND_CONFIG: LegendConfig = {
  * @param config - Legend configuration
  * @param avgTextWidth - Average text width estimate
  */
-export function getLegendItemsPerRow(
+function getLegendItemsPerRow(
   availableWidth: number,
   config: LegendConfig,
   avgTextWidth: number = 90,
@@ -174,7 +184,10 @@ export function getLegendItemsPerRow(
 
   const { iconWidth, textPadding, itemSpacing } = config
   const itemFullWidth = iconWidth + textPadding + avgTextWidth + itemSpacing
-  const maxItemsPerRow = Math.max(1, Math.floor(availableWidth / itemFullWidth))
+  const maxItemsPerRow = Math.max(
+    1,
+    Math.floor((availableWidth + itemSpacing) / itemFullWidth)
+  )
 
   // If no item count provided, return max possible
   if (!itemCount || itemCount <= 0) return maxItemsPerRow
@@ -202,7 +215,7 @@ export function calculateFlatLegendHeight(
     itemCount
   )
   const rows = Math.ceil(itemCount / itemsPerRow)
-  return rows > 0 ? topPadding + rows * (itemHeight + rowPadding) : 0
+  return rows > 0 ? topPadding + rows * itemHeight + (rows - 1) * rowPadding : 0
 }
 
 /**
@@ -234,11 +247,10 @@ export function computeFlatLegendGeometry(
   } = config
 
   // 1. Calculate max width needed by any item to ensure consistent column widths
-  let maxTextWidth = 0
-  for (let i = 0; i < items.length; i++) {
-    const w = estimateTextWidth(items[i].name, fontSize, fontFamily)
-    if (w > maxTextWidth) maxTextWidth = w
-  }
+  const maxTextWidth = items.reduce(
+    (max, item) => Math.max(max, estimateTextWidth(item.name, fontSize, fontFamily)),
+    0
+  )
 
   const uniformColumnWidth = Math.min(
     iconWidth + textPadding + maxTextWidth,
@@ -263,7 +275,7 @@ export function computeFlatLegendGeometry(
     const item = items[i]
     // Determine icon height based on type
     let iconH = fontSize // Default fallback
-    if (item.type === 'fixation' || item.type === 'eventPair') {
+    if (item.type === 'fixation') {
       iconH = itemHeight
     } else if (item.type === 'nonFixation') {
       iconH = config.nonFixationHeight
@@ -315,7 +327,7 @@ export function computeFlatLegendGeometry(
     }
   }
 
-  const totalHeight = currentY - startY
+  const totalHeight = currentY - startY - (totalRows > 0 ? rowPadding : 0)
 
   return {
     items: geometryItems,
@@ -351,32 +363,76 @@ export function computeGroupedLegendGeometry(
     groupTitleSpacing,
     iconWidth,
     textPadding,
+    titleGutterGap,
     fontSize,
     fontFamily,
   } = config
 
-  // 1. Calculate max width needed by ANY item in ANY group
-  let maxTextWidth = 0
-  for (const group of groups) {
-    for (const item of group.items) {
-      const w = estimateTextWidth(item.name, fontSize, fontFamily)
-      if (w > maxTextWidth) maxTextWidth = w
-    }
-  }
+  // 1. Uniform item-column width = widest item label across ALL groups, so every
+  //    column lines up into one regular grid (capped for readability).
+  const maxTextWidth = groups.reduce(
+    (max, g) =>
+      Math.max(
+        max,
+        g.items.reduce(
+          (m, item) => Math.max(m, estimateTextWidth(item.name, fontSize, fontFamily)),
+          0
+        )
+      ),
+    0
+  )
 
   const uniformColumnWidth = Math.min(
     iconWidth + textPadding + maxTextWidth,
     250 // Cap width
   )
 
-  // 2. Determine items per row based on max items in any group AND actual width
+  // 2. Inline title gutter: group titles share a fixed-width left column (aligned in
+  //    one vertical strip) and the item grid begins to their right, reclaiming the
+  //    dedicated title lines of the stacked layout. Titles render at weight 600, so
+  //    widen the measured width slightly. Falls back to the stacked title-above layout
+  //    when the gutter would starve the item area on a narrow tile.
+  const maxTitleWidth = groups.reduce(
+    (max, g) =>
+      g.items.length === 0
+        ? max
+        : Math.max(max, estimateTextWidth(g.title, fontSize, fontFamily)),
+    0
+  )
+  const gutterWidth =
+    maxTitleWidth > 0 ? Math.ceil(maxTitleWidth * 1.08) + titleGutterGap : 0
+  const itemAreaWidth = availableWidth - gutterWidth
+  const useInline =
+    gutterWidth > 0 &&
+    itemAreaWidth >= uniformColumnWidth &&
+    gutterWidth <= availableWidth * MAX_GUTTER_FRACTION
+
+  const itemsStartX = useInline ? startX + gutterWidth : startX
+  const layoutWidth = useInline ? itemAreaWidth : availableWidth
+
+  // 3. Column count: most items that fit the width, then (inline only) balanced to
+  //    even out the rows of the largest group at that minimum row count — keeps the
+  //    grid regular without adding height. One global count so columns align across
+  //    groups.
   const maxItemsInGroup = groups.reduce(
     (max, g) => Math.max(max, g.items.length),
     0
   )
-  const effectiveItemsPerRow =
-    itemsPerRowOverride ??
-    getLegendItemsPerRow(availableWidth, config, maxTextWidth, maxItemsInGroup)
+  const maxFit = getLegendItemsPerRow(
+    layoutWidth,
+    config,
+    maxTextWidth,
+    maxItemsInGroup
+  )
+  let effectiveItemsPerRow: number
+  if (itemsPerRowOverride != null) {
+    effectiveItemsPerRow = itemsPerRowOverride
+  } else if (useInline && maxItemsInGroup > 0) {
+    const rows = Math.ceil(maxItemsInGroup / maxFit)
+    effectiveItemsPerRow = Math.max(1, Math.ceil(maxItemsInGroup / rows))
+  } else {
+    effectiveItemsPerRow = maxFit
+  }
 
   const geometryItems: LegendItemGeometry[] = []
   const groupTitles: LegendGroupTitleGeometry[] = []
@@ -389,25 +445,21 @@ export function computeGroupedLegendGeometry(
     // Skip empty groups
     if (group.items.length === 0) continue
 
-    // Add spacing before group (except first)
-    if (g > 0 && groupTitles.length > 0) {
+    // Add spacing before group (except the first rendered one)
+    if (groupTitles.length > 0) {
       currentY += groupSpacing
     }
 
-    // Group title
-    groupTitles.push({
-      title: group.title,
-      x: startX,
-      y: currentY,
-    })
-
-    // Items start after title
-    const itemsStartY = currentY + titleHeight + groupTitleSpacing
+    // Inline: items begin at the band top, the title is centered on the first row.
+    // Stacked: the title takes its own line and items begin below it.
+    const itemsStartY = useInline
+      ? currentY
+      : currentY + titleHeight + groupTitleSpacing
 
     // Calculate Rows
     const groupRows = Math.ceil(group.items.length / effectiveItemsPerRow)
 
-    // 3. Calculate dynamic row heights (Layout Pass 1)
+    // Dynamic row heights (Layout Pass 1)
     const rowHeights = new Float32Array(groupRows).fill(0)
     // Store icon heights to avoid re-calculating in placement pass
     const groupItemIconHeights = new Float32Array(group.items.length)
@@ -417,7 +469,7 @@ export function computeGroupedLegendGeometry(
 
       // Determine icon height
       let iconH = fontSize // Default
-      if (item.type === 'fixation' || item.type === 'eventPair') {
+      if (item.type === 'fixation') {
         iconH = itemHeight
       } else if (item.type === 'nonFixation') {
         iconH = config.nonFixationHeight
@@ -433,7 +485,7 @@ export function computeGroupedLegendGeometry(
       }
     }
 
-    // 4. Calculate Row Y positions (Layout Pass 2)
+    // Row Y positions (Layout Pass 2)
     const rowYPositions = new Float32Array(groupRows)
     let groupY = itemsStartY
     for (let r = 0; r < groupRows; r++) {
@@ -441,14 +493,30 @@ export function computeGroupedLegendGeometry(
       groupY += rowHeights[r] + rowPadding
     }
 
-    // 5. Place items (Layout Pass 3)
+    // Group title geometry
+    if (useInline) {
+      // Vertically center the title on the first item row (drawn with baseline 'top').
+      groupTitles.push({
+        title: group.title,
+        x: startX,
+        y: rowYPositions[0] + (rowHeights[0] - fontSize) / 2,
+      })
+    } else {
+      groupTitles.push({
+        title: group.title,
+        x: startX,
+        y: currentY,
+      })
+    }
+
+    // Place items (Layout Pass 3)
     for (let i = 0; i < group.items.length; i++) {
       const item = group.items[i]
 
       const col = Math.floor(i / groupRows)
       const row = i % groupRows
 
-      const x = startX + col * (uniformColumnWidth + itemSpacing)
+      const x = itemsStartX + col * (uniformColumnWidth + itemSpacing)
       const y = rowYPositions[row]
 
       geometryItems.push({
@@ -472,7 +540,7 @@ export function computeGroupedLegendGeometry(
   return {
     items: geometryItems,
     groupTitles,
-    totalHeight: currentY - startY,
+    totalHeight: currentY - startY - (groups.length > 0 ? rowPadding : 0),
     itemsPerRow: effectiveItemsPerRow,
   }
 }
@@ -497,13 +565,11 @@ export function drawLegend(
   highlightedIds: ReadonlySet<string> | readonly string[] | null = null
 ): void {
   const {
-    itemHeight,
     iconWidth,
     textPadding,
     fontSize,
     fontFamily,
     fontColor,
-    lineDash,
   } = config
 
   // Convert to Set for O(1) lookup if array provided
@@ -525,78 +591,15 @@ export function drawLegend(
     // Opacity logic replaced by desaturation - always opaque
     const isDimmed = isHighlightActive && !isHighlighted
 
-    if (item.type === 'fixation' || item.type === 'nonFixation') {
-      const effectiveColor = isDimmed
-        ? desaturateToWhite(item.color, 0.85)
-        : item.color
-      ctx.fillStyle = effectiveColor
-      // Center the icon vertically in the item row
-      const iconY = alignToPixelCenter(
-        item.y + (item.rowHeight - item.height) / 2
-      )
-      ctx.fillRect(item.x, iconY, iconWidth, item.height)
-    } else if (item.type === 'eventPair') {
-      // Event pair icon (start and end markers side-by-side)
-      // Radius ~4px to fit two 8px circles in 20px width
-      const size = 9
-      const radius = size / 2
-      const innerRadius = 2
-      const gap = 2
-
-      const centerY = alignToPixelCenter(item.y + itemHeight / 2)
-      // Center the pair in the iconWidth
-      // Pair width = size * 2 + gap
-      const pairWidth = size * 2 + gap
-      const startX = item.x + (iconWidth - pairWidth) / 2 + radius
-      const endX = startX + size + gap
-
-      const OUTLINE_WIDTH = 1
-
-      // Determine colors based on highlighting state
-      // For events, we dehighlight by desaturating color to white (0.75) instead of using alpha
-      // effectively keeping the marker opaque but pale.
-      const isDimmed = isHighlightActive && !isHighlighted
-      const effectiveColor = isDimmed
-        ? desaturateToWhite(item.color, 0.85)
-        : item.color
-      const effectiveOutlineColor = isDimmed
-        ? desaturateToWhite(UI_COLORS.MARKER_OUTLINE, 0.85)
-        : UI_COLORS.MARKER_OUTLINE
-
-      // 1. Start Marker (Left): Colored outer, white inner
-      ctx.fillStyle = effectiveColor
-      ctx.beginPath()
-      ctx.arc(startX, centerY, radius, 0, Math.PI * 2)
-      ctx.fill()
-
-      ctx.fillStyle = COLOR_FALLBACKS.WHITE
-      ctx.beginPath()
-      ctx.arc(startX, centerY, innerRadius, 0, Math.PI * 2)
-      ctx.fill()
-
-      ctx.strokeStyle = effectiveOutlineColor
-      ctx.lineWidth = OUTLINE_WIDTH
-      ctx.beginPath()
-      ctx.arc(startX, centerY, radius + 0.2, 0, Math.PI * 2)
-      ctx.stroke()
-
-      // 2. End Marker (Right): White outer, colored inner
-      ctx.fillStyle = COLOR_FALLBACKS.WHITE
-      ctx.beginPath()
-      ctx.arc(endX, centerY, radius, 0, Math.PI * 2)
-      ctx.fill()
-
-      ctx.fillStyle = effectiveColor
-      ctx.beginPath()
-      ctx.arc(endX, centerY, innerRadius, 0, Math.PI * 2)
-      ctx.fill()
-
-      ctx.strokeStyle = effectiveOutlineColor
-      ctx.lineWidth = OUTLINE_WIDTH
-      ctx.beginPath()
-      ctx.arc(endX, centerY, radius + 0.2, 0, Math.PI * 2)
-      ctx.stroke()
-    }
+    const effectiveColor = isDimmed
+      ? desaturateToWhite(item.color, 0.85)
+      : item.color
+    ctx.fillStyle = effectiveColor
+    // Center the icon vertically in the item row
+    const iconY = alignToPixelCenter(
+      item.y + (item.rowHeight - item.height) / 2
+    )
+    ctx.fillRect(item.x, iconY, iconWidth, item.height)
   }
 
   // -------------------------------------------------------------------------
@@ -655,14 +658,15 @@ export function drawLegendGroupTitles(
 
   const { fontSize, fontFamily, fontColor } = config
 
-  ctx.font = `600 ${fontSize}px ${fontFamily}` // Semi-bold
-  ctx.fillStyle = fontColor
-  ctx.textAlign = 'left'
-  ctx.textBaseline = 'top'
-
   for (let i = 0; i < geometry.groupTitles.length; i++) {
     const group = geometry.groupTitles[i]
-    ctx.fillText(group.title, group.x, alignToPixelCenter(group.y))
+    const labelY = alignToPixelCenter(group.y)
+
+    ctx.font = `600 ${fontSize}px ${fontFamily}` // Semi-bold
+    ctx.fillStyle = fontColor
+    ctx.textAlign = 'left'
+    ctx.textBaseline = 'top'
+    ctx.fillText(group.title, group.x, labelY)
   }
 }
 

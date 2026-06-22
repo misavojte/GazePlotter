@@ -1,4 +1,9 @@
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import {
+  getStimuliOrderVector,
+  getParticipantOrderVector,
+} from '$lib/data/engine'
+import type { GroupSelectItem } from '$lib/shared/components'
 
 /**
  * Get the stimuli options for a plot
@@ -8,10 +13,7 @@ export function getStimuliOptions(engine: DataEngine) {
   const meta = engine.metadata
   if (!meta) return []
 
-  const order =
-    meta.stimuli.orderVector.length === 0
-      ? Array.from({ length: meta.stimuli.data.length }, (_, i) => i)
-      : meta.stimuli.orderVector
+  const order = getStimuliOrderVector(engine)
 
   return order.map(id => {
     const stimulus = meta.stimuli.data[id]
@@ -42,34 +44,29 @@ export function getParticipantsGroupOptions(
       ? Array.from({ length: meta.participants.data.length }, (_, i) => i)
       : meta.participants.orderVector
 
-  const groups: Array<{ id: number; name: string; participantsIds: number[] }> =
-    []
+  const defaultGroups = includeDefault
+    ? [
+        {
+          id: -1,
+          name: 'All participants',
+          participantsIds: participantOrder,
+        },
+        {
+          id: -2,
+          name: 'Non-empty',
+          participantsIds: participantOrder.filter(
+            participantId => reader.getSegmentCount(stimulusId, participantId) > 0
+          ),
+        },
+      ]
+    : []
 
-  if (includeDefault) {
-    groups.push({
-      id: -1,
-      name: 'All participants',
-      participantsIds: participantOrder,
-    })
-    groups.push({
-      id: -2,
-      name: 'Non-empty',
-      participantsIds: participantOrder.filter(
-        participantId => reader.getSegmentCount(stimulusId, participantId) > 0
-      ),
-    })
-  }
+  const groups = [...defaultGroups, ...meta.participantsGroups]
 
-  for (let i = 0; i < meta.participantsGroups.length; i++) {
-    groups.push(meta.participantsGroups[i])
-  }
-
-  return groups.map(group => {
-    return {
-      label: group.name,
-      value: group.id.toString(),
-    }
-  })
+  return groups.map(group => ({
+    label: group.name,
+    value: group.id.toString(),
+  }))
 }
 
 /**
@@ -80,10 +77,7 @@ export function getParticipantOptions(engine: DataEngine) {
   const meta = engine.metadata
   if (!meta) return []
 
-  const order =
-    meta.participants.orderVector.length === 0
-      ? Array.from({ length: meta.participants.data.length }, (_, i) => i)
-      : meta.participants.orderVector
+  const order = getParticipantOrderVector(engine)
 
   return order.map(id => {
     const participant = meta.participants.data[id]
@@ -93,3 +87,4 @@ export function getParticipantOptions(engine: DataEngine) {
     }
   })
 }
+

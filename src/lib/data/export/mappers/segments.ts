@@ -1,6 +1,7 @@
 import { type DataType } from '$lib/data/types'
-import { AoiGroupReader, BinaryBufferReader } from '$lib/data/binary'
-import { getAoiRaw } from '$lib/data/engine/utils/interpreters'
+import { AoiGroupReader, BinaryBufferReader, FIXATION_CATEGORY_ID } from '$lib/data/binary'
+import { getAoiRaw, getCategoryRaw } from '$lib/data/engine/utils/interpreters'
+import type { ExportNaming } from '../types'
 import {
   type CsvFormatOptions,
   resolveCsvFormatOptions,
@@ -36,18 +37,36 @@ type SegmentCsvRow = {
 
 /**
  * Converts the complex hierarchical eye-tracking data structure to a flat array format.
+ *
+ * `naming` selects how categories and AOIs are named:
+ * - 'displayed' (default): the eye movement type and AOIs use their displayed
+ *   names, and AOIs are grouped + deduplicated by displayed name (the on-screen
+ *   form). Hidden AOIs are excluded.
+ * - 'raw': the eye movement type and AOIs use their original imported names, and
+ *   every AOI the segment references is listed individually (no grouping, hidden
+ *   AOIs included).
  */
 function convertDataStructure(
   data: DataType,
   stimulusIds?: Set<string>,
-  filterFixations: boolean = false
+  filterFixations: boolean = false,
+  naming: ExportNaming = 'displayed'
 ): SegmentCsvRow[] {
   const result: SegmentCsvRow[] = []
+  const displayed = naming !== 'raw'
 
   const reader = new BinaryBufferReader(data.segments)
-  const aoiGroupReader = new AoiGroupReader(reader)
-  aoiGroupReader.updateMap(data)
-  const aoiBuffer = new Uint16Array(32)
+  // Grouping (merge AOIs by displayed name, drop hidden) is a displayed-mode
+  // concern only — raw mode reads the segment's stored AOI ids directly.
+  const aoiGroupReader = displayed ? new AoiGroupReader(reader) : null
+  if (aoiGroupReader) aoiGroupReader.updateMap(data)
+  const aoiBuffer = displayed ? new Uint16Array(32) : null
+
+  const categoryName = (categoryId: number): string => {
+    if (!data.categories.data[categoryId]) return String(categoryId)
+    const category = getCategoryRaw(categoryId, data)
+    return displayed ? category.displayedName : category.originalName
+  }
 
   for (
     let stimulusIndex = 0;
@@ -69,22 +88,34 @@ function convertDataStructure(
         const end = reader.getSegmentEnd(segmentIndex)
         const category = reader.getSegmentCategory(segmentIndex)
 
-        if (filterFixations && category !== 0) return
+        if (filterFixations && category !== FIXATION_CATEGORY_ID) return
 
-        const aoiCount = aoiGroupReader.getSegmentAoisIntoUniqueTyped(
-          segmentIndex,
-          stimulusIndex,
-          aoiBuffer
-        )
-
-        const aoiNames =
-          aoiCount > 0
-            ? Array.from(
-                { length: aoiCount },
-                (_, index) =>
-                  getAoiRaw(stimulusIndex, aoiBuffer[index], data).displayedName
-              )
-            : null
+        let aoiNames: string[] | null
+        if (aoiGroupReader && aoiBuffer) {
+          const aoiCount = aoiGroupReader.getSegmentAoisIntoUniqueTyped(
+            segmentIndex,
+            stimulusIndex,
+            aoiBuffer
+          )
+          aoiNames =
+            aoiCount > 0
+              ? Array.from(
+                  { length: aoiCount },
+                  (_, index) =>
+                    getAoiRaw(stimulusIndex, aoiBuffer[index], data)
+                      .displayedName
+                )
+              : null
+        } else {
+          const rawAois = reader.getRawAois(segmentIndex)
+          aoiNames =
+            rawAois.length > 0
+              ? Array.from(
+                  rawAois,
+                  id => getAoiRaw(stimulusIndex, id, data).originalName
+                )
+              : null
+        }
 
         const spatial = reader.getSegmentSpatial(segmentIndex)
 
@@ -93,7 +124,7 @@ function convertDataStructure(
           participant: data.participants.data[participantIndex][0],
           timestamp: String(start),
           duration: String(end - start),
-          eyemovementtype: String(category),
+          eyemovementtype: categoryName(category),
           AOI: aoiNames,
           ...(spatial
             ? {
@@ -116,11 +147,17 @@ export function generateUnifiedCsv(
   data: DataType,
   stimulusIds?: Set<string>,
   filterFixations: boolean = false,
-  options?: CsvFormatOptions
+  options?: CsvFormatOptions,
+  naming: ExportNaming = 'displayed'
 ): string {
   const { decimalSeparator } = resolveCsvFormatOptions(options)
-  const csvPreData = convertDataStructure(data, stimulusIds, filterFixations)
-  const includeSpatialColumns = data.segments.hasSpatialData
+  const csvPreData = convertDataStructure(
+    data,
+    stimulusIds,
+    filterFixations,
+    naming
+  )
+  const includeSpatialColumns = data.capabilities.spatial
 
   const rows = csvPreData.map(item => {
     const aoiNames = item.AOI ? item.AOI.join(';') : ''
@@ -163,11 +200,17 @@ export function generateMetadataForBatchCsv(
   data: DataType,
   stimulusIds?: Set<string>,
   filterFixations: boolean = false,
-  options?: CsvFormatOptions
+  options?: CsvFormatOptions,
+  naming: ExportNaming = 'displayed'
 ): Array<{ fileName: string; content: string }> {
   const { decimalSeparator } = resolveCsvFormatOptions(options)
-  const csvPreData = convertDataStructure(data, stimulusIds, filterFixations)
-  const includeSpatialColumns = data.segments.hasSpatialData
+  const csvPreData = convertDataStructure(
+    data,
+    stimulusIds,
+    filterFixations,
+    naming
+  )
+  const includeSpatialColumns = data.capabilities.spatial
 
   const results: Array<{ fileName: string; content: string }> = []
 

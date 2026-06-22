@@ -1,4 +1,4 @@
-import type { WorkspaceCommand } from '$lib/workspace/commands'
+import type { WorkspaceCommand } from './types'
 
 /**
  * Command Label Registry
@@ -19,7 +19,7 @@ export interface CommandLabels {
 /**
  * Registry mapping workspace command types to their human-readable labels.
  */
-export const WORKSPACE_COMMAND_LABELS: Record<
+const WORKSPACE_COMMAND_LABELS: Record<
   WorkspaceCommand['type'],
   CommandLabels
 > = {
@@ -42,10 +42,16 @@ export const WORKSPACE_COMMAND_LABELS: Record<
     default: 'Stimuli updated',
   },
 
-  updateAoiVisibility: {
-    undone: 'Undo AOI visibility update',
-    redone: 'Redo AOI visibility update',
-    default: 'AOI visibility updated',
+  updateEventData: {
+    undone: 'Undo event data update',
+    redone: 'Redo event data update',
+    default: 'Event data updated',
+  },
+
+  updateEventChannels: {
+    undone: 'Undo event channels update',
+    redone: 'Redo event channels update',
+    default: 'Event channels updated',
   },
 
   updateParticipantsGroups: {
@@ -58,6 +64,12 @@ export const WORKSPACE_COMMAND_LABELS: Record<
     undone: 'Undo No AOI treatment update',
     redone: 'Redo No AOI treatment update',
     default: 'No AOI treatment updated',
+  },
+
+  updateCategories: {
+    undone: 'Undo eye-movement types update',
+    redone: 'Redo eye-movement types update',
+    default: 'Eye-movement types updated',
   },
 
   // Settings change command

@@ -14,13 +14,14 @@ export type ScarfPlotSettings = {
   timeline: 'absolute' | 'relative' | 'ordinal'
   absoluteStimuliLimits: [number, number][]
   ordinalStimuliLimits: [number, number][]
-  dynamicAOI: boolean
   highlights?: string[]
   timelineStart?: number
   timelineEnd?: number
   ordinalStart?: number
   ordinalEnd?: number
   hideNonFixations?: boolean
+  /** Hide the event overlay (strips below the gaze baseline). Default: shown. */
+  hideEvents?: boolean
 }
 
 export type ScarfPlotItem = PlotItemContract<'scarf', ScarfPlotSettings>
@@ -59,11 +60,10 @@ export interface ScarfStyling {
 
 /**
  * Style type for legend items, determining how the icon is rendered.
- * - 'fixation': Full-height rectangle (AOI fixations)
+ * - 'fixation': Full-height rectangle (AOI fixations, event channels)
  * - 'nonFixation': Thin rectangle (saccades, other events)
- * - 'visibility': Dashed line (AOI visibility intervals)
  */
-export type ScarfLegendStyleType = 'fixation' | 'nonFixation' | 'visibility'
+export type ScarfLegendStyleType = 'fixation' | 'nonFixation'
 
 /**
  * A single legend item with its display properties.
@@ -133,32 +133,25 @@ export interface ScarfStimulus {
 
 /**
  * Object that contains all information needed to draw a scarf plot for a single stimulus.
- * It is generated from raw data and scarf settings (height of bars etc.) by ScarfService.
+ * It is generated from raw data and scarf settings by ScarfService.
  * Raw data are too complicated to be used directly in the scarf component.
  *
+ * Layout geometry (bar/wrap/chart heights, label/plot-area widths) is computed
+ * at render time from the live layout context, not stored here.
+ *
  * @property id - Unique identifier for this scarf data instance
- * @property timelineType - Type of timeline ('absolute', 'relative', 'ordinal')
  * @property stimulusId - ID of the stimulus to be plotted
  * @property timeline - AdaptiveTimeline object containing information about the timeline ticks and bounds
  * @property stylingAndLegend - ScarfStyling object containing styling info for rendering segments
  * @property legendData - Group-aware legend data for viewport-driven legend rendering
- * @property barHeight - height of the bar representing a single participant
- * @property heightOfBarWrap - height of the bar with all the elements (participant bar, aoi bars, non-fixation bars)
- * @property chartHeight - height of the whole chart
  * @property participants - array of ScarfParticipant objects containing information about participants
  * @property stimuli - array of ScarfStimulus objects containing information about stimuli (for stimuli selection)
- * @property leftLabelWidth - Precomputed layout width for left labels
- * @property plotAreaWidth - Precomputed layout width for the plot area
  * @property visualRectBuckets - Precomputed visual buffers for rectangle rendering
  * @property visualEventBuckets - Precomputed visual buffers for visibility event markers
  */
 export type ScarfData = {
   id: number
-  timelineType: 'absolute' | 'relative' | 'ordinal'
-  barHeight: number
   stimulusId: number
-  heightOfBarWrap: number
-  chartHeight: number
   stimuli: ScarfStimulus[]
   participants: ScarfParticipant[]
   timeline: AdaptiveTimeline
@@ -166,12 +159,6 @@ export type ScarfData = {
   stylingAndLegend: ScarfStyling
   /** Group-aware legend data - geometry is computed at render time based on viewport */
   legendData: ScarfLegendData
-  /**
-   * Precomputed layout widths used by the renderer.
-   * These must match the values used when constructing the visual buffers.
-   */
-  leftLabelWidth: number
-  plotAreaWidth: number
 
   /**
    * Precomputed visual buffers (pixel coordinates) for canvas rendering.
@@ -179,13 +166,34 @@ export type ScarfData = {
    * This eliminates the need for runtime bucketing in Svelte.
    *
    * Rectangle buffer layout per style (RECT_STRIDE = 8):
-   * [x, y, width, height, participantId, segmentId, orderId, reserved0]
+   * [x, participantIndex, width, height, participantId, segmentId, orderId, internalY]
    *
-   * Event buffer layout per style (EVENT_STRIDE = 5):
-   * [xNormalized, pIndex, eventType, participantId, reserved0]
+   * Combined-mode (overlay) event-strip buffer per style
+   * (OVERLAY_EVENT_STRIDE = 5):
+   * [xNormalized, pIndex, widthNormalized, laneIndex, isPoint]
    */
   visualRectBuckets: Float32Array[]
   visualEventBuckets: Float32Array[]
+
+  /**
+   * Per-rect-bucket row index for hover hit-testing. `rectRowOffsets[styleIdx]`
+   * is an Int32Array of length (participants + 1) where entry r is the first
+   * segment index in that bucket with participantIndex >= r. The segments of
+   * row r are the half-open slice [r, r + 1), so the hover hit-test scans only
+   * the hovered row instead of the whole buffer. Same length/order as
+   * `visualRectBuckets`.
+   */
+  rectRowOffsets: Int32Array[]
+
+  /** Whether the event overlay (strips below the gaze baseline) is drawn. */
+  isOverlay: boolean
+
+  /**
+   * Overlay only: observed max simultaneous events across all participants. The
+   * event band height = this × lane height, uniform across rows so the AOI seam
+   * sits at a constant y. 0 when there is no event band.
+   */
+  eventZoneConcurrency?: number
 }
 
 /**
@@ -199,3 +207,14 @@ export interface ScarfTooltipData {
   participantId: number
   stimulusId: number
 }
+
+export interface ScarfRectStyle {
+  normal: { fill: string }
+  dimmed: { fill: string; opacity: number }
+}
+
+export interface ScarfEventStyle {
+  normal: { fill: string; stroke: string; strokeWidth: number }
+  dimmed: { fill: string; stroke: string; strokeWidth: number; opacity: number }
+}
+

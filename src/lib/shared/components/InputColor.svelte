@@ -1,13 +1,14 @@
 <script lang="ts">
   import InputScaffold from './InputScaffold.svelte'
-  import { ColorPicker, ColorPickerManager } from '$lib/color'
-  import { getContrastTextColor, detectColorFormat } from '$lib/color/utility'
+  import { ColorPicker, ColorPickerState } from '$lib/color'
+  import { getContrastTextColor, detectColorFormat } from '$lib/color'
   import { untrack } from 'svelte'
   import { fade } from 'svelte/transition'
+  import { isInPane } from './paneContext'
 
   /**
    * Color picker input component wrapper.
-   * Uses ColorPickerManager for decoupled popup and positioning logic.
+   * Uses ColorPickerState for decoupled popup and positioning logic.
    */
 
   interface Props {
@@ -17,6 +18,11 @@
     width?: number
     showLabel?: boolean
     ariaLabel?: string
+    compact?: boolean
+    size?: 'xs' | 'sm' | 'md' | 'lg'
+    /** Multi-selection "Mixed": the bound plots disagree on this color. Shows a
+     *  neutral "Mixed" swatch; picking a color applies it to all. */
+    mixed?: boolean
     oninput?: (event: CustomEvent<string>) => void
   }
 
@@ -27,11 +33,17 @@
     width = $bindable(125),
     showLabel = true,
     ariaLabel,
+    compact = false,
+    size = 'sm',
+    mixed = false,
     oninput = () => {},
   }: Props = $props()
 
+  const inPane = isInPane()
+  const isCompact = $derived(compact || inPane)
+
   // Controller for the color picker popup logic
-  const picker = new ColorPickerManager()
+  const picker = new ColorPickerState()
 
   // Ensure minimum width constraint is met
   const actualWidth = $derived(Math.max(35, width))
@@ -61,19 +73,24 @@
   {label}
   id={inputId}
   showLabel={showLabel}
+  compact={isCompact}
 >
   <div class="color-input-container">
     <button
       id={inputId}
       type="button"
-      class="color-preview"
+      class="color-preview size-{size}"
+      class:compact={isCompact}
       onclick={() => picker.toggle()}
       aria-label={ariaLabel ?? (!showLabel ? label : undefined)}
-      style:background-color={formatColorValue}
+      class:mixed
+      style:background-color={mixed ? 'var(--c-lightgrey)' : formatColorValue}
       style:width="{actualWidth}px"
       bind:this={picker.triggerElement}
     >
-      {#if showHexCode}
+      {#if mixed}
+        <span class="color-value mixed-label">Mixed</span>
+      {:else if showHexCode}
         <span class="color-value" style:color={contrastTextColor}>
           {formatColorValue}
         </span>
@@ -114,7 +131,21 @@
     height: 34px;
     cursor: pointer;
     background-color: white;
-    transition: all 0.2s;
+    transition: all var(--transition-normal);
+  }
+
+  .color-preview.compact {
+    height: 30px;
+    font-size: 12px;
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+  }
+
+  .color-preview.size-xs {
+    height: 24px;
+    font-size: 10px;
+    padding: 0 4px;
+    border-radius: var(--rounded);
   }
 
   .color-preview:hover {
@@ -127,6 +158,16 @@
     font-weight: 500;
     text-align: center;
     flex-grow: 1;
+  }
+
+  .color-preview.mixed {
+    border-style: dashed;
+  }
+
+  .mixed-label {
+    font-family: inherit;
+    font-size: 11px;
+    color: var(--c-darkgrey);
   }
 
   .color-popup {

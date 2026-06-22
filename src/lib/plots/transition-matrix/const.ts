@@ -1,31 +1,8 @@
 import { INACTIVE_COLOR, PRESET_PALETTES } from '$lib/color'
+import { buildMetricLabel, timeRangeQualifier } from '$lib/plots/shared'
+import type { Metric, MetricInstance } from '$lib/metrics'
 
-/**
- * Defines available aggregation methods for transition matrices
- */
-export enum MatrixAggregationMethod {
-  SUM = 'sum',
-  FREQUENCY_RELATIVE = 'frequencyRelative',
-  PROBABILITY = 'probability',
-  PROBABILITY_2 = 'probability2',
-  PROBABILITY_3 = 'probability3',
-  DWELL_TIME = 'dwellTime',
-  SEGMENT_DWELL_TIME = 'segmentDwellTime',
-}
-
-export const TRANSITION_MATRIX_LAYOUT = {
-  horizontalPadding: 50,
-  baseLabelOffset: 5,
-  topMargin: 0,
-  leftMargin: 30,
-  rightMargin: 10,
-  minCellSize: 20,
-  maxLabelLength: 85,
-  COMPACT_THRESHOLD: 26,
-  THIN_THRESHOLD: 15,
-  LABEL_FONT_SIZE: 12,
-  CELL_VALUE_FONT_SIZE: 9,
-} as const
+export { MATRIX_LAYOUT as TRANSITION_MATRIX_LAYOUT } from '$lib/plots/shared'
 
 export const TRANSITION_MATRIX_DEFAULTS = {
   width: 500,
@@ -36,12 +13,29 @@ export const TRANSITION_MATRIX_DEFAULTS = {
   yLabel: 'From AOI',
 } as const
 
-export const TRANSITION_MATRIX_LEGEND_TITLES: Record<string, string> = {
-  [MatrixAggregationMethod.SUM]: 'Absolute frequency',
-  [MatrixAggregationMethod.FREQUENCY_RELATIVE]: 'Relative frequency [%]',
-  [MatrixAggregationMethod.PROBABILITY]: '1-step probability [%]',
-  [MatrixAggregationMethod.PROBABILITY_2]: '2-step probability [%]',
-  [MatrixAggregationMethod.PROBABILITY_3]: '3-step probability [%]',
-  [MatrixAggregationMethod.DWELL_TIME]: 'Fixation duration [ms]',
-  [MatrixAggregationMethod.SEGMENT_DWELL_TIME]: 'Dwell duration [ms]',
+/**
+ * Colorbar title for the selected metric, in the shared label grammar:
+ * `"<quantity> / <unit> · <qualifier> · …"`. The quantity + unit come from the
+ * instance/metric; the instance's derived param qualifiers (mode, k-step, …)
+ * and the plot-level facts trail as mid-dot qualifiers — never brackets or
+ * parentheticals, and always derived so a rename can't drop them.
+ *
+ *   - `"No-AOI excluded"` discloses that the No-AOI (Outside) row/column is
+ *     hidden: for normalised metrics the visible rows then exclude that mass
+ *     and may not sum to 100%.
+ *   - the time-range qualifier signals a sub-stimulus extent — the matrix has
+ *     no time axis, so the range would otherwise be invisible.
+ */
+export function getLegendTitle(
+  instance: MetricInstance | null | undefined,
+  metric: Metric | null | undefined,
+  hideNoAoi = false,
+  timelineStart = 0,
+  timelineEnd = 0
+): string {
+  return buildMetricLabel(instance, metric, {
+    fallback: 'Transition value',
+    includeProjection: true,
+    extra: [hideNoAoi && 'No-AOI excluded', timeRangeQualifier(timelineStart, timelineEnd)],
+  })
 }

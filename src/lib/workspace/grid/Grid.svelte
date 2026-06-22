@@ -1,24 +1,67 @@
 <script lang="ts">
-  import { fade } from 'svelte/transition'
   import GridItem from './GridItem.svelte'
   import ButtonMajor from '$lib/shared/components/ButtonMajor.svelte'
-  import { getPlotDisplayName, resolvePlotComponent } from '$lib/plots/registry'
+  import {
+    getPlotDisplayName,
+    getPlotSubtitle,
+    resolvePlotComponent,
+  } from '$lib/plots/registry'
   import { getGazePlotterSession } from '$lib/session'
+  import { generateUniqueId } from '$lib/shared/utils/idUtils'
   import type { AllGridTypes } from '$lib/workspace'
   import type { GridConfig } from './types'
   import {
     commitGridItemDuplication,
-    commitGridItemMove,
+    commitGridItemGroupMove,
     commitGridItemRemoval,
     commitGridItemResize,
   } from './itemCommands'
   import {
     GridInteractionOverlay,
-    panSurfaceAction,
     type GridInteractionController,
   } from './interaction'
+  import { responsive } from '../responsive.svelte'
 
-  const { errorService, workspace } = getGazePlotterSession()
+  const { engine, errorService, workspace, grid } = getGazePlotterSession()
+
+  // Mac's main "delete" key emits Backspace, so we handle both.
+  $effect(() => {
+    function onKeydown(event: KeyboardEvent) {
+      if (event.metaKey || event.ctrlKey || event.altKey) return
+      // Operate on the whole selection (single = a set of one). Reading the
+      // set directly — not the single-only `selectedItemId` getter — keeps
+      // Delete/Escape working for a multi-selection.
+      const selectedIds = grid.selectedItemIds
+      if (selectedIds.length === 0) return
+      const target = event.target as HTMLElement | null
+      if (target) {
+        const tag = target.tagName
+        if (
+          tag === 'INPUT' ||
+          tag === 'TEXTAREA' ||
+          tag === 'SELECT' ||
+          target.isContentEditable
+        )
+          return
+      }
+      if (event.key === 'Delete' || event.key === 'Backspace') {
+        event.preventDefault()
+        // Snapshot first — removeItem mutates the selection set as it goes.
+        for (const id of [...selectedIds]) {
+          commitGridItemRemoval(workspace, gridItems, { id })
+        }
+        return
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault()
+        // clearSelection (not the pane) owns deselect, so Escape works for a
+        // multi-selection regardless of whether the bulk pane is mounted.
+        grid.clearSelection()
+      }
+    }
+    window.addEventListener('keydown', onKeydown)
+    return () => window.removeEventListener('keydown', onKeydown)
+  })
 
   interface Props {
     gridItems: AllGridTypes[]
@@ -27,7 +70,6 @@
     gridWidth: number
     gridIsEmpty: boolean
     interaction: GridInteractionController
-    workspaceContainer: HTMLElement | null
   }
 
   const {
@@ -37,8 +79,26 @@
     gridWidth,
     gridIsEmpty,
     interaction,
-    workspaceContainer,
   }: Props = $props()
+
+  // Duplicate commits immediately. The store's findOptimalPosition
+  // places the copy adjacent-right of the source (falling back to
+  // below, then any free cell), so the user sees the new item land
+  // near the one they acted on.
+  function handleDuplicate(event: { id: number }): void {
+    const newId = generateUniqueId()
+    if (
+      commitGridItemDuplication(workspace, gridItems, {
+        id: event.id,
+        duplicateId: newId,
+      })
+    ) {
+      grid.setSelectedItem(newId)
+      if (!responsive.isMobile) {
+        grid.openPane(newId)
+      }
+    }
+  }
 
   function getPlotErrorMessage(error: unknown): string {
     if (error instanceof Error && error.message.trim().length > 0) {
@@ -50,6 +110,31 @@
     }
 
     return 'Unknown rendering error'
+  }
+
+  // Bounding box around all selected items (shown only for a multi-selection).
+  // Mirrors GridItem's pixel math; a small margin sits it just outside the
+  // members' outlines. Returns null when fewer than two are selected.
+  function groupBoxStyle(
+    items: Array<{ x: number; y: number; w: number; h: number }>,
+    config: GridConfig
+  ): string | null {
+    if (items.length < 2) return null
+    const cellW = config.cellSize.width
+    const cellH = config.cellSize.height
+    const gap = config.gap
+    const minX = Math.min(...items.map(i => i.x))
+    const minY = Math.min(...items.map(i => i.y))
+    const maxX = Math.max(...items.map(i => i.x + i.w))
+    const maxY = Math.max(...items.map(i => i.y + i.h))
+    const wCells = maxX - minX
+    const hCells = maxY - minY
+    const left = minX * (cellW + gap)
+    const top = minY * (cellH + gap)
+    const width = wCells * cellW + (wCells - 1) * gap
+    const height = hCells * cellH + (hCells - 1) * gap
+    const margin = 6
+    return `transform: translate(${left - margin}px, ${top - margin}px); width: ${width + 2 * margin}px; height: ${height + 2 * margin}px;`
   }
 
   function reportPlotRenderError(
@@ -78,20 +163,17 @@
   style="width: {gridWidth}px; height: {gridHeight}px;"
   role="application"
 >
-  <div
-    class="grid-pan-surface"
-    use:panSurfaceAction={{
-      enabled: !gridIsEmpty && workspaceContainer !== null,
-      interaction,
-      workspaceContainer,
-    }}
-    aria-hidden="true"
-  ></div>
-
   {#if !gridIsEmpty}
     {#each gridItems as item (item.id)}
       {@const plotLabel = getPlotDisplayName(item.type)}
-      <div transition:fade={{ duration: 300 }}>
+      {@const plotSubtitle = getPlotSubtitle(item, engine)}
+      <!-- No wrapper transition here: GridItem's root `.grid-item`
+           already fades (150ms). An outer `transition:fade` would wrap
+           the component in an opacity<1 stacking context with z-index
+           auto, which paints below neighbors' `.grid-item { z-index: 1 }`
+           — causing a freshly-duplicated item's action chip to sit
+           behind the item above it until the fade completes and the
+           stacking context dissolves. -->
         <GridItem
           id={item.id}
           x={item.x}
@@ -106,12 +188,12 @@
           draggable={true}
           {interaction}
           title={plotLabel}
-          onmove={event => commitGridItemMove(workspace, gridItems, event)}
+          subtitle={plotSubtitle}
+          onmove={event => commitGridItemGroupMove(workspace, gridItems, event)}
           onresize={event =>
             commitGridItemResize(workspace, gridItems, gridConfig, event)}
           onremove={event => commitGridItemRemoval(workspace, gridItems, event)}
-          onduplicate={event =>
-            commitGridItemDuplication(workspace, gridItems, event)}
+          onduplicate={handleDuplicate}
         >
           {#snippet body()}
             <div class="grid-item-content">
@@ -143,16 +225,23 @@
             </div>
           {/snippet}
         </GridItem>
-      </div>
     {/each}
   {/if}
 
+  {#if grid.selectedItemIds.length > 1 && !interaction.isInteracting}
+    {@const boxStyle = groupBoxStyle(grid.selectedItems, gridConfig)}
+    {#if boxStyle}
+      <div class="group-selection-box" style={boxStyle} aria-hidden="true"></div>
+    {/if}
+  {/if}
+
   <GridInteractionOverlay
-    preview={interaction.previewRect}
+    previews={interaction.previewRects}
     {gridConfig}
     mode={interaction.mode}
   />
 </div>
+
 
 <style>
   .grid-container.is-panning {
@@ -163,10 +252,19 @@
     position: relative;
   }
 
-  .grid-pan-surface {
+  /* Solid bounding box around a multi-selection. Sits above unselected
+     items (z-index 1) and below the interaction overlay (z-index 50);
+     purely decorative, so it never intercepts pointer events (dragging
+     any member frame moves the group). */
+  .group-selection-box {
     position: absolute;
-    inset: 0;
-    z-index: 0;
+    top: 0;
+    left: 0;
+    z-index: 6;
+    pointer-events: none;
+    border: 2px solid var(--c-info);
+    border-radius: var(--rounded-lg);
+    box-sizing: border-box;
   }
 
   .plot-error-state {

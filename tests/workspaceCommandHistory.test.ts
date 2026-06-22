@@ -6,8 +6,7 @@ describe('workspaceCommandHistory', () => {
     const history = new UndoRedoStateStore()
     const childCommand: WorkspaceCommandChain = {
       type: 'updateLayout',
-      itemId: 1,
-      layout: { x: 2 },
+      updates: [{ itemId: 1, layout: { x: 2 } }],
       source: 'workspace',
       chainId: 1,
       isRootCommand: false,
@@ -29,16 +28,14 @@ describe('workspaceCommandHistory', () => {
     const history = new UndoRedoStateStore()
     const rootCommand: WorkspaceCommandChain = {
       type: 'updateLayout',
-      itemId: 1,
-      layout: { x: 1 },
+      updates: [{ itemId: 1, layout: { x: 1 } }],
       source: 'workspace',
       chainId: 1,
       isRootCommand: true,
     }
     const childCommand: WorkspaceCommandChain = {
       type: 'updateLayout',
-      itemId: 1,
-      layout: { x: 2 },
+      updates: [{ itemId: 1, layout: { x: 2 } }],
       source: 'workspace',
       chainId: 2,
       isRootCommand: false,

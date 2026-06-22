@@ -30,7 +30,7 @@ export function isAreaAvailable(
   )
 }
 
-export function findCollisions(
+function findCollisions(
   x: number,
   y: number,
   w: number,
@@ -85,85 +85,275 @@ export function findOptimalPosition(
   return { x: 0, y: maxY }
 }
 
-export function findBestConflictResolutionPosition(
-  item: GridItemPosition,
-  priorityItem: GridItemPosition,
-  positions: GridItemPosition[],
-  availableColumns: number,
-  excludeId: number
-): { x: number; y: number } | null {
-  const { x: itemX, y: itemY, w: itemW, h: itemH } = item
-  const {
-    x: priorityX,
-    y: priorityY,
-    w: priorityW,
-    h: priorityH,
-  } = priorityItem
-
-  const potentialPositions = [
-    {
-      x: priorityX + priorityW,
-      y: itemY,
-      distance: Math.abs(priorityX + priorityW - itemX),
-    },
-    {
-      x: priorityX - itemW,
-      y: itemY,
-      distance: Math.abs(priorityX - itemW - itemX),
-    },
-    {
-      x: itemX,
-      y: priorityY + priorityH,
-      distance: Math.abs(priorityY + priorityH - itemY),
-    },
-    {
-      x: itemX,
-      y: priorityY - itemH,
-      distance: Math.abs(priorityY - itemH - itemY),
-    },
-    {
-      x: priorityX + priorityW,
-      y: priorityY,
-      distance:
-        Math.abs(priorityX + priorityW - itemX) + Math.abs(priorityY - itemY),
-    },
-    {
-      x: priorityX - itemW,
-      y: priorityY,
-      distance:
-        Math.abs(priorityX - itemW - itemX) + Math.abs(priorityY - itemY),
-    },
-  ]
-
-  const validPositions = potentialPositions.filter(
-    pos =>
-      pos.x >= 0 &&
-      pos.y >= 0 &&
-      isAreaAvailable(pos.x, pos.y, itemW, itemH, positions, excludeId)
-  )
-
-  if (validPositions.length === 0) {
-    return findOptimalPosition(itemW, itemH, positions, availableColumns)
-  }
-
-  return validPositions.reduce((best, current) =>
-    current.distance < best.distance ? current : best
-  )
+type ResolutionCommand = {
+  itemId: number
+  settings: GridItemLayoutUpdate
 }
 
-export function resolveItemPositionCollisions(
-  priorityItemId: number,
+type ResolutionPlan = {
+  updates: ResolutionCommand[]
+  cost: number
+}
+
+type Direction = 'R' | 'L' | 'D' | 'U'
+// Tried in this order. Equal-cost chains tiebreak on which direction
+// tried first → horizontal pushes (R, L) beat vertical (D, U), which
+// keeps row-arranged items on the same row when the grid gets shoved.
+const DIRECTIONS: Direction[] = ['R', 'L', 'D', 'U']
+
+// Recursively compute the set of moves needed to push `itemId` in
+// `direction` until it clears `clearFrom`. Any item already in the way
+// is pushed by the same rule (clear from the item we pushed through).
+// Returns null if the chain dead-ends (grid edge / hits priority / loops).
+function cascadeInDirection(
+  itemId: number,
+  direction: Direction,
+  clearFrom: GridItemPosition,
+  sim: Map<number, GridItemPosition>,
+  priorityId: number,
+  visited: Set<number>
+): Map<number, { x: number; y: number }> | null {
+  if (itemId === priorityId) return null
+  if (visited.has(itemId)) return null
+  visited.add(itemId)
+
+  const item = sim.get(itemId)
+  if (!item) return null
+
+  let newX = item.x
+  let newY = item.y
+  if (direction === 'R') newX = clearFrom.x + clearFrom.w
+  else if (direction === 'L') newX = clearFrom.x - item.w
+  else if (direction === 'D') newY = clearFrom.y + clearFrom.h
+  else newY = clearFrom.y - item.h
+
+  if (newX < 0 || newY < 0) return null
+
+  const simArray = Array.from(sim.values())
+  const collisions = findCollisions(
+    newX,
+    newY,
+    item.w,
+    item.h,
+    simArray,
+    itemId
+  )
+  if (collisions.has(priorityId)) return null
+
+  const result = new Map<number, { x: number; y: number }>()
+  result.set(itemId, { x: newX, y: newY })
+
+  const myNewRect: GridItemPosition = {
+    id: itemId,
+    x: newX,
+    y: newY,
+    w: item.w,
+    h: item.h,
+  }
+  for (const cid of collisions) {
+    if (visited.has(cid)) continue
+    const subPlan = cascadeInDirection(
+      cid,
+      direction,
+      myNewRect,
+      sim,
+      priorityId,
+      visited
+    )
+    if (subPlan === null) return null
+    for (const [k, v] of subPlan) result.set(k, v)
+  }
+
+  return result
+}
+
+// Directional-push strategy. For each direct collider, try pushing it
+// (and any items in its way) in each of 4 cardinal directions; apply
+// the cheapest chain to the sim before moving on to the next direct
+// collider. Falls back to findOptimalPosition for any collider that
+// can't be pushed anywhere (all directions blocked by grid edges or
+// priority).
+function runCascadeResolution(
+  priority: GridItemPosition,
+  initialColliders: Iterable<number>,
   positions: GridItemPosition[],
-  items: AllGridTypes[],
+  availableColumns: number
+): ResolutionPlan {
+  const original = new Map(positions.map(p => [p.id, p]))
+  const sim = new Map(positions.map(p => [p.id, { ...p }]))
+  const moved = new Set<number>()
+
+  for (const id of initialColliders) {
+    if (id === priority.id) continue
+    const current = sim.get(id)
+    if (!current) continue
+
+    let best:
+      | { chain: Map<number, { x: number; y: number }>; cost: number }
+      | null = null
+
+    for (const dir of DIRECTIONS) {
+      const chain = cascadeInDirection(
+        id,
+        dir,
+        priority,
+        sim,
+        priority.id,
+        new Set<number>()
+      )
+      if (chain === null) continue
+      let cost = 0
+      for (const [pid, newPos] of chain) {
+        const prev = sim.get(pid)
+        if (!prev) continue
+        cost += Math.abs(newPos.x - prev.x) + Math.abs(newPos.y - prev.y)
+      }
+      if (!best || cost < best.cost) best = { chain, cost }
+    }
+
+    if (best) {
+      for (const [pid, newPos] of best.chain) {
+        const prev = sim.get(pid)
+        if (!prev) continue
+        sim.set(pid, { ...prev, x: newPos.x, y: newPos.y })
+        moved.add(pid)
+      }
+      continue
+    }
+
+    // No direction works — fall back to first-free cell.
+    const simArray = Array.from(sim.values()).filter(p => p.id !== id)
+    const next = findOptimalPosition(
+      current.w,
+      current.h,
+      simArray,
+      availableColumns
+    )
+    if (next.x !== current.x || next.y !== current.y) {
+      sim.set(id, { ...current, x: next.x, y: next.y })
+      moved.add(id)
+    }
+  }
+
+  const updates: ResolutionCommand[] = []
+  let cost = 0
+  for (const id of moved) {
+    const orig = original.get(id)
+    const final = sim.get(id)
+    if (!orig || !final) continue
+    if (final.x === orig.x && final.y === orig.y) continue
+    updates.push({ itemId: id, settings: { x: final.x, y: final.y } })
+    cost += Math.abs(final.x - orig.x) + Math.abs(final.y - orig.y)
+  }
+  return { updates, cost }
+}
+
+// Each direct collider is relocated to the first free cell via
+// findOptimalPosition — no cascade. Cheaper than cascade when pushing
+// locally would ripple through many items.
+function runRelocateResolution(
+  priority: GridItemPosition,
+  directColliders: Iterable<number>,
+  positions: GridItemPosition[],
+  availableColumns: number
+): ResolutionPlan {
+  const original = new Map(positions.map(p => [p.id, p]))
+  const sim = new Map(positions.map(p => [p.id, { ...p }]))
+  const updates: ResolutionCommand[] = []
+  let cost = 0
+
+  for (const id of directColliders) {
+    if (id === priority.id) continue
+    const current = sim.get(id)
+    if (!current) continue
+    const simArray = Array.from(sim.values()).filter(p => p.id !== id)
+    const next = findOptimalPosition(
+      current.w,
+      current.h,
+      simArray,
+      availableColumns
+    )
+    if (next.x === current.x && next.y === current.y) continue
+    sim.set(id, { ...current, x: next.x, y: next.y })
+    const orig = original.get(id)
+    if (!orig) continue
+    updates.push({ itemId: id, settings: { x: next.x, y: next.y } })
+    cost += Math.abs(next.x - orig.x) + Math.abs(next.y - orig.y)
+  }
+
+  return { updates, cost }
+}
+
+// Relocates every non-priority item overlapping the *set* of priority items
+// to the first free cell, treating all priority items as fixed. Used for a
+// group move: the dragged members hold their relative layout and only items
+// in the way get pushed off. (Single-item moves keep the nicer directional
+// cascade below — relocate-to-free-cell is the robust choice when the
+// "obstacle" is an arbitrary, possibly non-contiguous union of rects.)
+function resolveGroupCollisions(
+  priorityIds: number[],
+  positions: GridItemPosition[],
+  availableColumns: number
+): Array<{ itemId: number; settings: GridItemLayoutUpdate }> {
+  const prioritySet = new Set(priorityIds)
+  const colliders = new Set<number>()
+  for (const id of priorityIds) {
+    const rect = positions.find(p => p.id === id)
+    if (!rect) continue
+    for (const cid of findCollisions(
+      rect.x,
+      rect.y,
+      rect.w,
+      rect.h,
+      positions,
+      rect.id
+    )) {
+      if (!prioritySet.has(cid)) colliders.add(cid)
+    }
+  }
+  if (colliders.size === 0) return []
+
+  const sim = new Map(positions.map(p => [p.id, { ...p }]))
+  const updates: Array<{ itemId: number; settings: GridItemLayoutUpdate }> = []
+  for (const id of colliders) {
+    const current = sim.get(id)
+    if (!current) continue
+    // Search free cells against everything else, including the (fixed)
+    // priority items and already-relocated colliders.
+    const others = Array.from(sim.values()).filter(p => p.id !== id)
+    const next = findOptimalPosition(current.w, current.h, others, availableColumns)
+    if (next.x === current.x && next.y === current.y) continue
+    sim.set(id, { ...current, x: next.x, y: next.y })
+    updates.push({ itemId: id, settings: { x: next.x, y: next.y } })
+  }
+  return updates
+}
+
+// Resolves collisions introduced by a move/resize/add. Accepts a single
+// priority id or a set (group move). One id → the directional cascade /
+// bulk-relocate comparison (cheapest wins; ties favor the local cascade).
+// Many ids → group relocate (above).
+export function resolveItemPositionCollisions(
+  priorityItemIds: number | number[],
+  positions: GridItemPosition[],
+  _items: AllGridTypes[],
   availableColumns: number
 ): Array<{
   itemId: number
   settings: GridItemLayoutUpdate
 }> {
-  const priorityItem = positions.find(i => i.id === priorityItemId)
+  const ids = Array.isArray(priorityItemIds)
+    ? priorityItemIds
+    : [priorityItemIds]
+
+  if (ids.length > 1) {
+    return resolveGroupCollisions(ids, positions, availableColumns)
+  }
+
+  const priorityItem = positions.find(i => i.id === ids[0])
   if (!priorityItem) return []
 
-  const collisions = findCollisions(
+  const directColliders = findCollisions(
     priorityItem.x,
     priorityItem.y,
     priorityItem.w,
@@ -172,35 +362,20 @@ export function resolveItemPositionCollisions(
     priorityItem.id
   )
 
-  if (collisions.size === 0) return []
+  if (directColliders.size === 0) return []
 
-  const commands: Array<{ itemId: number; settings: GridItemLayoutUpdate }> = []
+  const cascade = runCascadeResolution(
+    priorityItem,
+    directColliders,
+    positions,
+    availableColumns
+  )
+  const relocate = runRelocateResolution(
+    priorityItem,
+    directColliders,
+    positions,
+    availableColumns
+  )
 
-  for (const itemId of collisions) {
-    const item = items.find(i => i.id === itemId)
-    if (!item) continue
-
-    const bestPosition = findBestConflictResolutionPosition(
-      item as GridItemPosition,
-      priorityItem,
-      positions,
-      availableColumns,
-      itemId
-    )
-
-    if (
-      bestPosition &&
-      (bestPosition.x !== item.x || bestPosition.y !== item.y)
-    ) {
-      commands.push({
-        itemId,
-        settings: {
-          x: bestPosition.x,
-          y: bestPosition.y,
-        } satisfies GridItemLayoutUpdate,
-      })
-    }
-  }
-
-  return commands
+  return cascade.cost <= relocate.cost ? cascade.updates : relocate.updates
 }

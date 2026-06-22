@@ -13,6 +13,11 @@ import { strokeCrispRect } from '$lib/plots/shared/canvasUtils'
 
 import { GRIDLINE_PRIMARY, LEGEND_FONT } from './const'
 import { COLOR_FALLBACKS } from '$lib/color'
+import { wrapTextToWidth } from '$lib/shared/utils/textUtils'
+
+/** Max wrapped lines for the colorbar title before it ellipsises (bounds the
+ *  reserved legend height so the layout never has to grow unpredictably). */
+const MAX_LEGEND_TITLE_LINES = 2
 
 export interface GradientLegendConfig {
   /** Top X coordinate */
@@ -54,8 +59,9 @@ export interface GradientLegendGeometry {
   x: number
   y: number
 
-  // Layout components
-  title?: { text: string; x: number; y: number }
+  // Layout components. `title.lines` is the (1–2) wrapped title lines, drawn
+  // stacked from `title.y`.
+  title?: { lines: string[]; x: number; y: number }
   gradientRect: { x: number; y: number; width: number; height: number }
   labels?: {
     min?: { text: string; x: number; y: number }
@@ -68,6 +74,44 @@ export interface GradientLegendGeometry {
 
   // Optional below-min segment rect
   belowMinRect?: { x: number; y: number; width: number; height: number }
+}
+
+// ============================================================================
+// VERTICAL SIZING CONSTANTS
+// ============================================================================
+
+/** Gap between the title baseline and the top of the gradient bar. */
+const GRADIENT_LEGEND_TITLE_GAP = 3
+
+/** Height of the gradient colour bar itself. */
+const GRADIENT_LEGEND_BAR_HEIGHT = 12
+
+/** Gap between the bottom of the gradient bar and the value labels. */
+const GRADIENT_LEGEND_LABEL_GAP = 10
+
+/** Minimum available height before the legend switches to minimalist mode. */
+const GRADIENT_LEGEND_MINIMALIST_THRESHOLD = 30
+
+/**
+ * Compute the total vertical height the gradient legend needs in full mode
+ * (title + bar + value labels).  The result is font-size–aware so the
+ * layout stays correct even when the system font metrics differ.
+ *
+ * @param fontSize  The label / title font size in px (default: `LEGEND_FONT.SIZE`).
+ */
+export function getGradientLegendRequiredHeight(
+  fontSize: number = LEGEND_FONT.SIZE
+): number {
+  // Title line height is ~1.25× the font size, approximated to the
+  // nearest integer so canvas pixel math stays sharp.
+  const titleLineHeight = Math.ceil(fontSize * 1.25)
+  return (
+    MAX_LEGEND_TITLE_LINES * titleLineHeight + // reserve for a wrapped (≤2-line) title
+    GRADIENT_LEGEND_TITLE_GAP +
+    GRADIENT_LEGEND_BAR_HEIGHT +
+    GRADIENT_LEGEND_LABEL_GAP +
+    fontSize                       // value-label text height
+  )
 }
 
 // ============================================================================
@@ -92,17 +136,10 @@ export function computeGradientLegendGeometry(
   } = config
 
   // Constants
-  const fontSize = LEGEND_FONT.SIZE
-  const fontFamily = LEGEND_FONT.FAMILY
-
-  // Constants
-  const MININALIST_THRESHOLD = 30
-  const GRADIENT_HEIGHT = 12
   const MINIMALIST_HEIGHT = 8
   const MAX_WIDTH = 300
-  const PADDING = 10 // general padding
 
-  const isMinimalist = availableHeight < MININALIST_THRESHOLD
+  const isMinimalist = availableHeight < GRADIENT_LEGEND_MINIMALIST_THRESHOLD
 
   // Layout Width
   const hasBelowMin = !!config.belowMinColor
@@ -144,11 +181,11 @@ export function computeGradientLegendGeometry(
       },
     }
 
-    // Centered title helper
+    // Centered title helper (minimalist stays a single, truncated line)
     const titleObj =
       barY - y > 15
         ? {
-            text: title,
+            lines: wrapTextToWidth(title, availableWidth, 10, LEGEND_FONT.FAMILY, 1),
             x: x + (availableWidth >> 1),
             y: barY - 2,
           }
@@ -180,37 +217,38 @@ export function computeGradientLegendGeometry(
   }
 
   // Full Mode
-  // Fixed vertical layout
-  // Title -> 3px gap -> Gradient (12px) -> 4px gap -> Labels
+  // Fixed vertical layout:
+  //   Title -> TITLE_GAP -> Gradient bar -> LABEL_GAP -> Value labels
 
-  const showTitle = availableHeight >= 30
-  const titleHeight = showTitle ? 15 : 0 // approximate height for 12px font
+  const { SIZE: legendFontSize } = LEGEND_FONT
+  const showTitle = availableHeight >= GRADIENT_LEGEND_MINIMALIST_THRESHOLD
+  const titleLineHeight = Math.ceil(legendFontSize * 1.25)
+  // Wrap the title to the legend's width (≤2 lines); height grows with the
+  // line count, and the matrix/heatmap layouts already reserve room for 2.
+  const titleLines = showTitle
+    ? wrapTextToWidth(title, availableWidth, legendFontSize, LEGEND_FONT.FAMILY, MAX_LEGEND_TITLE_LINES)
+    : []
+  const titleHeight = titleLines.length * titleLineHeight
 
-  // Use fixed spacing
-  const TITLE_GAP = 3
-  const LABEL_GAP = 10
-  const BAR_HEIGHT = 12
+  const TITLE_GAP = GRADIENT_LEGEND_TITLE_GAP
+  const LABEL_GAP = GRADIENT_LEGEND_LABEL_GAP
+  const BAR_HEIGHT = GRADIENT_LEGEND_BAR_HEIGHT
 
-  // Center the whole block vertically in the available space?
-  // Or just top-align as requested "within fixed distance"?
-  // Let's top-align relative to y, or center if there's excess space to avoid it floating too high?
-  // User said "height of the legendGradient should be fixed", implying the *internal* height.
-  // We'll calculate the required height and center that block in availableHeight.
-
+  // Total height the legend block occupies, derived from font size.
   const requiredHeight =
-    titleHeight + (showTitle ? TITLE_GAP : 0) + BAR_HEIGHT + LABEL_GAP + 12 // 12 for label text height
+    titleHeight + (titleLines.length ? TITLE_GAP : 0) + BAR_HEIGHT + LABEL_GAP + legendFontSize
 
   // Center vertically
   const startY = y + Math.max(0, (availableHeight - requiredHeight) / 2)
 
   const titleY = startY
-  const gradientY = showTitle ? titleY + titleHeight + TITLE_GAP : startY
+  const gradientY = titleLines.length ? titleY + titleHeight + TITLE_GAP : startY
   const valuesY = gradientY + BAR_HEIGHT + LABEL_GAP
 
   // Title
-  const titleObj = showTitle
+  const titleObj = titleLines.length
     ? {
-        text: title,
+        lines: titleLines,
         x: x + (availableWidth >> 1),
         y: titleY,
       }
@@ -297,7 +335,7 @@ export function drawGradientLegend(
 ): void {
   const { title, gradientRect, belowMinRect, labels, zones } = geometry
   const { colorScale } = config
-  const { FAMILY: fontFamily, SIZE: fontSize, COLOR: fontColor } = LEGEND_FONT
+  const { FAMILY: fontFamily, COLOR: fontColor } = LEGEND_FONT
 
   // 1. Draw Hover Effects
   if (highlightState && highlightState !== 'none') {
@@ -337,17 +375,17 @@ export function drawGradientLegend(
     }
   }
 
-  // 2. Draw Title
-  if (title) {
-    // Minimalist uses bottom align, Full uses top align?
-    // Let's standardise based on geometry config
-    ctx.font = geometry.isMinimalist
-      ? `10px ${fontFamily}`
-      : `12px ${fontFamily}`
+  // 2. Draw Title (1–2 wrapped lines, stacked from title.y)
+  if (title && title.lines.length > 0) {
+    const titleFontSize = geometry.isMinimalist ? 10 : 12
+    ctx.font = `${titleFontSize}px ${fontFamily}`
     ctx.fillStyle = fontColor
     ctx.textAlign = 'center'
     ctx.textBaseline = geometry.isMinimalist ? 'bottom' : 'top'
-    ctx.fillText(title.text, title.x, title.y)
+    const lineHeight = Math.ceil(titleFontSize * 1.25)
+    for (let i = 0; i < title.lines.length; i++) {
+      ctx.fillText(title.lines[i], title.x, title.y + i * lineHeight)
+    }
   }
 
   // 3. Draw Gradient Bar
@@ -450,46 +488,4 @@ function drawRoundedRect(
   ctx.closePath()
 }
 
-/**
- * Hit test helper for legend interaction.
- */
-export function hitTestGradientLegend(
-  mouseX: number,
-  mouseY: number,
-  zones: GradientLegendInteractionZones
-): 'none' | 'gradient' | 'minValue' | 'maxValue' {
-  if (zones.minValueZone) {
-    const dx = mouseX - zones.minValueZone.x
-    const dy = mouseY - zones.minValueZone.y
-    if (
-      dx * dx + dy * dy <=
-      zones.minValueZone.radius * zones.minValueZone.radius
-    ) {
-      return 'minValue'
-    }
-  }
 
-  if (zones.maxValueZone) {
-    const dx = mouseX - zones.maxValueZone.x
-    const dy = mouseY - zones.maxValueZone.y
-    if (
-      dx * dx + dy * dy <=
-      zones.maxValueZone.radius * zones.maxValueZone.radius
-    ) {
-      return 'maxValue'
-    }
-  }
-
-  if (zones.gradientZone) {
-    if (
-      mouseX >= zones.gradientZone.x &&
-      mouseX <= zones.gradientZone.x + zones.gradientZone.width &&
-      mouseY >= zones.gradientZone.y &&
-      mouseY <= zones.gradientZone.y + zones.gradientZone.height
-    ) {
-      return 'gradient'
-    }
-  }
-
-  return 'none'
-}

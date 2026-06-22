@@ -43,6 +43,25 @@ body > div {
   --rounded-lg: 20px;
   --menu-border-color: #cbd5e1;
   --menu-border-width: 1px;
+
+  --transition-fast: 120ms;
+  --transition-normal: 200ms;
+  --transition-slow: 300ms;
+
+  /* Spacing Tokens */
+  --spacing-xxs: 0.25rem; /* 4px */
+  --spacing-xs: 0.5rem;   /* 8px */
+  --spacing-sm: 0.75rem;  /* 12px */
+  --spacing-md: 1rem;     /* 16px */
+  --spacing-lg: 1.5rem;   /* 24px */
+  --spacing-xl: 2rem;     /* 32px */
+
+  /* Elevation Tokens (Slate-based Shadows) */
+  --shadow-sm: 0 1px 2px 0 color-mix(in srgb, var(--c-black) 5%, transparent);
+  --shadow: 0 1px 3px 0 color-mix(in srgb, var(--c-black) 10%, transparent), 0 1px 2px -1px color-mix(in srgb, var(--c-black) 10%, transparent);
+  --shadow-md: 0 4px 6px -1px color-mix(in srgb, var(--c-black) 8%, transparent), 0 2px 4px -2px color-mix(in srgb, var(--c-black) 4%, transparent);
+  --shadow-lg: 0 10px 15px -3px color-mix(in srgb, var(--c-black) 8%, transparent), 0 4px 6px -4px color-mix(in srgb, var(--c-black) 4%, transparent);
+  --shadow-xl: 0 20px 25px -5px color-mix(in srgb, var(--c-black) 10%, transparent), 0 8px 10px -6px color-mix(in srgb, var(--c-black) 5%, transparent);
 }
 
 .pointer-events-none {

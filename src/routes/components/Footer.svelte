@@ -13,11 +13,13 @@
 
 <footer class="border-t">
   <div class="footer-content">
-    <p>GazePlotter, version {version} ({formattedDate})</p>
+    <p>GazePlotter {version} ({formattedDate})</p>
     <p>
-      Authors: <a href="https://vojtechovska.com" target="_blank"
+      <a href="https://vojtechovska.com" target="_blank"
         >Michaela Vojtěchovská</a
-      > & Stanislav Popelka
+      > & <a href="https://www.geoinformatics.upol.cz/lide/stanislav-popelka/?lang=en" target="_blank"
+        >Stanislav Popelka</a
+      >
     </p>
     <p>
       DOI: <a href="https://doi.org/10.3758/s13428-026-02959-5" target="_blank"
@@ -49,8 +51,8 @@
   }
 
   .up-logo {
-    margin-top: 30px;
-    width: 150px;
+    margin-top: 20px;
+    width: 161px;
     height: auto;
     user-select: none;
   }
@@ -69,7 +71,7 @@
     color: inherit;
     text-decoration: none;
     border-bottom: 1px dotted;
-    transition: all 0.3s ease-in-out;
+    transition: all var(--transition-normal) ease-in-out;
   }
 
   footer p a:hover,

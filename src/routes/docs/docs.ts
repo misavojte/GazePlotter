@@ -28,14 +28,13 @@ export async function getDoc(
   }
   
   const hrefToMatch = `/docs${normalizedSlug ? `/${normalizedSlug}` : ''}`
-  for (const section of SIDEBAR) {
-    const link = section.links.find(l => l.href === hrefToMatch)
-    if (link) {
-      metadata = {
-        title: link.name,
-        seoTitle: `${link.name} | GazePlotter Docs`
-      }
-      break
+  const allLinks = SIDEBAR.flatMap(item => 'links' in item ? item.links : [item])
+  const link = allLinks.find(l => l.href === hrefToMatch)
+  if (link) {
+    metadata = {
+      title: link.name,
+      seoTitle: `${link.name} | GazePlotter Docs`,
+      description: link.description
     }
   }
 

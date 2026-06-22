@@ -1,19 +1,23 @@
 import type {
   WorkspaceCommand,
   WorkspaceCommandChain,
-} from '$lib/workspace/commands'
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
-import { createChildCommand } from '$lib/workspace/commands'
-import { SCARF_IDENTIFIERS } from '$lib/plots/scarf'
+} from './types'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import { createChildCommand } from './utils'
+import { resolvePlotDefinition } from '$lib/plots/registry'
 import { GridState } from '$lib/workspace/grid'
 import {
   updateHiddenAoisWithPropagation,
   updateMultipleAoi,
-  updateMultipleAoiVisibility,
   updateMultipleParticipants,
   updateMultipleStimuli,
   updateNoAoiTreatment,
   updateParticipantsGroups,
+  updateEventData,
+  updateEventChannels,
+  updateHiddenEventChannels,
+  updateCategories,
+  getDefaultCategoryColor,
 } from '$lib/data/engine'
 import type {
   GridItemMap,
@@ -94,20 +98,30 @@ export function createWorkspaceCommandRegistry(
     return { ...base, ...meta } as unknown as WorkspaceCommandChain
   }
 
+  const requireMetadata = () => {
+    const meta = engine.metadata
+    if (!meta) throw new Error('Data engine metadata not available for command reversal')
+    return meta
+  }
+
   function emitCollisionResolutionChildren(
-    priorityItemId: number,
+    priorityItemIds: number | number[],
     chainId: number,
     context: WorkspaceCommandExecutionContext
   ): void {
     const collisionCommands =
-      gridStore.resolveItemPositionCollisions(priorityItemId)
+      gridStore.resolveItemPositionCollisions(priorityItemIds)
     collisionCommands.forEach(collisionCommand => {
       context.dispatch(
         createChildCommand(
           {
             type: 'updateLayout',
-            itemId: collisionCommand.itemId,
-            layout: collisionCommand.settings,
+            updates: [
+              {
+                itemId: collisionCommand.itemId,
+                layout: collisionCommand.settings,
+              },
+            ],
             source: 'collision',
           },
           chainId
@@ -116,39 +130,19 @@ export function createWorkspaceCommandRegistry(
     })
   }
 
-  type AoiLike = { id: string | number }
-
-  function sanitizeScarfHighlightsAfterAoiRename(
-    command: Extract<WorkspaceCommandChain, { type: 'updateAois' }>,
+  function invokeOnCommandHooks(
+    command: WorkspaceCommandChain,
     context: WorkspaceCommandExecutionContext
   ) {
-    if (!command.isRootCommand || context.isUndoRedoOperation) return
-
-    const renamedAois = (command.aois || []) as AoiLike[]
-    const affectedIdentifiers = new Set<string>(
-      renamedAois.map(a => `${SCARF_IDENTIFIERS.AOI}${a.id}`)
-    )
-
     gridStore.items.forEach(item => {
-      if (item.type !== 'scarf') return
-      const highlights = item.settings.highlights ?? []
-      const hasMatch = highlights.some(h => affectedIdentifiers.has(h))
-      if (!hasMatch) return
+      const def = resolvePlotDefinition(item.type)
+      if (!def.onCommand) return
 
-      const newHighlights = highlights.filter(h => !affectedIdentifiers.has(h))
-      if (newHighlights.length === highlights.length) return
-
-      context.dispatch(
-        createChildCommand(
-          {
-            type: 'updateSettings',
-            itemId: item.id,
-            settings: { highlights: newHighlights },
-            source: 'aoi.rename',
-          },
-          command.chainId
+      def.onCommand(command, item as any, engine, (childCmd) => {
+        context.dispatch(
+          createChildCommand(childCmd, command.chainId)
         )
-      )
+      })
     })
   }
 
@@ -160,7 +154,6 @@ export function createWorkspaceCommandRegistry(
         updateHiddenAoisWithPropagation(engine, stimulusId, hiddenAois, applyTo)
       }
       gridStore.triggerRedraw()
-      sanitizeScarfHighlightsAfterAoiRename(command, context)
     },
 
     updateParticipants: command => {
@@ -173,15 +166,22 @@ export function createWorkspaceCommandRegistry(
       gridStore.triggerRedraw()
     },
 
-    updateAoiVisibility: command => {
-      const { stimulusId, aoiNames, visibilityArr, participantId } = command
-      updateMultipleAoiVisibility(
-        engine,
-        stimulusId,
-        aoiNames,
-        visibilityArr,
-        participantId
-      )
+    updateEventData: command => {
+      const { stimulusId, channelDefs, eventBuffers, hiddenChannels, orderVector } =
+        command
+      updateEventData(engine, stimulusId, channelDefs, eventBuffers, orderVector)
+      if (hiddenChannels !== undefined) {
+        updateHiddenEventChannels(engine, stimulusId, hiddenChannels)
+      }
+      gridStore.triggerRedraw()
+    },
+
+    updateEventChannels: command => {
+      const { channels, stimulusId, hiddenChannels } = command
+      updateEventChannels(engine, channels, stimulusId)
+      if (hiddenChannels !== undefined) {
+        updateHiddenEventChannels(engine, stimulusId, hiddenChannels)
+      }
       gridStore.triggerRedraw()
     },
 
@@ -195,44 +195,68 @@ export function createWorkspaceCommandRegistry(
       gridStore.triggerRedraw()
     },
 
-    updateSettings: (command, context) => {
-      const { itemId, settings } = command
-      const currentItem = gridStore.items.find(item => item.id === itemId)
-      if (!currentItem) throw new Error(`Grid item ${itemId} not found`)
+    updateCategories: command => {
+      const { categories, hiddenCategories } = command
+      updateCategories(engine, categories, hiddenCategories)
+      gridStore.triggerRedraw()
+    },
 
-      gridStore.updateItem(itemId, settings)
-      gridStore.updateLayout(itemId, {
-        redrawTimestamp: Date.now(),
-      })
+    updateSettings: command => {
+      for (const { itemId, settings } of command.updates) {
+        const currentItem = gridStore.items.find(item => item.id === itemId)
+        if (!currentItem) throw new Error(`Grid item ${itemId} not found`)
 
-      if (command.isRootCommand && !context.isUndoRedoOperation) {
-        emitCollisionResolutionChildren(itemId, command.chainId, context)
+        gridStore.updateItem(itemId, settings)
+        gridStore.updateLayout(itemId, {
+          redrawTimestamp: Date.now(),
+        })
       }
+
+      // No collision resolution here: settings patches never touch x/y/w/h, so
+      // a settings change can't introduce overlaps (unlike updateLayout).
     },
 
     updateLayout: (command, context) => {
-      const { itemId, layout } = command
-      const currentItem = gridStore.items.find(item => item.id === itemId)
-      if (!currentItem) throw new Error(`Grid item ${itemId} not found`)
+      for (const { itemId, layout } of command.updates) {
+        const currentItem = gridStore.items.find(item => item.id === itemId)
+        if (!currentItem) throw new Error(`Grid item ${itemId} not found`)
 
-      gridStore.updateLayout(itemId, {
-        ...layout,
-        redrawTimestamp: Date.now(),
-      })
+        // A layout change (move OR resize) never bumps redrawTimestamp.
+        // `redrawTimestamp` means "engine data changed, re-derive" — that is what
+        // `triggerRedraw` uses it for, and the scarf data transform (normalized,
+        // size-independent rect buckets) keys off it. A resize must repaint but
+        // NOT re-transform: the canvas already repaints reactively on its measured
+        // width/height (usePlot's width/height effect), and a move just
+        // repositions the existing canvas via CSS transform. Bumping here forced
+        // every resized plot to rebuild all rect buckets (the dominant scarf
+        // manipulation cost) for output that doesn't depend on size.
+        gridStore.updateLayout(itemId, layout)
+      }
 
       if (command.isRootCommand && !context.isUndoRedoOperation) {
-        emitCollisionResolutionChildren(itemId, command.chainId, context)
+        // All moved items are priority (fixed) for collision resolution, so
+        // a group move pushes only non-members aside — members keep their
+        // relative layout.
+        emitCollisionResolutionChildren(
+          command.updates.map(u => u.itemId),
+          command.chainId,
+          context
+        )
       }
     },
 
     addGridItem: (command, context) => {
-      const { vizType, options, itemId } = command
+      const { vizType, options, itemId, position } = command
       // cmd.vizType is now type-checked against GridItemMap keys
-      const createdId = gridStore.addItem(vizType as keyof GridItemMap, {
-        ...options,
-        id: itemId,
-        type: vizType as keyof GridItemMap,
-      })
+      const createdId = gridStore.addItem(
+        vizType as keyof GridItemMap,
+        {
+          ...options,
+          id: itemId,
+          type: vizType as keyof GridItemMap,
+        },
+        position
+      )
       if (command.isRootCommand && !context.isUndoRedoOperation) {
         emitCollisionResolutionChildren(createdId, command.chainId, context)
       }
@@ -250,7 +274,8 @@ export function createWorkspaceCommandRegistry(
 
       const createdId = gridStore.duplicateItem(
         currentItem,
-        command.duplicateId
+        command.duplicateId,
+        command.position
       )
       if (command.isRootCommand && !context.isUndoRedoOperation) {
         emitCollisionResolutionChildren(createdId, command.chainId, context)
@@ -264,11 +289,7 @@ export function createWorkspaceCommandRegistry(
 
   const reverseHandlers: ReverseHandlers = {
     updateAois: (cmd, meta) => {
-      const dataMeta = engine.metadata
-      if (!dataMeta)
-        throw new Error(
-          'Data engine metadata not available for command reversal'
-        )
+      const dataMeta = requireMetadata()
       const stimulusId = cmd.stimulusId
       const currentAois = dataMeta.aois.data[stimulusId] || []
       const affectedAois: ExtendedInterpretedDataType[] = []
@@ -301,11 +322,7 @@ export function createWorkspaceCommandRegistry(
     },
 
     updateParticipants: (_cmd, meta) => {
-      const dataMeta = engine.metadata
-      if (!dataMeta)
-        throw new Error(
-          'Data engine metadata not available for command reversal'
-        )
+      const dataMeta = requireMetadata()
       const currentParticipants = dataMeta.participants.data || []
       const participants: BaseInterpretedDataType[] = currentParticipants.map(
         ([originalName, displayedName]: string[], index: number) => ({
@@ -318,11 +335,7 @@ export function createWorkspaceCommandRegistry(
     },
 
     updateStimuli: (_cmd, meta) => {
-      const dataMeta = engine.metadata
-      if (!dataMeta)
-        throw new Error(
-          'Data engine metadata not available for command reversal'
-        )
+      const dataMeta = requireMetadata()
       const currentStimuli = dataMeta.stimuli.data || []
       const stimuli: BaseInterpretedDataType[] = currentStimuli.map(
         ([originalName, displayedName]: string[], index: number) => ({
@@ -334,62 +347,66 @@ export function createWorkspaceCommandRegistry(
       return withMeta({ type: 'updateStimuli', stimuli }, meta)
     },
 
-    updateAoiVisibility: (cmd, meta) => {
-      const dataMeta = engine.metadata
-      if (!dataMeta)
-        throw new Error(
-          'Data engine metadata not available for command reversal'
-        )
-      const currentAoiVisibility = dataMeta.aois.dynamicVisibility || {}
-      const affectedVisibility: {
-        aoiName: string
-        visibilityArr: number[]
-      }[] = []
+    updateEventData: (cmd, meta) => {
+      const dataMeta = requireMetadata()
+      const ed = dataMeta.eventData
+      const currentDefs = ed.data[cmd.stimulusId] ?? []
+      const currentBuffers = engine.getEventReader().getStimulusJson(cmd.stimulusId)
+      // Applying the command resets the hidden list and the order vector
+      // (the engine owns that invariant), so the inverse must always carry
+      // both — not only when the forward command set them.
+      const hidden = ed.hiddenChannels?.[cmd.stimulusId] ?? []
+      const order = ed.orderVector?.[cmd.stimulusId] ?? []
+      return withMeta(
+        {
+          type: 'updateEventData',
+          stimulusId: cmd.stimulusId,
+          channelDefs: currentDefs.map(d => [...d]),
+          eventBuffers: currentBuffers.map(ch =>
+            ch.map(p => [...p])
+          ),
+          hiddenChannels: [...hidden],
+          ...(order.length > 0 ? { orderVector: [...order] } : {}),
+        },
+        meta
+      )
+    },
 
-      Object.entries(currentAoiVisibility).forEach(([key, visibilityArr]) => {
-        const [stimulusIdStr, aoiIdStr, participantIdStr] = key.split('_')
-        const stimulusId = parseInt(stimulusIdStr, 10)
-        const participantId = parseInt(participantIdStr, 10)
-        if (
-          stimulusId === cmd.stimulusId &&
-          (cmd.participantId == null || participantId === cmd.participantId)
-        ) {
-          const aoiData =
-            dataMeta?.aois?.data?.[stimulusId]?.[parseInt(aoiIdStr, 10)]
-          const aoiName = aoiData?.[1] || `AOI_${aoiIdStr}`
-          affectedVisibility.push({
-            aoiName,
-            visibilityArr: visibilityArr as number[],
-          })
+    updateEventChannels: (cmd, meta) => {
+      const dataMeta = requireMetadata()
+      const ed = dataMeta.eventData
+      const currentDefs = ed.data[cmd.stimulusId] ?? []
+      const order = ed.orderVector?.[cmd.stimulusId] ?? []
+      const ids =
+        order.length > 0
+          ? order
+          : Array.from({ length: currentDefs.length }, (_, i) => i)
+
+      const channels: ExtendedInterpretedDataType[] = ids.map(id => {
+        const ch = currentDefs[id]
+        return {
+          id,
+          originalName: ch?.[0] ?? '',
+          displayedName: ch?.[1] ?? ch?.[0] ?? '',
+          color: ch?.[2] ?? '#888888',
         }
       })
 
-      if (affectedVisibility.length === 0) {
-        throw new Error(
-          `Cannot reverse updateAoiVisibility: no visibility data found for stimulus ${cmd.stimulusId}`
-        )
-      }
-
-      const visibilityArr = affectedVisibility.map(v => v.visibilityArr)
-      const aoiNames = affectedVisibility.map(v => v.aoiName)
+      const shouldIncludeHidden = cmd.hiddenChannels !== undefined
+      const hidden = ed.hiddenChannels?.[cmd.stimulusId] ?? []
       return withMeta(
         {
-          type: 'updateAoiVisibility',
+          type: 'updateEventChannels',
           stimulusId: cmd.stimulusId,
-          aoiNames,
-          visibilityArr,
-          participantId: cmd.participantId,
+          channels,
+          ...(shouldIncludeHidden ? { hiddenChannels: [...hidden] } : {}),
         },
         meta
       )
     },
 
     updateParticipantsGroups: (_cmd, meta) => {
-      const dataMeta = engine.metadata
-      if (!dataMeta)
-        throw new Error(
-          'Data engine metadata not available for command reversal'
-        )
+      const dataMeta = requireMetadata()
       const currentGroups = dataMeta.participantsGroups || []
       return withMeta(
         { type: 'updateParticipantsGroups', groups: currentGroups },
@@ -398,11 +415,7 @@ export function createWorkspaceCommandRegistry(
     },
 
     updateNoAoiTreatment: (_cmd, meta) => {
-      const dataMeta = engine.metadata
-      if (!dataMeta)
-        throw new Error(
-          'Data engine metadata not available for command reversal'
-        )
+      const dataMeta = requireMetadata()
       const currentNoAoiTreatment = dataMeta.noAoiTreatment
       return withMeta(
         {
@@ -413,26 +426,59 @@ export function createWorkspaceCommandRegistry(
       )
     },
 
+    updateCategories: (cmd, meta) => {
+      const dataMeta = requireMetadata()
+      const currentDefs = dataMeta.categories.data || []
+      const order = dataMeta.categories.orderVector || []
+      const ids =
+        order.length > 0
+          ? order
+          : Array.from({ length: currentDefs.length }, (_, i) => i)
+
+      const categories: ExtendedInterpretedDataType[] = ids.map(id => {
+        const c = currentDefs[id]
+        return {
+          id,
+          originalName: c?.[0] ?? '',
+          displayedName: c?.[1] ?? c?.[0] ?? '',
+          color: c?.[2] ?? getDefaultCategoryColor(id),
+        }
+      })
+
+      const shouldIncludeHidden = cmd.hiddenCategories !== undefined
+      const hidden = dataMeta.categories.hiddenCategories ?? []
+      return withMeta(
+        {
+          type: 'updateCategories',
+          categories,
+          ...(shouldIncludeHidden ? { hiddenCategories: [...hidden] } : {}),
+        },
+        meta
+      )
+    },
+
     updateSettings: (cmd, meta) => {
       const currentItems = gridStore.items
-      const currentItem = currentItems.find(item => item.id === cmd.itemId)
-      if (!currentItem) {
-        throw new Error(
-          `Cannot reverse updateSettings: item ${cmd.itemId} not found`
-        )
-      }
-      const reverseSettings: Partial<AllPlotSettings> = {}
-      Object.keys(cmd.settings).forEach(key => {
-        const typedKey = key as keyof typeof currentItem.settings
-        Object.assign(reverseSettings, {
-          [typedKey]: currentItem.settings[typedKey],
+      const reverseUpdates = cmd.updates.map(({ itemId, settings }) => {
+        const currentItem = currentItems.find(item => item.id === itemId)
+        if (!currentItem) {
+          throw new Error(
+            `Cannot reverse updateSettings: item ${itemId} not found`
+          )
+        }
+        const reverseSettings: Partial<AllPlotSettings> = {}
+        Object.keys(settings).forEach(key => {
+          const typedKey = key as keyof typeof currentItem.settings
+          Object.assign(reverseSettings, {
+            [typedKey]: currentItem.settings[typedKey],
+          })
         })
+        return { itemId, settings: reverseSettings }
       })
       return withMeta(
         {
           type: 'updateSettings',
-          itemId: cmd.itemId,
-          settings: reverseSettings,
+          updates: reverseUpdates,
         },
         meta
       )
@@ -440,26 +486,27 @@ export function createWorkspaceCommandRegistry(
 
     updateLayout: (cmd, meta) => {
       const currentItems = gridStore.items
-      const currentItem = currentItems.find(item => item.id === cmd.itemId)
-      if (!currentItem) {
-        throw new Error(
-          `Cannot reverse updateLayout: item ${cmd.itemId} not found`
-        )
-      }
-
-      const reverseLayout: GridItemLayoutUpdate = {}
-      Object.keys(cmd.layout).forEach(key => {
-        const typedKey = key as keyof GridItemLayoutUpdate
-        Object.assign(reverseLayout, {
-          [typedKey]: currentItem[typedKey as keyof typeof currentItem],
+      const reverseUpdates = cmd.updates.map(({ itemId, layout }) => {
+        const currentItem = currentItems.find(item => item.id === itemId)
+        if (!currentItem) {
+          throw new Error(
+            `Cannot reverse updateLayout: item ${itemId} not found`
+          )
+        }
+        const reverseLayout: GridItemLayoutUpdate = {}
+        Object.keys(layout).forEach(key => {
+          const typedKey = key as keyof GridItemLayoutUpdate
+          Object.assign(reverseLayout, {
+            [typedKey]: currentItem[typedKey as keyof typeof currentItem],
+          })
         })
+        return { itemId, layout: reverseLayout }
       })
 
       return withMeta(
         {
           type: 'updateLayout',
-          itemId: cmd.itemId,
-          layout: reverseLayout,
+          updates: reverseUpdates,
         },
         meta
       )
@@ -522,6 +569,9 @@ export function createWorkspaceCommandRegistry(
     context: WorkspaceCommandExecutionContext
   ): void {
     executeTypedCommand(command, context)
+    if (command.isRootCommand && !context.isUndoRedoOperation) {
+      invokeOnCommandHooks(command, context)
+    }
   }
 
   function executeTypedCommand<TType extends CommandType>(

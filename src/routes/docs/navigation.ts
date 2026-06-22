@@ -1,4 +1,4 @@
-import type { SidebarSection, SidebarLink } from './sidebarConfig'
+import type { SidebarItem, SidebarLink } from './sidebarConfig'
 
 export interface DocBreadcrumb {
   name: string
@@ -20,7 +20,7 @@ export function isMatchingDocPath(href: string, pathname: string): boolean {
 
 export function buildDocBreadcrumbs(
   pathname: string,
-  sections: readonly SidebarSection[]
+  sections: readonly SidebarItem[]
 ): DocBreadcrumb[] {
   const breadcrumbs: DocBreadcrumb[] = [
     { name: 'GazePlotter', href: '/' },
@@ -32,7 +32,7 @@ export function buildDocBreadcrumbs(
     return breadcrumbs
   }
 
-  const allLinks = sections.flatMap(section => section.links)
+  const allLinks = sections.flatMap(item => 'links' in item ? item.links : [item])
   const segments = docsPath.split('/')
   let currentPath = '/docs'
 
@@ -45,7 +45,7 @@ export function buildDocBreadcrumbs(
     
     // In our simplified structure we rely on matchedLink, but if not found we format it
     breadcrumbs.push({
-      name: matchedLink?.name ?? formatDocSegmentName(segment),
+      name: matchedLink?.breadcrumbName ?? matchedLink?.name ?? formatDocSegmentName(segment),
       href: currentPath,
     })
   }

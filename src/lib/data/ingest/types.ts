@@ -1,45 +1,35 @@
 import type { ErrorRecord } from '$lib/errors'
 
 /**
- * Types of eye tracking files accepted by the application.
- * Determines which deserializer is used to parse the file.
+ * Settings used to parse one uploaded file. Produced by format detection,
+ * persisted verbatim inside workspace JSON as `fileMetadata.parseSettings`.
  *
- * Except for the 'unknown' type, which is used when the type of the file is not known.
+ * SERIALIZATION CONTRACT: the JSON shape of this object and the existing
+ * `type` string values ('tobii', 'csv-segmented-duration', …) are frozen —
+ * old workspace files must keep loading. New formats may add new `type`
+ * values (append-only), never rename existing ones.
  */
-export type EyeFileType =
-  | 'tobii'
-  | 'gazepoint'
-  | 'begaze'
-  | 'unknown'
-  | 'tobii-with-event'
-  | 'ogama'
-  | 'varjo'
-  | 'csv'
-  | 'csv-segmented'
-  | 'csv-segmented-duration'
-  | 'pupil-cloud-zip'
-
-/**
- * Interface representing the settings for parsing eye-tracking data files.
- * This type defines the structure and delimiters needed to correctly parse
- * different eye-tracking data file formats.
- */
-export interface EyeSettingsType {
+export interface ParseSettings {
   /** The character or string used to separate rows in the data file */
   rowDelimiter: string
   /** The character or string used to separate columns in the data file */
   columnDelimiter: string
   /** The detected text encoding for the header (used only for header decoding) */
   encoding: 'utf-8' | 'utf-16le' | 'utf-16be'
-  /** The type of eye-tracking data file (e.g., 'tobii', 'gazepoint', 'begaze', etc.) */
+  /** The format type id (e.g. 'tobii', 'begaze' — see formats/registry.ts) */
   type: string
-  /** User-defined settings that can be applied to the data parsing */
+  /** User-provided setting captured via an ingest prompt (e.g. Tobii media parsing) */
   userInputSetting: string
   /** The row number (0-based) where the header information is located in the file */
   headerRowId: number
 }
 
-export interface SingleDeserializerOutput {
+/**
+ * One parsed segment row in string form — the slow-path input to
+ * `SegmentWriter.add`. Hot-path formats emit bytes via
+ * `DatasetSink.addSegmentBytes` instead.
+ */
+export interface SegmentRow {
   start: string
   end: string
   stimulus: string
@@ -47,11 +37,6 @@ export interface SingleDeserializerOutput {
   category: string
   aoi: string[] | null
 }
-
-export type DeserializerOutputType =
-  | SingleDeserializerOutput
-  | null
-  | SingleDeserializerOutput[]
 
 /**
  * Basic file input information captured when files are selected.
@@ -69,7 +54,7 @@ export interface FileInputType {
  */
 export interface FileMetadataSuccessType extends FileInputType {
   status: 'success'
-  parseSettings: EyeSettingsType
+  parseSettings: ParseSettings
   parseDuration: number // seconds
   gazePlotterVersion: string
   clientUserAgent: string // e.g. "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
@@ -94,8 +79,8 @@ export type FileMetadataType = FileMetadataSuccessType | FileMetadataFailureType
 
 /**
  * Prepares the initial files for a GazePlotter session. The returned `File`s
- * flow through the same ingest pipeline as drag-drop / the upload button —
- * classification, parsing, and error reporting are the library's concern.
+ * flow through the same ingest job as drag-drop / the upload button —
+ * detection, parsing, and error reporting are the library's concern.
  *
  * Called **once per `<GazePlotter>` mount**. To re-trigger, call
  * `resetLayout()` on the instance or remount via `{#key value}`.

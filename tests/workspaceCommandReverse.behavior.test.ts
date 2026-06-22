@@ -48,8 +48,7 @@ describe('workspaceCommandReverse behavior', () => {
     const result = reverseWithErrorHandler(
       createChainedCommand({
         type: 'updateSettings',
-        itemId: 999,
-        settings: { timeline: 'relative' },
+        updates: [{ itemId: 999, settings: { timeline: 'relative' } }],
       })
     )
 
@@ -61,7 +60,7 @@ describe('workspaceCommandReverse behavior', () => {
         phase: 'reverse',
         command: expect.objectContaining({
           type: 'updateSettings',
-          itemId: 999,
+          updates: [{ itemId: 999, settings: { timeline: 'relative' } }],
         }),
       })
     )

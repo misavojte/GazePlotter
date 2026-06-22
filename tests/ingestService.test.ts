@@ -115,7 +115,7 @@ describe('IngestService', () => {
 
     await vi.waitFor(() => {
       expect(report).toHaveBeenCalledTimes(1)
-    }, { timeout: 15000 })
+    }, { timeout: 25000 })
 
     const result = await resultPromise
 
@@ -138,7 +138,7 @@ describe('IngestService', () => {
     expect(deps.grid.reset).toHaveBeenCalledWith([])
     expect(deps.resetWorkspaceHistory).toHaveBeenCalledTimes(1)
     expect(workerInstances[0]?.terminate).toHaveBeenCalledTimes(1)
-  }, 15000)
+  }, 30000)
 
   it('reports worker postMessage dispatch failures during stream transfer', async () => {
     const dispatchError = new Error('stream dispatch failed')

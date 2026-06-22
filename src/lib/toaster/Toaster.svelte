@@ -3,6 +3,7 @@
   import { fly } from 'svelte/transition'
   import type { ToastFillingType } from './types'
   import { getGazePlotterSession } from '$lib/session'
+  import X from 'lucide-svelte/icons/x'
 
   const { toastState } = getGazePlotterSession()
 
@@ -54,7 +55,7 @@
 </script>
 
 <div class="toaster">
-  {#each toastState.current as { id, type, title, message } (id)}
+  {#each toastState.current as { id, type, title, message, link } (id)}
     <div
       class="toast"
       animate:flip={{ duration: 500 }}
@@ -80,11 +81,21 @@
           aria-label="Close"
           onclick={() => handleManualClose(id)}
         >
-          ×
+          <X size={14} />
         </button>
       </div>
       <div class="toast-body">
         {message}
+        {#if link}
+          <a
+            class="toast-link"
+            href={link.href}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {link.label}
+          </a>
+        {/if}
       </div>
     </div>
   {/each}
@@ -103,7 +114,7 @@
     pointer-events: auto;
     border-radius: var(--rounded-md);
     background: var(--c-white);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--c-black) 15%, transparent);
     color: var(--c-black);
     margin-bottom: 10px;
     width: 220px;
@@ -156,7 +167,7 @@
     justify-content: center;
     align-items: center;
     color: var(--c-midgrey);
-    transition: color 0.2s;
+    transition: color var(--transition-normal);
   }
   button.close:hover {
     color: var(--c-black);
@@ -165,5 +176,28 @@
   .title {
     display: flex;
     align-items: center;
+  }
+
+  .toast-link {
+    display: inline-block;
+    margin-top: 6px;
+    font-weight: 600;
+    color: var(--c-brand);
+    text-decoration: none;
+  }
+  .toast-link::after {
+    content: "→";
+    margin-left: 6px;
+    transition: transform var(--transition-fast) ease-in-out;
+    display: inline-block;
+  }
+  .toast-link:hover,
+  .toast-link:focus {
+    color: var(--c-brand-dark);
+    text-decoration: underline;
+  }
+  .toast-link:hover::after,
+  .toast-link:focus::after {
+    transform: translateX(3px);
   }
 </style>

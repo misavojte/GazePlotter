@@ -4,15 +4,29 @@ import type { GridConfig } from './types'
 
 type WorkspaceGridCommands = Pick<
   WorkspaceService,
-  'duplicateVisualization' | 'removeVisualization' | 'updateItemLayout'
+  | 'duplicateVisualization'
+  | 'removeVisualization'
+  | 'updateItemLayout'
+  | 'updateItemsLayout'
 >
 
 type GridItemIdentity = Pick<AllGridTypes, 'id' | 'type'>
 type GridItemMinimum = Pick<AllGridTypes, 'min'>
 
 export type GridMoveCommit = { id: number; x: number; y: number }
-export type GridResizeCommit = { id: number; w: number; h: number }
+export type GridResizeCommit = {
+  id: number
+  x: number
+  y: number
+  w: number
+  h: number
+}
 export type GridIdentityCommit = { id: number }
+export type GridDuplicationCommit = {
+  id: number
+  duplicateId?: number
+  position?: { x: number; y: number }
+}
 
 function findGridItem(
   items: AllGridTypes[],
@@ -50,6 +64,25 @@ export function commitGridItemMove(
   )
 }
 
+export function commitGridItemGroupMove(
+  workspace: WorkspaceGridCommands,
+  items: AllGridTypes[],
+  commits: GridMoveCommit[]
+): boolean {
+  // Keep only commits that still map to a live item; build one atomic
+  // layout command so the whole group moves (and undoes) in one step.
+  const updates = commits
+    .filter(commit => items.some(item => item.id === commit.id))
+    .map(commit => ({
+      itemId: commit.id,
+      layout: { x: commit.x, y: commit.y },
+    }))
+  if (updates.length === 0) return false
+
+  const anchor = findGridItem(items, commits[0].id) ?? items[0]
+  return workspace.updateItemsLayout(updates, getGridItemCommandSource(anchor))
+}
+
 export function commitGridItemResize(
   workspace: WorkspaceGridCommands,
   items: AllGridTypes[],
@@ -61,9 +94,15 @@ export function commitGridItemResize(
 
   const min = getGridItemMinimumSize(item, gridConfig)
 
+  // Resizing from a TL/TR/BL corner anchors the opposite edge and moves
+  // x/y as the opposite dimension shrinks. Persist the new position along
+  // with the new size; committing only w/h would leave the item anchored
+  // to its original top-left on the grid.
   return workspace.updateItemLayout(
     item.id,
     {
+      x: Math.max(0, commit.x),
+      y: Math.max(0, commit.y),
       w: Math.max(min.w, commit.w),
       h: Math.max(min.h, commit.h),
     },
@@ -85,13 +124,14 @@ export function commitGridItemRemoval(
 export function commitGridItemDuplication(
   workspace: WorkspaceGridCommands,
   items: AllGridTypes[],
-  commit: GridIdentityCommit
+  commit: GridDuplicationCommit
 ): boolean {
   const item = findGridItem(items, commit.id)
   if (!item) return false
 
   return workspace.duplicateVisualization(
     item.id,
-    getGridItemCommandSource(item)
+    getGridItemCommandSource(item),
+    { duplicateId: commit.duplicateId, position: commit.position }
   )
 }

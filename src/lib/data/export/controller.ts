@@ -1,16 +1,25 @@
 import { type DataType } from '$lib/data/types'
 import { type CsvFormatOptions } from './encoders/csv'
+import { type ExportNaming } from './types'
 import {
   generateUnifiedCsv,
   generateMetadataForBatchCsv,
 } from './mappers/segments'
+import {
+  generateEventUnifiedCsv,
+  generateEventBatchCsv,
+} from './mappers/events'
 import { Archiver } from './encoders/zip'
 import { triggerDownload } from './download'
 import { generateScanGraph } from './mappers/scangraph'
+import {
+  type ScanpathSimilarityExportOptions,
+  generateScanpathSimilarityCsv,
+} from './mappers/scanpath-similarity'
 import { generateWorkspaceJson } from './mappers/workspace'
-import type { DataEngine } from '$lib/data/engine/DataEngine.svelte'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { AllGridTypes } from '$lib/workspace'
-import type { FileMetadataType } from '$lib/data/ingest'
+import type { FileMetadataType } from '$lib/data/ingest/types'
 
 /**
  * Downloads a unified CSV of all gaze segments.
@@ -20,9 +29,16 @@ export function downloadUnifiedCsv(
   fileName: string,
   stimulusIds?: Set<string>,
   filterFixations: boolean = false,
-  options?: CsvFormatOptions
+  options?: CsvFormatOptions,
+  naming: ExportNaming = 'displayed'
 ): void {
-  const csv = generateUnifiedCsv(data, stimulusIds, filterFixations, options)
+  const csv = generateUnifiedCsv(
+    data,
+    stimulusIds,
+    filterFixations,
+    options,
+    naming
+  )
   triggerDownload(csv, fileName, '.csv')
 }
 
@@ -34,14 +50,51 @@ export async function downloadBatchZip(
   fileName: string,
   stimulusIds?: Set<string>,
   filterFixations: boolean = false,
-  options?: CsvFormatOptions
+  options?: CsvFormatOptions,
+  naming: ExportNaming = 'displayed'
 ): Promise<void> {
   const batch = generateMetadataForBatchCsv(
     data,
     stimulusIds,
     filterFixations,
-    options
+    options,
+    naming
   )
+  const archiver = new Archiver()
+
+  for (const item of batch) {
+    archiver.addFile(`${item.fileName}_${fileName}.csv`, item.content)
+  }
+
+  const blob = await archiver.generateBlob()
+  triggerDownload(blob, fileName, '.zip')
+}
+
+/**
+ * Downloads a unified CSV of all event occurrences.
+ */
+export function downloadEventUnifiedCsv(
+  data: DataType,
+  fileName: string,
+  stimulusIds?: Set<string>,
+  options?: CsvFormatOptions,
+  naming: ExportNaming = 'displayed'
+): void {
+  const csv = generateEventUnifiedCsv(data, stimulusIds, options, naming)
+  triggerDownload(csv, fileName, '.csv')
+}
+
+/**
+ * Downloads a ZIP of per-participant/stimulus event CSVs.
+ */
+export async function downloadEventBatchZip(
+  data: DataType,
+  fileName: string,
+  stimulusIds?: Set<string>,
+  options?: CsvFormatOptions,
+  naming: ExportNaming = 'displayed'
+): Promise<void> {
+  const batch = generateEventBatchCsv(data, stimulusIds, options, naming)
   const archiver = new Archiver()
 
   for (const item of batch) {
@@ -74,6 +127,17 @@ export async function downloadScanGraph(
     stimulusId
   )
   triggerDownload(content, fileName, '.txt')
+}
+
+/**
+ * Downloads a Scanpath Similarity matrix as CSV.
+ */
+export function downloadScanpathSimilarity(
+  engine: DataEngine,
+  options: ScanpathSimilarityExportOptions
+): void {
+  const { content } = generateScanpathSimilarityCsv(engine, options)
+  triggerDownload(content, options.fileName, '.csv')
 }
 
 /**

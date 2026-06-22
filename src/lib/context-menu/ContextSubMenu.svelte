@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { adjustPlacementForViewport, getMenuSize } from './utils'
+  import { getMenuSize } from './layout'
+  import { adjustForViewport } from '$lib/shared/placement'
   import { MENU_WIDTH, DEFAULT_COMPONENT_HEIGHT } from './const'
   import {
     type MenuFlyoutItem,
@@ -33,7 +34,8 @@
       let menuSize = { width: MENU_WIDTH, height: 0 }
       if (item.component) {
         const h = item.componentHeight ?? DEFAULT_COMPONENT_HEIGHT
-        menuSize = { width: MENU_WIDTH, height: h }
+        const w = item.componentWidth ?? MENU_WIDTH
+        menuSize = { width: w, height: h }
       } else {
         menuSize = getMenuSize(item.children, false)
       }
@@ -42,7 +44,7 @@
       const initialX = rect.right - 4
       const initialY = rect.top - 2 // Slight vertical lift for better alignment
 
-      const res = adjustPlacementForViewport(
+      const res = adjustForViewport(
         { x: initialX, y: initialY }, // Use preferred point with overlap
         menuSize,
         { width: window.innerWidth, height: window.innerHeight },
@@ -51,7 +53,7 @@
       )
 
       // If flipped, we want the +4 overlap from the left side of anchor.
-      // The adjustPlacementForViewport uses rect.left - menuSize.width for flipped.
+      // The adjustForViewport uses rect.left - menuSize.width for flipped.
       // We adjust it here to ensure the 4px overlap.
       if (res.isFlippedX) {
         res.left = rect.left - menuSize.width + 4
@@ -106,8 +108,8 @@
     <span class="label">{item.label}</span>
     <svg
       class="arrow"
-      width="12"
-      height="12"
+      width="14"
+      height="14"
       viewBox="0 0 24 24"
       aria-hidden="true"
       focusable="false"
@@ -141,20 +143,24 @@
   button {
     background: none;
     border: none;
-    padding: 8px 12px;
+    padding: 6px 12px;
     font-size: 13px;
-    color: var(--c-darkgrey);
+    color: var(--c-text);
     cursor: pointer;
-    width: 100%;
     text-align: left;
     display: flex;
     align-items: center;
     gap: 8px;
-    transition: background 0.1s ease;
-    border-radius: 4px;
+    transition: background var(--transition-fast) ease;
+    border-radius: var(--rounded);
     margin: 0 4px;
     width: calc(100% - 8px);
     justify-content: space-between;
+  }
+
+  button:focus-visible {
+    outline: 2px solid var(--c-brand);
+    outline-offset: -2px;
   }
 
   .label {
@@ -165,16 +171,10 @@
   }
 
   .arrow {
-    width: 12px;
-    height: 12px;
-    color: var(--c-midgrey);
-    opacity: 0.8;
+    width: 14px;
+    height: 14px;
+    color: var(--c-darkgrey);
     flex-shrink: 0;
-  }
-
-  button.selected {
-    color: var(--c-brand);
-    font-weight: 500;
   }
 
   button.active {
@@ -185,5 +185,17 @@
   button:hover {
     background: var(--c-lightgrey);
     color: var(--c-black);
+  }
+
+  button.selected {
+    background: color-mix(in srgb, var(--c-brand) 6%, var(--c-white));
+    color: var(--c-brand);
+    font-weight: 500;
+  }
+
+  button.selected:hover,
+  button.selected.active {
+    background: color-mix(in srgb, var(--c-brand) 10%, var(--c-white));
+    color: var(--c-brand);
   }
 </style>

@@ -1,4 +1,5 @@
-export * from './DataEngine.svelte'
+export * from './dataEngine.svelte'
 export * from './selectors'
+export * from './eventIntervals'
 export * from './updaters'
 export * from './utils/interpreters'

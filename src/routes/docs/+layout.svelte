@@ -2,8 +2,46 @@
   import { page } from '$app/state'
   import { onMount } from 'svelte'
   import { buildDocBreadcrumbs, isMatchingDocPath } from './navigation'
+  import { slide } from 'svelte/transition'
   let { data, children } = $props()
   let sidebarOpen = $state(false)
+
+  let manualToggles = $state<Record<string, boolean>>({})
+
+  // Find the active section title based on the current pathname
+  let activeSectionTitle = $derived.by(() => {
+    for (const item of data.sections) {
+      if ('links' in item) {
+        if (item.links.some(link => isMatchingDocPath(link.href, page.url.pathname))) {
+          return item.title
+        }
+      }
+    }
+    return null
+  })
+
+  // Expand the active section automatically, collapse others when activeSectionTitle changes
+  $effect(() => {
+    if (activeSectionTitle) {
+      manualToggles[activeSectionTitle] = true
+      for (const item of data.sections) {
+        if ('title' in item && item.title !== activeSectionTitle) {
+          manualToggles[item.title] = false
+        }
+      }
+    }
+  })
+
+  function isSectionExpanded(title: string) {
+    if (manualToggles[title] !== undefined) {
+      return manualToggles[title]
+    }
+    return title === activeSectionTitle
+  }
+
+  function toggleSection(title: string) {
+    manualToggles[title] = !isSectionExpanded(title)
+  }
 
   onMount(() => {
     if (window.innerWidth <= 1024) return
@@ -87,16 +125,20 @@
   <span class="mobile-docs-label">Documentation Chapters</span>
 </div>
 
-{#if sidebarOpen}
-  <!-- svelte-ignore a11y_no_static_element_interactions -->
-  <div
-    class="sidebar-backdrop"
-    onclick={() => (sidebarOpen = false)}
-    onkeydown={() => {}}
-  ></div>
-{/if}
-
 <div class="docs-container">
+  <!-- Backdrop lives inside .docs-container so it shares the sidebar's
+       stacking context. Placed as a sibling of .docs-sidebar (z-index 100)
+       below it (z-index 200), so taps on the menu reach the menu and only
+       taps on the dimmed area close it. -->
+  {#if sidebarOpen}
+    <!-- svelte-ignore a11y_no_static_element_interactions -->
+    <div
+      class="sidebar-backdrop"
+      onclick={() => (sidebarOpen = false)}
+      onkeydown={() => {}}
+    ></div>
+  {/if}
+
   <!-- Sidebar -->
   <aside class="docs-sidebar" class:open={sidebarOpen}>
     <!-- Layer 1: Persistent Background & Border -->
@@ -110,23 +152,58 @@
       <div class="sidebar-spacer"></div>
       <div class="sidebar-main">
         <nav class="docs-nav">
-          {#each data.sections as section}
+          {#each data.sections as item}
             <div class="nav-section">
-              <h3 class="nav-title">{section.title}</h3>
-              <ul class="nav-links">
-                {#each section.links as link}
-                  <li>
-                    <a
-                      href={link.href}
-                      class="nav-link"
-                      class:active={isMatchingDocPath(link.href, page.url.pathname)}
-                      onclick={() => (sidebarOpen = false)}
-                    >
-                      {link.name}
-                    </a>
-                  </li>
-                {/each}
-              </ul>
+              {#if 'links' in item}
+                <button
+                  type="button"
+                  class="nav-section-trigger"
+                  onclick={() => toggleSection(item.title)}
+                  aria-expanded={isSectionExpanded(item.title)}
+                >
+                  <span class="nav-title">{item.title}</span>
+                  <svg
+                    class="chevron-icon"
+                    class:rotated={isSectionExpanded(item.title)}
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="12"
+                    height="12"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="3"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                  >
+                    <polyline points="9 18 15 12 9 6" />
+                  </svg>
+                </button>
+                {#if isSectionExpanded(item.title)}
+                  <ul class="nav-links" transition:slide={{ duration: 200 }}>
+                    {#each item.links as link}
+                      <li>
+                        <a
+                          href={link.href}
+                          class="nav-link"
+                          class:active={isMatchingDocPath(link.href, page.url.pathname)}
+                          onclick={() => (sidebarOpen = false)}
+                        >
+                          {link.name}
+                        </a>
+                      </li>
+                    {/each}
+                  </ul>
+                {/if}
+              {:else}
+                <a
+                  href={item.href}
+                  class="nav-section-link"
+                  class:active={isMatchingDocPath(item.href, page.url.pathname)}
+                  onclick={() => (sidebarOpen = false)}
+                >
+                  <span class="nav-title">{item.name}</span>
+                </a>
+              {/if}
             </div>
           {/each}
         </nav>
@@ -183,7 +260,7 @@
     position: absolute;
     inset: 0;
     background-color: #ffffff;
-    border-right: 1px solid #e2e8f0;
+    border-right: 1px solid var(--c-grey);
     z-index: -1;
   }
 
@@ -204,18 +281,49 @@
 
   .sidebar-main {
     flex: 1;
-    padding: 2rem;
+    padding: 1rem;
     padding-bottom: 96px; /* 1.5 header heights of space */
     overflow-y: auto;
     /* Hide scrollbar but keep functionality for a cleaner look */
     scrollbar-width: thin;
-    scrollbar-color: #e2e8f0 transparent;
+    scrollbar-color: var(--c-grey) transparent;
   }
 
   .docs-nav {
     display: flex;
     flex-direction: column;
-    gap: 2.5rem;
+    gap: 0.75rem;
+  }
+
+  .nav-section-trigger,
+  .nav-section-link {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    margin: 0;
+    background: none;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    text-decoration: none;
+    border-radius: var(--rounded-md);
+    transition: all var(--transition-normal) ease;
+    box-sizing: border-box;
+  }
+
+  .nav-section-trigger:hover,
+  .nav-section-link:hover {
+    background-color: #f1f5f9;
+  }
+
+  .nav-section-link.active {
+    background-color: #fce7e8;
+  }
+
+  .nav-section-link.active .nav-title {
+    color: var(--c-brand);
   }
 
   .nav-title {
@@ -224,35 +332,43 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
     color: #475569;
-    margin-bottom: 1rem;
+  }
+
+  .chevron-icon {
+    color: #94a3b8;
+    transition: transform var(--transition-normal) cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .chevron-icon.rotated {
+    transform: rotate(90deg);
   }
 
   .nav-links {
     list-style: none;
     padding: 0;
-    margin: 0;
+    margin: 0.25rem 0 0.5rem 0.75rem;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.25rem;
   }
 
   .nav-link {
     display: block;
     padding: 0.5rem 0.75rem;
-    font-size: 0.9375rem;
+    font-size: 0.875rem;
     color: #64748b;
     text-decoration: none;
-    border-radius: 6px;
-    transition: all 0.2s ease;
+    border-radius: var(--rounded-md);
+    transition: all var(--transition-normal) ease;
   }
 
   .nav-link:hover {
-    color: var(--c-brand, #cd1404);
+    color: var(--c-brand);
     background-color: #fff1f2;
   }
 
   .nav-link.active {
-    color: var(--c-brand, #cd1404);
+    color: var(--c-brand);
     background-color: #fce7e8;
     font-weight: 600;
   }
@@ -361,7 +477,7 @@
 
   :global(.prose-wrapper ul li::before) {
     content: '•';
-    color: var(--c-brand, #cd1404);
+    color: var(--c-brand);
     position: absolute;
     left: 0;
     font-weight: bold;
@@ -372,11 +488,11 @@
     height: auto;
     border-radius: 12px;
     margin: 2rem 0;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-lg);
   }
 
   :global(.prose-wrapper a) {
-    color: var(--c-brand, #cd1404);
+    color: var(--c-brand);
     font-weight: 500;
     text-decoration: underline;
     text-underline-offset: 4px;
@@ -396,7 +512,7 @@
   }
 
   :global(.prose-wrapper blockquote) {
-    border-left: 4px solid var(--c-brand, #cd1404);
+    border-left: 4px solid var(--c-brand);
     background-color: #fef2f2;
     margin: 2rem 0;
     padding: 1.5rem;
@@ -416,7 +532,7 @@
     text-align: left;
     background: #f8fafc;
     padding: 0.75rem 1rem;
-    border-bottom: 2px solid #e2e8f0;
+    border-bottom: 2px solid var(--c-grey);
     color: #475569;
     font-weight: 600;
   }
@@ -452,13 +568,21 @@
   }
 
   @media (max-width: 1024px) {
+    /* Lift the whole docs stacking context above the in-flow header
+       (z-index 100) and mobile bar (z-index 50) so the open drawer and its
+       backdrop overlay them at every scroll position. The sidebar (z-index
+       200) and backdrop (z-index 100) inside then layer correctly. */
+    .docs-container {
+      z-index: 300;
+    }
+
     .mobile-docs-bar {
       display: flex;
       align-items: center;
       gap: 0.75rem;
       padding: 0.75rem 1.25rem;
       background: #ffffff;
-      border-bottom: 1px solid #e2e8f0;
+      border-bottom: 1px solid var(--c-grey);
       position: relative;
       z-index: 50;
     }
@@ -469,7 +593,7 @@
       justify-content: center;
       width: 36px;
       height: 36px;
-      border: 1px solid #e2e8f0;
+      border: 1px solid var(--c-grey);
       border-radius: 8px;
       background: #f8fafc;
       color: #334155;
@@ -497,9 +621,9 @@
       height: 100vh;
       transform: translateX(-100%);
       z-index: 200;
-      box-shadow: 4px 0 16px rgba(0, 0, 0, 0.1);
+      box-shadow: 4px 0 16px color-mix(in srgb, var(--c-black) 10%, transparent);
       margin-top: 0; /* No negative margin on mobile */
-      transition: transform 0.3s ease;
+      transition: transform var(--transition-slow) ease;
     }
 
     .docs-sidebar.open {

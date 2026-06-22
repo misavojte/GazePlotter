@@ -1,29 +1,30 @@
 <script lang="ts">
   import { InputText, Select } from '$lib/shared/components'
   import { Section, ModalButtons, CheckboxListField } from '$lib/modals'
-  import type { DecimalSeparator } from '$lib/data/export'
+  import type { DecimalSeparator, ExportNaming } from '$lib/data/export'
   import { getGazePlotterSession } from '$lib/session'
   import { getStimuliOptions } from '$lib/plots/shared'
   import {
     createExportButtons,
     CSV_DECIMAL_SEPARATOR_OPTIONS,
     CSV_DELIMITER_OPTIONS,
+    EXPORT_NAMING_OPTIONS,
     mapSelectableItems,
     toggleSetValue,
     waitForExportUi,
   } from '../shared/helpers'
 
   const { engine, exportService, modalState } = getGazePlotterSession()
-  const canReturnToFormats = $derived(modalState.stack.length > 1)
   let fileName = $state('GazePlotter-SegmentedData')
   let exportType = $state('csv')
   let delimiter = $state(',')
   let decimalSeparator = $state<DecimalSeparator>('.')
+  let naming = $state<ExportNaming>('displayed')
   let exportFixationsOnly = $state(false)
   let selectedStimuliIds = $state(new Set<string>())
   let isExporting = $state(false)
 
-  const hasSpatialData = $derived(engine.segments?.hasSpatialData ?? false)
+  const hasSpatialData = $derived(engine.capabilities.spatial)
 
   const exportOptions = [
     {
@@ -66,6 +67,7 @@
         exportType: exportType as 'csv' | 'individual-csv',
         stimulusIds: selectedStimuliIds,
         filterFixations: exportFixationsOnly,
+        naming,
         csvOptions: {
           delimiter,
           decimalSeparator,
@@ -83,8 +85,6 @@
       isExporting,
       onCancel: () => modalState.close(),
       onExport: handleExport,
-      onOpenFormats: canReturnToFormats ? () => modalState.close() : undefined,
-      openFormatsLabel: 'Back to All Data Formats',
     })
   )
 </script>
@@ -120,6 +120,11 @@
         label="Decimal Separator"
         options={CSV_DECIMAL_SEPARATOR_OPTIONS}
         bind:value={decimalSeparator}
+      />
+      <Select
+        label="Naming"
+        options={EXPORT_NAMING_OPTIONS}
+        bind:value={naming}
       />
     </div>
   </Section>
@@ -178,8 +183,11 @@
         </p>
       {/if}
       <p class="format-description">
-        Eye movement types: "0" = fixation, other values = saccades etc. AOI
-        column contains semicolon-separated area names.
+        Naming: "Displayed" uses your renamed movement-type and AOI names,
+        merges AOIs grouped under the same name, and excludes hidden AOIs (the
+        on-screen result). "Raw" uses the original imported names with no
+        grouping and lists every AOI a segment references, including hidden
+        ones. The AOI column contains semicolon-separated area names.
       </p>
     </div>
   </Section>

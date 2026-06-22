@@ -1,0 +1,217 @@
+import type { Projection } from './core/projection'
+import type { GroupReduction } from './core/measurement'
+
+/**
+ * Seed for a starter instance emitted into a fresh workspace's metric library.
+ * Missing fields fall back to:
+ *   - `projection`: identity for the recipe's raw shape
+ *   - `params`    : empty object (recipes' own param defaults are applied at evaluation time)
+ *   - `label`     : `defaultInstanceLabel(baseId)` (the bare quantity name)
+ */
+export interface StartingMetricSpec {
+  /**
+   * Stable human-readable slug. Forms the workspace-level `MetricInstance.id`.
+   * User-created instances use `crypto.randomUUID()` — so hand-authored slugs
+   * and runtime UUIDs share the `string` namespace without colliding.
+   *
+   * Append-only: never rename a slug that's already shipped, and never reuse
+   * a deleted one — some saved workspace out there might still reference it.
+   *
+   * Some slugs carry a legacy recipe-id prefix (`avgFixationDuration-any-windowed`)
+   * even though the `baseId` reads as the canonical name (`fixationDuration`).
+   * This drift is deliberate: slugs are workspace-persisted identifiers and are
+   * never renamed; `baseId` is the recipe key. Do NOT "fix" the slug spellings.
+   */
+  id: string
+  baseId: string
+  params?: Record<string, unknown>
+  projection?: Projection
+  label?: string
+  /**
+   * Per-instance cross-participant reduction, overriding the metric's default.
+   * Set only where the starter's intended reading differs from the metric's
+   * conventional reduction — see the windowed AOI starters, which sum across the
+   * cohort so an AOI Timeline's band reflects total attention and tapers as
+   * participants drop out, rather than the default mean (which averages only
+   * participants still recording in a window and so never tapers).
+   */
+  reduction?: GroupReduction
+}
+
+/**
+ * Every metric instance seeded into a fresh project. Order is presentation-only
+ * (it's what the library sidebar renders first-pass); IDs are the source of
+ * truth for identity.
+ */
+export const STARTING_METRICS: readonly StartingMetricSpec[] = [
+  // ── identity starters ────────────────────────────────────────────────
+  { id: 'absoluteTime', baseId: 'absoluteTime' },
+  { id: 'relativeTime', baseId: 'relativeTime' },
+  { id: 'visitCount', baseId: 'visitCount' },
+  { id: 'visitDuration', baseId: 'visitDuration' },
+  { id: 'fixationCount', baseId: 'fixationCount' },
+  { id: 'fixationDuration', baseId: 'fixationDuration' },
+  { id: 'fixated', baseId: 'fixated' },
+  { id: 'timeToFirstFixation', baseId: 'timeToFirstFixation' },
+  { id: 'firstFixationDuration', baseId: 'firstFixationDuration' },
+
+  // ── windowed starters ────────────────────────────────────────────────
+  {
+    // Slug retains the legacy `avgFixationDuration-` prefix (see interface doc).
+    id: 'avgFixationDuration-any-windowed',
+    baseId: 'fixationDuration',
+    label: 'Average fixation duration',
+    projection: {
+      kind: 'windowed',
+      window: { windowSize: 1000, stepSize: 100 },
+      inner: { kind: 'pick-any-fixation' },
+    },
+  },
+  {
+    id: 'fixationCount-any-windowed',
+    baseId: 'fixationCount',
+    label: 'Fixation count',
+    projection: {
+      kind: 'windowed',
+      window: { windowSize: 1000, stepSize: 100 },
+      inner: { kind: 'pick-any-fixation' },
+    },
+  },
+
+  // ── windowed aoi-vector starters (aoi-stream consumers) ──────────────
+  {
+    id: 'absoluteTime-aoi-windowed-500',
+    baseId: 'absoluteTime',
+    label: 'Time on AOI',
+    // Cohort total per window, not per-participant mean: a mean over only the
+    // participants still recording in a window never tapers, so a late window
+    // with two stragglers reads as full height and hides cohort drop-off. Sum
+    // tapers honestly. relativeTime (below) stays the per-participant share.
+    reduction: 'sum',
+    projection: {
+      kind: 'windowed',
+      window: { windowSize: 500, stepSize: 500 },
+      inner: { kind: 'identity-aoi-vector' },
+    },
+  },
+  {
+    id: 'fixationCount-aoi-windowed-500',
+    baseId: 'fixationCount',
+    label: 'Fixation count per AOI',
+    // Cohort total per window (same dropout reasoning as the time starter).
+    reduction: 'sum',
+    projection: {
+      kind: 'windowed',
+      window: { windowSize: 500, stepSize: 500 },
+      inner: { kind: 'identity-aoi-vector' },
+    },
+  },
+  {
+    id: 'relativeTime-aoi-windowed-500',
+    baseId: 'relativeTime',
+    label: 'Relative time on AOI',
+    projection: {
+      kind: 'windowed',
+      window: { windowSize: 500, stepSize: 500 },
+      inner: { kind: 'identity-aoi-vector' },
+    },
+  },
+  {
+    id: 'visitCount-aoi-windowed-500',
+    baseId: 'visitCount',
+    label: 'Visit count per AOI',
+    // Cohort total per window (same dropout reasoning as the time starter).
+    reduction: 'sum',
+    projection: {
+      kind: 'windowed',
+      window: { windowSize: 500, stepSize: 500 },
+      inner: { kind: 'identity-aoi-vector' },
+    },
+  },
+
+  // ── any-fixation starters ────────────────────────────────────────────
+  {
+    id: 'absoluteTime-any',
+    baseId: 'absoluteTime',
+    projection: { kind: 'pick-any-fixation' },
+  },
+  {
+    id: 'visitCount-any',
+    baseId: 'visitCount',
+    projection: { kind: 'pick-any-fixation' },
+  },
+  {
+    id: 'visitDuration-any',
+    baseId: 'visitDuration',
+    projection: { kind: 'pick-any-fixation' },
+  },
+  {
+    id: 'fixationCount-any',
+    baseId: 'fixationCount',
+    projection: { kind: 'pick-any-fixation' },
+  },
+  {
+    id: 'fixationDuration-any',
+    baseId: 'fixationDuration',
+    projection: { kind: 'pick-any-fixation' },
+  },
+  {
+    id: 'timeToFirstFixation-any',
+    baseId: 'timeToFirstFixation',
+    projection: { kind: 'pick-any-fixation' },
+  },
+  {
+    id: 'firstFixationDuration-any',
+    baseId: 'firstFixationDuration',
+    projection: { kind: 'pick-any-fixation' },
+  },
+
+  // ── matrix starters ──────────────────────────────────────────────────
+  {
+    id: 'transitionCount-fix',
+    baseId: 'transitionCount',
+    params: { mode: 'fixation' },
+  },
+  {
+    id: 'transitionCount-visit',
+    baseId: 'transitionCount',
+    params: { mode: 'visit' },
+  },
+  {
+    id: 'transitionProbability-fix',
+    baseId: 'transitionProbability',
+    params: { mode: 'fixation', step: 1 },
+  },
+  {
+    id: 'transitionDwellMean-fix',
+    baseId: 'transitionDwellMean',
+    params: { mode: 'fixation' },
+  },
+  {
+    id: 'transitionDwellMean-visit',
+    baseId: 'transitionDwellMean',
+    params: { mode: 'visit' },
+  },
+
+  // ── rqa starters ──────────────────────────────────────────────────
+  { id: 'rqaRec', baseId: 'rqaRec' },
+  { id: 'rqaDet', baseId: 'rqaDet' },
+  { id: 'rqaLam', baseId: 'rqaLam' },
+
+  // ── scanpath similarity starters ──────────────────────────────────
+  {
+    id: 'participantPairSimilarity-lev',
+    baseId: 'participantPairSimilarity',
+    params: { method: 'levenshtein', collapsed: false },
+  },
+  {
+    id: 'participantPairSimilarity-lev-collapsed',
+    baseId: 'participantPairSimilarity',
+    params: { method: 'levenshtein', collapsed: true },
+  },
+  {
+    id: 'participantPairSimilarity-nw',
+    baseId: 'participantPairSimilarity',
+    params: { method: 'needlemanWunsch', collapsed: false },
+  },
+]

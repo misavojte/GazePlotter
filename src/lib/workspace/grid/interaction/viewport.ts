@@ -17,6 +17,10 @@ export class GridViewportController {
     this.#element = element
   }
 
+  getElement(): HTMLElement | null {
+    return this.#element
+  }
+
   getScrollOffset(): ScrollOffset {
     return {
       x: this.#getScrollX(),

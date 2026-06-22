@@ -1,6 +1,10 @@
-import { type DataType, type JsonImportOldFormat } from '$lib/data/types'
-import { binarySegmentsToJson } from '$lib/data/binary'
-import type { FileMetadataType } from '$lib/data/ingest'
+import {
+  type DataType,
+  type JsonImportOldFormat,
+  CURRENT_SCHEMA_VERSION,
+} from '$lib/data/types'
+import { binarySegmentsToJsonWithSpatial } from '$lib/data/binary'
+import type { FileMetadataType } from '$lib/data/ingest/types'
 import { encodeJson, wrapProjectPayload } from '../encoders/json'
 
 /**
@@ -13,23 +17,26 @@ export function generateWorkspaceJson(
   fileMetadata: FileMetadataType | null
 ): string {
   // 1. Prepare domain data (convert binary to legacy JSON for compatibility)
-  // Phase 1 note: spatial segment coordinates are intentionally not serialized
-  // into workspace JSON yet. They are currently preserved only in live/session data.
-  const segments = binarySegmentsToJson(data.segments)
+  const { segments, spatialData } = binarySegmentsToJsonWithSpatial(
+    data.segments
+  )
 
   const exportData: JsonImportOldFormat = {
     ...data,
     segments,
+    ...(spatialData ? { spatialData } : {}),
   }
 
-  // 2. Wrap into project schema
+  // 2. Wrap into project schema. The stamped version is sourced from the same
+  //    constant the migration ceiling uses, so the stamp matches the shape of
+  //    `exportData` rather than a hardcoded (and previously stale) literal.
   const payload = wrapProjectPayload(
     {
       data: exportData,
       gridItems,
       fileMetadata,
     },
-    4
+    CURRENT_SCHEMA_VERSION
   )
 
   // 3. Encode to JSON string
