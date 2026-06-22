@@ -559,7 +559,7 @@
     font-size: 0.9rem;
     background: white;
     padding: 0.5rem 1rem;
-    border-radius: var(--rounded-sm);
+    border-radius: var(--rounded);
     color: #0ea5e9;
     font-weight: 600;
     letter-spacing: 0.05em;

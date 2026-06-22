@@ -233,7 +233,7 @@
   .session-info {
     background: #e8f4f8;
     border: 1px solid #b3d9e6;
-    border-radius: var(--rounded-sm);
+    border-radius: var(--rounded-md);
     padding: 0.75rem;
     margin-top: 1rem;
     text-align: center;

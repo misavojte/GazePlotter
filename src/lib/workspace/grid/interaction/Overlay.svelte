@@ -39,15 +39,14 @@
     pointer-events: none;
     opacity: 0.55;
     border: 2px dashed var(--c-text);
-    border-radius: var(--rounded-lg, 8px) var(--rounded-lg, 8px) 0
-      var(--rounded-lg, 8px);
+    border-radius: var(--rounded-lg, 8px);
     background: var(--c-lightgrey);
     box-sizing: border-box;
   }
 
   .grid-interaction-overlay.moving,
   .grid-interaction-overlay.resizing {
-    background: rgba(var(--c-main-rgb, 0, 0, 0), 0.05);
-    border-color: var(--c-main);
+    background: color-mix(in srgb, var(--c-info) 8%, transparent);
+    border-color: var(--c-info);
   }
 </style>
