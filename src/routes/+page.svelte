@@ -3,6 +3,9 @@
   import { Card } from '$lib/shared/components'
   import { base } from '$app/paths'
   import { browser } from '$app/environment'
+  import { onMount } from 'svelte'
+  import type { GazePlotterSession } from '$lib/session'
+  import { announceVersionOnce } from './versionNotice'
 
   const demoDataPath = `${base}/data/demo.json?v=2`
 
@@ -15,6 +18,13 @@
     dataUrl ?? demoDataPath,
     dataUrl ? 'data.json' : 'demo.json'
   )
+
+  let gazePlotterRef = $state<{ getSession: () => GazePlotterSession }>()
+
+  onMount(() => {
+    const session = gazePlotterRef?.getSession()
+    if (session) announceVersionOnce(session.toastState)
+  })
 </script>
 
 <svelte:head>
@@ -36,7 +46,7 @@
     </p>
   </section>
   <section>
-    <GazePlotter {load} />
+    <GazePlotter {load} bind:this={gazePlotterRef} />
   </section>
   <section class="main-section" id="about">
     <div class="about-grid">

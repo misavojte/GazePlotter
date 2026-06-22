@@ -55,7 +55,7 @@
 </script>
 
 <div class="toaster">
-  {#each toastState.current as { id, type, title, message } (id)}
+  {#each toastState.current as { id, type, title, message, link } (id)}
     <div
       class="toast"
       animate:flip={{ duration: 500 }}
@@ -86,6 +86,16 @@
       </div>
       <div class="toast-body">
         {message}
+        {#if link}
+          <a
+            class="toast-link"
+            href={link.href}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {link.label}
+          </a>
+        {/if}
       </div>
     </div>
   {/each}
@@ -166,5 +176,28 @@
   .title {
     display: flex;
     align-items: center;
+  }
+
+  .toast-link {
+    display: inline-block;
+    margin-top: 6px;
+    font-weight: 600;
+    color: var(--c-brand);
+    text-decoration: none;
+  }
+  .toast-link::after {
+    content: "→";
+    margin-left: 6px;
+    transition: transform var(--transition-fast) ease-in-out;
+    display: inline-block;
+  }
+  .toast-link:hover,
+  .toast-link:focus {
+    color: var(--c-brand-dark);
+    text-decoration: underline;
+  }
+  .toast-link:hover::after,
+  .toast-link:focus::after {
+    transform: translateX(3px);
   }
 </style>

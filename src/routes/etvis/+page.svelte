@@ -2,6 +2,9 @@
   import { GazePlotter, fromUrl } from '$lib'
   import { base } from '$app/paths'
   import { browser } from '$app/environment'
+  import { onMount } from 'svelte'
+  import type { GazePlotterSession } from '$lib/session'
+  import { announceVersionOnce } from '../versionNotice'
 
   const preloadedDataPath = `${base}/data/etvis26.json`
 
@@ -12,6 +15,13 @@
     dataUrl ?? preloadedDataPath,
     dataUrl ? 'data.json' : 'etvis26.json'
   )
+
+  let gazePlotterRef = $state<{ getSession: () => GazePlotterSession }>()
+
+  onMount(() => {
+    const session = gazePlotterRef?.getSession()
+    if (session) announceVersionOnce(session.toastState)
+  })
 </script>
 
 <svelte:head>
@@ -33,7 +43,7 @@
     </p>
   </section>
   <section>
-    <GazePlotter {load} />
+    <GazePlotter {load} bind:this={gazePlotterRef} />
   </section>
   <section class="main-section" id="about">
     <div class="about-grid">

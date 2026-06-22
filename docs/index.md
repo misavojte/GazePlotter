@@ -4,6 +4,8 @@ GazePlotter is a free web application for eye-tracking data analysis and visuali
 
 Whether you're a researcher analyzing attention patterns, a student learning about eye-tracking methodology, or a professional presenting gaze data insights, GazePlotter provides tools that work entirely in your browser without installing any other software.
 
+> **New in 1.9.0**: A redesigned workspace — [select one or more plots](/docs/setup/workspace) to move, resize, or change their stimulus, participant group, and other settings together. New visualizations: [Recurrence Plot](/docs/visualizations/recurrence-plot), [Scanpath](/docs/visualizations/scanpath), [Scanpath Similarity](/docs/visualizations/scanpath-similarity), [Metric Timeline](/docs/visualizations/metric-timeline), and [Metric Correlation](/docs/visualizations/metric-correlation). A reusable [Metrics Library](/docs/metrics), [event files and channels](/docs/upload-data/events) with an [Event Library](/docs/setup/event-library), and [event occurrence export](/docs/export). Saved workspaces from earlier versions open automatically.
+
 ## Analysis Suite
 
 ### Multiple Visualization Types

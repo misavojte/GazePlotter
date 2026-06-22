@@ -24,37 +24,31 @@ The workspace has two control areas:
 
 ## Plot Manipulation
 
-Each plot is an independent card. Click a card to select it; this reveals its move, resize, and action controls.
+Plots are manipulated by selection: nothing acts on a plot until you select it. Click a card to select it — this reveals its move and resize handles and its action chip (**Duplicate**, **Remove**), and on desktop opens its **Settings Pane**. Click empty grid space to deselect.
+
+Hold **Cmd/Ctrl/Shift** and click to add more plots to the selection. The controls and the pane then act on all of them at once: move, resize, or change their stimulus, participant group, and other settings together.
 
 ### Editing a plot
 
 On desktop, selecting a plot opens its [Settings Pane](/docs/visualizations/#configuration-and-settings-pane) — a side column of collapsible sections for everything the plot shows (stimulus, participant group, metric, axes, colors). The available settings depend on the plot type and are documented on its own page, e.g. [Scarf Plot](/docs/visualizations/scarf-plot/).
 
-Select more than one plot (hold **Cmd/Ctrl/Shift** and click) and the pane edits the whole selection at once: same-type plots expose their full pane, mixed types only their shared sections — **Stimulus**, **Participant group**, **Participant**, **Time range**, **Areas of Interest**, **Events**, and **Eye-movement Type**. A field whose plots disagree shows **Mixed**; setting it applies to all of them.
+With more than one plot selected the pane edits the whole selection at once: same-type plots expose their full pane, mixed types only their shared sections — **Stimulus**, **Participant group**, **Participant**, **Time range**, **Areas of Interest**, **Events**, and **Eye-movement Type**. A field whose plots disagree shows **Mixed**; setting it applies to all of them.
 
 ### Moving a plot
 
-Once selected, the whole card becomes a drag target — click and drag anywhere on the card frame to move it. Plots snap to a 40×40 pixel grid, and the canvas expands when you drag toward an edge. Hold **Cmd/Ctrl/Shift** and click to select several plots, then drag any one to move them together.
-
-![Dragging a plot across the GazePlotter workspace grid.](/docs/images/how-to-move-plot-gazeplotter.jpg)
+With the plot selected, the whole card is a drag target — click and drag anywhere on the card frame to move it. Plots snap to a 40×40 pixel grid, and the canvas expands when you drag toward an edge. With several plots selected, drag any one to move them all together.
 
 ### Resizing a plot
 
 Drag any of the four corner handles on a selected plot. The card snaps to the grid as it resizes.
 
-![Resizing a plot from a corner in the workspace.](/docs/images/how-to-resize-plot-gazeplotter.jpg)
-
 ### Duplicating a plot
 
 Click **Duplicate** in the action chip at the plot's top-left corner. The copy keeps every setting — participant group, stimulus, axis bounds, colors.
 
-![Using the Duplicate button to copy a plot in the workspace.](/docs/images/how-to-duplicate-plot-gazeplotter.jpg)
-
 ### Removing a plot
 
 Click **Remove** in the same action chip.
-
-![Using the Remove button to delete a plot from the workspace.](/docs/images/how-to-remove-plot-gazeplotter.jpg)
 
 ## Saving your work
 
