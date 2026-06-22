@@ -80,6 +80,7 @@ export const metricCorrelationDefinition = definePlot<
   consumesMetrics: {
     outputShape: 'scalar',
     windowing: 'forbidden',
+    crossParticipant: 'samples',
     multiSelect: true,
   },
 })

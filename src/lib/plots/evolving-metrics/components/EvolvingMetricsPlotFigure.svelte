@@ -8,7 +8,7 @@
     type PlotFrame,
     type FrameHit,
   } from '$lib/plots/shared'
-  import { estimateTextWidth, measureTextHeight } from '$lib/shared/utils/textUtils'
+  import { estimateTextWidth, measureTextHeight, truncateTextToPixelWidth } from '$lib/shared/utils/textUtils'
   import { interpolateColor } from '$lib/color'
   import { INACTIVE_COLOR, PRESET_PALETTES } from '$lib/color/palettes'
 
@@ -22,7 +22,6 @@
     drawXAxisLabel,
     drawYAxisMainLabel,
     getXAxisHeight,
-    getXAxisLabelOffset,
     maxAxisTitleHeight,
   } from '$lib/plots/shared/axisUtils'
   import {
@@ -36,7 +35,7 @@
   import { MARGIN, AXIS_CONFIG } from '../const'
   import type { EvolvingMetricsResult, EvolvingMetricsWindow } from '../types'
 
-  const OVERLAY_LEFT_MARGIN = 65
+  const COMPACT_LEFT_MARGIN = 55
   const OVERLAY_SUMMARY_RGB = '205, 20, 4'
   const OVERLAY_SUMMARY_COLOR = `rgb(${OVERLAY_SUMMARY_RGB})`
   const OVERLAY_BAND_ALPHA = 0.12
@@ -77,27 +76,25 @@
     }
     return maxHeight
   })
-  // Reserve the worst-case (2-line) x-title height. The wrap width would be the
-  // plot width, but the left margin depends (via compact mode → content height →
-  // bottom margin) back on this height, so wrapping exactly here would cycle.
-  // The draw still wraps to the real width.
-  const axisTitleHeight = $derived(X_AXIS_LABEL ? maxAxisTitleHeight(AXIS_CONFIG.fontSize) : 0)
-  const xAxisHeight = $derived(
-    X_AXIS_LABEL
-      ? getXAxisHeight(tickLabelHeight, axisTitleHeight, AXIS_CONFIG.tickLabelOffset)
-      : AXIS_CONFIG.tickLabelOffset + tickLabelHeight
-  )
-  const xAxisLabelOffset = $derived(getXAxisLabelOffset(tickLabelHeight, AXIS_CONFIG.tickLabelOffset))
-  const effectiveBottomMargin = $derived(
-    xAxisHeight + (legendHeight > 0 ? PLOT_LEGEND_GAP + legendHeight : 0)
+  // Bottom-reserve estimate for the COMPACT PROBE ONLY. Mirrors what the resolver
+  // carves for the x-axis (ticks + worst-case 2-line title) plus the legend
+  // block, but GAP-FREE: the resolver abuts the legend block to the x-axis gutter
+  // with no PLOT_LEGEND_GAP, so including the gap here would flip isCompact ~14px
+  // early. Worst-case title height avoids a wrap-width cycle; the draw wraps for real.
+  const bottomReserveEstimate = $derived(
+    getXAxisHeight(
+      tickLabelHeight,
+      X_AXIS_LABEL ? maxAxisTitleHeight(AXIS_CONFIG.fontSize) : 0,
+      AXIS_CONFIG.tickLabelOffset
+    ) + legendHeight
   )
 
-  // Compact-mode probe height — derived from the underlying content area, NOT
-  // from `plot.frame`, to break the cycle (frame ← gutters ← effectiveLeftMargin
-  // ← isCompact). Equals frame.height by construction, since the gutters carve
-  // exactly MARGIN.TOP + effectiveBottomMargin out of the content height.
+  // Compact-mode probe height — derived from the PRE-gutter content area
+  // (plot.plotAreaHeight), NOT plot.frame.height, to break the cycle
+  // (frame.height ← gutters.left ← isCompact ← probeHeight). LOAD-BEARING: do not
+  // switch this to frame.height or the $derived graph cycles / settles stale.
   const probeHeight = $derived.by(() =>
-    Math.max(0, plot.plotAreaHeight - MARGIN.TOP - effectiveBottomMargin)
+    Math.max(0, plot.plotAreaHeight - MARGIN.TOP - bottomReserveEstimate)
   )
   const COMPACT_THRESHOLD = AXIS_CONFIG.fontSize + 2
   const isCompact = $derived(
@@ -106,15 +103,34 @@
       probeHeight / data.participants.length < COMPACT_THRESHOLD
   )
 
-  const effectiveLeftMargin = $derived.by(() => {
-    if (alignment === 'overlay') return OVERLAY_LEFT_MARGIN
-    if (isCompact) return 55
+  // ── Axis chrome fed to the measured gutter (all pixel-independent) ──
+  const xAxisTicks = $derived(niceTimelineTicks(data.timeline))
+  const yTimeline = $derived.by(() =>
+    alignment !== 'overlay' ? null : createAdaptiveTimeline(0, data.valueMax, 6)
+  )
+  const yAxisMax = $derived(yTimeline ? yTimeline.maxValue : data.valueMax)
+  const yTicks = $derived.by(() => {
+    if (!yTimeline) return null
+    const niceValues = yTimeline.ticks.filter(t => t.isNice).map(t => t.value)
+    return bottomOriginYTicks(niceValues, yAxisMax, v => String(Math.round(v)))
+  })
+
+  // Heatmap participant row labels: cap reserved width + pre-truncate so the
+  // gutter reserves exactly what we draw.
+  const participantLeftBudget = $derived.by(() => {
+    if (alignment !== 'heatmap' || isCompact) return 0
     let max = 0
     for (const p of data.participants) {
       const w = estimateTextWidth(p.label, AXIS_CONFIG.fontSize, AXIS_CONFIG.fontFamily)
       if (w > max) max = w
     }
-    return Math.max(MARGIN.LEFT, Math.min(200, max + 20))
+    return Math.min(200, max + 20)
+  })
+  const participantLabels = $derived.by<string[]>(() => {
+    if (alignment !== 'heatmap' || isCompact) return []
+    return data.participants.map(p =>
+      truncateTextToPixelWidth(p.label, participantLeftBudget - 15, AXIS_CONFIG.fontSize, AXIS_CONFIG.fontFamily, '…')
+    )
   })
 
   const plot = usePlot<{ t: number; participantIdx: number | null }>({
@@ -124,14 +140,31 @@
     dpiOverride: () => dpiOverride,
     deps: () => [data, alignment],
     placeholder: () => (data.noMetric ? METRIC_MISSING_MESSAGE : null),
-    gutters: () => ({
-      pad: {
-        left: effectiveLeftMargin,
+    // Declarative measured gutters: the resolver measures the left/bottom edge
+    // tick labels + titles and returns the title offsets (frame.leftTitleOffset /
+    // bottomTitleOffset) the figure draws with. Compact heatmap keeps a fixed
+    // pad.left — it draws a 2-line "Participants / [order indices]" label + index
+    // ticks at fixed offsets, so there's no measured title to reserve against.
+    gutters: () => {
+      const pad: { top: number; right: number; left?: number } = {
         top: MARGIN.TOP,
         right: MARGIN.RIGHT,
-        bottom: effectiveBottomMargin,
-      },
-    }),
+      }
+      let left: { title?: string; tickLabels?: string[] } | undefined
+      if (alignment === 'overlay') {
+        left = { title: data.yAxisLabel, tickLabels: yTicks?.labels ?? [] }
+      } else if (isCompact) {
+        pad.left = COMPACT_LEFT_MARGIN
+      } else {
+        left = { tickLabels: participantLabels }
+      }
+      return {
+        left,
+        bottom: { title: X_AXIS_LABEL, tickLabels: xAxisTicks.labels ?? [] },
+        pad,
+        legendHeight: legendHeight > 0 ? PLOT_LEGEND_GAP + legendHeight : 0,
+      }
+    },
     clipData: false,
     drawData: drawEvolving,
     drawOverlay: drawEvolvingOverlay,
@@ -155,7 +188,7 @@
     if (alignment !== 'heatmap') return null
     return computeGradientLegendGeometry({
       x: margins.left,
-      y: plot.frame.bottom + xAxisHeight + PLOT_LEGEND_GAP,
+      y: plot.frame.legendY + PLOT_LEGEND_GAP,
       availableWidth: plot.plotAreaWidth,
       availableHeight: legendHeight,
       colorScale: palette,
@@ -164,16 +197,6 @@
       title: data.yAxisLabel,
       belowMinColor: INACTIVE_COLOR,
     })
-  })
-
-  const yTimeline = $derived.by(() =>
-    alignment !== 'overlay' ? null : createAdaptiveTimeline(0, data.valueMax, 6)
-  )
-  const yAxisMax = $derived(yTimeline ? yTimeline.maxValue : data.valueMax)
-  const yTicks = $derived.by(() => {
-    if (!yTimeline) return null
-    const niceValues = yTimeline.ticks.filter(t => t.isNice).map(t => t.value)
-    return bottomOriginYTicks(niceValues, yAxisMax, v => String(Math.round(v)))
   })
 
   // Overlay aggregates — sampled one position per pixel across the plot width.
@@ -262,9 +285,9 @@
     ctx.restore()
 
     if (alignment === 'overlay') {
-      renderOverlayAxes(ctx, floorLeft, floorTop, floorWidth, floorHeight, floorBottom)
+      renderOverlayAxes(ctx, floorLeft, floorTop, floorWidth, floorHeight, floorBottom, frame)
     } else {
-      renderHeatmapLabels(ctx, floorLeft, floorTop, floorHeight, floorRight, participantCount)
+      renderHeatmapLabels(ctx, floorLeft, floorTop, floorHeight, floorRight, participantCount, frame)
     }
   }
 
@@ -486,7 +509,7 @@
   function renderHeatmapLabels(
     ctx: CanvasRenderingContext2D,
     floorLeft: number, floorTop: number, floorHeight: number,
-    floorRight: number, participantCount: number
+    floorRight: number, participantCount: number, frame: PlotFrame
   ) {
     const rowHeight = floorHeight / participantCount
     const floorBottom = floorTop + floorHeight
@@ -519,21 +542,14 @@
       }
     } else {
       ctx.textAlign = 'right'
-      const maxLabelPx = effectiveLeftMargin - 15
+      // Pre-truncated to the same budget the gutter reserved (single source).
       for (let p = 0; p < participantCount; p++) {
-        let labelText = data.participants[p].label
-        if (ctx.measureText(labelText).width > maxLabelPx) {
-          while (ctx.measureText(labelText + '…').width > maxLabelPx && labelText.length > 0) {
-            labelText = labelText.slice(0, -1)
-          }
-          labelText += '…'
-        }
-        ctx.fillText(labelText, floorLeft - 10, floorTop + p * rowHeight + rowHeight / 2)
+        ctx.fillText(participantLabels[p], floorLeft - 10, floorTop + p * rowHeight + rowHeight / 2)
       }
     }
     ctx.restore()
 
-    const xTicks = niceTimelineTicks(data.timeline)
+    const xTicks = xAxisTicks
     drawPlotArea(ctx, {
       x: floorLeft,
       y: floorTop,
@@ -541,12 +557,12 @@
       height: floorHeight,
       ticks: { bottom: xTicks, top: { positions: xTicks.positions } },
     })
-    drawXAxisLabel(ctx, X_AXIS_LABEL, floorLeft, floorWidth, floorBottom, xAxisLabelOffset, AXIS_CONFIG)
+    drawXAxisLabel(ctx, X_AXIS_LABEL, floorLeft, floorWidth, floorBottom, frame.bottomTitleOffset, AXIS_CONFIG)
 
     if (gradientLegendGeometry) {
       drawGradientLegend(ctx, gradientLegendGeometry, {
         x: margins.left,
-        y: floorBottom + xAxisHeight,
+        y: frame.legendY + PLOT_LEGEND_GAP,
         availableWidth: plot.plotAreaWidth,
         availableHeight: legendHeight,
         colorScale: palette,
@@ -662,9 +678,10 @@
 
   function renderOverlayAxes(
     ctx: CanvasRenderingContext2D,
-    floorLeft: number, floorTop: number, floorWidth: number, floorHeight: number, floorBottom: number
+    floorLeft: number, floorTop: number, floorWidth: number, floorHeight: number, floorBottom: number,
+    frame: PlotFrame
   ) {
-    const xTicks = niceTimelineTicks(data.timeline)
+    const xTicks = xAxisTicks
     drawPlotArea(ctx, {
       x: floorLeft,
       y: floorTop,
@@ -672,8 +689,8 @@
       height: floorHeight,
       ticks: { bottom: xTicks, top: { positions: xTicks.positions }, left: yTicks ?? undefined },
     })
-    drawXAxisLabel(ctx, X_AXIS_LABEL, floorLeft, floorWidth, floorBottom, xAxisLabelOffset, AXIS_CONFIG)
-    drawYAxisMainLabel(ctx, data.yAxisLabel, floorLeft, floorTop, floorHeight)
+    drawXAxisLabel(ctx, X_AXIS_LABEL, floorLeft, floorWidth, floorBottom, frame.bottomTitleOffset, AXIS_CONFIG)
+    drawYAxisMainLabel(ctx, data.yAxisLabel, floorLeft, floorTop, floorHeight, frame.leftTitleOffset, AXIS_CONFIG)
   }
 
   // ── HOVER ──

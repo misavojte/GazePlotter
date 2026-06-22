@@ -32,9 +32,10 @@ interface Params { mode: 'fixation' | 'visit'; step: number }
  *   ENDED (the recording finished) before completing `k` transitions from `i`.
  *   The visible cells are still exact — `P^k[i][j]` is the probability of
  *   being at `j` after `k` transitions among trajectories that survived.
- * - Not `additive` — row-stochastic matrices are not summable across cells.
- *   `matrix-aggregate` is restricted to `max | min` by the validator.
- * - Group aggregation is `mean`, taken per row only over participants that
+ * - `measurementClass: 'intensive'` — row-stochastic matrices are not summable
+ *   across cells, so `matrix-aggregate` is restricted to `max | min` and
+ *   cross-participant reduction to `mean`.
+ * - The cross-participant `mean` is taken per row only over participants that
  *   have an out-transition there (NaN rows excluded), so group rows stay
  *   row-stochastic at `step = 1`.
  */
@@ -47,7 +48,9 @@ defineTransitionMetric<Params>({
     'P^k (the probability of being at target AOI after k transitions); k-step rows may sum to under ' +
     '100%, where the remainder is the probability the gaze sequence ended before completing k transitions.',
   unit: '%',
-  groupAggregation: 'mean',
+  // Intensive: a row-stochastic conditional probability. Only `mean` is sound
+  // across participants and cells; summing probabilities is nonsense.
+  measurementClass: 'intensive',
   searchTags: ['transition', 'probability', 'markov', 'chain', 'aoi', 'pair', 'k-step'],
   extraParams: [integerParam('step', 'Step', 1, { min: 1, max: 10 })],
   onTransition: (acc, cellIdx) => { acc.matrix[cellIdx]++ },

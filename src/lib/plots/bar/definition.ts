@@ -64,5 +64,6 @@ export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
   consumesMetrics: {
     outputShape: 'aoi-vector',
     windowing: 'forbidden',
+    crossParticipant: 'distribution',
   },
 })

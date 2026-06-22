@@ -530,11 +530,11 @@ describe('STARTING_METRICS — settings-file integrity', () => {
       'fixationCount-aoi-windowed-500',
       'visitCount-aoi-windowed-500',
     ]) {
-      expect(byId.get(slug)?.groupAggregation, slug).toBe('sum')
+      expect(byId.get(slug)?.reduction, slug).toBe('sum')
     }
-    // relativeTime is already a per-participant share — it stays mean (no
-    // override), and summing it is guarded as incoherent.
-    expect(byId.get('relativeTime-aoi-windowed-500')?.groupAggregation).toBeUndefined()
+    // relativeTime is already a per-participant share (intensive) — it stays
+    // mean (no override), and `sum` is not in its sound set.
+    expect(byId.get('relativeTime-aoi-windowed-500')?.reduction).toBeUndefined()
   })
 
   it('matrix starters exist with the curated 5-instance library', () => {
@@ -549,6 +549,40 @@ describe('STARTING_METRICS — settings-file integrity', () => {
     const byId = new Map(library.map(i => [i.id, i]))
     for (const slug of matrixSlugs) {
       expect(byId.get(slug), slug).toBeDefined()
+    }
+  })
+})
+
+describe('version-independent: groupAggregation → reduction rename', () => {
+  const buildWithAgg = (groupAggregation: string): Record<string, unknown> => ({
+    version: 5,
+    data: {
+      metricInstances: [
+        {
+          id: 'x',
+          baseId: 'absoluteTime',
+          params: {},
+          label: 'X',
+          projection: { kind: 'identity-aoi-vector' },
+          groupAggregation,
+        },
+      ],
+    },
+    gridItems: [],
+    fileMetadata: null,
+  })
+
+  it('carries a sound legacy value across and drops the old key', () => {
+    const inst = runMigrations(buildWithAgg('sum')).data.metricInstances[0]
+    expect(inst.reduction).toBe('sum')
+    expect('groupAggregation' in inst).toBe(false)
+  })
+
+  it('drops an unsound legacy value (median / proportion) so it rides the default', () => {
+    for (const legacy of ['median', 'proportion']) {
+      const inst = runMigrations(buildWithAgg(legacy)).data.metricInstances[0]
+      expect(inst.reduction, legacy).toBeUndefined()
+      expect('groupAggregation' in inst, legacy).toBe(false)
     }
   })
 })

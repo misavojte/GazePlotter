@@ -66,5 +66,6 @@ export const aoiStreamPlotDefinition = definePlot<
   consumesMetrics: {
     outputShape: 'aoi-vector',
     windowing: 'required',
+    crossParticipant: 'reduce',
   },
 })

@@ -70,5 +70,6 @@ export const transitionMatrixDefinition = definePlot<
   consumesMetrics: {
     outputShape: 'aoi-pair-matrix',
     windowing: 'forbidden',
+    crossParticipant: 'reduce',
   },
 })

@@ -501,7 +501,7 @@ describe('transitionCount — count of AOI transitions (fixation pairs or visit 
     expect(result[0 * 3 + 1]).toBe(1) // AOI1 → AOI2 (the real transition)
   })
 
-  it('groupAggregation: sum — queryGroup adds per-participant counts', () => {
+  it('reduction sum (the extensive default for counts) — queryGroup adds per-participant counts', () => {
     // Two participants, each with 1 AOI1→AOI2 transition.
     //   per-participant matrix[0, 1] = 1
     //   Sum across participants → matrix[0, 1] = 2

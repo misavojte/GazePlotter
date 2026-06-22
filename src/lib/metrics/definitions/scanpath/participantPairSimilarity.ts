@@ -46,8 +46,8 @@ const params = [
  * - Values are rounded to three decimals to keep matrix labels stable.
  *
  * ### Invariants
- * - `supportsGroupAggregation: false` — the matrix IS the group-level
- *   quantity; reducing across participants would collapse its defining axis.
+ * - `measurementClass: 'relational'` — the matrix IS the group-level quantity;
+ *   reducing across participants would collapse its defining axis.
  * - Per-participant projections (typicality, mean-row → scalar) are reserved
  *   for a follow-up that adds a group-cached / per-participant-extract path.
  */
@@ -64,7 +64,9 @@ defineMetric({
   rawShape: 'participant-pair-matrix',
   windowUnit: 'ms',
   supportsWindowing: false,
-  supportsGroupAggregation: false,
+  // Relational: each cell is defined by a participant pair, so there is no
+  // per-participant value to reduce — the matrix IS the cross-participant result.
+  measurementClass: 'relational',
   searchTags: ['scanpath', 'similarity', 'levenshtein', 'needleman-wunsch', 'pairwise', 'comparison'],
   params,
   scanGroup: (scope, { method, collapsed }) => {

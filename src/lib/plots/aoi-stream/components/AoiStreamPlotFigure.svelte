@@ -10,7 +10,7 @@
     type PlotFrame,
     type FrameHit,
   } from '$lib/plots/shared'
-  import { estimateTextWidth, measureTextHeight } from '$lib/shared/utils/textUtils'
+  import { estimateTextWidth, truncateTextToPixelWidth } from '$lib/shared/utils/textUtils'
   import { desaturateToWhite, INACTIVE_COLOR } from '$lib/color'
   import { PRESET_PALETTES } from '$lib/color/palettes'
 
@@ -40,9 +40,6 @@
   import {
     drawXAxisLabel,
     drawYAxisMainLabel,
-    getXAxisHeight,
-    getXAxisLabelOffset,
-    measureAxisTitleHeight,
   } from '$lib/plots/shared/axisUtils'
   import {
     drawPlotArea,
@@ -54,7 +51,6 @@
   } from '$lib/plots/shared/plotArea'
   import { METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
   import {
-    Y_AXIS,
     AXIS_CONFIG,
     MARGIN as AOI_MARGIN,
     RIDGELINE_CONTENT_FILL,
@@ -62,6 +58,7 @@
   import {
     drawCatmullRom,
     transformStreamDataToCoordinates,
+    computeAoiStreamYAxis,
     type RenderBuckets,
   } from '../core'
   import type { AoiStreamPlotResult } from '../types'
@@ -130,11 +127,6 @@
     return max
   })
 
-  const effectiveLeftMargin = $derived(
-    alignment === 'heatmap'
-      ? Math.max(AOI_MARGIN.LEFT, Math.min(200, maxAoiLabelWidth + 20))
-      : AOI_MARGIN.LEFT
-  )
   const effectiveRightMargin = $derived(
     alignment === 'ridgeline' || alignment === 'heatmap' ? MARGIN.RIGHT : MARGIN.RIGHT + 5
   )
@@ -165,29 +157,39 @@
     )
   })
 
-  const tickLabelHeight = $derived.by(() => {
-    let maxHeight = 0
-    for (const t of data.timeline.ticks) {
-      const h = measureTextHeight(t.label, AXIS_CONFIG.fontSize, AXIS_CONFIG.fontFamily)
-      if (h > maxHeight) maxHeight = h
-    }
-    return maxHeight
+  // ── Axis chrome: tick-label strings fed to the measured gutter ──
+  // The X (time) axis and the Y (metric/value) domain are both pixel-independent,
+  // so their tick-label strings are available here. The resolver measures their
+  // extent + the titles, reserves the gutters, and returns the title offsets
+  // (frame.leftTitleOffset / bottomTitleOffset) the figure draws with.
+  const xAxisTicks = $derived(niceTimelineTicks(data.timeline))
+  const yDomain = $derived(computeAoiStreamYAxis(data, alignment))
+
+  // Heatmap AOI row labels: cap the reserved width (one long AOI name must not
+  // eat the plot) and pre-truncate so the gutter reserves exactly what we draw.
+  const aoiLeftBudget = $derived(
+    alignment === 'heatmap' ? Math.min(200, maxAoiLabelWidth + 20) : 0
+  )
+  const heatmapAoiLabels = $derived.by<string[]>(() => {
+    if (alignment !== 'heatmap') return []
+    return data.series.map(s =>
+      truncateTextToPixelWidth(s.label, aoiLeftBudget - 15, AXIS_CONFIG.fontSize, AXIS_CONFIG.fontFamily, '…')
+    )
   })
-  // Wrap width = the plot area width (total minus L/R margins); reserving the
-  // wrapped (≤2-line) title height keeps a long x-axis label from overflowing.
-  // Uses L/R margins only (not bottom), so no reservation cycle.
-  const xTitleWrapWidth = $derived(Math.max(0, width - effectiveLeftMargin - effectiveRightMargin))
-  const axisTitleHeight = $derived(
-    measureAxisTitleHeight(X_AXIS_LABEL, xTitleWrapWidth, AXIS_CONFIG.fontSize, AXIS_CONFIG.fontFamily)
-  )
-  const xAxisHeight = $derived(
-    X_AXIS_LABEL
-      ? getXAxisHeight(tickLabelHeight, axisTitleHeight, AXIS_CONFIG.tickLabelOffset)
-      : AXIS_CONFIG.tickLabelOffset + tickLabelHeight
-  )
-  const xAxisLabelOffset = $derived(getXAxisLabelOffset(tickLabelHeight, AXIS_CONFIG.tickLabelOffset))
-  const effectiveBottomMargin = $derived(
-    xAxisHeight + (legendHeight > 0 ? PLOT_LEGEND_GAP + legendHeight : 0)
+
+  // Left edge per mode: value ticks + rotated metric title (stream/distribution),
+  // the scale-bar strip + title (ridgeline), or truncated AOI row labels with no
+  // title (heatmap — the metric name lives in the gradient legend).
+  const leftTickLabels = $derived.by<string[]>(() => {
+    if (alignment === 'stream') return centeredYTicks(yDomain.axisTicks, yDomain.axisHalfRange).labels ?? []
+    if (alignment === 'distribution') return bottomOriginYTicks(yDomain.axisTicks, yDomain.yAxisMax).labels ?? []
+    if (alignment === 'ridgeline') return ['0', '100'] // reserve the scale-bar strip
+    return heatmapAoiLabels
+  })
+  const leftEdge = $derived(
+    alignment === 'heatmap'
+      ? { tickLabels: leftTickLabels }
+      : { title: data.yAxisLabel, tickLabels: leftTickLabels }
   )
 
   const plot = usePlot<{ kind: 'legend' | 'bin'; item?: LegendItemGeometry; binIndex?: number }>({
@@ -197,15 +199,17 @@
     dpiOverride: () => dpiOverride,
     deps: () => [data, alignment, ridgelineScale, syncedMTopOverride, colorScale, highlights],
     placeholder: () => (data.noMetric ? METRIC_MISSING_MESSAGE : null),
-    // Bespoke gutters: left depends on heatmap labels, bottom holds the x-axis +
-    // the legend band. The figure draws all chrome itself (clipData:false).
+    // Declarative measured gutters: the resolver measures the left/bottom edge
+    // tick labels + titles and returns the title offsets (frame.leftTitleOffset /
+    // bottomTitleOffset). The figure still draws its own chrome (clipData:false)
+    // but places its titles at those offsets. The legend is reserved as a bottom
+    // block; PLOT_LEGEND_GAP is folded in (the resolver abuts the block to the
+    // x-axis gutter), and the draw anchors at frame.legendY + PLOT_LEGEND_GAP.
     gutters: () => ({
-      pad: {
-        left: effectiveLeftMargin,
-        top: MARGIN.TOP,
-        right: effectiveRightMargin,
-        bottom: effectiveBottomMargin,
-      },
+      left: leftEdge,
+      bottom: { title: X_AXIS_LABEL, tickLabels: xAxisTicks.labels ?? [] },
+      pad: { top: MARGIN.TOP, right: effectiveRightMargin },
+      legendHeight: legendHeight > 0 ? PLOT_LEGEND_GAP + legendHeight : 0,
     }),
     clipData: false,
     drawData: drawStream,
@@ -237,7 +241,7 @@
       legendItems,
       STREAM_LEGEND_CONFIG,
       margins.left,
-      plot.frame.bottom + xAxisHeight + PLOT_LEGEND_GAP,
+      plot.frame.legendY + PLOT_LEGEND_GAP,
       Math.max(0, plot.plotAreaWidth)
     )
   )
@@ -246,7 +250,7 @@
     if (alignment !== 'heatmap') return null
     return computeGradientLegendGeometry({
       x: margins.left,
-      y: plot.frame.bottom + xAxisHeight + PLOT_LEGEND_GAP,
+      y: plot.frame.legendY + PLOT_LEGEND_GAP,
       availableWidth: plot.plotAreaWidth,
       availableHeight: legendHeight,
       colorScale: effectiveColorScale,
@@ -435,19 +439,12 @@
       ctx.fillStyle = AXIS_CONFIG.color
       ctx.textAlign = 'right'
       ctx.textBaseline = 'middle'
-      const maxLabelWidth = effectiveLeftMargin - 15
       for (let s = 0; s < data.series.length; s++) {
         const paint = seriesPaint[s]
         if (paint.stripBottom !== undefined && paint.stripHeight !== undefined) {
           const labelY = paint.stripBottom - paint.stripHeight / 2
-          let labelText = data.series[s].label
-          if (ctx.measureText(labelText).width > maxLabelWidth) {
-            while (ctx.measureText(labelText + '...').width > maxLabelWidth && labelText.length > 0) {
-              labelText = labelText.slice(0, -1)
-            }
-            labelText += '...'
-          }
-          ctx.fillText(labelText, floorLeft - 10, labelY)
+          // Pre-truncated to the same budget the gutter reserved (single source).
+          ctx.fillText(heatmapAoiLabels[s], floorLeft - 10, labelY)
         }
         const stripBottom = paint.stripBottom
         if (s < data.series.length - 1 && stripBottom !== undefined) {
@@ -499,7 +496,7 @@
     }
 
     // Plot-area chrome
-    const xTicks = niceTimelineTicks(data.timeline)
+    const xTicks = xAxisTicks
     let leftTicks: PlotAreaTicks | undefined
     let rightTicks: PlotAreaTicks | undefined
     if (alignment === 'stream') {
@@ -518,16 +515,16 @@
     })
 
     if (alignment !== 'heatmap') {
-      drawYAxisMainLabel(ctx, data.yAxisLabel, floorLeft, floorTop, floorHeight, Y_AXIS.LABEL_OFFSET, AXIS_CONFIG)
+      drawYAxisMainLabel(ctx, data.yAxisLabel, floorLeft, floorTop, floorHeight, frame.leftTitleOffset, AXIS_CONFIG)
     }
-    drawXAxisLabel(ctx, X_AXIS_LABEL, frame.x, frame.width, frame.bottom, xAxisLabelOffset, AXIS_CONFIG)
+    drawXAxisLabel(ctx, X_AXIS_LABEL, frame.x, frame.width, frame.bottom, frame.bottomTitleOffset, AXIS_CONFIG)
 
     // Legend
     if (alignment === 'heatmap') {
       if (gradientLegendGeometry) {
         drawGradientLegend(ctx, gradientLegendGeometry, {
           x: margins.left,
-          y: frame.bottom + xAxisHeight,
+          y: frame.legendY + PLOT_LEGEND_GAP,
           availableWidth: plot.plotAreaWidth,
           availableHeight: legendHeight,
           colorScale: effectiveColorScale,

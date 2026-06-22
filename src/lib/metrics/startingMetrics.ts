@@ -1,5 +1,5 @@
 import type { Projection } from './core/projection'
-import type { GroupAggregation } from './core/dsl'
+import type { GroupReduction } from './core/measurement'
 
 /**
  * Seed for a starter instance emitted into a fresh workspace's metric library.
@@ -28,14 +28,14 @@ export interface StartingMetricSpec {
   projection?: Projection
   label?: string
   /**
-   * Per-instance cross-participant reduction, overriding the recipe default.
-   * Set only where the starter's intended reading differs from the recipe's
-   * conventional statistic — see the windowed AOI starters, which sum across the
+   * Per-instance cross-participant reduction, overriding the metric's default.
+   * Set only where the starter's intended reading differs from the metric's
+   * conventional reduction — see the windowed AOI starters, which sum across the
    * cohort so an AOI Timeline's band reflects total attention and tapers as
-   * participants drop out, rather than the recipe-default mean (which averages
-   * only participants still recording in a window and so never tapers).
+   * participants drop out, rather than the default mean (which averages only
+   * participants still recording in a window and so never tapers).
    */
-  groupAggregation?: GroupAggregation
+  reduction?: GroupReduction
 }
 
 /**
@@ -87,7 +87,7 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
     // participants still recording in a window never tapers, so a late window
     // with two stragglers reads as full height and hides cohort drop-off. Sum
     // tapers honestly. relativeTime (below) stays the per-participant share.
-    groupAggregation: 'sum',
+    reduction: 'sum',
     projection: {
       kind: 'windowed',
       window: { windowSize: 500, stepSize: 500 },
@@ -99,7 +99,7 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
     baseId: 'fixationCount',
     label: 'Fixation count per AOI',
     // Cohort total per window (same dropout reasoning as the time starter).
-    groupAggregation: 'sum',
+    reduction: 'sum',
     projection: {
       kind: 'windowed',
       window: { windowSize: 500, stepSize: 500 },
@@ -121,7 +121,7 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
     baseId: 'visitCount',
     label: 'Visit count per AOI',
     // Cohort total per window (same dropout reasoning as the time starter).
-    groupAggregation: 'sum',
+    reduction: 'sum',
     projection: {
       kind: 'windowed',
       window: { windowSize: 500, stepSize: 500 },

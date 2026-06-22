@@ -25,8 +25,9 @@
     type WindowSpec,
   } from '$lib/metrics/core/projection'
   import { recipeSupports } from '$lib/metrics/core/validation'
-  import { contractLeafKinds, type PlotMetricContract } from '$lib/metrics/filters'
-  import type { Metric, GroupAggregation } from '$lib/metrics/core/dsl'
+  import { contractLeafKinds, contractReductions, type PlotMetricContract } from '$lib/metrics/filters'
+  import type { Metric } from '$lib/metrics/core/dsl'
+  import type { GroupReduction } from '$lib/metrics/core/measurement'
   import type { ParamDef } from '$lib/metrics/core/params'
   import { resolveParams } from '$lib/metrics/core/params'
   import { getAois } from '$lib/data/engine'
@@ -38,14 +39,14 @@
     initialParams?: Record<string, unknown> // Used for duplication
     initialProjection?: Projection // Used for duplication
     initialLabel?: string // Used for duplication
-    initialAggregation?: GroupAggregation // Used for duplication
+    initialReduction?: GroupReduction // Used for duplication
     oncreateInstance?: (
       baseId: string,
       params: Record<string, unknown>,
       label: string,
       projection: Projection,
       replacingId?: string,
-      groupAggregation?: GroupAggregation,
+      reduction?: GroupReduction,
     ) => void
     onrenameInstance?: (id: string, label: string) => void
   }
@@ -57,7 +58,7 @@
     initialParams,
     initialProjection,
     initialLabel,
-    initialAggregation,
+    initialReduction,
     oncreateInstance,
     onrenameInstance,
   }: Props = $props()
@@ -74,12 +75,15 @@
   let windowDraft = $state<WindowSpec | null>(null)
   let currentBaseId = $state<string>('')
   let metric = $state<Metric | undefined>(undefined)
-  // The effective cross-participant statistic for this instance. Initialised
-  // from the instance override (edit) / duplication seed (create), else the
-  // recipe default. Only persisted when it differs from the recipe default.
-  let aggregationDraft = $state<GroupAggregation>('mean')
-  const aggregationOptions = $derived(
-    availableAggregations(currentBaseId, buildProjection(leafDraft, windowDraft))
+  // The cross-participant reduction for this instance. Initialised from the
+  // instance override (edit) / duplication seed (create), else the metric's
+  // default. Only persisted when it differs from the default. The OPTIONS are a
+  // pure intersection of the plot contract and the metric class
+  // (`contractReductions`) — a reduce-mode plot over an extensive metric shows
+  // [mean, sum]; every other case shows ≤1 option and the control is hidden.
+  let reductionDraft = $state<GroupReduction>('mean')
+  const reductionOptions = $derived(
+    metric ? contractReductions(contract, metric.meta) : []
   )
 
   const aoiNameUnion = $derived.by(() => {
@@ -105,7 +109,7 @@
           leafDraft = { ...inst.projection }
           windowDraft = null
         }
-        aggregationDraft = inst.groupAggregation ?? metric?.meta.groupAggregation ?? 'mean'
+        reductionDraft = inst.reduction ?? metric?.meta.defaultReduction ?? 'mean'
         const autoLabel = defaultInstanceLabel(inst.baseId)
         labelOverride = inst.label !== autoLabel ? inst.label : ''
       }
@@ -113,7 +117,7 @@
       currentBaseId = selectedMetricId
       metric = getMetric(selectedMetricId)
       if (metric) {
-        aggregationDraft = initialAggregation ?? metric.meta.groupAggregation
+        reductionDraft = initialReduction ?? metric.meta.defaultReduction
         if (initialParams) {
           paramDraft = { ...initialParams }
         } else {
@@ -210,22 +214,22 @@
     const params = { ...paramDraft }
     const label = labelOverride.trim() || defaultInstanceLabel(currentBaseId)
 
-    // Persist the aggregation only when it diverges from the recipe default and
-    // is valid for the current projection; otherwise leave the instance riding
-    // the recipe default (no redundant override).
-    const recipeDefaultAgg = metric.meta.groupAggregation
-    const valid = availableAggregations(currentBaseId, projection)
-    const chosenAgg = valid.includes(aggregationDraft) ? aggregationDraft : recipeDefaultAgg
-    const aggregation = chosenAgg !== recipeDefaultAgg ? chosenAgg : undefined
+    // Persist the reduction only when it diverges from the metric default and is
+    // offered for this plot+metric; otherwise leave the instance riding the
+    // default (no redundant override).
+    const metricDefault = metric.meta.defaultReduction
+    const valid = contractReductions(contract, metric.meta)
+    const chosenRed = valid.includes(reductionDraft) ? reductionDraft : metricDefault
+    const reduction = chosenRed !== metricDefault ? chosenRed : undefined
 
     if (mode === 'edit' && editMetricId) {
       const instances = (engine.metadata?.metricInstances ?? [])
       const orig = resolveInstance(instances, editMetricId)
       const paramsUnchanged = JSON.stringify(params) === JSON.stringify(orig?.params ?? {})
       const projectionUnchanged = JSON.stringify(projection) === JSON.stringify(orig?.projection)
-      const aggregationUnchanged = (orig?.groupAggregation ?? recipeDefaultAgg) === chosenAgg
+      const reductionUnchanged = (orig?.reduction ?? metricDefault) === chosenRed
 
-      if (paramsUnchanged && projectionUnchanged && aggregationUnchanged) {
+      if (paramsUnchanged && projectionUnchanged && reductionUnchanged) {
         if (onrenameInstance) {
           onrenameInstance(editMetricId, label)
         }
@@ -235,12 +239,12 @@
 
       if (oncreateInstance) {
         modalState.close()
-        oncreateInstance(currentBaseId, params, label, projection, editMetricId, aggregation)
+        oncreateInstance(currentBaseId, params, label, projection, editMetricId, reduction)
       }
     } else if (mode === 'create') {
       if (oncreateInstance) {
         modalState.closeToRoot()
-        oncreateInstance(currentBaseId, params, label, projection, undefined, aggregation)
+        oncreateInstance(currentBaseId, params, label, projection, undefined, reduction)
       }
     }
   }
@@ -285,30 +289,13 @@
     )
   }
 
-  // Group-aggregation choices valid for the current metric + projection. The
-  // candidate set is gated by the recipe's `groupAggregationGuard` (e.g.
-  // relativeTime rejects `sum`). Returns [] — hide the control — for metrics
-  // whose statistic is intrinsic (`proportion` rates) or that own their own
-  // group computation (participant-pair-matrix), where there's no sound choice.
-  const AGGREGATION_CHOICES: GroupAggregation[] = ['mean', 'sum', 'median']
-  function availableAggregations(baseId: string, projection: Projection): GroupAggregation[] {
-    const m = getMetric(baseId)
-    if (!m) return []
-    if (m.meta.groupAggregation === 'proportion') return []
-    if (!m.meta.supportsGroupAggregation) return []
-    const recipe = getRecipe(baseId)
-    if (!recipe) return []
-    return AGGREGATION_CHOICES.filter(
-      method => recipe.groupAggregationGuard?.(projection, method) == null
-    )
-  }
-
-  function aggregationOptionLabel(method: GroupAggregation): string {
+  // Reduction choices come from the SAME `contractReductions` predicate the
+  // readout derives from (metrics layer), so the control and the disclosed
+  // reduction can never disagree.
+  function reductionOptionLabel(method: GroupReduction): string {
     switch (method) {
-      case 'sum':    return 'Sum (cohort total)'
-      case 'mean':   return 'Mean (per participant)'
-      case 'median': return 'Median (per participant)'
-      case 'proportion': return 'Proportion'
+      case 'sum':  return 'Sum (cohort total)'
+      case 'mean': return 'Mean (per participant)'
     }
   }
 
@@ -588,18 +575,18 @@
         </div>
       {/if}
 
-      {#if aggregationOptions.length > 1}
+      {#if reductionOptions.length > 1}
         <div class="aggregation-section">
           <div class="field-row">
             <label class="field-label" for="modal-agg-{metric.meta.id}">Across participants</label>
             <select
               id="modal-agg-{metric.meta.id}"
               class="reduction-select"
-              value={aggregationOptions.includes(aggregationDraft) ? aggregationDraft : metric.meta.groupAggregation}
-              onchange={(e) => { aggregationDraft = (e.target as HTMLSelectElement).value as GroupAggregation }}
+              value={reductionOptions.includes(reductionDraft) ? reductionDraft : metric.meta.defaultReduction}
+              onchange={(e) => { reductionDraft = (e.target as HTMLSelectElement).value as GroupReduction }}
             >
-              {#each aggregationOptions as method}
-                <option value={method}>{aggregationOptionLabel(method)}</option>
+              {#each reductionOptions as method}
+                <option value={method}>{reductionOptionLabel(method)}</option>
               {/each}
             </select>
           </div>

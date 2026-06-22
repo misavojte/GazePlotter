@@ -96,10 +96,9 @@ function toMeta(r: MetricRecipe<any, any>): MetricMeta {
     windowUnit: r.windowUnit,
     params: r.params ?? [],
     searchTags: r.searchTags ?? [],
-    groupAggregation: r.groupAggregation ?? 'mean',
-    supportsGroupAggregation: r.supportsGroupAggregation ?? r.rawShape !== 'participant-pair-matrix',
+    measurementClass: r.measurementClass,
+    defaultReduction: r.defaultReduction ?? 'mean',
     supportsWindowing: r.supportsWindowing ?? true,
-    additive: r.additive ?? false,
     providesAnyFixation: r.providesAnyFixation ?? false,
   }
 }

@@ -43,19 +43,13 @@ defineMetric({
   category: 'duration',
   rawShape: 'aoi-vector',
   windowUnit: 'ms',
+  // Intensive: each value is already a per-participant share (0..100%). Only
+  // `mean` is sound across participants — summing shares yields `≈ N · share`
+  // with no physical meaning (for a cohort total use absoluteTime, which is
+  // extensive). The class alone forbids `sum`; no per-recipe guard needed.
+  measurementClass: 'intensive',
   searchTags: ['dwell', 'gaze', 'time', 'relative', 'percent', 'proportion', 'duration', 'aoi'],
   params: [] as const,
-  // Cross-participant `sum` is incoherent here under ANY projection: each
-  // participant's value is already a per-participant share (0..100), so summing
-  // across N participants yields `≈ N · share` with no physical meaning.
-  // Mean/median preserve the "share" semantics. (For total attention that
-  // scales with the cohort, use absoluteTime with `sum`.)
-  groupAggregationGuard: (_projection, method) => {
-    if (method === 'sum') {
-      return 'Cross-participant `sum` of relativeTime is not meaningful — each participant\'s value is already a per-participant share. Use `mean` or `median` (or absoluteTime for a cohort total).'
-    }
-    return null
-  },
   init: ({ slots }) => new Float64Array(slots.totalSlots),
   onFixation: (acc, { frame, slots }, { slots: info }) => {
     // See absoluteTime — read `frame.duration` so windowed totals don't

@@ -30,6 +30,8 @@ You can pass the scalar value through directly to analyze the participant's recu
 
 > **Visualizer Compatibility**: Passing the raw scalar through allows you to select RQA metrics in the [Metric Correlation](/docs/visualizations/metric-correlation) plot (non-windowed, aggregate) or the [Metric Timeline](/docs/visualizations/metric-timeline) plot (windowed, timeseries). RQA metrics cannot be projected to vectors or matrices, so they are not selectable in plots like AOI Comparison or Transition Matrix.
 
+**Measurement class**: All three RQA metrics are intensive (normalized rates in 0–100%). Each describes one participant's whole scanpath, so across participants they are averaged; a cohort total is not meaningful.
+
 ---
 
 ## Metric Recipes

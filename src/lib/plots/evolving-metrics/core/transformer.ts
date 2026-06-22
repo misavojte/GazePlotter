@@ -51,7 +51,7 @@ import type {
   EvolvingMetricsWindow,
 } from '../types'
 
-const CONTRACT = { outputShape: 'scalar', windowing: 'required' } as const satisfies PlotMetricContract
+const CONTRACT = { outputShape: 'scalar', windowing: 'required', crossParticipant: 'per-participant' } as const satisfies PlotMetricContract
 
 /**
  * Empty result shell. `noMetric: true` only when the configured instance is

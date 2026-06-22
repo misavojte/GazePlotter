@@ -1,4 +1,4 @@
-import { formatParamReadout, formatProjectionReadout, type Metric, type MetricInstance } from '$lib/metrics'
+import { instanceReadout, formatProjectionReadout, type Metric, type MetricInstance } from '$lib/metrics'
 
 /**
  * Axis / legend / colorbar label grammar — ONE format for every plot.
@@ -93,19 +93,22 @@ export function rangeQualifier(
 }
 
 /**
- * The instance's DERIVED qualifier tail for a plot axis/legend — its full param
- * readout (`formatParamReadout`, the same the metric selector shows, so panel and
- * figure agree and exports self-document; this already includes an explicit
- * group-aggregation override), plus the projection when `includeProjection`
+ * The instance's DERIVED qualifier tail for a plot axis/legend — its full
+ * instance readout (`instanceReadout`: params + the cross-participant reduction,
+ * the SAME readout the metric selector shows, so panel and figure agree and
+ * exports self-document), plus the projection when `includeProjection`
  * (aggregate plots; omit for time-axis plots whose window already lives on the
- * time axis). Always derived, so a rename never drops these.
+ * time axis). `includeReduction: false` drops the reduction chip for the bar
+ * plot, which discloses its statistic via its own mean±CI / median-IQR overlay
+ * instead. Always derived, so a rename never drops these.
  */
 export function metricQualifiers(
   instance: MetricInstance | null | undefined,
-  includeProjection = false
+  includeProjection = false,
+  includeReduction = true,
 ): string[] {
   if (!instance) return []
-  const qualifiers = [...formatParamReadout(instance)]
+  const qualifiers = instanceReadout(instance, { includeReduction })
   if (includeProjection) {
     const projection = formatProjectionReadout(instance)
     if (projection) qualifiers.push(projection)
@@ -119,6 +122,9 @@ export interface MetricLabelOptions {
   /** Append the projection readout (aggregate plots). Omit for time-axis plots
    *  whose window already lives on the time axis (avoids printing it twice). */
   includeProjection?: boolean
+  /** Append the cross-participant reduction chip. Default `true`; pass `false`
+   *  for the bar plot, which discloses its statistic via its overlay instead. */
+  includeReduction?: boolean
   /** Append the IUPAC unit after the quantity. Default `true`; pass `false` for an
    *  axis carrying several metrics of differing units (correlation rows/cols). */
   unit?: boolean
@@ -147,7 +153,7 @@ export function buildMetricLabel(
       : formatInstanceLabel(instance, metric, opts.fallback)
   return withQualifiers(
     primary,
-    ...metricQualifiers(instance, opts.includeProjection ?? false),
+    ...metricQualifiers(instance, opts.includeProjection ?? false, opts.includeReduction ?? true),
     ...(opts.extra ?? [])
   )
 }

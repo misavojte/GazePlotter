@@ -10,8 +10,6 @@ export { FIXATION_CATEGORY_ID }
 export const MARGIN = {
   TOP: 5,
   RIGHT: 10,
-  BOTTOM: 55,
-  LEFT: 50,
 }
 
 export const AXIS_CONFIG = {

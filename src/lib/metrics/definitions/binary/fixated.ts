@@ -45,7 +45,10 @@ defineMetric({
   category: 'binary',
   rawShape: 'aoi-vector',
   windowUnit: 'ms',
-  groupAggregation: 'proportion',
+  // Proportion: a per-participant 0/1 indicator. The cross-participant value is
+  // the fraction of participants (the noticed-rate), and the class flips the bar
+  // plot to a proportional render instead of a beeswarm.
+  measurementClass: 'proportion',
   supportsWindowing: false,
   searchTags: ['fixated', 'hit', 'hit ratio', 'noticed', 'presence', 'attention', 'capture', 'rate', 'proportion', 'aoi'],
   params: [minFixationCount, minDwellMs] as const,

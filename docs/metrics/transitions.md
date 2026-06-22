@@ -39,16 +39,14 @@ The raw count of gaze shifts from a source AOI to a target AOI.
 
 - **Raw Shape**: `aoi-pair-matrix`
 - **Unit**: `count`
-- **Additive**: `true`. Because counts are mathematically summable, this recipe unlocks `sum` and `mean` reducers when using the `matrix-aggregate` projection.
-- **Group Aggregation**: `sum`. Each participant's counts are summed to represent the group's total transitions.
+- **Measurement class**: Extensive (additive total). Across participants, counts default to a cohort total (the group's combined transitions) but can also be shown as a per-participant mean. Because counts are summable, reducing across matrix cells also allows a total or an average (not just `max`/`min`).
 
 ### 2. Transition Probability (`transitionProbability`)
 The conditional probability of transitioning to a target AOI given that the gaze is currently on a source AOI.
 
 - **Raw Shape**: `aoi-pair-matrix`
 - **Unit**: `%`
-- **Additive**: `false`. Row-stochastic matrices cannot be added together across cells. Therefore, the `matrix-aggregate` projection is restricted to `max` and `min` reducers.
-- **Group Aggregation**: `mean`. The average probability matrix is computed across all participants.
+- **Measurement class**: Intensive (normalized). The average probability matrix is computed across participants; a cohort total is not meaningful. Because a probability matrix is not additive, reducing across matrix cells offers only `max` and `min`.
 - **Step Parameter (`step`)**: k-step Markov transition probability.
   - `step = 1`: Direct probability matrix `P`.
   - `step = k > 1`: Computes the matrix power `P^k`, representing the probability of arriving at target AOI after exactly `k` transitions.
@@ -58,16 +56,14 @@ The average duration (in milliseconds) spent in a source AOI before transitionin
 
 - **Raw Shape**: `aoi-pair-matrix`
 - **Unit**: `ms`
-- **Additive**: `false`.
-- **Group Aggregation**: `mean`.
+- **Measurement class**: Intensive (normalized). A per-participant mean dwell, averaged across participants. For a group total, use Transitions or a summable dwell metric instead.
 
 ### 4. Transition Relative Frequency (`transitionRelativeFrequency`)
 The percentage share of all transitions occurring between specific AOI pairs, normalized against the total number of transitions across the entire stimulus.
 
 - **Raw Shape**: `aoi-pair-matrix`
 - **Unit**: `%`
-- **Additive**: `false`.
-- **Group Aggregation**: `mean`.
+- **Measurement class**: Intensive (normalized). Each cell is a per-participant share, averaged across participants; summing shares across participants or cells is not meaningful.
 
 ---
 

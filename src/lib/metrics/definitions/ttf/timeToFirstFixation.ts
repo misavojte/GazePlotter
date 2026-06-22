@@ -40,6 +40,9 @@ defineMetric({
   windowUnit: 'ms',
   supportsWindowing: false,
   providesAnyFixation: true,
+  // Intensive: a per-participant latency. Only `mean` is sound across
+  // participants; latencies do not add into a cohort total.
+  measurementClass: 'intensive',
   searchTags: ['ttff', 'ttf', 'first', 'fixation', 'time', 'latency', 'onset', 'aoi'],
   params: [] as const,
   init: ({ slots }) => new Array<number>(slots.totalSlots).fill(-1),

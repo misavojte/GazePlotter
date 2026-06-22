@@ -11,7 +11,8 @@ import {
 } from './core/runtime'
 import { scanBatch } from './core/scanner'
 import { buildAoiSlots } from './core/aoiSlots'
-import type { GroupAggregation } from './core/dsl'
+import { reduceFinite } from './core/aggregation'
+import type { GroupReduction } from './core/measurement'
 import {
   applyProjection,
   projectionOutputShape,
@@ -19,7 +20,7 @@ import {
 } from './core/projection'
 import type { AoiSlotInfo, GroupScope, OutputShape } from './core/dsl'
 import { getAois } from '$lib/data/engine'
-import type { MetricInstance } from './instances'
+import { resolveReduction, type MetricInstance } from './instances'
 
 export type { Scope } from './core/runtime'
 export type { GroupScope } from './core/dsl'
@@ -107,7 +108,7 @@ export function queryBatch(instances: readonly MetricInstance[], scope: Scope): 
   return out
 }
 
-/** Compute a metric instance aggregated across participants using the recipe's `groupAggregation`. */
+/** Compute a metric instance reduced across participants per the effective `reduction`. */
 export function queryGroup(instance: MetricInstance, group: GroupScope): MetricResult {
   const recipe = getRecipe(instance.baseId)
   if (!recipe) return emptyResult(instance, 'scalar', '')
@@ -132,24 +133,20 @@ export function queryGroup(instance: MetricInstance, group: GroupScope): MetricR
       provenance,
     }
   }
-  // The instance may pin a cross-participant statistic (mean / sum / median)
-  // overriding the recipe default; absent ⇒ recipe default ⇒ mean. The
-  // recipe's `groupAggregationGuard` is the last-ditch veto on an incoherent
-  // combination (e.g. summing a per-participant percentage) — UI/validators
-  // catch it upstream, but a stale instance falls back to mean here.
-  const method = effectiveGroupMethod(recipe, instance)
+  // The effective cross-participant reduction — resolved in ONE place
+  // (`resolveReduction`) shared with the label, so what's computed always
+  // matches what's disclosed. Instance override (when sound) → metric default;
+  // request === result, no silent downgrade.
+  const method = resolveReduction(instance)
   if (instance.projection.kind === 'windowed') {
-    // Native cross-participant aggregation for windowed projections —
-    // dispatched into the runtime so plot transformers don't reimplement
-    // per-cell reduction. (runWindowedGroup re-applies the guard internally;
-    // passing the already-resolved method is idempotent.)
+    // Native cross-participant reduction for windowed projections — dispatched
+    // into the runtime so plot transformers don't reimplement per-cell reduction.
     const projected = runWindowedGroup(
       recipe,
       instance,
       group,
       instance.projection,
       method,
-      reduceFinite,
     )
     if (!projected) return emptyResult(instance, 'scalar', recipe.unit)
     return wrapProjectedResult(recipe.id, recipe.unit, instance, projected)
@@ -193,20 +190,6 @@ export function queryIndividualsAllSlots(instance: MetricInstance, scope: Scope)
 }
 
 // ─── Internal helpers ────────────────────────────────────────────────────────
-
-/**
- * Resolve the cross-participant reduction for a group query: the instance's
- * `groupAggregation` override wins, else the recipe default, else `mean`. The
- * recipe's `groupAggregationGuard` then has a final veto — if the resolved
- * method is incoherent for this projection it falls back to `mean`.
- */
-function effectiveGroupMethod(
-  recipe: { groupAggregation?: GroupAggregation; groupAggregationGuard?: (p: Projection, m: GroupAggregation) => string | null },
-  instance: MetricInstance,
-): GroupAggregation {
-  const requested = instance.groupAggregation ?? recipe.groupAggregation ?? 'mean'
-  return recipe.groupAggregationGuard?.(instance.projection, requested) ? 'mean' : requested
-}
 
 function wrapProjectedResult(
   metricId: string,
@@ -269,35 +252,11 @@ function emptyResult(
 }
 
 /**
- * Reduce a flat list of values across a single dimension via mean / sum /
- * median. Non-finite entries (`NaN`, `Infinity`) are filtered before
- * reduction; an all-NaN input yields `NaN`. The atomic primitive that
- * `reducePerSlot` (per-slot 2D reduction) and `runWindowedGroup` (per-cell
- * 3D reduction across windows × slots) both compose against — keeping the
- * actual reduction maths in one place.
- */
-export function reduceFinite(
-  values: readonly number[],
-  method: GroupAggregation,
-): number {
-  const valid = values.filter(Number.isFinite)
-  if (valid.length === 0) return Number.NaN
-  if (method === 'sum') return valid.reduce((a, b) => a + b, 0)
-  // `proportion` (the fraction of finite 0/1 values) is numerically the mean.
-  if (method === 'mean' || method === 'proportion') return valid.reduce((a, b) => a + b, 0) / valid.length
-  
-  // median
-  const s = [...valid].sort((a, b) => a - b)
-  const mid = Math.floor(s.length / 2)
-  return s.length % 2 === 0 ? (s[mid - 1] + s[mid]) / 2 : s[mid]
-}
-
-/**
  * 2D reduction: rows × slots → one value per slot. Thin wrapper over
- * `reduceFinite` — keeps the per-slot iteration here while the actual
- * reduction maths lives in one place.
+ * `reduceFinite` (in `core/aggregation.ts`) — keeps the per-slot iteration here
+ * while the actual reduction maths lives in one place.
  */
-function reducePerSlot(rows: number[][], method: GroupAggregation): number[] {
+function reducePerSlot(rows: number[][], method: GroupReduction): number[] {
   if (rows.length === 0) return []
   const slotCount = rows[0].length
   const out = new Array<number>(slotCount)

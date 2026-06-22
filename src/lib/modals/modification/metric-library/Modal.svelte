@@ -11,7 +11,7 @@
   import { getGazePlotterSession } from '$lib/session'
   import { getMetric, listMetrics } from '$lib/metrics/core/defineMetric'
   import {
-    formatParamReadout,
+    instanceReadout,
     formatProjectionReadout,
     resolveInstance,
     type MetricInstance,
@@ -113,7 +113,7 @@
       initialParams: params,
       initialProjection: projection,
       initialLabel: label,
-      initialAggregation: inst.groupAggregation,
+      initialReduction: inst.reduction,
       oncreateInstance,
     })
   }
@@ -136,7 +136,7 @@
       {#each instances as inst (inst.id)}
         {@const metric = getMetric(inst.baseId)}
         {@const unit = metric?.meta.unit ?? ''}
-        {@const readout = formatParamReadout(inst)}
+        {@const readout = instanceReadout(inst)}
         {@const projLine = formatProjectionReadout(inst)}
         {@const showProjLine = projLine && !inst.label.includes(projLine) ? projLine : null}
         {@const detail = [unit, ...readout, showProjLine].filter(Boolean).join(' · ')}

@@ -22,7 +22,7 @@ import type { AoiStreamPlotResult, AoiStreamPlotSeries } from '../types'
 import type { AoiStreamPlotSettings } from '../types'
 import { COLOR_FALLBACKS } from '$lib/color'
 
-const CONTRACT = { outputShape: 'aoi-vector', windowing: 'required' } as const satisfies PlotMetricContract
+const CONTRACT = { outputShape: 'aoi-vector', windowing: 'required', crossParticipant: 'reduce' } as const satisfies PlotMetricContract
 
 /**
  * Upper bound on windows evaluated when no display budget is supplied (export /
@@ -57,9 +57,9 @@ function emptyAoiStreamResult(noMetric = false): AoiStreamPlotResult {
 
 /**
  * Compute aoi-stream data via a single `queryGroup()` call into the metric
- * library. Cross-participant aggregation lives natively in the library —
- * `runWindowedGroup` reduces per-cell across participants per the recipe's
- * `groupAggregation` (mean / sum / median) — so this transformer is a thin
+ * library. Cross-participant reduction lives natively in the library —
+ * `runWindowedGroup` reduces per-cell across participants per the instance's
+ * effective `reduction` (mean / sum) — so this transformer is a thin
  * mapper from `aoi-vector-timeseries` to `AoiStreamPlotResult`.
  *
  * Per-bin per-AOI values stay in the metric's NATIVE UNIT — `ms` for

@@ -18,7 +18,7 @@
   const isProportion = $derived.by(() => {
     if (metricId.mixed || !metricId.value) return false
     const inst = resolveInstance(engine.metadata?.metricInstances ?? [], metricId.value)
-    return inst ? getMetric(inst.baseId)?.meta.groupAggregation === 'proportion' : false
+    return inst ? getMetric(inst.baseId)?.meta.measurementClass === 'proportion' : false
   })
   const orientation = $derived(bulk.common(s => s.barPlottingType))
   const orderBy = $derived(bulk.common(s => s.orderBy))

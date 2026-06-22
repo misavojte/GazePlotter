@@ -19,10 +19,10 @@ interface Params { mode: 'fixation' | 'visit' }
  *   distinct AOI visits (collapsing consecutive same-AOI fixations).
  *
  * ### Invariants
- * - `additive: true` — allows `matrix-aggregate` with `sum` / `mean`
- *   reducers (counts are scientifically summable across cells).
- * - Group aggregation is `sum` because counts grow with participant
- *   count; use `transitionRelativeFrequency` for cross-participant means.
+ * - `measurementClass: 'extensive'` — counts are summable, so `matrix-aggregate`
+ *   unlocks `sum` / `mean` across cells.
+ * - `defaultReduction: 'sum'` because counts grow with participant count; use
+ *   `transitionRelativeFrequency` for cross-participant means.
  */
 defineTransitionMetric<Params>({
   id: 'transitionCount',
@@ -31,8 +31,9 @@ defineTransitionMetric<Params>({
     'Per AOI pair (from → to): count of times gaze transitioned from source AOI to target AOI. ' +
     'In fixation mode every consecutive fixation pair counts; in visit mode only actual AOI changes count.',
   unit: 'count',
-  groupAggregation: 'sum',
-  additive: true,
+  // Extensive: counts add. Cohort `sum` is the headline; sum/mean sound across cells.
+  measurementClass: 'extensive',
+  defaultReduction: 'sum',
   searchTags: ['transition', 'matrix', 'pair', 'aoi', 'count', 'sequence', 'markov'],
   onTransition: (acc, cellIdx) => { acc.matrix[cellIdx]++ },
   finalize: acc => Array.from(acc.matrix),

@@ -67,5 +67,6 @@ export const scanpathSimilarityDefinition = definePlot<
   consumesMetrics: {
     outputShape: 'participant-pair-matrix',
     windowing: 'forbidden',
+    crossParticipant: 'group-axis',
   },
 })

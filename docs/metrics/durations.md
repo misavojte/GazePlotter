@@ -40,6 +40,7 @@ The total cumulative time (in milliseconds) that a participant's gaze dwelled wi
 - **Unit**: `ms`
 - **Windowing**: Supported. Uses sub-bin overlap duration (`frame.duration`) so that fixations spanning across a window boundary only contribute their in-window portions to the respective bins.
 - **Sentinels**: Writes to `noAoiSlot` (index `aoiCount`) for off-AOI fixations, and `anyFixationSlot` (index `aoiCount + 1`) for stimulus-wide totals.
+- **Measurement class**: Extensive (additive total). Across participants, show a per-participant mean or a cohort total (the sum of everyone's dwell time).
 - **Scientific Meaning**: A general index of visual attention or processing time. Higher values represent a higher volume of information extraction.
 
 ### 2. Relative Dwell Time (`relativeTime`)
@@ -49,7 +50,7 @@ Dwell time per AOI expressed as a percentage of the participant's total fixation
 - **Unit**: `%`
 - **Windowing**: Supported. Uses sub-bin overlap duration.
 - **Invariants**: Normalised by `anyFixationSlot` total, not the sum across AOI slots (which would double-count multi-tagged fixations and halve the reported percentages).
-- **Group Aggregation Guard**: Cross-participant `sum` over a windowed projection is blocked by the validator. Because relative time is already normalized (0–100%), summing percentages across participants results in a mathematically invalid scalar. Use `mean` or `median`.
+- **Measurement class**: Intensive (normalized). Each value is already a per-participant share (0–100%), so across participants it is averaged; a cohort total is not offered, because summing shares has no physical meaning. For a group total of attention, use Absolute Dwell Time with its cohort total instead.
 - **Scientific Meaning**: Normalises attention across participants with different overall scan durations, making comparison of spatial focus independent of scanning speed.
 
 ### 3. Mean Fixation Duration (`fixationDuration`)
@@ -59,6 +60,7 @@ The arithmetic mean length of individual fixations.
 - **Unit**: `ms`
 - **Windowing**: Supported.
 - **Invariants**: Uses the actual, unclipped fixation durations (`fix.duration`) instead of window-frame clipped durations. This preserves the cognitive reality of the fixation event; a windowed slice calculates the mean of actual fixations whose midpoints fall within that window.
+- **Measurement class**: Intensive (normalized). The value is already a per-participant average, so across participants it is averaged; a cohort total is not meaningful. For total dwell, use Absolute Dwell Time.
 - **Scientific Meaning**: Long average fixations are associated with high cognitive load, difficulty in extracting information, or detailed focus. Short average fixations suggest rapid visual exploration.
 
 ### 4. First Fixation Duration (`firstFixationDuration`)
@@ -68,6 +70,7 @@ The duration (in milliseconds) of the very first fixation recorded within a targ
 - **Unit**: `ms`
 - **Windowing**: Forbidden (`supportsWindowing: false`). "First" is a stimulus-lifetime concept; rolling windows would redefine "first" for every bin, which contradicts standard eye-tracking research paradigms.
 - **Invariants**: AOIs never fixated return `NaN`.
+- **Measurement class**: Intensive (normalized). A single sampled per-participant duration, averaged across participants.
 - **Scientific Meaning**: Often interpreted as an index of initial processing depth or "first-pass" cognitive impact upon first landing on an object.
 
 ### 5. Visit Duration (`visitDuration`)
@@ -77,4 +80,5 @@ The average duration of distinct entries (visits) into an AOI boundary. A "visit
 - **Unit**: `ms`
 - **Windowing**: Supported.
 - **Invariants**: Collapses consecutive fixations within the same AOI first to calculate distinct visits. 
+- **Measurement class**: Intensive (normalized). A per-participant average visit length, averaged across participants. For total dwell, use Absolute Dwell Time.
 - **Scientific Meaning**: Measures the cohesion of visual processing. Longer average visit durations imply that once a participant enters a region, they stay to process it thoroughly, whereas short visit durations suggest repeated brief scanning visits.

@@ -98,6 +98,46 @@ export interface StreamCoordsResult {
   seriesRanks: Int32Array | null
 }
 
+export interface AoiStreamYAxis {
+  yAxisMin: number
+  yAxisMax: number
+  axisHalfRange: number
+  axisTicks: number[]
+}
+
+/**
+ * Y-axis domain (range + nice tick values) for the stream plot. Pixel-independent
+ * — derived only from the data's `maxTotal` / `maxValue` and the alignment — so a
+ * figure can build the left-axis tick-label strings at layout-derive time (to
+ * reserve the left gutter) without running the allocating coordinate transform
+ * below. `transformStreamDataToCoordinates` consumes this too, so the domain has
+ * a single source and the reserved gutter matches the drawn ticks exactly.
+ */
+export function computeAoiStreamYAxis(
+  data: Pick<AoiStreamPlotResult, 'maxTotal' | 'maxValue'>,
+  alignment: StreamCoordsParams['alignment']
+): AoiStreamYAxis {
+  const maxTotalForAxis = Math.max(1, data.maxTotal)
+  const maxCellForHeat = Math.max(data.maxValue, Number.EPSILON)
+
+  if (alignment === 'stream') {
+    const { axisHalfRange, ticks } = computeNiceYAxis(maxTotalForAxis / 2)
+    return { yAxisMin: -axisHalfRange, yAxisMax: axisHalfRange, axisHalfRange, axisTicks: ticks }
+  }
+  if (alignment === 'distribution') {
+    const step = niceStep(maxTotalForAxis / (Y_AXIS.TARGET_POSITIVE_TICKS * 2))
+    const axisMax = Math.max(step, Math.ceil(maxTotalForAxis / step) * step)
+    const axisTicks = [0]
+    for (let v = step; v <= axisMax + step * 0.001; v += step) axisTicks.push(v)
+    return { yAxisMin: 0, yAxisMax: axisMax, axisHalfRange: 50, axisTicks }
+  }
+  if (alignment === 'ridgeline') {
+    return { yAxisMin: 0, yAxisMax: 100, axisHalfRange: 50, axisTicks: [0, maxCellForHeat] }
+  }
+  // heatmap: no left value axis (AOI row labels instead)
+  return { yAxisMin: 0, yAxisMax: 100, axisHalfRange: 50, axisTicks: [0] }
+}
+
 /**
  * Transforms raw stream data into screen coordinates and paint information.
  * Adheres to zero-allocation hot path principles.
@@ -123,18 +163,16 @@ export function transformStreamDataToCoordinates(
   const {
     series,
     binCount: dataBinCount,
-    maxTotal,
     maxValue,
     windowSize,
     stepSize,
   } = data
   const renderBinCount = dataBinCount + 2
   // Values arrive in the metric's native unit (ms / count / %). The y-axis
-  // range is driven directly by the data; no per-participant percent
-  // conversion happens here. `maxTotal` is the largest stacked sum across
-  // bins (drives stream/distribution); `maxValue` is the largest single-cell
-  // value (drives the heatmap gradient).
-  const maxTotalForAxis = Math.max(1, maxTotal)
+  // range is driven directly by the data; no per-participant percent conversion
+  // happens here. `maxValue` is the largest single-cell value (drives the
+  // heatmap gradient + ridgeline scale); the stacked-sum range lives in
+  // `computeAoiStreamYAxis`.
   const maxCellForHeat = Math.max(maxValue, Number.EPSILON)
   // Each data bin represents a window of length `windowSize`, offset from
   // the previous window by `stepSize`. Total time covered by all windows is
@@ -168,38 +206,23 @@ export function transformStreamDataToCoordinates(
     }
   }
 
-  // 2. Axis and Scaling Configuration
-  let axisHalfRange = 50
-  let axisTicks: number[] = [0]
-  let yAxisMin = 0
-  let yAxisMax = 100
+  // 2. Axis and Scaling Configuration. The domain (range + nice ticks) is
+  // pixel-independent and shared with the figure's gutter reservation via
+  // computeAoiStreamYAxis — so the reserved left gutter matches the drawn ticks.
+  const { yAxisMin, yAxisMax, axisHalfRange, axisTicks } = computeAoiStreamYAxis(data, alignment)
 
+  // Stacking buffers (stream/distribution): totals hold the stacked sums; the
+  // stream baseline is centred via cumulative.
   if (alignment === 'stream' || alignment === 'distribution') {
-    // Populate totals for stacking (raw values, no scaling)
     for (let s = 0; s < series.length; s++) {
       const vals = series[s].values
       for (let i = 0; i < dataBinCount; i++) {
         totals[i + 1] += vals[i]
       }
     }
-
     if (alignment === 'stream') {
-      const computed = computeNiceYAxis(maxTotalForAxis / 2)
-      axisHalfRange = computed.axisHalfRange
-      axisTicks = computed.ticks
-      yAxisMin = -axisHalfRange
-      yAxisMax = axisHalfRange
       for (let i = 0; i < renderBinCount; i++) cumulative[i] = -totals[i] * STREAM_SYMMETRY_FACTOR
-    } else {
-      const step = niceStep(maxTotalForAxis / (Y_AXIS.TARGET_POSITIVE_TICKS * 2))
-      const axisMax = Math.max(step, Math.ceil(maxTotalForAxis / step) * step)
-      axisTicks = [0]
-      for (let v = step; v <= axisMax + step * 0.001; v += step)
-        axisTicks.push(v)
-      yAxisMax = axisMax
     }
-  } else if (alignment === 'ridgeline') {
-    axisTicks = [0, maxCellForHeat]
   }
 
   let scaleY = 1

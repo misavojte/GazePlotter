@@ -20,7 +20,7 @@ You can pass the matrix through directly to analyze the similarity relationships
 > **Visualizer Compatibility**: Passing the raw matrix through allows you to select scanpath similarity in the [Scanpath Similarity](/docs/visualizations/scanpath-similarity) visualization (non-windowed). It cannot be projected to other shapes and cannot be selected in other plots.
 
 ### Invariants
-- **Group Aggregation**: Disabled (`supportsGroupAggregation: false`). The computed matrix is inherently group-level, where both the row and column axes represent the participants. Reducing this across participants would collapse the very axes defining the similarity relationships.
+- **Measurement class**: Group-level. The result is inherently a property of a *pair* of participants, where both the row and column axes are the participants themselves. There is no per-participant value to combine across the group — the matrix is already the across-participant result, so no further aggregation applies.
 - **Windowing**: Forbidden (`supportsWindowing: false`). Sliding-window projections are not supported. However, cropping by a Time of Interest (using `timeStart` and `timeEnd` bounds in the Settings Pane) is supported; fixations are encoded into the scanpath string only if their onset falls within the range.
 
 ---

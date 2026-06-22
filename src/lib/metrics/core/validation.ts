@@ -8,10 +8,11 @@
  *      AND the recipe must opt-in to windowing.
  *   3. Non-negative slot references.
  *   4. Reducer allow-lists for `aggregate-aoi` / `matrix-aggregate`. These are
- *      fixed tables keyed on `recipe.additive` (see AGGREGATE_AOI_REDUCERS /
- *      MATRIX_AGG_REDUCERS_* below). No string-matching on units — the
- *      "is this a rate / probability" question is expressed by *not*
- *      setting `additive: true`.
+ *      pure tables keyed on the recipe's `measurementClass` (via
+ *      `supportedAoiReducers` / `supportedMatrixReducers` in `core/measurement`).
+ *      No string-matching on units — the "is this a rate / probability" question
+ *      is answered by the declared class (only `extensive` unlocks sum/mean
+ *      across matrix cells).
  *   5. Author-level `rejects` hook as a final escape hatch.
  *
  * Invalid combinations are hidden outright — no warning copy — per the
@@ -21,38 +22,30 @@ import type { MetricRecipe } from './dsl'
 import {
   PROJECTION_LEAVES,
   leafOf,
-  type AoiReducer,
-  type MatrixReducer,
   type Projection,
 } from './projection'
+import { supportedAoiReducers, supportedMatrixReducers } from './measurement'
 
 export type ValidationResult = true | string
 
 /**
- * Blanket rule for `aggregate-aoi` across an aoi-vector: sum / mean / median
- * are never scientifically defensible at the AOI-aggregation level (biased
- * by AOI count, or an average-of-averages). Stimulus-level totals belong in
- * purpose-built metrics (e.g. `pick-any-fixation`).
+ * Within-participant reducer allow-lists, derived purely from the recipe's
+ * `measurementClass` via the capability tables in `core/measurement.ts`
+ * (`aggregate-aoi` is always max|min; `matrix-aggregate` is the full set only
+ * for `extensive` quantities). No string-matching on units — the soundness
+ * question is answered by the declared class.
  */
-const AGGREGATE_AOI_REDUCERS: readonly AoiReducer[] = ['max', 'min']
-
-const MATRIX_AGG_REDUCERS_ADDITIVE:   readonly MatrixReducer[] = ['sum', 'mean', 'max', 'min']
-const MATRIX_AGG_REDUCERS_RESTRICTED: readonly MatrixReducer[] = ['max', 'min']
-
 function checkReducer(
   recipe: MetricRecipe<any, any>,
   p: Projection,
 ): string | null {
   const leaf = leafOf(p)
   if (leaf.kind === 'aggregate-aoi') {
-    if (!AGGREGATE_AOI_REDUCERS.includes(leaf.reducer)) {
+    if (!supportedAoiReducers(recipe.measurementClass).includes(leaf.reducer)) {
       return `Reducer "${leaf.reducer}" across AOIs is not meaningful; pick max or min, or use a stimulus-level metric.`
     }
   } else if (leaf.kind === 'matrix-aggregate') {
-    const allowed = recipe.additive
-      ? MATRIX_AGG_REDUCERS_ADDITIVE
-      : MATRIX_AGG_REDUCERS_RESTRICTED
-    if (!allowed.includes(leaf.reducer)) {
+    if (!supportedMatrixReducers(recipe.measurementClass).includes(leaf.reducer)) {
       return `Reducer "${leaf.reducer}" across matrix cells is not meaningful for this metric.`
     }
   }

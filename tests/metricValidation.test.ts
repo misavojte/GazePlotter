@@ -3,7 +3,7 @@
  *
  *   - `aggregate-aoi` (across an aoi-vector): only `max` and `min` — blanket rule.
  *   - `matrix-aggregate` (across cells): `max | min` by default;
- *     recipes that set `additive: true` get the full `sum | mean | max | min`.
+ *     `extensive`-class recipes get the full `sum | mean | max | min`.
  *   - Windowing gated by `supportsWindowing`.
  *   - Slot refs must be non-negative.
  *   - Raw-shape compatibility is enforced via the leaf registry.

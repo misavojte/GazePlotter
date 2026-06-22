@@ -1,6 +1,7 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { ParamDef } from './params'
 import type { Projection } from './projection'
+import type { MeasurementClass, GroupReduction } from './measurement'
 
 export type OutputShape =
   | 'scalar'
@@ -194,14 +195,6 @@ export interface InitCtx<P> {
   slots: AoiSlotInfo
 }
 
-/**
- * Cross-participant aggregation methods. `proportion` (mean of finite 0/1 = the
- * fraction of participants) is numerically `mean` but a distinct key: it marks a
- * metric as a [0,1] rate, which is the single signal the bar plot uses to render a
- * proportional bar instead of a beeswarm.
- */
-export type GroupAggregation = 'mean' | 'median' | 'sum' | 'proportion'
-
 export interface MetricMeta {
   readonly id: string
   readonly label: string
@@ -224,15 +217,20 @@ export interface MetricMeta {
   readonly windowUnit: WindowUnit
   readonly params: readonly ParamDef<any>[]
   readonly searchTags: readonly string[]
-  readonly groupAggregation: GroupAggregation
   /**
-   * Whether `queryGroup` reduces this metric across participants via per-slot
-   * aggregation. Defaults to true. Set to false for shapes whose computation
-   * is intrinsically group-level (e.g. participant-pair-matrix), where the
-   * recipe owns the full group entry point via {@link MetricRecipe.scanGroup}
-   * and per-slot reduction would collapse the very axis the shape is built on.
+   * The statistical class of the metric's per-participant value — the single
+   * declarative property the capability algebra (`core/measurement.ts`) reads to
+   * answer every aggregation question (sound cross-participant reductions,
+   * matrix-cell reducers, proportional rendering, group-level vs reducible).
    */
-  readonly supportsGroupAggregation: boolean
+  readonly measurementClass: MeasurementClass
+  /**
+   * The metric's natural cross-participant reduction — the headline used when an
+   * instance pins no override. Consulted only for `extensive` metrics (which
+   * offer both `mean` and `sum`); `'mean'` for every other class. Counts/summed
+   * durations whose cohort total is the conventional reading set `'sum'`.
+   */
+  readonly defaultReduction: GroupReduction
   /**
    * True unless the recipe explicitly opts out. Windowing compatibility is
    * ultimately gated by `recipeSupports(recipe, projection)` — the effective
@@ -240,14 +238,6 @@ export interface MetricMeta {
    * "never windowed" (e.g. time-to-first-fixation).
    */
   readonly supportsWindowing: boolean
-  /**
-   * Opt-in marker for metrics whose underlying quantity is truly additive
-   * across matrix cells (counts, summed durations). Unlocks `sum` / `mean`
-   * for `matrix-aggregate`. Default `false` restricts matrix-aggregate to
-   * `max | min`, matching the majority scientific reading (averages, rates,
-   * probabilities). Has no effect on `aggregate-aoi` (always `max | min`).
-   */
-  readonly additive: boolean
   /**
    * True when the recipe writes a meaningful stimulus-level aggregate into
    * the `anyFixationSlot` sentinel (index `aoiCount + 1` of an aoi-vector).
@@ -268,16 +258,19 @@ export interface MetricRecipe<P, A> {
   windowUnit: WindowUnit
   params?: readonly ParamDef<any>[]
   searchTags?: readonly string[]
-  groupAggregation?: GroupAggregation
+  /**
+   * The metric's statistical class — the one declarative property that drives
+   * every aggregation capability (see {@link MeasurementClass}). Required.
+   */
+  measurementClass: MeasurementClass
+  /**
+   * The natural cross-participant reduction. Defaults to `'mean'`; set `'sum'`
+   * for `extensive` metrics whose conventional headline is the cohort total
+   * (counts, summed durations). Ignored for non-`extensive` classes.
+   */
+  defaultReduction?: GroupReduction
   /** Defaults to true. Set to false when windowing is not meaningful (e.g. TTFF). */
   supportsWindowing?: boolean
-  /**
-   * Defaults to false. Opt in for count / summed-duration metrics where sum /
-   * mean across matrix cells is scientifically defensible; unlocks the full
-   * `matrix-aggregate` reducer set. Non-additive recipes (averages, rates,
-   * first-occurrences) get the restricted `max | min` reducer set.
-   */
-  additive?: boolean
   /**
    * Defaults to false. Set to true when the recipe writes a meaningful
    * stimulus-level aggregate into `anyFixationSlot`; opens the
@@ -285,33 +278,11 @@ export interface MetricRecipe<P, A> {
    */
   providesAnyFixation?: boolean
   /**
-   * Defaults to true. Set to false for recipes whose `rawShape` is inherently
-   * group-level (e.g. participant-pair-matrix). When false, `queryGroup`
-   * short-circuits to {@link MetricRecipe.scanGroup} and skips per-slot
-   * reduction across participants.
-   */
-  supportsGroupAggregation?: boolean
-  /**
    * Author-level veto over specific projections. Receives the full `Projection`
    * — use `p.kind === 'windowed' ? p.inner : p` when the check applies to the
    * leaf regardless of windowing. Return a non-null reason to reject.
    */
   rejects?: (projection: Projection) => string | null
-  /**
-   * Author-level veto over a `groupAggregation` × projection combination at
-   * `queryGroup` evaluation time. Lets a recipe declare that a particular
-   * cross-participant reduction is scientifically incoherent for a given
-   * projection — e.g. `relativeTime` (a per-participant percentage) cannot
-   * be summed across participants over a windowed projection without
-   * producing a nonsense scalar. Return a non-null reason to reject.
-   *
-   * Validators (`recipeSupports`) call this at instance creation; runtime
-   * (`runWindowedGroup`) falls back to `mean` if a stale instance trips it.
-   */
-  groupAggregationGuard?(
-    projection: Projection,
-    method: GroupAggregation,
-  ): string | null
 
   /**
    * Per-participant scan trio. Required for recipes whose `rawShape` is one of

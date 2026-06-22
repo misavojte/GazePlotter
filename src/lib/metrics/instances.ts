@@ -8,7 +8,8 @@ import {
   type LeafProjection,
 } from './core/projection'
 import { STARTING_METRICS } from './startingMetrics'
-import type { GroupAggregation } from './core/dsl'
+import { metricShape, soundReductions, type GroupReduction, type MetricShape } from './core/measurement'
+import { effectiveReduction, reductionLabel } from './core/aggregation'
 
 export type { Projection, LeafProjection, AoiRef, AoiReducer, MatrixReducer, WindowSpec } from './core/projection'
 
@@ -24,16 +25,17 @@ export interface MetricInstance {
   label: string
   projection: Projection
   /**
-   * Per-instance override of the cross-participant reduction used by
-   * {@link queryGroup} (mean / median / sum). Absent ⇒ the recipe's declared
-   * `groupAggregation` applies. This lets two instances of the SAME recipe carry
-   * different group statistics — e.g. a windowed "Time on AOI" summed for an AOI
+   * Per-instance override of the cross-participant reduction used by reduce-mode
+   * plots via {@link queryGroup} (`mean` / `sum`). Absent ⇒ the metric's
+   * `defaultReduction`. This lets two instances of the SAME recipe carry
+   * different reductions — e.g. a windowed "Time on AOI" summed for an AOI
    * Timeline (a cohort total that tapers as participants drop out of late
-   * windows) vs. the recipe's default mean for a per-AOI bar comparison. The
-   * override is validated against the recipe's `groupAggregationGuard`; a stale
-   * or incoherent value falls back to mean at query time.
+   * windows) vs. the per-participant mean elsewhere. Validity is a pure function
+   * of the metric's `measurementClass` ({@link soundReductions}); a stale or
+   * unsound value falls back to the default at query time (request === result
+   * for any sound value, never a silent downgrade between sound values).
    */
-  groupAggregation?: GroupAggregation
+  reduction?: GroupReduction
 }
 
 // ─── Instance construction ──────────────────────────────────────────────────
@@ -61,7 +63,7 @@ export function createMetricInstance(opts: {
   projection?: Projection
   label?: string
   id?: string
-  groupAggregation?: GroupAggregation
+  reduction?: GroupReduction
 }): MetricInstance | null {
   const recipe = getRecipe(opts.baseId)
   if (!recipe) return null
@@ -75,9 +77,9 @@ export function createMetricInstance(opts: {
     projection,
     label,
     // Only carry the field when explicitly set, so instances that ride the
-    // recipe default stay free of a redundant override (keeps the exported
-    // workspace and the label provenance clean).
-    ...(opts.groupAggregation ? { groupAggregation: opts.groupAggregation } : {}),
+    // metric's default reduction stay free of a redundant override (keeps the
+    // exported workspace and the label provenance clean).
+    ...(opts.reduction ? { reduction: opts.reduction } : {}),
   }
 }
 
@@ -91,7 +93,7 @@ export function buildStarterInstances(): MetricInstance[] {
       params: spec.params,
       projection: spec.projection,
       label: spec.label,
-      groupAggregation: spec.groupAggregation,
+      reduction: spec.reduction,
     })
     if (!inst) throw new Error(`Starter "${spec.id}" references unknown recipe: ${spec.baseId}`)
     return inst
@@ -136,47 +138,86 @@ export function formatProjectionReadout(instance: MetricInstance): string | null
 }
 
 /**
- * Cross-participant statistic as a readout qualifier, but ONLY when the instance
- * pins an explicit `groupAggregation` override. An instance riding the recipe
- * default emits nothing (the conventional statistic needs no disclosure); a
- * pinned non-default one is surfaced so a summed AOI Timeline reads
- * `… · summed` rather than silently differing from a mean. `proportion` (an
- * intrinsic [0,1] rate, never user-selectable) is not a shaping choice and is
- * omitted. Lives here, beside {@link formatParamReadout}, so the SINGLE readout
- * the selector and the figure both consume carries it identically.
- */
-const AGGREGATION_QUALIFIER: Record<GroupAggregation, string | null> = {
-  mean: 'mean',
-  median: 'median',
-  sum: 'summed',
-  proportion: null,
-}
-export function aggregationQualifier(
-  instance: MetricInstance | null | undefined
-): string | null {
-  const method = instance?.groupAggregation
-  return method ? AGGREGATION_QUALIFIER[method] : null
-}
-
-/**
- * The instance's settable qualifiers — every param with its current value via
- * the single {@link paramToLabel} rule, plus an explicit group-aggregation
- * override ({@link aggregationQualifier}). This is the SAME readout used by the
- * metric selector AND by plot axes/legends, so the panel and the figure agree
- * exactly and a static export is self-documenting. Always derived from the
+ * The instance's parameter qualifiers — every settable param with its current
+ * value, via the single {@link paramToLabel} rule. The reduction statistic is
+ * NOT here (see {@link reductionQualifier} / {@link instanceReadout}); this stays
+ * purely the recipe's params so it composes cleanly. Always derived from the
  * instance, so a renamed display name never drops these.
  */
 export function formatParamReadout(instance: MetricInstance): string[] {
   const m = getMetric(instance.baseId)
-  if (!m) return []
-  const out =
-    m.meta.params.length === 0
-      ? []
-      : m.meta.params
-          .map(p => paramToLabel(p, instance.params[p.id] ?? p.default))
-          .filter((s): s is string => !!s)
-  const agg = aggregationQualifier(instance)
-  if (agg) out.push(agg)
+  if (!m || m.meta.params.length === 0) return []
+  return m.meta.params
+    .map(p => paramToLabel(p, instance.params[p.id] ?? p.default))
+    .filter((s): s is string => !!s)
+}
+
+/** The abstract {@link MetricShape} of an instance, or `null` if its recipe is
+ *  unknown. The single value the capability algebra (and future MCP/stats
+ *  callers) reason over. */
+export function metricShapeOf(instance: MetricInstance): MetricShape | null {
+  const m = getMetric(instance.baseId)
+  return m ? metricShape(m.meta, instance.projection) : null
+}
+
+/**
+ * The cross-participant reductions a metric genuinely offers — the sound set,
+ * a PURE function of its `measurementClass` ({@link soundReductions}). This is
+ * what the ConfigureMetric reduction control lists once intersected with the
+ * plot's contract. `[]` for `relational` (group-level) and a single-element set
+ * for `intensive` / `proportion` (no choice to surface).
+ */
+export function availableReductions(baseId: string): GroupReduction[] {
+  const m = getMetric(baseId)
+  return m ? soundReductions(m.meta.measurementClass) : []
+}
+
+/**
+ * The EFFECTIVE cross-participant reduction for an instance — the single source
+ * of truth shared by BOTH the label ({@link reductionQualifier}) and the runtime
+ * ({@link queryGroup}), so what is disclosed always equals what is computed.
+ * Trivial and shape-independent: a sound requested value wins verbatim, else the
+ * metric's `defaultReduction` (see {@link effectiveReduction}). No silent
+ * between-sound downgrade — request === result.
+ */
+export function resolveReduction(instance: MetricInstance): GroupReduction {
+  const m = getMetric(instance.baseId)
+  if (!m) return 'mean'
+  return effectiveReduction(m.meta, instance.reduction)
+}
+
+/**
+ * The cross-participant reduction as a readout qualifier — `· summed` for a
+ * cohort sum, `null` for `mean` (the conventional default needs no disclosure)
+ * and for metrics not reduced across participants (`relational`). Shown
+ * identically in the selector and on the figure.
+ */
+export function reductionQualifier(
+  instance: MetricInstance | null | undefined
+): string | null {
+  if (!instance) return null
+  const m = getMetric(instance.baseId)
+  if (!m || soundReductions(m.meta.measurementClass).length === 0) return null
+  return reductionLabel(resolveReduction(instance))
+}
+
+/**
+ * THE instance's full derived qualifier chips — params plus the cross-participant
+ * reduction. This is the SINGLE readout the metric selector AND plot axes/legends
+ * compose from, so the panel and the figure agree exactly and a static export is
+ * self-documenting. `includeReduction: false` drops the chip for distribution
+ * plots (the bar plot, which discloses its statistic via its mean±CI / median-IQR
+ * overlay rather than the generic chip).
+ */
+export function instanceReadout(
+  instance: MetricInstance,
+  opts: { includeReduction?: boolean } = {},
+): string[] {
+  const out = [...formatParamReadout(instance)]
+  if (opts.includeReduction !== false) {
+    const red = reductionQualifier(instance)
+    if (red) out.push(red)
+  }
   return out
 }
 

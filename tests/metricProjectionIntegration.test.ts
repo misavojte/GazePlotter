@@ -20,6 +20,7 @@ const PID = 0
 const GLOBAL_SCALAR_CONTRACT: PlotMetricContract = {
   outputShape: 'scalar',
   windowing: 'forbidden',
+  crossParticipant: 'samples',
   multiSelect: true,
 }
 

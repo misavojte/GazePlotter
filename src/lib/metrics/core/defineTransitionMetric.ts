@@ -13,6 +13,7 @@
  * unique pieces. New transition metrics drop in as a ~30-line spec.
  */
 import type { ParamDef } from './params'
+import type { MeasurementClass, GroupReduction } from './measurement'
 import { defineMetric } from './defineMetric'
 import { enumParam } from './params'
 import {
@@ -38,10 +39,11 @@ export interface DefineTransitionMetricSpec<P> {
   description: string
   /** Per-recipe unit (`count`, `ms`, `%`, …). */
   unit: string
-  /** Cross-participant reduction; the existing recipes use `sum` or `mean`. */
-  groupAggregation: 'mean' | 'median' | 'sum'
-  /** Defaults to `false`. Counts and summed durations opt in. */
-  additive?: boolean
+  /** Statistical class: `extensive` for counts/summed dwell, `intensive` for
+   *  averages/probabilities/shares. Drives matrix-cell + cross-participant gating. */
+  measurementClass: MeasurementClass
+  /** Natural cross-participant reduction; `'sum'` for the `extensive` recipes. */
+  defaultReduction?: GroupReduction
   searchTags: readonly string[]
   /**
    * Extra params *after* the built-in `mode`. Use for recipe-specific knobs
@@ -78,8 +80,8 @@ export function defineTransitionMetric<P>(
     category: 'transition',
     rawShape: 'aoi-pair-matrix',
     windowUnit: 'ms',
-    groupAggregation: spec.groupAggregation,
-    additive: spec.additive,
+    measurementClass: spec.measurementClass,
+    defaultReduction: spec.defaultReduction,
     searchTags: spec.searchTags,
     params,
     init: ({ slots }) => initTransitionAcc(slots.totalSlots, spec.withAux ?? false),

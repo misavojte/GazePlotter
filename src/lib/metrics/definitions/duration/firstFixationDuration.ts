@@ -40,6 +40,9 @@ defineMetric({
   windowUnit: 'ms',
   supportsWindowing: false,
   providesAnyFixation: true,
+  // Intensive: a single sampled per-participant duration. Only `mean` is sound
+  // across participants; durations of distinct first fixations do not add.
+  measurementClass: 'intensive',
   searchTags: ['first', 'fixation', 'duration', 'ttf', 'aoi'],
   params: [] as const,
   init: ({ slots }) => new Array<number>(slots.totalSlots).fill(-1),

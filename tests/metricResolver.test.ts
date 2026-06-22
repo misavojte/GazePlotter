@@ -17,6 +17,7 @@ function findStarter(id: string): MetricInstance {
 const aoiVectorContract = {
   outputShape: 'aoi-vector',
   windowing: 'forbidden',
+  crossParticipant: 'distribution',
 } as const satisfies PlotMetricContract
 
 // Contract for windowed aoi-vector consumers (e.g. aoi-stream). The
@@ -25,6 +26,7 @@ const aoiVectorContract = {
 const windowedAoiVectorContract = {
   outputShape: 'aoi-vector',
   windowing: 'required',
+  crossParticipant: 'reduce',
 } as const satisfies PlotMetricContract
 
 describe('resolveMetric', () => {

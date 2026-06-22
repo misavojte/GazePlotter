@@ -11,7 +11,7 @@ import {
 } from '$lib/plots/shared'
 import type { TransitionMatrixData } from '../types'
 
-const CONTRACT = { outputShape: 'aoi-pair-matrix', windowing: 'forbidden' } as const satisfies PlotMetricContract
+const CONTRACT = { outputShape: 'aoi-pair-matrix', windowing: 'forbidden', crossParticipant: 'reduce' } as const satisfies PlotMetricContract
 
 export function getTransitionMatrixData(
   engine: DataEngine,

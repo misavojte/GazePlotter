@@ -12,7 +12,7 @@ import {
 } from '$lib/plots/shared'
 import type { ScanpathSimilarityData, ScangraphData } from '../types'
 
-const CONTRACT = { outputShape: 'participant-pair-matrix', windowing: 'forbidden' } as const satisfies PlotMetricContract
+const CONTRACT = { outputShape: 'participant-pair-matrix', windowing: 'forbidden', crossParticipant: 'group-axis' } as const satisfies PlotMetricContract
 
 /**
  * Resolve the configured metric instance and run `queryGroup` to obtain the

@@ -2,6 +2,10 @@ import { describe, it, expect } from 'vitest'
 import {
   defaultInstanceLabel,
   formatParamReadout,
+  instanceReadout,
+  reductionQualifier,
+  availableReductions,
+  resolveReduction,
   getMetric,
   type MetricInstance,
 } from '../src/lib/metrics'
@@ -82,30 +86,91 @@ describe('formatParamReadout (full — same in selector and on plots)', () => {
     expect(formatParamReadout(inst('participantPairSimilarity', { method: 'needlemanWunsch', collapsed: true })))
       .toEqual(['Needleman-Wunsch', 'collapsed'])
   })
-  it('appends an explicit groupAggregation override (one readout for selector AND figure)', () => {
-    // A paramless metric still surfaces the override, so the selector chip set
-    // and the plot axis can never disagree about a summed instance.
+  it('stays purely params — the reduction is composed separately', () => {
+    // formatParamReadout never carries the reduction; that keeps it composable.
     const summed: MetricInstance = {
       id: 'i', baseId: 'absoluteTime', params: {}, label: '',
-      projection: { kind: 'identity-aoi-vector' }, groupAggregation: 'sum',
+      projection: { kind: 'identity-aoi-vector' }, reduction: 'sum',
     }
-    expect(formatParamReadout(summed)).toEqual(['summed'])
-    // The override trails the params, not replaces them.
-    const summedTransitions: MetricInstance = {
-      id: 'i', baseId: 'transitionProbability',
-      params: { mode: 'visit', step: 2 }, label: '',
-      projection: { kind: 'identity-aoi-pair-matrix' }, groupAggregation: 'sum',
+    expect(formatParamReadout(summed)).toEqual([])
+  })
+})
+
+// ─── availableReductions / reductionQualifier / resolveReduction ──────────────
+// The sound set is a PURE function of the metric's measurementClass — projection
+// independent, no guards. The same set the ConfigureMetric control lists (once
+// intersected with the plot contract) and what an MCP caller may set.
+
+describe('availableReductions (sound cross-participant set, by class)', () => {
+  it('offers mean + sum for extensive quantities (counts, durations)', () => {
+    expect(availableReductions('absoluteTime')).toEqual(['mean', 'sum'])
+    expect(availableReductions('fixationCount')).toEqual(['mean', 'sum'])
+    expect(availableReductions('transitionCount')).toEqual(['mean', 'sum'])
+  })
+  it('offers mean only for intensive quantities (shares, probabilities, averages)', () => {
+    expect(availableReductions('relativeTime')).toEqual(['mean'])
+    expect(availableReductions('visitDuration')).toEqual(['mean'])
+    expect(availableReductions('transitionProbability')).toEqual(['mean'])
+  })
+  it('proportion reduces by mean (the fraction); relational has no reduction', () => {
+    expect(availableReductions('fixated')).toEqual(['mean'])
+    expect(availableReductions('participantPairSimilarity')).toEqual([])
+  })
+})
+
+describe('reductionQualifier (discloses only a cohort sum)', () => {
+  const vec = { kind: 'identity-aoi-vector' as const }
+  it('mean (the conventional default) needs no chip; sum reads "summed"', () => {
+    const base = { id: 'i', params: {}, label: '', projection: vec }
+    // intensive default mean → no chip.
+    expect(reductionQualifier({ ...base, baseId: 'relativeTime' })).toBeNull()
+    // extensive default mean → no chip; an explicit sum → "summed".
+    expect(reductionQualifier({ ...base, baseId: 'absoluteTime' })).toBeNull()
+    expect(reductionQualifier({ ...base, baseId: 'absoluteTime', reduction: 'sum' })).toBe('summed')
+    // transitionCount defaults to sum → "summed" even with no override.
+    expect(reductionQualifier({ id: 'i', params: {}, label: '', baseId: 'transitionCount', projection: { kind: 'identity-aoi-pair-matrix' } })).toBe('summed')
+  })
+  it('is null where there is no reduction to disclose (proportion, relational)', () => {
+    const base = { id: 'i', params: { minFixationCount: 1, minDwellMs: 0 }, label: '', projection: vec }
+    expect(reductionQualifier({ ...base, baseId: 'fixated' })).toBeNull()
+  })
+})
+
+describe('resolveReduction (request === result; unsound clamps to default)', () => {
+  it('honours a sound override verbatim; clamps an unsound one to the default', () => {
+    const vec = { kind: 'identity-aoi-vector' as const }
+    // extensive: sum is sound on ANY projection (no shape downgrade).
+    expect(resolveReduction({ id: 'i', baseId: 'absoluteTime', params: {}, label: '', projection: vec, reduction: 'sum' })).toBe('sum')
+    expect(resolveReduction({ id: 'i', baseId: 'absoluteTime', params: {}, label: '', projection: vec })).toBe('mean')
+    // intensive: sum is unsound → clamps to the metric default (mean).
+    expect(resolveReduction({ id: 'i', baseId: 'relativeTime', params: {}, label: '', projection: vec, reduction: 'sum' })).toBe('mean')
+    // transitionCount default reduction is sum.
+    expect(resolveReduction({ id: 'i', baseId: 'transitionCount', params: {}, label: '', projection: { kind: 'identity-aoi-pair-matrix' } })).toBe('sum')
+  })
+})
+
+describe('instanceReadout (params + reduction — the one selector/figure source)', () => {
+  it('combines params and the reduction chip (mean suppressed)', () => {
+    const inst1: MetricInstance = {
+      id: 'i', baseId: 'transitionProbability', params: { mode: 'visit', step: 2 },
+      label: '', projection: { kind: 'identity-aoi-pair-matrix' },
     }
-    expect(formatParamReadout(summedTransitions)).toEqual(['Visit changes', 'Step 2', 'summed'])
-    // No override ⇒ no aggregation chip.
-    expect(formatParamReadout(inst('absoluteTime', {}))).toEqual([])
+    expect(instanceReadout(inst1)).toEqual(['Visit changes', 'Step 2'])
+  })
+  it('includeReduction:false drops the chip (bar plot discloses via overlay)', () => {
+    const inst1: MetricInstance = {
+      id: 'i', baseId: 'absoluteTime', params: {}, label: '',
+      projection: { kind: 'identity-aoi-vector' }, reduction: 'sum',
+    }
+    expect(instanceReadout(inst1)).toEqual(['summed'])
+    expect(instanceReadout(inst1, { includeReduction: false })).toEqual([])
   })
 })
 
 // ─── buildMetricLabel: the single entry point every plot calls ────────────────
 
 describe('buildMetricLabel (unified plot/colorbar label)', () => {
-  it('composes quantity / unit · param qualifiers', () => {
+  it('composes quantity / unit · param qualifiers (mean reduction needs no chip)', () => {
     expect(buildMetricLabel(inst('transitionProbability', { mode: 'visit', step: 2 }), getMetric('transitionProbability')))
       .toBe('Transition probability / % · Visit changes · Step 2')
   })
@@ -113,10 +178,15 @@ describe('buildMetricLabel (unified plot/colorbar label)', () => {
     expect(buildMetricLabel(inst('transitionProbability', { mode: 'visit', step: 2 }), getMetric('transitionProbability'), { unit: false }))
       .toBe('Transition probability · Visit changes · Step 2')
   })
-  it('extra qualifiers append after, dropping falsy entries', () => {
+  it('extra qualifiers append after the reduction, dropping falsy entries', () => {
+    // transitionCount defaults to sum → "summed" chip is present.
     expect(buildMetricLabel(inst('transitionCount', { mode: 'fixation' }), getMetric('transitionCount'), {
       extra: [false, null, undefined, 'No-AOI excluded', 't ∈ [100, 5000] ms'],
-    })).toBe('Transitions / count · Fixation pairs · No-AOI excluded · t ∈ [100, 5000] ms')
+    })).toBe('Transitions / count · Fixation pairs · summed · No-AOI excluded · t ∈ [100, 5000] ms')
+  })
+  it('includeReduction:false suppresses the chip (bar plot opt-out)', () => {
+    expect(buildMetricLabel(inst('transitionCount', { mode: 'fixation' }), getMetric('transitionCount'), { includeReduction: false }))
+      .toBe('Transitions / count · Fixation pairs')
   })
   it('null instance → the fallback name, never blank', () => {
     expect(buildMetricLabel(null, undefined)).toBe('Value')
@@ -124,18 +194,17 @@ describe('buildMetricLabel (unified plot/colorbar label)', () => {
     expect(buildMetricLabel(null, undefined, { unit: false, fallback: 'Transition value' })).toBe('Transition value')
   })
 
-  it('discloses an explicit groupAggregation override as a qualifier (provenance)', () => {
-    // A summed instance must read differently from a mean one on the figure, so
-    // an AOI Timeline band labelled as a cohort total is self-documenting.
+  it('discloses only a cohort sum — summed override vs the bare default mean', () => {
+    // A summed instance reads `· summed`; the default-mean instance is bare (mean
+    // is the conventional default and needs no disclosure).
     const summed: MetricInstance = {
       id: 'i', baseId: 'absoluteTime', params: {}, label: '',
-      projection: { kind: 'identity-aoi-vector' }, groupAggregation: 'sum',
+      projection: { kind: 'identity-aoi-vector' }, reduction: 'sum',
     }
     expect(buildMetricLabel(summed, getMetric('absoluteTime')))
       .toBe('Absolute dwell time / ms · summed')
 
-    // No override ⇒ the conventional statistic, no qualifier (no clutter).
-    const plain: MetricInstance = { ...summed, groupAggregation: undefined }
+    const plain: MetricInstance = { ...summed, reduction: undefined }
     expect(buildMetricLabel(plain, getMetric('absoluteTime')))
       .toBe('Absolute dwell time / ms')
   })

@@ -39,6 +39,9 @@ defineMetric({
   rawShape: 'aoi-vector',
   windowUnit: 'ms',
   providesAnyFixation: true,
+  // Extensive: a raw count. Cohort `sum` and per-participant `mean` are both
+  // sound across participants, and sum/mean are sound across matrix cells.
+  measurementClass: 'extensive',
   searchTags: ['fixation', 'count', 'number', 'fix', 'aoi'],
   params: [] as const,
   init: ({ slots }) => new Float64Array(slots.totalSlots),

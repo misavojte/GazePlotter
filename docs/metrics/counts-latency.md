@@ -39,6 +39,7 @@ The total number of separate fixations landing within each Area of Interest (AOI
 - **Raw Shape**: `aoi-vector`
 - **Unit**: `count`
 - **Windowing**: Supported. Gated by midpoint-in-window membership (`frame.midpointInWindow`). A fixation is counted in a window if and only if its midpoint falls within the window's boundaries. This ensures that fixations are never counted twice across sliding/overlapping windows.
+- **Measurement class**: Extensive (additive total). Across participants, show a per-participant mean or a cohort total (the group's combined fixation count).
 - **Scientific Meaning**: Indicates the importance or relevance of an AOI. A higher fixation count suggests that the region was repeatedly inspected or required substantial visual attention.
 
 ### 2. Visit Count (`visitCount`)
@@ -48,6 +49,7 @@ The number of times a participant entered and exited an AOI. A visit consists of
 - **Unit**: `count`
 - **Windowing**: Supported. Like fixation counts, visits are gated by the temporal midpoint of their component fixations to prevent boundary double-counting.
 - **Invariants**: Consecutive fixations in the same AOI are collapsed into a single visit. Gaze must leave the AOI (either to another AOI or to off-AOI space) and return for a new visit to be counted.
+- **Measurement class**: Extensive (additive total). Across participants, show a per-participant mean or a cohort total (the group's combined visits).
 - **Scientific Meaning**: Reflects search-and-compare behaviors. A high visit count with short visit durations suggests the participant was toggling back and forth to compare information across regions.
 
 ### 3. Time to First Fixation (`timeToFirstFixation` / TTFF)
@@ -57,4 +59,5 @@ The elapsed time (in milliseconds) from stimulus onset (time = 0) until the onse
 - **Unit**: `ms`
 - **Windowing**: Forbidden (`supportsWindowing: false`). Latency is a stimulus-lifetime concept. A rolling window would calculate "time to first fixation within this window" (which is just relative entry latency), which violates the standard eye-tracking definition.
 - **Invariants**: AOIs never fixated return `NaN`. Callers that require a numeric fallback (like CSV export pipelines) represent unvisited slots as `-1`.
+- **Measurement class**: Intensive (normalized). A per-participant latency, averaged across participants; latencies do not add into a cohort total.
 - **Scientific Meaning**: A measure of visual salience. AOIs with low TTFF values are highly salient and captured the participant's attention first, either due to bottom-up visual features (e.g., high contrast, bright colors) or top-down task goals.

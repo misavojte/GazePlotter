@@ -65,11 +65,24 @@ To compute windowed values accurately, GazePlotter projects fixations onto movin
 
 1. **Sub-bin Overlap Duration (`frame.duration`)**:
    Computed as `min(fixation.end, window.end) - max(fixation.start, window.start)`. 
-   This matches the legacy overlap math exactly. It is used for additive duration metrics (like `absoluteTime` and `relativeTime`) so a fixation crossing a window boundary contributes only its in-window portion, ensuring the sum of windowed values equals the total unwindowed dwell time.
+   This matches the legacy overlap math exactly. It is used for duration metrics (like `absoluteTime` and `relativeTime`) so a fixation crossing a window boundary contributes only its in-window portion, ensuring the sum of windowed values equals the total unwindowed dwell time.
    
 2. **Midpoint-in-Window Membership (`frame.midpointInWindow`)**:
    A fixation belongs to a window if its temporal midpoint (`start + duration / 2`) falls within the window's boundaries.
    This is used to gate count-style metrics (like `fixationCount` and `visitCount`) and RQA metrics so that each fixation contributes to exactly one window, preventing double-counting.
+
+---
+
+## Aggregating Across Participants
+
+When a plot summarizes a whole group, it must combine each participant's value into a single result. Whether a given combination is meaningful is decided by the metric's **measurement class** — a scientific property of the quantity itself, not a setting you have to reason about:
+
+- **Extensive (additive total)** — counts and durations (fixation count, dwell time, transition counts). These are physical totals, so across participants they can be shown as a **per-participant mean** or as a **cohort total** (a sum that grows with the group and tapers honestly as participants drop out of late time windows).
+- **Intensive (normalized)** — rates, shares, probabilities, and averages (relative dwell time, mean fixation duration, transition probability, RQA measures). Each value is already normalized per participant, so across participants it is shown as a **mean**; a cohort total is not meaningful, because adding percentages or averages together has no physical interpretation.
+- **Proportion** — a per-participant yes/no outcome (e.g. whether an AOI was fixated). Across participants this becomes the fraction of the group that met the condition (a rate), drawn as a proportional bar.
+- **Group-level** — a quantity defined by a *pair* of participants (scanpath similarity). There is no per-participant value to combine; the comparison matrix is itself the across-participant result.
+
+The measurement class determines which options a plot exposes. In a plot that reduces the group to one value per cell (AOI Timeline, Transition Matrix), an additive metric lets you pick a per-participant mean or a cohort total, while a normalized metric simply averages. You never have to choose an unsound combination — only the meaningful options are offered.
 
 ---
 

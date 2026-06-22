@@ -19,9 +19,9 @@ interface Params { mode: 'fixation' | 'visit' }
  *   fixations merged).
  *
  * ### Invariants
- * - `additive: true` — ms totals are summable across cells, so
+ * - `measurementClass: 'extensive'` — ms totals are summable, so
  *   `matrix-aggregate` with `sum` / `mean` reducers is allowed.
- * - Group aggregation is `sum` — totals scale with participant count.
+ * - `defaultReduction: 'sum'` — totals scale with participant count.
  *   Use `transitionDwellMean` for cross-participant mean dwell.
  * - Not pre-seeded as a starter; power users add it manually when raw
  *   totals (rather than means) are useful.
@@ -34,8 +34,9 @@ defineTransitionMetric<Params>({
     'In fixation mode that\'s the duration of the single preceding fixation; in visit mode, the duration ' +
     'of the preceding visit (consecutive same-AOI fixations merged).',
   unit: 'ms',
-  groupAggregation: 'sum',
-  additive: true,
+  // Extensive: ms totals add. Cohort `sum` is the headline; sum/mean sound across cells.
+  measurementClass: 'extensive',
+  defaultReduction: 'sum',
   searchTags: ['transition', 'dwell', 'duration', 'pair', 'aoi', 'time', 'sum'],
   onTransition: (acc, cellIdx, prevDuration) => {
     acc.matrix[cellIdx] += prevDuration

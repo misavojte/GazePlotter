@@ -60,6 +60,9 @@ defineMetric({
   rawShape: 'aoi-vector',
   windowUnit: 'ms',
   providesAnyFixation: true,
+  // Intensive: a per-participant mean visit duration. Only `mean` is sound
+  // across participants (for a cohort total of dwell use absoluteTime).
+  measurementClass: 'intensive',
   searchTags: ['visit', 'dwell', 'duration', 'average', 'mean', 'aoi'],
   params: [] as const,
   init: ({ slots }): Acc => ({

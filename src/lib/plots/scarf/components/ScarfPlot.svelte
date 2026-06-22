@@ -162,10 +162,13 @@
     const newMax =
       timelineMax + moveAmount + (newMin - (timelineMin + moveAmount))
 
+    const roundedMin = Math.round(newMin * 1000) / 1000
+    const roundedMax = Math.round(newMax * 1000) / 1000
+
     const isOrdinal = effectiveSettings.timeline === 'ordinal'
     dragOverrides = isOrdinal
-      ? { ordinalStart: newMin, ordinalEnd: newMax }
-      : { timelineStart: newMin, timelineEnd: newMax }
+      ? { ordinalStart: roundedMin, ordinalEnd: roundedMax }
+      : { timelineStart: roundedMin, timelineEnd: roundedMax }
   }
 
   function handleDragEnd() {

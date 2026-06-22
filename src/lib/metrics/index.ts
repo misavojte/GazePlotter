@@ -26,7 +26,11 @@ export {
   defaultInstanceLabel,
   formatParamReadout,
   formatProjectionReadout,
-  aggregationQualifier,
+  reductionQualifier,
+  availableReductions,
+  resolveReduction,
+  instanceReadout,
+  metricShapeOf,
 } from './instances'
 export { STARTING_METRICS } from './startingMetrics'
 export type { StartingMetricSpec } from './startingMetrics'
@@ -50,6 +54,18 @@ export {
 } from './core/projection'
 export { recipeSupports } from './core/validation'
 export type { ValidationResult } from './core/validation'
+
+// ─── Capability algebra (measurement nature + cross-participant aggregation) ─
+export {
+  soundReductions,
+  reducesAcrossParticipants,
+  distributionStatistics,
+  supportedAoiReducers,
+  supportedMatrixReducers,
+  metricShape,
+} from './core/measurement'
+export type { MeasurementClass, GroupReduction, DistributionStat, MetricShape } from './core/measurement'
+export { reduceFinite, effectiveReduction, reductionLabel } from './core/aggregation'
 export type {
   Projection,
   LeafProjection,
@@ -74,7 +90,6 @@ export type {
   FixationEvent,
   OutputShape,
   WindowUnit,
-  GroupAggregation,
 } from './core/dsl'
 export type { ParamDef, ParamType, ParamsOf } from './core/params'
 export type { MetricInstance } from './instances'
@@ -86,8 +101,10 @@ export {
   instanceMatchesContract,
   metricIsCreatableInContract,
   contractLeafKinds,
+  contractReductions,
+  contractDistributionStats,
 } from './filters'
-export type { PlotMetricContract } from './filters'
+export type { PlotMetricContract, CrossParticipantMode } from './filters'
 
 // ─── UI ────────────────────────────────────────────────────────────────────
 export { default as MetricSelect } from './components/MetricSelect.svelte'

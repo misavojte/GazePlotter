@@ -22,8 +22,9 @@ interface Params { mode: 'fixation' | 'visit' }
  * - Cross-participant: mean-of-per-participant-means, so each participant
  *   contributes equally regardless of their transition count — standard
  *   eye-tracking reporting. Non-observing participants drop via NaN.
- * - Not `additive` — averaging averages across cells is not meaningful;
- *   `matrix-aggregate` restricted to `max | min`.
+ * - `measurementClass: 'intensive'` — averaging averages across cells is not
+ *   meaningful, so `matrix-aggregate` is restricted to `max | min` and
+ *   cross-participant reduction to `mean`.
  */
 defineTransitionMetric<Params>({
   id: 'transitionDwellMean',
@@ -33,7 +34,9 @@ defineTransitionMetric<Params>({
     'In fixation mode that\'s the duration of the single preceding fixation; in visit mode, the duration ' +
     'of the preceding visit.',
   unit: 'ms',
-  groupAggregation: 'mean',
+  // Intensive: a per-participant mean dwell. Only `mean` is sound across
+  // participants and cells (for a cohort total use transitionDwellSum).
+  measurementClass: 'intensive',
   searchTags: ['transition', 'dwell', 'mean', 'average', 'duration', 'pair', 'aoi', 'time'],
   withAux: true,
   onTransition: (acc, cellIdx, prevDuration) => {

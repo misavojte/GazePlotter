@@ -25,7 +25,7 @@ import {
   type Scope,
 } from '$lib/metrics'
 
-const CONTRACT = { outputShape: 'aoi-vector', windowing: 'forbidden' } as const satisfies PlotMetricContract
+const CONTRACT = { outputShape: 'aoi-vector', windowing: 'forbidden', crossParticipant: 'distribution' } as const satisfies PlotMetricContract
 
 export function getBarPlotData(
   engine: DataEngine,
@@ -66,9 +66,9 @@ export function getBarPlotData(
     return { data: [], timeline: createAdaptiveTimeline(0, 100, 6), dataMax: 0 }
   }
   const { instance } = resolved
-  // A `proportion`-aggregated metric (e.g. `fixated`) is a [0,1] rate: render it
-  // as a plain proportional bar (value as percent), not a beeswarm of 0/1 dots.
-  const isProportion = getMetric(instance.baseId)?.meta.groupAggregation === 'proportion'
+  // A `proportion`-class metric (e.g. `fixated`) is a [0,1] rate: render it as a
+  // plain proportional bar (value as percent), not a beeswarm of 0/1 dots.
+  const isProportion = getMetric(instance.baseId)?.meta.measurementClass === 'proportion'
 
   const timeStart = settings.timelineStart ?? 0
   const timeEnd = settings.timelineEnd ?? 0

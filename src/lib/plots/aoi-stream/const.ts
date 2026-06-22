@@ -31,8 +31,6 @@ export const STREAM_SYMMETRY_FACTOR = 0.5
 export const MARGIN = {
   TOP: 5,
   RIGHT: 1,
-  BOTTOM: 55,
-  LEFT: 50,
 }
 
 export const FLOW_CURVE_TENSION = 0
@@ -49,8 +47,6 @@ export const AXIS_CONFIG = {
 }
 
 export const Y_AXIS = {
-  LABEL_OFFSET: 36,
-  TICK_LABEL_OFFSET: 10,
   // The centered streamgraph uses a symmetric domain (e.g. [-50, +50] for 100%).
   // This factor adds headroom so the plot doesn't touch the top/bottom.
   // Example: 100% total -> half-range=50, with factor 1.5 => axis half-range=75.

@@ -118,6 +118,13 @@ export interface PlotFrame {
   bottom: number
   /** Top of the reserved legend block (canvas px); `bottom`-aligned if none. */
   legendY: number
+  /** Offset (px) from the left edge to the rotated left-axis title's baseline,
+   *  past the reserved tick labels. Pass straight to `drawYAxisMainLabel` so a
+   *  self-drawn title clears the tick labels the gutter measured. */
+  leftTitleOffset: number
+  /** Offset (px) from the plot bottom to the bottom-axis title, past the tick
+   *  labels. Pass straight to `drawXAxisLabel`. */
+  bottomTitleOffset: number
   /** Reactive mouse position (null off-canvas). */
   mouseX: number | null
   mouseY: number | null
@@ -556,7 +563,13 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
       bottom: plotBottom,
     })
   )
-  const frame = $derived.by<PlotFrame>(() => ({ ...resolved.rect, mouseX, mouseY }))
+  const frame = $derived.by<PlotFrame>(() => ({
+    ...resolved.rect,
+    leftTitleOffset: resolved.leftTitleOffset,
+    bottomTitleOffset: resolved.bottomTitleOffset,
+    mouseX,
+    mouseY,
+  }))
 
   // ---- render: begin → placeholder → clip+marks → axes → overlay → finish ----
   function render() {

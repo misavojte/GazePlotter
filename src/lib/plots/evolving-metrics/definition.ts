@@ -64,5 +64,6 @@ export const evolvingMetricsDefinition = definePlot<
   consumesMetrics: {
     outputShape: 'scalar',
     windowing: 'required',
+    crossParticipant: 'per-participant',
   },
 })

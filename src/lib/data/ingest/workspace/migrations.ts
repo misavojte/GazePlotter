@@ -344,7 +344,7 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
         label: `Time on AOI (per ${binSize} ms bin)`,
         // Match the fresh `absoluteTime-aoi-windowed-500` starter: a cohort
         // total per window so the timeline tapers as participants drop out.
-        groupAggregation: 'sum',
+        reduction: 'sum',
         projection: {
           kind: 'windowed',
           window: { windowSize: binSize, stepSize: binSize },
@@ -462,6 +462,23 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
           window: { ...restWindow, windowSize, stepSize },
         },
       }
+    })
+  }
+
+  // Version-independent normalization: the cross-participant statistic field was
+  // renamed `groupAggregation` → `reduction` and narrowed to {mean, sum} (median
+  // moved to the bar's distribution overlay; proportion became a metric class).
+  // Carry a serialized value across, keeping only the two sound reductions; an
+  // unsound legacy value (median / proportion) is dropped so the instance rides
+  // its metric's default reduction.
+  const reductionInstances = data?.data?.metricInstances
+  if (Array.isArray(reductionInstances)) {
+    data.data.metricInstances = reductionInstances.map((inst: any) => {
+      if (!inst || typeof inst !== 'object' || !('groupAggregation' in inst)) return inst
+      const { groupAggregation, ...rest } = inst
+      return groupAggregation === 'sum' || groupAggregation === 'mean'
+        ? { ...rest, reduction: groupAggregation }
+        : rest
     })
   }
 

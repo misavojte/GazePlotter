@@ -20,10 +20,9 @@ function buildMetric(label: string, unit: string): Metric {
       windowUnit: 'ms',
       params: [],
       searchTags: [],
-      groupAggregation: 'mean',
-      supportsGroupAggregation: true,
+      measurementClass: 'intensive',
+      defaultReduction: 'mean',
       supportsWindowing: true,
-      additive: false,
       providesAnyFixation: false,
     },
   }

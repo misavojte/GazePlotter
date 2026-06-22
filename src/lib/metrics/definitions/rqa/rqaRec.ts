@@ -53,6 +53,9 @@ defineMetric({
   category: 'rqa-aoi',
   rawShape: 'scalar',
   windowUnit: 'fixations',
+  // Intensive: a per-participant rate (%) over the whole scanpath. Only `mean`
+  // is sound across participants; summing rates is meaningless.
+  measurementClass: 'intensive',
   searchTags: ['rqa', 'recurrence', 'rec', 'nonlinear', 'aoi', 'sequence', 'cross'],
   params,
   init: (): { seq: number[] } => ({ seq: [] }),

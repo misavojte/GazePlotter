@@ -13,7 +13,8 @@ import {
   type WindowedProjection,
 } from './projection'
 import { fillWindowFrame } from './dsl'
-import type { AoiSlotInfo, FixationEvent, GroupAggregation, GroupScope, MetricRecipe, OutputShape, WindowFrame } from './dsl'
+import type { AoiSlotInfo, FixationEvent, GroupScope, MetricRecipe, OutputShape, WindowFrame } from './dsl'
+import type { GroupReduction } from './measurement'
 import type { MetricInstance } from '../instances'
 
 export interface Scope {
@@ -417,7 +418,7 @@ function runFixationWindowed(
 
 /**
  * Aggregate a windowed projection across all participants in a `GroupScope`,
- * per the recipe's `groupAggregation` (mean / median / sum). Returns a single
+ * per the effective cross-participant `reduction` (mean / sum). Returns a single
  * timeseries shape — `aoi-vector-timeseries` when the inner leaf emits
  * aoi-vector, `scalar-timeseries` when it emits scalar — matching the
  * per-participant `query()` output shapes so consumers don't need a separate
@@ -434,9 +435,8 @@ function runFixationWindowed(
  *      timeseries; their absent trailing windows are simply skipped by the
  *      per-cell gather (rather than synthesised as a misleading 0), so each
  *      window is reduced only over the participants present there.
- *   4. Per (window[, slot]) cell, drop NaNs and apply `reduceFinite` with
- *      the recipe's `groupAggregation` (or `mean` if the recipe's
- *      `groupAggregationGuard` rejects the requested method).
+ *   4. Per (window[, slot]) cell, drop NaNs and reduce by `method`
+ *      (`mean` = sum/count, `sum` = sum), NaN when the cell has no finite value.
  *
  * Caller-side: `query.ts:queryGroup` dispatches windowed projections here
  * instead of the legacy "first participant only" placeholder.
@@ -446,21 +446,13 @@ export function runWindowedGroup(
   instance: MetricInstance,
   group: GroupScope,
   p: WindowedProjection,
-  method: GroupAggregation,
-  reduce: (values: readonly number[], method: GroupAggregation) => number,
+  method: GroupReduction,
 ): ProjectedResult | null {
   const slots = buildAoiSlots(group.engine, group.stimulusId)
   if (!slots) return null
 
   const isVector = PROJECTION_LEAVES[p.inner.kind].outputShape === 'aoi-vector'
   const outShape: OutputShape = isVector ? 'aoi-vector-timeseries' : 'scalar-timeseries'
-
-  // Recipe-level last-ditch guard: if the requested aggregation is
-  // scientifically incoherent for this projection (e.g. `sum` over a
-  // windowed `relativeTime`), fall back to `mean`. UI/validator usually
-  // catches this upstream; stale workspaces could still trip it here.
-  const guardReason = recipe.groupAggregationGuard?.(p, method)
-  const effectiveMethod = guardReason ? 'mean' : method
 
   // Canonical time range. Explicit group bounds win; otherwise the union
   // of participants' data spans [0, max participant end].
@@ -489,18 +481,13 @@ export function runWindowedGroup(
 
   const stride = isVector ? slots.totalSlots : 1
 
-  // Cross-participant reduction is STREAMING for mean / sum / proportion: each
+  // Cross-participant reduction STREAMS (both `mean` and `sum`): each
   // participant's windowed result folds into flat typed sufficient-statistics
   // (sum + finite-count per window·slot) and is then discarded. Peak memory is
   // O(W·slots), not O(P·W·slots) — the former retained `number[][][]` for every
-  // participant was the ~500 MB / GC blow-up on huge datasets. `median` needs
-  // the full per-cell sample, so it keeps the collect path (currently
-  // unreachable: no windowable metric declares `median`).
-  const streaming = effectiveMethod !== 'median'
-  const groupSum = streaming ? new Float64Array(W * stride) : null
-  const groupCount = streaming ? new Int32Array(W * stride) : null
-  const perPVectors: number[][][] = []
-  const perPValues: number[][] = []
+  // participant was the ~500 MB / GC blow-up on huge datasets.
+  const groupSum = new Float64Array(W * stride)
+  const groupCount = new Int32Array(W * stride)
   let aoiMissing = false
 
   for (const pid of group.participantIds) {
@@ -524,12 +511,6 @@ export function runWindowedGroup(
     const r = runTimeWindowed(recipe, instance, scope, p, slots)
     if (r.aoiMissing) aoiMissing = true
 
-    if (!streaming) {
-      if (isVector) perPVectors.push(r.vectors ?? [])
-      else perPValues.push(r.values ?? [])
-      continue
-    }
-
     // Fold this participant into the typed sufficient-statistics, then drop it.
     if (isVector) {
       const vs = r.vectors ?? []
@@ -540,8 +521,8 @@ export function runWindowedGroup(
         for (let s = 0; s < stride; s++) {
           const x = row[s]
           if (Number.isFinite(x)) {
-            groupSum![base + s] += x
-            groupCount![base + s]++
+            groupSum[base + s] += x
+            groupCount[base + s]++
           }
         }
       }
@@ -551,65 +532,33 @@ export function runWindowedGroup(
       for (let w = 0; w < wMax; w++) {
         const x = vals[w]
         if (Number.isFinite(x)) {
-          groupSum![w] += x
-          groupCount![w]++
+          groupSum[w] += x
+          groupCount[w]++
         }
       }
     }
   }
 
-  // Finalize. mean/proportion = sum/count, sum = sum, NaN when count 0 — the
-  // exact result `reduceFinite` produces over the same finite values per cell.
-  if (streaming) {
-    const isSum = effectiveMethod === 'sum'
-    if (isVector) {
-      const vectors: number[][] = new Array(W)
-      for (let w = 0; w < W; w++) {
-        const v = new Array<number>(stride)
-        const base = w * stride
-        for (let s = 0; s < stride; s++) {
-          const c = groupCount![base + s]
-          v[s] = c === 0 ? Number.NaN : isSum ? groupSum![base + s] : groupSum![base + s] / c
-        }
-        vectors[w] = v
-      }
-      return { shape: outShape, values: [], vectors, slots, aoiMissing, timeline }
-    }
-    const values = new Array<number>(W)
-    for (let w = 0; w < W; w++) {
-      const c = groupCount![w]
-      values[w] = c === 0 ? Number.NaN : isSum ? groupSum![w] : groupSum![w] / c
-    }
-    return { shape: outShape, values, slots, aoiMissing, timeline }
-  }
-
-  // median fallback: per-cell reduce over the collected per-participant sample.
+  // Finalize. mean = sum/count, sum = sum, NaN when count 0 — the exact result
+  // `reduceFinite` produces over the same finite values per cell.
+  const isSum = method === 'sum'
   if (isVector) {
     const vectors: number[][] = new Array(W)
-    const cell: number[] = []
     for (let w = 0; w < W; w++) {
-      const v: number[] = new Array(slots.totalSlots).fill(Number.NaN)
-      for (let s = 0; s < slots.totalSlots; s++) {
-        cell.length = 0
-        for (const pv of perPVectors) {
-          const x = pv[w]?.[s]
-          if (typeof x === 'number') cell.push(x)
-        }
-        v[s] = reduce(cell, effectiveMethod)
+      const v = new Array<number>(stride)
+      const base = w * stride
+      for (let s = 0; s < stride; s++) {
+        const c = groupCount[base + s]
+        v[s] = c === 0 ? Number.NaN : isSum ? groupSum[base + s] : groupSum[base + s] / c
       }
       vectors[w] = v
     }
     return { shape: outShape, values: [], vectors, slots, aoiMissing, timeline }
   }
-  const values: number[] = new Array(W).fill(Number.NaN)
-  const cell: number[] = []
+  const values = new Array<number>(W)
   for (let w = 0; w < W; w++) {
-    cell.length = 0
-    for (const pv of perPValues) {
-      const x = pv[w]
-      if (typeof x === 'number') cell.push(x)
-    }
-    values[w] = reduce(cell, effectiveMethod)
+    const c = groupCount[w]
+    values[w] = c === 0 ? Number.NaN : isSum ? groupSum[w] : groupSum[w] / c
   }
   return { shape: outShape, values, slots, aoiMissing, timeline }
 }

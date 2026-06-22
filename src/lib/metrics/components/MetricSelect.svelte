@@ -5,7 +5,7 @@
   import { Select } from '$lib/shared/components'
   import type { SelectOption } from '$lib/shared/components/select'
   import {
-    formatParamReadout,
+    instanceReadout,
     formatProjectionReadout,
     getMetric,
     instanceMatchesContract,
@@ -57,7 +57,7 @@
 
   function readoutOf(inst: MetricInstance): string {
     const unit = getMetric(inst.baseId)?.meta.unit ?? ''
-    const params = formatParamReadout(inst)
+    const params = instanceReadout(inst)
     const projLine = formatProjectionReadout(inst)
     const filteredProjLine = projLine && !inst.label.includes(projLine) ? projLine : null
     return [unit, ...params, filteredProjLine].filter(Boolean).join(' · ')

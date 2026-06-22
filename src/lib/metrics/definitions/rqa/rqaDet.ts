@@ -46,6 +46,8 @@ defineMetric({
   category: 'rqa-aoi',
   rawShape: 'scalar',
   windowUnit: 'fixations',
+  // Intensive: a per-participant rate (%). Only `mean` is sound across participants.
+  measurementClass: 'intensive',
   searchTags: ['rqa', 'determinism', 'det', 'diagonal', 'nonlinear', 'aoi', 'sequence'],
   params,
   init: (): { seq: number[] } => ({ seq: [] }),

@@ -41,6 +41,9 @@ defineMetric({
   rawShape: 'aoi-vector',
   windowUnit: 'ms',
   providesAnyFixation: true,
+  // Intensive: a per-participant mean fixation duration. Only `mean` is sound
+  // across participants (for a cohort total of dwell use absoluteTime).
+  measurementClass: 'intensive',
   searchTags: ['fixation', 'duration', 'average', 'mean', 'fix', 'aoi'],
   params: [] as const,
   init: ({ slots }): Acc => ({ durations: Array.from({ length: slots.totalSlots }, () => []) }),
