@@ -149,7 +149,7 @@
     }
   })
 
-  function buildLeaf(kind: LeafKind, currentAoi?: string): LeafProjection {
+  function buildLeaf(kind: LeafKind, currentAoi: string | undefined = undefined): LeafProjection {
     const defaultAoi = currentAoi ?? aoiNameUnion[0] ?? ''
     switch (kind) {
       case 'identity-scalar':                    return { kind }
@@ -282,7 +282,7 @@
     )
   }
 
-  function availableMatrixReducers(baseId: string, exclude?: 'diagonal'): MatrixReducer[] {
+  function availableMatrixReducers(baseId: string, exclude: 'diagonal' | undefined = undefined): MatrixReducer[] {
     const recipe = getRecipe(baseId); if (!recipe) return []
     return MATRIX_REDUCERS.filter(r =>
       recipeSupports(recipe, { kind: 'matrix-aggregate', reducer: r, ...(exclude ? { exclude } : {}) }) === true,
