@@ -24,9 +24,13 @@ The workspace has two control areas:
 
 ## Plot Manipulation
 
-Each plot is an independent card. Click a card to select it — on desktop this also opens its [Settings Pane](/docs/visualizations/#configuration-and-settings-pane). Selecting a plot reveals its move, resize, and action controls.
+Each plot is an independent card. Click a card to select it; this reveals its move, resize, and action controls.
 
-_(To change what a plot displays, see the docs for that plot type, e.g. [Scarf Plot](/docs/visualizations/scarf-plot/).)_
+### Editing a plot
+
+On desktop, selecting a plot opens its [Settings Pane](/docs/visualizations/#configuration-and-settings-pane) — a side column of collapsible sections for everything the plot shows (stimulus, participant group, metric, axes, colors). The available settings depend on the plot type and are documented on its own page, e.g. [Scarf Plot](/docs/visualizations/scarf-plot/).
+
+Select more than one plot (hold **Cmd/Ctrl/Shift** and click) and the pane edits the whole selection at once: same-type plots expose their full pane, mixed types only their shared sections — **Stimulus**, **Participant group**, **Participant**, **Time range**, **Areas of Interest**, **Events**, and **Eye-movement Type**. A field whose plots disagree shows **Mixed**; setting it applies to all of them.
 
 ### Moving a plot
 
