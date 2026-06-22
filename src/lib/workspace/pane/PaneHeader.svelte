@@ -57,7 +57,7 @@
     flex-shrink: 0;
   }
   .close:hover {
-    background: var(--c-lightgrey, #e5e7eb);
+    background: var(--c-lightgrey);
     color: var(--c-text);
   }
 </style>

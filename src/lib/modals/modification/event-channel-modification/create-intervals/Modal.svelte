@@ -611,7 +611,7 @@
     font-size: 12.5px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all var(--transition-normal) ease;
   }
 
   .add-button:hover:not(:disabled) {
@@ -670,12 +670,12 @@
     font-size: 11px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.12s ease-in-out;
+    transition: all var(--transition-fast) ease-in-out;
   }
 
   .quick-pair-button:hover {
     background: var(--c-warning);
-    color: white;
+    color: var(--c-white);
     border-style: solid;
   }
 

@@ -307,7 +307,7 @@
 
   .title-actions {
     display: flex;
-    gap: 6px;
+    gap: var(--spacing-xs);
     align-items: center;
   }
 
@@ -322,7 +322,7 @@
     width: 30px;
     height: 30px;
     cursor: pointer;
-    transition: color 0.1s ease, border-color 0.1s ease, background-color 0.1s ease;
+    transition: color var(--transition-fast) ease, border-color var(--transition-fast) ease, background-color var(--transition-fast) ease;
   }
 
   .tool-button:hover {
@@ -412,7 +412,7 @@
     display: flex;
     align-items: center;
     padding: 2px 0;
-    transition: color 0.1s ease;
+    transition: color var(--transition-fast) ease;
   }
 
   .drag-handle:hover {

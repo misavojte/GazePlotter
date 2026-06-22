@@ -125,16 +125,16 @@
 
   .export-inline {
     display: flex;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    border: 1px solid var(--c-border);
+    border-radius: var(--rounded);
     overflow: hidden;
-    background: #fff;
-    transition: border-color 0.15s ease;
+    background: var(--c-white);
+    transition: border-color var(--transition-normal) ease;
   }
 
   .export-inline:focus-within {
-    border-color: #cd1404;
-    box-shadow: 0 0 0 1px rgba(205, 20, 4, 0.3);
+    border-color: var(--c-brand);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--c-brand) 30%, transparent);
   }
 
   .export-input {
@@ -148,28 +148,29 @@
   }
 
   .export-input::placeholder {
-    color: #999;
+    color: var(--c-darkgrey);
+    opacity: 0.6;
   }
 
   .export-button {
     border: none;
-    background: #cd1404;
-    color: white;
+    background: var(--c-brand);
+    color: var(--c-white);
     padding: 0.6rem 1rem;
     font-size: 0.9rem;
     font-weight: 500;
     cursor: pointer;
-    transition: background-color 0.15s ease;
+    transition: background-color var(--transition-normal) ease;
     white-space: nowrap;
   }
 
   .export-button:hover {
-    background: #a20d03;
+    background: var(--c-brand-dark);
   }
 
   .export-button:focus {
     outline: none;
-    background: #a20d03;
+    background: var(--c-brand-dark);
   }
 
   .workspace-description {
@@ -196,26 +197,26 @@
     display: flex;
     align-items: center;
     padding: 0.75rem 1rem;
-    background: #fafafa;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    background: var(--c-darkwhite);
+    border: 1px solid var(--c-border);
+    border-radius: var(--rounded);
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all var(--transition-normal) ease;
     text-align: left;
     width: 100%;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
   }
 
   .export-option-card:hover {
-    border-color: #cd1404;
+    border-color: var(--c-brand);
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     transform: translateY(-1px);
   }
 
   .export-option-card:focus {
     outline: none;
-    border-color: #cd1404;
-    box-shadow: 0 0 0 2px rgba(205, 20, 4, 0.2);
+    border-color: var(--c-brand);
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-brand) 20%, transparent);
   }
 
   .export-option-card:active {
@@ -231,14 +232,14 @@
     margin: 0 0 0.25rem 0;
     font-size: 0.9rem;
     font-weight: 500;
-    color: #333;
+    color: var(--c-text);
     line-height: 1.3;
   }
 
   .export-option-subtitle {
     margin: 0;
     font-size: 0.85rem;
-    color: #666;
+    color: var(--c-darkgrey);
     line-height: 1.4;
   }
 </style>

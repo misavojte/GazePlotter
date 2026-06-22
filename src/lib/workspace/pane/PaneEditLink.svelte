@@ -21,7 +21,7 @@
     align-self: flex-start;
     display: inline-flex;
     align-items: center;
-    background: #e2e8f0;
+    background: var(--c-grey);
     border: none;
     border-radius: 999px;
     padding: 4px 12px;
@@ -31,7 +31,7 @@
     line-height: 1.3;
     white-space: nowrap;
     cursor: pointer;
-    transition: background 0.12s, color 0.12s;
+    transition: background var(--transition-fast), color var(--transition-fast);
   }
   .pane-edit-link:hover {
     background: #cfd8e3;

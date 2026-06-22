@@ -115,8 +115,8 @@
     width: 24px;
     height: 24px;
     padding: 4px;
-    border-radius: 6px;
-    color: var(--c-darkgrey, #666);
+    border-radius: var(--rounded-md);
+    color: var(--c-darkgrey);
     background: transparent;
     border: none;
     stroke: var(--c-darkgrey);
@@ -124,12 +124,12 @@
     stroke-linecap: round;
     stroke-linejoin: round;
     fill: none;
-    transition: all 0.15s ease-out;
+    transition: all var(--transition-fast) ease-out;
   }
 
   .toolbar-item:hover:not(.disabled) {
     transform: scale(1.05);
-    background-color: var(--c-midgrey, #e0e0e0);
+    background-color: var(--c-midgrey);
     color: var(--c-black);
     stroke: var(--c-black);
   }
@@ -147,7 +147,7 @@
     width: auto;
     height: auto;
     padding: 6px 10px;
-    gap: 6px;
+    gap: var(--spacing-xs);
   }
 
   .toolbar-item-icon {
@@ -156,7 +156,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.1s ease;
+    transition: transform var(--transition-fast) ease;
   }
 
   .toolbar-item:active:not(.disabled) .toolbar-item-icon {

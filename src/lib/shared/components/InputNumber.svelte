@@ -134,10 +134,10 @@
   input.compact {
     width: 100%;
     padding: 3px 6px;
-    border-radius: var(--rounded, 4px);
+    border-radius: var(--rounded);
     font-size: 11px;
     outline: none;
-    transition: border-color 0.2s;
+    transition: border-color var(--transition-normal);
   }
 
   input.compact:focus {
@@ -145,7 +145,7 @@
   }
 
   input.select-matched:focus-visible {
-    outline: 2px solid var(--c-primary, #1976d2);
+    outline: 2px solid var(--c-brand);
     outline-offset: 2px;
   }
 

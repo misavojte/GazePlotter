@@ -641,7 +641,7 @@
   .back-btn {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--spacing-xs);
     background: none;
     border: none;
     cursor: pointer;
@@ -649,7 +649,7 @@
     color: var(--c-darkgrey);
     padding: 4px 8px;
     border-radius: var(--rounded-md);
-    transition: background 0.1s, color 0.1s;
+    transition: background var(--transition-fast), color var(--transition-fast);
   }
   .back-btn:hover {
     background: var(--c-lightgrey);
@@ -677,7 +677,7 @@
   .bool-label {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--spacing-xs);
     font-size: 12px;
     color: var(--c-darkgrey);
     cursor: pointer;
@@ -709,13 +709,13 @@
     color: var(--c-darkgrey);
     padding: 3px 6px;
     border-radius: calc(var(--rounded) - 1px);
-    transition: background 0.1s, color 0.1s;
+    transition: background var(--transition-fast), color var(--transition-fast);
     text-align: center;
   }
   .mode-tab:hover { color: var(--c-text); }
   .mode-tab.active { background: var(--c-white); color: var(--c-text); font-weight: 500; }
 
-  .window-step-row { display: flex; flex-direction: column; gap: 6px; }
+  .window-step-row { display: flex; flex-direction: column; gap: var(--spacing-xs); }
 
   .field-row { display: flex; align-items: center; gap: 8px; }
   .field-col { display: flex; flex-direction: column; gap: 4px; }
@@ -725,7 +725,7 @@
     min-width: 60px;
     flex-shrink: 0;
   }
-  .window-group { display: flex; align-items: center; gap: 6px; }
+  .window-group { display: flex; align-items: center; gap: var(--spacing-xs); }
 
   .number-input {
     width: 72px;

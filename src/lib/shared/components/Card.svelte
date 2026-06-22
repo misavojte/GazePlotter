@@ -26,16 +26,16 @@
 <style>
   .card {
     background: var(--c-lightgrey);
-    border-radius: 12px;
+    border-radius: var(--rounded-md);
     display: flex;
     flex-direction: column;
   }
 
   .padding-sm {
-    padding: 0.75rem;
+    padding: var(--spacing-sm);
   }
 
   .padding-lg {
-    padding: 32px;
+    padding: var(--spacing-xl);
   }
 </style>

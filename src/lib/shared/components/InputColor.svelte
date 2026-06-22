@@ -84,7 +84,7 @@
       onclick={() => picker.toggle()}
       aria-label={ariaLabel ?? (!showLabel ? label : undefined)}
       class:mixed
-      style:background-color={mixed ? 'var(--c-lightgrey, #f0f0f0)' : formatColorValue}
+      style:background-color={mixed ? 'var(--c-lightgrey)' : formatColorValue}
       style:width="{actualWidth}px"
       bind:this={picker.triggerElement}
     >
@@ -131,7 +131,7 @@
     height: 34px;
     cursor: pointer;
     background-color: white;
-    transition: all 0.2s;
+    transition: all var(--transition-normal);
   }
 
   .color-preview.compact {
@@ -145,7 +145,7 @@
     height: 24px;
     font-size: 10px;
     padding: 0 4px;
-    border-radius: var(--rounded-sm, 4px);
+    border-radius: var(--rounded);
   }
 
   .color-preview:hover {

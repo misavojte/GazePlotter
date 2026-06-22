@@ -416,13 +416,13 @@
     color: var(--c-darkgrey);
     font-size: 0.9rem;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all var(--transition-normal) ease;
   }
 
   .add-group-button:hover {
     border-color: var(--c-brand);
     color: var(--c-brand);
-    background-color: rgba(205, 20, 4, 0.03);
+    background-color: color-mix(in srgb, var(--c-brand) 3%, transparent);
   }
 
   .accordion {
@@ -452,12 +452,12 @@
   }
 
   .accordion-header.active {
-    background-color: rgba(205, 20, 4, 0.05);
+    background-color: color-mix(in srgb, var(--c-brand) 5%, transparent);
   }
 
   .accordion-header.confirm {
     padding: 12px 14px;
-    background-color: rgba(205, 20, 4, 0.05);
+    background-color: color-mix(in srgb, var(--c-brand) 5%, transparent);
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -481,7 +481,7 @@
     align-items: center;
     padding: 2px 0;
     flex-shrink: 0;
-    transition: color 0.1s ease;
+    transition: color var(--transition-fast) ease;
   }
 
   .drag-handle:hover {
@@ -539,8 +539,8 @@
     border: 1px solid transparent;
     background-color: var(--c-darkwhite);
     transition:
-      background-color 0.15s ease,
-      border-color 0.15s ease;
+      background-color var(--transition-normal) ease,
+      border-color var(--transition-normal) ease;
   }
 
   .participant-list :global(label:hover) {
@@ -561,10 +561,10 @@
 
   .button-group {
     display: flex;
-    gap: 5px;
+    gap: var(--spacing-xxs);
     flex-direction: row;
     flex-wrap: nowrap;
-    margin-left: 5px;
+    margin-left: var(--spacing-xxs);
   }
 
   .search-filter {

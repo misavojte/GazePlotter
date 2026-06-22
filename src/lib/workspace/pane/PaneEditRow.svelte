@@ -10,7 +10,7 @@
   .pane-edit-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 6px;
+    gap: var(--spacing-xs);
     margin-top: 2px;
   }
 </style>

@@ -83,7 +83,7 @@
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    gap: 5px;
+    gap: var(--spacing-xxs);
   }
 
   .group-container.compact {
@@ -97,7 +97,7 @@
   .options {
     display: flex;
     flex-direction: column;
-    gap: 5px;
+    gap: var(--spacing-xxs);
   }
 
   .group-container.compact .options {
@@ -179,8 +179,8 @@
     width: var(--radio-size);
     height: var(--radio-size);
     transform: translateY(-50%);
-    background: var(--c-white, #fff);
-    border: 1px solid var(--c-midgrey, #ccc);
+    background: var(--c-white);
+    border: 1px solid var(--c-midgrey);
     border-radius: 50%;
     box-sizing: border-box;
   }
@@ -193,15 +193,15 @@
     left: 3px;
     top: 50%;
     transform: translateY(-50%) scale(0);
-    background: var(--c-brand, #282828);
-    border: 1px solid var(--c-brand, #282828);
+    background: var(--c-brand);
+    border: 1px solid var(--c-brand);
     border-radius: 50%;
     box-sizing: border-box;
-    transition: transform 0.1s ease-out;
+    transition: transform var(--transition-fast) ease-out;
   }
 
   input[type='radio']:checked + label::before {
-    border-color: var(--c-brand, #282828);
+    border-color: var(--c-brand);
   }
 
   input[type='radio']:checked + label::after {

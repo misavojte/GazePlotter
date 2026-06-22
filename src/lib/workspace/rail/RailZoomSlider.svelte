@@ -59,7 +59,7 @@
 
   .zoom-control.vertical {
     flex-direction: column;
-    gap: 6px;
+    gap: var(--spacing-xs);
     padding: 4px 0;
   }
 
@@ -82,7 +82,7 @@
     cursor: pointer;
     background: transparent;
     opacity: 0.8;
-    transition: opacity 0.15s;
+    transition: opacity var(--transition-fast);
   }
 
   .zoom-slider:focus {
@@ -124,13 +124,13 @@
   .zoom-slider::-webkit-slider-runnable-track {
     width: 100%;
     height: 2px;
-    background: var(--c-border, rgba(136, 136, 136, 0.3));
+    background: var(--c-border);
     border-radius: 1px;
   }
   .zoom-slider::-moz-range-track {
     width: 100%;
     height: 2px;
-    background: var(--c-border, rgba(136, 136, 136, 0.3));
+    background: var(--c-border);
     border-radius: 1px;
   }
 
@@ -141,7 +141,7 @@
     appearance: none;
     width: 10px;
     height: 10px;
-    background: var(--c-darkgrey, #888);
+    background: var(--c-darkgrey);
     border-radius: 50%;
     border: none;
     margin-top: -4px;
@@ -150,7 +150,7 @@
   .zoom-slider::-moz-range-thumb {
     width: 10px;
     height: 10px;
-    background: var(--c-darkgrey, #888);
+    background: var(--c-darkgrey);
     border-radius: 50%;
     border: none;
   }
@@ -159,8 +159,8 @@
     font-size: 8px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: var(--c-darkgrey, #888);
+    letter-spacing: 0.06em;
+    color: var(--c-darkgrey);
     user-select: none;
     font-variant-numeric: tabular-nums;
   }

@@ -283,9 +283,9 @@
     flex: 0 0 40px;
     width: 40px;
     align-self: stretch;
-    background-color: var(--c-lightgrey, #f1f5f9);
+    background-color: var(--c-lightgrey);
     z-index: 2;
-    transition: background-color 0.3s ease;
+    transition: background-color var(--transition-slow) ease;
     box-sizing: border-box;
     display: flex;
     flex-direction: column;
@@ -389,7 +389,7 @@
   .divider {
     width: 16px;
     height: 1px;
-    background-color: #e2e8f0;
+    background-color: var(--c-grey);
     margin: 4px 0;
   }
 
@@ -416,6 +416,6 @@
     margin-left: auto;
     flex-direction: row;
     align-items: center;
-    gap: 6px;
+    gap: var(--spacing-xs);
   }
 </style>

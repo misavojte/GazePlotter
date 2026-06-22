@@ -151,8 +151,8 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    transition: background 0.1s ease;
-    border-radius: 4px;
+    transition: background var(--transition-fast) ease;
+    border-radius: var(--rounded);
     margin: 0 4px;
     width: calc(100% - 8px);
     justify-content: space-between;

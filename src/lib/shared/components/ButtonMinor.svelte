@@ -131,8 +131,8 @@
     position: relative;
     overflow: hidden;
     transition:
-      background-color 120ms ease,
-      color 120ms ease;
+      background-color var(--transition-fast) ease,
+      color var(--transition-fast) ease;
   }
   button.isIcon {
     width: 34px;
@@ -196,7 +196,7 @@
   }
   .itemWrap.active :global(button) {
     color: var(--c-brand);
-    background: #e9f2ff;
+    background: color-mix(in srgb, var(--c-info) 10%, transparent);
   }
 
   /* Content scaling feedback — pressed state via `:active` pseudoclass.
@@ -205,7 +205,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: transform 120ms ease;
+    transition: transform var(--transition-fast) ease;
     will-change: transform;
   }
   button:active:not(:disabled) .btnContent {

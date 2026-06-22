@@ -97,7 +97,7 @@ import { getContext, untrack } from 'svelte'
     left: 16px;
     right: 16px;
     height: 1px;
-    background-color: #e2e8f0;
+    background-color: var(--c-grey);
   }
 
   /* Skip on the first section so it sits flush under the pane header. */
@@ -108,7 +108,7 @@ import { getContext, untrack } from 'svelte'
   .heading {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--spacing-xs);
     padding: 10px 16px 8px;
     color: var(--c-darkgrey);
     font-size: 10px;
@@ -120,7 +120,7 @@ import { getContext, untrack } from 'svelte'
     border: none;
     width: 100%;
     cursor: pointer;
-    transition: color 0.15s;
+    transition: color var(--transition-fast);
   }
 
   .heading:hover,
@@ -137,7 +137,7 @@ import { getContext, untrack } from 'svelte'
        shrinking the click target of the heading itself */
     margin-left: -4px;
     line-height: 0;
-    transition: transform 0.2s ease;
+    transition: transform var(--transition-fast) ease;
     transform: rotate(-90deg); /* points right when collapsed */
   }
 
@@ -155,7 +155,7 @@ import { getContext, untrack } from 'svelte'
      gracefully if the value is long (e.g. a verbose stimulus name). */
   .summary {
     margin-left: auto;
-    color: var(--c-mediumgrey, #94a3b8);
+    color: var(--c-darkgrey);
     font-size: 11px;
     font-weight: 500;
     text-transform: none;

@@ -52,17 +52,17 @@
     min-width: 48px;
     height: 38px;
     padding: 4px;
-    border-radius: 6px;
-    color: var(--c-darkgrey, #666);
+    border-radius: var(--rounded-md);
+    color: var(--c-darkgrey);
     background: transparent;
     border: none;
-    transition: all 0.15s ease-out;
+    transition: all var(--transition-fast) ease-out;
     gap: 4px;
     font-family: inherit;
   }
 
   .ribbon-item:hover:not(.disabled) {
-    background-color: var(--c-midgrey, #e0e0e0);
+    background-color: var(--c-midgrey);
     color: var(--c-black);
   }
 
@@ -81,7 +81,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    transition: transform 0.1s ease;
+    transition: transform var(--transition-fast) ease;
   }
 
   .ribbon-item:active:not(.disabled) .ribbon-item-icon {

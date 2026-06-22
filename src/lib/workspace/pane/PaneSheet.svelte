@@ -80,8 +80,8 @@
     box-sizing: border-box;
     background-color: var(--c-lightgrey);
     border-top: 1px solid var(--c-border);
-    border-top-left-radius: var(--rounded-lg, 20px);
-    border-top-right-radius: var(--rounded-lg, 20px);
+    border-top-left-radius: var(--rounded-lg);
+    border-top-right-radius: var(--rounded-lg);
     max-height: 50vh;
     min-height: 40vh;
     padding-bottom: env(safe-area-inset-bottom, 0px);
@@ -94,7 +94,7 @@
   .handle {
     width: 32px;
     height: 4px;
-    border-radius: var(--rounded, 4px);
+    border-radius: var(--rounded);
     background: var(--c-midgrey);
     margin: 8px auto 0;
     flex-shrink: 0;

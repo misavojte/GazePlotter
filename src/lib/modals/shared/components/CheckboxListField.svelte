@@ -135,7 +135,7 @@
     border-radius: var(--rounded-md);
     background-color: var(--c-white);
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-    transition: border-color 0.2s;
+    transition: border-color var(--transition-normal);
     overflow: hidden;
     flex: 1;
     min-height: 0;

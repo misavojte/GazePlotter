@@ -229,7 +229,7 @@
   }
 
   .select-wrapper:has(.trigger:disabled) {
-    --gp-field-bg: var(--c-lightgrey, #f5f5f5);
+    --gp-field-bg: var(--c-lightgrey);
   }
 
   .trigger {
@@ -246,7 +246,7 @@
     align-items: center;
     justify-content: space-between;
     position: relative;
-    transition: all 0.2s ease;
+    transition: all var(--transition-normal) ease;
     font-weight: 400;
     line-height: 1.5rem;
     letter-spacing: 0.00938em;
@@ -256,7 +256,7 @@
 
   .trigger:disabled {
     border-color: var(--c-grey);
-    background-color: var(--c-lightgrey, #f5f5f5);
+    background-color: var(--c-lightgrey);
     color: var(--c-darkgrey);
     cursor: not-allowed;
   }
@@ -272,7 +272,7 @@
   }
 
   .trigger:not(.disabled):focus-visible {
-    outline: 2px solid var(--c-primary, #1976d2);
+    outline: 2px solid var(--c-brand);
     outline-offset: 2px;
   }
 
@@ -314,8 +314,8 @@
     justify-content: center;
     color: var(--c-darkgrey);
     transition:
-      transform 0.2s ease,
-      color 0.2s ease;
+      transform var(--transition-normal) ease,
+      color var(--transition-normal) ease;
   }
 
   .select-wrapper:not(:has(.trigger:disabled)):hover .svg-wrap,

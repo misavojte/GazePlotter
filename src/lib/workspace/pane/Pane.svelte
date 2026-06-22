@@ -181,7 +181,7 @@
     box-sizing: border-box;
     border-left: 1px solid var(--c-border);
     border-top: 1px solid var(--c-border);
-    transition: background-color 0.3s ease;
+    transition: background-color var(--transition-slow) ease;
   }
 
   .pane-content {

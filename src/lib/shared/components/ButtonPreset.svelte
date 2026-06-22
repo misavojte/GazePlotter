@@ -20,7 +20,7 @@
     padding: 0.25rem 0.5rem;
     font-size: 0.8rem;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: all var(--transition-normal) ease;
     color: var(--c-black);
   }
 

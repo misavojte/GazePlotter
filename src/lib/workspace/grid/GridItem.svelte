@@ -369,7 +369,7 @@
     width: 100%;
     height: 100%;
     transform-origin: center center;
-    transition: transform 0.15s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    transition: transform var(--transition-fast) cubic-bezier(0.175, 0.885, 0.32, 1.275);
     will-change: transform;
   }
 
@@ -405,13 +405,13 @@
     height: 100%;
     box-sizing: border-box;
     background-color: var(--c-lightgrey);
-    border-radius: var(--rounded-lg, 8px);
+    border-radius: var(--rounded-lg);
     border: 1px solid var(--c-border);
     overflow: hidden;
     display: flex;
     flex-direction: column;
     position: relative;
-    transition: box-shadow 0.1s ease;
+    transition: box-shadow var(--transition-fast) ease;
 
     /* Affordance ring sits ON TOP of the frame's existing 1px border.
        Hover and selected share the 2px width so the visual "weight"
@@ -443,7 +443,7 @@
           ):hover
       )
     ) {
-    outline-color: color-mix(in srgb, var(--c-info) 25%, #e2e8f0);
+    outline-color: color-mix(in srgb, var(--c-info) 25%, var(--c-grey));
   }
 
   .grid-item-frame.selected {
@@ -482,10 +482,10 @@
     box-sizing: border-box;
     background: var(--c-lightgrey);
     overflow: hidden;
-    border-radius: var(--rounded-lg, 8px) var(--rounded-lg, 8px) 0 0;
+    border-radius: var(--rounded-lg) var(--rounded-lg) 0 0;
     user-select: none;
     -webkit-user-select: none;
-    transition: background-color 0.1s ease;
+    transition: background-color var(--transition-fast) ease;
   }
 
   .grid-item-title {
@@ -542,16 +542,16 @@
   .grid-item-subtitle-divider {
     width: 1px;
     align-self: stretch;
-    background-color: #e2e8f0;
+    background-color: var(--c-grey);
   }
 
   .grid-item-body {
     padding: var(--grid-item-body-padding);
     flex-grow: 1;
     overflow: auto;
-    border-radius: var(--rounded-lg, 8px);
+    border-radius: var(--rounded-lg);
     background-color: var(--c-white);
-    transition: background-color 0.1s ease;
+    transition: background-color var(--transition-fast) ease;
   }
 
   /* Selected-state corner handles. Centered exactly on each corner of the
@@ -569,7 +569,7 @@
     box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
     box-sizing: border-box;
     z-index: 7;
-    transition: background 0.12s ease;
+    transition: background var(--transition-fast) ease;
   }
   .corner-handle:hover {
     background: var(--c-info);
@@ -614,7 +614,7 @@
     padding: 2px 4px;
     background: var(--c-info);
     border: none;
-    border-radius: 6px 6px 0 0;
+    border-radius: var(--rounded-md) var(--rounded-md) 0 0;
     z-index: 6;
     white-space: nowrap;
   }
@@ -632,8 +632,8 @@
     position: absolute;
     top: -1px;
     left: -1px;
-    width: calc(var(--rounded-lg, 8px) + 2px);
-    height: calc(var(--rounded-lg, 8px) + 2px);
+    width: calc(var(--rounded-lg) + 2px);
+    height: calc(var(--rounded-lg) + 2px);
     background: var(--c-info);
     z-index: -1;
     pointer-events: none;
@@ -642,7 +642,7 @@
   .action-toolbar-button {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
+    gap: var(--spacing-xxs);
     padding: 4px 8px;
     background: transparent;
     color: var(--c-white);
@@ -653,7 +653,7 @@
     line-height: 1;
     cursor: pointer;
     white-space: nowrap;
-    transition: background 0.1s ease, color 0.1s ease;
+    transition: background var(--transition-fast) ease, color var(--transition-fast) ease;
   }
   .action-toolbar-button:hover {
     background: rgba(255, 255, 255, 0.18);

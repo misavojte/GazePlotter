@@ -100,7 +100,7 @@
     width: 100%;
     box-sizing: border-box;
     background-color: var(--c-lightgrey);
-    border-radius: var(--rounded-lg, 8px);
+    border-radius: var(--rounded-lg);
     border: 1px solid var(--c-border);
     overflow: hidden;
     display: flex;

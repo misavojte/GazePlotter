@@ -107,7 +107,7 @@
   .back-btn {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--spacing-xs);
     background: none;
     border: none;
     cursor: pointer;
@@ -115,7 +115,7 @@
     color: var(--c-darkgrey);
     padding: 4px 8px;
     border-radius: var(--rounded-md);
-    transition: background 0.1s, color 0.1s;
+    transition: background var(--transition-fast), color var(--transition-fast);
   }
   .back-btn:hover {
     background: var(--c-lightgrey);
@@ -144,7 +144,7 @@
     border-radius: var(--rounded-md);
     background: var(--c-darkwhite);
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all var(--transition-normal) ease;
     text-align: left;
     outline: none;
   }

@@ -3,6 +3,7 @@
   import { fly } from 'svelte/transition'
   import type { ToastFillingType } from './types'
   import { getGazePlotterSession } from '$lib/session'
+  import X from 'lucide-svelte/icons/x'
 
   const { toastState } = getGazePlotterSession()
 
@@ -80,7 +81,7 @@
           aria-label="Close"
           onclick={() => handleManualClose(id)}
         >
-          ×
+          <X size={14} />
         </button>
       </div>
       <div class="toast-body">
@@ -103,7 +104,7 @@
     pointer-events: auto;
     border-radius: var(--rounded-md);
     background: var(--c-white);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 4px 12px color-mix(in srgb, var(--c-black) 15%, transparent);
     color: var(--c-black);
     margin-bottom: 10px;
     width: 220px;
@@ -156,7 +157,7 @@
     justify-content: center;
     align-items: center;
     color: var(--c-midgrey);
-    transition: color 0.2s;
+    transition: color var(--transition-normal);
   }
   button.close:hover {
     color: var(--c-black);

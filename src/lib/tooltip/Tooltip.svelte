@@ -66,13 +66,11 @@
     position: fixed;
     font-size: 11px;
     background: var(--c-darkgrey); /* Modern Slate palette */
-    color: white;
+    color: var(--c-white);
     border-radius: 4px;
     z-index: 10000;
     pointer-events: none;
-    box-shadow:
-      0 4px 6px -1px rgba(0, 0, 0, 0.1),
-      0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    box-shadow: var(--shadow-md);
   }
 
   .tooltip > div {

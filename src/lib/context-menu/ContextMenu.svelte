@@ -206,9 +206,10 @@
     pointer-events: auto;
     background: var(--c-white);
     border: var(--menu-border-width) solid var(--menu-border-color);
-    border-radius: 8px;
-    width: var(--menu-width, 220px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    border-radius: var(--rounded-md);
+    --menu-width: 220px;
+    width: var(--menu-width);
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--c-black) 12%, transparent);
     overflow: hidden;
   }
 
@@ -241,8 +242,8 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    transition: background 0.1s ease;
-    border-radius: 4px;
+    transition: background var(--transition-fast) ease;
+    border-radius: var(--rounded);
     margin: 0 4px;
     width: calc(100% - 8px);
   }
@@ -276,8 +277,8 @@
     height: 10px;
     border: 1.5px solid var(--c-midgrey);
     transition:
-      background 0.1s,
-      border-color 0.1s;
+      background var(--transition-fast),
+      border-color var(--transition-fast);
   }
 
   .indicator.radio {
@@ -363,14 +364,14 @@
     justify-content: center;
     background: transparent;
     border: none;
-    border-radius: 4px;
+    border-radius: var(--rounded);
     padding: 4px;
     color: var(--c-darkgrey);
     cursor: pointer;
     transition:
-      opacity 0.1s ease,
-      background 0.1s ease,
-      color 0.1s ease;
+      opacity var(--transition-fast) ease,
+      background var(--transition-fast) ease,
+      color var(--transition-fast) ease;
   }
 
   li.has-secondary:hover .secondary-action,

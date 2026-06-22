@@ -189,7 +189,7 @@
   }
   .presets {
     display: flex;
-    gap: 6px;
+    gap: var(--spacing-xs);
     justify-content: flex-start;
     padding: 2px 0;
   }
@@ -200,7 +200,7 @@
     border: 1px solid #ddd;
     cursor: pointer;
     padding: 0;
-    transition: transform 0.1s;
+    transition: transform var(--transition-fast);
   }
   .preset-btn:hover {
     transform: scale(1.1);
@@ -210,7 +210,7 @@
     position: fixed;
     padding: 10px;
     background-color: white;
-    border-radius: var(--rounded, 4px);
+    border-radius: var(--rounded);
     box-shadow: 0 3px 15px rgba(0, 0, 0, 0.3);
     z-index: 9999;
     width: 210px;

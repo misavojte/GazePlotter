@@ -69,7 +69,7 @@
     color: inherit;
     text-decoration: none;
     border-bottom: 1px dotted;
-    transition: all 0.3s ease-in-out;
+    transition: all var(--transition-normal) ease-in-out;
   }
 
   footer p a:hover,

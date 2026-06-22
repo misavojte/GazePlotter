@@ -195,7 +195,7 @@
   .statistical-overlay-group :global(.options) {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-    gap: 5px 12px;
+    gap: var(--spacing-xxs) var(--spacing-sm);
     width: 100%;
   }
 

@@ -39,7 +39,7 @@
     pointer-events: none;
     opacity: 0.55;
     border: 2px dashed var(--c-text);
-    border-radius: var(--rounded-lg, 8px);
+    border-radius: var(--rounded-lg);
     background: var(--c-lightgrey);
     box-sizing: border-box;
   }

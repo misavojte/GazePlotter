@@ -154,9 +154,10 @@
     pointer-events: auto;
     background: var(--c-white);
     border: var(--menu-border-width) solid var(--menu-border-color);
-    border-radius: 8px;
-    width: var(--menu-width, 220px);
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    border-radius: var(--rounded-md);
+    --menu-width: 220px;
+    width: var(--menu-width);
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--c-black) 12%, transparent);
     overflow: hidden;
   }
 
@@ -189,8 +190,8 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    transition: background 0.1s ease;
-    border-radius: 4px;
+    transition: background var(--transition-fast) ease;
+    border-radius: var(--rounded);
     margin: 0 4px;
     width: calc(100% - 8px);
   }

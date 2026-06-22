@@ -52,7 +52,7 @@
     color: var(--c-darkgrey);
     font-size: 14px;
     font-weight: 400;
-    letter-spacing: 0.3px;
+    letter-spacing: 0.02em;
   }
 
   @keyframes spin {

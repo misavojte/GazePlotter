@@ -155,10 +155,10 @@
     border-radius: var(--rounded);
     box-sizing: border-box;
     transition:
-      background-color 140ms ease,
-      border-color 140ms ease,
-      box-shadow 140ms ease,
-      transform 160ms ease;
+      background-color var(--transition-fast) ease,
+      border-color var(--transition-fast) ease,
+      box-shadow var(--transition-fast) ease,
+      transform var(--transition-fast) ease;
   }
 
   .check:hover {

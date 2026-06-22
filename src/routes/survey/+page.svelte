@@ -684,7 +684,7 @@
   .previous-consent-banner__link {
     color: #0d63e0;
     text-decoration: underline;
-    transition: color 0.2s ease-in-out;
+    transition: color var(--transition-normal) ease-in-out;
   }
 
   .previous-consent-banner__link:hover,
@@ -701,7 +701,7 @@
     border-radius: 999px;
     font-size: 0.9rem;
     cursor: pointer;
-    transition: background 0.2s ease-in-out;
+    transition: background var(--transition-normal) ease-in-out;
   }
 
   .previous-consent-banner__dismiss:hover,

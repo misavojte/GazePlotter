@@ -260,7 +260,7 @@
     position: absolute;
     inset: 0;
     background-color: #ffffff;
-    border-right: 1px solid #e2e8f0;
+    border-right: 1px solid var(--c-grey);
     z-index: -1;
   }
 
@@ -286,7 +286,7 @@
     overflow-y: auto;
     /* Hide scrollbar but keep functionality for a cleaner look */
     scrollbar-width: thin;
-    scrollbar-color: #e2e8f0 transparent;
+    scrollbar-color: var(--c-grey) transparent;
   }
 
   .docs-nav {
@@ -308,8 +308,8 @@
     cursor: pointer;
     text-align: left;
     text-decoration: none;
-    border-radius: 6px;
-    transition: all 0.2s ease;
+    border-radius: var(--rounded-md);
+    transition: all var(--transition-normal) ease;
     box-sizing: border-box;
   }
 
@@ -323,7 +323,7 @@
   }
 
   .nav-section-link.active .nav-title {
-    color: var(--c-brand, #cd1404);
+    color: var(--c-brand);
   }
 
   .nav-title {
@@ -336,7 +336,7 @@
 
   .chevron-icon {
     color: #94a3b8;
-    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: transform var(--transition-normal) cubic-bezier(0.4, 0, 0.2, 1);
   }
 
   .chevron-icon.rotated {
@@ -358,17 +358,17 @@
     font-size: 0.875rem;
     color: #64748b;
     text-decoration: none;
-    border-radius: 6px;
-    transition: all 0.2s ease;
+    border-radius: var(--rounded-md);
+    transition: all var(--transition-normal) ease;
   }
 
   .nav-link:hover {
-    color: var(--c-brand, #cd1404);
+    color: var(--c-brand);
     background-color: #fff1f2;
   }
 
   .nav-link.active {
-    color: var(--c-brand, #cd1404);
+    color: var(--c-brand);
     background-color: #fce7e8;
     font-weight: 600;
   }
@@ -477,7 +477,7 @@
 
   :global(.prose-wrapper ul li::before) {
     content: '•';
-    color: var(--c-brand, #cd1404);
+    color: var(--c-brand);
     position: absolute;
     left: 0;
     font-weight: bold;
@@ -488,11 +488,11 @@
     height: auto;
     border-radius: 12px;
     margin: 2rem 0;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow-lg);
   }
 
   :global(.prose-wrapper a) {
-    color: var(--c-brand, #cd1404);
+    color: var(--c-brand);
     font-weight: 500;
     text-decoration: underline;
     text-underline-offset: 4px;
@@ -512,7 +512,7 @@
   }
 
   :global(.prose-wrapper blockquote) {
-    border-left: 4px solid var(--c-brand, #cd1404);
+    border-left: 4px solid var(--c-brand);
     background-color: #fef2f2;
     margin: 2rem 0;
     padding: 1.5rem;
@@ -532,7 +532,7 @@
     text-align: left;
     background: #f8fafc;
     padding: 0.75rem 1rem;
-    border-bottom: 2px solid #e2e8f0;
+    border-bottom: 2px solid var(--c-grey);
     color: #475569;
     font-weight: 600;
   }
@@ -582,7 +582,7 @@
       gap: 0.75rem;
       padding: 0.75rem 1.25rem;
       background: #ffffff;
-      border-bottom: 1px solid #e2e8f0;
+      border-bottom: 1px solid var(--c-grey);
       position: relative;
       z-index: 50;
     }
@@ -593,7 +593,7 @@
       justify-content: center;
       width: 36px;
       height: 36px;
-      border: 1px solid #e2e8f0;
+      border: 1px solid var(--c-grey);
       border-radius: 8px;
       background: #f8fafc;
       color: #334155;
@@ -621,9 +621,9 @@
       height: 100vh;
       transform: translateX(-100%);
       z-index: 200;
-      box-shadow: 4px 0 16px rgba(0, 0, 0, 0.1);
+      box-shadow: 4px 0 16px color-mix(in srgb, var(--c-black) 10%, transparent);
       margin-top: 0; /* No negative margin on mobile */
-      transition: transform 0.3s ease;
+      transition: transform var(--transition-slow) ease;
     }
 
     .docs-sidebar.open {

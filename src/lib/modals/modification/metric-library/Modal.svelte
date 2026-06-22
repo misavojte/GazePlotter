@@ -218,7 +218,7 @@
     text-align: center;
   }
 
-  .metric-grid { display: flex; flex-direction: column; gap: 6px; }
+  .metric-grid { display: flex; flex-direction: column; gap: var(--spacing-xs); }
 
   .metric-card {
     border: 1px solid var(--c-border);
@@ -237,7 +237,7 @@
   .card-row {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: var(--spacing-xs);
     padding: 8px 10px 8px 6px;
   }
   .drag-handle {
@@ -247,7 +247,7 @@
     align-items: center;
     padding: 2px;
     flex-shrink: 0;
-    transition: color 0.1s;
+    transition: color var(--transition-fast);
   }
   .drag-handle:hover { color: var(--c-darkgrey); }
   .drag-handle:active { cursor: grabbing; }
@@ -287,7 +287,7 @@
     display: flex;
     align-items: center;
     flex-shrink: 0;
-    transition: color 0.1s, background 0.1s;
+    transition: color var(--transition-fast), background var(--transition-fast);
   }
   .icon-btn:hover { background: var(--c-lightgrey); color: var(--c-text); }
 
@@ -304,11 +304,11 @@
     color: var(--c-darkgrey);
     font-size: 0.9rem;
     cursor: pointer;
-    transition: all 0.15s ease;
+    transition: all var(--transition-normal) ease;
   }
   .add-metric-button:hover {
     border-color: var(--c-brand);
     color: var(--c-brand);
-    background-color: rgba(205, 20, 4, 0.03);
+    background-color: color-mix(in srgb, var(--c-brand) 3%, transparent);
   }
 </style>

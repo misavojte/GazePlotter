@@ -257,7 +257,7 @@
     background: var(--c-white);
     border: 2px solid var(--c-lightgrey);
     border-radius: var(--rounded-md);
-    transition: all 0.3s ease;
+    transition: all var(--transition-normal) ease;
     opacity: 0;
     transform: translateY(20px);
     animation: slideIn 0.6s ease forwards;
@@ -314,7 +314,7 @@
     border-radius: 50%;
     background: var(--c-white);
     cursor: pointer;
-    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    transition: all var(--transition-normal) cubic-bezier(0.4, 0, 0.2, 1);
     display: flex;
     align-items: center;
     justify-content: center;

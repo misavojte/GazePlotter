@@ -42,7 +42,7 @@
     gap: 1rem;
     margin-top: 4rem;
     padding-top: 2rem;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid var(--c-grey);
   }
 
   .prev-next-link {
@@ -50,10 +50,10 @@
     flex-direction: column;
     gap: 0.25rem;
     padding: 1rem 1.25rem;
-    border: 1px solid #e2e8f0;
+    border: 1px solid var(--c-grey);
     border-radius: 10px;
     text-decoration: none;
-    transition: all 0.2s ease;
+    transition: all var(--transition-normal) ease;
     min-width: 0;
   }
 
@@ -67,7 +67,7 @@
   }
 
   .prev-next-link:hover {
-    border-color: var(--c-brand, #cd1404);
+    border-color: var(--c-brand);
     background-color: #fef2f2;
   }
 
@@ -87,7 +87,7 @@
   }
 
   .prev-next-link:hover .prev-next-title {
-    color: var(--c-brand, #cd1404);
+    color: var(--c-brand);
   }
 
   @media (max-width: 640px) {

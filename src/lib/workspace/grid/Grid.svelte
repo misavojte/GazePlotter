@@ -263,7 +263,7 @@
     z-index: 6;
     pointer-events: none;
     border: 2px solid var(--c-info);
-    border-radius: var(--rounded-lg, 8px);
+    border-radius: var(--rounded-lg);
     box-sizing: border-box;
   }
 
