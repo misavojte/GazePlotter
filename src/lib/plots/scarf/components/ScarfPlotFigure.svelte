@@ -342,6 +342,7 @@
       eventZoneHeight: layout.eventZoneHeight,
       eventBandTop: layout.eventBandTop,
       isOverlay: isOverlayMode,
+      deviceScale: plot.canvasState.pixelRatio ?? 1,
     }
 
     drawScarfLabels(ctx, data, renderCtx)
@@ -358,9 +359,7 @@
 
     drawScarfHighlightMarkers(ctx, data, renderCtx, {
       rectStyleArray,
-      eventStyleArray,
       highlightMask: highlightMaskByIndex,
-      deviceScale: plot.canvasState.pixelRatio ?? 1,
     })
 
     const scarfXTicks = niceTimelineTicks(data.timeline)

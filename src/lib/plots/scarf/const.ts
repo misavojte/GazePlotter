@@ -73,16 +73,19 @@ export const SCARF_LAYOUT = {
   // --- Highlight locator rings ---
   // When an identifier is highlighted, non-highlighted segments desaturate and
   // the highlighted ones keep full colour. But a highlighted segment whose true
-  // duration is too brief to paint even one pixel at the current timeline scale
-  // would simply vanish — invisible among the washed-out neighbours. Rather than
-  // inflate its width (which would falsify the duration), we RING its location:
-  // a scale-independent annotation that points at "it's here" without distorting
-  // the timeline. Adjacent vanished segments of the same identifier collapse into
-  // one ring at their centroid so a burst of micro-fixations reads as one marker.
-  HIGHLIGHT_MARKER_VANISH_PX: 1, // DEVICE pixels of colour a segment/cluster must cover to be "seen"; below this it counts as vanished. Judged at the render DPI, so a sub-pixel-on-screen segment that paints solid at export DPI — or several thin ones that together cover a pixel — needs no ring.
+  // duration is too brief to paint a full pixel of colour gets diluted by the
+  // neighbours sharing its pixel and washes out — invisible among them. Rather
+  // than inflate its width (which would falsify the duration) or alter the blend,
+  // we RING its location: a scale-independent annotation that points at "it's
+  // here" without distorting the timeline. Adjacent faint occurrences collapse
+  // into one ring at their centroid so a burst of micro-fixations reads as one.
+  HIGHLIGHT_VISIBLE_COVERAGE: 0.75, // accumulated highlighted column alpha (Σ coverage × bar-height share, as the blend computes it) within one window must reach this to count as legible; below it the stretch is ringed.
+  HIGHLIGHT_WINDOW_PX: 30, // width (logical px) of the legibility window; coverage is summed over same-colour segments whose centres fall within it. Measured in DATA space so a pan can't flicker the verdict.
+  HIGHLIGHT_SELF_LEGIBLE_LIMIT: 8, // width (logical px) where a segment is considered easily visible/legible on its own without needing a ring.
+  HIGHLIGHT_SINGLE_VISIBLE_LIMIT: 4, // width (logical px) of a single segment above which it is considered clearly visible, suppressing rings for itself and any neighboring segments in its window.
   HIGHLIGHT_MARKER_RADIUS: 8, // desired ring radius (shrunk to fit short rows)
   HIGHLIGHT_MARKER_MIN_RADIUS: 3, // below this the row is too short to host a ring — skip it
-  HIGHLIGHT_MARKER_RING_WIDTH: 1.5, // colored ring stroke; a white halo is drawn beneath for contrast
+  HIGHLIGHT_MARKER_RING_WIDTH: 1, // colored ring stroke; a white halo is drawn beneath for contrast
 } as const
 
 // --- Buffer Strides ---

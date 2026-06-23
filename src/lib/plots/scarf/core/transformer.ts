@@ -695,6 +695,7 @@ export function transformDataToScarfPlot(
       for (let chIdx = 0; chIdx < groupedEventChannels.length; chIdx++) {
         const group = groupedEventChannels[chIdx]
         const styleIdx = visibilityBaseStyleIdx + chIdx
+        const chEvents: { start: number; end: number; isPoint: boolean }[] = []
         for (let mIdx = 0; mIdx < group.memberIds.length; mIdx++) {
           const buf = getEventBuffer(engine, stimulusId, group.memberIds[mIdx], pid)
           if (!buf || buf.length < 2) continue
@@ -702,26 +703,40 @@ export function transformDataToScarfPlot(
             const start = buf[i]
             const duration = buf[i + 1]
             if (duration === 0) {
-              // Point (instant) event
               if (start < clipMin || start >= clipMax) continue
-              merged.push({ start, end: start, order: chIdx })
-              mStyleIdx.push(styleIdx)
-              mX.push((start - clipMin) / clipRange)
-              mW.push(0)
-              mPoint.push(1)
+              chEvents.push({ start, end: start, isPoint: true })
             } else {
               const end = start + duration
               if (end <= clipMin || start >= clipMax) continue
-              const cs = Math.max(clipMin, start)
-              const ce = Math.min(clipMax, end)
-              const w = (ce - cs) / clipRange
-              if (w <= 0) continue
-              merged.push({ start: cs, end: ce, order: chIdx })
-              mStyleIdx.push(styleIdx)
-              mX.push((cs - clipMin) / clipRange)
-              mW.push(w)
-              mPoint.push(0)
+              chEvents.push({ start: Math.max(clipMin, start), end: Math.min(clipMax, end), isPoint: false })
             }
+          }
+        }
+
+        if (chEvents.length > 0) {
+          chEvents.sort((a, b) => a.start - b.start)
+          const mergedCh: typeof chEvents = []
+          let curr = chEvents[0]
+          for (let k = 1; k < chEvents.length; k++) {
+            const next = chEvents[k]
+            if (next.start <= curr.end) {
+              curr.end = Math.max(curr.end, next.end)
+              if (!next.isPoint) curr.isPoint = false
+            } else {
+              mergedCh.push(curr)
+              curr = next
+            }
+          }
+          mergedCh.push(curr)
+
+          for (const ev of mergedCh) {
+            const w = ev.isPoint ? 0 : (ev.end - ev.start) / clipRange
+            if (!ev.isPoint && w <= 0) continue
+            merged.push({ start: ev.start, end: ev.end, order: chIdx })
+            mStyleIdx.push(styleIdx)
+            mX.push((ev.start - clipMin) / clipRange)
+            mW.push(w)
+            mPoint.push(ev.isPoint ? 1 : 0)
           }
         }
       }

@@ -37,6 +37,11 @@ export interface ScarfLayoutContext {
   /** Combined (overlay) mode: non-fixations are centred on the seam (bar bottom)
    * rather than within the gaze bar, for a symmetric layout. */
   isOverlay: boolean
+  /** Device pixels per logical pixel (devicePixelRatio, or dpiOverride/96 on
+   * export). Gaze rects snap their vertical edges to whole DEVICE pixels so they
+   * don't anti-alias ~0.5px past the bar — most visible on fractional-DPI
+   * displays (e.g. Windows 125%/150%) where a tiny bar is only a few device px. */
+  deviceScale: number
 }
 
 /**
@@ -170,6 +175,34 @@ function bandFill(color: string, dimmed: boolean): string {
 }
 
 /**
+ * Vertical placement (height + in-row y offset) of a single gaze rect, shared by
+ * the exact painter (pass 3) and the highlighted-opaque painter (pass 4) so the
+ * two can never disagree on where a segment sits. Non-fixations are a thin bar
+ * (seam-aligned in overlay, bar-centred otherwise); fixations take their stored
+ * per-segment offset scaled to the current bar height.
+ */
+function gazeRectVPlacement(
+  hOrig: number,
+  internalY: number,
+  layout: ScarfLayoutContext
+): { h: number; yInternal: number } {
+  if (hOrig === SCARF_LAYOUT.HEIGHT_NON_FIXATION_DEFAULT) {
+    return {
+      h: layout.nonFixationHeight,
+      yInternal: layout.isOverlay
+        ? layout.spaceAboveRect + layout.heightOfBar - layout.nonFixationHeight
+        : layout.spaceAboveRect + (layout.heightOfBar - layout.nonFixationHeight) / 2,
+    }
+  }
+  return {
+    h: hOrig * layout.scaleFactor,
+    yInternal:
+      layout.spaceAboveRect +
+      (internalY - SCARF_LAYOUT.SPACE_ABOVE_RECT_DEFAULT) * layout.scaleFactor,
+  }
+}
+
+/**
  * Draws every coloured band of the plot in one pass — gaze segments (rectangles
  * rising to the seam) and, when an event band exists, the overlaid event strips
  * (packed lanes hanging below the seam). Both are "a colour per (style × row)"
@@ -249,6 +282,13 @@ function paintGazeRects(
   const cells = rows * pWidth
   if (cells <= 0 || barH <= 0) return
 
+  // Snap a logical-y to a whole DEVICE pixel: vector fillRects (the fallback and
+  // exact paths) otherwise anti-alias their top/bottom edges ~0.5px past the bar
+  // on fractional-DPI displays. The blit path needs no such snap — its
+  // nearest-neighbour upscale already lands edges on device pixels.
+  const dpr = layout.deviceScale > 0 ? layout.deviceScale : 1
+  const snapDev = (y: number) => Math.round(y * dpr) / dpr
+
   const slots = cells * 4
   if (_acc.length < slots) _acc = new Float32Array(slots)
   else _acc.fill(0, 0, slots)
@@ -314,53 +354,15 @@ function paintGazeRects(
     }
   }
 
-  // Pass 2: emit the composite layer (full bar height). For dense content the
-  // per-run `fillStyle = rgba(...)` string churn (allocate + the canvas parsing
-  // the string) dominates — measured 3-8x of the whole paint — so blit packed
-  // pixels through an offscreen canvas instead. For sparse content the blit's
-  // fixed clear+upload overhead loses, so fall back to per-run rects. The
-  // threshold (sub-pixel count vs ~cells/256) is where the two cross over.
-  const blitted =
-    subPixelCount > cells >> 8 &&
+  // Pass 2: emit the composite layer through ONE path — blit the packed pixels
+  // via an offscreen canvas. It is fast at any density (cost bounded by the plot
+  // size, not the segment count) and device-clean (its nearest-neighbour upscale
+  // lands edges on whole device pixels, so the band never bleeds past the bar).
+  // There is deliberately no second, content-switched emit path: a density
+  // threshold used to flip between strategies and shifted the image as a plot
+  // crossed it. Nothing to emit when there is no sub-pixel content.
+  if (subPixelCount > 0) {
     blitCompositeLayer(ctx, acc, rows, pWidth, pLeft, top, pitch, barTop, barH)
-  if (!blitted) {
-    // rgba so it composites over the real background (export-safe), not white.
-    for (let r = 0; r < rows; r++) {
-      const rowBase = r * pWidth
-      const yBase = r * pitch + top + barTop
-      let runStart = -1
-      let runR = -1
-      let runG = -1
-      let runB = -1
-      let runA = -1
-      for (let px = 0; px <= pWidth; px++) {
-        const k = (rowBase + px) << 2
-        const a = px < pWidth ? acc[k + 3] : 0
-        let rr = -1
-        let gg = -1
-        let bb = -1
-        let aq = -1
-        if (a > 0) {
-          const inv = 1 / a
-          rr = (acc[k] * inv + 0.5) | 0
-          gg = (acc[k + 1] * inv + 0.5) | 0
-          bb = (acc[k + 2] * inv + 0.5) | 0
-          aq = (a * 255 + 0.5) | 0
-        }
-        if (runStart >= 0 && (rr !== runR || gg !== runG || bb !== runB || aq !== runA)) {
-          ctx.fillStyle = `rgba(${runR},${runG},${runB},${runA / 255})`
-          ctx.fillRect(pLeft + runStart, yBase, px - runStart, barH)
-          runStart = -1
-        }
-        if (a > 0 && runStart < 0) {
-          runStart = px
-          runR = rr
-          runG = gg
-          runB = bb
-          runA = aq
-        }
-      }
-    }
   }
 
   // Pass 3: draw >= 1px segments exactly, on top of the composite layer.
@@ -377,42 +379,32 @@ function paintGazeRects(
       const idx = i * RECT_STRIDE
       if (buffer[idx + 2] * pWidth < 1) continue
       const pIdx = buffer[idx + 1]
-      const hOrig = buffer[idx + 3]
-
-      let h: number
-      let yInternal: number
-      if (hOrig === SCARF_LAYOUT.HEIGHT_NON_FIXATION_DEFAULT) {
-        h = layout.nonFixationHeight
-        yInternal = layout.isOverlay
-          ? layout.spaceAboveRect + layout.heightOfBar - layout.nonFixationHeight
-          : layout.spaceAboveRect + (layout.heightOfBar - layout.nonFixationHeight) / 2
-      } else {
-        h = hOrig * layout.scaleFactor
-        yInternal =
-          layout.spaceAboveRect +
-          (buffer[idx + 7] - SCARF_LAYOUT.SPACE_ABOVE_RECT_DEFAULT) * layout.scaleFactor
-      }
-
-      ctx.fillRect(
-        pLeft + buffer[idx] * pWidth,
-        pIdx * pitch + yInternal + top,
-        buffer[idx + 2] * pWidth,
-        h
+      const { h, yInternal } = gazeRectVPlacement(
+        buffer[idx + 3],
+        buffer[idx + 7],
+        layout
       )
+      // Snap the vertical edges to device pixels (no ~0.5px bleed past the bar);
+      // keep a >= 1 device-px floor so a thin non-fixation can't round away.
+      const yTop = snapDev(pIdx * pitch + yInternal + top)
+      let yH = snapDev(pIdx * pitch + yInternal + top + h) - yTop
+      if (yH < 1 / dpr) yH = 1 / dpr
+      ctx.fillRect(pLeft + buffer[idx] * pWidth, yTop, buffer[idx + 2] * pWidth, yH)
     }
   }
 }
 
 /**
- * Emits the composite layer by writing packed RGBA pixels into a reused
- * offscreen ImageData and blitting it once with `drawImage`, avoiding the
- * per-run `fillStyle = rgba(...)` string allocate + parse that dominates a
- * dense emit. The offscreen is at LOGICAL resolution (one cell per logical
- * pixel, exactly what the accumulator holds); `drawImage` under the
- * dpr-scaled context upscales it, with smoothing off so it matches the
- * fillRect path's sharp logical-pixel blocks (verified pixel-identical at
- * integer dpr, <=2 RGB at fractional). Returns false if no 2D context is
- * available so the caller can fall back to per-run rects.
+ * THE composite-layer emitter (single path). Writes packed RGBA pixels into a
+ * reused offscreen ImageData and blits it once with `drawImage`. This avoids the
+ * per-run `fillStyle = rgba(...)` string allocate + parse that would dominate a
+ * dense emit, and — because the offscreen is at LOGICAL resolution (one cell per
+ * logical pixel, exactly what the accumulator holds) and `drawImage` upscales it
+ * under the dpr-scaled context with smoothing OFF (nearest-neighbour) — every
+ * band edge lands on a whole device pixel, so the composite never anti-aliases
+ * past the bar. There is no alternate emit path: a browser (the only runtime,
+ * incl. PNG export) always has a canvas. In a canvas-less environment (node unit
+ * tests) this is simply a no-op — nothing renders, nothing throws.
  */
 function blitCompositeLayer(
   ctx: CanvasRenderingContext2D,
@@ -424,29 +416,47 @@ function blitCompositeLayer(
   pitch: number,
   barTop: number,
   barH: number
-): boolean {
-  const offH = rows * pitch
+): void {
+  // Integer height with +2 slack rows: the slack absorbs the fractional part of
+  // `top` folded in below, and an integer (vs fractional `rows * pitch`) keeps
+  // the reuse check stable so the offscreen isn't reallocated every frame.
+  const offH = Math.ceil(rows * pitch) + 2
   if (!_offCanvas || _offCanvas.width !== pWidth || _offCanvas.height !== offH) {
-    _offCanvas =
-      typeof OffscreenCanvas !== 'undefined'
-        ? new OffscreenCanvas(pWidth, offH)
-        : Object.assign(document.createElement('canvas'), { width: pWidth, height: offH })
+    if (typeof OffscreenCanvas !== 'undefined') {
+      _offCanvas = new OffscreenCanvas(pWidth, offH)
+    } else if (typeof document !== 'undefined') {
+      _offCanvas = Object.assign(document.createElement('canvas'), {
+        width: pWidth,
+        height: offH,
+      })
+    } else {
+      return // canvas-less environment (tests): nothing to render
+    }
     _offCtx = _offCanvas.getContext('2d') as
       | OffscreenCanvasRenderingContext2D
       | CanvasRenderingContext2D
       | null
     _offImg = _offCtx ? _offCtx.createImageData(pWidth, offH) : null
   }
-  if (!_offCtx || !_offImg) return false
+  if (!_offCtx || !_offImg) return
 
   const data = _offImg.data
   data.fill(0)
   // Little-endian RGBA packing (every current target platform is LE).
   const u32 = new Uint32Array(data.buffer)
-  const bh = (barH + 0.5) | 0
+  // Snap each row's bar band to whole logical pixels at BOTH edges (height =
+  // bottom − top), so the composite can never overhang the bar into the seam the
+  // way a floored top with a rounded height could. The fractional part of `top`
+  // is folded into the per-row rounding and only its integer part offsets the
+  // single drawImage, so the snapped band lands on exact device rows.
+  const topInt = Math.floor(top)
+  const topFrac = top - topInt
   for (let r = 0; r < rows; r++) {
     const rowBase = r * pWidth
-    const yTop = (r * pitch + barTop) | 0
+    const yTop = Math.round(r * pitch + barTop + topFrac)
+    let yBot = Math.round(r * pitch + barTop + barH + topFrac)
+    if (yBot > offH) yBot = offH
+    const bh = yBot - yTop
     for (let px = 0; px < pWidth; px++) {
       const k = (rowBase + px) << 2
       const a = acc[k + 3]
@@ -463,9 +473,8 @@ function blitCompositeLayer(
   _offCtx.putImageData(_offImg, 0, 0)
   const prevSmoothing = ctx.imageSmoothingEnabled
   ctx.imageSmoothingEnabled = false
-  ctx.drawImage(_offCanvas as CanvasImageSource, pLeft, top)
+  ctx.drawImage(_offCanvas as CanvasImageSource, pLeft, topInt)
   ctx.imageSmoothingEnabled = prevSmoothing
-  return true
 }
 
 /**
@@ -525,7 +534,7 @@ function paintEventStrips(
       const isPoint = buffer[idx + 4] | 0
 
       // Band hangs down from the seam: lane 0 nearest the bar, stacking downward.
-      const slotTop = pIdx * pitch + bandTop + lane * laneH + top
+      const slotTop = pIdx * pitch + bandTop + lane * laneH + top + 1
       const x = pLeft + xNorm * pWidth
 
       if (isPoint) {
@@ -549,46 +558,50 @@ function paintEventStrips(
   }
 }
 
-/** Accumulates one identifier's segments within a single vertical band
- * (participant row × element type). `vanished` holds the logical x-intervals of
- * segments that don't fill a device pixel of colour on their own — the ring
- * candidates — and `visible` holds the [x0, x1] logical spans of segments that
- * clearly do. A candidate's ring is dropped when the colour actually renders:
- * either the cluster covers ≥1 device pixel at the current DPI (one fat segment,
- * or several packed thin ones together), or a visible span of the same type
- * already sits under the ring — in every such case the identifier is locatable
- * without it. */
-interface MarkerBand {
-  color: string
-  cy: number
-  rowTop: number
-  rowBottom: number
-  vanished: { x0: number; x1: number }[]
-  visible: number[] // flat [x0, x1, x0, x1, …] logical pairs
-}
-
 export interface ScarfHighlightMarkerOptions {
   rectStyleArray: ScarfRectStyle[]
-  eventStyleArray: ScarfEventStyle[]
   highlightMask: Uint8Array | null
-  /** Device pixels per logical pixel (devicePixelRatio, or dpiOverride/96 on
-   * export). Vanishing is judged in DEVICE pixels: a segment that's sub-pixel on
-   * screen may paint solid colour at export DPI, and then needs no ring. */
-  deviceScale: number
 }
 
+// Reused per-row scratch for the ring visibility test: one row's segment
+// centres (logical px) and their column-alpha weights (width × bar-height
+// share). Grown to the largest row seen. Centres are ascending and disjoint
+// within a (style × row) bucket — one participant's fixations of one AOI never
+// overlap in time — which both the windowing and the clustering rely on.
+let _ctr = new Float32Array(0)
+let _wt = new Float32Array(0)
+let _xStart = new Float32Array(0)
+let _xEnd = new Float32Array(0)
+let _isBoundary = new Uint8Array(0)
+let _deque = new Int32Array(0)
+
 /**
- * Rings the location of HIGHLIGHTED segments whose true duration is so brief
- * they render sub-pixel-wide and would otherwise vanish among the desaturated
- * neighbours. Covers every highlightable type — AOI fixations, category
- * (saccade/other) segments and overlaid event strips — keyed off the same
- * highlight mask the dimming uses.
+ * Rings the location of HIGHLIGHTED gaze segments that the faithful blend draws
+ * too faintly to see. The blend is never altered: a sub-pixel fixation shares
+ * its pixel with the desaturated neighbours composited over it, so its true
+ * colour can wash out to almost nothing. The ring is a pure annotation pointing
+ * at "the highlighted identifier is here, even though you can barely see it".
  *
- * The ring is an annotation, not a resized datum: it never inflates the
- * segment's width, so the timeline stays truthful. Adjacent vanished segments
- * of one identifier collapse into a single ring drawn at their centroid, and a
- * cluster whose colour does paint (≥1 device pixel covered at the render DPI)
- * is left ringless — the marker only ever stands in for colour you can't see.
+ * Visibility is judged AGAINST THE BLEND, not segment widths: each segment's
+ * legibility is its local column-alpha coverage — `Σ (width × bar-height share)`
+ * over the same-colour segments whose centres fall within a one-pixel window of
+ * it, the quantity the blend actually lays down. Below `HIGHLIGHT_VISIBLE_COVERAGE`
+ * the colour is washed out no matter how many thin segments pile up (they are
+ * diluted by everything else sharing those pixels) and the segment is ringed;
+ * above it the colour renders and it is left alone. This is what the old
+ * width-based test got wrong: packed thin segments looked "wide enough together"
+ * yet still rendered invisibly once the neighbours diluted them.
+ *
+ * The window is measured in DATA space (segment centres), not on the pixel grid,
+ * so it is invariant to a timeline drag (a rigid translation of every segment):
+ * verdicts and gaps don't change, so rings translate with the data instead of
+ * flickering as segments cross pixel boundaries. Within a (style × row) bucket
+ * one participant's fixations of one AOI are time-disjoint, so the centres are
+ * ascending and the window sum is their true combined coverage (no overlap).
+ *
+ * Overlaid event strips are intentionally excluded: they are min-width clamped
+ * and drawn opaque (never sub-pixel), so they are always visible and never need
+ * a ring.
  */
 export function drawScarfHighlightMarkers(
   ctx: CanvasRenderingContext2D,
@@ -601,200 +614,193 @@ export function drawScarfHighlightMarkers(
 
   const pLeft = Math.floor(layout.leftLabelWidth + layout.marginLeft)
   const pWidth = Math.floor(layout.plotAreaWidth)
+  if (pWidth <= 0) return
+  const rows = data.participants.length
   const top = layout.effectiveMarginTop
-  const scale = opts.deviceScale > 0 ? opts.deviceScale : 1
-  // A segment is "vanished" only if it covers less than this many DEVICE pixels.
-  const VANISH = SCARF_LAYOUT.HIGHLIGHT_MARKER_VANISH_PX
-
-  // One band per (style × participant row). A segment whose device-pixel width
-  // falls below the floor is a ring candidate; a wider one is a visible span
-  // that, when overlapped, suppresses a ring.
-  const bands = new Map<string, MarkerBand>()
-  const band = (
-    key: string,
-    color: string,
-    cy: number,
-    rowTop: number,
-    rowBottom: number
-  ): MarkerBand => {
-    let b = bands.get(key)
-    if (!b) {
-      b = { color, cy, rowTop, rowBottom, vanished: [], visible: [] }
-      bands.set(key, b)
-    }
-    return b
-  }
-  const add = (b: MarkerBand, x0: number, wPx: number) => {
-    if (wPx * scale < VANISH) b.vanished.push({ x0, x1: x0 + wPx })
-    else b.visible.push(x0, x0 + wPx)
-  }
-
-  // Gaze rectangles and overlaid event strips are one thing here: a colour band
-  // per (style × row) that gets ringed wherever a highlighted member is too
-  // brief to paint. They feed the SAME pass — an empty event bucket simply
-  // contributes nothing, so whether events are shown changes neither the code
-  // path nor the ring geometry. Point (zero-duration) events are intentional
-  // always-visible diamonds, so they count as visible spans, never candidates.
   const pitch = layout.heightOfBarWrap
-  const hw = SCARF_LAYOUT.MIN_POINT_PX / 2
-  type RingStyle = { normal?: { fill?: string; stroke?: string } }
-  const sources = [
-    {
-      tag: 'r',
-      buckets: data.visualRectBuckets,
-      stride: RECT_STRIDE,
-      styles: opts.rectStyleArray as RingStyle[],
-      hasPoints: false,
-    },
-    {
-      tag: 'e',
-      buckets: data.visualEventBuckets,
-      stride: OVERLAY_EVENT_STRIDE,
-      styles: opts.eventStyleArray as RingStyle[],
-      hasPoints: true,
-    },
-  ]
+  const barH = layout.heightOfBar
+  if (rows <= 0 || barH <= 0) return
+  const invBarH = 1 / barH
 
-  for (const src of sources) {
-    for (let styleIdx = 0; styleIdx < src.buckets.length; styleIdx++) {
-      if (highlightMask[styleIdx] !== 1) continue
-      const buffer = src.buckets[styleIdx]
-      if (buffer.length === 0) continue
-      const style = src.styles[styleIdx]?.normal
-      const color = style?.fill ?? style?.stroke
-      if (!color) continue
-      const count = buffer.length / src.stride
-      for (let i = 0; i < count; i++) {
-        const idx = i * src.stride
-        const pIndex = buffer[idx + 1]
-        const rowTop = pIndex * pitch + top
-        // Locator rings sit at the ROW centre — one rule for gaze and event
-        // bands alike, independent of how a row's height splits between the gaze
-        // bar and the event band. In a gaze-only row the row centre IS the bar
-        // centre, so existing plots are unchanged; with events on the ring no
-        // longer shrinks below the threshold and vanishes as the bar yields
-        // height to the band.
-        const cy = rowTop + pitch / 2
-        const x0 = pLeft + buffer[idx] * pWidth
-        const b = band(`${src.tag}${styleIdx}@${pIndex}`, color, cy, rowTop, rowTop + pitch)
-        if (src.hasPoints && (buffer[idx + 4] | 0) === 1) {
-          b.visible.push(x0 - hw, x0 + hw)
-        } else {
-          add(b, x0, buffer[idx + 2] * pWidth)
-        }
-      }
-    }
-  }
+  // Ring sits on the gaze bar (where the fixations live), not the row centre: in
+  // a gaze-only row they coincide, but in combined mode the bar is at the top of
+  // the row and the event band hangs below, so a row-centred ring would float in
+  // the seam gap below the fixation it marks.
+  const gazeBandCy = layout.spaceAboveRect + barH / 2
+  // Radius is uniform across rows (so is the geometry). Fit it inside the row so
+  // neighbouring rows never overlap; bail entirely if the row is too short.
+  const r = Math.min(
+    SCARF_LAYOUT.HIGHLIGHT_MARKER_RADIUS,
+    Math.floor(Math.min(gazeBandCy, pitch - gazeBandCy)) - 1
+  )
+  if (r < SCARF_LAYOUT.HIGHLIGHT_MARKER_MIN_RADIUS) return
 
-  if (bands.size === 0) return
+  const visible = SCARF_LAYOUT.HIGHLIGHT_VISIBLE_COVERAGE
+  const clusterGap = 2 * r
+  // Half-width of the legibility window. Coverage is summed over segments whose
+  // CENTRES lie within ±HALF logical px of the candidate — a span tied to the
+  // data, not the pixel grid. A timeline drag is a rigid translation of every
+  // segment, so every windowed sum, every visible/invisible verdict and every
+  // inter-segment gap is unchanged by it; the rings simply translate with the
+  // data instead of flickering on and off as segments cross pixel boundaries.
+  const HALF = SCARF_LAYOUT.HIGHLIGHT_WINDOW_PX / 2
+
+  const buckets = data.visualRectBuckets
+  const styles = opts.rectStyleArray
 
   ctx.save()
-  for (const b of bands.values()) {
-    const segs = b.vanished
-    if (segs.length === 0) continue
-    // Fit the ring inside its row so neighbouring rows never overlap.
-    const r = Math.min(
-      SCARF_LAYOUT.HIGHLIGHT_MARKER_RADIUS,
-      Math.floor(Math.min(b.cy - b.rowTop, b.rowBottom - b.cy)) - 1
-    )
-    if (r < SCARF_LAYOUT.HIGHLIGHT_MARKER_MIN_RADIUS) continue
+  for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
+    if (highlightMask[styleIdx] !== 1) continue
+    const buffer = buckets[styleIdx]
+    if (buffer.length === 0) continue
+    const color = styles[styleIdx]?.normal?.fill
+    if (!color) continue
 
-    const clusterGap = 2 * r
-    segs.sort((p, q) => p.x0 + p.x1 - (q.x0 + q.x1))
-    let start = 0
-    for (let i = 1; i <= segs.length; i++) {
-      const prevC = (segs[i - 1].x0 + segs[i - 1].x1) / 2
-      const curC = i < segs.length ? (segs[i].x0 + segs[i].x1) / 2 : Infinity
-      if (curC - prevC <= clusterGap) continue
+    const count = buffer.length / RECT_STRIDE
+    let i = 0
+    while (i < count) {
+      const row = buffer[i * RECT_STRIDE + 1] | 0
+      let end = i
+      while (end < count && (buffer[end * RECT_STRIDE + 1] | 0) === row) end++
 
-      // Close the cluster segs[start..i). Skip the ring when the colour renders:
-      // the cluster covers ≥1 device pixel, or a visible span of this same type
-      // already lies under the footprint.
-      let sum = 0
-      for (let k = start; k < i; k++) sum += (segs[k].x0 + segs[k].x1) / 2
-      const centroid = sum / (i - start)
-      if (
-        !clusterPaintsDevicePixel(segs, start, i, scale, VANISH) &&
-        !spanOverlaps(centroid - r, centroid + r, b.visible)
-      ) {
-        drawHighlightRing(ctx, centroid, b.cy, r, b.color)
+      if (row >= 0 && row < rows) {
+        const m = end - i
+        if (_ctr.length < m) {
+          _ctr = new Float32Array(m)
+          _wt = new Float32Array(m)
+          _xStart = new Float32Array(m)
+          _xEnd = new Float32Array(m)
+          _isBoundary = new Uint8Array(m)
+          _deque = new Int32Array(m)
+        }
+        for (let s = 0; s < m; s++) {
+          const idx = (i + s) * RECT_STRIDE
+          const x0 = buffer[idx] * pWidth
+          const w = buffer[idx + 2] * pWidth
+          _ctr[s] = x0 + w * 0.5
+          _xStart[s] = x0
+          _xEnd[s] = x0 + w
+          // Inline of gazeRectVPlacement's `h` (the only field the ring test
+          // needs): skips the per-segment object allocation and the unused
+          // yInternal math in this hot loop.
+          const hOrig = buffer[idx + 3]
+          const h =
+            hOrig === SCARF_LAYOUT.HEIGHT_NON_FIXATION_DEFAULT
+              ? layout.nonFixationHeight
+              : hOrig * layout.scaleFactor
+          let hFrac = h * invBarH
+          if (hFrac > 1) hFrac = 1
+          
+          _wt[s] = w * hFrac
+          _isBoundary[s] = (x0 <= 0.001 || (x0 + w) >= pWidth - 0.001) ? 1 : 0
+        }
+
+        const V_max = SCARF_LAYOUT.HIGHLIGHT_SELF_LEGIBLE_LIMIT
+        const cy = row * pitch + top + gazeBandCy
+        let lo = 0
+        let hiPtr = 0
+        let winSum = 0
+        let dequeHead = 0
+        let dequeTail = 0
+        let clusterStart = 0
+        let clusterEnd = 0
+        let clusterN = 0
+        for (let s = 0; s < m; s++) {
+          const cs = _ctr[s]
+          
+          // Monotonic Queue: push hiPtr
+          while (hiPtr < m && _xStart[hiPtr] <= cs + HALF) {
+            const idx = hiPtr
+            const wt_idx = _wt[idx]
+            while (dequeTail > dequeHead && _wt[_deque[dequeTail - 1]] <= wt_idx) {
+              dequeTail--
+            }
+            _deque[dequeTail++] = idx
+            winSum += wt_idx
+            hiPtr++
+          }
+          
+          // Pop from sliding window
+          while (lo < hiPtr && _xEnd[lo] < cs - HALF) {
+            winSum -= _wt[lo]
+            lo++
+          }
+          
+          // Monotonic Queue: pop lo
+          while (dequeHead < dequeTail && _deque[dequeHead] < lo) {
+            dequeHead++
+          }
+          
+          if (_isBoundary[s] === 1) continue // boundary segment — no ring
+          
+          const wt_s = _wt[s]
+          const threshold = wt_s >= V_max ? 0 : V_max - wt_s
+          
+          const maxWt = dequeHead < dequeTail ? _wt[_deque[dequeHead]] : 0
+          
+          if (maxWt >= SCARF_LAYOUT.HIGHLIGHT_SINGLE_VISIBLE_LIMIT || winSum >= threshold) continue
+          if (clusterN > 0 && cs - clusterEnd > clusterGap) {
+            drawHighlightCapsule(ctx, pLeft + clusterStart, pLeft + clusterEnd, cy, r, color)
+            clusterN = 0
+          }
+          if (clusterN === 0) {
+            clusterStart = cs
+          }
+          clusterEnd = cs
+          clusterN++
+        }
+        if (clusterN > 0) {
+          drawHighlightCapsule(ctx, pLeft + clusterStart, pLeft + clusterEnd, cy, r, color)
+        }
       }
-      start = i
+      i = end
     }
   }
   ctx.restore()
 }
 
-/** True if [a, b] intersects any [x0, x1] pair in the flat `spans` array. */
-function spanOverlaps(a: number, b: number, spans: number[]): boolean {
-  for (let k = 0; k < spans.length; k += 2) {
-    if (spans[k] <= b && spans[k + 1] >= a) return true
-  }
-  return false
-}
-
-/**
- * True if the cluster `segs[start..end)` paints a contiguous run of colour at
- * least `minCov` device pixels wide at `scale` — i.e. the colour is actually
- * visible, so no ring is needed. Touching/overlapping segments merge into one
- * run; the widest run is compared against the floor. A run ≥ 1 device pixel is a
- * mark you can see, whether it comes from one segment or several packed thin
- * ones. (Contiguous-length, not per-pixel coverage, so it's robust at the
- * exact-pixel boundary.)
- */
-function clusterPaintsDevicePixel(
-  segs: { x0: number; x1: number }[],
-  start: number,
-  end: number,
-  scale: number,
-  minCov: number
-): boolean {
-  if (end - start === 1) {
-    return (segs[start].x1 - segs[start].x0) * scale >= minCov
-  }
-  // A gap smaller than this (device px) won't show white between two marks, so
-  // they read as one — bridge it. Also absorbs float-rounding at exact abutment.
-  const BRIDGE = 0.5
-  const iv: [number, number][] = []
-  for (let k = start; k < end; k++) {
-    iv.push([segs[k].x0 * scale, segs[k].x1 * scale])
-  }
-  iv.sort((p, q) => p[0] - q[0])
-  let maxRun = 0
-  let curS = iv[0][0]
-  let curE = iv[0][1]
-  for (let k = 1; k < iv.length; k++) {
-    if (iv[k][0] <= curE + BRIDGE) {
-      if (iv[k][1] > curE) curE = iv[k][1]
-    } else {
-      if (curE - curS > maxRun) maxRun = curE - curS
-      curS = iv[k][0]
-      curE = iv[k][1]
-    }
-  }
-  if (curE - curS > maxRun) maxRun = curE - curS
-  return maxRun >= minCov
-}
-
-/** A colour ring over a white halo, so it reads on any backdrop. */
-function drawHighlightRing(
+/** A capsule (or circle if x1 === x2) outlining overlapping highlight markers to erase inner lines. */
+function drawHighlightCapsule(
   ctx: CanvasRenderingContext2D,
-  cx: number,
+  x1: number,
+  x2: number,
   cy: number,
   r: number,
   color: string
 ) {
+  const prevGCO = ctx.globalCompositeOperation
+
+  // White halo (drawn behind the gaze bands so they erase the inner halo part)
+  ctx.globalCompositeOperation = 'destination-over'
   ctx.beginPath()
-  ctx.arc(cx, cy, r, 0, Math.PI * 2)
+  if (x1 === x2) {
+    ctx.arc(x1, cy, r, 0, Math.PI * 2)
+  } else {
+    ctx.arc(x1, cy, r, Math.PI * 0.5, Math.PI * 1.5)
+    ctx.lineTo(x2, cy - r)
+    ctx.arc(x2, cy, r, Math.PI * 1.5, Math.PI * 2.5)
+    ctx.closePath()
+  }
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'
   ctx.lineWidth = SCARF_LAYOUT.HIGHLIGHT_MARKER_RING_WIDTH + 2
   ctx.stroke()
 
+  // Color stroke (drawn on top)
+  ctx.globalCompositeOperation = 'source-over'
   ctx.beginPath()
-  ctx.arc(cx, cy, r, 0, Math.PI * 2)
+  if (x1 === x2) {
+    ctx.arc(x1, cy, r, 0, Math.PI * 2)
+  } else {
+    ctx.arc(x1, cy, r, Math.PI * 0.5, Math.PI * 1.5)
+    ctx.lineTo(x2, cy - r)
+    ctx.arc(x2, cy, r, Math.PI * 1.5, Math.PI * 2.5)
+    ctx.closePath()
+  }
   ctx.strokeStyle = color
   ctx.lineWidth = SCARF_LAYOUT.HIGHLIGHT_MARKER_RING_WIDTH
   ctx.stroke()
+
+  ctx.globalCompositeOperation = prevGCO
 }
 
 function calculateTickStep(len: number): number {
