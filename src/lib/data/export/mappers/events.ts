@@ -119,7 +119,9 @@ function convertEventData(
     const channels = resolveEventChannels(data, stimulusIndex, displayed)
     if (channels.length === 0) continue
 
-    const stimulusName = data.stimuli.data[stimulusIndex][0]
+    const stimulusName = displayed
+      ? (data.stimuli.data[stimulusIndex][1] ?? data.stimuli.data[stimulusIndex][0])
+      : data.stimuli.data[stimulusIndex][0]
 
     for (
       let participantIndex = 0;
@@ -152,7 +154,9 @@ function convertEventData(
         (a, b) => a.start - b.start || a.event.localeCompare(b.event)
       )
 
-      const participantName = data.participants.data[participantIndex][0]
+      const participantName = displayed
+        ? (data.participants.data[participantIndex][1] ?? data.participants.data[participantIndex][0])
+        : data.participants.data[participantIndex][0]
       for (const occurrence of occurrences) {
         result.push({
           stimulus: stimulusName,

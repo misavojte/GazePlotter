@@ -73,7 +73,9 @@ function convertDataStructure(
     stimulusIndex < data.segments.stimuliCount;
     stimulusIndex++
   ) {
-    const stimulusName = data.stimuli.data[stimulusIndex][0]
+    const stimulusName = displayed
+      ? (data.stimuli.data[stimulusIndex][1] ?? data.stimuli.data[stimulusIndex][0])
+      : data.stimuli.data[stimulusIndex][0]
     const stimulusId = stimulusIndex.toString() // id is index
 
     if (stimulusIds && !stimulusIds.has(stimulusId)) continue
@@ -121,7 +123,9 @@ function convertDataStructure(
 
         result.push({
           stimulus: stimulusName,
-          participant: data.participants.data[participantIndex][0],
+          participant: displayed
+            ? (data.participants.data[participantIndex][1] ?? data.participants.data[participantIndex][0])
+            : data.participants.data[participantIndex][0],
           timestamp: String(start),
           duration: String(end - start),
           eyemovementtype: categoryName(category),

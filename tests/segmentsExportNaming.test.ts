@@ -13,8 +13,8 @@ function createData(): DataType {
   return {
     isOrdinalOnly: false,
     capabilities: { segmented: true, spatial: false, event: false },
-    stimuli: { data: [['S1', 'S1']], orderVector: [0] },
-    participants: { data: [['P1', 'P1']], orderVector: [0] },
+    stimuli: { data: [['S1', 'StimulusOne']], orderVector: [0] },
+    participants: { data: [['P1', 'ParticipantOne']], orderVector: [0] },
     participantsGroups: [],
     metricInstances: [],
     categories: { data: [['Fixation', 'Gaze', '#000000']], orderVector: [0] },
@@ -36,12 +36,12 @@ function createData(): DataType {
 }
 
 describe('segment export naming', () => {
-  it('displayed (default): renamed category, grouped+deduped AOIs, hidden dropped', () => {
+  it('displayed (default): renamed category, grouped+deduped AOIs, hidden dropped, displayed stimulus/participant', () => {
     const lines = generateUnifiedCsv(createData()).split('\n')
-    expect(lines[1]).toBe('S1,P1,0,100,Gaze,Region')
+    expect(lines[1]).toBe('StimulusOne,ParticipantOne,0,100,Gaze,Region')
   })
 
-  it('raw: original category name, every AOI listed (incl. hidden), no grouping', () => {
+  it('raw: original category name, every AOI listed (incl. hidden), no grouping, raw stimulus/participant', () => {
     const lines = generateUnifiedCsv(
       createData(),
       undefined,

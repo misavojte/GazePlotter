@@ -22,11 +22,11 @@ function createEventData(): DataType {
   return {
     isOrdinalOnly: false,
     capabilities: { segmented: false, spatial: false, event: true },
-    stimuli: { data: [['S1', 'S1']], orderVector: [0] },
+    stimuli: { data: [['S1', 'StimulusOne']], orderVector: [0] },
     participants: {
       data: [
-        ['Alice', 'Alice'],
-        ['Bob', 'Bob'],
+        ['Alice', 'AliceDisplay'],
+        ['Bob', 'BobDisplay'],
       ],
       orderVector: [0, 1],
     },
@@ -60,18 +60,18 @@ function createEventData(): DataType {
 }
 
 describe('event export — displayed naming', () => {
-  it('groups channels by displayed name, includes intervals, drops hidden', () => {
+  it('groups channels by displayed name, includes intervals, drops hidden, uses displayed stimulus/participant', () => {
     const csv = generateEventUnifiedCsv(createEventData())
 
     expect(csv).toBe(
       [
         'stimulus,participant,eventName,start,duration',
-        'S1,Alice,Task,0,100',
-        'S1,Alice,Action,10,0',
-        'S1,Alice,Action,20,0',
-        'S1,Alice,Action,50,0',
-        'S1,Bob,Action,30,0',
-        'S1,Bob,Task,200,50',
+        'StimulusOne,AliceDisplay,Task,0,100',
+        'StimulusOne,AliceDisplay,Action,10,0',
+        'StimulusOne,AliceDisplay,Action,20,0',
+        'StimulusOne,AliceDisplay,Action,50,0',
+        'StimulusOne,BobDisplay,Action,30,0',
+        'StimulusOne,BobDisplay,Task,200,50',
       ].join('\n')
     )
   })
@@ -85,7 +85,7 @@ describe('event export — displayed naming', () => {
     const csv = generateEventUnifiedCsv(data, undefined, undefined, 'displayed')
     // ch0 ("Click") now stands alone with an empty label; its first occurrence
     // for Alice is at t=10. The empty event field is the on-screen result.
-    expect(csv).toContain('S1,Alice,,10,0')
+    expect(csv).toContain('StimulusOne,AliceDisplay,,10,0')
   })
 
   it('honours delimiter formatting', () => {
@@ -95,12 +95,12 @@ describe('event export — displayed naming', () => {
     expect(csv.split('\n')[0]).toBe(
       'stimulus;participant;eventName;start;duration'
     )
-    expect(csv.split('\n')[1]).toBe('S1;Alice;Task;0;100')
+    expect(csv.split('\n')[1]).toBe('StimulusOne;AliceDisplay;Task;0;100')
   })
 })
 
 describe('event export — raw naming', () => {
-  it('uses original names, keeps hidden, excludes derived interval channels', () => {
+  it('uses original names, keeps hidden, excludes derived interval channels, uses raw stimulus/participant', () => {
     const csv = generateEventUnifiedCsv(createEventData(), undefined, undefined, 'raw')
 
     expect(csv).toBe(
@@ -120,9 +120,9 @@ describe('event export — batch and selection', () => {
   it('emits one CSV per participant/stimulus', () => {
     const batch = generateEventBatchCsv(createEventData())
 
-    expect(batch.map(b => b.fileName)).toEqual(['S1_Alice', 'S1_Bob'])
+    expect(batch.map(b => b.fileName)).toEqual(['StimulusOne_AliceDisplay', 'StimulusOne_BobDisplay'])
 
-    const alice = batch.find(b => b.fileName === 'S1_Alice')!
+    const alice = batch.find(b => b.fileName === 'StimulusOne_AliceDisplay')!
     expect(alice.content).toBe(
       [
         'eventName,start,duration',
@@ -152,12 +152,12 @@ describe('event export — re-import round trip', () => {
     // Displayed export bakes in grouping/renames: Click+Tap -> "Action",
     // the interval channel -> "Task"; Blink (hidden) is dropped.
     expect(contributions).toEqual([
-      { stimulus: 'S1', participant: 'Alice', channel: 'Task', start: 0, duration: 100 },
-      { stimulus: 'S1', participant: 'Alice', channel: 'Action', start: 10, duration: 0 },
-      { stimulus: 'S1', participant: 'Alice', channel: 'Action', start: 20, duration: 0 },
-      { stimulus: 'S1', participant: 'Alice', channel: 'Action', start: 50, duration: 0 },
-      { stimulus: 'S1', participant: 'Bob', channel: 'Action', start: 30, duration: 0 },
-      { stimulus: 'S1', participant: 'Bob', channel: 'Task', start: 200, duration: 50 },
+      { stimulus: 'StimulusOne', participant: 'AliceDisplay', channel: 'Task', start: 0, duration: 100 },
+      { stimulus: 'StimulusOne', participant: 'AliceDisplay', channel: 'Action', start: 10, duration: 0 },
+      { stimulus: 'StimulusOne', participant: 'AliceDisplay', channel: 'Action', start: 20, duration: 0 },
+      { stimulus: 'StimulusOne', participant: 'AliceDisplay', channel: 'Action', start: 50, duration: 0 },
+      { stimulus: 'StimulusOne', participant: 'BobDisplay', channel: 'Action', start: 30, duration: 0 },
+      { stimulus: 'StimulusOne', participant: 'BobDisplay', channel: 'Task', start: 200, duration: 50 },
     ])
   })
 })
