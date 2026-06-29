@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte'
   import { getGazePlotterSession } from '$lib/session'
 
   import BarPlotFigure from './BarPlotFigure.svelte'
@@ -8,6 +7,7 @@
   import { getBarView } from '$lib/plots/bar/core/view'
   import { barPlotValueAxisSync } from '$lib/plots/bar/core/sync.svelte'
   import { createAdaptiveTimeline } from '$lib/plots/shared'
+  import { usePlotSync } from '$lib/plots/shared/PlotSyncRegistry.svelte'
 
   import type { BarPlotItem } from '$lib/plots/bar/types'
 
@@ -28,19 +28,19 @@
       (settings.scaleRange[0] !== 0 || settings.scaleRange[1] !== 0)
   )
 
-  $effect(() => {
-    if (hasCustomScale || view.syncKey === null) {
-      barPlotValueAxisSync.clearEntry(item.id)
-      return
+  usePlotSync(
+    barPlotValueAxisSync,
+    () => item.id,
+    () => {
+      if (hasCustomScale || view.syncKey === null) return null
+      return {
+        metricInstanceId: view.syncKey,
+        w: item.w,
+        h: item.h,
+        dataMax: view.dataMax,
+      }
     }
-    barPlotValueAxisSync.setEntry(item.id, {
-      metricInstanceId: view.syncKey,
-      w: item.w,
-      h: item.h,
-      dataMax: view.dataMax,
-    })
-  })
-  onDestroy(() => barPlotValueAxisSync.clearEntry(item.id))
+  )
 
   const timeline = $derived.by(() => {
     const raw = view.props.timeline

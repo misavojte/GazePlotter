@@ -15,6 +15,7 @@
   import { tooltipScarfService, SCARF_LAYOUT } from '$lib/plots/scarf'
   import { getScarfData } from '$lib/plots/scarf/core/view'
   import { scarfTimelineSync } from '$lib/plots/scarf/core/sync.svelte'
+  import { usePlotSync } from '$lib/plots/shared/PlotSyncRegistry.svelte'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
   interface Props {
@@ -82,18 +83,18 @@
     return !globalSet && !perStimSet
   })
 
-  $effect(() => {
-    if (!isDefaultRange) {
-      scarfTimelineSync.clearEntry(item.id)
-      return
+  usePlotSync(
+    scarfTimelineSync,
+    () => item.id,
+    () => {
+      if (!isDefaultRange) return null
+      return {
+        timeline: effectiveSettings.timeline as 'absolute' | 'ordinal',
+        w: item.w,
+        dataMax: ownDataMax,
+      }
     }
-    scarfTimelineSync.setEntry(item.id, {
-      timeline: effectiveSettings.timeline as 'absolute' | 'ordinal',
-      w: item.w,
-      dataMax: ownDataMax,
-    })
-  })
-  onDestroy(() => scarfTimelineSync.clearEntry(item.id))
+  )
 
   const syncedSettings = $derived.by(() => {
     if (!isDefaultRange) return effectiveSettings

@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte'
   import { getGazePlotterSession } from '$lib/session'
 
   import TransitionMatrixPlotFigure from './TransitionMatrixPlotFigure.svelte'
@@ -7,6 +6,7 @@
 
   import { getTransitionView } from '$lib/plots/transition-matrix/core/view'
   import { transitionMatrixColorSync } from '$lib/plots/transition-matrix/core/sync.svelte'
+  import { usePlotSync } from '$lib/plots/shared/PlotSyncRegistry.svelte'
 
   import type { TransitionMatrixPlotItem } from '$lib/plots/transition-matrix/types'
 
@@ -21,20 +21,20 @@
   // (a synced colorValueRange) on top — export never syncs.
   const view = $derived(getTransitionView(engine, item.settings))
 
-  $effect(() => {
-    if (!view.isDefaultColorRange) {
-      transitionMatrixColorSync.clearEntry(item.id)
-      return
+  usePlotSync(
+    transitionMatrixColorSync,
+    () => item.id,
+    () => {
+      if (!view.isDefaultColorRange) return null
+      return {
+        groupKey: view.syncGroupKey,
+        colorScaleKey: view.colorScaleKey,
+        w: item.w,
+        h: item.h,
+        dataMax: view.ownDataMax,
+      }
     }
-    transitionMatrixColorSync.setEntry(item.id, {
-      groupKey: view.syncGroupKey,
-      colorScaleKey: view.colorScaleKey,
-      w: item.w,
-      h: item.h,
-      dataMax: view.ownDataMax,
-    })
-  })
-  onDestroy(() => transitionMatrixColorSync.clearEntry(item.id))
+  )
 
   const colorValueRange = $derived.by<[number, number]>(() => {
     if (!view.isDefaultColorRange) return view.currentStimulusColorRange
