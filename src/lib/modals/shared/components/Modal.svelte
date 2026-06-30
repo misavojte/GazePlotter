@@ -300,10 +300,9 @@
 
   .modal-stack-entry {
     display: none;
-  }
-
-  .modal-stack-entry.is-active {
-    display: block;
+    &.is-active {
+      display: block;
+    }
   }
 
   .modal {
@@ -313,7 +312,7 @@
     transform: translate(-50%, -50%);
     z-index: 1001;
     background-color: white;
-    border-radius: 20px;
+    border-radius: var(--rounded-lg);
     min-width: 420px;
     font-size: 14px;
     max-width: calc(100vw - 2rem);
@@ -352,10 +351,10 @@
     display: flex;
     justify-content: center;
     align-items: center;
-  }
 
-  button:hover {
-    background-color: var(--c-lightgrey);
+    &:hover {
+      background-color: var(--c-lightgrey);
+    }
   }
 
   .modal-header {

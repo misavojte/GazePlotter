@@ -241,11 +241,11 @@
 
   .preview-wrapper {
     position: relative;
-    border: 1px solid #ddd;
+    border: 1px solid var(--c-border);
     overflow: auto;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--shadow);
     margin: 0.5rem 0;
-    background-color: #f9f9f9;
+    background-color: var(--c-darkwhite);
     min-height: 200px;
     padding: 2rem;
     background-image:

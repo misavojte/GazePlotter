@@ -150,7 +150,7 @@
   }
 
   input:disabled {
-    background-color: #f5f5f5;
+    background-color: var(--c-lightgrey);
     cursor: not-allowed;
     opacity: 0.7;
   }

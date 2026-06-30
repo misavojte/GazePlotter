@@ -383,7 +383,7 @@
     display: flex;
     flex-direction: column;
     min-height: var(--min-workspace-height);
-    background-color: #f1f5f9;
+    background-color: var(--c-lightgrey);
     border-top: 1px solid var(--c-border);
     border-bottom: 1px solid var(--c-border);
   }

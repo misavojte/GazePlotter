@@ -141,11 +141,12 @@
     transition: all var(--transition-normal) ease;
     text-align: left;
     outline: none;
-  }
-  .metric-select-row:hover {
-    border-color: var(--c-brand);
-    background: var(--c-white);
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+
+    &:hover {
+      border-color: var(--c-brand);
+      background: var(--c-white);
+      box-shadow: var(--shadow);
+    }
   }
 
   .metric-select-info {

@@ -49,15 +49,16 @@
     cursor: pointer;
     color: var(--c-darkgrey);
     padding: 2px;
-    border-radius: 4px;
+    border-radius: var(--rounded);
     display: flex;
     align-items: center;
     justify-content: center;
     line-height: 0;
     flex-shrink: 0;
-  }
-  .close:hover {
-    background: var(--c-lightgrey);
-    color: var(--c-text);
+
+    &:hover {
+      background: var(--c-lightgrey);
+      color: var(--c-text);
+    }
   }
 </style>

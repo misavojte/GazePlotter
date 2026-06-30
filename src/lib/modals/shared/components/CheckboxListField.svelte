@@ -134,7 +134,7 @@
     border: 1px solid var(--c-border);
     border-radius: var(--rounded-md);
     background-color: var(--c-white);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-sm);
     transition: border-color var(--transition-normal);
     overflow: hidden;
     flex: 1;

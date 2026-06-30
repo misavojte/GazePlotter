@@ -566,7 +566,7 @@
     border-radius: 50%;
     background: var(--c-white);
     border: 1.5px solid var(--c-info);
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+    box-shadow: var(--shadow-sm);
     box-sizing: border-box;
     z-index: 7;
     transition: background var(--transition-fast) ease;
@@ -668,6 +668,6 @@
   /* Tactile "press" feedback */
   .grid-item-scaler.is-pressed:not(.selected) .grid-item-frame {
     /* Add a subtle inner shadow to make it feel pushed 'in' */
-    box-shadow: inset 0 1px 4px rgba(15, 23, 42, 0.06);
+    box-shadow: inset 0 1px 4px color-mix(in srgb, var(--c-black) 6%, transparent);
   }
 </style>

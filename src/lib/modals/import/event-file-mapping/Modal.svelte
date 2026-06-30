@@ -136,14 +136,14 @@
     flex-direction: column;
     gap: 0.5rem;
     padding: 0.75rem 1rem;
-    background: #fafafa;
-    border: 1px solid #ddd;
-    border-radius: 4px;
+    background: var(--c-darkwhite);
+    border: 1px solid var(--c-border);
+    border-radius: var(--rounded);
     transition: opacity var(--transition-normal) ease;
-  }
 
-  .file-row.ignored {
-    opacity: 0.5;
+    &.ignored {
+      opacity: 0.5;
+    }
   }
 
   .file-name {

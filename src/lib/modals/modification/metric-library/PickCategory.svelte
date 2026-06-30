@@ -147,12 +147,13 @@
     transition: all var(--transition-normal) ease;
     text-align: left;
     outline: none;
-  }
-  .theme-card:hover {
-    border-color: var(--c-brand);
-    background: var(--c-white);
-    box-shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
-    transform: translateY(-1px);
+
+    &:hover {
+      border-color: var(--c-brand);
+      background: var(--c-white);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-1px);
+    }
   }
 
   .theme-card-icon {

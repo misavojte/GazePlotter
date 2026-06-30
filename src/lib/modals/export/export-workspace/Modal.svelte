@@ -204,24 +204,24 @@
     transition: all var(--transition-normal) ease;
     text-align: left;
     width: 100%;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  }
+    box-shadow: var(--shadow-sm);
 
-  .export-option-card:hover {
-    border-color: var(--c-brand);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    transform: translateY(-1px);
-  }
+    &:hover {
+      border-color: var(--c-brand);
+      box-shadow: var(--shadow);
+      transform: translateY(-1px);
+    }
 
-  .export-option-card:focus {
-    outline: none;
-    border-color: var(--c-brand);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-brand) 20%, transparent);
-  }
+    &:focus {
+      outline: none;
+      border-color: var(--c-brand);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-brand) 20%, transparent);
+    }
 
-  .export-option-card:active {
-    transform: translateY(0);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    &:active {
+      transform: translateY(0);
+      box-shadow: var(--shadow-sm);
+    }
   }
 
   .export-option-content {
