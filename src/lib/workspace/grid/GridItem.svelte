@@ -181,37 +181,20 @@
     },
   })
 
-  const resizeActionParamsTL = $derived({
-    enabled: resizable,
-    item,
-    min: minimumSize,
-    interaction,
-    onCommit: (rect: GridRect) => onresize(rect),
-    direction: 'tl' as const,
-  })
-  const resizeActionParamsTR = $derived({
-    enabled: resizable,
-    item,
-    min: minimumSize,
-    interaction,
-    onCommit: (rect: GridRect) => onresize(rect),
-    direction: 'tr' as const,
-  })
-  const resizeActionParamsBL = $derived({
-    enabled: resizable,
-    item,
-    min: minimumSize,
-    interaction,
-    onCommit: (rect: GridRect) => onresize(rect),
-    direction: 'bl' as const,
-  })
-  const resizeActionParamsBR = $derived({
-    enabled: resizable,
-    item,
-    min: minimumSize,
-    interaction,
-    onCommit: (rect: GridRect) => onresize(rect),
-    direction: 'br' as const,
+  const resizeParams = $derived.by(() => {
+    const base = {
+      enabled: resizable,
+      item,
+      min: minimumSize,
+      interaction,
+      onCommit: (rect: GridRect) => onresize(rect),
+    }
+    return {
+      tl: { ...base, direction: 'tl' as const },
+      tr: { ...base, direction: 'tr' as const },
+      bl: { ...base, direction: 'bl' as const },
+      br: { ...base, direction: 'br' as const },
+    }
   })
 </script>
 
@@ -296,10 +279,10 @@
       ></div>
     {/snippet}
 
-    {@render cornerHandle('top-left', resizeActionParamsTL)}
-    {@render cornerHandle('top-right', resizeActionParamsTR)}
-    {@render cornerHandle('bottom-left', resizeActionParamsBL)}
-    {@render cornerHandle('bottom-right', resizeActionParamsBR)}
+    {@render cornerHandle('top-left', resizeParams.tl)}
+    {@render cornerHandle('top-right', resizeParams.tr)}
+    {@render cornerHandle('bottom-left', resizeParams.bl)}
+    {@render cornerHandle('bottom-right', resizeParams.br)}
   {/if}
 
   {#if isSoleSelection && (isDraggableEnabled || removable)}
