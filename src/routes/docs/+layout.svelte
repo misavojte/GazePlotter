@@ -433,7 +433,7 @@
   :global(.prose-wrapper h1) {
     font-size: 2.5rem;
     font-weight: 800;
-    color: #0f172a;
+    color: var(--c-black);
     margin-bottom: 1.5rem;
     letter-spacing: -0.025em;
   }
