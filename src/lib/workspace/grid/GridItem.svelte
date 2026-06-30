@@ -287,30 +287,19 @@
          positioning isn't clipped. All four corners are wired to the
          resize action, each with its own direction (tl/tr/bl/br). Each
          carries data-block-select so its clicks don't toggle selection. -->
-    <div
-      class="corner-handle top-left"
-      data-block-select
-      use:resizeHandleAction={resizeActionParamsTL}
-      aria-hidden="true"
-    ></div>
-    <div
-      class="corner-handle top-right"
-      data-block-select
-      use:resizeHandleAction={resizeActionParamsTR}
-      aria-hidden="true"
-    ></div>
-    <div
-      class="corner-handle bottom-left"
-      data-block-select
-      use:resizeHandleAction={resizeActionParamsBL}
-      aria-hidden="true"
-    ></div>
-    <div
-      class="corner-handle bottom-right"
-      data-block-select
-      use:resizeHandleAction={resizeActionParamsBR}
-      aria-hidden="true"
-    ></div>
+    {#snippet cornerHandle(direction: string, params: any)}
+      <div
+        class="corner-handle {direction}"
+        data-block-select
+        use:resizeHandleAction={params}
+        aria-hidden="true"
+      ></div>
+    {/snippet}
+
+    {@render cornerHandle('top-left', resizeActionParamsTL)}
+    {@render cornerHandle('top-right', resizeActionParamsTR)}
+    {@render cornerHandle('bottom-left', resizeActionParamsBL)}
+    {@render cornerHandle('bottom-right', resizeActionParamsBR)}
   {/if}
 
   {#if isSoleSelection && (isDraggableEnabled || removable)}
