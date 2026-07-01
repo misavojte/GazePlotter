@@ -1,6 +1,9 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotView, PlotViewContext } from '$lib/plots/definePlot'
 import { getParticipants, getParticipantEndTime } from '$lib/data/engine'
+import { resolveColumnBudget } from '$lib/plots/shared/displayBudget'
+import { calculatePlotWidthPx } from '$lib/plots/shared/plotSizeUtility'
+import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid/const'
 import AoiStreamPlotFigure from '../components/AoiStreamPlotFigure.svelte'
 import { getAoiStreamPlotData } from '.'
 import { scanForSynchronizedTimelineMax } from '../sync'
@@ -41,15 +44,6 @@ function resolveTimeline(
   return { min, max }
 }
 
-/**
- * Approximate on-screen pixels per grid unit, used to size the display budget
- * (windows worth evaluating). Matches `DEFAULT_GRID_CONFIG` (cell 40 + gap 10);
- * `ctx.itemWidth` is in grid units. A window finer than a pixel can't be shown,
- * so this caps how many windows are computed. It errs slightly high (no margin
- * subtraction) to avoid ever under-sampling visible detail.
- */
-const PX_PER_GRID_UNIT = 50
-
 /** Shared data derivation (cross-plot-sync aware via `ctx`). */
 export function computeAoiStreamData(
   engine: DataEngine,
@@ -57,15 +51,15 @@ export function computeAoiStreamData(
   ctx?: PlotViewContext
 ): AoiStreamPlotResult {
   const { min, max } = resolveTimeline(engine, settings, ctx)
-  const maxColumns =
+  const plotWidthPx =
     ctx && ctx.itemWidth > 0
-      ? Math.min(2048, Math.max(256, Math.round(ctx.itemWidth * PX_PER_GRID_UNIT)))
+      ? calculatePlotWidthPx(ctx.itemWidth, DEFAULT_GRID_CONFIG)
       : undefined
   return getAoiStreamPlotData(engine, {
     ...settings,
     timelineMin: min,
     timelineMax: max,
-    ...(maxColumns !== undefined ? { maxColumns } : {}),
+    maxColumns: resolveColumnBudget(plotWidthPx),
   })
 }
 

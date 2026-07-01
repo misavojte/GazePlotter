@@ -6,6 +6,7 @@ import {
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
 import { buildMetricLabel } from '$lib/plots/shared/labels'
+import { resolveDisplayStride, DEFAULT_MAX_COLUMNS } from '$lib/plots/shared/displayBudget'
 import {
   asAoiVectorTimeseries,
   resolveMetric,
@@ -23,14 +24,6 @@ import type { AoiStreamPlotSettings } from '../types'
 import { COLOR_FALLBACKS } from '$lib/color'
 
 const CONTRACT = { outputShape: 'aoi-vector', windowing: 'required', crossParticipant: 'reduce' } as const satisfies PlotMetricContract
-
-/**
- * Upper bound on windows evaluated when no display budget is supplied (export /
- * headless). A stream can't show more bins than pixels; a fine step over a long
- * recording would otherwise produce millions of windows. The interactive view
- * passes a tighter budget derived from the plot's on-screen width.
- */
-const DEFAULT_MAX_COLUMNS = 4096
 
 /**
  * Empty result shell. Used for both "no metric configured" and "no data"
@@ -119,14 +112,17 @@ export function getAoiStreamPlotData(
   const timeEnd = Math.max(timelineMin + windowSize, timelineMax)
 
   // Honor windowSize + stepSize, but never compute more windows than the display
-  // can show. `fullW` is the configured-step window count; `stride` is how many
-  // configured windows fall between drawn columns, so `displayStep = stride ×
-  // stepSize` and every drawn window is a real configured-step window
-  // (`timeStart + i × displayStep` = configured position at step-index `i × stride`).
-  const maxColumns = Math.max(1, Math.floor(settings.maxColumns ?? DEFAULT_MAX_COLUMNS))
+  // can show. `fullW` is the configured-step window count; the shared budget
+  // returns how many configured windows fall between drawn columns (`stride`) and
+  // the resulting `displayStep = stride × stepSize` — every drawn window is a real
+  // configured-step window (`timeStart + i × displayStep` = configured position at
+  // step-index `i × stride`).
   const fullW = Math.max(1, Math.floor((timeEnd - timeStart - windowSize) / stepSize) + 1)
-  const stride = Math.max(1, Math.ceil(fullW / maxColumns))
-  const displayStep = stride * stepSize
+  const { stride, displayStep } = resolveDisplayStride(
+    fullW,
+    stepSize,
+    settings.maxColumns ?? DEFAULT_MAX_COLUMNS
+  )
 
   const groupScope: GroupScope = {
     engine,

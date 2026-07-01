@@ -33,6 +33,7 @@
   import { METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
   import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
   import { MARGIN, AXIS_CONFIG } from '../const'
+  import { rasterizeOverlayDensity, packOverlayDensity } from '../core/overlayDensity'
   import type { EvolvingMetricsResult, EvolvingMetricsWindow } from '../types'
 
   const COMPACT_LEFT_MARGIN = 55
@@ -40,7 +41,18 @@
   const OVERLAY_SUMMARY_COLOR = `rgb(${OVERLAY_SUMMARY_RGB})`
   const OVERLAY_BAND_ALPHA = 0.12
   const OVERLAY_MEAN_LINE_WIDTH = 1.5
-  const OVERLAY_INDIVIDUAL_RGB = '210, 210, 210'
+  const OVERLAY_INDIVIDUAL_RGB: readonly [number, number, number] = [210, 210, 210]
+
+  // Reused, non-reactive buffers for the overlay individual-line density render
+  // (see renderOverlayLines). Kept per-instance; reallocated only when the
+  // plot-area pixel size changes.
+  let densCounts: Int32Array | null = null
+  let densStamp: Int32Array | null = null
+  let densCanvas: OffscreenCanvas | HTMLCanvasElement | null = null
+  let densCtx: OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D | null = null
+  let densImg: ImageData | null = null
+  let densW = 0
+  let densH = 0
 
   interface Props extends CanvasExportProps {
     data: EvolvingMetricsResult
@@ -583,26 +595,13 @@
     if (!overlayAggregates) return
     const { meanValues, p25Values, p75Values, sampleCount } = overlayAggregates
     const axisMax = yAxisMax
-    const timelineMin = data.timeline.minValue
-    const duration = Math.max(1, data.timeline.maxValue - timelineMin)
-    const invMsPerPx = floorWidth / duration
-
     const valueToY = (v: number) => floorBottom - (v / axisMax) * floorHeight
-    const msToX = (ms: number) => floorLeft + (ms - timelineMin) * invMsPerPx
     const sampleToX = (i: number) => floorLeft + ((i + 0.5) / sampleCount) * floorWidth
 
-    const alpha = Math.max(0.04, Math.min(0.5, 2 / Math.sqrt(participantCount)))
-    ctx.lineWidth = participantCount > 30 ? 0.5 : 1
-    // Draw every participant's faint line here (hover-independent) so the data
-    // layer caches cleanly; the hovered participant's emphasised line is painted
-    // on top in drawEvolvingOverlay.
-    for (let p = 0; p < participantCount; p++) {
-      const wins = data.participants[p].windows
-      if (wins.length === 0) continue
-      ctx.strokeStyle = `rgba(${OVERLAY_INDIVIDUAL_RGB}, ${alpha})`
-      drawStepLinePath(ctx, wins, msToX, valueToY)
-      ctx.stroke()
-    }
+    // Every participant's faint line, drawn once as a density field on this cached
+    // data layer (the hovered participant's emphasised line is painted on top in
+    // drawEvolvingOverlay). See renderOverlayLines.
+    renderOverlayLines(ctx, floorLeft, floorTop, floorWidth, floorHeight, participantCount)
 
     ctx.fillStyle = `rgba(${OVERLAY_SUMMARY_RGB}, ${OVERLAY_BAND_ALPHA})`
     let segStart = -1
@@ -639,6 +638,71 @@
 
     // Hover highlight (window/step bands, cursor line, emphasised participant
     // line) is drawn in drawEvolvingOverlay on the overlay layer.
+  }
+
+  // Draw every participant's faint step line as a DENSITY field rather than P
+  // separate translucent strokes (which cost P full-plot composite passes). We
+  // count how many lines cross each logical pixel and map that to the exact alpha
+  // those strokes would accumulate (1 − (1 − a)ⁿ, in overlayDensity), then blit
+  // once — identical look, composite cost independent of participant count. The
+  // offscreen is at logical resolution and drawn under the dpr-scaled context with
+  // smoothing off, matching the scarf composite-layer blit.
+  function renderOverlayLines(
+    ctx: CanvasRenderingContext2D,
+    floorLeft: number,
+    floorTop: number,
+    floorWidth: number,
+    floorHeight: number,
+    participantCount: number
+  ) {
+    const W = floorWidth
+    const H = floorHeight
+    if (W <= 0 || H <= 0 || participantCount === 0) return
+    const cellCount = W * H
+
+    if (!densCounts || densW !== W || densH !== H) {
+      if (typeof OffscreenCanvas !== 'undefined') {
+        densCanvas = new OffscreenCanvas(W, H)
+      } else if (typeof document !== 'undefined') {
+        densCanvas = Object.assign(document.createElement('canvas'), { width: W, height: H })
+      } else {
+        return // canvas-less environment (tests): nothing to render
+      }
+      densCtx = densCanvas.getContext('2d') as
+        | OffscreenCanvasRenderingContext2D
+        | CanvasRenderingContext2D
+        | null
+      densImg = densCtx ? densCtx.createImageData(W, H) : null
+      densCounts = new Int32Array(cellCount)
+      densStamp = new Int32Array(cellCount)
+      densW = W
+      densH = H
+    }
+    if (!densCtx || !densImg || !densCounts || !densStamp) return
+
+    const timelineMin = data.timeline.minValue
+    const duration = Math.max(1, data.timeline.maxValue - timelineMin)
+    const maxCount = rasterizeOverlayDensity(
+      data.participants,
+      { width: W, height: H, timelineMin, duration, axisMax: yAxisMax },
+      densCounts,
+      densStamp
+    )
+    if (maxCount === 0) return
+
+    const alpha = Math.max(0.04, Math.min(0.5, 2 / Math.sqrt(participantCount)))
+    packOverlayDensity(
+      densCounts,
+      maxCount,
+      alpha,
+      OVERLAY_INDIVIDUAL_RGB,
+      new Uint32Array(densImg.data.buffer)
+    )
+    densCtx.putImageData(densImg, 0, 0)
+    const prevSmoothing = ctx.imageSmoothingEnabled
+    ctx.imageSmoothingEnabled = false
+    ctx.drawImage(densCanvas as CanvasImageSource, floorLeft, floorTop)
+    ctx.imageSmoothingEnabled = prevSmoothing
   }
 
   function drawStepLinePath(
