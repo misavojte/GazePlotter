@@ -171,32 +171,3 @@ export const getSegment = (
   }
 }
 
-/**
- * Returns the list of logical (mapped) AOI IDs for a segment.
- * Legacy compatibility helper moved from AoiGroupReader.
- */
-const getSegmentAoiIds = (
-  engine: DataEngine,
-  stimulusId: number,
-  participantId: number,
-  segmentId: number
-): number[] => {
-  const aoiGroupReader = engine.getAoiGroupReader()
-  if (!aoiGroupReader) return []
-
-  const reader = engine.getReader()
-  if (!reader) return []
-
-  const range = reader.getSegmentRange(stimulusId, participantId)
-  const absoluteIndex = range.startIndex + segmentId
-
-  // Allocation is acceptable here as this is for export mappers/legacy paths.
-  // We use a safe buffer size.
-  const buffer = new Uint32Array(32)
-  const len = aoiGroupReader.getSegmentAoisIntoUniqueTyped(
-    absoluteIndex,
-    stimulusId,
-    buffer
-  )
-  return Array.from(buffer.subarray(0, len))
-}

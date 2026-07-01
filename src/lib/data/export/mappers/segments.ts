@@ -94,7 +94,7 @@ function convertDataStructure(
 
         let aoiNames: string[] | null
         if (aoiGroupReader && aoiBuffer) {
-          const aoiCount = aoiGroupReader.getSegmentAoisIntoUniqueTyped(
+          const aoiCount = aoiGroupReader.getSegmentAoisUniqueDirect(
             segmentIndex,
             stimulusIndex,
             aoiBuffer

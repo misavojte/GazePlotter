@@ -24,7 +24,7 @@ export async function generateScanGraph(
     result += participantName + '\t'
 
     reader.forEachSegment(stimulusId, i, (segmentIndex: number) => {
-      const aoiCount = aoiGroupReader.getSegmentAoisIntoUniqueTyped(
+      const aoiCount = aoiGroupReader.getSegmentAoisUniqueDirect(
         segmentIndex,
         stimulusId,
         aoiBuffer

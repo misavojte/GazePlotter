@@ -53,7 +53,7 @@ export function collectScanpath(
     if (segStart < timeStart) continue
     if (hasUpperBound && segStart >= timeEnd) break
 
-    const aoiCount = aoiGroupReader.getSegmentAoisIntoUniqueTyped(
+    const aoiCount = aoiGroupReader.getSegmentAoisUniqueDirect(
       segIdx,
       stimulusId,
       aoiBuffer
