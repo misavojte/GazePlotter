@@ -68,19 +68,19 @@
 
   .prev-next-link:hover {
     border-color: var(--c-brand);
-    background-color: #fef2f2;
+    background-color: color-mix(in srgb, var(--c-brand) 4%, var(--c-white));
   }
 
   .prev-next-label {
     font-size: 0.8rem;
-    color: #94a3b8;
+    color: var(--c-darkgrey);
     font-weight: 500;
   }
 
   .prev-next-title {
     font-size: 0.9375rem;
     font-weight: 600;
-    color: #334155;
+    color: var(--c-text);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

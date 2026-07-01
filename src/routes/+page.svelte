@@ -131,6 +131,7 @@
     margin: 0;
     font-weight: bold;
     line-height: 1.15;
+    letter-spacing: -0.025em;
   }
   .red {
     color: var(--c-brand) !important;

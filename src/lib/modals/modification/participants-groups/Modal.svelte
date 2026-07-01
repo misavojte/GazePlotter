@@ -438,7 +438,7 @@
     border-radius: var(--rounded-md);
     overflow: hidden;
     width: 100%;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    box-shadow: var(--shadow-sm);
   }
 
   .accordion-header {
@@ -449,10 +449,10 @@
     align-items: center;
     user-select: none;
     gap: 0.5rem;
-  }
 
-  .accordion-header.active {
-    background-color: color-mix(in srgb, var(--c-brand) 5%, transparent);
+    &.active {
+      background-color: color-mix(in srgb, var(--c-brand) 5%, transparent);
+    }
   }
 
   .accordion-header.confirm {

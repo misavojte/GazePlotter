@@ -159,8 +159,8 @@
   .gradient-bar {
     width: 100%;
     height: 100%;
-    border-radius: 8px;
-    border: 1px solid #ddd;
+    border-radius: var(--rounded-md);
+    border: 1px solid var(--c-border);
     display: flex;
     align-items: center;
     position: relative;
@@ -170,22 +170,23 @@
     height: 12px;
     border-radius: 50%;
     border: 2px solid white;
-    box-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-sm);
     position: absolute;
     cursor: pointer;
     padding: 0;
     top: 50%;
     transform: translateY(-50%);
     box-sizing: border-box;
-  }
-  .color-dot.min {
-    left: -6px;
-  }
-  .color-dot.middle {
-    left: calc(50% - 6px);
-  }
-  .color-dot.max {
-    right: -6px;
+
+    &.min {
+      left: -6px;
+    }
+    &.middle {
+      left: calc(50% - 6px);
+    }
+    &.max {
+      right: -6px;
+    }
   }
   .presets {
     display: flex;
@@ -196,22 +197,23 @@
   .preset-btn {
     width: 18px;
     height: 18px;
-    border-radius: 4px;
-    border: 1px solid #ddd;
+    border-radius: var(--rounded);
+    border: 1px solid var(--c-border);
     cursor: pointer;
     padding: 0;
     transition: transform var(--transition-fast);
-  }
-  .preset-btn:hover {
-    transform: scale(1.1);
-    border-color: #999;
+
+    &:hover {
+      transform: scale(1.1);
+      border-color: var(--c-darkgrey);
+    }
   }
   .color-popup {
     position: fixed;
     padding: 10px;
     background-color: white;
     border-radius: var(--rounded);
-    box-shadow: 0 3px 15px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-lg);
     z-index: 9999;
     width: 210px;
   }
@@ -222,12 +224,13 @@
     font-weight: 500;
     padding: 4px;
     cursor: pointer;
-    background: #f3f4f6;
-    border: 1px solid #d1d5db;
-    border-radius: 3px;
-    color: #374151;
-  }
-  .auto-btn:hover {
-    background: #e5e7eb;
+    background: var(--c-lightgrey);
+    border: 1px solid var(--c-midgrey);
+    border-radius: var(--rounded);
+    color: var(--c-text);
+
+    &:hover {
+      background: var(--c-grey);
+    }
   }
 </style>

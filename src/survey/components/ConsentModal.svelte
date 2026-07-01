@@ -231,8 +231,8 @@
 
 <style>
   .session-info {
-    background: #e8f4f8;
-    border: 1px solid #b3d9e6;
+    background: color-mix(in srgb, var(--c-info) 8%, var(--c-white));
+    border: 1px solid color-mix(in srgb, var(--c-info) 25%, var(--c-white));
     border-radius: var(--rounded-md);
     padding: 0.75rem;
     margin-top: 1rem;
@@ -242,11 +242,11 @@
   .session-id {
     font-family: 'Courier New', monospace;
     font-size: 0.9rem;
-    background: #fff;
+    background: var(--c-white);
     padding: 0.25rem 0.5rem;
-    border-radius: 4px;
+    border-radius: var(--rounded);
     display: inline-block;
-    color: #0277bd;
+    color: var(--c-info);
     font-weight: 600;
     letter-spacing: 0.05em;
   }

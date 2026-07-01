@@ -67,7 +67,7 @@
     font-size: 11px;
     background: var(--c-darkgrey); /* Modern Slate palette */
     color: var(--c-white);
-    border-radius: 4px;
+    border-radius: var(--rounded);
     z-index: 10000;
     pointer-events: none;
     box-shadow: var(--shadow-md);

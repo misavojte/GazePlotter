@@ -39,10 +39,7 @@
     id,
   }: Props = $props()
 
-  // Initial only; the $effect below keeps it in sync with `value`/`mixed`.
-  let inputValue = $state(
-    untrack(() => (mixed ? '' : formatInputNumberValue(value)))
-  )
+  let inputValue = $state('')
   let isFocused = $state(false)
 
   function commitValue(nextValue: number | undefined) {
@@ -62,20 +59,12 @@
 
   function handleFocus() {
     isFocused = true
+    inputValue = mixed ? '' : formatInputNumberValue(value)
   }
 
   function handleBlur() {
     isFocused = false
-    inputValue = mixed ? '' : formatInputNumberValue(value)
   }
-
-  $effect(() => {
-    const nextValue = mixed ? '' : formatInputNumberValue(value)
-
-    if (!isFocused && inputValue !== nextValue) {
-      inputValue = nextValue
-    }
-  })
 
   const isCompact = $derived(appearance === 'compact')
   const isSelectMatched = $derived(appearance === 'selectMatched')
@@ -103,7 +92,7 @@
     oninput={handleInput}
     onfocus={handleFocus}
     onblur={handleBlur}
-    value={inputValue}
+    value={isFocused ? inputValue : (mixed ? '' : formatInputNumberValue(value))}
   />
 </InputScaffold>
 
@@ -150,7 +139,7 @@
   }
 
   input:disabled {
-    background-color: #f5f5f5;
+    background-color: var(--c-lightgrey);
     cursor: not-allowed;
     opacity: 0.7;
   }

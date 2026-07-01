@@ -34,7 +34,7 @@
     transition: background var(--transition-fast), color var(--transition-fast);
   }
   .pane-edit-link:hover {
-    background: #cfd8e3;
+    background: var(--c-midgrey);
     color: var(--c-brand);
   }
   .pane-edit-link:focus-visible {
