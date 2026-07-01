@@ -19,7 +19,6 @@ export interface ToastLink {
  */
 export interface ToastFillingType {
   id: number
-  title: string
   message: string
   type: 'success' | 'error' | 'warning' | 'info'
   duration: number | null

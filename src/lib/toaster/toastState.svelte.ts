@@ -41,7 +41,6 @@ export class ToastState {
     pruneExpiredToastTimes(this.recentToastTimes, now)
     const dedupeKey = [
       normalizedToast.type,
-      normalizedToast.title,
       normalizedToast.message,
     ].join(':')
     const lastShownAt = this.recentToastTimes.get(dedupeKey)
@@ -67,7 +66,6 @@ export class ToastState {
   addError(message: string): void {
     this.add({
       id: generateUniqueId(),
-      title: 'Error',
       message,
       type: 'error',
       duration: 8000,
@@ -77,7 +75,6 @@ export class ToastState {
   addSuccess(message: string): void {
     this.add({
       id: generateUniqueId(),
-      title: 'Success',
       message,
       type: 'success',
       duration: 4000,
@@ -87,7 +84,6 @@ export class ToastState {
   addWarning(message: string): void {
     this.add({
       id: generateUniqueId(),
-      title: 'Warning',
       message,
       type: 'warning',
       duration: 12000,
@@ -97,7 +93,6 @@ export class ToastState {
   addInfo(message: string): void {
     this.add({
       id: generateUniqueId(),
-      title: 'Info',
       message,
       type: 'info',
       duration: 8000,

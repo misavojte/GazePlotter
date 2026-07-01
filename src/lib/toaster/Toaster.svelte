@@ -55,37 +55,16 @@
 </script>
 
 <div class="toaster">
-  {#each toastState.current as { id, type, title, message, link } (id)}
+  {#each toastState.current as { id, type, message, link, duration } (id)}
     <div
-      class="toast"
+      class="toast toast-{type}"
       animate:flip={{ duration: 500 }}
       in:fly={{ duration: 300, x: 20 }}
       out:fly={{ duration: 300, x: 20 }}
     >
-      <div class="toast-header">
-        <div class="title">
-          <strong>{title}</strong>
-          {#if type === 'success'}
-            <span class="circle success"></span>
-          {:else if type === 'error'}
-            <span class="circle error"></span>
-          {:else if type === 'warning'}
-            <span class="circle warning"></span>
-          {:else if type === 'info'}
-            <span class="circle info"></span>
-          {/if}
-        </div>
-        <button
-          type="button"
-          class="close"
-          aria-label="Close"
-          onclick={() => handleManualClose(id)}
-        >
-          <X size={14} />
-        </button>
-      </div>
-      <div class="toast-body">
-        {message}
+      <!-- Column 1: Content -->
+      <div class="toast-content-col">
+        <div class="toast-message">{message}</div>
         {#if link}
           <a
             class="toast-link"
@@ -97,6 +76,21 @@
           </a>
         {/if}
       </div>
+
+      <!-- Column 2: Actions -->
+      <div class="toast-action-col">
+        <button
+          type="button"
+          class="close-btn"
+          aria-label="Close"
+          onclick={() => handleManualClose(id)}
+        >
+          {#if duration}
+            <span class="progress-fill" style="animation-duration: {duration}ms"></span>
+          {/if}
+          <X size={12} />
+        </button>
+      </div>
     </div>
   {/each}
 </div>
@@ -107,93 +101,136 @@
     bottom: 20px;
     right: 20px;
     z-index: 9999;
-    width: 250px;
+    width: 280px;
     pointer-events: none;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
   }
   .toast {
     pointer-events: auto;
     border-radius: var(--rounded-md);
-    background: var(--c-white);
-    box-shadow: 0 4px 12px color-mix(in srgb, var(--c-black) 15%, transparent);
-    color: var(--c-black);
+    box-shadow: var(--shadow-lg);
+    color: var(--c-white);
     margin-bottom: 10px;
-    width: 220px;
+    width: 280px;
     font-size: 14px;
-    padding: 10px 15px;
+    padding: 12px 16px;
     border: 1px solid var(--c-border);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--spacing-sm);
+    align-items: start;
+    box-sizing: border-box;
   }
 
-  .circle {
-    width: 7px;
-    height: 7px;
-    border-radius: 50%;
-    display: inline-block;
-    margin-left: 10px;
+  .toast-success {
+    background-color: color-mix(in srgb, var(--c-success) 85%, var(--c-black));
+    border-color: color-mix(in srgb, var(--c-success) 40%, transparent);
   }
 
-  .success {
-    background: var(--c-success);
+  .toast-error {
+    background-color: color-mix(in srgb, var(--c-error) 85%, var(--c-black));
+    border-color: color-mix(in srgb, var(--c-error) 40%, transparent);
   }
 
-  .error {
-    background: var(--c-error);
+  .toast-warning {
+    background-color: color-mix(in srgb, var(--c-warning) 80%, var(--c-black));
+    border-color: color-mix(in srgb, var(--c-warning) 40%, transparent);
   }
 
-  .warning {
-    background: var(--c-warning);
+  .toast-info {
+    background-color: color-mix(in srgb, var(--c-info) 85%, var(--c-black));
+    border-color: color-mix(in srgb, var(--c-info) 40%, transparent);
   }
 
-  .info {
-    background: var(--c-info);
-  }
-
-  .toast-header {
+  .toast-content-col {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 5px;
+    flex-direction: column;
+    gap: var(--spacing-xxs);
+    min-width: 0;
   }
 
-  button.close {
-    border: none;
+  .toast-message {
+    line-height: 1.4;
+    word-break: break-word;
+    color: var(--c-white);
+  }
+
+  .toast-action-col {
+    display: flex;
+    align-items: start;
+    flex-shrink: 0;
+    padding-top: 2px;
+  }
+
+  button.close-btn {
+    position: relative;
+    border: 1px solid color-mix(in srgb, var(--c-white) 15%, transparent);
     background-color: transparent;
-    font-size: 1.2rem;
     cursor: pointer;
     padding: 0;
-    margin-right: -5px;
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
     display: flex;
     justify-content: center;
     align-items: center;
-    color: var(--c-midgrey);
-    transition: color var(--transition-normal);
+    border-radius: 50%;
+    color: var(--c-white);
+    box-sizing: border-box;
+    transition: border-color var(--transition-normal), background-color var(--transition-normal);
+    overflow: hidden;
   }
-  button.close:hover {
-    color: var(--c-black);
+  button.close-btn:hover {
+    border-color: color-mix(in srgb, var(--c-white) 40%, transparent);
+    background-color: color-mix(in srgb, var(--c-white) 5%, transparent);
   }
 
-  .title {
-    display: flex;
-    align-items: center;
+  button.close-btn :global(svg) {
+    position: relative;
+    z-index: 2;
+  }
+
+  .progress-fill {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 0%;
+    background-color: color-mix(in srgb, var(--c-white) 18%, transparent);
+    animation: rise-fill linear forwards;
+    pointer-events: none;
+    z-index: 1;
+  }
+
+  @keyframes rise-fill {
+    from {
+      height: 0%;
+    }
+    to {
+      height: 100%;
+    }
   }
 
   .toast-link {
     display: inline-block;
     margin-top: 6px;
     font-weight: 600;
-    color: var(--c-brand);
-    text-decoration: none;
+    color: var(--c-white);
+    text-decoration: underline;
+    text-underline-offset: 3px;
   }
   .toast-link::after {
     content: "→";
-    margin-left: 6px;
+    margin-left: 4px;
     transition: transform var(--transition-fast) ease-in-out;
     display: inline-block;
   }
   .toast-link:hover,
   .toast-link:focus {
-    color: var(--c-brand-dark);
+    color: var(--c-white);
     text-decoration: underline;
   }
   .toast-link:hover::after,
