@@ -114,20 +114,6 @@ export interface ScarfParticipant {
 }
 
 // ============================================================================
-// Stimulus Types
-// ============================================================================
-
-/**
- * Object representing a single stimulus in the scarf plot selection box of stimuli.
- * @property id - ID of the stimulus
- * @property name - displayed name of the stimulus
- */
-export interface ScarfStimulus {
-  id: number
-  name: string
-}
-
-// ============================================================================
 // Main Scarf Data Type
 // ============================================================================
 
@@ -145,14 +131,12 @@ export interface ScarfStimulus {
  * @property stylingAndLegend - ScarfStyling object containing styling info for rendering segments
  * @property legendData - Group-aware legend data for viewport-driven legend rendering
  * @property participants - array of ScarfParticipant objects containing information about participants
- * @property stimuli - array of ScarfStimulus objects containing information about stimuli (for stimuli selection)
  * @property visualRectBuckets - Precomputed visual buffers for rectangle rendering
  * @property visualEventBuckets - Precomputed visual buffers for visibility event markers
  */
 export type ScarfData = {
   id: number
   stimulusId: number
-  stimuli: ScarfStimulus[]
   participants: ScarfParticipant[]
   timeline: AdaptiveTimeline
   /** Styling data for rendering segments */

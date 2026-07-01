@@ -4,6 +4,13 @@
  *
  *   SCARF_BENCH=1 npx vitest run tests/scarfThroughput.bench.test.ts
  *
+ * CAVEAT: under vitest (per-file transpile) this OVERSTATES the transform ~5x —
+ * cross-module `const enum`s (SegmentField.*) are module-proxy accesses here but
+ * are inlined to literals by the production esbuild BUNDLE. For production-faithful
+ * numbers, bundle a standalone entry with esbuild and run it under node (see the
+ * `reference_scarf_throughput_bench` note). This file is fine for RELATIVE A/B of
+ * changes that don't touch enum reads, and for the inspector profile / SINGLE modes.
+ *
  * Builds a large synthetic engine, then times a single cold-ish transform
  * (getScarfData → transformDataToScarfPlot) and a single render accumulate
  * (drawScarfBands → paintGazeRects; the composite blit no-ops in node, but the

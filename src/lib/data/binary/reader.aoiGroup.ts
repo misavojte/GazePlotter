@@ -236,6 +236,62 @@ export class AoiGroupReader {
   }
 
   /**
+   * Zero-CLOSURE variant of {@link getSegmentAoisIntoUniqueTyped} for hot loops
+   * (the scarf transform runs this per fixation, millions of times). Byte-identical
+   * result — same unique, non-hidden, deduplicated mapped ids written into `out`,
+   * same return count — but it inlines the dedup instead of allocating a fresh
+   * arrow per call, and takes a branchless single-AOI fast path (the dominant case).
+   */
+  getSegmentAoisUniqueDirect(
+    segmentIndex: number,
+    stimulusId: number,
+    out: Uint16Array | Uint32Array
+  ): number {
+    const base = segmentIndex * SEGMENT_STRIDE
+    const count = this.segmentBuffer[base + SegmentField.AOI_COUNT] | 0
+    if (count === 0) return 0
+
+    const ptr = this.indexTable[stimulusId * 2]
+    const mapLen = this.indexTable[stimulusId * 2 + 1]
+    const aoiPtr = this.segmentBuffer[base + SegmentField.AOI_POINTER] | 0
+
+    if (count === 1) {
+      const finalId = this.groupPool[ptr + this.aoiPool[aoiPtr]]
+      if (finalId === AoiGroupReader.HIDDEN_ID) return 0
+      out[0] = finalId
+      return 1
+    }
+
+    let outLen = 0
+    if (mapLen <= 31) {
+      let mask = 0
+      for (let i = 0; i < count; i++) {
+        const finalId = this.groupPool[ptr + this.aoiPool[aoiPtr + i]]
+        if (finalId === AoiGroupReader.HIDDEN_ID) continue
+        const bit = 1 << finalId
+        if ((mask & bit) !== 0) continue
+        mask |= bit
+        out[outLen++] = finalId
+      }
+    } else {
+      this.ensureSeenCapacity(mapLen)
+      this.stamp = (this.stamp + 1) >>> 0 || 1
+      const stamp = this.stamp
+      for (let i = 0; i < count; i++) {
+        const finalId = this.groupPool[ptr + this.aoiPool[aoiPtr + i]]
+        if (
+          finalId === AoiGroupReader.HIDDEN_ID ||
+          this.seenStamp[finalId] === stamp
+        )
+          continue
+        this.seenStamp[finalId] = stamp
+        out[outLen++] = finalId
+      }
+    }
+    return outLen
+  }
+
+  /**
    * Returns both the order of a specific AOI and the total unique count in a segment.
    * Zero-allocation API. Writes results into supplied 'out' object.
    */

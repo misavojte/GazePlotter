@@ -2,7 +2,7 @@ import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotView } from '$lib/plots/definePlot'
 import { getParticipants } from '$lib/data/engine'
 import ScarfPlotFigure from '../components/ScarfPlotFigure.svelte'
-import { transformDataToScarfPlot } from './transformer'
+import { transformDataToScarfPlot, type ScarfBufferPool } from './transformer'
 import type { ScarfData, ScarfPlotSettings } from '../types'
 
 const noop = () => {}
@@ -15,7 +15,10 @@ const noop = () => {}
  */
 export function getScarfData(
   engine: DataEngine,
-  settings: ScarfPlotSettings
+  settings: ScarfPlotSettings,
+  /** Per-instance grow-buffer reuse pool (on-screen container). Omit for one-off
+   *  callers (export) so their buffers are never aliased by a later re-derive. */
+  pool?: ScarfBufferPool
 ): ScarfData | null {
   const meta = engine.metadata
   if (!meta) return null
@@ -27,7 +30,8 @@ export function getScarfData(
     settings.stimulusId,
     participantIds,
     settings,
-    meta.noAoiTreatment
+    meta.noAoiTreatment,
+    pool
   )
 }
 

@@ -204,3 +204,46 @@ describe('AoiGroupReader Optimization Verification', () => {
     expect(out.count).toBe(1)
   })
 })
+
+describe('getSegmentAoisUniqueDirect (zero-closure fast path)', () => {
+  // The scarf transform hot loop swapped getSegmentAoisIntoUniqueTyped ->
+  // getSegmentAoisUniqueDirect. It MUST be byte-identical: same count, same set of
+  // unique non-hidden mapped ids, across count 0 / 1 / 1-hidden / multi / dup /
+  // all-hidden — including grouping (dup names collapse) and hidden filtering.
+  it('matches getSegmentAoisIntoUniqueTyped across all segment shapes', () => {
+    // AOI ids 0..3: id2 shares name 'A' with id0 (groups to id0); id3 is hidden.
+    const segments = [
+      [
+        [
+          [0, 100, 0], //            seg0: no AOI            -> {}
+          [0, 100, 0, 0], //         seg1: AOI0              -> {0}
+          [0, 100, 0, 3], //         seg2: AOI3 (hidden)     -> {}
+          [0, 100, 0, 0, 1, 2], //   seg3: 0,1,2 (2->A->0)   -> {0,1}
+          [0, 100, 0, 0, 0, 1], //   seg4: dup 0,0,1         -> {0,1}
+          [0, 100, 0, 3, 3], //      seg5: all hidden        -> {}
+        ],
+      ],
+    ]
+    const reader = createReaderFromJson(segments)
+    const groupReader = new AoiGroupReader(reader)
+    groupReader.updateMap({
+      aois: {
+        data: [[['0', 'A'], ['1', 'B'], ['2', 'A'], ['3', 'C']]],
+        orderVector: [[0, 1, 2, 3]],
+        hiddenAois: [[3]],
+      },
+      stimuli: { data: [['S1']] },
+    })
+
+    const a = new Uint32Array(16)
+    const b = new Uint32Array(16)
+    for (let seg = 0; seg < 6; seg++) {
+      const nRef = groupReader.getSegmentAoisIntoUniqueTyped(seg, 0, a)
+      const nNew = groupReader.getSegmentAoisUniqueDirect(seg, 0, b)
+      const ref = Array.from(a.subarray(0, nRef)).sort((x, y) => x - y)
+      const got = Array.from(b.subarray(0, nNew)).sort((x, y) => x - y)
+      expect(nNew, `seg ${seg} count`).toBe(nRef)
+      expect(got, `seg ${seg} ids`).toEqual(ref)
+    }
+  })
+})

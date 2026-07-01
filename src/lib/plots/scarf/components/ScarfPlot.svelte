@@ -14,6 +14,7 @@
   } from '$lib/plots/scarf/types'
   import { tooltipScarfService, SCARF_LAYOUT } from '$lib/plots/scarf'
   import { getScarfData } from '$lib/plots/scarf/core/view'
+  import { createScarfBufferPool } from '$lib/plots/scarf/core/transformer'
   import { scarfTimelineSync } from '$lib/plots/scarf/core/sync.svelte'
   import { usePlotSync } from '$lib/plots/shared/PlotSyncRegistry.svelte'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
@@ -106,11 +107,19 @@
       : { ...effectiveSettings, ordinalEnd: syncedMax }
   })
 
+  // Per-instance grow-buffer reuse pool: successive re-derivations of THIS plot
+  // recycle the rect/event buffers (only the latest scarfData is ever read), so a
+  // re-derive doesn't re-allocate ~1 record/segment of Float32Array — the main GC
+  // driver on large datasets. Not shared across plots (each has its own) and never
+  // handed to the export view-model (it allocates fresh), so a returned buffer view
+  // is never aliased by another live consumer.
+  const bufferPool = createScarfBufferPool()
+
   const scarfData = $derived.by(() => {
     void redrawTimestamp
     // Same data derivation the export modal renders from, with the screen's
     // sync-adjusted settings.
-    return getScarfData(engine, syncedSettings)
+    return getScarfData(engine, syncedSettings, bufferPool)
   })
 
   const timelineMin = $derived.by(() => {
