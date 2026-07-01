@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte'
+  import ArrowLeft from 'lucide-svelte/icons/arrow-left'
   import ButtonMajor from '$lib/shared/components/ButtonMajor.svelte'
   import type { ModalStackEntry } from '$lib/modals/modalState.svelte'
   import { getGazePlotterSession } from '$lib/session'
@@ -226,7 +227,7 @@
       }
     }}
   >
-    {#each modalStack as entry (entry.id)}
+    {#each modalStack as entry, index (entry.id)}
       {@const isActive = entry.id === activeModal?.id}
       <div class:is-active={isActive} class="modal-stack-entry">
         <div
@@ -237,7 +238,18 @@
           aria-labelledby={`modal-title-${entry.id}`}
         >
           <div class="modal-header">
-            <h3 id={`modal-title-${entry.id}`}>{entry.definition.title}</h3>
+            <div class="title-wrap">
+              {#if index > 0}
+                <button
+                  class="back-btn"
+                  onclick={handleClose}
+                  aria-label="Go back"
+                >
+                  <ArrowLeft size={16} />
+                </button>
+              {/if}
+              <h3 id={`modal-title-${entry.id}`}>{entry.definition.title}</h3>
+            </div>
             <button onclick={handleClose} aria-label="Close modal">
               <span aria-hidden="true">&times;</span>
             </button>
@@ -370,6 +382,20 @@
 
   .modal-header h3 {
     margin: 0;
+  }
+
+  .title-wrap {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+  }
+
+  .back-btn {
+    margin-left: -0.25rem;
+    color: var(--c-darkgrey);
+    &:hover {
+      color: var(--c-black);
+    }
   }
 
   .modal .body {

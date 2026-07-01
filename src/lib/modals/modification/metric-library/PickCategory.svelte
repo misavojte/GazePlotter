@@ -1,5 +1,4 @@
 <script lang="ts">
-  import ArrowLeft from 'lucide-svelte/icons/arrow-left'
   import { getGazePlotterSession } from '$lib/session'
   import { listMetrics } from '$lib/metrics/core/defineMetric'
   import { listCategories } from '$lib/metrics/categories'
@@ -56,19 +55,10 @@
     })
   }
 
-  function goBack() {
-    modalState.close()
-  }
+
 </script>
 
 <div class="pick-category-container">
-  <div class="add-mode-header">
-    <button type="button" class="back-btn" onclick={goBack}>
-      <ArrowLeft size={14} />
-      <span>Back to library</span>
-    </button>
-    <span class="add-mode-title">Select metric category</span>
-  </div>
 
   <div class="theme-grid">
     {#each activeCategories as cat}
@@ -95,38 +85,7 @@
     gap: 12px;
   }
 
-  .add-mode-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid var(--c-border);
-    padding-bottom: 8px;
-    margin-bottom: 4px;
-  }
 
-  .back-btn {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 12px;
-    color: var(--c-darkgrey);
-    padding: 4px 8px;
-    border-radius: var(--rounded-md);
-    transition: background var(--transition-fast), color var(--transition-fast);
-  }
-  .back-btn:hover {
-    background: var(--c-lightgrey);
-    color: var(--c-text);
-  }
-
-  .add-mode-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--c-text);
-  }
 
   .theme-grid {
     display: grid;
