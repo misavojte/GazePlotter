@@ -13,7 +13,7 @@
   import { METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
   import { SCANGRAPH_LAYOUT } from '../const'
   import type { ScangraphData } from '../types'
-  import { computeForceLayout, type ForceLayoutMargins, type LayoutResult, type NodePosition } from '../core/forceLayout'
+  import { computeForceLayout, type LayoutResult, type NodePosition } from '../core/forceLayout'
 
   const HIGHLIGHT_COLOR = '#e53e3e'
   const HIGHLIGHT_FILL = '#fbbf24'
@@ -83,16 +83,34 @@
     return set
   })
 
-  const forceMargins = $derived<ForceLayoutMargins>({
-    top: margins.top,
-    right: margins.right,
-    bottom: margins.bottom,
-    left: margins.left,
+  // Canonical square the force sim runs in. Fixed so the (expensive) simulation
+  // is independent of the plot's pixel size.
+  const CANON = 1000
+
+  // The 500-iteration O(P²)/iter force simulation, keyed ONLY on `data` — NOT on
+  // width/height/margins. Previously it sat in the same derive as the pixel
+  // mapping, so every resize frame re-ran the full simulation (and re-scattered
+  // the seed, making nodes jump). Now a resize never re-simulates.
+  const normalizedLayout = $derived.by((): LayoutResult => {
+    if (!data || data.nodes.length === 0) return { nodes: [], links: [] }
+    return computeForceLayout(data, CANON, CANON, 500)
   })
 
+  // Cheap O(P) affine map of the canonical positions into the current content
+  // area. Re-runs on resize, but only rescales — positions stay stable (no jump).
   const layoutResult = $derived.by((): LayoutResult => {
-    if (!data || data.nodes.length === 0) return { nodes: [], links: [] }
-    return computeForceLayout(data, width, height, 500, forceMargins)
+    const nl = normalizedLayout
+    if (nl.nodes.length === 0) return nl
+    const contentW = Math.max(1, width - margins.left - margins.right)
+    const contentH = Math.max(1, height - margins.top - margins.bottom)
+    const sx = contentW / CANON
+    const sy = contentH / CANON
+    const nodes = nl.nodes.map(n => ({
+      ...n,
+      x: margins.left + n.x * sx,
+      y: margins.top + n.y * sy,
+    }))
+    return { nodes, links: nl.links }
   })
 
   type Rect = { x: number; y: number; w: number; h: number }

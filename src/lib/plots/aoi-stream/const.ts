@@ -48,8 +48,10 @@ export const AXIS_CONFIG = {
 
 export const Y_AXIS = {
   // The centered streamgraph uses a symmetric domain (e.g. [-50, +50] for 100%).
-  // This factor adds headroom so the plot doesn't touch the top/bottom.
-  // Example: 100% total -> half-range=50, with factor 1.5 => axis half-range=75.
-  HEADROOM_FACTOR: 1.5,
+  // Headroom the axis adds past the data so the band doesn't touch the edges. Now
+  // that `computeNiceYAxis` no longer snaps the extent up to a nice-tick multiple,
+  // this factor takes effect directly: 1.25 => the band fills ~80% of the height
+  // (was ~1/2 empty). Example: 100% total -> data half-range=50, axis half-range=62.5.
+  HEADROOM_FACTOR: 1.25,
   TARGET_POSITIVE_TICKS: 3,
 }

@@ -5,7 +5,6 @@
 import {
   getAois,
   getNumberOfSegments,
-  getParticipant,
   getParticipantEndTime,
   hasEventsForStimulus,
   getVisibleEventChannels,
@@ -487,6 +486,10 @@ export function transformDataToScarfPlot(
   const relTimelineStart = settings.timelineStart
   const relTimelineEnd = settings.timelineEnd
   const participants: ScarfParticipant[] = new Array(participantIds.length)
+  // Snapshot the participant-label table once (a single proxy traversal) instead
+  // of calling getParticipant() — which re-reads `engine.metadata.participants.data`
+  // through the deep $state proxy — for every row inside the loop below.
+  const participantData = engine.metadata?.participants.data
   // Per-participant-row projection (raw start/end → normalized x). Consumed by the
   // fused gaze render (via gazeSource) and the event overlay below.
   const projClipMin = new Float32Array(participantIds.length)
@@ -599,9 +602,10 @@ export function transformDataToScarfPlot(
       }
     }
 
+    const prow = participantData?.[pid]
     participants[pIndex] = {
       id: pid,
-      label: getParticipant(engine, pid).displayedName,
+      label: (prow?.[1] ?? prow?.[0]) ?? '',
       width: 0,
     }
   }

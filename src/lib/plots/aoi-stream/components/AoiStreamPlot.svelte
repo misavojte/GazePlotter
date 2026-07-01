@@ -26,28 +26,34 @@
   // Same data derivation the export modal renders from — including the
   // cross-plot timeline sync (via the grid items). Kept inside an effect
   // (gated on redrawTimestamp + metadata) to match the prior recompute timing.
-  let resultState = $state<{ data: AoiStreamPlotResult | null }>({ data: null })
+  // `$state.raw`: the result holds `series[]` of `{id,label,color,values}` objects.
+  // Plain `$state` would deep-proxy every series object, turning per-series reads
+  // in the layout/render into proxy gets. The result is only ever reassigned
+  // wholesale, so raw is safe and reads stay plain. (Per-bin `values` are already
+  // Float32Array, which Svelte never proxies.)
+  let resultData = $state.raw<AoiStreamPlotResult | null>(null)
 
   $effect(() => {
     const s = settings
     const gridItems = grid.items
     const w = item.w
-    const h = item.h
     const meta = engine.metadata
     void item.redrawTimestamp
 
     if (!meta) return
 
     untrack(() => {
-      resultState.data = computeAoiStreamData(engine, s, {
+      // Height is read untracked: the transform (and its display budget) depend
+      // only on width, so a vertical resize must not re-run the full transform.
+      resultData = computeAoiStreamData(engine, s, {
         gridItems,
         itemWidth: w,
-        itemHeight: h,
+        itemHeight: item.h,
       })
     })
   })
 
-  const streamResult = $derived(resultState.data)
+  const streamResult = $derived(resultData)
   const hasRenderableData = $derived(
     !!streamResult && !streamResult.noMetric && streamResult.series.length > 0
   )

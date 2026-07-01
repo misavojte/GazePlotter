@@ -234,7 +234,12 @@
       items,
     }
 
-    return { bars, rendererLayout, fullCategoryWidth }
+    // Dot radius depends only on layout/data (not hover), so compute it here once
+    // and reuse in both the draw and the per-frame hit-test. Proportion mode has
+    // no beeswarm, so skip the density scan.
+    const dotRadius = proportion ? 0 : computeDotStyle(rendererLayout).radius
+
+    return { bars, rendererLayout, fullCategoryWidth, dotRadius }
   })
 
   function drawBars(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
@@ -252,7 +257,7 @@
       drawProportionalBars(ctx, rendererLayout)
     } else {
       drawOverlayBackgrounds(ctx, rendererLayout, statisticalOverlay)
-      drawBeeswarmPoints(ctx, rendererLayout)
+      drawBeeswarmPoints(ctx, rendererLayout, geom.dotRadius)
       drawStatisticalOverlay(ctx, rendererLayout, statisticalOverlay)
     }
     ctx.restore()
@@ -392,7 +397,9 @@
       { key: 'Value', value: fmt(mouseValue) },
     ]
 
-    const tolerance = computeDotStyle(layout).radius
+    // Dot radius is computed once in `geom` (stable between full renders), not
+    // re-derived here — this hit-test runs at frame rate during hover.
+    const tolerance = geom.dotRadius
     const values = dataItem.individualValues
     const names = dataItem.individualParticipantNames
     if (values && names && values.length > 0) {

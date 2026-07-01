@@ -151,21 +151,23 @@
     const colToX = (col: number) => xOffset + col * cellSize
     const rowToY = (row: number) => yOffset + (N - 1 - row) * cellSize
 
-    // Grid background + lines
+    // Grid background + lines. Batched into one path (was 2·(N+1) separate
+    // stroke composites), and skipped once cells are too small to resolve a line
+    // — below that the lines would merge into a solid wash over the background.
     ctx.fillStyle = L.gridBgColor
     ctx.fillRect(xOffset, yOffset, gridSize, gridSize)
-    ctx.strokeStyle = L.gridLineColor
-    ctx.lineWidth = 0.5
-    for (let i = 0; i <= N; i++) {
-      const x = xOffset + i * cellSize
+    if (cellSize >= RECURRENCE_LAYOUT.minCellSize) {
+      ctx.strokeStyle = L.gridLineColor
+      ctx.lineWidth = 0.5
       ctx.beginPath()
-      ctx.moveTo(x, yOffset)
-      ctx.lineTo(x, yOffset + gridSize)
-      ctx.stroke()
-      const y = yOffset + i * cellSize
-      ctx.beginPath()
-      ctx.moveTo(xOffset, y)
-      ctx.lineTo(xOffset + gridSize, y)
+      for (let i = 0; i <= N; i++) {
+        const x = xOffset + i * cellSize
+        ctx.moveTo(x, yOffset)
+        ctx.lineTo(x, yOffset + gridSize)
+        const y = yOffset + i * cellSize
+        ctx.moveTo(xOffset, y)
+        ctx.lineTo(xOffset + gridSize, y)
+      }
       ctx.stroke()
     }
 
@@ -177,16 +179,27 @@
     const maskDiagonal = masking === 'diagonal' || masking === 'diagonalLower'
     const maskLower = masking === 'diagonalLower'
 
+    // diagonalLower masks the entire upper triangle (i ≤ j). Paint it as ONE rect
+    // per row (cols i..N-1) instead of N²/2 individual cell fills, colour set once.
+    if (maskLower) {
+      ctx.fillStyle = L.diagonalColor
+      for (let i = 0; i < N; i++) {
+        ctx.fillRect(colToX(i), rowToY(i), (N - i) * cellSize, cellSize)
+      }
+    }
+
+    // Guard against redundant fillStyle string re-assignment (a per-run cost).
+    let lastFill = ''
     for (let i = 0; i < N; i++) {
       const rowOffset = i * N
-      for (let j = 0; j < N; j++) {
-        if (maskLower && i <= j) {
-          ctx.fillStyle = L.diagonalColor
-          ctx.fillRect(colToX(j), rowToY(i), cellSize, cellSize)
-          continue
-        }
+      // Skip the upper triangle already painted above when masking the lower half.
+      const jStart = maskLower ? i + 1 : 0
+      for (let j = jStart; j < N; j++) {
         if (maskDiagonal && i === j) {
-          ctx.fillStyle = L.diagonalColor
+          if (lastFill !== L.diagonalColor) {
+            ctx.fillStyle = L.diagonalColor
+            lastFill = L.diagonalColor
+          }
           ctx.fillRect(colToX(j) + 1, rowToY(i) + 1, cellSize - 2, cellSize - 2)
           continue
         }
@@ -209,7 +222,10 @@
           }
         }
 
-        ctx.fillStyle = dotColor
+        if (lastFill !== dotColor) {
+          ctx.fillStyle = dotColor
+          lastFill = dotColor
+        }
         const halfCell = cellSize / 2
         if (hasDuration && data.durationMatrix) {
           const ratio = Math.max(0.15, data.durationMatrix[rowOffset + j] / maxDuration)

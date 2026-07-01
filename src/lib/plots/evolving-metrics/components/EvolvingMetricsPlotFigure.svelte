@@ -196,6 +196,23 @@
     colorScale && colorScale.length >= 2 ? colorScale : [...PRESET_PALETTES.HEAT.colors]
   )
 
+  // 256-step colour LUT built once per palette change, so the heatmap draw loop
+  // indexes a prebuilt string instead of calling interpolateColor (string concat
+  // + parse) per window on every repaint. 256 steps is visually indistinguishable
+  // from continuous interpolation for a heatmap.
+  const HEATMAP_LUT_SIZE = 256
+  const heatmapColorLut = $derived.by<string[]>(() => {
+    const stops = palette.length - 1
+    const lut = new Array<string>(HEATMAP_LUT_SIZE)
+    for (let i = 0; i < HEATMAP_LUT_SIZE; i++) {
+      const t = (i / (HEATMAP_LUT_SIZE - 1)) * stops
+      const base = t | 0
+      const next = Math.min(stops, base + 1)
+      lut[i] = interpolateColor(palette[base], palette[next], t - base)
+    }
+    return lut
+  })
+
   const gradientLegendGeometry = $derived.by(() => {
     if (alignment !== 'heatmap') return null
     return computeGradientLegendGeometry({
@@ -476,15 +493,18 @@
     floorBottom: number, floorRight: number, participantCount: number
   ) {
     const rowHeight = floorHeight / participantCount
-    const paletteStopCount = palette.length - 1
     const valueRange = data.valueMax - data.valueMin
     const invValueRange = valueRange > 0 ? 1 / valueRange : 0
     const timelineMin = data.timeline.minValue
     const duration = Math.max(1, data.timeline.maxValue - timelineMin)
     const invMsPerPx = floorWidth / duration
+    const lut = heatmapColorLut
+    const lutMax = HEATMAP_LUT_SIZE - 1
 
     fillPlotAreaBackground(ctx, floorLeft, floorTop, floorWidth, floorHeight, INACTIVE_COLOR)
 
+    // Track the last LUT index so an unchanged colour doesn't re-assign fillStyle.
+    let lastIdx = -1
     for (let p = 0; p < participantCount; p++) {
       const rowY = floorTop + p * rowHeight
       const wins = data.participants[p].windows
@@ -494,14 +514,21 @@
         const xStart = floorLeft + (w.startMs - timelineMin) * invMsPerPx
         const xEnd = floorLeft + (w.endMs - timelineMin) * invMsPerPx
         if (xEnd <= floorLeft || xStart >= floorRight) continue
-        const normalized = (w.value - data.valueMin) * invValueRange
-        const scaledVal = Math.max(0, Math.min(1, normalized)) * paletteStopCount
-        const baseIdx = scaledVal | 0
-        const nextIdx = Math.min(paletteStopCount, baseIdx + 1)
-        ctx.fillStyle = interpolateColor(palette[baseIdx], palette[nextIdx], scaledVal - baseIdx)
-        const x = Math.max(floorLeft, xStart)
-        const rectWidth = Math.min(floorRight, xEnd) - x
-        if (rectWidth > 0) ctx.fillRect(x, rowY, rectWidth, rowHeight)
+        const normalized = Math.max(0, Math.min(1, (w.value - data.valueMin) * invValueRange))
+        const idx = (normalized * lutMax + 0.5) | 0
+        // Snap bin edges to whole logical pixels. A fractional shared edge between
+        // two bins is anti-aliased on both sides, so the plot background bleeds
+        // through as a faint vertical seam. Contiguous bins share the same edge
+        // value, so rounding both sides gives a gap-free, overlap-free tiling.
+        const x0 = Math.round(Math.max(floorLeft, xStart))
+        const x1 = Math.round(Math.min(floorRight, xEnd))
+        if (x1 > x0) {
+          if (idx !== lastIdx) {
+            ctx.fillStyle = lut[idx]
+            lastIdx = idx
+          }
+          ctx.fillRect(x0, rowY, x1 - x0, rowHeight)
+        }
       }
     }
 

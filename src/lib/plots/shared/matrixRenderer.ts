@@ -51,12 +51,22 @@ export function drawMatrixGrid(
   }
 }
 
+// Reused scratch of per-cell fill colours. drawMatrixCells fills it and
+// drawMatrixCellsText reads it (same render, cells always drawn first), so
+// getCellColor — which builds an interpolated colour string — runs ONCE per cell
+// instead of a second time for the text-contrast pass. Grown, never shrunk;
+// indices ≥ size² are stale but never read (the fill pass rewrites [0, size²)).
+let _cellColors: string[] = []
+
 function drawMatrixCells(
   ctx: CanvasRenderingContext2D,
   config: MatrixRenderConfig
 ) {
   const { xOffset, yOffset, cellSize } = config.layout
   const size = config.labels.length
+  const cellCount = size * size
+  if (_cellColors.length < cellCount) _cellColors = new Array<string>(cellCount)
+  const colors = _cellColors
 
   for (let row = 0; row < size; row++) {
     const rowOffset = row * size
@@ -64,7 +74,9 @@ function drawMatrixCells(
       const value = config.matrix[rowOffset + col] ?? 0
       const x = xOffset + col * cellSize
       const y = yOffset + row * cellSize
-      ctx.fillStyle = config.getCellColor(value)
+      const color = config.getCellColor(value)
+      colors[rowOffset + col] = color
+      ctx.fillStyle = color
       ctx.fillRect(x, y, cellSize, cellSize)
     }
   }
@@ -83,6 +95,8 @@ function drawMatrixCellsText(
   ctx.font = `${cellValueFontSize}px ${SYSTEM_SANS_SERIF_STACK}`
   const size = config.labels.length
   const showCellValue = config.showCellValue ?? (() => true)
+  // Reuse the fill colours computed in drawMatrixCells (run just before this).
+  const colors = _cellColors
 
   for (let row = 0; row < size; row++) {
     const rowOffset = row * size
@@ -91,7 +105,7 @@ function drawMatrixCellsText(
       if (!showCellValue(value)) continue
 
       const displayValue = config.formatCellValue(value)
-      ctx.fillStyle = getContrastTextColor(config.getCellColor(value))
+      ctx.fillStyle = getContrastTextColor(colors[rowOffset + col] ?? config.getCellColor(value))
       const x = xOffset + col * cellSize
       const y = yOffset + row * cellSize
       ctx.fillText(displayValue, x + cellSize * 0.5, y + cellSize * 0.5 + 1)
