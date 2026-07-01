@@ -63,7 +63,7 @@ export const SCARF_LAYOUT = {
   // never stacked into one strip, because overlapping them hides that something
   // is happening. High concurrency therefore demands a taller band (and more
   // plot height), never an occluding overlay.
-  MIN_EVENT_LANE_H: 4,
+  MIN_EVENT_LANE_H: 3,
   EVENT_LANE_GAP: 1, // gap inside a lane slot → texture separation between stacked strips
   EVENT_ZONE_GAP: 3, // whitespace gap between the gaze baseline (seam) and the event band
   MIN_ROW_GAP: 3, // minimum whitespace between participant rows (hard floor)
@@ -84,7 +84,7 @@ export const SCARF_LAYOUT = {
   HIGHLIGHT_SELF_LEGIBLE_LIMIT: 8, // width (logical px) where a segment is considered easily visible/legible on its own without needing a ring.
   HIGHLIGHT_SINGLE_VISIBLE_LIMIT: 4, // width (logical px) of a single segment above which it is considered clearly visible, suppressing rings for itself and any neighboring segments in its window.
   HIGHLIGHT_MARKER_RADIUS: 8, // desired ring radius (shrunk to fit short rows)
-  HIGHLIGHT_MARKER_MIN_RADIUS: 3, // below this the row is too short to host a ring — skip it
+  HIGHLIGHT_MARKER_MIN_RADIUS: 2, // below this the row is too short to host a ring — skip it
   HIGHLIGHT_MARKER_RING_WIDTH: 1, // colored ring stroke; a white halo is drawn beneath for contrast
 } as const
 

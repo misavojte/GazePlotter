@@ -629,9 +629,12 @@ export function drawScarfHighlightMarkers(
   const gazeBandCy = layout.spaceAboveRect + barH / 2
   // Radius is uniform across rows (so is the geometry). Fit it inside the row so
   // neighbouring rows never overlap; bail entirely if the row is too short.
+  // Keep the ring inside the row (never overlapping a neighbouring row's gaze
+  // bar). In compact+overlay the gaze bar is thin and top-anchored, so the
+  // upward clearance is small — allow the ring to shrink to it rather than bail.
   const r = Math.min(
     SCARF_LAYOUT.HIGHLIGHT_MARKER_RADIUS,
-    Math.floor(Math.min(gazeBandCy, pitch - gazeBandCy)) - 1
+    Math.floor(Math.min(gazeBandCy, pitch - gazeBandCy))
   )
   if (r < SCARF_LAYOUT.HIGHLIGHT_MARKER_MIN_RADIUS) return
 

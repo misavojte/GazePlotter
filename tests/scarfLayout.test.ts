@@ -36,6 +36,8 @@ describe('calculateOverlayLayout (combined mode: AOI top-anchored, events hang b
       SCARF_LAYOUT.MIN_EVENT_LANE_H
     )
     expect(tight.eventZoneHeight).toBeCloseTo(3 * tight.eventLaneHeight)
+    // The gaze bar is never thinner than a single event lane, even when cramped.
+    expect(tight.heightOfBar).toBeGreaterThanOrEqual(tight.eventLaneHeight - 1e-6)
   })
 
   test('zero concurrency → no band (degenerates to a plain bar row)', () => {
@@ -50,8 +52,10 @@ describe('calculateOverlayMinRowPitch', () => {
     expect(calculateOverlayMinRowPitch(0)).toBe(
       SCARF_LAYOUT.MIN_BAR_HEIGHT + SCARF_LAYOUT.MIN_ROW_GAP
     )
+    // With events, the gaze-bar floor is one event lane (never thinner than a
+    // single event strip), so the bar term is MIN_EVENT_LANE_H, not MIN_BAR_HEIGHT.
     expect(calculateOverlayMinRowPitch(3)).toBe(
-      SCARF_LAYOUT.MIN_BAR_HEIGHT +
+      SCARF_LAYOUT.MIN_EVENT_LANE_H +
         2 +
         3 * SCARF_LAYOUT.MIN_EVENT_LANE_H +
         SCARF_LAYOUT.MIN_ROW_GAP
