@@ -174,6 +174,25 @@
 
   function handleDragEnd() {
     if (!dragOverrides) return
+
+    const isOrdinal = effectiveSettings.timeline === 'ordinal'
+    const keyStart = isOrdinal ? 'ordinalStart' : 'timelineStart'
+    const keyEnd = isOrdinal ? 'ordinalEnd' : 'timelineEnd'
+
+    const valStart = dragOverrides[keyStart]
+    const valEnd = dragOverrides[keyEnd]
+
+    const limitMax = ownDataMax
+    const roundedLimitMax = Math.round(limitMax * 1000) / 1000
+
+    if (
+      valStart === 0 &&
+      valEnd !== undefined &&
+      valEnd >= roundedLimitMax
+    ) {
+      dragOverrides[keyEnd] = 0
+    }
+
     workspace.updateItemSettings(
       item.id,
       dragOverrides,
