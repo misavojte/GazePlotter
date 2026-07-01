@@ -67,7 +67,7 @@ function rectBucket(segs: { x: number; w: number }[]): Float32Array {
     buf[idx + 1] = 0 // participant row
     buf[idx + 2] = segs[i].w // wNorm
     buf[idx + 3] = SCARF_LAYOUT.HEIGHT_BAR_DEFAULT // fixation height
-    buf[idx + 7] = SCARF_LAYOUT.SPACE_ABOVE_RECT_DEFAULT // internalY
+    buf[idx + 5] = SCARF_LAYOUT.SPACE_ABOVE_RECT_DEFAULT // internalY
   }
   return buf
 }
@@ -290,7 +290,7 @@ function exactRects(layout: ScarfLayoutContext): { y: number; h: number }[] {
     bucket[idx + 1] = r
     bucket[idx + 2] = pxWidth(3) // wide -> drawn exactly in pass 3
     bucket[idx + 3] = SCARF_LAYOUT.HEIGHT_BAR_DEFAULT
-    bucket[idx + 7] = SCARF_LAYOUT.SPACE_ABOVE_RECT_DEFAULT
+    bucket[idx + 5] = SCARF_LAYOUT.SPACE_ABOVE_RECT_DEFAULT
   }
   const { ctx, rects } = bandMock()
   drawScarfBands(

@@ -74,8 +74,6 @@ class Float32GrowBuffer {
     y: number,
     width: number,
     height: number,
-    participantId: number,
-    segmentId: number,
     orderId: number,
     internalY: number
   ) {
@@ -88,10 +86,8 @@ class Float32GrowBuffer {
     b[idx + 1] = y
     b[idx + 2] = width
     b[idx + 3] = height
-    b[idx + 4] = participantId
-    b[idx + 5] = segmentId
-    b[idx + 6] = orderId
-    b[idx + 7] = internalY
+    b[idx + 4] = orderId
+    b[idx + 5] = internalY
 
     this.writeIndex += RECT_STRIDE
   }
@@ -638,8 +634,6 @@ export function transformDataToScarfPlot(
           pIndex,
           width,
           HEIGHT_NON_FIXATION_DEFAULT,
-          pid,
-          localId,
           localId,
           SPACE_ABOVE_RECT_DEFAULT +
             (HEIGHT_BAR_DEFAULT - HEIGHT_NON_FIXATION_DEFAULT) * 0.5
@@ -656,8 +650,6 @@ export function transformDataToScarfPlot(
             pIndex,
             width,
             HEIGHT_BAR_DEFAULT,
-            pid,
-            localId,
             localId,
             SPACE_ABOVE_RECT_DEFAULT
           )
@@ -671,8 +663,6 @@ export function transformDataToScarfPlot(
               pIndex,
               width,
               h,
-              pid,
-              localId,
               localId,
               SPACE_ABOVE_RECT_DEFAULT + idx * h
             )

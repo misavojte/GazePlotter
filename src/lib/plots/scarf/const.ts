@@ -89,6 +89,11 @@ export const SCARF_LAYOUT = {
 } as const
 
 // --- Buffer Strides ---
-export const RECT_STRIDE = 8
+/** Gaze rect record: [x, participantIndex, width, height, orderId, internalY].
+ * Kept lean (6 floats) — the buffer is ~1 record per segment and at millions of
+ * segments its allocation + write bandwidth dominates the transform. `orderId`
+ * (== the segment's local index) is the hover identifier; the raw participant id
+ * is derived from the row, not stored. */
+export const RECT_STRIDE = 6
 /** Event overlay strip buffer: [xNorm, pIndex, wNorm, laneIndex, isPoint]. */
 export const OVERLAY_EVENT_STRIDE = 5

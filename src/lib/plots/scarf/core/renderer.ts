@@ -381,7 +381,7 @@ function paintGazeRects(
       const pIdx = buffer[idx + 1]
       const { h, yInternal } = gazeRectVPlacement(
         buffer[idx + 3],
-        buffer[idx + 7],
+        buffer[idx + 5],
         layout
       )
       // Snap the vertical edges to device pixels (no ~0.5px bleed past the bar);

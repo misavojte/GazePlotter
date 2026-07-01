@@ -606,7 +606,7 @@
         const xNormalized = buffer[idx]
         const widthNormalized = buffer[idx + 2]
         const origRectH = buffer[idx + 3]
-        const origInternalY = buffer[idx + 7]
+        const origInternalY = buffer[idx + 5]
 
         const pxX = floorLeft + xNormalized * floorWidth
         const pxW = widthNormalized * floorWidth
@@ -632,9 +632,11 @@
             height: rectH,
             internalY,
             identifier: indexToId.get(styleIdx) ?? '',
-            participantId: buffer[idx + 4],
-            segmentId: buffer[idx + 5],
-            orderId: buffer[idx + 6],
+            // participant id is derived from the row (not stored per rect); the
+            // segment's local index (orderId) doubles as its segment id.
+            participantId: data.participants[pIndex | 0]?.id ?? (pIndex | 0),
+            segmentId: buffer[idx + 4],
+            orderId: buffer[idx + 4],
           }
         }
       }
