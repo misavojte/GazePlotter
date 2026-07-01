@@ -19,19 +19,18 @@ import {
   FIXATION_CATEGORY_ID,
   type ExtendedInterpretedDataType,
 } from '$lib/data/types'
-import { SEGMENT_STRIDE, SegmentField } from '$lib/data/binary/schema'
 import {
   createAdaptiveTimeline,
   type AdaptiveTimeline,
 } from '$lib/plots/shared'
 import {
   OVERLAY_EVENT_STRIDE,
-  RECT_STRIDE,
   SCARF_IDENTIFIERS,
   SCARF_LAYOUT,
 } from '../const'
 import type {
   ScarfData,
+  ScarfGazeSource,
   ScarfLegendData,
   ScarfLegendGroup,
   ScarfLegendItem,
@@ -68,29 +67,6 @@ class Float32GrowBuffer {
     this.buffer = next
   }
 
-  pushRect(
-    x: number,
-    y: number,
-    width: number,
-    height: number,
-    orderId: number,
-    internalY: number
-  ) {
-    this.ensureCapacity(RECT_STRIDE)
-
-    const idx = this.writeIndex
-    const b = this.buffer
-
-    b[idx] = x
-    b[idx + 1] = y
-    b[idx + 2] = width
-    b[idx + 3] = height
-    b[idx + 4] = orderId
-    b[idx + 5] = internalY
-
-    this.writeIndex += RECT_STRIDE
-  }
-
   /** Event overlay strip: [xNorm, pIndex, wNorm, laneIndex, isPoint]. */
   pushStrip(
     x: number,
@@ -116,90 +92,6 @@ class Float32GrowBuffer {
   finalize(): Float32Array {
     return this.buffer.subarray(0, this.writeIndex)
   }
-
-  /** Rewind for reuse across transform calls (keeps the grown capacity). */
-  reset() {
-    this.writeIndex = 0
-  }
-
-  /** Rects written so far (RECT_STRIDE floats each). Used to build the per-row
-   *  offset index inline, without a second O(all-rects) pass over the buffer. */
-  get rectCount(): number {
-    return this.writeIndex / RECT_STRIDE
-  }
-}
-
-/**
- * Per-scarf-instance reuse pool for the rect/event grow-buffers. Re-deriving the
- * plot (settings change, resize-independent) otherwise allocates
- * `2 × styleCount` fresh Float32Arrays every call — the dominant GC driver on a
- * huge dataset (each is ~1 record/segment). Pooling per INSTANCE (not module-wide)
- * is the safety boundary: buffers are reused only by the same plot's successive
- * transforms — where only the latest `ScarfData` is ever read — so the returned
- * `finalize()` views never alias a buffer another live consumer still needs.
- * The export view-model deliberately passes NO pool (fresh buffers).
- */
-export interface ScarfBufferPool {
-  rect: Float32GrowBuffer[]
-  event: Float32GrowBuffer[]
-  /** Bucket count the pool is sized for; a change (AOI added/removed) rebuilds it. */
-  styleCount: number
-}
-
-export function createScarfBufferPool(): ScarfBufferPool {
-  return { rect: [], event: [], styleCount: -1 }
-}
-
-/**
- * Per-bucket row index for hover hit-testing. The pIndex column (RECT_STRIDE
- * offset +1) is non-decreasing within a bucket -- segments are pushed in
- * ascending participant order -- so the first segment of each row is found in a
- * single forward pass. `rowStart[r]` is the segment index of the first segment
- * with pIndex >= r; the segments of row r are exactly the half-open slice
- * [rowStart[r], rowStart[r + 1]). This lets the hover hit-test scan only the
- * hovered row instead of the whole buffer (O(segments-in-row) vs
- * O(all-segments) per pointer move).
- */
-export function buildRectRowOffsets(
-  buckets: Float32Array[],
-  rows: number
-): Int32Array[] {
-  return buckets.map(buffer => {
-    const segCount = buffer.length / RECT_STRIDE
-    const rowStart = new Int32Array(rows + 1)
-    let seg = 0
-    for (let r = 0; r <= rows; r++) {
-      while (seg < segCount && buffer[seg * RECT_STRIDE + 1] < r) seg++
-      rowStart[r] = seg
-    }
-    return rowStart
-  })
-}
-
-/**
- * Per-(stimulus, participant-count, style-count, timeline) memory of the last
- * run's per-bucket float counts. Re-deriving on every pan/zoom frame writes
- * almost the same number of rects each time, so seeding each grow-buffer at the
- * previous size avoids the repeated double-and-copy (the `ensureCapacity` cost)
- * with no extra retained memory — the seed matches the actual fill. A cache miss
- * (first run, zoom, stimulus switch) just falls back to the default and the next
- * frame is seeded. Bounded; cleared wholesale past a small cap.
- */
-interface BucketSizes {
-  rect: Int32Array
-  event: Int32Array
-}
-const scarfBucketSizeCache = new Map<string, BucketSizes>()
-const SCARF_BUCKET_CACHE_CAP = 48
-
-function seedCapacity(
-  hint: Int32Array | undefined,
-  index: number,
-  fallback: number
-): number {
-  const last = hint && index < hint.length ? hint[index] : 0
-  // +12.5% headroom so a slightly-larger frame still fits without a realloc.
-  return last > 0 ? Math.max(64, Math.ceil(last * 1.125)) : fallback
 }
 
 /**
@@ -498,10 +390,7 @@ export function transformDataToScarfPlot(
   stimulusId: number,
   participantIds: number[],
   settings: ScarfPlotSettings,
-  noAoiTreatment: { displayedName: string; color: string },
-  /** Optional per-instance reuse pool (see {@link ScarfBufferPool}). Omit for
-   *  one-off callers (export) that must not alias another consumer's buffers. */
-  pool?: ScarfBufferPool
+  noAoiTreatment: { displayedName: string; color: string }
 ): ScarfData {
   const stimulusHasEvents = hasEventsForStimulus(engine, stimulusId)
   // Events ride as an overlay on the gaze segments. The ordinal view is
@@ -510,12 +399,6 @@ export function transformDataToScarfPlot(
     stimulusHasEvents &&
     settings.timeline !== 'ordinal' &&
     !(settings.hideEvents ?? false)
-
-  const {
-    HEIGHT_BAR_DEFAULT,
-    HEIGHT_NON_FIXATION_DEFAULT,
-    SPACE_ABOVE_RECT_DEFAULT,
-  } = SCARF_LAYOUT
 
   const aoiData = getAois(engine, stimulusId)
   const timeline = createScarfPlotAxis(
@@ -586,39 +469,14 @@ export function transformDataToScarfPlot(
     aoiStyleCount +
     stylingAndLegend.category.length +
     stylingAndLegend.visibility.length
-  const sizeCacheKey = `${stimulusId}|${participantIds.length}|${totalStyleCount}|${settings.timeline}`
-  const sizeHint = scarfBucketSizeCache.get(sizeCacheKey)
-  // Reuse the caller's per-instance pool when the bucket count matches (rewind,
-  // keep grown capacity) — this is the GC win on re-derivation. Otherwise allocate
-  // fresh and, if a pool was supplied, seed it for next time. Export passes no pool.
-  let rectBuckets: Float32GrowBuffer[]
-  let eventBuckets: Float32GrowBuffer[]
-  if (pool && pool.styleCount === totalStyleCount) {
-    rectBuckets = pool.rect
-    eventBuckets = pool.event
-    for (let i = 0; i < totalStyleCount; i++) {
-      rectBuckets[i].reset()
-      eventBuckets[i].reset()
-    }
-  } else {
-    rectBuckets = Array.from(
-      { length: totalStyleCount },
-      (_, i) => new Float32GrowBuffer(seedCapacity(sizeHint?.rect, i, 1024))
-    )
-    eventBuckets = Array.from(
-      { length: totalStyleCount },
-      (_, i) => new Float32GrowBuffer(seedCapacity(sizeHint?.event, i, 512))
-    )
-    if (pool) {
-      pool.rect = rectBuckets
-      pool.event = eventBuckets
-      pool.styleCount = totalStyleCount
-    }
-  }
-  // Per-row hover offset index, built INLINE below (snapshot each bucket's rect
-  // count at every participant boundary) instead of a separate O(all-rects) pass.
   const rows = participantIds.length
-  const rectRowOffsets = Array.from({ length: totalStyleCount }, () => new Int32Array(rows + 1))
+  // Event overlay buckets only (small — one strip per merged event). There are no
+  // gaze rect buckets: the renderer composites the gaze rects straight from the
+  // binary segment store via `gazeSource` (see below).
+  const eventBuckets = Array.from(
+    { length: totalStyleCount },
+    () => new Float32GrowBuffer(512)
+  )
 
   const isOrdinal = settings.timeline === 'ordinal'
   const isRelative = settings.timeline === 'relative'
@@ -628,20 +486,17 @@ export function transformDataToScarfPlot(
   const hideNonFixations = settings.hideNonFixations
   const relTimelineStart = settings.timelineStart
   const relTimelineEnd = settings.timelineEnd
-  // Raw segment buffer for direct indexing in the hot loop (no per-call method
-  // dispatch through getSegmentStart/End/Category).
-  const segBuf = reader.segmentBufferRaw
   const participants: ScarfParticipant[] = new Array(participantIds.length)
-  const overlapAoiBuffer = new Uint16Array(aoiBufferSize)
+  // Per-participant-row projection (raw start/end → normalized x). Consumed by the
+  // fused gaze render (via gazeSource) and the event overlay below.
+  const projClipMin = new Float32Array(participantIds.length)
+  const projClipMax = new Float32Array(participantIds.length)
+  const projScale = new Float32Array(participantIds.length)
   // Observed (not theoretical) max simultaneous events across all participants.
   // Sizes the event band uniformly so the AOI seam is at a constant y.
   let observedMaxConcurrency = 0
 
   for (let pIndex = 0; pIndex < participantIds.length; pIndex++) {
-    // Row boundary: each bucket's first segment for this participant is at its
-    // current rect count (segments are pushed in ascending participant order).
-    for (let b = 0; b < totalStyleCount; b++) rectRowOffsets[b][pIndex] = rectBuckets[b].rectCount
-
     const pid = participantIds[pIndex]
     const sessionDuration = getParticipantEndTime(engine, stimulusId, pid)
 
@@ -664,73 +519,10 @@ export function transformDataToScarfPlot(
       scale = 1 / (clipMax - clipMin)
     }
 
-    const { startIndex, endIndex } = reader.getSegmentRange(stimulusId, pid)
-
-    for (let i = startIndex; i < endIndex; i++) {
-      const localId = i - startIndex
-      const segBase = i * SEGMENT_STRIDE
-      const categoryId = segBuf[segBase + SegmentField.CATEGORY_ID] | 0
-      let start = isOrdinal ? localId : segBuf[segBase + SegmentField.START_TIME]
-      let end = isOrdinal ? localId + 1 : segBuf[segBase + SegmentField.END_TIME]
-
-      if (end <= clipMin || start >= clipMax) continue
-      start = Math.max(clipMin, start)
-      end = Math.min(clipMax, end)
-
-      const x = (start - clipMin) * scale
-      const width = (end - start) * scale
-
-      if (categoryId !== FIXATION_CATEGORY_ID) {
-        if (hideNonFixations) continue
-        if (hiddenCategoryIds.has(categoryId)) continue
-
-        const styleIdx = categoryId >= 0 && categoryId < categoryStyleIdxMap.length
-          ? categoryStyleIdxMap[categoryId]
-          : -1
-
-        if (styleIdx === -1) continue
-
-        rectBuckets[styleIdx].pushRect(
-          x,
-          pIndex,
-          width,
-          HEIGHT_NON_FIXATION_DEFAULT,
-          localId,
-          SPACE_ABOVE_RECT_DEFAULT +
-            (HEIGHT_BAR_DEFAULT - HEIGHT_NON_FIXATION_DEFAULT) * 0.5
-        )
-      } else {
-        const count = aoiGroupReader.getSegmentAoisUniqueDirect(
-          i,
-          stimulusId,
-          overlapAoiBuffer
-        )
-        if (count === 0) {
-          rectBuckets[aoiData.length].pushRect(
-            x,
-            pIndex,
-            width,
-            HEIGHT_BAR_DEFAULT,
-            localId,
-            SPACE_ABOVE_RECT_DEFAULT
-          )
-        } else {
-          const h = HEIGHT_BAR_DEFAULT / count
-          for (let idx = 0; idx < count; idx++) {
-            const bucketIdx = aoiOrderMap[overlapAoiBuffer[idx]]
-            if (bucketIdx < 0) continue
-            rectBuckets[bucketIdx].pushRect(
-              x,
-              pIndex,
-              width,
-              h,
-              localId,
-              SPACE_ABOVE_RECT_DEFAULT + idx * h
-            )
-          }
-        }
-      }
-    }
+    // Consumed by the fused gaze render (via gazeSource) and the event overlay below.
+    projClipMin[pIndex] = clipMin
+    projClipMax[pIndex] = clipMax
+    projScale[pIndex] = scale
 
     if (showVisibilityMarkers) {
       // Merge this participant's events across ALL visible channels, pack them
@@ -814,23 +606,26 @@ export function transformDataToScarfPlot(
     }
   }
 
-  // Close the per-row offset index: final entry = total rects per bucket.
-  for (let b = 0; b < totalStyleCount; b++) rectRowOffsets[b][rows] = rectBuckets[b].rectCount
-
-  const visualRectBuckets = rectBuckets.map(b => b.finalize())
   const visualEventBuckets = eventBuckets.map(b => b.finalize())
 
-  // Remember this run's per-bucket sizes to seed the next frame's buffers.
-  const rectSizes = new Int32Array(totalStyleCount)
-  const eventSizes = new Int32Array(totalStyleCount)
-  for (let i = 0; i < totalStyleCount; i++) {
-    rectSizes[i] = visualRectBuckets[i].length
-    eventSizes[i] = visualEventBuckets[i].length
+  // Fused gaze source: everything the renderer/hover/highlight need to composite
+  // the gaze rects straight from the binary store — refs + the already-computed
+  // style maps + the per-participant projection arrays.
+  const gazeSource: ScarfGazeSource = {
+    reader,
+    aoiGroupReader,
+    participantIds,
+    stimulusId,
+    isOrdinal,
+    projClipMin,
+    projClipMax,
+    projScale,
+    aoiOrderMap,
+    categoryStyleIdxMap,
+    noAoiStyleIdx: aoiData.length,
+    hideNonFixations: !!hideNonFixations,
+    hiddenCategoryIds,
   }
-  if (!scarfBucketSizeCache.has(sizeCacheKey) && scarfBucketSizeCache.size >= SCARF_BUCKET_CACHE_CAP) {
-    scarfBucketSizeCache.clear()
-  }
-  scarfBucketSizeCache.set(sizeCacheKey, { rect: rectSizes, event: eventSizes })
 
   return {
     id: stimulusId,
@@ -843,9 +638,8 @@ export function transformDataToScarfPlot(
       settings.hideNonFixations,
       showVisibilityMarkers
     ),
-    visualRectBuckets,
     visualEventBuckets,
-    rectRowOffsets,
+    gazeSource,
     isOverlay: showVisibilityMarkers,
     eventZoneConcurrency: observedMaxConcurrency,
   }

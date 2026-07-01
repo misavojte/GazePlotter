@@ -8,10 +8,16 @@ import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
 import { desaturateToWhite, convertToHex, hexToRgb } from '$lib/color'
 import {
   OVERLAY_EVENT_STRIDE,
-  RECT_STRIDE,
   SCARF_LAYOUT,
 } from '../const'
-import type { ScarfData, ScarfRectStyle, ScarfEventStyle } from '../types'
+import { FIXATION_CATEGORY_ID } from '$lib/data/types'
+import { SEGMENT_STRIDE, SegmentField } from '$lib/data/binary/schema'
+import type {
+  ScarfData,
+  ScarfGazeSource,
+  ScarfRectStyle,
+  ScarfEventStyle,
+} from '../types'
 
 export interface ScarfLayoutContext {
   heightOfBar: number
@@ -240,6 +246,222 @@ let _offCanvas: OffscreenCanvas | HTMLCanvasElement | null = null
 let _offCtx: OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D | null = null
 let _offImg: ImageData | null = null
 
+// ── Gaze composite (single pass from the binary segment store) ─────────────
+
+/** A >=1px gaze rect deferred to the exact (pass-3) draw, collected during the
+ *  fused single pass so wide rects still land ON TOP of the composite blit. */
+interface FusedWideRect {
+  x0px: number
+  wPx: number
+  pIdx: number
+  hOrig: number
+  internalY: number
+  styleIdx: number
+}
+
+// Reused Uint16 scratch for the fused path's per-segment AOI resolution.
+let _fusedAoiScratch = new Uint16Array(0)
+
+/** Per-style RGB (premultiplied dimming applied) for O(1) colour lookup in the
+ *  accumulate — resolved ONCE per render, never per segment. */
+function buildStyleRgb(
+  styleArray: ScarfRectStyle[],
+  highlightMask: Uint8Array | null
+): Float32Array {
+  const isHighlightActive = highlightMask !== null
+  const out = new Float32Array(styleArray.length * 3)
+  for (let s = 0; s < styleArray.length; s++) {
+    const st = styleArray[s]
+    if (!st) continue
+    const isDimmed = isHighlightActive ? highlightMask[s] !== 1 : false
+    const rgb = hexToRgb(convertToHex(bandFill(st.normal.fill, isDimmed)))
+    out[s * 3] = rgb.r
+    out[s * 3 + 1] = rgb.g
+    out[s * 3 + 2] = rgb.b
+  }
+  return out
+}
+
+/** Premultiplied "over" of one sub-pixel run into the accumulator, at the given
+ *  colour + bar-height share (`hFrac`). Shared by the bucket and binary paths so
+ *  they can never diverge on the blend math. */
+function accumulateRun(
+  acc: Float32Array,
+  cr: number,
+  cg: number,
+  cb: number,
+  x0: number,
+  x1: number,
+  hFrac: number,
+  rowBase: number,
+  pWidth: number
+): void {
+  let p0 = x0 | 0 // floor; x0 >= 0
+  let p1 = Math.ceil(x1)
+  if (p0 < 0) p0 = 0
+  if (p1 > pWidth) p1 = pWidth
+  for (let px = p0; px < p1; px++) {
+    const right = x1 < px + 1 ? x1 : px + 1
+    const left = x0 > px ? x0 : px
+    const cx = right - left
+    if (cx <= 0) continue
+    let a = cx * hFrac
+    if (a > 1) a = 1
+    const ia = 1 - a
+    const k = (rowBase + px) << 2
+    acc[k] = cr * a + acc[k] * ia
+    acc[k + 1] = cg * a + acc[k + 1] * ia
+    acc[k + 2] = cb * a + acc[k + 2] * ia
+    acc[k + 3] = a + acc[k + 3] * ia
+  }
+}
+
+/**
+ * Pass-1 sub-pixel accumulate straight from the BINARY segment store,
+ * reproducing the transform's gaze geometry inline: clamp-then-normalize projection
+ * per participant row, AOI/category style resolution, AOI-overlap height split.
+ * Draw order is participant→time (vs style-bucket) — the accepted ~mean 2.78 RGB
+ * blend delta. If `wide` is supplied, >=1px rects are collected there (for pass 3)
+ * instead of accumulated. Exported for the equivalence test (which passes no `wide`).
+ */
+export function compositeGazeBinaryAcc(
+  acc: Float32Array,
+  gs: ScarfGazeSource,
+  styleRgb: Float32Array,
+  pWidth: number,
+  rows: number,
+  invBarH: number,
+  nonFixationHeight: number,
+  scaleFactor: number,
+  wide?: FusedWideRect[]
+): { anyWide: boolean; subPixelCount: number } {
+  const HNF = SCARF_LAYOUT.HEIGHT_NON_FIXATION_DEFAULT
+  const HBAR = SCARF_LAYOUT.HEIGHT_BAR_DEFAULT
+  const SAR = SCARF_LAYOUT.SPACE_ABOVE_RECT_DEFAULT
+  const {
+    reader,
+    aoiGroupReader,
+    participantIds,
+    stimulusId,
+    isOrdinal,
+    projClipMin,
+    projClipMax,
+    projScale,
+    aoiOrderMap,
+    categoryStyleIdxMap,
+    noAoiStyleIdx,
+    hideNonFixations,
+    hiddenCategoryIds,
+  } = gs
+  const segBuf = reader.segmentBufferRaw
+  if (_fusedAoiScratch.length < aoiOrderMap.length) {
+    _fusedAoiScratch = new Uint16Array(Math.max(64, aoiOrderMap.length))
+  }
+  const overlap = _fusedAoiScratch
+  const nonFixInternalY = SAR + (HBAR - HNF) * 0.5
+  let anyWide = false
+  let subPixelCount = 0
+
+  for (let pIndex = 0; pIndex < participantIds.length; pIndex++) {
+    if (pIndex >= rows) break
+    const pid = participantIds[pIndex]
+    const clipMin = projClipMin[pIndex]
+    const clipMax = projClipMax[pIndex]
+    const scale = projScale[pIndex]
+    const rowBase = pIndex * pWidth
+    const { startIndex, endIndex } = reader.getSegmentRange(stimulusId, pid)
+
+    for (let i = startIndex; i < endIndex; i++) {
+      const localId = i - startIndex
+      const segBase = i * SEGMENT_STRIDE
+      const categoryId = segBuf[segBase + SegmentField.CATEGORY_ID] | 0
+      let start = isOrdinal ? localId : segBuf[segBase + SegmentField.START_TIME]
+      let end = isOrdinal ? localId + 1 : segBuf[segBase + SegmentField.END_TIME]
+      if (end <= clipMin || start >= clipMax) continue
+      start = Math.max(clipMin, start)
+      end = Math.min(clipMax, end)
+      const x0 = (start - clipMin) * scale * pWidth
+      const wPx = (end - start) * scale * pWidth
+      const isWide = wPx >= 1
+
+      if (categoryId !== FIXATION_CATEGORY_ID) {
+        if (hideNonFixations) continue
+        if (hiddenCategoryIds.has(categoryId)) continue
+        const styleIdx =
+          categoryId >= 0 && categoryId < categoryStyleIdxMap.length
+            ? categoryStyleIdxMap[categoryId]
+            : -1
+        if (styleIdx === -1) continue
+        if (isWide) {
+          anyWide = true
+          if (wide) wide.push({ x0px: x0, wPx, pIdx: pIndex, hOrig: HNF, internalY: nonFixInternalY, styleIdx })
+        } else {
+          subPixelCount++
+          let hFrac = nonFixationHeight * invBarH
+          if (hFrac > 1) hFrac = 1
+          accumulateRun(acc, styleRgb[styleIdx * 3], styleRgb[styleIdx * 3 + 1], styleRgb[styleIdx * 3 + 2], x0, x0 + wPx, hFrac, rowBase, pWidth)
+        }
+      } else {
+        const count = aoiGroupReader.getSegmentAoisUniqueDirect(i, stimulusId, overlap)
+        if (count === 0) {
+          if (isWide) {
+            anyWide = true
+            if (wide) wide.push({ x0px: x0, wPx, pIdx: pIndex, hOrig: HBAR, internalY: SAR, styleIdx: noAoiStyleIdx })
+          } else {
+            subPixelCount++
+            let hFrac = HBAR * scaleFactor * invBarH
+            if (hFrac > 1) hFrac = 1
+            accumulateRun(acc, styleRgb[noAoiStyleIdx * 3], styleRgb[noAoiStyleIdx * 3 + 1], styleRgb[noAoiStyleIdx * 3 + 2], x0, x0 + wPx, hFrac, rowBase, pWidth)
+          }
+        } else {
+          const h = HBAR / count
+          for (let idx = 0; idx < count; idx++) {
+            const styleIdx = aoiOrderMap[overlap[idx]]
+            if (styleIdx < 0) continue
+            if (isWide) {
+              anyWide = true
+              if (wide) wide.push({ x0px: x0, wPx, pIdx: pIndex, hOrig: h, internalY: SAR + idx * h, styleIdx })
+            } else {
+              subPixelCount++
+              let hFrac = h * scaleFactor * invBarH
+              if (hFrac > 1) hFrac = 1
+              accumulateRun(acc, styleRgb[styleIdx * 3], styleRgb[styleIdx * 3 + 1], styleRgb[styleIdx * 3 + 2], x0, x0 + wPx, hFrac, rowBase, pWidth)
+            }
+          }
+        }
+      }
+    }
+  }
+  return { anyWide, subPixelCount }
+}
+
+/** Draw the deferred wide (>=1px) gaze rects exactly, on top of the composite
+ *  blit (fused path's pass 3). */
+function drawWideRects(
+  ctx: CanvasRenderingContext2D,
+  wide: FusedWideRect[],
+  styleArray: ScarfRectStyle[],
+  highlightMask: Uint8Array | null,
+  layout: ScarfLayoutContext,
+  pLeft: number,
+  top: number,
+  pitch: number,
+  dpr: number,
+  snapDev: (y: number) => number
+): void {
+  const isHighlightActive = highlightMask !== null
+  for (let i = 0; i < wide.length; i++) {
+    const w = wide[i]
+    const isDimmed = isHighlightActive ? highlightMask[w.styleIdx] !== 1 : false
+    ctx.fillStyle = bandFill(styleArray[w.styleIdx].normal.fill, isDimmed)
+    const { h, yInternal } = gazeRectVPlacement(w.hOrig, w.internalY, layout)
+    const yTop = snapDev(w.pIdx * pitch + yInternal + top)
+    let yH = snapDev(w.pIdx * pitch + yInternal + top + h) - yTop
+    if (yH < 1 / dpr) yH = 1 / dpr
+    ctx.fillRect(pLeft + w.x0px, yTop, w.wPx, yH)
+  }
+}
+
 /**
  * Gaze segments rendered at display resolution.
  *
@@ -268,8 +490,6 @@ function paintGazeRects(
   styleArray: ScarfRectStyle[],
   highlightMask: Uint8Array | null
 ) {
-  const buckets = data.visualRectBuckets
-  const isHighlightActive = highlightMask !== null
   const pLeft = Math.floor(layout.leftLabelWidth + layout.marginLeft)
   const pWidth = Math.floor(layout.plotAreaWidth)
   if (pWidth <= 0) return
@@ -294,103 +514,30 @@ function paintGazeRects(
   else _acc.fill(0, 0, slots)
   const acc = _acc
 
-  // Pass 1: composite sub-pixel (< 1px) segments in draw order (premultiplied
-  // "over" with alpha = x-coverage × bar-height share). `anyWide` records
-  // whether any >= 1px segment exists so pass 3 can be skipped when none do
-  // (the common fully-dense case); `subPixelCount` picks the emit strategy.
-  let anyWide = false
-  let subPixelCount = 0
-  for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
-    const buffer = buckets[styleIdx]
-    if (buffer.length === 0) continue
+  // Per-style colours resolved once (dimming baked in), shared by both paths.
+  const styleRgb = buildStyleRgb(styleArray, highlightMask)
 
-    const isDimmed = isHighlightActive ? highlightMask[styleIdx] !== 1 : false
-    const rgb = hexToRgb(convertToHex(bandFill(styleArray[styleIdx].normal.fill, isDimmed)))
-    const cr = rgb.r
-    const cg = rgb.g
-    const cb = rgb.b
-
-    const segmentCount = buffer.length / RECT_STRIDE
-    for (let i = 0; i < segmentCount; i++) {
-      const idx = i * RECT_STRIDE
-      const wPx = buffer[idx + 2] * pWidth
-      if (wPx >= 1) {
-        anyWide = true
-        continue // wide -> drawn exactly in pass 3
-      }
-      const pIdx = buffer[idx + 1] | 0
-      if (pIdx < 0 || pIdx >= rows) continue
-      subPixelCount++
-
-      const hOrig = buffer[idx + 3]
-      const h =
-        hOrig === SCARF_LAYOUT.HEIGHT_NON_FIXATION_DEFAULT
-          ? layout.nonFixationHeight
-          : hOrig * layout.scaleFactor
-      let hFrac = h * invBarH
-      if (hFrac > 1) hFrac = 1
-
-      const x0 = buffer[idx] * pWidth // plot-relative pixels (xNorm >= 0)
-      const x1 = x0 + wPx
-      let p0 = x0 | 0 // floor; x0 >= 0
-      let p1 = Math.ceil(x1)
-      if (p0 < 0) p0 = 0
-      if (p1 > pWidth) p1 = pWidth
-      const rowBase = pIdx * pWidth
-      for (let px = p0; px < p1; px++) {
-        const right = x1 < px + 1 ? x1 : px + 1
-        const left = x0 > px ? x0 : px
-        const cx = right - left
-        if (cx <= 0) continue
-        let a = cx * hFrac
-        if (a > 1) a = 1
-        const ia = 1 - a
-        const k = (rowBase + px) << 2
-        acc[k] = cr * a + acc[k] * ia
-        acc[k + 1] = cg * a + acc[k + 1] * ia
-        acc[k + 2] = cb * a + acc[k + 2] * ia
-        acc[k + 3] = a + acc[k + 3] * ia
-      }
-    }
-  }
-
-  // Pass 2: emit the composite layer through ONE path — blit the packed pixels
-  // via an offscreen canvas. It is fast at any density (cost bounded by the plot
-  // size, not the segment count) and device-clean (its nearest-neighbour upscale
-  // lands edges on whole device pixels, so the band never bleeds past the bar).
-  // There is deliberately no second, content-switched emit path: a density
-  // threshold used to flip between strategies and shifted the image as a plot
-  // crossed it. Nothing to emit when there is no sub-pixel content.
+  // Composite gaze straight from the binary segment store in ONE pass — no
+  // intermediate rect buckets — collecting >=1px rects for the exact pass below.
+  // Draw order is participant→time (the accepted ~mean 2.78 RGB blend-order delta,
+  // within the downsample tolerance).
+  const wide: FusedWideRect[] = []
+  const { subPixelCount } = compositeGazeBinaryAcc(
+    acc,
+    data.gazeSource,
+    styleRgb,
+    pWidth,
+    rows,
+    invBarH,
+    layout.nonFixationHeight,
+    layout.scaleFactor,
+    wide
+  )
   if (subPixelCount > 0) {
     blitCompositeLayer(ctx, acc, rows, pWidth, pLeft, top, pitch, barTop, barH)
   }
-
-  // Pass 3: draw >= 1px segments exactly, on top of the composite layer.
-  if (!anyWide) return
-  for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
-    const buffer = buckets[styleIdx]
-    if (buffer.length === 0) continue
-
-    const isDimmed = isHighlightActive ? highlightMask[styleIdx] !== 1 : false
-    ctx.fillStyle = bandFill(styleArray[styleIdx].normal.fill, isDimmed)
-
-    const segmentCount = buffer.length / RECT_STRIDE
-    for (let i = 0; i < segmentCount; i++) {
-      const idx = i * RECT_STRIDE
-      if (buffer[idx + 2] * pWidth < 1) continue
-      const pIdx = buffer[idx + 1]
-      const { h, yInternal } = gazeRectVPlacement(
-        buffer[idx + 3],
-        buffer[idx + 5],
-        layout
-      )
-      // Snap the vertical edges to device pixels (no ~0.5px bleed past the bar);
-      // keep a >= 1 device-px floor so a thin non-fixation can't round away.
-      const yTop = snapDev(pIdx * pitch + yInternal + top)
-      let yH = snapDev(pIdx * pitch + yInternal + top + h) - yTop
-      if (yH < 1 / dpr) yH = 1 / dpr
-      ctx.fillRect(pLeft + buffer[idx] * pWidth, yTop, buffer[idx + 2] * pWidth, yH)
-    }
+  if (wide.length > 0) {
+    drawWideRects(ctx, wide, styleArray, highlightMask, layout, pLeft, top, pitch, dpr, snapDev)
   }
 }
 
@@ -575,6 +722,210 @@ let _xEnd = new Float32Array(0)
 let _isBoundary = new Uint8Array(0)
 let _deque = new Int32Array(0)
 
+function ensureHighlightScratch(m: number): void {
+  if (_ctr.length < m) {
+    _ctr = new Float32Array(m)
+    _wt = new Float32Array(m)
+    _xStart = new Float32Array(m)
+    _xEnd = new Float32Array(m)
+    _isBoundary = new Uint8Array(m)
+    _deque = new Int32Array(m)
+  }
+}
+
+/**
+ * THE ring-visibility windowing (shared by the bucket + fused paths). Consumes the
+ * pre-filled per-row scratch (`_ctr`/`_wt`/`_xStart`/`_xEnd`/`_isBoundary`, `m`
+ * entries, ascending centres, time-disjoint) and emits capsule rings for the faint
+ * stretches. A monotonic deque tracks the max column-alpha in the ±HALF window; a
+ * stretch is ringed only when neither a single visible neighbour nor the windowed
+ * coverage sum clears the legibility floor.
+ */
+function runHighlightWindow(
+  ctx: CanvasRenderingContext2D,
+  m: number,
+  cy: number,
+  r: number,
+  color: string,
+  pLeft: number,
+  HALF: number,
+  clusterGap: number
+): void {
+  const V_max = SCARF_LAYOUT.HIGHLIGHT_SELF_LEGIBLE_LIMIT
+  let lo = 0
+  let hiPtr = 0
+  let winSum = 0
+  let dequeHead = 0
+  let dequeTail = 0
+  let clusterStart = 0
+  let clusterEnd = 0
+  let clusterN = 0
+  for (let s = 0; s < m; s++) {
+    const cs = _ctr[s]
+
+    // Monotonic Queue: push hiPtr
+    while (hiPtr < m && _xStart[hiPtr] <= cs + HALF) {
+      const idx = hiPtr
+      const wt_idx = _wt[idx]
+      while (dequeTail > dequeHead && _wt[_deque[dequeTail - 1]] <= wt_idx) {
+        dequeTail--
+      }
+      _deque[dequeTail++] = idx
+      winSum += wt_idx
+      hiPtr++
+    }
+
+    // Pop from sliding window
+    while (lo < hiPtr && _xEnd[lo] < cs - HALF) {
+      winSum -= _wt[lo]
+      lo++
+    }
+
+    // Monotonic Queue: pop lo
+    while (dequeHead < dequeTail && _deque[dequeHead] < lo) {
+      dequeHead++
+    }
+
+    if (_isBoundary[s] === 1) continue // boundary segment — no ring
+
+    const wt_s = _wt[s]
+    const threshold = wt_s >= V_max ? 0 : V_max - wt_s
+
+    const maxWt = dequeHead < dequeTail ? _wt[_deque[dequeHead]] : 0
+
+    if (maxWt >= SCARF_LAYOUT.HIGHLIGHT_SINGLE_VISIBLE_LIMIT || winSum >= threshold) continue
+    if (clusterN > 0 && cs - clusterEnd > clusterGap) {
+      drawHighlightCapsule(ctx, pLeft + clusterStart, pLeft + clusterEnd, cy, r, color)
+      clusterN = 0
+    }
+    if (clusterN === 0) {
+      clusterStart = cs
+    }
+    clusterEnd = cs
+    clusterN++
+  }
+  if (clusterN > 0) {
+    drawHighlightCapsule(ctx, pLeft + clusterStart, pLeft + clusterEnd, cy, r, color)
+  }
+}
+
+/**
+ * Fused-path highlight rings: source each highlighted style's faint stretches from
+ * the BINARY store (per participant row, resolve AOI/category inline, keep only the
+ * segments whose resolved style is highlighted — time-ordered + time-disjoint like
+ * the buckets) and feed the SAME windowing. Preserves the exact ring verdicts.
+ */
+function drawHighlightMarkersFromBinary(
+  ctx: CanvasRenderingContext2D,
+  gs: ScarfGazeSource,
+  layout: ScarfLayoutContext,
+  highlightMask: Uint8Array,
+  styles: ScarfRectStyle[],
+  pWidth: number,
+  rows: number,
+  top: number,
+  pitch: number,
+  invBarH: number,
+  gazeBandCy: number,
+  r: number,
+  HALF: number,
+  clusterGap: number,
+  pLeft: number
+): void {
+  const HBAR = SCARF_LAYOUT.HEIGHT_BAR_DEFAULT
+  const {
+    reader,
+    aoiGroupReader,
+    participantIds,
+    stimulusId,
+    isOrdinal,
+    projClipMin,
+    projClipMax,
+    projScale,
+    aoiOrderMap,
+    categoryStyleIdxMap,
+    noAoiStyleIdx,
+    hideNonFixations,
+    hiddenCategoryIds,
+  } = gs
+  const segBuf = reader.segmentBufferRaw
+  const scaleFactor = layout.scaleFactor
+  const nonFixationHeight = layout.nonFixationHeight
+  if (_fusedAoiScratch.length < aoiOrderMap.length) {
+    _fusedAoiScratch = new Uint16Array(Math.max(64, aoiOrderMap.length))
+  }
+  const overlap = _fusedAoiScratch
+
+  for (let styleIdx = 0; styleIdx < styles.length; styleIdx++) {
+    if (highlightMask[styleIdx] !== 1) continue
+    const color = styles[styleIdx]?.normal?.fill
+    if (!color) continue
+
+    for (let pIndex = 0; pIndex < participantIds.length; pIndex++) {
+      if (pIndex >= rows) break
+      const pid = participantIds[pIndex]
+      const clipMin = projClipMin[pIndex]
+      const clipMax = projClipMax[pIndex]
+      const scale = projScale[pIndex]
+      const { startIndex, endIndex } = reader.getSegmentRange(stimulusId, pid)
+      ensureHighlightScratch(endIndex - startIndex)
+
+      let m = 0
+      for (let i = startIndex; i < endIndex; i++) {
+        const localId = i - startIndex
+        const segBase = i * SEGMENT_STRIDE
+        const categoryId = segBuf[segBase + SegmentField.CATEGORY_ID] | 0
+        let start = isOrdinal ? localId : segBuf[segBase + SegmentField.START_TIME]
+        let end = isOrdinal ? localId + 1 : segBuf[segBase + SegmentField.END_TIME]
+        if (end <= clipMin || start >= clipMax) continue
+        start = Math.max(clipMin, start)
+        end = Math.min(clipMax, end)
+
+        // Does this segment contribute to the highlighted style, and at what height?
+        let hFrac = -1
+        if (categoryId !== FIXATION_CATEGORY_ID) {
+          if (hideNonFixations || hiddenCategoryIds.has(categoryId)) continue
+          const sIdx =
+            categoryId >= 0 && categoryId < categoryStyleIdxMap.length
+              ? categoryStyleIdxMap[categoryId]
+              : -1
+          if (sIdx !== styleIdx) continue
+          hFrac = nonFixationHeight * invBarH
+        } else {
+          const count = aoiGroupReader.getSegmentAoisUniqueDirect(i, stimulusId, overlap)
+          if (count === 0) {
+            if (styleIdx !== noAoiStyleIdx) continue
+            hFrac = HBAR * scaleFactor * invBarH
+          } else {
+            let matched = false
+            for (let idx = 0; idx < count; idx++) {
+              if (aoiOrderMap[overlap[idx]] === styleIdx) {
+                hFrac = (HBAR / count) * scaleFactor * invBarH
+                matched = true
+                break
+              }
+            }
+            if (!matched) continue
+          }
+        }
+        if (hFrac > 1) hFrac = 1
+
+        const x0 = (start - clipMin) * scale * pWidth
+        const w = (end - start) * scale * pWidth
+        _ctr[m] = x0 + w * 0.5
+        _xStart[m] = x0
+        _xEnd[m] = x0 + w
+        _wt[m] = w * hFrac
+        _isBoundary[m] = x0 <= 0.001 || x0 + w >= pWidth - 0.001 ? 1 : 0
+        m++
+      }
+      if (m === 0) continue
+      const cy = pIndex * pitch + top + gazeBandCy
+      runHighlightWindow(ctx, m, cy, r, color, pLeft, HALF, clusterGap)
+    }
+  }
+}
+
 /**
  * Rings the location of HIGHLIGHTED gaze segments that the faithful blend draws
  * too faintly to see. The blend is never altered: a sub-pixel fixation shares
@@ -638,7 +989,6 @@ export function drawScarfHighlightMarkers(
   )
   if (r < SCARF_LAYOUT.HIGHLIGHT_MARKER_MIN_RADIUS) return
 
-  const visible = SCARF_LAYOUT.HIGHLIGHT_VISIBLE_COVERAGE
   const clusterGap = 2 * r
   // Half-width of the legibility window. Coverage is summed over segments whose
   // CENTRES lie within ±HALF logical px of the candidate — a span tied to the
@@ -648,117 +998,13 @@ export function drawScarfHighlightMarkers(
   // data instead of flickering on and off as segments cross pixel boundaries.
   const HALF = SCARF_LAYOUT.HIGHLIGHT_WINDOW_PX / 2
 
-  const buckets = data.visualRectBuckets
   const styles = opts.rectStyleArray
 
   ctx.save()
-  for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
-    if (highlightMask[styleIdx] !== 1) continue
-    const buffer = buckets[styleIdx]
-    if (buffer.length === 0) continue
-    const color = styles[styleIdx]?.normal?.fill
-    if (!color) continue
-
-    const count = buffer.length / RECT_STRIDE
-    let i = 0
-    while (i < count) {
-      const row = buffer[i * RECT_STRIDE + 1] | 0
-      let end = i
-      while (end < count && (buffer[end * RECT_STRIDE + 1] | 0) === row) end++
-
-      if (row >= 0 && row < rows) {
-        const m = end - i
-        if (_ctr.length < m) {
-          _ctr = new Float32Array(m)
-          _wt = new Float32Array(m)
-          _xStart = new Float32Array(m)
-          _xEnd = new Float32Array(m)
-          _isBoundary = new Uint8Array(m)
-          _deque = new Int32Array(m)
-        }
-        for (let s = 0; s < m; s++) {
-          const idx = (i + s) * RECT_STRIDE
-          const x0 = buffer[idx] * pWidth
-          const w = buffer[idx + 2] * pWidth
-          _ctr[s] = x0 + w * 0.5
-          _xStart[s] = x0
-          _xEnd[s] = x0 + w
-          // Inline of gazeRectVPlacement's `h` (the only field the ring test
-          // needs): skips the per-segment object allocation and the unused
-          // yInternal math in this hot loop.
-          const hOrig = buffer[idx + 3]
-          const h =
-            hOrig === SCARF_LAYOUT.HEIGHT_NON_FIXATION_DEFAULT
-              ? layout.nonFixationHeight
-              : hOrig * layout.scaleFactor
-          let hFrac = h * invBarH
-          if (hFrac > 1) hFrac = 1
-          
-          _wt[s] = w * hFrac
-          _isBoundary[s] = (x0 <= 0.001 || (x0 + w) >= pWidth - 0.001) ? 1 : 0
-        }
-
-        const V_max = SCARF_LAYOUT.HIGHLIGHT_SELF_LEGIBLE_LIMIT
-        const cy = row * pitch + top + gazeBandCy
-        let lo = 0
-        let hiPtr = 0
-        let winSum = 0
-        let dequeHead = 0
-        let dequeTail = 0
-        let clusterStart = 0
-        let clusterEnd = 0
-        let clusterN = 0
-        for (let s = 0; s < m; s++) {
-          const cs = _ctr[s]
-          
-          // Monotonic Queue: push hiPtr
-          while (hiPtr < m && _xStart[hiPtr] <= cs + HALF) {
-            const idx = hiPtr
-            const wt_idx = _wt[idx]
-            while (dequeTail > dequeHead && _wt[_deque[dequeTail - 1]] <= wt_idx) {
-              dequeTail--
-            }
-            _deque[dequeTail++] = idx
-            winSum += wt_idx
-            hiPtr++
-          }
-          
-          // Pop from sliding window
-          while (lo < hiPtr && _xEnd[lo] < cs - HALF) {
-            winSum -= _wt[lo]
-            lo++
-          }
-          
-          // Monotonic Queue: pop lo
-          while (dequeHead < dequeTail && _deque[dequeHead] < lo) {
-            dequeHead++
-          }
-          
-          if (_isBoundary[s] === 1) continue // boundary segment — no ring
-          
-          const wt_s = _wt[s]
-          const threshold = wt_s >= V_max ? 0 : V_max - wt_s
-          
-          const maxWt = dequeHead < dequeTail ? _wt[_deque[dequeHead]] : 0
-          
-          if (maxWt >= SCARF_LAYOUT.HIGHLIGHT_SINGLE_VISIBLE_LIMIT || winSum >= threshold) continue
-          if (clusterN > 0 && cs - clusterEnd > clusterGap) {
-            drawHighlightCapsule(ctx, pLeft + clusterStart, pLeft + clusterEnd, cy, r, color)
-            clusterN = 0
-          }
-          if (clusterN === 0) {
-            clusterStart = cs
-          }
-          clusterEnd = cs
-          clusterN++
-        }
-        if (clusterN > 0) {
-          drawHighlightCapsule(ctx, pLeft + clusterStart, pLeft + clusterEnd, cy, r, color)
-        }
-      }
-      i = end
-    }
-  }
+  drawHighlightMarkersFromBinary(
+    ctx, data.gazeSource, layout, highlightMask, styles,
+    pWidth, rows, top, pitch, invBarH, gazeBandCy, r, HALF, clusterGap, pLeft
+  )
   ctx.restore()
 }
 

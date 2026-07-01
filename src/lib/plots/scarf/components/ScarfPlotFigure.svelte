@@ -32,7 +32,9 @@
   } from '$lib/plots/shared'
   import { onDestroy } from 'svelte'
   import { measureTextHeight } from '$lib/shared/utils/textUtils'
-  import { RECT_STRIDE, SCARF_LAYOUT } from '../const'
+  import { SCARF_LAYOUT } from '../const'
+  import { FIXATION_CATEGORY_ID } from '$lib/data/types'
+  import { SEGMENT_STRIDE, SegmentField } from '$lib/data/binary/schema'
   import {
     calculateEffectiveMarginTop,
     calculateIntrinsicContentHeight,
@@ -309,13 +311,13 @@
     return netAvailableHeight >= minPlotHeight
   })
 
-  const visualRectBuckets = $derived(data.visualRectBuckets)
   const visualEventBuckets = $derived(data.visualEventBuckets)
-  const rectRowOffsets = $derived(data.rectRowOffsets)
   const styleArrays = $derived(
     createStyleArrays(
       identifierSystem, rectStyleMap, eventStyleMap,
-      visualRectBuckets.length, visualEventBuckets.length
+      // One rect style per identifier (the gaze render resolves styleIdx inline);
+      // rect buckets no longer exist, so size from the identifier system.
+      identifierSystem.indexToId.size, visualEventBuckets.length
     )
   )
   const rectStyleArray = $derived(styleArrays.rectStyles)
@@ -581,66 +583,94 @@
   }
 
   function findSegmentAtRowAndTime(rowIndex: number, mouseX: number) {
-    const buckets = visualRectBuckets
-    if (buckets.length === 0) return null
-
-    const offsets = rectRowOffsets
     const { indexToId } = identifierSystem
     const scale = layout.scaleFactor
     const floorLeft = Math.floor(LEFT_LABEL_WIDTH + margins.left)
     const floorWidth = Math.floor(plotAreaWidth)
 
-    for (let styleIdx = buckets.length - 1; styleIdx >= 0; styleIdx--) {
-      const buffer = buckets[styleIdx]
-      if (buffer.length === 0) continue
+    // Scan the row's binary segments directly (no rect buckets), resolving
+    // AOI/category inline. Segments in a row are time-disjoint, so at most one
+    // contains mouseX; a multi-AOI fixation's topmost sub-rect wins.
+    if (data.gazeSource) {
+      const gs = data.gazeSource
+      if (rowIndex < 0 || rowIndex >= gs.participantIds.length) return null
+      const HNF = SCARF_LAYOUT.HEIGHT_NON_FIXATION_DEFAULT
+      const HBAR = SCARF_LAYOUT.HEIGHT_BAR_DEFAULT
+      const SAR = SCARF_LAYOUT.SPACE_ABOVE_RECT_DEFAULT
+      const segBuf = gs.reader.segmentBufferRaw
+      const clipMin = gs.projClipMin[rowIndex]
+      const clipMax = gs.projClipMax[rowIndex]
+      const pScale = gs.projScale[rowIndex]
+      const pid = gs.participantIds[rowIndex]
+      const overlap = new Uint16Array(Math.max(64, gs.aoiOrderMap.length))
+      const { startIndex, endIndex } = gs.reader.getSegmentRange(gs.stimulusId, pid)
 
-      // Scan only the hovered row's contiguous slice (topmost first = backward)
-      // rather than the whole buffer; pIndex is constant (== rowIndex) within it.
-      const rowStart = offsets[styleIdx]
-      const lo = rowStart[rowIndex]
-      const hi = rowStart[rowIndex + 1]
-      for (let i = hi - 1; i >= lo; i--) {
-        const idx = i * RECT_STRIDE
-        const pIndex = buffer[idx + 1]
-
-        const xNormalized = buffer[idx]
-        const widthNormalized = buffer[idx + 2]
-        const origRectH = buffer[idx + 3]
-        const origInternalY = buffer[idx + 5]
-
-        const pxX = floorLeft + xNormalized * floorWidth
-        const pxW = widthNormalized * floorWidth
-
-        if (mouseX >= pxX && mouseX <= pxX + pxW) {
-          let rectH = origRectH
-          let internalY = origInternalY
-          if (scale !== 1) {
-            if (origRectH === SCARF_LAYOUT.HEIGHT_NON_FIXATION_DEFAULT) {
-              rectH = layout.nonFixationHeight
-              internalY = layout.spaceAboveRect + (layout.heightOfBar - layout.nonFixationHeight) / 2
-            } else {
-              rectH = origRectH * scale
-              internalY =
-                layout.spaceAboveRect +
-                (origInternalY - SCARF_LAYOUT.SPACE_ABOVE_RECT_DEFAULT) * scale
-            }
+      const build = (styleIdx: number, hOrig: number, internalYDefault: number, orderId: number, xN: number, wN: number) => {
+        let rectH = hOrig
+        let internalY = internalYDefault
+        if (scale !== 1) {
+          if (hOrig === HNF) {
+            rectH = layout.nonFixationHeight
+            internalY = layout.spaceAboveRect + (layout.heightOfBar - layout.nonFixationHeight) / 2
+          } else {
+            rectH = hOrig * scale
+            internalY = layout.spaceAboveRect + (internalYDefault - SAR) * scale
           }
-          return {
-            x: xNormalized,
-            y: pIndex,
-            width: widthNormalized,
-            height: rectH,
-            internalY,
-            identifier: indexToId.get(styleIdx) ?? '',
-            // participant id is derived from the row (not stored per rect); the
-            // segment's local index (orderId) doubles as its segment id.
-            participantId: data.participants[pIndex | 0]?.id ?? (pIndex | 0),
-            segmentId: buffer[idx + 4],
-            orderId: buffer[idx + 4],
+        }
+        return {
+          x: xN,
+          y: rowIndex,
+          width: wN,
+          height: rectH,
+          internalY,
+          identifier: indexToId.get(styleIdx) ?? '',
+          participantId: data.participants[rowIndex]?.id ?? rowIndex,
+          segmentId: orderId,
+          orderId,
+        }
+      }
+
+      let hit: ReturnType<typeof build> | null = null
+      for (let i = startIndex; i < endIndex; i++) {
+        const localId = i - startIndex
+        const segBase = i * SEGMENT_STRIDE
+        const categoryId = segBuf[segBase + SegmentField.CATEGORY_ID] | 0
+        let start = gs.isOrdinal ? localId : segBuf[segBase + SegmentField.START_TIME]
+        let end = gs.isOrdinal ? localId + 1 : segBuf[segBase + SegmentField.END_TIME]
+        if (end <= clipMin || start >= clipMax) continue
+        start = Math.max(clipMin, start)
+        end = Math.min(clipMax, end)
+        const xN = (start - clipMin) * pScale
+        const wN = (end - start) * pScale
+        const pxX = floorLeft + xN * floorWidth
+        const pxW = wN * floorWidth
+        if (mouseX < pxX || mouseX > pxX + pxW) continue
+
+        if (categoryId !== FIXATION_CATEGORY_ID) {
+          if (gs.hideNonFixations || gs.hiddenCategoryIds.has(categoryId)) continue
+          const sIdx =
+            categoryId >= 0 && categoryId < gs.categoryStyleIdxMap.length
+              ? gs.categoryStyleIdxMap[categoryId]
+              : -1
+          if (sIdx === -1) continue
+          hit = build(sIdx, HNF, SAR + (HBAR - HNF) * 0.5, localId, xN, wN)
+        } else {
+          const count = gs.aoiGroupReader.getSegmentAoisUniqueDirect(i, gs.stimulusId, overlap)
+          if (count === 0) {
+            hit = build(gs.noAoiStyleIdx, HBAR, SAR, localId, xN, wN)
+          } else {
+            const h = HBAR / count
+            for (let idx = 0; idx < count; idx++) {
+              const sIdx = gs.aoiOrderMap[overlap[idx]]
+              if (sIdx < 0) continue
+              hit = build(sIdx, h, SAR + idx * h, localId, xN, wN) // topmost = last
+            }
           }
         }
       }
+      return hit
     }
+
     return null
   }
 

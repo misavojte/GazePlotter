@@ -159,7 +159,13 @@ describe.skipIf(!RUN)('scarf throughput (base full-extent path)', () => {
     const data0 = getScarfData(engine, settings)
     if (!data0) throw new Error('getScarfData returned null')
     const totalSegs = N_PARTICIPANTS * SEGS_PER_P
-    const rectEntries = data0.visualRectBuckets.reduce((n, b) => n + b.length / 6, 0)
+    // Gaze is composited straight from the binary store now (no rect buckets); the
+    // number of rect records equals the segment count.
+    const rectEntries = totalSegs
+    const styleCount =
+      data0.stylingAndLegend.aoi.length +
+      data0.stylingAndLegend.category.length +
+      data0.stylingAndLegend.visibility.length
 
     const layout: ScarfLayoutContext = {
       heightOfBar: 16,
@@ -181,7 +187,7 @@ describe.skipIf(!RUN)('scarf throughput (base full-extent path)', () => {
       deviceScale: 2,
     } as unknown as ScarfLayoutContext
 
-    const rectStyleArray = data0.visualRectBuckets.map(() => ({ normal: { fill: '#3366cc' } })) as never
+    const rectStyleArray = Array.from({ length: styleCount }, () => ({ normal: { fill: '#3366cc' } })) as never
     const ctx = stubCtx()
 
     if (process.env.SCARF_PROFILE) {

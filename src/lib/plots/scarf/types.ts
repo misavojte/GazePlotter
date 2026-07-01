@@ -114,6 +114,58 @@ export interface ScarfParticipant {
 }
 
 // ============================================================================
+// Gaze render source (binary, single-pass)
+// ============================================================================
+
+/** Minimal structural view of the binary segment reader the gaze render needs
+ *  (kept structural so this module doesn't import the data-engine types). */
+export interface FusedSegmentReader {
+  readonly segmentBufferRaw: Float32Array
+  getSegmentRange(
+    stimulusId: number,
+    participantId: number
+  ): { startIndex: number; endIndex: number }
+}
+
+/** Minimal structural view of the AOI group reader the fused gaze path needs. */
+export interface FusedAoiGroupReader {
+  getSegmentAoisUniqueDirect(
+    segmentIndex: number,
+    stimulusId: number,
+    out: Uint16Array | Uint32Array
+  ): number
+}
+
+/**
+ * Everything the render/hover/highlight need to reproduce the gaze rects directly
+ * from the binary segment store — WITHOUT materializing per-style rect buckets. The
+ * gaze geometry is composited in one pass over the binary segments; per-participant
+ * `projClip*`/`projScale` project raw start/end to the normalized [0,1] x-axis
+ * (clamp-then-normalize), and the style maps resolve each segment's AOI/category to
+ * a style index inline.
+ */
+export interface ScarfGazeSource {
+  reader: FusedSegmentReader
+  aoiGroupReader: FusedAoiGroupReader
+  participantIds: number[]
+  stimulusId: number
+  /** Ordinal mode uses the segment's local index as its x-position (not time). */
+  isOrdinal: boolean
+  /** Per-participant-row visible-window bounds + scale (length = participants). */
+  projClipMin: Float32Array
+  projClipMax: Float32Array
+  projScale: Float32Array
+  /** raw AOI id → gaze style index (bucket index); -1 if not visible. */
+  aoiOrderMap: Int16Array
+  /** raw category id → gaze style index; -1 if not mapped. */
+  categoryStyleIdxMap: Int16Array
+  /** Style index of the "no AOI" fixation bucket (= number of visible AOIs). */
+  noAoiStyleIdx: number
+  hideNonFixations: boolean
+  hiddenCategoryIds: Set<number>
+}
+
+// ============================================================================
 // Main Scarf Data Type
 // ============================================================================
 
@@ -131,7 +183,7 @@ export interface ScarfParticipant {
  * @property stylingAndLegend - ScarfStyling object containing styling info for rendering segments
  * @property legendData - Group-aware legend data for viewport-driven legend rendering
  * @property participants - array of ScarfParticipant objects containing information about participants
- * @property visualRectBuckets - Precomputed visual buffers for rectangle rendering
+ * @property gazeSource - binary source the renderer/hover/highlight composite gaze from
  * @property visualEventBuckets - Precomputed visual buffers for visibility event markers
  */
 export type ScarfData = {
@@ -145,29 +197,18 @@ export type ScarfData = {
   legendData: ScarfLegendData
 
   /**
-   * Precomputed visual buffers (pixel coordinates) for canvas rendering.
-   * Each array corresponds to one style index (bucketed by style during transformation).
-   * This eliminates the need for runtime bucketing in Svelte.
-   *
-   * Rectangle buffer layout per style (RECT_STRIDE = 8):
-   * [x, participantIndex, width, height, participantId, segmentId, orderId, internalY]
-   *
-   * Combined-mode (overlay) event-strip buffer per style
-   * (OVERLAY_EVENT_STRIDE = 5):
-   * [xNormalized, pIndex, widthNormalized, laneIndex, isPoint]
+   * Combined-mode (overlay) event-strip buffers per style, one array per style
+   * index (OVERLAY_EVENT_STRIDE = 5): [xNormalized, pIndex, widthNormalized,
+   * laneIndex, isPoint]. Events are still materialized (they are few); gaze is not.
    */
-  visualRectBuckets: Float32Array[]
   visualEventBuckets: Float32Array[]
 
   /**
-   * Per-rect-bucket row index for hover hit-testing. `rectRowOffsets[styleIdx]`
-   * is an Int32Array of length (participants + 1) where entry r is the first
-   * segment index in that bucket with participantIndex >= r. The segments of
-   * row r are the half-open slice [r, r + 1), so the hover hit-test scans only
-   * the hovered row instead of the whole buffer. Same length/order as
-   * `visualRectBuckets`.
+   * The gaze render source: the renderer, hover hit-test and highlight markers
+   * composite/scan gaze segments straight from the binary segment store via this
+   * (no intermediate per-style rect buffers). See {@link ScarfGazeSource}.
    */
-  rectRowOffsets: Int32Array[]
+  gazeSource: ScarfGazeSource
 
   /** Whether the event overlay (strips below the gaze baseline) is drawn. */
   isOverlay: boolean
