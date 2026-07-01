@@ -4,7 +4,8 @@
     isMenuActionActivationKey,
     shouldCloseMenuOnAction,
   } from './behavior'
-  import { fade } from 'svelte/transition'
+  import { fade, scale } from 'svelte/transition'
+  import { cubicOut } from 'svelte/easing'
   import { MENU_MAX_HEIGHT, MENU_WIDTH } from './const'
   import {
     type MenuFlyoutItem,
@@ -71,7 +72,7 @@
   use:portal={'gp-context-menu-portal-host'}
   use:calculatePositionAction
   style={`left:${coords.x}px; top:${coords.y}px; z-index:${parentZIndex + 1}; --menu-width: ${menuWidth}px;`}
-  in:fade={{ duration: 200 }}
+  in:scale={{ duration: 150, start: 0.96, easing: cubicOut }}
 >
   <div
     class="menu-content"
@@ -153,11 +154,11 @@
     position: fixed;
     pointer-events: auto;
     background: var(--c-white);
-    border: var(--menu-border-width) solid var(--menu-border-color);
-    border-radius: var(--rounded-md);
+    border: 1px solid color-mix(in srgb, var(--c-black) 8%, transparent);
+    border-radius: 12px;
     --menu-width: 220px;
     width: var(--menu-width);
-    box-shadow: 0 4px 16px color-mix(in srgb, var(--c-black) 12%, transparent);
+    box-shadow: var(--shadow-xl);
     overflow: hidden;
   }
 
@@ -191,7 +192,7 @@
     align-items: center;
     gap: 8px;
     transition: background var(--transition-fast) ease;
-    border-radius: var(--rounded);
+    border-radius: var(--rounded-md);
     margin: 0 4px;
     width: calc(100% - 8px);
   }

@@ -152,7 +152,7 @@
     align-items: center;
     gap: 8px;
     transition: background var(--transition-fast) ease;
-    border-radius: var(--rounded);
+    border-radius: var(--rounded-md);
     margin: 0 4px;
     width: calc(100% - 8px);
     justify-content: space-between;
