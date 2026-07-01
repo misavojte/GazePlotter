@@ -1,7 +1,7 @@
 import type { EngineMetadata, ExtendedInterpretedDataType } from '$lib/data/types'
 import { DEFAULT_AOI_COLORS, DEFAULT_CATEGORY_COLORS } from '$lib/color/palettes'
 
-const getDefaultColor = (index: number): string =>
+export const getDefaultColor = (index: number): string =>
   DEFAULT_AOI_COLORS[index % DEFAULT_AOI_COLORS.length]
 
 export const getDefaultCategoryColor = (index: number): string => {

@@ -20,6 +20,7 @@ import { BinaryBufferReader } from '$lib/data/binary'
 import type { DataType } from '$lib/data/types'
 import type { ParseSettings } from '$lib/data/ingest/types'
 import { testMobileTsvData } from './TobiiRowParser.test.data'
+import { DEFAULT_AOI_COLORS } from '$lib/color'
 
 function streamFromString(content: string, chunkSize = 64 * 1024) {
   const bytes = new TextEncoder().encode(content)
@@ -109,6 +110,29 @@ const csvContent = `Time,Participant,Stimulus,AOI
 6,P1,Map_B,Region_1
 7,P1,Map_B,Region_2`
 
+describe('AOI default colors', () => {
+  test('are assigned in name (display) order, not encounter order', async () => {
+    // AOIs are ENCOUNTERED reverse-alphabetically (Zone_B before Zone_A) but
+    // DISPLAYED name-sorted (Zone_A first). The default color must follow the
+    // displayed name order — the alphabetically-first AOI gets the first
+    // palette color — regardless of the order the rows were seen in the data.
+    const { data } = await runPipeline([
+      {
+        name: 'data.csv',
+        content: [
+          'Time,Participant,Stimulus,AOI',
+          '0,P1,S1,Zone_B',
+          '1,P1,S1,Zone_A',
+        ].join('\n'),
+      },
+    ])
+    // data.aois.data[0] is indexed by encounter-order id: [Zone_B, Zone_A].
+    const byName = Object.fromEntries(data.aois.data[0].map(r => [r[0], r[2]]))
+    expect(byName['Zone_A']).toBe(DEFAULT_AOI_COLORS[0])
+    expect(byName['Zone_B']).toBe(DEFAULT_AOI_COLORS[1])
+  })
+})
+
 describe('pipeline end-to-end: csv', () => {
   test('single file produces the pinned dataset', async () => {
     const { data, settings } = await runPipeline([
@@ -128,17 +152,25 @@ describe('pipeline end-to-end: csv', () => {
           [
             [
               "Region_1",
+              "Region_1",
+              "#1f77b4",
             ],
             [
               "Region_2",
+              "Region_2",
+              "#ff7f0e",
             ],
           ],
           [
             [
               "Region_1",
+              "Region_1",
+              "#1f77b4",
             ],
             [
               "Region_2",
+              "Region_2",
+              "#ff7f0e",
             ],
           ],
         ],
@@ -286,9 +318,13 @@ describe('pipeline end-to-end: begaze', () => {
           [
             [
               "Region_1",
+              "Region_1",
+              "#1f77b4",
             ],
             [
               "Region_2",
+              "Region_2",
+              "#ff7f0e",
             ],
           ],
         ],
@@ -377,9 +413,13 @@ describe('pipeline end-to-end: csv-segmented (From/To)', () => {
           [
             [
               "Region_1",
+              "Region_1",
+              "#1f77b4",
             ],
             [
               "Region_2",
+              "Region_2",
+              "#ff7f0e",
             ],
           ],
         ],
@@ -459,9 +499,13 @@ Map_A,P1,150,150,0,Region_2`
           [
             [
               "Region_1",
+              "Region_1",
+              "#1f77b4",
             ],
             [
               "Region_2",
+              "Region_2",
+              "#ff7f0e",
             ],
           ],
         ],

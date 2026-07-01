@@ -18,6 +18,7 @@ import {
   updateHiddenEventChannels,
   updateCategories,
   getDefaultCategoryColor,
+  getDefaultColor,
 } from '$lib/data/engine'
 import type {
   GridItemMap,
@@ -29,14 +30,6 @@ import type {
   ExtendedInterpretedDataType,
   BaseInterpretedDataType,
 } from '$lib/data/types'
-
-const DEFAULT_AOI_COLORS = [
-  '#66c5cc',
-  '#f6cf71',
-  '#f89c74',
-  '#dcb0f2',
-  '#87c55f',
-]
 
 export type WorkspaceCommandDispatcher = (
   command: WorkspaceCommandChain
@@ -297,9 +290,7 @@ export function createWorkspaceCommandRegistry(
         const aoiRow = currentAois[aoiIndex]
         const originalName = aoiRow?.[0] ?? ''
         const displayedName = aoiRow?.[1] ?? originalName
-        const color =
-          aoiRow?.[2] ??
-          DEFAULT_AOI_COLORS[aoiIndex % DEFAULT_AOI_COLORS.length]
+        const color = aoiRow?.[2] ?? getDefaultColor(aoiIndex)
         affectedAois.push({
           id: aoiIndex,
           originalName,

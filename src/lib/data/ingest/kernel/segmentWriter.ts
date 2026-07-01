@@ -6,6 +6,7 @@ import type { SegmentRow } from '../types'
 import type { TextEncoding } from '$lib/data/ingest/utils/byteUtils'
 import { decodeBytes, encodeString } from '$lib/data/ingest/utils/byteUtils'
 import { ByteDictionary } from '$lib/data/ingest/utils/byteDictionary'
+import { getDefaultColor } from '$lib/data/engine/utils/interpreters'
 
 /** Bucket lifecycle states. See `SegmentBucket.state`. */
 const BUCKET_AUTO = 0
@@ -609,9 +610,23 @@ export class SegmentWriter {
       metricInstances: createDefaultMetricInstances(),
       categories: { data: this.buildCategoriesData(), orderVector: [] },
       aois: {
-        data: prunedAoisPerStimulus.map(list =>
-          list.map(a => [decodeBytes(a, this.decoder)])
-        ),
+        // Assign each AOI its default color by its NAME-SORTED rank rather than
+        // its encounter-order id, so the color sequence follows the order AOIs
+        // are displayed in (orderVector is the same natural-sort): the
+        // alphabetically-first AOI gets the first palette color, and so on.
+        // Baked here at ingest ("upon upload") so the color stays with the AOI
+        // even if the user later reorders the list.
+        data: prunedAoisPerStimulus.map((list, sIdx) => {
+          const order = aoisOrderVectors[sIdx]
+          const colorRankById = new Array<number>(list.length)
+          for (let rank = 0; rank < order.length; rank++) {
+            colorRankById[order[rank]] = rank
+          }
+          return list.map((a, id) => {
+            const name = decodeBytes(a, this.decoder)
+            return [name, name, getDefaultColor(colorRankById[id])]
+          })
+        }),
         orderVector: aoisOrderVectors,
         hiddenAois: [],
       },
