@@ -151,6 +151,8 @@
     flex-direction: column;
     gap: var(--spacing-xxs);
     min-width: 0;
+    min-height: 24px;
+    justify-content: center;
   }
 
   .toast-message {
@@ -163,7 +165,7 @@
     display: flex;
     align-items: start;
     flex-shrink: 0;
-    padding-top: 2px;
+    height: 24px;
   }
 
   button.close-btn {
