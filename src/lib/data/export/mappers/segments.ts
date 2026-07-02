@@ -50,11 +50,20 @@ function convertDataStructure(
   data: DataType,
   stimulusIds?: Set<string>,
   participantIds?: Set<string>,
-  filterFixations: boolean = false,
+  filterCategoryIds?: Set<number> | boolean,
   naming: ExportNaming = 'displayed'
 ): SegmentCsvRow[] {
   const result: SegmentCsvRow[] = []
   const displayed = naming !== 'raw'
+
+  let activeCategoryIds: Set<number> | null = null
+  if (typeof filterCategoryIds === 'boolean') {
+    if (filterCategoryIds) {
+      activeCategoryIds = new Set([FIXATION_CATEGORY_ID])
+    }
+  } else if (filterCategoryIds) {
+    activeCategoryIds = filterCategoryIds
+  }
 
   const reader = new BinaryBufferReader(data.segments)
   // Grouping (merge AOIs by displayed name, drop hidden) is a displayed-mode
@@ -94,7 +103,7 @@ function convertDataStructure(
         const end = reader.getSegmentEnd(segmentIndex)
         const category = reader.getSegmentCategory(segmentIndex)
 
-        if (filterFixations && category !== FIXATION_CATEGORY_ID) return
+        if (activeCategoryIds && !activeCategoryIds.has(category)) return
 
         let aoiNames: string[] | null
         if (aoiGroupReader && aoiBuffer) {
@@ -155,7 +164,7 @@ export function generateUnifiedCsv(
   data: DataType,
   stimulusIds?: Set<string>,
   participantIds?: Set<string>,
-  filterFixations: boolean = false,
+  filterCategoryIds?: Set<number> | boolean,
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed'
 ): string {
@@ -164,7 +173,7 @@ export function generateUnifiedCsv(
     data,
     stimulusIds,
     participantIds,
-    filterFixations,
+    filterCategoryIds,
     naming
   )
   const includeSpatialColumns = data.capabilities.spatial
@@ -210,7 +219,7 @@ export function generateMetadataForBatchCsv(
   data: DataType,
   stimulusIds?: Set<string>,
   participantIds?: Set<string>,
-  filterFixations: boolean = false,
+  filterCategoryIds?: Set<number> | boolean,
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed'
 ): Array<{ fileName: string; content: string }> {
@@ -219,7 +228,7 @@ export function generateMetadataForBatchCsv(
     data,
     stimulusIds,
     participantIds,
-    filterFixations,
+    filterCategoryIds,
     naming
   )
   const includeSpatialColumns = data.capabilities.spatial

@@ -1,4 +1,8 @@
-import type { DecimalSeparator, ExportNaming } from '$lib/data/export'
+import type {
+  DecimalSeparator,
+  ExportFileType,
+  ExportNaming,
+} from '$lib/data/export'
 import { PLOT_BASE_CHROME_HEIGHT } from '$lib/plots/shared/const'
 import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/plotSizeUtility'
 import type { GridConfig } from '$lib/workspace/grid'
@@ -49,6 +53,21 @@ export const EXPORT_NAMING_OPTIONS: Array<{
 }> = [
   { value: 'displayed', label: 'Displayed (grouped, renamed)' },
   { value: 'raw', label: 'Raw (original imported)' },
+]
+
+export const IMAGE_TYPE_OPTIONS: Array<{
+  value: ExportFileType
+  label: string
+}> = [
+  { value: '.png', label: 'PNG' },
+  { value: '.jpg', label: 'JPG' },
+]
+
+export const DPI_PRESET_OPTIONS = [
+  { value: 96, label: '96 DPI (Screen)' },
+  { value: 150, label: '150 DPI (Medium)' },
+  { value: 300, label: '300 DPI (Print)' },
+  { value: 600, label: '600 DPI (High Quality)' },
 ]
 
 export const EXPORT_TYPE_OPTIONS = [

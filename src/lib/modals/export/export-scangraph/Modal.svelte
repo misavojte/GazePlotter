@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { InputText, Select } from '$lib/shared/components'
+  import { Select } from '$lib/shared/components'
   import { ModalButtons, Step, StepList, HelpText } from '$lib/modals'
   import { getStimuliOptions } from '$lib/plots/shared'
   import { getGazePlotterSession } from '$lib/session'
@@ -7,7 +7,7 @@
   import ExportShell from '../shared/ExportShell.svelte'
 
   const { engine, exportService, modalState } = getGazePlotterSession()
-  let fileName = $state('GazePlotter-ScanGraph')
+  const fileName = 'GazePlotter-ScanGraph'
   let stimulusId = $state('0')
   let isExporting = $state(false)
 
@@ -17,18 +17,13 @@
     stimulusOptions.find(o => o.value === stimulusId)?.label ?? ''
   )
 
-  const stepFileDone = $derived(fileName.trim().length > 0)
-  const canExport = $derived(stepFileDone)
-
   const handleExport = async () => {
-    if (!canExport) return
-
     isExporting = true
 
     try {
       await waitForExportUi()
       await exportService.exportScangraph({
-        fileName: fileName.trim(),
+        fileName,
         stimulusId: parseInt(stimulusId, 10),
       })
     } finally {
@@ -38,7 +33,7 @@
 
   const exportButtons = $derived(
     createExportButtons({
-      canExport,
+      canExport: true,
       exportLabel: 'Export ScanGraph',
       isExporting,
       onCancel: () => modalState.close(),
@@ -57,25 +52,12 @@
       description="A ScanGraph file covers one stimulus."
       summary={stimulusSummary}
       done={true}
+      last
     >
       <Select
         label="Stimulus"
         options={stimulusOptions}
         bind:value={stimulusId}
-      />
-    </Step>
-
-    <Step
-      n={2}
-      title="Configure the file"
-      summary={stepFileDone ? `${fileName.trim()}.txt` : 'File name missing'}
-      done={stepFileDone}
-      last
-    >
-      <InputText
-        label="File name"
-        bind:value={fileName}
-        placeholder="Enter filename without extension"
       />
       <HelpText>
         The ScanGraph format contains scanpath data for the selected stimulus,

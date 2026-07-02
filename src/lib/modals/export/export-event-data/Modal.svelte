@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { InputText, Select } from '$lib/shared/components'
+  import { Select } from '$lib/shared/components'
   import { ModalButtons, Step, StepList, HelpText, FieldGrid } from '$lib/modals'
   import type { DecimalSeparator, ExportNaming } from '$lib/data/export'
   import { getGazePlotterSession } from '$lib/session'
@@ -22,7 +22,7 @@
   } from '../shared/participants'
 
   const { engine, exportService, modalState } = getGazePlotterSession()
-  let fileName = $state('GazePlotter-EventData')
+  const fileName = 'GazePlotter-EventData'
   let exportType = $state('csv')
   let delimiter = $state(',')
   let decimalSeparator = $state<DecimalSeparator>('.')
@@ -33,10 +33,7 @@
 
   const stepStimuliDone = $derived(selectedStimuliIds.size > 0)
   const stepParticipantsDone = $derived(selectedParticipantIds.size > 0)
-  const stepFileDone = $derived(fileName.trim().length > 0)
-  const canExport = $derived(
-    stepStimuliDone && stepParticipantsDone && stepFileDone
-  )
+  const canExport = $derived(stepStimuliDone && stepParticipantsDone)
 
   const stimuliSummary = $derived(
     stimuliSelectionSummary(engine, selectedStimuliIds)
@@ -119,7 +116,7 @@
       title="Configure the file"
       description="The file layout and CSV conventions."
       summary={fileSummary}
-      done={stepFileDone}
+      done={true}
       last
     >
       <FieldGrid>
@@ -127,11 +124,6 @@
           label="Export Type"
           options={EXPORT_TYPE_OPTIONS}
           bind:value={exportType}
-        />
-        <InputText
-          label="File name"
-          bind:value={fileName}
-          placeholder="Enter filename without extension"
         />
         <Select
           label="Delimiter"

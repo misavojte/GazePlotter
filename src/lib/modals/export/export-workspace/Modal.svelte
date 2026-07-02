@@ -5,8 +5,9 @@
   import { exportEventDataModal } from '../export-event-data/definition'
   import { exportScangraphModal } from '../export-scangraph/definition'
   import { exportMetricDataModal } from '../export-metric-data/definition'
+  import { exportFiguresModal } from '../export-figures/definition'
 
-  const { engine, exportService, modalState } = getGazePlotterSession()
+  const { engine, exportService, grid, modalState } = getGazePlotterSession()
   let fileName = $state('GazePlotter-Export')
 
   const researchExportOptions = [
@@ -74,12 +75,24 @@
     </div>
   </Section>
 
-  <Section title="Research Data Formats">
+  <Section title="Other options">
     <div class="content">
-      <p class="info-text">
-        Choose from specialized data structures for detailed analysis:
-      </p>
       <div class="export-options">
+        {#if grid.items.length > 0}
+          <button
+            class="export-option-card"
+            onclick={() => modalState.push(exportFiguresModal, {})}
+          >
+            <div class="export-option-content">
+              <h4 class="export-option-title">Figures (PNG, JPG)</h4>
+              <p class="export-option-subtitle">
+                All or selected plots rendered at a chosen resolution in one
+                download
+              </p>
+            </div>
+          </button>
+        {/if}
+
         {#each visibleExportOptions as option (option.title)}
           <button
             class="export-option-card"
@@ -174,12 +187,7 @@
     line-height: 1.4;
   }
 
-  .info-text {
-    margin: 0 0 1rem 0;
-    color: var(--c-text);
-    font-size: 0.9rem;
-    line-height: 1.4;
-  }
+
 
   .export-options {
     display: flex;

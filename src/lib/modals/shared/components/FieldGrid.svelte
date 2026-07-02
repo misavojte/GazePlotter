@@ -1,7 +1,8 @@
 <script lang="ts">
   import type { Snippet } from 'svelte'
 
-  /** The standard responsive two-column field grid of modal forms. */
+  /** The standard single-column field stack of modal forms — one field per
+   *  row keeps configure steps scannable. */
   interface Props {
     children: Snippet
   }
@@ -16,14 +17,7 @@
 <style>
   .field-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-  }
-
-  @media (max-width: 500px) {
-    .field-grid {
-      grid-template-columns: 1fr;
-      gap: 0.5rem;
-    }
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
   }
 </style>

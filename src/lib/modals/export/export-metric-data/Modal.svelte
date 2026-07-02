@@ -55,7 +55,7 @@
   const { exportService, modalState, engine } = getGazePlotterSession()
 
   let format = $state<'long' | 'wide'>('long')
-  let fileName = $state('GazePlotter-MetricData')
+  const fileName = 'GazePlotter-MetricData'
   let delimiter = $state(',')
   let decimalSeparator = $state<'.' | ','>('.')
   let includeCodebook = $state(true)
@@ -279,9 +279,7 @@
   const stepMetricsDone = $derived(activeSelectedMetrics.length > 0)
   const stepStimuliDone = $derived(selectedStimuliIds.size > 0)
   const stepParticipantsDone = $derived(selectedParticipantIds.size > 0)
-  const stepFileDone = $derived(
-    fileName.trim().length > 0 && timeRangeError === null
-  )
+  const stepFileDone = $derived(timeRangeError === null)
 
   const canExport = $derived(
     stepMetricsDone && stepStimuliDone && stepParticipantsDone && stepFileDone
@@ -414,11 +412,6 @@
         {/if}
       </div>
       <FieldGrid>
-        <InputText
-          label="File name"
-          bind:value={fileName}
-          placeholder="Enter filename without extension"
-        />
         <Select
           label="Delimiter"
           options={CSV_DELIMITER_OPTIONS}

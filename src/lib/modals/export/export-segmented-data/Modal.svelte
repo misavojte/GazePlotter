@@ -1,8 +1,16 @@
 <script lang="ts">
-  import { InputText, InputCheck, Select } from '$lib/shared/components'
-  import { ModalButtons, Step, StepList, HelpText, FieldGrid } from '$lib/modals'
+  import { Select } from '$lib/shared/components'
+  import {
+    CheckboxListField,
+    ModalButtons,
+    Step,
+    StepList,
+    HelpText,
+    FieldGrid,
+  } from '$lib/modals'
   import type { DecimalSeparator, ExportNaming } from '$lib/data/export'
   import { getGazePlotterSession } from '$lib/session'
+  import { getAllCategories } from '$lib/data/engine'
   import {
     createExportButtons,
     CSV_DECIMAL_SEPARATOR_OPTIONS,
@@ -11,6 +19,7 @@
     EXPORT_TYPE_OPTIONS,
     exportTypeNamingSummary,
     waitForExportUi,
+    listSummary,
   } from '../shared/helpers'
   import ExportShell from '../shared/ExportShell.svelte'
   import StimuliSelect from '../shared/StimuliSelect.svelte'
@@ -22,24 +31,25 @@
   } from '../shared/participants'
 
   const { engine, exportService, modalState } = getGazePlotterSession()
-  let fileName = $state('GazePlotter-SegmentedData')
+  const fileName = 'GazePlotter-SegmentedData'
   let exportType = $state('csv')
   let delimiter = $state(',')
   let decimalSeparator = $state<DecimalSeparator>('.')
   let naming = $state<ExportNaming>('displayed')
-  let exportFixationsOnly = $state(false)
   let selectedStimuliIds = $state(defaultStimulusSelection(engine))
   let selectedParticipantIds = $state(defaultParticipantSelection(engine))
+  
+  const allCategories = getAllCategories(engine)
+  let selectedCategoryIds = $state<Set<number>>(new Set(allCategories.map(c => c.id)))
+
   let isExporting = $state(false)
 
   const hasSpatialData = $derived(engine.capabilities.spatial)
 
   const stepStimuliDone = $derived(selectedStimuliIds.size > 0)
   const stepParticipantsDone = $derived(selectedParticipantIds.size > 0)
-  const stepFileDone = $derived(fileName.trim().length > 0)
-  const canExport = $derived(
-    stepStimuliDone && stepParticipantsDone && stepFileDone
-  )
+  const stepCategoriesDone = $derived(selectedCategoryIds.size > 0)
+  const canExport = $derived(stepStimuliDone && stepParticipantsDone && stepCategoriesDone)
 
   const stimuliSummary = $derived(
     stimuliSelectionSummary(engine, selectedStimuliIds)
@@ -47,12 +57,36 @@
   const participantsSummary = $derived(
     participantsSelectionSummary(engine, selectedParticipantIds)
   )
-  const fileSummary = $derived(
-    [
-      ...exportTypeNamingSummary(exportType, naming),
-      ...(exportFixationsOnly ? ['fixations only'] : []),
-    ].join(' · ')
+  const categoriesSummary = $derived(
+    listSummary(
+      selectedCategoryIds.size,
+      allCategories.length,
+      allCategories.find(c => selectedCategoryIds.has(c.id))?.displayedName
+    )
   )
+  const fileSummary = $derived(
+    exportTypeNamingSummary(exportType, naming).join(' · ')
+  )
+
+  const categoryItems = $derived(
+    allCategories.map(c => ({
+      key: c.id.toString(),
+      label: c.displayedName,
+      sublabel: c.originalName !== c.displayedName ? `Original: ${c.originalName}` : undefined,
+      checked: selectedCategoryIds.has(c.id),
+    }))
+  )
+
+  function handleCategoryChange(key: string, checked: boolean) {
+    const id = parseInt(key, 10)
+    const next = new Set(selectedCategoryIds)
+    if (checked) {
+      next.add(id)
+    } else {
+      next.delete(id)
+    }
+    selectedCategoryIds = next
+  }
 
   const handleExport = async () => {
     if (!canExport) return
@@ -66,7 +100,7 @@
         exportType: exportType as 'csv' | 'individual-csv',
         stimulusIds: selectedStimuliIds,
         participantIds: selectedParticipantIds,
-        filterFixations: exportFixationsOnly,
+        filterCategoryIds: selectedCategoryIds,
         naming,
         csvOptions: {
           delimiter,
@@ -123,10 +157,26 @@
 
     <Step
       n={3}
+      title="Choose eye-movement types"
+      description="Select which eye-movement categories to include in the exported file."
+      summary={categoriesSummary}
+      done={stepCategoriesDone}
+    >
+      <CheckboxListField
+        title="Eye-movement types"
+        items={categoryItems}
+        onItemChange={handleCategoryChange}
+        hasError={!stepCategoriesDone}
+        errorMessage="Select at least one eye-movement type to export"
+      />
+    </Step>
+
+    <Step
+      n={4}
       title="Configure the file"
-      description="The file layout, CSV conventions, and segment filters."
+      description="The file layout and CSV conventions."
       summary={fileSummary}
-      done={stepFileDone}
+      done={true}
       last
     >
       <FieldGrid>
@@ -134,11 +184,6 @@
           label="Export Type"
           options={EXPORT_TYPE_OPTIONS}
           bind:value={exportType}
-        />
-        <InputText
-          label="File name"
-          bind:value={fileName}
-          placeholder="Enter filename without extension"
         />
         <Select
           label="Delimiter"
@@ -156,11 +201,6 @@
           bind:value={naming}
         />
       </FieldGrid>
-      <InputCheck
-        label="Export only fixations"
-        sublabel="Excludes saccades and other movement types from the file."
-        bind:checked={exportFixationsOnly}
-      />
       {#if hasSpatialData}
         <HelpText>
           CSV columns: stimulus, participant, timestamp, duration,

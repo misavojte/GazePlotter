@@ -216,6 +216,11 @@ export const SIDEBAR: readonly SidebarItem[] = [
         description: 'Export session states in GazePlotter format. Save active plots, layout styles, groups, and stimulus libraries to resume work later.'
       },
       {
+        name: 'Figures',
+        href: '/docs/export/figures',
+        description: 'Render all or selected workspace plots as PNG or JPG images at a chosen resolution, downloaded directly or bundled into a single ZIP archive.'
+      },
+      {
         name: 'Scangraph',
         href: '/docs/export/scangraph',
         description: 'Export scanpath sequences as letter-coded strings in a text format for the external ScanGraph scanpath-similarity tool.'

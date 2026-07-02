@@ -1,7 +1,7 @@
 import Modal from './Modal.svelte'
 import { defineModal } from '$lib/modals/defineModal'
 
-export const downloadPlotModal = defineModal({
+export const exportFiguresModal = defineModal({
   component: Modal,
-  title: 'Download Plot',
+  title: 'Export Figures',
 })

@@ -1,4 +1,4 @@
-export { downloadPlotModal } from './download-plot/definition'
+export { exportFiguresModal } from './export-figures/definition'
 export { exportWorkspaceModal } from './export-workspace/definition'
 export { exportMetricDataModal } from './export-metric-data/definition'
 export { exportScangraphModal } from './export-scangraph/definition'

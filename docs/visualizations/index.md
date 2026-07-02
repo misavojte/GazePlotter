@@ -27,7 +27,7 @@ The Settings Pane is structured into collapsible accordion sections:
 - **Visualisation**: Contains plot-specific parameters (e.g. orientation, scale ranges, rendering alignments, masking).
 - **Time range [ms]** or **Ordinal range [indices]**: Defines temporal boundaries for the plot.
 - **Areas of Interest**: Filters which AOIs are visible and links to the global AOI customization interface.
-- **Export**: Down at the bottom of the pane, provides a **Download plot…** action to export high-quality images.
+- **Export**: Down at the bottom of the pane, provides a **Download plot…** action that opens the [figure export dialog](/docs/export/figures/) preselected with this plot.
 
 > **Plot Configuration**: Every individual visualization plot functions as an independent, interactive card in the workspace. For general actions such as moving, resizing, duplicating, or removing plots, see the [Workspace documentation](/docs/setup/workspace/).
 

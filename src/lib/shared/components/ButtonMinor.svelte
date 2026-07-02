@@ -74,7 +74,10 @@
   >
     <span class="btnContent">
       {#if icon}
-        <icon size={'1em'} strokeWidth={1}></icon>
+        <!-- Uppercase alias: a lowercase `<icon>` tag would be parsed as an
+             HTML element, not the component held by the prop. -->
+        {@const Icon = icon}
+        <Icon size={'1em'} strokeWidth={1} />
       {/if}
       {@render children?.()}
     </span>

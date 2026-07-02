@@ -55,8 +55,8 @@ Missing values (for example, a participant who never fixated on an AOI when comp
 ## Sidecar Codebook
 
 Checking the **Include metric codebook** option downloads the export as a ZIP archive containing two files:
-1. `<fileName>.csv` — The dataset itself.
-2. `<fileName>-codebook.csv` — A sidecar table detailing the operational parameters and provenance of every exported column.
+1. `GazePlotter-MetricData.csv` — The dataset itself.
+2. `GazePlotter-MetricData-codebook.csv` — A sidecar table detailing the operational parameters and provenance of every exported column.
 
 The codebook contains the following columns:
 
@@ -83,7 +83,7 @@ The modal guides you through four collapsible steps, one open at a time. Every c
 1. Open the **Export** menu in the top action rail and select **Metric Data (CSV)**.
 2. **Choose metrics**: check the metrics to include. On longer lists a search bar appears; **Select Found** and **Deselect Found** apply the current matches to the selection in one click.
 3. **Choose stimuli** and **Choose participants**: check items the same way. The group chips above the participant list select or deselect an entire [participant group](/docs/setup/participant-groups/) at once; individual checkmarks refine the result.
-4. **Configure the file**: choose the **Format** (**Long (tidy)** or **Wide**), the **File name**, and the **Delimiter** and **Decimal Separator** according to your regional system settings. Optional: enter **Time Start (ms)** and **Time End (ms)** boundary limits to crop the evaluation window. The step ends with a preview of the exact columns the file will contain. Switching to **Wide** deselects time-series metrics and says so.
+4. **Configure the file**: choose the **Format** (**Long (tidy)** or **Wide**), and the **Delimiter** and **Decimal Separator** according to your regional system settings. Optional: enter **Time Start (ms)** and **Time End (ms)** boundary limits to crop the evaluation window. The step ends with a preview of the exact columns the file will contain. Switching to **Wide** deselects time-series metrics and says so.
 5. Click **Export Data**.
 
 > **Sliding Windows**: Sliding-window metrics evaluate dense overlaps and can generate very large files. Opt-in to windowed metrics explicitly when exporting.

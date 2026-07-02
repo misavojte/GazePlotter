@@ -25,7 +25,7 @@ export function downloadUnifiedCsv(
   fileName: string,
   stimulusIds?: Set<string>,
   participantIds?: Set<string>,
-  filterFixations: boolean = false,
+  filterCategoryIds?: Set<number> | boolean,
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed'
 ): void {
@@ -33,7 +33,7 @@ export function downloadUnifiedCsv(
     data,
     stimulusIds,
     participantIds,
-    filterFixations,
+    filterCategoryIds,
     options,
     naming
   )
@@ -48,7 +48,7 @@ export async function downloadBatchZip(
   fileName: string,
   stimulusIds?: Set<string>,
   participantIds?: Set<string>,
-  filterFixations: boolean = false,
+  filterCategoryIds?: Set<number> | boolean,
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed'
 ): Promise<void> {
@@ -56,7 +56,7 @@ export async function downloadBatchZip(
     data,
     stimulusIds,
     participantIds,
-    filterFixations,
+    filterCategoryIds,
     options,
     naming
   )

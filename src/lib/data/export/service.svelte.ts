@@ -37,7 +37,7 @@ export type SegmentedExportOptions = {
   exportType: 'csv' | 'individual-csv'
   stimulusIds: Set<string>
   participantIds: Set<string>
-  filterFixations?: boolean
+  filterCategoryIds?: Set<number>
   csvOptions?: CsvFormatOptions
   naming?: ExportNaming
 }
@@ -54,6 +54,14 @@ export type EventExportOptions = {
 export type ScangraphExportOptions = {
   fileName: string
   stimulusId: number
+}
+
+export type FigureBatchExportOptions = {
+  fileName: string
+  /** Rendered figure images, already encoded; names are complete zip entry names. */
+  files: Array<{ name: string; content: Blob }>
+  /** How many figures the user selected — the toast reports partial coverage. */
+  requestedCount: number
 }
 
 export class ExportService {
@@ -145,7 +153,7 @@ export class ExportService {
           fileName,
           options.stimulusIds,
           options.participantIds,
-          options.filterFixations ?? false,
+          options.filterCategoryIds,
           options.csvOptions,
           naming
         )
@@ -157,7 +165,7 @@ export class ExportService {
         fileName,
         options.stimulusIds,
         options.participantIds,
-        options.filterFixations ?? false,
+        options.filterCategoryIds,
         options.csvOptions,
         naming
       )
@@ -170,7 +178,9 @@ export class ExportService {
         fileName: options.fileName,
         stimulusCount: options.stimulusIds.size,
         participantCount: options.participantIds.size,
-        filterFixations: options.filterFixations ?? false,
+        filterCategoryIds: options.filterCategoryIds
+          ? Array.from(options.filterCategoryIds)
+          : undefined,
         naming: options.naming ?? 'displayed',
       }
     )
@@ -236,6 +246,48 @@ export class ExportService {
         exportType: 'scangraph',
         fileName: options.fileName,
         stimulusId: options.stimulusId,
+      }
+    )
+  }
+
+  /** Download pre-rendered figure images: a single requested figure as a bare
+   *  image, several bundled into one ZIP. Rendering happens in the modal
+   *  (figures are live Svelte components); this owns the packaging, download,
+   *  and user acknowledgement. */
+  async exportFigures(options: FigureBatchExportOptions): Promise<boolean> {
+    return this.runExport(
+      async () => {
+        if (options.files.length === 0) {
+          throw new Error('No figures could be rendered for export')
+        }
+        const fileName = this.resolveFileName(options.fileName)
+
+        if (options.requestedCount === 1) {
+          const file = options.files[0]
+          const extension = file.name.slice(file.name.lastIndexOf('.'))
+          triggerDownload(file.content, fileName, extension)
+          return
+        }
+
+        const { Archiver } = await import('./encoders/zip')
+        const archiver = new Archiver()
+        for (const file of options.files) {
+          archiver.addFile(file.name, file.content)
+        }
+        const zipBlob = await archiver.generateBlob()
+        triggerDownload(zipBlob, fileName, '.zip')
+      },
+      () => {
+        const count = options.files.length
+        return count === options.requestedCount
+          ? `Exported ${count} ${count === 1 ? 'figure' : 'figures'}`
+          : `Exported ${count} of ${options.requestedCount} figures`
+      },
+      {
+        exportType: 'figures',
+        fileName: options.fileName,
+        figureCount: options.files.length,
+        requestedCount: options.requestedCount,
       }
     )
   }

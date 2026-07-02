@@ -2,7 +2,7 @@
   import { onMount, setContext } from 'svelte'
   import { getGazePlotterSession } from '$lib/session'
   import { plotRegistry, getPlotDisplayName } from '$lib/plots/registry'
-  import { downloadPlotModal } from '$lib/modals/definitions'
+  import { exportFiguresModal } from '$lib/modals/definitions'
   import PaneHeader from './PaneHeader.svelte'
   import PaneSection from './PaneSection.svelte'
   import PaneEditLink from './PaneEditLink.svelte'
@@ -24,9 +24,16 @@
 
   const { grid, modalState } = getGazePlotterSession()
 
+  // One exporter, two doors: the single-plot pane preseeds its own item, the
+  // bulk pane preseeds the selection. Same modal either way.
   function openExport() {
-    if (!paneItem) return
-    modalState.open(downloadPlotModal, { item: paneItem as any })
+    const ids = isBulk
+      ? grid.selectedItems.map(item => item.id)
+      : paneItem
+        ? [paneItem.id]
+        : []
+    if (ids.length === 0) return
+    modalState.open(exportFiguresModal, { itemIds: ids })
   }
 
   // Pane/sheet visibility is driven by paneOpenId (explicitly opened by a
@@ -117,7 +124,9 @@
 
 {#snippet exportSection()}
   <PaneSection title="Export">
-    <PaneEditLink onclick={openExport}>Download plot…</PaneEditLink>
+    <PaneEditLink onclick={openExport}>
+      {isBulk ? 'Download plots…' : 'Download plot…'}
+    </PaneEditLink>
   </PaneSection>
 {/snippet}
 
@@ -129,6 +138,7 @@
     <PaneHeader title={bulkTitle} onClose={close} />
     <div class="body">
       <BulkPaneSettings items={grid.selectedItems} />
+      {@render exportSection()}
     </div>
   {:else if paneItem && paneSections.length}
     <PaneHeader {title} onClose={close} />
