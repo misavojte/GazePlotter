@@ -13,6 +13,7 @@
     waitForExportUi,
   } from '../shared/helpers'
   import ExportShell from '../shared/ExportShell.svelte'
+  import ExportProgressBar from '../shared/ExportProgressBar.svelte'
   import StimuliSelect from '../shared/StimuliSelect.svelte'
   import ParticipantsSelect from '../shared/ParticipantsSelect.svelte'
   import { defaultStimulusSelection, stimuliSelectionSummary } from '../shared/stimuli'
@@ -156,6 +157,8 @@
       </HelpText>
     </Step>
   </StepList>
+
+  <ExportProgressBar progress={exportService.progress} />
 
   <ModalButtons buttons={exportButtons} />
 </ExportShell>

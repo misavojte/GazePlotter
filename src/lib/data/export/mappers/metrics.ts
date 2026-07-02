@@ -139,16 +139,17 @@ function buildLongRow(p: LongRowBuilderParams): string[] {
   return row
 }
 
-export function generateMetricExport(
+export async function generateMetricExport(
   engine: DataEngine,
-  options: MetricDataExportOptions
-): {
+  options: MetricDataExportOptions,
+  onProgress?: (position: number, total: number, name: string) => void | Promise<void>
+): Promise<{
   dataContent: string
   codebookContent: string | null
   rows: number
   metricCount: number
   stimulusCount: number
-} {
+}> {
   const { delimiter, decimalSeparator } = resolveCsvFormatOptions(options.csvOptions)
   const timeStart = options.timeStart ?? 0
   const timeEnd = options.timeEnd ?? 0
@@ -211,6 +212,9 @@ export function generateMetricExport(
       return shape !== 'participant-pair-matrix'
     })
 
+    let count = 0
+    const total = options.stimulusIds.length * options.participantIds.length
+
     for (const stimulusId of options.stimulusIds) {
       const stimulus = getStimulus(engine, stimulusId)
       const stimulusName = stimulus.displayedName
@@ -220,8 +224,15 @@ export function generateMetricExport(
 
       // Plain/Windowed
       for (const participantId of participantIds) {
+        count++
         const participant = getParticipant(engine, participantId)
         const participantName = participant.displayedName
+
+        if (onProgress) {
+          await onProgress(count, total, `Computing metrics for ${participantName} · ${stimulusName}`)
+          await new Promise(resolve => setTimeout(resolve, 0))
+        }
+
         // Clamp to the participant's own recording end so windowed timelines
         // stay ragged per participant: a short recording must not receive
         // fabricated zero-value windows up to the stimulus-global end (the
@@ -580,6 +591,9 @@ export function generateMetricExport(
       inst => projectionOutputShape(inst.projection) !== 'participant-pair-matrix'
     )
 
+    let count = 0
+    const total = options.stimulusIds.length * options.participantIds.length
+
     for (const stimulusId of options.stimulusIds) {
       const stimulus = getStimulus(engine, stimulusId)
       const stimulusName = stimulus.displayedName
@@ -633,8 +647,15 @@ export function generateMetricExport(
       }
 
       for (const participantId of participantIds) {
+        count++
         const participant = getParticipant(engine, participantId)
         const participantName = participant.displayedName
+
+        if (onProgress) {
+          await onProgress(count, total, `Computing metrics for ${participantName} · ${stimulusName}`)
+          await new Promise(resolve => setTimeout(resolve, 0))
+        }
+
         const participantEnd = getParticipantEndTime(engine, stimulusId, participantId)
         const scope: Scope = {
           engine,

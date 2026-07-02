@@ -37,6 +37,7 @@
     IMAGE_TYPE_OPTIONS,
   } from '../shared/helpers'
   import ExportShell from '../shared/ExportShell.svelte'
+  import ExportProgressBar from '../shared/ExportProgressBar.svelte'
   import FigureRenderHost from './FigureRenderHost.svelte'
   import FigurePreview from './FigurePreview.svelte'
   import type { PlotExportProps } from './types'
@@ -382,20 +383,7 @@
     </Step>
   </StepList>
 
-  {#if exportProgress}
-    <div class="export-progress" role="status">
-      <div class="progress-track">
-        <div
-          class="progress-fill"
-          style="width: {(exportProgress.position / exportProgress.total) * 100}%"
-        ></div>
-      </div>
-      <span class="progress-text">
-        Rendering figure {exportProgress.position} of {exportProgress.total} ·
-        {exportProgress.name}
-      </span>
-    </div>
-  {/if}
+  <ExportProgressBar progress={exportProgress ? { position: exportProgress.position, total: exportProgress.total, name: `Rendering figure ${exportProgress.name}` } : null} />
 
   <ModalButtons buttons={exportButtons} />
 </ExportShell>
@@ -443,32 +431,6 @@
 
   .preview-pager-detail {
     font-weight: 400;
-    color: var(--c-darkgrey);
-  }
-
-  .export-progress {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-    margin-top: 1rem;
-  }
-
-  .progress-track {
-    height: 4px;
-    border-radius: 2px;
-    background-color: var(--c-lightgrey);
-    overflow: hidden;
-  }
-
-  .progress-fill {
-    height: 100%;
-    border-radius: 2px;
-    background-color: var(--c-brand);
-    transition: width var(--transition-normal) ease;
-  }
-
-  .progress-text {
-    font-size: 0.8rem;
     color: var(--c-darkgrey);
   }
 </style>

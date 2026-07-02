@@ -65,6 +65,8 @@ export type FigureBatchExportOptions = {
 }
 
 export class ExportService {
+  progress = $state<{ position: number; total: number; name: string } | null>(null)
+
   constructor(private readonly deps: ExportServiceDeps) {}
 
   private getExportData(): DataType {
@@ -117,6 +119,8 @@ export class ExportService {
         context,
       })
       return false
+    } finally {
+      this.progress = null
     }
   }
 
@@ -148,14 +152,17 @@ export class ExportService {
       const naming = options.naming ?? 'displayed'
 
       if (options.exportType === 'csv') {
-        downloadUnifiedCsv(
+        await downloadUnifiedCsv(
           data,
           fileName,
           options.stimulusIds,
           options.participantIds,
           options.filterCategoryIds,
           options.csvOptions,
-          naming
+          naming,
+          (position, total, name) => {
+            this.progress = { position, total, name }
+          }
         )
         return
       }
@@ -167,7 +174,10 @@ export class ExportService {
         options.participantIds,
         options.filterCategoryIds,
         options.csvOptions,
-        naming
+        naming,
+        (position, total, name) => {
+          this.progress = { position, total, name }
+        }
       )
     },
       options.exportType === 'csv'
@@ -200,13 +210,16 @@ export class ExportService {
       const naming = options.naming ?? 'displayed'
 
       if (options.exportType === 'csv') {
-        downloadEventUnifiedCsv(
+        await downloadEventUnifiedCsv(
           data,
           fileName,
           options.stimulusIds,
           options.participantIds,
           options.csvOptions,
-          naming
+          naming,
+          (position, total, name) => {
+            this.progress = { position, total, name }
+          }
         )
         return
       }
@@ -217,7 +230,10 @@ export class ExportService {
         options.stimulusIds,
         options.participantIds,
         options.csvOptions,
-        naming
+        naming,
+        (position, total, name) => {
+          this.progress = { position, total, name }
+        }
       )
     },
       options.exportType === 'csv'
@@ -236,11 +252,11 @@ export class ExportService {
   async exportScangraph(options: ScangraphExportOptions): Promise<boolean> {
     return this.runExport(
       () =>
-        downloadScanGraph(
-          this.deps.engine,
-          options.stimulusId,
-          this.resolveFileName(options.fileName)
-        ),
+          downloadScanGraph(
+            this.deps.engine,
+            options.stimulusId,
+            this.resolveFileName(options.fileName)
+          ),
       'ScanGraph file exported successfully',
       {
         exportType: 'scangraph',
@@ -308,10 +324,16 @@ export class ExportService {
       }
 
       const fileName = this.resolveFileName(options.fileName)
-      const result = generateMetricExport(this.deps.engine, {
-        ...options,
-        fileName,
-      })
+      const result = await generateMetricExport(
+        this.deps.engine,
+        {
+          ...options,
+          fileName,
+        },
+        (position, total, name) => {
+          this.progress = { position, total, name }
+        }
+      )
       exportedRows = result.rows
 
       if (options.includeCodebook && result.codebookContent !== null) {
