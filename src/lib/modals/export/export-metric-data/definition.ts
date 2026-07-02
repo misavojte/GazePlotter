@@ -1,7 +1,7 @@
 import Modal from './Modal.svelte'
 import { defineModal } from '$lib/modals/defineModal'
 
-export const exportScanpathSimilarityModal = defineModal({
+export const exportMetricDataModal = defineModal({
   component: Modal,
-  title: 'Export Scanpath Similarity',
+  title: 'Export Metric Data',
 })

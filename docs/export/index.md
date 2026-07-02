@@ -12,13 +12,13 @@ Export your complete workspace configuration as a JSON file. This is the **prefe
 
 Export processed eye-tracking data as CSV files. Available as single file or individual files per participant.
 
-### [Aggregated Data Export](/docs/export/aggregated-data/)
+### [Event Data Export](/docs/export/event-data/)
 
-Export statistical eye-tracking metrics in long format CSV for analysis in R, Python, or SPSS. Includes dwell time, fixation counts, and duration metrics.
+Export event occurrences with their timing per participant and stimulus. Available when the loaded dataset contains event data; single-file exports can be re-imported as event files.
 
-### [Scanpath Similarity Export](/docs/export/scanpath-similarity/)
+### [Metric Data Export](/docs/export/metric-data/)
 
-Export a scanpath similarity matrix as CSV for comparing participant scanpaths.
+Export statistical eye-tracking metrics in long (tidy) or wide CSV formats for analysis in R, Python, SPSS, JASP, or jamovi. Includes participant-pair metrics such as scanpath similarity, exported as pair rows (long) or a similarity matrix (wide).
 
 ### [ScanGraph Export](/docs/export/scangraph/)
 

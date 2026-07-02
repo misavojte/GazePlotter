@@ -12,10 +12,6 @@ import {
 import { Archiver } from './encoders/zip'
 import { triggerDownload } from './download'
 import { generateScanGraph } from './mappers/scangraph'
-import {
-  type ScanpathSimilarityExportOptions,
-  generateScanpathSimilarityCsv,
-} from './mappers/scanpath-similarity'
 import { generateWorkspaceJson } from './mappers/workspace'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { AllGridTypes } from '$lib/workspace'
@@ -28,6 +24,7 @@ export function downloadUnifiedCsv(
   data: DataType,
   fileName: string,
   stimulusIds?: Set<string>,
+  participantIds?: Set<string>,
   filterFixations: boolean = false,
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed'
@@ -35,6 +32,7 @@ export function downloadUnifiedCsv(
   const csv = generateUnifiedCsv(
     data,
     stimulusIds,
+    participantIds,
     filterFixations,
     options,
     naming
@@ -49,6 +47,7 @@ export async function downloadBatchZip(
   data: DataType,
   fileName: string,
   stimulusIds?: Set<string>,
+  participantIds?: Set<string>,
   filterFixations: boolean = false,
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed'
@@ -56,6 +55,7 @@ export async function downloadBatchZip(
   const batch = generateMetadataForBatchCsv(
     data,
     stimulusIds,
+    participantIds,
     filterFixations,
     options,
     naming
@@ -77,10 +77,11 @@ export function downloadEventUnifiedCsv(
   data: DataType,
   fileName: string,
   stimulusIds?: Set<string>,
+  participantIds?: Set<string>,
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed'
 ): void {
-  const csv = generateEventUnifiedCsv(data, stimulusIds, options, naming)
+  const csv = generateEventUnifiedCsv(data, stimulusIds, participantIds, options, naming)
   triggerDownload(csv, fileName, '.csv')
 }
 
@@ -91,10 +92,11 @@ export async function downloadEventBatchZip(
   data: DataType,
   fileName: string,
   stimulusIds?: Set<string>,
+  participantIds?: Set<string>,
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed'
 ): Promise<void> {
-  const batch = generateEventBatchCsv(data, stimulusIds, options, naming)
+  const batch = generateEventBatchCsv(data, stimulusIds, participantIds, options, naming)
   const archiver = new Archiver()
 
   for (const item of batch) {
@@ -127,17 +129,6 @@ export async function downloadScanGraph(
     stimulusId
   )
   triggerDownload(content, fileName, '.txt')
-}
-
-/**
- * Downloads a Scanpath Similarity matrix as CSV.
- */
-export function downloadScanpathSimilarity(
-  engine: DataEngine,
-  options: ScanpathSimilarityExportOptions
-): void {
-  const { content } = generateScanpathSimilarityCsv(engine, options)
-  triggerDownload(content, options.fileName, '.csv')
 }
 
 /**

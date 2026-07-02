@@ -7,6 +7,7 @@
     appearance?: 'default' | 'compact'
     id?: string
     ariaLabel?: string
+    disabled?: boolean
     /** Multi-selection "Mixed": the bound plots disagree on this field. Renders
      *  the indeterminate (tri-state) box; the first click resolves it to a
      *  concrete value applied to all. */
@@ -23,6 +24,7 @@
     appearance = 'default',
     id,
     ariaLabel,
+    disabled = false,
     mixed = false,
     onchange = () => {},
   }: Props = $props()
@@ -41,7 +43,7 @@
   }
 </script>
 
-<label class:noLabel={!hasLabel} class:compact={appearance === 'compact'}>
+<label class:noLabel={!hasLabel} class:compact={appearance === 'compact'} class:disabled>
   <span class={`check-wrap size-${size}`} class:compact={appearance === 'compact'}>
     <input
       type="checkbox"
@@ -50,6 +52,7 @@
       checked={displayChecked}
       indeterminate={mixed}
       aria-label={ariaLabel}
+      disabled={disabled}
       onchange={handleChange}
     />
     <svg
@@ -86,6 +89,15 @@
     cursor: pointer;
     gap: 0.5rem;
     padding: 0.25rem 0;
+  }
+
+  label.disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  label.disabled .check {
+    cursor: not-allowed;
   }
 
   label.noLabel {

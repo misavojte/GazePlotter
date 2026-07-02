@@ -45,6 +45,7 @@ describe('segment export naming', () => {
     const lines = generateUnifiedCsv(
       createData(),
       undefined,
+      undefined,
       false,
       undefined,
       'raw'

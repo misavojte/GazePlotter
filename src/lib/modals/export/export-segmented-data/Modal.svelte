@@ -1,18 +1,25 @@
 <script lang="ts">
-  import { InputText, Select } from '$lib/shared/components'
-  import { Section, ModalButtons, CheckboxListField } from '$lib/modals'
+  import { InputText, InputCheck, Select } from '$lib/shared/components'
+  import { ModalButtons, Step, StepList, HelpText, FieldGrid } from '$lib/modals'
   import type { DecimalSeparator, ExportNaming } from '$lib/data/export'
   import { getGazePlotterSession } from '$lib/session'
-  import { getStimuliOptions } from '$lib/plots/shared'
   import {
     createExportButtons,
     CSV_DECIMAL_SEPARATOR_OPTIONS,
     CSV_DELIMITER_OPTIONS,
     EXPORT_NAMING_OPTIONS,
-    mapSelectableItems,
-    toggleSetValue,
+    EXPORT_TYPE_OPTIONS,
+    exportTypeNamingSummary,
     waitForExportUi,
   } from '../shared/helpers'
+  import ExportShell from '../shared/ExportShell.svelte'
+  import StimuliSelect from '../shared/StimuliSelect.svelte'
+  import ParticipantsSelect from '../shared/ParticipantsSelect.svelte'
+  import { defaultStimulusSelection, stimuliSelectionSummary } from '../shared/stimuli'
+  import {
+    defaultParticipantSelection,
+    participantsSelectionSummary,
+  } from '../shared/participants'
 
   const { engine, exportService, modalState } = getGazePlotterSession()
   let fileName = $state('GazePlotter-SegmentedData')
@@ -21,39 +28,31 @@
   let decimalSeparator = $state<DecimalSeparator>('.')
   let naming = $state<ExportNaming>('displayed')
   let exportFixationsOnly = $state(false)
-  let selectedStimuliIds = $state(new Set<string>())
+  let selectedStimuliIds = $state(defaultStimulusSelection(engine))
+  let selectedParticipantIds = $state(defaultParticipantSelection(engine))
   let isExporting = $state(false)
 
   const hasSpatialData = $derived(engine.capabilities.spatial)
 
-  const exportOptions = [
-    {
-      value: 'csv',
-      label: 'Single CSV File',
-    },
-    {
-      value: 'individual-csv',
-      label: 'Individual CSV Files (Zipped)',
-    },
-  ]
-
+  const stepStimuliDone = $derived(selectedStimuliIds.size > 0)
+  const stepParticipantsDone = $derived(selectedParticipantIds.size > 0)
+  const stepFileDone = $derived(fileName.trim().length > 0)
   const canExport = $derived(
-    fileName.trim().length > 0 && selectedStimuliIds.size > 0
+    stepStimuliDone && stepParticipantsDone && stepFileDone
   )
 
-  const stimuliItems = $derived(
-    mapSelectableItems(getStimuliOptions(engine), selectedStimuliIds)
+  const stimuliSummary = $derived(
+    stimuliSelectionSummary(engine, selectedStimuliIds)
   )
-
-  function handleStimulusChange(key: string, checked: boolean) {
-    selectedStimuliIds = toggleSetValue(selectedStimuliIds, key, checked)
-  }
-
-  $effect(() => {
-    selectedStimuliIds = new Set(
-      getStimuliOptions(engine).map(({ value }) => value)
-    )
-  })
+  const participantsSummary = $derived(
+    participantsSelectionSummary(engine, selectedParticipantIds)
+  )
+  const fileSummary = $derived(
+    [
+      ...exportTypeNamingSummary(exportType, naming),
+      ...(exportFixationsOnly ? ['fixations only'] : []),
+    ].join(' · ')
+  )
 
   const handleExport = async () => {
     if (!canExport) return
@@ -66,6 +65,7 @@
         fileName,
         exportType: exportType as 'csv' | 'individual-csv',
         stimulusIds: selectedStimuliIds,
+        participantIds: selectedParticipantIds,
         filterFixations: exportFixationsOnly,
         naming,
         csvOptions: {
@@ -89,172 +89,100 @@
   )
 </script>
 
-<div class="container">
-  <Section>
-    <div class="content">
-      <p class="purpose-description">
-        Export eye-tracking segments with timing, movement classifications, and
-        AOI information.
-      </p>
-    </div>
-  </Section>
+<ExportShell
+  intro="Export eye-tracking segments with timing, movement classifications, and AOI information."
+>
+  <StepList>
+    <Step
+      n={1}
+      title="Choose stimuli"
+      description="Each selected stimulus contributes its segments to the export."
+      summary={stimuliSummary}
+      done={stepStimuliDone}
+    >
+      <StimuliSelect
+        selected={selectedStimuliIds}
+        onchange={next => (selectedStimuliIds = next)}
+        hasError={!stepStimuliDone}
+      />
+    </Step>
 
-  <Section title="Export Settings">
-    <div class="content-two-column">
-      <Select
-        label="Export Type"
-        options={exportOptions}
-        bind:value={exportType}
+    <Step
+      n={2}
+      title="Choose participants"
+      description="Group chips toggle a whole participant group at once; individual checkmarks refine the result."
+      summary={participantsSummary}
+      done={stepParticipantsDone}
+    >
+      <ParticipantsSelect
+        selected={selectedParticipantIds}
+        onchange={next => (selectedParticipantIds = next)}
+        hasError={!stepParticipantsDone}
       />
-      <InputText
-        label="File name"
-        bind:value={fileName}
-        placeholder="Enter filename without extension"
-      />
-      <Select
-        label="Delimiter"
-        options={CSV_DELIMITER_OPTIONS}
-        bind:value={delimiter}
-      />
-      <Select
-        label="Decimal Separator"
-        options={CSV_DECIMAL_SEPARATOR_OPTIONS}
-        bind:value={decimalSeparator}
-      />
-      <Select
-        label="Naming"
-        options={EXPORT_NAMING_OPTIONS}
-        bind:value={naming}
-      />
-    </div>
-  </Section>
+    </Step>
 
-  <Section title="Data Selection">
-    <div class="settings-grid">
-      <div class="settings-column">
-        <CheckboxListField
-          title="Stimuli"
-          items={stimuliItems}
-          onItemChange={handleStimulusChange}
-          hasError={selectedStimuliIds.size === 0}
-          errorMessage="Select at least one stimulus to export"
+    <Step
+      n={3}
+      title="Configure the file"
+      description="The file layout, CSV conventions, and segment filters."
+      summary={fileSummary}
+      done={stepFileDone}
+      last
+    >
+      <FieldGrid>
+        <Select
+          label="Export Type"
+          options={EXPORT_TYPE_OPTIONS}
+          bind:value={exportType}
         />
-      </div>
-
-      <div class="settings-column">
-        <CheckboxListField
-          title="Filters"
-          showControls={false}
-          items={[
-            {
-              key: 'fixationsOnly',
-              label: 'Export only fixations',
-              checked: exportFixationsOnly,
-            },
-          ]}
-          onItemChange={(_key: string, checked: boolean) =>
-            (exportFixationsOnly = checked)}
+        <InputText
+          label="File name"
+          bind:value={fileName}
+          placeholder="Enter filename without extension"
         />
-      </div>
-    </div>
-  </Section>
-
-  <Section title="Format Details">
-    <div class="content">
+        <Select
+          label="Delimiter"
+          options={CSV_DELIMITER_OPTIONS}
+          bind:value={delimiter}
+        />
+        <Select
+          label="Decimal Separator"
+          options={CSV_DECIMAL_SEPARATOR_OPTIONS}
+          bind:value={decimalSeparator}
+        />
+        <Select
+          label="Naming"
+          options={EXPORT_NAMING_OPTIONS}
+          bind:value={naming}
+        />
+      </FieldGrid>
+      <InputCheck
+        label="Export only fixations"
+        sublabel="Excludes saccades and other movement types from the file."
+        bind:checked={exportFixationsOnly}
+      />
       {#if hasSpatialData}
-        <p class="format-description">
-          <strong>CSV format</strong> with columns: stimulus, participant, timestamp,
-          duration, eyemovementtype, AOI, x, y. Output respects selected stimuli and
-          filter settings.
-        </p>
-        <p class="format-description">
-          Spatial coordinates are exported per segment. Segments without
-          coordinates keep empty x/y fields.
-        </p>
+        <HelpText>
+          CSV columns: stimulus, participant, timestamp, duration,
+          eyemovementtype, AOI, x, y. Spatial coordinates are exported per
+          segment; segments without coordinates keep empty x/y fields.
+        </HelpText>
       {:else}
-        <p class="format-description">
-          <strong>CSV format</strong> with columns: stimulus, participant, timestamp,
-          duration, eyemovementtype, AOI. Output respects selected stimuli and filter
-          settings.
-        </p>
-        <p class="format-description">
-          Load spatially annotated data to unlock x/y coordinate export for each
-          segment.
-        </p>
+        <HelpText>
+          CSV columns: stimulus, participant, timestamp, duration,
+          eyemovementtype, AOI. Load spatially annotated data to unlock x/y
+          coordinate export for each segment.
+        </HelpText>
       {/if}
-      <p class="format-description">
+      <HelpText>
         Naming: "Displayed" uses your renamed movement-type and AOI names,
         merges AOIs grouped under the same name, and excludes hidden AOIs (the
         on-screen result). "Raw" uses the original imported names with no
         grouping and lists every AOI a segment references, including hidden
         ones. The AOI column contains semicolon-separated area names.
-      </p>
-    </div>
-  </Section>
+      </HelpText>
+    </Step>
+  </StepList>
 
   <ModalButtons buttons={exportButtons} />
-</div>
-
-<style>
-  .container {
-    display: flex;
-    flex-direction: column;
-    max-width: 600px;
-  }
-
-  .content {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .purpose-description {
-    margin: 0;
-    color: var(--c-text);
-    font-size: 0.95rem;
-    line-height: 1.4;
-  }
-
-  .content-two-column {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-  }
-
-  @media (max-width: 500px) {
-    .content-two-column {
-      grid-template-columns: 1fr;
-      gap: 0.5rem;
-    }
-  }
-
-  .format-description {
-    margin: 0 0 0.75rem 0;
-    color: #666;
-    font-size: 0.9rem;
-    line-height: 1.4;
-  }
-
-  .format-description:last-child {
-    margin-bottom: 0;
-  }
-
-  .settings-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
-  }
-
-  @media (max-width: 700px) {
-    .settings-grid {
-      grid-template-columns: 1fr;
-      gap: 1rem;
-    }
-  }
-
-  .settings-column {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-</style>
+</ExportShell>

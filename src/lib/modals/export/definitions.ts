@@ -1,7 +1,6 @@
 export { downloadPlotModal } from './download-plot/definition'
 export { exportWorkspaceModal } from './export-workspace/definition'
-export { exportAggregatedDataModal } from './export-aggregated-data/definition'
-export { exportScanpathSimilarityModal } from './export-scanpath-similarity/definition'
+export { exportMetricDataModal } from './export-metric-data/definition'
 export { exportScangraphModal } from './export-scangraph/definition'
 export { exportSegmentedDataModal } from './export-segmented-data/definition'
 export { exportEventDataModal } from './export-event-data/definition'

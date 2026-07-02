@@ -49,6 +49,7 @@ type SegmentCsvRow = {
 function convertDataStructure(
   data: DataType,
   stimulusIds?: Set<string>,
+  participantIds?: Set<string>,
   filterFixations: boolean = false,
   naming: ExportNaming = 'displayed'
 ): SegmentCsvRow[] {
@@ -85,6 +86,9 @@ function convertDataStructure(
       participantIndex < data.participants.data.length;
       participantIndex++
     ) {
+      // id is index, mirroring the stimulus filter above
+      if (participantIds && !participantIds.has(participantIndex.toString()))
+        continue
       reader.forEachSegment(stimulusIndex, participantIndex, segmentIndex => {
         const start = reader.getSegmentStart(segmentIndex)
         const end = reader.getSegmentEnd(segmentIndex)
@@ -150,6 +154,7 @@ function convertDataStructure(
 export function generateUnifiedCsv(
   data: DataType,
   stimulusIds?: Set<string>,
+  participantIds?: Set<string>,
   filterFixations: boolean = false,
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed'
@@ -158,6 +163,7 @@ export function generateUnifiedCsv(
   const csvPreData = convertDataStructure(
     data,
     stimulusIds,
+    participantIds,
     filterFixations,
     naming
   )
@@ -203,6 +209,7 @@ export function generateUnifiedCsv(
 export function generateMetadataForBatchCsv(
   data: DataType,
   stimulusIds?: Set<string>,
+  participantIds?: Set<string>,
   filterFixations: boolean = false,
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed'
@@ -211,6 +218,7 @@ export function generateMetadataForBatchCsv(
   const csvPreData = convertDataStructure(
     data,
     stimulusIds,
+    participantIds,
     filterFixations,
     naming
   )

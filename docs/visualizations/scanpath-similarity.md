@@ -69,7 +69,7 @@ Located at the bottom of the Settings Pane:
   - *Quality*: Adjustable DPI setting.
   - *Margins*: Configurable margins.
   - *Preview*: Live render of the output before saving.
-- **Export Data**: To export the similarity matrix as a CSV file for statistical analysis (e.g. cluster analysis), see the [Scanpath Similarity Export](/docs/export/scanpath-similarity/) documentation.
+- **Export Data**: To export the similarity values as CSV for statistical analysis (e.g. cluster analysis), select the similarity metric in the [Metric Data Export](/docs/export/metric-data/): the long format emits one row per participant pair, the wide format the full similarity matrix.
 
 ## Interpretation
 

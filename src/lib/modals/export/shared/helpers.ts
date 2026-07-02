@@ -7,6 +7,9 @@ type SelectableOption<T extends string = string> = {
   value: T
   label: string
   sublabel?: string
+  disabled?: boolean
+  /** Shown next to the sublabel when the item is disabled — says WHY. */
+  reason?: string
 }
 
 type ExportButtonConfig = {
@@ -48,6 +51,22 @@ export const EXPORT_NAMING_OPTIONS: Array<{
   { value: 'raw', label: 'Raw (original imported)' },
 ]
 
+export const EXPORT_TYPE_OPTIONS = [
+  { value: 'csv', label: 'Single CSV File' },
+  { value: 'individual-csv', label: 'Individual CSV Files (Zipped)' },
+]
+
+/** Collapsed-header parts for the CSV file step: export type + naming mode. */
+export function exportTypeNamingSummary(
+  exportType: string,
+  naming: ExportNaming
+): string[] {
+  return [
+    exportType === 'csv' ? 'Single CSV' : 'Individual CSVs',
+    naming === 'displayed' ? 'displayed names' : 'raw names',
+  ]
+}
+
 export function getWorkspaceCanvasExportDimensions(
   item: GridSizedFrame,
   gridConfig: GridConfig,
@@ -78,6 +97,17 @@ export function waitForExportUi() {
   return new Promise(resolve => setTimeout(resolve, EXPORT_UI_DELAY_MS))
 }
 
+/**
+ * One-line selection readout for a collapsed step header: `None selected`,
+ * `All (5)`, the single selected item's name, or `3 of 12`.
+ */
+export function listSummary(count: number, total: number, single?: string): string {
+  if (count === 0) return 'None selected'
+  if (count === total && total > 0) return `All (${total})`
+  if (count === 1 && single) return single
+  return `${count} of ${total}`
+}
+
 export function toggleSetValue<T>(
   values: ReadonlySet<T>,
   value: T,
@@ -93,11 +123,13 @@ export function mapSelectableItems<T extends string>(
   options: readonly SelectableOption<T>[],
   selected: ReadonlySet<T>
 ) {
-  return options.map(({ value, label, sublabel }) => ({
+  return options.map(({ value, label, sublabel, disabled, reason }) => ({
     key: value,
     label,
     sublabel,
     checked: selected.has(value),
+    disabled,
+    reason,
   }))
 }
 

@@ -8,7 +8,6 @@ import {
   downloadBatchZip,
   downloadEventBatchZip,
   downloadEventUnifiedCsv,
-  downloadScanpathSimilarity,
   downloadScanGraph,
   downloadUnifiedCsv,
   downloadWorkspace,
@@ -16,10 +15,9 @@ import {
 import type { CsvFormatOptions } from './encoders/csv'
 import type { ExportNaming } from './types'
 import {
-  type AggregatedExportOptions,
-  generateAggregatedCsv,
-} from './mappers/aggregated'
-import type { ScanpathSimilarityExportOptions } from './mappers/scanpath-similarity'
+  type MetricDataExportOptions,
+  generateMetricExport,
+} from './mappers/metrics'
 import { triggerDownload } from './download'
 
 type ExportServiceDeps = {
@@ -38,6 +36,7 @@ export type SegmentedExportOptions = {
   fileName: string
   exportType: 'csv' | 'individual-csv'
   stimulusIds: Set<string>
+  participantIds: Set<string>
   filterFixations?: boolean
   csvOptions?: CsvFormatOptions
   naming?: ExportNaming
@@ -47,6 +46,7 @@ export type EventExportOptions = {
   fileName: string
   exportType: 'csv' | 'individual-csv'
   stimulusIds: Set<string>
+  participantIds: Set<string>
   csvOptions?: CsvFormatOptions
   naming?: ExportNaming
 }
@@ -55,8 +55,6 @@ export type ScangraphExportOptions = {
   fileName: string
   stimulusId: number
 }
-
-export type { ScanpathSimilarityExportOptions }
 
 export class ExportService {
   constructor(private readonly deps: ExportServiceDeps) {}
@@ -89,12 +87,16 @@ export class ExportService {
 
   private async runExport(
     action: () => void | Promise<void>,
-    successMessage: string,
+    /** A thunk resolves AFTER the action, so the message can report what the
+     *  export actually produced (e.g. the row count). */
+    successMessage: string | (() => string),
     context?: Record<string, unknown>
   ): Promise<boolean> {
     try {
       await action()
-      this.deps.toastState.addSuccess(successMessage)
+      this.deps.toastState.addSuccess(
+        typeof successMessage === 'function' ? successMessage() : successMessage
+      )
       return true
     } catch (error) {
       const message =
@@ -129,6 +131,9 @@ export class ExportService {
       if (options.stimulusIds.size === 0) {
         throw new Error('Select at least one stimulus to export')
       }
+      if (options.participantIds.size === 0) {
+        throw new Error('Select at least one participant to export')
+      }
 
       const data = this.getExportData()
       const fileName = this.resolveFileName(options.fileName)
@@ -139,6 +144,7 @@ export class ExportService {
           data,
           fileName,
           options.stimulusIds,
+          options.participantIds,
           options.filterFixations ?? false,
           options.csvOptions,
           naming
@@ -150,6 +156,7 @@ export class ExportService {
         data,
         fileName,
         options.stimulusIds,
+        options.participantIds,
         options.filterFixations ?? false,
         options.csvOptions,
         naming
@@ -162,6 +169,7 @@ export class ExportService {
         exportType: options.exportType,
         fileName: options.fileName,
         stimulusCount: options.stimulusIds.size,
+        participantCount: options.participantIds.size,
         filterFixations: options.filterFixations ?? false,
         naming: options.naming ?? 'displayed',
       }
@@ -173,6 +181,9 @@ export class ExportService {
       if (options.stimulusIds.size === 0) {
         throw new Error('Select at least one stimulus to export')
       }
+      if (options.participantIds.size === 0) {
+        throw new Error('Select at least one participant to export')
+      }
 
       const data = this.getExportData()
       const fileName = this.resolveFileName(options.fileName)
@@ -183,6 +194,7 @@ export class ExportService {
           data,
           fileName,
           options.stimulusIds,
+          options.participantIds,
           options.csvOptions,
           naming
         )
@@ -193,6 +205,7 @@ export class ExportService {
         data,
         fileName,
         options.stimulusIds,
+        options.participantIds,
         options.csvOptions,
         naming
       )
@@ -204,6 +217,7 @@ export class ExportService {
         exportType: options.exportType,
         fileName: options.fileName,
         stimulusCount: options.stimulusIds.size,
+        participantCount: options.participantIds.size,
         naming: options.naming ?? 'displayed',
       }
     )
@@ -226,57 +240,51 @@ export class ExportService {
     )
   }
 
-  async exportScanpathSimilarity(
-    options: ScanpathSimilarityExportOptions
+  async exportMetricData(
+    options: MetricDataExportOptions
   ): Promise<boolean> {
-    const fileName = this.resolveFileName(options.fileName)
-    return this.runExport(
-      () =>
-        downloadScanpathSimilarity(this.deps.engine, {
-          ...options,
-          fileName,
-        }),
-      'Scanpath similarity matrix exported successfully',
-      {
-        exportType: 'scanpath-similarity',
-        fileName: options.fileName,
-        stimulusId: options.stimulusId,
-        groupId: options.groupId,
-        similarityMethod: options.similarityMethod,
-        collapsed: options.collapsed,
-      }
-    )
-  }
-
-  async exportAggregatedData(
-    options: AggregatedExportOptions
-  ): Promise<boolean> {
-    return this.runExport(() => {
-      if (options.metrics.length === 0) {
+    let exportedRows = 0
+    return this.runExport(async () => {
+      if (options.metricInstanceIds.length === 0) {
         throw new Error('Select at least one metric to export')
       }
       if (options.stimulusIds.length === 0) {
         throw new Error('Select at least one stimulus to export')
       }
+      if (options.participantIds.length === 0) {
+        throw new Error('Select at least one participant to export')
+      }
 
       const fileName = this.resolveFileName(options.fileName)
-      const result = generateAggregatedCsv(this.deps.engine, {
+      const result = generateMetricExport(this.deps.engine, {
         ...options,
         fileName,
       })
-      triggerDownload(result.content, fileName, '.csv')
+      exportedRows = result.rows
+
+      if (options.includeCodebook && result.codebookContent !== null) {
+        const { Archiver } = await import('./encoders/zip')
+        const archiver = new Archiver()
+        archiver.addFile(`${fileName}.csv`, result.dataContent)
+        archiver.addFile(`${fileName}-codebook.csv`, result.codebookContent)
+        const zipBlob = await archiver.generateBlob()
+        triggerDownload(zipBlob, fileName, '.zip')
+      } else {
+        triggerDownload(result.dataContent, fileName, '.csv')
+      }
     },
-      (() => {
-        const metricCount = options.metrics.length
+      () => {
+        const metricCount = options.metricInstanceIds.length
         const stimulusCount = options.stimulusIds.length
-        return `Exported aggregated data (${metricCount} metrics across ${stimulusCount} ${stimulusCount === 1 ? 'stimulus' : 'stimuli'})`
-      })(),
+        return `Exported ${exportedRows} rows (${metricCount} ${metricCount === 1 ? 'metric' : 'metrics'} across ${stimulusCount} ${stimulusCount === 1 ? 'stimulus' : 'stimuli'})`
+      },
       {
-        exportType: 'aggregated',
+        exportType: 'metric-data',
         fileName: options.fileName,
-        metricCount: options.metrics.length,
+        metricCount: options.metricInstanceIds.length,
         stimulusCount: options.stimulusIds.length,
-        groupId: options.groupId,
+        participantCount: options.participantIds.length,
+        format: options.format,
       }
     )
   }

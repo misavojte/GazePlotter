@@ -78,7 +78,7 @@ Located at the bottom of the Settings Pane:
   - *Quality*: Adjustable DPI setting.
   - *Margins*: Configurable top, right, bottom, left margins.
   - *Preview*: Live render of the output before saving.
-- **Export Data**: To export raw statistical values in CSV format for R, Python, SPSS, or other analytical software, see the [Aggregated Data Export](/docs/export/aggregated-data/) documentation.
+- **Export Data**: To export raw statistical values in CSV format for R, Python, SPSS, or other analytical software, see the [Metric Data Export](/docs/export/metric-data/) documentation.
 
 ## Interpretation
 

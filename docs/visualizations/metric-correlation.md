@@ -77,6 +77,7 @@ Located at the bottom of the Settings Pane:
   - *Quality*: Adjustable DPI setting.
   - *Margins*: Configurable margins.
   - *Preview*: Live render of the output before saving.
+- **Export Data**: To export the underlying per-participant metric values as CSV and compute correlations in your own statistics software, select the metrics in the [Metric Data Export](/docs/export/metric-data/).
 
 ## Interpretation
 

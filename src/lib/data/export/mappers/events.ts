@@ -98,6 +98,7 @@ function resolveEventChannels(
 function convertEventData(
   data: DataType,
   stimulusIds?: Set<string>,
+  participantIds?: Set<string>,
   naming: ExportNaming = 'displayed'
 ): EventCsvRow[] {
   const result: EventCsvRow[] = []
@@ -128,6 +129,9 @@ function convertEventData(
       participantIndex < participantCount;
       participantIndex++
     ) {
+      // id is index, mirroring the stimulus filter above
+      if (participantIds && !participantIds.has(participantIndex.toString()))
+        continue
       const occurrences: { event: string; start: number; duration: number }[] =
         []
 
@@ -178,11 +182,12 @@ function convertEventData(
 export function generateEventUnifiedCsv(
   data: DataType,
   stimulusIds?: Set<string>,
+  participantIds?: Set<string>,
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed'
 ): string {
   const { decimalSeparator } = resolveCsvFormatOptions(options)
-  const rows = convertEventData(data, stimulusIds, naming).map(item => [
+  const rows = convertEventData(data, stimulusIds, participantIds, naming).map(item => [
     item.stimulus,
     item.participant,
     item.event,
@@ -200,11 +205,12 @@ export function generateEventUnifiedCsv(
 export function generateEventBatchCsv(
   data: DataType,
   stimulusIds?: Set<string>,
+  participantIds?: Set<string>,
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed'
 ): Array<{ fileName: string; content: string }> {
   const { decimalSeparator } = resolveCsvFormatOptions(options)
-  const csvPreData = convertEventData(data, stimulusIds, naming)
+  const csvPreData = convertEventData(data, stimulusIds, participantIds, naming)
 
   const results: Array<{ fileName: string; content: string }> = []
 

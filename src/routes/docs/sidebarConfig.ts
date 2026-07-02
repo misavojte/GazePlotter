@@ -208,7 +208,7 @@ export const SIDEBAR: readonly SidebarItem[] = [
       {
         name: 'Export',
         href: '/docs/export',
-        description: 'Data export center. Save workspace files, export high-resolution vector plots, and extract raw metrics for statistical programs.'
+        description: 'Data export center. Save workspace files and extract segments, events, and metric tables for statistical programs.'
       },
       {
         name: 'Workspace',
@@ -218,22 +218,22 @@ export const SIDEBAR: readonly SidebarItem[] = [
       {
         name: 'Scangraph',
         href: '/docs/export/scangraph',
-        description: 'Export scanpath sequences as character-mapped strings (e.g., A, B, C) in a tab-separated text format compatible with OGAMA similarity analysis.'
+        description: 'Export scanpath sequences as letter-coded strings in a text format for the external ScanGraph scanpath-similarity tool.'
       },
       {
-        name: 'Aggregated Data',
-        href: '/docs/export/aggregated-data',
-        description: 'Export summarized statistical tables in long-format CSV, structured for import into R, SPSS, Jamovi, or Python Pandas.'
+        name: 'Metric Data',
+        href: '/docs/export/metric-data',
+        description: 'Export metric tables in long or wide CSV formats, structured for import into R, SPSS, jamovi, JASP, or Python Pandas.'
       },
       {
         name: 'Segmented Data',
         href: '/docs/export/segmented-data',
-        description: 'Export raw gaze metrics partitioned by stimulus, participant, and time window, formatted for custom pipeline processing.'
+        description: 'Export raw gaze segments partitioned by stimulus and participant, formatted for custom pipeline processing.'
       },
       {
-        name: 'Scanpath Similarity',
-        href: '/docs/export/scanpath-similarity',
-        description: 'Export a scanpath similarity matrix as CSV for comparing participant scanpaths.'
+        name: 'Event Data',
+        href: '/docs/export/event-data',
+        description: 'Export event occurrences with their timing per participant and stimulus; single-file exports can be re-imported as event files.'
       },
     ],
   },

@@ -67,7 +67,7 @@ Ready to visualize your eye-tracking data? Choose your path:
 - **Ready to analyze?** Explore [Workspace & Setup overview](/docs/setup) to learn about workspace setup and custom participant groups.
 - **Want to calculate metrics?** Learn how to customize calculations using the [Metrics Library](/docs/metrics) to define durations, counts, transitions, and sequence alignments.
 - **Ready to visualize?** Review our full list of [Eye-tracking Visualizations](/docs/visualizations) to configure plot options.
-- **Need to export?** Check out [export options](/docs/export) for workspaces, segmented data, or similarity matrices.
+- **Need to export?** Check out [export options](/docs/export) for workspaces, segmented data, events, or metric tables.
 - **Want to edit your data?** Use [Segmented Data workflows](/docs/advanced/segmented-data-workflows) to crop segments or split stimuli.
 
 ## Open Source & Community

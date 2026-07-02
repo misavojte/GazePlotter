@@ -72,6 +72,7 @@ Located at the bottom of the Settings Pane:
   - *Quality*: Adjustable DPI setting.
   - *Margins*: Configurable margins.
   - *Preview*: Live render of the output before saving.
+- **Export Data**: To export the windowed per-AOI values per participant as CSV, select the windowed metric in the [Metric Data Export](/docs/export/metric-data/) (long format).
 
 ## Interpretation
 

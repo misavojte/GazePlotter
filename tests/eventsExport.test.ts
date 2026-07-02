@@ -82,14 +82,24 @@ describe('event export — displayed naming', () => {
     const data = createEventData()
     data.eventData.data[0][0] = ['Click', '', '#111']
 
-    const csv = generateEventUnifiedCsv(data, undefined, undefined, 'displayed')
+    const csv = generateEventUnifiedCsv(data, undefined, undefined, undefined, 'displayed')
     // ch0 ("Click") now stands alone with an empty label; its first occurrence
     // for Alice is at t=10. The empty event field is the on-screen result.
     expect(csv).toContain('StimulusOne,AliceDisplay,,10,0')
   })
 
+  it('exports only the selected participants', () => {
+    const csv = generateEventUnifiedCsv(
+      createEventData(),
+      undefined,
+      new Set(['1'])
+    )
+    expect(csv).toContain('BobDisplay')
+    expect(csv).not.toContain('AliceDisplay')
+  })
+
   it('honours delimiter formatting', () => {
-    const csv = generateEventUnifiedCsv(createEventData(), undefined, {
+    const csv = generateEventUnifiedCsv(createEventData(), undefined, undefined, {
       delimiter: ';',
     })
     expect(csv.split('\n')[0]).toBe(
@@ -101,7 +111,7 @@ describe('event export — displayed naming', () => {
 
 describe('event export — raw naming', () => {
   it('uses original names, keeps hidden, excludes derived interval channels, uses raw stimulus/participant', () => {
-    const csv = generateEventUnifiedCsv(createEventData(), undefined, undefined, 'raw')
+    const csv = generateEventUnifiedCsv(createEventData(), undefined, undefined, undefined, 'raw')
 
     expect(csv).toBe(
       [

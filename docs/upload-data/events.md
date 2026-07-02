@@ -14,7 +14,7 @@ Event data can be exported from the following eye-tracking platforms:
 - **[SMI BeGaze](/docs/upload-data/smi-begaze/)** — XML export from the AOI Editor
 - **[Tobii Pro Lab](/docs/upload-data/tobii-pro-lab/)** — JSON export from the AOI tab
 
-Additionally, GazePlotter accepts a **Custom CSV** format for manual event definitions. See [Custom CSV event format](#custom-csv-event-format) below.
+Additionally, GazePlotter accepts a **Custom CSV** format for manual event definitions. See [Custom CSV event format](#custom-csv-event-format) below. GazePlotter's own [Event Data export](/docs/export/event-data/) produces this format, so a single-file event export can be re-imported alongside its eye-tracking data.
 
 ### Exporting from SMI BeGaze
 
