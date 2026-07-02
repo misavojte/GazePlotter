@@ -21,6 +21,7 @@
     type GridInteractionController,
   } from './interaction'
   import { responsive } from '../responsive.svelte'
+  import { generateSelectionPath } from './selectionPath'
 
   const { engine, errorService, workspace, grid } = getGazePlotterSession()
 
@@ -81,6 +82,10 @@
     interaction,
   }: Props = $props()
 
+  const selectionPath = $derived(
+    generateSelectionPath(grid.selectedItems, gridConfig, 6, 26)
+  )
+
   // Duplicate commits immediately. The store's findOptimalPosition
   // places the copy adjacent-right of the source (falling back to
   // below, then any free cell), so the user sees the new item land
@@ -112,30 +117,7 @@
     return 'Unknown rendering error'
   }
 
-  // Bounding box around all selected items (shown only for a multi-selection).
-  // Mirrors GridItem's pixel math; a small margin sits it just outside the
-  // members' outlines. Returns null when fewer than two are selected.
-  function groupBoxStyle(
-    items: Array<{ x: number; y: number; w: number; h: number }>,
-    config: GridConfig
-  ): string | null {
-    if (items.length < 2) return null
-    const cellW = config.cellSize.width
-    const cellH = config.cellSize.height
-    const gap = config.gap
-    const minX = Math.min(...items.map(i => i.x))
-    const minY = Math.min(...items.map(i => i.y))
-    const maxX = Math.max(...items.map(i => i.x + i.w))
-    const maxY = Math.max(...items.map(i => i.y + i.h))
-    const wCells = maxX - minX
-    const hCells = maxY - minY
-    const left = minX * (cellW + gap)
-    const top = minY * (cellH + gap)
-    const width = wCells * cellW + (wCells - 1) * gap
-    const height = hCells * cellH + (hCells - 1) * gap
-    const margin = 6
-    return `transform: translate(${left - margin}px, ${top - margin}px); width: ${width + 2 * margin}px; height: ${height + 2 * margin}px;`
-  }
+
 
   function reportPlotRenderError(
     item: AllGridTypes,
@@ -228,11 +210,10 @@
     {/each}
   {/if}
 
-  {#if grid.selectedItemIds.length > 1 && !interaction.isInteracting}
-    {@const boxStyle = groupBoxStyle(grid.selectedItems, gridConfig)}
-    {#if boxStyle}
-      <div class="group-selection-box" style={boxStyle} aria-hidden="true"></div>
-    {/if}
+  {#if grid.selectedItemIds.length > 1 && !interaction.isInteracting && selectionPath}
+    <svg class="group-selection-svg" aria-hidden="true">
+      <path d={selectionPath} class="group-selection-path" />
+    </svg>
   {/if}
 
   <GridInteractionOverlay
@@ -252,19 +233,27 @@
     position: relative;
   }
 
-  /* Solid bounding box around a multi-selection. Sits above unselected
+  /* Contour outline and fill around a multi-selection. Sits above unselected
      items (z-index 1) and below the interaction overlay (z-index 50);
      purely decorative, so it never intercepts pointer events (dragging
      any member frame moves the group). */
-  .group-selection-box {
+  .group-selection-svg {
     position: absolute;
     top: 0;
     left: 0;
+    width: 100%;
+    height: 100%;
     z-index: 6;
     pointer-events: none;
-    border: 2px solid var(--c-info);
-    border-radius: var(--rounded-lg);
-    box-sizing: border-box;
+    overflow: visible;
+  }
+
+  .group-selection-path {
+    fill: color-mix(in srgb, var(--c-info) 5%, transparent);
+    stroke: var(--c-info);
+    stroke-width: 2px;
+    stroke-linejoin: round;
+    stroke-linecap: round;
   }
 
   .plot-error-state {

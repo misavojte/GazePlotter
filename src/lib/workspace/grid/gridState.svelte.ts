@@ -185,9 +185,17 @@ export class GridState {
   }
 
   removeItem(id: number) {
+    const wasPaneVisible = this.paneOpenId !== null || this.selectedItemIds.length > 1
     this.items = this.items.filter(i => i.id !== id)
-    this.selectedItemIds = this.selectedItemIds.filter(x => x !== id)
-    if (this.paneOpenId === id) this.paneOpenId = null
+    const next = this.selectedItemIds.filter(x => x !== id)
+    this.selectedItemIds = next
+    if (next.length === 0) {
+      this.paneOpenId = null
+    } else if (next.length === 1 && wasPaneVisible) {
+      this.paneOpenId = next[0]
+    } else if (this.paneOpenId === id) {
+      this.paneOpenId = null
+    }
   }
 
   setSelectedItem(id: number | null) {
@@ -208,18 +216,18 @@ export class GridState {
   /** Add/remove this item from the selection (Cmd/Ctrl-click). */
   toggleInSelection(id: number) {
     if (!this.items.some(i => i.id === id)) return
+    const wasPaneVisible = this.paneOpenId !== null || this.selectedItemIds.length > 1
     const next = this.selectedItemIds.includes(id)
       ? this.selectedItemIds.filter(x => x !== id)
       : [...this.selectedItemIds, id]
     this.selectedItemIds = next
     // Close the pane when the selection empties, and keep an ALREADY-OPEN
-    // single pane in sync when collapsing from a multi-selection. Never OPEN a
-    // pane that wasn't open: additive (Cmd/Ctrl/Shift) clicks build a
+    // single pane (or currently visible bulk pane) in sync when collapsing from a multi-selection.
+    // Never OPEN a pane that wasn't open: additive (Cmd/Ctrl/Shift) clicks build a
     // selection without triggering click-to-edit (see GridItem.onFrameClick).
-    // (A selection of 2+ shows the bulk pane regardless of paneOpenId.)
     if (next.length === 0) {
       this.paneOpenId = null
-    } else if (next.length === 1 && this.paneOpenId !== null) {
+    } else if (next.length === 1 && wasPaneVisible) {
       this.paneOpenId = next[0]
     }
   }
