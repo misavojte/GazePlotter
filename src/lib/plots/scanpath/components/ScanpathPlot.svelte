@@ -3,6 +3,7 @@
   import { BasePlot } from '$lib/plots/shared/components'
   import ScanpathPlotFigure from './ScanpathPlotFigure.svelte'
   import { getScanpathView } from '../core/view'
+  import { usePlotData } from '$lib/plots/shared/plotData.svelte'
   import type { ScanpathPlotItem } from '../types'
 
   interface Props {
@@ -13,7 +14,12 @@
   const { engine } = getGazePlotterSession()
 
   // Same view-model the export modal renders from.
-  const view = $derived(getScanpathView(engine, item.settings))
+  const viewData = usePlotData({
+    epoch: () => item.redrawTimestamp,
+    settings: () => item.settings,
+    derive: s => getScanpathView(engine, s),
+  })
+  const view = $derived(viewData.current)
 </script>
 
 <BasePlot {item}>

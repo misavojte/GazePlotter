@@ -1,80 +1,130 @@
 <script lang="ts">
-  import { untrack } from 'svelte'
-
   import AoiStreamPlotFigure from './AoiStreamPlotFigure.svelte'
   import { BasePlot } from '$lib/plots/shared/components'
 
   import { computeAoiStreamData } from '../core/view'
-  import { scanForDynamicRidgelineReferenceHeight } from '../sync'
+  import { computeMTop } from '../core/ridgeline'
+  import {
+    aoiStreamTimelineSync,
+    aoiStreamRidgelineSync,
+  } from '../core/sync.svelte'
+  import { RIDGELINE_SCALE } from '../const'
   import { getGazePlotterSession } from '$lib/session'
+  import {
+    getParticipants,
+    getParticipantEndTime,
+  } from '$lib/data/engine'
 
   import type { AoiStreamPlotItem } from '$lib/plots/aoi-stream/types'
-  import type { AoiStreamPlotResult } from '../types'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { toggleInArray } from '$lib/plots/shared'
+  import { usePlotData } from '$lib/plots/shared/plotData.svelte'
+  import { usePlotSync } from '$lib/plots/shared/PlotSyncRegistry.svelte'
 
   interface Props {
     item: AoiStreamPlotItem
   }
 
   let { item }: Props = $props()
-  const { engine, workspace, grid } = getGazePlotterSession()
+  const { engine, workspace } = getGazePlotterSession()
   const settings = $derived(item.settings)
 
   const source = $derived.by(() => createCommandSourcePlotPattern(item, 'plot'))
 
-  // Same data derivation the export modal renders from — including the
-  // cross-plot timeline sync (via the grid items). Kept inside an effect
-  // (gated on redrawTimestamp + metadata) to match the prior recompute timing.
-  // `$state.raw`: the result holds `series[]` of `{id,label,color,values}` objects.
-  // Plain `$state` would deep-proxy every series object, turning per-series reads
-  // in the layout/render into proxy gets. The result is only ever reassigned
-  // wholesale, so raw is safe and reads stay plain. (Per-bin `values` are already
-  // Float32Array, which Svelte never proxies.)
-  let resultData = $state.raw<AoiStreamPlotResult | null>(null)
-
-  $effect(() => {
-    const s = settings
-    const gridItems = grid.items
-    const w = item.w
-    const meta = engine.metadata
-    void item.redrawTimestamp
-
-    if (!meta) return
-
-    untrack(() => {
-      // Height is read untracked: the transform (and its display budget) depend
-      // only on width, so a vertical resize must not re-run the full transform.
-      resultData = computeAoiStreamData(engine, s, {
-        gridItems,
-        itemWidth: w,
-        itemHeight: item.h,
-      })
-    })
+  // ── Cross-plot timeline sync (same width, fully-auto timeline) ──
+  // A plot participates only while its timeline is fully auto: no global
+  // `timelineEnd` and no per-stimulus limits. Customizing any range opts out.
+  const isFullyAuto = $derived.by(() => {
+    const limits = settings.absoluteStimuliLimits?.[settings.stimulusId]
+    return (
+      (settings.timelineEnd ?? 0) === 0 &&
+      (limits?.[0] ?? 0) === 0 &&
+      (limits?.[1] ?? 0) === 0
+    )
   })
 
-  const streamResult = $derived(resultData)
+  const ownDataMax = $derived.by(() => {
+    void item.redrawTimestamp
+    if (!isFullyAuto) return 0
+    let max = 0
+    for (const p of getParticipants(engine, settings.groupId, settings.stimulusId)) {
+      const v = getParticipantEndTime(engine, settings.stimulusId, p.id)
+      if (v > max) max = v
+    }
+    return max
+  })
+
+  usePlotSync(
+    aoiStreamTimelineSync,
+    () => item.id,
+    () => {
+      if (!isFullyAuto || ownDataMax <= 0) return null
+      return { w: item.w, dataMax: ownDataMax }
+    }
+  )
+
+  // Screen-only: merge the synced max into the settings the transform sees.
+  // Export derives from the raw settings and therefore never syncs (the same
+  // rule as bar/transition-matrix).
+  const syncedSettings = $derived.by(() => {
+    if (!isFullyAuto) return settings
+    const syncedMax = aoiStreamTimelineSync.getSyncedMax(item.w)
+    if (syncedMax <= ownDataMax) return settings
+    return { ...settings, timelineEnd: syncedMax }
+  })
+
+  // Same data derivation the export modal renders from. `derive` runs
+  // untracked and its result lives outside the proxy layer. `item.h` is
+  // deliberately NOT watched: the transform (and its display budget) depend
+  // only on width, so a vertical resize must not re-run the full transform.
+  const streamHandle = usePlotData({
+    epoch: () => item.redrawTimestamp,
+    settings: () => syncedSettings,
+    viewOnly: ['highlights'],
+    watch: () => item.w,
+    derive: s =>
+      computeAoiStreamData(engine, s, {
+        itemWidth: item.w,
+        itemHeight: item.h,
+      }),
+  })
+
+  const streamResult = $derived(streamHandle.current)
   const hasRenderableData = $derived(
     !!streamResult && !streamResult.noMetric && streamResult.series.length > 0
   )
 
-  const syncedMTopOverride = $derived.by(() => {
-    if (settings.alignment !== 'ridgeline' || !streamResult || !hasRenderableData) {
-      return null
-    }
-    return scanForDynamicRidgelineReferenceHeight(
-      engine,
-      grid.items,
-      item.h,
-      item.id,
-      {
-        plotId: item.id,
-        widthUnits: item.w,
-        heightUnits: item.h,
-        settings,
-        streamData: streamResult,
+  // ── Cross-plot ridgeline data-scale sync (same height, scale, series count) ──
+  // Registered from the plot's OWN result; the synced value only affects strip
+  // rendering, never the transform, so there is no feedback loop.
+  const ridgelineScaleValue = $derived(settings.ridgelineScale ?? RIDGELINE_SCALE)
+  const ownMTop = $derived.by(() => {
+    if (settings.alignment !== 'ridgeline' || !hasRenderableData) return null
+    return computeMTop(streamResult!, true)
+  })
+
+  usePlotSync(
+    aoiStreamRidgelineSync,
+    () => item.id,
+    () => {
+      if (ownMTop === null || !streamResult) return null
+      return {
+        h: item.h,
+        scale: ridgelineScaleValue,
+        seriesCount: streamResult.series.length,
+        dataMax: ownMTop,
       }
+    }
+  )
+
+  const syncedMTopOverride = $derived.by(() => {
+    if (ownMTop === null || !streamResult) return null
+    const synced = aoiStreamRidgelineSync.getSyncedMTop(
+      item.h,
+      ridgelineScaleValue,
+      streamResult.series.length
     )
+    return synced > ownMTop ? synced : null
   })
 
   const handleLegendClick = (aoiId: number) => {

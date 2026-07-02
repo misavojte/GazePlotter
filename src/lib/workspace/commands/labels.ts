@@ -72,6 +72,12 @@ const WORKSPACE_COMMAND_LABELS: Record<
     default: 'Eye-movement types updated',
   },
 
+  updateMetricInstances: {
+    undone: 'Undo metric library update',
+    redone: 'Redo metric library update',
+    default: 'Metric library updated',
+  },
+
   // Settings change command
   updateSettings: {
     undone: 'Undo plot update',

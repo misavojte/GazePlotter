@@ -8,9 +8,6 @@ import type {
   MetricInstance,
   ParticipantsGroup,
 } from '../types'
-import { createMetricInstance } from '$lib/metrics/instances'
-import type { Projection } from '$lib/metrics/core/projection'
-import type { GroupReduction } from '$lib/metrics/core/measurement'
 
 export class DataEngine {
   // --- Private Memory (Non-Reactive) ---
@@ -185,42 +182,14 @@ export class DataEngine {
     if (this.metadata) this.metadata.participantsGroups = groups
   }
 
+  /**
+   * Replaces the metric library wholesale. Only the `updateMetricInstances`
+   * workspace command handler calls this at runtime — rename/create/delete/
+   * reorder are array deltas dispatched through the command bus (undo/redo +
+   * redraw epoch bump), never direct engine mutations.
+   */
   setMetricInstances(instances: MetricInstance[]) {
     if (this.metadata) this.metadata.metricInstances = instances
-  }
-
-  updateMetricInstanceLabel(id: string, label: string) {
-    const meta = this.metadata
-    if (!meta) return
-    const trimmed = label.trim()
-    if (trimmed.length === 0) return
-    const idx = meta.metricInstances.findIndex(i => i.id === id)
-    if (idx < 0) return
-    meta.metricInstances[idx] = {
-      ...meta.metricInstances[idx],
-      label: trimmed,
-    }
-  }
-
-  addMetricInstance(
-    baseId: string,
-    params: Record<string, unknown>,
-    label: string | undefined,
-    projection: Projection,
-    reduction?: GroupReduction,
-  ): string | null {
-    const meta = this.metadata
-    if (!meta) return null
-    const inst = createMetricInstance({ baseId, params, projection, label, reduction })
-    if (!inst) return null
-    meta.metricInstances = [...(meta.metricInstances ?? []), inst]
-    return inst.id
-  }
-
-  deleteMetricInstance(id: string): void {
-    const meta = this.metadata
-    if (!meta) return
-    meta.metricInstances = (meta.metricInstances ?? []).filter(i => i.id !== id)
   }
 
   updateEventDataBatch(

@@ -20,7 +20,7 @@
   let { item, dpi, margin }: Props = $props()
   const { engine, grid } = getGazePlotterSession()
 
-  const view = $derived(deriveItemView(engine, grid, item))
+  const view = $derived(deriveItemView(engine, item))
   const exportProps = $derived(itemExportProps(item, grid, null, margin))
   const Figure = $derived(view?.component)
 

@@ -53,7 +53,7 @@
   }
 
   let { groupId, stimulusId, metricInstanceIds }: Props = $props()
-  const { exportService, modalState, engine } = getGazePlotterSession()
+  const { exportService, modalState, engine, workspace } = getGazePlotterSession()
 
   let format = $state<'long' | 'wide'>('long')
   const fileName = 'GazePlotter-MetricData'
@@ -316,6 +316,7 @@
   const handleEditLibrary = () => {
     const handlers = multiSelectMetricHandlers(
       engine,
+      workspace,
       () => Array.from(selectedMetrics),
       (ids) => {
         selectedMetrics = new Set(ids)

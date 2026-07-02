@@ -47,7 +47,7 @@
     onrenameInstance,
   }: Props = $props()
 
-  const { engine, modalState } = getGazePlotterSession()
+  const { engine, workspace, modalState } = getGazePlotterSession()
 
   const METRICS = engine.metadata?.metricInstances ?? []
   const instances = $derived(
@@ -82,7 +82,7 @@
       const toGlobal = indices[to]
       const [item] = all.splice(fromGlobal, 1)
       all.splice(toGlobal, 0, item)
-      engine.setMetricInstances(all)
+      workspace.updateMetricInstances(all, 'metricLibrary.reorder')
     },
   })
 

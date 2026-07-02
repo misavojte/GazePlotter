@@ -7,6 +7,7 @@
   import { getTransitionView } from '$lib/plots/transition-matrix/core/view'
   import { transitionMatrixColorSync } from '$lib/plots/transition-matrix/core/sync.svelte'
   import { usePlotSync } from '$lib/plots/shared/PlotSyncRegistry.svelte'
+  import { usePlotData } from '$lib/plots/shared/plotData.svelte'
 
   import type { TransitionMatrixPlotItem } from '$lib/plots/transition-matrix/types'
 
@@ -19,7 +20,12 @@
 
   // Same view-model the export modal renders from; the screen adds color sync
   // (a synced colorValueRange) on top — export never syncs.
-  const view = $derived(getTransitionView(engine, item.settings))
+  const viewData = usePlotData({
+    epoch: () => item.redrawTimestamp,
+    settings: () => item.settings,
+    derive: s => getTransitionView(engine, s),
+  })
+  const view = $derived(viewData.current)
 
   usePlotSync(
     transitionMatrixColorSync,

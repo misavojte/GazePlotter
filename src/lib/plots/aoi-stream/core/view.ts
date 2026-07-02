@@ -6,18 +6,18 @@ import { calculatePlotWidthPx } from '$lib/plots/shared/plotSizeUtility'
 import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid/const'
 import AoiStreamPlotFigure from '../components/AoiStreamPlotFigure.svelte'
 import { getAoiStreamPlotData } from '.'
-import { scanForSynchronizedTimelineMax } from '../sync'
 import type { AoiStreamPlotResult, AoiStreamPlotSettings } from '../types'
 
 /**
- * Resolve the timeline window. The max can come from the cross-plot sync scan
- * (when fully auto and host `ctx` is provided), which is why aoi-stream's view
- * depends on host context, not just (engine, settings).
+ * Resolve the timeline window from settings alone. Cross-plot timeline sync
+ * is the container's concern: the on-screen container merges the synced max
+ * into `timelineEnd` before deriving (via `aoiStreamTimelineSync`), so this
+ * function — and therefore the export view — is a pure function of
+ * (engine, settings). Export never syncs, like bar/transition-matrix.
  */
 function resolveTimeline(
   engine: DataEngine,
-  settings: AoiStreamPlotSettings,
-  ctx?: PlotViewContext
+  settings: AoiStreamPlotSettings
 ): { min: number; max: number } {
   const limits = settings.absoluteStimuliLimits[settings.stimulusId]
   const min = (settings.timelineStart ?? 0) > 0 ? settings.timelineStart! : (limits?.[0] ?? 0)
@@ -26,17 +26,6 @@ function resolveTimeline(
   const absMax = limits?.[1] ?? 0
   if (absMax !== 0) return { min, max: absMax }
 
-  if (ctx) {
-    const synced = scanForSynchronizedTimelineMax(
-      engine,
-      ctx.gridItems as Parameters<typeof scanForSynchronizedTimelineMax>[1],
-      ctx.itemWidth,
-      settings.stimulusId,
-      settings.absoluteStimuliLimits
-    )
-    if (synced !== null) return { min, max: synced }
-  }
-
   const max = getParticipants(engine, settings.groupId, settings.stimulusId).reduce(
     (m, p) => Math.max(m, getParticipantEndTime(engine, settings.stimulusId, p.id)),
     0
@@ -44,13 +33,13 @@ function resolveTimeline(
   return { min, max }
 }
 
-/** Shared data derivation (cross-plot-sync aware via `ctx`). */
+/** Shared data derivation; `ctx.itemWidth` drives the display budget. */
 export function computeAoiStreamData(
   engine: DataEngine,
   settings: AoiStreamPlotSettings,
   ctx?: PlotViewContext
 ): AoiStreamPlotResult {
-  const { min, max } = resolveTimeline(engine, settings, ctx)
+  const { min, max } = resolveTimeline(engine, settings)
   const plotWidthPx =
     ctx && ctx.itemWidth > 0
       ? calculatePlotWidthPx(ctx.itemWidth, DEFAULT_GRID_CONFIG)

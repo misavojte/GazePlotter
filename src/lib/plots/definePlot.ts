@@ -43,14 +43,14 @@ export type PlotView = {
 }
 
 /**
- * Host context for plots whose view depends on more than (engine, settings) —
- * e.g. cross-plot timeline sync that scans sibling grid items. Most plots
- * ignore it. Provided by the host (the grid on screen, the download modal for
- * export) so screen and export resolve the same view.
+ * Host layout context for plots whose view depends on their on-screen size —
+ * width-windowed plots derive a display budget from `itemWidth`. Most plots
+ * ignore it. Cross-plot coordination does NOT live here: sync values are
+ * resolved by the on-screen container (via the `PlotSyncRegistry` instances)
+ * and merged into the settings before deriving; export derives from the raw
+ * settings and never syncs.
  */
 export type PlotViewContext = {
-  /** All workspace grid items (for cross-plot coordination). */
-  gridItems: readonly unknown[]
   /** This plot's grid cell size, in grid units. */
   itemWidth: number
   itemHeight: number

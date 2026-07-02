@@ -1,5 +1,6 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotView, PlotViewContext } from '$lib/plots/definePlot'
+import { snapshotSettings } from '$lib/plots/shared/plotData.svelte'
 import { resolvePlotDefinition } from '$lib/plots/registry'
 import type { AllGridTypes, GridState } from '$lib/workspace/grid'
 import { getWorkspaceCanvasExportDimensions } from '../shared/helpers'
@@ -12,7 +13,6 @@ import type { PlotExportProps } from './types'
  */
 export function deriveItemView(
   engine: DataEngine,
-  grid: GridState,
   item: AllGridTypes
 ): PlotView | null {
   // Resolved generically, so deriveView is cast to a loose signature (its
@@ -25,8 +25,12 @@ export function deriveItemView(
       ) => PlotView | null)
     | undefined
   if (!deriveView) return null
-  return deriveView(engine, (item as { settings: unknown }).settings, {
-    gridItems: grid.items,
+  // Same reactive/plain boundary the on-screen containers apply (usePlotData):
+  // deriveView receives a plain frozen snapshot, never a live `$state` proxy.
+  const settings = snapshotSettings(
+    (item as { settings: object }).settings
+  ) as unknown
+  return deriveView(engine, settings, {
     itemWidth: item.w,
     itemHeight: item.h,
   })

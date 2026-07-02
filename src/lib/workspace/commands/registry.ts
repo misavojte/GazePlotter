@@ -194,6 +194,11 @@ export function createWorkspaceCommandRegistry(
       gridStore.triggerRedraw()
     },
 
+    updateMetricInstances: command => {
+      engine.setMetricInstances(command.instances)
+      gridStore.triggerRedraw()
+    },
+
     updateSettings: command => {
       for (const { itemId, settings } of command.updates) {
         const currentItem = gridStore.items.find(item => item.id === itemId)
@@ -401,6 +406,15 @@ export function createWorkspaceCommandRegistry(
       const currentGroups = dataMeta.participantsGroups || []
       return withMeta(
         { type: 'updateParticipantsGroups', groups: currentGroups },
+        meta
+      )
+    },
+
+    updateMetricInstances: (_cmd, meta) => {
+      const dataMeta = requireMetadata()
+      const currentInstances = dataMeta.metricInstances ?? []
+      return withMeta(
+        { type: 'updateMetricInstances', instances: [...currentInstances] },
         meta
       )
     },

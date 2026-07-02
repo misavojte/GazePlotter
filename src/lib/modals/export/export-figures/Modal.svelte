@@ -209,7 +209,7 @@
         exportProgress = { position: i + 1, total: items.length, name }
 
         try {
-          const view = deriveItemView(engine, grid, item)
+          const view = deriveItemView(engine, item)
           const canvas = view
             ? await renderFigure(view, itemExportProps(item, grid, dpi, margin))
             : null

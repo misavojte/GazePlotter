@@ -4,6 +4,7 @@
 
   import { BasePlot } from '$lib/plots/shared/components'
   import { toggleInArray } from '$lib/plots/shared'
+  import { usePlotData } from '$lib/plots/shared/plotData.svelte'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { getScanpathSimilarityView } from '../core/view'
 
@@ -31,9 +32,13 @@
 
   // Same view-model the export modal renders from; the screen adds the
   // node-click handler (scangraph), which export omits.
-  const view = $derived(
-    getScanpathSimilarityView(engine, settings, { onNodeClick: handleNodeClick })
-  )
+  const viewData = usePlotData({
+    epoch: () => item.redrawTimestamp,
+    settings: () => settings,
+    derive: s =>
+      getScanpathSimilarityView(engine, s, { onNodeClick: handleNodeClick }),
+  })
+  const view = $derived(viewData.current)
 </script>
 
 <BasePlot {item} hasData={view.hasData}>

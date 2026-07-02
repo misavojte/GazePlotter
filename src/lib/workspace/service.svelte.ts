@@ -11,6 +11,7 @@ import {
   type UpdateNoAoiTreatmentCommand,
   type UpdateCategoriesCommand,
   type UpdateParticipantsCommand,
+  type UpdateMetricInstancesCommand,
   type UpdateParticipantsGroupsCommand,
   type UpdateStimuliCommand,
   type WorkspaceCommand,
@@ -31,6 +32,7 @@ import type {
   NoAoiTreatmentType,
   ParticipantsGroup,
 } from '$lib/data/types'
+import type { MetricInstance } from '$lib/metrics'
 
 function isWorkspaceHistoryError(error: unknown): boolean {
   return error instanceof Error && error.name === 'WorkspaceHistoryError'
@@ -312,6 +314,24 @@ export class WorkspaceService {
     const command: UpdateParticipantsGroupsCommand = {
       type: 'updateParticipantsGroups',
       groups,
+      source,
+    }
+    return this.applyRoot(command)
+  }
+
+  /**
+   * Replaces the metric library wholesale (rename/create/delete/replace/
+   * reorder are all deltas of the same array). The ONLY mutation path for
+   * `metadata.metricInstances` — going through the command bus gives metric
+   * edits undo/redo and the workspace-wide redraw epoch bump.
+   */
+  updateMetricInstances(
+    instances: MetricInstance[],
+    source: string
+  ): boolean {
+    const command: UpdateMetricInstancesCommand = {
+      type: 'updateMetricInstances',
+      instances,
       source,
     }
     return this.applyRoot(command)

@@ -5,16 +5,11 @@ import {
   calculateMaxReferenceHeight,
   computeMTop,
 } from '$lib/plots/aoi-stream/core/ridgeline'
-import { scanForDynamicRidgelineReferenceHeight } from '$lib/plots/aoi-stream/sync/ridgeline'
 import {
   RIDGELINE_CONTENT_FILL,
   RIDGELINE_MIN_M_TOP,
   RIDGELINE_SCALE,
 } from '$lib/plots/aoi-stream/const'
-import type {
-  AoiStreamPlotItem,
-  AoiStreamPlotSettings,
-} from '$lib/plots/aoi-stream/types'
 
 // Mock dependencies
 vi.mock('$lib/plots/shared', () => ({
@@ -29,36 +24,6 @@ vi.mock('$lib/plots/shared/legendRendering', () => ({
 vi.mock('$lib/shared/utils/textUtils', () => ({
   estimateTextWidth: () => 10,
   SYSTEM_SANS_SERIF_STACK: 'Arial',
-}))
-
-vi.mock('$lib/data/engine', () => ({
-  getParticipants: () => [{ id: 1 }],
-  getParticipantEndTime: () => 100,
-}))
-
-vi.mock('$lib/plots/aoi-stream/core/transformer', () => ({
-  getAoiStreamPlotData: () => ({
-    series: [
-      {
-        values: new Float32Array(10).fill(1),
-        id: 1,
-        label: 'AOI 1',
-        color: 'red',
-      },
-    ],
-    binCount: 10,
-    windowSize: 100,
-    stepSize: 100,
-    participants: 1,
-    maxValue: 1,
-    timeline: { minValue: 0, maxValue: 100 },
-    maxTime: 100,
-    maxTotal: 1,
-  }),
-}))
-
-vi.mock('$lib/plots/aoi-stream/sync/timeline', () => ({
-  scanForSynchronizedTimelineMax: () => null,
 }))
 
 // ─── Fixture builders ────────────────────────────────────────────────────────
@@ -266,61 +231,47 @@ describe('Ridgeline geometry invariants', () => {
     })
   })
 
-  describe('scanForDynamicRidgelineReferenceHeight', () => {
-    it('returns a finite mTop in (0, 1] for two matching ridgeline plots', () => {
-      const engine = { metadata: {} } as any
+})
 
-      const createItem = (
-        id: number,
-        settings: Partial<AoiStreamPlotSettings>
-      ): AoiStreamPlotItem => ({
-        id,
-        x: 0,
-        y: 0,
-        w: 12,
-        h: 10,
-        min: { w: 11, h: 10 },
-        redrawTimestamp: 0,
-        type: 'aoiStreamPlot',
-        settings: {
-          stimulusId: 0,
-          groupId: -1,
-          metricInstanceIds: ['absoluteTime-aoi-windowed-500'],
-          absoluteStimuliLimits: [],
-          ...settings,
-        },
-      })
+describe('AOI Timeline sync registries (push-based, replaces grid scanning)', () => {
+  it('timeline: syncs the max across same-width participants only', async () => {
+    const { aoiStreamTimelineSync } = await import(
+      '$lib/plots/aoi-stream/core/sync.svelte'
+    )
+    aoiStreamTimelineSync.setEntry(1, { w: 6, dataMax: 100 })
+    aoiStreamTimelineSync.setEntry(2, { w: 6, dataMax: 250 })
+    aoiStreamTimelineSync.setEntry(3, { w: 8, dataMax: 900 })
+    expect(aoiStreamTimelineSync.getSyncedMax(6)).toBe(250)
+    expect(aoiStreamTimelineSync.getSyncedMax(8)).toBe(900)
+    expect(aoiStreamTimelineSync.getSyncedMax(12)).toBe(0)
+    // Unregistering (opt-out / unmount) removes the contribution.
+    aoiStreamTimelineSync.clearEntry(2)
+    expect(aoiStreamTimelineSync.getSyncedMax(6)).toBe(100)
+    aoiStreamTimelineSync.clearEntry(1)
+    aoiStreamTimelineSync.clearEntry(3)
+  })
 
-      const items: AoiStreamPlotItem[] = [
-        createItem(1, { alignment: 'ridgeline', ridgelineScale: 0.6 }),
-        createItem(2, { alignment: 'ridgeline', ridgelineScale: 0.6 }),
-      ]
+  it('ridgeline: syncs mTop only across (h, scale, seriesCount) matches', async () => {
+    const { aoiStreamRidgelineSync } = await import(
+      '$lib/plots/aoi-stream/core/sync.svelte'
+    )
+    aoiStreamRidgelineSync.setEntry(1, { h: 10, scale: 0.6, seriesCount: 3, dataMax: 0.4 })
+    aoiStreamRidgelineSync.setEntry(2, { h: 10, scale: 0.6, seriesCount: 3, dataMax: 0.7 })
+    aoiStreamRidgelineSync.setEntry(3, { h: 10, scale: 0.6, seriesCount: 4, dataMax: 0.9 })
+    aoiStreamRidgelineSync.setEntry(4, { h: 12, scale: 0.6, seriesCount: 3, dataMax: 0.95 })
+    aoiStreamRidgelineSync.setEntry(5, { h: 10, scale: 1.2, seriesCount: 3, dataMax: 0.99 })
 
-      const currentStreamData = buildData({
-        seriesCount: 1,
-        topPeak: 1,
-        maxValue: 1,
-      })
+    // Same height + scale + series count → most constraining mTop.
+    expect(aoiStreamRidgelineSync.getSyncedMTop(10, 0.6, 3)).toBeCloseTo(0.7, 6)
+    // Scale matches within tolerance (1e-4), not exact equality.
+    expect(aoiStreamRidgelineSync.getSyncedMTop(10, 0.60005, 3)).toBeCloseTo(0.7, 6)
+    // Different series count / height / scale are separate sync groups.
+    expect(aoiStreamRidgelineSync.getSyncedMTop(10, 0.6, 4)).toBeCloseTo(0.9, 6)
+    expect(aoiStreamRidgelineSync.getSyncedMTop(12, 0.6, 3)).toBeCloseTo(0.95, 6)
+    expect(aoiStreamRidgelineSync.getSyncedMTop(10, 1.2, 3)).toBeCloseTo(0.99, 6)
+    // No match → 0; the container then keeps its local mTop (null override).
+    expect(aoiStreamRidgelineSync.getSyncedMTop(20, 0.6, 3)).toBe(0)
 
-      const result = scanForDynamicRidgelineReferenceHeight(
-        engine,
-        items,
-        10,
-        1,
-        {
-          plotId: 1,
-          widthUnits: 12,
-          heightUnits: 10,
-          settings: items[0].settings,
-          streamData: currentStreamData,
-        }
-      )
-
-      // Both candidates render the same fixture → mTop = peakFraction × CONTENT_FILL.
-      expect(result).not.toBeNull()
-      expect(result!).toBeGreaterThan(0)
-      expect(result!).toBeLessThanOrEqual(1)
-      expect(result!).toBeCloseTo(expectedMTop(1, 1), 6)
-    })
+    for (const id of [1, 2, 3, 4, 5]) aoiStreamRidgelineSync.clearEntry(id)
   })
 })

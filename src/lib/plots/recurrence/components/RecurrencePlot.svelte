@@ -5,6 +5,7 @@
   import { BasePlot } from '$lib/plots/shared/components'
 
   import { getRecurrenceView } from '$lib/plots/recurrence/core/view'
+  import { usePlotData } from '$lib/plots/shared/plotData.svelte'
 
   import type { RecurrencePlotItem } from '$lib/plots/recurrence/types'
 
@@ -16,7 +17,12 @@
   const { engine } = getGazePlotterSession()
 
   // Same view-model the export modal renders from.
-  const view = $derived(getRecurrenceView(engine, item.settings))
+  const viewData = usePlotData({
+    epoch: () => item.redrawTimestamp,
+    settings: () => item.settings,
+    derive: s => getRecurrenceView(engine, s),
+  })
+  const view = $derived(viewData.current)
 </script>
 
 <BasePlot {item}>

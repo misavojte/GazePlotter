@@ -8,6 +8,7 @@
   import { barPlotValueAxisSync } from '$lib/plots/bar/core/sync.svelte'
   import { createAdaptiveTimeline } from '$lib/plots/shared'
   import { usePlotSync } from '$lib/plots/shared/PlotSyncRegistry.svelte'
+  import { usePlotData } from '$lib/plots/shared/plotData.svelte'
 
   import type { BarPlotItem } from '$lib/plots/bar/types'
 
@@ -21,7 +22,12 @@
 
   // Same view-model the export modal renders from; the screen adds value-axis
   // sync (a synced timeline) on top — export never syncs.
-  const view = $derived(getBarView(engine, settings))
+  const viewData = usePlotData({
+    epoch: () => item.redrawTimestamp,
+    settings: () => settings,
+    derive: s => getBarView(engine, s),
+  })
+  const view = $derived(viewData.current)
 
   const hasCustomScale = $derived(
     settings.scaleRange !== undefined &&

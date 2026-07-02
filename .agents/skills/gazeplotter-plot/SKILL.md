@@ -24,6 +24,20 @@ Most plots do not compute their own metric; they consume the shared metric libra
 - The definition declares the same contract via `consumesMetrics` to drive the pane/library filters.
 - When resolution fails (missing/incompatible instance), the transformer returns `noMetric: true` and the figure paints the missing-metric placeholder (see Labels and export parity).
 
+## The container boundary: usePlotData (reactivity ends here)
+
+Every plot container (`components/<Name>Plot.svelte`) derives its transform result through `usePlotData` (`src/lib/plots/shared/plotData.svelte.ts`). Runes stop at the container; transforms and figures below it work on plain data.
+
+- The derivation's reactive dependency surface is EXACTLY three declared inputs — nothing is discovered implicitly inside the transform, because `derive` runs untracked:
+  - `epoch: () => item.redrawTimestamp` (required) — "engine data changed, re-derive". Every engine-data command bumps it on all items; settings updates bump it on the item.
+  - `settings: () => ...` — handed to `derive` as a plain, deeply-frozen, deep-equal-gated snapshot. Transforms NEVER see a `$state` proxy; noise (rebuilt-but-equal objects, `viewOnly` keys such as `highlights`) keeps a stable reference and does not re-derive.
+  - `watch: () => ...` — layout inputs only (`item.w` for width-derived display budgets); most plots need none. NEVER watch `engine.metadata`: every metadata mutation is a workspace command (epoch bump), and dataset loads rebuild all grid items after the engine loads, so a live container cannot observe a metadata transition. Reference: `src/lib/plots/aoi-stream/components/AoiStreamPlot.svelte`.
+- Cross-plot sync is uniformly push-based via `PlotSyncRegistry` subclasses (`src/lib/plots/shared/PlotSyncRegistry.svelte.ts`): each participating container registers its own contribution with `usePlotSync` and merges the synced value into the settings BEFORE deriving (scarf timeline, bar value axis, transition-matrix color, aoi-stream timeline + ridgeline mTop). Never scan `grid.items` for sibling state. Export derives from raw settings and never syncs; `PlotViewContext` is `{itemWidth, itemHeight}` only.
+- Metric-library edits are workspace commands: every mutation of `metadata.metricInstances` dispatches `updateMetricInstances` (full-array payload; one atomic undo step; bumps the redraw epoch on ALL items, so `epoch` covers metric edits). Components go through the `metricInstanceHandlers` factories (which take `workspace`); nothing calls a direct engine mutator — `engine.setMetricInstances` is reserved for the command handler.
+- Do NOT hold transform results in `$state`/`$state.raw` or call transforms from raw `$derived`/`$effect` in containers; `usePlotData` owns result storage (never deep-proxied) and the re-derive policy.
+- The export modal applies the same boundary: `deriveItemView` snapshots settings via `snapshotSettings` before calling a plot's `deriveView` (`src/lib/modals/export/export-figures/view.ts`).
+- Consequences: transforms receive frozen input (mutating settings throws), and settings reads inside transforms are plain property access (the old "hoist `settings.*` out of hot loops" reactivity cost no longer exists — hoisting remains a micro-optimization only).
+
 ## Rendering: the usePlot harness
 
 All canvas figures render through `usePlot(options): UsePlotHandle` (`src/lib/plots/shared/usePlot.svelte.ts:424`); a figure calls it once and applies `plot.plotAction` to its `<canvas>`. Reference: `src/lib/plots/scarf/components/ScarfPlotFigure.svelte:193`.
@@ -39,7 +53,7 @@ All canvas figures render through `usePlot(options): UsePlotHandle` (`src/lib/pl
 - Read render-bound data from flat TypedArrays (Float32Array/Float64Array/Int32Array) with stride indexing (`idx = i * STRIDE`, e.g. scarf's `RECT_STRIDE = 8`), not nested arrays. Transformers may build object arrays before the typed-array step, but the render loop must read flat buffers.
 - Use plain `for` loops, not `.map/.filter/.reduce`, in draw loops. Hoist constants; prefer `| 0`/`Math.floor` over `Math.round` in loops.
 - Do not put large raw buffers in `$state`; do not use `$derived`/`$effect` for per-element transforms.
-- Hoist `settings.*` reads out of per-segment loops (each is a deep `$state` proxy `get`, ~190ms in a real trace); in hot loops index `reader.segmentBufferRaw` directly instead of calling `getSegment*(i)` per segment.
+- Transforms receive plain snapshotted settings via `usePlotData` (see the container boundary section), so `settings.*` reads carry no proxy cost. In hot loops still index `reader.segmentBufferRaw` directly instead of calling `getSegment*(i)` per segment.
 - Normalize coordinates to 0..1 in the transformer and multiply by pixel width in the draw step; do not compute absolute pixels in the transformer.
 - For dimmed/highlight states use `desaturateToWhite` (`src/lib/color/interpolation.ts`, imported via `$lib/color`), not hardcoded colors.
 

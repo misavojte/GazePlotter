@@ -16,6 +16,7 @@
   import { getScarfData } from '$lib/plots/scarf/core/view'
   import { scarfTimelineSync } from '$lib/plots/scarf/core/sync.svelte'
   import { usePlotSync } from '$lib/plots/shared/PlotSyncRegistry.svelte'
+  import { usePlotData } from '$lib/plots/shared/plotData.svelte'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 
   interface Props {
@@ -106,12 +107,26 @@
       : { ...effectiveSettings, ordinalEnd: syncedMax }
   })
 
-  const scarfData = $derived.by(() => {
-    void redrawTimestamp
-    // Same data derivation the export modal renders from, with the screen's
-    // sync-adjusted settings.
-    return getScarfData(engine, syncedSettings)
+  // Same data derivation the export modal renders from, with the screen's
+  // sync-adjusted settings. `highlights` is view-only (the highlight mask is
+  // computed in the figure), so a legend highlight click no longer re-runs the
+  // full transform.
+  const scarfDataHandle = usePlotData({
+    epoch: () => redrawTimestamp,
+    settings: () => syncedSettings,
+    viewOnly: ['highlights'],
+    derive: s => getScarfData(engine, s),
   })
+  const scarfData = $derived(scarfDataHandle.current)
+
+  // Plain, equality-gated snapshot for the figure: the draw path never sees a
+  // `$state` proxy.
+  const figureSettingsHandle = usePlotData({
+    epoch: () => redrawTimestamp,
+    settings: () => effectiveSettings,
+    derive: s => s,
+  })
+  const figureSettings = $derived(figureSettingsHandle.current)
 
   const timelineMin = $derived.by(() => {
     if (effectiveSettings.timeline === 'absolute') {
@@ -235,7 +250,7 @@
           {width}
           {height}
           data={scarfData}
-          settings={effectiveSettings}
+          settings={figureSettings}
           {highlights}
           onLegendClick={handleLegendClick}
           onTooltipActivation={handleTooltipActivation}

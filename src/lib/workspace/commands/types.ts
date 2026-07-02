@@ -3,6 +3,7 @@ import type {
   BaseInterpretedDataType,
   ParticipantsGroup,
 } from '$lib/data/types'
+import type { MetricInstance } from '$lib/metrics'
 import type {
   AllPlotSettings,
   GridItemLayoutUpdate,
@@ -82,6 +83,16 @@ export interface UpdateCategoriesCommand extends BaseCommandInterface {
   hiddenCategories?: number[]
 }
 
+// Metric library command. Carries the FULL instances array — rename, create,
+// delete, replace and reorder are all the same operation at different deltas,
+// so they share one handler, one reverse (snapshot of the previous array) and
+// one atomic undo step. All metric-library mutations go through this command;
+// nothing edits `engine.metadata.metricInstances` directly.
+export interface UpdateMetricInstancesCommand extends BaseCommandInterface {
+  type: 'updateMetricInstances'
+  instances: MetricInstance[]
+}
+
 // Settings change command.
 // Operates on a *set* of items: a single edit is a list of one, a bulk edit
 // is a list of N. There is no separate "bulk" command — single and bulk are
@@ -137,6 +148,7 @@ export type WorkspaceCommand =
   | UpdateParticipantsGroupsCommand
   | UpdateNoAoiTreatmentCommand
   | UpdateCategoriesCommand
+  | UpdateMetricInstancesCommand
   | UpdateSettingsCommand // includes position and size updates
   | UpdateLayoutCommand
   | AddGridItemCommand

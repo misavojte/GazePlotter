@@ -7,6 +7,7 @@ import type {
   ParticipantsGroup,
 } from '$lib/data/types'
 import type { WorkspaceCommandChain } from '$lib/workspace/commands'
+import type { MetricInstance } from '$lib/metrics'
 import type { GridState } from '$lib/workspace/grid'
 import type { AllGridTypes } from '$lib/workspace'
 import type { ScarfPlotItem, ScarfPlotSettings } from '$lib/plots/scarf/types'
@@ -135,6 +136,14 @@ export function setMockEngineMetadata(
   reader.load(metadata?.eventData?.events ?? [])
   Object.defineProperty(engine, 'getEventReader', {
     value: () => reader,
+    writable: true,
+    configurable: true,
+  })
+  // Mirror the production mutator the `updateMetricInstances` handler calls.
+  Object.defineProperty(engine, 'setMetricInstances', {
+    value: (instances: MetricInstance[]) => {
+      if (engine.metadata) engine.metadata.metricInstances = instances
+    },
     writable: true,
     configurable: true,
   })
