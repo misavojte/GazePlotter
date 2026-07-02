@@ -85,5 +85,5 @@ export function deriveScanpathSimilarityView(
   settings: ScanpathSimilaritySettings
 ): PlotView {
   const v = getScanpathSimilarityView(engine, settings)
-  return { component: v.component, props: v.props }
+  return { component: v.component, props: v.props, hasData: v.hasData }
 }

@@ -1,4 +1,3 @@
-import EvolvingMetricsPlot from './components/EvolvingMetricsPlot.svelte'
 import { deriveEvolvingMetricsView } from './core/view'
 import {
   StimulusSection,
@@ -23,7 +22,6 @@ export const evolvingMetricsDefinition = definePlot<
   type: 'evolvingMetrics',
   name: 'Metric Timeline',
   group: 'per-participant',
-  component: EvolvingMetricsPlot,
   paneSections: [
     { key: 'stimulus', component: StimulusSection },
     { key: 'group', component: GroupSection },
@@ -35,7 +33,11 @@ export const evolvingMetricsDefinition = definePlot<
     { key: 'timelineRange', component: TimelineRangeSection },
     { key: 'aoi', component: AoiSection },
   ],
-  export: { deriveView: deriveEvolvingMetricsView },
+  view: {
+    deriveView: deriveEvolvingMetricsView,
+    viewDependsOnWidth: true,
+    viewOnlySettings: ['highlights'],
+  },
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []
     const stim = getStimuliOptions(engine).find(

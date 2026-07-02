@@ -1,4 +1,3 @@
-import MetricCorrelationPlot from './components/MetricCorrelationPlot.svelte'
 import { deriveMetricCorrelationView } from './core/view'
 import {
   StimulusSection,
@@ -24,7 +23,6 @@ export const metricCorrelationDefinition = definePlot<
   type: 'metricCorrelation',
   name: 'Metric Correlation',
   group: 'per-participant',
-  component: MetricCorrelationPlot,
   paneSections: [
     { key: 'stimulus', component: StimulusSection },
     { key: 'group', component: GroupSection },
@@ -40,7 +38,7 @@ export const metricCorrelationDefinition = definePlot<
     { key: 'timelineRange', component: TimelineRangeSection },
     { key: 'aoi', component: AoiSection },
   ],
-  export: { deriveView: deriveMetricCorrelationView },
+  view: { deriveView: deriveMetricCorrelationView },
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []
     const stim = getStimuliOptions(engine).find(

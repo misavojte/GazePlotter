@@ -5,13 +5,15 @@ description: How plots are defined, fed data (metric library + binary readers), 
 
 # GazePlotter Plots
 
-Each plot is a folder `src/lib/plots/<name>/` with a `definition.ts`, a `core/` (transformer, view, and sometimes layout/renderer/collector), and `components/<Name>PlotFigure.svelte`. The rules below are verified against the code; the file:line anchors are the source of truth. Do not assume a fixed `core/` file set: `core/transformer.ts` and `core/view.ts` are near-universal, but `collector.ts`, `layout.ts`, and `renderer.ts` exist only in some plots (`renderer.ts` is scarf-only).
+Each plot is a folder `src/lib/plots/<name>/` with a `definition.ts` (the complete recipe), a `core/` (transformer, view, optional screen recipe, and sometimes layout/renderer/sync), and `components/<Name>PlotFigure.svelte`. There are NO per-plot container components: one generic host (`src/lib/plots/shared/components/PlotContainer.svelte`) executes every plot's definition. The rules below are verified against the code; the file:line anchors are the source of truth.
 
-## Defining a plot
+## Defining a plot (the definition IS the plot)
 
-- A plot is a `definePlot<Type, Settings, ...>({ ... })` object in `<name>/definition.ts` (`src/lib/plots/definePlot.ts:181`). `definePlot` is an identity helper; the real contract is the `PlotDefinition` type (`definePlot.ts:114-179`).
-- Required fields: `type`, `name`, `group` (PlotGroup), `component`, `getDefaultSettings`, `getDefaultHeight`, `getDefaultWidth`, `getMinSize`, `paneSections`. There is NO `getDefaultConfig` (it does not exist).
-- Optional fields: `requireCapabilities`, `export`, `getSubtitle`, `consumesMetrics`, `onCommand`. Full example: `src/lib/plots/bar/definition.ts`.
+- A plot is a `definePlot<Type, Settings>({ ... })` object in `<name>/definition.ts`; the real contract is the `PlotDefinition` type in `src/lib/plots/definePlot.ts`.
+- Required fields: `type`, `name`, `group` (PlotGroup), `getDefaultSettings`, `getDefaultHeight`, `getDefaultWidth`, `getMinSize`, `paneSections`, and `view`. There is NO `component` field and NO `getDefaultConfig`.
+- `view: { deriveView, viewDependsOnWidth?, viewOnlySettings? }` — the single derivation both hosts render from. `deriveView(engine, settings, ctx?)` returns `{ component, props, hasData?, meta? } | null`; `ctx` is `{itemWidth, itemHeight}` (display budgets only). `viewDependsOnWidth: true` makes the screen re-derive on width resize (aoi-stream, evolving-metrics); `viewOnlySettings` lists keys `deriveView` never reads (e.g. `['highlights']`) so changing them never re-derives.
+- `screen?: PlotScreenFactory` — screen-only behavior, declared in `<name>/core/screen.svelte.ts` (runes-capable; invoked once at container init). It returns `{ settings?, props? }`: `settings()` is the reactive settings the screen derives from (cross-plot sync merged in — export always derives from raw settings, so sync is screen-only by construction); `props(view)` overlays screen-only props (interaction handlers, sync overrides) on the view's props. `ctx` gives `item` (live getter — never capture the value), `engine`, `workspace`, and `view()` (valid in effects/deriveds/handlers, not synchronously in the factory body). `view.meta` is the screen-coordination surface (sync keys, data maxima) a recipe casts to its own meta type. Reference recipes: `bar/core/screen.svelte.ts` (sync only), `scarf/core/screen.svelte.ts` (drag state + tooltip + sync).
+- Optional fields: `requireCapabilities`, `getSubtitle`, `consumesMetrics`, `onCommand`. Full example: `src/lib/plots/bar/definition.ts`.
 - Register by hand-adding the definition to the static literal `plotRegistry` in `src/lib/plots/registry.ts:14`. It is intentionally static (feeds `type VisualizationType = keyof typeof plotRegistry`); do not convert it to a glob loader.
 
 ## Data: the metric library
@@ -24,17 +26,17 @@ Most plots do not compute their own metric; they consume the shared metric libra
 - The definition declares the same contract via `consumesMetrics` to drive the pane/library filters.
 - When resolution fails (missing/incompatible instance), the transformer returns `noMetric: true` and the figure paints the missing-metric placeholder (see Labels and export parity).
 
-## The container boundary: usePlotData (reactivity ends here)
+## The host boundary: PlotContainer + usePlotData (reactivity ends here)
 
-Every plot container (`components/<Name>Plot.svelte`) derives its transform result through `usePlotData` (`src/lib/plots/shared/plotData.svelte.ts`). Runes stop at the container; transforms and figures below it work on plain data.
+The generic `PlotContainer` derives every plot's view through `usePlotData` (`src/lib/plots/shared/plotData.svelte.ts`). Runes stop at the host; `deriveView`, transforms and figures below it work on plain data. Do not re-create this wiring in plot code.
 
 - The derivation's reactive dependency surface is EXACTLY three declared inputs — nothing is discovered implicitly inside the transform, because `derive` runs untracked:
-  - `epoch: () => item.redrawTimestamp` (required) — "engine data changed, re-derive". Every engine-data command bumps it on all items; settings updates bump it on the item.
-  - `settings: () => ...` — handed to `derive` as a plain, deeply-frozen, deep-equal-gated snapshot. Transforms NEVER see a `$state` proxy; noise (rebuilt-but-equal objects, `viewOnly` keys such as `highlights`) keeps a stable reference and does not re-derive.
-  - `watch: () => ...` — layout inputs only (`item.w` for width-derived display budgets); most plots need none. NEVER watch `engine.metadata`: every metadata mutation is a workspace command (epoch bump), and dataset loads rebuild all grid items after the engine loads, so a live container cannot observe a metadata transition. Reference: `src/lib/plots/aoi-stream/components/AoiStreamPlot.svelte`.
-- Cross-plot sync is uniformly push-based via `PlotSyncRegistry` subclasses (`src/lib/plots/shared/PlotSyncRegistry.svelte.ts`): each participating container registers its own contribution with `usePlotSync` and merges the synced value into the settings BEFORE deriving (scarf timeline, bar value axis, transition-matrix color, aoi-stream timeline + ridgeline mTop). Never scan `grid.items` for sibling state. Export derives from raw settings and never syncs; `PlotViewContext` is `{itemWidth, itemHeight}` only.
+  - `epoch: () => item.redrawTimestamp` — "engine data changed, re-derive". Every engine-data command bumps it on all items; settings updates bump it on the item.
+  - settings (the recipe's `settings()` or raw `item.settings`) — handed to `deriveView` as a plain, deeply-frozen, deep-equal-gated snapshot. Transforms NEVER see a `$state` proxy; noise (rebuilt-but-equal objects, `viewOnlySettings` keys) keeps a stable reference and does not re-derive.
+  - `item.w`, only when the definition declares `viewDependsOnWidth`. NEVER watch `engine.metadata`: every metadata mutation is a workspace command (epoch bump), and dataset loads rebuild all grid items after the engine loads, so a live container cannot observe a metadata transition.
+- Cross-plot sync is uniformly push-based via `PlotSyncRegistry` subclasses (`src/lib/plots/shared/PlotSyncRegistry.svelte.ts`): each participating plot's screen recipe registers its own contribution with `usePlotSync` and merges the synced value into `settings()` BEFORE deriving (scarf timeline, bar value axis, transition-matrix color, aoi-stream timeline + ridgeline mTop). Never scan `grid.items` for sibling state. Export derives from raw settings and never syncs.
 - Metric-library edits are workspace commands: every mutation of `metadata.metricInstances` dispatches `updateMetricInstances` (full-array payload; one atomic undo step; bumps the redraw epoch on ALL items, so `epoch` covers metric edits). Components go through the `metricInstanceHandlers` factories (which take `workspace`); nothing calls a direct engine mutator — `engine.setMetricInstances` is reserved for the command handler.
-- Do NOT hold transform results in `$state`/`$state.raw` or call transforms from raw `$derived`/`$effect` in containers; `usePlotData` owns result storage (never deep-proxied) and the re-derive policy.
+- Do NOT hold transform results in `$state`/`$state.raw` or call transforms from raw `$derived`/`$effect`; the host owns result storage (never deep-proxied) and the re-derive policy.
 - The export modal applies the same boundary: `deriveItemView` snapshots settings via `snapshotSettings` before calling a plot's `deriveView` (`src/lib/modals/export/export-figures/view.ts`).
 - Consequences: transforms receive frozen input (mutating settings throws), and settings reads inside transforms are plain property access (the old "hoist `settings.*` out of hot loops" reactivity cost no longer exists — hoisting remains a micro-optimization only).
 

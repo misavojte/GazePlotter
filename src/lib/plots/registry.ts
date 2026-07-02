@@ -1,4 +1,3 @@
-import type { Component } from 'svelte'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotSubtitleParts, PlotItemContract, PlotDefinition } from './definePlot'
 import { aoiStreamPlotDefinition } from './aoi-stream'
@@ -30,7 +29,6 @@ type VisualizationType = keyof typeof plotRegistry
 type LegacyVisualizationType = keyof typeof LEGACY_VISUALIZATION_TYPES
 type AnyVisualizationType = VisualizationType | LegacyVisualizationType
 type RegisteredPlotDefinition = (typeof plotRegistry)[VisualizationType]
-export type PlotHostComponent = Component<{ item: unknown }>
 
 function normalizeVisualizationType(
   type: AnyVisualizationType | string
@@ -64,10 +62,6 @@ export function resolvePlotDefinition(type: string): RegisteredPlotDefinition {
   }
 
   return plotRegistry[plotDefinition]
-}
-
-export function resolvePlotComponent(type: string): PlotHostComponent {
-  return resolvePlotDefinition(type).component as PlotHostComponent
 }
 
 export function getPlotDisplayName(type: string): string {

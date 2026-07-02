@@ -1,4 +1,3 @@
-import RecurrencePlot from './components/RecurrencePlot.svelte'
 import { deriveRecurrenceView } from './core/view'
 import {
   StimulusSection,
@@ -23,7 +22,6 @@ export const recurrencePlotDefinition = definePlot<
   type: 'recurrencePlot',
   name: 'Recurrence Plot',
   group: 'gaze-behavior',
-  component: RecurrencePlot,
   paneSections: [
     { key: 'stimulus', component: StimulusSection },
     { key: 'participant', component: ParticipantSection },
@@ -35,7 +33,7 @@ export const recurrencePlotDefinition = definePlot<
     { key: 'timelineRange', component: TimelineRangeSection },
     { key: 'aoi', component: AoiSection },
   ],
-  export: { deriveView: deriveRecurrenceView },
+  view: { deriveView: deriveRecurrenceView },
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []
     const stim = getStimuliOptions(engine).find(

@@ -1,5 +1,5 @@
-import ScanpathSimilarityPlot from './components/ScanpathSimilarityPlot.svelte'
 import { deriveScanpathSimilarityView } from './core/view'
+import { scanpathSimilarityScreen } from './core/screen.svelte'
 import {
   StimulusSection,
   GroupSection,
@@ -24,7 +24,6 @@ export const scanpathSimilarityDefinition = definePlot<
   type: 'scanpathSimilarity',
   name: 'Scanpath Similarity',
   group: 'inter-participant',
-  component: ScanpathSimilarityPlot,
   paneSections: [
     { key: 'stimulus', component: StimulusSection },
     { key: 'group', component: GroupSection },
@@ -36,7 +35,8 @@ export const scanpathSimilarityDefinition = definePlot<
     { key: 'timelineRange', component: TimelineRangeSection },
     { key: 'aoi', component: AoiSection },
   ],
-  export: { deriveView: deriveScanpathSimilarityView },
+  view: { deriveView: deriveScanpathSimilarityView },
+  screen: scanpathSimilarityScreen,
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []
     const stim = getStimuliOptions(engine).find(

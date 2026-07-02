@@ -1,5 +1,5 @@
-import ScarfPlot from './components/ScarfPlot.svelte'
 import { deriveScarfView } from './core/view'
+import { scarfScreen } from './core/screen.svelte'
 import {
   StimulusSection,
   GroupSection,
@@ -24,7 +24,6 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
   type: 'scarf',
   name: 'Scarf Plot',
   group: 'gaze-behavior',
-  component: ScarfPlot,
   paneSections: [
     { key: 'stimulus', component: StimulusSection },
     { key: 'group', component: GroupSection },
@@ -34,7 +33,11 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
     { key: 'eyeMovement', component: EyeMovementSection },
     { key: 'event', component: EventSection },
   ],
-  export: { deriveView: deriveScarfView },
+  view: {
+    deriveView: deriveScarfView,
+    viewOnlySettings: ['highlights'],
+  },
+  screen: scarfScreen,
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []
     const stim = getStimuliOptions(engine).find(

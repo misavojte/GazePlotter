@@ -17,14 +17,11 @@ export function deriveItemView(
 ): PlotView | null {
   // Resolved generically, so deriveView is cast to a loose signature (its
   // settings type is guaranteed to match `item` at runtime).
-  const deriveView = resolvePlotDefinition(item.type).export?.deriveView as
-    | ((
-        engine: DataEngine,
-        settings: unknown,
-        ctx?: PlotViewContext
-      ) => PlotView | null)
-    | undefined
-  if (!deriveView) return null
+  const deriveView = resolvePlotDefinition(item.type).view.deriveView as (
+    engine: DataEngine,
+    settings: unknown,
+    ctx?: PlotViewContext
+  ) => PlotView | null
   // Same reactive/plain boundary the on-screen containers apply (usePlotData):
   // deriveView receives a plain frozen snapshot, never a live `$state` proxy.
   const settings = snapshotSettings(

@@ -1,5 +1,5 @@
-import BarPlot from './components/BarPlot.svelte'
 import { deriveBarView } from './core/view'
+import { barPlotScreen } from './core/screen.svelte'
 import {
   StimulusSection,
   GroupSection,
@@ -20,7 +20,6 @@ export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
   type: 'barPlot',
   name: 'AOI Comparison',
   group: 'per-aoi',
-  component: BarPlot,
   paneSections: [
     { key: 'stimulus', component: StimulusSection },
     { key: 'group', component: GroupSection },
@@ -29,7 +28,8 @@ export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
     { key: 'timelineRange', component: TimelineRangeSection },
     { key: 'aoi', component: AoiSection },
   ],
-  export: { deriveView: deriveBarView },
+  view: { deriveView: deriveBarView },
+  screen: barPlotScreen,
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []
     const stim = getStimuliOptions(engine).find(

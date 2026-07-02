@@ -1,5 +1,5 @@
-import TransitionMatrixPlot from './components/TransitionMatrixPlot.svelte'
 import { deriveTransitionMatrixView } from './core/view'
+import { transitionMatrixScreen } from './core/screen.svelte'
 import {
   StimulusSection,
   GroupSection,
@@ -24,7 +24,6 @@ export const transitionMatrixDefinition = definePlot<
   type: 'transitionMatrix',
   name: 'Transition Matrix',
   group: 'inter-aoi',
-  component: TransitionMatrixPlot,
   paneSections: [
     { key: 'stimulus', component: StimulusSection },
     { key: 'group', component: GroupSection },
@@ -36,7 +35,8 @@ export const transitionMatrixDefinition = definePlot<
     { key: 'timelineRange', component: TimelineRangeSection },
     { key: 'aoi', component: AoiSection },
   ],
-  export: { deriveView: deriveTransitionMatrixView },
+  view: { deriveView: deriveTransitionMatrixView },
+  screen: transitionMatrixScreen,
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []
     const stim = getStimuliOptions(engine).find(

@@ -4,8 +4,8 @@
   import {
     getPlotDisplayName,
     getPlotSubtitle,
-    resolvePlotComponent,
   } from '$lib/plots/registry'
+  import PlotContainer from '$lib/plots/shared/components/PlotContainer.svelte'
   import { getGazePlotterSession } from '$lib/session'
   import { generateUniqueId } from '$lib/shared/utils/idUtils'
   import type { AllGridTypes } from '$lib/workspace'
@@ -182,8 +182,7 @@
               <svelte:boundary
                 onerror={error => reportPlotRenderError(item, plotLabel, error)}
               >
-                {@const PlotComponent = resolvePlotComponent(item.type)}
-                <PlotComponent {item} />
+                <PlotContainer {item} />
 
                 {#snippet failed(error, reset)}
                   <div class="plot-error-state">

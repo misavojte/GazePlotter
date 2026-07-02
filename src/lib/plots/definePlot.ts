@@ -3,6 +3,7 @@ import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { DataCapabilityRequirements } from '$lib/data/types'
 import type { PlotMetricContract } from '$lib/metrics'
 import type { WorkspaceCommand, WorkspaceCommandChain } from '$lib/workspace/commands'
+import type { WorkspaceService } from '$lib/workspace/service.svelte'
 import type { PlotGroup } from './groups'
 
 export type DefaultPlotParams = {
@@ -40,6 +41,17 @@ export type PlotView = {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   component: Component<any>
   props: Record<string, unknown>
+  /**
+   * `false` when the plot has data-independent reasons to show the loading /
+   * unavailable placeholder instead of the figure. Omitted means `true`.
+   */
+  hasData?: boolean
+  /**
+   * Screen-coordination surface: values a plot's screen recipe needs beyond
+   * the figure props (sync keys, data maxima, default-range flags). Opaque to
+   * the host; the plot's own recipe casts it. Export ignores it.
+   */
+  meta?: unknown
 }
 
 /**
@@ -57,22 +69,69 @@ export type PlotViewContext = {
 }
 
 /**
- * Declares how a plot derives its view from (engine, settings). The generic
- * download modal renders `deriveView(...)` directly — no per-plot export
- * component — and the on-screen container derives from the same function.
+ * Declares how a plot derives its view from (engine, settings). The single
+ * derivation for BOTH hosts: the generic screen container (`PlotContainer`)
+ * derives through it via `usePlotData`, and the generic download modal renders
+ * it directly — no per-plot container or export component exists.
  */
-export type PlotExportConfig<TSettings> = {
+export type PlotViewConfig<TSettings> = {
   /**
    * Returns the view-model, or `null` when the plot has nothing to draw (no
    * spatial data, no fixations) — the host then renders nothing. `ctx` carries
-   * host context for the few plots that coordinate across siblings; most ignore it.
+   * the plot's grid size for width-derived display budgets; most plots ignore it.
    */
   deriveView: (
     engine: DataEngine,
     settings: TSettings,
     ctx?: PlotViewContext
   ) => PlotView | null
+  /**
+   * Set when `deriveView` reads `ctx.itemWidth` (display budget): the screen
+   * container then re-derives on width resize. Height never re-derives.
+   */
+  viewDependsOnWidth?: boolean
+  /**
+   * Settings keys `deriveView` provably never reads (view-only state such as
+   * `highlights`). Changes to them repaint but never re-derive.
+   */
+  viewOnlySettings?: readonly string[]
 }
+
+/**
+ * Screen-only behavior, declared as a factory the generic `PlotContainer`
+ * invokes ONCE during component init — so it may use runes and `$effect`-based
+ * helpers (`usePlotSync`, `usePlotData`); recipes that do live in
+ * `<plot>/core/screen.svelte.ts`. Everything a per-plot container used to do
+ * fits in the three optional slots:
+ *
+ *  - `settings` — the reactive settings the view derives from on screen
+ *    (e.g. cross-plot sync merged in). Export always derives from the raw
+ *    item settings, so anything merged here is screen-only by construction.
+ *  - `props`   — screen-only props overlaid on the view's props (interaction
+ *    handlers, sync overrides). Runs inside a `$derived`; reactive reads
+ *    (sync registries, item settings) are tracked.
+ */
+export type PlotScreenContext<TSettings> = {
+  /** The live grid item (reactive getter — do not capture the value). */
+  readonly item: PlotItemContract<string, TSettings>
+  engine: DataEngine
+  workspace: WorkspaceService
+  /**
+   * The current derived view. Valid inside effects, deriveds and event
+   * handlers (it is bound after the container initializes) — do not call it
+   * synchronously inside the factory body.
+   */
+  view: () => PlotView | null
+}
+
+export type PlotScreen<TSettings> = {
+  settings?: () => TSettings
+  props?: (view: PlotView) => Record<string, unknown>
+}
+
+export type PlotScreenFactory<TSettings> = (
+  ctx: PlotScreenContext<TSettings>
+) => PlotScreen<TSettings>
 
 /**
  * A single captioned value rendered in the grid-item header (e.g.
@@ -114,11 +173,6 @@ export type PaneSectionEntry = { key: string; component: PaneSection }
 export type PlotDefinition<
   TType extends string,
   TSettings,
-  TPlotProps extends {
-    item: PlotItemContract<TType, TSettings>
-  } = {
-    item: PlotItemContract<TType, TSettings>
-  },
   TParams extends DefaultPlotParams = DefaultPlotParams,
 > = {
   type: TType
@@ -129,14 +183,19 @@ export type PlotDefinition<
    * parent item, its plots = submenu). Never surfaced in the plot's own chrome.
    */
   group: PlotGroup
-  component: Component<TPlotProps>
   getDefaultSettings: (params?: TParams) => TSettings
   getDefaultHeight: (params?: PlotLayoutInput<TSettings>) => number
   getDefaultWidth: (params?: PlotLayoutInput<TSettings>) => number
   getMinSize: (params?: TParams) => { w: number; h: number }
   requireCapabilities?: DataCapabilityRequirements
-  /** Export configuration for the generic download modal. */
-  export?: PlotExportConfig<TSettings>
+  /**
+   * The single view derivation both hosts render from. There is no per-plot
+   * container component: the generic `PlotContainer` executes this (plus the
+   * optional `screen` recipe) for every plot.
+   */
+  view: PlotViewConfig<TSettings>
+  /** Screen-only behavior (sync, interaction handlers); most plots need none. */
+  screen?: PlotScreenFactory<TSettings>
   /**
    * The plot's settings pane, declared as an ordered list of sections. The
    * single-plot pane renders this list; a multi-selection of one type renders
@@ -181,12 +240,7 @@ export type PlotDefinition<
 export function definePlot<
   TType extends string,
   TSettings,
-  TPlotProps extends {
-    item: PlotItemContract<TType, TSettings>
-  } = {
-    item: PlotItemContract<TType, TSettings>
-  },
   TParams extends DefaultPlotParams = DefaultPlotParams,
->(definition: PlotDefinition<TType, TSettings, TPlotProps, TParams>) {
+>(definition: PlotDefinition<TType, TSettings, TParams>) {
   return definition
 }

@@ -76,7 +76,7 @@
       y: number
     }) => void
     onTooltipDeactivation: () => void
-    onDragStepX?: (stepChange: number) => void
+    onDragStepX?: (stepChange: number, width: number) => void
     onDragEnd?: () => void
   }
 
@@ -597,7 +597,7 @@
     const inc = d.x - lastDragX
     if (Math.abs(inc) > 1) {
       dragActive = true
-      onDragStepX(inc)
+      onDragStepX(inc, width)
       lastDragX = d.x
     }
   }

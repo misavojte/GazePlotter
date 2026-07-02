@@ -1,5 +1,5 @@
-import AoiStreamPlot from './components/AoiStreamPlot.svelte'
 import { deriveAoiStreamView } from './core/view'
+import { aoiStreamScreen } from './core/screen.svelte'
 import {
   StimulusSection,
   GroupSection,
@@ -23,7 +23,6 @@ export const aoiStreamPlotDefinition = definePlot<
   type: 'aoiStreamPlot',
   name: 'AOI Timeline',
   group: 'per-aoi',
-  component: AoiStreamPlot,
   paneSections: [
     { key: 'stimulus', component: StimulusSection },
     { key: 'group', component: GroupSection },
@@ -35,7 +34,12 @@ export const aoiStreamPlotDefinition = definePlot<
     { key: 'timelineRange', component: TimelineRangeSection },
     { key: 'aoi', component: AoiSection },
   ],
-  export: { deriveView: deriveAoiStreamView },
+  view: {
+    deriveView: deriveAoiStreamView,
+    viewDependsOnWidth: true,
+    viewOnlySettings: ['highlights'],
+  },
+  screen: aoiStreamScreen,
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []
     const stim = getStimuliOptions(engine).find(

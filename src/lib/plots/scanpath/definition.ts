@@ -1,4 +1,3 @@
-import ScanpathPlot from './components/ScanpathPlot.svelte'
 import { deriveScanpathView } from './core/view'
 import {
   StimulusSection,
@@ -17,13 +16,12 @@ export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSetting
   type: 'scanpath',
   name: 'Scanpath',
   group: 'gaze-behavior',
-  component: ScanpathPlot,
   paneSections: [
     { key: 'stimulus', component: StimulusSection },
     { key: 'participant', component: ParticipantSection },
     { key: 'scanpath:display', component: ScanpathDisplaySection },
   ],
-  export: { deriveView: deriveScanpathView },
+  view: { deriveView: deriveScanpathView },
   getSubtitle: ({ item, engine }) => {
     const parts: PlotSubtitleParts = []
     const stim = getStimuliOptions(engine).find(
