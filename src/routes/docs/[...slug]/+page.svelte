@@ -7,14 +7,24 @@
   let prevNext = $derived.by(() => {
     return getPrevNextLinks(page.url.pathname, page.data.allLinks ?? [])
   })
+
+  // trailingSlash = 'always' in the root layout, so pathname is already the
+  // canonical slashed form; this collapses slash/non-slash duplicates for
+  // search engines.
+  const canonicalUrl = $derived(`https://gazeplotter.com${page.url.pathname}`)
 </script>
 
 <Doc />
 
 <svelte:head>
   <title>{data.doc.metadata.seoTitle}</title>
+  <link rel="canonical" href={canonicalUrl} />
+  <meta property="og:title" content={data.doc.metadata.seoTitle} />
+  <meta property="og:type" content="article" />
+  <meta property="og:url" content={canonicalUrl} />
   {#if data.doc.metadata.description}
     <meta name="description" content={data.doc.metadata.description} />
+    <meta property="og:description" content={data.doc.metadata.description} />
   {/if}
 </svelte:head>
 

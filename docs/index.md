@@ -1,6 +1,6 @@
 # Welcome to GazePlotter Guide & Docs
 
-GazePlotter is a free web application for eye-tracking data analysis and visualization. Built with a commitment to open science, GazePlotter transforms complex gaze data into intuitive, interactive visualizations without requiring registration, subscriptions, or server uploads.
+GazePlotter is a free online tool for eye-tracking data analysis and visualization, supporting exports from Tobii Pro Lab, SMI BeGaze, Gazepoint, Pupil Labs (Pupil Cloud), Varjo, OGAMA, and custom CSV files. Built with a commitment to open science, GazePlotter transforms complex gaze data into intuitive, interactive visualizations without requiring registration, subscriptions, or server uploads.
 
 Whether you're a researcher analyzing attention patterns, a student learning about eye-tracking methodology, or a professional presenting gaze data insights, GazePlotter provides tools that work entirely in your browser without installing any other software.
 
@@ -23,10 +23,10 @@ Whether you're a researcher analyzing attention patterns, a student learning abo
 ### Metrics Library
 
 - **[Metrics Library Overview](/docs/metrics)** - Central DSL engine for configuring, parameterizing, and projecting eye-tracking metrics.
-- **[Fixation & Dwell Durations](/docs/metrics/durations)** - Duration-based calculations like absolute time, relative time, and average/first/visit durations.
-- **[Gaze Counts & Latency](/docs/metrics/counts-latency)** - Gaze frequency metrics (fixations, visits) and Time to First Fixation (TTFF) latency.
-- **[Transitions & Markov Metrics](/docs/metrics/transitions)** - Shift counts, k-step Markov probabilities, and cell/row/col projections.
-- **[Recurrence Quantitative Analysis (RQA)](/docs/metrics/rqa)** - Non-linear recurrences, laminarity, and determinism metrics.
+- **[Dwell Time & Fixation Durations](/docs/metrics/durations)** - Duration-based calculations like dwell time (absolute and relative) and average/first/visit durations.
+- **[Fixation Counts & Latency](/docs/metrics/counts-latency)** - Gaze frequency metrics (fixations, visits) and Time to First Fixation (TTFF) latency.
+- **[AOI Transitions & Markov Metrics](/docs/metrics/transitions)** - Shift counts, k-step Markov probabilities, and cell/row/col projections.
+- **[Recurrence Quantification Analysis (RQA)](/docs/metrics/rqa)** - Non-linear recurrences, laminarity, and determinism metrics.
 - **[Scanpath Similarity Metrics](/docs/metrics/scanpath-similarity)** - Sequence alignment similarity calculations (Levenshtein, Needleman-Wunsch).
 
 ### Workspace Management

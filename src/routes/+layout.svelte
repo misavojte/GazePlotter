@@ -15,7 +15,7 @@
     '@type': 'SoftwareApplication',
     name: 'GazePlotter',
     description:
-      'GazePlotter is a versatile open-source application compatible with major eye-tracking software like Tobii, SMI, GazePoint, Pupil Labs, Varjo, and custom CSV files. It specializes in generating interactive scarf plots, transition matrices, and eye-tracking metrics for comprehensive analysis.',
+      'GazePlotter is a versatile open-source application compatible with major eye-tracking software like Tobii, SMI, GazePoint, Pupil Labs, Varjo, and custom CSV files. It specializes in generating interactive scarf plots, scanpaths, transition matrices, and eye-tracking metrics for comprehensive analysis.',
     url: 'https://gazeplotter.com/',
     author: {
       '@type': 'Person',

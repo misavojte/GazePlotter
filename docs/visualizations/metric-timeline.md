@@ -1,6 +1,6 @@
 # Metric Timeline
 
-Metric Timeline in GazePlotter provides a temporal visualization of how eye-tracking metrics evolve across a stimulus timeline. By calculating scalar metrics within moving temporal windows, this plot shows trends, patterns, and fluctuations in visual attention and processing load over time, rendered either as a color-coded heatmap grid or a multi-line line chart overlay.
+Metric Timeline in GazePlotter provides a temporal visualization of how eye-tracking metrics change over time across a stimulus. By calculating scalar metrics within moving temporal windows, this plot shows trends, patterns, and fluctuations in visual attention and processing load over time, rendered either as a color-coded heatmap grid or a multi-line line chart overlay.
 
 > Interested on how to operate with plots in general within the workspace? See:
 >

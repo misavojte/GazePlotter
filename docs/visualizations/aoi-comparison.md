@@ -19,7 +19,7 @@ To render an AOI Comparison plot, GazePlotter queries the workspace's metric lib
 - **Output Shape**: `aoi-vector` (computes a value or distribution for each Area of Interest individually).
 - **Windowing**: `forbidden` (calculated across the selected time range as a single aggregate).
 
-> **Metrics Documentation**: For details on how these raw metrics are calculated, see [Fixation & Dwell Durations](/docs/metrics/durations) and [Gaze Counts & Latency](/docs/metrics/counts-latency).
+> **Metrics Documentation**: For details on how these raw metrics are calculated, see [Dwell Time & Fixation Durations](/docs/metrics/durations) and [Fixation Counts & Latency](/docs/metrics/counts-latency).
 
 ## Configuration via Settings Pane
 

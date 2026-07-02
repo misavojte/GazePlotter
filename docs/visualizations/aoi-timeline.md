@@ -19,7 +19,7 @@ To render a AOI Timeline plot, GazePlotter queries the workspace's metric librar
 - **Output Shape**: `aoi-vector` (computes a value or distribution for each Area of Interest individually).
 - **Windowing**: `required` (must specify a window/bin size and step size to calculate the time course of attention).
 
-> **Metrics & Windowing Documentation**: For details on windowed calculations and Svelte-side frame math (like sub-bin overlap vs. midpoint-gating), see the [Metrics Library Overview](/docs/metrics), [Fixation & Dwell Durations](/docs/metrics/durations), and [Gaze Counts & Latency](/docs/metrics/counts-latency).
+> **Metrics & Windowing Documentation**: For details on windowed calculations and Svelte-side frame math (like sub-bin overlap vs. midpoint-gating), see the [Metrics Library Overview](/docs/metrics), [Dwell Time & Fixation Durations](/docs/metrics/durations), and [Fixation Counts & Latency](/docs/metrics/counts-latency).
 
 ## Configuration via Settings Pane
 

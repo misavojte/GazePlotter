@@ -1,11 +1,11 @@
 ---
-title: Recurrence Quantitative Analysis (RQA)
+title: Recurrence Quantification Analysis (RQA)
 order: 5
 ---
 
-# Recurrence Quantitative Analysis (RQA)
+# Recurrence Quantification Analysis (RQA)
 
-Recurrence Quantitative Analysis (RQA) is a non-linear analysis method used to study the dynamical characteristics of scanpaths. By plotting a participant's fixation sequence against itself, GazePlotter identifies recurring visual patterns, periodic revisitations, and dwelling behaviors.
+Recurrence Quantification Analysis (RQA) is a non-linear analysis method used to study the dynamical characteristics of scanpaths. By plotting a participant's fixation sequence against itself, GazePlotter identifies recurring visual patterns, periodic revisitations, and dwelling behaviors.
 
 ---
 

@@ -1,6 +1,6 @@
-# Getting started with GazePlotter
+# Supported Eye-Tracker File Formats
 
-GazePlotter is a web application for visualizing gaze data from eye-tracking software. It uses interactive scarf plots (or sequence charts) which are built automatically from your eye-tracking data without any manual configuration and data transformation.
+GazePlotter visualizes gaze data uploaded from all major eye-tracking software: Tobii Pro Lab, SMI BeGaze, Gazepoint, Pupil Cloud, Varjo, OGAMA, and custom CSV files. Visualizations are built automatically from your eye-tracking data without any manual configuration or data transformation.
 
 The workspace is designed to be easy to use and to provide a quick overview of the data and is available at [gazeplotter.com](https://gazeplotter.com).
 

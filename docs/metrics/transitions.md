@@ -1,11 +1,11 @@
 ---
-title: Transitions & Markov Metrics
+title: AOI Transitions & Markov Metrics
 order: 4
 ---
 
-# Transitions & Markov Metrics
+# AOI Transitions & Markov Metrics
 
-Transition metrics describe the dynamics of eye movement, mapping how visual attention shifts from one Area of Interest (AOI) to another. In GazePlotter, these metrics are formulated as a 2D matrix representing transitions from a source AOI (row) to a target AOI (column).
+AOI transition metrics describe the dynamics of eye movement, mapping how visual attention shifts from one Area of Interest (AOI) to another. In GazePlotter, these metrics are formulated as a 2D matrix representing transitions from a source AOI (row) to a target AOI (column).
 
 ---
 

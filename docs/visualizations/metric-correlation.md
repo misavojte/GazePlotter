@@ -1,6 +1,6 @@
 # Metric Correlation
 
-Metric Correlation in GazePlotter provides statistical analysis of relationships between multiple eye-tracking metrics across participants. By calculating correlations between selected aggregate metrics (such as fixation durations, visit counts, or Recurrence Quantitative Analysis (RQA) measures), this visualization displays relationships as a color-coded correlation heatmap matrix or a grid of scatter plots (Scatter Plot Matrix / SPLOM).
+Metric Correlation in GazePlotter provides statistical analysis of relationships between multiple eye-tracking metrics across participants. By calculating correlations between selected aggregate metrics (such as fixation durations, visit counts, or Recurrence Quantification Analysis (RQA) measures), this visualization displays relationships as a color-coded correlation heatmap matrix or a grid of scatter plots (Scatter Plot Matrix / SPLOM).
 
 > Interested on how to operate with plots in general within the workspace? See:
 >

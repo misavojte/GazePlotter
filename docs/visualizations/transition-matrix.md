@@ -1,6 +1,6 @@
 # Transition Matrix
 
-The Transition Matrix in GazePlotter provides a visual analysis of gaze transition patterns between Areas of Interest (AOIs). This heat map visualization shows how participants' gaze moves from one AOI to another, revealing scanpath patterns and visual attention flow in eye-tracking research.
+The Transition Matrix in GazePlotter provides a visual analysis of gaze transition patterns between Areas of Interest (AOIs). This AOI transition matrix is rendered as a heat map showing how participants' gaze moves from one AOI to another, revealing scanpath patterns and visual attention flow in eye-tracking research.
 
 ![Transition Matrix heat map showing gaze transitions between AOIs.](/docs/images/aoi-transition-matrix-gazeplotter.jpg)
 
@@ -19,7 +19,7 @@ To render a Transition Matrix, GazePlotter queries the workspace's metric librar
 - **Output Shape**: `aoi-pair-matrix` (computes values for transitions between pairs of Areas of Interest, FROM one AOI TO another).
 - **Windowing**: `forbidden` (calculated across the selected time range as a single aggregate).
 
-> **Transitions & Markov Documentation**: For details on transitions, Markov probability models (`P^k`), and visit collapsing, see the [Transitions & Markov Metrics](/docs/metrics/transitions) documentation.
+> **Transitions & Markov Documentation**: For details on transitions, Markov probability models (`P^k`), and visit collapsing, see the [AOI Transitions & Markov Metrics](/docs/metrics/transitions) documentation.
 
 ## Configuration via Settings Pane
 

@@ -1,11 +1,11 @@
 ---
-title: Gaze Counts & Latency
+title: Fixation Counts & Latency
 order: 3
 ---
 
-# Gaze Counts & Latency
+# Fixation Counts & Latency
 
-Count-based metrics quantify how often a participant returns to or interacts with specific regions, while latency metrics measure the speed of initial attraction.
+Count-based metrics quantify how often a participant returns to or interacts with specific regions, while latency metrics measure the speed of initial attraction via Time to First Fixation (TTFF, also called entry time or first fixation latency).
 
 ---
 

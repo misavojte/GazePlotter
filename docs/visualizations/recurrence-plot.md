@@ -17,7 +17,7 @@ The Recurrence Plot (RP) in GazePlotter reveals temporal self-similarity in a si
 
 - **Metric Contract**: This visualization computes recurrence patterns directly from the participant's fixation sequence and does not consume metrics from the Metric Library.
 
-> **Quantitative RQA Analysis**: While this plot visualizes recurrences spatially, the quantitative metrics describing these recurrence structures (Recurrence Rate, Determinism, Laminarity) are managed separately in the Metric Library. See [Recurrence Quantitative Analysis (RQA) Metrics](/docs/metrics/rqa) for details on their mathematical definitions and ordinal windowing parameters.
+> **Quantitative RQA Analysis**: While this plot visualizes recurrences spatially, the quantitative metrics describing these recurrence structures (Recurrence Rate, Determinism, Laminarity) are managed separately in the Metric Library. See [Recurrence Quantification Analysis (RQA) Metrics](/docs/metrics/rqa) for details on their mathematical definitions and ordinal windowing parameters.
 
 ## Axis Convention
 
