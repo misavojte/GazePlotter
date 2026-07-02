@@ -29,6 +29,7 @@
     getXAxisLabelOffset,
     maxAxisTitleHeight,
     PLOT_LEGEND_GAP,
+    PLOT_CANNOT_FIT_HEIGHT_MESSAGE,
   } from '$lib/plots/shared'
   import { onDestroy } from 'svelte'
   import { measureTextHeight } from '$lib/shared/utils/textUtils'
@@ -201,8 +202,9 @@
       data, settings, totalWidth, totalHeight, highlights, usedHighlights,
       width, height, dpiOverride,
       margins.left, margins.right, effectiveMarginTop, margins.bottom,
+      placeholderMessage,
     ],
-    placeholder: () => (canRender ? null : 'Increase height to view plot'),
+    placeholder: () => placeholderMessage,
     gutters: () => ({}),
     clipData: false,
     drawData: renderScarf,
@@ -309,6 +311,30 @@
       ? Math.max(count * SCARF_LAYOUT.MIN_BAR_HEIGHT, SCARF_LAYOUT.MIN_PLOT_HEIGHT_COMPACT)
       : SCARF_LAYOUT.MIN_PLOT_HEIGHT_COMPACT
     return netAvailableHeight >= minPlotHeight
+  })
+
+  const placeholderMessage = $derived.by(() => {
+    if (canRender) return null
+
+    const hasEvents = data.isOverlay || (data.visualEventBuckets && data.visualEventBuckets.some(b => b.length > 0)) || (data.eventZoneConcurrency ?? 0) > 0
+    const hasNonFixations = data.stylingAndLegend?.category && data.stylingAndLegend.category.length > 0
+
+    const showingEvents = hasEvents && !settings.hideEvents
+    const showingNonFixations = hasNonFixations && !settings.hideNonFixations
+    const canHideSomething = showingEvents || showingNonFixations
+
+    const message = PLOT_CANNOT_FIT_HEIGHT_MESSAGE
+    const steps = ['Extend the height of the plot']
+
+    if (showingEvents && showingNonFixations) {
+      steps.push('Hide non-fixations or events in Plot Settings > Visualisation')
+    } else if (showingEvents) {
+      steps.push('Hide events in Plot Settings > Visualisation')
+    } else if (showingNonFixations) {
+      steps.push('Hide non-fixations in Plot Settings > Visualisation')
+    }
+
+    return { message, steps }
   })
 
   const visualEventBuckets = $derived(data.visualEventBuckets)

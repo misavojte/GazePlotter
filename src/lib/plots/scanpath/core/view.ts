@@ -16,10 +16,17 @@ export interface ScanpathView {
   props: ScanpathFigureProps
 }
 
-function messageForReason(reason: ScanpathUnavailableReason): string {
+export type WarningPlaceholder = { message: string; steps?: string[] }
+
+function messageForReason(
+  reason: ScanpathUnavailableReason
+): string | WarningPlaceholder {
   switch (reason) {
     case 'no-spatial-data':
-      return 'This workspace has no spatial fixation coordinates.'
+      return {
+        message: 'Missing spatial coordinate data:',
+        steps: ['Upload a dataset containing spatial information'],
+      }
     case 'no-fixations':
       return 'No fixations recorded for this participant on this stimulus.'
     case 'no-spatial-coords':

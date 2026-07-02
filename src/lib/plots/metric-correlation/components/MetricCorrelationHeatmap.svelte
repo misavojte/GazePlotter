@@ -1,7 +1,11 @@
 <script lang="ts">
-  import { METRIC_MISSING_MULTI_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
+  import {
+    METRIC_MISSING_MULTI_MESSAGE,
+    PLOT_CANNOT_FIT_SIZE_MESSAGE,
+  } from '$lib/plots/shared/drawCanvasPlaceholder'
   import {
     MATRIX_LAYOUT,
+    MIN_LEGIBLE_CELL_SIZE,
     computeSquareMatrixLayout,
     computeGradientLegendGeometry,
     drawGradientLegend,
@@ -71,9 +75,8 @@
     height: () => height,
     margins: () => margins,
     dpiOverride: () => dpiOverride,
-    deps: () => [flatMatrix, labels, methodLabel],
-    placeholder: () =>
-      result.noMetric || labels.length < 2 ? METRIC_MISSING_MULTI_MESSAGE : null,
+    deps: () => [flatMatrix, labels, methodLabel, placeholderMessage],
+    placeholder: () => placeholderMessage,
     gutters: () => ({}),
     clipData: false,
     drawData: (ctx) => {
@@ -97,6 +100,24 @@
     },
     drawOverlay: drawHoverCrosshair,
     blockedRegions: () => blockedRegions,
+  })
+
+  const canRender = $derived.by(
+    () => labels.length < 2 || layout.cellSize >= MIN_LEGIBLE_CELL_SIZE
+  )
+
+  const placeholderMessage = $derived.by(() => {
+    if (result.noMetric || labels.length < 2) return METRIC_MISSING_MULTI_MESSAGE
+    if (!canRender) {
+      return {
+        message: PLOT_CANNOT_FIT_SIZE_MESSAGE,
+        steps: [
+          'Extend the width or height of the plot',
+          'Select fewer metrics in Plot Settings > Metrics',
+        ],
+      }
+    }
+    return null
   })
 
   const labels = $derived(result.metrics.map(m => m.label))

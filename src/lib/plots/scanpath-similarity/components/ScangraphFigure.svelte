@@ -10,7 +10,10 @@
     type PlotFrame,
     type FrameHit,
   } from '$lib/plots/shared'
-  import { METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
+  import {
+    METRIC_MISSING_MESSAGE,
+    PLOT_CANNOT_FIT_SIZE_MESSAGE,
+  } from '$lib/plots/shared/drawCanvasPlaceholder'
   import { SCANGRAPH_LAYOUT } from '../const'
   import type { ScangraphData } from '../types'
   import { computeForceLayout, type LayoutResult, type NodePosition } from '../core/forceLayout'
@@ -18,6 +21,7 @@
   const HIGHLIGHT_COLOR = '#e53e3e'
   const HIGHLIGHT_FILL = '#fbbf24'
   const HIGHLIGHT_CONNECTED_STROKE = '#e53e3e'
+  const MIN_NODE_SPACING = 3
 
   interface Props extends CanvasExportProps {
     data: ScangraphData
@@ -44,13 +48,8 @@
     height: () => height,
     margins: () => margins,
     dpiOverride: () => dpiOverride,
-    deps: () => [data, threshold, highlights],
-    placeholder: () =>
-      noMetric
-        ? METRIC_MISSING_MESSAGE
-        : (data?.nodes.length ?? 0) === 0
-          ? 'No graph data available'
-          : null,
+    deps: () => [data, threshold, highlights, placeholderMessage],
+    placeholder: () => placeholderMessage,
     // The force layout fills the whole canvas and insets nodes by the export
     // margins itself, so the frame's rect (= content area) is used only for the
     // outline + the default blocked region.
@@ -62,6 +61,28 @@
       hoveredNode = hit?.data ?? null
       return false // no hover overlay — tooltip only, no redraw
     },
+  })
+
+  const canRender = $derived.by(() => {
+    const n = data?.nodes.length ?? 0
+    if (n === 0) return true
+    const minDim = Math.min(plot.frame.width, plot.frame.height)
+    return minDim / (n * 1.2) >= MIN_NODE_SPACING
+  })
+
+  const placeholderMessage = $derived.by(() => {
+    if (noMetric) return METRIC_MISSING_MESSAGE
+    if ((data?.nodes.length ?? 0) === 0) return 'No graph data available'
+    if (!canRender) {
+      return {
+        message: PLOT_CANNOT_FIT_SIZE_MESSAGE,
+        steps: [
+          'Extend the width or height of the plot',
+          'Reduce the number of participants in Plot Settings > Participant group',
+        ],
+      }
+    }
+    return null
   })
 
   const nodeRadius = $derived.by(() => {

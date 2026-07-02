@@ -10,12 +10,13 @@
   import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
   import { SCANPATH_COLORS, SCANPATH_LAYOUT } from '../const'
   import type { ScanpathData } from '../types'
+  import type { WarningPlaceholder } from '../core/view'
 
   interface Props extends CanvasExportProps {
     data: ScanpathData | null
     showFixationOrder?: boolean
     showNumbers?: boolean
-    unavailableMessage?: string | null
+    unavailableMessage?: string | WarningPlaceholder | null
   }
 
   let {

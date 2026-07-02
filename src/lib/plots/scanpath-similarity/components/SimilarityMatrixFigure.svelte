@@ -1,6 +1,9 @@
 <script lang="ts">
   import { getColorForValue } from '$lib/color'
-  import { METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
+  import {
+    METRIC_MISSING_MESSAGE,
+    PLOT_CANNOT_FIT_SIZE_MESSAGE,
+  } from '$lib/plots/shared/drawCanvasPlaceholder'
   import { SIMILARITY_MATRIX_LAYOUT } from '../const'
   import { computeSimilarityMatrixLayout } from '../core/layout'
   import {
@@ -12,6 +15,7 @@
     renderMatrixContent,
     canvasBlockSelect,
     MATRIX_LEGEND_GAP,
+    MIN_LEGIBLE_CELL_SIZE,
     type BlockedRegion,
     type CanvasExportProps,
     type FrameHit,
@@ -81,15 +85,8 @@
     height: () => height,
     margins: () => margins,
     dpiOverride: () => dpiOverride,
-    deps: () => [matrix, labels, colorScale, colorValueRange, legendTitle],
-    // noMetric (resolution failed) takes priority over empty data, since the
-    // user's first action is fixing the metric, not the data.
-    placeholder: () =>
-      noMetric
-        ? METRIC_MISSING_MESSAGE
-        : labels.length === 0
-          ? 'No participant data available'
-          : null,
+    deps: () => [matrix, labels, colorScale, colorValueRange, legendTitle, placeholderMessage],
+    placeholder: () => placeholderMessage,
     gutters: () => ({}),
     clipData: false,
     drawData: (ctx) => {
@@ -113,6 +110,27 @@
     },
     drawOverlay: drawHoverCrosshair,
     blockedRegions: () => blockedRegions,
+  })
+
+  const canRender = $derived.by(
+    () => labels.length === 0 || layout.cellSize >= MIN_LEGIBLE_CELL_SIZE
+  )
+
+  const placeholderMessage = $derived.by(() => {
+    // noMetric (resolution failed) takes priority over empty data, since the
+    // user's first action is fixing the metric, not the data.
+    if (noMetric) return METRIC_MISSING_MESSAGE
+    if (labels.length === 0) return 'No participant data available'
+    if (!canRender) {
+      return {
+        message: PLOT_CANNOT_FIT_SIZE_MESSAGE,
+        steps: [
+          'Extend the width or height of the plot',
+          'Reduce the number of participants in Plot Settings > Participant group',
+        ],
+      }
+    }
+    return null
   })
 
   const effectiveMaxValue = $derived.by(() => {

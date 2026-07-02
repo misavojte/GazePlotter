@@ -1,6 +1,9 @@
 <script lang="ts">
   import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
-  import { METRIC_MISSING_MULTI_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
+  import {
+    METRIC_MISSING_MULTI_MESSAGE,
+    PLOT_CANNOT_FIT_SIZE_MESSAGE,
+  } from '$lib/plots/shared/drawCanvasPlaceholder'
   import {
     MATRIX_LAYOUT,
     computeSquareMatrixLayout,
@@ -11,6 +14,7 @@
     drawPlotArea,
     usePlot,
     NO_MARGINS,
+    MIN_LEGIBLE_SPLOM_CELL_SIZE,
     canvasBlockSelect,
     type BlockedRegion,
     type CanvasExportProps,
@@ -71,9 +75,8 @@
     height: () => height,
     margins: () => margins,
     dpiOverride: () => dpiOverride,
-    deps: () => [result, labels, methodLabel],
-    placeholder: () =>
-      result.noMetric || labels.length < 2 ? METRIC_MISSING_MULTI_MESSAGE : null,
+    deps: () => [result, labels, methodLabel, placeholderMessage],
+    placeholder: () => placeholderMessage,
     gutters: () => ({}),
     clipData: false,
     drawData: (ctx) => {
@@ -101,6 +104,24 @@
     },
     drawOverlay: drawHoverCrosshair,
     blockedRegions: () => blockedRegions,
+  })
+
+  const canRender = $derived.by(
+    () => labels.length < 2 || layout.cellSize >= MIN_LEGIBLE_SPLOM_CELL_SIZE
+  )
+
+  const placeholderMessage = $derived.by(() => {
+    if (result.noMetric || labels.length < 2) return METRIC_MISSING_MULTI_MESSAGE
+    if (!canRender) {
+      return {
+        message: PLOT_CANNOT_FIT_SIZE_MESSAGE,
+        steps: [
+          'Extend the width or height of the plot',
+          'Select fewer metrics in Plot Settings > Metrics',
+        ],
+      }
+    }
+    return null
   })
 
   const labels = $derived(result.metrics.map(m => m.label))

@@ -30,7 +30,10 @@
     niceTimelineTicks,
     bottomOriginYTicks,
   } from '$lib/plots/shared/plotArea'
-  import { METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
+  import {
+    METRIC_MISSING_MESSAGE,
+    PLOT_CANNOT_FIT_HEIGHT_MESSAGE,
+  } from '$lib/plots/shared/drawCanvasPlaceholder'
   import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
   import { MARGIN, AXIS_CONFIG } from '../const'
   import { rasterizeOverlayDensity, packOverlayDensity } from '../core/overlayDensity'
@@ -42,6 +45,7 @@
   const OVERLAY_BAND_ALPHA = 0.12
   const OVERLAY_MEAN_LINE_WIDTH = 1.5
   const OVERLAY_INDIVIDUAL_RGB: readonly [number, number, number] = [210, 210, 210]
+  const MIN_HEATMAP_ROW_HEIGHT = 4
 
   // Reused, non-reactive buffers for the overlay individual-line density render
   // (see renderOverlayLines). Kept per-instance; reallocated only when the
@@ -150,8 +154,8 @@
     height: () => height,
     margins: () => margins,
     dpiOverride: () => dpiOverride,
-    deps: () => [data, alignment],
-    placeholder: () => (data.noMetric ? METRIC_MISSING_MESSAGE : null),
+    deps: () => [data, alignment, placeholderMessage],
+    placeholder: () => placeholderMessage,
     // Declarative measured gutters: the resolver measures the left/bottom edge
     // tick labels + titles and returns the title offsets (frame.leftTitleOffset /
     // bottomTitleOffset) the figure draws with. Compact heatmap keeps a fixed
@@ -190,6 +194,27 @@
       hoveredParticipantIndex = nextP
       return changed
     },
+  })
+
+  const canRender = $derived.by(() => {
+    if (alignment !== 'heatmap') return true
+    const n = data.participants.length
+    if (n === 0) return true
+    return plot.frame.height / n >= MIN_HEATMAP_ROW_HEIGHT
+  })
+
+  const placeholderMessage = $derived.by(() => {
+    if (data.noMetric) return METRIC_MISSING_MESSAGE
+    if (!canRender) {
+      return {
+        message: PLOT_CANNOT_FIT_HEIGHT_MESSAGE,
+        steps: [
+          'Extend the height of the plot',
+          'Switch to Overlay mode in Plot Settings > Visualisation',
+        ],
+      }
+    }
+    return null
   })
 
   const palette = $derived<string[]>(

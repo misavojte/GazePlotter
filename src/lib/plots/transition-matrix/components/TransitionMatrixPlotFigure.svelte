@@ -1,6 +1,9 @@
 <script lang="ts">
   import { getColorForValue } from '$lib/color'
-  import { METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
+  import {
+    METRIC_MISSING_MESSAGE,
+    PLOT_CANNOT_FIT_SIZE_MESSAGE,
+  } from '$lib/plots/shared/drawCanvasPlaceholder'
   import {
     TRANSITION_MATRIX_LAYOUT,
     TRANSITION_MATRIX_DEFAULTS,
@@ -15,6 +18,7 @@
     renderMatrixContent,
     canvasBlockSelect,
     MATRIX_LEGEND_GAP,
+    MIN_LEGIBLE_CELL_SIZE,
     type BlockedRegion,
     type CanvasExportProps,
     type FrameHit,
@@ -109,9 +113,9 @@
     deps: () => [
       TransitionMatrix, aoiLabels, colorScale, xLabel, yLabel, legendTitle,
       colorValueRange, belowMinColor, aboveMaxColor, showBelowMinLabels, showAboveMaxLabels,
+      placeholderMessage,
     ],
-    placeholder: () =>
-      noMetric ? METRIC_MISSING_MESSAGE : aoiLabels.length === 0 ? 'No AOI data available' : null,
+    placeholder: () => placeholderMessage,
     // The matrix owns its own layout (computeTransitionMatrixLayout) and draws
     // its labels outside the cell grid, so the frame is scaffold-only here.
     gutters: () => ({}),
@@ -137,6 +141,25 @@
     },
     drawOverlay: drawHoverCrosshair,
     blockedRegions: () => blockedRegions,
+  })
+
+  const canRender = $derived(
+    aoiLabels.length === 0 || layout.cellSize >= MIN_LEGIBLE_CELL_SIZE
+  )
+
+  const placeholderMessage = $derived.by(() => {
+    if (noMetric) return METRIC_MISSING_MESSAGE
+    if (aoiLabels.length === 0) return 'No AOI data available'
+    if (!canRender) {
+      return {
+        message: PLOT_CANNOT_FIT_SIZE_MESSAGE,
+        steps: [
+          'Extend the width or height of the plot',
+          'Merge some AOIs in Plot Settings > Areas of Interest',
+        ],
+      }
+    }
+    return null
   })
 
   // The matrix body is the only blocked region; its gradient legend is static.

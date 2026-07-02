@@ -14,6 +14,18 @@ const COMPACT_LABEL_SIZE = 25
  */
 export const MATRIX_LEGEND_GAP = 10
 
+/**
+ * Legibility floors for square-matrix cells. The layout keeps rendering down to
+ * ~1px cells (ultra-compact mode), so these are NOT the layout's `minCellSize`
+ * (that only switches label density). Below these the view stops being
+ * interpretable and the figure paints a fit-guard placeholder instead:
+ * - color grids (transition matrix, correlation heatmap, similarity matrix):
+ *   individual cells can no longer be visually resolved nor mapped to a label.
+ * - the correlation SPLOM needs extra room for a scatter + r-value per cell.
+ */
+export const MIN_LEGIBLE_CELL_SIZE = 8
+export const MIN_LEGIBLE_SPLOM_CELL_SIZE = 12
+
 export const MATRIX_LAYOUT = {
   horizontalPadding: 50,
   baseLabelOffset: 5,

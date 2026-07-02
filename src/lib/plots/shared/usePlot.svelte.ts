@@ -186,8 +186,7 @@ export interface UsePlotOptions<THit = unknown> {
   /** Reactive dependency getter — a redraw is scheduled whenever it changes. */
   deps: () => unknown
 
-  // ---- empty state: draws the placeholder and skips everything else ----
-  placeholder?: () => string | null
+  placeholder?: () => string | { message: string; steps?: string[] } | null
 
   // ---- chrome gutters → data rect + legend reservation ----
   gutters: () => FrameGutters
@@ -579,6 +578,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
 
     const msg = options.placeholder?.()
     if (msg) {
+      dataLayerValid = false
       drawCanvasPlaceholder(ctx, options.width(), options.height(), msg)
       finishCanvasDrawing(canvasState)
       return
@@ -675,6 +675,10 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     const canvas = canvasState.canvas
     const ctx = canvasState.context
     if (!ctx || !canvas) return
+    if (options.placeholder?.()) {
+      render()
+      return
+    }
     if (
       !options.drawOverlay ||
       !dataLayer ||
@@ -698,7 +702,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   const hasHitLogic = !!(options.hitTest || options.legend?.hitTest)
 
   function onHover(x: number | null, y: number | null, isOver: boolean) {
-    if (x === null || y === null) {
+    if (x === null || y === null || options.placeholder?.()) {
       // Hit-based figures: clear tooltip/cursor here. Pointer-only figures own
       // that in onMove, so stay hands-off for them.
       if (hasHitLogic) {
@@ -819,7 +823,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     }
 
     function onDown(e: MouseEvent) {
-      if (!pointer || e.button !== 0) return
+      if (!pointer || e.button !== 0 || options.placeholder?.()) return
       // Tear down any prior drag first — a missed mouseup (release outside the
       // window, multi-button press) must not orphan a window-listener pair.
       teardownDrag()

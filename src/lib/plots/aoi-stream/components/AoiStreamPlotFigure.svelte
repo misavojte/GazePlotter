@@ -49,7 +49,10 @@
     centeredYTicks,
     type PlotAreaTicks,
   } from '$lib/plots/shared/plotArea'
-  import { METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
+  import {
+    METRIC_MISSING_MESSAGE,
+    PLOT_CANNOT_FIT_HEIGHT_MESSAGE,
+  } from '$lib/plots/shared/drawCanvasPlaceholder'
   import {
     AXIS_CONFIG,
     MARGIN as AOI_MARGIN,
@@ -99,6 +102,8 @@
   const X_AXIS_LABEL = $derived(withQualifiers('Elapsed time / ms', data.windowLabel))
   const AREA_DIVIDER = { COLOR: 'rgba(255, 255, 255, 0.4)', WIDTH: 1 }
   const MARGIN = AOI_MARGIN
+  const MIN_SERIES_ROW_HEIGHT = 8
+  const MIN_STREAM_HEIGHT = 40
 
   let renderBuckets = $state<RenderBuckets | null>(null)
   let hoveredLegendItem = $state<LegendItemGeometry | null>(null)
@@ -197,8 +202,8 @@
     height: () => height,
     margins: () => margins,
     dpiOverride: () => dpiOverride,
-    deps: () => [data, alignment, ridgelineScale, syncedMTopOverride, colorScale, highlights],
-    placeholder: () => (data.noMetric ? METRIC_MISSING_MESSAGE : null),
+    deps: () => [data, alignment, ridgelineScale, syncedMTopOverride, colorScale, highlights, placeholderMessage],
+    placeholder: () => placeholderMessage,
     // Declarative measured gutters: the resolver measures the left/bottom edge
     // tick labels + titles and returns the title offsets (frame.leftTitleOffset /
     // bottomTitleOffset). The figure still draws its own chrome (clipData:false)
@@ -233,6 +238,25 @@
       return changed
     },
     blockedRegions: () => blockedRegions,
+  })
+
+  const canRender = $derived.by(() => {
+    const n = data.series.length
+    if (n === 0) return true
+    if (alignment === 'ridgeline' || alignment === 'heatmap')
+      return plot.frame.height >= n * MIN_SERIES_ROW_HEIGHT
+    return plot.frame.height >= MIN_STREAM_HEIGHT
+  })
+
+  const placeholderMessage = $derived.by(() => {
+    if (data.noMetric) return METRIC_MISSING_MESSAGE
+    if (!canRender) {
+      const steps = ['Extend the height of the plot']
+      if (alignment === 'ridgeline' || alignment === 'heatmap')
+        steps.push('Merge some AOIs in Plot Settings > Areas of Interest')
+      return { message: PLOT_CANNOT_FIT_HEIGHT_MESSAGE, steps }
+    }
+    return null
   })
 
   // Legend geometry sits in the bottom band, below the x-axis.
