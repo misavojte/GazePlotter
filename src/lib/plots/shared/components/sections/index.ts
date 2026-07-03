@@ -7,6 +7,10 @@ import EventSection from './EventSection.svelte'
 import EyeMovementSection from './EyeMovementSection.svelte'
 import MetricSection from './MetricSection.svelte'
 import TimelineRangeSection from '../TimelineRangeSection.svelte'
+import ScaleRangePair from './ScaleRangePair.svelte'
+import StimulusColorRange from './StimulusColorRange.svelte'
+import ColorScalePickerControl from './ColorScalePickerControl.svelte'
+import HideNoAoiCheck from './HideNoAoiCheck.svelte'
 
 export {
   StimulusSection,
@@ -17,8 +21,13 @@ export {
   EyeMovementSection,
   MetricSection,
   TimelineRangeSection,
+  ScaleRangePair,
+  StimulusColorRange,
+  ColorScalePickerControl,
+  HideNoAoiCheck,
 }
 export { computeCommonValue, editTargets, createBulkContext } from './common'
+export type { BulkContext } from './common'
 
 /**
  * Cross-type-safe shared sections, keyed by canonical section key. The

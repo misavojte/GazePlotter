@@ -1,8 +1,10 @@
 <script lang="ts">
   import { PaneSection } from '$lib/workspace/pane'
   import { Select } from '$lib/shared/components'
-  import { ColorScalePicker } from '$lib/plots/shared/components'
-  import { createBulkContext } from '$lib/plots/shared/components/sections'
+  import {
+    createBulkContext,
+    ColorScalePickerControl,
+  } from '$lib/plots/shared/components/sections'
   import { PRESET_PALETTES } from '$lib/color/palettes'
   import type { EvolvingMetricsItem, EvolvingMetricsSettings } from '../../types'
 
@@ -32,12 +34,11 @@
       bulk.update({ presentation: v })
     }}
   />
-  <div style:display={isHeatmap ? 'contents' : 'none'}>
-    <ColorScalePicker
-      colorScale={settings.colorScale}
-      defaultMin={PRESET_PALETTES.HEAT.colors[0]}
-      defaultMax={PRESET_PALETTES.HEAT.colors[2]}
-      onCommit={patch => bulk.update({ colorScale: patch })}
-    />
-  </div>
+  <ColorScalePickerControl
+    {bulk}
+    show={isHeatmap}
+    colorScale={settings.colorScale}
+    defaultMin={PRESET_PALETTES.HEAT.colors[0]}
+    defaultMax={PRESET_PALETTES.HEAT.colors[2]}
+  />
 </PaneSection>

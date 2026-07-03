@@ -10,11 +10,7 @@ import {
 import ScarfVisualisationSection from './components/sections/ScarfVisualisationSection.svelte'
 import ScarfTimelineSection from './components/sections/ScarfTimelineSection.svelte'
 import { definePlot } from '$lib/plots/definePlot'
-import type { PlotSubtitleParts } from '$lib/plots/definePlot'
-import {
-  getStimuliOptions,
-  getParticipantsGroupOptions,
-} from '$lib/plots/shared'
+import { stimulusGroupSubtitle } from '$lib/plots/shared'
 import type { ScarfPlotSettings } from './types'
 import { SCARF_IDENTIFIERS } from './const'
 import { getAois } from '$lib/data/engine'
@@ -38,20 +34,7 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
     viewOnlySettings: ['highlights'],
   },
   screen: scarfScreen,
-  getSubtitle: ({ item, engine }) => {
-    const parts: PlotSubtitleParts = []
-    const stim = getStimuliOptions(engine).find(
-      o => o.value === String(item.settings.stimulusId)
-    )
-    if (stim?.label) parts.push({ label: 'Stimulus', value: stim.label })
-    const group = getParticipantsGroupOptions(
-      engine,
-      true,
-      item.settings.stimulusId
-    ).find(o => o.value === String(item.settings.groupId))
-    if (group?.label) parts.push({ label: 'Group', value: group.label })
-    return parts.length === 0 ? undefined : parts
-  },
+  getSubtitle: stimulusGroupSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
     groupId: params.groupId ?? -1,

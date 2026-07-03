@@ -20,6 +20,8 @@ Plot = folder `src/lib/plots/<name>/`: `definition.ts` (the complete recipe) + `
   - `props(view)` = overlay on `view.props` (interaction handlers, sync overrides). Runs inside $derived; reactive reads tracked.
   - ctx: `item` (live getter — NEVER capture the value: items are replaced wholesale on every settings update), `engine`, `workspace`, `view()` (valid in effects/deriveds/handlers; NOT synchronously in factory body). `view.meta` = screen-coordination payload (sync keys, dataMax); recipe casts to its own meta type.
   - Reference recipes: `bar/core/screen.svelte.ts` (sync only), `scarf/core/screen.svelte.ts` (drag state + tooltip + sync).
+- `getSubtitle`: pass the shared factories `stimulusGroupSubtitle` / `stimulusParticipantSubtitle` (`shared/subtitles.ts`) directly — never hand-roll the stimulus/group/participant parts.
+- Pane sections: repeated control groups are shared components in `shared/components/sections/` taking the section's `bulk` context — `ScaleRangePair` (min/max, "0 = Auto"), `StimulusColorRange` (per-stimulus color range via `buildValueRangePatch`), `ColorScalePickerControl` (keep-mounted picker; its `show` prop replaces the display-gating div — never toggle the picker with `{#if}`), `HideNoAoiCheck`. Don't re-inline these in a plot's section.
 - Register: hand-add to static literal `plotRegistry` (`registry.ts`). Intentionally static (feeds `VisualizationType`); never convert to glob loader.
 
 ## Metric library

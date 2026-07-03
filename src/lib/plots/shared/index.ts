@@ -14,6 +14,7 @@ export type * from './types'
 
 // Export shared utilities
 export * from './selectOptionsGetters'
+export * from './subtitles'
 export * from './plotSizeUtility'
 export * from './timelineUtils'
 export * from './displayBudget'

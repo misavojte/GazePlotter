@@ -1,8 +1,11 @@
 <script lang="ts">
   import { PaneSection } from '$lib/workspace/pane'
-  import { InputNumber, Select, InputCheck } from '$lib/shared/components'
-  import { ColorScalePicker } from '$lib/plots/shared/components'
-  import { createBulkContext } from '$lib/plots/shared/components/sections'
+  import { InputNumber, Select } from '$lib/shared/components'
+  import {
+    createBulkContext,
+    ColorScalePickerControl,
+    HideNoAoiCheck,
+  } from '$lib/plots/shared/components/sections'
   import { PRESET_PALETTES } from '$lib/color/palettes'
   import { RIDGELINE_SCALE } from '../../const'
   import type { AoiStreamPlotItem, AoiStreamPlotSettings } from '../../types'
@@ -17,7 +20,6 @@
   const ridgelineScale = $derived(
     bulk.common(s => s.ridgelineScale ?? RIDGELINE_SCALE)
   )
-  const hideNoAoi = $derived(bulk.common(s => s.hideNoAoi ?? false))
 
   // Sub-controls gated on alignment are hidden while alignment diverges — we
   // can't meaningfully show one plot's mode-specific options for a mixed set.
@@ -61,47 +63,12 @@
     />
   {/if}
 
-  <!-- Picker stays mounted regardless of alignment — toggling via an
-       outer `{#if}` broke the bindable plumbing in practice (the picker
-       remounted with stale bindings on re-entry and its writes never
-       reached parent state, so the colorScale commit never fired). Hide
-       visually when not heatmap, but keep the component instance alive
-       so the `bind:` bindings never tear down mid-edit. -->
-  <div style:display={isHeatmap ? 'contents' : 'none'}>
-    <ColorScalePicker
-      colorScale={settings.colorScale}
-      defaultMin={PRESET_PALETTES.HEAT.colors[0]}
-      defaultMax={PRESET_PALETTES.HEAT.colors[2]}
-      onCommit={patch => bulk.update({ colorScale: patch })}
-    />
-  </div>
-  <div class="sub-group">
-    <div class="legend">Hide data</div>
-    <InputCheck
-      label="No AOI data"
-      appearance="compact"
-      size="xs"
-      checked={hideNoAoi.value}
-      mixed={hideNoAoi.mixed}
-      onchange={e => bulk.update({ hideNoAoi: (e as CustomEvent<boolean>).detail })}
-    />
-  </div>
+  <ColorScalePickerControl
+    {bulk}
+    show={isHeatmap}
+    colorScale={settings.colorScale}
+    defaultMin={PRESET_PALETTES.HEAT.colors[0]}
+    defaultMax={PRESET_PALETTES.HEAT.colors[2]}
+  />
+  <HideNoAoiCheck {bulk} />
 </PaneSection>
-
-<style>
-  .sub-group {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    width: 100%;
-    margin-top: 4px;
-  }
-
-  .sub-group .legend {
-    font-size: 11px;
-    font-weight: 400;
-    color: var(--c-darkgrey);
-    line-height: 1.2;
-    letter-spacing: 0.01em;
-  }
-</style>

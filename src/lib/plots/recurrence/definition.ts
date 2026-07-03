@@ -8,11 +8,7 @@ import {
 import RecurrenceMethodSection from './components/sections/RecurrenceMethodSection.svelte'
 import RecurrenceVisualisationSection from './components/sections/RecurrenceVisualisationSection.svelte'
 import { definePlot } from '$lib/plots/definePlot'
-import type { PlotSubtitleParts } from '$lib/plots/definePlot'
-import {
-  getStimuliOptions,
-  getParticipantOptions,
-} from '$lib/plots/shared'
+import { stimulusParticipantSubtitle } from '$lib/plots/shared'
 import type { RecurrencePlotSettings } from './types'
 
 export const recurrencePlotDefinition = definePlot<
@@ -34,19 +30,7 @@ export const recurrencePlotDefinition = definePlot<
     { key: 'aoi', component: AoiSection },
   ],
   view: { deriveView: deriveRecurrenceView },
-  getSubtitle: ({ item, engine }) => {
-    const parts: PlotSubtitleParts = []
-    const stim = getStimuliOptions(engine).find(
-      o => o.value === String(item.settings.stimulusId)
-    )
-    if (stim?.label) parts.push({ label: 'Stimulus', value: stim.label })
-    const participant = getParticipantOptions(engine).find(
-      o => o.value === String(item.settings.participantId)
-    )
-    if (participant?.label)
-      parts.push({ label: 'Participant', value: participant.label })
-    return parts.length === 0 ? undefined : parts
-  },
+  getSubtitle: stimulusParticipantSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
     participantId: 0,

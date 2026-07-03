@@ -9,11 +9,7 @@ import {
 } from '$lib/plots/shared/components/sections'
 import AoiStreamVisualisationSection from './components/sections/AoiStreamVisualisationSection.svelte'
 import { definePlot } from '$lib/plots/definePlot'
-import type { PlotSubtitleParts } from '$lib/plots/definePlot'
-import {
-  getStimuliOptions,
-  getParticipantsGroupOptions,
-} from '$lib/plots/shared'
+import { stimulusGroupSubtitle } from '$lib/plots/shared'
 import type { AoiStreamPlotSettings } from './types'
 
 export const aoiStreamPlotDefinition = definePlot<
@@ -40,20 +36,7 @@ export const aoiStreamPlotDefinition = definePlot<
     viewOnlySettings: ['highlights'],
   },
   screen: aoiStreamScreen,
-  getSubtitle: ({ item, engine }) => {
-    const parts: PlotSubtitleParts = []
-    const stim = getStimuliOptions(engine).find(
-      o => o.value === String(item.settings.stimulusId)
-    )
-    if (stim?.label) parts.push({ label: 'Stimulus', value: stim.label })
-    const group = getParticipantsGroupOptions(
-      engine,
-      true,
-      item.settings.stimulusId
-    ).find(o => o.value === String(item.settings.groupId))
-    if (group?.label) parts.push({ label: 'Group', value: group.label })
-    return parts.length === 0 ? undefined : parts
-  },
+  getSubtitle: stimulusGroupSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
     groupId: params.groupId ?? -1,

@@ -1,7 +1,11 @@
 <script lang="ts">
   import { PaneSection } from '$lib/workspace/pane'
-  import { InputNumber, Radio, InputCheck } from '$lib/shared/components'
-  import { createBulkContext } from '$lib/plots/shared/components/sections'
+  import { Radio } from '$lib/shared/components'
+  import {
+    createBulkContext,
+    ScaleRangePair,
+    HideNoAoiCheck,
+  } from '$lib/plots/shared/components/sections'
   import { getGazePlotterSession } from '$lib/session'
   import { resolveInstance, getMetric } from '$lib/metrics'
   import type { BarPlotItem, BarPlotSettings } from '../../types'
@@ -25,7 +29,6 @@
   const orderDirection = $derived(bulk.common(s => s.orderDirection))
   const minScale = $derived(bulk.common(s => s.scaleRange?.[0] ?? 0))
   const maxScale = $derived(bulk.common(s => s.scaleRange?.[1] ?? 0))
-  const hideNoAoi = $derived(bulk.common(s => s.hideNoAoi ?? false))
 
   function updateScale(patch: { min?: number; max?: number }) {
     // Per item from each plot's OWN scaleRange so a partial edit (only min or
@@ -127,66 +130,17 @@
       bulk.update({ orderDirection: v })
     }}
   />
-  <div class="scale-range-group">
-    <div class="legend">Scale range</div>
-    <div class="inline-pair">
-      <InputNumber
-        id="bar-min-scale"
-        label="Min"
-        value={minScale.value}
-        mixed={minScale.mixed}
-        min={0}
-        appearance="compact"
-        onValueChange={v => updateScale({ min: v ?? 0 })}
-      />
-      <InputNumber
-        id="bar-max-scale"
-        label="Max (0 = Auto)"
-        value={maxScale.value}
-        mixed={maxScale.mixed}
-        min={0}
-        appearance="compact"
-        onValueChange={v => updateScale({ max: v ?? 0 })}
-      />
-    </div>
-  </div>
-  <div class="sub-group">
-    <div class="legend">Hide data</div>
-    <InputCheck
-      label="No AOI data"
-      appearance="compact"
-      size="xs"
-      checked={hideNoAoi.value}
-      mixed={hideNoAoi.mixed}
-      onchange={e => bulk.update({ hideNoAoi: (e as CustomEvent<boolean>).detail })}
-    />
-  </div>
+  <ScaleRangePair
+    idPrefix="bar-scale"
+    legend="Scale range"
+    min={minScale}
+    max={maxScale}
+    onUpdate={updateScale}
+  />
+  <HideNoAoiCheck {bulk} />
 </PaneSection>
 
 <style>
-  .inline-pair {
-    display: flex;
-    gap: 8px;
-  }
-
-  .scale-range-group,
-  .sub-group {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    width: 100%;
-    margin-top: 4px;
-  }
-
-  .scale-range-group .legend,
-  .sub-group .legend {
-    font-size: 11px;
-    font-weight: 400;
-    color: var(--c-darkgrey);
-    line-height: 1.2;
-    letter-spacing: 0.01em;
-  }
-
   .statistical-overlay-group {
     width: 100%;
   }

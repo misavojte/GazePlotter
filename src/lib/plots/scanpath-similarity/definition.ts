@@ -9,12 +9,8 @@ import {
 } from '$lib/plots/shared/components/sections'
 import ScanpathSimilarityVisualisationSection from './components/sections/ScanpathSimilarityVisualisationSection.svelte'
 import { definePlot } from '$lib/plots/definePlot'
-import type { PlotSubtitleParts } from '$lib/plots/definePlot'
 import { PRESET_PALETTES } from '$lib/color/palettes'
-import {
-  getStimuliOptions,
-  getParticipantsGroupOptions,
-} from '$lib/plots/shared'
+import { stimulusGroupSubtitle } from '$lib/plots/shared'
 import type { ScanpathSimilaritySettings } from './types'
 
 export const scanpathSimilarityDefinition = definePlot<
@@ -37,20 +33,7 @@ export const scanpathSimilarityDefinition = definePlot<
   ],
   view: { deriveView: deriveScanpathSimilarityView },
   screen: scanpathSimilarityScreen,
-  getSubtitle: ({ item, engine }) => {
-    const parts: PlotSubtitleParts = []
-    const stim = getStimuliOptions(engine).find(
-      o => o.value === String(item.settings.stimulusId)
-    )
-    if (stim?.label) parts.push({ label: 'Stimulus', value: stim.label })
-    const group = getParticipantsGroupOptions(
-      engine,
-      true,
-      item.settings.stimulusId
-    ).find(o => o.value === String(item.settings.groupId))
-    if (group?.label) parts.push({ label: 'Group', value: group.label })
-    return parts.length === 0 ? undefined : parts
-  },
+  getSubtitle: stimulusGroupSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
     groupId: params.groupId ?? -1,
