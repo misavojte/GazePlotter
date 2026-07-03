@@ -18,6 +18,12 @@ export type MatrixRenderConfig = {
   getCellColor: (value: number) => string
   showCellValue?: (value: number) => boolean
   hasLastRowSentinel?: boolean
+  /**
+   * Custom cell-content painter (e.g. the SPLOM's scatter/r-value cells).
+   * Replaces the heat-cell fill + per-cell value text; the grid is then drawn
+   * ON TOP of the content, and axis/row/column labels render as usual.
+   */
+  drawCells?: (ctx: CanvasRenderingContext2D, layout: SquareMatrixLayout) => void
 }
 
 function setUpFont(ctx: CanvasRenderingContext2D) {
@@ -262,14 +268,19 @@ export function renderMatrixContent(
   ctx: CanvasRenderingContext2D,
   config: MatrixRenderConfig
 ) {
-  drawMatrixGrid(ctx, config)
-  drawMatrixCells(ctx, config)
+  if (config.drawCells) {
+    config.drawCells(ctx, config.layout)
+    drawMatrixGrid(ctx, config)
+  } else {
+    drawMatrixGrid(ctx, config)
+    drawMatrixCells(ctx, config)
+  }
   setUpFont(ctx)
   drawMatrixAxisLabels(ctx, config)
   ctx.font = `${config.layout.fontSize}px ${SYSTEM_SANS_SERIF_STACK}`
   drawMatrixRowLabels(ctx, config, config.layout.fontSize)
   drawMatrixColumnLabels(ctx, config, config.layout.fontSize)
-  drawMatrixCellsText(ctx, config)
+  if (!config.drawCells) drawMatrixCellsText(ctx, config)
 }
 
 /**

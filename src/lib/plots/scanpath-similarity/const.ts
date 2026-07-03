@@ -5,8 +5,6 @@ export const SCANPATH_SIMILARITY_DEFAULTS = {
   colorScale: [...PRESET_PALETTES.BLUE.colors],
 } as const
 
-export { MATRIX_LAYOUT as SIMILARITY_MATRIX_LAYOUT } from '$lib/plots/shared'
-
 export const SCANGRAPH_LAYOUT = {
   nodeRadius: 6,
   linkColor: '#999',

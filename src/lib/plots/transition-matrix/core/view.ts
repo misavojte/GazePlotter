@@ -1,16 +1,16 @@
 import type { ComponentProps } from 'svelte'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import type { CanvasExportProps } from '$lib/plots/shared'
+import { MatrixPlotFigure, type CanvasExportProps } from '$lib/plots/shared'
 import type { PlotView } from '$lib/plots/definePlot'
 import { getMetric, resolveInstance } from '$lib/metrics'
-import TransitionMatrixPlotFigure from '../components/TransitionMatrixPlotFigure.svelte'
+import { METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
 import { getTransitionMatrixData } from './transformer'
 import { colorScaleToKey } from './sync.svelte'
-import { getLegendTitle } from '../const'
+import { getLegendTitle, TRANSITION_MATRIX_DEFAULTS } from '../const'
 import type { TransitionMatrixPlotSettings } from '../types'
 
 export type TransitionFigureProps = Omit<
-  ComponentProps<typeof TransitionMatrixPlotFigure>,
+  ComponentProps<typeof MatrixPlotFigure>,
   keyof CanvasExportProps
 >
 
@@ -23,6 +23,9 @@ export interface TransitionView {
   isDefaultColorRange: boolean
   currentStimulusColorRange: [number, number]
 }
+
+const formatCellValue = (v: number) =>
+  Number.isInteger(v) ? v.toString() : v.toFixed(1)
 
 /**
  * Single source of truth for "what a transition matrix draws". `props.colorValueRange`
@@ -43,6 +46,7 @@ export function getTransitionView(
     settings.hideNoAoi ?? false
   )
   const { matrix, aoiLabels } = transitionData
+  const noMetric = transitionData.noMetric ?? false
 
   const resolvedInstance = resolveInstance(
     engine.metadata?.metricInstances ?? [],
@@ -52,6 +56,7 @@ export function getTransitionView(
   const effectiveColorScale = settings.colorScale ?? []
   const currentStimulusColorRange: [number, number] =
     settings.stimuliColorValueRanges?.[settings.stimulusId] ?? [0, 0]
+  const belowMinColor = settings.belowMinColor ?? TRANSITION_MATRIX_DEFAULTS.inactiveColor
 
   let ownDataMax = 0
   for (let i = 0; i < matrix.length; i++) if (matrix[i] > ownDataMax) ownDataMax = matrix[i]
@@ -59,11 +64,22 @@ export function getTransitionView(
 
   return {
     props: {
-      TransitionMatrix: matrix,
-      aoiLabels,
+      matrix,
+      labels: aoiLabels,
+      xAxisTitle: TRANSITION_MATRIX_DEFAULTS.xLabel,
+      yAxisTitle: TRANSITION_MATRIX_DEFAULTS.yLabel,
       colorScale: effectiveColorScale,
-      xLabel: 'To AOI',
-      yLabel: 'From AOI',
+      colorValueRange: currentStimulusColorRange,
+      autoMaxDecimals: 0,
+      belowMinColor,
+      aboveMaxColor: settings.aboveMaxColor ?? TRANSITION_MATRIX_DEFAULTS.inactiveColor,
+      // Non-finite marks an undefined cell (e.g. transitionProbability with no
+      // outgoing transitions) — render out-of-bounds, distinct from a real zero.
+      nonFiniteColor: belowMinColor,
+      showBelowMinLabels: settings.showBelowMinLabels ?? false,
+      showAboveMaxLabels: settings.showAboveMaxLabels ?? false,
+      hasLastRowSentinel: true,
+      formatCellValue,
       legendTitle: getLegendTitle(
         resolvedInstance,
         resolvedMetric,
@@ -71,12 +87,22 @@ export function getTransitionView(
         settings.timelineStart ?? 0,
         settings.timelineEnd ?? 0
       ),
-      colorValueRange: currentStimulusColorRange,
-      belowMinColor: settings.belowMinColor,
-      aboveMaxColor: settings.aboveMaxColor,
-      showBelowMinLabels: settings.showBelowMinLabels,
-      showAboveMaxLabels: settings.showAboveMaxLabels,
-      noMetric: transitionData.noMetric ?? false,
+      placeholder: noMetric
+        ? METRIC_MISSING_MESSAGE
+        : aoiLabels.length === 0
+          ? 'No AOI data available'
+          : null,
+      fitSteps: ['Merge some AOIs in Plot Settings > Areas of Interest'],
+      tooltipId: 'transition-matrix-tooltip',
+      tooltipWidth: 150,
+      getCellTooltip: (row, col) => {
+        const value = matrix[row * aoiLabels.length + col] ?? 0
+        return [
+          { key: 'From', value: aoiLabels[row] },
+          { key: 'To', value: aoiLabels[col] },
+          { key: 'Value', value: Number.isFinite(value) ? value.toString() : '—' },
+        ]
+      },
     },
     ownDataMax,
     syncGroupKey: String(resolvedInstance?.id ?? 'none'),
@@ -103,7 +129,7 @@ export function deriveTransitionMatrixView(
 ): PlotView {
   const view = getTransitionView(engine, settings)
   return {
-    component: TransitionMatrixPlotFigure,
+    component: MatrixPlotFigure,
     props: view.props as Record<string, unknown>,
     meta: {
       ownDataMax: view.ownDataMax,

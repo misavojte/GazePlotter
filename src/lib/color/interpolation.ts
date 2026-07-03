@@ -44,8 +44,10 @@ export function getColorForValue(
   maxValue: number,
   colorScale: string[]
 ): string {
-  // Handle zero and null cases
-  if (value === 0 || maxValue === 0) return colorScale[0]
+  // A zero max marks "no data" (auto range over an empty matrix).
+  // NOTE: value 0 deliberately has no special case — with a negative minValue
+  // (diverging scales like correlation's [-1, 1]) zero maps to the midpoint.
+  if (maxValue === 0) return colorScale[0]
 
   // Normalize value to get factor between 0 and 1
   // Guard against division by zero if min/max are equal

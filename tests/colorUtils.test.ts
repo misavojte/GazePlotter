@@ -80,6 +80,26 @@ describe('colorUtils', () => {
         '#000000'
       )
     })
+
+    it('maps zero to the midpoint on a diverging scale with a negative min', () => {
+      const colorScale = ['#2166ac', '#ffffff', '#ca0020']
+      expect(normalizeHex(getColorForValue(0, -1, 1, colorScale))).toBe(
+        '#ffffff'
+      )
+      expect(normalizeHex(getColorForValue(-1, -1, 1, colorScale))).toBe(
+        '#2166ac'
+      )
+      expect(normalizeHex(getColorForValue(1, -1, 1, colorScale))).toBe(
+        '#ca0020'
+      )
+      // Out-of-range values clamp to the scale ends.
+      expect(normalizeHex(getColorForValue(-2, -1, 1, colorScale))).toBe(
+        '#2166ac'
+      )
+      expect(normalizeHex(getColorForValue(2, -1, 1, colorScale))).toBe(
+        '#ca0020'
+      )
+    })
   })
 
   describe('createColorGradient', () => {
