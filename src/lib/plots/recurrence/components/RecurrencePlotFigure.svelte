@@ -5,6 +5,7 @@
     canvasBlockSelect,
     NO_MARGINS,
     packRgb,
+    drawMatrixCrosshair,
     type CanvasExportProps,
     type PlotFrame,
     type FrameHit,
@@ -67,8 +68,6 @@
   let texMasking: RecurrenceMasking | null = null
   let texMask: Uint8Array | null = null
 
-  let hoveredCell = $state<{ row: number; col: number } | null>(null)
-
   const N = $derived(data?.fixationCount ?? 0)
   const tickStep = $derived(N <= 20 ? 1 : Math.ceil(N / 10))
 
@@ -106,8 +105,11 @@
     height: () => height,
     margins: () => margins,
     dpiOverride: () => dpiOverride,
-    deps: () => [data, highlight, masking, highlightMask, placeholderMessage],
-    placeholder: () => placeholderMessage,
+    deps: () => [data, highlight, masking, highlightMask],
+    // No fit guard: the recurrence matrix is rendered as a texture (drawRaster)
+    // at any density, so hundreds of fixations stay legible as a pattern. The
+    // only placeholder is the genuine "no data" case.
+    placeholder: () => (N < 2 ? 'Not enough fixations' : null),
     gutters: () => {
       if (N < 2) return {}
       return {
@@ -159,20 +161,7 @@
         data: cell,
       }
     },
-    onHoverChange: (hit) => {
-      const cell = hit?.data ?? null
-      const changed =
-        (cell?.row ?? null) !== (hoveredCell?.row ?? null) ||
-        (cell?.col ?? null) !== (hoveredCell?.col ?? null)
-      hoveredCell = cell
-      return changed
-    },
   })
-
-  // No fit guard: the recurrence matrix is rendered as a texture (drawRaster) at
-  // any density, so hundreds of fixations stay legible as a pattern. The only
-  // placeholder is the genuine "no data" case.
-  const placeholderMessage = $derived(N < 2 ? 'Not enough fixations' : null)
 
   /** Map an absolute canvas position to a recurrence cell, or null if outside. */
   function cellAt(
@@ -397,35 +386,22 @@
   }
 
   function drawHoverCrosshair(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+    const hoveredCell = plot.hover.data
     if (!hoveredCell) return
     const cellSize = frame.width / N
-    const gridSize = frame.width
-    const { x: xOffset, y: yOffset } = frame
-    const colX = xOffset + hoveredCell.col * cellSize
-    const rowY = yOffset + (N - 1 - hoveredCell.row) * cellSize
-
-    ctx.save()
-    ctx.globalAlpha = 0.18
-    ctx.fillStyle = '#007acc'
-    ctx.fillRect(colX, yOffset, cellSize, gridSize)
-    ctx.fillRect(xOffset, rowY, gridSize, cellSize)
-    ctx.restore()
-
-    ctx.save()
-    ctx.strokeStyle = '#007acc'
-    ctx.lineWidth = 1
-    ctx.setLineDash([2, 2])
-    ctx.beginPath()
-    ctx.moveTo(colX, yOffset)
-    ctx.lineTo(colX, yOffset + gridSize)
-    ctx.moveTo(colX + cellSize, yOffset)
-    ctx.lineTo(colX + cellSize, yOffset + gridSize)
-    ctx.moveTo(xOffset, rowY)
-    ctx.lineTo(xOffset + gridSize, rowY)
-    ctx.moveTo(xOffset, rowY + cellSize)
-    ctx.lineTo(xOffset + gridSize, rowY + cellSize)
-    ctx.stroke()
-    ctx.restore()
+    // Recurrence rows are bottom-origin (fixation i counts upward), so convert
+    // to the shared helper's display space (top-left origin).
+    drawMatrixCrosshair(
+      ctx,
+      {
+        xOffset: frame.x,
+        yOffset: frame.y,
+        cellSize,
+        gridWidth: frame.width,
+        gridHeight: frame.width,
+      },
+      { row: N - 1 - hoveredCell.row, col: hoveredCell.col }
+    )
   }
 </script>
 

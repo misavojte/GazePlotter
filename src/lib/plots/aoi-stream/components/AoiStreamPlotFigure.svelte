@@ -51,7 +51,7 @@
   } from '$lib/plots/shared/plotArea'
   import {
     METRIC_MISSING_MESSAGE,
-    PLOT_CANNOT_FIT_HEIGHT_MESSAGE,
+    cannotFitPlaceholder,
   } from '$lib/plots/shared/drawCanvasPlaceholder'
   import {
     AXIS_CONFIG,
@@ -106,9 +106,6 @@
   const MIN_STREAM_HEIGHT = 40
 
   let renderBuckets = $state<RenderBuckets | null>(null)
-  let hoveredLegendItem = $state<LegendItemGeometry | null>(null)
-  let hoveredBinIndex = $state<number | null>(null)
-  let mouseXPx = $state<number | null>(null)
 
   const usedHighlights = $derived(highlights)
 
@@ -197,13 +194,33 @@
       : { title: data.yAxisLabel, tickLabels: leftTickLabels }
   )
 
-  const plot = usePlot<{ kind: 'legend' | 'bin'; item?: LegendItemGeometry; binIndex?: number }>({
+  const plot = usePlot<{
+    kind: 'legend' | 'bin'
+    item?: LegendItemGeometry
+    binIndex?: number
+    x?: number
+  }>({
     width: () => width,
     height: () => height,
     margins: () => margins,
     dpiOverride: () => dpiOverride,
-    deps: () => [data, alignment, ridgelineScale, syncedMTopOverride, colorScale, highlights, placeholderMessage],
-    placeholder: () => placeholderMessage,
+    deps: () => [data, alignment, ridgelineScale, syncedMTopOverride, colorScale, highlights],
+    placeholder: () => (data.noMetric ? METRIC_MISSING_MESSAGE : null),
+    fit: frame => {
+      const n = data.series.length
+      if (n === 0) return null
+      const fits =
+        alignment === 'ridgeline' || alignment === 'heatmap'
+          ? frame.height >= n * MIN_SERIES_ROW_HEIGHT
+          : frame.height >= MIN_STREAM_HEIGHT
+      if (fits) return null
+      return cannotFitPlaceholder(
+        'height',
+        alignment === 'ridgeline' || alignment === 'heatmap'
+          ? ['Merge some AOIs in Plot Settings > Areas of Interest']
+          : []
+      )
+    },
     // Declarative measured gutters: the resolver measures the left/bottom edge
     // tick labels + titles and returns the title offsets (frame.leftTitleOffset /
     // bottomTitleOffset). The figure still draws its own chrome (clipData:false)
@@ -221,42 +238,7 @@
     drawOverlay: drawStreamOverlay,
     legend: { hitTest: hitTestLegendBand },
     hitTest: hitTestBin,
-    onHoverChange: (hit, x, y) => {
-      const tag = hit?.data
-      const legendItem = tag?.kind === 'legend' ? tag.item! : null
-      const binIndex = tag?.kind === 'bin' ? tag.binIndex! : null
-      const isBinHover = tag?.kind === 'bin'
-      const nextMouseXPx = isBinHover ? x : null
-      const nextBinIndex = isBinHover ? binIndex : null
-
-      const changed =
-        nextBinIndex !== hoveredBinIndex ||
-        nextMouseXPx !== mouseXPx
-      hoveredLegendItem = legendItem
-      hoveredBinIndex = nextBinIndex
-      mouseXPx = nextMouseXPx
-      return changed
-    },
     blockedRegions: () => blockedRegions,
-  })
-
-  const canRender = $derived.by(() => {
-    const n = data.series.length
-    if (n === 0) return true
-    if (alignment === 'ridgeline' || alignment === 'heatmap')
-      return plot.frame.height >= n * MIN_SERIES_ROW_HEIGHT
-    return plot.frame.height >= MIN_STREAM_HEIGHT
-  })
-
-  const placeholderMessage = $derived.by(() => {
-    if (data.noMetric) return METRIC_MISSING_MESSAGE
-    if (!canRender) {
-      const steps = ['Extend the height of the plot']
-      if (alignment === 'ridgeline' || alignment === 'heatmap')
-        steps.push('Merge some AOIs in Plot Settings > Areas of Interest')
-      return { message: PLOT_CANNOT_FIT_HEIGHT_MESSAGE, steps }
-    }
-    return null
   })
 
   // Legend geometry sits in the bottom band, below the x-axis.
@@ -571,6 +553,9 @@
   // hover blits it back and repaints only this instead of re-running drawStream
   // (which re-derives every series' coordinates).
   function drawStreamOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+    const tag = plot.hover.data
+    const hoveredBinIndex = tag?.kind === 'bin' ? (tag.binIndex ?? null) : null
+    const mouseXPx = tag?.kind === 'bin' ? (tag.x ?? null) : null
     if (hoveredBinIndex === null && mouseXPx === null) return
     const floorLeft = Math.floor(frame.x)
     const floorTop = Math.floor(frame.y)
@@ -628,7 +613,12 @@
   function hitTestLegendBand(
     mx: number,
     my: number
-  ): FrameHit<{ kind: 'legend' | 'bin'; item?: LegendItemGeometry; binIndex?: number }> | null {
+  ): FrameHit<{
+    kind: 'legend' | 'bin'
+    item?: LegendItemGeometry
+    binIndex?: number
+    x?: number
+  }> | null {
     if (alignment === 'heatmap' || legendGeometry.items.length === 0 || legendHeight === 0) return null
     const item = hitTestLegend(legendGeometry, STREAM_LEGEND_CONFIG, mx, my)
     if (!item) return null
@@ -648,7 +638,12 @@
     mx: number,
     my: number,
     frame: PlotFrame
-  ): FrameHit<{ kind: 'legend' | 'bin'; item?: LegendItemGeometry; binIndex?: number }> | null {
+  ): FrameHit<{
+    kind: 'legend' | 'bin'
+    item?: LegendItemGeometry
+    binIndex?: number
+    x?: number
+  }> | null {
     const binWidth = frame.width / data.binCount
     const binIndex = Math.max(0, Math.min(data.binCount - 1, Math.floor((mx - frame.x) / binWidth)))
 
@@ -689,14 +684,15 @@
       anchorY: my,
       offset: { x: 15, y: 15 },
       cursor: 'crosshair',
-      data: { kind: 'bin', binIndex },
+      data: { kind: 'bin', binIndex, x: mx },
     }
   }
 
-  // The hovered legend item is tracked synchronously, so click needs no coords.
+  // The harness tracks the hovered legend item, so click needs no coords.
   function handleClick() {
-    if (hoveredLegendItem) {
-      const aoiId = parseInt(hoveredLegendItem.identifier)
+    const tag = plot.hover.data
+    if (tag?.kind === 'legend' && tag.item) {
+      const aoiId = parseInt(tag.item.identifier)
       if (!isNaN(aoiId)) onLegendClick(aoiId)
     }
   }

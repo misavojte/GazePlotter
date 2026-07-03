@@ -12,7 +12,7 @@
   } from '$lib/plots/shared'
   import {
     METRIC_MISSING_MESSAGE,
-    PLOT_CANNOT_FIT_SIZE_MESSAGE,
+    cannotFitPlaceholder,
   } from '$lib/plots/shared/drawCanvasPlaceholder'
   import { SCANGRAPH_LAYOUT } from '../const'
   import type { ScangraphData } from '../types'
@@ -48,8 +48,22 @@
     height: () => height,
     margins: () => margins,
     dpiOverride: () => dpiOverride,
-    deps: () => [data, threshold, highlights, placeholderMessage],
-    placeholder: () => placeholderMessage,
+    deps: () => [data, threshold, highlights, noMetric],
+    placeholder: () =>
+      noMetric
+        ? METRIC_MISSING_MESSAGE
+        : (data?.nodes.length ?? 0) === 0
+          ? 'No graph data available'
+          : null,
+    fit: frame => {
+      const n = data?.nodes.length ?? 0
+      if (n === 0) return null
+      const minDim = Math.min(frame.width, frame.height)
+      if (minDim / (n * 1.2) >= MIN_NODE_SPACING) return null
+      return cannotFitPlaceholder('size', [
+        'Reduce the number of participants in Plot Settings > Participant group',
+      ])
+    },
     // The force layout fills the whole canvas and insets nodes by the export
     // margins itself, so the frame's rect (= content area) is used only for the
     // outline + the default blocked region.
@@ -57,32 +71,6 @@
     clipData: false,
     drawData: drawGraph,
     hitTest: computeHit,
-    onHoverChange: (hit) => {
-      hoveredNode = hit?.data ?? null
-      return false // no hover overlay — tooltip only, no redraw
-    },
-  })
-
-  const canRender = $derived.by(() => {
-    const n = data?.nodes.length ?? 0
-    if (n === 0) return true
-    const minDim = Math.min(plot.frame.width, plot.frame.height)
-    return minDim / (n * 1.2) >= MIN_NODE_SPACING
-  })
-
-  const placeholderMessage = $derived.by(() => {
-    if (noMetric) return METRIC_MISSING_MESSAGE
-    if ((data?.nodes.length ?? 0) === 0) return 'No graph data available'
-    if (!canRender) {
-      return {
-        message: PLOT_CANNOT_FIT_SIZE_MESSAGE,
-        steps: [
-          'Extend the width or height of the plot',
-          'Reduce the number of participants in Plot Settings > Participant group',
-        ],
-      }
-    }
-    return null
   })
 
   const nodeRadius = $derived.by(() => {
@@ -311,9 +299,6 @@
     return items
   }
 
-  // Tracked from the last hover so the click handler needs no coordinates.
-  let hoveredNode: NodePosition | null = null
-
   function findNodeAt(mx: number, my: number): NodePosition | null {
     const hitR = nodeRadius + 4
     const hitR2 = hitR * hitR
@@ -347,6 +332,8 @@
   }
 
   function handleClick() {
+    // The harness tracks the hovered node, so the click needs no coordinates.
+    const hoveredNode = plot.hover.data
     if (hoveredNode && onNodeClick) onNodeClick(hoveredNode.id)
   }
 </script>

@@ -271,3 +271,58 @@ export function renderMatrixContent(
   drawMatrixColumnLabels(ctx, config, config.layout.fontSize)
   drawMatrixCellsText(ctx, config)
 }
+
+/**
+ * Hover crosshair over a square matrix: translucent row+column bands plus
+ * dashed cell-edge guides. `cell.row`/`cell.col` are DISPLAY-space indices
+ * (top-left origin); callers whose data rows are inverted (recurrence)
+ * convert before calling.
+ */
+export function drawMatrixCrosshair(
+  ctx: CanvasRenderingContext2D,
+  geom: Pick<
+    SquareMatrixLayout,
+    'xOffset' | 'yOffset' | 'cellSize' | 'gridWidth' | 'gridHeight'
+  >,
+  cell: { row: number; col: number }
+): void {
+  const { xOffset, yOffset, cellSize, gridWidth, gridHeight } = geom
+  const colX = xOffset + cell.col * cellSize
+  const rowY = yOffset + cell.row * cellSize
+
+  ctx.save()
+  ctx.globalAlpha = 0.18
+  ctx.fillStyle = '#007acc'
+  ctx.fillRect(colX, yOffset, cellSize, gridHeight)
+  ctx.fillRect(xOffset, rowY, gridWidth, cellSize)
+  ctx.restore()
+
+  ctx.save()
+  ctx.strokeStyle = '#007acc'
+  ctx.lineWidth = 1
+  ctx.setLineDash([2, 2])
+  ctx.beginPath()
+  ctx.moveTo(colX, yOffset)
+  ctx.lineTo(colX, yOffset + gridHeight)
+  ctx.moveTo(colX + cellSize, yOffset)
+  ctx.lineTo(colX + cellSize, yOffset + gridHeight)
+  ctx.moveTo(xOffset, rowY)
+  ctx.lineTo(xOffset + gridWidth, rowY)
+  ctx.moveTo(xOffset, rowY + cellSize)
+  ctx.lineTo(xOffset + gridWidth, rowY + cellSize)
+  ctx.stroke()
+  ctx.restore()
+}
+
+/** Map canvas coords to a square-matrix cell (display space), or null outside. */
+export function matrixCellAt(
+  geom: Pick<SquareMatrixLayout, 'xOffset' | 'yOffset' | 'cellSize'>,
+  mx: number,
+  my: number,
+  size: number
+): { row: number; col: number } | null {
+  const col = Math.floor((mx - geom.xOffset) / geom.cellSize)
+  const row = Math.floor((my - geom.yOffset) / geom.cellSize)
+  if (row < 0 || row >= size || col < 0 || col >= size) return null
+  return { row, col }
+}

@@ -32,7 +32,7 @@
   } from '$lib/plots/shared/plotArea'
   import {
     METRIC_MISSING_MESSAGE,
-    PLOT_CANNOT_FIT_HEIGHT_MESSAGE,
+    cannotFitPlaceholder,
   } from '$lib/plots/shared/drawCanvasPlaceholder'
   import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
   import { MARGIN, AXIS_CONFIG } from '../const'
@@ -77,8 +77,6 @@
   const X_AXIS_LABEL = $derived(data.xAxisLabel)
   const AREA_DIVIDER = { COLOR: 'rgba(255, 255, 255, 0.4)', WIDTH: 1 }
 
-  let hoveredMsTime = $state<number | null>(null)
-  let hoveredParticipantIndex = $state<number | null>(null)
 
   const legendHeight = $derived(
     alignment === 'heatmap' ? getGradientLegendRequiredHeight(AXIS_CONFIG.fontSize) : 0
@@ -154,8 +152,16 @@
     height: () => height,
     margins: () => margins,
     dpiOverride: () => dpiOverride,
-    deps: () => [data, alignment, placeholderMessage],
-    placeholder: () => placeholderMessage,
+    deps: () => [data, alignment],
+    placeholder: () => (data.noMetric ? METRIC_MISSING_MESSAGE : null),
+    fit: frame => {
+      if (alignment !== 'heatmap') return null
+      const n = data.participants.length
+      if (n === 0 || frame.height / n >= MIN_HEATMAP_ROW_HEIGHT) return null
+      return cannotFitPlaceholder('height', [
+        'Switch to Overlay mode in Plot Settings > Visualisation',
+      ])
+    },
     // Declarative measured gutters: the resolver measures the left/bottom edge
     // tick labels + titles and returns the title offsets (frame.leftTitleOffset /
     // bottomTitleOffset) the figure draws with. Compact heatmap keeps a fixed
@@ -185,37 +191,10 @@
     drawData: drawEvolving,
     drawOverlay: drawEvolvingOverlay,
     hitTest: computeHit,
-    onHoverChange: (hit) => {
-      const tag = hit?.data
-      const nextT = tag?.t ?? null
-      const nextP = tag?.participantIdx ?? null
-      const changed = nextT !== hoveredMsTime || nextP !== hoveredParticipantIndex
-      hoveredMsTime = nextT
-      hoveredParticipantIndex = nextP
-      return changed
-    },
   })
 
-  const canRender = $derived.by(() => {
-    if (alignment !== 'heatmap') return true
-    const n = data.participants.length
-    if (n === 0) return true
-    return plot.frame.height / n >= MIN_HEATMAP_ROW_HEIGHT
-  })
-
-  const placeholderMessage = $derived.by(() => {
-    if (data.noMetric) return METRIC_MISSING_MESSAGE
-    if (!canRender) {
-      return {
-        message: PLOT_CANNOT_FIT_HEIGHT_MESSAGE,
-        steps: [
-          'Extend the height of the plot',
-          'Switch to Overlay mode in Plot Settings > Visualisation',
-        ],
-      }
-    }
-    return null
-  })
+  const hoveredMsTime = $derived(plot.hover.data?.t ?? null)
+  const hoveredParticipantIndex = $derived(plot.hover.data?.participantIdx ?? null)
 
   const palette = $derived<string[]>(
     colorScale && colorScale.length >= 2 ? colorScale : [...PRESET_PALETTES.HEAT.colors]

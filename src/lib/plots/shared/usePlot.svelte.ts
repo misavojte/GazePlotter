@@ -186,7 +186,16 @@ export interface UsePlotOptions<THit = unknown> {
   /** Reactive dependency getter — a redraw is scheduled whenever it changes. */
   deps: () => unknown
 
+  /** Data-level placeholder (missing metric, empty selection). Checked first. */
   placeholder?: () => string | { message: string; steps?: string[] } | null
+
+  /**
+   * Frame-dependent fit guard, evaluated with the resolved frame: return a
+   * placeholder (see `cannotFitPlaceholder`) when the data cannot be legibly
+   * rendered at the current size. The harness re-evaluates it whenever the
+   * frame changes; figures never read `plot.frame` to build placeholders.
+   */
+  fit?: (frame: PlotFrame) => string | { message: string; steps?: string[] } | null
 
   // ---- chrome gutters → data rect + legend reservation ----
   gutters: () => FrameGutters
@@ -211,9 +220,19 @@ export interface UsePlotOptions<THit = unknown> {
   // ---- interaction ----
   hitTest?: (x: number, y: number, frame: PlotFrame) => FrameHit<THit> | null
   /**
-   * Apply hover STATE the figure keeps for its overlay (e.g. `hoveredCell`).
-   * Return true when the state changed so a redraw is scheduled. The composable
-   * owns the tooltip/cursor; this is only for overlay-affecting state.
+   * Dedup key for the `onHover` side effect: `onHover` fires only when the key
+   * (compared with `Object.is`) changes. Defaults to the hit payload itself —
+   * hits are usually fresh objects, so the default fires per move while
+   * hovering and once on leave. Overlay repaints are NOT keyed by this.
+   */
+  hoverKey?: (data: THit) => unknown
+  /** Side effect on hover-key change (e.g. notify the host of the hovered datum). */
+  onHover?: (data: THit | null) => void
+  /**
+   * ESCAPE HATCH: figures with multi-variable overlay state apply it here and
+   * return true when it changed (schedules an overlay repaint). Most figures
+   * should instead read the harness-owned `plot.hover.data` in `drawOverlay`
+   * and declare `hoverKey`/`onHover`. The composable owns the tooltip/cursor.
    */
   onHoverChange?: (hit: FrameHit<THit> | null, x: number | null, y: number | null) => boolean
   /** Generic pointer/drag lifecycle (panning, brushing, selection). */
@@ -223,13 +242,19 @@ export interface UsePlotOptions<THit = unknown> {
   blockedRegions?: (frame: PlotFrame) => BlockedRegion[]
 }
 
-export interface UsePlotHandle {
+export interface UsePlotHandle<THit = unknown> {
   /** Svelte action — wires canvas lifecycle, mouse listeners, pointer/drag. */
   readonly plotAction: Action<HTMLCanvasElement>
   /** Blocked-select regions for `use:canvasBlockSelect`. */
   readonly blockedRegions: BlockedRegion[]
   /** Resolved frame geometry (reactive). */
   readonly frame: PlotFrame
+  /**
+   * Harness-owned hover state: the current hit payload (null when nothing is
+   * hovered or the pointer left). Read it in `drawOverlay` instead of keeping
+   * per-figure `$state` mirrors of the hit.
+   */
+  readonly hover: { readonly data: THit | null }
   /** Throttled rAF render scheduler (re-runs the full drawData). */
   readonly scheduleRender: () => void
   /**
@@ -420,7 +445,7 @@ export function resolveFrameLayout(
 
 // ── The composable ──
 
-export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotHandle {
+export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotHandle<THit> {
   // ---- canvas state + DPI-aware lifecycle ----
   let canvasState = $state<CanvasState>(createCanvasState())
   const exportRegistrar = getContext<ExportSourceRegistrar | undefined>(EXPORT_SOURCE_CONTEXT)
@@ -444,6 +469,14 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     | CanvasRenderingContext2D
     | null = null
   let dataLayerValid = false
+
+  // Harness-owned hover state (the current hit payload). `$state.raw`: hit
+  // payloads are plain objects reassigned wholesale, never mutated.
+  let hoverData = $state.raw<THit | null>(null)
+
+  // Active placeholder: data-level reasons first, then the frame-fit guard.
+  const activePlaceholder = () =>
+    options.placeholder?.() ?? options.fit?.(frame) ?? null
 
   // Wrapped in untrack: the render runs via rAF / lifecycle, never as a tracked
   // effect, so reading the deriveds below must not establish subscriptions.
@@ -576,7 +609,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     const ctx = canvasState.context
     if (!ctx) return
 
-    const msg = options.placeholder?.()
+    const msg = activePlaceholder()
     if (msg) {
       dataLayerValid = false
       drawCanvasPlaceholder(ctx, options.width(), options.height(), msg)
@@ -675,7 +708,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     const canvas = canvasState.canvas
     const ctx = canvasState.context
     if (!ctx || !canvas) return
-    if (options.placeholder?.()) {
+    if (activePlaceholder()) {
       render()
       return
     }
@@ -701,12 +734,37 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   // ---- hover: legend-then-data hit-test → tooltip/cursor/redraw ----
   const hasHitLogic = !!(options.hitTest || options.legend?.hitTest)
 
+  // Updates the harness-owned hover state, fires the deduped `onHover` side
+  // effect, and reports whether an overlay repaint is needed. The default
+  // repaint policy (no custom `onHoverChange`) repaints while the payload
+  // changes — hits are fresh objects, so effectively per-move while hovering —
+  // and only when the figure actually has an overlay to repaint.
+  const hoverKeyOf = (d: THit | null) =>
+    d === null ? null : options.hoverKey ? options.hoverKey(d) : d
+
+  function applyHover(
+    hit: FrameHit<THit> | null,
+    x: number | null,
+    y: number | null
+  ): boolean {
+    const next = hit?.data ?? null
+    const keyChanged = !Object.is(hoverKeyOf(next), hoverKeyOf(hoverData))
+    const changed = options.onHoverChange
+      ? options.onHoverChange(hit, x, y)
+      : options.drawOverlay
+        ? !Object.is(next, hoverData)
+        : false
+    hoverData = next
+    if (keyChanged) options.onHover?.(next)
+    return changed
+  }
+
   function onHover(x: number | null, y: number | null, isOver: boolean) {
-    if (x === null || y === null || options.placeholder?.()) {
+    if (x === null || y === null || activePlaceholder()) {
       // Hit-based figures: clear tooltip/cursor here. Pointer-only figures own
       // that in onMove, so stay hands-off for them.
       if (hasHitLogic) {
-        const changed = options.onHoverChange?.(null, null, null) ?? false
+        const changed = applyHover(null, null, null)
         setCursor('default')
         hideTooltip(0)
         if (changed) scheduleHoverRepaint()
@@ -723,7 +781,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
         if (inRect) hit = options.hitTest?.(x, y, frame) ?? null
       }
 
-      const changed = options.onHoverChange?.(hit, x, y) ?? false
+      const changed = applyHover(hit, x, y)
       if (hit) {
         setCursor(hit.cursor ?? 'crosshair')
         // An empty-content hit is "track-only" — updates hover state via
@@ -823,7 +881,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     }
 
     function onDown(e: MouseEvent) {
-      if (!pointer || e.button !== 0 || options.placeholder?.()) return
+      if (!pointer || e.button !== 0 || activePlaceholder()) return
       // Tear down any prior drag first — a missed mouseup (release outside the
       // window, multi-button press) must not orphan a window-listener pair.
       teardownDrag()
@@ -898,6 +956,11 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     },
     get frame() {
       return frame
+    },
+    hover: {
+      get data() {
+        return hoverData
+      },
     },
     scheduleRender,
     scheduleOverlayRender,

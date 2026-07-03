@@ -2,7 +2,7 @@
   import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
   import {
     METRIC_MISSING_MULTI_MESSAGE,
-    PLOT_CANNOT_FIT_SIZE_MESSAGE,
+    cannotFitPlaceholder,
   } from '$lib/plots/shared/drawCanvasPlaceholder'
   import {
     MATRIX_LAYOUT,
@@ -10,6 +10,8 @@
     drawMatrixAxisLabels,
     drawMatrixColumnLabels,
     drawMatrixGrid,
+    drawMatrixCrosshair,
+    matrixCellAt,
     drawMatrixRowLabels,
     drawPlotArea,
     usePlot,
@@ -38,36 +40,9 @@
     margins = NO_MARGINS,
   }: Props = $props()
 
-  let hoveredCell = $state<{ row: number; col: number } | null>(null)
-
   function drawHoverCrosshair(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
-    if (!hoveredCell) return
-    const { xOffset, yOffset, cellSize, gridWidth, gridHeight } = layout
-    const colX = xOffset + hoveredCell.col * cellSize
-    const rowY = yOffset + hoveredCell.row * cellSize
-
-    ctx.save()
-    ctx.globalAlpha = 0.18
-    ctx.fillStyle = '#007acc'
-    ctx.fillRect(colX, yOffset, cellSize, gridHeight)
-    ctx.fillRect(xOffset, rowY, gridWidth, cellSize)
-    ctx.restore()
-
-    ctx.save()
-    ctx.strokeStyle = '#007acc'
-    ctx.lineWidth = 1
-    ctx.setLineDash([2, 2])
-    ctx.beginPath()
-    ctx.moveTo(colX, yOffset)
-    ctx.lineTo(colX, yOffset + gridHeight)
-    ctx.moveTo(colX + cellSize, yOffset)
-    ctx.lineTo(colX + cellSize, yOffset + gridHeight)
-    ctx.moveTo(xOffset, rowY)
-    ctx.lineTo(xOffset + gridWidth, rowY)
-    ctx.moveTo(xOffset, rowY + cellSize)
-    ctx.lineTo(xOffset + gridWidth, rowY + cellSize)
-    ctx.stroke()
-    ctx.restore()
+    const hoveredCell = plot.hover.data
+    if (hoveredCell) drawMatrixCrosshair(ctx, layout, hoveredCell)
   }
 
   const plot = usePlot<{ row: number; col: number }>({
@@ -75,8 +50,15 @@
     height: () => height,
     margins: () => margins,
     dpiOverride: () => dpiOverride,
-    deps: () => [result, labels, methodLabel, placeholderMessage],
-    placeholder: () => placeholderMessage,
+    deps: () => [result, labels, methodLabel, result.noMetric],
+    placeholder: () =>
+      result.noMetric || labels.length < 2 ? METRIC_MISSING_MULTI_MESSAGE : null,
+    fit: () =>
+      layout.cellSize >= MIN_LEGIBLE_SPLOM_CELL_SIZE
+        ? null
+        : cannotFitPlaceholder('size', [
+            'Select fewer metrics in Plot Settings > Metrics',
+          ]),
     gutters: () => ({}),
     clipData: false,
     drawData: (ctx) => {
@@ -94,34 +76,8 @@
       })
     },
     hitTest: computeHit,
-    onHoverChange: (hit) => {
-      const cell = hit?.data ?? null
-      const changed =
-        (cell?.row ?? null) !== (hoveredCell?.row ?? null) ||
-        (cell?.col ?? null) !== (hoveredCell?.col ?? null)
-      hoveredCell = cell
-      return changed
-    },
     drawOverlay: drawHoverCrosshair,
     blockedRegions: () => blockedRegions,
-  })
-
-  const canRender = $derived.by(
-    () => labels.length < 2 || layout.cellSize >= MIN_LEGIBLE_SPLOM_CELL_SIZE
-  )
-
-  const placeholderMessage = $derived.by(() => {
-    if (result.noMetric || labels.length < 2) return METRIC_MISSING_MULTI_MESSAGE
-    if (!canRender) {
-      return {
-        message: PLOT_CANNOT_FIT_SIZE_MESSAGE,
-        steps: [
-          'Extend the width or height of the plot',
-          'Select fewer metrics in Plot Settings > Metrics',
-        ],
-      }
-    }
-    return null
   })
 
   const labels = $derived(result.metrics.map(m => m.label))
@@ -272,13 +228,12 @@
   })
 
   function computeHit(mx: number, my: number): FrameHit<{ row: number; col: number }> | null {
+    const hitCell = matrixCellAt(layout, mx, my, labels.length)
+    if (!hitCell) return null
+    const { row, col } = hitCell
     const { xOffset, yOffset, cellSize } = layout
-    const col = Math.floor((mx - xOffset) / cellSize)
-    const row = Math.floor((my - yOffset) / cellSize)
-    const size = labels.length
-    if (row < 0 || row >= size || col < 0 || col >= size) return null
 
-    const cell = result.cells[row * size + col]
+    const cell = result.cells[row * labels.length + col]
     return {
       tooltipId: 'metric-correlation-tooltip',
       content: [
@@ -292,7 +247,7 @@
       offset: { x: 10, y: 0 },
       tooltipWidth: 220,
       cursor: 'crosshair',
-      data: { row, col },
+      data: hitCell,
     }
   }
 </script>

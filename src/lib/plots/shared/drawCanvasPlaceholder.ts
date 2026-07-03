@@ -12,6 +12,30 @@ export const PLOT_CANNOT_FIT_HEIGHT_MESSAGE = 'The plot cannot fit the current h
 export const PLOT_CANNOT_FIT_WIDTH_MESSAGE = 'The plot cannot fit the current width. Either:'
 export const PLOT_CANNOT_FIT_SIZE_MESSAGE = 'The plot cannot fit the current size. Either:'
 
+export type PlotPlaceholderContent = string | { message: string; steps?: string[] }
+
+/**
+ * Standard cannot-fit placeholder for `usePlot`'s `fit` guard: the axis picks
+ * the message and the "extend the plot" first step; `extraSteps` add the
+ * plot-specific remedies (merge AOIs, reduce participants, ...).
+ */
+export function cannotFitPlaceholder(
+  axis: 'width' | 'height' | 'size',
+  extraSteps: string[] = []
+): PlotPlaceholderContent {
+  const message =
+    axis === 'width'
+      ? PLOT_CANNOT_FIT_WIDTH_MESSAGE
+      : axis === 'height'
+        ? PLOT_CANNOT_FIT_HEIGHT_MESSAGE
+        : PLOT_CANNOT_FIT_SIZE_MESSAGE
+  const firstStep =
+    axis === 'size'
+      ? 'Extend the width or height of the plot'
+      : `Extend the ${axis} of the plot`
+  return { message, steps: [firstStep, ...extraSteps] }
+}
+
 /**
  * Paints a centered warning card/box with rounded corners (20px) and a warning triangle icon onto the canvas.
  * Used for all plot empty states, metrics missing, or layout failure placeholders.

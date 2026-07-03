@@ -21,8 +21,7 @@
   import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
   import {
     METRIC_MISSING_MESSAGE,
-    PLOT_CANNOT_FIT_HEIGHT_MESSAGE,
-    PLOT_CANNOT_FIT_WIDTH_MESSAGE,
+    cannotFitPlaceholder,
   } from '$lib/plots/shared/drawCanvasPlaceholder'
   import type { StatisticalOverlayType, BarPlotDataItem } from '$lib/plots/bar/types'
   import {
@@ -84,10 +83,6 @@
   const isVertical = $derived(barPlottingType === 'vertical')
   const niceTicks = $derived(timeline.ticks.filter(t => t.isNice))
 
-  // State
-  let hoveredBarIndex = $state<number | null>(null)
-  let mouseValuePx = $state<number | null>(null)
-
   const categoryLabelHeight = $derived.by(() => {
     let max = 0
     for (const d of data) {
@@ -132,8 +127,20 @@
     height: () => height,
     margins: () => margins,
     dpiOverride: () => dpiOverride,
-    deps: () => [data, timeline, axisLabel, barPlottingType, barWidth, barSpacing, statisticalOverlay, noMetric, proportion, placeholderMessage],
-    placeholder: () => placeholderMessage,
+    deps: () => [data, timeline, axisLabel, barPlottingType, barWidth, barSpacing, statisticalOverlay, noMetric, proportion],
+    placeholder: () => (noMetric ? METRIC_MISSING_MESSAGE : null),
+    fit: frame => {
+      if (data.length === 0) return null
+      const minBarWidth = 12
+      const minSpacing = 4
+      const gaps = Math.max(1, data.length - 1)
+      const availableSpace = isVertical ? frame.width : frame.height
+      const usableSpace = Math.max(0, availableSpace - BAR_SPACING_TOLERANCE * 2)
+      if (usableSpace >= data.length * minBarWidth + gaps * minSpacing) return null
+      return cannotFitPlaceholder(isVertical ? 'width' : 'height', [
+        'Merge some AOIs in Plot Settings > Areas of Interest',
+      ])
+    },
     gutters: () =>
       isVertical
         ? {
@@ -156,53 +163,8 @@
     },
     drawOverlay: drawCrosshairHighlight,
     hitTest: computeHit,
-    onHoverChange: (hit) => {
-      const next = hit?.data ?? null
-      const changed = (next?.barIndex ?? null) !== hoveredBarIndex
-      hoveredBarIndex = next?.barIndex ?? null
-      mouseValuePx = next?.valuePx ?? null
-      if (changed) onDataHover(next ? data[next.barIndex] : null)
-      return true
-    },
-  })
-
-  const canRender = $derived.by(() => {
-    if (data.length === 0) return true
-    const minBarWidth = 12
-    const minSpacing = 4
-    const gaps = Math.max(1, data.length - 1)
-
-    const f = plot.frame
-    const plotW = f.width
-    const plotH = f.height
-    const availableSpace = isVertical ? plotW : plotH
-
-    const usableSpace = Math.max(0, availableSpace - BAR_SPACING_TOLERANCE * 2)
-    const requiredUsableSpace = data.length * minBarWidth + gaps * minSpacing
-    return usableSpace >= requiredUsableSpace
-  })
-
-  const placeholderMessage = $derived.by(() => {
-    if (noMetric) return METRIC_MISSING_MESSAGE
-    if (canRender) return null
-
-    if (isVertical) {
-      return {
-        message: PLOT_CANNOT_FIT_WIDTH_MESSAGE,
-        steps: [
-          'Extend the width of the plot',
-          'Merge some AOIs in Plot Settings > Areas of Interest',
-        ],
-      }
-    } else {
-      return {
-        message: PLOT_CANNOT_FIT_HEIGHT_MESSAGE,
-        steps: [
-          'Extend the height of the plot',
-          'Merge some AOIs in Plot Settings > Areas of Interest',
-        ],
-      }
-    }
+    hoverKey: d => d.barIndex,
+    onHover: d => onDataHover(d ? data[d.barIndex] : null),
   })
 
   // --- Geometry derived from the resolved data rect ---
@@ -333,7 +295,9 @@
   }
 
   function drawCrosshairHighlight(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
-    if (hoveredBarIndex === null || mouseValuePx === null) return
+    const hovered = plot.hover.data
+    if (hovered === null) return
+    const { barIndex: hoveredBarIndex, valuePx: mouseValuePx } = hovered
     const item = geom.rendererLayout.items[hoveredBarIndex]
     if (!item) return
     const { x: plotLeft, y: plotTop, width: plotWidth, height: plotHeight } = frame

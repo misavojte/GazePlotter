@@ -29,7 +29,7 @@
     getXAxisLabelOffset,
     maxAxisTitleHeight,
     PLOT_LEGEND_GAP,
-    PLOT_CANNOT_FIT_HEIGHT_MESSAGE,
+    cannotFitPlaceholder,
   } from '$lib/plots/shared'
   import { onDestroy } from 'svelte'
   import { measureTextHeight } from '$lib/shared/utils/textUtils'
@@ -202,9 +202,10 @@
       data, settings, totalWidth, totalHeight, highlights, usedHighlights,
       width, height, dpiOverride,
       margins.left, margins.right, effectiveMarginTop, margins.bottom,
-      placeholderMessage,
     ],
-    placeholder: () => placeholderMessage,
+    // Scarf owns its layout (gutters are scaffold-only), so the fit verdict is
+    // computed against its own layout math rather than the resolved frame.
+    fit: () => placeholderMessage,
     gutters: () => ({}),
     clipData: false,
     drawData: renderScarf,
@@ -321,20 +322,17 @@
 
     const showingEvents = hasEvents && !settings.hideEvents
     const showingNonFixations = hasNonFixations && !settings.hideNonFixations
-    const canHideSomething = showingEvents || showingNonFixations
 
-    const message = PLOT_CANNOT_FIT_HEIGHT_MESSAGE
-    const steps = ['Extend the height of the plot']
-
+    const extraSteps: string[] = []
     if (showingEvents && showingNonFixations) {
-      steps.push('Hide non-fixations or events in Plot Settings > Visualisation')
+      extraSteps.push('Hide non-fixations or events in Plot Settings > Visualisation')
     } else if (showingEvents) {
-      steps.push('Hide events in Plot Settings > Visualisation')
+      extraSteps.push('Hide events in Plot Settings > Visualisation')
     } else if (showingNonFixations) {
-      steps.push('Hide non-fixations in Plot Settings > Visualisation')
+      extraSteps.push('Hide non-fixations in Plot Settings > Visualisation')
     }
 
-    return { message, steps }
+    return cannotFitPlaceholder('height', extraSteps)
   })
 
   const visualEventBuckets = $derived(data.visualEventBuckets)

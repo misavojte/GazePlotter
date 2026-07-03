@@ -2,7 +2,7 @@
   import { getColorForValue } from '$lib/color'
   import {
     METRIC_MISSING_MESSAGE,
-    PLOT_CANNOT_FIT_SIZE_MESSAGE,
+    cannotFitPlaceholder,
   } from '$lib/plots/shared/drawCanvasPlaceholder'
   import { SIMILARITY_MATRIX_LAYOUT } from '../const'
   import { computeSimilarityMatrixLayout } from '../core/layout'
@@ -13,6 +13,8 @@
     usePlot,
     NO_MARGINS,
     renderMatrixContent,
+    drawMatrixCrosshair,
+    matrixCellAt,
     canvasBlockSelect,
     MATRIX_LEGEND_GAP,
     MIN_LEGIBLE_CELL_SIZE,
@@ -48,36 +50,9 @@
     margins = NO_MARGINS,
   }: Props = $props()
 
-  let hoveredCell = $state<{ row: number; col: number } | null>(null)
-
   function drawHoverCrosshair(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
-    if (!hoveredCell) return
-    const { xOffset, yOffset, cellSize, gridWidth, gridHeight } = layout
-    const colX = xOffset + hoveredCell.col * cellSize
-    const rowY = yOffset + hoveredCell.row * cellSize
-
-    ctx.save()
-    ctx.globalAlpha = 0.18
-    ctx.fillStyle = '#007acc'
-    ctx.fillRect(colX, yOffset, cellSize, gridHeight)
-    ctx.fillRect(xOffset, rowY, gridWidth, cellSize)
-    ctx.restore()
-
-    ctx.save()
-    ctx.strokeStyle = '#007acc'
-    ctx.lineWidth = 1
-    ctx.setLineDash([2, 2])
-    ctx.beginPath()
-    ctx.moveTo(colX, yOffset)
-    ctx.lineTo(colX, yOffset + gridHeight)
-    ctx.moveTo(colX + cellSize, yOffset)
-    ctx.lineTo(colX + cellSize, yOffset + gridHeight)
-    ctx.moveTo(xOffset, rowY)
-    ctx.lineTo(xOffset + gridWidth, rowY)
-    ctx.moveTo(xOffset, rowY + cellSize)
-    ctx.lineTo(xOffset + gridWidth, rowY + cellSize)
-    ctx.stroke()
-    ctx.restore()
+    const hoveredCell = plot.hover.data
+    if (hoveredCell) drawMatrixCrosshair(ctx, layout, hoveredCell)
   }
 
   const plot = usePlot<{ row: number; col: number }>({
@@ -85,8 +60,21 @@
     height: () => height,
     margins: () => margins,
     dpiOverride: () => dpiOverride,
-    deps: () => [matrix, labels, colorScale, colorValueRange, legendTitle, placeholderMessage],
-    placeholder: () => placeholderMessage,
+    deps: () => [matrix, labels, colorScale, colorValueRange, legendTitle, noMetric],
+    // noMetric (resolution failed) takes priority over empty data, since the
+    // user's first action is fixing the metric, not the data.
+    placeholder: () =>
+      noMetric
+        ? METRIC_MISSING_MESSAGE
+        : labels.length === 0
+          ? 'No participant data available'
+          : null,
+    fit: () =>
+      layout.cellSize >= MIN_LEGIBLE_CELL_SIZE
+        ? null
+        : cannotFitPlaceholder('size', [
+            'Reduce the number of participants in Plot Settings > Participant group',
+          ]),
     gutters: () => ({}),
     clipData: false,
     drawData: (ctx) => {
@@ -100,37 +88,8 @@
       drawLegend(ctx)
     },
     hitTest: computeHit,
-    onHoverChange: (hit) => {
-      const cell = hit?.data ?? null
-      const changed =
-        (cell?.row ?? null) !== (hoveredCell?.row ?? null) ||
-        (cell?.col ?? null) !== (hoveredCell?.col ?? null)
-      hoveredCell = cell
-      return changed
-    },
     drawOverlay: drawHoverCrosshair,
     blockedRegions: () => blockedRegions,
-  })
-
-  const canRender = $derived.by(
-    () => labels.length === 0 || layout.cellSize >= MIN_LEGIBLE_CELL_SIZE
-  )
-
-  const placeholderMessage = $derived.by(() => {
-    // noMetric (resolution failed) takes priority over empty data, since the
-    // user's first action is fixing the metric, not the data.
-    if (noMetric) return METRIC_MISSING_MESSAGE
-    if (labels.length === 0) return 'No participant data available'
-    if (!canRender) {
-      return {
-        message: PLOT_CANNOT_FIT_SIZE_MESSAGE,
-        steps: [
-          'Extend the width or height of the plot',
-          'Reduce the number of participants in Plot Settings > Participant group',
-        ],
-      }
-    }
-    return null
   })
 
   const effectiveMaxValue = $derived.by(() => {
@@ -217,13 +176,12 @@
   }
 
   function computeHit(mx: number, my: number): FrameHit<{ row: number; col: number }> | null {
+    const cell = matrixCellAt(layout, mx, my, labels.length)
+    if (!cell) return null
+    const { row, col } = cell
     const { xOffset, yOffset, cellSize } = layout
-    const col = Math.floor((mx - xOffset) / cellSize)
-    const row = Math.floor((my - yOffset) / cellSize)
-    const size = labels.length
-    if (row < 0 || row >= size || col < 0 || col >= size) return null
 
-    const value = matrix[row * size + col] ?? 0
+    const value = matrix[row * labels.length + col] ?? 0
     return {
       tooltipId: 'similarity-matrix-tooltip',
       content: [
@@ -236,7 +194,7 @@
       offset: { x: 10, y: 10 },
       tooltipWidth: 160,
       cursor: 'crosshair',
-      data: { row, col },
+      data: cell,
     }
   }
 </script>
