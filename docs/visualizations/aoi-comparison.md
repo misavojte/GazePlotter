@@ -4,13 +4,7 @@ AOI Comparison in GazePlotter provides quantitative analysis of eye-tracking dat
 
 ![AOI Comparison showing aggregated AOI metrics for a selected stimulus.](/docs/images/eyetracking-bar-plot-gazeplotter.jpg)
 
-> Interested on how to operate with plots in general within the workspace? See:
->
-> - [How to move a plot around workspace?](/docs/setup/workspace/#moving-a-plot)
-> - [How to resize a plot?](/docs/setup/workspace/#resizing-a-plot)
-> - [How to duplicate a plot?](/docs/setup/workspace/#duplicating-a-plot)
-> - [How to add a new plot?](/docs/setup/workspace/#adding-visualizations)
-> - [How to remove a plot?](/docs/setup/workspace/#removing-a-plot)
+> **Plot Operations**: For general canvas operations (moving, resizing, duplicating, or removing plots), see [Plot Manipulation](/docs/workspace/#plot-manipulation).
 
 ## Metric Contract
 
@@ -21,19 +15,19 @@ To render an AOI Comparison plot, GazePlotter queries the workspace's metric lib
 
 > **Metrics Documentation**: For details on how these raw metrics are calculated, see [Dwell Time & Fixation Durations](/docs/metrics/durations) and [Fixation Counts & Latency](/docs/metrics/counts-latency).
 
-## Configuration via Settings Pane
+## Configuration via Pane
 
-Clicking the AOI Comparison plot card in the workspace selects the plot and opens its configuration options in the sidebar **Settings Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
+Clicking the AOI Comparison plot card in the workspace selects the plot and opens its configuration options in the sidebar **Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
 
 ### Stimulus
 Choose the stimulus to analyze. Each stimulus contains its own set of Areas of Interest (AOIs) which will be displayed as bars in the chart.
-- **Edit stimulus library…**: Opens the Stimuli Modification modal to manage stimulus files and dimensions.
+- **Edit stimulus library…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files.
 
 ### Participant group
 Filter the eye-tracking data by group or individual participant.
 - **Select group**: A dropdown containing *All participants* and any custom participant groups defined.
-- **Edit groups…**: Opens the Participant Groups modal to create or modify comparative groups.
-- **Edit participants…**: Opens the Participant Modification modal to customize participant properties and metadata.
+- **Edit groups…**: Opens the [Participant Groups](/docs/workspace/participant-groups/) editor to manage cohort comparison sets.
+- **Edit participants…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename or reorder participants.
 
 ### Metric
 Configure the quantitative metric displayed on the value axis.
@@ -68,17 +62,12 @@ Filter the temporal range from which fixations and saccades are fetched.
 
 ### Areas of Interest
 Filters which Areas of Interest (AOIs) are rendered in the bar chart.
-- **Configure AOI Library…**: Opens the AOI Modification modal to add, remove, rename, or color-code AOIs.
+- **Configure AOI Library…**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, and visibility.
 
 ### Export
-Located at the bottom of the Settings Pane:
-- **Download plot…**: Opens the export modal to download the bar plot.
-  - *File formats*: PNG (transparent background) or JPG (white background).
-  - *Dimensions*: Customizable width (height maintains a 5:3 aspect ratio).
-  - *Quality*: Adjustable DPI setting.
-  - *Margins*: Configurable top, right, bottom, left margins.
-  - *Preview*: Live render of the output before saving.
-- **Export Data**: To export raw statistical values in CSV format for R, Python, SPSS, or other analytical software, see the [Metric Data Export](/docs/export/metric-data/) documentation.
+Located at the bottom of the Pane:
+- **Download plot…**: Opens the [Figure Export](/docs/export/figures/) dialog to save the bar plot as a PNG or JPG.
+- **Export Data**: To export raw statistical values as CSV, see [Metric Data Export](/docs/export/metric-data/).
 
 ## Interpretation
 
@@ -86,4 +75,4 @@ Use AOI Comparison to:
 - **Compare AOI performance**: Identify which areas attract most/least attention.
 - **Quantify differences**: Obtain precise measurements rather than visual estimates.
 - **Perform group comparisons**: Analyze how different participant groups behave comparative to each other.
-- **Conduct statistical analysis**: Export exact computed metric values per participant for further processing.
+- **Conduct statistical analysis**: Export exact computed metric values per participant for further processing.

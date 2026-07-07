@@ -4,7 +4,7 @@ Participant groups let you organize participants into sets for comparison across
 
 ## Opening the editor
 
-1. Select a plot to open its [Settings Pane](/docs/visualizations/#configuration-and-settings-pane).
+1. Select a plot to open its [Pane](/docs/visualizations/#visualization-configuration-pane).
 2. In the **Participant group** section, click **Edit groups…**.
 
 ## Managing groups

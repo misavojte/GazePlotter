@@ -1,19 +1,8 @@
----
-title: Recurrence Plot
-order: 6
----
-
 # Recurrence Plot
 
 The Recurrence Plot (RP) in GazePlotter reveals temporal self-similarity in a single participant's fixation sequence. Each cell in the N×N matrix encodes whether two fixations (at indices i and j) landed in the same spatial region.
 
-> Interested on how to operate with plots in general within the workspace? See:
->
-> - [How to move a plot around workspace?](/docs/setup/workspace/#moving-a-plot)
-> - [How to resize a plot?](/docs/setup/workspace/#resizing-a-plot)
-> - [How to duplicate a plot?](/docs/setup/workspace/#duplicating-a-plot)
-> - [How to add a new plot?](/docs/setup/workspace/#adding-visualizations)
-> - [How to remove a plot?](/docs/setup/workspace/#removing-a-plot)
+> **Plot Operations**: For general canvas operations (moving, resizing, duplicating, or removing plots), see [Plot Manipulation](/docs/workspace/#plot-manipulation).
 
 - **Metric Contract**: This visualization computes recurrence patterns directly from the participant's fixation sequence and does not consume metrics from the Metric Library.
 
@@ -31,17 +20,17 @@ Interpretation of line structures in a recurrence plot is axis-convention-depend
 
 All directional terms in this document refer to this visual layout.
 
-## Configuration via Settings Pane
+## Configuration via Pane
 
-Clicking the Recurrence Plot card in the workspace selects the plot and opens its configuration options in the sidebar **Settings Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
+Clicking the Recurrence Plot card in the workspace selects the plot and opens its configuration options in the sidebar **Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
 
 ### Stimulus
 Choose the stimulus to analyze. Only fixations recorded for that stimulus are included.
-- **Edit stimulus library…**: Opens the Stimuli Modification modal to manage stimulus files and dimensions.
+- **Edit stimulus library…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files.
 
 ### Participant
 Select which participant's fixation sequence to analyze. The recurrence plot operates on a single participant at a time. The fixation index order follows the temporal order of recorded fixations for the selected stimulus.
-- **Edit participants…**: Opens the Participant Modification modal to customize participant properties and metadata.
+- **Edit participants…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename or reorder participants.
 
 ### Method
 Configure the criteria and rules used to decide whether two fixations are recurrent.
@@ -75,16 +64,11 @@ Filter the temporal range of fixations.
 
 ### Areas of Interest
 Filters which Areas of Interest (AOIs) are active when using the *AOI* recurrence method.
-- **Configure AOI Library…**: Opens the AOI Modification modal to add, remove, rename, or color-code AOIs.
+- **Configure AOI Library…**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, and visibility.
 
 ### Export
-Located at the bottom of the Settings Pane:
-- **Download plot…**: Opens the export modal to download the plot.
-  - *File formats*: PNG (transparent background) or JPG (white background).
-  - *Dimensions*: Customizable width (height maintained as square).
-  - *Quality*: Adjustable DPI setting.
-  - *Margins*: Configurable margins.
-  - *Preview*: Live render of the output before saving.
+Located at the bottom of the Pane:
+- **Download plot…**: Opens the [Figure Export](/docs/export/figures/) dialog to save the recurrence plot as a PNG or JPG.
 
 ## Interpretation
 
@@ -98,4 +82,4 @@ Located at the bottom of the Settings Pane:
 | **Recurrences spread far from the diagonal** | Long-range recurrence — the participant returned to the same regions after long intervals. |
 | **Visible block structure** | Distinct fixation phases, each confined to a different spatial region. Block boundaries mark transitions between phases. |
 
-> **Axis convention reminder**: All directional descriptions above assume GazePlotter's convention: Fixation i on the y-axis increasing upward, Fixation j on the x-axis increasing rightward. The main diagonal runs bottom-left to top-right.
+> **Axis convention reminder**: All directional descriptions above assume GazePlotter's convention: Fixation i on the y-axis increasing upward, Fixation j on the x-axis increasing rightward. The main diagonal runs bottom-left to top-right.

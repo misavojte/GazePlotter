@@ -6,7 +6,7 @@ More about the dev & build process of the main app can be found in the [App dev 
 
 ## File Locations
 
-- **Content files**: All documentation pages are located in the `docs/` directory at the root of the project (e.g., `docs/setup/workspace.md`).
+- **Content files**: All documentation pages are located in the `docs/` directory at the root of the project (e.g., `docs/workspace/index.md`).
 - **Sidebar Configuration**: The sidebar menu and descriptions are managed in `src/routes/docs/sidebarConfig.ts`.
 - **Routing**: SvelteKit dynamic routing is configured in `src/routes/docs/[...slug]`.
 

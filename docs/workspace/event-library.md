@@ -1,8 +1,3 @@
----
-title: Event Library
-order: 9
----
-
 # Event Library
 
 The Event Library controls the display names, colors, order, and visibility of event channels. Channels are defined per stimulus.
@@ -11,14 +6,14 @@ For how to upload event data, see [Event Data](/docs/upload-data/events/).
 
 ## Opening the library
 
-1. Select a Scarf Plot to open its [Settings Pane](/docs/visualizations/#configuration-and-settings-pane).
+1. Select a Scarf Plot to open its [Pane](/docs/visualizations/#visualization-configuration-pane).
 2. In the **Events** section, click **Configure Event Library…**.
 
 Pick the stimulus to edit from the **For stimulus** dropdown.
 
 ## Editing channels
 
-Each channel is a row with the same controls as the [AOI Library](/docs/setup/aoi-library/):
+Each channel is a row with the same controls as the [AOI Library](/docs/workspace/aoi-library/):
 
 - **Displayed name** — Rename the channel; the original name is preserved.
 - **Color** — Set the line color.
@@ -29,7 +24,7 @@ The **Sort** and **Bulk actions** buttons above the list work the same as in the
 
 ## Grouping channels
 
-Channels that share the same **Displayed name** merge into one group. The first channel is the leader and controls the group's color and visibility. This is identical to [AOI grouping](/docs/setup/aoi-library/#grouping-aois).
+Channels that share the same **Displayed name** merge into one group. The first channel is the leader and controls the group's color and visibility. This is identical to [AOI grouping](/docs/workspace/aoi-library/#grouping-aois).
 
 ## Creating interval channels
 

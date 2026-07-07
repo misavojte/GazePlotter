@@ -6,9 +6,9 @@ The figure export renders workspace plots as publication-ready PNG or JPG images
 
 The same dialog opens from three places; they differ only in which figures are preselected.
 
-- **Export** in the workspace top bar, then **Figures (PNG, JPG)** under **Other options**: preselects all plots, or the current workspace selection if one exists. The card appears only when the workspace contains at least one plot.
-- **Download plot…** in a plot's settings pane: preselects that plot.
-- **Download plots…** in the bulk settings pane (several plots selected): preselects the selection.
+- **Export** in the workspace Ribbon, then **Figures (PNG, JPG)** under **Other options**: preselects all plots, or the current workspace selection if one exists. The card appears only when the workspace contains at least one plot.
+- **Download plot…** in a plot's pane: preselects that plot.
+- **Download plots…** in the bulk pane (several plots selected): preselects the selection.
 
 ## Choose Figures
 

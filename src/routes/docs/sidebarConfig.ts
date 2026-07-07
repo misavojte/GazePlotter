@@ -28,6 +28,12 @@ export const SIDEBAR: readonly SidebarItem[] = [
     description: 'Step-by-step introduction to GazePlotter. Learn to upload data files, manage participant groups, and configure eye-movement plots.'
   },
   {
+    name: 'Changelog',
+    href: '/docs/changelog',
+    seoTitle: 'Changelog & Version Updates',
+    description: 'Release history and updates for GazePlotter versions.'
+  },
+  {
     title: 'Uploading Data',
     links: [
       {
@@ -86,42 +92,42 @@ export const SIDEBAR: readonly SidebarItem[] = [
     ],
   },
   {
-    title: 'Workspace & Setup',
+    title: 'Workspace',
     links: [
       {
-        name: 'Overview',
-        breadcrumbName: 'Workspace & Setup',
-        href: '/docs/setup',
-        description: 'Workspace configuration guide. Learn to manage layout sections, arrange visualization panels, and configure coordinate mapping settings.'
-      },
-      {
-        name: 'Workspace',
-        href: '/docs/setup/workspace',
-        description: 'Learn to arrange, drag-and-drop, and resize visualization cards. Manages plot panels, stimulus bindings, and synchronization states.'
+        name: 'Workspace Canvas',
+        breadcrumbName: 'Workspace',
+        href: '/docs/workspace',
+        description: 'Interface layout guide. Learn to manage the visualization canvas, top ribbon, left rail, right settings pane, and configure customization libraries.'
       },
       {
         name: 'AOI Library',
-        href: '/docs/setup/aoi-library',
+        href: '/docs/workspace/aoi-library',
         description: 'Manage Areas of Interest (AOIs). Customize display names, edit color palettes, hide specific AOIs, and configure No-AOI fallback treatment.'
       },
       {
         name: 'Event Library',
-        href: '/docs/setup/event-library',
+        href: '/docs/workspace/event-library',
         description: 'Register and color-code event channels (e.g. key presses, video changes) to render overlay markers alongside gaze sequence data.'
       },
       {
+        name: 'Eye-movement Type Library',
+        href: '/docs/workspace/eye-movement-type-library',
+        description: 'Configure and customize eye-movement classification categories (such as fixations, saccades, and unclassified events).'
+      },
+      {
         name: 'Participant Groups',
-        href: '/docs/setup/participant-groups',
+        href: '/docs/workspace/participant-groups',
         description: 'Group participants by demographics, condition, or performance to enable cross-group comparisons in charts and metrics.'
       },
       {
         name: 'Participant Library',
-        href: '/docs/setup/participant-library',
+        href: '/docs/workspace/participant-library',
         description: 'Manage participant records. Rename participant IDs individually or in bulk using regex patterns, and reorder or sort the active participant sequence.'
       },
       {
         name: 'Stimuli Library',
-        href: '/docs/setup/stimuli-library',
+        href: '/docs/workspace/stimuli-library',
         description: 'Manage stimulus display records. Rename stimulus labels individually or in bulk using regex patterns, and reorder or sort the active stimulus sequence.'
       },
     ],

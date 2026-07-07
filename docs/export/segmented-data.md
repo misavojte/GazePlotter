@@ -28,7 +28,7 @@ Segmented Data Export writes raw, row-level gaze segments as CSV — for spreads
 
 The modal guides you through collapsible steps, one open at a time; every collapsed step shows a one-line summary of its selection.
 
-1. Click **Export** in the workspace top bar.
+1. Click **Export** in the workspace Ribbon.
 2. Under **Other options**, click the **Segmented Data (CSV)** card.
 3. Choose the **Stimuli**, **Participants**, and **Eye-movement types**, then configure the file options above.
 4. Click **Export Data**.

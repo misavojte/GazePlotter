@@ -14,9 +14,9 @@ const mockSections: readonly SidebarItem[] = [
   {
     title: 'Workspace & Setup',
     links: [
-      { name: 'Overview', breadcrumbName: 'Workspace & Setup', href: '/docs/setup' },
-      { name: 'Analysis', href: '/docs/setup/analysis' },
-      { name: 'Workspace', href: '/docs/setup/workspace' }
+      { name: 'Overview', breadcrumbName: 'Workspace & Setup', href: '/docs/workspace' },
+      { name: 'Analysis', href: '/docs/workspace/analysis' },
+      { name: 'Workspace', href: '/docs/workspace/workspace' }
     ]
   }
 
@@ -27,35 +27,35 @@ const allLinks: readonly SidebarLink[] = mockSections.flatMap(item => 'links' in
 describe('docs navigation helpers', () => {
   it('normalizes docs paths', () => {
     expect(normalizeDocPath('/docs/')).toBe('/docs')
-    expect(normalizeDocPath('/docs/setup/')).toBe('/docs/setup')
+    expect(normalizeDocPath('/docs/workspace/')).toBe('/docs/workspace')
     expect(normalizeDocPath('/')).toBe('/')
   })
 
   it('derives breadcrumbs correctly', () => {
-    const breadcrumbs = buildDocBreadcrumbs('/docs/setup/workspace', mockSections)
+    const breadcrumbs = buildDocBreadcrumbs('/docs/workspace/workspace', mockSections)
     
     expect(breadcrumbs).toEqual([
       { name: 'GazePlotter', href: '/' },
       { name: 'Docs', href: '/docs' },
-      { name: 'Workspace & Setup', href: '/docs/setup' },
-      { name: 'Workspace', href: '/docs/setup/workspace' },
+      { name: 'Workspace & Setup', href: '/docs/workspace' },
+      { name: 'Workspace', href: '/docs/workspace/workspace' },
     ])
   })
 
   it('finds prev-next links correctly', () => {
-    const { prev, next } = getPrevNextLinks('/docs/setup/analysis', allLinks)
+    const { prev, next } = getPrevNextLinks('/docs/workspace/analysis', allLinks)
     
-    expect(prev?.href).toBe('/docs/setup')
-    expect(next?.href).toBe('/docs/setup/workspace')
+    expect(prev?.href).toBe('/docs/workspace')
+    expect(next?.href).toBe('/docs/workspace/workspace')
   })
 
   it('handles start and end of links for prev-next', () => {
     const first = getPrevNextLinks('/docs', allLinks)
     expect(first.prev).toBeNull()
-    expect(first.next?.href).toBe('/docs/setup')
+    expect(first.next?.href).toBe('/docs/workspace')
 
-    const last = getPrevNextLinks('/docs/setup/workspace', allLinks)
-    expect(last.prev?.href).toBe('/docs/setup/analysis')
+    const last = getPrevNextLinks('/docs/workspace/workspace', allLinks)
+    expect(last.prev?.href).toBe('/docs/workspace/analysis')
     expect(last.next).toBeNull()
   })
 })

@@ -4,7 +4,7 @@ The Stimuli Library renames stimuli and sets their order across all plots and dr
 
 ## Opening the library
 
-1. Select a plot to open its [Settings Pane](/docs/visualizations/#configuration-and-settings-pane).
+1. Select a plot to open its [Pane](/docs/visualizations/#visualization-configuration-pane).
 2. In the **Stimulus** section, click **Edit stimulus library…**.
 
 ## Editing stimuli
@@ -16,7 +16,7 @@ Each stimulus is a row showing its original name and an editable **Displayed nam
 
 ## Pattern renaming
 
-For systematic renames, use **Bulk actions → Rename items…**. It finds a regular expression in the displayed names and replaces every match. The wildcard buttons append common tokens (`\d+`, `\s`, `[A-Za-z]`, `.`). For a full walkthrough, see [Pattern renaming](/docs/setup/participant-library/#pattern-renaming).
+For systematic renames, use **Bulk actions → Rename items…**. It finds a regular expression in the displayed names and replaces every match. The wildcard buttons append common tokens (`\d+`, `\s`, `[A-Za-z]`, `.`). For a full walkthrough, see [Pattern renaming](/docs/workspace/participant-library/#pattern-renaming).
 
 Example: turn `SMI Base` into `Base` with pattern `SMI\s` and an empty replacement.
 

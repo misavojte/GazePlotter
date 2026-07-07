@@ -11,7 +11,7 @@ ScanGraph Export writes fixation sequences as letter-coded strings in a `.txt` f
 
 ## Exporting
 
-1. Click **Export** in the workspace top bar.
+1. Click **Export** in the workspace Ribbon.
 2. Under **Other options**, click the **ScanGraph Format** card.
 3. Select the **Stimulus**.
 4. Click **Export ScanGraph**.

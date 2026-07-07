@@ -1,8 +1,3 @@
----
-title: Scanpath Similarity
-order: 6
----
-
 # Scanpath Similarity
 
 Scanpath similarity metrics quantify the spatial and temporal similarity between the gaze trajectories of different participants. In GazePlotter, this comparison is computed pairwise, representing the alignment of scanpaths across the entire group.
@@ -21,7 +16,7 @@ You can pass the matrix through directly to analyze the similarity relationships
 
 ### Invariants
 - **Measurement class**: Group-level. The result is inherently a property of a *pair* of participants, where both the row and column axes are the participants themselves. There is no per-participant value to combine across the group — the matrix is already the across-participant result, so no further aggregation applies.
-- **Windowing**: Forbidden (`supportsWindowing: false`). Sliding-window projections are not supported. However, cropping by a Time of Interest (using `timeStart` and `timeEnd` bounds in the Settings Pane) is supported; fixations are encoded into the scanpath string only if their onset falls within the range.
+- **Windowing**: Forbidden (`supportsWindowing: false`). Sliding-window projections are not supported. However, cropping by a Time of Interest (using `timeStart` and `timeEnd` bounds in the Pane) is supported; fixations are encoded into the scanpath string only if their onset falls within the range.
 
 ---
 

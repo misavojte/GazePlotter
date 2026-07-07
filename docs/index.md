@@ -4,8 +4,6 @@ GazePlotter is a free online tool for eye-tracking data analysis and visualizati
 
 Whether you're a researcher analyzing attention patterns, a student learning about eye-tracking methodology, or a professional presenting gaze data insights, GazePlotter provides tools that work entirely in your browser without installing any other software.
 
-> **New in 1.9.0**: A redesigned workspace — [select one or more plots](/docs/setup/workspace) to move, resize, or change their stimulus, participant group, and other settings together. New visualizations: [Recurrence Plot](/docs/visualizations/recurrence-plot), [Scanpath](/docs/visualizations/scanpath), [Scanpath Similarity](/docs/visualizations/scanpath-similarity), [Metric Timeline](/docs/visualizations/metric-timeline), and [Metric Correlation](/docs/visualizations/metric-correlation). A reusable [Metrics Library](/docs/metrics), [event files and channels](/docs/upload-data/events) with an [Event Library](/docs/setup/event-library), and [event occurrence export](/docs/export). Saved workspaces from earlier versions open automatically.
-
 ## Analysis Suite
 
 ### Multiple Visualization Types
@@ -31,9 +29,9 @@ Whether you're a researcher analyzing attention patterns, a student learning abo
 
 ### Workspace Management
 
-- **[Workspace Operations](/docs/setup/workspace)** - Add, duplicate, move, and resize plots with drag-and-drop functionality.
-- **[Participant Groups](/docs/setup/participant-groups)** - Comparative analysis between different participant groups.
-- **[AOI Library](/docs/setup/aoi-library)** - Full control over colors, names, and visual properties.
+- **[Workspace Operations](/docs/workspace)** - Add, duplicate, move, and resize plots with drag-and-drop functionality.
+- **[Participant Groups](/docs/workspace/participant-groups)** - Comparative analysis between different participant groups.
+- **[AOI Library](/docs/workspace/aoi-library)** - Full control over colors, names, and visual properties.
 
 ### Universal Data Compatibility
 
@@ -64,7 +62,7 @@ GazePlotter supports data from all major eye-tracking platforms:
 Ready to visualize your eye-tracking data? Choose your path:
 
 - **New to GazePlotter?** Start by [uploading your data](/docs/upload-data) to configure your first visualization.
-- **Ready to analyze?** Explore [Workspace & Setup overview](/docs/setup) to learn about workspace setup and custom participant groups.
+- **Ready to analyze?** Explore [Workspace & Setup overview](/docs/workspace) to learn about workspace setup and custom participant groups.
 - **Want to calculate metrics?** Learn how to customize calculations using the [Metrics Library](/docs/metrics) to define durations, counts, transitions, and sequence alignments.
 - **Ready to visualize?** Review our full list of [Eye-tracking Visualizations](/docs/visualizations) to configure plot options.
 - **Need to export?** Check out [export options](/docs/export) for workspaces, segmented data, events, or metric tables.

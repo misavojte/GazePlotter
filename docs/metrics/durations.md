@@ -1,8 +1,3 @@
----
-title: Dwell Time & Fixation Durations
-order: 2
----
-
 # Dwell Time & Fixation Durations
 
 Duration-based metrics capture the temporal aspect of attention, measuring how long a participant's gaze remained focused on particular Areas of Interest (AOIs) or the stimulus as a whole. The central measure is dwell time (also called total fixation duration or glance duration), complemented by relative and per-fixation duration variants.

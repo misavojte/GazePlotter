@@ -4,7 +4,7 @@ The AOI Library controls the display names, colors, order, and visibility of Are
 
 ## Opening the library
 
-1. Select a plot to open its [Settings Pane](/docs/visualizations/#configuration-and-settings-pane).
+1. Select a plot to open its [Pane](/docs/visualizations/#visualization-configuration-pane).
 2. In the **Areas of Interest** section, click **Configure AOI Library…**.
 
 ## Choosing the stimulus
@@ -23,7 +23,7 @@ Each AOI is a row with these controls:
 Two buttons sit above the list:
 
 - **Sort** — Order rows by original or displayed name, ascending or descending (natural ordering, so `AOI-2` comes before `AOI-10`).
-- **Bulk actions** — **Rename items…** (regex find-and-replace on displayed names) and **Change visibility…** (show or hide all AOIs matching a pattern). See [Pattern renaming](/docs/setup/participant-library/#pattern-renaming) for how the regex flyout works.
+- **Bulk actions** — **Rename items…** (regex find-and-replace on displayed names) and **Change visibility…** (show or hide all AOIs matching a pattern). See [Pattern renaming](/docs/workspace/participant-library/#pattern-renaming) for how the regex flyout works.
 
 ## Grouping AOIs
 
