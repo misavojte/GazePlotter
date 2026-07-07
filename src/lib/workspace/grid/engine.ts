@@ -1,5 +1,5 @@
 import type { GridItemPosition } from './types'
-import type { AllGridTypes, GridItemLayoutUpdate } from '$lib/workspace'
+import type { GridItemLayoutUpdate } from '$lib/workspace'
 
 export function rectanglesOverlap(
   x1: number,
@@ -336,7 +336,6 @@ function resolveGroupCollisions(
 export function resolveItemPositionCollisions(
   priorityItemIds: number | number[],
   positions: GridItemPosition[],
-  _items: AllGridTypes[],
   availableColumns: number
 ): Array<{
   itemId: number

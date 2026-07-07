@@ -134,9 +134,6 @@ export interface PlotFrame {
   /** Offset (px) from the plot bottom to the bottom-axis title, past the tick
    *  labels. Pass straight to `drawXAxisLabel`. */
   bottomTitleOffset: number
-  /** Reactive mouse position (null off-canvas). */
-  mouseX: number | null
-  mouseY: number | null
 }
 
 /**
@@ -285,9 +282,6 @@ export interface UsePlotHandle<THit = unknown> {
   readonly plotBottom: number
   readonly safeWidth: number
   readonly safeHeight: number
-  readonly mouseX: number | null
-  readonly mouseY: number | null
-  readonly isOverPlotArea: boolean
   readonly setCursor: (cursor: string) => void
   createLinearProjection: (
     min: number,
@@ -577,16 +571,11 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   const safeHeight = $derived(Math.max(1, options.height()))
 
   // ---- interaction state + helpers ----
-  let mouseX = $state<number | null>(null)
-  let mouseY = $state<number | null>(null)
-  const isOverPlotArea = $derived(
-    mouseX !== null &&
-      mouseY !== null &&
-      mouseX >= plotLeft &&
-      mouseX <= plotRight &&
-      mouseY >= plotTop &&
-      mouseY <= plotBottom
-  )
+  // Plain lets: only event handlers read these. Keeping them out of $state
+  // (and out of PlotFrame) is what makes frame-derived geometry stable
+  // across mouse moves.
+  let mouseX: number | null = null
+  let mouseY: number | null = null
 
   function setCursor(cursor: string) {
     const c = canvasState.canvas
@@ -648,8 +637,6 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     ...resolved.rect,
     leftTitleOffset: resolved.leftTitleOffset,
     bottomTitleOffset: resolved.bottomTitleOffset,
-    mouseX,
-    mouseY,
   }))
 
   // ---- render: begin → placeholder → clip+marks → axes → overlay → finish ----
@@ -1046,15 +1033,6 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     },
     get safeHeight() {
       return safeHeight
-    },
-    get mouseX() {
-      return mouseX
-    },
-    get mouseY() {
-      return mouseY
-    },
-    get isOverPlotArea() {
-      return isOverPlotArea
     },
     setCursor,
     createLinearProjection,

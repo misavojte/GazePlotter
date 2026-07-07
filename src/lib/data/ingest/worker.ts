@@ -92,12 +92,22 @@ const toCloneableError = (error: unknown): Error => {
 
 const postDoneMessage = (result: IngestResult): void => {
   postProgressMessage(true)
-  // Transfer large binary buffers to avoid costly copies
-  const transferBuffers = [
-    result.data.segments.segmentBuffer.buffer,
-    result.data.segments.indexTable.buffer,
-    result.data.segments.aoiPool.buffer,
-  ]
+  // Transfer ALL large binary buffers — anything left off this list is
+  // structured-cloned (spatialBuffer alone is 2 floats per segment).
+  const { segments } = result.data
+  const transferBuffers: Transferable[] = []
+  for (const view of [
+    segments.segmentBuffer,
+    segments.indexTable,
+    segments.aoiPool,
+    segments.spatialBuffer,
+    segments.fixationIndex,
+    segments.fixationIndexTable,
+  ]) {
+    if (view && !transferBuffers.includes(view.buffer)) {
+      transferBuffers.push(view.buffer)
+    }
+  }
 
   self.postMessage({ type: 'done', result }, { transfer: transferBuffers })
 }

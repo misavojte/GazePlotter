@@ -284,12 +284,10 @@ function setupDpiChangeListeners(
     }
   }
 
-  // Add event listeners for DPI and position changes
+  // Resize covers most DPI changes; focus catches a window dragged to
+  // another display while backgrounded. ('devicePixelRatio'/'move' are not
+  // real DOM events — the matchMedia queries below handle those cases.)
   window.addEventListener('resize', handleUpdate)
-  window.addEventListener('devicePixelRatio', handleUpdate)
-
-  // Additional events that might indicate window movement between monitors
-  window.addEventListener('move', handleWindowMove)
   window.addEventListener('focus', handleWindowMove)
 
   // MutationObserver to detect when the canvas might have been hidden and shown again
@@ -333,8 +331,6 @@ function setupDpiChangeListeners(
   // Return cleanup function
   return () => {
     window.removeEventListener('resize', handleUpdate)
-    window.removeEventListener('devicePixelRatio', handleUpdate)
-    window.removeEventListener('move', handleWindowMove)
     window.removeEventListener('focus', handleWindowMove)
 
     if (observer) {

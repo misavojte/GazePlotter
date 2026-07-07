@@ -189,17 +189,13 @@
   let dragActive = false
   let lastDragX = 0
 
-  const totalWidth = $derived(width)
-  const totalHeight = $derived(height)
-  const usedHighlights = $derived(highlights)
-
   const plot = usePlot({
-    width: () => totalWidth,
-    height: () => totalHeight,
+    width: () => width,
+    height: () => height,
     margins: () => margins,
     dpiOverride: () => dpiOverride,
     deps: () => [
-      data, settings, totalWidth, totalHeight, highlights, usedHighlights,
+      data, settings, highlights,
       width, height, dpiOverride,
       margins.left, margins.right, effectiveMarginTop, margins.bottom,
     ],
@@ -300,7 +296,7 @@
     return map
   })
 
-  const highlightMaskByIndex = $derived(calculateHighlightMask(usedHighlights, identifierSystem))
+  const highlightMaskByIndex = $derived(calculateHighlightMask(highlights, identifierSystem))
 
   const canRender = $derived.by(() => {
     const count = data.participants.length
@@ -362,7 +358,7 @@
       plotAreaWidth,
       effectiveMarginTop,
       participantBarsHeight,
-      totalWidth,
+      totalWidth: width,
       marginLeft: margins.left,
       eventLaneHeight: layout.eventLaneHeight,
       eventZoneHeight: layout.eventZoneHeight,
@@ -402,7 +398,7 @@
     )
 
     drawLegendGroupTitles(ctx, legendGeometry, SCARF_LEGEND_CONFIG)
-    drawLegend(ctx, legendGeometry, SCARF_LEGEND_CONFIG, usedHighlights)
+    drawLegend(ctx, legendGeometry, SCARF_LEGEND_CONFIG, highlights)
   }
 
   // Overlay layer: only the hover crosshair. Drawn on top of the cached data
@@ -499,7 +495,7 @@
         const pos = getLegendTooltipPosition(legendItem, SCARF_LEGEND_CONFIG)
         plot.showTooltip(
           legendItem.identifier,
-          getLegendTooltipContent(legendItem, usedHighlights.includes(legendItem.identifier)),
+          getLegendTooltipContent(legendItem, highlights.includes(legendItem.identifier)),
           pos.x,
           pos.y,
           { x: 0, y: 7 }

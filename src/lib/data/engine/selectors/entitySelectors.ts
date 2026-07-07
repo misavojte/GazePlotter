@@ -1,9 +1,5 @@
-import {
-  type BaseInterpretedDataType,
-  type ExtendedInterpretedDataType,
-} from '$lib/data/types'
+import { type BaseInterpretedDataType } from '$lib/data/types'
 import type { DataEngine } from '../dataEngine.svelte'
-import { getCategoryRaw } from '../utils/interpreters'
 
 export const getStimuliOrderVector = (engine: DataEngine): number[] => {
   const meta = engine.metadata
@@ -68,13 +64,4 @@ export const getAllParticipants = (
   engine: DataEngine
 ): BaseInterpretedDataType[] => {
   return getParticipantOrderVector(engine).map(id => getParticipant(engine, id))
-}
-
-const getCategory = (
-  engine: DataEngine,
-  id: number
-): ExtendedInterpretedDataType => {
-  const meta = engine.metadata
-  if (!meta) throw new Error('Data engine not initialized')
-  return getCategoryRaw(id, meta)
 }

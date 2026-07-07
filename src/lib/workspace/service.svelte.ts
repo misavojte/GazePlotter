@@ -98,8 +98,12 @@ export class WorkspaceService {
           ? 'Undo/redo history could not be recorded for this change.'
           : 'Error applying changes. See console for details.',
         cause: error,
+        // Identity only — the full command can carry megabytes of payload
+        // (event buffers) that the error ring would retain for the session.
         context: {
-          command,
+          commandType: command.type,
+          source: command.source,
+          chainId: command.chainId,
         },
       })
       return false

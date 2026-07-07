@@ -38,18 +38,6 @@ const getAoiOrderVectorFromData = (
   return order
 }
 
-/**
- * Get all AOIs for a stimulus from a data snapshot
- */
-const getAoisRawFromData = (
-  stimulusId: number,
-  dataSnapshot: EngineMetadata
-): ExtendedInterpretedDataType[] => {
-  return getAoiOrderVectorFromData(stimulusId, dataSnapshot).map(id =>
-    getAoiRaw(stimulusId, id, dataSnapshot)
-  )
-}
-
 const getAoiOrderVector = (
   engine: DataEngine,
   stimulusId: number
@@ -123,15 +111,4 @@ export const getAois = (
   }
 
   return list
-}
-
-const getAoi = (
-  engine: DataEngine,
-  stimulusId: number,
-  aoiId: number
-): ExtendedInterpretedDataType => {
-  const meta = engine.metadata
-  if (!meta) throw new Error('Data engine not initialized')
-  const mappedAoiId = engine.getAoiMapping(stimulusId, aoiId)
-  return getAoiRaw(stimulusId, mappedAoiId, meta)
 }

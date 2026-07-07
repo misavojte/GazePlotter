@@ -678,9 +678,11 @@ export class TobiiRowParser extends RowParser {
     let eyeMovementTypeIndexBytes: Uint8Array
     if (this.mappedColumnsAllowed) {
       const active = this.activeStimulusPackedCols
+      // Shared empty: exports without per-stimulus `Mapped …` columns hit
+      // this branch on EVERY data row — never allocate here.
       categoryBytes = active
         ? this.getBytes(active.pCategory)
-        : new Uint8Array(0)
+        : TobiiRowParser.EMPTY_BYTES
       if (!categoryBytes.length) categoryBytes = this.getBytes(this.pCategory)
       if (!categoryBytes.length && this.cCategoryUnmapped !== -1) {
         categoryBytes = this.getBytes(this.pCategoryUnmapped)
@@ -709,7 +711,7 @@ export class TobiiRowParser extends RowParser {
       const active = this.activeStimulusPackedCols
       eyeMovementTypeIndexBytes = active
         ? this.getBytes(active.pCategoryIndex)
-        : new Uint8Array(0)
+        : TobiiRowParser.EMPTY_BYTES
       if (!eyeMovementTypeIndexBytes.length) {
         eyeMovementTypeIndexBytes = this.getBytes(this.pEyeMovementTypeIndex)
       }

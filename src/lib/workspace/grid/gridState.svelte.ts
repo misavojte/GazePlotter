@@ -352,7 +352,6 @@ export class GridState {
     return GridEngine.resolveItemPositionCollisions(
       priorityItemIds,
       this.createPositionsSnapshot(),
-      this.items,
       this.getAvailableColumns()
     )
   }

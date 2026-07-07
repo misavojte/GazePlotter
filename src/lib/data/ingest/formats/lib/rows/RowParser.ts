@@ -115,7 +115,7 @@ export abstract class RowParser {
   abstract finalize(): void
 
   /** Shared empty result — getBytes is on the per-row path; no allocation. */
-  private static readonly EMPTY_BYTES = new Uint8Array(0)
+  protected static readonly EMPTY_BYTES = new Uint8Array(0)
 
   protected getBytes(index: number): Uint8Array {
     if (this.currRangeStamp[index] !== this.rowId) return RowParser.EMPTY_BYTES
@@ -223,7 +223,7 @@ export abstract class RowParser {
     this.compileBinaryRowParser()
   }
 
-  processRowBytes(rawRow: Uint8Array, _decoder: TextDecoder): void {
+  processRowBytes(rawRow: Uint8Array): void {
     this.processRowBinary(rawRow)
   }
 

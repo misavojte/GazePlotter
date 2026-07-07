@@ -97,17 +97,6 @@ export const updateMultipleAoi = (
 }
 
 /**
- * Updates hidden AOIs for a stimulus.
- */
-const updateHiddenAois = (
-  engine: DataEngine,
-  stimulusId: number,
-  hiddenAois: number[]
-): void => {
-  engine.setHiddenAois(stimulusId, hiddenAois)
-}
-
-/**
  * Updates hidden AOIs for a stimulus and propagates the status.
  */
 export const updateHiddenAoisWithPropagation = (

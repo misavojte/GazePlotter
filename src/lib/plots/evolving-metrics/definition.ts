@@ -32,7 +32,6 @@ export const evolvingMetricsDefinition = definePlot<
   view: {
     deriveView: deriveEvolvingMetricsView,
     viewDependsOnWidth: true,
-    viewOnlySettings: ['highlights'],
   },
   getSubtitle: stimulusGroupSubtitle,
   getDefaultSettings: (params = {}) => ({

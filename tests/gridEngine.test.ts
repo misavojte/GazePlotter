@@ -68,7 +68,6 @@ describe('gridEngine', () => {
     const commands = resolveItemPositionCollisions(
       1,
       positions,
-      positions as any,
       6
     )
 
@@ -90,7 +89,6 @@ describe('gridEngine', () => {
     const commands = resolveItemPositionCollisions(
       1,
       positions,
-      positions as any,
       6
     )
     const final = applyPlan(positions, commands)
@@ -111,7 +109,6 @@ describe('gridEngine', () => {
     const commands = resolveItemPositionCollisions(
       1,
       positions,
-      positions as any,
       8
     )
     const final = applyPlan(positions, commands)
@@ -133,7 +130,6 @@ describe('gridEngine', () => {
     const commands = resolveItemPositionCollisions(
       1,
       positions,
-      positions as any,
       8
     )
     const final = applyPlan(positions, commands)
@@ -163,7 +159,6 @@ describe('gridEngine', () => {
     const commands = resolveItemPositionCollisions(
       1,
       positions,
-      positions as any,
       4
     )
     const elapsed = Date.now() - start
@@ -205,7 +200,6 @@ describe('gridEngine', () => {
     const commands = resolveItemPositionCollisions(
       [1, 2],
       positions,
-      positions as any,
       8
     )
     const final = applyPlan(positions, commands)
@@ -224,7 +218,7 @@ describe('gridEngine', () => {
       { id: 3, x: 0, y: 5, w: 1, h: 1 }, // far away, untouched
     ]
     expect(
-      resolveItemPositionCollisions([1, 2], positions, positions as any, 8)
+      resolveItemPositionCollisions([1, 2], positions, 8)
     ).toEqual([])
   })
 })

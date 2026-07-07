@@ -22,7 +22,7 @@ type SegmentHandler = (
 
 type SegmentEmittingAdapter = {
   onSegment: SegmentHandler | null
-  processRowBytes(rawRow: Uint8Array, decoder: TextDecoder): void
+  processRowBytes(rawRow: Uint8Array): void
   finalize(): void
 }
 
@@ -63,7 +63,7 @@ export function processAdapterRow<T extends SegmentEmittingAdapter>(
   sut: T,
   row: string
 ): void {
-  sut.processRowBytes(encodeString(row, 'utf-8'), decoder)
+  sut.processRowBytes(encodeString(row, 'utf-8'))
 }
 
 export function processAdapterRows<T extends SegmentEmittingAdapter>(

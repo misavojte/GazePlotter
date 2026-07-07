@@ -22,38 +22,15 @@ interface CommandChainEntry {
   }>
 }
 
-/**
- * Undo/Redo state interface with pre-computed reverse commands
- */
-interface UndoRedoState {
-  /** Stack of command chains that can be undone (most recent at the end) */
-  undoStack: CommandChainEntry[]
-  /** Stack of command chains that can be redone (most recent at the end) */
-  redoStack: CommandChainEntry[]
-  /** Currently building command chain (for grouping root + child commands) */
-  pendingChain: CommandChainEntry | null
-  /** Flag to indicate if we're currently processing an undo/redo operation */
-  isProcessingUndoRedo: boolean
-}
-
-export type { UndoRedoState }
-
-/**
- * Initial state for the undo/redo store
- */
-const initialState: UndoRedoState = {
-  undoStack: [],
-  redoStack: [],
-  pendingChain: null,
-  isProcessingUndoRedo: false,
-}
-
 export class UndoRedoStateStore {
   // --- Core Reactive State ---
-  undoStack = $state<CommandChainEntry[]>(initialState.undoStack)
-  redoStack = $state<CommandChainEntry[]>(initialState.redoStack)
-  pendingChain = $state<CommandChainEntry | null>(initialState.pendingChain)
-  isProcessingUndoRedo = $state<boolean>(initialState.isProcessingUndoRedo)
+  // `$state.raw`: the stacks are only ever reassigned immutably, and chain
+  // entries can carry large command payloads (event buffers, AOI tables) —
+  // deep-proxying them buys nothing.
+  undoStack = $state.raw<CommandChainEntry[]>([])
+  redoStack = $state.raw<CommandChainEntry[]>([])
+  pendingChain = $state.raw<CommandChainEntry | null>(null)
+  isProcessingUndoRedo = $state<boolean>(false)
 
   // --- Derived Calculations (Runes) ---
   canUndo = $derived(this.undoStack.length > 0)
@@ -236,37 +213,6 @@ export class UndoRedoStateStore {
     this.redoStack = []
     this.pendingChain = null
     this.isProcessingUndoRedo = false
-  }
-
-  /**
-   * Get current undo/redo state (for debugging or advanced use cases)
-   *
-   * @returns Current undo/redo state
-   */
-  getState(): UndoRedoState {
-    return {
-      undoStack: this.undoStack,
-      redoStack: this.redoStack,
-      pendingChain: this.pendingChain,
-      isProcessingUndoRedo: this.isProcessingUndoRedo,
-    }
-  }
-
-  /**
-   * Subscribe to state changes (for backwards compatibility)
-   * Note: With $state runes, reactivity is automatic. This is provided for compatibility.
-   *
-   * @param callback - Function to call when state changes
-   * @returns Unsubscribe function
-   */
-  subscribe(callback: (state: UndoRedoState) => void): () => void {
-    // Simple implementation for compatibility
-    // In a real implementation, you might want to use a more sophisticated approach
-    const interval = setInterval(() => {
-      callback(this.getState())
-    }, 100)
-
-    return () => clearInterval(interval)
   }
 }
 
