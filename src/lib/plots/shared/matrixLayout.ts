@@ -1,7 +1,7 @@
 import { getGradientLegendRequiredHeight } from './legendGradient'
+import { calculateTickStep } from './axisUtils'
 import type { CanvasPlotMargins } from './usePlot.svelte'
 
-const NICE_STEPS = [5, 10, 20, 25, 50, 100, 200, 500, 1000] as const
 const AXIS_TITLE_GAP = 12
 const SIN_45 = 0.7071
 const APPROX_CHAR_WIDTH = 0.6
@@ -69,10 +69,6 @@ export type SquareMatrixLayout = {
   showCellValues: boolean
   showAxisLabels: boolean
   cellValueFontSize: number
-}
-
-function calculateTickStep(count: number): number {
-  return NICE_STEPS.find(step => count / step <= 10) ?? 1000
 }
 
 function estimateMaxLabelWidth(

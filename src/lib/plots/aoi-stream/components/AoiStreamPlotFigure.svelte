@@ -532,17 +532,7 @@
     // Legend
     if (alignment === 'heatmap') {
       if (gradientLegendGeometry) {
-        drawGradientLegend(ctx, gradientLegendGeometry, {
-          x: margins.left,
-          y: frame.legendY + PLOT_LEGEND_GAP,
-          availableWidth: plot.plotAreaWidth,
-          availableHeight: legendHeight,
-          colorScale: effectiveColorScale,
-          valueRange: [0, Math.max(1, data.maxValue)],
-          effectiveMaxValue: Math.max(1, data.maxValue),
-          title: data.yAxisLabel,
-          belowMinColor: INACTIVE_COLOR,
-        })
+        drawGradientLegend(ctx, gradientLegendGeometry)
       }
     } else if (legendGeometry.items.length > 0 && legendHeight > 0) {
       setUpFont(ctx)

@@ -3,6 +3,8 @@ import {
   GRIDLINE_PRIMARY,
   GRIDLINE_SECONDARY,
   ROW_LABEL_GAP,
+  calculateTickStep,
+  drawParticipantIndexAxis,
 } from '$lib/plots/shared'
 import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
 import { desaturateToWhite, convertToHex, hexToRgb } from '$lib/color'
@@ -68,38 +70,9 @@ export function drawScarfLabels(
   ctx.fillStyle = FONT_PRIMARY.COLOR
 
   if (layout.isCompact) {
-    // Rotated label for "Participants"
-    ctx.save()
-    ctx.textAlign = 'center'
-    const labelX = leftX - 40
-    const labelY = layout.effectiveMarginTop + layout.participantBarsHeight / 2
-    ctx.translate(labelX, labelY)
-    ctx.rotate(-Math.PI / 2)
-    const lineHeight = FONT_PRIMARY.SIZE * 1.2
-    ctx.fillText('Participants', 0, -lineHeight / 2)
-    ctx.fillText('[order indices]', 0, lineHeight / 2)
-    ctx.restore()
-
-    // Index ticks
-    ctx.textAlign = 'end'
-    const tickX = leftX - 8
-    const step = calculateTickStep(len)
-
-    for (let i = 0; i < len; i += step) {
-      const y =
-        i * layout.heightOfBarWrap +
-        layout.heightOfBarWrap / 2 +
-        layout.effectiveMarginTop
-      ctx.fillText(String(i), tickX, y)
-    }
-    const lastIdx = len - 1
-    if (lastIdx % step !== 0) {
-      const y =
-        lastIdx * layout.heightOfBarWrap +
-        layout.heightOfBarWrap / 2 +
-        layout.effectiveMarginTop
-      ctx.fillText(String(lastIdx), tickX, y)
-    }
+    drawParticipantIndexAxis(
+      ctx, len, leftX, layout.effectiveMarginTop, layout.heightOfBarWrap
+    )
   } else {
     ctx.textAlign = 'end'
     const xPos = leftX - ROW_LABEL_GAP
@@ -1050,12 +1023,4 @@ function drawHighlightCapsule(
   ctx.stroke()
 
   ctx.globalCompositeOperation = prevGCO
-}
-
-function calculateTickStep(len: number): number {
-  const niceSteps = [5, 10, 20, 25, 50, 100, 200, 500, 1000]
-  for (const s of niceSteps) {
-    if (len / s <= 10) return s
-  }
-  return 1000
 }

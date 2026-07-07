@@ -54,41 +54,46 @@ type IngestDependencies = {
   resetWorkspaceHistory: () => void
 }
 
-const EMPTY_DATASET: DataType = {
-  isOrdinalOnly: false,
-  capabilities: {
-    segmented: false,
-    spatial: false,
-    event: false,
-  },
-  stimuli: { data: [], orderVector: [] },
-  participants: { data: [], orderVector: [] },
-  participantsGroups: [],
-  metricInstances: createDefaultMetricInstances(),
-  categories: { data: [], orderVector: [] },
-  noAoiTreatment: {
-    color: '#cbd5e1',
-    displayedName: 'No AOI',
-  },
-  aois: {
-    data: [],
-    orderVector: [],
-    hiddenAois: [],
-  },
-  segments: {
-    segmentBuffer: new Float32Array(0),
-    indexTable: new Uint32Array(0),
-    aoiPool: new Uint16Array(0),
-    hasSpatialData: false,
-    maxParticipants: 0,
-    stimuliCount: 0,
-  },
-  eventData: {
-    data: [],
-    orderVector: [],
-    hiddenChannels: [],
-    events: [],
-  },
+/** Fresh empty dataset per load. The engine takes ownership of what it loads
+ *  (order vectors and metric instances are edited in place), so a shared
+ *  singleton would leak edits from one empty session into the next. */
+function createEmptyDataset(): DataType {
+  return {
+    isOrdinalOnly: false,
+    capabilities: {
+      segmented: false,
+      spatial: false,
+      event: false,
+    },
+    stimuli: { data: [], orderVector: [] },
+    participants: { data: [], orderVector: [] },
+    participantsGroups: [],
+    metricInstances: createDefaultMetricInstances(),
+    categories: { data: [], orderVector: [] },
+    noAoiTreatment: {
+      color: '#cbd5e1',
+      displayedName: 'No AOI',
+    },
+    aois: {
+      data: [],
+      orderVector: [],
+      hiddenAois: [],
+    },
+    segments: {
+      segmentBuffer: new Float32Array(0),
+      indexTable: new Uint32Array(0),
+      aoiPool: new Uint16Array(0),
+      hasSpatialData: false,
+      maxParticipants: 0,
+      stimuliCount: 0,
+    },
+    eventData: {
+      data: [],
+      orderVector: [],
+      hiddenChannels: [],
+      events: [],
+    },
+  }
 }
 
 /**
@@ -699,7 +704,7 @@ export class IngestService {
     this.progressPercent = 0
     this.metadata = null
     this.input = null
-    this.deps.engine.loadDataset(EMPTY_DATASET)
+    this.deps.engine.loadDataset(createEmptyDataset())
     this.deps.grid.reset(DEFAULT_GRID_STATE_DATA as GridItemSnapshot[])
     this.deps.resetWorkspaceHistory()
     this.explicitStatus = 'ready'
@@ -735,7 +740,7 @@ export class IngestService {
       fileSizes: failureMetadata.fileSizes,
       parseDate: failureMetadata.parseDate,
     }
-    this.deps.engine.loadDataset(EMPTY_DATASET)
+    this.deps.engine.loadDataset(createEmptyDataset())
     this.deps.resetWorkspaceHistory()
     this.explicitStatus = 'error'
   }

@@ -186,17 +186,7 @@
   })
 
   function drawLegend(ctx: CanvasRenderingContext2D) {
-    if (!legendGeometry || legendTitle === null) return
-    drawGradientLegend(ctx, legendGeometry, {
-      x: 0,
-      y: 0,
-      availableWidth: 0,
-      availableHeight: 0,
-      colorScale,
-      valueRange: colorValueRange,
-      effectiveMaxValue,
-      title: legendTitle,
-    })
+    if (legendGeometry) drawGradientLegend(ctx, legendGeometry)
   }
 
   function drawHoverCrosshair(ctx: CanvasRenderingContext2D, frame: PlotFrame) {

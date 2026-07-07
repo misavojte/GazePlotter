@@ -24,6 +24,7 @@
     getGradientLegendRequiredHeight,
   } from '$lib/plots/shared/legendGradient'
   import {
+    drawParticipantIndexAxis,
     drawXAxisLabel,
     drawYAxisMainLabel,
     getXAxisHeight,
@@ -499,25 +500,7 @@
     ctx.textBaseline = 'middle'
 
     if (isCompact) {
-      ctx.save()
-      ctx.textAlign = 'center'
-      ctx.translate(floorLeft - 40, floorTop + floorHeight / 2)
-      ctx.rotate(-Math.PI / 2)
-      const lineHeight = AXIS_CONFIG.fontSize * 1.2
-      ctx.fillText('Participants', 0, -lineHeight / 2)
-      ctx.fillText('[order indices]', 0, lineHeight / 2)
-      ctx.restore()
-
-      ctx.textAlign = 'right'
-      const tickX = floorLeft - 8
-      const step = calculateTickStep(participantCount)
-      for (let i = 0; i < participantCount; i += step) {
-        ctx.fillText(String(i), tickX, floorTop + i * rowHeight + rowHeight / 2)
-      }
-      const lastIdx = participantCount - 1
-      if (lastIdx % step !== 0) {
-        ctx.fillText(String(lastIdx), tickX, floorTop + lastIdx * rowHeight + rowHeight / 2)
-      }
+      drawParticipantIndexAxis(ctx, participantCount, floorLeft, floorTop, rowHeight, AXIS_CONFIG)
     } else {
       ctx.textAlign = 'right'
       // Pre-truncated to the same budget the gutter reserved (single source).
@@ -538,17 +521,7 @@
     drawXAxisLabel(ctx, X_AXIS_LABEL, floorLeft, floorWidth, floorBottom, frame.bottomTitleOffset, AXIS_CONFIG)
 
     if (gradientLegendGeometry) {
-      drawGradientLegend(ctx, gradientLegendGeometry, {
-        x: margins.left,
-        y: frame.legendY + PLOT_LEGEND_GAP,
-        availableWidth: plot.plotAreaWidth,
-        availableHeight: legendHeight,
-        colorScale: palette,
-        valueRange: [Math.round(data.valueMin), Math.round(data.valueMax)],
-        effectiveMaxValue: Math.round(data.valueMax),
-        title: data.yAxisLabel,
-        belowMinColor: INACTIVE_COLOR,
-      })
+      drawGradientLegend(ctx, gradientLegendGeometry)
     }
   }
 
@@ -784,13 +757,6 @@
     }
   }
 
-  function calculateTickStep(len: number): number {
-    const niceSteps = [5, 10, 20, 25, 50, 100, 200, 500, 1000]
-    for (const s of niceSteps) {
-      if (len / s <= 10) return s
-    }
-    return 1000
-  }
 </script>
 
 <canvas

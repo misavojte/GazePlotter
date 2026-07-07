@@ -272,6 +272,10 @@
   }
 
   function handleDragLeave(event: DragEvent): void {
+    // Same guard as handleDragEnter — a non-file drag (text, URL) never
+    // increments, so it must never decrement either (counter went negative
+    // and swallowed the overlay on the next real file drag).
+    if (!event.dataTransfer?.types.includes('Files')) return
     dragCounter--
   }
 

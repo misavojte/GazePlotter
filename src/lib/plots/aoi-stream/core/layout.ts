@@ -8,7 +8,8 @@ import {
 import { calculateIdealStripHeight } from './ridgeline'
 import { desaturateToWhite, interpolateColor } from '$lib/color'
 import { PRESET_PALETTES } from '$lib/color/palettes'
-import { computeNiceYAxis, niceStep } from './axis'
+import { ceilToNiceStep } from '$lib/plots/shared/timelineUtils'
+import { computeNiceYAxis } from './axis'
 
 export interface RenderBuckets {
   xPositions: Float32Array
@@ -125,7 +126,7 @@ export function computeAoiStreamYAxis(
     return { yAxisMin: -axisHalfRange, yAxisMax: axisHalfRange, axisHalfRange, axisTicks: ticks }
   }
   if (alignment === 'distribution') {
-    const step = niceStep(maxTotalForAxis / (Y_AXIS.TARGET_POSITIVE_TICKS * 2))
+    const step = ceilToNiceStep(maxTotalForAxis / (Y_AXIS.TARGET_POSITIVE_TICKS * 2))
     const axisMax = Math.max(step, Math.ceil(maxTotalForAxis / step) * step)
     const axisTicks = [0]
     for (let v = step; v <= axisMax + step * 0.001; v += step) axisTicks.push(v)

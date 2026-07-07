@@ -1,11 +1,4 @@
-import { defineMetric } from '../../core/defineMetric'
-import { boolParam, integerParam } from '../../core/params'
-import { rqaScalar } from '../../core/rqa'
-
-const params = [
-  integerParam('l_min', 'Min line', 2, { min: 2, max: 20 }),
-  boolParam('include_no_aoi', 'Include off-AOI fixations', false),
-] as const
+import { defineRqaMetric } from './defineRqaMetric'
 
 /**
  * ## Determinism (DET)
@@ -38,26 +31,11 @@ const params = [
  * - Shares the `{ seq: number[] }` accumulator shape with other RQA
  *   metrics; `windowedFinalize` rescans a sliced sub-sequence per window.
  */
-defineMetric({
+defineRqaMetric({
   id: 'rqaDet',
   label: 'Determinism',
   description: 'Stimulus-level: determinism (%) — fraction of recurrent fixation pairs forming diagonal lines in the recurrence matrix. Higher values indicate predictable, repeated scan paths.',
-  unit: '%',
-  category: 'rqa-aoi',
-  rawShape: 'scalar',
-  windowUnit: 'fixations',
-  // Intensive: a per-participant rate (%). Only `mean` is sound across participants.
-  measurementClass: 'intensive',
   searchTags: ['rqa', 'determinism', 'det', 'diagonal', 'nonlinear', 'aoi', 'sequence'],
-  params,
-  accumulation: 'stateful',
-  init: (): { seq: number[] } => ({ seq: [] }),
-  onFixation: (acc, { slots }, { slots: info, params }) => {
-    if (slots.length === 1) acc.seq.push(slots[0])
-    else if (params.include_no_aoi && slots.length === 0) acc.seq.push(info.noAoiSlot)
-  },
-  finalize: (acc, _slots, ctx) =>
-    [rqaScalar(acc.seq, ctx.params.l_min, r => r.DET)],
-  windowedFinalize: (acc, from, to, ctx) =>
-    rqaScalar(acc.seq.slice(from, to), ctx.params.l_min, r => r.DET),
+  measure: r => r.DET,
+  minLineParam: 'l_min',
 })

@@ -117,8 +117,10 @@ export class ColorPickerState {
       this.close()
     }
 
-    // Small delay to prevent the initial click from closing the popup immediately
-    setTimeout(() => {
+    // Small delay to prevent the initial click from closing the popup immediately.
+    // Cancelled on destroy — otherwise a fast open/close would attach the
+    // listeners AFTER destroy already ran, leaking them permanently.
+    const attachTimeout = setTimeout(() => {
       document.addEventListener('mousedown', handleClickOutside, true)
 
       // Find scrollable parents and attach listeners
@@ -133,6 +135,7 @@ export class ColorPickerState {
 
     return {
       destroy: () => {
+        clearTimeout(attachTimeout)
         document.removeEventListener('mousedown', handleClickOutside, true)
         for (const { target, handler } of this.#scrollListeners) {
           target.removeEventListener('scroll', handler, true)
