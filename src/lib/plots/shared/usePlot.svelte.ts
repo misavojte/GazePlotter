@@ -1,5 +1,6 @@
 import { getContext, untrack } from 'svelte'
 import type { Action } from 'svelte/action'
+import { getGazePlotterSession } from '$lib/session'
 import {
   createCanvasState,
   createRenderScheduler,
@@ -27,13 +28,21 @@ import {
   getYAxisLabelOffset,
   measureAxisTitleHeight,
 } from './axisUtils'
-import { drawCanvasPlaceholder } from './drawCanvasPlaceholder'
+import {
+  drawCanvasPlaceholder,
+  type PlotPlaceholderContent,
+} from './drawCanvasPlaceholder'
 import type { BlockedRegion } from './canvasBlockSelect.action'
 import { FONT_PRIMARY, PLOT_AXIS_TITLE_GAP, PLOT_TICK_LABEL_GAP } from './const'
 import { measureTextHeight, calculateLabelOffset } from '$lib/shared/utils/textUtils'
 
 const browser = typeof document !== 'undefined'
 const FONT = FONT_PRIMARY.SIZE
+
+const RENDER_FAILED_PLACEHOLDER: PlotPlaceholderContent = {
+  message: 'Plot failed to render',
+  kind: 'error',
+}
 
 /**
  * `usePlot` — the single composable behind every GazePlotter canvas plot.
@@ -187,7 +196,7 @@ export interface UsePlotOptions<THit = unknown> {
   deps: () => unknown
 
   /** Data-level placeholder (missing metric, empty selection). Checked first. */
-  placeholder?: () => string | { message: string; steps?: string[] } | null
+  placeholder?: () => PlotPlaceholderContent | null
 
   /**
    * Frame-dependent fit guard, evaluated with the resolved frame: return a
@@ -195,7 +204,7 @@ export interface UsePlotOptions<THit = unknown> {
    * rendered at the current size. The harness re-evaluates it whenever the
    * frame changes; figures never read `plot.frame` to build placeholders.
    */
-  fit?: (frame: PlotFrame) => string | { message: string; steps?: string[] } | null
+  fit?: (frame: PlotFrame) => PlotPlaceholderContent | null
 
   // ---- chrome gutters → data rect + legend reservation ----
   gutters: () => FrameGutters
@@ -474,9 +483,45 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   // payloads are plain objects reassigned wholesale, never mutated.
   let hoverData = $state.raw<THit | null>(null)
 
-  // Active placeholder: data-level reasons first, then the frame-fit guard.
-  const activePlaceholder = () =>
-    options.placeholder?.() ?? options.fit?.(frame) ?? null
+  // ---- render failure containment ----
+  // A throwing figure would otherwise freeze its canvas silently and rethrow
+  // on every hover repaint (rAF runs outside the plot's <svelte:boundary>).
+  // Contain it: report through the session's error service, park on the
+  // regular placeholder, retry when `deps` change (data/settings edit).
+  let renderFailed = false
+  // Whether the last render drew a placeholder — interaction handlers use
+  // this instead of re-evaluating placeholder code on every mouse move.
+  let placeholderActive = false
+  let reportRenderError = (error: unknown) =>
+    console.error('Plot render failed:', error)
+  try {
+    const { errorService } = getGazePlotterSession()
+    reportRenderError = error =>
+      errorService.report({
+        origin: 'plot',
+        severity: 'recoverable',
+        userMessage: 'A plot failed to render.',
+        cause: error,
+      })
+  } catch {
+    // Outside a session tree (bare test mounts) — keep the console fallback.
+  }
+
+  function guarded(draw: () => void): void {
+    try {
+      draw()
+    } catch (error) {
+      renderFailed = true
+      reportRenderError(error)
+      // Repaint through the normal pipeline: with `renderFailed` set, the
+      // placeholder branch runs before any figure code can throw again.
+      try {
+        untrack(render)
+      } catch {
+        // The placeholder path must never start a throw loop.
+      }
+    }
+  }
 
   // Wrapped in untrack: the render runs via rAF / lifecycle, never as a tracked
   // effect, so reading the deriveds below must not establish subscriptions.
@@ -484,8 +529,12 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   // and an OVERLAY-only render (blit cache + drawOverlay). Under a same-frame
   // race the full render's data always ends up shown — it either runs last, or
   // the overlay blit re-shows the data layer the full render just captured.
-  const scheduleRender = createRenderScheduler(() => untrack(render))
-  const scheduleOverlayRender = createRenderScheduler(() => untrack(renderOverlay))
+  const scheduleRender = createRenderScheduler(() =>
+    guarded(() => untrack(render))
+  )
+  const scheduleOverlayRender = createRenderScheduler(() =>
+    guarded(() => untrack(renderOverlay))
+  )
 
   // A hit-test figure's hover change only moves the overlay (crosshair,
   // highlight). When the plot has a `drawOverlay`, its `drawData` is
@@ -504,7 +553,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     setState,
     getDimensions,
     getDpiOverride,
-    render: () => untrack(render),
+    render: () => guarded(() => untrack(render)),
     scheduleRender,
     registerExportSource: el => registerExportSource(() => el),
   })
@@ -609,7 +658,12 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     const ctx = canvasState.context
     if (!ctx) return
 
-    const msg = activePlaceholder()
+    // Render-failure state first (it must short-circuit all figure code),
+    // then data-level reasons, then the frame-fit guard.
+    const msg = renderFailed
+      ? RENDER_FAILED_PLACEHOLDER
+      : (options.placeholder?.() ?? options.fit?.(frame) ?? null)
+    placeholderActive = msg !== null
     if (msg) {
       dataLayerValid = false
       drawCanvasPlaceholder(ctx, options.width(), options.height(), msg)
@@ -708,7 +762,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     const canvas = canvasState.canvas
     const ctx = canvasState.context
     if (!ctx || !canvas) return
-    if (activePlaceholder()) {
+    if (placeholderActive) {
       render()
       return
     }
@@ -760,7 +814,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   }
 
   function onHover(x: number | null, y: number | null, isOver: boolean) {
-    if (x === null || y === null || activePlaceholder()) {
+    if (x === null || y === null || placeholderActive) {
       // Hit-based figures: clear tooltip/cursor here. Pointer-only figures own
       // that in onMove, so stay hands-off for them.
       if (hasHitLogic) {
@@ -861,6 +915,8 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   })
   $effect(() => {
     options.deps()
+    // New data or settings clear a parked render failure — natural retry.
+    renderFailed = false
     untrack(scheduleRender)
   })
 
@@ -881,7 +937,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     }
 
     function onDown(e: MouseEvent) {
-      if (!pointer || e.button !== 0 || activePlaceholder()) return
+      if (!pointer || e.button !== 0 || placeholderActive) return
       // Tear down any prior drag first — a missed mouseup (release outside the
       // window, multi-button press) must not orphan a window-listener pair.
       teardownDrag()

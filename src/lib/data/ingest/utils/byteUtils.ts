@@ -1,5 +1,7 @@
 export type TextEncoding = 'utf-8' | 'utf-16le' | 'utf-16be'
 
+const utf8Encoder = new TextEncoder()
+
 export const encodeString = (
   value: string,
   encoding: TextEncoding
@@ -18,9 +20,10 @@ export const encodeString = (
     }
     return out
   }
-  const out = new Uint8Array(value.length)
-  for (let i = 0; i < value.length; i++) out[i] = value.charCodeAt(i) & 0xff
-  return out
+  // Real UTF-8 — a charCodeAt()&0xff loop is Latin-1 truncation and
+  // corrupts every non-ASCII name (participants, stimuli, AOIs) that
+  // later round-trips through a UTF-8 TextDecoder.
+  return utf8Encoder.encode(value)
 }
 
 export const decodeBytes = (

@@ -232,10 +232,10 @@ export class UndoRedoStateStore {
    * Useful when loading a new file or resetting the workspace.
    */
   clear(): void {
-    this.undoStack = initialState.undoStack
-    this.redoStack = initialState.redoStack
-    this.pendingChain = initialState.pendingChain
-    this.isProcessingUndoRedo = initialState.isProcessingUndoRedo
+    this.undoStack = []
+    this.redoStack = []
+    this.pendingChain = null
+    this.isProcessingUndoRedo = false
   }
 
   /**

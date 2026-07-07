@@ -14,8 +14,12 @@ export const tobiiFormat = defineRowFormat({
   ids: ['tobii', 'tobii-with-event'],
   displayName: 'Tobii Pro Lab',
   detect: probe => {
-    if (!probe.slice.includes('Recording timestamp')) return null
-    return probe.slice.includes('Event') ? 'tobii-with-event' : 'tobii'
+    if (!probe.headerRow.includes('Recording timestamp')) return null
+    // Scope the Event sniff to the HEADER COLUMNS: an 'Event' substring
+    // anywhere in the first 256 KB of data (media file names, recording
+    // names, AOI names) must not force the parsing-config prompt.
+    const columns = probe.headerRow.split('\t')
+    return columns.includes('Event') ? 'tobii-with-event' : 'tobii'
   },
   columnDelimiter: '\t',
   promptId: 'tobii-parsing-input',

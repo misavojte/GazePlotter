@@ -69,8 +69,16 @@ export function createCommandHandler(
 
       if (!isUndoRedoOperation) {
         // Create reverse command BEFORE executing (to capture current state)
-        // For ALL commands (root and children) unless we're in undo/redo mode
+        // For ALL commands (root and children) unless we're in undo/redo mode.
+        // No inverse -> no execution: refusing the mutation outright is
+        // simpler and safer than applying a change that could never be
+        // undone. The registry already reported the underlying cause.
         const reverseCommand = commandRegistry.reverse(command)
+        if (!reverseCommand) {
+          throw new Error(
+            `Command '${command.type}' was rejected because its undo state could not be captured.`
+          )
+        }
 
         // Record the command BEFORE executing so it appears in correct order
         // (root first, then children)

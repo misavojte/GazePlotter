@@ -12,7 +12,15 @@ export const PLOT_CANNOT_FIT_HEIGHT_MESSAGE = 'The plot cannot fit the current h
 export const PLOT_CANNOT_FIT_WIDTH_MESSAGE = 'The plot cannot fit the current width. Either:'
 export const PLOT_CANNOT_FIT_SIZE_MESSAGE = 'The plot cannot fit the current size. Either:'
 
-export type PlotPlaceholderContent = string | { message: string; steps?: string[] }
+export type PlotPlaceholderContent =
+  | string
+  | { message: string; steps?: string[]; kind?: 'warning' | 'error' }
+
+/** Card palettes per placeholder kind. Bare strings render as 'warning'. */
+const PLACEHOLDER_PALETTES = {
+  warning: { bg: '#fffbe6', icon: '#faad14', text: '#855800' },
+  error: { bg: '#fff2f0', icon: '#f5222d', text: '#a8071a' },
+} as const
 
 /**
  * Standard cannot-fit placeholder for `usePlot`'s `fit` guard: the axis picks
@@ -37,22 +45,28 @@ export function cannotFitPlaceholder(
 }
 
 /**
- * Paints a centered warning card/box with rounded corners (20px) and a warning triangle icon onto the canvas.
- * Used for all plot empty states, metrics missing, or layout failure placeholders.
+ * Paints a centered card/box with rounded corners (20px) and a triangle icon
+ * onto the canvas. Used for all plot empty states, metrics missing, layout
+ * failure, and render failure placeholders; `kind` picks the palette
+ * (default 'warning').
  */
 export function drawCanvasPlaceholder(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
-  message: string | { message: string; steps?: string[] },
+  message: PlotPlaceholderContent,
 ): void {
+  const palette =
+    PLACEHOLDER_PALETTES[
+      (typeof message === 'object' ? message.kind : undefined) ?? 'warning'
+    ]
   ctx.save()
 
   // Clear canvas so corners outside the rounded card are transparent
   ctx.clearRect(0, 0, width, height)
 
   const radius = 20 // Match grid item's rounded corners
-  ctx.fillStyle = '#fffbe6' // Warn background color
+  ctx.fillStyle = palette.bg
   ctx.beginPath()
   if (typeof ctx.roundRect === 'function') {
     ctx.roundRect(0, 0, width, height, radius)
@@ -95,8 +109,8 @@ export function drawCanvasPlaceholder(
   ctx.beginPath()
   ctx.lineJoin = 'round'
   ctx.lineWidth = 3
-  ctx.strokeStyle = '#faad14'
-  ctx.fillStyle = '#faad14'
+  ctx.strokeStyle = palette.icon
+  ctx.fillStyle = palette.icon
   
   const triHeight = iconSize * 0.866
   ctx.moveTo(iconCenterX, iconCenterY - triHeight / 2)
@@ -114,7 +128,7 @@ export function drawCanvasPlaceholder(
   ctx.fillText('!', iconCenterX, iconCenterY + triHeight * 0.12)
 
   // Draw text
-  ctx.fillStyle = '#855800'
+  ctx.fillStyle = palette.text
   ctx.font = '13px system-ui, -apple-system, sans-serif'
   ctx.textAlign = 'center'
   ctx.textBaseline = 'top'

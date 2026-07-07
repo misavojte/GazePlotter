@@ -41,7 +41,7 @@ export type IngestStatus = 'loading' | 'ready' | 'error'
 
 type IngestUiServices = {
   errorService: Pick<ErrorService, 'report'>
-  modalState: Pick<ModalState, 'open' | 'close'>
+  modalState: Pick<ModalState, 'open'>
   toastState: Pick<ToastState, 'addInfo' | 'addSuccess' | 'addWarning'>
 }
 
@@ -370,6 +370,9 @@ class IngestWorkerClient {
   private handleWorkspaceDone(
     result: Extract<IngestResult, { kind: 'workspace' }>
   ): void {
+    // Settle before any user feedback — a cancelled upload whose 'done'
+    // message was already queued must not toast success.
+    if (!this.markSettled()) return
     this.onProgress(100)
     const timeString = formatDuration(
       Date.now() - this.parsingAnchorTime + this.parsingSumTime
@@ -378,7 +381,6 @@ class IngestWorkerClient {
     this.ui.toastState.addSuccess(
       `${formattedFileInfo} workspace loaded successfully in ${timeString}`
     )
-    if (!this.markSettled()) return
 
     this.onData({
       version: result.version as ParsedData['version'],
@@ -400,6 +402,8 @@ class IngestWorkerClient {
     data: DataType
     classified: ParseSettings
   }): void {
+    // Settle before any user feedback — see handleWorkspaceDone.
+    if (!this.markSettled()) return
     const parseDuration =
       Date.now() - this.parsingAnchorTime + this.parsingSumTime
     const fileMetadata: FileMetadataSuccessType = {
@@ -418,8 +422,6 @@ class IngestWorkerClient {
     this.ui.toastState.addSuccess(
       `${formattedFileInfo} parsed successfully in ${timeString}`
     )
-
-    if (!this.markSettled()) return
 
     this.onData({
       data,
@@ -531,17 +533,14 @@ class IngestWorkerClient {
     this.openPrompt(promptId)
       .then(userInput => {
         this.parsingAnchorTime = Date.now()
-        if (
-          !this.postWorkerMessage(
-            { type: 'prompt-response', data: userInput },
-            [],
-            { stage: 'dispatch-prompt-response', promptId }
-          )
-        ) {
-          this.ui.modalState.close()
-          return
-        }
-        this.ui.modalState.close()
+        // The prompt modal is already popped by the time `open` resolves
+        // (finish/close pop before resolving) — closing here again would
+        // pop whatever unrelated modal happens to be active.
+        this.postWorkerMessage(
+          { type: 'prompt-response', data: userInput },
+          [],
+          { stage: 'dispatch-prompt-response', promptId }
+        )
       })
       .catch(error => {
         this.handleError(error, { stage: 'ingest-prompt', promptId })
@@ -572,6 +571,9 @@ export class IngestService {
   input = $state<FileInputType | null>(null)
   progressPercent = $state(0)
 
+  /** True while a worker parse is running — uploads are one at a time. */
+  private uploadInFlight = false
+
   // Any `errorService.fatalLoad` — regardless of `origin` — implies the dataset
   // is unusable, so ingest reflects 'error' without each fatal-load reporter
   // having to mark ingest separately. Today all `fatal-load` reports come from
@@ -586,6 +588,18 @@ export class IngestService {
 
   async loadFiles(files: FileList | readonly File[]): Promise<boolean> {
     if (files.length === 0) return false
+
+    // One upload at a time: a second drop while a parse is running would
+    // spawn a competing worker racing to commit into the same session.
+    // There is deliberately no cancel — a started load always runs to
+    // success or failure and the outcome stays visible.
+    if (this.uploadInFlight) {
+      this.deps.toastState.addInfo(
+        'A file upload is already in progress. Wait for it to finish.'
+      )
+      return false
+    }
+    this.uploadInFlight = true
 
     this.deps.errorService.clearAll()
     this.explicitStatus = 'loading'
@@ -669,6 +683,8 @@ export class IngestService {
       })
       this.explicitStatus = 'error'
       return false
+    } finally {
+      this.uploadInFlight = false
     }
   }
 
@@ -703,6 +719,13 @@ export class IngestService {
     this.explicitStatus = 'ready'
   }
 
+  /**
+   * Failure commits the failure state: the workspace shows the persistent
+   * error screen (not a transient toast), so a user who stepped away during
+   * a long parse sees what happened. Simple rule — `metadata` always
+   * describes the VISIBLE dataset, and after a failed parse the visible
+   * dataset is the failed (empty) one, never a silently-restored old one.
+   */
   applyFailure(failureMetadata: FileMetadataFailureType): void {
     this.progressPercent = 0
     this.deps.grid.reset([])
@@ -841,6 +864,10 @@ export class IngestService {
     }
 
     engine.updateEventDataBatch(mergedUpdates)
+    // This mutation runs outside the command bus, after plots have already
+    // derived from the freshly-reset grid — bump the redraw epoch or the
+    // imported events stay invisible until an unrelated command fires.
+    this.deps.grid.triggerRedraw()
     const totalProcessed =
       csvFiles.length + (legacyFiles.length > 0 ? legacyFiles.length : 0)
     this.deps.toastState.addSuccess(
