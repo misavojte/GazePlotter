@@ -82,7 +82,6 @@ function gazeSource(perP: { x: number; w: number }[][]): ScarfGazeSource {
       buf[b + SegmentField.CATEGORY_ID] = FIXATION_CATEGORY_ID
       buf[b + SegmentField.AOI_COUNT] = 1
       buf[b + SegmentField.AOI_POINTER] = cursor
-      buf[b + SegmentField.SEGMENT_ID] = cursor - start
       cursor++
     }
     ranges.push({ startIndex: start, endIndex: cursor })

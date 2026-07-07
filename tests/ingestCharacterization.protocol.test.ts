@@ -87,8 +87,9 @@ describe('worker protocol', () => {
     expect(done.message.result.data.stimuli.data).toEqual([['Map_A']])
     expect(done.message.result.data.participants.data).toEqual([['P1']])
 
-    // The three binary buffers ride the transfer list (zero-copy contract).
-    expect(done.options?.transfer).toHaveLength(3)
+    // Every binary buffer rides the transfer list (zero-copy contract):
+    // segment, index, AOI pool, and the ingest-built fixation index pair.
+    expect(done.options?.transfer).toHaveLength(5)
     expect(done.options?.transfer).toContain(
       done.message.result.data.segments.segmentBuffer.buffer
     )
@@ -97,6 +98,12 @@ describe('worker protocol', () => {
     )
     expect(done.options?.transfer).toContain(
       done.message.result.data.segments.aoiPool.buffer
+    )
+    expect(done.options?.transfer).toContain(
+      done.message.result.data.segments.fixationIndex.buffer
+    )
+    expect(done.options?.transfer).toContain(
+      done.message.result.data.segments.fixationIndexTable.buffer
     )
   })
 

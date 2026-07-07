@@ -95,7 +95,6 @@ export function jsonSegmentsToBinary(
         const aoiCount = Math.max(0, segment.length - 3)
         segmentBuffer[base + SegmentField.AOI_COUNT] = aoiCount
         segmentBuffer[base + SegmentField.AOI_POINTER] = aoiPoolIndex
-        segmentBuffer[base + SegmentField.SEGMENT_ID] = i
 
         for (let j = 0; j < aoiCount; j++) {
           aoiPool[aoiPoolIndex++] = segment[3 + j]

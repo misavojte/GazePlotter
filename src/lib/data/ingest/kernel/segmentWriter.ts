@@ -1,4 +1,8 @@
-import { SEGMENT_STRIDE, SegmentField } from '$lib/data/binary'
+import {
+  FIXATION_CATEGORY_ID,
+  SEGMENT_STRIDE,
+  SegmentField,
+} from '$lib/data/binary'
 import type { DataType } from '$lib/data/types'
 import { DEFAULT_NO_AOI_TREATMENT } from '$lib/data/types'
 import { createDefaultMetricInstances } from '$lib/metrics/instances'
@@ -358,6 +362,10 @@ export class SegmentWriter {
     const finalSegBuffer = new Float32Array(this.totalSegments * SEGMENT_STRIDE)
     const aoiPool = new Uint16Array(this.totalAoiHits)
     const indexTable = new Uint32Array(maxStimuli * maxParticipants * 2)
+    // Fixation-only index, emitted inline (totalSegments is an upper bound,
+    // trimmed below) — sparing the reader its two-pass back-fill scan.
+    const fixationIndex = new Uint32Array(this.totalSegments)
+    const fixationIndexTable = new Uint32Array(maxStimuli * maxParticipants * 2)
 
     /* Spatial buffer allocation: check if any buckets have spatial data */
     let hasSpatialData = false
@@ -382,6 +390,7 @@ export class SegmentWriter {
     let segPtr = 0
     let poolPtr = 0
     let spatialPtr = 0
+    let fixPtr = 0
 
     // Half-open [start, end) range of `aoiPool` written for each stimulus, so
     // the unreferenced-AOI prune below can scan exactly that stimulus's hits.
@@ -406,6 +415,7 @@ export class SegmentWriter {
 
         const tableIdx = (s * maxParticipants + p) * 2
         indexTable[tableIdx] = segPtr
+        fixationIndexTable[tableIdx] = fixPtr
 
         // A. Sort Indices locally
         const indices = bucket.getSortedIndices()
@@ -460,6 +470,8 @@ export class SegmentWriter {
             finalSegBuffer[outBase + SegmentField.AOI_POINTER] = poolPtr
             finalSegBuffer[outBase + SegmentField.AOI_COUNT] = aoiCount // Initial count
 
+            if (cat === FIXATION_CATEGORY_ID) fixationIndex[fixPtr++] = segPtr
+
             // Copy AOIs
             if (aoiCount > 0) {
               const offset = bAoiOffsets[idx]
@@ -489,6 +501,7 @@ export class SegmentWriter {
         }
 
         indexTable[tableIdx + 1] = segPtr
+        fixationIndexTable[tableIdx + 1] = fixPtr
       }
 
       aoiRangeEnd[s] = poolPtr
@@ -618,6 +631,8 @@ export class SegmentWriter {
       segments: {
         segmentBuffer: finalSegBuffer.subarray(0, segPtr * SEGMENT_STRIDE),
         indexTable,
+        fixationIndex: fixationIndex.subarray(0, fixPtr),
+        fixationIndexTable,
         aoiPool: aoiPool.subarray(0, poolPtr),
         hasSpatialData,
         spatialBuffer: spatialBuffer
