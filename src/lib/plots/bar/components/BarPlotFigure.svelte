@@ -18,7 +18,11 @@
     truncateTextToPixelWidth,
     measureTextHeight,
   } from '$lib/shared/utils/textUtils'
-  import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
+  import {
+    alignToPixelCenter,
+    fillCrosshairBand,
+    strokeCrosshairGuides,
+  } from '$lib/plots/shared/canvasUtils'
   import {
     METRIC_MISSING_MESSAGE,
     cannotFitPlaceholder,
@@ -42,11 +46,6 @@
   const MIN_BAR_SPACING = 2
   const LABEL_FONT_SIZE = FONT_PRIMARY.SIZE
   const CATEGORY_LABEL_GAP = 6
-
-  // Crosshair / hover constants
-  const HIGHLIGHT_COLOR = '#007acc'
-  const HIGHLIGHT_FILL_ALPHA = 0.2
-  const HIGHLIGHT_DASH = [2, 2]
 
   interface Props extends CanvasExportProps {
     data: BarPlotDataItem[]
@@ -303,44 +302,27 @@
     const { x: plotLeft, y: plotTop, width: plotWidth, height: plotHeight } = frame
     const halfCat = item.categoryWidth / 2
 
-    ctx.save()
-    ctx.globalAlpha = HIGHLIGHT_FILL_ALPHA
-    ctx.fillStyle = HIGHLIGHT_COLOR
     if (isVertical) {
-      ctx.fillRect(item.categoryCenter - halfCat, plotTop, item.categoryWidth, plotHeight)
-    } else {
-      ctx.fillRect(plotLeft, item.categoryCenter - halfCat, plotWidth, item.categoryWidth)
-    }
-    ctx.restore()
-
-    ctx.save()
-    ctx.strokeStyle = HIGHLIGHT_COLOR
-    ctx.lineWidth = 1
-    ctx.setLineDash(HIGHLIGHT_DASH)
-    ctx.beginPath()
-    if (isVertical) {
+      fillCrosshairBand(ctx, item.categoryCenter - halfCat, plotTop, item.categoryWidth, plotHeight, 0.2)
       const left = alignToPixelCenter(item.categoryCenter - halfCat)
       const right = alignToPixelCenter(item.categoryCenter + halfCat)
-      ctx.moveTo(left, plotTop)
-      ctx.lineTo(left, plotTop + plotHeight)
-      ctx.moveTo(right, plotTop)
-      ctx.lineTo(right, plotTop + plotHeight)
       const y = alignToPixelCenter(mouseValuePx)
-      ctx.moveTo(plotLeft, y)
-      ctx.lineTo(plotLeft + plotWidth, y)
+      strokeCrosshairGuides(ctx, [
+        left, plotTop, left, plotTop + plotHeight,
+        right, plotTop, right, plotTop + plotHeight,
+        plotLeft, y, plotLeft + plotWidth, y,
+      ])
     } else {
+      fillCrosshairBand(ctx, plotLeft, item.categoryCenter - halfCat, plotWidth, item.categoryWidth, 0.2)
       const top = alignToPixelCenter(item.categoryCenter - halfCat)
       const bottom = alignToPixelCenter(item.categoryCenter + halfCat)
-      ctx.moveTo(plotLeft, top)
-      ctx.lineTo(plotLeft + plotWidth, top)
-      ctx.moveTo(plotLeft, bottom)
-      ctx.lineTo(plotLeft + plotWidth, bottom)
       const x = alignToPixelCenter(mouseValuePx)
-      ctx.moveTo(x, plotTop)
-      ctx.lineTo(x, plotTop + plotHeight)
+      strokeCrosshairGuides(ctx, [
+        plotLeft, top, plotLeft + plotWidth, top,
+        plotLeft, bottom, plotLeft + plotWidth, bottom,
+        x, plotTop, x, plotTop + plotHeight,
+      ])
     }
-    ctx.stroke()
-    ctx.restore()
   }
 
   // --- Hover / tooltip ---

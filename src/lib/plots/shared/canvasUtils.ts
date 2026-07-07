@@ -554,6 +554,53 @@ export function alignToPixelCenter(val: number): number {
   return (val | 0) + 0.5
 }
 
+/** The one hover-crosshair color shared by every plot figure's hover chrome. */
+export const CROSSHAIR_COLOR = '#007acc'
+
+const CROSSHAIR_DASH = [2, 2]
+
+/**
+ * Translucent crosshair band — the shared hover-highlight fill. Alpha varies
+ * by plot, and bands may stack (evolving-metrics layers a 0.08 window band
+ * under a 0.15 step band); each call composites like a bare fillRect.
+ */
+export function fillCrosshairBand(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  alpha: number
+): void {
+  ctx.save()
+  ctx.globalAlpha = alpha
+  ctx.fillStyle = CROSSHAIR_COLOR
+  ctx.fillRect(x, y, width, height)
+  ctx.restore()
+}
+
+/**
+ * Dashed 1px crosshair guide lines, batched into one stroke.
+ * `segments` is flat [x1, y1, x2, y2, ...]; callers align the varying
+ * coordinate with alignToPixelCenter for crispness.
+ */
+export function strokeCrosshairGuides(
+  ctx: CanvasRenderingContext2D,
+  segments: readonly number[]
+): void {
+  ctx.save()
+  ctx.strokeStyle = CROSSHAIR_COLOR
+  ctx.lineWidth = 1
+  ctx.setLineDash(CROSSHAIR_DASH)
+  ctx.beginPath()
+  for (let i = 0; i < segments.length; i += 4) {
+    ctx.moveTo(segments[i], segments[i + 1])
+    ctx.lineTo(segments[i + 2], segments[i + 3])
+  }
+  ctx.stroke()
+  ctx.restore()
+}
+
 /**
  * Draws a crisp 1px rectangle border.
  * Handles the 0.5px offset logic internally to ensure sharp lines.

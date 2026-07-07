@@ -1,5 +1,9 @@
 <script lang="ts">
-  import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
+  import {
+    alignToPixelCenter,
+    fillCrosshairBand,
+    strokeCrosshairGuides,
+  } from '$lib/plots/shared/canvasUtils'
   import {
     usePlot,
     NO_MARGINS,
@@ -583,28 +587,13 @@
       const xEnd = Math.min(floorLeft + floorWidth, binCenterX + halfWindowPx)
       const rectWidth = xEnd - xStart
 
-      ctx.save()
-      ctx.fillStyle = '#007acc'
-      if (rectWidth > 0) {
-        ctx.globalAlpha = 0.08
-        ctx.fillRect(xStart, floorTop, rectWidth, floorHeight)
-      }
-      ctx.globalAlpha = 0.15
-      ctx.fillRect(binX, floorTop, binWidth, floorHeight)
-      ctx.restore()
+      if (rectWidth > 0) fillCrosshairBand(ctx, xStart, floorTop, rectWidth, floorHeight, 0.08)
+      fillCrosshairBand(ctx, binX, floorTop, binWidth, floorHeight, 0.15)
     }
 
     if (mouseXPx !== null) {
-      ctx.save()
-      ctx.strokeStyle = '#007acc'
-      ctx.lineWidth = 1
-      ctx.setLineDash([2, 2])
-      ctx.beginPath()
       const x = alignToPixelCenter(mouseXPx)
-      ctx.moveTo(x, floorTop)
-      ctx.lineTo(x, floorBottom)
-      ctx.stroke()
-      ctx.restore()
+      strokeCrosshairGuides(ctx, [x, floorTop, x, floorBottom])
     }
 
     ctx.restore()

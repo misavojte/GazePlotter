@@ -1,5 +1,9 @@
 <script lang="ts">
-  import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
+  import {
+    alignToPixelCenter,
+    fillCrosshairBand,
+    strokeCrosshairGuides,
+  } from '$lib/plots/shared/canvasUtils'
   import {
     computeGroupedLegendGeometry,
     drawLegend,
@@ -90,9 +94,6 @@
     margins = NO_MARGINS,
   }: Props = $props()
 
-  const HIGHLIGHT_COLOR = '#007acc'
-  const HIGHLIGHT_FILL_ALPHA = 0.2
-  const HIGHLIGHT_DASH: number[] = [2, 2]
   const INTERNAL_PADDING_TOP = 6
   const INTERNAL_PADDING_BOTTOM = 0
 
@@ -418,37 +419,15 @@
     plotLeft: number, plotTop: number, plotWidth: number, plotHeight: number, rowHeight: number
   ) {
     const rowY = plotTop + hover.row * rowHeight
-
-    ctx.save()
-    ctx.globalAlpha = HIGHLIGHT_FILL_ALPHA
-    ctx.fillStyle = HIGHLIGHT_COLOR
-    ctx.fillRect(plotLeft, rowY, plotWidth, rowHeight)
-    ctx.restore()
-
-    ctx.save()
-    ctx.strokeStyle = HIGHLIGHT_COLOR
-    ctx.lineWidth = 1
-    ctx.setLineDash(HIGHLIGHT_DASH)
-    ctx.beginPath()
+    fillCrosshairBand(ctx, plotLeft, rowY, plotWidth, rowHeight, 0.2)
     const topEdge = alignToPixelCenter(rowY)
     const bottomEdge = alignToPixelCenter(rowY + rowHeight)
-    ctx.moveTo(plotLeft, topEdge)
-    ctx.lineTo(plotLeft + plotWidth, topEdge)
-    ctx.moveTo(plotLeft, bottomEdge)
-    ctx.lineTo(plotLeft + plotWidth, bottomEdge)
-    ctx.stroke()
-    ctx.restore()
-
-    ctx.save()
-    ctx.strokeStyle = HIGHLIGHT_COLOR
-    ctx.lineWidth = 1
-    ctx.setLineDash(HIGHLIGHT_DASH)
-    ctx.beginPath()
     const x = alignToPixelCenter(hover.x)
-    ctx.moveTo(x, plotTop)
-    ctx.lineTo(x, plotTop + plotHeight)
-    ctx.stroke()
-    ctx.restore()
+    strokeCrosshairGuides(ctx, [
+      plotLeft, topEdge, plotLeft + plotWidth, topEdge,
+      plotLeft, bottomEdge, plotLeft + plotWidth, bottomEdge,
+      x, plotTop, x, plotTop + plotHeight,
+    ])
   }
 
   function isMouseOverLegendItem(mouseX: number, mouseY: number): LegendItemGeometry | null {

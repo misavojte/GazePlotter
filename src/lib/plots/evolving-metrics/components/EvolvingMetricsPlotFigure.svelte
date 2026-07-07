@@ -1,5 +1,10 @@
 <script lang="ts">
-  import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
+  import {
+    alignToPixelCenter,
+    CROSSHAIR_COLOR,
+    fillCrosshairBand,
+    strokeCrosshairGuides,
+  } from '$lib/plots/shared/canvasUtils'
   import {
     usePlot,
     NO_MARGINS,
@@ -344,21 +349,25 @@
     ctx.beginPath()
     ctx.rect(floorLeft, floorTop, floorWidth, floorHeight)
     ctx.clip()
+    drawHoveredWindowChrome(
+      ctx, floorLeft, floorTop, floorWidth, floorHeight, floorRight,
+      alignment === 'overlay' ? null : floorHeight / participantCount
+    )
     if (alignment === 'overlay') {
-      drawOverlayHover(ctx, floorLeft, floorTop, floorWidth, floorHeight, floorBottom, floorRight)
-    } else {
-      drawHeatmapHover(ctx, floorLeft, floorTop, floorWidth, floorHeight, floorBottom, floorRight, participantCount)
+      drawHoveredStepLine(ctx, floorLeft, floorWidth, floorHeight, floorBottom)
     }
     ctx.restore()
   }
 
-  function drawHeatmapHover(
+  // Hover chrome shared by heatmap and overlay modes: the sampled-window band
+  // (0.08) under the step band (0.15), a row×step band when `rowHeight` is
+  // given (heatmap), and the dashed crossline at the hovered time.
+  function drawHoveredWindowChrome(
     ctx: CanvasRenderingContext2D,
     floorLeft: number, floorTop: number, floorWidth: number, floorHeight: number,
-    floorBottom: number, floorRight: number, participantCount: number
+    floorRight: number, rowHeight: number | null
   ) {
     if (hoveredMsTime === null) return
-    const rowHeight = floorHeight / participantCount
     const timelineMin = data.timeline.minValue
     const duration = Math.max(1, data.timeline.maxValue - timelineMin)
     const invMsPerPx = floorWidth / duration
@@ -375,119 +384,45 @@
     }
     if (w) {
       // Step boundaries (the 100ms step)
-      const stepXStart = floorLeft + (w.startMs - timelineMin) * invMsPerPx
-      const stepXEnd = floorLeft + (w.endMs - timelineMin) * invMsPerPx
-      const stepX = Math.max(floorLeft, stepXStart)
-      const stepWidth = Math.min(floorRight, stepXEnd) - stepX
+      const stepX = Math.max(floorLeft, floorLeft + (w.startMs - timelineMin) * invMsPerPx)
+      const stepWidth = Math.min(floorRight, floorLeft + (w.endMs - timelineMin) * invMsPerPx) - stepX
 
       // Window boundaries (the 1000ms window)
       const winStart = w.dataStartMs ?? (w.centerMs - 500)
       const winEnd = w.dataEndMs ?? (w.centerMs + 500)
-      const winXStart = floorLeft + (winStart - timelineMin) * invMsPerPx
-      const winXEnd = floorLeft + (winEnd - timelineMin) * invMsPerPx
-      const x = Math.max(floorLeft, winXStart)
-      const rectWidth = Math.min(floorRight, winXEnd) - x
+      const winX = Math.max(floorLeft, floorLeft + (winStart - timelineMin) * invMsPerPx)
+      const winWidth = Math.min(floorRight, floorLeft + (winEnd - timelineMin) * invMsPerPx) - winX
 
-      ctx.save()
-      ctx.fillStyle = '#007acc'
-      if (rectWidth > 0) {
-        ctx.globalAlpha = 0.08
-        ctx.fillRect(x, floorTop, rectWidth, floorHeight)
+      if (winWidth > 0) fillCrosshairBand(ctx, winX, floorTop, winWidth, floorHeight, 0.08)
+      if (stepWidth > 0) fillCrosshairBand(ctx, stepX, floorTop, stepWidth, floorHeight, 0.15)
+      if (rowHeight !== null && hoveredParticipantIndex !== null && stepWidth > 0) {
+        fillCrosshairBand(ctx, stepX, floorTop + hoveredParticipantIndex * rowHeight, stepWidth, rowHeight, 0.15)
       }
-      if (stepWidth > 0) {
-        ctx.globalAlpha = 0.15
-        ctx.fillRect(stepX, floorTop, stepWidth, floorHeight)
-      }
-      if (hoveredParticipantIndex !== null && stepWidth > 0) {
-        const rowY = floorTop + hoveredParticipantIndex * rowHeight
-        ctx.globalAlpha = 0.15
-        ctx.fillRect(stepX, rowY, stepWidth, rowHeight)
-      }
-      ctx.restore()
     }
 
     const cx = alignToPixelCenter(floorLeft + (hoveredMsTime - timelineMin) * invMsPerPx)
-    ctx.save()
-    ctx.strokeStyle = '#007acc'
-    ctx.lineWidth = 1
-    ctx.setLineDash([2, 2])
-    ctx.beginPath()
-    ctx.moveTo(cx, floorTop)
-    ctx.lineTo(cx, floorBottom)
-    ctx.stroke()
-    ctx.restore()
+    strokeCrosshairGuides(ctx, [cx, floorTop, cx, floorTop + floorHeight])
   }
 
-  function drawOverlayHover(
+  // Overlay mode also re-strokes the hovered participant's step line on top.
+  function drawHoveredStepLine(
     ctx: CanvasRenderingContext2D,
-    floorLeft: number, floorTop: number, floorWidth: number, floorHeight: number,
-    floorBottom: number, floorRight: number
+    floorLeft: number, floorWidth: number, floorHeight: number, floorBottom: number
   ) {
-    const axisMax = yAxisMax
+    if (hoveredParticipantIndex === null) return
+    const wins = data.participants[hoveredParticipantIndex].windows
+    if (wins.length === 0) return
     const timelineMin = data.timeline.minValue
     const duration = Math.max(1, data.timeline.maxValue - timelineMin)
     const invMsPerPx = floorWidth / duration
-    const valueToY = (v: number) => floorBottom - (v / axisMax) * floorHeight
-    const msToX = (ms: number) => floorLeft + (ms - timelineMin) * invMsPerPx
-
-    if (hoveredMsTime !== null) {
-      let w: EvolvingMetricsWindow | null = null
-      if (hoveredParticipantIndex !== null) {
-        w = findWindowAt(data.participants[hoveredParticipantIndex].windows, hoveredMsTime)
-      }
-      if (!w) {
-        for (const p of data.participants) {
-          w = findWindowAt(p.windows, hoveredMsTime)
-          if (w) break
-        }
-      }
-      if (w) {
-        const stepXStart = msToX(w.startMs)
-        const stepXEnd = msToX(w.endMs)
-        const stepX = Math.max(floorLeft, stepXStart)
-        const stepWidth = Math.min(floorRight, stepXEnd) - stepX
-
-        const winStart = w.dataStartMs ?? (w.centerMs - 500)
-        const winEnd = w.dataEndMs ?? (w.centerMs + 500)
-        const winXStart = msToX(winStart)
-        const winXEnd = msToX(winEnd)
-        const x = Math.max(floorLeft, winXStart)
-        const rectWidth = Math.min(floorRight, winXEnd) - x
-
-        ctx.save()
-        ctx.fillStyle = '#007acc'
-        if (rectWidth > 0) {
-          ctx.globalAlpha = 0.08
-          ctx.fillRect(x, floorTop, rectWidth, floorHeight)
-        }
-        if (stepWidth > 0) {
-          ctx.globalAlpha = 0.15
-          ctx.fillRect(stepX, floorTop, stepWidth, floorHeight)
-        }
-        ctx.restore()
-      }
-
-      const cx = alignToPixelCenter(msToX(hoveredMsTime))
-      ctx.save()
-      ctx.strokeStyle = '#007acc'
-      ctx.lineWidth = 1
-      ctx.setLineDash([2, 2])
-      ctx.beginPath()
-      ctx.moveTo(cx, floorTop)
-      ctx.lineTo(cx, floorBottom)
-      ctx.stroke()
-      ctx.restore()
-    }
-
-    if (hoveredParticipantIndex !== null) {
-      const wins = data.participants[hoveredParticipantIndex].windows
-      if (wins.length > 0) {
-        ctx.strokeStyle = '#007acc'
-        ctx.lineWidth = 1
-        drawStepLinePath(ctx, wins, msToX, valueToY)
-        ctx.stroke()
-      }
-    }
+    ctx.strokeStyle = CROSSHAIR_COLOR
+    ctx.lineWidth = 1
+    drawStepLinePath(
+      ctx, wins,
+      (ms: number) => floorLeft + (ms - timelineMin) * invMsPerPx,
+      (v: number) => floorBottom - (v / yAxisMax) * floorHeight
+    )
+    ctx.stroke()
   }
 
   // ── HEATMAP ──

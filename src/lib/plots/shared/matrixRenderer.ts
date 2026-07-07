@@ -3,7 +3,11 @@ import {
   truncateTextToPixelWidth,
   SYSTEM_SANS_SERIF_STACK,
 } from '$lib/shared/utils/textUtils'
-import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
+import {
+  alignToPixelCenter,
+  fillCrosshairBand,
+  strokeCrosshairGuides,
+} from '$lib/plots/shared/canvasUtils'
 import { UI_COLORS } from '$lib/color'
 import type { SquareMatrixLayout } from './matrixLayout'
 
@@ -301,28 +305,14 @@ export function drawMatrixCrosshair(
   const colX = xOffset + cell.col * cellSize
   const rowY = yOffset + cell.row * cellSize
 
-  ctx.save()
-  ctx.globalAlpha = 0.18
-  ctx.fillStyle = '#007acc'
-  ctx.fillRect(colX, yOffset, cellSize, gridHeight)
-  ctx.fillRect(xOffset, rowY, gridWidth, cellSize)
-  ctx.restore()
-
-  ctx.save()
-  ctx.strokeStyle = '#007acc'
-  ctx.lineWidth = 1
-  ctx.setLineDash([2, 2])
-  ctx.beginPath()
-  ctx.moveTo(colX, yOffset)
-  ctx.lineTo(colX, yOffset + gridHeight)
-  ctx.moveTo(colX + cellSize, yOffset)
-  ctx.lineTo(colX + cellSize, yOffset + gridHeight)
-  ctx.moveTo(xOffset, rowY)
-  ctx.lineTo(xOffset + gridWidth, rowY)
-  ctx.moveTo(xOffset, rowY + cellSize)
-  ctx.lineTo(xOffset + gridWidth, rowY + cellSize)
-  ctx.stroke()
-  ctx.restore()
+  fillCrosshairBand(ctx, colX, yOffset, cellSize, gridHeight, 0.18)
+  fillCrosshairBand(ctx, xOffset, rowY, gridWidth, cellSize, 0.18)
+  strokeCrosshairGuides(ctx, [
+    colX, yOffset, colX, yOffset + gridHeight,
+    colX + cellSize, yOffset, colX + cellSize, yOffset + gridHeight,
+    xOffset, rowY, xOffset + gridWidth, rowY,
+    xOffset, rowY + cellSize, xOffset + gridWidth, rowY + cellSize,
+  ])
 }
 
 /** Map canvas coords to a square-matrix cell (display space), or null outside. */
