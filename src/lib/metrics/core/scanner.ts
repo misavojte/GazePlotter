@@ -3,8 +3,9 @@ import { SEGMENT_STRIDE, SegmentField } from '$lib/data/binary'
 import { buildAoiSlots } from './aoiSlots'
 import { resolveParams } from './params'
 import { getRecipe } from './defineMetric'
-import { buildWindowFrame } from './dsl'
-import type { FixationEvent, InitCtx, MetricRecipe } from './dsl'
+import { fillWindowFrame } from './dsl'
+import { cacheGetRaw, cacheSetRaw } from './runtime'
+import type { FixationEvent, InitCtx, MetricRecipe, WindowFrame } from './dsl'
 import type { MetricInstance } from '../instances'
 
 /**
@@ -24,7 +25,7 @@ export function scanBatch(
   const slots = buildAoiSlots(engine, stimulusId)
   if (!slots) return new Map()
 
-  type Active = {
+  type ActiveInstance = {
     inst: MetricInstance
     onFixation: NonNullable<MetricRecipe<any, any>['onFixation']>
     finalize: NonNullable<MetricRecipe<any, any>['finalize']>
@@ -32,7 +33,8 @@ export function scanBatch(
     ctx: InitCtx<Record<string, unknown>>
   }
 
-  const active: Active[] = []
+  const results = new Map<string, number[]>()
+  const active: ActiveInstance[] = []
   for (const inst of instances) {
     if (inst.projection.kind === 'windowed') continue
     const recipe = getRecipe(inst.baseId)
@@ -41,13 +43,19 @@ export function scanBatch(
     // expose the per-participant trio that this batch path requires.
     const { init, onFixation, finalize } = recipe
     if (!init || !onFixation || !finalize) continue
+    // Same cache as runSingleWindow — only the misses join the scan.
+    const cached = cacheGetRaw(engine, inst, stimulusId, participantId, timeStart, timeEnd)
+    if (cached) {
+      results.set(inst.id, cached)
+      continue
+    }
     const params = resolveParams(recipe.params, inst.params)
     const ctx = { params, slots }
     active.push({ inst, onFixation, finalize, acc: init(ctx), ctx })
   }
-  if (active.length === 0) return new Map()
+  if (active.length === 0) return results
 
-  const { reader, hiddenAoisSet, aoiLookup } = slots
+  const { reader, rawToSlot } = slots
   const { startIndex: fStart, endIndex: fEnd } = reader.getFixationRange(
     stimulusId,
     participantId,
@@ -55,6 +63,25 @@ export function scanBatch(
   const segBuf = reader.segmentBufferRaw
   const aoiPool = reader.aoiPoolRaw
   const resolvedSlots: number[] = []
+  // Reused across every fixation — same zero-alloc contract as
+  // scanAccumulator: every recipe's onFixation reads synchronously and never
+  // retains the event, frame, or slots.
+  const frame: WindowFrame = {
+    windowStart: 0,
+    windowEnd: 0,
+    start: 0,
+    end: 0,
+    duration: 0,
+    isClipped: false,
+    midpointInWindow: true,
+  }
+  const fixEvent: FixationEvent = {
+    start: 0,
+    duration: 0,
+    frame,
+    slots: resolvedSlots,
+    index: 0,
+  }
   let index = 0
 
   for (let k = fStart; k < fEnd; k++) {
@@ -65,24 +92,30 @@ export function scanBatch(
     if (timeEnd > 0 && start >= timeEnd) break
     if (end <= timeStart) continue
 
+    // KEEP IN SYNC with scanAccumulator/computeTimeWindowed — inlined in all
+    // three scans for speed (a shared per-fixation callback measured ~15%
+    // slower); pinned by the batch==single equivalence test.
     resolvedSlots.length = 0
     const aoiCount = segBuf[base + SegmentField.AOI_COUNT] | 0
     const aoiPtr = segBuf[base + SegmentField.AOI_POINTER] | 0
     for (let r = 0; r < aoiCount; r++) {
-      const rawId = aoiPool[aoiPtr + r]
-      if (hiddenAoisSet?.has(rawId)) continue
-      const slot = aoiLookup.get(engine.getAoiMapping(stimulusId, rawId))
-      if (slot !== undefined && resolvedSlots.indexOf(slot) === -1) resolvedSlots.push(slot)
+      const slot = rawToSlot[aoiPool[aoiPtr + r]]
+      if (slot >= 0 && resolvedSlots.indexOf(slot) === -1) resolvedSlots.push(slot)
     }
 
     const duration = end - start
-    const frame = buildWindowFrame(start, end, duration, timeStart, timeEnd)
-    const fix: FixationEvent = { start, duration, frame, slots: resolvedSlots, index }
-    for (const a of active) a.onFixation(a.acc, fix, a.ctx)
+    fillWindowFrame(frame, start, end, duration, timeStart, timeEnd)
+    fixEvent.start = start
+    fixEvent.duration = duration
+    fixEvent.index = index
+    for (const a of active) a.onFixation(a.acc, fixEvent, a.ctx)
     index++
   }
 
-  return new Map(
-    active.map(a => [a.inst.id, a.finalize(a.acc, slots, a.ctx)])
-  )
+  for (const a of active) {
+    const raw = a.finalize(a.acc, slots, a.ctx)
+    cacheSetRaw(engine, a.inst, stimulusId, participantId, timeStart, timeEnd, raw)
+    results.set(a.inst.id, raw)
+  }
+  return results
 }

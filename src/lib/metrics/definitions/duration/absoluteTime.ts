@@ -47,6 +47,9 @@ defineMetric({
   measurementClass: 'extensive',
   searchTags: ['dwell', 'gaze', 'time', 'absolute', 'total', 'duration', 'aoi'],
   params: [] as const,
+  // Declares what onFixation does: sums the fixation's in-window overlap
+  // per slot (see MetricRecipe.accumulation) — windowing runs fused.
+  accumulation: 'clippedDuration',
   init: ({ slots }) => new Float64Array(slots.totalSlots),
   onFixation: (acc, { frame, slots }, { slots: info }) => {
     // Read `frame.duration` (sub-bin overlap with the active window) so a

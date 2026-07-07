@@ -69,7 +69,7 @@ describe('fixated — binary AOI presence', () => {
     // Participant fixates AOI1 only.
     const engine = createEngine([[0, 100, 0, 1]])
     const r = vals(query(inst(), scope(engine)))
-    expect(r[0]).toBe(1) // AOI1 fixated
+    expect(r[0]).toBe(100) // AOI1 fixated (percent — matches the % unit)
     expect(r[1]).toBe(0) // AOI2 never fixated → finite 0, not NaN
     expect(Number.isFinite(r[1])).toBe(true)
   })
@@ -79,12 +79,12 @@ describe('fixated — binary AOI presence', () => {
       [0, 100, 0, 1], [100, 200, 0, 1], [200, 300, 0, 1], [300, 400, 0, 1], [400, 500, 0, 1],
     ])
     const r = vals(query(inst(), scope(engine)))
-    expect(r[0]).toBe(1)
+    expect(r[0]).toBe(100)
   })
 })
 
 describe('fixated — proportion across participants (noticed rate)', () => {
-  it('2 of 4 participants fixating an AOI gives 0.5 (non-fixators stay in the denominator)', () => {
+  it('2 of 4 participants fixating an AOI gives 50% (non-fixators stay in the denominator)', () => {
     const engine = createMultiParticipantEngine([
       [[0, 100, 0, 1]], // P0: AOI1
       [[0, 100, 0, 1]], // P1: AOI1
@@ -95,18 +95,18 @@ describe('fixated — proportion across participants (noticed rate)', () => {
     const result = queryGroup(inst(), groupScope)
     expect(result.shape).toBe('aoi-vector')
     if (result.shape !== 'aoi-vector') throw new Error('expected aoi-vector')
-    expect(result.values[0]).toBeCloseTo(0.5, 9) // AOI1: 2/4 — NOT 2/2=1.0
-    expect(result.values[1]).toBeCloseTo(0.5, 9) // AOI2: 2/4
+    expect(result.values[0]).toBeCloseTo(50, 9) // AOI1: 2/4 = 50% — NOT 2/2
+    expect(result.values[1]).toBeCloseTo(50, 9) // AOI2: 2/4 = 50%
   })
 
-  it('all participants fixating gives 1.0; none gives 0.0', () => {
+  it('all participants fixating gives 100%; none gives 0%', () => {
     const all = createMultiParticipantEngine([[[0, 100, 0, 1]], [[0, 100, 0, 1]]])
     const none = createMultiParticipantEngine([[[0, 100, 0, 2]], [[0, 100, 0, 2]]])
     const gs = (e: any): GroupScope => ({ engine: e, stimulusId: STIM, participantIds: [0, 1] })
     const a = queryGroup(inst(), gs(all))
     const z = queryGroup(inst(), gs(none))
     if (a.shape !== 'aoi-vector' || z.shape !== 'aoi-vector') throw new Error('expected aoi-vector')
-    expect(a.values[0]).toBeCloseTo(1, 9)
+    expect(a.values[0]).toBeCloseTo(100, 9)
     expect(z.values[0]).toBeCloseTo(0, 9)
   })
 })
@@ -116,13 +116,13 @@ describe('fixated — thresholds (params)', () => {
     const one = createEngine([[0, 100, 0, 1]])
     const two = createEngine([[0, 100, 0, 1], [100, 200, 0, 1]])
     expect(vals(query(inst({ minFixationCount: 2 }), scope(one)))[0]).toBe(0)
-    expect(vals(query(inst({ minFixationCount: 2 }), scope(two)))[0]).toBe(1)
+    expect(vals(query(inst({ minFixationCount: 2 }), scope(two)))[0]).toBe(100)
   })
 
   it('minDwellMs: total dwell below the threshold does not count as fixated', () => {
     const short = createEngine([[0, 100, 0, 1]])            // 100 ms dwell
     const long = createEngine([[0, 100, 0, 1], [100, 200, 0, 1]]) // 200 ms dwell
     expect(vals(query(inst({ minDwellMs: 150 }), scope(short)))[0]).toBe(0)
-    expect(vals(query(inst({ minDwellMs: 150 }), scope(long)))[0]).toBe(1)
+    expect(vals(query(inst({ minDwellMs: 150 }), scope(long)))[0]).toBe(100)
   })
 })

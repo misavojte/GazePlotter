@@ -58,6 +58,7 @@ defineMetric({
   measurementClass: 'intensive',
   searchTags: ['rqa', 'recurrence', 'rec', 'nonlinear', 'aoi', 'sequence', 'cross'],
   params,
+  accumulation: 'stateful',
   init: (): { seq: number[] } => ({ seq: [] }),
   onFixation: (acc, { slots }, { slots: info, params }) => {
     if (slots.length === 1) acc.seq.push(slots[0])

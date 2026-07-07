@@ -9,14 +9,23 @@ import {
   leafOf,
   PROJECTION_LEAVES,
   projectionOutputShape,
+  windowKey,
   type Projection,
   type WindowedProjection,
 } from './projection'
+import type { ExtendedInterpretedDataType } from '$lib/data/types'
 import { fillWindowFrame } from './dsl'
 import type { AoiSlotInfo, FixationEvent, GroupScope, MetricRecipe, OutputShape, WindowFrame } from './dsl'
 import type { GroupReduction } from './measurement'
 import type { MetricInstance } from '../instances'
 
+/**
+ * Naming convention in this module:
+ * - `run*`     — public entry points; may answer from the result cache.
+ * - `compute*` — pure computation, always executes; never touches the cache.
+ * - `scan*`    — one pass over a participant's fixation segments.
+ * - `cache*`   — result-cache access (see `_resultCache`).
+ */
 export interface Scope {
   engine: DataEngine
   stimulusId: number
@@ -34,13 +43,69 @@ export interface Scope {
  * GC'd. This means a workspace switch (e.g. demo → real data) can no longer
  * serve stale results from the previous dataset.
  *
- * The string cache key additionally includes `AoiGroupReader.version`, which
- * bumps on every `updateMap()` call (visibility toggles, AOI renames that
- * affect grouping). That way in-place AOI mutations that keep the same
- * reader also invalidate dependent entries without needing explicit
- * `clearCache()` plumbing at every call site.
+ * Each reader's bucket is versioned by `AoiGroupReader.version` — the
+ * STRUCTURAL version, which bumps when grouping or visibility changes (both
+ * alter scan results). A version change starts a fresh bucket, so entries
+ * never accumulate across structural edits.
+ *
+ * Cosmetic AOI edits deliberately do NOT reset the bucket (a color-only save
+ * keeps every entry — pinned by tests). But metric results also depend on
+ * what the structural version cannot see: slot ORDER (`buildAoiSlots`
+ * follows display order, and a pure reorder bumps nothing structural) and,
+ * for windowed results, AOI display NAMES (inner leaves resolve AoiRefs by
+ * name). Those ride in the cache KEY as slot signatures instead — a reorder
+ * or rename changes the signature and misses; a color edit leaves it intact
+ * and hits. Participant/stimulus edits change neither, so re-deriving every
+ * plot after a participant rename on a huge dataset is answered entirely
+ * from cache.
  */
-const _cache = new WeakMap<BinaryBufferReader, Map<string, number[]>>()
+type MetricCacheBucket = { version: number; map: Map<string, unknown> }
+const _resultCache = new WeakMap<BinaryBufferReader, MetricCacheBucket>()
+
+function cacheMapFor(engine: DataEngine): Map<string, unknown> | null {
+  const reader = engine.getReader()
+  if (!reader) return null
+  const version = engine.getAoiGroupReader?.()?.version ?? 0
+  let bucket = _resultCache.get(reader)
+  if (!bucket || bucket.version !== version) {
+    bucket = { version, map: new Map() }
+    _resultCache.set(reader, bucket)
+  }
+  return bucket.map
+}
+
+/**
+ * Slot signatures: ORDER (raw results are per-slot arrays in display order)
+ * and NAMES (windowed results resolve AoiRefs by displayed name). Memoized on
+ * the frozen array `getAois` returns — that reference is stable per
+ * (reader, stimulus, appearanceVersion) and swaps on every AOI edit, so the
+ * array identity is the invalidation token and the strings are built once
+ * per edit, not once per query.
+ */
+type SlotSignatures = { order: string; names: string }
+const EMPTY_SIGNATURES: SlotSignatures = { order: '', names: '' }
+const _signatureCache = new WeakMap<
+  readonly ExtendedInterpretedDataType[],
+  SlotSignatures
+>()
+
+function slotSignatures(engine: DataEngine, stimulusId: number): SlotSignatures {
+  let aois: readonly ExtendedInterpretedDataType[]
+  try {
+    aois = getAois(engine, stimulusId)
+  } catch {
+    return EMPTY_SIGNATURES
+  }
+  let sig = _signatureCache.get(aois)
+  if (!sig) {
+    sig = {
+      order: aois.map(a => a.id).join('.'),
+      names: aois.map(a => a.displayedName).join('\x1f'),
+    }
+    _signatureCache.set(aois, sig)
+  }
+  return sig
+}
 
 /** Shared placeholder for a reused ApplyContext's `rawValues` (always overwritten before use). */
 const EMPTY_NUMBER_ARRAY: number[] = []
@@ -82,53 +147,35 @@ export function runProjected(instance: MetricInstance, scope: Scope): ProjectedR
   // it from vector length.
   const slots = buildAoiSlots(scope.engine, scope.stimulusId)
   if (!slots) return null
-  const p = instance.projection
+  const projection = instance.projection
 
-  if (p.kind !== 'windowed') {
+  if (projection.kind !== 'windowed') {
     const raw = runSingleWindow(recipe, instance, scope, scope.timeStart ?? 0, scope.timeEnd ?? 0)
-    const out = applyProjection(p, { aoiNames: getAoiNames(scope), rawValues: raw })
+    const out = applyProjection(projection, { aoiNames: getAoiNames(scope), rawValues: raw })
     return {
-      shape: projectionOutputShape(p),
+      shape: projectionOutputShape(projection),
       values: out.values,
       slots,
       aoiMissing: out.aoiMissing,
     }
   }
 
-  return runWindowed(recipe, instance, scope, p, slots)
+  return runWindowed(recipe, instance, scope, projection, slots)
 }
 
-/** Raw finalize output for the recipe — no projection. Used by scanner batch path. */
+/** Raw finalize output — no projection. Feeds queryGroup's per-participant reduction. */
 export function runRaw(recipe: MetricRecipe<any, any>, instance: MetricInstance, scope: Scope): number[] {
   return runSingleWindow(recipe, instance, scope, scope.timeStart ?? 0, scope.timeEnd ?? 0)
 }
 
-export function runIndividuals(
-  recipe: MetricRecipe<any, any>,
-  instance: MetricInstance,
-  scope: Scope,
-  slotIndex: number,
-): number[] {
-  if (!recipe.individuals || !recipe.finalize) return []
-  const out = scanAccumulator(recipe, instance, scope, scope.timeStart ?? 0, scope.timeEnd ?? 0)
-  if (!out) return []
-  // finalize may flush pending state (e.g., visitDuration's activeDwells) before
-  // individuals inspects the accumulator.
-  recipe.finalize(out.acc, out.slots, { params: out.params, slots: out.slots })
-  return recipe.individuals(out.acc, slotIndex)
-}
-
 /**
- * Per-fixation individual values for EVERY slot from a SINGLE participant scan.
- *
- * `runIndividuals` re-scans the participant for each slot it is asked about, so
- * a caller iterating slots (the AOI-comparison bar plot) pays one full fixation
- * scan per (slot × participant) — and unlike the aggregate `query` path it is
- * uncached, so a per-fixation metric with an `individuals` recipe (e.g. "Was
- * fixated") stalls on large datasets. The accumulator is identical for every
- * slot (one scan fills all slots), so scan + finalize once and read each slot
- * out of the shared accumulator. Returns `null` for recipes without an
- * individuals/finalize pair (the caller falls back to the cached aggregate).
+ * Per-fixation individual values for EVERY slot from a SINGLE participant
+ * scan (finalize may flush pending state — e.g. visitDuration's activeDwells
+ * — before individuals inspects the accumulator). One scan fills all slots;
+ * callers read the slot they need, so there is deliberately no per-slot
+ * variant — it would invite one full rescan per (slot × participant).
+ * Returns `null` for recipes without an individuals/finalize pair (the
+ * caller falls back to the cached aggregate).
  */
 export function runIndividualsAllSlots(
   recipe: MetricRecipe<any, any>,
@@ -151,12 +198,204 @@ function runWindowed(
   recipe: MetricRecipe<any, any>,
   instance: MetricInstance,
   scope: Scope,
-  p: WindowedProjection,
+  projection: WindowedProjection,
   slots: AoiSlotInfo,
 ): ProjectedResult {
   return recipe.windowUnit === 'fixations'
-    ? runFixationWindowed(recipe, instance, scope, p, slots)
-    : runTimeWindowed(recipe, instance, scope, p, slots)
+    ? runFixationWindowed(recipe, instance, scope, projection, slots)
+    : runTimeWindowed(recipe, instance, scope, projection, slots)
+}
+
+/**
+ * Cached wrapper around the per-participant time-windowed scan — the most
+ * expensive query in the app (aoi-stream, evolving-metrics, and every group
+ * fold call it per participant). A workspace redraw that didn't touch AOIs
+ * (participant rename, layout command) is answered entirely from here.
+ */
+function runTimeWindowed(
+  recipe: MetricRecipe<any, any>,
+  instance: MetricInstance,
+  scope: Scope,
+  projection: WindowedProjection,
+  slots: AoiSlotInfo,
+): ProjectedResult {
+  const map = cacheMapFor(scope.engine)
+  const key = map ? windowedCacheKey(instance, scope, projection) : ''
+  const hit = map?.get(key) as ProjectedResult | undefined
+  if (hit) return hit
+  const result = freezeProjectedResult(
+    computeTimeWindowedFused(recipe, scope, projection, slots) ??
+      computeTimeWindowed(recipe, instance, scope, projection, slots)
+  )
+  map?.set(key, result)
+  return result
+}
+
+/**
+ * Fused driver for the additive `recipe.accumulation` kinds (see the field's
+ * docs in dsl.ts): one flat Float64Array(W × slots) accumulated in a pure
+ * numeric loop, so per fixation the driver touches no objects at all. The
+ * resolved slot set is an integer bitmask up to 31 AOI slots (dedupe is a
+ * single OR, the same fast path AoiGroupReader uses) and a reused scratch
+ * array beyond that — wide-AOI stimuli keep the fused speed, only the dedupe
+ * container changes. Returns null for 'stateful' recipes (→ general driver).
+ */
+function computeTimeWindowedFused(
+  recipe: MetricRecipe<any, any>,
+  scope: Scope,
+  projection: WindowedProjection,
+  slots: AoiSlotInfo,
+): ProjectedResult | null {
+  const accumulation = recipe.accumulation
+  if (!accumulation || accumulation === 'stateful') return null
+
+  const { window, inner } = projection
+  const tStart = scope.timeStart ?? 0
+  const tEnd = scope.timeEnd ?? 0
+  const isVector = PROJECTION_LEAVES[inner.kind].outputShape === 'aoi-vector'
+  const outShape: OutputShape = isVector ? 'aoi-vector-timeseries' : 'scalar-timeseries'
+  const empty = (): ProjectedResult =>
+    isVector
+      ? { shape: outShape, values: [], vectors: [], slots, aoiMissing: false, timeline: [] }
+      : { shape: outShape, values: [], slots, aoiMissing: false, timeline: [] }
+
+  if (tEnd <= tStart) return empty()
+  const resolved = buildAoiSlots(scope.engine, scope.stimulusId)
+  if (!resolved) return empty()
+
+  const windowSize = window.windowSize
+  const step = window.stepSize > 0 ? window.stepSize : windowSize
+  const timeline: number[] = []
+  for (let wStart = tStart; wStart + windowSize <= tEnd; wStart += step) {
+    timeline.push(wStart)
+  }
+  const W = timeline.length
+  if (W === 0) return empty()
+
+  const stride = slots.totalSlots
+  const anyIdx = slots.anyFixationSlot
+  const noIdx = slots.noAoiSlot
+  const slotSums = new Float64Array(W * stride)
+  const isDurationWeighted = accumulation !== 'midpointCount'
+  // ≤31 AOI slots: the slot set is a bitmask register. Beyond that (e.g.
+  // 120-AOI stimuli) it is this reused scratch array — same fused loop,
+  // same zero allocations, only the dedupe container changes.
+  const useBitmask = noIdx <= 31
+  const wideSlotScratch: number[] = []
+
+  const { reader, rawToSlot } = resolved
+  const { startIndex: fStart, endIndex: fEnd } = reader.getFixationRange(
+    scope.stimulusId,
+    scope.participantId,
+  )
+  const segBuf = reader.segmentBufferRaw
+  const aoiPool = reader.aoiPoolRaw
+
+  for (let k = fStart; k < fEnd; k++) {
+    const i = reader.getFixationSegmentIndex(k)
+    const base = i * SEGMENT_STRIDE
+    const start = segBuf[base + SegmentField.START_TIME]
+    const end = segBuf[base + SegmentField.END_TIME]
+    if (start >= tEnd) break
+    if (end <= tStart) continue
+
+    // Same decode + resolve semantics as the scan trio (KEEP IN SYNC with
+    // scanAccumulator/computeTimeWindowed/scanBatch; pinned by the
+    // windowed==oracle suite) — dedupe collapses into the bitmask OR, or
+    // an indexOf over the handful of AOIs a single fixation carries.
+    let mask = 0
+    const aoiCount = segBuf[base + SegmentField.AOI_COUNT] | 0
+    const aoiPtr = segBuf[base + SegmentField.AOI_POINTER] | 0
+    if (useBitmask) {
+      for (let r = 0; r < aoiCount; r++) {
+        const slot = rawToSlot[aoiPool[aoiPtr + r]]
+        if (slot >= 0) mask |= 1 << slot
+      }
+    } else {
+      wideSlotScratch.length = 0
+      for (let r = 0; r < aoiCount; r++) {
+        const slot = rawToSlot[aoiPool[aoiPtr + r]]
+        if (slot >= 0 && wideSlotScratch.indexOf(slot) === -1) wideSlotScratch.push(slot)
+      }
+    }
+
+    // Same overlapping-window range math as the general driver.
+    let wLo = Math.floor((start - windowSize - tStart) / step)
+    let wHi = Math.ceil((end - tStart) / step)
+    if (wLo < 0) wLo = 0
+    if (wHi > W - 1) wHi = W - 1
+    while (wLo <= wHi && !(start < timeline[wLo] + windowSize && end > timeline[wLo])) wLo++
+    while (wHi >= wLo && !(start < timeline[wHi] + windowSize && end > timeline[wHi])) wHi--
+
+    const mid = start + (end - start) * 0.5
+    for (let w = wLo; w <= wHi; w++) {
+      const wStart = timeline[w]
+      let v: number
+      if (isDurationWeighted) {
+        const s0 = start > wStart ? start : wStart
+        const wEnd = wStart + windowSize
+        const e0 = end < wEnd ? end : wEnd
+        v = e0 - s0
+      } else {
+        if (mid < wStart || mid >= wStart + windowSize) continue
+        v = 1
+      }
+      const rowBase = w * stride
+      slotSums[rowBase + anyIdx] += v
+      if (useBitmask) {
+        if (mask === 0) {
+          slotSums[rowBase + noIdx] += v
+        } else {
+          let m = mask
+          while (m !== 0) {
+            const lsb = m & -m
+            slotSums[rowBase + (31 - Math.clz32(lsb))] += v
+            m ^= lsb
+          }
+        }
+      } else if (wideSlotScratch.length === 0) {
+        slotSums[rowBase + noIdx] += v
+      } else {
+        for (let s = 0; s < wideSlotScratch.length; s++) slotSums[rowBase + wideSlotScratch[s]] += v
+      }
+    }
+  }
+
+  // Output assembly — per-window normalize + inner projection, matching the
+  // general driver's finalizeWindow semantics exactly.
+  const normalize = accumulation === 'clippedDurationShare'
+  const isIdentity = inner.kind === 'identity-aoi-vector' || inner.kind === 'identity-scalar'
+  const projCtx = { aoiNames: getAoiNames(scope), rawValues: EMPTY_NUMBER_ARRAY }
+  const values: number[] = isVector ? [] : new Array(W)
+  const vectors: number[][] = isVector ? new Array(W) : []
+  let aoiMissing = false
+  const row: number[] = new Array(stride)
+
+  for (let w = 0; w < W; w++) {
+    const rowBase = w * stride
+    if (normalize) {
+      const total = slotSums[rowBase + anyIdx]
+      for (let s = 0; s < stride; s++) {
+        row[s] = total > 0 ? (slotSums[rowBase + s] / total) * 100 : Number.NaN
+      }
+    } else {
+      for (let s = 0; s < stride; s++) row[s] = slotSums[rowBase + s]
+    }
+    if (isIdentity) {
+      if (isVector) vectors[w] = row.slice()
+      else values[w] = row[0] ?? Number.NaN
+      continue
+    }
+    projCtx.rawValues = row
+    const out = applyProjection(inner, projCtx)
+    if (out.aoiMissing) aoiMissing = true
+    if (isVector) vectors[w] = out.values
+    else values[w] = out.values[0] ?? Number.NaN
+  }
+
+  return isVector
+    ? { shape: outShape, values: [], vectors, slots, aoiMissing, timeline }
+    : { shape: outShape, values, slots, aoiMissing, timeline }
 }
 
 /**
@@ -177,14 +416,14 @@ function runWindowed(
  * `runFixationWindowed` already single-scans (into `acc.seq`); only the
  * time-windowed path carried the redundant rescan.
  */
-function runTimeWindowed(
+function computeTimeWindowed(
   recipe: MetricRecipe<any, any>,
   instance: MetricInstance,
   scope: Scope,
-  p: WindowedProjection,
+  projection: WindowedProjection,
   slots: AoiSlotInfo,
 ): ProjectedResult {
-  const { window, inner } = p
+  const { window, inner } = projection
   const tStart = scope.timeStart ?? 0
   const tEnd = scope.timeEnd ?? 0
   const isVector = PROJECTION_LEAVES[inner.kind].outputShape === 'aoi-vector'
@@ -263,15 +502,13 @@ function runTimeWindowed(
   }
 
   // Single pass over the participant's fixations.
-  const { reader, hiddenAoisSet, aoiLookup } = resolved
+  const { reader, rawToSlot } = resolved
   const { startIndex: fStart, endIndex: fEnd } = reader.getFixationRange(
     scope.stimulusId,
     scope.participantId,
   )
   const segBuf = reader.segmentBufferRaw
   const aoiPool = reader.aoiPoolRaw
-  const stim = scope.stimulusId
-  const engine = scope.engine
   const resolvedSlots: number[] = []
 
   // Reused across every (fixation, window) dispatch — no per-dispatch
@@ -313,14 +550,16 @@ function runTimeWindowed(
     }
 
     // Resolve AOI slots ONCE; reused across every window this fixation hits.
+    // KEEP IN SYNC with scanAccumulator/scanBatch — this decode + resolve +
+    // dedupe block is a scientific invariant, inlined in all three scans
+    // for speed (a shared per-fixation callback measured ~15% slower) and
+    // pinned by the batch==single and windowed==oracle equivalence tests.
     resolvedSlots.length = 0
     const aoiCount = segBuf[base + SegmentField.AOI_COUNT] | 0
     const aoiPtr = segBuf[base + SegmentField.AOI_POINTER] | 0
     for (let r = 0; r < aoiCount; r++) {
-      const rawId = aoiPool[aoiPtr + r]
-      if (hiddenAoisSet?.has(rawId)) continue
-      const slot = aoiLookup.get(engine.getAoiMapping(stim, rawId))
-      if (slot !== undefined && resolvedSlots.indexOf(slot) === -1) resolvedSlots.push(slot)
+      const slot = rawToSlot[aoiPool[aoiPtr + r]]
+      if (slot >= 0 && resolvedSlots.indexOf(slot) === -1) resolvedSlots.push(slot)
     }
 
     const duration = end - start
@@ -372,11 +611,28 @@ function runTimeWindowed(
     : { shape: outShape, values, slots, aoiMissing, timeline }
 }
 
+/** Cached wrapper — same contract as `runTimeWindowed`. */
 function runFixationWindowed(
   recipe: MetricRecipe<any, any>,
   instance: MetricInstance,
   scope: Scope,
-  p: WindowedProjection,
+  projection: WindowedProjection,
+  slots: AoiSlotInfo,
+): ProjectedResult {
+  const map = cacheMapFor(scope.engine)
+  const key = map ? windowedCacheKey(instance, scope, projection) : ''
+  const hit = map?.get(key) as ProjectedResult | undefined
+  if (hit) return hit
+  const result = freezeProjectedResult(computeFixationWindowed(recipe, instance, scope, projection, slots))
+  map?.set(key, result)
+  return result
+}
+
+function computeFixationWindowed(
+  recipe: MetricRecipe<any, any>,
+  instance: MetricInstance,
+  scope: Scope,
+  projection: WindowedProjection,
   slots: AoiSlotInfo,
 ): ProjectedResult {
   // Fixation-windowed recipes slice the accumulator directly. The inner leaf
@@ -387,8 +643,8 @@ function runFixationWindowed(
   }
   // Registry guarantees: wrapper's inner is always scalar, and fixation-windowed
   // recipes have rawShape === 'scalar'. Only identity-scalar is compatible.
-  if (p.inner.kind !== 'identity-scalar') {
-    throw new Error(`[metrics] fixation-windowed recipe ${recipe.id} requires identity-scalar inner, got ${p.inner.kind}`)
+  if (projection.inner.kind !== 'identity-scalar') {
+    throw new Error(`[metrics] fixation-windowed recipe ${recipe.id} requires identity-scalar inner, got ${projection.inner.kind}`)
   }
 
   const out = scanAccumulator(recipe, instance, scope, scope.timeStart ?? 0, scope.timeEnd ?? 0)
@@ -400,7 +656,7 @@ function runFixationWindowed(
   }
 
   const N = seq.length
-  const { windowSize, stepSize } = p.window
+  const { windowSize, stepSize } = projection.window
   const step = stepSize
   if (N < windowSize) return { shape: 'scalar-timeseries', values: [], slots, aoiMissing: false, timeline: [] }
 
@@ -445,13 +701,13 @@ export function runWindowedGroup(
   recipe: MetricRecipe<any, any>,
   instance: MetricInstance,
   group: GroupScope,
-  p: WindowedProjection,
+  projection: WindowedProjection,
   method: GroupReduction,
 ): ProjectedResult | null {
   const slots = buildAoiSlots(group.engine, group.stimulusId)
   if (!slots) return null
 
-  const isVector = PROJECTION_LEAVES[p.inner.kind].outputShape === 'aoi-vector'
+  const isVector = PROJECTION_LEAVES[projection.inner.kind].outputShape === 'aoi-vector'
   const outShape: OutputShape = isVector ? 'aoi-vector-timeseries' : 'scalar-timeseries'
 
   // Canonical time range. Explicit group bounds win; otherwise the union
@@ -472,7 +728,7 @@ export function runWindowedGroup(
       : { shape: outShape, values: [], slots, aoiMissing: false, timeline: [] }
   }
 
-  const { window } = p
+  const { window } = projection
   const timeline: number[] = []
   for (let wStart = tStart; wStart + window.windowSize <= tEnd; wStart += window.stepSize) {
     timeline.push(wStart)
@@ -508,7 +764,7 @@ export function runWindowedGroup(
       timeStart: tStart,
       timeEnd: Math.min(tEnd, pEnd),
     }
-    const r = runTimeWindowed(recipe, instance, scope, p, slots)
+    const r = runTimeWindowed(recipe, instance, scope, projection, slots)
     if (r.aoiMissing) aoiMissing = true
 
     // Fold this participant into the typed sufficient-statistics, then drop it.
@@ -575,12 +831,12 @@ function runSingleWindow(
   timeEnd: number,
 ): number[] {
   if (!recipe.finalize) return []
-  const cached = cacheGet(scope.engine, scope, instance, timeStart, timeEnd)
+  const cached = cacheGetRaw(scope.engine, instance, scope.stimulusId, scope.participantId, timeStart, timeEnd)
   if (cached) return cached
   const out = scanAccumulator(recipe, instance, scope, timeStart, timeEnd)
   if (!out) return []
   const result = recipe.finalize(out.acc, out.slots, { params: out.params, slots: out.slots })
-  cacheSet(scope.engine, scope, instance, timeStart, timeEnd, result)
+  cacheSetRaw(scope.engine, instance, scope.stimulusId, scope.participantId, timeStart, timeEnd, result)
   return result
 }
 
@@ -600,15 +856,13 @@ export function scanAccumulator(
   const ctx = { params, slots }
   const acc = recipe.init(ctx)
 
-  const { reader, hiddenAoisSet, aoiLookup } = slots
+  const { reader, rawToSlot } = slots
   const { startIndex: fStart, endIndex: fEnd } = reader.getFixationRange(
     scope.stimulusId,
     scope.participantId,
   )
   const segBuf = reader.segmentBufferRaw
   const aoiPool = reader.aoiPoolRaw
-  const stim = scope.stimulusId
-  const engine = scope.engine
   const resolvedSlots: number[] = []
 
   // Reused across every fixation — no per-fixation allocation. onFixation reads
@@ -644,18 +898,20 @@ export function scanAccumulator(
     if (timeEnd > 0 && start >= timeEnd) break
     if (end <= timeStart) continue
 
+    // KEEP IN SYNC with computeTimeWindowed/scanBatch — this decode + resolve
+    // + dedupe block is a scientific invariant, inlined in all three scans
+    // for speed (a shared per-fixation callback measured ~15% slower) and
+    // pinned by the equivalence tests. `rawToSlot` folds the hidden-drop and
+    // AOI-group mapping into one table read; the dedupe makes recipes testing
+    // `slots.length === 1` (e.g. RQA's single-AOI filter) treat a fixation
+    // tagged by multiple raw IDs that map to the same AOI slot as a single
+    // labelled fixation, matching extractFixationSequence.
     resolvedSlots.length = 0
     const aoiCount = segBuf[base + SegmentField.AOI_COUNT] | 0
     const aoiPtr = segBuf[base + SegmentField.AOI_POINTER] | 0
     for (let r = 0; r < aoiCount; r++) {
-      const rawId = aoiPool[aoiPtr + r]
-      if (hiddenAoisSet?.has(rawId)) continue
-      const slot = aoiLookup.get(engine.getAoiMapping(stim, rawId))
-      // Dedupe so recipes testing `slots.length === 1` (e.g. RQA's
-      // single-AOI filter) and counters iterating slots treat a fixation
-      // tagged by multiple raw IDs that map to the same AOI slot as a
-      // single labelled fixation, matching extractFixationSequence.
-      if (slot !== undefined && resolvedSlots.indexOf(slot) === -1) resolvedSlots.push(slot)
+      const slot = rawToSlot[aoiPool[aoiPtr + r]]
+      if (slot >= 0 && resolvedSlots.indexOf(slot) === -1) resolvedSlots.push(slot)
     }
 
     const duration = end - start
@@ -677,12 +933,20 @@ function getAoiNames(scope: Scope): string[] {
   }
 }
 
-// ─── Cache (per-engine, keyed on baseId+params+time range) ────────────────────
+// ─── Cache (per-reader bucket, keyed on baseId+params+scope+time range) ──────
 
-function cacheKey(engine: DataEngine, instance: MetricInstance, scope: Scope, tStart: number, tEnd: number): string {
-  const p = paramsKey(instance.params)
-  const v = engine.getAoiGroupReader?.()?.version ?? 0
-  return `v${v}|${instance.baseId}|${p}|${scope.stimulusId}|${scope.participantId}|${tStart}|${tEnd}`
+function rawCacheKey(engine: DataEngine, instance: MetricInstance, stimulusId: number, participantId: number, tStart: number, tEnd: number): string {
+  const sig = slotSignatures(engine, stimulusId)
+  return `r|o${sig.order}|${instance.baseId}|${paramsKey(instance.params)}|${stimulusId}|${participantId}|${tStart}|${tEnd}`
+}
+
+function windowedCacheKey(instance: MetricInstance, scope: Scope, projection: WindowedProjection): string {
+  // The projection shapes windowed results (timeline + inner leaf), so it is
+  // part of the identity — keyed with the projection system's own vocabulary
+  // (`windowKey` + per-leaf `cacheKey`, total over every leaf kind).
+  const proj = `${windowKey(projection.window)}~${PROJECTION_LEAVES[projection.inner.kind].cacheKey(projection.inner)}`
+  const sig = slotSignatures(scope.engine, scope.stimulusId)
+  return `w|o${sig.order}|n${sig.names}|${proj}|${instance.baseId}|${paramsKey(instance.params)}|${scope.stimulusId}|${scope.participantId}|${scope.timeStart ?? 0}|${scope.timeEnd ?? 0}`
 }
 
 function paramsKey(params: Record<string, unknown> | undefined): string {
@@ -691,22 +955,31 @@ function paramsKey(params: Record<string, unknown> | undefined): string {
   return keys.map(k => `${k}=${String(params[k])}`).join(',')
 }
 
-function cacheGet(engine: DataEngine, scope: Scope, instance: MetricInstance, tStart: number, tEnd: number): number[] | undefined {
-  const reader = engine.getReader()
-  if (!reader) return undefined
-  const map = _cache.get(reader)
-  if (!map) return undefined
-  return map.get(cacheKey(engine, instance, scope, tStart, tEnd))
+/**
+ * Raw (unprojected) finalize output — consulted by `runSingleWindow` and the
+ * batch scanner so both single and batch paths share one entry per instance.
+ */
+export function cacheGetRaw(engine: DataEngine, instance: MetricInstance, stimulusId: number, participantId: number, tStart: number, tEnd: number): number[] | undefined {
+  return cacheMapFor(engine)?.get(rawCacheKey(engine, instance, stimulusId, participantId, tStart, tEnd)) as number[] | undefined
 }
 
-function cacheSet(engine: DataEngine, scope: Scope, instance: MetricInstance, tStart: number, tEnd: number, value: number[]): void {
-  const reader = engine.getReader()
-  if (!reader) return
-  let map = _cache.get(reader)
-  if (!map) { map = new Map(); _cache.set(reader, map) }
-  map.set(cacheKey(engine, instance, scope, tStart, tEnd), value)
+export function cacheSetRaw(engine: DataEngine, instance: MetricInstance, stimulusId: number, participantId: number, tStart: number, tEnd: number, value: number[]): void {
+  cacheMapFor(engine)?.set(rawCacheKey(engine, instance, stimulusId, participantId, tStart, tEnd), value)
 }
 
-// Re-export PROJECTION_LEAVES and leafOf so runtime consumers can peek.
-export { PROJECTION_LEAVES, leafOf }
-export type { Projection }
+/**
+ * Cached windowed results are frozen and SHARED — no defensive copies. No
+ * consumer mutates result arrays (the leaf path already hands out fresh
+ * arrays via `applyProjection`'s spread), and the freeze turns any future
+ * violation into a loud TypeError instead of silent cache corruption.
+ */
+function freezeProjectedResult(r: ProjectedResult): ProjectedResult {
+  Object.freeze(r.values)
+  if (r.vectors) {
+    for (const row of r.vectors) Object.freeze(row)
+    Object.freeze(r.vectors)
+  }
+  if (r.timeline) Object.freeze(r.timeline)
+  return Object.freeze(r)
+}
+

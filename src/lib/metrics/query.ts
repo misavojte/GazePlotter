@@ -3,7 +3,6 @@ import { getRecipe } from './core/defineMetric'
 import { resolveParams } from './core/params'
 import {
   runProjected,
-  runIndividuals,
   runIndividualsAllSlots,
   runRaw,
   runWindowedGroup,
@@ -170,18 +169,10 @@ export function queryGroup(instance: MetricInstance, group: GroupScope): MetricR
   })
 }
 
-/** Per-fixation individual values for the given slot (for box-plot individuals). */
-export function queryIndividuals(instance: MetricInstance, scope: Scope, slotIndex: number): number[] {
-  const recipe = getRecipe(instance.baseId)
-  if (!recipe) return []
-  return runIndividuals(recipe, instance, scope, slotIndex)
-}
-
 /**
  * Per-fixation individual values for every slot from ONE participant scan
- * (indexed by slot). For callers that need all slots — the AOI-comparison bar
- * plot — this avoids the per-slot rescan of {@link queryIndividuals}. Returns
- * `null` for recipes without an individuals recipe (use the aggregate `query`).
+ * (indexed by slot — box-plot/beeswarm individuals). Returns `null` for
+ * recipes without an individuals recipe (use the aggregate `query`).
  */
 export function queryIndividualsAllSlots(instance: MetricInstance, scope: Scope): number[][] | null {
   const recipe = getRecipe(instance.baseId)

@@ -242,8 +242,8 @@ export class SegmentWriter {
     aoi: Uint8Array[] | null,
     spatial?: { x: number; y: number } | null
   ): void {
-    const sIdx = this.getOrAddBytes(this.stimuli, stimulus, this.stimuliNames, true)
-    const pIdx = this.getOrAddBytes(
+    const sIdx = this.internName(this.stimuli, stimulus, this.stimuliNames, true)
+    const pIdx = this.internName(
       this.participants,
       participant,
       this.participantNames
@@ -256,7 +256,7 @@ export class SegmentWriter {
       const names = this.aoiNamesPerStimulus[sIdx]
 
       for (let i = 0; i < aoi.length; i++) {
-        const id = this.getOrAddBytes(map, aoi[i], names)
+        const id = this.internName(map, aoi[i], names)
         aoiIds.push(id)
       }
       this.totalAoiHits += aoiIds.length
@@ -283,8 +283,8 @@ export class SegmentWriter {
    * COLD PATH — once per gated group, never per row.
    */
   beginProvisionalGroup(stimulus: Uint8Array, participant: Uint8Array): number {
-    const sIdx = this.getOrAddBytes(this.stimuli, stimulus, this.stimuliNames, true)
-    const pIdx = this.getOrAddBytes(
+    const sIdx = this.internName(this.stimuli, stimulus, this.stimuliNames, true)
+    const pIdx = this.internName(
       this.participants,
       participant,
       this.participantNames
@@ -661,18 +661,18 @@ export class SegmentWriter {
     return this.categoryNames.map(name => [name])
   }
 
-  private getOrAddBytes(
+  private internName(
     map: ByteDictionary,
     name: Uint8Array,
     names: string[],
-    isStim = false
+    isStimulus = false
   ): number {
     const idx = map.getId(name)
     if (idx === names.length) {
       // Cold path (once per unique name): decode with the current file's
       // decoder so the string is fixed before a later file swaps encodings.
       names.push(decodeBytes(name, this.decoder))
-      if (isStim) {
+      if (isStimulus) {
         this.aoiNamesPerStimulus.push([])
         this.aoiMaps.push(new ByteDictionary())
       }

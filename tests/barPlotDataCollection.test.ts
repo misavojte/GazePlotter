@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { createReaderFromJson } from '../src/lib/data/binary/converters'
-import { query, queryIndividuals, type MetricInstance, type Scope } from '../src/lib/metrics'
+import { query, queryIndividualsAllSlots, type MetricInstance, type Scope } from '../src/lib/metrics'
 
 // Stimulus 1 has 2 AOIs (raw IDs 1 and 2)
 // Slot layout: 0=AOI1, 1=AOI2, 2=noAoi, 3=anyFixation
@@ -128,7 +128,7 @@ describe('Metric definitions — segment data collection', () => {
     const dwell = values(query(inst('visitDuration'), scope(engine, 101)))
     // One visit of 300ms total → mean = 300
     expect(dwell[0]).toBe(300)
-    expect(queryIndividuals(inst('visitDuration'), scope(engine, 101), 0)).toEqual([300])
+    expect(queryIndividualsAllSlots(inst('visitDuration'), scope(engine, 101))![0]).toEqual([300])
   })
 
   it('visitCount: AOI overlap — both AOIs receive an entry', () => {

@@ -49,6 +49,7 @@ defineMetric({
   measurementClass: 'intensive',
   searchTags: ['rqa', 'laminarity', 'lam', 'vertical', 'nonlinear', 'aoi', 'sequence'],
   params,
+  accumulation: 'stateful',
   init: (): { seq: number[] } => ({ seq: [] }),
   onFixation: (acc, { slots }, { slots: info, params }) => {
     if (slots.length === 1) acc.seq.push(slots[0])

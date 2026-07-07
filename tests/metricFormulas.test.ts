@@ -11,7 +11,7 @@ import { AoiGroupReader } from '../src/lib/data/binary/reader.aoiGroup'
 import {
   query,
   queryGroup,
-  queryIndividuals,
+  queryIndividualsAllSlots,
   type MetricInstance,
   type Scope,
   type GroupScope,
@@ -343,7 +343,7 @@ describe('visitDuration — mean sum-of-durations per visit', () => {
     const result = values(query(inst('visitDuration'), scope(engine)))
     expect(result[0]).toBe(150)
     expect(result[1]).toBe(100)
-    expect(queryIndividuals(inst('visitDuration'), scope(engine), 0)).toEqual([200, 100])
+    expect(queryIndividualsAllSlots(inst('visitDuration'), scope(engine))![0]).toEqual([200, 100])
   })
 
   it('counts a trailing zero-duration visit (anyFixation = 0, not dropped to NaN)', () => {

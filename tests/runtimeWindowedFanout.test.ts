@@ -116,6 +116,7 @@ describe('runTimeWindowed fan-out == per-window oracle (sliding windows)', () =>
     { name: 'fixationCount (midpoint membership)', baseId: 'fixationCount', inner: { kind: 'identity-aoi-vector' }, vector: true },
     { name: 'visitCount (midpoint membership)', baseId: 'visitCount', inner: { kind: 'identity-aoi-vector' }, vector: true },
     { name: 'visitDuration (stateful finalize flush)', baseId: 'visitDuration', inner: { kind: 'identity-aoi-vector' }, vector: true },
+    { name: 'fixated (binary presence, within-window thresholds)', baseId: 'fixated', inner: { kind: 'identity-aoi-vector' }, vector: true },
     { name: 'fixationCount → aggregate-aoi sum (scalar)', baseId: 'fixationCount', inner: { kind: 'aggregate-aoi', reducer: 'sum' }, vector: false },
   ]
 
@@ -174,4 +175,65 @@ describe('runTimeWindowed fan-out == per-window oracle (sliding windows)', () =>
       expect(result.vectors[w][0]).toBe(oracle.cells[w][0])
     }
   })
+})
+
+describe('fused windowed driver — wide stimuli (120 AOIs, array slot-set path)', () => {
+  // Past 31 AOI slots the fused driver switches from the bitmask register to
+  // the reused scratch array; this pins that path against the same oracle.
+  const N_AOIS = 120
+
+  function createWideEngine(segmentsForPid: number[][]) {
+    const segments: number[][][][] = [[], [segmentsForPid]]
+    const reader = createReaderFromJson(segments)
+    const aoiRows: (string[] | null)[] = [null]
+    const order: number[] = []
+    for (let i = 1; i <= N_AOIS; i++) {
+      aoiRows.push([`AOI ${i}`, `AOI ${i}`, 'red'])
+      order.push(i)
+    }
+    return {
+      metadata: {
+        isOrdinalOnly: false,
+        capabilities: { segmented: true, spatial: false, event: false },
+        aois: { data: [[], aoiRows], orderVector: [[], order], hiddenAois: [[], []] },
+        categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [] },
+        participants: { data: [['P0', 'P0']], orderVector: [] },
+        participantsGroups: [],
+        stimuli: { data: [['S0', 'S0'], ['S1', 'S1']], orderVector: [] },
+        noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
+        metricInstances: [],
+      },
+      getReader: () => reader,
+      getAoiMapping: (_s: number, rawId: number) => rawId,
+    }
+  }
+
+  // Fixations spread across high slot ids (> 31), with multi-AOI tags, a
+  // DUPLICATE raw id (dedupe invariant), and untagged fixations (noAoi slot).
+  const WIDE_FIX: number[][] = []
+  for (let i = 0; i < 24; i++) {
+    const t = i * 25
+    const id = 1 + ((i * 37) % N_AOIS)
+    const id2 = 1 + ((i * 53) % N_AOIS)
+    WIDE_FIX.push(i % 5 === 0 ? [t, t + 20, 0] : [t, t + 20, 0, id, id2, id])
+  }
+
+  for (const baseId of ['absoluteTime', 'relativeTime', 'fixationCount']) {
+    it(`${baseId} matches the per-window oracle at ${N_AOIS} AOIs`, () => {
+      const engine = createWideEngine(WIDE_FIX)
+      const inner: LeafProjection = { kind: 'identity-aoi-vector' }
+      const result = query(windowedInst(baseId, inner, 200, 50), scope(engine, 0, 600))
+      const oracle = oracleTimeline(engine, baseId, inner, true, 0, 600, 200, 50)
+      if (result.shape !== 'aoi-vector-timeseries') throw new Error('shape')
+      expect(result.timeline).toEqual(oracle.timeline)
+      for (let w = 0; w < oracle.cells.length; w++) {
+        for (let s = 0; s < oracle.cells[w].length; s++) {
+          expect(
+            sameNum(result.vectors[w][s], oracle.cells[w][s]),
+            `window ${w} slot ${s}: fused=${result.vectors[w][s]} oracle=${oracle.cells[w][s]}`
+          ).toBe(true)
+        }
+      }
+    })
+  }
 })

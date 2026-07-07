@@ -12,6 +12,13 @@ export type OutputShape =
   | 'aoi-vector-timeseries'
 export type WindowUnit = 'ms' | 'fixations'
 
+/** See {@link MetricRecipe.accumulation}. */
+export type WindowAccumulation =
+  | 'clippedDuration'
+  | 'clippedDurationShare'
+  | 'midpointCount'
+  | 'stateful'
+
 /**
  * Group-level evaluation context for recipes whose computation is inherently
  * pairwise across participants (e.g. scanpath similarity). A `GroupScope` carries
@@ -38,6 +45,12 @@ export interface GroupResult {
   participantIds: number[]
 }
 
+/**
+ * The slot LAYOUT of a stimulus: `[aoi_0 … aoi_{n-1}, noAoi, anyFixation]`.
+ * Pure numbers — safe to embed in results and recipe contexts. The scan-side
+ * superset (reader + rawId→slot table) is `ResolvedAoiSlots` in aoiSlots.ts;
+ * use that only inside scan loops.
+ */
 export interface AoiSlotInfo {
   totalSlots: number
   noAoiSlot: number
@@ -98,47 +111,15 @@ export interface WindowFrame {
 
 /**
  * Single canonical construction of a {@link WindowFrame} from a fixation's
- * raw `(start, end, duration)` and the active scope's `(timeStart, timeEnd)`.
- * Both `scanAccumulator` (in `runtime.ts`) and `scanBatch` (in `scanner.ts`)
- * call this — keeping SW-RQA midpoint semantics, occupancy duration math,
- * and the clipped-flag rule in one place. Unbounded scopes (`timeEnd <= 0`)
- * get `windowStart=0`, `windowEnd=+Infinity`, frame mirrors fixation, and
- * `midpointInWindow=true`.
- */
-export function buildWindowFrame(
-  start: number,
-  end: number,
-  duration: number,
-  timeStart: number,
-  timeEnd: number,
-): WindowFrame {
-  return fillWindowFrame(
-    {
-      windowStart: 0,
-      windowEnd: 0,
-      start: 0,
-      end: 0,
-      duration: 0,
-      isClipped: false,
-      midpointInWindow: true,
-    },
-    start,
-    end,
-    duration,
-    timeStart,
-    timeEnd,
-  )
-}
-
-/**
- * In-place variant of {@link buildWindowFrame} — writes the frame fields into
- * `out` and returns it, allocating nothing. The single-scan windowed driver
- * (`runTimeWindowed`) reuses one frame object across every (fixation, window)
- * dispatch instead of allocating millions of short-lived frames on huge
- * datasets. Safe because `onFixation` reads frame fields synchronously and
- * never retains the object (the same invariant that lets the scan reuse one
- * `slots` array). The math is identical to `buildWindowFrame`; both live here
- * so SW-RQA midpoint, occupancy-duration, and clip rules stay in one place.
+ * raw `(start, end, duration)` and the active scope's `(timeStart, timeEnd)`
+ * — every scan (`scanAccumulator`, `scanBatch`) fills through here, keeping
+ * SW-RQA midpoint semantics, occupancy duration math, and the clipped-flag
+ * rule in one place. Writes into `out` and returns it, allocating nothing:
+ * scans reuse ONE frame object across millions of fixations, safe because
+ * `onFixation` reads frame fields synchronously and never retains the object
+ * (the same invariant that lets a scan reuse one `slots` array). Unbounded
+ * scopes (`timeEnd <= 0`) get `windowStart=0`, `windowEnd=+Infinity`, frame
+ * mirrors fixation, and `midpointInWindow=true`.
  */
 export function fillWindowFrame(
   out: WindowFrame,
@@ -271,6 +252,30 @@ export interface MetricRecipe<P, A> {
   defaultReduction?: GroupReduction
   /** Defaults to true. Set to false when windowing is not meaningful (e.g. TTFF). */
   supportsWindowing?: boolean
+  /**
+   * The recipe's accumulation semantics — a declaration of what `onFixation`
+   * does with each fixation, in the metric's own terms. Required for every
+   * scan-trio recipe and forbidden for `scanGroup` recipes (enforced at
+   * registration, like the trio itself). It is a CONTRACT, not a hint: for
+   * the additive kinds the windowed driver runs the scan as one fused
+   * numeric pass over a flat Float64Array (bitmask slot set ≤31 AOI slots,
+   * reused scratch array beyond — no FixationEvent, no onFixation call, no
+   * per-window accumulators; ~an order of magnitude faster cold), and the
+   * result MUST be bit-identical to running the trio per window. The
+   * windowed==oracle equivalence suite pins that; the trio remains the
+   * definition, used verbatim by every non-windowed query.
+   *
+   * - `'clippedDuration'` — sums the fixation∩window overlap (ms) per slot
+   *   (anyFixation always, noAoi when unlabeled, else each resolved slot).
+   * - `'clippedDurationShare'` — same sums, finalized per window as a
+   *   percentage of that window's anyFixation total (NaN when it is 0).
+   * - `'midpointCount'` — adds 1 per slot in the window(s) containing the
+   *   fixation midpoint (the SW-RQA membership convention).
+   * - `'stateful'` — anything else (visits, sequences, first-hit latencies):
+   *   the accumulator carries cross-fixation state, so windowing runs the
+   *   scan trio itself.
+   */
+  accumulation?: WindowAccumulation
   /**
    * Defaults to false. Set to true when the recipe writes a meaningful
    * stimulus-level aggregate into `anyFixationSlot`; opens the

@@ -56,6 +56,11 @@ function assertShapeLifecycleInvariant(r: MetricRecipe<any, any>): void {
         `[metrics] recipe "${r.id}" has rawShape 'participant-pair-matrix'; init/onFixation/finalize must be omitted`,
       )
     }
+    if (r.accumulation) {
+      throw new Error(
+        `[metrics] recipe "${r.id}" computes via scanGroup and has no per-fixation accumulation; omit 'accumulation'`,
+      )
+    }
     return
   }
 
@@ -67,6 +72,13 @@ function assertShapeLifecycleInvariant(r: MetricRecipe<any, any>): void {
   if (!hasPerParticipant) {
     throw new Error(
       `[metrics] recipe "${r.id}" must define init, onFixation, and finalize`,
+    )
+  }
+  if (!r.accumulation) {
+    throw new Error(
+      `[metrics] recipe "${r.id}" must declare its accumulation semantics ` +
+        `('clippedDuration' | 'clippedDurationShare' | 'midpointCount' | 'stateful') — ` +
+        `see MetricRecipe.accumulation`,
     )
   }
 }

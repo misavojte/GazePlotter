@@ -50,6 +50,9 @@ defineMetric({
   measurementClass: 'intensive',
   searchTags: ['dwell', 'gaze', 'time', 'relative', 'percent', 'proportion', 'duration', 'aoi'],
   params: [] as const,
+  // absoluteTime's sums, finalized as a share of the anyFixation total —
+  // mirroring the finalize below (NaN when the total is 0).
+  accumulation: 'clippedDurationShare',
   init: ({ slots }) => new Float64Array(slots.totalSlots),
   onFixation: (acc, { frame, slots }, { slots: info }) => {
     // See absoluteTime — read `frame.duration` so windowed totals don't

@@ -100,13 +100,13 @@ export function getBarPlotData(
     statsArrays[i] = computeSummaryStatistics(individualArrays[i])
   }
 
-  // Proportion metrics are displayed as percent: the bar value is scaled to [0,100]
-  // so the existing numeric axis and `%` label read correctly. Other metrics keep
-  // their native value (mean of individuals). Rendered as plain descriptive bars —
-  // no confidence band (see drawProportionalBars for why).
+  // Every metric's values match its declared unit (fixated emits 0/100 for
+  // `%`), so the bar value is always the plain mean of individuals — no
+  // per-class scaling. Proportion metrics still render as plain descriptive
+  // bars, no confidence band (see drawProportionalBars for why).
   const rawData = new Array<number>(totalSlots)
   for (let i = 0; i < totalSlots; i++) {
-    rawData[i] = isProportion ? statsArrays[i].mean * 100 : statsArrays[i].mean
+    rawData[i] = statsArrays[i].mean
   }
 
   const labeledData = createLabeledData(
