@@ -643,7 +643,6 @@
 
 <canvas
   class="scarf-plot-figure"
-  style:pointer-events={canRender ? 'auto' : 'none'}
   use:plot.plotAction
   use:canvasBlockSelect={{ regions: plot.blockedRegions }}
   data-component="scarfplot"
