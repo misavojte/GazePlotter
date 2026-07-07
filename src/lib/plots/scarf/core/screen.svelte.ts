@@ -1,4 +1,3 @@
-import { onDestroy } from 'svelte'
 import type { PlotScreenFactory } from '$lib/plots/definePlot'
 import { usePlotSync } from '$lib/plots/shared/PlotSyncRegistry.svelte'
 import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
@@ -7,9 +6,8 @@ import {
   getParticipantEndTime,
   getParticipants,
 } from '$lib/data/engine'
-import { tooltipScarfService } from './tooltip'
+import { buildScarfTooltipContent } from './tooltip'
 import { scarfTimelineSync } from './sync.svelte'
-import { SCARF_LAYOUT } from '../const'
 import type { ScarfPlotSettings } from '../types'
 
 type DragOverrides = Partial<
@@ -23,15 +21,14 @@ type TimelineShape = { timeline: { minValue: number; maxValue: number } }
 
 /**
  * Screen recipe: cross-plot timeline sync, drag-to-pan with transient
- * overrides (committed as one settings command on release), the scarf tooltip
- * service, and legend highlight toggling. Export renders the raw view with
+ * overrides (committed as one settings command on release), segment-tooltip
+ * content, and legend highlight toggling. Export renders the raw view with
  * noop handlers and no sync.
  */
 export const scarfScreen: PlotScreenFactory<ScarfPlotSettings> = ctx => {
   // Transient drag-only overrides. The view derives from the overridden
   // settings so the timeline redraws while the user drags; release commits once.
   let dragOverrides = $state<DragOverrides | null>(null)
-  let timeout = 0
 
   const effectiveSettings = $derived.by(() => {
     const real = ctx.item.settings
@@ -105,13 +102,7 @@ export const scarfScreen: PlotScreenFactory<ScarfPlotSettings> = ctx => {
     return currentData()?.timeline.maxValue ?? 100
   }
 
-  function hideTooltipAndHighlight() {
-    clearTimeout(timeout)
-    tooltipScarfService(ctx.engine, null)
-  }
-
   function handleLegendClick(identifier: string) {
-    hideTooltipAndHighlight()
     const highlights = ctx.item.settings.highlights ?? []
     const newHighlights = highlights.includes(identifier)
       ? highlights.filter((id: string) => id !== identifier)
@@ -166,30 +157,6 @@ export const scarfScreen: PlotScreenFactory<ScarfPlotSettings> = ctx => {
     dragOverrides = null
   }
 
-  function handleTooltipActivation(event: {
-    segmentOrderId: number
-    participantId: number
-    x: number
-    y: number
-  }) {
-    clearTimeout(timeout)
-    tooltipScarfService(ctx.engine, {
-      x: event.x,
-      y: event.y,
-      width: SCARF_LAYOUT.TOOLTIP_WIDTH,
-      participantId: event.participantId,
-      segmentId: event.segmentOrderId,
-      stimulusId: effectiveSettings.stimulusId,
-    })
-  }
-
-  function handleTooltipDeactivation() {
-    clearTimeout(timeout)
-    tooltipScarfService(ctx.engine, null)
-  }
-
-  onDestroy(hideTooltipAndHighlight)
-
   return {
     // Screen settings: drag overrides + cross-plot timeline sync merged in.
     // Export derives from the raw item settings (no drag, no sync).
@@ -205,8 +172,13 @@ export const scarfScreen: PlotScreenFactory<ScarfPlotSettings> = ctx => {
     props: () => ({
       highlights: ctx.item.settings.highlights ?? [],
       onLegendClick: handleLegendClick,
-      onTooltipActivation: handleTooltipActivation,
-      onTooltipDeactivation: handleTooltipDeactivation,
+      getTooltipContent: (participantId: number, segmentOrderId: number) =>
+        buildScarfTooltipContent(
+          ctx.engine,
+          effectiveSettings.stimulusId,
+          participantId,
+          segmentOrderId
+        ),
       onDragStepX: handleDragStepX,
       onDragEnd: handleDragEnd,
       margins: { top: 0, right: 0, bottom: 0, left: 0 },

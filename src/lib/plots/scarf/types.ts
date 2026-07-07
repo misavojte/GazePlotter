@@ -221,18 +221,6 @@ export type ScarfData = {
   eventZoneConcurrency?: number
 }
 
-/**
- * Tooltip data for a specific point on the scarf plot.
- */
-export interface ScarfTooltipData {
-  x: number
-  y: number
-  width: number
-  segmentId: number
-  participantId: number
-  stimulusId: number
-}
-
 export interface ScarfRectStyle {
   normal: { fill: string }
   dimmed: { fill: string; opacity: number }
