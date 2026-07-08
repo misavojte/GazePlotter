@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest'
 import {
   interpolateColor,
   getColorForValue,
-  createColorGradient,
   isDarkColor,
   getContrastTextColor,
   CATEGORICAL_PALETTE,
@@ -99,29 +98,6 @@ describe('colorUtils', () => {
       expect(normalizeHex(getColorForValue(2, -1, 1, colorScale))).toBe(
         '#ca0020'
       )
-    })
-  })
-
-  describe('createColorGradient', () => {
-    it('should create gradient with correct number of steps', () => {
-      const gradient = createColorGradient('#000000', '#FFFFFF', 5)
-      expect(gradient).toHaveLength(5)
-      expect(normalizeHex(gradient[0])).toBe('#000000')
-      expect(normalizeHex(gradient[4])).toBe('#ffffff')
-    })
-
-    it('should create gradient with two steps', () => {
-      const gradient = createColorGradient('#000000', '#FFFFFF', 2)
-      expect(gradient.map(normalizeHex)).toEqual(['#000000', '#ffffff'])
-    })
-
-    it('should handle same color gradient', () => {
-      const gradient = createColorGradient('#FF0000', '#FF0000', 3)
-      expect(gradient.map(normalizeHex)).toEqual([
-        '#ff0000',
-        '#ff0000',
-        '#ff0000',
-      ])
     })
   })
 

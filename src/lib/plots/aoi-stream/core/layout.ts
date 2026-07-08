@@ -6,7 +6,7 @@ import {
   Y_AXIS,
 } from '../const'
 import { calculateIdealStripHeight } from './ridgeline'
-import { desaturateToWhite, interpolateColor } from '$lib/color'
+import { desaturateToWhite, samplePalette } from '$lib/color'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import { ceilToNiceStep } from '$lib/plots/shared/timelineUtils'
 import { computeNiceYAxis } from './axis'
@@ -268,7 +268,6 @@ export function transformStreamDataToCoordinates(
 
   const groupTop = floorBottom - totalGroupHeight
   const palette = colorScale || PRESET_PALETTES.HEAT.colors
-  const paletteStopCount = palette.length - 1
 
   let seriesRanks: Int32Array | null = null
 
@@ -368,14 +367,7 @@ export function transformStreamDataToCoordinates(
                 // NODATA: let the plot-area gray background show through.
                 bucket.heatmapColors[i] = 'transparent'
               } else {
-                const scaledVal = (val / maxCellForHeat) * paletteStopCount
-                const baseIdx = Math.floor(scaledVal)
-                const nextIdx = Math.min(palette.length - 1, baseIdx + 1)
-                bucket.heatmapColors[i] = interpolateColor(
-                  palette[baseIdx],
-                  palette[nextIdx],
-                  scaledVal - baseIdx
-                )
+                bucket.heatmapColors[i] = samplePalette(palette, val / maxCellForHeat)
               }
               bucket.topY[i] = sTop
             }

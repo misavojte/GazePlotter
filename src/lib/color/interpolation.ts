@@ -75,22 +75,17 @@ export function getColorForValue(
 }
 
 /**
- * Generates a gradient color array between two colors
- * @param colorStart - Starting hex color (e.g., '#FFFFFF')
- * @param colorEnd - Ending hex color (e.g., '#000000')
- * @param steps - Number of color steps to generate
- * @returns Array of hex colors
+ * Sample an evenly-spaced N-stop palette at `t` ∈ [0, 1] — the gradient math
+ * shared by the evolving-metrics heatmap LUT and the aoi-stream heatmap
+ * cells. Unlike `getColorForValue` (2/3-stop with a fixed midpoint), ANY
+ * palette length is treated as evenly spaced stops.
  */
-export function createColorGradient(
-  colorStart: string,
-  colorEnd: string,
-  steps: number
-): string[] {
-  if (steps <= 1) return steps === 1 ? [colorStart] : []
-
-  return Array.from({ length: steps }, (_, i) =>
-    interpolateColor(colorStart, colorEnd, i / (steps - 1))
-  )
+export function samplePalette(palette: readonly string[], t: number): string {
+  const stops = palette.length - 1
+  const scaled = t * stops
+  const base = scaled | 0
+  const next = Math.min(stops, base + 1)
+  return interpolateColor(palette[base], palette[next], scaled - base)
 }
 
 /**

@@ -4,42 +4,6 @@
  */
 
 /**
- * Creates an array of specified length filled with initial value
- *
- * ⚠️ WARNING: When using object initialValues, all elements will reference the same object.
- * If you need independent object copies, use Array.from({ length }, () => ({ ...yourObj }))
- * or JSON.parse(JSON.stringify(obj)) for deep cloning.
- *
- * @param length Length of the array
- * @param initialValue Value to fill the array with
- * @returns A 1D array
- */
-export function createArray<T>(length: number, initialValue: T): T[] {
-  return new Array(length).fill(initialValue)
-}
-
-/**
- * Creates a 2D matrix of given dimensions filled with initial value
- *
- * ⚠️ WARNING: When using object initialValues, all cells will reference the same object.
- * If you need independent object copies, you should create the matrix with a primitive value
- * and then populate object cells individually, or use a more complex initialization pattern.
- *
- * @param rows Number of rows
- * @param cols Number of columns
- * @param initialValue Value to fill the matrix with (default: 0)
- * @returns A 2D matrix (array of arrays)
- */
-export function createMatrix<T>(
-  rows: number,
-  cols: number,
-  initialValue: T
-): T[][] {
-  // Create an array of rows, where each element will be an array of columns
-  return Array.from({ length: rows }, () => createArray(cols, initialValue))
-}
-
-/**
  * Formats a number to a specific number of decimal places
  * Uses a rounding behavior that rounds 0.5 and above up
  *
@@ -56,36 +20,23 @@ export function formatDecimal(
 }
 
 /**
- * Calculates the average of an array of numbers
+ * Linear-interpolated percentile of an ASCENDING-sorted array (the standard
+ * "linear"/R-7 method). Shared by the bar boxplot statistics and the
+ * evolving-metrics overlay band. Callers guarantee `sorted.length >= 1`.
  *
- * @param values Array of numeric values
- * @returns The average value, or 0 if array is empty
+ * @param sorted Values sorted ascending
+ * @param p Percentile in [0, 1] (e.g. 0.25 for Q1)
  */
-export function calculateAverage(values: readonly number[]): number {
-  return values.length === 0 ? 0 : sumArray(values) / values.length
-}
-
-/**
- * Calculates the sum of values in an array
- *
- * @param values Array of numeric values
- * @returns The sum of all values
- */
-export function sumArray(values: readonly number[]): number {
-  return values.reduce((sum, val) => sum + val, 0)
-}
-
-/**
- * Normalizes an array of values to percentages of their sum
- *
- * @param values Array of numeric values
- * @returns Array of normalized values (percentages)
- */
-export function normalizeToPercentages(values: readonly number[]): number[] {
-  const total = sumArray(values)
-  return total === 0
-    ? new Array(values.length).fill(0)
-    : values.map(val => (val / total) * 100)
+export function percentileSorted(
+  sorted: readonly number[],
+  p: number
+): number {
+  if (sorted.length === 1) return sorted[0]
+  const index = p * (sorted.length - 1)
+  const lower = Math.floor(index)
+  const upper = Math.ceil(index)
+  if (lower === upper) return sorted[lower]
+  return sorted[lower] + (sorted[upper] - sorted[lower]) * (index - lower)
 }
 
 /**

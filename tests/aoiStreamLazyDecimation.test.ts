@@ -8,7 +8,7 @@
  * indices; (c) a generous budget reproduces the full resolution exactly.
  */
 import { describe, it, expect } from 'vitest'
-import { createReaderFromJson } from '../src/lib/data/binary/converters'
+import { makeTestEngine } from './helpers/testEngine'
 import { getAoiStreamPlotData } from '../src/lib/plots/aoi-stream/core/transformer'
 import type { MetricInstance } from '../src/lib/metrics'
 
@@ -32,22 +32,16 @@ function createEngine() {
   const segs: number[][] = []
   let t = 0
   for (let i = 0; t + 150 <= SPAN; i++) { segs.push([t, t + 150, 0, i % 2]); t += 170 }
-  const reader = createReaderFromJson([[segs]])
-  return {
-    metadata: {
-      isOrdinalOnly: false,
-      capabilities: { segmented: true, spatial: false, event: false },
-      aois: { data: [[['A', 'A', 'red'], ['B', 'B', 'blue']]], orderVector: [[]], hiddenAois: [[]] },
-      categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [] },
-      participants: { data: [['P0', 'P0']], orderVector: [0] },
-      participantsGroups: [],
-      stimuli: { data: [['S0', 'S0']], orderVector: [0] },
-      noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
-      metricInstances: [windowedInstance()],
-    },
-    getReader: () => reader,
-    getAoiMapping: (_s: number, rawId: number) => rawId,
-  } as any
+  return makeTestEngine([[segs]], {
+    aoiData: [[['A', 'A', 'red'], ['B', 'B', 'blue']]],
+    aoiOrderVector: [[]],
+    hiddenAois: [[]],
+    participants: [['P0', 'P0']],
+    participantsOrderVector: [0],
+    stimuli: [['S0', 'S0']],
+    stimuliOrderVector: [0],
+    metricInstances: [windowedInstance()],
+  }) as any
 }
 
 const base = { stimulusId: 0, groupId: -1, metricInstanceIds: [INST_ID], timelineMin: 0, timelineMax: SPAN }

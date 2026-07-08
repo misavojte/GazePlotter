@@ -10,7 +10,7 @@
  * full-resolution values at the strided configured positions.
  */
 import { describe, it, expect } from 'vitest'
-import { createReaderFromJson } from '../src/lib/data/binary/converters'
+import { makeTestEngine } from './helpers/testEngine'
 import { getEvolvingMetricsData } from '../src/lib/plots/evolving-metrics/core/transformer'
 import type { MetricInstance } from '../src/lib/metrics'
 
@@ -46,23 +46,17 @@ function createEngine() {
     }
     return segs
   }
-  const reader = createReaderFromJson([[mkSegs(SPAN), mkSegs(Math.floor(SPAN * 0.6))]])
-  return {
-    metadata: {
-      isOrdinalOnly: false,
-      capabilities: { segmented: true, spatial: false, event: false },
-      aois: { data: [[['A', 'A', 'red'], ['B', 'B', 'blue']]], orderVector: [[]], hiddenAois: [[]] },
-      categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [] },
-      participants: { data: [['P0', 'P0'], ['P1', 'P1']], orderVector: [0, 1] },
-      participantsGroups: [],
-      stimuli: { data: [['S0', 'S0']], orderVector: [0] },
-      noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
-      metricInstances: [scalarWindowedInstance()],
-    },
-    getReader: () => reader,
-    getAoiMapping: (_s: number, rawId: number) => rawId,
+  return makeTestEngine([[mkSegs(SPAN), mkSegs(Math.floor(SPAN * 0.6))]], {
+    aoiData: [[['A', 'A', 'red'], ['B', 'B', 'blue']]],
+    aoiOrderVector: [[]],
+    hiddenAois: [[]],
+    participants: [['P0', 'P0'], ['P1', 'P1']],
+    participantsOrderVector: [0, 1],
+    stimuli: [['S0', 'S0']],
+    stimuliOrderVector: [0],
+    metricInstances: [scalarWindowedInstance()],
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any
+  }) as any
 }
 
 const base = {

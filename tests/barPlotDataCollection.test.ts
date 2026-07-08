@@ -1,47 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { createReaderFromJson } from '../src/lib/data/binary/converters'
+import { makeTestEngine } from './helpers/testEngine'
 import { query, queryIndividualsAllSlots, type MetricInstance, type Scope } from '../src/lib/metrics'
 
 // Stimulus 1 has 2 AOIs (raw IDs 1 and 2)
 // Slot layout: 0=AOI1, 1=AOI2, 2=noAoi, 3=anyFixation
 function createMockEngine(segments: number[][][][]) {
-  const reader = createReaderFromJson(segments)
-
-  return {
-    metadata: {
-      isOrdinalOnly: false,
-      capabilities: { segmented: true, spatial: false, event: false },
-      aois: {
-        data: [
-          [],
-          [
-            null,
-            ['AOI 1', 'AOI 1', 'red'],
-            ['AOI 2', 'AOI 2', 'blue'],
-          ],
-        ],
-        orderVector: [[], [1, 2]],
-        hiddenAois: [[], []],
-      },
-      categories: {
-        data: [['Fixation', 'Fixation', '#000000']],
-        orderVector: [],
-      },
-      participants: {
-        data: Array.from({ length: 103 }, (_, i) => [`P${i}`, `P${i}`]),
-        orderVector: [],
-      },
-      participantsGroups: [],
-      stimuli: {
-        data: [['S0', 'S0'], ['S1', 'S1']],
-        orderVector: [],
-      },
-      noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
-      metricInstances: [],
-    },
-    getReader: () => reader,
-    getAoiMapping: (_stimulusId: number, rawId: number) => rawId,
-  }
+  return makeTestEngine(segments, {
+    participants: Array.from({ length: 103 }, (_, i) => [`P${i}`, `P${i}`]),
+  })
 }
 
 const STIM = 1

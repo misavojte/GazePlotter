@@ -4,6 +4,19 @@ import {
   resolveContributionsForEngine,
   mergeIntoStimulusMap,
 } from '$lib/data/ingest/formats/csvEvent'
+import { csvDelimiterOfHeader } from '$lib/data/ingest/formats/lib/rows/csvDelimiter'
+
+// --- delimiter rule ---
+
+describe('csvDelimiterOfHeader (shared with stream formats)', () => {
+  it('resolves a comma/semicolon tie to ";" — the one CSV rule everywhere', () => {
+    // The event path previously resolved ties to ',' — unified 2026-07-08 to
+    // the stream-format rule pinned in ingestCharacterization.detection.
+    expect(csvDelimiterOfHeader('a,b;c')).toBe(';')
+    expect(csvDelimiterOfHeader('a,b,c;d')).toBe(',')
+    expect(csvDelimiterOfHeader('a;b;c,d')).toBe(';')
+  })
+})
 
 // --- parseCsvEventText ---
 

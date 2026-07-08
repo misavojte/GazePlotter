@@ -31,17 +31,6 @@ export class ByteDictionary {
     return this.items
   }
 
-  /** Lookup-only: id of an existing value, or -1. Never inserts. */
-  findId(value: Uint8Array): number {
-    const existing = this.hashMap.get(this.hashBytes(value))
-    if (existing) {
-      for (let i = 0; i < existing.length; i++) {
-        if (bytesEqual(value, this.items[existing[i]])) return existing[i]
-      }
-    }
-    return -1
-  }
-
   private hashBytes(bytes: Uint8Array): number {
     let hash = 2166136261
     for (let i = 0; i < bytes.length; i++) {

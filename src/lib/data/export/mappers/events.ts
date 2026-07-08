@@ -1,6 +1,10 @@
 import { type DataType, type ExtendedInterpretedDataType } from '$lib/data/types'
 import { EventBufferReader, EVENT_STRIDE } from '$lib/data/binary'
 import { groupByDisplayedName } from '$lib/data/engine/utils/grouping'
+import {
+  getDefaultEventChannelColor,
+  interpretRow,
+} from '$lib/data/engine/utils/interpreters'
 import { INTERVAL_CHANNEL_MARKER } from '$lib/data/engine/eventIntervals'
 import type { ExportNaming } from '../types'
 import {
@@ -73,17 +77,12 @@ function resolveEventChannels(
     if (hiddenSet?.has(id)) continue
     const def = defs[id]
     if (!def) continue
-    channels.push({
-      id,
-      originalName: def[0] ?? '',
-      displayedName: def[1] ?? def[0] ?? '',
-      color: def[2] ?? '#888888',
-    })
+    channels.push(interpretRow(def, id, getDefaultEventChannelColor))
   }
 
   // Label by the resolved displayed name exactly as the scarf legend and the
-  // AOI/category exporters do (def[1] ?? def[0] ?? ''): an explicitly cleared
-  // displayed name stays empty rather than falling back to the original.
+  // AOI/category exporters do (interpretRow's shared rule): an explicitly
+  // cleared displayed name stays empty rather than falling back to the original.
   return groupByDisplayedName(channels).map(group => ({
     name: group.displayedName,
     memberIds: group.memberIds,

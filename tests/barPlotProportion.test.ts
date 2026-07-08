@@ -5,7 +5,7 @@
  * non-proportion metrics (durations) on their native value with no proportion flag.
  */
 import { describe, it, expect } from 'vitest'
-import { createReaderFromJson } from '../src/lib/data/binary/converters'
+import { makeTestEngine } from './helpers/testEngine'
 import { getBarPlotData } from '../src/lib/plots/bar/core/transformer'
 import { getBarView } from '../src/lib/plots/bar/core/view'
 import '../src/lib/metrics/init'
@@ -16,22 +16,15 @@ const ABSOLUTE = { id: 'absoluteTime', baseId: 'absoluteTime', params: {}, label
 
 // AOI A = raw id 0, AOI B = raw id 1. Segment row = [start, end, category, ...aoiIds].
 function engineWith(perParticipant: number[][][]) {
-  const reader = createReaderFromJson([perParticipant])
-  return {
-    metadata: {
-      isOrdinalOnly: false,
-      capabilities: { segmented: true, spatial: false, event: false },
-      aois: { data: [[['AOI A', 'AOI A', 'red'], ['AOI B', 'AOI B', 'blue']]], orderVector: [[]], hiddenAois: [[]] },
-      categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [] },
-      participants: { data: perParticipant.map((_, i) => [`P${i}`, `P${i}`]), orderVector: perParticipant.map((_, i) => i) },
-      participantsGroups: [],
-      stimuli: { data: [['S', 'S']], orderVector: [0] },
-      noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
-      metricInstances: [FIXATED, ABSOLUTE],
-    },
-    getReader: () => reader,
-    getAoiMapping: (_s: number, r: number) => r,
-  }
+  return makeTestEngine([perParticipant], {
+    aoiData: [[['AOI A', 'AOI A', 'red'], ['AOI B', 'AOI B', 'blue']]],
+    aoiOrderVector: [[]],
+    hiddenAois: [[]],
+    participantsOrderVector: perParticipant.map((_, i) => i),
+    stimuli: [['S', 'S']],
+    stimuliOrderVector: [0],
+    metricInstances: [FIXATED, ABSOLUTE],
+  })
 }
 
 function bar(engine: any, instanceId: string) {

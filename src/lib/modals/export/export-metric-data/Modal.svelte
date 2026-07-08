@@ -14,6 +14,7 @@
     METRIC_EXPORT_CONTRACT_LONG,
     METRIC_EXPORT_CONTRACT_WIDE,
     deduplicateMetricLabels,
+    longFormatMetricColumns,
   } from '$lib/data/export/mappers/metrics'
   import {
     createExportButtons,
@@ -223,22 +224,8 @@
       return 'No metrics selected.'
     }
     if (format === 'long') {
-      const columns = ['Participant_ID', 'Participant', 'Stimulus']
-      const shapes = selectedInstancesInOrder.map(inst =>
-        projectionOutputShape(inst.projection)
-      )
-      const needWindow = shapes.some(s => s === 'scalar-timeseries' || s === 'aoi-vector-timeseries')
-      const needAoi = shapes.some(s => s === 'aoi-vector' || s === 'aoi-vector-timeseries')
-      const needMatrix = shapes.some(s => s === 'aoi-pair-matrix')
-      const needParticipantB = shapes.some(s => s === 'participant-pair-matrix')
-
-      if (needWindow) columns.push('Window_Start', 'Window_End')
-      if (needAoi) columns.push('AOI')
-      if (needMatrix) columns.push('From_AOI', 'To_AOI')
-      if (needParticipantB) columns.push('Participant_B')
-      columns.push('Metric', 'Unit', 'Value')
-
-      return `Long format CSV with columns: ${columns.join(', ')}.`
+      const { header } = longFormatMetricColumns(selectedInstancesInOrder)
+      return `Long format CSV with columns: ${header.join(', ')}.`
     } else {
       const columns = ['Participant_ID', 'Participant', 'Stimulus']
       const instNames: string[] = []

@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createReaderFromJson } from '../src/lib/data/binary/converters'
-import { AoiGroupReader } from '../src/lib/data/binary/reader.aoiGroup'
+import { makeTestEngine } from './helpers/testEngine'
 import { FIXATION_CATEGORY_ID } from '../src/lib/data/binary/schema'
 import { getScarfData } from '../src/lib/plots/scarf/core/view'
 import { compositeGazeBinaryAcc } from '../src/lib/plots/scarf/core/renderer'
@@ -52,7 +51,6 @@ function buildEngine() {
     perP.push(segs)
   }
 
-  const reader = createReaderFromJson([[], perP])
   const aoiData: (string[] | null)[] = [
     null,
     ['AOI 1', 'AOI 1', '#e41a1c'],
@@ -60,39 +58,18 @@ function buildEngine() {
     ['AOI 3', 'AOI 3', '#4daf4a'],
     ['AOI 4', 'AOI 4', '#984ea3'],
   ]
-  const metadata = {
-    isOrdinalOnly: false,
-    capabilities: { segmented: true, spatial: false, event: false },
-    aois: {
-      data: [[], aoiData],
-      orderVector: [[], [1, 2, 3, 4]],
-      hiddenAois: [[], []],
-    },
-    categories: {
-      data: [
+  return {
+    ...makeTestEngine([[], perP], {
+      aoiData: [[], aoiData],
+      aoiOrderVector: [[], [1, 2, 3, 4]],
+      categories: [
         ['Fixation', 'Fixation', '#000000'],
         ['Saccade', 'Saccade', '#cccccc'],
       ],
-      orderVector: [],
-    },
-    participants: {
-      data: [['P0', 'P0'], ['P1', 'P1'], ['P2', 'P2']],
-      orderVector: [],
-    },
-    participantsGroups: [],
-    stimuli: { data: [['S0', 'S0'], ['S1', 'S1']], orderVector: [] },
-    noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
-    metricInstances: [],
-  }
-  const agr = new AoiGroupReader(reader)
-  agr.updateMap(metadata as never)
-  return {
-    metadata,
+      aoiMapping: 'group',
+    }),
     capabilities: { segmented: true, spatial: false, event: false },
     eventsPerStimulus: [],
-    getReader: () => reader,
-    getAoiGroupReader: () => agr,
-    getAoiMapping: (s: number, r: number) => agr.getAoiMapping(s, r),
   } as never
 }
 

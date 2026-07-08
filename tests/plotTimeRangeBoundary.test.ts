@@ -20,8 +20,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { createReaderFromJson } from '../src/lib/data/binary/converters'
-import { AoiGroupReader } from '../src/lib/data/binary/reader.aoiGroup'
+import { makeTestEngine } from './helpers/testEngine'
 import {
   queryGroup,
   type GroupScope,
@@ -42,43 +41,7 @@ const STIM = 1
  * encoder can run.
  */
 function makeEngine(perParticipantSegments: number[][][]) {
-  const segments: number[][][][] = [[], perParticipantSegments]
-  const reader = createReaderFromJson(segments)
-  const n = perParticipantSegments.length
-
-  const metadata = {
-    isOrdinalOnly: false,
-    capabilities: { segmented: true, spatial: false, event: false },
-    aois: {
-      data: [
-        [],
-        [null, ['AOI 1', 'AOI 1', 'red'], ['AOI 2', 'AOI 2', 'blue']],
-      ],
-      orderVector: [[], [1, 2]],
-      hiddenAois: [[], []],
-    },
-    categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [] },
-    participants: {
-      data: Array.from({ length: n }, (_, i) => [`P${i}`, `P${i}`]),
-      orderVector: [],
-    },
-    participantsGroups: [],
-    stimuli: { data: [['S0', 'S0'], ['S1', 'S1']], orderVector: [] },
-    noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
-    metricInstances: [],
-  }
-
-  const aoiGroupReader = new AoiGroupReader(reader)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  aoiGroupReader.updateMap(metadata as any)
-
-  return {
-    metadata,
-    getReader: () => reader,
-    getAoiGroupReader: () => aoiGroupReader,
-    getAoiMapping: (sId: number, rawId: number) =>
-      aoiGroupReader.getAoiMapping(sId, rawId),
-  }
+  return makeTestEngine([[], perParticipantSegments], { aoiMapping: 'group' })
 }
 
 function inst(baseId: string, params: Record<string, unknown> = {}): MetricInstance {

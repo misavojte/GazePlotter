@@ -10,7 +10,7 @@
  * rename is answered entirely from cache (the motivating large-dataset stall).
  */
 import { describe, it, expect, vi } from 'vitest'
-import { createReaderFromJson } from '../src/lib/data/binary/converters'
+import { makeTestEngine } from './helpers/testEngine'
 import {
   query,
   queryBatch,
@@ -39,27 +39,12 @@ function createEngine(
   perParticipant: number[][][] = DEFAULT_SEGMENTS,
   hiddenAois: number[] = []
 ) {
-  const segments: number[][][][] = [[], perParticipant]
-  const reader = createReaderFromJson(segments)
   let appearanceVersion = 0
   return {
-    metadata: {
-      isOrdinalOnly: false,
-      capabilities: { segmented: true, spatial: false, event: false },
-      aois: {
-        data: [[], [null, ['AOI 1', 'AOI 1', 'red'], ['AOI 2', 'AOI 2', 'blue']]],
-        orderVector: [[], [1, 2]],
-        hiddenAois: [[], hiddenAois],
-      },
-      categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [] },
-      participants: { data: [['P0', 'P0'], ['P1', 'P1']], orderVector: [] },
-      participantsGroups: [],
-      stimuli: { data: [['S0', 'S0'], ['S1', 'S1']], orderVector: [] },
-      noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
-      metricInstances: [],
-    },
-    getReader: () => reader,
-    getAoiMapping: (_s: number, rawId: number) => rawId,
+    ...makeTestEngine([[], perParticipant], {
+      hiddenAois: [[], hiddenAois],
+      participants: [['P0', 'P0'], ['P1', 'P1']],
+    }),
     // Structural version stays 0 throughout — none of these tests change
     // grouping/visibility, mirroring the real engine.
     getAoiGroupReader: () => ({ version: 0, appearanceVersion }),

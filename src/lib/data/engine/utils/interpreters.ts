@@ -9,6 +9,30 @@ export const getDefaultCategoryColor = (index: number): string => {
   return DEFAULT_CATEGORY_COLORS[palIndex % DEFAULT_CATEGORY_COLORS.length]
 }
 
+/** Event channels have no palette; a neutral gray is the uniform fallback. */
+export const getDefaultEventChannelColor = (): string => '#888888'
+
+/**
+ * Null-tolerant metadata tuple → entity decode; THE shared displayed-name
+ * rule: `row[1] ?? row[0]`, nullish only — an explicitly cleared displayed
+ * name stays '' rather than falling back to the original (the scarf legend
+ * and every exporter read it the same way). Only the color default differs
+ * per entity type, so the caller supplies it.
+ */
+export const interpretRow = (
+  row: readonly (string | null)[] | null | undefined,
+  id: number,
+  defaultColor: (id: number) => string
+): ExtendedInterpretedDataType => {
+  const originalName = row?.[0] ?? ''
+  return {
+    id,
+    originalName,
+    displayedName: row?.[1] ?? originalName,
+    color: row?.[2] ?? defaultColor(id),
+  }
+}
+
 export const getAoiRaw = (
   stimulusId: number,
   aoiId: number,
@@ -20,14 +44,7 @@ export const getAoiRaw = (
       `AOI with id ${aoiId} does not exist in stimulus with id ${stimulusId}`
     )
   }
-
-  const originalName = aoiArray[0]
-  return {
-    id: aoiId,
-    originalName,
-    displayedName: aoiArray[1] ?? originalName,
-    color: aoiArray[2] ?? getDefaultColor(aoiId),
-  }
+  return interpretRow(aoiArray, aoiId, getDefaultColor)
 }
 
 export const getCategoryRaw = (
@@ -38,12 +55,5 @@ export const getCategoryRaw = (
   if (!categoryArray) {
     throw new Error(`Category with id ${categoryId} does not exist`)
   }
-
-  const originalName = categoryArray[0]
-  return {
-    id: categoryId,
-    originalName,
-    displayedName: categoryArray[1] ?? originalName,
-    color: categoryArray[2] ?? getDefaultCategoryColor(categoryId),
-  }
+  return interpretRow(categoryArray, categoryId, getDefaultCategoryColor)
 }

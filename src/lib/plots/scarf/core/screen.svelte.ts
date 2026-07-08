@@ -1,4 +1,5 @@
 import type { PlotScreenFactory } from '$lib/plots/definePlot'
+import { toggleInArray } from '$lib/plots/shared'
 import { usePlotSync } from '$lib/plots/shared/PlotSyncRegistry.svelte'
 import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 import {
@@ -103,14 +104,9 @@ export const scarfScreen: PlotScreenFactory<ScarfPlotSettings> = ctx => {
   }
 
   function handleLegendClick(identifier: string) {
-    const highlights = ctx.item.settings.highlights ?? []
-    const newHighlights = highlights.includes(identifier)
-      ? highlights.filter((id: string) => id !== identifier)
-      : [...highlights, identifier]
-
     ctx.workspace.updateItemSettings(
       ctx.item.id,
-      { highlights: newHighlights },
+      { highlights: toggleInArray(ctx.item.settings.highlights ?? [], identifier) },
       createCommandSourcePlotPattern(ctx.item, 'plot')
     )
   }

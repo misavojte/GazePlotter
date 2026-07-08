@@ -1,6 +1,10 @@
 import type { ExtendedInterpretedDataType } from '$lib/data/types'
 import type { DataEngine } from '../dataEngine.svelte'
 import { INTERVAL_CHANNEL_MARKER } from '../eventIntervals'
+import {
+  getDefaultEventChannelColor,
+  interpretRow,
+} from '../utils/interpreters'
 
 /**
  * Returns true if the stimulus has any event channels defined.
@@ -37,12 +41,7 @@ export const getEventChannels = (
     .map(id => {
       const ch = channels[id]
       if (!ch) return null
-      return {
-        id,
-        originalName: ch[0] ?? '',
-        displayedName: ch[1] ?? ch[0] ?? '',
-        color: ch[2] ?? '#888888',
-      }
+      return interpretRow(ch, id, getDefaultEventChannelColor)
     })
     .filter((ch): ch is ExtendedInterpretedDataType => ch !== null)
 }
@@ -88,12 +87,7 @@ export const getVisibleEventChannels = (
     .map(id => {
       const ch = channels[id]
       if (!ch) return null
-      return {
-        id,
-        originalName: ch[0] ?? '',
-        displayedName: ch[1] ?? ch[0] ?? '',
-        color: ch[2] ?? '#888888',
-      }
+      return interpretRow(ch, id, getDefaultEventChannelColor)
     })
     .filter((ch): ch is ExtendedInterpretedDataType => ch !== null)
 }

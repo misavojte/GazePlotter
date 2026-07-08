@@ -11,7 +11,7 @@
  * where a single fixation lands in several overlapping windows.
  */
 import { describe, it, expect } from 'vitest'
-import { createReaderFromJson } from '../src/lib/data/binary/converters'
+import { makeTestEngine } from './helpers/testEngine'
 import { query, type MetricInstance, type Scope } from '../src/lib/metrics'
 import type { LeafProjection } from '../src/lib/metrics/core/projection'
 
@@ -20,27 +20,7 @@ const PID = 0
 
 // Slot layout (2 AOIs): 0=AOI1, 1=AOI2, 2=noAoi, 3=anyFixation
 function createEngine(segmentsForPid: number[][]) {
-  const segments: number[][][][] = [[], [segmentsForPid]]
-  const reader = createReaderFromJson(segments)
-  return {
-    metadata: {
-      isOrdinalOnly: false,
-      capabilities: { segmented: true, spatial: false, event: false },
-      aois: {
-        data: [[], [null, ['AOI 1', 'AOI 1', 'red'], ['AOI 2', 'AOI 2', 'blue']]],
-        orderVector: [[], [1, 2]],
-        hiddenAois: [[], []],
-      },
-      categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [] },
-      participants: { data: [['P0', 'P0']], orderVector: [] },
-      participantsGroups: [],
-      stimuli: { data: [['S0', 'S0'], ['S1', 'S1']], orderVector: [] },
-      noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
-      metricInstances: [],
-    },
-    getReader: () => reader,
-    getAoiMapping: (_s: number, rawId: number) => rawId,
-  }
+  return makeTestEngine([[], [segmentsForPid]])
 }
 
 function scope(engine: any, timeStart: number, timeEnd: number): Scope {
@@ -183,29 +163,16 @@ describe('fused windowed driver — wide stimuli (120 AOIs, array slot-set path)
   const N_AOIS = 120
 
   function createWideEngine(segmentsForPid: number[][]) {
-    const segments: number[][][][] = [[], [segmentsForPid]]
-    const reader = createReaderFromJson(segments)
     const aoiRows: (string[] | null)[] = [null]
     const order: number[] = []
     for (let i = 1; i <= N_AOIS; i++) {
       aoiRows.push([`AOI ${i}`, `AOI ${i}`, 'red'])
       order.push(i)
     }
-    return {
-      metadata: {
-        isOrdinalOnly: false,
-        capabilities: { segmented: true, spatial: false, event: false },
-        aois: { data: [[], aoiRows], orderVector: [[], order], hiddenAois: [[], []] },
-        categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [] },
-        participants: { data: [['P0', 'P0']], orderVector: [] },
-        participantsGroups: [],
-        stimuli: { data: [['S0', 'S0'], ['S1', 'S1']], orderVector: [] },
-        noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
-        metricInstances: [],
-      },
-      getReader: () => reader,
-      getAoiMapping: (_s: number, rawId: number) => rawId,
-    }
+    return makeTestEngine([[], [segmentsForPid]], {
+      aoiData: [[], aoiRows],
+      aoiOrderVector: [[], order],
+    })
   }
 
   // Fixations spread across high slot ids (> 31), with multi-AOI tags, a

@@ -11,7 +11,7 @@
  * Slot layout (2 AOIs): 0=AOI1, 1=AOI2, 2=noAoi, 3=anyFixation.
  */
 import { describe, it, expect } from 'vitest'
-import { createReaderFromJson } from '../src/lib/data/binary/converters'
+import { makeTestEngine } from './helpers/testEngine'
 import {
   query,
   queryGroup,
@@ -23,32 +23,12 @@ import {
 const STIM = 1
 const PID = 0
 
-function meta(n: number) {
-  return {
-    isOrdinalOnly: false,
-    capabilities: { segmented: true, spatial: false, event: false },
-    aois: {
-      data: [[], [null, ['AOI 1', 'AOI 1', 'red'], ['AOI 2', 'AOI 2', 'blue']]],
-      orderVector: [[], [1, 2]],
-      hiddenAois: [[], []],
-    },
-    categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [] },
-    participants: { data: Array.from({ length: n }, (_, i) => [`P${i}`, `P${i}`]), orderVector: [] },
-    participantsGroups: [],
-    stimuli: { data: [['S0', 'S0'], ['S1', 'S1']], orderVector: [] },
-    noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
-    metricInstances: [],
-  }
-}
-
 function createEngine(segmentsForPid: number[][]) {
-  const reader = createReaderFromJson([[], [segmentsForPid]])
-  return { metadata: meta(1), getReader: () => reader, getAoiMapping: (_s: number, r: number) => r }
+  return makeTestEngine([[], [segmentsForPid]])
 }
 
 function createMultiParticipantEngine(perParticipant: number[][][]) {
-  const reader = createReaderFromJson([[], perParticipant])
-  return { metadata: meta(perParticipant.length), getReader: () => reader, getAoiMapping: (_s: number, r: number) => r }
+  return makeTestEngine([[], perParticipant])
 }
 
 function inst(params: Record<string, unknown> = {}): MetricInstance {

@@ -905,7 +905,8 @@ export function scanAccumulator(
     // AOI-group mapping into one table read; the dedupe makes recipes testing
     // `slots.length === 1` (e.g. RQA's single-AOI filter) treat a fixation
     // tagged by multiple raw IDs that map to the same AOI slot as a single
-    // labelled fixation, matching extractFixationSequence.
+    // labelled fixation, matching extractFixationSequence (that alignment is
+    // pinned by tests/fixationSequenceAlignment.test.ts).
     resolvedSlots.length = 0
     const aoiCount = segBuf[base + SegmentField.AOI_COUNT] | 0
     const aoiPtr = segBuf[base + SegmentField.AOI_POINTER] | 0

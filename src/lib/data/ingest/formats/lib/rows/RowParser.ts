@@ -1,7 +1,9 @@
 import type { EventContribution } from '../../../kernel/sink'
 import type { DatasetExclusionIssue } from '$lib/data/types'
-
-type TextEncoding = 'utf-8' | 'utf-16le' | 'utf-16be'
+import {
+  encodeString,
+  type TextEncoding,
+} from '$lib/data/ingest/utils/byteUtils'
 
 /**
  * Single-character delimiter only.
@@ -108,7 +110,7 @@ export abstract class RowParser {
     this.encoding = encoding
     this.encodingKind =
       encoding === 'utf-16le' ? 1 : encoding === 'utf-16be' ? 2 : 0
-    this.delimBytes = this.encodeDelimiter(columnDelimiter, encoding)
+    this.delimBytes = encodeString(columnDelimiter, encoding)
     this.delimBytesLen = this.delimBytes.length
   }
 
@@ -409,32 +411,6 @@ export abstract class RowParser {
 
     // eslint-disable-next-line no-new-func
     this.binaryRowParser = new Function(parserSource)().bind(this)
-  }
-
-  private encodeDelimiter(
-    delimiter: string,
-    encoding: TextEncoding
-  ): Uint8Array {
-    if (encoding === 'utf-16le' || encoding === 'utf-16be') {
-      const out = new Uint8Array(delimiter.length * 2)
-      for (let i = 0; i < delimiter.length; i++) {
-        const code = delimiter.charCodeAt(i)
-        if (encoding === 'utf-16le') {
-          out[i * 2] = code & 0xff
-          out[i * 2 + 1] = (code >> 8) & 0xff
-        } else {
-          out[i * 2] = (code >> 8) & 0xff
-          out[i * 2 + 1] = code & 0xff
-        }
-      }
-      return out
-    }
-
-    const out = new Uint8Array(delimiter.length)
-    for (let i = 0; i < delimiter.length; i++) {
-      out[i] = delimiter.charCodeAt(i) & 0xff
-    }
-    return out
   }
 
   private parseNumberFromBytes(

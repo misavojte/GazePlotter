@@ -21,8 +21,8 @@ import {
   windowLabel,
 } from '$lib/metrics'
 import {
-  escapeCsvField,
   formatNumberForCsv,
+  generateCsvString,
   type CsvFormatOptions,
   resolveCsvFormatOptions,
 } from '../encoders/csv'
@@ -99,6 +99,36 @@ export function deduplicateMetricLabels(
   return resolved
 }
 
+/**
+ * Column layout of the long-format export, derived from the selected
+ * instances' projection shapes. Shared by the mapper and the modal's format
+ * preview so the previewed column list always equals the exported one.
+ */
+export function longFormatMetricColumns(
+  instances: readonly MetricInstance[]
+): {
+  header: string[]
+  needWindow: boolean
+  needAoi: boolean
+  needMatrix: boolean
+  needParticipantB: boolean
+} {
+  const shapes = instances.map(inst => projectionOutputShape(inst.projection))
+  const needWindow = shapes.some(s => s === 'scalar-timeseries' || s === 'aoi-vector-timeseries')
+  const needAoi = shapes.some(s => s === 'aoi-vector' || s === 'aoi-vector-timeseries')
+  const needMatrix = shapes.some(s => s === 'aoi-pair-matrix')
+  const needParticipantB = shapes.some(s => s === 'participant-pair-matrix')
+
+  const header = ['Participant_ID', 'Participant', 'Stimulus']
+  if (needWindow) header.push('Window_Start', 'Window_End')
+  if (needAoi) header.push('AOI')
+  if (needMatrix) header.push('From_AOI', 'To_AOI')
+  if (needParticipantB) header.push('Participant_B')
+  header.push('Metric', 'Unit', 'Value')
+
+  return { header, needWindow, needAoi, needMatrix, needParticipantB }
+}
+
 type LongRowBuilderParams = {
   participantId: number
   participantName: string
@@ -150,7 +180,7 @@ export async function generateMetricExport(
   metricCount: number
   stimulusCount: number
 }> {
-  const { delimiter, decimalSeparator } = resolveCsvFormatOptions(options.csvOptions)
+  const { decimalSeparator } = resolveCsvFormatOptions(options.csvOptions)
   const timeStart = options.timeStart ?? 0
   const timeEnd = options.timeEnd ?? 0
   if (
@@ -190,18 +220,8 @@ export async function generateMetricExport(
   const dataRows: string[][] = []
 
   if (options.format === 'long') {
-    const shapes = selectedInstances.map(inst => projectionOutputShape(inst.projection))
-    const needWindow = shapes.some(s => s === 'scalar-timeseries' || s === 'aoi-vector-timeseries')
-    const needAoi = shapes.some(s => s === 'aoi-vector' || s === 'aoi-vector-timeseries')
-    const needMatrix = shapes.some(s => s === 'aoi-pair-matrix')
-    const needParticipantB = shapes.some(s => s === 'participant-pair-matrix')
-
-    const header = ['Participant_ID', 'Participant', 'Stimulus']
-    if (needWindow) header.push('Window_Start', 'Window_End')
-    if (needAoi) header.push('AOI')
-    if (needMatrix) header.push('From_AOI', 'To_AOI')
-    if (needParticipantB) header.push('Participant_B')
-    header.push('Metric', 'Unit', 'Value')
+    const { header, needWindow, needAoi, needMatrix, needParticipantB } =
+      longFormatMetricColumns(selectedInstances)
 
     const relationalInstances = selectedInstances.filter(inst => {
       const shape = projectionOutputShape(inst.projection)
@@ -434,14 +454,7 @@ export async function generateMetricExport(
       }
     }
 
-    const dataHeaderRow = header.map(f => escapeCsvField(f, delimiter)).join(delimiter)
-    const dataCsvRows = [
-      dataHeaderRow,
-      ...dataRows.map(row => row.map(f => escapeCsvField(f, delimiter)).join(delimiter)),
-    ]
-    const dataContent = dataCsvRows.join('\n')
-
-    return buildResponse(dataContent)
+    return buildResponse(generateCsvString(header, dataRows, options.csvOptions))
   } else {
     // WIDE format
     //
@@ -723,14 +736,7 @@ export async function generateMetricExport(
       }
     }
 
-    const dataHeaderRow = wideHeader.map(f => escapeCsvField(f, delimiter)).join(delimiter)
-    const dataCsvRows = [
-      dataHeaderRow,
-      ...dataRows.map(row => row.map(f => escapeCsvField(f, delimiter)).join(delimiter)),
-    ]
-    const dataContent = dataCsvRows.join('\n')
-
-    return buildResponse(dataContent)
+    return buildResponse(generateCsvString(wideHeader, dataRows, options.csvOptions))
   }
 
   function buildResponse(dataContent: string) {
@@ -792,10 +798,7 @@ export async function generateMetricExport(
         ])
       }
 
-      codebookContent = [
-        codebookHeader.map(f => escapeCsvField(f, delimiter)).join(delimiter),
-        ...cbRows.map(row => row.map(f => escapeCsvField(f, delimiter)).join(delimiter)),
-      ].join('\n')
+      codebookContent = generateCsvString(codebookHeader, cbRows, options.csvOptions)
     }
 
     return {

@@ -8,6 +8,7 @@
     NO_MARGINS,
     fillPlotAreaBackground,
     canvasBlockSelect,
+    niceTimelineTicks,
     valueAxisTicks,
     type CanvasExportProps,
     type PlotFrame,
@@ -80,7 +81,7 @@
   }: Props = $props()
 
   const isVertical = $derived(barPlottingType === 'vertical')
-  const niceTicks = $derived(timeline.ticks.filter(t => t.isNice))
+  const niceTickLabels = $derived(niceTimelineTicks(timeline).labels ?? [])
 
   const categoryLabelHeight = $derived.by(() => {
     let max = 0
@@ -143,12 +144,12 @@
     gutters: () =>
       isVertical
         ? {
-            left: { tickLabels: niceTicks.map(t => t.label), title: axisLabel },
+            left: { tickLabels: niceTickLabels, title: axisLabel },
             bottom: { tickLabels: data.map(d => d.label) },
             pad: { top: TICK_LENGTH, right: MARGIN_RIGHT },
           }
         : {
-            bottom: { tickLabels: niceTicks.map(t => t.label), title: axisLabel },
+            bottom: { tickLabels: niceTickLabels, title: axisLabel },
             pad: { top: TICK_LENGTH, left: leftChrome, right: rightChrome },
           },
     drawData: drawBars,

@@ -14,7 +14,8 @@
     type FrameHit,
   } from '$lib/plots/shared'
   import { estimateTextWidth, measureTextHeight, truncateTextToPixelWidth } from '$lib/shared/utils/textUtils'
-  import { interpolateColor } from '$lib/color'
+  import { percentileSorted } from '$lib/shared/utils/mathUtils'
+  import { samplePalette } from '$lib/color'
   import { INACTIVE_COLOR, PRESET_PALETTES } from '$lib/color/palettes'
 
   import { FONT_PRIMARY, PLOT_LEGEND_GAP } from '$lib/plots/shared/const'
@@ -207,18 +208,14 @@
   )
 
   // 256-step colour LUT built once per palette change, so the heatmap draw loop
-  // indexes a prebuilt string instead of calling interpolateColor (string concat
-  // + parse) per window on every repaint. 256 steps is visually indistinguishable
-  // from continuous interpolation for a heatmap.
+  // indexes a prebuilt string instead of interpolating (string concat + parse)
+  // per window on every repaint. 256 steps is visually indistinguishable from
+  // continuous interpolation for a heatmap.
   const HEATMAP_LUT_SIZE = 256
   const heatmapColorLut = $derived.by<string[]>(() => {
-    const stops = palette.length - 1
     const lut = new Array<string>(HEATMAP_LUT_SIZE)
     for (let i = 0; i < HEATMAP_LUT_SIZE; i++) {
-      const t = (i / (HEATMAP_LUT_SIZE - 1)) * stops
-      const base = t | 0
-      const next = Math.min(stops, base + 1)
-      lut[i] = interpolateColor(palette[base], palette[next], t - base)
+      lut[i] = samplePalette(palette, i / (HEATMAP_LUT_SIZE - 1))
     }
     return lut
   })
@@ -270,20 +267,11 @@
       for (let j = 0; j < temp.length; j++) sum += temp[j]
       meanValues[s] = sum / temp.length
       temp.sort((a, b) => a - b)
-      p25Values[s] = computePercentile(temp, 0.25)
-      p75Values[s] = computePercentile(temp, 0.75)
+      p25Values[s] = percentileSorted(temp, 0.25)
+      p75Values[s] = percentileSorted(temp, 0.75)
     }
     return { meanValues, p25Values, p75Values, sampleCount }
   })
-
-  function computePercentile(sorted: number[], p: number): number {
-    const n = sorted.length
-    if (n === 1) return sorted[0]
-    const k = (n - 1) * p
-    const f = Math.floor(k)
-    const c = Math.ceil(k)
-    return f === c ? sorted[f] : sorted[f] * (c - k) + sorted[c] * (k - f)
-  }
 
   function findWindowAt(
     windows: readonly EvolvingMetricsWindow[],

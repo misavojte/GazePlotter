@@ -15,7 +15,7 @@
  * inflate totals across overlapping windows).
  */
 import { describe, it, expect } from 'vitest'
-import { createReaderFromJson } from '../src/lib/data/binary/converters'
+import { makeTestEngine } from './helpers/testEngine'
 import {
   query,
   queryGroup,
@@ -32,58 +32,11 @@ const PID = 0
 
 // Slot layout (2 AOIs): 0=AOI1, 1=AOI2, 2=noAoi, 3=anyFixation
 function createEngine(segmentsForPid: number[][]) {
-  const segments: number[][][][] = [[], [segmentsForPid]]
-  const reader = createReaderFromJson(segments)
-  return {
-    metadata: {
-      isOrdinalOnly: false,
-      capabilities: { segmented: true, spatial: false, event: false },
-      aois: {
-        data: [
-          [],
-          [null, ['AOI 1', 'AOI 1', 'red'], ['AOI 2', 'AOI 2', 'blue']],
-        ],
-        orderVector: [[], [1, 2]],
-        hiddenAois: [[], []],
-      },
-      categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [] },
-      participants: { data: [['P0', 'P0']], orderVector: [] },
-      participantsGroups: [],
-      stimuli: { data: [['S0', 'S0'], ['S1', 'S1']], orderVector: [] },
-      noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
-      metricInstances: [],
-    },
-    getReader: () => reader,
-    getAoiMapping: (_s: number, rawId: number) => rawId,
-  }
+  return makeTestEngine([[], [segmentsForPid]])
 }
 
 function createMultiParticipantEngine(perParticipantSegments: number[][][]) {
-  const segments: number[][][][] = [[], perParticipantSegments]
-  const reader = createReaderFromJson(segments)
-  const n = perParticipantSegments.length
-  return {
-    metadata: {
-      isOrdinalOnly: false,
-      capabilities: { segmented: true, spatial: false, event: false },
-      aois: {
-        data: [
-          [],
-          [null, ['AOI 1', 'AOI 1', 'red'], ['AOI 2', 'AOI 2', 'blue']],
-        ],
-        orderVector: [[], [1, 2]],
-        hiddenAois: [[], []],
-      },
-      categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [] },
-      participants: { data: Array.from({ length: n }, (_, i) => [`P${i}`, `P${i}`]), orderVector: [] },
-      participantsGroups: [],
-      stimuli: { data: [['S0', 'S0'], ['S1', 'S1']], orderVector: [] },
-      noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
-      metricInstances: [],
-    },
-    getReader: () => reader,
-    getAoiMapping: (_s: number, rawId: number) => rawId,
-  }
+  return makeTestEngine([[], perParticipantSegments])
 }
 
 function windowedAoiVectorInst(

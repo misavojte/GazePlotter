@@ -32,7 +32,8 @@ export interface FixationSequence {
  * Must stay index-aligned with the metric recipe's `onFixation` filter:
  * callers that feed a recipe's accumulator (e.g. the evolving-metrics
  * transformer resolving window start indices back to ms) must pass the
- * same `includeNoAoi` value the recipe was instantiated with.
+ * same `includeNoAoi` value the recipe was instantiated with. Pinned by
+ * `tests/fixationSequenceAlignment.test.ts`.
  */
 export function extractFixationSequence(
   engine: DataEngine,

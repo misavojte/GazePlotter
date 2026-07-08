@@ -3,7 +3,6 @@ import { createGridItem } from '$lib/workspace/grid/itemFactory'
 import {
   commitGridItemDuplication,
   commitGridItemGroupMove,
-  commitGridItemMove,
   commitGridItemRemoval,
   commitGridItemResize,
   getGridItemCommandSource,
@@ -43,20 +42,10 @@ describe('gridItemCommands', () => {
     expect(getGridItemMinimumSize(item, gridConfig)).toEqual({ w: 11, h: 10 })
   })
 
-  it('commits move, resize, remove, and duplicate operations through the workspace service', () => {
+  it('commits resize, remove, and duplicate operations through the workspace service', () => {
     const workspace = createWorkspacePort()
     const item = createGridItem('barPlot', { type: 'barPlot', id: 21 })
     const items = [item]
-
-    expect(
-      commitGridItemMove(workspace, items, { id: 21, x: 7, y: 5 })
-    ).toBe(true)
-    expect(workspace.updateItemLayout).toHaveBeenNthCalledWith(
-      1,
-      21,
-      { x: 7, y: 5 },
-      'barPlot.21.workspace'
-    )
 
     expect(
       commitGridItemResize(workspace, items, gridConfig, {
@@ -68,7 +57,7 @@ describe('gridItemCommands', () => {
       })
     ).toBe(true)
     expect(workspace.updateItemLayout).toHaveBeenNthCalledWith(
-      2,
+      1,
       21,
       { x: 3, y: 4, w: 11, h: 10 },
       'barPlot.21.workspace'
@@ -130,9 +119,6 @@ describe('gridItemCommands', () => {
   it('returns false when the target item is missing', () => {
     const workspace = createWorkspacePort()
 
-    expect(
-      commitGridItemMove(workspace, [], { id: 999, x: 1, y: 2 })
-    ).toBe(false)
     expect(
       commitGridItemResize(workspace, [], gridConfig, {
         id: 999,
