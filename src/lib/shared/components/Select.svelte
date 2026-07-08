@@ -296,9 +296,12 @@
 
   .compact .trigger,
   .trigger.compact {
-    height: 30px;
+    /* Matches compact inputs (InputNumber): one control height, radius, and
+       content inset so pane rows read as one system and text columns align. */
+    height: 26px;
+    border-radius: var(--rounded);
     font-size: 12px;
-    padding-left: 14px;
+    padding-left: 6px;
     padding-right: 22px;
   }
 

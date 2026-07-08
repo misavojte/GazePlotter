@@ -29,6 +29,12 @@ export interface FixationSequence {
  * is set, in which case they map to `slots.noAoiSlot` so the RQA equality
  * check treats two off-AOI fixations as recurrent.
  *
+ * NOTE: this is ONE of three deliberately different multi-AOI policies for
+ * "the AOI sequence" — the scanpath encoder keeps the first visible AOI
+ * (`scanpathEncoding.collectScanpath`), and the recurrence PLOT keeps all
+ * AOIs with shares-any-AOI recurrence (`plots/recurrence/core/collector`).
+ * They answer different scientific questions; do not unify them.
+ *
  * Must stay index-aligned with the metric recipe's `onFixation` filter:
  * callers that feed a recipe's accumulator (e.g. the evolving-metrics
  * transformer resolving window start indices back to ms) must pass the

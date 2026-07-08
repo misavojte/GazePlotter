@@ -61,7 +61,7 @@
       const minDim = Math.min(frame.width, frame.height)
       if (minDim / (n * 1.2) >= MIN_NODE_SPACING) return null
       return cannotFitPlaceholder('size', [
-        'Reduce the number of participants in Plot Settings > Participant group',
+        'Reduce the number of participants in Plot Settings > Participants',
       ])
     },
     // The force layout fills the whole canvas and insets nodes by the export

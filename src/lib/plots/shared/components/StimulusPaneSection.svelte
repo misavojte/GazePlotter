@@ -40,6 +40,6 @@
     }}
   />
   <PaneEditRow>
-    <PaneEditLink onclick={openStimuli}>Edit stimulus library…</PaneEditLink>
+    <PaneEditLink onclick={openStimuli}>Edit stimulus library</PaneEditLink>
   </PaneEditRow>
 </PaneSection>

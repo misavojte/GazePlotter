@@ -44,7 +44,7 @@ function assertSettingsSchema(def: {
 }): void {
   const defaults = def.getDefaultSettings() as Record<string, unknown>
   for (const entry of def.paneSections) {
-    if (!('fields' in entry)) continue
+    if (typeof entry === 'string' || !('fields' in entry)) continue
     const where = `[plots] ${def.type} pane section "${entry.key}"`
     if (!entry.key.includes(':')) {
       throw new Error(

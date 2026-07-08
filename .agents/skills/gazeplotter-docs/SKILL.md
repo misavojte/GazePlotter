@@ -27,7 +27,7 @@ Real top-level pillars: `setup/`, `upload-data/`, `metrics/`, `visualizations/`,
 
 - No fuzzy UI descriptions and no conversational fluff; use clinical, senior-level technical writing.
 - Do NOT use `:::` custom blocks or `#` headers inside callouts.
-- Do NOT invent a parameter table from memory. Plot setting defaults come from each plot's `getDefaultSettings` (plus `getDefaultHeight`/`getDefaultWidth`/`getMinSize`) in `src/lib/plots/<plot>/definition.ts` via `definePlot`. They are NOT in `registry.ts`, and there is no `getDefaultConfig`.
+- Do NOT invent a parameter table from memory. Plot setting defaults come from each plot's `getDefaultSettings` (plus the optional `size` field) in `src/lib/plots/<plot>/definition.ts` via `definePlot`. They are NOT in `registry.ts`, and there is no `getDefaultConfig`.
 
 ## Page metadata
 

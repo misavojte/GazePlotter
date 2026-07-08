@@ -11,7 +11,7 @@ Plot = folder `src/lib/plots/<name>/`: `definition.ts` (the complete recipe) + `
 
 `definePlot<Type, Settings>({...})` in `definition.ts`. Contract type: `PlotDefinition` in `definePlot.ts`. Example: `bar/definition.ts`.
 
-- Required: `type, name, group, getDefaultSettings, getDefaultHeight, getDefaultWidth, getMinSize, paneSections, view`. Optional: `screen, requireCapabilities, getSubtitle, consumesMetrics, onCommand`. NO `component` field, NO `getDefaultConfig`.
+- Required: `type, name, group, getDefaultSettings, paneSections, view`. Optional: `size` ({min?, w?, h?} in grid units — omit for the standard 11×10/12×12, see `DEFAULT_PLOT_SIZE`), `screen, requireCapabilities, getSubtitle, consumesMetrics, onCommand`. NO `component` field, NO sizing functions.
 - `view.deriveView(engine, settings, ctx?) → { component, props, hasData?, meta? } | null` — the ONE derivation for screen AND export. `ctx = {itemWidth, itemHeight}` (grid units; display budgets only).
 - `view.viewDependsOnWidth: true` → screen re-derives on width resize (aoi-stream, evolving-metrics). Height never re-derives.
 - `view.viewOnlySettings` (e.g. `['highlights']`) — keys deriveView never reads: changes repaint, never re-derive.
@@ -21,7 +21,12 @@ Plot = folder `src/lib/plots/<name>/`: `definition.ts` (the complete recipe) + `
   - ctx: `item` (live getter — NEVER capture the value: items are replaced wholesale on every settings update), `engine`, `workspace`, `view()` (valid in effects/deriveds/handlers; NOT synchronously in factory body). `view.meta` = screen-coordination payload (sync keys, dataMax); recipe casts to its own meta type.
   - Reference recipes: `bar/core/screen.svelte.ts` (sync only), `scarf/core/screen.svelte.ts` (drag state + tooltip + sync).
 - `getSubtitle`: pass the shared factories `stimulusGroupSubtitle` / `stimulusParticipantSubtitle` (`shared/subtitles.ts`) directly — never hand-roll the stimulus/group/participant parts.
-- Pane sections: repeated control groups are shared components in `shared/components/sections/` taking the section's `bulk` context — `ScaleRangePair` (min/max, "0 = Auto"), `StimulusColorRange` (per-stimulus color range via `buildValueRangePatch`), `ColorScalePickerControl` (keep-mounted picker; its `show` prop replaces the display-gating div — never toggle the picker with `{#if}`), `HideNoAoiCheck`. Don't re-inline these in a plot's section.
+- Pane sections are DATA ONLY — a definition never imports or authors a Svelte section. Each `paneSections` entry is one of:
+  - a shared-section key string: `'stimulus' | 'group' | 'participant' | 'metric' | 'timelineRange' | 'aoi' | 'event' | 'eyeMovement'` (components live solely in `PANE_SECTION_COMPONENTS`, `shared/components/sections/index.ts`);
+  - `{ key, props }` for a shared section with static props (e.g. `{ key: 'metric', props: { label: 'Metrics' } }`; scarf passes `ordinalMode` to `'timelineRange'`);
+  - a schema section `{ key: '<type>:<name>', title, fields, summary? }` rendered by `SchemaSection`. Field kinds: `enum` (always a labeled Select — radios are a modal affordance, not a pane one), `boolean`, `number`, `color`, `colorScale`, `scaleRange`, `stimulusColorRange`, `hideNoAoi`. Hooks are plain functions: `showWhen(ctx)`, function-form `options(ctx)`, `read(settings, engine)`; `ctx.common()` is the bulk-aware read (gate mode-dependent fields on `!mixed && value === …`).
+  - LAYOUT CAP (hard rule): a section is a vertical stack of full-width fields, plus `group: 'Caption'` (captioned run) and `pair: true` (two neighbors share a 1fr/1fr row). Nothing else — no spans, widths, styles, `:global`. A pane needing more must become a new field kind or shared section, never inline Svelte.
+  - Validation: `assertSettingsSchema` (registry.ts) throws on first use — field keys unique; every key in `getDefaultSettings()` or carrying `default`; static enum defaults ∈ options; schema keys namespaced.
 - Register: hand-add to static literal `plotRegistry` (`registry.ts`). Intentionally static (feeds `VisualizationType`); never convert to glob loader.
 
 ## Metric library

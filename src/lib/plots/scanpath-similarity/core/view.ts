@@ -89,7 +89,7 @@ export function getScanpathSimilarityView(
           ? 'No participant data available'
           : null,
       fitSteps: [
-        'Reduce the number of participants in Plot Settings > Participant group',
+        'Reduce the number of participants in Plot Settings > Participants',
       ],
       tooltipId: 'similarity-matrix-tooltip',
       tooltipWidth: 160,

@@ -1,11 +1,4 @@
 import { deriveEvolvingMetricsView } from './core/view'
-import {
-  StimulusSection,
-  GroupSection,
-  MetricSection,
-  TimelineRangeSection,
-  AoiSection,
-} from '$lib/plots/shared/components/sections'
 import { definePlot } from '$lib/plots/definePlot'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
 import { PRESET_PALETTES } from '$lib/color/palettes'
@@ -19,9 +12,9 @@ export const evolvingMetricsDefinition = definePlot<
   name: 'Metric Timeline',
   group: 'per-participant',
   paneSections: [
-    { key: 'stimulus', component: StimulusSection },
-    { key: 'group', component: GroupSection },
-    { key: 'metric', component: MetricSection },
+    'stimulus',
+    'group',
+    'metric',
     {
       key: 'evolvingMetrics:visualisation',
       title: 'Visualisation',
@@ -48,8 +41,8 @@ export const evolvingMetricsDefinition = definePlot<
         },
       ],
     },
-    { key: 'timelineRange', component: TimelineRangeSection },
-    { key: 'aoi', component: AoiSection },
+    'timelineRange',
+    'aoi',
   ],
   view: {
     deriveView: deriveEvolvingMetricsView,
@@ -63,9 +56,6 @@ export const evolvingMetricsDefinition = definePlot<
     timelineStart: 0,
     timelineEnd: 0,
   }),
-  getMinSize: () => ({ w: 11, h: 10 }),
-  getDefaultHeight: () => 12,
-  getDefaultWidth: () => 12,
   requireCapabilities: ['segmented'],
   consumesMetrics: {
     outputShape: 'scalar',

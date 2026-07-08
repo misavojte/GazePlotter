@@ -4,7 +4,7 @@
   import PaneSectionList from './PaneSectionList.svelte'
   import { setPaneEditItems } from './paneEditItems'
   import { commonSectionKeys } from './bulkSections'
-  import type { PaneSectionEntry } from '$lib/plots/definePlot'
+  import { paneSectionKey, type PaneSectionEntry } from '$lib/plots/definePlot'
   import type { AllGridTypes } from '$lib/workspace'
 
   interface Props {
@@ -40,12 +40,10 @@
   const entries = $derived.by<PaneSectionEntry[]>(() => {
     if (!representative) return []
     if (homogeneous) return sectionsOf(representative.type)
-    const repKeys = sectionsOf(representative.type).map(e => e.key)
-    const perTypeKeys = items.map(i => sectionsOf(i.type).map(e => e.key))
-    return commonSectionKeys(repKeys, perTypeKeys, sharedKeys).map(key => ({
-      key,
-      component: SHARED_SECTIONS[key],
-    }))
+    const repKeys = sectionsOf(representative.type).map(paneSectionKey)
+    const perTypeKeys = items.map(i => sectionsOf(i.type).map(paneSectionKey))
+    // Common shared sections render in canonical form — a plain key entry.
+    return commonSectionKeys(repKeys, perTypeKeys, sharedKeys)
   })
 </script>
 

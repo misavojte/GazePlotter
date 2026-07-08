@@ -1,12 +1,5 @@
 import { deriveScanpathSimilarityView } from './core/view'
 import { scanpathSimilarityScreen } from './core/screen.svelte'
-import {
-  StimulusSection,
-  GroupSection,
-  MetricSection,
-  TimelineRangeSection,
-  AoiSection,
-} from '$lib/plots/shared/components/sections'
 import { definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
@@ -26,9 +19,9 @@ export const scanpathSimilarityDefinition = definePlot<
   name: 'Scanpath Similarity',
   group: 'inter-participant',
   paneSections: [
-    { key: 'stimulus', component: StimulusSection },
-    { key: 'group', component: GroupSection },
-    { key: 'metric', component: MetricSection },
+    'stimulus',
+    'group',
+    'metric',
     {
       key: 'scanpathSimilarity:visualisation',
       title: 'Visualisation',
@@ -69,8 +62,8 @@ export const scanpathSimilarityDefinition = definePlot<
         },
       ],
     },
-    { key: 'timelineRange', component: TimelineRangeSection },
-    { key: 'aoi', component: AoiSection },
+    'timelineRange',
+    'aoi',
   ],
   view: { deriveView: deriveScanpathSimilarityView },
   screen: scanpathSimilarityScreen,
@@ -84,9 +77,6 @@ export const scanpathSimilarityDefinition = definePlot<
     colorScale: [...PRESET_PALETTES.BLUE.colors],
     stimuliColorValueRanges: [],
   }),
-  getMinSize: () => ({ w: 11, h: 10 }),
-  getDefaultHeight: () => 12,
-  getDefaultWidth: () => 12,
   requireCapabilities: ['segmented'],
   consumesMetrics: {
     outputShape: 'participant-pair-matrix',

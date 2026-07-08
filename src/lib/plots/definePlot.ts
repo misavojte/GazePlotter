@@ -11,12 +11,12 @@ export type DefaultPlotParams = {
   groupId?: number
 }
 
-export type PlotLayoutInput<TSettings> = Partial<TSettings> & {
-  x?: number
-  y?: number
-  w?: number
-  h?: number
-}
+/** Fallback grid sizing for plots that omit `size` (grid units). */
+export const DEFAULT_PLOT_SIZE = {
+  min: { w: 11, h: 10 },
+  w: 12,
+  h: 12,
+} as const
 
 export type PlotItemContract<TType extends string, TSettings> = {
   id: number
@@ -180,6 +180,22 @@ export type SectionFieldCtx = {
 }
 
 /**
+ * THE pane layout cap — deliberately this small so section definitions stay
+ * short and memorable. A section is a vertical stack of full-width fields;
+ * the only layout freedoms are a caption over consecutive fields (`group`)
+ * and two neighbors sharing a 1fr/1fr row (`pair`). Nothing else: no spans,
+ * no widths, no styles. A pane needing more is a bespoke component.
+ */
+export type SectionFieldPresentation = {
+  /** Caption group: consecutive fields with the same caption render under it;
+   *  the caption hides when every member is hidden. */
+  group?: string
+  /** Share a 1fr/1fr row with the adjacent `pair` field. Consecutive paired
+   *  fields chunk left-to-right, two per row. */
+  pair?: boolean
+}
+
+/**
  * One declarative control in a schema pane section. The generic renderer
  * (`SchemaSection`) owns everything the hand-written sections repeated: bulk
  * context + command provenance, Mixed display, `?? default` display fallbacks,
@@ -187,17 +203,13 @@ export type SectionFieldCtx = {
  * the existing shared controls, including the two special write semantics
  * (`scaleRange` partial-bound merge, `stimulusColorRange` per-item keyed write).
  */
-export type SectionField =
+export type SectionField = SectionFieldPresentation & (
   | {
+      /** Every enum renders as a labeled Select — one control, uniform panes
+       *  (radios are a modal affordance, not a pane one). */
       kind: 'enum'
       key: string
-      /** 'select' (default) renders a dropdown; 'radio' a labeled group. */
-      control?: 'select' | 'radio'
       label?: string
-      /** Radio accessible name when no visible `label`. Default: section title. */
-      ariaLabel?: string
-      /** Radio layout. Default 'column'. */
-      direction?: 'column' | 'row'
       options:
         | readonly SectionFieldOption[]
         | ((ctx: SectionFieldCtx) => readonly SectionFieldOption[])
@@ -271,6 +283,7 @@ export type SectionField =
       key: 'hideNoAoi'
       showWhen?: (ctx: SectionFieldCtx) => boolean
     }
+)
 
 /**
  * A pane section declared as data instead of a component: the generic
@@ -290,20 +303,34 @@ export type SchemaPaneSectionEntry = {
 }
 
 /**
- * One entry in a plot's ordered pane. `key` is the section's stable identity:
- * shared cross-type sections use a canonical key ('stimulus', 'group',
- * 'participant', 'timelineRange', 'aoi', 'event', 'eyeMovement'); plot-specific
- * sections use a namespaced key (e.g. 'scarf:visualisation') so they never
- * count as common across types. The multi-select Pane derives which sections to
- * show purely by intersecting these keys across the selection.
+ * One entry in a plot's ordered pane — DATA ONLY, never a Svelte component:
  *
- * Two shapes: a schema section (preferred — declarative `fields`) or a bespoke
- * component (escape hatch for genuinely irregular panes, e.g. the dual-mode
- * scarf timeline; also how the shared cross-type sections are referenced).
+ *   - a canonical shared-section key as a plain string ('stimulus', 'group',
+ *     'participant', 'metric', 'timelineRange', 'aoi', 'event',
+ *     'eyeMovement');
+ *   - `{ key, props }` to pass static props (data + plain functions) to that
+ *     shared section — e.g. scarf's ordinal-mode wiring for 'timelineRange';
+ *   - or a schema section (`{ key, title, fields }`) rendered by
+ *     `SchemaSection` under the pane layout cap.
+ *
+ * Section COMPONENTS live only in the shared registry
+ * (`PANE_SECTION_COMPONENTS`). A plot needing a genuinely new control argues
+ * for a schema field kind or a new shared section — never inline Svelte.
+ * The key is the section's stable identity: shared sections use the canonical
+ * bare key; plot-specific schema sections use a namespaced key
+ * (`scarf:visualisation`) so they never count as common across types. The
+ * multi-select Pane derives which sections to show purely by intersecting
+ * these keys across the selection.
  */
 export type PaneSectionEntry =
-  | { key: string; component: PaneSection }
+  | string
+  | { key: string; props: Record<string, unknown> }
   | SchemaPaneSectionEntry
+
+/** The stable section key of any entry shape. */
+export function paneSectionKey(entry: PaneSectionEntry): string {
+  return typeof entry === 'string' ? entry : entry.key
+}
 
 export type PlotDefinition<
   TType extends string,
@@ -319,9 +346,16 @@ export type PlotDefinition<
    */
   group: PlotGroup
   getDefaultSettings: (params?: TParams) => TSettings
-  getDefaultHeight: (params?: PlotLayoutInput<TSettings>) => number
-  getDefaultWidth: (params?: PlotLayoutInput<TSettings>) => number
-  getMinSize: (params?: TParams) => { w: number; h: number }
+  /**
+   * Grid sizing in grid units — pure data. Omitted values fall back to
+   * {@link DEFAULT_PLOT_SIZE} (min 11×10, default 12×12); most plots omit
+   * the whole field.
+   */
+  size?: {
+    min?: { w: number; h: number }
+    w?: number
+    h?: number
+  }
   requireCapabilities?: DataCapabilityRequirements
   /**
    * The single view derivation both hosts render from. There is no per-plot

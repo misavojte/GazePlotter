@@ -1,19 +1,10 @@
 import { deriveScarfView } from './core/view'
 import { scarfScreen } from './core/screen.svelte'
-import {
-  StimulusSection,
-  GroupSection,
-  AoiSection,
-  EventSection,
-  EyeMovementSection,
-} from '$lib/plots/shared/components/sections'
-import ScarfVisualisationSection from './components/sections/ScarfVisualisationSection.svelte'
-import ScarfTimelineSection from './components/sections/ScarfTimelineSection.svelte'
-import { definePlot } from '$lib/plots/definePlot'
+import { definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
 import type { ScarfPlotSettings } from './types'
 import { SCARF_IDENTIFIERS } from './const'
-import { getAois } from '$lib/data/engine'
+import { getAois, hasEventsForStimulus } from '$lib/data/engine'
 import type { WorkspaceCommand } from '$lib/workspace/commands'
 
 export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
@@ -21,13 +12,65 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
   name: 'Scarf Plot',
   group: 'gaze-behavior',
   paneSections: [
-    { key: 'stimulus', component: StimulusSection },
-    { key: 'group', component: GroupSection },
-    { key: 'scarf:visualisation', component: ScarfVisualisationSection },
-    { key: 'timelineRange', component: ScarfTimelineSection },
-    { key: 'aoi', component: AoiSection },
-    { key: 'eyeMovement', component: EyeMovementSection },
-    { key: 'event', component: EventSection },
+    'stimulus',
+    'group',
+    {
+      key: 'scarf:visualisation',
+      title: 'Visualisation',
+      fields: [
+        {
+          kind: 'enum',
+          key: 'timeline',
+          group: 'Timeline mode',
+          options: [
+            { label: 'Absolute', value: 'absolute' },
+            { label: 'Relative', value: 'relative' },
+            { label: 'Ordinal', value: 'ordinal' },
+          ],
+          summary: true,
+        },
+        {
+          kind: 'boolean',
+          key: 'hideNonFixations',
+          label: 'Non-fixations',
+          group: 'Hide data',
+          default: false,
+          showWhen: ctx => ctx.engine.capabilities.segmented,
+        },
+        {
+          kind: 'boolean',
+          key: 'hideEvents',
+          label: 'Events',
+          group: 'Hide data',
+          default: false,
+          // Events ride as an overlay on the gaze segments; not shown in the
+          // segment-index-based ordinal view.
+          showWhen: (ctx: SectionFieldCtx) => {
+            const timeline = ctx.common(s => s.timeline)
+            const isOrdinal = !timeline.mixed && timeline.value === 'ordinal'
+            return (
+              hasEventsForStimulus(ctx.engine, ctx.settings.stimulusId as number) &&
+              !isOrdinal
+            )
+          },
+        },
+      ],
+    },
+    {
+      key: 'timelineRange',
+      props: {
+        // Scarf's range is dual-mode: the ordinal timeline edits ordinal
+        // indices instead of ms.
+        ordinalMode: {
+          when: (s: ScarfPlotSettings) => s.timeline === 'ordinal',
+          startKey: 'ordinalStart',
+          endKey: 'ordinalEnd',
+        },
+      },
+    },
+    'aoi',
+    'eyeMovement',
+    'event',
   ],
   view: {
     deriveView: deriveScarfView,
@@ -42,9 +85,7 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
     absoluteStimuliLimits: [],
     ordinalStimuliLimits: [],
   }),
-  getMinSize: () => ({ w: 14, h: 10 }),
-  getDefaultHeight: () => 12,
-  getDefaultWidth: () => 20,
+  size: { min: { w: 14, h: 10 }, w: 20 },
   requireCapabilities: [['segmented']],
   onCommand: (command, item, engine, dispatch): void => {
     const settings = item.settings as ScarfPlotSettings

@@ -122,6 +122,9 @@
 
   input.compact {
     width: 100%;
+    /* Matches the compact Select trigger: one control height + radius so
+       pane rows read as one system. */
+    height: 26px;
     padding: 3px 6px;
     border-radius: var(--rounded);
     font-size: 11px;

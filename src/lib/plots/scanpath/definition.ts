@@ -1,8 +1,4 @@
 import { deriveScanpathView } from './core/view'
-import {
-  StimulusSection,
-  ParticipantSection,
-} from '$lib/plots/shared/components/sections'
 import { definePlot } from '$lib/plots/definePlot'
 import { stimulusParticipantSubtitle } from '$lib/plots/shared'
 import type { ScanpathPlotSettings } from './types'
@@ -12,8 +8,8 @@ export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSetting
   name: 'Scanpath',
   group: 'gaze-behavior',
   paneSections: [
-    { key: 'stimulus', component: StimulusSection },
-    { key: 'participant', component: ParticipantSection },
+    'stimulus',
+    'participant',
     {
       key: 'scanpath:display',
       title: 'Display',
@@ -40,8 +36,6 @@ export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSetting
     showFixationOrder: true,
     showNumbers: true,
   }),
-  getMinSize: () => ({ w: 12, h: 10 }),
-  getDefaultHeight: () => 12,
-  getDefaultWidth: () => 16,
+  size: { min: { w: 12, h: 10 }, w: 16 },
   requireCapabilities: [['segmented', 'spatial']],
 })

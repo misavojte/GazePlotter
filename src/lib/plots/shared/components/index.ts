@@ -12,7 +12,6 @@ export { default as CompactSettingsSection } from './CompactSettingsSection.svel
 export { default as CompactSettingsSeparator } from './CompactSettingsSeparator.svelte'
 export { default as ContractMetricSelect } from './ContractMetricSelect.svelte'
 export { default as ColorScalePicker } from './ColorScalePicker.svelte'
-export { default as TimelineRangeSection } from './TimelineRangeSection.svelte'
 export { default as AoiPaneSection } from './AoiPaneSection.svelte'
 export { default as EventPaneSection } from './EventPaneSection.svelte'
 export { default as StimulusPaneSection } from './StimulusPaneSection.svelte'

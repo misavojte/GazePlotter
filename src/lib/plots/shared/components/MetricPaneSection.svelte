@@ -81,6 +81,6 @@
       }}
       label=""
     />
-    <PaneEditLink onclick={openMetricLibrary}>Edit metric library…</PaneEditLink>
+    <PaneEditLink onclick={openMetricLibrary}>Edit metric library</PaneEditLink>
   </PaneSection>
 {/if}

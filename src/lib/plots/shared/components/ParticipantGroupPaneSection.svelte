@@ -39,7 +39,7 @@
   }
 </script>
 
-<PaneSection title="Participant group" summary={groupSummary}>
+<PaneSection title="Participants" summary={groupSummary}>
   <Select
     options={groupOptions}
     value={String(groupId)}
@@ -49,7 +49,7 @@
     }}
   />
   <PaneEditRow>
-    <PaneEditLink onclick={openGroups}>Edit groups…</PaneEditLink>
-    <PaneEditLink onclick={openParticipants}>Edit participants…</PaneEditLink>
+    <PaneEditLink onclick={openGroups}>Edit groups</PaneEditLink>
+    <PaneEditLink onclick={openParticipants}>Edit participant library</PaneEditLink>
   </PaneEditRow>
 </PaneSection>

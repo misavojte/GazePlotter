@@ -1,11 +1,4 @@
 import { deriveMetricCorrelationView } from './core/view'
-import {
-  StimulusSection,
-  GroupSection,
-  AoiSection,
-  TimelineRangeSection,
-} from '$lib/plots/shared/components/sections'
-import MetricCorrelationMetricSection from './components/sections/MetricCorrelationMetricSection.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
 import { METRIC_CORRELATION_METHODS, METRIC_CORRELATION_VIEWS } from './const'
@@ -19,9 +12,9 @@ export const metricCorrelationDefinition = definePlot<
   name: 'Metric Correlation',
   group: 'per-participant',
   paneSections: [
-    { key: 'stimulus', component: StimulusSection },
-    { key: 'group', component: GroupSection },
-    { key: 'metric', component: MetricCorrelationMetricSection },
+    'stimulus',
+    'group',
+    { key: 'metric', props: { label: 'Metrics' } },
     {
       key: 'metricCorrelation:visualisation',
       title: 'Visualisation',
@@ -46,15 +39,13 @@ export const metricCorrelationDefinition = definePlot<
         {
           kind: 'enum',
           key: 'correlationMethod',
-          control: 'radio',
-          direction: 'row',
           options: METRIC_CORRELATION_METHODS,
           default: 'spearman',
         },
       ],
     },
-    { key: 'timelineRange', component: TimelineRangeSection },
-    { key: 'aoi', component: AoiSection },
+    'timelineRange',
+    'aoi',
   ],
   view: { deriveView: deriveMetricCorrelationView },
   getSubtitle: stimulusGroupSubtitle,
@@ -76,9 +67,6 @@ export const metricCorrelationDefinition = definePlot<
       'rqaLam',
     ],
   }),
-  getMinSize: () => ({ w: 11, h: 10 }),
-  getDefaultHeight: () => 12,
-  getDefaultWidth: () => 12,
   requireCapabilities: ['segmented'],
   consumesMetrics: {
     outputShape: 'scalar',

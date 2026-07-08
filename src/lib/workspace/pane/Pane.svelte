@@ -125,7 +125,7 @@
 {#snippet exportSection()}
   <PaneSection title="Export">
     <PaneEditLink onclick={openExport}>
-      {isBulk ? 'Download plots…' : 'Download plot…'}
+      {isBulk ? 'Download plots' : 'Download plot'}
     </PaneEditLink>
   </PaneSection>
 {/snippet}

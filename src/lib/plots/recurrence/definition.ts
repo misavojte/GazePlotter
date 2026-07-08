@@ -1,10 +1,4 @@
 import { deriveRecurrenceView } from './core/view'
-import {
-  StimulusSection,
-  ParticipantSection,
-  AoiSection,
-  TimelineRangeSection,
-} from '$lib/plots/shared/components/sections'
 import { definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
 import { stimulusParticipantSubtitle } from '$lib/plots/shared'
 import { RECURRENCE_HIGHLIGHTS, RECURRENCE_MASKINGS, RECURRENCE_METHODS } from './const'
@@ -28,8 +22,8 @@ export const recurrencePlotDefinition = definePlot<
   name: 'Recurrence Plot',
   group: 'gaze-behavior',
   paneSections: [
-    { key: 'stimulus', component: StimulusSection },
-    { key: 'participant', component: ParticipantSection },
+    'stimulus',
+    'participant',
     {
       key: 'recurrencePlot:method',
       title: 'Method',
@@ -37,9 +31,6 @@ export const recurrencePlotDefinition = definePlot<
         {
           kind: 'enum',
           key: 'recurrenceMethod',
-          control: 'radio',
-          direction: 'row',
-          ariaLabel: 'Recurrence method',
           // Spatial methods need spatial data; without it only AOI remains.
           options: ctx =>
             ctx.engine.capabilities.spatial
@@ -75,14 +66,12 @@ export const recurrencePlotDefinition = definePlot<
         {
           kind: 'enum',
           key: 'highlight',
-          control: 'radio',
           label: 'Highlight',
           options: RECURRENCE_HIGHLIGHTS,
         },
         {
           kind: 'enum',
           key: 'masking',
-          control: 'radio',
           label: 'Masking',
           options: RECURRENCE_MASKINGS,
         },
@@ -101,8 +90,8 @@ export const recurrencePlotDefinition = definePlot<
         return hlLabel || maskLabel
       },
     },
-    { key: 'timelineRange', component: TimelineRangeSection },
-    { key: 'aoi', component: AoiSection },
+    'timelineRange',
+    'aoi',
   ],
   view: { deriveView: deriveRecurrenceView },
   getSubtitle: stimulusParticipantSubtitle,
@@ -117,8 +106,5 @@ export const recurrencePlotDefinition = definePlot<
     highlight: 'none',
     masking: 'diagonal',
   }),
-  getMinSize: () => ({ w: 11, h: 10 }),
-  getDefaultHeight: () => 12,
-  getDefaultWidth: () => 12,
   requireCapabilities: ['segmented'],
 })

@@ -7,25 +7,7 @@ import EventSection from './EventSection.svelte'
 import EyeMovementSection from './EyeMovementSection.svelte'
 import MetricSection from './MetricSection.svelte'
 import TimelineRangeSection from '../TimelineRangeSection.svelte'
-import ScaleRangePair from './ScaleRangePair.svelte'
-import StimulusColorRange from './StimulusColorRange.svelte'
-import ColorScalePickerControl from './ColorScalePickerControl.svelte'
-import HideNoAoiCheck from './HideNoAoiCheck.svelte'
 
-export {
-  StimulusSection,
-  GroupSection,
-  ParticipantSection,
-  AoiSection,
-  EventSection,
-  EyeMovementSection,
-  MetricSection,
-  TimelineRangeSection,
-  ScaleRangePair,
-  StimulusColorRange,
-  ColorScalePickerControl,
-  HideNoAoiCheck,
-}
 export { computeCommonValue, editTargets, createBulkContext } from './common'
 export type { BulkContext } from './common'
 
@@ -43,4 +25,15 @@ export const SHARED_SECTIONS: Record<string, PaneSection> = {
   aoi: AoiSection,
   event: EventSection,
   eyeMovement: EyeMovementSection,
+}
+
+/**
+ * Every section a definition may reference by key — the ONLY home of pane
+ * section components (definitions are data; see `PaneSectionEntry`).
+ * `metric` joins here but stays out of `SHARED_SECTIONS`: its contract is
+ * type-specific, so the mixed-type intersection must not render it.
+ */
+export const PANE_SECTION_COMPONENTS: Record<string, PaneSection> = {
+  ...SHARED_SECTIONS,
+  metric: MetricSection,
 }

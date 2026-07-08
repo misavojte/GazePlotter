@@ -1,13 +1,5 @@
 import { deriveTransitionMatrixView } from './core/view'
 import { transitionMatrixScreen } from './core/screen.svelte'
-import {
-  StimulusSection,
-  GroupSection,
-  MetricSection,
-  TimelineRangeSection,
-  AoiSection,
-} from '$lib/plots/shared/components/sections'
-import TransitionMatrixVisualisationSection from './components/sections/TransitionMatrixVisualisationSection.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import { INACTIVE_COLOR, PRESET_PALETTES } from '$lib/color/palettes'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
@@ -21,15 +13,59 @@ export const transitionMatrixDefinition = definePlot<
   name: 'Transition Matrix',
   group: 'inter-aoi',
   paneSections: [
-    { key: 'stimulus', component: StimulusSection },
-    { key: 'group', component: GroupSection },
-    { key: 'metric', component: MetricSection },
+    'stimulus',
+    'group',
+    'metric',
     {
       key: 'transitionMatrix:visualisation',
-      component: TransitionMatrixVisualisationSection,
+      title: 'Visualisation',
+      fields: [
+        {
+          kind: 'stimulusColorRange',
+          key: 'stimuliColorValueRanges',
+          group: 'Color scale',
+        },
+        {
+          kind: 'colorScale',
+          key: 'colorScale',
+          group: 'Color scale',
+          defaultMin: '#f7fbff',
+          defaultMax: '#08306b',
+        },
+        {
+          kind: 'color',
+          key: 'belowMinColor',
+          label: 'Below min',
+          group: 'Out of bounds',
+          pair: true,
+        },
+        {
+          kind: 'boolean',
+          key: 'showBelowMinLabels',
+          label: 'Show text',
+          group: 'Out of bounds',
+          pair: true,
+        },
+        {
+          kind: 'color',
+          key: 'aboveMaxColor',
+          label: 'Above max',
+          group: 'Out of bounds',
+          pair: true,
+        },
+        {
+          kind: 'boolean',
+          key: 'showAboveMaxLabels',
+          label: 'Show text',
+          group: 'Out of bounds',
+          pair: true,
+        },
+        { kind: 'hideNoAoi', key: 'hideNoAoi' },
+      ],
+      summary: () => 'Matrix',
     },
-    { key: 'timelineRange', component: TimelineRangeSection },
-    { key: 'aoi', component: AoiSection },
+    'timelineRange',
+    'aoi',
   ],
   view: { deriveView: deriveTransitionMatrixView },
   screen: transitionMatrixScreen,
@@ -46,9 +82,6 @@ export const transitionMatrixDefinition = definePlot<
     colorScale: [...PRESET_PALETTES.BLUE.colors],
     hideNoAoi: false,
   }),
-  getMinSize: () => ({ w: 11, h: 10 }),
-  getDefaultHeight: () => 12,
-  getDefaultWidth: () => 12,
   requireCapabilities: ['segmented'],
   consumesMetrics: {
     outputShape: 'aoi-pair-matrix',

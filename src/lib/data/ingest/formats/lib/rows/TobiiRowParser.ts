@@ -1475,6 +1475,9 @@ export class TobiiRowParser extends RowParser {
     }
   }
 
+  // FNV-1a like ByteDictionary.hashBytes, PLUS a final length-mix round. The
+  // divergence is deliberate — do NOT "unify" the two: dropping the length mix
+  // silently changes this parser's key distribution (composite keys downstream).
   private makeKey(bytes: Uint8Array): number {
     let hash = 2166136261
     for (let i = 0; i < bytes.length; i++) {

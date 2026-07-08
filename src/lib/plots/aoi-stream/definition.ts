@@ -1,12 +1,5 @@
 import { deriveAoiStreamView } from './core/view'
 import { aoiStreamScreen } from './core/screen.svelte'
-import {
-  StimulusSection,
-  GroupSection,
-  MetricSection,
-  TimelineRangeSection,
-  AoiSection,
-} from '$lib/plots/shared/components/sections'
 import { definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
 import { PRESET_PALETTES } from '$lib/color/palettes'
@@ -14,7 +7,7 @@ import { RIDGELINE_SCALE } from './const'
 import type { AoiStreamPlotSettings } from './types'
 
 // Mode-gated sub-controls hide while `alignment` diverges across a bulk
-// selection — one plot's mode-specific options are meaningless for a mixed set.
+// selection — one plot's mode-specific options are meaningless for a mixed set.
 const alignmentIs = (mode: string) => (ctx: SectionFieldCtx) => {
   const a = ctx.common(s => s.alignment ?? 'stream')
   return !a.mixed && a.value === mode
@@ -28,9 +21,9 @@ export const aoiStreamPlotDefinition = definePlot<
   name: 'AOI Timeline',
   group: 'per-aoi',
   paneSections: [
-    { key: 'stimulus', component: StimulusSection },
-    { key: 'group', component: GroupSection },
-    { key: 'metric', component: MetricSection },
+    'stimulus',
+    'group',
+    'metric',
     {
       key: 'aoiStreamPlot:visualisation',
       title: 'Visualisation',
@@ -67,8 +60,8 @@ export const aoiStreamPlotDefinition = definePlot<
         { kind: 'hideNoAoi', key: 'hideNoAoi' },
       ],
     },
-    { key: 'timelineRange', component: TimelineRangeSection },
-    { key: 'aoi', component: AoiSection },
+    'timelineRange',
+    'aoi',
   ],
   view: {
     deriveView: deriveAoiStreamView,
@@ -86,9 +79,6 @@ export const aoiStreamPlotDefinition = definePlot<
     timelineEnd: 0,
     hideNoAoi: false,
   }),
-  getMinSize: () => ({ w: 11, h: 10 }),
-  getDefaultHeight: () => 12,
-  getDefaultWidth: () => 12,
   requireCapabilities: ['segmented'],
   consumesMetrics: {
     outputShape: 'aoi-vector',

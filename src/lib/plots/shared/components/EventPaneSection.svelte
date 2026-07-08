@@ -26,7 +26,7 @@
       Configure events mapped to the stimulus. Editing the library updates display names, colors, and active visibility globally.
     </p>
     <PaneEditRow>
-      <PaneEditLink onclick={openEvents}>Configure Event Library…</PaneEditLink>
+      <PaneEditLink onclick={openEvents}>Configure Event Library</PaneEditLink>
     </PaneEditRow>
   </div>
 </PaneSection>
