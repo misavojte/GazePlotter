@@ -96,8 +96,8 @@ export function rasterizeRecurrenceTexture(
       }
     }
 
-    const jStart = maskLower ? i + 1 : 0
-    for (let j = jStart; j < n; j++) {
+    const jEnd = maskLower ? i : n
+    for (let j = 0; j < jEnd; j++) {
       let packed = 0
       let aByte = 0
       if (maskDiagonal && i === j) {

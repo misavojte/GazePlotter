@@ -137,6 +137,11 @@
       if (!data || N < 2) return null
       const cell = cellAt(x, y, frame)
       if (!cell) return null
+      const maskDiagonal = masking === 'diagonal' || masking === 'diagonalLower'
+      const maskLower = masking === 'diagonalLower'
+      if (maskLower && cell.col >= cell.row) return null
+      if (maskDiagonal && cell.col === cell.row) return null
+
       const idx = cell.row * N + cell.col
       const isRecurrent = !!data.matrix[idx]
       const content: FrameHit['content'] = [
@@ -248,8 +253,8 @@
     for (let i = 0; i < N; i++) {
       const rowOffset = i * N
       // Skip the upper triangle already painted above when masking the lower half.
-      const jStart = maskLower ? i + 1 : 0
-      for (let j = jStart; j < N; j++) {
+      const jEnd = maskLower ? i : N
+      for (let j = 0; j < jEnd; j++) {
         if (maskDiagonal && i === j) {
           if (lastFill !== L.diagonalColor) {
             ctx.fillStyle = L.diagonalColor

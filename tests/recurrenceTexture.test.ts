@@ -74,11 +74,12 @@ describe('rasterizeRecurrenceTexture', () => {
     expect(out[0 * res + 2]).toBe(mask) // (2,2)
   })
 
-  it('masks the upper triangle and lets recurrent upper cells win over the mask', () => {
+  it('masks the upper triangle and lets recurrent lower cells win in the unmasked region', () => {
     const n = 3
     const res = 3
     const m = new Array(9).fill(0)
-    m[0 * n + 2] = 1 // recurrent upper-triangle cell (i=0, j=2)
+    m[0 * n + 2] = 1 // recurrent upper-triangle cell (i=0, j=2) — should be masked
+    m[2 * n + 0] = 1 // recurrent lower-triangle cell (i=2, j=0) — should be drawn
     const out = new Uint32Array(res * res)
     const alpha = new Uint8Array(res * res)
     rasterizeRecurrenceTexture(
@@ -87,16 +88,19 @@ describe('rasterizeRecurrenceTexture', () => {
       alpha
     )
     const mask = p(0xcccccc, MASK_ALPHA)
-    // recurrent (0,2) -> display row 2, x=2, full alpha overwrites the mask
-    expect(out[2 * res + 2]).toBe(p(0x100 * 3, 255))
+    // recurrent upper-triangle cell (0,2) -> display row 2, x=2, is masked
+    expect(out[2 * res + 2]).toBe(mask)
+    // recurrent lower-triangle cell (2,0) -> display row 0, x=0, is drawn
+    expect(out[0 * res + 0]).toBe(p(0x100 * 1, 255))
     // other upper-triangle cells stay masked
-    expect(out[2 * res + 0]).toBe(mask) // (0,0)
-    expect(out[2 * res + 1]).toBe(mask) // (0,1)
-    expect(out[1 * res + 1]).toBe(mask) // (1,1)
-    // lower triangle is transparent
-    expect(out[0 * res + 0]).toBe(0) // (2,0)
-    expect(out[0 * res + 1]).toBe(0) // (2,1)
-    expect(out[1 * res + 0]).toBe(0) // (1,0)
+    expect(out[2 * res + 0]).toBe(mask) // (0,0) -> display row 2, x=0
+    expect(out[2 * res + 1]).toBe(mask) // (0,1) -> display row 2, x=1
+    expect(out[1 * res + 1]).toBe(mask) // (1,1) -> display row 1, x=1
+    expect(out[1 * res + 2]).toBe(mask) // (1,2) -> display row 1, x=2
+    expect(out[0 * res + 2]).toBe(mask) // (2,2) -> display row 0, x=2
+    // non-recurrent lower triangle cells are transparent
+    expect(out[0 * res + 1]).toBe(0) // (2,1) -> display row 0, x=1
+    expect(out[1 * res + 0]).toBe(0) // (1,0) -> display row 1, x=0
   })
 
   it('collapses many cells onto one pixel keeping the strongest (max-alpha)', () => {
