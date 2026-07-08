@@ -369,6 +369,11 @@ class IngestWorkerClient {
         `${excluded.length} participant-stimulus group${excluded.length > 1 ? 's were' : ' was'} excluded for malformed interval markers. Open Metadata for the full report.`
       )
     }
+    // Fresh datasets are seeded with the starter metric library HERE, on the
+    // main thread — the worker's segment writer emits an empty list so it never
+    // bundles the metric registry. Workspace results never pass through this
+    // branch; they carry their own (user-curated) instances.
+    result.data.metricInstances = createDefaultMetricInstances()
     this.handleData({ data: result.data, classified: result.settings })
   }
 

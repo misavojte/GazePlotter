@@ -1,5 +1,4 @@
 import type { WorkspaceFormatDefinition } from '../kernel/format'
-import { processJsonFileWithGrid } from '../workspace/parser'
 
 /**
  * A saved GazePlotter workspace (.json) — dataset, grid layout, and the
@@ -16,6 +15,13 @@ export const workspaceJsonFormat: WorkspaceFormatDefinition = {
   matchesFileName: name => name.toLowerCase().endsWith('.json'),
 
   async read(bytes) {
+    // Lazy on purpose: the migration chain materializes metric instances
+    // through the metric registry — the whole metric library. Loading it here,
+    // only when a workspace file is actually opened, keeps that library out of
+    // the stream-parsing worker's startup chunk (fresh parses never need it;
+    // their starter seeding happens on the main thread, see
+    // IngestService.handleDone).
+    const { processJsonFileWithGrid } = await import('../workspace/parser')
     const text = new TextDecoder('utf-8').decode(bytes)
     const result = processJsonFileWithGrid(text)
     return {

@@ -45,6 +45,10 @@ describe('SegmentWriter — name decoding is per-file, not last-file', () => {
     expect(data.stimuli.data).toEqual([['Obrázek č. 1']])
     expect(data.participants.data).toEqual([['Účastník']])
     expect(data.aois.data[0][0].slice(0, 2)).toEqual(['Tvář', 'Tvář'])
+    // Worker contract: the writer never seeds metric instances — starter
+    // seeding happens on the main thread (IngestService.handleDone), so the
+    // worker bundle stays free of the metric registry.
+    expect(data.metricInstances).toEqual([])
   })
 
   it('decodes each file with its own encoding in a mixed-encoding upload', () => {

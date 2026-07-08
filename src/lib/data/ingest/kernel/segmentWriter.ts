@@ -5,7 +5,6 @@ import {
 } from '$lib/data/binary'
 import type { DataType } from '$lib/data/types'
 import { DEFAULT_NO_AOI_TREATMENT } from '$lib/data/types'
-import { createDefaultMetricInstances } from '$lib/metrics/instances'
 import type { SegmentRow } from '../types'
 import type { TextEncoding } from '$lib/data/ingest/utils/byteUtils'
 import { decodeBytes, encodeString } from '$lib/data/ingest/utils/byteUtils'
@@ -604,7 +603,11 @@ export class SegmentWriter {
         orderVector: participantsOrderVector,
       },
       participantsGroups: [],
-      metricInstances: createDefaultMetricInstances(),
+      // Deliberately empty: starter seeding happens on the MAIN thread
+      // (IngestService.handleDone) so the worker never bundles the metric
+      // registry. Fresh datasets are the only thing this writer produces, so
+      // the seam is unconditional there.
+      metricInstances: [],
       categories: { data: this.buildCategoriesData(), orderVector: [] },
       aois: {
         // Assign each AOI its default color by its NAME-SORTED rank rather than
