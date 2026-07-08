@@ -10,8 +10,6 @@
     drawLegendGroupTitles,
     drawPlotArea,
     drawXAxisLabel,
-    getLegendTooltipContent,
-    getLegendTooltipPosition,
     hitTestLegend,
     niceTimelineTicks,
     SCARF_LEGEND_CONFIG,
@@ -200,7 +198,11 @@
     clipData: false,
     drawData: renderScarf,
     drawOverlay: drawScarfOverlay,
-    legend: { hitTest: legendHitTest },
+    legend: {
+      geometry: () => (data.stylingAndLegend ? legendGeometry : null),
+      config: SCARF_LEGEND_CONFIG,
+      highlights: () => highlights,
+    },
     hitTest: plotHitTest,
     blockedRegions: () => blockedRegions,
     pointer: {
@@ -240,26 +242,15 @@
     )
   })
 
-  const blockedRegions = $derived.by<BlockedRegion[]>(() => {
-    const pad = Math.ceil(SCARF_LEGEND_CONFIG.itemSpacing / 2)
-    const regions: BlockedRegion[] = [
-      {
-        x: LEFT_LABEL_WIDTH + margins.left,
-        y: effectiveMarginTop,
-        w: plotAreaWidth,
-        h: participantBarsHeight,
-      },
-    ]
-    for (const item of legendGeometry.items) {
-      regions.push({
-        x: item.x - pad,
-        y: item.y - pad,
-        w: item.width + pad * 2,
-        h: SCARF_LEGEND_CONFIG.itemHeight + pad * 2,
-      })
-    }
-    return regions
-  })
+  // The legend items' blocked rects come from the harness legend band.
+  const blockedRegions = $derived.by<BlockedRegion[]>(() => [
+    {
+      x: LEFT_LABEL_WIDTH + margins.left,
+      y: effectiveMarginTop,
+      w: plotAreaWidth,
+      h: participantBarsHeight,
+    },
+  ])
 
   const identifierSystem = $derived.by(() => {
     if (!data.stylingAndLegend)
@@ -444,22 +435,8 @@
     )
   }
 
-  // ── Hover (harness hitTest contract) ──
-  function legendHitTest(mx: number, my: number): FrameHit<ScarfHover> | null {
-    const item = isMouseOverLegendItem(mx, my)
-    if (!item) return null
-    const pos = getLegendTooltipPosition(item, SCARF_LEGEND_CONFIG)
-    // No `data`: a legend hover clears the crosshair.
-    return {
-      tooltipId: item.identifier,
-      content: getLegendTooltipContent(item, highlights.includes(item.identifier)),
-      anchorX: pos.x,
-      anchorY: pos.y,
-      offset: { x: 0, y: 7 },
-      cursor: 'pointer',
-    }
-  }
-
+  // ── Hover (harness hitTest contract; the legend band is harness-owned —
+  // it attaches no `data`, so a legend hover clears the crosshair) ──
   function plotHitTest(mx: number, my: number): FrameHit<ScarfHover> | null {
     if (!inPlotArea(mx, my)) return null
     const rowHeight = layout.heightOfBarWrap

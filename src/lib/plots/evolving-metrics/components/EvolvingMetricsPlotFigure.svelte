@@ -159,7 +159,9 @@
     height: () => height,
     margins: () => margins,
     dpiOverride: () => dpiOverride,
-    deps: () => [data, alignment],
+    // colorScale reaches the figure as its own prop (not through `data`), so
+    // it must be a dep — without it a palette edit left the heatmap stale.
+    deps: () => [data, alignment, colorScale],
     placeholder: () => (data.noMetric ? METRIC_MISSING_MESSAGE : null),
     fit: frame => {
       if (alignment !== 'heatmap') return null

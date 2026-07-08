@@ -9,7 +9,6 @@
     NO_MARGINS,
     canvasBlockSelect,
     withQualifiers,
-    type BlockedRegion,
     type CanvasExportProps,
     type PlotFrame,
     type FrameHit,
@@ -28,9 +27,6 @@
     computeFlatLegendGeometry,
     calculateFlatLegendHeight,
     drawLegend,
-    hitTestLegend,
-    getLegendTooltipPosition,
-    getLegendTooltipContent,
     STREAM_LEGEND_CONFIG,
     type LegendItem,
     type LegendGeometry,
@@ -240,9 +236,14 @@
     clipData: false,
     drawData: drawStream,
     drawOverlay: drawStreamOverlay,
-    legend: { hitTest: hitTestLegendBand },
+    legend: {
+      geometry: () =>
+        alignment === 'heatmap' || legendHeight === 0 ? null : legendGeometry,
+      config: STREAM_LEGEND_CONFIG,
+      highlights: () => usedHighlights,
+      hitData: item => ({ kind: 'legend' as const, item }),
+    },
     hitTest: hitTestBin,
-    blockedRegions: () => blockedRegions,
   })
 
   // Legend geometry sits in the bottom band, below the x-axis.
@@ -269,24 +270,6 @@
       title: data.yAxisLabel,
       belowMinColor: INACTIVE_COLOR,
     })
-  })
-
-  // Plot area always blocked; interactive legend items blocked too (stream modes).
-  const blockedRegions = $derived.by<BlockedRegion[]>(() => {
-    const f = plot.frame
-    const regions: BlockedRegion[] = [{ x: f.x, y: f.y, w: f.width, h: f.height }]
-    if (alignment !== 'heatmap') {
-      const pad = Math.ceil(STREAM_LEGEND_CONFIG.itemSpacing / 2)
-      for (const item of legendGeometry.items) {
-        regions.push({
-          x: item.x - pad,
-          y: item.y - pad,
-          w: item.width + pad * 2,
-          h: STREAM_LEGEND_CONFIG.itemHeight + pad * 2,
-        })
-      }
-    }
-    return regions
   })
 
   function setUpFont(ctx: CanvasRenderingContext2D) {
@@ -587,30 +570,6 @@
     }
 
     ctx.restore()
-  }
-
-  function hitTestLegendBand(
-    mx: number,
-    my: number
-  ): FrameHit<{
-    kind: 'legend' | 'bin'
-    item?: LegendItemGeometry
-    binIndex?: number
-    x?: number
-  }> | null {
-    if (alignment === 'heatmap' || legendGeometry.items.length === 0 || legendHeight === 0) return null
-    const item = hitTestLegend(legendGeometry, STREAM_LEGEND_CONFIG, mx, my)
-    if (!item) return null
-    const pos = getLegendTooltipPosition(item, STREAM_LEGEND_CONFIG)
-    return {
-      tooltipId: item.identifier,
-      content: getLegendTooltipContent(item, usedHighlights.includes(item.identifier)),
-      anchorX: pos.x,
-      anchorY: pos.y,
-      offset: { x: 0, y: 7 },
-      cursor: 'pointer',
-      data: { kind: 'legend', item },
-    }
   }
 
   function hitTestBin(

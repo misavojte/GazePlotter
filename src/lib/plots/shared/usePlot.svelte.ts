@@ -33,6 +33,14 @@ import {
   type PlotPlaceholderContent,
 } from './drawCanvasPlaceholder'
 import type { BlockedRegion } from './canvasBlockSelect.action'
+import {
+  getLegendTooltipContent,
+  getLegendTooltipPosition,
+  hitTestLegend,
+  type LegendConfig,
+  type LegendGeometry,
+  type LegendItemGeometry,
+} from './legendRendering'
 import { FONT_PRIMARY, PLOT_AXIS_TITLE_GAP, PLOT_TICK_LABEL_GAP } from './const'
 import { measureTextHeight, calculateLabelOffset } from '$lib/shared/utils/textUtils'
 
@@ -218,9 +226,22 @@ export interface UsePlotOptions<THit = unknown> {
   // ---- hover overlay, drawn unclipped on top of the chrome ----
   drawOverlay?: (ctx: CanvasRenderingContext2D, frame: PlotFrame) => void
 
-  // ---- legend hit-test routing; the figure draws the legend inside drawData ----
+  // ---- interactive legend band; the figure draws the legend inside drawData ----
+  /**
+   * Declarative legend-band contract: the harness hit-tests the items
+   * (standard Highlight/Dehighlight tooltip, pointer cursor) and appends each
+   * item's padded rect to `blockedRegions`. Legend clicks stay with the
+   * figure (pointer handlers / canvas click), which re-hit-tests the geometry.
+   */
   legend?: {
-    hitTest?: (x: number, y: number, legendY: number) => FrameHit<THit> | null
+    /** Reactive geometry; return null while the band is inactive
+     *  (e.g. a plot mode without an interactive legend). */
+    geometry: () => LegendGeometry | null
+    config: LegendConfig
+    /** Highlighted identifiers — drives the tooltip verb. */
+    highlights: () => readonly string[]
+    /** Optional payload attached to legend hits (read back via plot.hover). */
+    hitData?: (item: LegendItemGeometry) => THit
   }
 
   // ---- interaction ----
@@ -773,7 +794,32 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   }
 
   // ---- hover: legend-then-data hit-test → tooltip/cursor/redraw ----
-  const hasHitLogic = !!(options.hitTest || options.legend?.hitTest)
+  const hasHitLogic = !!(options.hitTest || options.legend)
+
+  // Standard legend-band hit — identical for every plot with an interactive
+  // legend: identifier tooltip with the Highlight/Dehighlight verb, pointer
+  // cursor, optional figure payload.
+  function legendBandHit(x: number, y: number): FrameHit<THit> | null {
+    const band = options.legend
+    if (!band) return null
+    const geometry = band.geometry()
+    if (!geometry || geometry.items.length === 0) return null
+    const item = hitTestLegend(geometry, band.config, x, y)
+    if (!item) return null
+    const pos = getLegendTooltipPosition(item, band.config)
+    return {
+      tooltipId: item.identifier,
+      content: getLegendTooltipContent(
+        item,
+        band.highlights().includes(item.identifier)
+      ),
+      anchorX: pos.x,
+      anchorY: pos.y,
+      offset: { x: 0, y: 7 },
+      cursor: 'pointer',
+      data: band.hitData?.(item),
+    }
+  }
 
   // Updates the harness-owned hover state, fires the deduped `onHover` side
   // effect, and reports whether an overlay repaint is needed. The default
@@ -816,7 +862,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
 
     if (hasHitLogic) {
       const r = resolved.rect
-      let hit = options.legend?.hitTest?.(x, y, r.legendY) ?? null
+      let hit = legendBandHit(x, y)
       if (!hit) {
         const inRect = x >= r.x && x <= r.right && y >= r.y && y <= r.bottom
         if (inRect) hit = options.hitTest?.(x, y, frame) ?? null
@@ -987,9 +1033,25 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   }
 
   const blockedRegions = $derived.by<BlockedRegion[]>(() => {
-    if (options.blockedRegions) return options.blockedRegions(frame)
     const r = resolved.rect
-    return [{ x: r.x, y: r.y, w: r.width, h: r.height }]
+    const base = options.blockedRegions
+      ? options.blockedRegions(frame)
+      : [{ x: r.x, y: r.y, w: r.width, h: r.height }]
+    const band = options.legend
+    const geometry = band?.geometry()
+    if (!band || !geometry || geometry.items.length === 0) return base
+    // The legend band blocks its own items: pad = half the item spacing, the
+    // same halo the hit-test's tolerance implies.
+    const pad = Math.ceil(band.config.itemSpacing / 2)
+    return [
+      ...base,
+      ...geometry.items.map(item => ({
+        x: item.x - pad,
+        y: item.y - pad,
+        w: item.width + pad * 2,
+        h: band.config.itemHeight + pad * 2,
+      })),
+    ]
   })
 
   return {
