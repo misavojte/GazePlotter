@@ -160,6 +160,135 @@ export type PaneSectionItem = PlotItemContract<string, any>
 
 export type PaneSection = Component<{ item: any }>
 
+// ─── Declarative settings schema ─────────────────────────────────────────────
+
+export type SectionFieldOption = { value: string; label: string }
+
+/**
+ * Context handed to a schema field's functions (`showWhen`, function-form
+ * `options`, entry `summary`). `common` is the bulk-aware read — visibility
+ * gates on a mode field must use it so a control hides when the selection
+ * DISAGREES on the mode (`!mixed && value === …`), matching how the
+ * hand-written sections behaved.
+ */
+export type SectionFieldCtx = {
+  engine: DataEngine
+  /** The representative item's settings (read-only convenience). */
+  settings: Record<string, unknown>
+  /** `{ value, mixed }` for one field across the live edit selection. */
+  common: <T>(read: (settings: any) => T) => { value: T; mixed: boolean }
+}
+
+/**
+ * One declarative control in a schema pane section. The generic renderer
+ * (`SchemaSection`) owns everything the hand-written sections repeated: bulk
+ * context + command provenance, Mixed display, `?? default` display fallbacks,
+ * summary text, and keep-mounted visibility gating. Field kinds map 1:1 onto
+ * the existing shared controls, including the two special write semantics
+ * (`scaleRange` partial-bound merge, `stimulusColorRange` per-item keyed write).
+ */
+export type SectionField =
+  | {
+      kind: 'enum'
+      key: string
+      /** 'select' (default) renders a dropdown; 'radio' a labeled group. */
+      control?: 'select' | 'radio'
+      label?: string
+      /** Radio accessible name when no visible `label`. Default: section title. */
+      ariaLabel?: string
+      /** Radio layout. Default 'column'. */
+      direction?: 'column' | 'row'
+      options:
+        | readonly SectionFieldOption[]
+        | ((ctx: SectionFieldCtx) => readonly SectionFieldOption[])
+      /** Pane-display fallback when the setting is unset. */
+      default?: string
+      /** Effective-value override replacing the plain `settings[key]` read —
+       *  e.g. recurrence coerces the stored method to 'aoi' when the dataset
+       *  has no spatial data. Runs per selected item (bulk divergence then
+       *  reflects what each plot actually uses). */
+      read?: (settings: Record<string, unknown>, engine: DataEngine) => string
+      /** Drives the collapsed-header summary (selected option's label / 'Mixed'). */
+      summary?: boolean
+      showWhen?: (ctx: SectionFieldCtx) => boolean
+    }
+  | {
+      kind: 'boolean'
+      key: string
+      label: string
+      default?: boolean
+      showWhen?: (ctx: SectionFieldCtx) => boolean
+    }
+  | {
+      kind: 'number'
+      key: string
+      label: string
+      min?: number
+      max?: number
+      step?: number
+      /** Display fallback AND the value an emptied input commits; when absent,
+       *  an emptied input recommits the current value. */
+      default?: number
+      showWhen?: (ctx: SectionFieldCtx) => boolean
+    }
+  | {
+      kind: 'color'
+      key: string
+      label: string
+      default?: string
+      showWhen?: (ctx: SectionFieldCtx) => boolean
+    }
+  | {
+      kind: 'colorScale'
+      key: 'colorScale'
+      defaultMin: string
+      defaultMax: string
+      showWhen?: (ctx: SectionFieldCtx) => boolean
+    }
+  | {
+      /** Min/max pair writing `[min, max]` into `key` with a per-item merge of
+       *  the untouched bound ("0 = Auto" convention). */
+      kind: 'scaleRange'
+      key: string
+      legend?: string
+      inputMax?: number
+      step?: number
+      showWhen?: (ctx: SectionFieldCtx) => boolean
+    }
+  | {
+      /** Per-stimulus color value range: keyed per-item write into
+       *  `stimuliColorValueRanges[stimulusId]`. */
+      kind: 'stimulusColorRange'
+      key: 'stimuliColorValueRanges'
+      legend?: string
+      inputMax?: number
+      step?: number
+      showWhen?: (ctx: SectionFieldCtx) => boolean
+    }
+  | {
+      /** The shared "Hide data → No AOI data" checkbox (bar/stream/matrix). */
+      kind: 'hideNoAoi'
+      key: 'hideNoAoi'
+      showWhen?: (ctx: SectionFieldCtx) => boolean
+    }
+
+/**
+ * A pane section declared as data instead of a component: the generic
+ * `SchemaSection` renders `fields` in order. This is the preferred shape for
+ * plot-specific sections — a new plot declares its settings pane without
+ * authoring any Svelte. Registration validates the schema (unique keys; every
+ * key present in `getDefaultSettings()` or carrying a `default`; static enum
+ * defaults ∈ options).
+ */
+export type SchemaPaneSectionEntry = {
+  key: string
+  title: string
+  fields: SectionField[]
+  /** Collapsed-header summary override (e.g. a fixed word). Defaults to the
+   *  `summary`-flagged enum field's selected label, else the first enum's. */
+  summary?: (ctx: SectionFieldCtx) => string
+}
+
 /**
  * One entry in a plot's ordered pane. `key` is the section's stable identity:
  * shared cross-type sections use a canonical key ('stimulus', 'group',
@@ -167,8 +296,14 @@ export type PaneSection = Component<{ item: any }>
  * sections use a namespaced key (e.g. 'scarf:visualisation') so they never
  * count as common across types. The multi-select Pane derives which sections to
  * show purely by intersecting these keys across the selection.
+ *
+ * Two shapes: a schema section (preferred — declarative `fields`) or a bespoke
+ * component (escape hatch for genuinely irregular panes, e.g. the dual-mode
+ * scarf timeline; also how the shared cross-type sections are referenced).
  */
-export type PaneSectionEntry = { key: string; component: PaneSection }
+export type PaneSectionEntry =
+  | { key: string; component: PaneSection }
+  | SchemaPaneSectionEntry
 
 export type PlotDefinition<
   TType extends string,

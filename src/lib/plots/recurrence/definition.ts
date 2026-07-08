@@ -5,11 +5,20 @@ import {
   AoiSection,
   TimelineRangeSection,
 } from '$lib/plots/shared/components/sections'
-import RecurrenceMethodSection from './components/sections/RecurrenceMethodSection.svelte'
-import RecurrenceVisualisationSection from './components/sections/RecurrenceVisualisationSection.svelte'
-import { definePlot } from '$lib/plots/definePlot'
+import { definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
 import { stimulusParticipantSubtitle } from '$lib/plots/shared'
+import { RECURRENCE_HIGHLIGHTS, RECURRENCE_MASKINGS, RECURRENCE_METHODS } from './const'
 import type { RecurrencePlotSettings } from './types'
+
+// Effective method couples the stored method with the engine capability: a
+// dataset without spatial data always uses 'aoi', whatever is stored.
+const effectiveMethod = (settings: Record<string, unknown>, engine: { capabilities: { spatial: boolean } }) =>
+  engine.capabilities.spatial ? (settings.recurrenceMethod as string) : 'aoi'
+
+const methodIs = (mode: string) => (ctx: SectionFieldCtx) => {
+  const m = ctx.common(s => effectiveMethod(s, ctx.engine))
+  return !m.mixed && m.value === mode
+}
 
 export const recurrencePlotDefinition = definePlot<
   'recurrencePlot',
@@ -21,10 +30,76 @@ export const recurrencePlotDefinition = definePlot<
   paneSections: [
     { key: 'stimulus', component: StimulusSection },
     { key: 'participant', component: ParticipantSection },
-    { key: 'recurrencePlot:method', component: RecurrenceMethodSection },
+    {
+      key: 'recurrencePlot:method',
+      title: 'Method',
+      fields: [
+        {
+          kind: 'enum',
+          key: 'recurrenceMethod',
+          control: 'radio',
+          direction: 'row',
+          ariaLabel: 'Recurrence method',
+          // Spatial methods need spatial data; without it only AOI remains.
+          options: ctx =>
+            ctx.engine.capabilities.spatial
+              ? RECURRENCE_METHODS
+              : RECURRENCE_METHODS.filter(m => m.value === 'aoi'),
+          read: effectiveMethod,
+          summary: true,
+        },
+        {
+          kind: 'number',
+          key: 'radius',
+          label: 'Radius [px]',
+          min: 1,
+          max: 500,
+          showWhen: methodIs('fixedDistance'),
+        },
+        {
+          kind: 'number',
+          key: 'gridSize',
+          label: 'Cells per axis',
+          min: 2,
+          max: 100,
+          showWhen: methodIs('fixedGrid'),
+        },
+        { kind: 'boolean', key: 'showDuration', label: 'Duration weighting' },
+        { kind: 'number', key: 'minLineLength', label: 'Min line length', min: 2, max: 20 },
+      ],
+    },
     {
       key: 'recurrencePlot:visualisation',
-      component: RecurrenceVisualisationSection,
+      title: 'Visualisation',
+      fields: [
+        {
+          kind: 'enum',
+          key: 'highlight',
+          control: 'radio',
+          label: 'Highlight',
+          options: RECURRENCE_HIGHLIGHTS,
+        },
+        {
+          kind: 'enum',
+          key: 'masking',
+          control: 'radio',
+          label: 'Masking',
+          options: RECURRENCE_MASKINGS,
+        },
+      ],
+      summary: ctx => {
+        const highlight = ctx.common(s => s.highlight)
+        const masking = ctx.common(s => s.masking)
+        if (highlight.mixed || masking.mixed) return 'Mixed'
+        const hl = highlight.value
+        const hlLabel =
+          hl === 'none' ? '' : hl === 'diagonal' ? 'Diagonal' : hl === 'horizontal' ? 'Horizontal' : 'Vertical'
+        const maskLabel =
+          masking.value === 'none' ? '' : masking.value === 'diagonal' ? 'No main diag.' : 'Upper'
+        if (!hlLabel && !maskLabel) return 'Standard'
+        if (hlLabel && maskLabel) return `${hlLabel} (${maskLabel})`
+        return hlLabel || maskLabel
+      },
     },
     { key: 'timelineRange', component: TimelineRangeSection },
     { key: 'aoi', component: AoiSection },

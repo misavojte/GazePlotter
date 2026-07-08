@@ -6,10 +6,9 @@ import {
   TimelineRangeSection,
 } from '$lib/plots/shared/components/sections'
 import MetricCorrelationMetricSection from './components/sections/MetricCorrelationMetricSection.svelte'
-import MetricCorrelationVisualisationSection from './components/sections/MetricCorrelationVisualisationSection.svelte'
-import MetricCorrelationMethodSection from './components/sections/MetricCorrelationMethodSection.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
+import { METRIC_CORRELATION_METHODS, METRIC_CORRELATION_VIEWS } from './const'
 import type { MetricCorrelationSettings } from './types'
 
 export const metricCorrelationDefinition = definePlot<
@@ -25,11 +24,34 @@ export const metricCorrelationDefinition = definePlot<
     { key: 'metric', component: MetricCorrelationMetricSection },
     {
       key: 'metricCorrelation:visualisation',
-      component: MetricCorrelationVisualisationSection,
+      title: 'Visualisation',
+      fields: [
+        {
+          kind: 'enum',
+          key: 'view',
+          options: METRIC_CORRELATION_VIEWS,
+          default: 'heatmap',
+        },
+      ],
+      // Short names in the collapsed header (the option labels are long).
+      summary: ctx => {
+        const view = ctx.common(s => s.view)
+        return view.mixed ? 'Mixed' : view.value === 'heatmap' ? 'Heatmap' : 'Splom'
+      },
     },
     {
       key: 'metricCorrelation:correlationMethod',
-      component: MetricCorrelationMethodSection,
+      title: 'Correlation method',
+      fields: [
+        {
+          kind: 'enum',
+          key: 'correlationMethod',
+          control: 'radio',
+          direction: 'row',
+          options: METRIC_CORRELATION_METHODS,
+          default: 'spearman',
+        },
+      ],
     },
     { key: 'timelineRange', component: TimelineRangeSection },
     { key: 'aoi', component: AoiSection },

@@ -6,9 +6,9 @@ import {
   TimelineRangeSection,
   AoiSection,
 } from '$lib/plots/shared/components/sections'
-import EvolvingMetricsVisualisationSection from './components/sections/EvolvingMetricsVisualisationSection.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
+import { PRESET_PALETTES } from '$lib/color/palettes'
 import type { EvolvingMetricsSettings } from './types'
 
 export const evolvingMetricsDefinition = definePlot<
@@ -24,7 +24,29 @@ export const evolvingMetricsDefinition = definePlot<
     { key: 'metric', component: MetricSection },
     {
       key: 'evolvingMetrics:visualisation',
-      component: EvolvingMetricsVisualisationSection,
+      title: 'Visualisation',
+      fields: [
+        {
+          kind: 'enum',
+          key: 'presentation',
+          options: [
+            { label: 'Heatmap', value: 'heatmap' },
+            { label: 'Overlay', value: 'overlay' },
+          ],
+          default: 'heatmap',
+          summary: true,
+        },
+        {
+          kind: 'colorScale',
+          key: 'colorScale',
+          defaultMin: PRESET_PALETTES.HEAT.colors[0],
+          defaultMax: PRESET_PALETTES.HEAT.colors[2],
+          showWhen: ctx => {
+            const p = ctx.common(s => s.presentation ?? 'heatmap')
+            return !p.mixed && p.value === 'heatmap'
+          },
+        },
+      ],
     },
     { key: 'timelineRange', component: TimelineRangeSection },
     { key: 'aoi', component: AoiSection },

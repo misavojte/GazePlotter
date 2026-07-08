@@ -3,7 +3,6 @@ import {
   StimulusSection,
   ParticipantSection,
 } from '$lib/plots/shared/components/sections'
-import ScanpathDisplaySection from './components/sections/ScanpathDisplaySection.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import { stimulusParticipantSubtitle } from '$lib/plots/shared'
 import type { ScanpathPlotSettings } from './types'
@@ -15,7 +14,23 @@ export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSetting
   paneSections: [
     { key: 'stimulus', component: StimulusSection },
     { key: 'participant', component: ParticipantSection },
-    { key: 'scanpath:display', component: ScanpathDisplaySection },
+    {
+      key: 'scanpath:display',
+      title: 'Display',
+      fields: [
+        { kind: 'boolean', key: 'showFixationOrder', label: 'Show fixation order line' },
+        { kind: 'boolean', key: 'showNumbers', label: 'Show fixation numbers' },
+      ],
+      summary: ctx => {
+        const order = ctx.common(s => s.showFixationOrder)
+        const numbers = ctx.common(s => s.showNumbers)
+        if (order.mixed || numbers.mixed) return 'Mixed'
+        const parts: string[] = []
+        if (order.value) parts.push('Order line')
+        if (numbers.value) parts.push('Numbers')
+        return parts.length === 0 ? 'None' : parts.join(', ')
+      },
+    },
   ],
   view: { deriveView: deriveScanpathView },
   getSubtitle: stimulusParticipantSubtitle,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { plotRegistry } from '$lib/plots/registry'
+import { ensureSettingsSchemasValid, plotRegistry } from '$lib/plots/registry'
 import { SHARED_SECTIONS } from '$lib/plots/shared/components/sections'
+import type { PaneSectionEntry } from '$lib/plots/definePlot'
 
 /**
  * Guards against drift between each plot's declarative `paneSections` and the
@@ -9,7 +10,7 @@ import { SHARED_SECTIONS } from '$lib/plots/shared/components/sections'
 describe('paneSections / SHARED_SECTIONS consistency', () => {
   const defs = Object.values(plotRegistry) as Array<{
     type: string
-    paneSections: { key: string; component: unknown }[]
+    paneSections: PaneSectionEntry[]
   }>
 
   it('every plot declares a non-empty paneSections including the universal sections', () => {
@@ -24,11 +25,21 @@ describe('paneSections / SHARED_SECTIONS consistency', () => {
     }
   })
 
-  it('every section entry has a string key and a component', () => {
+  it('every section entry has a string key and a component or a schema field list', () => {
     for (const def of defs) {
       for (const entry of def.paneSections) {
         expect(typeof entry.key).toBe('string')
-        expect(entry.component).toBeTruthy()
+        if ('fields' in entry) {
+          // Schema shape: a title and at least one field. Field-level validity
+          // (unique keys, defaults, options) is enforced on first registry use
+          // by `assertSettingsSchema` — run it here so a violation fails THIS
+          // pin, not some downstream plot lookup.
+          expect(() => ensureSettingsSchemasValid()).not.toThrow()
+          expect(typeof entry.title).toBe('string')
+          expect(entry.fields.length).toBeGreaterThan(0)
+        } else {
+          expect(entry.component).toBeTruthy()
+        }
       }
     }
   })

@@ -7,11 +7,16 @@ import {
   TimelineRangeSection,
   AoiSection,
 } from '$lib/plots/shared/components/sections'
-import ScanpathSimilarityVisualisationSection from './components/sections/ScanpathSimilarityVisualisationSection.svelte'
-import { definePlot } from '$lib/plots/definePlot'
+import { definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
 import type { ScanpathSimilaritySettings } from './types'
+
+// View-gated sub-controls hide while `view` diverges across a bulk selection.
+const viewIs = (mode: string) => (ctx: SectionFieldCtx) => {
+  const v = ctx.common(s => s.view ?? 'matrix')
+  return !v.mixed && v.value === mode
+}
 
 export const scanpathSimilarityDefinition = definePlot<
   'scanpathSimilarity',
@@ -26,7 +31,43 @@ export const scanpathSimilarityDefinition = definePlot<
     { key: 'metric', component: MetricSection },
     {
       key: 'scanpathSimilarity:visualisation',
-      component: ScanpathSimilarityVisualisationSection,
+      title: 'Visualisation',
+      fields: [
+        {
+          kind: 'enum',
+          key: 'view',
+          options: [
+            { label: 'Matrix', value: 'matrix' },
+            { label: 'ScanGraph', value: 'scangraph' },
+          ],
+          default: 'matrix',
+          summary: true,
+        },
+        {
+          kind: 'number',
+          key: 'threshold',
+          label: 'Similarity threshold (0–1)',
+          min: 0,
+          max: 1,
+          step: 0.01,
+          default: 0.5,
+          showWhen: viewIs('scangraph'),
+        },
+        {
+          kind: 'stimulusColorRange',
+          key: 'stimuliColorValueRanges',
+          inputMax: 1,
+          step: 0.01,
+          showWhen: viewIs('matrix'),
+        },
+        {
+          kind: 'colorScale',
+          key: 'colorScale',
+          defaultMin: PRESET_PALETTES.BLUE.colors[0],
+          defaultMax: PRESET_PALETTES.BLUE.colors[2],
+          showWhen: viewIs('matrix'),
+        },
+      ],
     },
     { key: 'timelineRange', component: TimelineRangeSection },
     { key: 'aoi', component: AoiSection },

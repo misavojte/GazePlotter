@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { PaneSectionEntry } from '$lib/plots/definePlot'
   import type { AllGridTypes } from '$lib/workspace'
+  import SchemaSection from '$lib/plots/shared/components/sections/SchemaSection.svelte'
 
   interface Props {
     /** Ordered sections to render. */
@@ -14,6 +15,10 @@
 </script>
 
 {#each sections as section (section.key)}
-  {@const Section = section.component}
-  <Section {item} />
+  {#if 'fields' in section}
+    <SchemaSection {item} entry={section} />
+  {:else}
+    {@const Section = section.component}
+    <Section {item} />
+  {/if}
 {/each}
