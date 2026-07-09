@@ -10,6 +10,8 @@ import {
   queryBatch,
   queryGroup,
   type MetricInstance,
+  type MetricResult,
+  type AoiSlotInfo,
   type Scope,
   type GroupScope,
   formatProjectionReadout,
@@ -62,19 +64,126 @@ export type MetricDataExportOptions = {
   includeCodebook?: boolean
 }
 
-function getAoiSlotName(
-  slotIndex: number,
-  slots: { noAoiSlot: number; anyFixationSlot: number },
-  aoiNames: readonly string[]
-): string {
-  if (slotIndex === slots.noAoiSlot) return 'No_AOI'
-  if (slotIndex === slots.anyFixationSlot) return 'Any_Fixation'
-  return aoiNames[slotIndex] ?? `Slot_${slotIndex}`
+/**
+ * The identity of one AOI column/row slot: a real (displayed-named) AOI, or one
+ * of the two synthetic slots. Synthetic slots are typed, never name strings, so
+ * a real AOI displayed-named "No_AOI" stays distinct from the synthetic one.
+ */
+type SlotRef =
+  | { kind: 'name'; name: string }
+  | { kind: 'noAoi' }
+  | { kind: 'anyFixation' }
+
+/** Human-readable slot label (long-format AOI cell, wide-format column stem). */
+function slotText(ref: SlotRef): string {
+  return ref.kind === 'name' ? ref.name : ref.kind === 'noAoi' ? 'No_AOI' : 'Any_Fixation'
 }
 
-function getMatrixSlotName(slotIndex: number, aoiNames: readonly string[]): string {
-  if (slotIndex === aoiNames.length) return 'No_AOI'
-  return aoiNames[slotIndex] ?? `Slot_${slotIndex}`
+/** Stable key identifying a slot across the long walk and the wide columns. */
+function slotKey(ref: SlotRef): string {
+  return ref.kind === 'name' ? `name:${ref.name}` : ref.kind
+}
+
+/**
+ * Wide-format column id for a per-participant cell coordinate. The column
+ * builder and the per-row scatter both derive ids through here, so a cell
+ * always lands in the column reserved for its coordinate (or nowhere → empty).
+ */
+function wideColId(
+  metricId: string,
+  coord: { aoi?: SlotRef; fromAoi?: SlotRef; toAoi?: SlotRef }
+): string {
+  if (coord.fromAoi && coord.toAoi) {
+    return `${metricId}:${slotKey(coord.fromAoi)}>${slotKey(coord.toAoi)}`
+  }
+  if (coord.aoi) return `${metricId}:${slotKey(coord.aoi)}`
+  return metricId
+}
+
+/** An aoi-vector slot index → its ref (per-stimulus slot semantics). */
+function vectorSlotRef(slotIndex: number, slots: AoiSlotInfo, aoiNames: readonly string[]): SlotRef {
+  if (slotIndex === slots.noAoiSlot) return { kind: 'noAoi' }
+  if (slotIndex === slots.anyFixationSlot) return { kind: 'anyFixation' }
+  return { kind: 'name', name: aoiNames[slotIndex] ?? `Slot_${slotIndex}` }
+}
+
+/** A matrix slot index → its ref (matrices carry No_AOI but never Any_Fixation). */
+function matrixSlotRef(slotIndex: number, aoiNames: readonly string[]): SlotRef {
+  if (slotIndex === aoiNames.length) return { kind: 'noAoi' }
+  return { kind: 'name', name: aoiNames[slotIndex] ?? `Slot_${slotIndex}` }
+}
+
+/** Windowed projections carry a window size; everything else is unwindowed. */
+function windowSizeOf(inst: MetricInstance): number {
+  return inst.projection.kind === 'windowed' ? inst.projection.window.windowSize : 0
+}
+
+/**
+ * One flattened output cell of a per-participant metric result: a value plus
+ * whichever coordinates its shape carries (window, AOI slot, matrix pair). This
+ * is the SINGLE place that knows how each of the five per-participant shapes
+ * unrolls into cells — both the long and wide writers consume it, so a new
+ * shape is handled once. The group-level `participant-pair-matrix` diverges
+ * between the two formats (upper-triangle pairs vs. full grid) and is walked
+ * separately by each; a relational cell reuses this type only for its value +
+ * `participantB` label.
+ */
+interface ExportCell {
+  window?: { start: number; end: number }
+  aoi?: SlotRef
+  fromAoi?: SlotRef
+  toAoi?: SlotRef
+  participantB?: string
+  value: number
+}
+
+function* resultCells(
+  result: MetricResult,
+  windowSize: number,
+  aoiNames: readonly string[]
+): Generator<ExportCell> {
+  switch (result.shape) {
+    case 'scalar':
+      yield { value: result.value }
+      return
+    case 'aoi-vector':
+      for (let s = 0; s < result.slots.totalSlots; s++) {
+        yield { aoi: vectorSlotRef(s, result.slots, aoiNames), value: result.values[s] }
+      }
+      return
+    case 'aoi-pair-matrix': {
+      const side = result.size
+      for (let from = 0; from < side; from++) {
+        for (let to = 0; to < side; to++) {
+          yield {
+            fromAoi: matrixSlotRef(from, aoiNames),
+            toAoi: matrixSlotRef(to, aoiNames),
+            value: result.matrix[from * side + to],
+          }
+        }
+      }
+      return
+    }
+    case 'scalar-timeseries':
+      for (let w = 0; w < result.timeline.length; w++) {
+        const start = result.timeline[w]
+        yield { window: { start, end: start + windowSize }, value: result.values[w] }
+      }
+      return
+    case 'aoi-vector-timeseries':
+      for (let w = 0; w < result.timeline.length; w++) {
+        const start = result.timeline[w]
+        const vector = result.vectors[w] ?? []
+        for (let s = 0; s < result.slots.totalSlots; s++) {
+          yield {
+            window: { start, end: start + windowSize },
+            aoi: vectorSlotRef(s, result.slots, aoiNames),
+            value: vector[s],
+          }
+        }
+      }
+      return
+  }
 }
 
 /**
@@ -129,46 +238,6 @@ export function longFormatMetricColumns(
   return { header, needWindow, needAoi, needMatrix, needParticipantB }
 }
 
-type LongRowBuilderParams = {
-  participantId: number
-  participantName: string
-  stimulusName: string
-  needWindow: boolean
-  windowStart?: number
-  windowEnd?: number
-  needAoi: boolean
-  aoi?: string
-  needMatrix: boolean
-  fromAoi?: string
-  toAoi?: string
-  needParticipantB: boolean
-  participantB?: string
-  metric: string
-  unit: string
-  value: string
-}
-
-function buildLongRow(p: LongRowBuilderParams): string[] {
-  const row: string[] = [p.participantId.toString(), p.participantName, p.stimulusName]
-  if (p.needWindow) {
-    row.push(
-      p.windowStart !== undefined ? p.windowStart.toString() : '',
-      p.windowEnd !== undefined ? p.windowEnd.toString() : ''
-    )
-  }
-  if (p.needAoi) {
-    row.push(p.aoi ?? '')
-  }
-  if (p.needMatrix) {
-    row.push(p.fromAoi ?? '', p.toAoi ?? '')
-  }
-  if (p.needParticipantB) {
-    row.push(p.participantB ?? '')
-  }
-  row.push(p.metric, p.unit, p.value)
-  return row
-}
-
 export async function generateMetricExport(
   engine: DataEngine,
   options: MetricDataExportOptions,
@@ -220,33 +289,55 @@ export async function generateMetricExport(
   const dataRows: string[][] = []
 
   if (options.format === 'long') {
-    const { header, needWindow, needAoi, needMatrix, needParticipantB } =
-      longFormatMetricColumns(selectedInstances)
+    const cols = longFormatMetricColumns(selectedInstances)
+    const { header } = cols
 
-    const relationalInstances = selectedInstances.filter(inst => {
-      const shape = projectionOutputShape(inst.projection)
-      return shape === 'participant-pair-matrix'
-    })
-    const plainAndWindowedInstances = selectedInstances.filter(inst => {
-      const shape = projectionOutputShape(inst.projection)
-      return shape !== 'participant-pair-matrix'
-    })
+    const relationalInstances = selectedInstances.filter(
+      inst => projectionOutputShape(inst.projection) === 'participant-pair-matrix'
+    )
+    const plainAndWindowedInstances = selectedInstances.filter(
+      inst => projectionOutputShape(inst.projection) !== 'participant-pair-matrix'
+    )
+
+    // One row builder for every shape: the fixed key columns, then only the
+    // coordinate columns this export reserves, then the metric/unit/value tail.
+    const pushRow = (
+      participantId: number,
+      participantName: string,
+      stimulusName: string,
+      label: string,
+      unit: string,
+      cell: ExportCell
+    ) => {
+      const row = [participantId.toString(), participantName, stimulusName]
+      if (cols.needWindow) {
+        row.push(
+          cell.window ? cell.window.start.toString() : '',
+          cell.window ? cell.window.end.toString() : ''
+        )
+      }
+      if (cols.needAoi) row.push(cell.aoi ? slotText(cell.aoi) : '')
+      if (cols.needMatrix) {
+        row.push(cell.fromAoi ? slotText(cell.fromAoi) : '', cell.toAoi ? slotText(cell.toAoi) : '')
+      }
+      if (cols.needParticipantB) row.push(cell.participantB ?? '')
+      row.push(label, unit, formatNumberForCsv(cell.value, decimalSeparator))
+      dataRows.push(row)
+    }
 
     let count = 0
     const total = options.stimulusIds.length * options.participantIds.length
 
     for (const stimulusId of options.stimulusIds) {
-      const stimulus = getStimulus(engine, stimulusId)
-      const stimulusName = stimulus.displayedName
+      const stimulusName = getStimulus(engine, stimulusId).displayedName
       const participantIds = options.participantIds
       const aoiNames = getAois(engine, stimulusId).map(a => a.displayedName)
       const effectiveTimeEnd = timeEnd > 0 ? timeEnd : getStimulusHighestEndTime(engine, stimulusId)
 
-      // Plain/Windowed
+      // Per-participant metrics: each result flattens to cells via resultCells.
       for (const participantId of participantIds) {
         count++
-        const participant = getParticipant(engine, participantId)
-        const participantName = participant.displayedName
+        const participantName = getParticipant(engine, participantId).displayedName
 
         if (onProgress) {
           await onProgress(count, total, `Computing metrics for ${participantName} · ${stimulusName}`)
@@ -268,186 +359,37 @@ export async function generateMetricExport(
         }
 
         const batchResult = queryBatch(plainAndWindowedInstances, scope)
-
         for (const inst of plainAndWindowedInstances) {
           const result = batchResult.get(inst.id)
           if (!result) continue
-
-          if (result.provenance.aoiMissing) {
-            aoiMissingMap.set(inst.id, true)
-          }
+          if (result.provenance.aoiMissing) aoiMissingMap.set(inst.id, true)
 
           const label = resolvedLabels.get(inst.id) ?? inst.label
-          const unit = result.unit
-
-          if (result.shape === 'scalar') {
-            const valStr = formatNumberForCsv(result.value, decimalSeparator)
-            dataRows.push(
-              buildLongRow({
-                participantId,
-                participantName,
-                stimulusName,
-                needWindow,
-                needAoi,
-                needMatrix,
-                needParticipantB,
-                metric: label,
-                unit,
-                value: valStr,
-              })
-            )
-          } else if (result.shape === 'aoi-vector') {
-            const slots = result.slots
-            for (let s = 0; s < slots.totalSlots; s++) {
-              const val = result.values[s]
-              const valStr = formatNumberForCsv(val, decimalSeparator)
-              const aoiName = getAoiSlotName(s, slots, aoiNames)
-              dataRows.push(
-                buildLongRow({
-                  participantId,
-                  participantName,
-                  stimulusName,
-                  needWindow,
-                  needAoi,
-                  needMatrix,
-                  needParticipantB,
-                  aoi: aoiName,
-                  metric: label,
-                  unit,
-                  value: valStr,
-                })
-              )
-            }
-          } else if (result.shape === 'aoi-pair-matrix') {
-            const side = result.size
-            for (let fromSlot = 0; fromSlot < side; fromSlot++) {
-              for (let toSlot = 0; toSlot < side; toSlot++) {
-                const val = result.matrix[fromSlot * side + toSlot]
-                const valStr = formatNumberForCsv(val, decimalSeparator)
-                const fromAoi = getMatrixSlotName(fromSlot, aoiNames)
-                const toAoi = getMatrixSlotName(toSlot, aoiNames)
-                dataRows.push(
-                  buildLongRow({
-                    participantId,
-                    participantName,
-                    stimulusName,
-                    needWindow,
-                    needAoi,
-                    needMatrix,
-                    needParticipantB,
-                    fromAoi,
-                    toAoi,
-                    metric: label,
-                    unit,
-                    value: valStr,
-                  })
-                )
-              }
-            }
-          } else if (result.shape === 'scalar-timeseries') {
-            const windowSize =
-              inst.projection.kind === 'windowed' ? inst.projection.window.windowSize : 0
-            for (let w = 0; w < result.timeline.length; w++) {
-              const tStart = result.timeline[w]
-              const tEnd = tStart + windowSize
-              const val = result.values[w]
-              const valStr = formatNumberForCsv(val, decimalSeparator)
-              dataRows.push(
-                buildLongRow({
-                  participantId,
-                  participantName,
-                  stimulusName,
-                  needWindow,
-                  needAoi,
-                  needMatrix,
-                  needParticipantB,
-                  windowStart: tStart,
-                  windowEnd: tEnd,
-                  metric: label,
-                  unit,
-                  value: valStr,
-                })
-              )
-            }
-          } else if (result.shape === 'aoi-vector-timeseries') {
-            const windowSize =
-              inst.projection.kind === 'windowed' ? inst.projection.window.windowSize : 0
-            const slots = result.slots
-            for (let w = 0; w < result.timeline.length; w++) {
-              const tStart = result.timeline[w]
-              const tEnd = tStart + windowSize
-              const vector = result.vectors[w] ?? []
-              for (let s = 0; s < slots.totalSlots; s++) {
-                const val = vector[s]
-                const valStr = formatNumberForCsv(val, decimalSeparator)
-                const aoiName = getAoiSlotName(s, slots, aoiNames)
-                dataRows.push(
-                  buildLongRow({
-                    participantId,
-                    participantName,
-                    stimulusName,
-                    needWindow,
-                    needAoi,
-                    needMatrix,
-                    needParticipantB,
-                    windowStart: tStart,
-                    windowEnd: tEnd,
-                    aoi: aoiName,
-                    metric: label,
-                    unit,
-                    value: valStr,
-                  })
-                )
-              }
-            }
+          for (const cell of resultCells(result, windowSizeOf(inst), aoiNames)) {
+            pushRow(participantId, participantName, stimulusName, label, result.unit, cell)
           }
         }
       }
 
-      // Relational
+      // Relational metrics are group-level: the upper triangle of the
+      // participant×participant matrix, one row per unordered pair.
       if (relationalInstances.length > 0) {
         const groupScope: GroupScope = { engine, stimulusId, participantIds, timeStart, timeEnd: effectiveTimeEnd }
         for (const inst of relationalInstances) {
           const result = queryGroup(inst, groupScope)
           if (result.shape !== 'participant-pair-matrix') continue
-
-          if (result.provenance.aoiMissing) {
-            aoiMissingMap.set(inst.id, true)
-          }
+          if (result.provenance.aoiMissing) aoiMissingMap.set(inst.id, true)
 
           const label = resolvedLabels.get(inst.id) ?? inst.label
-          const unit = result.unit
           const size = result.size
-          const resParticipantIds = result.participantIds
-          const resParticipantNames = resParticipantIds.map(
-            id => getParticipant(engine, id).displayedName
-          )
+          const names = result.participantIds.map(id => getParticipant(engine, id).displayedName)
 
           for (let i = 0; i < size; i++) {
-            const pAId = resParticipantIds[i]
-            const pAName = resParticipantNames[i]
-
             for (let j = i + 1; j < size; j++) {
-              const pBName = resParticipantNames[j]
-
-              const val = result.matrix[i * size + j]
-              const valStr = formatNumberForCsv(val, decimalSeparator)
-
-              dataRows.push(
-                buildLongRow({
-                  participantId: pAId,
-                  participantName: pAName,
-                  stimulusName,
-                  needWindow,
-                  needAoi,
-                  needMatrix,
-                  needParticipantB,
-                  participantB: pBName,
-                  metric: label,
-                  unit,
-                  value: valStr,
-                })
-              )
+              pushRow(result.participantIds[i], names[i], stimulusName, label, result.unit, {
+                participantB: names[j],
+                value: result.matrix[i * size + j],
+              })
             }
           }
         }
@@ -465,20 +407,16 @@ export async function generateMetricExport(
     // every selected stimulus). The synthetic No AOI / Any fixation columns
     // are typed slots, not name strings, so a real AOI displayed-named
     // "No_AOI" keeps its own column instead of hijacking the synthetic one.
-    type WideAoiRef =
-      | { kind: 'name'; name: string }
-      | { kind: 'noAoi' }
-      | { kind: 'anyFixation' }
     type WideColumn =
       | { type: 'scalar'; id: string; metricId: string; header: string }
-      | { type: 'aoi-vector'; id: string; metricId: string; header: string; aoi: WideAoiRef }
+      | { type: 'aoi-vector'; id: string; metricId: string; header: string; aoi: SlotRef }
       | {
           type: 'aoi-pair-matrix'
           id: string
           metricId: string
           header: string
-          fromAoi: WideAoiRef
-          toAoi: WideAoiRef
+          fromAoi: SlotRef
+          toAoi: SlotRef
         }
       // A relational metric IS a matrix over participants, so its wide layout
       // is the matrix grid: the row is participant A, one column per
@@ -512,11 +450,6 @@ export async function generateMetricExport(
     // participant selection (deduplicated defensively).
     const unionParticipantIds = Array.from(new Set(options.participantIds))
 
-    const aoiRefText = (ref: WideAoiRef): string =>
-      ref.kind === 'name' ? ref.name : ref.kind === 'noAoi' ? 'No_AOI' : 'Any_Fixation'
-    const aoiRefKey = (ref: WideAoiRef): string =>
-      ref.kind === 'name' ? `name:${ref.name}` : ref.kind
-
     const rawColumns: WideColumn[] = []
 
     for (const inst of selectedInstances) {
@@ -524,14 +457,9 @@ export async function generateMetricExport(
       const shape = projectionOutputShape(inst.projection)
 
       if (shape === 'scalar') {
-        rawColumns.push({
-          type: 'scalar',
-          id: inst.id,
-          metricId: inst.id,
-          header: label,
-        })
+        rawColumns.push({ type: 'scalar', id: inst.id, metricId: inst.id, header: label })
       } else if (shape === 'aoi-vector') {
-        const refs: WideAoiRef[] = [
+        const refs: SlotRef[] = [
           ...unionAoiNames.map(name => ({ kind: 'name', name }) as const),
           { kind: 'noAoi' },
           { kind: 'anyFixation' },
@@ -539,14 +467,14 @@ export async function generateMetricExport(
         for (const aoi of refs) {
           rawColumns.push({
             type: 'aoi-vector',
-            id: `${inst.id}:${aoiRefKey(aoi)}`,
+            id: wideColId(inst.id, { aoi }),
             metricId: inst.id,
-            header: `${label}_${aoiRefText(aoi)}`,
+            header: `${label}_${slotText(aoi)}`,
             aoi,
           })
         }
       } else if (shape === 'aoi-pair-matrix') {
-        const refs: WideAoiRef[] = [
+        const refs: SlotRef[] = [
           ...unionAoiNames.map(name => ({ kind: 'name', name }) as const),
           { kind: 'noAoi' },
         ]
@@ -554,9 +482,9 @@ export async function generateMetricExport(
           for (const toAoi of refs) {
             rawColumns.push({
               type: 'aoi-pair-matrix',
-              id: `${inst.id}:${aoiRefKey(fromAoi)}>${aoiRefKey(toAoi)}`,
+              id: wideColId(inst.id, { fromAoi, toAoi }),
               metricId: inst.id,
-              header: `${label}_${aoiRefText(fromAoi)}_to_${aoiRefText(toAoi)}`,
+              header: `${label}_${slotText(fromAoi)}_to_${slotText(toAoi)}`,
               fromAoi,
               toAoi,
             })
@@ -642,27 +570,9 @@ export async function generateMetricExport(
         }
       }
 
-      // Per-stimulus slot resolution for the name-keyed union columns. An AOI
-      // absent from this stimulus resolves to -1 and exports an empty cell
-      // (not measured here), matching the long format's per-stimulus slots.
-      const resolveVectorSlot = (
-        aoi: WideAoiRef,
-        slots: { noAoiSlot: number; anyFixationSlot: number }
-      ): number => {
-        if (aoi.kind === 'noAoi') return slots.noAoiSlot
-        if (aoi.kind === 'anyFixation') return slots.anyFixationSlot
-        return aoiNames.indexOf(aoi.name)
-      }
-      const resolveMatrixSlot = (aoi: WideAoiRef): number => {
-        if (aoi.kind === 'noAoi') return aoiNames.length
-        if (aoi.kind === 'anyFixation') return -1
-        return aoiNames.indexOf(aoi.name)
-      }
-
       for (const participantId of participantIds) {
         count++
-        const participant = getParticipant(engine, participantId)
-        const participantName = participant.displayedName
+        const participantName = getParticipant(engine, participantId).displayedName
 
         if (onProgress) {
           await onProgress(count, total, `Computing metrics for ${participantName} · ${stimulusName}`)
@@ -678,58 +588,35 @@ export async function generateMetricExport(
           timeEnd: Math.min(effectiveTimeEnd, participantEnd),
         }
 
+        // Scatter each per-participant result's cells into their column by id.
+        // A union column with no matching cell this stimulus (AOI absent here)
+        // stays empty. Wide forbids windowing, so no result carries a window.
         const batchResult = queryBatch(perParticipantWideInstances, scope)
-        const rowValues = [participantId.toString(), participantName, stimulusName]
+        const cellByCol = new Map<string, number>()
+        for (const inst of perParticipantWideInstances) {
+          const result = batchResult.get(inst.id)
+          if (!result) continue
+          if (result.provenance.aoiMissing) aoiMissingMap.set(inst.id, true)
+          for (const cell of resultCells(result, 0, aoiNames)) {
+            cellByCol.set(wideColId(inst.id, cell), cell.value)
+          }
+        }
 
+        const rowValues = [participantId.toString(), participantName, stimulusName]
         for (const col of rawColumns) {
           if (col.type === 'participant-pair') {
             const rel = relationalResults.get(col.metricId)
             const idxA = rel?.indexByPid.get(participantId)
             const idxB = rel?.indexByPid.get(col.otherParticipantId)
-            if (rel && idxA !== undefined && idxB !== undefined) {
-              rowValues.push(
-                formatNumberForCsv(rel.matrix[idxA * rel.size + idxB], decimalSeparator)
-              )
-            } else {
-              rowValues.push('')
-            }
+            rowValues.push(
+              rel && idxA !== undefined && idxB !== undefined
+                ? formatNumberForCsv(rel.matrix[idxA * rel.size + idxB], decimalSeparator)
+                : ''
+            )
             continue
           }
-
-          const result = batchResult.get(col.metricId)
-          if (!result) {
-            rowValues.push('')
-            continue
-          }
-
-          if (result.provenance.aoiMissing) {
-            aoiMissingMap.set(col.metricId, true)
-          }
-
-          if (col.type === 'scalar' && result.shape === 'scalar') {
-            rowValues.push(formatNumberForCsv(result.value, decimalSeparator))
-          } else if (col.type === 'aoi-vector' && result.shape === 'aoi-vector') {
-            const idx = resolveVectorSlot(col.aoi, result.slots)
-            if (idx >= 0 && idx < result.values.length) {
-              rowValues.push(formatNumberForCsv(result.values[idx], decimalSeparator))
-            } else {
-              rowValues.push('')
-            }
-          } else if (col.type === 'aoi-pair-matrix' && result.shape === 'aoi-pair-matrix') {
-            const side = result.size
-            const fromSlot = resolveMatrixSlot(col.fromAoi)
-            const toSlot = resolveMatrixSlot(col.toAoi)
-            const validFrom = fromSlot >= 0 && fromSlot < side
-            const validTo = toSlot >= 0 && toSlot < side
-            if (validFrom && validTo) {
-              const val = result.matrix[fromSlot * side + toSlot]
-              rowValues.push(formatNumberForCsv(val, decimalSeparator))
-            } else {
-              rowValues.push('')
-            }
-          } else {
-            rowValues.push('')
-          }
+          const value = cellByCol.get(col.id)
+          rowValues.push(value === undefined ? '' : formatNumberForCsv(value, decimalSeparator))
         }
 
         dataRows.push(rowValues)
