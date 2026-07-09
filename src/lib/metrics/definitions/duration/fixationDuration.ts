@@ -46,6 +46,7 @@ defineMetric({
   measurementClass: 'intensive',
   searchTags: ['fixation', 'duration', 'average', 'mean', 'fix', 'aoi'],
   params: [] as const,
+  accumulation: 'stateful',
   init: ({ slots }): Acc => ({ durations: Array.from({ length: slots.totalSlots }, () => []) }),
   onFixation: (acc, { frame, duration, slots }, { slots: info }) => {
     // SW-RQA membership for which window this fixation contributes to;

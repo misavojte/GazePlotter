@@ -1,5 +1,6 @@
 import { getContext, untrack } from 'svelte'
 import type { Action } from 'svelte/action'
+import { getGazePlotterSession } from '$lib/session'
 import {
   createCanvasState,
   createRenderScheduler,
@@ -27,13 +28,29 @@ import {
   getYAxisLabelOffset,
   measureAxisTitleHeight,
 } from './axisUtils'
-import { drawCanvasPlaceholder } from './drawCanvasPlaceholder'
+import {
+  drawCanvasPlaceholder,
+  type PlotPlaceholderContent,
+} from './drawCanvasPlaceholder'
 import type { BlockedRegion } from './canvasBlockSelect.action'
+import {
+  getLegendTooltipContent,
+  getLegendTooltipPosition,
+  hitTestLegend,
+  type LegendConfig,
+  type LegendGeometry,
+  type LegendItemGeometry,
+} from './legendRendering'
 import { FONT_PRIMARY, PLOT_AXIS_TITLE_GAP, PLOT_TICK_LABEL_GAP } from './const'
 import { measureTextHeight, calculateLabelOffset } from '$lib/shared/utils/textUtils'
 
 const browser = typeof document !== 'undefined'
 const FONT = FONT_PRIMARY.SIZE
+
+const RENDER_FAILED_PLACEHOLDER: PlotPlaceholderContent = {
+  message: 'Plot failed to render',
+  kind: 'error',
+}
 
 /**
  * `usePlot` — the single composable behind every GazePlotter canvas plot.
@@ -125,9 +142,6 @@ export interface PlotFrame {
   /** Offset (px) from the plot bottom to the bottom-axis title, past the tick
    *  labels. Pass straight to `drawXAxisLabel`. */
   bottomTitleOffset: number
-  /** Reactive mouse position (null off-canvas). */
-  mouseX: number | null
-  mouseY: number | null
 }
 
 /**
@@ -186,8 +200,16 @@ export interface UsePlotOptions<THit = unknown> {
   /** Reactive dependency getter — a redraw is scheduled whenever it changes. */
   deps: () => unknown
 
-  // ---- empty state: draws the placeholder and skips everything else ----
-  placeholder?: () => string | null
+  /** Data-level placeholder (missing metric, empty selection). Checked first. */
+  placeholder?: () => PlotPlaceholderContent | null
+
+  /**
+   * Frame-dependent fit guard, evaluated with the resolved frame: return a
+   * placeholder (see `cannotFitPlaceholder`) when the data cannot be legibly
+   * rendered at the current size. The harness re-evaluates it whenever the
+   * frame changes; figures never read `plot.frame` to build placeholders.
+   */
+  fit?: (frame: PlotFrame) => PlotPlaceholderContent | null
 
   // ---- chrome gutters → data rect + legend reservation ----
   gutters: () => FrameGutters
@@ -204,17 +226,40 @@ export interface UsePlotOptions<THit = unknown> {
   // ---- hover overlay, drawn unclipped on top of the chrome ----
   drawOverlay?: (ctx: CanvasRenderingContext2D, frame: PlotFrame) => void
 
-  // ---- legend hit-test routing; the figure draws the legend inside drawData ----
+  // ---- interactive legend band; the figure draws the legend inside drawData ----
+  /**
+   * Declarative legend-band contract: the harness hit-tests the items
+   * (standard Highlight/Dehighlight tooltip, pointer cursor) and appends each
+   * item's padded rect to `blockedRegions`. Legend clicks stay with the
+   * figure (pointer handlers / canvas click), which re-hit-tests the geometry.
+   */
   legend?: {
-    hitTest?: (x: number, y: number, legendY: number) => FrameHit<THit> | null
+    /** Reactive geometry; return null while the band is inactive
+     *  (e.g. a plot mode without an interactive legend). */
+    geometry: () => LegendGeometry | null
+    config: LegendConfig
+    /** Highlighted identifiers — drives the tooltip verb. */
+    highlights: () => readonly string[]
+    /** Optional payload attached to legend hits (read back via plot.hover). */
+    hitData?: (item: LegendItemGeometry) => THit
   }
 
   // ---- interaction ----
   hitTest?: (x: number, y: number, frame: PlotFrame) => FrameHit<THit> | null
   /**
-   * Apply hover STATE the figure keeps for its overlay (e.g. `hoveredCell`).
-   * Return true when the state changed so a redraw is scheduled. The composable
-   * owns the tooltip/cursor; this is only for overlay-affecting state.
+   * Dedup key for the `onHover` side effect: `onHover` fires only when the key
+   * (compared with `Object.is`) changes. Defaults to the hit payload itself —
+   * hits are usually fresh objects, so the default fires per move while
+   * hovering and once on leave. Overlay repaints are NOT keyed by this.
+   */
+  hoverKey?: (data: THit) => unknown
+  /** Side effect on hover-key change (e.g. notify the host of the hovered datum). */
+  onHover?: (data: THit | null) => void
+  /**
+   * ESCAPE HATCH: figures with multi-variable overlay state apply it here and
+   * return true when it changed (schedules an overlay repaint). Most figures
+   * should instead read the harness-owned `plot.hover.data` in `drawOverlay`
+   * and declare `hoverKey`/`onHover`. The composable owns the tooltip/cursor.
    */
   onHoverChange?: (hit: FrameHit<THit> | null, x: number | null, y: number | null) => boolean
   /** Generic pointer/drag lifecycle (panning, brushing, selection). */
@@ -224,13 +269,19 @@ export interface UsePlotOptions<THit = unknown> {
   blockedRegions?: (frame: PlotFrame) => BlockedRegion[]
 }
 
-export interface UsePlotHandle {
+export interface UsePlotHandle<THit = unknown> {
   /** Svelte action — wires canvas lifecycle, mouse listeners, pointer/drag. */
   readonly plotAction: Action<HTMLCanvasElement>
   /** Blocked-select regions for `use:canvasBlockSelect`. */
   readonly blockedRegions: BlockedRegion[]
   /** Resolved frame geometry (reactive). */
   readonly frame: PlotFrame
+  /**
+   * Harness-owned hover state: the current hit payload (null when nothing is
+   * hovered or the pointer left). Read it in `drawOverlay` instead of keeping
+   * per-figure `$state` mirrors of the hit.
+   */
+  readonly hover: { readonly data: THit | null }
   /** Throttled rAF render scheduler (re-runs the full drawData). */
   readonly scheduleRender: () => void
   /**
@@ -252,9 +303,6 @@ export interface UsePlotHandle {
   readonly plotBottom: number
   readonly safeWidth: number
   readonly safeHeight: number
-  readonly mouseX: number | null
-  readonly mouseY: number | null
-  readonly isOverPlotArea: boolean
   readonly setCursor: (cursor: string) => void
   createLinearProjection: (
     min: number,
@@ -421,7 +469,7 @@ export function resolveFrameLayout(
 
 // ── The composable ──
 
-export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotHandle {
+export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotHandle<THit> {
   // ---- canvas state + DPI-aware lifecycle ----
   let canvasState = $state<CanvasState>(createCanvasState())
   const exportRegistrar = getContext<ExportSourceRegistrar | undefined>(EXPORT_SOURCE_CONTEXT)
@@ -446,14 +494,62 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     | null = null
   let dataLayerValid = false
 
+  // Harness-owned hover state (the current hit payload). `$state.raw`: hit
+  // payloads are plain objects reassigned wholesale, never mutated.
+  let hoverData = $state.raw<THit | null>(null)
+
+  // ---- render failure containment ----
+  // A throwing figure would otherwise freeze its canvas silently and rethrow
+  // on every hover repaint (rAF runs outside the plot's <svelte:boundary>).
+  // Contain it: report through the session's error service, park on the
+  // regular placeholder, retry when `deps` change (data/settings edit).
+  let renderFailed = false
+  // Whether the last render drew a placeholder — interaction handlers use
+  // this instead of re-evaluating placeholder code on every mouse move.
+  let placeholderActive = false
+  let reportRenderError = (error: unknown) =>
+    console.error('Plot render failed:', error)
+  try {
+    const { errorService } = getGazePlotterSession()
+    reportRenderError = error =>
+      errorService.report({
+        origin: 'plot',
+        severity: 'recoverable',
+        userMessage: 'A plot failed to render.',
+        cause: error,
+      })
+  } catch {
+    // Outside a session tree (bare test mounts) — keep the console fallback.
+  }
+
+  function guarded(draw: () => void): void {
+    try {
+      draw()
+    } catch (error) {
+      renderFailed = true
+      reportRenderError(error)
+      // Repaint through the normal pipeline: with `renderFailed` set, the
+      // placeholder branch runs before any figure code can throw again.
+      try {
+        untrack(render)
+      } catch {
+        // The placeholder path must never start a throw loop.
+      }
+    }
+  }
+
   // Wrapped in untrack: the render runs via rAF / lifecycle, never as a tracked
   // effect, so reading the deriveds below must not establish subscriptions.
   // Two schedulers: a FULL render (drawData + overlay, recaches the data layer)
   // and an OVERLAY-only render (blit cache + drawOverlay). Under a same-frame
   // race the full render's data always ends up shown — it either runs last, or
   // the overlay blit re-shows the data layer the full render just captured.
-  const scheduleRender = createRenderScheduler(() => untrack(render))
-  const scheduleOverlayRender = createRenderScheduler(() => untrack(renderOverlay))
+  const scheduleRender = createRenderScheduler(() =>
+    guarded(() => untrack(render))
+  )
+  const scheduleOverlayRender = createRenderScheduler(() =>
+    guarded(() => untrack(renderOverlay))
+  )
 
   // A hit-test figure's hover change only moves the overlay (crosshair,
   // highlight). When the plot has a `drawOverlay`, its `drawData` is
@@ -472,7 +568,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     setState,
     getDimensions,
     getDpiOverride,
-    render: () => untrack(render),
+    render: () => guarded(() => untrack(render)),
     scheduleRender,
     registerExportSource: el => registerExportSource(() => el),
   })
@@ -496,16 +592,11 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   const safeHeight = $derived(Math.max(1, options.height()))
 
   // ---- interaction state + helpers ----
-  let mouseX = $state<number | null>(null)
-  let mouseY = $state<number | null>(null)
-  const isOverPlotArea = $derived(
-    mouseX !== null &&
-      mouseY !== null &&
-      mouseX >= plotLeft &&
-      mouseX <= plotRight &&
-      mouseY >= plotTop &&
-      mouseY <= plotBottom
-  )
+  // Plain lets: only event handlers read these. Keeping them out of $state
+  // (and out of PlotFrame) is what makes frame-derived geometry stable
+  // across mouse moves.
+  let mouseX: number | null = null
+  let mouseY: number | null = null
 
   function setCursor(cursor: string) {
     const c = canvasState.canvas
@@ -567,8 +658,6 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     ...resolved.rect,
     leftTitleOffset: resolved.leftTitleOffset,
     bottomTitleOffset: resolved.bottomTitleOffset,
-    mouseX,
-    mouseY,
   }))
 
   // ---- render: begin → placeholder → clip+marks → axes → overlay → finish ----
@@ -577,8 +666,14 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     const ctx = canvasState.context
     if (!ctx) return
 
-    const msg = options.placeholder?.()
+    // Render-failure state first (it must short-circuit all figure code),
+    // then data-level reasons, then the frame-fit guard.
+    const msg = renderFailed
+      ? RENDER_FAILED_PLACEHOLDER
+      : (options.placeholder?.() ?? options.fit?.(frame) ?? null)
+    placeholderActive = msg !== null
     if (msg) {
+      dataLayerValid = false
       drawCanvasPlaceholder(ctx, options.width(), options.height(), msg)
       finishCanvasDrawing(canvasState)
       return
@@ -675,6 +770,10 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     const canvas = canvasState.canvas
     const ctx = canvasState.context
     if (!ctx || !canvas) return
+    if (placeholderActive) {
+      render()
+      return
+    }
     if (
       !options.drawOverlay ||
       !dataLayer ||
@@ -695,14 +794,64 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   }
 
   // ---- hover: legend-then-data hit-test → tooltip/cursor/redraw ----
-  const hasHitLogic = !!(options.hitTest || options.legend?.hitTest)
+  const hasHitLogic = !!(options.hitTest || options.legend)
+
+  // Standard legend-band hit — identical for every plot with an interactive
+  // legend: identifier tooltip with the Highlight/Dehighlight verb, pointer
+  // cursor, optional figure payload.
+  function legendBandHit(x: number, y: number): FrameHit<THit> | null {
+    const band = options.legend
+    if (!band) return null
+    const geometry = band.geometry()
+    if (!geometry || geometry.items.length === 0) return null
+    const item = hitTestLegend(geometry, band.config, x, y)
+    if (!item) return null
+    const pos = getLegendTooltipPosition(item, band.config)
+    return {
+      tooltipId: item.identifier,
+      content: getLegendTooltipContent(
+        item,
+        band.highlights().includes(item.identifier)
+      ),
+      anchorX: pos.x,
+      anchorY: pos.y,
+      offset: { x: 0, y: 7 },
+      cursor: 'pointer',
+      data: band.hitData?.(item),
+    }
+  }
+
+  // Updates the harness-owned hover state, fires the deduped `onHover` side
+  // effect, and reports whether an overlay repaint is needed. The default
+  // repaint policy (no custom `onHoverChange`) repaints while the payload
+  // changes — hits are fresh objects, so effectively per-move while hovering —
+  // and only when the figure actually has an overlay to repaint.
+  const hoverKeyOf = (d: THit | null) =>
+    d === null ? null : options.hoverKey ? options.hoverKey(d) : d
+
+  function applyHover(
+    hit: FrameHit<THit> | null,
+    x: number | null,
+    y: number | null
+  ): boolean {
+    const next = hit?.data ?? null
+    const keyChanged = !Object.is(hoverKeyOf(next), hoverKeyOf(hoverData))
+    const changed = options.onHoverChange
+      ? options.onHoverChange(hit, x, y)
+      : options.drawOverlay
+        ? !Object.is(next, hoverData)
+        : false
+    hoverData = next
+    if (keyChanged) options.onHover?.(next)
+    return changed
+  }
 
   function onHover(x: number | null, y: number | null, isOver: boolean) {
-    if (x === null || y === null) {
+    if (x === null || y === null || placeholderActive) {
       // Hit-based figures: clear tooltip/cursor here. Pointer-only figures own
       // that in onMove, so stay hands-off for them.
       if (hasHitLogic) {
-        const changed = options.onHoverChange?.(null, null, null) ?? false
+        const changed = applyHover(null, null, null)
         setCursor('default')
         hideTooltip(0)
         if (changed) scheduleHoverRepaint()
@@ -713,13 +862,13 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
 
     if (hasHitLogic) {
       const r = resolved.rect
-      let hit = options.legend?.hitTest?.(x, y, r.legendY) ?? null
+      let hit = legendBandHit(x, y)
       if (!hit) {
         const inRect = x >= r.x && x <= r.right && y >= r.y && y <= r.bottom
         if (inRect) hit = options.hitTest?.(x, y, frame) ?? null
       }
 
-      const changed = options.onHoverChange?.(hit, x, y) ?? false
+      const changed = applyHover(hit, x, y)
       if (hit) {
         setCursor(hit.cursor ?? 'crosshair')
         // An empty-content hit is "track-only" — updates hover state via
@@ -799,6 +948,8 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   })
   $effect(() => {
     options.deps()
+    // New data or settings clear a parked render failure — natural retry.
+    renderFailed = false
     untrack(scheduleRender)
   })
 
@@ -819,7 +970,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     }
 
     function onDown(e: MouseEvent) {
-      if (!pointer || e.button !== 0) return
+      if (!pointer || e.button !== 0 || placeholderActive) return
       // Tear down any prior drag first — a missed mouseup (release outside the
       // window, multi-button press) must not orphan a window-listener pair.
       teardownDrag()
@@ -882,9 +1033,25 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   }
 
   const blockedRegions = $derived.by<BlockedRegion[]>(() => {
-    if (options.blockedRegions) return options.blockedRegions(frame)
     const r = resolved.rect
-    return [{ x: r.x, y: r.y, w: r.width, h: r.height }]
+    const base = options.blockedRegions
+      ? options.blockedRegions(frame)
+      : [{ x: r.x, y: r.y, w: r.width, h: r.height }]
+    const band = options.legend
+    const geometry = band?.geometry()
+    if (!band || !geometry || geometry.items.length === 0) return base
+    // The legend band blocks its own items: pad = half the item spacing, the
+    // same halo the hit-test's tolerance implies.
+    const pad = Math.ceil(band.config.itemSpacing / 2)
+    return [
+      ...base,
+      ...geometry.items.map(item => ({
+        x: item.x - pad,
+        y: item.y - pad,
+        w: item.width + pad * 2,
+        h: band.config.itemHeight + pad * 2,
+      })),
+    ]
   })
 
   return {
@@ -894,6 +1061,11 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     },
     get frame() {
       return frame
+    },
+    hover: {
+      get data() {
+        return hoverData
+      },
     },
     scheduleRender,
     scheduleOverlayRender,
@@ -923,15 +1095,6 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     },
     get safeHeight() {
       return safeHeight
-    },
-    get mouseX() {
-      return mouseX
-    },
-    get mouseY() {
-      return mouseY
-    },
-    get isOverPlotArea() {
-      return isOverPlotArea
     },
     setCursor,
     createLinearProjection,

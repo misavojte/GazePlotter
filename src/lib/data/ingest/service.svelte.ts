@@ -41,7 +41,7 @@ export type IngestStatus = 'loading' | 'ready' | 'error'
 
 type IngestUiServices = {
   errorService: Pick<ErrorService, 'report'>
-  modalState: Pick<ModalState, 'open' | 'close'>
+  modalState: Pick<ModalState, 'open'>
   toastState: Pick<ToastState, 'addInfo' | 'addSuccess' | 'addWarning'>
 }
 
@@ -54,41 +54,46 @@ type IngestDependencies = {
   resetWorkspaceHistory: () => void
 }
 
-const EMPTY_DATASET: DataType = {
-  isOrdinalOnly: false,
-  capabilities: {
-    segmented: false,
-    spatial: false,
-    event: false,
-  },
-  stimuli: { data: [], orderVector: [] },
-  participants: { data: [], orderVector: [] },
-  participantsGroups: [],
-  metricInstances: createDefaultMetricInstances(),
-  categories: { data: [], orderVector: [] },
-  noAoiTreatment: {
-    color: '#cbd5e1',
-    displayedName: 'No AOI',
-  },
-  aois: {
-    data: [],
-    orderVector: [],
-    hiddenAois: [],
-  },
-  segments: {
-    segmentBuffer: new Float32Array(0),
-    indexTable: new Uint32Array(0),
-    aoiPool: new Uint16Array(0),
-    hasSpatialData: false,
-    maxParticipants: 0,
-    stimuliCount: 0,
-  },
-  eventData: {
-    data: [],
-    orderVector: [],
-    hiddenChannels: [],
-    events: [],
-  },
+/** Fresh empty dataset per load. The engine takes ownership of what it loads
+ *  (order vectors and metric instances are edited in place), so a shared
+ *  singleton would leak edits from one empty session into the next. */
+function createEmptyDataset(): DataType {
+  return {
+    isOrdinalOnly: false,
+    capabilities: {
+      segmented: false,
+      spatial: false,
+      event: false,
+    },
+    stimuli: { data: [], orderVector: [] },
+    participants: { data: [], orderVector: [] },
+    participantsGroups: [],
+    metricInstances: createDefaultMetricInstances(),
+    categories: { data: [], orderVector: [] },
+    noAoiTreatment: {
+      color: '#cbd5e1',
+      displayedName: 'No AOI',
+    },
+    aois: {
+      data: [],
+      orderVector: [],
+      hiddenAois: [],
+    },
+    segments: {
+      segmentBuffer: new Float32Array(0),
+      indexTable: new Uint32Array(0),
+      aoiPool: new Uint16Array(0),
+      hasSpatialData: false,
+      maxParticipants: 0,
+      stimuliCount: 0,
+    },
+    eventData: {
+      data: [],
+      orderVector: [],
+      hiddenChannels: [],
+      events: [],
+    },
+  }
 }
 
 /**
@@ -364,12 +369,20 @@ class IngestWorkerClient {
         `${excluded.length} participant-stimulus group${excluded.length > 1 ? 's were' : ' was'} excluded for malformed interval markers. Open Metadata for the full report.`
       )
     }
+    // Fresh datasets are seeded with the starter metric library HERE, on the
+    // main thread — the worker's segment writer emits an empty list so it never
+    // bundles the metric registry. Workspace results never pass through this
+    // branch; they carry their own (user-curated) instances.
+    result.data.metricInstances = createDefaultMetricInstances()
     this.handleData({ data: result.data, classified: result.settings })
   }
 
   private handleWorkspaceDone(
     result: Extract<IngestResult, { kind: 'workspace' }>
   ): void {
+    // Settle before any user feedback — a cancelled upload whose 'done'
+    // message was already queued must not toast success.
+    if (!this.markSettled()) return
     this.onProgress(100)
     const timeString = formatDuration(
       Date.now() - this.parsingAnchorTime + this.parsingSumTime
@@ -378,7 +391,6 @@ class IngestWorkerClient {
     this.ui.toastState.addSuccess(
       `${formattedFileInfo} workspace loaded successfully in ${timeString}`
     )
-    if (!this.markSettled()) return
 
     this.onData({
       version: result.version as ParsedData['version'],
@@ -400,6 +412,8 @@ class IngestWorkerClient {
     data: DataType
     classified: ParseSettings
   }): void {
+    // Settle before any user feedback — see handleWorkspaceDone.
+    if (!this.markSettled()) return
     const parseDuration =
       Date.now() - this.parsingAnchorTime + this.parsingSumTime
     const fileMetadata: FileMetadataSuccessType = {
@@ -418,8 +432,6 @@ class IngestWorkerClient {
     this.ui.toastState.addSuccess(
       `${formattedFileInfo} parsed successfully in ${timeString}`
     )
-
-    if (!this.markSettled()) return
 
     this.onData({
       data,
@@ -531,17 +543,14 @@ class IngestWorkerClient {
     this.openPrompt(promptId)
       .then(userInput => {
         this.parsingAnchorTime = Date.now()
-        if (
-          !this.postWorkerMessage(
-            { type: 'prompt-response', data: userInput },
-            [],
-            { stage: 'dispatch-prompt-response', promptId }
-          )
-        ) {
-          this.ui.modalState.close()
-          return
-        }
-        this.ui.modalState.close()
+        // The prompt modal is already popped by the time `open` resolves
+        // (finish/close pop before resolving) — closing here again would
+        // pop whatever unrelated modal happens to be active.
+        this.postWorkerMessage(
+          { type: 'prompt-response', data: userInput },
+          [],
+          { stage: 'dispatch-prompt-response', promptId }
+        )
       })
       .catch(error => {
         this.handleError(error, { stage: 'ingest-prompt', promptId })
@@ -572,6 +581,9 @@ export class IngestService {
   input = $state<FileInputType | null>(null)
   progressPercent = $state(0)
 
+  /** True while a worker parse is running — uploads are one at a time. */
+  private uploadInFlight = false
+
   // Any `errorService.fatalLoad` — regardless of `origin` — implies the dataset
   // is unusable, so ingest reflects 'error' without each fatal-load reporter
   // having to mark ingest separately. Today all `fatal-load` reports come from
@@ -586,6 +598,18 @@ export class IngestService {
 
   async loadFiles(files: FileList | readonly File[]): Promise<boolean> {
     if (files.length === 0) return false
+
+    // One upload at a time: a second drop while a parse is running would
+    // spawn a competing worker racing to commit into the same session.
+    // There is deliberately no cancel — a started load always runs to
+    // success or failure and the outcome stays visible.
+    if (this.uploadInFlight) {
+      this.deps.toastState.addInfo(
+        'A file upload is already in progress. Wait for it to finish.'
+      )
+      return false
+    }
+    this.uploadInFlight = true
 
     this.deps.errorService.clearAll()
     this.explicitStatus = 'loading'
@@ -669,6 +693,8 @@ export class IngestService {
       })
       this.explicitStatus = 'error'
       return false
+    } finally {
+      this.uploadInFlight = false
     }
   }
 
@@ -683,7 +709,7 @@ export class IngestService {
     this.progressPercent = 0
     this.metadata = null
     this.input = null
-    this.deps.engine.loadDataset(EMPTY_DATASET)
+    this.deps.engine.loadDataset(createEmptyDataset())
     this.deps.grid.reset(DEFAULT_GRID_STATE_DATA as GridItemSnapshot[])
     this.deps.resetWorkspaceHistory()
     this.explicitStatus = 'ready'
@@ -703,6 +729,13 @@ export class IngestService {
     this.explicitStatus = 'ready'
   }
 
+  /**
+   * Failure commits the failure state: the workspace shows the persistent
+   * error screen (not a transient toast), so a user who stepped away during
+   * a long parse sees what happened. Simple rule — `metadata` always
+   * describes the VISIBLE dataset, and after a failed parse the visible
+   * dataset is the failed (empty) one, never a silently-restored old one.
+   */
   applyFailure(failureMetadata: FileMetadataFailureType): void {
     this.progressPercent = 0
     this.deps.grid.reset([])
@@ -712,7 +745,7 @@ export class IngestService {
       fileSizes: failureMetadata.fileSizes,
       parseDate: failureMetadata.parseDate,
     }
-    this.deps.engine.loadDataset(EMPTY_DATASET)
+    this.deps.engine.loadDataset(createEmptyDataset())
     this.deps.resetWorkspaceHistory()
     this.explicitStatus = 'error'
   }
@@ -841,6 +874,10 @@ export class IngestService {
     }
 
     engine.updateEventDataBatch(mergedUpdates)
+    // This mutation runs outside the command bus, after plots have already
+    // derived from the freshly-reset grid — bump the redraw epoch or the
+    // imported events stay invisible until an unrelated command fires.
+    this.deps.grid.triggerRedraw()
     const totalProcessed =
       csvFiles.length + (legacyFiles.length > 0 ? legacyFiles.length : 0)
     this.deps.toastState.addSuccess(

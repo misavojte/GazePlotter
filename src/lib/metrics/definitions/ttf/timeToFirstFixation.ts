@@ -45,6 +45,7 @@ defineMetric({
   measurementClass: 'intensive',
   searchTags: ['ttff', 'ttf', 'first', 'fixation', 'time', 'latency', 'onset', 'aoi'],
   params: [] as const,
+  accumulation: 'stateful',
   init: ({ slots }) => new Array<number>(slots.totalSlots).fill(-1),
   onFixation: (acc, { start, slots }, { slots: info }) => {
     if (acc[info.anyFixationSlot] === -1) acc[info.anyFixationSlot] = start

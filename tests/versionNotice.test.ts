@@ -34,7 +34,7 @@ describe('announceVersionOnce', () => {
     expect(toast.type).toBe('info')
     expect(toast.duration).toBeNull()
     expect(toast.message).toContain(__APP_VERSION__)
-    expect(toast.link).toEqual({ href: '/docs', label: 'See what changed' })
+    expect(toast.link).toEqual({ href: `/docs/changelog#${__APP_VERSION__.replace(/\./g, '')}`, label: 'See what changed' })
     expect(storage.getItem('gazePlotter:announcedVersion')).toBe(__APP_VERSION__)
   })
 

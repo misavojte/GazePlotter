@@ -60,7 +60,7 @@
   .sheet-backdrop {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.28);
+    background: color-mix(in srgb, var(--c-black) 28%, transparent);
     z-index: 9;
   }
 

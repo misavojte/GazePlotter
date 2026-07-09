@@ -9,6 +9,7 @@ import {
 } from '$lib/plots/shared'
 import {
   formatDecimal,
+  percentileSorted,
 } from '$lib/shared/utils/mathUtils'
 import type {
   BarPlotResult,
@@ -100,13 +101,13 @@ export function getBarPlotData(
     statsArrays[i] = computeSummaryStatistics(individualArrays[i])
   }
 
-  // Proportion metrics are displayed as percent: the bar value is scaled to [0,100]
-  // so the existing numeric axis and `%` label read correctly. Other metrics keep
-  // their native value (mean of individuals). Rendered as plain descriptive bars —
-  // no confidence band (see drawProportionalBars for why).
+  // Every metric's values match its declared unit (fixated emits 0/100 for
+  // `%`), so the bar value is always the plain mean of individuals — no
+  // per-class scaling. Proportion metrics still render as plain descriptive
+  // bars, no confidence band (see drawProportionalBars for why).
   const rawData = new Array<number>(totalSlots)
   for (let i = 0; i < totalSlots; i++) {
-    rawData[i] = isProportion ? statsArrays[i].mean * 100 : statsArrays[i].mean
+    rawData[i] = statsArrays[i].mean
   }
 
   const labeledData = createLabeledData(
@@ -314,8 +315,8 @@ function computeSummaryStatistics(
       ? (sorted[n / 2 - 1] + sorted[n / 2]) / 2
       : sorted[Math.floor(n / 2)]
 
-  const q1 = percentile(sorted, 0.25)
-  const q3 = percentile(sorted, 0.75)
+  const q1 = percentileSorted(sorted, 0.25)
+  const q3 = percentileSorted(sorted, 0.75)
 
   const min = sorted[0]
   const max = sorted[n - 1]
@@ -369,13 +370,4 @@ function computeSummaryStatistics(
     count: n,
     outliers,
   }
-}
-
-function percentile(sorted: number[], p: number): number {
-  if (sorted.length === 1) return sorted[0]
-  const index = p * (sorted.length - 1)
-  const lower = Math.floor(index)
-  const upper = Math.ceil(index)
-  if (lower === upper) return sorted[lower]
-  return sorted[lower] + (sorted[upper] - sorted[lower]) * (index - lower)
 }

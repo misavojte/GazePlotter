@@ -1,4 +1,4 @@
-import JSZip from 'jszip'
+import type JSZip from 'jszip'
 import type { ArchiveFormatDefinition } from '../kernel/format'
 import type { DatasetSink } from '../kernel/sink'
 import type { ParseSettings } from '../types'
@@ -16,8 +16,9 @@ export const pupilCloudZipFormat: ArchiveFormatDefinition = {
   matchesFileName: name => name.toLowerCase().endsWith('.zip'),
 
   async read(inputs, sink, ctx) {
+    const JSZipLib = (await import('jszip')).default
     for (const input of inputs) {
-      const zip = await JSZip.loadAsync(input.bytes)
+      const zip = await JSZipLib.loadAsync(input.bytes)
       const [sectionsCsv, aoiFixationsCsv, fixationsCsv] = await Promise.all([
         readZipText(zip, 'sections.csv'),
         readZipText(zip, 'aoi_fixations.csv'),

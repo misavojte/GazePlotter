@@ -1,7 +1,8 @@
 <script lang="ts">
   import {
     alignToPixelCenter,
-    getTooltipPosition,
+    fillCrosshairBand,
+    strokeCrosshairGuides,
   } from '$lib/plots/shared/canvasUtils'
   import {
     computeGroupedLegendGeometry,
@@ -9,8 +10,6 @@
     drawLegendGroupTitles,
     drawPlotArea,
     drawXAxisLabel,
-    getLegendTooltipContent,
-    getLegendTooltipPosition,
     hitTestLegend,
     niceTimelineTicks,
     SCARF_LEGEND_CONFIG,
@@ -20,6 +19,7 @@
     FONT_PRIMARY,
     type BlockedRegion,
     type CanvasExportProps,
+    type FrameHit,
     type FramePointer,
     type FrameDrag,
     type LegendGeometry,
@@ -29,10 +29,13 @@
     getXAxisLabelOffset,
     maxAxisTitleHeight,
     PLOT_LEGEND_GAP,
+    cannotFitPlaceholder,
   } from '$lib/plots/shared'
   import { onDestroy } from 'svelte'
   import { measureTextHeight } from '$lib/shared/utils/textUtils'
-  import { RECT_STRIDE, SCARF_LAYOUT } from '../const'
+  import { SCARF_LAYOUT } from '../const'
+  import { FIXATION_CATEGORY_ID } from '$lib/data/types'
+  import { SEGMENT_STRIDE, SegmentField } from '$lib/data/binary/schema'
   import {
     calculateEffectiveMarginTop,
     calculateIntrinsicContentHeight,
@@ -66,14 +69,12 @@
     settings: ScarfPlotSettings
     highlights: string[]
     onLegendClick: (identifier: string) => void
-    onTooltipActivation: (args: {
+    /** Builds segment-tooltip content (screen-only; export renders without). */
+    getTooltipContent?: (
+      participantId: number,
       segmentOrderId: number
-      participantId: number
-      x: number
-      y: number
-    }) => void
-    onTooltipDeactivation: () => void
-    onDragStepX?: (stepChange: number) => void
+    ) => Array<{ key: string; value: string }>
+    onDragStepX?: (stepChange: number, width: number) => void
     onDragEnd?: () => void
   }
 
@@ -82,8 +83,7 @@
     settings,
     highlights = [],
     onLegendClick = () => {},
-    onTooltipActivation = () => {},
-    onTooltipDeactivation = () => {},
+    getTooltipContent = () => [],
     onDragStepX = () => {},
     onDragEnd = () => {},
     width = 0,
@@ -92,9 +92,6 @@
     margins = NO_MARGINS,
   }: Props = $props()
 
-  const HIGHLIGHT_COLOR = '#007acc'
-  const HIGHLIGHT_FILL_ALPHA = 0.2
-  const HIGHLIGHT_DASH: number[] = [2, 2]
   const INTERNAL_PADDING_TOP = 6
   const INTERNAL_PADDING_BOTTOM = 0
 
@@ -176,38 +173,39 @@
     participantBarsHeight + xAxisHeight + (legendHeight > 0 ? PLOT_LEGEND_GAP : 0)
   )
 
-  // Hover state
-  let hoveredRowIndex = $state<number | null>(null)
-  let mouseXPx = $state<number | null>(null)
-  let hoveredLegendItem = $state<LegendItemGeometry | null>(null)
-  let currentHoveredSegment = $state<{ participantId: string | number; orderId: number } | null>(null)
+  /** Harness hover payload: crosshair row + mouse x (canvas px). */
+  type ScarfHover = { row: number; x: number }
+
   // Pointer/drag scratch (not reactive — read only inside pointer callbacks)
   let canDrag = false
   let dragActive = false
   let lastDragX = 0
 
-  const totalWidth = $derived(width)
-  const totalHeight = $derived(height)
-  const usedHighlights = $derived(highlights)
-
-  const plot = usePlot({
-    width: () => totalWidth,
-    height: () => totalHeight,
+  const plot = usePlot<ScarfHover>({
+    width: () => width,
+    height: () => height,
     margins: () => margins,
     dpiOverride: () => dpiOverride,
     deps: () => [
-      data, settings, totalWidth, totalHeight, highlights, usedHighlights,
+      data, settings, highlights,
       width, height, dpiOverride,
       margins.left, margins.right, effectiveMarginTop, margins.bottom,
     ],
-    placeholder: () => (canRender ? null : 'Increase height to view plot'),
+    // Scarf owns its layout (gutters are scaffold-only), so the fit verdict is
+    // computed against its own layout math rather than the resolved frame.
+    fit: () => placeholderMessage,
     gutters: () => ({}),
     clipData: false,
     drawData: renderScarf,
     drawOverlay: drawScarfOverlay,
+    legend: {
+      geometry: () => (data.stylingAndLegend ? legendGeometry : null),
+      config: SCARF_LEGEND_CONFIG,
+      highlights: () => highlights,
+    },
+    hitTest: plotHitTest,
     blockedRegions: () => blockedRegions,
     pointer: {
-      onMove: handleHover,
       onDown: handlePointerDown,
       onDrag: handlePointerDrag,
       onUp: handlePointerUp,
@@ -244,26 +242,15 @@
     )
   })
 
-  const blockedRegions = $derived.by<BlockedRegion[]>(() => {
-    const pad = Math.ceil(SCARF_LEGEND_CONFIG.itemSpacing / 2)
-    const regions: BlockedRegion[] = [
-      {
-        x: LEFT_LABEL_WIDTH + margins.left,
-        y: effectiveMarginTop,
-        w: plotAreaWidth,
-        h: participantBarsHeight,
-      },
-    ]
-    for (const item of legendGeometry.items) {
-      regions.push({
-        x: item.x - pad,
-        y: item.y - pad,
-        w: item.width + pad * 2,
-        h: SCARF_LEGEND_CONFIG.itemHeight + pad * 2,
-      })
-    }
-    return regions
-  })
+  // The legend items' blocked rects come from the harness legend band.
+  const blockedRegions = $derived.by<BlockedRegion[]>(() => [
+    {
+      x: LEFT_LABEL_WIDTH + margins.left,
+      y: effectiveMarginTop,
+      w: plotAreaWidth,
+      h: participantBarsHeight,
+    },
+  ])
 
   const identifierSystem = $derived.by(() => {
     if (!data.stylingAndLegend)
@@ -295,7 +282,7 @@
     return map
   })
 
-  const highlightMaskByIndex = $derived(calculateHighlightMask(usedHighlights, identifierSystem))
+  const highlightMaskByIndex = $derived(calculateHighlightMask(highlights, identifierSystem))
 
   const canRender = $derived.by(() => {
     const count = data.participants.length
@@ -309,13 +296,34 @@
     return netAvailableHeight >= minPlotHeight
   })
 
-  const visualRectBuckets = $derived(data.visualRectBuckets)
+  const placeholderMessage = $derived.by(() => {
+    if (canRender) return null
+
+    const hasEvents = data.isOverlay || (data.visualEventBuckets && data.visualEventBuckets.some(b => b.length > 0)) || (data.eventZoneConcurrency ?? 0) > 0
+    const hasNonFixations = data.stylingAndLegend?.category && data.stylingAndLegend.category.length > 0
+
+    const showingEvents = hasEvents && !settings.hideEvents
+    const showingNonFixations = hasNonFixations && !settings.hideNonFixations
+
+    const extraSteps: string[] = []
+    if (showingEvents && showingNonFixations) {
+      extraSteps.push('Hide non-fixations or events in Plot Settings > Visualisation')
+    } else if (showingEvents) {
+      extraSteps.push('Hide events in Plot Settings > Visualisation')
+    } else if (showingNonFixations) {
+      extraSteps.push('Hide non-fixations in Plot Settings > Visualisation')
+    }
+
+    return cannotFitPlaceholder('height', extraSteps)
+  })
+
   const visualEventBuckets = $derived(data.visualEventBuckets)
-  const rectRowOffsets = $derived(data.rectRowOffsets)
   const styleArrays = $derived(
     createStyleArrays(
       identifierSystem, rectStyleMap, eventStyleMap,
-      visualRectBuckets.length, visualEventBuckets.length
+      // One rect style per identifier (the gaze render resolves styleIdx inline);
+      // rect buckets no longer exist, so size from the identifier system.
+      identifierSystem.indexToId.size, visualEventBuckets.length
     )
   )
   const rectStyleArray = $derived(styleArrays.rectStyles)
@@ -336,7 +344,7 @@
       plotAreaWidth,
       effectiveMarginTop,
       participantBarsHeight,
-      totalWidth,
+      totalWidth: width,
       marginLeft: margins.left,
       eventLaneHeight: layout.eventLaneHeight,
       eventZoneHeight: layout.eventZoneHeight,
@@ -376,14 +384,18 @@
     )
 
     drawLegendGroupTitles(ctx, legendGeometry, SCARF_LEGEND_CONFIG)
-    drawLegend(ctx, legendGeometry, SCARF_LEGEND_CONFIG, usedHighlights)
+    drawLegend(ctx, legendGeometry, SCARF_LEGEND_CONFIG, highlights)
   }
 
-  // Overlay layer: only the hover crosshair. Drawn on top of the cached data
-  // layer so mouse-moves repaint via blit instead of re-running renderScarf.
+  // Overlay layer: only the hover crosshair, driven by the harness-owned
+  // hover payload. Drawn on top of the cached data layer so mouse-moves
+  // repaint via blit instead of re-running renderScarf.
   function drawScarfOverlay(ctx: CanvasRenderingContext2D) {
+    const hover = plot.hover.data
+    if (!hover) return
     drawCrosshairHighlight(
       ctx,
+      hover,
       Math.floor(LEFT_LABEL_WIDTH + margins.left),
       effectiveMarginTop,
       Math.floor(plotAreaWidth),
@@ -394,41 +406,19 @@
 
   function drawCrosshairHighlight(
     ctx: CanvasRenderingContext2D,
+    hover: ScarfHover,
     plotLeft: number, plotTop: number, plotWidth: number, plotHeight: number, rowHeight: number
   ) {
-    if (hoveredRowIndex === null || mouseXPx === null) return
-    const rowY = plotTop + hoveredRowIndex * rowHeight
-
-    ctx.save()
-    ctx.globalAlpha = HIGHLIGHT_FILL_ALPHA
-    ctx.fillStyle = HIGHLIGHT_COLOR
-    ctx.fillRect(plotLeft, rowY, plotWidth, rowHeight)
-    ctx.restore()
-
-    ctx.save()
-    ctx.strokeStyle = HIGHLIGHT_COLOR
-    ctx.lineWidth = 1
-    ctx.setLineDash(HIGHLIGHT_DASH)
-    ctx.beginPath()
+    const rowY = plotTop + hover.row * rowHeight
+    fillCrosshairBand(ctx, plotLeft, rowY, plotWidth, rowHeight, 0.2)
     const topEdge = alignToPixelCenter(rowY)
     const bottomEdge = alignToPixelCenter(rowY + rowHeight)
-    ctx.moveTo(plotLeft, topEdge)
-    ctx.lineTo(plotLeft + plotWidth, topEdge)
-    ctx.moveTo(plotLeft, bottomEdge)
-    ctx.lineTo(plotLeft + plotWidth, bottomEdge)
-    ctx.stroke()
-    ctx.restore()
-
-    ctx.save()
-    ctx.strokeStyle = HIGHLIGHT_COLOR
-    ctx.lineWidth = 1
-    ctx.setLineDash(HIGHLIGHT_DASH)
-    ctx.beginPath()
-    const x = alignToPixelCenter(mouseXPx)
-    ctx.moveTo(x, plotTop)
-    ctx.lineTo(x, plotTop + plotHeight)
-    ctx.stroke()
-    ctx.restore()
+    const x = alignToPixelCenter(hover.x)
+    strokeCrosshairGuides(ctx, [
+      plotLeft, topEdge, plotLeft + plotWidth, topEdge,
+      plotLeft, bottomEdge, plotLeft + plotWidth, bottomEdge,
+      x, plotTop, x, plotTop + plotHeight,
+    ])
   }
 
   function isMouseOverLegendItem(mouseX: number, mouseY: number): LegendItemGeometry | null {
@@ -445,105 +435,35 @@
     )
   }
 
-  // ── Hover (via the frame's pointer.onMove) ──
-  function handleHover(p: FramePointer) {
-    const { x: mx, y: my, isOver } = p
-    if (!isOver) {
-      if (hoveredLegendItem) {
-        hoveredLegendItem = null
-        plot.hideTooltip(0)
-      }
-      if (hoveredRowIndex !== null || mouseXPx !== null) {
-        hoveredRowIndex = null
-        mouseXPx = null
-        plot.scheduleOverlayRender()
-      }
-      if (currentHoveredSegment) {
-        currentHoveredSegment = null
-        onTooltipDeactivation()
-      }
-      plot.setCursor('default')
-      return
-    }
-
-    const legendItem = isMouseOverLegendItem(mx, my)
-    if (legendItem?.identifier !== hoveredLegendItem?.identifier) {
-      if (legendItem) {
-        hoveredLegendItem = legendItem
-        const pos = getLegendTooltipPosition(legendItem, SCARF_LEGEND_CONFIG)
-        plot.showTooltip(
-          legendItem.identifier,
-          getLegendTooltipContent(legendItem, usedHighlights.includes(legendItem.identifier)),
-          pos.x,
-          pos.y,
-          { x: 0, y: 7 }
-        )
-      } else if (hoveredLegendItem) {
-        hoveredLegendItem = null
-        plot.hideTooltip(0)
-      }
-    }
-
-    if (hoveredLegendItem) {
-      plot.setCursor('pointer')
-      if (hoveredRowIndex !== null) {
-        hoveredRowIndex = null
-        mouseXPx = null
-        plot.scheduleOverlayRender()
-      }
-      return
-    }
-
-    if (!inPlotArea(mx, my)) {
-      plot.setCursor('default')
-      if (hoveredRowIndex !== null) {
-        hoveredRowIndex = null
-        mouseXPx = null
-        plot.scheduleOverlayRender()
-      }
-      if (currentHoveredSegment) {
-        currentHoveredSegment = null
-        onTooltipDeactivation()
-      }
-      return
-    }
-
-    plot.setCursor('crosshair')
-
+  // ── Hover (harness hitTest contract; the legend band is harness-owned —
+  // it attaches no `data`, so a legend hover clears the crosshair) ──
+  function plotHitTest(mx: number, my: number): FrameHit<ScarfHover> | null {
+    if (!inPlotArea(mx, my)) return null
     const rowHeight = layout.heightOfBarWrap
-    const newRowIndex = Math.floor((my - effectiveMarginTop) / rowHeight)
-    hoveredRowIndex =
-      newRowIndex >= 0 && newRowIndex < data.participants.length ? newRowIndex : null
-    mouseXPx = mx
-    plot.scheduleOverlayRender()
+    const row = Math.floor((my - effectiveMarginTop) / rowHeight)
+    if (row < 0 || row >= data.participants.length) return null
 
-    const hoveredSegment =
-      hoveredRowIndex !== null ? findSegmentAtRowAndTime(hoveredRowIndex, mx) : null
-
-    if (
-      hoveredSegment &&
-      (!currentHoveredSegment ||
-        hoveredSegment.participantId !== currentHoveredSegment.participantId ||
-        hoveredSegment.orderId !== currentHoveredSegment.orderId)
-    ) {
-      currentHoveredSegment = {
-        participantId: hoveredSegment.participantId,
-        orderId: hoveredSegment.orderId,
+    const seg = findSegmentAtRowAndTime(row, mx)
+    if (!seg) {
+      // Track-only hit: crosshair follows the mouse, no tooltip.
+      return {
+        tooltipId: 'scarf-segment-tooltip',
+        content: [],
+        anchorX: mx,
+        anchorY: my,
+        data: { row, x: mx },
       }
-      const floorLeft = Math.floor(LEFT_LABEL_WIDTH + margins.left)
-      const floorWidth = Math.floor(plotAreaWidth)
-      const segEndX = floorLeft + (hoveredSegment.x + hoveredSegment.width) * floorWidth
-      const rowBottomY = hoveredSegment.y * rowHeight + rowHeight + effectiveMarginTop
-      const tooltipPos = getTooltipPosition(plot.canvasState, segEndX, rowBottomY, { x: 5, y: 5 })
-      onTooltipActivation({
-        segmentOrderId: hoveredSegment.orderId,
-        participantId: hoveredSegment.participantId,
-        x: tooltipPos.x,
-        y: tooltipPos.y,
-      })
-    } else if (!hoveredSegment && currentHoveredSegment) {
-      currentHoveredSegment = null
-      onTooltipDeactivation()
+    }
+
+    const floorLeft = Math.floor(LEFT_LABEL_WIDTH + margins.left)
+    const floorWidth = Math.floor(plotAreaWidth)
+    return {
+      tooltipId: 'scarf-segment-tooltip',
+      content: getTooltipContent(seg.participantId as number, seg.orderId),
+      anchorX: floorLeft + (seg.x + seg.width) * floorWidth,
+      anchorY: seg.y * rowHeight + rowHeight + effectiveMarginTop,
+      tooltipWidth: SCARF_LAYOUT.TOOLTIP_WIDTH,
+      data: { row, x: mx },
     }
   }
 
@@ -569,7 +489,7 @@
     const inc = d.x - lastDragX
     if (Math.abs(inc) > 1) {
       dragActive = true
-      onDragStepX(inc)
+      onDragStepX(inc, width)
       lastDragX = d.x
     }
   }
@@ -581,75 +501,104 @@
   }
 
   function findSegmentAtRowAndTime(rowIndex: number, mouseX: number) {
-    const buckets = visualRectBuckets
-    if (buckets.length === 0) return null
-
-    const offsets = rectRowOffsets
     const { indexToId } = identifierSystem
     const scale = layout.scaleFactor
     const floorLeft = Math.floor(LEFT_LABEL_WIDTH + margins.left)
     const floorWidth = Math.floor(plotAreaWidth)
 
-    for (let styleIdx = buckets.length - 1; styleIdx >= 0; styleIdx--) {
-      const buffer = buckets[styleIdx]
-      if (buffer.length === 0) continue
+    // Scan the row's binary segments directly (no rect buckets), resolving
+    // AOI/category inline. Segments in a row are time-disjoint, so at most one
+    // contains mouseX; a multi-AOI fixation's topmost sub-rect wins.
+    if (data.gazeSource) {
+      const gs = data.gazeSource
+      if (rowIndex < 0 || rowIndex >= gs.participantIds.length) return null
+      const HNF = SCARF_LAYOUT.HEIGHT_NON_FIXATION_DEFAULT
+      const HBAR = SCARF_LAYOUT.HEIGHT_BAR_DEFAULT
+      const SAR = SCARF_LAYOUT.SPACE_ABOVE_RECT_DEFAULT
+      const segBuf = gs.reader.segmentBufferRaw
+      const clipMin = gs.projClipMin[rowIndex]
+      const clipMax = gs.projClipMax[rowIndex]
+      const pScale = gs.projScale[rowIndex]
+      const pid = gs.participantIds[rowIndex]
+      const overlap = new Uint16Array(Math.max(64, gs.aoiOrderMap.length))
+      const { startIndex, endIndex } = gs.reader.getSegmentRange(gs.stimulusId, pid)
 
-      // Scan only the hovered row's contiguous slice (topmost first = backward)
-      // rather than the whole buffer; pIndex is constant (== rowIndex) within it.
-      const rowStart = offsets[styleIdx]
-      const lo = rowStart[rowIndex]
-      const hi = rowStart[rowIndex + 1]
-      for (let i = hi - 1; i >= lo; i--) {
-        const idx = i * RECT_STRIDE
-        const pIndex = buffer[idx + 1]
-
-        const xNormalized = buffer[idx]
-        const widthNormalized = buffer[idx + 2]
-        const origRectH = buffer[idx + 3]
-        const origInternalY = buffer[idx + 7]
-
-        const pxX = floorLeft + xNormalized * floorWidth
-        const pxW = widthNormalized * floorWidth
-
-        if (mouseX >= pxX && mouseX <= pxX + pxW) {
-          let rectH = origRectH
-          let internalY = origInternalY
-          if (scale !== 1) {
-            if (origRectH === SCARF_LAYOUT.HEIGHT_NON_FIXATION_DEFAULT) {
-              rectH = layout.nonFixationHeight
-              internalY = layout.spaceAboveRect + (layout.heightOfBar - layout.nonFixationHeight) / 2
-            } else {
-              rectH = origRectH * scale
-              internalY =
-                layout.spaceAboveRect +
-                (origInternalY - SCARF_LAYOUT.SPACE_ABOVE_RECT_DEFAULT) * scale
-            }
+      const build = (styleIdx: number, hOrig: number, internalYDefault: number, orderId: number, xN: number, wN: number) => {
+        let rectH = hOrig
+        let internalY = internalYDefault
+        if (scale !== 1) {
+          if (hOrig === HNF) {
+            rectH = layout.nonFixationHeight
+            internalY = layout.spaceAboveRect + (layout.heightOfBar - layout.nonFixationHeight) / 2
+          } else {
+            rectH = hOrig * scale
+            internalY = layout.spaceAboveRect + (internalYDefault - SAR) * scale
           }
-          return {
-            x: xNormalized,
-            y: pIndex,
-            width: widthNormalized,
-            height: rectH,
-            internalY,
-            identifier: indexToId.get(styleIdx) ?? '',
-            participantId: buffer[idx + 4],
-            segmentId: buffer[idx + 5],
-            orderId: buffer[idx + 6],
+        }
+        return {
+          x: xN,
+          y: rowIndex,
+          width: wN,
+          height: rectH,
+          internalY,
+          identifier: indexToId.get(styleIdx) ?? '',
+          participantId: data.participants[rowIndex]?.id ?? rowIndex,
+          segmentId: orderId,
+          orderId,
+        }
+      }
+
+      let hit: ReturnType<typeof build> | null = null
+      for (let i = startIndex; i < endIndex; i++) {
+        const localId = i - startIndex
+        const segBase = i * SEGMENT_STRIDE
+        const categoryId = segBuf[segBase + SegmentField.CATEGORY_ID] | 0
+        let start = gs.isOrdinal ? localId : segBuf[segBase + SegmentField.START_TIME]
+        let end = gs.isOrdinal ? localId + 1 : segBuf[segBase + SegmentField.END_TIME]
+        if (end <= clipMin || start >= clipMax) continue
+        start = Math.max(clipMin, start)
+        end = Math.min(clipMax, end)
+        const xN = (start - clipMin) * pScale
+        const wN = (end - start) * pScale
+        const pxX = floorLeft + xN * floorWidth
+        const pxW = wN * floorWidth
+        if (mouseX < pxX || mouseX > pxX + pxW) continue
+
+        if (categoryId !== FIXATION_CATEGORY_ID) {
+          if (gs.hideNonFixations || gs.hiddenCategoryIds.has(categoryId)) continue
+          const sIdx =
+            categoryId >= 0 && categoryId < gs.categoryStyleIdxMap.length
+              ? gs.categoryStyleIdxMap[categoryId]
+              : -1
+          if (sIdx === -1) continue
+          hit = build(sIdx, HNF, SAR + (HBAR - HNF) * 0.5, localId, xN, wN)
+        } else {
+          const count = gs.aoiGroupReader.getSegmentAoisUniqueDirect(i, gs.stimulusId, overlap)
+          if (count === 0) {
+            hit = build(gs.noAoiStyleIdx, HBAR, SAR, localId, xN, wN)
+          } else {
+            const h = HBAR / count
+            for (let idx = 0; idx < count; idx++) {
+              const sIdx = gs.aoiOrderMap[overlap[idx]]
+              if (sIdx < 0) continue
+              hit = build(sIdx, h, SAR + idx * h, localId, xN, wN) // topmost = last
+            }
           }
         }
       }
+      return hit
     }
+
     return null
   }
 
   onDestroy(() => {
-    if (hoveredLegendItem) plot.hideTooltip(0)
+    plot.hideTooltip(0)
   })
 </script>
 
 <canvas
   class="scarf-plot-figure"
-  style:pointer-events={canRender ? 'auto' : 'none'}
   use:plot.plotAction
   use:canvasBlockSelect={{ regions: plot.blockedRegions }}
   data-component="scarfplot"

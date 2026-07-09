@@ -7,10 +7,6 @@
   import PlotPlaceholder from './PlotPlaceholder.svelte'
   import { PLOT_BASE_CHROME_HEIGHT } from '$lib/plots/shared/const'
 
-  interface LayoutConfig {
-    headerHeight?: number
-  }
-
   interface PlotFrame {
     w: number
     h: number
@@ -18,50 +14,24 @@
 
   interface Props {
     item: PlotFrame
-    layoutConfig?: LayoutConfig
-    // If provided, controls the fade in. If not provided, it assumes data is always ready or handled by parent.
-    // If false is passed, it shows placeholder.
+    // If false, shows the loading placeholder instead of the figure.
     hasData?: boolean
-    // If provided and hasData is false, shows a static message instead of spinner.
-    unavailableMessage?: string | null
-
-    // Optional dimensions override if parent already calculated them
-    dimensions?: { width: number; height: number }
-
-    // Optional height override for the inner content (e.g. for scrolling plots)
-    contentHeight?: number
-
-    // Snippets
     figure?: Snippet<[{ width: number; height: number }]>
   }
 
-  let {
-    item,
-    layoutConfig = {},
-    hasData = true,
-    unavailableMessage = null,
-    dimensions: parentDimensions,
-    contentHeight,
-    figure,
-  }: Props = $props()
+  let { item, hasData = true, figure }: Props = $props()
 
   // Plots render through the Pane (no inline header), so the figure subtracts
-  // only the base chrome — grid-item header + body padding — and fills the rest
-  // of the body. `layoutConfig.headerHeight` can still override per plot.
-  const effectiveHeaderHeight = $derived(
-    layoutConfig.headerHeight ?? PLOT_BASE_CHROME_HEIGHT
-  )
-
-  const dimensions = $derived.by(() => {
-    if (parentDimensions) return parentDimensions
-
-    return calculatePlotDimensionsWithHeader(
+  // only the base chrome — grid-item header + body padding — and fills the
+  // rest of the body.
+  const dimensions = $derived(
+    calculatePlotDimensionsWithHeader(
       item.w,
       item.h,
       DEFAULT_GRID_CONFIG,
-      effectiveHeaderHeight
+      PLOT_BASE_CHROME_HEIGHT
     )
-  })
+  )
 
   let mounted = $state(false)
 
@@ -77,17 +47,12 @@
        around the plot — title, axis labels, padding, non-interactive
        legend — is clickable-to-select, matching the user expectation
        that clicking a plot opens its Pane. -->
-  <div
-    class="figure"
-    style="height: {contentHeight
-      ? `${contentHeight}px`
-      : `${dimensions.height}px`}"
-  >
+  <div class="figure" style="height: {dimensions.height}px">
     {#if mounted && hasData}
       <div
         class="figure-content"
         in:fade={{ duration: 300 }}
-        style="height: {contentHeight ?? dimensions.height}px"
+        style="height: {dimensions.height}px"
       >
         {#if figure}
           {@render figure({
@@ -95,7 +60,6 @@
             height: dimensions.height,
           })}
         {:else}
-          <!-- If no figure snippet provided, we could fallback to placeholder or nothing -->
           <PlotPlaceholder
             width={dimensions.width}
             height={dimensions.height}
@@ -107,8 +71,8 @@
         <PlotPlaceholder
           width={dimensions.width}
           height={dimensions.height}
-          message={unavailableMessage ?? 'Loading visualization...'}
-          loading={!unavailableMessage}
+          message={'Loading visualization...'}
+          loading={true}
         />
       </div>
     {/if}

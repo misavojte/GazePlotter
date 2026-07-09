@@ -5,7 +5,7 @@
  * is exercised.
  */
 import { describe, it, expect } from 'vitest'
-import { createReaderFromJson } from '../src/lib/data/binary/converters'
+import { makeTestEngine } from './helpers/testEngine'
 import {
   query,
   instanceMatchesContract,
@@ -25,27 +25,9 @@ const GLOBAL_SCALAR_CONTRACT: PlotMetricContract = {
 }
 
 function createEngine(segmentsForPid: number[][]) {
-  const segments: number[][][][] = [[], [segmentsForPid]]
-  const reader = createReaderFromJson(segments)
-  return {
-    metadata: {
-      isOrdinalOnly: false,
-      capabilities: { segmented: true, spatial: false, event: false },
-      aois: {
-        data: [[], [null, ['Nav', 'Nav', 'red'], ['CTA', 'CTA', 'blue']]],
-        orderVector: [[], [1, 2]],
-        hiddenAois: [[], []],
-      },
-      categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [] },
-      participants: { data: [['P0', 'P0']], orderVector: [] },
-      participantsGroups: [],
-      stimuli: { data: [['S0', 'S0'], ['S1', 'S1']], orderVector: [] },
-      noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
-      metricInstances: [],
-    },
-    getReader: () => reader,
-    getAoiMapping: (_s: number, rawId: number) => rawId,
-  }
+  return makeTestEngine([[], [segmentsForPid]], {
+    aoiData: [[], [null, ['Nav', 'Nav', 'red'], ['CTA', 'CTA', 'blue']]],
+  })
 }
 
 const scope = (engine: any): Scope => ({

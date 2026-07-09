@@ -50,6 +50,8 @@ type SettingsPatch = Parameters<UpdateSettings>[1]
  *   <Radio value={overlay.value} mixed={overlay.mixed}
  *          onchange={e => bulk.update({ statisticalOverlay: e.detail })} />
  */
+export type BulkContext<S> = ReturnType<typeof createBulkContext<S>>
+
 export function createBulkContext<S = Record<string, unknown>>(
   getItem: () => PaneSectionItem
 ) {

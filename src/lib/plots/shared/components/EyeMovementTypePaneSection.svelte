@@ -24,7 +24,7 @@
       Configure eye-movement classification categories (e.g. Saccades, Blinks). Editing the library updates display names, colors, and active visibility globally.
     </p>
     <PaneEditRow>
-      <PaneEditLink onclick={openCategories}>Configure Category Library…</PaneEditLink>
+      <PaneEditLink onclick={openCategories}>Configure Category Library</PaneEditLink>
     </PaneEditRow>
   </div>
 </PaneSection>

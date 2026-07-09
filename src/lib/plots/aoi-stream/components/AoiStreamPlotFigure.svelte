@@ -1,11 +1,14 @@
 <script lang="ts">
-  import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
+  import {
+    alignToPixelCenter,
+    fillCrosshairBand,
+    strokeCrosshairGuides,
+  } from '$lib/plots/shared/canvasUtils'
   import {
     usePlot,
     NO_MARGINS,
     canvasBlockSelect,
     withQualifiers,
-    type BlockedRegion,
     type CanvasExportProps,
     type PlotFrame,
     type FrameHit,
@@ -24,9 +27,6 @@
     computeFlatLegendGeometry,
     calculateFlatLegendHeight,
     drawLegend,
-    hitTestLegend,
-    getLegendTooltipPosition,
-    getLegendTooltipContent,
     STREAM_LEGEND_CONFIG,
     type LegendItem,
     type LegendGeometry,
@@ -49,7 +49,10 @@
     centeredYTicks,
     type PlotAreaTicks,
   } from '$lib/plots/shared/plotArea'
-  import { METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
+  import {
+    METRIC_MISSING_MESSAGE,
+    cannotFitPlaceholder,
+  } from '$lib/plots/shared/drawCanvasPlaceholder'
   import {
     AXIS_CONFIG,
     MARGIN as AOI_MARGIN,
@@ -99,11 +102,10 @@
   const X_AXIS_LABEL = $derived(withQualifiers('Elapsed time / ms', data.windowLabel))
   const AREA_DIVIDER = { COLOR: 'rgba(255, 255, 255, 0.4)', WIDTH: 1 }
   const MARGIN = AOI_MARGIN
+  const MIN_SERIES_ROW_HEIGHT = 8
+  const MIN_STREAM_HEIGHT = 40
 
   let renderBuckets = $state<RenderBuckets | null>(null)
-  let hoveredLegendItem = $state<LegendItemGeometry | null>(null)
-  let hoveredBinIndex = $state<number | null>(null)
-  let mouseXPx = $state<number | null>(null)
 
   const usedHighlights = $derived(highlights)
 
@@ -192,13 +194,33 @@
       : { title: data.yAxisLabel, tickLabels: leftTickLabels }
   )
 
-  const plot = usePlot<{ kind: 'legend' | 'bin'; item?: LegendItemGeometry; binIndex?: number }>({
+  const plot = usePlot<{
+    kind: 'legend' | 'bin'
+    item?: LegendItemGeometry
+    binIndex?: number
+    x?: number
+  }>({
     width: () => width,
     height: () => height,
     margins: () => margins,
     dpiOverride: () => dpiOverride,
     deps: () => [data, alignment, ridgelineScale, syncedMTopOverride, colorScale, highlights],
     placeholder: () => (data.noMetric ? METRIC_MISSING_MESSAGE : null),
+    fit: frame => {
+      const n = data.series.length
+      if (n === 0) return null
+      const fits =
+        alignment === 'ridgeline' || alignment === 'heatmap'
+          ? frame.height >= n * MIN_SERIES_ROW_HEIGHT
+          : frame.height >= MIN_STREAM_HEIGHT
+      if (fits) return null
+      return cannotFitPlaceholder(
+        'height',
+        alignment === 'ridgeline' || alignment === 'heatmap'
+          ? ['Merge some AOIs in Plot Settings > Areas of Interest']
+          : []
+      )
+    },
     // Declarative measured gutters: the resolver measures the left/bottom edge
     // tick labels + titles and returns the title offsets (frame.leftTitleOffset /
     // bottomTitleOffset). The figure still draws its own chrome (clipData:false)
@@ -214,25 +236,14 @@
     clipData: false,
     drawData: drawStream,
     drawOverlay: drawStreamOverlay,
-    legend: { hitTest: hitTestLegendBand },
-    hitTest: hitTestBin,
-    onHoverChange: (hit, x, y) => {
-      const tag = hit?.data
-      const legendItem = tag?.kind === 'legend' ? tag.item! : null
-      const binIndex = tag?.kind === 'bin' ? tag.binIndex! : null
-      const isBinHover = tag?.kind === 'bin'
-      const nextMouseXPx = isBinHover ? x : null
-      const nextBinIndex = isBinHover ? binIndex : null
-
-      const changed =
-        nextBinIndex !== hoveredBinIndex ||
-        nextMouseXPx !== mouseXPx
-      hoveredLegendItem = legendItem
-      hoveredBinIndex = nextBinIndex
-      mouseXPx = nextMouseXPx
-      return changed
+    legend: {
+      geometry: () =>
+        alignment === 'heatmap' || legendHeight === 0 ? null : legendGeometry,
+      config: STREAM_LEGEND_CONFIG,
+      highlights: () => usedHighlights,
+      hitData: item => ({ kind: 'legend' as const, item }),
     },
-    blockedRegions: () => blockedRegions,
+    hitTest: hitTestBin,
   })
 
   // Legend geometry sits in the bottom band, below the x-axis.
@@ -259,24 +270,6 @@
       title: data.yAxisLabel,
       belowMinColor: INACTIVE_COLOR,
     })
-  })
-
-  // Plot area always blocked; interactive legend items blocked too (stream modes).
-  const blockedRegions = $derived.by<BlockedRegion[]>(() => {
-    const f = plot.frame
-    const regions: BlockedRegion[] = [{ x: f.x, y: f.y, w: f.width, h: f.height }]
-    if (alignment !== 'heatmap') {
-      const pad = Math.ceil(STREAM_LEGEND_CONFIG.itemSpacing / 2)
-      for (const item of legendGeometry.items) {
-        regions.push({
-          x: item.x - pad,
-          y: item.y - pad,
-          w: item.width + pad * 2,
-          h: STREAM_LEGEND_CONFIG.itemHeight + pad * 2,
-        })
-      }
-    }
-    return regions
   })
 
   function setUpFont(ctx: CanvasRenderingContext2D) {
@@ -522,17 +515,7 @@
     // Legend
     if (alignment === 'heatmap') {
       if (gradientLegendGeometry) {
-        drawGradientLegend(ctx, gradientLegendGeometry, {
-          x: margins.left,
-          y: frame.legendY + PLOT_LEGEND_GAP,
-          availableWidth: plot.plotAreaWidth,
-          availableHeight: legendHeight,
-          colorScale: effectiveColorScale,
-          valueRange: [0, Math.max(1, data.maxValue)],
-          effectiveMaxValue: Math.max(1, data.maxValue),
-          title: data.yAxisLabel,
-          belowMinColor: INACTIVE_COLOR,
-        })
+        drawGradientLegend(ctx, gradientLegendGeometry)
       }
     } else if (legendGeometry.items.length > 0 && legendHeight > 0) {
       setUpFont(ctx)
@@ -547,6 +530,9 @@
   // hover blits it back and repaints only this instead of re-running drawStream
   // (which re-derives every series' coordinates).
   function drawStreamOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+    const tag = plot.hover.data
+    const hoveredBinIndex = tag?.kind === 'bin' ? (tag.binIndex ?? null) : null
+    const mouseXPx = tag?.kind === 'bin' ? (tag.x ?? null) : null
     if (hoveredBinIndex === null && mouseXPx === null) return
     const floorLeft = Math.floor(frame.x)
     const floorTop = Math.floor(frame.y)
@@ -574,57 +560,28 @@
       const xEnd = Math.min(floorLeft + floorWidth, binCenterX + halfWindowPx)
       const rectWidth = xEnd - xStart
 
-      ctx.save()
-      ctx.fillStyle = '#007acc'
-      if (rectWidth > 0) {
-        ctx.globalAlpha = 0.08
-        ctx.fillRect(xStart, floorTop, rectWidth, floorHeight)
-      }
-      ctx.globalAlpha = 0.15
-      ctx.fillRect(binX, floorTop, binWidth, floorHeight)
-      ctx.restore()
+      if (rectWidth > 0) fillCrosshairBand(ctx, xStart, floorTop, rectWidth, floorHeight, 0.08)
+      fillCrosshairBand(ctx, binX, floorTop, binWidth, floorHeight, 0.15)
     }
 
     if (mouseXPx !== null) {
-      ctx.save()
-      ctx.strokeStyle = '#007acc'
-      ctx.lineWidth = 1
-      ctx.setLineDash([2, 2])
-      ctx.beginPath()
       const x = alignToPixelCenter(mouseXPx)
-      ctx.moveTo(x, floorTop)
-      ctx.lineTo(x, floorBottom)
-      ctx.stroke()
-      ctx.restore()
+      strokeCrosshairGuides(ctx, [x, floorTop, x, floorBottom])
     }
 
     ctx.restore()
-  }
-
-  function hitTestLegendBand(
-    mx: number,
-    my: number
-  ): FrameHit<{ kind: 'legend' | 'bin'; item?: LegendItemGeometry; binIndex?: number }> | null {
-    if (alignment === 'heatmap' || legendGeometry.items.length === 0 || legendHeight === 0) return null
-    const item = hitTestLegend(legendGeometry, STREAM_LEGEND_CONFIG, mx, my)
-    if (!item) return null
-    const pos = getLegendTooltipPosition(item, STREAM_LEGEND_CONFIG)
-    return {
-      tooltipId: item.identifier,
-      content: getLegendTooltipContent(item, usedHighlights.includes(item.identifier)),
-      anchorX: pos.x,
-      anchorY: pos.y,
-      offset: { x: 0, y: 7 },
-      cursor: 'pointer',
-      data: { kind: 'legend', item },
-    }
   }
 
   function hitTestBin(
     mx: number,
     my: number,
     frame: PlotFrame
-  ): FrameHit<{ kind: 'legend' | 'bin'; item?: LegendItemGeometry; binIndex?: number }> | null {
+  ): FrameHit<{
+    kind: 'legend' | 'bin'
+    item?: LegendItemGeometry
+    binIndex?: number
+    x?: number
+  }> | null {
     const binWidth = frame.width / data.binCount
     const binIndex = Math.max(0, Math.min(data.binCount - 1, Math.floor((mx - frame.x) / binWidth)))
 
@@ -665,14 +622,15 @@
       anchorY: my,
       offset: { x: 15, y: 15 },
       cursor: 'crosshair',
-      data: { kind: 'bin', binIndex },
+      data: { kind: 'bin', binIndex, x: mx },
     }
   }
 
-  // The hovered legend item is tracked synchronously, so click needs no coords.
+  // The harness tracks the hovered legend item, so click needs no coords.
   function handleClick() {
-    if (hoveredLegendItem) {
-      const aoiId = parseInt(hoveredLegendItem.identifier)
+    const tag = plot.hover.data
+    if (tag?.kind === 'legend' && tag.item) {
+      const aoiId = parseInt(tag.item.identifier)
       if (!isNaN(aoiId)) onLegendClick(aoiId)
     }
   }

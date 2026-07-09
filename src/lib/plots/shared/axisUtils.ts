@@ -123,6 +123,54 @@ export function drawYAxisMainLabel(
   ctx.restore()
 }
 
+/** Smallest nice tick step that thins `count` index ticks down to ≤10. */
+const NICE_STEPS = [5, 10, 20, 25, 50, 100, 200, 500, 1000]
+
+export function calculateTickStep(count: number): number {
+  return NICE_STEPS.find(step => count / step <= 10) ?? 1000
+}
+
+/**
+ * Rotated participant-index Y axis for compact participant-row plots (scarf,
+ * evolving-metrics heatmap): a two-line "Participants / [order indices]" title
+ * in the left gutter plus index labels every {@link calculateTickStep} rows,
+ * with the last index always shown.
+ */
+export function drawParticipantIndexAxis(
+  ctx: CanvasRenderingContext2D,
+  count: number,
+  plotLeft: number,
+  plotTop: number,
+  rowPitch: number,
+  config: AxisConfig = DEFAULT_AXIS_CONFIG
+): void {
+  ctx.save()
+  ctx.font = `${config.fontSize}px ${config.fontFamily}`
+  ctx.fillStyle = config.color
+  ctx.textBaseline = 'middle'
+
+  ctx.save()
+  ctx.textAlign = 'center'
+  ctx.translate(plotLeft - 40, plotTop + (count * rowPitch) / 2)
+  ctx.rotate(-Math.PI / 2)
+  const lineHeight = config.fontSize * 1.2
+  ctx.fillText('Participants', 0, -lineHeight / 2)
+  ctx.fillText('[order indices]', 0, lineHeight / 2)
+  ctx.restore()
+
+  ctx.textAlign = 'right'
+  const tickX = plotLeft - 8
+  const step = calculateTickStep(count)
+  for (let i = 0; i < count; i += step) {
+    ctx.fillText(String(i), tickX, plotTop + i * rowPitch + rowPitch / 2)
+  }
+  const lastIdx = count - 1
+  if (lastIdx % step !== 0) {
+    ctx.fillText(String(lastIdx), tickX, plotTop + lastIdx * rowPitch + rowPitch / 2)
+  }
+  ctx.restore()
+}
+
 /**
  * Calculates the vertical offset from the bottom of the plot area to the top of the X-axis label.
  */

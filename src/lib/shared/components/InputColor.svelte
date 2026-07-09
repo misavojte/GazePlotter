@@ -149,7 +149,7 @@
   }
 
   .color-preview:hover {
-    border-color: #666;
+    border-color: var(--c-darkgrey);
   }
 
   .color-value {
@@ -174,7 +174,7 @@
     padding: 10px;
     background-color: white;
     border-radius: var(--rounded-md);
-    box-shadow: 0 3px 15px rgba(0, 0, 0, 0.3);
+    box-shadow: var(--shadow-lg);
     z-index: 9999;
     width: 210px;
     overflow-y: auto;

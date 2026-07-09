@@ -8,6 +8,11 @@ import { FIXATION_CATEGORY_ID } from '$lib/data/binary'
  * outside any visible AOI become '#'. With `collapsed=true`, consecutive
  * identical characters are folded so that "AABBC" becomes "ABC".
  *
+ * NOTE: "primary AOI = first visible in buffer order" is ONE of three
+ * deliberately different multi-AOI policies — RQA drops multi-AOI fixations
+ * entirely (`fixations.extractFixationSequence`), and the recurrence PLOT
+ * keeps all AOIs (`plots/recurrence/core/collector`). Do not unify them.
+ *
  * Time window: a fixation is encoded when its onset falls in
  * `[timeStart, timeEnd)`. `timeEnd <= 0` means "unbounded above";
  * `timeStart <= 0` means "unbounded below".
@@ -53,7 +58,7 @@ export function collectScanpath(
     if (segStart < timeStart) continue
     if (hasUpperBound && segStart >= timeEnd) break
 
-    const aoiCount = aoiGroupReader.getSegmentAoisIntoUniqueTyped(
+    const aoiCount = aoiGroupReader.getSegmentAoisUniqueDirect(
       segIdx,
       stimulusId,
       aoiBuffer

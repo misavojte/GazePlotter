@@ -29,12 +29,11 @@ export function announceVersionOnce(toastState: Pick<ToastState, 'add'>): void {
 
   toastState.add({
     id: generateUniqueId(),
-    title: "What's new",
     message: `GazePlotter ${__APP_VERSION__} is here.`,
     type: 'info',
     // No timeout: the announcement stays until the user dismisses it.
     duration: null,
-    link: { href: '/docs', label: 'See what changed' },
+    link: { href: `/docs/changelog#${__APP_VERSION__.replace(/\./g, '')}`, label: 'See what changed' },
   })
 
   // Best-effort persistence: if writing fails, the toast was still shown.

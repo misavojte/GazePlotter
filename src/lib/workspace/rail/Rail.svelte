@@ -4,7 +4,6 @@
   import { fly } from 'svelte/transition'
   import { cubicInOut } from 'svelte/easing'
   import type { GridItemSnapshot } from '$lib/workspace'
-  import { PANE_TRANSITION, slideFlex } from '../pane/transition'
   import { responsive } from '../responsive.svelte'
   import {
     createRailItems,
@@ -24,7 +23,7 @@
     element?: HTMLElement | null
   }
 
-  // Suppresses the very first intro animation. `|global` transitions
+  // Suppresses the very first intro animation. The transition
   // would otherwise fire on initial mount, making the rail "activate"
   // from off-screen on app load — we want it already in place. Flipped
   // to true in onMount so every *subsequent* intro (after the user
@@ -57,17 +56,9 @@
 
   const isMobile = $derived(responsive.isMobile)
 
-  // Desktop: rail retracts when a plot is selected so the pane can
-  // take the right edge. Mobile: rail stays visible in 'plot' mode
-  // (swapped to an Edit action) until the settings sheet actually
-  // opens — otherwise the user would lose their toolbar without an
-  // obvious path back.
   const mode = $derived<'workspace' | 'plot'>(
     isMobile && grid.selectedItemId !== null ? 'plot' : 'workspace'
   )
-
-  const isHidden = false
-
 
   const isProcessing = $derived(ingest.isLoading)
   const isValidData = $derived(engine.hasValidData)
@@ -158,51 +149,14 @@
   })
 </script>
 
-{#if !isHidden}
-  <!-- Desktop uses slideFlex on the x-axis (retract from the flex row
-       into the pane's space, matching Pane.svelte's entry). Mobile is
-       fixed-positioned so flex-basis animation has no effect — we
-       translate-down instead via fly, with a 320ms intro delay so the
-       sheet has fully descended before the rail returns. -->
-  {#if isMobile}
-    <!-- |global modifier: without it, these transitions would be local
-         to this inner {:if isMobile} branch and never fire when the
-         outer {#if !isHidden} toggles (Svelte's default local
-         transitions don't fire on ancestor-block toggles). -->
-    <div
-      class="rail horizontal"
-      bind:this={element}
-      in:fly|global={{
-        y: 56,
-        duration: mounted ? PANE_TRANSITION.duration : 0,
-        delay: mounted ? PANE_TRANSITION.duration : 0,
-        easing: PANE_TRANSITION.easing,
-      }}
-      out:fly|global={{
-        y: 56,
-        duration: PANE_TRANSITION.duration,
-        easing: PANE_TRANSITION.easing,
-      }}
-    >
-      {@render railBody()}
-    </div>
-  {:else}
-    <div
-      class="rail"
-      in:slideFlex|global={{
-        axis: 'x',
-        duration: mounted ? PANE_TRANSITION.duration : 0,
-        easing: PANE_TRANSITION.easing,
-      }}
-      out:slideFlex|global={{
-        axis: 'x',
-        duration: PANE_TRANSITION.duration,
-        easing: PANE_TRANSITION.easing,
-      }}
-    >
-      {@render railBody()}
-    </div>
-  {/if}
+{#if isMobile}
+  <div class="rail horizontal" bind:this={element}>
+    {@render railBody()}
+  </div>
+{:else}
+  <div class="rail">
+    {@render railBody()}
+  </div>
 {/if}
 
 {#snippet railBody()}

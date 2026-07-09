@@ -13,6 +13,8 @@
     isMenuFlyoutItem,
   } from './types'
   import { portal } from '$lib/shared/placement'
+  import { scale } from 'svelte/transition'
+  import { cubicOut } from 'svelte/easing'
   import ContextSubMenu from './ContextSubMenu.svelte'
 
   // State for which inner submenu is active.
@@ -101,6 +103,7 @@
         class="menu"
         role="menu"
         style={`left:${menu.x}px; top:${menu.y}px; z-index:${menu.zIndex}; --menu-width: ${menu.width ?? MENU_WIDTH}px;`}
+        in:scale={{ duration: 150, start: 0.96, easing: cubicOut }}
       >
         <div
           class="menu-content"
@@ -205,11 +208,11 @@
     position: fixed;
     pointer-events: auto;
     background: var(--c-white);
-    border: var(--menu-border-width) solid var(--menu-border-color);
-    border-radius: var(--rounded-md);
+    border: 1px solid color-mix(in srgb, var(--c-black) 8%, transparent);
+    border-radius: 12px;
     --menu-width: 220px;
     width: var(--menu-width);
-    box-shadow: 0 4px 16px color-mix(in srgb, var(--c-black) 12%, transparent);
+    box-shadow: var(--shadow-xl);
     overflow: hidden;
   }
 
@@ -243,7 +246,7 @@
     align-items: center;
     gap: 8px;
     transition: background var(--transition-fast) ease;
-    border-radius: var(--rounded);
+    border-radius: var(--rounded-md);
     margin: 0 4px;
     width: calc(100% - 8px);
   }

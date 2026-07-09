@@ -26,7 +26,7 @@
       Areas of Interest (AOIs) map fixations to specific target regions on the stimulus. Editing the library updates display names, colors, and active visibility globally across all plots.
     </p>
     <PaneEditRow>
-      <PaneEditLink onclick={openAois}>Configure AOI Library…</PaneEditLink>
+      <PaneEditLink onclick={openAois}>Configure AOI Library</PaneEditLink>
     </PaneEditRow>
   </div>
 </PaneSection>

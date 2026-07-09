@@ -170,7 +170,12 @@ export function calculateOverlayLayout(
     return sSAR + hBar + sGap + bandHeight + rGap
   }
 
-  const minScale = SCARF_LAYOUT.MIN_BAR_HEIGHT / baseBar
+  // Overlay: a gaze row is never thinner than a single event lane — the gaze bar
+  // must read as at least as tall as one event strip. Floor the scale there;
+  // below it the plot asks for more height instead of squishing the gaze into a
+  // hairline (see calculateOverlayMinRowPitch + the figure's canRender/placeholder).
+  const barFloor = lanes > 0 ? SCARF_LAYOUT.MIN_EVENT_LANE_H : SCARF_LAYOUT.MIN_BAR_HEIGHT
+  const minScale = barFloor / baseBar
   const maxScale = SCARF_LAYOUT.MAX_BAR_SCALE
 
   let scale = minScale
@@ -234,9 +239,10 @@ export function calculateOverlayMinRowPitch(concurrency: number): number {
   const lanes = Math.max(0, Math.floor(concurrency))
   const seamGap = lanes > 0 ? 2 : 0
   const band = lanes * SCARF_LAYOUT.MIN_EVENT_LANE_H
-  return (
-    SCARF_LAYOUT.MIN_BAR_HEIGHT + seamGap + band + SCARF_LAYOUT.MIN_ROW_GAP
-  )
+  // The gaze bar's floor matches calculateOverlayLayout: one event lane in overlay
+  // (so a gaze row is never thinner than one event strip), else the bare minimum.
+  const barFloor = lanes > 0 ? SCARF_LAYOUT.MIN_EVENT_LANE_H : SCARF_LAYOUT.MIN_BAR_HEIGHT
+  return barFloor + seamGap + band + SCARF_LAYOUT.MIN_ROW_GAP
 }
 
 /**

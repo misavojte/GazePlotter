@@ -106,7 +106,7 @@ describe('GridState selection set', () => {
     expect(grid.selectedItemIds).toEqual([])
   })
 
-  it('removeItem drops only that item from the selection', () => {
+  it('removeItem drops only that item from the selection and keeps single pane in sync', () => {
     const grid = gridWithItems()
     grid.selectOnly(1)
     grid.toggleInSelection(2)
@@ -115,6 +115,22 @@ describe('GridState selection set', () => {
     grid.removeItem(2)
     expect(grid.items.map(i => i.id)).toEqual([1, 3])
     expect(grid.selectedItemIds).toEqual([1, 3])
+    expect(grid.paneOpenId).toBeNull()
+
+    grid.removeItem(3)
+    expect(grid.selectedItemIds).toEqual([1])
+    expect(grid.paneOpenId).toBe(1)
+  })
+
+  it('toggleInSelection down to a lone item when paneOpenId was null but bulk was visible syncs pane to remaining item', () => {
+    const grid = gridWithItems()
+    grid.toggleInSelection(1)
+    grid.toggleInSelection(2)
+    expect(grid.paneOpenId).toBeNull()
+
+    grid.toggleInSelection(2)
+    expect(grid.selectedItemIds).toEqual([1])
+    expect(grid.paneOpenId).toBe(1)
   })
 
   it('reassigns the selection array (no in-place mutation)', () => {

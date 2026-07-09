@@ -1,7 +1,7 @@
 import { getGradientLegendRequiredHeight } from './legendGradient'
+import { calculateTickStep } from './axisUtils'
 import type { CanvasPlotMargins } from './usePlot.svelte'
 
-const NICE_STEPS = [5, 10, 20, 25, 50, 100, 200, 500, 1000] as const
 const AXIS_TITLE_GAP = 12
 const SIN_45 = 0.7071
 const APPROX_CHAR_WIDTH = 0.6
@@ -13,6 +13,18 @@ const COMPACT_LABEL_SIZE = 25
  * value when positioning the legend.
  */
 export const MATRIX_LEGEND_GAP = 10
+
+/**
+ * Legibility floors for square-matrix cells. The layout keeps rendering down to
+ * ~1px cells (ultra-compact mode), so these are NOT the layout's `minCellSize`
+ * (that only switches label density). Below these the view stops being
+ * interpretable and the figure paints a fit-guard placeholder instead:
+ * - color grids (transition matrix, correlation heatmap, similarity matrix):
+ *   individual cells can no longer be visually resolved nor mapped to a label.
+ * - the correlation SPLOM needs extra room for a scatter + r-value per cell.
+ */
+export const MIN_LEGIBLE_CELL_SIZE = 8
+export const MIN_LEGIBLE_SPLOM_CELL_SIZE = 12
 
 export const MATRIX_LAYOUT = {
   horizontalPadding: 50,
@@ -57,10 +69,6 @@ export type SquareMatrixLayout = {
   showCellValues: boolean
   showAxisLabels: boolean
   cellValueFontSize: number
-}
-
-function calculateTickStep(count: number): number {
-  return NICE_STEPS.find(step => count / step <= 10) ?? 1000
 }
 
 function estimateMaxLabelWidth(

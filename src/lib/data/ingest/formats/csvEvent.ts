@@ -14,6 +14,7 @@
 
 import type { EnrichmentFormatDefinition } from '../kernel/format'
 import type { EventContribution } from '../kernel/sink'
+import { csvDelimiterOfHeader } from './lib/rows/csvDelimiter'
 
 const REQUIRED_COLUMNS = [
   'stimulus',
@@ -30,19 +31,10 @@ type StimulusMapEntry = {
 
 export type StimulusMap = Map<number, Map<string, StimulusMapEntry>>
 
-/**
- * Detect delimiter (, vs ;) by counting occurrences in the header line.
- */
-function detectDelimiter(headerLine: string): string {
-  const commas = headerLine.split(',').length
-  const semicolons = headerLine.split(';').length
-  return commas >= semicolons ? ',' : ';'
-}
-
 /** Header sniff shared by the format's `detect` and the parser. */
 export function detectCsvEventHeader(headerLine: string): boolean {
   if (!headerLine) return false
-  const delimiter = detectDelimiter(headerLine)
+  const delimiter = csvDelimiterOfHeader(headerLine)
   const columns = headerLine.split(delimiter).map(c => c.trim())
   return REQUIRED_COLUMNS.every(col => columns.includes(col))
 }
@@ -64,7 +56,7 @@ export function parseCsvEventText(text: string): {
   }
 
   const headerLine = lines[0]
-  const delimiter = detectDelimiter(headerLine)
+  const delimiter = csvDelimiterOfHeader(headerLine)
   const headers = headerLine.split(delimiter).map(c => c.trim())
 
   const idx = {

@@ -10,6 +10,7 @@ import { describe, it, expect } from 'vitest'
 import { SegmentWriter } from '$lib/data/ingest/kernel/segmentWriter'
 import { BinaryBufferReader } from '$lib/data/binary'
 import { encodeString } from '$lib/data/ingest/utils/byteUtils'
+import { DEFAULT_AOI_COLORS } from '$lib/color'
 
 const b = (s: string): Uint8Array => encodeString(s, 'utf-8')
 
@@ -32,7 +33,9 @@ describe('SegmentWriter — dropping a provisional group prunes orphaned AOIs', 
     const p1Idx = data.participants.data.findIndex(r => r[0] === 'P1')
 
     // "foo" is gone; only the surviving group's AOI remains.
-    expect(data.aois.data[sIdx]).toEqual([['bar']])
+    // Ingest bakes the default color by name-sorted rank; 'bar' is the sole
+    // surviving AOI, so it takes the first palette color.
+    expect(data.aois.data[sIdx]).toEqual([['bar', 'bar', DEFAULT_AOI_COLORS[0]]])
 
     // The surviving segment still resolves to the correct (remapped) AOI.
     const reader = new BinaryBufferReader(data.segments)
@@ -59,7 +62,9 @@ describe('SegmentWriter — dropping a provisional group prunes orphaned AOIs', 
     const sIdx = data.stimuli.data.findIndex(r => r[0] === 'S')
     const p2Idx = data.participants.data.findIndex(r => r[0] === 'P2')
 
-    expect(data.aois.data[sIdx]).toEqual([['bar']])
+    // Ingest bakes the default color by name-sorted rank; 'bar' is the sole
+    // surviving AOI, so it takes the first palette color.
+    expect(data.aois.data[sIdx]).toEqual([['bar', 'bar', DEFAULT_AOI_COLORS[0]]])
     const reader = new BinaryBufferReader(data.segments)
     let p2Count = 0
     reader.forEachSegment(sIdx, p2Idx, () => {
@@ -84,7 +89,9 @@ describe('SegmentWriter — dropping a provisional group prunes orphaned AOIs', 
       count++
     })
     expect(count).toBe(1)
-    expect(data.aois.data[sIdx]).toEqual([['bar']])
+    // Ingest bakes the default color by name-sorted rank; 'bar' is the sole
+    // surviving AOI, so it takes the first palette color.
+    expect(data.aois.data[sIdx]).toEqual([['bar', 'bar', DEFAULT_AOI_COLORS[0]]])
   })
 
   it('leaves AOIs untouched when nothing is dropped', () => {

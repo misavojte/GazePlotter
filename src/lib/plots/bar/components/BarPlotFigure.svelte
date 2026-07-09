@@ -8,6 +8,7 @@
     NO_MARGINS,
     fillPlotAreaBackground,
     canvasBlockSelect,
+    niceTimelineTicks,
     valueAxisTicks,
     type CanvasExportProps,
     type PlotFrame,
@@ -18,8 +19,15 @@
     truncateTextToPixelWidth,
     measureTextHeight,
   } from '$lib/shared/utils/textUtils'
-  import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
-  import { METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
+  import {
+    alignToPixelCenter,
+    fillCrosshairBand,
+    strokeCrosshairGuides,
+  } from '$lib/plots/shared/canvasUtils'
+  import {
+    METRIC_MISSING_MESSAGE,
+    cannotFitPlaceholder,
+  } from '$lib/plots/shared/drawCanvasPlaceholder'
   import type { StatisticalOverlayType, BarPlotDataItem } from '$lib/plots/bar/types'
   import {
     drawOverlayBackgrounds,
@@ -39,11 +47,6 @@
   const MIN_BAR_SPACING = 2
   const LABEL_FONT_SIZE = FONT_PRIMARY.SIZE
   const CATEGORY_LABEL_GAP = 6
-
-  // Crosshair / hover constants
-  const HIGHLIGHT_COLOR = '#007acc'
-  const HIGHLIGHT_FILL_ALPHA = 0.2
-  const HIGHLIGHT_DASH = [2, 2]
 
   interface Props extends CanvasExportProps {
     data: BarPlotDataItem[]
@@ -78,11 +81,7 @@
   }: Props = $props()
 
   const isVertical = $derived(barPlottingType === 'vertical')
-  const niceTicks = $derived(timeline.ticks.filter(t => t.isNice))
-
-  // State
-  let hoveredBarIndex = $state<number | null>(null)
-  let mouseValuePx = $state<number | null>(null)
+  const niceTickLabels = $derived(niceTimelineTicks(timeline).labels ?? [])
 
   const categoryLabelHeight = $derived.by(() => {
     let max = 0
@@ -130,15 +129,27 @@
     dpiOverride: () => dpiOverride,
     deps: () => [data, timeline, axisLabel, barPlottingType, barWidth, barSpacing, statisticalOverlay, noMetric, proportion],
     placeholder: () => (noMetric ? METRIC_MISSING_MESSAGE : null),
+    fit: frame => {
+      if (data.length === 0) return null
+      const minBarWidth = 12
+      const minSpacing = 4
+      const gaps = Math.max(1, data.length - 1)
+      const availableSpace = isVertical ? frame.width : frame.height
+      const usableSpace = Math.max(0, availableSpace - BAR_SPACING_TOLERANCE * 2)
+      if (usableSpace >= data.length * minBarWidth + gaps * minSpacing) return null
+      return cannotFitPlaceholder(isVertical ? 'width' : 'height', [
+        'Merge some AOIs in Plot Settings > Areas of Interest',
+      ])
+    },
     gutters: () =>
       isVertical
         ? {
-            left: { tickLabels: niceTicks.map(t => t.label), title: axisLabel },
+            left: { tickLabels: niceTickLabels, title: axisLabel },
             bottom: { tickLabels: data.map(d => d.label) },
             pad: { top: TICK_LENGTH, right: MARGIN_RIGHT },
           }
         : {
-            bottom: { tickLabels: niceTicks.map(t => t.label), title: axisLabel },
+            bottom: { tickLabels: niceTickLabels, title: axisLabel },
             pad: { top: TICK_LENGTH, left: leftChrome, right: rightChrome },
           },
     drawData: drawBars,
@@ -152,14 +163,8 @@
     },
     drawOverlay: drawCrosshairHighlight,
     hitTest: computeHit,
-    onHoverChange: (hit) => {
-      const next = hit?.data ?? null
-      const changed = (next?.barIndex ?? null) !== hoveredBarIndex
-      hoveredBarIndex = next?.barIndex ?? null
-      mouseValuePx = next?.valuePx ?? null
-      if (changed) onDataHover(next ? data[next.barIndex] : null)
-      return true
-    },
+    hoverKey: d => d.barIndex,
+    onHover: d => onDataHover(d ? data[d.barIndex] : null),
   })
 
   // --- Geometry derived from the resolved data rect ---
@@ -234,7 +239,12 @@
       items,
     }
 
-    return { bars, rendererLayout, fullCategoryWidth }
+    // Dot radius depends only on layout/data (not hover), so compute it here once
+    // and reuse in both the draw and the per-frame hit-test. Proportion mode has
+    // no beeswarm, so skip the density scan.
+    const dotRadius = proportion ? 0 : computeDotStyle(rendererLayout).radius
+
+    return { bars, rendererLayout, fullCategoryWidth, dotRadius }
   })
 
   function drawBars(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
@@ -252,7 +262,7 @@
       drawProportionalBars(ctx, rendererLayout)
     } else {
       drawOverlayBackgrounds(ctx, rendererLayout, statisticalOverlay)
-      drawBeeswarmPoints(ctx, rendererLayout)
+      drawBeeswarmPoints(ctx, rendererLayout, geom.dotRadius)
       drawStatisticalOverlay(ctx, rendererLayout, statisticalOverlay)
     }
     ctx.restore()
@@ -285,50 +295,35 @@
   }
 
   function drawCrosshairHighlight(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
-    if (hoveredBarIndex === null || mouseValuePx === null) return
+    const hovered = plot.hover.data
+    if (hovered === null) return
+    const { barIndex: hoveredBarIndex, valuePx: mouseValuePx } = hovered
     const item = geom.rendererLayout.items[hoveredBarIndex]
     if (!item) return
     const { x: plotLeft, y: plotTop, width: plotWidth, height: plotHeight } = frame
     const halfCat = item.categoryWidth / 2
 
-    ctx.save()
-    ctx.globalAlpha = HIGHLIGHT_FILL_ALPHA
-    ctx.fillStyle = HIGHLIGHT_COLOR
     if (isVertical) {
-      ctx.fillRect(item.categoryCenter - halfCat, plotTop, item.categoryWidth, plotHeight)
-    } else {
-      ctx.fillRect(plotLeft, item.categoryCenter - halfCat, plotWidth, item.categoryWidth)
-    }
-    ctx.restore()
-
-    ctx.save()
-    ctx.strokeStyle = HIGHLIGHT_COLOR
-    ctx.lineWidth = 1
-    ctx.setLineDash(HIGHLIGHT_DASH)
-    ctx.beginPath()
-    if (isVertical) {
+      fillCrosshairBand(ctx, item.categoryCenter - halfCat, plotTop, item.categoryWidth, plotHeight, 0.2)
       const left = alignToPixelCenter(item.categoryCenter - halfCat)
       const right = alignToPixelCenter(item.categoryCenter + halfCat)
-      ctx.moveTo(left, plotTop)
-      ctx.lineTo(left, plotTop + plotHeight)
-      ctx.moveTo(right, plotTop)
-      ctx.lineTo(right, plotTop + plotHeight)
       const y = alignToPixelCenter(mouseValuePx)
-      ctx.moveTo(plotLeft, y)
-      ctx.lineTo(plotLeft + plotWidth, y)
+      strokeCrosshairGuides(ctx, [
+        left, plotTop, left, plotTop + plotHeight,
+        right, plotTop, right, plotTop + plotHeight,
+        plotLeft, y, plotLeft + plotWidth, y,
+      ])
     } else {
+      fillCrosshairBand(ctx, plotLeft, item.categoryCenter - halfCat, plotWidth, item.categoryWidth, 0.2)
       const top = alignToPixelCenter(item.categoryCenter - halfCat)
       const bottom = alignToPixelCenter(item.categoryCenter + halfCat)
-      ctx.moveTo(plotLeft, top)
-      ctx.lineTo(plotLeft + plotWidth, top)
-      ctx.moveTo(plotLeft, bottom)
-      ctx.lineTo(plotLeft + plotWidth, bottom)
       const x = alignToPixelCenter(mouseValuePx)
-      ctx.moveTo(x, plotTop)
-      ctx.lineTo(x, plotTop + plotHeight)
+      strokeCrosshairGuides(ctx, [
+        plotLeft, top, plotLeft + plotWidth, top,
+        plotLeft, bottom, plotLeft + plotWidth, bottom,
+        x, plotTop, x, plotTop + plotHeight,
+      ])
     }
-    ctx.stroke()
-    ctx.restore()
   }
 
   // --- Hover / tooltip ---
@@ -392,7 +387,9 @@
       { key: 'Value', value: fmt(mouseValue) },
     ]
 
-    const tolerance = computeDotStyle(layout).radius
+    // Dot radius is computed once in `geom` (stable between full renders), not
+    // re-derived here — this hit-test runs at frame rate during hover.
+    const tolerance = geom.dotRadius
     const values = dataItem.individualValues
     const names = dataItem.individualParticipantNames
     if (values && names && values.length > 0) {

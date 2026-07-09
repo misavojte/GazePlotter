@@ -2,29 +2,23 @@
 
 The Scanpath plot provides a 2D spatial visualization of a participant's gaze trajectory directly overlaid on top of the stimulus image. It displays fixations as circles (where the circle's radius corresponds to the fixation duration) and saccades as connecting lines, mapping the exact sequence of visual attention.
 
-> Interested on how to operate with plots in general within the workspace? See:
->
-> - [How to move a plot around workspace?](/docs/setup/workspace/#moving-a-plot)
-> - [How to resize a plot?](/docs/setup/workspace/#resizing-a-plot)
-> - [How to duplicate a plot?](/docs/setup/workspace/#duplicating-a-plot)
-> - [How to add a new plot?](/docs/setup/workspace/#adding-visualizations)
-> - [How to remove a plot?](/docs/setup/workspace/#removing-a-plot)
+> **Plot Operations**: For general canvas operations (moving, resizing, duplicating, or removing plots), see [Plot Manipulation](/docs/workspace/#plot-manipulation).
 
 ## Metric Contract
 
 - **Metric Contract**: This visualization renders spatial coordinates directly and does not consume metrics from the Metric Library.
 
-## Configuration via Settings Pane
+## Configuration via Pane
 
-Clicking the Scanpath plot card in the workspace selects the plot and opens its configuration options in the sidebar **Settings Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
+Clicking the Scanpath plot card in the workspace selects the plot and opens its configuration options in the sidebar **Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
 
 ### Stimulus
 Select the stimulus on which to overlay the scanpath. The stimulus dimensions and image will serve as the background for the 2D coordinate plot.
-- **Edit stimulus library…**: Opens the Stimuli Modification modal to manage stimulus files and backgrounds.
+- **Edit stimulus library…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files.
 
 ### Participant
 Select the individual participant whose gaze trajectory you want to visualize. The Scanpath plot displays one participant's scanpath at a time.
-- **Edit participants…**: Opens the Participant Modification modal to customize participant properties and metadata.
+- **Edit participants…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename or reorder participants.
 
 ### Display
 Configure the visual annotations rendered on the spatial overlay.
@@ -33,20 +27,15 @@ Configure the visual annotations rendered on the spatial overlay.
 
 ### Areas of Interest
 Filters which Areas of Interest (AOIs) are overlaid on the stimulus. AOIs are rendered as translucent colored shapes on top of the background.
-- **Configure AOI Library…**: Opens the AOI Modification modal to add, remove, reshape, rename, or color-code AOIs.
+- **Configure AOI Library…**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, and shapes.
 
 ### Export
-Located at the bottom of the Settings Pane:
-- **Download plot…**: Opens the export modal to download the spatial plot.
-  - *File formats*: PNG (recommended) or JPG.
-  - *Dimensions*: Customizable width (height calculated automatically to match stimulus aspect ratio).
-  - *Quality*: Adjustable DPI setting.
-  - *Margins*: Configurable margins.
-  - *Preview*: Live render of the output before saving.
+Located at the bottom of the Pane:
+- **Download plot…**: Opens the [Figure Export](/docs/export/figures/) dialog to save the 2D scanpath plot as a PNG or JPG.
 
 ## Interpretation
 
 Use the Scanpath plot to:
 - **Analyze spatial trajectory**: See exactly where a participant looked and trace the path they took through the stimulus.
 - **Observe duration density**: Identify regions of sustained visual processing based on larger fixation circles.
-- **Verify AOI alignment**: Check if a participant's fixations landed precisely within target boundaries or hovered around edges.
+- **Verify AOI alignment**: Check if a participant's fixations landed precisely within target boundaries or hovered around edges.

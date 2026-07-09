@@ -1,6 +1,10 @@
 import { type DataType, type ExtendedInterpretedDataType } from '$lib/data/types'
 import { EventBufferReader, EVENT_STRIDE } from '$lib/data/binary'
 import { groupByDisplayedName } from '$lib/data/engine/utils/grouping'
+import {
+  getDefaultEventChannelColor,
+  interpretRow,
+} from '$lib/data/engine/utils/interpreters'
 import { INTERVAL_CHANNEL_MARKER } from '$lib/data/engine/eventIntervals'
 import type { ExportNaming } from '../types'
 import {
@@ -73,17 +77,12 @@ function resolveEventChannels(
     if (hiddenSet?.has(id)) continue
     const def = defs[id]
     if (!def) continue
-    channels.push({
-      id,
-      originalName: def[0] ?? '',
-      displayedName: def[1] ?? def[0] ?? '',
-      color: def[2] ?? '#888888',
-    })
+    channels.push(interpretRow(def, id, getDefaultEventChannelColor))
   }
 
   // Label by the resolved displayed name exactly as the scarf legend and the
-  // AOI/category exporters do (def[1] ?? def[0] ?? ''): an explicitly cleared
-  // displayed name stays empty rather than falling back to the original.
+  // AOI/category exporters do (interpretRow's shared rule): an explicitly
+  // cleared displayed name stays empty rather than falling back to the original.
   return groupByDisplayedName(channels).map(group => ({
     name: group.displayedName,
     memberIds: group.memberIds,
@@ -98,6 +97,7 @@ function resolveEventChannels(
 function convertEventData(
   data: DataType,
   stimulusIds?: Set<string>,
+  participantIds?: Set<string>,
   naming: ExportNaming = 'displayed'
 ): EventCsvRow[] {
   const result: EventCsvRow[] = []
@@ -119,13 +119,18 @@ function convertEventData(
     const channels = resolveEventChannels(data, stimulusIndex, displayed)
     if (channels.length === 0) continue
 
-    const stimulusName = data.stimuli.data[stimulusIndex][0]
+    const stimulusName = displayed
+      ? (data.stimuli.data[stimulusIndex][1] ?? data.stimuli.data[stimulusIndex][0])
+      : data.stimuli.data[stimulusIndex][0]
 
     for (
       let participantIndex = 0;
       participantIndex < participantCount;
       participantIndex++
     ) {
+      // id is index, mirroring the stimulus filter above
+      if (participantIds && !participantIds.has(participantIndex.toString()))
+        continue
       const occurrences: { event: string; start: number; duration: number }[] =
         []
 
@@ -152,7 +157,9 @@ function convertEventData(
         (a, b) => a.start - b.start || a.event.localeCompare(b.event)
       )
 
-      const participantName = data.participants.data[participantIndex][0]
+      const participantName = displayed
+        ? (data.participants.data[participantIndex][1] ?? data.participants.data[participantIndex][0])
+        : data.participants.data[participantIndex][0]
       for (const occurrence of occurrences) {
         result.push({
           stimulus: stimulusName,
@@ -174,11 +181,12 @@ function convertEventData(
 export function generateEventUnifiedCsv(
   data: DataType,
   stimulusIds?: Set<string>,
+  participantIds?: Set<string>,
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed'
 ): string {
   const { decimalSeparator } = resolveCsvFormatOptions(options)
-  const rows = convertEventData(data, stimulusIds, naming).map(item => [
+  const rows = convertEventData(data, stimulusIds, participantIds, naming).map(item => [
     item.stimulus,
     item.participant,
     item.event,
@@ -196,11 +204,12 @@ export function generateEventUnifiedCsv(
 export function generateEventBatchCsv(
   data: DataType,
   stimulusIds?: Set<string>,
+  participantIds?: Set<string>,
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed'
 ): Array<{ fileName: string; content: string }> {
   const { decimalSeparator } = resolveCsvFormatOptions(options)
-  const csvPreData = convertEventData(data, stimulusIds, naming)
+  const csvPreData = convertEventData(data, stimulusIds, participantIds, naming)
 
   const results: Array<{ fileName: string; content: string }> = []
 

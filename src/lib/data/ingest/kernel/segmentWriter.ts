@@ -1,11 +1,15 @@
-import { SEGMENT_STRIDE, SegmentField } from '$lib/data/binary'
+import {
+  FIXATION_CATEGORY_ID,
+  SEGMENT_STRIDE,
+  SegmentField,
+} from '$lib/data/binary'
 import type { DataType } from '$lib/data/types'
 import { DEFAULT_NO_AOI_TREATMENT } from '$lib/data/types'
-import { createDefaultMetricInstances } from '$lib/metrics/instances'
 import type { SegmentRow } from '../types'
 import type { TextEncoding } from '$lib/data/ingest/utils/byteUtils'
 import { decodeBytes, encodeString } from '$lib/data/ingest/utils/byteUtils'
 import { ByteDictionary } from '$lib/data/ingest/utils/byteDictionary'
+import { getDefaultColor } from '$lib/data/engine/utils/interpreters'
 
 /** Bucket lifecycle states. See `SegmentBucket.state`. */
 const BUCKET_AUTO = 0
@@ -150,11 +154,14 @@ class SegmentBucket {
  * the final binary `DataType`. The segment backend of `DatasetSink`.
  */
 export class SegmentWriter {
-  // Metadata
+  // Metadata. Names are decoded ONCE at intern time with the decoder of the
+  // file that introduced them — `this.decoder` is mutable per file, so
+  // deferring decode to buildFinalData would read every earlier file's bytes
+  // with the LAST file's encoding (mojibake on mixed-encoding uploads).
   private stimuli = new ByteDictionary()
   private participants = new ByteDictionary()
-  private stimuliBytes: Uint8Array[] = []
-  private participantBytes: Uint8Array[] = []
+  private stimuliNames: string[] = []
+  private participantNames: string[] = []
 
   // Eye-movement categories, interned by DECODED NAME so `categories.data`
   // reflects the types actually present (no phantom "Saccade" for fixation-only
@@ -169,7 +176,7 @@ export class SegmentWriter {
 
   // AOI Mapping
   private aoiMaps: ByteDictionary[] = []
-  private aoisPerStimulus: Uint8Array[][] = []
+  private aoiNamesPerStimulus: string[][] = []
 
   // Data Storage
   private buckets: SegmentBucket[][] = []
@@ -234,27 +241,21 @@ export class SegmentWriter {
     aoi: Uint8Array[] | null,
     spatial?: { x: number; y: number } | null
   ): void {
-    const sIdx = this.getOrAddBytes(
-      this.stimuli,
-      stimulus,
-      this.stimuliBytes,
-      true
-    )
-    const pIdx = this.getOrAddBytes(
+    const sIdx = this.internName(this.stimuli, stimulus, this.stimuliNames, true)
+    const pIdx = this.internName(
       this.participants,
       participant,
-      this.participantBytes
+      this.participantNames
     )
 
     let aoiIds: number[] | null = null
     if (aoi && aoi.length > 0) {
       aoiIds = []
       const map = this.aoiMaps[sIdx]
-      const list = this.aoisPerStimulus[sIdx]
+      const names = this.aoiNamesPerStimulus[sIdx]
 
       for (let i = 0; i < aoi.length; i++) {
-        const nameBytes = aoi[i]
-        const id = this.getOrAddBytes(map, nameBytes, list)
+        const id = this.internName(map, aoi[i], names)
         aoiIds.push(id)
       }
       this.totalAoiHits += aoiIds.length
@@ -281,16 +282,11 @@ export class SegmentWriter {
    * COLD PATH — once per gated group, never per row.
    */
   beginProvisionalGroup(stimulus: Uint8Array, participant: Uint8Array): number {
-    const sIdx = this.getOrAddBytes(
-      this.stimuli,
-      stimulus,
-      this.stimuliBytes,
-      true
-    )
-    const pIdx = this.getOrAddBytes(
+    const sIdx = this.internName(this.stimuli, stimulus, this.stimuliNames, true)
+    const pIdx = this.internName(
       this.participants,
       participant,
-      this.participantBytes
+      this.participantNames
     )
     if (!this.buckets[sIdx]) this.buckets[sIdx] = []
     let bucket = this.buckets[sIdx][pIdx]
@@ -346,11 +342,8 @@ export class SegmentWriter {
   }
 
   buildFinalData(): DataType {
-    this.stimuliBytes = this.stimuli.getValues()
-    this.participantBytes = this.participants.getValues()
-
-    const maxParticipants = this.participantBytes.length
-    const maxStimuli = this.stimuliBytes.length
+    const maxParticipants = this.participantNames.length
+    const maxStimuli = this.stimuliNames.length
 
     // Data integrity check: ensure we have at least one stimulus and one participant
     if (maxStimuli === 0 || maxParticipants === 0) {
@@ -368,6 +361,10 @@ export class SegmentWriter {
     const finalSegBuffer = new Float32Array(this.totalSegments * SEGMENT_STRIDE)
     const aoiPool = new Uint16Array(this.totalAoiHits)
     const indexTable = new Uint32Array(maxStimuli * maxParticipants * 2)
+    // Fixation-only index, emitted inline (totalSegments is an upper bound,
+    // trimmed below) — sparing the reader its two-pass back-fill scan.
+    const fixationIndex = new Uint32Array(this.totalSegments)
+    const fixationIndexTable = new Uint32Array(maxStimuli * maxParticipants * 2)
 
     /* Spatial buffer allocation: check if any buckets have spatial data */
     let hasSpatialData = false
@@ -392,6 +389,7 @@ export class SegmentWriter {
     let segPtr = 0
     let poolPtr = 0
     let spatialPtr = 0
+    let fixPtr = 0
 
     // Half-open [start, end) range of `aoiPool` written for each stimulus, so
     // the unreferenced-AOI prune below can scan exactly that stimulus's hits.
@@ -416,6 +414,7 @@ export class SegmentWriter {
 
         const tableIdx = (s * maxParticipants + p) * 2
         indexTable[tableIdx] = segPtr
+        fixationIndexTable[tableIdx] = fixPtr
 
         // A. Sort Indices locally
         const indices = bucket.getSortedIndices()
@@ -470,6 +469,8 @@ export class SegmentWriter {
             finalSegBuffer[outBase + SegmentField.AOI_POINTER] = poolPtr
             finalSegBuffer[outBase + SegmentField.AOI_COUNT] = aoiCount // Initial count
 
+            if (cat === FIXATION_CATEGORY_ID) fixationIndex[fixPtr++] = segPtr
+
             // Copy AOIs
             if (aoiCount > 0) {
               const offset = bAoiOffsets[idx]
@@ -499,6 +500,7 @@ export class SegmentWriter {
         }
 
         indexTable[tableIdx + 1] = segPtr
+        fixationIndexTable[tableIdx + 1] = fixPtr
       }
 
       aoiRangeEnd[s] = poolPtr
@@ -510,26 +512,26 @@ export class SegmentWriter {
     // skipped above, leaving names that no remaining segment points at. Keep
     // only AOIs actually referenced in each stimulus's pool range and remap the
     // pool ids to the compacted (original-order) list.
-    const prunedAoisPerStimulus: Uint8Array[][] = []
+    const prunedAoiNamesPerStimulus: string[][] = []
     for (let s = 0; s < maxStimuli; s++) {
-      const fullList = this.aoisPerStimulus[s] ?? []
-      const used = new Uint8Array(fullList.length)
+      const fullNames = this.aoiNamesPerStimulus[s] ?? []
+      const used = new Uint8Array(fullNames.length)
       for (let i = aoiRangeStart[s]; i < aoiRangeEnd[s]; i++) used[aoiPool[i]] = 1
 
-      const remap = new Int32Array(fullList.length)
-      const pruned: Uint8Array[] = []
-      for (let id = 0; id < fullList.length; id++) {
+      const remap = new Int32Array(fullNames.length)
+      const pruned: string[] = []
+      for (let id = 0; id < fullNames.length; id++) {
         if (used[id]) {
           remap[id] = pruned.length
-          pruned.push(fullList[id])
+          pruned.push(fullNames[id])
         }
       }
-      if (pruned.length !== fullList.length) {
+      if (pruned.length !== fullNames.length) {
         for (let i = aoiRangeStart[s]; i < aoiRangeEnd[s]; i++) {
           aoiPool[i] = remap[aoiPool[i]]
         }
       }
-      prunedAoisPerStimulus.push(pruned)
+      prunedAoiNamesPerStimulus.push(pruned)
     }
 
     // Natural sort comparator that handles numeric sequences correctly (2, 3, ..., 10 instead of 10, 2, 3, ...)
@@ -556,37 +558,32 @@ export class SegmentWriter {
       return 0
     }
 
-    // Create naturally sorted order vectors
+    // Create naturally sorted order vectors (names were decoded at intern time)
+    const stimuliNames = this.stimuliNames
+    const participantNames = this.participantNames
+
     const stimuliOrderVector: number[] = Array.from(
-      { length: this.stimuliBytes.length },
+      { length: stimuliNames.length },
       (_, i) => i
     )
     stimuliOrderVector.sort((a, b) =>
-      naturalSort(
-        decodeBytes(this.stimuliBytes[a], this.decoder),
-        decodeBytes(this.stimuliBytes[b], this.decoder)
-      )
+      naturalSort(stimuliNames[a], stimuliNames[b])
     )
 
     const participantsOrderVector: number[] = Array.from(
-      { length: this.participantBytes.length },
+      { length: participantNames.length },
       (_, i) => i
     )
     participantsOrderVector.sort((a, b) =>
-      naturalSort(
-        decodeBytes(this.participantBytes[a], this.decoder),
-        decodeBytes(this.participantBytes[b], this.decoder)
-      )
+      naturalSort(participantNames[a], participantNames[b])
     )
 
-    const aoisOrderVectors = prunedAoisPerStimulus.map(list => {
-      const indices: number[] = Array.from({ length: list.length }, (_, i) => i)
-      indices.sort((a, b) =>
-        naturalSort(
-          decodeBytes(list[a], this.decoder),
-          decodeBytes(list[b], this.decoder)
-        )
+    const aoisOrderVectors = prunedAoiNamesPerStimulus.map(names => {
+      const indices: number[] = Array.from(
+        { length: names.length },
+        (_, i) => i
       )
+      indices.sort((a, b) => naturalSort(names[a], names[b]))
       return indices
     })
 
@@ -598,26 +595,47 @@ export class SegmentWriter {
         event: false,
       },
       stimuli: {
-        data: this.stimuliBytes.map(v => [decodeBytes(v, this.decoder)]),
+        data: stimuliNames.map(name => [name]),
         orderVector: stimuliOrderVector,
       },
       participants: {
-        data: this.participantBytes.map(v => [decodeBytes(v, this.decoder)]),
+        data: participantNames.map(name => [name]),
         orderVector: participantsOrderVector,
       },
       participantsGroups: [],
-      metricInstances: createDefaultMetricInstances(),
+      // Deliberately empty: starter seeding happens on the MAIN thread
+      // (IngestService.handleDone) so the worker never bundles the metric
+      // registry. Fresh datasets are the only thing this writer produces, so
+      // the seam is unconditional there.
+      metricInstances: [],
       categories: { data: this.buildCategoriesData(), orderVector: [] },
       aois: {
-        data: prunedAoisPerStimulus.map(list =>
-          list.map(a => [decodeBytes(a, this.decoder)])
-        ),
+        // Assign each AOI its default color by its NAME-SORTED rank rather than
+        // its encounter-order id, so the color sequence follows the order AOIs
+        // are displayed in (orderVector is the same natural-sort): the
+        // alphabetically-first AOI gets the first palette color, and so on.
+        // Baked here at ingest ("upon upload") so the color stays with the AOI
+        // even if the user later reorders the list.
+        data: prunedAoiNamesPerStimulus.map((names, sIdx) => {
+          const order = aoisOrderVectors[sIdx]
+          const colorRankById = new Array<number>(names.length)
+          for (let rank = 0; rank < order.length; rank++) {
+            colorRankById[order[rank]] = rank
+          }
+          return names.map((name, id) => [
+            name,
+            name,
+            getDefaultColor(colorRankById[id]),
+          ])
+        }),
         orderVector: aoisOrderVectors,
         hiddenAois: [],
       },
       segments: {
         segmentBuffer: finalSegBuffer.subarray(0, segPtr * SEGMENT_STRIDE),
         indexTable,
+        fixationIndex: fixationIndex.subarray(0, fixPtr),
+        fixationIndexTable,
         aoiPool: aoiPool.subarray(0, poolPtr),
         hasSpatialData,
         spatialBuffer: spatialBuffer
@@ -646,17 +664,19 @@ export class SegmentWriter {
     return this.categoryNames.map(name => [name])
   }
 
-  private getOrAddBytes(
+  private internName(
     map: ByteDictionary,
     name: Uint8Array,
-    list: Uint8Array[],
-    isStim = false
+    names: string[],
+    isStimulus = false
   ): number {
     const idx = map.getId(name)
-    if (idx === list.length) {
-      list.push(name)
-      if (isStim) {
-        this.aoisPerStimulus.push([])
+    if (idx === names.length) {
+      // Cold path (once per unique name): decode with the current file's
+      // decoder so the string is fixed before a later file swaps encodings.
+      names.push(decodeBytes(name, this.decoder))
+      if (isStimulus) {
+        this.aoiNamesPerStimulus.push([])
         this.aoiMaps.push(new ByteDictionary())
       }
     }

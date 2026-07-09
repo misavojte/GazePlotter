@@ -47,7 +47,7 @@
     onrenameInstance,
   }: Props = $props()
 
-  const { engine, modalState } = getGazePlotterSession()
+  const { engine, workspace, modalState } = getGazePlotterSession()
 
   const METRICS = engine.metadata?.metricInstances ?? []
   const instances = $derived(
@@ -82,7 +82,7 @@
       const toGlobal = indices[to]
       const [item] = all.splice(fromGlobal, 1)
       all.splice(toGlobal, 0, item)
-      engine.setMetricInstances(all)
+      workspace.updateMetricInstances(all, 'metricLibrary.reorder')
     },
   })
 
@@ -223,15 +223,16 @@
   .metric-card {
     border: 1px solid var(--c-border);
     border-radius: var(--rounded-md);
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+    box-shadow: var(--shadow-sm);
     background: var(--c-darkwhite);
     overflow: hidden;
-  }
-  .metric-card.dragging {
-    opacity: 0.3;
-    border-style: dashed;
-    border-color: var(--c-midgrey);
-    box-shadow: none;
+
+    &.dragging {
+      opacity: 0.3;
+      border-style: dashed;
+      border-color: var(--c-midgrey);
+      box-shadow: none;
+    }
   }
 
   .card-row {

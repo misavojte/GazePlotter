@@ -8,12 +8,14 @@
 /**
  * Constants for binary buffer layout
  */
-export const SEGMENT_STRIDE = 6 as const // Fields per segment in master buffer
+export const SEGMENT_STRIDE = 5 as const // Fields per segment in master buffer
 
 export const FIXATION_CATEGORY_ID = 0 as const // Category ID reserved for fixations
 
 /**
- * Indices for segment fields in the master buffer (stride = 6)
+ * Indices for segment fields in the master buffer (stride = SEGMENT_STRIDE).
+ * A segment's participant-local id is derivable (`i - range.startIndex`), so
+ * it is not stored.
  */
 export const enum SegmentField {
   START_TIME = 0,
@@ -21,7 +23,6 @@ export const enum SegmentField {
   CATEGORY_ID = 2,
   AOI_COUNT = 3,
   AOI_POINTER = 4,
-  SEGMENT_ID = 5,
 }
 
 /**
@@ -42,8 +43,9 @@ export interface BinarySegmentBuffers {
   /**
    * Flat list of segment indices where CATEGORY_ID === 0 (fixations only).
    * Lets hot loops iterate fixations directly without paying a per-segment
-   * category-check on saccades/blinks. Built by `jsonSegmentsToBinary`;
-   * back-filled by the reader if absent (legacy workspaces).
+   * category-check on saccades/blinks. Built by `jsonSegmentsToBinary` and
+   * the ingest `SegmentWriter`; back-filled by the reader if absent
+   * (hand-built buffers).
    */
   fixationIndex?: Uint32Array
 
@@ -135,20 +137,3 @@ export interface BinaryEventBuffers {
   stimuliCount: number
 }
 
-/**
- * Builder for constructing binary segment buffers incrementally.
- */
-export interface BinarySegmentBuilder {
-  addSegment(
-    stimulusId: number,
-    participantId: number,
-    startTime: number,
-    endTime: number,
-    categoryId: number,
-    aoiIds: number[],
-    segmentId: number,
-    spatial?: { x: number; y: number } | null
-  ): void
-
-  build(): BinarySegmentBuffers
-}

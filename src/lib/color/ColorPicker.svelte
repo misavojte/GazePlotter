@@ -255,7 +255,7 @@
     transform: translate(-50%, -50%);
     border: 2px solid white;
     border-radius: 50%;
-    box-shadow: 0 0 2px rgba(0, 0, 0, 0.6);
+    box-shadow: var(--shadow-sm);
     pointer-events: none;
   }
 
@@ -268,7 +268,7 @@
     height: 12px;
     -webkit-appearance: none;
     appearance: none;
-    border-radius: 4px;
+    border-radius: var(--rounded);
     background: linear-gradient(
       to right,
       #f00 0%,
@@ -290,7 +290,7 @@
     height: 16px;
     border-radius: 2px;
     background: white;
-    border: 1px solid #ccc;
+    border: 1px solid var(--c-border);
     cursor: pointer;
   }
 
@@ -299,14 +299,14 @@
     height: 16px;
     border-radius: 2px;
     background: white;
-    border: 1px solid #ccc;
+    border: 1px solid var(--c-border);
     cursor: pointer;
   }
 
   .color-preview-container {
     width: 100%;
     height: 28px;
-    border-radius: 4px;
+    border-radius: var(--rounded);
     margin-bottom: 6px;
     display: flex;
     align-items: center;
@@ -336,14 +336,14 @@
   .palette-color {
     width: 16px;
     height: 16px;
-    border-radius: 3px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: var(--rounded);
+    border: 1px solid var(--c-border);
     cursor: pointer;
     transition: transform var(--transition-fast);
     padding: 0;
-  }
 
-  .palette-color:hover {
-    transform: scale(1.1);
+    &:hover {
+      transform: scale(1.1);
+    }
   }
 </style>

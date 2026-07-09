@@ -1,8 +1,3 @@
----
-title: Event Data
-order: 9
----
-
 # Event data
 
 GazePlotter supports the upload of event data files that add time-based information layers to scarf plots. Event channels represent temporal intervals — for example, dynamic AOI visibility periods — and are rendered as colored lines beneath each participant's gaze sequence.
@@ -14,7 +9,7 @@ Event data can be exported from the following eye-tracking platforms:
 - **[SMI BeGaze](/docs/upload-data/smi-begaze/)** — XML export from the AOI Editor
 - **[Tobii Pro Lab](/docs/upload-data/tobii-pro-lab/)** — JSON export from the AOI tab
 
-Additionally, GazePlotter accepts a **Custom CSV** format for manual event definitions. See [Custom CSV event format](#custom-csv-event-format) below.
+Additionally, GazePlotter accepts a **Custom CSV** format for manual event definitions. See [Custom CSV event format](#custom-csv-event-format) below. GazePlotter's own [Event Data export](/docs/export/event-data/) produces this format, so a single-file event export can be re-imported alongside its eye-tracking data.
 
 ### Exporting from SMI BeGaze
 
@@ -86,6 +81,6 @@ Custom CSV event files can be uploaded together with SMI or Tobii event files in
 
 ## After uploading
 
-Event channels appear as colored lines in the scarf plot beneath each participant's gaze row. To modify event channel names, colors, ordering, or visibility, use **Event customization** from the scarf plot menu. See [Event Library](/docs/setup/event-library/) for details.
+Event channels appear as colored lines in the scarf plot beneath each participant's gaze row. To modify event channel names, colors, ordering, or visibility, use **Event customization** from the scarf plot menu. See [Event Library](/docs/workspace/event-library/) for details.
 
 > **Note**: When multiple event files target the same stimulus, channels with the same name are merged — their event buffers are concatenated per participant rather than overwritten.

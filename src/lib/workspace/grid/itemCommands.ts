@@ -49,21 +49,6 @@ export function getGridItemMinimumSize(
   }
 }
 
-export function commitGridItemMove(
-  workspace: WorkspaceGridCommands,
-  items: AllGridTypes[],
-  commit: GridMoveCommit
-): boolean {
-  const item = findGridItem(items, commit.id)
-  if (!item) return false
-
-  return workspace.updateItemLayout(
-    item.id,
-    { x: commit.x, y: commit.y },
-    getGridItemCommandSource(item)
-  )
-}
-
 export function commitGridItemGroupMove(
   workspace: WorkspaceGridCommands,
   items: AllGridTypes[],

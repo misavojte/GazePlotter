@@ -29,9 +29,9 @@ body > div {
   --c-midgrey: #cbd5e1;
   --c-darkgrey: #64748b; /* Slate 500 */
   --c-text: #1e293b; /* Slate 800 for better readability */
-  /* Modern border color to match the docs - updated to Slate 300 for definition */
-  --c-border: #cbd5e1;
   --c-black: #0f172a; /* Slate 900 as suggested by user */
+  /* Modern border color: translucent slate 900 for a delicate, premium feel */
+  --c-border: color-mix(in srgb, var(--c-black) 10%, transparent);
 
   --c-error: #ff4d4f;
   --c-success: #22c55e;
@@ -41,7 +41,7 @@ body > div {
   --rounded: 4px;
   --rounded-md: 8px;
   --rounded-lg: 20px;
-  --menu-border-color: #cbd5e1;
+  --menu-border-color: var(--c-border);
   --menu-border-width: 1px;
 
   --transition-fast: 120ms;

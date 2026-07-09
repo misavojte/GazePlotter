@@ -44,6 +44,9 @@ defineMetric({
   measurementClass: 'extensive',
   searchTags: ['fixation', 'count', 'number', 'fix', 'aoi'],
   params: [] as const,
+  // Declares what onFixation does: counts by midpoint membership (see
+  // MetricRecipe.accumulation) — windowing runs fused.
+  accumulation: 'midpointCount',
   init: ({ slots }) => new Float64Array(slots.totalSlots),
   onFixation: (acc, { frame, slots }, { slots: info }) => {
     // Window membership uses the SW-RQA convention: a fixation belongs to

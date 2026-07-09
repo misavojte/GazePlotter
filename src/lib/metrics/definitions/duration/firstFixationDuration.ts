@@ -45,6 +45,7 @@ defineMetric({
   measurementClass: 'intensive',
   searchTags: ['first', 'fixation', 'duration', 'ttf', 'aoi'],
   params: [] as const,
+  accumulation: 'stateful',
   init: ({ slots }) => new Array<number>(slots.totalSlots).fill(-1),
   onFixation: (acc, { duration, slots }, { slots: info }) => {
     if (acc[info.anyFixationSlot] === -1) acc[info.anyFixationSlot] = duration

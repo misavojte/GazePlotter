@@ -1,50 +1,26 @@
 import { describe, it, expect } from 'vitest'
-import { createReaderFromJson } from '../src/lib/data/binary/converters'
+import { makeTestEngine } from './helpers/testEngine'
 import { getBarPlotData } from '../src/lib/plots/bar/core/transformer'
 import { createDefaultMetricInstances } from '../src/lib/metrics/instances'
 
 const ABSOLUTE_TIME_INSTANCE_ID = 'absoluteTime'
 
 function createMockEngine(segments: number[][][][]) {
-  const reader = createReaderFromJson(segments)
-
-  return {
-    metadata: {
-      isOrdinalOnly: false,
-      capabilities: {
-        segmented: true,
-        spatial: false,
-        event: false,
-      },
-      aois: {
-        data: [
-          [
-            ['AOI A', 'AOI A', 'red'],
-            ['AOI B', 'AOI B', 'blue'],
-          ],
-        ],
-        orderVector: [[]],
-        hiddenAois: [[]],
-      },
-      categories: {
-        data: [['Fixation', 'Fixation', '#000000']],
-        orderVector: [],
-      },
-      participants: {
-        data: [['P101', 'Participant 101']],
-        orderVector: [0],
-      },
-      participantsGroups: [],
-      stimuli: {
-        data: [['Stimulus 1', 'Stimulus 1']],
-        orderVector: [0],
-      },
-      noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
-      metricInstances: createDefaultMetricInstances(),
-    },
-    getReader: () => reader,
-    getAoiMapping: (_stimulusId: number, rawId: number) => rawId,
-  }
+  return makeTestEngine(segments, {
+    aoiData: [
+      [
+        ['AOI A', 'AOI A', 'red'],
+        ['AOI B', 'AOI B', 'blue'],
+      ],
+    ],
+    aoiOrderVector: [[]],
+    hiddenAois: [[]],
+    participants: [['P101', 'Participant 101']],
+    participantsOrderVector: [0],
+    stimuli: [['Stimulus 1', 'Stimulus 1']],
+    stimuliOrderVector: [0],
+    metricInstances: createDefaultMetricInstances(),
+  })
 }
 
 describe('Bar Plot Transformer (Integration)', () => {

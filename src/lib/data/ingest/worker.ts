@@ -69,14 +69,45 @@ const nextSourceName = (): string => {
   return name
 }
 
+/**
+ * Rebuild a thrown value into a plain, structured-cloneable Error. A library
+ * error carrying a stream or function reference would make the 'fail'
+ * postMessage itself throw — silently stranding the main thread in 'loading'
+ * (worker-side rejections do not fire `Worker.onerror`).
+ */
+const toCloneableError = (error: unknown): Error => {
+  if (error instanceof Error) {
+    const clean = new Error(error.message)
+    clean.name = error.name
+    if (error.stack) clean.stack = error.stack
+    return clean
+  }
+  if (typeof error === 'string') return new Error(error)
+  try {
+    return new Error(JSON.stringify(error) ?? String(error))
+  } catch {
+    return new Error(String(error))
+  }
+}
+
 const postDoneMessage = (result: IngestResult): void => {
   postProgressMessage(true)
-  // Transfer large binary buffers to avoid costly copies
-  const transferBuffers = [
-    result.data.segments.segmentBuffer.buffer,
-    result.data.segments.indexTable.buffer,
-    result.data.segments.aoiPool.buffer,
-  ]
+  // Transfer ALL large binary buffers — anything left off this list is
+  // structured-cloned (spatialBuffer alone is 2 floats per segment).
+  const { segments } = result.data
+  const transferBuffers: Transferable[] = []
+  for (const view of [
+    segments.segmentBuffer,
+    segments.indexTable,
+    segments.aoiPool,
+    segments.spatialBuffer,
+    segments.fixationIndex,
+    segments.fixationIndexTable,
+  ]) {
+    if (view && !transferBuffers.includes(view.buffer)) {
+      transferBuffers.push(view.buffer)
+    }
+  }
 
   self.postMessage({ type: 'done', result }, { transfer: transferBuffers })
 }
@@ -147,9 +178,11 @@ async function processEvent(e: MessageEvent): Promise<void> {
         return
       }
       default:
-        throw new Error('Unknown const type in worker', data)
+        throw new Error(`Unknown message type in worker: ${String(type)}`, {
+          cause: data,
+        })
     }
   } catch (error) {
-    self.postMessage({ type: 'fail', data: error })
+    self.postMessage({ type: 'fail', data: toCloneableError(error) })
   }
 }

@@ -49,11 +49,21 @@ type SegmentCsvRow = {
 function convertDataStructure(
   data: DataType,
   stimulusIds?: Set<string>,
-  filterFixations: boolean = false,
+  participantIds?: Set<string>,
+  filterCategoryIds?: Set<number> | boolean,
   naming: ExportNaming = 'displayed'
 ): SegmentCsvRow[] {
   const result: SegmentCsvRow[] = []
   const displayed = naming !== 'raw'
+
+  let activeCategoryIds: Set<number> | null = null
+  if (typeof filterCategoryIds === 'boolean') {
+    if (filterCategoryIds) {
+      activeCategoryIds = new Set([FIXATION_CATEGORY_ID])
+    }
+  } else if (filterCategoryIds) {
+    activeCategoryIds = filterCategoryIds
+  }
 
   const reader = new BinaryBufferReader(data.segments)
   // Grouping (merge AOIs by displayed name, drop hidden) is a displayed-mode
@@ -73,7 +83,9 @@ function convertDataStructure(
     stimulusIndex < data.segments.stimuliCount;
     stimulusIndex++
   ) {
-    const stimulusName = data.stimuli.data[stimulusIndex][0]
+    const stimulusName = displayed
+      ? (data.stimuli.data[stimulusIndex][1] ?? data.stimuli.data[stimulusIndex][0])
+      : data.stimuli.data[stimulusIndex][0]
     const stimulusId = stimulusIndex.toString() // id is index
 
     if (stimulusIds && !stimulusIds.has(stimulusId)) continue
@@ -83,16 +95,19 @@ function convertDataStructure(
       participantIndex < data.participants.data.length;
       participantIndex++
     ) {
+      // id is index, mirroring the stimulus filter above
+      if (participantIds && !participantIds.has(participantIndex.toString()))
+        continue
       reader.forEachSegment(stimulusIndex, participantIndex, segmentIndex => {
         const start = reader.getSegmentStart(segmentIndex)
         const end = reader.getSegmentEnd(segmentIndex)
         const category = reader.getSegmentCategory(segmentIndex)
 
-        if (filterFixations && category !== FIXATION_CATEGORY_ID) return
+        if (activeCategoryIds && !activeCategoryIds.has(category)) return
 
         let aoiNames: string[] | null
         if (aoiGroupReader && aoiBuffer) {
-          const aoiCount = aoiGroupReader.getSegmentAoisIntoUniqueTyped(
+          const aoiCount = aoiGroupReader.getSegmentAoisUniqueDirect(
             segmentIndex,
             stimulusIndex,
             aoiBuffer
@@ -121,7 +136,9 @@ function convertDataStructure(
 
         result.push({
           stimulus: stimulusName,
-          participant: data.participants.data[participantIndex][0],
+          participant: displayed
+            ? (data.participants.data[participantIndex][1] ?? data.participants.data[participantIndex][0])
+            : data.participants.data[participantIndex][0],
           timestamp: String(start),
           duration: String(end - start),
           eyemovementtype: categoryName(category),
@@ -146,7 +163,8 @@ function convertDataStructure(
 export function generateUnifiedCsv(
   data: DataType,
   stimulusIds?: Set<string>,
-  filterFixations: boolean = false,
+  participantIds?: Set<string>,
+  filterCategoryIds?: Set<number> | boolean,
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed'
 ): string {
@@ -154,7 +172,8 @@ export function generateUnifiedCsv(
   const csvPreData = convertDataStructure(
     data,
     stimulusIds,
-    filterFixations,
+    participantIds,
+    filterCategoryIds,
     naming
   )
   const includeSpatialColumns = data.capabilities.spatial
@@ -199,7 +218,8 @@ export function generateUnifiedCsv(
 export function generateMetadataForBatchCsv(
   data: DataType,
   stimulusIds?: Set<string>,
-  filterFixations: boolean = false,
+  participantIds?: Set<string>,
+  filterCategoryIds?: Set<number> | boolean,
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed'
 ): Array<{ fileName: string; content: string }> {
@@ -207,7 +227,8 @@ export function generateMetadataForBatchCsv(
   const csvPreData = convertDataStructure(
     data,
     stimulusIds,
-    filterFixations,
+    participantIds,
+    filterCategoryIds,
     naming
   )
   const includeSpatialColumns = data.capabilities.spatial

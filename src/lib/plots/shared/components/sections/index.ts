@@ -8,17 +8,8 @@ import EyeMovementSection from './EyeMovementSection.svelte'
 import MetricSection from './MetricSection.svelte'
 import TimelineRangeSection from '../TimelineRangeSection.svelte'
 
-export {
-  StimulusSection,
-  GroupSection,
-  ParticipantSection,
-  AoiSection,
-  EventSection,
-  EyeMovementSection,
-  MetricSection,
-  TimelineRangeSection,
-}
 export { computeCommonValue, editTargets, createBulkContext } from './common'
+export type { BulkContext } from './common'
 
 /**
  * Cross-type-safe shared sections, keyed by canonical section key. The
@@ -34,4 +25,15 @@ export const SHARED_SECTIONS: Record<string, PaneSection> = {
   aoi: AoiSection,
   event: EventSection,
   eyeMovement: EyeMovementSection,
+}
+
+/**
+ * Every section a definition may reference by key — the ONLY home of pane
+ * section components (definitions are data; see `PaneSectionEntry`).
+ * `metric` joins here but stays out of `SHARED_SECTIONS`: its contract is
+ * type-specific, so the mixed-type intersection must not render it.
+ */
+export const PANE_SECTION_COMPONENTS: Record<string, PaneSection> = {
+  ...SHARED_SECTIONS,
+  metric: MetricSection,
 }

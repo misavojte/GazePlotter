@@ -4,7 +4,7 @@ The Source Metadata view shows what was loaded and how it was parsed, plus live 
 
 ## Opening it
 
-Click **Metadata** (the document icon) in the workspace top bar.
+Click **Metadata** (the document icon) in the workspace Ribbon.
 
 ## What it shows
 

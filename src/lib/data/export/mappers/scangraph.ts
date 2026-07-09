@@ -20,11 +20,11 @@ export async function generateScanGraph(
 
   const numParticipants = metadata.participants.data.length
   for (let i = 0; i < numParticipants; i++) {
-    const participantName = metadata.participants.data[i][0]
+    const participantName = metadata.participants.data[i][1] ?? metadata.participants.data[i][0]
     result += participantName + '\t'
 
     reader.forEachSegment(stimulusId, i, (segmentIndex: number) => {
-      const aoiCount = aoiGroupReader.getSegmentAoisIntoUniqueTyped(
+      const aoiCount = aoiGroupReader.getSegmentAoisUniqueDirect(
         segmentIndex,
         stimulusId,
         aoiBuffer

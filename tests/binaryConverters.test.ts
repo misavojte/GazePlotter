@@ -12,7 +12,11 @@ import {
   createReaderFromJson,
 } from '../src/lib/data/binary/converters'
 import { BinaryBufferReader } from '../src/lib/data/binary/reader.segment'
-import { FIXATION_CATEGORY_ID } from '../src/lib/data/binary/schema'
+import {
+  FIXATION_CATEGORY_ID,
+  SEGMENT_STRIDE,
+  SegmentField,
+} from '../src/lib/data/binary/schema'
 
 describe('Binary Converters Roundtrip', () => {
   it('should handle empty segments', () => {
@@ -361,8 +365,8 @@ describe('Binary Converters Roundtrip', () => {
       // Verify each entry points at a category-0 segment.
       const fi = buffers.fixationIndex!
       const sb = buffers.segmentBuffer
-      const STRIDE = 6
-      const CAT = 2
+      const STRIDE = SEGMENT_STRIDE
+      const CAT = SegmentField.CATEGORY_ID
       for (let k = 0; k < fi.length; k++) {
         const i = fi[k]
         expect(sb[i * STRIDE + CAT] | 0).toBe(FIXATION_CATEGORY_ID)

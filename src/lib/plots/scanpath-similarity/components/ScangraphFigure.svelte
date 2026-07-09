@@ -10,14 +10,18 @@
     type PlotFrame,
     type FrameHit,
   } from '$lib/plots/shared'
-  import { METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
+  import {
+    METRIC_MISSING_MESSAGE,
+    cannotFitPlaceholder,
+  } from '$lib/plots/shared/drawCanvasPlaceholder'
   import { SCANGRAPH_LAYOUT } from '../const'
   import type { ScangraphData } from '../types'
-  import { computeForceLayout, type ForceLayoutMargins, type LayoutResult, type NodePosition } from '../core/forceLayout'
+  import { computeForceLayout, type LayoutResult, type NodePosition } from '../core/forceLayout'
 
   const HIGHLIGHT_COLOR = '#e53e3e'
   const HIGHLIGHT_FILL = '#fbbf24'
   const HIGHLIGHT_CONNECTED_STROKE = '#e53e3e'
+  const MIN_NODE_SPACING = 3
 
   interface Props extends CanvasExportProps {
     data: ScangraphData
@@ -44,13 +48,22 @@
     height: () => height,
     margins: () => margins,
     dpiOverride: () => dpiOverride,
-    deps: () => [data, threshold, highlights],
+    deps: () => [data, threshold, highlights, noMetric],
     placeholder: () =>
       noMetric
         ? METRIC_MISSING_MESSAGE
         : (data?.nodes.length ?? 0) === 0
           ? 'No graph data available'
           : null,
+    fit: frame => {
+      const n = data?.nodes.length ?? 0
+      if (n === 0) return null
+      const minDim = Math.min(frame.width, frame.height)
+      if (minDim / (n * 1.2) >= MIN_NODE_SPACING) return null
+      return cannotFitPlaceholder('size', [
+        'Reduce the number of participants in Plot Settings > Participants',
+      ])
+    },
     // The force layout fills the whole canvas and insets nodes by the export
     // margins itself, so the frame's rect (= content area) is used only for the
     // outline + the default blocked region.
@@ -58,10 +71,6 @@
     clipData: false,
     drawData: drawGraph,
     hitTest: computeHit,
-    onHoverChange: (hit) => {
-      hoveredNode = hit?.data ?? null
-      return false // no hover overlay — tooltip only, no redraw
-    },
   })
 
   const nodeRadius = $derived.by(() => {
@@ -83,16 +92,34 @@
     return set
   })
 
-  const forceMargins = $derived<ForceLayoutMargins>({
-    top: margins.top,
-    right: margins.right,
-    bottom: margins.bottom,
-    left: margins.left,
+  // Canonical square the force sim runs in. Fixed so the (expensive) simulation
+  // is independent of the plot's pixel size.
+  const CANON = 1000
+
+  // The 500-iteration O(P²)/iter force simulation, keyed ONLY on `data` — NOT on
+  // width/height/margins. Previously it sat in the same derive as the pixel
+  // mapping, so every resize frame re-ran the full simulation (and re-scattered
+  // the seed, making nodes jump). Now a resize never re-simulates.
+  const normalizedLayout = $derived.by((): LayoutResult => {
+    if (!data || data.nodes.length === 0) return { nodes: [], links: [] }
+    return computeForceLayout(data, CANON, CANON, 500)
   })
 
+  // Cheap O(P) affine map of the canonical positions into the current content
+  // area. Re-runs on resize, but only rescales — positions stay stable (no jump).
   const layoutResult = $derived.by((): LayoutResult => {
-    if (!data || data.nodes.length === 0) return { nodes: [], links: [] }
-    return computeForceLayout(data, width, height, 500, forceMargins)
+    const nl = normalizedLayout
+    if (nl.nodes.length === 0) return nl
+    const contentW = Math.max(1, width - margins.left - margins.right)
+    const contentH = Math.max(1, height - margins.top - margins.bottom)
+    const sx = contentW / CANON
+    const sy = contentH / CANON
+    const nodes = nl.nodes.map(n => ({
+      ...n,
+      x: margins.left + n.x * sx,
+      y: margins.top + n.y * sy,
+    }))
+    return { nodes, links: nl.links }
   })
 
   type Rect = { x: number; y: number; w: number; h: number }
@@ -272,9 +299,6 @@
     return items
   }
 
-  // Tracked from the last hover so the click handler needs no coordinates.
-  let hoveredNode: NodePosition | null = null
-
   function findNodeAt(mx: number, my: number): NodePosition | null {
     const hitR = nodeRadius + 4
     const hitR2 = hitR * hitR
@@ -308,6 +332,8 @@
   }
 
   function handleClick() {
+    // The harness tracks the hovered node, so the click needs no coordinates.
+    const hoveredNode = plot.hover.data
     if (hoveredNode && onNodeClick) onNodeClick(hoveredNode.id)
   }
 </script>

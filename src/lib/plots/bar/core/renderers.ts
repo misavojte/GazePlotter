@@ -250,10 +250,13 @@ export function drawProportionalBars(
 
 export function drawBeeswarmPoints(
   ctx: CanvasRenderingContext2D,
-  layout: BarPlotLayout
+  layout: BarPlotLayout,
+  // Precomputed by the figure's `geom` derived (stable between renders). Falls
+  // back to computing it here for any standalone caller.
+  radius: number = computeDotStyle(layout).radius
 ): void {
   const isVertical = layout.barPlottingType === 'vertical'
-  const { radius } = computeDotStyle(layout)
+  const TWO_PI = Math.PI * 2
 
   for (const item of layout.items) {
     const values = item.data.individualValues
@@ -269,19 +272,20 @@ export function drawBeeswarmPoints(
 
     ctx.fillStyle = item.data.color
 
+    // One path + one fill per AOI instead of per dot (all dots share a colour).
     // Arc centers are shifted by +0.5 so each dot sits on the center of its
     // value pixel rather than on the pixel corner. This keeps the beeswarm
     // optically aligned with the overlay markers, which use alignToPixelCenter
-    // (integer + 0.5) so their strokes land crisply on the same pixel row.
+    // (integer + 0.5) so their strokes land crisply on the same pixel row. The
+    // moveTo before each arc prevents a connecting chord between dots.
+    ctx.beginPath()
     for (const pos of positions) {
-      ctx.beginPath()
-      if (isVertical) {
-        ctx.arc(pos.categoryPos + 0.5, pos.valuePos + 0.5, radius, 0, Math.PI * 2)
-      } else {
-        ctx.arc(pos.valuePos + 0.5, pos.categoryPos + 0.5, radius, 0, Math.PI * 2)
-      }
-      ctx.fill()
+      const cx = (isVertical ? pos.categoryPos : pos.valuePos) + 0.5
+      const cy = (isVertical ? pos.valuePos : pos.categoryPos) + 0.5
+      ctx.moveTo(cx + radius, cy)
+      ctx.arc(cx, cy, radius, 0, TWO_PI)
     }
+    ctx.fill()
   }
 }
 

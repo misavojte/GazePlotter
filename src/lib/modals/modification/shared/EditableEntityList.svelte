@@ -366,14 +366,14 @@
     border: 1px solid var(--c-border);
     border-radius: var(--rounded-md);
     overflow: hidden;
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
-  }
+    box-shadow: var(--shadow-sm);
 
-  .entity-card.dragging {
-    opacity: 0.3;
-    border-style: dashed;
-    border-color: var(--c-midgrey);
-    box-shadow: none;
+    &.dragging {
+      opacity: 0.3;
+      border-style: dashed;
+      border-color: var(--c-midgrey);
+      box-shadow: none;
+    }
   }
 
   .entity-row {

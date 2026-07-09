@@ -16,7 +16,10 @@ const engineMocks = vi.hoisted(() => ({
   }
 }))
 
-vi.mock('$lib/data/engine', () => ({
+// Partial mock: only the two names the pins rely on are replaced; everything
+// else (interpretRow, …) stays real so the registry's other imports work.
+vi.mock('$lib/data/engine', async importOriginal => ({
+  ...(await importOriginal<typeof import('$lib/data/engine')>()),
   ...engineMocks,
 }))
 

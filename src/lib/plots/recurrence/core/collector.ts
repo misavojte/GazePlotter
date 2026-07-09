@@ -209,8 +209,16 @@ function buildFixedGridMatrix(
 }
 
 /**
- * Two fixations recur in AOI mode when they share at least one AOI. Testing
- * that with `aoiIds.some(a => other.includes(a))` is a nested scan inside the
+ * Two fixations recur in AOI mode when they share at least one AOI. This
+ * all-AOIs / shares-any policy is ONE of three deliberately different
+ * multi-AOI readings of "the AOI sequence" — the RQA metrics keep only
+ * single-AOI fixations (`metrics/core/fixations.ts`) and the scanpath encoder
+ * keeps the first visible AOI (`metrics/core/scanpathEncoding.ts`). The
+ * plot's line highlights therefore need not match the rqaDet/rqaLam numbers
+ * on multi-AOI data; do not unify the policies.
+ *
+ * Testing recurrence
+ * with `aoiIds.some(a => other.includes(a))` is a nested scan inside the
  * O(N^2) pair loop and dominates the build on long scanpaths (~69 ms at
  * N=1000). Instead encode each fixation's membership as a bitmask -- one bit
  * per AOI id -- so the shared test collapses to a single bitwise AND. Mapped

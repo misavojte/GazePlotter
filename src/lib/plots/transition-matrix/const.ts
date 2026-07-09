@@ -1,14 +1,9 @@
-import { INACTIVE_COLOR, PRESET_PALETTES } from '$lib/color'
+import { INACTIVE_COLOR } from '$lib/color'
 import { buildMetricLabel, timeRangeQualifier } from '$lib/plots/shared'
 import type { Metric, MetricInstance } from '$lib/metrics'
 
-export { MATRIX_LAYOUT as TRANSITION_MATRIX_LAYOUT } from '$lib/plots/shared'
-
 export const TRANSITION_MATRIX_DEFAULTS = {
-  width: 500,
-  height: 500,
   inactiveColor: INACTIVE_COLOR,
-  colorScale: [...PRESET_PALETTES.BLUE.colors],
   xLabel: 'To AOI',
   yLabel: 'From AOI',
 } as const

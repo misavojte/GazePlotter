@@ -40,5 +40,5 @@
       onchange(Number(e.detail))
     }}
   />
-  <PaneEditLink onclick={openParticipants}>Edit participants…</PaneEditLink>
+  <PaneEditLink onclick={openParticipants}>Edit participant library</PaneEditLink>
 </PaneSection>

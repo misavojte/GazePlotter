@@ -23,7 +23,7 @@ This is the most performance-sensitive code in the repo: datasets reach ~10GB an
 ## Binary store and readers (non-reactive)
 
 - The binary buffers are plain typed arrays held OUTSIDE `$state` in `DataEngine` (`_binary`, `_reader`, `_aoiGroupReader`, `_eventReader`; `dataEngine.svelte.ts:20-23`) to avoid proxy overhead. Keep big buffers out of runes.
-- Read through readers obtained from the engine: `getReader()` -> `BinaryBufferReader` (segments; raw `segmentBufferRaw`, `SEGMENT_STRIDE = 6` and `SegmentField` in `binary/schema.ts`), `getAoiGroupReader()` -> `AoiGroupReader` (`HIDDEN_ID = 0xffff`, zero-alloc `getSegmentAoisIntoUniqueTyped`), `getEventReader()` -> `EventBufferReader` (`getOccurrences(stimulusId, channelId, participantId)` returns a stride-2 `[start,duration,...]` view, `EVENT_STRIDE = 2`).
+- Read through readers obtained from the engine: `getReader()` -> `BinaryBufferReader` (segments; raw `segmentBufferRaw`, `SEGMENT_STRIDE = 6` and `SegmentField` in `binary/schema.ts`), `getAoiGroupReader()` -> `AoiGroupReader` (`HIDDEN_ID = 0xffff`, zero-alloc `getSegmentAoisUniqueDirect`), `getEventReader()` -> `EventBufferReader` (`getOccurrences(stimulusId, channelId, participantId)` returns a stride-2 `[start,duration,...]` view, `EVENT_STRIDE = 2`).
 - Build buffers with `jsonSegmentsToBinary` (`binary/converters.ts`) and `jsonEventsToBinary` (`binary/reader.event.ts`). There is no GrowBuffer.
 - NEVER read `eventData.events` (the legacy `number[][][][]`) in a render or transform path; it is read only by ingest (`dataEngine.svelte.ts:71`) and the export mapper (`export/mappers/events.ts:107`).
 

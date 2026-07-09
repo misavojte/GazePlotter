@@ -5,6 +5,5 @@
  */
 
 // Main plot components
-export { default as ScarfPlot } from './ScarfPlot.svelte'
 export { default as ScarfPlotFigure } from './ScarfPlotFigure.svelte'
 

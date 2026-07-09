@@ -225,7 +225,7 @@
 
   .select-wrapper:not(:has(.trigger:disabled)):hover,
   .select-wrapper:has(.trigger.open) {
-    --gp-field-bg: #f6f7f9;
+    --gp-field-bg: var(--c-darkwhite);
   }
 
   .select-wrapper:has(.trigger:disabled) {
@@ -262,12 +262,12 @@
   }
 
   .select-wrapper:not(:has(.trigger:disabled)):hover .trigger {
-    background: #f6f7f9;
+    background: var(--c-darkwhite);
     color: var(--c-brand);
   }
 
   .trigger.open {
-    background: #f6f7f9;
+    background: var(--c-darkwhite);
     color: var(--c-brand);
   }
 
@@ -296,9 +296,12 @@
 
   .compact .trigger,
   .trigger.compact {
-    height: 30px;
+    /* Matches compact inputs (InputNumber): one control height, radius, and
+       content inset so pane rows read as one system and text columns align. */
+    height: 26px;
+    border-radius: var(--rounded);
     font-size: 12px;
-    padding-left: 14px;
+    padding-left: 6px;
     padding-right: 22px;
   }
 

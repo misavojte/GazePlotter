@@ -45,3 +45,23 @@ export class PlotSyncRegistry<E extends { dataMax: number }> {
     return max
   }
 }
+
+export function usePlotSync<E extends { dataMax: number }>(
+  registry: PlotSyncRegistry<E>,
+  getId: () => number,
+  getEntry: () => E | null,
+): void {
+  $effect(() => {
+    const id = getId()
+    const entry = getEntry()
+    if (entry === null) {
+      registry.clearEntry(id)
+    } else {
+      registry.setEntry(id, entry)
+    }
+    return () => {
+      registry.clearEntry(id)
+    }
+  })
+}
+

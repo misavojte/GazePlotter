@@ -100,13 +100,6 @@ export type FormatTypeId =
   | (typeof ARCHIVE_FORMATS)[number]['id']
   | 'unknown'
 
-/** Stream format owning the given persisted type id, if any. */
-export function getStreamFormat(
-  typeId: string
-): StreamFormatDefinition | undefined {
-  return STREAM_FORMATS.find(def => def.ids.includes(typeId))
-}
-
 /**
  * Resolve the probe's type id against the registry, or 'unknown'.
  * Convenience over `detectStreamFormat` for diagnostics and tests.

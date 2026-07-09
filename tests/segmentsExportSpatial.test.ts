@@ -47,6 +47,34 @@ function createData(segments: DataType['segments']): DataType {
   }
 }
 
+describe('segmented export participant filter', () => {
+  it('exports only the selected participants', () => {
+    const segmentsJson: number[][][][] = [
+      [
+        [[0, 100, 0, 0]], // Participant A (index 0)
+        [[0, 200, 0, 0]], // Participant B (index 1)
+      ],
+    ]
+    const data = createData(jsonSegmentsToBinary(segmentsJson))
+    data.participants = {
+      data: [
+        ['Participant A', 'Participant A'],
+        ['Participant B', 'Participant B'],
+      ],
+      orderVector: [0, 1],
+    }
+
+    const csv = generateUnifiedCsv(data, undefined, new Set(['1']))
+    const lines = csv.split('\n')
+    expect(lines).toHaveLength(2)
+    expect(lines[1]).toBe('Stimulus A,Participant B,0,200,Fixation,AOI 1')
+
+    // Undefined filter keeps every participant (backward-compatible default).
+    const all = generateUnifiedCsv(data)
+    expect(all.split('\n')).toHaveLength(3)
+  })
+})
+
 describe('segmented export spatial columns', () => {
   it('exports legacy segmented CSV columns when no spatial data is available', () => {
     const segmentsJson: number[][][][] = [[[[0, 100, 0, 0]]]]

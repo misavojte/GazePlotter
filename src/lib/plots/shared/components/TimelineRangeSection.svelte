@@ -3,12 +3,10 @@
    * Shared "range" section used by every plot pane that has start/end bounds.
    *
    * By default it binds to `timelineStart` / `timelineEnd` and renders
-   * "Time range [ms]". When the caller passes `ordinal={true}` together with
-   * explicit `ordinalStart` / `ordinalEnd` values and an `onOrdinalChange`
-   * callback, the section switches to ordinal-index editing instead.
-   *
-   * A custom `title` prop can override the section heading for either mode
-   * (e.g. the Scarf plot uses "Ordinal range [indices]" when in ordinal mode).
+   * "Time range [ms]". A plot with an index-based mode passes `ordinalMode`
+   * (data from its pane entry's `props` — scarf): while the predicate holds
+   * on the representative settings, the section edits the given ordinal keys
+   * and renders "Ordinal range [indices]" instead.
    */
   import { InputNumber } from '$lib/shared/components'
   import { PaneSection, getPaneEditItems } from '$lib/workspace/pane'
@@ -19,26 +17,15 @@
 
   interface Props {
     item: PlotItemContract<TType, TSettings>
-    /** Override the section heading (defaults to "Time range [ms]" or "Ordinal range [indices]"). */
-    title?: string
-    /** When true, the section edits ordinal indices instead of ms timestamps. */
-    ordinal?: boolean
-    /** Current ordinal start value (only used when `ordinal` is true). */
-    ordinalStart?: number
-    /** Current ordinal end value (only used when `ordinal` is true). */
-    ordinalEnd?: number
-    /** Callback for ordinal value changes: `boundary` is 'start' | 'end'. */
-    onOrdinalChange?: (boundary: 'start' | 'end', value: number | undefined) => void
+    /** Ordinal-index editing mode (dual-mode plots; scarf). */
+    ordinalMode?: {
+      when: (settings: TSettings) => boolean
+      startKey: keyof TSettings & string
+      endKey: keyof TSettings & string
+    }
   }
 
-  let {
-    item,
-    title,
-    ordinal = false,
-    ordinalStart,
-    ordinalEnd,
-    onOrdinalChange,
-  }: Props = $props()
+  let { item, ordinalMode }: Props = $props()
 
   const { workspace } = getGazePlotterSession()
   const settings = $derived(item.settings)
@@ -61,25 +48,26 @@
   const startId = $derived(`timeline-start-${item.type}-${item.id}`)
   const endId = $derived(`timeline-end-${item.type}-${item.id}`)
 
+  const ordinal = $derived(ordinalMode ? ordinalMode.when(settings) : false)
+
   // Bulk-aware display: in ms mode, show the value common to the whole edit
   // set, or "Mixed" when the selected plots disagree (any edit then makes them
   // agree). Ordinal mode is only used in a same-type scarf context, where the
   // representative's ordinal bounds are shown.
   const targets = $derived(editItems ? editItems() : [item])
   const commonStart = $derived(
-    ordinal
-      ? { value: ordinalStart, mixed: false }
+    ordinal && ordinalMode
+      ? { value: settings[ordinalMode.startKey] as number | undefined, mixed: false }
       : computeCommonValue(targets.map(t => t.settings.timelineStart))
   )
   const commonEnd = $derived(
-    ordinal
-      ? { value: ordinalEnd, mixed: false }
+    ordinal && ordinalMode
+      ? { value: settings[ordinalMode.endKey] as number | undefined, mixed: false }
       : computeCommonValue(targets.map(t => t.settings.timelineEnd))
   )
   const effectiveStart = $derived(commonStart.mixed ? undefined : commonStart.value)
   const effectiveEnd = $derived(commonEnd.mixed ? undefined : commonEnd.value)
-  const defaultTitle = $derived(ordinal ? 'Ordinal range [indices]' : 'Time range [ms]')
-  const effectiveTitle = $derived(title ?? defaultTitle)
+  const effectiveTitle = $derived(ordinal ? 'Ordinal range [indices]' : 'Time range [ms]')
 
   const rangeSummary = $derived(
     commonStart.mixed || commonEnd.mixed
@@ -91,16 +79,16 @@
   )
 
   function handleStartChange(v: number | undefined) {
-    if (ordinal && onOrdinalChange) {
-      onOrdinalChange('start', v)
+    if (ordinal && ordinalMode) {
+      update({ [ordinalMode.startKey]: v } as Partial<TSettings>)
     } else {
       update({ timelineStart: v } as Partial<TSettings>)
     }
   }
 
   function handleEndChange(v: number | undefined) {
-    if (ordinal && onOrdinalChange) {
-      onOrdinalChange('end', v)
+    if (ordinal && ordinalMode) {
+      update({ [ordinalMode.endKey]: v } as Partial<TSettings>)
     } else {
       update({ timelineEnd: v } as Partial<TSettings>)
     }

@@ -4,10 +4,10 @@
   import { exportSegmentedDataModal } from '../export-segmented-data/definition'
   import { exportEventDataModal } from '../export-event-data/definition'
   import { exportScangraphModal } from '../export-scangraph/definition'
-  import { exportAggregatedDataModal } from '../export-aggregated-data/definition'
-  import { exportScanpathSimilarityModal } from '../export-scanpath-similarity/definition'
+  import { exportMetricDataModal } from '../export-metric-data/definition'
+  import { exportFiguresModal } from '../export-figures/definition'
 
-  const { engine, exportService, modalState } = getGazePlotterSession()
+  const { engine, exportService, grid, modalState } = getGazePlotterSession()
   let fileName = $state('GazePlotter-Export')
 
   const researchExportOptions = [
@@ -23,15 +23,10 @@
       requiresEvents: true,
     },
     {
-      definition: exportAggregatedDataModal,
-      title: 'Aggregated Data (CSV)',
+      definition: exportMetricDataModal,
+      title: 'Metric Data (CSV)',
       subtitle:
-        'Statistical metrics like dwell time, fixation counts, and durations',
-    },
-    {
-      definition: exportScanpathSimilarityModal,
-      title: 'Scanpath Similarity (CSV)',
-      subtitle: 'Similarity matrix for comparing participant scanpaths',
+        'Any metric from the library, long or wide format, including similarity matrices',
     },
     {
       definition: exportScangraphModal,
@@ -80,12 +75,24 @@
     </div>
   </Section>
 
-  <Section title="Research Data Formats">
+  <Section title="Other options">
     <div class="content">
-      <p class="info-text">
-        Choose from specialized data structures for detailed analysis:
-      </p>
       <div class="export-options">
+        {#if grid.items.length > 0}
+          <button
+            class="export-option-card"
+            onclick={() => modalState.push(exportFiguresModal, {})}
+          >
+            <div class="export-option-content">
+              <h4 class="export-option-title">Figures (PNG, JPG)</h4>
+              <p class="export-option-subtitle">
+                All or selected plots rendered at a chosen resolution in one
+                download
+              </p>
+            </div>
+          </button>
+        {/if}
+
         {#each visibleExportOptions as option (option.title)}
           <button
             class="export-option-card"
@@ -180,12 +187,7 @@
     line-height: 1.4;
   }
 
-  .info-text {
-    margin: 0 0 1rem 0;
-    color: var(--c-text);
-    font-size: 0.9rem;
-    line-height: 1.4;
-  }
+
 
   .export-options {
     display: flex;
@@ -204,24 +206,24 @@
     transition: all var(--transition-normal) ease;
     text-align: left;
     width: 100%;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-  }
+    box-shadow: var(--shadow-sm);
 
-  .export-option-card:hover {
-    border-color: var(--c-brand);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    transform: translateY(-1px);
-  }
+    &:hover {
+      border-color: var(--c-brand);
+      box-shadow: var(--shadow);
+      transform: translateY(-1px);
+    }
 
-  .export-option-card:focus {
-    outline: none;
-    border-color: var(--c-brand);
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-brand) 20%, transparent);
-  }
+    &:focus {
+      outline: none;
+      border-color: var(--c-brand);
+      box-shadow: 0 0 0 2px color-mix(in srgb, var(--c-brand) 20%, transparent);
+    }
 
-  .export-option-card:active {
-    transform: translateY(0);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+    &:active {
+      transform: translateY(0);
+      box-shadow: var(--shadow-sm);
+    }
   }
 
   .export-option-content {

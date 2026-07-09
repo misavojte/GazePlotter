@@ -8,7 +8,6 @@ import {
   downloadBatchZip,
   downloadEventBatchZip,
   downloadEventUnifiedCsv,
-  downloadScanpathSimilarity,
   downloadScanGraph,
   downloadUnifiedCsv,
   downloadWorkspace,
@@ -16,10 +15,9 @@ import {
 import type { CsvFormatOptions } from './encoders/csv'
 import type { ExportNaming } from './types'
 import {
-  type AggregatedExportOptions,
-  generateAggregatedCsv,
-} from './mappers/aggregated'
-import type { ScanpathSimilarityExportOptions } from './mappers/scanpath-similarity'
+  type MetricDataExportOptions,
+  generateMetricExport,
+} from './mappers/metrics'
 import { triggerDownload } from './download'
 
 type ExportServiceDeps = {
@@ -38,7 +36,8 @@ export type SegmentedExportOptions = {
   fileName: string
   exportType: 'csv' | 'individual-csv'
   stimulusIds: Set<string>
-  filterFixations?: boolean
+  participantIds: Set<string>
+  filterCategoryIds?: Set<number>
   csvOptions?: CsvFormatOptions
   naming?: ExportNaming
 }
@@ -47,6 +46,7 @@ export type EventExportOptions = {
   fileName: string
   exportType: 'csv' | 'individual-csv'
   stimulusIds: Set<string>
+  participantIds: Set<string>
   csvOptions?: CsvFormatOptions
   naming?: ExportNaming
 }
@@ -56,9 +56,17 @@ export type ScangraphExportOptions = {
   stimulusId: number
 }
 
-export type { ScanpathSimilarityExportOptions }
+export type FigureBatchExportOptions = {
+  fileName: string
+  /** Rendered figure images, already encoded; names are complete zip entry names. */
+  files: Array<{ name: string; content: Blob }>
+  /** How many figures the user selected — the toast reports partial coverage. */
+  requestedCount: number
+}
 
 export class ExportService {
+  progress = $state<{ position: number; total: number; name: string } | null>(null)
+
   constructor(private readonly deps: ExportServiceDeps) {}
 
   private getExportData(): DataType {
@@ -89,12 +97,16 @@ export class ExportService {
 
   private async runExport(
     action: () => void | Promise<void>,
-    successMessage: string,
+    /** A thunk resolves AFTER the action, so the message can report what the
+     *  export actually produced (e.g. the row count). */
+    successMessage: string | (() => string),
     context?: Record<string, unknown>
   ): Promise<boolean> {
     try {
       await action()
-      this.deps.toastState.addSuccess(successMessage)
+      this.deps.toastState.addSuccess(
+        typeof successMessage === 'function' ? successMessage() : successMessage
+      )
       return true
     } catch (error) {
       const message =
@@ -107,6 +119,8 @@ export class ExportService {
         context,
       })
       return false
+    } finally {
+      this.progress = null
     }
   }
 
@@ -129,19 +143,26 @@ export class ExportService {
       if (options.stimulusIds.size === 0) {
         throw new Error('Select at least one stimulus to export')
       }
+      if (options.participantIds.size === 0) {
+        throw new Error('Select at least one participant to export')
+      }
 
       const data = this.getExportData()
       const fileName = this.resolveFileName(options.fileName)
       const naming = options.naming ?? 'displayed'
 
       if (options.exportType === 'csv') {
-        downloadUnifiedCsv(
+        await downloadUnifiedCsv(
           data,
           fileName,
           options.stimulusIds,
-          options.filterFixations ?? false,
+          options.participantIds,
+          options.filterCategoryIds,
           options.csvOptions,
-          naming
+          naming,
+          (position, total, name) => {
+            this.progress = { position, total, name }
+          }
         )
         return
       }
@@ -150,9 +171,13 @@ export class ExportService {
         data,
         fileName,
         options.stimulusIds,
-        options.filterFixations ?? false,
+        options.participantIds,
+        options.filterCategoryIds,
         options.csvOptions,
-        naming
+        naming,
+        (position, total, name) => {
+          this.progress = { position, total, name }
+        }
       )
     },
       options.exportType === 'csv'
@@ -162,7 +187,10 @@ export class ExportService {
         exportType: options.exportType,
         fileName: options.fileName,
         stimulusCount: options.stimulusIds.size,
-        filterFixations: options.filterFixations ?? false,
+        participantCount: options.participantIds.size,
+        filterCategoryIds: options.filterCategoryIds
+          ? Array.from(options.filterCategoryIds)
+          : undefined,
         naming: options.naming ?? 'displayed',
       }
     )
@@ -173,18 +201,25 @@ export class ExportService {
       if (options.stimulusIds.size === 0) {
         throw new Error('Select at least one stimulus to export')
       }
+      if (options.participantIds.size === 0) {
+        throw new Error('Select at least one participant to export')
+      }
 
       const data = this.getExportData()
       const fileName = this.resolveFileName(options.fileName)
       const naming = options.naming ?? 'displayed'
 
       if (options.exportType === 'csv') {
-        downloadEventUnifiedCsv(
+        await downloadEventUnifiedCsv(
           data,
           fileName,
           options.stimulusIds,
+          options.participantIds,
           options.csvOptions,
-          naming
+          naming,
+          (position, total, name) => {
+            this.progress = { position, total, name }
+          }
         )
         return
       }
@@ -193,8 +228,12 @@ export class ExportService {
         data,
         fileName,
         options.stimulusIds,
+        options.participantIds,
         options.csvOptions,
-        naming
+        naming,
+        (position, total, name) => {
+          this.progress = { position, total, name }
+        }
       )
     },
       options.exportType === 'csv'
@@ -204,6 +243,7 @@ export class ExportService {
         exportType: options.exportType,
         fileName: options.fileName,
         stimulusCount: options.stimulusIds.size,
+        participantCount: options.participantIds.size,
         naming: options.naming ?? 'displayed',
       }
     )
@@ -212,11 +252,11 @@ export class ExportService {
   async exportScangraph(options: ScangraphExportOptions): Promise<boolean> {
     return this.runExport(
       () =>
-        downloadScanGraph(
-          this.deps.engine,
-          options.stimulusId,
-          this.resolveFileName(options.fileName)
-        ),
+          downloadScanGraph(
+            this.deps.engine,
+            options.stimulusId,
+            this.resolveFileName(options.fileName)
+          ),
       'ScanGraph file exported successfully',
       {
         exportType: 'scangraph',
@@ -226,57 +266,99 @@ export class ExportService {
     )
   }
 
-  async exportScanpathSimilarity(
-    options: ScanpathSimilarityExportOptions
-  ): Promise<boolean> {
-    const fileName = this.resolveFileName(options.fileName)
+  /** Download pre-rendered figure images: a single requested figure as a bare
+   *  image, several bundled into one ZIP. Rendering happens in the modal
+   *  (figures are live Svelte components); this owns the packaging, download,
+   *  and user acknowledgement. */
+  async exportFigures(options: FigureBatchExportOptions): Promise<boolean> {
     return this.runExport(
-      () =>
-        downloadScanpathSimilarity(this.deps.engine, {
-          ...options,
-          fileName,
-        }),
-      'Scanpath similarity matrix exported successfully',
+      async () => {
+        if (options.files.length === 0) {
+          throw new Error('No figures could be rendered for export')
+        }
+        const fileName = this.resolveFileName(options.fileName)
+
+        if (options.requestedCount === 1) {
+          const file = options.files[0]
+          const extension = file.name.slice(file.name.lastIndexOf('.'))
+          triggerDownload(file.content, fileName, extension)
+          return
+        }
+
+        const { Archiver } = await import('./encoders/zip')
+        const archiver = new Archiver()
+        for (const file of options.files) {
+          archiver.addFile(file.name, file.content)
+        }
+        const zipBlob = await archiver.generateBlob()
+        triggerDownload(zipBlob, fileName, '.zip')
+      },
+      () => {
+        const count = options.files.length
+        return count === options.requestedCount
+          ? `Exported ${count} ${count === 1 ? 'figure' : 'figures'}`
+          : `Exported ${count} of ${options.requestedCount} figures`
+      },
       {
-        exportType: 'scanpath-similarity',
+        exportType: 'figures',
         fileName: options.fileName,
-        stimulusId: options.stimulusId,
-        groupId: options.groupId,
-        similarityMethod: options.similarityMethod,
-        collapsed: options.collapsed,
+        figureCount: options.files.length,
+        requestedCount: options.requestedCount,
       }
     )
   }
 
-  async exportAggregatedData(
-    options: AggregatedExportOptions
+  async exportMetricData(
+    options: MetricDataExportOptions
   ): Promise<boolean> {
-    return this.runExport(() => {
-      if (options.metrics.length === 0) {
+    let exportedRows = 0
+    return this.runExport(async () => {
+      if (options.metricInstanceIds.length === 0) {
         throw new Error('Select at least one metric to export')
       }
       if (options.stimulusIds.length === 0) {
         throw new Error('Select at least one stimulus to export')
       }
+      if (options.participantIds.length === 0) {
+        throw new Error('Select at least one participant to export')
+      }
 
       const fileName = this.resolveFileName(options.fileName)
-      const result = generateAggregatedCsv(this.deps.engine, {
-        ...options,
-        fileName,
-      })
-      triggerDownload(result.content, fileName, '.csv')
+      const result = await generateMetricExport(
+        this.deps.engine,
+        {
+          ...options,
+          fileName,
+        },
+        (position, total, name) => {
+          this.progress = { position, total, name }
+        }
+      )
+      exportedRows = result.rows
+
+      if (options.includeCodebook && result.codebookContent !== null) {
+        const { Archiver } = await import('./encoders/zip')
+        const archiver = new Archiver()
+        archiver.addFile(`${fileName}.csv`, result.dataContent)
+        archiver.addFile(`${fileName}-codebook.csv`, result.codebookContent)
+        const zipBlob = await archiver.generateBlob()
+        triggerDownload(zipBlob, fileName, '.zip')
+      } else {
+        triggerDownload(result.dataContent, fileName, '.csv')
+      }
     },
-      (() => {
-        const metricCount = options.metrics.length
+      () => {
+        const metricCount = options.metricInstanceIds.length
         const stimulusCount = options.stimulusIds.length
-        return `Exported aggregated data (${metricCount} metrics across ${stimulusCount} ${stimulusCount === 1 ? 'stimulus' : 'stimuli'})`
-      })(),
+        return `Exported ${exportedRows} rows (${metricCount} ${metricCount === 1 ? 'metric' : 'metrics'} across ${stimulusCount} ${stimulusCount === 1 ? 'stimulus' : 'stimuli'})`
+      },
       {
-        exportType: 'aggregated',
+        exportType: 'metric-data',
         fileName: options.fileName,
-        metricCount: options.metrics.length,
+        metricCount: options.metricInstanceIds.length,
         stimulusCount: options.stimulusIds.length,
-        groupId: options.groupId,
+        participantCount: options.participantIds.length,
+        format: options.format,
       }
     )
   }

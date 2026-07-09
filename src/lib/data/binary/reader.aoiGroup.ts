@@ -162,14 +162,15 @@ export class AoiGroupReader {
   }
 
   /**
-   * Internal zero-allocation utility for iterating unique mapped AOIs in a segment.
-   * Consolidates deduplication logic (bitmask for small sets, stamp-table for large).
-   * @returns The number of unique mapped AOIs (without hidden AOIs).
+   * Zero-closure variant of AOI resolution for hot loops.
+   * Byte-identical result — same unique, non-hidden, deduplicated mapped ids written into `out`,
+   * same return count — but it inlines the dedup instead of allocating a fresh
+   * arrow per call, and takes a branchless single-AOI fast path (the dominant case).
    */
-  private _forEachUniqueMappedAoi(
+  getSegmentAoisUniqueDirect(
     segmentIndex: number,
     stimulusId: number,
-    callback: (mappedId: number, order: number) => void
+    out: Uint16Array | Uint32Array
   ): number {
     const base = segmentIndex * SEGMENT_STRIDE
     const count = this.segmentBuffer[base + SegmentField.AOI_COUNT] | 0
@@ -181,11 +182,9 @@ export class AoiGroupReader {
 
     if (count === 1) {
       const finalId = this.groupPool[ptr + this.aoiPool[aoiPtr]]
-      if (finalId !== AoiGroupReader.HIDDEN_ID) {
-        callback(finalId, 0)
-        return 1
-      }
-      return 0
+      if (finalId === AoiGroupReader.HIDDEN_ID) return 0
+      out[0] = finalId
+      return 1
     }
 
     let outLen = 0
@@ -197,7 +196,7 @@ export class AoiGroupReader {
         const bit = 1 << finalId
         if ((mask & bit) !== 0) continue
         mask |= bit
-        callback(finalId, outLen++)
+        out[outLen++] = finalId
       }
     } else {
       this.ensureSeenCapacity(mapLen)
@@ -211,33 +210,15 @@ export class AoiGroupReader {
         )
           continue
         this.seenStamp[finalId] = stamp
-        callback(finalId, outLen++)
+        out[outLen++] = finalId
       }
     }
     return outLen
   }
 
   /**
-   * Retrieve unique logical AOI IDs into a supplied buffer.
-   * Zero-allocation API.
-   */
-  getSegmentAoisIntoUniqueTyped(
-    segmentIndex: number,
-    stimulusId: number,
-    out: Uint16Array | Uint32Array
-  ): number {
-    return this._forEachUniqueMappedAoi(
-      segmentIndex,
-      stimulusId,
-      (id, order) => {
-        out[order] = id
-      }
-    )
-  }
-
-  /**
    * Returns both the order of a specific AOI and the total unique count in a segment.
-   * Zero-allocation API. Writes results into supplied 'out' object.
+   * Zero-allocation and zero-closure API. Writes results into supplied 'out' object.
    */
   getAoiMetricsInSegmentInto(
     segmentIndex: number,
@@ -246,13 +227,57 @@ export class AoiGroupReader {
     out: AoiMetrics
   ): void {
     out.order = -1
-    out.count = this._forEachUniqueMappedAoi(
-      segmentIndex,
-      stimulusId,
-      (id, order) => {
-        if (id === logicalAoiId) out.order = order
+    const base = segmentIndex * SEGMENT_STRIDE
+    const count = this.segmentBuffer[base + SegmentField.AOI_COUNT] | 0
+    if (count === 0) {
+      out.count = 0
+      return
+    }
+
+    const ptr = this.indexTable[stimulusId * 2]
+    const mapLen = this.indexTable[stimulusId * 2 + 1]
+    const aoiPtr = this.segmentBuffer[base + SegmentField.AOI_POINTER] | 0
+
+    if (count === 1) {
+      const finalId = this.groupPool[ptr + this.aoiPool[aoiPtr]]
+      if (finalId !== AoiGroupReader.HIDDEN_ID) {
+        if (finalId === logicalAoiId) out.order = 0
+        out.count = 1
+      } else {
+        out.count = 0
       }
-    )
+      return
+    }
+
+    let outLen = 0
+    if (mapLen <= 31) {
+      let mask = 0
+      for (let i = 0; i < count; i++) {
+        const finalId = this.groupPool[ptr + this.aoiPool[aoiPtr + i]]
+        if (finalId === AoiGroupReader.HIDDEN_ID) continue
+        const bit = 1 << finalId
+        if ((mask & bit) !== 0) continue
+        mask |= bit
+        if (finalId === logicalAoiId) out.order = outLen
+        outLen++
+      }
+    } else {
+      this.ensureSeenCapacity(mapLen)
+      this.stamp = (this.stamp + 1) >>> 0 || 1
+      const stamp = this.stamp
+      for (let i = 0; i < count; i++) {
+        const finalId = this.groupPool[ptr + this.aoiPool[aoiPtr + i]]
+        if (
+          finalId === AoiGroupReader.HIDDEN_ID ||
+          this.seenStamp[finalId] === stamp
+        )
+          continue
+        this.seenStamp[finalId] = stamp
+        if (finalId === logicalAoiId) out.order = outLen
+        outLen++
+      }
+    }
+    out.count = outLen
   }
 
   /**

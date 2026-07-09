@@ -85,6 +85,21 @@ export function calculateNiceStepSize(
 }
 
 /**
+ * Smallest nice step (1, 2, 2.5, 5, 10 × 10^n) that is ≥ `rawStep` — a strict
+ * ceiling, so the resulting tick count never exceeds the target. Deliberately
+ * NOT the same policy as {@link calculateNiceStepSize}, whose nearest-nice
+ * rounding may round down to honour a MINIMUM tick count; swapping one for the
+ * other changes tick placement (aoi-stream's Y axis relies on the ceiling).
+ */
+export function ceilToNiceStep(rawStep: number): number {
+  const safeRaw = Math.max(1e-9, Math.abs(rawStep))
+  const pow10 = Math.pow(10, Math.floor(Math.log10(safeRaw)))
+  const fraction = safeRaw / pow10
+  const niceFractions = [1, 2, 2.5, 5, 10]
+  return (niceFractions.find(f => fraction <= f) ?? 10) * pow10
+}
+
+/**
  * Gets the position ratio (0-1) for a given value
  * @param timeline The timeline data or just min/max bounds
  * @param value The value to position

@@ -13,7 +13,8 @@ export class VarjoRowParser extends RowParser {
   mTimeBase: number | null = null
   mActorLabelBytes: Uint8Array | null = null
   mParticipant: string
-  private readonly textDecoder: TextDecoder
+  /** Reused per-row scratch for the seven timestamp parts (no allocation). */
+  private readonly timeParts = new Int32Array(7)
   private readonly participantBytes: Uint8Array
   private readonly stimulusBytes: Uint8Array
   constructor(
@@ -23,7 +24,6 @@ export class VarjoRowParser extends RowParser {
     encoding: 'utf-8' | 'utf-16le' | 'utf-16be' = 'utf-8'
   ) {
     super(columnDelimiter, encoding)
-    this.textDecoder = new TextDecoder(this.encoding)
     this.cTime = this.getIndex(header, 'Time')
     this.cActorLabel = this.getIndex(header, 'Actor Label')
     this.mParticipant = fileName.split('.')[0]
@@ -38,8 +38,7 @@ export class VarjoRowParser extends RowParser {
     const actorLabelBytes = this.getBytes(this.pActorLabel)
     if (!timeBytes.length) return
 
-    const timeText = this.textDecoder.decode(timeBytes)
-    const timeNumber = this.convertStringTime(timeText)
+    const timeNumber = this.convertTimeBytes(timeBytes)
     const isNewSegment = !bytesEqual(actorLabelBytes, this.mActorLabelBytes)
 
     if (this.mTimeBase === null) this.mTimeBase = timeNumber
@@ -70,17 +69,37 @@ export class VarjoRowParser extends RowParser {
     )
   }
 
-  convertStringTime(time: string): number {
-    // From format "2022:11:11:15:50:18:30"
-    const timeArray = time.split(':')
-    return new Date(
-      Number(timeArray[0]),
-      Number(timeArray[1]) - 1, // Months are 0-indexed
-      Number(timeArray[2]),
-      Number(timeArray[3]),
-      Number(timeArray[4]),
-      Number(timeArray[5]),
-      Number(timeArray[6])
-    ).getTime()
+  /**
+   * Timestamp bytes "yyyy:MM:dd:HH:mm:ss:SSS" (e.g. "2022:11:11:15:50:18:30")
+   * → milliseconds, parsed straight from the column bytes. KEEP hot: this runs
+   * per row — no string decode, no split(), no Date object. Only DIFFERENCES
+   * of these values survive (finalize subtracts the file's base time), and
+   * Date.UTC keeps every delta identical to the former local-time
+   * `new Date(...)` conversion except across a DST change mid-recording, where
+   * the old code injected a spurious ±1 h jump into the gaze timeline.
+   */
+  private convertTimeBytes(bytes: Uint8Array): number {
+    const parts = this.timeParts
+    parts.fill(0)
+    const stride = this.encoding === 'utf-8' ? 1 : 2
+    const offset = this.encoding === 'utf-16be' ? 1 : 0
+    let part = 0
+    for (let i = offset; i < bytes.length; i += stride) {
+      const c = bytes[i]
+      if (c >= 48 && c <= 57) {
+        parts[part] = parts[part] * 10 + (c - 48)
+      } else if (c === 58 && part < 6) {
+        part++
+      }
+    }
+    return Date.UTC(
+      parts[0],
+      parts[1] - 1, // Months are 0-indexed
+      parts[2],
+      parts[3],
+      parts[4],
+      parts[5],
+      parts[6]
+    )
   }
 }

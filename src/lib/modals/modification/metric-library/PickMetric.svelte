@@ -1,5 +1,4 @@
 <script lang="ts">
-  import ArrowLeft from 'lucide-svelte/icons/arrow-left'
   import { getGazePlotterSession } from '$lib/session'
   import { listMetrics } from '$lib/metrics/core/defineMetric'
   import { getCategoryLabels } from '$lib/metrics/categories'
@@ -41,10 +40,6 @@
     addableMetrics.filter(m => m.meta.category === selectedCategory)
   )
 
-  const titleText = $derived(
-    CATEGORY_LABELS[selectedCategory] ?? 'Select metric'
-  )
-
   function selectMetric(metricId: string) {
     modalState.push(configureMetricModal, {
       contract,
@@ -52,20 +47,9 @@
       oncreateInstance,
     })
   }
-
-  function goBack() {
-    modalState.close()
-  }
 </script>
 
 <div class="pick-metric-container">
-  <div class="add-mode-header">
-    <button type="button" class="back-btn" onclick={goBack}>
-      <ArrowLeft size={14} />
-      <span>Back to categories</span>
-    </button>
-    <span class="add-mode-title">{titleText}</span>
-  </div>
 
   <div class="metric-select-list">
     {#each categoryMetrics as m}
@@ -88,38 +72,7 @@
     gap: 12px;
   }
 
-  .add-mode-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid var(--c-border);
-    padding-bottom: 8px;
-    margin-bottom: 4px;
-  }
 
-  .back-btn {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 12px;
-    color: var(--c-darkgrey);
-    padding: 4px 8px;
-    border-radius: var(--rounded-md);
-    transition: background var(--transition-fast), color var(--transition-fast);
-  }
-  .back-btn:hover {
-    background: var(--c-lightgrey);
-    color: var(--c-text);
-  }
-
-  .add-mode-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--c-text);
-  }
 
   .metric-select-list {
     display: flex;
@@ -141,11 +94,12 @@
     transition: all var(--transition-normal) ease;
     text-align: left;
     outline: none;
-  }
-  .metric-select-row:hover {
-    border-color: var(--c-brand);
-    background: var(--c-white);
-    box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
+
+    &:hover {
+      border-color: var(--c-brand);
+      background: var(--c-white);
+      box-shadow: var(--shadow);
+    }
   }
 
   .metric-select-info {

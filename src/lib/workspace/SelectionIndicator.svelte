@@ -220,7 +220,7 @@
     justify-content: center;
     cursor: pointer;
     color: var(--c-info);
-    filter: drop-shadow(0 1px 2px rgba(15, 23, 42, 0.18));
+    filter: drop-shadow(0 1px 2px color-mix(in srgb, var(--c-black) 18%, transparent));
     z-index: 50;
   }
 
@@ -228,7 +228,7 @@
     width: 28px;
     height: 28px;
     fill: currentColor;
-    stroke: #ffffff;
+    stroke: var(--c-white);
     stroke-width: 1;
     stroke-linejoin: round;
   }

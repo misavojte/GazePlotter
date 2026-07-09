@@ -1,19 +1,7 @@
-import EvolvingMetricsPlot from './components/EvolvingMetricsPlot.svelte'
 import { deriveEvolvingMetricsView } from './core/view'
-import {
-  StimulusSection,
-  GroupSection,
-  MetricSection,
-  TimelineRangeSection,
-  AoiSection,
-} from '$lib/plots/shared/components/sections'
-import EvolvingMetricsVisualisationSection from './components/sections/EvolvingMetricsVisualisationSection.svelte'
 import { definePlot } from '$lib/plots/definePlot'
-import type { PlotSubtitleParts } from '$lib/plots/definePlot'
-import {
-  getStimuliOptions,
-  getParticipantsGroupOptions,
-} from '$lib/plots/shared'
+import { stimulusGroupSubtitle } from '$lib/plots/shared'
+import { PRESET_PALETTES } from '$lib/color/palettes'
 import type { EvolvingMetricsSettings } from './types'
 
 export const evolvingMetricsDefinition = definePlot<
@@ -23,33 +11,44 @@ export const evolvingMetricsDefinition = definePlot<
   type: 'evolvingMetrics',
   name: 'Metric Timeline',
   group: 'per-participant',
-  component: EvolvingMetricsPlot,
   paneSections: [
-    { key: 'stimulus', component: StimulusSection },
-    { key: 'group', component: GroupSection },
-    { key: 'metric', component: MetricSection },
+    'stimulus',
+    'group',
+    'metric',
     {
       key: 'evolvingMetrics:visualisation',
-      component: EvolvingMetricsVisualisationSection,
+      title: 'Visualisation',
+      fields: [
+        {
+          kind: 'enum',
+          key: 'presentation',
+          options: [
+            { label: 'Heatmap', value: 'heatmap' },
+            { label: 'Overlay', value: 'overlay' },
+          ],
+          default: 'heatmap',
+          summary: true,
+        },
+        {
+          kind: 'colorScale',
+          key: 'colorScale',
+          defaultMin: PRESET_PALETTES.HEAT.colors[0],
+          defaultMax: PRESET_PALETTES.HEAT.colors[2],
+          showWhen: ctx => {
+            const p = ctx.common(s => s.presentation ?? 'heatmap')
+            return !p.mixed && p.value === 'heatmap'
+          },
+        },
+      ],
     },
-    { key: 'timelineRange', component: TimelineRangeSection },
-    { key: 'aoi', component: AoiSection },
+    'timelineRange',
+    'aoi',
   ],
-  export: { deriveView: deriveEvolvingMetricsView },
-  getSubtitle: ({ item, engine }) => {
-    const parts: PlotSubtitleParts = []
-    const stim = getStimuliOptions(engine).find(
-      o => o.value === String(item.settings.stimulusId)
-    )
-    if (stim?.label) parts.push({ label: 'Stimulus', value: stim.label })
-    const group = getParticipantsGroupOptions(
-      engine,
-      true,
-      item.settings.stimulusId
-    ).find(o => o.value === String(item.settings.groupId))
-    if (group?.label) parts.push({ label: 'Group', value: group.label })
-    return parts.length === 0 ? undefined : parts
+  view: {
+    deriveView: deriveEvolvingMetricsView,
+    viewDependsOnWidth: true,
   },
+  getSubtitle: stimulusGroupSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
     groupId: params.groupId ?? -1,
@@ -57,9 +56,6 @@ export const evolvingMetricsDefinition = definePlot<
     timelineStart: 0,
     timelineEnd: 0,
   }),
-  getMinSize: () => ({ w: 11, h: 10 }),
-  getDefaultHeight: () => 12,
-  getDefaultWidth: () => 12,
   requireCapabilities: ['segmented'],
   consumesMetrics: {
     outputShape: 'scalar',

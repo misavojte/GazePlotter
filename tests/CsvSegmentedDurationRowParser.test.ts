@@ -595,9 +595,8 @@ describe('CsvSegmentedDurationRowParser - Eye movement type classification', () 
   test('classifies tokens correctly under utf-16le encoding', () => {
     const sut = new CsvSegmentedDurationRowParser(fixationHeader, ',', 'utf-16le')
     const outputs = collectOutputs(sut)
-    const dec = new TextDecoder()
     const feed = (row: string) =>
-      sut.processRowBytes(encodeString(row, 'utf-16le'), dec)
+      sut.processRowBytes(encodeString(row, 'utf-16le'))
     feed('Stimulus,Participant,100,50,0,Region') // "0" -> Fixation
     feed('Stimulus,Participant,200,50,Saccade,Region') // named -> distinct
     feed('Stimulus,Participant,300,50,5,Region') // numeric non-zero -> Saccade

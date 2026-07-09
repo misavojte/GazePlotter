@@ -1,8 +1,3 @@
----
-title: Metrics Library Overview
-order: 1
----
-
 # Metrics Library Overview
 
 The **Metrics Library** is GazePlotter's central engine for configuring, calculating, and managing eye-tracking metrics. Rather than hardcoding metric logic into specific visualizers, GazePlotter uses a unified Domain-Specific Language (DSL) that decoupling mathematical calculations from the UI's display formats. 
@@ -88,7 +83,7 @@ The measurement class determines which options a plot exposes. In a plot that re
 
 ## Customizing the Metric Library
 
-To manage the Metric Library, click **Edit metric library…** in any collapsible Settings Pane or the data export panel.
+To manage the Metric Library, click **Edit metric library…** in any collapsible Pane or the data export panel.
 
 ### Editing Metric Instances
 1. **Select or Duplicate**: Select an existing metric in the left sidebar, or click **Duplicate** to use it as a template for a new custom metric.

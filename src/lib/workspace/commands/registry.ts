@@ -18,6 +18,9 @@ import {
   updateHiddenEventChannels,
   updateCategories,
   getDefaultCategoryColor,
+  getDefaultColor,
+  getDefaultEventChannelColor,
+  interpretRow,
 } from '$lib/data/engine'
 import type {
   GridItemMap,
@@ -29,14 +32,6 @@ import type {
   ExtendedInterpretedDataType,
   BaseInterpretedDataType,
 } from '$lib/data/types'
-
-const DEFAULT_AOI_COLORS = [
-  '#66c5cc',
-  '#f6cf71',
-  '#f89c74',
-  '#dcb0f2',
-  '#87c55f',
-]
 
 export type WorkspaceCommandDispatcher = (
   command: WorkspaceCommandChain
@@ -201,6 +196,11 @@ export function createWorkspaceCommandRegistry(
       gridStore.triggerRedraw()
     },
 
+    updateMetricInstances: command => {
+      engine.setMetricInstances(command.instances)
+      gridStore.triggerRedraw()
+    },
+
     updateSettings: command => {
       for (const { itemId, settings } of command.updates) {
         const currentItem = gridStore.items.find(item => item.id === itemId)
@@ -292,21 +292,9 @@ export function createWorkspaceCommandRegistry(
       const dataMeta = requireMetadata()
       const stimulusId = cmd.stimulusId
       const currentAois = dataMeta.aois.data[stimulusId] || []
-      const affectedAois: ExtendedInterpretedDataType[] = []
-      for (let aoiIndex = 0; aoiIndex < currentAois.length; aoiIndex++) {
-        const aoiRow = currentAois[aoiIndex]
-        const originalName = aoiRow?.[0] ?? ''
-        const displayedName = aoiRow?.[1] ?? originalName
-        const color =
-          aoiRow?.[2] ??
-          DEFAULT_AOI_COLORS[aoiIndex % DEFAULT_AOI_COLORS.length]
-        affectedAois.push({
-          id: aoiIndex,
-          originalName,
-          displayedName,
-          color,
-        })
-      }
+      const affectedAois: ExtendedInterpretedDataType[] = currentAois.map(
+        (aoiRow, aoiIndex) => interpretRow(aoiRow, aoiIndex, getDefaultColor)
+      )
       const shouldIncludeHiddenAois = cmd.hiddenAois !== undefined
       const hiddenAois = dataMeta?.aois?.hiddenAois?.[stimulusId] ?? []
       return withMeta(
@@ -382,15 +370,9 @@ export function createWorkspaceCommandRegistry(
           ? order
           : Array.from({ length: currentDefs.length }, (_, i) => i)
 
-      const channels: ExtendedInterpretedDataType[] = ids.map(id => {
-        const ch = currentDefs[id]
-        return {
-          id,
-          originalName: ch?.[0] ?? '',
-          displayedName: ch?.[1] ?? ch?.[0] ?? '',
-          color: ch?.[2] ?? '#888888',
-        }
-      })
+      const channels: ExtendedInterpretedDataType[] = ids.map(id =>
+        interpretRow(currentDefs[id], id, getDefaultEventChannelColor)
+      )
 
       const shouldIncludeHidden = cmd.hiddenChannels !== undefined
       const hidden = ed.hiddenChannels?.[cmd.stimulusId] ?? []
@@ -410,6 +392,15 @@ export function createWorkspaceCommandRegistry(
       const currentGroups = dataMeta.participantsGroups || []
       return withMeta(
         { type: 'updateParticipantsGroups', groups: currentGroups },
+        meta
+      )
+    },
+
+    updateMetricInstances: (_cmd, meta) => {
+      const dataMeta = requireMetadata()
+      const currentInstances = dataMeta.metricInstances ?? []
+      return withMeta(
+        { type: 'updateMetricInstances', instances: [...currentInstances] },
         meta
       )
     },
@@ -435,15 +426,9 @@ export function createWorkspaceCommandRegistry(
           ? order
           : Array.from({ length: currentDefs.length }, (_, i) => i)
 
-      const categories: ExtendedInterpretedDataType[] = ids.map(id => {
-        const c = currentDefs[id]
-        return {
-          id,
-          originalName: c?.[0] ?? '',
-          displayedName: c?.[1] ?? c?.[0] ?? '',
-          color: c?.[2] ?? getDefaultCategoryColor(id),
-        }
-      })
+      const categories: ExtendedInterpretedDataType[] = ids.map(id =>
+        interpretRow(currentDefs[id], id, getDefaultCategoryColor)
+      )
 
       const shouldIncludeHidden = cmd.hiddenCategories !== undefined
       const hidden = dataMeta.categories.hiddenCategories ?? []

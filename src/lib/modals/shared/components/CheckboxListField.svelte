@@ -1,19 +1,23 @@
 <script lang="ts">
-  import { ButtonPreset, InputCheck } from '$lib/shared/components'
+  import type { Snippet } from 'svelte'
+  import { ButtonPreset, InputCheck, InputText } from '$lib/shared/components'
 
   interface CheckboxItem {
     label: string
     sublabel?: string
     checked: boolean
     key: string
+    disabled?: boolean
+    reason?: string
   }
 
   interface Props {
     title: string
     items: CheckboxItem[]
     onItemChange: (key: string, checked: boolean) => void
-    showControls?: boolean
-    maxHeight?: string
+    /** Optional row between the search bar and the list — selection presets
+     *  such as participant-group chips. */
+    presets?: Snippet
     hasError?: boolean
     errorMessage?: string
   }
@@ -22,76 +26,116 @@
     title,
     items,
     onItemChange,
-    showControls = true,
-    maxHeight = '260px',
+    presets,
     hasError = false,
     errorMessage = '',
   }: Props = $props()
 
-  // Computed properties for select all/deselect all states
+  /** The list renders at natural height (the surrounding modal is the single
+   *  scroll context), so long lists get a search bar automatically. */
+  const SEARCHABLE_FROM = 8
+
+  let query = $state('')
+  const searchable = $derived(items.length >= SEARCHABLE_FROM)
+  const normalizedQuery = $derived(query.trim().toLowerCase())
+  const isFiltering = $derived(searchable && normalizedQuery.length > 0)
+
+  const shownItems = $derived(
+    isFiltering
+      ? items.filter(
+          item =>
+            item.label.toLowerCase().includes(normalizedQuery) ||
+            (item.sublabel?.toLowerCase().includes(normalizedQuery) ?? false)
+        )
+      : items
+  )
+
+  // Bulk actions operate on the enabled subset of the SHOWN items: without a
+  // query that is the whole list; with a query it is the matches. With no
+  // enabled items there is nothing to act on: both buttons disable, and
+  // neither reads as active (no vacuous [].every highlight).
+  const enabledShown = $derived(shownItems.filter(item => !item.disabled))
+  const bulkDisabled = $derived(enabledShown.length === 0)
   const allChecked = $derived(
-    items.length > 0 && items.every(item => item.checked)
+    enabledShown.length > 0 && enabledShown.every(item => item.checked)
   )
   const noneChecked = $derived(
-    items.length === 0 || items.every(item => !item.checked)
+    enabledShown.length > 0 && enabledShown.every(item => !item.checked)
   )
 
-  function handleSelectAll() {
-    items.forEach(item => {
-      if (!item.checked) {
-        onItemChange(item.key, true)
+  const checkedCount = $derived(items.filter(item => item.checked).length)
+
+  function setShown(checked: boolean) {
+    shownItems.forEach(item => {
+      if (!item.disabled && item.checked !== checked) {
+        onItemChange(item.key, checked)
       }
     })
   }
 
-  function handleDeselectAll() {
-    items.forEach(item => {
-      if (item.checked) {
-        onItemChange(item.key, false)
-      }
-    })
-  }
-
-  function handleItemChange(key: string, checked: boolean) {
-    onItemChange(key, checked)
+  /** A disabled item's sublabel carries the reason it cannot be selected. */
+  function itemSublabel(item: CheckboxItem): string | undefined {
+    if (!item.disabled || !item.reason) return item.sublabel
+    return item.sublabel ? `${item.sublabel} · ${item.reason}` : item.reason
   }
 </script>
 
 <div class="field-container">
-  <div
-    class="input-group"
-    class:has-error={hasError}
-    style:max-height={maxHeight === 'auto' ? 'none' : maxHeight}
-  >
+  <div class="input-group" class:has-error={hasError}>
     <div class="group-header">
-      <div class="group-title">{title}</div>
-      {#if showControls}
-        <div class="group-controls">
-          <ButtonPreset
-            label="Select All"
-            isActive={allChecked}
-            onclick={handleSelectAll}
-          />
-          <ButtonPreset
-            label="Deselect All"
-            isActive={noneChecked}
-            onclick={handleDeselectAll}
-          />
-        </div>
-      {/if}
+      <div class="group-title">
+        {title}
+        <span class="group-count">{checkedCount}/{items.length}</span>
+      </div>
+      <div class="group-controls">
+        <ButtonPreset
+          label={isFiltering ? 'Select Found' : 'Select All'}
+          isActive={allChecked}
+          disabled={bulkDisabled}
+          onclick={() => setShown(true)}
+        />
+        <ButtonPreset
+          label={isFiltering ? 'Deselect Found' : 'Deselect All'}
+          isActive={noneChecked}
+          disabled={bulkDisabled}
+          onclick={() => setShown(false)}
+        />
+      </div>
     </div>
+
+    {#if searchable}
+      <div class="search-row">
+        <InputText
+          label=""
+          showLabel={false}
+          bind:value={query}
+          placeholder="Search"
+          ariaLabel={`Search ${title}`}
+          fill
+        />
+      </div>
+    {/if}
+
+    {#if presets}
+      <div class="presets-row">
+        {@render presets()}
+      </div>
+    {/if}
 
     <div class="group-content">
       {#if items.length === 0}
         <div class="empty-state">No items available</div>
+      {:else if shownItems.length === 0}
+        <div class="empty-state">No matches</div>
       {:else}
         <div class="items-list">
-          {#each items as item (item.key)}
+          {#each shownItems as item (item.key)}
             <InputCheck
               label={item.label}
-              sublabel={item.sublabel}
+              sublabel={itemSublabel(item)}
               checked={item.checked}
-              onchange={e => handleItemChange(item.key, e.detail)}
+              disabled={item.disabled}
+              onchange={e => onItemChange(item.key, e.detail)}
             />
           {/each}
         </div>
@@ -124,8 +168,6 @@
     flex-direction: column;
     gap: 0.25rem;
     width: 100%;
-    height: 100%;
-    min-height: 0;
   }
 
   .input-group {
@@ -134,11 +176,9 @@
     border: 1px solid var(--c-border);
     border-radius: var(--rounded-md);
     background-color: var(--c-white);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    box-shadow: var(--shadow-sm);
     transition: border-color var(--transition-normal);
     overflow: hidden;
-    flex: 1;
-    min-height: 0;
   }
 
   .input-group.has-error {
@@ -157,6 +197,9 @@
   }
 
   .group-title {
+    display: flex;
+    align-items: baseline;
+    gap: 0.4rem;
     font-weight: 500;
     margin: 0;
     flex: 1;
@@ -167,6 +210,13 @@
     letter-spacing: 0.03em;
   }
 
+  .group-count {
+    font-weight: 400;
+    font-size: 0.75rem;
+    color: var(--c-midgrey);
+    letter-spacing: 0;
+  }
+
   .group-controls {
     display: flex;
     gap: 0.25rem;
@@ -174,13 +224,23 @@
     justify-content: flex-end;
   }
 
-  .group-content {
-    display: block;
-    overflow-y: auto;
+  .search-row {
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--c-border);
     background-color: var(--c-white);
-    min-height: 0;
-    flex: 1;
-    overscroll-behavior: contain;
+  }
+
+  .presets-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+    padding: 0.5rem 0.75rem;
+    border-bottom: 1px solid var(--c-border);
+    background-color: var(--c-white);
+  }
+
+  .group-content {
+    background-color: var(--c-white);
   }
 
   .items-list {
@@ -217,30 +277,6 @@
     margin-top: 2px;
   }
 
-  /* Custom scrollbar styling */
-  .group-content::-webkit-scrollbar {
-    width: 6px;
-  }
-
-  .group-content::-webkit-scrollbar-track {
-    background: var(--c-lightgrey);
-    border-radius: 3px;
-  }
-
-  .group-content::-webkit-scrollbar-thumb {
-    background: var(--c-border);
-    border-radius: 3px;
-  }
-
-  .group-content::-webkit-scrollbar-thumb:hover {
-    background: var(--c-midgrey);
-  }
-
-  .group-content {
-    scrollbar-width: thin;
-    scrollbar-color: var(--c-border) var(--c-lightgrey);
-  }
-
   @media (max-width: 600px) {
     .group-header {
       flex-direction: column;
@@ -252,11 +288,6 @@
     .group-controls {
       justify-content: stretch;
       gap: 0.5rem;
-    }
-
-    /* Important: do not fix height heavily on mobile so it can shrink */
-    .group-content {
-      max-height: 250px !important;
     }
   }
 </style>

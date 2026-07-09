@@ -181,37 +181,20 @@
     },
   })
 
-  const resizeActionParamsTL = $derived({
-    enabled: resizable,
-    item,
-    min: minimumSize,
-    interaction,
-    onCommit: (rect: GridRect) => onresize(rect),
-    direction: 'tl' as const,
-  })
-  const resizeActionParamsTR = $derived({
-    enabled: resizable,
-    item,
-    min: minimumSize,
-    interaction,
-    onCommit: (rect: GridRect) => onresize(rect),
-    direction: 'tr' as const,
-  })
-  const resizeActionParamsBL = $derived({
-    enabled: resizable,
-    item,
-    min: minimumSize,
-    interaction,
-    onCommit: (rect: GridRect) => onresize(rect),
-    direction: 'bl' as const,
-  })
-  const resizeActionParamsBR = $derived({
-    enabled: resizable,
-    item,
-    min: minimumSize,
-    interaction,
-    onCommit: (rect: GridRect) => onresize(rect),
-    direction: 'br' as const,
+  const resizeParams = $derived.by(() => {
+    const base = {
+      enabled: resizable,
+      item,
+      min: minimumSize,
+      interaction,
+      onCommit: (rect: GridRect) => onresize(rect),
+    }
+    return {
+      tl: { ...base, direction: 'tl' as const },
+      tr: { ...base, direction: 'tr' as const },
+      bl: { ...base, direction: 'bl' as const },
+      br: { ...base, direction: 'br' as const },
+    }
   })
 </script>
 
@@ -287,30 +270,19 @@
          positioning isn't clipped. All four corners are wired to the
          resize action, each with its own direction (tl/tr/bl/br). Each
          carries data-block-select so its clicks don't toggle selection. -->
-    <div
-      class="corner-handle top-left"
-      data-block-select
-      use:resizeHandleAction={resizeActionParamsTL}
-      aria-hidden="true"
-    ></div>
-    <div
-      class="corner-handle top-right"
-      data-block-select
-      use:resizeHandleAction={resizeActionParamsTR}
-      aria-hidden="true"
-    ></div>
-    <div
-      class="corner-handle bottom-left"
-      data-block-select
-      use:resizeHandleAction={resizeActionParamsBL}
-      aria-hidden="true"
-    ></div>
-    <div
-      class="corner-handle bottom-right"
-      data-block-select
-      use:resizeHandleAction={resizeActionParamsBR}
-      aria-hidden="true"
-    ></div>
+    {#snippet cornerHandle(direction: string, params: any)}
+      <div
+        class="corner-handle {direction}"
+        data-block-select
+        use:resizeHandleAction={params}
+        aria-hidden="true"
+      ></div>
+    {/snippet}
+
+    {@render cornerHandle('top-left', resizeParams.tl)}
+    {@render cornerHandle('top-right', resizeParams.tr)}
+    {@render cornerHandle('bottom-left', resizeParams.bl)}
+    {@render cornerHandle('bottom-right', resizeParams.br)}
   {/if}
 
   {#if isSoleSelection && (isDraggableEnabled || removable)}
@@ -566,7 +538,7 @@
     border-radius: 50%;
     background: var(--c-white);
     border: 1.5px solid var(--c-info);
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+    box-shadow: var(--shadow-sm);
     box-sizing: border-box;
     z-index: 7;
     transition: background var(--transition-fast) ease;
@@ -668,6 +640,6 @@
   /* Tactile "press" feedback */
   .grid-item-scaler.is-pressed:not(.selected) .grid-item-frame {
     /* Add a subtle inner shadow to make it feel pushed 'in' */
-    box-shadow: inset 0 1px 4px rgba(15, 23, 42, 0.06);
+    box-shadow: inset 0 1px 4px color-mix(in srgb, var(--c-black) 6%, transparent);
   }
 </style>

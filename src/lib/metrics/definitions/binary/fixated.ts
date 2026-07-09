@@ -4,54 +4,63 @@ import { integerParam, numberParam } from '../../core/params'
 /**
  * ## Was fixated (AOI hit / noticed rate)
  *
- * Binary per participant: 1 if the participant fixated the AOI (meeting the
- * threshold), else 0. Aggregated across participants as a `proportion`, this is
- * the per-AOI noticed-rate / hit ratio — the fraction of participants who looked
+ * Binary per participant, in PERCENT: 100 if the participant fixated the AOI
+ * (meeting the threshold), else 0 — the values match the declared `%` unit, so
+ * every consumer (bar, evolving, aoi-stream, exports) reads them without
+ * scaling. Aggregated across participants (`mean`), this is the per-AOI
+ * noticed-rate / hit ratio — the percentage of participants who looked
  * at the AOI at all. The `proportion` aggregation is the single signal that tells
  * the bar plot to render a plain proportional bar instead of a beeswarm of 0/1 dots.
  *
  * - **Shape:** `aoi-vector`
- * - **Unit:** `%` (the cross-participant aggregate is a proportion in [0,1])
+ * - **Unit:** `%` (per participant 0 or 100; cross-participant mean is 0–100)
  * - **Category:** `binary` (dichotomous detection — whether, not how many; the
  *   companion to time-to-first-fixation's "when")
- * - **Windowing:** not supported (presence is a recording-lifetime concept)
+ * - **Windowing:** supported. Per window: was the AOI fixated (thresholds
+ *   evaluated WITHIN the window)? Group-reduced by `mean` this is the classic
+ *   proportion-of-participants-looking timeline — when an AOI was "visible"
+ *   to the cohort. Thresholds larger than the window trivially yield 0.
  *
  * ### Parameters
- * - `minFixationCount` (default 1): minimum fixations on the AOI to count as fixated.
- * - `minDwellMs` (default 0): minimum total dwell (ms) on the AOI to count as fixated.
+ * - `minFixationCount` (default 1): minimum fixations on the AOI, within the
+ *   evaluated scope (window or recording), to count as fixated.
+ * - `minDwellMs` (default 0): minimum total dwell (ms) on the AOI, within the
+ *   evaluated scope, to count as fixated.
  *
  * ### Invariants
  * - An AOI the participant never fixated emits a finite `0`, never NaN, so it stays
  *   in the proportion's denominator — otherwise the rate inflates toward 1.0.
- * - Binarised per AOI: 5 fixations still contribute 1, not 5 — this is a presence,
- *   not a count.
+ * - Binarised per AOI: 5 fixations still contribute one 100, not 500 — this is
+ *   a presence, not a count.
  */
 const minFixationCount = integerParam('minFixationCount', 'Min fixations', 1, {
   min: 1,
-  description: 'Minimum number of fixations on the AOI for it to count as fixated.',
+  description:
+    'Minimum number of fixations on the AOI to count as fixated — within the window when windowed, else within the recording.',
 })
 const minDwellMs = numberParam('minDwellMs', 'Min dwell', 0, {
   min: 0,
   unit: 'ms',
-  description: 'Minimum total dwell time (ms) on the AOI for it to count as fixated.',
+  description:
+    'Minimum total dwell time (ms) on the AOI to count as fixated — within the window when windowed, else within the recording.',
 })
 
 defineMetric({
   id: 'fixated',
   label: 'Was fixated',
   description:
-    'Per AOI: whether the participant fixated it (1) or not (0), meeting the optional fixation-count / dwell threshold. Aggregated across participants as a proportion, this is the per-AOI noticed rate — the fraction of participants who looked at it.',
+    'Per AOI: whether the participant fixated it (100%) or not (0%), meeting the optional fixation-count / dwell threshold. Averaged across participants this is the per-AOI noticed rate — the percentage of participants who looked at it.',
   unit: '%',
   category: 'binary',
   rawShape: 'aoi-vector',
   windowUnit: 'ms',
-  // Proportion: a per-participant 0/1 indicator. The cross-participant value is
-  // the fraction of participants (the noticed-rate), and the class flips the bar
-  // plot to a proportional render instead of a beeswarm.
+  // Proportion: a per-participant 0/100 (%) indicator. The cross-participant
+  // mean is the noticed-rate in percent, and the class flips the bar plot to a
+  // proportional render instead of a beeswarm.
   measurementClass: 'proportion',
-  supportsWindowing: false,
-  searchTags: ['fixated', 'hit', 'hit ratio', 'noticed', 'presence', 'attention', 'capture', 'rate', 'proportion', 'aoi'],
+  searchTags: ['fixated', 'hit', 'hit ratio', 'noticed', 'presence', 'attention', 'capture', 'rate', 'proportion', 'aoi', 'visible'],
   params: [minFixationCount, minDwellMs] as const,
+  accumulation: 'stateful',
   init: ({ slots, params }) => ({
     count: new Float64Array(slots.totalSlots),
     dwell: new Float64Array(slots.totalSlots),
@@ -73,17 +82,18 @@ defineMetric({
       acc.dwell[slots[i]] += dur
     }
   },
-  // Per AOI: 1 if the cumulative count and dwell met the threshold, else a finite 0.
+  // Per AOI: 100 (%) if the cumulative count and dwell met the threshold,
+  // else a finite 0 — percent so the values match the declared unit.
   finalize: (acc) => {
     const out = new Array<number>(acc.count.length)
     for (let i = 0; i < out.length; i++) {
-      out[i] = acc.count[i] >= acc.minFix && acc.dwell[i] >= acc.minDwell ? 1 : 0
+      out[i] = acc.count[i] >= acc.minFix && acc.dwell[i] >= acc.minDwell ? 100 : 0
     }
     return out
   },
-  // One finite 0/1 per participant for the slot — the bar plot averages these
-  // across participants to get the noticed rate.
+  // One finite 0/100 per participant for the slot — averaging across
+  // participants yields the noticed rate in percent directly.
   individuals: (acc, slotIndex) => [
-    acc.count[slotIndex] >= acc.minFix && acc.dwell[slotIndex] >= acc.minDwell ? 1 : 0,
+    acc.count[slotIndex] >= acc.minFix && acc.dwell[slotIndex] >= acc.minDwell ? 100 : 0,
   ],
 })

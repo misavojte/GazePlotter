@@ -1,14 +1,8 @@
 # Metric Correlation
 
-Metric Correlation in GazePlotter provides statistical analysis of relationships between multiple eye-tracking metrics across participants. By calculating correlations between selected aggregate metrics (such as fixation durations, visit counts, or Recurrence Quantitative Analysis (RQA) measures), this visualization displays relationships as a color-coded correlation heatmap matrix or a grid of scatter plots (Scatter Plot Matrix / SPLOM).
+Metric Correlation in GazePlotter provides statistical analysis of relationships between multiple eye-tracking metrics across participants. By calculating correlations between selected aggregate metrics (such as fixation durations, visit counts, or Recurrence Quantification Analysis (RQA) measures), this visualization displays relationships as a color-coded correlation heatmap matrix or a grid of scatter plots (Scatter Plot Matrix / SPLOM).
 
-> Interested on how to operate with plots in general within the workspace? See:
->
-> - [How to move a plot around workspace?](/docs/setup/workspace/#moving-a-plot)
-> - [How to resize a plot?](/docs/setup/workspace/#resizing-a-plot)
-> - [How to duplicate a plot?](/docs/setup/workspace/#duplicating-a-plot)
-> - [How to add a new plot?](/docs/setup/workspace/#adding-visualizations)
-> - [How to remove a plot?](/docs/setup/workspace/#removing-a-plot)
+> **Plot Operations**: For general canvas operations (moving, resizing, duplicating, or removing plots), see [Plot Manipulation](/docs/workspace/#plot-manipulation).
 
 ## Metric Contract
 
@@ -20,19 +14,19 @@ To render a Metric Correlation plot, GazePlotter queries the workspace's metric 
 
 > **Metrics Documentation**: For details on how raw metric shapes translate to scalar projections (like matrix cell/aggregate or vector pick-aoi), see the [Metrics Library Overview](/docs/metrics) and category sub-pages.
 
-## Configuration via Settings Pane
+## Configuration via Pane
 
-Clicking the Metric Correlation plot card in the workspace selects the plot and opens its configuration options in the sidebar **Settings Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
+Clicking the Metric Correlation plot card in the workspace selects the plot and opens its configuration options in the sidebar **Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
 
 ### Stimulus
 Choose the stimulus for which metrics are aggregated.
-- **Edit stimulus library…**: Opens the Stimuli Modification modal to manage stimulus files and dimensions.
+- **Edit stimulus library…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files.
 
 ### Participant group
 Filter the analysis to a specific participant group. The correlation is computed using the values of individual participants within this group.
 - **Select group**: A dropdown containing *All participants* and custom participant groups.
-- **Edit groups…**: Opens the Participant Groups modal to create or modify comparative groups.
-- **Edit participants…**: Opens the Participant Modification modal to customize participant properties and metadata.
+- **Edit groups…**: Opens the [Participant Groups](/docs/workspace/participant-groups/) editor to manage cohort comparison sets.
+- **Edit participants…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename or reorder participants.
 
 ### Metrics
 Select which metrics to correlate.
@@ -67,20 +61,17 @@ Filter the temporal range.
 
 ### Areas of Interest
 Filters which Areas of Interest (AOIs) are active for the metric calculations. If AOIs are selected, only fixations landing within those boundaries are included in the scalar metric calculations.
-- **Configure AOI Library…**: Opens the AOI Modification modal to add, remove, rename, or color-code AOIs.
+- **Configure AOI Library…**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, and visibility.
 
 ### Export
-Located at the bottom of the Settings Pane:
-- **Download plot…**: Opens the export modal to download the plot.
-  - *File formats*: PNG (recommended, transparent background) or JPG (white background).
-  - *Dimensions*: Customizable width (height maintained as square).
-  - *Quality*: Adjustable DPI setting.
-  - *Margins*: Configurable margins.
-  - *Preview*: Live render of the output before saving.
+Located at the bottom of the Pane:
+- **Download plot…**: Opens the [Figure Export](/docs/export/figures/) dialog to save the correlation plot as a PNG or JPG.
+- **Export Data**: To export raw metric correlation values as CSV, see [Metric Data Export](/docs/export/metric-data/).
 
 ## Interpretation
 
 Use Metric Correlation to:
-- **Identify dependent variables**: See if metrics are strongly correlated (e.g. if high RQA Determinism correlates with high average fixation duration, suggesting structured, longer processing).
-- **Detect outliers**: SPLOM scatter plots highlight participants whose behavior deviates significantly from group trends.
-- **Validate statistical assumptions**: Compare Pearson and Spearman correlations to determine if relationships are linear or non-linear.
+- **Discover behavioral trends**: For instance, a strong negative correlation between average fixation duration and visit count can reveal a scanning strategy of rapid, frequent visits vs. prolonged, deep inspections.
+- **Relate visual metrics to complexity**: Assess if repetitive gaze behaviors (RQA Recurrence Rate) correlate with longer average fixation durations, suggesting visual confusion or detailed visual processing.
+- **Identify outliers**: Scatter Plot Matrix (SPLOM) view plots individual participants as dots, helping identify anomalous participants who deviate from overall group trends.
+- **Compare cohort stats**: Select Spearman vs. Pearson correlation coefficients to assess the impact of extreme values or non-linearities on behavior trends.

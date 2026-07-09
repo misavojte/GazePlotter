@@ -27,7 +27,7 @@
     mixed = false,
   }: Props = $props()
 
-  const { engine, modalState } = getGazePlotterSession()
+  const { engine, workspace, modalState } = getGazePlotterSession()
 
   const contract = $derived(resolvePlotDefinition(item.type).consumesMetrics!)
 
@@ -51,6 +51,7 @@
     const handlers = contract.multiSelect
       ? multiSelectMetricHandlers(
           engine,
+          workspace,
           () => safeIds,
           ids => {
             onchange(ids)
@@ -58,6 +59,7 @@
         )
       : singleSelectMetricHandlers(
           engine,
+          workspace,
           () => safeIds[0] ?? null,
           id => {
             onchange(id == null ? [] : [id])
@@ -79,6 +81,6 @@
       }}
       label=""
     />
-    <PaneEditLink onclick={openMetricLibrary}>Edit metric library…</PaneEditLink>
+    <PaneEditLink onclick={openMetricLibrary}>Edit metric library</PaneEditLink>
   </PaneSection>
 {/if}

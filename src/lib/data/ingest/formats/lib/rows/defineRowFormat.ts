@@ -108,7 +108,7 @@ async function readRows(
 
     if (state.parser === null) throw new Error('Row parser is undefined')
     rowIndex++
-    state.parser.processRowBytes(rawRow, decoder)
+    state.parser.processRowBytes(rawRow)
   }
 
   // The first chunk was consumed for detection; process it first.

@@ -103,20 +103,20 @@
     padding: 6px 14px;
     font-size: 0.875rem;
     font-weight: 500;
-    color: #64748b;
+    color: var(--c-darkgrey);
     text-decoration: none;
     border-radius: var(--rounded-md);
     transition: all var(--transition-normal) ease;
   }
 
   .nav-item:hover {
-    color: #1e293b;
-    background-color: #f1f5f9;
+    color: var(--c-text);
+    background-color: var(--c-lightgrey);
   }
 
   .nav-item.active {
     color: var(--c-brand);
-    background-color: #fff1f2;
+    background-color: color-mix(in srgb, var(--c-brand) 8%, var(--c-white));
     font-weight: 600;
   }
 
@@ -127,7 +127,7 @@
     margin-left: 8px;
     padding-left: 12px;
     border-left: 1px solid var(--c-grey);
-    color: #1f2328;
+    color: var(--c-black);
     text-decoration: none;
     transition: color var(--transition-normal) ease;
   }

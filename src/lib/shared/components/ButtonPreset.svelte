@@ -2,13 +2,14 @@
   interface Props {
     label: string
     isActive?: boolean
+    disabled?: boolean
     onclick?: (event: MouseEvent) => void
   }
 
-  let { label, isActive = false, onclick = () => {} }: Props = $props()
+  let { label, isActive = false, disabled = false, onclick = () => {} }: Props = $props()
 </script>
 
-<button class="preset-btn" class:active={isActive} {onclick}>
+<button class="preset-btn" class:active={isActive} {disabled} {onclick}>
   {label}
 </button>
 
@@ -24,9 +25,14 @@
     color: var(--c-black);
   }
 
-  .preset-btn:hover {
+  .preset-btn:hover:not(:disabled) {
     border-color: var(--c-brand);
     color: var(--c-brand);
+  }
+
+  .preset-btn:disabled {
+    opacity: 0.55;
+    cursor: not-allowed;
   }
 
   .preset-btn.active {

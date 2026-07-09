@@ -29,8 +29,10 @@
 
 <svelte:head>
   <title
-    >GazePlotter | Free eye-tracking data visualisation via scarf plots</title
+    >GazePlotter | Free Eye-Tracking Visualization: Scarf Plots, Scanpaths, AOI
+    Metrics</title
   >
+  <link rel="canonical" href="https://gazeplotter.com/" />
 </svelte:head>
 
 <main>
@@ -131,6 +133,7 @@
     margin: 0;
     font-weight: bold;
     line-height: 1.15;
+    letter-spacing: -0.025em;
   }
   .red {
     color: var(--c-brand) !important;

@@ -137,14 +137,6 @@ export class BinaryBufferReader {
     )
   }
 
-  getSegmentId(segmentIndex: number): number {
-    return (
-      this.segmentBuffer[
-        segmentIndex * SEGMENT_STRIDE + SegmentField.SEGMENT_ID
-      ] | 0
-    )
-  }
-
   getSegmentAoiCount(segmentIndex: number): number {
     return (
       this.segmentBuffer[

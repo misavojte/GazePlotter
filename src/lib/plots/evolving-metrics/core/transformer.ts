@@ -31,6 +31,7 @@ import {
 } from '$lib/data/engine'
 import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
 import { buildMetricLabel } from '$lib/plots/shared/labels'
+import { resolveDisplayStride, DEFAULT_MAX_COLUMNS } from '$lib/plots/shared/displayBudget'
 import {
   asScalarTimeseries,
   resolveMetric,
@@ -42,6 +43,7 @@ import {
   windowLabel,
   type PlotMetricContract,
   type Scope,
+  type WindowedProjection,
 } from '$lib/metrics'
 import { getEvolvingMetricsXAxisLabel } from '../const'
 import type {
@@ -123,6 +125,13 @@ export function getEvolvingMetricsData(
   settings: Pick<EvolvingMetricsSettings, 'stimulusId' | 'groupId' | 'metricInstanceIds'> & {
     timelineMin?: number
     timelineMax?: number
+    /**
+     * Display budget: the most windows to evaluate/draw per participant. The
+     * configured step is decimated to a strided `displayStep` so only ~this many
+     * windows are produced per series (bounded by the plot's on-screen width),
+     * regardless of recording length. Defaults to {@link DEFAULT_MAX_COLUMNS}.
+     */
+    maxColumns?: number
   },
 ): EvolvingMetricsResult {
   const meta = engine.metadata
@@ -165,6 +174,50 @@ export function getEvolvingMetricsData(
   // own transformer, not a setting on this one.
   const midOffsetFix = Math.floor(window.windowSize / 2)
 
+  // Display budget: never produce more windows than the plot's width can show.
+  // We widen only the STEP (draw every `stride`-th configured window); the
+  // `windowSize` is unchanged, so each value still summarises a full window and
+  // the centered-anchor semantics above hold. `fullW` and `displayStep` are in
+  // the metric's window unit — ms (time-windowed) or fixation count
+  // (fixation-windowed) — so they must be measured consistently per unit.
+  const maxColumns = settings.maxColumns ?? DEFAULT_MAX_COLUMNS
+  let fullW: number
+  if (windowUnit === 'fixations') {
+    // Bound by the participant with the most fixations (O(1) range lookup) so
+    // the longest series stays within budget; shorter ones produce fewer.
+    const reader = engine.getReader()
+    let maxFix = 0
+    if (reader) {
+      for (let i = 0; i < numParticipants; i++) {
+        const { startIndex, endIndex } = reader.getFixationRange(stimulusId, participantIds[i])
+        const n = endIndex - startIndex
+        if (n > maxFix) maxFix = n
+      }
+    }
+    fullW = Math.floor((maxFix - window.windowSize) / window.stepSize) + 1
+  } else {
+    // Bound by the global timeline extent (ms).
+    const extent = Math.max(timelineMin + window.windowSize, timelineMax)
+    fullW = Math.floor((extent - timelineMin - window.windowSize) / window.stepSize) + 1
+  }
+  const { stride, displayStep } = resolveDisplayStride(fullW, window.stepSize, maxColumns)
+
+  // Query at the strided step (windows land on real configured positions). The
+  // step-dependent geometry below reads `effStep` so decimated cells tile the
+  // axis at the display resolution; the axis LABEL keeps the configured `window`.
+  const effStep = displayStep
+  const effInstance =
+    stride === 1
+      ? instance
+      : {
+          ...instance,
+          projection: {
+            kind: 'windowed' as const,
+            window: { windowSize: window.windowSize, stepSize: displayStep },
+            inner: (instance.projection as WindowedProjection).inner,
+          },
+        }
+
   let valueMin = Infinity
   let valueMax = -Infinity
   const participants: EvolvingMetricsParticipant[] = new Array(numParticipants)
@@ -181,7 +234,7 @@ export function getEvolvingMetricsData(
       // missing data with real zero observations.
       timeEnd: Math.min(timelineMax, participantEnds[p]),
     }
-    const result = asScalarTimeseries(query(instance, scope))
+    const result = asScalarTimeseries(query(effInstance, scope))
     if (!result || !result.timeline) {
       participants[p] = { id: pid, label, windows: [] }
       continue
@@ -206,7 +259,9 @@ export function getEvolvingMetricsData(
       const includeNoAoi = Boolean(instance.params?.include_no_aoi)
       const seq = extractFixationSequence(engine, stimulusId, pid, { includeNoAoi })
       const totalFix = seq.timestamps.length
-      const stepFix = window.stepSize
+      // Strided step: the query emitted windows `stride` fixations apart, so the
+      // last cell extends one display step (not one configured step) forward.
+      const stepFix = effStep
       const samples: { midFix: number; centerMs: number; value: number; dataStartMs: number; dataEndMs: number }[] = []
       for (let i = 0; i < N; i++) {
         const v = values[i]

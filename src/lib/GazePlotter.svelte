@@ -73,10 +73,10 @@
     if (generation !== loadGeneration || signal.aborted) return
     if (errorService.fatalLoad) return
 
-    initialGridItemsSnapshot = session.grid.items.map(item => ({
-      ...item,
-      settings: { ...item.settings },
-    }))
+    // Deep, proxy-free copy
+    initialGridItemsSnapshot = $state.snapshot(
+      session.grid.items
+    ) as GridItemSnapshot[]
   }
 
   function startLoad(): void {

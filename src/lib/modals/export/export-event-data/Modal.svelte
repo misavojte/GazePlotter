@@ -1,56 +1,50 @@
 <script lang="ts">
-  import { InputText, Select } from '$lib/shared/components'
-  import { Section, ModalButtons, CheckboxListField } from '$lib/modals'
+  import { Select } from '$lib/shared/components'
+  import { ModalButtons, Step, StepList, HelpText, FieldGrid } from '$lib/modals'
   import type { DecimalSeparator, ExportNaming } from '$lib/data/export'
   import { getGazePlotterSession } from '$lib/session'
-  import { getStimuliOptions } from '$lib/plots/shared'
   import {
     createExportButtons,
     CSV_DECIMAL_SEPARATOR_OPTIONS,
     CSV_DELIMITER_OPTIONS,
     EXPORT_NAMING_OPTIONS,
-    mapSelectableItems,
-    toggleSetValue,
+    EXPORT_TYPE_OPTIONS,
+    exportTypeNamingSummary,
     waitForExportUi,
   } from '../shared/helpers'
+  import ExportShell from '../shared/ExportShell.svelte'
+  import ExportProgressBar from '../shared/ExportProgressBar.svelte'
+  import StimuliSelect from '../shared/StimuliSelect.svelte'
+  import ParticipantsSelect from '../shared/ParticipantsSelect.svelte'
+  import { defaultStimulusSelection, stimuliSelectionSummary } from '../shared/stimuli'
+  import {
+    defaultParticipantSelection,
+    participantsSelectionSummary,
+  } from '../shared/participants'
 
   const { engine, exportService, modalState } = getGazePlotterSession()
-  let fileName = $state('GazePlotter-EventData')
+  const fileName = 'GazePlotter-EventData'
   let exportType = $state('csv')
   let delimiter = $state(',')
   let decimalSeparator = $state<DecimalSeparator>('.')
   let naming = $state<ExportNaming>('displayed')
-  let selectedStimuliIds = $state(new Set<string>())
+  let selectedStimuliIds = $state(defaultStimulusSelection(engine))
+  let selectedParticipantIds = $state(defaultParticipantSelection(engine))
   let isExporting = $state(false)
 
-  const exportOptions = [
-    {
-      value: 'csv',
-      label: 'Single CSV File',
-    },
-    {
-      value: 'individual-csv',
-      label: 'Individual CSV Files (Zipped)',
-    },
-  ]
+  const stepStimuliDone = $derived(selectedStimuliIds.size > 0)
+  const stepParticipantsDone = $derived(selectedParticipantIds.size > 0)
+  const canExport = $derived(stepStimuliDone && stepParticipantsDone)
 
-  const canExport = $derived(
-    fileName.trim().length > 0 && selectedStimuliIds.size > 0
+  const stimuliSummary = $derived(
+    stimuliSelectionSummary(engine, selectedStimuliIds)
   )
-
-  const stimuliItems = $derived(
-    mapSelectableItems(getStimuliOptions(engine), selectedStimuliIds)
+  const participantsSummary = $derived(
+    participantsSelectionSummary(engine, selectedParticipantIds)
   )
-
-  function handleStimulusChange(key: string, checked: boolean) {
-    selectedStimuliIds = toggleSetValue(selectedStimuliIds, key, checked)
-  }
-
-  $effect(() => {
-    selectedStimuliIds = new Set(
-      getStimuliOptions(engine).map(({ value }) => value)
-    )
-  })
+  const fileSummary = $derived(
+    exportTypeNamingSummary(exportType, naming).join(' · ')
+  )
 
   const handleExport = async () => {
     if (!canExport) return
@@ -63,6 +57,7 @@
         fileName,
         exportType: exportType as 'csv' | 'individual-csv',
         stimulusIds: selectedStimuliIds,
+        participantIds: selectedParticipantIds,
         naming,
         csvOptions: {
           delimiter,
@@ -85,140 +80,85 @@
   )
 </script>
 
-<div class="container">
-  <Section>
-    <div class="content">
-      <p class="purpose-description">
-        Export event occurrences with their timing per participant and stimulus.
-      </p>
-    </div>
-  </Section>
+<ExportShell
+  intro="Export event occurrences with their timing per participant and stimulus."
+>
+  <StepList>
+    <Step
+      n={1}
+      title="Choose stimuli"
+      description="Each selected stimulus contributes its event occurrences to the export."
+      summary={stimuliSummary}
+      done={stepStimuliDone}
+    >
+      <StimuliSelect
+        selected={selectedStimuliIds}
+        onchange={next => (selectedStimuliIds = next)}
+        hasError={!stepStimuliDone}
+      />
+    </Step>
 
-  <Section title="Export Settings">
-    <div class="content-two-column">
-      <Select
-        label="Export Type"
-        options={exportOptions}
-        bind:value={exportType}
+    <Step
+      n={2}
+      title="Choose participants"
+      description="Group chips toggle a whole participant group at once; individual checkmarks refine the result."
+      summary={participantsSummary}
+      done={stepParticipantsDone}
+    >
+      <ParticipantsSelect
+        selected={selectedParticipantIds}
+        onchange={next => (selectedParticipantIds = next)}
+        hasError={!stepParticipantsDone}
       />
-      <InputText
-        label="File name"
-        bind:value={fileName}
-        placeholder="Enter filename without extension"
-      />
-      <Select
-        label="Delimiter"
-        options={CSV_DELIMITER_OPTIONS}
-        bind:value={delimiter}
-      />
-      <Select
-        label="Decimal Separator"
-        options={CSV_DECIMAL_SEPARATOR_OPTIONS}
-        bind:value={decimalSeparator}
-      />
-      <Select
-        label="Naming"
-        options={EXPORT_NAMING_OPTIONS}
-        bind:value={naming}
-      />
-    </div>
-  </Section>
+    </Step>
 
-  <Section title="Data Selection">
-    <div class="settings-grid">
-      <div class="settings-column">
-        <CheckboxListField
-          title="Stimuli"
-          items={stimuliItems}
-          onItemChange={handleStimulusChange}
-          hasError={selectedStimuliIds.size === 0}
-          errorMessage="Select at least one stimulus to export"
+    <Step
+      n={3}
+      title="Configure the file"
+      description="The file layout and CSV conventions."
+      summary={fileSummary}
+      done={true}
+      last
+    >
+      <FieldGrid>
+        <Select
+          label="Export Type"
+          options={EXPORT_TYPE_OPTIONS}
+          bind:value={exportType}
         />
-      </div>
-    </div>
-  </Section>
-
-  <Section title="Format Details">
-    <div class="content">
-      <p class="format-description">
-        <strong>CSV format</strong> with columns: stimulus, participant,
-        eventName, start, duration. Times are in milliseconds; a duration of 0
-        marks an instant event. A single-file export can be re-imported as an
-        event file alongside its eye-tracking data.
-      </p>
-      <p class="format-description">
+        <Select
+          label="Delimiter"
+          options={CSV_DELIMITER_OPTIONS}
+          bind:value={delimiter}
+        />
+        <Select
+          label="Decimal Separator"
+          options={CSV_DECIMAL_SEPARATOR_OPTIONS}
+          bind:value={decimalSeparator}
+        />
+        <Select
+          label="Naming"
+          options={EXPORT_NAMING_OPTIONS}
+          bind:value={naming}
+        />
+      </FieldGrid>
+      <HelpText>
+        CSV columns: stimulus, participant, eventName, start, duration. Times
+        are in milliseconds; a duration of 0 marks an instant event. A
+        single-file export can be re-imported as an event file alongside its
+        eye-tracking data.
+      </HelpText>
+      <HelpText>
         Naming: "Displayed" uses your renamed event names, merges channels
-        grouped under the same name, hides hidden channels, and includes derived
-        interval channels (the on-screen result). "Raw" uses the original
-        imported channel names with no grouping and excludes derived interval
-        channels.
-      </p>
-    </div>
-  </Section>
+        grouped under the same name, hides hidden channels, and includes
+        derived interval channels (the on-screen result). "Raw" uses the
+        original imported channel names with no grouping and excludes derived
+        interval channels.
+      </HelpText>
+    </Step>
+  </StepList>
+
+  <ExportProgressBar progress={exportService.progress} />
 
   <ModalButtons buttons={exportButtons} />
-</div>
-
-<style>
-  .container {
-    display: flex;
-    flex-direction: column;
-    max-width: 600px;
-  }
-
-  .content {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .purpose-description {
-    margin: 0;
-    color: var(--c-text);
-    font-size: 0.95rem;
-    line-height: 1.4;
-  }
-
-  .content-two-column {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1rem;
-  }
-
-  @media (max-width: 500px) {
-    .content-two-column {
-      grid-template-columns: 1fr;
-      gap: 0.5rem;
-    }
-  }
-
-  .format-description {
-    margin: 0 0 0.75rem 0;
-    color: #666;
-    font-size: 0.9rem;
-    line-height: 1.4;
-  }
-
-  .format-description:last-child {
-    margin-bottom: 0;
-  }
-
-  .settings-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 1.5rem;
-  }
-
-  @media (max-width: 700px) {
-    .settings-grid {
-      grid-template-columns: 1fr;
-      gap: 1rem;
-    }
-  }
-
-  .settings-column {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-</style>
+</ExportShell>

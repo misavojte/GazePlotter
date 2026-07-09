@@ -3,7 +3,7 @@ import { AoiGroupReader } from '../src/lib/data/binary/reader.aoiGroup'
 import { createReaderFromJson } from '../src/lib/data/binary/converters'
 
 describe('AoiGroupReader Optimization Verification', () => {
-  it('should correctly map and deduplicate AOIs (Legacy API)', () => {
+  it('should correctly map and deduplicate AOIs', () => {
     // 1 stimulus, 1 participant, 3 segments
     // Segment 0: AOIs: 0, 1, 0, 1
     const segments = [
@@ -33,7 +33,7 @@ describe('AoiGroupReader Optimization Verification', () => {
     groupReader.updateMap(meta)
 
     const buffer = new Uint32Array(10)
-    const len = groupReader.getSegmentAoisIntoUniqueTyped(0, 0, buffer)
+    const len = groupReader.getSegmentAoisUniqueDirect(0, 0, buffer)
     const result = Array.from(buffer.subarray(0, len))
     expect(result.sort((a, b) => a - b)).toEqual([0, 1])
   })
@@ -60,10 +60,10 @@ describe('AoiGroupReader Optimization Verification', () => {
     groupReader.updateMap(meta)
 
     const buffer = new Uint32Array(10)
-    const len = groupReader.getSegmentAoisIntoUniqueTyped(0, 0, buffer)
+    const len = groupReader.getSegmentAoisUniqueDirect(0, 0, buffer)
 
     expect(len).toBe(2)
-    // Expect first two elements to be 0 and 1 (order non-deterministic in bitmask vs stamp table, but here predictable)
+    // Expect first two elements to be 0 and 1 (order non-deterministic in bitmask vs stamp table, but predictable)
     // Bitmask iterates 0..count. order of encountering unique: 0 then 1.
     const result = Array.from(buffer.subarray(0, len)).sort((a, b) => a - b)
     expect(result).toEqual([0, 1])
@@ -96,7 +96,7 @@ describe('AoiGroupReader Optimization Verification', () => {
     groupReader.updateMap(meta)
 
     const buffer = new Uint32Array(50)
-    const len = groupReader.getSegmentAoisIntoUniqueTyped(0, 0, buffer)
+    const len = groupReader.getSegmentAoisUniqueDirect(0, 0, buffer)
 
     expect(len).toBe(3)
     const result = Array.from(buffer.subarray(0, len)).sort((a, b) => a - b)
@@ -114,7 +114,7 @@ describe('AoiGroupReader Optimization Verification', () => {
     groupReader.updateMap(meta)
 
     const buffer = new Uint32Array(10)
-    const len = groupReader.getSegmentAoisIntoUniqueTyped(0, 0, buffer)
+    const len = groupReader.getSegmentAoisUniqueDirect(0, 0, buffer)
     expect(len).toBe(1)
     expect(buffer[0]).toBe(5)
   })
@@ -126,7 +126,7 @@ describe('AoiGroupReader Optimization Verification', () => {
     groupReader.updateMap({ aois: { data: [[]] }, stimuli: { data: [['S1']] } })
 
     const buffer = new Uint32Array(10)
-    const len = groupReader.getSegmentAoisIntoUniqueTyped(0, 0, buffer)
+    const len = groupReader.getSegmentAoisUniqueDirect(0, 0, buffer)
     expect(len).toBe(0)
   })
 
@@ -151,7 +151,7 @@ describe('AoiGroupReader Optimization Verification', () => {
     groupReader.updateMap(meta)
 
     const buffer = new Uint32Array(10)
-    const len = groupReader.getSegmentAoisIntoUniqueTyped(0, 0, buffer)
+    const len = groupReader.getSegmentAoisUniqueDirect(0, 0, buffer)
 
     expect(len).toBe(1)
     expect(buffer[0]).toBe(0) // Only AOI 0 should remain
@@ -202,5 +202,50 @@ describe('AoiGroupReader Optimization Verification', () => {
     groupReader.getAoiMetricsInSegmentInto(0, 0, 0, out)
     expect(out.order).toBe(0) // Now order 0 because 1 is hidden
     expect(out.count).toBe(1)
+  })
+})
+
+describe('getSegmentAoisUniqueDirect correctness across all segment shapes', () => {
+  it('correctly maps and filters segments', () => {
+    // AOI ids 0..3: id2 shares name 'A' with id0 (groups to id0); id3 is hidden.
+    const segments = [
+      [
+        [
+          [0, 100, 0], //            seg0: no AOI            -> {}
+          [0, 100, 0, 0], //         seg1: AOI0              -> {0}
+          [0, 100, 0, 3], //         seg2: AOI3 (hidden)     -> {}
+          [0, 100, 0, 0, 1, 2], //   seg3: 0,1,2 (2->A->0)   -> {0,1}
+          [0, 100, 0, 0, 0, 1], //   seg4: dup 0,0,1         -> {0,1}
+          [0, 100, 0, 3, 3], //      seg5: all hidden        -> {}
+        ],
+      ],
+    ]
+    const reader = createReaderFromJson(segments)
+    const groupReader = new AoiGroupReader(reader)
+    groupReader.updateMap({
+      aois: {
+        data: [[['0', 'A'], ['1', 'B'], ['2', 'A'], ['3', 'C']]],
+        orderVector: [[0, 1, 2, 3]],
+        hiddenAois: [[3]],
+      },
+      stimuli: { data: [['S1']] },
+    })
+
+    const expected = [
+      [],
+      [0],
+      [],
+      [0, 1],
+      [0, 1],
+      [],
+    ]
+
+    const b = new Uint32Array(16)
+    for (let seg = 0; seg < 6; seg++) {
+      const nNew = groupReader.getSegmentAoisUniqueDirect(seg, 0, b)
+      const got = Array.from(b.subarray(0, nNew)).sort((x, y) => x - y)
+      expect(nNew, `seg ${seg} count`).toBe(expected[seg].length)
+      expect(got, `seg ${seg} ids`).toEqual(expected[seg])
+    }
   })
 })

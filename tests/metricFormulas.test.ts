@@ -6,12 +6,11 @@
  * Behaviour-level coverage lives in `barPlotDataCollection.test.ts`.
  */
 import { describe, it, expect } from 'vitest'
-import { createReaderFromJson } from '../src/lib/data/binary/converters'
-import { AoiGroupReader } from '../src/lib/data/binary/reader.aoiGroup'
+import { makeTestEngine } from './helpers/testEngine'
 import {
   query,
   queryGroup,
-  queryIndividuals,
+  queryIndividualsAllSlots,
   type MetricInstance,
   type Scope,
   type GroupScope,
@@ -24,63 +23,13 @@ const PID = 0
 
 function createEngine(segmentsForPid: number[][]) {
   // segmentsForPid = one participant's segments; shape number[][].
-  // createReaderFromJson wants segments[stimulusId][participantId][segIdx][fieldIdx].
-  const segments: number[][][][] = [
-    [], // stimulus 0: empty
-    [segmentsForPid], // stimulus 1: participant 0
-  ]
-  const reader = createReaderFromJson(segments)
-  return {
-    metadata: {
-      isOrdinalOnly: false,
-      capabilities: { segmented: true, spatial: false, event: false },
-      aois: {
-        data: [
-          [],
-          [null, ['AOI 1', 'AOI 1', 'red'], ['AOI 2', 'AOI 2', 'blue']],
-        ],
-        orderVector: [[], [1, 2]],
-        hiddenAois: [[], []],
-      },
-      categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [] },
-      participants: { data: [['P0', 'P0']], orderVector: [] },
-      participantsGroups: [],
-      stimuli: { data: [['S0', 'S0'], ['S1', 'S1']], orderVector: [] },
-      noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
-      metricInstances: [],
-    },
-    getReader: () => reader,
-    getAoiMapping: (_s: number, rawId: number) => rawId,
-  }
+  // makeTestEngine wants segments[stimulusId][participantId][segIdx][fieldIdx].
+  return makeTestEngine([[], [segmentsForPid]])
 }
 
 function createMultiParticipantEngine(perParticipantSegments: number[][][]) {
   // perParticipantSegments[participantId] = that participant's segment rows.
-  const segments: number[][][][] = [[], perParticipantSegments]
-  const reader = createReaderFromJson(segments)
-  const n = perParticipantSegments.length
-  return {
-    metadata: {
-      isOrdinalOnly: false,
-      capabilities: { segmented: true, spatial: false, event: false },
-      aois: {
-        data: [
-          [],
-          [null, ['AOI 1', 'AOI 1', 'red'], ['AOI 2', 'AOI 2', 'blue']],
-        ],
-        orderVector: [[], [1, 2]],
-        hiddenAois: [[], []],
-      },
-      categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [] },
-      participants: { data: Array.from({ length: n }, (_, i) => [`P${i}`, `P${i}`]), orderVector: [] },
-      participantsGroups: [],
-      stimuli: { data: [['S0', 'S0'], ['S1', 'S1']], orderVector: [] },
-      noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
-      metricInstances: [],
-    },
-    getReader: () => reader,
-    getAoiMapping: (_s: number, rawId: number) => rawId,
-  }
+  return makeTestEngine([[], perParticipantSegments])
 }
 
 /**
@@ -95,27 +44,10 @@ function createWideEngine(n: number, segmentsForPid: number[][]) {
     aoiData.push([`AOI ${i}`, `AOI ${i}`, '#000000'])
     order.push(i)
   }
-  const segments: number[][][][] = [[], [segmentsForPid]]
-  const reader = createReaderFromJson(segments)
-  return {
-    metadata: {
-      isOrdinalOnly: false,
-      capabilities: { segmented: true, spatial: false, event: false },
-      aois: {
-        data: [[], aoiData],
-        orderVector: [[], order],
-        hiddenAois: [[], []],
-      },
-      categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [] },
-      participants: { data: [['P0', 'P0']], orderVector: [] },
-      participantsGroups: [],
-      stimuli: { data: [['S0', 'S0'], ['S1', 'S1']], orderVector: [] },
-      noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
-      metricInstances: [],
-    },
-    getReader: () => reader,
-    getAoiMapping: (_s: number, rawId: number) => rawId,
-  }
+  return makeTestEngine([[], [segmentsForPid]], {
+    aoiData: [[], aoiData],
+    aoiOrderVector: [[], order],
+  })
 }
 
 /**
@@ -140,37 +72,14 @@ function createRealEngine(
     aoiData.push([aoiNames[i], aoiNames[i], '#000000'])
     order.push(i + 1)
   }
-  const segments: number[][][][] = [[], [segmentsForPid]]
-  const reader = createReaderFromJson(segments)
-
-  const metadata = {
-    isOrdinalOnly: false,
-    capabilities: { segmented: true, spatial: false, event: false },
-    aois: {
-      data: [[], aoiData],
-      orderVector: [[], order],
-      hiddenAois: [[], hiddenRawIds],
-    },
-    categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [] },
-    participants: { data: [['P0', 'P0']], orderVector: [] },
-    participantsGroups: [],
-    stimuli: { data: [['S0', 'S0'], ['S1', 'S1']], orderVector: [] },
-    noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
-    metricInstances: [],
-  }
-
   // Real AoiGroupReader runs the full updateMap (sharedMap + sharedSet +
   // groupPool population) — no identity short-circuit.
-  const aoiGroupReader = new AoiGroupReader(reader)
-  aoiGroupReader.updateMap(metadata as any)
-
-  return {
-    metadata,
-    getReader: () => reader,
-    getAoiGroupReader: () => aoiGroupReader,
-    getAoiMapping: (sId: number, rawId: number) =>
-      aoiGroupReader.getAoiMapping(sId, rawId),
-  }
+  return makeTestEngine([[], [segmentsForPid]], {
+    aoiData: [[], aoiData],
+    aoiOrderVector: [[], order],
+    hiddenAois: [[], hiddenRawIds],
+    aoiMapping: 'group',
+  })
 }
 
 function inst(baseId: string, params: Record<string, unknown> = {}): MetricInstance {
@@ -343,7 +252,7 @@ describe('visitDuration — mean sum-of-durations per visit', () => {
     const result = values(query(inst('visitDuration'), scope(engine)))
     expect(result[0]).toBe(150)
     expect(result[1]).toBe(100)
-    expect(queryIndividuals(inst('visitDuration'), scope(engine), 0)).toEqual([200, 100])
+    expect(queryIndividualsAllSlots(inst('visitDuration'), scope(engine))![0]).toEqual([200, 100])
   })
 
   it('counts a trailing zero-duration visit (anyFixation = 0, not dropped to NaN)', () => {
@@ -643,21 +552,11 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
     for (let i = 1; i <= totalRaw; i++) {
       segs.push([(i - 1) * 100, i * 100, 0, i])
     }
-    const segments: number[][][][] = [[], [segs]]
-    const reader = createReaderFromJson(segments)
     const engine = {
-      metadata: {
-        isOrdinalOnly: false,
-        capabilities: { segmented: true, spatial: false, event: false },
-        aois: { data: [[], aoiData], orderVector: [[], order], hiddenAois: [[], []] },
-        categories: { data: [['Fixation', 'Fixation', '#000']], orderVector: [] },
-        participants: { data: [['P0', 'P0']], orderVector: [] },
-        participantsGroups: [],
-        stimuli: { data: [['S0', 'S0'], ['S1', 'S1']], orderVector: [] },
-        noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
-        metricInstances: [],
-      },
-      getReader: () => reader,
+      ...makeTestEngine([[], [segs]], {
+        aoiData: [[], aoiData],
+        aoiOrderVector: [[], order],
+      }),
       // Simulate AoiGroupReader: each pair's first raw id is the rep.
       // raw 1,2 → 1 ;  raw 3,4 → 3 ;  …  raw (2k-1), 2k → (2k-1).
       getAoiMapping: (_s: number, rawId: number) =>

@@ -52,6 +52,7 @@ defineMetric({
   measurementClass: 'extensive',
   searchTags: ['visit', 'entry', 'entries', 'count', 'aoi', 'number', 'transitions'],
   params: [] as const,
+  accumulation: 'stateful',
   init: ({ slots }): Acc => ({
     entries: new Float64Array(slots.totalSlots),
     previousAois: new Set(),

@@ -9,7 +9,7 @@ describe('plotRegistry helpers', () => {
     const result = resolvePlotDefinition('scarf')
 
     expect(result.name).toBeTruthy()
-    expect(result.component).toBeTruthy()
+    expect(result.view.deriveView).toBeTypeOf('function')
   })
 
   it('supports legacy visualization type aliases', () => {

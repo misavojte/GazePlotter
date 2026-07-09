@@ -68,3 +68,19 @@ export function calculatePlotDimensionsWithHeader(
     headerHeight
   )
 }
+
+/**
+ * The drawable figure width in pixels for a plot spanning `gridWidth` grid units
+ * — the same width `calculatePlotDimensionsWithHeader` yields (header only
+ * affects height). This is the exact on-screen canvas width the plot renders
+ * into: `gridToPixelDimensions().width` minus the grid-item body padding. Used
+ * to size the display budget (windows worth evaluating ≈ one per pixel), so the
+ * budget tracks the real available space instead of a hardcoded units→px factor.
+ */
+export function calculatePlotWidthPx(
+  gridWidth: number,
+  gridConfig: GridConfig
+): number {
+  const { width } = gridToPixelDimensions(gridWidth, 1, gridConfig)
+  return Math.max(0, width - PLOT_CONTAINER_HORIZONTAL_PADDING)
+}

@@ -1,5 +1,10 @@
 <script lang="ts">
-  import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
+  import {
+    alignToPixelCenter,
+    CROSSHAIR_COLOR,
+    fillCrosshairBand,
+    strokeCrosshairGuides,
+  } from '$lib/plots/shared/canvasUtils'
   import {
     usePlot,
     NO_MARGINS,
@@ -9,7 +14,8 @@
     type FrameHit,
   } from '$lib/plots/shared'
   import { estimateTextWidth, measureTextHeight, truncateTextToPixelWidth } from '$lib/shared/utils/textUtils'
-  import { interpolateColor } from '$lib/color'
+  import { percentileSorted } from '$lib/shared/utils/mathUtils'
+  import { samplePalette } from '$lib/color'
   import { INACTIVE_COLOR, PRESET_PALETTES } from '$lib/color/palettes'
 
   import { FONT_PRIMARY, PLOT_LEGEND_GAP } from '$lib/plots/shared/const'
@@ -19,6 +25,7 @@
     getGradientLegendRequiredHeight,
   } from '$lib/plots/shared/legendGradient'
   import {
+    drawParticipantIndexAxis,
     drawXAxisLabel,
     drawYAxisMainLabel,
     getXAxisHeight,
@@ -30,9 +37,13 @@
     niceTimelineTicks,
     bottomOriginYTicks,
   } from '$lib/plots/shared/plotArea'
-  import { METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
+  import {
+    METRIC_MISSING_MESSAGE,
+    cannotFitPlaceholder,
+  } from '$lib/plots/shared/drawCanvasPlaceholder'
   import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
   import { MARGIN, AXIS_CONFIG } from '../const'
+  import { rasterizeOverlayDensity, packOverlayDensity } from '../core/overlayDensity'
   import type { EvolvingMetricsResult, EvolvingMetricsWindow } from '../types'
 
   const COMPACT_LEFT_MARGIN = 55
@@ -40,7 +51,19 @@
   const OVERLAY_SUMMARY_COLOR = `rgb(${OVERLAY_SUMMARY_RGB})`
   const OVERLAY_BAND_ALPHA = 0.12
   const OVERLAY_MEAN_LINE_WIDTH = 1.5
-  const OVERLAY_INDIVIDUAL_RGB = '210, 210, 210'
+  const OVERLAY_INDIVIDUAL_RGB: readonly [number, number, number] = [210, 210, 210]
+  const MIN_HEATMAP_ROW_HEIGHT = 4
+
+  // Reused, non-reactive buffers for the overlay individual-line density render
+  // (see renderOverlayLines). Kept per-instance; reallocated only when the
+  // plot-area pixel size changes.
+  let densCounts: Int32Array | null = null
+  let densStamp: Int32Array | null = null
+  let densCanvas: OffscreenCanvas | HTMLCanvasElement | null = null
+  let densCtx: OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D | null = null
+  let densImg: ImageData | null = null
+  let densW = 0
+  let densH = 0
 
   interface Props extends CanvasExportProps {
     data: EvolvingMetricsResult
@@ -61,8 +84,6 @@
   const X_AXIS_LABEL = $derived(data.xAxisLabel)
   const AREA_DIVIDER = { COLOR: 'rgba(255, 255, 255, 0.4)', WIDTH: 1 }
 
-  let hoveredMsTime = $state<number | null>(null)
-  let hoveredParticipantIndex = $state<number | null>(null)
 
   const legendHeight = $derived(
     alignment === 'heatmap' ? getGradientLegendRequiredHeight(AXIS_CONFIG.fontSize) : 0
@@ -138,8 +159,18 @@
     height: () => height,
     margins: () => margins,
     dpiOverride: () => dpiOverride,
-    deps: () => [data, alignment],
+    // colorScale reaches the figure as its own prop (not through `data`), so
+    // it must be a dep — without it a palette edit left the heatmap stale.
+    deps: () => [data, alignment, colorScale],
     placeholder: () => (data.noMetric ? METRIC_MISSING_MESSAGE : null),
+    fit: frame => {
+      if (alignment !== 'heatmap') return null
+      const n = data.participants.length
+      if (n === 0 || frame.height / n >= MIN_HEATMAP_ROW_HEIGHT) return null
+      return cannotFitPlaceholder('height', [
+        'Switch to Overlay mode in Plot Settings > Visualisation',
+      ])
+    },
     // Declarative measured gutters: the resolver measures the left/bottom edge
     // tick labels + titles and returns the title offsets (frame.leftTitleOffset /
     // bottomTitleOffset) the figure draws with. Compact heatmap keeps a fixed
@@ -169,20 +200,27 @@
     drawData: drawEvolving,
     drawOverlay: drawEvolvingOverlay,
     hitTest: computeHit,
-    onHoverChange: (hit) => {
-      const tag = hit?.data
-      const nextT = tag?.t ?? null
-      const nextP = tag?.participantIdx ?? null
-      const changed = nextT !== hoveredMsTime || nextP !== hoveredParticipantIndex
-      hoveredMsTime = nextT
-      hoveredParticipantIndex = nextP
-      return changed
-    },
   })
+
+  const hoveredMsTime = $derived(plot.hover.data?.t ?? null)
+  const hoveredParticipantIndex = $derived(plot.hover.data?.participantIdx ?? null)
 
   const palette = $derived<string[]>(
     colorScale && colorScale.length >= 2 ? colorScale : [...PRESET_PALETTES.HEAT.colors]
   )
+
+  // 256-step colour LUT built once per palette change, so the heatmap draw loop
+  // indexes a prebuilt string instead of interpolating (string concat + parse)
+  // per window on every repaint. 256 steps is visually indistinguishable from
+  // continuous interpolation for a heatmap.
+  const HEATMAP_LUT_SIZE = 256
+  const heatmapColorLut = $derived.by<string[]>(() => {
+    const lut = new Array<string>(HEATMAP_LUT_SIZE)
+    for (let i = 0; i < HEATMAP_LUT_SIZE; i++) {
+      lut[i] = samplePalette(palette, i / (HEATMAP_LUT_SIZE - 1))
+    }
+    return lut
+  })
 
   const gradientLegendGeometry = $derived.by(() => {
     if (alignment !== 'heatmap') return null
@@ -231,20 +269,11 @@
       for (let j = 0; j < temp.length; j++) sum += temp[j]
       meanValues[s] = sum / temp.length
       temp.sort((a, b) => a - b)
-      p25Values[s] = computePercentile(temp, 0.25)
-      p75Values[s] = computePercentile(temp, 0.75)
+      p25Values[s] = percentileSorted(temp, 0.25)
+      p75Values[s] = percentileSorted(temp, 0.75)
     }
     return { meanValues, p25Values, p75Values, sampleCount }
   })
-
-  function computePercentile(sorted: number[], p: number): number {
-    const n = sorted.length
-    if (n === 1) return sorted[0]
-    const k = (n - 1) * p
-    const f = Math.floor(k)
-    const c = Math.ceil(k)
-    return f === c ? sorted[f] : sorted[f] * (c - k) + sorted[c] * (k - f)
-  }
 
   function findWindowAt(
     windows: readonly EvolvingMetricsWindow[],
@@ -311,21 +340,25 @@
     ctx.beginPath()
     ctx.rect(floorLeft, floorTop, floorWidth, floorHeight)
     ctx.clip()
+    drawHoveredWindowChrome(
+      ctx, floorLeft, floorTop, floorWidth, floorHeight, floorRight,
+      alignment === 'overlay' ? null : floorHeight / participantCount
+    )
     if (alignment === 'overlay') {
-      drawOverlayHover(ctx, floorLeft, floorTop, floorWidth, floorHeight, floorBottom, floorRight)
-    } else {
-      drawHeatmapHover(ctx, floorLeft, floorTop, floorWidth, floorHeight, floorBottom, floorRight, participantCount)
+      drawHoveredStepLine(ctx, floorLeft, floorWidth, floorHeight, floorBottom)
     }
     ctx.restore()
   }
 
-  function drawHeatmapHover(
+  // Hover chrome shared by heatmap and overlay modes: the sampled-window band
+  // (0.08) under the step band (0.15), a row×step band when `rowHeight` is
+  // given (heatmap), and the dashed crossline at the hovered time.
+  function drawHoveredWindowChrome(
     ctx: CanvasRenderingContext2D,
     floorLeft: number, floorTop: number, floorWidth: number, floorHeight: number,
-    floorBottom: number, floorRight: number, participantCount: number
+    floorRight: number, rowHeight: number | null
   ) {
     if (hoveredMsTime === null) return
-    const rowHeight = floorHeight / participantCount
     const timelineMin = data.timeline.minValue
     const duration = Math.max(1, data.timeline.maxValue - timelineMin)
     const invMsPerPx = floorWidth / duration
@@ -342,119 +375,45 @@
     }
     if (w) {
       // Step boundaries (the 100ms step)
-      const stepXStart = floorLeft + (w.startMs - timelineMin) * invMsPerPx
-      const stepXEnd = floorLeft + (w.endMs - timelineMin) * invMsPerPx
-      const stepX = Math.max(floorLeft, stepXStart)
-      const stepWidth = Math.min(floorRight, stepXEnd) - stepX
+      const stepX = Math.max(floorLeft, floorLeft + (w.startMs - timelineMin) * invMsPerPx)
+      const stepWidth = Math.min(floorRight, floorLeft + (w.endMs - timelineMin) * invMsPerPx) - stepX
 
       // Window boundaries (the 1000ms window)
       const winStart = w.dataStartMs ?? (w.centerMs - 500)
       const winEnd = w.dataEndMs ?? (w.centerMs + 500)
-      const winXStart = floorLeft + (winStart - timelineMin) * invMsPerPx
-      const winXEnd = floorLeft + (winEnd - timelineMin) * invMsPerPx
-      const x = Math.max(floorLeft, winXStart)
-      const rectWidth = Math.min(floorRight, winXEnd) - x
+      const winX = Math.max(floorLeft, floorLeft + (winStart - timelineMin) * invMsPerPx)
+      const winWidth = Math.min(floorRight, floorLeft + (winEnd - timelineMin) * invMsPerPx) - winX
 
-      ctx.save()
-      ctx.fillStyle = '#007acc'
-      if (rectWidth > 0) {
-        ctx.globalAlpha = 0.08
-        ctx.fillRect(x, floorTop, rectWidth, floorHeight)
+      if (winWidth > 0) fillCrosshairBand(ctx, winX, floorTop, winWidth, floorHeight, 0.08)
+      if (stepWidth > 0) fillCrosshairBand(ctx, stepX, floorTop, stepWidth, floorHeight, 0.15)
+      if (rowHeight !== null && hoveredParticipantIndex !== null && stepWidth > 0) {
+        fillCrosshairBand(ctx, stepX, floorTop + hoveredParticipantIndex * rowHeight, stepWidth, rowHeight, 0.15)
       }
-      if (stepWidth > 0) {
-        ctx.globalAlpha = 0.15
-        ctx.fillRect(stepX, floorTop, stepWidth, floorHeight)
-      }
-      if (hoveredParticipantIndex !== null && stepWidth > 0) {
-        const rowY = floorTop + hoveredParticipantIndex * rowHeight
-        ctx.globalAlpha = 0.15
-        ctx.fillRect(stepX, rowY, stepWidth, rowHeight)
-      }
-      ctx.restore()
     }
 
     const cx = alignToPixelCenter(floorLeft + (hoveredMsTime - timelineMin) * invMsPerPx)
-    ctx.save()
-    ctx.strokeStyle = '#007acc'
-    ctx.lineWidth = 1
-    ctx.setLineDash([2, 2])
-    ctx.beginPath()
-    ctx.moveTo(cx, floorTop)
-    ctx.lineTo(cx, floorBottom)
-    ctx.stroke()
-    ctx.restore()
+    strokeCrosshairGuides(ctx, [cx, floorTop, cx, floorTop + floorHeight])
   }
 
-  function drawOverlayHover(
+  // Overlay mode also re-strokes the hovered participant's step line on top.
+  function drawHoveredStepLine(
     ctx: CanvasRenderingContext2D,
-    floorLeft: number, floorTop: number, floorWidth: number, floorHeight: number,
-    floorBottom: number, floorRight: number
+    floorLeft: number, floorWidth: number, floorHeight: number, floorBottom: number
   ) {
-    const axisMax = yAxisMax
+    if (hoveredParticipantIndex === null) return
+    const wins = data.participants[hoveredParticipantIndex].windows
+    if (wins.length === 0) return
     const timelineMin = data.timeline.minValue
     const duration = Math.max(1, data.timeline.maxValue - timelineMin)
     const invMsPerPx = floorWidth / duration
-    const valueToY = (v: number) => floorBottom - (v / axisMax) * floorHeight
-    const msToX = (ms: number) => floorLeft + (ms - timelineMin) * invMsPerPx
-
-    if (hoveredMsTime !== null) {
-      let w: EvolvingMetricsWindow | null = null
-      if (hoveredParticipantIndex !== null) {
-        w = findWindowAt(data.participants[hoveredParticipantIndex].windows, hoveredMsTime)
-      }
-      if (!w) {
-        for (const p of data.participants) {
-          w = findWindowAt(p.windows, hoveredMsTime)
-          if (w) break
-        }
-      }
-      if (w) {
-        const stepXStart = msToX(w.startMs)
-        const stepXEnd = msToX(w.endMs)
-        const stepX = Math.max(floorLeft, stepXStart)
-        const stepWidth = Math.min(floorRight, stepXEnd) - stepX
-
-        const winStart = w.dataStartMs ?? (w.centerMs - 500)
-        const winEnd = w.dataEndMs ?? (w.centerMs + 500)
-        const winXStart = msToX(winStart)
-        const winXEnd = msToX(winEnd)
-        const x = Math.max(floorLeft, winXStart)
-        const rectWidth = Math.min(floorRight, winXEnd) - x
-
-        ctx.save()
-        ctx.fillStyle = '#007acc'
-        if (rectWidth > 0) {
-          ctx.globalAlpha = 0.08
-          ctx.fillRect(x, floorTop, rectWidth, floorHeight)
-        }
-        if (stepWidth > 0) {
-          ctx.globalAlpha = 0.15
-          ctx.fillRect(stepX, floorTop, stepWidth, floorHeight)
-        }
-        ctx.restore()
-      }
-
-      const cx = alignToPixelCenter(msToX(hoveredMsTime))
-      ctx.save()
-      ctx.strokeStyle = '#007acc'
-      ctx.lineWidth = 1
-      ctx.setLineDash([2, 2])
-      ctx.beginPath()
-      ctx.moveTo(cx, floorTop)
-      ctx.lineTo(cx, floorBottom)
-      ctx.stroke()
-      ctx.restore()
-    }
-
-    if (hoveredParticipantIndex !== null) {
-      const wins = data.participants[hoveredParticipantIndex].windows
-      if (wins.length > 0) {
-        ctx.strokeStyle = '#007acc'
-        ctx.lineWidth = 1
-        drawStepLinePath(ctx, wins, msToX, valueToY)
-        ctx.stroke()
-      }
-    }
+    ctx.strokeStyle = CROSSHAIR_COLOR
+    ctx.lineWidth = 1
+    drawStepLinePath(
+      ctx, wins,
+      (ms: number) => floorLeft + (ms - timelineMin) * invMsPerPx,
+      (v: number) => floorBottom - (v / yAxisMax) * floorHeight
+    )
+    ctx.stroke()
   }
 
   // ── HEATMAP ──
@@ -464,15 +423,18 @@
     floorBottom: number, floorRight: number, participantCount: number
   ) {
     const rowHeight = floorHeight / participantCount
-    const paletteStopCount = palette.length - 1
     const valueRange = data.valueMax - data.valueMin
     const invValueRange = valueRange > 0 ? 1 / valueRange : 0
     const timelineMin = data.timeline.minValue
     const duration = Math.max(1, data.timeline.maxValue - timelineMin)
     const invMsPerPx = floorWidth / duration
+    const lut = heatmapColorLut
+    const lutMax = HEATMAP_LUT_SIZE - 1
 
     fillPlotAreaBackground(ctx, floorLeft, floorTop, floorWidth, floorHeight, INACTIVE_COLOR)
 
+    // Track the last LUT index so an unchanged colour doesn't re-assign fillStyle.
+    let lastIdx = -1
     for (let p = 0; p < participantCount; p++) {
       const rowY = floorTop + p * rowHeight
       const wins = data.participants[p].windows
@@ -482,14 +444,21 @@
         const xStart = floorLeft + (w.startMs - timelineMin) * invMsPerPx
         const xEnd = floorLeft + (w.endMs - timelineMin) * invMsPerPx
         if (xEnd <= floorLeft || xStart >= floorRight) continue
-        const normalized = (w.value - data.valueMin) * invValueRange
-        const scaledVal = Math.max(0, Math.min(1, normalized)) * paletteStopCount
-        const baseIdx = scaledVal | 0
-        const nextIdx = Math.min(paletteStopCount, baseIdx + 1)
-        ctx.fillStyle = interpolateColor(palette[baseIdx], palette[nextIdx], scaledVal - baseIdx)
-        const x = Math.max(floorLeft, xStart)
-        const rectWidth = Math.min(floorRight, xEnd) - x
-        if (rectWidth > 0) ctx.fillRect(x, rowY, rectWidth, rowHeight)
+        const normalized = Math.max(0, Math.min(1, (w.value - data.valueMin) * invValueRange))
+        const idx = (normalized * lutMax + 0.5) | 0
+        // Snap bin edges to whole logical pixels. A fractional shared edge between
+        // two bins is anti-aliased on both sides, so the plot background bleeds
+        // through as a faint vertical seam. Contiguous bins share the same edge
+        // value, so rounding both sides gives a gap-free, overlap-free tiling.
+        const x0 = Math.round(Math.max(floorLeft, xStart))
+        const x1 = Math.round(Math.min(floorRight, xEnd))
+        if (x1 > x0) {
+          if (idx !== lastIdx) {
+            ctx.fillStyle = lut[idx]
+            lastIdx = idx
+          }
+          ctx.fillRect(x0, rowY, x1 - x0, rowHeight)
+        }
       }
     }
 
@@ -521,25 +490,7 @@
     ctx.textBaseline = 'middle'
 
     if (isCompact) {
-      ctx.save()
-      ctx.textAlign = 'center'
-      ctx.translate(floorLeft - 40, floorTop + floorHeight / 2)
-      ctx.rotate(-Math.PI / 2)
-      const lineHeight = AXIS_CONFIG.fontSize * 1.2
-      ctx.fillText('Participants', 0, -lineHeight / 2)
-      ctx.fillText('[order indices]', 0, lineHeight / 2)
-      ctx.restore()
-
-      ctx.textAlign = 'right'
-      const tickX = floorLeft - 8
-      const step = calculateTickStep(participantCount)
-      for (let i = 0; i < participantCount; i += step) {
-        ctx.fillText(String(i), tickX, floorTop + i * rowHeight + rowHeight / 2)
-      }
-      const lastIdx = participantCount - 1
-      if (lastIdx % step !== 0) {
-        ctx.fillText(String(lastIdx), tickX, floorTop + lastIdx * rowHeight + rowHeight / 2)
-      }
+      drawParticipantIndexAxis(ctx, participantCount, floorLeft, floorTop, rowHeight, AXIS_CONFIG)
     } else {
       ctx.textAlign = 'right'
       // Pre-truncated to the same budget the gutter reserved (single source).
@@ -560,17 +511,7 @@
     drawXAxisLabel(ctx, X_AXIS_LABEL, floorLeft, floorWidth, floorBottom, frame.bottomTitleOffset, AXIS_CONFIG)
 
     if (gradientLegendGeometry) {
-      drawGradientLegend(ctx, gradientLegendGeometry, {
-        x: margins.left,
-        y: frame.legendY + PLOT_LEGEND_GAP,
-        availableWidth: plot.plotAreaWidth,
-        availableHeight: legendHeight,
-        colorScale: palette,
-        valueRange: [Math.round(data.valueMin), Math.round(data.valueMax)],
-        effectiveMaxValue: Math.round(data.valueMax),
-        title: data.yAxisLabel,
-        belowMinColor: INACTIVE_COLOR,
-      })
+      drawGradientLegend(ctx, gradientLegendGeometry)
     }
   }
 
@@ -583,26 +524,13 @@
     if (!overlayAggregates) return
     const { meanValues, p25Values, p75Values, sampleCount } = overlayAggregates
     const axisMax = yAxisMax
-    const timelineMin = data.timeline.minValue
-    const duration = Math.max(1, data.timeline.maxValue - timelineMin)
-    const invMsPerPx = floorWidth / duration
-
     const valueToY = (v: number) => floorBottom - (v / axisMax) * floorHeight
-    const msToX = (ms: number) => floorLeft + (ms - timelineMin) * invMsPerPx
     const sampleToX = (i: number) => floorLeft + ((i + 0.5) / sampleCount) * floorWidth
 
-    const alpha = Math.max(0.04, Math.min(0.5, 2 / Math.sqrt(participantCount)))
-    ctx.lineWidth = participantCount > 30 ? 0.5 : 1
-    // Draw every participant's faint line here (hover-independent) so the data
-    // layer caches cleanly; the hovered participant's emphasised line is painted
-    // on top in drawEvolvingOverlay.
-    for (let p = 0; p < participantCount; p++) {
-      const wins = data.participants[p].windows
-      if (wins.length === 0) continue
-      ctx.strokeStyle = `rgba(${OVERLAY_INDIVIDUAL_RGB}, ${alpha})`
-      drawStepLinePath(ctx, wins, msToX, valueToY)
-      ctx.stroke()
-    }
+    // Every participant's faint line, drawn once as a density field on this cached
+    // data layer (the hovered participant's emphasised line is painted on top in
+    // drawEvolvingOverlay). See renderOverlayLines.
+    renderOverlayLines(ctx, floorLeft, floorTop, floorWidth, floorHeight, participantCount)
 
     ctx.fillStyle = `rgba(${OVERLAY_SUMMARY_RGB}, ${OVERLAY_BAND_ALPHA})`
     let segStart = -1
@@ -639,6 +567,71 @@
 
     // Hover highlight (window/step bands, cursor line, emphasised participant
     // line) is drawn in drawEvolvingOverlay on the overlay layer.
+  }
+
+  // Draw every participant's faint step line as a DENSITY field rather than P
+  // separate translucent strokes (which cost P full-plot composite passes). We
+  // count how many lines cross each logical pixel and map that to the exact alpha
+  // those strokes would accumulate (1 − (1 − a)ⁿ, in overlayDensity), then blit
+  // once — identical look, composite cost independent of participant count. The
+  // offscreen is at logical resolution and drawn under the dpr-scaled context with
+  // smoothing off, matching the scarf composite-layer blit.
+  function renderOverlayLines(
+    ctx: CanvasRenderingContext2D,
+    floorLeft: number,
+    floorTop: number,
+    floorWidth: number,
+    floorHeight: number,
+    participantCount: number
+  ) {
+    const W = floorWidth
+    const H = floorHeight
+    if (W <= 0 || H <= 0 || participantCount === 0) return
+    const cellCount = W * H
+
+    if (!densCounts || densW !== W || densH !== H) {
+      if (typeof OffscreenCanvas !== 'undefined') {
+        densCanvas = new OffscreenCanvas(W, H)
+      } else if (typeof document !== 'undefined') {
+        densCanvas = Object.assign(document.createElement('canvas'), { width: W, height: H })
+      } else {
+        return // canvas-less environment (tests): nothing to render
+      }
+      densCtx = densCanvas.getContext('2d') as
+        | OffscreenCanvasRenderingContext2D
+        | CanvasRenderingContext2D
+        | null
+      densImg = densCtx ? densCtx.createImageData(W, H) : null
+      densCounts = new Int32Array(cellCount)
+      densStamp = new Int32Array(cellCount)
+      densW = W
+      densH = H
+    }
+    if (!densCtx || !densImg || !densCounts || !densStamp) return
+
+    const timelineMin = data.timeline.minValue
+    const duration = Math.max(1, data.timeline.maxValue - timelineMin)
+    const maxCount = rasterizeOverlayDensity(
+      data.participants,
+      { width: W, height: H, timelineMin, duration, axisMax: yAxisMax },
+      densCounts,
+      densStamp
+    )
+    if (maxCount === 0) return
+
+    const alpha = Math.max(0.04, Math.min(0.5, 2 / Math.sqrt(participantCount)))
+    packOverlayDensity(
+      densCounts,
+      maxCount,
+      alpha,
+      OVERLAY_INDIVIDUAL_RGB,
+      new Uint32Array(densImg.data.buffer)
+    )
+    densCtx.putImageData(densImg, 0, 0)
+    const prevSmoothing = ctx.imageSmoothingEnabled
+    ctx.imageSmoothingEnabled = false
+    ctx.drawImage(densCanvas as CanvasImageSource, floorLeft, floorTop)
+    ctx.imageSmoothingEnabled = prevSmoothing
   }
 
   function drawStepLinePath(
@@ -754,13 +747,6 @@
     }
   }
 
-  function calculateTickStep(len: number): number {
-    const niceSteps = [5, 10, 20, 25, 50, 100, 200, 500, 1000]
-    for (const s of niceSteps) {
-      if (len / s <= 10) return s
-    }
-    return 1000
-  }
 </script>
 
 <canvas

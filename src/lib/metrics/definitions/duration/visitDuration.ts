@@ -65,6 +65,7 @@ defineMetric({
   measurementClass: 'intensive',
   searchTags: ['visit', 'dwell', 'duration', 'average', 'mean', 'aoi'],
   params: [] as const,
+  accumulation: 'stateful',
   init: ({ slots }): Acc => ({
     dwells: Array.from({ length: slots.totalSlots }, () => []),
     previousAois: new Set(),

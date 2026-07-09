@@ -84,6 +84,8 @@ export function defineTransitionMetric<P>(
     defaultReduction: spec.defaultReduction,
     searchTags: spec.searchTags,
     params,
+    // Transition accumulators carry the previous fixation's slots — stateful.
+    accumulation: 'stateful',
     init: ({ slots }) => initTransitionAcc(slots.totalSlots, spec.withAux ?? false),
     onFixation: (acc, fix, { params: p }) => {
       processFixation(

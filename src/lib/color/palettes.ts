@@ -79,15 +79,25 @@ export const COLOR_FALLBACKS = {
 } as const
 
 /**
- * Default categorical colors for AOIs if none are specified.
+ * The gray swatch within {@link CATEGORICAL_PALETTE}. Excluded from the AOI
+ * defaults because grayscale is reserved for eye-movement categories
+ * ({@link DEFAULT_CATEGORY_COLORS}) and the "No AOI" treatment
+ * ({@link DEFAULT_NO_AOI_COLOR}) — a gray AOI would read as a non-fixation.
  */
-export const DEFAULT_AOI_COLORS = [
-  '#66c5cc',
-  '#f6cf71',
-  '#f89c74',
-  '#dcb0f2',
-  '#87c55f',
-] as const
+const RESERVED_CATEGORICAL_GRAY = '#7f7f7f'
+
+/**
+ * Default categorical colors for AOIs when none are specified.
+ *
+ * Derived from {@link CATEGORICAL_PALETTE} (minus the reserved gray) so the
+ * colors auto-assigned to AOIs match the swatches the manual color picker
+ * offers. Ten distinct hues — wide enough that AOIs in a typical study no
+ * longer collide (the previous 5-color list made the 6th AOI identical to the
+ * 1st, silently merging two regions in scarf / AOI-stream / recurrence views).
+ */
+export const DEFAULT_AOI_COLORS: readonly string[] = CATEGORICAL_PALETTE.filter(
+  color => color !== RESERVED_CATEGORICAL_GRAY
+)
 
 /**
  * Grayscale base color palette for categories (e.g. Saccades, Blinks) if none are specified.

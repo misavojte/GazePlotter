@@ -1,10 +1,4 @@
-import { defineMetric } from '../../core/defineMetric'
-import { boolParam } from '../../core/params'
-import { rqaScalar } from '../../core/rqa'
-
-const params = [
-  boolParam('include_no_aoi', 'Include off-AOI fixations', false),
-] as const
+import { defineRqaMetric } from './defineRqaMetric'
 
 /**
  * ## Recurrence rate (REC)
@@ -45,25 +39,11 @@ const params = [
  *   added once (dedup); `slots.length === 1` gate filters to
  *   single-AOI fixations only (unless `include_no_aoi` expands it).
  */
-defineMetric({
+defineRqaMetric({
   id: 'rqaRec',
   label: 'Recurrence rate',
   description: "Stimulus-level: recurrence rate (%) — fraction of fixation-sequence pairs that revisit the same AOI. Higher values indicate a more repetitive gaze pattern across the stimulus.",
-  unit: '%',
-  category: 'rqa-aoi',
-  rawShape: 'scalar',
-  windowUnit: 'fixations',
-  // Intensive: a per-participant rate (%) over the whole scanpath. Only `mean`
-  // is sound across participants; summing rates is meaningless.
-  measurementClass: 'intensive',
   searchTags: ['rqa', 'recurrence', 'rec', 'nonlinear', 'aoi', 'sequence', 'cross'],
-  params,
-  init: (): { seq: number[] } => ({ seq: [] }),
-  onFixation: (acc, { slots }, { slots: info, params }) => {
-    if (slots.length === 1) acc.seq.push(slots[0])
-    else if (params.include_no_aoi && slots.length === 0) acc.seq.push(info.noAoiSlot)
-  },
-  finalize: (acc) => [rqaScalar(acc.seq, 2, r => r.REC, 0)],
-  windowedFinalize: (acc, from, to) =>
-    rqaScalar(acc.seq.slice(from, to), 2, r => r.REC, 0),
+  measure: r => r.REC,
+  onNoRecurrence: 0,
 })

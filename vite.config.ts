@@ -4,6 +4,14 @@ import pkg from './package.json'
 
 export default defineConfig({
   plugins: [sveltekit()],
+  worker: {
+    // ES-format worker so the ingest worker can code-split: workspace parsing
+    // (whose migration chain materializes metric instances through the metric
+    // registry) loads as a lazy chunk instead of sitting in the stream-parsing
+    // worker's startup bundle. The app already requires module-worker-capable
+    // browsers (`new Worker(..., { type: 'module' })`).
+    format: 'es',
+  },
   server: {
     fs: {
       allow: ['docs'],

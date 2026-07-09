@@ -131,7 +131,7 @@
 
   .select-wrapper:not(:has(.trigger:disabled)):hover,
   .select-wrapper:has(.trigger.open) {
-    --gp-field-bg: #f6f7f9;
+    --gp-field-bg: var(--c-darkwhite);
   }
 
   .select-wrapper:has(.trigger:disabled) {
@@ -169,12 +169,12 @@
   }
 
   .select-wrapper:not(:has(.trigger:disabled)):hover .trigger {
-    background: #f6f7f9;
+    background: var(--c-darkwhite);
     color: var(--c-brand);
   }
 
   .trigger.open {
-    background: #f6f7f9;
+    background: var(--c-darkwhite);
     color: var(--c-brand);
   }
 

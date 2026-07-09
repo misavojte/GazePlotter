@@ -42,7 +42,8 @@ export interface MetricInstance {
 
 /**
  * Single constructor for a `MetricInstance`. All instance-creation paths route
- * through here — `DataEngine.addMetricInstance`, starter seeding, and future
+ * through here — the metric-library handlers (via the `updateMetricInstances`
+ * workspace command), starter seeding, and future
  * agent-callable compute APIs — so a metric instance always carries fully
  * resolved params, a valid projection, and a non-empty label regardless of
  * where it came from.

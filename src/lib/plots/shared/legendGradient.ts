@@ -19,6 +19,14 @@ import { wrapTextToWidth } from '$lib/shared/utils/textUtils'
  *  reserved legend height so the layout never has to grow unpredictably). */
 const MAX_LEGEND_TITLE_LINES = 2
 
+/**
+ * Formats a value for legend text rendering.
+ * Rounds to a maximum of 3 decimal places and strips trailing zeros.
+ */
+function formatLegendValue(val: number): string {
+  return Number(val.toFixed(3)).toString()
+}
+
 export interface GradientLegendConfig {
   /** Top X coordinate */
   x: number
@@ -40,24 +48,16 @@ export interface GradientLegendConfig {
   belowMinColor?: string | null
 }
 
-export interface GradientLegendInteractionZones {
-  minValueZone: { x: number; y: number; radius: number } | null
-  maxValueZone: { x: number; y: number; radius: number } | null
-  gradientZone: {
-    x: number
-    y: number
-    width: number
-    height: number
-    radius: number
-  } | null
-}
-
 export interface GradientLegendGeometry {
   isMinimalist: boolean
   totalHeight: number
   width: number
   x: number
   y: number
+
+  // Paint inputs carried from the config so drawing needs only the geometry.
+  colorScale: string[]
+  belowMinColor?: string | null
 
   // Layout components. `title.lines` is the (1–2) wrapped title lines, drawn
   // stacked from `title.y`.
@@ -66,11 +66,7 @@ export interface GradientLegendGeometry {
   labels?: {
     min?: { text: string; x: number; y: number }
     max?: { text: string; x: number; y: number }
-    belowMin?: { text: string; x: number; y: number }
   }
-
-  // Interaction zones for click/hover logic
-  zones: GradientLegendInteractionZones
 
   // Optional below-min segment rect
   belowMinRect?: { x: number; y: number; width: number; height: number }
@@ -144,52 +140,20 @@ export function computeGradientLegendGeometry(
   // Layout Width
   const hasBelowMin = !!config.belowMinColor
   const belowMinWidth = 15
-  const belowMinGap = 0
   const totalBarWidth = hasBelowMin
-    ? belowMinWidth + belowMinGap + Math.min(MAX_WIDTH, availableWidth * 0.8)
+    ? belowMinWidth + Math.min(MAX_WIDTH, availableWidth * 0.8)
     : Math.min(MAX_WIDTH, availableWidth * 0.8)
 
-  const legendWidth = hasBelowMin
-    ? totalBarWidth - belowMinWidth - belowMinGap
-    : totalBarWidth
+  const legendWidth = hasBelowMin ? totalBarWidth - belowMinWidth : totalBarWidth
 
   const legendX = x + ((availableWidth - totalBarWidth) >> 1)
   const belowMinX = legendX
-  const gradientX = hasBelowMin
-    ? belowMinX + belowMinWidth + belowMinGap
-    : legendX
+  const gradientX = hasBelowMin ? belowMinX + belowMinWidth : legendX
 
   if (isMinimalist) {
-    // Minimalist: Gradient Bar Only (maybe small title)
-    // Position mostly at bottom-ish of available area or just fixed Y
-    // The calling code passed Y as the top of where we should draw.
-
-    // Check if we have room for a tiny title above?
-    // Let's assume strict minimalist logic from original component: bar + border + maybe title
+    // Minimalist: gradient bar only, no title — there is no vertical room for
+    // one below the minimalist threshold.
     const barY = y + 5
-
-    // Interaction data
-    const zones: GradientLegendInteractionZones = {
-      minValueZone: null,
-      maxValueZone: null,
-      gradientZone: {
-        x: legendX - 10,
-        y: barY - 5,
-        width: totalBarWidth + 20,
-        height: MINIMALIST_HEIGHT + 10,
-        radius: 4,
-      },
-    }
-
-    // Centered title helper (minimalist stays a single, truncated line)
-    const titleObj =
-      barY - y > 15
-        ? {
-            lines: wrapTextToWidth(title, availableWidth, 10, LEGEND_FONT.FAMILY, 1),
-            x: x + (availableWidth >> 1),
-            y: barY - 2,
-          }
-        : undefined
 
     return {
       isMinimalist: true,
@@ -197,6 +161,8 @@ export function computeGradientLegendGeometry(
       width: totalBarWidth,
       x: legendX,
       y,
+      colorScale: config.colorScale,
+      belowMinColor: config.belowMinColor,
       gradientRect: {
         x: gradientX,
         y: barY,
@@ -211,8 +177,6 @@ export function computeGradientLegendGeometry(
             height: MINIMALIST_HEIGHT,
           }
         : undefined,
-      title: titleObj,
-      zones,
     }
   }
 
@@ -259,40 +223,17 @@ export function computeGradientLegendGeometry(
     availableHeight > 35
       ? {
           min: {
-            text: valueRange[0].toString(),
+            text: formatLegendValue(valueRange[0]),
             x: gradientX,
             y: valuesY,
           },
           max: {
-            text: effectiveMaxValue.toString(),
+            text: formatLegendValue(effectiveMaxValue),
             x: gradientX + legendWidth,
             y: valuesY,
           },
-          belowMin: undefined,
         }
       : undefined
-
-  // Interaction Zones
-  const valueRadius = Math.max(15, BAR_HEIGHT * 1.5)
-  const zones: GradientLegendInteractionZones = {
-    minValueZone: {
-      x: legendX,
-      y: valuesY + 6,
-      radius: valueRadius,
-    },
-    maxValueZone: {
-      x: legendX + legendWidth,
-      y: valuesY + 6,
-      radius: valueRadius,
-    },
-    gradientZone: {
-      x: legendX - 10,
-      y: gradientY - 10,
-      width: totalBarWidth + 20,
-      height: BAR_HEIGHT + 20,
-      radius: 15,
-    },
-  }
 
   return {
     isMinimalist: false,
@@ -300,6 +241,8 @@ export function computeGradientLegendGeometry(
     width: totalBarWidth,
     x: legendX,
     y: startY,
+    colorScale: config.colorScale,
+    belowMinColor: config.belowMinColor,
     title: titleObj,
     gradientRect: {
       x: gradientX,
@@ -316,7 +259,6 @@ export function computeGradientLegendGeometry(
         }
       : undefined,
     labels: labelsObj,
-    zones,
   }
 }
 
@@ -329,53 +271,12 @@ export function computeGradientLegendGeometry(
  */
 export function drawGradientLegend(
   ctx: CanvasRenderingContext2D,
-  geometry: GradientLegendGeometry,
-  config: GradientLegendConfig,
-  highlightState?: 'none' | 'gradient' | 'minValue' | 'maxValue'
+  geometry: GradientLegendGeometry
 ): void {
-  const { title, gradientRect, belowMinRect, labels, zones } = geometry
-  const { colorScale } = config
+  const { title, gradientRect, belowMinRect, labels, colorScale } = geometry
   const { FAMILY: fontFamily, COLOR: fontColor } = LEGEND_FONT
 
-  // 1. Draw Hover Effects
-  if (highlightState && highlightState !== 'none') {
-    const alpha = 0.2
-    ctx.fillStyle = `rgba(200, 200, 200, ${alpha})`
-
-    if (highlightState === 'minValue' && zones.minValueZone) {
-      ctx.beginPath()
-      ctx.arc(
-        zones.minValueZone.x,
-        zones.minValueZone.y,
-        zones.minValueZone.radius,
-        0,
-        Math.PI * 2
-      )
-      ctx.fill()
-    } else if (highlightState === 'maxValue' && zones.maxValueZone) {
-      ctx.beginPath()
-      ctx.arc(
-        zones.maxValueZone.x,
-        zones.maxValueZone.y,
-        zones.maxValueZone.radius,
-        0,
-        Math.PI * 2
-      )
-      ctx.fill()
-    } else if (highlightState === 'gradient' && zones.gradientZone) {
-      drawRoundedRect(
-        ctx,
-        zones.gradientZone.x,
-        zones.gradientZone.y,
-        zones.gradientZone.width,
-        zones.gradientZone.height,
-        zones.gradientZone.radius
-      )
-      ctx.fill()
-    }
-  }
-
-  // 2. Draw Title (1–2 wrapped lines, stacked from title.y)
+  // 1. Draw Title (1–2 wrapped lines, stacked from title.y)
   if (title && title.lines.length > 0) {
     const titleFontSize = geometry.isMinimalist ? 10 : 12
     ctx.font = `${titleFontSize}px ${fontFamily}`
@@ -388,7 +289,7 @@ export function drawGradientLegend(
     }
   }
 
-  // 3. Draw Gradient Bar
+  // 2. Draw Gradient Bar
   // Quantize coordinates to integers to avoid subpixel rendering artifacts
   // and ensure the fill perfectly matches the strokeCrispRect behavior.
   const gx = gradientRect.x | 0
@@ -414,19 +315,19 @@ export function drawGradientLegend(
   // strokeCrispRect handles the +0.5 offset internally using (val | 0)
   strokeCrispRect(ctx, gx, gy, gw, gh, GRIDLINE_PRIMARY.COLOR, 1)
 
-  // 3b. Draw "Below Min" Segment
-  if (belowMinRect && config.belowMinColor) {
+  // 2b. Draw "Below Min" Segment
+  if (belowMinRect && geometry.belowMinColor) {
     const bx = belowMinRect.x | 0
     const by = belowMinRect.y | 0
     const bw = belowMinRect.width | 0
     const bh = belowMinRect.height | 0
 
-    ctx.fillStyle = config.belowMinColor
+    ctx.fillStyle = geometry.belowMinColor
     ctx.fillRect(bx, by, bw, bh)
     strokeCrispRect(ctx, bx, by, bw, bh, GRIDLINE_PRIMARY.COLOR, 1)
   }
 
-  // 4. Draw Layout Labels (Min/Max/BelowMin)
+  // 3. Draw Layout Labels (Min/Max)
   if (labels) {
     ctx.font = `12px ${fontFamily}`
     ctx.fillStyle = fontColor
@@ -440,11 +341,7 @@ export function drawGradientLegend(
       ctx.fillText(labels.max.text, labels.max.x, labels.max.y)
     }
 
-    if (labels.belowMin) {
-      ctx.fillText(labels.belowMin.text, labels.belowMin.x, labels.belowMin.y)
-    }
-
-    // 5. Draw down-ticks at interval edges
+    // 4. Draw down-ticks at interval edges
     const tickLen = 5
     const tickY1 = (gradientRect.y + gradientRect.height) | 0
     const tickY2 = tickY1 + tickLen
@@ -466,26 +363,4 @@ export function drawGradientLegend(
     ctx.stroke()
   }
 }
-
-function drawRoundedRect(
-  ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  radius: number
-) {
-  ctx.beginPath()
-  ctx.moveTo(x + radius, y)
-  ctx.lineTo(x + width - radius, y)
-  ctx.quadraticCurveTo(x + width, y, x + width, y + radius)
-  ctx.lineTo(x + width, y + height - radius)
-  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height)
-  ctx.lineTo(x + radius, y + height)
-  ctx.quadraticCurveTo(x, y + height, x, y + height - radius)
-  ctx.lineTo(x, y + radius)
-  ctx.quadraticCurveTo(x, y, x + radius, y)
-  ctx.closePath()
-}
-
 

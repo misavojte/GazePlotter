@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte'
   import { slide } from 'svelte/transition'
-  import ArrowLeft from 'lucide-svelte/icons/arrow-left'
   import { InputNumber, Select } from '$lib/shared/components'
   import type { SelectOption } from '$lib/shared/components'
   import { getGazePlotterSession } from '$lib/session'
@@ -308,16 +307,7 @@
 
 <div class="configure-metric-container">
   {#if metric}
-    <!-- Render header only in Create mode -->
-    {#if mode === 'create'}
-      <div class="add-mode-header">
-        <button type="button" class="back-btn" onclick={handleCancel}>
-          <ArrowLeft size={14} />
-          <span>{modalState.stack.length <= 2 ? 'Back to library' : 'Back to metrics'}</span>
-        </button>
-        <span class="add-mode-title">{metric.meta.label}</span>
-      </div>
-    {/if}
+
 
     {@const leaves = availableLeavesFor(metric)}
     {@const showLeafPicker = leaves.length > 1}
@@ -629,38 +619,7 @@
     gap: 12px;
   }
 
-  .add-mode-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid var(--c-border);
-    padding-bottom: 8px;
-    margin-bottom: 4px;
-  }
 
-  .back-btn {
-    display: flex;
-    align-items: center;
-    gap: var(--spacing-xs);
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 12px;
-    color: var(--c-darkgrey);
-    padding: 4px 8px;
-    border-radius: var(--rounded-md);
-    transition: background var(--transition-fast), color var(--transition-fast);
-  }
-  .back-btn:hover {
-    background: var(--c-lightgrey);
-    color: var(--c-text);
-  }
-
-  .add-mode-title {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--c-text);
-  }
 
   .form-inner { display: flex; flex-direction: column; gap: 10px; }
 

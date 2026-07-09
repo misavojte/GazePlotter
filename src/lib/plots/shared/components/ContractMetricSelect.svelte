@@ -7,6 +7,7 @@
     multiSelectMetricHandlers,
     singleSelectMetricHandlers,
   } from '../metricInstanceHandlers'
+  import { getGazePlotterSession } from '$lib/session'
   import type { DataEngine } from '$lib/data/engine'
 
   interface Props {
@@ -47,15 +48,19 @@
   // not from per-plot wiring. The shared `metricInstanceHandlers` factories
   // already encapsulate the engine-mutation patterns (rename / create /
   // delete) so each plot's pane settings drops the metric-select plumbing.
+  const { workspace } = getGazePlotterSession()
+
   const handlers = $derived(
     contract.multiSelect
       ? multiSelectMetricHandlers(
           engine,
+          workspace,
           () => metricInstanceIds,
           ids => onMetricsChange(ids),
         )
       : singleSelectMetricHandlers(
           engine,
+          workspace,
           () => metricInstanceIds[0] ?? null,
           id => onMetricsChange(id == null ? [] : [id]),
         )

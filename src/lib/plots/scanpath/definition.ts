@@ -1,51 +1,41 @@
-import ScanpathPlot from './components/ScanpathPlot.svelte'
 import { deriveScanpathView } from './core/view'
-import {
-  StimulusSection,
-  ParticipantSection,
-} from '$lib/plots/shared/components/sections'
-import ScanpathDisplaySection from './components/sections/ScanpathDisplaySection.svelte'
 import { definePlot } from '$lib/plots/definePlot'
-import type { PlotSubtitleParts } from '$lib/plots/definePlot'
-import {
-  getStimuliOptions,
-  getParticipantOptions,
-} from '$lib/plots/shared'
+import { stimulusParticipantSubtitle } from '$lib/plots/shared'
 import type { ScanpathPlotSettings } from './types'
 
 export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSettings>({
   type: 'scanpath',
   name: 'Scanpath',
   group: 'gaze-behavior',
-  component: ScanpathPlot,
   paneSections: [
-    { key: 'stimulus', component: StimulusSection },
-    { key: 'participant', component: ParticipantSection },
-    { key: 'scanpath:display', component: ScanpathDisplaySection },
+    'stimulus',
+    'participant',
+    {
+      key: 'scanpath:display',
+      title: 'Display',
+      fields: [
+        { kind: 'boolean', key: 'showFixationOrder', label: 'Show fixation order line' },
+        { kind: 'boolean', key: 'showNumbers', label: 'Show fixation numbers' },
+      ],
+      summary: ctx => {
+        const order = ctx.common(s => s.showFixationOrder)
+        const numbers = ctx.common(s => s.showNumbers)
+        if (order.mixed || numbers.mixed) return 'Mixed'
+        const parts: string[] = []
+        if (order.value) parts.push('Order line')
+        if (numbers.value) parts.push('Numbers')
+        return parts.length === 0 ? 'None' : parts.join(', ')
+      },
+    },
   ],
-  export: { deriveView: deriveScanpathView },
-  getSubtitle: ({ item, engine }) => {
-    const parts: PlotSubtitleParts = []
-    const stim = getStimuliOptions(engine).find(
-      o => o.value === String(item.settings.stimulusId)
-    )
-    if (stim?.label) parts.push({ label: 'Stimulus', value: stim.label })
-    const participant = getParticipantOptions(engine).find(
-      o => o.value === String(item.settings.participantId)
-    )
-    if (participant?.label) {
-      parts.push({ label: 'Participant', value: participant.label })
-    }
-    return parts.length === 0 ? undefined : parts
-  },
+  view: { deriveView: deriveScanpathView },
+  getSubtitle: stimulusParticipantSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
     participantId: 0,
     showFixationOrder: true,
     showNumbers: true,
   }),
-  getMinSize: () => ({ w: 12, h: 10 }),
-  getDefaultHeight: () => 12,
-  getDefaultWidth: () => 16,
+  size: { min: { w: 12, h: 10 }, w: 16 },
   requireCapabilities: [['segmented', 'spatial']],
 })

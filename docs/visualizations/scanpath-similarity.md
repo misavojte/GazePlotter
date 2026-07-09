@@ -2,13 +2,7 @@
 
 Scanpath Similarity in GazePlotter enables pairwise comparison of participant gaze trajectories using string alignment algorithms. By encoding scanpaths as letter sequences based on visited Areas of Interest (AOIs), this visualization measures how similar participants' search patterns are, rendering results either as a correlation heatmap matrix or a network graph.
 
-> Interested on how to operate with plots in general within the workspace? See:
->
-> - [How to move a plot around workspace?](/docs/setup/workspace/#moving-a-plot)
-> - [How to resize a plot?](/docs/setup/workspace/#resizing-a-plot)
-> - [How to duplicate a plot?](/docs/setup/workspace/#duplicating-a-plot)
-> - [How to add a new plot?](/docs/setup/workspace/#adding-visualizations)
-> - [How to remove a plot?](/docs/setup/workspace/#removing-a-plot)
+> **Plot Operations**: For general canvas operations (moving, resizing, duplicating, or removing plots), see [Plot Manipulation](/docs/workspace/#plot-manipulation).
 
 ## Metric Contract
 
@@ -19,19 +13,19 @@ To render a Scanpath Similarity visualization, GazePlotter queries the workspace
 
 > **Scanpath Similarity Documentation**: For details on scanpath string encoding, Levenshtein edit distance, and Needleman-Wunsch global alignment parameters, see the [Scanpath Similarity Metrics](/docs/metrics/scanpath-similarity) documentation.
 
-## Configuration via Settings Pane
+## Configuration via Pane
 
-Clicking the Scanpath Similarity plot card in the workspace selects the plot and opens its configuration options in the sidebar **Settings Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
+Clicking the Scanpath Similarity plot card in the workspace selects the plot and opens its configuration options in the sidebar **Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
 
 ### Stimulus
 Choose the stimulus to analyze. GazePlotter will compile the letter-coded scanpath sequences for participants based on this stimulus.
-- **Edit stimulus library…**: Opens the Stimuli Modification modal to manage stimulus files and dimensions.
+- **Edit stimulus library…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files.
 
 ### Participant group
 Filter the analysis to a specific participant group.
 - **Select group**: A dropdown containing *All participants* and custom participant groups.
-- **Edit groups…**: Opens the Participant Groups modal to create or modify comparative groups.
-- **Edit participants…**: Opens the Participant Modification modal to customize participant properties and metadata.
+- **Edit groups…**: Opens the [Participant Groups](/docs/workspace/participant-groups/) editor to manage cohort comparison sets.
+- **Edit participants…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename or reorder participants.
 
 ### Metric
 Select the sequence alignment algorithm from the Metric Library.
@@ -59,21 +53,16 @@ Filter the temporal range from which fixations are serialized.
 
 ### Areas of Interest
 Filters which Areas of Interest (AOIs) are included in the letter-coding sequence. Fixations outside active AOIs are excluded from scanpath serialization.
-- **Configure AOI Library…**: Opens the AOI Modification modal to add, remove, rename, or color-code AOIs.
+- **Configure AOI Library…**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, and visibility.
 
 ### Export
-Located at the bottom of the Settings Pane:
-- **Download plot…**: Opens the export modal to download the similarity visualization.
-  - *File formats*: PNG (transparent background) or JPG (white background).
-  - *Dimensions*: Customizable width (height maintained as square).
-  - *Quality*: Adjustable DPI setting.
-  - *Margins*: Configurable margins.
-  - *Preview*: Live render of the output before saving.
-- **Export Data**: To export the similarity matrix as a CSV file for statistical analysis (e.g. cluster analysis), see the [Scanpath Similarity Export](/docs/export/scanpath-similarity/) documentation.
+Located at the bottom of the Pane:
+- **Download plot…**: Opens the [Figure Export](/docs/export/figures/) dialog to save the similarity visualization as a PNG or JPG.
+- **Export Data**: To export the similarity values as CSV, see [Metric Data Export](/docs/export/metric-data/).
 
 ## Interpretation
 
 Use Scanpath Similarity to:
 - **Discover scanning styles**: Matrix view heat spots reveal groups of participants who looked at the stimulus in a similar sequence.
 - **Analyze structural clusters**: ScanGraph view visually groups similar participants together. Interconnected clusters represent common visual inspection strategies.
-- **Compare algorithmic constraints**: Toggle between *collapsed* Levenshtein (emphasizes spatial path sequence) and standard Levenshtein (retains fixation duration differences) to see how temporal variance affects participant parity.
+- **Compare algorithmic constraints**: Toggle between *collapsed* Levenshtein (emphasizes spatial path sequence) and standard Levenshtein (retains fixation duration differences) to see how temporal variance affects participant parity.
