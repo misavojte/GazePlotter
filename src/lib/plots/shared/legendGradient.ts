@@ -19,6 +19,14 @@ import { wrapTextToWidth } from '$lib/shared/utils/textUtils'
  *  reserved legend height so the layout never has to grow unpredictably). */
 const MAX_LEGEND_TITLE_LINES = 2
 
+/**
+ * Formats a value for legend text rendering.
+ * Rounds to a maximum of 3 decimal places and strips trailing zeros.
+ */
+function formatLegendValue(val: number): string {
+  return Number(val.toFixed(3)).toString()
+}
+
 export interface GradientLegendConfig {
   /** Top X coordinate */
   x: number
@@ -132,39 +140,20 @@ export function computeGradientLegendGeometry(
   // Layout Width
   const hasBelowMin = !!config.belowMinColor
   const belowMinWidth = 15
-  const belowMinGap = 0
   const totalBarWidth = hasBelowMin
-    ? belowMinWidth + belowMinGap + Math.min(MAX_WIDTH, availableWidth * 0.8)
+    ? belowMinWidth + Math.min(MAX_WIDTH, availableWidth * 0.8)
     : Math.min(MAX_WIDTH, availableWidth * 0.8)
 
-  const legendWidth = hasBelowMin
-    ? totalBarWidth - belowMinWidth - belowMinGap
-    : totalBarWidth
+  const legendWidth = hasBelowMin ? totalBarWidth - belowMinWidth : totalBarWidth
 
   const legendX = x + ((availableWidth - totalBarWidth) >> 1)
   const belowMinX = legendX
-  const gradientX = hasBelowMin
-    ? belowMinX + belowMinWidth + belowMinGap
-    : legendX
+  const gradientX = hasBelowMin ? belowMinX + belowMinWidth : legendX
 
   if (isMinimalist) {
-    // Minimalist: Gradient Bar Only (maybe small title)
-    // Position mostly at bottom-ish of available area or just fixed Y
-    // The calling code passed Y as the top of where we should draw.
-
-    // Check if we have room for a tiny title above?
-    // Let's assume strict minimalist logic from original component: bar + border + maybe title
+    // Minimalist: gradient bar only, no title — there is no vertical room for
+    // one below the minimalist threshold.
     const barY = y + 5
-
-    // Centered title helper (minimalist stays a single, truncated line)
-    const titleObj =
-      barY - y > 15
-        ? {
-            lines: wrapTextToWidth(title, availableWidth, 10, LEGEND_FONT.FAMILY, 1),
-            x: x + (availableWidth >> 1),
-            y: barY - 2,
-          }
-        : undefined
 
     return {
       isMinimalist: true,
@@ -188,7 +177,6 @@ export function computeGradientLegendGeometry(
             height: MINIMALIST_HEIGHT,
           }
         : undefined,
-      title: titleObj,
     }
   }
 
@@ -235,12 +223,12 @@ export function computeGradientLegendGeometry(
     availableHeight > 35
       ? {
           min: {
-            text: valueRange[0].toString(),
+            text: formatLegendValue(valueRange[0]),
             x: gradientX,
             y: valuesY,
           },
           max: {
-            text: effectiveMaxValue.toString(),
+            text: formatLegendValue(effectiveMaxValue),
             x: gradientX + legendWidth,
             y: valuesY,
           },
