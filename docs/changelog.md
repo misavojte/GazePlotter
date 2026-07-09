@@ -4,7 +4,7 @@
 
 ### 1.9.1
 
-* *Released on July 07, 2026*
+* *Released on July 09, 2026*
 * **Export**: Added [batch plot exporting](/docs/export/figures), a new [metric export](/docs/export/metric-data) replacing the hardcoded metrics export, an export progress bar, and fixed display names in exports.
 * **Plots**: Added insufficient height warnings, refined evolving plots, and made Scarf plot automatically reset its time range to 0 when dragged fully. Fixed syncing edge cases.
 * **UI**: Redesigned notifications (toasts) with auto-close indicators. Polished visuals for multi-select, tooltips, context menus, and base layout. Improved default AOI colors and simplified the Metric Library header.
