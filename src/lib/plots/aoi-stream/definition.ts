@@ -1,6 +1,6 @@
 import { deriveAoiStreamView } from './core/view'
 import { aoiStreamScreen } from './core/screen.svelte'
-import { definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
+import { definePlot, HIDE_NO_AOI_FIELD, type SectionFieldCtx } from '$lib/plots/definePlot'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import { RIDGELINE_SCALE } from './const'
@@ -57,7 +57,7 @@ export const aoiStreamPlotDefinition = definePlot<
           defaultMax: PRESET_PALETTES.HEAT.colors[2],
           showWhen: alignmentIs('heatmap'),
         },
-        { kind: 'hideNoAoi', key: 'hideNoAoi' },
+        HIDE_NO_AOI_FIELD,
       ],
     },
     'timelineRange',

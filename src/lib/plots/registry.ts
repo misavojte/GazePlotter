@@ -53,6 +53,8 @@ function assertSettingsSchema(def: {
     }
     const seen = new Set<string>()
     for (const field of entry.fields) {
+      // Display-only fields have no settings key to validate.
+      if (field.kind === 'info') continue
       if (seen.has(field.key)) {
         throw new Error(`${where}: duplicate schema field "${field.key}"`)
       }

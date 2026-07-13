@@ -2,6 +2,7 @@
   // Direct file import (not the pane barrel): PaneSectionList renders this
   // component, so going through the barrel would create a module cycle.
   import PaneSection from '$lib/workspace/pane/PaneSection.svelte'
+  import { PaneEditLink, PaneEditRow } from '$lib/workspace/pane'
   import {
     Select,
     InputCheck,
@@ -10,10 +11,12 @@
   } from '$lib/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { createBulkContext } from './common'
-  import ColorScalePickerControl from './ColorScalePickerControl.svelte'
+  import ColorScalePicker from '../ColorScalePicker.svelte'
   import ScaleRangePair from './ScaleRangePair.svelte'
-  import StimulusColorRange from './StimulusColorRange.svelte'
-  import HideNoAoiCheck from './HideNoAoiCheck.svelte'
+  import { buildValueRangePatch } from '../../colorScalePreview'
+  import ContractMetricSelect from '../ContractMetricSelect.svelte'
+  import { resolvePlotDefinition } from '$lib/plots/registry'
+  import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import type {
     PaneSectionItem,
     SchemaPaneSectionEntry,
@@ -27,12 +30,14 @@
    * bulk context + command provenance, Mixed display, `?? default` fallbacks,
    * the collapsed-header summary, visibility gating, and the capped layout —
    * a vertical stack, optionally captioned (`group`), optionally two fields
-   * per 1fr/1fr row (`pair`). Nothing more by design.
+   * per 1fr/1fr row (`pair`), optionally an edit-link row (`actions`).
+   * Nothing more by design.
    */
   let { item, entry }: { item: PaneSectionItem; entry: SchemaPaneSectionEntry } =
     $props()
 
-  const { engine } = getGazePlotterSession()
+  const { engine, workspace, modalState } = getGazePlotterSession()
+  const source = $derived(createCommandSourcePlotPattern(item, 'pane'))
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the renderer
   // is deliberately untyped over the concrete settings shape; schema fields are
   // validated against the plot's defaults at registration instead.
@@ -40,10 +45,15 @@
 
   const ctx: SectionFieldCtx = {
     engine,
+    workspace,
+    modalState,
+    get item() { return item },
+    get source() { return source },
     get settings() {
       return item.settings as Record<string, unknown>
     },
     common: read => bulk.common(read),
+    update: patch => bulk.update(patch),
   }
 
   // ── Layout: blocks (by consecutive `group` caption) of rows (pairs chunk
@@ -86,6 +96,8 @@
   }
 
   function fieldState(f: SectionField): { value: unknown; mixed: boolean } {
+    // Display-only: no settings key to read.
+    if (f.kind === 'info') return { value: undefined, mixed: false }
     if (f.kind === 'enum' && f.read) {
       return bulk.common(s => f.read!(s as Record<string, unknown>, engine))
     }
@@ -106,7 +118,8 @@
     if (!sf) return undefined
     const { value, mixed } = fieldState(sf)
     if (mixed) return 'Mixed'
-    return optionsOf(sf).find(o => o.value === value)?.label ?? String(value ?? '')
+    // Option values are always strings; numeric settings compare via String().
+    return optionsOf(sf).find(o => o.value === String(value))?.label ?? String(value ?? '')
   })
 
   function commitNumber(
@@ -134,80 +147,123 @@
 {#snippet fieldControl(f: SectionField)}
   {@const visible = fieldVisible(f)}
   {@const state = fieldState(f)}
-  {#if f.kind === 'colorScale'}
-    <!-- The picker manages its own keep-mounted gating (see its note). -->
-    <ColorScalePickerControl
-      {bulk}
-      show={visible}
-      colorScale={item.settings.colorScale as string[] | undefined}
-      defaultMin={f.defaultMin}
-      defaultMax={f.defaultMax}
-    />
-  {:else}
-    <!-- Keep-mounted visibility for every control: `display: none` instead
-         of `{#if}` so bindable plumbing never tears down mid-edit. -->
-    <div style:display={visible ? 'contents' : 'none'}>
-      {#if f.kind === 'enum'}
-        <Select
-          options={optionsOf(f)}
-          label={f.label}
-          value={state.value as string}
+  <!-- Keep-mounted visibility for every control: `display: none` instead
+       of `{#if}` so bindable plumbing never tears down mid-edit. -->
+  <div style:display={visible ? 'contents' : 'none'}>
+    {#if f.kind === 'colorScale'}
+      <ColorScalePicker
+        colorScale={item.settings.colorScale as string[] | undefined}
+        defaultMin={f.defaultMin}
+        defaultMax={f.defaultMax}
+        onCommit={patch => bulk.update({ colorScale: patch })}
+      />
+    {:else if f.kind === 'enum'}
+      <Select
+        options={optionsOf(f)}
+        label={f.label}
+        value={String(state.value ?? '')}
+        mixed={state.mixed}
+        onchange={e =>
+          bulk.update({
+            [f.key]: f.valueKind === 'number' ? Number(e.detail) : e.detail,
+          })}
+      />
+    {:else if f.kind === 'boolean'}
+      <InputCheck
+        label={f.label}
+        appearance="compact"
+        size="xs"
+        checked={!!state.value}
+        mixed={state.mixed}
+        onchange={e => bulk.update({ [f.key]: (e as CustomEvent<boolean>).detail })}
+      />
+    {:else if f.kind === 'number'}
+      <InputNumber
+        id="{entry.key}-{f.key}"
+        label={f.label}
+        appearance="compact"
+        value={state.value as number}
+        mixed={state.mixed}
+        min={f.min}
+        max={f.max}
+        step={f.step}
+        onValueChange={v => commitNumber(f, v)}
+      />
+    {:else if f.kind === 'color'}
+      <InputColor
+        label={f.label}
+        size="xs"
+        width={40}
+        value={state.value as string}
+        mixed={state.mixed}
+        oninput={e => bulk.update({ [f.key]: e.detail })}
+      />
+    {:else if f.kind === 'scaleRange'}
+      <ScaleRangePair
+        idPrefix="{entry.key}-{f.key}"
+        legend={f.legend}
+        min={bulk.common(s => ((s as Record<string, unknown>)[f.key] as [number, number])?.[0] ?? 0)}
+        max={bulk.common(s => ((s as Record<string, unknown>)[f.key] as [number, number])?.[1] ?? 0)}
+        inputMax={f.inputMax}
+        step={f.step}
+        onUpdate={next => commitScaleRange(f, next)}
+      />
+    {:else if f.kind === 'stimulusColorRange'}
+      {@const rangeMin = bulk.common(s => s.stimuliColorValueRanges?.[s.stimulusId]?.[0] ?? 0)}
+      {@const rangeMax = bulk.common(s => s.stimuliColorValueRanges?.[s.stimulusId]?.[1] ?? 0)}
+      <ScaleRangePair
+        idPrefix="{entry.key}-{f.key}"
+        legend={f.legend}
+        min={rangeMin}
+        max={rangeMax}
+        inputMax={f.inputMax}
+        step={f.step}
+        onUpdate={next => {
+          // Patch PER ITEM from each plot's own per-stimulus ranges and its
+          // own stimulusId — broadcasting the representative's full array
+          // would clobber other selected plots' ranges for their other stimuli.
+          bulk.updateEach(s => {
+            const r = s.stimuliColorValueRanges?.[s.stimulusId] ?? [0, 0]
+            const draft = { minValue: next.min ?? r[0], maxValue: next.max ?? r[1] }
+            const committed = { minValue: r[0], maxValue: r[1] }
+            const patch = buildValueRangePatch(
+              draft,
+              committed,
+              s.stimuliColorValueRanges,
+              s.stimulusId
+            )
+            return patch ? { stimuliColorValueRanges: patch } : null
+          })
+        }}
+      />
+    {:else if f.kind === 'info'}
+      <p class="info-description">{f.description}</p>
+    {:else if f.kind === 'metrics'}
+      {@const contract = resolvePlotDefinition(item.type).consumesMetrics}
+      {#if contract}
+        <ContractMetricSelect
+          {engine}
+          {contract}
           mixed={state.mixed}
-          onchange={e => bulk.update({ [f.key]: e.detail })}
+          metricInstanceIds={state.mixed ? [] : ((state.value as string[]) ?? [])}
+          onMetricsChange={ids => {
+            bulk.update({ [f.key]: ids })
+          }}
+          label=""
         />
-      {:else if f.kind === 'boolean'}
-        <InputCheck
-          label={f.label}
-          appearance="compact"
-          size="xs"
-          checked={!!state.value}
-          mixed={state.mixed}
-          onchange={e => bulk.update({ [f.key]: (e as CustomEvent<boolean>).detail })}
-        />
-      {:else if f.kind === 'number'}
-        <InputNumber
-          id="{entry.key}-{f.key}"
-          label={f.label}
-          appearance="compact"
-          value={state.value as number}
-          mixed={state.mixed}
-          min={f.min}
-          max={f.max}
-          step={f.step}
-          onValueChange={v => commitNumber(f, v)}
-        />
-      {:else if f.kind === 'color'}
-        <InputColor
-          label={f.label}
-          size="xs"
-          width={40}
-          value={state.value as string}
-          mixed={state.mixed}
-          oninput={e => bulk.update({ [f.key]: e.detail })}
-        />
-      {:else if f.kind === 'scaleRange'}
-        <ScaleRangePair
-          idPrefix="{entry.key}-{f.key}"
-          legend={f.legend}
-          min={bulk.common(s => ((s as Record<string, unknown>)[f.key] as [number, number])?.[0] ?? 0)}
-          max={bulk.common(s => ((s as Record<string, unknown>)[f.key] as [number, number])?.[1] ?? 0)}
-          inputMax={f.inputMax}
-          step={f.step}
-          onUpdate={next => commitScaleRange(f, next)}
-        />
-      {:else if f.kind === 'stimulusColorRange'}
-        <StimulusColorRange
-          {bulk}
-          idPrefix="{entry.key}-{f.key}"
-          legend={f.legend}
-          inputMax={f.inputMax}
-          step={f.step}
-        />
-      {:else if f.kind === 'hideNoAoi'}
-        <HideNoAoiCheck {bulk} />
       {/if}
-    </div>
-  {/if}
+    {/if}
+
+    {#if f.actions && f.actions.length > 0}
+      <PaneEditRow>
+        {#each f.actions as action}
+          <PaneEditLink onclick={() => action.onclick(ctx)}>
+            {action.label}
+          </PaneEditLink>
+        {/each}
+      </PaneEditRow>
+    {/if}
+  </div>
 {/snippet}
 
 {#snippet rowOf(row: SectionField[])}
@@ -224,7 +280,7 @@
   {/if}
 {/snippet}
 
-<PaneSection title={entry.title} {summary}>
+<PaneSection title={entry.title} {summary} defaultOpen={entry.defaultOpen}>
   {#each blocks as block, i (i)}
     {#if block.caption}
       <div
@@ -270,5 +326,12 @@
     grid-template-columns: 1fr 1fr;
     gap: 8px;
     align-items: end;
+  }
+
+  .info-description {
+    margin: 0;
+    font-size: 11px;
+    line-height: 1.4;
+    color: #4b5563;
   }
 </style>

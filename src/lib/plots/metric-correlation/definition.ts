@@ -14,7 +14,9 @@ export const metricCorrelationDefinition = definePlot<
   paneSections: [
     'stimulus',
     'group',
-    { key: 'metric', props: { label: 'Metrics' } },
+    // Entry-field override on the shared schema: this plot correlates 2+
+    // metrics, so the section title is plural.
+    { key: 'metric', props: { title: 'Metrics' } },
     {
       key: 'metricCorrelation:visualisation',
       title: 'Visualisation',

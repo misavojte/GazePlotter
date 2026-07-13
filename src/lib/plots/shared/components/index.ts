@@ -1,22 +1,8 @@
 /**
  * Shared Plot Components
  *
- * Common components that can be used across different plot types.
+ * Only what other modules actually consume through the `$lib/plots/shared`
+ * barrel; intra-directory consumers import component files directly.
  */
 
-// Export placeholder component
-export { default as PlotPlaceholder } from './PlotPlaceholder.svelte'
-export { default as BasePlot } from './BasePlot.svelte'
 export { default as MatrixPlotFigure } from './MatrixPlotFigure.svelte'
-export { default as ContractMetricSelect } from './ContractMetricSelect.svelte'
-export { default as ColorScalePicker } from './ColorScalePicker.svelte'
-export { default as AoiPaneSection } from './AoiPaneSection.svelte'
-export { default as EventPaneSection } from './EventPaneSection.svelte'
-export { default as StimulusPaneSection } from './StimulusPaneSection.svelte'
-export { default as ParticipantGroupPaneSection } from './ParticipantGroupPaneSection.svelte'
-export { default as ParticipantPaneSection } from './ParticipantPaneSection.svelte'
-export { default as MetricPaneSection } from './MetricPaneSection.svelte'
-export { default as EyeMovementTypePaneSection } from './EyeMovementTypePaneSection.svelte'
-
-
-
