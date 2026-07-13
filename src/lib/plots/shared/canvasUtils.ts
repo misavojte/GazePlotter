@@ -390,7 +390,7 @@ export function createRenderScheduler(renderFn: () => void): () => void {
   }
 }
 
-export interface CanvasLifecycleOptions {
+interface CanvasLifecycleOptions {
   getCanvas: () => HTMLCanvasElement | null
   getState: () => CanvasState
   setState: (newState: CanvasState) => void
@@ -399,7 +399,7 @@ export interface CanvasLifecycleOptions {
   render: () => void
 }
 
-export interface CanvasRefreshOptions {
+interface CanvasRefreshOptions {
   getState: () => CanvasState
   setState: (newState: CanvasState) => void
   getDimensions: () => CanvasDimensions
@@ -407,7 +407,7 @@ export interface CanvasRefreshOptions {
   scheduleRender: () => void
 }
 
-export interface CanvasLifecycleActionOptions
+interface CanvasLifecycleActionOptions
   extends Omit<CanvasLifecycleOptions, 'getCanvas'>, CanvasRefreshOptions {
   registerExportSource?: (canvasElement: HTMLCanvasElement | null) => void
 }

@@ -8,9 +8,9 @@
  */
 export const METRIC_MISSING_MESSAGE = 'Select a metric'
 export const METRIC_MISSING_MULTI_MESSAGE = 'Select at least two metrics'
-export const PLOT_CANNOT_FIT_HEIGHT_MESSAGE = 'The plot cannot fit the current height. Either:'
-export const PLOT_CANNOT_FIT_WIDTH_MESSAGE = 'The plot cannot fit the current width. Either:'
-export const PLOT_CANNOT_FIT_SIZE_MESSAGE = 'The plot cannot fit the current size. Either:'
+const PLOT_CANNOT_FIT_HEIGHT_MESSAGE = 'The plot cannot fit the current height. Either:'
+const PLOT_CANNOT_FIT_WIDTH_MESSAGE = 'The plot cannot fit the current width. Either:'
+const PLOT_CANNOT_FIT_SIZE_MESSAGE = 'The plot cannot fit the current size. Either:'
 
 export type PlotPlaceholderContent =
   | string

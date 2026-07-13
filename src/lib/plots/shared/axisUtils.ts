@@ -2,7 +2,7 @@ import { GRIDLINE_PRIMARY, GRIDLINE_SECONDARY, FONT_PRIMARY, PLOT_AXIS_TITLE_GAP
 import { wrapTextToWidth } from '$lib/shared/utils/textUtils'
 
 /** Max wrapped lines for an axis title before it ellipsises (bounds the gutter). */
-export const MAX_AXIS_TITLE_LINES = 2
+const MAX_AXIS_TITLE_LINES = 2
 
 const axisLineHeight = (fontSize: number) => Math.ceil(fontSize * 1.25)
 
@@ -33,7 +33,7 @@ export function maxAxisTitleHeight(fontSize: number = FONT_PRIMARY.SIZE): number
   return MAX_AXIS_TITLE_LINES * axisLineHeight(fontSize)
 }
 
-export interface AxisConfig {
+interface AxisConfig {
   tickLength: number
   fontSize: number
   fontFamily: string

@@ -35,7 +35,7 @@ function setUpFont(ctx: CanvasRenderingContext2D) {
   ctx.fillStyle = UI_COLORS.TEXT_PRIMARY
 }
 
-export function drawMatrixGrid(
+function drawMatrixGrid(
   ctx: CanvasRenderingContext2D,
   config: MatrixRenderConfig
 ) {
@@ -123,7 +123,7 @@ function drawMatrixCellsText(
   }
 }
 
-export function drawMatrixAxisLabels(
+function drawMatrixAxisLabels(
   ctx: CanvasRenderingContext2D,
   config: MatrixRenderConfig
 ) {
@@ -174,7 +174,7 @@ function getCompactLabel(
   return layout.isUltraCompactMode ? index.toString() : (index + 1).toString()
 }
 
-export function drawMatrixRowLabels(
+function drawMatrixRowLabels(
   ctx: CanvasRenderingContext2D,
   config: MatrixRenderConfig,
   labelFontSize: number
@@ -214,7 +214,7 @@ export function drawMatrixRowLabels(
   }
 }
 
-export function drawMatrixColumnLabels(
+function drawMatrixColumnLabels(
   ctx: CanvasRenderingContext2D,
   config: MatrixRenderConfig,
   labelFontSize: number

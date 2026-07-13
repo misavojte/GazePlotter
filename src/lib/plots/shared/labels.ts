@@ -102,7 +102,7 @@ export function rangeQualifier(
  * plot, which discloses its statistic via its own mean±CI / median-IQR overlay
  * instead. Always derived, so a rename never drops these.
  */
-export function metricQualifiers(
+function metricQualifiers(
   instance: MetricInstance | null | undefined,
   includeProjection = false,
   includeReduction = true,
@@ -116,7 +116,7 @@ export function metricQualifiers(
   return qualifiers
 }
 
-export interface MetricLabelOptions {
+interface MetricLabelOptions {
   /** Fallback quantity name when no instance/metric resolves. */
   fallback?: string
   /** Append the projection readout (aggregate plots). Omit for time-axis plots
