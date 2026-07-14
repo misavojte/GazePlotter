@@ -1,4 +1,4 @@
-import type { Metric, OutputShape, WindowUnit } from './dsl'
+import type { AoiAggregateLabels, Metric, OutputShape, WindowUnit } from './dsl'
 
 /**
  * Projection is a tree: a LeafProjection reshapes one window's raw finalize
@@ -104,10 +104,21 @@ export interface ApplyResult {
 
 // ─── Registry ───────────────────────────────────────────────────────────────
 
+/**
+ * Metric-level naming context for projection labels. Labels are metric-blind
+ * except where the metric itself declares the wording: `aggregate-aoi` prints
+ * the metric's named meaning for the extreme ("most-dwelled AOI") instead of
+ * the generic operator phrase. Callers with an instance in hand
+ * (`formatProjectionReadout`) pass the metric's `aoiAggregate` here.
+ */
+export interface ProjectionLabelContext {
+  aoiAggregate?: AoiAggregateLabels
+}
+
 export interface LeafKindDef {
   outputShape: OutputShape
   rawShapes: readonly OutputShape[]
-  label:    (p: LeafProjection) => string
+  label:    (p: LeafProjection, ctx?: ProjectionLabelContext) => string
   cacheKey: (p: LeafProjection) => string
   apply:    (p: LeafProjection, ctx: ApplyContext) => ApplyResult
 }
@@ -164,7 +175,16 @@ export const PROJECTION_LEAVES: Record<LeafKind, LeafKindDef> = {
   'aggregate-aoi': {
     outputShape: 'scalar',
     rawShapes: ['aoi-vector'],
-    label:    (p) => `${(p as LeafProjection & { kind: 'aggregate-aoi' }).reducer} across AOIs`,
+    // The metric's named meaning of the extreme when provided ("most-dwelled
+    // AOI"); the generic operator phrase only as a metric-less fallback.
+    label: (p, ctx) => {
+      const q = p as LeafProjection & { kind: 'aggregate-aoi' }
+      const named =
+        q.reducer === 'max' || q.reducer === 'min'
+          ? ctx?.aoiAggregate?.[q.reducer]
+          : undefined
+      return named || `${q.reducer} across AOIs`
+    },
     cacheKey: (p) => `agg:${(p as LeafProjection & { kind: 'aggregate-aoi' }).reducer}`,
     apply:    (p, c) => aggregateAoi((p as LeafProjection & { kind: 'aggregate-aoi' }).reducer, c),
   },
@@ -243,13 +263,17 @@ export function projectionOutputShape(projection: Projection): OutputShape {
   return PROJECTION_LEAVES[projection.kind].outputShape
 }
 
-export function projectionToLabel(projection: Projection, unit: WindowUnit): string {
+export function projectionToLabel(
+  projection: Projection,
+  unit: WindowUnit,
+  ctx?: ProjectionLabelContext,
+): string {
   if (projection.kind === 'windowed') {
-    const inner = PROJECTION_LEAVES[projection.inner.kind].label(projection.inner)
+    const inner = PROJECTION_LEAVES[projection.inner.kind].label(projection.inner, ctx)
     const wlabel = windowLabel(projection.window, unit)
     return inner ? `${inner} · ${wlabel}` : wlabel
   }
-  return PROJECTION_LEAVES[projection.kind].label(projection)
+  return PROJECTION_LEAVES[projection.kind].label(projection, ctx)
 }
 
 export function projectionCacheKey(projection: Projection): string {
@@ -270,21 +294,23 @@ export function leafRawShapes(kind: LeafKind): readonly OutputShape[] {
 
 /**
  * The set of leaf kinds a metric can produce, given only its declared
- * `rawShape` and the meta-level capability flags (`providesAnyFixation`). The
- * single answer to "what projection leaves does this metric support?" — read
- * by the metric-library modal, manifest builders, and (future) agent-callable
- * compute APIs so they don't each roll a one-line filter against
- * `PROJECTION_LEAVES`.
+ * `rawShape` and the meta-level capability declarations (`providesAnyFixation`,
+ * `aoiAggregate`). The single answer to "what projection leaves does this
+ * metric support?" — read by the metric-library modal, manifest builders, and
+ * (future) agent-callable compute APIs so they don't each roll a one-line
+ * filter against `PROJECTION_LEAVES`.
  *
  * Concrete-projection validity (reducer choice, slot-ref bounds, windowing
  * support) is layered on top via {@link recipeSupports} — this function only
  * answers the kind-level question.
  */
 export function supportedLeaves(metric: Metric): LeafKind[] {
+  const agg = metric.meta.aoiAggregate
   const out: LeafKind[] = []
   for (const kind of Object.keys(PROJECTION_LEAVES) as LeafKind[]) {
     if (!PROJECTION_LEAVES[kind].rawShapes.includes(metric.meta.rawShape)) continue
     if (kind === 'pick-any-fixation' && !metric.meta.providesAnyFixation) continue
+    if (kind === 'aggregate-aoi' && !(agg?.max || agg?.min)) continue
     out.push(kind)
   }
   return out
@@ -410,7 +436,17 @@ function resolveAoiRef(ref: AoiRef, aoiNames: readonly string[]): number {
   return aoiNames.findIndex(n => n === ref.name)
 }
 
-function reduceNumeric(values: readonly number[], method: AoiReducer): number {
+/**
+ * Collapse a numeric multiset by a summary operator (finite-filtered; `NaN` when
+ * empty). Shared: the `aggregate-aoi` projection leaf reduces one participant's
+ * per-AOI vector, and the duration metrics (`fixationDuration`/`visitDuration`)
+ * reduce one AOI-slot's per-fixation/per-visit sample in `finalize` via the
+ * settable `statistic` param. Lives here (not in `aggregation.ts`) because
+ * `measurement.ts` already imports this module, so the reverse import would
+ * cycle. `AoiReducer` is the full operator set; the metric `statistic` param
+ * uses the `sum`-free subset.
+ */
+export function reduceNumeric(values: readonly number[], method: AoiReducer): number {
   const valid = values.filter(Number.isFinite)
   if (valid.length === 0) return Number.NaN
   switch (method) {

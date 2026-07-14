@@ -20,12 +20,18 @@ describe('paneSections / SHARED_SECTIONS consistency', () => {
   }>
 
   it('every plot declares a non-empty paneSections including the universal sections', () => {
+    // The Metric Matrix spans EVERY stimulus (it has no per-plot stimulusId), so
+    // it carries neither the 'stimulus' section nor 'aoi' (the AOI info-section's
+    // modal keys off a stimulusId it doesn't have). It is the sole exception to
+    // the otherwise-universal 'stimulus', alongside scanpath for 'aoi'.
+    const STIMULUS_SPANNING = new Set(['metricMatrix'])
     for (const def of defs) {
       const keys = def.paneSections.map(paneSectionKey)
       expect(keys.length).toBeGreaterThan(0)
-      // stimulus is universal; AOI is common to all plots except scanpath.
-      expect(keys).toContain('stimulus')
-      if (def.type !== 'scanpath') {
+      if (!STIMULUS_SPANNING.has(def.type)) {
+        expect(keys).toContain('stimulus')
+      }
+      if (def.type !== 'scanpath' && !STIMULUS_SPANNING.has(def.type)) {
         expect(keys).toContain('aoi')
       }
     }

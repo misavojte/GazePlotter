@@ -112,5 +112,6 @@ function toMeta(r: MetricRecipe<any, any>): MetricMeta {
     defaultReduction: r.defaultReduction ?? 'mean',
     supportsWindowing: r.supportsWindowing ?? true,
     providesAnyFixation: r.providesAnyFixation ?? false,
+    aoiAggregate: r.aoiAggregate,
   }
 }

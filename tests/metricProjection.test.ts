@@ -180,9 +180,19 @@ describe('projectionToLabel', () => {
   it('empty string for identity leaves', () => {
     expect(projectionToLabel({ kind: 'identity-scalar' }, 'ms')).toBe('')
   })
-  it('aoi reducer for aggregate-aoi', () => {
+  it('aoi reducer for aggregate-aoi (generic fallback, no metric context)', () => {
     expect(projectionToLabel({ kind: 'aggregate-aoi', reducer: 'mean' }, 'ms'))
       .toMatch(/mean across AOIs/i)
+  })
+  it('aggregate-aoi speaks the metric-named meaning when the context provides one', () => {
+    const ctx = { aoiAggregate: { max: 'most-dwelled AOI', min: 'least-dwelled AOI' } }
+    expect(projectionToLabel({ kind: 'aggregate-aoi', reducer: 'max' }, 'ms', ctx))
+      .toBe('most-dwelled AOI')
+    expect(projectionToLabel({ kind: 'aggregate-aoi', reducer: 'min' }, 'ms', ctx))
+      .toBe('least-dwelled AOI')
+    // A reducer the metric leaves unnamed falls back to the generic phrase.
+    expect(projectionToLabel({ kind: 'aggregate-aoi', reducer: 'max' }, 'ms', { aoiAggregate: { min: 'first-reached AOI' } }))
+      .toBe('max across AOIs')
   })
   it('non-overlapping window: "<N> ms window"', () => {
     const p: Projection = {
@@ -215,6 +225,8 @@ describe('projectionToLabel', () => {
       inner: { kind: 'aggregate-aoi', reducer: 'max' },
     }
     expect(projectionToLabel(p, 'ms')).toMatch(/max across AOIs · 500 ms window/)
+    expect(projectionToLabel(p, 'ms', { aoiAggregate: { max: 'most-dwelled AOI' } }))
+      .toBe('most-dwelled AOI · 500 ms window')
   })
 })
 

@@ -1,7 +1,11 @@
 import { deriveMetricCorrelationView } from './core/view'
 import { definePlot } from '$lib/plots/definePlot'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
-import { METRIC_CORRELATION_METHODS, METRIC_CORRELATION_VIEWS } from './const'
+import {
+  METRIC_CORRELATION_CONTRACT,
+  METRIC_CORRELATION_METHODS,
+  METRIC_CORRELATION_VIEWS,
+} from './const'
 import type { MetricCorrelationSettings } from './types'
 
 export const metricCorrelationDefinition = definePlot<
@@ -70,10 +74,5 @@ export const metricCorrelationDefinition = definePlot<
     ],
   }),
   requireCapabilities: ['segmented'],
-  consumesMetrics: {
-    outputShape: 'scalar',
-    windowing: 'forbidden',
-    crossParticipant: 'samples',
-    multiSelect: true,
-  },
+  consumesMetrics: METRIC_CORRELATION_CONTRACT,
 })

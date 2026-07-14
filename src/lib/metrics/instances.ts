@@ -113,6 +113,26 @@ export function resolveInstance(
   return instances.find(i => i.id === id)
 }
 
+/**
+ * Load-time check for the workspace normalization: does this serialized
+ * instance carry an `aggregate-aoi` extreme its metric no longer names
+ * (`meta.aoiAggregate`)? Such an instance is rejected by every plot contract,
+ * so left in the library it would strand invisibly — no card, no delete
+ * button — while re-serializing into every export. Operates on raw untyped
+ * JSON (Web-Worker-safe, no engine). Unknown recipes are never stranded:
+ * this build's registry is not the arbiter of theirs.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function isStrandedAoiAggregate(inst: any): boolean {
+  const proj = inst?.projection
+  const leaf = proj?.kind === 'windowed' ? proj.inner : proj
+  if (!leaf || leaf.kind !== 'aggregate-aoi') return false
+  const recipe = getRecipe(inst?.baseId)
+  if (!recipe) return false
+  const extreme = leaf.reducer
+  return !((extreme === 'max' || extreme === 'min') && !!recipe.aoiAggregate?.[extreme])
+}
+
 // ─── Label / readout helpers ─────────────────────────────────────────────────
 
 /**
@@ -130,11 +150,15 @@ export function defaultInstanceLabel(baseId: string): string {
   return getMetric(baseId)?.meta.label ?? baseId
 }
 
-/** Human-readable readout of the projection (including window suffix). */
+/** Human-readable readout of the projection (including window suffix). An
+ *  `aggregate-aoi` leaf prints the metric's own named meaning of the extreme
+ *  ("most-dwelled AOI") — the same phrase that gated the projection. */
 export function formatProjectionReadout(instance: MetricInstance): string | null {
   const m = getMetric(instance.baseId)
   const unit = m?.meta.windowUnit ?? 'ms'
-  const label = projectionToLabel(instance.projection, unit)
+  const label = projectionToLabel(instance.projection, unit, {
+    aoiAggregate: m?.meta.aoiAggregate,
+  })
   return label.length > 0 ? label : null
 }
 
@@ -149,6 +173,9 @@ export function formatParamReadout(instance: MetricInstance): string[] {
   const m = getMetric(instance.baseId)
   if (!m || m.meta.params.length === 0) return []
   return m.meta.params
+    // `statistic` is disclosed via summaryStatQualifier (so a plot can toggle it
+    // like the reduction chip), not as a generic param chip — skip it here.
+    .filter(p => p.id !== 'statistic')
     .map(p => paramToLabel(p, instance.params[p.id] ?? p.default))
     .filter((s): s is string => !!s)
 }
@@ -203,18 +230,43 @@ export function reductionQualifier(
 }
 
 /**
- * THE instance's full derived qualifier chips — params plus the cross-participant
- * reduction. This is the SINGLE readout the metric selector AND plot axes/legends
- * compose from, so the panel and the figure agree exactly and a static export is
- * self-documenting. `includeReduction: false` drops the chip for distribution
- * plots (the bar plot, which discloses its statistic via its mean±CI / median-IQR
- * overlay rather than the generic chip).
+ * The within-participant SUMMARY statistic as a mid-dot readout qualifier — how
+ * a metric collapses each AOI-slot's per-fixation / per-visit sample into the
+ * per-participant value (`fixationDuration` / `visitDuration` carry a settable
+ * `statistic` param). Returns `null` for metrics without that param (their
+ * collapse is fixed and conveyed by the metric name, e.g. "Absolute dwell
+ * time"). UNLIKE {@link reductionQualifier}, it discloses `mean` too — the whole
+ * point is that the summarization method is finally visible on the figure.
+ */
+export function summaryStatQualifier(
+  instance: MetricInstance | null | undefined
+): string | null {
+  if (!instance) return null
+  const def = getMetric(instance.baseId)?.meta.params.find(p => p.id === 'statistic')
+  if (!def) return null
+  const value = (instance.params?.statistic as string | undefined) ?? (def.default as string)
+  return typeof value === 'string' && value.length > 0 ? value : null
+}
+
+/**
+ * THE instance's full derived qualifier chips — params, the within-participant
+ * summary statistic, and the cross-participant reduction. This is the SINGLE
+ * readout the metric selector AND plot axes/legends compose from, so the panel
+ * and the figure agree exactly and a static export is self-documenting.
+ * `includeReduction: false` drops the reduction chip and `includeSummaryStat:
+ * false` the summary chip — both for distribution plots (the bar plot, which
+ * discloses spread via its mean±CI / median-IQR overlay rather than a point
+ * statistic / generic chip).
  */
 export function instanceReadout(
   instance: MetricInstance,
-  opts: { includeReduction?: boolean } = {},
+  opts: { includeReduction?: boolean; includeSummaryStat?: boolean } = {},
 ): string[] {
   const out = [...formatParamReadout(instance)]
+  if (opts.includeSummaryStat !== false) {
+    const stat = summaryStatQualifier(instance)
+    if (stat) out.push(stat)
+  }
   if (opts.includeReduction !== false) {
     const red = reductionQualifier(instance)
     if (red) out.push(red)

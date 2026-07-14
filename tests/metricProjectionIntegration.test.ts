@@ -9,6 +9,8 @@ import { makeTestEngine } from './helpers/testEngine'
 import {
   query,
   instanceMatchesContract,
+  supportedLeaves,
+  getMetric,
   type MetricInstance,
   type PlotMetricContract,
   type Scope,
@@ -100,6 +102,29 @@ describe('projection via query()', () => {
       projection: { kind: 'matrix-aggregate', reducer: 'mean' },
     }
     expect(instanceMatchesContract(invalid, GLOBAL_SCALAR_CONTRACT)).toBe(false)
+  })
+
+  it('aggregate-aoi stays in contract only where the metric names the extreme', () => {
+    const proj = { kind: 'aggregate-aoi', reducer: 'max' } as const
+    const named: MetricInstance = {
+      id: 't1', baseId: 'absoluteTime', params: {}, label: '', projection: proj,
+    }
+    // fixationDuration names no extreme (its Summary `statistic` would
+    // double-reduce) — a saved instance drops instead of computing something
+    // with no defined reading.
+    const unnamed: MetricInstance = {
+      id: 't2', baseId: 'fixationDuration', params: { statistic: 'mean' }, label: '', projection: proj,
+    }
+    expect(instanceMatchesContract(named, GLOBAL_SCALAR_CONTRACT)).toBe(true)
+    expect(instanceMatchesContract(unnamed, GLOBAL_SCALAR_CONTRACT)).toBe(false)
+  })
+
+  it('supportedLeaves offers aggregate-aoi only to metrics naming an extreme', () => {
+    expect(supportedLeaves(getMetric('absoluteTime')!)).toContain('aggregate-aoi')
+    expect(supportedLeaves(getMetric('timeToFirstFixation')!)).toContain('aggregate-aoi')
+    expect(supportedLeaves(getMetric('fixationDuration')!)).not.toContain('aggregate-aoi')
+    expect(supportedLeaves(getMetric('visitDuration')!)).not.toContain('aggregate-aoi')
+    expect(supportedLeaves(getMetric('firstFixationDuration')!)).not.toContain('aggregate-aoi')
   })
 
   it('valid saved instance stays in contract (matrix-cell on probability)', () => {

@@ -38,7 +38,6 @@ export type { StartingMetricSpec } from './startingMetrics'
 // ─── Projection algebra (for the metric-library modal) ─────────────────────
 export {
   PROJECTION_LEAVES,
-  AOI_REDUCERS,
   MATRIX_REDUCERS,
   applyProjection,
   projectionOutputShape,
@@ -60,7 +59,6 @@ export {
   soundReductions,
   reducesAcrossParticipants,
   distributionStatistics,
-  supportedAoiReducers,
   supportedMatrixReducers,
   metricShape,
 } from './core/measurement'
@@ -73,6 +71,7 @@ export type {
   LeafKind,
   ProjectionKind,
   LeafKindDef,
+  ProjectionLabelContext,
   ApplyContext,
   ApplyResult,
   AoiRef,
@@ -86,6 +85,7 @@ export type {
   Metric,
   MetricMeta,
   MetricRecipe,
+  AoiAggregateLabels,
   AoiSlotInfo,
   FixationEvent,
   OutputShape,

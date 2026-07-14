@@ -82,7 +82,7 @@ describe('add-visualization menu grouping', () => {
       ['Gaze behavior', ['Scarf Plot', 'Scanpath', 'Recurrence Plot']],
       ['Per AOI', ['AOI Comparison', 'AOI Timeline']],
       ['Inter-AOI', ['Transition Matrix']],
-      ['Per participant', ['Metric Timeline', 'Metric Correlation']],
+      ['Per participant', ['Metric Timeline', 'Metric Correlation', 'Metric Matrix']],
       ['Inter-participant', ['Scanpath Similarity']],
     ])
   })

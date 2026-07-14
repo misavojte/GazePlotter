@@ -1,4 +1,6 @@
 import { defineMetric } from '../../core/defineMetric'
+import { enumParam } from '../../core/params'
+import { reduceNumeric } from '../../core/projection'
 
 interface Acc {
   dwells: number[][]
@@ -10,11 +12,11 @@ interface Acc {
 }
 
 /**
- * ## Visit duration (mean dwell per visit)
+ * ## Visit duration
  *
- * Mean duration (ms) of a distinct visit to each AOI. A visit begins on first
- * entry and ends when gaze leaves; consecutive fixations in the same AOI
- * accumulate as a single visit.
+ * A summary (mean by default; also median / max / min) of the durations (ms) of
+ * distinct visits to each AOI. A visit begins on first entry and ends when gaze
+ * leaves; consecutive fixations in the same AOI accumulate as a single visit.
  *
  * - **Shape:** `aoi-vector`
  * - **Unit:** `ms`
@@ -30,7 +32,8 @@ interface Acc {
  *   See `WindowFrame` in `core/dsl.ts` for the available signals.
  *
  * ### Parameters
- * None.
+ * - `statistic` — how each AOI-slot's per-visit dwells are collapsed to the
+ *   per-participant value: `mean` (default) | `median` | `max` | `min`.
  *
  * ### Usage
  * ```ts
@@ -60,11 +63,22 @@ defineMetric({
   rawShape: 'aoi-vector',
   windowUnit: 'ms',
   providesAnyFixation: true,
-  // Intensive: a per-participant mean visit duration. Only `mean` is sound
+  // No `aoiAggregate`: the settable `statistic` already reduces within each
+  // AOI — an extreme across AOIs would be a double reduction (see
+  // fixationDuration).
+  // Intensive: a per-participant central value of visit durations. Every offered
+  // statistic (mean/median/max/min) stays intensive — only `mean` is sound
   // across participants (for a cohort total of dwell use absoluteTime).
   measurementClass: 'intensive',
-  searchTags: ['visit', 'dwell', 'duration', 'average', 'mean', 'aoi'],
-  params: [] as const,
+  searchTags: ['visit', 'dwell', 'duration', 'average', 'mean', 'median', 'aoi'],
+  params: [
+    enumParam<'statistic', 'mean' | 'median' | 'max' | 'min'>('statistic', 'Summary', 'mean', [
+      { value: 'mean', label: 'Mean' },
+      { value: 'median', label: 'Median' },
+      { value: 'max', label: 'Max' },
+      { value: 'min', label: 'Min' },
+    ]),
+  ] as const,
   accumulation: 'stateful',
   init: ({ slots }): Acc => ({
     dwells: Array.from({ length: slots.totalSlots }, () => []),
@@ -124,7 +138,7 @@ defineMetric({
     acc.previousAois.clear()
     for (let i = 0; i < slots.length; i++) acc.previousAois.add(slots[i])
   },
-  finalize: (acc, slots) => {
+  finalize: (acc, slots, { params }) => {
     for (const [idx, d] of acc.activeDwells) acc.dwells[idx].push(d)
     if (acc.wasInNoAoi) acc.dwells[slots.noAoiSlot].push(acc.currentNoAoiDwell)
     // Flush the trailing any-fixation visit whenever one is OPEN (mirroring the
@@ -133,12 +147,9 @@ defineMetric({
     // so anyFixation summarises the same visits as the per-AOI slots.
     if (acc.wasInNoAoi || acc.previousAois.size > 0)
       acc.dwells[slots.anyFixationSlot].push(acc.currentAnyFixationDwell)
-    return acc.dwells.map(arr => {
-      if (arr.length === 0) return Number.NaN
-      let sum = 0
-      for (const d of arr) sum += d
-      return sum / arr.length
-    })
+    // Collapse each slot's per-visit dwells by the chosen statistic (default
+    // mean). `individuals` stays the full sample for box/beeswarm overlays.
+    return acc.dwells.map(arr => reduceNumeric(arr, params.statistic))
   },
   individuals: (acc, slotIndex) => acc.dwells[slotIndex] ?? [],
 })

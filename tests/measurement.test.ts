@@ -10,7 +10,6 @@ import {
   soundReductions,
   reducesAcrossParticipants,
   distributionStatistics,
-  supportedAoiReducers,
   supportedMatrixReducers,
   metricShape,
   effectiveReduction,
@@ -61,9 +60,9 @@ describe('distributionStatistics (plot-layer, by class)', () => {
 })
 
 describe('within-participant reducer tables (by class)', () => {
-  it('aggregate-aoi is always max|min, class-independent', () => {
-    for (const c of ALL_CLASSES) expect(supportedAoiReducers(c)).toEqual(['max', 'min'])
-  })
+  // aggregate-aoi is no longer a class table: only extremes exist by
+  // construction, gated per metric by its `aoiAggregate` declaration — the
+  // gate is covered in metricValidation.test.ts.
   it('matrix-aggregate unlocks sum/mean only for extensive', () => {
     expect(supportedMatrixReducers('extensive')).toEqual(['sum', 'mean', 'max', 'min'])
     expect(supportedMatrixReducers('intensive')).toEqual(['max', 'min'])

@@ -16,4 +16,5 @@ export * from './scanpath'
 export * from './evolving-metrics'
 export * from './recurrence'
 export * from './metric-correlation'
+export * from './metric-matrix'
 

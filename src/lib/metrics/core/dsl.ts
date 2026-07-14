@@ -176,6 +176,20 @@ export interface InitCtx<P> {
   slots: AoiSlotInfo
 }
 
+/**
+ * Names for the extremes across AOIs — one phrase per offered reducer stating
+ * what that extreme MEANS for this metric ("most-dwelled AOI", "first-reached
+ * AOI", "every AOI"). Lowercase noun phrases, so they slot into the mid-dot
+ * label grammar: `"Absolute dwell time / ms · most-dwelled AOI"`. Declaration
+ * order is presentation order — name the canonical extreme first and the
+ * configure UI lists and defaults to it (TTFF names `min`, 'first-reached
+ * AOI', before the caveat-laden `max`).
+ */
+export interface AoiAggregateLabels {
+  readonly max?: string
+  readonly min?: string
+}
+
 export interface MetricMeta {
   readonly id: string
   readonly label: string
@@ -225,6 +239,22 @@ export interface MetricMeta {
    * Required for the `pick-any-fixation` projection to be allowed.
    */
   readonly providesAnyFixation: boolean
+  /**
+   * Opt-in to the `aggregate-aoi` projection — reducing the per-AOI vector to
+   * ONE AOI's value *within each participant* (the winning AOI can differ
+   * between participants). A metric opts in by NAMING what each extreme means:
+   * the declared phrase is simultaneously the gate (an unnamed extreme is
+   * hidden and rejected), the option the configure UI offers, and the
+   * qualifier printed on figures and exports — so the declaration and the
+   * disclosure can never drift apart. Only extremes exist here by
+   * construction: max/min are order statistics, invariant to how many AOIs
+   * the analyst drew, whereas sum/mean/median across AOIs are biased by the
+   * segmentation (the stimulus-level total belongs to `providesAnyFixation`).
+   * Absent (the default) when no extreme reads clearly — notably metrics
+   * carrying a settable Summary `statistic`, whose reducer would compose into
+   * an uninterpretable double reduction.
+   */
+  readonly aoiAggregate?: AoiAggregateLabels
 }
 
 export interface Metric { readonly meta: MetricMeta }
@@ -282,6 +312,16 @@ export interface MetricRecipe<P, A> {
    * `pick-any-fixation` projection for the metric.
    */
   providesAnyFixation?: boolean
+  /**
+   * Opt-in to the `aggregate-aoi` projection by naming what each extreme
+   * across AOIs means for this metric, e.g.
+   * `{ max: 'most-dwelled AOI', min: 'least-dwelled AOI' }`. The phrase is
+   * the gate, the configure-UI option, and the figure qualifier in one (see
+   * {@link MetricMeta.aoiAggregate}). Omit (the default) when no extreme
+   * reads clearly — e.g. metrics with a settable Summary `statistic`, whose
+   * reducer would compose into a double reduction.
+   */
+  aoiAggregate?: AoiAggregateLabels
   /**
    * Author-level veto over specific projections. Receives the full `Projection`
    * — use `p.kind === 'windowed' ? p.inner : p` when the check applies to the

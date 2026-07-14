@@ -587,6 +587,56 @@ describe('version-independent: groupAggregation → reduction rename', () => {
   })
 })
 
+describe('version-independent: unnamed aggregate-aoi extremes are pruned', () => {
+  const buildWithInstances = (instances: unknown[]): Record<string, unknown> => ({
+    version: 5,
+    data: { metricInstances: instances },
+    gridItems: [],
+    fileMetadata: null,
+  })
+  const inst = (id: string, baseId: string, projection: unknown) => ({
+    id, baseId, params: {}, label: id, projection,
+  })
+
+  it('prunes an aggregate-aoi instance whose metric no longer names the extreme', () => {
+    // 1.9.x offered max/min on every aoi-vector metric; fixationDuration now
+    // deliberately names none (its Summary `statistic` would double-reduce).
+    const m = runMigrations(buildWithInstances([
+      inst('stranded', 'fixationDuration', { kind: 'aggregate-aoi', reducer: 'max' }),
+      inst('kept', 'absoluteTime', { kind: 'aggregate-aoi', reducer: 'max' }),
+    ]))
+    const ids = (m.data.metricInstances as MetricInstance[]).map(i => i.id)
+    expect(ids).not.toContain('stranded')
+    expect(ids).toContain('kept')
+  })
+
+  it('prunes a WINDOWED aggregate-aoi on an opted-out metric (inner leaf checked)', () => {
+    const m = runMigrations(buildWithInstances([
+      inst('stranded-w', 'visitDuration', {
+        kind: 'windowed',
+        window: { windowSize: 1000, stepSize: 1000 },
+        inner: { kind: 'aggregate-aoi', reducer: 'min' },
+      }),
+    ]))
+    expect((m.data.metricInstances as MetricInstance[]).length).toBe(0)
+  })
+
+  it('leaves unknown recipes untouched (this registry is not their arbiter)', () => {
+    const m = runMigrations(buildWithInstances([
+      inst('foreign', 'someFutureMetric', { kind: 'aggregate-aoi', reducer: 'max' }),
+    ]))
+    expect((m.data.metricInstances as MetricInstance[]).map(i => i.id)).toContain('foreign')
+  })
+
+  it('leaves non-aggregate projections and named extremes alone', () => {
+    const m = runMigrations(buildWithInstances([
+      inst('vec', 'fixationDuration', { kind: 'identity-aoi-vector' }),
+      inst('ttf-min', 'timeToFirstFixation', { kind: 'aggregate-aoi', reducer: 'min' }),
+    ]))
+    expect((m.data.metricInstances as MetricInstance[]).map(i => i.id)).toEqual(['vec', 'ttf-min'])
+  })
+})
+
 describe('resolveInstance — direct lookup, no fallback', () => {
   const library: MetricInstance[] = [
     { id: 'transitionCount-fix',   baseId: 'transitionCount', params: { mode: 'fixation' }, label: 'TC fix',   projection: { kind: 'identity-aoi-pair-matrix' } },

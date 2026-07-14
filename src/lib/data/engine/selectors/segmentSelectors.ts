@@ -14,6 +14,25 @@ export const getNumberOfSegments = (
   return reader.getSegmentCount(stimulusId, participantId)
 }
 
+/**
+ * Number of FIXATION segments (category 0) for a stimulus × participant — the
+ * count the metric scan actually iterates (`reader.getFixationRange`), as
+ * opposed to `getNumberOfSegments`, which counts every segment (fixations,
+ * saccades, blinks). O(1) index subtraction. A recording with segments but
+ * zero fixations is a capture failure: present but unusable, distinct from both
+ * an absent recording and a real metric value.
+ */
+export const getNumberOfFixations = (
+  engine: DataEngine,
+  stimulusId: number,
+  participantId: number
+): number => {
+  const reader = engine.getReader()
+  if (!reader) throw new Error('Binary reader not available')
+  const { startIndex, endIndex } = reader.getFixationRange(stimulusId, participantId)
+  return endIndex - startIndex
+}
+
 export const getParticipantEndTime = (
   engine: DataEngine,
   stimulusId: number,

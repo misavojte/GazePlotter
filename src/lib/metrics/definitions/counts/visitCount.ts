@@ -47,6 +47,7 @@ defineMetric({
   rawShape: 'aoi-vector',
   windowUnit: 'ms',
   providesAnyFixation: true,
+  aoiAggregate: { max: 'most-visited AOI', min: 'least-visited AOI' },
   // Extensive: a raw count. Cohort `sum` and per-participant `mean` are both
   // sound across participants, and sum/mean are sound across matrix cells.
   measurementClass: 'extensive',

@@ -5,8 +5,8 @@
     MATRIX_LAYOUT,
     MATRIX_LEGEND_GAP,
     MIN_LEGIBLE_CELL_SIZE,
-    computeSquareMatrixLayout,
-    type SquareMatrixLayout,
+    computeMatrixLayout,
+    type MatrixLayout,
   } from '../matrixLayout'
   import {
     renderMatrixContent,
@@ -40,9 +40,14 @@
    * rows, custom cell content) are function props built in `deriveView`.
    */
   interface Props extends CanvasExportProps {
-    /** Flat row-major values; non-finite marks an undefined cell. */
+    /** Flat row-major values (rowCount × colCount); non-finite marks an undefined cell. */
     matrix: Float64Array | number[]
-    labels: string[]
+    /** Shorthand for a square matrix: sets both `rowLabels` and `colLabels`. */
+    labels?: string[]
+    /** Row (y-axis) labels. Falls back to `labels` when omitted (square case). */
+    rowLabels?: string[]
+    /** Column (x-axis) labels. Falls back to `labels` when omitted (square case). */
+    colLabels?: string[]
     xAxisTitle: string
     yAxisTitle: string
     /** Gradient stops (2 or 3 colors) for the shared value→color mapping. */
@@ -62,6 +67,12 @@
     formatCellValue?: (value: number) => string
     /** null hides the gradient legend (custom-content matrices like the SPLOM). */
     legendTitle?: string | null
+    /**
+     * Size the gradient legend to one fixed length, centered under the whole
+     * figure, instead of the grid width. For plots whose grid width varies with
+     * the data (the metric matrix), so the legend never shrinks with the grid.
+     */
+    legendFixedWidth?: boolean
     /** Data-level placeholder message; null renders the matrix. */
     placeholder?: string | null
     /** Fix-it steps for the too-small fit guard. */
@@ -74,12 +85,14 @@
       col: number
     ) => Array<{ key: string; value: string }>
     /** Replaces the heat-cell fill pass; grid, labels and hover stay shared. */
-    drawCells?: (ctx: CanvasRenderingContext2D, layout: SquareMatrixLayout) => void
+    drawCells?: (ctx: CanvasRenderingContext2D, layout: MatrixLayout) => void
   }
 
   let {
     matrix = new Float64Array(0),
     labels = [],
+    rowLabels,
+    colLabels,
     xAxisTitle,
     yAxisTitle,
     colorScale = [],
@@ -93,6 +106,7 @@
     hasLastRowSentinel = false,
     formatCellValue = (v: number) => v.toFixed(2),
     legendTitle = null,
+    legendFixedWidth = false,
     placeholder = null,
     fitSteps = [],
     minLegibleCellSize = MIN_LEGIBLE_CELL_SIZE,
@@ -106,6 +120,11 @@
     margins = NO_MARGINS,
   }: Props = $props()
 
+  // `labels` is the square shorthand; a rectangular consumer (metric matrix) sets
+  // the two axes independently. Everything downstream reads rows/cols.
+  const rows = $derived(rowLabels ?? labels)
+  const cols = $derived(colLabels ?? labels)
+
   const effectiveMaxValue = $derived.by(() => {
     if (colorValueRange[1] !== 0) return colorValueRange[1]
     let max = 0
@@ -117,11 +136,12 @@
   })
 
   const layout = $derived.by(() =>
-    computeSquareMatrixLayout({
+    computeMatrixLayout({
       // width/height are the TOTAL canvas; the layout carves margins out of it.
       width,
       height,
-      labels,
+      rowLabels: rows,
+      colLabels: cols,
       cellValueLabelLength:
         formatCellValue(effectiveMaxValue).length +
         (colorValueRange[0] < 0 ? 1 : 0),
@@ -158,7 +178,8 @@
 
   const renderConfig = $derived<MatrixRenderConfig>({
     layout,
-    labels,
+    rowLabels: rows,
+    colLabels: cols,
     matrix,
     maxLabelLength: MATRIX_LAYOUT.maxLabelLength,
     xAxisTitle,
@@ -172,16 +193,20 @@
 
   const legendGeometry = $derived.by(() => {
     if (legendTitle === null) return null
+    // A fixed-length legend centers under the whole figure (its grid width
+    // varies); the default sizes and centers it under the grid.
+    const spanWidth = width - margins.left - margins.right
     return computeGradientLegendGeometry({
-      x: layout.xOffset,
+      x: legendFixedWidth ? margins.left : layout.xOffset,
       y: layout.matrixBottom + MATRIX_LEGEND_GAP,
-      availableWidth: layout.gridWidth,
+      availableWidth: legendFixedWidth ? spanWidth : layout.gridWidth,
       availableHeight:
         height - layout.matrixBottom - MATRIX_LEGEND_GAP - margins.bottom,
       colorScale,
       valueRange: colorValueRange,
       effectiveMaxValue,
       title: legendTitle,
+      fixedWidth: legendFixedWidth,
     })
   })
 
@@ -201,7 +226,8 @@
     dpiOverride: () => dpiOverride,
     deps: () => [
       matrix,
-      labels,
+      rows,
+      cols,
       xAxisTitle,
       yAxisTitle,
       colorScale,
@@ -222,7 +248,7 @@
       layout.cellSize >= minLegibleCellSize
         ? null
         : cannotFitPlaceholder('size', fitSteps),
-    // The matrix owns its own layout (computeSquareMatrixLayout) and draws its
+    // The matrix owns its own layout (computeMatrixLayout) and draws its
     // labels outside the cell grid, so the frame is scaffold-only here.
     gutters: () => ({}),
     clipData: false,
@@ -244,7 +270,7 @@
   // The matrix body is the only blocked region; the legend below is static
   // chrome (no clickable cells), so it stays selectable.
   const blockedRegions = $derived.by<BlockedRegion[]>(() => {
-    if (placeholder !== null || labels.length === 0) return []
+    if (placeholder !== null || rows.length === 0 || cols.length === 0) return []
     return [
       {
         x: layout.xOffset,
@@ -259,7 +285,7 @@
     mx: number,
     my: number
   ): FrameHit<{ row: number; col: number }> | null {
-    const cell = matrixCellAt(layout, mx, my, labels.length)
+    const cell = matrixCellAt(layout, mx, my, rows.length, cols.length)
     if (!cell) return null
     const { xOffset, yOffset, cellSize } = layout
     return {

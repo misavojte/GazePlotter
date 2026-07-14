@@ -217,6 +217,47 @@ describe('fixationDuration — mean of per-fixation durations on AOI', () => {
   })
 })
 
+// ─── fixationDuration / visitDuration — settable summary statistic ────────────
+
+describe('fixationDuration — settable summary statistic (mean/median/max/min)', () => {
+  // Three fixations on AOI1 with durations 100, 200, 600.
+  //   mean = 300, median = 200, max = 600, min = 100.
+  const engine = createEngine([
+    [0, 100, 0, 1],
+    [100, 300, 0, 1],
+    [300, 900, 0, 1],
+  ])
+  it('defaults to mean (back-compat: an instance with no statistic param)', () => {
+    expect(values(query(inst('fixationDuration'), scope(engine)))[0]).toBe(300)
+  })
+  it('median', () => {
+    expect(values(query(inst('fixationDuration', { statistic: 'median' }), scope(engine)))[0]).toBe(200)
+  })
+  it('max', () => {
+    expect(values(query(inst('fixationDuration', { statistic: 'max' }), scope(engine)))[0]).toBe(600)
+  })
+  it('min', () => {
+    expect(values(query(inst('fixationDuration', { statistic: 'min' }), scope(engine)))[0]).toBe(100)
+  })
+})
+
+describe('visitDuration — settable summary statistic', () => {
+  // Three separate AOI1 visits (dwells 100, 200, 600), each broken by an AOI2 fixation.
+  const engine = createEngine([
+    [0, 100, 0, 1],
+    [100, 200, 0, 2],
+    [200, 400, 0, 1],
+    [400, 500, 0, 2],
+    [500, 1100, 0, 1],
+  ])
+  it('median of per-visit dwells', () => {
+    expect(values(query(inst('visitDuration', { statistic: 'median' }), scope(engine)))[0]).toBe(200)
+  })
+  it('mean by default', () => {
+    expect(values(query(inst('visitDuration'), scope(engine)))[0]).toBe(300)
+  })
+})
+
 // ─── visitCount ─────────────────────────────────────────────────────────────
 
 describe('visitCount — distinct entries; consecutive-same = one visit', () => {

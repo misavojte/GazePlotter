@@ -1,12 +1,16 @@
 import { defineMetric } from '../../core/defineMetric'
+import { enumParam } from '../../core/params'
+import { reduceNumeric } from '../../core/projection'
 
 interface Acc { durations: number[][] }
 
 /**
- * ## Fixation duration (mean)
+ * ## Fixation duration
  *
- * Mean duration (ms) of individual fixations on each AOI. Longer fixations
- * typically indicate deeper cognitive processing of the region.
+ * A summary (mean by default; also median / max / min) of the durations (ms) of
+ * individual fixations on each AOI. Longer fixations typically indicate deeper
+ * cognitive processing of the region. Median is the robust choice for the long
+ * right tail typical of fixation-duration distributions.
  *
  * - **Shape:** `aoi-vector`
  * - **Unit:** `ms`
@@ -14,7 +18,9 @@ interface Acc { durations: number[][] }
  * - **Windowing:** supported
  *
  * ### Parameters
- * None.
+ * - `statistic` — how each AOI-slot's per-fixation durations are collapsed to
+ *   the per-participant value: `mean` (default) | `median` | `max` | `min`.
+ *   (`sum` is deliberately absent — that is the `absoluteTime` metric.)
  *
  * ### Usage
  * ```ts
@@ -35,17 +41,28 @@ interface Acc { durations: number[][] }
 defineMetric({
   id: 'fixationDuration',
   label: 'Fixation duration',
-  description: 'Per AOI: mean duration (ms) of fixations whose dwell covers it. Longer mean fixations typically indicate deeper cognitive processing.',
+  description: 'Per AOI: a summary (mean by default; also median / max / min) of the durations (ms) of fixations whose dwell covers it. Longer fixations typically indicate deeper cognitive processing.',
   unit: 'ms',
   category: 'duration',
   rawShape: 'aoi-vector',
   windowUnit: 'ms',
   providesAnyFixation: true,
-  // Intensive: a per-participant mean fixation duration. Only `mean` is sound
-  // across participants (for a cohort total of dwell use absoluteTime).
+  // No `aoiAggregate`: the settable `statistic` already reduces within each
+  // AOI, so an extreme across AOIs would compose into a double reduction
+  // ("min across AOIs of max fixation duration") with no defined reading.
+  // Intensive: a per-participant central value of fixation durations. Every
+  // offered statistic (mean/median/max/min) stays intensive — only `mean` is
+  // sound across participants; for a cohort total of dwell use absoluteTime.
   measurementClass: 'intensive',
-  searchTags: ['fixation', 'duration', 'average', 'mean', 'fix', 'aoi'],
-  params: [] as const,
+  searchTags: ['fixation', 'duration', 'average', 'mean', 'median', 'fix', 'aoi'],
+  params: [
+    enumParam<'statistic', 'mean' | 'median' | 'max' | 'min'>('statistic', 'Summary', 'mean', [
+      { value: 'mean', label: 'Mean' },
+      { value: 'median', label: 'Median' },
+      { value: 'max', label: 'Max' },
+      { value: 'min', label: 'Min' },
+    ]),
+  ] as const,
   accumulation: 'stateful',
   init: ({ slots }): Acc => ({ durations: Array.from({ length: slots.totalSlots }, () => []) }),
   onFixation: (acc, { frame, duration, slots }, { slots: info }) => {
@@ -59,11 +76,10 @@ defineMetric({
     if (slots.length === 0) { acc.durations[info.noAoiSlot].push(duration); return }
     for (let i = 0; i < slots.length; i++) acc.durations[slots[i]].push(duration)
   },
-  finalize: (acc) => acc.durations.map(arr => {
-    if (arr.length === 0) return Number.NaN
-    let sum = 0
-    for (const d of arr) sum += d
-    return sum / arr.length
-  }),
+  // Collapse each slot's per-fixation durations by the chosen statistic
+  // (default mean). `individuals` stays the full per-fixation sample, so box /
+  // beeswarm overlays always show the distribution regardless of this choice.
+  finalize: (acc, _slots, { params }) =>
+    acc.durations.map(arr => reduceNumeric(arr, params.statistic)),
   individuals: (acc, slotIndex) => acc.durations[slotIndex] ?? [],
 })

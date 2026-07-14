@@ -1,6 +1,12 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { getParticipantsIds } from '$lib/data/engine'
-import { getMetric, queryBatch, type MetricInstance, type Scope } from '$lib/metrics'
+import {
+  getMetric,
+  instanceMatchesContract,
+  queryBatch,
+  type MetricInstance,
+  type Scope,
+} from '$lib/metrics'
 import { asScalar, buildMetricLabel } from '$lib/plots/shared'
 import type {
   CorrelationCell,
@@ -11,7 +17,7 @@ import type {
   MetricVector,
 } from '../types'
 import { correlate } from './correlations'
-import { MIN_CORRELATION_SAMPLES } from '../const'
+import { METRIC_CORRELATION_CONTRACT, MIN_CORRELATION_SAMPLES } from '../const'
 
 interface BuildOptions {
   /** Whether to populate paired-sample points for SPLOM rendering. */
@@ -102,6 +108,11 @@ function resolveMetrics(
   for (const inst of selected) {
     const metric = getMetric(inst.baseId)
     if (!metric) continue
+    // Same gate the picker applies (recipeSupports via the shared contract):
+    // an instance invalidated after save — e.g. an aggregate-aoi extreme its
+    // metric no longer names — must not silently compute here while being
+    // hidden everywhere else.
+    if (!instanceMatchesContract(inst, METRIC_CORRELATION_CONTRACT)) continue
     // Correlation rows/cols must self-distinguish: name + derived qualifiers (so
     // two variants of one base metric don't collide). Unit is shown on the
     // diagonal, not here — hence `unit: false`.

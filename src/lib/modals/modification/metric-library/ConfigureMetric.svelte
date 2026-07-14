@@ -12,7 +12,6 @@
   } from '$lib/metrics/instances'
   import {
     PROJECTION_LEAVES,
-    AOI_REDUCERS,
     MATRIX_REDUCERS,
     identityFor,
     supportedLeaves,
@@ -157,7 +156,7 @@
       case 'identity-participant-pair-matrix':   return { kind }
       case 'pick-aoi':         return { kind, aoiRef: { by: 'name', name: defaultAoi } }
       case 'pick-any-fixation': return { kind }
-      case 'aggregate-aoi':    return { kind, reducer: availableAoiReducers(currentBaseId)[0] ?? 'max' }
+      case 'aggregate-aoi':    return { kind, reducer: aoiExtremeOptions(currentBaseId)[0]?.value ?? 'max' }
       case 'matrix-diagonal':  return { kind }
       case 'matrix-row':       return { kind, aoiRef: { by: 'name', name: defaultAoi } }
       case 'matrix-col':       return { kind, aoiRef: { by: 'name', name: defaultAoi } }
@@ -265,7 +264,7 @@
       case 'identity-participant-pair-matrix':   return 'Participant matrix'
       case 'pick-aoi':         return 'Pick AOI'
       case 'pick-any-fixation': return 'Any fixation'
-      case 'aggregate-aoi':    return 'Aggregate AOIs'
+      case 'aggregate-aoi':    return 'Extreme AOI'
       case 'matrix-diagonal':  return 'Self-transitions'
       case 'matrix-row':       return 'From AOI'
       case 'matrix-col':       return 'To AOI'
@@ -274,11 +273,24 @@
     }
   }
 
-  function availableAoiReducers(baseId: string): AoiReducer[] {
+  /**
+   * The extremes this metric NAMES (its `aoiAggregate` declaration), as select
+   * options wearing the metric's own phrase — "Most-dwelled AOI (max)" — so
+   * the chooser teaches exactly what the figure will later disclose. Iterated
+   * in DECLARATION order: the recipe names its canonical extreme first (TTFF
+   * names min, 'first-reached AOI'), and that one becomes the default. Still
+   * routed through `recipeSupports` so an author-level `rejects` hook holds.
+   */
+  function aoiExtremeOptions(baseId: string): { value: 'max' | 'min'; label: string }[] {
     const recipe = getRecipe(baseId); if (!recipe) return []
-    return AOI_REDUCERS.filter(r =>
-      recipeSupports(recipe, { kind: 'aggregate-aoi', reducer: r }) === true,
-    )
+    const named = getMetric(baseId)?.meta.aoiAggregate ?? {}
+    return (Object.keys(named) as ('max' | 'min')[])
+      .filter(r => (r === 'max' || r === 'min') && named[r] &&
+        recipeSupports(recipe, { kind: 'aggregate-aoi', reducer: r }) === true)
+      .map(r => {
+        const phrase = named[r]!
+        return { value: r, label: `${phrase.charAt(0).toUpperCase()}${phrase.slice(1)} (${r})` }
+      })
   }
 
   function availableMatrixReducers(baseId: string, exclude: 'diagonal' | undefined = undefined): MatrixReducer[] {
@@ -454,7 +466,7 @@
 
           {#if leafDraft.kind === 'aggregate-aoi'}
             <div class="field-row">
-              <label class="field-label" for="modal-proj-red-{metric.meta.id}">Reducer</label>
+              <label class="field-label" for="modal-proj-red-{metric.meta.id}">Keep</label>
               <select
                 id="modal-proj-red-{metric.meta.id}"
                 class="reduction-select"
@@ -464,11 +476,17 @@
                   leafDraft = { kind: 'aggregate-aoi', reducer: r }
                 }}
               >
-                {#each availableAoiReducers(metric.meta.id) as r}
-                  <option value={r}>{r}</option>
+                {#each aoiExtremeOptions(metric.meta.id) as opt}
+                  <option value={opt.value}>{opt.label}</option>
                 {/each}
               </select>
             </div>
+            <span class="field-hint">
+              One value per participant: the value at whichever AOI is that
+              participant's highest (max) or lowest (min). The extreme is found
+              within each participant, so the winning AOI can differ from
+              participant to participant.
+            </span>
           {/if}
 
           {#if leafDraft.kind === 'matrix-aggregate'}

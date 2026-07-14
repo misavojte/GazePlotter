@@ -14,6 +14,7 @@ import { scanpathPlotDefinition } from './scanpath'
 import { recurrencePlotDefinition } from './recurrence'
 import { evolvingMetricsDefinition } from './evolving-metrics'
 import { metricCorrelationDefinition } from './metric-correlation'
+import { metricMatrixDefinition } from './metric-matrix'
 
 export const plotRegistry = {
   scarf: scarfPlotDefinition,
@@ -25,6 +26,7 @@ export const plotRegistry = {
   recurrencePlot: recurrencePlotDefinition,
   evolvingMetrics: evolvingMetricsDefinition,
   metricCorrelation: metricCorrelationDefinition,
+  metricMatrix: metricMatrixDefinition,
 } as const
 
 /**

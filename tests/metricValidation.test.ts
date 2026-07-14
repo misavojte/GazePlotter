@@ -1,7 +1,10 @@
 /**
  * Tests for the central validation function `recipeSupports`. The rules are:
  *
- *   - `aggregate-aoi` (across an aoi-vector): only `max` and `min` — blanket rule.
+ *   - `aggregate-aoi` (across an aoi-vector): only extremes (`max`/`min`) —
+ *     blanket statistical rule — and only where the recipe NAMES the extreme's
+ *     meaning in its `aoiAggregate` declaration (an unnamed extreme has no
+ *     defined reading, e.g. on metrics carrying a Summary `statistic`).
  *   - `matrix-aggregate` (across cells): `max | min` by default;
  *     `extensive`-class recipes get the full `sum | mean | max | min`.
  *   - Windowing gated by `supportsWindowing`.
@@ -20,40 +23,60 @@ function recipe(id: string) {
   return r
 }
 
-describe('aggregate-aoi: blanket max/min rule across every aoi-vector recipe', () => {
-  it.each(['absoluteTime', 'relativeTime', 'fixationCount', 'timeToFirstFixation'])(
-    '%s rejects mean across AOIs',
+/** Recipes that NAME both extremes in their `aoiAggregate` declaration. */
+const NAMED_EXTREMES = [
+  'absoluteTime',
+  'relativeTime',
+  'fixationCount',
+  'visitCount',
+  'fixated',
+  'timeToFirstFixation',
+]
+/** Recipes that deliberately leave `aoiAggregate` undeclared (no defined
+ *  reading — the duration metrics' Summary `statistic` would double-reduce). */
+const UNNAMED_EXTREMES = ['fixationDuration', 'visitDuration', 'firstFixationDuration']
+
+describe('aggregate-aoi: extremes only, and only where the recipe names their meaning', () => {
+  it.each(NAMED_EXTREMES)(
+    '%s rejects mean across AOIs (biased by AOI segmentation)',
     (id) => {
       const p: Projection = { kind: 'aggregate-aoi', reducer: 'mean' }
       expect(recipeSupports(recipe(id), p)).not.toBe(true)
     },
   )
-  it.each(['absoluteTime', 'relativeTime', 'fixationCount', 'timeToFirstFixation'])(
+  it.each(NAMED_EXTREMES)(
     '%s rejects sum across AOIs',
     (id) => {
       const p: Projection = { kind: 'aggregate-aoi', reducer: 'sum' }
       expect(recipeSupports(recipe(id), p)).not.toBe(true)
     },
   )
-  it.each(['absoluteTime', 'relativeTime', 'fixationCount', 'timeToFirstFixation'])(
+  it.each(NAMED_EXTREMES)(
     '%s rejects median across AOIs',
     (id) => {
       const p: Projection = { kind: 'aggregate-aoi', reducer: 'median' }
       expect(recipeSupports(recipe(id), p)).not.toBe(true)
     },
   )
-  it.each(['absoluteTime', 'relativeTime', 'fixationCount', 'timeToFirstFixation'])(
-    '%s accepts min across AOIs',
+  it.each(NAMED_EXTREMES)(
+    '%s accepts min across AOIs (named)',
     (id) => {
       const p: Projection = { kind: 'aggregate-aoi', reducer: 'min' }
       expect(recipeSupports(recipe(id), p)).toBe(true)
     },
   )
-  it.each(['absoluteTime', 'relativeTime', 'fixationCount', 'timeToFirstFixation'])(
-    '%s accepts max across AOIs',
+  it.each(NAMED_EXTREMES)(
+    '%s accepts max across AOIs (named)',
     (id) => {
       const p: Projection = { kind: 'aggregate-aoi', reducer: 'max' }
       expect(recipeSupports(recipe(id), p)).toBe(true)
+    },
+  )
+  it.each(UNNAMED_EXTREMES)(
+    '%s rejects max AND min across AOIs (no named meaning)',
+    (id) => {
+      expect(recipeSupports(recipe(id), { kind: 'aggregate-aoi', reducer: 'max' })).not.toBe(true)
+      expect(recipeSupports(recipe(id), { kind: 'aggregate-aoi', reducer: 'min' })).not.toBe(true)
     },
   )
 })

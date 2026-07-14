@@ -12,7 +12,11 @@
  *
  * Three orthogonal aggregation axes, kept separate by design:
  *   - **within-participant shape reduction** (projection leaves) →
- *     {@link supportedAoiReducers} / {@link supportedMatrixReducers}
+ *     {@link supportedMatrixReducers} for matrix cells; across AOIs the gate is
+ *     the metric's own `aoiAggregate` declaration (`core/dsl.ts`) — a metric
+ *     opts in by naming what each extreme means, and only extremes exist by
+ *     construction (order statistics are invariant to the AOI segmentation;
+ *     sum/mean/median across AOIs are biased by it).
  *   - **cross-participant reduction** (one value per cell) →
  *     {@link soundReductions} ({@link GroupReduction})
  *   - **distribution display** (a plot-layer choice over individuals) →
@@ -22,7 +26,6 @@ import type { MetricMeta, OutputShape, WindowUnit } from './dsl'
 import {
   projectionOutputShape,
   type Projection,
-  type AoiReducer,
   type MatrixReducer,
 } from './projection'
 
@@ -106,21 +109,10 @@ export function distributionStatistics(cls: MeasurementClass): DistributionStat[
 
 // ─── Within-participant shape reduction (axis A) ─────────────────────────────
 
-/**
- * `aggregate-aoi` reducers: always `max | min`. Sum/mean/median across AOIs are
- * biased by AOI count or are an average-of-averages; stimulus-level totals
- * belong in purpose-built metrics (`pick-any-fixation`). Independent of class.
- */
-const AGGREGATE_AOI_REDUCERS: readonly AoiReducer[] = ['max', 'min']
-
 /** `matrix-aggregate` reducers when the quantity is `extensive`. */
 const MATRIX_REDUCERS_EXTENSIVE: readonly MatrixReducer[] = ['sum', 'mean', 'max', 'min']
 /** `matrix-aggregate` reducers otherwise — averages/rates/probabilities. */
 const MATRIX_REDUCERS_RESTRICTED: readonly MatrixReducer[] = ['max', 'min']
-
-export function supportedAoiReducers(_cls: MeasurementClass): readonly AoiReducer[] {
-  return AGGREGATE_AOI_REDUCERS
-}
 
 export function supportedMatrixReducers(cls: MeasurementClass): readonly MatrixReducer[] {
   return cls === 'extensive' ? MATRIX_REDUCERS_EXTENSIVE : MATRIX_REDUCERS_RESTRICTED

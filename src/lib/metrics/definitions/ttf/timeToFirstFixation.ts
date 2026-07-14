@@ -40,6 +40,10 @@ defineMetric({
   windowUnit: 'ms',
   supportsWindowing: false,
   providesAnyFixation: true,
+  // min = latency until the FIRST AOI was reached. max = latency until the
+  // LAST-reached AOI: never-fixated AOIs are NaN and drop from the extreme, so
+  // it is full-coverage latency only when the participant fixated every AOI.
+  aoiAggregate: { min: 'first-reached AOI', max: 'last-reached AOI' },
   // Intensive: a per-participant latency. Only `mean` is sound across
   // participants; latencies do not add into a cohort total.
   measurementClass: 'intensive',

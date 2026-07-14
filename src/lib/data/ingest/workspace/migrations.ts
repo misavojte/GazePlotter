@@ -2,6 +2,7 @@ import { LEGACY_VISUALIZATION_TYPES } from '$lib/plots/legacyTypes'
 import {
   createDefaultMetricInstances,
   createMetricInstance,
+  isStrandedAoiAggregate,
   type MetricInstance,
 } from '$lib/metrics/instances'
 import { type MigratedJsonFormat, CURRENT_SCHEMA_VERSION } from '$lib/data/types'
@@ -480,6 +481,21 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
         ? { ...rest, reduction: groupAggregation }
         : rest
     })
+  }
+
+  // Version-independent normalization: an `aggregate-aoi` extreme is now valid
+  // only where the metric NAMES its meaning (`meta.aoiAggregate`); 1.9.x
+  // offered max/min on every aoi-vector metric. A saved instance whose extreme
+  // is no longer named would strand invisibly — rejected by every plot
+  // contract, so no library card, no delete button, yet re-serialized into
+  // every export. There is no sound remap (the projection has no defined
+  // reading), so prune it here; a plot that referenced it falls back to its
+  // metric placeholder, same as any missing instance.
+  const aggregateInstances = data?.data?.metricInstances
+  if (Array.isArray(aggregateInstances)) {
+    data.data.metricInstances = aggregateInstances.filter(
+      (inst: any) => !isStrandedAoiAggregate(inst)
+    )
   }
 
   return data as MigratedJsonFormat
