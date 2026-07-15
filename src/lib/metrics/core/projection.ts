@@ -16,7 +16,7 @@ export type AoiRef =
   | { by: 'name'; name: string }
   | { by: 'slot'; slot: number }
 
-export const AOI_REDUCERS = ['mean', 'sum', 'max', 'min', 'median'] as const
+const AOI_REDUCERS = ['mean', 'sum', 'max', 'min', 'median'] as const
 export type AoiReducer = typeof AOI_REDUCERS[number]
 
 export const MATRIX_REDUCERS = ['sum', 'mean', 'max', 'min'] as const
@@ -337,11 +337,11 @@ export function projectionCacheKey(projection: Projection): string {
   return PROJECTION_LEAVES[projection.kind].cacheKey(projection)
 }
 
-export function leafOutputShape(leaf: LeafProjection): OutputShape {
+function leafOutputShape(leaf: LeafProjection): OutputShape {
   return PROJECTION_LEAVES[leaf.kind].outputShape
 }
 
-export function leafRawShapes(kind: LeafKind): readonly OutputShape[] {
+function leafRawShapes(kind: LeafKind): readonly OutputShape[] {
   return PROJECTION_LEAVES[kind].rawShapes
 }
 

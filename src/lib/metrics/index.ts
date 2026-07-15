@@ -1,25 +1,13 @@
 import './init'
 
 // ─── Author surface (for metric definition files) ──────────────────────────
-export { defineMetric } from './core/defineMetric'
-export { defineCategory } from './categories'
 export { extractFixationSequence } from './core/fixations'
-export { integerParam, numberParam, boolParam, enumParam } from './core/params'
-export { computeRqa, rqaScalar } from './core/rqa'
-export {
-  levenshteinSimilarity,
-  needlemanWunschSimilarity,
-  computeSimilarityMatrix,
-} from './core/scanpathSimilarity'
 export type { SimilarityMethod } from './core/scanpathSimilarity'
-export { collectScanpath, collectAllScanpaths } from './core/scanpathEncoding'
 
 // ─── Consumer surface (what plots + export pipelines call at runtime) ──────
 export { query, queryBatch, queryGroup, queryIndividualsAllSlots } from './query'
-export { getMetric, listMetrics } from './core/defineMetric'
-export { getCategoryLabels } from './categories'
+export { getMetric } from './core/defineMetric'
 export {
-  buildStarterInstances,
   createDefaultMetricInstances,
   createMetricInstance,
   resolveInstance,
@@ -30,30 +18,15 @@ export {
   availableReductions,
   resolveReduction,
   instanceReadout,
-  metricShapeOf,
 } from './instances'
-export { STARTING_METRICS } from './startingMetrics'
 export type { StartingMetricSpec } from './startingMetrics'
 
 // ─── Projection algebra (for the metric-library modal) ─────────────────────
 export {
-  PROJECTION_LEAVES,
-  MATRIX_REDUCERS,
-  applyProjection,
   projectionOutputShape,
-  projectionToLabel,
-  projectionCacheKey,
-  leafKindLabel,
-  leafKindHint,
-  identityFor,
-  leafOf,
-  leafOutputShape,
-  leafRawShapes,
   supportedLeaves,
   windowLabel,
-  windowKey,
 } from './core/projection'
-export { recipeSupports } from './core/validation'
 export type { ValidationResult } from './core/validation'
 
 // ─── Capability algebra (measurement nature + cross-participant aggregation) ─
@@ -101,9 +74,6 @@ export type { MetricCategoryDef } from './categories'
 // ─── Plot contract + filters ───────────────────────────────────────────────
 export {
   instanceMatchesContract,
-  metricIsCreatableInContract,
-  contractLeafKinds,
-  metricLeafKindsInContract,
   contractReductions,
   contractDistributionStats,
 } from './filters'

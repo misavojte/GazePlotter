@@ -86,7 +86,7 @@ export function createMetricInstance(opts: {
 
 // ─── Starter instances (from the shared settings file) ──────────────────────
 
-export function buildStarterInstances(): MetricInstance[] {
+function buildStarterInstances(): MetricInstance[] {
   return STARTING_METRICS.map(spec => {
     const inst = createMetricInstance({
       id: spec.id,
@@ -180,13 +180,6 @@ export function formatParamReadout(instance: MetricInstance): string[] {
     .filter((s): s is string => !!s)
 }
 
-/** The abstract {@link MetricShape} of an instance, or `null` if its recipe is
- *  unknown. The single value the capability algebra (and future MCP/stats
- *  callers) reason over. */
-export function metricShapeOf(instance: MetricInstance): MetricShape | null {
-  const m = getMetric(instance.baseId)
-  return m ? metricShape(m.meta, instance.projection) : null
-}
 
 /**
  * The cross-participant reductions a metric genuinely offers — the sound set,
@@ -238,7 +231,7 @@ export function reductionQualifier(
  * time"). UNLIKE {@link reductionQualifier}, it discloses `mean` too — the whole
  * point is that the summarization method is finally visible on the figure.
  */
-export function summaryStatQualifier(
+function summaryStatQualifier(
   instance: MetricInstance | null | undefined
 ): string | null {
   if (!instance) return null

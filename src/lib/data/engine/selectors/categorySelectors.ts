@@ -14,7 +14,7 @@ export const getAllCategories = (engine: DataEngine): ExtendedInterpretedDataTyp
   return meta.categories.data.map((_, index) => getCategoryRaw(index, meta))
 }
 
-export const getVisibleCategories = (engine: DataEngine): ExtendedInterpretedDataType[] => {
+const getVisibleCategories = (engine: DataEngine): ExtendedInterpretedDataType[] => {
   const all = getAllCategories(engine)
   const hidden = new Set(getHiddenCategories(engine))
   return all.filter(c => !hidden.has(c.id))

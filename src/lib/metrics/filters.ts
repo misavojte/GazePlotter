@@ -71,7 +71,7 @@ export function contractDistributionStats(c: PlotMetricContract, meta: MetricMet
   return c.crossParticipant === 'distribution' ? distributionStatistics(meta.measurementClass) : []
 }
 
-export function contractLeafKinds(c: PlotMetricContract): LeafKind[] {
+function contractLeafKinds(c: PlotMetricContract): LeafKind[] {
   const shapes: readonly OutputShape[] = Array.isArray(c.outputShape) ? c.outputShape : [c.outputShape]
   return (Object.keys(PROJECTION_LEAVES) as LeafKind[]).filter(k =>
     shapes.includes(PROJECTION_LEAVES[k].outputShape)

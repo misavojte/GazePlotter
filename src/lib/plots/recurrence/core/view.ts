@@ -17,7 +17,7 @@ export type RecurrenceFigureProps = Omit<
  * no-spatial-data fallback (`recurrenceMethod: 'aoi'`) so screen and export
  * agree — previously the export path skipped this fallback.
  */
-export function getRecurrenceView(
+function getRecurrenceView(
   engine: DataEngine,
   settings: RecurrencePlotSettings
 ): { props: RecurrenceFigureProps } {

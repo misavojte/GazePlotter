@@ -24,7 +24,7 @@ export interface ScanpathSimilarityView extends PlotView {
  * (the export passes none). The scangraph `threshold` is included here so screen
  * and export style links identically (export previously fell back to the default).
  */
-export function getScanpathSimilarityView(
+function getScanpathSimilarityView(
   engine: DataEngine,
   settings: ScanpathSimilaritySettings,
   opts: { onNodeClick?: (nodeIndex: number) => void } = {}
