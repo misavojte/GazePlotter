@@ -23,7 +23,7 @@ export type MetricMatrixPlotSettings = {
    * (`assertSettingsSchema`) requires this key materialised in
    * `getDefaultSettings()`.
    */
-  metricMatrixColorRange: [number, number]
+  scaleRange: [number, number]
 }
 
 export type MetricMatrixItem = PlotItemContract<

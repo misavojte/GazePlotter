@@ -62,7 +62,7 @@ export function deriveMetricMatrixView(
   // Resolve the shared value range once and hand the SAME [min, max] to both
   // the painter and the figure (as an explicit range), so the gradient legend
   // and the painted cells map values identically.
-  const rawRange = settings.metricMatrixColorRange ?? [0, 0]
+  const rawRange = settings.scaleRange ?? [0, 0]
   const resolvedMax = rawRange[1] !== 0 ? rawRange[1] : niceAutoMax(data.dataMax)
   const colorValueRange: [number, number] = [rawRange[0], resolvedMax]
   const colorScale = settings.colorScale ?? []

@@ -70,7 +70,7 @@ function settings(
     groupId: -1,
     metricInstanceIds: ['fixationCount-any'],
     colorScale: ['#f7fbff', '#08306b'],
-    metricMatrixColorRange: [0, 0],
+    scaleRange: [0, 0],
     ...over,
   }
 }

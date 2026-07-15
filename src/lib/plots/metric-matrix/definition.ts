@@ -27,24 +27,22 @@ export const metricMatrixDefinition = definePlot<
     'group',
     'metric',
     {
-      key: 'metricMatrix:appearance',
-      title: 'Appearance',
+      key: 'metricMatrix:visualisation',
+      title: 'Visualisation',
       fields: [
         {
           kind: 'scaleRange',
-          key: 'metricMatrixColorRange',
-          legend: 'Value range',
-          group: 'Color scale',
+          key: 'scaleRange',
+          legend: 'Scale range',
         },
         {
           kind: 'colorScale',
           key: 'colorScale',
-          group: 'Color scale',
           defaultMin: PRESET_PALETTES.BLUE.colors[0],
           defaultMax: PRESET_PALETTES.BLUE.colors[2],
         },
       ],
-      summary: () => 'Colors',
+      summary: () => 'Matrix',
     },
   ],
   view: { deriveView: deriveMetricMatrixView },
@@ -56,7 +54,7 @@ export const metricMatrixDefinition = definePlot<
     // `0 = Auto`; the scaleRange field writes an explicit [min, max] here. Must
     // be materialised (the scaleRange field carries no self-default) or
     // registration throws for the whole registry.
-    metricMatrixColorRange: [0, 0],
+    scaleRange: [0, 0],
   }),
   requireCapabilities: ['segmented'],
   consumesMetrics: METRIC_MATRIX_CONTRACT,

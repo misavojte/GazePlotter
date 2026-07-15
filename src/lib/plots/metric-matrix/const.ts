@@ -6,7 +6,7 @@ import {
   type MetricInstance,
   type PlotMetricContract,
 } from '$lib/metrics'
-import { PRESET_PALETTES } from '$lib/color/palettes'
+import { INACTIVE_COLOR, PRESET_PALETTES } from '$lib/color/palettes'
 import type { MetricMatrixPlotSettings } from './types'
 
 /**
@@ -45,23 +45,11 @@ export const METRIC_MATRIX_DEFAULTS = {
 } as const
 
 /**
- * NA / not-usable off-ramp fills — derived in the view, never persisted. Two
- * honest buckets, both clearly OFF the sequential value gradient:
- *   - NEUTRAL   not-applicable (no recording, or the AOI is undefined on this
- *               stimulus). A MID gray, not a light one: a light-gray neutral is
- *               indistinguishable from the near-white low end of a light
- *               sequential ramp (e.g. BLUE's `#f7fbff`), which would let an
- *               "absent" cell read as a legitimate low value — the exact failure
- *               this plot exists to prevent. Achromatic, so it also stays
- *               distinct from the (blue-hued) ramp interior.
- *   - FLAG      not-usable — the data-quality payload (recording present but
- *               zero fixations, or present-with-fixations yet non-finite). A warm
- *               hue that pops against the cool default value ramp and reads as
- *               "attention", never as a low or a benign value.
- * (A labeled NA legend key is the deferred full disambiguation.)
+ * NA / not-usable off-ramp fills — derived in the view, never persisted.
+ * Painted using the standard inactive gray to align with other matrix plots.
  */
-export const METRIC_MATRIX_NA_NEUTRAL_COLOR = '#a6a6a6'
-export const METRIC_MATRIX_NA_FLAG_COLOR = '#e07a5f'
+export const METRIC_MATRIX_NA_NEUTRAL_COLOR = INACTIVE_COLOR
+export const METRIC_MATRIX_NA_FLAG_COLOR = INACTIVE_COLOR
 
 /**
  * Colorbar title for the selected metric, in the shared IUPAC label grammar
