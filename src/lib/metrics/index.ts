@@ -43,6 +43,8 @@ export {
   projectionOutputShape,
   projectionToLabel,
   projectionCacheKey,
+  leafKindLabel,
+  leafKindHint,
   identityFor,
   leafOf,
   leafOutputShape,
@@ -101,6 +103,7 @@ export {
   instanceMatchesContract,
   metricIsCreatableInContract,
   contractLeafKinds,
+  metricLeafKindsInContract,
   contractReductions,
   contractDistributionStats,
 } from './filters'

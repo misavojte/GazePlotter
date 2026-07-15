@@ -1,17 +1,18 @@
 <script lang="ts">
   import { getGazePlotterSession } from '$lib/session'
   import { listMetrics } from '$lib/metrics/core/defineMetric'
-  import { getCategoryLabels } from '$lib/metrics/categories'
+  import { listCategories } from '$lib/metrics/categories'
   import {
     metricIsCreatableInContract,
     type PlotMetricContract,
   } from '$lib/metrics/filters'
   import type { Metric } from '$lib/metrics/core/dsl'
+  import { InputText } from '$lib/shared/components'
+  import MetricPickCard from './MetricPickCard.svelte'
   import { configureMetricModal } from './definition-steps'
 
   interface Props {
     contract: PlotMetricContract
-    selectedCategory: string
     oncreateInstance?: (
       baseId: string,
       params: Record<string, unknown>,
@@ -21,24 +22,44 @@
     ) => void
   }
 
-  let {
-    contract,
-    selectedCategory,
-    oncreateInstance,
-  }: Props = $props()
+  let { contract, oncreateInstance }: Props = $props()
 
   const { modalState } = getGazePlotterSession()
 
   const METRICS = listMetrics()
-  const CATEGORY_LABELS = getCategoryLabels()
+  // Category registry (ordered) is the single source for section order + labels.
+  const CATEGORIES = listCategories()
 
-  const addableMetrics = $derived(
-    METRICS.filter(m => metricIsCreatableInContract(m, contract))
-  )
+  const addable = $derived(METRICS.filter(m => metricIsCreatableInContract(m, contract)))
 
-  const categoryMetrics = $derived(
-    addableMetrics.filter(m => m.meta.category === selectedCategory)
-  )
+  // Search appears once the list is long enough to warrant it.
+  const SEARCHABLE_FROM = 8
+  let query = $state('')
+  const searchable = $derived(addable.length >= SEARCHABLE_FROM)
+  const normalizedQuery = $derived(query.trim().toLowerCase())
+  const isFiltering = $derived(searchable && normalizedQuery.length > 0)
+
+  function matches(m: Metric): boolean {
+    if (!isFiltering) return true
+    return (
+      m.meta.label.toLowerCase().includes(normalizedQuery) ||
+      m.meta.description.toLowerCase().includes(normalizedQuery) ||
+      m.meta.searchTags.some(t => t.toLowerCase().includes(normalizedQuery))
+    )
+  }
+
+  // Metrics grouped by category, in registry order; empty categories drop out.
+  const groups = $derived.by(() => {
+    const shown = addable.filter(matches)
+    return CATEGORIES.map(c => ({
+      id: c.id,
+      label: c.label,
+      metrics: shown.filter(m => m.meta.category === c.id),
+    })).filter(g => g.metrics.length > 0)
+  })
+
+  // Category headers only earn their keep when there's more than one section.
+  const showCategoryHeaders = $derived(groups.length > 1)
 
   function selectMetric(metricId: string) {
     modalState.push(configureMetricModal, {
@@ -50,18 +71,37 @@
 </script>
 
 <div class="pick-metric-container">
+  {#if searchable}
+    <InputText
+      label="Search metrics"
+      showLabel={false}
+      ariaLabel="Search metrics"
+      placeholder="Search metrics"
+      bind:value={query}
+      fill
+    />
+  {/if}
 
-  <div class="metric-select-list">
-    {#each categoryMetrics as m}
-      <button type="button" class="metric-select-row" onclick={() => selectMetric(m.meta.id)}>
-        <div class="metric-select-info">
-          <span class="metric-select-name">{m.meta.label}</span>
-          <p class="metric-select-desc">{m.meta.description}</p>
+  {#if groups.length === 0}
+    <p class="empty">No metrics match “{query}”.</p>
+  {:else}
+    {#each groups as group (group.id)}
+      <div class="cat-group">
+        {#if showCategoryHeaders}
+          <div class="cat-title">{group.label}</div>
+        {/if}
+        <div class="cat-metrics">
+          {#each group.metrics as m (m.meta.id)}
+            <MetricPickCard
+              title={m.meta.label}
+              description={m.meta.description}
+              onclick={() => selectMetric(m.meta.id)}
+            />
+          {/each}
         </div>
-        <span class="metric-select-action">Configure →</span>
-      </button>
+      </div>
     {/each}
-  </div>
+  {/if}
 </div>
 
 <style>
@@ -69,68 +109,34 @@
     display: flex;
     flex-direction: column;
     width: min(560px, calc(100vw - 4rem));
-    gap: 12px;
+    gap: 16px;
   }
 
-
-
-  .metric-select-list {
+  .cat-group {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    margin-top: 4px;
   }
 
-  .metric-select-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 12px;
-    border: 1px solid var(--c-border);
-    border-radius: var(--rounded-md);
-    background: var(--c-darkwhite);
-    cursor: pointer;
-    transition: all var(--transition-normal) ease;
-    text-align: left;
-    outline: none;
-
-    &:hover {
-      border-color: var(--c-brand);
-      background: var(--c-white);
-      box-shadow: var(--shadow);
-    }
+  .cat-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--c-darkgrey);
   }
 
-  .metric-select-info {
+  .cat-metrics {
     display: flex;
     flex-direction: column;
-    gap: 4px;
-    flex: 1;
-    min-width: 0;
+    gap: 8px;
   }
 
-  .metric-select-name {
-    font-size: 13px;
-    font-weight: 500;
-    color: var(--c-text);
-  }
-
-  .metric-select-desc {
-    font-size: 11px;
+  .empty {
+    font-size: 12px;
     color: var(--c-darkgrey);
+    text-align: center;
+    padding: 12px 0;
     margin: 0;
-    line-height: 1.4;
-  }
-
-  .metric-select-action {
-    font-size: 11px;
-    font-weight: 500;
-    color: var(--c-brand);
-    flex-shrink: 0;
-    transition: transform var(--transition-fast);
-  }
-  .metric-select-row:hover .metric-select-action {
-    transform: translateX(2px);
   }
 </style>

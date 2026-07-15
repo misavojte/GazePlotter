@@ -1,8 +1,8 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { slide } from 'svelte/transition'
-  import { InputNumber, Select } from '$lib/shared/components'
+  import { InputNumber, InputText, Select } from '$lib/shared/components'
   import type { SelectOption } from '$lib/shared/components'
+  import { ModalButtons } from '$lib/modals'
   import { getGazePlotterSession } from '$lib/session'
   import { getMetric, getRecipe } from '$lib/metrics/core/defineMetric'
   import {
@@ -10,11 +10,13 @@
     resolveInstance,
     type MetricInstance,
   } from '$lib/metrics/instances'
+  import Check from 'lucide-svelte/icons/check'
   import {
     PROJECTION_LEAVES,
     MATRIX_REDUCERS,
     identityFor,
-    supportedLeaves,
+    leafKindHint,
+    leafKindLabel,
     type Projection,
     type LeafProjection,
     type LeafKind,
@@ -23,7 +25,7 @@
     type WindowSpec,
   } from '$lib/metrics/core/projection'
   import { recipeSupports } from '$lib/metrics/core/validation'
-  import { contractLeafKinds, contractReductions, type PlotMetricContract } from '$lib/metrics/filters'
+  import { metricLeafKindsInContract, contractReductions, type PlotMetricContract } from '$lib/metrics/filters'
   import type { Metric } from '$lib/metrics/core/dsl'
   import type { GroupReduction } from '$lib/metrics/core/measurement'
   import type { ParamDef } from '$lib/metrics/core/params'
@@ -172,14 +174,11 @@
     }
   }
 
+  // The reachable projection leaves for this metric under the plot contract —
+  // the single shared predicate (metrics layer), so the tabs here, the pickers,
+  // and the library banner can never disagree on what a metric can become.
   function availableLeavesFor(m: Metric): LeafKind[] {
-    const allowedByContract = new Set(contractLeafKinds(contract))
-    const recipe = getRecipe(m.meta.id)
-    if (!recipe) return []
-    return supportedLeaves(m).filter(kind =>
-      allowedByContract.has(kind) &&
-      recipeSupports(recipe, buildLeaf(kind, aoiNameUnion[0])) === true,
-    )
+    return metricLeafKindsInContract(m, contract)
   }
 
   function canBeWindowed(m: Metric, leaf: LeafProjection): boolean {
@@ -206,46 +205,68 @@
     modalState.close()
   }
 
-  function commitForm() {
-    if (!metric) return
-    const projection = buildProjection(leafDraft, windowDraft)
-    const params = { ...paramDraft }
-    const label = labelOverride.trim() || defaultInstanceLabel(currentBaseId)
-
-    // Persist the reduction only when it diverges from the metric default and is
-    // offered for this plot+metric; otherwise leave the instance riding the
-    // default (no redundant override).
-    const metricDefault = metric.meta.defaultReduction
-    const valid = contractReductions(contract, metric.meta)
+  // The instance fields the form currently describes. The reduction override is
+  // persisted only when it diverges from the metric default and is offered for
+  // this plot+metric; otherwise the instance rides the default (no redundant key).
+  function draftValues() {
+    const metricDefault = metric!.meta.defaultReduction
+    const valid = contractReductions(contract, metric!.meta)
     const chosenRed = valid.includes(reductionDraft) ? reductionDraft : metricDefault
-    const reduction = chosenRed !== metricDefault ? chosenRed : undefined
-
-    if (mode === 'edit' && editMetricId) {
-      const instances = (engine.metadata?.metricInstances ?? [])
-      const orig = resolveInstance(instances, editMetricId)
-      const paramsUnchanged = JSON.stringify(params) === JSON.stringify(orig?.params ?? {})
-      const projectionUnchanged = JSON.stringify(projection) === JSON.stringify(orig?.projection)
-      const reductionUnchanged = (orig?.reduction ?? metricDefault) === chosenRed
-
-      if (paramsUnchanged && projectionUnchanged && reductionUnchanged) {
-        if (onrenameInstance) {
-          onrenameInstance(editMetricId, label)
-        }
-        modalState.close()
-        return
-      }
-
-      if (oncreateInstance) {
-        modalState.close()
-        oncreateInstance(currentBaseId, params, label, projection, editMetricId, reduction)
-      }
-    } else if (mode === 'create') {
-      if (oncreateInstance) {
-        modalState.closeToRoot()
-        oncreateInstance(currentBaseId, params, label, projection, undefined, reduction)
-      }
+    return {
+      projection: buildProjection(leafDraft, windowDraft),
+      params: { ...paramDraft },
+      label: labelOverride.trim() || defaultInstanceLabel(currentBaseId),
+      reduction: chosenRed !== metricDefault ? chosenRed : undefined,
+      chosenRed,
+      metricDefault,
     }
   }
+
+  // Edit mode: apply the form to the existing instance in place (a pure rename
+  // when nothing but the label changed, else replace).
+  function changeMetric() {
+    if (!metric || !editMetricId) return
+    const { projection, params, label, reduction, chosenRed, metricDefault } = draftValues()
+    const orig = resolveInstance(engine.metadata?.metricInstances ?? [], editMetricId)
+    const unchanged =
+      JSON.stringify(params) === JSON.stringify(orig?.params ?? {}) &&
+      JSON.stringify(projection) === JSON.stringify(orig?.projection) &&
+      (orig?.reduction ?? metricDefault) === chosenRed
+    modalState.close()
+    if (unchanged) {
+      onrenameInstance?.(editMetricId, label)
+    } else {
+      oncreateInstance?.(currentBaseId, params, label, projection, editMetricId, reduction)
+    }
+  }
+
+  // Create a brand-new instance from the form — used by create mode and by
+  // "Create new" while editing (the original instance is left untouched).
+  function createNew() {
+    if (!metric) return
+    const { projection, params, label, reduction } = draftValues()
+    modalState.closeToRoot()
+    oncreateInstance?.(currentBaseId, params, label, projection, undefined, reduction)
+  }
+
+  // The Enter-key / primary action for the current mode.
+  function submitForm() {
+    if (mode === 'edit') changeMetric()
+    else createNew()
+  }
+
+  const buttons = $derived(
+    mode === 'edit'
+      ? [
+          { label: 'Save changes', onclick: changeMetric, variant: 'primary' as const },
+          { label: 'Save as new', onclick: createNew, variant: 'secondary' as const },
+          { label: 'Cancel', onclick: handleCancel, variant: 'secondary' as const },
+        ]
+      : [
+          { label: 'Add metric', onclick: createNew, variant: 'primary' as const },
+          { label: 'Cancel', onclick: handleCancel, variant: 'secondary' as const },
+        ],
+  )
 
   function liveLabel(baseId: string): string {
     const override = labelOverride.trim()
@@ -254,23 +275,6 @@
 
   function paramSelectOptions(p: ParamDef<unknown>): SelectOption[] {
     return (p.options ?? []).map(o => ({ label: o.label, value: o.value as string }))
-  }
-
-  function leafKindLabel(k: LeafKind): string {
-    switch (k) {
-      case 'identity-scalar':                    return 'Scalar'
-      case 'identity-aoi-vector':                return 'Per-AOI'
-      case 'identity-aoi-pair-matrix':           return 'Matrix'
-      case 'identity-participant-pair-matrix':   return 'Participant matrix'
-      case 'pick-aoi':         return 'Pick AOI'
-      case 'pick-any-fixation': return 'Any fixation'
-      case 'aggregate-aoi':    return 'Extreme AOI'
-      case 'matrix-diagonal':  return 'Self-transitions'
-      case 'matrix-row':       return 'From AOI'
-      case 'matrix-col':       return 'To AOI'
-      case 'matrix-cell':      return 'Pair'
-      case 'matrix-aggregate': return 'All pairs'
-    }
   }
 
   /**
@@ -305,9 +309,30 @@
   // reduction can never disagree.
   function reductionOptionLabel(method: GroupReduction): string {
     switch (method) {
-      case 'sum':  return 'Sum (cohort total)'
-      case 'mean': return 'Mean (per participant)'
+      case 'sum':  return 'Sum (total)'
+      case 'mean': return 'Mean (average)'
     }
+  }
+
+  // Every yes/no control is a Select, so the whole config reads as one kind of
+  // input (no lone switches).
+  const YES_NO: SelectOption[] = [
+    { value: 'no', label: 'No' },
+    { value: 'yes', label: 'Yes' },
+  ]
+
+  // Which leaves need per-shape configuration (an AOI to pick, a reducer to
+  // choose) — so a config panel only renders under the selected card when there's
+  // actually something to set.
+  function leafHasConfig(kind: LeafKind): boolean {
+    return (
+      kind === 'pick-aoi' ||
+      kind === 'matrix-row' ||
+      kind === 'matrix-col' ||
+      kind === 'matrix-cell' ||
+      kind === 'aggregate-aoi' ||
+      kind === 'matrix-aggregate'
+    )
   }
 
   function updateLeafAoiRef(name: string) {
@@ -315,316 +340,268 @@
       leafDraft = { ...leafDraft, aoiRef: { by: 'name', name } } as LeafProjection
     }
   }
+
+  // AOI dropdown options — the known AOIs, plus the current value when it names an
+  // AOI not in any loaded stimulus (so editing an instance never drops its AOI).
+  function aoiOptions(current: string): SelectOption[] {
+    const names =
+      current && !aoiNameUnion.includes(current) ? [current, ...aoiNameUnion] : aoiNameUnion
+    return names.map(n => ({ label: n, value: n }))
+  }
 </script>
 
 <div class="configure-metric-container">
   {#if metric}
-
-
     {@const leaves = availableLeavesFor(metric)}
-    {@const showLeafPicker = leaves.length > 1}
     {@const windowable = canBeWindowed(metric, leafDraft)}
     {@const windowingLocked = contract.windowing === 'required'}
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <form
       class="form-inner"
-      onsubmit={e => { e.preventDefault(); commitForm() }}
+      onsubmit={e => { e.preventDefault(); submitForm() }}
       onkeydown={e => { if (e.key === 'Escape') { e.preventDefault(); handleCancel() } }}
     >
-      <p class="metric-description">{metric.meta.description}</p>
+      <section class="cfg-section">
+        <div class="cfg-title">Metric Information</div>
+        <p class="metric-description">{metric.meta.description}</p>
+        <div class="cfg-meta">Unit: <strong>{metric.meta.unit || 'none'}</strong></div>
+      </section>
 
-      {#each metric.meta.params as param (param.id)}
-        <div class="param-row">
-          {#if param.type === 'enum'}
-            <Select
-              label={param.label}
-              options={paramSelectOptions(param)}
-              value={String(paramDraft[param.id] ?? param.default)}
-              onchange={e => {
-                paramDraft = { ...paramDraft, [param.id]: (e as CustomEvent<string>).detail }
-              }}
-            />
-          {:else if param.type === 'integer' || param.type === 'number'}
-            <InputNumber
-              id={`modal-param-${metric.meta.id}-${param.id}`}
-              label={param.label}
-              value={Number(paramDraft[param.id] ?? param.default)}
-              min={param.min}
-              max={param.max}
-              step={param.type === 'integer' ? 1 : (param.step ?? 0.01)}
-              appearance="compact"
-              onValueChange={v => { if (v !== undefined) paramDraft = { ...paramDraft, [param.id]: v } }}
-            />
-          {:else if param.type === 'boolean'}
-            <label class="bool-label">
-              <input
-                type="checkbox"
-                checked={Boolean(paramDraft[param.id] ?? param.default)}
+      <!-- The metric's own parameters (e.g. which statistic, a radius). Omitted
+           when the metric has none, so simple metrics go straight to the label. -->
+      {#if metric.meta.params.length > 0}
+        <section class="cfg-section">
+          <div class="cfg-title">Metric Parameters</div>
+          {#each metric.meta.params as param (param.id)}
+            {#if param.type === 'enum'}
+              <Select
+                compact
+                label={param.label}
+                options={paramSelectOptions(param)}
+                value={String(paramDraft[param.id] ?? param.default)}
                 onchange={e => {
-                  paramDraft = { ...paramDraft, [param.id]: (e.target as HTMLInputElement).checked }
+                  paramDraft = { ...paramDraft, [param.id]: (e as CustomEvent<string>).detail }
                 }}
               />
-              {param.label}
-            </label>
-          {/if}
-        </div>
-      {/each}
-
-      {#if showLeafPicker}
-        <div class="projection-section">
-          <div class="field-label">Projection</div>
-          <div class="mode-tabs">
-            {#each leaves as kind}
-              <button
-                type="button"
-                class="mode-tab"
-                class:active={leafDraft.kind === kind}
-                onclick={() => {
-                  leafDraft = buildLeaf(kind)
-                  if (windowDraft && !canBeWindowed(metric!, leafDraft)) windowDraft = null
+            {:else if param.type === 'integer' || param.type === 'number'}
+              <InputNumber
+                id={`modal-param-${metric.meta.id}-${param.id}`}
+                label={param.label}
+                value={Number(paramDraft[param.id] ?? param.default)}
+                min={param.min}
+                max={param.max}
+                step={param.type === 'integer' ? 1 : (param.step ?? 0.01)}
+                appearance="compact"
+                onValueChange={v => { if (v !== undefined) paramDraft = { ...paramDraft, [param.id]: v } }}
+              />
+            {:else if param.type === 'boolean'}
+              <Select
+                compact
+                label={param.label}
+                options={YES_NO}
+                value={Boolean(paramDraft[param.id] ?? param.default) ? 'yes' : 'no'}
+                onchange={e => {
+                  paramDraft = { ...paramDraft, [param.id]: (e as CustomEvent<string>).detail === 'yes' }
                 }}
-              >
-                {leafKindLabel(kind)}
-              </button>
-            {/each}
-          </div>
+              />
+            {/if}
+          {/each}
+        </section>
+      {/if}
 
+      {#snippet shapeConfig()}
+        {#if metric}
           {#if leafDraft.kind === 'pick-aoi' || leafDraft.kind === 'matrix-row' || leafDraft.kind === 'matrix-col'}
             {@const currentName = leafDraft.aoiRef.by === 'name' ? leafDraft.aoiRef.name : ''}
-            {@const isUnknown = currentName.length > 0 && !aoiNameUnion.includes(currentName)}
-            <div class="field-row">
-              <label class="field-label" for="modal-proj-aoi-{metric.meta.id}">AOI name</label>
-              <input
-                id="modal-proj-aoi-{metric.meta.id}"
-                class="text-input"
-                type="text"
-                list="modal-proj-aoi-list-{metric.meta.id}"
-                value={currentName}
-                placeholder={aoiNameUnion[0] ?? 'Displayed AOI name'}
-                oninput={(e) => updateLeafAoiRef((e.target as HTMLInputElement).value)}
-              />
-              <datalist id="modal-proj-aoi-list-{metric.meta.id}">
-                {#each aoiNameUnion as name}<option value={name}></option>{/each}
-              </datalist>
-            </div>
-            {#if isUnknown}
-              <div class="field-hint warn">
-                "{currentName}" is not in any loaded stimulus. The metric will return NaN until an AOI with this displayed name appears.
-              </div>
-            {/if}
+            <Select
+              compact
+              label="AOI"
+              options={aoiOptions(currentName)}
+              value={currentName}
+              placeholder="Choose an AOI"
+              emptyMessage="No AOIs in the loaded stimuli"
+              onchange={(e) => updateLeafAoiRef((e as CustomEvent<string>).detail)}
+            />
           {/if}
 
           {#if leafDraft.kind === 'matrix-cell'}
             {@const fromName = leafDraft.fromAoi.by === 'name' ? leafDraft.fromAoi.name : ''}
             {@const toName = leafDraft.toAoi.by === 'name' ? leafDraft.toAoi.name : ''}
-            {@const fromUnknown = fromName.length > 0 && !aoiNameUnion.includes(fromName)}
-            {@const toUnknown = toName.length > 0 && !aoiNameUnion.includes(toName)}
-            <div class="field-row">
-              <label class="field-label" for="modal-proj-from-{metric.meta.id}">From AOI</label>
-              <input
-                id="modal-proj-from-{metric.meta.id}"
-                class="text-input"
-                type="text"
-                list="modal-proj-aoi-list-{metric.meta.id}"
+            <div class="two-col">
+              <Select
+                compact
+                label="From AOI"
+                options={aoiOptions(fromName)}
                 value={fromName}
-                placeholder={aoiNameUnion[0] ?? 'Displayed AOI name'}
-                oninput={(e) => {
-                  const name = (e.target as HTMLInputElement).value
+                placeholder="Choose an AOI"
+                emptyMessage="No AOIs in the loaded stimuli"
+                onchange={(e) => {
+                  const name = (e as CustomEvent<string>).detail
                   if (leafDraft.kind === 'matrix-cell') leafDraft = { ...leafDraft, fromAoi: { by: 'name', name } }
                 }}
               />
-            </div>
-            <div class="field-row">
-              <label class="field-label" for="modal-proj-to-{metric.meta.id}">To AOI</label>
-              <input
-                id="modal-proj-to-{metric.meta.id}"
-                class="text-input"
-                type="text"
-                list="modal-proj-aoi-list-{metric.meta.id}"
+              <Select
+                compact
+                label="To AOI"
+                options={aoiOptions(toName)}
                 value={toName}
-                placeholder={aoiNameUnion[1] ?? aoiNameUnion[0] ?? 'Displayed AOI name'}
-                oninput={(e) => {
-                  const name = (e.target as HTMLInputElement).value
+                placeholder="Choose an AOI"
+                emptyMessage="No AOIs in the loaded stimuli"
+                onchange={(e) => {
+                  const name = (e as CustomEvent<string>).detail
                   if (leafDraft.kind === 'matrix-cell') leafDraft = { ...leafDraft, toAoi: { by: 'name', name } }
                 }}
               />
             </div>
-            <datalist id="modal-proj-aoi-list-{metric.meta.id}">
-              {#each aoiNameUnion as name}<option value={name}></option>{/each}
-            </datalist>
-            {#if fromUnknown || toUnknown}
-              <div class="field-hint warn">
-                {fromUnknown && toUnknown
-                  ? `"${fromName}" and "${toName}" are not in any loaded stimulus.`
-                  : fromUnknown
-                    ? `"${fromName}" is not in any loaded stimulus.`
-                    : `"${toName}" is not in any loaded stimulus.`}
-                Metric returns NaN until both AOIs appear.
+          {/if}
+
+          {#if leafDraft.kind === 'aggregate-aoi'}
+            <Select
+              compact
+              label="Which AOI"
+              options={aoiExtremeOptions(metric.meta.id)}
+              value={leafDraft.reducer}
+              onchange={(e) => {
+                leafDraft = { kind: 'aggregate-aoi', reducer: (e as CustomEvent<string>).detail as AoiReducer }
+              }}
+            />
+          {/if}
+
+          {#if leafDraft.kind === 'matrix-aggregate'}
+            <Select
+              compact
+              label="Summarize by"
+              options={availableMatrixReducers(metric.meta.id, leafDraft.kind === 'matrix-aggregate' ? leafDraft.exclude : undefined).map(r => ({ label: r.charAt(0).toUpperCase() + r.slice(1), value: r }))}
+              value={leafDraft.reducer}
+              onchange={(e) => {
+                const r = (e as CustomEvent<string>).detail as MatrixReducer
+                const exclude = leafDraft.kind === 'matrix-aggregate' ? leafDraft.exclude : undefined
+                leafDraft = { kind: 'matrix-aggregate', reducer: r, ...(exclude ? { exclude } : {}) }
+              }}
+            />
+            <Select
+              compact
+              label="Exclude self-transitions"
+              options={YES_NO}
+              value={leafDraft.exclude === 'diagonal' ? 'yes' : 'no'}
+              onchange={(e) => {
+                if (leafDraft.kind !== 'matrix-aggregate') return
+                const on = (e as CustomEvent<string>).detail === 'yes'
+                leafDraft = { kind: 'matrix-aggregate', reducer: leafDraft.reducer, ...(on ? { exclude: 'diagonal' as const } : {}) }
+              }}
+            />
+          {/if}
+        {/if}
+      {/snippet}
+
+      <!-- Choosing what the metric produces is a real choice ONLY when the metric
+           offers more than one projection here; a single-projection metric has
+           nothing to pick, so the section is omitted rather than shown pre-decided. -->
+      {#if leaves.length > 1}
+        <section class="cfg-section">
+          <div class="cfg-title">What this produces</div>
+          <div class="shape-options">
+            {#each leaves as kind (kind)}
+              {@const selected = leafDraft.kind === kind}
+              <button
+                type="button"
+                class="shape-option"
+                class:selected
+                aria-pressed={selected}
+                onclick={() => {
+                  if (leafDraft.kind === kind) return
+                  leafDraft = buildLeaf(kind)
+                  if (windowDraft && !canBeWindowed(metric!, leafDraft)) windowDraft = null
+                }}
+              >
+                <span class="so-text">
+                  <span class="so-name">{leafKindLabel(kind)}</span>
+                  <span class="so-hint">{leafKindHint(kind)}</span>
+                </span>
+                {#if selected}<span class="so-check"><Check size={15} /></span>{/if}
+              </button>
+            {/each}
+          </div>
+        </section>
+      {/if}
+
+      <!-- Configuration for the chosen projection: an AOI/reducer to pick, whether
+           to evaluate over time, how to combine participants. Omitted entirely when
+           the current projection has nothing to set. -->
+      {#if leafHasConfig(leafDraft.kind) || windowable || reductionOptions.length > 1}
+        <section class="cfg-section">
+          <div class="cfg-title">Options</div>
+
+          {@render shapeConfig()}
+
+          {#if windowable}
+            <!-- When windowing is required there's no choice, so the toggle is
+                 omitted; the window/step controls below carry the configuration. -->
+            {#if !windowingLocked}
+              <Select
+                compact
+                label="Over time"
+                options={YES_NO}
+                value={windowDraft ? 'yes' : 'no'}
+                onchange={(e) => {
+                  const on = (e as CustomEvent<string>).detail === 'yes'
+                  windowDraft = on ? (windowDraft ?? defaultWindow(metric!, leafDraft)) : null
+                }}
+              />
+            {/if}
+
+            {#if windowDraft}
+              {@const unit = metric.meta.windowUnit === 'fixations' ? 'fix' : 'ms'}
+              <div class="two-col">
+                <InputNumber
+                  id="modal-window-{metric.meta.id}"
+                  label={`Window (${unit})`}
+                  appearance="compact"
+                  value={windowDraft.windowSize}
+                  min={metric.meta.windowUnit === 'fixations' ? 2 : 100}
+                  step={metric.meta.windowUnit === 'fixations' ? 1 : 100}
+                  onValueChange={(v) => { if (windowDraft && v !== undefined) windowDraft = { ...windowDraft, windowSize: v } }}
+                />
+                <InputNumber
+                  id="modal-step-{metric.meta.id}"
+                  label={`Step (${unit})`}
+                  appearance="compact"
+                  value={windowDraft.stepSize}
+                  min={metric.meta.windowUnit === 'fixations' ? 1 : 100}
+                  step={metric.meta.windowUnit === 'fixations' ? 1 : 100}
+                  onValueChange={(v) => { if (windowDraft && v !== undefined) windowDraft = { ...windowDraft, stepSize: v } }}
+                />
               </div>
             {/if}
           {/if}
 
-          {#if leafDraft.kind === 'aggregate-aoi'}
-            <div class="field-row">
-              <label class="field-label" for="modal-proj-red-{metric.meta.id}">Keep</label>
-              <select
-                id="modal-proj-red-{metric.meta.id}"
-                class="reduction-select"
-                value={leafDraft.reducer}
-                onchange={(e) => {
-                  const r = (e.target as HTMLSelectElement).value as AoiReducer
-                  leafDraft = { kind: 'aggregate-aoi', reducer: r }
-                }}
-              >
-                {#each aoiExtremeOptions(metric.meta.id) as opt}
-                  <option value={opt.value}>{opt.label}</option>
-                {/each}
-              </select>
-            </div>
-            <span class="field-hint">
-              One value per participant: the value at whichever AOI is that
-              participant's highest (max) or lowest (min). The extreme is found
-              within each participant, so the winning AOI can differ from
-              participant to participant.
-            </span>
-          {/if}
-
-          {#if leafDraft.kind === 'matrix-aggregate'}
-            <div class="field-row">
-              <label class="field-label" for="modal-proj-mred-{metric.meta.id}">Reducer</label>
-              <select
-                id="modal-proj-mred-{metric.meta.id}"
-                class="reduction-select"
-                value={leafDraft.reducer}
-                onchange={(e) => {
-                  const r = (e.target as HTMLSelectElement).value as MatrixReducer
-                  const exclude = leafDraft.kind === 'matrix-aggregate' ? leafDraft.exclude : undefined
-                  leafDraft = { kind: 'matrix-aggregate', reducer: r, ...(exclude ? { exclude } : {}) }
-                }}
-              >
-                {#each availableMatrixReducers(metric.meta.id, leafDraft.kind === 'matrix-aggregate' ? leafDraft.exclude : undefined) as r}
-                  <option value={r}>{r}</option>
-                {/each}
-              </select>
-            </div>
-            <label class="bool-label">
-              <input
-                type="checkbox"
-                checked={leafDraft.exclude === 'diagonal'}
-                onchange={(e) => {
-                  const on = (e.target as HTMLInputElement).checked
-                  const reducer = leafDraft.kind === 'matrix-aggregate' ? leafDraft.reducer : 'mean'
-                  leafDraft = { kind: 'matrix-aggregate', reducer, ...(on ? { exclude: 'diagonal' as const } : {}) }
-                }}
-              />
-              Exclude self-transitions
-            </label>
-          {/if}
-        </div>
-      {/if}
-
-      {#if windowable}
-        <div class="windowing-section">
-          {#if !windowingLocked}
-            <label class="bool-label">
-              <input
-                type="checkbox"
-                checked={windowDraft !== null}
-                onchange={(e) => {
-                  windowDraft = (e.target as HTMLInputElement).checked ? defaultWindow(metric!, leafDraft) : null
-                }}
-              />
-              Evaluate in sliding windows
-            </label>
-          {/if}
-
-          {#if windowDraft}
-            <div class="window-step-row">
-              <div class="field-row">
-                <label class="field-label" for="modal-window-{metric.meta.id}">Window</label>
-                <div class="window-group">
-                  <input
-                    id="modal-window-{metric.meta.id}"
-                    class="number-input"
-                    type="number"
-                    value={windowDraft.windowSize}
-                    min={metric.meta.windowUnit === 'fixations' ? 2 : 100}
-                    step={metric.meta.windowUnit === 'fixations' ? 1 : 100}
-                    oninput={(e) => {
-                      if (!windowDraft) return
-                      const v = Number((e.target as HTMLInputElement).value)
-                      windowDraft = { ...windowDraft, windowSize: v }
-                    }}
-                  />
-                  <span class="field-unit">{metric.meta.windowUnit === 'fixations' ? 'fix' : 'ms'}</span>
-                </div>
-              </div>
-              <div class="field-row">
-                <label class="field-label" for="modal-step-{metric.meta.id}">Step</label>
-                <div class="window-group">
-                  <input
-                    id="modal-step-{metric.meta.id}"
-                    class="number-input"
-                    type="number"
-                    value={windowDraft.stepSize}
-                    min={metric.meta.windowUnit === 'fixations' ? 1 : 100}
-                    step={metric.meta.windowUnit === 'fixations' ? 1 : 100}
-                    oninput={(e) => {
-                      if (!windowDraft) return
-                      const v = Number((e.target as HTMLInputElement).value)
-                      windowDraft = { ...windowDraft, stepSize: v }
-                    }}
-                  />
-                  <span class="field-unit">{metric.meta.windowUnit === 'fixations' ? 'fix' : 'ms'}</span>
-                </div>
-              </div>
-            </div>
-          {/if}
-        </div>
-      {/if}
-
-      {#if reductionOptions.length > 1}
-        <div class="aggregation-section">
-          <div class="field-row">
-            <label class="field-label" for="modal-agg-{metric.meta.id}">Across participants</label>
-            <select
-              id="modal-agg-{metric.meta.id}"
-              class="reduction-select"
+          {#if reductionOptions.length > 1}
+            <Select
+              compact
+              label="Across participants"
+              options={reductionOptions.map(m => ({ label: reductionOptionLabel(m), value: m }))}
               value={reductionOptions.includes(reductionDraft) ? reductionDraft : metric.meta.defaultReduction}
-              onchange={(e) => { reductionDraft = (e.target as HTMLSelectElement).value as GroupReduction }}
-            >
-              {#each reductionOptions as method}
-                <option value={method}>{reductionOptionLabel(method)}</option>
-              {/each}
-            </select>
-          </div>
-          <span class="field-hint">
-            How each window/cell combines the group. <strong>Sum</strong> is the cohort
-            total and tapers as participants drop out of a window; <strong>mean</strong>
-            averages only those present, so it does not.
-          </span>
-        </div>
+              onchange={(e) => { reductionDraft = (e as CustomEvent<string>).detail as GroupReduction }}
+            />
+          {/if}
+        </section>
       {/if}
 
-      <div class="field-col">
-        <label class="field-label" for="modal-label-{metric.meta.id}">Label</label>
-        <input
+      <section class="cfg-section">
+        <div class="cfg-title">Label</div>
+        <InputText
           id="modal-label-{metric.meta.id}"
-          class="text-input"
-          type="text"
+          label="Label"
+          appearance="compact"
+          showLabel={false}
+          ariaLabel="Metric label"
           bind:value={labelOverride}
           placeholder={liveLabel(currentBaseId)}
         />
-        <span class="field-hint">
-          Unit <strong>{metric.meta.unit || 'dimensionless'}</strong> and the parameters
-          above are added to plots automatically; the label sets only the name.
-        </span>
-      </div>
+      </section>
 
-      <div class="form-footer">
-        <button type="submit" class="btn-primary">{mode === 'edit' ? 'Save' : 'Create'}</button>
-        <button type="button" class="btn-ghost" onclick={handleCancel}>Cancel</button>
-      </div>
+      <button type="submit" class="enter-submit" tabindex="-1" aria-hidden="true"></button>
+      <ModalButtons {buttons} />
     </form>
   {/if}
 </div>
@@ -637,9 +614,28 @@
     gap: 12px;
   }
 
+  .form-inner { display: flex; flex-direction: column; }
 
-
-  .form-inner { display: flex; flex-direction: column; gap: 10px; }
+  /* Sections are separated by a divider and a generous gap so every config reads
+     the same; sections with nothing to set are omitted (see the template). */
+  .cfg-section {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .cfg-section:not(:first-child) {
+    margin-top: 18px;
+    padding-top: 18px;
+    border-top: 1px solid var(--c-grey);
+  }
+  .cfg-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--c-darkgrey);
+  }
+  .cfg-meta { font-size: 12px; color: var(--c-darkgrey); }
 
   .metric-description {
     font-size: 11px;
@@ -649,128 +645,51 @@
     padding-bottom: 2px;
   }
 
-  .param-row { display: flex; flex-direction: column; }
 
-  .bool-label {
+  /* ── Shape selector — one selectable card per shape ── */
+  .shape-options { display: flex; flex-direction: column; gap: 6px; }
+
+  .shape-option {
     display: flex;
     align-items: center;
-    gap: var(--spacing-xs);
-    font-size: 12px;
-    color: var(--c-darkgrey);
-    cursor: pointer;
-  }
-
-  .windowing-section,
-  .aggregation-section,
-  .projection-section {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    padding-top: 8px;
-    border-top: 1px solid var(--c-grey);
-  }
-
-  .mode-tabs {
-    display: flex;
-    gap: 2px;
-    background: var(--c-grey);
-    border-radius: var(--rounded);
-    padding: 2px;
-  }
-  .mode-tab {
-    flex: 1;
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-size: 11px;
-    color: var(--c-darkgrey);
-    padding: 3px 6px;
-    border-radius: calc(var(--rounded) - 1px);
-    transition: background var(--transition-fast), color var(--transition-fast);
-    text-align: center;
-  }
-  .mode-tab:hover { color: var(--c-text); }
-  .mode-tab.active { background: var(--c-white); color: var(--c-text); font-weight: 500; }
-
-  .window-step-row { display: flex; flex-direction: column; gap: var(--spacing-xs); }
-
-  .field-row { display: flex; align-items: center; gap: 8px; }
-  .field-col { display: flex; flex-direction: column; gap: 4px; }
-  .field-label {
-    font-size: 11px;
-    color: var(--c-darkgrey);
-    min-width: 60px;
-    flex-shrink: 0;
-  }
-  .window-group { display: flex; align-items: center; gap: var(--spacing-xs); }
-
-  .number-input {
-    width: 72px;
-    font-size: 12px;
-    padding: 3px 6px;
-    border: 1px solid var(--c-midgrey);
-    border-radius: var(--rounded-md);
-    background: var(--c-white);
-    color: var(--c-text);
-    outline: none;
-  }
-  .number-input:focus { border-color: var(--c-brand); }
-
-  .field-unit { font-size: 11px; color: var(--c-darkgrey); }
-
-  .reduction-select {
-    font-size: 12px;
-    padding: 3px 8px;
-    border: 1px solid var(--c-midgrey);
-    border-radius: var(--rounded-md);
-    background: var(--c-white);
-    color: var(--c-text);
-    outline: none;
-    cursor: pointer;
-  }
-  .reduction-select:focus { border-color: var(--c-brand); }
-
-  .field-hint { font-size: 10px; color: var(--c-darkgrey); line-height: 1.4; }
-  .field-hint.warn { color: #b45309; }
-
-  .text-input {
-    font-size: 12px;
-    padding: 4px 8px;
-    border: 1px solid var(--c-midgrey);
-    border-radius: var(--rounded-md);
-    background: var(--c-white);
-    color: var(--c-text);
-    outline: none;
+    gap: 10px;
     width: 100%;
-    box-sizing: border-box;
-  }
-  .text-input:focus { border-color: var(--c-brand); }
-
-  .form-footer {
-    display: flex;
-    gap: 8px;
-    justify-content: flex-end;
-    padding-top: 4px;
-  }
-  .btn-primary {
-    background: var(--c-brand);
-    color: var(--c-white);
-    border: none;
-    border-radius: var(--rounded-md);
-    cursor: pointer;
-    font-size: 12px;
-    padding: 5px 14px;
-    font-weight: 500;
-  }
-  .btn-primary:hover { opacity: 0.9; }
-  .btn-ghost {
-    background: none;
+    padding: 9px 11px;
     border: 1px solid var(--c-midgrey);
     border-radius: var(--rounded-md);
+    background: var(--c-white);
     cursor: pointer;
-    font-size: 12px;
-    color: var(--c-darkgrey);
-    padding: 5px 14px;
+    text-align: left;
+    outline: none;
+    transition: border-color var(--transition-fast), background var(--transition-fast);
   }
-  .btn-ghost:hover { background: var(--c-lightgrey); color: var(--c-text); }
+  .shape-option:hover { border-color: var(--c-darkgrey); }
+  .shape-option:focus-visible { border-color: var(--c-brand); }
+  .shape-option.selected {
+    border-color: var(--c-brand);
+    background: color-mix(in srgb, var(--c-brand) 4%, var(--c-white));
+    cursor: default;
+  }
+
+  .so-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
+  .so-name { font-size: 12.5px; font-weight: 600; color: var(--c-text); }
+  .so-hint { font-size: 11px; color: var(--c-darkgrey); line-height: 1.35; }
+  .so-check { display: flex; flex-shrink: 0; color: var(--c-brand); }
+
+  /* Window + Step sit side by side. */
+  /* Mirrors the pane's paired-field grid (SchemaSection `.pair`): equal columns,
+     bottom-aligned so controls line up even when one label wraps. */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; align-items: end; }
+
+  /* Off-screen submit target so Enter still commits the primary action; the
+     visible buttons are the shared ModalButtons. */
+  .enter-submit {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    border: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+  }
 </style>

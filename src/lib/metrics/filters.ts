@@ -10,12 +10,16 @@ import type { MetricInstance } from './instances'
 import { getRecipe } from './core/defineMetric'
 import {
   PROJECTION_LEAVES,
+  supportedLeaves,
   type LeafKind,
+  type LeafProjection,
+  type Projection,
 } from './core/projection'
 import { recipeSupports } from './core/validation'
 import {
   soundReductions,
   distributionStatistics,
+  supportedMatrixReducers,
   type GroupReduction,
   type DistributionStat,
 } from './core/measurement'
@@ -72,6 +76,52 @@ export function contractLeafKinds(c: PlotMetricContract): LeafKind[] {
   return (Object.keys(PROJECTION_LEAVES) as LeafKind[]).filter(k =>
     shapes.includes(PROJECTION_LEAVES[k].outputShape)
   )
+}
+
+/**
+ * A minimal VALID concrete leaf of `kind` for a metric — used only to ask
+ * {@link recipeSupports} whether the kind is reachable. AOI names/slots are
+ * irrelevant to validity (name-refs always pass), but reducer-bearing kinds must
+ * carry a reducer the metric actually offers or the reducer gate spuriously fails.
+ */
+function representativeLeaf(meta: MetricMeta, kind: LeafKind): LeafProjection {
+  switch (kind) {
+    case 'pick-aoi':
+    case 'matrix-row':
+    case 'matrix-col':
+      return { kind, aoiRef: { by: 'name', name: '' } }
+    case 'matrix-cell':
+      return { kind, fromAoi: { by: 'name', name: '' }, toAoi: { by: 'name', name: '' } }
+    case 'aggregate-aoi':
+      return { kind, reducer: meta.aoiAggregate?.max ? 'max' : 'min' }
+    case 'matrix-aggregate':
+      return { kind, reducer: supportedMatrixReducers(meta.measurementClass)[0] ?? 'mean' }
+    default:
+      return { kind } as LeafProjection
+  }
+}
+
+/**
+ * The projection leaf kinds a metric can actually produce under a plot's
+ * contract: the metric's supported leaves ∩ the contract's allowed leaves,
+ * validated through {@link recipeSupports} (windowing, reducer, and author
+ * `rejects` gates). The "what could I build from this metric here?" answer —
+ * read by the category/metric pickers to preview the options before Configure,
+ * and by ConfigureMetric for its projection tabs.
+ */
+export function metricLeafKindsInContract(m: Metric, c: PlotMetricContract): LeafKind[] {
+  const recipe = getRecipe(m.meta.id)
+  if (!recipe) return []
+  const allowed = new Set(contractLeafKinds(c))
+  const windowed = c.windowing === 'required'
+  return supportedLeaves(m).filter(kind => {
+    if (!allowed.has(kind)) return false
+    const leaf = representativeLeaf(m.meta, kind)
+    const projection: Projection = windowed
+      ? { kind: 'windowed', window: { windowSize: 500, stepSize: 500 }, inner: leaf }
+      : leaf
+    return recipeSupports(recipe, projection) === true
+  })
 }
 
 export function instanceMatchesContract(

@@ -92,6 +92,9 @@
 
   input.compact {
     width: 100%;
+    /* One control height + radius, matching the compact Select trigger and
+       InputNumber so stacked/paned fields read as one system. */
+    height: 26px;
     padding: 3px 6px;
     border-color: var(--c-midgrey);
     border-radius: var(--rounded);

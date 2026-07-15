@@ -248,6 +248,59 @@ export const PROJECTION_LEAVES: Record<LeafKind, LeafKindDef> = {
 // Module-load invariant: any future windowable leaf must produce scalar or aoi-vector.
 // (The invariant is checked per-instance via recipeSupports at the validation layer.)
 
+// ─── Leaf display metadata (single source of truth for UI naming) ────────────
+
+/**
+ * The generic, instance-blind display name of each projection leaf kind — the
+ * ONE place these names live, read by the configure-metric projection picker.
+ * Distinct from `PROJECTION_LEAVES[kind].label`, which renders an INSTANCE
+ * readout ("most-dwelled AOI", "mean across all pairs") from a concrete
+ * projection; this is the kind-level vocabulary.
+ */
+const LEAF_TITLES: Record<LeafKind, string> = {
+  'identity-scalar': 'Single value',
+  'identity-aoi-vector': 'Per AOI',
+  'identity-aoi-pair-matrix': 'AOI matrix',
+  'identity-participant-pair-matrix': 'Participant matrix',
+  'pick-aoi': 'One AOI',
+  'pick-any-fixation': 'Whole stimulus',
+  'aggregate-aoi': 'Highest / lowest AOI',
+  'matrix-diagonal': 'Self-transitions',
+  'matrix-row': 'From an AOI',
+  'matrix-col': 'To an AOI',
+  'matrix-cell': 'One transition',
+  'matrix-aggregate': 'Matrix summary',
+}
+
+/** Generic display name of a projection leaf kind (see {@link LEAF_TITLES}). */
+export function leafKindLabel(kind: LeafKind): string {
+  return LEAF_TITLES[kind]
+}
+
+/**
+ * One-line, plain-language description of what a leaf kind produces — the
+ * supporting copy under each option in the configure-metric projection picker.
+ */
+const LEAF_HINTS: Record<LeafKind, string> = {
+  'identity-scalar': "the metric's single value",
+  'identity-aoi-vector': 'one value for each AOI',
+  'identity-aoi-pair-matrix': 'every AOI-to-AOI pair',
+  'identity-participant-pair-matrix': 'a value for every participant pair',
+  'pick-aoi': 'the value at one chosen AOI',
+  'pick-any-fixation': 'one number from all fixations together (AOIs ignored)',
+  'aggregate-aoi': 'the highest- or lowest-scoring AOI, per participant',
+  'matrix-diagonal': "each AOI's transitions to itself",
+  'matrix-row': 'transitions leaving one chosen AOI',
+  'matrix-col': 'transitions arriving at one chosen AOI',
+  'matrix-cell': 'a single from → to AOI pair',
+  'matrix-aggregate': 'one number for the whole matrix',
+}
+
+/** One-line description of what a leaf kind produces (see {@link LEAF_HINTS}). */
+export function leafKindHint(kind: LeafKind): string {
+  return LEAF_HINTS[kind]
+}
+
 // ─── Public dispatchers ─────────────────────────────────────────────────────
 
 export function applyProjection(projection: Projection, ctx: ApplyContext): ApplyResult {
