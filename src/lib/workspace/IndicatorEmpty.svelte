@@ -1,5 +1,5 @@
 <script lang="ts">
-  import PanelButtonUpload from '$lib/workspace/panel/components/PanelButtonUpload.svelte'
+  import PanelButtonUpload from '$lib/workspace/PanelButtonUpload.svelte'
   import { fade } from 'svelte/transition'
   import ButtonMajor from '$lib/shared/components/ButtonMajor.svelte'
   import { getGazePlotterSession } from '$lib/session'
