@@ -116,6 +116,7 @@
 <Select
   {label}
   {options}
+  compact
   {value}
   {subLabel}
   {placeholder}

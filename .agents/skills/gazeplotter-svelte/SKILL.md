@@ -12,7 +12,7 @@ description: Svelte 5 conventions, shared components, design tokens, and the ver
 - Use {#snippet} and @render instead of slots.
 - Use vanilla CSS in `<style>`. NO Tailwind (there is no Tailwind config or dependency).
 - Use lucide-svelte for icons.
-- Use the shared components from `$lib/shared/components` instead of native controls: `ButtonMajor`, `ButtonMinor`, `InputText`, `InputNumber`, `InputFile`, `InputCheck`, `InputColor`, `Select`, `GroupSelect`, `Radio`, `ButtonPreset`, `Card`, `Empty`. There is no `General*` prefix.
+- Use the shared components from `$lib/shared/components` instead of native controls: `Button`, `InputText`, `InputNumber`, `InputCheck`, `InputColor`, `Select`, `Radio`, `ButtonPreset`, `Card`, `Empty`.
 - Per-session state lives in class instances with runes in `*.svelte.ts` files (e.g. `gridState.svelte.ts`, `modalState.svelte.ts`, `toastState.svelte.ts`), created per session. The suffix is `*.svelte.ts`, not `.state.svelte.ts`.
 
 ## DONTs

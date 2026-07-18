@@ -3,7 +3,6 @@ import {
   getStimuliOrderVector,
   getParticipantOrderVector,
 } from '$lib/data/engine'
-import type { GroupSelectItem } from '$lib/shared/components'
 import { ALL_SELECTION_LABEL } from '$lib/data/types'
 
 /**

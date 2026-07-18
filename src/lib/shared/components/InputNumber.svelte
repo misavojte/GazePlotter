@@ -11,7 +11,7 @@
     min?: number
     max?: number
     label: string
-    appearance?: 'default' | 'selectMatched' | 'compact'
+    compact?: boolean
     onValueChange?: (value: number | undefined) => void
     disabled?: boolean
     step?: number | string
@@ -29,7 +29,7 @@
     min = 0,
     max,
     label,
-    appearance = 'default',
+    compact = false,
     onValueChange = () => {},
     disabled = false,
     step = 1,
@@ -66,24 +66,20 @@
     isFocused = false
   }
 
-  const isCompact = $derived(appearance === 'compact')
-  const isSelectMatched = $derived(appearance === 'selectMatched')
-  const generatedId = $derived(`number-${label.toLowerCase().replace(/\s+/g, '-')}`)
+  const generatedId = untrack(() => `number-${crypto.randomUUID()}`)
   const inputId = $derived(id ?? generatedId)
 </script>
 
 <InputScaffold
   {label}
   id={inputId}
-  compact={isCompact}
-  fill={isCompact}
-  labelSize={isCompact ? 'compact' : 'default'}
+  compact={compact}
+  fill={compact}
 >
   <input
     id={inputId}
     type="number"
-    class:select-matched={isSelectMatched}
-    class:compact={isCompact}
+    class:compact={compact}
     {min}
     {max}
     {disabled}
@@ -98,26 +94,20 @@
 
 <style>
   input {
-    padding: 0.5rem;
-    border: 1px solid var(--c-border);
-    border-radius: var(--rounded);
-    font-size: 14px;
+    height: 34px;
+    padding: 0.25em 0.5em;
+    border: 1px solid var(--c-midgrey);
+    border-radius: var(--rounded-md);
+    font-size: 13px;
+    font-weight: 400;
+    color: var(--c-black);
     width: 170px;
     box-sizing: border-box;
   }
 
-  input.select-matched,
-  input.compact {
-    border-color: var(--c-midgrey);
-    color: var(--c-black);
-    font-weight: 400;
-  }
-
-  input.select-matched {
-    height: 34px;
-    padding: 0.25em 0.5em;
-    border-radius: var(--rounded-md);
-    font-size: 13px;
+  input:focus-visible {
+    outline: 2px solid var(--c-brand);
+    outline-offset: 2px;
   }
 
   input.compact {
@@ -134,11 +124,6 @@
 
   input.compact:focus {
     border-color: var(--c-brand);
-  }
-
-  input.select-matched:focus-visible {
-    outline: 2px solid var(--c-brand);
-    outline-offset: 2px;
   }
 
   input:disabled {

@@ -14,16 +14,6 @@ export type SelectOption = SelectMenuItem & {
 
 export type SelectChangeEvent = CustomEvent<string | string[]>
 
-export interface GroupSelectItem {
-  options: readonly SelectOption[]
-  label: string
-  value: string
-  disabled?: boolean
-  ariaLabel?: string
-  onchange?: (event: CustomEvent<string>) => void
-  onClose?: () => void
-}
-
 export function createSelectChangeEvent(value: string): CustomEvent<string>
 export function createSelectChangeEvent(
   value: readonly string[]

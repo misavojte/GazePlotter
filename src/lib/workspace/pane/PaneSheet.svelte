@@ -4,9 +4,6 @@
   import type { Snippet } from 'svelte'
   import PaneHeader from './PaneHeader.svelte'
   import { PANE_TRANSITION } from './transition'
-  import { markInPane } from '$lib/shared/components/paneContext'
-
-  markInPane()
 
   interface Props {
     title: string
@@ -106,6 +103,6 @@
     overflow-y: auto;
   }
 
-  /* Form-control compactness is handled per-component via the pane context —
-     see $lib/shared/components/paneContext. No `:global()` overrides here. */
+  /* Form-control compactness is opt-in per control via the `compact` prop,
+     passed explicitly by the pane sections. No `:global()` overrides here. */
 </style>

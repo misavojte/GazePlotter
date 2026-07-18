@@ -1,6 +1,6 @@
 <script lang="ts">
   import { page } from '$app/stores'
-  import { ButtonMajor } from '$lib/shared/components'
+  import { Button } from '$lib/shared/components'
   import AppWindow from 'lucide-svelte/icons/app-window'
   import BookOpen from 'lucide-svelte/icons/book-open'
   import FileText from 'lucide-svelte/icons/file-text'
@@ -14,19 +14,19 @@
   <section class="error-section">
     <h1 class="title-heading">Error {$page.status}</h1>
     <div class="actions">
-      <ButtonMajor href="/" variant="primary" target="_self">
+      <Button href="/" variant="primary" target="_self">
         <span class="btn-content">
           <AppWindow size="1em" strokeWidth={1.75} />
           <span>Go to the app</span>
         </span>
-      </ButtonMajor>
-      <ButtonMajor href="/docs" variant="secondary" target="_self">
+      </Button>
+      <Button href="/docs" variant="secondary" target="_self">
         <span class="btn-content">
           <BookOpen size="1em" strokeWidth={1.75} />
           <span>Go to the docs</span>
         </span>
-      </ButtonMajor>
-      <ButtonMajor
+      </Button>
+      <Button
         href="https://link.springer.com/article/10.3758/s13428-026-02959-5"
         variant="secondary"
       >
@@ -34,7 +34,7 @@
           <FileText size="1em" strokeWidth={1.75} />
           <span>Read GazePlotter article</span>
         </span>
-      </ButtonMajor>
+      </Button>
     </div>
   </section>
 </main>

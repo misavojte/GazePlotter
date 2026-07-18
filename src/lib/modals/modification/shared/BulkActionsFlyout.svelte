@@ -16,7 +16,7 @@
 </script>
 
 <script lang="ts">
-  import { InputText, ButtonPreset, ButtonMajor } from '$lib/shared/components'
+  import { InputText, ButtonPreset, Button } from '$lib/shared/components'
   import { tooltipAction } from '$lib/tooltip'
   import type { MenuComponentBridgeProps } from '$lib/context-menu'
 
@@ -64,7 +64,7 @@
   <InputText
     label="Pattern (regex)"
     value={pattern}
-    appearance="compact"
+    compact
     oninput={e => { pattern = e.detail }}
   />
 
@@ -91,18 +91,18 @@
       <InputText
         label="Replace with"
         value={replacement}
-        appearance="compact"
+        compact
         oninput={e => { replacement = e.detail }}
       />
     </div>
-    <ButtonMajor
+    <Button
       size="sm"
       variant="primary"
       isDisabled={!canApply}
       onclick={() => { onRename?.(pattern, replacement); close() }}
     >
       Replace
-    </ButtonMajor>
+    </Button>
   </div>
 </div>
 

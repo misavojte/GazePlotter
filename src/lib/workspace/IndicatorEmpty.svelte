@@ -1,16 +1,16 @@
 <script lang="ts">
-  import PanelButtonUpload from '$lib/workspace/PanelButtonUpload.svelte'
   import { fade } from 'svelte/transition'
-  import ButtonMajor from '$lib/shared/components/ButtonMajor.svelte'
+  import Button from '$lib/shared/components/Button.svelte'
   import { getGazePlotterSession } from '$lib/session'
   import { metadataInfoModal } from '$lib/modals/definitions'
   import type { GridItemSnapshot } from '$lib/workspace'
 
   interface Props {
     initialLayoutState?: GridItemSnapshot[] | null
+    onUpload: () => void
   }
 
-  const { initialLayoutState = null }: Props = $props()
+  const { initialLayoutState = null, onUpload }: Props = $props()
   const { engine, errorService, ingest, modalState, workspace } =
     getGazePlotterSession()
 
@@ -71,11 +71,11 @@
         </p>
         <div class="actions">
           {#if fatalLoadError && canOpenErrorReport}
-            <ButtonMajor onclick={openErrorReport}>Open Report</ButtonMajor>
+            <Button onclick={openErrorReport}>Open Report</Button>
           {:else if canResetLayout}
-            <ButtonMajor onclick={handleResetLayout}>Reset Layout</ButtonMajor>
+            <Button onclick={handleResetLayout}>Reset Layout</Button>
           {/if}
-          <PanelButtonUpload />
+          <Button onclick={onUpload}>Import workspace or data</Button>
         </div>
       </div>
     </div>

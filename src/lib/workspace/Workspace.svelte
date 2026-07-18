@@ -33,6 +33,19 @@
   const { onWorkspaceCommandChain, initialLayoutState = null }: Props = $props()
   const { ingest, grid, workspace } = getGazePlotterSession()
 
+  // Single upload owner for the workspace: the drag-drop handler below and the
+  // click entry points (ribbon item, empty-state button) all feed ingest here.
+  let fileUploadInput = $state<HTMLInputElement>()
+
+  const handleFileUpload = async (e: Event) => {
+    const files = (e.target as HTMLInputElement).files
+    if (!(files instanceof FileList) || files.length === 0) return
+    await ingest.loadFiles(files)
+    if (fileUploadInput) fileUploadInput.value = ''
+  }
+
+  const triggerUpload = () => fileUploadInput?.click()
+
   function handleWorkspaceBackgroundClick(event: MouseEvent): void {
     // Clicking anywhere in the workspace that isn't a grid item deselects
     // the currently selected plot (and closes the Pane). Clicks inside a
@@ -290,7 +303,15 @@
 </script>
 
 <div class="workspace-wrapper" style={styleProps} bind:this={workspaceWrapper}>
-  <Ribbon />
+  <input
+    type="file"
+    multiple
+    accept=".csv,.txt,.tsv,.json,.zip,.xml"
+    onchange={handleFileUpload}
+    bind:this={fileUploadInput}
+    hidden
+  />
+  <Ribbon onUpload={triggerUpload} />
 
   <div class="workspace-body" class:mobile={responsive.isMobile}>
     {#if !responsive.isMobile}
@@ -334,7 +355,7 @@
           <p class="drop-hint">Supported formats are detected and parsed automatically</p>
         </div>
       {:else if grid.isEmpty && !(ingest.isLoading || grid.isLoading)}
-        <IndicatorEmpty {initialLayoutState} />
+        <IndicatorEmpty {initialLayoutState} onUpload={triggerUpload} />
       {:else if ingest.isLoading || grid.isLoading}
         <IndicatorLoading />
       {:else}

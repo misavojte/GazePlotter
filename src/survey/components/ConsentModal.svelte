@@ -1,6 +1,6 @@
 <script lang="ts">
   import { getGazePlotterSession } from '$lib/session'
-  import ButtonMajor from '$lib/shared/components/ButtonMajor.svelte'
+  import Button from '$lib/shared/components/Button.svelte'
   import { InputCheck } from '$lib/shared/components'
 
   interface Props {
@@ -216,15 +216,15 @@
   </div>
 
   <div class="button-container">
-    <ButtonMajor
+    <Button
       variant="primary"
       onclick={handleConsent}
       isDisabled={!over18 || !readInfo || !agreeToParticipate}
     >
       Start the study
-    </ButtonMajor>
-    <ButtonMajor onclick={handleDecline}
-      >I do not want to participate</ButtonMajor
+    </Button>
+    <Button onclick={handleDecline}
+      >I do not want to participate</Button
     >
   </div>
 </div>

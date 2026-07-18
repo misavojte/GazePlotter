@@ -87,6 +87,7 @@
   <Select
     {options}
     label={config.selectLabel}
+    compact
     value={String(state.value ?? 0)}
     mixed={state.mixed}
     onchange={e => bulk.update({ [config.settingsKey]: Number(e.detail) })}

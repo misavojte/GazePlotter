@@ -391,7 +391,7 @@
                 min={param.min}
                 max={param.max}
                 step={param.type === 'integer' ? 1 : (param.step ?? 0.01)}
-                appearance="compact"
+                compact
                 onValueChange={v => { if (v !== undefined) paramDraft = { ...paramDraft, [param.id]: v } }}
               />
             {:else if param.type === 'boolean'}
@@ -556,7 +556,7 @@
                 <InputNumber
                   id="modal-window-{metric.meta.id}"
                   label={`Window (${unit})`}
-                  appearance="compact"
+                  compact
                   value={windowDraft.windowSize}
                   min={metric.meta.windowUnit === 'fixations' ? 2 : 100}
                   step={metric.meta.windowUnit === 'fixations' ? 1 : 100}
@@ -565,7 +565,7 @@
                 <InputNumber
                   id="modal-step-{metric.meta.id}"
                   label={`Step (${unit})`}
-                  appearance="compact"
+                  compact
                   value={windowDraft.stepSize}
                   min={metric.meta.windowUnit === 'fixations' ? 1 : 100}
                   step={metric.meta.windowUnit === 'fixations' ? 1 : 100}
@@ -592,7 +592,7 @@
         <InputText
           id="modal-label-{metric.meta.id}"
           label="Label"
-          appearance="compact"
+          compact
           showLabel={false}
           ariaLabel="Metric label"
           bind:value={labelOverride}

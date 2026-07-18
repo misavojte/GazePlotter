@@ -1,13 +1,12 @@
 <script lang="ts">
   import { generateUniqueId } from '$lib/shared/utils/idUtils'
-  import { isInPane } from './paneContext'
 
   interface Props {
     options: { value: string; label: string }[]
     legend?: string
     ariaLabel?: string
     value?: string
-    appearance?: 'default' | 'compact'
+    compact?: boolean
     direction?: 'column' | 'row'
     /** Multi-selection "Mixed": the bound plots disagree on this field. Shows no
      *  option selected; picking one applies it to all (and resolves it). */
@@ -20,7 +19,7 @@
     legend = '',
     ariaLabel,
     value = $bindable(options[0].value),
-    appearance = 'default',
+    compact = false,
     direction = 'column',
     mixed = false,
     onchange,
@@ -28,9 +27,6 @@
 
   const uniqueID: number = generateUniqueId()
   const hasLegend = $derived(legend.trim().length > 0)
-  /** Inside a Pane / PaneSheet → auto-apply compact appearance. */
-  const inPane = isInPane()
-  const isCompact = $derived(appearance === 'compact' || inPane)
   const isRow = $derived(direction === 'row')
 
   const slugify = (str = ''): string =>
@@ -40,7 +36,7 @@
 <div
   role="radiogroup"
   class="group-container"
-  class:compact={isCompact}
+  class:compact={compact}
   aria-labelledby={hasLegend ? `label-${uniqueID}` : undefined}
   aria-label={hasLegend ? undefined : ariaLabel}
   id={`group-${uniqueID}`}

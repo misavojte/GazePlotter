@@ -161,6 +161,7 @@
       <Select
         options={optionsOf(f)}
         label={f.label}
+        compact
         value={String(state.value ?? '')}
         mixed={state.mixed}
         onchange={e =>
@@ -171,8 +172,7 @@
     {:else if f.kind === 'boolean'}
       <InputCheck
         label={f.label}
-        appearance="compact"
-        size="xs"
+        compact
         checked={!!state.value}
         mixed={state.mixed}
         onchange={e => bulk.update({ [f.key]: (e as CustomEvent<boolean>).detail })}
@@ -181,7 +181,7 @@
       <InputNumber
         id="{entry.key}-{f.key}"
         label={f.label}
-        appearance="compact"
+        compact
         value={state.value as number}
         mixed={state.mixed}
         min={f.min}
@@ -192,7 +192,7 @@
     {:else if f.kind === 'color'}
       <InputColor
         label={f.label}
-        size="xs"
+        compact
         width={40}
         value={state.value as string}
         mixed={state.mixed}

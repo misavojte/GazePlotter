@@ -12,10 +12,7 @@
   import { setPaneEditItems } from './paneEditItems'
   import { PANE_ACCORDION_KEY, type PaneAccordion } from './accordion'
   import { PANE_TRANSITION, slideFlex } from './transition'
-  import { markInPane } from '$lib/shared/components/paneContext'
   import { responsive } from '../responsive.svelte'
-
-  markInPane()
 
   // Shared open states for every PaneSection inside this Pane.
   // Opening or closing one section does not affect other sections.
@@ -211,7 +208,6 @@
     overflow-y: auto;
   }
 
-  /* Form-control compactness is handled by each component via `isInPane()`
-     from $lib/shared/components/paneContext — the pane just signals the
-     context with `markInPane()` in the script block. No `:global()` overrides. */
+  /* Form-control compactness is opt-in per control via the `compact` prop,
+     passed explicitly by the pane sections. No `:global()` overrides. */
 </style>

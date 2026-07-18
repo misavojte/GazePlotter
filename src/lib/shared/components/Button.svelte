@@ -5,7 +5,7 @@
     children?: import('svelte').Snippet
     onclick?: (event: MouseEvent) => void
     size?: 'sm' | 'md'
-    variant?: 'primary' | 'secondary' | 'info'
+    variant?: 'primary' | 'secondary'
     href?: string
     noopener?: boolean
     type?: 'button' | 'submit' | 'link'
@@ -89,17 +89,6 @@
   }
   .secondary:hover:not(:disabled) {
     background-color: var(--c-grey);
-  }
-
-  /* Info variant */
-  .info {
-    background-color: color-mix(in srgb, var(--c-info) 10%, transparent);
-    color: var(--c-info);
-    border: 1px solid color-mix(in srgb, var(--c-info) 30%, transparent);
-  }
-  .info:hover:not(:disabled) {
-    background-color: color-mix(in srgb, var(--c-info) 15%, transparent);
-    border-color: color-mix(in srgb, var(--c-info) 40%, transparent);
   }
 
   /* Sizes */

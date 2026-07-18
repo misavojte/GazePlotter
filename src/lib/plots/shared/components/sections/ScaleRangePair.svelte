@@ -44,7 +44,7 @@
       min={0}
       max={inputMax}
       {step}
-      appearance="compact"
+      compact
       onValueChange={v => onUpdate({ min: v ?? 0 })}
     />
     <InputNumber
@@ -55,7 +55,7 @@
       min={0}
       max={inputMax}
       {step}
-      appearance="compact"
+      compact
       onValueChange={v => onUpdate({ max: v ?? 0 })}
     />
   </div>

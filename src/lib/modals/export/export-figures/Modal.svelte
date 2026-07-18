@@ -6,7 +6,6 @@
     InputNumber,
     Select,
     ButtonPreset,
-    ButtonMinor,
   } from '$lib/shared/components'
   import {
     ModalButtons,
@@ -315,13 +314,11 @@
           label="Margin [px]"
           bind:value={margin}
           min={0}
-          appearance="selectMatched"
         />
         <InputNumber
           label="Resolution [DPI]"
           bind:value={dpi}
           min={72}
-          appearance="selectMatched"
         />
       </FieldGrid>
       <div class="dpi-presets">
@@ -353,12 +350,15 @@
       {#if previewItem}
         {#if previewCount > 1}
           <div class="preview-pager">
-            <ButtonMinor
-              icon={ChevronLeft}
-              ariaLabel="Previous figure"
-              isDisabled={clampedPreviewIndex === 0}
+            <button
+              type="button"
+              class="pager-btn"
+              aria-label="Previous figure"
+              disabled={clampedPreviewIndex === 0}
               onclick={() => (previewIndex = clampedPreviewIndex - 1)}
-            />
+            >
+              <ChevronLeft size={'1em'} strokeWidth={1} />
+            </button>
             <span class="preview-pager-label">
               {clampedPreviewIndex + 1} of {previewCount} ·
               {getPlotDisplayName(previewItem.type)}
@@ -368,12 +368,15 @@
                 </span>
               {/if}
             </span>
-            <ButtonMinor
-              icon={ChevronRight}
-              ariaLabel="Next figure"
-              isDisabled={clampedPreviewIndex >= previewCount - 1}
+            <button
+              type="button"
+              class="pager-btn"
+              aria-label="Next figure"
+              disabled={clampedPreviewIndex >= previewCount - 1}
               onclick={() => (previewIndex = clampedPreviewIndex + 1)}
-            />
+            >
+              <ChevronRight size={'1em'} strokeWidth={1} />
+            </button>
           </div>
         {/if}
         <FigurePreview item={previewItem} {dpi} {margin} />
@@ -432,5 +435,34 @@
   .preview-pager-detail {
     font-weight: 400;
     color: var(--c-darkgrey);
+  }
+
+  .pager-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 34px;
+    height: 34px;
+    background: none;
+    border: 1px solid var(--c-midgrey);
+    border-radius: var(--rounded-md);
+    color: var(--c-black);
+    font-size: 15px;
+    cursor: pointer;
+    transition:
+      background-color var(--transition-fast) ease,
+      color var(--transition-fast) ease;
+  }
+
+  .pager-btn:hover:not(:disabled) {
+    color: var(--c-brand);
+    background: var(--c-darkwhite);
+  }
+
+  .pager-btn:disabled {
+    cursor: not-allowed;
+    color: var(--c-darkgrey);
+    background: var(--c-lightgrey);
   }
 </style>
