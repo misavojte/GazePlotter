@@ -537,4 +537,16 @@ export abstract class RowParser {
     }
     return result
   }
+
+  protected getSpatial(
+    hasSpatial: boolean,
+    xIndex: number,
+    yIndex: number
+  ): { x: number; y: number } | null | undefined {
+    if (!hasSpatial) return undefined
+    const x = this.getNumber(xIndex)
+    const y = this.getNumber(yIndex)
+    return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null
+  }
 }
+
