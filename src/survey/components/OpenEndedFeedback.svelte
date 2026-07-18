@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { createSeededState } from '../utils'
+  import QuestionHeader from './QuestionHeader.svelte'
+
   interface Props {
     /** Question title */
     title?: string;
@@ -26,16 +29,10 @@
     onValueChange
   }: Props = $props();
   
-  let feedbackText = $state('');
-  let didSeedFeedbackText = false;
+  const feedback = createSeededState<string>(() => initialValue || '', '');
+  let feedbackText = $derived(feedback.current);
   const CHARACTER_LIMIT = 2000;
   let remainingChars = $derived(CHARACTER_LIMIT - feedbackText.length);
-
-  $effect(() => {
-    if (didSeedFeedbackText) return;
-    feedbackText = initialValue || '';
-    didSeedFeedbackText = true;
-  });
 
   // Update exposed values when feedbackText changes
   $effect(() => {
@@ -52,16 +49,11 @@
 </script>
 
 <div class="feedback-question" class:className>
-  <div class="question-header">
-    <h2>{title}</h2>
-    <p class="instructions">
-      {instructions}
-    </p>
-  </div>
+  <QuestionHeader {title} {instructions} />
 
   <div class="feedback-container">
     <textarea
-      bind:value={feedbackText}
+      bind:value={feedback.current}
       class="feedback-textarea"
       placeholder={placeholder}
       maxlength={CHARACTER_LIMIT}
@@ -82,25 +74,6 @@
     margin: 0 auto;
     padding: 0;
     box-sizing: border-box;
-  }
-
-  .question-header {
-    text-align: center;
-    margin-bottom: 1.5rem;
-  }
-
-  .question-header h2 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--c-black);
-    margin: 0 0 0.75rem 0;
-  }
-
-  .instructions {
-    color: var(--c-darkgrey);
-    font-size: 0.9rem;
-    line-height: 1.5;
-    margin: 0;
   }
 
   .feedback-container {
@@ -145,14 +118,6 @@
   @media (max-width: 640px) {
     .feedback-question {
       padding: 0.75rem 0.5rem;
-    }
-
-    .question-header h2 {
-      font-size: 1.1rem;
-    }
-
-    .instructions {
-      font-size: 0.85rem;
     }
   }
 </style>
