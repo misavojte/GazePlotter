@@ -168,6 +168,27 @@ export class WorkspaceService {
     })
   }
 
+  resetLayoutGuarded(
+    initialLayoutState: GridItemSnapshot[] | null,
+    componentName: string
+  ): boolean {
+    if (!initialLayoutState) {
+      this.errorService.report({
+        origin: 'workspace',
+        severity: 'recoverable',
+        userMessage: 'The initial workspace layout is unavailable.',
+        cause: new Error(
+          'Cannot reset layout: no initial layout state provided'
+        ),
+        context: {
+          component: componentName,
+        },
+      })
+      return false
+    }
+    return this.resetLayout(initialLayoutState)
+  }
+
   addVisualization(
     vizType: string,
     source: string,

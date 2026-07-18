@@ -84,21 +84,7 @@
   }
 
   const handleResetLayout = () => {
-    if (!initialLayoutState) {
-      errorService.report({
-        origin: 'workspace',
-        severity: 'recoverable',
-        userMessage: 'The initial workspace layout is unavailable.',
-        cause: new Error(
-          'Cannot reset layout: no initial layout state provided'
-        ),
-        context: {
-          component: 'WorkspaceToolbar',
-        },
-      })
-      return
-    }
-    workspace.resetLayout(initialLayoutState)
+    workspace.resetLayoutGuarded(initialLayoutState, 'WorkspaceToolbar')
   }
 
   function handleEditPlot() {
