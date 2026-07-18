@@ -3,6 +3,7 @@
   import { describePairingError } from '$lib/data/intervalPairing'
   import { Card } from '$lib/shared/components'
   import MetadataSection from './MetadataSection.svelte'
+  import InfoRow from './InfoRow.svelte'
 
   const { exclusions } = $props<{
     exclusions: DatasetExclusionNotice[]
@@ -34,10 +35,7 @@
 
     {#each byStimulus as [stimulus, notices] (stimulus)}
       <Card padding="sm" gap="0.5rem">
-        <div class="info-item">
-          <span class="label">{stimulus}</span>
-          <span class="value">{notices.length} excluded</span>
-        </div>
+        <InfoRow label={stimulus} value={`${notices.length} excluded`} variant="exclusion" />
         {#each notices as notice (notice.participant)}
           <div class="exclusion">
             <div class="participant">{notice.participant}</div>
@@ -60,23 +58,6 @@
   .summary {
     margin: 0;
     color: #92400e;
-  }
-
-  .info-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .label {
-    font-weight: 600;
-    color: #374151;
-  }
-
-  .value {
-    color: #6b7280;
-    font-size: 0.85rem;
   }
 
   .exclusion {
