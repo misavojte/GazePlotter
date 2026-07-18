@@ -1,6 +1,5 @@
 export { default as InputText } from './InputText.svelte'
 export { default as InputNumber } from './InputNumber.svelte'
-export { default as InputFile } from './InputFile.svelte'
 export { default as InputCheck } from './InputCheck.svelte'
 export { default as Select } from './Select.svelte'
 export { default as Card } from './Card.svelte'
