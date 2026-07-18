@@ -49,7 +49,7 @@ export function deriveMetricMatrixView(
     : data.empty === 'no-cols'
       ? 'No stimuli available'
       : data.empty === 'no-rows'
-        ? 'No participants in this group'
+        ? 'No participants in this selection'
         : data.empty === 'all-na'
           ? 'No usable data for this metric'
           : null

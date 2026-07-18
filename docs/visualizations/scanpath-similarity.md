@@ -19,13 +19,12 @@ Clicking the Scanpath Similarity plot card in the workspace selects the plot and
 
 ### Stimulus
 Choose the stimulus to analyze. GazePlotter will compile the letter-coded scanpath sequences for participants based on this stimulus.
-- **Edit stimulus library…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files.
+- **Edit stimuli & selections…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
 
-### Participant group
+### Participants
 Filter the analysis to a specific participant group.
-- **Select group**: A dropdown containing *All participants* and custom participant groups.
-- **Edit groups…**: Opens the [Participant Groups](/docs/workspace/participant-groups/) editor to manage cohort comparison sets.
-- **Edit participants…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename or reorder participants.
+- **Participant selection**: A dropdown containing *All*, *Non-empty*, and saved participant selections.
+- **Edit participants & selections…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
 
 ### Metric
 Select the sequence alignment algorithm from the Metric Library.
@@ -53,7 +52,8 @@ Filter the temporal range from which fixations are serialized.
 
 ### Areas of Interest
 Filters which Areas of Interest (AOIs) are included in the letter-coding sequence. Fixations outside active AOIs are excluded from scanpath serialization.
-- **Configure AOI Library…**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, and visibility.
+- **AOI selection**: A dropdown containing *All* and saved AOI selections; AOIs outside the picked selection count as no-AOI in this plot.
+- **Edit AOIs & selections…**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
 
 ### Export
 Located at the bottom of the Pane:

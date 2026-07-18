@@ -25,7 +25,7 @@
  */
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import {
-  getParticipants,
+  getParticipant,
   getParticipantsIds,
   getParticipantEndTime,
 } from '$lib/data/engine'
@@ -122,7 +122,7 @@ function voronoiBoundaries(
 
 export function getEvolvingMetricsData(
   engine: DataEngine,
-  settings: Pick<EvolvingMetricsSettings, 'stimulusId' | 'groupId' | 'metricInstanceIds'> & {
+  settings: Pick<EvolvingMetricsSettings, 'stimulusId' | 'groupId' | 'metricInstanceIds' | 'aoiSelectionId'> & {
     timelineMin?: number
     timelineMax?: number
     /**
@@ -150,7 +150,6 @@ export function getEvolvingMetricsData(
 
   const { stimulusId, groupId } = settings
   const participantIds = getParticipantsIds(engine, groupId, stimulusId)
-  const participantEntities = getParticipants(engine, groupId, stimulusId)
   const numParticipants = participantIds.length
   if (numParticipants === 0) return emptyEvolvingMetricsResult()
 
@@ -224,8 +223,7 @@ export function getEvolvingMetricsData(
 
   for (let p = 0; p < numParticipants; p++) {
     const pid = participantIds[p]
-    const entity = participantEntities[p]
-    const label = entity?.displayedName ?? entity?.originalName ?? `P${pid}`
+    const label = getParticipant(engine, pid).displayedName
     const scope: Scope = {
       engine, stimulusId, participantId: pid,
       timeStart: timelineMin,
@@ -233,6 +231,7 @@ export function getEvolvingMetricsData(
       // aren't synthesised — they'd report 0 (count) or NaN (mean), conflating
       // missing data with real zero observations.
       timeEnd: Math.min(timelineMax, participantEnds[p]),
+      aoiSelectionId: settings.aoiSelectionId,
     }
     const result = asScalarTimeseries(query(effInstance, scope))
     if (!result || !result.timeline) {

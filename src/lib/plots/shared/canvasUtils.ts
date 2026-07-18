@@ -407,7 +407,7 @@ interface CanvasRefreshOptions {
   scheduleRender: () => void
 }
 
-interface CanvasLifecycleActionOptions
+export interface CanvasLifecycleActionOptions
   extends Omit<CanvasLifecycleOptions, 'getCanvas'>, CanvasRefreshOptions {
   registerExportSource?: (canvasElement: HTMLCanvasElement | null) => void
 }

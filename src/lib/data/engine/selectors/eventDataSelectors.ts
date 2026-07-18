@@ -47,25 +47,18 @@ export const getEventChannels = (
 }
 
 /**
- * Returns hidden event channel IDs for a stimulus.
- * Mirrors getHiddenAois() pattern.
- */
-export const getHiddenEventChannels = (
-  engine: DataEngine,
-  stimulusId: number
-): number[] => {
-  const meta = engine.metadata
-  if (!meta) throw new Error('Data engine metadata not available')
-  return meta.eventData.hiddenChannels?.[stimulusId] ?? []
-}
-
-/**
  * Returns only visible (non-hidden) event channels for a stimulus, respecting order vector.
  * Mirrors getAois() pattern (visible-only).
+ *
+ * `eventSelectionId` optionally narrows to a named event SELECTION (matched by
+ * displayed name — NameSelections are portable across stimuli exactly like AOI
+ * selections). Unset / 0 / unknown → no narrowing, same self-healing contract
+ * as getAois' aoiSelectionId.
  */
 export const getVisibleEventChannels = (
   engine: DataEngine,
-  stimulusId: number
+  stimulusId: number,
+  eventSelectionId?: number
 ): ExtendedInterpretedDataType[] => {
   const meta = engine.metadata
   if (!meta) throw new Error('Data engine metadata not available')
@@ -82,7 +75,7 @@ export const getVisibleEventChannels = (
   const hidden = meta.eventData.hiddenChannels?.[stimulusId] ?? []
   const hiddenSet = hidden.length ? new Set<number>(hidden) : null
 
-  return ids
+  const visible = ids
     .filter(id => !hiddenSet?.has(id))
     .map(id => {
       const ch = channels[id]
@@ -90,6 +83,14 @@ export const getVisibleEventChannels = (
       return interpretRow(ch, id, getDefaultEventChannelColor)
     })
     .filter((ch): ch is ExtendedInterpretedDataType => ch !== null)
+
+  if (eventSelectionId == null || eventSelectionId <= 0) return visible
+  const selection = (meta.eventsSelections ?? []).find(
+    s => s.id === eventSelectionId
+  )
+  if (!selection) return visible
+  const names = new Set(selection.names)
+  return visible.filter(ch => names.has(ch.displayedName))
 }
 
 /**

@@ -1,6 +1,6 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import {
-  getStimuli,
+  getStimuliInSelection,
   getParticipant,
   getParticipantsIds,
   getParticipantOrderVector,
@@ -50,8 +50,9 @@ export function getMetricMatrixData(
   const unit = metric?.meta.unit ?? ''
   const measurementClass = metric?.meta.measurementClass ?? null
 
-  // Columns: every stimulus, in display order.
-  const stimuli = getStimuli(engine)
+  // Columns: the stimulus SELECTION's members (all stimuli when unset), in
+  // display order.
+  const stimuli = getStimuliInSelection(engine, settings.stimulusSelectionId)
   const cols: MetricMatrixAxisEntry[] = stimuli.map(s => ({
     id: s.id,
     label: s.displayedName,
@@ -116,6 +117,7 @@ export function getMetricMatrixData(
             participantId: pid,
             timeStart: 0,
             timeEnd: 0,
+            aoiSelectionId: settings.aoiSelectionId,
           })
         )
         if (res?.provenance.aoiMissing) {

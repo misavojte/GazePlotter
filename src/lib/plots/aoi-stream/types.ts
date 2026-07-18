@@ -4,6 +4,8 @@ import type { PlotItemContract } from '$lib/plots/definePlot'
 export type AoiStreamPlotSettings = {
   stimulusId: number
   groupId: number
+  /** Per-plot AOI SELECTION id; unset/0 = all AOIs. */
+  aoiSelectionId?: number
   /**
    * Slug(s) of the windowed × aoi-vector MetricInstance this plot renders.
    * Stored as an array for uniformity with multi-select plots; the contract

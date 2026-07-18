@@ -43,7 +43,8 @@ export function getTransitionView(
     settings.metricInstanceIds[0] ?? null,
     settings.timelineStart ?? 0,
     settings.timelineEnd ?? 0,
-    settings.hideNoAoi ?? false
+    settings.hideNoAoi ?? false,
+    settings.aoiSelectionId
   )
   const { matrix, aoiLabels } = transitionData
   const noMetric = transitionData.noMetric ?? false

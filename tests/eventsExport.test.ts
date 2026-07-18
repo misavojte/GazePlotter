@@ -30,7 +30,7 @@ function createEventData(): DataType {
       ],
       orderVector: [0, 1],
     },
-    participantsGroups: [],
+    participantsSelections: [],
     metricInstances: [],
     categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [0] },
     noAoiTreatment: { displayedName: 'No AOI', color: '#cbd5e1' },

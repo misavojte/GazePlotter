@@ -5,13 +5,12 @@ import {
   identityFor,
   projectionToLabel,
   type Projection,
-  type LeafProjection,
 } from './core/projection'
 import { STARTING_METRICS } from './startingMetrics'
 import { metricShape, soundReductions, type GroupReduction, type MetricShape } from './core/measurement'
 import { effectiveReduction, reductionLabel } from './core/aggregation'
 
-export type { Projection, LeafProjection, AoiRef, AoiReducer, MatrixReducer, WindowSpec } from './core/projection'
+export type { Projection } from './core/projection'
 
 export interface MetricInstance {
   /**
@@ -129,7 +128,7 @@ export function isStrandedAoiAggregate(inst: any): boolean {
   if (!leaf || leaf.kind !== 'aggregate-aoi') return false
   const recipe = getRecipe(inst?.baseId)
   if (!recipe) return false
-  const extreme = leaf.reducer
+  const extreme: unknown = leaf.reducer
   return !((extreme === 'max' || extreme === 'min') && !!recipe.aoiAggregate?.[extreme])
 }
 

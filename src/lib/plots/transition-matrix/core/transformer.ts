@@ -21,12 +21,13 @@ export function getTransitionMatrixData(
   timeStart: number = 0,
   timeEnd: number = 0,
   hideNoAoi: boolean = false,
+  aoiSelectionId?: number,
 ): TransitionMatrixData {
   const meta = engine.metadata
   if (!meta) throw new Error('Data engine metadata not available')
 
   const participantIds = getParticipantsIds(engine, groupId, stimulusId)
-  const aoiList = getAois(engine, stimulusId)
+  const aoiList = getAois(engine, stimulusId, aoiSelectionId)
   const aoiCount = aoiList.length
   const size = hideNoAoi ? aoiCount : aoiCount + 1
   const aoiLabels = [
@@ -54,6 +55,7 @@ export function getTransitionMatrixData(
     participantIds,
     timeStart,
     timeEnd,
+    aoiSelectionId,
   }
   const result = asAoiPairMatrix(queryGroup(resolved.instance, scope))
   let rawMatrix = result ? Float64Array.from(result.matrix) : new Float64Array(0)

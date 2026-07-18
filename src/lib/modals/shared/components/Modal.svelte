@@ -403,6 +403,9 @@
     max-height: calc(100vh - 200px);
     overflow-y: auto;
     overflow-x: hidden;
+    /* Reserve gutter always so a scrollbar appearing can't reflow the
+       content-sized modal (width/height jump mid-animation). */
+    scrollbar-gutter: stable;
     flex: 1;
     min-height: 0;
   }

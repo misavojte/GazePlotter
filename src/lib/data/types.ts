@@ -47,13 +47,44 @@ export interface SegmentInterpretedDataType {
   aoi: ExtendedInterpretedDataType[]
 }
 
-export interface AttributeDataType {
+interface AttributeDataType {
   /** Nested array mapping: [itemIndex][fieldIndex] where fieldIndex: 0=originalName, 1=displayedName, 2=color (optional) */
   data: string[][]
   orderVector: number[]
 }
 
-export interface ParticipantsGroup {
+/** Label of the implicit default selection covering everything. */
+export const ALL_SELECTION_LABEL = 'All'
+
+/** Id-keyed saved selection for axes with numeric member ids
+    (stimuli, eye-movement categories). */
+export interface EntitySelection {
+  id: number
+  name: string
+  memberIds: number[]
+}
+
+/**
+ * Name-keyed saved selection for per-stimulus axes whose members are portable
+ * displayed names — event channels AND AOIs (see PLANAOISELECTION.md). The
+ * SELECTION primitive answers "which members does this view range over"; MERGE
+ * (displayed-name identity) is the other primitive — deliberately no "group"
+ * terminology. Keyed BY DISPLAYED NAME (not raw ids): those ids are
+ * per-stimulus, so a name set (`["face","text"]`) is portable across stimuli
+ * and composes with the displayed-name merge/fold. A plot referencing an AOI
+ * selection (settings.aoiSelectionId) shows only these members; the rest
+ * collapse to no-AOI (compute-honest). Selection edits are pure metadata — they
+ * MUST NOT feed `AoiGroupReader.groupPool` nor bump its structural version, or
+ * every edit would blow the metric result cache.
+ */
+export interface NameSelection {
+  id: number
+  name: string
+  /** Displayed names of the members (resolved per stimulus, post-merge). */
+  names: string[]
+}
+
+export interface ParticipantsSelection {
   id: number
   name: string
   participantsIds: number[]
@@ -64,7 +95,7 @@ export interface ParticipantsGroup {
  * Mirrors AoiDataType structure: per-stimulus channel definitions,
  * ordering, hiding, grouping (by displayedName), and per-channel event buffers.
  */
-export interface EventDataType {
+interface EventDataType {
   /**
    * Per-stimulus channel definitions.
    * [stimulusId][channelId][fieldIndex]
@@ -90,12 +121,14 @@ export interface EventDataType {
   events: number[][][][]
 }
 
-export interface AoiDataType {
+interface AoiDataType {
   /** Nested array mapping: [stimulusIndex][aoiIndex][fieldIndex] where fieldIndex: 0=originalName, 1=displayedName, 2=color (optional) */
   data: string[][][]
   orderVector: number[][]
   /** Per-stimulus list of raw AOI ids that should be treated as nonexistent in visualizations. */
   hiddenAois: number[][]
+  /** Named, reusable AOI SELECTIONS (per-plot; name-keyed {@link NameSelection}). Absent = none. */
+  selections?: NameSelection[]
 }
 
 /**
@@ -113,7 +146,7 @@ export interface DataCapabilities {
 /**
  * Declarative capability keys used by plot/view availability requirements.
  */
-export type DataCapabilityKey = keyof DataCapabilities
+type DataCapabilityKey = keyof DataCapabilities
 
 /**
  * A single capability requirement item.
@@ -121,7 +154,7 @@ export type DataCapabilityKey = keyof DataCapabilities
  * - `"segmented"` means the capability is required directly.
  * - `["spatial", "event"]` means either capability is enough for that item.
  */
-export type DataCapabilityRequirement = DataCapabilityKey | DataCapabilityKey[]
+type DataCapabilityRequirement = DataCapabilityKey | DataCapabilityKey[]
 
 /**
  * Capability requirements are evaluated as AND across the list.
@@ -149,6 +182,93 @@ export interface DatasetExclusionNotice {
 }
 
 /**
+ * One entity folded into a representative by a merge (see PLANMERGE.md). A merge
+ * is a lossless, disjoint fold — no segment data is dropped or shifted — so this
+ * record alone reconstructs the member exactly on un-merge; it stores ids,
+ * names, and positions, never segment data. The merge feature keeps every op
+ * lossless precisely so the pre-merge original is always reconstructable and
+ * exportable from the (kept) merge log.
+ */
+export interface MergeMember {
+  /** The member's id on its axis. Tombstoned (kept in `data`), never reindexed. */
+  id: number
+  /** Its pre-merge displayed name — for the audit trail / export readout. */
+  displayedName: string
+  /** Its pre-merge position in the axis `orderVector`, for exact re-insertion. */
+  orderIndex: number
+  /**
+   * The counterpart-axis ids whose cell the representative absorbed from this
+   * member — stimulus ids for a participant merge, participant ids for a
+   * stimulus merge. Disjoint by construction, so un-merge moves exactly these
+   * cells back to the member.
+   */
+  contributedCounterparts: number[]
+  /**
+   * Participant axis only: per `(stimulus, channel)` event-occurrence cell the
+   * representative absorbed from this member, with `boundary` = the number of
+   * flat buffer elements the representative held before the member's were
+   * appended (0 in the clean disjoint case). Un-merge splits the representative
+   * buffer at `boundary` to restore the member's occurrences exactly.
+   */
+  eventContributions?: { stimulus: number; channel: number; boundary: number }[]
+  /**
+   * Stimulus axis only (M4): the member stimulus's per-stimulus AOI /
+   * event-channel dictionary reconciliation into the representative's id space,
+   * so un-merge restores the member's own id space. Absent for participant
+   * merges (AOIs/channels are stimulus-scoped, untouched).
+   */
+  aoiDictRemap?: MergeDictRemap
+  channelDictRemap?: MergeDictRemap
+  /**
+   * Stimulus axis only (M4): per `(member-local channel, participant)` event
+   * cell the representative absorbed, with `boundary` = the representative
+   * buffer's prior length. Un-merge splits it back exactly. The representative
+   * channel is `channelDictRemap.remap[memberChannel]`.
+   */
+  stimulusEventContributions?: {
+    memberChannel: number
+    participant: number
+    boundary: number
+  }[]
+}
+
+/**
+ * Stimulus-axis dictionary reconciliation record (M4). When stimulus `M` folds
+ * into representative `R`, `M`'s per-stimulus AOI (or event-channel) dictionary
+ * is unified into `R`'s by displayed name: same-named entries map to `R`'s id,
+ * `M`-only entries append to `R`. This records the exact inverse.
+ */
+interface MergeDictRemap {
+  /** Member-local id -> merged (rep-space) id; total and dense over member ids. */
+  remap: number[]
+  /** `R`'s dictionary length before this member folded — un-merge shrinks back to it. */
+  repCountBefore: number
+}
+
+/**
+ * Append-only record of one merge (or its reversal). Persisted with the dataset
+ * (mirrors {@link DatasetExclusionNotice}); it is the durable record of prior
+ * state AND the inverse used to reconstruct the original. Never rewritten in
+ * place — an un-merge appends an `op: 'unmerge'` entry rather than deleting.
+ */
+export interface MergeLogEntry {
+  op: 'merge' | 'unmerge'
+  axis: 'stimulus' | 'participant'
+  /** The surviving representative entity's id. */
+  representativeId: number
+  members: MergeMember[]
+  /**
+   * Participant axis only: named participant selections that CHANGED (a member
+   * substituted by the representative), snapshotted pre-fold so un-merge
+   * restores them exactly. Selections are tiny id-lists, so snapshotting the
+   * changed ones is the simplest exact inverse. Absent when none changed.
+   */
+  participantsSelectionsBefore?: { id: number; participantsIds: number[] }[]
+  /** Epoch ms when the operation happened, for the audit trail. */
+  at: number
+}
+
+/**
  * Data for workspace are stored in this unique format.
  */
 export interface DataType {
@@ -157,7 +277,13 @@ export interface DataType {
   aois: AoiDataType
   categories: AttributeDataType & { hiddenCategories?: number[] }
   participants: AttributeDataType
-  participantsGroups: ParticipantsGroup[]
+  participantsSelections: ParticipantsSelection[]
+  /** Saved stimulus selections (absent in older workspaces). */
+  stimuliSelections?: EntitySelection[]
+  /** Saved eye-movement-category selections (absent in older workspaces). */
+  categoriesSelections?: EntitySelection[]
+  /** Saved event-channel selections, name-keyed (absent in older workspaces). */
+  eventsSelections?: NameSelection[]
   metricInstances: MetricInstance[]
   stimuli: AttributeDataType
   segments: BinarySegmentBuffers
@@ -165,6 +291,11 @@ export interface DataType {
   eventData: EventDataType
   /** Groups dropped at import time, with why. Absent when nothing was dropped. */
   dataExclusions?: DatasetExclusionNotice[]
+  /**
+   * Append-only log of entity merges (see PLANMERGE.md). Absent when nothing was
+   * merged. The durable record of prior state + the inverse for un-merge.
+   */
+  merges?: MergeLogEntry[]
 }
 
 /**
@@ -210,7 +341,7 @@ export interface JsonImportNewFormat {
   fileMetadata?: FileMetadataType | null
 }
 
-export interface RawEventDataType {
+interface RawEventDataType {
   data?: string[][][]
   orderVector?: number[][]
   hiddenChannels?: number[][]
@@ -228,7 +359,10 @@ export interface RawIngestPayload {
   }
   categories?: AttributeDataType
   participants: AttributeDataType
-  participantsGroups?: ParticipantsGroup[]
+  participantsSelections?: ParticipantsSelection[]
+  stimuliSelections?: EntitySelection[]
+  categoriesSelections?: EntitySelection[]
+  eventsSelections?: NameSelection[]
   metricInstances?: MetricInstance[]
   stimuli: AttributeDataType
   segments?: unknown
@@ -236,6 +370,7 @@ export interface RawIngestPayload {
   eventData?: RawEventDataType
   spatialData?: unknown
   dataExclusions?: DatasetExclusionNotice[]
+  merges?: MergeLogEntry[]
 }
 
 export interface MigratedJsonFormat {

@@ -1,4 +1,4 @@
-export type ParamType = 'integer' | 'number' | 'enum' | 'boolean' | 'string'
+type ParamType = 'integer' | 'number' | 'enum' | 'boolean' | 'string'
 
 export interface ParamDef<T> {
   id: string

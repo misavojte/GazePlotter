@@ -1,24 +1,22 @@
 <script module lang="ts">
   import type { BaseInterpretedDataType } from '$lib/data/types'
-  import type { EntityGroup } from './groupedEntityEditor.svelte'
+  import type { MergeCard } from './groupedEntityEditor.svelte'
 
-  export type BulkEntity = BaseInterpretedDataType | EntityGroup
+  export type BulkEntity =
+    | BaseInterpretedDataType
+    | MergeCard<BaseInterpretedDataType>
 
   // `type` (not `interface`) so it satisfies the `Record<string, unknown>`
   // constraint on `createMenuComponentItem`.
   export type BulkActionsFlyoutProps = {
-    mode: 'rename' | 'visibility'
     items: BulkEntity[]
-    grouped?: boolean
     /** Replace `pattern` with `replacement` across every matching name. */
     onRename?: (pattern: string, replacement: string) => void
-    /** Show/hide the target groups (already resolved for the invert toggle). */
-    onSetVisibility?: (targets: EntityGroup[], visible: boolean) => void
   }
 </script>
 
 <script lang="ts">
-  import { InputText, InputCheck, ButtonPreset, ButtonMajor } from '$lib/shared/components'
+  import { InputText, ButtonPreset, ButtonMajor } from '$lib/shared/components'
   import { tooltipAction } from '$lib/tooltip'
   import type { MenuComponentBridgeProps } from '$lib/context-menu'
 
@@ -28,12 +26,10 @@
   // can only carry `string | undefined`.
   type Props = BulkActionsFlyoutProps & MenuComponentBridgeProps
 
-  let { mode, items, grouped = false, onRename, onSetVisibility, close }: Props =
-    $props()
+  let { items, onRename, close }: Props = $props()
 
   let pattern = $state('')
   let replacement = $state('')
-  let invert = $state(false)
 
   const WILDCARDS = [
     { label: '\\d+', tooltip: 'Any number' },
@@ -60,19 +56,8 @@
     }
   })
 
-  // Visibility acts on the complement when "invert" is on; rename always
-  // acts on the matched set (its regex passes non-matching names through).
-  const targets = $derived.by((): BulkEntity[] | null => {
-    if (matched === null) return null
-    if (mode === 'visibility' && invert) {
-      const set = new Set(matched)
-      return items.filter(item => !set.has(item))
-    }
-    return matched
-  })
-
   const matchedCount = $derived(matched?.length ?? 0)
-  const canApply = $derived(matched !== null && hasPattern && (targets?.length ?? 0) > 0)
+  const canApply = $derived(matched !== null && hasPattern && matchedCount > 0)
 </script>
 
 <div class="flyout">
@@ -97,54 +82,28 @@
     {:else if matched === null}
       Invalid regular expression
     {:else}
-      Matches {matchedCount} of {items.length} items{#if mode === 'visibility' && invert} · acting on the other {items.length - matchedCount}{/if}
+      Matches {matchedCount} of {items.length} items
     {/if}
   </div>
 
-  {#if mode === 'rename'}
-    <div class="row">
-      <div class="grow">
-        <InputText
-          label="Replace with"
-          value={replacement}
-          appearance="compact"
-          oninput={e => { replacement = e.detail }}
-        />
-      </div>
-      <ButtonMajor
-        size="sm"
-        variant="primary"
-        isDisabled={!canApply}
-        onclick={() => { onRename?.(pattern, replacement); close() }}
-      >
-        Replace
-      </ButtonMajor>
+  <div class="row">
+    <div class="grow">
+      <InputText
+        label="Replace with"
+        value={replacement}
+        appearance="compact"
+        oninput={e => { replacement = e.detail }}
+      />
     </div>
-  {:else}
-    <InputCheck
-      label="Invert match"
-      sublabel="Act on items that don't match"
-      appearance="compact"
-      checked={invert}
-      onchange={e => { invert = e.detail }}
-    />
-    <div class="row">
-      <ButtonMajor
-        size="sm"
-        isDisabled={!canApply}
-        onclick={() => { onSetVisibility?.(targets as EntityGroup[], true); close() }}
-      >
-        Show
-      </ButtonMajor>
-      <ButtonMajor
-        size="sm"
-        isDisabled={!canApply}
-        onclick={() => { onSetVisibility?.(targets as EntityGroup[], false); close() }}
-      >
-        Hide
-      </ButtonMajor>
-    </div>
-  {/if}
+    <ButtonMajor
+      size="sm"
+      variant="primary"
+      isDisabled={!canApply}
+      onclick={() => { onRename?.(pattern, replacement); close() }}
+    >
+      Replace
+    </ButtonMajor>
+  </div>
 </div>
 
 <style>

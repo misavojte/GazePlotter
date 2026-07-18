@@ -498,5 +498,22 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
     )
   }
 
+  // Version-independent normalization: the participant selection field was
+  // renamed `participantsGroups` → `participantsSelections` (the SELECTION
+  // vocabulary unification). This is the one selection field that shipped in
+  // `main`, so workspaces on disk carry the legacy key — map it across and drop
+  // the old one so the engine only ever sees the new field. (Stimulus / category
+  // / event selections never shipped under a `*Groups` key, so they need no heal.)
+  const selectionPayload = data?.data
+  if (selectionPayload && typeof selectionPayload === 'object') {
+    if (
+      Array.isArray(selectionPayload.participantsGroups) &&
+      !Array.isArray(selectionPayload.participantsSelections)
+    ) {
+      selectionPayload.participantsSelections = selectionPayload.participantsGroups
+    }
+    delete selectionPayload.participantsGroups
+  }
+
   return data as MigratedJsonFormat
 }

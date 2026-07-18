@@ -303,15 +303,15 @@
     const hasNonFixations = data.stylingAndLegend?.category && data.stylingAndLegend.category.length > 0
 
     const showingEvents = hasEvents && !settings.hideEvents
-    const showingNonFixations = hasNonFixations && !settings.hideNonFixations
 
     const extraSteps: string[] = []
-    if (showingEvents && showingNonFixations) {
-      extraSteps.push('Hide non-fixations or events in Plot Settings > Visualisation')
-    } else if (showingEvents) {
+    if (showingEvents) {
       extraSteps.push('Hide events in Plot Settings > Visualisation')
-    } else if (showingNonFixations) {
-      extraSteps.push('Hide non-fixations in Plot Settings > Visualisation')
+    }
+    if (hasNonFixations) {
+      extraSteps.push(
+        'Pick a narrower selection in Plot Settings > Eye-movement Types'
+      )
     }
 
     return cannotFitPlaceholder('height', extraSteps)
@@ -521,6 +521,7 @@
       const pScale = gs.projScale[rowIndex]
       const pid = gs.participantIds[rowIndex]
       const overlap = new Uint16Array(Math.max(64, gs.aoiOrderMap.length))
+      const styleScratch = new Int32Array(Math.max(64, gs.aoiOrderMap.length))
       const { startIndex, endIndex } = gs.reader.getSegmentRange(gs.stimulusId, pid)
 
       const build = (styleIdx: number, hOrig: number, internalYDefault: number, orderId: number, xN: number, wN: number) => {
@@ -565,7 +566,7 @@
         if (mouseX < pxX || mouseX > pxX + pxW) continue
 
         if (categoryId !== FIXATION_CATEGORY_ID) {
-          if (gs.hideNonFixations || gs.hiddenCategoryIds.has(categoryId)) continue
+          if (gs.hiddenCategoryIds.has(categoryId)) continue
           const sIdx =
             categoryId >= 0 && categoryId < gs.categoryStyleIdxMap.length
               ? gs.categoryStyleIdxMap[categoryId]
@@ -573,15 +574,23 @@
           if (sIdx === -1) continue
           hit = build(sIdx, HNF, SAR + (HBAR - HNF) * 0.5, localId, xN, wN)
         } else {
+          // KEEP IN SYNC with renderer.ts compositeGazeBinaryAcc +
+          // drawHighlightMarkersFromBinary: resolve to VISIBLE slices, split the
+          // bar by the resolved count, fall to noAoi when none survive — so hover
+          // identity always matches the rendered bands (byte-identical when no
+          // selection is active ⇒ resolved === count).
           const count = gs.aoiGroupReader.getSegmentAoisUniqueDirect(i, gs.stimulusId, overlap)
-          if (count === 0) {
+          let resolved = 0
+          for (let idx = 0; idx < count; idx++) {
+            const sIdx = gs.aoiOrderMap[overlap[idx]]
+            if (sIdx >= 0) styleScratch[resolved++] = sIdx
+          }
+          if (resolved === 0) {
             hit = build(gs.noAoiStyleIdx, HBAR, SAR, localId, xN, wN)
           } else {
-            const h = HBAR / count
-            for (let idx = 0; idx < count; idx++) {
-              const sIdx = gs.aoiOrderMap[overlap[idx]]
-              if (sIdx < 0) continue
-              hit = build(sIdx, h, SAR + idx * h, localId, xN, wN) // topmost = last
+            const h = HBAR / resolved
+            for (let j = 0; j < resolved; j++) {
+              hit = build(styleScratch[j], h, SAR + j * h, localId, xN, wN) // topmost = last
             }
           }
         }

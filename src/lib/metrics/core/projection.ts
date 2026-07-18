@@ -12,7 +12,7 @@ import type { AoiAggregateLabels, Metric, OutputShape, WindowUnit } from './dsl'
  *   windowed × aoi-vector-leaf  → 'aoi-vector-timeseries'
  */
 
-export type AoiRef =
+type AoiRef =
   | { by: 'name'; name: string }
   | { by: 'slot'; slot: number }
 
@@ -66,7 +66,6 @@ export interface WindowedProjection {
 }
 
 export type Projection = LeafProjection | WindowedProjection
-export type ProjectionKind = LeafProjection['kind'] | 'windowed'
 
 const IDENTITY_MAP: Record<OutputShape, LeafProjection> = {
   scalar: { kind: 'identity-scalar' },

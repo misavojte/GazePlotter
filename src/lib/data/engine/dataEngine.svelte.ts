@@ -1,12 +1,23 @@
 import { BinaryBufferReader, AoiGroupReader, EventBufferReader } from '../binary'
+import {
+  mergeParticipants as applyParticipantMerge,
+  unmergeParticipants as applyParticipantUnmerge,
+} from '../merge/deriveMergedDataset'
+import {
+  mergeStimuli as applyStimulusMerge,
+  unmergeStimuli as applyStimulusUnmerge,
+} from '../merge/mergeStimuli'
 import type {
+  NameSelection,
   DataCapabilityRequirements,
   DataCapabilities,
   DataType,
   EngineMetadata,
   ExtendedInterpretedDataType,
+  MergeLogEntry,
   MetricInstance,
-  ParticipantsGroup,
+  ParticipantsSelection,
+  EntitySelection,
 } from '../types'
 
 export class DataEngine {
@@ -147,7 +158,10 @@ export class DataEngine {
     if (this.metadata) this._aoiGroupReader?.updateMap(this.metadata)
   }
 
-  updateParticipantsBatch(
+  /** Replace `[originalName, displayedName]` rows + display order for one axis
+   *  (stimuli or participants — same table shape, one implementation). */
+  updateEntityBatch(
+    table: 'stimuli' | 'participants',
     updates: { id: number; data: string[] }[],
     newOrder: number[]
   ) {
@@ -155,31 +169,37 @@ export class DataEngine {
     if (!meta) return
     for (let i = 0; i < updates.length; i++) {
       const { id, data } = updates[i]
-      if (id >= 0 && id < meta.participants.data.length)
-        meta.participants.data[id] = data
+      if (id >= 0 && id < meta[table].data.length) meta[table].data[id] = data
     }
-    meta.participants.orderVector = newOrder
-  }
-
-  updateStimuliBatch(
-    updates: { id: number; data: string[] }[],
-    newOrder: number[]
-  ) {
-    const meta = this.metadata
-    if (!meta) return
-    for (let i = 0; i < updates.length; i++) {
-      const { id, data } = updates[i]
-      if (id >= 0 && id < meta.stimuli.data.length) meta.stimuli.data[id] = data
-    }
-    meta.stimuli.orderVector = newOrder
+    meta[table].orderVector = newOrder
   }
 
   setNoAoiTreatment(treatment: { displayedName: string; color: string }) {
     if (this.metadata) this.metadata.noAoiTreatment = treatment
   }
 
-  setParticipantsGroups(groups: ParticipantsGroup[]) {
-    if (this.metadata) this.metadata.participantsGroups = groups
+  setParticipantsSelections(selections: ParticipantsSelection[]) {
+    if (this.metadata) this.metadata.participantsSelections = selections
+  }
+
+  setStimuliSelections(selections: EntitySelection[]) {
+    if (this.metadata) this.metadata.stimuliSelections = selections
+  }
+
+  setCategoriesSelections(selections: EntitySelection[]) {
+    if (this.metadata) this.metadata.categoriesSelections = selections
+  }
+
+  setEventsSelections(selections: NameSelection[]) {
+    if (this.metadata) this.metadata.eventsSelections = selections
+  }
+
+  /** Replace the named AOI SELECTIONS wholesale (see {@link NameSelection}).
+   *  Metadata-only; does NOT touch the AoiGroupReader/groupPool or its
+   *  structural version, so a selection edit never invalidates the metric
+   *  result-cache bucket (only per-selection cache keys differ). */
+  setAoiSelections(selections: NameSelection[]) {
+    if (this.metadata) this.metadata.aois.selections = selections
   }
 
   /**
@@ -346,6 +366,70 @@ export class DataEngine {
    */
   getEventBuffersJson(): number[][][][] {
     return this._eventReader.toJson()
+  }
+
+  /**
+   * Reconstruct the full serializable {@link DataType} from the reactive
+   * metadata + the non-reactive binary stores — the inverse of the strip in
+   * {@link loadDataset}. Used by the merge path and available to export.
+   */
+  toDataType(): DataType | null {
+    const meta = this.metadata
+    if (!meta || !this._binary) return null
+    return {
+      ...meta,
+      segments: this._binary,
+      eventData: {
+        ...meta.eventData,
+        events: this.getEventBuffersJson(),
+      },
+    }
+  }
+
+  /**
+   * Merge participant `memberIds` into `representativeId` (see PLANMERGE.md M3).
+   * A disjoint, reversible, wholesale rebuild off the render loop: reconstruct
+   * the dataset, fold via the pure {@link mergeParticipants}, and reload — so
+   * the segment/AOI hot paths and every consumer see an ordinary dataset. The
+   * append-only merge log records the exact inverse. Throws (before any state
+   * change) if the merge is not disjoint.
+   */
+  mergeParticipants(
+    representativeId: number,
+    memberIds: number[],
+    at: number
+  ) {
+    const data = this.toDataType()
+    if (!data) return
+    this.loadDataset(
+      applyParticipantMerge(data, representativeId, memberIds, at)
+    )
+  }
+
+  /** Exact inverse of {@link mergeParticipants} for the given log entry. */
+  unmergeParticipants(entry: MergeLogEntry) {
+    const data = this.toDataType()
+    if (!data) return
+    this.loadDataset(applyParticipantUnmerge(data, entry))
+  }
+
+  /**
+   * Merge stimulus `memberIds` into `representativeId` (see PLANMERGE.md M4).
+   * Like {@link mergeParticipants} but on the outer axis, additionally
+   * reconciling the per-stimulus AOI + event-channel dictionaries. Disjoint,
+   * reversible, wholesale rebuild; throws before any change if not disjoint.
+   */
+  mergeStimuli(representativeId: number, memberIds: number[], at: number) {
+    const data = this.toDataType()
+    if (!data) return
+    this.loadDataset(applyStimulusMerge(data, representativeId, memberIds, at))
+  }
+
+  /** Exact inverse of {@link mergeStimuli} for the given log entry. */
+  unmergeStimuli(entry: MergeLogEntry) {
+    const data = this.toDataType()
+    if (!data) return
+    this.loadDataset(applyStimulusUnmerge(data, entry))
   }
 
   get segments() {

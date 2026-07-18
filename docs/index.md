@@ -30,7 +30,7 @@ Whether you're a researcher analyzing attention patterns, a student learning abo
 ### Workspace Management
 
 - **[Workspace Operations](/docs/workspace)** - Add, duplicate, move, and resize plots with drag-and-drop functionality.
-- **[Participant Groups](/docs/workspace/participant-groups)** - Comparative analysis between different participant groups.
+- **[Participant Selections](/docs/workspace/participant-library/#participant-selections)** - Comparative analysis between named participant selections.
 - **[AOI Library](/docs/workspace/aoi-library)** - Full control over colors, names, and visual properties.
 
 ### Universal Data Compatibility

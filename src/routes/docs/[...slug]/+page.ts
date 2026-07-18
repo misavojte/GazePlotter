@@ -10,7 +10,7 @@ const REDIRECTS: Record<string, string> = {
   'basic/workspace': '/docs/workspace/workspace',
   'basic/aoi-customization': '/docs/workspace/aoi-library',
   'basic/event-customization': '/docs/workspace/event-library',
-  'basic/groups': '/docs/workspace/participant-groups',
+  'basic/groups': '/docs/workspace/participant-library',
   'basic/participants-customization': '/docs/workspace/participant-library',
   'basic/stimuli-customization': '/docs/workspace/stimuli-library',
   'basic/scarf-plot': '/docs/visualizations/scarf-plot',

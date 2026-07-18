@@ -235,6 +235,13 @@ interface FusedWideRect {
 // Reused Uint16 scratch for the fused path's per-segment AOI resolution.
 let _fusedAoiScratch = new Uint16Array(0)
 
+// Reused Int32 scratch holding a segment's AOIs resolved to VISIBLE style
+// indices — out-of-selection AOIs (aoiOrderMap[id] === -1) drop out here. The
+// composite path splits the bar by this resolved count so survivors fill it and
+// a fixation left with none falls to noAoi, matching how an excluded AOI is
+// removed from the alphabet. Grown in lockstep with _fusedAoiScratch.
+let _fusedStyleScratch = new Int32Array(0)
+
 /** Per-style RGB (premultiplied dimming applied) for O(1) colour lookup in the
  *  accumulate — resolved ONCE per render, never per segment. */
 function buildStyleRgb(
@@ -323,7 +330,6 @@ export function compositeGazeBinaryAcc(
     aoiOrderMap,
     categoryStyleIdxMap,
     noAoiStyleIdx,
-    hideNonFixations,
     hiddenCategoryIds,
   } = gs
   const segBuf = reader.segmentBufferRaw
@@ -331,6 +337,10 @@ export function compositeGazeBinaryAcc(
     _fusedAoiScratch = new Uint16Array(Math.max(64, aoiOrderMap.length))
   }
   const overlap = _fusedAoiScratch
+  if (_fusedStyleScratch.length < aoiOrderMap.length) {
+    _fusedStyleScratch = new Int32Array(Math.max(64, aoiOrderMap.length))
+  }
+  const styleScratch = _fusedStyleScratch
   const nonFixInternalY = SAR + (HBAR - HNF) * 0.5
   let anyWide = false
   let subPixelCount = 0
@@ -358,7 +368,6 @@ export function compositeGazeBinaryAcc(
       const isWide = wPx >= 1
 
       if (categoryId !== FIXATION_CATEGORY_ID) {
-        if (hideNonFixations) continue
         if (hiddenCategoryIds.has(categoryId)) continue
         const styleIdx =
           categoryId >= 0 && categoryId < categoryStyleIdxMap.length
@@ -375,8 +384,21 @@ export function compositeGazeBinaryAcc(
           accumulateRun(acc, styleRgb[styleIdx * 3], styleRgb[styleIdx * 3 + 1], styleRgb[styleIdx * 3 + 2], x0, x0 + wPx, hFrac, rowBase, pWidth)
         }
       } else {
+        // Resolve the segment's unique AOIs to VISIBLE style indices. An
+        // out-of-selection AOI maps to -1 and is dropped; the bar is split by
+        // the RESOLVED (visible) count so survivors fill it, and a fixation left
+        // with none falls to the noAoi bucket — the same removal an excluded AOI
+        // performs. Byte-identical when no selection is active (every id the
+        // reader returns is visible ⇒ resolved === count, styleScratch[j] ===
+        // original). KEEP IN SYNC with drawHighlightMarkersFromBinary +
+        // ScarfPlotFigure.findSegmentAtRowAndTime.
         const count = aoiGroupReader.getSegmentAoisUniqueDirect(i, stimulusId, overlap)
-        if (count === 0) {
+        let resolved = 0
+        for (let idx = 0; idx < count; idx++) {
+          const styleIdx = aoiOrderMap[overlap[idx]]
+          if (styleIdx >= 0) styleScratch[resolved++] = styleIdx
+        }
+        if (resolved === 0) {
           if (isWide) {
             anyWide = true
             if (wide) wide.push({ x0px: x0, wPx, pIdx: pIndex, hOrig: HBAR, internalY: SAR, styleIdx: noAoiStyleIdx })
@@ -387,13 +409,12 @@ export function compositeGazeBinaryAcc(
             accumulateRun(acc, styleRgb[noAoiStyleIdx * 3], styleRgb[noAoiStyleIdx * 3 + 1], styleRgb[noAoiStyleIdx * 3 + 2], x0, x0 + wPx, hFrac, rowBase, pWidth)
           }
         } else {
-          const h = HBAR / count
-          for (let idx = 0; idx < count; idx++) {
-            const styleIdx = aoiOrderMap[overlap[idx]]
-            if (styleIdx < 0) continue
+          const h = HBAR / resolved
+          for (let j = 0; j < resolved; j++) {
+            const styleIdx = styleScratch[j]
             if (isWide) {
               anyWide = true
-              if (wide) wide.push({ x0px: x0, wPx, pIdx: pIndex, hOrig: h, internalY: SAR + idx * h, styleIdx })
+              if (wide) wide.push({ x0px: x0, wPx, pIdx: pIndex, hOrig: h, internalY: SAR + j * h, styleIdx })
             } else {
               subPixelCount++
               let hFrac = h * scaleFactor * invBarH
@@ -818,7 +839,6 @@ function drawHighlightMarkersFromBinary(
     aoiOrderMap,
     categoryStyleIdxMap,
     noAoiStyleIdx,
-    hideNonFixations,
     hiddenCategoryIds,
   } = gs
   const segBuf = reader.segmentBufferRaw
@@ -857,7 +877,7 @@ function drawHighlightMarkersFromBinary(
         // Does this segment contribute to the highlighted style, and at what height?
         let hFrac = -1
         if (categoryId !== FIXATION_CATEGORY_ID) {
-          if (hideNonFixations || hiddenCategoryIds.has(categoryId)) continue
+          if (hiddenCategoryIds.has(categoryId)) continue
           const sIdx =
             categoryId >= 0 && categoryId < categoryStyleIdxMap.length
               ? categoryStyleIdxMap[categoryId]
@@ -865,20 +885,25 @@ function drawHighlightMarkersFromBinary(
           if (sIdx !== styleIdx) continue
           hFrac = nonFixationHeight * invBarH
         } else {
+          // KEEP IN SYNC with compositeGazeBinaryAcc +
+          // ScarfPlotFigure.findSegmentAtRowAndTime: resolve to VISIBLE style
+          // slices, split the bar by the resolved count, fall to noAoi when none
+          // survive. Byte-identical when no selection is active (resolved === count).
           const count = aoiGroupReader.getSegmentAoisUniqueDirect(i, stimulusId, overlap)
-          if (count === 0) {
+          let resolved = 0
+          let hitVisible = false
+          for (let idx = 0; idx < count; idx++) {
+            const sIdx = aoiOrderMap[overlap[idx]]
+            if (sIdx < 0) continue
+            resolved++
+            if (sIdx === styleIdx) hitVisible = true
+          }
+          if (resolved === 0) {
             if (styleIdx !== noAoiStyleIdx) continue
             hFrac = HBAR * scaleFactor * invBarH
           } else {
-            let matched = false
-            for (let idx = 0; idx < count; idx++) {
-              if (aoiOrderMap[overlap[idx]] === styleIdx) {
-                hFrac = (HBAR / count) * scaleFactor * invBarH
-                matched = true
-                break
-              }
-            }
-            if (!matched) continue
+            if (!hitVisible) continue
+            hFrac = (HBAR / resolved) * scaleFactor * invBarH
           }
         }
         if (hFrac > 1) hFrac = 1

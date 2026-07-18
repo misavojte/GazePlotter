@@ -81,7 +81,7 @@ function buildEngine() {
       data: Array.from({ length: N_PARTICIPANTS }, (_, i) => [`P${i}`, `P${i}`]),
       orderVector: [],
     },
-    participantsGroups: [],
+    participantsSelections: [],
     stimuli: { data: [['S0', 'S0'], ['S1', 'S1']], orderVector: [] },
     noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
     metricInstances: [],

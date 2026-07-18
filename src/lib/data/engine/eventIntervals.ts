@@ -2,7 +2,6 @@ import type { DataEngine } from './dataEngine.svelte'
 import { getParticipant, getStimulus } from './selectors/entitySelectors'
 import {
   pairIntervalTimes,
-  type PairingError,
   type PairingErrorKind,
   type PairingResult,
 } from '../intervalPairing'
@@ -12,9 +11,6 @@ import {
 // ingest layer can share it without importing the engine.
 export {
   pairIntervalTimes,
-  type PairingError,
-  type PairingErrorKind,
-  type PairingResult,
 }
 
 /**
@@ -183,7 +179,7 @@ export function proposePairsBySuffix(
 
 /* ── Draft preview (validation) ──────────────────────────────────── */
 
-export interface IntervalPairError {
+interface IntervalPairError {
   startChannel: string
   endChannel: string
   stimulus: string

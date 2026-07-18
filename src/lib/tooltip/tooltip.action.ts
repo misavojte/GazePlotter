@@ -1,5 +1,6 @@
 import { estimateTooltipWidth, updateTooltip } from './tooltipState.svelte'
-import { TOOLTIP_DEFAULT_OFFSET } from './const'
+import { TOOLTIP_DEFAULT_OFFSET, WIDTH_ESTIMATION } from './const'
+import { estimateTextWidth } from '$lib/shared/utils/textUtils'
 import {
   computePlacement,
   adjustForViewport,
@@ -19,15 +20,24 @@ export interface TooltipActionOptions {
 const normalizeContent = (content: TooltipActionOptions['content']) =>
   typeof content === 'string' ? [{ key: '', value: content }] : content
 
-/** Rough height estimate for the tooltip based on content row count. */
+/** Rough height estimate for the tooltip based on content row count AND
+    line wrapping — a sentence capped at the max width wraps to several
+    lines, and a top-positioned tooltip placed with a one-line estimate
+    would extend down over the very element it explains. */
 const estimateTooltipHeight = (
-  content: Array<{ key: string; value: string }>
+  content: Array<{ key: string; value: string }>,
+  width: number
 ): number => {
   // Each row ≈ lineHeight(~14px) + padding(10px vertical total across item).
-  // A single-row tooltip is ~24px; each additional row adds ~14px.
   const ROW_HEIGHT = 14
   const BASE_PADDING = 10
-  return content.length * ROW_HEIGHT + BASE_PADDING
+  const usable = Math.max(width - WIDTH_ESTIMATION.PADDING, 20)
+  let lines = 0
+  for (const item of content) {
+    const textWidth = estimateTextWidth(item.value, WIDTH_ESTIMATION.FONT_SIZE)
+    lines += Math.max(1, Math.ceil(textWidth / usable))
+  }
+  return lines * ROW_HEIGHT + BASE_PADDING
 }
 
 export const tooltipAction = (
@@ -59,7 +69,7 @@ export const tooltipAction = (
     const rect = node.getBoundingClientRect()
     const floatingSize: Dimensions = {
       width: state.width,
-      height: estimateTooltipHeight(state.content),
+      height: estimateTooltipHeight(state.content, state.width),
     }
     const preferred = computePlacement(
       rect,

@@ -13,6 +13,8 @@ export type RecurrenceMasking = 'none' | 'diagonal' | 'diagonalLower'
 export type RecurrencePlotSettings = {
   stimulusId: number
   participantId: number
+  /** Per-plot AOI SELECTION id; unset/0 = all AOIs. */
+  aoiSelectionId?: number
   recurrenceMethod: RecurrenceMethod
   radius: number
   gridSize: number

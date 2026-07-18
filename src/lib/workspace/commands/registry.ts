@@ -4,6 +4,8 @@ import type {
 } from './types'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { createChildCommand } from './utils'
+import { mergeParticipants as computeParticipantMerge } from '$lib/data/merge/deriveMergedDataset'
+import { mergeStimuli as computeStimulusMerge } from '$lib/data/merge/mergeStimuli'
 import { resolvePlotDefinition } from '$lib/plots/registry'
 import { GridState } from '$lib/workspace/grid'
 import {
@@ -12,7 +14,6 @@ import {
   updateMultipleParticipants,
   updateMultipleStimuli,
   updateNoAoiTreatment,
-  updateParticipantsGroups,
   updateEventData,
   updateEventChannels,
   updateHiddenEventChannels,
@@ -21,6 +22,8 @@ import {
   getDefaultColor,
   getDefaultEventChannelColor,
   interpretRow,
+  interpretBaseRows,
+  interpretOrdered,
 } from '$lib/data/engine'
 import type {
   GridItemMap,
@@ -99,6 +102,15 @@ export function createWorkspaceCommandRegistry(
     return meta
   }
 
+  // Find a grid item by id or throw. The throw is load-bearing on the reverse
+  // path: a missing item makes the reverse handler throw, which the bus turns
+  // into "no inverse -> no execution" (reverse-before-execute).
+  const requireItem = (id: number, message: string) => {
+    const item = gridStore.items.find(i => i.id === id)
+    if (!item) throw new Error(message)
+    return item
+  }
+
   function emitCollisionResolutionChildren(
     priorityItemIds: number | number[],
     chainId: number,
@@ -142,7 +154,7 @@ export function createWorkspaceCommandRegistry(
   }
 
   const handlers: CommandHandlers = {
-    updateAois: (command, context) => {
+    updateAois: command => {
       const { aois, stimulusId, applyTo, hiddenAois } = command
       updateMultipleAoi(engine, aois, stimulusId, applyTo)
       if (hiddenAois !== undefined) {
@@ -151,13 +163,10 @@ export function createWorkspaceCommandRegistry(
       gridStore.triggerRedraw()
     },
 
-    updateParticipants: command => {
-      updateMultipleParticipants(engine, command.participants)
-      gridStore.triggerRedraw()
-    },
-
-    updateStimuli: command => {
-      updateMultipleStimuli(engine, command.stimuli)
+    updateEntities: command => {
+      if (command.axis === 'participant')
+        updateMultipleParticipants(engine, command.items)
+      else updateMultipleStimuli(engine, command.items)
       gridStore.triggerRedraw()
     },
 
@@ -180,10 +189,77 @@ export function createWorkspaceCommandRegistry(
       gridStore.triggerRedraw()
     },
 
-    updateParticipantsGroups: command => {
-      updateParticipantsGroups(engine, command.groups)
+    updateStimuliSelections: command => {
+      engine.setStimuliSelections(command.selections)
+    },
+
+    updateCategoriesSelections: command => {
+      engine.setCategoriesSelections(command.selections)
+    },
+
+    updateEventsSelections: command => {
+      engine.setEventsSelections(command.selections)
+    },
+
+    updateParticipantsSelections: command => {
+      engine.setParticipantsSelections(command.selections)
       gridStore.triggerRedraw()
     },
+
+    updateAoiSelections: command => {
+      engine.setAoiSelections(command.selections)
+      gridStore.triggerRedraw()
+    },
+
+    mergeEntities: command => {
+      const { axis, representativeId, memberIds, at } = command
+      if (axis === 'participant')
+        engine.mergeParticipants(representativeId, memberIds, at)
+      else engine.mergeStimuli(representativeId, memberIds, at)
+      gridStore.triggerRedraw()
+    },
+
+    unmergeEntities: command => {
+      if (command.axis === 'participant')
+        engine.unmergeParticipants(command.entry)
+      else engine.unmergeStimuli(command.entry)
+      gridStore.triggerRedraw()
+    },
+
+    // Pure orchestrator: replays the modal's merge intent as ONE chain. On a
+    // normal run it emits child commands (guarded from re-running during
+    // undo/redo, when the recorded children replay directly, exactly like
+    // addGridItem's collision children). Sequence: unmerge everything active
+    // on the axis (reverse-chronological, giving a clean un-tombstoned order),
+    // commit the edited names + full order, then merge the desired groups.
+    reconcileMerges: (command, context) => {
+      if (context.isUndoRedoOperation) return
+
+      const { axis, chainId, source } = command
+      const dispatchChild = (cmd: WorkspaceCommand) =>
+        context.dispatch(createChildCommand(cmd, chainId))
+
+      // Every child is axis-tagged, so the axis is a pure passthrough here.
+      const active = (engine.metadata?.merges ?? []).filter(e => e.axis === axis)
+      for (const entry of [...active].reverse()) {
+        dispatchChild({ type: 'unmergeEntities', axis, entry, source })
+      }
+
+      dispatchChild({ type: 'updateEntities', axis, items: command.items, source })
+
+      for (const g of command.groups) {
+        dispatchChild({
+          type: 'mergeEntities',
+          axis,
+          representativeId: g.representativeId,
+          memberIds: g.memberIds,
+          at: g.at,
+          source,
+        })
+      }
+    },
+
+    noop: () => {},
 
     updateNoAoiTreatment: command => {
       updateNoAoiTreatment(engine, command.noAoiTreatment)
@@ -203,8 +279,7 @@ export function createWorkspaceCommandRegistry(
 
     updateSettings: command => {
       for (const { itemId, settings } of command.updates) {
-        const currentItem = gridStore.items.find(item => item.id === itemId)
-        if (!currentItem) throw new Error(`Grid item ${itemId} not found`)
+        requireItem(itemId, `Grid item ${itemId} not found`)
 
         gridStore.updateItem(itemId, settings)
         gridStore.updateLayout(itemId, {
@@ -218,8 +293,7 @@ export function createWorkspaceCommandRegistry(
 
     updateLayout: (command, context) => {
       for (const { itemId, layout } of command.updates) {
-        const currentItem = gridStore.items.find(item => item.id === itemId)
-        if (!currentItem) throw new Error(`Grid item ${itemId} not found`)
+        requireItem(itemId, `Grid item ${itemId} not found`)
 
         // A layout change (move OR resize) never bumps redrawTimestamp.
         // `redrawTimestamp` means "engine data changed, re-derive" — that is what
@@ -267,10 +341,10 @@ export function createWorkspaceCommandRegistry(
     },
 
     duplicateGridItem: (command, context) => {
-      const currentItem = gridStore.items.find(
-        item => item.id === command.itemId
+      const currentItem = requireItem(
+        command.itemId,
+        `Grid item ${command.itemId} not found`
       )
-      if (!currentItem) throw new Error(`Grid item ${command.itemId} not found`)
 
       const createdId = gridStore.duplicateItem(
         currentItem,
@@ -309,30 +383,17 @@ export function createWorkspaceCommandRegistry(
       )
     },
 
-    updateParticipants: (_cmd, meta) => {
+    updateEntities: (cmd, meta) => {
       const dataMeta = requireMetadata()
-      const currentParticipants = dataMeta.participants.data || []
-      const participants: BaseInterpretedDataType[] = currentParticipants.map(
-        ([originalName, displayedName]: string[], index: number) => ({
-          id: index,
-          originalName,
-          displayedName,
-        })
+      const table = cmd.axis === 'participant' ? dataMeta.participants : dataMeta.stimuli
+      return withMeta(
+        {
+          type: 'updateEntities',
+          axis: cmd.axis,
+          items: interpretBaseRows(table.data || []),
+        },
+        meta
       )
-      return withMeta({ type: 'updateParticipants', participants }, meta)
-    },
-
-    updateStimuli: (_cmd, meta) => {
-      const dataMeta = requireMetadata()
-      const currentStimuli = dataMeta.stimuli.data || []
-      const stimuli: BaseInterpretedDataType[] = currentStimuli.map(
-        ([originalName, displayedName]: string[], index: number) => ({
-          id: index,
-          originalName,
-          displayedName,
-        })
-      )
-      return withMeta({ type: 'updateStimuli', stimuli }, meta)
     },
 
     updateEventData: (cmd, meta) => {
@@ -363,15 +424,10 @@ export function createWorkspaceCommandRegistry(
     updateEventChannels: (cmd, meta) => {
       const dataMeta = requireMetadata()
       const ed = dataMeta.eventData
-      const currentDefs = ed.data[cmd.stimulusId] ?? []
-      const order = ed.orderVector?.[cmd.stimulusId] ?? []
-      const ids =
-        order.length > 0
-          ? order
-          : Array.from({ length: currentDefs.length }, (_, i) => i)
-
-      const channels: ExtendedInterpretedDataType[] = ids.map(id =>
-        interpretRow(currentDefs[id], id, getDefaultEventChannelColor)
+      const channels = interpretOrdered(
+        ed.data[cmd.stimulusId] ?? [],
+        ed.orderVector?.[cmd.stimulusId] ?? [],
+        getDefaultEventChannelColor
       )
 
       const shouldIncludeHidden = cmd.hiddenChannels !== undefined
@@ -387,14 +443,83 @@ export function createWorkspaceCommandRegistry(
       )
     },
 
-    updateParticipantsGroups: (_cmd, meta) => {
+    updateParticipantsSelections: (_cmd, meta) => {
       const dataMeta = requireMetadata()
-      const currentGroups = dataMeta.participantsGroups || []
+      const currentSelections = dataMeta.participantsSelections || []
       return withMeta(
-        { type: 'updateParticipantsGroups', groups: currentGroups },
+        { type: 'updateParticipantsSelections', selections: currentSelections },
         meta
       )
     },
+
+    updateStimuliSelections: (_cmd, meta) => {
+      const dataMeta = requireMetadata()
+      return withMeta(
+        { type: 'updateStimuliSelections', selections: dataMeta.stimuliSelections ?? [] },
+        meta
+      )
+    },
+
+    updateCategoriesSelections: (_cmd, meta) => {
+      const dataMeta = requireMetadata()
+      return withMeta(
+        { type: 'updateCategoriesSelections', selections: dataMeta.categoriesSelections ?? [] },
+        meta
+      )
+    },
+
+    updateEventsSelections: (_cmd, meta) => {
+      const dataMeta = requireMetadata()
+      return withMeta(
+        { type: 'updateEventsSelections', selections: dataMeta.eventsSelections ?? [] },
+        meta
+      )
+    },
+
+    updateAoiSelections: (_cmd, meta) => {
+      const dataMeta = requireMetadata()
+      const currentSelections = dataMeta.aois.selections ?? []
+      return withMeta(
+        { type: 'updateAoiSelections', selections: currentSelections },
+        meta
+      )
+    },
+
+    // Reverse-before-execute: the merge log entry is a pure function of the
+    // current (pre-merge) dataset, so we precompute it here — dry-running the
+    // fold for the command's axis — and return the un-merge that inverts it. If
+    // the merge is not disjoint the fold throws, which the handler surfaces as
+    // "no inverse -> no execution", refusing the merge before any mutation.
+    // (The axis picks the fold; both share a signature, so `mergeCommand.test.ts`
+    // pins BOTH axes to guard against a mis-routed dry-run.)
+    mergeEntities: (cmd, meta) => {
+      const data = engine.toDataType()
+      if (!data) return null
+      const fold =
+        cmd.axis === 'participant' ? computeParticipantMerge : computeStimulusMerge
+      const merged = fold(data, cmd.representativeId, cmd.memberIds, cmd.at)
+      const entry = merged.merges?.[merged.merges.length - 1]
+      if (!entry) return null
+      return withMeta({ type: 'unmergeEntities', axis: cmd.axis, entry }, meta)
+    },
+
+    unmergeEntities: (cmd, meta) =>
+      withMeta(
+        {
+          type: 'mergeEntities',
+          axis: cmd.axis,
+          representativeId: cmd.entry.representativeId,
+          memberIds: cmd.entry.members.map(m => m.id),
+          at: cmd.entry.at,
+        },
+        meta
+      ),
+
+    // The orchestrator itself mutates nothing; its child commands carry the
+    // real reverses. A noop keeps the bus's reverse-before-execute contract.
+    reconcileMerges: (_cmd, meta) => withMeta({ type: 'noop' }, meta),
+
+    noop: (_cmd, meta) => withMeta({ type: 'noop' }, meta),
 
     updateMetricInstances: (_cmd, meta) => {
       const dataMeta = requireMetadata()
@@ -419,15 +544,10 @@ export function createWorkspaceCommandRegistry(
 
     updateCategories: (cmd, meta) => {
       const dataMeta = requireMetadata()
-      const currentDefs = dataMeta.categories.data || []
-      const order = dataMeta.categories.orderVector || []
-      const ids =
-        order.length > 0
-          ? order
-          : Array.from({ length: currentDefs.length }, (_, i) => i)
-
-      const categories: ExtendedInterpretedDataType[] = ids.map(id =>
-        interpretRow(currentDefs[id], id, getDefaultCategoryColor)
+      const categories = interpretOrdered(
+        dataMeta.categories.data || [],
+        dataMeta.categories.orderVector || [],
+        getDefaultCategoryColor
       )
 
       const shouldIncludeHidden = cmd.hiddenCategories !== undefined
@@ -443,14 +563,11 @@ export function createWorkspaceCommandRegistry(
     },
 
     updateSettings: (cmd, meta) => {
-      const currentItems = gridStore.items
       const reverseUpdates = cmd.updates.map(({ itemId, settings }) => {
-        const currentItem = currentItems.find(item => item.id === itemId)
-        if (!currentItem) {
-          throw new Error(
-            `Cannot reverse updateSettings: item ${itemId} not found`
-          )
-        }
+        const currentItem = requireItem(
+          itemId,
+          `Cannot reverse updateSettings: item ${itemId} not found`
+        )
         const reverseSettings: Partial<AllPlotSettings> = {}
         Object.keys(settings).forEach(key => {
           const typedKey = key as keyof typeof currentItem.settings
@@ -470,14 +587,11 @@ export function createWorkspaceCommandRegistry(
     },
 
     updateLayout: (cmd, meta) => {
-      const currentItems = gridStore.items
       const reverseUpdates = cmd.updates.map(({ itemId, layout }) => {
-        const currentItem = currentItems.find(item => item.id === itemId)
-        if (!currentItem) {
-          throw new Error(
-            `Cannot reverse updateLayout: item ${itemId} not found`
-          )
-        }
+        const currentItem = requireItem(
+          itemId,
+          `Cannot reverse updateLayout: item ${itemId} not found`
+        )
         const reverseLayout: GridItemLayoutUpdate = {}
         Object.keys(layout).forEach(key => {
           const typedKey = key as keyof GridItemLayoutUpdate
@@ -501,13 +615,10 @@ export function createWorkspaceCommandRegistry(
       withMeta({ type: 'removeGridItem', itemId: cmd.itemId }, meta),
 
     removeGridItem: (cmd, meta) => {
-      const currentItems = gridStore.items
-      const removedItem = currentItems.find(item => item.id === cmd.itemId)
-      if (!removedItem) {
-        throw new Error(
-          `Cannot reverse removeGridItem: item ${cmd.itemId} not found in current state`
-        )
-      }
+      const removedItem = requireItem(
+        cmd.itemId,
+        `Cannot reverse removeGridItem: item ${cmd.itemId} not found in current state`
+      )
       const { id, type, redrawTimestamp, ...options } = removedItem
       return withMeta(
         {

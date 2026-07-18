@@ -1,5 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import { getParticipantsIds } from '$lib/data/engine'
+import { getParticipantsIds, getParticipant } from '$lib/data/engine'
 import {
   getMetric,
   instanceMatchesContract,
@@ -47,10 +47,9 @@ export function getMetricCorrelationData(
   if (metrics.length < 2) return emptyResult(settings, true)
   if (participantIds.length === 0) return emptyResult(settings)
 
-  const participantLabels = participantIds.map(id => {
-    const pData = meta.participants.data[id]
-    return pData?.[1] ?? pData?.[0] ?? `P${id}`
-  })
+  const participantLabels = participantIds.map(
+    id => getParticipant(engine, id).displayedName
+  )
 
   const vectors: MetricVector[] = metrics.map(m => ({
     metricId: m.id,
@@ -65,6 +64,7 @@ export function getMetricCorrelationData(
       participantId: pid,
       timeStart: settings.timelineStart ?? 0,
       timeEnd: settings.timelineEnd ?? 0,
+      aoiSelectionId: settings.aoiSelectionId,
     }
     const results = queryBatch(instances, pScope)
     for (let mIdx = 0; mIdx < metrics.length; mIdx++) {

@@ -1,18 +1,28 @@
-import type { ExtendedInterpretedDataType } from '$lib/data/types'
-
 export type GroupedByDisplayedName<T> = T & { memberIds: number[] }
 
 /**
- * Groups interpreted entities (AOIs, categories, event channels) by their
- * trimmed displayed name, preserving first-occurrence order. Each group keeps
- * the first member's identity/appearance and collects every merged member's id
- * in `memberIds`. Entities with an empty displayed name stay standalone.
- *
- * This is the single definition of the "merge by displayed name" rule that the
- * scarf plot and the data exporters both rely on, so renamed/grouped output is
- * consistent across visualization and export.
+ * The minimal shape `groupByDisplayedName` needs: a stable numeric id and the
+ * displayed name it groups by. Every interpreted entity satisfies it —
+ * `ExtendedInterpretedDataType` (AOIs, categories, event channels; carries
+ * `color`) AND `BaseInterpretedDataType` (stimuli, participants; no `color`).
+ * The rule only reads these two fields, so it is deliberately structural rather
+ * than bound to one branch of the type hierarchy.
  */
-export function groupByDisplayedName<T extends ExtendedInterpretedDataType>(
+export type GroupableByDisplayedName = { id: number; displayedName: string }
+
+/**
+ * Groups interpreted entities by their trimmed displayed name, preserving
+ * first-occurrence order. Each group keeps the first member's identity/
+ * appearance and collects every merged member's id in `memberIds`. Entities
+ * with an empty displayed name stay standalone.
+ *
+ * This is the single definition of the "merge by displayed name" rule. It
+ * backs the scarf plot and the data exporters (AOIs / categories / event
+ * channels), and — since the bound is structural — the stimulus/participant
+ * merge feature reuses the exact same rule on `BaseInterpretedDataType`, so
+ * "same displayed name = same entity" stays consistent across every axis.
+ */
+export function groupByDisplayedName<T extends GroupableByDisplayedName>(
   items: T[]
 ): GroupedByDisplayedName<T>[] {
   if (items.length === 0) return []

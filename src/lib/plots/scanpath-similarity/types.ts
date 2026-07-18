@@ -5,6 +5,8 @@ export type ScanpathSimilarityView = 'matrix' | 'scangraph'
 export type ScanpathSimilaritySettings = {
   stimulusId: number
   groupId: number
+  /** Per-plot AOI SELECTION id; unset/0 = all AOIs. */
+  aoiSelectionId?: number
   /**
    * Slug(s) of the participant-pair-matrix MetricInstance(s) this plot renders.
    * Stored as an array for uniformity with multi-select plots; the contract

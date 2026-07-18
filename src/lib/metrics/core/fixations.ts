@@ -45,9 +45,9 @@ export function extractFixationSequence(
   engine: DataEngine,
   stimulusId: number,
   participantId: number,
-  options?: { includeNoAoi?: boolean },
+  options?: { includeNoAoi?: boolean; aoiSelectionId?: number },
 ): FixationSequence {
-  const slots = buildAoiSlots(engine, stimulusId)
+  const slots = buildAoiSlots(engine, stimulusId, options?.aoiSelectionId)
   if (!slots) return { seq: [], timestamps: [], endTimestamps: [] }
   const { reader, hiddenAoisSet, aoiLookup, noAoiSlot } = slots
   const { startIndex, endIndex } = reader.getSegmentRange(stimulusId, participantId)

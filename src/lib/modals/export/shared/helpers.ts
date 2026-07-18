@@ -22,8 +22,6 @@ type ExportButtonConfig = {
   isExporting: boolean
   onCancel: () => void
   onExport: () => void
-  onOpenFormats?: () => void
-  openFormatsLabel?: string
 }
 
 const EXPORT_UI_DELAY_MS = 100

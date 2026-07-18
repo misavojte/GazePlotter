@@ -24,10 +24,14 @@ export interface ResolvedAoiSlots {
 
 /**
  * Memoized on the frozen array `getAois` returns: that reference is stable
- * per (reader, stimulusId, appearanceVersion) and changes on every AOI edit,
- * dataset reload, or visibility change — exactly the inputs slots derive
- * from — so the array identity IS the invalidation token. Explicit `aois`
- * overrides memoize on the caller's array the same way.
+ * per (reader, stimulusId, appearanceVersion, aoiSelectionId) and changes on
+ * every AOI edit, dataset reload, or visibility change — exactly the inputs
+ * slots derive from — so the array identity IS the invalidation token. A
+ * per-plot `aoiSelectionId` yields a distinct cached array (see getAois), so
+ * plots with different selections get distinct slots automatically while plots
+ * on the same visible set share one entry (no rebuild). Out-of-selection raw
+ * AOIs miss `aoiLookup` below and land at rawToSlot -1 → no-AOI in the hot
+ * scan — the compute-honest reduced alphabet, with zero hot-scan change.
  */
 const _slotsCache = new WeakMap<
   readonly ExtendedInterpretedDataType[],
@@ -37,11 +41,11 @@ const _slotsCache = new WeakMap<
 export function buildAoiSlots(
   engine: DataEngine,
   stimulusId: number,
-  aois?: ExtendedInterpretedDataType[]
+  aoiSelectionId?: number
 ): ResolvedAoiSlots | null {
   const reader = engine.getReader()
   if (!reader) return null
-  const aoiList = aois ?? getAois(engine, stimulusId)
+  const aoiList = getAois(engine, stimulusId, aoiSelectionId)
   const hit = _slotsCache.get(aoiList)
   if (hit && hit.reader === reader) return hit
 

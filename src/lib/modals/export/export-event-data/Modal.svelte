@@ -101,7 +101,7 @@
     <Step
       n={2}
       title="Choose participants"
-      description="Group chips toggle a whole participant group at once; individual checkmarks refine the result."
+      description="Selection chips toggle a whole participant selection at once; individual checkmarks refine the result."
       summary={participantsSummary}
       done={stepParticipantsDone}
     >

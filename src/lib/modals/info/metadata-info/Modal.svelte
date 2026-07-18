@@ -89,6 +89,7 @@
           hasValidData: engine.hasValidData,
           recentErrors,
           dataExclusions,
+          merges: engine.metadata?.merges ?? [],
           generatedAt: exportDate.toISOString(),
         },
         {

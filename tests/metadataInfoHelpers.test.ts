@@ -246,6 +246,22 @@ describe('metadata-info helpers', () => {
             issues: [{ kind: 'unclosed-start', timeSeconds: 365.74 }],
           },
         ],
+        merges: [
+          {
+            op: 'merge',
+            axis: 'stimulus',
+            representativeId: 0,
+            members: [
+              {
+                id: 1,
+                displayedName: 'Stimulus A (copy)',
+                orderIndex: 1,
+                contributedCounterparts: [2, 3],
+              },
+            ],
+            at: Date.parse('2026-03-14T11:00:00.000Z'),
+          },
+        ],
         generatedAt: '2026-03-14T12:00:00.000Z',
       },
       csvFormatters
@@ -271,6 +287,8 @@ describe('metadata-info helpers', () => {
     expect(csv).toContain(
       '"01-c","Recording 16 Y1","started but never ended","365.74"'
     )
+    expect(csv).toContain('Section,Merges (reversible identity corrections)')
+    expect(csv).toContain('"stimulus","0","Stimulus A (copy)","2026-03-14T11:00:00.000Z"')
     expect(csv).toContain('Section,Recent Errors')
     expect(csv).toContain('"recoverable"')
     expect(csv).toContain('Memory utilization,25.0% of limit')

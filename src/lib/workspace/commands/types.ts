@@ -1,7 +1,10 @@
 import type {
   ExtendedInterpretedDataType,
   BaseInterpretedDataType,
-  ParticipantsGroup,
+  ParticipantsSelection,
+  EntitySelection,
+  NameSelection,
+  MergeLogEntry,
 } from '$lib/data/types'
 import type { MetricInstance } from '$lib/metrics'
 import type {
@@ -36,14 +39,13 @@ export interface UpdateAoisCommand extends BaseCommandInterface {
   hiddenAois?: number[]
 }
 
-export interface UpdateParticipantsCommand extends BaseCommandInterface {
-  type: 'updateParticipants'
-  participants: BaseInterpretedDataType[]
-}
-
-export interface UpdateStimuliCommand extends BaseCommandInterface {
-  type: 'updateStimuli'
-  stimuli: BaseInterpretedDataType[]
+// Rename + reorder one entity axis. Stimuli and participants are the same
+// `[originalName, displayedName]`-row table, so ONE axis-tagged command serves
+// both (the axis is also how the merge log is keyed — see MergeLogEntry).
+export interface UpdateEntitiesCommand extends BaseCommandInterface {
+  type: 'updateEntities'
+  axis: 'participant' | 'stimulus'
+  items: BaseInterpretedDataType[]
 }
 
 export interface UpdateEventDataCommand extends BaseCommandInterface {
@@ -67,9 +69,24 @@ export interface UpdateEventChannelsCommand extends BaseCommandInterface {
   hiddenChannels?: number[]
 }
 
-export interface UpdateParticipantsGroupsCommand extends BaseCommandInterface {
-  type: 'updateParticipantsGroups'
-  groups: ParticipantsGroup[]
+export interface UpdateParticipantsSelectionsCommand extends BaseCommandInterface {
+  type: 'updateParticipantsSelections'
+  selections: ParticipantsSelection[]
+}
+
+export interface UpdateStimuliSelectionsCommand extends BaseCommandInterface {
+  type: 'updateStimuliSelections'
+  selections: EntitySelection[]
+}
+
+export interface UpdateCategoriesSelectionsCommand extends BaseCommandInterface {
+  type: 'updateCategoriesSelections'
+  selections: EntitySelection[]
+}
+
+export interface UpdateEventsSelectionsCommand extends BaseCommandInterface {
+  type: 'updateEventsSelections'
+  selections: NameSelection[]
 }
 
 export interface UpdateNoAoiTreatmentCommand extends BaseCommandInterface {
@@ -77,10 +94,69 @@ export interface UpdateNoAoiTreatmentCommand extends BaseCommandInterface {
   noAoiTreatment: { displayedName: string; color: string }
 }
 
+// Merge commands (see PLANMERGE.md M3). A merge is a lossless, disjoint fold;
+// the pair is symmetric so undo/redo just swap them. The reverse of a merge is
+// an un-merge carrying the deterministically-precomputed log entry (the entry
+// is a pure function of the pre-merge state, so it can be captured before the
+// forward runs, satisfying the bus's reverse-before-execute contract).
+// One axis-tagged pair for both axes (`axis` selects the participant vs stimulus
+// fold — stimulus additionally reconciles the per-stimulus AOI/channel
+// dictionaries, entirely below this command layer).
+export interface MergeEntitiesCommand extends BaseCommandInterface {
+  type: 'mergeEntities'
+  axis: 'participant' | 'stimulus'
+  representativeId: number
+  memberIds: number[]
+  /** Timestamp stamped into the log entry; carried so forward + reverse agree. */
+  at: number
+}
+
+export interface UnmergeEntitiesCommand extends BaseCommandInterface {
+  type: 'unmergeEntities'
+  axis: 'participant' | 'stimulus'
+  entry: MergeLogEntry
+}
+
+// Atomic merge reconciliation for the stimulus/participant modal (PLANMERGE.md
+// M2 UX). One Apply, one undo step. The modal edits the FULL entity list
+// (visible entities + the members currently merged into them) and derives the
+// desired merge groups from the displayed-name grouping. This command replays
+// that intent as ONE chain: unmerge everything active on the axis (restoring a
+// clean, un-tombstoned order), commit the edited names + order, then merge the
+// desired groups. Renaming a member apart drops it from `groups`, so it stays
+// un-merged; renaming two together adds a group, so they merge. Because all
+// work happens in child commands, the root's own reverse is a `noop` — the
+// children's recorded reverses restore the pre-Apply state on undo.
+export interface ReconcileMergesCommand extends BaseCommandInterface {
+  type: 'reconcileMerges'
+  axis: 'stimulus' | 'participant'
+  /** Full entity list (visible + currently-merged members) with edited names/order. */
+  items: BaseInterpretedDataType[]
+  /** Desired merge groups after this Apply; `at` reuses an unchanged group's
+      original timestamp (provenance) and is fresh for a newly-formed merge. */
+  groups: { representativeId: number; memberIds: number[]; at: number }[]
+}
+
+// A command that does nothing. Used as the reverse of a pure orchestrator
+// (reconcileMerges) whose every effect lives in child commands: the bus
+// requires a non-null reverse, and the children's own reverses do the undo.
+export interface NoopCommand extends BaseCommandInterface {
+  type: 'noop'
+}
+
 export interface UpdateCategoriesCommand extends BaseCommandInterface {
   type: 'updateCategories'
   categories: ExtendedInterpretedDataType[]
   hiddenCategories?: number[]
+}
+
+// Named AOI SELECTIONS (see NameSelection / PLANAOISELECTION.md). Carries the
+// FULL selections array — create/rename/delete/edit are one operation at
+// different deltas, so one handler, one reverse (snapshot of the previous
+// array), one undo step. Metadata-only; does not touch groupPool/version.
+export interface UpdateAoiSelectionsCommand extends BaseCommandInterface {
+  type: 'updateAoiSelections'
+  selections: NameSelection[]
 }
 
 // Metric library command. Carries the FULL instances array — rename, create,
@@ -141,13 +217,20 @@ export interface SetLayoutStateCommand extends BaseCommandInterface {
 
 export type WorkspaceCommand =
   | UpdateAoisCommand
-  | UpdateParticipantsCommand
-  | UpdateStimuliCommand
+  | UpdateEntitiesCommand
   | UpdateEventDataCommand
   | UpdateEventChannelsCommand
-  | UpdateParticipantsGroupsCommand
+  | UpdateParticipantsSelectionsCommand
+  | UpdateStimuliSelectionsCommand
+  | UpdateCategoriesSelectionsCommand
+  | UpdateEventsSelectionsCommand
   | UpdateNoAoiTreatmentCommand
+  | MergeEntitiesCommand
+  | UnmergeEntitiesCommand
+  | ReconcileMergesCommand
+  | NoopCommand
   | UpdateCategoriesCommand
+  | UpdateAoiSelectionsCommand
   | UpdateMetricInstancesCommand
   | UpdateSettingsCommand // includes position and size updates
   | UpdateLayoutCommand

@@ -6,19 +6,27 @@ import type {
   SectionFieldCtx,
 } from '$lib/plots/definePlot'
 import type { ModalDefinition } from '$lib/modals/defineModal'
-import { getStimuliOptions, getParticipantOptions, getParticipantsGroupOptions } from '$lib/plots/shared'
+import { getStimuliOptions, getParticipantOptions, getParticipantsSelectionOptions } from '$lib/plots/shared'
+import {
+  getAoiSelections,
+  getCategoriesSelections,
+  getEventsSelections,
+  getStimuliSelections,
+} from '$lib/data/engine'
 import { resolvePlotDefinition } from '$lib/plots/registry'
 import { multiSelectMetricHandlers, singleSelectMetricHandlers } from '$lib/plots/shared/metricInstanceHandlers'
 import {
   stimulusModificationModal,
   participantModificationModal,
-  participantsGroupsModal,
+  metricLibraryModal,
   aoiModificationModal,
   eventChannelModificationModal,
   categoryModificationModal,
-  metricLibraryModal,
 } from '$lib/modals/definitions'
 import TimelineRangeSection from '../TimelineRangeSection.svelte'
+import EntitySelectionSection, {
+  type EntitySectionConfig,
+} from '../EntitySelectionSection.svelte'
 
 export type SharedPaneSection = PaneSection | SchemaPaneSectionEntry
 
@@ -33,6 +41,22 @@ const modalAction = (
     void ctx.modalState.open(modal, { source: ctx.source, ...extra?.(ctx) })
   },
 })
+
+/**
+ * Bind one entity axis's config onto the generic `EntitySelectionSection`:
+ * plain partial application of the component function — `config` fixed here,
+ * `item` forwarded through a getter (never spread) so the pane's live prop
+ * stays reactive. Yields a `PaneSection` without any cast.
+ */
+const entitySection =
+  (config: EntitySectionConfig): PaneSection =>
+  (internals, props) =>
+    EntitySelectionSection(internals, {
+      get item() {
+        return props.item
+      },
+      config,
+    })
 
 /**
  * Every shared pane section a definition may reference by bare key — the ONLY
@@ -52,7 +76,7 @@ export const SHARED_SECTIONS: Record<string, SharedPaneSection> = {
         key: 'stimulusId',
         valueKind: 'number',
         options: ctx => getStimuliOptions(ctx.engine),
-        actions: [modalAction('Edit stimulus library', stimulusModificationModal)],
+        actions: [modalAction('Edit stimuli & selections', stimulusModificationModal)],
       },
     ],
   },
@@ -65,7 +89,7 @@ export const SHARED_SECTIONS: Record<string, SharedPaneSection> = {
         key: 'participantId',
         valueKind: 'number',
         options: ctx => getParticipantOptions(ctx.engine),
-        actions: [modalAction('Edit participant library', participantModificationModal)],
+        actions: [modalAction('Edit participants & selections', participantModificationModal)],
       },
     ],
   },
@@ -77,62 +101,56 @@ export const SHARED_SECTIONS: Record<string, SharedPaneSection> = {
         kind: 'enum',
         key: 'groupId',
         valueKind: 'number',
+        label: 'Participant selection',
         // Group options depend on a stimulus, but group ids are
         // stimulus-independent, so the representative's stimulus is safe even
         // across mixed stimuli.
         options: ctx =>
-          getParticipantsGroupOptions(ctx.engine, true, (ctx.settings.stimulusId as number) ?? 0),
+          getParticipantsSelectionOptions(ctx.engine, true, (ctx.settings.stimulusId as number) ?? 0),
         actions: [
-          modalAction('Edit groups', participantsGroupsModal),
-          modalAction('Edit participant library', participantModificationModal),
+          modalAction('Edit participants & selections', participantModificationModal),
         ],
       },
     ],
   },
-  // AOIs / events / categories are engine data (not per-plot settings): the
-  // sections are informational, and the modal edits globally via the
-  // representative's stimulus where one is needed.
-  aoi: {
-    key: 'aoi',
+  // ONE section shape per entity axis: the per-plot SELECTION picker + the
+  // single edit link into that entity's modal (names, colors, merges,
+  // selections — one surface). All four are `EntitySelectionSection` with
+  // that axis's config bound.
+  aoi: entitySection({
     title: 'Areas of Interest',
-    fields: [
-      {
-        kind: 'info',
-        description: 'Areas of Interest (AOIs) map fixations to specific target regions on the stimulus. Editing the library updates display names, colors, and active visibility globally across all plots.',
-        actions: [
-          modalAction('Configure AOI Library', aoiModificationModal, ctx => ({
-            selectedStimulus: String(ctx.settings.stimulusId),
-          })),
-        ],
-      },
-    ],
-  },
-  event: {
-    key: 'event',
+    selectLabel: 'AOI selection',
+    settingsKey: 'aoiSelectionId',
+    getSelections: getAoiSelections,
+    modal: aoiModificationModal,
+    editLabel: 'Edit AOIs & selections',
+    passSelectedStimulus: true,
+  }),
+  stimuli: entitySection({
+    title: 'Stimuli',
+    selectLabel: 'Stimulus selection',
+    settingsKey: 'stimulusSelectionId',
+    getSelections: getStimuliSelections,
+    modal: stimulusModificationModal,
+    editLabel: 'Edit stimuli & selections',
+  }),
+  event: entitySection({
     title: 'Events',
-    fields: [
-      {
-        kind: 'info',
-        description: 'Configure events mapped to the stimulus. Editing the library updates display names, colors, and active visibility globally.',
-        actions: [
-          modalAction('Configure Event Library', eventChannelModificationModal, ctx => ({
-            selectedStimulus: String(ctx.settings.stimulusId),
-          })),
-        ],
-      },
-    ],
-  },
-  eyeMovement: {
-    key: 'eyeMovement',
-    title: 'Eye-movement Type',
-    fields: [
-      {
-        kind: 'info',
-        description: 'Configure eye-movement classification categories (e.g. Saccades, Blinks). Editing the library updates display names, colors, and active visibility globally.',
-        actions: [modalAction('Configure Category Library', categoryModificationModal)],
-      },
-    ],
-  },
+    selectLabel: 'Event selection',
+    settingsKey: 'eventSelectionId',
+    getSelections: getEventsSelections,
+    modal: eventChannelModificationModal,
+    editLabel: 'Edit events & selections',
+    passSelectedStimulus: true,
+  }),
+  eyeMovement: entitySection({
+    title: 'Eye-movement Types',
+    selectLabel: 'Eye-movement type selection',
+    settingsKey: 'categorySelectionId',
+    getSelections: getCategoriesSelections,
+    modal: categoryModificationModal,
+    editLabel: 'Edit eye-movement types & selections',
+  }),
   metric: {
     key: 'metric',
     title: 'Metric',

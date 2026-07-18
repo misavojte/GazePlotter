@@ -15,7 +15,8 @@ export const TOOLTIP_DEFAULT_OFFSET = 10
 
 /** Constants for width estimation */
 export const WIDTH_ESTIMATION = {
-  MAX_WIDTH: 125,
+  /** Wide enough for a short explanatory sentence on ~2 lines. */
+  MAX_WIDTH: 220,
   FONT_SIZE: 11,
   PADDING: 14,
 }

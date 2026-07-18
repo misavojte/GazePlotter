@@ -7,6 +7,8 @@ export type CorrelationMethod = 'pearson' | 'spearman'
 export type MetricCorrelationSettings = {
   stimulusId: number
   groupId: number
+  /** Per-plot AOI SELECTION id; unset/0 = all AOIs. */
+  aoiSelectionId?: number
   view: MetricCorrelationView
   correlationMethod: CorrelationMethod
   /**

@@ -18,7 +18,7 @@ function createData(): DataType {
     capabilities: { segmented: true, spatial: false, event: false },
     stimuli: { data: [['Stimulus A', 'Stimulus A']], orderVector: [0] },
     participants: { data: [['Participant A', 'Participant A']], orderVector: [0] },
-    participantsGroups: [],
+    participantsSelections: [],
     metricInstances: createDefaultMetricInstances(),
     categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [0] },
     noAoiTreatment: { displayedName: 'No AOI', color: '#cbd5e1' },

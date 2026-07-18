@@ -602,7 +602,10 @@ export class SegmentWriter {
         data: participantNames.map(name => [name]),
         orderVector: participantsOrderVector,
       },
-      participantsGroups: [],
+      participantsSelections: [],
+      stimuliSelections: [],
+      categoriesSelections: [],
+      eventsSelections: [],
       // Deliberately empty: starter seeding happens on the MAIN thread
       // (IngestService.handleDone) so the worker never bundles the metric
       // registry. Fresh datasets are the only thing this writer produces, so

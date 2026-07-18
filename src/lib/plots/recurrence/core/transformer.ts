@@ -27,5 +27,6 @@ export function getRecurrenceData(
     settings.minLineLength,
     settings.timelineStart ?? 0,
     settings.timelineEnd ?? 0,
+    settings.aoiSelectionId,
   )
 }

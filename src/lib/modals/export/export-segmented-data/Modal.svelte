@@ -20,6 +20,7 @@
     exportTypeNamingSummary,
     waitForExportUi,
     listSummary,
+    toggleSetValue,
   } from '../shared/helpers'
   import ExportShell from '../shared/ExportShell.svelte'
   import ExportProgressBar from '../shared/ExportProgressBar.svelte'
@@ -79,14 +80,7 @@
   )
 
   function handleCategoryChange(key: string, checked: boolean) {
-    const id = parseInt(key, 10)
-    const next = new Set(selectedCategoryIds)
-    if (checked) {
-      next.add(id)
-    } else {
-      next.delete(id)
-    }
-    selectedCategoryIds = next
+    selectedCategoryIds = toggleSetValue(selectedCategoryIds, parseInt(key, 10), checked)
   }
 
   const handleExport = async () => {
@@ -145,7 +139,7 @@
     <Step
       n={2}
       title="Choose participants"
-      description="Group chips toggle a whole participant group at once; individual checkmarks refine the result."
+      description="Selection chips toggle a whole participant selection at once; individual checkmarks refine the result."
       summary={participantsSummary}
       done={stepParticipantsDone}
     >

@@ -11,6 +11,12 @@ import type { PlotItemContract } from '$lib/plots/definePlot'
 export type ScarfPlotSettings = {
   stimulusId: number
   groupId: number
+  /** Per-plot AOI SELECTION id; unset/0 = all AOIs. */
+  aoiSelectionId?: number
+  /** Per-plot eye-movement-type SELECTION id; unset/0 = all types. */
+  categorySelectionId?: number
+  /** Per-plot event SELECTION id; unset/0 = all event channels. */
+  eventSelectionId?: number
   timeline: 'absolute' | 'relative' | 'ordinal'
   absoluteStimuliLimits: [number, number][]
   ordinalStimuliLimits: [number, number][]
@@ -19,7 +25,6 @@ export type ScarfPlotSettings = {
   timelineEnd?: number
   ordinalStart?: number
   ordinalEnd?: number
-  hideNonFixations?: boolean
   /** Hide the event overlay (strips below the gaze baseline). Default: shown. */
   hideEvents?: boolean
 }
@@ -161,7 +166,8 @@ export interface ScarfGazeSource {
   categoryStyleIdxMap: Int16Array
   /** Style index of the "no AOI" fixation bucket (= number of visible AOIs). */
   noAoiStyleIdx: number
-  hideNonFixations: boolean
+  /** Categories the paint loop skips: globally hidden (legacy workspaces) plus
+   *  everything narrowed away by the plot's eye-movement-type SELECTION. */
   hiddenCategoryIds: Set<number>
 }
 

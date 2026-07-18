@@ -12,7 +12,7 @@
 
   /**
    * The participant picker every export modal shares: individual checkmarks,
-   * group chips as one-click presets, and (via CheckboxListField) search with
+   * selection chips as one-click presets, and (via CheckboxListField) search with
    * found-scoped bulk actions on long lists.
    */
   interface Props {

@@ -11,6 +11,7 @@ import {
   getEventBuffer,
   getAllCategories,
   getHiddenCategories,
+  applyCategorySelection,
 } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { groupByDisplayedName } from '$lib/data/engine/utils/grouping'
@@ -22,11 +23,7 @@ import {
   createAdaptiveTimeline,
   type AdaptiveTimeline,
 } from '$lib/plots/shared'
-import {
-  OVERLAY_EVENT_STRIDE,
-  SCARF_IDENTIFIERS,
-  SCARF_LAYOUT,
-} from '../const'
+import { OVERLAY_EVENT_STRIDE, SCARF_IDENTIFIERS } from '../const'
 import type {
   ScarfData,
   ScarfGazeSource,
@@ -289,7 +286,6 @@ export function groupEventChannelsByDisplayedName(
  */
 function createScarfLegendData(
   styling: ScarfStyling,
-  hideNonFixations = false,
   showEvents = false
 ): ScarfLegendData {
   const groups: ScarfLegendGroup[] = []
@@ -309,9 +305,7 @@ function createScarfLegendData(
   }
 
   addGroup('Fixations', styling.aoi, 'fixation')
-  if (!hideNonFixations) {
-    addGroup('Non-fixations', styling.category, 'nonFixation')
-  }
+  addGroup('Non-fixations', styling.category, 'nonFixation')
 
   // Overlaid events render as solid colour strips, so the legend swatch is a
   // rectangle keyed by event type.
@@ -399,7 +393,7 @@ export function transformDataToScarfPlot(
     settings.timeline !== 'ordinal' &&
     !(settings.hideEvents ?? false)
 
-  const aoiData = getAois(engine, stimulusId)
+  const aoiData = getAois(engine, stimulusId, settings.aoiSelectionId)
   const timeline = createScarfPlotAxis(
     engine,
     participantIds,
@@ -410,20 +404,27 @@ export function transformDataToScarfPlot(
   const invVisibleRange = 1 / (maxValue - minValue || 1)
 
   const visibleEventChannels = hasEventsForStimulus(engine, stimulusId)
-    ? getVisibleEventChannels(engine, stimulusId)
+    ? getVisibleEventChannels(engine, stimulusId, settings.eventSelectionId)
     : []
   const groupedEventChannels =
     groupEventChannelsByDisplayedName(visibleEventChannels)
   const showVisibilityMarkers =
     showEventOverlay && groupedEventChannels.length > 0
   const categoryData = getAllCategories(engine)
-  const hiddenCategories = getHiddenCategories(engine)
-  const hiddenCategoryIds = new Set(hiddenCategories)
+  const hiddenCategoryIds = new Set(getHiddenCategories(engine))
   // Group the non-fixation categories ONCE — shared by the styling below and the
   // category→style-index map further down (was grouped twice + filtered twice).
-  const groupedCategories = groupCategoriesByDisplayedName(
-    categoryData.filter(c => c.id !== FIXATION_CATEGORY_ID)
+  // The per-plot eye-movement-type SELECTION narrows via the engine's single
+  // policy definition; narrowed-away members join hiddenCategoryIds so the
+  // paint loop skips their segments exactly like hidden categories.
+  const { kept: groupedCategories, narrowedAwayIds } = applyCategorySelection(
+    engine,
+    groupCategoriesByDisplayedName(
+      categoryData.filter(c => c.id !== FIXATION_CATEGORY_ID)
+    ),
+    settings.categorySelectionId
   )
+  for (const id of narrowedAwayIds) hiddenCategoryIds.add(id)
 
   const stylingAndLegend = createStylingAndLegend(
     aoiData,
@@ -468,7 +469,6 @@ export function transformDataToScarfPlot(
     aoiStyleCount +
     stylingAndLegend.category.length +
     stylingAndLegend.visibility.length
-  const rows = participantIds.length
   // Event overlay buckets only (small — one strip per merged event). There are no
   // gaze rect buckets: the renderer composites the gaze rects straight from the
   // binary segment store via `gazeSource` (see below).
@@ -481,8 +481,7 @@ export function transformDataToScarfPlot(
   const isRelative = settings.timeline === 'relative'
   // Hoist every reactive `settings` read OUT of the per-segment loop: `settings`
   // is a deep $state proxy (item.settings), so each property read is a proxy
-  // `get` — reading `hideNonFixations` per segment cost ~190 ms on a large set.
-  const hideNonFixations = settings.hideNonFixations
+  // `get` — one settings read per segment cost ~190 ms on a large set.
   const relTimelineStart = settings.timelineStart
   const relTimelineEnd = settings.timelineEnd
   const participants: ScarfParticipant[] = new Array(participantIds.length)
@@ -627,7 +626,6 @@ export function transformDataToScarfPlot(
     aoiOrderMap,
     categoryStyleIdxMap,
     noAoiStyleIdx: aoiData.length,
-    hideNonFixations: !!hideNonFixations,
     hiddenCategoryIds,
   }
 
@@ -637,11 +635,7 @@ export function transformDataToScarfPlot(
     participants,
     timeline,
     stylingAndLegend,
-    legendData: createScarfLegendData(
-      stylingAndLegend,
-      settings.hideNonFixations,
-      showVisibilityMarkers
-    ),
+    legendData: createScarfLegendData(stylingAndLegend, showVisibilityMarkers),
     visualEventBuckets,
     gazeSource,
     isOverlay: showVisibilityMarkers,

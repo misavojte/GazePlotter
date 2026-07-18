@@ -19,7 +19,7 @@ The **Event Data (CSV)** export writes every event occurrence with its timing, p
 - **Export Type** — **Single CSV File**, or **Individual CSV Files (Zipped)** (one file per participant and stimulus).
 - **Delimiter** (`,` or `;`), **Decimal Separator** (`.` or `,`).
 - **Stimuli** — Select which stimuli to include.
-- **Participants** — Select which participants to include; the group chips above the list select or deselect an entire [participant group](/docs/workspace/participant-groups/) at once.
+- **Participants** — Select which participants to include; the selection chips above the list select or deselect an entire [participant selection](/docs/workspace/participant-library/#participant-selections) at once.
 - **Naming** — **Displayed** uses your renamed event names, merges channels grouped under the same name, hides hidden channels, and includes derived interval channels (the on-screen result). **Raw** uses the original imported channel names with no grouping and excludes derived interval channels. Channels are managed in the [event library](/docs/workspace/event-library/).
 
 ## Exporting

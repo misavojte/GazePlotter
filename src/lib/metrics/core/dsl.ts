@@ -13,7 +13,7 @@ export type OutputShape =
 export type WindowUnit = 'ms' | 'fixations'
 
 /** See {@link MetricRecipe.accumulation}. */
-export type WindowAccumulation =
+type WindowAccumulation =
   | 'clippedDuration'
   | 'clippedDurationShare'
   | 'midpointCount'
@@ -31,6 +31,12 @@ export interface GroupScope {
   participantIds: readonly number[]
   timeStart?: number
   timeEnd?: number
+  /**
+   * Per-plot AOI SELECTION id — mirrors {@link Scope.aoiSelectionId}. The group
+   * runtime copies it into each per-participant child scope so a grouped view
+   * honors the same reduced AOI alphabet as a single-participant one.
+   */
+  aoiSelectionId?: number
 }
 
 /**
@@ -40,7 +46,7 @@ export interface GroupScope {
  * with empty scanpaths) — the returned `participantIds` is the authoritative
  * axis labelling for the matrix.
  */
-export interface GroupResult {
+interface GroupResult {
   matrix: number[]
   participantIds: number[]
 }

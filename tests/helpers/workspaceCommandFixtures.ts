@@ -4,7 +4,7 @@ import { EventBufferReader } from '$lib/data/binary'
 import type {
   DataType,
   NoAoiTreatmentType,
-  ParticipantsGroup,
+  ParticipantsSelection,
 } from '$lib/data/types'
 import type { WorkspaceCommandChain } from '$lib/workspace/commands'
 import type { MetricInstance } from '$lib/metrics'
@@ -13,8 +13,8 @@ import type { AllGridTypes } from '$lib/workspace'
 import type { ScarfPlotItem, ScarfPlotSettings } from '$lib/plots/scarf/types'
 import type { BarPlotItem, BarPlotSettings } from '$lib/plots/bar/types'
 
-export type MockMetadata = Omit<DataType, 'segments' | 'participantsGroups'> & {
-  participantsGroups: ParticipantsGroup[]
+export type MockMetadata = Omit<DataType, 'segments' | 'participantsSelections'> & {
+  participantsSelections: ParticipantsSelection[]
 }
 
 export type MockEngine = DataEngine & {
@@ -61,7 +61,7 @@ export function createMockMetadata(
       data: [],
       orderVector: [],
     },
-    participantsGroups: [
+    participantsSelections: [
       {
         id: 1,
         name: 'Group 1',
@@ -107,7 +107,7 @@ export function createEmptyMockMetadata(
       data: [],
       orderVector: [],
     },
-    participantsGroups: [],
+    participantsSelections: [],
     ...overrides,
   })
 }

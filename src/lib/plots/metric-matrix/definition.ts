@@ -25,6 +25,7 @@ export const metricMatrixDefinition = definePlot<
   group: 'per-participant',
   paneSections: [
     'group',
+    'stimuli',
     'metric',
     {
       key: 'metricMatrix:visualisation',

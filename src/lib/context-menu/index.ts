@@ -1,11 +1,9 @@
 export { contextMenuAction } from './contextMenu.action'
 export type {
-  ContextMenuOptions,
   MenuActionItem,
   MenuComponentBridgeProps,
   MenuComponentItem,
   MenuDividerItem,
-  MenuInteractiveItem,
   MenuItem,
   MenuSubMenuItem,
 } from './types'

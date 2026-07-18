@@ -26,14 +26,3 @@ export function sortItems<T>(
     return direction === 'asc' ? cmp : -cmp
   })
 }
-
-export function reorderItems<T>(
-  items: T[],
-  fromIndex: number,
-  toIndex: number
-): T[] {
-  const arr = [...items]
-  const [removed] = arr.splice(fromIndex, 1)
-  arr.splice(toIndex, 0, removed)
-  return arr
-}

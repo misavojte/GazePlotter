@@ -116,14 +116,9 @@ export const SIDEBAR: readonly SidebarItem[] = [
         description: 'Configure and customize eye-movement classification categories (such as fixations, saccades, and unclassified events).'
       },
       {
-        name: 'Participant Groups',
-        href: '/docs/workspace/participant-groups',
-        description: 'Group participants by demographics, condition, or performance to enable cross-group comparisons in charts and metrics.'
-      },
-      {
         name: 'Participant Library',
         href: '/docs/workspace/participant-library',
-        description: 'Manage participant records. Rename participant IDs individually or in bulk using regex patterns, and reorder or sort the active participant sequence.'
+        description: 'Manage participant records. Rename participant IDs individually or in bulk using regex patterns, reorder or sort the active participant sequence, and build named participant selections for cross-cohort comparisons.'
       },
       {
         name: 'Stimuli Library',

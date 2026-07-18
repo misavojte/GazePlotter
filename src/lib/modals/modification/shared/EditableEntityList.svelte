@@ -1,14 +1,13 @@
 <script lang="ts">
+  import { onMount, type Snippet } from 'svelte'
   import { flip } from 'svelte/animate'
   import { cubicOut } from 'svelte/easing'
   import Empty from '$lib/shared/components/Empty.svelte'
-  import { InputCheck, InputColor, InputText } from '$lib/shared/components'
+  import { InputColor, InputText } from '$lib/shared/components'
   import ArrowDownAZ from 'lucide-svelte/icons/arrow-down-a-z'
   import GripVertical from 'lucide-svelte/icons/grip-vertical'
-  import Info from 'lucide-svelte/icons/info'
   import SlidersHorizontal from 'lucide-svelte/icons/sliders-horizontal'
   import Replace from 'lucide-svelte/icons/replace'
-  import Eye from 'lucide-svelte/icons/eye'
   import { tooltipAction } from '$lib/tooltip'
   import {
     contextMenuAction,
@@ -16,7 +15,7 @@
     type MenuItem,
   } from '$lib/context-menu'
   import { createListReorder, type ListReorderConfig } from './listReorder.action'
-  import type { EntityGroup } from './groupedEntityEditor.svelte'
+  import type { MergeCard } from './groupedEntityEditor.svelte'
   import BulkActionsFlyout, {
     type BulkActionsFlyoutProps,
   } from './BulkActionsFlyout.svelte'
@@ -29,9 +28,10 @@
     label: string
     width: string
     align?: 'center'
-    type: 'handle' | 'readonly' | 'text' | 'color' | 'checkbox'
+    type: 'handle' | 'readonly' | 'text' | 'color'
     key?: string
-    leaderOnly?: boolean
+    /** Explanatory tooltip on the column header (dotted-underlined). */
+    tooltip?: string
   }
 
   interface SortColumn {
@@ -40,30 +40,68 @@
   }
 
   interface GroupedCallbacks {
-    hiddenSet: Set<number>
     onNameInput: (
       item: ExtendedInterpretedDataType,
       name: string,
       isLeader: boolean,
-      group: EntityGroup
+      group: MergeCard
     ) => void
-    onColorInput: (group: EntityGroup, color: string) => void
-    onToggleActive: (group: EntityGroup, active: boolean) => void
+    /** Only for entity lists with a color column. */
+    onColorInput?: (group: MergeCard, color: string) => void
+  }
+
+  interface GroupNotice {
+    tone: 'info' | 'warn'
+    message: string
+    action?: { label: string; onClick: () => void }
   }
 
   interface Props {
-    items: (BaseInterpretedDataType | EntityGroup)[]
+    items: MergeCard<BaseInterpretedDataType>[]
     title: string
     emptyMessage: string
     columns: TableColumn[]
     sortColumns: SortColumn[]
-    hintText?: string
-    grouped?: GroupedCallbacks
-    onItemChange?: (id: number, key: string, value: string) => void
+    grouped: GroupedCallbacks
+    /** Per multi-member group: an inline notice/action row under its members
+        (e.g. "these will merge" / "can't merge, undo rename"). */
+    groupNotice?: (
+      group: MergeCard<BaseInterpretedDataType>
+    ) => GroupNotice | null
     onSort: (column: string, direction: 'asc' | 'desc') => void
     onReorder: ListReorderConfig['onReorder']
     /** Replace `pattern` with `replacement` across every matching name. */
     onRename: (pattern: string, replacement: string) => void
+    /** First-class row selection: clicking a card (outside its controls)
+        toggles it, shift-click extends a range, selected cards carry a calm
+        solid ring + tint. The parent decides what the selection MEANS —
+        a transient working set (merge / color / save / multi-drag) or, while
+        a SELECTION chip is active, that chip's membership. `inert` cards
+        (empty displayed names during chip editing) neither ring nor toggle.
+        Grouped mode only. */
+    selection?: {
+      selected: ReadonlySet<number>
+      /** 'transient' = unsaved working set (dashed ring);
+          'saved' = editing a SELECTION's membership (solid ring). */
+      variant: 'transient' | 'saved'
+      inert?: ReadonlySet<number>
+      onToggle: (group: MergeCard<BaseInterpretedDataType>) => void
+      onSetMany: (
+        groups: MergeCard<BaseInterpretedDataType>[],
+        on: boolean
+      ) => void
+    } | null
+    /** Group ids ringed solid while an idle chip is hovered/focused (peek). */
+    previewIds?: ReadonlySet<number> | null
+    /** Selection-episode key (e.g. the active chip id). Changing it resets
+        the shift-range anchor and re-runs the scroll-into-view — a stale
+        anchor from the previous episode must never drive a range. */
+    episode?: unknown
+    /** Extra control rendered in the title row next to bulk/sort (e.g. the
+        compact scope select). Rendered even when the list is empty. */
+    titleExtra?: Snippet
+    /** Pinned row rendered inside the grid after the entities (e.g. No AOI). */
+    footer?: Snippet
   }
 
   let {
@@ -72,49 +110,185 @@
     emptyMessage,
     columns,
     sortColumns,
-    hintText,
     grouped,
-    onItemChange,
+    groupNotice,
     onSort,
     onReorder,
     onRename,
+    selection = null,
+    previewIds = null,
+    episode = null,
+    titleExtra,
+    footer,
   }: Props = $props()
 
   const gridTemplate = $derived(columns.map(c => c.width).join(' '))
 
+  // ── Row selection (solid ring + tint on selected cards) ───────────────────
+  const selectable = $derived(selection !== null)
+  const isSelected = (id: number) => !!selection?.selected.has(id)
+  const isInert = (id: number) => !!selection?.inert?.has(id)
+  const isPeeked = (id: number) => !!previewIds?.has(id)
+
+  // Pointer guard: toggle only when both the press and the release landed on
+  // card surface (not a control), the pointer barely moved, and it is a
+  // single click — so drags, text edits, and double-clicks never toggle.
+  const INTERACTIVE = 'input, button, label, a, .drag-handle'
+  let press: { x: number; y: number; el: HTMLElement } | null = null
+  let anchorId: number | null = null // shift-range anchor
+
+  const selectedCount = $derived(selection?.selected.size ?? 0)
+
+  const cardPointerDown = (e: PointerEvent) => {
+    press = { x: e.clientX, y: e.clientY, el: e.target as HTMLElement }
+  }
+
+  // Shift-click on the card surface means "extend the range", never "extend
+  // text selection" — without this the browser highlights every label between
+  // the two clicks. Inside a control it stays the control's gesture (shift-
+  // selecting text in the name input must keep working).
+  const cardMouseDown = (e: MouseEvent) => {
+    if (e.shiftKey && !(e.target as HTMLElement).closest(INTERACTIVE)) {
+      e.preventDefault()
+    }
+  }
+
+  const cardClick = (e: MouseEvent, group: MergeCard<BaseInterpretedDataType>) => {
+    if (!selection || isInert(group.id)) return
+    const down = press
+    press = null
+    if (e.detail > 1) return
+    if ((e.target as HTMLElement).closest(INTERACTIVE)) return
+    if (!down || down.el.closest(INTERACTIVE)) return
+    if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) return
+    if (e.shiftKey && anchorId !== null && anchorId !== group.id) {
+      const vis = items
+      const ai = vis.findIndex(g => g.id === anchorId)
+      const bi = vis.findIndex(g => g.id === group.id)
+      if (ai !== -1 && bi !== -1) {
+        const [lo, hi] = ai < bi ? [ai, bi] : [bi, ai]
+        const range = vis.slice(lo, hi + 1).filter(g => !isInert(g.id))
+        // Extend the anchor's current state across the visible range.
+        selection.onSetMany(range, isSelected(anchorId))
+        return
+      }
+    }
+    selection.onToggle(group)
+    anchorId = group.id
+  }
+
+  // The anchor is only meaningful within one selection episode: reset it when
+  // the selection EMPTIES (not when it appears, or the first click's anchor
+  // would be wiped and the very first shift-range would silently fail) and
+  // whenever the episode changes (a stale anchor from the transient set must
+  // not drive a range inside a chip's membership, and vice versa).
+  const hasSelection = $derived(selectedCount > 0)
+  $effect(() => {
+    if (!hasSelection) anchorId = null
+  })
+  $effect(() => {
+    void episode
+    anchorId = null
+  })
+
+  // A selection appearing from elsewhere (a chip was clicked, far below the
+  // fold) brings its first marked card into view — keyed on the episode so
+  // switching directly between chips also reveals the new chip's members.
+  let gridEl = $state<HTMLElement | null>(null)
+  $effect(() => {
+    void episode
+    if (!hasSelection) return
+    gridEl
+      ?.querySelector('.entity-card.selected')
+      ?.scrollIntoView({ block: 'nearest' })
+  })
+
+  // Regroup animation. Renaming a row into (or out of) a group is a
+  // destroy-here / create-there in the DOM, so instead of trying to fly the row
+  // across containers (which clips and overlaps), we orchestrate it in place:
+  // the leaving slot collapses while it fades, and the arriving slot first
+  // grows its height, then fades its content in. That reads as one calm hand-off
+  // and leads the eye to where the row landed. Sibling rows follow the freed or
+  // opened space through plain layout reflow — flip is deliberately off except
+  // during a drag (see below), because flip snaps survivors to their final spot
+  // while the collapsing row still occupies space, which is what caused the
+  // earlier "jumps up and overlaps" glitch.
+  const COLLAPSE = 200
+  const EXPAND = 300
+  const REFLOW = 180
+  let ready = $state(false)
+  onMount(() => {
+    ready = true
+  })
+
+  const px = (v: string) => parseFloat(v) || 0
+
+  // Both transitions scale the same box metrics (height/padding/margin/
+  // border); they differ only in how `t` maps to (box scale, opacity).
+  const boxTransition =
+    (map: (t: number) => { box: number; opacity: number }) =>
+    (node: Element, { duration }: { duration: number }) => {
+      const s = getComputedStyle(node)
+      const h = px(s.height)
+      const pt = px(s.paddingTop)
+      const pb = px(s.paddingBottom)
+      const mt = px(s.marginTop)
+      const mb = px(s.marginBottom)
+      const bt = px(s.borderTopWidth)
+      const bb = px(s.borderBottomWidth)
+      return {
+        duration,
+        easing: cubicOut,
+        css: (t: number) => {
+          const { box, opacity } = map(t)
+          return (
+            `overflow:hidden;opacity:${opacity};height:${box * h}px;` +
+            `padding-top:${box * pt}px;padding-bottom:${box * pb}px;` +
+            `margin-top:${box * mt}px;margin-bottom:${box * mb}px;` +
+            `border-top-width:${box * bt}px;border-bottom-width:${box * bb}px;`
+          )
+        },
+      }
+    }
+
+  // Fade opacity and shrink the box together.
+  const collapseFade = boxTransition(t => ({ box: t, opacity: t }))
+  // Grow the box height first, then fade the content in over the last stretch.
+  const SPLIT = 0.6 // height done by 60%, then opacity fades in
+  const expandThenFade = boxTransition(t => ({
+    box: Math.min(1, t / SPLIT),
+    opacity: Math.max(0, (t - SPLIT) / (1 - SPLIT)),
+  }))
+
+  const collapseDur = () => (ready ? COLLAPSE : 0)
+  const expandDur = () => (ready ? EXPAND : 0)
+  const reflowDur = () => (ready ? REFLOW : 0)
+
   let dragItemKey: number | null = $state(null)
+
+  // Flip repositions cards only during a drag (a pure reorder: the dragged card
+  // is fixed, the others glide aside to make room). It stays OFF for a regroup,
+  // where a card is added/removed: there the collapse/expand transitions free or
+  // open the space and siblings follow by plain layout reflow. Flip there would
+  // snap survivors to their final spot while the leaving card still occupies
+  // space — the "jumps up and overlaps" glitch. `dragItemKey` is set on
+  // pointer-down (before any reorder), so this reads true synchronously mid-drag.
+  const flipDur = (groupId: number) =>
+    dragItemKey !== null && dragItemKey !== groupId ? reflowDur() : 0
   let bulkOpen = $state(false)
   let sortOpen = $state(false)
 
-  // Toggle the matching groups; invert is resolved inside the flyout, so this
-  // just applies the visibility the flyout asks for.
-  const onSetVisibility = (targets: EntityGroup[], visible: boolean) => {
-    if (!grouped) return
-    for (const group of targets) grouped.onToggleActive(group, visible)
-  }
-
-  const bulkItems = $derived.by((): MenuItem[] => {
-    const rename = createMenuComponentItem<BulkActionsFlyoutProps>({
+  const bulkItems = $derived.by((): MenuItem[] => [
+    createMenuComponentItem<BulkActionsFlyoutProps>({
       label: 'Rename items…',
       value: 'rename',
       icon: Replace,
       component: BulkActionsFlyout,
-      componentProps: { mode: 'rename', items, grouped: !!grouped, onRename },
+      componentProps: { items, onRename },
       componentWidth: 300,
       componentHeight: 240,
-    })
-    if (!grouped) return [rename]
-    const visibility = createMenuComponentItem<BulkActionsFlyoutProps>({
-      label: 'Change visibility…',
-      value: 'visibility',
-      icon: Eye,
-      component: BulkActionsFlyout,
-      componentProps: { mode: 'visibility', items, onSetVisibility },
-      componentWidth: 300,
-      componentHeight: 240,
-    })
-    return [rename, visibility]
-  })
+    }),
+  ])
 
   const sortMenuItems = $derived.by((): MenuItem[] =>
     sortColumns.flatMap(col => [
@@ -138,8 +312,9 @@
 
 <div class="section-title-row">
   <span class="section-title">{title}</span>
-  {#if items.length > 0}
-    <div class="title-actions">
+  <div class="title-actions">
+    {@render titleExtra?.()}
+    {#if items.length > 0}
       <button
         class="tool-button"
         class:active={bulkOpen}
@@ -170,29 +345,65 @@
       >
         <ArrowDownAZ size={'1em'} />
       </button>
-    </div>
-  {/if}
+    {/if}
+  </div>
 </div>
 
 {#if items.length === 0}
   <Empty message={emptyMessage} />
 {:else}
-  <div class="entity-grid" style:--grid-columns={gridTemplate}>
+  <div
+    class="entity-grid"
+    bind:this={gridEl}
+    style:--grid-columns={gridTemplate}
+  >
     <div class="column-labels" style:grid-template-columns={gridTemplate}>
       {#each columns as col}
-        <span class:center-align={col.align === 'center'}>{col.label}</span>
+        {#if col.tooltip}
+          <span
+            class="has-tip"
+            class:center-align={col.align === 'center'}
+            use:tooltipAction={{ content: col.tooltip, position: 'bottom' }}
+          >
+            {col.label}
+          </span>
+        {:else}
+          <span class:center-align={col.align === 'center'}>{col.label}</span>
+        {/if}
       {/each}
     </div>
 
-    {#each items as item, index (item.id)}
+    {#each items as item (item.id)}
+      {@const group = item as MergeCard}
+      <!-- Click-to-toggle is a pointer-only enhancement; the keyboard/SR path
+           is the visually hidden member-toggle checkbox rendered below. -->
+      <!-- svelte-ignore a11y_click_events_have_key_events -->
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         class="entity-card"
         class:dragging={dragItemKey === item.id}
-        animate:flip={{ duration: dragItemKey === item.id ? 0 : 150, easing: cubicOut }}
+        class:selecting={selectable && !isInert(item.id)}
+        class:selected={selectable && isSelected(item.id)}
+        class:saved-variant={selection?.variant === 'saved'}
+        class:peeked={isPeeked(item.id) && !(selectable && isSelected(item.id))}
+        onpointerdown={selectable ? cardPointerDown : undefined}
+        onmousedown={selectable ? cardMouseDown : undefined}
+        onclick={selectable ? e => cardClick(e, item) : undefined}
+        animate:flip={{ duration: flipDur(item.id), easing: cubicOut }}
       >
-        {#if grouped}
-          {@const group = item as EntityGroup}
-          {@const isActive = !grouped.hiddenSet.has(group.members[0].id)}
+          <!-- Keyboard/SR path: always present while editing a SAVED selection
+               (an empty one has no other keyboard way to gain its first
+               member); for the transient set only once it exists, so idle
+               tab order stays unpolluted. -->
+          {#if selectable && !isInert(group.id) && (selection?.variant === 'saved' || selectedCount > 0)}
+            <input
+              type="checkbox"
+              class="member-toggle"
+              checked={isSelected(group.id)}
+              onchange={() => selection?.onToggle(group)}
+              aria-label={`Select ${group.members[0].displayedName || group.members[0].originalName}`}
+            />
+          {/if}
           {#each group.members as member, i (member.id)}
             {@const isLeader = i === 0}
             <div
@@ -200,26 +411,31 @@
               class:member={!isLeader}
               style:grid-template-columns={gridTemplate}
               class:leader={isLeader}
-              class:inactive={!isActive}
+              in:expandThenFade={{ duration: expandDur() }}
+              out:collapseFade={{ duration: collapseDur() }}
             >
               {#each columns as col}
                 {#if col.type === 'handle'}
                   <div class="col-handle">
                     {#if isLeader}
-                      <div class="drag-handle" class:disabled-control={!isActive} use:dragHandle={group.id}>
+                      <div class="drag-handle" use:dragHandle={group.id}>
                         <GripVertical size={'1em'} />
                       </div>
                     {/if}
                   </div>
                 {:else if col.type === 'readonly'}
-                  <div class="col-readonly">{(member as unknown as Record<string, string>)[col.key ?? '']}</div>
+                  <div
+                    class="col-readonly"
+                    class:center-align={col.align === 'center'}
+                  >
+                    {(member as unknown as Record<string, string>)[col.key ?? '']}
+                  </div>
                 {:else if col.type === 'text'}
                   <div>
                     <InputText
                       label="Displayed name"
                       showLabel={false}
                       fill={true}
-                      disabled={!isActive}
                       ariaLabel={`Displayed name for ${member.originalName}`}
                       value={member.displayedName}
                       oninput={e => grouped.onNameInput(member, e.detail, isLeader, group)}
@@ -227,69 +443,42 @@
                   </div>
                 {:else if col.type === 'color' && isLeader}
                   <div class="col-center">
-                    <div class:disabled-control={!isActive}>
-                      <InputColor
-                        label="Color"
-                        showLabel={false}
-                        width={35}
-                        ariaLabel={`Color for ${member.originalName}`}
-                        value={member.color}
-                        oninput={event => isActive && grouped.onColorInput(group, event.detail)}
-                      />
-                    </div>
-                  </div>
-                {:else if col.type === 'checkbox' && isLeader}
-                  <div class="col-center">
-                    <InputCheck
-                      label=""
-                      ariaLabel="Is active"
-                      size="lg"
-                      checked={isActive}
-                      onchange={e => grouped.onToggleActive(group, e.detail)}
+                    <InputColor
+                      label="Color"
+                      showLabel={false}
+                      width={35}
+                      ariaLabel={`Color for ${member.originalName}`}
+                      value={member.color}
+                      oninput={event => grouped.onColorInput?.(group, event.detail)}
                     />
                   </div>
-                {:else if (col.type === 'color' || col.type === 'checkbox') && !isLeader}
+                {:else if col.type === 'color' && !isLeader}
                   <div></div>
                 {/if}
               {/each}
             </div>
           {/each}
-        {:else}
-          {@const flat = item as BaseInterpretedDataType}
-          <div class="entity-row" style:grid-template-columns={gridTemplate}>
-            {#each columns as col}
-              {#if col.type === 'handle'}
-                <div class="col-handle">
-                  <div class="drag-handle" use:dragHandle={flat.id}>
-                    <GripVertical size={'1em'} />
-                  </div>
-                </div>
-              {:else if col.type === 'readonly'}
-                <div class="col-readonly">{(flat as unknown as Record<string, string>)[col.key ?? '']}</div>
-              {:else if col.type === 'text'}
-                <div>
-                  <InputText
-                    label="Displayed name"
-                    showLabel={false}
-                    fill={true}
-                    ariaLabel={`Displayed name for ${flat.originalName}`}
-                    value={flat.displayedName}
-                    oninput={e => onItemChange?.(flat.id, col.key ?? '', e.detail)}
-                  />
-                </div>
-              {/if}
-            {/each}
-          </div>
-        {/if}
+          {#if group.members.length > 1}
+            {@const notice = groupNotice?.(group)}
+            {#if notice}
+              <div
+                class="group-notice {notice.tone}"
+                in:expandThenFade={{ duration: expandDur() }}
+                out:collapseFade={{ duration: collapseDur() }}
+              >
+                <span class="notice-text">{notice.message}</span>
+                {#if notice.action}
+                  <button class="notice-action" onclick={notice.action.onClick}>
+                    {notice.action.label}
+                  </button>
+                {/if}
+              </div>
+            {/if}
+          {/if}
       </div>
     {/each}
 
-    {#if hintText}
-      <div class="entity-hint">
-        <div class="hint-icon"><Info size={'1em'} /></div>
-        <div class="hint-text">{@html hintText}</div>
-      </div>
-    {/if}
+    {@render footer?.()}
   </div>
 {/if}
 
@@ -317,10 +506,12 @@
     justify-content: center;
     background: none;
     border: 1px solid var(--c-midgrey);
-    border-radius: var(--rounded-md);
+    /* One control metric across the header: same height AND radius as the
+       compact Select trigger. */
+    border-radius: var(--rounded);
     color: var(--c-darkgrey);
-    width: 30px;
-    height: 30px;
+    width: 26px;
+    height: 26px;
     cursor: pointer;
     transition: color var(--transition-fast) ease, border-color var(--transition-fast) ease, background-color var(--transition-fast) ease;
   }
@@ -340,7 +531,7 @@
     display: flex;
     flex-direction: column;
     gap: 8px;
-    width: min(600px, 100%);
+    width: min(760px, 100%);
     margin-bottom: 20px;
   }
 
@@ -362,7 +553,15 @@
     text-align: center;
   }
 
+  .has-tip {
+    text-decoration: underline dotted;
+    text-underline-offset: 2px;
+    cursor: help;
+    width: fit-content;
+  }
+
   .entity-card {
+    position: relative; /* anchors the membership ring + hidden toggle */
     border: 1px solid var(--c-border);
     border-radius: var(--rounded-md);
     overflow: hidden;
@@ -389,21 +588,115 @@
     background-color: var(--c-white);
   }
 
-  .entity-row.inactive {
-    opacity: 0.45;
-    filter: grayscale(0.2);
+  .group-notice {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 8px 12px;
+    border-top: 1px solid var(--c-border);
+    font-size: 12px;
   }
 
-  .disabled-control {
-    opacity: 0.45;
-    pointer-events: none;
-    filter: grayscale(0.2);
+  .group-notice.info {
+    background-color: color-mix(in srgb, var(--c-brand) 6%, var(--c-white));
+    color: var(--c-darkgrey);
+  }
+
+  .group-notice.warn {
+    background-color: color-mix(in srgb, var(--c-danger, #b91c1c) 8%, var(--c-white));
+    color: var(--c-danger, #b91c1c);
+  }
+
+  .notice-text {
+    line-height: 1.3;
+  }
+
+  .notice-action {
+    flex: 0 0 auto;
+    padding: 4px 10px;
+    border: 1px solid currentColor;
+    border-radius: var(--rounded-md);
+    background: none;
+    color: inherit;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+
+  .notice-action:hover {
+    background-color: color-mix(in srgb, currentColor 12%, transparent);
   }
 
   .col-handle {
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  /* ── Selection mode ────────────────────────────────────────────────────── */
+
+  /* Click-to-select is live: the card surface is a button-like target, but
+     text editing inside the inputs must stay untouched (inputs keep their own
+     selection behavior under user-select: none on the parent). */
+  .entity-card.selecting {
+    cursor: pointer;
+    user-select: none;
+  }
+
+  /* Hover teaches the gesture at the moment of intent — the border leans
+     toward the selection color where a click would toggle. */
+  .entity-card.selecting:hover:not(:has(input:hover, button:hover, .drag-handle:hover)) {
+    border-color: color-mix(in srgb, var(--c-info) 40%, var(--c-border));
+  }
+
+  /* Keyboard/SR path for the selection: a real checkbox, visually hidden. */
+  .member-toggle {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    clip-path: inset(50%);
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .entity-card:has(.member-toggle:focus-visible) {
+    outline: 2px solid var(--c-brand);
+    outline-offset: 2px;
+  }
+
+  /* A selected card speaks the tray bubble's language — slight --c-info
+     surface and a 1px darker-blue border on the card's own border box, so
+     "selection tool" reads instantly. Dashed = temporary working set,
+     solid = editing a saved SELECTION. Selection stays inside-blue while
+     focus stays outside-red — never the same channel. */
+  .entity-card.selected {
+    border-color: color-mix(in srgb, var(--c-info) 85%, var(--c-black));
+  }
+
+  .entity-card.selected:not(.saved-variant) {
+    border-style: dashed;
+  }
+
+  /* Faint interior wash so a selected card reads at a glance even in
+     peripheral vision. Overlay (not background) because the rows paint
+     their own backgrounds over the card. Editing a SAVED selection washes
+     heavier so the two modes differ in weight, not just dash pattern. */
+  .entity-card.selected::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: color-mix(in srgb, var(--c-info) 5%, transparent);
+    pointer-events: none;
+  }
+
+  .entity-card.selected.saved-variant::after {
+    background: color-mix(in srgb, var(--c-info) 8%, transparent);
+  }
+
+  /* Chip-hover peek: border tint only, no wash — related, not selected. */
+  .entity-card.peeked {
+    border-color: color-mix(in srgb, var(--c-info) 60%, var(--c-border));
   }
 
   .drag-handle {
@@ -430,36 +723,13 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    /* Original identifiers stay copyable under the card's user-select: none. */
+    user-select: text;
   }
 
   .col-center {
     display: flex;
     align-items: center;
     justify-content: center;
-  }
-
-  .entity-hint {
-    display: grid;
-    grid-template-columns: 28px 1fr;
-    gap: 8px;
-    align-items: center;
-    padding: 8px 12px;
-    border: 1px dashed var(--c-midgrey);
-    border-radius: var(--rounded-md);
-    background-color: var(--c-darkwhite);
-    color: var(--c-black);
-    height: 50px;
-    box-sizing: border-box;
-  }
-
-  .hint-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .hint-text {
-    font-size: 13px;
-    color: var(--c-black);
   }
 </style>

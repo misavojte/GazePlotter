@@ -21,12 +21,12 @@ Every visualization plot in the workspace is configured via the collapsible **Pa
 Selecting a plot card automatically opens its corresponding settings inside the pane. Deselecting the plot or clicking the workspace background closes the pane. 
 
 The Pane is structured into collapsible accordion sections:
-- **Stimulus**: Selects the target stimulus and provides access to edit the stimulus library.
-- **Participant group** / **Participant**: Selects the target group or individual participant for the analysis.
+- **Stimulus**: Selects the target stimulus and provides access to edit the stimulus library and selections.
+- **Participants** / **Participant**: Selects the participant selection or individual participant for the analysis.
 - **Metric**: Configures the underlying metric to calculate and plot. This section integrates directly with the workspace's global Metric Library. Users can select default configurations or define custom metrics.
 - **Visualisation**: Contains plot-specific parameters (e.g. orientation, scale ranges, rendering alignments, masking).
 - **Time range [ms]** or **Ordinal range [indices]**: Defines temporal boundaries for the plot.
-- **Areas of Interest**: Filters which AOIs are visible and links to the global AOI customization interface.
+- **Areas of Interest**: Picks the AOI selection this plot ranges over and links to the global AOI customization interface. Plots with eye-movement or event layers get matching **Eye-movement Types** and **Events** sections with the same selection-picker shape.
 - **Export**: Down at the bottom of the pane, provides a **Download plot…** action that opens the [figure export dialog](/docs/export/figures/) preselected with this plot.
 
 > **Plot Configuration**: Every individual visualization plot functions as an independent, interactive card in the workspace. For general actions such as moving, resizing, duplicating, or removing plots, see the [Workspace documentation](/docs/workspace/).

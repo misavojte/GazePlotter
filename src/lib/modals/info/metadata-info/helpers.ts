@@ -2,6 +2,7 @@ import type {
   DataType,
   DatasetExclusionNotice,
   EventChannelMeta,
+  MergeLogEntry,
 } from '$lib/data/types'
 import type { DataCapabilities } from '$lib/data/types'
 import type { EventBufferReader } from '$lib/data/binary'
@@ -26,12 +27,12 @@ export interface MetadataMemoryInfo {
   available: boolean
 }
 
-export interface MetadataAoiCount {
+interface MetadataAoiCount {
   stimulusName: string
   count: number
 }
 
-export interface MetadataEventCount {
+interface MetadataEventCount {
   stimulusName: string
   channels: number
   events: number
@@ -71,6 +72,9 @@ export interface MetadataCsvReportInput {
   hasValidData: boolean
   recentErrors: ErrorRecord[]
   dataExclusions: DatasetExclusionNotice[]
+  /** Active entity merges (PLANMERGE.md) — the reproducibility record of which
+      stimuli/participants were combined. Absent/empty when nothing was merged. */
+  merges?: MergeLogEntry[]
   generatedAt: string
 }
 
@@ -435,6 +439,22 @@ export function buildMetadataCsvReport(
           ].join(',')
         )
       }
+    }
+    lines.push('')
+  }
+
+  if ((input.merges?.length ?? 0) > 0) {
+    lines.push('Section,Merges (reversible identity corrections)')
+    lines.push('Axis,Representative Id,Merged-in (displayed names),When')
+    for (const merge of input.merges!) {
+      lines.push(
+        [
+          csvCell(merge.axis),
+          csvCell(String(merge.representativeId)),
+          csvCell(merge.members.map(m => m.displayedName).join(' + ')),
+          csvCell(new Date(merge.at).toISOString()),
+        ].join(',')
+      )
     }
     lines.push('')
   }

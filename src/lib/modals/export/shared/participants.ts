@@ -4,8 +4,8 @@
  * are one-click selection presets, never an export parameter.
  */
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import type { ParticipantsGroup } from '$lib/data/types'
-import { getParticipants, getParticipantsGroups } from '$lib/data/engine'
+import type { ParticipantsSelection } from '$lib/data/types'
+import { getParticipants, getParticipantsSelections } from '$lib/data/engine'
 import { listSummary } from './helpers'
 
 /**
@@ -13,8 +13,8 @@ import { listSummary } from './helpers'
  * "Non-empty" pseudo-group (id -2): with several stimuli selected there is no
  * single truthful member set for it.
  */
-export function participantGroupPresets(engine: DataEngine): ParticipantsGroup[] {
-  return getParticipantsGroups(engine, true).filter(
+export function participantGroupPresets(engine: DataEngine): ParticipantsSelection[] {
+  return getParticipantsSelections(engine, true).filter(
     g => g.id !== -2 && g.participantsIds.length > 0
   )
 }
@@ -25,7 +25,7 @@ export function defaultParticipantSelection(
   groupId?: number
 ): Set<string> {
   if (groupId != null) {
-    const group = getParticipantsGroups(engine, true).find(g => g.id === groupId)
+    const group = getParticipantsSelections(engine, true).find(g => g.id === groupId)
     if (group) return new Set(group.participantsIds.map(id => id.toString()))
   }
   return new Set(getParticipants(engine, -1).map(p => p.id.toString()))

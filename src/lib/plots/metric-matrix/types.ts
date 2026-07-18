@@ -10,6 +10,10 @@ import type { MeasurementClass } from '$lib/metrics'
  */
 export type MetricMatrixPlotSettings = {
   groupId: number
+  /** Per-plot AOI SELECTION id; unset/0 = all AOIs. */
+  aoiSelectionId?: number
+  /** Per-plot stimulus SELECTION id; unset/0 = all stimuli. */
+  stimulusSelectionId?: number
   /**
    * Single-select (the contract sets `multiSelect: false`); stored as an array
    * so the on-disk shape is uniform with every other metric-consuming plot.

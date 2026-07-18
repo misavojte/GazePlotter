@@ -13794,8 +13794,7 @@
       "absoluteStimuliLimits": [],
       "ordinalStimuliLimits": [],
       "dynamicAOI": true,
-      "timelineEnd": 10000,
-      "hideNonFixations": true
+      "timelineEnd": 10000
     },
     {
       "id": 1772724353218,

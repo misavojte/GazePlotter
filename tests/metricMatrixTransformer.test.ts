@@ -25,7 +25,7 @@ function makeMetricMatrixEngine(opts: {
   segments: StimulusSegments[]
   aoiNamesPerStimulus?: string[][]
   participants?: string[][]
-  participantsGroups?: unknown[]
+  participantsSelections?: unknown[]
   stimuli?: string[][]
   stimuliOrderVector?: number[]
   extraInstances?: MetricInstance[]
@@ -55,7 +55,7 @@ function makeMetricMatrixEngine(opts: {
       opts.stimuliOrderVector ??
       Array.from({ length: stimulusCount }, (_, i) => i),
     participants: opts.participants,
-    participantsGroups: opts.participantsGroups,
+    participantsSelections: opts.participantsSelections,
     metricInstances: [
       ...createDefaultMetricInstances(),
       ...(opts.extraInstances ?? []),
@@ -275,7 +275,7 @@ describe('Metric Matrix — metric-missing and empty states', () => {
         [[[0, 100, 0, 1]], [[0, 100, 0, 1]]],
         [[[0, 100, 0, 1]], [[0, 100, 0, 1]]],
       ],
-      participantsGroups: [{ id: 0, name: 'Empty', participantsIds: [] }],
+      participantsSelections: [{ id: 0, name: 'Empty', participantsIds: [] }],
     })
     const data = getMetricMatrixData(engine as never, settings({ groupId: 0 }))
     expect(data.empty).toBe('no-rows')

@@ -68,7 +68,7 @@ export function getAoiStreamPlotData(
   engine: DataEngine,
   settings: Pick<
     AoiStreamPlotSettings,
-    'stimulusId' | 'groupId' | 'metricInstanceIds' | 'hideNoAoi'
+    'stimulusId' | 'groupId' | 'metricInstanceIds' | 'hideNoAoi' | 'aoiSelectionId'
   > & {
     timelineMin?: number
     timelineMax?: number
@@ -130,6 +130,7 @@ export function getAoiStreamPlotData(
     participantIds,
     timeStart,
     timeEnd,
+    aoiSelectionId: settings.aoiSelectionId,
   }
 
   // Decimate by querying at the strided step. `displayStep` is an integer
@@ -161,7 +162,7 @@ export function getAoiStreamPlotData(
   const aoiCount = noAoiSlot
   const hideNoAoi = settings.hideNoAoi ?? false
   const totalSlots = hideNoAoi ? aoiCount : aoiCount + 1 // AOI slots + the noAoi sentinel
-  const orderedAois = getAois(engine, stimulusId)
+  const orderedAois = getAois(engine, stimulusId, settings.aoiSelectionId)
 
   const vectors = result.vectors
   const binCount = Math.max(1, vectors.length)

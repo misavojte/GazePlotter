@@ -2,7 +2,6 @@ import './init'
 
 // ─── Author surface (for metric definition files) ──────────────────────────
 export { extractFixationSequence } from './core/fixations'
-export type { SimilarityMethod } from './core/scanpathSimilarity'
 
 // ─── Consumer surface (what plots + export pipelines call at runtime) ──────
 export { query, queryBatch, queryGroup, queryIndividualsAllSlots } from './query'
@@ -19,7 +18,6 @@ export {
   resolveReduction,
   instanceReadout,
 } from './instances'
-export type { StartingMetricSpec } from './startingMetrics'
 
 // ─── Projection algebra (for the metric-library modal) ─────────────────────
 export {
@@ -27,7 +25,6 @@ export {
   supportedLeaves,
   windowLabel,
 } from './core/projection'
-export type { ValidationResult } from './core/validation'
 
 // ─── Capability algebra (measurement nature + cross-participant aggregation) ─
 export {
@@ -37,39 +34,21 @@ export {
   supportedMatrixReducers,
   metricShape,
 } from './core/measurement'
-export type { MeasurementClass, GroupReduction, DistributionStat, MetricShape } from './core/measurement'
+export type { MeasurementClass, GroupReduction } from './core/measurement'
 export { reduceFinite, effectiveReduction, reductionLabel } from './core/aggregation'
 export type {
   Projection,
-  LeafProjection,
   WindowedProjection,
-  LeafKind,
-  ProjectionKind,
-  LeafKindDef,
-  ProjectionLabelContext,
-  ApplyContext,
-  ApplyResult,
-  AoiRef,
-  AoiReducer,
-  MatrixReducer,
   WindowSpec,
 } from './core/projection'
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 export type {
   Metric,
-  MetricMeta,
-  MetricRecipe,
-  AoiAggregateLabels,
   AoiSlotInfo,
-  FixationEvent,
-  OutputShape,
-  WindowUnit,
 } from './core/dsl'
-export type { ParamDef, ParamType, ParamsOf } from './core/params'
 export type { MetricInstance } from './instances'
 export type { MetricResult, MetricProvenance, Scope, GroupScope } from './query'
-export type { MetricCategoryDef } from './categories'
 
 // ─── Plot contract + filters ───────────────────────────────────────────────
 export {
@@ -77,7 +56,7 @@ export {
   contractReductions,
   contractDistributionStats,
 } from './filters'
-export type { PlotMetricContract, CrossParticipantMode } from './filters'
+export type { PlotMetricContract } from './filters'
 
 // ─── UI ────────────────────────────────────────────────────────────────────
 export { default as MetricSelect } from './components/MetricSelect.svelte'

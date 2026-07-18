@@ -31,7 +31,7 @@ function buildV4File(
     data: {
       stimuli: { data: [['S1']], orderVector: [0] },
       participants: { data: [['P1']], orderVector: [0] },
-      participantsGroups: [],
+      participantsSelections: [],
       categories: { data: [], orderVector: [] },
       aois: {
         data: [[]],

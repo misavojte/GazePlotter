@@ -29,7 +29,7 @@ export type PanSession = {
   scrollStart: ScrollOffset
 }
 
-export type MoveMember = {
+type MoveMember = {
   id: number
   origin: GridInteractionRect
   preview: GridInteractionRect

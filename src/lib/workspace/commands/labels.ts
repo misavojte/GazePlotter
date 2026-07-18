@@ -7,7 +7,7 @@ import type { WorkspaceCommand } from './types'
  * and history state (undo/redo/undefined).
  */
 
-export interface CommandLabels {
+interface CommandLabels {
   /** Label for when this command is being undone */
   undone: string
   /** Label for when this command is being redone */
@@ -30,16 +30,13 @@ const WORKSPACE_COMMAND_LABELS: Record<
     default: 'AOIs updated',
   },
 
-  updateParticipants: {
-    undone: 'Undo participant update',
-    redone: 'Redo participant update',
-    default: 'Participants updated',
-  },
-
-  updateStimuli: {
-    undone: 'Undo stimulus update',
-    redone: 'Redo stimulus update',
-    default: 'Stimuli updated',
+  // Entity merge/update commands only ever run as children of `reconcileMerges`,
+  // whose (root) label is what the toast and undo/redo tooltips show — these
+  // never surface, so one generic entry per type suffices.
+  updateEntities: {
+    undone: 'Undo update',
+    redone: 'Redo update',
+    default: 'Updated',
   },
 
   updateEventData: {
@@ -54,16 +51,64 @@ const WORKSPACE_COMMAND_LABELS: Record<
     default: 'Event channels updated',
   },
 
-  updateParticipantsGroups: {
-    undone: 'Undo participant groups update',
-    redone: 'Redo participant groups update',
-    default: 'Participant groups updated',
+  updateParticipantsSelections: {
+    undone: 'Undo participant selections update',
+    redone: 'Redo participant selections update',
+    default: 'Participant selections updated',
+  },
+
+  updateStimuliSelections: {
+    undone: 'Undo stimulus selections update',
+    redone: 'Redo stimulus selections update',
+    default: 'Stimulus selections updated',
+  },
+
+  updateCategoriesSelections: {
+    undone: 'Undo eye-movement selections update',
+    redone: 'Redo eye-movement selections update',
+    default: 'Eye-movement selections updated',
+  },
+
+  updateEventsSelections: {
+    undone: 'Undo event selections update',
+    redone: 'Redo event selections update',
+    default: 'Event selections updated',
+  },
+
+  updateAoiSelections: {
+    undone: 'Undo AOI selections update',
+    redone: 'Redo AOI selections update',
+    default: 'AOI selections updated',
   },
 
   updateNoAoiTreatment: {
     undone: 'Undo No AOI treatment update',
     redone: 'Redo No AOI treatment update',
     default: 'No AOI treatment updated',
+  },
+
+  mergeEntities: {
+    undone: 'Undo merge',
+    redone: 'Redo merge',
+    default: 'Merged',
+  },
+
+  unmergeEntities: {
+    undone: 'Undo un-merge',
+    redone: 'Redo un-merge',
+    default: 'Un-merged',
+  },
+
+  reconcileMerges: {
+    undone: 'Undo changes',
+    redone: 'Redo changes',
+    default: 'Changes applied',
+  },
+
+  noop: {
+    undone: '',
+    redone: '',
+    default: '',
   },
 
   updateCategories: {

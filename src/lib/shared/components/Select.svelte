@@ -28,6 +28,8 @@
     options?: readonly SelectOption[]
     disabled?: boolean
     label?: string
+    /** Accessible name for the trigger when no visible label is rendered. */
+    ariaLabel?: string
     value?: string | string[]
     multiple?: boolean
     compact?: boolean
@@ -50,6 +52,7 @@
     options = [],
     disabled = false,
     label = '',
+    ariaLabel,
     multiple = false,
     value = $bindable<string | string[]>(multiple ? [] : (options[0]?.value ?? '')),
     compact = false,
@@ -182,6 +185,7 @@
       class:disabled
       class:open={isOpen}
       {disabled}
+      aria-label={ariaLabel}
       aria-expanded={isOpen}
       aria-haspopup="listbox"
     >

@@ -11,7 +11,7 @@
 
 export type PairingErrorKind = 'double-start' | 'orphan-end' | 'unclosed-start'
 
-export interface PairingError {
+interface PairingError {
   kind: PairingErrorKind
   /** Time of the offending occurrence, in the unit of the inputs. */
   time: number

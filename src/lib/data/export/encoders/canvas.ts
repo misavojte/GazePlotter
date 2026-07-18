@@ -2,7 +2,7 @@ import { triggerDownload } from '../download'
 
 export type ExportFileType = '.png' | '.jpg'
 
-export type CanvasExportSource = {
+type CanvasExportSource = {
   kind: 'canvas'
   getCanvas: () => HTMLCanvasElement | null
 }

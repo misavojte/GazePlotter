@@ -37,7 +37,7 @@ import {
  *   - `samples`         participants are the N of a statistic (Metric Correlation).
  *   - `group-axis`      participants are the matrix axes (Scanpath comparison).
  */
-export type CrossParticipantMode =
+type CrossParticipantMode =
   | 'reduce'
   | 'distribution'
   | 'per-participant'

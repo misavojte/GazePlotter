@@ -15,7 +15,7 @@ const engineMocks = vi.hoisted(() => ({
   updateMultipleParticipants: vi.fn(),
   updateMultipleStimuli: vi.fn(),
   updateNoAoiTreatment: vi.fn(),
-  updateParticipantsGroups: vi.fn(),
+  updateParticipantsSelections: vi.fn(),
   getAois: vi.fn(),
 }))
 

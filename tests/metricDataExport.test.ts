@@ -28,7 +28,7 @@ function createTestData(): DataType {
       ],
       orderVector: [0, 1],
     },
-    participantsGroups: [
+    participantsSelections: [
       {
         id: 1,
         name: 'Group 1',

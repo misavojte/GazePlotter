@@ -33,6 +33,8 @@ export interface AoiSummaryStatistics {
 export type BarPlotSettings = {
   stimulusId: number
   groupId: number
+  /** Per-plot AOI SELECTION id; unset/0 = all AOIs. */
+  aoiSelectionId?: number
   barPlottingType: 'vertical' | 'horizontal'
   orderBy: 'value' | 'aoi'
   orderDirection: 'asc' | 'desc'

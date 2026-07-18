@@ -1,4 +1,8 @@
-import type { EngineMetadata, ExtendedInterpretedDataType } from '$lib/data/types'
+import type {
+  BaseInterpretedDataType,
+  EngineMetadata,
+  ExtendedInterpretedDataType,
+} from '$lib/data/types'
 import { DEFAULT_AOI_COLORS, DEFAULT_CATEGORY_COLORS } from '$lib/color/palettes'
 
 export const getDefaultColor = (index: number): string =>
@@ -31,6 +35,36 @@ export const interpretRow = (
     displayedName: row?.[1] ?? originalName,
     color: row?.[2] ?? defaultColor(id),
   }
+}
+
+/**
+ * Base (color-free) `[originalName, displayedName]` tuples → entities in index
+ * order — the participant / stimulus reverse decode. (Keeps the raw `row[1]`
+ * displayed name, not `interpretRow`'s nullish fallback: those axes always
+ * carry both fields, and the reverse must reproduce the forward exactly.)
+ */
+export const interpretBaseRows = (
+  rows: readonly (readonly string[])[]
+): BaseInterpretedDataType[] =>
+  rows.map(([originalName, displayedName], id) => ({
+    id,
+    originalName,
+    displayedName,
+  }))
+
+/**
+ * Ordered {@link interpretRow} decode: walk `order` (or 0..n−1 when empty)
+ * through the row list. Shared by the event-channel and eye-movement-type
+ * reverses, which both re-emit their entities in display order.
+ */
+export const interpretOrdered = (
+  defs: readonly (readonly (string | null)[])[],
+  order: readonly number[],
+  defaultColor: (id: number) => string
+): ExtendedInterpretedDataType[] => {
+  const ids =
+    order.length > 0 ? order : Array.from({ length: defs.length }, (_, i) => i)
+  return ids.map(id => interpretRow(defs[id], id, defaultColor))
 }
 
 export const getAoiRaw = (

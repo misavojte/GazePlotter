@@ -1,6 +1,6 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotSubtitleParts } from '$lib/plots/definePlot'
-import { buildMetricLabel, getParticipantsGroupOptions } from '$lib/plots/shared'
+import { buildMetricLabel, getParticipantsSelectionOptions } from '$lib/plots/shared'
 import {
   getMetric,
   type MetricInstance,
@@ -77,8 +77,8 @@ export function metricMatrixSubtitle(params: {
   engine: DataEngine
 }): PlotSubtitleParts | undefined {
   const { item, engine } = params
-  const group = getParticipantsGroupOptions(engine, true, 0).find(
+  const group = getParticipantsSelectionOptions(engine, true, 0).find(
     o => o.value === String(item.settings.groupId)
   )
-  return group?.label ? [{ label: 'Group', value: group.label }] : undefined
+  return group?.label ? [{ label: 'Participants', value: group.label }] : undefined
 }

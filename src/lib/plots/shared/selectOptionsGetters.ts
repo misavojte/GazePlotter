@@ -4,6 +4,7 @@ import {
   getParticipantOrderVector,
 } from '$lib/data/engine'
 import type { GroupSelectItem } from '$lib/shared/components'
+import { ALL_SELECTION_LABEL } from '$lib/data/types'
 
 /**
  * Get the stimuli options for a plot
@@ -25,12 +26,12 @@ export function getStimuliOptions(engine: DataEngine) {
 }
 
 /**
- * Get the participant group options for a plot
- * @param {boolean} includeDefault - Whether to include default groups
- * @param {number} stimulusId - The stimulus ID for context-sensitive groups
- * @returns {Array} The participant group options
+ * Get the participant selection options for a plot
+ * @param {boolean} includeDefault - Whether to include the default selections
+ * @param {number} stimulusId - The stimulus ID for context-sensitive selections
+ * @returns {Array} The participant selection options
  */
-export function getParticipantsGroupOptions(
+export function getParticipantsSelectionOptions(
   engine: DataEngine,
   includeDefault: boolean = true,
   stimulusId: number = 0
@@ -44,11 +45,11 @@ export function getParticipantsGroupOptions(
       ? Array.from({ length: meta.participants.data.length }, (_, i) => i)
       : meta.participants.orderVector
 
-  const defaultGroups = includeDefault
+  const defaultSelections = includeDefault
     ? [
         {
           id: -1,
-          name: 'All participants',
+          name: ALL_SELECTION_LABEL,
           participantsIds: participantOrder,
         },
         {
@@ -61,11 +62,11 @@ export function getParticipantsGroupOptions(
       ]
     : []
 
-  const groups = [...defaultGroups, ...meta.participantsGroups]
+  const selections = [...defaultSelections, ...meta.participantsSelections]
 
-  return groups.map(group => ({
-    label: group.name,
-    value: group.id.toString(),
+  return selections.map(selection => ({
+    label: selection.name,
+    value: selection.id.toString(),
   }))
 }
 

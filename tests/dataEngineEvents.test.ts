@@ -17,7 +17,7 @@ function datasetWithEvents(): DataType {
     capabilities: { segmented: false, spatial: false, event: true },
     stimuli: { data: [['S0'], ['S1']], orderVector: [] },
     participants: { data: [['P0'], ['P1']], orderVector: [] },
-    participantsGroups: [],
+    participantsSelections: [],
     metricInstances: [],
     categories: { data: [], orderVector: [] },
     noAoiTreatment: { color: '#cccccc', displayedName: 'No AOI' },

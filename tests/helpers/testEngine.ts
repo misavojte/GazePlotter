@@ -24,7 +24,7 @@ export type TestEngineOptions = {
   stimuli?: string[][]
   stimuliOrderVector?: number[]
   categories?: string[][]
-  participantsGroups?: unknown[]
+  participantsSelections?: unknown[]
   metricInstances?: unknown[]
   isOrdinalOnly?: boolean
   capabilities?: { segmented: boolean; spatial: boolean; event: boolean }
@@ -47,7 +47,7 @@ export type TestEngine = {
     }
     categories: { data: string[][]; orderVector: number[] }
     participants: { data: string[][]; orderVector: number[] }
-    participantsGroups: unknown[]
+    participantsSelections: unknown[]
     stimuli: { data: string[][]; orderVector: number[] }
     noAoiTreatment: { displayedName: string; color: string }
     metricInstances: unknown[]
@@ -97,7 +97,7 @@ export function makeTestEngine(
         Array.from({ length: participantCount }, (_, i) => [`P${i}`, `P${i}`]),
       orderVector: options.participantsOrderVector ?? [],
     },
-    participantsGroups: options.participantsGroups ?? [],
+    participantsSelections: options.participantsSelections ?? [],
     stimuli: {
       data:
         options.stimuli ??

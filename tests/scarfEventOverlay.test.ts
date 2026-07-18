@@ -29,7 +29,7 @@ function buildEngine(events: number[][][][], channels: string[]) {
     aois: { data: [[], aoiData], orderVector: [[], [1]], hiddenAois: [[], []] },
     categories: { data: [['Fixation', 'Fixation', '#000']], orderVector: [] },
     participants: { data: [['P0', 'P0']], orderVector: [] },
-    participantsGroups: [],
+    participantsSelections: [],
     stimuli: { data: [['S0', 'S0'], ['S1', 'S1']], orderVector: [] },
     eventData: {
       data: [[], eventChannels],

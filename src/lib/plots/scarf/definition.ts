@@ -29,14 +29,8 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
           ],
           summary: true,
         },
-        {
-          kind: 'boolean',
-          key: 'hideNonFixations',
-          label: 'Non-fixations',
-          group: 'Hide data',
-          default: false,
-          showWhen: ctx => ctx.engine.capabilities.segmented,
-        },
+        // Non-fixation visibility is a per-plot eye-movement-type SELECTION
+        // (the 'eyeMovement' section) — an empty selection is "Fixations only".
         {
           kind: 'boolean',
           key: 'hideEvents',

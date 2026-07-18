@@ -7,7 +7,7 @@ import { getRecurrenceData } from './transformer'
 import { buildHighlightMask } from './highlightMask'
 import type { RecurrencePlotSettings } from '../types'
 
-export type RecurrenceFigureProps = Omit<
+type RecurrenceFigureProps = Omit<
   ComponentProps<typeof RecurrencePlotFigure>,
   keyof CanvasExportProps
 >

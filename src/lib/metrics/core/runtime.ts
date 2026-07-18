@@ -32,6 +32,15 @@ export interface Scope {
   participantId: number
   timeStart?: number
   timeEnd?: number
+  /**
+   * Per-plot AOI SELECTION id. Threaded into every buildAoiSlots / getAoiNames /
+   * slot-signature below so the plot's reduced alphabet drives its numbers.
+   * Out-of-selection AOI fixations resolve to no-AOI (compute-honest). The slot
+   * signature reflects the selection, so the result cache discriminates
+   * selections and equal visible sets share. `undefined` → all AOIs
+   * (byte-identical to before this field existed).
+   */
+  aoiSelectionId?: number
 }
 
 /**
@@ -89,10 +98,14 @@ const _signatureCache = new WeakMap<
   SlotSignatures
 >()
 
-function slotSignatures(engine: DataEngine, stimulusId: number): SlotSignatures {
+function slotSignatures(
+  engine: DataEngine,
+  stimulusId: number,
+  aoiSelectionId?: number
+): SlotSignatures {
   let aois: readonly ExtendedInterpretedDataType[]
   try {
-    aois = getAois(engine, stimulusId)
+    aois = getAois(engine, stimulusId, aoiSelectionId)
   } catch {
     return EMPTY_SIGNATURES
   }
@@ -145,7 +158,7 @@ export function runProjected(instance: MetricInstance, scope: Scope): ProjectedR
   // Build slots once here; thread through every branch so the result has
   // an authoritative `AoiSlotInfo` and downstream code never reconstructs
   // it from vector length.
-  const slots = buildAoiSlots(scope.engine, scope.stimulusId)
+  const slots = buildAoiSlots(scope.engine, scope.stimulusId, scope.aoiSelectionId)
   if (!slots) return null
   const projection = instance.projection
 
@@ -260,7 +273,7 @@ function computeTimeWindowedFused(
       : { shape: outShape, values: [], slots, aoiMissing: false, timeline: [] }
 
   if (tEnd <= tStart) return empty()
-  const resolved = buildAoiSlots(scope.engine, scope.stimulusId)
+  const resolved = buildAoiSlots(scope.engine, scope.stimulusId, scope.aoiSelectionId)
   if (!resolved) return empty()
 
   const windowSize = window.windowSize
@@ -450,7 +463,7 @@ function computeTimeWindowed(
 
   // Resolved slots (reader + AOI lookup) built ONCE per participant, the
   // redundancy the former per-window `scanAccumulator` paid every window.
-  const resolved = buildAoiSlots(scope.engine, scope.stimulusId)
+  const resolved = buildAoiSlots(scope.engine, scope.stimulusId, scope.aoiSelectionId)
   if (!resolved) return empty()
 
   // Resolve params once. Window accumulators are created LAZILY when the scan
@@ -704,7 +717,7 @@ export function runWindowedGroup(
   projection: WindowedProjection,
   method: GroupReduction,
 ): ProjectedResult | null {
-  const slots = buildAoiSlots(group.engine, group.stimulusId)
+  const slots = buildAoiSlots(group.engine, group.stimulusId, group.aoiSelectionId)
   if (!slots) return null
 
   const isVector = PROJECTION_LEAVES[projection.inner.kind].outputShape === 'aoi-vector'
@@ -763,6 +776,7 @@ export function runWindowedGroup(
       participantId: pid,
       timeStart: tStart,
       timeEnd: Math.min(tEnd, pEnd),
+      aoiSelectionId: group.aoiSelectionId,
     }
     const r = runTimeWindowed(recipe, instance, scope, projection, slots)
     if (r.aoiMissing) aoiMissing = true
@@ -831,12 +845,12 @@ function runSingleWindow(
   timeEnd: number,
 ): number[] {
   if (!recipe.finalize) return []
-  const cached = cacheGetRaw(scope.engine, instance, scope.stimulusId, scope.participantId, timeStart, timeEnd)
+  const cached = cacheGetRaw(scope.engine, instance, scope.stimulusId, scope.participantId, timeStart, timeEnd, scope.aoiSelectionId)
   if (cached) return cached
   const out = scanAccumulator(recipe, instance, scope, timeStart, timeEnd)
   if (!out) return []
   const result = recipe.finalize(out.acc, out.slots, { params: out.params, slots: out.slots })
-  cacheSetRaw(scope.engine, instance, scope.stimulusId, scope.participantId, timeStart, timeEnd, result)
+  cacheSetRaw(scope.engine, instance, scope.stimulusId, scope.participantId, timeStart, timeEnd, result, scope.aoiSelectionId)
   return result
 }
 
@@ -850,7 +864,7 @@ export function scanAccumulator(
   // Per-participant scan trio. Group-shape recipes (participant-pair-matrix)
   // never reach here — runProjected and queryBatch filter them upstream.
   if (!recipe.init || !recipe.onFixation) return null
-  const slots = buildAoiSlots(scope.engine, scope.stimulusId)
+  const slots = buildAoiSlots(scope.engine, scope.stimulusId, scope.aoiSelectionId)
   if (!slots) return null
   const params = resolveParams(recipe.params, instance.params)
   const ctx = { params, slots }
@@ -928,7 +942,9 @@ export function scanAccumulator(
 
 function getAoiNames(scope: Scope): string[] {
   try {
-    return getAois(scope.engine, scope.stimulusId).map(a => a.displayedName)
+    return getAois(scope.engine, scope.stimulusId, scope.aoiSelectionId).map(
+      a => a.displayedName
+    )
   } catch {
     return []
   }
@@ -936,8 +952,11 @@ function getAoiNames(scope: Scope): string[] {
 
 // ─── Cache (per-reader bucket, keyed on baseId+params+scope+time range) ──────
 
-function rawCacheKey(engine: DataEngine, instance: MetricInstance, stimulusId: number, participantId: number, tStart: number, tEnd: number): string {
-  const sig = slotSignatures(engine, stimulusId)
+function rawCacheKey(engine: DataEngine, instance: MetricInstance, stimulusId: number, participantId: number, tStart: number, tEnd: number, aoiSelectionId?: number): string {
+  // The slot ORDER signature is computed from the selection-narrowed getAois, so
+  // it already discriminates AOI selections (and two selections resolving to the
+  // same visible set share, which is correct). No separate selection token.
+  const sig = slotSignatures(engine, stimulusId, aoiSelectionId)
   return `r|o${sig.order}|${instance.baseId}|${paramsKey(instance.params)}|${stimulusId}|${participantId}|${tStart}|${tEnd}`
 }
 
@@ -946,7 +965,8 @@ function windowedCacheKey(instance: MetricInstance, scope: Scope, projection: Wi
   // part of the identity — keyed with the projection system's own vocabulary
   // (`windowKey` + per-leaf `cacheKey`, total over every leaf kind).
   const proj = `${windowKey(projection.window)}~${PROJECTION_LEAVES[projection.inner.kind].cacheKey(projection.inner)}`
-  const sig = slotSignatures(scope.engine, scope.stimulusId)
+  // sig.order/sig.names reflect the selection-narrowed getAois (see rawCacheKey).
+  const sig = slotSignatures(scope.engine, scope.stimulusId, scope.aoiSelectionId)
   return `w|o${sig.order}|n${sig.names}|${proj}|${instance.baseId}|${paramsKey(instance.params)}|${scope.stimulusId}|${scope.participantId}|${scope.timeStart ?? 0}|${scope.timeEnd ?? 0}`
 }
 
@@ -960,12 +980,12 @@ function paramsKey(params: Record<string, unknown> | undefined): string {
  * Raw (unprojected) finalize output — consulted by `runSingleWindow` and the
  * batch scanner so both single and batch paths share one entry per instance.
  */
-export function cacheGetRaw(engine: DataEngine, instance: MetricInstance, stimulusId: number, participantId: number, tStart: number, tEnd: number): number[] | undefined {
-  return cacheMapFor(engine)?.get(rawCacheKey(engine, instance, stimulusId, participantId, tStart, tEnd)) as number[] | undefined
+export function cacheGetRaw(engine: DataEngine, instance: MetricInstance, stimulusId: number, participantId: number, tStart: number, tEnd: number, aoiSelectionId?: number): number[] | undefined {
+  return cacheMapFor(engine)?.get(rawCacheKey(engine, instance, stimulusId, participantId, tStart, tEnd, aoiSelectionId)) as number[] | undefined
 }
 
-export function cacheSetRaw(engine: DataEngine, instance: MetricInstance, stimulusId: number, participantId: number, tStart: number, tEnd: number, value: number[]): void {
-  cacheMapFor(engine)?.set(rawCacheKey(engine, instance, stimulusId, participantId, tStart, tEnd), value)
+export function cacheSetRaw(engine: DataEngine, instance: MetricInstance, stimulusId: number, participantId: number, tStart: number, tEnd: number, value: number[], aoiSelectionId?: number): void {
+  cacheMapFor(engine)?.set(rawCacheKey(engine, instance, stimulusId, participantId, tStart, tEnd, aoiSelectionId), value)
 }
 
 /**

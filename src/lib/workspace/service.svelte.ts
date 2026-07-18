@@ -10,10 +10,10 @@ import {
   type UpdateEventChannelsCommand,
   type UpdateNoAoiTreatmentCommand,
   type UpdateCategoriesCommand,
-  type UpdateParticipantsCommand,
+  type UpdateAoiSelectionsCommand,
   type UpdateMetricInstancesCommand,
-  type UpdateParticipantsGroupsCommand,
-  type UpdateStimuliCommand,
+  type UpdateParticipantsSelectionsCommand,
+  type ReconcileMergesCommand,
   type WorkspaceCommand,
   type WorkspaceCommandChain,
   UndoRedoStateStore,
@@ -27,10 +27,12 @@ import type {
   GridItemLayoutUpdate,
 } from '$lib/workspace'
 import type {
+  NameSelection,
   BaseInterpretedDataType,
   ExtendedInterpretedDataType,
   NoAoiTreatmentType,
-  ParticipantsGroup,
+  ParticipantsSelection,
+  EntitySelection,
 } from '$lib/data/types'
 import type { MetricInstance } from '$lib/metrics'
 
@@ -290,37 +292,74 @@ export class WorkspaceService {
     })
   }
 
-  updateParticipants(
-    participants: BaseInterpretedDataType[],
-    source: string
-  ): boolean {
-    const command: UpdateParticipantsCommand = {
-      type: 'updateParticipants',
-      participants,
+  /** Replace the named AOI SELECTIONS wholesale (create/rename/delete/edit).
+   *  One undoable step; metadata-only (does not touch groupPool/version). */
+  updateAoiSelections(selections: NameSelection[], source: string): boolean {
+    const command: UpdateAoiSelectionsCommand = {
+      type: 'updateAoiSelections',
+      selections,
       source,
     }
     return this.applyRoot(command)
   }
 
-  updateStimuli(stimuli: BaseInterpretedDataType[], source: string): boolean {
-    const command: UpdateStimuliCommand = {
-      type: 'updateStimuli',
-      stimuli,
-      source,
-    }
-    return this.applyRoot(command)
-  }
-
-  updateParticipantsGroups(
-    groups: ParticipantsGroup[],
+  /**
+   * Commit the stimulus modification modal as ONE atomic step (PLANMERGE.md
+   * M2 UX): edited names + order plus the desired merge groups, reconciled
+   * against the current merges in a single chain so rename, merge and un-merge
+   * undo together. See {@link ReconcileMergesCommand}.
+   */
+  reconcileStimulusMerges(
+    items: BaseInterpretedDataType[],
+    groups: ReconcileMergesCommand['groups'],
     source: string
   ): boolean {
-    const command: UpdateParticipantsGroupsCommand = {
-      type: 'updateParticipantsGroups',
+    return this.applyRoot({
+      type: 'reconcileMerges',
+      axis: 'stimulus',
+      items,
       groups,
       source,
+    })
+  }
+
+  /** Participant counterpart of {@link reconcileStimulusMerges}. */
+  reconcileParticipantMerges(
+    items: BaseInterpretedDataType[],
+    groups: ReconcileMergesCommand['groups'],
+    source: string
+  ): boolean {
+    return this.applyRoot({
+      type: 'reconcileMerges',
+      axis: 'participant',
+      items,
+      groups,
+      source,
+    })
+  }
+
+  updateParticipantsSelections(
+    selections: ParticipantsSelection[],
+    source: string
+  ): boolean {
+    const command: UpdateParticipantsSelectionsCommand = {
+      type: 'updateParticipantsSelections',
+      selections,
+      source,
     }
     return this.applyRoot(command)
+  }
+
+  updateStimuliSelections(selections: EntitySelection[], source: string): boolean {
+    return this.applyRoot({ type: 'updateStimuliSelections', selections, source })
+  }
+
+  updateCategoriesSelections(selections: EntitySelection[], source: string): boolean {
+    return this.applyRoot({ type: 'updateCategoriesSelections', selections, source })
+  }
+
+  updateEventsSelections(selections: NameSelection[], source: string): boolean {
+    return this.applyRoot({ type: 'updateEventsSelections', selections, source })
   }
 
   /**
