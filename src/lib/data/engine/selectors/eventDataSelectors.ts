@@ -60,32 +60,18 @@ export const getVisibleEventChannels = (
   stimulusId: number,
   eventSelectionId?: number
 ): ExtendedInterpretedDataType[] => {
-  const meta = engine.metadata
-  if (!meta) throw new Error('Data engine metadata not available')
+  const all = getEventChannels(engine, stimulusId)
+  if (all.length === 0) return []
 
-  const channels = meta.eventData.data[stimulusId]
-  if (!channels || channels.length === 0) return []
-
-  const order = meta.eventData.orderVector?.[stimulusId]
-  const ids =
-    order && order.length > 0
-      ? order
-      : Array.from({ length: channels.length }, (_, i) => i)
-
-  const hidden = meta.eventData.hiddenChannels?.[stimulusId] ?? []
+  const hidden = engine.metadata?.eventData.hiddenChannels?.[stimulusId] ?? []
   const hiddenSet = hidden.length ? new Set<number>(hidden) : null
 
-  const visible = ids
-    .filter(id => !hiddenSet?.has(id))
-    .map(id => {
-      const ch = channels[id]
-      if (!ch) return null
-      return interpretRow(ch, id, getDefaultEventChannelColor)
-    })
-    .filter((ch): ch is ExtendedInterpretedDataType => ch !== null)
+  const visible = hiddenSet
+    ? all.filter(ch => !hiddenSet.has(ch.id))
+    : all
 
   if (eventSelectionId == null || eventSelectionId <= 0) return visible
-  const selection = (meta.eventsSelections ?? []).find(
+  const selection = (engine.metadata?.eventsSelections ?? []).find(
     s => s.id === eventSelectionId
   )
   if (!selection) return visible

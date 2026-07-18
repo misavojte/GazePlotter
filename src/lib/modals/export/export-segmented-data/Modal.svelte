@@ -18,7 +18,7 @@
     EXPORT_NAMING_OPTIONS,
     EXPORT_TYPE_OPTIONS,
     exportTypeNamingSummary,
-    waitForExportUi,
+    runExport,
     listSummary,
     toggleSetValue,
   } from '../shared/helpers'
@@ -86,25 +86,22 @@
   const handleExport = async () => {
     if (!canExport) return
 
-    isExporting = true
-
-    try {
-      await waitForExportUi()
-      await exportService.exportSegmentedData({
-        fileName,
-        exportType: exportType as 'csv' | 'individual-csv',
-        stimulusIds: selectedStimuliIds,
-        participantIds: selectedParticipantIds,
-        filterCategoryIds: selectedCategoryIds,
-        naming,
-        csvOptions: {
-          delimiter,
-          decimalSeparator,
-        },
-      })
-    } finally {
-      isExporting = false
-    }
+    await runExport(
+      val => (isExporting = val),
+      () =>
+        exportService.exportSegmentedData({
+          fileName,
+          exportType: exportType as 'csv' | 'individual-csv',
+          stimulusIds: selectedStimuliIds,
+          participantIds: selectedParticipantIds,
+          filterCategoryIds: selectedCategoryIds,
+          naming,
+          csvOptions: {
+            delimiter,
+            decimalSeparator,
+          },
+        })
+    )
   }
 
   const exportButtons = $derived(

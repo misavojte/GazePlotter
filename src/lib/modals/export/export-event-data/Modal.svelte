@@ -10,7 +10,7 @@
     EXPORT_NAMING_OPTIONS,
     EXPORT_TYPE_OPTIONS,
     exportTypeNamingSummary,
-    waitForExportUi,
+    runExport,
   } from '../shared/helpers'
   import ExportShell from '../shared/ExportShell.svelte'
   import ExportProgressBar from '../shared/ExportProgressBar.svelte'
@@ -23,19 +23,22 @@
   } from '../shared/participants'
 
   const { engine, exportService, modalState } = getGazePlotterSession()
+
   const fileName = 'GazePlotter-EventData'
   let exportType = $state('csv')
+  let naming = $state<ExportNaming>('displayed')
   let delimiter = $state(',')
   let decimalSeparator = $state<DecimalSeparator>('.')
-  let naming = $state<ExportNaming>('displayed')
   let selectedStimuliIds = $state(defaultStimulusSelection(engine))
   let selectedParticipantIds = $state(defaultParticipantSelection(engine))
   let isExporting = $state(false)
 
   const stepStimuliDone = $derived(selectedStimuliIds.size > 0)
   const stepParticipantsDone = $derived(selectedParticipantIds.size > 0)
-  const canExport = $derived(stepStimuliDone && stepParticipantsDone)
 
+  const canExport = $derived(
+    stepStimuliDone && stepParticipantsDone
+  )
   const stimuliSummary = $derived(
     stimuliSelectionSummary(engine, selectedStimuliIds)
   )
@@ -49,24 +52,21 @@
   const handleExport = async () => {
     if (!canExport) return
 
-    isExporting = true
-
-    try {
-      await waitForExportUi()
-      await exportService.exportEventData({
-        fileName,
-        exportType: exportType as 'csv' | 'individual-csv',
-        stimulusIds: selectedStimuliIds,
-        participantIds: selectedParticipantIds,
-        naming,
-        csvOptions: {
-          delimiter,
-          decimalSeparator,
-        },
-      })
-    } finally {
-      isExporting = false
-    }
+    await runExport(
+      val => (isExporting = val),
+      () =>
+        exportService.exportEventData({
+          fileName,
+          exportType: exportType as 'csv' | 'individual-csv',
+          stimulusIds: selectedStimuliIds,
+          participantIds: selectedParticipantIds,
+          naming,
+          csvOptions: {
+            delimiter,
+            decimalSeparator,
+          },
+        })
+    )
   }
 
   const exportButtons = $derived(

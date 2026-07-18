@@ -8,6 +8,7 @@ import {
   generateCsvString,
   formatNumberForCsv,
 } from '../encoders/csv'
+import { groupByParticipantAndStimulus } from './utils'
 
 const SEGMENT_HEADER = [
   'stimulus',
@@ -233,53 +234,36 @@ export function generateMetadataForBatchCsv(
   )
   const includeSpatialColumns = data.capabilities.spatial
 
-  const results: Array<{ fileName: string; content: string }> = []
+  return groupByParticipantAndStimulus(csvPreData, (combinedData, stimulus, participant) => {
+    const rows = combinedData.map(item => {
+      const aoiNames = item.AOI ? item.AOI.join(';') : ''
 
-  const participants = Array.from(
-    new Set(csvPreData.map(item => item.participant))
-  )
-  const stimuli = Array.from(new Set(csvPreData.map(item => item.stimulus)))
-
-  for (const participant of participants) {
-    for (const stimulus of stimuli) {
-      const combinedData = csvPreData.filter(
-        item => item.participant === participant && item.stimulus === stimulus
-      )
-
-      if (combinedData.length === 0) continue
-
-      const rows = combinedData.map(item => {
-        const aoiNames = item.AOI ? item.AOI.join(';') : ''
-
-        if (!includeSpatialColumns) {
-          return [
-            formatNumberForCsv(item.timestamp, decimalSeparator),
-            formatNumberForCsv(item.duration, decimalSeparator),
-            item.eyemovementtype,
-            aoiNames,
-          ]
-        }
-
+      if (!includeSpatialColumns) {
         return [
           formatNumberForCsv(item.timestamp, decimalSeparator),
           formatNumberForCsv(item.duration, decimalSeparator),
           item.eyemovementtype,
           aoiNames,
-          formatNumberForCsv(item.x, decimalSeparator),
-          formatNumberForCsv(item.y, decimalSeparator),
         ]
-      })
+      }
 
-      results.push({
-        fileName: `${stimulus}_${participant}`,
-        content: generateCsvString(
-          includeSpatialColumns ? BATCH_HEADER_WITH_SPATIAL : BATCH_HEADER,
-          rows,
-          options
-        ),
-      })
+      return [
+        formatNumberForCsv(item.timestamp, decimalSeparator),
+        formatNumberForCsv(item.duration, decimalSeparator),
+        item.eyemovementtype,
+        aoiNames,
+        formatNumberForCsv(item.x, decimalSeparator),
+        formatNumberForCsv(item.y, decimalSeparator),
+      ]
+    })
+
+    return {
+      fileName: `${stimulus}_${participant}`,
+      content: generateCsvString(
+        includeSpatialColumns ? BATCH_HEADER_WITH_SPATIAL : BATCH_HEADER,
+        rows,
+        options
+      ),
     }
-  }
-
-  return results
+  })
 }

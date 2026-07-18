@@ -13,6 +13,7 @@ import {
   generateCsvString,
   formatNumberForCsv,
 } from '../encoders/csv'
+import { groupByParticipantAndStimulus } from './utils'
 
 // `eventName` (not `event`) is the channel column the CSV event-enrichment
 // importer requires, so a unified export re-imports as an event file.
@@ -211,33 +212,16 @@ export function generateEventBatchCsv(
   const { decimalSeparator } = resolveCsvFormatOptions(options)
   const csvPreData = convertEventData(data, stimulusIds, participantIds, naming)
 
-  const results: Array<{ fileName: string; content: string }> = []
+  return groupByParticipantAndStimulus(csvPreData, (combinedData, stimulus, participant) => {
+    const rows = combinedData.map(item => [
+      item.event,
+      formatNumberForCsv(item.start, decimalSeparator),
+      formatNumberForCsv(item.duration, decimalSeparator),
+    ])
 
-  const participants = Array.from(
-    new Set(csvPreData.map(item => item.participant))
-  )
-  const stimuli = Array.from(new Set(csvPreData.map(item => item.stimulus)))
-
-  for (const participant of participants) {
-    for (const stimulus of stimuli) {
-      const combinedData = csvPreData.filter(
-        item => item.participant === participant && item.stimulus === stimulus
-      )
-
-      if (combinedData.length === 0) continue
-
-      const rows = combinedData.map(item => [
-        item.event,
-        formatNumberForCsv(item.start, decimalSeparator),
-        formatNumberForCsv(item.duration, decimalSeparator),
-      ])
-
-      results.push({
-        fileName: `${stimulus}_${participant}`,
-        content: generateCsvString(EVENT_BATCH_HEADER, rows, options),
-      })
+    return {
+      fileName: `${stimulus}_${participant}`,
+      content: generateCsvString(EVENT_BATCH_HEADER, rows, options),
     }
-  }
-
-  return results
+  })
 }

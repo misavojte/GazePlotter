@@ -173,3 +173,17 @@ export function createExportButtons({
 
   return buttons
 }
+
+export async function runExport(
+  setExporting: (exporting: boolean) => void,
+  exportFn: () => Promise<unknown>
+): Promise<void> {
+  setExporting(true)
+  try {
+    await waitForExportUi()
+    await exportFn()
+  } finally {
+    setExporting(false)
+  }
+}
+

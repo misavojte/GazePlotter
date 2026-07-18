@@ -23,7 +23,7 @@
     listSummary,
     mapSelectableItems,
     toggleSetValue,
-    waitForExportUi,
+    runExport,
   } from '../shared/helpers'
   import ExportShell from '../shared/ExportShell.svelte'
   import ExportProgressBar from '../shared/ExportProgressBar.svelte'
@@ -276,28 +276,25 @@
   const handleExport = async () => {
     if (!canExport) return
 
-    isExporting = true
-
-    try {
-      await waitForExportUi()
-      await exportService.exportMetricData({
-        fileName,
-        // Engine order, not click order, so rows are stable across exports.
-        participantIds: orderedSelectedParticipantIds(engine, selectedParticipantIds),
-        stimulusIds: Array.from(selectedStimuliIds).map(id => parseInt(id)),
-        metricInstanceIds: activeSelectedMetrics,
-        format,
-        csvOptions: {
-          delimiter,
-          decimalSeparator,
-        },
-        includeCodebook,
-        timeStart,
-        timeEnd,
-      })
-    } finally {
-      isExporting = false
-    }
+    await runExport(
+      val => (isExporting = val),
+      () =>
+        exportService.exportMetricData({
+          fileName,
+          // Engine order, not click order, so rows are stable across exports.
+          participantIds: orderedSelectedParticipantIds(engine, selectedParticipantIds),
+          stimulusIds: Array.from(selectedStimuliIds).map(id => parseInt(id)),
+          metricInstanceIds: activeSelectedMetrics,
+          format,
+          csvOptions: {
+            delimiter,
+            decimalSeparator,
+          },
+          includeCodebook,
+          timeStart,
+          timeEnd,
+        })
+    )
   }
 
   const handleEditLibrary = () => {
