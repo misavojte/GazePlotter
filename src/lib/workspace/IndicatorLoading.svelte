@@ -1,71 +1,21 @@
 <script lang="ts">
-  import { fade } from 'svelte/transition'
   import { getGazePlotterSession } from '$lib/session'
+  import IndicatorCard from './IndicatorCard.svelte'
 
   const { ingest } = getGazePlotterSession()
 </script>
 
-<div class="loading-workspace-indicator" transition:fade={{ duration: 400 }}>
-  <div class="indicator-card">
-    <div class="indicator-header">
-      <h3 class="indicator-title">Processing data</h3>
-    </div>
-    <div class="indicator-body">
-      <div class="content-inner">
-        <div class="spinner"></div>
-        <div class="text-content">
-          <p>Please wait while we prepare your visualisations.</p>
-          <p>Processing data: {ingest.progressPercent}%</p>
-        </div>
-      </div>
+<IndicatorCard title="Processing data">
+  <div class="content-inner">
+    <div class="spinner"></div>
+    <div class="text-content">
+      <p>Please wait while we prepare your visualisations.</p>
+      <p>Processing data: {ingest.progressPercent}%</p>
     </div>
   </div>
-</div>
+</IndicatorCard>
 
 <style>
-  .loading-workspace-indicator {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 10;
-  }
-
-  .indicator-card {
-    max-width: 500px;
-    width: 100%;
-    box-sizing: border-box;
-    background-color: var(--c-lightgrey);
-    border-radius: var(--rounded-lg);
-    border: 1px solid var(--c-border);
-    overflow: hidden;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .indicator-header {
-    display: flex;
-    align-items: center;
-    padding: 8px 16px;
-    background: var(--c-lightgrey);
-  }
-
-  .indicator-title {
-    margin: 2px 0 2px 4px;
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--c-black);
-  }
-
-  .indicator-body {
-    padding: 20px;
-    background-color: var(--c-white);
-  }
-
   .content-inner {
     display: flex;
     align-items: flex-start;
@@ -99,11 +49,5 @@
     color: var(--c-text);
     line-height: 1.5;
     font-size: 14px;
-  }
-
-  @media (max-width: 600px) {
-    .indicator-card {
-      margin: 0 1rem;
-    }
   }
 </style>
