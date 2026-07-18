@@ -185,11 +185,6 @@
   }
 </script>
 
-<svelte:window
-  onkeydowncapture={session.onEscCapture}
-  onpointerdowncapture={session.onOutsideDown}
-/>
-
 <Section>
   {#key stimulus}
     <EditableEntityList

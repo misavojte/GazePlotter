@@ -82,11 +82,6 @@
   }
 </script>
 
-<svelte:window
-  onkeydowncapture={session.onEscCapture}
-  onpointerdowncapture={session.onOutsideDown}
-/>
-
 <Section>
   <EditableEntityList
     items={editor.groups}

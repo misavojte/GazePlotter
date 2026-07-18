@@ -370,11 +370,6 @@
   }
 </script>
 
-<svelte:window
-  onkeydowncapture={session.onEscCapture}
-  onpointerdowncapture={session.onOutsideDown}
-/>
-
 <Section>
   <!-- Keyed: a scope switch swaps the backing editor, whose group ids live in
        different id spaces (synthetic vs per-stimulus AOI ids). -->

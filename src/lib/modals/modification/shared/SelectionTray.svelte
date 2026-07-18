@@ -105,6 +105,11 @@
   }
 </script>
 
+<svelte:window
+  onkeydowncapture={session.onEscCapture}
+  onpointerdowncapture={session.onOutsideDown}
+/>
+
 <div class="tray">
   <div class="panel">
   <div class="status">
