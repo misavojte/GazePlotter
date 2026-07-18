@@ -381,4 +381,6 @@ export interface SelectionSessionApi {
   addSelectedTo(id: number): void
   removeSelectedFrom(id: number): void
   setHovered(id: number | null): void
+  onEscCapture(e: KeyboardEvent): void
+  onOutsideDown(e: PointerEvent): void
 }
