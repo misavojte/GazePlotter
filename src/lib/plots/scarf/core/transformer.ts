@@ -256,17 +256,17 @@ function createStylingAndLegend(
     })
   }
 
-  const visibility: ScarfStyleItem[] = []
+  const event: ScarfStyleItem[] = []
   for (let i = 0; i < eventChannelData.length; i++) {
     const ch = eventChannelData[i]
-    visibility.push({
+    event.push({
       identifier: `${SCARF_IDENTIFIERS.EVENT}${ch.id}`,
       name: ch.displayedName,
       color: ch.color,
     })
   }
 
-  return { aoi, category, visibility }
+  return { aoi, category, event }
 }
 
 type GroupedEventChannel = ExtendedInterpretedDataType & {
@@ -312,7 +312,7 @@ function createScarfLegendData(
   // Overlaid events render as solid colour strips, so the legend swatch is a
   // rectangle keyed by event type.
   if (showEvents) {
-    addGroup('Event Channels', styling.visibility, 'fixation')
+    addGroup('Event Channels', styling.event, 'fixation')
   }
 
   return { groups }
@@ -410,7 +410,7 @@ export function transformDataToScarfPlot(
     : []
   const groupedEventChannels =
     groupEventChannelsByDisplayedName(visibleEventChannels)
-  const showVisibilityMarkers =
+  const showEventStripMarkers =
     showEventOverlay && groupedEventChannels.length > 0
   const categoryData = getAllCategories(engine)
   // Group the non-fixation categories ONCE — shared by the styling below and the
@@ -434,7 +434,7 @@ export function transformDataToScarfPlot(
   const stylingAndLegend = createStylingAndLegend(
     aoiData,
     noAoiTreatment,
-    showVisibilityMarkers ? groupedEventChannels : [],
+    showEventStripMarkers ? groupedEventChannels : [],
     groupedCategories,
     hideNoAoi
   )
@@ -462,7 +462,7 @@ export function transformDataToScarfPlot(
     }
   }
 
-  const visibilityBaseStyleIdx =
+  const eventStripBaseStyleIdx =
     aoiStyleCount + stylingAndLegend.category.length
 
   const stimulusAoiCount = engine.metadata?.aois.data[stimulusId]?.length ?? 0
@@ -474,7 +474,7 @@ export function transformDataToScarfPlot(
   const totalStyleCount =
     aoiStyleCount +
     stylingAndLegend.category.length +
-    stylingAndLegend.visibility.length
+    stylingAndLegend.event.length
   // Event overlay buckets only (small — one strip per merged event). There are no
   // gaze rect buckets: the renderer composites the gaze rects straight from the
   // binary segment store via `gazeSource` (see below).
@@ -532,7 +532,7 @@ export function transformDataToScarfPlot(
     projClipMax[pIndex] = clipMax
     projScale[pIndex] = scale
 
-    if (showVisibilityMarkers) {
+    if (showEventStripMarkers) {
       // Merge this participant's events across ALL visible channels, pack them
       // into shared lanes (greedy, type-order tiebreak), then push each as a
       // strip into its channel bucket so the renderer can colour it by type.
@@ -545,7 +545,7 @@ export function transformDataToScarfPlot(
 
       for (let chIdx = 0; chIdx < groupedEventChannels.length; chIdx++) {
         const group = groupedEventChannels[chIdx]
-        const styleIdx = visibilityBaseStyleIdx + chIdx
+        const styleIdx = eventStripBaseStyleIdx + chIdx
         const chEvents: { start: number; end: number; isPoint: boolean }[] = []
         for (let mIdx = 0; mIdx < group.memberIds.length; mIdx++) {
           const buf = getEventBuffer(engine, stimulusId, group.memberIds[mIdx], pid)
@@ -643,10 +643,10 @@ export function transformDataToScarfPlot(
     participants,
     timeline,
     stylingAndLegend,
-    legendData: createScarfLegendData(stylingAndLegend, showVisibilityMarkers),
+    legendData: createScarfLegendData(stylingAndLegend, showEventStripMarkers),
     visualEventBuckets,
     gazeSource,
-    isOverlay: showVisibilityMarkers,
+    isOverlay: showEventStripMarkers,
     eventZoneConcurrency: observedMaxConcurrency,
   }
 }

@@ -53,12 +53,12 @@ export interface ScarfStyleItem {
 
 /**
  * Collection of styling information for the scarf plot.
- * Contains arrays for AOI styling, category styling, and visibility styling.
+ * Contains arrays for AOI styling, category styling, and event styling.
  */
 export interface ScarfStyling {
   aoi: ScarfStyleItem[]
   category: ScarfStyleItem[]
-  visibility: ScarfStyleItem[]
+  event: ScarfStyleItem[]
 }
 
 // ============================================================================
@@ -195,7 +195,7 @@ export interface ScarfGazeSource {
  * @property legendData - Group-aware legend data for viewport-driven legend rendering
  * @property participants - array of ScarfParticipant objects containing information about participants
  * @property gazeSource - binary source the renderer/hover/highlight composite gaze from
- * @property visualEventBuckets - Precomputed visual buffers for visibility event markers
+ * @property visualEventBuckets - Precomputed visual buffers for event strip markers
  */
 export type ScarfData = {
   id: number

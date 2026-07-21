@@ -165,7 +165,7 @@ describe.skipIf(!RUN)('scarf throughput (base full-extent path)', () => {
     const styleCount =
       data0.stylingAndLegend.aoi.length +
       data0.stylingAndLegend.category.length +
-      data0.stylingAndLegend.visibility.length
+      data0.stylingAndLegend.event.length
 
     const layout: ScarfLayoutContext = {
       heightOfBar: 16,

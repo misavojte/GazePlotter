@@ -98,7 +98,7 @@ describe('gaze binary composite (single pass, no buckets)', () => {
     const styleCount =
       data.stylingAndLegend.aoi.length +
       data.stylingAndLegend.category.length +
-      data.stylingAndLegend.visibility.length
+      data.stylingAndLegend.event.length
     const styleRgb = new Float32Array(styleCount * 3)
     for (let s = 0; s < styleCount; s++) {
       styleRgb[s * 3] = 60 + s * 18

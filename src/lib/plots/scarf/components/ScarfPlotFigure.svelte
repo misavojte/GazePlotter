@@ -258,7 +258,7 @@
     return getScarfIdentifierSystem(
       data.stylingAndLegend.aoi.map(i => i.identifier),
       data.stylingAndLegend.category.map(i => i.identifier),
-      data.stylingAndLegend.visibility.map(i => i.identifier)
+      data.stylingAndLegend.event.map(i => i.identifier)
     )
   })
 
@@ -275,7 +275,7 @@
   const eventStyleMap = $derived.by(() => {
     const map = new Map()
     if (!data.stylingAndLegend) return map
-    for (const style of data.stylingAndLegend.visibility) {
+    for (const style of data.stylingAndLegend.event) {
       const baseStyle = { fill: style.color, stroke: style.color, strokeWidth: 1 }
       map.set(style.identifier, { normal: baseStyle, dimmed: { ...baseStyle, opacity: 0.15 } })
     }
