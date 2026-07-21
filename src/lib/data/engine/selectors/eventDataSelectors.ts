@@ -3,7 +3,7 @@ import type { DataEngine } from '../dataEngine.svelte'
 import { INTERVAL_CHANNEL_MARKER } from '../eventIntervals'
 import {
   getDefaultEventChannelColor,
-  interpretRow,
+  interpretOrdered,
 } from '../utils/interpreters'
 
 /**
@@ -31,19 +31,11 @@ export const getEventChannels = (
   const channels = meta.eventData.data[stimulusId]
   if (!channels || channels.length === 0) return []
 
-  const order = meta.eventData.orderVector?.[stimulusId]
-  const ids =
-    order && order.length > 0
-      ? order
-      : Array.from({ length: channels.length }, (_, i) => i)
-
-  return ids
-    .map(id => {
-      const ch = channels[id]
-      if (!ch) return null
-      return interpretRow(ch, id, getDefaultEventChannelColor)
-    })
-    .filter((ch): ch is ExtendedInterpretedDataType => ch !== null)
+  return interpretOrdered(
+    channels,
+    meta.eventData.orderVector?.[stimulusId] ?? [],
+    getDefaultEventChannelColor
+  )
 }
 
 /**

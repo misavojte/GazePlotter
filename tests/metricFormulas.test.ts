@@ -6,7 +6,7 @@
  * Behaviour-level coverage lives in `barPlotDataCollection.test.ts`.
  */
 import { describe, it, expect } from 'vitest'
-import { makeTestEngine } from './helpers/testEngine'
+import { makeGroupedAoiEngine, makeTestEngine } from './helpers/testEngine'
 import {
   query,
   queryGroup,
@@ -47,32 +47,6 @@ function createWideEngine(n: number, segmentsForPid: number[][]) {
   return makeTestEngine([[], [segmentsForPid]], {
     aoiData: [[], aoiData],
     aoiOrderVector: [[], order],
-  })
-}
-
-/**
- * Production-realistic engine: uses the real AoiGroupReader.updateMap
- * (sharedMap logic, groupPool population) instead of an identity
- * getAoiMapping mock. Use this for tests that suspect a bug in the grouping
- * or in the interaction between the metric pipeline and the real reader.
- *
- * `aoiNames` controls both AOI count and grouping: repeated names → followers
- * collapse to the first occurrence's rep id.
- */
-function createRealEngine(aoiNames: string[], segmentsForPid: number[][]) {
-  // aois.data[1] uses the [null, ...aois] convention so raw id i == data[1][i].
-  const aoiData: (string[] | null)[] = [null]
-  const order: number[] = []
-  for (let i = 0; i < aoiNames.length; i++) {
-    aoiData.push([aoiNames[i], aoiNames[i], '#000000'])
-    order.push(i + 1)
-  }
-  // Real AoiGroupReader runs the full updateMap (sharedMap + groupPool
-  // population) — no identity short-circuit.
-  return makeTestEngine([[], [segmentsForPid]], {
-    aoiData: [[], aoiData],
-    aoiOrderVector: [[], order],
-    aoiMapping: 'group',
   })
 }
 
@@ -618,7 +592,7 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
     const names = Array.from({ length: N }, (_, i) => `AOI ${i + 1}`)
     const segs: number[][] = []
     for (let i = 0; i < N; i++) segs.push([i * 100, (i + 1) * 100, 0, i + 1])
-    const engine = createRealEngine(names, segs)
+    const engine = makeGroupedAoiEngine(names, segs)
     const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
     const size = N + 1
     for (let i = 0; i < N - 1; i++) {
@@ -643,7 +617,7 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
         segs.push([t, t + 100, 0]); t += 100
       }
     }
-    const engine = createRealEngine(names, segs)
+    const engine = makeGroupedAoiEngine(names, segs)
     const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
     const size = N + 1
     const outside = N
@@ -676,7 +650,7 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
     const segs: number[][] = []
     for (let i = 1; i <= totalRaw; i++) segs.push([(i - 1) * 100, i * 100, 0, i])
 
-    const engine = createRealEngine(names, segs)
+    const engine = makeGroupedAoiEngine(names, segs)
     const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
     const size = numGroups + 1
 
@@ -708,7 +682,7 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
       [300, 400, 0, 18],
       [400, 500, 0, 25],
     ]
-    const engine = createRealEngine(names, segs)
+    const engine = makeGroupedAoiEngine(names, segs)
     engine.metadata.aois.selections = [{ id: 7, name: 'Keep', names: keptNames }]
     const result = values(
       query(inst('transitionCount', { mode: 'fixation' }), {
@@ -767,7 +741,7 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
         wasOutside = true
       }
     }
-    const engine = createRealEngine(names, segs)
+    const engine = makeGroupedAoiEngine(names, segs)
     const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
     const size = N + 1
     const outside = N
@@ -804,7 +778,7 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
     // For saccades, getRawAois IS called but only if the segment passes the category filter.
     // So this should be safe. But to be defensive, use a valid raw id (1) for the saccade.
     segs[1][3] = 1
-    const engine = createRealEngine(names, segs)
+    const engine = makeGroupedAoiEngine(names, segs)
     const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
     const size = N + 1
     const outside = N
@@ -826,7 +800,7 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
     // Mechanism: updateMap() bumps AoiGroupReader.version, which is folded
     // into the metric cache key, so the next lookup misses → fresh compute.
 
-    const engine = createRealEngine(
+    const engine = makeGroupedAoiEngine(
       ['AOI 1', 'AOI 2', 'AOI 3'],
       [
         [0, 100, 0, 1],
@@ -875,7 +849,7 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
     // entry under that params key.
 
     // --- Phase 1: "demo" — 2 AOIs, view fixation transitions (NOT visit) ---
-    const engine: any = createRealEngine(
+    const engine: any = makeGroupedAoiEngine(
       ['AOI 1', 'AOI 2'],
       [
         [0, 100, 0, 1],
@@ -899,7 +873,7 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
         advSegs.push([t, t + 100, 0]); t += 100
       }
     }
-    const advReplacement = createRealEngine(advNames, advSegs)
+    const advReplacement = makeGroupedAoiEngine(advNames, advSegs)
     engine.metadata = advReplacement.metadata
     engine.getReader = advReplacement.getReader
     engine.getAoiGroupReader = advReplacement.getAoiGroupReader

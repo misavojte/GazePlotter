@@ -54,17 +54,24 @@ export const interpretBaseRows = (
 
 /**
  * Ordered {@link interpretRow} decode: walk `order` (or 0..n−1 when empty)
- * through the row list. Shared by the event-channel and eye-movement-type
- * reverses, which both re-emit their entities in display order.
+ * through the row list; order ids with no matching row are SKIPPED — a stale
+ * order vector yields fewer entities, never a ghost `{'', ''}` one. THE single
+ * ordered-decode policy, shared by the selector side (getEventChannels) and
+ * the command reverses (event channels, eye-movement types).
  */
 export const interpretOrdered = (
-  defs: readonly (readonly (string | null)[])[],
+  defs: readonly (readonly (string | null)[] | null | undefined)[],
   order: readonly number[],
   defaultColor: (id: number) => string
 ): ExtendedInterpretedDataType[] => {
   const ids =
     order.length > 0 ? order : Array.from({ length: defs.length }, (_, i) => i)
-  return ids.map(id => interpretRow(defs[id], id, defaultColor))
+  const out: ExtendedInterpretedDataType[] = []
+  for (const id of ids) {
+    const row = defs[id]
+    if (row) out.push(interpretRow(row, id, defaultColor))
+  }
+  return out
 }
 
 export const getAoiRaw = (

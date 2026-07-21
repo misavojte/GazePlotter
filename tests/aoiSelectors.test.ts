@@ -15,30 +15,16 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { makeTestEngine } from './helpers/testEngine'
+import { makeGroupedAoiEngine } from './helpers/testEngine'
 import { getAois } from '../src/lib/data/engine/selectors/aoiSelectors'
 import { query } from '../src/lib/metrics'
-
-function createEngine(aoiNames: string[], segmentsForPid: number[][]) {
-  const aoiData: (string[] | null)[] = [null]
-  const order: number[] = []
-  for (let i = 0; i < aoiNames.length; i++) {
-    aoiData.push([aoiNames[i], aoiNames[i], '#000000'])
-    order.push(i + 1)
-  }
-  return makeTestEngine([[], [segmentsForPid]], {
-    aoiData: [[], aoiData],
-    aoiOrderVector: [[], order],
-    aoiMapping: 'group',
-  })
-}
 
 const STIM = 1
 
 describe('getAois — memoization', () => {
   it('returns the same array reference for repeat calls with unchanged state', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const engine = createEngine(['AOI 1', 'AOI 2', 'AOI 3'], []) as any
+    const engine = makeGroupedAoiEngine(['AOI 1', 'AOI 2', 'AOI 3'], []) as any
     const a = getAois(engine, STIM)
     const b = getAois(engine, STIM)
     expect(a).toBe(b) // referential equality — cache hit
@@ -47,7 +33,7 @@ describe('getAois — memoization', () => {
 
   it('returns a new array after AoiGroupReader.updateMap bumps the version', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const engine = createEngine(['AOI 1', 'AOI 2', 'AOI 3'], []) as any
+    const engine = makeGroupedAoiEngine(['AOI 1', 'AOI 2', 'AOI 3'], []) as any
     const before = getAois(engine, STIM)
     expect(before.length).toBe(3)
 
@@ -67,7 +53,7 @@ describe('getAois — memoization', () => {
     // AoiGroupReader.updateMap maps raw 2 → 1's rep, raw 4 → 3's rep.
     // getAois should return exactly 2 entries (one per name group), not 4.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const engine = createEngine(['Logo', 'Logo', 'Button', 'Button'], []) as any
+    const engine = makeGroupedAoiEngine(['Logo', 'Logo', 'Button', 'Button'], []) as any
     const list = getAois(engine, STIM)
     expect(list.length).toBe(2)
     expect(list.map(a => a.displayedName).sort()).toEqual(['Button', 'Logo'])
@@ -79,7 +65,7 @@ describe('getAois — memoization', () => {
     // sees it's byte-identical to the previous one, and skips the structural
     // version bump. Appearance always bumps so display caches refresh.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const engine = createEngine(['AOI 1', 'AOI 2'], []) as any
+    const engine = makeGroupedAoiEngine(['AOI 1', 'AOI 2'], []) as any
     const groupReader = engine.getAoiGroupReader()
 
     const before = getAois(engine, STIM)
@@ -102,7 +88,7 @@ describe('getAois — memoization', () => {
   it('CONTROL: two identical back-to-back queries — second should hit the cache', async () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
 
-    const engine = createEngine(
+    const engine = makeGroupedAoiEngine(
       ['AOI 1', 'AOI 2'],
       [[0, 100, 0, 1], [100, 200, 0, 2], [200, 300, 0, 1]],
     ) as any
@@ -133,7 +119,7 @@ describe('getAois — memoization', () => {
     // that method is invoked ONLY from scanAccumulator/scanBatch inner loops.
     // Counting getAoiMapping would be ambiguous because getAois calls it too.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const engine = createEngine(
+    const engine = makeGroupedAoiEngine(
       ['AOI 1', 'AOI 2'],
       [[0, 100, 0, 1], [100, 200, 0, 2], [200, 300, 0, 1]],
     ) as any
@@ -169,7 +155,7 @@ describe('getAois — memoization', () => {
 
   it('returned array is frozen — mutation attempts throw in strict mode', () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const engine = createEngine(['AOI 1', 'AOI 2'], []) as any
+    const engine = makeGroupedAoiEngine(['AOI 1', 'AOI 2'], []) as any
     const list = getAois(engine, STIM)
     expect(Object.isFrozen(list)).toBe(true)
     expect(() => {

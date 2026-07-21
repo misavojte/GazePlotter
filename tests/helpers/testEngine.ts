@@ -62,6 +62,33 @@ export type TestEngine = {
  * Build an engine stub over `segments[stimulusId][participantId][segIdx]`
  * rows of `[start, end, categoryId, ...rawAoiIds]` (category 0 = fixation).
  */
+/**
+ * Production-realistic single-stimulus engine (STIM = 1): builds the
+ * `[null, ...rows]` convention (raw id i == data[1][i]) from `aoiNames` and
+ * wires the REAL AoiGroupReader (full updateMap: sharedMap + groupPool
+ * population — no identity short-circuit). Use for tests that suspect a bug
+ * in the grouping or in the interaction with the real reader.
+ *
+ * `aoiNames` controls both AOI count and grouping: repeated names → followers
+ * collapse to the first occurrence's rep id.
+ */
+export function makeGroupedAoiEngine(
+  aoiNames: string[],
+  segmentsForPid: number[][]
+): TestEngine {
+  const aoiData: (string[] | null)[] = [null]
+  const order: number[] = []
+  for (let i = 0; i < aoiNames.length; i++) {
+    aoiData.push([aoiNames[i], aoiNames[i], '#000000'])
+    order.push(i + 1)
+  }
+  return makeTestEngine([[], [segmentsForPid]], {
+    aoiData: [[], aoiData],
+    aoiOrderVector: [[], order],
+    aoiMapping: 'group',
+  })
+}
+
 export function makeTestEngine(
   segments: number[][][][],
   options: TestEngineOptions = {}
