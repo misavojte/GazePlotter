@@ -1,8 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { buildAoiSlots } from './aoiSlots'
-import { resolveParams } from './params'
-import { getRecipe } from './defineMetric'
-import type { MetricInstance } from '../instances'
 import { FIXATION_CATEGORY_ID } from '$lib/data/binary'
 
 /**
@@ -49,7 +46,7 @@ export function extractFixationSequence(
 ): FixationSequence {
   const slots = buildAoiSlots(engine, stimulusId, options?.aoiSelectionId)
   if (!slots) return { seq: [], timestamps: [], endTimestamps: [] }
-  const { reader, hiddenAoisSet, aoiLookup, noAoiSlot } = slots
+  const { reader, aoiLookup, noAoiSlot } = slots
   const { startIndex, endIndex } = reader.getSegmentRange(stimulusId, participantId)
   const includeNoAoi = options?.includeNoAoi ?? false
   const seq: number[] = []
@@ -61,9 +58,7 @@ export function extractFixationSequence(
     aoiSet.clear()
     const rawAois = reader.getRawAois(i)
     for (let r = 0; r < rawAois.length; r++) {
-      const rawId = rawAois[r]
-      if (hiddenAoisSet?.has(rawId)) continue
-      const slot = aoiLookup.get(engine.getAoiMapping(stimulusId, rawId))
+      const slot = aoiLookup.get(engine.getAoiMapping(stimulusId, rawAois[r]))
       if (slot !== undefined) aoiSet.add(slot)
     }
     if (aoiSet.size === 1) {

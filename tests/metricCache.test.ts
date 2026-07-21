@@ -35,18 +35,14 @@ const DEFAULT_SEGMENTS: number[][][] = [
   ],
 ]
 
-function createEngine(
-  perParticipant: number[][][] = DEFAULT_SEGMENTS,
-  hiddenAois: number[] = []
-) {
+function createEngine(perParticipant: number[][][] = DEFAULT_SEGMENTS) {
   let appearanceVersion = 0
   return {
     ...makeTestEngine([[], perParticipant], {
-      hiddenAois: [[], hiddenAois],
       participants: [['P0', 'P0'], ['P1', 'P1']],
     }),
     // Structural version stays 0 throughout — none of these tests change
-    // grouping/visibility, mirroring the real engine.
+    // grouping, mirroring the real engine.
     getAoiGroupReader: () => ({ version: 0, appearanceVersion }),
     /** Simulates updateMap() — bumps on every AOI edit in the real engine. */
     bumpAoiVersion: () => {
@@ -139,22 +135,25 @@ describe('metric cache', () => {
 
   it('queryBatch equals per-instance query for every recipe (scan equivalence)', () => {
     // The batch scanner and the single-scan path inline the same fixation
-    // decode + hidden-drop + slot-dedupe block (kept duplicated for speed —
+    // decode + slot-resolve + dedupe block (kept duplicated for speed —
     // a shared per-fixation callback measured ~15% slower). This equivalence
     // pin is what keeps the copies from drifting. The data exercises both
     // invariants: a fixation tagged with a duplicate raw AOI id (dedupe) and
-    // a hidden AOI (dropped before grouping).
+    // an out-of-selection AOI (resolves to no slot).
     const segs: number[][][] = [
       [
         [0, 100, 0, 1, 1], // duplicate raw id → one slot after dedupe
-        [100, 200, 0, 2], // hidden below → resolves to no slots
-        [200, 300, 0, 1, 2], // mixed: one visible + one hidden
+        [100, 200, 0, 2], // outside the selection → resolves to no slots
+        [200, 300, 0, 1, 2], // mixed: one selected + one out-of-selection
         [300, 400, 0], // no AOI at all
       ],
     ]
+    const selections = [{ id: 9, name: 'Focus', names: ['AOI 1'] }]
     // Fresh engines per path so neither can serve the other's cache entries.
-    const e1 = createEngine(segs, [2])
-    const e2 = createEngine(segs, [2])
+    const e1 = createEngine(segs)
+    const e2 = createEngine(segs)
+    e1.metadata.aois.selections = selections
+    e2.metadata.aois.selections = selections
     const instances = () => [
       vectorInst('fc', 'fixationCount'),
       vectorInst('at', 'absoluteTime'),
@@ -166,12 +165,14 @@ describe('metric cache', () => {
       engine: e1 as any,
       stimulusId: STIM,
       participantId: 0,
+      aoiSelectionId: 9,
     })
     for (const inst of instances()) {
       const single = query(inst, {
         engine: e2 as any,
         stimulusId: STIM,
         participantId: 0,
+        aoiSelectionId: 9,
       })
       expect(batch.get(inst.id), inst.baseId).toEqual(single)
     }

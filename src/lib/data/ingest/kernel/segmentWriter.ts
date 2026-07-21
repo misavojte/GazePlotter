@@ -632,7 +632,6 @@ export class SegmentWriter {
           ])
         }),
         orderVector: aoisOrderVectors,
-        hiddenAois: [],
       },
       segments: {
         segmentBuffer: finalSegBuffer.subarray(0, segPtr * SEGMENT_STRIDE),
@@ -651,7 +650,6 @@ export class SegmentWriter {
       eventData: {
         data: Array.from({ length: maxStimuli }, () => []),
         orderVector: [],
-        hiddenChannels: [],
         events: Array.from({ length: maxStimuli }, () => [] as number[][][]),
       },
     }

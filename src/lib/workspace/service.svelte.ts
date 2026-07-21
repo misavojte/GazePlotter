@@ -405,8 +405,7 @@ export class WorkspaceService {
     aois: ExtendedInterpretedDataType[],
     stimulusId: number,
     applyTo: UpdateAoisCommand['applyTo'],
-    source: string,
-    hiddenAois?: number[]
+    source: string
   ): boolean {
     const command: UpdateAoisCommand = {
       type: 'updateAois',
@@ -414,7 +413,6 @@ export class WorkspaceService {
       stimulusId,
       applyTo,
       source,
-      ...(hiddenAois !== undefined ? { hiddenAois } : {}),
     }
     return this.applyRoot(command)
   }
@@ -423,8 +421,7 @@ export class WorkspaceService {
     stimulusId: number,
     channelDefs: string[][],
     eventBuffers: number[][][],
-    source: string,
-    hiddenChannels?: number[]
+    source: string
   ): boolean {
     const command: UpdateEventDataCommand = {
       type: 'updateEventData',
@@ -432,7 +429,6 @@ export class WorkspaceService {
       channelDefs,
       eventBuffers,
       source,
-      ...(hiddenChannels !== undefined ? { hiddenChannels } : {}),
     }
     return this.applyRoot(command)
   }
@@ -440,15 +436,13 @@ export class WorkspaceService {
   updateEventChannels(
     channels: ExtendedInterpretedDataType[],
     stimulusId: number,
-    source: string,
-    hiddenChannels?: number[]
+    source: string
   ): boolean {
     const command: UpdateEventChannelsCommand = {
       type: 'updateEventChannels',
       channels,
       stimulusId,
       source,
-      ...(hiddenChannels !== undefined ? { hiddenChannels } : {}),
     }
     return this.applyRoot(command)
   }
@@ -467,14 +461,12 @@ export class WorkspaceService {
 
   updateCategories(
     categories: ExtendedInterpretedDataType[],
-    source: string,
-    hiddenCategories?: number[]
+    source: string
   ): boolean {
     const command: UpdateCategoriesCommand = {
       type: 'updateCategories',
       categories,
       source,
-      ...(hiddenCategories !== undefined ? { hiddenCategories } : {}),
     }
     return this.applyRoot(command)
   }

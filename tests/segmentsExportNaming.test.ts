@@ -6,7 +6,7 @@ import { generateUnifiedCsv } from '../src/lib/data/export/mappers/segments'
 /**
  * One segment referencing three AOIs:
  * - AOI 0 "Left" and AOI 1 "Right" share the displayed name "Region" (grouped)
- * - AOI 2 "Top" is hidden
+ * - AOI 2 "Top" is displayed as "Top Area"
  * Category 0 is imported as "Fixation" but renamed (displayed) to "Gaze".
  */
 function createData(): DataType {
@@ -28,20 +28,19 @@ function createData(): DataType {
         ],
       ],
       orderVector: [[0, 1, 2]],
-      hiddenAois: [[2]],
     },
     segments: jsonSegmentsToBinary([[[[0, 100, 0, 0, 1, 2]]]]),
-    eventData: { data: [[]], orderVector: [], hiddenChannels: [], events: [[]] },
+    eventData: { data: [[]], orderVector: [], events: [[]] },
   }
 }
 
 describe('segment export naming', () => {
-  it('displayed (default): renamed category, grouped+deduped AOIs, hidden dropped, displayed stimulus/participant', () => {
+  it('displayed (default): renamed category, grouped+deduped AOIs, displayed stimulus/participant', () => {
     const lines = generateUnifiedCsv(createData()).split('\n')
-    expect(lines[1]).toBe('StimulusOne,ParticipantOne,0,100,Gaze,Region')
+    expect(lines[1]).toBe('StimulusOne,ParticipantOne,0,100,Gaze,Region;Top Area')
   })
 
-  it('raw: original category name, every AOI listed (incl. hidden), no grouping, raw stimulus/participant', () => {
+  it('raw: original category name, every AOI listed, no grouping, raw stimulus/participant', () => {
     const lines = generateUnifiedCsv(
       createData(),
       undefined,

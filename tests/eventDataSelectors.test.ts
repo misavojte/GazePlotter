@@ -17,7 +17,6 @@ import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 function engineWith(eventData: {
   data: string[][][]
   events: number[][][][]
-  hiddenChannels?: number[][]
 }): DataEngine {
   // The occurrence buffers live in the engine's binary reader, not metadata;
   // mirror that split so the selectors read them the production way.
@@ -25,7 +24,7 @@ function engineWith(eventData: {
   reader.load(eventData.events)
   return {
     metadata: {
-      eventData: { data: eventData.data, hiddenChannels: eventData.hiddenChannels },
+      eventData: { data: eventData.data },
     },
     getEventReader: () => reader,
   } as unknown as DataEngine
@@ -134,12 +133,11 @@ describe('buildEventDataWithoutChannels', () => {
             [30, 0],
           ],
         ],
-        hiddenChannels: [],
       },
     ])
   })
 
-  test('hidden ids are remapped to the new indexing, removed ids dropped', () => {
+  test('name matching is exact — prefixed names survive removal', () => {
     const engine = engineWith({
       data: [
         [
@@ -150,17 +148,13 @@ describe('buildEventDataWithoutChannels', () => {
         ],
       ],
       events: [[[[]], [[]], [[]], [[]]]],
-      // Click (1) and task-1 (2) hidden; Click is being removed.
-      hiddenChannels: [[1, 2]],
     })
-    const [update] = buildEventDataWithoutChannels(engine, new Set(['Click']))
+    const [update] = buildEventDataWithoutChannels(engine, new Set(['task']))
     expect(update.channelDefs.map(def => def[0])).toEqual([
       'task-0',
+      'Click',
       'task-1',
-      'task',
     ])
-    // task-1 stays hidden under its new id (2 → 1); Click's id is dropped.
-    expect(update.hiddenChannels).toEqual([1])
   })
 
   test('removing a cross-stimulus channel updates every stimulus', () => {

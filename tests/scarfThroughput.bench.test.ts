@@ -72,7 +72,7 @@ function buildEngine() {
   const metadata = {
     isOrdinalOnly: false,
     capabilities: { segmented: true, spatial: false, event: false },
-    aois: { data: [[], aoiData], orderVector: [[], order], hiddenAois: [[], []] },
+    aois: { data: [[], aoiData], orderVector: [[], order] },
     categories: {
       data: [['Fixation', 'Fixation', '#000000'], ['Saccade', 'Saccade', '#cccccc']],
       orderVector: [],

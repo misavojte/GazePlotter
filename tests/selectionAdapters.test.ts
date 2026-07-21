@@ -126,10 +126,7 @@ const makeScarfEngine = (
   }) as any
 }
 
-const makeEventEngine = (
-  hiddenChannels: number[],
-  eventsSelections: NameSelection[]
-) => {
+const makeEventEngine = (eventsSelections: NameSelection[]) => {
   const engine = makeTestEngine(SEGMENTS)
   Object.assign(engine.metadata, {
     eventData: {
@@ -142,7 +139,6 @@ const makeEventEngine = (
         ],
       ],
       orderVector: [[], []],
-      hiddenChannels: [[], hiddenChannels],
       events: [[], []],
     },
     eventsSelections,
@@ -220,9 +216,9 @@ describe('eye-movement-type selection (scarf narrowing)', () => {
   })
 })
 
-describe('event selection (visible channel narrowing)', () => {
-  it('unset / 0 / unknown returns every visible channel (no narrowing)', () => {
-    const engine = makeEventEngine([], [
+describe('event selection (channel narrowing)', () => {
+  it('unset / 0 / unknown returns every channel (no narrowing)', () => {
+    const engine = makeEventEngine([
       { id: 1, name: 'Focus', names: ['Channel 2'] },
     ])
     for (const id of [undefined, 0, 999]) {
@@ -233,21 +229,17 @@ describe('event selection (visible channel narrowing)', () => {
   })
 
   it('a selection narrows by displayed name (both members of a merged channel stay)', () => {
-    const engine = makeEventEngine([], [
+    const engine = makeEventEngine([
       { id: 1, name: 'Focus', names: ['Channel 2'] },
     ])
     const narrowed = getSelectedEventChannels(engine, STIM, 1)
     expect(narrowed.map(c => c.id)).toEqual([1, 2])
   })
 
-  it('ignores the legacy hidden set (visibility retired); stale selection names match nothing', () => {
-    const engine = makeEventEngine([1], [
-      { id: 1, name: 'Focus', names: ['Channel 2'] },
+  it('stale selection names match nothing', () => {
+    const engine = makeEventEngine([
       { id: 2, name: 'Gone', names: ['Renamed away'] },
     ])
-    // Channel id 1 sits in the legacy hidden set, but global channel visibility
-    // is retired — the "Channel 2" selection still yields BOTH matching channels.
-    expect(getSelectedEventChannels(engine, STIM, 1).map(c => c.id)).toEqual([1, 2])
     expect(getSelectedEventChannels(engine, STIM, 2)).toEqual([])
   })
 })

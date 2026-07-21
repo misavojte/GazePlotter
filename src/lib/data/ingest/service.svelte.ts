@@ -81,7 +81,6 @@ function createEmptyDataset(): DataType {
     aois: {
       data: [],
       orderVector: [],
-      hiddenAois: [],
     },
     segments: {
       segmentBuffer: new Float32Array(0),
@@ -94,7 +93,6 @@ function createEmptyDataset(): DataType {
     eventData: {
       data: [],
       orderVector: [],
-      hiddenChannels: [],
       events: [],
     },
   }

@@ -14,8 +14,8 @@ import { getAoiRaw } from '../utils/interpreters'
  * `DataEngine.loadDataset` makes the prior bucket unreachable, so the
  * WeakMap GC's it for free. The string key folds in `stimulusId` and
  * `AoiGroupReader.version` (bumps on every `updateMap()` call), so AOI
- * visibility toggles, renames, and grouping changes invalidate
- * automatically without explicit plumbing.
+ * renames and grouping changes invalidate automatically without explicit
+ * plumbing.
  *
  * Mirrors the metric cache strategy in `$lib/metrics/core/runtime.ts`.
  */
@@ -72,25 +72,16 @@ const getAoiOrderVector = (
   return getAoiOrderVectorFromData(stimulusId, meta)
 }
 
-export const getHiddenAois = (
-  engine: DataEngine,
-  stimulusId: number
-): number[] => {
-  const meta = engine.metadata
-  if (!meta) throw new Error('Data engine metadata not available')
-  return meta.aois.hiddenAois?.[stimulusId] ?? []
-}
-
 /** All named AOI SELECTIONS (see {@link NameSelection}). */
 export const getAoiSelections = (engine: DataEngine): NameSelection[] =>
   engine.metadata?.aois.selections ?? []
 
 /**
- * Resolve a per-plot `aoiSelectionId` to the set of currently-visible LOGICAL
- * AOI ids to KEEP for `stimulusId` — the selection's members present among this
- * stimulus's post-merge, globally-visible AOIs (matched by displayed name).
+ * Resolve a per-plot `aoiSelectionId` to the set of LOGICAL AOI ids to KEEP
+ * for `stimulusId` — the selection's members present among this stimulus's
+ * post-merge AOIs (matched by displayed name).
  * Returns `null` whenever the selection applies NO narrowing — "All"/unset/
- * unknown selection, or a selection covering every visible AOI — meaning no
+ * unknown selection, or a selection covering every AOI — meaning no
  * filtering (the plot shows every AOI, byte-identical to before this feature).
  * AOIs NOT in the returned set collapse to no-AOI in the compute-honest
  * mechanism.
@@ -142,20 +133,13 @@ export const getAois = (
   const appearance = engine.getAoiGroupReader?.()?.appearanceVersion ?? 0
   const baseKey = `${stimulusId}|a${appearance}`
 
-  // The base list = all globally-visible logical AOIs — shared by every caller
-  // regardless of selection, so its frozen identity is stable.
+  // The base list = every logical AOI — shared by every caller regardless of
+  // selection, so its frozen identity is stable.
   let base = reader ? _aoisCache.get(reader)?.get(baseKey) : undefined
   if (!base) {
     const ids = getAoiOrderVectorFromData(stimulusId, meta)
-    const hidden = meta.aois.hiddenAois?.[stimulusId] ?? []
-    const hiddenSet = hidden.length ? new Set<number>(hidden) : null
-
     const uniqueMappedIds = Array.from(
-      new Set(
-        ids
-          .filter(id => !hiddenSet?.has(id))
-          .map(id => engine.getAoiMapping(stimulusId, id))
-      )
+      new Set(ids.map(id => engine.getAoiMapping(stimulusId, id)))
     )
 
     base = Object.freeze(

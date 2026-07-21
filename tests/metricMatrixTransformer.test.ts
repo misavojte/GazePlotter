@@ -47,7 +47,6 @@ function makeMetricMatrixEngine(opts: {
   return makeTestEngine(opts.segments as number[][][][], {
     aoiData,
     aoiOrderVector,
-    hiddenAois: aoiData.map(() => []),
     stimuli:
       opts.stimuli ??
       Array.from({ length: stimulusCount }, (_, i) => [`S${i}`, `S${i}`]),

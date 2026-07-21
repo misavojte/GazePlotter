@@ -40,7 +40,6 @@ export function createMockMetadata(
           ['AOI2', 'AOI 2', '#00FF00', '100,100,200,200'],
         ],
       ],
-      hiddenAois: [],
       orderVector: [],
     },
     participants: {
@@ -79,7 +78,6 @@ export function createMockMetadata(
     eventData: {
       data: [[], []],
       orderVector: [],
-      hiddenChannels: [],
       events: [[], []],
     },
     ...overrides,
@@ -92,7 +90,6 @@ export function createEmptyMockMetadata(
   return createMockMetadata({
     aois: {
       data: [],
-      hiddenAois: [],
       orderVector: [],
     },
     participants: {

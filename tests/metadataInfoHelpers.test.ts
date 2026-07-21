@@ -138,7 +138,6 @@ describe('metadata-info helpers', () => {
         // Stimulus2: channels 'Click' (shared name) + 'Key', 1 occurrence each.
         data: [[['Click', 'Click', '#888']], [['Click', 'Click', '#888'], ['Key', 'Key', '#999']]],
         orderVector: [],
-        hiddenChannels: [],
         events: [
           [[[0, 0, 100, 0]]], // Stimulus1 / Click / P0 → 2 events (stride 2)
           [[[0, 0]], [[50, 0]]], // Stimulus2: Click 1 event, Key 1 event
@@ -219,7 +218,6 @@ describe('metadata-info helpers', () => {
             eventData: {
               data: [[['Click', 'Click', '#888']], []],
               orderVector: [],
-              hiddenChannels: [],
               events: [[[[10, 0, 20, 0]]], []],
             },
           })

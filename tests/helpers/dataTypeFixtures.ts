@@ -48,13 +48,11 @@ export function makeDataType(
     aois: {
       data: Array.from({ length: stimulusCount }, () => [['A', 'A', '#ff0000']]),
       orderVector: Array.from({ length: stimulusCount }, () => [0]),
-      hiddenAois: Array.from({ length: stimulusCount }, () => []),
     },
     segments: jsonSegmentsToBinary(segments),
     eventData: {
       data: Array.from({ length: stimulusCount }, () => []),
       orderVector: Array.from({ length: stimulusCount }, () => []),
-      hiddenChannels: Array.from({ length: stimulusCount }, () => []),
       events: Array.from({ length: stimulusCount }, () => []),
     },
     ...over,

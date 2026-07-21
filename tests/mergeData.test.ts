@@ -275,7 +275,6 @@ const buildStimulusMergeData = (
     aois: {
       data: aoisData,
       orderVector: aoisData.map(rows => rows.map((_, i) => i)),
-      hiddenAois: aoisData.map(() => []),
     },
     ...over,
   })
@@ -346,7 +345,6 @@ describe('mergeStimuli / unmergeStimuli', () => {
         eventData: {
           data: [[['C', 'C', '#111']], [['C', 'C', '#222']]],
           orderVector: [[0], [0]],
-          hiddenChannels: [[], []],
           events: [
             [[[], []]],
             [[[], [70, 4]]],
@@ -383,7 +381,6 @@ describe('mergeStimuli / unmergeStimuli', () => {
             [['C', 'C', '#a1'], ['C', 'C', '#b2']],
           ],
           orderVector: [[0], [0, 1]],
-          hiddenChannels: [[], []],
           events: [
             [[[], []]],
             [[[70, 4], []], [[80, 6], []]],
@@ -481,7 +478,6 @@ describe('mergeParticipants / unmergeParticipants', () => {
       eventData: {
         data: [[['C', 'C', '#111']], [['C', 'C', '#111']]],
         orderVector: [[0], [0]],
-        hiddenChannels: [[], []],
         events: [
           [[[], [10, 5], [20, 3]]],
           [[[100, 8], [], [200, 2]]],
@@ -515,7 +511,6 @@ describe('mergeParticipants / unmergeParticipants', () => {
       eventData: {
         data: [[['C', 'C', '#111']], [['C', 'C', '#111']]],
         orderVector: [[0], [0]],
-        hiddenChannels: [[], []],
         events: [
           [[[10, 5], [20, 3], [30, 7]]],
           [[[], [], []]],
@@ -604,7 +599,6 @@ describe('foldMerges / unfoldMerges (original-on-disk persistence)', () => {
         eventData: {
           data: [[], [['blink', 'blink', '#000000']]],
           orderVector: [[], [0]],
-          hiddenChannels: [[], []],
           events: [[], [[[], [100, 5]]]],
         },
       }

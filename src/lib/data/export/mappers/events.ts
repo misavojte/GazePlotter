@@ -71,8 +71,6 @@ function resolveEventChannels(
       ? order
       : Array.from({ length: defs.length }, (_, i) => i)
 
-  // Global channel visibility is retired — every channel exports (a named event
-  // SELECTION is the only narrowing, and export writes the full set).
   const channels: ExtendedInterpretedDataType[] = []
   for (const id of ids) {
     const def = defs[id]

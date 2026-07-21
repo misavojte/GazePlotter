@@ -35,7 +35,7 @@ Select rows and click **Merge into "…"** in the tray: the selected AOIs take t
 
 ## AOI selections
 
-A selection is a named subset of AOIs a plot can focus on. In a plot's **Areas of Interest** pane section, picking a selection keeps only those AOIs; fixations on all other AOIs count as **No AOI**, so totals stay honest.
+A selection is a named subset of AOIs a plot can focus on. In a plot's **Areas of Interest** pane section, picking a selection keeps only those AOIs; fixations on all other AOIs count as **No AOI**, so totals stay honest. There is no separate hide toggle — to hide AOIs from a plot, pick a selection that leaves them out. Selections are shared across the workspace, so one "without X" selection can be applied to any number of plots (select several plots to set it on all of them at once).
 
 Selections live in the *Selections* row beneath the list and are edited directly on the list — the layout never changes:
 

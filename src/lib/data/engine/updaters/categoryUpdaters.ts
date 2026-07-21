@@ -3,8 +3,7 @@ import type { DataEngine } from '../dataEngine.svelte'
 
 export const updateCategories = (
   engine: DataEngine,
-  categories: ExtendedInterpretedDataType[],
-  hiddenCategories?: number[]
+  categories: ExtendedInterpretedDataType[]
 ): void => {
   const meta = engine.metadata
   if (!meta) return
@@ -20,9 +19,4 @@ export const updateCategories = (
 
   // Update order vector
   meta.categories.orderVector = categories.map(c => c.id)
-
-  // Update hidden categories
-  if (hiddenCategories !== undefined) {
-    meta.categories.hiddenCategories = hiddenCategories
-  }
 }

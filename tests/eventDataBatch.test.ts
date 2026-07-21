@@ -1,10 +1,8 @@
 /**
  * Engine-owned invariants of updateEventDataBatch: replacing a stimulus's
- * channel defs invalidates every id referring into them, so the hidden
- * list is cleared and the order vector falls back to identity unless the
- * update carries an order valid for the NEW defs. Callers that want
- * hidden state to survive must supply remapped ids (via the command's
- * hiddenChannels, applied after the batch).
+ * channel defs invalidates every id referring into them, so the order
+ * vector falls back to identity unless the update carries an order valid
+ * for the NEW defs.
  */
 
 import { describe, expect, test } from 'vitest'
@@ -31,14 +29,13 @@ function engineWithEventState(): DataEngine {
       ],
       events: [[[[1, 0]], [[2, 0]], [[3, 0]]]],
       orderVector: [[2, 0, 1]],
-      hiddenChannels: [[0, 2]],
     },
   } as unknown as DataEngine['metadata']
   return engine
 }
 
 describe('updateEventDataBatch', () => {
-  test('replacement clears hidden ids and resets order to identity', () => {
+  test('replacement resets order to identity', () => {
     const engine = engineWithEventState()
     engine.updateEventDataBatch([
       {
@@ -48,7 +45,6 @@ describe('updateEventDataBatch', () => {
       },
     ])
     const ed = engine.metadata!.eventData
-    expect(ed.hiddenChannels![0]).toEqual([])
     expect(ed.orderVector![0]).toEqual([0, 1])
   })
 

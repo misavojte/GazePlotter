@@ -9,14 +9,12 @@ import { mergeStimuli as computeStimulusMerge } from '$lib/data/merge/mergeStimu
 import { resolvePlotDefinition } from '$lib/plots/registry'
 import { GridState } from '$lib/workspace/grid'
 import {
-  updateHiddenAoisWithPropagation,
   updateMultipleAoi,
   updateMultipleParticipants,
   updateMultipleStimuli,
   updateNoAoiTreatment,
   updateEventData,
   updateEventChannels,
-  updateHiddenEventChannels,
   updateCategories,
   getDefaultCategoryColor,
   getDefaultColor,
@@ -31,10 +29,7 @@ import type {
   GridItemLayoutUpdate,
   GridItemSnapshot,
 } from '$lib/workspace'
-import type {
-  ExtendedInterpretedDataType,
-  BaseInterpretedDataType,
-} from '$lib/data/types'
+import type { ExtendedInterpretedDataType } from '$lib/data/types'
 
 export type WorkspaceCommandDispatcher = (
   command: WorkspaceCommandChain
@@ -155,11 +150,8 @@ export function createWorkspaceCommandRegistry(
 
   const handlers: CommandHandlers = {
     updateAois: command => {
-      const { aois, stimulusId, applyTo, hiddenAois } = command
+      const { aois, stimulusId, applyTo } = command
       updateMultipleAoi(engine, aois, stimulusId, applyTo)
-      if (hiddenAois !== undefined) {
-        updateHiddenAoisWithPropagation(engine, stimulusId, hiddenAois, applyTo)
-      }
       gridStore.triggerRedraw()
     },
 
@@ -171,21 +163,13 @@ export function createWorkspaceCommandRegistry(
     },
 
     updateEventData: command => {
-      const { stimulusId, channelDefs, eventBuffers, hiddenChannels, orderVector } =
-        command
+      const { stimulusId, channelDefs, eventBuffers, orderVector } = command
       updateEventData(engine, stimulusId, channelDefs, eventBuffers, orderVector)
-      if (hiddenChannels !== undefined) {
-        updateHiddenEventChannels(engine, stimulusId, hiddenChannels)
-      }
       gridStore.triggerRedraw()
     },
 
     updateEventChannels: command => {
-      const { channels, stimulusId, hiddenChannels } = command
-      updateEventChannels(engine, channels, stimulusId)
-      if (hiddenChannels !== undefined) {
-        updateHiddenEventChannels(engine, stimulusId, hiddenChannels)
-      }
+      updateEventChannels(engine, command.channels, command.stimulusId)
       gridStore.triggerRedraw()
     },
 
@@ -267,8 +251,7 @@ export function createWorkspaceCommandRegistry(
     },
 
     updateCategories: command => {
-      const { categories, hiddenCategories } = command
-      updateCategories(engine, categories, hiddenCategories)
+      updateCategories(engine, command.categories)
       gridStore.triggerRedraw()
     },
 
@@ -369,15 +352,12 @@ export function createWorkspaceCommandRegistry(
       const affectedAois: ExtendedInterpretedDataType[] = currentAois.map(
         (aoiRow, aoiIndex) => interpretRow(aoiRow, aoiIndex, getDefaultColor)
       )
-      const shouldIncludeHiddenAois = cmd.hiddenAois !== undefined
-      const hiddenAois = dataMeta?.aois?.hiddenAois?.[stimulusId] ?? []
       return withMeta(
         {
           type: 'updateAois',
           aois: affectedAois,
           stimulusId,
           applyTo: cmd.applyTo,
-          ...(shouldIncludeHiddenAois ? { hiddenAois: [...hiddenAois] } : {}),
         },
         meta
       )
@@ -401,10 +381,9 @@ export function createWorkspaceCommandRegistry(
       const ed = dataMeta.eventData
       const currentDefs = ed.data[cmd.stimulusId] ?? []
       const currentBuffers = engine.getEventReader().getStimulusJson(cmd.stimulusId)
-      // Applying the command resets the hidden list and the order vector
-      // (the engine owns that invariant), so the inverse must always carry
-      // both — not only when the forward command set them.
-      const hidden = ed.hiddenChannels?.[cmd.stimulusId] ?? []
+      // Applying the command resets the order vector (the engine owns that
+      // invariant), so the inverse must always carry it — not only when the
+      // forward command set it.
       const order = ed.orderVector?.[cmd.stimulusId] ?? []
       return withMeta(
         {
@@ -414,7 +393,6 @@ export function createWorkspaceCommandRegistry(
           eventBuffers: currentBuffers.map(ch =>
             ch.map(p => [...p])
           ),
-          hiddenChannels: [...hidden],
           ...(order.length > 0 ? { orderVector: [...order] } : {}),
         },
         meta
@@ -429,15 +407,11 @@ export function createWorkspaceCommandRegistry(
         ed.orderVector?.[cmd.stimulusId] ?? [],
         getDefaultEventChannelColor
       )
-
-      const shouldIncludeHidden = cmd.hiddenChannels !== undefined
-      const hidden = ed.hiddenChannels?.[cmd.stimulusId] ?? []
       return withMeta(
         {
           type: 'updateEventChannels',
           stimulusId: cmd.stimulusId,
           channels,
-          ...(shouldIncludeHidden ? { hiddenChannels: [...hidden] } : {}),
         },
         meta
       )
@@ -542,24 +516,14 @@ export function createWorkspaceCommandRegistry(
       )
     },
 
-    updateCategories: (cmd, meta) => {
+    updateCategories: (_cmd, meta) => {
       const dataMeta = requireMetadata()
       const categories = interpretOrdered(
         dataMeta.categories.data || [],
         dataMeta.categories.orderVector || [],
         getDefaultCategoryColor
       )
-
-      const shouldIncludeHidden = cmd.hiddenCategories !== undefined
-      const hidden = dataMeta.categories.hiddenCategories ?? []
-      return withMeta(
-        {
-          type: 'updateCategories',
-          categories,
-          ...(shouldIncludeHidden ? { hiddenCategories: [...hidden] } : {}),
-        },
-        meta
-      )
+      return withMeta({ type: 'updateCategories', categories }, meta)
     },
 
     updateSettings: (cmd, meta) => {

@@ -89,7 +89,6 @@ function createTestData(): DataType {
         [1, 2],
         [1],
       ],
-      hiddenAois: [[], []],
     },
     // We construct binary segment buffer:
     // segments: [startTime, endTime, categoryId, ...aoiIds]
@@ -123,7 +122,6 @@ function createTestData(): DataType {
       data: [[]],
       orderVector: [[]],
       events: [],
-      hiddenChannels: [[]],
     },
   }
 }

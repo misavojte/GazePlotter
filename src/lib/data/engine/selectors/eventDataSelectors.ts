@@ -128,9 +128,7 @@ export const getEventChannelSummary = (
 /**
  * Per-stimulus replacement payloads (for `updateEventData` commands) that
  * drop every channel whose original name is in `namesToRemove`. Stimuli
- * with no matching channel are omitted. `hiddenChannels` carries the
- * stimulus's hidden set remapped to the new ids — surviving channels stay
- * hidden across the re-indexing.
+ * with no matching channel are omitted.
  */
 export const buildEventDataWithoutChannels = (
   engine: DataEngine,
@@ -139,7 +137,6 @@ export const buildEventDataWithoutChannels = (
   stimulusId: number
   channelDefs: string[][]
   eventBuffers: number[][][]
-  hiddenChannels: number[]
 }[] => {
   const meta = engine.metadata
   if (!meta) return []
@@ -149,7 +146,6 @@ export const buildEventDataWithoutChannels = (
     stimulusId: number
     channelDefs: string[][]
     eventBuffers: number[][][]
-    hiddenChannels: number[]
   }[] = []
   for (let s = 0; s < ed.data.length; s++) {
     const defs = ed.data[s]
@@ -159,17 +155,12 @@ export const buildEventDataWithoutChannels = (
       .filter(i => !namesToRemove.has(defs[i][0]))
     if (keepIds.length === defs.length) continue
     const buffers = reader.getStimulusJson(s)
-    const newIdByOldId = new Map(keepIds.map((oldId, newId) => [oldId, newId]))
     updates.push({
       stimulusId: s,
       channelDefs: keepIds.map(i => [...defs[i]]),
       eventBuffers: keepIds.map(i =>
         (buffers[i] ?? []).map(buffer => [...buffer])
       ),
-      hiddenChannels: (ed.hiddenChannels?.[s] ?? [])
-        .map(id => newIdByOldId.get(id))
-        .filter((id): id is number => id !== undefined)
-        .sort((a, b) => a - b),
     })
   }
   return updates

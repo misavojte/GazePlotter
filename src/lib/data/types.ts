@@ -109,9 +109,6 @@ interface EventDataType {
   /** Per-stimulus display order of channels. */
   orderVector: number[][]
 
-  /** Per-stimulus hidden channel IDs. */
-  hiddenChannels: number[][]
-
   /**
    * Per-stimulus per-channel per-participant event buffers.
    * [stimulusId][channelId][participantId] → stride-2 number[]
@@ -125,8 +122,6 @@ interface AoiDataType {
   /** Nested array mapping: [stimulusIndex][aoiIndex][fieldIndex] where fieldIndex: 0=originalName, 1=displayedName, 2=color (optional) */
   data: string[][][]
   orderVector: number[][]
-  /** Per-stimulus list of raw AOI ids that should be treated as nonexistent in visualizations. */
-  hiddenAois: number[][]
   /** Named, reusable AOI SELECTIONS (per-plot; name-keyed {@link NameSelection}). Absent = none. */
   selections?: NameSelection[]
 }
@@ -275,7 +270,7 @@ export interface DataType {
   isOrdinalOnly: boolean
   capabilities: DataCapabilities
   aois: AoiDataType
-  categories: AttributeDataType & { hiddenCategories?: number[] }
+  categories: AttributeDataType
   participants: AttributeDataType
   participantsSelections: ParticipantsSelection[]
   /** Saved stimulus selections (absent in older workspaces). */
@@ -344,7 +339,6 @@ export interface JsonImportNewFormat {
 interface RawEventDataType {
   data?: string[][][]
   orderVector?: number[][]
-  hiddenChannels?: number[][]
   events?: number[][][][]
 }
 
@@ -354,7 +348,6 @@ export interface RawIngestPayload {
   aois: {
     data: string[][][]
     orderVector?: number[][]
-    hiddenAois?: number[][]
     dynamicVisibility?: Record<string, unknown>
   }
   categories?: AttributeDataType

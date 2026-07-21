@@ -27,28 +27,27 @@ export function processAndValidateData(
 
   // 1. Normalize basic metadata
   data.noAoiTreatment ??= { ...DEFAULT_NO_AOI_TREATMENT }
-  data.aois.hiddenAois ??= []
-
-  // Fill hiddenAois up to stimuliCount
-  for (let s = data.aois.hiddenAois.length; s < stimuliCount; s++) {
-    data.aois.hiddenAois.push([])
-  }
+  // AOI visibility is retired — drop the legacy hidden set old workspace
+  // files carry so it doesn't ride back out through export.
+  delete (data.aois as { hiddenAois?: unknown }).hiddenAois
 
   // Normalize eventData
   const ed = (data.eventData ??= {
     data: [],
     orderVector: [],
-    hiddenChannels: [],
     events: [],
   })
   ed.data ??= []
   ed.orderVector ??= []
-  ed.hiddenChannels ??= []
   ed.events ??= []
   for (let s = ed.data.length; s < stimuliCount; s++) ed.data.push([])
   for (let s = ed.events.length; s < stimuliCount; s++) ed.events.push([])
-  for (let s = ed.hiddenChannels.length; s < stimuliCount; s++)
-    ed.hiddenChannels.push([])
+  // Channel/category visibility is retired — drop the legacy hidden sets old
+  // workspace files carry so they don't ride back out through export.
+  delete (ed as { hiddenChannels?: unknown }).hiddenChannels
+  if (data.categories) {
+    delete (data.categories as { hiddenCategories?: unknown }).hiddenCategories
+  }
 
   const events = ed.events ?? []
   const hasEventData = events.some((channels: number[][][]) =>

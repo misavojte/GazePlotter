@@ -82,7 +82,6 @@ export class DataEngine {
       eventData: {
         data: eventData.data,
         orderVector: eventData.orderVector,
-        hiddenChannels: eventData.hiddenChannels,
       },
     }
     this.metadata = meta
@@ -92,42 +91,6 @@ export class DataEngine {
 
   updateAois(stimulusId: number, updatedAois: ExtendedInterpretedDataType[]) {
     this.updateAoisBatch([{ stimulusId, aois: updatedAois }])
-  }
-
-  setHiddenAois(stimulusId: number, hiddenAois: number[]) {
-    this.updateHiddenAoisBatch([{ stimulusId, hiddenAois }])
-  }
-
-  updateHiddenAoisBatch(
-    updates: { stimulusId: number; hiddenAois: number[] }[]
-  ) {
-    const meta = this.metadata
-    if (!meta) return
-
-    if (!meta.aois.hiddenAois) meta.aois.hiddenAois = []
-    const hidden = meta.aois.hiddenAois
-
-    for (let i = 0; i < updates.length; i++) {
-      const { stimulusId, hiddenAois } = updates[i]
-      const stimulusAoiCount = meta.aois.data[stimulusId]?.length ?? 0
-      const unique = hiddenAois
-        .filter(
-          (v, i, self) =>
-            Number.isInteger(v) &&
-            v >= 0 &&
-            v < stimulusAoiCount &&
-            self.indexOf(v) === i
-        )
-        .sort((a, b) => a - b)
-
-      while (hidden.length <= stimulusId) hidden.push([])
-      hidden[stimulusId] = unique
-    }
-
-    // updateMap is the single decision point: it rebuilds groupPool, diffs
-    // against the previous one, and bumps `_version` only on real change.
-    // Callers don't need to detect no-op cases.
-    if (this.metadata) this._aoiGroupReader?.updateMap(this.metadata)
   }
 
   updateAoisBatch(
@@ -154,7 +117,9 @@ export class DataEngine {
       meta.aois.orderVector[stimulusId] = aois.map(a => a.id)
     }
 
-    // updateMap is the single decision point — see updateHiddenAoisBatch.
+    // updateMap is the single decision point: it rebuilds groupPool, diffs
+    // against the previous one, and bumps `_version` only on real change.
+    // Callers don't need to detect no-op cases.
     if (this.metadata) this._aoiGroupReader?.updateMap(this.metadata)
   }
 
@@ -238,19 +203,15 @@ export class DataEngine {
       events[stimulusId] = eventBuffers
 
       // Replacing the defs invalidates every channel id referring into
-      // them, so the engine owns the reset: order falls back to identity
-      // and the hidden list is cleared. Callers that want either to
-      // survive must supply ids valid for the NEW defs.
+      // them, so the engine owns the reset: order falls back to identity.
+      // Callers that want it to survive must supply ids valid for the
+      // NEW defs.
       if (!ed.orderVector) ed.orderVector = []
       while (ed.orderVector.length <= stimulusId) ed.orderVector.push([])
       ed.orderVector[stimulusId] =
         orderVector && orderVector.length === channelDefs.length
           ? [...orderVector]
           : channelDefs.map((_, idx) => idx)
-
-      if (!ed.hiddenChannels) ed.hiddenChannels = []
-      while (ed.hiddenChannels.length <= stimulusId) ed.hiddenChannels.push([])
-      ed.hiddenChannels[stimulusId] = []
     }
 
     this._eventReader.load(events)
@@ -289,26 +250,6 @@ export class DataEngine {
       while (ed.orderVector.length <= stimulusId) ed.orderVector.push([])
       ed.orderVector[stimulusId] = channels.map(ch => ch.id)
     }
-  }
-
-  setHiddenEventChannels(stimulusId: number, hiddenIds: number[]) {
-    const meta = this.metadata
-    if (!meta) return
-
-    const ed = meta.eventData
-    if (!ed.hiddenChannels) ed.hiddenChannels = []
-    while (ed.hiddenChannels.length <= stimulusId) ed.hiddenChannels.push([])
-
-    const channelCount = ed.data[stimulusId]?.length ?? 0
-    ed.hiddenChannels[stimulusId] = hiddenIds
-      .filter(
-        (v, i, self) =>
-          Number.isInteger(v) &&
-          v >= 0 &&
-          v < channelCount &&
-          self.indexOf(v) === i
-      )
-      .sort((a, b) => a - b)
   }
 
   // ==========================================

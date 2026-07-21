@@ -19,11 +19,11 @@ Each channel is a row with the same controls as the [AOI Library](/docs/workspac
 - **Color** — Set the line color.
 - **Move handle** — Drag to reorder. Order sets the sequence in legends and in the event lines beneath each scarf row.
 
-The **Sort** and **Bulk actions** buttons above the list work the same as in the AOI Library (sort by name, regex rename). Select rows to merge or split them, or save them as a named selection in the tray below the list (visibility is retired; a selection replaces it). Each plot picks a selection in its pane's **Events** section to narrow which channels it overlays.
+The **Sort** and **Bulk actions** buttons above the list work the same as in the AOI Library (sort by name, regex rename). Select rows to merge or split them, or save them as a named selection in the tray below the list. Each plot picks a selection in its pane's **Events** section to narrow which channels it overlays — there is no separate hide toggle; to hide channels from a plot, pick a selection that leaves them out.
 
 ## Grouping channels
 
-Channels that share the same **Displayed name** merge into one group. The first channel is the leader and controls the group's color and visibility. This is identical to [AOI merging](/docs/workspace/aoi-library/#merging-aois).
+Channels that share the same **Displayed name** merge into one group. The first channel is the leader and controls the group's color. This is identical to [AOI merging](/docs/workspace/aoi-library/#merging-aois).
 
 ## Creating interval channels
 

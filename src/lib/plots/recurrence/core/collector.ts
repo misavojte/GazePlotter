@@ -18,8 +18,8 @@ export function collectFixations(
   timeStart: number = 0,
   timeEnd: number = 0,
   /** Per-plot AOI selection: mapped/logical AOI ids outside the selection are
-   *  dropped from each fixation's aoiIds (on top of the global-raw hidden skip),
-   *  so AOI-mode recurrence + per-fixation colors honor the reduced alphabet. */
+   *  dropped from each fixation's aoiIds, so AOI-mode recurrence +
+   *  per-fixation colors honor the reduced alphabet. */
   aoiSelectionId?: number,
 ): FixationRecord[] | null {
   const reader = engine.getReader()
@@ -33,9 +33,7 @@ export function collectFixations(
   )
   const fixations: FixationRecord[] = []
 
-  const hiddenAois = meta.aois.hiddenAois?.[stimulusId] ?? []
-  const hiddenAoisSet = hiddenAois.length ? new Set(hiddenAois) : null
-  // null = no selection → keep every (globally-visible) mapped AOI (byte-identical).
+  // null = no selection → keep every mapped AOI (byte-identical).
   const visibleSet = resolveAoiSelectionVisibleIds(engine, stimulusId, aoiSelectionId)
   const hasUpperBound = timeEnd > 0
 
@@ -55,9 +53,7 @@ export function collectFixations(
     const rawAois = reader.getRawAois(segIdx)
     const aoiIds: number[] = []
     for (let i = 0; i < rawAois.length; i++) {
-      const rawId = rawAois[i]
-      if (hiddenAoisSet?.has(rawId)) continue
-      const mappedId = engine.getAoiMapping(stimulusId, rawId)
+      const mappedId = engine.getAoiMapping(stimulusId, rawAois[i])
       if (visibleSet && !visibleSet.has(mappedId)) continue
       aoiIds.push(mappedId)
     }

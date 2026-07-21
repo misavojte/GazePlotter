@@ -27,14 +27,10 @@ export function collectScanpath(
   timeEnd: number = 0,
 ): string {
   const reader = engine.getReader()
-  const meta = engine.metadata
-  if (!reader || !meta) return ''
+  if (!reader || !engine.metadata) return ''
 
   const aoiGroupReader = engine.getAoiGroupReader()
   if (!aoiGroupReader) return ''
-
-  const hiddenAois = meta.aois.hiddenAois?.[stimulusId] ?? []
-  const hiddenSet = hiddenAois.length ? new Set(hiddenAois) : null
 
   const aoiLookup = new Map<number, number>()
   for (let i = 0; i < aois.length; i++) {
@@ -70,9 +66,7 @@ export function collectScanpath(
     } else {
       let foundIdx = -1
       for (let a = 0; a < aoiCount; a++) {
-        const rawId = aoiBuffer[a]
-        if (hiddenSet?.has(rawId)) continue
-        const mappedId = engine.getAoiMapping(stimulusId, rawId)
+        const mappedId = engine.getAoiMapping(stimulusId, aoiBuffer[a])
         const idx = aoiLookup.get(mappedId)
         if (idx !== undefined) {
           foundIdx = idx

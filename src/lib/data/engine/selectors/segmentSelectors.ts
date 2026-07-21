@@ -1,7 +1,6 @@
 import { type SegmentInterpretedDataType } from '$lib/data/types'
 import type { DataEngine } from '../dataEngine.svelte'
 import { getNumberOfParticipants } from './baseSelectors'
-import { getHiddenAois } from './aoiSelectors'
 import { getAoiRaw, getCategoryRaw } from '../utils/interpreters'
 
 export const getNumberOfSegments = (
@@ -74,14 +73,10 @@ export const getSegment = (
     throw new Error(`Segment ${segmentId} out of range`)
   }
 
-  const hidden = getHiddenAois(engine, stimulusId)
-  const hiddenSet = hidden.length ? new Set<number>(hidden) : null
   const rawIds = reader.getRawAois(absoluteIndex)
 
   const uniqueAois = new Set(
-    rawIds
-      .filter(rawId => !hiddenSet?.has(rawId))
-      .map(rawId => engine.getAoiMapping(stimulusId, rawId))
+    rawIds.map(rawId => engine.getAoiMapping(stimulusId, rawId))
   )
   const aoi = Array.from(uniqueAois).map(aoiId =>
     getAoiRaw(stimulusId, aoiId, metadata)

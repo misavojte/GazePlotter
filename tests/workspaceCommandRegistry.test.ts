@@ -11,7 +11,6 @@ import { UndoRedoStateStore } from '$lib/workspace/commands/undoRedoState.svelte
 
 const engineMocks = vi.hoisted(() => ({
   updateMultipleAoi: vi.fn(),
-  updateHiddenAoisWithPropagation: vi.fn(),
   updateMultipleParticipants: vi.fn(),
   updateMultipleStimuli: vi.fn(),
   updateNoAoiTreatment: vi.fn(),

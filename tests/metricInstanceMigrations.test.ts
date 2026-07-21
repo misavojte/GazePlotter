@@ -36,7 +36,6 @@ function buildV4File(
       aois: {
         data: [[]],
         orderVector: [[]],
-        hiddenAois: [],
         dynamicVisibility: overrides.dynamicVisibility ?? {},
       },
       capabilities: { segmented: true, spatial: false, event: false },
@@ -75,7 +74,6 @@ describe('V4 → V5 consolidated migration: metric-instance seeding', () => {
     const ed = migrated.data.eventData
     expect(Array.isArray(ed.data)).toBe(true)
     expect(ed.data.length).toBe(1)
-    expect(ed.hiddenChannels).toEqual([[]])
     expect(Array.isArray(ed.events)).toBe(true)
   })
 })

@@ -264,7 +264,6 @@ export interface IntervalUpdate {
   stimulusId: number
   channelDefs: string[][]
   eventBuffers: number[][][]
-  hiddenChannels: number[]
 }
 
 /**
@@ -272,8 +271,7 @@ export interface IntervalUpdate {
  * APPEND one derived channel per draft to every stimulus where the draft's
  * start or end channel exists. All existing channels are kept, emitted in
  * the stimulus's current display order (the engine resets `orderVector`
- * to identity on replacement, so order survives by construction);
- * `hiddenChannels` carries the old hidden set remapped to the new ids.
+ * to identity on replacement, so order survives by construction).
  * Derived defs are tagged with `INTERVAL_CHANNEL_MARKER`.
  *
  * Pairing is keep-first (lenient by construction) — pass only clean drafts
@@ -348,13 +346,6 @@ export const buildEventDataWithIntervalChannels = (
       order && order.length > 0
         ? order
         : Array.from({ length: defs.length }, (_, i) => i)
-    const newIdByOldId = new Map(orderedIds.map((id, index) => [id, index]))
-
-    const hidden = new Set(
-      (ed.hiddenChannels?.[s] ?? [])
-        .map(id => newIdByOldId.get(id))
-        .filter((id): id is number => id !== undefined)
-    )
 
     updates.push({
       stimulusId: s,
@@ -366,7 +357,6 @@ export const buildEventDataWithIntervalChannels = (
         ...orderedIds.map(id => (buffers[id] ?? []).map(buffer => [...buffer])),
         ...appendedBuffers,
       ],
-      hiddenChannels: [...hidden].sort((a, b) => a - b),
     })
   }
 

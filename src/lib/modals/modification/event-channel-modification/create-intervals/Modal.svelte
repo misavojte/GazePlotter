@@ -181,8 +181,7 @@
         update.stimulusId,
         update.channelDefs,
         update.eventBuffers,
-        source,
-        update.hiddenChannels
+        source
       )
     }
     toastState.addSuccess(
@@ -204,8 +203,7 @@
         update.stimulusId,
         update.channelDefs,
         update.eventBuffers,
-        source,
-        update.hiddenChannels
+        source
       )
     }
     mutated = true

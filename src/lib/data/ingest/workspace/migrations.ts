@@ -100,7 +100,7 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
       const rawAoiOv = payload.aois.orderVector
 
       if (rawAoiOv === null || rawAoiOv === undefined) {
-        // Missing: leave empty, hiddenAois fill-in handles the rest
+        // Missing: leave empty (empty order vector = identity order)
         payload.aois.orderVector = []
       } else if (Array.isArray(rawAoiOv)) {
         // Already an array — keep as-is
@@ -121,7 +121,6 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
       }
 
       payload.aois.dynamicVisibility = payload.aois.dynamicVisibility ?? {}
-      payload.aois.hiddenAois = payload.aois.hiddenAois ?? []
     }
 
     data = {
@@ -237,7 +236,6 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
       orderVector: eventDataData.map(channels =>
         channels.map((_, i) => i)
       ),
-      hiddenChannels: Array.from({ length: stimuliCount }, () => []),
       events: eventDataEvents,
     }
 

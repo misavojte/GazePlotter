@@ -24,9 +24,6 @@
   const { engine, modalState, workspace, toastState } = getGazePlotterSession()
 
   // Fixations are the baseline category and stay out of the editable list.
-  // Visibility is RETIRED here (selections replace it): Apply commits an
-  // empty hidden set, healing any persisted hiddenCategories from older
-  // workspaces.
   const editor = createGroupedEntityEditor({
     getItems: () =>
       getAllCategories(engine).filter(c => c.id !== FIXATION_CATEGORY_ID),
@@ -70,7 +67,7 @@
 
   const handleSubmit = () => {
     // hidden = [] retires visibility for good (selections replace it).
-    if (!workspace.updateCategories(editor.getCleanedItems(), source, [])) return
+    if (!workspace.updateCategories(editor.getCleanedItems(), source)) return
 
     const committed = sel.commit(session.selections, editor.groups)
     if (

@@ -50,9 +50,6 @@
     return Number.isNaN(id) ? 0 : id
   }
 
-  // Visibility is RETIRED here (selections replace it): the editor starts
-  // with no hidden ids and Apply commits an empty hidden set, healing any
-  // persisted hiddenChannels from older workspaces.
   const editor = createGroupedEntityEditor({
     getItems: id => getEventChannels(engine, id),
     initialStimulusId: stimulusId(),
@@ -169,8 +166,7 @@
       !workspace.updateEventChannels(
         editor.getCleanedItems(),
         stimulusId(),
-        source,
-        []
+        source
       )
     ) {
       return

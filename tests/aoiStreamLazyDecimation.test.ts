@@ -35,7 +35,6 @@ function createEngine() {
   return makeTestEngine([[segs]], {
     aoiData: [[['A', 'A', 'red'], ['B', 'B', 'blue']]],
     aoiOrderVector: [[]],
-    hiddenAois: [[]],
     participants: [['P0', 'P0']],
     participantsOrderVector: [0],
     stimuli: [['S0', 'S0']],

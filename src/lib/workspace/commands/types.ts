@@ -35,8 +35,6 @@ export interface UpdateAoisCommand extends BaseCommandInterface {
   aois: ExtendedInterpretedDataType[]
   stimulusId: number
   applyTo: 'this_stimulus' | 'all_by_original_name' | 'all_by_displayed_name'
-  /** Optional raw AOI ids to hide for this stimulus (treated as inactive). */
-  hiddenAois?: number[]
 }
 
 // Rename + reorder one entity axis. Stimuli and participants are the same
@@ -53,9 +51,6 @@ export interface UpdateEventDataCommand extends BaseCommandInterface {
   stimulusId: number
   channelDefs: string[][]
   eventBuffers: number[][][]
-  /** Hidden ids valid for the NEW channel indexing (omit to clear: the
-      engine resets the hidden list whenever defs are replaced). */
-  hiddenChannels?: number[]
   /** Display order for the NEW defs (omit for identity). Inverse commands
       carry it so undo restores a custom channel order. */
   orderVector?: number[]
@@ -65,8 +60,6 @@ export interface UpdateEventChannelsCommand extends BaseCommandInterface {
   type: 'updateEventChannels'
   stimulusId: number
   channels: ExtendedInterpretedDataType[]
-  /** Optional raw channel ids to hide for this stimulus (treated as inactive). */
-  hiddenChannels?: number[]
 }
 
 export interface UpdateParticipantsSelectionsCommand extends BaseCommandInterface {
@@ -147,7 +140,6 @@ export interface NoopCommand extends BaseCommandInterface {
 export interface UpdateCategoriesCommand extends BaseCommandInterface {
   type: 'updateCategories'
   categories: ExtendedInterpretedDataType[]
-  hiddenCategories?: number[]
 }
 
 // Named AOI SELECTIONS (see NameSelection / PLANAOISELECTION.md). Carries the

@@ -33,14 +33,3 @@ export const updateEventChannels = (
 ): void => {
   engine.updateEventChannelsBatch([{ stimulusId, channels }])
 }
-
-/**
- * Updates hidden event channels for a stimulus.
- */
-export const updateHiddenEventChannels = (
-  engine: DataEngine,
-  stimulusId: number,
-  hiddenChannels: number[]
-): void => {
-  engine.setHiddenEventChannels(stimulusId, hiddenChannels)
-}

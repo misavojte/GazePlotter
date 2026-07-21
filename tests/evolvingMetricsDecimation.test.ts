@@ -49,7 +49,6 @@ function createEngine() {
   return makeTestEngine([[mkSegs(SPAN), mkSegs(Math.floor(SPAN * 0.6))]], {
     aoiData: [[['A', 'A', 'red'], ['B', 'B', 'blue']]],
     aoiOrderVector: [[]],
-    hiddenAois: [[]],
     participants: [['P0', 'P0'], ['P1', 'P1']],
     participantsOrderVector: [0, 1],
     stimuli: [['S0', 'S0']],

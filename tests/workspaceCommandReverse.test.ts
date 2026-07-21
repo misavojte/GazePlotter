@@ -389,7 +389,7 @@ describe('Workspace Command Reversal', () => {
       expect(reverseCommand(command)).toEqual(expected)
     })
 
-    it('reverses updateEventData restoring defs, hidden ids, and order', () => {
+    it('reverses updateEventData restoring defs and order', () => {
       setMockEngineMetadata(
         mockEngine,
         createMockMetadata({
@@ -402,7 +402,6 @@ describe('Workspace Command Reversal', () => {
             ],
             events: [[[[10, 0]], [[20, 0]]]],
             orderVector: [[1, 0]],
-            hiddenChannels: [[1]],
           },
         })
       )
@@ -425,7 +424,6 @@ describe('Workspace Command Reversal', () => {
             ['Y', 'Y', '#222222'],
           ],
           eventBuffers: [[[10, 0]], [[20, 0]]],
-          hiddenChannels: [1],
           orderVector: [1, 0],
         })
       )
