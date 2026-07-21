@@ -26,6 +26,193 @@ const HIDE_NO_AOI_PLOT_TYPES = new Set([
   'scarf',
 ])
 
+/** Plot types whose settings carry a per-plot `aoiSelectionId`. */
+const AOI_SELECTION_PLOT_TYPES = new Set([
+  'scarf',
+  'barPlot',
+  'aoiStreamPlot',
+  'transitionMatrix',
+  'recurrencePlot',
+  'scanpathSimilarity',
+  'metricMatrix',
+  'metricCorrelation',
+  'evolvingMetrics',
+])
+/** Plot types whose settings carry `eventSelectionId` / `categorySelectionId`. */
+const EVENT_SELECTION_PLOT_TYPES = new Set(['scarf'])
+const CATEGORY_SELECTION_PLOT_TYPES = new Set(['scarf'])
+
+const MIGRATED_SELECTION_NAME = 'Migrated visibility'
+
+/**
+ * Convert one axis's legacy per-stimulus hidden sets into name-keyed
+ * SELECTIONS: per affected stimulus, the keep-list is the displayed names the
+ * hidden set left visible; stimuli whose keep-lists match share ONE selection.
+ * Pushes the new selections into `selections` (mutated) and returns
+ * stimulusIndex → selection id for the plot-stamping pass. Stale hidden ids
+ * (no matching entity row) count as nothing hidden.
+ */
+function hiddenSetsToNameSelections(
+  defs: unknown,
+  orderVectors: unknown,
+  hidden: unknown,
+  selections: { id: number; name: string; names: string[] }[],
+  stimulusName: (s: number) => string
+): Map<number, number> {
+  const byStimulus = new Map<number, number>()
+  if (!Array.isArray(hidden) || !Array.isArray(defs)) return byStimulus
+
+  // key = order-independent identity of the keep-list → selection index
+  const byKeepSet = new Map<string, { names: string[]; stimuli: number[] }>()
+  for (let s = 0; s < hidden.length; s++) {
+    const rows = defs[s]
+    if (!Array.isArray(rows) || rows.length === 0) continue
+    const hiddenIds = new Set(
+      (Array.isArray(hidden[s]) ? hidden[s] : []).filter(
+        (id: unknown): id is number =>
+          Number.isInteger(id) && (id as number) >= 0 && (id as number) < rows.length
+      )
+    )
+    if (hiddenIds.size === 0) continue
+
+    const rawOrder = Array.isArray(orderVectors) ? orderVectors[s] : undefined
+    const order =
+      Array.isArray(rawOrder) && rawOrder.length > 0
+        ? rawOrder
+        : rows.map((_: unknown, i: number) => i)
+    const names: string[] = []
+    for (const id of order) {
+      const row = rows[id]
+      if (!row || hiddenIds.has(id)) continue
+      const name = String(row[1] ?? row[0] ?? '')
+      if (!names.includes(name)) names.push(name)
+    }
+
+    const key = JSON.stringify([...names].sort())
+    const entry = byKeepSet.get(key)
+    if (entry) entry.stimuli.push(s)
+    else byKeepSet.set(key, { names, stimuli: [s] })
+  }
+  if (byKeepSet.size === 0) return byStimulus
+
+  let nextId =
+    selections.reduce((m, sel) => Math.max(m, Number(sel?.id) || 0), 0) + 1
+  for (const { names, stimuli } of byKeepSet.values()) {
+    const name =
+      byKeepSet.size === 1
+        ? MIGRATED_SELECTION_NAME
+        : `${MIGRATED_SELECTION_NAME} (${stimulusName(stimuli[0])})`
+    const id = nextId++
+    selections.push({ id, name, names })
+    for (const s of stimuli) byStimulus.set(s, id)
+  }
+  return byStimulus
+}
+
+/** Stamp `key` on every plot of a supported type whose stimulus is affected,
+ *  unless the plot already carries an explicit selection (newer user intent). */
+function stampSelectionOnPlots(
+  gridItems: unknown[],
+  types: Set<string>,
+  key: string,
+  selectionIdFor: (stimulusId: number) => number | undefined
+): void {
+  for (const item of gridItems as any[]) {
+    if (!item || !types.has(item.type)) continue
+    const settings = item.settings
+    if (!settings || typeof settings !== 'object') continue
+    if ((settings[key] ?? 0) !== 0) continue
+    const id = selectionIdFor(Number(settings.stimulusId))
+    if (id !== undefined) settings[key] = id
+  }
+}
+
+/**
+ * Version-independent: convert the retired hidden-visibility sets of old
+ * workspace files into named SELECTIONS applied per plot, so an already
+ * created workspace keeps rendering exactly what it rendered before the
+ * mechanism was removed. Consumes (deletes) the legacy fields, making the
+ * pass idempotent; plots added later default to "All" like any new plot.
+ */
+function migrateLegacyVisibility(payload: any, gridItems: unknown[]): void {
+  const stimulusName = (s: number): string => {
+    const row = payload?.stimuli?.data?.[s]
+    return String(row?.[1] ?? row?.[0] ?? `Stimulus ${s}`)
+  }
+
+  // --- AOIs (per-stimulus hidden ids → name-keyed aois.selections) ---
+  const aois = payload?.aois
+  if (aois?.hiddenAois) {
+    const selections: { id: number; name: string; names: string[] }[] =
+      (aois.selections ??= [])
+    const byStimulus = hiddenSetsToNameSelections(
+      aois.data,
+      aois.orderVector,
+      aois.hiddenAois,
+      selections,
+      stimulusName
+    )
+    if (selections.length === 0) delete aois.selections
+    stampSelectionOnPlots(gridItems, AOI_SELECTION_PLOT_TYPES, 'aoiSelectionId', s =>
+      byStimulus.get(s)
+    )
+    delete aois.hiddenAois
+  }
+
+  // --- Event channels (per-stimulus hidden ids → name-keyed eventsSelections) ---
+  const ed = payload?.eventData
+  if (ed?.hiddenChannels) {
+    const selections: { id: number; name: string; names: string[] }[] =
+      (payload.eventsSelections ??= [])
+    const byStimulus = hiddenSetsToNameSelections(
+      ed.data,
+      ed.orderVector,
+      ed.hiddenChannels,
+      selections,
+      stimulusName
+    )
+    if (selections.length === 0) delete payload.eventsSelections
+    stampSelectionOnPlots(gridItems, EVENT_SELECTION_PLOT_TYPES, 'eventSelectionId', s =>
+      byStimulus.get(s)
+    )
+    delete ed.hiddenChannels
+  }
+
+  // --- Eye-movement categories (GLOBAL hidden ids → id-keyed categoriesSelections) ---
+  const categories = payload?.categories
+  if (categories?.hiddenCategories) {
+    const rows: unknown[] = Array.isArray(categories.data) ? categories.data : []
+    // Fixation (id 0) is the baseline and never part of a selection.
+    const hiddenIds = new Set(
+      (Array.isArray(categories.hiddenCategories)
+        ? categories.hiddenCategories
+        : []
+      ).filter(
+        (id: unknown): id is number =>
+          Number.isInteger(id) && (id as number) > 0 && (id as number) < rows.length
+      )
+    )
+    if (hiddenIds.size > 0) {
+      const selections: { id: number; name: string; memberIds: number[] }[] =
+        (payload.categoriesSelections ??= [])
+      const memberIds = rows
+        .map((_, id) => id)
+        .filter(id => id > 0 && !hiddenIds.has(id))
+      const id =
+        selections.reduce((m, sel) => Math.max(m, Number(sel?.id) || 0), 0) + 1
+      selections.push({ id, name: MIGRATED_SELECTION_NAME, memberIds })
+      // Hidden categories were global, so every plot gets the selection.
+      stampSelectionOnPlots(
+        gridItems,
+        CATEGORY_SELECTION_PLOT_TYPES,
+        'categorySelectionId',
+        () => id
+      )
+    }
+    delete categories.hiddenCategories
+  }
+}
+
 /**
  * Sequentially upgrades raw JSON data to the current schema.
  * Operates entirely on raw data objects to ensure Web Worker safety.
@@ -447,6 +634,15 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
       }
       return nextItem
     })
+  }
+
+  // Version-independent: legacy hidden-visibility sets → named SELECTIONS
+  // (runs after the type rewrite above so plot-type gating sees current keys).
+  if (data?.data) {
+    migrateLegacyVisibility(
+      data.data,
+      Array.isArray(data.gridItems) ? data.gridItems : []
+    )
   }
 
   // Version-independent normalization: collapse legacy WindowSpec `mode` field

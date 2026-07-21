@@ -6,8 +6,8 @@
  *
  * Every option defaults to the most common fixture value; a test overrides
  * only what its pin is about. `aoiMapping: 'group'` wires a REAL
- * AoiGroupReader (displayed-name merge, visibility versions) — the default is
- * the identity mapping most metric tests used.
+ * AoiGroupReader (displayed-name merge, structural/appearance versions) — the
+ * default is the identity mapping most metric tests used.
  */
 import { createReaderFromJson } from '../../src/lib/data/binary/converters'
 import { AoiGroupReader } from '../../src/lib/data/binary/reader.aoiGroup'
@@ -16,7 +16,8 @@ export type TestEngineOptions = {
   /** aois.data rows per stimulus: [originalName, displayedName, color]; null = id gap. */
   aoiData?: (string[] | null)[][]
   aoiOrderVector?: number[][]
-  hiddenAois?: number[][]
+  /** Named AOI SELECTIONS (name-keyed, per-plot narrowing via aoiSelectionId). */
+  aoiSelections?: { id: number; name: string; names: string[] }[]
   /** [originalName, displayedName] rows. Default: P0..Pn−1 derived from `segments`. */
   participants?: string[][]
   participantsOrderVector?: number[]
@@ -43,7 +44,7 @@ export type TestEngine = {
     aois: {
       data: (string[] | null)[][]
       orderVector: number[][]
-      hiddenAois: number[][]
+      selections?: { id: number; name: string; names: string[] }[]
     }
     categories: { data: string[][]; orderVector: number[] }
     participants: { data: string[][]; orderVector: number[] }
@@ -85,7 +86,7 @@ export function makeTestEngine(
           | null
         )[][]),
       orderVector: options.aoiOrderVector ?? [[], [1, 2]],
-      hiddenAois: options.hiddenAois ?? [[], []],
+      ...(options.aoiSelections ? { selections: options.aoiSelections } : {}),
     },
     categories: {
       data: options.categories ?? [['Fixation', 'Fixation', '#000000']],
