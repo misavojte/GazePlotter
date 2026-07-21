@@ -3,7 +3,6 @@ export type {
   MenuActionItem,
   MenuComponentBridgeProps,
   MenuComponentItem,
-  MenuDividerItem,
   MenuItem,
   MenuSubMenuItem,
 } from './types'

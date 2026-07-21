@@ -38,7 +38,7 @@ const getEntity = (
   return { id, originalName, displayedName: row[1] ?? originalName }
 }
 
-export const getStimuliOrderVector = (engine: DataEngine): number[] =>
+const getStimuliOrderVector = (engine: DataEngine): number[] =>
   getEntityOrderVector(engine, 'stimuli')
 
 export const getParticipantOrderVector = (engine: DataEngine): number[] =>
