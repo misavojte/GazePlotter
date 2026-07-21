@@ -3,7 +3,7 @@ import { makeTestEngine } from './helpers/testEngine'
 import {
   getAois,
   resolveAoiSelectionVisibleIds,
-  getVisibleEventChannels,
+  getSelectedEventChannels,
   resolveCategorySelectionMemberIds,
 } from '../src/lib/data/engine'
 import { buildAoiSlots } from '../src/lib/metrics/core/aoiSlots'
@@ -227,7 +227,7 @@ describe('event selection (visible channel narrowing)', () => {
     ])
     for (const id of [undefined, 0, 999]) {
       expect(
-        getVisibleEventChannels(engine, STIM, id).map(c => c.displayedName)
+        getSelectedEventChannels(engine, STIM, id).map(c => c.displayedName)
       ).toEqual(['Channel 1', 'Channel 2', 'Channel 2'])
     }
   })
@@ -236,7 +236,7 @@ describe('event selection (visible channel narrowing)', () => {
     const engine = makeEventEngine([], [
       { id: 1, name: 'Focus', names: ['Channel 2'] },
     ])
-    const narrowed = getVisibleEventChannels(engine, STIM, 1)
+    const narrowed = getSelectedEventChannels(engine, STIM, 1)
     expect(narrowed.map(c => c.id)).toEqual([1, 2])
   })
 
@@ -247,8 +247,8 @@ describe('event selection (visible channel narrowing)', () => {
     ])
     // Channel id 1 sits in the legacy hidden set, but global channel visibility
     // is retired — the "Channel 2" selection still yields BOTH matching channels.
-    expect(getVisibleEventChannels(engine, STIM, 1).map(c => c.id)).toEqual([1, 2])
-    expect(getVisibleEventChannels(engine, STIM, 2)).toEqual([])
+    expect(getSelectedEventChannels(engine, STIM, 1).map(c => c.id)).toEqual([1, 2])
+    expect(getSelectedEventChannels(engine, STIM, 2)).toEqual([])
   })
 })
 

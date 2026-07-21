@@ -81,33 +81,25 @@
     bulk.common(s => (s[config.settingsKey] as number | undefined) ?? 0)
   )
 
-  // Presence over the SAME edit-target set `bulk` writes to (no parallel copy
-  // of createBulkContext's target resolution): true when any target carries
-  // the `hideNoAoi` setting.
-  const hideNoAoiPresent = $derived(bulk.common(s => 'hideNoAoi' in s))
-  const hasHideNoAoi = $derived(
-    !!config.hideNoAoiToggle &&
-      (hideNoAoiPresent.value || hideNoAoiPresent.mixed)
-  )
-
-  const hideNoAoiState = $derived(
-    hasHideNoAoi ? bulk.common(s => (s.hideNoAoi as boolean | undefined) ?? false) : null
-  )
+  // Non-null when the toggle applies: the axis carries it (config) AND some
+  // edit target has the `hideNoAoi` setting — presence is checked over the
+  // SAME edit-target set `bulk` writes to (no parallel copy of
+  // createBulkContext's target resolution).
+  const hideNoAoi = $derived.by(() => {
+    if (!config.hideNoAoiToggle) return null
+    const present = bulk.common(s => 'hideNoAoi' in s)
+    if (!present.value && !present.mixed) return null
+    return bulk.common(s => (s.hideNoAoi as boolean | undefined) ?? false)
+  })
 
   const summary = $derived.by(() => {
     if (state.mixed) return 'Mixed'
     const baseName = !state.value
       ? ALL_SELECTION_LABEL
       : (selections.find(s => s.id === state.value)?.name ?? ALL_SELECTION_LABEL)
-
-    if (hasHideNoAoi && hideNoAoiState) {
-      if (hideNoAoiState.mixed) {
-        return `${baseName} (mixed No AOI)`
-      }
-      return hideNoAoiState.value
-        ? `${baseName} - No AOI`
-        : `${baseName} + No AOI`
-    }
+    // Only deviations from the default surface in the summary.
+    if (hideNoAoi?.mixed) return `${baseName} (mixed No AOI)`
+    if (hideNoAoi?.value) return `${baseName} - No AOI`
     return baseName
   })
 </script>
@@ -121,12 +113,12 @@
     mixed={state.mixed}
     onchange={e => bulk.update({ [config.settingsKey]: Number(e.detail) })}
   />
-  {#if hasHideNoAoi && hideNoAoiState}
+  {#if hideNoAoi}
     <InputCheck
       label="Hide No AOI data"
       compact
-      checked={!!hideNoAoiState.value}
-      mixed={hideNoAoiState.mixed}
+      checked={!!hideNoAoi.value}
+      mixed={hideNoAoi.mixed}
       onchange={e => bulk.updateEach(s => ('hideNoAoi' in s ? { hideNoAoi: (e as CustomEvent<boolean>).detail } : null))}
     />
   {/if}

@@ -7,7 +7,7 @@ import {
   getNumberOfSegments,
   getParticipantEndTime,
   hasEventsForStimulus,
-  getVisibleEventChannels,
+  getSelectedEventChannels,
   getEventBuffer,
   getAllCategories,
   applyCategorySelection,
@@ -406,7 +406,7 @@ export function transformDataToScarfPlot(
   const invVisibleRange = 1 / (maxValue - minValue || 1)
 
   const visibleEventChannels = hasEventsForStimulus(engine, stimulusId)
-    ? getVisibleEventChannels(engine, stimulusId, settings.eventSelectionId)
+    ? getSelectedEventChannels(engine, stimulusId, settings.eventSelectionId)
     : []
   const groupedEventChannels =
     groupEventChannelsByDisplayedName(visibleEventChannels)
@@ -427,12 +427,16 @@ export function transformDataToScarfPlot(
   )
   const hiddenCategoryIds = new Set<number>(narrowedAwayIds)
 
+  // Hoisted settings read (deep $state proxy); shapes both the legend (the
+  // No-AOI entry is omitted) and the gaze source's noAoiStyleIdx sentinel.
+  const hideNoAoi = settings.hideNoAoi ?? false
+
   const stylingAndLegend = createStylingAndLegend(
     aoiData,
     noAoiTreatment,
     showVisibilityMarkers ? groupedEventChannels : [],
     groupedCategories,
-    settings.hideNoAoi ?? false
+    hideNoAoi
   )
 
   // --- Gaze segments + optional event overlay ---
@@ -627,9 +631,10 @@ export function transformDataToScarfPlot(
     projScale,
     aoiOrderMap,
     categoryStyleIdxMap,
-    noAoiStyleIdx: aoiData.length,
+    // -1 when hidden: the No-AOI style doesn't exist then (the styling above
+    // omitted it, so category styles occupy index aoiData.length).
+    noAoiStyleIdx: hideNoAoi ? -1 : aoiData.length,
     hiddenCategoryIds,
-    hideNoAoi: settings.hideNoAoi ?? false,
   }
 
   return {

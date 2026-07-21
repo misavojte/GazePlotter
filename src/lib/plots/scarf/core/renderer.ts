@@ -399,11 +399,8 @@ export function compositeGazeBinaryAcc(
           if (styleIdx >= 0) styleScratch[resolved++] = styleIdx
         }
 
-        if (gs.hideNoAoi && resolved === 0) {
-          continue
-        }
-
         if (resolved === 0) {
+          if (noAoiStyleIdx < 0) continue
           if (isWide) {
             anyWide = true
             if (wide) wide.push({ x0px: x0, wPx, pIdx: pIndex, hOrig: HBAR, internalY: SAR, styleIdx: noAoiStyleIdx })
@@ -904,11 +901,8 @@ function drawHighlightMarkersFromBinary(
             if (sIdx === styleIdx) hitVisible = true
           }
 
-          if (gs.hideNoAoi && resolved === 0) {
-            continue
-          }
-
           if (resolved === 0) {
+            // noAoiStyleIdx is -1 when hidden, so this also skips hidden no-AOI.
             if (styleIdx !== noAoiStyleIdx) continue
             hFrac = HBAR * scaleFactor * invBarH
           } else {

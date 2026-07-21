@@ -367,10 +367,8 @@ describe('mergeStimuli / unmergeStimuli', () => {
 
   it('restores occurrences when two member channels reconcile to one (LIFO)', () => {
     // Member stimulus 1 carries TWO channels sharing the displayed name "C",
-    // both with occurrences for participant 0. reconcileDict maps both onto the
-    // rep's single "C" channel, so the fold stacks them cumulatively onto one
-    // rep cell — the un-fold must unwind them last-in-first-out. A forward
-    // unwind would hand the first channel every occurrence and empty the second.
+    // so both fold onto the rep's single "C" cell — the un-fold must unwind
+    // them LIFO.
     const src = buildStimulusMergeData(
       [[['Logo', 'Logo', '#f00']], [['Logo', 'Logo', '#0f0']]],
       [
@@ -506,12 +504,9 @@ describe('mergeParticipants / unmergeParticipants', () => {
   })
 
   it('restores per-participant events when several members share a channel (LIFO)', () => {
-    // Segments stay disjoint (only P0 carries any), but the event store is a
-    // SEPARATE store the disjointness gate never checks: P0, P1 and P2 all have
-    // occurrences on the same (stimulus, channel). The fold stacks the members'
-    // buffers onto the representative cumulatively, so the un-fold must unwind
-    // LIFO — a forward unwind gives the first member every occurrence (repCell
-    // .slice(0)) and strands the rest.
+    // The event store sits outside the segment-disjointness gate: P0, P1 and
+    // P2 all have occurrences on the same (stimulus, channel), so the fold
+    // stacks all three onto the rep — the un-fold must unwind LIFO.
     const src: DataType = {
       ...makeDataType([
         [[[0, 100, 0, 0]], [], []],

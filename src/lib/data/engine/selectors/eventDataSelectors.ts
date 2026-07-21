@@ -55,14 +55,12 @@ export const getEventChannels = (
  * selections). Unset / 0 / unknown → no narrowing, same self-healing contract
  * as getAois' aoiSelectionId.
  */
-export const getVisibleEventChannels = (
+export const getSelectedEventChannels = (
   engine: DataEngine,
   stimulusId: number,
   eventSelectionId?: number
 ): ExtendedInterpretedDataType[] => {
   const all = getEventChannels(engine, stimulusId)
-  if (all.length === 0) return []
-
   if (eventSelectionId == null || eventSelectionId <= 0) return all
   const selection = (engine.metadata?.eventsSelections ?? []).find(
     s => s.id === eventSelectionId

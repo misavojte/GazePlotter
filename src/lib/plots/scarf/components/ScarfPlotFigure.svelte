@@ -586,11 +586,8 @@
             if (sIdx >= 0) styleScratch[resolved++] = sIdx
           }
 
-          if (gs.hideNoAoi && resolved === 0) {
-            continue
-          }
-
           if (resolved === 0) {
+            if (gs.noAoiStyleIdx < 0) continue
             hit = build(gs.noAoiStyleIdx, HBAR, SAR, localId, xN, wN)
           } else {
             const h = HBAR / resolved

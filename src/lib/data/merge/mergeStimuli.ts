@@ -241,12 +241,9 @@ export function unfoldStimulusMergeDataset(
     // --- Events back to the member ---
     const repEv = events[rep] ?? []
     const memEv = (events[memberId] ??= [])
-    // Reverse the contributions too: when two of a member's channels reconcile
-    // to the SAME representative channel (duplicate displayed names), the fold
-    // concatenated both onto one rep cell cumulatively, so the inverse must
-    // unwind them LIFO — forward order would hand the first channel every
-    // occurrence and empty the second. (The outer member loop is already
-    // reversed for the cross-member case.)
+    // Two member channels with the same displayed name reconcile to ONE rep
+    // channel, stacking both onto one cell — unwind LIFO here too, like the
+    // (already reversed) outer member loop does for the cross-member case.
     for (const { memberChannel, participant, boundary } of [
       ...(member.stimulusEventContributions ?? []),
     ].reverse()) {

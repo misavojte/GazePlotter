@@ -674,10 +674,8 @@ export async function generateMetricExport(
           inst.baseId,
           metric?.meta.unit ?? '',
           metric?.meta.measurementClass ?? '',
-          // Full self-documenting readout (params + summary statistic +
-          // cross-participant reduction) — formatParamReadout alone now hides
-          // the `statistic`, so median/max/min would be indistinguishable from
-          // the mean default in the codebook.
+          // instanceReadout includes the summary statistic + reduction; params
+          // alone can't distinguish median/max/min in the codebook.
           instanceReadout(inst).join(', '),
           formatProjectionReadout(inst) ?? '',
           windowStr,

@@ -82,12 +82,9 @@ function unfoldParticipantEvents(
 ): number[][][][] {
   const out = owned ? events : cloneEvents(events)
   const rep = entry.representativeId
-  // Reverse member order: foldParticipantEvents concatenates each member's
-  // buffer onto the representative cell cumulatively (stacked, growing
-  // boundaries), so the inverse must unwind LIFO — exactly as the stimulus
-  // path does (mergeStimuli.unfoldStimulusMergeDataset). Forward order would
-  // give the first member repCell.slice(0) = every member's occurrences and
-  // leave the rest empty when 2+ members touch the same (stimulus, channel).
+  // foldParticipantEvents stacks members' buffers onto the rep cell
+  // cumulatively, so unwind LIFO — forward order would hand the first member
+  // the whole cell (same rule as mergeStimuli.unfoldStimulusMergeDataset).
   for (const member of [...entry.members].reverse()) {
     for (const { stimulus, channel, boundary } of member.eventContributions ??
       []) {

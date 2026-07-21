@@ -18,6 +18,14 @@ const CORE_LAYOUT_KEYS = new Set([
   'redrawTimestamp',
 ])
 
+/** Plot types carrying the `hideNoAoi` setting (backfilled to `false` below). */
+const HIDE_NO_AOI_PLOT_TYPES = new Set([
+  'barPlot',
+  'aoiStreamPlot',
+  'transitionMatrix',
+  'scarf',
+])
+
 /**
  * Sequentially upgrades raw JSON data to the current schema.
  * Operates entirely on raw data objects to ensure Web Worker safety.
@@ -431,10 +439,7 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
         ]
       const nextItem = normalized ? { ...item, type: normalized } : item
       if (
-        (nextItem.type === 'barPlot' ||
-          nextItem.type === 'aoiStreamPlot' ||
-          nextItem.type === 'transitionMatrix' ||
-          nextItem.type === 'scarf') &&
+        HIDE_NO_AOI_PLOT_TYPES.has(nextItem.type) &&
         nextItem.settings &&
         typeof nextItem.settings === 'object'
       ) {
