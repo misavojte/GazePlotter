@@ -44,6 +44,11 @@ const CATEGORY_SELECTION_PLOT_TYPES = new Set(['scarf'])
 
 const MIGRATED_SELECTION_NAME = 'Migrated visibility'
 
+/** Next free selection id: 1 + the highest id already present (0 when empty). */
+function nextSelectionId(selections: { id: number }[]): number {
+  return selections.reduce((m, sel) => Math.max(m, Number(sel?.id) || 0), 0) + 1
+}
+
 /**
  * Convert one axis's legacy per-stimulus hidden sets into name-keyed
  * SELECTIONS: per affected stimulus, the keep-list is the displayed names the
@@ -95,8 +100,7 @@ function hiddenSetsToNameSelections(
   }
   if (byKeepSet.size === 0) return byStimulus
 
-  let nextId =
-    selections.reduce((m, sel) => Math.max(m, Number(sel?.id) || 0), 0) + 1
+  let nextId = nextSelectionId(selections)
   for (const { names, stimuli } of byKeepSet.values()) {
     const name =
       byKeepSet.size === 1
@@ -198,8 +202,7 @@ function migrateLegacyVisibility(payload: any, gridItems: unknown[]): void {
       const memberIds = rows
         .map((_, id) => id)
         .filter(id => id > 0 && !hiddenIds.has(id))
-      const id =
-        selections.reduce((m, sel) => Math.max(m, Number(sel?.id) || 0), 0) + 1
+      const id = nextSelectionId(selections)
       selections.push({ id, name: MIGRATED_SELECTION_NAME, memberIds })
       // Hidden categories were global, so every plot gets the selection.
       stampSelectionOnPlots(
@@ -211,6 +214,48 @@ function migrateLegacyVisibility(payload: any, gridItems: unknown[]): void {
     }
     delete categories.hiddenCategories
   }
+}
+
+/**
+ * Collapse the legacy WindowSpec `mode` field into an explicit `stepSize`.
+ * Epoch was always `stepSize === windowSize`; sliding without a stepSize
+ * defaulted to windowSize too. After this, projections only carry
+ * `{ windowSize, stepSize }`.
+ */
+function collapseWindowMode(inst: any): any {
+  const proj = inst?.projection
+  if (!proj || proj.kind !== 'windowed' || !proj.window) return inst
+  const w = proj.window
+  if (!('mode' in w) && typeof w.stepSize === 'number') return inst
+  const windowSize = typeof w.windowSize === 'number' ? w.windowSize : 0
+  const stepSize =
+    typeof w.stepSize === 'number'
+      ? w.stepSize
+      : windowSize
+  const { mode: _mode, ...restWindow } = w
+  return {
+    ...inst,
+    projection: {
+      ...proj,
+      window: { ...restWindow, windowSize, stepSize },
+    },
+  }
+}
+
+/**
+ * The cross-participant statistic field was renamed `groupAggregation` →
+ * `reduction` and narrowed to {mean, sum} (median moved to the bar's
+ * distribution overlay; proportion became a metric class). Carry a serialized
+ * value across, keeping only the two sound reductions; an unsound legacy value
+ * (median / proportion) is dropped so the instance rides its metric's default
+ * reduction.
+ */
+function carryReduction(inst: any): any {
+  if (!inst || typeof inst !== 'object' || !('groupAggregation' in inst)) return inst
+  const { groupAggregation, ...rest } = inst
+  return groupAggregation === 'sum' || groupAggregation === 'mean'
+    ? { ...rest, reduction: groupAggregation }
+    : rest
 }
 
 /**
@@ -274,14 +319,10 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
 
     // Normalize missing/null orderVectors to [] so the empty-array fallback
     // logic in selectors (empty → sequential 0,1,2,…) works correctly.
-    if (payload.stimuli) {
-      payload.stimuli.orderVector = payload.stimuli.orderVector ?? []
-    }
-    if (payload.participants) {
-      payload.participants.orderVector = payload.participants.orderVector ?? []
-    }
-    if (payload.categories) {
-      payload.categories.orderVector = payload.categories.orderVector ?? []
+    for (const key of ['stimuli', 'participants', 'categories']) {
+      if (payload[key]) {
+        payload[key].orderVector = payload[key].orderVector ?? []
+      }
     }
     if (payload.aois) {
       const rawAoiOv = payload.aois.orderVector
@@ -645,63 +686,22 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
     )
   }
 
-  // Version-independent normalization: collapse legacy WindowSpec `mode` field
-  // into an explicit `stepSize`. Epoch was always `stepSize === windowSize`;
-  // sliding without a stepSize defaulted to windowSize too. After this,
-  // projections only carry `{ windowSize, stepSize }`.
+  // Version-independent normalization of the metric-instance library, in pass
+  // order: collapse the legacy WindowSpec `mode` into an explicit `stepSize`
+  // (`collapseWindowMode`), carry the renamed `groupAggregation` field across
+  // as `reduction` (`carryReduction`), then prune `aggregate-aoi` extremes the
+  // metric no longer NAMES (`meta.aoiAggregate`) — 1.9.x offered max/min on
+  // every aoi-vector metric, and such an instance would strand invisibly:
+  // rejected by every plot contract, so no library card, no delete button, yet
+  // re-serialized into every export. There is no sound remap (the projection
+  // has no defined reading); a plot that referenced a pruned instance falls
+  // back to its metric placeholder, same as any missing instance.
   const instances = data?.data?.metricInstances
   if (Array.isArray(instances)) {
-    data.data.metricInstances = instances.map((inst: any) => {
-      const proj = inst?.projection
-      if (!proj || proj.kind !== 'windowed' || !proj.window) return inst
-      const w = proj.window
-      if (!('mode' in w) && typeof w.stepSize === 'number') return inst
-      const windowSize = typeof w.windowSize === 'number' ? w.windowSize : 0
-      const stepSize =
-        typeof w.stepSize === 'number'
-          ? w.stepSize
-          : windowSize
-      const { mode: _mode, ...restWindow } = w
-      return {
-        ...inst,
-        projection: {
-          ...proj,
-          window: { ...restWindow, windowSize, stepSize },
-        },
-      }
-    })
-  }
-
-  // Version-independent normalization: the cross-participant statistic field was
-  // renamed `groupAggregation` → `reduction` and narrowed to {mean, sum} (median
-  // moved to the bar's distribution overlay; proportion became a metric class).
-  // Carry a serialized value across, keeping only the two sound reductions; an
-  // unsound legacy value (median / proportion) is dropped so the instance rides
-  // its metric's default reduction.
-  const reductionInstances = data?.data?.metricInstances
-  if (Array.isArray(reductionInstances)) {
-    data.data.metricInstances = reductionInstances.map((inst: any) => {
-      if (!inst || typeof inst !== 'object' || !('groupAggregation' in inst)) return inst
-      const { groupAggregation, ...rest } = inst
-      return groupAggregation === 'sum' || groupAggregation === 'mean'
-        ? { ...rest, reduction: groupAggregation }
-        : rest
-    })
-  }
-
-  // Version-independent normalization: an `aggregate-aoi` extreme is now valid
-  // only where the metric NAMES its meaning (`meta.aoiAggregate`); 1.9.x
-  // offered max/min on every aoi-vector metric. A saved instance whose extreme
-  // is no longer named would strand invisibly — rejected by every plot
-  // contract, so no library card, no delete button, yet re-serialized into
-  // every export. There is no sound remap (the projection has no defined
-  // reading), so prune it here; a plot that referenced it falls back to its
-  // metric placeholder, same as any missing instance.
-  const aggregateInstances = data?.data?.metricInstances
-  if (Array.isArray(aggregateInstances)) {
-    data.data.metricInstances = aggregateInstances.filter(
-      (inst: any) => !isStrandedAoiAggregate(inst)
-    )
+    data.data.metricInstances = instances
+      .map(collapseWindowMode)
+      .map(carryReduction)
+      .filter((inst: any) => !isStrandedAoiAggregate(inst))
   }
 
   // Version-independent normalization: the participant selection field was

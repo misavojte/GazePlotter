@@ -9,9 +9,10 @@ import type {
 import type { WorkspaceCommandChain } from '$lib/workspace/commands'
 import type { MetricInstance } from '$lib/metrics'
 import type { GridState } from '$lib/workspace/grid'
-import type { AllGridTypes } from '$lib/workspace'
-import type { ScarfPlotItem, ScarfPlotSettings } from '$lib/plots/scarf/types'
-import type { BarPlotItem, BarPlotSettings } from '$lib/plots/bar/types'
+import type { AllGridTypes, GridItemMap } from '$lib/workspace'
+import { createGridItem } from '$lib/workspace/grid/itemFactory'
+import type { ScarfPlotSettings } from '$lib/plots/scarf/types'
+import type { BarPlotSettings } from '$lib/plots/bar/types'
 
 export type MockMetadata = Omit<DataType, 'segments' | 'participantsSelections'> & {
   participantsSelections: ParticipantsSelection[]
@@ -166,65 +167,54 @@ export function createMockGridStore(
   return gridStore as GridState
 }
 
+/**
+ * Grid items built by the PRODUCTION factory, so fixture items always carry
+ * the plot definitions' current default settings (hand-copied defaults here
+ * had already drifted). Only test-owned bits are pinned: compact geometry,
+ * stable ids, a deterministic redrawTimestamp, and stimulusId 1 (where
+ * createMockMetadata puts its AOIs).
+ */
 export function createScarfGridItem(
-  overrides: Partial<Omit<ScarfPlotItem, 'settings'>> & {
+  overrides: Partial<Omit<GridItemMap['scarf'], 'settings'>> & {
     settings?: Partial<ScarfPlotSettings>
   } = {}
-): ScarfPlotItem {
-  const { settings: settingsOverrides, ...itemOverrides } = overrides
-  const settings: ScarfPlotSettings = {
-    stimulusId: 1,
-    groupId: -1,
-    timeline: 'absolute',
-    absoluteStimuliLimits: [],
-    ordinalStimuliLimits: [],
-  }
-  Object.assign(settings, settingsOverrides)
-
-  return {
-    id: 1,
+): GridItemMap['scarf'] {
+  const { settings, redrawTimestamp, ...itemOverrides } = overrides
+  const item = createGridItem('scarf', {
     type: 'scarf',
+    id: 1,
     x: 0,
     y: 0,
     w: 6,
     h: 8,
     min: { w: 4, h: 4 },
-    redrawTimestamp: 1,
     ...itemOverrides,
-    settings,
-  }
+    settings: { stimulusId: 1, ...settings },
+  }) as GridItemMap['scarf']
+  item.redrawTimestamp = redrawTimestamp ?? 1
+  return item
 }
 
+/** See {@link createScarfGridItem}. */
 export function createBarPlotGridItem(
-  overrides: Partial<Omit<BarPlotItem, 'settings'>> & {
+  overrides: Partial<Omit<GridItemMap['barPlot'], 'settings'>> & {
     settings?: Partial<BarPlotSettings>
   } = {}
-): BarPlotItem {
-  const { settings: settingsOverrides, ...itemOverrides } = overrides
-  const settings: BarPlotSettings = {
-    stimulusId: 1,
-    groupId: -1,
-    barPlottingType: 'horizontal',
-    orderBy: 'aoi',
-    orderDirection: 'asc',
-    metricInstanceIds: ['absoluteTime'],
-    scaleRange: [0, 0],
-    statisticalOverlay: 'none',
-  }
-  Object.assign(settings, settingsOverrides)
-
-  return {
-    id: 2,
+): GridItemMap['barPlot'] {
+  const { settings, redrawTimestamp, ...itemOverrides } = overrides
+  const item = createGridItem('barPlot', {
     type: 'barPlot',
+    id: 2,
     x: 6,
     y: 0,
     w: 6,
     h: 8,
     min: { w: 4, h: 4 },
-    redrawTimestamp: 1,
     ...itemOverrides,
-    settings,
-  }
+    settings: { stimulusId: 1, ...settings },
+  }) as GridItemMap['barPlot']
+  item.redrawTimestamp = redrawTimestamp ?? 1
+  return item
 }
 
 export function createDefaultGridItems(): AllGridTypes[] {

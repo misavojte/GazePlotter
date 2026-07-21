@@ -9,6 +9,7 @@ import { INTERVAL_CHANNEL_MARKER } from '$lib/data/engine/eventIntervals'
 import type { ExportNaming } from '../types'
 import {
   type CsvFormatOptions,
+  type DecimalSeparator,
   resolveCsvFormatOptions,
   generateCsvString,
   formatNumberForCsv,
@@ -17,9 +18,10 @@ import { groupByParticipantAndStimulus } from './utils'
 
 // `eventName` (not `event`) is the channel column the CSV event-enrichment
 // importer requires, so a unified export re-imports as an event file.
-const EVENT_HEADER = ['stimulus', 'participant', 'eventName', 'start', 'duration']
-
 const EVENT_BATCH_HEADER = ['eventName', 'start', 'duration']
+
+// The unified export merely prepends the grouping columns to a batch row.
+const EVENT_HEADER = ['stimulus', 'participant', ...EVENT_BATCH_HEADER]
 
 type EventCsvRow = {
   stimulus: string
@@ -173,6 +175,19 @@ function convertEventData(
   return result
 }
 
+/** The EVENT_BATCH_HEADER-aligned cells of one occurrence row; the unified
+ *  export prepends [stimulus, participant], mirroring the headers above. */
+function eventCells(
+  item: EventCsvRow,
+  decimalSeparator: DecimalSeparator
+): string[] {
+  return [
+    item.event,
+    formatNumberForCsv(item.start, decimalSeparator),
+    formatNumberForCsv(item.duration, decimalSeparator),
+  ]
+}
+
 /**
  * Generates a single unified CSV string for all event occurrences in the dataset.
  */
@@ -187,9 +202,7 @@ export function generateEventUnifiedCsv(
   const rows = convertEventData(data, stimulusIds, participantIds, naming).map(item => [
     item.stimulus,
     item.participant,
-    item.event,
-    formatNumberForCsv(item.start, decimalSeparator),
-    formatNumberForCsv(item.duration, decimalSeparator),
+    ...eventCells(item, decimalSeparator),
   ])
 
   return generateCsvString(EVENT_HEADER, rows, options)
@@ -210,11 +223,7 @@ export function generateEventBatchCsv(
   const csvPreData = convertEventData(data, stimulusIds, participantIds, naming)
 
   return groupByParticipantAndStimulus(csvPreData, (combinedData, stimulus, participant) => {
-    const rows = combinedData.map(item => [
-      item.event,
-      formatNumberForCsv(item.start, decimalSeparator),
-      formatNumberForCsv(item.duration, decimalSeparator),
-    ])
+    const rows = combinedData.map(item => eventCells(item, decimalSeparator))
 
     return {
       fileName: `${stimulus}_${participant}`,

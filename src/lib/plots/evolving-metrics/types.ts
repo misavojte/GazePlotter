@@ -1,5 +1,4 @@
 import type { AdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
-import type { PlotItemContract } from '$lib/plots/definePlot'
 
 export type EvolvingMetricsSettings = {
   stimulusId: number
@@ -17,11 +16,6 @@ export type EvolvingMetricsSettings = {
   timelineStart?: number
   timelineEnd?: number
 }
-
-export type EvolvingMetricsItem = PlotItemContract<
-  'evolvingMetrics',
-  EvolvingMetricsSettings
->
 
 /**
  * A single windowed measurement. `centerMs` is where the value is

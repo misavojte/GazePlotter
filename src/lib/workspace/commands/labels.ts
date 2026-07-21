@@ -1,4 +1,4 @@
-import type { WorkspaceCommand } from './types'
+import type { SelectionsAxis, WorkspaceCommand } from './types'
 
 /**
  * Command Label Registry
@@ -16,11 +16,30 @@ interface CommandLabels {
   default: string
 }
 
+/** `noun` leads the toast; `sentenceNoun` sits mid-sentence in undo/redo. */
+const selectionsLabels = (
+  noun: string,
+  sentenceNoun = noun.toLowerCase()
+): CommandLabels => ({
+  undone: `Undo ${sentenceNoun} selections update`,
+  redone: `Redo ${sentenceNoun} selections update`,
+  default: `${noun} selections updated`,
+})
+
+const SELECTIONS_LABELS: Record<SelectionsAxis, CommandLabels> = {
+  participant: selectionsLabels('Participant'),
+  stimulus: selectionsLabels('Stimulus'),
+  category: selectionsLabels('Eye-movement'),
+  event: selectionsLabels('Event'),
+  aoi: selectionsLabels('AOI', 'AOI'),
+}
+
 /**
  * Registry mapping workspace command types to their human-readable labels.
+ * `updateSelections` labels are per-axis (SELECTIONS_LABELS above).
  */
 const WORKSPACE_COMMAND_LABELS: Record<
-  WorkspaceCommand['type'],
+  Exclude<WorkspaceCommand['type'], 'updateSelections'>,
   CommandLabels
 > = {
   // Data change commands
@@ -49,36 +68,6 @@ const WORKSPACE_COMMAND_LABELS: Record<
     undone: 'Undo event channels update',
     redone: 'Redo event channels update',
     default: 'Event channels updated',
-  },
-
-  updateParticipantsSelections: {
-    undone: 'Undo participant selections update',
-    redone: 'Redo participant selections update',
-    default: 'Participant selections updated',
-  },
-
-  updateStimuliSelections: {
-    undone: 'Undo stimulus selections update',
-    redone: 'Redo stimulus selections update',
-    default: 'Stimulus selections updated',
-  },
-
-  updateCategoriesSelections: {
-    undone: 'Undo eye-movement selections update',
-    redone: 'Redo eye-movement selections update',
-    default: 'Eye-movement selections updated',
-  },
-
-  updateEventsSelections: {
-    undone: 'Undo event selections update',
-    redone: 'Redo event selections update',
-    default: 'Event selections updated',
-  },
-
-  updateAoiSelections: {
-    undone: 'Undo AOI selections update',
-    redone: 'Redo AOI selections update',
-    default: 'AOI selections updated',
   },
 
   updateNoAoiTreatment: {
@@ -163,13 +152,17 @@ const WORKSPACE_COMMAND_LABELS: Record<
 }
 
 /**
- * Gets the appropriate label for a workspace command based on its type and history state.
+ * Gets the appropriate label for a workspace command based on its type (and,
+ * for `updateSelections`, its axis) and history state.
  */
 export function getCommandLabel(
-  commandType: WorkspaceCommand['type'],
+  command: WorkspaceCommand,
   history?: 'undo' | 'redo'
 ): string | null {
-  const labels = WORKSPACE_COMMAND_LABELS[commandType]
+  const labels =
+    command.type === 'updateSelections'
+      ? SELECTIONS_LABELS[command.axis]
+      : WORKSPACE_COMMAND_LABELS[command.type]
 
   if (history === 'undo') {
     return labels.undone

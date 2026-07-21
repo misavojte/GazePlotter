@@ -141,71 +141,44 @@ export function computeMatrixLayout(input: MatrixLayoutInput): MatrixLayout {
   const standardYAxisLabelWidth = maxRowLabelWidth
   const standardXAxisHeight = maxColLabelWidth * SIN_45 + fontSize * SIN_45
 
-  const standardYSpace =
-    marginLeft + cfg.leftMargin + fontSize + AXIS_TITLE_GAP + standardYAxisLabelWidth + 10
-
-  const standardXSpace =
-    marginTop + cfg.topMargin + fontSize + AXIS_TITLE_GAP + standardXAxisHeight + 10
-
   const legendSpace = MATRIX_LEGEND_GAP + getGradientLegendRequiredHeight(fontSize) + marginBottom
 
-  const availableWidthStandard =
-    width - standardYSpace - marginRight - cfg.rightMargin
-  const availableHeightStandard = height - standardXSpace - legendSpace
+  // Axis space = outer margin + config margin + axis title + gap + labels + pad.
+  const ySpaceFor = (labelWidth: number) =>
+    marginLeft + cfg.leftMargin + fontSize + AXIS_TITLE_GAP + labelWidth + 10
+  const xSpaceFor = (labelHeight: number) =>
+    marginTop + cfg.topMargin + fontSize + AXIS_TITLE_GAP + labelHeight + 10
 
-  const cellStandard = Math.max(
-    0,
-    Math.min(
-      availableWidthStandard / safeColCount,
-      availableHeightStandard / safeRowCount
-    )
-  )
+  // One fit rule for every pass: carve the axis spaces + legend out, fit
+  // square cells to the shorter axis (never negative).
+  const cellFor = (ySpace: number, xSpace: number) => {
+    const availW = width - ySpace - marginRight - cfg.rightMargin
+    const availH = height - xSpace - legendSpace
+    return Math.max(0, Math.min(availW / safeColCount, availH / safeRowCount))
+  }
+
+  const standardYSpace = ySpaceFor(standardYAxisLabelWidth)
+  const standardXSpace = xSpaceFor(standardXAxisHeight)
+
+  const cellStandard = cellFor(standardYSpace, standardXSpace)
 
   const needsCompact = cellStandard < cfg.COMPACT_THRESHOLD
 
-  const compactYSpace =
-    marginLeft + cfg.leftMargin + fontSize + AXIS_TITLE_GAP + COMPACT_LABEL_SIZE + 10
-
-  const compactXSpace =
-    marginTop + cfg.topMargin + fontSize + AXIS_TITLE_GAP + COMPACT_LABEL_SIZE + 10
-
-  const activeYSpace = needsCompact ? compactYSpace : standardYSpace
-  const activeXSpace = needsCompact ? compactXSpace : standardXSpace
-
-  const availableWidthReal =
-    width - activeYSpace - marginRight - cfg.rightMargin
-  const availableHeightReal = height - activeXSpace - legendSpace
-
-  const cellReal = Math.max(
-    0,
-    Math.min(
-      availableWidthReal / safeColCount,
-      availableHeightReal / safeRowCount
-    )
+  const cellReal = cellFor(
+    needsCompact ? ySpaceFor(COMPACT_LABEL_SIZE) : standardYSpace,
+    needsCompact ? xSpaceFor(COMPACT_LABEL_SIZE) : standardXSpace
   )
 
   const isUltraCompactMode = cellReal < cfg.minCellSize
   const isCompactMode = needsCompact || isUltraCompactMode
 
-  let xAxisLabelHeight: number
-  let yAxisLabelWidth: number
+  const yAxisLabelWidth = isCompactMode ? COMPACT_LABEL_SIZE : standardYAxisLabelWidth
+  const xAxisLabelHeight = isCompactMode ? COMPACT_LABEL_SIZE : standardXAxisHeight
 
-  if (isCompactMode) {
-    xAxisLabelHeight = COMPACT_LABEL_SIZE
-    yAxisLabelWidth = COMPACT_LABEL_SIZE
-  } else {
-    yAxisLabelWidth = maxRowLabelWidth
-    xAxisLabelHeight = maxColLabelWidth * SIN_45 + fontSize * SIN_45
-  }
-
-  const yAxisSpace =
-    marginLeft + cfg.leftMargin + fontSize + AXIS_TITLE_GAP + yAxisLabelWidth + 10
-
-  const xAxisSpace =
-    marginTop + cfg.topMargin + fontSize + AXIS_TITLE_GAP + xAxisLabelHeight + 10
+  const yAxisSpace = ySpaceFor(yAxisLabelWidth)
+  const xAxisSpace = xSpaceFor(xAxisLabelHeight)
 
   const availableWidth = width - yAxisSpace - marginRight - cfg.rightMargin
-  const availableHeight = height - xAxisSpace - legendSpace
 
   // Cells stay square: the shorter axis fits, the longer letterboxes.
   const cellSize =
@@ -213,14 +186,8 @@ export function computeMatrixLayout(input: MatrixLayoutInput): MatrixLayout {
       ? cfg.minCellSize
       : Math.floor(
           isUltraCompactMode
-            ? Math.max(
-                1,
-                Math.min(availableWidth / colCount, availableHeight / rowCount)
-              )
-            : Math.max(
-                cfg.minCellSize,
-                Math.min(availableWidth / colCount, availableHeight / rowCount)
-              )
+            ? Math.max(1, cellFor(yAxisSpace, xAxisSpace))
+            : Math.max(cfg.minCellSize, cellFor(yAxisSpace, xAxisSpace))
         )
 
   const gridWidth = cellSize * colCount

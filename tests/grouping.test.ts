@@ -150,7 +150,7 @@ describe('groupByDisplayedName', () => {
     it('forms a clean, mergeable group with no conflict', () => {
       const ed = createBaseGroupEditor(seed(), { detectConflicts: () => [] })
       ed.handleNameInput(renamed(1), 'A', false, { id: 1, members: [renamed(1)] })
-      expect(ed.hasGroups).toBe(true)
+      expect(ed.groups.some(g => g.members.length > 1)).toBe(true)
       expect(ed.hasInvalidGroup).toBe(false)
       const group = ed.groups.find(g => g.members.length > 1)!
       expect(ed.conflictsFor(group)).toEqual([])

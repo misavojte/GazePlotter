@@ -37,6 +37,8 @@
     getColorScaleCommitted(props.colorScale, props.defaultMin, props.defaultMax)
   )
 
+  // Seed values only — the $effect below keeps the fields in sync with props.
+  // svelte-ignore state_referenced_locally
   const initialFields = getColorScaleCommitted(props.colorScale, props.defaultMin, props.defaultMax)
 
   let colorMin = $state(initialFields.colorMin)

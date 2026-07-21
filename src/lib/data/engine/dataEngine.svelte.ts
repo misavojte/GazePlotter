@@ -2,7 +2,7 @@ import { BinaryBufferReader, AoiGroupReader, EventBufferReader } from '../binary
 import {
   mergeParticipants as applyParticipantMerge,
   unmergeParticipants as applyParticipantUnmerge,
-} from '../merge/deriveMergedDataset'
+} from '../merge/mergeParticipants'
 import {
   mergeStimuli as applyStimulusMerge,
   unmergeStimuli as applyStimulusUnmerge,
@@ -13,6 +13,7 @@ import type {
   DataCapabilities,
   DataType,
   EngineMetadata,
+  EventDataUpdate,
   ExtendedInterpretedDataType,
   MergeLogEntry,
   MetricInstance,
@@ -24,7 +25,7 @@ export class DataEngine {
   // --- Private Memory (Non-Reactive) ---
   // We keep binary data outside runes to prevent proxy overhead on large
   // buffers. Segments AND event occurrences both live here; only their light
-  // metadata (defs, order, hidden) rides in the reactive `metadata` below.
+  // metadata (defs, order) rides in the reactive `metadata` below.
   private _binary: DataType['segments'] | null = null
   private _reader: BinaryBufferReader | null = null
   private _aoiGroupReader: AoiGroupReader | null = null
@@ -38,7 +39,7 @@ export class DataEngine {
    * `updateEventDataBatch`). Reactive consumers that read occurrences through
    * the non-reactive `_eventReader` depend on this so they recompute when the
    * buffers change — the event analogue of mutating `$state` metadata while
-   * the heavy data sits in a reader. Channel def/order/hidden edits flow
+   * the heavy data sits in a reader. Channel def/order edits flow
    * through `metadata.eventData` and need no bump.
    */
   eventVersion = $state(0)
@@ -87,10 +88,6 @@ export class DataEngine {
     this.metadata = meta
     this.eventVersion++
     this._aoiGroupReader.updateMap(meta)
-  }
-
-  updateAois(stimulusId: number, updatedAois: ExtendedInterpretedDataType[]) {
-    this.updateAoisBatch([{ stimulusId, aois: updatedAois }])
   }
 
   updateAoisBatch(
@@ -177,14 +174,7 @@ export class DataEngine {
     if (this.metadata) this.metadata.metricInstances = instances
   }
 
-  updateEventDataBatch(
-    updates: {
-      stimulusId: number
-      channelDefs: string[][]
-      eventBuffers: number[][][]
-      orderVector?: number[]
-    }[]
-  ) {
+  updateEventDataBatch(updates: EventDataUpdate[]) {
     const meta = this.metadata
     if (!meta) return
 
@@ -328,49 +318,34 @@ export class DataEngine {
   }
 
   /**
-   * Merge participant `memberIds` into `representativeId` (see PLANMERGE.md M3).
-   * A disjoint, reversible, wholesale rebuild off the render loop: reconstruct
-   * the dataset, fold via the pure {@link mergeParticipants}, and reload — so
+   * Merge `memberIds` into `representativeId` on one axis (see PLANMERGE.md
+   * M3/M4). A disjoint, reversible, wholesale rebuild off the render loop:
+   * reconstruct the dataset, fold via the pure per-axis merge, and reload — so
    * the segment/AOI hot paths and every consumer see an ordinary dataset. The
-   * append-only merge log records the exact inverse. Throws (before any state
-   * change) if the merge is not disjoint.
+   * stimulus fold additionally reconciles the per-stimulus AOI + event-channel
+   * dictionaries. The append-only merge log records the exact inverse. Throws
+   * (before any state change) if the merge is not disjoint.
    */
-  mergeParticipants(
+  mergeEntities(
+    axis: 'participant' | 'stimulus',
     representativeId: number,
     memberIds: number[],
     at: number
   ) {
     const data = this.toDataType()
     if (!data) return
-    this.loadDataset(
-      applyParticipantMerge(data, representativeId, memberIds, at)
-    )
+    const fold =
+      axis === 'participant' ? applyParticipantMerge : applyStimulusMerge
+    this.loadDataset(fold(data, representativeId, memberIds, at))
   }
 
-  /** Exact inverse of {@link mergeParticipants} for the given log entry. */
-  unmergeParticipants(entry: MergeLogEntry) {
+  /** Exact inverse of {@link mergeEntities}; the log entry carries its axis. */
+  unmergeEntities(entry: MergeLogEntry) {
     const data = this.toDataType()
     if (!data) return
-    this.loadDataset(applyParticipantUnmerge(data, entry))
-  }
-
-  /**
-   * Merge stimulus `memberIds` into `representativeId` (see PLANMERGE.md M4).
-   * Like {@link mergeParticipants} but on the outer axis, additionally
-   * reconciling the per-stimulus AOI + event-channel dictionaries. Disjoint,
-   * reversible, wholesale rebuild; throws before any change if not disjoint.
-   */
-  mergeStimuli(representativeId: number, memberIds: number[], at: number) {
-    const data = this.toDataType()
-    if (!data) return
-    this.loadDataset(applyStimulusMerge(data, representativeId, memberIds, at))
-  }
-
-  /** Exact inverse of {@link mergeStimuli} for the given log entry. */
-  unmergeStimuli(entry: MergeLogEntry) {
-    const data = this.toDataType()
-    if (!data) return
-    this.loadDataset(applyStimulusUnmerge(data, entry))
+    const unfold =
+      entry.axis === 'participant' ? applyParticipantUnmerge : applyStimulusUnmerge
+    this.loadDataset(unfold(data, entry))
   }
 
   get segments() {

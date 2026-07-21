@@ -3,7 +3,6 @@ import type {
   PaneSection,
   SchemaPaneSectionEntry,
   SectionFieldAction,
-  SectionFieldCtx,
 } from '$lib/plots/definePlot'
 import type { ModalDefinition } from '$lib/modals/defineModal'
 import { getStimuliOptions, getParticipantOptions, getParticipantsSelectionOptions } from '$lib/plots/shared'
@@ -33,12 +32,11 @@ export type SharedPaneSection = PaneSection | SchemaPaneSectionEntry
 /** Every shared action is "open a library modal with command provenance". */
 const modalAction = (
   label: string,
-  modal: ModalDefinition<Component<any>, any>,
-  extra?: (ctx: SectionFieldCtx) => Record<string, unknown>
+  modal: ModalDefinition<Component<any>, any>
 ): SectionFieldAction => ({
   label,
   onclick: ctx => {
-    void ctx.modalState.open(modal, { source: ctx.source, ...extra?.(ctx) })
+    void ctx.modalState.open(modal, { source: ctx.source })
   },
 })
 

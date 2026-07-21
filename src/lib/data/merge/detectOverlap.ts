@@ -21,24 +21,21 @@ export function detectMergeOverlap(
   const entities = [representativeId, ...memberIds]
   const conflicts: number[] = []
 
-  if (axis === 'participant') {
-    // Entities are participants; the counterpart axis is stimulus.
-    for (let s = 0; s < stimuliCount; s++) {
-      let withData = 0
-      for (const pid of entities) {
-        if (reader.getSegmentCount(s, pid) > 0 && ++withData > 1) break
-      }
-      if (withData > 1) conflicts.push(s)
+  // getSegmentCount addresses (stimulus, participant); orient it so `entity`
+  // is the merged axis and `counterpart` the other one.
+  const onParticipants = axis === 'participant'
+  const counterpartCount = onParticipants ? stimuliCount : maxParticipants
+  const segmentCount = (counterpart: number, entity: number) =>
+    onParticipants
+      ? reader.getSegmentCount(counterpart, entity)
+      : reader.getSegmentCount(entity, counterpart)
+
+  for (let c = 0; c < counterpartCount; c++) {
+    let withData = 0
+    for (const id of entities) {
+      if (segmentCount(c, id) > 0 && ++withData > 1) break
     }
-  } else {
-    // Entities are stimuli; the counterpart axis is participant.
-    for (let p = 0; p < maxParticipants; p++) {
-      let withData = 0
-      for (const sid of entities) {
-        if (reader.getSegmentCount(sid, p) > 0 && ++withData > 1) break
-      }
-      if (withData > 1) conflicts.push(p)
-    }
+    if (withData > 1) conflicts.push(c)
   }
 
   return conflicts

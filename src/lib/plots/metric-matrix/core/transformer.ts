@@ -48,7 +48,6 @@ export function getMetricMatrixData(
   const instance = resolved.instance
   const metric = getMetric(instance.baseId)
   const unit = metric?.meta.unit ?? ''
-  const measurementClass = metric?.meta.measurementClass ?? null
 
   // Columns: the stimulus SELECTION's members (all stimuli when unset), in
   // display order.
@@ -84,16 +83,14 @@ export function getMetricMatrixData(
   const colCount = cols.length
   const rowCount = rows.length
   if (colCount === 0)
-    return { ...emptyData(), cols, rows, unit, measurementClass, empty: 'no-cols' }
+    return { ...emptyData(), cols, rows, unit, empty: 'no-cols' }
   if (rowCount === 0)
-    return { ...emptyData(), cols, rows, unit, measurementClass, empty: 'no-rows' }
+    return { ...emptyData(), cols, rows, unit, empty: 'no-rows' }
 
   const values = new Float64Array(rowCount * colCount)
   const state: CellState[] = new Array(rowCount * colCount)
   // -1 = absent (no recording); 0 = present but no fixations; ≥1 = fixation count.
   const fixations = new Int32Array(rowCount * colCount).fill(-1)
-  let dataMin = Infinity
-  let dataMax = -Infinity
   let anyFinite = false
 
   for (let r = 0; r < rowCount; r++) {
@@ -128,19 +125,12 @@ export function getMetricMatrixData(
           st = null // finite value (incl. a legitimate 0)
           v = res.value
           anyFinite = true
-          if (v < dataMin) dataMin = v
-          if (v > dataMax) dataMax = v
         }
       }
 
       values[i] = v
       state[i] = st
     }
-  }
-
-  if (!anyFinite) {
-    dataMin = 0
-    dataMax = 0
   }
 
   return {
@@ -150,9 +140,6 @@ export function getMetricMatrixData(
     state,
     fixations,
     unit,
-    dataMin,
-    dataMax,
-    measurementClass,
     ...(anyFinite ? {} : { empty: 'all-na' as const }),
   }
 }
@@ -186,8 +173,5 @@ function emptyData(): MetricMatrixData {
     state: [],
     fixations: new Int32Array(0),
     unit: '',
-    dataMin: 0,
-    dataMax: 0,
-    measurementClass: null,
   }
 }

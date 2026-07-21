@@ -23,18 +23,13 @@
   } from '$lib/metrics/filters'
   import type { Metric } from '$lib/metrics/core/dsl'
   import type { Projection } from '$lib/metrics'
+  import type { CreateInstanceHandler } from '$lib/plots/shared/metricInstanceHandlers'
   import { pickMetricModal, configureMetricModal } from './definition-steps'
 
   interface Props {
     contract: PlotMetricContract
     editMetricId?: string
-    oncreateInstance?: (
-      baseId: string,
-      params: Record<string, unknown>,
-      label: string,
-      projection: Projection,
-      replacingId?: string,
-    ) => void
+    oncreateInstance?: CreateInstanceHandler
     ondeleteInstance?: (id: string) => void
     onrenameInstance?: (id: string, label: string) => void
   }

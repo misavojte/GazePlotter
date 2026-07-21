@@ -166,6 +166,7 @@ describe('Workspace Command Reversal', () => {
         itemId: 1,
         options: {
           id: 1,
+          type: 'scarf',
           x: 0,
           y: 0,
           w: 6,
@@ -177,6 +178,7 @@ describe('Workspace Command Reversal', () => {
             timeline: 'absolute',
             absoluteStimuliLimits: [],
             ordinalStimuliLimits: [],
+            hideNoAoi: false,
           },
         },
         source: 'source',
@@ -369,13 +371,15 @@ describe('Workspace Command Reversal', () => {
         }),
       },
       {
-        label: 'updateParticipantsSelections',
+        label: 'updateSelections (participant)',
         command: createChainedCommand({
-          type: 'updateParticipantsSelections',
+          type: 'updateSelections',
+          axis: 'participant',
           selections: [],
         }),
         expected: createChainedCommand({
-          type: 'updateParticipantsSelections',
+          type: 'updateSelections',
+          axis: 'participant',
           selections: [
             {
               id: 1,
@@ -479,11 +483,13 @@ describe('Workspace Command Reversal', () => {
       {
         label: 'participant selections',
         command: createChainedCommand({
-          type: 'updateParticipantsSelections',
+          type: 'updateSelections',
+          axis: 'participant',
           selections: [],
         }),
         expected: createChainedCommand({
-          type: 'updateParticipantsSelections',
+          type: 'updateSelections',
+          axis: 'participant',
           selections: [],
         }),
       },

@@ -31,6 +31,7 @@
   import type { ParamDef } from '$lib/metrics/core/params'
   import { resolveParams } from '$lib/metrics/core/params'
   import { getAois } from '$lib/data/engine'
+  import type { CreateInstanceHandler } from '$lib/plots/shared/metricInstanceHandlers'
 
   interface Props {
     contract: PlotMetricContract
@@ -40,14 +41,7 @@
     initialProjection?: Projection // Used for duplication
     initialLabel?: string // Used for duplication
     initialReduction?: GroupReduction // Used for duplication
-    oncreateInstance?: (
-      baseId: string,
-      params: Record<string, unknown>,
-      label: string,
-      projection: Projection,
-      replacingId?: string,
-      reduction?: GroupReduction,
-    ) => void
+    oncreateInstance?: CreateInstanceHandler
     onrenameInstance?: (id: string, label: string) => void
   }
 
@@ -95,6 +89,17 @@
     return Array.from(set).sort((a, b) => a.localeCompare(b))
   })
 
+  // Unpack a stored/seeded projection into the two drafts the form edits.
+  function seedProjection(p: Projection) {
+    if (p.kind === 'windowed') {
+      leafDraft = { ...p.inner }
+      windowDraft = { ...p.window }
+    } else {
+      leafDraft = { ...p }
+      windowDraft = null
+    }
+  }
+
   onMount(() => {
     if (mode === 'edit' && editMetricId) {
       const inst = resolveInstance(engine.metadata?.metricInstances ?? [], editMetricId)
@@ -102,13 +107,7 @@
         currentBaseId = inst.baseId
         metric = getMetric(inst.baseId)
         paramDraft = { ...inst.params }
-        if (inst.projection.kind === 'windowed') {
-          leafDraft = { ...inst.projection.inner }
-          windowDraft = { ...inst.projection.window }
-        } else {
-          leafDraft = { ...inst.projection }
-          windowDraft = null
-        }
+        seedProjection(inst.projection)
         reductionDraft = inst.reduction ?? metric?.meta.defaultReduction ?? 'mean'
         const autoLabel = defaultInstanceLabel(inst.baseId)
         labelOverride = inst.label !== autoLabel ? inst.label : ''
@@ -118,26 +117,13 @@
       metric = getMetric(selectedMetricId)
       if (metric) {
         reductionDraft = initialReduction ?? metric.meta.defaultReduction
-        if (initialParams) {
-          paramDraft = { ...initialParams }
-        } else {
-          paramDraft = resolveParams(metric.meta.params, undefined) as Record<string, unknown>
-        }
-
-        if (initialLabel) {
-          labelOverride = initialLabel
-        } else {
-          labelOverride = ''
-        }
+        paramDraft =
+          initialParams ??
+          (resolveParams(metric.meta.params, undefined) as Record<string, unknown>)
+        labelOverride = initialLabel ?? ''
 
         if (initialProjection) {
-          if (initialProjection.kind === 'windowed') {
-            leafDraft = { ...initialProjection.inner }
-            windowDraft = { ...initialProjection.window }
-          } else {
-            leafDraft = { ...initialProjection }
-            windowDraft = null
-          }
+          seedProjection(initialProjection)
         } else {
           const firstLeaf = availableLeavesFor(metric)[0] ?? identityFor(metric.meta.rawShape).kind
           leafDraft = buildLeaf(firstLeaf)
@@ -158,7 +144,7 @@
       case 'identity-participant-pair-matrix':   return { kind }
       case 'pick-aoi':         return { kind, aoiRef: { by: 'name', name: defaultAoi } }
       case 'pick-any-fixation': return { kind }
-      case 'aggregate-aoi':    return { kind, reducer: aoiExtremeOptions(currentBaseId)[0]?.value ?? 'max' }
+      case 'aggregate-aoi':    return { kind, reducer: aoiExtremeOptions()[0]?.value ?? 'max' }
       case 'matrix-diagonal':  return { kind }
       case 'matrix-row':       return { kind, aoiRef: { by: 'name', name: defaultAoi } }
       case 'matrix-col':       return { kind, aoiRef: { by: 'name', name: defaultAoi } }
@@ -169,7 +155,7 @@
       }
       case 'matrix-aggregate': return {
         kind,
-        reducer: availableMatrixReducers(currentBaseId)[0] ?? 'mean',
+        reducer: availableMatrixReducers()[0] ?? 'mean',
       }
     }
   }
@@ -210,8 +196,7 @@
   // this plot+metric; otherwise the instance rides the default (no redundant key).
   function draftValues() {
     const metricDefault = metric!.meta.defaultReduction
-    const valid = contractReductions(contract, metric!.meta)
-    const chosenRed = valid.includes(reductionDraft) ? reductionDraft : metricDefault
+    const chosenRed = reductionOptions.includes(reductionDraft) ? reductionDraft : metricDefault
     return {
       projection: buildProjection(leafDraft, windowDraft),
       params: { ...paramDraft },
@@ -285,9 +270,9 @@
    * names min, 'first-reached AOI'), and that one becomes the default. Still
    * routed through `recipeSupports` so an author-level `rejects` hook holds.
    */
-  function aoiExtremeOptions(baseId: string): { value: 'max' | 'min'; label: string }[] {
-    const recipe = getRecipe(baseId); if (!recipe) return []
-    const named = getMetric(baseId)?.meta.aoiAggregate ?? {}
+  function aoiExtremeOptions(): { value: 'max' | 'min'; label: string }[] {
+    const recipe = getRecipe(currentBaseId); if (!recipe) return []
+    const named = getMetric(currentBaseId)?.meta.aoiAggregate ?? {}
     return (Object.keys(named) as ('max' | 'min')[])
       .filter(r => (r === 'max' || r === 'min') && named[r] &&
         recipeSupports(recipe, { kind: 'aggregate-aoi', reducer: r }) === true)
@@ -297,8 +282,8 @@
       })
   }
 
-  function availableMatrixReducers(baseId: string, exclude: 'diagonal' | undefined = undefined): MatrixReducer[] {
-    const recipe = getRecipe(baseId); if (!recipe) return []
+  function availableMatrixReducers(exclude?: 'diagonal'): MatrixReducer[] {
+    const recipe = getRecipe(currentBaseId); if (!recipe) return []
     return MATRIX_REDUCERS.filter(r =>
       recipeSupports(recipe, { kind: 'matrix-aggregate', reducer: r, ...(exclude ? { exclude } : {}) }) === true,
     )
@@ -321,6 +306,9 @@
     { value: 'yes', label: 'Yes' },
   ]
 
+  // The shared Select dispatches CustomEvent<string> — one cast, one place.
+  const detail = (e: Event) => (e as CustomEvent<string>).detail
+
   // Which leaves need per-shape configuration (an AOI to pick, a reducer to
   // choose) — so a config panel only renders under the selected card when there's
   // actually something to set.
@@ -339,6 +327,20 @@
     if (leafDraft.kind === 'pick-aoi' || leafDraft.kind === 'matrix-row' || leafDraft.kind === 'matrix-col') {
       leafDraft = { ...leafDraft, aoiRef: { by: 'name', name } } as LeafProjection
     }
+  }
+
+  // The two matrix-cell endpoints are one control rendered twice (see the
+  // template's CELL_SIDES loop); this is its single write path.
+  const CELL_SIDES = [
+    { side: 'fromAoi', label: 'From AOI' },
+    { side: 'toAoi', label: 'To AOI' },
+  ] as const
+
+  function updateCellAoi(side: 'fromAoi' | 'toAoi', name: string) {
+    if (leafDraft.kind !== 'matrix-cell') return
+    const ref = { by: 'name', name } as const
+    leafDraft =
+      side === 'fromAoi' ? { ...leafDraft, fromAoi: ref } : { ...leafDraft, toAoi: ref }
   }
 
   // AOI dropdown options — the known AOIs, plus the current value when it names an
@@ -380,7 +382,7 @@
                 options={paramSelectOptions(param)}
                 value={String(paramDraft[param.id] ?? param.default)}
                 onchange={e => {
-                  paramDraft = { ...paramDraft, [param.id]: (e as CustomEvent<string>).detail }
+                  paramDraft = { ...paramDraft, [param.id]: detail(e) }
                 }}
               />
             {:else if param.type === 'integer' || param.type === 'number'}
@@ -401,7 +403,7 @@
                 options={YES_NO}
                 value={Boolean(paramDraft[param.id] ?? param.default) ? 'yes' : 'no'}
                 onchange={e => {
-                  paramDraft = { ...paramDraft, [param.id]: (e as CustomEvent<string>).detail === 'yes' }
+                  paramDraft = { ...paramDraft, [param.id]: detail(e) === 'yes' }
                 }}
               />
             {/if}
@@ -420,38 +422,26 @@
               value={currentName}
               placeholder="Choose an AOI"
               emptyMessage="No AOIs in the loaded stimuli"
-              onchange={(e) => updateLeafAoiRef((e as CustomEvent<string>).detail)}
+              onchange={(e) => updateLeafAoiRef(detail(e))}
             />
           {/if}
 
           {#if leafDraft.kind === 'matrix-cell'}
-            {@const fromName = leafDraft.fromAoi.by === 'name' ? leafDraft.fromAoi.name : ''}
-            {@const toName = leafDraft.toAoi.by === 'name' ? leafDraft.toAoi.name : ''}
+            {@const cell = leafDraft}
             <div class="two-col">
-              <Select
-                compact
-                label="From AOI"
-                options={aoiOptions(fromName)}
-                value={fromName}
-                placeholder="Choose an AOI"
-                emptyMessage="No AOIs in the loaded stimuli"
-                onchange={(e) => {
-                  const name = (e as CustomEvent<string>).detail
-                  if (leafDraft.kind === 'matrix-cell') leafDraft = { ...leafDraft, fromAoi: { by: 'name', name } }
-                }}
-              />
-              <Select
-                compact
-                label="To AOI"
-                options={aoiOptions(toName)}
-                value={toName}
-                placeholder="Choose an AOI"
-                emptyMessage="No AOIs in the loaded stimuli"
-                onchange={(e) => {
-                  const name = (e as CustomEvent<string>).detail
-                  if (leafDraft.kind === 'matrix-cell') leafDraft = { ...leafDraft, toAoi: { by: 'name', name } }
-                }}
-              />
+              {#each CELL_SIDES as { side, label } (side)}
+                {@const ref = cell[side]}
+                {@const currentName = ref.by === 'name' ? ref.name : ''}
+                <Select
+                  compact
+                  {label}
+                  options={aoiOptions(currentName)}
+                  value={currentName}
+                  placeholder="Choose an AOI"
+                  emptyMessage="No AOIs in the loaded stimuli"
+                  onchange={(e) => updateCellAoi(side, detail(e))}
+                />
+              {/each}
             </div>
           {/if}
 
@@ -459,10 +449,10 @@
             <Select
               compact
               label="Which AOI"
-              options={aoiExtremeOptions(metric.meta.id)}
+              options={aoiExtremeOptions()}
               value={leafDraft.reducer}
               onchange={(e) => {
-                leafDraft = { kind: 'aggregate-aoi', reducer: (e as CustomEvent<string>).detail as AoiReducer }
+                leafDraft = { kind: 'aggregate-aoi', reducer: detail(e) as AoiReducer }
               }}
             />
           {/if}
@@ -471,10 +461,10 @@
             <Select
               compact
               label="Summarize by"
-              options={availableMatrixReducers(metric.meta.id, leafDraft.kind === 'matrix-aggregate' ? leafDraft.exclude : undefined).map(r => ({ label: r.charAt(0).toUpperCase() + r.slice(1), value: r }))}
+              options={availableMatrixReducers(leafDraft.exclude).map(r => ({ label: r.charAt(0).toUpperCase() + r.slice(1), value: r }))}
               value={leafDraft.reducer}
               onchange={(e) => {
-                const r = (e as CustomEvent<string>).detail as MatrixReducer
+                const r = detail(e) as MatrixReducer
                 const exclude = leafDraft.kind === 'matrix-aggregate' ? leafDraft.exclude : undefined
                 leafDraft = { kind: 'matrix-aggregate', reducer: r, ...(exclude ? { exclude } : {}) }
               }}
@@ -486,7 +476,7 @@
               value={leafDraft.exclude === 'diagonal' ? 'yes' : 'no'}
               onchange={(e) => {
                 if (leafDraft.kind !== 'matrix-aggregate') return
-                const on = (e as CustomEvent<string>).detail === 'yes'
+                const on = detail(e) === 'yes'
                 leafDraft = { kind: 'matrix-aggregate', reducer: leafDraft.reducer, ...(on ? { exclude: 'diagonal' as const } : {}) }
               }}
             />
@@ -544,7 +534,7 @@
                 options={YES_NO}
                 value={windowDraft ? 'yes' : 'no'}
                 onchange={(e) => {
-                  const on = (e as CustomEvent<string>).detail === 'yes'
+                  const on = detail(e) === 'yes'
                   windowDraft = on ? (windowDraft ?? defaultWindow(metric!, leafDraft)) : null
                 }}
               />
@@ -581,7 +571,7 @@
               label="Across participants"
               options={reductionOptions.map(m => ({ label: reductionOptionLabel(m), value: m }))}
               value={reductionOptions.includes(reductionDraft) ? reductionDraft : metric.meta.defaultReduction}
-              onchange={(e) => { reductionDraft = (e as CustomEvent<string>).detail as GroupReduction }}
+              onchange={(e) => { reductionDraft = detail(e) as GroupReduction }}
             />
           {/if}
         </section>

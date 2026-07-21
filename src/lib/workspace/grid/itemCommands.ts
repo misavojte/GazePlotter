@@ -25,7 +25,6 @@ export type GridIdentityCommit = { id: number }
 export type GridDuplicationCommit = {
   id: number
   duplicateId?: number
-  position?: { x: number; y: number }
 }
 
 function findGridItem(
@@ -117,6 +116,6 @@ export function commitGridItemDuplication(
   return workspace.duplicateVisualization(
     item.id,
     getGridItemCommandSource(item),
-    { duplicateId: commit.duplicateId, position: commit.position }
+    { duplicateId: commit.duplicateId }
   )
 }

@@ -1,5 +1,10 @@
 import type { MergeLogEntry, MergeMember } from '$lib/data/types'
-import { cloneSegments, cloneSpatial, restoreOrderVector } from './shared'
+import {
+  cloneSegments,
+  cloneSpatial,
+  displayedNameOf,
+  restoreOrderVector,
+} from './shared'
 
 /**
  * Pure, in-memory fold/unfold for a PARTICIPANT-axis merge (see PLANMERGE.md).
@@ -29,8 +34,19 @@ export interface ParticipantFoldable {
   spatialData?: (number[] | null)[][][]
 }
 
-const displayedNameOf = (row: string[] | undefined): string =>
-  row?.[1] ?? row?.[0] ?? ''
+/**
+ * Take the segment/spatial buffers for folding: in place when the caller cedes
+ * ownership (`owned`), defensively cloned otherwise.
+ */
+const takeBuffers = (
+  ds: ParticipantFoldable,
+  owned: boolean
+): Pick<ParticipantFoldable, 'segments' | 'spatialData'> => ({
+  segments: owned ? ds.segments : cloneSegments(ds.segments),
+  ...(ds.spatialData
+    ? { spatialData: owned ? ds.spatialData : cloneSpatial(ds.spatialData) }
+    : {}),
+})
 
 /**
  * Fold `memberIds` into `representativeId` along the participant axis.
@@ -54,12 +70,7 @@ export function foldParticipantMerge(
    */
   owned = false
 ): { dataset: ParticipantFoldable; entry: MergeLogEntry } {
-  const segments = owned ? ds.segments : cloneSegments(ds.segments)
-  const spatialData = ds.spatialData
-    ? owned
-      ? ds.spatialData
-      : cloneSpatial(ds.spatialData)
-    : undefined
+  const { segments, spatialData } = takeBuffers(ds, owned)
   const stimuliCount = segments.length
 
   const members: MergeMember[] = memberIds.map(memberId => {
@@ -129,12 +140,7 @@ export function unfoldParticipantMerge(
       `unfoldParticipantMerge: expected a participant-axis entry, got "${entry.axis}"`
     )
   }
-  const segments = owned ? ds.segments : cloneSegments(ds.segments)
-  const spatialData = ds.spatialData
-    ? owned
-      ? ds.spatialData
-      : cloneSpatial(ds.spatialData)
-    : undefined
+  const { segments, spatialData } = takeBuffers(ds, owned)
   const rep = entry.representativeId
 
   for (const member of entry.members) {

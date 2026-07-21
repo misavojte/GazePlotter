@@ -7,7 +7,7 @@ import {
   type Projection,
 } from './core/projection'
 import { STARTING_METRICS } from './startingMetrics'
-import { metricShape, soundReductions, type GroupReduction, type MetricShape } from './core/measurement'
+import { soundReductions, type GroupReduction } from './core/measurement'
 import { effectiveReduction, reductionLabel } from './core/aggregation'
 
 export type { Projection } from './core/projection'
@@ -179,18 +179,6 @@ export function formatParamReadout(instance: MetricInstance): string[] {
     .filter((s): s is string => !!s)
 }
 
-
-/**
- * The cross-participant reductions a metric genuinely offers — the sound set,
- * a PURE function of its `measurementClass` ({@link soundReductions}). This is
- * what the ConfigureMetric reduction control lists once intersected with the
- * plot's contract. `[]` for `relational` (group-level) and a single-element set
- * for `intensive` / `proportion` (no choice to surface).
- */
-export function availableReductions(baseId: string): GroupReduction[] {
-  const m = getMetric(baseId)
-  return m ? soundReductions(m.meta.measurementClass) : []
-}
 
 /**
  * The EFFECTIVE cross-participant reduction for an instance — the single source

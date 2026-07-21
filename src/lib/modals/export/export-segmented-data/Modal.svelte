@@ -18,7 +18,7 @@
     EXPORT_NAMING_OPTIONS,
     EXPORT_TYPE_OPTIONS,
     exportTypeNamingSummary,
-    runExport,
+    withExportBusy,
     listSummary,
     toggleSetValue,
   } from '../shared/helpers'
@@ -86,7 +86,7 @@
   const handleExport = async () => {
     if (!canExport) return
 
-    await runExport(
+    await withExportBusy(
       val => (isExporting = val),
       () =>
         exportService.exportSegmentedData({

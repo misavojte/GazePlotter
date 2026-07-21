@@ -110,10 +110,7 @@ describe('Metric Matrix — happy path', () => {
     // Fixation count (sample size) is carried per cell for the tooltip.
     expect(data.fixations[0]).toBe(2) // p0 × S0: 2 fixations behind the value
     expect(data.fixations[1]).toBe(3) // p0 × S1: 3
-    expect(data.dataMin).toBe(1)
-    expect(data.dataMax).toBe(3)
     expect(data.unit).toBe(getMetric('fixationCount')!.meta.unit)
-    expect(data.measurementClass).toBe('extensive')
     expect(data.noMetric).toBeUndefined()
     expect(data.empty).toBeUndefined()
   })
@@ -177,9 +174,6 @@ describe('Metric Matrix — metric-independent classification', () => {
       engine as never,
       settings({ metricInstanceIds: ['fixationDuration-any'] })
     )
-
-    expect(extensive.measurementClass).toBe('extensive')
-    expect(intensive.measurementClass).toBe('intensive')
 
     // p0/S0 absent, p1/S0 no-fixations — identical under both metric classes.
     expect(cellAt(extensive, 0, 0).state).toBe('absent')

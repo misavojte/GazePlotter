@@ -10,7 +10,7 @@ import { mergeStimuli, unmergeStimuli } from '$lib/data/merge/mergeStimuli'
 import {
   mergeParticipants,
   unmergeParticipants,
-} from '$lib/data/merge/deriveMergedDataset'
+} from '$lib/data/merge/mergeParticipants'
 import { foldMerges, unfoldMerges } from '$lib/data/merge/applyMerges'
 import { jsonSegmentsToBinary, BinaryBufferReader } from '$lib/data/binary'
 import { generateWorkspaceJson } from '$lib/data/export/mappers/workspace'
@@ -413,7 +413,7 @@ describe('mergeStimuli / unmergeStimuli', () => {
 })
 
 // ============================================================================
-// 5. mergeParticipants / unmergeParticipants Tests (deriveMergedDataset)
+// 5. mergeParticipants / unmergeParticipants Tests (mergeParticipants.ts)
 // ============================================================================
 const createParticipantMergeData = (): DataType =>
   makeDataType(

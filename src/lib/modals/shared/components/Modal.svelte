@@ -221,6 +221,7 @@
 {#if modalStack.length > 0}
   <div
     class="modal-overlay"
+    role="presentation"
     onpointerdown={e => {
       if (e.target === e.currentTarget && !isFullscreen) {
         handleClose()

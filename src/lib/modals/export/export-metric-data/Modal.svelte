@@ -23,7 +23,7 @@
     listSummary,
     mapSelectableItems,
     toggleSetValue,
-    runExport,
+    withExportBusy,
   } from '../shared/helpers'
   import ExportShell from '../shared/ExportShell.svelte'
   import ExportProgressBar from '../shared/ExportProgressBar.svelte'
@@ -276,7 +276,7 @@
   const handleExport = async () => {
     if (!canExport) return
 
-    await runExport(
+    await withExportBusy(
       val => (isExporting = val),
       () =>
         exportService.exportMetricData({

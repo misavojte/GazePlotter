@@ -825,7 +825,7 @@ export class TobiiRowParser extends RowParser {
   /**
    * Open the (stimulus, participant) bucket these EXACT emission bytes land in
    * as PROVISIONAL, once per group. Called from the segment-creation helpers in
-   * interval mode just before `emitSegment`, so the bucket the writer interns is
+   * interval mode just before `onSegment`, so the bucket the writer interns is
    * the one `resolveIntervalGroups` later commits or drops — no byte re-matching.
    */
   private gateGroup(
@@ -1099,7 +1099,7 @@ export class TobiiRowParser extends RowParser {
           : null
       // Reuse the composite key already computed for baseTime above.
       this.gateGroup(key, stimulusBytes, this.mParticipantBytes)
-      this.emitSegment(
+      this.onSegment?.(
         start,
         end,
         this.mCategoryId,
@@ -1131,7 +1131,7 @@ export class TobiiRowParser extends RowParser {
     // routing it here; gate it too so a malformed group's tail can't slip through
     // ungated. No-op in media/base mode (gatingEnabled is false there).
     this.gateGroup(key, this.mStimulusBytes, this.mParticipantBytes)
-    this.emitSegment(
+    this.onSegment?.(
       start,
       end,
       this.mCategoryId,

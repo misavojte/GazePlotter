@@ -6,14 +6,9 @@ import {
   createCommandHandler,
   createRootCommand,
   type UpdateAoisCommand,
-  type UpdateEventDataCommand,
-  type UpdateEventChannelsCommand,
-  type UpdateNoAoiTreatmentCommand,
-  type UpdateCategoriesCommand,
-  type UpdateAoiSelectionsCommand,
-  type UpdateMetricInstancesCommand,
-  type UpdateParticipantsSelectionsCommand,
   type ReconcileMergesCommand,
+  type SelectionsAxis,
+  type SelectionsByAxis,
   type WorkspaceCommand,
   type WorkspaceCommandChain,
   UndoRedoStateStore,
@@ -27,12 +22,9 @@ import type {
   GridItemLayoutUpdate,
 } from '$lib/workspace'
 import type {
-  NameSelection,
   BaseInterpretedDataType,
   ExtendedInterpretedDataType,
   NoAoiTreatmentType,
-  ParticipantsSelection,
-  EntitySelection,
 } from '$lib/data/types'
 import type { MetricInstance } from '$lib/metrics'
 
@@ -112,52 +104,29 @@ export class WorkspaceService {
     }
   }
 
-  apply(command: WorkspaceCommandChain): boolean {
-    return this.execute(command)
-  }
-
   applyRoot(command: WorkspaceCommand): boolean {
     return this.execute(createRootCommand(command))
   }
 
-  undo(): boolean {
-    const commands = this.history.undo()
+  /** Replay one popped undo/redo chain; `endUndoRedo` must run even on failure. */
+  private replay(commands: WorkspaceCommandChain[] | null): boolean {
     if (!commands) return false
-
-    let success = true
-
     try {
       for (const command of commands) {
-        if (!this.execute(command)) {
-          success = false
-          break
-        }
+        if (!this.execute(command)) return false
       }
+      return true
     } finally {
       this.history.endUndoRedo()
     }
+  }
 
-    return success
+  undo(): boolean {
+    return this.replay(this.history.undo())
   }
 
   redo(): boolean {
-    const commands = this.history.redo()
-    if (!commands) return false
-
-    let success = true
-
-    try {
-      for (const command of commands) {
-        if (!this.execute(command)) {
-          success = false
-          break
-        }
-      }
-    } finally {
-      this.history.endUndoRedo()
-    }
-
-    return success
+    return this.replay(this.history.redo())
   }
 
   resetLayout(layoutState: GridItemSnapshot[]): boolean {
@@ -189,18 +158,12 @@ export class WorkspaceService {
     return this.resetLayout(initialLayoutState)
   }
 
-  addVisualization(
-    vizType: string,
-    source: string,
-    itemId?: number,
-    position?: { x: number; y: number }
-  ): boolean {
+  addVisualization(vizType: string, source: string, itemId?: number): boolean {
     return this.applyRoot({
       type: 'addGridItem',
       vizType: vizType as keyof GridItemMap,
       source,
       itemId: itemId ?? generateUniqueId(),
-      ...(position ? { position } : {}),
     })
   }
 
@@ -299,88 +262,52 @@ export class WorkspaceService {
   duplicateVisualization(
     itemId: number,
     source: string,
-    options: {
-      duplicateId?: number
-      position?: { x: number; y: number }
-    } = {}
+    options: { duplicateId?: number } = {}
   ): boolean {
     return this.applyRoot({
       type: 'duplicateGridItem',
       itemId,
       duplicateId: options.duplicateId ?? generateUniqueId(),
       source,
-      ...(options.position ? { position: options.position } : {}),
     })
-  }
-
-  /** Replace the named AOI SELECTIONS wholesale (create/rename/delete/edit).
-   *  One undoable step; metadata-only (does not touch groupPool/version). */
-  updateAoiSelections(selections: NameSelection[], source: string): boolean {
-    const command: UpdateAoiSelectionsCommand = {
-      type: 'updateAoiSelections',
-      selections,
-      source,
-    }
-    return this.applyRoot(command)
   }
 
   /**
-   * Commit the stimulus modification modal as ONE atomic step (PLANMERGE.md
-   * M2 UX): edited names + order plus the desired merge groups, reconciled
-   * against the current merges in a single chain so rename, merge and un-merge
-   * undo together. See {@link ReconcileMergesCommand}.
+   * Commit the entity modification modal for one merge axis as ONE atomic step
+   * (PLANMERGE.md M2 UX): edited names + order plus the desired merge groups,
+   * reconciled against the current merges in a single chain so rename, merge
+   * and un-merge undo together. See {@link ReconcileMergesCommand}.
    */
-  reconcileStimulusMerges(
+  reconcileMerges(
+    axis: 'participant' | 'stimulus',
     items: BaseInterpretedDataType[],
     groups: ReconcileMergesCommand['groups'],
     source: string
   ): boolean {
     return this.applyRoot({
       type: 'reconcileMerges',
-      axis: 'stimulus',
+      axis,
       items,
       groups,
       source,
     })
   }
 
-  /** Participant counterpart of {@link reconcileStimulusMerges}. */
-  reconcileParticipantMerges(
-    items: BaseInterpretedDataType[],
-    groups: ReconcileMergesCommand['groups'],
+  /**
+   * Replace one axis' SELECTIONS wholesale (create/rename/delete/edit are all
+   * deltas of the same array). One undoable step; metadata-only.
+   */
+  updateSelections<A extends SelectionsAxis>(
+    axis: A,
+    selections: SelectionsByAxis[A],
     source: string
   ): boolean {
     return this.applyRoot({
-      type: 'reconcileMerges',
-      axis: 'participant',
-      items,
-      groups,
-      source,
-    })
-  }
-
-  updateParticipantsSelections(
-    selections: ParticipantsSelection[],
-    source: string
-  ): boolean {
-    const command: UpdateParticipantsSelectionsCommand = {
-      type: 'updateParticipantsSelections',
+      type: 'updateSelections',
+      axis,
       selections,
       source,
-    }
-    return this.applyRoot(command)
-  }
-
-  updateStimuliSelections(selections: EntitySelection[], source: string): boolean {
-    return this.applyRoot({ type: 'updateStimuliSelections', selections, source })
-  }
-
-  updateCategoriesSelections(selections: EntitySelection[], source: string): boolean {
-    return this.applyRoot({ type: 'updateCategoriesSelections', selections, source })
-  }
-
-  updateEventsSelections(selections: NameSelection[], source: string): boolean {
-    return this.applyRoot({ type: 'updateEventsSelections', selections, source })
+    } as WorkspaceCommand)
   }
 
   /**
@@ -393,12 +320,7 @@ export class WorkspaceService {
     instances: MetricInstance[],
     source: string
   ): boolean {
-    const command: UpdateMetricInstancesCommand = {
-      type: 'updateMetricInstances',
-      instances,
-      source,
-    }
-    return this.applyRoot(command)
+    return this.applyRoot({ type: 'updateMetricInstances', instances, source })
   }
 
   updateAois(
@@ -407,14 +329,13 @@ export class WorkspaceService {
     applyTo: UpdateAoisCommand['applyTo'],
     source: string
   ): boolean {
-    const command: UpdateAoisCommand = {
+    return this.applyRoot({
       type: 'updateAois',
       aois,
       stimulusId,
       applyTo,
       source,
-    }
-    return this.applyRoot(command)
+    })
   }
 
   updateEventData(
@@ -423,14 +344,13 @@ export class WorkspaceService {
     eventBuffers: number[][][],
     source: string
   ): boolean {
-    const command: UpdateEventDataCommand = {
+    return this.applyRoot({
       type: 'updateEventData',
       stimulusId,
       channelDefs,
       eventBuffers,
       source,
-    }
-    return this.applyRoot(command)
+    })
   }
 
   updateEventChannels(
@@ -438,37 +358,30 @@ export class WorkspaceService {
     stimulusId: number,
     source: string
   ): boolean {
-    const command: UpdateEventChannelsCommand = {
+    return this.applyRoot({
       type: 'updateEventChannels',
       channels,
       stimulusId,
       source,
-    }
-    return this.applyRoot(command)
+    })
   }
 
   updateNoAoiTreatment(
     noAoiTreatment: NoAoiTreatmentType,
     source: string
   ): boolean {
-    const command: UpdateNoAoiTreatmentCommand = {
+    return this.applyRoot({
       type: 'updateNoAoiTreatment',
       noAoiTreatment,
       source,
-    }
-    return this.applyRoot(command)
+    })
   }
 
   updateCategories(
     categories: ExtendedInterpretedDataType[],
     source: string
   ): boolean {
-    const command: UpdateCategoriesCommand = {
-      type: 'updateCategories',
-      categories,
-      source,
-    }
-    return this.applyRoot(command)
+    return this.applyRoot({ type: 'updateCategories', categories, source })
   }
 
   clearHistory(): void {
@@ -484,14 +397,14 @@ export class WorkspaceService {
   }
 
   get lastUndoLabel(): string | null {
-    return this.history.lastUndoCommandType
-      ? getCommandLabel(this.history.lastUndoCommandType, 'undo')
+    return this.history.lastUndoCommand
+      ? getCommandLabel(this.history.lastUndoCommand, 'undo')
       : null
   }
 
   get lastRedoLabel(): string | null {
-    return this.history.lastRedoCommandType
-      ? getCommandLabel(this.history.lastRedoCommandType, 'redo')
+    return this.history.lastRedoCommand
+      ? getCommandLabel(this.history.lastRedoCommand, 'redo')
       : null
   }
 }

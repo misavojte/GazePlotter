@@ -4,7 +4,7 @@ import type {
 } from './types'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { createChildCommand } from './utils'
-import { mergeParticipants as computeParticipantMerge } from '$lib/data/merge/deriveMergedDataset'
+import { mergeParticipants as computeParticipantMerge } from '$lib/data/merge/mergeParticipants'
 import { mergeStimuli as computeStimulusMerge } from '$lib/data/merge/mergeStimuli'
 import { resolvePlotDefinition } from '$lib/plots/registry'
 import { GridState } from '$lib/workspace/grid'
@@ -12,9 +12,6 @@ import {
   updateMultipleAoi,
   updateMultipleParticipants,
   updateMultipleStimuli,
-  updateNoAoiTreatment,
-  updateEventData,
-  updateEventChannels,
   updateCategories,
   getDefaultCategoryColor,
   getDefaultColor,
@@ -106,6 +103,21 @@ export function createWorkspaceCommandRegistry(
     return item
   }
 
+  // The reverse of a partial update is the same-shaped partial holding the
+  // CURRENT values of the keys the patch touches.
+  const pickCurrent = <T extends object>(
+    source: T,
+    keys: string[]
+  ): Partial<T> =>
+    Object.fromEntries(keys.map(k => [k, source[k as keyof T]])) as Partial<T>
+
+  // A grid item as a re-addable snapshot: everything but the transient
+  // redrawTimestamp, settings shallow-copied.
+  const toSnapshot = (item: (typeof gridStore.items)[number]): GridItemSnapshot => {
+    const { redrawTimestamp, ...rest } = item
+    return { ...rest, settings: { ...item.settings } } as GridItemSnapshot
+  }
+
   function emitCollisionResolutionChildren(
     priorityItemIds: number | number[],
     chainId: number,
@@ -164,49 +176,56 @@ export function createWorkspaceCommandRegistry(
 
     updateEventData: command => {
       const { stimulusId, channelDefs, eventBuffers, orderVector } = command
-      updateEventData(engine, stimulusId, channelDefs, eventBuffers, orderVector)
+      engine.updateEventDataBatch([
+        {
+          stimulusId,
+          channelDefs,
+          eventBuffers,
+          ...(orderVector !== undefined ? { orderVector } : {}),
+        },
+      ])
       gridStore.triggerRedraw()
     },
 
     updateEventChannels: command => {
-      updateEventChannels(engine, command.channels, command.stimulusId)
+      engine.updateEventChannelsBatch([
+        { stimulusId: command.stimulusId, channels: command.channels },
+      ])
       gridStore.triggerRedraw()
     },
 
-    updateStimuliSelections: command => {
-      engine.setStimuliSelections(command.selections)
-    },
-
-    updateCategoriesSelections: command => {
-      engine.setCategoriesSelections(command.selections)
-    },
-
-    updateEventsSelections: command => {
-      engine.setEventsSelections(command.selections)
-    },
-
-    updateParticipantsSelections: command => {
-      engine.setParticipantsSelections(command.selections)
-      gridStore.triggerRedraw()
-    },
-
-    updateAoiSelections: command => {
-      engine.setAoiSelections(command.selections)
-      gridStore.triggerRedraw()
+    updateSelections: command => {
+      switch (command.axis) {
+        case 'participant':
+          engine.setParticipantsSelections(command.selections)
+          break
+        case 'stimulus':
+          engine.setStimuliSelections(command.selections)
+          break
+        case 'category':
+          engine.setCategoriesSelections(command.selections)
+          break
+        case 'event':
+          engine.setEventsSelections(command.selections)
+          break
+        case 'aoi':
+          engine.setAoiSelections(command.selections)
+          break
+      }
+      // Only participant and AOI selections feed plot transforms directly;
+      // the other axes narrow via reactive selectors, so no epoch bump.
+      if (command.axis === 'participant' || command.axis === 'aoi')
+        gridStore.triggerRedraw()
     },
 
     mergeEntities: command => {
       const { axis, representativeId, memberIds, at } = command
-      if (axis === 'participant')
-        engine.mergeParticipants(representativeId, memberIds, at)
-      else engine.mergeStimuli(representativeId, memberIds, at)
+      engine.mergeEntities(axis, representativeId, memberIds, at)
       gridStore.triggerRedraw()
     },
 
     unmergeEntities: command => {
-      if (command.axis === 'participant')
-        engine.unmergeParticipants(command.entry)
-      else engine.unmergeStimuli(command.entry)
+      engine.unmergeEntities(command.entry)
       gridStore.triggerRedraw()
     },
 
@@ -246,7 +265,7 @@ export function createWorkspaceCommandRegistry(
     noop: () => {},
 
     updateNoAoiTreatment: command => {
-      updateNoAoiTreatment(engine, command.noAoiTreatment)
+      engine.setNoAoiTreatment(command.noAoiTreatment)
       gridStore.triggerRedraw()
     },
 
@@ -303,17 +322,13 @@ export function createWorkspaceCommandRegistry(
     },
 
     addGridItem: (command, context) => {
-      const { vizType, options, itemId, position } = command
+      const { vizType, options, itemId } = command
       // cmd.vizType is now type-checked against GridItemMap keys
-      const createdId = gridStore.addItem(
-        vizType as keyof GridItemMap,
-        {
-          ...options,
-          id: itemId,
-          type: vizType as keyof GridItemMap,
-        },
-        position
-      )
+      const createdId = gridStore.addItem(vizType as keyof GridItemMap, {
+        ...options,
+        id: itemId,
+        type: vizType as keyof GridItemMap,
+      })
       if (command.isRootCommand && !context.isUndoRedoOperation) {
         emitCollisionResolutionChildren(createdId, command.chainId, context)
       }
@@ -329,11 +344,7 @@ export function createWorkspaceCommandRegistry(
         `Grid item ${command.itemId} not found`
       )
 
-      const createdId = gridStore.duplicateItem(
-        currentItem,
-        command.duplicateId,
-        command.position
-      )
+      const createdId = gridStore.duplicateItem(currentItem, command.duplicateId)
       if (command.isRootCommand && !context.isUndoRedoOperation) {
         emitCollisionResolutionChildren(createdId, command.chainId, context)
       }
@@ -417,44 +428,21 @@ export function createWorkspaceCommandRegistry(
       )
     },
 
-    updateParticipantsSelections: (_cmd, meta) => {
+    // Reverse = snapshot of the axis' current selections array.
+    updateSelections: (cmd, meta) => {
       const dataMeta = requireMetadata()
-      const currentSelections = dataMeta.participantsSelections || []
+      const selections =
+        cmd.axis === 'participant'
+          ? dataMeta.participantsSelections ?? []
+          : cmd.axis === 'stimulus'
+            ? dataMeta.stimuliSelections ?? []
+            : cmd.axis === 'category'
+              ? dataMeta.categoriesSelections ?? []
+              : cmd.axis === 'event'
+                ? dataMeta.eventsSelections ?? []
+                : dataMeta.aois.selections ?? []
       return withMeta(
-        { type: 'updateParticipantsSelections', selections: currentSelections },
-        meta
-      )
-    },
-
-    updateStimuliSelections: (_cmd, meta) => {
-      const dataMeta = requireMetadata()
-      return withMeta(
-        { type: 'updateStimuliSelections', selections: dataMeta.stimuliSelections ?? [] },
-        meta
-      )
-    },
-
-    updateCategoriesSelections: (_cmd, meta) => {
-      const dataMeta = requireMetadata()
-      return withMeta(
-        { type: 'updateCategoriesSelections', selections: dataMeta.categoriesSelections ?? [] },
-        meta
-      )
-    },
-
-    updateEventsSelections: (_cmd, meta) => {
-      const dataMeta = requireMetadata()
-      return withMeta(
-        { type: 'updateEventsSelections', selections: dataMeta.eventsSelections ?? [] },
-        meta
-      )
-    },
-
-    updateAoiSelections: (_cmd, meta) => {
-      const dataMeta = requireMetadata()
-      const currentSelections = dataMeta.aois.selections ?? []
-      return withMeta(
-        { type: 'updateAoiSelections', selections: currentSelections },
+        { type: 'updateSelections', axis: cmd.axis, selections },
         meta
       )
     },
@@ -532,20 +520,16 @@ export function createWorkspaceCommandRegistry(
           itemId,
           `Cannot reverse updateSettings: item ${itemId} not found`
         )
-        const reverseSettings: Partial<AllPlotSettings> = {}
-        Object.keys(settings).forEach(key => {
-          const typedKey = key as keyof typeof currentItem.settings
-          Object.assign(reverseSettings, {
-            [typedKey]: currentItem.settings[typedKey],
-          })
-        })
-        return { itemId, settings: reverseSettings }
+        return {
+          itemId,
+          settings: pickCurrent(
+            currentItem.settings as AllPlotSettings,
+            Object.keys(settings)
+          ),
+        }
       })
       return withMeta(
-        {
-          type: 'updateSettings',
-          updates: reverseUpdates,
-        },
+        { type: 'updateSettings', updates: reverseUpdates },
         meta
       )
     },
@@ -556,21 +540,15 @@ export function createWorkspaceCommandRegistry(
           itemId,
           `Cannot reverse updateLayout: item ${itemId} not found`
         )
-        const reverseLayout: GridItemLayoutUpdate = {}
-        Object.keys(layout).forEach(key => {
-          const typedKey = key as keyof GridItemLayoutUpdate
-          Object.assign(reverseLayout, {
-            [typedKey]: currentItem[typedKey as keyof typeof currentItem],
-          })
-        })
-        return { itemId, layout: reverseLayout }
+        // Layout values live flat on the item itself.
+        return {
+          itemId,
+          layout: pickCurrent(currentItem, Object.keys(layout)) as GridItemLayoutUpdate,
+        }
       })
 
       return withMeta(
-        {
-          type: 'updateLayout',
-          updates: reverseUpdates,
-        },
+        { type: 'updateLayout', updates: reverseUpdates },
         meta
       )
     },
@@ -583,17 +561,12 @@ export function createWorkspaceCommandRegistry(
         cmd.itemId,
         `Cannot reverse removeGridItem: item ${cmd.itemId} not found in current state`
       )
-      const { id, type, redrawTimestamp, ...options } = removedItem
       return withMeta(
         {
           type: 'addGridItem',
           vizType: removedItem.type,
           itemId: removedItem.id,
-          options: {
-            ...options,
-            id: removedItem.id,
-            settings: { ...removedItem.settings },
-          },
+          options: toSnapshot(removedItem),
         },
         meta
       )
@@ -608,20 +581,11 @@ export function createWorkspaceCommandRegistry(
       return withMeta({ type: 'removeGridItem', itemId: cmd.duplicateId }, meta)
     },
 
-    setLayoutState: (_cmd, meta) => {
-      const currentItems = gridStore.items
-      const currentLayoutState = currentItems.map(item => {
-        const { redrawTimestamp, ...itemData } = item
-        return {
-          ...itemData,
-          settings: { ...item.settings },
-        } as GridItemSnapshot
-      })
-      return withMeta(
-        { type: 'setLayoutState', layoutState: currentLayoutState },
+    setLayoutState: (_cmd, meta) =>
+      withMeta(
+        { type: 'setLayoutState', layoutState: gridStore.items.map(toSnapshot) },
         meta
-      )
-    },
+      ),
   }
 
   function execute(

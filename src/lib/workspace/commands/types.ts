@@ -62,24 +62,30 @@ export interface UpdateEventChannelsCommand extends BaseCommandInterface {
   channels: ExtendedInterpretedDataType[]
 }
 
-export interface UpdateParticipantsSelectionsCommand extends BaseCommandInterface {
-  type: 'updateParticipantsSelections'
-  selections: ParticipantsSelection[]
-}
+// SELECTIONS update for ONE axis (see NameSelection).
+// Carries the FULL selections array — create/rename/delete/edit are one
+// operation at different deltas, so one handler, one reverse (snapshot of the
+// previous array), one undo step. Metadata-only; never touches
+// groupPool/version. The payload type follows the axis: participants keep
+// their id-keyed shape, stimuli/categories are id-keyed entities, events and
+// AOIs are name-keyed (portable across stimuli).
+export type UpdateSelectionsCommand = BaseCommandInterface & {
+  type: 'updateSelections'
+} & (
+    | { axis: 'participant'; selections: ParticipantsSelection[] }
+    | { axis: 'stimulus' | 'category'; selections: EntitySelection[] }
+    | { axis: 'event' | 'aoi'; selections: NameSelection[] }
+  )
 
-export interface UpdateStimuliSelectionsCommand extends BaseCommandInterface {
-  type: 'updateStimuliSelections'
-  selections: EntitySelection[]
-}
+export type SelectionsAxis = UpdateSelectionsCommand['axis']
 
-export interface UpdateCategoriesSelectionsCommand extends BaseCommandInterface {
-  type: 'updateCategoriesSelections'
-  selections: EntitySelection[]
-}
-
-export interface UpdateEventsSelectionsCommand extends BaseCommandInterface {
-  type: 'updateEventsSelections'
-  selections: NameSelection[]
+/** Selection payload per axis (the correlated form of UpdateSelectionsCommand). */
+export type SelectionsByAxis = {
+  participant: ParticipantsSelection[]
+  stimulus: EntitySelection[]
+  category: EntitySelection[]
+  event: NameSelection[]
+  aoi: NameSelection[]
 }
 
 export interface UpdateNoAoiTreatmentCommand extends BaseCommandInterface {
@@ -142,15 +148,6 @@ export interface UpdateCategoriesCommand extends BaseCommandInterface {
   categories: ExtendedInterpretedDataType[]
 }
 
-// Named AOI SELECTIONS (see NameSelection / PLANAOISELECTION.md). Carries the
-// FULL selections array — create/rename/delete/edit are one operation at
-// different deltas, so one handler, one reverse (snapshot of the previous
-// array), one undo step. Metadata-only; does not touch groupPool/version.
-export interface UpdateAoiSelectionsCommand extends BaseCommandInterface {
-  type: 'updateAoiSelections'
-  selections: NameSelection[]
-}
-
 // Metric library command. Carries the FULL instances array — rename, create,
 // delete, replace and reorder are all the same operation at different deltas,
 // so they share one handler, one reverse (snapshot of the previous array) and
@@ -183,10 +180,8 @@ export interface UpdateLayoutCommand extends BaseCommandInterface {
 export interface AddGridItemCommand extends BaseCommandInterface {
   type: 'addGridItem'
   vizType: string
-  options?: GridItemSnapshot & { skipCollisionResolution?: boolean }
+  options?: GridItemSnapshot
   itemId: number // Required itemId for command reversal
-  /** Explicit grid-coord placement; omit to fall back to auto-placement. */
-  position?: { x: number; y: number }
 }
 
 export interface RemoveGridItemCommand extends BaseCommandInterface {
@@ -198,8 +193,6 @@ export interface DuplicateGridItemCommand extends BaseCommandInterface {
   type: 'duplicateGridItem'
   itemId: number
   duplicateId: number
-  /** Explicit grid-coord placement; omit to fall back to auto-placement. */
-  position?: { x: number; y: number }
 }
 
 export interface SetLayoutStateCommand extends BaseCommandInterface {
@@ -212,17 +205,13 @@ export type WorkspaceCommand =
   | UpdateEntitiesCommand
   | UpdateEventDataCommand
   | UpdateEventChannelsCommand
-  | UpdateParticipantsSelectionsCommand
-  | UpdateStimuliSelectionsCommand
-  | UpdateCategoriesSelectionsCommand
-  | UpdateEventsSelectionsCommand
+  | UpdateSelectionsCommand
   | UpdateNoAoiTreatmentCommand
   | MergeEntitiesCommand
   | UnmergeEntitiesCommand
   | ReconcileMergesCommand
   | NoopCommand
   | UpdateCategoriesCommand
-  | UpdateAoiSelectionsCommand
   | UpdateMetricInstancesCommand
   | UpdateSettingsCommand // includes position and size updates
   | UpdateLayoutCommand
@@ -245,5 +234,4 @@ export type WorkspaceCommandChain = WorkspaceCommand & {
   /** Unique identifier for the command chain. All related commands share the same chainId. */
   chainId: number
   isRootCommand: boolean
-  history?: 'undo' | 'redo'
 }

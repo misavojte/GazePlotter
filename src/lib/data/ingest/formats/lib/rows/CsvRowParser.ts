@@ -113,7 +113,7 @@ export class CsvRowParser extends RowParser {
         : null
       : undefined
 
-    this.emitSegment(
+    this.onSegment?.(
       start,
       end,
       0,

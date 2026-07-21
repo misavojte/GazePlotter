@@ -1,6 +1,5 @@
 import { type SegmentInterpretedDataType } from '$lib/data/types'
 import type { DataEngine } from '../dataEngine.svelte'
-import { getNumberOfParticipants } from './baseSelectors'
 import { getAoiRaw, getCategoryRaw } from '../utils/interpreters'
 
 export const getNumberOfSegments = (
@@ -46,7 +45,9 @@ export const getStimulusHighestEndTime = (
   engine: DataEngine,
   stimulusIndex: number
 ): number => {
-  const numParticipants = getNumberOfParticipants(engine)
+  const meta = engine.metadata
+  if (!meta) throw new Error('Data engine metadata not available')
+  const numParticipants = meta.participants.data.length
   let max = 0
   for (let i = 0; i < numParticipants; i++) {
     max = Math.max(max, getParticipantEndTime(engine, stimulusIndex, i))

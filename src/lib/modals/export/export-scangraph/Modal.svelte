@@ -3,7 +3,7 @@
   import { ModalButtons, Step, StepList, HelpText } from '$lib/modals'
   import { getStimuliOptions } from '$lib/plots/shared'
   import { getGazePlotterSession } from '$lib/session'
-  import { createExportButtons, runExport } from '../shared/helpers'
+  import { createExportButtons, withExportBusy } from '../shared/helpers'
   import ExportShell from '../shared/ExportShell.svelte'
 
   const { engine, exportService, modalState } = getGazePlotterSession()
@@ -18,7 +18,7 @@
   )
 
   const handleExport = async () => {
-    await runExport(
+    await withExportBusy(
       val => (isExporting = val),
       () =>
         exportService.exportScangraph({

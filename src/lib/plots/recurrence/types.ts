@@ -1,5 +1,3 @@
-import type { PlotItemContract } from '$lib/plots/definePlot'
-
 export type RecurrenceMethod = 'fixedDistance' | 'fixedGrid' | 'aoi'
 
 export type RecurrenceHighlight =
@@ -25,11 +23,6 @@ export type RecurrencePlotSettings = {
   highlight: RecurrenceHighlight
   masking: RecurrenceMasking
 }
-
-export type RecurrencePlotItem = PlotItemContract<
-  'recurrencePlot',
-  RecurrencePlotSettings
->
 
 export interface RecurrenceData {
   /** Flat NxN binary matrix (1 = recurrent, 0 = not) */

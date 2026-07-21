@@ -2,16 +2,12 @@
   import type { BaseInterpretedDataType } from '$lib/data/types'
   import type { MergeCard } from './groupedEntityEditor.svelte'
 
-  export type BulkEntity =
-    | BaseInterpretedDataType
-    | MergeCard<BaseInterpretedDataType>
-
   // `type` (not `interface`) so it satisfies the `Record<string, unknown>`
   // constraint on `createMenuComponentItem`.
   export type BulkActionsFlyoutProps = {
-    items: BulkEntity[]
+    items: MergeCard<BaseInterpretedDataType>[]
     /** Replace `pattern` with `replacement` across every matching name. */
-    onRename?: (pattern: string, replacement: string) => void
+    onRename: (pattern: string, replacement: string) => void
   }
 </script>
 
@@ -38,15 +34,13 @@
     { label: '.', tooltip: 'Any character' },
   ]
 
-  const displayedName = (item: BulkEntity): string =>
-    'members' in item
-      ? (item.members[0]?.displayedName ?? '')
-      : (item.displayedName ?? '')
+  const displayedName = (item: MergeCard<BaseInterpretedDataType>): string =>
+    item.members[0]?.displayedName ?? ''
 
   const hasPattern = $derived(pattern.trim() !== '')
 
   // Entities matched by the pattern. `null` signals an invalid regex.
-  const matched = $derived.by((): BulkEntity[] | null => {
+  const matched = $derived.by((): MergeCard<BaseInterpretedDataType>[] | null => {
     if (!hasPattern) return []
     try {
       const regex = new RegExp(pattern)
@@ -99,7 +93,7 @@
       size="sm"
       variant="primary"
       isDisabled={!canApply}
-      onclick={() => { onRename?.(pattern, replacement); close() }}
+      onclick={() => { onRename(pattern, replacement); close() }}
     >
       Replace
     </Button>

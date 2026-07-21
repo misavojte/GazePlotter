@@ -7,19 +7,14 @@
     type PlotMetricContract,
   } from '$lib/metrics/filters'
   import type { Metric } from '$lib/metrics/core/dsl'
+  import type { CreateInstanceHandler } from '$lib/plots/shared/metricInstanceHandlers'
   import { InputText } from '$lib/shared/components'
   import MetricPickCard from './MetricPickCard.svelte'
   import { configureMetricModal } from './definition-steps'
 
   interface Props {
     contract: PlotMetricContract
-    oncreateInstance?: (
-      baseId: string,
-      params: Record<string, unknown>,
-      label: string,
-      projection: any,
-      replacingId?: string,
-    ) => void
+    oncreateInstance?: CreateInstanceHandler
   }
 
   let { contract, oncreateInstance }: Props = $props()

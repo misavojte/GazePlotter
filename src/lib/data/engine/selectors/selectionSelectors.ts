@@ -9,20 +9,10 @@ import type { DataEngine } from '../dataEngine.svelte'
 import type { GroupedByDisplayedName } from '../utils/grouping'
 import {
   getParticipant,
-  getAllParticipants,
   getParticipantOrderVector,
   getStimuli,
 } from './entitySelectors'
 import { getNumberOfSegments } from './segmentSelectors'
-
-const getNonEmptyParticipants = (
-  engine: DataEngine,
-  stimulusId: number
-): BaseInterpretedDataType[] => {
-  return getParticipantOrderVector(engine)
-    .filter(id => getNumberOfSegments(engine, stimulusId, id) > 0)
-    .map(id => getParticipant(engine, id))
-}
 
 export const getParticipantsSelections = (
   engine: DataEngine,
@@ -42,7 +32,7 @@ export const getParticipantsSelections = (
         {
           id: -2,
           name: 'Non-empty',
-          participantsIds: getNonEmptyParticipants(engine, stimulusId).map(p => p.id),
+          participantsIds: getParticipantsIds(engine, -2, stimulusId),
         },
       ]
     : []
@@ -82,8 +72,8 @@ export const resolveCategorySelectionMemberIds = (
  * Apply a per-plot eye-movement-type SELECTION to displayed-name groups.
  * A whole group is KEPT when ANY member id is held by the selection (the
  * modal commits complete groups — this heals regroups made since); every
- * member of a dropped group lands in `narrowedAwayIds` so callers can treat
- * those categories exactly like globally hidden ones. Unset/unknown selection
+ * member of a dropped group lands in `narrowedAwayIds` so callers can drop
+ * those categories from their domain. Unset/unknown selection
  * keeps everything (self-healing, as above). This is the single definition of
  * the narrowing policy — plots must not re-derive it from the raw member set.
  */
@@ -125,45 +115,40 @@ export const getStimuliInSelection = (
 
 const getParticipantsSelection = (
   engine: DataEngine,
-  groupId: number
+  selectionId: number
 ): ParticipantsSelection | null =>
-  getParticipantsSelections(engine).find(g => g.id === groupId) ?? null
+  getParticipantsSelections(engine).find(s => s.id === selectionId) ?? null
 
 /**
- * Get all participants of given group ID.
+ * Participant ids a plot ranges over under a participants SELECTION — the
+ * single definition of the narrowing policy. `-1` = all, `-2` = non-empty for
+ * the stimulus, otherwise the stored selection resolved through the order
+ * vector: stored selections may hold merged-away (tombstoned) member ids for
+ * unmerge-reversibility, and feeding those raw to plot transformers renders
+ * ghost participants. Unknown ids self-heal to all participants.
  */
-export const getParticipants = (
-  engine: DataEngine,
-  groupId = -1,
-  stimulusId = 0
-): BaseInterpretedDataType[] => {
-  if (groupId === -1) return getAllParticipants(engine)
-  if (groupId === -2) return getNonEmptyParticipants(engine, stimulusId)
-
-  const group = getParticipantsSelection(engine, groupId)
-  if (!group) return getAllParticipants(engine)
-  const groupSet = new Set(group.participantsIds)
-
-  return getParticipantOrderVector(engine)
-    .filter(id => groupSet.has(id))
-    .map(id => getParticipant(engine, id))
-}
-
 export const getParticipantsIds = (
   engine: DataEngine,
-  groupId = -1,
+  selectionId = -1,
   stimulusId = 0
 ): number[] => {
-  if (groupId === -1) return getParticipantOrderVector(engine)
-  if (groupId === -2) {
-    return getNonEmptyParticipants(engine, stimulusId).map(p => p.id)
-  }
-  const group = getParticipantsSelection(engine, groupId)
-  if (!group) return getParticipantOrderVector(engine)
-  // Resolve through the order vector like getParticipants: stored groups may
-  // hold merged-away (tombstoned) member ids for unmerge-reversibility, and
-  // feeding those raw to plot transformers renders ghost participants.
-  const groupSet = new Set(group.participantsIds)
-  return getParticipantOrderVector(engine).filter(id => groupSet.has(id))
+  const order = getParticipantOrderVector(engine)
+  if (selectionId === -2)
+    return order.filter(id => getNumberOfSegments(engine, stimulusId, id) > 0)
+  if (selectionId === -1) return order
+  const selection = getParticipantsSelection(engine, selectionId)
+  if (!selection) return order
+  const memberSet = new Set(selection.participantsIds)
+  return order.filter(id => memberSet.has(id))
 }
+
+/** {@link getParticipantsIds}, resolved to the participant rows. */
+export const getParticipants = (
+  engine: DataEngine,
+  selectionId = -1,
+  stimulusId = 0
+): BaseInterpretedDataType[] =>
+  getParticipantsIds(engine, selectionId, stimulusId).map(id =>
+    getParticipant(engine, id)
+  )
 

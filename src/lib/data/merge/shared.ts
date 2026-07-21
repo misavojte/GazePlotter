@@ -6,7 +6,7 @@ import {
 
 /**
  * Internal helpers shared by the participant-axis (mergeFold,
- * deriveMergedDataset) and stimulus-axis (mergeStimuli) merge implementations.
+ * mergeParticipants) and stimulus-axis (mergeStimuli) merge implementations.
  */
 
 /**
@@ -48,6 +48,14 @@ export const fromNested = (nested: NestedDataset): DataType => {
   return { ...rest, segments: jsonSegmentsToBinary(segments, spatialData) }
 }
 
+/**
+ * Displayed name of a dictionary row, TRIMMED — must match the canonical merge
+ * rule (`groupByDisplayedName`), which groups by trimmed names; an untrimmed
+ * copy here would store padded names in `MergeMember.displayedName`.
+ */
+export const displayedNameOf = (row: string[] | undefined): string =>
+  (row?.[1] ?? row?.[0] ?? '').trim()
+
 /** Deep clone of `segments[stimulus][participant][segment][field]`. */
 export const cloneSegments = (g: number[][][][]): number[][][][] =>
   g.map(stim => stim.map(cell => cell.map(seg => seg.slice())))
@@ -59,7 +67,7 @@ export const cloneSpatial = (
   g.map(stim => stim.map(cell => cell.map(pt => (pt ? pt.slice() : null))))
 
 /** Deep clone of `events[stimulus][channel][participant]` flat occurrence buffers. */
-export const cloneEvents = (e: number[][][][]): number[][][][] =>
+const cloneEvents = (e: number[][][][]): number[][][][] =>
   e.map(stim => stim.map(ch => ch.map(p => p.slice())))
 
 /**

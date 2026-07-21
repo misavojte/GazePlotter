@@ -1,4 +1,7 @@
-import type { ExtendedInterpretedDataType } from '$lib/data/types'
+import type {
+  EventDataUpdate,
+  ExtendedInterpretedDataType,
+} from '$lib/data/types'
 import type { DataEngine } from '../dataEngine.svelte'
 import { INTERVAL_CHANNEL_MARKER } from '../eventIntervals'
 import {
@@ -125,20 +128,12 @@ export const getEventChannelSummary = (
 export const buildEventDataWithoutChannels = (
   engine: DataEngine,
   namesToRemove: ReadonlySet<string>
-): {
-  stimulusId: number
-  channelDefs: string[][]
-  eventBuffers: number[][][]
-}[] => {
+): EventDataUpdate[] => {
   const meta = engine.metadata
   if (!meta) return []
   const ed = meta.eventData
   const reader = engine.getEventReader()
-  const updates: {
-    stimulusId: number
-    channelDefs: string[][]
-    eventBuffers: number[][][]
-  }[] = []
+  const updates: EventDataUpdate[] = []
   for (let s = 0; s < ed.data.length; s++) {
     const defs = ed.data[s]
     if (!defs?.length) continue

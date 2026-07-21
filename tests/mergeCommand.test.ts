@@ -194,7 +194,8 @@ describe('reconcileMerges through the WorkspaceService', () => {
       const before = nested(engine)
 
       const items = withName(getParticipantsWithMerged(engine), 1, 'P0')
-      ws.reconcileParticipantMerges(
+      ws.reconcileMerges(
+        'participant',
         items,
         [{ representativeId: 0, memberIds: [1], at: 100 }],
         'test.modal'
@@ -222,7 +223,7 @@ describe('reconcileMerges through the WorkspaceService', () => {
     it('un-merges by renaming a merged member apart, atomically', () => {
       const before = nested(engine)
 
-      engine.mergeParticipants(0, [1], 7)
+      engine.mergeEntities('participant', 0, [1], 7)
       ws = makeService(engine)
       expect(engine.metadata!.participants.orderVector).toEqual([0, 2])
 
@@ -231,7 +232,7 @@ describe('reconcileMerges through the WorkspaceService', () => {
       expect(merged.find(r => r.id === 1)!.displayedName).toBe('P0')
 
       const items = withName(merged, 1, 'P1 restored')
-      ws.reconcileParticipantMerges(items, [], 'test.modal')
+      ws.reconcileMerges('participant', items, [], 'test.modal')
 
       expect(engine.metadata!.participants.orderVector).toEqual([0, 1, 2])
       expect(engine.metadata!.merges ?? []).toHaveLength(0)
@@ -254,7 +255,8 @@ describe('reconcileMerges through the WorkspaceService', () => {
       ws = makeService(engine)
 
       const items = withName(getStimuliWithMerged(engine), 1, 'S0')
-      ws.reconcileStimulusMerges(
+      ws.reconcileMerges(
+        'stimulus',
         items,
         [{ representativeId: 0, memberIds: [1], at: 100 }],
         'test.modal'

@@ -4,7 +4,6 @@ import {
   formatParamReadout,
   instanceReadout,
   reductionQualifier,
-  availableReductions,
   resolveReduction,
   getMetric,
   type MetricInstance,
@@ -96,27 +95,9 @@ describe('formatParamReadout (full — same in selector and on plots)', () => {
   })
 })
 
-// ─── availableReductions / reductionQualifier / resolveReduction ──────────────
+// ─── reductionQualifier / resolveReduction ────────────────────────────────────
 // The sound set is a PURE function of the metric's measurementClass — projection
-// independent, no guards. The same set the ConfigureMetric control lists (once
-// intersected with the plot contract) and what an MCP caller may set.
-
-describe('availableReductions (sound cross-participant set, by class)', () => {
-  it('offers mean + sum for extensive quantities (counts, durations)', () => {
-    expect(availableReductions('absoluteTime')).toEqual(['mean', 'sum'])
-    expect(availableReductions('fixationCount')).toEqual(['mean', 'sum'])
-    expect(availableReductions('transitionCount')).toEqual(['mean', 'sum'])
-  })
-  it('offers mean only for intensive quantities (shares, probabilities, averages)', () => {
-    expect(availableReductions('relativeTime')).toEqual(['mean'])
-    expect(availableReductions('visitDuration')).toEqual(['mean'])
-    expect(availableReductions('transitionProbability')).toEqual(['mean'])
-  })
-  it('proportion reduces by mean (the fraction); relational has no reduction', () => {
-    expect(availableReductions('fixated')).toEqual(['mean'])
-    expect(availableReductions('participantPairSimilarity')).toEqual([])
-  })
-})
+// independent, no guards (see soundReductions in measurement.test.ts).
 
 describe('reductionQualifier (discloses only a cohort sum)', () => {
   const vec = { kind: 'identity-aoi-vector' as const }

@@ -14,7 +14,6 @@ export {
   formatParamReadout,
   formatProjectionReadout,
   reductionQualifier,
-  availableReductions,
   resolveReduction,
   instanceReadout,
 } from './instances'
@@ -32,7 +31,6 @@ export {
   reducesAcrossParticipants,
   distributionStatistics,
   supportedMatrixReducers,
-  metricShape,
 } from './core/measurement'
 export type { MeasurementClass, GroupReduction } from './core/measurement'
 export { reduceFinite, effectiveReduction, reductionLabel } from './core/aggregation'

@@ -10,9 +10,9 @@
     getMetric,
     instanceMatchesContract,
     type MetricInstance,
-    type Projection,
     type PlotMetricContract,
   } from '$lib/metrics'
+  import type { CreateInstanceHandler } from '$lib/plots/shared/metricInstanceHandlers'
 
   interface Props {
     /** Raw instance library. MetricSelect filters by `contract` internally. */
@@ -20,13 +20,7 @@
     selectedIds: string[]
     onchange: (ids: string[]) => void
     onrenameInstance?: (id: string, label: string) => void
-    oncreateInstance?: (
-      baseId: string,
-      params: Record<string, unknown>,
-      label: string,
-      projection: Projection,
-      replacingId?: string,
-    ) => void
+    oncreateInstance?: CreateInstanceHandler
     ondeleteInstance?: (id: string) => void
     /** Descriptor of which leaves/windowing this consumer accepts and whether
      *  selection is multi- or single-valued. */

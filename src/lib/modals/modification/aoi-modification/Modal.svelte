@@ -11,10 +11,7 @@
   } from '$lib/data/types'
   import EditableEntityList from '../shared/EditableEntityList.svelte'
   import SelectionTray from '../shared/SelectionTray.svelte'
-  import {
-    createGroupedEntityEditor,
-    type MergeCard,
-  } from '../shared/groupedEntityEditor.svelte'
+  import { createGroupedEntityEditor } from '../shared/groupedEntityEditor.svelte'
   import { createSelectionSession } from '../shared/selectionSession.svelte'
   import {
     buildRenameMap,
@@ -24,6 +21,7 @@
     cloneNameSelections,
     canonicalNameSelections,
     commitNameSelections,
+    stagedDomainNames,
   } from '../shared/nameKeyedSelection'
 
   interface Props {
@@ -31,7 +29,7 @@
     source: string
   }
 
-  let { selectedStimulus = $bindable('0'), source }: Props = $props()
+  let { selectedStimulus = '0', source }: Props = $props()
   const { engine, modalState, toastState, workspace } = getGazePlotterSession()
 
   const meta = engine.metadata
@@ -43,6 +41,8 @@
     { value: 'all', label: 'All stimuli' },
     ...stimuliOptions,
   ]
+  // The opener's stimulus is only the STARTING scope; `scope` owns it after.
+  // svelte-ignore state_referenced_locally
   let scope = $state(
     stimuliOptions.some(o => o.value === selectedStimulus)
       ? selectedStimulus
@@ -109,7 +109,6 @@
   const allOpenById = new Map(allUnion.map(r => [r.id, r.displayedName]))
   const allEditor = createGroupedEntityEditor({
     getItems: () => allUnion,
-    initialStimulusId: 0,
   })
 
   const activeEditor = $derived(scope === 'all' ? allEditor : stimulusEditor)
@@ -190,13 +189,9 @@
     groups: () => activeEditor.groups,
     inertIds: () => inertIds,
     ...nameKeyedMembership({ renameMap: () => renameMap, openNameOf }),
+    // Arrows (not method references) so the scope switch late-binds the editor.
     renameItem: (item, name, isLeader, group) =>
-      activeEditor.handleNameInput(
-        item as ExtendedInterpretedDataType,
-        name,
-        isLeader,
-        group as MergeCard
-      ),
+      activeEditor.handleNameInput(item, name, isLeader, group),
     reorderGroups: (from, to, withIds) =>
       activeEditor.reorderGroups(from, to, withIds),
     notify: msg => toastState.addInfo(msg),
@@ -205,34 +200,32 @@
 
   const selectionsSnapshot = canonicalNameSelections(getAoiSelections(engine))
 
-  // Post-apply truth of "which displayed names exist anywhere": staged names
-  // for the active scope, engine names for the rest. Drives honest counts.
+  // Which displayed names will exist post-apply (see stagedDomainNames); the
+  // "all" scope stages by ORIGINAL name, so it resolves each AOI through the
+  // union editor's row instead of a per-stimulus staged list.
   const domainNames = $derived.by(() => {
+    if (scope !== 'all') {
+      return stagedDomainNames(
+        getStimuli(engine),
+        scopeStimulusId(),
+        stimulusEditor.items,
+        id => getAllAois(engine, id)
+      )
+    }
     const set = new Set<string>()
     const add = (n: string) => {
       const t = (n || '').trim()
       if (t) set.add(t)
     }
-    if (scope === 'all') {
-      const staged = new Map(allEditor.items.map(i => [i.originalName, i] as const))
-      for (const s of getStimuli(engine)) {
-        for (const a of getAllAois(engine, s.id)) {
-          const st = staged.get(a.originalName)
-          const init = allInit.get(a.originalName)
-          if (st && init && st.displayedName.trim() !== init.displayedName.trim()) {
-            add(st.displayedName)
-          } else {
-            add(a.displayedName)
-          }
-        }
-      }
-    } else {
-      const active = scopeStimulusId()
-      for (const s of getStimuli(engine)) {
-        if (s.id === active) {
-          for (const i of stimulusEditor.items) add(i.displayedName)
+    const staged = new Map(allEditor.items.map(i => [i.originalName, i] as const))
+    for (const s of getStimuli(engine)) {
+      for (const a of getAllAois(engine, s.id)) {
+        const st = staged.get(a.originalName)
+        const init = allInit.get(a.originalName)
+        if (st && init && st.displayedName.trim() !== init.displayedName.trim()) {
+          add(st.displayedName)
         } else {
-          for (const a of getAllAois(engine, s.id)) add(a.displayedName)
+          add(a.displayedName)
         }
       }
     }
@@ -363,7 +356,7 @@
 
     // 3. Selections, only on a real change (avoids a spurious undo step).
     if (canonicalNameSelections(committed) !== selectionsSnapshot) {
-      if (!workspace.updateAoiSelections(committed, source)) return
+      if (!workspace.updateSelections('aoi', committed, source)) return
     }
 
     modalState.close()
@@ -375,7 +368,7 @@
        different id spaces (synthetic vs per-stimulus AOI ids). -->
   {#key scope}
     <EditableEntityList
-      items={activeEditor.groups}
+      groups={activeEditor.groups}
       title="AOIs"
       emptyMessage={scope === 'all'
         ? 'No AOIs in this dataset'
@@ -389,9 +382,8 @@
       selection={session.listSelection}
       previewIds={session.previewIds}
       grouped={{
-        onNameInput: (item, name, isLeader, group) =>
-          activeEditor.handleNameInput(item, name, isLeader, group),
-        onColorInput: (group, color) => activeEditor.handleColorInput(group, color),
+        onNameInput: activeEditor.handleNameInput,
+        onColorInput: activeEditor.handleColorInput,
       }}
     >
       {#snippet titleExtra()}

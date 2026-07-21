@@ -59,7 +59,7 @@ export class VarjoRowParser extends RowParser {
     const end = this.mTimeLast - baseTime
     const aoi = [this.mActorLabelBytes]
 
-    this.emitSegment(
+    this.onSegment?.(
       start,
       end,
       0,

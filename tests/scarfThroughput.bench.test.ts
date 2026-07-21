@@ -25,6 +25,15 @@ import { getScarfData } from '../src/lib/plots/scarf/core/view'
 import { drawScarfBands, type ScarfLayoutContext } from '../src/lib/plots/scarf/core/renderer'
 import type { ScarfPlotSettings } from '../src/lib/plots/scarf/types'
 
+// Node-only bench harness (SCARF_BENCH=1 vitest bench). Local ambient declares
+// instead of a project-wide @types/node dependency, so browser-side src code
+// can never silently lean on Node globals.
+declare const process: {
+  env: Record<string, string | undefined>
+  stderr: { write: (s: string) => void }
+}
+declare function require(id: string): any
+
 const RUN = !!process.env.SCARF_BENCH
 
 // ---- synthetic dataset ----

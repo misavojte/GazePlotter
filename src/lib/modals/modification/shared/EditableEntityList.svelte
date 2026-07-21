@@ -1,3 +1,22 @@
+<script module lang="ts">
+  import type { BaseInterpretedDataType } from '$lib/data/types'
+
+  /** One rendered column of the entity grid. */
+  export interface TableColumn {
+    label: string
+    width: string
+    align?: 'center'
+    type: 'handle' | 'readonly' | 'text' | 'color'
+    key?: string
+    /** Explanatory tooltip on the column header (dotted-underlined). */
+    tooltip?: string
+  }
+
+  /** Rows may carry a color; a `color` column is only configured by editors
+      whose rows do (AOI, category, event channel). */
+  export type EntityRow = BaseInterpretedDataType & { color?: string }
+</script>
+
 <script lang="ts">
   import { onMount, type Snippet } from 'svelte'
   import { flip } from 'svelte/animate'
@@ -19,20 +38,6 @@
   import BulkActionsFlyout, {
     type BulkActionsFlyoutProps,
   } from './BulkActionsFlyout.svelte'
-  import type {
-    BaseInterpretedDataType,
-    ExtendedInterpretedDataType,
-  } from '$lib/data/types'
-
-  export interface TableColumn {
-    label: string
-    width: string
-    align?: 'center'
-    type: 'handle' | 'readonly' | 'text' | 'color'
-    key?: string
-    /** Explanatory tooltip on the column header (dotted-underlined). */
-    tooltip?: string
-  }
 
   interface SortColumn {
     label: string
@@ -41,13 +46,16 @@
 
   interface GroupedCallbacks {
     onNameInput: (
-      item: ExtendedInterpretedDataType,
+      item: BaseInterpretedDataType,
       name: string,
       isLeader: boolean,
-      group: MergeCard
+      group: MergeCard<BaseInterpretedDataType>
     ) => void
     /** Only for entity lists with a color column. */
-    onColorInput?: (group: MergeCard, color: string) => void
+    onColorInput?: (
+      group: MergeCard<BaseInterpretedDataType>,
+      color: string
+    ) => void
   }
 
   interface GroupNotice {
@@ -57,7 +65,7 @@
   }
 
   interface Props {
-    items: MergeCard<BaseInterpretedDataType>[]
+    groups: MergeCard<EntityRow>[]
     title: string
     emptyMessage: string
     columns: TableColumn[]
@@ -79,7 +87,7 @@
         a SELECTION chip is active, that chip's membership. `inert` cards
         (empty displayed names during chip editing) neither ring nor toggle.
         Grouped mode only. */
-    selection?: {
+    selection: {
       selected: ReadonlySet<number>
       /** 'transient' = unsaved working set (dashed ring);
           'saved' = editing a SELECTION's membership (solid ring). */
@@ -87,16 +95,16 @@
       inert?: ReadonlySet<number>
       onToggle: (group: MergeCard<BaseInterpretedDataType>) => void
       onSetMany: (
-        groups: MergeCard<BaseInterpretedDataType>[],
+        groups: MergeCard<EntityRow>[],
         on: boolean
       ) => void
-    } | null
+    }
     /** Group ids ringed solid while an idle chip is hovered/focused (peek). */
-    previewIds?: ReadonlySet<number> | null
+    previewIds: ReadonlySet<number> | null
     /** Selection-episode key (e.g. the active chip id). Changing it resets
         the shift-range anchor and re-runs the scroll-into-view — a stale
         anchor from the previous episode must never drive a range. */
-    episode?: unknown
+    episode: unknown
     /** Extra control rendered in the title row next to bulk/sort (e.g. the
         compact scope select). Rendered even when the list is empty. */
     titleExtra?: Snippet
@@ -105,7 +113,7 @@
   }
 
   let {
-    items,
+    groups,
     title,
     emptyMessage,
     columns,
@@ -115,9 +123,9 @@
     onSort,
     onReorder,
     onRename,
-    selection = null,
-    previewIds = null,
-    episode = null,
+    selection,
+    previewIds,
+    episode,
     titleExtra,
     footer,
   }: Props = $props()
@@ -125,9 +133,8 @@
   const gridTemplate = $derived(columns.map(c => c.width).join(' '))
 
   // ── Row selection (solid ring + tint on selected cards) ───────────────────
-  const selectable = $derived(selection !== null)
-  const isSelected = (id: number) => !!selection?.selected.has(id)
-  const isInert = (id: number) => !!selection?.inert?.has(id)
+  const isSelected = (id: number) => selection.selected.has(id)
+  const isInert = (id: number) => !!selection.inert?.has(id)
   const isPeeked = (id: number) => !!previewIds?.has(id)
 
   // Pointer guard: toggle only when both the press and the release landed on
@@ -137,7 +144,7 @@
   let press: { x: number; y: number; el: HTMLElement } | null = null
   let anchorId: number | null = null // shift-range anchor
 
-  const selectedCount = $derived(selection?.selected.size ?? 0)
+  const selectedCount = $derived(selection.selected.size)
 
   const cardPointerDown = (e: PointerEvent) => {
     press = { x: e.clientX, y: e.clientY, el: e.target as HTMLElement }
@@ -154,7 +161,7 @@
   }
 
   const cardClick = (e: MouseEvent, group: MergeCard<BaseInterpretedDataType>) => {
-    if (!selection || isInert(group.id)) return
+    if (isInert(group.id)) return
     const down = press
     press = null
     if (e.detail > 1) return
@@ -162,7 +169,7 @@
     if (!down || down.el.closest(INTERACTIVE)) return
     if (Math.hypot(e.clientX - down.x, e.clientY - down.y) > 5) return
     if (e.shiftKey && anchorId !== null && anchorId !== group.id) {
-      const vis = items
+      const vis = groups
       const ai = vis.findIndex(g => g.id === anchorId)
       const bi = vis.findIndex(g => g.id === group.id)
       if (ai !== -1 && bi !== -1) {
@@ -284,7 +291,7 @@
       value: 'rename',
       icon: Replace,
       component: BulkActionsFlyout,
-      componentProps: { items, onRename },
+      componentProps: { items: groups, onRename },
       componentWidth: 300,
       componentHeight: 240,
     }),
@@ -314,7 +321,7 @@
   <span class="section-title">{title}</span>
   <div class="title-actions">
     {@render titleExtra?.()}
-    {#if items.length > 0}
+    {#if groups.length > 0}
       <button
         class="tool-button"
         class:active={bulkOpen}
@@ -349,7 +356,7 @@
   </div>
 </div>
 
-{#if items.length === 0}
+{#if groups.length === 0}
   <Empty message={emptyMessage} />
 {:else}
   <div
@@ -373,34 +380,33 @@
       {/each}
     </div>
 
-    {#each items as item (item.id)}
-      {@const group = item as MergeCard}
+    {#each groups as group (group.id)}
       <!-- Click-to-toggle is a pointer-only enhancement; the keyboard/SR path
            is the visually hidden member-toggle checkbox rendered below. -->
       <!-- svelte-ignore a11y_click_events_have_key_events -->
       <!-- svelte-ignore a11y_no_static_element_interactions -->
       <div
         class="entity-card"
-        class:dragging={dragItemKey === item.id}
-        class:selecting={selectable && !isInert(item.id)}
-        class:selected={selectable && isSelected(item.id)}
-        class:saved-variant={selection?.variant === 'saved'}
-        class:peeked={isPeeked(item.id) && !(selectable && isSelected(item.id))}
-        onpointerdown={selectable ? cardPointerDown : undefined}
-        onmousedown={selectable ? cardMouseDown : undefined}
-        onclick={selectable ? e => cardClick(e, item) : undefined}
-        animate:flip={{ duration: flipDur(item.id), easing: cubicOut }}
+        class:dragging={dragItemKey === group.id}
+        class:selecting={!isInert(group.id)}
+        class:selected={isSelected(group.id)}
+        class:saved-variant={selection.variant === 'saved'}
+        class:peeked={isPeeked(group.id) && !isSelected(group.id)}
+        onpointerdown={cardPointerDown}
+        onmousedown={cardMouseDown}
+        onclick={e => cardClick(e, group)}
+        animate:flip={{ duration: flipDur(group.id), easing: cubicOut }}
       >
           <!-- Keyboard/SR path: always present while editing a SAVED selection
                (an empty one has no other keyboard way to gain its first
                member); for the transient set only once it exists, so idle
                tab order stays unpolluted. -->
-          {#if selectable && !isInert(group.id) && (selection?.variant === 'saved' || selectedCount > 0)}
+          {#if !isInert(group.id) && (selection.variant === 'saved' || selectedCount > 0)}
             <input
               type="checkbox"
               class="member-toggle"
               checked={isSelected(group.id)}
-              onchange={() => selection?.onToggle(group)}
+              onchange={() => selection.onToggle(group)}
               aria-label={`Select ${group.members[0].displayedName || group.members[0].originalName}`}
             />
           {/if}
@@ -448,7 +454,7 @@
                       showLabel={false}
                       width={35}
                       ariaLabel={`Color for ${member.originalName}`}
-                      value={member.color}
+                      value={member.color ?? '#000000'}
                       oninput={event => grouped.onColorInput?.(group, event.detail)}
                     />
                   </div>

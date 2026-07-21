@@ -159,7 +159,7 @@ export class GazePointRowParser extends RowParser {
       // Tracking resumed — flush the accumulated invalid run as its own segment.
       const sb = this.invalidBuffer.stimulusBytes
       if (sb) {
-        this.emitSegment(
+        this.onSegment?.(
           this.invalidBuffer.start,
           this.invalidBuffer.end,
           this.resolveCategoryId(this.invalidNameBytes),
@@ -189,7 +189,7 @@ export class GazePointRowParser extends RowParser {
       }
       const stimBytes = this.currentFix.stimulusBytes
       if (stimBytes) {
-        this.emitSegment(
+        this.onSegment?.(
           this.blinkBuffer.start,
           this.blinkBuffer.end,
           this.resolveCategoryId(this.blinkNameBytes),
@@ -264,7 +264,7 @@ export class GazePointRowParser extends RowParser {
     if (this.invalidBuffer) {
       const sb = this.invalidBuffer.stimulusBytes
       if (sb) {
-        this.emitSegment(
+        this.onSegment?.(
           this.invalidBuffer.start,
           this.invalidBuffer.end,
           this.resolveCategoryId(this.invalidNameBytes),
@@ -281,7 +281,7 @@ export class GazePointRowParser extends RowParser {
       this.blinkTerminated = false
       const stimBytes = this.currentFix.stimulusBytes
       if (stimBytes) {
-        this.emitSegment(
+        this.onSegment?.(
           buf.start,
           buf.end,
           this.resolveCategoryId(this.blinkNameBytes),
@@ -302,7 +302,7 @@ export class GazePointRowParser extends RowParser {
     const stimBytes = this.currentFix.stimulusBytes
     if (!stimBytes) return
     const aoi = this.currentFix.aoiBytes ? [this.currentFix.aoiBytes] : null
-    this.emitSegment(
+    this.onSegment?.(
       this.currentFix.start,
       this.currentFix.end,
       this.resolveCategoryId(this.fixationNameBytes),

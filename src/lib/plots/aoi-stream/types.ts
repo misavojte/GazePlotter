@@ -1,5 +1,4 @@
 import type { AdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
-import type { PlotItemContract } from '$lib/plots/definePlot'
 
 export type AoiStreamPlotSettings = {
   stimulusId: number
@@ -22,11 +21,6 @@ export type AoiStreamPlotSettings = {
   timelineEnd?: number
   hideNoAoi?: boolean
 }
-
-export type AoiStreamPlotItem = PlotItemContract<
-  'aoiStreamPlot',
-  AoiStreamPlotSettings
->
 
 export interface AoiStreamPlotSeries {
   id: number

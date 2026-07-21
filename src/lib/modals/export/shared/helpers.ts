@@ -174,7 +174,12 @@ export function createExportButtons({
   return buttons
 }
 
-export async function runExport(
+/**
+ * Run an export function with the modal's busy flag raised (and a UI tick for
+ * the "Exporting..." state to paint first). Named to stay clear of the export
+ * service's private `runExport`, which has a different contract.
+ */
+export async function withExportBusy(
   setExporting: (exporting: boolean) => void,
   exportFn: () => Promise<unknown>
 ): Promise<void> {

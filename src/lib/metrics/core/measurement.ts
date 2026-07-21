@@ -3,8 +3,8 @@
  *
  * The single, reusable home for "can action X be performed over metric Y?" as
  * PURE LOGIC. Every function here is a total function of declarative data
- * (`MeasurementClass` + the abstract {@link MetricShape}) — no recipe callbacks,
- * no runtime-value dependence, no silent mutation. That makes the whole surface
+ * (`MeasurementClass`) — no recipe callbacks, no runtime-value dependence, no
+ * silent mutation. That makes the whole surface
  * enumerable by an MCP/LLM (list a metric's class, list its sound reductions,
  * pick one, and the effective result equals the request) and gives a future
  * statistics engine one place to add predicates (`canCompareGroups`,
@@ -22,12 +22,7 @@
  *   - **distribution display** (a plot-layer choice over individuals) →
  *     {@link distributionStatistics} ({@link DistributionStat})
  */
-import type { MetricMeta, OutputShape, WindowUnit } from './dsl'
-import {
-  projectionOutputShape,
-  type Projection,
-  type MatrixReducer,
-} from './projection'
+import type { MatrixReducer } from './projection'
 
 /**
  * The statistical class of a metric's per-participant value. The ONE declarative
@@ -116,38 +111,4 @@ const MATRIX_REDUCERS_RESTRICTED: readonly MatrixReducer[] = ['max', 'min']
 
 export function supportedMatrixReducers(cls: MeasurementClass): readonly MatrixReducer[] {
   return cls === 'extensive' ? MATRIX_REDUCERS_EXTENSIVE : MATRIX_REDUCERS_RESTRICTED
-}
-
-// ─── Abstract metric shape ───────────────────────────────────────────────────
-
-/**
- * Everything the capability algebra needs to reason about a concrete metric
- * instance, derived PURELY from the recipe meta + projection (no participant
- * data). The single abstract value every predicate takes.
- */
-export interface MetricShape {
-  baseId: string
-  /** Shape the recipe's `finalize` produces, before projection. */
-  rawShape: OutputShape
-  /** Shape after the projection is applied (what plots consume). */
-  outputShape: OutputShape
-  measurementClass: MeasurementClass
-  windowed: boolean
-  windowUnit: WindowUnit
-  providesAnyFixation: boolean
-  unit: string
-}
-
-/** Derive the abstract {@link MetricShape} from a metric's meta + a projection. */
-export function metricShape(meta: MetricMeta, projection: Projection): MetricShape {
-  return {
-    baseId: meta.id,
-    rawShape: meta.rawShape,
-    outputShape: projectionOutputShape(projection),
-    measurementClass: meta.measurementClass,
-    windowed: projection.kind === 'windowed',
-    windowUnit: meta.windowUnit,
-    providesAnyFixation: meta.providesAnyFixation,
-    unit: meta.unit,
-  }
 }

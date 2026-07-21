@@ -129,6 +129,32 @@ export const commitNameSelections = (
   }))
 
 /**
+ * Post-apply truth of "which displayed names exist anywhere": the STAGED names
+ * for the active scope (the editor's unapplied list), the engine's names for
+ * every other stimulus. Drives honest chip counts — see {@link nameKeyedChips}.
+ */
+export function stagedDomainNames(
+  stimuli: ReadonlyArray<{ id: number }>,
+  activeStimulusId: number,
+  stagedItems: ReadonlyArray<{ displayedName: string }>,
+  itemsOf: (stimulusId: number) => ReadonlyArray<{ displayedName: string }>
+): Set<string> {
+  const set = new Set<string>()
+  const add = (n: string) => {
+    const t = (n || '').trim()
+    if (t) set.add(t)
+  }
+  for (const s of stimuli) {
+    if (s.id === activeStimulusId) {
+      for (const i of stagedItems) add(i.displayedName)
+    } else {
+      for (const i of itemsOf(s.id)) add(i.displayedName)
+    }
+  }
+  return set
+}
+
+/**
  * Tray chips for a name-keyed modal (AOI / event channels). Unlike the id-keyed
  * default, the count is the selection's members that exist ANYWHERE in the
  * dataset (`domainNames`, portable across stimuli), and a "N elsewhere" hint

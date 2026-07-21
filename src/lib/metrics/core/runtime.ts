@@ -6,6 +6,7 @@ import { resolveParams } from './params'
 import { getRecipe } from './defineMetric'
 import {
   applyProjection,
+  leafDef,
   leafOf,
   PROJECTION_LEAVES,
   projectionOutputShape,
@@ -964,7 +965,7 @@ function windowedCacheKey(instance: MetricInstance, scope: Scope, projection: Wi
   // The projection shapes windowed results (timeline + inner leaf), so it is
   // part of the identity — keyed with the projection system's own vocabulary
   // (`windowKey` + per-leaf `cacheKey`, total over every leaf kind).
-  const proj = `${windowKey(projection.window)}~${PROJECTION_LEAVES[projection.inner.kind].cacheKey(projection.inner)}`
+  const proj = `${windowKey(projection.window)}~${leafDef(projection.inner).cacheKey(projection.inner)}`
   // sig.order/sig.names reflect the selection-narrowed getAois (see rawCacheKey).
   const sig = slotSignatures(scope.engine, scope.stimulusId, scope.aoiSelectionId)
   return `w|o${sig.order}|n${sig.names}|${proj}|${instance.baseId}|${paramsKey(instance.params)}|${scope.stimulusId}|${scope.participantId}|${scope.timeStart ?? 0}|${scope.timeEnd ?? 0}`

@@ -3,8 +3,8 @@ import type { PlotView } from '$lib/plots/definePlot'
 import { MatrixPlotFigure } from '$lib/plots/shared'
 import { METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
 import { resolveInstance } from '$lib/metrics'
+import { INACTIVE_COLOR } from '$lib/color/palettes'
 import { getMetricMatrixData } from './transformer'
-import { createMetricMatrixCellRenderer } from './cellPainter'
 import { getMetricMatrixLegendTitle, METRIC_MATRIX_DEFAULTS } from '../const'
 import type { CellState, MetricMatrixData, MetricMatrixPlotSettings } from '../types'
 
@@ -21,20 +21,10 @@ const formatCellValue = (v: number): string =>
   Number.isInteger(v) ? String(v) : v.toFixed(1)
 
 /**
- * Auto colorbar max — the finite data max ceiled to 2 decimals (matching the
- * shared figure's `autoMaxDecimals` default). 0 when there is no positive
- * finite value, which the shared figure renders as the scale minimum.
- */
-function niceAutoMax(dataMax: number): number {
-  if (!(dataMax > 0)) return 0
-  return Math.ceil(dataMax * 100) / 100
-}
-
-/**
  * Single source of truth for "what a metric matrix draws" — a `MatrixPlotFigure`
- * spec. Rows = participants, columns = stimuli, cells painted via the
- * `drawCells` seam so grid, axis/row/col labels, hover crosshair, tooltip,
- * fit-guard, gradient legend and PNG/JPG export are all inherited for free.
+ * spec. Rows = participants, columns = stimuli. Every NA bucket stores NaN, so
+ * the shared figure paints it via `nonFiniteColor` and suppresses the cell
+ * value; the tooltip (`STATE_LABEL`) still discloses the exact NA reason.
  */
 export function deriveMetricMatrixView(
   engine: DataEngine,
@@ -59,12 +49,8 @@ export function deriveMetricMatrixView(
     settings.metricInstanceIds?.[0] ?? null
   )
 
-  // Resolve the shared value range once and hand the SAME [min, max] to both
-  // the painter and the figure (as an explicit range), so the gradient legend
-  // and the painted cells map values identically.
-  const rawRange = settings.scaleRange ?? [0, 0]
-  const resolvedMax = rawRange[1] !== 0 ? rawRange[1] : niceAutoMax(data.dataMax)
-  const colorValueRange: [number, number] = [rawRange[0], resolvedMax]
+  // [min, max]; max 0 = auto (the figure derives the finite data max itself).
+  const colorValueRange: [number, number] = settings.scaleRange ?? [0, 0]
   const colorScale = settings.colorScale ?? []
 
   return {
@@ -77,6 +63,9 @@ export function deriveMetricMatrixView(
       yAxisTitle: METRIC_MATRIX_DEFAULTS.yAxisTitle,
       colorScale,
       colorValueRange,
+      // NA buckets (state !== null) store NaN — never the scale minimum: a
+      // missing recording must not read as a low value.
+      nonFiniteColor: INACTIVE_COLOR,
       legendTitle: placeholder ? null : getMetricMatrixLegendTitle(instance),
       // The grid width varies with the stimulus count; pin the gradient legend
       // to one fixed length centered under the figure (no dynamic shortening).
@@ -90,12 +79,6 @@ export function deriveMetricMatrixView(
       tooltipWidth: 240,
       formatCellValue,
       getCellTooltip: (row: number, col: number) => buildTooltip(data, row, col),
-      drawCells: createMetricMatrixCellRenderer(
-        data,
-        colorScale,
-        colorValueRange,
-        formatCellValue
-      ),
     },
   }
 }

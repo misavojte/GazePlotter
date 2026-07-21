@@ -5,7 +5,6 @@ import type {
 } from '$lib/data/types'
 import { foldParticipantMerge, unfoldParticipantMerge } from './mergeFold'
 import {
-  cloneEvents,
   dropMergeEntry,
   toNested,
   fromNested,
@@ -25,11 +24,6 @@ import {
  * log grows append-only; un-merge is the exact inverse (`unmerge(merge(x)) === x`).
  */
 
-const selectionTouchesMembers = (
-  selection: ParticipantsSelection,
-  memberSet: ReadonlySet<number>
-): boolean => selection.participantsIds.some(id => memberSet.has(id))
-
 type EventContribution = { stimulus: number; channel: number; boundary: number }
 
 /**
@@ -38,23 +32,21 @@ type EventContribution = { stimulus: number; channel: number; boundary: number }
  * segment fold on the participant index: the representative absorbs the
  * member's flat occurrence buffer per `(stimulus, channel)` cell, recording a
  * `boundary` (the representative's prior length, 0 in the clean disjoint case)
- * so un-merge splits it back exactly. Returns new events + per-member
- * contributions to attach to the log.
+ * so un-merge splits it back exactly. Folds `events` IN PLACE (the sole caller
+ * owns the freshly-converted buffers) and returns per-member contributions to
+ * attach to the log.
  */
 function foldParticipantEvents(
   events: number[][][][],
   representativeId: number,
-  memberIds: number[],
-  /** When true, fold `events` in place (caller owns it). See `foldMerges`. */
-  owned = false
-): { events: number[][][][]; byMember: Map<number, EventContribution[]> } {
-  const out = owned ? events : cloneEvents(events)
+  memberIds: number[]
+): Map<number, EventContribution[]> {
   const byMember = new Map<number, EventContribution[]>(
     memberIds.map(id => [id, []])
   )
 
-  for (let s = 0; s < out.length; s++) {
-    const stimulus = out[s] ?? []
+  for (let s = 0; s < events.length; s++) {
+    const stimulus = events[s] ?? []
     for (let c = 0; c < stimulus.length; c++) {
       const channel = stimulus[c] ?? []
       for (const memberId of memberIds) {
@@ -70,17 +62,14 @@ function foldParticipantEvents(
     }
   }
 
-  return { events: out, byMember }
+  return byMember
 }
 
-/** Exact inverse of {@link foldParticipantEvents}. */
+/** Exact inverse of {@link foldParticipantEvents} (also in place). */
 function unfoldParticipantEvents(
   events: number[][][][],
-  entry: MergeLogEntry,
-  /** When true, unfold `events` in place (caller owns it). */
-  owned = false
-): number[][][][] {
-  const out = owned ? events : cloneEvents(events)
+  entry: MergeLogEntry
+): void {
   const rep = entry.representativeId
   // foldParticipantEvents stacks members' buffers onto the rep cell
   // cumulatively, so unwind LIFO — forward order would hand the first member
@@ -88,7 +77,7 @@ function unfoldParticipantEvents(
   for (const member of [...entry.members].reverse()) {
     for (const { stimulus, channel, boundary } of member.eventContributions ??
       []) {
-      const chan = out[stimulus]?.[channel]
+      const chan = events[stimulus]?.[channel]
       if (!chan) continue
       const repCell = chan[rep] ?? []
       while (chan.length <= member.id) chan.push([])
@@ -96,7 +85,6 @@ function unfoldParticipantEvents(
       chan[rep] = repCell.slice(0, boundary)
     }
   }
-  return out
 }
 
 /**
@@ -117,7 +105,8 @@ function foldParticipantSelections(
   const before: { id: number; participantsIds: number[] }[] = []
 
   const next = selections.map(selection => {
-    if (!selectionTouchesMembers(selection, memberSet)) return selection
+    if (!selection.participantsIds.some(id => memberSet.has(id)))
+      return selection
     before.push({
       id: selection.id,
       participantsIds: selection.participantsIds.slice(),
@@ -170,12 +159,8 @@ export function foldParticipantMergeDataset(
     memberIds
   )
 
-  const { events, byMember } = foldParticipantEvents(
-    data.eventData.events ?? [],
-    representativeId,
-    memberIds,
-    true
-  )
+  const events = data.eventData.events ?? []
+  const byMember = foldParticipantEvents(events, representativeId, memberIds)
 
   // Attach each member's event contributions to its log record.
   const membersWithEvents = entry.members.map(m => {
@@ -226,7 +211,8 @@ export function unfoldParticipantMergeDataset(
     )
   }
 
-  const events = unfoldParticipantEvents(data.eventData.events ?? [], entry, true)
+  const events = data.eventData.events ?? []
+  unfoldParticipantEvents(events, entry)
 
   return {
     ...data,

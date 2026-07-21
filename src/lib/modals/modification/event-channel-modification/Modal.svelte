@@ -12,10 +12,7 @@
   import { getStimuliOptions } from '$lib/plots/shared'
   import EditableEntityList from '../shared/EditableEntityList.svelte'
   import SelectionTray from '../shared/SelectionTray.svelte'
-  import {
-    createGroupedEntityEditor,
-    type MergeCard,
-  } from '../shared/groupedEntityEditor.svelte'
+  import { createGroupedEntityEditor } from '../shared/groupedEntityEditor.svelte'
   import { createSelectionSession } from '../shared/selectionSession.svelte'
   import {
     buildRenameMap,
@@ -25,21 +22,21 @@
     cloneNameSelections,
     canonicalNameSelections,
     commitNameSelections,
+    stagedDomainNames,
   } from '../shared/nameKeyedSelection'
-  import type {
-    ExtendedInterpretedDataType,
-    NameSelection,
-  } from '$lib/data/types'
+  import type { NameSelection } from '$lib/data/types'
 
   interface Props {
     selectedStimulus?: string
     source: string
   }
 
-  let { selectedStimulus = $bindable('0'), source }: Props = $props()
+  let { selectedStimulus = '0', source }: Props = $props()
   const { engine, modalState, workspace, toastState } = getGazePlotterSession()
 
   const stimuliOptions = getStimuliOptions(engine)
+  // The opener's stimulus is only the STARTING scope; `stimulus` owns it after.
+  // svelte-ignore state_referenced_locally
   let stimulus = $state(
     stimuliOptions.some(o => o.value === selectedStimulus)
       ? selectedStimulus
@@ -91,38 +88,19 @@
     groups: () => editor.groups,
     inertIds: () => inertIds,
     ...nameKeyedMembership({ renameMap: () => renameMap, openNameOf }),
-    renameItem: (item, name, isLeader, group) =>
-      editor.handleNameInput(
-        item as ExtendedInterpretedDataType,
-        name,
-        isLeader,
-        group as MergeCard
-      ),
-    reorderGroups: (from, to, withIds) => editor.reorderGroups(from, to, withIds),
+    renameItem: editor.handleNameInput,
+    reorderGroups: editor.reorderGroups,
     notify: msg => toastState.addInfo(msg),
   })
   const firstRun = getEventsSelections(engine).length === 0
 
   const inertIds = $derived(nameKeyedInertIds(editor.groups))
 
-  // Post-apply truth of "which channel names exist anywhere": staged names
-  // for the active stimulus, engine names for the rest.
-  const domainNames = $derived.by(() => {
-    const set = new Set<string>()
-    const add = (n: string) => {
-      const t = (n || '').trim()
-      if (t) set.add(t)
-    }
-    const active = stimulusId()
-    for (const s of getStimuli(engine)) {
-      if (s.id === active) {
-        for (const i of editor.items) add(i.displayedName)
-      } else {
-        for (const c of getEventChannels(engine, s.id)) add(c.displayedName)
-      }
-    }
-    return set
-  })
+  const domainNames = $derived(
+    stagedDomainNames(getStimuli(engine), stimulusId(), editor.items, id =>
+      getEventChannels(engine, id)
+    )
+  )
 
   const chips = $derived(nameKeyedChips(session, renameMap, domainNames, 'channels'))
 
@@ -175,7 +153,7 @@
       canonicalNameSelections(committed) !==
       canonicalNameSelections(getEventsSelections(engine))
     ) {
-      if (!workspace.updateEventsSelections(committed, source)) return
+      if (!workspace.updateSelections('event', committed, source)) return
     }
     modalState.close()
   }
@@ -184,7 +162,7 @@
 <Section>
   {#key stimulus}
     <EditableEntityList
-      items={editor.groups}
+      groups={editor.groups}
       title="Event channels"
       emptyMessage="No event channels found in stimulus"
       columns={COLUMNS}
@@ -196,9 +174,8 @@
       selection={session.listSelection}
       previewIds={session.previewIds}
       grouped={{
-        onNameInput: (item, name, isLeader, group) =>
-          editor.handleNameInput(item, name, isLeader, group),
-        onColorInput: (group, color) => editor.handleColorInput(group, color),
+        onNameInput: editor.handleNameInput,
+        onColorInput: editor.handleColorInput,
       }}
     >
       {#snippet titleExtra()}

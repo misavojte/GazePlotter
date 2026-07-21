@@ -72,10 +72,11 @@ export const getAllParticipants = (
  */
 const withMergedMembers = (
   engine: DataEngine,
-  axis: 'stimulus' | 'participant',
-  order: number[],
-  get: (id: number) => BaseInterpretedDataType
+  axis: 'stimulus' | 'participant'
 ): BaseInterpretedDataType[] => {
+  const table: EntityTable = axis === 'stimulus' ? 'stimuli' : 'participants'
+  const order = getEntityOrderVector(engine, table)
+  const get = (id: number) => getEntity(engine, table, id)
   const merges = (engine.metadata?.merges ?? []).filter(e => e.axis === axis)
   if (merges.length === 0) return order.map(get)
 
@@ -103,14 +104,8 @@ const withMergedMembers = (
 
 export const getStimuliWithMerged = (
   engine: DataEngine
-): BaseInterpretedDataType[] =>
-  withMergedMembers(engine, 'stimulus', getStimuliOrderVector(engine), id =>
-    getStimulus(engine, id)
-  )
+): BaseInterpretedDataType[] => withMergedMembers(engine, 'stimulus')
 
 export const getParticipantsWithMerged = (
   engine: DataEngine
-): BaseInterpretedDataType[] =>
-  withMergedMembers(engine, 'participant', getParticipantOrderVector(engine), id =>
-    getParticipant(engine, id)
-  )
+): BaseInterpretedDataType[] => withMergedMembers(engine, 'participant')

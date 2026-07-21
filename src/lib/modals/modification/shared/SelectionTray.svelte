@@ -24,35 +24,30 @@
     /** Muted note in the bubble while this chip is active (e.g. "3 elsewhere"). */
     hint?: string
     /** Tooltip on chips (e.g. "6 AOIs across all stimuli"). */
-    title?: string
+    title: string
     /** Chip-menu verb availability against the transient selection. */
-    addable?: boolean
-    removable?: boolean
+    addable: boolean
+    removable: boolean
   }
 
   interface Props {
     /** The shared selection mechanics — owns state, verbs, and unwinding. */
     session: SelectionSessionApi
-    /** null = no saved selections for this entity (transient verbs only). */
-    chips: Chip[] | null
+    /** One chip per saved selection for this entity. */
+    chips: Chip[]
     /** Plural entity noun for tooltips and labels, e.g. "AOIs". */
-    noun?: string
-    /** Muted gesture hint shown while nothing is selected. */
-    idleHint?: string
+    noun: string
     /** One-line explainer under the dock (first run only). */
     helpText?: string
   }
 
-  let {
-    session,
-    chips,
-    noun = 'rows',
-    idleHint = 'Click rows to select · Shift-click for a range · Esc clears',
-    helpText,
-  }: Props = $props()
+  let { session, chips, noun, helpText }: Props = $props()
+
+  /** Muted gesture hint shown while nothing is selected. */
+  const idleHint = 'Click rows to select · Shift-click for a range · Esc clears'
 
   const activeChip = $derived(
-    chips?.find(c => c.id === session.editingId) ?? null
+    chips.find(c => c.id === session.editingId) ?? null
   )
   const transient = $derived(
     session.editingId === null && session.selectedCount > 0
@@ -72,12 +67,12 @@
     { isDivider: true },
     {
       label: `Add ${session.selectedCount} selected`,
-      disabled: chip.addable === false,
+      disabled: !chip.addable,
       onAction: () => session.addSelectedTo(chip.id),
     },
     {
       label: `Remove ${session.selectedCount} selected`,
-      disabled: chip.removable === false,
+      disabled: !chip.removable,
       onAction: () => session.removeSelectedFrom(chip.id),
     },
   ]
@@ -213,12 +208,11 @@
           </button>
         {/if}
       </span>
-    {:else if idleHint}
+    {:else}
       <span class="idle-hint">{idleHint}</span>
     {/if}
   </div>
 
-  {#if chips}
   <div class="chips-row" role="group" aria-label="Selections">
     <span class="tray-label">Selections</span>
     <!-- ONE button per chip whatever the state — flipping in and out of the
@@ -229,8 +223,8 @@
         class="chip"
         class:active={chip.id === session.editingId}
         use:tooltipAction={{
-          content: chip.title ?? '',
-          disabled: !chip.title || openMenuChipId === chip.id,
+          content: chip.title,
+          disabled: openMenuChipId === chip.id,
           // The chips are the bubble's bottom row: opening upward would
           // cover the status line they sit under.
           position: 'bottom',
@@ -276,7 +270,6 @@
       <span>{transient ? 'Save as selection' : 'New'}</span>
     </button>
   </div>
-  {/if}
 
   {#if helpText}
     <p class="tray-help">{helpText}</p>

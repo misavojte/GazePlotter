@@ -1,3 +1,4 @@
+import type { EventDataUpdate } from '$lib/data/types'
 import type { DataEngine } from './dataEngine.svelte'
 import { getParticipant, getStimulus } from './selectors/entitySelectors'
 import {
@@ -260,11 +261,8 @@ export const previewIntervalDrafts = (
 
 /* ── Payload building ────────────────────────────────────────────── */
 
-export interface IntervalUpdate {
-  stimulusId: number
-  channelDefs: string[][]
-  eventBuffers: number[][][]
-}
+/** Interval derivation emits the standard event replacement payload. */
+export type IntervalUpdate = EventDataUpdate
 
 /**
  * Per-stimulus replacement payloads (for `updateEventData` commands) that

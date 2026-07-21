@@ -13,12 +13,13 @@ const engineMocks = vi.hoisted(() => ({
   updateMultipleAoi: vi.fn(),
   updateMultipleParticipants: vi.fn(),
   updateMultipleStimuli: vi.fn(),
-  updateNoAoiTreatment: vi.fn(),
-  updateParticipantsSelections: vi.fn(),
   getAois: vi.fn(),
 }))
 
-vi.mock('$lib/data/engine', () => ({
+// Partial mock: keep the real module surface (modal configs evaluate engine
+// getters at import time) and override only the updaters the handlers call.
+vi.mock('$lib/data/engine', async importOriginal => ({
+  ...(await importOriginal<object>()),
   ...engineMocks,
 }))
 

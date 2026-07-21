@@ -1,6 +1,3 @@
-import type { PlotItemContract } from '$lib/plots/definePlot'
-import type { MeasurementClass } from '$lib/metrics'
-
 /**
  * Metric Matrix settings. Rows = participants (one group), columns = every
  * stimulus, cell = one scalar `MetricInstance` value for that
@@ -30,22 +27,16 @@ export type MetricMatrixPlotSettings = {
   scaleRange: [number, number]
 }
 
-export type MetricMatrixItem = PlotItemContract<
-  'metricMatrix',
-  MetricMatrixPlotSettings
->
-
 /**
  * Metric-INDEPENDENT quality classification of a (participant, stimulus) cell.
  *
  *   - `null`            a finite value (INCLUDING a legitimate 0) → gradient.
- *   - `absent`          no recording for this pair → neutral off-ramp.
+ *   - `absent`          no recording for this pair.
  *   - `no-fixations`    recording present but zero fixation segments (a capture
- *                       failure) → capture-flag off-ramp.
+ *                       failure).
  *   - `aoi-not-present` the instance's AOI ref is undefined on this stimulus
- *                       (a benign config artifact) → neutral off-ramp.
- *   - `not-computable`  present + fixations, yet the metric is non-finite →
- *                       capture-flag off-ramp.
+ *                       (a benign config artifact).
+ *   - `not-computable`  present + fixations, yet the metric is non-finite.
  *
  * `absent` / `no-fixations` are decided BEFORE the value is computed and
  * `aoi-not-present` / `not-computable` come from provenance/finiteness — never
@@ -83,11 +74,6 @@ export interface MetricMatrixData {
   fixations: Int32Array
   /** Metric unit (IUPAC quantity/unit), '' when dimensionless. */
   unit: string
-  /** Finite extent of `values` for auto-range (0 when there are no finite cells). */
-  dataMin: number
-  dataMax: number
-  /** Measurement class of the resolved metric; null when none resolved. */
-  measurementClass: MeasurementClass | null
   /** True when the metric id doesn't resolve / fails the scalar contract. */
   noMetric?: boolean
   /** Non-null when the grid is degenerate: no participants, no stimuli, all-NA. */

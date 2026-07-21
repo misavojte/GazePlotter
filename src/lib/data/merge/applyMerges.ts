@@ -2,7 +2,7 @@ import type { DataType, MergeLogEntry } from '$lib/data/types'
 import {
   foldParticipantMergeDataset,
   unfoldParticipantMergeDataset,
-} from './deriveMergedDataset'
+} from './mergeParticipants'
 import {
   foldStimulusMergeDataset,
   unfoldStimulusMergeDataset,

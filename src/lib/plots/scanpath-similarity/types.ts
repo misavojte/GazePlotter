@@ -1,5 +1,3 @@
-import type { PlotItemContract } from '$lib/plots/definePlot'
-
 export type ScanpathSimilarityView = 'matrix' | 'scangraph'
 
 export type ScanpathSimilaritySettings = {
@@ -26,11 +24,6 @@ export type ScanpathSimilaritySettings = {
   /** Highlighted participant node indices (scangraph) */
   participantHighlights?: number[]
 }
-
-export type ScanpathSimilarityItem = PlotItemContract<
-  'scanpathSimilarity',
-  ScanpathSimilaritySettings
->
 
 export interface ScanpathSimilarityData {
   /** Participant labels (rows and columns) */

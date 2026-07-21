@@ -6,7 +6,6 @@
  */
 
 import type { AdaptiveTimeline } from '$lib/plots/shared'
-import type { PlotItemContract } from '$lib/plots/definePlot'
 
 export type ScarfPlotSettings = {
   stimulusId: number
@@ -31,7 +30,6 @@ export type ScarfPlotSettings = {
   hideNoAoi?: boolean
 }
 
-export type ScarfPlotItem = PlotItemContract<'scarf', ScarfPlotSettings>
 
 // ============================================================================
 // Styling Types

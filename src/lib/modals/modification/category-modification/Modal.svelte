@@ -4,17 +4,10 @@
   import { getAllCategories, getCategoriesSelections } from '$lib/data/engine'
   import EditableEntityList from '../shared/EditableEntityList.svelte'
   import SelectionTray from '../shared/SelectionTray.svelte'
-  import {
-    createGroupedEntityEditor,
-    type MergeCard,
-  } from '../shared/groupedEntityEditor.svelte'
+  import { createGroupedEntityEditor } from '../shared/groupedEntityEditor.svelte'
   import { createSelectionSession } from '../shared/selectionSession.svelte'
   import { idKeyedSelection, selectionChips } from '../shared/selectionAdapters'
-  import {
-    FIXATION_CATEGORY_ID,
-    type EntitySelection,
-    type ExtendedInterpretedDataType,
-  } from '$lib/data/types'
+  import { FIXATION_CATEGORY_ID, type EntitySelection } from '$lib/data/types'
 
   interface Props {
     source: string
@@ -27,7 +20,6 @@
   const editor = createGroupedEntityEditor({
     getItems: () =>
       getAllCategories(engine).filter(c => c.id !== FIXATION_CATEGORY_ID),
-    initialStimulusId: 0,
   })
 
   // Id-keyed selections (stored as metadata.categoriesSelections) — e.g. a
@@ -38,13 +30,7 @@
     initial: sel.clone(getCategoriesSelections(engine)),
     groups: () => editor.groups,
     ...sel.membership,
-    renameItem: (item, name, isLeader, group) =>
-      editor.handleNameInput(
-        item as ExtendedInterpretedDataType,
-        name,
-        isLeader,
-        group as MergeCard
-      ),
+    renameItem: editor.handleNameInput,
     reorderGroups: editor.reorderGroups,
     notify: msg => toastState.addInfo(msg),
   })
@@ -73,7 +59,7 @@
     if (
       sel.canonical(committed) !== sel.canonical(getCategoriesSelections(engine))
     ) {
-      if (!workspace.updateCategoriesSelections(committed, source)) return
+      if (!workspace.updateSelections('category', committed, source)) return
     }
     modalState.close()
   }
@@ -81,7 +67,7 @@
 
 <Section>
   <EditableEntityList
-    items={editor.groups}
+    groups={editor.groups}
     title="Eye-movement Types"
     emptyMessage="No eye-movement categories found"
     columns={COLUMNS}
@@ -93,9 +79,8 @@
     selection={session.listSelection}
     previewIds={session.previewIds}
     grouped={{
-      onNameInput: (item, name, isLeader, group) =>
-        editor.handleNameInput(item, name, isLeader, group),
-      onColorInput: (group, color) => editor.handleColorInput(group, color),
+      onNameInput: editor.handleNameInput,
+      onColorInput: editor.handleColorInput,
     }}
   />
 

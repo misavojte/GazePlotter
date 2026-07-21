@@ -3,7 +3,6 @@ import type {
   BaseInterpretedDataType,
   SegmentInterpretedDataType,
 } from '$lib/data/types'
-import type { PlotItemContract } from '$lib/plots/definePlot'
 
 // --- Visualization overlay on top of beeswarm points ---
 
@@ -53,7 +52,6 @@ export type BarPlotSettings = {
   hideNoAoi?: boolean
 }
 
-export type BarPlotItem = PlotItemContract<'barPlot', BarPlotSettings>
 
 export interface BarPlotDataItem {
   value: number

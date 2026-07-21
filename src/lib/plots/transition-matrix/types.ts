@@ -1,5 +1,4 @@
 import type { ExtendedInterpretedDataType } from '$lib/data/types'
-import type { PlotItemContract } from '$lib/plots/definePlot'
 
 export type TransitionMatrixPlotSettings = {
   stimulusId: number
@@ -24,11 +23,6 @@ export type TransitionMatrixPlotSettings = {
   colorScale: string[]
   hideNoAoi?: boolean
 }
-
-export type TransitionMatrixPlotItem = PlotItemContract<
-  'transitionMatrix',
-  TransitionMatrixPlotSettings
->
 
 export interface TransitionMatrixData {
   matrix: Float64Array | number[]

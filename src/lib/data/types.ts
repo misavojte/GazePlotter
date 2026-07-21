@@ -47,6 +47,20 @@ export interface SegmentInterpretedDataType {
   aoi: ExtendedInterpretedDataType[]
 }
 
+/**
+ * Per-stimulus replacement payload for the event store — the shape
+ * `DataEngine.updateEventDataBatch` consumes and `updateEventData` commands
+ * carry. Builders (channel deletion, interval derivation) emit it directly.
+ */
+export interface EventDataUpdate {
+  stimulusId: number
+  channelDefs: string[][]
+  eventBuffers: number[][][]
+  /** Display order for the NEW defs (omit for identity). Inverse commands
+      carry it so undo restores a custom channel order. */
+  orderVector?: number[]
+}
+
 interface AttributeDataType {
   /** Nested array mapping: [itemIndex][fieldIndex] where fieldIndex: 0=originalName, 1=displayedName, 2=color (optional) */
   data: string[][]
@@ -66,7 +80,7 @@ export interface EntitySelection {
 
 /**
  * Name-keyed saved selection for per-stimulus axes whose members are portable
- * displayed names — event channels AND AOIs (see PLANAOISELECTION.md). The
+ * displayed names — event channels AND AOIs. The
  * SELECTION primitive answers "which members does this view range over"; MERGE
  * (displayed-name identity) is the other primitive — deliberately no "group"
  * terminology. Keyed BY DISPLAYED NAME (not raw ids): those ids are
@@ -93,7 +107,7 @@ export interface ParticipantsSelection {
 /**
  * All event data for the workspace.
  * Mirrors AoiDataType structure: per-stimulus channel definitions,
- * ordering, hiding, grouping (by displayedName), and per-channel event buffers.
+ * ordering, grouping (by displayedName), and per-channel event buffers.
  */
 interface EventDataType {
   /**
@@ -294,8 +308,8 @@ export interface DataType {
 }
 
 /**
- * Reactive slice of {@link EventDataType}: channel definitions, display
- * order and hidden state — the small, UI-edited metadata that stays inside
+ * Reactive slice of {@link EventDataType}: channel definitions and display
+ * order — the small, UI-edited metadata that stays inside
  * Svelte runes. The heavy per-occurrence buffers (`events`) are NOT here;
  * the data engine holds them in a non-reactive binary `EventBufferReader`,
  * mirroring how `segments` stay out of runes.

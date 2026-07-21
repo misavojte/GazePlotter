@@ -32,7 +32,7 @@ const _aoisCache = new WeakMap<
  * 10^4-10^5 calls per plot recompute — and the find/name-set/filter/token
  * work above the token cache dominated. Keyed purely on identities that
  * change exactly when their input changes: the frozen base array (rebuilt
- * whenever AOI visibility/names/merges/appearance change — see `baseKey`) and
+ * whenever AOI names/merges/appearance change — see `baseKey`) and
  * the `selections` array (`DataEngine.setAoiSelections` replaces it wholesale
  * on every selection edit; selection objects are never mutated in place — the
  * AOI modal saves fresh objects). Both layers are WeakMaps, so stale entries
@@ -63,13 +63,18 @@ const getAoiOrderVectorFromData = (
   return order
 }
 
-const getAoiOrderVector = (
-  engine: DataEngine,
-  stimulusId: number
-): number[] => {
-  const meta = engine.metadata
-  if (!meta) throw new Error('Data engine metadata not available')
-  return getAoiOrderVectorFromData(stimulusId, meta)
+/** Get-or-create the reader's cache bucket and store `list` under `key`. */
+const cachePut = (
+  reader: BinaryBufferReader,
+  key: string,
+  list: readonly ExtendedInterpretedDataType[]
+): void => {
+  let bucket = _aoisCache.get(reader)
+  if (!bucket) {
+    bucket = new Map()
+    _aoisCache.set(reader, bucket)
+  }
+  bucket.set(key, list)
 }
 
 /** All named AOI SELECTIONS (see {@link NameSelection}). */
@@ -105,11 +110,11 @@ export const getAllAois = (
   engine: DataEngine,
   stimulusId: number
 ): ExtendedInterpretedDataType[] => {
-  const ids = getAoiOrderVector(engine, stimulusId)
   const meta = engine.metadata
   if (!meta) throw new Error('Data engine metadata not available')
-
-  return ids.map(id => getAoiRaw(stimulusId, id, meta))
+  return getAoiOrderVectorFromData(stimulusId, meta).map(id =>
+    getAoiRaw(stimulusId, id, meta)
+  )
 }
 
 export const getAois = (
@@ -146,14 +151,7 @@ export const getAois = (
       uniqueMappedIds.map(id => getAoiRaw(stimulusId, id, meta))
     ) as readonly ExtendedInterpretedDataType[]
 
-    if (reader) {
-      let bucket = _aoisCache.get(reader)
-      if (!bucket) {
-        bucket = new Map()
-        _aoisCache.set(reader, bucket)
-      }
-      bucket.set(baseKey, base)
-    }
+    if (reader) cachePut(reader, baseKey, base)
   }
 
   // No per-plot selection → the base list, by reference.
@@ -189,14 +187,7 @@ export const getAois = (
         resolved = shared
       } else {
         resolved = Object.freeze(filtered) as readonly ExtendedInterpretedDataType[]
-        if (reader) {
-          let bucket = _aoisCache.get(reader)
-          if (!bucket) {
-            bucket = new Map()
-            _aoisCache.set(reader, bucket)
-          }
-          bucket.set(selKey, resolved)
-        }
+        if (reader) cachePut(reader, selKey, resolved)
       }
     }
   }

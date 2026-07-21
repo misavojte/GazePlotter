@@ -114,18 +114,18 @@ export interface ProjectionLabelContext {
   aoiAggregate?: AoiAggregateLabels
 }
 
-export interface LeafKindDef {
+export interface LeafKindDef<K extends LeafKind = LeafKind> {
   outputShape: OutputShape
   rawShapes: readonly OutputShape[]
-  label:    (p: LeafProjection, ctx?: ProjectionLabelContext) => string
-  cacheKey: (p: LeafProjection) => string
-  apply:    (p: LeafProjection, ctx: ApplyContext) => ApplyResult
+  label:    (p: Extract<LeafProjection, { kind: K }>, ctx?: ProjectionLabelContext) => string
+  cacheKey: (p: Extract<LeafProjection, { kind: K }>) => string
+  apply:    (p: Extract<LeafProjection, { kind: K }>, ctx: ApplyContext) => ApplyResult
 }
 
 const passthrough = (_p: LeafProjection, c: ApplyContext): ApplyResult =>
   ({ values: [...c.rawValues], aoiMissing: false })
 
-export const PROJECTION_LEAVES: Record<LeafKind, LeafKindDef> = {
+export const PROJECTION_LEAVES: { [K in LeafKind]: LeafKindDef<K> } = {
   'identity-scalar': {
     outputShape: 'scalar',
     rawShapes: ['scalar'],
@@ -157,9 +157,9 @@ export const PROJECTION_LEAVES: Record<LeafKind, LeafKindDef> = {
   'pick-aoi': {
     outputShape: 'scalar',
     rawShapes: ['aoi-vector'],
-    label:    (p) => aoiRefLabel((p as LeafProjection & { kind: 'pick-aoi' }).aoiRef),
-    cacheKey: (p) => `pick:${aoiRefKey((p as LeafProjection & { kind: 'pick-aoi' }).aoiRef)}`,
-    apply:    (p, c) => pickAoi((p as LeafProjection & { kind: 'pick-aoi' }).aoiRef, c),
+    label:    (p) => aoiRefLabel(p.aoiRef),
+    cacheKey: (p) => `pick:${aoiRefKey(p.aoiRef)}`,
+    apply:    (p, c) => pickAoi(p.aoiRef, c),
   },
   'pick-any-fixation': {
     outputShape: 'scalar',
@@ -177,15 +177,14 @@ export const PROJECTION_LEAVES: Record<LeafKind, LeafKindDef> = {
     // The metric's named meaning of the extreme when provided ("most-dwelled
     // AOI"); the generic operator phrase only as a metric-less fallback.
     label: (p, ctx) => {
-      const q = p as LeafProjection & { kind: 'aggregate-aoi' }
       const named =
-        q.reducer === 'max' || q.reducer === 'min'
-          ? ctx?.aoiAggregate?.[q.reducer]
+        p.reducer === 'max' || p.reducer === 'min'
+          ? ctx?.aoiAggregate?.[p.reducer]
           : undefined
-      return named || `${q.reducer} across AOIs`
+      return named || `${p.reducer} across AOIs`
     },
-    cacheKey: (p) => `agg:${(p as LeafProjection & { kind: 'aggregate-aoi' }).reducer}`,
-    apply:    (p, c) => aggregateAoi((p as LeafProjection & { kind: 'aggregate-aoi' }).reducer, c),
+    cacheKey: (p) => `agg:${p.reducer}`,
+    apply:    (p, c) => aggregateAoi(p.reducer, c),
   },
   'matrix-diagonal': {
     outputShape: 'aoi-vector',
@@ -197,50 +196,33 @@ export const PROJECTION_LEAVES: Record<LeafKind, LeafKindDef> = {
   'matrix-row': {
     outputShape: 'aoi-vector',
     rawShapes: ['aoi-pair-matrix'],
-    label:    (p) => `from ${aoiRefLabel((p as LeafProjection & { kind: 'matrix-row' }).aoiRef)}`,
-    cacheKey: (p) => `row:${aoiRefKey((p as LeafProjection & { kind: 'matrix-row' }).aoiRef)}`,
-    apply:    (p, c) => matrixRowOrCol((p as LeafProjection & { kind: 'matrix-row' }).aoiRef, c, 'row'),
+    label:    (p) => `from ${aoiRefLabel(p.aoiRef)}`,
+    cacheKey: (p) => `row:${aoiRefKey(p.aoiRef)}`,
+    apply:    (p, c) => matrixRowOrCol(p.aoiRef, c, 'row'),
   },
   'matrix-col': {
     outputShape: 'aoi-vector',
     rawShapes: ['aoi-pair-matrix'],
-    label:    (p) => `to ${aoiRefLabel((p as LeafProjection & { kind: 'matrix-col' }).aoiRef)}`,
-    cacheKey: (p) => `col:${aoiRefKey((p as LeafProjection & { kind: 'matrix-col' }).aoiRef)}`,
-    apply:    (p, c) => matrixRowOrCol((p as LeafProjection & { kind: 'matrix-col' }).aoiRef, c, 'col'),
+    label:    (p) => `to ${aoiRefLabel(p.aoiRef)}`,
+    cacheKey: (p) => `col:${aoiRefKey(p.aoiRef)}`,
+    apply:    (p, c) => matrixRowOrCol(p.aoiRef, c, 'col'),
   },
   'matrix-cell': {
     outputShape: 'scalar',
     rawShapes: ['aoi-pair-matrix'],
-    label: (p) => {
-      const q = p as LeafProjection & { kind: 'matrix-cell' }
-      return `${aoiRefLabel(q.fromAoi)} → ${aoiRefLabel(q.toAoi)}`
-    },
-    cacheKey: (p) => {
-      const q = p as LeafProjection & { kind: 'matrix-cell' }
-      return `cell:${aoiRefKey(q.fromAoi)}>${aoiRefKey(q.toAoi)}`
-    },
-    apply: (p, c) => {
-      const q = p as LeafProjection & { kind: 'matrix-cell' }
-      return matrixCell(q.fromAoi, q.toAoi, c)
-    },
+    label:    (p) => `${aoiRefLabel(p.fromAoi)} → ${aoiRefLabel(p.toAoi)}`,
+    cacheKey: (p) => `cell:${aoiRefKey(p.fromAoi)}>${aoiRefKey(p.toAoi)}`,
+    apply:    (p, c) => matrixCell(p.fromAoi, p.toAoi, c),
   },
   'matrix-aggregate': {
     outputShape: 'scalar',
     rawShapes: ['aoi-pair-matrix'],
-    label: (p) => {
-      const q = p as LeafProjection & { kind: 'matrix-aggregate' }
-      return q.exclude === 'diagonal'
-        ? `${q.reducer} excluding self-transitions`
-        : `${q.reducer} across all pairs`
-    },
-    cacheKey: (p) => {
-      const q = p as LeafProjection & { kind: 'matrix-aggregate' }
-      return `mat:${q.reducer}${q.exclude === 'diagonal' ? ':off' : ''}`
-    },
-    apply: (p, c) => {
-      const q = p as LeafProjection & { kind: 'matrix-aggregate' }
-      return matrixAggregate(q.reducer, q.exclude, c)
-    },
+    label: (p) =>
+      p.exclude === 'diagonal'
+        ? `${p.reducer} excluding self-transitions`
+        : `${p.reducer} across all pairs`,
+    cacheKey: (p) => `mat:${p.reducer}${p.exclude === 'diagonal' ? ':off' : ''}`,
+    apply:    (p, c) => matrixAggregate(p.reducer, p.exclude, c),
   },
 }
 
@@ -302,9 +284,18 @@ export function leafKindHint(kind: LeafKind): string {
 
 // ─── Public dispatchers ─────────────────────────────────────────────────────
 
+/**
+ * Registry lookup for a leaf whose kind is only known as the union — the ONE
+ * localized cast correlating `leaf` with its `PROJECTION_LEAVES` entry (a
+ * union-typed leaf can't call a per-kind def's methods directly).
+ */
+export function leafDef(leaf: LeafProjection): LeafKindDef {
+  return PROJECTION_LEAVES[leaf.kind] as LeafKindDef
+}
+
 export function applyProjection(projection: Projection, ctx: ApplyContext): ApplyResult {
   const leaf = leafOf(projection)
-  return PROJECTION_LEAVES[leaf.kind].apply(leaf, ctx)
+  return leafDef(leaf).apply(leaf, ctx)
 }
 
 export function projectionOutputShape(projection: Projection): OutputShape {
@@ -321,27 +312,19 @@ export function projectionToLabel(
   ctx?: ProjectionLabelContext,
 ): string {
   if (projection.kind === 'windowed') {
-    const inner = PROJECTION_LEAVES[projection.inner.kind].label(projection.inner, ctx)
+    const inner = leafDef(projection.inner).label(projection.inner, ctx)
     const wlabel = windowLabel(projection.window, unit)
     return inner ? `${inner} · ${wlabel}` : wlabel
   }
-  return PROJECTION_LEAVES[projection.kind].label(projection, ctx)
+  return leafDef(projection).label(projection, ctx)
 }
 
 export function projectionCacheKey(projection: Projection): string {
   if (projection.kind === 'windowed') {
-    const inner = PROJECTION_LEAVES[projection.inner.kind].cacheKey(projection.inner)
+    const inner = leafDef(projection.inner).cacheKey(projection.inner)
     return `w[${windowKey(projection.window)}]:${inner}`
   }
-  return PROJECTION_LEAVES[projection.kind].cacheKey(projection)
-}
-
-function leafOutputShape(leaf: LeafProjection): OutputShape {
-  return PROJECTION_LEAVES[leaf.kind].outputShape
-}
-
-function leafRawShapes(kind: LeafKind): readonly OutputShape[] {
-  return PROJECTION_LEAVES[kind].rawShapes
+  return leafDef(projection).cacheKey(projection)
 }
 
 /**

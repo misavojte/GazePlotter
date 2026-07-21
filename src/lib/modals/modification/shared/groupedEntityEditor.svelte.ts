@@ -2,6 +2,7 @@ import type {
   BaseInterpretedDataType,
   ExtendedInterpretedDataType,
 } from '$lib/data/types'
+import { groupByDisplayedName } from '$lib/data/engine/utils/grouping'
 import { sortItems } from './sort'
 
 /**
@@ -20,7 +21,8 @@ export interface MergeCard<
 
 export interface GroupedEntityEditorConfig {
   getItems: (stimulusId: number) => ExtendedInterpretedDataType[]
-  initialStimulusId: number
+  /** Stimulus the editor opens on — only for per-stimulus axes. Default 0. */
+  initialStimulusId?: number
 }
 
 function deepCopy(
@@ -29,14 +31,6 @@ function deepCopy(
   // Spread keeps caller-attached display-only keys (e.g. the AOI modal's
   // all-stimuli `stimuliLabel`) alongside the canonical four fields.
   return items.map(item => ({ ...item }))
-}
-
-function isValidMatch(displayedName: string): boolean {
-  return (
-    typeof displayedName === 'string' &&
-    displayedName.trim() !== '' &&
-    displayedName !== undefined
-  )
 }
 
 /**
@@ -78,38 +72,28 @@ function reorderWithSet<T extends BaseInterpretedDataType>(
   return out
 }
 
+/** Cards from the engine's canonical "same displayed name = same entity" rule
+    (trimmed match, first-occurrence order, empty names standalone, leader =
+    first member). Fed a minimal projection so the `groups` derived reads ONLY
+    `id`/`displayedName` — never `color` — see handleColorInput. */
 function buildGroups<T extends BaseInterpretedDataType>(
   items: T[]
 ): MergeCard<T>[] {
-  const seen = new Set<string>()
-  const groups: MergeCard<T>[] = []
-
-  for (const item of items) {
-    const trimmed = (item.displayedName || '').trim()
-    if (!isValidMatch(trimmed)) {
-      groups.push({ id: item.id, members: [item] })
-      continue
-    }
-    if (seen.has(trimmed)) continue
-    seen.add(trimmed)
-    const members = items.filter(
-      i => (i.displayedName || '').trim() === trimmed
-    )
-    groups.push({ id: members[0].id, members })
-  }
-
-  return groups
+  const byId = new Map(items.map(i => [i.id, i]))
+  return groupByDisplayedName(
+    items.map(i => ({ id: i.id, displayedName: i.displayedName }))
+  ).map(g => ({ id: g.id, members: g.memberIds.map(id => byId.get(id)!) }))
 }
 
 /** Renaming the leader of a multi-member group renames every member (keeping
     them grouped); any other rename touches just the one item. In-place
     mutation so `groups` re-derives (and regroups) reactively. */
-function renameItemIn<T extends BaseInterpretedDataType>(
-  items: T[],
+function renameItemIn(
+  items: BaseInterpretedDataType[],
   item: BaseInterpretedDataType,
   newName: string,
   isLeader: boolean,
-  group: MergeCard<T>
+  group: MergeCard<BaseInterpretedDataType>
 ) {
   if (isLeader && group.members.length > 1) {
     const memberIds = new Set(group.members.map(m => m.id))
@@ -139,11 +123,11 @@ function renameAllIn(
 }
 
 export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
-  let items = $state(deepCopy(config.getItems(config.initialStimulusId)))
-  let lastStimulusId = $state(config.initialStimulusId)
+  const initialStimulusId = config.initialStimulusId ?? 0
+  let items = $state(deepCopy(config.getItems(initialStimulusId)))
+  let lastStimulusId = $state(initialStimulusId)
 
   const groups = $derived(buildGroups(items))
-  const hasGroups = $derived(groups.some(g => g.members.length > 1))
 
   /** Re-pull from the engine, discarding unapplied edits — for when a pushed
       step (e.g. Create intervals) changed the data underneath. Passing a
@@ -153,7 +137,10 @@ export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
     items = deepCopy(config.getItems(stimulusId))
   }
 
-  function handleColorInput(group: MergeCard, newColor: string) {
+  function handleColorInput(
+    group: MergeCard<BaseInterpretedDataType>,
+    newColor: string
+  ) {
     // In-place mutation, NOT array replacement. With Svelte 5 deep-proxy
     // $state, this invalidates only consumers that read `.color` on this
     // specific item — `buildGroups` (which reads `.id` and `.displayedName`
@@ -166,10 +153,10 @@ export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
   }
 
   function handleNameInput(
-    item: ExtendedInterpretedDataType,
+    item: BaseInterpretedDataType,
     newName: string,
     isLeader: boolean,
-    group: MergeCard
+    group: MergeCard<BaseInterpretedDataType>
   ) {
     renameItemIn(items, item, newName, isLeader, group)
   }
@@ -205,9 +192,6 @@ export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
     },
     get groups() {
       return groups
-    },
-    get hasGroups() {
-      return hasGroups
     },
     refresh,
     handleColorInput,
@@ -251,7 +235,6 @@ export function createBaseGroupEditor(
   // shape" that acknowledging an impossible merge reverts to.
   const openName = new Map(initial.map(r => [r.id, r.displayedName]))
   const groups = $derived(buildGroups(items))
-  const hasGroups = $derived(groups.some(g => g.members.length > 1))
 
   /** Conflicting counterpart ids for a group (empty = mergeable). */
   function conflictsFor(group: MergeCard<BaseInterpretedDataType>): number[] {
@@ -312,9 +295,6 @@ export function createBaseGroupEditor(
   return {
     get groups() {
       return groups
-    },
-    get hasGroups() {
-      return hasGroups
     },
     get hasInvalidGroup() {
       return hasInvalidGroup

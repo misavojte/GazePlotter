@@ -6,7 +6,7 @@ import {
   type MetricInstance,
   type PlotMetricContract,
 } from '$lib/metrics'
-import { INACTIVE_COLOR, PRESET_PALETTES } from '$lib/color/palettes'
+import { PRESET_PALETTES } from '$lib/color/palettes'
 import type { MetricMatrixPlotSettings } from './types'
 
 /**
@@ -32,8 +32,7 @@ export const METRIC_MATRIX_DEFAULTS = {
   yAxisTitle: 'Participant',
   /**
    * Default value ramp: a cool 3-stop sequential (BLUE). Intensive/proportion
-   * metrics are non-negative and unipolar, and a cool ramp leaves the warm
-   * capture-flag off-ramp maximally distinct.
+   * metrics are non-negative and unipolar.
    */
   colorScale: [...PRESET_PALETTES.BLUE.colors] as string[],
   /**
@@ -43,13 +42,6 @@ export const METRIC_MATRIX_DEFAULTS = {
    */
   defaultMetricId: 'fixationDuration-any',
 } as const
-
-/**
- * NA / not-usable off-ramp fills — derived in the view, never persisted.
- * Painted using the standard inactive gray to align with other matrix plots.
- */
-export const METRIC_MATRIX_NA_NEUTRAL_COLOR = INACTIVE_COLOR
-export const METRIC_MATRIX_NA_FLAG_COLOR = INACTIVE_COLOR
 
 /**
  * Colorbar title for the selected metric, in the shared IUPAC label grammar

@@ -204,9 +204,9 @@ export class CsvSegmentedDurationRowParser extends RowParser {
           : eyeMovementTypeBytes
     const categoryId = this.resolveCategoryId(categoryName)
     const aoi = splitAoiColumn(aoiBytes, this.pipeDelimiterBytes)
-    const spatial = this.getSpatial(this.cX !== -1 && this.cY !== -1, this.pX, this.pY)
+    const spatial = this.getSpatial(this.cX, this.cY, this.pX, this.pY)
 
-    this.emitSegment(
+    this.onSegment?.(
       normalizedStartTime,
       normalizedEndTime,
       categoryId,

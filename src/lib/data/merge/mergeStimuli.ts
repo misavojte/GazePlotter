@@ -1,5 +1,6 @@
 import type { DataType, MergeLogEntry, MergeMember } from '$lib/data/types'
 import {
+  displayedNameOf,
   dropMergeEntry,
   restoreOrderVector,
   toNested,
@@ -24,9 +25,6 @@ import {
  * is reindexed.
  */
 
-const trimmedName = (row: string[] | undefined): string =>
-  (row?.[1] ?? row?.[0] ?? '').trim()
-
 /**
  * Unify `memberRows` into `repRows` by displayed name (rep authoritative).
  * Returns the merged dictionary, a total member-local -> merged-id remap, and
@@ -39,12 +37,12 @@ function reconcileDict(
   const repCountBefore = repRows.length
   const nameToId = new Map<string, number>()
   repRows.forEach((row, id) => {
-    const n = trimmedName(row)
+    const n = displayedNameOf(row)
     if (n && !nameToId.has(n)) nameToId.set(n, id)
   })
   const merged = repRows.map(r => r.slice())
   const remap = memberRows.map(row => {
-    const n = trimmedName(row)
+    const n = displayedNameOf(row)
     if (n && nameToId.has(n)) return nameToId.get(n)!
     const newId = merged.length
     merged.push(row.slice())
@@ -183,7 +181,7 @@ export function foldStimulusMergeDataset(
 
     return {
       id: memberId,
-      displayedName: trimmedName(data.stimuli.data[memberId]),
+      displayedName: displayedNameOf(data.stimuli.data[memberId]),
       orderIndex: data.stimuli.orderVector.indexOf(memberId),
       contributedCounterparts,
       aoiDictRemap: { remap: aoi.remap, repCountBefore: aoi.repCountBefore },
@@ -213,8 +211,7 @@ export function foldStimulusMergeDataset(
       orderVector: chanOrder,
       events,
     },
-    segments: segs,
-    spatialData: spat,
+    // `segments` / `spatialData` were folded in place — `...data` carries them.
     merges: [...(data.merges ?? []), entry],
   }
 }
@@ -301,8 +298,7 @@ export function unfoldStimulusMergeDataset(
       orderVector: chanOrder,
       events,
     },
-    segments: segs,
-    spatialData: spat,
+    // `segments` / `spatialData` were folded in place — `...data` carries them.
     merges: dropMergeEntry(data.merges, entry),
   }
 }
