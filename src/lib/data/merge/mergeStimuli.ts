@@ -54,10 +54,20 @@ function reconcileDict(
   return { merged, remap, repCountBefore }
 }
 
-const remapSegAois = (seg: number[], remap: number[]): number[] => {
+/**
+ * Remap a segment's nested-AOI id fields (from offset 3 onward) through
+ * `lookup`; ids the lookup returns `undefined` for are left as-is. Shared by
+ * BOTH directions — the fold (member-local → merged, array lookup) and the
+ * un-fold (merged → member-local, Map lookup) — so the nested-segment field
+ * offset lives in exactly one place and the two remaps can never drift.
+ */
+const remapSegAois = (
+  seg: number[],
+  lookup: (id: number) => number | undefined
+): number[] => {
   const out = seg.slice()
   for (let k = 3; k < out.length; k++) {
-    const mapped = remap[out[k]]
+    const mapped = lookup(out[k])
     if (mapped !== undefined) out[k] = mapped
   }
   return out
@@ -130,7 +140,7 @@ export function foldStimulusMergeDataset(
         )
       }
       while (repStim.length <= p) repStim.push([])
-      repStim[p] = memberCell.map(s => remapSegAois(s, aoi.remap))
+      repStim[p] = memberCell.map(s => remapSegAois(s, id => aoi.remap[id]))
       memStim[p] = []
       if (spat) {
         const repSp = spat[representativeId] ?? []
@@ -231,7 +241,15 @@ export function unfoldStimulusMergeDataset(
     // --- Events back to the member ---
     const repEv = events[rep] ?? []
     const memEv = (events[memberId] ??= [])
-    for (const { memberChannel, participant, boundary } of member.stimulusEventContributions ?? []) {
+    // Reverse the contributions too: when two of a member's channels reconcile
+    // to the SAME representative channel (duplicate displayed names), the fold
+    // concatenated both onto one rep cell cumulatively, so the inverse must
+    // unwind them LIFO — forward order would hand the first channel every
+    // occurrence and empty the second. (The outer member loop is already
+    // reversed for the cross-member case.)
+    for (const { memberChannel, participant, boundary } of [
+      ...(member.stimulusEventContributions ?? []),
+    ].reverse()) {
       const repChannel = member.channelDictRemap!.remap[memberChannel]
       const repChan = repEv[repChannel] ?? []
       const repBuf = repChan[participant] ?? []
@@ -251,14 +269,7 @@ export function unfoldStimulusMergeDataset(
     for (const p of member.contributedCounterparts) {
       const repCell = repStim[p] ?? []
       while (memStim.length <= p) memStim.push([])
-      memStim[p] = repCell.map(seg => {
-        const out = seg.slice()
-        for (let k = 3; k < out.length; k++) {
-          const back = inv.get(out[k])
-          if (back !== undefined) out[k] = back
-        }
-        return out
-      })
+      memStim[p] = repCell.map(seg => remapSegAois(seg, id => inv.get(id)))
       repStim[p] = []
       if (spat) {
         const repSp = spat[rep] ?? []

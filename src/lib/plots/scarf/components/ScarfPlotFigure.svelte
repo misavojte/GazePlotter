@@ -585,6 +585,11 @@
             const sIdx = gs.aoiOrderMap[overlap[idx]]
             if (sIdx >= 0) styleScratch[resolved++] = sIdx
           }
+
+          if (gs.hideNoAoi && resolved === 0) {
+            continue
+          }
+
           if (resolved === 0) {
             hit = build(gs.noAoiStyleIdx, HBAR, SAR, localId, xN, wN)
           } else {

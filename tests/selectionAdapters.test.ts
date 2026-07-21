@@ -240,12 +240,14 @@ describe('event selection (visible channel narrowing)', () => {
     expect(narrowed.map(c => c.id)).toEqual([1, 2])
   })
 
-  it('selections compose with (legacy) hidden channels, and stale names match nothing', () => {
+  it('ignores the legacy hidden set (visibility retired); stale selection names match nothing', () => {
     const engine = makeEventEngine([1], [
       { id: 1, name: 'Focus', names: ['Channel 2'] },
       { id: 2, name: 'Gone', names: ['Renamed away'] },
     ])
-    expect(getVisibleEventChannels(engine, STIM, 1).map(c => c.id)).toEqual([2])
+    // Channel id 1 sits in the legacy hidden set, but global channel visibility
+    // is retired — the "Channel 2" selection still yields BOTH matching channels.
+    expect(getVisibleEventChannels(engine, STIM, 1).map(c => c.id)).toEqual([1, 2])
     expect(getVisibleEventChannels(engine, STIM, 2)).toEqual([])
   })
 })

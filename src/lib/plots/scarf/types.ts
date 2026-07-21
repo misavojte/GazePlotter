@@ -27,6 +27,8 @@ export type ScarfPlotSettings = {
   ordinalEnd?: number
   /** Hide the event overlay (strips below the gaze baseline). Default: shown. */
   hideEvents?: boolean
+  /** Exclude fixations with no AOI coverage from timeline rendering. */
+  hideNoAoi?: boolean
 }
 
 export type ScarfPlotItem = PlotItemContract<'scarf', ScarfPlotSettings>
@@ -169,6 +171,8 @@ export interface ScarfGazeSource {
   /** Categories the paint loop skips: globally hidden (legacy workspaces) plus
    *  everything narrowed away by the plot's eye-movement-type SELECTION. */
   hiddenCategoryIds: Set<number>
+  /** Exclude fixations with no AOI coverage from timeline rendering. */
+  hideNoAoi: boolean
 }
 
 // ============================================================================

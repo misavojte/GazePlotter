@@ -312,17 +312,6 @@ export type SectionField = SectionFieldPresentation & (
     }
 )
 
-/** The shared "Hide data → No AOI data" checkbox (bar/stream/matrix). One
- *  constant so the three declarations can't drift; `default: false` keeps
- *  items predating the setting from reading as "Mixed" next to `false`. */
-export const HIDE_NO_AOI_FIELD: SectionField = {
-  kind: 'boolean',
-  key: 'hideNoAoi',
-  label: 'No AOI data',
-  group: 'Hide data',
-  default: false,
-}
-
 /**
  * A pane section declared as data instead of a component: the generic
  * `SchemaSection` renders `fields` in order. This is the preferred shape for

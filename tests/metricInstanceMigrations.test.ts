@@ -352,6 +352,32 @@ describe('V4 → V5 bar-plot settings migration', () => {
     const m = runMigrations(file)
     expect(m.gridItems[0].settings.hideNoAoi).toBe(true)
   })
+
+  it('initializes hideNoAoi to false when it is undefined on scarf', () => {
+    const file = buildV4File([
+      {
+        id: 'scarf-1',
+        type: 'scarf',
+        x: 0, y: 0, w: 8, h: 8,
+        settings: { stimulusId: 0, groupId: -1 },
+      },
+    ])
+    const m = runMigrations(file)
+    expect(m.gridItems[0].settings.hideNoAoi).toBe(false)
+  })
+
+  it('keeps hideNoAoi value if it is already defined on scarf', () => {
+    const file = buildV4File([
+      {
+        id: 'scarf-1',
+        type: 'scarf',
+        x: 0, y: 0, w: 8, h: 8,
+        settings: { stimulusId: 0, groupId: -1, hideNoAoi: true },
+      },
+    ])
+    const m = runMigrations(file)
+    expect(m.gridItems[0].settings.hideNoAoi).toBe(true)
+  })
 })
 
 describe('V4 → V5 aoi-stream binSize → metricInstanceIds migration', () => {

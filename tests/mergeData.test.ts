@@ -365,6 +365,46 @@ describe('mergeStimuli / unmergeStimuli', () => {
     expect(norm(unmergeStimuli(merged, merged.merges![0]))).toEqual(norm(src))
   })
 
+  it('restores occurrences when two member channels reconcile to one (LIFO)', () => {
+    // Member stimulus 1 carries TWO channels sharing the displayed name "C",
+    // both with occurrences for participant 0. reconcileDict maps both onto the
+    // rep's single "C" channel, so the fold stacks them cumulatively onto one
+    // rep cell — the un-fold must unwind them last-in-first-out. A forward
+    // unwind would hand the first channel every occurrence and empty the second.
+    const src = buildStimulusMergeData(
+      [[['Logo', 'Logo', '#f00']], [['Logo', 'Logo', '#0f0']]],
+      [
+        [[[0, 100, 0, 0]], []],
+        [[], [[5, 50, 0, 0]]],
+      ],
+      {
+        capabilities: { segmented: true, spatial: false, event: true },
+        eventData: {
+          data: [
+            [['C', 'C', '#111']],
+            [['C', 'C', '#a1'], ['C', 'C', '#b2']],
+          ],
+          orderVector: [[0], [0, 1]],
+          hiddenChannels: [[], []],
+          events: [
+            [[[], []]],
+            [[[70, 4], []], [[80, 6], []]],
+          ],
+        },
+      }
+    )
+
+    const merged = mergeStimuli(src, 0, [1], 9)
+    // Both member channels' occurrences stacked onto the one rep channel/cell.
+    expect(merged.eventData.events[0][0][0]).toEqual([70, 4, 80, 6])
+    expect(merged.merges![0].members[0].stimulusEventContributions).toEqual([
+      { memberChannel: 0, participant: 0, boundary: 0 },
+      { memberChannel: 1, participant: 0, boundary: 2 },
+    ])
+
+    expect(norm(unmergeStimuli(merged, merged.merges![0]))).toEqual(norm(src))
+  })
+
   it('throws on a non-disjoint stimulus merge', () => {
     const src = buildStimulusMergeData(
       [[['Logo', 'Logo', '#f00']], [['Logo', 'Logo', '#0f0']]],
@@ -459,6 +499,40 @@ describe('mergeParticipants / unmergeParticipants', () => {
     expect(merged.merges![0].members[0].eventContributions).toEqual([
       { stimulus: 0, channel: 0, boundary: 0 },
     ])
+
+    const restored = unmergeParticipants(merged, merged.merges![0])
+    expect(restored.eventData.events).toEqual(src.eventData.events)
+    expect(norm(restored)).toEqual(norm(src))
+  })
+
+  it('restores per-participant events when several members share a channel (LIFO)', () => {
+    // Segments stay disjoint (only P0 carries any), but the event store is a
+    // SEPARATE store the disjointness gate never checks: P0, P1 and P2 all have
+    // occurrences on the same (stimulus, channel). The fold stacks the members'
+    // buffers onto the representative cumulatively, so the un-fold must unwind
+    // LIFO — a forward unwind gives the first member every occurrence (repCell
+    // .slice(0)) and strands the rest.
+    const src: DataType = {
+      ...makeDataType([
+        [[[0, 100, 0, 0]], [], []],
+        [[], [], []],
+      ]),
+      eventData: {
+        data: [[['C', 'C', '#111']], [['C', 'C', '#111']]],
+        orderVector: [[0], [0]],
+        hiddenChannels: [[], []],
+        events: [
+          [[[10, 5], [20, 3], [30, 7]]],
+          [[[], [], []]],
+        ],
+      },
+    }
+
+    const merged = mergeParticipants(src, 0, [1, 2], 42)
+    // Representative absorbed all three participants' buffers, in member order.
+    expect(merged.eventData.events[0][0][0]).toEqual([10, 5, 20, 3, 30, 7])
+    expect(merged.eventData.events[0][0][1]).toEqual([])
+    expect(merged.eventData.events[0][0][2]).toEqual([])
 
     const restored = unmergeParticipants(merged, merged.merges![0])
     expect(restored.eventData.events).toEqual(src.eventData.events)

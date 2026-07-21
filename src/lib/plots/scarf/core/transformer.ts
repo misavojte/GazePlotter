@@ -10,7 +10,6 @@ import {
   getVisibleEventChannels,
   getEventBuffer,
   getAllCategories,
-  getHiddenCategories,
   applyCategorySelection,
 } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
@@ -227,7 +226,8 @@ function createStylingAndLegend(
   eventChannelData: readonly ExtendedInterpretedDataType[] = [],
   // Pre-grouped non-fixation categories (grouped ONCE by the caller and reused for
   // the style-index map), so this O(n^2) grouping + filter runs a single time.
-  groupedCategories: readonly GroupedCategory[] = []
+  groupedCategories: readonly GroupedCategory[] = [],
+  hideNoAoi = false
 ): ScarfStyling {
   const aoi: ScarfStyleItem[] = []
   for (let i = 0; i < aoiData.length; i++) {
@@ -238,11 +238,13 @@ function createStylingAndLegend(
       color: a.color,
     })
   }
-  aoi.push({
-    identifier: `${SCARF_IDENTIFIERS.AOI}${SCARF_IDENTIFIERS.NOT_DEFINED}`,
-    name: noAoiTreatment.displayedName,
-    color: noAoiTreatment.color,
-  })
+  if (!hideNoAoi) {
+    aoi.push({
+      identifier: `${SCARF_IDENTIFIERS.AOI}${SCARF_IDENTIFIERS.NOT_DEFINED}`,
+      name: noAoiTreatment.displayedName,
+      color: noAoiTreatment.color,
+    })
+  }
 
   const category: ScarfStyleItem[] = []
   for (let i = 0; i < groupedCategories.length; i++) {
@@ -411,12 +413,11 @@ export function transformDataToScarfPlot(
   const showVisibilityMarkers =
     showEventOverlay && groupedEventChannels.length > 0
   const categoryData = getAllCategories(engine)
-  const hiddenCategoryIds = new Set(getHiddenCategories(engine))
   // Group the non-fixation categories ONCE — shared by the styling below and the
   // category→style-index map further down (was grouped twice + filtered twice).
-  // The per-plot eye-movement-type SELECTION narrows via the engine's single
-  // policy definition; narrowed-away members join hiddenCategoryIds so the
-  // paint loop skips their segments exactly like hidden categories.
+  // The per-plot eye-movement-type SELECTION is the ONLY narrowing (global
+  // category visibility is retired); narrowed-away members seed hiddenCategoryIds
+  // so the paint loop skips their segments.
   const { kept: groupedCategories, narrowedAwayIds } = applyCategorySelection(
     engine,
     groupCategoriesByDisplayedName(
@@ -424,13 +425,14 @@ export function transformDataToScarfPlot(
     ),
     settings.categorySelectionId
   )
-  for (const id of narrowedAwayIds) hiddenCategoryIds.add(id)
+  const hiddenCategoryIds = new Set<number>(narrowedAwayIds)
 
   const stylingAndLegend = createStylingAndLegend(
     aoiData,
     noAoiTreatment,
     showVisibilityMarkers ? groupedEventChannels : [],
-    groupedCategories
+    groupedCategories,
+    settings.hideNoAoi ?? false
   )
 
   // --- Gaze segments + optional event overlay ---
@@ -627,6 +629,7 @@ export function transformDataToScarfPlot(
     categoryStyleIdxMap,
     noAoiStyleIdx: aoiData.length,
     hiddenCategoryIds,
+    hideNoAoi: settings.hideNoAoi ?? false,
   }
 
   return {

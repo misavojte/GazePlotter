@@ -78,6 +78,7 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
     timeline: 'absolute',
     absoluteStimuliLimits: [],
     ordinalStimuliLimits: [],
+    hideNoAoi: false,
   }),
   size: { min: { w: 14, h: 10 }, w: 20 },
   requireCapabilities: [['segmented']],

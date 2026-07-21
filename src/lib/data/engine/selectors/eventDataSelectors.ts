@@ -47,8 +47,8 @@ export const getEventChannels = (
 }
 
 /**
- * Returns only visible (non-hidden) event channels for a stimulus, respecting order vector.
- * Mirrors getAois() pattern (visible-only).
+ * The event channels a plot shows for a stimulus, in order-vector order. Global
+ * channel visibility is retired — a named event SELECTION is the only narrowing.
  *
  * `eventSelectionId` optionally narrows to a named event SELECTION (matched by
  * displayed name — NameSelections are portable across stimuli exactly like AOI
@@ -63,20 +63,13 @@ export const getVisibleEventChannels = (
   const all = getEventChannels(engine, stimulusId)
   if (all.length === 0) return []
 
-  const hidden = engine.metadata?.eventData.hiddenChannels?.[stimulusId] ?? []
-  const hiddenSet = hidden.length ? new Set<number>(hidden) : null
-
-  const visible = hiddenSet
-    ? all.filter(ch => !hiddenSet.has(ch.id))
-    : all
-
-  if (eventSelectionId == null || eventSelectionId <= 0) return visible
+  if (eventSelectionId == null || eventSelectionId <= 0) return all
   const selection = (engine.metadata?.eventsSelections ?? []).find(
     s => s.id === eventSelectionId
   )
-  if (!selection) return visible
+  if (!selection) return all
   const names = new Set(selection.names)
-  return visible.filter(ch => names.has(ch.displayedName))
+  return all.filter(ch => names.has(ch.displayedName))
 }
 
 /**

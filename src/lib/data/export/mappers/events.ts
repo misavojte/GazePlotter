@@ -70,12 +70,11 @@ function resolveEventChannels(
     order && order.length > 0
       ? order
       : Array.from({ length: defs.length }, (_, i) => i)
-  const hidden = data.eventData.hiddenChannels?.[stimulusIndex] ?? []
-  const hiddenSet = hidden.length ? new Set<number>(hidden) : null
 
+  // Global channel visibility is retired — every channel exports (a named event
+  // SELECTION is the only narrowing, and export writes the full set).
   const channels: ExtendedInterpretedDataType[] = []
   for (const id of ids) {
-    if (hiddenSet?.has(id)) continue
     const def = defs[id]
     if (!def) continue
     channels.push(interpretRow(def, id, getDefaultEventChannelColor))

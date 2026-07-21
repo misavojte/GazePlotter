@@ -504,8 +504,12 @@ export function reduceNumeric(values: readonly number[], method: AoiReducer): nu
   switch (method) {
     case 'sum': return valid.reduce((a, b) => a + b, 0)
     case 'mean': return valid.reduce((a, b) => a + b, 0) / valid.length
-    case 'max': return Math.max(...valid)
-    case 'min': return Math.min(...valid)
+    // Fold rather than spread: the metric `statistic` path routes a whole
+    // AOI-slot's per-fixation/per-visit sample through here, which can be far
+    // larger than a per-AOI vector — `Math.max(...huge)` would overflow the
+    // call stack (RangeError). `valid` is non-empty (guarded above).
+    case 'max': return valid.reduce((a, b) => (b > a ? b : a))
+    case 'min': return valid.reduce((a, b) => (b < a ? b : a))
     case 'median': {
       const s = [...valid].sort((a, b) => a - b)
       const mid = Math.floor(s.length / 2)

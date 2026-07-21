@@ -15,7 +15,7 @@ import {
   type Scope,
   type GroupScope,
   formatProjectionReadout,
-  formatParamReadout,
+  instanceReadout,
   defaultInstanceLabel,
   getMetric,
   instanceMatchesContract,
@@ -674,7 +674,11 @@ export async function generateMetricExport(
           inst.baseId,
           metric?.meta.unit ?? '',
           metric?.meta.measurementClass ?? '',
-          formatParamReadout(inst).join(', '),
+          // Full self-documenting readout (params + summary statistic +
+          // cross-participant reduction) — formatParamReadout alone now hides
+          // the `statistic`, so median/max/min would be indistinguishable from
+          // the mean default in the codebook.
+          instanceReadout(inst).join(', '),
           formatProjectionReadout(inst) ?? '',
           windowStr,
           projectionOutputShape(inst.projection),

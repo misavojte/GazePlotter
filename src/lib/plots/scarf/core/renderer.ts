@@ -398,6 +398,11 @@ export function compositeGazeBinaryAcc(
           const styleIdx = aoiOrderMap[overlap[idx]]
           if (styleIdx >= 0) styleScratch[resolved++] = styleIdx
         }
+
+        if (gs.hideNoAoi && resolved === 0) {
+          continue
+        }
+
         if (resolved === 0) {
           if (isWide) {
             anyWide = true
@@ -898,6 +903,11 @@ function drawHighlightMarkersFromBinary(
             resolved++
             if (sIdx === styleIdx) hitVisible = true
           }
+
+          if (gs.hideNoAoi && resolved === 0) {
+            continue
+          }
+
           if (resolved === 0) {
             if (styleIdx !== noAoiStyleIdx) continue
             hFrac = HBAR * scaleFactor * invBarH

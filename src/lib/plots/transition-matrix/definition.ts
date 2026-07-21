@@ -1,6 +1,6 @@
 import { deriveTransitionMatrixView } from './core/view'
 import { transitionMatrixScreen } from './core/screen.svelte'
-import { definePlot, HIDE_NO_AOI_FIELD } from '$lib/plots/definePlot'
+import { definePlot } from '$lib/plots/definePlot'
 import { INACTIVE_COLOR, PRESET_PALETTES } from '$lib/color/palettes'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
 import type { TransitionMatrixPlotSettings } from './types'
@@ -60,7 +60,6 @@ export const transitionMatrixDefinition = definePlot<
           group: 'Out of bounds',
           pair: true,
         },
-        HIDE_NO_AOI_FIELD,
       ],
       summary: () => 'Matrix',
     },

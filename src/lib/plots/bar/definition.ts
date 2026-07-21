@@ -1,6 +1,6 @@
 import { deriveBarView } from './core/view'
 import { barPlotScreen } from './core/screen.svelte'
-import { definePlot, HIDE_NO_AOI_FIELD, type SectionFieldCtx } from '$lib/plots/definePlot'
+import { definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
 import { resolveInstance, getMetric } from '$lib/metrics'
 import type { BarPlotSettings } from './types'
@@ -71,7 +71,6 @@ export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
           ],
         },
         { kind: 'scaleRange', key: 'scaleRange', legend: 'Scale range' },
-        HIDE_NO_AOI_FIELD,
       ],
       summary: ctx => {
         const orientation = ctx.common(s => s.barPlottingType)

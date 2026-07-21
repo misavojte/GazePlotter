@@ -26,6 +26,11 @@
     /** Open the modal on the representative's stimulus (stimulus-scoped
      *  modal surfaces: AOIs, events). */
     passSelectedStimulus?: boolean
+    /** Surface the plot-specific "Hide No AOI data" toggle beneath the picker
+     *  (only the AOI axis carries it). Declared here as data so the section
+     *  stays generic — no per-axis special-casing in the component body. Shown
+     *  only when an edit target actually has the `hideNoAoi` setting. */
+    hideNoAoiToggle?: boolean
   }
 </script>
 
@@ -45,7 +50,7 @@
    * `createBulkContext` for the same "Mixed"-aware single/bulk editing every
    * pane section gets.
    */
-  import { Select } from '$lib/shared/components'
+  import { Select, InputCheck } from '$lib/shared/components'
   import { PaneSection, PaneEditLink, PaneEditRow } from '$lib/workspace/pane'
   import { getGazePlotterSession } from '$lib/session'
   import { ALL_SELECTION_LABEL } from '$lib/data/types'
@@ -76,10 +81,34 @@
     bulk.common(s => (s[config.settingsKey] as number | undefined) ?? 0)
   )
 
+  // Presence over the SAME edit-target set `bulk` writes to (no parallel copy
+  // of createBulkContext's target resolution): true when any target carries
+  // the `hideNoAoi` setting.
+  const hideNoAoiPresent = $derived(bulk.common(s => 'hideNoAoi' in s))
+  const hasHideNoAoi = $derived(
+    !!config.hideNoAoiToggle &&
+      (hideNoAoiPresent.value || hideNoAoiPresent.mixed)
+  )
+
+  const hideNoAoiState = $derived(
+    hasHideNoAoi ? bulk.common(s => (s.hideNoAoi as boolean | undefined) ?? false) : null
+  )
+
   const summary = $derived.by(() => {
     if (state.mixed) return 'Mixed'
-    if (!state.value) return ALL_SELECTION_LABEL
-    return selections.find(s => s.id === state.value)?.name ?? ALL_SELECTION_LABEL
+    const baseName = !state.value
+      ? ALL_SELECTION_LABEL
+      : (selections.find(s => s.id === state.value)?.name ?? ALL_SELECTION_LABEL)
+
+    if (hasHideNoAoi && hideNoAoiState) {
+      if (hideNoAoiState.mixed) {
+        return `${baseName} (mixed No AOI)`
+      }
+      return hideNoAoiState.value
+        ? `${baseName} - No AOI`
+        : `${baseName} + No AOI`
+    }
+    return baseName
   })
 </script>
 
@@ -92,6 +121,15 @@
     mixed={state.mixed}
     onchange={e => bulk.update({ [config.settingsKey]: Number(e.detail) })}
   />
+  {#if hasHideNoAoi && hideNoAoiState}
+    <InputCheck
+      label="Hide No AOI data"
+      compact
+      checked={!!hideNoAoiState.value}
+      mixed={hideNoAoiState.mixed}
+      onchange={e => bulk.updateEach(s => ('hideNoAoi' in s ? { hideNoAoi: (e as CustomEvent<boolean>).detail } : null))}
+    />
+  {/if}
   <PaneEditRow>
     <PaneEditLink
       onclick={() =>

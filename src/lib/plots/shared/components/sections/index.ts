@@ -125,6 +125,7 @@ export const SHARED_SECTIONS: Record<string, SharedPaneSection> = {
     modal: aoiModificationModal,
     editLabel: 'Edit AOIs & selections',
     passSelectedStimulus: true,
+    hideNoAoiToggle: true,
   }),
   stimuli: entitySection({
     title: 'Stimuli',
