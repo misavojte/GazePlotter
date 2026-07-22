@@ -13,6 +13,7 @@ GazePlotter offers several advanced eye-tracking visualization tools to analyze 
 - **[Scanpath Similarity](/docs/visualizations/scanpath-similarity/)**: Comparison of participant scanpaths using sequence alignment algorithms (Levenshtein or Needleman-Wunsch), rendered as a similarity matrix or a ScanGraph network.
 - **[Metric Timeline](/docs/visualizations/metric-timeline/)**: A temporal visualization (Heatmap or Line Overlay) showing the progression of a windowed scalar metric (e.g. average fixation duration) across the timeline.
 - **[Metric Correlation](/docs/visualizations/metric-correlation/)**: A statistical visualization (Heatmap or Scatter Plot Matrix/Splom) showing correlations (Pearson or Spearman) between multiple scalar metrics across participants.
+- **[Metric Matrix](/docs/visualizations/metric-matrix/)**: A participants × stimuli grid showing one scalar metric value per recording, with missing or unusable recordings rendered distinctly for data-quality screening.
 
 ## Visualization Configuration Pane
 

@@ -232,6 +232,12 @@ export const SIDEBAR: readonly SidebarItem[] = [
         seoTitle: 'Correlate Eye-Tracking Metrics (SPLOM)',
         description: 'Evaluate correlations between eye-tracking metrics using Pearson/Spearman correlation heatmaps and Scatter Plot Matrices (SPLOM).'
       },
+      {
+        name: 'Metric Matrix',
+        href: '/docs/visualizations/metric-matrix',
+        seoTitle: 'Metric Matrix: Eye-Tracking Data Quality',
+        description: 'Scan a participants × stimuli grid of scalar metric values per recording. Spot missing recordings and capture failures for data-quality screening.'
+      },
     ],
   },
   {
