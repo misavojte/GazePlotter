@@ -136,22 +136,6 @@ export abstract class RowParser {
   }
 
   /**
-   * Emit a segment to the consumer. Optionally includes spatial coordinates.
-   */
-  protected emitSegment(
-    start: number,
-    end: number,
-    categoryId: number,
-    stimulus: Uint8Array,
-    participant: Uint8Array,
-    aoi: Uint8Array[] | null,
-    spatial?: { x: number; y: number } | null
-  ): void {
-    if (!this.onSegment) return
-    this.onSegment(start, end, categoryId, stimulus, participant, aoi, spatial)
-  }
-
-  /**
    * Resolve an eye-movement-category to a category id from the source's raw type
    * bytes (or canonical name bytes a parser substitutes). The bytes are decoded
    * to a string and interned by name, so identity is encoding-independent and a
@@ -537,4 +521,22 @@ export abstract class RowParser {
     }
     return result
   }
+
+  /**
+   * Read the optional spatial coordinate from the packed x/y columns.
+   * `undefined` = no spatial columns configured (either raw index is -1);
+   * `null` = columns exist but this row's values are not finite numbers.
+   */
+  protected getSpatial(
+    cX: number,
+    cY: number,
+    pX: number,
+    pY: number
+  ): { x: number; y: number } | null | undefined {
+    if (cX === -1 || cY === -1) return undefined
+    const x = this.getNumber(pX)
+    const y = this.getNumber(pY)
+    return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null
+  }
 }
+

@@ -158,14 +158,17 @@ function bandFill(color: string, dimmed: boolean): string {
  * the exact painter (pass 3) and the highlighted-opaque painter (pass 4) so the
  * two can never disagree on where a segment sits. Non-fixations are a thin bar
  * (seam-aligned in overlay, bar-centred otherwise); fixations take their stored
- * per-segment offset scaled to the current bar height.
+ * per-segment offset scaled to the current bar height. `thin` is an explicit
+ * flag, NOT derivable from `hOrig`: a fixation over exactly 5 visible AOIs has
+ * slice height 20/5 === HEIGHT_NON_FIXATION_DEFAULT.
  */
 function gazeRectVPlacement(
+  thin: boolean,
   hOrig: number,
   internalY: number,
   layout: ScarfLayoutContext
 ): { h: number; yInternal: number } {
-  if (hOrig === SCARF_LAYOUT.HEIGHT_NON_FIXATION_DEFAULT) {
+  if (thin) {
     return {
       h: layout.nonFixationHeight,
       yInternal: layout.isOverlay
@@ -206,12 +209,17 @@ export function drawScarfBands(
  * non-fixations are a thin bar bottom-aligned to the seam (overlay) or centred
  * in the gaze bar (otherwise).
  */
-// Reused per-(row, pixel) premultiplied-alpha accumulator for the sub-pixel
+// Reused per-(row, pixel) premultiplied-alpha accumulators for the sub-pixel
 // composite layer below: interleaved [R, G, B, A] per cell, so the four
 // channels of a pixel share a cache line in the hot loop. Grown to the largest
 // (rows × plot-width × 4) seen; the used range is zeroed each render
-// (channel A == 0 means an uncovered pixel).
+// (channel A == 0 means an uncovered pixel). `_acc` is the full-bar lane
+// (fixations, no-AOI); `_accThin` the non-fixation thin-band lane.
+// Float32, deliberately: Float64 lanes were measured ~5% SLOWER (2026-07-23)
+// — the loop is memory-bound, so halving bytes beats saving the per-RMW
+// float32<->float64 register converts.
 let _acc = new Float32Array(0)
+let _accThin = new Float32Array(0)
 
 // Reused offscreen canvas + buffer for the ImageData emit path (see
 // `blitCompositeLayer`). Allocated lazily — only dense renders take that path.
@@ -230,10 +238,10 @@ interface FusedWideRect {
   hOrig: number
   internalY: number
   styleIdx: number
+  /** Non-fixation thin bar; see gazeRectVPlacement. */
+  thin: boolean
 }
 
-// Reused Uint16 scratch for the fused path's per-segment AOI resolution.
-let _fusedAoiScratch = new Uint16Array(0)
 
 /** Per-style RGB (premultiplied dimming applied) for O(1) colour lookup in the
  *  accumulate — resolved ONCE per render, never per segment. */
@@ -296,15 +304,22 @@ function accumulateRun(
  * Draw order is participant→time (vs style-bucket) — the accepted ~mean 2.78 RGB
  * blend delta. If `wide` is supplied, >=1px rects are collected there (for pass 3)
  * instead of accumulated. Exported for the equivalence test (which passes no `wide`).
+ *
+ * TWO lanes: fixation/no-AOI energy accumulates into `acc` (blitted over the
+ * full bar height); non-fixation energy into `accThin` (blitted over the thin
+ * non-fixation band only, at full alpha within it). One lane washed thin
+ * segments across the whole bar: a dense run of adjacent sub-pixel
+ * saccades/blinks tiled the columns into a translucent FULL-height band while
+ * the same types' >=1px segments drew correct thin lines beside it.
  */
 export function compositeGazeBinaryAcc(
   acc: Float32Array,
+  accThin: Float32Array,
   gs: ScarfGazeSource,
   styleRgb: Float32Array,
   pWidth: number,
   rows: number,
   invBarH: number,
-  nonFixationHeight: number,
   scaleFactor: number,
   wide?: FusedWideRect[]
 ): { anyWide: boolean; subPixelCount: number } {
@@ -313,24 +328,19 @@ export function compositeGazeBinaryAcc(
   const SAR = SCARF_LAYOUT.SPACE_ABOVE_RECT_DEFAULT
   const {
     reader,
-    aoiGroupReader,
     participantIds,
     stimulusId,
     isOrdinal,
     projClipMin,
     projClipMax,
     projScale,
-    aoiOrderMap,
     categoryStyleIdxMap,
     noAoiStyleIdx,
-    hideNonFixations,
-    hiddenCategoryIds,
+    resolvedSlotBase,
+    resolvedSliceStart,
+    resolvedSliceStyles,
   } = gs
   const segBuf = reader.segmentBufferRaw
-  if (_fusedAoiScratch.length < aoiOrderMap.length) {
-    _fusedAoiScratch = new Uint16Array(Math.max(64, aoiOrderMap.length))
-  }
-  const overlap = _fusedAoiScratch
   const nonFixInternalY = SAR + (HBAR - HNF) * 0.5
   let anyWide = false
   let subPixelCount = 0
@@ -350,7 +360,10 @@ export function compositeGazeBinaryAcc(
       const categoryId = segBuf[segBase + SegmentField.CATEGORY_ID] | 0
       let start = isOrdinal ? localId : segBuf[segBase + SegmentField.START_TIME]
       let end = isOrdinal ? localId + 1 : segBuf[segBase + SegmentField.END_TIME]
-      if (end <= clipMin || start >= clipMax) continue
+      if (end <= clipMin) continue
+      // Segments are time-ordered and disjoint per participant: past the right
+      // clip edge nothing later can intersect.
+      if (start >= clipMax) break
       start = Math.max(clipMin, start)
       end = Math.min(clipMax, end)
       const x0 = (start - clipMin) * scale * pWidth
@@ -358,8 +371,7 @@ export function compositeGazeBinaryAcc(
       const isWide = wPx >= 1
 
       if (categoryId !== FIXATION_CATEGORY_ID) {
-        if (hideNonFixations) continue
-        if (hiddenCategoryIds.has(categoryId)) continue
+        // -1 covers narrowed-away categories too (the map holds kept groups only).
         const styleIdx =
           categoryId >= 0 && categoryId < categoryStyleIdxMap.length
             ? categoryStyleIdxMap[categoryId]
@@ -367,19 +379,26 @@ export function compositeGazeBinaryAcc(
         if (styleIdx === -1) continue
         if (isWide) {
           anyWide = true
-          if (wide) wide.push({ x0px: x0, wPx, pIdx: pIndex, hOrig: HNF, internalY: nonFixInternalY, styleIdx })
+          if (wide) wide.push({ x0px: x0, wPx, pIdx: pIndex, hOrig: HNF, internalY: nonFixInternalY, styleIdx, thin: true })
         } else {
           subPixelCount++
-          let hFrac = nonFixationHeight * invBarH
-          if (hFrac > 1) hFrac = 1
-          accumulateRun(acc, styleRgb[styleIdx * 3], styleRgb[styleIdx * 3 + 1], styleRgb[styleIdx * 3 + 2], x0, x0 + wPx, hFrac, rowBase, pWidth)
+          accumulateRun(accThin, styleRgb[styleIdx * 3], styleRgb[styleIdx * 3 + 1], styleRgb[styleIdx * 3 + 2], x0, x0 + wPx, 1, rowBase, pWidth)
         }
       } else {
-        const count = aoiGroupReader.getSegmentAoisUniqueDirect(i, stimulusId, overlap)
-        if (count === 0) {
+        // The segment's VISIBLE style slices, precomputed by the transformer's
+        // buildResolvedSlices (same getSegmentAoisUniqueDirect + aoiOrderMap
+        // walk this loop used to run per frame — an empty range is the no-AOI
+        // fallback). KEEP IN SYNC with drawHighlightMarkersFromBinary +
+        // ScarfPlotFigure.findSegmentAtRowAndTime, which still resolve inline.
+        const slot = resolvedSlotBase[pIndex] + localId
+        const s0 = resolvedSliceStart[slot]
+        const resolved = resolvedSliceStart[slot + 1] - s0
+
+        if (resolved === 0) {
+          if (noAoiStyleIdx < 0) continue
           if (isWide) {
             anyWide = true
-            if (wide) wide.push({ x0px: x0, wPx, pIdx: pIndex, hOrig: HBAR, internalY: SAR, styleIdx: noAoiStyleIdx })
+            if (wide) wide.push({ x0px: x0, wPx, pIdx: pIndex, hOrig: HBAR, internalY: SAR, styleIdx: noAoiStyleIdx, thin: false })
           } else {
             subPixelCount++
             let hFrac = HBAR * scaleFactor * invBarH
@@ -387,13 +406,12 @@ export function compositeGazeBinaryAcc(
             accumulateRun(acc, styleRgb[noAoiStyleIdx * 3], styleRgb[noAoiStyleIdx * 3 + 1], styleRgb[noAoiStyleIdx * 3 + 2], x0, x0 + wPx, hFrac, rowBase, pWidth)
           }
         } else {
-          const h = HBAR / count
-          for (let idx = 0; idx < count; idx++) {
-            const styleIdx = aoiOrderMap[overlap[idx]]
-            if (styleIdx < 0) continue
+          const h = HBAR / resolved
+          for (let j = 0; j < resolved; j++) {
+            const styleIdx = resolvedSliceStyles[s0 + j]
             if (isWide) {
               anyWide = true
-              if (wide) wide.push({ x0px: x0, wPx, pIdx: pIndex, hOrig: h, internalY: SAR + idx * h, styleIdx })
+              if (wide) wide.push({ x0px: x0, wPx, pIdx: pIndex, hOrig: h, internalY: SAR + j * h, styleIdx, thin: false })
             } else {
               subPixelCount++
               let hFrac = h * scaleFactor * invBarH
@@ -427,7 +445,7 @@ function drawWideRects(
     const w = wide[i]
     const isDimmed = isHighlightActive ? highlightMask[w.styleIdx] !== 1 : false
     ctx.fillStyle = bandFill(styleArray[w.styleIdx].normal.fill, isDimmed)
-    const { h, yInternal } = gazeRectVPlacement(w.hOrig, w.internalY, layout)
+    const { h, yInternal } = gazeRectVPlacement(w.thin, w.hOrig, w.internalY, layout)
     const yTop = snapDev(w.pIdx * pitch + yInternal + top)
     let yH = snapDev(w.pIdx * pitch + yInternal + top + h) - yTop
     if (yH < 1 / dpr) yH = 1 / dpr
@@ -485,7 +503,10 @@ function paintGazeRects(
   const slots = cells * 4
   if (_acc.length < slots) _acc = new Float32Array(slots)
   else _acc.fill(0, 0, slots)
+  if (_accThin.length < slots) _accThin = new Float32Array(slots)
+  else _accThin.fill(0, 0, slots)
   const acc = _acc
+  const accThin = _accThin
 
   // Per-style colours resolved once (dimming baked in), shared by both paths.
   const styleRgb = buildStyleRgb(styleArray, highlightMask)
@@ -497,17 +518,22 @@ function paintGazeRects(
   const wide: FusedWideRect[] = []
   const { subPixelCount } = compositeGazeBinaryAcc(
     acc,
+    accThin,
     data.gazeSource,
     styleRgb,
     pWidth,
     rows,
     invBarH,
-    layout.nonFixationHeight,
     layout.scaleFactor,
     wide
   )
   if (subPixelCount > 0) {
-    blitCompositeLayer(ctx, acc, rows, pWidth, pLeft, top, pitch, barTop, barH)
+    // The thin band mirrors gazeRectVPlacement's thin placement.
+    const thinH = layout.nonFixationHeight
+    const thinTop = layout.isOverlay
+      ? barTop + barH - thinH
+      : barTop + (barH - thinH) / 2
+    blitCompositeLayer(ctx, acc, accThin, rows, pWidth, pLeft, top, pitch, barTop, barH, thinTop, thinH)
   }
   if (wide.length > 0) {
     drawWideRects(ctx, wide, styleArray, highlightMask, layout, pLeft, top, pitch, dpr, snapDev)
@@ -529,13 +555,16 @@ function paintGazeRects(
 function blitCompositeLayer(
   ctx: CanvasRenderingContext2D,
   acc: Float32Array,
+  accThin: Float32Array,
   rows: number,
   pWidth: number,
   pLeft: number,
   top: number,
   pitch: number,
   barTop: number,
-  barH: number
+  barH: number,
+  thinTop: number,
+  thinH: number
 ): void {
   // Integer height with +2 slack rows: the slack absorbs the fractional part of
   // `top` folded in below, and an integer (vs fractional `rows * pitch`) keeps
@@ -576,18 +605,37 @@ function blitCompositeLayer(
     const yTop = Math.round(r * pitch + barTop + topFrac)
     let yBot = Math.round(r * pitch + barTop + barH + topFrac)
     if (yBot > offH) yBot = offH
-    const bh = yBot - yTop
+    // The thin non-fixation band, snapped by the same rule.
+    const yTopT = Math.round(r * pitch + thinTop + topFrac)
+    let yBotT = Math.round(r * pitch + thinTop + thinH + topFrac)
+    if (yBotT > offH) yBotT = offH
     for (let px = 0; px < pWidth; px++) {
       const k = (rowBase + px) << 2
-      const a = acc[k + 3]
-      if (a <= 0) continue
-      const inv = 1 / a
-      const rr = (acc[k] * inv + 0.5) | 0
-      const gg = (acc[k + 1] * inv + 0.5) | 0
-      const bb = (acc[k + 2] * inv + 0.5) | 0
-      const aq = (a * 255 + 0.5) | 0
-      const packed = ((aq << 24) | (bb << 16) | (gg << 8) | rr) >>> 0
-      for (let yy = 0; yy < bh; yy++) u32[(yTop + yy) * pWidth + px] = packed
+      const aF = acc[k + 3]
+      const aT = accThin[k + 3]
+      if (aF <= 0 && aT <= 0) continue
+      let packedFull = 0
+      if (aF > 0) {
+        const inv = 1 / aF
+        const rr = (acc[k] * inv + 0.5) | 0
+        const gg = (acc[k + 1] * inv + 0.5) | 0
+        const bb = (acc[k + 2] * inv + 0.5) | 0
+        const aq = (aF * 255 + 0.5) | 0
+        packedFull = ((aq << 24) | (bb << 16) | (gg << 8) | rr) >>> 0
+        for (let yy = yTop; yy < yBot; yy++) u32[yy * pWidth + px] = packedFull
+      }
+      if (aT > 0) {
+        // Thin lane OVER the full lane (both premultiplied), thin rows only.
+        const iaT = 1 - aT
+        const aO = aT + aF * iaT
+        const inv = 1 / aO
+        const rr = ((accThin[k] + acc[k] * iaT) * inv + 0.5) | 0
+        const gg = ((accThin[k + 1] + acc[k + 1] * iaT) * inv + 0.5) | 0
+        const bb = ((accThin[k + 2] + acc[k + 2] * iaT) * inv + 0.5) | 0
+        const aq = (aO * 255 + 0.5) | 0
+        const packedThin = ((aq << 24) | (bb << 16) | (gg << 8) | rr) >>> 0
+        for (let yy = yTopT; yy < yBotT; yy++) u32[yy * pWidth + px] = packedThin
+      }
     }
   }
   _offCtx.putImageData(_offImg, 0, 0)
@@ -808,80 +856,66 @@ function drawHighlightMarkersFromBinary(
   const HBAR = SCARF_LAYOUT.HEIGHT_BAR_DEFAULT
   const {
     reader,
-    aoiGroupReader,
     participantIds,
     stimulusId,
     isOrdinal,
     projClipMin,
     projClipMax,
     projScale,
-    aoiOrderMap,
-    categoryStyleIdxMap,
-    noAoiStyleIdx,
-    hideNonFixations,
-    hiddenCategoryIds,
+    resolvedSlotBase,
+    resolvedSliceStart,
+    resolvedOccStart,
+    resolvedOccSlot,
   } = gs
   const segBuf = reader.segmentBufferRaw
   const scaleFactor = layout.scaleFactor
-  const nonFixationHeight = layout.nonFixationHeight
-  if (_fusedAoiScratch.length < aoiOrderMap.length) {
-    _fusedAoiScratch = new Uint16Array(Math.max(64, aoiOrderMap.length))
-  }
-  const overlap = _fusedAoiScratch
+  const P = participantIds.length
 
   for (let styleIdx = 0; styleIdx < styles.length; styleIdx++) {
     if (highlightMask[styleIdx] !== 1) continue
     const color = styles[styleIdx]?.normal?.fill
     if (!color) continue
 
-    for (let pIndex = 0; pIndex < participantIds.length; pIndex++) {
+    for (let pIndex = 0; pIndex < P; pIndex++) {
       if (pIndex >= rows) break
+      // The transpose bucket: ONLY this style's contributing segments on this
+      // row, in time order (see ScarfGazeSource.resolvedOccStart).
+      const b = styleIdx * P + pIndex
+      const o0 = resolvedOccStart[b]
+      const o1 = resolvedOccStart[b + 1]
+      if (o0 === o1) continue
       const pid = participantIds[pIndex]
       const clipMin = projClipMin[pIndex]
       const clipMax = projClipMax[pIndex]
       const scale = projScale[pIndex]
-      const { startIndex, endIndex } = reader.getSegmentRange(stimulusId, pid)
-      ensureHighlightScratch(endIndex - startIndex)
+      const { startIndex } = reader.getSegmentRange(stimulusId, pid)
+      const base = resolvedSlotBase[pIndex]
+      ensureHighlightScratch(o1 - o0)
 
       let m = 0
-      for (let i = startIndex; i < endIndex; i++) {
-        const localId = i - startIndex
+      for (let k = o0; k < o1; k++) {
+        const slot = resolvedOccSlot[k]
+        const localId = slot - base
+        const i = startIndex + localId
         const segBase = i * SEGMENT_STRIDE
-        const categoryId = segBuf[segBase + SegmentField.CATEGORY_ID] | 0
         let start = isOrdinal ? localId : segBuf[segBase + SegmentField.START_TIME]
         let end = isOrdinal ? localId + 1 : segBuf[segBase + SegmentField.END_TIME]
-        if (end <= clipMin || start >= clipMax) continue
+        if (end <= clipMin) continue
+        // Occurrences are time-ordered within the bucket.
+        if (start >= clipMax) break
         start = Math.max(clipMin, start)
         end = Math.min(clipMax, end)
 
-        // Does this segment contribute to the highlighted style, and at what height?
-        let hFrac = -1
-        if (categoryId !== FIXATION_CATEGORY_ID) {
-          if (hideNonFixations || hiddenCategoryIds.has(categoryId)) continue
-          const sIdx =
-            categoryId >= 0 && categoryId < categoryStyleIdxMap.length
-              ? categoryStyleIdxMap[categoryId]
-              : -1
-          if (sIdx !== styleIdx) continue
-          hFrac = nonFixationHeight * invBarH
-        } else {
-          const count = aoiGroupReader.getSegmentAoisUniqueDirect(i, stimulusId, overlap)
-          if (count === 0) {
-            if (styleIdx !== noAoiStyleIdx) continue
-            hFrac = HBAR * scaleFactor * invBarH
-          } else {
-            let matched = false
-            for (let idx = 0; idx < count; idx++) {
-              if (aoiOrderMap[overlap[idx]] === styleIdx) {
-                hFrac = (HBAR / count) * scaleFactor * invBarH
-                matched = true
-                break
-              }
-            }
-            if (!matched) continue
-          }
+        // Height share: a non-fixation composites at full alpha within its own
+        // band (legibility = x-coverage alone); a fixation splits the bar by
+        // its resolved slice count, an empty range being the no-AOI bucket.
+        const categoryId = segBuf[segBase + SegmentField.CATEGORY_ID] | 0
+        let hFrac = 1
+        if (categoryId === FIXATION_CATEGORY_ID) {
+          const resolved = resolvedSliceStart[slot + 1] - resolvedSliceStart[slot]
+          hFrac = (resolved === 0 ? HBAR : HBAR / resolved) * scaleFactor * invBarH
+          if (hFrac > 1) hFrac = 1
         }
-        if (hFrac > 1) hFrac = 1
 
         const x0 = (start - clipMin) * scale * pWidth
         const w = (end - start) * scale * pWidth

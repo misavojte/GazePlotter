@@ -1,184 +1,182 @@
-import type { ExtendedInterpretedDataType } from '$lib/data/types'
-import { sortItems, reorderItems } from './sort'
+import type {
+  BaseInterpretedDataType,
+  ExtendedInterpretedDataType,
+} from '$lib/data/types'
+import { groupByDisplayedName } from '$lib/data/engine/utils/grouping'
+import { sortItems } from './sort'
 
-export interface EntityGroup {
+/**
+ * One editor card: the entities sharing a displayed name, i.e. a displayed-name
+ * MERGE (a single member = an unmerged entity). This is the MERGE primitive of
+ * the entity modals; the SELECTION primitive (per-plot member sets) is separate
+ * — see {@link NameSelection}. Named `MergeCard` (not "group") to keep the two
+ * vocabularies unambiguous.
+ */
+export interface MergeCard<
+  T extends BaseInterpretedDataType = ExtendedInterpretedDataType,
+> {
   id: number
-  members: ExtendedInterpretedDataType[]
+  members: T[]
 }
 
 export interface GroupedEntityEditorConfig {
   getItems: (stimulusId: number) => ExtendedInterpretedDataType[]
-  getHidden: (stimulusId: number) => number[]
-  initialStimulusId: number
+  /** Stimulus the editor opens on — only for per-stimulus axes. Default 0. */
+  initialStimulusId?: number
 }
 
 function deepCopy(
   items: ExtendedInterpretedDataType[]
 ): ExtendedInterpretedDataType[] {
-  return items.map(item => ({
-    id: item.id,
-    originalName: item.originalName,
-    displayedName: item.displayedName,
-    color: item.color,
-  }))
+  // Spread keeps caller-attached display-only keys (e.g. the AOI modal's
+  // all-stimuli `stimuliLabel`) alongside the canonical four fields.
+  return items.map(item => ({ ...item }))
 }
 
-function isValidMatch(displayedName: string): boolean {
-  return (
-    typeof displayedName === 'string' &&
-    displayedName.trim() !== '' &&
-    displayedName !== undefined
-  )
-}
-
-function buildGroups(
-  items: ExtendedInterpretedDataType[]
-): EntityGroup[] {
-  const seen = new Set<string>()
-  const groups: EntityGroup[] = []
-
-  for (const item of items) {
-    const trimmed = (item.displayedName || '').trim()
-    if (!isValidMatch(trimmed)) {
-      groups.push({ id: item.id, members: [item] })
-      continue
+/**
+ * Reorder with multi-drag: the dragged group plus every group in `movingIds`
+ * travel as one contiguous block (relative order preserved) to the drop slot.
+ * `fromIndex`/`toIndex` follow the single-drag contract of `listReorder`
+ * (toIndex indexes the list WITHOUT the dragged card); an empty `movingIds`
+ * degenerates to exactly that single-drag behavior.
+ */
+function reorderWithSet<T extends BaseInterpretedDataType>(
+  items: T[],
+  fromIndex: number,
+  toIndex: number,
+  movingIds: ReadonlySet<number>
+): T[] {
+  const current = buildGroups(items)
+  const dragged = current[fromIndex]
+  if (!dragged) return items
+  const moving = new Set(movingIds)
+  moving.add(dragged.id)
+  const without = current.filter((_, i) => i !== fromIndex)
+  const rest = current.filter(g => !moving.has(g.id))
+  // The drop anchor is whatever occupies the slot; if that is itself moving,
+  // the block lands before the next stationary group.
+  let anchor: MergeCard<T> | null = null
+  for (let i = toIndex; i < without.length; i++) {
+    if (!moving.has(without[i].id)) {
+      anchor = without[i]
+      break
     }
-    if (seen.has(trimmed)) continue
-    seen.add(trimmed)
-    const members = items.filter(
-      i => (i.displayedName || '').trim() === trimmed
-    )
-    groups.push({ id: members[0].id, members })
   }
+  const p = anchor ? rest.indexOf(anchor) : rest.length
+  const movingGroups = current.filter(g => moving.has(g.id))
+  const ordered = [...rest.slice(0, p), ...movingGroups, ...rest.slice(p)]
+  const out: T[] = []
+  for (const g of ordered) {
+    for (const m of g.members) out.push(items.find(i => i.id === m.id)!)
+  }
+  return out
+}
 
-  return groups
+/** Cards from the engine's canonical "same displayed name = same entity" rule
+    (trimmed match, first-occurrence order, empty names standalone, leader =
+    first member). Fed a minimal projection so the `groups` derived reads ONLY
+    `id`/`displayedName` — never `color` — see handleColorInput. */
+function buildGroups<T extends BaseInterpretedDataType>(
+  items: T[]
+): MergeCard<T>[] {
+  const byId = new Map(items.map(i => [i.id, i]))
+  return groupByDisplayedName(
+    items.map(i => ({ id: i.id, displayedName: i.displayedName }))
+  ).map(g => ({ id: g.id, members: g.memberIds.map(id => byId.get(id)!) }))
+}
+
+/** Renaming the leader of a multi-member group renames every member (keeping
+    them grouped); any other rename touches just the one item. In-place
+    mutation so `groups` re-derives (and regroups) reactively. */
+function renameItemIn(
+  items: BaseInterpretedDataType[],
+  item: BaseInterpretedDataType,
+  newName: string,
+  isLeader: boolean,
+  group: MergeCard<BaseInterpretedDataType>
+) {
+  if (isLeader && group.members.length > 1) {
+    const memberIds = new Set(group.members.map(m => m.id))
+    for (const i of items) if (memberIds.has(i.id)) i.displayedName = newName
+  } else {
+    const target = items.find(i => i.id === item.id)
+    if (target) target.displayedName = newName
+  }
+}
+
+/** Bulk find/replace over every member's displayed name. In-place mutation,
+    as above; an invalid pattern is a silent no-op. */
+function renameAllIn(
+  items: BaseInterpretedDataType[],
+  pattern: string,
+  replacement: string
+) {
+  let regex: RegExp
+  try {
+    regex = new RegExp(pattern, 'g')
+  } catch {
+    return
+  }
+  for (const item of items) {
+    item.displayedName = (item.displayedName || '').replace(regex, replacement)
+  }
 }
 
 export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
-  const rawItems = config.getItems(config.initialStimulusId)
-  let items = $state(deepCopy(rawItems))
+  const initialStimulusId = config.initialStimulusId ?? 0
+  let items = $state(deepCopy(config.getItems(initialStimulusId)))
+  let lastStimulusId = $state(initialStimulusId)
 
-  const initialHidden = config.getHidden(config.initialStimulusId)
-  let hiddenIds: number[] = $state([...initialHidden])
-  let lastHiddenSnapshot = $state([...initialHidden])
-
-  let lastStimulusId = $state(config.initialStimulusId)
-
-  const hiddenSet = $derived(new Set(hiddenIds))
   const groups = $derived(buildGroups(items))
-  const hasGroups = $derived(groups.some(g => g.members.length > 1))
 
-  function syncStimulus(stimulusId: number) {
-    if (stimulusId === lastStimulusId) return
-    items = deepCopy(config.getItems(stimulusId))
+  /** Re-pull from the engine, discarding unapplied edits — for when a pushed
+      step (e.g. Create intervals) changed the data underneath. Passing a
+      stimulus id switches to it and re-pulls in the same single copy. */
+  function refresh(stimulusId: number = lastStimulusId) {
     lastStimulusId = stimulusId
-
-    const nextHidden = config.getHidden(stimulusId)
-    hiddenIds = [...nextHidden]
-    lastHiddenSnapshot = [...nextHidden]
+    items = deepCopy(config.getItems(stimulusId))
   }
 
-  /** Re-pull the current stimulus, discarding unapplied edits — for when
-      a pushed step (e.g. Create intervals) changed the data underneath. */
-  function refresh() {
-    items = deepCopy(config.getItems(lastStimulusId))
-    const nextHidden = config.getHidden(lastStimulusId)
-    hiddenIds = [...nextHidden]
-    lastHiddenSnapshot = [...nextHidden]
-  }
-
-  function toggleActive(group: EntityGroup, active: boolean) {
-    const affectedIds = group.members.map(m => m.id)
-    if (active) {
-      hiddenIds = hiddenIds.filter(id => !affectedIds.includes(id))
-    } else {
-      hiddenIds = Array.from(new Set([...hiddenIds, ...affectedIds]))
-    }
-  }
-
-  function handleColorInput(group: EntityGroup, newColor: string) {
+  function handleColorInput(
+    group: MergeCard<BaseInterpretedDataType>,
+    newColor: string
+  ) {
+    // Every member gets the color, not just the leader: a merged entity has
+    // ONE color, and a leader-only write leaves members stale — repainted
+    // wherever THEY lead (e.g. per-stimulus order after an all-stimuli merge).
     // In-place mutation, NOT array replacement. With Svelte 5 deep-proxy
-    // $state, this invalidates only consumers that read `.color` on this
-    // specific item — `buildGroups` (which reads `.id` and `.displayedName`
+    // $state, this invalidates only consumers that read `.color` on these
+    // specific items — `buildGroups` (which reads `.id` and `.displayedName`
     // only) doesn't re-run, and the table re-renders just the one swatch.
     // Replacing `items = items.map(...)` here caused O(N²) re-derivation
     // and full-table re-renders per color-picker input event.
-    const leaderId = group.members[0].id
-    const leader = items.find(i => i.id === leaderId)
-    if (leader) leader.color = newColor
+    const memberIds = new Set(group.members.map(m => m.id))
+    for (const i of items) if (memberIds.has(i.id)) i.color = newColor
   }
 
   function handleNameInput(
-    item: ExtendedInterpretedDataType,
+    item: BaseInterpretedDataType,
     newName: string,
     isLeader: boolean,
-    group: EntityGroup
+    group: MergeCard<BaseInterpretedDataType>
   ) {
-    if (isLeader && group.members.length > 1) {
-      const memberIds = new Set(group.members.map(m => m.id))
-      for (const i of items) {
-        if (memberIds.has(i.id)) {
-          i.displayedName = newName
-        }
-      }
-    } else {
-      const original = items.find(i => i.id === item.id)
-      if (original) {
-        original.displayedName = newName
-
-        const trimmedName = (newName || '').trim()
-        if (isValidMatch(trimmedName)) {
-          const groupMember = items.find(
-            i =>
-              i.id !== item.id &&
-              (i.displayedName || '').trim() === trimmedName
-          )
-          if (groupMember) {
-            const isGroupHidden = hiddenIds.includes(groupMember.id)
-            if (isGroupHidden) {
-              if (!hiddenIds.includes(item.id)) {
-                hiddenIds = [...hiddenIds, item.id]
-              }
-            } else {
-              hiddenIds = hiddenIds.filter(id => id !== item.id)
-            }
-          }
-        }
-      }
-    }
+    renameItemIn(items, item, newName, isLeader, group)
   }
 
   function sort(column: string, direction: 'asc' | 'desc') {
     items = sortItems(items, column, direction)
   }
 
-  /** Bulk find/replace over every member's displayed name. In-place
-      mutation so `groups` re-derives (and regroups) reactively. */
   function renameAll(pattern: string, replacement: string) {
-    let regex: RegExp
-    try {
-      regex = new RegExp(pattern, 'g')
-    } catch {
-      return
-    }
-    for (const item of items) {
-      item.displayedName = (item.displayedName || '').replace(regex, replacement)
-    }
+    renameAllIn(items, pattern, replacement)
   }
 
-  function reorderGroups(fromIndex: number, toIndex: number) {
-    const currentGroups = buildGroups(items)
-    const dragged = currentGroups[fromIndex]
-    const without = currentGroups.filter((_, i) => i !== fromIndex)
-    without.splice(toIndex, 0, dragged)
-
-    const newOrder: ExtendedInterpretedDataType[] = []
-    for (const g of without) {
-      for (const m of g.members) {
-        newOrder.push(items.find(i => i.id === m.id)!)
-      }
-    }
-    items = newOrder
+  function reorderGroups(
+    fromIndex: number,
+    toIndex: number,
+    withIds?: ReadonlySet<number>
+  ) {
+    items = reorderWithSet(items, fromIndex, toIndex, withIds ?? new Set())
   }
 
   function getCleanedItems(): ExtendedInterpretedDataType[] {
@@ -190,16 +188,6 @@ export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
     }))
   }
 
-  function getCleanedHiddenIds(): number[] {
-    return Array.from(
-      new Set(hiddenIds.filter(v => Number.isInteger(v) && v >= 0))
-    ).sort((a, b) => a - b)
-  }
-
-  function commitHiddenSnapshot() {
-    lastHiddenSnapshot = [...getCleanedHiddenIds()]
-  }
-
   return {
     get items() {
       return items
@@ -207,25 +195,118 @@ export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
     get groups() {
       return groups
     },
-    get hasGroups() {
-      return hasGroups
-    },
-    get hiddenSet() {
-      return hiddenSet
-    },
-    get hiddenIds() {
-      return hiddenIds
-    },
-    syncStimulus,
     refresh,
-    toggleActive,
     handleColorInput,
     handleNameInput,
     sort,
     renameAll,
     reorderGroups,
     getCleanedItems,
-    getCleanedHiddenIds,
-    commitHiddenSnapshot,
+  }
+}
+
+export interface BaseGroupEditorConfig {
+  /**
+   * For a would-be merge group (entity ids sharing a displayed name), return
+   * the conflicting counterpart ids — non-empty means the group's recordings
+   * overlap and CANNOT be merged. Used to reject an invalid rename live.
+   */
+  detectConflicts?: (groupIds: number[]) => number[]
+}
+
+/**
+ * Lighter grouped editor for the color-less Base entities (stimuli,
+ * participants): live grouping by displayed name — renaming two to the same
+ * name groups them on the fly, like the AOI editor, minus color/stimulus.
+ *
+ * Merges must be disjoint, so the rename is validated LIVE: if giving an entity
+ * a name that already exists would form a group whose recordings overlap (can't
+ * merge), the rename is rejected on the spot — the displayed name snaps back and
+ * `error` explains why. So the list only ever shows groups that can actually
+ * merge; on Apply the modal turns each multi-member group into a merge command.
+ */
+export function createBaseGroupEditor(
+  initial: BaseInterpretedDataType[],
+  config: BaseGroupEditorConfig = {}
+) {
+  const copy = (rows: BaseInterpretedDataType[]): BaseInterpretedDataType[] =>
+    rows.map(r => ({ id: r.id, originalName: r.originalName, displayedName: r.displayedName }))
+
+  let items = $state(copy(initial))
+  // The displayed name each entity had when the modal opened — the "former
+  // shape" that acknowledging an impossible merge reverts to.
+  const openName = new Map(initial.map(r => [r.id, r.displayedName]))
+  const groups = $derived(buildGroups(items))
+
+  /** Conflicting counterpart ids for a group (empty = mergeable). */
+  function conflictsFor(group: MergeCard<BaseInterpretedDataType>): number[] {
+    if (group.members.length < 2 || !config.detectConflicts) return []
+    return config.detectConflicts(group.members.map(m => m.id))
+  }
+
+  /** True while any on-screen group can't actually merge (blocks Apply). */
+  const hasInvalidGroup = $derived(
+    groups.some(g => conflictsFor(g).length > 0)
+  )
+
+  function handleNameInput(
+    item: BaseInterpretedDataType,
+    newName: string,
+    isLeader: boolean,
+    group: MergeCard<BaseInterpretedDataType>
+  ) {
+    renameItemIn(items, item, newName, isLeader, group)
+  }
+
+  /** Dissolve a group by returning every member's displayed name to the shape
+      it had when the modal opened (used to undo an impossible merge). */
+  function acknowledge(group: MergeCard<BaseInterpretedDataType>) {
+    const ids = new Set(group.members.map(m => m.id))
+    for (const i of items) {
+      if (ids.has(i.id)) i.displayedName = openName.get(i.id) ?? i.displayedName
+    }
+  }
+
+  function sort(column: string, direction: 'asc' | 'desc') {
+    items = sortItems(items, column, direction)
+  }
+
+  function renameAll(pattern: string, replacement: string) {
+    renameAllIn(items, pattern, replacement)
+    // Any group a bulk rename forms is validated the same way as a manual one:
+    // an impossible merge shows its notice + Undo, and blocks Apply.
+  }
+
+  function reorderGroups(
+    fromIndex: number,
+    toIndex: number,
+    withIds?: ReadonlySet<number>
+  ) {
+    items = reorderWithSet(items, fromIndex, toIndex, withIds ?? new Set())
+  }
+
+  /** Trimmed, id-keyed copy for committing the rename. */
+  function getItems(): BaseInterpretedDataType[] {
+    return items.map(i => ({
+      id: i.id,
+      originalName: i.originalName,
+      displayedName: (i.displayedName || '').trim(),
+    }))
+  }
+
+  return {
+    get groups() {
+      return groups
+    },
+    get hasInvalidGroup() {
+      return hasInvalidGroup
+    },
+    conflictsFor,
+    handleNameInput,
+    acknowledge,
+    sort,
+    renameAll,
+    reorderGroups,
+    getItems,
   }
 }

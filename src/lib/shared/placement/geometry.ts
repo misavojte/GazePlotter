@@ -17,7 +17,7 @@ const VIEWPORT_PADDING = 8
  * @param target - Size of the floating element along this axis.
  * @param align  - Desired alignment.
  */
-export const aligned = (
+const aligned = (
   base: number,
   size: number,
   target: number,

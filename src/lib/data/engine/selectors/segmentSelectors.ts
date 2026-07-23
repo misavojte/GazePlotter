@@ -1,7 +1,5 @@
 import { type SegmentInterpretedDataType } from '$lib/data/types'
 import type { DataEngine } from '../dataEngine.svelte'
-import { getNumberOfParticipants } from './baseSelectors'
-import { getHiddenAois } from './aoiSelectors'
 import { getAoiRaw, getCategoryRaw } from '../utils/interpreters'
 
 export const getNumberOfSegments = (
@@ -12,6 +10,25 @@ export const getNumberOfSegments = (
   const reader = engine.getReader()
   if (!reader) throw new Error('Binary reader not available')
   return reader.getSegmentCount(stimulusId, participantId)
+}
+
+/**
+ * Number of FIXATION segments (category 0) for a stimulus × participant — the
+ * count the metric scan actually iterates (`reader.getFixationRange`), as
+ * opposed to `getNumberOfSegments`, which counts every segment (fixations,
+ * saccades, blinks). O(1) index subtraction. A recording with segments but
+ * zero fixations is a capture failure: present but unusable, distinct from both
+ * an absent recording and a real metric value.
+ */
+export const getNumberOfFixations = (
+  engine: DataEngine,
+  stimulusId: number,
+  participantId: number
+): number => {
+  const reader = engine.getReader()
+  if (!reader) throw new Error('Binary reader not available')
+  const { startIndex, endIndex } = reader.getFixationRange(stimulusId, participantId)
+  return endIndex - startIndex
 }
 
 export const getParticipantEndTime = (
@@ -28,7 +45,9 @@ export const getStimulusHighestEndTime = (
   engine: DataEngine,
   stimulusIndex: number
 ): number => {
-  const numParticipants = getNumberOfParticipants(engine)
+  const meta = engine.metadata
+  if (!meta) throw new Error('Data engine metadata not available')
+  const numParticipants = meta.participants.data.length
   let max = 0
   for (let i = 0; i < numParticipants; i++) {
     max = Math.max(max, getParticipantEndTime(engine, stimulusIndex, i))
@@ -55,14 +74,10 @@ export const getSegment = (
     throw new Error(`Segment ${segmentId} out of range`)
   }
 
-  const hidden = getHiddenAois(engine, stimulusId)
-  const hiddenSet = hidden.length ? new Set<number>(hidden) : null
   const rawIds = reader.getRawAois(absoluteIndex)
 
   const uniqueAois = new Set(
-    rawIds
-      .filter(rawId => !hiddenSet?.has(rawId))
-      .map(rawId => engine.getAoiMapping(stimulusId, rawId))
+    rawIds.map(rawId => engine.getAoiMapping(stimulusId, rawId))
   )
   const aoi = Array.from(uniqueAois).map(aoiId =>
     getAoiRaw(stimulusId, aoiId, metadata)

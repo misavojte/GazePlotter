@@ -1,7 +1,10 @@
 import type {
   ExtendedInterpretedDataType,
   BaseInterpretedDataType,
-  ParticipantsGroup,
+  ParticipantsSelection,
+  EntitySelection,
+  NameSelection,
+  MergeLogEntry,
 } from '$lib/data/types'
 import type { MetricInstance } from '$lib/metrics'
 import type {
@@ -32,18 +35,15 @@ export interface UpdateAoisCommand extends BaseCommandInterface {
   aois: ExtendedInterpretedDataType[]
   stimulusId: number
   applyTo: 'this_stimulus' | 'all_by_original_name' | 'all_by_displayed_name'
-  /** Optional raw AOI ids to hide for this stimulus (treated as inactive). */
-  hiddenAois?: number[]
 }
 
-export interface UpdateParticipantsCommand extends BaseCommandInterface {
-  type: 'updateParticipants'
-  participants: BaseInterpretedDataType[]
-}
-
-export interface UpdateStimuliCommand extends BaseCommandInterface {
-  type: 'updateStimuli'
-  stimuli: BaseInterpretedDataType[]
+// Rename + reorder one entity axis. Stimuli and participants are the same
+// `[originalName, displayedName]`-row table, so ONE axis-tagged command serves
+// both (the axis is also how the merge log is keyed — see MergeLogEntry).
+export interface UpdateEntitiesCommand extends BaseCommandInterface {
+  type: 'updateEntities'
+  axis: 'participant' | 'stimulus'
+  items: BaseInterpretedDataType[]
 }
 
 export interface UpdateEventDataCommand extends BaseCommandInterface {
@@ -51,9 +51,6 @@ export interface UpdateEventDataCommand extends BaseCommandInterface {
   stimulusId: number
   channelDefs: string[][]
   eventBuffers: number[][][]
-  /** Hidden ids valid for the NEW channel indexing (omit to clear: the
-      engine resets the hidden list whenever defs are replaced). */
-  hiddenChannels?: number[]
   /** Display order for the NEW defs (omit for identity). Inverse commands
       carry it so undo restores a custom channel order. */
   orderVector?: number[]
@@ -63,13 +60,32 @@ export interface UpdateEventChannelsCommand extends BaseCommandInterface {
   type: 'updateEventChannels'
   stimulusId: number
   channels: ExtendedInterpretedDataType[]
-  /** Optional raw channel ids to hide for this stimulus (treated as inactive). */
-  hiddenChannels?: number[]
 }
 
-export interface UpdateParticipantsGroupsCommand extends BaseCommandInterface {
-  type: 'updateParticipantsGroups'
-  groups: ParticipantsGroup[]
+// SELECTIONS update for ONE axis (see NameSelection).
+// Carries the FULL selections array — create/rename/delete/edit are one
+// operation at different deltas, so one handler, one reverse (snapshot of the
+// previous array), one undo step. Metadata-only; never touches
+// groupPool/version. The payload type follows the axis: participants keep
+// their id-keyed shape, stimuli/categories are id-keyed entities, events and
+// AOIs are name-keyed (portable across stimuli).
+export type UpdateSelectionsCommand = BaseCommandInterface & {
+  type: 'updateSelections'
+} & (
+    | { axis: 'participant'; selections: ParticipantsSelection[] }
+    | { axis: 'stimulus' | 'category'; selections: EntitySelection[] }
+    | { axis: 'event' | 'aoi'; selections: NameSelection[] }
+  )
+
+export type SelectionsAxis = UpdateSelectionsCommand['axis']
+
+/** Selection payload per axis (the correlated form of UpdateSelectionsCommand). */
+export type SelectionsByAxis = {
+  participant: ParticipantsSelection[]
+  stimulus: EntitySelection[]
+  category: EntitySelection[]
+  event: NameSelection[]
+  aoi: NameSelection[]
 }
 
 export interface UpdateNoAoiTreatmentCommand extends BaseCommandInterface {
@@ -77,10 +93,59 @@ export interface UpdateNoAoiTreatmentCommand extends BaseCommandInterface {
   noAoiTreatment: { displayedName: string; color: string }
 }
 
+// Merge commands (see PLANMERGE.md M3). A merge is a lossless, disjoint fold;
+// the pair is symmetric so undo/redo just swap them. The reverse of a merge is
+// an un-merge carrying the deterministically-precomputed log entry (the entry
+// is a pure function of the pre-merge state, so it can be captured before the
+// forward runs, satisfying the bus's reverse-before-execute contract).
+// One axis-tagged pair for both axes (`axis` selects the participant vs stimulus
+// fold — stimulus additionally reconciles the per-stimulus AOI/channel
+// dictionaries, entirely below this command layer).
+export interface MergeEntitiesCommand extends BaseCommandInterface {
+  type: 'mergeEntities'
+  axis: 'participant' | 'stimulus'
+  representativeId: number
+  memberIds: number[]
+  /** Timestamp stamped into the log entry; carried so forward + reverse agree. */
+  at: number
+}
+
+export interface UnmergeEntitiesCommand extends BaseCommandInterface {
+  type: 'unmergeEntities'
+  axis: 'participant' | 'stimulus'
+  entry: MergeLogEntry
+}
+
+// Atomic merge reconciliation for the stimulus/participant modal (PLANMERGE.md
+// M2 UX). One Apply, one undo step. The modal edits the FULL entity list
+// (visible entities + the members currently merged into them) and derives the
+// desired merge groups from the displayed-name grouping. This command replays
+// that intent as ONE chain: unmerge everything active on the axis (restoring a
+// clean, un-tombstoned order), commit the edited names + order, then merge the
+// desired groups. Renaming a member apart drops it from `groups`, so it stays
+// un-merged; renaming two together adds a group, so they merge. Because all
+// work happens in child commands, the root's own reverse is a `noop` — the
+// children's recorded reverses restore the pre-Apply state on undo.
+export interface ReconcileMergesCommand extends BaseCommandInterface {
+  type: 'reconcileMerges'
+  axis: 'stimulus' | 'participant'
+  /** Full entity list (visible + currently-merged members) with edited names/order. */
+  items: BaseInterpretedDataType[]
+  /** Desired merge groups after this Apply; `at` reuses an unchanged group's
+      original timestamp (provenance) and is fresh for a newly-formed merge. */
+  groups: { representativeId: number; memberIds: number[]; at: number }[]
+}
+
+// A command that does nothing. Used as the reverse of a pure orchestrator
+// (reconcileMerges) whose every effect lives in child commands: the bus
+// requires a non-null reverse, and the children's own reverses do the undo.
+export interface NoopCommand extends BaseCommandInterface {
+  type: 'noop'
+}
+
 export interface UpdateCategoriesCommand extends BaseCommandInterface {
   type: 'updateCategories'
   categories: ExtendedInterpretedDataType[]
-  hiddenCategories?: number[]
 }
 
 // Metric library command. Carries the FULL instances array — rename, create,
@@ -115,10 +180,8 @@ export interface UpdateLayoutCommand extends BaseCommandInterface {
 export interface AddGridItemCommand extends BaseCommandInterface {
   type: 'addGridItem'
   vizType: string
-  options?: GridItemSnapshot & { skipCollisionResolution?: boolean }
+  options?: GridItemSnapshot
   itemId: number // Required itemId for command reversal
-  /** Explicit grid-coord placement; omit to fall back to auto-placement. */
-  position?: { x: number; y: number }
 }
 
 export interface RemoveGridItemCommand extends BaseCommandInterface {
@@ -130,8 +193,6 @@ export interface DuplicateGridItemCommand extends BaseCommandInterface {
   type: 'duplicateGridItem'
   itemId: number
   duplicateId: number
-  /** Explicit grid-coord placement; omit to fall back to auto-placement. */
-  position?: { x: number; y: number }
 }
 
 export interface SetLayoutStateCommand extends BaseCommandInterface {
@@ -141,12 +202,15 @@ export interface SetLayoutStateCommand extends BaseCommandInterface {
 
 export type WorkspaceCommand =
   | UpdateAoisCommand
-  | UpdateParticipantsCommand
-  | UpdateStimuliCommand
+  | UpdateEntitiesCommand
   | UpdateEventDataCommand
   | UpdateEventChannelsCommand
-  | UpdateParticipantsGroupsCommand
+  | UpdateSelectionsCommand
   | UpdateNoAoiTreatmentCommand
+  | MergeEntitiesCommand
+  | UnmergeEntitiesCommand
+  | ReconcileMergesCommand
+  | NoopCommand
   | UpdateCategoriesCommand
   | UpdateMetricInstancesCommand
   | UpdateSettingsCommand // includes position and size updates
@@ -170,5 +234,4 @@ export type WorkspaceCommandChain = WorkspaceCommand & {
   /** Unique identifier for the command chain. All related commands share the same chainId. */
   chainId: number
   isRootCommand: boolean
-  history?: 'undo' | 'redo'
 }

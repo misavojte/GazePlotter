@@ -1,4 +1,4 @@
-import { defineMetric } from '../../core/defineMetric'
+import { defineFirstHitMetric } from './defineFirstHitMetric'
 
 /**
  * ## Time to first fixation
@@ -30,33 +30,11 @@ import { defineMetric } from '../../core/defineMetric'
  *   value convert downstream (e.g. CSV export uses `-1`).
  * - `supportsWindowing: false` — the validator rejects any windowed projection.
  */
-defineMetric({
+defineFirstHitMetric({
   id: 'timeToFirstFixation',
   label: 'Time to first fixation',
-  description: 'Per AOI: elapsed time (ms) from stimulus onset to the first fixation that landed in the AOI. Lower values mean the AOI captured attention earlier. NaN if never fixated.',
-  unit: 'ms',
-  category: 'ttf',
-  rawShape: 'aoi-vector',
-  windowUnit: 'ms',
-  supportsWindowing: false,
-  providesAnyFixation: true,
-  // Intensive: a per-participant latency. Only `mean` is sound across
-  // participants; latencies do not add into a cohort total.
-  measurementClass: 'intensive',
+  description: 'Per AOI: elapsed time (ms) from stimulus onset to the first fixation that landed in the AOI. Lower values mean the AOI captured attention earlier. No value if the AOI was never fixated.',
   searchTags: ['ttff', 'ttf', 'first', 'fixation', 'time', 'latency', 'onset', 'aoi'],
-  params: [] as const,
-  accumulation: 'stateful',
-  init: ({ slots }) => new Array<number>(slots.totalSlots).fill(-1),
-  onFixation: (acc, { start, slots }, { slots: info }) => {
-    if (acc[info.anyFixationSlot] === -1) acc[info.anyFixationSlot] = start
-    if (slots.length === 0) {
-      if (acc[info.noAoiSlot] === -1) acc[info.noAoiSlot] = start
-      return
-    }
-    for (let i = 0; i < slots.length; i++) {
-      const s = slots[i]
-      if (acc[s] === -1) acc[s] = start
-    }
-  },
-  finalize: (acc) => acc.map(v => v === -1 ? Number.NaN : v),
+  aoiAggregate: { min: 'first-reached AOI', max: 'last-reached AOI' },
+  extractValue: (fix) => fix.start,
 })

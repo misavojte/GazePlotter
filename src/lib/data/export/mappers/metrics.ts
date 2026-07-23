@@ -15,7 +15,7 @@ import {
   type Scope,
   type GroupScope,
   formatProjectionReadout,
-  formatParamReadout,
+  instanceReadout,
   defaultInstanceLabel,
   getMetric,
   instanceMatchesContract,
@@ -674,7 +674,9 @@ export async function generateMetricExport(
           inst.baseId,
           metric?.meta.unit ?? '',
           metric?.meta.measurementClass ?? '',
-          formatParamReadout(inst).join(', '),
+          // instanceReadout includes the summary statistic + reduction; params
+          // alone can't distinguish median/max/min in the codebook.
+          instanceReadout(inst).join(', '),
           formatProjectionReadout(inst) ?? '',
           windowStr,
           projectionOutputShape(inst.projection),

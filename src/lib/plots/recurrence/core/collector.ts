@@ -1,4 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import { resolveAoiSelectionVisibleIds } from '$lib/data/engine'
 import type { RecurrenceData, RecurrenceMethod, FixationRecord } from '../types'
 import { FIXATION_CATEGORY_ID } from '$lib/data/binary'
 
@@ -16,6 +17,10 @@ export function collectFixations(
   requireSpatial: boolean = true,
   timeStart: number = 0,
   timeEnd: number = 0,
+  /** Per-plot AOI selection: mapped/logical AOI ids outside the selection are
+   *  dropped from each fixation's aoiIds, so AOI-mode recurrence +
+   *  per-fixation colors honor the reduced alphabet. */
+  aoiSelectionId?: number,
 ): FixationRecord[] | null {
   const reader = engine.getReader()
   const meta = engine.metadata
@@ -28,8 +33,8 @@ export function collectFixations(
   )
   const fixations: FixationRecord[] = []
 
-  const hiddenAois = meta.aois.hiddenAois?.[stimulusId] ?? []
-  const hiddenAoisSet = hiddenAois.length ? new Set(hiddenAois) : null
+  // null = no selection → keep every mapped AOI (byte-identical).
+  const visibleSet = resolveAoiSelectionVisibleIds(engine, stimulusId, aoiSelectionId)
   const hasUpperBound = timeEnd > 0
 
   for (let segIdx = startIndex; segIdx < endIndex; segIdx++) {
@@ -48,9 +53,9 @@ export function collectFixations(
     const rawAois = reader.getRawAois(segIdx)
     const aoiIds: number[] = []
     for (let i = 0; i < rawAois.length; i++) {
-      const rawId = rawAois[i]
-      if (hiddenAoisSet?.has(rawId)) continue
-      aoiIds.push(engine.getAoiMapping(stimulusId, rawId))
+      const mappedId = engine.getAoiMapping(stimulusId, rawAois[i])
+      if (visibleSet && !visibleSet.has(mappedId)) continue
+      aoiIds.push(mappedId)
     }
 
     fixations.push({
@@ -79,6 +84,7 @@ export function collectRecurrenceData(
   minLineLength: number,
   timeStart: number = 0,
   timeEnd: number = 0,
+  aoiSelectionId?: number,
 ): RecurrenceData | null {
   const fixations = collectFixations(
     engine,
@@ -87,6 +93,7 @@ export function collectRecurrenceData(
     method !== 'aoi',
     timeStart,
     timeEnd,
+    aoiSelectionId,
   )
   if (!fixations || fixations.length < 2) return null
 

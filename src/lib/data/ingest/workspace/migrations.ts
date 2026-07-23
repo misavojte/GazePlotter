@@ -2,9 +2,14 @@ import { LEGACY_VISUALIZATION_TYPES } from '$lib/plots/legacyTypes'
 import {
   createDefaultMetricInstances,
   createMetricInstance,
+  isStrandedAoiAggregate,
   type MetricInstance,
 } from '$lib/metrics/instances'
-import { type MigratedJsonFormat, CURRENT_SCHEMA_VERSION } from '$lib/data/types'
+import {
+  type MigratedJsonFormat,
+  CURRENT_SCHEMA_VERSION,
+  NONE_SELECTION_ID,
+} from '$lib/data/types'
 
 const CORE_LAYOUT_KEYS = new Set([
   'id',
@@ -16,6 +21,245 @@ const CORE_LAYOUT_KEYS = new Set([
   'min',
   'redrawTimestamp',
 ])
+
+/** Plot types carrying the `hideNoAoi` setting (backfilled to `false` below). */
+const HIDE_NO_AOI_PLOT_TYPES = new Set([
+  'barPlot',
+  'aoiStreamPlot',
+  'transitionMatrix',
+  'scarf',
+])
+
+/** Plot types whose settings carry a per-plot `aoiSelectionId`. */
+const AOI_SELECTION_PLOT_TYPES = new Set([
+  'scarf',
+  'barPlot',
+  'aoiStreamPlot',
+  'transitionMatrix',
+  'recurrencePlot',
+  'scanpathSimilarity',
+  'metricCorrelation',
+  'evolvingMetrics',
+])
+/** Plot types whose settings carry `eventSelectionId` / `categorySelectionId`. */
+const EVENT_SELECTION_PLOT_TYPES = new Set(['scarf'])
+const CATEGORY_SELECTION_PLOT_TYPES = new Set(['scarf'])
+
+const MIGRATED_SELECTION_NAME = 'Migrated visibility'
+
+/** Next free selection id: 1 + the highest id already present (0 when empty). */
+function nextSelectionId(selections: { id: number }[]): number {
+  return selections.reduce((m, sel) => Math.max(m, Number(sel?.id) || 0), 0) + 1
+}
+
+/**
+ * Convert one axis's legacy per-stimulus hidden sets into name-keyed
+ * SELECTIONS: per affected stimulus, the keep-list is the displayed names the
+ * hidden set left visible; stimuli whose keep-lists match share ONE selection.
+ * Pushes the new selections into `selections` (mutated) and returns
+ * stimulusIndex → selection id for the plot-stamping pass. Stale hidden ids
+ * (no matching entity row) count as nothing hidden.
+ */
+function hiddenSetsToNameSelections(
+  defs: unknown,
+  orderVectors: unknown,
+  hidden: unknown,
+  selections: { id: number; name: string; names: string[] }[],
+  stimulusName: (s: number) => string
+): Map<number, number> {
+  const byStimulus = new Map<number, number>()
+  if (!Array.isArray(hidden) || !Array.isArray(defs)) return byStimulus
+
+  // key = order-independent identity of the keep-list → selection index
+  const byKeepSet = new Map<string, { names: string[]; stimuli: number[] }>()
+  for (let s = 0; s < hidden.length; s++) {
+    const rows = defs[s]
+    if (!Array.isArray(rows) || rows.length === 0) continue
+    const hiddenIds = new Set(
+      (Array.isArray(hidden[s]) ? hidden[s] : []).filter(
+        (id: unknown): id is number =>
+          Number.isInteger(id) && (id as number) >= 0 && (id as number) < rows.length
+      )
+    )
+    if (hiddenIds.size === 0) continue
+
+    const rawOrder = Array.isArray(orderVectors) ? orderVectors[s] : undefined
+    const order =
+      Array.isArray(rawOrder) && rawOrder.length > 0
+        ? rawOrder
+        : rows.map((_: unknown, i: number) => i)
+    const names: string[] = []
+    for (const id of order) {
+      const row = rows[id]
+      if (!row || hiddenIds.has(id)) continue
+      const name = String(row[1] ?? row[0] ?? '')
+      if (!names.includes(name)) names.push(name)
+    }
+
+    const key = JSON.stringify([...names].sort())
+    const entry = byKeepSet.get(key)
+    if (entry) entry.stimuli.push(s)
+    else byKeepSet.set(key, { names, stimuli: [s] })
+  }
+  if (byKeepSet.size === 0) return byStimulus
+
+  let nextId = nextSelectionId(selections)
+  for (const { names, stimuli } of byKeepSet.values()) {
+    const name =
+      byKeepSet.size === 1
+        ? MIGRATED_SELECTION_NAME
+        : `${MIGRATED_SELECTION_NAME} (${stimulusName(stimuli[0])})`
+    const id = nextId++
+    selections.push({ id, name, names })
+    for (const s of stimuli) byStimulus.set(s, id)
+  }
+  return byStimulus
+}
+
+/** Stamp `key` on every plot of a supported type whose stimulus is affected,
+ *  unless the plot already carries an explicit selection (newer user intent). */
+function stampSelectionOnPlots(
+  gridItems: unknown[],
+  types: Set<string>,
+  key: string,
+  selectionIdFor: (stimulusId: number) => number | undefined
+): void {
+  for (const item of gridItems as any[]) {
+    if (!item || !types.has(item.type)) continue
+    const settings = item.settings
+    if (!settings || typeof settings !== 'object') continue
+    if ((settings[key] ?? 0) !== 0) continue
+    const id = selectionIdFor(Number(settings.stimulusId))
+    if (id !== undefined) settings[key] = id
+  }
+}
+
+/**
+ * Version-independent: convert the retired hidden-visibility sets of old
+ * workspace files into named SELECTIONS applied per plot, so an already
+ * created workspace keeps rendering exactly what it rendered before the
+ * mechanism was removed. Consumes (deletes) the legacy fields, making the
+ * pass idempotent; plots added later default to "All" like any new plot.
+ */
+function migrateLegacyVisibility(payload: any, gridItems: unknown[]): void {
+  const stimulusName = (s: number): string => {
+    const row = payload?.stimuli?.data?.[s]
+    return String(row?.[1] ?? row?.[0] ?? `Stimulus ${s}`)
+  }
+
+  // --- AOIs (per-stimulus hidden ids → name-keyed aois.selections) ---
+  const aois = payload?.aois
+  if (aois?.hiddenAois) {
+    const selections: { id: number; name: string; names: string[] }[] =
+      (aois.selections ??= [])
+    const byStimulus = hiddenSetsToNameSelections(
+      aois.data,
+      aois.orderVector,
+      aois.hiddenAois,
+      selections,
+      stimulusName
+    )
+    if (selections.length === 0) delete aois.selections
+    stampSelectionOnPlots(gridItems, AOI_SELECTION_PLOT_TYPES, 'aoiSelectionId', s =>
+      byStimulus.get(s)
+    )
+    delete aois.hiddenAois
+  }
+
+  // --- Event channels (per-stimulus hidden ids → name-keyed eventsSelections) ---
+  const ed = payload?.eventData
+  if (ed?.hiddenChannels) {
+    const selections: { id: number; name: string; names: string[] }[] =
+      (payload.eventsSelections ??= [])
+    const byStimulus = hiddenSetsToNameSelections(
+      ed.data,
+      ed.orderVector,
+      ed.hiddenChannels,
+      selections,
+      stimulusName
+    )
+    if (selections.length === 0) delete payload.eventsSelections
+    stampSelectionOnPlots(gridItems, EVENT_SELECTION_PLOT_TYPES, 'eventSelectionId', s =>
+      byStimulus.get(s)
+    )
+    delete ed.hiddenChannels
+  }
+
+  // --- Eye-movement categories (GLOBAL hidden ids → id-keyed categoriesSelections) ---
+  const categories = payload?.categories
+  if (categories?.hiddenCategories) {
+    const rows: unknown[] = Array.isArray(categories.data) ? categories.data : []
+    // Fixation (id 0) is the baseline and never part of a selection.
+    const hiddenIds = new Set(
+      (Array.isArray(categories.hiddenCategories)
+        ? categories.hiddenCategories
+        : []
+      ).filter(
+        (id: unknown): id is number =>
+          Number.isInteger(id) && (id as number) > 0 && (id as number) < rows.length
+      )
+    )
+    if (hiddenIds.size > 0) {
+      const selections: { id: number; name: string; memberIds: number[] }[] =
+        (payload.categoriesSelections ??= [])
+      const memberIds = rows
+        .map((_, id) => id)
+        .filter(id => id > 0 && !hiddenIds.has(id))
+      const id = nextSelectionId(selections)
+      selections.push({ id, name: MIGRATED_SELECTION_NAME, memberIds })
+      // Hidden categories were global, so every plot gets the selection.
+      stampSelectionOnPlots(
+        gridItems,
+        CATEGORY_SELECTION_PLOT_TYPES,
+        'categorySelectionId',
+        () => id
+      )
+    }
+    delete categories.hiddenCategories
+  }
+}
+
+/**
+ * Collapse the legacy WindowSpec `mode` field into an explicit `stepSize`.
+ * Epoch was always `stepSize === windowSize`; sliding without a stepSize
+ * defaulted to windowSize too. After this, projections only carry
+ * `{ windowSize, stepSize }`.
+ */
+function collapseWindowMode(inst: any): any {
+  const proj = inst?.projection
+  if (!proj || proj.kind !== 'windowed' || !proj.window) return inst
+  const w = proj.window
+  if (!('mode' in w) && typeof w.stepSize === 'number') return inst
+  const windowSize = typeof w.windowSize === 'number' ? w.windowSize : 0
+  const stepSize =
+    typeof w.stepSize === 'number'
+      ? w.stepSize
+      : windowSize
+  const { mode: _mode, ...restWindow } = w
+  return {
+    ...inst,
+    projection: {
+      ...proj,
+      window: { ...restWindow, windowSize, stepSize },
+    },
+  }
+}
+
+/**
+ * The cross-participant statistic field was renamed `groupAggregation` →
+ * `reduction` and narrowed to {mean, sum} (median moved to the bar's
+ * distribution overlay; proportion became a metric class). Carry a serialized
+ * value across, keeping only the two sound reductions; an unsound legacy value
+ * (median / proportion) is dropped so the instance rides its metric's default
+ * reduction.
+ */
+function carryReduction(inst: any): any {
+  if (!inst || typeof inst !== 'object' || !('groupAggregation' in inst)) return inst
+  const { groupAggregation, ...rest } = inst
+  return groupAggregation === 'sum' || groupAggregation === 'mean'
+    ? { ...rest, reduction: groupAggregation }
+    : rest
+}
 
 /**
  * Sequentially upgrades raw JSON data to the current schema.
@@ -78,20 +322,16 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
 
     // Normalize missing/null orderVectors to [] so the empty-array fallback
     // logic in selectors (empty → sequential 0,1,2,…) works correctly.
-    if (payload.stimuli) {
-      payload.stimuli.orderVector = payload.stimuli.orderVector ?? []
-    }
-    if (payload.participants) {
-      payload.participants.orderVector = payload.participants.orderVector ?? []
-    }
-    if (payload.categories) {
-      payload.categories.orderVector = payload.categories.orderVector ?? []
+    for (const key of ['stimuli', 'participants', 'categories']) {
+      if (payload[key]) {
+        payload[key].orderVector = payload[key].orderVector ?? []
+      }
     }
     if (payload.aois) {
       const rawAoiOv = payload.aois.orderVector
 
       if (rawAoiOv === null || rawAoiOv === undefined) {
-        // Missing: leave empty, hiddenAois fill-in handles the rest
+        // Missing: leave empty (empty order vector = identity order)
         payload.aois.orderVector = []
       } else if (Array.isArray(rawAoiOv)) {
         // Already an array — keep as-is
@@ -112,7 +352,6 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
       }
 
       payload.aois.dynamicVisibility = payload.aois.dynamicVisibility ?? {}
-      payload.aois.hiddenAois = payload.aois.hiddenAois ?? []
     }
 
     data = {
@@ -228,7 +467,6 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
       orderVector: eventDataData.map(channels =>
         channels.map((_, i) => i)
       ),
-      hiddenChannels: Array.from({ length: stimuliCount }, () => []),
       events: eventDataEvents,
     }
 
@@ -429,7 +667,11 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
           item.type as keyof typeof LEGACY_VISUALIZATION_TYPES
         ]
       const nextItem = normalized ? { ...item, type: normalized } : item
-      if ((nextItem.type === 'barPlot' || nextItem.type === 'aoiStreamPlot' || nextItem.type === 'transitionMatrix') && nextItem.settings && typeof nextItem.settings === 'object') {
+      if (
+        HIDE_NO_AOI_PLOT_TYPES.has(nextItem.type) &&
+        nextItem.settings &&
+        typeof nextItem.settings === 'object'
+      ) {
         if (nextItem.settings.hideNoAoi === undefined) {
           nextItem.settings = { ...nextItem.settings, hideNoAoi: false }
         }
@@ -438,48 +680,61 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
     })
   }
 
-  // Version-independent normalization: collapse legacy WindowSpec `mode` field
-  // into an explicit `stepSize`. Epoch was always `stepSize === windowSize`;
-  // sliding without a stepSize defaulted to windowSize too. After this,
-  // projections only carry `{ windowSize, stepSize }`.
-  const instances = data?.data?.metricInstances
-  if (Array.isArray(instances)) {
-    data.data.metricInstances = instances.map((inst: any) => {
-      const proj = inst?.projection
-      if (!proj || proj.kind !== 'windowed' || !proj.window) return inst
-      const w = proj.window
-      if (!('mode' in w) && typeof w.stepSize === 'number') return inst
-      const windowSize = typeof w.windowSize === 'number' ? w.windowSize : 0
-      const stepSize =
-        typeof w.stepSize === 'number'
-          ? w.stepSize
-          : windowSize
-      const { mode: _mode, ...restWindow } = w
-      return {
-        ...inst,
-        projection: {
-          ...proj,
-          window: { ...restWindow, windowSize, stepSize },
-        },
-      }
-    })
+  // Version-independent: legacy hidden-visibility sets → named SELECTIONS
+  // (runs after the type rewrite above so plot-type gating sees current keys).
+  if (data?.data) {
+    migrateLegacyVisibility(
+      data.data,
+      Array.isArray(data.gridItems) ? data.gridItems : []
+    )
   }
 
-  // Version-independent normalization: the cross-participant statistic field was
-  // renamed `groupAggregation` → `reduction` and narrowed to {mean, sum} (median
-  // moved to the bar's distribution overlay; proportion became a metric class).
-  // Carry a serialized value across, keeping only the two sound reductions; an
-  // unsound legacy value (median / proportion) is dropped so the instance rides
-  // its metric's default reduction.
-  const reductionInstances = data?.data?.metricInstances
-  if (Array.isArray(reductionInstances)) {
-    data.data.metricInstances = reductionInstances.map((inst: any) => {
-      if (!inst || typeof inst !== 'object' || !('groupAggregation' in inst)) return inst
-      const { groupAggregation, ...rest } = inst
-      return groupAggregation === 'sum' || groupAggregation === 'mean'
-        ? { ...rest, reduction: groupAggregation }
-        : rest
-    })
+  // Version-independent: the scarf's retired `hideEvents` flag → the built-in
+  // "None" event SELECTION. Runs AFTER migrateLegacyVisibility so a stamped
+  // hidden-channels keep-list never resurrects an overlay the flag kept off.
+  if (Array.isArray(data.gridItems)) {
+    for (const item of data.gridItems) {
+      if (item?.type !== 'scarf' || typeof item.settings !== 'object' || !item.settings) continue
+      if (item.settings.hideEvents === true) {
+        item.settings.eventSelectionId = NONE_SELECTION_ID
+      }
+      delete item.settings.hideEvents
+    }
+  }
+
+  // Version-independent normalization of the metric-instance library, in pass
+  // order: collapse the legacy WindowSpec `mode` into an explicit `stepSize`
+  // (`collapseWindowMode`), carry the renamed `groupAggregation` field across
+  // as `reduction` (`carryReduction`), then prune `aggregate-aoi` extremes the
+  // metric no longer NAMES (`meta.aoiAggregate`) — 1.9.x offered max/min on
+  // every aoi-vector metric, and such an instance would strand invisibly:
+  // rejected by every plot contract, so no library card, no delete button, yet
+  // re-serialized into every export. There is no sound remap (the projection
+  // has no defined reading); a plot that referenced a pruned instance falls
+  // back to its metric placeholder, same as any missing instance.
+  const instances = data?.data?.metricInstances
+  if (Array.isArray(instances)) {
+    data.data.metricInstances = instances
+      .map(collapseWindowMode)
+      .map(carryReduction)
+      .filter((inst: any) => !isStrandedAoiAggregate(inst))
+  }
+
+  // Version-independent normalization: the participant selection field was
+  // renamed `participantsGroups` → `participantsSelections` (the SELECTION
+  // vocabulary unification). This is the one selection field that shipped in
+  // `main`, so workspaces on disk carry the legacy key — map it across and drop
+  // the old one so the engine only ever sees the new field. (Stimulus / category
+  // / event selections never shipped under a `*Groups` key, so they need no heal.)
+  const selectionPayload = data?.data
+  if (selectionPayload && typeof selectionPayload === 'object') {
+    if (
+      Array.isArray(selectionPayload.participantsGroups) &&
+      !Array.isArray(selectionPayload.participantsSelections)
+    ) {
+      selectionPayload.participantsSelections = selectionPayload.participantsGroups
+    }
+    delete selectionPayload.participantsGroups
   }
 
   return data as MigratedJsonFormat

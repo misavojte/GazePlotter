@@ -14,7 +14,7 @@ import {
 /**
  * Dataset with:
  * - Two channels grouped by displayed name (Click + Tap -> "Action")
- * - A hidden channel (Blink)
+ * - A standalone channel (Blink)
  * - A derived interval channel (TaskInterval -> displayed "Task")
  * Two participants, one stimulus.
  */
@@ -30,11 +30,11 @@ function createEventData(): DataType {
       ],
       orderVector: [0, 1],
     },
-    participantsGroups: [],
+    participantsSelections: [],
     metricInstances: [],
     categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [0] },
     noAoiTreatment: { displayedName: 'No AOI', color: '#cbd5e1' },
-    aois: { data: [[]], orderVector: [[]], hiddenAois: [[]] },
+    aois: { data: [[]], orderVector: [[]] },
     segments: jsonSegmentsToBinary([[[], []]]),
     eventData: {
       data: [
@@ -46,12 +46,11 @@ function createEventData(): DataType {
         ],
       ],
       orderVector: [[0, 1, 2, 3]],
-      hiddenChannels: [[2]],
       events: [
         [
           [[10, 0, 50, 0], [30, 0]], // ch0 Click: Alice, Bob
           [[20, 0], []], // ch1 Tap: Alice, Bob
-          [[5, 0], []], // ch2 Blink (hidden): Alice, Bob
+          [[5, 0], []], // ch2 Blink: Alice, Bob
           [[0, 100], [200, 50]], // ch3 Task interval: Alice, Bob
         ],
       ],
@@ -60,13 +59,14 @@ function createEventData(): DataType {
 }
 
 describe('event export — displayed naming', () => {
-  it('groups channels by displayed name, includes intervals, drops hidden, uses displayed stimulus/participant', () => {
+  it('groups channels by displayed name, includes intervals, uses displayed stimulus/participant', () => {
     const csv = generateEventUnifiedCsv(createEventData())
 
     expect(csv).toBe(
       [
         'stimulus,participant,eventName,start,duration',
         'StimulusOne,AliceDisplay,Task,0,100',
+        'StimulusOne,AliceDisplay,Blink,5,0',
         'StimulusOne,AliceDisplay,Action,10,0',
         'StimulusOne,AliceDisplay,Action,20,0',
         'StimulusOne,AliceDisplay,Action,50,0',
@@ -110,7 +110,7 @@ describe('event export — displayed naming', () => {
 })
 
 describe('event export — raw naming', () => {
-  it('uses original names, keeps hidden, excludes derived interval channels, uses raw stimulus/participant', () => {
+  it('uses original names, excludes derived interval channels, uses raw stimulus/participant', () => {
     const csv = generateEventUnifiedCsv(createEventData(), undefined, undefined, undefined, 'raw')
 
     expect(csv).toBe(
@@ -137,6 +137,7 @@ describe('event export — batch and selection', () => {
       [
         'eventName,start,duration',
         'Task,0,100',
+        'Blink,5,0',
         'Action,10,0',
         'Action,20,0',
         'Action,50,0',
@@ -160,9 +161,10 @@ describe('event export — re-import round trip', () => {
     const { contributions, warnings } = parseCsvEventText(csv)
     expect(warnings).toEqual([])
     // Displayed export bakes in grouping/renames: Click+Tap -> "Action",
-    // the interval channel -> "Task"; Blink (hidden) is dropped.
+    // the interval channel -> "Task".
     expect(contributions).toEqual([
       { stimulus: 'StimulusOne', participant: 'AliceDisplay', channel: 'Task', start: 0, duration: 100 },
+      { stimulus: 'StimulusOne', participant: 'AliceDisplay', channel: 'Blink', start: 5, duration: 0 },
       { stimulus: 'StimulusOne', participant: 'AliceDisplay', channel: 'Action', start: 10, duration: 0 },
       { stimulus: 'StimulusOne', participant: 'AliceDisplay', channel: 'Action', start: 20, duration: 0 },
       { stimulus: 'StimulusOne', participant: 'AliceDisplay', channel: 'Action', start: 50, duration: 0 },

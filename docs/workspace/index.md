@@ -64,6 +64,5 @@ GazePlotter includes dedicated libraries to customize and configure how your dat
 * **[AOI Library](/docs/workspace/aoi-library/)** — Control how Areas of Interest (AOIs) are colored, labeled, grouped, and hidden. Managed per stimulus.
 * **[Event Library](/docs/workspace/event-library/)** — Color-code and group event markers, and pair start/end events to derive custom event intervals.
 * **[Eye-movement Type Library](/docs/workspace/eye-movement-type-library/)** — Configure and customize classification categories (like fixations, saccades, and blinks) by renaming, recoloring, or hiding them globally.
-* **[Participant Groups](/docs/workspace/participant-groups/)** — Create participant cohorts based on demographic or experimental conditions to run group-level comparisons.
-* **[Participant Library](/docs/workspace/participant-library/)** — Rename participant labels individually or in bulk (using regular expressions), and sort or reorder the active participant sequence.
+* **[Participant Library](/docs/workspace/participant-library/)** — Rename participant labels individually or in bulk (using regular expressions), sort or reorder the active participant sequence, and build [named participant selections](/docs/workspace/participant-library/#participant-selections) for cross-cohort comparisons.
 * **[Stimuli Library](/docs/workspace/stimuli-library/)** — Manage stimulus names, perform bulk regex renaming, and reorder stimulus lists.

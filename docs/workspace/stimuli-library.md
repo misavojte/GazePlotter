@@ -5,7 +5,7 @@ The Stimuli Library renames stimuli and sets their order across all plots and dr
 ## Opening the library
 
 1. Select a plot to open its [Pane](/docs/visualizations/#visualization-configuration-pane).
-2. In the **Stimulus** section, click **Edit stimulus library…**.
+2. In the **Stimulus** section, click **Edit stimuli & selections…**.
 
 ## Editing stimuli
 

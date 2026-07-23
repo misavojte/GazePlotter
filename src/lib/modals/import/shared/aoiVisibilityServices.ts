@@ -3,9 +3,6 @@
  * @category Services
  * @module services/aoiVisibilityServices
  */
-import { getStimulusHighestEndTime } from '$lib/data/engine'
-import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-
 type AoiVisibilityResult = {
   multipleAoiNames: string[]
   multipleAoiVisibilityArrays: number[][]
@@ -34,29 +31,6 @@ export const processAoiVisibilityFromText = (
   }
 
   throw new Error('Unrecognized event file format')
-}
-
-/**
- * Main function to process the AOI visibility data (engine-dependent wrapper).
- * @param stimulusId id of the stimulus to which the AOIs belong
- * @param participantId id of the participant to which the AOIs belong (null if not participant-specific and should be applied to all participants)
- * @param files list of files to process
- */
-export const processAoiVisibility = async (
-  engine: DataEngine,
-  stimulusId: number,
-  participantId: number | null,
-  files: FileList
-): Promise<{
-  stimulusId: number
-  multipleAoiNames: string[]
-  multipleAoiVisibilityArrays: number[][]
-  participantId: number | null
-}> => {
-  const text = await files[0].text()
-  const highestEndTime = getStimulusHighestEndTime(engine, stimulusId)
-  const result = processAoiVisibilityFromText(text, highestEndTime)
-  return { stimulusId, ...result, participantId }
 }
 
 /**
@@ -211,7 +185,7 @@ const processTobiiChannels = (tobiiJson: TobiiJson): AoiVisibilityResult => {
  * Process Tobii AOI visibility data into a workspace-ready payload.
  * @param stimulusId id of the stimulus to which the AOIs belong
  * @param participantId id of the participant to which the AOIs belong (null if not participant-specific and should be applied to all participants)
- * @returns data for the processAoiVisibility callback function
+ * @returns AOI names + alternating visibility arrays, tagged with the stimulus/participant
  */
 export const processTobii = (
   stimulusId: number,

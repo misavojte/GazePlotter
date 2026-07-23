@@ -23,7 +23,7 @@
     listSummary,
     mapSelectableItems,
     toggleSetValue,
-    waitForExportUi,
+    withExportBusy,
   } from '../shared/helpers'
   import ExportShell from '../shared/ExportShell.svelte'
   import ExportProgressBar from '../shared/ExportProgressBar.svelte'
@@ -276,28 +276,25 @@
   const handleExport = async () => {
     if (!canExport) return
 
-    isExporting = true
-
-    try {
-      await waitForExportUi()
-      await exportService.exportMetricData({
-        fileName,
-        // Engine order, not click order, so rows are stable across exports.
-        participantIds: orderedSelectedParticipantIds(engine, selectedParticipantIds),
-        stimulusIds: Array.from(selectedStimuliIds).map(id => parseInt(id)),
-        metricInstanceIds: activeSelectedMetrics,
-        format,
-        csvOptions: {
-          delimiter,
-          decimalSeparator,
-        },
-        includeCodebook,
-        timeStart,
-        timeEnd,
-      })
-    } finally {
-      isExporting = false
-    }
+    await withExportBusy(
+      val => (isExporting = val),
+      () =>
+        exportService.exportMetricData({
+          fileName,
+          // Engine order, not click order, so rows are stable across exports.
+          participantIds: orderedSelectedParticipantIds(engine, selectedParticipantIds),
+          stimulusIds: Array.from(selectedStimuliIds).map(id => parseInt(id)),
+          metricInstanceIds: activeSelectedMetrics,
+          format,
+          csvOptions: {
+            delimiter,
+            decimalSeparator,
+          },
+          includeCodebook,
+          timeStart,
+          timeEnd,
+        })
+    )
   }
 
   const handleEditLibrary = () => {
@@ -369,7 +366,7 @@
     <Step
       n={3}
       title="Choose participants"
-      description="Group chips toggle a whole participant group at once; individual checkmarks refine the result."
+      description="Selection chips toggle a whole participant selection at once; individual checkmarks refine the result."
       summary={participantsSummary}
       done={stepParticipantsDone}
     >

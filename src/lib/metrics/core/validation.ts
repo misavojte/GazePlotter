@@ -7,12 +7,14 @@
  *   2. Wrapper invariant: a windowed projection requires a scalar-producing leaf
  *      AND the recipe must opt-in to windowing.
  *   3. Non-negative slot references.
- *   4. Reducer allow-lists for `aggregate-aoi` / `matrix-aggregate`. These are
- *      pure tables keyed on the recipe's `measurementClass` (via
- *      `supportedAoiReducers` / `supportedMatrixReducers` in `core/measurement`).
- *      No string-matching on units — the "is this a rate / probability" question
- *      is answered by the declared class (only `extensive` unlocks sum/mean
- *      across matrix cells).
+ *   4. Reducer gates. `matrix-aggregate` is a pure table keyed on the recipe's
+ *      `measurementClass` (`supportedMatrixReducers` in `core/measurement`) —
+ *      no string-matching on units; only `extensive` unlocks sum/mean across
+ *      matrix cells. `aggregate-aoi` is gated by the recipe's own
+ *      `aoiAggregate` declaration: only extremes are ever offered (order
+ *      statistics are invariant to the AOI segmentation; sum/mean/median
+ *      across AOIs are biased by it), and an extreme is valid only where the
+ *      metric NAMES what it means (`{ max: 'most-dwelled AOI', … }`).
  *   5. Author-level `rejects` hook as a final escape hatch.
  *
  * Invalid combinations are hidden outright — no warning copy — per the
@@ -24,16 +26,18 @@ import {
   leafOf,
   type Projection,
 } from './projection'
-import { supportedAoiReducers, supportedMatrixReducers } from './measurement'
+import { supportedMatrixReducers } from './measurement'
 
 export type ValidationResult = true | string
 
 /**
- * Within-participant reducer allow-lists, derived purely from the recipe's
- * `measurementClass` via the capability tables in `core/measurement.ts`
- * (`aggregate-aoi` is always max|min; `matrix-aggregate` is the full set only
- * for `extensive` quantities). No string-matching on units — the soundness
- * question is answered by the declared class.
+ * Within-participant reducer gates. `aggregate-aoi`: extremes only (a blanket
+ * statistical rule — max/min are order statistics, invariant to how many AOIs
+ * the analyst drew, while sum/mean/median are biased by the segmentation), and
+ * the extreme must be NAMED by the recipe's `aoiAggregate` declaration — an
+ * unnamed extreme has no defined reading for that metric. `matrix-aggregate`:
+ * a pure table on the recipe's `measurementClass` (`core/measurement.ts`); the
+ * full set only for `extensive` quantities. No string-matching on units.
  */
 function checkReducer(
   recipe: MetricRecipe<any, any>,
@@ -41,8 +45,11 @@ function checkReducer(
 ): string | null {
   const leaf = leafOf(p)
   if (leaf.kind === 'aggregate-aoi') {
-    if (!supportedAoiReducers(recipe.measurementClass).includes(leaf.reducer)) {
-      return `Reducer "${leaf.reducer}" across AOIs is not meaningful; pick max or min, or use a stimulus-level metric.`
+    if (leaf.reducer !== 'max' && leaf.reducer !== 'min') {
+      return `Reducer "${leaf.reducer}" across AOIs is biased by the AOI segmentation; only the extremes (max/min) are offered.`
+    }
+    if (!recipe.aoiAggregate?.[leaf.reducer]) {
+      return `Metric "${recipe.id}" names no meaning for "${leaf.reducer}" across AOIs.`
     }
   } else if (leaf.kind === 'matrix-aggregate') {
     if (!supportedMatrixReducers(recipe.measurementClass).includes(leaf.reducer)) {

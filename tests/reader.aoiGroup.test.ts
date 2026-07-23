@@ -130,40 +130,6 @@ describe('AoiGroupReader Optimization Verification', () => {
     expect(len).toBe(0)
   })
 
-  it('should exclude hidden AOIs', () => {
-    // Segment 0: 0, 1. But 1 is hidden.
-    const segments = [[[[0, 100, 0, 0, 1]]]]
-    const reader = createReaderFromJson(segments)
-    const groupReader = new AoiGroupReader(reader)
-
-    const meta = {
-      aois: {
-        data: [
-          [
-            ['0', 'A'],
-            ['1', 'B'],
-          ],
-        ],
-        hiddenAois: [[1]], // Mark AOI 1 as hidden
-      },
-      stimuli: { data: [['S1']] },
-    }
-    groupReader.updateMap(meta)
-
-    const buffer = new Uint32Array(10)
-    const len = groupReader.getSegmentAoisUniqueDirect(0, 0, buffer)
-
-    expect(len).toBe(1)
-    expect(buffer[0]).toBe(0) // Only AOI 0 should remain
-
-    // Also verify getAoiMapping
-    const mapped0 = groupReader.getAoiMapping(0, 0)
-    const mapped1 = groupReader.getAoiMapping(0, 1)
-
-    expect(mapped0).toBe(0)
-    expect(mapped1).toBe(AoiGroupReader.HIDDEN_ID)
-  })
-
   it('should return correct metrics (order and count) for a segment (Zero-Allocation)', () => {
     // AOIs: 1, 0, 1 -> Unique: 1, 0 (Count 2)
     const segments = [[[[0, 100, 0, 1, 0, 1]]]]
@@ -195,28 +161,21 @@ describe('AoiGroupReader Optimization Verification', () => {
     groupReader.getAoiMetricsInSegmentInto(0, 0, 5, out)
     expect(out.order).toBe(-1) // order
     expect(out.count).toBe(2) // count
-
-    // Hidden test
-    meta.aois.hiddenAois = [[1]]
-    groupReader.updateMap(meta)
-    groupReader.getAoiMetricsInSegmentInto(0, 0, 0, out)
-    expect(out.order).toBe(0) // Now order 0 because 1 is hidden
-    expect(out.count).toBe(1)
   })
 })
 
 describe('getSegmentAoisUniqueDirect correctness across all segment shapes', () => {
-  it('correctly maps and filters segments', () => {
-    // AOI ids 0..3: id2 shares name 'A' with id0 (groups to id0); id3 is hidden.
+  it('correctly maps and dedupes segments', () => {
+    // AOI ids 0..3: id2 shares name 'A' with id0 (groups to id0); id3 is its own group.
     const segments = [
       [
         [
           [0, 100, 0], //            seg0: no AOI            -> {}
           [0, 100, 0, 0], //         seg1: AOI0              -> {0}
-          [0, 100, 0, 3], //         seg2: AOI3 (hidden)     -> {}
+          [0, 100, 0, 3], //         seg2: AOI3              -> {3}
           [0, 100, 0, 0, 1, 2], //   seg3: 0,1,2 (2->A->0)   -> {0,1}
           [0, 100, 0, 0, 0, 1], //   seg4: dup 0,0,1         -> {0,1}
-          [0, 100, 0, 3, 3], //      seg5: all hidden        -> {}
+          [0, 100, 0, 3, 3], //      seg5: dup 3,3           -> {3}
         ],
       ],
     ]
@@ -226,7 +185,6 @@ describe('getSegmentAoisUniqueDirect correctness across all segment shapes', () 
       aois: {
         data: [[['0', 'A'], ['1', 'B'], ['2', 'A'], ['3', 'C']]],
         orderVector: [[0, 1, 2, 3]],
-        hiddenAois: [[3]],
       },
       stimuli: { data: [['S1']] },
     })
@@ -234,10 +192,10 @@ describe('getSegmentAoisUniqueDirect correctness across all segment shapes', () 
     const expected = [
       [],
       [0],
-      [],
+      [3],
       [0, 1],
       [0, 1],
-      [],
+      [3],
     ]
 
     const b = new Uint32Array(16)

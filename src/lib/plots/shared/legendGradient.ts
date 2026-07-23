@@ -46,6 +46,14 @@ export interface GradientLegendConfig {
   title: string
   /** Optional color for values below minimum (e.g. for "no data" or "zero") */
   belowMinColor?: string | null
+  /**
+   * Pin the bar to a stable max length (no grid-proportional `* 0.8`
+   * shortening). For plots whose grid width varies with the data (the metric
+   * matrix: participants × stimuli), so the legend stays ONE fixed length
+   * instead of shrinking with a narrow grid. Pass `availableWidth` as the
+   * figure width in that case so the fixed bar centers under the whole plot.
+   */
+  fixedWidth?: boolean
 }
 
 export interface GradientLegendGeometry {
@@ -140,9 +148,13 @@ export function computeGradientLegendGeometry(
   // Layout Width
   const hasBelowMin = !!config.belowMinColor
   const belowMinWidth = 15
-  const totalBarWidth = hasBelowMin
-    ? belowMinWidth + Math.min(MAX_WIDTH, availableWidth * 0.8)
+  // `fixedWidth` keeps the bar at MAX_WIDTH (clamped only so it can't exceed the
+  // space) — no `* 0.8` grid-proportional shortening; otherwise the bar tracks
+  // the grid width as before.
+  const barSpace = config.fixedWidth
+    ? Math.min(MAX_WIDTH, availableWidth)
     : Math.min(MAX_WIDTH, availableWidth * 0.8)
+  const totalBarWidth = hasBelowMin ? belowMinWidth + barSpace : barSpace
 
   const legendWidth = hasBelowMin ? totalBarWidth - belowMinWidth : totalBarWidth
 

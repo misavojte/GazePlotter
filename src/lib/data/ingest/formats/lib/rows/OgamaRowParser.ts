@@ -45,7 +45,7 @@ export class OgamaRowParser extends RowParser {
       const slice = segmentsBytes.subarray(i, i + step)
       const isHash = this.bytesEqual(slice, this.hashBytes)
       const aoi = isHash ? null : [slice]
-      this.emitSegment(
+      this.onSegment?.(
         index,
         index + 1,
         0,

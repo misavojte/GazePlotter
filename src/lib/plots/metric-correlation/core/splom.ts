@@ -1,6 +1,6 @@
 import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
 import { UI_COLORS } from '$lib/color'
-import type { SquareMatrixLayout } from '$lib/plots/shared'
+import type { MatrixLayout } from '$lib/plots/shared'
 import type { MetricCorrelationResult } from '../types'
 
 function rangeOf(values: number[]): { min: number; max: number } {
@@ -43,7 +43,7 @@ export function createSplomCellRenderer(result: MetricCorrelationResult) {
   const ranges = result.vectors.map(v => rangeOf(v.values))
   const n = result.metrics.length
 
-  return (ctx: CanvasRenderingContext2D, layout: SquareMatrixLayout) => {
+  return (ctx: CanvasRenderingContext2D, layout: MatrixLayout) => {
     const { xOffset, yOffset, cellSize } = layout
     const pad = Math.max(3, cellSize * 0.08)
     const innerSize = cellSize - pad * 2

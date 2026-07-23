@@ -1,4 +1,7 @@
 <script lang="ts">
+  import { createSeededState } from '../utils'
+  import QuestionHeader from './QuestionHeader.svelte'
+
   interface Props {
     /** Question title */
     title?: string;
@@ -26,14 +29,8 @@
     onValueChange
   }: Props = $props();
 
-  let selectedOption = $state<string | null>(null);
-  let didSeedSelection = false;
-
-  $effect(() => {
-    if (didSeedSelection) return;
-    selectedOption = initialValue;
-    didSeedSelection = true;
-  });
+  const selection = createSeededState(() => initialValue, null);
+  let selectedOption = $derived(selection.current);
 
   // Update exposed values when selectedOption changes
   $effect(() => {
@@ -53,7 +50,7 @@
 
   const handleOptionSelect = (option: string): void => {
     animatingOption = option;
-    selectedOption = option;
+    selection.current = option;
     
     setTimeout(() => {
       animatingOption = null;
@@ -76,10 +73,7 @@
 </script>
 
 <div class="single-choice-question" class:className>
-  <div class="question-header">
-    <h2>{title}</h2>
-    <p class="instructions">{instructions}</p>
-  </div>
+  <QuestionHeader {title} {instructions} />
 
   <div class="options-container">
     {#each options as option, index (option)}
@@ -125,26 +119,6 @@
     flex-direction: column;
     gap: 1.5rem;
     box-sizing: border-box;
-  }
-
-  .question-header {
-    text-align: center;
-    margin-bottom: 1rem;
-  }
-
-  .question-header h2 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--c-black);
-    margin: 0 0 0.75rem 0;
-    line-height: 1.4;
-  }
-
-  .instructions {
-    color: var(--c-darkgrey);
-    font-size: 0.9rem;
-    line-height: 1.5;
-    margin: 0;
   }
 
   .options-container {
@@ -238,14 +212,6 @@
     .option-button {
       padding: 0.875rem 1rem;
       font-size: 0.9rem;
-    }
-
-    .question-header h2 {
-      font-size: 1.1rem;
-    }
-
-    .instructions {
-      font-size: 0.85rem;
     }
   }
 </style>

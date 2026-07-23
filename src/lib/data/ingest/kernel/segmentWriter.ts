@@ -602,7 +602,10 @@ export class SegmentWriter {
         data: participantNames.map(name => [name]),
         orderVector: participantsOrderVector,
       },
-      participantsGroups: [],
+      participantsSelections: [],
+      stimuliSelections: [],
+      categoriesSelections: [],
+      eventsSelections: [],
       // Deliberately empty: starter seeding happens on the MAIN thread
       // (IngestService.handleDone) so the worker never bundles the metric
       // registry. Fresh datasets are the only thing this writer produces, so
@@ -629,7 +632,6 @@ export class SegmentWriter {
           ])
         }),
         orderVector: aoisOrderVectors,
-        hiddenAois: [],
       },
       segments: {
         segmentBuffer: finalSegBuffer.subarray(0, segPtr * SEGMENT_STRIDE),
@@ -648,7 +650,6 @@ export class SegmentWriter {
       eventData: {
         data: Array.from({ length: maxStimuli }, () => []),
         orderVector: [],
-        hiddenChannels: [],
         events: Array.from({ length: maxStimuli }, () => [] as number[][][]),
       },
     }

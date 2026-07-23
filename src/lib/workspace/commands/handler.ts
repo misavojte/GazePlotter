@@ -97,7 +97,7 @@ export function createCommandHandler(
       }
 
       if (shouldShowSuccessToast(command, isUndoRedoOperation)) {
-        const message = getCommandLabel(command.type, command.history)
+        const message = getCommandLabel(command)
         if (message) onSuccess(message)
       }
 

@@ -1,10 +1,7 @@
 import { DEFAULT_Z_INDEX, MODAL_Z_INDEX } from '$lib/shared/placement'
 
-export { DEFAULT_Z_INDEX, MODAL_Z_INDEX }
-
 export const MENU_WIDTH = 220
 export const MENU_MAX_HEIGHT = 400
-export const PADDING = 8
 
 export const DEFAULT_OFFSET = 4
 

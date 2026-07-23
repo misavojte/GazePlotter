@@ -272,11 +272,11 @@ export function getXAxisLabel(
 export function getScarfIdentifierSystem(
   aoiIdentifiers: string[],
   categoryIdentifiers: string[],
-  visibilityIdentifiers: string[]
+  eventIdentifiers: string[]
 ) {
   const idToIndex = new Map<string, number>()
   const indexToId = new Map<number, string>()
-  const idToType = new Map<string, 'aoi' | 'category' | 'visibility'>()
+  const idToType = new Map<string, 'aoi' | 'category' | 'event'>()
 
   let idx = 0
 
@@ -292,10 +292,10 @@ export function getScarfIdentifierSystem(
     idToType.set(id, 'category')
   }
 
-  for (const id of visibilityIdentifiers) {
+  for (const id of eventIdentifiers) {
     indexToId.set(idx, id)
     idToIndex.set(id, idx++)
-    idToType.set(id, 'visibility')
+    idToType.set(id, 'event')
   }
 
   return {
@@ -306,7 +306,7 @@ export function getScarfIdentifierSystem(
     counts: {
       aoi: aoiIdentifiers.length,
       category: categoryIdentifiers.length,
-      visibility: visibilityIdentifiers.length,
+      event: eventIdentifiers.length,
     },
   }
 }

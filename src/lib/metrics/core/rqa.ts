@@ -31,7 +31,7 @@ const EMPTY: RqaResult = { R: 0, REC: 0, DET: 0, LAM: 0, CORM: 0 }
  * Compute RQA from a flat NxN binary recurrence matrix. Only the upper triangle
  * (i < j) is considered (excluding the main diagonal i === j).
  */
-export function computeRqa(matrix: Uint8Array, N: number, minLineLength: number): RqaResult {
+function computeRqa(matrix: Uint8Array, N: number, minLineLength: number): RqaResult {
   if (N < 2) return EMPTY
 
   let R = 0

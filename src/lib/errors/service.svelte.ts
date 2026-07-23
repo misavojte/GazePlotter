@@ -3,14 +3,14 @@ import type { ToastState } from '$lib/toaster/toastState.svelte'
 
 const MAX_RECENT_ERRORS = 20
 
-export type ErrorOrigin =
+type ErrorOrigin =
   | 'workspace'
   | 'ingest'
   | 'export'
   | 'bootstrap'
   | 'modal'
   | 'plot'
-export type ErrorSeverity = 'recoverable' | 'fatal-load'
+type ErrorSeverity = 'recoverable' | 'fatal-load'
 
 export type ErrorInput = {
   origin: ErrorOrigin

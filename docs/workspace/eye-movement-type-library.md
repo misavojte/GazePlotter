@@ -1,13 +1,13 @@
 # Eye-movement Type Library
 
-The Eye-movement Type Library controls the display names, colors, order, and visibility of eye-movement categories (such as fixations, saccades, and unclassified events). Classification categories are defined globally across the workspace.
+The Eye-movement Type Library controls the display names, colors, order, merging, and selections of eye-movement categories (such as fixations, saccades, and unclassified events). Classification categories are defined globally across the workspace.
 
 For how to choose categories during data export, see [Segmented Data Export](/docs/export/segmented-data/).
 
 ## Opening the library
 
 1. Select any plot to open its [Pane](/docs/visualizations/#visualization-configuration-pane).
-2. In the **Eye-movement Type** section, click **Configure Category Library…**.
+2. In the **Eye-movement Types** section, click **Edit eye-movement types & selections…**.
 
 ## Editing categories
 
@@ -15,14 +15,13 @@ Each classification category is represented as a row in the library modal with t
 
 - **Displayed name** — Rename the category (e.g., changing raw source names like "0" or "Fix" to "Fixation"); the original imported name is preserved.
 - **Color** — Set the category's visualization color in scarf timelines and other charts.
-- **Visible** — Uncheck to hide this eye-movement type from visualizations.
 - **Move handle** — Drag to reorder categories. The order sets the sequence in plot legends and timeline stacks.
 
-The **Sort** and **Bulk actions** buttons above the list work similarly to other libraries, allowing you to sort categories by name, rename items using regular expressions, or change visibility in bulk.
+The **Sort** and **Bulk actions** buttons above the list work similarly to other libraries, allowing you to sort categories by name or rename items using regular expressions. Select rows to merge or split them, or save them as a named selection in the tray below the list. Each plot picks a selection in its pane's **Eye-movement Types** section to narrow which non-fixation categories it draws — there is no separate hide toggle; the built-in *None* acts as a "Fixations only" filter.
 
 ## Grouping categories
 
-Categories that share the same **Displayed name** merge into one group. The first category is the leader and controls the group's color and visibility. This is identical to [AOI grouping](/docs/workspace/aoi-library/#grouping-aois).
+Categories that share the same **Displayed name** merge into one group. The first category is the leader and controls the group's color. This is identical to [AOI merging](/docs/workspace/aoi-library/#merging-aois).
 
 ## Applying changes
 

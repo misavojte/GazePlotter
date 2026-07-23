@@ -1,5 +1,3 @@
-import type { PlotItemContract } from '$lib/plots/definePlot'
-
 export type MetricCorrelationView = 'heatmap' | 'splom'
 
 export type CorrelationMethod = 'pearson' | 'spearman'
@@ -7,6 +5,8 @@ export type CorrelationMethod = 'pearson' | 'spearman'
 export type MetricCorrelationSettings = {
   stimulusId: number
   groupId: number
+  /** Per-plot AOI SELECTION id; unset/0 = all AOIs. */
+  aoiSelectionId?: number
   view: MetricCorrelationView
   correlationMethod: CorrelationMethod
   /**
@@ -22,11 +22,6 @@ export type MetricCorrelationSettings = {
   timelineStart?: number
   timelineEnd?: number
 }
-
-export type MetricCorrelationItem = PlotItemContract<
-  'metricCorrelation',
-  MetricCorrelationSettings
->
 
 export interface MetricDescriptor {
   id: string

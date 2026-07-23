@@ -9,11 +9,15 @@ import {
   strokeCrosshairGuides,
 } from '$lib/plots/shared/canvasUtils'
 import { UI_COLORS } from '$lib/color'
-import type { SquareMatrixLayout } from './matrixLayout'
+import type { MatrixLayout } from './matrixLayout'
 
 export type MatrixRenderConfig = {
-  layout: SquareMatrixLayout
-  labels: string[]
+  layout: MatrixLayout
+  /** Row (y-axis) labels, top-to-bottom. length === layout.rowCount. */
+  rowLabels: string[]
+  /** Column (x-axis) labels, left-to-right. length === layout.colCount. */
+  colLabels: string[]
+  /** Flat row-major values (rowCount × colCount). */
   matrix: Float64Array | number[]
   maxLabelLength: number
   xAxisTitle: string
@@ -23,11 +27,12 @@ export type MatrixRenderConfig = {
   showCellValue?: (value: number) => boolean
   hasLastRowSentinel?: boolean
   /**
-   * Custom cell-content painter (e.g. the SPLOM's scatter/r-value cells).
-   * Replaces the heat-cell fill + per-cell value text; the grid is then drawn
-   * ON TOP of the content, and axis/row/column labels render as usual.
+   * Custom cell-content painter (e.g. the SPLOM's scatter/r-value cells, or the
+   * metric matrix's NA-bucket fills). Replaces the heat-cell fill + per-cell value
+   * text; the grid is then drawn ON TOP of the content, and axis/row/column
+   * labels render as usual.
    */
-  drawCells?: (ctx: CanvasRenderingContext2D, layout: SquareMatrixLayout) => void
+  drawCells?: (ctx: CanvasRenderingContext2D, layout: MatrixLayout) => void
 }
 
 function setUpFont(ctx: CanvasRenderingContext2D) {
@@ -35,16 +40,16 @@ function setUpFont(ctx: CanvasRenderingContext2D) {
   ctx.fillStyle = UI_COLORS.TEXT_PRIMARY
 }
 
-export function drawMatrixGrid(
+function drawMatrixGrid(
   ctx: CanvasRenderingContext2D,
   config: MatrixRenderConfig
 ) {
   ctx.strokeStyle = UI_COLORS.BORDER_DEFAULT
   ctx.lineWidth = 0.5
-  const { xOffset, yOffset, cellSize, gridWidth, gridHeight } = config.layout
-  const size = config.labels.length
+  const { xOffset, yOffset, cellSize, gridWidth, gridHeight, rowCount, colCount } =
+    config.layout
 
-  for (let col = 0; col <= size; col++) {
+  for (let col = 0; col <= colCount; col++) {
     const x = alignToPixelCenter(xOffset + col * cellSize)
     ctx.beginPath()
     ctx.moveTo(x, yOffset)
@@ -52,7 +57,7 @@ export function drawMatrixGrid(
     ctx.stroke()
   }
 
-  for (let row = 0; row <= size; row++) {
+  for (let row = 0; row <= rowCount; row++) {
     const y = alignToPixelCenter(yOffset + row * cellSize)
     ctx.beginPath()
     ctx.moveTo(xOffset, y)
@@ -65,22 +70,22 @@ export function drawMatrixGrid(
 // drawMatrixCellsText reads it (same render, cells always drawn first), so
 // getCellColor — which builds an interpolated colour string — runs ONCE per cell
 // instead of a second time for the text-contrast pass. Grown, never shrunk;
-// indices ≥ size² are stale but never read (the fill pass rewrites [0, size²)).
+// indices ≥ rowCount·colCount are stale but never read (the fill pass rewrites
+// [0, rowCount·colCount)).
 let _cellColors: string[] = []
 
 function drawMatrixCells(
   ctx: CanvasRenderingContext2D,
   config: MatrixRenderConfig
 ) {
-  const { xOffset, yOffset, cellSize } = config.layout
-  const size = config.labels.length
-  const cellCount = size * size
+  const { xOffset, yOffset, cellSize, rowCount, colCount } = config.layout
+  const cellCount = rowCount * colCount
   if (_cellColors.length < cellCount) _cellColors = new Array<string>(cellCount)
   const colors = _cellColors
 
-  for (let row = 0; row < size; row++) {
-    const rowOffset = row * size
-    for (let col = 0; col < size; col++) {
+  for (let row = 0; row < rowCount; row++) {
+    const rowOffset = row * colCount
+    for (let col = 0; col < colCount; col++) {
       const value = config.matrix[rowOffset + col] ?? 0
       const x = xOffset + col * cellSize
       const y = yOffset + row * cellSize
@@ -101,16 +106,15 @@ function drawMatrixCellsText(
 
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
-  const { xOffset, yOffset, cellSize, cellValueFontSize } = layout
+  const { xOffset, yOffset, cellSize, cellValueFontSize, rowCount, colCount } = layout
   ctx.font = `${cellValueFontSize}px ${SYSTEM_SANS_SERIF_STACK}`
-  const size = config.labels.length
   const showCellValue = config.showCellValue ?? (() => true)
   // Reuse the fill colours computed in drawMatrixCells (run just before this).
   const colors = _cellColors
 
-  for (let row = 0; row < size; row++) {
-    const rowOffset = row * size
-    for (let col = 0; col < size; col++) {
+  for (let row = 0; row < rowCount; row++) {
+    const rowOffset = row * colCount
+    for (let col = 0; col < colCount; col++) {
       const value = config.matrix[rowOffset + col] ?? 0
       if (!showCellValue(value)) continue
 
@@ -123,7 +127,7 @@ function drawMatrixCellsText(
   }
 }
 
-export function drawMatrixAxisLabels(
+function drawMatrixAxisLabels(
   ctx: CanvasRenderingContext2D,
   config: MatrixRenderConfig
 ) {
@@ -157,37 +161,38 @@ export function drawMatrixAxisLabels(
 
 function shouldSkipLabel(
   index: number,
-  layout: SquareMatrixLayout
+  thinFactor: number,
+  layout: MatrixLayout
 ): boolean {
-  if (layout.isUltraCompactMode) return index % layout.thinFactor !== 0
-  if (layout.isCompactMode) return (index + 1) % layout.thinFactor !== 0
+  if (layout.isUltraCompactMode) return index % thinFactor !== 0
+  if (layout.isCompactMode) return (index + 1) % thinFactor !== 0
   return false
 }
 
 function getCompactLabel(
   index: number,
   count: number,
-  layout: SquareMatrixLayout,
+  layout: MatrixLayout,
   hasLastRowSentinel: boolean
 ): string {
   if (hasLastRowSentinel && index === count - 1) return 'Ø'
   return layout.isUltraCompactMode ? index.toString() : (index + 1).toString()
 }
 
-export function drawMatrixRowLabels(
+function drawMatrixRowLabels(
   ctx: CanvasRenderingContext2D,
   config: MatrixRenderConfig,
   labelFontSize: number
 ) {
-  const { layout, labels } = config
+  const { layout, rowLabels } = config
   if (!layout.showAxisLabels) return
   const hasLastRowSentinel = config.hasLastRowSentinel ?? false
 
   ctx.textAlign = 'end'
   ctx.textBaseline = 'middle'
 
-  for (let row = 0; row < labels.length; row++) {
-    if (shouldSkipLabel(row, layout)) continue
+  for (let row = 0; row < rowLabels.length; row++) {
+    if (shouldSkipLabel(row, layout.rowThinFactor, layout)) continue
 
     const x = layout.xOffset - layout.individualLabelMargin
     const y = layout.yOffset + row * layout.cellSize + layout.cellSize * 0.5 + 1
@@ -201,9 +206,9 @@ export function drawMatrixRowLabels(
     }
 
     const labelText = layout.isCompactMode
-      ? getCompactLabel(row, labels.length, layout, hasLastRowSentinel)
+      ? getCompactLabel(row, rowLabels.length, layout, hasLastRowSentinel)
       : truncateTextToPixelWidth(
-          labels[row],
+          rowLabels[row],
           config.maxLabelLength,
           labelFontSize,
           SYSTEM_SANS_SERIF_STACK,
@@ -214,20 +219,20 @@ export function drawMatrixRowLabels(
   }
 }
 
-export function drawMatrixColumnLabels(
+function drawMatrixColumnLabels(
   ctx: CanvasRenderingContext2D,
   config: MatrixRenderConfig,
   labelFontSize: number
 ) {
-  const { layout, labels } = config
+  const { layout, colLabels } = config
   if (!layout.showAxisLabels) return
   const hasLastRowSentinel = config.hasLastRowSentinel ?? false
 
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
 
-  for (let col = 0; col < labels.length; col++) {
-    if (shouldSkipLabel(col, layout)) continue
+  for (let col = 0; col < colLabels.length; col++) {
+    if (shouldSkipLabel(col, layout.colThinFactor, layout)) continue
 
     const x = layout.xOffset + col * layout.cellSize + layout.cellSize * 0.5
     const y = layout.yOffset - layout.individualLabelMargin
@@ -250,9 +255,9 @@ export function drawMatrixColumnLabels(
     }
 
     const labelText = layout.isCompactMode
-      ? getCompactLabel(col, labels.length, layout, hasLastRowSentinel)
+      ? getCompactLabel(col, colLabels.length, layout, hasLastRowSentinel)
       : truncateTextToPixelWidth(
-          labels[col],
+          colLabels[col],
           config.maxLabelLength,
           labelFontSize,
           SYSTEM_SANS_SERIF_STACK,
@@ -288,15 +293,15 @@ export function renderMatrixContent(
 }
 
 /**
- * Hover crosshair over a square matrix: translucent row+column bands plus
- * dashed cell-edge guides. `cell.row`/`cell.col` are DISPLAY-space indices
- * (top-left origin); callers whose data rows are inverted (recurrence)
- * convert before calling.
+ * Hover crosshair over a matrix: translucent row+column bands plus dashed
+ * cell-edge guides. `cell.row`/`cell.col` are DISPLAY-space indices (top-left
+ * origin); callers whose data rows are inverted (recurrence) convert before
+ * calling.
  */
 export function drawMatrixCrosshair(
   ctx: CanvasRenderingContext2D,
   geom: Pick<
-    SquareMatrixLayout,
+    MatrixLayout,
     'xOffset' | 'yOffset' | 'cellSize' | 'gridWidth' | 'gridHeight'
   >,
   cell: { row: number; col: number }
@@ -315,15 +320,16 @@ export function drawMatrixCrosshair(
   ])
 }
 
-/** Map canvas coords to a square-matrix cell (display space), or null outside. */
+/** Map canvas coords to a matrix cell (display space), or null outside. */
 export function matrixCellAt(
-  geom: Pick<SquareMatrixLayout, 'xOffset' | 'yOffset' | 'cellSize'>,
+  geom: Pick<MatrixLayout, 'xOffset' | 'yOffset' | 'cellSize'>,
   mx: number,
   my: number,
-  size: number
+  rowCount: number,
+  colCount: number
 ): { row: number; col: number } | null {
   const col = Math.floor((mx - geom.xOffset) / geom.cellSize)
   const row = Math.floor((my - geom.yOffset) / geom.cellSize)
-  if (row < 0 || row >= size || col < 0 || col >= size) return null
+  if (row < 0 || row >= rowCount || col < 0 || col >= colCount) return null
   return { row, col }
 }

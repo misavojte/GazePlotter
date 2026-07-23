@@ -31,12 +31,11 @@ function buildV4File(
     data: {
       stimuli: { data: [['S1']], orderVector: [0] },
       participants: { data: [['P1']], orderVector: [0] },
-      participantsGroups: [],
+      participantsSelections: [],
       categories: { data: [], orderVector: [] },
       aois: {
         data: [[]],
         orderVector: [[]],
-        hiddenAois: [],
         dynamicVisibility: overrides.dynamicVisibility ?? {},
       },
       capabilities: { segmented: true, spatial: false, event: false },
@@ -75,7 +74,6 @@ describe('V4 → V5 consolidated migration: metric-instance seeding', () => {
     const ed = migrated.data.eventData
     expect(Array.isArray(ed.data)).toBe(true)
     expect(ed.data.length).toBe(1)
-    expect(ed.hiddenChannels).toEqual([[]])
     expect(Array.isArray(ed.events)).toBe(true)
   })
 })
@@ -352,6 +350,32 @@ describe('V4 → V5 bar-plot settings migration', () => {
     const m = runMigrations(file)
     expect(m.gridItems[0].settings.hideNoAoi).toBe(true)
   })
+
+  it('initializes hideNoAoi to false when it is undefined on scarf', () => {
+    const file = buildV4File([
+      {
+        id: 'scarf-1',
+        type: 'scarf',
+        x: 0, y: 0, w: 8, h: 8,
+        settings: { stimulusId: 0, groupId: -1 },
+      },
+    ])
+    const m = runMigrations(file)
+    expect(m.gridItems[0].settings.hideNoAoi).toBe(false)
+  })
+
+  it('keeps hideNoAoi value if it is already defined on scarf', () => {
+    const file = buildV4File([
+      {
+        id: 'scarf-1',
+        type: 'scarf',
+        x: 0, y: 0, w: 8, h: 8,
+        settings: { stimulusId: 0, groupId: -1, hideNoAoi: true },
+      },
+    ])
+    const m = runMigrations(file)
+    expect(m.gridItems[0].settings.hideNoAoi).toBe(true)
+  })
 })
 
 describe('V4 → V5 aoi-stream binSize → metricInstanceIds migration', () => {
@@ -584,6 +608,56 @@ describe('version-independent: groupAggregation → reduction rename', () => {
       expect(inst.reduction, legacy).toBeUndefined()
       expect('groupAggregation' in inst, legacy).toBe(false)
     }
+  })
+})
+
+describe('version-independent: unnamed aggregate-aoi extremes are pruned', () => {
+  const buildWithInstances = (instances: unknown[]): Record<string, unknown> => ({
+    version: 5,
+    data: { metricInstances: instances },
+    gridItems: [],
+    fileMetadata: null,
+  })
+  const inst = (id: string, baseId: string, projection: unknown) => ({
+    id, baseId, params: {}, label: id, projection,
+  })
+
+  it('prunes an aggregate-aoi instance whose metric no longer names the extreme', () => {
+    // 1.9.x offered max/min on every aoi-vector metric; fixationDuration now
+    // deliberately names none (its Summary `statistic` would double-reduce).
+    const m = runMigrations(buildWithInstances([
+      inst('stranded', 'fixationDuration', { kind: 'aggregate-aoi', reducer: 'max' }),
+      inst('kept', 'absoluteTime', { kind: 'aggregate-aoi', reducer: 'max' }),
+    ]))
+    const ids = (m.data.metricInstances as MetricInstance[]).map(i => i.id)
+    expect(ids).not.toContain('stranded')
+    expect(ids).toContain('kept')
+  })
+
+  it('prunes a WINDOWED aggregate-aoi on an opted-out metric (inner leaf checked)', () => {
+    const m = runMigrations(buildWithInstances([
+      inst('stranded-w', 'visitDuration', {
+        kind: 'windowed',
+        window: { windowSize: 1000, stepSize: 1000 },
+        inner: { kind: 'aggregate-aoi', reducer: 'min' },
+      }),
+    ]))
+    expect((m.data.metricInstances as MetricInstance[]).length).toBe(0)
+  })
+
+  it('leaves unknown recipes untouched (this registry is not their arbiter)', () => {
+    const m = runMigrations(buildWithInstances([
+      inst('foreign', 'someFutureMetric', { kind: 'aggregate-aoi', reducer: 'max' }),
+    ]))
+    expect((m.data.metricInstances as MetricInstance[]).map(i => i.id)).toContain('foreign')
+  })
+
+  it('leaves non-aggregate projections and named extremes alone', () => {
+    const m = runMigrations(buildWithInstances([
+      inst('vec', 'fixationDuration', { kind: 'identity-aoi-vector' }),
+      inst('ttf-min', 'timeToFirstFixation', { kind: 'aggregate-aoi', reducer: 'min' }),
+    ]))
+    expect((m.data.metricInstances as MetricInstance[]).map(i => i.id)).toEqual(['vec', 'ttf-min'])
   })
 })
 

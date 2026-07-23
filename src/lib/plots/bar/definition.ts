@@ -71,7 +71,6 @@ export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
           ],
         },
         { kind: 'scaleRange', key: 'scaleRange', legend: 'Scale range' },
-        { kind: 'hideNoAoi', key: 'hideNoAoi' },
       ],
       summary: ctx => {
         const orientation = ctx.common(s => s.barPlottingType)

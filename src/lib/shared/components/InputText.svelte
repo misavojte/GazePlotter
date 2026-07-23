@@ -5,7 +5,7 @@
     value?: string
     label: string
     id?: string
-    appearance?: 'default' | 'selectMatched' | 'compact'
+    compact?: boolean
     placeholder?: string
     fill?: boolean
     showLabel?: boolean
@@ -18,7 +18,7 @@
     value = $bindable(''),
     label,
     id,
-    appearance = 'default',
+    compact = false,
     placeholder,
     fill = false,
     showLabel = true,
@@ -35,22 +35,19 @@
 
   const generatedId = untrack(() => `text-${crypto.randomUUID()}`)
   const inputId = $derived(id ?? generatedId)
-  const isCompact = $derived(appearance === 'compact')
 </script>
 
 <InputScaffold
   {label}
   id={inputId}
-  compact={isCompact}
-  fill={fill || isCompact}
-  labelSize={isCompact ? 'compact' : 'default'}
+  compact={compact}
+  fill={fill || compact}
   {showLabel}
 >
   <input
     id={inputId}
     type="text"
-    class:select-matched={appearance === 'selectMatched'}
-    class:compact={isCompact}
+    class:compact={compact}
     class:fill
     bind:value
     {disabled}
@@ -75,23 +72,11 @@
     width: 100%;
   }
 
-  input.select-matched {
-    height: 34px;
-    padding: 0.25em 0.5em;
-    border: 1px solid var(--c-midgrey);
-    border-radius: var(--rounded-md);
-    font-size: 13px;
-    font-weight: 400;
-    color: var(--c-black);
-  }
-
-  input.select-matched:focus-visible {
-    outline: 2px solid var(--c-brand);
-    outline-offset: 2px;
-  }
-
   input.compact {
     width: 100%;
+    /* One control height + radius, matching the compact Select trigger and
+       InputNumber so stacked/paned fields read as one system. */
+    height: 26px;
     padding: 3px 6px;
     border-color: var(--c-midgrey);
     border-radius: var(--rounded);

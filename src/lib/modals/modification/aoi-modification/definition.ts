@@ -3,5 +3,5 @@ import { defineModal } from '$lib/modals/defineModal'
 
 export const aoiModificationModal = defineModal({
   component: Modal,
-  title: 'AOI customization',
+  title: 'AOIs & selections',
 })

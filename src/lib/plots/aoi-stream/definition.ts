@@ -57,7 +57,6 @@ export const aoiStreamPlotDefinition = definePlot<
           defaultMax: PRESET_PALETTES.HEAT.colors[2],
           showWhen: alignmentIs('heatmap'),
         },
-        { kind: 'hideNoAoi', key: 'hideNoAoi' },
       ],
     },
     'timelineRange',

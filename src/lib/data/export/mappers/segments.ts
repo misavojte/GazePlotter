@@ -4,25 +4,21 @@ import { getAoiRaw, getCategoryRaw } from '$lib/data/engine/utils/interpreters'
 import type { ExportNaming } from '../types'
 import {
   type CsvFormatOptions,
+  type DecimalSeparator,
   resolveCsvFormatOptions,
   generateCsvString,
   formatNumberForCsv,
 } from '../encoders/csv'
-
-const SEGMENT_HEADER = [
-  'stimulus',
-  'participant',
-  'timestamp',
-  'duration',
-  'eyemovementtype',
-  'AOI',
-]
-
-const SEGMENT_HEADER_WITH_SPATIAL = [...SEGMENT_HEADER, 'x', 'y']
+import { groupByParticipantAndStimulus } from './utils'
 
 const BATCH_HEADER = ['timestamp', 'duration', 'eyemovementtype', 'AOI']
 
 const BATCH_HEADER_WITH_SPATIAL = [...BATCH_HEADER, 'x', 'y']
+
+// The unified export merely prepends the grouping columns to a batch row.
+const SEGMENT_HEADER = ['stimulus', 'participant', ...BATCH_HEADER]
+
+const SEGMENT_HEADER_WITH_SPATIAL = [...SEGMENT_HEADER, 'x', 'y']
 
 type SegmentCsvRow = {
   stimulus: string
@@ -158,6 +154,31 @@ function convertDataStructure(
 }
 
 /**
+ * The BATCH_HEADER-aligned cells of one segment row (plus x/y when spatial
+ * columns are exported). The unified export prepends [stimulus, participant],
+ * mirroring the SEGMENT_HEADER/BATCH_HEADER relationship above.
+ */
+function segmentCells(
+  item: SegmentCsvRow,
+  decimalSeparator: DecimalSeparator,
+  includeSpatial: boolean
+): string[] {
+  const cells = [
+    formatNumberForCsv(item.timestamp, decimalSeparator),
+    formatNumberForCsv(item.duration, decimalSeparator),
+    item.eyemovementtype,
+    item.AOI ? item.AOI.join(';') : '',
+  ]
+  if (includeSpatial) {
+    cells.push(
+      formatNumberForCsv(item.x, decimalSeparator),
+      formatNumberForCsv(item.y, decimalSeparator)
+    )
+  }
+  return cells
+}
+
+/**
  * Generates a unified CSV string for all gaze segments in the dataset.
  */
 export function generateUnifiedCsv(
@@ -178,31 +199,11 @@ export function generateUnifiedCsv(
   )
   const includeSpatialColumns = data.capabilities.spatial
 
-  const rows = csvPreData.map(item => {
-    const aoiNames = item.AOI ? item.AOI.join(';') : ''
-
-    if (!includeSpatialColumns) {
-      return [
-        item.stimulus,
-        item.participant,
-        formatNumberForCsv(item.timestamp, decimalSeparator),
-        formatNumberForCsv(item.duration, decimalSeparator),
-        item.eyemovementtype,
-        aoiNames,
-      ]
-    }
-
-    return [
-      item.stimulus,
-      item.participant,
-      formatNumberForCsv(item.timestamp, decimalSeparator),
-      formatNumberForCsv(item.duration, decimalSeparator),
-      item.eyemovementtype,
-      aoiNames,
-      formatNumberForCsv(item.x, decimalSeparator),
-      formatNumberForCsv(item.y, decimalSeparator),
-    ]
-  })
+  const rows = csvPreData.map(item => [
+    item.stimulus,
+    item.participant,
+    ...segmentCells(item, decimalSeparator, includeSpatialColumns),
+  ])
 
   return generateCsvString(
     includeSpatialColumns ? SEGMENT_HEADER_WITH_SPATIAL : SEGMENT_HEADER,
@@ -233,53 +234,18 @@ export function generateMetadataForBatchCsv(
   )
   const includeSpatialColumns = data.capabilities.spatial
 
-  const results: Array<{ fileName: string; content: string }> = []
+  return groupByParticipantAndStimulus(csvPreData, (combinedData, stimulus, participant) => {
+    const rows = combinedData.map(item =>
+      segmentCells(item, decimalSeparator, includeSpatialColumns)
+    )
 
-  const participants = Array.from(
-    new Set(csvPreData.map(item => item.participant))
-  )
-  const stimuli = Array.from(new Set(csvPreData.map(item => item.stimulus)))
-
-  for (const participant of participants) {
-    for (const stimulus of stimuli) {
-      const combinedData = csvPreData.filter(
-        item => item.participant === participant && item.stimulus === stimulus
-      )
-
-      if (combinedData.length === 0) continue
-
-      const rows = combinedData.map(item => {
-        const aoiNames = item.AOI ? item.AOI.join(';') : ''
-
-        if (!includeSpatialColumns) {
-          return [
-            formatNumberForCsv(item.timestamp, decimalSeparator),
-            formatNumberForCsv(item.duration, decimalSeparator),
-            item.eyemovementtype,
-            aoiNames,
-          ]
-        }
-
-        return [
-          formatNumberForCsv(item.timestamp, decimalSeparator),
-          formatNumberForCsv(item.duration, decimalSeparator),
-          item.eyemovementtype,
-          aoiNames,
-          formatNumberForCsv(item.x, decimalSeparator),
-          formatNumberForCsv(item.y, decimalSeparator),
-        ]
-      })
-
-      results.push({
-        fileName: `${stimulus}_${participant}`,
-        content: generateCsvString(
-          includeSpatialColumns ? BATCH_HEADER_WITH_SPATIAL : BATCH_HEADER,
-          rows,
-          options
-        ),
-      })
+    return {
+      fileName: `${stimulus}_${participant}`,
+      content: generateCsvString(
+        includeSpatialColumns ? BATCH_HEADER_WITH_SPATIAL : BATCH_HEADER,
+        rows,
+        options
+      ),
     }
-  }
-
-  return results
+  })
 }

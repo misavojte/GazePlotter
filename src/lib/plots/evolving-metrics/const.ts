@@ -4,8 +4,6 @@ import {
   GRIDLINE_PRIMARY,
 } from '$lib/plots/shared/const'
 import { withQualifiers } from '$lib/plots/shared/labels'
-import { FIXATION_CATEGORY_ID } from '$lib/data/binary/schema'
-export { FIXATION_CATEGORY_ID }
 
 export const MARGIN = {
   TOP: 5,

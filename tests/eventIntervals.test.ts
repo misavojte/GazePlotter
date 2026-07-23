@@ -29,7 +29,6 @@ function engineWith(eventData: {
   data: string[][][]
   events: number[][][][]
   orderVector?: number[][]
-  hiddenChannels?: number[][]
 }): DataEngine {
   // Occurrence buffers live in the engine's binary reader, not metadata.
   const reader = new EventBufferReader()
@@ -39,7 +38,6 @@ function engineWith(eventData: {
       eventData: {
         data: eventData.data,
         orderVector: eventData.orderVector,
-        hiddenChannels: eventData.hiddenChannels,
       },
       stimuli: { data: eventData.data.map((_, i) => [`S${i}`]) },
       participants: { data: [['P0'], ['P1']] },
@@ -348,7 +346,6 @@ describe('buildEventDataWithIntervalChannels', () => {
             [10, 30],
           ],
         ],
-        hiddenChannels: [],
       },
     ])
   })
@@ -416,32 +413,28 @@ describe('buildEventDataWithIntervalChannels', () => {
     expect(updates[1].eventBuffers[1]).toEqual([[]])
   })
 
-  test('preserves display order and remaps pre-existing hidden ids', () => {
+  test('preserves display order', () => {
     const engine = engineWith({
       data: [
         [
           ['A', 'A', '#888888'], // id 0
-          ['Hidden', 'Hidden', '#888888'], // id 1, hidden
+          ['C', 'C', '#888888'], // id 1
           ['B', 'B', '#888888'], // id 2
         ],
       ],
       events: [[[[10, 0]], [[50, 0]], [[20, 0]]]],
-      // Custom display order: Hidden, B, A.
+      // Custom display order: C, B, A.
       orderVector: [[1, 2, 0]],
-      hiddenChannels: [[1]],
     })
     const [update] = buildEventDataWithIntervalChannels(engine, [
       { name: 'AB', startName: 'A', endName: 'B' },
     ])
     expect(update.channelDefs).toEqual([
-      ['Hidden', 'Hidden', '#888888'],
+      ['C', 'C', '#888888'],
       ['B', 'B', '#888888'],
       ['A', 'A', '#888888'],
       ['AB', 'AB', '#888888', INTERVAL_CHANNEL_MARKER],
     ])
-    // Old hidden id 1 → new 0; the sources stay visible — derivation
-    // never hides anything.
-    expect(update.hiddenChannels).toEqual([0])
   })
 
   test('payloads are deep copies, not views into engine state', () => {

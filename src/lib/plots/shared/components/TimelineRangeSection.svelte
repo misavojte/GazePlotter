@@ -103,7 +103,7 @@
       value={commonStart.value}
       mixed={commonStart.mixed}
       min={0}
-      appearance="compact"
+      compact
       allowEmpty={true}
       onValueChange={handleStartChange}
     />
@@ -113,7 +113,7 @@
       value={commonEnd.value}
       mixed={commonEnd.mixed}
       min={0}
-      appearance="compact"
+      compact
       allowEmpty={true}
       onValueChange={handleEndChange}
     />

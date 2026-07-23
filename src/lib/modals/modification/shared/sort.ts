@@ -1,4 +1,4 @@
-export function naturalSort(a: string, b: string): number {
+function naturalSort(a: string, b: string): number {
   const aParts = a.match(/(\d+|\D+)/g) || []
   const bParts = b.match(/(\d+|\D+)/g) || []
   for (let i = 0; i < Math.min(aParts.length, bParts.length); i++) {
@@ -25,15 +25,4 @@ export function sortItems<T>(
     )
     return direction === 'asc' ? cmp : -cmp
   })
-}
-
-export function reorderItems<T>(
-  items: T[],
-  fromIndex: number,
-  toIndex: number
-): T[] {
-  const arr = [...items]
-  const [removed] = arr.splice(fromIndex, 1)
-  arr.splice(toIndex, 0, removed)
-  return arr
 }

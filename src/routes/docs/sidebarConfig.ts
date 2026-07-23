@@ -116,14 +116,9 @@ export const SIDEBAR: readonly SidebarItem[] = [
         description: 'Configure and customize eye-movement classification categories (such as fixations, saccades, and unclassified events).'
       },
       {
-        name: 'Participant Groups',
-        href: '/docs/workspace/participant-groups',
-        description: 'Group participants by demographics, condition, or performance to enable cross-group comparisons in charts and metrics.'
-      },
-      {
         name: 'Participant Library',
         href: '/docs/workspace/participant-library',
-        description: 'Manage participant records. Rename participant IDs individually or in bulk using regex patterns, and reorder or sort the active participant sequence.'
+        description: 'Manage participant records. Rename participant IDs individually or in bulk using regex patterns, reorder or sort the active participant sequence, and build named participant selections for cross-cohort comparisons.'
       },
       {
         name: 'Stimuli Library',
@@ -236,6 +231,12 @@ export const SIDEBAR: readonly SidebarItem[] = [
         href: '/docs/visualizations/metric-correlation',
         seoTitle: 'Correlate Eye-Tracking Metrics (SPLOM)',
         description: 'Evaluate correlations between eye-tracking metrics using Pearson/Spearman correlation heatmaps and Scatter Plot Matrices (SPLOM).'
+      },
+      {
+        name: 'Metric Matrix',
+        href: '/docs/visualizations/metric-matrix',
+        seoTitle: 'Metric Matrix: Eye-Tracking Data Quality',
+        description: 'Scan a participants × stimuli grid of scalar metric values per recording. Spot missing recordings and capture failures for data-quality screening.'
       },
     ],
   },

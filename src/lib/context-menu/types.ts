@@ -122,7 +122,7 @@ export function isMenuDivider(item: MenuItem): item is MenuDividerItem {
   return item.isDivider === true
 }
 
-export function isMenuSubMenuItem(item: MenuItem): item is MenuSubMenuItem {
+function isMenuSubMenuItem(item: MenuItem): item is MenuSubMenuItem {
   return 'children' in item && Array.isArray(item.children)
 }
 

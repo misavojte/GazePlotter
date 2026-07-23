@@ -28,7 +28,7 @@ function createTestData(): DataType {
       ],
       orderVector: [0, 1],
     },
-    participantsGroups: [
+    participantsSelections: [
       {
         id: 1,
         name: 'Group 1',
@@ -89,7 +89,6 @@ function createTestData(): DataType {
         [1, 2],
         [1],
       ],
-      hiddenAois: [[], []],
     },
     // We construct binary segment buffer:
     // segments: [startTime, endTime, categoryId, ...aoiIds]
@@ -123,7 +122,6 @@ function createTestData(): DataType {
       data: [[]],
       orderVector: [[]],
       events: [],
-      hiddenChannels: [[]],
     },
   }
 }

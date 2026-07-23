@@ -26,15 +26,14 @@ function buildEngine(events: number[][][][], channels: string[]) {
   const metadata = {
     isOrdinalOnly: false,
     capabilities: { segmented: true, spatial: false, event: true },
-    aois: { data: [[], aoiData], orderVector: [[], [1]], hiddenAois: [[], []] },
+    aois: { data: [[], aoiData], orderVector: [[], [1]] },
     categories: { data: [['Fixation', 'Fixation', '#000']], orderVector: [] },
     participants: { data: [['P0', 'P0']], orderVector: [] },
-    participantsGroups: [],
+    participantsSelections: [],
     stimuli: { data: [['S0', 'S0'], ['S1', 'S1']], orderVector: [] },
     eventData: {
       data: [[], eventChannels],
       orderVector: [[], channels.map((_, i) => i)],
-      hiddenChannels: [[], []],
     },
     noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
     metricInstances: [],

@@ -60,7 +60,6 @@ export const transitionMatrixDefinition = definePlot<
           group: 'Out of bounds',
           pair: true,
         },
-        { kind: 'hideNoAoi', key: 'hideNoAoi' },
       ],
       summary: () => 'Matrix',
     },

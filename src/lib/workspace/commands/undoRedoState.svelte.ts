@@ -36,15 +36,16 @@ export class UndoRedoStateStore {
   canUndo = $derived(this.undoStack.length > 0)
   canRedo = $derived(this.redoStack.length > 0)
 
-  lastUndoCommandType = $derived(
+  /** The root command of the chain the next undo/redo would replay (labels). */
+  lastUndoCommand = $derived(
     this.undoStack.length > 0
-      ? this.undoStack[this.undoStack.length - 1].commands[0].original.type
+      ? this.undoStack[this.undoStack.length - 1].commands[0].original
       : null
   )
 
-  lastRedoCommandType = $derived(
+  lastRedoCommand = $derived(
     this.redoStack.length > 0
-      ? this.redoStack[this.redoStack.length - 1].commands[0].original.type
+      ? this.redoStack[this.redoStack.length - 1].commands[0].original
       : null
   )
 

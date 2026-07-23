@@ -89,14 +89,6 @@ export interface BinarySegmentBuffers {
 export const EVENT_STRIDE = 2 as const
 
 /**
- * Field offsets within one stride-2 event occurrence.
- */
-export const enum EventField {
-  START_TIME = 0,
-  DURATION = 1,
-}
-
-/**
  * Binary buffers for event-occurrence storage — the event analogue of
  * {@link BinarySegmentBuffers}. The hot scarf overlay loop iterates these
  * directly instead of paying a Svelte `$state` proxy `get` per element,

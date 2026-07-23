@@ -18,8 +18,9 @@
     EXPORT_NAMING_OPTIONS,
     EXPORT_TYPE_OPTIONS,
     exportTypeNamingSummary,
-    waitForExportUi,
+    withExportBusy,
     listSummary,
+    toggleSetValue,
   } from '../shared/helpers'
   import ExportShell from '../shared/ExportShell.svelte'
   import ExportProgressBar from '../shared/ExportProgressBar.svelte'
@@ -79,38 +80,28 @@
   )
 
   function handleCategoryChange(key: string, checked: boolean) {
-    const id = parseInt(key, 10)
-    const next = new Set(selectedCategoryIds)
-    if (checked) {
-      next.add(id)
-    } else {
-      next.delete(id)
-    }
-    selectedCategoryIds = next
+    selectedCategoryIds = toggleSetValue(selectedCategoryIds, parseInt(key, 10), checked)
   }
 
   const handleExport = async () => {
     if (!canExport) return
 
-    isExporting = true
-
-    try {
-      await waitForExportUi()
-      await exportService.exportSegmentedData({
-        fileName,
-        exportType: exportType as 'csv' | 'individual-csv',
-        stimulusIds: selectedStimuliIds,
-        participantIds: selectedParticipantIds,
-        filterCategoryIds: selectedCategoryIds,
-        naming,
-        csvOptions: {
-          delimiter,
-          decimalSeparator,
-        },
-      })
-    } finally {
-      isExporting = false
-    }
+    await withExportBusy(
+      val => (isExporting = val),
+      () =>
+        exportService.exportSegmentedData({
+          fileName,
+          exportType: exportType as 'csv' | 'individual-csv',
+          stimulusIds: selectedStimuliIds,
+          participantIds: selectedParticipantIds,
+          filterCategoryIds: selectedCategoryIds,
+          naming,
+          csvOptions: {
+            delimiter,
+            decimalSeparator,
+          },
+        })
+    )
   }
 
   const exportButtons = $derived(
@@ -145,7 +136,7 @@
     <Step
       n={2}
       title="Choose participants"
-      description="Group chips toggle a whole participant group at once; individual checkmarks refine the result."
+      description="Selection chips toggle a whole participant selection at once; individual checkmarks refine the result."
       summary={participantsSummary}
       done={stepParticipantsDone}
     >

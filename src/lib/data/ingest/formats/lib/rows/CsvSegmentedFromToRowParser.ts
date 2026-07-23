@@ -80,16 +80,9 @@ export class CsvSegmentedFromToRowParser extends RowParser {
       aoiBytes.length > 0
         ? splitAoiColumn(aoiBytes, this.pipeDelimiterBytes)
         : null
-    const x = this.getNumber(this.pX)
-    const y = this.getNumber(this.pY)
-    const hasSpatialColumns = this.cX !== -1 && this.cY !== -1
-    const spatial = hasSpatialColumns
-      ? Number.isFinite(x) && Number.isFinite(y)
-        ? { x, y }
-        : null
-      : undefined
+    const spatial = this.getSpatial(this.cX, this.cY, this.pX, this.pY)
 
-    this.emitSegment(from, to, 0, stimulusBytes, participantBytes, aoi, spatial)
+    this.onSegment?.(from, to, 0, stimulusBytes, participantBytes, aoi, spatial)
   }
 
   /**

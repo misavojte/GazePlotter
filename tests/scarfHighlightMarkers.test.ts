@@ -87,18 +87,10 @@ function gazeSource(perP: { x: number; w: number }[][]): ScarfGazeSource {
     ranges.push({ startIndex: start, endIndex: cursor })
   }
   const n = perP.length
-  const aoiOrderMap = new Int16Array(4).fill(-1)
-  aoiOrderMap[1] = 0 // raw AOI id 1 → styleIdx 0 (the highlighted style)
   return {
     reader: {
       segmentBufferRaw: buf,
       getSegmentRange: (_s: number, pid: number) => ranges[pid],
-    },
-    aoiGroupReader: {
-      getSegmentAoisUniqueDirect: (_i: number, _s: number, out: Uint16Array | Uint32Array) => {
-        out[0] = 1
-        return 1
-      },
     },
     participantIds: perP.map((_, i) => i),
     stimulusId: 1,
@@ -106,11 +98,17 @@ function gazeSource(perP: { x: number; w: number }[][]): ScarfGazeSource {
     projClipMin: new Float32Array(n), // all 0
     projClipMax: new Float32Array(n).fill(1),
     projScale: new Float32Array(n).fill(1),
-    aoiOrderMap,
     categoryStyleIdxMap: new Int16Array(2).fill(-1),
     noAoiStyleIdx: 99,
-    hideNonFixations: false,
-    hiddenCategoryIds: new Set<number>(),
+    // Resolved slices (CSR): every segment is one slice of styleIdx 0 — the
+    // highlighted style. Composite, highlight, and hover all read these.
+    resolvedSlotBase: Int32Array.from(ranges.map(r => r.startIndex)),
+    resolvedSliceStart: Uint32Array.from({ length: flat.length + 1 }, (_, i) => i),
+    resolvedSliceStyles: new Int16Array(flat.length),
+    // Transpose for style 0: each participant's bucket is exactly their
+    // segment slots in order.
+    resolvedOccStart: Uint32Array.from([...ranges.map(r => r.startIndex), flat.length]),
+    resolvedOccSlot: Uint32Array.from({ length: flat.length }, (_, i) => i),
   }
 }
 

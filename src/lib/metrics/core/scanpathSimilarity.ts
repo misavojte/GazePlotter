@@ -71,7 +71,7 @@ function needlemanWunschScore(
 }
 
 /** Normalized Levenshtein similarity (0-1, where 1 = identical). */
-export function levenshteinSimilarity(a: string, b: string): number {
+function levenshteinSimilarity(a: string, b: string): number {
   if (a.length === 0 && b.length === 0) return 1
   const maxLen = Math.max(a.length, b.length)
   const distance = levenshteinDistance(a, b)
@@ -79,7 +79,7 @@ export function levenshteinSimilarity(a: string, b: string): number {
 }
 
 /** Normalized Needleman-Wunsch similarity (0-1, where 1 = identical). */
-export function needlemanWunschSimilarity(a: string, b: string): number {
+function needlemanWunschSimilarity(a: string, b: string): number {
   if (a.length === 0 && b.length === 0) return 1
   const maxLen = Math.max(a.length, b.length)
   const score = needlemanWunschScore(a, b)

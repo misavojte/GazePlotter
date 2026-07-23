@@ -181,8 +181,7 @@
         update.stimulusId,
         update.channelDefs,
         update.eventBuffers,
-        source,
-        update.hiddenChannels
+        source
       )
     }
     toastState.addSuccess(
@@ -204,8 +203,7 @@
         update.stimulusId,
         update.channelDefs,
         update.eventBuffers,
-        source,
-        update.hiddenChannels
+        source
       )
     }
     mutated = true
@@ -385,7 +383,7 @@
         <div class="options-row">
           <Radio
             legend="Pairs with errors"
-            appearance="compact"
+            compact
             direction="row"
             options={POLICY_OPTIONS}
             value={policy}

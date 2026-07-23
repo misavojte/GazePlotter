@@ -9,7 +9,7 @@ const _cats: Map<string, MetricCategoryDef> =
   ((globalThis as Record<symbol, unknown>)[CATS_KEY] as Map<string, MetricCategoryDef>) ??
   ((globalThis as Record<symbol, unknown>)[CATS_KEY] = new Map())
 
-export function defineCategory(cat: MetricCategoryDef): MetricCategoryDef {
+function defineCategory(cat: MetricCategoryDef): MetricCategoryDef {
   if (_cats.has(cat.id)) return _cats.get(cat.id)!
   _cats.set(cat.id, cat)
   return cat
@@ -33,6 +33,3 @@ export function listCategories(): MetricCategoryDef[] {
   return [..._cats.values()].sort((a, b) => a.order - b.order)
 }
 
-export function getCategoryLabels(): Record<string, string> {
-  return Object.fromEntries(listCategories().map(c => [c.id, c.label]))
-}

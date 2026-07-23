@@ -7,7 +7,7 @@ import { getRecurrenceData } from './transformer'
 import { buildHighlightMask } from './highlightMask'
 import type { RecurrencePlotSettings } from '../types'
 
-export type RecurrenceFigureProps = Omit<
+type RecurrenceFigureProps = Omit<
   ComponentProps<typeof RecurrencePlotFigure>,
   keyof CanvasExportProps
 >
@@ -17,7 +17,7 @@ export type RecurrenceFigureProps = Omit<
  * no-spatial-data fallback (`recurrenceMethod: 'aoi'`) so screen and export
  * agree — previously the export path skipped this fallback.
  */
-export function getRecurrenceView(
+function getRecurrenceView(
   engine: DataEngine,
   settings: RecurrencePlotSettings
 ): { props: RecurrenceFigureProps } {

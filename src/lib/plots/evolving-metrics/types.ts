@@ -1,9 +1,10 @@
 import type { AdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
-import type { PlotItemContract } from '$lib/plots/definePlot'
 
 export type EvolvingMetricsSettings = {
   stimulusId: number
   groupId: number
+  /** Per-plot AOI SELECTION id; unset/0 = all AOIs. */
+  aoiSelectionId?: number
   /**
    * Slug(s) of the windowed × scalar MetricInstance this plot renders.
    * Stored as an array for uniformity with multi-select plots; the contract
@@ -15,11 +16,6 @@ export type EvolvingMetricsSettings = {
   timelineStart?: number
   timelineEnd?: number
 }
-
-export type EvolvingMetricsItem = PlotItemContract<
-  'evolvingMetrics',
-  EvolvingMetricsSettings
->
 
 /**
  * A single windowed measurement. `centerMs` is where the value is

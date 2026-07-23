@@ -12,6 +12,9 @@
   }
 
   const props: Props = $props()
+  // Modal props are fixed for the lifetime of one open; capturing the initial
+  // values is intended, not a missed reactivity dependency.
+  // svelte-ignore state_referenced_locally
   const { fileNames, stimuliOptions, participantOptions } = props
   const { modalState } = getGazePlotterSession()
 
@@ -20,11 +23,9 @@
 
   // Per-file mapping state: stimulus + participant selections
   let stimulusSelections = $state<string[]>(
-    props.fileNames.map(() => props.stimuliOptions[0]?.value ?? '0')
+    fileNames.map(() => stimuliOptions[0]?.value ?? '0')
   )
-  let participantSelections = $state<string[]>(
-    props.fileNames.map(() => IGNORE)
-  )
+  let participantSelections = $state<string[]>(fileNames.map(() => IGNORE))
 
   // When any file is set to "To all", hide individual participant options
   let hasToAll = $derived(participantSelections.some(s => s === ALL))

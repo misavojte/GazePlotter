@@ -19,7 +19,6 @@ function engineWith(perParticipant: number[][][]) {
   return makeTestEngine([perParticipant], {
     aoiData: [[['AOI A', 'AOI A', 'red'], ['AOI B', 'AOI B', 'blue']]],
     aoiOrderVector: [[]],
-    hiddenAois: [[]],
     participantsOrderVector: perParticipant.map((_, i) => i),
     stimuli: [['S', 'S']],
     stimuliOrderVector: [0],

@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { UEQSResults } from '$survey/types/index'
+  import { createSeededState } from '../utils'
+  import QuestionHeader from './QuestionHeader.svelte'
 
   /**
    * UEQS (User Experience Questionnaire Short) Survey Component
@@ -60,17 +62,11 @@
       ])
     ) as Record<string, ScaleValue | null>
 
-  let results = $state<Record<string, ScaleValue | null>>(createResults(null))
-  let didSeedResults = false
+  const resultsState = createSeededState(() => createResults(initialValues), createResults(null))
+  let results = $derived(resultsState.current)
 
   // Animation state
   let animatingItem = $state<string | null>(null)
-
-  $effect(() => {
-    if (didSeedResults) return
-    results = createResults(initialValues)
-    didSeedResults = true
-  })
 
   $effect(() => {
     const allCompleted = scaleItems.every(
@@ -100,7 +96,7 @@
     animatingItem = itemId
 
     // Update results
-    results[itemId] = value
+    resultsState.current[itemId] = value
 
     // Clear animation state after transition
     setTimeout(() => {
@@ -136,18 +132,14 @@
 
 <!-- UEQS Survey Component -->
 <div class="ueqs-survey" class:className>
-  <!-- Header -->
-  <div class="survey-header">
-    <h2>How would you rate your experience with GazePlotter?</h2>
-    <p class="instructions">
-      Please indicate your impression by selecting the position on each scale
-      that best reflects your experience.
-      <br />
-      <span class="scale-info"
-        >−3 = strongly left-hand word, +3 = strongly right-hand word</span
-      >
-    </p>
-  </div>
+  <QuestionHeader
+    title="How would you rate your experience with GazePlotter?"
+    instructions="Please indicate your impression by selecting the position on each scale that best reflects your experience."
+  >
+    <span class="scale-info"
+      >−3 = strongly left-hand word, +3 = strongly right-hand word</span
+    >
+  </QuestionHeader>
 
   <!-- Scale Items -->
   <div class="scale-items">
@@ -219,26 +211,6 @@
     flex-direction: column;
     gap: 1.5rem;
     box-sizing: border-box;
-  }
-
-  .survey-header {
-    text-align: center;
-    margin-bottom: 1rem;
-  }
-
-  .survey-header h2 {
-    font-size: 1.25rem;
-    font-weight: 600;
-    color: var(--c-black);
-    margin: 0 0 0.75rem 0;
-    line-height: 1.4;
-  }
-
-  .instructions {
-    color: var(--c-text);
-    font-size: 0.9rem;
-    line-height: 1.5;
-    margin: 0;
   }
 
   .scale-info {
@@ -417,14 +389,6 @@
       width: 36px;
       height: 36px;
       font-size: 0.75rem;
-    }
-
-    .survey-header h2 {
-      font-size: 1.1rem;
-    }
-
-    .instructions {
-      font-size: 0.85rem;
     }
   }
 </style>

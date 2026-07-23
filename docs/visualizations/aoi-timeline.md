@@ -21,13 +21,12 @@ Clicking the AOI Timeline plot card in the workspace selects the plot and opens 
 
 ### Stimulus
 Choose the stimulus to analyze. Each stimulus contains its own set of Areas of Interest (AOIs) which will be displayed in the occupancy plot.
-- **Edit stimulus library…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files.
+- **Edit stimuli & selections…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
 
-### Participant group
-Filter the eye-tracking data by group.
-- **Select group**: A dropdown containing *All participants* and custom participant groups.
-- **Edit groups…**: Opens the [Participant Groups](/docs/workspace/participant-groups/) editor to manage cohort comparison sets.
-- **Edit participants…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename or reorder participants.
+### Participants
+Filter the eye-tracking data by a participant selection.
+- **Participant selection**: A dropdown containing *All*, *Non-empty*, and saved participant selections.
+- **Edit participants & selections…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
 
 ### Metric
 Configure the quantitative metric calculated inside each time bin.
@@ -56,7 +55,8 @@ Filter the temporal range from which data is fetched.
 
 ### Areas of Interest
 Filters which Areas of Interest (AOIs) are rendered.
-- **Configure AOI Library…**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, and visibility.
+- **AOI selection**: A dropdown containing *All* and saved AOI selections; AOIs outside the picked selection count as no-AOI in this plot.
+- **Edit AOIs & selections…**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
 
 ### Export
 Located at the bottom of the Pane:

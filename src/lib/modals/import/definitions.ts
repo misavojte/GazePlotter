@@ -1,4 +1,3 @@
-export { aoiVisibilityModal } from './aoi-visibility/definition'
 export {
   eventFileMappingModal,
   type EventFileMapping,

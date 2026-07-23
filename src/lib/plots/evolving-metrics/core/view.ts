@@ -15,7 +15,7 @@ import type { EvolvingMetricsSettings } from '../types'
  * only ~one window per pixel is evaluated/drawn), then transforms. Both the
  * on-screen container and the export view-model call this so they can't drift.
  */
-export function computeEvolvingData(
+function computeEvolvingData(
   engine: DataEngine,
   settings: EvolvingMetricsSettings,
   ctx?: PlotViewContext

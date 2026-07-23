@@ -1,48 +1,58 @@
 # AOI Library
 
-The AOI Library controls the display names, colors, order, and visibility of Areas of Interest (AOIs). AOIs are defined per stimulus.
+The AOI Library controls the display names, colors, order, merging, and selections of Areas of Interest (AOIs). AOIs are defined per stimulus.
 
 ## Opening the library
 
 1. Select a plot to open its [Pane](/docs/visualizations/#visualization-configuration-pane).
-2. In the **Areas of Interest** section, click **Configure AOI Library…**.
+2. In the **Areas of Interest** section, click **Edit AOIs & selections…**.
 
-## Choosing the stimulus
+## Choosing the scope
 
-AOIs belong to a stimulus. Pick the one to edit from the **For stimulus** dropdown. When you apply changes, you can keep them on this stimulus or propagate them to others (see [Applying changes](#applying-changes)).
+The dropdown in the list header switches what the list shows and what **Apply** affects:
+
+- **A stimulus** — Edit that stimulus's AOIs, including their order (drag the grip handle).
+- **All stimuli** — One row per original AOI name across the whole dataset. Editing a name or color applies to every stimulus containing that original name; untouched rows keep their per-stimulus values. Rearranging the rows (drag or sort) sets one shared order that **every stimulus adopts on Apply** — leave the order untouched and per-stimulus orders stay as they are. The **Stimuli** column shows in how many stimuli the AOI appears (`2/3`), with `*` flagging values that currently differ between stimuli.
 
 ## Editing AOIs
 
-Each AOI is a row with these controls:
+Each AOI row shows the original source name, an editable **Displayed name**, and a **Color** picker. The list header holds the scope select, **Sort**, and **Bulk actions → Rename items…** for regex find-and-replace (see [Pattern renaming](/docs/workspace/participant-library/#pattern-renaming)).
 
-- **Displayed name** — Rename the AOI. The original source name is kept and shown alongside; only the displayed name changes in plots and legends.
-- **Color** — Set the AOI color via the color picker.
-- **Visible** — Uncheck to hide the AOI from plots. It stays in the data and can be re-shown anytime.
-- **Move handle** — Drag the grip icon to reorder. Order sets the sequence in legends and stacked plots.
+## Selecting rows
 
-Two buttons sit above the list:
+Click a row to select it (a dashed outline appears); Shift-click selects a range. The tray at the bottom shows what you can do with the selection:
 
-- **Sort** — Order rows by original or displayed name, ascending or descending (natural ordering, so `AOI-2` comes before `AOI-10`).
-- **Bulk actions** — **Rename items…** (regex find-and-replace on displayed names) and **Change visibility…** (show or hide all AOIs matching a pattern). See [Pattern renaming](/docs/workspace/participant-library/#pattern-renaming) for how the regex flyout works.
+- **Merge** / **Split** — See [Merging AOIs](#merging-aois).
+- **Select all / Clear** — Toggle every row at once.
+- **Save as selection** — Turns the selected rows into a named [AOI selection](#aoi-selections).
+- **Drag** — Dragging any selected row's handle moves the whole selected block together.
 
-## Grouping AOIs
+Esc clears the selection.
 
-AOIs that share the same **Displayed name** merge into one group across all plots. To group AOIs (e.g. `Target 1`, `Target 2`, `Target 3` → `Target`), give them the same displayed name. To split one off, give it a unique name.
+## Merging AOIs
 
-The first AOI in a group is the leader: its color and visibility apply to the whole group, and only the leader exposes the color and visibility controls.
+Select rows and click **Merge into "…"** in the tray: the selected AOIs take the first (topmost) selected row's displayed name. AOIs sharing a displayed name are one logical AOI across all plots; the first row of a merged group is the leader and its color applies to the whole group. **Split** reverses it — every member of a selected merged group returns to its original name. Typing matching names merges too.
 
-## No AOI Hit treatment
+## AOI selections
 
-Fixations that land outside every AOI are grouped as **No AOI**. Set their display name and color in the **No AOI Hit Treatment** section.
+A selection is a named subset of AOIs a plot can focus on. In a plot's **Areas of Interest** pane section, picking a selection keeps only those AOIs; fixations on all other AOIs count as **No AOI**, so totals stay honest. There is no separate hide toggle — to hide AOIs from a plot, pick a selection that leaves them out. Selections are shared across the workspace, so one "without X" selection can be applied to any number of plots (select several plots to set it on all of them at once).
 
-## Applying changes
+Selections live in the *Selections* row beneath the list and are edited directly on the list — the layout never changes:
 
-Choose the scope, then click **Apply** (or **Cancel** to discard):
+- **Create** — Select rows and click **+ Save as selection**, or click **+ New** and then click AOI cards to include them.
+- **Edit** — Click a selection's chip: its members show a solid outline (solid = saved, dashed = temporary), clicking cards toggles them, and the tray bubble renames it and shows the live count. Finish by clicking the chip again, pressing Esc, or clicking anywhere else. **Dissolve selection** removes the named subset; the AOIs themselves stay untouched.
+- **Combine** — With rows selected, clicking a chip offers **Add selected** / **Remove selected** for that selection.
+- **Peek** — Hover an idle chip to see its members outlined without entering editing.
+- **Delete** — Plots that used a deleted selection fall back to *All AOIs*.
 
-- **This stimulus** — Apply only to the selected stimulus.
-- **All by original name** — Apply to AOIs with matching original names across all stimuli.
-- **All by displayed name** — Apply to AOIs with matching displayed names across all stimuli.
+Selections match post-merge displayed names across all stimuli (the bubble notes members that live on other stimuli), and they follow renames: renaming or merging an AOI keeps its selections intact.
 
-Reordering only applies to the selected stimulus; it never propagates to others.
+## No AOI
+
+Fixations that land outside every AOI are grouped as **No AOI**. Its display name and color are the pinned row at the bottom of the list.
+
+## Saving
+
+Click **Apply** to save every change staged in the modal (edits in the current scope, the No AOI row, and selections), or **Cancel** to discard all of it.
 
 ![Workspace plot controls used to open the AOI Library.](/docs/images/1.png)

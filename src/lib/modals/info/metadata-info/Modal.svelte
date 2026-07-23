@@ -12,6 +12,7 @@
   import MetadataOverviewSection from './components/MetadataOverviewSection.svelte'
   import MetadataRecentErrorsSection from './components/MetadataRecentErrorsSection.svelte'
   import MetadataSection from './components/MetadataSection.svelte'
+  import InfoRow from './components/InfoRow.svelte'
   import {
     buildMetadataCsvReport,
     buildMetadataExportFileName,
@@ -89,6 +90,7 @@
           hasValidData: engine.hasValidData,
           recentErrors,
           dataExclusions,
+          merges: engine.metadata?.merges ?? [],
           generatedAt: exportDate.toISOString(),
         },
         {
@@ -126,10 +128,7 @@
   {#if currentFileInput !== null && !isSameAsSource}
     <MetadataSection title="Current parsing">
       <Card padding="sm" gap="0.5rem">
-        <div class="info-item">
-          <span class="label">Files being processed:</span>
-          <span class="value">{currentFileInput.fileNames.length}</span>
-        </div>
+        <InfoRow label="Files being processed:" value={currentFileInput.fileNames.length} />
         <MetadataFileList
           fileNames={currentFileInput.fileNames}
           fileSizes={currentFileInput.fileSizes}
@@ -137,18 +136,14 @@
       </Card>
 
       <Card padding="sm" gap="0.5rem">
-        <div class="info-item">
-          <span class="label">Total file size:</span>
-          <span class="value"
-            >{formatFileSize(sumFileSizes(currentFileInput.fileSizes))}</span
-          >
-        </div>
-        <div class="info-item">
-          <span class="label">Parse date:</span>
-          <span class="value"
-            >{formatMetadataDate(currentFileInput.parseDate)}</span
-          >
-        </div>
+        <InfoRow
+          label="Total file size:"
+          value={formatFileSize(sumFileSizes(currentFileInput.fileSizes))}
+        />
+        <InfoRow
+          label="Parse date:"
+          value={formatMetadataDate(currentFileInput.parseDate)}
+        />
       </Card>
     </MetadataSection>
   {/if}
@@ -165,33 +160,18 @@
       </Card>
     {:else if fileMetadata.status === 'failure'}
       <Card padding="sm" gap="0.5rem" class="failure-details">
-        <div class="info-item">
-          <span class="label">Error message:</span>
-          <span class="value error-message">{fileMetadata.userMessage}</span>
-        </div>
+        <InfoRow label="Error message:" value={fileMetadata.userMessage} variant="error" />
         {#if fileMetadata.debugMessage !== fileMetadata.userMessage}
-          <div class="info-item">
-            <span class="label">Debug message:</span>
-            <span class="value">{fileMetadata.debugMessage}</span>
-          </div>
+          <InfoRow label="Debug message:" value={fileMetadata.debugMessage} />
         {/if}
-        <div class="info-item">
-          <span class="label">Error ID:</span>
-          <span class="value">{fileMetadata.errorId}</span>
-        </div>
+        <InfoRow label="Error ID:" value={fileMetadata.errorId} />
         {#if fileMetadata.stack}
-          <div class="info-item stack-trace">
-            <span class="label">Error details:</span>
-            <pre class="value error-stack">{fileMetadata.stack}</pre>
-          </div>
+          <InfoRow label="Error details:" value={fileMetadata.stack} variant="stack" />
         {/if}
       </Card>
 
       <Card padding="sm" gap="0.5rem">
-        <div class="info-item">
-          <span class="label">Files attempted:</span>
-          <span class="value">{fileMetadata.fileNames.length}</span>
-        </div>
+        <InfoRow label="Files attempted:" value={fileMetadata.fileNames.length} />
         <MetadataFileList
           fileNames={fileMetadata.fileNames}
           fileSizes={fileMetadata.fileSizes}
@@ -199,41 +179,23 @@
       </Card>
 
       <Card padding="sm" gap="0.5rem">
-        <div class="info-item">
-          <span class="label">Total file size:</span>
-          <span class="value">{formatFileSize(totalFileSize)}</span>
-        </div>
+        <InfoRow label="Total file size:" value={formatFileSize(totalFileSize)} />
         {#if fileMetadata.attemptedParseDuration !== undefined}
-          <div class="info-item">
-            <span class="label">Attempted parse duration:</span>
-            <span class="value"
-              >{formatDuration(fileMetadata.attemptedParseDuration)}</span
-            >
-          </div>
+          <InfoRow
+            label="Attempted parse duration:"
+            value={formatDuration(fileMetadata.attemptedParseDuration)}
+          />
         {/if}
-        <div class="info-item">
-          <span class="label">Failure date:</span>
-          <span class="value">{formatMetadataDate(fileMetadata.parseDate)}</span
-          >
-        </div>
+        <InfoRow label="Failure date:" value={formatMetadataDate(fileMetadata.parseDate)} />
       </Card>
 
       <Card padding="sm" gap="0.5rem">
-        <div class="info-item">
-          <span class="label">GazePlotter version:</span>
-          <span class="value">{fileMetadata.gazePlotterVersion}</span>
-        </div>
-        <div class="info-item">
-          <span class="label">Client:</span>
-          <span class="value client-info">{fileMetadata.clientUserAgent}</span>
-        </div>
+        <InfoRow label="GazePlotter version:" value={fileMetadata.gazePlotterVersion} />
+        <InfoRow label="Client:" value={fileMetadata.clientUserAgent} variant="mono" />
       </Card>
     {:else}
       <Card padding="sm" gap="0.5rem">
-        <div class="info-item">
-          <span class="label">Files processed:</span>
-          <span class="value">{fileMetadata.fileNames.length}</span>
-        </div>
+        <InfoRow label="Files processed:" value={fileMetadata.fileNames.length} />
         <MetadataFileList
           fileNames={fileMetadata.fileNames}
           fileSizes={fileMetadata.fileSizes}
@@ -241,58 +203,35 @@
       </Card>
 
       <Card padding="sm" gap="0.5rem">
-        <div class="info-item">
-          <span class="label">Total file size:</span>
-          <span class="value">{formatFileSize(totalFileSize)}</span>
-        </div>
-        <div class="info-item">
-          <span class="label">Parse duration:</span>
-          <span class="value">{formatDuration(fileMetadata.parseDuration)}</span
-          >
-        </div>
-        <div class="info-item">
-          <span class="label">Parse date:</span>
-          <span class="value">{formatMetadataDate(fileMetadata.parseDate)}</span
-          >
-        </div>
+        <InfoRow label="Total file size:" value={formatFileSize(totalFileSize)} />
+        <InfoRow label="Parse duration:" value={formatDuration(fileMetadata.parseDuration)} />
+        <InfoRow label="Parse date:" value={formatMetadataDate(fileMetadata.parseDate)} />
       </Card>
 
       <Card padding="sm" gap="0.5rem">
-        <div class="info-item">
-          <span class="label">GazePlotter version:</span>
-          <span class="value">{fileMetadata.gazePlotterVersion}</span>
-        </div>
-        <div class="info-item">
-          <span class="label">Client:</span>
-          <span class="value client-info">{fileMetadata.clientUserAgent}</span>
-        </div>
+        <InfoRow label="GazePlotter version:" value={fileMetadata.gazePlotterVersion} />
+        <InfoRow label="Client:" value={fileMetadata.clientUserAgent} variant="mono" />
       </Card>
 
       <Card padding="sm" gap="0.5rem">
-        <div class="info-item">
-          <span class="label">Parse settings:</span>
-        </div>
+        <InfoRow label="Parse settings:" />
         <div class="settings-container">
-          <div class="settings-item">
-            <span class="settings-label">Type:</span>
-            <span class="settings-value">{fileMetadata.parseSettings.type}</span
-            >
-          </div>
+          <InfoRow label="Type:" value={fileMetadata.parseSettings.type} />
 
           <div class="delimiter-row">
-            <div class="settings-item">
-              <span class="settings-label">Row delimiter:</span>
-              <code class="settings-value delimiter-value"
-                >{JSON.stringify(fileMetadata.parseSettings.rowDelimiter)}</code
-              >
+            <div class="delimiter-item">
+              <InfoRow label="Row delimiter:">
+                <code class="delimiter-value">{JSON.stringify(fileMetadata.parseSettings.rowDelimiter)}</code>
+              </InfoRow>
             </div>
-            <div class="settings-item">
-              <span class="settings-label">Column delimiter:</span>
-              <code class="settings-value delimiter-value"
-                >{JSON.stringify(
-                  fileMetadata.parseSettings.columnDelimiter
-                )}</code
-              >
+            <div class="delimiter-item">
+              <InfoRow label="Column delimiter:">
+                <code class="delimiter-value"
+                  >{JSON.stringify(
+                    fileMetadata.parseSettings.columnDelimiter
+                  )}</code
+                >
+              </InfoRow>
             </div>
           </div>
 
@@ -302,19 +241,13 @@
             )}
             {#if entries}
               {#each entries as [key, value] (key)}
-                <div class="settings-item">
-                  <span class="settings-label">{key}:</span>
-                  <span class="settings-value">{value}</span>
-                </div>
+                <InfoRow label={`${key}:`} value={value} />
               {/each}
             {:else}
-              <div class="settings-item">
-                <span class="settings-label">User input setting:</span>
-                <span class="settings-value"
-                  >{fileMetadata.parseSettings.userInputSetting ||
-                    '(empty)'}</span
-                >
-              </div>
+              <InfoRow
+                label="User input setting:"
+                value={fileMetadata.parseSettings.userInputSetting || '(empty)'}
+              />
             {/if}
           {/if}
         </div>
@@ -352,32 +285,6 @@
 
   /* .info-group styles moved to Card.svelte */
 
-  .info-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .label {
-    font-weight: 500;
-    color: #374151;
-    min-width: fit-content;
-  }
-
-  .value {
-    color: #1f2937;
-    text-align: right;
-    word-break: break-word;
-  }
-
-  .client-info {
-    font-family: monospace;
-    font-size: 0.85rem;
-    max-width: 300px;
-    word-break: break-all;
-  }
-
   .settings-container {
     margin-left: 1rem;
     margin-top: 0.5rem;
@@ -386,32 +293,13 @@
     gap: 0.5rem;
   }
 
-  .settings-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .settings-label {
-    font-weight: 500;
-    color: #374151;
-    min-width: fit-content;
-  }
-
-  .settings-value {
-    color: #1f2937;
-    text-align: right;
-    word-break: break-word;
-  }
-
   .delimiter-row {
     display: flex;
     gap: 1rem;
     flex-wrap: wrap;
   }
 
-  .delimiter-row .settings-item {
+  .delimiter-row .delimiter-item {
     flex: 1;
     min-width: 200px;
   }
@@ -424,32 +312,5 @@
   :global(.card.failure-details) {
     background: #fff5f5;
     border: 1px solid #fca5a5;
-  }
-
-  .error-message {
-    color: #991b1b;
-    font-weight: 500;
-    text-align: right;
-  }
-
-  .stack-trace {
-    flex-direction: column;
-    align-items: flex-start;
-  }
-
-  .error-stack {
-    margin-top: 0.5rem;
-    padding: 0.75rem;
-    background: #fafafa;
-    border: 1px solid #e5e5e5;
-    border-radius: 0.25rem;
-    font-family: 'Courier New', monospace;
-    font-size: 0.75rem;
-    color: #4b5563;
-    overflow-x: auto;
-    max-width: 100%;
-    white-space: pre-wrap;
-    word-break: break-all;
-    text-align: left;
   }
 </style>

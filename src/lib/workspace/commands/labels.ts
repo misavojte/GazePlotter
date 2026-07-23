@@ -1,4 +1,4 @@
-import type { WorkspaceCommand } from './types'
+import type { SelectionsAxis, WorkspaceCommand } from './types'
 
 /**
  * Command Label Registry
@@ -7,7 +7,7 @@ import type { WorkspaceCommand } from './types'
  * and history state (undo/redo/undefined).
  */
 
-export interface CommandLabels {
+interface CommandLabels {
   /** Label for when this command is being undone */
   undone: string
   /** Label for when this command is being redone */
@@ -16,11 +16,30 @@ export interface CommandLabels {
   default: string
 }
 
+/** `noun` leads the toast; `sentenceNoun` sits mid-sentence in undo/redo. */
+const selectionsLabels = (
+  noun: string,
+  sentenceNoun = noun.toLowerCase()
+): CommandLabels => ({
+  undone: `Undo ${sentenceNoun} selections update`,
+  redone: `Redo ${sentenceNoun} selections update`,
+  default: `${noun} selections updated`,
+})
+
+const SELECTIONS_LABELS: Record<SelectionsAxis, CommandLabels> = {
+  participant: selectionsLabels('Participant'),
+  stimulus: selectionsLabels('Stimulus'),
+  category: selectionsLabels('Eye-movement'),
+  event: selectionsLabels('Event'),
+  aoi: selectionsLabels('AOI', 'AOI'),
+}
+
 /**
  * Registry mapping workspace command types to their human-readable labels.
+ * `updateSelections` labels are per-axis (SELECTIONS_LABELS above).
  */
 const WORKSPACE_COMMAND_LABELS: Record<
-  WorkspaceCommand['type'],
+  Exclude<WorkspaceCommand['type'], 'updateSelections'>,
   CommandLabels
 > = {
   // Data change commands
@@ -30,16 +49,13 @@ const WORKSPACE_COMMAND_LABELS: Record<
     default: 'AOIs updated',
   },
 
-  updateParticipants: {
-    undone: 'Undo participant update',
-    redone: 'Redo participant update',
-    default: 'Participants updated',
-  },
-
-  updateStimuli: {
-    undone: 'Undo stimulus update',
-    redone: 'Redo stimulus update',
-    default: 'Stimuli updated',
+  // Entity merge/update commands only ever run as children of `reconcileMerges`,
+  // whose (root) label is what the toast and undo/redo tooltips show — these
+  // never surface, so one generic entry per type suffices.
+  updateEntities: {
+    undone: 'Undo update',
+    redone: 'Redo update',
+    default: 'Updated',
   },
 
   updateEventData: {
@@ -54,16 +70,34 @@ const WORKSPACE_COMMAND_LABELS: Record<
     default: 'Event channels updated',
   },
 
-  updateParticipantsGroups: {
-    undone: 'Undo participant groups update',
-    redone: 'Redo participant groups update',
-    default: 'Participant groups updated',
-  },
-
   updateNoAoiTreatment: {
     undone: 'Undo No AOI treatment update',
     redone: 'Redo No AOI treatment update',
     default: 'No AOI treatment updated',
+  },
+
+  mergeEntities: {
+    undone: 'Undo merge',
+    redone: 'Redo merge',
+    default: 'Merged',
+  },
+
+  unmergeEntities: {
+    undone: 'Undo un-merge',
+    redone: 'Redo un-merge',
+    default: 'Un-merged',
+  },
+
+  reconcileMerges: {
+    undone: 'Undo changes',
+    redone: 'Redo changes',
+    default: 'Changes applied',
+  },
+
+  noop: {
+    undone: '',
+    redone: '',
+    default: '',
   },
 
   updateCategories: {
@@ -118,13 +152,17 @@ const WORKSPACE_COMMAND_LABELS: Record<
 }
 
 /**
- * Gets the appropriate label for a workspace command based on its type and history state.
+ * Gets the appropriate label for a workspace command based on its type (and,
+ * for `updateSelections`, its axis) and history state.
  */
 export function getCommandLabel(
-  commandType: WorkspaceCommand['type'],
+  command: WorkspaceCommand,
   history?: 'undo' | 'redo'
 ): string | null {
-  const labels = WORKSPACE_COMMAND_LABELS[commandType]
+  const labels =
+    command.type === 'updateSelections'
+      ? SELECTIONS_LABELS[command.axis]
+      : WORKSPACE_COMMAND_LABELS[command.type]
 
   if (history === 'undo') {
     return labels.undone

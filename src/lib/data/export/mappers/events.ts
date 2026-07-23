@@ -9,16 +9,19 @@ import { INTERVAL_CHANNEL_MARKER } from '$lib/data/engine/eventIntervals'
 import type { ExportNaming } from '../types'
 import {
   type CsvFormatOptions,
+  type DecimalSeparator,
   resolveCsvFormatOptions,
   generateCsvString,
   formatNumberForCsv,
 } from '../encoders/csv'
+import { groupByParticipantAndStimulus } from './utils'
 
 // `eventName` (not `event`) is the channel column the CSV event-enrichment
 // importer requires, so a unified export re-imports as an event file.
-const EVENT_HEADER = ['stimulus', 'participant', 'eventName', 'start', 'duration']
-
 const EVENT_BATCH_HEADER = ['eventName', 'start', 'duration']
+
+// The unified export merely prepends the grouping columns to a batch row.
+const EVENT_HEADER = ['stimulus', 'participant', ...EVENT_BATCH_HEADER]
 
 type EventCsvRow = {
   stimulus: string
@@ -69,12 +72,9 @@ function resolveEventChannels(
     order && order.length > 0
       ? order
       : Array.from({ length: defs.length }, (_, i) => i)
-  const hidden = data.eventData.hiddenChannels?.[stimulusIndex] ?? []
-  const hiddenSet = hidden.length ? new Set<number>(hidden) : null
 
   const channels: ExtendedInterpretedDataType[] = []
   for (const id of ids) {
-    if (hiddenSet?.has(id)) continue
     const def = defs[id]
     if (!def) continue
     channels.push(interpretRow(def, id, getDefaultEventChannelColor))
@@ -175,6 +175,19 @@ function convertEventData(
   return result
 }
 
+/** The EVENT_BATCH_HEADER-aligned cells of one occurrence row; the unified
+ *  export prepends [stimulus, participant], mirroring the headers above. */
+function eventCells(
+  item: EventCsvRow,
+  decimalSeparator: DecimalSeparator
+): string[] {
+  return [
+    item.event,
+    formatNumberForCsv(item.start, decimalSeparator),
+    formatNumberForCsv(item.duration, decimalSeparator),
+  ]
+}
+
 /**
  * Generates a single unified CSV string for all event occurrences in the dataset.
  */
@@ -189,9 +202,7 @@ export function generateEventUnifiedCsv(
   const rows = convertEventData(data, stimulusIds, participantIds, naming).map(item => [
     item.stimulus,
     item.participant,
-    item.event,
-    formatNumberForCsv(item.start, decimalSeparator),
-    formatNumberForCsv(item.duration, decimalSeparator),
+    ...eventCells(item, decimalSeparator),
   ])
 
   return generateCsvString(EVENT_HEADER, rows, options)
@@ -211,33 +222,12 @@ export function generateEventBatchCsv(
   const { decimalSeparator } = resolveCsvFormatOptions(options)
   const csvPreData = convertEventData(data, stimulusIds, participantIds, naming)
 
-  const results: Array<{ fileName: string; content: string }> = []
+  return groupByParticipantAndStimulus(csvPreData, (combinedData, stimulus, participant) => {
+    const rows = combinedData.map(item => eventCells(item, decimalSeparator))
 
-  const participants = Array.from(
-    new Set(csvPreData.map(item => item.participant))
-  )
-  const stimuli = Array.from(new Set(csvPreData.map(item => item.stimulus)))
-
-  for (const participant of participants) {
-    for (const stimulus of stimuli) {
-      const combinedData = csvPreData.filter(
-        item => item.participant === participant && item.stimulus === stimulus
-      )
-
-      if (combinedData.length === 0) continue
-
-      const rows = combinedData.map(item => [
-        item.event,
-        formatNumberForCsv(item.start, decimalSeparator),
-        formatNumberForCsv(item.duration, decimalSeparator),
-      ])
-
-      results.push({
-        fileName: `${stimulus}_${participant}`,
-        content: generateCsvString(EVENT_BATCH_HEADER, rows, options),
-      })
+    return {
+      fileName: `${stimulus}_${participant}`,
+      content: generateCsvString(EVENT_BATCH_HEADER, rows, options),
     }
-  }
-
-  return results
+  })
 }

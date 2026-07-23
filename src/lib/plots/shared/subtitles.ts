@@ -2,7 +2,7 @@ import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotSubtitleParts } from '$lib/plots/definePlot'
 import {
   getStimuliOptions,
-  getParticipantsGroupOptions,
+  getParticipantsSelectionOptions,
   getParticipantOptions,
 } from './selectOptionsGetters'
 
@@ -22,12 +22,12 @@ export function stimulusGroupSubtitle(params: {
     o => o.value === String(item.settings.stimulusId)
   )
   if (stim?.label) parts.push({ label: 'Stimulus', value: stim.label })
-  const group = getParticipantsGroupOptions(
+  const group = getParticipantsSelectionOptions(
     engine,
     true,
     item.settings.stimulusId
   ).find(o => o.value === String(item.settings.groupId))
-  if (group?.label) parts.push({ label: 'Group', value: group.label })
+  if (group?.label) parts.push({ label: 'Participants', value: group.label })
   return parts.length === 0 ? undefined : parts
 }
 

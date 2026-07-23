@@ -76,7 +76,7 @@ export class BeGazeRowParser extends RowParser {
     const categoryId = this.resolveCategoryId(
       categoryBytes.length === 0 ? this.saccadeNameBytes : categoryBytes
     )
-    this.emitSegment(
+    this.onSegment?.(
       startNum,
       endNum,
       categoryId,

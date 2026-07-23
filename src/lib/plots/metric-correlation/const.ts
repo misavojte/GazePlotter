@@ -1,7 +1,22 @@
+import type { PlotMetricContract } from '$lib/metrics'
 import type {
   CorrelationMethod,
   MetricCorrelationView,
 } from './types'
+
+/**
+ * The metric contract — ONE const, referenced by both the transformer
+ * (`resolveMetrics`) and `definition.consumesMetrics`, so the pane picker
+ * filter and the value resolution can never disagree: an instance invalidated
+ * after save (e.g. an `aggregate-aoi` extreme its metric no longer names)
+ * must drop from the computation exactly as it drops from the picker.
+ */
+export const METRIC_CORRELATION_CONTRACT = {
+  outputShape: 'scalar',
+  windowing: 'forbidden',
+  crossParticipant: 'samples',
+  multiSelect: true,
+} as const satisfies PlotMetricContract
 
 export const METRIC_CORRELATION_METHODS: {
   value: CorrelationMethod

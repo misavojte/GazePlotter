@@ -9,8 +9,8 @@
   /**
    * The min/max value-range input pair every scaled plot uses ("0 = Auto" max
    * convention). Presentational only — the caller owns the settings write
-   * (plain field for bar's scaleRange, per-stimulus keyed write via
-   * `StimulusColorRange` for color-mapped matrices).
+   * (plain field for the `scaleRange` kind, per-stimulus keyed write for the
+   * `stimulusColorRange` kind).
    */
   interface Props {
     idPrefix: string
@@ -44,7 +44,7 @@
       min={0}
       max={inputMax}
       {step}
-      appearance="compact"
+      compact
       onValueChange={v => onUpdate({ min: v ?? 0 })}
     />
     <InputNumber
@@ -55,7 +55,7 @@
       min={0}
       max={inputMax}
       {step}
-      appearance="compact"
+      compact
       onValueChange={v => onUpdate({ max: v ?? 0 })}
     />
   </div>

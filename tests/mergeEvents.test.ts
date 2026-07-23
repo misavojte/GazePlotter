@@ -3,7 +3,7 @@
  * single implementation that folds `EventContribution`s into
  * `DataType.eventData`. Pins: name resolution, '*' wildcard expansion,
  * channel dedup, drop-with-warning aggregation, capabilities flip, and the
- * orderVector/hiddenChannels bookkeeping.
+ * orderVector bookkeeping.
  */
 
 import { describe, expect, test } from 'vitest'
@@ -19,7 +19,6 @@ function makeData(stimuli: string[], participants: string[]): DataType {
     eventData: {
       data: stimuli.map(() => []),
       orderVector: [],
-      hiddenChannels: [],
       events: stimuli.map(() => []),
     },
   } as unknown as DataType
@@ -51,7 +50,6 @@ describe('mergeEvents', () => {
     expect(data.eventData.events[0][0][0]).toEqual([100, 50])
     expect(data.eventData.events[0][0][1]).toEqual([])
     expect(data.eventData.orderVector).toEqual([[0], []])
-    expect(data.eventData.hiddenChannels).toEqual([[], []])
   })
 
   test('preserves duration 0 as discrete and custom color', () => {

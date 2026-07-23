@@ -71,7 +71,9 @@ defineMetric({
   params,
   scanGroup: (scope, { method, collapsed }) => {
     const meta = scope.engine.metadata
-    const aois = meta?.aois.data[scope.stimulusId] ? getAois(scope.engine, scope.stimulusId) : []
+    const aois = meta?.aois.data[scope.stimulusId]
+      ? getAois(scope.engine, scope.stimulusId, scope.aoiSelectionId)
+      : []
     const entries = collectAllScanpaths(
       scope.engine,
       scope.stimulusId,

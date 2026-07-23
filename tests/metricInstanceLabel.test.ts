@@ -4,7 +4,6 @@ import {
   formatParamReadout,
   instanceReadout,
   reductionQualifier,
-  availableReductions,
   resolveReduction,
   getMetric,
   type MetricInstance,
@@ -96,27 +95,9 @@ describe('formatParamReadout (full — same in selector and on plots)', () => {
   })
 })
 
-// ─── availableReductions / reductionQualifier / resolveReduction ──────────────
+// ─── reductionQualifier / resolveReduction ────────────────────────────────────
 // The sound set is a PURE function of the metric's measurementClass — projection
-// independent, no guards. The same set the ConfigureMetric control lists (once
-// intersected with the plot contract) and what an MCP caller may set.
-
-describe('availableReductions (sound cross-participant set, by class)', () => {
-  it('offers mean + sum for extensive quantities (counts, durations)', () => {
-    expect(availableReductions('absoluteTime')).toEqual(['mean', 'sum'])
-    expect(availableReductions('fixationCount')).toEqual(['mean', 'sum'])
-    expect(availableReductions('transitionCount')).toEqual(['mean', 'sum'])
-  })
-  it('offers mean only for intensive quantities (shares, probabilities, averages)', () => {
-    expect(availableReductions('relativeTime')).toEqual(['mean'])
-    expect(availableReductions('visitDuration')).toEqual(['mean'])
-    expect(availableReductions('transitionProbability')).toEqual(['mean'])
-  })
-  it('proportion reduces by mean (the fraction); relational has no reduction', () => {
-    expect(availableReductions('fixated')).toEqual(['mean'])
-    expect(availableReductions('participantPairSimilarity')).toEqual([])
-  })
-})
+// independent, no guards (see soundReductions in measurement.test.ts).
 
 describe('reductionQualifier (discloses only a cohort sum)', () => {
   const vec = { kind: 'identity-aoi-vector' as const }
@@ -167,6 +148,44 @@ describe('instanceReadout (params + reduction — the one selector/figure source
   })
 })
 
+// ─── within-fixation summary statistic (mean/median/…) disclosure ─────────────
+
+describe('summary statistic disclosure', () => {
+  it('is disclosed via instanceReadout (mean shown too), NOT as a generic param chip', () => {
+    // Skipped in the generic param readout so a plot can toggle it like the
+    // reduction chip…
+    expect(formatParamReadout(inst('fixationDuration', {}))).toEqual([])
+    expect(formatParamReadout(inst('fixationDuration', { statistic: 'median' }))).toEqual([])
+    // …and disclosed via instanceReadout — unlike the reduction, `mean` shows too.
+    expect(instanceReadout(inst('fixationDuration', {}))).toEqual(['mean'])
+    expect(instanceReadout(inst('fixationDuration', { statistic: 'median' }))).toEqual(['median'])
+    expect(instanceReadout(inst('visitDuration', { statistic: 'max' }))).toEqual(['max'])
+  })
+  it('metrics without a statistic param emit no summary chip', () => {
+    expect(instanceReadout(inst('absoluteTime', {}))).toEqual([])
+    expect(instanceReadout(inst('fixationCount', {}))).toEqual([])
+  })
+  it('includeSummaryStat:false drops it (bar plot discloses via its overlay)', () => {
+    expect(
+      instanceReadout(inst('fixationDuration', { statistic: 'median' }), {
+        includeSummaryStat: false,
+      })
+    ).toEqual([])
+  })
+  it('buildMetricLabel puts the statistic on the colorbar; the bar opts out', () => {
+    expect(buildMetricLabel(inst('fixationDuration', {}), getMetric('fixationDuration')))
+      .toBe('Fixation duration / ms · mean')
+    expect(
+      buildMetricLabel(inst('fixationDuration', { statistic: 'median' }), getMetric('fixationDuration'))
+    ).toBe('Fixation duration / ms · median')
+    expect(
+      buildMetricLabel(inst('fixationDuration', { statistic: 'median' }), getMetric('fixationDuration'), {
+        includeSummaryStat: false,
+      })
+    ).toBe('Fixation duration / ms')
+  })
+})
+
 // ─── buildMetricLabel: the single entry point every plot calls ────────────────
 
 describe('buildMetricLabel (unified plot/colorbar label)', () => {
@@ -207,5 +226,23 @@ describe('buildMetricLabel (unified plot/colorbar label)', () => {
     const plain: MetricInstance = { ...summed, reduction: undefined }
     expect(buildMetricLabel(plain, getMetric('absoluteTime')))
       .toBe('Absolute dwell time / ms')
+  })
+
+  it('aggregate-aoi prints the metric-named meaning of the extreme, not the operator', () => {
+    // The phrase the recipe declared in `aoiAggregate` is the disclosed
+    // qualifier — the same words that gated the projection in the configure UI.
+    const peak: MetricInstance = {
+      id: 'i', baseId: 'absoluteTime', params: {}, label: '',
+      projection: { kind: 'aggregate-aoi', reducer: 'max' },
+    }
+    expect(buildMetricLabel(peak, getMetric('absoluteTime'), { includeProjection: true }))
+      .toBe('Absolute dwell time / ms · most-dwelled AOI')
+
+    const firstHit: MetricInstance = {
+      id: 'i', baseId: 'timeToFirstFixation', params: {}, label: '',
+      projection: { kind: 'aggregate-aoi', reducer: 'min' },
+    }
+    expect(buildMetricLabel(firstHit, getMetric('timeToFirstFixation'), { includeProjection: true }))
+      .toBe('Time to first fixation / ms · first-reached AOI')
   })
 })

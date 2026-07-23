@@ -14,7 +14,7 @@ Clicking the Scanpath plot card in the workspace selects the plot and opens its 
 
 ### Stimulus
 Select the stimulus on which to overlay the scanpath. The stimulus dimensions and image will serve as the background for the 2D coordinate plot.
-- **Edit stimulus library…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files.
+- **Edit stimuli & selections…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
 
 ### Participant
 Select the individual participant whose gaze trajectory you want to visualize. The Scanpath plot displays one participant's scanpath at a time.

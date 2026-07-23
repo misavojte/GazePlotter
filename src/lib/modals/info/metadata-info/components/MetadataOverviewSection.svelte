@@ -1,5 +1,6 @@
 <script lang="ts">
   import MetadataSection from './MetadataSection.svelte'
+  import InfoRow from './InfoRow.svelte'
   import { Card } from '$lib/shared/components'
   import type { MetadataOverview } from '../helpers'
 
@@ -10,29 +11,12 @@
 
 <MetadataSection title="Data overview">
   <Card padding="sm" gap="0.5rem">
-    <div class="info-item">
-      <span class="label">Number of stimuli:</span>
-      <span class="value">{overview.numberOfStimuli}</span>
-    </div>
-    <div class="info-item">
-      <span class="label">Number of participants:</span>
-      <span class="value">{overview.numberOfParticipants}</span>
-    </div>
-    <div class="info-item">
-      <span class="label">Total number of AOIs:</span>
-      <span class="value">{overview.aoiCounts.total}</span>
-    </div>
-    <div class="info-item">
-      <span class="label">Event channels:</span>
-      <span class="value">{overview.eventCounts.distinctChannels}</span>
-    </div>
-    <div class="info-item">
-      <span class="label">Total events:</span>
-      <span class="value">{overview.eventCounts.totalEvents}</span>
-    </div>
-    <div class="info-item">
-      <span class="label">Capabilities:</span>
-    </div>
+    <InfoRow label="Number of stimuli:" value={overview.numberOfStimuli} />
+    <InfoRow label="Number of participants:" value={overview.numberOfParticipants} />
+    <InfoRow label="Total number of AOIs:" value={overview.aoiCounts.total} />
+    <InfoRow label="Event channels:" value={overview.eventCounts.distinctChannels} />
+    <InfoRow label="Total events:" value={overview.eventCounts.totalEvents} />
+    <InfoRow label="Capabilities:" />
     <div class="aoi-list">
       <div class="aoi-item">
         <span class="stimulus-name">Segmented</span>
@@ -51,9 +35,7 @@
 
   {#if overview.aoiCounts.perStimulus.length > 0}
     <Card padding="sm" gap="0.5rem">
-      <div class="info-item">
-        <span class="label">AOIs per stimulus:</span>
-      </div>
+      <InfoRow label="AOIs per stimulus:" />
       <div class="aoi-list">
         {#each overview.aoiCounts.perStimulus as stimulus}
           <div class="aoi-item">
@@ -69,9 +51,7 @@
 
   {#if overview.eventCounts.distinctChannels > 0}
     <Card padding="sm" gap="0.5rem">
-      <div class="info-item">
-        <span class="label">Events per stimulus:</span>
-      </div>
+      <InfoRow label="Events per stimulus:" />
       <div class="aoi-list">
         {#each overview.eventCounts.perStimulus as stimulus}
           <div class="aoi-item">
@@ -88,25 +68,6 @@
 </MetadataSection>
 
 <style>
-  .info-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .label {
-    font-weight: 500;
-    color: #374151;
-    min-width: fit-content;
-  }
-
-  .value {
-    color: #1f2937;
-    text-align: right;
-    word-break: break-word;
-  }
-
   .aoi-list {
     margin-left: 1rem;
     display: flex;

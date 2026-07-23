@@ -10,9 +10,7 @@ import {
   soundReductions,
   reducesAcrossParticipants,
   distributionStatistics,
-  supportedAoiReducers,
   supportedMatrixReducers,
-  metricShape,
   effectiveReduction,
   reduceFinite,
   reductionLabel,
@@ -61,9 +59,9 @@ describe('distributionStatistics (plot-layer, by class)', () => {
 })
 
 describe('within-participant reducer tables (by class)', () => {
-  it('aggregate-aoi is always max|min, class-independent', () => {
-    for (const c of ALL_CLASSES) expect(supportedAoiReducers(c)).toEqual(['max', 'min'])
-  })
+  // aggregate-aoi is no longer a class table: only extremes exist by
+  // construction, gated per metric by its `aoiAggregate` declaration — the
+  // gate is covered in metricValidation.test.ts.
   it('matrix-aggregate unlocks sum/mean only for extensive', () => {
     expect(supportedMatrixReducers('extensive')).toEqual(['sum', 'mean', 'max', 'min'])
     expect(supportedMatrixReducers('intensive')).toEqual(['max', 'min'])
@@ -135,28 +133,5 @@ describe('contract gating (plot capability ∩ metric class)', () => {
   it('a per-participant plot offers neither (no cross-participant treatment)', () => {
     expect(contractReductions(seriesContract, getMetric('absoluteTime')!.meta)).toEqual([])
     expect(contractDistributionStats(seriesContract, getMetric('absoluteTime')!.meta)).toEqual([])
-  })
-})
-
-describe('metricShape (abstract descriptor)', () => {
-  it('derives the post-projection shape + class from meta + projection', () => {
-    const s = metricShape(getMetric('absoluteTime')!.meta, {
-      kind: 'windowed',
-      window: { windowSize: 500, stepSize: 500 },
-      inner: { kind: 'identity-aoi-vector' },
-    })
-    expect(s).toMatchObject({
-      baseId: 'absoluteTime',
-      rawShape: 'aoi-vector',
-      outputShape: 'aoi-vector-timeseries',
-      measurementClass: 'extensive',
-      windowed: true,
-      unit: 'ms',
-    })
-  })
-  it('reflects a shape-collapsing projection (aoi-vector → scalar)', () => {
-    const s = metricShape(getMetric('absoluteTime')!.meta, { kind: 'pick-any-fixation' })
-    expect(s.outputShape).toBe('scalar')
-    expect(s.windowed).toBe(false)
   })
 })

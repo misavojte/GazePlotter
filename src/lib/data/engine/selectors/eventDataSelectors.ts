@@ -1,9 +1,13 @@
-import type { ExtendedInterpretedDataType } from '$lib/data/types'
+import {
+  NONE_SELECTION_ID,
+  type EventDataUpdate,
+  type ExtendedInterpretedDataType,
+} from '$lib/data/types'
 import type { DataEngine } from '../dataEngine.svelte'
 import { INTERVAL_CHANNEL_MARKER } from '../eventIntervals'
 import {
   getDefaultEventChannelColor,
-  interpretRow,
+  interpretOrdered,
 } from '../utils/interpreters'
 
 /**
@@ -31,65 +35,37 @@ export const getEventChannels = (
   const channels = meta.eventData.data[stimulusId]
   if (!channels || channels.length === 0) return []
 
-  const order = meta.eventData.orderVector?.[stimulusId]
-  const ids =
-    order && order.length > 0
-      ? order
-      : Array.from({ length: channels.length }, (_, i) => i)
-
-  return ids
-    .map(id => {
-      const ch = channels[id]
-      if (!ch) return null
-      return interpretRow(ch, id, getDefaultEventChannelColor)
-    })
-    .filter((ch): ch is ExtendedInterpretedDataType => ch !== null)
+  return interpretOrdered(
+    channels,
+    meta.eventData.orderVector?.[stimulusId] ?? [],
+    getDefaultEventChannelColor
+  )
 }
 
 /**
- * Returns hidden event channel IDs for a stimulus.
- * Mirrors getHiddenAois() pattern.
+ * The event channels a plot shows for a stimulus, in order-vector order. Global
+ * channel visibility is retired — a named event SELECTION is the only narrowing.
+ *
+ * `eventSelectionId` optionally narrows to a named event SELECTION (matched by
+ * displayed name — NameSelections are portable across stimuli exactly like AOI
+ * selections). The built-in "None" narrows to no channels (events off). Unset
+ * / 0 / unknown → no narrowing, same self-healing contract as getAois'
+ * aoiSelectionId.
  */
-export const getHiddenEventChannels = (
+export const getSelectedEventChannels = (
   engine: DataEngine,
-  stimulusId: number
-): number[] => {
-  const meta = engine.metadata
-  if (!meta) throw new Error('Data engine metadata not available')
-  return meta.eventData.hiddenChannels?.[stimulusId] ?? []
-}
-
-/**
- * Returns only visible (non-hidden) event channels for a stimulus, respecting order vector.
- * Mirrors getAois() pattern (visible-only).
- */
-export const getVisibleEventChannels = (
-  engine: DataEngine,
-  stimulusId: number
+  stimulusId: number,
+  eventSelectionId?: number
 ): ExtendedInterpretedDataType[] => {
-  const meta = engine.metadata
-  if (!meta) throw new Error('Data engine metadata not available')
-
-  const channels = meta.eventData.data[stimulusId]
-  if (!channels || channels.length === 0) return []
-
-  const order = meta.eventData.orderVector?.[stimulusId]
-  const ids =
-    order && order.length > 0
-      ? order
-      : Array.from({ length: channels.length }, (_, i) => i)
-
-  const hidden = meta.eventData.hiddenChannels?.[stimulusId] ?? []
-  const hiddenSet = hidden.length ? new Set<number>(hidden) : null
-
-  return ids
-    .filter(id => !hiddenSet?.has(id))
-    .map(id => {
-      const ch = channels[id]
-      if (!ch) return null
-      return interpretRow(ch, id, getDefaultEventChannelColor)
-    })
-    .filter((ch): ch is ExtendedInterpretedDataType => ch !== null)
+  if (eventSelectionId === NONE_SELECTION_ID) return []
+  const all = getEventChannels(engine, stimulusId)
+  if (eventSelectionId == null || eventSelectionId <= 0) return all
+  const selection = (engine.metadata?.eventsSelections ?? []).find(
+    s => s.id === eventSelectionId
+  )
+  if (!selection) return all
+  const names = new Set(selection.names)
+  return all.filter(ch => names.has(ch.displayedName))
 }
 
 /**
@@ -150,29 +126,17 @@ export const getEventChannelSummary = (
 /**
  * Per-stimulus replacement payloads (for `updateEventData` commands) that
  * drop every channel whose original name is in `namesToRemove`. Stimuli
- * with no matching channel are omitted. `hiddenChannels` carries the
- * stimulus's hidden set remapped to the new ids — surviving channels stay
- * hidden across the re-indexing.
+ * with no matching channel are omitted.
  */
 export const buildEventDataWithoutChannels = (
   engine: DataEngine,
   namesToRemove: ReadonlySet<string>
-): {
-  stimulusId: number
-  channelDefs: string[][]
-  eventBuffers: number[][][]
-  hiddenChannels: number[]
-}[] => {
+): EventDataUpdate[] => {
   const meta = engine.metadata
   if (!meta) return []
   const ed = meta.eventData
   const reader = engine.getEventReader()
-  const updates: {
-    stimulusId: number
-    channelDefs: string[][]
-    eventBuffers: number[][][]
-    hiddenChannels: number[]
-  }[] = []
+  const updates: EventDataUpdate[] = []
   for (let s = 0; s < ed.data.length; s++) {
     const defs = ed.data[s]
     if (!defs?.length) continue
@@ -181,17 +145,12 @@ export const buildEventDataWithoutChannels = (
       .filter(i => !namesToRemove.has(defs[i][0]))
     if (keepIds.length === defs.length) continue
     const buffers = reader.getStimulusJson(s)
-    const newIdByOldId = new Map(keepIds.map((oldId, newId) => [oldId, newId]))
     updates.push({
       stimulusId: s,
       channelDefs: keepIds.map(i => [...defs[i]]),
       eventBuffers: keepIds.map(i =>
         (buffers[i] ?? []).map(buffer => [...buffer])
       ),
-      hiddenChannels: (ed.hiddenChannels?.[s] ?? [])
-        .map(id => newIdByOldId.get(id))
-        .filter((id): id is number => id !== undefined)
-        .sort((a, b) => a - b),
     })
   }
   return updates

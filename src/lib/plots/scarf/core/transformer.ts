@@ -7,10 +7,10 @@ import {
   getNumberOfSegments,
   getParticipantEndTime,
   hasEventsForStimulus,
-  getVisibleEventChannels,
+  getSelectedEventChannels,
   getEventBuffer,
   getAllCategories,
-  getHiddenCategories,
+  applyCategorySelection,
 } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { groupByDisplayedName } from '$lib/data/engine/utils/grouping'
@@ -18,15 +18,12 @@ import {
   FIXATION_CATEGORY_ID,
   type ExtendedInterpretedDataType,
 } from '$lib/data/types'
+import { SEGMENT_STRIDE, SegmentField } from '$lib/data/binary/schema'
 import {
   createAdaptiveTimeline,
   type AdaptiveTimeline,
 } from '$lib/plots/shared'
-import {
-  OVERLAY_EVENT_STRIDE,
-  SCARF_IDENTIFIERS,
-  SCARF_LAYOUT,
-} from '../const'
+import { OVERLAY_EVENT_STRIDE, SCARF_IDENTIFIERS } from '../const'
 import type {
   ScarfData,
   ScarfGazeSource,
@@ -42,6 +39,22 @@ import type {
   ScarfEventStyle,
 } from '../types'
 import type { LegendGroup } from '$lib/plots/shared'
+
+/** Resolved-slice caches per AoiGroupReader (see buildResolvedSlices): a new
+ *  dataset replaces the group reader, so its caches drop with it. */
+const _resolvedSliceCache = new WeakMap<
+  object,
+  Map<
+    number,
+    {
+      slotBase: Int32Array
+      sliceStart: Uint32Array
+      sliceStyles: Int16Array
+      occStart: Uint32Array
+      occSlot: Uint32Array
+    }
+  >
+>()
 
 class Float32GrowBuffer {
   private buffer: Float32Array
@@ -230,7 +243,8 @@ function createStylingAndLegend(
   eventChannelData: readonly ExtendedInterpretedDataType[] = [],
   // Pre-grouped non-fixation categories (grouped ONCE by the caller and reused for
   // the style-index map), so this O(n^2) grouping + filter runs a single time.
-  groupedCategories: readonly GroupedCategory[] = []
+  groupedCategories: readonly GroupedCategory[] = [],
+  hideNoAoi = false
 ): ScarfStyling {
   const aoi: ScarfStyleItem[] = []
   for (let i = 0; i < aoiData.length; i++) {
@@ -241,11 +255,13 @@ function createStylingAndLegend(
       color: a.color,
     })
   }
-  aoi.push({
-    identifier: `${SCARF_IDENTIFIERS.AOI}${SCARF_IDENTIFIERS.NOT_DEFINED}`,
-    name: noAoiTreatment.displayedName,
-    color: noAoiTreatment.color,
-  })
+  if (!hideNoAoi) {
+    aoi.push({
+      identifier: `${SCARF_IDENTIFIERS.AOI}${SCARF_IDENTIFIERS.NOT_DEFINED}`,
+      name: noAoiTreatment.displayedName,
+      color: noAoiTreatment.color,
+    })
+  }
 
   const category: ScarfStyleItem[] = []
   for (let i = 0; i < groupedCategories.length; i++) {
@@ -257,17 +273,17 @@ function createStylingAndLegend(
     })
   }
 
-  const visibility: ScarfStyleItem[] = []
+  const event: ScarfStyleItem[] = []
   for (let i = 0; i < eventChannelData.length; i++) {
     const ch = eventChannelData[i]
-    visibility.push({
+    event.push({
       identifier: `${SCARF_IDENTIFIERS.EVENT}${ch.id}`,
       name: ch.displayedName,
       color: ch.color,
     })
   }
 
-  return { aoi, category, visibility }
+  return { aoi, category, event }
 }
 
 type GroupedEventChannel = ExtendedInterpretedDataType & {
@@ -289,7 +305,6 @@ export function groupEventChannelsByDisplayedName(
  */
 function createScarfLegendData(
   styling: ScarfStyling,
-  hideNonFixations = false,
   showEvents = false
 ): ScarfLegendData {
   const groups: ScarfLegendGroup[] = []
@@ -309,14 +324,12 @@ function createScarfLegendData(
   }
 
   addGroup('Fixations', styling.aoi, 'fixation')
-  if (!hideNonFixations) {
-    addGroup('Non-fixations', styling.category, 'nonFixation')
-  }
+  addGroup('Non-fixations', styling.category, 'nonFixation')
 
   // Overlaid events render as solid colour strips, so the legend swatch is a
   // rectangle keyed by event type.
   if (showEvents) {
-    addGroup('Event Channels', styling.visibility, 'fixation')
+    addGroup('Event Channels', styling.event, 'fixation')
   }
 
   return { groups }
@@ -394,12 +407,9 @@ export function transformDataToScarfPlot(
   const stimulusHasEvents = hasEventsForStimulus(engine, stimulusId)
   // Events ride as an overlay on the gaze segments. The ordinal view is
   // segment-index-based, so the time-based event overlay is never shown there.
-  const showEventOverlay =
-    stimulusHasEvents &&
-    settings.timeline !== 'ordinal' &&
-    !(settings.hideEvents ?? false)
+  const showEventOverlay = stimulusHasEvents && settings.timeline !== 'ordinal'
 
-  const aoiData = getAois(engine, stimulusId)
+  const aoiData = getAois(engine, stimulusId, settings.aoiSelectionId)
   const timeline = createScarfPlotAxis(
     engine,
     participantIds,
@@ -410,26 +420,36 @@ export function transformDataToScarfPlot(
   const invVisibleRange = 1 / (maxValue - minValue || 1)
 
   const visibleEventChannels = hasEventsForStimulus(engine, stimulusId)
-    ? getVisibleEventChannels(engine, stimulusId)
+    ? getSelectedEventChannels(engine, stimulusId, settings.eventSelectionId)
     : []
   const groupedEventChannels =
     groupEventChannelsByDisplayedName(visibleEventChannels)
-  const showVisibilityMarkers =
+  const showEventStripMarkers =
     showEventOverlay && groupedEventChannels.length > 0
   const categoryData = getAllCategories(engine)
-  const hiddenCategories = getHiddenCategories(engine)
-  const hiddenCategoryIds = new Set(hiddenCategories)
   // Group the non-fixation categories ONCE — shared by the styling below and the
   // category→style-index map further down (was grouped twice + filtered twice).
-  const groupedCategories = groupCategoriesByDisplayedName(
-    categoryData.filter(c => c.id !== FIXATION_CATEGORY_ID)
+  // The per-plot eye-movement-type SELECTION is the ONLY narrowing (global
+  // category visibility is retired); the map below is built from the KEPT groups
+  // only, so narrowed-away members resolve to -1 and the paint loop skips them.
+  const { kept: groupedCategories } = applyCategorySelection(
+    engine,
+    groupCategoriesByDisplayedName(
+      categoryData.filter(c => c.id !== FIXATION_CATEGORY_ID)
+    ),
+    settings.categorySelectionId
   )
+
+  // Hoisted settings read (deep $state proxy); shapes both the legend (the
+  // No-AOI entry is omitted) and the gaze source's noAoiStyleIdx sentinel.
+  const hideNoAoi = settings.hideNoAoi ?? false
 
   const stylingAndLegend = createStylingAndLegend(
     aoiData,
     noAoiTreatment,
-    showVisibilityMarkers ? groupedEventChannels : [],
-    groupedCategories
+    showEventStripMarkers ? groupedEventChannels : [],
+    groupedCategories,
+    hideNoAoi
   )
 
   // --- Gaze segments + optional event overlay ---
@@ -437,6 +457,123 @@ export function transformDataToScarfPlot(
   if (!reader) throw new Error('Data engine reader not initialized')
   const aoiGroupReader = engine.getAoiGroupReader()
   if (!aoiGroupReader) throw new Error('AOI reader not initialized')
+
+  type SegmentReader = typeof reader
+  type GroupReader = typeof aoiGroupReader
+
+  /**
+   * Frame-invariant AOI resolution, hoisted out of the render loop: resolved
+   * VISIBLE style slices per segment, in CSR form over the exact iteration
+   * order the renderer walks (participants in `participantIds` order, segments
+   * in range order; a segment's slot is `slotBase[pIndex] + localId`).
+   * Values are byte-identical to the inline resolution this replaces — the
+   * builder runs the same `getSegmentAoisUniqueDirect` + `aoiOrderMap` walk
+   * the render loops used to run per frame; it is the SINGLE definition of the
+   * resolution policy (composite, highlight rings, and hover hit-test all read
+   * its output).
+   *
+   * Alongside the slices it builds their TRANSPOSE for the ring painter: per
+   * (style, participant) the contributing segment slots in time order —
+   * bucket b = styleIdx * pIds.length + pIndex spans
+   * occSlot[occStart[b] .. occStart[b+1]). A fixation contributes one
+   * occurrence per visible slice, a no-visible-AOI fixation one occurrence
+   * under `noAoiIdx`, a kept non-fixation one under its category style. The
+   * ring pass thus iterates ONLY the highlighted style's occurrences instead
+   * of every segment.
+   */
+  function buildResolvedSlices(
+    segReader: SegmentReader,
+    groupReader: GroupReader,
+    pIds: number[],
+    sId: number,
+    orderMap: Int16Array,
+    catMap: Int16Array,
+    noAoiIdx: number,
+    styleCount: number
+  ): {
+    slotBase: Int32Array
+    sliceStart: Uint32Array
+    sliceStyles: Int16Array
+    occStart: Uint32Array
+    occSlot: Uint32Array
+  } {
+    const segBuf = segReader.segmentBufferRaw
+    const slotBase = new Int32Array(pIds.length)
+    let totalSegs = 0
+    for (let p = 0; p < pIds.length; p++) {
+      slotBase[p] = totalSegs
+      const { startIndex, endIndex } = segReader.getSegmentRange(sId, pIds[p])
+      totalSegs += endIndex - startIndex
+    }
+    const sliceStart = new Uint32Array(totalSegs + 1)
+    let sliceStyles = new Int16Array(totalSegs + 16)
+    const overlap = new Uint16Array(Math.max(64, orderMap.length))
+    let n = 0
+    let slot = 0
+    for (let p = 0; p < pIds.length; p++) {
+      const { startIndex, endIndex } = segReader.getSegmentRange(sId, pIds[p])
+      for (let i = startIndex; i < endIndex; i++) {
+        sliceStart[slot++] = n
+        const categoryId = segBuf[i * SEGMENT_STRIDE + SegmentField.CATEGORY_ID] | 0
+        if (categoryId !== FIXATION_CATEGORY_ID) continue
+        const count = groupReader.getSegmentAoisUniqueDirect(i, sId, overlap)
+        for (let idx = 0; idx < count; idx++) {
+          const styleIdx = orderMap[overlap[idx]]
+          if (styleIdx < 0) continue
+          if (n === sliceStyles.length) {
+            const grown = new Int16Array(sliceStyles.length * 2)
+            grown.set(sliceStyles)
+            sliceStyles = grown
+          }
+          sliceStyles[n++] = styleIdx
+        }
+      }
+    }
+    sliceStart[totalSegs] = n
+
+    // Transpose pass over the slices just built (no re-resolution): count
+    // occurrences per (style, participant) bucket, prefix-sum, then fill.
+    const P = pIds.length
+    const buckets = styleCount * P
+    const occStart = new Uint32Array(buckets + 1)
+    const styleOfSlot = (s: number, categoryId: number): number => {
+      if (categoryId !== FIXATION_CATEGORY_ID) {
+        return categoryId >= 0 && categoryId < catMap.length ? catMap[categoryId] : -1
+      }
+      return sliceStart[s + 1] - sliceStart[s] === 0 ? noAoiIdx : -2 // -2 = slices
+    }
+    let occCursor = new Uint32Array(0)
+    let occSlotFill = new Uint32Array(0)
+    for (let pass = 0; pass < 2; pass++) {
+      slot = 0
+      for (let p = 0; p < P; p++) {
+        const { startIndex, endIndex } = segReader.getSegmentRange(sId, pIds[p])
+        for (let i = startIndex; i < endIndex; i++, slot++) {
+          const categoryId = segBuf[i * SEGMENT_STRIDE + SegmentField.CATEGORY_ID] | 0
+          const sIdx = styleOfSlot(slot, categoryId)
+          if (sIdx === -1) continue
+          if (sIdx !== -2) {
+            const b = sIdx * P + p
+            if (pass === 0) occStart[b + 1]++
+            else occSlotFill[occCursor[b]++] = slot
+          } else {
+            for (let k = sliceStart[slot]; k < sliceStart[slot + 1]; k++) {
+              const b = sliceStyles[k] * P + p
+              if (pass === 0) occStart[b + 1]++
+              else occSlotFill[occCursor[b]++] = slot
+            }
+          }
+        }
+      }
+      if (pass === 0) {
+        for (let b = 1; b <= buckets; b++) occStart[b] += occStart[b - 1]
+        occCursor = occStart.slice(0, buckets)
+        occSlotFill = new Uint32Array(occStart[buckets])
+      }
+    }
+    return { slotBase, sliceStart, sliceStyles, occStart, occSlot: occSlotFill }
+  }
+
 
   // Style mapping: pre-calculate indices for the hot loop.
   const aoiStyleCount = stylingAndLegend.aoi.length
@@ -455,7 +592,7 @@ export function transformDataToScarfPlot(
     }
   }
 
-  const visibilityBaseStyleIdx =
+  const eventStripBaseStyleIdx =
     aoiStyleCount + stylingAndLegend.category.length
 
   const stimulusAoiCount = engine.metadata?.aois.data[stimulusId]?.length ?? 0
@@ -464,11 +601,51 @@ export function transformDataToScarfPlot(
   const aoiOrderMap = new Int16Array(aoiBufferSize).fill(-1)
   for (let i = 0; i < aoiData.length; i++) aoiOrderMap[aoiData[i].id] = i
 
+  const sliceNoAoiStyleIdx = hideNoAoi ? -1 : aoiData.length
+  const sliceStyleCount =
+    aoiStyleCount +
+    stylingAndLegend.category.length +
+    stylingAndLegend.event.length
+
+  // FNV-1a signature over everything the slice resolution + its transpose
+  // depend on. Dataset identity rides on the WeakMap key (a new dataset builds
+  // a new group reader); zoom/time-range changes deliberately do NOT enter the
+  // signature.
+  let sliceSig = 0x811c9dc5
+  const mix = (v: number) => {
+    sliceSig = Math.imul(sliceSig ^ v, 0x01000193)
+  }
+  mix(stimulusId)
+  mix(aoiGroupReader.version)
+  mix(sliceNoAoiStyleIdx + 2)
+  mix(sliceStyleCount)
+  for (let i = 0; i < aoiOrderMap.length; i++) mix(aoiOrderMap[i] + 2)
+  for (let i = 0; i < categoryStyleIdxMap.length; i++) mix(categoryStyleIdxMap[i] + 2)
+  for (let i = 0; i < participantIds.length; i++) mix(participantIds[i] + 1)
+
+  let perReader = _resolvedSliceCache.get(aoiGroupReader)
+  if (!perReader) {
+    perReader = new Map()
+    _resolvedSliceCache.set(aoiGroupReader, perReader)
+  }
+  let resolvedSlices = perReader.get(sliceSig)
+  if (!resolvedSlices) {
+    resolvedSlices = buildResolvedSlices(
+      reader, aoiGroupReader, participantIds, stimulusId, aoiOrderMap,
+      categoryStyleIdxMap, sliceNoAoiStyleIdx, sliceStyleCount
+    )
+    // Small cap: several plots with distinct selections/groups on one dataset
+    // each keep their entry; beyond that the oldest goes.
+    if (perReader.size >= 8) {
+      perReader.delete(perReader.keys().next().value as number)
+    }
+    perReader.set(sliceSig, resolvedSlices)
+  }
+
   const totalStyleCount =
     aoiStyleCount +
     stylingAndLegend.category.length +
-    stylingAndLegend.visibility.length
-  const rows = participantIds.length
+    stylingAndLegend.event.length
   // Event overlay buckets only (small — one strip per merged event). There are no
   // gaze rect buckets: the renderer composites the gaze rects straight from the
   // binary segment store via `gazeSource` (see below).
@@ -481,8 +658,7 @@ export function transformDataToScarfPlot(
   const isRelative = settings.timeline === 'relative'
   // Hoist every reactive `settings` read OUT of the per-segment loop: `settings`
   // is a deep $state proxy (item.settings), so each property read is a proxy
-  // `get` — reading `hideNonFixations` per segment cost ~190 ms on a large set.
-  const hideNonFixations = settings.hideNonFixations
+  // `get` — one settings read per segment cost ~190 ms on a large set.
   const relTimelineStart = settings.timelineStart
   const relTimelineEnd = settings.timelineEnd
   const participants: ScarfParticipant[] = new Array(participantIds.length)
@@ -527,7 +703,7 @@ export function transformDataToScarfPlot(
     projClipMax[pIndex] = clipMax
     projScale[pIndex] = scale
 
-    if (showVisibilityMarkers) {
+    if (showEventStripMarkers) {
       // Merge this participant's events across ALL visible channels, pack them
       // into shared lanes (greedy, type-order tiebreak), then push each as a
       // strip into its channel bucket so the renderer can colour it by type.
@@ -540,7 +716,7 @@ export function transformDataToScarfPlot(
 
       for (let chIdx = 0; chIdx < groupedEventChannels.length; chIdx++) {
         const group = groupedEventChannels[chIdx]
-        const styleIdx = visibilityBaseStyleIdx + chIdx
+        const styleIdx = eventStripBaseStyleIdx + chIdx
         const chEvents: { start: number; end: number; isPoint: boolean }[] = []
         for (let mIdx = 0; mIdx < group.memberIds.length; mIdx++) {
           const buf = getEventBuffer(engine, stimulusId, group.memberIds[mIdx], pid)
@@ -617,18 +793,21 @@ export function transformDataToScarfPlot(
   // style maps + the per-participant projection arrays.
   const gazeSource: ScarfGazeSource = {
     reader,
-    aoiGroupReader,
     participantIds,
     stimulusId,
     isOrdinal,
     projClipMin,
     projClipMax,
     projScale,
-    aoiOrderMap,
     categoryStyleIdxMap,
-    noAoiStyleIdx: aoiData.length,
-    hideNonFixations: !!hideNonFixations,
-    hiddenCategoryIds,
+    // -1 when hidden: the No-AOI style doesn't exist then (the styling above
+    // omitted it, so category styles occupy index aoiData.length).
+    noAoiStyleIdx: hideNoAoi ? -1 : aoiData.length,
+    resolvedSlotBase: resolvedSlices.slotBase,
+    resolvedSliceStart: resolvedSlices.sliceStart,
+    resolvedSliceStyles: resolvedSlices.sliceStyles,
+    resolvedOccStart: resolvedSlices.occStart,
+    resolvedOccSlot: resolvedSlices.occSlot,
   }
 
   return {
@@ -637,14 +816,10 @@ export function transformDataToScarfPlot(
     participants,
     timeline,
     stylingAndLegend,
-    legendData: createScarfLegendData(
-      stylingAndLegend,
-      settings.hideNonFixations,
-      showVisibilityMarkers
-    ),
+    legendData: createScarfLegendData(stylingAndLegend, showEventStripMarkers),
     visualEventBuckets,
     gazeSource,
-    isOverlay: showVisibilityMarkers,
+    isOverlay: showEventStripMarkers,
     eventZoneConcurrency: observedMaxConcurrency,
   }
 }

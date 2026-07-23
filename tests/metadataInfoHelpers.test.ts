@@ -138,7 +138,6 @@ describe('metadata-info helpers', () => {
         // Stimulus2: channels 'Click' (shared name) + 'Key', 1 occurrence each.
         data: [[['Click', 'Click', '#888']], [['Click', 'Click', '#888'], ['Key', 'Key', '#999']]],
         orderVector: [],
-        hiddenChannels: [],
         events: [
           [[[0, 0, 100, 0]]], // Stimulus1 / Click / P0 → 2 events (stride 2)
           [[[0, 0]], [[50, 0]]], // Stimulus2: Click 1 event, Key 1 event
@@ -219,7 +218,6 @@ describe('metadata-info helpers', () => {
             eventData: {
               data: [[['Click', 'Click', '#888']], []],
               orderVector: [],
-              hiddenChannels: [],
               events: [[[[10, 0, 20, 0]]], []],
             },
           })
@@ -244,6 +242,22 @@ describe('metadata-info helpers', () => {
             stimulus: '01-c',
             participant: 'Recording 16 Y1',
             issues: [{ kind: 'unclosed-start', timeSeconds: 365.74 }],
+          },
+        ],
+        merges: [
+          {
+            op: 'merge',
+            axis: 'stimulus',
+            representativeId: 0,
+            members: [
+              {
+                id: 1,
+                displayedName: 'Stimulus A (copy)',
+                orderIndex: 1,
+                contributedCounterparts: [2, 3],
+              },
+            ],
+            at: Date.parse('2026-03-14T11:00:00.000Z'),
           },
         ],
         generatedAt: '2026-03-14T12:00:00.000Z',
@@ -271,6 +285,8 @@ describe('metadata-info helpers', () => {
     expect(csv).toContain(
       '"01-c","Recording 16 Y1","started but never ended","365.74"'
     )
+    expect(csv).toContain('Section,Merges (reversible identity corrections)')
+    expect(csv).toContain('"stimulus","0","Stimulus A (copy)","2026-03-14T11:00:00.000Z"')
     expect(csv).toContain('Section,Recent Errors')
     expect(csv).toContain('"recoverable"')
     expect(csv).toContain('Memory utilization,25.0% of limit')

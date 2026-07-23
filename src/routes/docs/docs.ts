@@ -1,7 +1,7 @@
 import type { Component } from 'svelte'
 import { SIDEBAR } from './sidebarConfig'
 
-export interface LoadedDocMetadata {
+interface LoadedDocMetadata {
   title: string
   seoTitle: string
   description?: string

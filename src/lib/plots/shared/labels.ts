@@ -102,13 +102,14 @@ export function rangeQualifier(
  * plot, which discloses its statistic via its own mean±CI / median-IQR overlay
  * instead. Always derived, so a rename never drops these.
  */
-export function metricQualifiers(
+function metricQualifiers(
   instance: MetricInstance | null | undefined,
   includeProjection = false,
   includeReduction = true,
+  includeSummaryStat = true,
 ): string[] {
   if (!instance) return []
-  const qualifiers = instanceReadout(instance, { includeReduction })
+  const qualifiers = instanceReadout(instance, { includeReduction, includeSummaryStat })
   if (includeProjection) {
     const projection = formatProjectionReadout(instance)
     if (projection) qualifiers.push(projection)
@@ -116,7 +117,7 @@ export function metricQualifiers(
   return qualifiers
 }
 
-export interface MetricLabelOptions {
+interface MetricLabelOptions {
   /** Fallback quantity name when no instance/metric resolves. */
   fallback?: string
   /** Append the projection readout (aggregate plots). Omit for time-axis plots
@@ -125,6 +126,10 @@ export interface MetricLabelOptions {
   /** Append the cross-participant reduction chip. Default `true`; pass `false`
    *  for the bar plot, which discloses its statistic via its overlay instead. */
   includeReduction?: boolean
+  /** Append the within-participant summary-statistic chip (mean/median/… for
+   *  fixation/visit duration). Default `true`; pass `false` for the bar plot,
+   *  whose beeswarm + overlay already shows the distribution. */
+  includeSummaryStat?: boolean
   /** Append the IUPAC unit after the quantity. Default `true`; pass `false` for an
    *  axis carrying several metrics of differing units (correlation rows/cols). */
   unit?: boolean
@@ -153,7 +158,12 @@ export function buildMetricLabel(
       : formatInstanceLabel(instance, metric, opts.fallback)
   return withQualifiers(
     primary,
-    ...metricQualifiers(instance, opts.includeProjection ?? false, opts.includeReduction ?? true),
+    ...metricQualifiers(
+      instance,
+      opts.includeProjection ?? false,
+      opts.includeReduction ?? true,
+      opts.includeSummaryStat ?? true
+    ),
     ...(opts.extra ?? [])
   )
 }

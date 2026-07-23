@@ -4,11 +4,8 @@
   import { contextMenuAction } from '$lib/context-menu'
   import type {
     MenuActionItem,
-    MenuDividerItem,
     MenuItem,
   } from '$lib/context-menu'
-  import type { LucideIconComponent } from '$lib/shared/types'
-  import { isInPane } from './paneContext'
   import InputScaffold from './InputScaffold.svelte'
   import {
     createSelectChangeEvent,
@@ -18,24 +15,18 @@
     type SelectOption,
   } from './select'
 
-  interface TopAction {
-    label: string
-    icon?: LucideIconComponent
-    onAction: () => void
-  }
-
   interface Props {
     options?: readonly SelectOption[]
     disabled?: boolean
     label?: string
+    /** Accessible name for the trigger when no visible label is rendered. */
+    ariaLabel?: string
     value?: string | string[]
     multiple?: boolean
     compact?: boolean
     placeholder?: string
     /** Optional secondary line rendered below the trigger (e.g. parameter readout). */
     subLabel?: string
-    /** Optional action item rendered at the top of the dropdown above a divider. */
-    topAction?: TopAction
     /** Message rendered as a disabled item when `options` is empty. */
     emptyMessage?: string
     /** Multi-selection "Mixed": the bound plots disagree on this field. Shows a
@@ -43,28 +34,22 @@
      *  still applies normally (and resolves the divergence). */
     mixed?: boolean
     onchange?: (event: CustomEvent<string | string[]>) => void
-    onClose?: () => void
   }
 
   let {
     options = [],
     disabled = false,
     label = '',
+    ariaLabel,
     multiple = false,
     value = $bindable<string | string[]>(multiple ? [] : (options[0]?.value ?? '')),
     compact = false,
     placeholder,
     subLabel,
-    topAction,
     emptyMessage,
     mixed = false,
     onchange = () => {},
-    onClose = () => {},
   }: Props = $props()
-
-  /** Rendered inside a Pane? Auto-activate compact so panes don't have to pass it. */
-  const inPane = isInPane()
-  const isCompact = $derived(compact || inPane)
 
   let isOpen = $state(false)
   let wrapperEl = $state<HTMLDivElement | null>(null)
@@ -80,9 +65,7 @@
     return () => ro.disconnect()
   })
 
-  const triggerId = `select-${untrack(() =>
-    (label || 'select').toLowerCase().replace(/\s+/g, '-')
-  )}`
+  const triggerId = untrack(() => `select-${crypto.randomUUID()}`)
 
   const currentSelection = $derived(
     mixed
@@ -129,21 +112,7 @@
   )
 
   const menuItems = $derived.by<MenuItem[]>(() => {
-    const out: MenuItem[] = []
-    if (topAction) {
-      const action: MenuActionItem = {
-        label: topAction.label,
-        icon: topAction.icon,
-        onAction: () => topAction.onAction(),
-        closeOnAction: true,
-      }
-      out.push(action)
-      if (optionItems.length > 0) {
-        const divider: MenuDividerItem = { isDivider: true }
-        out.push(divider)
-      }
-    }
-    out.push(...optionItems)
+    const out: MenuItem[] = [...optionItems]
     if (optionItems.length === 0 && emptyMessage) {
       const empty: MenuActionItem = {
         label: emptyMessage,
@@ -168,20 +137,20 @@
     },
     onClose: () => {
       isOpen = false
-      onClose()
     },
   })
 </script>
 
-<InputScaffold {label} id={triggerId} compact={isCompact} showLabel={!!label}>
-  <div bind:this={wrapperEl} class="select-wrapper" class:compact={isCompact} use:contextMenuAction={menuConfig}>
+<InputScaffold {label} id={triggerId} compact={compact} showLabel={!!label}>
+  <div bind:this={wrapperEl} class="select-wrapper" class:compact={compact} use:contextMenuAction={menuConfig}>
     <button
       id={triggerId}
       class="trigger"
-      class:compact={isCompact}
+      class:compact={compact}
       class:disabled
       class:open={isOpen}
       {disabled}
+      aria-label={ariaLabel}
       aria-expanded={isOpen}
       aria-haspopup="listbox"
     >

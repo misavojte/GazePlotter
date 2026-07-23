@@ -19,13 +19,12 @@ Clicking the Metric Timeline plot card in the workspace selects the plot and ope
 
 ### Stimulus
 Choose the stimulus to analyze. Gaze data will be filtered and binned along this stimulus's recorded timeline.
-- **Edit stimulus library…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files.
+- **Edit stimuli & selections…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
 
-### Participant group
+### Participants
 Filter the analysis by participant group.
-- **Select group**: A dropdown containing *All participants* and custom participant groups.
-- **Edit groups…**: Opens the [Participant Groups](/docs/workspace/participant-groups/) editor to manage cohort comparison sets.
-- **Edit participants…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename or reorder participants.
+- **Participant selection**: A dropdown containing *All*, *Non-empty*, and saved participant selections.
+- **Edit participants & selections…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
 
 ### Metric
 Configure the windowed scalar metric to track.
@@ -48,7 +47,8 @@ Filter the temporal range.
 
 ### Areas of Interest
 Filters which Areas of Interest (AOIs) are active for the metric calculation. If AOIs are selected, the metric is computed only using fixations that land within those active AOIs.
-- **Configure AOI Library…**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, and visibility.
+- **AOI selection**: A dropdown containing *All* and saved AOI selections; AOIs outside the picked selection count as no-AOI in this plot.
+- **Edit AOIs & selections…**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
 
 ### Export
 Located at the bottom of the Pane:

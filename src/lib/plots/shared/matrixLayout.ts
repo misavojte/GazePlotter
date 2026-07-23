@@ -15,12 +15,13 @@ const COMPACT_LABEL_SIZE = 25
 export const MATRIX_LEGEND_GAP = 10
 
 /**
- * Legibility floors for square-matrix cells. The layout keeps rendering down to
+ * Legibility floors for matrix cells. The layout keeps rendering down to
  * ~1px cells (ultra-compact mode), so these are NOT the layout's `minCellSize`
  * (that only switches label density). Below these the view stops being
  * interpretable and the figure paints a fit-guard placeholder instead:
- * - color grids (transition matrix, correlation heatmap, similarity matrix):
- *   individual cells can no longer be visually resolved nor mapped to a label.
+ * - color grids (transition matrix, correlation heatmap, similarity matrix,
+ *   metric matrix): individual cells can no longer be visually resolved nor
+ *   mapped to a label.
  * - the correlation SPLOM needs extra room for a scatter + r-value per cell.
  */
 export const MIN_LEGIBLE_CELL_SIZE = 8
@@ -42,16 +43,23 @@ export const MATRIX_LAYOUT = {
 
 export type MatrixLayoutConfig = typeof MATRIX_LAYOUT
 
-export type SquareMatrixLayoutInput = {
+/**
+ * Input to {@link computeMatrixLayout}. `rowLabels`/`colLabels` are independent
+ * axes: a square matrix (transition, correlation, similarity) passes the same
+ * array for both; the metric matrix passes participants × stimuli. Cells stay
+ * square — the shorter axis letterboxes.
+ */
+export type MatrixLayoutInput = {
   width: number
   height: number
-  labels: string[]
+  rowLabels: string[]
+  colLabels: string[]
   cellValueLabelLength: number
   layoutConfig: MatrixLayoutConfig
   margins: CanvasPlotMargins
 }
 
-export type SquareMatrixLayout = {
+export type MatrixLayout = {
   fontSize: number
   xAxisLabelHeight: number
   yAxisLabelWidth: number
@@ -62,9 +70,14 @@ export type SquareMatrixLayout = {
   gridWidth: number
   gridHeight: number
   matrixBottom: number
+  rowCount: number
+  colCount: number
   isCompactMode: boolean
   isUltraCompactMode: boolean
-  thinFactor: number
+  /** Label-skip stride for the row (y) axis in compact / ultra-compact mode. */
+  rowThinFactor: number
+  /** Label-skip stride for the column (x) axis in compact / ultra-compact mode. */
+  colThinFactor: number
   individualLabelMargin: number
   showCellValues: boolean
   showAxisLabels: boolean
@@ -84,13 +97,26 @@ function estimateMaxLabelWidth(
   return Math.min(maxPixelWidth, maxLabelLength)
 }
 
-export function computeSquareMatrixLayout(
-  input: SquareMatrixLayoutInput
-): SquareMatrixLayout {
+/**
+ * Compact-mode label-skip stride for one axis: derived from the digit width of
+ * the axis' index labels against the cell size (the same rule the former
+ * square layout applied to a single shared count).
+ */
+function compactThinFactor(
+  count: number,
+  fontSize: number,
+  cellSize: number
+): number {
+  const approxIndexWidth = count.toString().length * (fontSize * APPROX_CHAR_WIDTH)
+  return Math.max(1, Math.ceil((approxIndexWidth + 4) / cellSize))
+}
+
+export function computeMatrixLayout(input: MatrixLayoutInput): MatrixLayout {
   const {
     width,
     height,
-    labels,
+    rowLabels,
+    colLabels,
     cellValueLabelLength: labelLen,
     layoutConfig: cfg,
   } = input
@@ -102,108 +128,83 @@ export function computeSquareMatrixLayout(
     left: marginLeft,
   } = input.margins
 
-  const count = labels.length
-  const safeCount = Math.max(1, count)
+  const rowCount = rowLabels.length
+  const colCount = colLabels.length
+  const safeRowCount = Math.max(1, rowCount)
+  const safeColCount = Math.max(1, colCount)
   const fontSize = cfg.LABEL_FONT_SIZE
 
-  const effectiveMaxLabelWidth = estimateMaxLabelWidth(
-    labels,
-    fontSize,
-    cfg.maxLabelLength
-  )
+  // y-axis labels come from rows, x-axis (rotated) labels from columns.
+  const maxRowLabelWidth = estimateMaxLabelWidth(rowLabels, fontSize, cfg.maxLabelLength)
+  const maxColLabelWidth = estimateMaxLabelWidth(colLabels, fontSize, cfg.maxLabelLength)
 
-  const standardAxisLabelSize = effectiveMaxLabelWidth
-  const standardXAxisHeight = effectiveMaxLabelWidth * SIN_45 + fontSize * SIN_45
-
-  const standardYSpace =
-    marginLeft + cfg.leftMargin + fontSize + AXIS_TITLE_GAP + standardAxisLabelSize + 10
-
-  const standardXSpace =
-    marginTop + cfg.topMargin + fontSize + AXIS_TITLE_GAP + standardXAxisHeight + 10
+  const standardYAxisLabelWidth = maxRowLabelWidth
+  const standardXAxisHeight = maxColLabelWidth * SIN_45 + fontSize * SIN_45
 
   const legendSpace = MATRIX_LEGEND_GAP + getGradientLegendRequiredHeight(fontSize) + marginBottom
 
-  const availableWidthStandard =
-    width - standardYSpace - marginRight - cfg.rightMargin
-  const availableHeightStandard = height - standardXSpace - legendSpace
+  // Axis space = outer margin + config margin + axis title + gap + labels + pad.
+  const ySpaceFor = (labelWidth: number) =>
+    marginLeft + cfg.leftMargin + fontSize + AXIS_TITLE_GAP + labelWidth + 10
+  const xSpaceFor = (labelHeight: number) =>
+    marginTop + cfg.topMargin + fontSize + AXIS_TITLE_GAP + labelHeight + 10
 
-  const cellStandard = Math.max(
-    0,
-    Math.min(availableWidthStandard / safeCount, availableHeightStandard / safeCount)
-  )
+  // One fit rule for every pass: carve the axis spaces + legend out, fit
+  // square cells to the shorter axis (never negative).
+  const cellFor = (ySpace: number, xSpace: number) => {
+    const availW = width - ySpace - marginRight - cfg.rightMargin
+    const availH = height - xSpace - legendSpace
+    return Math.max(0, Math.min(availW / safeColCount, availH / safeRowCount))
+  }
+
+  const standardYSpace = ySpaceFor(standardYAxisLabelWidth)
+  const standardXSpace = xSpaceFor(standardXAxisHeight)
+
+  const cellStandard = cellFor(standardYSpace, standardXSpace)
 
   const needsCompact = cellStandard < cfg.COMPACT_THRESHOLD
 
-  const compactYSpace =
-    marginLeft + cfg.leftMargin + fontSize + AXIS_TITLE_GAP + COMPACT_LABEL_SIZE + 10
-
-  const compactXSpace =
-    marginTop + cfg.topMargin + fontSize + AXIS_TITLE_GAP + COMPACT_LABEL_SIZE + 10
-
-  const activeYSpace = needsCompact ? compactYSpace : standardYSpace
-  const activeXSpace = needsCompact ? compactXSpace : standardXSpace
-
-  const availableWidthReal =
-    width - activeYSpace - marginRight - cfg.rightMargin
-  const availableHeightReal = height - activeXSpace - legendSpace
-
-  const cellReal = Math.max(
-    0,
-    Math.min(availableWidthReal / safeCount, availableHeightReal / safeCount)
+  const cellReal = cellFor(
+    needsCompact ? ySpaceFor(COMPACT_LABEL_SIZE) : standardYSpace,
+    needsCompact ? xSpaceFor(COMPACT_LABEL_SIZE) : standardXSpace
   )
 
   const isUltraCompactMode = cellReal < cfg.minCellSize
   const isCompactMode = needsCompact || isUltraCompactMode
 
-  let xAxisLabelHeight: number
-  let yAxisLabelWidth: number
+  const yAxisLabelWidth = isCompactMode ? COMPACT_LABEL_SIZE : standardYAxisLabelWidth
+  const xAxisLabelHeight = isCompactMode ? COMPACT_LABEL_SIZE : standardXAxisHeight
 
-  if (isCompactMode) {
-    xAxisLabelHeight = COMPACT_LABEL_SIZE
-    yAxisLabelWidth = COMPACT_LABEL_SIZE
-  } else {
-    yAxisLabelWidth = effectiveMaxLabelWidth
-    xAxisLabelHeight = effectiveMaxLabelWidth * SIN_45 + fontSize * SIN_45
-  }
-
-  const yAxisSpace =
-    marginLeft + cfg.leftMargin + fontSize + AXIS_TITLE_GAP + yAxisLabelWidth + 10
-
-  const xAxisSpace =
-    marginTop + cfg.topMargin + fontSize + AXIS_TITLE_GAP + xAxisLabelHeight + 10
+  const yAxisSpace = ySpaceFor(yAxisLabelWidth)
+  const xAxisSpace = xSpaceFor(xAxisLabelHeight)
 
   const availableWidth = width - yAxisSpace - marginRight - cfg.rightMargin
-  const availableHeight = height - xAxisSpace - legendSpace
 
+  // Cells stay square: the shorter axis fits, the longer letterboxes.
   const cellSize =
-    count === 0
+    rowCount === 0 || colCount === 0
       ? cfg.minCellSize
       : Math.floor(
           isUltraCompactMode
-            ? Math.max(
-                1,
-                Math.min(availableWidth / count, availableHeight / count)
-              )
-            : Math.max(
-                cfg.minCellSize,
-                Math.min(availableWidth / count, availableHeight / count)
-              )
+            ? Math.max(1, cellFor(yAxisSpace, xAxisSpace))
+            : Math.max(cfg.minCellSize, cellFor(yAxisSpace, xAxisSpace))
         )
 
-  const gridWidth = cellSize * count
-  const gridHeight = cellSize * count
+  const gridWidth = cellSize * colCount
+  const gridHeight = cellSize * rowCount
   const xOffset = Math.floor(yAxisSpace + ((availableWidth - gridWidth) >> 1))
   const yOffset = Math.floor(xAxisSpace)
 
-  let thinFactor = 1
+  let rowThinFactor = 1
+  let colThinFactor = 1
   let showAxisLabels = true
 
   if (isUltraCompactMode) {
-    thinFactor = calculateTickStep(count)
+    rowThinFactor = calculateTickStep(rowCount)
+    colThinFactor = calculateTickStep(colCount)
   } else if (isCompactMode) {
-    const maxIndexStr = count.toString()
-    const approxIndexWidth = maxIndexStr.length * (fontSize * APPROX_CHAR_WIDTH)
-    thinFactor = Math.max(1, Math.ceil((approxIndexWidth + 4) / cellSize))
+    rowThinFactor = compactThinFactor(rowCount, fontSize, cellSize)
+    colThinFactor = compactThinFactor(colCount, fontSize, cellSize)
     if (cellSize < 5) showAxisLabels = false
   }
 
@@ -244,9 +245,12 @@ export function computeSquareMatrixLayout(
     gridWidth,
     gridHeight,
     matrixBottom: yOffset + gridHeight,
+    rowCount,
+    colCount,
     isCompactMode,
     isUltraCompactMode,
-    thinFactor,
+    rowThinFactor,
+    colThinFactor,
     individualLabelMargin: 10,
     showCellValues,
     showAxisLabels,

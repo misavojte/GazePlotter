@@ -1,6 +1,6 @@
 <script lang="ts">
   import { plotRegistry } from '$lib/plots/registry'
-  import { SHARED_SECTIONS } from '$lib/plots/shared/components/sections'
+  import { crossTypeSectionKeys } from '$lib/plots/shared/components/sections'
   import PaneSectionList from './PaneSectionList.svelte'
   import { setPaneEditItems } from './paneEditItems'
   import { commonSectionKeys } from './bulkSections'
@@ -35,8 +35,9 @@
   // all. Mixed types → the sections COMMON to every selected type: section keys
   // present in all selected types' `paneSections`, limited to cross-type-safe
   // shared sections, in the representative's declared order, rendered in their
-  // canonical form. Pure list intersection — no plot-type knowledge here.
-  const sharedKeys = new Set(Object.keys(SHARED_SECTIONS))
+  // canonical form. Pure list intersection — no plot-type knowledge here
+  // (which keys are cross-type-safe is the plots layer's call).
+  const sharedKeys = $derived(crossTypeSectionKeys(items.map(i => i.type)))
   const entries = $derived.by<PaneSectionEntry[]>(() => {
     if (!representative) return []
     if (homogeneous) return sectionsOf(representative.type)

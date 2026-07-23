@@ -8,7 +8,7 @@ export interface RailVisualization {
   group: PlotGroup
 }
 
-export interface RailActionConfig {
+interface RailActionConfig {
   label: string
   run?: () => void
   /** When present, this action is a submenu parent: it carries no `run`, and

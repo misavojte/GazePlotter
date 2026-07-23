@@ -21,8 +21,11 @@ export function scanBatch(
   instances: readonly MetricInstance[],
   timeStart: number = 0,
   timeEnd: number = 0,
+  /** Per-plot AOI selection — same reduced slot layout + raw cache key as the
+   *  single-participant path, so batch==single holds under a selection. */
+  aoiSelectionId?: number,
 ): Map<string, number[]> {
-  const slots = buildAoiSlots(engine, stimulusId)
+  const slots = buildAoiSlots(engine, stimulusId, aoiSelectionId)
   if (!slots) return new Map()
 
   type ActiveInstance = {
@@ -44,7 +47,7 @@ export function scanBatch(
     const { init, onFixation, finalize } = recipe
     if (!init || !onFixation || !finalize) continue
     // Same cache as runSingleWindow — only the misses join the scan.
-    const cached = cacheGetRaw(engine, inst, stimulusId, participantId, timeStart, timeEnd)
+    const cached = cacheGetRaw(engine, inst, stimulusId, participantId, timeStart, timeEnd, aoiSelectionId)
     if (cached) {
       results.set(inst.id, cached)
       continue
@@ -114,7 +117,7 @@ export function scanBatch(
 
   for (const a of active) {
     const raw = a.finalize(a.acc, slots, a.ctx)
-    cacheSetRaw(engine, a.inst, stimulusId, participantId, timeStart, timeEnd, raw)
+    cacheSetRaw(engine, a.inst, stimulusId, participantId, timeStart, timeEnd, raw, aoiSelectionId)
     results.set(a.inst.id, raw)
   }
   return results

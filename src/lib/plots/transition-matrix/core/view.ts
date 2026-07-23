@@ -43,7 +43,8 @@ export function getTransitionView(
     settings.metricInstanceIds[0] ?? null,
     settings.timelineStart ?? 0,
     settings.timelineEnd ?? 0,
-    settings.hideNoAoi ?? false
+    settings.hideNoAoi ?? false,
+    settings.aoiSelectionId
   )
   const { matrix, aoiLabels } = transitionData
   const noMetric = transitionData.noMetric ?? false
@@ -114,29 +115,17 @@ export function getTransitionView(
 }
 
 /** Screen-coordination surface carried on the view for the screen recipe. */
-export interface TransitionViewMeta {
-  ownDataMax: number
-  syncGroupKey: string
-  colorScaleKey: string
-  isDefaultColorRange: boolean
-  currentStimulusColorRange: [number, number]
-}
+export type TransitionViewMeta = Omit<TransitionView, 'props'>
 
 /** The `definePlot` view entry — the single derivation for screen and export. */
 export function deriveTransitionMatrixView(
   engine: DataEngine,
   settings: TransitionMatrixPlotSettings
 ): PlotView {
-  const view = getTransitionView(engine, settings)
+  const { props, ...meta } = getTransitionView(engine, settings)
   return {
     component: MatrixPlotFigure,
-    props: view.props as Record<string, unknown>,
-    meta: {
-      ownDataMax: view.ownDataMax,
-      syncGroupKey: view.syncGroupKey,
-      colorScaleKey: view.colorScaleKey,
-      isDefaultColorRange: view.isDefaultColorRange,
-      currentStimulusColorRange: view.currentStimulusColorRange,
-    } satisfies TransitionViewMeta,
+    props: props as Record<string, unknown>,
+    meta: meta satisfies TransitionViewMeta,
   }
 }

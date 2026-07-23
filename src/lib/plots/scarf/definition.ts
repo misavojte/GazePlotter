@@ -1,10 +1,10 @@
 import { deriveScarfView } from './core/view'
 import { scarfScreen } from './core/screen.svelte'
-import { definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
+import { definePlot } from '$lib/plots/definePlot'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
 import type { ScarfPlotSettings } from './types'
 import { SCARF_IDENTIFIERS } from './const'
-import { getAois, hasEventsForStimulus } from '$lib/data/engine'
+import { getAois } from '$lib/data/engine'
 import type { WorkspaceCommand } from '$lib/workspace/commands'
 
 export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
@@ -29,31 +29,9 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
           ],
           summary: true,
         },
-        {
-          kind: 'boolean',
-          key: 'hideNonFixations',
-          label: 'Non-fixations',
-          group: 'Hide data',
-          default: false,
-          showWhen: ctx => ctx.engine.capabilities.segmented,
-        },
-        {
-          kind: 'boolean',
-          key: 'hideEvents',
-          label: 'Events',
-          group: 'Hide data',
-          default: false,
-          // Events ride as an overlay on the gaze segments; not shown in the
-          // segment-index-based ordinal view.
-          showWhen: (ctx: SectionFieldCtx) => {
-            const timeline = ctx.common(s => s.timeline)
-            const isOrdinal = !timeline.mixed && timeline.value === 'ordinal'
-            return (
-              hasEventsForStimulus(ctx.engine, ctx.settings.stimulusId as number) &&
-              !isOrdinal
-            )
-          },
-        },
+        // Layer visibility is a per-plot SELECTION: the 'event' and
+        // 'eyeMovement' sections each offer the built-in "None" (events off /
+        // fixations only) — no hide toggles here.
       ],
     },
     {
@@ -84,6 +62,7 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
     timeline: 'absolute',
     absoluteStimuliLimits: [],
     ordinalStimuliLimits: [],
+    hideNoAoi: false,
   }),
   size: { min: { w: 14, h: 10 }, w: 20 },
   requireCapabilities: [['segmented']],

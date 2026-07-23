@@ -84,10 +84,11 @@ export function queryBatch(instances: readonly MetricInstance[], scope: Scope): 
       plain,
       scope.timeStart ?? 0,
       scope.timeEnd ?? 0,
+      scope.aoiSelectionId,
     )
-    const slots = buildAoiSlots(scope.engine, scope.stimulusId)
+    const slots = buildAoiSlots(scope.engine, scope.stimulusId, scope.aoiSelectionId)
     if (slots) {
-      const aoiNames = getAois(scope.engine, scope.stimulusId).map(a => a.displayedName)
+      const aoiNames = getAois(scope.engine, scope.stimulusId, scope.aoiSelectionId).map(a => a.displayedName)
       for (const inst of plain) {
         const recipe = getRecipe(inst.baseId)
         if (!recipe) continue
@@ -154,12 +155,13 @@ export function queryGroup(instance: MetricInstance, group: GroupScope): MetricR
     runRaw(recipe, instance, {
       engine: group.engine, stimulusId: group.stimulusId, participantId: pid,
       timeStart: group.timeStart, timeEnd: group.timeEnd,
+      aoiSelectionId: group.aoiSelectionId,
     })
   )
   const reduced = reducePerSlot(perParticipant, method)
-  const aoiNames = getAois(group.engine, group.stimulusId).map(a => a.displayedName)
+  const aoiNames = getAois(group.engine, group.stimulusId, group.aoiSelectionId).map(a => a.displayedName)
   const applied = applyProjection(instance.projection, { aoiNames, rawValues: reduced })
-  const slots = buildAoiSlots(group.engine, group.stimulusId)
+  const slots = buildAoiSlots(group.engine, group.stimulusId, group.aoiSelectionId)
   if (!slots) return emptyResult(instance, 'scalar', recipe.unit)
   return wrapProjectedResult(recipe.id, recipe.unit, instance, {
     shape: projectionOutputShape(instance.projection),

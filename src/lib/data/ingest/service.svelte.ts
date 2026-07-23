@@ -11,6 +11,7 @@ import {
 import {
   detectEnrichmentFormat,
 } from './formats/registry'
+import { foldMerges } from '$lib/data/merge/applyMerges'
 import type { EnrichmentFormatDefinition } from './kernel/format'
 import { probeFromText } from './kernel/source'
 import { getStimuliOptions, getParticipantOptions } from '$lib/plots/shared'
@@ -67,7 +68,10 @@ function createEmptyDataset(): DataType {
     },
     stimuli: { data: [], orderVector: [] },
     participants: { data: [], orderVector: [] },
-    participantsGroups: [],
+    participantsSelections: [],
+    stimuliSelections: [],
+    categoriesSelections: [],
+    eventsSelections: [],
     metricInstances: createDefaultMetricInstances(),
     categories: { data: [], orderVector: [] },
     noAoiTreatment: {
@@ -77,7 +81,6 @@ function createEmptyDataset(): DataType {
     aois: {
       data: [],
       orderVector: [],
-      hiddenAois: [],
     },
     segments: {
       segmentBuffer: new Float32Array(0),
@@ -90,7 +93,6 @@ function createEmptyDataset(): DataType {
     eventData: {
       data: [],
       orderVector: [],
-      hiddenChannels: [],
       events: [],
     },
   }
@@ -721,7 +723,10 @@ export class IngestService {
     this.metadata =
       parsedData.version >= 3 ? (parsedData.fileMetadata ?? null) : null
     this.input = parsedData.current
-    this.deps.engine.loadDataset(parsedData.data)
+    // Original-on-disk (PLANMERGE §4): the file holds the pristine data + the
+    // merge log; re-derive the merged working view here. No-op (same object)
+    // when nothing was merged, so fresh imports are unaffected.
+    this.deps.engine.loadDataset(foldMerges(parsedData.data))
     this.deps.grid.reset(
       (parsedData.gridItems ?? DEFAULT_GRID_STATE_DATA) as GridItemSnapshot[]
     )

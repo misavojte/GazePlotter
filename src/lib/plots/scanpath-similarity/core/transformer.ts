@@ -1,5 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import { getParticipantsIds } from '$lib/data/engine'
+import { getParticipantsIds, getParticipant } from '$lib/data/engine'
 import {
   queryGroup,
   type GroupScope,
@@ -26,6 +26,7 @@ export function getScanpathSimilarityData(
   metricInstanceId: string | null,
   timeStart: number = 0,
   timeEnd: number = 0,
+  aoiSelectionId?: number,
 ): ScanpathSimilarityData {
   const meta = engine.metadata
   if (!meta) {
@@ -52,6 +53,7 @@ export function getScanpathSimilarityData(
     participantIds,
     timeStart,
     timeEnd,
+    aoiSelectionId,
   }
   const result = asParticipantPairMatrix(queryGroup(resolved.instance, scope))
   if (!result) {
@@ -68,11 +70,7 @@ export function getScanpathSimilarityData(
 }
 
 function labelsFor(engine: DataEngine, participantIds: readonly number[]): string[] {
-  const meta = engine.metadata
-  if (!meta) return participantIds.map(pid => `P${pid}`)
-  return participantIds.map(pid =>
-    meta.participants.data[pid]?.[1] ?? meta.participants.data[pid]?.[0] ?? `P${pid}`,
-  )
+  return participantIds.map(pid => getParticipant(engine, pid).displayedName)
 }
 
 /**

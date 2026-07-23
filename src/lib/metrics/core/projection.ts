@@ -1,4 +1,4 @@
-import type { Metric, OutputShape, WindowUnit } from './dsl'
+import type { AoiAggregateLabels, Metric, OutputShape, WindowUnit } from './dsl'
 
 /**
  * Projection is a tree: a LeafProjection reshapes one window's raw finalize
@@ -12,11 +12,11 @@ import type { Metric, OutputShape, WindowUnit } from './dsl'
  *   windowed × aoi-vector-leaf  → 'aoi-vector-timeseries'
  */
 
-export type AoiRef =
+type AoiRef =
   | { by: 'name'; name: string }
   | { by: 'slot'; slot: number }
 
-export const AOI_REDUCERS = ['mean', 'sum', 'max', 'min', 'median'] as const
+const AOI_REDUCERS = ['mean', 'sum', 'max', 'min', 'median'] as const
 export type AoiReducer = typeof AOI_REDUCERS[number]
 
 export const MATRIX_REDUCERS = ['sum', 'mean', 'max', 'min'] as const
@@ -66,7 +66,6 @@ export interface WindowedProjection {
 }
 
 export type Projection = LeafProjection | WindowedProjection
-export type ProjectionKind = LeafProjection['kind'] | 'windowed'
 
 const IDENTITY_MAP: Record<OutputShape, LeafProjection> = {
   scalar: { kind: 'identity-scalar' },
@@ -104,18 +103,29 @@ export interface ApplyResult {
 
 // ─── Registry ───────────────────────────────────────────────────────────────
 
-export interface LeafKindDef {
+/**
+ * Metric-level naming context for projection labels. Labels are metric-blind
+ * except where the metric itself declares the wording: `aggregate-aoi` prints
+ * the metric's named meaning for the extreme ("most-dwelled AOI") instead of
+ * the generic operator phrase. Callers with an instance in hand
+ * (`formatProjectionReadout`) pass the metric's `aoiAggregate` here.
+ */
+export interface ProjectionLabelContext {
+  aoiAggregate?: AoiAggregateLabels
+}
+
+export interface LeafKindDef<K extends LeafKind = LeafKind> {
   outputShape: OutputShape
   rawShapes: readonly OutputShape[]
-  label:    (p: LeafProjection) => string
-  cacheKey: (p: LeafProjection) => string
-  apply:    (p: LeafProjection, ctx: ApplyContext) => ApplyResult
+  label:    (p: Extract<LeafProjection, { kind: K }>, ctx?: ProjectionLabelContext) => string
+  cacheKey: (p: Extract<LeafProjection, { kind: K }>) => string
+  apply:    (p: Extract<LeafProjection, { kind: K }>, ctx: ApplyContext) => ApplyResult
 }
 
 const passthrough = (_p: LeafProjection, c: ApplyContext): ApplyResult =>
   ({ values: [...c.rawValues], aoiMissing: false })
 
-export const PROJECTION_LEAVES: Record<LeafKind, LeafKindDef> = {
+export const PROJECTION_LEAVES: { [K in LeafKind]: LeafKindDef<K> } = {
   'identity-scalar': {
     outputShape: 'scalar',
     rawShapes: ['scalar'],
@@ -147,9 +157,9 @@ export const PROJECTION_LEAVES: Record<LeafKind, LeafKindDef> = {
   'pick-aoi': {
     outputShape: 'scalar',
     rawShapes: ['aoi-vector'],
-    label:    (p) => aoiRefLabel((p as LeafProjection & { kind: 'pick-aoi' }).aoiRef),
-    cacheKey: (p) => `pick:${aoiRefKey((p as LeafProjection & { kind: 'pick-aoi' }).aoiRef)}`,
-    apply:    (p, c) => pickAoi((p as LeafProjection & { kind: 'pick-aoi' }).aoiRef, c),
+    label:    (p) => aoiRefLabel(p.aoiRef),
+    cacheKey: (p) => `pick:${aoiRefKey(p.aoiRef)}`,
+    apply:    (p, c) => pickAoi(p.aoiRef, c),
   },
   'pick-any-fixation': {
     outputShape: 'scalar',
@@ -164,9 +174,17 @@ export const PROJECTION_LEAVES: Record<LeafKind, LeafKindDef> = {
   'aggregate-aoi': {
     outputShape: 'scalar',
     rawShapes: ['aoi-vector'],
-    label:    (p) => `${(p as LeafProjection & { kind: 'aggregate-aoi' }).reducer} across AOIs`,
-    cacheKey: (p) => `agg:${(p as LeafProjection & { kind: 'aggregate-aoi' }).reducer}`,
-    apply:    (p, c) => aggregateAoi((p as LeafProjection & { kind: 'aggregate-aoi' }).reducer, c),
+    // The metric's named meaning of the extreme when provided ("most-dwelled
+    // AOI"); the generic operator phrase only as a metric-less fallback.
+    label: (p, ctx) => {
+      const named =
+        p.reducer === 'max' || p.reducer === 'min'
+          ? ctx?.aoiAggregate?.[p.reducer]
+          : undefined
+      return named || `${p.reducer} across AOIs`
+    },
+    cacheKey: (p) => `agg:${p.reducer}`,
+    apply:    (p, c) => aggregateAoi(p.reducer, c),
   },
   'matrix-diagonal': {
     outputShape: 'aoi-vector',
@@ -178,61 +196,106 @@ export const PROJECTION_LEAVES: Record<LeafKind, LeafKindDef> = {
   'matrix-row': {
     outputShape: 'aoi-vector',
     rawShapes: ['aoi-pair-matrix'],
-    label:    (p) => `from ${aoiRefLabel((p as LeafProjection & { kind: 'matrix-row' }).aoiRef)}`,
-    cacheKey: (p) => `row:${aoiRefKey((p as LeafProjection & { kind: 'matrix-row' }).aoiRef)}`,
-    apply:    (p, c) => matrixRowOrCol((p as LeafProjection & { kind: 'matrix-row' }).aoiRef, c, 'row'),
+    label:    (p) => `from ${aoiRefLabel(p.aoiRef)}`,
+    cacheKey: (p) => `row:${aoiRefKey(p.aoiRef)}`,
+    apply:    (p, c) => matrixRowOrCol(p.aoiRef, c, 'row'),
   },
   'matrix-col': {
     outputShape: 'aoi-vector',
     rawShapes: ['aoi-pair-matrix'],
-    label:    (p) => `to ${aoiRefLabel((p as LeafProjection & { kind: 'matrix-col' }).aoiRef)}`,
-    cacheKey: (p) => `col:${aoiRefKey((p as LeafProjection & { kind: 'matrix-col' }).aoiRef)}`,
-    apply:    (p, c) => matrixRowOrCol((p as LeafProjection & { kind: 'matrix-col' }).aoiRef, c, 'col'),
+    label:    (p) => `to ${aoiRefLabel(p.aoiRef)}`,
+    cacheKey: (p) => `col:${aoiRefKey(p.aoiRef)}`,
+    apply:    (p, c) => matrixRowOrCol(p.aoiRef, c, 'col'),
   },
   'matrix-cell': {
     outputShape: 'scalar',
     rawShapes: ['aoi-pair-matrix'],
-    label: (p) => {
-      const q = p as LeafProjection & { kind: 'matrix-cell' }
-      return `${aoiRefLabel(q.fromAoi)} → ${aoiRefLabel(q.toAoi)}`
-    },
-    cacheKey: (p) => {
-      const q = p as LeafProjection & { kind: 'matrix-cell' }
-      return `cell:${aoiRefKey(q.fromAoi)}>${aoiRefKey(q.toAoi)}`
-    },
-    apply: (p, c) => {
-      const q = p as LeafProjection & { kind: 'matrix-cell' }
-      return matrixCell(q.fromAoi, q.toAoi, c)
-    },
+    label:    (p) => `${aoiRefLabel(p.fromAoi)} → ${aoiRefLabel(p.toAoi)}`,
+    cacheKey: (p) => `cell:${aoiRefKey(p.fromAoi)}>${aoiRefKey(p.toAoi)}`,
+    apply:    (p, c) => matrixCell(p.fromAoi, p.toAoi, c),
   },
   'matrix-aggregate': {
     outputShape: 'scalar',
     rawShapes: ['aoi-pair-matrix'],
-    label: (p) => {
-      const q = p as LeafProjection & { kind: 'matrix-aggregate' }
-      return q.exclude === 'diagonal'
-        ? `${q.reducer} excluding self-transitions`
-        : `${q.reducer} across all pairs`
-    },
-    cacheKey: (p) => {
-      const q = p as LeafProjection & { kind: 'matrix-aggregate' }
-      return `mat:${q.reducer}${q.exclude === 'diagonal' ? ':off' : ''}`
-    },
-    apply: (p, c) => {
-      const q = p as LeafProjection & { kind: 'matrix-aggregate' }
-      return matrixAggregate(q.reducer, q.exclude, c)
-    },
+    label: (p) =>
+      p.exclude === 'diagonal'
+        ? `${p.reducer} excluding self-transitions`
+        : `${p.reducer} across all pairs`,
+    cacheKey: (p) => `mat:${p.reducer}${p.exclude === 'diagonal' ? ':off' : ''}`,
+    apply:    (p, c) => matrixAggregate(p.reducer, p.exclude, c),
   },
 }
 
 // Module-load invariant: any future windowable leaf must produce scalar or aoi-vector.
 // (The invariant is checked per-instance via recipeSupports at the validation layer.)
 
+// ─── Leaf display metadata (single source of truth for UI naming) ────────────
+
+/**
+ * The generic, instance-blind display name of each projection leaf kind — the
+ * ONE place these names live, read by the configure-metric projection picker.
+ * Distinct from `PROJECTION_LEAVES[kind].label`, which renders an INSTANCE
+ * readout ("most-dwelled AOI", "mean across all pairs") from a concrete
+ * projection; this is the kind-level vocabulary.
+ */
+const LEAF_TITLES: Record<LeafKind, string> = {
+  'identity-scalar': 'Single value',
+  'identity-aoi-vector': 'Per AOI',
+  'identity-aoi-pair-matrix': 'AOI matrix',
+  'identity-participant-pair-matrix': 'Participant matrix',
+  'pick-aoi': 'One AOI',
+  'pick-any-fixation': 'Whole stimulus',
+  'aggregate-aoi': 'Highest / lowest AOI',
+  'matrix-diagonal': 'Self-transitions',
+  'matrix-row': 'From an AOI',
+  'matrix-col': 'To an AOI',
+  'matrix-cell': 'One transition',
+  'matrix-aggregate': 'Matrix summary',
+}
+
+/** Generic display name of a projection leaf kind (see {@link LEAF_TITLES}). */
+export function leafKindLabel(kind: LeafKind): string {
+  return LEAF_TITLES[kind]
+}
+
+/**
+ * One-line, plain-language description of what a leaf kind produces — the
+ * supporting copy under each option in the configure-metric projection picker.
+ */
+const LEAF_HINTS: Record<LeafKind, string> = {
+  'identity-scalar': "the metric's single value",
+  'identity-aoi-vector': 'one value for each AOI',
+  'identity-aoi-pair-matrix': 'every AOI-to-AOI pair',
+  'identity-participant-pair-matrix': 'a value for every participant pair',
+  'pick-aoi': 'the value at one chosen AOI',
+  'pick-any-fixation': 'one number from all fixations together (AOIs ignored)',
+  'aggregate-aoi': 'the highest- or lowest-scoring AOI, per participant',
+  'matrix-diagonal': "each AOI's transitions to itself",
+  'matrix-row': 'transitions leaving one chosen AOI',
+  'matrix-col': 'transitions arriving at one chosen AOI',
+  'matrix-cell': 'a single from → to AOI pair',
+  'matrix-aggregate': 'one number for the whole matrix',
+}
+
+/** One-line description of what a leaf kind produces (see {@link LEAF_HINTS}). */
+export function leafKindHint(kind: LeafKind): string {
+  return LEAF_HINTS[kind]
+}
+
 // ─── Public dispatchers ─────────────────────────────────────────────────────
+
+/**
+ * Registry lookup for a leaf whose kind is only known as the union — the ONE
+ * localized cast correlating `leaf` with its `PROJECTION_LEAVES` entry (a
+ * union-typed leaf can't call a per-kind def's methods directly).
+ */
+export function leafDef(leaf: LeafProjection): LeafKindDef {
+  return PROJECTION_LEAVES[leaf.kind] as LeafKindDef
+}
 
 export function applyProjection(projection: Projection, ctx: ApplyContext): ApplyResult {
   const leaf = leafOf(projection)
-  return PROJECTION_LEAVES[leaf.kind].apply(leaf, ctx)
+  return leafDef(leaf).apply(leaf, ctx)
 }
 
 export function projectionOutputShape(projection: Projection): OutputShape {
@@ -243,48 +306,46 @@ export function projectionOutputShape(projection: Projection): OutputShape {
   return PROJECTION_LEAVES[projection.kind].outputShape
 }
 
-export function projectionToLabel(projection: Projection, unit: WindowUnit): string {
+export function projectionToLabel(
+  projection: Projection,
+  unit: WindowUnit,
+  ctx?: ProjectionLabelContext,
+): string {
   if (projection.kind === 'windowed') {
-    const inner = PROJECTION_LEAVES[projection.inner.kind].label(projection.inner)
+    const inner = leafDef(projection.inner).label(projection.inner, ctx)
     const wlabel = windowLabel(projection.window, unit)
     return inner ? `${inner} · ${wlabel}` : wlabel
   }
-  return PROJECTION_LEAVES[projection.kind].label(projection)
+  return leafDef(projection).label(projection, ctx)
 }
 
 export function projectionCacheKey(projection: Projection): string {
   if (projection.kind === 'windowed') {
-    const inner = PROJECTION_LEAVES[projection.inner.kind].cacheKey(projection.inner)
+    const inner = leafDef(projection.inner).cacheKey(projection.inner)
     return `w[${windowKey(projection.window)}]:${inner}`
   }
-  return PROJECTION_LEAVES[projection.kind].cacheKey(projection)
-}
-
-export function leafOutputShape(leaf: LeafProjection): OutputShape {
-  return PROJECTION_LEAVES[leaf.kind].outputShape
-}
-
-export function leafRawShapes(kind: LeafKind): readonly OutputShape[] {
-  return PROJECTION_LEAVES[kind].rawShapes
+  return leafDef(projection).cacheKey(projection)
 }
 
 /**
  * The set of leaf kinds a metric can produce, given only its declared
- * `rawShape` and the meta-level capability flags (`providesAnyFixation`). The
- * single answer to "what projection leaves does this metric support?" — read
- * by the metric-library modal, manifest builders, and (future) agent-callable
- * compute APIs so they don't each roll a one-line filter against
- * `PROJECTION_LEAVES`.
+ * `rawShape` and the meta-level capability declarations (`providesAnyFixation`,
+ * `aoiAggregate`). The single answer to "what projection leaves does this
+ * metric support?" — read by the metric-library modal, manifest builders, and
+ * (future) agent-callable compute APIs so they don't each roll a one-line
+ * filter against `PROJECTION_LEAVES`.
  *
  * Concrete-projection validity (reducer choice, slot-ref bounds, windowing
  * support) is layered on top via {@link recipeSupports} — this function only
  * answers the kind-level question.
  */
 export function supportedLeaves(metric: Metric): LeafKind[] {
+  const agg = metric.meta.aoiAggregate
   const out: LeafKind[] = []
   for (const kind of Object.keys(PROJECTION_LEAVES) as LeafKind[]) {
     if (!PROJECTION_LEAVES[kind].rawShapes.includes(metric.meta.rawShape)) continue
     if (kind === 'pick-any-fixation' && !metric.meta.providesAnyFixation) continue
+    if (kind === 'aggregate-aoi' && !(agg?.max || agg?.min)) continue
     out.push(kind)
   }
   return out
@@ -410,14 +471,28 @@ function resolveAoiRef(ref: AoiRef, aoiNames: readonly string[]): number {
   return aoiNames.findIndex(n => n === ref.name)
 }
 
-function reduceNumeric(values: readonly number[], method: AoiReducer): number {
+/**
+ * Collapse a numeric multiset by a summary operator (finite-filtered; `NaN` when
+ * empty). Shared: the `aggregate-aoi` projection leaf reduces one participant's
+ * per-AOI vector, and the duration metrics (`fixationDuration`/`visitDuration`)
+ * reduce one AOI-slot's per-fixation/per-visit sample in `finalize` via the
+ * settable `statistic` param. Lives here (not in `aggregation.ts`) because
+ * `measurement.ts` already imports this module, so the reverse import would
+ * cycle. `AoiReducer` is the full operator set; the metric `statistic` param
+ * uses the `sum`-free subset.
+ */
+export function reduceNumeric(values: readonly number[], method: AoiReducer): number {
   const valid = values.filter(Number.isFinite)
   if (valid.length === 0) return Number.NaN
   switch (method) {
     case 'sum': return valid.reduce((a, b) => a + b, 0)
     case 'mean': return valid.reduce((a, b) => a + b, 0) / valid.length
-    case 'max': return Math.max(...valid)
-    case 'min': return Math.min(...valid)
+    // Fold rather than spread: the metric `statistic` path routes a whole
+    // AOI-slot's per-fixation/per-visit sample through here, which can be far
+    // larger than a per-AOI vector — `Math.max(...huge)` would overflow the
+    // call stack (RangeError). `valid` is non-empty (guarded above).
+    case 'max': return valid.reduce((a, b) => (b > a ? b : a))
+    case 'min': return valid.reduce((a, b) => (b < a ? b : a))
     case 'median': {
       const s = [...valid].sort((a, b) => a - b)
       const mid = Math.floor(s.length / 2)

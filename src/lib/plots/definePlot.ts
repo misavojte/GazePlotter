@@ -4,6 +4,7 @@ import type { DataCapabilityRequirements } from '$lib/data/types'
 import type { PlotMetricContract } from '$lib/metrics'
 import type { WorkspaceCommand, WorkspaceCommandChain } from '$lib/workspace/commands'
 import type { WorkspaceService } from '$lib/workspace/service.svelte'
+import type { ModalState } from '$lib/modals/modalState.svelte'
 import type { PlotGroup } from './groups'
 
 export type DefaultPlotParams = {
@@ -173,18 +174,33 @@ export type SectionFieldOption = { value: string; label: string }
  */
 export type SectionFieldCtx = {
   engine: DataEngine
+  workspace: WorkspaceService
+  modalState: ModalState
+  /** The representative grid item (for its plot type and id). */
+  item: PaneSectionItem
+  /** Command provenance for edits and modals opened from this section. */
+  source: string
   /** The representative item's settings (read-only convenience). */
   settings: Record<string, unknown>
   /** `{ value, mixed }` for one field across the live edit selection. */
   common: <T>(read: (settings: any) => T) => { value: T; mixed: boolean }
+  /** Broadcast the same patch to every selected plot (one undo step). */
+  update: (patch: Record<string, unknown>) => void
+}
+
+/** An edit-link rendered under a field's control (e.g. "Edit stimulus library"). */
+export type SectionFieldAction = {
+  label: string
+  onclick: (ctx: SectionFieldCtx) => void
 }
 
 /**
  * THE pane layout cap — deliberately this small so section definitions stay
  * short and memorable. A section is a vertical stack of full-width fields;
- * the only layout freedoms are a caption over consecutive fields (`group`)
- * and two neighbors sharing a 1fr/1fr row (`pair`). Nothing else: no spans,
- * no widths, no styles. A pane needing more is a bespoke component.
+ * the only layout freedoms are a caption over consecutive fields (`group`),
+ * two neighbors sharing a 1fr/1fr row (`pair`), and an edit-link row under a
+ * field (`actions`). Nothing else: no spans, no widths, no styles. A pane
+ * needing more is a bespoke component.
  */
 export type SectionFieldPresentation = {
   /** Caption group: consecutive fields with the same caption render under it;
@@ -193,6 +209,7 @@ export type SectionFieldPresentation = {
   /** Share a 1fr/1fr row with the adjacent `pair` field. Consecutive paired
    *  fields chunk left-to-right, two per row. */
   pair?: boolean
+  actions?: readonly SectionFieldAction[]
 }
 
 /**
@@ -213,6 +230,10 @@ export type SectionField = SectionFieldPresentation & (
       options:
         | readonly SectionFieldOption[]
         | ((ctx: SectionFieldCtx) => readonly SectionFieldOption[])
+      /** Set when the setting stores a NUMBER (ids). Options always use string
+       *  values; the control renders `String(value)` and commits
+       *  `Number(detail)` so the setting's type never degrades to string. */
+      valueKind?: 'number'
       /** Pane-display fallback when the setting is unset. */
       default?: string
       /** Effective-value override replacing the plain `settings[key]` read —
@@ -278,9 +299,15 @@ export type SectionField = SectionFieldPresentation & (
       showWhen?: (ctx: SectionFieldCtx) => boolean
     }
   | {
-      /** The shared "Hide data → No AOI data" checkbox (bar/stream/matrix). */
-      kind: 'hideNoAoi'
-      key: 'hideNoAoi'
+      kind: 'info'
+      description: string
+      showWhen?: (ctx: SectionFieldCtx) => boolean
+    }
+  | {
+      /** The plot's metric-instance picker, filtered by its `consumesMetrics`
+       *  contract. */
+      kind: 'metrics'
+      key: 'metricInstanceIds'
       showWhen?: (ctx: SectionFieldCtx) => boolean
     }
 )
@@ -300,6 +327,9 @@ export type SchemaPaneSectionEntry = {
   /** Collapsed-header summary override (e.g. a fixed word). Defaults to the
    *  `summary`-flagged enum field's selected label, else the first enum's. */
   summary?: (ctx: SectionFieldCtx) => string
+  /** Start expanded on a fresh pane (the accordion's persisted open-state
+   *  takes over after the first toggle). */
+  defaultOpen?: boolean
 }
 
 /**
@@ -308,14 +338,17 @@ export type SchemaPaneSectionEntry = {
  *   - a canonical shared-section key as a plain string ('stimulus', 'group',
  *     'participant', 'metric', 'timelineRange', 'aoi', 'event',
  *     'eyeMovement');
- *   - `{ key, props }` to pass static props (data + plain functions) to that
- *     shared section — e.g. scarf's ordinal-mode wiring for 'timelineRange';
+ *   - `{ key, props }` to pass static overrides to that shared section — props
+ *     for a component section (scarf's ordinal-mode wiring for
+ *     'timelineRange'), entry-field overrides for a schema section
+ *     (metric-correlation's plural `title` for 'metric');
  *   - or a schema section (`{ key, title, fields }`) rendered by
  *     `SchemaSection` under the pane layout cap.
  *
- * Section COMPONENTS live only in the shared registry
- * (`PANE_SECTION_COMPONENTS`). A plot needing a genuinely new control argues
- * for a schema field kind or a new shared section — never inline Svelte.
+ * Shared sections live only in the `SHARED_SECTIONS` registry — schema
+ * entries, plus the rare rightly-bespoke component. A plot needing a genuinely
+ * new control argues for a schema field kind or a new shared section — never
+ * inline Svelte.
  * The key is the section's stable identity: shared sections use the canonical
  * bare key; plot-specific schema sections use a namespaced key
  * (`scarf:visualisation`) so they never count as common across types. The

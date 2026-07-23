@@ -3,7 +3,7 @@
   import UEQSSurvey from './UEQSSurvey.svelte'
   import OpenEndedFeedback from './OpenEndedFeedback.svelte'
   import SingleChoiceQuestion from './SingleChoiceQuestion.svelte'
-  import { EyeTrackingExperience as ETExperience } from '$survey/types'
+  import { EyeTrackingExperience } from '$survey/types'
   import type {
     UEQSResults,
     EyeTrackingExperienceResult,
@@ -61,7 +61,7 @@
       case 'eye-tracking':
         if (surveyState.eyeTrackingValue) {
           surveyState.eyeTrackingResults = {
-            experience: surveyState.eyeTrackingValue as ETExperience,
+            experience: surveyState.eyeTrackingValue as EyeTrackingExperience,
           }
         }
         break
@@ -199,11 +199,11 @@
             <SingleChoiceQuestion
               instructions="How long have you worked with eye-tracking?"
               options={[
-                ETExperience.LESS_THAN_6_MONTHS,
-                ETExperience.SIX_TO_TWELVE_MONTHS,
-                ETExperience.ONE_TO_TWO_YEARS,
-                ETExperience.THREE_TO_FIVE_YEARS,
-                ETExperience.MORE_THAN_5_YEARS,
+                EyeTrackingExperience.LESS_THAN_6_MONTHS,
+                EyeTrackingExperience.SIX_TO_TWELVE_MONTHS,
+                EyeTrackingExperience.ONE_TO_TWO_YEARS,
+                EyeTrackingExperience.THREE_TO_FIVE_YEARS,
+                EyeTrackingExperience.MORE_THAN_5_YEARS,
               ]}
               initialValue={surveyState.eyeTrackingResults?.experience}
               onComplete={value => {

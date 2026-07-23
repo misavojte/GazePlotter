@@ -14,7 +14,6 @@ function createMockEngine(segments: number[][][][]) {
       ],
     ],
     aoiOrderVector: [[]],
-    hiddenAois: [[]],
     participants: [['P101', 'Participant 101']],
     participantsOrderVector: [0],
     stimuli: [['Stimulus 1', 'Stimulus 1']],

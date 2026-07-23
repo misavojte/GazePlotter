@@ -258,7 +258,7 @@
     return getScarfIdentifierSystem(
       data.stylingAndLegend.aoi.map(i => i.identifier),
       data.stylingAndLegend.category.map(i => i.identifier),
-      data.stylingAndLegend.visibility.map(i => i.identifier)
+      data.stylingAndLegend.event.map(i => i.identifier)
     )
   })
 
@@ -275,7 +275,7 @@
   const eventStyleMap = $derived.by(() => {
     const map = new Map()
     if (!data.stylingAndLegend) return map
-    for (const style of data.stylingAndLegend.visibility) {
+    for (const style of data.stylingAndLegend.event) {
       const baseStyle = { fill: style.color, stroke: style.color, strokeWidth: 1 }
       map.set(style.identifier, { normal: baseStyle, dimmed: { ...baseStyle, opacity: 0.15 } })
     }
@@ -302,16 +302,14 @@
     const hasEvents = data.isOverlay || (data.visualEventBuckets && data.visualEventBuckets.some(b => b.length > 0)) || (data.eventZoneConcurrency ?? 0) > 0
     const hasNonFixations = data.stylingAndLegend?.category && data.stylingAndLegend.category.length > 0
 
-    const showingEvents = hasEvents && !settings.hideEvents
-    const showingNonFixations = hasNonFixations && !settings.hideNonFixations
-
     const extraSteps: string[] = []
-    if (showingEvents && showingNonFixations) {
-      extraSteps.push('Hide non-fixations or events in Plot Settings > Visualisation')
-    } else if (showingEvents) {
-      extraSteps.push('Hide events in Plot Settings > Visualisation')
-    } else if (showingNonFixations) {
-      extraSteps.push('Hide non-fixations in Plot Settings > Visualisation')
+    if (hasEvents) {
+      extraSteps.push('Set Plot Settings > Events to None')
+    }
+    if (hasNonFixations) {
+      extraSteps.push(
+        'Pick a narrower selection in Plot Settings > Eye-movement Types'
+      )
     }
 
     return cannotFitPlaceholder('height', extraSteps)
@@ -520,14 +518,16 @@
       const clipMax = gs.projClipMax[rowIndex]
       const pScale = gs.projScale[rowIndex]
       const pid = gs.participantIds[rowIndex]
-      const overlap = new Uint16Array(Math.max(64, gs.aoiOrderMap.length))
       const { startIndex, endIndex } = gs.reader.getSegmentRange(gs.stimulusId, pid)
 
-      const build = (styleIdx: number, hOrig: number, internalYDefault: number, orderId: number, xN: number, wN: number) => {
+      // `thin` mirrors the renderer's explicit flag (see gazeRectVPlacement):
+      // a 5-visible-AOI fixation slice's height equals HNF, so the value alone
+      // cannot discriminate.
+      const build = (styleIdx: number, thin: boolean, hOrig: number, internalYDefault: number, orderId: number, xN: number, wN: number) => {
         let rectH = hOrig
         let internalY = internalYDefault
         if (scale !== 1) {
-          if (hOrig === HNF) {
+          if (thin) {
             rectH = layout.nonFixationHeight
             internalY = layout.spaceAboveRect + (layout.heightOfBar - layout.nonFixationHeight) / 2
           } else {
@@ -555,7 +555,9 @@
         const categoryId = segBuf[segBase + SegmentField.CATEGORY_ID] | 0
         let start = gs.isOrdinal ? localId : segBuf[segBase + SegmentField.START_TIME]
         let end = gs.isOrdinal ? localId + 1 : segBuf[segBase + SegmentField.END_TIME]
-        if (end <= clipMin || start >= clipMax) continue
+        if (end <= clipMin) continue
+        // Time-ordered per participant: nothing later can intersect the clip.
+        if (start >= clipMax) break
         start = Math.max(clipMin, start)
         end = Math.min(clipMax, end)
         const xN = (start - clipMin) * pScale
@@ -565,23 +567,27 @@
         if (mouseX < pxX || mouseX > pxX + pxW) continue
 
         if (categoryId !== FIXATION_CATEGORY_ID) {
-          if (gs.hideNonFixations || gs.hiddenCategoryIds.has(categoryId)) continue
           const sIdx =
             categoryId >= 0 && categoryId < gs.categoryStyleIdxMap.length
               ? gs.categoryStyleIdxMap[categoryId]
               : -1
           if (sIdx === -1) continue
-          hit = build(sIdx, HNF, SAR + (HBAR - HNF) * 0.5, localId, xN, wN)
+          hit = build(sIdx, true, HNF, SAR + (HBAR - HNF) * 0.5, localId, xN, wN)
         } else {
-          const count = gs.aoiGroupReader.getSegmentAoisUniqueDirect(i, gs.stimulusId, overlap)
-          if (count === 0) {
-            hit = build(gs.noAoiStyleIdx, HBAR, SAR, localId, xN, wN)
+          // The transformer's precomputed VISIBLE slices (buildResolvedSlices)
+          // — the same data the composite and highlight painters read, so
+          // hover identity always matches the rendered bands.
+          const slot = gs.resolvedSlotBase[rowIndex] + localId
+          const s0 = gs.resolvedSliceStart[slot]
+          const resolved = gs.resolvedSliceStart[slot + 1] - s0
+
+          if (resolved === 0) {
+            if (gs.noAoiStyleIdx < 0) continue
+            hit = build(gs.noAoiStyleIdx, false, HBAR, SAR, localId, xN, wN)
           } else {
-            const h = HBAR / count
-            for (let idx = 0; idx < count; idx++) {
-              const sIdx = gs.aoiOrderMap[overlap[idx]]
-              if (sIdx < 0) continue
-              hit = build(sIdx, h, SAR + idx * h, localId, xN, wN) // topmost = last
+            const h = HBAR / resolved
+            for (let j = 0; j < resolved; j++) {
+              hit = build(gs.resolvedSliceStyles[s0 + j], false, h, SAR + j * h, localId, xN, wN) // topmost = last
             }
           }
         }

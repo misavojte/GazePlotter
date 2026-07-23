@@ -1,6 +1,12 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import { getParticipantsIds } from '$lib/data/engine'
-import { getMetric, queryBatch, type MetricInstance, type Scope } from '$lib/metrics'
+import { getParticipantsIds, getParticipant } from '$lib/data/engine'
+import {
+  getMetric,
+  instanceMatchesContract,
+  queryBatch,
+  type MetricInstance,
+  type Scope,
+} from '$lib/metrics'
 import { asScalar, buildMetricLabel } from '$lib/plots/shared'
 import type {
   CorrelationCell,
@@ -11,7 +17,7 @@ import type {
   MetricVector,
 } from '../types'
 import { correlate } from './correlations'
-import { MIN_CORRELATION_SAMPLES } from '../const'
+import { METRIC_CORRELATION_CONTRACT, MIN_CORRELATION_SAMPLES } from '../const'
 
 interface BuildOptions {
   /** Whether to populate paired-sample points for SPLOM rendering. */
@@ -41,10 +47,9 @@ export function getMetricCorrelationData(
   if (metrics.length < 2) return emptyResult(settings, true)
   if (participantIds.length === 0) return emptyResult(settings)
 
-  const participantLabels = participantIds.map(id => {
-    const pData = meta.participants.data[id]
-    return pData?.[1] ?? pData?.[0] ?? `P${id}`
-  })
+  const participantLabels = participantIds.map(
+    id => getParticipant(engine, id).displayedName
+  )
 
   const vectors: MetricVector[] = metrics.map(m => ({
     metricId: m.id,
@@ -59,6 +64,7 @@ export function getMetricCorrelationData(
       participantId: pid,
       timeStart: settings.timelineStart ?? 0,
       timeEnd: settings.timelineEnd ?? 0,
+      aoiSelectionId: settings.aoiSelectionId,
     }
     const results = queryBatch(instances, pScope)
     for (let mIdx = 0; mIdx < metrics.length; mIdx++) {
@@ -102,6 +108,11 @@ function resolveMetrics(
   for (const inst of selected) {
     const metric = getMetric(inst.baseId)
     if (!metric) continue
+    // Same gate the picker applies (recipeSupports via the shared contract):
+    // an instance invalidated after save — e.g. an aggregate-aoi extreme its
+    // metric no longer names — must not silently compute here while being
+    // hidden everywhere else.
+    if (!instanceMatchesContract(inst, METRIC_CORRELATION_CONTRACT)) continue
     // Correlation rows/cols must self-distinguish: name + derived qualifiers (so
     // two variants of one base metric don't collide). Unit is shown on the
     // diagonal, not here — hence `unit: false`.

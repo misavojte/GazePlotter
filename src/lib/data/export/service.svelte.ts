@@ -13,6 +13,7 @@ import {
   downloadWorkspace,
 } from './controller'
 import type { CsvFormatOptions } from './encoders/csv'
+import { unfoldMerges } from '$lib/data/merge/applyMerges'
 import type { ExportNaming } from './types'
 import {
   type MetricDataExportOptions,
@@ -126,8 +127,11 @@ export class ExportService {
 
   async exportWorkspace(options: WorkspaceExportOptions): Promise<boolean> {
     return this.runExport(() => {
+      // Original-on-disk (PLANMERGE §4): persist the pristine pre-merge data +
+      // the merge log, not the folded working view. `unfoldMerges` is a no-op
+      // when nothing is merged. The merged view is re-derived on load.
       downloadWorkspace(
-        this.getExportData(),
+        unfoldMerges(this.getExportData()),
         this.resolveFileName(options.fileName),
         this.deps.grid.items,
         this.deps.ingest.metadata

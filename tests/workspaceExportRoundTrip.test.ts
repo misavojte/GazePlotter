@@ -4,6 +4,7 @@ import { jsonSegmentsToBinary } from '../src/lib/data/binary'
 import { createDefaultMetricInstances } from '../src/lib/metrics/instances'
 import { generateWorkspaceJson } from '../src/lib/data/export/mappers/workspace'
 import { runMigrations } from '../src/lib/data/ingest/workspace/migrations'
+import { processJsonFileWithGrid } from '../src/lib/data/ingest/workspace/parser'
 
 // Regression guard for the schema-version mislabel: the workspace export used
 // to stamp a hardcoded version that lagged the data it wrote, so re-imports
@@ -18,17 +19,16 @@ function createData(): DataType {
     capabilities: { segmented: true, spatial: false, event: false },
     stimuli: { data: [['Stimulus A', 'Stimulus A']], orderVector: [0] },
     participants: { data: [['Participant A', 'Participant A']], orderVector: [0] },
-    participantsGroups: [],
+    participantsSelections: [],
     metricInstances: createDefaultMetricInstances(),
     categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [0] },
     noAoiTreatment: { displayedName: 'No AOI', color: '#cbd5e1' },
     aois: {
       data: [[['AOI 1', 'AOI 1', '#ff0000']]],
       orderVector: [[0]],
-      hiddenAois: [[]],
     },
     segments: jsonSegmentsToBinary([[[[0, 100, 0, 0]]]]),
-    eventData: { data: [[]], orderVector: [], hiddenChannels: [], events: [[]] },
+    eventData: { data: [[]], orderVector: [], events: [[]] },
   }
 }
 
@@ -94,5 +94,18 @@ describe('workspace export round-trip: version stamp matches current schema', ()
     const twice = runMigrations(JSON.parse(JSON.stringify(once)))
     expect(twice.version).toBe(CURRENT_SCHEMA_VERSION)
     expect(twice.gridItems).toEqual(once.gridItems)
+  })
+})
+
+describe('legacy visibility fields are dropped at ingest', () => {
+  it('strips eventData.hiddenChannels and categories.hiddenCategories from old files', () => {
+    const parsed = JSON.parse(generateWorkspaceJson(createData(), gridItems, null))
+    // Simulate an old workspace that still carries the retired hidden sets.
+    parsed.data.eventData.hiddenChannels = [[1, 2]]
+    parsed.data.categories.hiddenCategories = [2]
+
+    const result = processJsonFileWithGrid(JSON.stringify(parsed))
+    expect('hiddenChannels' in result.data.eventData).toBe(false)
+    expect('hiddenCategories' in result.data.categories).toBe(false)
   })
 })

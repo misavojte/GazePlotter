@@ -12,8 +12,6 @@ export interface AoiMetrics {
 }
 
 export class AoiGroupReader {
-  public static readonly HIDDEN_ID = 0xffff
-
   private indexTable = new Uint32Array(0) // [pointer, length] per stimulus
   private groupPool = new Uint16Array(0) // Flat pool of mapped IDs
 
@@ -50,7 +48,6 @@ export class AoiGroupReader {
 
   // Reusable structures for updateMap to avoid per-stimulus allocations
   private sharedMap = new Map<string, number>()
-  private sharedSet = new Set<number>()
 
   constructor(segmentReader: BinaryBufferReader) {
     const buffers = segmentReader.getBuffers()
@@ -69,13 +66,12 @@ export class AoiGroupReader {
 
   /**
    * Refreshes the internal interpretation map based on the provided metadata.
-   * This logic handles AOI grouping, ordering, and hidden AOIs.
+   * This logic handles AOI grouping and ordering.
    */
   updateMap(meta: {
     aois: {
       data: string[][][]
       orderVector?: number[][]
-      hiddenAois?: number[][]
     }
     stimuli: { data: string[][] }
   }) {
@@ -100,27 +96,21 @@ export class AoiGroupReader {
     const prevPool = this.groupPool
     const nextPool = new Uint16Array(totalCap)
 
-    const { sharedMap, sharedSet } = this
+    const { sharedMap } = this
     for (let sId = 0; sId < sCount; sId++) {
       const aois = aoisMeta.data[sId]
       if (!aois) continue
 
       const ptr = this.indexTable[sId * 2]
       const len = aois.length
-      const hidden = aoisMeta.hiddenAois?.[sId]
       const order = aoisMeta.orderVector?.[sId]
 
       sharedMap.clear()
-      sharedSet.clear()
-
-      if (hidden) {
-        for (let i = 0; i < hidden.length; i++) sharedSet.add(hidden[i])
-      }
 
       // Pass over AOIs (via order vector if provided) to establish group representatives
       const iterate = (id: number) => {
         const row = aois[id]
-        if (!row || sharedSet.has(id)) return
+        if (!row) return
         const name = (row[1] ?? row[0]).trim()
         if (name !== '' && !sharedMap.has(name)) sharedMap.set(name, id)
       }
@@ -131,15 +121,11 @@ export class AoiGroupReader {
         for (let id = 0; id < len; id++) iterate(id)
       }
 
-      // Populate groupPool with mapped IDs or HIDDEN_ID sentinel
+      // Populate groupPool with mapped IDs
       for (let id = 0; id < len; id++) {
-        if (sharedSet.has(id)) {
-          nextPool[ptr + id] = AoiGroupReader.HIDDEN_ID
-        } else {
-          const row = aois[id]
-          const name = row ? (row[1] ?? row[0]).trim() : ''
-          nextPool[ptr + id] = sharedMap.get(name) ?? id
-        }
+        const row = aois[id]
+        const name = row ? (row[1] ?? row[0]).trim() : ''
+        nextPool[ptr + id] = sharedMap.get(name) ?? id
       }
     }
 
@@ -163,7 +149,7 @@ export class AoiGroupReader {
 
   /**
    * Zero-closure variant of AOI resolution for hot loops.
-   * Byte-identical result — same unique, non-hidden, deduplicated mapped ids written into `out`,
+   * Byte-identical result — same unique, deduplicated mapped ids written into `out`,
    * same return count — but it inlines the dedup instead of allocating a fresh
    * arrow per call, and takes a branchless single-AOI fast path (the dominant case).
    */
@@ -181,9 +167,7 @@ export class AoiGroupReader {
     const aoiPtr = this.segmentBuffer[base + SegmentField.AOI_POINTER] | 0
 
     if (count === 1) {
-      const finalId = this.groupPool[ptr + this.aoiPool[aoiPtr]]
-      if (finalId === AoiGroupReader.HIDDEN_ID) return 0
-      out[0] = finalId
+      out[0] = this.groupPool[ptr + this.aoiPool[aoiPtr]]
       return 1
     }
 
@@ -192,7 +176,6 @@ export class AoiGroupReader {
       let mask = 0
       for (let i = 0; i < count; i++) {
         const finalId = this.groupPool[ptr + this.aoiPool[aoiPtr + i]]
-        if (finalId === AoiGroupReader.HIDDEN_ID) continue
         const bit = 1 << finalId
         if ((mask & bit) !== 0) continue
         mask |= bit
@@ -204,11 +187,7 @@ export class AoiGroupReader {
       const stamp = this.stamp
       for (let i = 0; i < count; i++) {
         const finalId = this.groupPool[ptr + this.aoiPool[aoiPtr + i]]
-        if (
-          finalId === AoiGroupReader.HIDDEN_ID ||
-          this.seenStamp[finalId] === stamp
-        )
-          continue
+        if (this.seenStamp[finalId] === stamp) continue
         this.seenStamp[finalId] = stamp
         out[outLen++] = finalId
       }
@@ -240,12 +219,8 @@ export class AoiGroupReader {
 
     if (count === 1) {
       const finalId = this.groupPool[ptr + this.aoiPool[aoiPtr]]
-      if (finalId !== AoiGroupReader.HIDDEN_ID) {
-        if (finalId === logicalAoiId) out.order = 0
-        out.count = 1
-      } else {
-        out.count = 0
-      }
+      if (finalId === logicalAoiId) out.order = 0
+      out.count = 1
       return
     }
 
@@ -254,7 +229,6 @@ export class AoiGroupReader {
       let mask = 0
       for (let i = 0; i < count; i++) {
         const finalId = this.groupPool[ptr + this.aoiPool[aoiPtr + i]]
-        if (finalId === AoiGroupReader.HIDDEN_ID) continue
         const bit = 1 << finalId
         if ((mask & bit) !== 0) continue
         mask |= bit
@@ -267,11 +241,7 @@ export class AoiGroupReader {
       const stamp = this.stamp
       for (let i = 0; i < count; i++) {
         const finalId = this.groupPool[ptr + this.aoiPool[aoiPtr + i]]
-        if (
-          finalId === AoiGroupReader.HIDDEN_ID ||
-          this.seenStamp[finalId] === stamp
-        )
-          continue
+        if (this.seenStamp[finalId] === stamp) continue
         this.seenStamp[finalId] = stamp
         if (finalId === logicalAoiId) out.order = outLen
         outLen++

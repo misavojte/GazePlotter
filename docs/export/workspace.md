@@ -9,7 +9,7 @@ It is the recommended way to save your work, since the workspace is not saved au
 - The full dataset (parsed gaze segments, AOIs, events).
 - Grid layout: each plot's position and size.
 - Every plot's settings (group, stimulus, metric, axis bounds, colors, view modes).
-- Library customizations: [participant groups](/docs/workspace/participant-groups/), [AOI names and colors](/docs/workspace/aoi-library/), [participant names](/docs/workspace/participant-library/), and [stimulus names](/docs/workspace/stimuli-library/).
+- Library customizations: [participant selections](/docs/workspace/participant-library/#participant-selections), [AOI names and colors](/docs/workspace/aoi-library/), [participant names](/docs/workspace/participant-library/), and [stimulus names](/docs/workspace/stimuli-library/).
 
 Because the data is embedded, file size scales with your dataset.
 

@@ -257,12 +257,11 @@ export function mergeEvents(
     anyEvent = true
   }
 
-  // Per-stimulus channel order + hidden lists, mirroring the engine's
-  // updateEventDataBatch bookkeeping.
+  // Per-stimulus channel order, mirroring the engine's updateEventDataBatch
+  // bookkeeping.
   ed.orderVector = Array.from({ length: stimuliCount }, (_, s) =>
     ed.data[s].map((_, i) => i)
   )
-  ed.hiddenChannels = Array.from({ length: stimuliCount }, () => [])
 
   if (anyEvent) data.capabilities.event = true
 

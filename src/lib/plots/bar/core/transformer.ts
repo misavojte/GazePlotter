@@ -1,5 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import { getAois, getParticipantsIds } from '$lib/data/engine'
+import { getAois, getParticipantsIds, getParticipant } from '$lib/data/engine'
 import type { ExtendedInterpretedDataType } from '$lib/data/types'
 import {
   asAoiVector,
@@ -42,12 +42,13 @@ export function getBarPlotData(
     | 'timelineEnd'
     | 'statisticalOverlay'
     | 'hideNoAoi'
+    | 'aoiSelectionId'
   >
 ): BarPlotResult {
   const meta = engine.metadata
   if (!meta) throw new Error('No metadata found')
 
-  const aois = getAois(engine, settings.stimulusId)
+  const aois = getAois(engine, settings.stimulusId, settings.aoiSelectionId)
   const participantIds = getParticipantsIds(
     engine,
     settings.groupId,
@@ -76,10 +77,9 @@ export function getBarPlotData(
   const hideNoAoi = settings.hideNoAoi ?? false
   const totalSlots = hideNoAoi ? aois.length : aois.length + 1
 
-  const participantDisplayNames = participantIds.map(id => {
-    const pData = meta.participants.data[id]
-    return pData?.[1] ?? pData?.[0] ?? `P${id}`
-  })
+  const participantDisplayNames = participantIds.map(
+    id => getParticipant(engine, id).displayedName
+  )
 
   const individualArrays = new Array<number[]>(totalSlots)
   const individualNameArrays = new Array<string[]>(totalSlots)
@@ -87,6 +87,7 @@ export function getBarPlotData(
     engine,
     instance,
     settings.stimulusId,
+    settings.aoiSelectionId,
     participantIds,
     totalSlots,
     timeStart,
@@ -182,6 +183,7 @@ function extractIndividualValues(
   engine: DataEngine,
   instance: MetricInstance,
   stimulusId: number,
+  aoiSelectionId: number | undefined,
   participantIds: number[],
   totalSlots: number,
   timeStart: number,
@@ -198,7 +200,7 @@ function extractIndividualValues(
   for (let p = 0; p < participantIds.length; p++) {
     const scope: Scope = {
       engine, stimulusId, participantId: participantIds[p],
-      timeStart, timeEnd,
+      timeStart, timeEnd, aoiSelectionId,
     }
     const name = participantNames[p]
     const perSlot = queryIndividualsAllSlots(instance, scope)

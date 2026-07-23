@@ -35,8 +35,7 @@ describe('categoryCommands', () => {
       type: 'updateCategories',
       categories: [
         { id: 1, originalName: 'Saccade', displayedName: 'Saccadic Movement', color: '#ff0000' }
-      ],
-      hiddenCategories: [2]
+      ]
     }, {
       source: 'category.modal',
       chainId: 42,
@@ -51,8 +50,7 @@ describe('categoryCommands', () => {
       expect.anything(),
       [
         { id: 1, originalName: 'Saccade', displayedName: 'Saccadic Movement', color: '#ff0000' }
-      ],
-      [2]
+      ]
     )
     expect(gridStore.triggerRedraw).toHaveBeenCalled()
   })
@@ -68,7 +66,6 @@ describe('categoryCommands', () => {
           ['Blink', 'Blink', '#a6a6a6'],
         ],
         orderVector: [0, 1, 2],
-        hiddenCategories: [2],
       }
     } as any
 
@@ -76,8 +73,7 @@ describe('categoryCommands', () => {
       type: 'updateCategories',
       categories: [
         { id: 1, originalName: 'Saccade', displayedName: 'Saccadic Movement', color: '#ff0000' }
-      ],
-      hiddenCategories: [2]
+      ]
     }, {
       source: 'category.modal',
       chainId: 42,
@@ -93,7 +89,6 @@ describe('categoryCommands', () => {
         { id: 1, originalName: 'Saccade', displayedName: 'Saccade', color: '#555555' },
         { id: 2, originalName: 'Blink', displayedName: 'Blink', color: '#a6a6a6' },
       ])
-      expect(reversed.hiddenCategories).toEqual([2])
     }
   })
 
@@ -108,7 +103,6 @@ describe('categoryCommands', () => {
           ['Blink', 'Blink'],
         ],
         orderVector: [0, 1, 2],
-        hiddenCategories: [2],
       }
     } as any
 
@@ -116,8 +110,7 @@ describe('categoryCommands', () => {
       type: 'updateCategories',
       categories: [
         { id: 1, originalName: 'Saccade', displayedName: 'Saccadic Movement', color: '#ff0000' }
-      ],
-      hiddenCategories: [2]
+      ]
     }, {
       source: 'category.modal',
       chainId: 42,
@@ -133,7 +126,6 @@ describe('categoryCommands', () => {
         { id: 1, originalName: 'Saccade', displayedName: 'Saccade', color: '#4a4a4a' },
         { id: 2, originalName: 'Blink', displayedName: 'Blink', color: '#737373' },
       ])
-      expect(reversed.hiddenCategories).toEqual([2])
     }
   })
 })

@@ -3,7 +3,7 @@
  * always open in a new tab so they never navigate away from (and discard) the
  * current workspace.
  */
-export interface ToastLink {
+interface ToastLink {
   href: string
   label: string
 }

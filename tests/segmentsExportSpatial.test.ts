@@ -22,7 +22,7 @@ function createData(segments: DataType['segments']): DataType {
       data: [['Participant A', 'Participant A']],
       orderVector: [0],
     },
-    participantsGroups: [],
+    participantsSelections: [],
     metricInstances: [],
     categories: {
       data: [['Fixation', 'Fixation', '#000000']],
@@ -35,13 +35,11 @@ function createData(segments: DataType['segments']): DataType {
     aois: {
       data: [[['AOI 1', 'AOI 1', '#ff0000']]],
       orderVector: [[0]],
-      hiddenAois: [[]],
     },
     segments,
     eventData: {
       data: [[]],
       orderVector: [],
-      hiddenChannels: [],
       events: [[]],
     },
   }

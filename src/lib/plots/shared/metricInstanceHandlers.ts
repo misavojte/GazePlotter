@@ -3,16 +3,23 @@ import type { WorkspaceService } from '$lib/workspace/service.svelte'
 import { createMetricInstance } from '$lib/metrics'
 import type { GroupReduction, MetricInstance, Projection } from '$lib/metrics'
 
+/**
+ * THE create/replace-instance callback signature — shared by every consumer
+ * (metric-library modal steps, `MetricSelect`, the handler factories below) so
+ * the parameter list can never drift between them.
+ */
+export type CreateInstanceHandler = (
+  baseId: string,
+  params: Record<string, unknown>,
+  label: string,
+  projection: Projection,
+  replacingId?: string,
+  reduction?: GroupReduction,
+) => void
+
 interface BaseHandlers {
   onrenameInstance: (id: string, label: string) => void
-  oncreateInstance: (
-    baseId: string,
-    params: Record<string, unknown>,
-    label: string,
-    projection: Projection,
-    replacingId?: string,
-    reduction?: GroupReduction,
-  ) => void
+  oncreateInstance: CreateInstanceHandler
   ondeleteInstance: (id: string) => void
 }
 

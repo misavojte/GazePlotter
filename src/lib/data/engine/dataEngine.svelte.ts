@@ -1,19 +1,31 @@
 import { BinaryBufferReader, AoiGroupReader, EventBufferReader } from '../binary'
+import {
+  mergeParticipants as applyParticipantMerge,
+  unmergeParticipants as applyParticipantUnmerge,
+} from '../merge/mergeParticipants'
+import {
+  mergeStimuli as applyStimulusMerge,
+  unmergeStimuli as applyStimulusUnmerge,
+} from '../merge/mergeStimuli'
 import type {
+  NameSelection,
   DataCapabilityRequirements,
   DataCapabilities,
   DataType,
   EngineMetadata,
+  EventDataUpdate,
   ExtendedInterpretedDataType,
+  MergeLogEntry,
   MetricInstance,
-  ParticipantsGroup,
+  ParticipantsSelection,
+  EntitySelection,
 } from '../types'
 
 export class DataEngine {
   // --- Private Memory (Non-Reactive) ---
   // We keep binary data outside runes to prevent proxy overhead on large
   // buffers. Segments AND event occurrences both live here; only their light
-  // metadata (defs, order, hidden) rides in the reactive `metadata` below.
+  // metadata (defs, order) rides in the reactive `metadata` below.
   private _binary: DataType['segments'] | null = null
   private _reader: BinaryBufferReader | null = null
   private _aoiGroupReader: AoiGroupReader | null = null
@@ -27,7 +39,7 @@ export class DataEngine {
    * `updateEventDataBatch`). Reactive consumers that read occurrences through
    * the non-reactive `_eventReader` depend on this so they recompute when the
    * buffers change — the event analogue of mutating `$state` metadata while
-   * the heavy data sits in a reader. Channel def/order/hidden edits flow
+   * the heavy data sits in a reader. Channel def/order edits flow
    * through `metadata.eventData` and need no bump.
    */
   eventVersion = $state(0)
@@ -71,52 +83,11 @@ export class DataEngine {
       eventData: {
         data: eventData.data,
         orderVector: eventData.orderVector,
-        hiddenChannels: eventData.hiddenChannels,
       },
     }
     this.metadata = meta
     this.eventVersion++
     this._aoiGroupReader.updateMap(meta)
-  }
-
-  updateAois(stimulusId: number, updatedAois: ExtendedInterpretedDataType[]) {
-    this.updateAoisBatch([{ stimulusId, aois: updatedAois }])
-  }
-
-  setHiddenAois(stimulusId: number, hiddenAois: number[]) {
-    this.updateHiddenAoisBatch([{ stimulusId, hiddenAois }])
-  }
-
-  updateHiddenAoisBatch(
-    updates: { stimulusId: number; hiddenAois: number[] }[]
-  ) {
-    const meta = this.metadata
-    if (!meta) return
-
-    if (!meta.aois.hiddenAois) meta.aois.hiddenAois = []
-    const hidden = meta.aois.hiddenAois
-
-    for (let i = 0; i < updates.length; i++) {
-      const { stimulusId, hiddenAois } = updates[i]
-      const stimulusAoiCount = meta.aois.data[stimulusId]?.length ?? 0
-      const unique = hiddenAois
-        .filter(
-          (v, i, self) =>
-            Number.isInteger(v) &&
-            v >= 0 &&
-            v < stimulusAoiCount &&
-            self.indexOf(v) === i
-        )
-        .sort((a, b) => a - b)
-
-      while (hidden.length <= stimulusId) hidden.push([])
-      hidden[stimulusId] = unique
-    }
-
-    // updateMap is the single decision point: it rebuilds groupPool, diffs
-    // against the previous one, and bumps `_version` only on real change.
-    // Callers don't need to detect no-op cases.
-    if (this.metadata) this._aoiGroupReader?.updateMap(this.metadata)
   }
 
   updateAoisBatch(
@@ -143,11 +114,16 @@ export class DataEngine {
       meta.aois.orderVector[stimulusId] = aois.map(a => a.id)
     }
 
-    // updateMap is the single decision point — see updateHiddenAoisBatch.
+    // updateMap is the single decision point: it rebuilds groupPool, diffs
+    // against the previous one, and bumps `_version` only on real change.
+    // Callers don't need to detect no-op cases.
     if (this.metadata) this._aoiGroupReader?.updateMap(this.metadata)
   }
 
-  updateParticipantsBatch(
+  /** Replace `[originalName, displayedName]` rows + display order for one axis
+   *  (stimuli or participants — same table shape, one implementation). */
+  updateEntityBatch(
+    table: 'stimuli' | 'participants',
     updates: { id: number; data: string[] }[],
     newOrder: number[]
   ) {
@@ -155,31 +131,37 @@ export class DataEngine {
     if (!meta) return
     for (let i = 0; i < updates.length; i++) {
       const { id, data } = updates[i]
-      if (id >= 0 && id < meta.participants.data.length)
-        meta.participants.data[id] = data
+      if (id >= 0 && id < meta[table].data.length) meta[table].data[id] = data
     }
-    meta.participants.orderVector = newOrder
-  }
-
-  updateStimuliBatch(
-    updates: { id: number; data: string[] }[],
-    newOrder: number[]
-  ) {
-    const meta = this.metadata
-    if (!meta) return
-    for (let i = 0; i < updates.length; i++) {
-      const { id, data } = updates[i]
-      if (id >= 0 && id < meta.stimuli.data.length) meta.stimuli.data[id] = data
-    }
-    meta.stimuli.orderVector = newOrder
+    meta[table].orderVector = newOrder
   }
 
   setNoAoiTreatment(treatment: { displayedName: string; color: string }) {
     if (this.metadata) this.metadata.noAoiTreatment = treatment
   }
 
-  setParticipantsGroups(groups: ParticipantsGroup[]) {
-    if (this.metadata) this.metadata.participantsGroups = groups
+  setParticipantsSelections(selections: ParticipantsSelection[]) {
+    if (this.metadata) this.metadata.participantsSelections = selections
+  }
+
+  setStimuliSelections(selections: EntitySelection[]) {
+    if (this.metadata) this.metadata.stimuliSelections = selections
+  }
+
+  setCategoriesSelections(selections: EntitySelection[]) {
+    if (this.metadata) this.metadata.categoriesSelections = selections
+  }
+
+  setEventsSelections(selections: NameSelection[]) {
+    if (this.metadata) this.metadata.eventsSelections = selections
+  }
+
+  /** Replace the named AOI SELECTIONS wholesale (see {@link NameSelection}).
+   *  Metadata-only; does NOT touch the AoiGroupReader/groupPool or its
+   *  structural version, so a selection edit never invalidates the metric
+   *  result-cache bucket (only per-selection cache keys differ). */
+  setAoiSelections(selections: NameSelection[]) {
+    if (this.metadata) this.metadata.aois.selections = selections
   }
 
   /**
@@ -192,14 +174,7 @@ export class DataEngine {
     if (this.metadata) this.metadata.metricInstances = instances
   }
 
-  updateEventDataBatch(
-    updates: {
-      stimulusId: number
-      channelDefs: string[][]
-      eventBuffers: number[][][]
-      orderVector?: number[]
-    }[]
-  ) {
+  updateEventDataBatch(updates: EventDataUpdate[]) {
     const meta = this.metadata
     if (!meta) return
 
@@ -218,19 +193,15 @@ export class DataEngine {
       events[stimulusId] = eventBuffers
 
       // Replacing the defs invalidates every channel id referring into
-      // them, so the engine owns the reset: order falls back to identity
-      // and the hidden list is cleared. Callers that want either to
-      // survive must supply ids valid for the NEW defs.
+      // them, so the engine owns the reset: order falls back to identity.
+      // Callers that want it to survive must supply ids valid for the
+      // NEW defs.
       if (!ed.orderVector) ed.orderVector = []
       while (ed.orderVector.length <= stimulusId) ed.orderVector.push([])
       ed.orderVector[stimulusId] =
         orderVector && orderVector.length === channelDefs.length
           ? [...orderVector]
           : channelDefs.map((_, idx) => idx)
-
-      if (!ed.hiddenChannels) ed.hiddenChannels = []
-      while (ed.hiddenChannels.length <= stimulusId) ed.hiddenChannels.push([])
-      ed.hiddenChannels[stimulusId] = []
     }
 
     this._eventReader.load(events)
@@ -269,26 +240,6 @@ export class DataEngine {
       while (ed.orderVector.length <= stimulusId) ed.orderVector.push([])
       ed.orderVector[stimulusId] = channels.map(ch => ch.id)
     }
-  }
-
-  setHiddenEventChannels(stimulusId: number, hiddenIds: number[]) {
-    const meta = this.metadata
-    if (!meta) return
-
-    const ed = meta.eventData
-    if (!ed.hiddenChannels) ed.hiddenChannels = []
-    while (ed.hiddenChannels.length <= stimulusId) ed.hiddenChannels.push([])
-
-    const channelCount = ed.data[stimulusId]?.length ?? 0
-    ed.hiddenChannels[stimulusId] = hiddenIds
-      .filter(
-        (v, i, self) =>
-          Number.isInteger(v) &&
-          v >= 0 &&
-          v < channelCount &&
-          self.indexOf(v) === i
-      )
-      .sort((a, b) => a - b)
   }
 
   // ==========================================
@@ -346,6 +297,55 @@ export class DataEngine {
    */
   getEventBuffersJson(): number[][][][] {
     return this._eventReader.toJson()
+  }
+
+  /**
+   * Reconstruct the full serializable {@link DataType} from the reactive
+   * metadata + the non-reactive binary stores — the inverse of the strip in
+   * {@link loadDataset}. Used by the merge path and available to export.
+   */
+  toDataType(): DataType | null {
+    const meta = this.metadata
+    if (!meta || !this._binary) return null
+    return {
+      ...meta,
+      segments: this._binary,
+      eventData: {
+        ...meta.eventData,
+        events: this.getEventBuffersJson(),
+      },
+    }
+  }
+
+  /**
+   * Merge `memberIds` into `representativeId` on one axis (see PLANMERGE.md
+   * M3/M4). A disjoint, reversible, wholesale rebuild off the render loop:
+   * reconstruct the dataset, fold via the pure per-axis merge, and reload — so
+   * the segment/AOI hot paths and every consumer see an ordinary dataset. The
+   * stimulus fold additionally reconciles the per-stimulus AOI + event-channel
+   * dictionaries. The append-only merge log records the exact inverse. Throws
+   * (before any state change) if the merge is not disjoint.
+   */
+  mergeEntities(
+    axis: 'participant' | 'stimulus',
+    representativeId: number,
+    memberIds: number[],
+    at: number
+  ) {
+    const data = this.toDataType()
+    if (!data) return
+    const fold =
+      axis === 'participant' ? applyParticipantMerge : applyStimulusMerge
+    this.loadDataset(fold(data, representativeId, memberIds, at))
+  }
+
+  /** Exact inverse of {@link mergeEntities}; the log entry carries its axis. */
+  unmergeEntities(entry: MergeLogEntry) {
+    const data = this.toDataType()
+    if (!data) return
+    const unfold =
+      entry.axis === 'participant' ? applyParticipantUnmerge : applyStimulusUnmerge
+    this.loadDataset(unfold(data, entry))
   }
 
   get segments() {

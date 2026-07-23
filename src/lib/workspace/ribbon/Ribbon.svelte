@@ -4,29 +4,15 @@
   import { createRibbonItems } from './config'
   import RibbonItem from './RibbonItem.svelte'
 
+  interface Props {
+    onUpload: () => void
+  }
+
+  const { onUpload }: Props = $props()
   const { ingest, modalState, errorService } = getGazePlotterSession()
 
   const isProcessing = $derived(ingest.isLoading)
   const hasFatalError = $derived(errorService.fatalLoad !== null)
-
-  // File upload handling (from PanelButtonUpload)
-  let fileInput: HTMLInputElement | undefined = $state()
-
-  const handleFileUpload = async (e: Event) => {
-    const files = (e.target as HTMLInputElement).files
-    if (!(files instanceof FileList)) return
-    if (files.length === 0) return
-    await ingest.loadFiles(files)
-    if (fileInput) {
-      fileInput.value = ''
-    }
-  }
-
-  const triggerFileUpload = () => {
-    if (fileInput) {
-      fileInput.click()
-    }
-  }
 
   const handleExport = () => {
     modalState.open(exportWorkspaceModal, {})
@@ -40,22 +26,12 @@
     createRibbonItems({
       isProcessing,
       hasFatalError,
-      onUpload: triggerFileUpload,
+      onUpload,
       onExport: handleExport,
       onOpenMetadata: handleOpenMetadata,
     })
   )
 </script>
-
-<input
-  type="file"
-  name="GP-ribbon-file-upload"
-  class="hidden-file-input"
-  multiple
-  accept=".csv,.txt,.tsv,.json,.zip,.xml"
-  onchange={handleFileUpload}
-  bind:this={fileInput}
-/>
 
 <div class="ribbon">
   <div class="ribbon-content">
@@ -75,10 +51,6 @@
 </div>
 
 <style>
-  .hidden-file-input {
-    display: none;
-  }
-
   .ribbon {
     width: 100%;
     height: 48px;

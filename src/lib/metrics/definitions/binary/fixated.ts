@@ -54,6 +54,10 @@ defineMetric({
   category: 'binary',
   rawShape: 'aoi-vector',
   windowUnit: 'ms',
+  // Extremes over 0/100 indicators are set logic: max = fixated at least one
+  // AOI (OR), min = fixated every AOI (AND). Cross-participant means of these
+  // are coverage rates — "% who noticed anything" / "% who saw everything".
+  aoiAggregate: { max: 'at least one AOI', min: 'every AOI' },
   // Proportion: a per-participant 0/100 (%) indicator. The cross-participant
   // mean is the noticed-rate in percent, and the class flips the bar plot to a
   // proportional render instead of a beeswarm.

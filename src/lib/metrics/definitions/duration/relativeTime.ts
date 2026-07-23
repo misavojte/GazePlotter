@@ -43,6 +43,7 @@ defineMetric({
   category: 'duration',
   rawShape: 'aoi-vector',
   windowUnit: 'ms',
+  aoiAggregate: { max: 'most-dwelled AOI', min: 'least-dwelled AOI' },
   // Intensive: each value is already a per-participant share (0..100%). Only
   // `mean` is sound across participants — summing shares yields `≈ N · share`
   // with no physical meaning (for a cohort total use absoluteTime, which is

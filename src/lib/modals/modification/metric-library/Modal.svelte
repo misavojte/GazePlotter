@@ -22,19 +22,14 @@
     type PlotMetricContract,
   } from '$lib/metrics/filters'
   import type { Metric } from '$lib/metrics/core/dsl'
-  import type { Projection } from '$lib/metrics/core/projection'
-  import { pickCategoryModal, configureMetricModal } from './definition-steps'
+  import type { Projection } from '$lib/metrics'
+  import type { CreateInstanceHandler } from '$lib/plots/shared/metricInstanceHandlers'
+  import { pickMetricModal, configureMetricModal } from './definition-steps'
 
   interface Props {
     contract: PlotMetricContract
     editMetricId?: string
-    oncreateInstance?: (
-      baseId: string,
-      params: Record<string, unknown>,
-      label: string,
-      projection: Projection,
-      replacingId?: string,
-    ) => void
+    oncreateInstance?: CreateInstanceHandler
     ondeleteInstance?: (id: string) => void
     onrenameInstance?: (id: string, label: string) => void
   }
@@ -49,23 +44,22 @@
 
   const { engine, workspace, modalState } = getGazePlotterSession()
 
-  const METRICS = engine.metadata?.metricInstances ?? []
+  // The metrics this plot can consume, in library order. Each row's own label and
+  // detail line carry what it measures and how it's projected — the list is a flat
+  // roster keyed by what the researcher named, not by the shape of the output.
   const instances = $derived(
     (engine.metadata?.metricInstances ?? []).filter(i => instanceMatchesContract(i, contract)),
   )
 
   const addableMetrics = $derived.by(() => {
-    // Obtain list of all possible base metric definitions in system
-    // To check if there are any creatable ones
-    const allBaseMetrics = resolveAllBaseMetrics()
+    const allBaseMetrics = listMetrics()
     return allBaseMetrics.filter(m => metricIsCreatableInContract(m, contract))
   })
 
-  function resolveAllBaseMetrics(): Metric[] {
-    return listMetrics()
-  }
-
   // ── Drag reorder ─────────────────────────────────────────
+  // Indices are list-local (the shown, contract-matched rows); the moved order is
+  // written back into the matching slots of the global instances array, leaving
+  // instances for other contracts untouched.
   let dragItemId = $state<string | null>(null)
   const dragHandle = createListReorder<string>({
     itemSelector: '.metric-card',
@@ -87,7 +81,7 @@
   })
 
   function openAddModal() {
-    modalState.push(pickCategoryModal, {
+    modalState.push(pickMetricModal, {
       contract,
       oncreateInstance,
     })
@@ -106,7 +100,7 @@
     const params = { ...inst.params }
     const projection: Projection = JSON.parse(JSON.stringify(inst.projection))
     const label = `${inst.label} (copy)`
-    
+
     modalState.push(configureMetricModal, {
       contract,
       selectedMetricId: inst.baseId,
@@ -129,8 +123,6 @@
 </script>
 
 <div class="library-modal">
-  <div class="section-label">Library</div>
-
   {#if instances.length > 0}
     <div class="metric-grid">
       {#each instances as inst (inst.id)}
@@ -201,15 +193,6 @@
     width: min(560px, calc(100vw - 4rem));
   }
 
-  .section-label {
-    font-size: 10px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--c-darkgrey);
-    margin-bottom: 8px;
-  }
-
   .empty {
     font-size: 12px;
     color: var(--c-darkgrey);
@@ -226,6 +209,12 @@
     box-shadow: var(--shadow-sm);
     background: var(--c-darkwhite);
     overflow: hidden;
+    transition: border-color var(--transition-fast), background var(--transition-fast);
+
+    &:hover {
+      border-color: var(--c-midgrey);
+      background: var(--c-white);
+    }
 
     &.dragging {
       opacity: 0.3;

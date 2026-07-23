@@ -4,7 +4,6 @@
   import { getContrastTextColor, detectColorFormat } from '$lib/color'
   import { untrack } from 'svelte'
   import { fade } from 'svelte/transition'
-  import { isInPane } from './paneContext'
 
   /**
    * Color picker input component wrapper.
@@ -19,7 +18,6 @@
     showLabel?: boolean
     ariaLabel?: string
     compact?: boolean
-    size?: 'xs' | 'sm' | 'md' | 'lg'
     /** Multi-selection "Mixed": the bound plots disagree on this color. Shows a
      *  neutral "Mixed" swatch; picking a color applies it to all. */
     mixed?: boolean
@@ -34,13 +32,9 @@
     showLabel = true,
     ariaLabel,
     compact = false,
-    size = 'sm',
     mixed = false,
     oninput = () => {},
   }: Props = $props()
-
-  const inPane = isInPane()
-  const isCompact = $derived(compact || inPane)
 
   // Controller for the color picker popup logic
   const picker = new ColorPickerState()
@@ -73,14 +67,14 @@
   {label}
   id={inputId}
   showLabel={showLabel}
-  compact={isCompact}
+  compact={compact}
 >
   <div class="color-input-container">
     <button
       id={inputId}
       type="button"
-      class="color-preview size-{size}"
-      class:compact={isCompact}
+      class="color-preview"
+      class:compact={compact}
       onclick={() => picker.toggle()}
       aria-label={ariaLabel ?? (!showLabel ? label : undefined)}
       class:mixed
@@ -135,13 +129,6 @@
   }
 
   .color-preview.compact {
-    height: 30px;
-    font-size: 12px;
-    padding-left: 0.25rem;
-    padding-right: 0.25rem;
-  }
-
-  .color-preview.size-xs {
     height: 24px;
     font-size: 10px;
     padding: 0 4px;

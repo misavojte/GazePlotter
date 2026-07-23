@@ -13,7 +13,7 @@ import { getScanpathSimilarityData, buildScangraphData } from './transformer'
 import { SCANPATH_SIMILARITY_DEFAULTS } from '../const'
 import type { ScanpathSimilaritySettings } from '../types'
 
-export interface ScanpathSimilarityView extends PlotView {
+interface ScanpathSimilarityView extends PlotView {
   /** Whether the on-screen container should show the figure (vs a placeholder). */
   hasData: boolean
 }
@@ -24,7 +24,7 @@ export interface ScanpathSimilarityView extends PlotView {
  * (the export passes none). The scangraph `threshold` is included here so screen
  * and export style links identically (export previously fell back to the default).
  */
-export function getScanpathSimilarityView(
+function getScanpathSimilarityView(
   engine: DataEngine,
   settings: ScanpathSimilaritySettings,
   opts: { onNodeClick?: (nodeIndex: number) => void } = {}
@@ -35,7 +35,8 @@ export function getScanpathSimilarityView(
     settings.groupId,
     settings.metricInstanceIds[0] ?? null,
     settings.timelineStart ?? 0,
-    settings.timelineEnd ?? 0
+    settings.timelineEnd ?? 0,
+    settings.aoiSelectionId
   )
   const noMetric = similarityData.noMetric ?? false
   const hasData = similarityData.size > 0 || noMetric

@@ -3,8 +3,7 @@
     label: string
     sublabel?: string
     checked?: boolean
-    size?: 'xs' | 'sm' | 'md' | 'lg'
-    appearance?: 'default' | 'compact'
+    compact?: boolean
     id?: string
     ariaLabel?: string
     disabled?: boolean
@@ -20,8 +19,7 @@
     label,
     sublabel,
     checked = $bindable(false),
-    size = 'sm',
-    appearance = 'default',
+    compact = false,
     id,
     ariaLabel,
     disabled = false,
@@ -43,8 +41,8 @@
   }
 </script>
 
-<label class:noLabel={!hasLabel} class:compact={appearance === 'compact'} class:disabled>
-  <span class={`check-wrap size-${size}`} class:compact={appearance === 'compact'}>
+<label class:noLabel={!hasLabel} class:compact={compact} class:disabled>
+  <span class="check-wrap" class:size-xs={compact} class:compact={compact}>
     <input
       type="checkbox"
       class="check"
@@ -132,28 +130,6 @@
     --check-size: 14px;
     --check-icon-size: 9px;
     --check-stroke: 2px;
-  }
-
-  .check-wrap.size-sm {
-    --check-size: 16px;
-    --check-icon-size: 10px;
-    --check-stroke: 2.2px;
-  }
-
-  .check-wrap.size-md {
-    --check-size: 24px;
-    --check-icon-size: 13px;
-    --check-stroke: 2.25px;
-  }
-
-  .check-wrap.size-lg {
-    --check-size: 34px;
-    --check-icon-size: 16px;
-    --check-stroke: 2.35px;
-  }
-
-  .check-wrap.size-lg .check {
-    border-radius: var(--rounded-md);
   }
 
   .check {

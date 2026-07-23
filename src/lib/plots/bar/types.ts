@@ -3,7 +3,6 @@ import type {
   BaseInterpretedDataType,
   SegmentInterpretedDataType,
 } from '$lib/data/types'
-import type { PlotItemContract } from '$lib/plots/definePlot'
 
 // --- Visualization overlay on top of beeswarm points ---
 
@@ -33,6 +32,8 @@ export interface AoiSummaryStatistics {
 export type BarPlotSettings = {
   stimulusId: number
   groupId: number
+  /** Per-plot AOI SELECTION id; unset/0 = all AOIs. */
+  aoiSelectionId?: number
   barPlottingType: 'vertical' | 'horizontal'
   orderBy: 'value' | 'aoi'
   orderDirection: 'asc' | 'desc'
@@ -51,7 +52,6 @@ export type BarPlotSettings = {
   hideNoAoi?: boolean
 }
 
-export type BarPlotItem = PlotItemContract<'barPlot', BarPlotSettings>
 
 export interface BarPlotDataItem {
   value: number

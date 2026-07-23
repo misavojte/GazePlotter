@@ -42,6 +42,8 @@ defineMetric({
   rawShape: 'aoi-vector',
   windowUnit: 'ms',
   providesAnyFixation: true,
+  // Never-fixated AOIs finalize to a finite 0, so min honestly includes them.
+  aoiAggregate: { max: 'most-dwelled AOI', min: 'least-dwelled AOI' },
   // Extensive: a physical duration that adds. Cohort `sum` (total dwell) and
   // per-participant `mean` are both sound, as are sum/mean across matrix cells.
   measurementClass: 'extensive',

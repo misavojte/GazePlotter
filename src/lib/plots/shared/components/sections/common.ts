@@ -22,7 +22,7 @@ function valuesEqual(a: unknown, b: unknown): boolean {
 }
 
 /** The items a section edits: the live multi-selection, or just its own item. */
-export function editTargets(
+function editTargets(
   getItems: (() => PaneSectionItem[]) | undefined,
   item: PaneSectionItem
 ): PaneSectionItem[] {
@@ -50,8 +50,6 @@ type SettingsPatch = Parameters<UpdateSettings>[1]
  *   <Radio value={overlay.value} mixed={overlay.mixed}
  *          onchange={e => bulk.update({ statisticalOverlay: e.detail })} />
  */
-export type BulkContext<S> = ReturnType<typeof createBulkContext<S>>
-
 export function createBulkContext<S = Record<string, unknown>>(
   getItem: () => PaneSectionItem
 ) {

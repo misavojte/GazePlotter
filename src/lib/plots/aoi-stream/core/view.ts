@@ -34,7 +34,7 @@ function resolveTimeline(
 }
 
 /** Shared data derivation; `ctx.itemWidth` drives the display budget. */
-export function computeAoiStreamData(
+function computeAoiStreamData(
   engine: DataEngine,
   settings: AoiStreamPlotSettings,
   ctx?: PlotViewContext

@@ -32,3 +32,4 @@ export const scanpathSimilarityScreen: PlotScreenFactory<
     props: () => ({ onNodeClick: handleNodeClick }),
   }
 }
+

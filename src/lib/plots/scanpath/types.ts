@@ -1,13 +1,9 @@
-import type { PlotItemContract } from '$lib/plots/definePlot'
-
 export type ScanpathPlotSettings = {
   stimulusId: number
   participantId: number
   showFixationOrder: boolean
   showNumbers: boolean
 }
-
-export type ScanpathPlotItem = PlotItemContract<'scanpath', ScanpathPlotSettings>
 
 export interface ScanpathFixation {
   /** 1-based chronological rank within the rendered set. */

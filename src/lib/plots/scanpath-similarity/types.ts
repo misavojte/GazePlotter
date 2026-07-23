@@ -1,10 +1,10 @@
-import type { PlotItemContract } from '$lib/plots/definePlot'
-
 export type ScanpathSimilarityView = 'matrix' | 'scangraph'
 
 export type ScanpathSimilaritySettings = {
   stimulusId: number
   groupId: number
+  /** Per-plot AOI SELECTION id; unset/0 = all AOIs. */
+  aoiSelectionId?: number
   /**
    * Slug(s) of the participant-pair-matrix MetricInstance(s) this plot renders.
    * Stored as an array for uniformity with multi-select plots; the contract
@@ -24,11 +24,6 @@ export type ScanpathSimilaritySettings = {
   /** Highlighted participant node indices (scangraph) */
   participantHighlights?: number[]
 }
-
-export type ScanpathSimilarityItem = PlotItemContract<
-  'scanpathSimilarity',
-  ScanpathSimilaritySettings
->
 
 export interface ScanpathSimilarityData {
   /** Participant labels (rows and columns) */

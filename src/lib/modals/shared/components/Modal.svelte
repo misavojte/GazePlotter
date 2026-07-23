@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte'
   import ArrowLeft from 'lucide-svelte/icons/arrow-left'
-  import ButtonMajor from '$lib/shared/components/ButtonMajor.svelte'
+  import Button from '$lib/shared/components/Button.svelte'
   import type { ModalStackEntry } from '$lib/modals/modalState.svelte'
   import { getGazePlotterSession } from '$lib/session'
 
@@ -221,6 +221,7 @@
 {#if modalStack.length > 0}
   <div
     class="modal-overlay"
+    role="presentation"
     onpointerdown={e => {
       if (e.target === e.currentTarget && !isFullscreen) {
         handleClose()
@@ -265,13 +266,13 @@
                     close the window.
                   </p>
                   <p class="modal-error-detail">{getModalErrorMessage(error)}</p>
-                  <ButtonMajor
+                  <Button
                     onclick={() => reset()}
                     size="sm"
                     variant="secondary"
                   >
                     Retry dialog
-                  </ButtonMajor>
+                  </Button>
                 </div>
               {/snippet}
             </svelte:boundary>
@@ -403,6 +404,9 @@
     max-height: calc(100vh - 200px);
     overflow-y: auto;
     overflow-x: hidden;
+    /* Reserve gutter always so a scrollbar appearing can't reflow the
+       content-sized modal (width/height jump mid-animation). */
+    scrollbar-gutter: stable;
     flex: 1;
     min-height: 0;
   }

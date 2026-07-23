@@ -1,6 +1,6 @@
 <script lang="ts">
   import GridItem from './GridItem.svelte'
-  import ButtonMajor from '$lib/shared/components/ButtonMajor.svelte'
+  import Button from '$lib/shared/components/Button.svelte'
   import {
     getPlotDisplayName,
     getPlotSubtitle,
@@ -193,13 +193,13 @@
                     <p class="plot-error-detail">
                       {getPlotErrorMessage(error)}
                     </p>
-                    <ButtonMajor
+                    <Button
                       size="sm"
                       variant="secondary"
                       onclick={() => reset()}
                     >
                       Retry plot
-                    </ButtonMajor>
+                    </Button>
                   </div>
                 {/snippet}
               </svelte:boundary>
