@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { makeTestEngine } from './helpers/testEngine'
-import { FIXATION_CATEGORY_ID } from '../src/lib/data/binary/schema'
+import {
+  FIXATION_CATEGORY_ID,
+  SEGMENT_STRIDE,
+  SegmentField,
+} from '../src/lib/data/binary/schema'
 import { getScarfData } from '../src/lib/plots/scarf/core/view'
 import { compositeGazeBinaryAcc } from '../src/lib/plots/scarf/core/renderer'
 import { SCARF_LAYOUT } from '../src/lib/plots/scarf/const'
@@ -165,6 +169,86 @@ describe('gaze binary composite (single pass, no buckets)', () => {
 // moved to `accThin` at full in-band alpha; subPixelCount unchanged proves no
 // segment was dropped).
 const SNAPSHOT = { subPixelCount: 5363, coveredCells: 2557, totalAlpha: 1117.895 }
+
+// The ring-pass transpose must be a faithful inverse of the slices: every
+// (style, participant) bucket holds exactly the slots that contribute that
+// style, ascending (= time order), and nothing is dropped or duplicated. An
+// off-by-one in the two-pass CSR fill would misplace rings silently — the
+// stub-driven ring tests can't see it.
+describe('resolved-slice transpose integrity', () => {
+  it('buckets are complete, correct, and ordered against the slices', () => {
+    const engine = buildEngine()
+    const data = getScarfData(engine, SETTINGS)!
+    const gs = data.gazeSource
+    const P = gs.participantIds.length
+    const totalSegs = gs.resolvedSliceStart.length - 1
+    const styleCount = (gs.resolvedOccStart.length - 1) / P
+    expect(Number.isInteger(styleCount)).toBe(true)
+
+    const segBuf = gs.reader.segmentBufferRaw
+    const pOfSlot = (slot: number) => {
+      let p = 0
+      while (p + 1 < P && slot >= gs.resolvedSlotBase[p + 1]) p++
+      return p
+    }
+    const globalIndex = (slot: number, p: number) =>
+      gs.reader.getSegmentRange(gs.stimulusId, gs.participantIds[p]).startIndex +
+      (slot - gs.resolvedSlotBase[p])
+
+    // Expected contribution count per style, derived from the slices alone.
+    const expectedPerStyle = new Uint32Array(styleCount)
+    for (let slot = 0; slot < totalSegs; slot++) {
+      const p = pOfSlot(slot)
+      const i = globalIndex(slot, p)
+      const cat = segBuf[i * SEGMENT_STRIDE + SegmentField.CATEGORY_ID] | 0
+      if (cat !== FIXATION_CATEGORY_ID) {
+        const s = gs.categoryStyleIdxMap[cat]
+        if (s >= 0) expectedPerStyle[s]++
+      } else {
+        const s0 = gs.resolvedSliceStart[slot]
+        const s1 = gs.resolvedSliceStart[slot + 1]
+        if (s1 === s0) {
+          if (gs.noAoiStyleIdx >= 0) expectedPerStyle[gs.noAoiStyleIdx]++
+        } else {
+          for (let k = s0; k < s1; k++) expectedPerStyle[gs.resolvedSliceStyles[k]]++
+        }
+      }
+    }
+
+    let totalOcc = 0
+    for (let s = 0; s < styleCount; s++) {
+      let styleOcc = 0
+      for (let p = 0; p < P; p++) {
+        const b = s * P + p
+        let prev = -1
+        for (let k = gs.resolvedOccStart[b]; k < gs.resolvedOccStart[b + 1]; k++) {
+          const slot = gs.resolvedOccSlot[k]
+          expect(slot).toBeGreaterThan(prev) // ascending = time order
+          prev = slot
+          expect(pOfSlot(slot)).toBe(p) // right participant
+          // The slot really contributes this style.
+          const i = globalIndex(slot, p)
+          const cat = segBuf[i * SEGMENT_STRIDE + SegmentField.CATEGORY_ID] | 0
+          if (cat !== FIXATION_CATEGORY_ID) {
+            expect(gs.categoryStyleIdxMap[cat]).toBe(s)
+          } else {
+            const s0 = gs.resolvedSliceStart[slot]
+            const s1 = gs.resolvedSliceStart[slot + 1]
+            if (s1 === s0) expect(s).toBe(gs.noAoiStyleIdx)
+            else {
+              const slices = Array.from(gs.resolvedSliceStyles.subarray(s0, s1))
+              expect(slices).toContain(s)
+            }
+          }
+          styleOcc++
+        }
+      }
+      expect(styleOcc).toBe(expectedPerStyle[s]) // complete, no duplicates
+      totalOcc += styleOcc
+    }
+    expect(totalOcc).toBe(gs.resolvedOccSlot.length) // every occurrence bucketed
+  })
+})
 
 // Regression: a dense run of ADJACENT sub-pixel non-fixations (e.g. a
 // lost-tracking tail alternating EyesNotFound/Unclassified every ~3ms) tiles
