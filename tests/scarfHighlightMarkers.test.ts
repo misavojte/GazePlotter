@@ -109,7 +109,6 @@ function gazeSource(perP: { x: number; w: number }[][]): ScarfGazeSource {
     aoiOrderMap,
     categoryStyleIdxMap: new Int16Array(2).fill(-1),
     noAoiStyleIdx: 99,
-    hiddenCategoryIds: new Set<number>(),
   }
 }
 

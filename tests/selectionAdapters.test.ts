@@ -176,7 +176,9 @@ describe('eye-movement-type selection (scarf narrowing)', () => {
         'Saccade',
         'Blink',
       ])
-      expect(data.gazeSource.hiddenCategoryIds.size).toBe(0)
+      // Every non-fixation id is mapped (nothing narrowed away).
+      expect(data.gazeSource.categoryStyleIdxMap[1]).toBeGreaterThanOrEqual(0)
+      expect(data.gazeSource.categoryStyleIdxMap[2]).toBeGreaterThanOrEqual(0)
     }
   })
 
@@ -188,8 +190,9 @@ describe('eye-movement-type selection (scarf narrowing)', () => {
       engine, STIM, [0], { ...SCARF_SETTINGS, categorySelectionId: 1 }, NO_AOI
     )
     expect(data.stylingAndLegend.category.map(c => c.name)).toEqual(['Saccade'])
-    expect(data.gazeSource.hiddenCategoryIds.has(2)).toBe(true)
-    expect(data.gazeSource.hiddenCategoryIds.has(1)).toBe(false)
+    // Narrowed-away ids resolve to -1 in the style map (the paint-loop gate).
+    expect(data.gazeSource.categoryStyleIdxMap[2]).toBe(-1)
+    expect(data.gazeSource.categoryStyleIdxMap[1]).toBeGreaterThanOrEqual(0)
   })
 
   it('an EMPTY selection is "Fixations only": no category styles, all non-fixations hidden', () => {
@@ -200,7 +203,8 @@ describe('eye-movement-type selection (scarf narrowing)', () => {
       engine, STIM, [0], { ...SCARF_SETTINGS, categorySelectionId: 1 }, NO_AOI
     )
     expect(data.stylingAndLegend.category).toEqual([])
-    expect(data.gazeSource.hiddenCategoryIds).toEqual(new Set([1, 2]))
+    expect(data.gazeSource.categoryStyleIdxMap[1]).toBe(-1)
+    expect(data.gazeSource.categoryStyleIdxMap[2]).toBe(-1)
   })
 
   it('the built-in "None" is "Fixations only" without any saved selection', () => {
@@ -213,7 +217,8 @@ describe('eye-movement-type selection (scarf narrowing)', () => {
       { ...SCARF_SETTINGS, categorySelectionId: NONE_SELECTION_ID }, NO_AOI
     )
     expect(data.stylingAndLegend.category).toEqual([])
-    expect(data.gazeSource.hiddenCategoryIds).toEqual(new Set([1, 2]))
+    expect(data.gazeSource.categoryStyleIdxMap[1]).toBe(-1)
+    expect(data.gazeSource.categoryStyleIdxMap[2]).toBe(-1)
   })
 
   it('holding ANY member id keeps the whole displayed-name group drawable', () => {
@@ -229,7 +234,8 @@ describe('eye-movement-type selection (scarf narrowing)', () => {
       engine, STIM, [0], { ...SCARF_SETTINGS, categorySelectionId: 1 }, NO_AOI
     )
     expect(data.stylingAndLegend.category.map(c => c.name)).toEqual(['Saccade'])
-    expect(data.gazeSource.hiddenCategoryIds.size).toBe(0)
+    expect(data.gazeSource.categoryStyleIdxMap[1]).toBeGreaterThanOrEqual(0)
+    expect(data.gazeSource.categoryStyleIdxMap[2]).toBeGreaterThanOrEqual(0)
   })
 })
 

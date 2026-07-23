@@ -413,16 +413,15 @@ export function transformDataToScarfPlot(
   // Group the non-fixation categories ONCE — shared by the styling below and the
   // category→style-index map further down (was grouped twice + filtered twice).
   // The per-plot eye-movement-type SELECTION is the ONLY narrowing (global
-  // category visibility is retired); narrowed-away members seed hiddenCategoryIds
-  // so the paint loop skips their segments.
-  const { kept: groupedCategories, narrowedAwayIds } = applyCategorySelection(
+  // category visibility is retired); the map below is built from the KEPT groups
+  // only, so narrowed-away members resolve to -1 and the paint loop skips them.
+  const { kept: groupedCategories } = applyCategorySelection(
     engine,
     groupCategoriesByDisplayedName(
       categoryData.filter(c => c.id !== FIXATION_CATEGORY_ID)
     ),
     settings.categorySelectionId
   )
-  const hiddenCategoryIds = new Set<number>(narrowedAwayIds)
 
   // Hoisted settings read (deep $state proxy); shapes both the legend (the
   // No-AOI entry is omitted) and the gaze source's noAoiStyleIdx sentinel.
@@ -631,7 +630,6 @@ export function transformDataToScarfPlot(
     // -1 when hidden: the No-AOI style doesn't exist then (the styling above
     // omitted it, so category styles occupy index aoiData.length).
     noAoiStyleIdx: hideNoAoi ? -1 : aoiData.length,
-    hiddenCategoryIds,
   }
 
   return {

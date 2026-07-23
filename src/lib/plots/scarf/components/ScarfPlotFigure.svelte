@@ -522,11 +522,14 @@
       const styleScratch = new Int32Array(Math.max(64, gs.aoiOrderMap.length))
       const { startIndex, endIndex } = gs.reader.getSegmentRange(gs.stimulusId, pid)
 
-      const build = (styleIdx: number, hOrig: number, internalYDefault: number, orderId: number, xN: number, wN: number) => {
+      // `thin` mirrors the renderer's explicit flag (see gazeRectVPlacement):
+      // a 5-visible-AOI fixation slice's height equals HNF, so the value alone
+      // cannot discriminate.
+      const build = (styleIdx: number, thin: boolean, hOrig: number, internalYDefault: number, orderId: number, xN: number, wN: number) => {
         let rectH = hOrig
         let internalY = internalYDefault
         if (scale !== 1) {
-          if (hOrig === HNF) {
+          if (thin) {
             rectH = layout.nonFixationHeight
             internalY = layout.spaceAboveRect + (layout.heightOfBar - layout.nonFixationHeight) / 2
           } else {
@@ -554,7 +557,9 @@
         const categoryId = segBuf[segBase + SegmentField.CATEGORY_ID] | 0
         let start = gs.isOrdinal ? localId : segBuf[segBase + SegmentField.START_TIME]
         let end = gs.isOrdinal ? localId + 1 : segBuf[segBase + SegmentField.END_TIME]
-        if (end <= clipMin || start >= clipMax) continue
+        if (end <= clipMin) continue
+        // Time-ordered per participant: nothing later can intersect the clip.
+        if (start >= clipMax) break
         start = Math.max(clipMin, start)
         end = Math.min(clipMax, end)
         const xN = (start - clipMin) * pScale
@@ -564,13 +569,12 @@
         if (mouseX < pxX || mouseX > pxX + pxW) continue
 
         if (categoryId !== FIXATION_CATEGORY_ID) {
-          if (gs.hiddenCategoryIds.has(categoryId)) continue
           const sIdx =
             categoryId >= 0 && categoryId < gs.categoryStyleIdxMap.length
               ? gs.categoryStyleIdxMap[categoryId]
               : -1
           if (sIdx === -1) continue
-          hit = build(sIdx, HNF, SAR + (HBAR - HNF) * 0.5, localId, xN, wN)
+          hit = build(sIdx, true, HNF, SAR + (HBAR - HNF) * 0.5, localId, xN, wN)
         } else {
           // KEEP IN SYNC with renderer.ts compositeGazeBinaryAcc +
           // drawHighlightMarkersFromBinary: resolve to VISIBLE slices, split the
@@ -586,11 +590,11 @@
 
           if (resolved === 0) {
             if (gs.noAoiStyleIdx < 0) continue
-            hit = build(gs.noAoiStyleIdx, HBAR, SAR, localId, xN, wN)
+            hit = build(gs.noAoiStyleIdx, false, HBAR, SAR, localId, xN, wN)
           } else {
             const h = HBAR / resolved
             for (let j = 0; j < resolved; j++) {
-              hit = build(styleScratch[j], h, SAR + j * h, localId, xN, wN) // topmost = last
+              hit = build(styleScratch[j], false, h, SAR + j * h, localId, xN, wN) // topmost = last
             }
           }
         }

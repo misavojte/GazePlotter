@@ -92,7 +92,6 @@ describe('gaze binary composite (single pass, no buckets)', () => {
     const rows = data.participants.length
     const pWidth = 600
     const scaleFactor = 1
-    const nonFixationHeight = SCARF_LAYOUT.HEIGHT_NON_FIXATION_DEFAULT
     const invBarH = 1 / SCARF_LAYOUT.HEIGHT_BAR_DEFAULT
 
     const styleCount =
@@ -107,34 +106,37 @@ describe('gaze binary composite (single pass, no buckets)', () => {
     }
 
     const acc = new Float32Array(rows * pWidth * 4)
+    const accThin = new Float32Array(rows * pWidth * 4)
     const r = compositeGazeBinaryAcc(
       acc,
+      accThin,
       data.gazeSource,
       styleRgb,
       pWidth,
       rows,
       invBarH,
-      nonFixationHeight,
       scaleFactor
     )
 
-    // Invariants: 0 ≤ alpha ≤ 1, every covered cell's un-premultiplied colour in
-    // [0,255], no NaN. A blend/geometry bug breaks one of these.
+    // Invariants over BOTH lanes: 0 ≤ alpha ≤ 1, every covered cell's
+    // un-premultiplied colour in [0,255], no NaN. A blend/geometry bug breaks one.
     let coveredCells = 0
     let totalAlpha = 0
-    for (let k = 0; k < acc.length; k += 4) {
-      const a = acc[k + 3]
-      expect(Number.isFinite(a)).toBe(true)
-      expect(a).toBeGreaterThanOrEqual(0)
-      expect(a).toBeLessThanOrEqual(1 + 1e-6)
-      if (a > 0.01) {
-        coveredCells++
-        totalAlpha += a
-        const ia = 1 / a
-        for (let c = 0; c < 3; c++) {
-          const v = acc[k + c] * ia
-          expect(v).toBeGreaterThanOrEqual(-0.5)
-          expect(v).toBeLessThanOrEqual(255.5)
+    for (const lane of [acc, accThin]) {
+      for (let k = 0; k < lane.length; k += 4) {
+        const a = lane[k + 3]
+        expect(Number.isFinite(a)).toBe(true)
+        expect(a).toBeGreaterThanOrEqual(0)
+        expect(a).toBeLessThanOrEqual(1 + 1e-6)
+        if (a > 0.01) {
+          coveredCells++
+          totalAlpha += a
+          const ia = 1 / a
+          for (let c = 0; c < 3; c++) {
+            const v = lane[k + c] * ia
+            expect(v).toBeGreaterThanOrEqual(-0.5)
+            expect(v).toBeLessThanOrEqual(255.5)
+          }
         }
       }
     }
@@ -159,4 +161,142 @@ describe('gaze binary composite (single pass, no buckets)', () => {
 
 // Pinned from a run (see the [gaze-binary-composite] log line). A change here means
 // the gaze geometry/resolution changed — update only deliberately.
-const SNAPSHOT = { subPixelCount: 5363, coveredCells: 1795, totalAlpha: 947.709 }
+// 2026-07-23: re-pinned for the thin-lane split (non-fixation sub-pixel energy
+// moved to `accThin` at full in-band alpha; subPixelCount unchanged proves no
+// segment was dropped).
+const SNAPSHOT = { subPixelCount: 5363, coveredCells: 2557, totalAlpha: 1117.895 }
+
+// Regression: a dense run of ADJACENT sub-pixel non-fixations (e.g. a
+// lost-tracking tail alternating EyesNotFound/Unclassified every ~3ms) tiles
+// its pixel columns. With one accumulator lane this composited into a
+// translucent FULL-bar-height band while the same types' >=1px segments drew
+// correct thin lines beside it. The split lanes route ALL non-fixation
+// sub-pixel energy to the thin band.
+describe('sub-pixel non-fixations stay in the thin lane', () => {
+  it('a tiling alternation produces zero full-lane energy and full thin-lane coverage', () => {
+    // 300 adjacent 3ms segments alternating two non-fixation types over
+    // 0-900ms, then one wide fixation to 10000ms so the alternation is
+    // sub-pixel at pWidth 600 (3ms -> 0.18px).
+    const segs: number[][] = []
+    for (let k = 0; k < 300; k++) {
+      segs.push([k * 3, (k + 1) * 3, 1 + (k % 2)])
+    }
+    segs.push([900, 10000, FIXATION_CATEGORY_ID, 1])
+    const engine = {
+      ...makeTestEngine([[], [[...segs]]], {
+        aoiData: [[], [null, ['A1', 'A1', '#e41a1c']]],
+        aoiOrderVector: [[], [1]],
+        categories: [
+          ['Fixation', 'Fixation', '#000000'],
+          ['EyesNotFound', 'EyesNotFound', '#737373'],
+          ['Unclassified', 'Unclassified', '#9c9c9c'],
+        ],
+        aoiMapping: 'group',
+      }),
+      capabilities: { segmented: true, spatial: false, event: false },
+      eventsPerStimulus: [],
+    } as never
+    const data = getScarfData(engine, SETTINGS)!
+    const pWidth = 600
+    const styleCount =
+      data.stylingAndLegend.aoi.length + data.stylingAndLegend.category.length
+    const acc = new Float32Array(pWidth * 4)
+    const accThin = new Float32Array(pWidth * 4)
+    const styleRgb = new Float32Array(styleCount * 3).fill(120)
+    const r = compositeGazeBinaryAcc(
+      acc, accThin, data.gazeSource, styleRgb,
+      pWidth, 1, 1 / SCARF_LAYOUT.HEIGHT_BAR_DEFAULT, 1
+    )
+    expect(r.subPixelCount).toBe(300)
+
+    // The alternation spans x = 0 .. 900/10000*600 = 54px. Full lane: NOTHING
+    // (no fixation is sub-pixel); thin lane: every tiled column solidly
+    // covered ("over"-blended abutting fragments converge below 1, the
+    // documented downsample tolerance — the pin is the LANE, not the exact
+    // alpha).
+    const alternationCols = Math.floor((900 / 10000) * pWidth)
+    for (let px = 0; px < alternationCols - 1; px++) {
+      expect(acc[px * 4 + 3]).toBe(0)
+      expect(accThin[px * 4 + 3]).toBeGreaterThan(0.5)
+    }
+  })
+})
+
+// The thin/slice discriminator is the explicit `thin` flag, never the rect
+// height: with HEIGHT_BAR_DEFAULT divisible so that HEIGHT_BAR_DEFAULT /
+// resolvedAoiCount === HEIGHT_NON_FIXATION_DEFAULT, a value comparison would
+// misplace every such fixation slice onto the centred non-fixation line. The
+// current constants (15, 4) happen to make that unreachable; the flag keeps
+// placement correct under ANY constants.
+describe('wide-rect thin flag', () => {
+  function buildCollisionEngine() {
+    const segs = [
+      [0, 100, FIXATION_CATEGORY_ID, 1, 2, 3, 4, 5], // fixation over ALL 5 AOIs
+      [110, 210, 1], // type 1 (saccade)
+      [220, 320, 2], // type 2
+      [330, 430, 3], // type 3
+      [440, 600, FIXATION_CATEGORY_ID, 1], // 1-AOI fixation for contrast
+    ]
+    const aoiData: (string[] | null)[] = [
+      null,
+      ['A1', 'A1', '#e41a1c'],
+      ['A2', 'A2', '#377eb8'],
+      ['A3', 'A3', '#4daf4a'],
+      ['A4', 'A4', '#984ea3'],
+      ['A5', 'A5', '#ff7f00'],
+    ]
+    return {
+      ...makeTestEngine([[], [segs]], {
+        aoiData: [[], aoiData],
+        aoiOrderVector: [[], [1, 2, 3, 4, 5]],
+        categories: [
+          ['Fixation', 'Fixation', '#000000'],
+          ['Saccade', 'Saccade', '#cccccc'],
+          ['Blink', 'Blink', '#999999'],
+          ['Unclassified', 'Unclassified', '#666666'],
+        ],
+        aoiMapping: 'group',
+      }),
+      capabilities: { segmented: true, spatial: false, event: false },
+      eventsPerStimulus: [],
+    } as never
+  }
+
+  it('marks every non-fixation type thin and every fixation slice non-thin', () => {
+    const engine = buildCollisionEngine()
+    const data = getScarfData(engine, SETTINGS)!
+    const pWidth = 600
+    const styleCount =
+      data.stylingAndLegend.aoi.length + data.stylingAndLegend.category.length
+    const acc = new Float32Array(1 * pWidth * 4)
+    const wide: Array<{
+      x0px: number
+      wPx: number
+      pIdx: number
+      hOrig: number
+      internalY: number
+      styleIdx: number
+      thin: boolean
+    }> = []
+    compositeGazeBinaryAcc(
+      acc, new Float32Array(1 * pWidth * 4), data.gazeSource,
+      new Float32Array(styleCount * 3),
+      pWidth, 1, 1 / SCARF_LAYOUT.HEIGHT_BAR_DEFAULT, 1, wide
+    )
+
+    // One rect per type, all thin, all at the shared non-fixation height.
+    const thinRects = wide.filter(w => w.thin)
+    expect(thinRects.map(w => w.styleIdx).sort()).toHaveLength(3)
+    expect(new Set(thinRects.map(w => w.styleIdx)).size).toBe(3)
+    for (const w of thinRects) {
+      expect(w.hOrig).toBe(SCARF_LAYOUT.HEIGHT_NON_FIXATION_DEFAULT)
+    }
+
+    // The 5-AOI fixation: five stacked non-thin slices with distinct y offsets.
+    const slices = wide.filter(
+      w => !w.thin && w.hOrig === SCARF_LAYOUT.HEIGHT_BAR_DEFAULT / 5
+    )
+    expect(slices).toHaveLength(5)
+    expect(new Set(slices.map(w => w.internalY)).size).toBe(5)
+  })
+})

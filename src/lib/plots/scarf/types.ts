@@ -162,16 +162,16 @@ export interface ScarfGazeSource {
   projScale: Float32Array
   /** raw AOI id → gaze style index (bucket index); -1 if not visible. */
   aoiOrderMap: Int16Array
-  /** raw category id → gaze style index; -1 if not mapped. */
+  /** raw category id → gaze style index; -1 if not mapped. Built from the KEPT
+   *  displayed-name groups only, so -1 also encodes everything narrowed away by
+   *  the plot's eye-movement-type SELECTION — the ONLY narrowing gate the
+   *  paint/hover/highlight loops consult. */
   categoryStyleIdxMap: Int16Array
   /** Style index of the "no AOI" fixation bucket (= number of visible AOIs), or
    *  -1 when `hideNoAoi` is set — the style doesn't exist then (the legend omits
    *  it and category styles occupy its index), so paint/hover/highlight skip
    *  no-AOI fixations by the index being unrepresentable. */
   noAoiStyleIdx: number
-  /** Categories the paint loop skips — everything narrowed away by the plot's
-   *  eye-movement-type SELECTION. */
-  hiddenCategoryIds: Set<number>
 }
 
 // ============================================================================
