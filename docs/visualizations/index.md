@@ -27,7 +27,7 @@ The Pane is structured into collapsible accordion sections:
 - **Metric**: Configures the underlying metric to calculate and plot. This section integrates directly with the workspace's global Metric Library. Users can select default configurations or define custom metrics.
 - **Visualisation**: Contains plot-specific parameters (e.g. orientation, scale ranges, rendering alignments, masking).
 - **Time range [ms]** or **Ordinal range [indices]**: Defines temporal boundaries for the plot.
-- **Areas of Interest**: Picks the AOI selection this plot ranges over and links to the global AOI customization interface. Plots with eye-movement or event layers get matching **Eye-movement Types** and **Events** sections with the same selection-picker shape.
+- **Areas of Interest**: Picks the AOI selection this plot ranges over and links to the global AOI customization interface. Plots with eye-movement or event layers get matching **Eye-movement Types** and **Events** sections with the same selection-picker shape; those two also offer a built-in *None* that turns the layer off entirely.
 - **Export**: Down at the bottom of the pane, provides a **Download plot…** action that opens the [figure export dialog](/docs/export/figures/) preselected with this plot.
 
 > **Plot Configuration**: Every individual visualization plot functions as an independent, interactive card in the workspace. For general actions such as moving, resizing, duplicating, or removing plots, see the [Workspace documentation](/docs/workspace/).

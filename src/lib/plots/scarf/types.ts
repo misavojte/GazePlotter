@@ -12,9 +12,11 @@ export type ScarfPlotSettings = {
   groupId: number
   /** Per-plot AOI SELECTION id; unset/0 = all AOIs. */
   aoiSelectionId?: number
-  /** Per-plot eye-movement-type SELECTION id; unset/0 = all types. */
+  /** Per-plot eye-movement-type SELECTION id; unset/0 = all types,
+      NONE_SELECTION_ID = fixations only. */
   categorySelectionId?: number
-  /** Per-plot event SELECTION id; unset/0 = all event channels. */
+  /** Per-plot event SELECTION id; unset/0 = all event channels,
+      NONE_SELECTION_ID = overlay off. */
   eventSelectionId?: number
   timeline: 'absolute' | 'relative' | 'ordinal'
   absoluteStimuliLimits: [number, number][]
@@ -24,8 +26,6 @@ export type ScarfPlotSettings = {
   timelineEnd?: number
   ordinalStart?: number
   ordinalEnd?: number
-  /** Hide the event overlay (strips below the gaze baseline). Default: shown. */
-  hideEvents?: boolean
   /** Exclude fixations with no AOI coverage from timeline rendering. */
   hideNoAoi?: boolean
 }

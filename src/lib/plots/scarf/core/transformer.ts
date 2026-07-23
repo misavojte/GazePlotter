@@ -390,10 +390,7 @@ export function transformDataToScarfPlot(
   const stimulusHasEvents = hasEventsForStimulus(engine, stimulusId)
   // Events ride as an overlay on the gaze segments. The ordinal view is
   // segment-index-based, so the time-based event overlay is never shown there.
-  const showEventOverlay =
-    stimulusHasEvents &&
-    settings.timeline !== 'ordinal' &&
-    !(settings.hideEvents ?? false)
+  const showEventOverlay = stimulusHasEvents && settings.timeline !== 'ordinal'
 
   const aoiData = getAois(engine, stimulusId, settings.aoiSelectionId)
   const timeline = createScarfPlotAxis(

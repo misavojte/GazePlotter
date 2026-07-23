@@ -16,7 +16,11 @@ import {
   canonicalNameSelections,
 } from '../src/lib/modals/modification/shared/nameKeyedSelection'
 import type { ScarfPlotSettings } from '../src/lib/plots/scarf/types'
-import type { EntitySelection, NameSelection } from '../src/lib/data/types'
+import {
+  NONE_SELECTION_ID,
+  type EntitySelection,
+  type NameSelection,
+} from '../src/lib/data/types'
 
 // ============================================================================
 // Shared Test Fixtures & Engine Builders
@@ -199,6 +203,19 @@ describe('eye-movement-type selection (scarf narrowing)', () => {
     expect(data.gazeSource.hiddenCategoryIds).toEqual(new Set([1, 2]))
   })
 
+  it('the built-in "None" is "Fixations only" without any saved selection', () => {
+    const engine = makeScarfEngine(THREE_CATEGORIES, [])
+    expect(
+      resolveCategorySelectionMemberIds(engine, NONE_SELECTION_ID)
+    ).toEqual(new Set())
+    const data = transformDataToScarfPlot(
+      engine, STIM, [0],
+      { ...SCARF_SETTINGS, categorySelectionId: NONE_SELECTION_ID }, NO_AOI
+    )
+    expect(data.stylingAndLegend.category).toEqual([])
+    expect(data.gazeSource.hiddenCategoryIds).toEqual(new Set([1, 2]))
+  })
+
   it('holding ANY member id keeps the whole displayed-name group drawable', () => {
     const engine = makeScarfEngine(
       [
@@ -241,6 +258,11 @@ describe('event selection (channel narrowing)', () => {
       { id: 2, name: 'Gone', names: ['Renamed away'] },
     ])
     expect(getSelectedEventChannels(engine, STIM, 2)).toEqual([])
+  })
+
+  it('the built-in "None" narrows to no channels (events off)', () => {
+    const engine = makeEventEngine([])
+    expect(getSelectedEventChannels(engine, STIM, NONE_SELECTION_ID)).toEqual([])
   })
 })
 

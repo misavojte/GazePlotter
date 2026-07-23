@@ -302,11 +302,9 @@
     const hasEvents = data.isOverlay || (data.visualEventBuckets && data.visualEventBuckets.some(b => b.length > 0)) || (data.eventZoneConcurrency ?? 0) > 0
     const hasNonFixations = data.stylingAndLegend?.category && data.stylingAndLegend.category.length > 0
 
-    const showingEvents = hasEvents && !settings.hideEvents
-
     const extraSteps: string[] = []
-    if (showingEvents) {
-      extraSteps.push('Hide events in Plot Settings > Visualisation')
+    if (hasEvents) {
+      extraSteps.push('Set Plot Settings > Events to None')
     }
     if (hasNonFixations) {
       extraSteps.push(

@@ -141,6 +141,7 @@ export const SHARED_SECTIONS: Record<string, SharedPaneSection> = {
     modal: eventChannelModificationModal,
     editLabel: 'Edit events & selections',
     passSelectedStimulus: true,
+    noneOption: true,
   }),
   eyeMovement: entitySection({
     title: 'Eye-movement Types',
@@ -149,6 +150,7 @@ export const SHARED_SECTIONS: Record<string, SharedPaneSection> = {
     getSelections: getCategoriesSelections,
     modal: categoryModificationModal,
     editLabel: 'Edit eye-movement types & selections',
+    noneOption: true,
   }),
   metric: {
     key: 'metric',

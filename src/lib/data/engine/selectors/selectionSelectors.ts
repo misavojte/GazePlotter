@@ -1,5 +1,6 @@
 import {
   ALL_SELECTION_LABEL,
+  NONE_SELECTION_ID,
   type EntitySelection,
   type NameSelection,
   type ParticipantsSelection,
@@ -53,13 +54,17 @@ export const getCategoriesSelections = (engine: DataEngine): EntitySelection[] =
  * Resolve a per-plot `categorySelectionId` to the raw set of category ids the
  * selection holds. Returns `null` for "All"/unset/unknown selection, meaning
  * NO narrowing — the same self-healing contract as
- * resolveAoiSelectionVisibleIds. Plots narrowing displayed-name groups go
- * through applyCategorySelection below rather than this raw set.
+ * resolveAoiSelectionVisibleIds. The built-in "None" resolves to the empty
+ * set: every group is narrowed away (on the scarf, fixations-only — the
+ * fixation baseline never enters the narrowing). Plots narrowing
+ * displayed-name groups go through applyCategorySelection below rather than
+ * this raw set.
  */
 export const resolveCategorySelectionMemberIds = (
   engine: DataEngine,
   categorySelectionId: number | undefined
 ): Set<number> | null => {
+  if (categorySelectionId === NONE_SELECTION_ID) return new Set()
   if (categorySelectionId == null || categorySelectionId <= 0) return null
   const selection = getCategoriesSelections(engine).find(
     s => s.id === categorySelectionId

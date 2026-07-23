@@ -70,6 +70,16 @@ interface AttributeDataType {
 /** Label of the implicit default selection covering everything. */
 export const ALL_SELECTION_LABEL = 'All'
 
+/**
+ * The built-in empty SELECTION — "All"'s other endpoint, turning a layer off
+ * (e.g. no event overlays, fixations-only eye-movement types). A constant
+ * picker option, never stored data: offered only on axes where an empty
+ * narrowing is meaningful, and resolved by that axis's narrowing selector.
+ * (Participants' built-ins -1/-2 live in their own id space, `groupId`.)
+ */
+export const NONE_SELECTION_ID = -1
+export const NONE_SELECTION_LABEL = 'None'
+
 /** Id-keyed saved selection for axes with numeric member ids
     (stimuli, eye-movement categories). */
 export interface EntitySelection {

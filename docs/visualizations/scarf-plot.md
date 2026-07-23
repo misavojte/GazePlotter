@@ -22,13 +22,11 @@ Filter the eye-tracking data by a participant selection.
 - **Edit participants & selections…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
 
 ### Visualisation
-Configure the timeline representation mode and event layer visibility.
+Configure the timeline representation mode.
 - **Timeline mode**: Choose how the sequence is arrayed along the horizontal axis:
   - *Absolute*: Displays fixations and events plotted in their exact chronological timing (in milliseconds).
   - *Relative*: Scales and displays sequences proportional to the participant with the longest dwell time for cross-participant comparability.
   - *Ordinal*: Displays strict sequential order indices of individual fixations, saccades, and other events, discarding exact durations.
-- **Hide data**: Event channels always render as an overlay — time-coded colored strips below each participant's gaze baseline — whenever the stimulus has event data.
-  - *Events* (visible in *Absolute* and *Relative* modes when the selected stimulus has event data): When checked, the event overlay is hidden. Events are shown by default.
 
 ### Time range [ms] / Ordinal range [indices]
 Defines temporal or index boundaries. GazePlotter automatically matches this section to the active timeline mode:
@@ -41,13 +39,13 @@ Narrows which AOIs this plot ranges over.
 - **Edit AOIs & selections…**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
 
 ### Eye-movement Types
-Narrows which non-fixation categories (e.g. Saccades, Blinks) this plot draws. This replaces the former *Non-fixations* hide toggle — an empty selection acts as a "Fixations only" filter.
-- **Eye-movement type selection**: A dropdown containing *All* and saved eye-movement type selections.
+Narrows which non-fixation categories (e.g. Saccades, Blinks) this plot draws.
+- **Eye-movement type selection**: A dropdown containing *All*, *None*, and saved eye-movement type selections. Pick *None* for a "Fixations only" view.
 - **Edit eye-movement types & selections…**: Opens the [Eye-movement Type Library](/docs/workspace/eye-movement-type-library/) to customize classification categories and selections.
 
 ### Events
-Narrows which event channels this plot overlays.
-- **Event selection**: A dropdown containing *All* and saved event selections (matched by displayed channel name, portable across stimuli).
+Narrows which event channels this plot overlays. Event channels render as an overlay — time-coded colored strips below each participant's gaze baseline — in *Absolute* and *Relative* modes whenever the stimulus has event data.
+- **Event selection**: A dropdown containing *All*, *None*, and saved event selections (matched by displayed channel name, portable across stimuli). Pick *None* to hide the event overlay.
 - **Edit events & selections…**: Opens the [Event Library](/docs/workspace/event-library/) to customize event names, colors, ordering, and selections.
 
 ### Export

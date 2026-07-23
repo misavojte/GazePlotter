@@ -1,6 +1,7 @@
-import type {
-  EventDataUpdate,
-  ExtendedInterpretedDataType,
+import {
+  NONE_SELECTION_ID,
+  type EventDataUpdate,
+  type ExtendedInterpretedDataType,
 } from '$lib/data/types'
 import type { DataEngine } from '../dataEngine.svelte'
 import { INTERVAL_CHANNEL_MARKER } from '../eventIntervals'
@@ -47,14 +48,16 @@ export const getEventChannels = (
  *
  * `eventSelectionId` optionally narrows to a named event SELECTION (matched by
  * displayed name — NameSelections are portable across stimuli exactly like AOI
- * selections). Unset / 0 / unknown → no narrowing, same self-healing contract
- * as getAois' aoiSelectionId.
+ * selections). The built-in "None" narrows to no channels (events off). Unset
+ * / 0 / unknown → no narrowing, same self-healing contract as getAois'
+ * aoiSelectionId.
  */
 export const getSelectedEventChannels = (
   engine: DataEngine,
   stimulusId: number,
   eventSelectionId?: number
 ): ExtendedInterpretedDataType[] => {
+  if (eventSelectionId === NONE_SELECTION_ID) return []
   const all = getEventChannels(engine, stimulusId)
   if (eventSelectionId == null || eventSelectionId <= 0) return all
   const selection = (engine.metadata?.eventsSelections ?? []).find(

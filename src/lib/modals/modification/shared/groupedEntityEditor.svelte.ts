@@ -141,15 +141,17 @@ export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
     group: MergeCard<BaseInterpretedDataType>,
     newColor: string
   ) {
+    // Every member gets the color, not just the leader: a merged entity has
+    // ONE color, and a leader-only write leaves members stale — repainted
+    // wherever THEY lead (e.g. per-stimulus order after an all-stimuli merge).
     // In-place mutation, NOT array replacement. With Svelte 5 deep-proxy
-    // $state, this invalidates only consumers that read `.color` on this
-    // specific item — `buildGroups` (which reads `.id` and `.displayedName`
+    // $state, this invalidates only consumers that read `.color` on these
+    // specific items — `buildGroups` (which reads `.id` and `.displayedName`
     // only) doesn't re-run, and the table re-renders just the one swatch.
     // Replacing `items = items.map(...)` here caused O(N²) re-derivation
     // and full-table re-renders per color-picker input event.
-    const leaderId = group.members[0].id
-    const leader = items.find(i => i.id === leaderId)
-    if (leader) leader.color = newColor
+    const memberIds = new Set(group.members.map(m => m.id))
+    for (const i of items) if (memberIds.has(i.id)) i.color = newColor
   }
 
   function handleNameInput(

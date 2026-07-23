@@ -9,6 +9,7 @@
  * consumes the legacy fields so the pass is idempotent.
  */
 import { describe, expect, it } from 'vitest'
+import { NONE_SELECTION_ID } from '../src/lib/data/types'
 import { runMigrations as runMigrationsTyped } from '../src/lib/data/ingest/workspace/migrations'
 const runMigrations = runMigrationsTyped as (parsedJson: unknown) => any
 
@@ -188,6 +189,47 @@ describe('legacy hidden event channels → eventsSelections', () => {
     expect(byId['scarf-1'].eventSelectionId).toBe(1)
     // Stimulus 1 hid nothing — its plot stays on "All".
     expect(byId['scarf-2'].eventSelectionId).toBeUndefined()
+  })
+})
+
+describe('retired scarf hideEvents flag → built-in "None" event selection', () => {
+  it('converts hideEvents:true to None, drops the flag everywhere', () => {
+    const file = buildFile({}, [
+      plot('scarf-1', 'scarf', { stimulusId: 0, groupId: -1, hideEvents: true }),
+      plot('scarf-2', 'scarf', { stimulusId: 0, groupId: -1, hideEvents: false }),
+      plot('scarf-3', 'scarf', { stimulusId: 0, groupId: -1, eventSelectionId: 4 }),
+    ])
+    const m = runMigrations(file)
+
+    const byId = Object.fromEntries(m.gridItems.map((g: any) => [g.id, g.settings]))
+    expect(byId['scarf-1'].eventSelectionId).toBe(NONE_SELECTION_ID)
+    // `false` was the default — no narrowing stamped, flag still consumed.
+    expect(byId['scarf-2'].eventSelectionId).toBeUndefined()
+    // An explicit selection without the flag stays untouched.
+    expect(byId['scarf-3'].eventSelectionId).toBe(4)
+    for (const g of m.gridItems) expect('hideEvents' in g.settings).toBe(false)
+  })
+
+  it('wins over a migrated hidden-channels keep-list — events stay off', () => {
+    const file = buildFile(
+      {
+        eventData: {
+          data: [
+            [
+              ['click', 'Click', '#1'],
+              ['blink', 'Blink', '#2'],
+            ],
+            [],
+          ],
+          orderVector: [[0, 1], []],
+          hiddenChannels: [[1], []],
+          events: [[], []],
+        },
+      },
+      [plot('scarf-1', 'scarf', { stimulusId: 0, groupId: -1, hideEvents: true })]
+    )
+    const m = runMigrations(file)
+    expect(m.gridItems[0].settings.eventSelectionId).toBe(NONE_SELECTION_ID)
   })
 })
 

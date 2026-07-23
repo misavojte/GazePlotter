@@ -258,7 +258,7 @@ describe('Workspace Command Reversal', () => {
           updates: [
             {
               itemId: 1,
-              settings: { timeline: 'relative', hideEvents: true },
+              settings: { timeline: 'relative', timelineStart: 100 },
             },
           ],
         }),
@@ -267,7 +267,7 @@ describe('Workspace Command Reversal', () => {
           updates: [
             {
               itemId: 1,
-              settings: { timeline: 'absolute', hideEvents: undefined },
+              settings: { timeline: 'absolute', timelineStart: undefined },
             },
           ],
         }),

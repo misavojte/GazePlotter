@@ -5,7 +5,11 @@ import {
   isStrandedAoiAggregate,
   type MetricInstance,
 } from '$lib/metrics/instances'
-import { type MigratedJsonFormat, CURRENT_SCHEMA_VERSION } from '$lib/data/types'
+import {
+  type MigratedJsonFormat,
+  CURRENT_SCHEMA_VERSION,
+  NONE_SELECTION_ID,
+} from '$lib/data/types'
 
 const CORE_LAYOUT_KEYS = new Set([
   'id',
@@ -684,6 +688,19 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
       data.data,
       Array.isArray(data.gridItems) ? data.gridItems : []
     )
+  }
+
+  // Version-independent: the scarf's retired `hideEvents` flag → the built-in
+  // "None" event SELECTION. Runs AFTER migrateLegacyVisibility so a stamped
+  // hidden-channels keep-list never resurrects an overlay the flag kept off.
+  if (Array.isArray(data.gridItems)) {
+    for (const item of data.gridItems) {
+      if (item?.type !== 'scarf' || typeof item.settings !== 'object' || !item.settings) continue
+      if (item.settings.hideEvents === true) {
+        item.settings.eventSelectionId = NONE_SELECTION_ID
+      }
+      delete item.settings.hideEvents
+    }
   }
 
   // Version-independent normalization of the metric-instance library, in pass
