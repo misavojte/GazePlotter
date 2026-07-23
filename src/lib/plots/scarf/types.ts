@@ -132,26 +132,16 @@ export interface FusedSegmentReader {
   ): { startIndex: number; endIndex: number }
 }
 
-/** Minimal structural view of the AOI group reader the fused gaze path needs. */
-export interface FusedAoiGroupReader {
-  getSegmentAoisUniqueDirect(
-    segmentIndex: number,
-    stimulusId: number,
-    out: Uint16Array | Uint32Array
-  ): number
-}
-
 /**
  * Everything the render/hover/highlight need to reproduce the gaze rects directly
  * from the binary segment store — WITHOUT materializing per-style rect buckets. The
  * gaze geometry is composited in one pass over the binary segments; per-participant
  * `projClip*`/`projScale` project raw start/end to the normalized [0,1] x-axis
- * (clamp-then-normalize), and the style maps resolve each segment's AOI/category to
- * a style index inline.
+ * (clamp-then-normalize), and each segment's AOI/category resolves to style
+ * indices through the precomputed maps/slices below.
  */
 export interface ScarfGazeSource {
   reader: FusedSegmentReader
-  aoiGroupReader: FusedAoiGroupReader
   participantIds: number[]
   stimulusId: number
   /** Ordinal mode uses the segment's local index as its x-position (not time). */
@@ -160,8 +150,6 @@ export interface ScarfGazeSource {
   projClipMin: Float32Array
   projClipMax: Float32Array
   projScale: Float32Array
-  /** raw AOI id → gaze style index (bucket index); -1 if not visible. */
-  aoiOrderMap: Int16Array
   /** raw category id → gaze style index; -1 if not mapped. Built from the KEPT
    *  displayed-name groups only, so -1 also encodes everything narrowed away by
    *  the plot's eye-movement-type SELECTION — the ONLY narrowing gate the
@@ -172,6 +160,20 @@ export interface ScarfGazeSource {
    *  it and category styles occupy its index), so paint/hover/highlight skip
    *  no-AOI fixations by the index being unrepresentable. */
   noAoiStyleIdx: number
+  /** Frame-invariant resolved AOI slices (CSR; built once per resolution
+   *  signature in the transformer): a fixation's visible style indices live in
+   *  `resolvedSliceStyles[resolvedSliceStart[slot] .. resolvedSliceStart[slot+1])`
+   *  where `slot = resolvedSlotBase[pIndex] + localSegmentIndex`. An empty
+   *  range = no visible AOI (the no-AOI fallback). */
+  resolvedSlotBase: Int32Array
+  resolvedSliceStart: Uint32Array
+  resolvedSliceStyles: Int16Array
+  /** Transpose of the slices for the ring painter: per (style, participant)
+   *  bucket `b = styleIdx * participantIds.length + pIndex`, the contributing
+   *  segment slots in time order live in
+   *  `resolvedOccSlot[resolvedOccStart[b] .. resolvedOccStart[b+1])`. */
+  resolvedOccStart: Uint32Array
+  resolvedOccSlot: Uint32Array
 }
 
 // ============================================================================

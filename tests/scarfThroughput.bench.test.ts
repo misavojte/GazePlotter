@@ -22,7 +22,11 @@ import { createReaderFromJson } from '../src/lib/data/binary/converters'
 import { AoiGroupReader } from '../src/lib/data/binary/reader.aoiGroup'
 import { FIXATION_CATEGORY_ID } from '../src/lib/data/binary/schema'
 import { getScarfData } from '../src/lib/plots/scarf/core/view'
-import { drawScarfBands, type ScarfLayoutContext } from '../src/lib/plots/scarf/core/renderer'
+import {
+  drawScarfBands,
+  drawScarfHighlightMarkers,
+  type ScarfLayoutContext,
+} from '../src/lib/plots/scarf/core/renderer'
 import type { ScarfPlotSettings } from '../src/lib/plots/scarf/types'
 
 // Node-only bench harness (SCARF_BENCH=1 vitest bench). Local ambient declares
@@ -213,7 +217,25 @@ describe.skipIf(!RUN)('scarf throughput (base full-extent path)', () => {
       await post('Profiler.enable')
       await post('Profiler.setSamplingInterval', { interval: 40 })
       await post('Profiler.start')
-      for (let i = 0; i < 20; i++) getScarfData(engine, settings)
+      // SCARF_PROFILE_RENDER=1 profiles the render accumulate;
+      // SCARF_PROFILE_RENDER=hilite profiles a hover frame (dimmed composite +
+      // locator rings); unset profiles the transform.
+      if (process.env.SCARF_PROFILE_RENDER === 'hilite') {
+        const pMask = new Uint8Array(styleCount)
+        pMask[0] = 1
+        for (let i = 0; i < 20; i++) {
+          drawScarfBands(ctx, data0, layout, rectStyleArray, [] as never, pMask)
+          drawScarfHighlightMarkers(ctx, data0, layout, {
+            rectStyleArray,
+            highlightMask: pMask,
+          })
+        }
+      } else if (process.env.SCARF_PROFILE_RENDER) {
+        for (let i = 0; i < 20; i++)
+          drawScarfBands(ctx, data0, layout, rectStyleArray, [] as never, null)
+      } else {
+        for (let i = 0; i < 20; i++) getScarfData(engine, settings)
+      }
       const { profile } = await post('Profiler.stop')
       fs.writeFileSync(process.env.SCARF_PROFILE_OUT || '/tmp/scarf.cpuprofile', JSON.stringify(profile))
       return
@@ -225,12 +247,24 @@ describe.skipIf(!RUN)('scarf throughput (base full-extent path)', () => {
     const rRes = bench('render-accum', 8, () => {
       drawScarfBands(ctx, data0, layout, rectStyleArray, [] as never, null)
     })
+    // A hover frame: dimmed composite + the locator-ring pass for one
+    // highlighted style.
+    const mask = new Uint8Array(styleCount)
+    mask[0] = 1
+    const hRes = bench('render-hilite', 8, () => {
+      drawScarfBands(ctx, data0, layout, rectStyleArray, [] as never, mask)
+      drawScarfHighlightMarkers(ctx, data0, layout, {
+        rectStyleArray,
+        highlightMask: mask,
+      })
+    })
 
     const perSeg = (ms: number) => ((ms * 1e6) / totalSegs).toFixed(1)
     const out =
       `=== scarf throughput: ${N_PARTICIPANTS}p × ${SEGS_PER_P} = ${totalSegs} segments, ${rectEntries} rect entries ===\n` +
       `transform     median ${tRes.median.toFixed(1)}ms  mean ${tRes.mean.toFixed(1)}ms  (${perSeg(tRes.median)} ns/seg)\n` +
       `render-accum  median ${rRes.median.toFixed(1)}ms  mean ${rRes.mean.toFixed(1)}ms  (${perSeg(rRes.median)} ns/seg)\n` +
+      `render-hilite median ${hRes.median.toFixed(1)}ms  mean ${hRes.mean.toFixed(1)}ms  (${perSeg(hRes.median)} ns/seg)\n` +
       `combined      ${(tRes.median + rRes.median).toFixed(1)}ms per pass\n`
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     require('node:fs').writeFileSync(process.env.SCARF_BENCH_OUT || '/tmp/scarf-bench.txt', out)

@@ -518,8 +518,6 @@
       const clipMax = gs.projClipMax[rowIndex]
       const pScale = gs.projScale[rowIndex]
       const pid = gs.participantIds[rowIndex]
-      const overlap = new Uint16Array(Math.max(64, gs.aoiOrderMap.length))
-      const styleScratch = new Int32Array(Math.max(64, gs.aoiOrderMap.length))
       const { startIndex, endIndex } = gs.reader.getSegmentRange(gs.stimulusId, pid)
 
       // `thin` mirrors the renderer's explicit flag (see gazeRectVPlacement):
@@ -576,17 +574,12 @@
           if (sIdx === -1) continue
           hit = build(sIdx, true, HNF, SAR + (HBAR - HNF) * 0.5, localId, xN, wN)
         } else {
-          // KEEP IN SYNC with renderer.ts compositeGazeBinaryAcc +
-          // drawHighlightMarkersFromBinary: resolve to VISIBLE slices, split the
-          // bar by the resolved count, fall to noAoi when none survive — so hover
-          // identity always matches the rendered bands (byte-identical when no
-          // selection is active ⇒ resolved === count).
-          const count = gs.aoiGroupReader.getSegmentAoisUniqueDirect(i, gs.stimulusId, overlap)
-          let resolved = 0
-          for (let idx = 0; idx < count; idx++) {
-            const sIdx = gs.aoiOrderMap[overlap[idx]]
-            if (sIdx >= 0) styleScratch[resolved++] = sIdx
-          }
+          // The transformer's precomputed VISIBLE slices (buildResolvedSlices)
+          // — the same data the composite and highlight painters read, so
+          // hover identity always matches the rendered bands.
+          const slot = gs.resolvedSlotBase[rowIndex] + localId
+          const s0 = gs.resolvedSliceStart[slot]
+          const resolved = gs.resolvedSliceStart[slot + 1] - s0
 
           if (resolved === 0) {
             if (gs.noAoiStyleIdx < 0) continue
@@ -594,7 +587,7 @@
           } else {
             const h = HBAR / resolved
             for (let j = 0; j < resolved; j++) {
-              hit = build(styleScratch[j], false, h, SAR + j * h, localId, xN, wN) // topmost = last
+              hit = build(gs.resolvedSliceStyles[s0 + j], false, h, SAR + j * h, localId, xN, wN) // topmost = last
             }
           }
         }
