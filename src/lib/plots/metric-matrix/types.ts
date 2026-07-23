@@ -7,8 +7,6 @@
  */
 export type MetricMatrixPlotSettings = {
   groupId: number
-  /** Per-plot AOI SELECTION id; unset/0 = all AOIs. */
-  aoiSelectionId?: number
   /** Per-plot stimulus SELECTION id; unset/0 = all stimuli. */
   stimulusSelectionId?: number
   /**

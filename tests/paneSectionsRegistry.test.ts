@@ -30,6 +30,9 @@ describe('paneSections / SHARED_SECTIONS consistency', () => {
       expect(keys.length).toBeGreaterThan(0)
       if (!STIMULUS_SPANNING.has(def.type)) {
         expect(keys).toContain('stimulus')
+      } else {
+        expect(keys).not.toContain('stimulus')
+        expect(keys).not.toContain('aoi')
       }
       if (def.type !== 'scanpath' && !STIMULUS_SPANNING.has(def.type)) {
         expect(keys).toContain('aoi')

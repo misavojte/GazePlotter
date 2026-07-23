@@ -38,7 +38,6 @@ const AOI_SELECTION_PLOT_TYPES = new Set([
   'transitionMatrix',
   'recurrencePlot',
   'scanpathSimilarity',
-  'metricMatrix',
   'metricCorrelation',
   'evolvingMetrics',
 ])

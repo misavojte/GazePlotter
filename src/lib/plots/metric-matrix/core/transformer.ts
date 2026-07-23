@@ -114,7 +114,6 @@ export function getMetricMatrixData(
             participantId: pid,
             timeStart: 0,
             timeEnd: 0,
-            aoiSelectionId: settings.aoiSelectionId,
           })
         )
         if (res?.provenance.aoiMissing) {
