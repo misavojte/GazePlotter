@@ -11,6 +11,7 @@ import {
   getEventBuffer,
   getAllCategories,
   applyCategorySelection,
+  fixationLayerVisible,
 } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { groupByDisplayedName } from '$lib/data/engine/utils/grouping'
@@ -305,7 +306,8 @@ export function groupEventChannelsByDisplayedName(
  */
 function createScarfLegendData(
   styling: ScarfStyling,
-  showEvents = false
+  showEvents: boolean,
+  fixationsVisible: boolean
 ): ScarfLegendData {
   const groups: ScarfLegendGroup[] = []
 
@@ -323,7 +325,9 @@ function createScarfLegendData(
     groups.push({ title, items: legendItems })
   }
 
-  addGroup('Fixations', styling.aoi, 'fixation')
+  // A gated fixation layer drops its legend group; the styles themselves stay
+  // (style indices must not shift under the category/event entries).
+  addGroup('Fixations', fixationsVisible ? styling.aoi : [], 'fixation')
   addGroup('Non-fixations', styling.category, 'nonFixation')
 
   // Overlaid events render as solid colour strips, so the legend swatch is a
@@ -439,6 +443,14 @@ export function transformDataToScarfPlot(
     ),
     settings.categorySelectionId
   )
+  // Fixation-layer gate: the SELECTION covers the fixation baseline too
+  // ('None' = nothing shows). All-or-nothing and cold-path: the gate empties
+  // the resolved slices and the no-AOI sentinel below, which paint, hover,
+  // and highlight already honor.
+  const fixationsVisible = fixationLayerVisible(
+    engine,
+    settings.categorySelectionId
+  )
 
   // Hoisted settings read (deep $state proxy); shapes both the legend (the
   // No-AOI entry is omitted) and the gaze source's noAoiStyleIdx sentinel.
@@ -489,7 +501,8 @@ export function transformDataToScarfPlot(
     orderMap: Int16Array,
     catMap: Int16Array,
     noAoiIdx: number,
-    styleCount: number
+    styleCount: number,
+    fixVisible: boolean
   ): {
     slotBase: Int32Array
     sliceStart: Uint32Array
@@ -515,7 +528,9 @@ export function transformDataToScarfPlot(
       for (let i = startIndex; i < endIndex; i++) {
         sliceStart[slot++] = n
         const categoryId = segBuf[i * SEGMENT_STRIDE + SegmentField.CATEGORY_ID] | 0
-        if (categoryId !== FIXATION_CATEGORY_ID) continue
+        // Gated fixations resolve to zero slices; with noAoiIdx also -1 they
+        // vanish from paint, hover, and the occ transpose alike.
+        if (categoryId !== FIXATION_CATEGORY_ID || !fixVisible) continue
         const count = groupReader.getSegmentAoisUniqueDirect(i, sId, overlap)
         for (let idx = 0; idx < count; idx++) {
           const styleIdx = orderMap[overlap[idx]]
@@ -601,7 +616,12 @@ export function transformDataToScarfPlot(
   const aoiOrderMap = new Int16Array(aoiBufferSize).fill(-1)
   for (let i = 0; i < aoiData.length; i++) aoiOrderMap[aoiData[i].id] = i
 
-  const sliceNoAoiStyleIdx = hideNoAoi ? -1 : aoiData.length
+  // -1 turns the No-AOI fallback off: under hideNoAoi the style itself is
+  // omitted (category styles occupy index aoiData.length); under a gated
+  // fixation layer the styles stay (indices must not shift) but no fixation
+  // paints. Shared verbatim by the slice builder and gazeSource.noAoiStyleIdx.
+  const sliceNoAoiStyleIdx =
+    hideNoAoi || !fixationsVisible ? -1 : aoiData.length
   const sliceStyleCount =
     aoiStyleCount +
     stylingAndLegend.category.length +
@@ -619,6 +639,9 @@ export function transformDataToScarfPlot(
   mix(aoiGroupReader.version)
   mix(sliceNoAoiStyleIdx + 2)
   mix(sliceStyleCount)
+  // hideNoAoi=true and a gated fixation layer share sliceNoAoiStyleIdx=-1 but
+  // build DIFFERENT slices (tagged fixations resolve under the former only).
+  mix(fixationsVisible ? 1 : 0)
   for (let i = 0; i < aoiOrderMap.length; i++) mix(aoiOrderMap[i] + 2)
   for (let i = 0; i < categoryStyleIdxMap.length; i++) mix(categoryStyleIdxMap[i] + 2)
   for (let i = 0; i < participantIds.length; i++) mix(participantIds[i] + 1)
@@ -632,7 +655,7 @@ export function transformDataToScarfPlot(
   if (!resolvedSlices) {
     resolvedSlices = buildResolvedSlices(
       reader, aoiGroupReader, participantIds, stimulusId, aoiOrderMap,
-      categoryStyleIdxMap, sliceNoAoiStyleIdx, sliceStyleCount
+      categoryStyleIdxMap, sliceNoAoiStyleIdx, sliceStyleCount, fixationsVisible
     )
     // Small cap: several plots with distinct selections/groups on one dataset
     // each keep their entry; beyond that the oldest goes.
@@ -800,9 +823,8 @@ export function transformDataToScarfPlot(
     projClipMax,
     projScale,
     categoryStyleIdxMap,
-    // -1 when hidden: the No-AOI style doesn't exist then (the styling above
-    // omitted it, so category styles occupy index aoiData.length).
-    noAoiStyleIdx: hideNoAoi ? -1 : aoiData.length,
+    // The slice builder's sentinel verbatim — paint and slices must agree.
+    noAoiStyleIdx: sliceNoAoiStyleIdx,
     resolvedSlotBase: resolvedSlices.slotBase,
     resolvedSliceStart: resolvedSlices.sliceStart,
     resolvedSliceStyles: resolvedSlices.sliceStyles,
@@ -816,7 +838,11 @@ export function transformDataToScarfPlot(
     participants,
     timeline,
     stylingAndLegend,
-    legendData: createScarfLegendData(stylingAndLegend, showEventStripMarkers),
+    legendData: createScarfLegendData(
+      stylingAndLegend,
+      showEventStripMarkers,
+      fixationsVisible
+    ),
     visualEventBuckets,
     gazeSource,
     isOverlay: showEventStripMarkers,

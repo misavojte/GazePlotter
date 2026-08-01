@@ -1,43 +1,12 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import type { BinaryBufferReader } from '$lib/data/binary'
+import {
+  SEGMENT_STRIDE,
+  SegmentField,
+  type BinaryBufferReader,
+} from '$lib/data/binary'
 import { getAllCategories } from '$lib/data/engine'
 import { getRecipe } from './defineMetric'
 import type { MetricRecipe } from './dsl'
-import type { ParamDef } from './params'
-
-/**
- * The shared eye-movement-type param for `scanSource: 'categoryParam'` recipes.
- * The value is a category DISPLAYED name (same displayed name = same logical
- * entity), so a MERGE fold — two raw categories renamed to one displayed name —
- * widens the scanned set without touching stored instances. A name absent from
- * the dataset resolves to no segments (fixation-only sources cannot record
- * saccades or blinks); the metric then reports its natural empty value.
- */
-export const eyeMovementTypeParam: ParamDef<string> & {
-  id: 'eyeMovementType'
-} = {
-  id: 'eyeMovementType',
-  label: 'Eye-movement type',
-  type: 'enum',
-  default: 'Saccade',
-  description:
-    'Which eye-movement type (segment category, by displayed name) the metric measures.',
-  optionsFrom: engine => {
-    const seen = new Set<string>()
-    const out: { value: string; label: string }[] = []
-    for (const c of getAllCategories(engine)) {
-      if (seen.has(c.displayedName)) continue
-      seen.add(c.displayedName)
-      out.push({ value: c.displayedName, label: c.displayedName })
-    }
-    return out
-  },
-  // String(v): the stored value renders verbatim as the chip. Not `v => v` —
-  // a crafted workspace can carry a non-string here, and paramToLabel calls
-  // .trim() on the return; String keeps labels crash-proof and aligned with
-  // compute (resolveParams String()-coerces the same value).
-  toLabel: v => String(v),
-}
 
 /**
  * The iteration source a scan loop walks: `idx[k]` for `k ∈ [start, end)`
@@ -57,10 +26,13 @@ export interface ScanIndexRange {
  * exact range/index pair the loops always used; zero extra work.
  *
  * `'categoryParam'`: walk the participant's full segment range once and keep
- * segments whose category's displayed name matches `params.eyeMovementType`
- * (the manual-filter pattern proven in `fixations.ts`). Segment order — and
- * therefore time order — is preserved, so downstream early-break and window
- * sweeps hold unchanged.
+ * segments whose category's displayed name matches `params.eyeMovementType`.
+ * Matching is by TRIMMED displayed name — the canonical grouping rule
+ * (`groupByDisplayedName`), so the scanned set always equals the displayed
+ * entity. Segment order — and therefore time order — is preserved, so
+ * downstream early-break and window sweeps hold unchanged. Cold-ish path
+ * (misses only; results land in the raw cache), so the upper-bound buffer's
+ * scan-lifetime slack is fine.
  */
 export function resolveScanIndex(
   recipe: MetricRecipe<any, any>,
@@ -75,22 +47,19 @@ export function resolveScanIndex(
     return { idx: reader.fixationIndexRaw, start: startIndex, end: endIndex }
   }
 
-  const name = String(params.eyeMovementType ?? '')
+  const name = String(params.eyeMovementType ?? '').trim()
   const ids = new Set<number>()
   for (const c of getAllCategories(engine)) {
-    if (c.displayedName === name) ids.add(c.id)
+    if (c.displayedName.trim() === name) ids.add(c.id)
   }
 
   const { startIndex, endIndex } = reader.getSegmentRange(stimulusId, participantId)
-  // Count-then-fill, mirroring buildFixationIndex — exact-size, no growth churn.
+  const segBuf = reader.segmentBufferRaw
+  const idx = new Uint32Array(endIndex - startIndex)
   let n = 0
   for (let i = startIndex; i < endIndex; i++) {
-    if (ids.has(reader.getSegmentCategory(i))) n++
-  }
-  const idx = new Uint32Array(n)
-  let cursor = 0
-  for (let i = startIndex; i < endIndex; i++) {
-    if (ids.has(reader.getSegmentCategory(i))) idx[cursor++] = i
+    const cat = segBuf[i * SEGMENT_STRIDE + SegmentField.CATEGORY_ID] | 0
+    if (ids.has(cat)) idx[n++] = i
   }
   return { idx, start: 0, end: n }
 }

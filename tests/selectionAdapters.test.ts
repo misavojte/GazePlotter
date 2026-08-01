@@ -120,9 +120,11 @@ const makeScarfEngine = (
   categories: string[][],
   categoriesSelections: EntitySelection[]
 ) => {
-  const engine = makeTestEngine(SEGMENTS, { aoiMapping: 'group', categories })
-  ;(engine.metadata as { categoriesSelections?: EntitySelection[] }).categoriesSelections =
-    categoriesSelections
+  const engine = makeTestEngine(SEGMENTS, {
+    aoiMapping: 'group',
+    categories,
+    categoriesSelections,
+  })
   return Object.assign(engine, {
     capabilities: { segmented: true, spatial: false, event: false },
     eventsPerStimulus: [] as boolean[],
@@ -182,7 +184,7 @@ describe('eye-movement-type selection (scarf narrowing)', () => {
     }
   })
 
-  it('a selection narrows the legend and hides the other categories from the paint loop', () => {
+  it('a selection without id 0 narrows the categories AND gates the fixation layer', () => {
     const engine = makeScarfEngine(THREE_CATEGORIES, [
       { id: 1, name: 'Saccades', memberIds: [1] },
     ])
@@ -193,11 +195,34 @@ describe('eye-movement-type selection (scarf narrowing)', () => {
     // Narrowed-away ids resolve to -1 in the style map (the paint-loop gate).
     expect(data.gazeSource.categoryStyleIdxMap[2]).toBe(-1)
     expect(data.gazeSource.categoryStyleIdxMap[1]).toBeGreaterThanOrEqual(0)
+    // Fixation baseline not held → the fixation layer gates all-or-nothing:
+    // zero resolved slices for the fixation segment, no no-AOI fallback, no
+    // 'Fixations' legend group (paint/hover/highlight all read these).
+    expect(data.gazeSource.noAoiStyleIdx).toBe(-1)
+    expect(
+      data.gazeSource.resolvedSliceStart[1] - data.gazeSource.resolvedSliceStart[0]
+    ).toBe(0)
+    expect(data.legendData.groups.map(g => g.title)).not.toContain('Fixations')
   })
 
-  it('an EMPTY selection is "Fixations only": no category styles, all non-fixations hidden', () => {
+  it('a selection holding id 0 keeps the fixation layer drawable', () => {
     const engine = makeScarfEngine(THREE_CATEGORIES, [
-      { id: 1, name: 'Fixations only', memberIds: [] },
+      { id: 1, name: 'Fix + saccades', memberIds: [0, 1] },
+    ])
+    const data = transformDataToScarfPlot(
+      engine, STIM, [0], { ...SCARF_SETTINGS, categorySelectionId: 1 }, NO_AOI
+    )
+    expect(data.gazeSource.noAoiStyleIdx).toBeGreaterThanOrEqual(0)
+    expect(
+      data.gazeSource.resolvedSliceStart[1] - data.gazeSource.resolvedSliceStart[0]
+    ).toBeGreaterThan(0)
+    expect(data.legendData.groups.map(g => g.title)).toContain('Fixations')
+    expect(data.stylingAndLegend.category.map(c => c.name)).toEqual(['Saccade'])
+  })
+
+  it('an EMPTY selection narrows every type away, the fixation layer included', () => {
+    const engine = makeScarfEngine(THREE_CATEGORIES, [
+      { id: 1, name: 'Nothing', memberIds: [] },
     ])
     const data = transformDataToScarfPlot(
       engine, STIM, [0], { ...SCARF_SETTINGS, categorySelectionId: 1 }, NO_AOI
@@ -205,9 +230,11 @@ describe('eye-movement-type selection (scarf narrowing)', () => {
     expect(data.stylingAndLegend.category).toEqual([])
     expect(data.gazeSource.categoryStyleIdxMap[1]).toBe(-1)
     expect(data.gazeSource.categoryStyleIdxMap[2]).toBe(-1)
+    expect(data.gazeSource.noAoiStyleIdx).toBe(-1)
+    expect(data.legendData.groups.map(g => g.title)).not.toContain('Fixations')
   })
 
-  it('the built-in "None" is "Fixations only" without any saved selection', () => {
+  it('the built-in "None" narrows every type away without any saved selection', () => {
     const engine = makeScarfEngine(THREE_CATEGORIES, [])
     expect(
       resolveCategorySelectionMemberIds(engine, NONE_SELECTION_ID)
@@ -219,6 +246,8 @@ describe('eye-movement-type selection (scarf narrowing)', () => {
     expect(data.stylingAndLegend.category).toEqual([])
     expect(data.gazeSource.categoryStyleIdxMap[1]).toBe(-1)
     expect(data.gazeSource.categoryStyleIdxMap[2]).toBe(-1)
+    expect(data.gazeSource.noAoiStyleIdx).toBe(-1)
+    expect(data.legendData.groups.map(g => g.title)).not.toContain('Fixations')
   })
 
   it('holding ANY member id keeps the whole displayed-name group drawable', () => {

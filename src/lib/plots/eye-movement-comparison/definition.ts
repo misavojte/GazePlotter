@@ -1,5 +1,11 @@
 import { definePlot } from '$lib/plots/definePlot'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
+import {
+  DIRECTION_OPTIONS,
+  ORIENTATION_OPTIONS,
+  OVERLAY_OPTIONS,
+  overlaySummaryLabel,
+} from '$lib/plots/bar/const'
 import { deriveEyeMovementComparisonView } from './core/view'
 import { METRIC_LABELS } from './core/const'
 import type {
@@ -52,21 +58,13 @@ export const eyeMovementComparisonDefinition = definePlot<
           kind: 'enum',
           key: 'statisticalOverlay',
           label: 'Statistical overlay',
-          options: [
-            { label: 'None', value: 'none' },
-            { label: 'Mean ± 95% CI', value: 'meanCi95' },
-            { label: 'Mean ± SD', value: 'meanSd' },
-            { label: 'Boxplot', value: 'boxplot' },
-          ],
+          options: OVERLAY_OPTIONS,
         },
         {
           kind: 'enum',
           key: 'barPlottingType',
           label: 'Orientation',
-          options: [
-            { label: 'Horizontal', value: 'horizontal' },
-            { label: 'Vertical', value: 'vertical' },
-          ],
+          options: ORIENTATION_OPTIONS,
         },
         {
           kind: 'enum',
@@ -81,10 +79,7 @@ export const eyeMovementComparisonDefinition = definePlot<
           kind: 'enum',
           key: 'orderDirection',
           label: 'Direction',
-          options: [
-            { label: 'ASC', value: 'asc' },
-            { label: 'DESC', value: 'desc' },
-          ],
+          options: DIRECTION_OPTIONS,
         },
         { kind: 'scaleRange', key: 'scaleRange', legend: 'Scale range' },
       ],
@@ -93,15 +88,7 @@ export const eyeMovementComparisonDefinition = definePlot<
         const overlay = ctx.common(s => s.statisticalOverlay)
         if (orientation.mixed || overlay.mixed) return 'Mixed'
         const o = orientation.value === 'horizontal' ? 'Horizontal' : 'Vertical'
-        const ov =
-          overlay.value === 'none'
-            ? 'No overlay'
-            : overlay.value === 'meanCi95'
-              ? 'M ± 95% CI'
-              : overlay.value === 'meanSd'
-                ? 'M ± SD'
-                : 'Boxplot'
-        return `${o} (${ov})`
+        return `${o} (${overlaySummaryLabel(String(overlay.value))})`
       },
     },
     'timelineRange',

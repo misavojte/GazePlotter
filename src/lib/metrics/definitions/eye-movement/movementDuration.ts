@@ -1,6 +1,6 @@
 import { defineMetric } from '../../core/defineMetric'
-import { eyeMovementTypeParam } from '../../core/categoryScan'
-import { enumParam } from '../../core/params'
+import { eyeMovementTypeParam } from './eyeMovementTypeParam'
+import { summaryStatisticParam } from '../../core/params'
 import { reduceNumeric } from '../../core/projection'
 
 interface Acc {
@@ -41,15 +41,7 @@ defineMetric({
   // `mean` is sound across participants; for the cohort total use movementTime.
   measurementClass: 'intensive',
   searchTags: ['saccade', 'blink', 'duration', 'mean', 'median', 'eye movement', 'type'],
-  params: [
-    eyeMovementTypeParam,
-    enumParam<'statistic', 'mean' | 'median' | 'max' | 'min'>('statistic', 'Summary', 'mean', [
-      { value: 'mean', label: 'Mean' },
-      { value: 'median', label: 'Median' },
-      { value: 'max', label: 'Max' },
-      { value: 'min', label: 'Min' },
-    ]),
-  ] as const,
+  params: [eyeMovementTypeParam, summaryStatisticParam] as const,
   scanSource: 'categoryParam',
   accumulation: 'stateful',
   init: (): Acc => ({ durations: [] }),

@@ -1,5 +1,5 @@
 import { defineMetric } from '../../core/defineMetric'
-import { enumParam } from '../../core/params'
+import { summaryStatisticParam } from '../../core/params'
 import { reduceNumeric } from '../../core/projection'
 
 interface Acc {
@@ -46,14 +46,7 @@ defineMetric({
   // is sound across participants.
   measurementClass: 'intensive',
   searchTags: ['saccade', 'intersaccadic', 'interval', 'gap', 'between', 'fixation', 'eye movement'],
-  params: [
-    enumParam<'statistic', 'mean' | 'median' | 'max' | 'min'>('statistic', 'Summary', 'mean', [
-      { value: 'mean', label: 'Mean' },
-      { value: 'median', label: 'Median' },
-      { value: 'max', label: 'Max' },
-      { value: 'min', label: 'Min' },
-    ]),
-  ] as const,
+  params: [summaryStatisticParam] as const,
   accumulation: 'stateful',
   init: (): Acc => ({ gaps: [], prevEnd: -1 }),
   onFixation: (acc, { start, duration }) => {

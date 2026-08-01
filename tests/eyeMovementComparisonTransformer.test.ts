@@ -122,23 +122,34 @@ describe('eye-movement comparison transformer', () => {
     expect(share.data.find(d => d.label === 'Saccade')?.individualValues).toEqual([15.625, 15.625])
   })
 
-  it('eye-movement-type SELECTION narrows the non-fixation bars; None = fixations only', () => {
-    const engine = createEngine()
-    // The test-engine metadata literal doesn't type the optional field.
-    ;(engine.metadata as { categoriesSelections?: unknown }).categoriesSelections = [
-      { id: 5, name: 'Saccades only', memberIds: [1] },
-    ]
-    const narrowed = getEyeMovementComparisonData(
+  it('eye-movement-type SELECTION narrows every type, Fixation included; None = no types', () => {
+    const engine = makeTestEngine([[], SEGMENTS], {
+      categories: CATEGORIES,
+      participants: [['P0', 'P0'], ['P1', 'P1']],
+      categoriesSelections: [
+        { id: 5, name: 'Saccades only', memberIds: [1] },
+        { id: 6, name: 'Fix + saccades', memberIds: [0, 1] },
+      ],
+    })
+    // Fixation is a full SELECTION-domain member: a selection without id 0
+    // hides the Fixation bar.
+    const noFixation = getEyeMovementComparisonData(
       engine as any,
       makeSettings({ categorySelectionId: 5 })
     )
-    expect(narrowed.data.map(d => d.label)).toEqual(['Fixation', 'Saccade'])
+    expect(noFixation.data.map(d => d.label)).toEqual(['Saccade'])
+
+    const withFixation = getEyeMovementComparisonData(
+      engine as any,
+      makeSettings({ categorySelectionId: 6 })
+    )
+    expect(withFixation.data.map(d => d.label)).toEqual(['Fixation', 'Saccade'])
 
     const none = getEyeMovementComparisonData(
       engine as any,
       makeSettings({ categorySelectionId: NONE_SELECTION_ID })
     )
-    expect(none.data.map(d => d.label)).toEqual(['Fixation'])
+    expect(none.data).toEqual([])
   })
 
   it('orderBy value sorts bars by their mean', () => {

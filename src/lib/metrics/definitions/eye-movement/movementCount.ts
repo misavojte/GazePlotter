@@ -1,5 +1,5 @@
 import { defineMetric } from '../../core/defineMetric'
-import { eyeMovementTypeParam } from '../../core/categoryScan'
+import { eyeMovementTypeParam } from './eyeMovementTypeParam'
 
 /**
  * ## Eye-movement count

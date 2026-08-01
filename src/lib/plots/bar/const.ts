@@ -2,6 +2,37 @@ import { getMetric, type MetricInstance } from '$lib/metrics'
 import { buildMetricLabel, timeRangeQualifier } from '$lib/plots/shared'
 import type { StatisticalOverlayType } from './types'
 
+/**
+ * Shared Visualisation-pane vocabulary for the plots rendering through
+ * `BarPlotFigure` (AOI Comparison + Eye-movement Comparison) — one home so
+ * the user-visible labels cannot drift between them.
+ */
+export const OVERLAY_OPTIONS = [
+  { label: 'None', value: 'none' },
+  { label: 'Mean ± 95% CI', value: 'meanCi95' },
+  { label: 'Mean ± SD', value: 'meanSd' },
+  { label: 'Boxplot', value: 'boxplot' },
+]
+export const ORIENTATION_OPTIONS = [
+  { label: 'Horizontal', value: 'horizontal' },
+  { label: 'Vertical', value: 'vertical' },
+]
+export const DIRECTION_OPTIONS = [
+  { label: 'ASC', value: 'asc' },
+  { label: 'DESC', value: 'desc' },
+]
+
+/** The overlay's pane-summary abbreviation, shared like the options above. */
+export function overlaySummaryLabel(overlay: string): string {
+  return overlay === 'none'
+    ? 'No overlay'
+    : overlay === 'meanCi95'
+      ? 'M ± 95% CI'
+      : overlay === 'meanSd'
+        ? 'M ± SD'
+        : 'Boxplot'
+}
+
 /** The statistic an overlay summarises, as a mid-dot qualifier (never brackets). */
 export function statisticQualifier(overlay: StatisticalOverlayType): string | null {
   switch (overlay) {

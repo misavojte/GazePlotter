@@ -1,5 +1,11 @@
 import { deriveBarView } from './core/view'
 import { barPlotScreen } from './core/screen.svelte'
+import {
+  DIRECTION_OPTIONS,
+  ORIENTATION_OPTIONS,
+  OVERLAY_OPTIONS,
+  overlaySummaryLabel,
+} from './const'
 import { definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
 import { resolveInstance, getMetric } from '$lib/metrics'
@@ -35,22 +41,14 @@ export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
           kind: 'enum',
           key: 'statisticalOverlay',
           label: 'Statistical overlay',
-          options: [
-            { label: 'None', value: 'none' },
-            { label: 'Mean ± 95% CI', value: 'meanCi95' },
-            { label: 'Mean ± SD', value: 'meanSd' },
-            { label: 'Boxplot', value: 'boxplot' },
-          ],
+          options: OVERLAY_OPTIONS,
           showWhen: ctx => !isProportion(ctx),
         },
         {
           kind: 'enum',
           key: 'barPlottingType',
           label: 'Orientation',
-          options: [
-            { label: 'Horizontal', value: 'horizontal' },
-            { label: 'Vertical', value: 'vertical' },
-          ],
+          options: ORIENTATION_OPTIONS,
         },
         {
           kind: 'enum',
@@ -65,10 +63,7 @@ export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
           kind: 'enum',
           key: 'orderDirection',
           label: 'Direction',
-          options: [
-            { label: 'ASC', value: 'asc' },
-            { label: 'DESC', value: 'desc' },
-          ],
+          options: DIRECTION_OPTIONS,
         },
         { kind: 'scaleRange', key: 'scaleRange', legend: 'Scale range' },
       ],
@@ -82,15 +77,7 @@ export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
             : 'Vertical'
         if (isProportion(ctx)) return `${o} (Bars)`
         if (orientation.mixed || overlay.mixed) return 'Mixed'
-        const ov =
-          overlay.value === 'none'
-            ? 'No overlay'
-            : overlay.value === 'meanCi95'
-              ? 'M ± 95% CI'
-              : overlay.value === 'meanSd'
-                ? 'M ± SD'
-                : 'Boxplot'
-        return `${o} (${ov})`
+        return `${o} (${overlaySummaryLabel(String(overlay.value))})`
       },
     },
     'timelineRange',

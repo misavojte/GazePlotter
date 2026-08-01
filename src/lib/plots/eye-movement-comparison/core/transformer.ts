@@ -7,12 +7,16 @@ import {
   getParticipantEndTime,
 } from '$lib/data/engine'
 import { groupByDisplayedName } from '$lib/data/engine/utils/grouping'
-import { FIXATION_CATEGORY_ID } from '$lib/data/binary'
 import { asScalar, createAdaptiveTimeline } from '$lib/plots/shared'
-import { computeSummaryStatistics } from '$lib/plots/bar/core/transformer'
+import {
+  applySorting,
+  computeSummaryStatistics,
+  valueAxisTimeline,
+} from '$lib/plots/bar/core/transformer'
 import type { BarPlotDataItem, BarPlotResult } from '$lib/plots/bar/types'
 import { formatDecimal } from '$lib/shared/utils/mathUtils'
 import { query, type MetricInstance, type Scope } from '$lib/metrics'
+import { METRIC_SOURCE } from './const'
 import type {
   EyeMovementComparisonSettings,
   EyeMovementMetric,
@@ -26,10 +30,11 @@ import type {
  * the AOI Comparison, so the whole figure (beeswarm, overlays, ordering,
  * scale) is inherited.
  *
- * Type rows: the fixation baseline always shows; non-fixation categories fold
- * by displayed name (same displayed name = same logical entity) and narrow by
- * the per-plot eye-movement-type SELECTION — the same `applyCategorySelection`
- * gate the scarf uses, so 'None' means fixations only.
+ * Type rows: every type present — Fixation included — folds by displayed name
+ * (same displayed name = same logical entity; Fixation's reserved name keeps
+ * it a singleton) and narrows by the per-plot eye-movement-type SELECTION,
+ * the same `applyCategorySelection` gate the scarf uses. 'None' narrows every
+ * type away (an empty plot).
  */
 export function getEyeMovementComparisonData(
   engine: DataEngine,
@@ -59,19 +64,15 @@ export function getEyeMovementComparisonData(
     return { data: [], timeline: createAdaptiveTimeline(0, 100, 6), dataMax: 0 }
   }
 
-  const categories = getAllCategories(engine)
-  const fixation = categories.find(c => c.id === FIXATION_CATEGORY_ID)
   const { kept } = applyCategorySelection(
     engine,
-    groupByDisplayedName(categories.filter(c => c.id !== FIXATION_CATEGORY_ID)),
+    groupByDisplayedName(getAllCategories(engine)),
     settings.categorySelectionId
   )
-  const types = [
-    ...(fixation
-      ? [{ displayedName: fixation.displayedName, color: fixation.color }]
-      : []),
-    ...kept.map(g => ({ displayedName: g.displayedName, color: g.color })),
-  ]
+  const types = kept.map(g => ({
+    displayedName: g.displayedName,
+    color: g.color,
+  }))
 
   const timeStart = settings.timelineStart ?? 0
   const timeEnd = settings.timelineEnd ?? 0
@@ -79,6 +80,17 @@ export function getEyeMovementComparisonData(
   const participantNames = participantIds.map(
     id => getParticipant(engine, id).displayedName
   )
+  // timeShare's denominator is type-invariant: the bounded range when one is
+  // set, otherwise each participant's recording length. The scan cannot see
+  // it (that is why the metric family has no share recipe); the plot can.
+  const shareDenominators =
+    settings.metric === 'timeShare'
+      ? participantIds.map(pid =>
+          timeEnd > timeStart
+            ? timeEnd - timeStart
+            : getParticipantEndTime(engine, settings.stimulusId, pid)
+        )
+      : null
 
   const data: BarPlotDataItem[] = types.map(type => {
     const instance = instanceForMetric(settings.metric, type.displayedName)
@@ -93,14 +105,8 @@ export function getEyeMovementComparisonData(
         timeEnd,
       }
       let v = asScalar(query(instance, scope))?.value ?? Number.NaN
-      if (settings.metric === 'timeShare') {
-        // Share of the bounded range when one is set, of the participant's
-        // recording otherwise. The scan cannot see this denominator (that is
-        // why the metric family has no share recipe); the plot can.
-        const denominator =
-          timeEnd > timeStart
-            ? timeEnd - timeStart
-            : getParticipantEndTime(engine, settings.stimulusId, participantIds[p])
+      if (shareDenominators) {
+        const denominator = shareDenominators[p]
         v = denominator > 0 ? (v / denominator) * 100 : Number.NaN
       }
       // NaN drops the participant from this type's distribution (e.g. mean
@@ -139,55 +145,26 @@ export function getEyeMovementComparisonData(
     }
   }
 
-  let timelineMin = 0
-  let timelineMax = dataMax || 100
-  if (settings.scaleRange) {
-    if (settings.scaleRange[0] !== 0) timelineMin = settings.scaleRange[0]
-    if (settings.scaleRange[1] !== 0) timelineMax = settings.scaleRange[1]
-  }
-  if (timelineMax <= timelineMin) timelineMax = timelineMin + 1
-  const timeline = createAdaptiveTimeline(timelineMin, timelineMax, 6)
-
-  return { data: sortedData, timeline, dataMax }
+  return { data: sortedData, timeline: valueAxisTimeline(dataMax, settings.scaleRange), dataMax }
 }
 
 /**
- * The metric instance computing `metric` for one displayed type name. Plain
- * literals, not library instances: the library's one-type-per-instance design
- * stays intact, and the result cache keys on (baseId, params), so repeated
- * derives hit the same entries as any other consumer of these recipes.
+ * The metric instance computing `metric` for one displayed type name (per the
+ * `METRIC_SOURCE` table). Plain literals, not library instances: the
+ * library's one-type-per-instance design stays intact, and the result cache
+ * keys on (baseId, params), so repeated derives hit the same entries as any
+ * other consumer of these recipes.
  */
 function instanceForMetric(
   metric: EyeMovementMetric,
   displayedName: string
 ): MetricInstance {
-  const baseId =
-    metric === 'count'
-      ? 'movementCount'
-      : metric === 'meanDuration'
-        ? 'movementDuration'
-        : 'movementTime'
-  const params: Record<string, unknown> = { eyeMovementType: displayedName }
-  if (metric === 'meanDuration') params.statistic = 'mean'
+  const source = METRIC_SOURCE[metric]
   return {
     id: `eyeMovementComparison:${metric}:${displayedName}`,
-    baseId,
-    params,
+    baseId: source.baseId,
+    params: { ...source.params, eyeMovementType: displayedName },
     label: '',
     projection: { kind: 'identity-scalar' },
   }
-}
-
-function applySorting(
-  data: BarPlotDataItem[],
-  orderBy: 'value' | 'type',
-  orderDirection: 'asc' | 'desc'
-): BarPlotDataItem[] {
-  const sorted = [...data]
-  if (orderBy === 'type') {
-    return orderDirection === 'asc' ? data : sorted.reverse()
-  }
-  return sorted.sort((a, b) =>
-    orderDirection === 'asc' ? a.value - b.value : b.value - a.value
-  )
 }

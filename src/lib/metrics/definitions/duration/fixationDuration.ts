@@ -1,5 +1,5 @@
 import { defineMetric } from '../../core/defineMetric'
-import { enumParam } from '../../core/params'
+import { summaryStatisticParam } from '../../core/params'
 import { reduceNumeric } from '../../core/projection'
 
 interface Acc { durations: number[][] }
@@ -55,14 +55,7 @@ defineMetric({
   // sound across participants; for a cohort total of dwell use absoluteTime.
   measurementClass: 'intensive',
   searchTags: ['fixation', 'duration', 'average', 'mean', 'median', 'fix', 'aoi'],
-  params: [
-    enumParam<'statistic', 'mean' | 'median' | 'max' | 'min'>('statistic', 'Summary', 'mean', [
-      { value: 'mean', label: 'Mean' },
-      { value: 'median', label: 'Median' },
-      { value: 'max', label: 'Max' },
-      { value: 'min', label: 'Min' },
-    ]),
-  ] as const,
+  params: [summaryStatisticParam] as const,
   accumulation: 'stateful',
   init: ({ slots }): Acc => ({ durations: Array.from({ length: slots.totalSlots }, () => []) }),
   onFixation: (acc, { frame, duration, slots }, { slots: info }) => {

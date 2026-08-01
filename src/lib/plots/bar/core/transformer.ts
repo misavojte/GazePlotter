@@ -147,14 +147,7 @@ export function getBarPlotData(
     }
   }
 
-  let timelineMin = 0
-  let timelineMax = dataMax || 100
-  if (settings.scaleRange) {
-    if (settings.scaleRange[0] !== 0) timelineMin = settings.scaleRange[0]
-    if (settings.scaleRange[1] !== 0) timelineMax = settings.scaleRange[1]
-  }
-  if (timelineMax <= timelineMin) timelineMax = timelineMin + 1
-  const timeline = createAdaptiveTimeline(timelineMin, timelineMax, 6)
+  const timeline = valueAxisTimeline(dataMax, settings.scaleRange)
 
   return {
     data: sortedData,
@@ -269,20 +262,42 @@ function createLabeledData(
   return result
 }
 
-function applySorting(
+/**
+ * One sort policy for every plot rendering through `BarPlotFigure` (exported
+ * for the eye-movement comparison). Any `orderBy` other than `'value'` keeps
+ * the given order ('aoi', 'type', ...), reversed for desc.
+ */
+export function applySorting(
   data: BarPlotDataItem[],
-  orderBy: 'value' | 'aoi',
+  orderBy: 'value' | (string & {}),
   orderDirection: 'asc' | 'desc'
 ): BarPlotDataItem[] {
-  const sorted = [...data]
-
-  if (orderBy === 'aoi') {
-    return orderDirection === 'asc' ? data : sorted.reverse()
+  if (orderBy !== 'value') {
+    return orderDirection === 'asc' ? data : [...data].reverse()
   }
-
-  return sorted.sort((a, b) =>
+  return [...data].sort((a, b) =>
     orderDirection === 'asc' ? a.value - b.value : b.value - a.value
   )
+}
+
+/**
+ * The shared figure's value-axis policy — nice timeline from the data max,
+ * with `scaleRange`'s zero-means-unset overrides and the +1 floor guard.
+ * Exported for the eye-movement comparison so the two plots cannot drift on
+ * scale semantics.
+ */
+export function valueAxisTimeline(
+  dataMax: number,
+  scaleRange: [number, number] | undefined
+): AdaptiveTimeline {
+  let timelineMin = 0
+  let timelineMax = dataMax || 100
+  if (scaleRange) {
+    if (scaleRange[0] !== 0) timelineMin = scaleRange[0]
+    if (scaleRange[1] !== 0) timelineMax = scaleRange[1]
+  }
+  if (timelineMax <= timelineMin) timelineMax = timelineMin + 1
+  return createAdaptiveTimeline(timelineMin, timelineMax, 6)
 }
 
 /** Exported for the eye-movement comparison plot — same stats bundle, same figure. */

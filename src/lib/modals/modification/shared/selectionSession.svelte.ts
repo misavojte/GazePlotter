@@ -34,6 +34,10 @@ export interface SelectionSessionConfig<TSel extends SelectionLike> {
   ) => void
   reorderGroups: (from: number, to: number, withIds?: ReadonlySet<number>) => void
   notify: (message: string) => void
+  /** Group ids the Merge verb must refuse (name-locked identity anchors like
+      the Fixation baseline — a merge is a rename fold, which they reject).
+      Pass the editor's `lockedNameIds` so all three surfaces share one set. */
+  lockedNameIds?: ReadonlySet<number>
 }
 
 /**
@@ -93,6 +97,14 @@ export function createSelectionSession<TSel extends SelectionLike>(
     const leader = selectedGroups[0].members[0]
     return (leader.displayedName || '').trim() || leader.originalName
   })
+  // Why the selection can't merge despite having 2+ groups (tray tooltip).
+  const mergeBlockedReason = $derived.by(() => {
+    if (selectedGroups.length < 2 || !cfg.lockedNameIds?.size) return undefined
+    const hit = selectedGroups.find(g => cfg.lockedNameIds!.has(g.id))
+    if (!hit) return undefined
+    const name = hit.members[0].displayedName || hit.members[0].originalName
+    return `“${name}” has a reserved name and can't be merged`
+  })
   const canSplit = $derived(selectedGroups.some(g => g.members.length > 1))
 
   const updateSelection = (id: number, patch: Partial<TSel>) => {
@@ -150,7 +162,7 @@ export function createSelectionSession<TSel extends SelectionLike>(
   // ── Verbs on the transient selection ───────────────────────────────────────
   const mergeSelected = () => {
     const sel = selectedGroups
-    if (!mergeTargetName) return // defined only once 2+ groups are selected
+    if (!mergeTargetName || mergeBlockedReason) return // 2+ groups, none locked
     for (const g of sel.slice(1)) {
       cfg.renameItem(g.members[0], mergeTargetName, true, g)
     }
@@ -317,8 +329,11 @@ export function createSelectionSession<TSel extends SelectionLike>(
     get mergeTargetName() {
       return mergeTargetName
     },
+    get mergeBlockedReason() {
+      return mergeBlockedReason
+    },
     get canMerge() {
-      return selectedGroups.length >= 2
+      return selectedGroups.length >= 2 && !mergeBlockedReason
     },
     get canSplit() {
       return canSplit
@@ -366,6 +381,7 @@ export interface SelectionSessionApi {
   readonly visibleCount: number
   readonly allVisibleSelected: boolean
   readonly mergeTargetName: string | undefined
+  readonly mergeBlockedReason: string | undefined
   readonly canMerge: boolean
   readonly canSplit: boolean
   readonly nameFocusPending: boolean

@@ -84,14 +84,35 @@ export const enumParam = <ID extends string, V extends string>(
   id: ID,
   label: string,
   defaultValue: V,
-  options: readonly { value: V; label: string }[]
+  options: readonly { value: V; label: string }[],
+  opts: Partial<
+    Pick<ParamDef<V>, 'description' | 'toLabel' | 'optionsFrom'>
+  > = {}
 ): ParamDef<V> & { id: ID } => ({
   id,
   label,
   type: 'enum',
   default: defaultValue,
   options: options as readonly { value: V & string; label: string }[],
+  ...opts,
 })
+
+/**
+ * The shared "Summary" statistic param — how a recipe's per-event values
+ * collapse to the per-participant value. Declared ONCE; every summary recipe
+ * (fixationDuration, visitDuration, movementDuration, interFixationInterval)
+ * imports it. (`sum` is deliberately absent everywhere — totals are their own
+ * metrics: absoluteTime, movementTime.)
+ */
+export const summaryStatisticParam = enumParam<
+  'statistic',
+  'mean' | 'median' | 'max' | 'min'
+>('statistic', 'Summary', 'mean', [
+  { value: 'mean', label: 'Mean' },
+  { value: 'median', label: 'Median' },
+  { value: 'max', label: 'Max' },
+  { value: 'min', label: 'Min' },
+])
 
 export type ParamsOf<T extends readonly ParamDef<any>[]> = {
   [K in T[number] as K['id']]: K extends ParamDef<infer V> ? V : never

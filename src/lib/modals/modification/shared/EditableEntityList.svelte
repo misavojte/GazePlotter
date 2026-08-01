@@ -76,6 +76,9 @@
     groupNotice?: (
       group: MergeCard<BaseInterpretedDataType>
     ) => GroupNotice | null
+    /** Rows whose displayed name is a reserved identity anchor: the text
+        column renders read-only for them (color/reorder stay live). */
+    lockedNameIds?: ReadonlySet<number>
     onSort: (column: string, direction: 'asc' | 'desc') => void
     onReorder: ListReorderConfig['onReorder']
     /** Replace `pattern` with `replacement` across every matching name. */
@@ -120,6 +123,7 @@
     sortColumns,
     grouped,
     groupNotice,
+    lockedNameIds,
     onSort,
     onReorder,
     onRename,
@@ -438,14 +442,23 @@
                   </div>
                 {:else if col.type === 'text'}
                   <div>
-                    <InputText
-                      label="Displayed name"
-                      showLabel={false}
-                      fill={true}
-                      ariaLabel={`Displayed name for ${member.originalName}`}
-                      value={member.displayedName}
-                      oninput={e => grouped.onNameInput(member, e.detail, isLeader, group)}
-                    />
+                    {#if lockedNameIds?.has(member.id)}
+                      <div
+                        class="col-readonly"
+                        use:tooltipAction={{ content: 'Reserved name' }}
+                      >
+                        {member.displayedName}
+                      </div>
+                    {:else}
+                      <InputText
+                        label="Displayed name"
+                        showLabel={false}
+                        fill={true}
+                        ariaLabel={`Displayed name for ${member.originalName}`}
+                        value={member.displayedName}
+                        oninput={e => grouped.onNameInput(member, e.detail, isLeader, group)}
+                      />
+                    {/if}
                   </div>
                 {:else if col.type === 'color' && isLeader}
                   <div class="col-center">

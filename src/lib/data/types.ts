@@ -1,6 +1,7 @@
 import type { FileInputType, FileMetadataType } from './ingest/types'
 import type { GridItemSnapshot } from '$lib/workspace/grid/types'
 import type { BinarySegmentBuffers } from './binary'
+import { FIXATION_CATEGORY_ID } from './binary'
 import type { MetricInstance } from '$lib/metrics/instances'
 import type { PairingErrorKind } from './intervalPairing'
 export type { MetricInstance } from '$lib/metrics/instances'
@@ -72,13 +73,27 @@ export const ALL_SELECTION_LABEL = 'All'
 
 /**
  * The built-in empty SELECTION — "All"'s other endpoint, turning a layer off
- * (e.g. no event overlays, fixations-only eye-movement types). A constant
+ * (e.g. no event overlays, no eye-movement types at all). A constant
  * picker option, never stored data: offered only on axes where an empty
  * narrowing is meaningful, and resolved by that axis's narrowing selector.
  * (Participants' built-ins -1/-2 live in their own id space, `groupId`.)
  */
 export const NONE_SELECTION_ID = -1
 export const NONE_SELECTION_LABEL = 'None'
+
+/**
+ * The reserved displayed name of the fixation baseline: id 0's row is the
+ * substrate every AOI metric and the scarf's AOI layer scan, so its name is
+ * a locked identity anchor. The single derivation behind all three guard
+ * layers — the modal lock, the `updateCategories` write guard, and the
+ * workspace-load heal — which refuse or repair any other row taking it.
+ */
+export function reservedFixationName(
+  catData: readonly (readonly string[] | null)[] | undefined
+): string {
+  const row = catData?.[FIXATION_CATEGORY_ID]
+  return ((row?.[1] ?? row?.[0]) ?? 'Fixation').trim()
+}
 
 /** Id-keyed saved selection for axes with numeric member ids
     (stimuli, eye-movement categories). */

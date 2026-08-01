@@ -1,5 +1,6 @@
 import {
   ALL_SELECTION_LABEL,
+  FIXATION_CATEGORY_ID,
   NONE_SELECTION_ID,
   type EntitySelection,
   type NameSelection,
@@ -55,10 +56,11 @@ export const getCategoriesSelections = (engine: DataEngine): EntitySelection[] =
  * selection holds. Returns `null` for "All"/unset/unknown selection, meaning
  * NO narrowing — the same self-healing contract as
  * resolveAoiSelectionVisibleIds. The built-in "None" resolves to the empty
- * set: every group is narrowed away (on the scarf, fixations-only — the
- * fixation baseline never enters the narrowing). Plots narrowing
- * displayed-name groups go through applyCategorySelection below rather than
- * this raw set.
+ * set: every type is narrowed away, the fixation baseline included (id 0
+ * joined the SELECTION domain; its reserved displayed name keeps it a
+ * singleton group, so consumers may gate the fixation layer on raw
+ * membership of id 0). Plots narrowing displayed-name groups go through
+ * applyCategorySelection below rather than this raw set.
  */
 export const resolveCategorySelectionMemberIds = (
   engine: DataEngine,
@@ -82,6 +84,21 @@ export const resolveCategorySelectionMemberIds = (
  * keeps everything (self-healing, as above). This is the single definition of
  * the narrowing policy — plots must not re-derive it from the raw member set.
  */
+/**
+ * Whether a plot's fixation LAYER survives its eye-movement-type SELECTION.
+ * The fixation baseline's reserved displayed name keeps id 0 a singleton
+ * group, so raw membership IS the group decision — this helper is the one
+ * blessed raw-set read, living beside the group policy so the two can't
+ * drift. `null` resolution (All/unset/unknown) keeps the layer.
+ */
+export const fixationLayerVisible = (
+  engine: DataEngine,
+  categorySelectionId: number | undefined
+): boolean => {
+  const held = resolveCategorySelectionMemberIds(engine, categorySelectionId)
+  return held === null || held.has(FIXATION_CATEGORY_ID)
+}
+
 export const applyCategorySelection = <G extends GroupedByDisplayedName<unknown>>(
   engine: DataEngine,
   groups: G[],

@@ -183,7 +183,8 @@
           use:tooltipAction={{
             content: session.canMerge
               ? `The selected ${noun} become one entity named “${session.mergeTargetName ?? ''}”. Reversible with Split.`
-              : `Select at least 2 ${noun} to merge them into one`,
+              : (session.mergeBlockedReason ??
+                `Select at least 2 ${noun} to merge them into one`),
           }}
         >
           <button

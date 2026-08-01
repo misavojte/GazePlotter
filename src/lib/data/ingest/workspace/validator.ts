@@ -1,5 +1,9 @@
 import type { DataCapabilities, DataType, RawIngestPayload, BinarySegmentBuffers } from '$lib/data/types'
-import { jsonSegmentsToBinary, DEFAULT_NO_AOI_TREATMENT } from '$lib/data/types'
+import {
+  jsonSegmentsToBinary,
+  reservedFixationName,
+  DEFAULT_NO_AOI_TREATMENT,
+} from '$lib/data/types'
 
 /**
  * Validates the basic structure of the data
@@ -47,6 +51,21 @@ export function processAndValidateData(
   delete (ed as { hiddenChannels?: unknown }).hiddenChannels
   if (data.categories) {
     delete (data.categories as { hiddenCategories?: unknown }).hiddenCategories
+    // The fixation row's displayed name is reserved (id 0 is the substrate
+    // every AOI metric scans). Heal files — hand-edited or saved before the
+    // guard existed — where another row took it, or the display fold would
+    // silently claim that type is the fixation baseline.
+    const rows = (data.categories as { data?: (string[] | null)[] }).data
+    if (Array.isArray(rows) && rows.length > 0) {
+      const reserved = reservedFixationName(rows)
+      for (let i = 1; i < rows.length; i++) {
+        const row = rows[i]
+        if (!row) continue
+        if (((row[1] ?? row[0]) ?? '').trim() === reserved) {
+          row[1] = `${reserved} (${i + 1})`
+        }
+      }
+    }
   }
 
   const events = ed.events ?? []
