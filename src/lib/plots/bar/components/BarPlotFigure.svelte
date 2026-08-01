@@ -61,6 +61,11 @@
     statisticalOverlay?: StatisticalOverlayType
     noMetric?: boolean
     proportion?: boolean
+    /** What a bar IS, as the tooltip's first row key. AOI Comparison default. */
+    itemTooltipKey?: string
+    /** Hint lines for the cannot-fit placeholder. AOI Comparison default. */
+    cannotFitHints?: string[]
+    ariaLabel?: string
   }
 
   let {
@@ -78,6 +83,9 @@
     margins = NO_MARGINS,
     noMetric = false,
     proportion = false,
+    itemTooltipKey = 'AOI',
+    cannotFitHints = ['Merge some AOIs in Plot Settings > Areas of Interest'],
+    ariaLabel = 'AOI metrics visualization',
   }: Props = $props()
 
   const isVertical = $derived(barPlottingType === 'vertical')
@@ -137,9 +145,7 @@
       const availableSpace = isVertical ? frame.width : frame.height
       const usableSpace = Math.max(0, availableSpace - BAR_SPACING_TOLERANCE * 2)
       if (usableSpace >= data.length * minBarWidth + gaps * minSpacing) return null
-      return cannotFitPlaceholder(isVertical ? 'width' : 'height', [
-        'Merge some AOIs in Plot Settings > Areas of Interest',
-      ])
+      return cannotFitPlaceholder(isVertical ? 'width' : 'height', cannotFitHints)
     },
     gutters: () =>
       isVertical
@@ -383,7 +389,7 @@
     const mouseValue = timeline.minValue + ratio * (timeline.maxValue - timeline.minValue)
 
     const content: FrameHit['content'] = [
-      { key: 'AOI', value: dataItem.label },
+      { key: itemTooltipKey, value: dataItem.label },
       { key: 'Value', value: fmt(mouseValue) },
     ]
 
@@ -434,5 +440,5 @@
 <canvas
   use:plot.plotAction
   use:canvasBlockSelect={{ regions: plot.blockedRegions }}
-  aria-label="AOI metrics visualization"
+  aria-label={ariaLabel}
 ></canvas>

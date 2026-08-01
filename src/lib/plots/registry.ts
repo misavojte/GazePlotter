@@ -15,6 +15,7 @@ import { recurrencePlotDefinition } from './recurrence'
 import { evolvingMetricsDefinition } from './evolving-metrics'
 import { metricCorrelationDefinition } from './metric-correlation'
 import { metricMatrixDefinition } from './metric-matrix'
+import { eyeMovementComparisonDefinition } from './eye-movement-comparison'
 
 export const plotRegistry = {
   scarf: scarfPlotDefinition,
@@ -27,6 +28,7 @@ export const plotRegistry = {
   evolvingMetrics: evolvingMetricsDefinition,
   metricCorrelation: metricCorrelationDefinition,
   metricMatrix: metricMatrixDefinition,
+  eyeMovementComparison: eyeMovementComparisonDefinition,
 } as const
 
 /**

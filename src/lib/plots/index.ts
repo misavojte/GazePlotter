@@ -17,4 +17,5 @@ export * from './evolving-metrics'
 export * from './recurrence'
 export * from './metric-correlation'
 export * from './metric-matrix'
+export * from './eye-movement-comparison'
 

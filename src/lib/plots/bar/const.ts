@@ -3,7 +3,7 @@ import { buildMetricLabel, timeRangeQualifier } from '$lib/plots/shared'
 import type { StatisticalOverlayType } from './types'
 
 /** The statistic an overlay summarises, as a mid-dot qualifier (never brackets). */
-function statisticQualifier(overlay: StatisticalOverlayType): string | null {
+export function statisticQualifier(overlay: StatisticalOverlayType): string | null {
   switch (overlay) {
     case 'meanSd':
       return 'mean ± SD'

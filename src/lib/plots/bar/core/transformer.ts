@@ -285,7 +285,8 @@ function applySorting(
   )
 }
 
-function computeSummaryStatistics(
+/** Exported for the eye-movement comparison plot — same stats bundle, same figure. */
+export function computeSummaryStatistics(
   values: number[]
 ): AoiSummaryStatistics {
   const empty: AoiSummaryStatistics = {

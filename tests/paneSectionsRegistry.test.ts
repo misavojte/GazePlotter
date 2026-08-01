@@ -25,6 +25,10 @@ describe('paneSections / SHARED_SECTIONS consistency', () => {
     // modal keys off a stimulusId it doesn't have). It is the sole exception to
     // the otherwise-universal 'stimulus', alongside scanpath for 'aoi'.
     const STIMULUS_SPANNING = new Set(['metricMatrix'])
+    // Plots whose unit is not the AOI: scanpath draws raw gaze; the
+    // eye-movement comparison's bars are types, and its scalar per-type
+    // metrics ignore AOI slots, so an 'aoi' section would be a dead control.
+    const NO_AOI_SECTION = new Set(['scanpath', 'eyeMovementComparison'])
     for (const def of defs) {
       const keys = def.paneSections.map(paneSectionKey)
       expect(keys.length).toBeGreaterThan(0)
@@ -34,7 +38,7 @@ describe('paneSections / SHARED_SECTIONS consistency', () => {
         expect(keys).not.toContain('stimulus')
         expect(keys).not.toContain('aoi')
       }
-      if (def.type !== 'scanpath' && !STIMULUS_SPANNING.has(def.type)) {
+      if (!NO_AOI_SECTION.has(def.type) && !STIMULUS_SPANNING.has(def.type)) {
         expect(keys).toContain('aoi')
       }
     }
