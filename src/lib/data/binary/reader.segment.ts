@@ -74,6 +74,14 @@ export class BinaryBufferReader {
     return this.segmentBuffer
   }
 
+  /**
+   * Raw fixation index, exposed for hot-loop direct indexing — pairs with
+   * `getFixationRange`, replacing a `getFixationSegmentIndex` call per segment.
+   */
+  get fixationIndexRaw(): Uint32Array {
+    return this.fixationIndex
+  }
+
   /** Raw AOI pool, exposed for hot-loop direct indexing. */
   get aoiPoolRaw(): Uint16Array {
     return this.aoiPool

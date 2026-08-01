@@ -1,3 +1,5 @@
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+
 type ParamType = 'integer' | 'number' | 'enum' | 'boolean' | 'string'
 
 export interface ParamDef<T> {
@@ -17,6 +19,13 @@ export interface ParamDef<T> {
   step?: number
   unit?: string
   options?: readonly { value: T & string; label: string }[]
+  /**
+   * Dataset-derived alternative to the static `options` (e.g. eye-movement
+   * types, which are interned per dataset at ingest). The configure UI calls
+   * it with the live engine at render time; `paramToLabel` cannot resolve a
+   * label through it, so pair it with `toLabel`.
+   */
+  optionsFrom?: (engine: DataEngine) => readonly { value: T & string; label: string }[]
   /**
    * Render this param's value as an instance-label qualifier (mid-dot grammar),
    * or `null`/`''` to omit it (e.g. at a default value that carries no

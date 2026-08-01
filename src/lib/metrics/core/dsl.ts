@@ -313,6 +313,21 @@ export interface MetricRecipe<P, A> {
    */
   accumulation?: WindowAccumulation
   /**
+   * Which segments the per-participant scan iterates.
+   *
+   * - `'fixationIndex'` (default) — the prebuilt category-0 index; the scan
+   *   never reads segment categories (the classic fixation-only engine).
+   * - `'categoryParam'` — segments whose category's DISPLAYED name equals the
+   *   recipe's `eyeMovementType` param value (same displayed name = same
+   *   logical entity, so MERGE folds widen the scanned set). Registration
+   *   enforces an `eyeMovementType` param and `accumulation: 'stateful'`:
+   *   the fused windowed driver's per-AOI-slot assembly assumes fixation
+   *   scans, so category recipes always run the scan trio itself.
+   *   `onFixation` then receives each matching segment — the event shape is
+   *   identical, only the iteration source differs.
+   */
+  scanSource?: 'fixationIndex' | 'categoryParam'
+  /**
    * Defaults to false. Set to true when the recipe writes a meaningful
    * stimulus-level aggregate into `anyFixationSlot`; opens the
    * `pick-any-fixation` projection for the metric.

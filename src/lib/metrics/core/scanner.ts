@@ -4,7 +4,7 @@ import { buildAoiSlots } from './aoiSlots'
 import { resolveParams } from './params'
 import { getRecipe } from './defineMetric'
 import { fillWindowFrame } from './dsl'
-import { cacheGetRaw, cacheSetRaw } from './runtime'
+import { cacheGetRaw, cacheSetRaw, runSingleWindow } from './runtime'
 import type { FixationEvent, InitCtx, MetricRecipe, WindowFrame } from './dsl'
 import type { MetricInstance } from '../instances'
 
@@ -42,6 +42,17 @@ export function scanBatch(
     if (inst.projection.kind === 'windowed') continue
     const recipe = getRecipe(inst.baseId)
     if (!recipe) continue
+    // Category-scanning recipes have a per-INSTANCE iteration source (their
+    // eyeMovementType param), so they can't join the shared fixation pass —
+    // each computes via the single path, against the same raw cache, so
+    // batch==single holds by construction.
+    if (recipe.scanSource === 'categoryParam') {
+      results.set(
+        inst.id,
+        runSingleWindow(recipe, inst, { engine, stimulusId, participantId, aoiSelectionId }, timeStart, timeEnd),
+      )
+      continue
+    }
     // Group-shape recipes own their evaluation via scanGroup; they don't
     // expose the per-participant trio that this batch path requires.
     const { init, onFixation, finalize } = recipe

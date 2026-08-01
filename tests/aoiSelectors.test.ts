@@ -115,9 +115,10 @@ describe('getAois — memoization', () => {
     // Metric cache (keyed on structural `version`) must hit; only getAois
     // (keyed on appearanceVersion) should rebuild.
     //
-    // We isolate scan work by counting reader.getFixationSegmentIndex calls —
-    // that method is invoked ONLY from scanAccumulator/scanBatch inner loops.
-    // Counting getAoiMapping would be ambiguous because getAois calls it too.
+    // We isolate scan work by counting reader.getFixationRange calls — the
+    // scan loops resolve their iteration range through it exactly once per
+    // scan (per-segment reads go straight to raw buffer views). Counting
+    // getAoiMapping would be ambiguous because getAois calls it too.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const engine = makeGroupedAoiEngine(
       ['AOI 1', 'AOI 2'],
@@ -126,10 +127,10 @@ describe('getAois — memoization', () => {
 
     const reader = engine.getReader()
     let fixIterations = 0
-    const originalGetFix = reader.getFixationSegmentIndex.bind(reader)
-    reader.getFixationSegmentIndex = (k: number) => {
+    const originalGetRange = reader.getFixationRange.bind(reader)
+    reader.getFixationRange = (s: number, p: number) => {
       fixIterations++
-      return originalGetFix(k)
+      return originalGetRange(s, p)
     }
 
     const instance = {

@@ -2,6 +2,7 @@ import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { type BinaryBufferReader, SEGMENT_STRIDE, SegmentField } from '$lib/data/binary'
 import { getAois, getParticipantEndTime } from '$lib/data/engine'
 import { buildAoiSlots } from './aoiSlots'
+import { categoryCacheToken, resolveScanIndex } from './categoryScan'
 import { resolveParams } from './params'
 import { getRecipe } from './defineMetric'
 import {
@@ -261,6 +262,9 @@ function computeTimeWindowedFused(
   slots: AoiSlotInfo,
 ): ProjectedResult | null {
   const accumulation = recipe.accumulation
+  // Also keeps category-scanning recipes out: they are 'stateful' by
+  // registration invariant, so this driver's fixation-index iteration and
+  // per-AOI-slot assembly stay valid without a scan-source branch.
   if (!accumulation || accumulation === 'stateful') return null
 
   const { window, inner } = projection
@@ -515,9 +519,14 @@ function computeTimeWindowed(
     else values[w] = out.values[0] ?? Number.NaN
   }
 
-  // Single pass over the participant's fixations.
+  // Single pass over the participant's scanned segments (the recipe's scan
+  // source: fixation index by default, category walk for categoryParam).
   const { reader, rawToSlot } = resolved
-  const { startIndex: fStart, endIndex: fEnd } = reader.getFixationRange(
+  const { idx: scanIdx, start: sStart, end: sEnd } = resolveScanIndex(
+    recipe,
+    params,
+    scope.engine,
+    reader,
     scope.stimulusId,
     scope.participantId,
   )
@@ -547,12 +556,12 @@ function computeTimeWindowed(
     index: 0,
   }
 
-  for (let k = fStart; k < fEnd; k++) {
-    const i = reader.getFixationSegmentIndex(k)
+  for (let k = sStart; k < sEnd; k++) {
+    const i = scanIdx[k]
     const base = i * SEGMENT_STRIDE
     const start = segBuf[base + SegmentField.START_TIME]
     const end = segBuf[base + SegmentField.END_TIME]
-    // Fixations are time-ordered by start; once past the scope none can overlap.
+    // Scanned segments are time-ordered by start; once past the scope none can overlap.
     if (start >= tEnd) break
     if (end <= tStart) continue
 
@@ -838,7 +847,8 @@ export function runWindowedGroup(
 
 interface ScanOutput<A> { acc: A; slots: AoiSlotInfo; params: Record<string, unknown> }
 
-function runSingleWindow(
+/** Exported for scanBatch: category-scanning recipes compute per instance here. */
+export function runSingleWindow(
   recipe: MetricRecipe<any, any>,
   instance: MetricInstance,
   scope: Scope,
@@ -872,7 +882,11 @@ export function scanAccumulator(
   const acc = recipe.init(ctx)
 
   const { reader, rawToSlot } = slots
-  const { startIndex: fStart, endIndex: fEnd } = reader.getFixationRange(
+  const { idx: scanIdx, start: sStart, end: sEnd } = resolveScanIndex(
+    recipe,
+    params,
+    scope.engine,
+    reader,
     scope.stimulusId,
     scope.participantId,
   )
@@ -904,10 +918,11 @@ export function scanAccumulator(
   }
   let index = 0
 
-  for (let k = fStart; k < fEnd; k++) {
-    const i = reader.getFixationSegmentIndex(k)
+  for (let k = sStart; k < sEnd; k++) {
+    const i = scanIdx[k]
     const base = i * SEGMENT_STRIDE
-    // `fixationIndex` is guaranteed category-0 by construction — no filter here.
+    // `scanIdx` is pre-filtered by construction (the fixation index, or the
+    // recipe's category walk) — no per-segment filter here.
     const start = segBuf[base + SegmentField.START_TIME]
     const end = segBuf[base + SegmentField.END_TIME]
     if (timeEnd > 0 && start >= timeEnd) break
@@ -958,7 +973,9 @@ function rawCacheKey(engine: DataEngine, instance: MetricInstance, stimulusId: n
   // it already discriminates AOI selections (and two selections resolving to the
   // same visible set share, which is correct). No separate selection token.
   const sig = slotSignatures(engine, stimulusId, aoiSelectionId)
-  return `r|o${sig.order}|${instance.baseId}|${paramsKey(instance.params)}|${stimulusId}|${participantId}|${tStart}|${tEnd}`
+  // categoryCacheToken is '' except for category-scanning recipes, whose
+  // results also depend on the category table (see categoryScan.ts).
+  return `r|${categoryCacheToken(engine, instance.baseId)}o${sig.order}|${instance.baseId}|${paramsKey(instance.params)}|${stimulusId}|${participantId}|${tStart}|${tEnd}`
 }
 
 function windowedCacheKey(instance: MetricInstance, scope: Scope, projection: WindowedProjection): string {
@@ -968,7 +985,7 @@ function windowedCacheKey(instance: MetricInstance, scope: Scope, projection: Wi
   const proj = `${windowKey(projection.window)}~${leafDef(projection.inner).cacheKey(projection.inner)}`
   // sig.order/sig.names reflect the selection-narrowed getAois (see rawCacheKey).
   const sig = slotSignatures(scope.engine, scope.stimulusId, scope.aoiSelectionId)
-  return `w|o${sig.order}|n${sig.names}|${proj}|${instance.baseId}|${paramsKey(instance.params)}|${scope.stimulusId}|${scope.participantId}|${scope.timeStart ?? 0}|${scope.timeEnd ?? 0}`
+  return `w|${categoryCacheToken(scope.engine, instance.baseId)}o${sig.order}|n${sig.names}|${proj}|${instance.baseId}|${paramsKey(instance.params)}|${scope.stimulusId}|${scope.participantId}|${scope.timeStart ?? 0}|${scope.timeEnd ?? 0}`
 }
 
 function paramsKey(params: Record<string, unknown> | undefined): string {

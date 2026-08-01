@@ -258,8 +258,15 @@
     return override.length > 0 ? override : defaultInstanceLabel(baseId)
   }
 
-  function paramSelectOptions(p: ParamDef<unknown>): SelectOption[] {
-    return (p.options ?? []).map(o => ({ label: o.label, value: o.value as string }))
+  function paramSelectOptions(p: ParamDef<unknown>, current: string): SelectOption[] {
+    const src = p.optionsFrom?.(engine) ?? p.options ?? []
+    const out = src.map(o => ({ label: o.label, value: o.value as string }))
+    // Keep a value the current dataset can't offer (e.g. 'Saccade' on a
+    // fixation-only upload) selectable rather than silently blanking it.
+    if (current !== '' && !out.some(o => o.value === current)) {
+      out.unshift({ label: current, value: current })
+    }
+    return out
   }
 
   /**
@@ -379,7 +386,7 @@
               <Select
                 compact
                 label={param.label}
-                options={paramSelectOptions(param)}
+                options={paramSelectOptions(param, String(paramDraft[param.id] ?? param.default))}
                 value={String(paramDraft[param.id] ?? param.default)}
                 onchange={e => {
                   paramDraft = { ...paramDraft, [param.id]: detail(e) }

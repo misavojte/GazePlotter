@@ -81,6 +81,21 @@ function assertShapeLifecycleInvariant(r: MetricRecipe<any, any>): void {
         `see MetricRecipe.accumulation`,
     )
   }
+  if (r.scanSource === 'categoryParam') {
+    // The fused windowed driver assembles per-AOI-slot sums and never resolves
+    // params — both assumptions break for category scans, so those recipes
+    // must stay on the trio path (see MetricRecipe.scanSource).
+    if (r.accumulation !== 'stateful') {
+      throw new Error(
+        `[metrics] recipe "${r.id}" scans by category param and must declare accumulation: 'stateful'`,
+      )
+    }
+    if (!r.params?.some(p => p.id === 'eyeMovementType')) {
+      throw new Error(
+        `[metrics] recipe "${r.id}" scans by category param but declares no 'eyeMovementType' param`,
+      )
+    }
+  }
 }
 
 export function getRecipe(id: string): MetricRecipe<any, any> | undefined {
