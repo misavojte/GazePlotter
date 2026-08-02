@@ -127,16 +127,17 @@ describe('V4 → V5 transition-matrix settings migration', () => {
     expect(s.metricInstanceIds[0]).toBe('transitionDwellMean-visit')
   })
 
-  it('frequencyRelative → creates custom transitionRelativeFrequency instance (UUID id)', () => {
+  // Starter-backed since transitionRelativeFrequency was seeded: the migration
+  // points at the slug rather than minting a duplicate custom instance.
+  it('frequencyRelative → "transitionRelativeFrequency-fix"', () => {
     const m = runMigrations(buildTMFile('frequencyRelative'))
-    const id = m.gridItems[0].settings.metricInstanceIds[0]
-    expect(typeof id).toBe('string')
-    expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
-    const created = (m.data.metricInstances as MetricInstance[]).find(i => i.id === id)
-    expect(created).toBeDefined()
-    expect(created!.baseId).toBe('transitionRelativeFrequency')
-    expect(created!.params).toEqual({ mode: 'fixation' })
-    expect((created as unknown as { system?: unknown }).system).toBeUndefined()
+    expect(m.gridItems[0].settings.metricInstanceIds[0]).toBe(
+      'transitionRelativeFrequency-fix'
+    )
+    const matching = (m.data.metricInstances as MetricInstance[]).filter(
+      i => i.baseId === 'transitionRelativeFrequency'
+    )
+    expect(matching).toHaveLength(1)
   })
 
   it('probability2 / probability3 → custom transitionProbability instances with step 2/3', () => {
@@ -176,21 +177,23 @@ describe('V4 → V5 transition-matrix settings migration', () => {
         id: 'tm-1',
         type: 'transitionMatrix',
         x: 0, y: 0, w: 12, h: 12,
-        settings: { stimulusId: 0, groupId: -1, aggregationMethod: 'frequencyRelative', colorScale: [] },
+        settings: { stimulusId: 0, groupId: -1, aggregationMethod: 'probability2', colorScale: [] },
       },
       {
         id: 'tm-2',
         type: 'transitionMatrix',
         x: 0, y: 12, w: 12, h: 12,
-        settings: { stimulusId: 0, groupId: -1, aggregationMethod: 'frequencyRelative', colorScale: [] },
+        settings: { stimulusId: 0, groupId: -1, aggregationMethod: 'probability2', colorScale: [] },
       },
     ])
     const m = runMigrations(file)
     const [id1, id2] = m.gridItems.map((g: any) => g.settings.metricInstanceIds[0])
     expect(id1).toBe(id2)
-    // Only one custom instance should exist for that baseId+params.
+    // Only one custom instance for that baseId+params. Uses probability2,
+    // which genuinely has no starter — the step-1 `transitionProbability-fix`
+    // starter is a different instance and must not be conflated with it.
     const instances = (m.data.metricInstances as MetricInstance[]).filter(
-      i => i.baseId === 'transitionRelativeFrequency',
+      i => i.baseId === 'transitionProbability' && Number(i.params.step) === 2,
     )
     expect(instances).toHaveLength(1)
   })

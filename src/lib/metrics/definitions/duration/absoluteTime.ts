@@ -1,28 +1,5 @@
 import { defineMetric } from '../../core/defineMetric'
 
-/**
- * ## Absolute dwell time
- *
- * Total time (ms) the participant's gaze dwelled within each AOI across all
- * fixation segments.
- *
- * - **Shape:** `aoi-vector` — one value per AOI slot, plus `noAoi` and
- *   `anyFixation` sentinels.
- * - **Unit:** `ms`
- * - **Category:** `duration`
- * - **Windowing:** supported (time-windowed timeseries via a `windowed`
- *   projection wrapping a scalar leaf such as `pick-aoi` or
- *   `pick-any-fixation`).
- *
- * ### Parameters
- * None.
- *
- * ### Invariants
- * - Writes to `anyFixationSlot` regardless of AOI membership, so
- *   `pick-any-fixation` is available.
- * - A fixation tagged by multiple raw AOIs mapping to the same slot
- *   contributes once per unique slot (see `runtime.ts` dedup).
- */
 defineMetric({
   id: 'absoluteTime',
   label: 'Absolute dwell time',
@@ -34,21 +11,14 @@ defineMetric({
   providesAnyFixation: true,
   // Never-fixated AOIs finalize to a finite 0, so min honestly includes them.
   aoiAggregate: { max: 'most-dwelled AOI', min: 'least-dwelled AOI' },
-  // Extensive: a physical duration that adds. Cohort `sum` (total dwell) and
-  // per-participant `mean` are both sound, as are sum/mean across matrix cells.
   measurementClass: 'extensive',
   searchTags: ['dwell', 'gaze', 'time', 'absolute', 'total', 'duration', 'aoi'],
   params: [] as const,
-  // Declares what onFixation does: sums the fixation's in-window overlap
-  // per slot (see MetricRecipe.accumulation) — windowing runs fused.
   accumulation: 'clippedDuration',
   init: ({ slots }) => new Float64Array(slots.totalSlots),
   onFixation: (acc, { frame, slots }, { slots: info }) => {
-    // Read `frame.duration` (sub-bin overlap with the active window) so a
-    // fixation crossing window boundaries contributes only its in-window
-    // portion. Across an unbounded scope, frame.duration === fix.duration,
-    // so non-windowed queries are unaffected. Matches the legacy
-    // aoi-stream collector's per-bin overlap math exactly.
+    // frame.duration, not fix.duration: a fixation crossing a window boundary
+    // contributes only its in-window overlap. Equal on unbounded scopes.
     const dur = frame.duration
     acc[info.anyFixationSlot] += dur
     if (slots.length === 0) acc[info.noAoiSlot] += dur

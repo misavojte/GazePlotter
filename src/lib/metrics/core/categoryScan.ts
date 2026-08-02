@@ -15,11 +15,10 @@ import type { MetricRecipe } from './dsl'
 
 /**
  * THE canonical eye-movement-type axis: one entry per displayed-name group of
- * the category table, in first-occurrence order (Fixation first — id 0's
- * reserved name keeps it a singleton leader). This single derivation is the
- * ORDER CONTRACT between category-vector recipes (their finalize vector is
- * indexed by it), the `pick-category` projection (resolves names against it),
- * and every consumer labeling per-type values (the comparison plot's bars).
+ * the category table, in first-occurrence order (Fixation leads, by id 0's
+ * reserved name). The ORDER CONTRACT between category-vector recipes, whose
+ * finalize vector is indexed by it, the `pick-category` projection, which
+ * resolves names against it, and every consumer labeling per-type values.
  */
 export function categoryGroups(
   engine: DataEngine
@@ -33,10 +32,9 @@ export function categoryGroupNames(engine: DataEngine): string[] {
 }
 
 /**
- * The iteration source a scan loop walks: `idx[k]` for `k ∈ [start, end)`
- * yields segment indices; when `catSlots` is non-null, `catSlots[k]` is that
- * segment's eye-movement-type slot on the canonical axis. Always typed arrays
- * so the hot loops stay monomorphic regardless of source.
+ * `idx[k]` for `k ∈ [start, end)` yields segment indices; `catSlots[k]`, when
+ * non-null, is that segment's type slot on the canonical axis. Always typed
+ * arrays, so the hot loops stay monomorphic regardless of source.
  */
 export interface ScanIndexRange {
   idx: Uint32Array
@@ -49,16 +47,12 @@ export interface ScanIndexRange {
 }
 
 /**
- * Resolve a recipe's iteration source for one (stimulus, participant) scan.
+ * Default (`scanSource` unset): the reader's prebuilt fixation index — zero
+ * extra work, no type axis.
  *
- * Default (`scanSource` unset): the reader's prebuilt fixation index — the
- * exact range/index pair the loops always used; zero extra work, no type axis.
- *
- * `'categories'`: EVERY segment in the participant's range, each carrying its
- * type slot (raw category id → displayed-name group, the canonical axis).
- * Segment order — and therefore time order — is preserved, so downstream
- * early-break and window sweeps hold unchanged. Cold-ish path (misses only;
- * results land in the raw cache).
+ * `'categories'`: EVERY segment in range, each carrying its type slot. Segment
+ * order, and so time order, is preserved, keeping downstream early-breaks and
+ * window sweeps valid. Runs on cache misses only.
  */
 export function resolveScanIndex(
   recipe: MetricRecipe<any, any>,
@@ -102,16 +96,15 @@ export function resolveScanIndex(
 }
 
 /**
- * Cache-key token for category-scanning recipes. Their results depend on the
- * category table (a MERGE fold or rename changes the type axis) — state the
- * reader-keyed cache bucket cannot see, unlike AOI edits which ride the slot
- * signatures. Empty for every other recipe, so fixation-metric keys are
- * byte-identical to before and category edits never evict them.
+ * These results depend on the category table (a MERGE fold or rename changes
+ * the type axis) — state the reader-keyed bucket cannot see, unlike AOI edits,
+ * which ride the slot signatures. Empty for every other recipe, so category
+ * edits never evict fixation-metric entries.
  */
 export function categoryCacheToken(engine: DataEngine, baseId: string): string {
   if (getRecipe(baseId)?.scanSource !== 'categories') return ''
-  // '\x1f' separators — displayed names are free text, so typable delimiters
-  // could make two different tables collide (the slotSignatures convention).
+  // '\x1f' separators (the slotSignatures convention) — displayed names are
+  // free text, so a typable delimiter could make two tables collide.
   return `c${getAllCategories(engine)
     .map(c => `${c.id}\x1f${c.displayedName}`)
     .join('\x1f')}|`

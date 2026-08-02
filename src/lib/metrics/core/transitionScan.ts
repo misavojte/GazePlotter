@@ -1,14 +1,8 @@
 import { arraysHaveSameElements } from '$lib/shared/utils/mathUtils'
 import type { FixationEvent } from './dsl'
 
-/**
- * Shared accumulator + scan helper for all transition-based aoi-pair-matrix
- * metrics (count, relative-frequency, probability, dwell-sum, dwell-mean).
- *
- * All of them share the same "from → to" detection logic across fixation /
- * visit modes. Each metric supplies its own per-transition contribution via
- * the `onTransition` callback in `processFixation`.
- */
+/** Shared accumulator + "from → to" detection for every transition metric;
+ *  each supplies its own contribution via `processFixation`'s callback. */
 export interface TransitionAcc {
   /** Side length of the square matrix (aoiCount + 1 — last row/col is outside-AOI). */
   size: number
@@ -38,13 +32,10 @@ export function initTransitionAcc(totalSlots: number, withAux = false): Transiti
 }
 
 /**
- * Advance the transition state machine by one fixation. Calls `onTransition`
- * exactly once per (prevIdx × currIdx) pair whenever a transition is detected.
- *
- * In fixation mode, every consecutive fixation pair is a transition.
- * In visit mode, consecutive same-AOI-set fixations merge into one visit —
- * their durations accumulate into `prevDuration`, and no transition fires
- * until the AOI set changes.
+ * Advance the state machine by one fixation, calling `onTransition` once per
+ * (prevIdx × currIdx) pair. In fixation mode every consecutive pair is a
+ * transition; in visit mode same-AOI-set fixations merge, accumulating into
+ * `prevDuration` until the set changes.
  */
 export function processFixation(
   acc: TransitionAcc,

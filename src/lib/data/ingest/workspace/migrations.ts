@@ -380,8 +380,8 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
   //      library:
   //      - barPlot:          aggregationMethod (string) → metricInstanceId (slug)
   //      - transitionMatrix: aggregationMethod (string) → metricInstanceId
-  //        (slug for the 4 starter-backed methods; new UUID-keyed custom
-  //        instance for frequencyRelative / probability2 / probability3).
+  //        (slug for the 5 starter-backed methods; new UUID-keyed custom
+  //        instance for probability2 / probability3, which have no starter).
   //   4. Migrate `aoiStreamPlot` off its bespoke `binSize` onto a windowed ×
   //      identity-aoi-vector metric instance.
   //   5. Normalize every metric-reference settings field to the canonical
@@ -518,8 +518,9 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
         case 'probability':      return 'transitionProbability-fix'
         case 'dwellTime':        return 'transitionDwellMean-fix'
         case 'segmentDwellTime': return 'transitionDwellMean-visit'
-        case 'frequencyRelative':
-          return ensureCustomMatrix('transitionRelativeFrequency', { mode: 'fixation' })
+        // Starter-backed since transitionRelativeFrequency was seeded; minting
+        // a custom instance here would duplicate that starter in the library.
+        case 'frequencyRelative': return 'transitionRelativeFrequency-fix'
         case 'probability2':
           return ensureCustomMatrix('transitionProbability', { mode: 'fixation', step: 2 })
         case 'probability3':

@@ -53,16 +53,12 @@ export type LeafProjection =
   | { kind: 'identity-participant-pair-matrix' }
   /**
    * ── The SUMMARY leaves ────────────────────────────────────────────────
-   * The three leaves that collapse a vector to one number. Each may carry
-   * `statistic`, the SUMMARY choice for sample-summarizing recipes
-   * (`sampleSummary`): the summary statistic belongs to the summary
-   * projection, never to the vector or a recipe param. Threaded into the
-   * per-participant scan via `InitCtx.summaryStatistic` (so it collapses each
-   * participant's sample BEFORE any cross-participant reduction) and gated by
-   * `recipeSupports` — a statistic on a sample-less recipe is invalid. It is
-   * deliberately absent from the leaf LABEL: the summary is disclosed once, by
-   * `summaryStatQualifier`, so it appears on every plot rather than only those
-   * printing a projection readout.
+   * The three that collapse a vector to one number, and so the only ones that
+   * may carry `statistic` (see `sampleSummary`). It threads into the scan via
+   * `InitCtx.summaryStatistic`, collapsing each participant's sample BEFORE
+   * any cross-participant reduction. Absent from the leaf LABEL on purpose:
+   * `summaryStatQualifier` discloses it once, so it shows on every plot rather
+   * than only those printing a projection readout.
    */
   | { kind: 'pick-aoi';          aoiRef: AoiRef; statistic?: SummaryStatistic }
   /** By displayed name only — portable and MERGE-stable, like name AoiRefs. */
@@ -163,19 +159,13 @@ export interface LeafKindDef<K extends LeafKind = LeafKind> {
 const passthrough = (_p: LeafProjection, c: ApplyContext): ApplyResult =>
   ({ values: [...c.rawValues], refMissing: false })
 
-/**
- * Cache-key token for a summary leaf's `statistic`. Empty for absent AND for
- * `mean`: an unset statistic resolves to `mean`, so the two describe the same
- * computation and must share one cache entry. Same convention as `rawCacheKey`
- * (runtime.ts), which also omits the mean token.
- */
+/** Empty for absent AND for `mean`: an unset statistic resolves to `mean`, so
+ *  the two describe one computation and must share a cache entry. */
 const statisticKey = (s: SummaryStatistic | undefined): string =>
   s && s !== 'mean' ? `~${s}` : ''
 
-/**
- * An identity leaf: the recipe's own shape, passed through untouched. Five
- * kinds differ only in that shape, their cache token, and their picker copy.
- */
+/** The recipe's own shape, passed through untouched. The five kinds differ
+ *  only in that shape, their cache token, and their picker copy. */
 const identityLeaf = <K extends LeafKind>(
   shape: OutputShape,
   key: string,
@@ -227,9 +217,6 @@ export const PROJECTION_LEAVES: { [K in LeafKind]: LeafKindDef<K> } = {
     hint: 'one number from all fixations together (AOIs ignored)',
     label:    () => 'any fixation',
     cacheKey: (p) => `pick:any${statisticKey(p.statistic)}`,
-    // Convention: recipes using the aoi-vector output-with-sentinels pattern
-    // allocate `aoiCount + 2` slots (aoiCount, noAoiSlot, anyFixationSlot).
-    // The any-fixation aggregate is always at index aoiCount + 1.
     apply:    (_p, c) => pickAnyFixation(c),
   },
   'aggregate-aoi': {
@@ -237,8 +224,8 @@ export const PROJECTION_LEAVES: { [K in LeafKind]: LeafKindDef<K> } = {
     rawShapes: ['aoi-vector'],
     title: 'Highest / lowest AOI',
     hint: 'the highest- or lowest-scoring AOI, per participant',
-    // The metric's named meaning of the extreme when provided ("most-dwelled
-    // AOI"); the generic operator phrase only as a metric-less fallback.
+    // The metric's named meaning of the extreme when provided; the generic
+    // operator phrase only as a metric-less fallback.
     label: (p, ctx) => {
       const named =
         p.reducer === 'max' || p.reducer === 'min'
@@ -299,16 +286,10 @@ export const PROJECTION_LEAVES: { [K in LeafKind]: LeafKindDef<K> } = {
   },
 }
 
-// Module-load invariant: any future windowable leaf must produce scalar or aoi-vector.
-// (The invariant is checked per-instance via recipeSupports at the validation layer.)
-
 // ─── Public dispatchers ─────────────────────────────────────────────────────
 
-/**
- * Registry lookup for a leaf whose kind is only known as the union — the ONE
- * localized cast correlating `leaf` with its `PROJECTION_LEAVES` entry (a
- * union-typed leaf can't call a per-kind def's methods directly).
- */
+/** The ONE localized cast correlating a union-typed leaf with its
+ *  `PROJECTION_LEAVES` entry, whose methods it cannot otherwise call. */
 export function leafDef(leaf: LeafProjection): LeafKindDef {
   return PROJECTION_LEAVES[leaf.kind] as LeafKindDef
 }
@@ -319,34 +300,23 @@ export function applyProjection(projection: Projection, ctx: ApplyContext): Appl
 }
 
 /**
- * The summary statistic an instance's projection declares — `'mean'` unless
- * the leaf is one of the SUMMARY leaves carrying an explicit choice. The
- * runtime threads this into the scan ctx (`InitCtx.summaryStatistic`) so
- * sample-summarizing recipes collapse each participant's sample with it in
- * `finalize`; a non-mean value also keys the raw cache (see `rawCacheKey`).
- * The `apply` step stays a plain slot select — by the time a projection runs,
- * the vector is already collapsed per slot.
- *
- * Identity leaves resolve to `mean` and have nowhere to say otherwise: a
- * VECTOR is the unmarked per-slot mean, which is the whole point of moving the
- * choice onto the summary.
+ * `'mean'` unless a SUMMARY leaf carries an explicit choice. Threaded into the
+ * scan ctx, so the collapse happens in `finalize`; a non-mean value also keys
+ * the raw cache. By the time `apply` runs the vector is already collapsed per
+ * slot, so that step stays a plain slot select.
  */
 export function projectionSummaryStatistic(p: Projection): SummaryStatistic {
   return leafSummaryStatistic(leafOf(p)) ?? 'mean'
 }
 
-/** The three leaves that collapse a vector to one number (see the union). */
+/** The three leaves that collapse a vector to one number. */
 export type SummaryLeaf = Extract<
   LeafProjection,
   { kind: 'pick-aoi' | 'pick-category' | 'pick-any-fixation' }
 >
 
-/**
- * THE predicate for "this leaf produces a summary, so it may carry a
- * `statistic`". One declaration, read by the validator's gate, the label
- * layer, and the configure modal's Summary select — a fourth summary leaf
- * joins all three by editing this list alone.
- */
+/** THE predicate for "may carry a `statistic`" — read by the validator's gate,
+ *  the label layer, and the configure modal's Summary select alike. */
 export function isSummaryLeafKind(kind: LeafKind): kind is SummaryLeaf['kind'] {
   return kind === 'pick-aoi' || kind === 'pick-category' || kind === 'pick-any-fixation'
 }
@@ -356,11 +326,10 @@ export function isSummaryLeaf(leaf: LeafProjection): leaf is SummaryLeaf {
 }
 
 /**
- * The statistic a leaf explicitly CARRIES, or `undefined` when it carries none
- * (an identity leaf, a non-summary leaf, or a summary leaf on a recipe without
- * a sample). Distinct from {@link projectionSummaryStatistic}, which resolves
- * the absent case to `mean`: the label layer needs the distinction, because a
- * collapse nobody chose is not disclosed as a choice.
+ * The statistic a leaf explicitly CARRIES. Unlike
+ * {@link projectionSummaryStatistic}, the absent case stays `undefined`: the
+ * label layer needs it, because a collapse nobody chose is not a disclosed
+ * choice.
  */
 export function leafSummaryStatistic(leaf: LeafProjection): SummaryStatistic | undefined {
   return isSummaryLeaf(leaf) ? leaf.statistic : undefined
@@ -375,16 +344,13 @@ export function projectionOutputShape(projection: Projection): OutputShape {
 }
 
 /**
- * How much of a projection a readout prints. A projection states TWO
- * independent things, and a caller can already be showing one of them:
+ * How much of a projection a readout prints, since a caller may already be
+ * showing part of it: `'leaf'` is WHICH slice ('AOI "Logo"', a matrix cell),
+ * `'full'` adds HOW it is cut over time.
  *
- *   - `'leaf'`  WHICH slice ('AOI "Logo"', 'type "Saccade"', a matrix cell).
- *   - `'full'`  that slice plus HOW it is cut over time (the window).
- *
- * Time-axis plots (Metric Timeline, AOI Timeline) draw the window on the x
- * axis, so they ask for `'leaf'`: printing `'full'` would state the window
- * twice, and printing nothing at all used to drop the slice with it, leaving
- * two plots of different AOIs wearing identical axis labels.
+ * Time-axis plots draw the window on the x axis and so ask for `'leaf'`.
+ * Printing nothing at all used to drop the slice too, leaving two plots of
+ * different AOIs wearing identical axis labels.
  */
 export type ProjectionLabelPart = 'leaf' | 'full'
 
@@ -412,16 +378,9 @@ export function projectionCacheKey(projection: Projection): string {
 // ─── Window label / key ─────────────────────────────────────────────────────
 
 /**
- * Standardised human-readable window descriptor used across plot axis
- * labels, instance readouts, and the metric library UI. Format:
- *
- *   - non-overlapping (`stepSize === windowSize`):   `"500 ms window"`
- *   - sliding         (`stepSize !== windowSize`):   `"1000 ms window, 100 ms step"`
- *
- * `unit` is the recipe's `windowUnit` ('ms' for time-windowed, 'fixations'
- * for fixation-windowed RQA recipes; rendered as 'fix' for compactness). The
- * window/step pair is comma-separated, not slash-separated: `/` is reserved
- * for the IUPAC quantity/unit separator in axis/legend labels.
+ * `"500 ms window"` when non-overlapping, `"1000 ms window, 100 ms step"` when
+ * sliding. Comma-separated, never slash: `/` is the IUPAC quantity/unit
+ * separator in axis labels.
  */
 export function windowLabel(w: WindowSpec, unit: WindowUnit): string {
   const u = unit === 'fixations' ? 'fix' : 'ms'
@@ -445,7 +404,7 @@ function pickAoi(ref: AoiRef, c: ApplyContext): ApplyResult {
 }
 
 function pickCategory(name: string, c: ApplyContext): ApplyResult {
-  // Trimmed compare — the canonical displayed-name matching rule
+  // Trimmed compare, the canonical displayed-name matching rule
   // (groupByDisplayedName), so a ref never misses on stray whitespace.
   const wanted = name.trim()
   const slot = (c.categoryNames ?? []).findIndex(n => n.trim() === wanted)
@@ -454,8 +413,7 @@ function pickCategory(name: string, c: ApplyContext): ApplyResult {
 }
 
 function pickAnyFixation(c: ApplyContext): ApplyResult {
-  // Convention: aoi-vector rawValues has layout [aoi_0, ..., aoi_{n-1}, noAoi, anyFixation].
-  // anyFixation lives at index aoiNames.length + 1.
+  // Layout is [aoi_0 … aoi_{n-1}, noAoi, anyFixation].
   const idx = c.aoiNames.length + 1
   const v = c.rawValues[idx]
   return { values: [Number.isFinite(v) ? v : Number.NaN], refMissing: false }

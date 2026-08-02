@@ -13,8 +13,10 @@ describe('eye-movement comparison registration', () => {
     expect(def.name).toBe('Eye-movement Comparison')
     expect(def.group).toBe('gaze-behavior')
     const defaults = def.getDefaultSettings()
-    // The library flow: default instance is the seeded movementCount starter.
-    expect(defaults.metricInstanceIds).toEqual(['movementCount'])
+    // The library flow: default instance is the seeded movementDuration
+    // starter (per-type counts are near-degenerate — saccades interleave
+    // fixations — so the duration vector is the informative first view).
+    expect(defaults.metricInstanceIds).toEqual(['movementDuration'])
     expect(defaults.orderBy).toBe('type')
     expect(defaults.statisticalOverlay).toBe('meanCi95')
     expect(def.consumesMetrics?.outputShape).toBe('category-vector')

@@ -72,9 +72,11 @@ export function getEyeMovementComparisonData(
     return { data: [], timeline: valueAxisTimeline(0, undefined), dataMax: 0, noMetric: true }
   }
   const { instance } = resolved
-  // A `proportion`-class metric (movementTimeShare) renders as a plain
-  // proportional bar, not a beeswarm — the same rule the AOI Comparison
-  // applies to `fixated`.
+  // A `proportion`-class metric renders as a plain proportional bar, not a
+  // beeswarm — the same rule the AOI Comparison applies to `fixated`. Read
+  // off the declared class rather than a recipe list: no category-vector
+  // metric is proportion today (the time share is intensive, like
+  // relativeTime), so this is false for every admissible instance.
   const isProportion =
     getMetric(instance.baseId)?.meta.measurementClass === 'proportion'
 

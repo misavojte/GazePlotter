@@ -1,31 +1,6 @@
 import { defineMetric } from '../../core/defineMetric'
 import { percentShare } from '../../core/numeric'
 
-/**
- * ## Relative dwell time
- *
- * Dwell time per AOI as a percentage of the participant's total fixation time
- * on the stimulus. Normalises attention across participants with different
- * overall scan durations.
- *
- * - **Shape:** `aoi-vector`
- * - **Unit:** `%`
- * - **Category:** `duration`
- * - **Windowing:** supported
- *
- * ### Parameters
- * None.
- *
- * ### Invariants
- * - Normalised by `anyFixationSlot` total, NOT the sum across AOI slots —
- *   summing AOI slots would double-count every fixation (once in its slot,
- *   once in anyFixation) and halve every percentage.
- * - A participant (or window) with zero total fixation time has an UNDEFINED
- *   relative dwell (0/0): every slot is `NaN`, not 0, so it drops out of
- *   cross-participant / cross-window reduction instead of deflating the mean.
- *   (A participant who HAS fixations but none on AOI X legitimately gets 0% on
- *   X — that case keeps a real 0, only the zero-total case is NaN.)
- */
 defineMetric({
   id: 'relativeTime',
   label: 'Relative dwell time',
@@ -35,28 +10,19 @@ defineMetric({
   rawShape: 'aoi-vector',
   windowUnit: 'ms',
   aoiAggregate: { max: 'most-dwelled AOI', min: 'least-dwelled AOI' },
-  // Intensive: each value is already a per-participant share (0..100%). Only
-  // `mean` is sound across participants — summing shares yields `≈ N · share`
-  // with no physical meaning (for a cohort total use absoluteTime, which is
-  // extensive). The class alone forbids `sum`; no per-recipe guard needed.
   measurementClass: 'intensive',
   searchTags: ['dwell', 'gaze', 'time', 'relative', 'percent', 'proportion', 'duration', 'aoi'],
   params: [] as const,
-  // absoluteTime's sums, finalized as a share of the anyFixation total —
-  // mirroring the finalize below (NaN when the total is 0).
   accumulation: 'clippedDurationShare',
   init: ({ slots }) => new Float64Array(slots.totalSlots),
   onFixation: (acc, { frame, slots }, { slots: info }) => {
-    // See absoluteTime — read `frame.duration` so windowed totals don't
-    // double-count fixations spanning bin boundaries.
-    const dur = frame.duration
+    const dur = frame.duration // in-window overlap; see absoluteTime
     acc[info.anyFixationSlot] += dur
     if (slots.length === 0) acc[info.noAoiSlot] += dur
     else for (let i = 0; i < slots.length; i++) acc[slots[i]] += dur
   },
-  // Normalise by total fixation time (the anyFixation slot), NOT by the sum of
-  // all slots — that would double-count every fixation (once in its AOI slot,
-  // once in anyFixation) and halve every reported percentage. The zero-total
-  // rule lives in percentShare.
+  // Denominator is the anyFixation slot, NOT the sum of AOI slots — that would
+  // count every fixation twice (its slot + anyFixation) and halve every
+  // percentage. Zero-total → NaN, per percentShare.
   finalize: (acc, slots) => percentShare(acc, acc[slots.anyFixationSlot]),
 })

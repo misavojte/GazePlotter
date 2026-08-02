@@ -17,26 +17,19 @@ import { effectiveReduction, reductionLabel } from './core/aggregation'
 export type { Projection } from './core/projection'
 
 export interface MetricInstance {
-  /**
-   * Starters use human-readable slugs from {@link STARTING_METRICS}; user-created
-   * instances use `crypto.randomUUID()`. Both live in the same string namespace
-   * without colliding — slugs are hand-authored, UUIDs are generated.
-   */
+  /** A hand-authored slug from {@link STARTING_METRICS}, or a
+   *  `crypto.randomUUID()` for user-created instances. */
   id: string
   baseId: string
   params: Record<string, unknown>
   label: string
   projection: Projection
   /**
-   * Per-instance override of the cross-participant reduction used by reduce-mode
-   * plots via {@link queryGroup} (`mean` / `sum`). Absent ⇒ the metric's
-   * `defaultReduction`. This lets two instances of the SAME recipe carry
-   * different reductions — e.g. a windowed "Time on AOI" summed for an AOI
-   * Timeline (a cohort total that tapers as participants drop out of late
-   * windows) vs. the per-participant mean elsewhere. Validity is a pure function
-   * of the metric's `measurementClass` ({@link soundReductions}); a stale or
-   * unsound value falls back to the default at query time (request === result
-   * for any sound value, never a silent downgrade between sound values).
+   * Per-instance override for reduce-mode plots, letting two instances of the
+   * SAME recipe differ — a windowed "Time on AOI" summed for an AOI Timeline
+   * (a cohort total that tapers as participants drop out of late windows) vs.
+   * the per-participant mean elsewhere. Absent ⇒ the metric's
+   * `defaultReduction`; a stale or unsound value falls back at query time.
    */
   reduction?: GroupReduction
 }
@@ -44,22 +37,12 @@ export interface MetricInstance {
 // ─── Instance construction ──────────────────────────────────────────────────
 
 /**
- * Single constructor for a `MetricInstance`. All instance-creation paths route
- * through here — the metric-library handlers (via the `updateMetricInstances`
- * workspace command), starter seeding, and future
- * agent-callable compute APIs — so a metric instance always carries fully
- * resolved params, a valid projection, and a non-empty label regardless of
- * where it came from.
+ * The single constructor — every creation path routes through here, so an
+ * instance always carries resolved params, a valid projection, and a non-empty
+ * label. Defaults: a UUID `id` (starters pass their slug), `resolveParams`
+ * over `params`, the recipe's identity leaf, `defaultInstanceLabel`.
  *
- *   - `id`         defaults to `crypto.randomUUID()`. Starters pass their slug.
- *   - `params`     are run through `resolveParams` so any missing keys are
- *                  filled with the recipe's declared defaults (and primitive
- *                  values get coerced to the declared type).
- *   - `projection` defaults to the recipe's identity leaf (`identityFor`).
- *   - `label`      defaults to `defaultInstanceLabel(baseId)` (the bare quantity name).
- *
- * Returns `null` when `baseId` does not name a registered recipe — callers
- * (UI, starter loader, agent) handle the miss in their own way.
+ * `null` when `baseId` names no registered recipe; callers handle the miss.
  */
 export function createMetricInstance(opts: {
   baseId: string
@@ -80,9 +63,8 @@ export function createMetricInstance(opts: {
     params,
     projection,
     label,
-    // Only carry the field when explicitly set, so instances that ride the
-    // metric's default reduction stay free of a redundant override (keeps the
-    // exported workspace and the label provenance clean).
+    // Only when explicitly set, so instances riding the metric's default stay
+    // free of a redundant override in the exported workspace.
     ...(opts.reduction ? { reduction: opts.reduction } : {}),
   }
 }
@@ -117,13 +99,12 @@ export function resolveInstance(
 }
 
 /**
- * Load-time check for the workspace normalization: does this serialized
- * instance carry an `aggregate-aoi` extreme its metric no longer names
- * (`meta.aoiAggregate`)? Such an instance is rejected by every plot contract,
- * so left in the library it would strand invisibly — no card, no delete
- * button — while re-serializing into every export. Operates on raw untyped
- * JSON (Web-Worker-safe, no engine). Unknown recipes are never stranded:
- * this build's registry is not the arbiter of theirs.
+ * Does this serialized instance carry an `aggregate-aoi` extreme its metric no
+ * longer names? Every plot contract rejects such an instance, so left in the
+ * library it strands invisibly — no card, no delete button — while
+ * re-serializing into every export. Raw untyped JSON (Web-Worker-safe, no
+ * engine); unknown recipes never strand, this build's registry not being the
+ * arbiter of theirs.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function isStrandedAoiAggregate(inst: any): boolean {
@@ -138,18 +119,15 @@ export function isStrandedAoiAggregate(inst: any): boolean {
 
 /**
  * Load-time normalization: carry a serialized `params.statistic` onto the
- * instance's SUMMARY leaf. The summary choice moved from a recipe param to the
+ * instance's SUMMARY leaf. The choice moved from a recipe param to the
  * projection, and a stale param would key the raw cache while `finalize` read
- * the projection, so it is always consumed, never left behind.
+ * the projection — so it is always consumed, never left behind.
  *
- * Gated on `meta.sampleSummary` rather than a baseId list, so a future migrated
- * metric needs no edit here and an UNKNOWN recipe keeps its params verbatim
- * (this build's registry is not the arbiter of a workspace it cannot read).
- *
- * A non-mean setting on an IDENTITY leaf (an AOI Timeline instance) has
- * nowhere to go: a vector is the unmarked per-slot mean by construction. That
- * instance drops to mean, which is the accepted cost of the move. Operates on
- * raw untyped JSON (Web-Worker-safe, no engine); unknown recipes pass through.
+ * Gated on `meta.sampleSummary`, not a baseId list, so a future migrated
+ * metric needs no edit here. A non-mean setting on an IDENTITY leaf has
+ * nowhere to go (a vector is the per-slot mean by construction) and drops to
+ * mean — the accepted cost of the move. Raw untyped JSON; unknown recipes pass
+ * through with their params verbatim.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function carrySummaryStatistic(inst: any): any {
@@ -175,24 +153,16 @@ export function carrySummaryStatistic(inst: any): any {
 // ─── Label / readout helpers ─────────────────────────────────────────────────
 
 /**
- * Default display NAME for a metric instance: the recipe's bare quantity name
- * (`meta.label`), e.g. `"Transition probability"`, `"Scanpath similarity"`.
- *
- * Parameters, projection and unit are deliberately NOT baked into the name —
- * they are derived separately ({@link formatParamReadout},
- * {@link formatProjectionReadout}, `meta.unit`) and shown as chips in the metric
- * selector / as mid-dot qualifiers on a plot axis. A user rename overrides only
- * this name, so it can never destroy the derived metadata (the unit and the
- * operational params always remain visible and correct).
+ * The recipe's bare quantity name. Params, projection and unit stay OUT of it
+ * — they are derived separately and shown as chips, so a user rename can never
+ * destroy them.
  */
 export function defaultInstanceLabel(baseId: string): string {
   return getMetric(baseId)?.meta.label ?? baseId
 }
 
-/** Human-readable readout of the projection. `part` selects the slice alone or
- *  the slice plus its window (see {@link ProjectionLabelPart}). An
- *  `aggregate-aoi` leaf prints the metric's own named meaning of the extreme
- *  ("most-dwelled AOI") — the same phrase that gated the projection. */
+/** An `aggregate-aoi` leaf prints the metric's own named meaning of the
+ *  extreme — the same phrase that gated the projection. */
 export function formatProjectionReadout(
   instance: MetricInstance,
   part: ProjectionLabelPart = 'full',
@@ -209,11 +179,9 @@ export function formatProjectionReadout(
 }
 
 /**
- * The instance's parameter qualifiers — every settable param with its current
- * value, via the single {@link paramToLabel} rule. The reduction statistic is
- * NOT here (see {@link reductionQualifier} / {@link instanceReadout}); this stays
- * purely the recipe's params so it composes cleanly. Always derived from the
- * instance, so a renamed display name never drops these.
+ * Every settable param with its current value, via the one
+ * {@link paramToLabel} rule. Purely the recipe's params, so it composes with
+ * {@link reductionQualifier} rather than absorbing it.
  */
 export function formatParamReadout(instance: MetricInstance): string[] {
   const m = getMetric(instance.baseId)
@@ -225,12 +193,8 @@ export function formatParamReadout(instance: MetricInstance): string[] {
 
 
 /**
- * The EFFECTIVE cross-participant reduction for an instance — the single source
- * of truth shared by BOTH the label ({@link reductionQualifier}) and the runtime
+ * Shared by BOTH the label ({@link reductionQualifier}) and the runtime
  * ({@link queryGroup}), so what is disclosed always equals what is computed.
- * Trivial and shape-independent: a sound requested value wins verbatim, else the
- * metric's `defaultReduction` (see {@link effectiveReduction}). No silent
- * between-sound downgrade — request === result.
  */
 export function resolveReduction(instance: MetricInstance): GroupReduction {
   const m = getMetric(instance.baseId)
@@ -238,12 +202,8 @@ export function resolveReduction(instance: MetricInstance): GroupReduction {
   return effectiveReduction(m.meta, instance.reduction)
 }
 
-/**
- * The cross-participant reduction as a readout qualifier — `· summed` for a
- * cohort sum, `null` for `mean` (the conventional default needs no disclosure)
- * and for metrics not reduced across participants (`relational`). Shown
- * identically in the selector and on the figure.
- */
+/** `· summed` for a cohort sum; `null` for `mean` (the conventional default
+ *  needs no disclosure) and for `relational` metrics. */
 export function reductionQualifier(
   instance: MetricInstance | null | undefined
 ): string | null {
@@ -254,18 +214,14 @@ export function reductionQualifier(
 }
 
 /**
- * The within-participant SUMMARY statistic as a mid-dot readout qualifier — how
- * a metric collapses each slot's per-event sample into the per-participant
- * value. Read off the SUMMARY projection, the only place it can be declared.
+ * How a metric collapses each slot's per-event sample, read off the SUMMARY
+ * projection. Disclosed here rather than inside the leaf label because only
+ * some plots print a projection readout, and the summarization must show on
+ * every figure.
  *
- * Deliberately disclosed here rather than inside the leaf label: a projection
- * readout is printed by only some plots (`includeProjection`), and the
- * summarization method must be visible on EVERY figure that shows one.
- *
- * `null` when nothing chose a statistic — an identity vector, whose collapse is
- * fixed at the per-slot mean and so is not a choice to disclose. UNLIKE
- * {@link reductionQualifier}, a statistic that WAS chosen discloses `mean` too:
- * that is the whole point of the chip.
+ * `null` when nothing chose one — an identity vector's collapse is fixed at
+ * the per-slot mean, so it is not a choice. But unlike
+ * {@link reductionQualifier}, a chosen `mean` IS disclosed: that is the point.
  */
 function summaryStatQualifier(
   instance: MetricInstance | null | undefined
@@ -275,17 +231,14 @@ function summaryStatQualifier(
 }
 
 /**
- * THE instance's full derived qualifier chips — params, the within-participant
- * summary statistic, and the cross-participant reduction. This is the SINGLE
- * readout the metric selector AND plot axes/legends compose from, so the panel
- * and the figure agree exactly and a static export is self-documenting.
- * `includeReduction: false` drops the reduction chip for distribution plots
- * (the bar plot, which discloses spread via its mean±CI / median-IQR overlay
- * rather than a point statistic).
+ * The instance's derived qualifier chips — params, summary statistic,
+ * cross-participant reduction. The SINGLE readout the metric selector and plot
+ * axes both compose from, so panel and figure agree exactly.
  *
- * There is no matching opt-out for the summary chip: a distribution plot
- * consumes the raw VECTOR, and a vector never carries a chosen statistic, so
- * the chip cannot appear there in the first place.
+ * `includeReduction: false` drops the reduction chip for distribution plots,
+ * which disclose spread via their overlay instead. No matching opt-out exists
+ * for the summary chip: a distribution plot consumes the raw VECTOR, which
+ * never carries a chosen statistic.
  */
 export function instanceReadout(
   instance: MetricInstance,
@@ -302,19 +255,13 @@ export function instanceReadout(
 }
 
 /**
- * The instance's one-line DETAIL text under its name — unit first, then the
- * {@link instanceReadout} chips, then the projection.
+ * The one-line DETAIL text under an instance's name: unit, chips, projection.
+ * The projection is suppressed when the user's own label already contains it —
+ * renaming to "Dwell · One AOI" must not print "One AOI" twice. That echo rule
+ * lives here so the pane selector and the library card cannot disagree.
  *
- * The projection is suppressed when the user's own label already contains it:
- * renaming an instance to "Dwell · One AOI" must not print "One AOI" twice.
- * That echo rule is a cross-surface semantic (the pane's metric selector and
- * the library card have to agree, or the same instance reads differently in
- * two places), so it lives here with the readout rather than being retyped per
- * surface.
- *
- * Not every detail line composes this way — the export modal deliberately
- * orders and filters differently — so this is the SHARED composition, not the
- * only one.
+ * The SHARED composition, not the only one — the export modal orders and
+ * filters differently on purpose.
  */
 export function instanceDetailLine(instance: MetricInstance): string {
   const unit = getMetric(instance.baseId)?.meta.unit ?? ''

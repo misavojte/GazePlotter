@@ -2,36 +2,11 @@ import { defineMetric } from '../../core/defineMetric'
 import { integerParam, numberParam } from '../../core/params'
 
 /**
- * ## Was fixated (AOI hit / noticed rate)
- *
- * Binary per participant, in PERCENT: 100 if the participant fixated the AOI
- * (meeting the threshold), else 0 — the values match the declared `%` unit, so
- * every consumer (bar, evolving, aoi-stream, exports) reads them without
- * scaling. Aggregated across participants (`mean`), this is the per-AOI
- * noticed-rate / hit ratio — the percentage of participants who looked
- * at the AOI at all. The `proportion` aggregation is the single signal that tells
- * the bar plot to render a plain proportional bar instead of a beeswarm of 0/1 dots.
- *
- * - **Shape:** `aoi-vector`
- * - **Unit:** `%` (per participant 0 or 100; cross-participant mean is 0–100)
- * - **Category:** `binary` (dichotomous detection — whether, not how many; the
- *   companion to time-to-first-fixation's "when")
- * - **Windowing:** supported. Per window: was the AOI fixated (thresholds
- *   evaluated WITHIN the window)? Group-reduced by `mean` this is the classic
- *   proportion-of-participants-looking timeline — when an AOI was "visible"
- *   to the cohort. Thresholds larger than the window trivially yield 0.
- *
- * ### Parameters
- * - `minFixationCount` (default 1): minimum fixations on the AOI, within the
- *   evaluated scope (window or recording), to count as fixated.
- * - `minDwellMs` (default 0): minimum total dwell (ms) on the AOI, within the
- *   evaluated scope, to count as fixated.
- *
- * ### Invariants
- * - An AOI the participant never fixated emits a finite `0`, never NaN, so it stays
- *   in the proportion's denominator — otherwise the rate inflates toward 1.0.
- * - Binarised per AOI: 5 fixations still contribute one 100, not 500 — this is
- *   a presence, not a count.
+ * 0 or 100, not 0/1, so the values match the declared `%` unit and every
+ * consumer reads them unscaled. A never-fixated AOI emits a finite 0, never
+ * NaN — it must stay in the denominator or the noticed rate inflates.
+ * Windowed, thresholds are evaluated within the window (one larger than the
+ * window trivially yields 0).
  */
 const minFixationCount = integerParam('minFixationCount', 'Min fixations', 1, {
   min: 1,
@@ -54,13 +29,9 @@ defineMetric({
   category: 'binary',
   rawShape: 'aoi-vector',
   windowUnit: 'ms',
-  // Extremes over 0/100 indicators are set logic: max = fixated at least one
-  // AOI (OR), min = fixated every AOI (AND). Cross-participant means of these
-  // are coverage rates — "% who noticed anything" / "% who saw everything".
+  // Extremes over 0/100 indicators are set logic: max = OR, min = AND.
   aoiAggregate: { max: 'at least one AOI', min: 'every AOI' },
-  // Proportion: a per-participant 0/100 (%) indicator. The cross-participant
-  // mean is the noticed-rate in percent, and the class flips the bar plot to a
-  // proportional render instead of a beeswarm.
+  // Also flips the bar plot to a proportional render instead of a beeswarm.
   measurementClass: 'proportion',
   searchTags: ['fixated', 'hit', 'hit ratio', 'noticed', 'presence', 'attention', 'capture', 'rate', 'proportion', 'aoi', 'visible'],
   params: [minFixationCount, minDwellMs] as const,
@@ -72,8 +43,7 @@ defineMetric({
     minDwell: params.minDwellMs,
   }),
   onFixation: (acc, { frame, slots }, { slots: info }) => {
-    // SW-RQA window convention: a fixation belongs to the window containing its
-    // midpoint. Unbounded scopes always pass, so non-windowed queries are unaffected.
+    // SW-RQA membership; see fixationCount.
     if (!frame.midpointInWindow) return
     const dur = frame.duration
     if (slots.length === 0) {
@@ -86,14 +56,9 @@ defineMetric({
       acc.dwell[slots[i]] += dur
     }
   },
-  // Per AOI: 100 (%) if the cumulative count and dwell met the threshold,
-  // else a finite 0 — percent so the values match the declared unit.
-  //
-  // No `individuals`: this metric's per-participant value IS its single
-  // observation, and that is exactly what `queryPooledIndividuals` contributes
-  // for a recipe without the hook (one dot per participant from the cached
-  // aggregate). Declaring it would restate this expression per slot AND cost an
-  // extra uncached scan per participant to produce identical numbers.
+  // No `individuals`: the per-participant value IS the single observation, and
+  // queryPooledIndividuals already contributes exactly that from the cached
+  // aggregate. Declaring the hook would only buy an extra uncached scan.
   finalize: (acc) => {
     const out = new Array<number>(acc.count.length)
     for (let i = 0; i < out.length; i++) {

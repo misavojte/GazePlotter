@@ -109,7 +109,7 @@ describe('eye-movement comparison transformer', () => {
     expect(blink?.individualParticipantNames).toEqual(['P0'])
   })
 
-  it('total time and share of recording (per-participant denominator, proportion flag)', () => {
+  it('total time and share of recording (per-participant denominator, distribution kept)', () => {
     const time = getEyeMovementComparisonData(
       createEngine() as any,
       makeSettings({ metricInstanceIds: ['mt'] })
@@ -125,9 +125,13 @@ describe('eye-movement comparison transformer', () => {
     // the display-formatted mean (formatDecimal → one decimal).
     expect(share.data.find(d => d.label === 'Saccade')?.individualValues).toEqual([17.5, 20])
     expect(share.data.find(d => d.label === 'Saccade')?.value).toBe(18.8)
-    // movementTimeShare is proportion-class → plain bars, like `fixated` on
-    // the AOI Comparison.
-    expect(share.proportion).toBe(true)
+    // movementTimeShare is INTENSIVE, not proportion: a continuous
+    // per-participant percentage (like relativeTime), so it keeps its
+    // beeswarm and overlay, and the axis scans the DOTS across all types
+    // (P1's 80 % fixation share) rather than the largest bar mean (78.75 %).
+    // `proportion` is reserved for the 0/1 `fixated` case.
+    expect(share.proportion).toBe(false)
+    expect(share.dataMax).toBe(80)
   })
 
   it('bounded time range: values clip and the share denominator is the range', () => {

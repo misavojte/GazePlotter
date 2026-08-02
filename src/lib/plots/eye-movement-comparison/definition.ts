@@ -43,8 +43,13 @@ export const eyeMovementComparisonDefinition = definePlot<
           key: 'statisticalOverlay',
           label: 'Statistical overlay',
           options: OVERLAY_OPTIONS,
-          // Proportion metrics (movementTimeShare) render as plain bars; the
-          // overlay does not apply — same gate as the AOI Comparison.
+          // Proportion metrics render as plain bars; the overlay does not
+          // apply — the same shared gate the AOI Comparison uses. No
+          // category-vector metric is proportion-class today (the time SHARE
+          // is intensive, like relativeTime), so this reads as false for
+          // every instance the contract currently admits; it stays because
+          // the rule belongs to the metric's declared class, not to a list of
+          // recipe ids.
           showWhen: ctx => !isProportion(ctx),
         },
         {
@@ -91,7 +96,7 @@ export const eyeMovementComparisonDefinition = definePlot<
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
     groupId: params.groupId ?? -1,
-    metricInstanceIds: ['movementCount'],
+    metricInstanceIds: ['movementDuration'],
     barPlottingType: 'horizontal',
     orderBy: 'type',
     orderDirection: 'asc',

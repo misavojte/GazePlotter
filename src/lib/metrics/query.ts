@@ -21,11 +21,8 @@ import { resolveReduction, type MetricInstance } from './instances'
 export type { Scope } from './core/runtime'
 export type { GroupScope } from './core/dsl'
 
-/**
- * Every MetricResult carries `provenance` describing exactly how the number
- * was produced — recipe + params + projection. Q1-paper exports and future
- * MCP callers can cite this verbatim.
- */
+/** How the number was produced — recipe + params + projection. Every
+ *  MetricResult carries one, so a paper export can cite it verbatim. */
 export interface MetricProvenance {
   baseId: string
   params: Record<string, unknown>
@@ -50,9 +47,7 @@ export type MetricResult =
 export function query(instance: MetricInstance, scope: Scope): MetricResult {
   const recipe = getRecipe(instance.baseId)
   if (!recipe) return emptyResult(instance, 'scalar', '')
-  // Group-shape recipes (participant-pair-matrix) need a participant set,
-  // not a single Scope. Per-participant projections from the group result are
-  // a Phase 2 concern; for now, single-participant queries return empty.
+  // Group-shape recipes need a participant SET, not a single Scope.
   if (recipe.rawShape === 'participant-pair-matrix') {
     return emptyResult(instance, 'participant-pair-matrix', recipe.unit)
   }
@@ -70,8 +65,8 @@ export function queryBatch(instances: readonly MetricInstance[], scope: Scope): 
   const windowed: MetricInstance[] = []
   const plain: MetricInstance[] = []
   for (const inst of instances) {
-    // Group-shape recipes don't compose with per-participant batch evaluation.
-    // Consumers that need them call queryGroup directly.
+    // Group-shape recipes don't compose with per-participant batching;
+    // consumers call queryGroup directly.
     const r = getRecipe(inst.baseId)
     if (r?.rawShape === 'participant-pair-matrix') continue
     ;(inst.projection.kind === 'windowed' ? windowed : plain).push(inst)
@@ -108,8 +103,8 @@ export function queryBatch(instances: readonly MetricInstance[], scope: Scope): 
 export function queryGroup(instance: MetricInstance, group: GroupScope): MetricResult {
   const recipe = getRecipe(instance.baseId)
   if (!recipe) return emptyResult(instance, 'scalar', '')
-  // Group-shape recipes own the full computation. Per-slot reduction across
-  // participants doesn't apply — participants ARE the matrix axis.
+  // Group-shape recipes own the full computation: participants ARE the axis,
+  // so there is nothing to reduce across.
   if (recipe.rawShape === 'participant-pair-matrix') {
     if (!recipe.scanGroup) return emptyResult(instance, 'participant-pair-matrix', recipe.unit)
     const params = resolveParams(recipe.params, instance.params)
@@ -129,14 +124,11 @@ export function queryGroup(instance: MetricInstance, group: GroupScope): MetricR
       provenance,
     }
   }
-  // The effective cross-participant reduction — resolved in ONE place
-  // (`resolveReduction`) shared with the label, so what's computed always
-  // matches what's disclosed. Instance override (when sound) → metric default;
-  // request === result, no silent downgrade.
+  // Resolved in ONE place, shared with the label, so what is computed always
+  // matches what is disclosed.
   const method = resolveReduction(instance)
   if (instance.projection.kind === 'windowed') {
-    // Native cross-participant reduction for windowed projections — dispatched
-    // into the runtime so plot transformers don't reimplement per-cell reduction.
+    // Into the runtime, so plot transformers don't reimplement per-cell reduction.
     const projected = runWindowedGroup(
       recipe,
       instance,
@@ -162,11 +154,8 @@ export function queryGroup(instance: MetricInstance, group: GroupScope): MetricR
     projectLeaf(recipe, instance.projection, group.engine, aoiNames, reduced, slots))
 }
 
-/**
- * Per-fixation individual values for every slot from ONE participant scan
- * (indexed by slot — box-plot/beeswarm individuals). Returns `null` for
- * recipes without an individuals recipe (use the aggregate `query`).
- */
+/** Per-event values by slot from ONE participant scan — the beeswarm's dots.
+ *  `null` for recipes with no `individuals`; use the aggregate `query`. */
 export function queryIndividualsAllSlots(instance: MetricInstance, scope: Scope): number[][] | null {
   const recipe = getRecipe(instance.baseId)
   if (!recipe) return null
@@ -180,25 +169,19 @@ export interface PooledIndividuals {
 }
 
 /**
- * THE beeswarm-pooling rule, for every distribution plot: pool each
+ * THE beeswarm-pooling rule for every distribution plot: pool each
  * participant's per-EVENT sample per slot, tagged with who contributed it.
  *
- * A metric declaring an `individuals` recipe (fixationDuration's raw
- * fixations, movementDuration's raw segments) contributes EVERY event as its
- * own dot; one without contributes a single dot per participant from the
- * cached aggregate vector. Non-finite values drop — NaN means "this
- * participant has no such sample" (no fixations in that AOI, no segments of
- * that type) and must leave the distribution rather than sit at zero and drag
- * it, while a real 0 (a count) is data and stays.
+ * A metric declaring `individuals` contributes EVERY event as its own dot; one
+ * without contributes a single dot per participant from the cached aggregate.
+ * Non-finite values drop — NaN means "no such sample here" and must leave the
+ * distribution rather than sit at zero and drag it, while a real 0 is data.
  *
- * Costs ONE scan per participant regardless of slot count: the per-slot
- * individuals come from a single accumulator and the aggregate is fetched
- * lazily, at most once, only for slots that need the fallback. Callers pass
- * the slots they will actually draw (the AOI slots incl. sentinels, or just
- * the SELECTION-kept type slots), so a narrowed plot does no extra work.
- *
- * Within each slot, values stay in participant order — the dot order the
- * figure and its tooltips rely on.
+ * ONE scan per participant regardless of slot count: the per-slot individuals
+ * come from a single accumulator, and the aggregate is fetched lazily, only
+ * for slots needing the fallback. Callers pass the slots they will draw, so a
+ * narrowed plot does no extra work. Within a slot, values stay in participant
+ * order — the dot order the tooltips rely on.
  */
 export function queryPooledIndividuals(
   instance: MetricInstance,
@@ -213,15 +196,14 @@ export function queryPooledIndividuals(
     const scope = scopes[p]
     const name = participantNames[p]
     const perSlot = queryIndividualsAllSlots(instance, scope)
-    // Lazy + reused: the fallback for slots this participant has no
-    // individuals for, and the only source for metrics without the recipe.
-    // `query` is cached, so it scans at most once per participant.
+    // Lazy + reused: the fallback for slots with no individuals, and the only
+    // source for metrics without the hook. `query` is cached, so this scans at
+    // most once per participant.
     let aggregate: number[] | undefined
     const aggregateAt = (slot: number): number => {
       if (!aggregate) {
         const r = query(instance, scope)
-        // Whichever vector shape the plot's contract admitted — the shapes
-        // stay separate declarations, this only reads the values off one.
+        // Whichever vector shape the plot's contract admitted.
         aggregate = r.shape === 'aoi-vector' || r.shape === 'category-vector' ? r.values : []
       }
       return aggregate[slot] ?? Number.NaN
@@ -289,8 +271,7 @@ function wrapProjectedResult(
     return { shape, metricId, unit, vectors, timeline: projected.timeline ?? [], slots, provenance }
   }
   if (shape === 'participant-pair-matrix') {
-    // queryGroup short-circuits scanGroup recipes upstream; this branch only
-    // fires if a future per-participant projection feeds this path.
+    // Unreachable today: queryGroup short-circuits scanGroup recipes upstream.
     const size = Math.round(Math.sqrt(values.length))
     return { shape, metricId, unit, matrix: values, size, participantIds: [], provenance }
   }
@@ -298,27 +279,27 @@ function wrapProjectedResult(
   return { shape: 'aoi-pair-matrix', metricId, unit, matrix: values, size, provenance }
 }
 
+/** Provenance always describes the real instance: there is no synthesized
+ *  fallback, so an empty result stays as citable as a populated one. */
 function emptyResult(
-  instance: MetricInstance | string,
+  instance: MetricInstance,
   shape: 'scalar' | 'aoi-vector' | 'aoi-pair-matrix' | 'participant-pair-matrix',
   unit: string,
 ): MetricResult {
-  const baseId = typeof instance === 'string' ? instance : instance.baseId
-  const provenance: MetricProvenance = typeof instance === 'string'
-    ? { baseId, params: {}, projection: { kind: 'identity-scalar' } }
-    : { baseId: instance.baseId, params: instance.params, projection: instance.projection }
-  const metricId = baseId
+  const metricId = instance.baseId
+  const provenance: MetricProvenance = {
+    baseId: instance.baseId,
+    params: instance.params,
+    projection: instance.projection,
+  }
   if (shape === 'scalar') return { shape: 'scalar', metricId, unit, value: Number.NaN, isFinite: false, provenance }
   if (shape === 'aoi-vector') return { shape: 'aoi-vector', metricId, unit, values: [], slots: { totalSlots: 0, noAoiSlot: 0, anyFixationSlot: 0 }, provenance }
   if (shape === 'participant-pair-matrix') return { shape: 'participant-pair-matrix', metricId, unit, matrix: [], size: 0, participantIds: [], provenance }
   return { shape: 'aoi-pair-matrix', metricId, unit, matrix: [], size: 0, provenance }
 }
 
-/**
- * 2D reduction: rows × slots → one value per slot. Thin wrapper over
- * `reduceFinite` (in `core/aggregation.ts`) — keeps the per-slot iteration here
- * while the actual reduction maths lives in one place.
- */
+/** rows × slots → one value per slot. Only the iteration lives here; the
+ *  reduction maths stays in `reduceFinite`. */
 function reducePerSlot(rows: number[][], method: GroupReduction): number[] {
   if (rows.length === 0) return []
   const slotCount = rows[0].length

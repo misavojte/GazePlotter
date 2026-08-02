@@ -26,17 +26,48 @@ export function collectScanpath(
   timeStart: number = 0,
   timeEnd: number = 0,
 ): string {
+  return encodeScanpath(
+    engine,
+    stimulusId,
+    participantId,
+    aoiLetterIndex(aois),
+    collapsed,
+    timeStart,
+    timeEnd,
+  )
+}
+
+/** AOI id → letter index. Depends only on `aois`, so a multi-participant run
+ *  builds it once rather than per participant (see {@link collectAllScanpaths}). */
+function aoiLetterIndex(
+  aois: readonly ExtendedInterpretedDataType[],
+): Map<number, number> {
+  const lookup = new Map<number, number>()
+  for (let i = 0; i < aois.length; i++) lookup.set(aois[i].id, i)
+  return lookup
+}
+
+/** The encoder proper; {@link collectScanpath} documents the policy it implements. */
+function encodeScanpath(
+  engine: DataEngine,
+  stimulusId: number,
+  participantId: number,
+  aoiLookup: ReadonlyMap<number, number>,
+  collapsed: boolean,
+  timeStart: number,
+  timeEnd: number,
+): string {
   const reader = engine.getReader()
   if (!reader || !engine.metadata) return ''
 
   const aoiGroupReader = engine.getAoiGroupReader()
   if (!aoiGroupReader) return ''
 
-  const aoiLookup = new Map<number, number>()
-  for (let i = 0; i < aois.length; i++) {
-    aoiLookup.set(aois[i].id, i)
-  }
-
+  // Unique mapped AOIs per segment. The reader writes without bounds-checking,
+  // so a segment overlapped by more DISTINCT AOI groups than this would
+  // silently lose the excess. Deliberately NOT sized from `aoiLookup`: under an
+  // AOI SELECTION that map is narrowed, while the reader still resolves against
+  // every group in the stimulus, so its size is a lower bound, not an upper one.
   const aoiBuffer = new Uint16Array(32)
   let result = ''
   let prevChar = ''
@@ -54,6 +85,9 @@ export function collectScanpath(
     if (segStart < timeStart) continue
     if (hasUpperBound && segStart >= timeEnd) break
 
+    // Already group-mapped and deduplicated: the reader resolves each raw id
+    // through `groupPool`, which is what `getAoiMapping` does. Do not map
+    // again here.
     const aoiCount = aoiGroupReader.getSegmentAoisUniqueDirect(
       segIdx,
       stimulusId,
@@ -66,8 +100,7 @@ export function collectScanpath(
     } else {
       let foundIdx = -1
       for (let a = 0; a < aoiCount; a++) {
-        const mappedId = engine.getAoiMapping(stimulusId, aoiBuffer[a])
-        const idx = aoiLookup.get(mappedId)
+        const idx = aoiLookup.get(aoiBuffer[a])
         if (idx !== undefined) {
           foundIdx = idx
           break
@@ -97,9 +130,10 @@ export function collectAllScanpaths(
   const meta = engine.metadata
   if (!meta) return []
 
+  const aoiLookup = aoiLetterIndex(aois)
   return participantIds.map(pid => ({
     participantId: pid,
     label: meta.participants.data[pid]?.[1] ?? meta.participants.data[pid]?.[0] ?? `P${pid}`,
-    scanpath: collectScanpath(engine, stimulusId, pid, aois, collapsed, timeStart, timeEnd),
+    scanpath: encodeScanpath(engine, stimulusId, pid, aoiLookup, collapsed, timeStart, timeEnd),
   }))
 }

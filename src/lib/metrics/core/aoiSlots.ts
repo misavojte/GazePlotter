@@ -3,9 +3,9 @@ import { getAois } from '$lib/data/engine'
 import type { ExtendedInterpretedDataType } from '$lib/data/types'
 
 /**
- * The scan-side superset of `AoiSlotInfo` (dsl.ts): the slot layout PLUS
- * everything a fixation scan needs to resolve raw AOI ids to slots. Results
- * and recipe contexts carry the plain `AoiSlotInfo`; scans carry this.
+ * The scan-side superset of `AoiSlotInfo` (dsl.ts): the layout PLUS what a
+ * scan needs to resolve raw AOI ids to slots. Results and recipe contexts
+ * carry the plain one; scans carry this.
  */
 export interface ResolvedAoiSlots {
   reader: NonNullable<ReturnType<DataEngine['getReader']>>
@@ -22,15 +22,14 @@ export interface ResolvedAoiSlots {
 }
 
 /**
- * Memoized on the frozen array `getAois` returns: that reference is stable
- * per (reader, stimulusId, appearanceVersion, aoiSelectionId) and changes on
- * every AOI edit or dataset reload — exactly the inputs slots derive from —
- * so the array identity IS the invalidation token. A
- * per-plot `aoiSelectionId` yields a distinct cached array (see getAois), so
- * plots with different selections get distinct slots automatically while plots
- * on the same visible set share one entry (no rebuild). Out-of-selection raw
- * AOIs miss `aoiLookup` below and land at rawToSlot -1 → no-AOI in the hot
- * scan — the compute-honest reduced alphabet, with zero hot-scan change.
+ * Memoized on the frozen array `getAois` returns: that reference is stable per
+ * (reader, stimulusId, appearanceVersion, aoiSelectionId) — exactly the inputs
+ * slots derive from — so the array identity IS the invalidation token. Plots
+ * with different selections therefore get distinct slots automatically, while
+ * plots on the same visible set share one entry.
+ *
+ * Out-of-selection raw AOIs miss `aoiLookup` and land at rawToSlot -1 → no-AOI
+ * in the hot scan: the compute-honest reduced alphabet, at zero scan cost.
  */
 const _slotsCache = new WeakMap<
   readonly ExtendedInterpretedDataType[],

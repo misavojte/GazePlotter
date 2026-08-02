@@ -18,38 +18,11 @@ const params = [
 ] as const
 
 /**
- * ## Scanpath similarity (participant × participant)
- *
- * Pairwise normalized similarity between participants' AOI-letter scanpaths.
- *
- * - **Shape:** `participant-pair-matrix`
- * - **Unit:** `0–1` (1 = identical, 0 = completely different)
- * - **Category:** `scanpath`
- * - **Windowing:** sliding-window projection is not supported (`supportsWindowing: false`).
- *   Time-of-interest cropping via `scope.timeStart/timeEnd` IS supported — a
- *   fixation is encoded when its onset falls in `[timeStart, timeEnd)`.
- *
- * ### Parameters
- * - `method` (enum, default `'levenshtein'`): comparison kernel.
- *     - `levenshtein`: edit-distance based, normalized by max length.
- *     - `needlemanWunsch`: global alignment score with match=+1 / mismatch=-1
- *       / gap=-1, normalized to [0, 1].
- * - `collapsed` (bool, default `false`): if true, fold consecutive identical
- *   AOIs in each scanpath before comparison ("AABBC" → "ABC"). Useful when
- *   dwell duration shouldn't dominate the structural comparison.
- *
- * ### Computation
- * - Each participant's scanpath is encoded as an AOI-letter string ('#' for
- *   fixations outside any visible AOI).
- * - For every pair (i, j), the chosen kernel is applied; the matrix is
- *   symmetric with diagonal = 1.
- * - Values are rounded to three decimals to keep matrix labels stable.
- *
- * ### Invariants
- * - `measurementClass: 'relational'` — the matrix IS the group-level quantity;
- *   reducing across participants would collapse its defining axis.
- * - Per-participant projections (typicality, mean-row → scalar) are reserved
- *   for a follow-up that adds a group-cached / per-participant-extract path.
+ * Values in [0, 1], rounded to three decimals so matrix labels stay stable.
+ * Sliding windows are unsupported, but time-of-interest cropping via
+ * `scope.timeStart/timeEnd` works — a fixation is encoded when its onset falls
+ * in `[timeStart, timeEnd)`. `collapsed` folds "AABBC" → "ABC", for when dwell
+ * duration should not dominate the structural comparison.
  */
 defineMetric({
   id: 'participantPairSimilarity',
@@ -57,15 +30,13 @@ defineMetric({
   description:
     "Per participant pair: normalized similarity between participants' AOI-letter scanpaths. " +
     'Symmetric, with diagonal = 1. Levenshtein uses edit distance; Needleman-Wunsch uses global alignment.',
-  // Dimensionless ratio in [0, 1] — the range is shown by the colorbar ticks,
-  // not as a unit (`/` is reserved for real IUPAC units).
+  // Dimensionless: the range rides on the colorbar ticks, and `/` is reserved
+  // for real IUPAC units.
   unit: '',
   category: 'scanpath',
   rawShape: 'participant-pair-matrix',
   windowUnit: 'ms',
   supportsWindowing: false,
-  // Relational: each cell is defined by a participant pair, so there is no
-  // per-participant value to reduce — the matrix IS the cross-participant result.
   measurementClass: 'relational',
   searchTags: ['scanpath', 'similarity', 'levenshtein', 'needleman-wunsch', 'pairwise', 'comparison'],
   params,

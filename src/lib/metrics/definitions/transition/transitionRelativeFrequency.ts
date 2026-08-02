@@ -3,28 +3,7 @@ import { percentShare } from '../../core/numeric'
 
 interface Params { mode: 'fixation' | 'visit' }
 
-/**
- * ## Transition relative frequency
- *
- * Per-cell share of the participant's total transitions, as a percentage.
- *
- * - **Shape:** `aoi-pair-matrix`
- * - **Unit:** `%`
- * - **Category:** `transition`
- * - **Windowing:** supported (matrix-cell / matrix-aggregate inner leaf only).
- *
- * ### Parameters
- * - `mode` (enum, default `'fixation'`): `'fixation'` counts consecutive
- *   fixation pairs; `'visit'` counts distinct-AOI transitions only.
- *
- * ### Invariants
- * - Matrix sums to 100% by construction (per participant).
- * - Participants with zero total transitions emit all-NaN — they drop from
- *   cross-participant reduces.
- * - `measurementClass: 'intensive'` — each cell is a per-participant share, so
- *   cross-participant reduction is `mean` (equal-weighted) and summing across
- *   cells is meaningless, restricting `matrix-aggregate` to `max | min`.
- */
+/** Zero-transition participants emit all-NaN, so they drop from reduces. */
 defineTransitionMetric<Params>({
   id: 'transitionRelativeFrequency',
   label: 'Transition relative frequency',
@@ -32,8 +11,6 @@ defineTransitionMetric<Params>({
     "Per AOI pair (from → to): share of the participant's total transitions that went from → to, " +
     'expressed as a percentage. Matrix sums to 100% per participant.',
   unit: '%',
-  // Intensive: a per-participant share of total transitions. Only `mean` is
-  // sound across participants and cells; summing shares yields ~N·share.
   measurementClass: 'intensive',
   searchTags: ['transition', 'frequency', 'relative', 'percent', 'proportion', 'aoi', 'pair'],
   onTransition: (acc, cellIdx) => { acc.matrix[cellIdx]++ },

@@ -10,10 +10,9 @@ import type { FixationEvent, InitCtx, MetricRecipe, WindowFrame } from './dsl'
 import type { MetricInstance } from '../instances'
 
 /**
- * Iterate a participant's fixation segments exactly once and fan results out to
- * every instance. Returns a Map<instanceId, number[]> matching each recipe's
- * `finalize` output shape. Windowed instances are skipped — their per-window
- * scan requires `runProjected()` in runtime.ts.
+ * Iterate a participant's fixations once and fan the results out to every
+ * instance, keyed by instance id. Windowed instances are skipped; their
+ * per-window scan needs `runProjected()`.
  */
 export function scanBatch(
   engine: DataEngine,
@@ -22,14 +21,13 @@ export function scanBatch(
   instances: readonly MetricInstance[],
   timeStart: number = 0,
   timeEnd: number = 0,
-  /** Per-plot AOI selection — same reduced slot layout + raw cache key as the
-   *  single-participant path, so batch==single holds under a selection. */
+  /** Same reduced slot layout + raw cache key as the single-participant path,
+   *  so batch==single holds under a selection. */
   aoiSelectionId?: number,
 ): Map<string, number[]> {
   const slots = buildAoiSlots(engine, stimulusId, aoiSelectionId)
   if (!slots) return new Map()
-  // One scan → one extent, shared by every instance's ctx (see
-  // InitCtx.scopeDurationMs).
+  // One scan, one extent, shared by every instance's ctx.
   const scopeDurationMs =
     timeEnd > 0
       ? timeEnd - timeStart
@@ -50,9 +48,8 @@ export function scanBatch(
     const recipe = getRecipe(inst.baseId)
     if (!recipe) continue
     // Category-vector recipes iterate every segment, not the fixation index,
-    // so they can't join the shared fixation pass — each computes via the
-    // single path, against the same raw cache, so batch==single holds by
-    // construction.
+    // so they can't join this pass. Each computes via the single path against
+    // the same raw cache, so batch==single holds by construction.
     if (recipe.scanSource === 'categories') {
       results.set(
         inst.id,
@@ -60,8 +57,7 @@ export function scanBatch(
       )
       continue
     }
-    // Group-shape recipes own their evaluation via scanGroup; they don't
-    // expose the per-participant trio that this batch path requires.
+    // Group-shape recipes expose no trio; they own their evaluation.
     const { init, onFixation, finalize } = recipe
     if (!init || !onFixation || !finalize) continue
     // Same cache as runSingleWindow — only the misses join the scan.
@@ -71,12 +67,11 @@ export function scanBatch(
       continue
     }
     const params = resolveParams(recipe.params, inst.params)
-    // categorySlotCount 0: category-vector recipes were delegated above, so no
-    // instance here indexes a per-type vector. The summary statistic, though,
-    // is NOT constant across this batch — the aoi-vector duration metrics are
-    // sample-summarizing too, and a `pick-aoi · median` instance must collapse
-    // by median here exactly as it does on the single path. Getting this wrong
-    // would also poison the shared raw cache, whose key carries the statistic.
+    // categorySlotCount 0: those recipes were delegated above, so nothing here
+    // indexes a per-type vector. The summary statistic, though, is NOT constant
+    // across the batch — the aoi-vector duration metrics summarize samples too,
+    // and a `pick-aoi · median` instance must collapse by median here exactly
+    // as on the single path, or it poisons the statistic-keyed raw cache.
     const ctx = {
       params,
       slots,
@@ -97,15 +92,13 @@ export function scanBatch(
   const aoiPool = reader.aoiPoolRaw
   const resolvedSlots: number[] = []
   // Reused across every fixation — same zero-alloc contract as
-  // scanAccumulator: every recipe's onFixation reads synchronously and never
-  // retains the event, frame, or slots.
+  // scanAccumulator: onFixation reads synchronously and retains nothing.
   const frame: WindowFrame = {
     windowStart: 0,
     windowEnd: 0,
     start: 0,
     end: 0,
     duration: 0,
-    isClipped: false,
     midpointInWindow: true,
   }
   const fixEvent: FixationEvent = {

@@ -21,10 +21,9 @@ type WindowAccumulation =
   | 'stateful'
 
 /**
- * Group-level evaluation context for recipes whose computation is inherently
- * pairwise across participants (e.g. scanpath similarity). A `GroupScope` carries
- * the *set* of participants the comparison ranges over, in contrast to the
- * single-participant {@link Scope} used by per-participant scans.
+ * Evaluation context for recipes whose computation is inherently pairwise
+ * across participants (scanpath similarity) — carries the SET of participants
+ * the comparison ranges over, unlike the single-participant {@link Scope}.
  */
 export interface GroupScope {
   engine: DataEngine
@@ -32,20 +31,15 @@ export interface GroupScope {
   participantIds: readonly number[]
   timeStart?: number
   timeEnd?: number
-  /**
-   * Per-plot AOI SELECTION id — mirrors {@link Scope.aoiSelectionId}. The group
-   * runtime copies it into each per-participant child scope so a grouped view
-   * honors the same reduced AOI alphabet as a single-participant one.
-   */
+  /** Copied into each per-participant child scope, so a grouped view honors the
+   *  same reduced AOI alphabet as a single-participant one. */
   aoiSelectionId?: number
 }
 
 /**
- * Result shape returned by {@link MetricRecipe.scanGroup}. The matrix is
- * row-major M×M where `M === participantIds.length`. Recipes are free to
- * filter or reorder participants from the input scope (e.g. drop participants
- * with empty scanpaths) — the returned `participantIds` is the authoritative
- * axis labelling for the matrix.
+ * Row-major M×M, `M === participantIds.length`. A recipe may filter or reorder
+ * participants (e.g. drop empty scanpaths) — the returned `participantIds` is
+ * the authoritative axis labelling.
  */
 interface GroupResult {
   matrix: number[]
@@ -54,9 +48,8 @@ interface GroupResult {
 
 /**
  * The slot LAYOUT of a stimulus: `[aoi_0 … aoi_{n-1}, noAoi, anyFixation]`.
- * Pure numbers — safe to embed in results and recipe contexts. The scan-side
- * superset (reader + rawId→slot table) is `ResolvedAoiSlots` in aoiSlots.ts;
- * use that only inside scan loops.
+ * Pure numbers, safe to embed in results. The scan-side superset (reader +
+ * rawId→slot table) is `ResolvedAoiSlots` in aoiSlots.ts.
  */
 export interface AoiSlotInfo {
   totalSlots: number
@@ -65,31 +58,13 @@ export interface AoiSlotInfo {
 }
 
 /**
- * Window-aware projection of a fixation onto the current scope's time
- * range. Carried on every {@link FixationEvent} so recipes choose their
- * windowing semantics by the field they read — the *code itself* declares
- * intent, no meta flag, no parallel field.
+ * A fixation projected onto the current scope's time range. Carried on every
+ * {@link FixationEvent}, so a recipe declares its windowing semantics by which
+ * field it reads rather than by a meta flag.
  *
- * Two scientific signals live here:
- *
- *   - `duration` is **fractional sub-bin overlap**:
- *     `min(fix.end, windowEnd) - max(fix.start, windowStart)`. Matches the
- *     legacy aoi-stream collector's per-bin overlap math exactly. Use this
- *     for additive dwell metrics (e.g. `absoluteTime`, `relativeTime`) so
- *     a fixation crossing window boundaries contributes only its in-window
- *     portion and per-window sums equal the unwindowed total.
- *
- *   - `midpointInWindow` is the **SW-RQA membership rule**: a fixation
- *     "belongs to" exactly one window — the one whose interval contains
- *     the fixation's midpoint. Use this to gate count-style metrics (e.g.
- *     `fixationCount`, `visitCount`) so each fixation contributes to one
- *     window only and per-window counts sum to the unwindowed total. For
- *     unbounded scopes this is always `true`.
- *
- * For unbounded scopes (`timeStart === 0 && timeEnd === 0`), `windowStart`
- * is `0`, `windowEnd` is `+Infinity`, `start`/`end`/`duration` mirror the
- * fixation's own interval, `isClipped` is `false`, and `midpointInWindow`
- * is `true`.
+ * Unbounded scopes (`timeStart === 0 && timeEnd === 0`): `windowStart` 0,
+ * `windowEnd` +Infinity, `start`/`end`/`duration` mirror the fixation,
+ * `midpointInWindow` true.
  */
 export interface WindowFrame {
   /** Active scope's lower bound (inclusive). `0` for unbounded scopes. */
@@ -101,32 +76,25 @@ export interface WindowFrame {
   /** `min(fix.end, windowEnd)`. */
   end: number
   /**
-   * Sub-bin overlap duration: `end - start`. Matches the legacy
-   * aoi-stream collector's per-bin overlap math exactly. THE established
-   * semantics for the "AOI occupancy" view; never drift.
+   * Sub-bin overlap: `end - start`. For additive dwell metrics, so a fixation
+   * crossing a boundary contributes only its in-window portion and per-window
+   * sums equal the unwindowed total. THE established "AOI occupancy"
+   * semantics, matching the legacy aoi-stream collector; never drift.
    */
   duration: number
-  /** `true` when the original fixation extends beyond either bound. */
-  isClipped: boolean
   /**
-   * SW-RQA convention: this fixation's midpoint falls within the window.
-   * Use to gate count-style contributions so each fixation belongs to
-   * exactly one window. `true` for unbounded scopes.
+   * SW-RQA membership rule: a fixation belongs to exactly one window, the one
+   * containing its midpoint. Gates count-style metrics so per-window counts
+   * sum to the unwindowed total. `true` for unbounded scopes.
    */
   midpointInWindow: boolean
 }
 
 /**
- * Single canonical construction of a {@link WindowFrame} from a fixation's
- * raw `(start, end, duration)` and the active scope's `(timeStart, timeEnd)`
- * — every scan (`scanAccumulator`, `scanBatch`) fills through here, keeping
- * SW-RQA midpoint semantics, occupancy duration math, and the clipped-flag
- * rule in one place. Writes into `out` and returns it, allocating nothing:
- * scans reuse ONE frame object across millions of fixations, safe because
- * `onFixation` reads frame fields synchronously and never retains the object
- * (the same invariant that lets a scan reuse one `slots` array). Unbounded
- * scopes (`timeEnd <= 0`) get `windowStart=0`, `windowEnd=+Infinity`, frame
- * mirrors fixation, and `midpointInWindow=true`.
+ * The one construction of a {@link WindowFrame} — every scan fills through
+ * here, so midpoint semantics and overlap math live in one place. Writes into
+ * `out` and allocates nothing: scans reuse ONE frame across millions of
+ * fixations, safe because `onFixation` reads synchronously and never retains it.
  */
 export function fillWindowFrame(
   out: WindowFrame,
@@ -147,28 +115,16 @@ export function fillWindowFrame(
   out.start = frameStart
   out.end = frameEnd
   out.duration = frameEnd - frameStart
-  out.isClipped = bounded && (start < windowStart || end > windowEnd)
   out.midpointInWindow = bounded ? mid >= windowStart && mid < windowEnd : true
   return out
 }
 
 /**
- * A single fixation passed to a recipe's `onFixation`. Recipes choose
- * window-aware vs window-naive semantics by the field they read:
- *
- *   - `fix.duration` / `fix.start` — the actual fixation's properties,
- *     irrespective of the active window. Right for mean-of-actual-durations
- *     metrics (`fixationDuration`, `firstFixationDuration`) and start-time
- *     queries (`timeToFirstFixation`).
- *
- *   - `fix.frame.duration` / `fix.frame.start` / `fix.frame.midpointInWindow`
- *     — the fixation's projection onto the current scope window. Right for
- *     additive dwell metrics (`absoluteTime`, `relativeTime`) and count
- *     metrics (`fixationCount`, `visitCount`).
- *
- * The choice is statically inspectable: any `onFixation` body that reads
- * `fix.frame.*` declares a windowable recipe; bodies that only read
- * `fix.duration` / `fix.start` / `fix.slots` declare a window-naive one.
+ * A single fixation passed to a recipe's `onFixation`. The field read picks
+ * the semantics: `fix.duration`/`fix.start` are the actual fixation's
+ * properties, irrespective of the window (right for mean-of-actual-durations
+ * and start-time metrics); `fix.frame.*` is its projection onto the window
+ * (right for additive dwell and count metrics).
  */
 export interface FixationEvent {
   start: number
@@ -177,11 +133,9 @@ export interface FixationEvent {
   slots: ReadonlyArray<number>
   index: number
   /**
-   * The segment's eye-movement-type slot, in the canonical displayed-name
-   * group order (`categoryGroups` — Fixation first by the id-0 reservation).
-   * Filled ONLY for `scanSource: 'categories'` recipes, whose accumulators
-   * index per-type vectors by it; `-1` on every other scan (the fixation
-   * index carries no type dimension).
+   * The segment's eye-movement-type slot in `categoryGroups` order. Filled
+   * ONLY for `scanSource: 'categories'` recipes; `-1` elsewhere, since the
+   * fixation index carries no type dimension.
    */
   categorySlot: number
 }
@@ -190,42 +144,31 @@ export interface InitCtx<P> {
   params: P
   slots: AoiSlotInfo
   /**
-   * The scan's effective time extent in ms — the denominator for
-   * share-of-recording metrics, which the per-segment scan cannot otherwise
-   * see. Bounded scopes: `timeEnd - timeStart`. Unbounded: the participant's
-   * recording length (last segment end). Time-windowed runs: the window size
-   * (every window of one run shares it, so the per-scan ctx stays shared).
-   * `0` when the participant has no segments — finalize to NaN, not a share
-   * of nothing.
+   * The scan's effective extent in ms — the denominator for
+   * share-of-recording metrics, which a per-segment scan cannot see. Bounded
+   * scope: `timeEnd - timeStart`. Unbounded: the participant's recording
+   * length. Windowed: the window size (shared by every window of one run, so
+   * the per-scan ctx stays shared). `0` with no segments → finalize to NaN.
    */
   scopeDurationMs: number
-  /**
-   * Length of the eye-movement-type axis for `scanSource: 'categories'`
-   * recipes (`categoryGroups(engine).length` — one slot per displayed-name
-   * group, canonical order, Fixation first). Their `finalize` returns a
-   * vector of exactly this length. `0` on fixation-index scans.
-   */
+  /** Length of the eye-movement-type axis for `scanSource: 'categories'`
+   *  recipes, whose finalize returns a vector of exactly this length. `0` on
+   *  fixation-index scans. */
   categorySlotCount: number
   /**
-   * How a sample-summarizing recipe ({@link MetricRecipe.sampleSummary})
-   * collapses each slot's per-event sample in `finalize`. Declared by the
-   * instance's SUMMARY projection — `pick-aoi`, `pick-any-fixation` and
-   * `pick-category` each carry a `statistic` — and always `'mean'` for vector
-   * outputs: the vector is the unmarked per-slot mean, and the summary choice
-   * belongs to the summary, never to the vector or a recipe param. Recipes
-   * without `sampleSummary` ignore it.
+   * How a {@link MetricRecipe.sampleSummary} recipe collapses each slot's
+   * sample in `finalize`. Set by the instance's SUMMARY projection, and always
+   * `'mean'` for vector outputs — a vector IS the unmarked per-slot mean.
    */
   summaryStatistic: SummaryStatistic
 }
 
 /**
- * Names for the extremes across AOIs — one phrase per offered reducer stating
- * what that extreme MEANS for this metric ("most-dwelled AOI", "first-reached
- * AOI", "every AOI"). Lowercase noun phrases, so they slot into the mid-dot
- * label grammar: `"Absolute dwell time / ms · most-dwelled AOI"`. Declaration
- * order is presentation order — name the canonical extreme first and the
- * configure UI lists and defaults to it (TTFF names `min`, 'first-reached
- * AOI', before the caveat-laden `max`).
+ * What each extreme across AOIs MEANS for a metric ("most-dwelled AOI",
+ * "first-reached AOI"). Lowercase noun phrases, to slot into the mid-dot
+ * grammar: `"Absolute dwell time / ms · most-dwelled AOI"`. Declaration order
+ * is presentation order — name the canonical extreme first (TTFF names `min`
+ * before the caveat-laden `max`).
  */
 export interface AoiAggregateLabels {
   readonly max?: string
@@ -237,15 +180,11 @@ export interface MetricMeta {
   readonly label: string
   readonly unit: string
   /**
-   * Leaf-neutral one-paragraph summary, written at the metric's natural shape
-   * (`rawShape`). Convention:
-   *   - aoi-vector       → lead with "Per AOI: …"
-   *   - aoi-pair-matrix  → lead with "Per AOI pair (row → column): …"
-   *   - scalar           → lead with "Stimulus-level: …"
-   * Then state how the value is computed at that shape, optionally followed
-   * by one sentence of scientific interpretation and any caveats (NaN
-   * behaviour, mode-dependent rules). Must read correctly under every
-   * supported projection — never assume a specific leaf.
+   * Leaf-neutral summary at the metric's natural shape, so it reads correctly
+   * under every supported projection. Lead per shape: "Per AOI: …" /
+   * "Per AOI pair (row → column): …" / "Stimulus-level: …", then how the value
+   * is computed, then any interpretation and caveats (NaN behaviour, mode
+   * rules).
    */
   readonly description: string
   readonly category: string
@@ -254,47 +193,29 @@ export interface MetricMeta {
   readonly windowUnit: WindowUnit
   readonly params: readonly ParamDef<any>[]
   readonly searchTags: readonly string[]
-  /**
-   * The statistical class of the metric's per-participant value — the single
-   * declarative property the capability algebra (`core/measurement.ts`) reads to
-   * answer every aggregation question (sound cross-participant reductions,
-   * matrix-cell reducers, proportional rendering, group-level vs reducible).
-   */
+  /** The one declarative property the capability algebra
+   *  (`core/measurement.ts`) reads to answer every aggregation question. */
   readonly measurementClass: MeasurementClass
-  /**
-   * The metric's natural cross-participant reduction — the headline used when an
-   * instance pins no override. Consulted only for `extensive` metrics (which
-   * offer both `mean` and `sum`); `'mean'` for every other class. Counts/summed
-   * durations whose cohort total is the conventional reading set `'sum'`.
-   */
+  /** Headline reduction when an instance pins no override. Consulted only for
+   *  `extensive` metrics (the only class offering both); `'mean'` otherwise. */
   readonly defaultReduction: GroupReduction
-  /**
-   * True unless the recipe explicitly opts out. Windowing compatibility is
-   * ultimately gated by `recipeSupports(recipe, projection)` — the effective
-   * inner leaf must produce scalar. This flag only lets a recipe say
-   * "never windowed" (e.g. time-to-first-fixation).
-   */
+  /** Lets a recipe say "never windowed" (e.g. TTFF). Compatibility as such is
+   *  gated by `recipeSupports` — the inner leaf must produce scalar. */
   readonly supportsWindowing: boolean
-  /**
-   * True when the recipe writes a meaningful stimulus-level aggregate into
-   * the `anyFixationSlot` sentinel (index `aoiCount + 1` of an aoi-vector).
-   * Required for the `pick-any-fixation` projection to be allowed.
-   */
+  /** True when the recipe writes a meaningful stimulus-level aggregate into
+   *  the `anyFixationSlot` sentinel. Gates `pick-any-fixation`. */
   readonly providesAnyFixation: boolean
   /**
-   * Opt-in to the `aggregate-aoi` projection — reducing the per-AOI vector to
-   * ONE AOI's value *within each participant* (the winning AOI can differ
-   * between participants). A metric opts in by NAMING what each extreme means:
-   * the declared phrase is simultaneously the gate (an unnamed extreme is
-   * hidden and rejected), the option the configure UI offers, and the
-   * qualifier printed on figures and exports — so the declaration and the
-   * disclosure can never drift apart. Only extremes exist here by
-   * construction: max/min are order statistics, invariant to how many AOIs
-   * the analyst drew, whereas sum/mean/median across AOIs are biased by the
-   * segmentation (the stimulus-level total belongs to `providesAnyFixation`).
-   * Absent (the default) when no extreme reads clearly — notably metrics
-   * carrying a settable Summary `statistic`, whose reducer would compose into
-   * an uninterpretable double reduction.
+   * Opt-in to `aggregate-aoi` — reducing the per-AOI vector to ONE AOI's value
+   * WITHIN each participant (the winning AOI may differ between them). The
+   * declared phrase is at once the gate, the configure-UI option, and the
+   * figure qualifier, so declaration and disclosure cannot drift.
+   *
+   * Only extremes exist here: max/min are order statistics, invariant to how
+   * many AOIs the analyst drew, while sum/mean/median across AOIs are biased
+   * by the segmentation (the stimulus-level total is `providesAnyFixation`).
+   * Omit when no extreme reads clearly — notably on metrics with a settable
+   * Summary `statistic`, where it would be a double reduction.
    */
   readonly aoiAggregate?: AoiAggregateLabels
   /** See {@link MetricRecipe.sampleSummary}. */
@@ -313,137 +234,98 @@ export interface MetricRecipe<P, A> {
   windowUnit: WindowUnit
   params?: readonly ParamDef<any>[]
   searchTags?: readonly string[]
-  /**
-   * The metric's statistical class — the one declarative property that drives
-   * every aggregation capability (see {@link MeasurementClass}). Required.
-   */
+  /** See {@link MeasurementClass}. Required. */
   measurementClass: MeasurementClass
-  /**
-   * The natural cross-participant reduction. Defaults to `'mean'`; set `'sum'`
-   * for `extensive` metrics whose conventional headline is the cohort total
-   * (counts, summed durations). Ignored for non-`extensive` classes.
-   */
+  /** Defaults to `'mean'`; set `'sum'` for `extensive` metrics whose
+   *  conventional headline is the cohort total. Ignored for other classes. */
   defaultReduction?: GroupReduction
-  /** Defaults to true. Set to false when windowing is not meaningful (e.g. TTFF). */
+  /** Defaults to true. Set false when windowing is not meaningful (e.g. TTFF). */
   supportsWindowing?: boolean
   /**
-   * The recipe's accumulation semantics — a declaration of what `onFixation`
-   * does with each fixation, in the metric's own terms. Required for every
-   * scan-trio recipe and forbidden for `scanGroup` recipes (enforced at
-   * registration, like the trio itself). It is a CONTRACT, not a hint: for
-   * the additive kinds the windowed driver runs the scan as one fused
-   * numeric pass over a flat Float64Array (bitmask slot set ≤31 AOI slots,
-   * reused scratch array beyond — no FixationEvent, no onFixation call, no
-   * per-window accumulators; ~an order of magnitude faster cold), and the
-   * result MUST be bit-identical to running the trio per window. The
-   * windowed==oracle equivalence suite pins that; the trio remains the
-   * definition, used verbatim by every non-windowed query.
+   * What `onFixation` does with each fixation. Required for every scan-trio
+   * recipe, forbidden for `scanGroup` ones (both enforced at registration).
+   *
+   * A CONTRACT, not a hint: on the additive kinds the windowed driver replaces
+   * the trio with one fused numeric pass (no FixationEvent, no per-window
+   * accumulators; ~an order of magnitude faster cold), and its output MUST be
+   * bit-identical to running the trio per window. The windowed==oracle suite
+   * pins that; the trio stays the definition, used verbatim when unwindowed.
    *
    * - `'clippedDuration'` — sums the fixation∩window overlap (ms) per slot
    *   (anyFixation always, noAoi when unlabeled, else each resolved slot).
    * - `'clippedDurationShare'` — same sums, finalized per window as a
    *   percentage of that window's anyFixation total (NaN when it is 0).
-   * - `'midpointCount'` — adds 1 per slot in the window(s) containing the
-   *   fixation midpoint (the SW-RQA membership convention).
+   * - `'midpointCount'` — adds 1 per slot in the window containing the
+   *   fixation midpoint.
    * - `'stateful'` — anything else (visits, sequences, first-hit latencies):
-   *   the accumulator carries cross-fixation state, so windowing runs the
-   *   scan trio itself.
+   *   the accumulator carries cross-fixation state, so windowing runs the trio.
    */
   accumulation?: WindowAccumulation
   /**
    * Which segments the per-participant scan iterates.
    *
    * - `'fixationIndex'` (default) — the prebuilt category-0 index; the scan
-   *   never reads segment categories (the classic fixation-only engine).
-   * - `'categories'` — EVERY segment, with `fix.categorySlot` carrying its
-   *   eye-movement-type slot in the canonical displayed-name group order.
-   *   For `rawShape: 'category-vector'` recipes: the type is a DIMENSION the
-   *   metric ranges over (a value per type), never a parameter — one type is
-   *   extracted downstream via the `pick-category` PROJECTION, exactly as
-   *   aoi-vector recipes pair with `pick-aoi`. Registration enforces
-   *   `rawShape: 'category-vector'` and `accumulation: 'stateful'`: the
-   *   fused windowed driver's per-AOI-slot assembly assumes fixation scans,
-   *   so category recipes always run the scan trio itself. `onFixation`
-   *   receives each segment — the event shape is identical, only the
-   *   iteration source differs.
+   *   never reads segment categories.
+   * - `'categories'` — EVERY segment, with `fix.categorySlot` set. The type is
+   *   a DIMENSION the metric ranges over, never a parameter: one type is
+   *   extracted downstream by the `pick-category` PROJECTION, as aoi-vector
+   *   recipes pair with `pick-aoi`. Registration enforces `rawShape:
+   *   'category-vector'` and `accumulation: 'stateful'` — the fused driver's
+   *   per-AOI-slot assembly assumes fixation scans.
    */
   scanSource?: 'fixationIndex' | 'categories'
-  /**
-   * Defaults to false. Set to true when the recipe writes a meaningful
-   * stimulus-level aggregate into `anyFixationSlot`; opens the
-   * `pick-any-fixation` projection for the metric.
-   */
+  /** Defaults to false. True opens `pick-any-fixation` for the metric. */
   providesAnyFixation?: boolean
-  /**
-   * Opt-in to the `aggregate-aoi` projection by naming what each extreme
-   * across AOIs means for this metric, e.g.
-   * `{ max: 'most-dwelled AOI', min: 'least-dwelled AOI' }`. The phrase is
-   * the gate, the configure-UI option, and the figure qualifier in one (see
-   * {@link MetricMeta.aoiAggregate}). Omit (the default) when no extreme
-   * reads clearly — e.g. metrics with a settable Summary `statistic`, whose
-   * reducer would compose into a double reduction.
-   */
+  /** Opt in to `aggregate-aoi` by naming each extreme, e.g.
+   *  `{ max: 'most-dwelled AOI' }` — see {@link MetricMeta.aoiAggregate}. */
   aoiAggregate?: AoiAggregateLabels
   /**
-   * Declares that `finalize` collapses a per-event sample per slot using
-   * {@link InitCtx.summaryStatistic} — the gate for statistic-bearing summary
-   * projections (a `pick-aoi` / `pick-any-fixation` / `pick-category` carrying
-   * a `statistic`), exactly as `aoiAggregate` gates `aggregate-aoi`.
-   * Registration requires an
-   * `individuals` recipe (the sample must stay inspectable — distribution
-   * plots pool it) and forbids combining with a `statistic` param: the summary
-   * choice has ONE declaration channel per metric, never two.
+   * Declares that `finalize` collapses a per-slot sample by
+   * {@link InitCtx.summaryStatistic} — the gate for a statistic-bearing
+   * summary projection, as `aoiAggregate` gates `aggregate-aoi`. Registration
+   * requires `individuals` (the sample must stay inspectable) and rejects a
+   * `statistic` param: the summary choice has ONE declaration channel.
    */
   sampleSummary?: boolean
   /**
-   * Author-level veto over specific projections. Receives the full `Projection`
-   * — use `p.kind === 'windowed' ? p.inner : p` when the check applies to the
-   * leaf regardless of windowing. Return a non-null reason to reject.
+   * Author-level veto. Receives the full `Projection` — use
+   * `p.kind === 'windowed' ? p.inner : p` when the check applies to the leaf
+   * regardless of windowing. Return a non-null reason to reject.
    */
   rejects?: (projection: Projection) => string | null
 
-  /**
-   * Per-participant scan trio. Required for recipes whose `rawShape` is one of
-   * the participant-local shapes (`scalar`, `aoi-vector`, `aoi-pair-matrix`,
-   * `scalar-timeseries`). Absent for `participant-pair-matrix` recipes, which
-   * compute via {@link scanGroup} instead. The pairing invariant is enforced
-   * at registration time in `defineMetric`.
-   */
+  /** Per-participant scan trio. Required for every participant-local shape,
+   *  absent for `participant-pair-matrix` (which uses {@link scanGroup}).
+   *  Pairing enforced at registration. */
   init?(ctx: InitCtx<P>): A
   onFixation?(acc: A, fix: FixationEvent, ctx: InitCtx<P>): void
   /**
-   * The per-participant vector. OMIT IT on a {@link sampleSummary} recipe:
-   * there `finalize` is by definition `individuals` collapsed slot-by-slot with
-   * `ctx.summaryStatistic`, and `defineMetric` derives exactly that. Writing it
-   * out per recipe is what let the three sample metrics drift apart.
+   * The per-participant vector. OMIT on a {@link sampleSummary} recipe, where
+   * it is by definition `individuals` collapsed slot-by-slot with
+   * `ctx.summaryStatistic` and `defineMetric` derives exactly that — spelling
+   * it out per recipe is what let the sample metrics drift apart.
    */
   finalize?(acc: A, slots: AoiSlotInfo, ctx: InitCtx<P>): number[]
   /**
-   * WHERE the per-event sample lives — one array per slot, already the right
-   * length (allocated in `init`). These are the beeswarm's raw dots: every
-   * fixation, visit or segment that contributed, not a summary of them. Whole
-   * array, not one slot at a time, so no caller needs a recipe's slot count.
+   * WHERE the per-event sample lives — one array per slot, allocated in
+   * `init`. The beeswarm's raw dots: every fixation, visit or segment that
+   * contributed. Whole array at once, so no caller needs a recipe's slot count.
    *
-   * Omit it when the per-participant value IS the single observation — a count,
-   * a total, a 0/100 indicator. `queryPooledIndividuals` then contributes one
-   * dot per participant from the cached aggregate: same number, no extra scan.
+   * Omit when the per-participant value IS the single observation (a count, a
+   * total, a 0/100 indicator): `queryPooledIndividuals` then contributes one
+   * dot per participant from the cached aggregate — same number, no extra scan.
    */
   individuals?(acc: A): number[][]
   /**
-   * Close out state still open at scan end so `individuals` is complete
-   * (visitDuration's in-progress visits). BOTH readers of the sample call it —
-   * the derived `finalize` and `runIndividualsAllSlots` — so the summary and
-   * the dots can never describe different events. Must therefore be
-   * idempotent: clear what you flush.
+   * Close state still open at scan end so `individuals` is complete
+   * (visitDuration's in-progress visits). BOTH readers call it — the derived
+   * `finalize` and `runIndividualsAllSlots` — so the summary and the dots can
+   * never describe different events. Must be idempotent: clear what you flush.
    */
   flush?(acc: A, slots: AoiSlotInfo): void
   /** Fixation-windowed metrics (RQA) slice the accumulator per window. */
   windowedFinalize?(acc: A, fromIndex: number, toIndex: number, ctx: InitCtx<P>): number
-  /**
-   * Group-level entry point. Required for recipes with
-   * `rawShape === 'participant-pair-matrix'` and forbidden otherwise. Receives
-   * the full {@link GroupScope} and returns a flat row-major M×M matrix
-   * together with the participant ordering for its axes.
-   */
+  /** Required for `rawShape === 'participant-pair-matrix'`, forbidden
+   *  otherwise. Returns a row-major M×M matrix plus its axis ordering. */
   scanGroup?(scope: GroupScope, params: P): GroupResult
 }

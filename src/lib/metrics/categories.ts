@@ -16,10 +16,8 @@ function defineCategory(cat: MetricCategoryDef): MetricCategoryDef {
 }
 
 // ─── Seeded categories ──────────────────────────────────────────────────────
-// The metric categories shipped with GazePlotter. `order` drives the sidebar
-// sort in the metric-library modal. `binary` (dichotomous detection: whether an
-// AOI was fixated/noticed) sits next to `ttf` — they are the "whether" and "when"
-// of attention capture — and is the home for future binary metrics.
+// `order` drives the sidebar sort in the metric-library modal. `binary` sits
+// next to `ttf`: they are the "whether" and the "when" of attention capture.
 
 defineCategory({ id: 'duration',     label: 'Duration',               order: 0 })
 defineCategory({ id: 'counts',       label: 'Counts',                 order: 1 })
