@@ -28,7 +28,7 @@
     METRIC_MISSING_MESSAGE,
     cannotFitPlaceholder,
   } from '$lib/plots/shared/drawCanvasPlaceholder'
-  import type { StatisticalOverlayType, BarPlotDataItem } from '$lib/plots/bar/types'
+  import type { StatisticalOverlayType, CategoryDistribution } from '../types'
   import {
     drawOverlayBackgrounds,
     drawCategoryDelimiters,
@@ -37,8 +37,8 @@
     drawStatisticalOverlay,
     computeDotStyle,
     valueToPixel,
-    type BarPlotLayout,
-  } from '$lib/plots/bar/core/renderers'
+    type BeeswarmLayout,
+  } from './renderers'
 
   const MARGIN_RIGHT = 20
   const TICK_LENGTH = 5
@@ -49,10 +49,10 @@
   const CATEGORY_LABEL_GAP = 6
 
   interface Props extends CanvasExportProps {
-    data: BarPlotDataItem[]
+    data: CategoryDistribution[]
     timeline: AdaptiveTimeline
     axisLabel: string
-    barPlottingType: 'horizontal' | 'vertical'
+    orientation: 'horizontal' | 'vertical'
     barWidth: number
     barSpacing: number
     onDataHover: (
@@ -61,9 +61,13 @@
     statisticalOverlay?: StatisticalOverlayType
     noMetric?: boolean
     proportion?: boolean
-    /** What a bar IS, as the tooltip's first row key. AOI Comparison default. */
+    /**
+     * The per-plot disclosure strings: what a category slot IS (tooltip's first
+     * row key), how to make the figure fit, and how a screen reader names it.
+     * Neutral fallbacks only — each plot passes its own entity vocabulary, so
+     * the shared figure never speaks one consumer's language by default.
+     */
     itemTooltipKey?: string
-    /** Hint lines for the cannot-fit placeholder. AOI Comparison default. */
     cannotFitHints?: string[]
     ariaLabel?: string
   }
@@ -74,7 +78,7 @@
     data,
     timeline,
     axisLabel,
-    barPlottingType,
+    orientation,
     barWidth,
     barSpacing,
     onDataHover,
@@ -83,12 +87,12 @@
     margins = NO_MARGINS,
     noMetric = false,
     proportion = false,
-    itemTooltipKey = 'AOI',
-    cannotFitHints = ['Merge some AOIs in Plot Settings > Areas of Interest'],
-    ariaLabel = 'AOI metrics visualization',
+    itemTooltipKey = 'Category',
+    cannotFitHints = [],
+    ariaLabel = 'Beeswarm plot',
   }: Props = $props()
 
-  const isVertical = $derived(barPlottingType === 'vertical')
+  const isVertical = $derived(orientation === 'vertical')
   const niceTickLabels = $derived(niceTimelineTicks(timeline).labels ?? [])
 
   const categoryLabelHeight = $derived.by(() => {
@@ -102,7 +106,7 @@
   const CATEGORY_LABEL_OFFSET = $derived(CATEGORY_LABEL_GAP + Math.ceil(categoryLabelHeight / 2))
 
   // Horizontal-bar category labels go in the LEFT gutter; cap their width so a
-  // long AOI name can't eat the plot. (Vertical reserves left via the value axis.)
+  // long category label can't eat the plot. (Vertical reserves left via the value axis.)
   const leftChrome = $derived(
     Math.floor(
       Math.min(
@@ -135,7 +139,7 @@
     height: () => height,
     margins: () => margins,
     dpiOverride: () => dpiOverride,
-    deps: () => [data, timeline, axisLabel, barPlottingType, barWidth, barSpacing, statisticalOverlay, noMetric, proportion],
+    deps: () => [data, timeline, axisLabel, orientation, barWidth, barSpacing, statisticalOverlay, noMetric, proportion],
     placeholder: () => (noMetric ? METRIC_MISSING_MESSAGE : null),
     fit: frame => {
       if (data.length === 0) return null
@@ -235,12 +239,12 @@
       data: data[index],
     }))
 
-    const rendererLayout: BarPlotLayout = {
+    const rendererLayout: BeeswarmLayout = {
       plotLeft: Math.floor(f.x),
       plotTop: Math.floor(f.y),
       plotWidth: Math.floor(plotW),
       plotHeight: Math.floor(plotH),
-      barPlottingType,
+      orientation,
       timeline,
       items,
     }
@@ -343,7 +347,7 @@
     names: string[],
     mousePx: number,
     tolerancePx: number,
-    layout: BarPlotLayout
+    layout: BeeswarmLayout
   ): string[] {
     const result: string[] = []
     for (let i = 0; i < values.length; i++) {
@@ -355,7 +359,7 @@
     return result
   }
 
-  function pushStats(content: FrameHit['content'], stats: BarPlotDataItem['stats']) {
+  function pushStats(content: FrameHit['content'], stats: CategoryDistribution['stats']) {
     if (!stats || stats.count <= 0) return
     content.push(
       { key: 'Stats', value: `n = ${stats.count}` },
@@ -426,7 +430,7 @@
     }
 
     return {
-      tooltipId: 'bar-crosshair',
+      tooltipId: 'beeswarm-crosshair',
       content,
       anchorX: x,
       anchorY: y,

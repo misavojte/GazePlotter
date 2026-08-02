@@ -360,16 +360,21 @@ export type JsonImportOldFormat = Omit<DataType, 'segments'> & {
 }
 
 /**
- * Current workspace-schema version. `main` ships v4; the 1.9.0 metrics refactor
- * is the single bump above it (v4 → v5). Both the export mapper (the version it
- * stamps) and the migration ceiling (the version it produces) source this one
- * constant, so a freshly-exported file always carries the version of the data
- * inside it — no re-import migration is relied upon to reconcile a mislabel.
+ * Current workspace-schema version. `main` ships v5 (1.9.2); the settings-key
+ * rename `barPlottingType` → `orientation` is the single bump above it
+ * (v5 → v6). Both the export mapper (the version it stamps) and the migration
+ * ceiling (the version it produces) source this one constant, so a freshly
+ * exported file always carries the version of the data inside it — no
+ * re-import migration is relied upon to reconcile a mislabel.
+ *
+ * Keep this comment's "`main` ships vN" claim checked against `main` when
+ * bumping: it went stale once already (it still said v4 after v5 shipped),
+ * which would have sent a released format down an unreachable migration path.
  */
-export const CURRENT_SCHEMA_VERSION = 5
+export const CURRENT_SCHEMA_VERSION = 6
 
 export interface JsonImportNewFormat {
-  version: 2 | 3 | 4 | 5
+  version: 2 | 3 | 4 | 5 | 6
   data: DataType
   gridItems?: GridItemSnapshot[]
   fileMetadata?: FileMetadataType | null

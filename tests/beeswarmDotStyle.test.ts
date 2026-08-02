@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { computeDotStyle, type BarPlotLayout } from '../src/lib/plots/bar/core/renderers'
+import { computeDotStyle, type BeeswarmLayout } from '../src/lib/plots/shared/distribution/beeswarm/renderers'
 import { createAdaptiveTimeline } from '../src/lib/plots/shared'
-import type { BarPlotDataItem } from '../src/lib/plots/bar/types'
+import type { CategoryDistribution } from '../src/lib/plots/shared/distribution/types'
 
 // Regression: computeDotStyle used `Math.min(...positions)` / `Math.max(..., ...bins)`.
 // For a metric whose individuals are per-fixation (e.g. fixation duration), an AOI
@@ -9,18 +9,18 @@ import type { BarPlotDataItem } from '../src/lib/plots/bar/types'
 // arguments threw "RangeError: Maximum call stack size exceeded" — crashing both
 // the beeswarm draw and the hover hit-test. The reduction is now loop-based.
 
-function layoutWith(valuesPerItem: (number[] | null)[]): BarPlotLayout {
+function layoutWith(valuesPerItem: (number[] | null)[]): BeeswarmLayout {
   return {
     plotLeft: 0,
     plotTop: 0,
     plotWidth: 500,
     plotHeight: 300,
-    barPlottingType: 'horizontal',
+    orientation: 'horizontal',
     timeline: createAdaptiveTimeline(0, 1000, 6),
     items: valuesPerItem.map((vals, i) => ({
       categoryCenter: 60 + i * 90,
       categoryWidth: 80,
-      data: { individualValues: vals } as unknown as BarPlotDataItem,
+      data: { individualValues: vals } as unknown as CategoryDistribution,
     })),
   }
 }

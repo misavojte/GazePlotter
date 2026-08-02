@@ -11,7 +11,7 @@ import type { SectionFieldCtx } from '$lib/plots/definePlot'
 /**
  * Whether the plot's picked metric instance is `proportion`-class — the ONE
  * derivation behind "proportion metrics take no statistical overlay" for
- * every plot rendering through `BarPlotFigure` (the figure draws plain
+ * every plot rendering through `BeeswarmFigure` (the figure draws plain
  * proportional bars and ignores the overlay). Both the AOI Comparison and
  * the Eye-movement Comparison gate their overlay field and pane summary on
  * this, so the rule cannot drift between them.

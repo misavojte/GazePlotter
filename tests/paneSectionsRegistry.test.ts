@@ -114,10 +114,10 @@ describe('paneSections / SHARED_SECTIONS consistency', () => {
 
   it('crossTypeSectionKeys gates metric on identical contracts', () => {
     // Same type: trivially compatible.
-    expect(crossTypeSectionKeys(['barPlot', 'barPlot']).has('metric')).toBe(true)
+    expect(crossTypeSectionKeys(['aoiComparison', 'aoiComparison']).has('metric')).toBe(true)
     // scarf consumes no metrics: a mixed bulk with it must not offer metric.
-    expect(crossTypeSectionKeys(['barPlot', 'scarf']).has('metric')).toBe(false)
+    expect(crossTypeSectionKeys(['aoiComparison', 'scarf']).has('metric')).toBe(false)
     // Every other shared key survives the gate untouched.
-    expect(crossTypeSectionKeys(['barPlot', 'scarf']).has('stimulus')).toBe(true)
+    expect(crossTypeSectionKeys(['aoiComparison', 'scarf']).has('stimulus')).toBe(true)
   })
 })

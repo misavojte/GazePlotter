@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeBeeswarmPositions } from '$lib/plots/bar/core/renderers'
+import { computeBeeswarmPositions } from '$lib/plots/shared/distribution/beeswarm/renderers'
 
 // --- Test helpers ---
 

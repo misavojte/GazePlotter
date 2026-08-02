@@ -7,12 +7,12 @@ describe('GridState', () => {
       getAvailableColumns: () => 6,
     })
 
-    const firstId = grid.addItem('barPlot', {
-      type: 'barPlot',
+    const firstId = grid.addItem('aoiComparison', {
+      type: 'aoiComparison',
       id: 1,
     })
-    const secondId = grid.addItem('barPlot', {
-      type: 'barPlot',
+    const secondId = grid.addItem('aoiComparison', {
+      type: 'aoiComparison',
       id: 2,
     })
 
@@ -34,9 +34,9 @@ describe('GridState', () => {
 describe('GridState selection set', () => {
   function gridWithItems(): GridState {
     const grid = new GridState({ getAvailableColumns: () => 12 })
-    grid.addItem('barPlot', { type: 'barPlot', id: 1 })
-    grid.addItem('barPlot', { type: 'barPlot', id: 2 })
-    grid.addItem('barPlot', { type: 'barPlot', id: 3 })
+    grid.addItem('aoiComparison', { type: 'aoiComparison', id: 1 })
+    grid.addItem('aoiComparison', { type: 'aoiComparison', id: 2 })
+    grid.addItem('aoiComparison', { type: 'aoiComparison', id: 3 })
     return grid
   }
 

@@ -1,9 +1,9 @@
 import type { PlotScreenFactory } from '$lib/plots/definePlot'
 import { usePlotSync } from '$lib/plots/shared/PlotSyncRegistry.svelte'
 import { createAdaptiveTimeline } from '$lib/plots/shared'
-import { barPlotValueAxisSync } from './sync.svelte'
-import type { BarViewMeta } from './view'
-import type { BarPlotSettings } from '../types'
+import { aoiComparisonValueAxisSync } from './sync.svelte'
+import type { AoiComparisonViewMeta } from './view'
+import type { AoiComparisonSettings } from '../types'
 
 /**
  * Screen recipe: value-axis sync. Registers this plot's data max under its
@@ -11,7 +11,7 @@ import type { BarPlotSettings } from '../types'
  * overlays a synced timeline on the figure when a sibling's max is larger.
  * Export renders the raw (unsynced) view — export never syncs.
  */
-export const barPlotScreen: PlotScreenFactory<BarPlotSettings> = ctx => {
+export const aoiComparisonScreen: PlotScreenFactory<AoiComparisonSettings> = ctx => {
   const hasCustomScale = () => {
     const s = ctx.item.settings
     return (
@@ -21,10 +21,10 @@ export const barPlotScreen: PlotScreenFactory<BarPlotSettings> = ctx => {
   }
 
   usePlotSync(
-    barPlotValueAxisSync,
+    aoiComparisonValueAxisSync,
     () => ctx.item.id,
     () => {
-      const meta = (ctx.view()?.meta ?? null) as BarViewMeta | null
+      const meta = (ctx.view()?.meta ?? null) as AoiComparisonViewMeta | null
       if (!meta || meta.syncKey === null || hasCustomScale()) return null
       return {
         metricInstanceId: meta.syncKey,
@@ -37,9 +37,9 @@ export const barPlotScreen: PlotScreenFactory<BarPlotSettings> = ctx => {
 
   return {
     props: view => {
-      const meta = view.meta as BarViewMeta
+      const meta = view.meta as AoiComparisonViewMeta
       if (hasCustomScale() || meta.syncKey === null) return {}
-      const syncedMax = barPlotValueAxisSync.getSyncedMax(
+      const syncedMax = aoiComparisonValueAxisSync.getSyncedMax(
         meta.syncKey,
         ctx.item.w,
         ctx.item.h

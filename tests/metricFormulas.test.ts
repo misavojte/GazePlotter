@@ -3,7 +3,7 @@
  * small synthetic dataset and asserts the metric's output against a hand-
  * computed expected value — not against what the code happens to do today.
  *
- * Behaviour-level coverage lives in `barPlotDataCollection.test.ts`.
+ * Behaviour-level coverage lives in `aoiComparisonDataCollection.test.ts`.
  */
 import { describe, it, expect } from 'vitest'
 import { makeGroupedAoiEngine, makeTestEngine } from './helpers/testEngine'

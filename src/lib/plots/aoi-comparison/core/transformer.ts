@@ -1,21 +1,17 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { getAois, getParticipantsIds, getParticipant } from '$lib/data/engine'
 import type { ExtendedInterpretedDataType } from '$lib/data/types'
+import { createAdaptiveTimeline, resolveMetric } from '$lib/plots/shared'
 import {
-  createAdaptiveTimeline,
-  resolveMetric,
-  type AdaptiveTimeline,
-} from '$lib/plots/shared'
-import {
-  formatDecimal,
-  percentileSorted,
-} from '$lib/shared/utils/mathUtils'
-import type {
-  BarPlotResult,
-  BarPlotDataItem,
-  BarPlotSettings,
-  AoiSummaryStatistics,
-} from '../types'
+  applySorting,
+  computeSummaryStatistics,
+  valueAxisTimeline,
+  type CategoryDistribution,
+  type DistributionResult,
+  type SummaryStatistics,
+} from '$lib/plots/shared/distribution'
+import { formatDecimal } from '$lib/shared/utils/mathUtils'
+import type { AoiComparisonSettings } from '../types'
 import {
   queryPooledIndividuals,
   getMetric,
@@ -24,10 +20,10 @@ import {
 
 const CONTRACT = { outputShape: 'aoi-vector', windowing: 'forbidden', crossParticipant: 'distribution' } as const satisfies PlotMetricContract
 
-export function getBarPlotData(
+export function getAoiComparisonData(
   engine: DataEngine,
   settings: Pick<
-    BarPlotSettings,
+    AoiComparisonSettings,
     | 'stimulusId'
     | 'groupId'
     | 'metricInstanceIds'
@@ -40,7 +36,7 @@ export function getBarPlotData(
     | 'hideNoAoi'
     | 'aoiSelectionId'
   >
-): BarPlotResult {
+): DistributionResult {
   const meta = engine.metadata
   if (!meta) throw new Error('No metadata found')
 
@@ -90,7 +86,7 @@ export function getBarPlotData(
     Array.from({ length: totalSlots }, (_, s) => s)
   )
 
-  const statsArrays = new Array<AoiSummaryStatistics>(totalSlots)
+  const statsArrays = new Array<SummaryStatistics>(totalSlots)
   for (let i = 0; i < totalSlots; i++) {
     statsArrays[i] = computeSummaryStatistics(individualArrays[i])
   }
@@ -154,10 +150,10 @@ function createLabeledData(
   aois: readonly ExtendedInterpretedDataType[],
   noAoiTreatment: { displayedName: string; color: string },
   individualArrays: number[][] | null = null,
-  statsArrays: AoiSummaryStatistics[] | null = null,
+  statsArrays: SummaryStatistics[] | null = null,
   individualNameArrays: string[][] | null = null
-): BarPlotDataItem[] {
-  const result: BarPlotDataItem[] = new Array(rawData.length)
+): CategoryDistribution[] {
+  const result: CategoryDistribution[] = new Array(rawData.length)
 
   for (let i = 0; i < rawData.length; i++) {
     const value = rawData[i]
@@ -176,132 +172,4 @@ function createLabeledData(
   }
 
   return result
-}
-
-/**
- * One sort policy for every plot rendering through `BarPlotFigure` (exported
- * for the eye-movement comparison). Any `orderBy` other than `'value'` keeps
- * the given order ('aoi', 'type', ...), reversed for desc.
- */
-export function applySorting(
-  data: BarPlotDataItem[],
-  orderBy: 'value' | (string & {}),
-  orderDirection: 'asc' | 'desc'
-): BarPlotDataItem[] {
-  if (orderBy !== 'value') {
-    return orderDirection === 'asc' ? data : [...data].reverse()
-  }
-  return [...data].sort((a, b) =>
-    orderDirection === 'asc' ? a.value - b.value : b.value - a.value
-  )
-}
-
-/**
- * The shared figure's value-axis policy — nice timeline from the data max,
- * with `scaleRange`'s zero-means-unset overrides and the +1 floor guard.
- * Exported for the eye-movement comparison so the two plots cannot drift on
- * scale semantics.
- */
-export function valueAxisTimeline(
-  dataMax: number,
-  scaleRange: [number, number] | undefined
-): AdaptiveTimeline {
-  let timelineMin = 0
-  let timelineMax = dataMax || 100
-  if (scaleRange) {
-    if (scaleRange[0] !== 0) timelineMin = scaleRange[0]
-    if (scaleRange[1] !== 0) timelineMax = scaleRange[1]
-  }
-  if (timelineMax <= timelineMin) timelineMax = timelineMin + 1
-  return createAdaptiveTimeline(timelineMin, timelineMax, 6)
-}
-
-/** Exported for the eye-movement comparison plot — same stats bundle, same figure. */
-export function computeSummaryStatistics(
-  values: number[]
-): AoiSummaryStatistics {
-  const empty: AoiSummaryStatistics = {
-    mean: 0,
-    median: 0,
-    q1: 0,
-    q3: 0,
-    min: 0,
-    max: 0,
-    sd: 0,
-    sem: 0,
-    whiskerLow: 0,
-    whiskerHigh: 0,
-    count: 0,
-    outliers: [],
-  }
-
-  if (values.length === 0) return empty
-
-  const sorted = [...values].sort((a, b) => a - b)
-  const n = sorted.length
-
-  let sum = 0
-  for (let i = 0; i < n; i++) sum += sorted[i]
-  const mean = sum / n
-
-  const median =
-    n % 2 === 0
-      ? (sorted[n / 2 - 1] + sorted[n / 2]) / 2
-      : sorted[Math.floor(n / 2)]
-
-  const q1 = percentileSorted(sorted, 0.25)
-  const q3 = percentileSorted(sorted, 0.75)
-
-  const min = sorted[0]
-  const max = sorted[n - 1]
-
-  let sumSqDiff = 0
-  for (let i = 0; i < n; i++) {
-    const diff = sorted[i] - mean
-    sumSqDiff += diff * diff
-  }
-  const sd = n > 1 ? Math.sqrt(sumSqDiff / (n - 1)) : 0
-  const sem = n > 0 ? sd / Math.sqrt(n) : 0
-
-  const iqr = q3 - q1
-  const whiskerLowBound = q1 - 1.5 * iqr
-  const whiskerHighBound = q3 + 1.5 * iqr
-
-  let whiskerLow = min
-  for (let i = 0; i < n; i++) {
-    if (sorted[i] >= whiskerLowBound) {
-      whiskerLow = sorted[i]
-      break
-    }
-  }
-
-  let whiskerHigh = max
-  for (let i = n - 1; i >= 0; i--) {
-    if (sorted[i] <= whiskerHighBound) {
-      whiskerHigh = sorted[i]
-      break
-    }
-  }
-
-  const outliers: number[] = []
-  for (let i = 0; i < n; i++) {
-    if (sorted[i] < whiskerLow || sorted[i] > whiskerHigh) {
-      outliers.push(sorted[i])
-    }
-  }
-
-  return {
-    mean,
-    median,
-    q1,
-    q3,
-    min,
-    max,
-    sd,
-    sem,
-    whiskerLow,
-    whiskerHigh,
-    count: n,
-    outliers,
-  }
 }

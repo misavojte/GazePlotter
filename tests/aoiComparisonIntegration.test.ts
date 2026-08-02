@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { makeTestEngine } from './helpers/testEngine'
-import { getBarPlotData } from '../src/lib/plots/bar/core/transformer'
+import { getAoiComparisonData } from '../src/lib/plots/aoi-comparison/core/transformer'
 import { createDefaultMetricInstances } from '../src/lib/metrics/instances'
 
 const ABSOLUTE_TIME_INSTANCE_ID = 'absoluteTime'
@@ -37,7 +37,7 @@ describe('Bar Plot Transformer (Integration)', () => {
       ],
     ])
 
-    const result = getBarPlotData(
+    const result = getAoiComparisonData(
       engine as any,
       {
         stimulusId,
@@ -68,7 +68,7 @@ describe('Bar Plot Transformer (Integration)', () => {
       ],
     ])
 
-    const result = getBarPlotData(
+    const result = getAoiComparisonData(
       engine as any,
       {
         stimulusId,
@@ -87,7 +87,7 @@ describe('Bar Plot Transformer (Integration)', () => {
   it('generates a nice timeline based on data max value', () => {
     const engine = createMockEngine([[[[0, 450, 0, 0]]]])
 
-    const result = getBarPlotData(
+    const result = getAoiComparisonData(
       engine as any,
       {
         stimulusId,
@@ -102,7 +102,7 @@ describe('Bar Plot Transformer (Integration)', () => {
   it('handles custom scale range', () => {
     const engine = createMockEngine([[[[0, 100, 0, 0]]]])
 
-    const result = getBarPlotData(
+    const result = getAoiComparisonData(
       engine as any,
       {
         stimulusId,
@@ -120,7 +120,7 @@ describe('Bar Plot Transformer (Integration)', () => {
     engine.metadata.participants.data = []
     engine.metadata.participants.orderVector = []
 
-    const result = getBarPlotData(
+    const result = getAoiComparisonData(
       engine as any,
       {
         stimulusId,
@@ -141,7 +141,7 @@ describe('Bar Plot Transformer (Integration)', () => {
       ],
     ])
 
-    const result = getBarPlotData(
+    const result = getAoiComparisonData(
       engine as any,
       {
         stimulusId,
@@ -168,7 +168,7 @@ describe('Bar Plot Transformer (Integration)', () => {
       ],
     ])
 
-    const result = getBarPlotData(
+    const result = getAoiComparisonData(
       engine as any,
       {
         stimulusId,
@@ -200,7 +200,7 @@ describe('Bar Plot Transformer (Integration)', () => {
       ],
     ])
 
-    const result = getBarPlotData(
+    const result = getAoiComparisonData(
       engine as any,
       {
         stimulusId,

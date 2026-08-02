@@ -1,4 +1,4 @@
-import type { StatisticalOverlayType } from '$lib/plots/bar/types'
+import type { StatisticalOverlayType } from '$lib/plots/shared/distribution'
 
 export type EyeMovementComparisonSettings = {
   stimulusId: number
@@ -12,7 +12,7 @@ export type EyeMovementComparisonSettings = {
    * the plot renders the instance's whole per-type vector directly.
    */
   metricInstanceIds: string[]
-  barPlottingType: 'vertical' | 'horizontal'
+  orientation: 'vertical' | 'horizontal'
   orderBy: 'value' | 'type'
   orderDirection: 'asc' | 'desc'
   scaleRange: [number, number]

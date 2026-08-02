@@ -1,7 +1,7 @@
 /**
- * Cross-plot value-axis synchronization for bar plots.
+ * Cross-plot value-axis synchronization for AOI Comparison plots.
  *
- * Two bar plots that share the same selected metric instance AND the same
+ * Two AOI Comparisons that share the same selected metric instance AND the same
  * grid footprint (w, h) will share their value-axis maximum so the beeswarms
  * and overlays stay directly comparable across a row/grid of same-shape plots.
  *
@@ -20,8 +20,8 @@ interface SyncEntry {
   dataMax: number
 }
 
-class BarPlotValueAxisSync extends PlotSyncRegistry<SyncEntry> {
-  /** Largest dataMax across all bar plots sharing (metric, w, h). */
+class AoiComparisonValueAxisSync extends PlotSyncRegistry<SyncEntry> {
+  /** Largest dataMax across all AOI Comparisons sharing (metric, w, h). */
   getSyncedMax(metricInstanceId: string, w: number, h: number): number {
     return this.maxWhere(
       e => e.metricInstanceId === metricInstanceId && e.w === w && e.h === h,
@@ -29,4 +29,4 @@ class BarPlotValueAxisSync extends PlotSyncRegistry<SyncEntry> {
   }
 }
 
-export const barPlotValueAxisSync = new BarPlotValueAxisSync()
+export const aoiComparisonValueAxisSync = new AoiComparisonValueAxisSync()

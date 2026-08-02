@@ -7,4 +7,7 @@
  */
 export const LEGACY_VISUALIZATION_TYPES = {
   TransitionMatrix: 'transitionMatrix',
+  // The AOI Comparison was keyed by its mark ('barPlot') until it was renamed
+  // to its identity. Saved workspaces still carry the old key.
+  barPlot: 'aoiComparison',
 } as const

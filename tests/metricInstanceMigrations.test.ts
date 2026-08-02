@@ -7,6 +7,10 @@ import {
   type MetricInstance,
 } from '../src/lib/metrics/instances'
 import { STARTING_METRICS } from '../src/lib/metrics/startingMetrics'
+// A v4 file runs the WHOLE chain (v4 → v5 → v6), so these assert the ceiling,
+// not the v5 step's own stamp — sourced from the constant so the next bump
+// doesn't leave a stale literal behind.
+import { CURRENT_SCHEMA_VERSION } from '../src/lib/data/types'
 import { getRecipe } from '../src/lib/metrics/core/defineMetric'
 
 // Reference starter count for seed assertions. Matches STARTING_METRICS length.
@@ -51,7 +55,7 @@ describe('V4 → V5 consolidated migration: metric-instance seeding', () => {
   it('seeds metricInstances with the slug-keyed starter library', () => {
     const migrated = runMigrations(buildV4File())
 
-    expect(migrated.version).toBe(5)
+    expect(migrated.version).toBe(CURRENT_SCHEMA_VERSION)
     const seeded = migrated.data.metricInstances as MetricInstance[]
     expect(Array.isArray(seeded)).toBe(true)
     expect(seeded.length).toBe(STARTER_COUNT)
@@ -98,8 +102,8 @@ describe('V4 → V5 transition-matrix settings migration', () => {
     ])
   }
 
-  it('bumps version to 5', () => {
-    expect(runMigrations(buildTMFile('sum')).version).toBe(5)
+  it('bumps the version to the current schema', () => {
+    expect(runMigrations(buildTMFile('sum')).version).toBe(CURRENT_SCHEMA_VERSION)
   })
 
   it('drops aggregationMethod from migrated settings', () => {
@@ -229,8 +233,8 @@ describe('V4 → V5 bar-plot settings migration', () => {
     avgFirstFixationDuration: 'firstFixationDuration',
   }
 
-  it('bumps version to 5', () => {
-    expect(runMigrations(buildBarFile('absoluteTime')).version).toBe(5)
+  it('bumps the version to the current schema', () => {
+    expect(runMigrations(buildBarFile('absoluteTime')).version).toBe(CURRENT_SCHEMA_VERSION)
   })
 
   it('drops aggregationMethod from migrated settings', () => {
@@ -523,7 +527,7 @@ describe('V4 → V5 metric-reference normalization to metricInstanceIds: string[
         settings: { stimulusId: 0, groupId: -1, binSize: 500, absoluteStimuliLimits: [] },
       },
     ]))
-    const bar = m.gridItems.find((g: any) => g.type === 'barPlot').settings
+    const bar = m.gridItems.find((g: any) => g.type === 'aoiComparison').settings
     const stream = m.gridItems.find((g: any) => g.type === 'aoiStreamPlot').settings
     expect(bar.metricInstanceIds).toEqual(['visitCount'])
     expect(stream.binSize).toBeUndefined()
@@ -756,5 +760,62 @@ describe('version-independent: statistic param → summary leaf', () => {
     expect(second).toEqual(first)
     const plain = migrated('fixationCount', { kind: 'identity-aoi-vector' }, {})
     expect(plain.params).toEqual({})
+  })
+})
+
+describe('V5 → V6: barPlottingType → orientation', () => {
+  const buildV5 = (settings: Record<string, unknown>): Record<string, unknown> => ({
+    version: 5,
+    data: { metricInstances: [] },
+    gridItems: [
+      { id: 'p1', type: 'aoiComparison', x: 0, y: 0, w: 8, h: 8, settings },
+    ],
+  })
+  const settingsOf = (file: Record<string, unknown>) =>
+    runMigrations(file).gridItems[0].settings
+
+  it('moves the value onto `orientation` and drops the old key', () => {
+    const s = settingsOf(buildV5({ stimulusId: 0, barPlottingType: 'vertical' }))
+    expect(s.orientation).toBe('vertical')
+    expect('barPlottingType' in s).toBe(false)
+  })
+
+  it('bumps a v5 file to the current schema', () => {
+    expect(runMigrations(buildV5({ barPlottingType: 'vertical' })).version).toBe(
+      CURRENT_SCHEMA_VERSION
+    )
+  })
+
+  // The whole chain, not just the last hop: a v4 file carries the old key too,
+  // so v4 → v5 must hand off rather than stamp the ceiling and skip this step.
+  it('reaches v4 files through the full chain', () => {
+    const m = runMigrations({
+      version: 4,
+      data: { stimuli: { data: [] }, participants: { data: [] } },
+      gridItems: [{
+        id: 'b', type: 'barPlot', x: 0, y: 0, w: 8, h: 8,
+        settings: { stimulusId: 0, groupId: -1, barPlottingType: 'vertical' },
+      }],
+    })
+    expect(m.version).toBe(CURRENT_SCHEMA_VERSION)
+    expect(m.gridItems[0].type).toBe('aoiComparison')
+    expect(m.gridItems[0].settings.orientation).toBe('vertical')
+    expect('barPlottingType' in m.gridItems[0].settings).toBe(false)
+  })
+
+  it('is idempotent and never clobbers an explicit orientation', () => {
+    const once = runMigrations(buildV5({ barPlottingType: 'vertical' }))
+    const twice = runMigrations(JSON.parse(JSON.stringify(once)))
+    expect(twice.gridItems[0].settings.orientation).toBe('vertical')
+
+    const conflict = settingsOf(
+      buildV5({ barPlottingType: 'vertical', orientation: 'horizontal' })
+    )
+    expect(conflict.orientation).toBe('horizontal')
+  })
+
+  it('leaves settings without the key untouched', () => {
+    const s = settingsOf(buildV5({ stimulusId: 3, orderBy: 'aoi' }))
+    expect(s).toEqual({ stimulusId: 3, orderBy: 'aoi', hideNoAoi: false })
   })
 })

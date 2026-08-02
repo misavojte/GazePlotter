@@ -1,20 +1,23 @@
-import { deriveBarView } from './core/view'
-import { barPlotScreen } from './core/screen.svelte'
-import {
-  DIRECTION_OPTIONS,
-  ORIENTATION_OPTIONS,
-  OVERLAY_OPTIONS,
-  overlaySummaryLabel,
-} from './const'
+import { deriveAoiComparisonView } from './core/view'
+import { aoiComparisonScreen } from './core/screen.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import {
   pickedInstanceIsProportion as isProportion,
   stimulusGroupSubtitle,
 } from '$lib/plots/shared'
-import type { BarPlotSettings } from './types'
+import {
+  DIRECTION_OPTIONS,
+  ORIENTATION_OPTIONS,
+  OVERLAY_OPTIONS,
+  overlaySummaryLabel,
+} from '$lib/plots/shared/distribution'
+import type { AoiComparisonSettings } from './types'
 
-export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
-  type: 'barPlot',
+export const aoiComparisonDefinition = definePlot<
+  'aoiComparison',
+  AoiComparisonSettings
+>({
+  type: 'aoiComparison',
   name: 'AOI Comparison',
   group: 'per-aoi',
   paneSections: [
@@ -22,7 +25,7 @@ export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
     'group',
     'metric',
     {
-      key: 'barPlot:visualisation',
+      key: 'aoiComparison:visualisation',
       title: 'Visualisation',
       fields: [
         {
@@ -34,7 +37,7 @@ export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
         },
         {
           kind: 'enum',
-          key: 'barPlottingType',
+          key: 'orientation',
           label: 'Orientation',
           options: ORIENTATION_OPTIONS,
         },
@@ -56,7 +59,7 @@ export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
         { kind: 'scaleRange', key: 'scaleRange', legend: 'Scale range' },
       ],
       summary: ctx => {
-        const orientation = ctx.common(s => s.barPlottingType)
+        const orientation = ctx.common(s => s.orientation)
         const overlay = ctx.common(s => s.statisticalOverlay)
         const o = orientation.mixed
           ? 'Mixed'
@@ -71,13 +74,13 @@ export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
     'timelineRange',
     'aoi',
   ],
-  view: { deriveView: deriveBarView },
-  screen: barPlotScreen,
+  view: { deriveView: deriveAoiComparisonView },
+  screen: aoiComparisonScreen,
   getSubtitle: stimulusGroupSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
     groupId: params.groupId ?? -1,
-    barPlottingType: 'horizontal',
+    orientation: 'horizontal',
     orderBy: 'aoi',
     orderDirection: 'asc',
     metricInstanceIds: ['absoluteTime'],

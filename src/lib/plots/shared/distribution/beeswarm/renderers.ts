@@ -3,24 +3,24 @@ import {
   getTimelinePositionRatio,
 } from '$lib/plots/shared'
 import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
-import type { BarPlotDataItem, StatisticalOverlayType } from '../types'
+import type { CategoryDistribution, StatisticalOverlayType } from '../types'
 
-// --- Shared layout types ---
+// --- Layout types (this figure's resolved geometry) ---
 
-export interface BarPlotLayout {
+export interface BeeswarmLayout {
   plotLeft: number
   plotTop: number
   plotWidth: number
   plotHeight: number
-  barPlottingType: 'horizontal' | 'vertical'
+  orientation: 'horizontal' | 'vertical'
   timeline: AdaptiveTimeline
-  items: BarLayoutItem[]
+  items: CategorySlotLayout[]
 }
 
-export interface BarLayoutItem {
+export interface CategorySlotLayout {
   categoryCenter: number
   categoryWidth: number
-  data: BarPlotDataItem
+  data: CategoryDistribution
 }
 
 // --- Constants ---
@@ -50,12 +50,12 @@ const MARKER_WIDTH_WIDE = 80
 // --- Helpers ---
 
 export function valueToPixel(
-  layout: BarPlotLayout,
+  layout: BeeswarmLayout,
   value: number,
   clamp = true
 ): number {
   const ratio = getTimelinePositionRatio(layout.timeline, value, clamp)
-  return layout.barPlottingType === 'vertical'
+  return layout.orientation === 'vertical'
     ? Math.floor(layout.plotTop + layout.plotHeight - ratio * layout.plotHeight)
     : Math.floor(layout.plotLeft + ratio * layout.plotWidth)
 }
@@ -63,14 +63,14 @@ export function valueToPixel(
 // --- Adaptive dot sizing ---
 
 /**
- * Computes dot radius based on the densest cluster across all AOIs.
+ * Computes dot radius based on the densest cluster across all category slots.
  * Shrinks dots when too many overlap in a small region. Dots are always
  * drawn at full opacity — overlap is accepted as a visual tradeoff.
  */
-export function computeDotStyle(layout: BarPlotLayout): { radius: number } {
+export function computeDotStyle(layout: BeeswarmLayout): { radius: number } {
   const categoryWidth = layout.items.length > 0 ? layout.items[0].categoryWidth : 100
 
-  // Find the highest dot count within any single density bin across all AOIs
+  // Find the highest dot count within any single density bin across all slots
   let peakDensity = 0
 
   for (const item of layout.items) {
@@ -134,12 +134,12 @@ export function computeDotStyle(layout: BarPlotLayout): { radius: number } {
 
 export function drawOverlayBackgrounds(
   ctx: CanvasRenderingContext2D,
-  layout: BarPlotLayout,
+  layout: BeeswarmLayout,
   overlayType: StatisticalOverlayType
 ): void {
   if (overlayType === 'none') return
 
-  const isVertical = layout.barPlottingType === 'vertical'
+  const isVertical = layout.orientation === 'vertical'
   const basePx = valueToPixel(layout, 0)
   ctx.fillStyle = BG_FILL_COLOR
 
@@ -181,11 +181,11 @@ export function drawOverlayBackgrounds(
 
 export function drawCategoryDelimiters(
   ctx: CanvasRenderingContext2D,
-  layout: BarPlotLayout
+  layout: BeeswarmLayout
 ): void {
   if (layout.items.length < 2) return
 
-  const isVertical = layout.barPlottingType === 'vertical'
+  const isVertical = layout.orientation === 'vertical'
   ctx.strokeStyle = DELIMITER_COLOR
   ctx.lineWidth = 1
 
@@ -211,12 +211,12 @@ export function drawCategoryDelimiters(
 // --- Proportional bars (primary layer for proportion metrics) ---
 
 /**
- * Draws a filled bar from the value baseline to each AOI's value. Used instead of
+ * Draws a filled bar from the value baseline to each slot's value. Used instead of
  * the beeswarm for proportion metrics (e.g. the noticed-rate `fixated`), where a
  * 0/1 dot cloud is meaningless. Values are already scaled to percent by the
  * transformer.
  *
- * Deliberately plain — NO error band. The per-AOI value is a descriptive proportion
+ * Deliberately plain — NO error band. The per-slot value is a descriptive proportion
  * over the participant group (every bar shares the same n, so the bars are directly
  * comparable), and a confidence interval would import a sampling + homogeneous-exposure
  * assumption the data model does not guarantee (a participant never exposed to an ad is
@@ -225,9 +225,9 @@ export function drawCategoryDelimiters(
  */
 export function drawProportionalBars(
   ctx: CanvasRenderingContext2D,
-  layout: BarPlotLayout
+  layout: BeeswarmLayout
 ): void {
-  const isVertical = layout.barPlottingType === 'vertical'
+  const isVertical = layout.orientation === 'vertical'
   const basePx = valueToPixel(layout, 0)
 
   for (const item of layout.items) {
@@ -250,12 +250,12 @@ export function drawProportionalBars(
 
 export function drawBeeswarmPoints(
   ctx: CanvasRenderingContext2D,
-  layout: BarPlotLayout,
+  layout: BeeswarmLayout,
   // Precomputed by the figure's `geom` derived (stable between renders). Falls
   // back to computing it here for any standalone caller.
   radius: number = computeDotStyle(layout).radius
 ): void {
-  const isVertical = layout.barPlottingType === 'vertical'
+  const isVertical = layout.orientation === 'vertical'
   const TWO_PI = Math.PI * 2
 
   for (const item of layout.items) {
@@ -272,7 +272,7 @@ export function drawBeeswarmPoints(
 
     ctx.fillStyle = item.data.color
 
-    // One path + one fill per AOI instead of per dot (all dots share a colour).
+    // One path + one fill per slot instead of per dot (all dots share a colour).
     // Arc centers are shifted by +0.5 so each dot sits on the center of its
     // value pixel rather than on the pixel corner. This keeps the beeswarm
     // optically aligned with the overlay markers, which use alignToPixelCenter
@@ -298,7 +298,7 @@ export function drawBeeswarmPoints(
 
 export function drawStatisticalOverlay(
   ctx: CanvasRenderingContext2D,
-  layout: BarPlotLayout,
+  layout: BeeswarmLayout,
   overlayType: StatisticalOverlayType
 ): void {
   if (overlayType === 'none') return
@@ -318,10 +318,10 @@ export function drawStatisticalOverlay(
 
 function drawIndicatorOverlay(
   ctx: CanvasRenderingContext2D,
-  layout: BarPlotLayout,
+  layout: BeeswarmLayout,
   errorType: 'sd' | 'ci95'
 ): void {
-  const isVertical = layout.barPlottingType === 'vertical'
+  const isVertical = layout.orientation === 'vertical'
   const basePx = valueToPixel(layout, 0)
   const markerColor = computeMarkerColor(layout)
 
@@ -358,9 +358,9 @@ function drawIndicatorOverlay(
 
 function drawBoxplotOverlay(
   ctx: CanvasRenderingContext2D,
-  layout: BarPlotLayout
+  layout: BeeswarmLayout
 ): void {
-  const isVertical = layout.barPlottingType === 'vertical'
+  const isVertical = layout.orientation === 'vertical'
   const markerColor = computeMarkerColor(layout)
 
   for (const item of layout.items) {
@@ -412,7 +412,7 @@ function drawBoxplotOverlay(
  * distance); each bin is laid out as a single row centered on the category
  * axis (offset = (i − (n−1)/2) × spacing). Spacing tightens when a bin's row
  * would exceed maxCategorySpread, and positions are clamped to it so dots stay
- * within the AOI strip. Caps at 200 sampled points per AOI for performance.
+ * within the slot strip. Caps at 200 sampled points per slot for performance.
  */
 export function computeBeeswarmPositions(
   values: number[],
@@ -423,7 +423,7 @@ export function computeBeeswarmPositions(
 ): Array<{ valuePos: number; categoryPos: number }> {
   if (values.length === 0) return []
 
-  // Cap at 200 points per AOI to maintain performance
+  // Cap at 200 points per slot to maintain performance
   const MAX_POINTS = 200
   let workingValues = values
   if (values.length > MAX_POINTS) {
@@ -497,7 +497,7 @@ function haloColorAt(pxPos: number, fillRange: FillRange): string {
  * (short cross-lines need more contrast to read) and lighter when bars are
  * wide (long lines read fine even in light gray).
  */
-function computeMarkerColor(layout: BarPlotLayout): string {
+function computeMarkerColor(layout: BeeswarmLayout): string {
   const categoryWidth = layout.items.length > 0 ? layout.items[0].categoryWidth : MARKER_WIDTH_WIDE
   const t = Math.max(0, Math.min(1,
     (categoryWidth - MARKER_WIDTH_NARROW) / (MARKER_WIDTH_WIDE - MARKER_WIDTH_NARROW)

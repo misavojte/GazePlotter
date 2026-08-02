@@ -1,10 +1,10 @@
-import { getMetric, type MetricInstance } from '$lib/metrics'
+import type { MetricInstance } from '$lib/metrics'
 import { buildMetricLabel, timeRangeQualifier } from '$lib/plots/shared'
 import type { StatisticalOverlayType } from './types'
 
 /**
  * Shared Visualisation-pane vocabulary for the plots rendering through
- * `BarPlotFigure` (AOI Comparison + Eye-movement Comparison) — one home so
+ * `DistributionFigure` (AOI Comparison + Eye-movement Comparison) — one home so
  * the user-visible labels cannot drift between them.
  */
 export const OVERLAY_OPTIONS = [
@@ -34,7 +34,9 @@ export function overlaySummaryLabel(overlay: string): string {
 }
 
 /** The statistic an overlay summarises, as a mid-dot qualifier (never brackets). */
-export function statisticQualifier(overlay: StatisticalOverlayType): string | null {
+export function statisticQualifier(
+  overlay: StatisticalOverlayType
+): string | null {
   switch (overlay) {
     case 'meanSd':
       return 'mean ± SD'
@@ -48,13 +50,13 @@ export function statisticQualifier(overlay: StatisticalOverlayType): string | nu
 }
 
 /**
- * Value-axis label for the bar plot, in the shared label grammar:
+ * Value-axis label for a distribution figure, in the shared label grammar:
  * `"<quantity> / <unit> · <statistic> · t ∈ [a, b] ms"`. The quantity is the
  * instance name (carries its projection), the unit comes from the metric, and
- * the statistic + sub-stimulus time range trail as mid-dot qualifiers. The bar
- * plot has no time axis, so the time range is disclosed here.
+ * the statistic + sub-stimulus time range trail as mid-dot qualifiers. The
+ * figure has no time axis, so the time range is disclosed here.
  */
-export function getBarPlotAxisLabel(
+export function getDistributionAxisLabel(
   instance: MetricInstance | null | undefined,
   timelineStart = 0,
   timelineEnd = 0,
@@ -62,13 +64,16 @@ export function getBarPlotAxisLabel(
 ): string {
   return buildMetricLabel(instance, {
     projection: 'full',
-    // The bar is a distribution plot built on individual values: it pools raw
+    // This is a distribution plot built on individual values: it pools raw
     // fixations/visits and its overlay states the statistic (mean ± CI /
     // median, IQR). So the cross-participant treatment is disclosed by that
-    // overlay, not by a reduction chip implying a point statistic the bar
-    // doesn't apply. (The within-participant summary needs no opt-out: the bar
-    // consumes the raw vector, which never carries a chosen statistic.)
+    // overlay, not by a reduction chip implying a point statistic the figure
+    // doesn't apply. (The within-participant summary needs no opt-out: the
+    // figure consumes the raw vector, which never carries a chosen statistic.)
     includeReduction: false,
-    extra: [statisticQualifier(overlay), timeRangeQualifier(timelineStart, timelineEnd)],
+    extra: [
+      statisticQualifier(overlay),
+      timeRangeQualifier(timelineStart, timelineEnd),
+    ],
   })
 }

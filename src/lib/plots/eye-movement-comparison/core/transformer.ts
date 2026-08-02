@@ -9,8 +9,9 @@ import {
   applySorting,
   computeSummaryStatistics,
   valueAxisTimeline,
-} from '$lib/plots/bar/core/transformer'
-import type { BarPlotDataItem, BarPlotResult } from '$lib/plots/bar/types'
+  type CategoryDistribution,
+  type DistributionResult,
+} from '$lib/plots/shared/distribution'
 import { formatDecimal } from '$lib/shared/utils/mathUtils'
 import {
   categoryGroups,
@@ -36,7 +37,7 @@ export const EYE_MOVEMENT_COMPARISON_CONTRACT = {
  * category-vector result (never a parallel computation): each participant is
  * queried ONCE for the whole vector, contributes one dot per type, and the
  * bar is the mean of those per-participant values — the exact data shape
- * `BarPlotFigure` renders for the AOI Comparison, so the whole figure
+ * `BeeswarmFigure` renders for the AOI Comparison, so the whole figure
  * (beeswarm, overlays, ordering, scale) is inherited.
  *
  * Type rows: the canonical `categoryGroups` axis (the same order contract the
@@ -59,7 +60,7 @@ export function getEyeMovementComparisonData(
     | 'timelineEnd'
     | 'statisticalOverlay'
   >
-): BarPlotResult {
+): DistributionResult {
   const meta = engine.metadata
   if (!meta) throw new Error('No metadata found')
 
@@ -111,7 +112,7 @@ export function getEyeMovementComparisonData(
     kept.map(type => type.slot)
   )
 
-  const data: BarPlotDataItem[] = kept.map((type, i) => {
+  const data: CategoryDistribution[] = kept.map((type, i) => {
     const values = pooled.values[i]
     const stats = computeSummaryStatistics(values)
     return {

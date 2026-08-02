@@ -23,9 +23,15 @@ const CORE_LAYOUT_KEYS = new Set([
   'redrawTimestamp',
 ])
 
-/** Plot types carrying the `hideNoAoi` setting (backfilled to `false` below). */
+/**
+ * Plot types carrying the `hideNoAoi` setting (backfilled to `false` below).
+ *
+ * CURRENT registry keys, not on-disk ones: every set here is consulted AFTER
+ * the version-independent `LEGACY_VISUALIZATION_TYPES` rewrite below, so a
+ * file saying 'barPlot' already reads as 'aoiComparison' by then.
+ */
 const HIDE_NO_AOI_PLOT_TYPES = new Set([
-  'barPlot',
+  'aoiComparison',
   'aoiStreamPlot',
   'transitionMatrix',
   'scarf',
@@ -34,7 +40,7 @@ const HIDE_NO_AOI_PLOT_TYPES = new Set([
 /** Plot types whose settings carry a per-plot `aoiSelectionId`. */
 const AOI_SELECTION_PLOT_TYPES = new Set([
   'scarf',
-  'barPlot',
+  'aoiComparison',
   'aoiStreamPlot',
   'transitionMatrix',
   'recurrencePlot',
@@ -367,13 +373,15 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
     version = 4
   }
 
-  // V4 → V5: the 1.9.0 metrics-system migration — the single schema bump above
-  // `main` (v4). v5 is the current format. (An earlier in-branch split into a
-  // separate v5 → v6 step was collapsed here; both halves now run as one bump,
-  // so the export's stamped version always matches the data it writes. Since
-  // `main` never released v5 or v6, there are no intermediate files to migrate,
-  // and the former baseId-rename / label-upgrade passes — which only ever fired
-  // on hand-authored intermediate v5 files — were dropped as unreachable.)
+  // V4 → V5: the 1.9.0 metrics-system migration. (An earlier in-branch split
+  // into a separate v5 → v6 step was collapsed here; both halves now run as one
+  // bump, so the export's stamped version always matches the data it writes.
+  // The former baseId-rename / label-upgrade passes, which only ever fired on
+  // hand-authored intermediate v5 files, were dropped as unreachable.)
+  //
+  // v5 has since SHIPPED on `main` (1.9.2), so real v5 files exist and this
+  // step no longer terminates the chain — it hands off to the v5 → v6 step
+  // below rather than stamping CURRENT_SCHEMA_VERSION.
   //   1. Materialize `eventData` from legacy `aois.dynamicVisibility`.
   //   2. Seed `payload.metricInstances` with the slug-keyed starter library.
   //   3. Translate legacy bar / transition-matrix settings to reference that
@@ -535,6 +543,9 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
         const s = item.settings
         if (!s || typeof s !== 'object') return item
 
+        // Raw ON-DISK type, deliberately not the current 'aoiComparison' key:
+        // this versioned step runs BEFORE the legacy-type rewrite below, so the
+        // only value it can ever see for this plot is the old 'barPlot'.
         if (item.type === 'barPlot') {
           const baseId =
             typeof s.aggregationMethod === 'string' ? s.aggregationMethod : 'absoluteTime'
@@ -655,7 +666,38 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
     // `payload.metricInstances` already references the seeded `metricInstances`
     // array (mutated in place by the aoi-stream pass above), so no reassignment
     // is needed here.
-    data = { ...data, version: CURRENT_SCHEMA_VERSION, data: payload }
+    //
+    // Stamps a LITERAL 5, not CURRENT_SCHEMA_VERSION: a v4 file carries
+    // `barPlottingType` just like a v5 one, so it has to fall through the
+    // v5 → v6 step below instead of jumping the chain to the ceiling.
+    data = { ...data, version: 5, data: payload }
+    version = 5
+  }
+
+  // V5 → V6: `barPlottingType` → `orientation` on plot settings. The key was
+  // named after the AOI Comparison's old mark ('barPlot') while it only ever
+  // meant the category axis direction — and the figure it configures draws a
+  // beeswarm, not bars, for every non-proportion metric. Renamed with the plot
+  // itself (barPlot → aoiComparison).
+  //
+  // Keyed on the FIELD, not on a plot-type list: the only two plots that carry
+  // it both take the same values, and a settings key rename has no reason to
+  // care which plot holds it. Idempotent — an already-renamed file has no
+  // `barPlottingType` left to move, and an explicit `orientation` always wins.
+  if (version === 5) {
+    if (Array.isArray(data.gridItems)) {
+      data.gridItems = data.gridItems.map((item: any) => {
+        if (!item || typeof item !== 'object') return item
+        const s = item.settings
+        if (!s || typeof s !== 'object' || !('barPlottingType' in s)) return item
+        const { barPlottingType, ...rest } = s
+        return {
+          ...item,
+          settings: { ...rest, orientation: rest.orientation ?? barPlottingType },
+        }
+      })
+    }
+    data = { ...data, version: CURRENT_SCHEMA_VERSION }
     version = CURRENT_SCHEMA_VERSION
   }
 

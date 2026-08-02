@@ -9,7 +9,7 @@ export * from './registry'
 // Export visualization types
 export * from './transition-matrix'
 export * from './scarf'
-export * from './bar'
+export * from './aoi-comparison'
 export * from './aoi-stream'
 export * from './scanpath-similarity'
 export * from './scanpath'

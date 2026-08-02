@@ -6,8 +6,8 @@
  */
 import { describe, it, expect } from 'vitest'
 import { makeTestEngine } from './helpers/testEngine'
-import { getBarPlotData } from '../src/lib/plots/bar/core/transformer'
-import { getBarView } from '../src/lib/plots/bar/core/view'
+import { getAoiComparisonData } from '../src/lib/plots/aoi-comparison/core/transformer'
+import { getAoiComparisonView } from '../src/lib/plots/aoi-comparison/core/view'
 import '../src/lib/metrics/init'
 
 const ID = { kind: 'identity-aoi-vector' as const }
@@ -27,7 +27,7 @@ function engineWith(perParticipant: number[][][]) {
 }
 
 function bar(engine: any, instanceId: string) {
-  return getBarPlotData(engine as any, {
+  return getAoiComparisonData(engine as any, {
     stimulusId: 0, groupId: -1, metricInstanceIds: [instanceId],
     orderBy: 'aoi', orderDirection: 'asc', scaleRange: [0, 0],
   } as any)
@@ -70,12 +70,12 @@ describe('bar plot — proportion metric (noticed rate)', () => {
   it('axis label drops the overlay suffix for a proportion metric (no "mean ± CI")', () => {
     const engine = engineWith([[[0, 100, 0, 0]], [[0, 100, 0, 1]]])
     const settings = {
-      stimulusId: 0, groupId: -1, barPlottingType: 'horizontal',
+      stimulusId: 0, groupId: -1, orientation: 'horizontal',
       orderBy: 'aoi', orderDirection: 'asc',
       metricInstanceIds: ['fixated'], scaleRange: [0, 0],
       statisticalOverlay: 'meanCi95', // set, but must be ignored for a proportion
     }
-    const view = getBarView(engine as any, settings as any)
+    const view = getAoiComparisonView(engine as any, settings as any)
     // Full params on the plot (reproducible); the point here is NO statistic suffix.
     expect(view.props.axisLabel).toBe('Was fixated / % · Min fixations 1 · Min dwell 0 ms')
     expect(view.props.axisLabel).not.toMatch(/CI|SD|IQR/)
@@ -84,12 +84,12 @@ describe('bar plot — proportion metric (noticed rate)', () => {
   it('a duration metric keeps its overlay suffix in the axis label', () => {
     const engine = engineWith([[[0, 100, 0, 0]]])
     const settings = {
-      stimulusId: 0, groupId: -1, barPlottingType: 'horizontal',
+      stimulusId: 0, groupId: -1, orientation: 'horizontal',
       orderBy: 'aoi', orderDirection: 'asc',
       metricInstanceIds: ['absoluteTime'], scaleRange: [0, 0],
       statisticalOverlay: 'meanCi95',
     }
-    const view = getBarView(engine as any, settings as any)
+    const view = getAoiComparisonView(engine as any, settings as any)
     expect(view.props.axisLabel).toMatch(/95% CI/)
   })
 

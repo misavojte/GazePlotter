@@ -8,15 +8,15 @@ import {
   ORIENTATION_OPTIONS,
   OVERLAY_OPTIONS,
   overlaySummaryLabel,
-} from '$lib/plots/bar/const'
+} from '$lib/plots/shared/distribution'
 import { deriveEyeMovementComparisonView } from './core/view'
 import { EYE_MOVEMENT_COMPARISON_CONTRACT } from './core/transformer'
 import type { EyeMovementComparisonSettings } from './types'
 
 /**
  * Per-type comparison of eye-movement metrics (fixations vs saccades vs
- * blinks vs whatever the dataset records), rendered through the AOI
- * Comparison's figure. The Metric section is the SAME library flow every
+ * blinks vs whatever the dataset records), rendered through the shared
+ * `BeeswarmFigure`. The Metric section is the SAME library flow every
  * metric plot uses; the contract admits category-vector instances at
  * identity, and the plot draws the instance's whole vector as bars — one per
  * type on the canonical `categoryGroups` axis, narrowed by the per-plot
@@ -54,7 +54,7 @@ export const eyeMovementComparisonDefinition = definePlot<
         },
         {
           kind: 'enum',
-          key: 'barPlottingType',
+          key: 'orientation',
           label: 'Orientation',
           options: ORIENTATION_OPTIONS,
         },
@@ -76,7 +76,7 @@ export const eyeMovementComparisonDefinition = definePlot<
         { kind: 'scaleRange', key: 'scaleRange', legend: 'Scale range' },
       ],
       summary: ctx => {
-        const orientation = ctx.common(s => s.barPlottingType)
+        const orientation = ctx.common(s => s.orientation)
         const overlay = ctx.common(s => s.statisticalOverlay)
         const o = orientation.mixed
           ? 'Mixed'
@@ -97,7 +97,7 @@ export const eyeMovementComparisonDefinition = definePlot<
     stimulusId: params.stimulusId ?? 0,
     groupId: params.groupId ?? -1,
     metricInstanceIds: ['movementDuration'],
-    barPlottingType: 'horizontal',
+    orientation: 'horizontal',
     orderBy: 'type',
     orderDirection: 'asc',
     scaleRange: [0, 0],

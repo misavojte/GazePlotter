@@ -37,7 +37,7 @@ function createData(): DataType {
 const gridItems = [
   {
     id: 'bar-1',
-    type: 'barPlot',
+    type: 'aoiComparison',
     x: 0,
     y: 0,
     w: 8,
@@ -80,7 +80,7 @@ describe('workspace export round-trip: version stamp matches current schema', ()
     expect(migrated.version).toBe(CURRENT_SCHEMA_VERSION)
 
     // Metric references survive untouched (not "rescued" by a translation pass).
-    const bar = migrated.gridItems!.find((g: any) => g.type === 'barPlot') as any
+    const bar = migrated.gridItems!.find((g: any) => g.type === 'aoiComparison') as any
     const stream = migrated.gridItems!.find(
       (g: any) => g.type === 'aoiStreamPlot'
     ) as any

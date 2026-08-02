@@ -39,10 +39,10 @@
   const group2Condition = createCondition() // Monitor for "Group 2" selection
   const aoiCustomizationCondition = createCondition() // Monitor for AOI grouping
   const transitionMatrixCondition = createCondition() // Monitor for Transition Matrix aggregation
-  const barPlotCondition = createCondition() // Monitor for AOI Metrics aggregation
+  const aoiComparisonCondition = createCondition() // Monitor for AOI Metrics aggregation
   const explorationCondition = createCondition() // Monitor for UI exploration completion
   const transitionMatrixStimulusCondition = createCondition() // Monitor for Transition Matrix stimulus
-  const barPlotStimulusCondition = createCondition() // Monitor for AOI Metrics stimulus
+  const aoiComparisonStimulusCondition = createCondition() // Monitor for AOI Metrics stimulus
 
   // State for forcing banner to close on any modal content
   let forceCloseBanner = $state(false)
@@ -279,7 +279,7 @@
     },
     {
       text: 'Pan to AOI Comparison and set its stimulus to Task 2',
-      condition: barPlotStimulusCondition, // Auto-completes when stimulus is set to Task 2
+      condition: aoiComparisonStimulusCondition, // Auto-completes when stimulus is set to Task 2
       onSkip: createSkipHandler(
         9,
         'Pan to AOI Comparison and set its stimulus to Task 2'
@@ -287,7 +287,7 @@
     },
     {
       text: "On AOI Comparison, set aggregation method to 'Visit count'",
-      condition: barPlotCondition, // Auto-completes when aggregation is changed
+      condition: aoiComparisonCondition, // Auto-completes when aggregation is changed
       onSkip: createSkipHandler(
         10,
         "On AOI Comparison, set aggregation method to 'Visit count'"
@@ -345,7 +345,7 @@
   /**
    * Helper function to check if a command source matches a specific plot type
    * @param source - The command source string (format: "plotType.plotId.placement")
-   * @param plotType - The plot type to match (e.g., "scarfPlot", "transitionMatrix", "barPlot")
+   * @param plotType - The plot type to match (e.g., "scarfPlot", "transitionMatrix", "aoiComparison")
    * @returns true if the source matches the plot type
    */
   function isCommandFromPlotType(source: string, plotType: string): boolean {
@@ -482,9 +482,9 @@
           Array.isArray(s.metricInstanceIds) &&
           s.metricInstanceIds[0] === 'visitCount'
       ) &&
-      isCommandFromPlotType(command.source, 'barPlot')
+      isCommandFromPlotType(command.source, 'aoiComparison')
     ) {
-      barPlotCondition.set(true)
+      aoiComparisonCondition.set(true)
     }
 
     // Check for Transition Matrix stimulus change to Task 2
@@ -498,9 +498,9 @@
     // Check for AOI Metrics stimulus change to Task 2
     if (
       settingsUpdateMatches(s => 'stimulusId' in s && s.stimulusId === 1) &&
-      isCommandFromPlotType(command.source, 'barPlot')
+      isCommandFromPlotType(command.source, 'aoiComparison')
     ) {
-      barPlotStimulusCondition.set(true)
+      aoiComparisonStimulusCondition.set(true)
     }
   }
 </script>

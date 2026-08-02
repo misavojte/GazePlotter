@@ -31,20 +31,20 @@ describe('gridItemCommands', () => {
     expect(
       getGridItemCommandSource({
         id: 17,
-        type: 'barPlot',
+        type: 'aoiComparison',
       })
-    ).toBe('barPlot.17.workspace')
+    ).toBe('aoiComparison.17.workspace')
   })
 
   it('resolves the minimum size from item-specific bounds and grid config', () => {
-    const item = createGridItem('barPlot', { type: 'barPlot', id: 9 })
+    const item = createGridItem('aoiComparison', { type: 'aoiComparison', id: 9 })
 
     expect(getGridItemMinimumSize(item, gridConfig)).toEqual({ w: 11, h: 10 })
   })
 
   it('commits resize, remove, and duplicate operations through the workspace service', () => {
     const workspace = createWorkspacePort()
-    const item = createGridItem('barPlot', { type: 'barPlot', id: 21 })
+    const item = createGridItem('aoiComparison', { type: 'aoiComparison', id: 21 })
     const items = [item]
 
     expect(
@@ -60,27 +60,27 @@ describe('gridItemCommands', () => {
       1,
       21,
       { x: 3, y: 4, w: 11, h: 10 },
-      'barPlot.21.workspace'
+      'aoiComparison.21.workspace'
     )
 
     expect(commitGridItemRemoval(workspace, items, { id: 21 })).toBe(true)
     expect(workspace.removeVisualization).toHaveBeenCalledWith(
       21,
-      'barPlot.21.workspace'
+      'aoiComparison.21.workspace'
     )
 
     expect(commitGridItemDuplication(workspace, items, { id: 21 })).toBe(true)
     expect(workspace.duplicateVisualization).toHaveBeenCalledWith(
       21,
-      'barPlot.21.workspace',
+      'aoiComparison.21.workspace',
       { duplicateId: undefined, position: undefined }
     )
   })
 
   it('commits a group move as one atomic updateItemsLayout call', () => {
     const workspace = createWorkspacePort()
-    const a = createGridItem('barPlot', { type: 'barPlot', id: 21 })
-    const b = createGridItem('barPlot', { type: 'barPlot', id: 22 })
+    const a = createGridItem('aoiComparison', { type: 'aoiComparison', id: 21 })
+    const b = createGridItem('aoiComparison', { type: 'aoiComparison', id: 22 })
     const items = [a, b]
 
     expect(
@@ -96,13 +96,13 @@ describe('gridItemCommands', () => {
         { itemId: 21, layout: { x: 7, y: 5 } },
         { itemId: 22, layout: { x: 9, y: 5 } },
       ],
-      'barPlot.21.workspace'
+      'aoiComparison.21.workspace'
     )
   })
 
   it('group move drops commits for items that no longer exist', () => {
     const workspace = createWorkspacePort()
-    const a = createGridItem('barPlot', { type: 'barPlot', id: 21 })
+    const a = createGridItem('aoiComparison', { type: 'aoiComparison', id: 21 })
 
     expect(
       commitGridItemGroupMove(workspace, [a], [
@@ -112,7 +112,7 @@ describe('gridItemCommands', () => {
     ).toBe(true)
     expect(workspace.updateItemsLayout).toHaveBeenCalledWith(
       [{ itemId: 21, layout: { x: 1, y: 1 } }],
-      'barPlot.21.workspace'
+      'aoiComparison.21.workspace'
     )
   })
 

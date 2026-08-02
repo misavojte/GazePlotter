@@ -72,6 +72,9 @@ describe('legacy hidden AOIs → aois.selections', () => {
       },
       [
         plot('scarf-1', 'scarf', { stimulusId: 0, groupId: -1 }),
+        // Retired mark-named key on purpose: an old file carries 'barPlot', and
+        // the selection stamping runs AFTER the legacy-type rewrite, so this
+        // also pins that 'barPlot' → 'aoiComparison' happens first.
         plot('bar-1', 'barPlot', { stimulusId: 1, groupId: -1 }),
         // Unsupported type: no aoiSelectionId key exists — left untouched.
         plot('sp-1', 'scanpath', { stimulusId: 0, groupId: -1 }),
