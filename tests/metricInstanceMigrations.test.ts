@@ -680,3 +680,78 @@ describe('resolveInstance — direct lookup, no fallback', () => {
     expect(resolveInstance(library, null)).toBeUndefined()
   })
 })
+
+describe('version-independent: statistic param → summary leaf', () => {
+  const build = (
+    baseId: string,
+    projection: unknown,
+    params: Record<string, unknown> = { statistic: 'median' },
+  ): Record<string, unknown> => ({
+    version: 5,
+    data: {
+      metricInstances: [{ id: 'x', baseId, params, label: 'X', projection }],
+    },
+    gridItems: [],
+    fileMetadata: null,
+  })
+  const migrated = (...args: Parameters<typeof build>) =>
+    runMigrations(build(...args)).data.metricInstances[0]
+
+  it('moves the param onto a pick-aoi leaf', () => {
+    const inst = migrated('fixationDuration', {
+      kind: 'pick-aoi',
+      aoiRef: { by: 'name', name: 'Logo' },
+    })
+    expect(inst.projection.statistic).toBe('median')
+    expect('statistic' in inst.params).toBe(false)
+  })
+
+  it('moves it onto a pick-any-fixation leaf, and through a windowed wrapper', () => {
+    const inst = migrated('visitDuration', {
+      kind: 'windowed',
+      window: { windowSize: 1000, stepSize: 100 },
+      inner: { kind: 'pick-any-fixation' },
+    }, { statistic: 'max' })
+    expect(inst.projection.inner.statistic).toBe('max')
+    expect(inst.projection.window).toEqual({ windowSize: 1000, stepSize: 100 })
+    expect('statistic' in inst.params).toBe(false)
+  })
+
+  it('consumes the param on an IDENTITY leaf, which has nowhere to carry it', () => {
+    // The accepted cost of the move: a vector is the unmarked per-slot mean.
+    // The param is still dropped — left behind it would key the raw cache
+    // while `finalize` read the projection.
+    const inst = migrated('fixationDuration', { kind: 'identity-aoi-vector' })
+    expect('statistic' in inst.params).toBe(false)
+    expect(inst.projection).toEqual({ kind: 'identity-aoi-vector' })
+  })
+
+  it('never overwrites a statistic the leaf already states', () => {
+    const inst = migrated('fixationDuration', {
+      kind: 'pick-aoi',
+      aoiRef: { by: 'name', name: 'Logo' },
+      statistic: 'min',
+    })
+    expect(inst.projection.statistic).toBe('min')
+    expect('statistic' in inst.params).toBe(false)
+  })
+
+  it('leaves an unknown recipe untouched — this build is not the arbiter of theirs', () => {
+    const inst = migrated('someFutureMetric', { kind: 'identity-scalar' })
+    expect(inst.params.statistic).toBe('median')
+  })
+
+  it('is idempotent and leaves statistic-free instances untouched', () => {
+    const once = build('fixationDuration', { kind: 'pick-aoi', aoiRef: { by: 'name', name: 'Logo' } })
+    const first = runMigrations(once).data.metricInstances[0]
+    const second = runMigrations({
+      version: 5,
+      data: { metricInstances: [first] },
+      gridItems: [],
+      fileMetadata: null,
+    }).data.metricInstances[0]
+    expect(second).toEqual(first)
+    const plain = migrated('fixationCount', { kind: 'identity-aoi-vector' }, {})
+    expect(plain.params).toEqual({})
+  })
+})

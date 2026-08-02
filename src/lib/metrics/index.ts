@@ -45,6 +45,7 @@ export type { MeasurementClass, GroupReduction } from './core/measurement'
 export { reduceFinite, effectiveReduction, reductionLabel } from './core/aggregation'
 export type {
   Projection,
+  ProjectionLabelPart,
   WindowedProjection,
   WindowSpec,
 } from './core/projection'

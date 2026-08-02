@@ -1,5 +1,4 @@
 import { defineMetric } from '../../core/defineMetric'
-import { reduceNumeric } from '../../core/projection'
 
 interface Acc {
   durations: number[][]
@@ -34,9 +33,9 @@ interface Acc {
  * ### Invariants
  * - A type with no segments finalizes to NaN (not 0), so empty types drop
  *   from downstream reduces instead of dragging the collapse.
- * - Accumulates per-slot duration arrays so `individuals(slotIndex)` returns
- *   every segment duration that contributed — the beeswarm/box overlays show
- *   the full per-event distribution.
+ * - Accumulates per-slot duration arrays, which `individuals` hands over whole
+ *   — every segment duration that contributed, so the beeswarm/box overlays
+ *   show the full per-event distribution the summary was taken from.
  */
 defineMetric({
   id: 'movementDuration',
@@ -64,7 +63,5 @@ defineMetric({
     if (!frame.midpointInWindow || categorySlot < 0) return
     acc.durations[categorySlot].push(duration)
   },
-  finalize: (acc, _slots, ctx) =>
-    acc.durations.map(arr => reduceNumeric(arr, ctx.summaryStatistic)),
-  individuals: (acc, slotIndex) => acc.durations[slotIndex] ?? [],
+  individuals: acc => acc.durations,
 })

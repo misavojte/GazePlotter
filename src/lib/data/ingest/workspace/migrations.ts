@@ -1,5 +1,6 @@
 import { LEGACY_VISUALIZATION_TYPES } from '$lib/plots/legacyTypes'
 import {
+  carrySummaryStatistic,
   createDefaultMetricInstances,
   createMetricInstance,
   isStrandedAoiAggregate,
@@ -708,7 +709,9 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
   // Version-independent normalization of the metric-instance library, in pass
   // order: collapse the legacy WindowSpec `mode` into an explicit `stepSize`
   // (`collapseWindowMode`), carry the renamed `groupAggregation` field across
-  // as `reduction` (`carryReduction`), then prune `aggregate-aoi` extremes the
+  // as `reduction` (`carryReduction`), move a `statistic` param onto the
+  // summary leaf that now owns it (`carrySummaryStatistic`), then prune
+  // `aggregate-aoi` extremes the
   // metric no longer NAMES (`meta.aoiAggregate`) — 1.9.x offered max/min on
   // every aoi-vector metric, and such an instance would strand invisibly:
   // rejected by every plot contract, so no library card, no delete button, yet
@@ -720,6 +723,7 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
     data.data.metricInstances = instances
       .map(collapseWindowMode)
       .map(carryReduction)
+      .map(carrySummaryStatistic)
       .filter((inst: any) => !isStrandedAoiAggregate(inst))
   }
 

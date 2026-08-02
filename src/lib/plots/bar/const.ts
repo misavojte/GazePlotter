@@ -61,14 +61,14 @@ export function getBarPlotAxisLabel(
   overlay: StatisticalOverlayType = 'none'
 ): string {
   return buildMetricLabel(instance, {
-    includeProjection: true,
+    projection: 'full',
     // The bar is a distribution plot built on individual values: it pools raw
     // fixations/visits and its overlay states the statistic (mean ± CI /
-    // median, IQR). So it discloses both the cross-participant treatment
-    // (reduction) AND the within-participant collapse (summary) via that overlay
-    // — not via chips that would imply a point statistic the bar doesn't apply.
+    // median, IQR). So the cross-participant treatment is disclosed by that
+    // overlay, not by a reduction chip implying a point statistic the bar
+    // doesn't apply. (The within-participant summary needs no opt-out: the bar
+    // consumes the raw vector, which never carries a chosen statistic.)
     includeReduction: false,
-    includeSummaryStat: false,
     extra: [statisticQualifier(overlay), timeRangeQualifier(timelineStart, timelineEnd)],
   })
 }

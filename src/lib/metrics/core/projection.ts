@@ -1,4 +1,5 @@
 import type { AoiAggregateLabels, Metric, OutputShape, WindowUnit } from './dsl'
+import { reduceNumeric, type AoiReducer } from './numeric'
 import type { SummaryStatistic } from './params'
 
 /**
@@ -16,9 +17,6 @@ import type { SummaryStatistic } from './params'
 type AoiRef =
   | { by: 'name'; name: string }
   | { by: 'slot'; slot: number }
-
-const AOI_REDUCERS = ['mean', 'sum', 'max', 'min', 'median'] as const
-export type AoiReducer = typeof AOI_REDUCERS[number]
 
 export const MATRIX_REDUCERS = ['sum', 'mean', 'max', 'min'] as const
 export type MatrixReducer = typeof MATRIX_REDUCERS[number]
@@ -53,18 +51,23 @@ export type LeafProjection =
   | { kind: 'identity-category-vector' }
   | { kind: 'identity-aoi-pair-matrix' }
   | { kind: 'identity-participant-pair-matrix' }
-  | { kind: 'pick-aoi';          aoiRef: AoiRef }
   /**
-   * By displayed name only — portable and MERGE-stable, like name AoiRefs.
-   * `statistic` is the SUMMARY choice for sample-summarizing recipes
+   * ── The SUMMARY leaves ────────────────────────────────────────────────
+   * The three leaves that collapse a vector to one number. Each may carry
+   * `statistic`, the SUMMARY choice for sample-summarizing recipes
    * (`sampleSummary`): the summary statistic belongs to the summary
    * projection, never to the vector or a recipe param. Threaded into the
    * per-participant scan via `InitCtx.summaryStatistic` (so it collapses each
    * participant's sample BEFORE any cross-participant reduction) and gated by
-   * `recipeSupports` — a statistic on a sample-less recipe is invalid.
+   * `recipeSupports` — a statistic on a sample-less recipe is invalid. It is
+   * deliberately absent from the leaf LABEL: the summary is disclosed once, by
+   * `summaryStatQualifier`, so it appears on every plot rather than only those
+   * printing a projection readout.
    */
+  | { kind: 'pick-aoi';          aoiRef: AoiRef; statistic?: SummaryStatistic }
+  /** By displayed name only — portable and MERGE-stable, like name AoiRefs. */
   | { kind: 'pick-category';     categoryName: string; statistic?: SummaryStatistic }
-  | { kind: 'pick-any-fixation' }
+  | { kind: 'pick-any-fixation'; statistic?: SummaryStatistic }
   | { kind: 'aggregate-aoi';     reducer: AoiReducer }
   | { kind: 'matrix-diagonal' }
   | { kind: 'matrix-row';        aoiRef: AoiRef }
@@ -118,8 +121,13 @@ export interface ApplyContext {
 
 export interface ApplyResult {
   values: number[]
-  /** True when an AOI reference could not be resolved to a valid slot. */
-  aoiMissing: boolean
+  /**
+   * True when a REFERENCE the projection names could not be resolved to a slot:
+   * an AOI (by name or index) for the pick/matrix leaves, an eye-movement type
+   * for `pick-category`. Not AOI-specific — a category-vector metric can raise
+   * it with no AOI involved at all.
+   */
+  refMissing: boolean
 }
 
 // ─── Registry ───────────────────────────────────────────────────────────────
@@ -153,7 +161,16 @@ export interface LeafKindDef<K extends LeafKind = LeafKind> {
 }
 
 const passthrough = (_p: LeafProjection, c: ApplyContext): ApplyResult =>
-  ({ values: [...c.rawValues], aoiMissing: false })
+  ({ values: [...c.rawValues], refMissing: false })
+
+/**
+ * Cache-key token for a summary leaf's `statistic`. Empty for absent AND for
+ * `mean`: an unset statistic resolves to `mean`, so the two describe the same
+ * computation and must share one cache entry. Same convention as `rawCacheKey`
+ * (runtime.ts), which also omits the mean token.
+ */
+const statisticKey = (s: SummaryStatistic | undefined): string =>
+  s && s !== 'mean' ? `~${s}` : ''
 
 /**
  * An identity leaf: the recipe's own shape, passed through untouched. Five
@@ -191,7 +208,7 @@ export const PROJECTION_LEAVES: { [K in LeafKind]: LeafKindDef<K> } = {
     title: 'One AOI',
     hint: 'the value at one chosen AOI',
     label:    (p) => aoiRefLabel(p.aoiRef),
-    cacheKey: (p) => `pick:${aoiRefKey(p.aoiRef)}`,
+    cacheKey: (p) => `pick:${aoiRefKey(p.aoiRef)}${statisticKey(p.statistic)}`,
     apply:    (p, c) => pickAoi(p.aoiRef, c),
   },
   'pick-category': {
@@ -199,13 +216,8 @@ export const PROJECTION_LEAVES: { [K in LeafKind]: LeafKindDef<K> } = {
     rawShapes: ['category-vector'],
     title: 'One type',
     hint: 'the value at one chosen eye-movement type',
-    // A set statistic is ALWAYS disclosed, mean included — the summarization
-    // method must be visible on the figure (same doctrine as the recipe-param
-    // channel's summaryStatQualifier). Sample-less picks carry none.
-    label:    (p) => p.statistic
-      ? `type "${p.categoryName}" · ${p.statistic}`
-      : `type "${p.categoryName}"`,
-    cacheKey: (p) => `pickcat:n=${p.categoryName}${p.statistic ? `~${p.statistic}` : ''}`,
+    label:    (p) => `type "${p.categoryName}"`,
+    cacheKey: (p) => `pickcat:n=${p.categoryName}${statisticKey(p.statistic)}`,
     apply:    (p, c) => pickCategory(p.categoryName, c),
   },
   'pick-any-fixation': {
@@ -214,7 +226,7 @@ export const PROJECTION_LEAVES: { [K in LeafKind]: LeafKindDef<K> } = {
     title: 'Whole stimulus',
     hint: 'one number from all fixations together (AOIs ignored)',
     label:    () => 'any fixation',
-    cacheKey: () => 'pick:any',
+    cacheKey: (p) => `pick:any${statisticKey(p.statistic)}`,
     // Convention: recipes using the aoi-vector output-with-sentinels pattern
     // allocate `aoiCount + 2` slots (aoiCount, noAoiSlot, anyFixationSlot).
     // The any-fixation aggregate is always at index aoiCount + 1.
@@ -308,16 +320,50 @@ export function applyProjection(projection: Projection, ctx: ApplyContext): Appl
 
 /**
  * The summary statistic an instance's projection declares — `'mean'` unless
- * the leaf is a summary carrying an explicit choice (`pick-category`). The
+ * the leaf is one of the SUMMARY leaves carrying an explicit choice. The
  * runtime threads this into the scan ctx (`InitCtx.summaryStatistic`) so
  * sample-summarizing recipes collapse each participant's sample with it in
  * `finalize`; a non-mean value also keys the raw cache (see `rawCacheKey`).
  * The `apply` step stays a plain slot select — by the time a projection runs,
  * the vector is already collapsed per slot.
+ *
+ * Identity leaves resolve to `mean` and have nowhere to say otherwise: a
+ * VECTOR is the unmarked per-slot mean, which is the whole point of moving the
+ * choice onto the summary.
  */
 export function projectionSummaryStatistic(p: Projection): SummaryStatistic {
-  const leaf = leafOf(p)
-  return (leaf.kind === 'pick-category' ? leaf.statistic : undefined) ?? 'mean'
+  return leafSummaryStatistic(leafOf(p)) ?? 'mean'
+}
+
+/** The three leaves that collapse a vector to one number (see the union). */
+export type SummaryLeaf = Extract<
+  LeafProjection,
+  { kind: 'pick-aoi' | 'pick-category' | 'pick-any-fixation' }
+>
+
+/**
+ * THE predicate for "this leaf produces a summary, so it may carry a
+ * `statistic`". One declaration, read by the validator's gate, the label
+ * layer, and the configure modal's Summary select — a fourth summary leaf
+ * joins all three by editing this list alone.
+ */
+export function isSummaryLeafKind(kind: LeafKind): kind is SummaryLeaf['kind'] {
+  return kind === 'pick-aoi' || kind === 'pick-category' || kind === 'pick-any-fixation'
+}
+
+export function isSummaryLeaf(leaf: LeafProjection): leaf is SummaryLeaf {
+  return isSummaryLeafKind(leaf.kind)
+}
+
+/**
+ * The statistic a leaf explicitly CARRIES, or `undefined` when it carries none
+ * (an identity leaf, a non-summary leaf, or a summary leaf on a recipe without
+ * a sample). Distinct from {@link projectionSummaryStatistic}, which resolves
+ * the absent case to `mean`: the label layer needs the distinction, because a
+ * collapse nobody chose is not disclosed as a choice.
+ */
+export function leafSummaryStatistic(leaf: LeafProjection): SummaryStatistic | undefined {
+  return isSummaryLeaf(leaf) ? leaf.statistic : undefined
 }
 
 export function projectionOutputShape(projection: Projection): OutputShape {
@@ -328,17 +374,31 @@ export function projectionOutputShape(projection: Projection): OutputShape {
   return PROJECTION_LEAVES[projection.kind].outputShape
 }
 
+/**
+ * How much of a projection a readout prints. A projection states TWO
+ * independent things, and a caller can already be showing one of them:
+ *
+ *   - `'leaf'`  WHICH slice ('AOI "Logo"', 'type "Saccade"', a matrix cell).
+ *   - `'full'`  that slice plus HOW it is cut over time (the window).
+ *
+ * Time-axis plots (Metric Timeline, AOI Timeline) draw the window on the x
+ * axis, so they ask for `'leaf'`: printing `'full'` would state the window
+ * twice, and printing nothing at all used to drop the slice with it, leaving
+ * two plots of different AOIs wearing identical axis labels.
+ */
+export type ProjectionLabelPart = 'leaf' | 'full'
+
 export function projectionToLabel(
   projection: Projection,
   unit: WindowUnit,
   ctx?: ProjectionLabelContext,
+  part: ProjectionLabelPart = 'full',
 ): string {
-  if (projection.kind === 'windowed') {
-    const inner = leafDef(projection.inner).label(projection.inner, ctx)
-    const wlabel = windowLabel(projection.window, unit)
-    return inner ? `${inner} · ${wlabel}` : wlabel
-  }
-  return leafDef(projection).label(projection, ctx)
+  const leaf = leafOf(projection)
+  const label = leafDef(leaf).label(leaf, ctx)
+  if (part === 'leaf' || projection.kind !== 'windowed') return label
+  const wlabel = windowLabel(projection.window, unit)
+  return label ? `${label} · ${wlabel}` : wlabel
 }
 
 export function projectionCacheKey(projection: Projection): string {
@@ -380,8 +440,8 @@ export function windowKey(w: WindowSpec): string {
 function pickAoi(ref: AoiRef, c: ApplyContext): ApplyResult {
   const slot = resolveAoiRef(ref, c.aoiNames)
   const aoiCount = c.aoiNames.length
-  if (slot < 0 || slot >= aoiCount) return { values: [Number.NaN], aoiMissing: true }
-  return { values: [c.rawValues[slot] ?? Number.NaN], aoiMissing: false }
+  if (slot < 0 || slot >= aoiCount) return { values: [Number.NaN], refMissing: true }
+  return { values: [c.rawValues[slot] ?? Number.NaN], refMissing: false }
 }
 
 function pickCategory(name: string, c: ApplyContext): ApplyResult {
@@ -389,8 +449,8 @@ function pickCategory(name: string, c: ApplyContext): ApplyResult {
   // (groupByDisplayedName), so a ref never misses on stray whitespace.
   const wanted = name.trim()
   const slot = (c.categoryNames ?? []).findIndex(n => n.trim() === wanted)
-  if (slot < 0) return { values: [Number.NaN], aoiMissing: true }
-  return { values: [c.rawValues[slot] ?? Number.NaN], aoiMissing: false }
+  if (slot < 0) return { values: [Number.NaN], refMissing: true }
+  return { values: [c.rawValues[slot] ?? Number.NaN], refMissing: false }
 }
 
 function pickAnyFixation(c: ApplyContext): ApplyResult {
@@ -398,12 +458,12 @@ function pickAnyFixation(c: ApplyContext): ApplyResult {
   // anyFixation lives at index aoiNames.length + 1.
   const idx = c.aoiNames.length + 1
   const v = c.rawValues[idx]
-  return { values: [Number.isFinite(v) ? v : Number.NaN], aoiMissing: false }
+  return { values: [Number.isFinite(v) ? v : Number.NaN], refMissing: false }
 }
 
 function aggregateAoi(reducer: AoiReducer, c: ApplyContext): ApplyResult {
   const n = c.aoiNames.length
-  return { values: [reduceNumeric(c.rawValues.slice(0, n), reducer)], aoiMissing: false }
+  return { values: [reduceNumeric(c.rawValues.slice(0, n), reducer)], refMissing: false }
 }
 
 function matrixDiagonal(c: ApplyContext): ApplyResult {
@@ -412,7 +472,7 @@ function matrixDiagonal(c: ApplyContext): ApplyResult {
   const out = new Array<number>(aoiCount + 2).fill(Number.NaN)
   for (let i = 0; i < aoiCount && i < side; i++) out[i] = c.rawValues[i * side + i]
   if (side > aoiCount) out[aoiCount] = c.rawValues[aoiCount * side + aoiCount]
-  return { values: out, aoiMissing: false }
+  return { values: out, refMissing: false }
 }
 
 function matrixRowOrCol(ref: AoiRef, c: ApplyContext, axis: 'row' | 'col'): ApplyResult {
@@ -420,7 +480,7 @@ function matrixRowOrCol(ref: AoiRef, c: ApplyContext, axis: 'row' | 'col'): Appl
   const aoiCount = c.aoiNames.length
   const out = new Array<number>(aoiCount + 2).fill(Number.NaN)
   const slot = resolveAoiRef(ref, c.aoiNames)
-  if (slot < 0 || slot >= aoiCount) return { values: out, aoiMissing: true }
+  if (slot < 0 || slot >= aoiCount) return { values: out, refMissing: true }
   for (let i = 0; i < aoiCount && i < side; i++) {
     out[i] = axis === 'row' ? c.rawValues[slot * side + i] : c.rawValues[i * side + slot]
   }
@@ -429,7 +489,7 @@ function matrixRowOrCol(ref: AoiRef, c: ApplyContext, axis: 'row' | 'col'): Appl
       ? c.rawValues[slot * side + aoiCount]
       : c.rawValues[aoiCount * side + slot]
   }
-  return { values: out, aoiMissing: false }
+  return { values: out, refMissing: false }
 }
 
 function matrixCell(fromRef: AoiRef, toRef: AoiRef, c: ApplyContext): ApplyResult {
@@ -438,8 +498,8 @@ function matrixCell(fromRef: AoiRef, toRef: AoiRef, c: ApplyContext): ApplyResul
   const toSlot   = resolveAoiRef(toRef,   c.aoiNames)
   const validFrom = fromSlot >= 0 && fromSlot < side
   const validTo   = toSlot   >= 0 && toSlot   < side
-  if (!validFrom || !validTo) return { values: [Number.NaN], aoiMissing: true }
-  return { values: [c.rawValues[fromSlot * side + toSlot] ?? Number.NaN], aoiMissing: false }
+  if (!validFrom || !validTo) return { values: [Number.NaN], refMissing: true }
+  return { values: [c.rawValues[fromSlot * side + toSlot] ?? Number.NaN], refMissing: false }
 }
 
 function matrixAggregate(
@@ -464,72 +524,18 @@ function matrixAggregate(
       if (v > mx) mx = v
     }
   }
-  if (count === 0) return { values: [Number.NaN], aoiMissing: false }
+  if (count === 0) return { values: [Number.NaN], refMissing: false }
   switch (reducer) {
-    case 'sum':  return { values: [sum], aoiMissing: false }
-    case 'mean': return { values: [sum / count], aoiMissing: false }
-    case 'max':  return { values: [mx], aoiMissing: false }
-    case 'min':  return { values: [mn], aoiMissing: false }
+    case 'sum':  return { values: [sum], refMissing: false }
+    case 'mean': return { values: [sum / count], refMissing: false }
+    case 'max':  return { values: [mx], refMissing: false }
+    case 'min':  return { values: [mn], refMissing: false }
   }
 }
 
 function resolveAoiRef(ref: AoiRef, aoiNames: readonly string[]): number {
   if (ref.by === 'slot') return ref.slot
   return aoiNames.findIndex(n => n === ref.name)
-}
-
-/**
- * Collapse a numeric multiset by a summary operator (finite-filtered; `NaN` when
- * empty). Shared: the `aggregate-aoi` projection leaf reduces one participant's
- * per-AOI vector, and the duration metrics (`fixationDuration`/`visitDuration`)
- * reduce one AOI-slot's per-fixation/per-visit sample in `finalize` via the
- * settable `statistic` param. Lives here (not in `aggregation.ts`) because
- * `measurement.ts` already imports this module, so the reverse import would
- * cycle. `AoiReducer` is the full operator set; the metric `statistic` param
- * uses the `sum`-free subset.
- */
-export function reduceNumeric(values: readonly number[], method: AoiReducer): number {
-  const valid = values.filter(Number.isFinite)
-  if (valid.length === 0) return Number.NaN
-  switch (method) {
-    case 'sum': return valid.reduce((a, b) => a + b, 0)
-    case 'mean': return valid.reduce((a, b) => a + b, 0) / valid.length
-    // Fold rather than spread: the metric `statistic` path routes a whole
-    // AOI-slot's per-fixation/per-visit sample through here, which can be far
-    // larger than a per-AOI vector — `Math.max(...huge)` would overflow the
-    // call stack (RangeError). `valid` is non-empty (guarded above).
-    case 'max': return valid.reduce((a, b) => (b > a ? b : a))
-    case 'min': return valid.reduce((a, b) => (b < a ? b : a))
-    case 'median': {
-      const s = [...valid].sort((a, b) => a - b)
-      const mid = Math.floor(s.length / 2)
-      return s.length % 2 === 0 ? (s[mid - 1] + s[mid]) / 2 : s[mid]
-    }
-  }
-}
-
-/**
- * Each value as a PERCENTAGE of `total` — the share invariant every
- * share-of-a-total recipe finalizes with (`relativeTime` over the anyFixation
- * total, `movementTimeShare` over the scope duration,
- * `transitionRelativeFrequency` over all transitions).
- *
- * `total <= 0` yields NaN, never 0: with no gaze to normalise against, 0/0 is
- * UNDEFINED, and a real 0 would silently deflate every group and window mean
- * that averages over it. A `0` numerator with a positive total is a genuine
- * 0 % (attention went elsewhere) and stays 0.
- *
- * KEEP IN SYNC with the fused windowed driver's `clippedDurationShare`
- * normalisation (runtime.ts), which inlines this expression over a reused
- * scratch row to stay allocation-free; the windowed==oracle equivalence suite
- * pins the two against each other.
- */
-export function percentShare(values: ArrayLike<number>, total: number): number[] {
-  const out = new Array<number>(values.length)
-  for (let i = 0; i < values.length; i++) {
-    out[i] = total > 0 ? (values[i] / total) * 100 : Number.NaN
-  }
-  return out
 }
 
 function aoiRefLabel(ref: AoiRef): string {

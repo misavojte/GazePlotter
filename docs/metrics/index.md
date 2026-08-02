@@ -47,6 +47,8 @@ Projections act as a transformation tree, using **Leaf Projections** to reshape 
 | `matrix-cell` | `aoi-pair-matrix` | `scalar` | Extracts a single transition cell (`fromAoi` &gt; `toAoi`) as a scalar. |
 | `matrix-aggregate` | `aoi-pair-matrix` | `scalar` | Reduces all cells to a scalar using a reducer (`sum`, `mean`, `max`, `min`). |
 
+> **Where the summary statistic lives**: For metrics built on a per-event sample (fixation duration, visit duration, eye-movement duration), the mean/median/max/min choice belongs to the projection that produces a **summary** — `pick-aoi`, `pick-any-fixation` and `pick-category` each carry it, and it appears as a **Summary** control next to that projection's own settings. A vector projection carries no such choice: one value per AOI (or per eye-movement type) is always the mean of that slot's sample. If you need a median per AOI, project to **One AOI**; if you need the whole distribution, use AOI Comparison, whose beeswarm and overlay show it directly.
+
 
 ## Windowing and Binning Rules
 

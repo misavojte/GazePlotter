@@ -148,7 +148,7 @@ export interface ProjectedResult {
   values: number[]
   vectors?: number[][]
   slots: AoiSlotInfo
-  aoiMissing: boolean
+  refMissing: boolean
   timeline?: number[]
 }
 
@@ -183,7 +183,7 @@ export function projectLeaf(
     shape: projectionOutputShape(projection),
     values: applied.values,
     slots,
-    aoiMissing: applied.aoiMissing,
+    refMissing: applied.refMissing,
   }
 }
 
@@ -218,32 +218,24 @@ export function runRaw(recipe: MetricRecipe<any, any>, instance: MetricInstance,
 }
 
 /**
- * Per-fixation individual values for EVERY slot from a SINGLE participant
- * scan (finalize may flush pending state — e.g. visitDuration's activeDwells
- * — before individuals inspects the accumulator). One scan fills all slots;
- * callers read the slot they need, so there is deliberately no per-slot
- * variant — it would invite one full rescan per (slot × participant).
- * Returns `null` for recipes without an individuals/finalize pair (the
- * caller falls back to the cached aggregate).
+ * Per-event individual values for EVERY slot from a SINGLE participant scan.
+ * One scan fills all slots; callers read the slot they need, so there is
+ * deliberately no per-slot variant — it would invite one full rescan per
+ * (slot × participant). Returns `null` for recipes with no `individuals`
+ * (the caller falls back to the cached aggregate). `flush` is the sample's
+ * completion step (see `MetricRecipe.flush`); this used to call `finalize` and
+ * discard the vector, which read as a no-op.
  */
 export function runIndividualsAllSlots(
   recipe: MetricRecipe<any, any>,
   instance: MetricInstance,
   scope: Scope,
 ): number[][] | null {
-  if (!recipe.individuals || !recipe.finalize) return null
+  if (!recipe.individuals) return null
   const out = scanAccumulator(recipe, instance, scope, scope.timeStart ?? 0, scope.timeEnd ?? 0)
   if (!out) return null
-  recipe.finalize(out.acc, out.ctx.slots, out.ctx)
-  // The individuals axis follows the DECLARED shape: category-vector recipes
-  // sample per type slot, everything else per AOI slot.
-  const total =
-    recipe.rawShape === 'category-vector'
-      ? out.ctx.categorySlotCount
-      : out.ctx.slots.totalSlots
-  const perSlot: number[][] = new Array(total)
-  for (let s = 0; s < total; s++) perSlot[s] = recipe.individuals(out.acc, s)
-  return perSlot
+  recipe.flush?.(out.acc, out.ctx.slots)
+  return recipe.individuals(out.acc)
 }
 
 // ─── Windowed dispatch ────────────────────────────────────────────────────────
@@ -305,11 +297,11 @@ function timeseriesResult(
   timeline: number[],
   values: number[],
   vectors: number[][],
-  aoiMissing: boolean,
+  refMissing: boolean,
 ): ProjectedResult {
   return isVector
-    ? { shape: 'aoi-vector-timeseries', values: [], vectors, slots, aoiMissing, timeline }
-    : { shape: 'scalar-timeseries', values, slots, aoiMissing, timeline }
+    ? { shape: 'aoi-vector-timeseries', values: [], vectors, slots, refMissing, timeline }
+    : { shape: 'scalar-timeseries', values, slots, refMissing, timeline }
 }
 
 /** Empty timeseries of the right arm — fresh arrays per call (see above). */
@@ -450,7 +442,7 @@ function computeTimeWindowedFused(
   const projCtx = { aoiNames: getAoiNames(scope), rawValues: EMPTY_NUMBER_ARRAY }
   const values: number[] = isVector ? [] : new Array(W)
   const vectors: number[][] = isVector ? new Array(W) : []
-  let aoiMissing = false
+  let refMissing = false
   const row: number[] = new Array(stride)
 
   for (let w = 0; w < W; w++) {
@@ -470,12 +462,12 @@ function computeTimeWindowedFused(
     }
     projCtx.rawValues = row
     const out = applyProjection(inner, projCtx)
-    if (out.aoiMissing) aoiMissing = true
+    if (out.refMissing) refMissing = true
     if (isVector) vectors[w] = out.values
     else values[w] = out.values[0] ?? Number.NaN
   }
 
-  return timeseriesResult(isVector, slots, timeline, values, vectors, aoiMissing)
+  return timeseriesResult(isVector, slots, timeline, values, vectors, refMissing)
 }
 
 /**
@@ -559,7 +551,7 @@ function computeTimeWindowed(
   const indices = new Int32Array(W)
   const values: number[] = isVector ? [] : new Array(W)
   const vectors: number[][] = isVector ? new Array(W) : []
-  let aoiMissing = false
+  let refMissing = false
   let nextClose = 0
 
   // Identity leaves (`identity-aoi-vector` / `identity-scalar`) pass the recipe's
@@ -588,7 +580,7 @@ function computeTimeWindowed(
     }
     projCtx.rawValues = raw
     const out = applyProjection(inner, projCtx)
-    if (out.aoiMissing) aoiMissing = true
+    if (out.refMissing) refMissing = true
     if (isVector) vectors[w] = out.values
     else values[w] = out.values[0] ?? Number.NaN
   }
@@ -699,7 +691,7 @@ function computeTimeWindowed(
     nextClose++
   }
 
-  return timeseriesResult(isVector, slots, timeline, values, vectors, aoiMissing)
+  return timeseriesResult(isVector, slots, timeline, values, vectors, refMissing)
 }
 
 function computeFixationWindowed(
@@ -809,7 +801,7 @@ export function runWindowedGroup(
   // participant was the ~500 MB / GC blow-up on huge datasets.
   const groupSum = new Float64Array(W * stride)
   const groupCount = new Int32Array(W * stride)
-  let aoiMissing = false
+  let refMissing = false
 
   for (const pid of group.participantIds) {
     // Clamp each participant's window range to their own recording end.
@@ -831,7 +823,7 @@ export function runWindowedGroup(
       aoiSelectionId: group.aoiSelectionId,
     }
     const r = runWindowed(recipe, instance, scope, projection, slots)
-    if (r.aoiMissing) aoiMissing = true
+    if (r.refMissing) refMissing = true
 
     // Fold this participant into the typed sufficient-statistics, then drop it.
     if (isVector) {
@@ -875,14 +867,14 @@ export function runWindowedGroup(
       }
       vectors[w] = v
     }
-    return timeseriesResult(true, slots, timeline, [], vectors, aoiMissing)
+    return timeseriesResult(true, slots, timeline, [], vectors, refMissing)
   }
   const values = new Array<number>(W)
   for (let w = 0; w < W; w++) {
     const c = groupCount[w]
     values[w] = c === 0 ? Number.NaN : isSum ? groupSum[w] : groupSum[w] / c
   }
-  return timeseriesResult(false, slots, timeline, values, [], aoiMissing)
+  return timeseriesResult(false, slots, timeline, values, [], refMissing)
 }
 
 // ─── Internals ────────────────────────────────────────────────────────────────

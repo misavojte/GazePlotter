@@ -30,8 +30,9 @@ export interface MetricProvenance {
   baseId: string
   params: Record<string, unknown>
   projection: Projection
-  /** True when an AOI reference in the projection could not be resolved. */
-  aoiMissing?: boolean
+  /** True when a reference the projection names (an AOI, an eye-movement type)
+   *  could not be resolved in this dataset. */
+  refMissing?: boolean
 }
 
 export type MetricResult =
@@ -259,7 +260,7 @@ function wrapProjectedResult(
     values: number[]
     vectors?: number[][]
     slots: AoiSlotInfo
-    aoiMissing: boolean
+    refMissing: boolean
     timeline?: number[]
   },
 ): MetricResult {
@@ -267,7 +268,7 @@ function wrapProjectedResult(
     baseId: instance.baseId,
     params: instance.params,
     projection: instance.projection,
-    aoiMissing: projected.aoiMissing || undefined,
+    refMissing: projected.refMissing || undefined,
   }
   const { values, shape, slots } = projected
   if (shape === 'scalar') {

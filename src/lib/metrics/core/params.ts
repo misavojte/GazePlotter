@@ -94,10 +94,17 @@ export const enumParam = <ID extends string, V extends string>(
 export type SummaryStatistic = 'mean' | 'median' | 'max' | 'min'
 
 /**
- * The Mean/Median/Max/Min choice — ONE option list for BOTH declaration
- * channels of the summary statistic: the recipe-level `statistic` param below,
- * and the `pick-category` projection's Summary select in the configure UI
- * (see {@link summaryStatisticParam} for which channel a metric uses).
+ * The Mean/Median/Max/Min choice, offered by the configure UI's Summary select.
+ *
+ * There is exactly ONE place a summary statistic can be declared: the SUMMARY
+ * projection. `pick-aoi` / `pick-any-fixation` / `pick-category` each carry a
+ * `statistic`, threaded into finalize via `InitCtx.summaryStatistic` (recipes
+ * opt in with `sampleSummary`). A recipe-level `statistic` PARAM is not a
+ * second channel — it is rejected at registration in `defineMetric`.
+ *
+ * Consequence, accepted deliberately: a plot consuming the raw VECTOR (AOI
+ * Timeline, Eye-Movement Comparison) always shows the per-slot mean. There is
+ * nowhere for it to say otherwise, and that is the rule, not an oversight.
  */
 export const SUMMARY_STATISTIC_OPTIONS = [
   { value: 'mean', label: 'Mean' },
@@ -105,23 +112,6 @@ export const SUMMARY_STATISTIC_OPTIONS = [
   { value: 'max', label: 'Max' },
   { value: 'min', label: 'Min' },
 ] as const satisfies readonly { value: SummaryStatistic; label: string }[]
-
-/**
- * The shared "Summary" statistic param — how a recipe's per-event values
- * collapse to the per-participant value. Declared ONCE; every scalar/aoi
- * summary recipe (fixationDuration, visitDuration, interFixationInterval)
- * imports it. Vector metrics NEVER carry it: their vector is the unmarked
- * per-slot mean, and the summary choice belongs to the SUMMARY projection —
- * `pick-category` carries a `statistic`, threaded into finalize via
- * `InitCtx.summaryStatistic` (recipes declare `sampleSummary`); the two
- * channels are mutually exclusive (enforced at registration).
- */
-export const summaryStatisticParam = enumParam<'statistic', SummaryStatistic>(
-  'statistic',
-  'Summary',
-  'mean',
-  SUMMARY_STATISTIC_OPTIONS
-)
 
 export type ParamsOf<T extends readonly ParamDef<any>[]> = {
   [K in T[number] as K['id']]: K extends ParamDef<infer V> ? V : never

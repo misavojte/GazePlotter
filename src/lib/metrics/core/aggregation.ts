@@ -37,6 +37,12 @@ export function effectiveReduction(
  * by `mean` or `sum`. Non-finite entries are skipped; an all-non-finite input
  * yields `NaN` (so absent participants drop rather than bias toward zero). The
  * atomic reduction the per-slot and windowed group paths compose against.
+ *
+ * The CROSS-PARTICIPANT sibling of `reduceNumeric` (core/numeric.ts), whose
+ * operator set is wider (median, extremes) because a within-participant sample
+ * supports them. Identical semantics on the two operators they share; this one
+ * folds in a single pass instead of materialising a filtered array, because it
+ * runs per (slot × participant) cell. Deliberate duplication, not drift.
  */
 export function reduceFinite(
   values: readonly number[],

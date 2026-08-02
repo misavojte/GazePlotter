@@ -1,5 +1,5 @@
 import { defineTransitionMetric } from '../../core/defineTransitionMetric'
-import { percentShare } from '../../core/projection'
+import { percentShare } from '../../core/numeric'
 
 interface Params { mode: 'fixation' | 'visit' }
 

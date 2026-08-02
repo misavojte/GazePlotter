@@ -285,7 +285,7 @@ export async function generateMetricExport(
   }
 
   const resolvedLabels = deduplicateMetricLabels(selectedInstances)
-  const aoiMissingMap = new Map<string, boolean>()
+  const refMissingMap = new Map<string, boolean>()
   const dataRows: string[][] = []
 
   if (options.format === 'long') {
@@ -362,7 +362,7 @@ export async function generateMetricExport(
         for (const inst of plainAndWindowedInstances) {
           const result = batchResult.get(inst.id)
           if (!result) continue
-          if (result.provenance.aoiMissing) aoiMissingMap.set(inst.id, true)
+          if (result.provenance.refMissing) refMissingMap.set(inst.id, true)
 
           const label = resolvedLabels.get(inst.id) ?? inst.label
           for (const cell of resultCells(result, windowSizeOf(inst), aoiNames)) {
@@ -378,7 +378,7 @@ export async function generateMetricExport(
         for (const inst of relationalInstances) {
           const result = queryGroup(inst, groupScope)
           if (result.shape !== 'participant-pair-matrix') continue
-          if (result.provenance.aoiMissing) aoiMissingMap.set(inst.id, true)
+          if (result.provenance.refMissing) refMissingMap.set(inst.id, true)
 
           const label = resolvedLabels.get(inst.id) ?? inst.label
           const size = result.size
@@ -559,7 +559,7 @@ export async function generateMetricExport(
         for (const inst of relationalWideInstances) {
           const result = queryGroup(inst, groupScope)
           if (result.shape !== 'participant-pair-matrix') continue
-          if (result.provenance.aoiMissing) aoiMissingMap.set(inst.id, true)
+          if (result.provenance.refMissing) refMissingMap.set(inst.id, true)
           const indexByPid = new Map<number, number>()
           result.participantIds.forEach((pid, idx) => indexByPid.set(pid, idx))
           relationalResults.set(inst.id, {
@@ -596,7 +596,7 @@ export async function generateMetricExport(
         for (const inst of perParticipantWideInstances) {
           const result = batchResult.get(inst.id)
           if (!result) continue
-          if (result.provenance.aoiMissing) aoiMissingMap.set(inst.id, true)
+          if (result.provenance.refMissing) refMissingMap.set(inst.id, true)
           for (const cell of resultCells(result, 0, aoiNames)) {
             cellByCol.set(wideColId(inst.id, cell), cell.value)
           }
@@ -657,7 +657,7 @@ export async function generateMetricExport(
       for (const inst of selectedInstances) {
         const metric = getMetric(inst.baseId)
         const deDupLabel = resolvedLabels.get(inst.id) ?? inst.label
-        const isAoiMissing = aoiMissingMap.get(inst.id) === true
+        const isRefMissing = refMissingMap.get(inst.id) === true
 
         let windowStr = ''
         if (inst.projection.kind === 'windowed') {
@@ -683,7 +683,7 @@ export async function generateMetricExport(
           timeRangeStr,
           participantNames,
           stimuliNames,
-          isAoiMissing.toString(),
+          isRefMissing.toString(),
         ])
       }
 

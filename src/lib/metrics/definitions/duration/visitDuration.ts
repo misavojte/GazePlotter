@@ -1,6 +1,4 @@
 import { defineMetric } from '../../core/defineMetric'
-import { summaryStatisticParam } from '../../core/params'
-import { reduceNumeric } from '../../core/projection'
 
 interface Acc {
   dwells: number[][]
@@ -14,9 +12,14 @@ interface Acc {
 /**
  * ## Visit duration
  *
- * A summary (mean by default; also median / max / min) of the durations (ms) of
- * distinct visits to each AOI. A visit begins on first entry and ends when gaze
- * leaves; consecutive fixations in the same AOI accumulate as a single visit.
+ * A summary of the durations (ms) of distinct visits to each AOI, one value per
+ * AOI, collapsed per participant by `ctx.summaryStatistic`. A visit begins on
+ * first entry and ends when gaze leaves; consecutive fixations in the same AOI
+ * accumulate as a single visit.
+ *
+ * The recipe carries NO summary param, deliberately (`sampleSummary`) — see
+ * `fixationDuration` for the full reasoning; the two duration metrics declare
+ * the summary identically.
  *
  * - **Shape:** `aoi-vector`
  * - **Unit:** `ms`
@@ -32,8 +35,7 @@ interface Acc {
  *   See `WindowFrame` in `core/dsl.ts` for the available signals.
  *
  * ### Parameters
- * - `statistic` — how each AOI-slot's per-visit dwells are collapsed to the
- *   per-participant value: `mean` (default) | `median` | `max` | `min`.
+ * None (see `sampleSummary` above).
  *
  * ### Invariants
  * - Tracks overlapping visits via `activeDwells: Map<slot, accumulated-ms>`;
@@ -49,19 +51,20 @@ interface Acc {
  *   pinned in metricFormulas.test.ts. Filtering off-AOI runs out here would
  *   make this the one whole-stimulus slot that silently drops data; analysts
  *   wanting AOI-only episodes read the per-AOI slots.
- * - `finalize` flushes still-open visits at scan end so trailing visits
- *   are not lost.
+ * - `flush` closes still-open visits at scan end so trailing visits are not
+ *   lost, and runs before BOTH readers of the sample (the derived summary and
+ *   the beeswarm's dots) so the two never see different visits.
  */
 defineMetric({
   id: 'visitDuration',
   label: 'Visit duration',
-  description: 'Per AOI: mean visit duration (ms), where a visit accumulates consecutive same-AOI fixations and ends when gaze leaves.',
+  description: 'Per AOI: visit duration (ms) collapsed per participant (mean unless a summary projection chooses otherwise), where a visit accumulates consecutive same-AOI fixations and ends when gaze leaves.',
   unit: 'ms',
   category: 'duration',
   rawShape: 'aoi-vector',
   windowUnit: 'ms',
   providesAnyFixation: true,
-  // No `aoiAggregate`: the settable `statistic` already reduces within each
+  // No `aoiAggregate`: the summary `statistic` already reduces within each
   // AOI — an extreme across AOIs would be a double reduction (see
   // fixationDuration).
   // Intensive: a per-participant central value of visit durations. Every offered
@@ -69,8 +72,9 @@ defineMetric({
   // across participants (for a cohort total of dwell use absoluteTime).
   measurementClass: 'intensive',
   searchTags: ['visit', 'dwell', 'duration', 'average', 'mean', 'median', 'aoi'],
-  params: [summaryStatisticParam] as const,
+  params: [] as const,
   accumulation: 'stateful',
+  sampleSummary: true,
   init: ({ slots }): Acc => ({
     dwells: Array.from({ length: slots.totalSlots }, () => []),
     previousAois: new Set(),
@@ -143,7 +147,7 @@ defineMetric({
     acc.previousAois.clear()
     for (let i = 0; i < slots.length; i++) acc.previousAois.add(slots[i])
   },
-  finalize: (acc, slots, { params }) => {
+  flush: (acc, slots) => {
     for (const [idx, d] of acc.activeDwells) acc.dwells[idx].push(d)
     if (acc.wasInNoAoi) acc.dwells[slots.noAoiSlot].push(acc.currentNoAoiDwell)
     // Flush the trailing any-fixation visit whenever one is OPEN (mirroring the
@@ -152,9 +156,11 @@ defineMetric({
     // so anyFixation summarises the same visits as the per-AOI slots.
     if (acc.wasInNoAoi || acc.previousAois.size > 0)
       acc.dwells[slots.anyFixationSlot].push(acc.currentAnyFixationDwell)
-    // Collapse each slot's per-visit dwells by the chosen statistic (default
-    // mean). `individuals` stays the full sample for box/beeswarm overlays.
-    return acc.dwells.map(arr => reduceNumeric(arr, params.statistic))
+    // Idempotent (the `flush` contract): with every open visit now closed, a
+    // second call has nothing left to push.
+    acc.activeDwells.clear()
+    acc.previousAois.clear()
+    acc.wasInNoAoi = false
   },
-  individuals: (acc, slotIndex) => acc.dwells[slotIndex] ?? [],
+  individuals: acc => acc.dwells,
 })

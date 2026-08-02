@@ -55,7 +55,7 @@ export function getMetricMatrixLegendTitle(
 ): string {
   return buildMetricLabel(instance, {
     fallback: 'Metric value',
-    includeProjection: true,
+    projection: 'full',
   })
 }
 

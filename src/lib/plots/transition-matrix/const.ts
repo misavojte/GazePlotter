@@ -29,7 +29,7 @@ export function getLegendTitle(
 ): string {
   return buildMetricLabel(instance, {
     fallback: 'Transition value',
-    includeProjection: true,
+    projection: 'full',
     extra: [hideNoAoi && 'No-AOI excluded', timeRangeQualifier(timelineStart, timelineEnd)],
   })
 }

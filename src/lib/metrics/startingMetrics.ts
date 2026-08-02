@@ -67,7 +67,10 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
     projection: {
       kind: 'windowed',
       window: { windowSize: 1000, stepSize: 100 },
-      inner: { kind: 'pick-any-fixation' },
+      // Explicit `mean` on every sample-summarizing starter: the summary IS a
+      // choice on a summary leaf, so it is stated rather than left implicit —
+      // the same normalization the configure modal applies on edit.
+      inner: { kind: 'pick-any-fixation', statistic: 'mean' },
     },
   },
   {
@@ -146,7 +149,7 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
   {
     id: 'visitDuration-any',
     baseId: 'visitDuration',
-    projection: { kind: 'pick-any-fixation' },
+    projection: { kind: 'pick-any-fixation', statistic: 'mean' },
   },
   {
     id: 'fixationCount-any',
@@ -156,7 +159,7 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
   {
     id: 'fixationDuration-any',
     baseId: 'fixationDuration',
-    projection: { kind: 'pick-any-fixation' },
+    projection: { kind: 'pick-any-fixation', statistic: 'mean' },
   },
   {
     id: 'timeToFirstFixation-any',

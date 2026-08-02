@@ -68,10 +68,10 @@ describe('projection via query()', () => {
     if (r.shape !== 'scalar') return
     expect(r.value).toBe(200)
     expect(r.provenance.projection).toEqual({ kind: 'pick-aoi', aoiRef: { by: 'name', name: 'CTA' } })
-    expect(r.provenance.aoiMissing).toBeUndefined()
+    expect(r.provenance.refMissing).toBeUndefined()
   })
 
-  it('pick-aoi missing name sets aoiMissing in provenance', () => {
+  it('pick-aoi missing name sets refMissing in provenance', () => {
     const engine = createEngine(SEGMENTS)
     const instance: MetricInstance = {
       id: 't1', baseId: 'absoluteTime', params: {}, label: '',
@@ -81,7 +81,7 @@ describe('projection via query()', () => {
     expect(r.shape).toBe('scalar')
     if (r.shape !== 'scalar') return
     expect(Number.isNaN(r.value)).toBe(true)
-    expect(r.provenance.aoiMissing).toBe(true)
+    expect(r.provenance.refMissing).toBe(true)
   })
 
   it('aggregate-aoi mean excludes noAoi & anyFixation slots', () => {

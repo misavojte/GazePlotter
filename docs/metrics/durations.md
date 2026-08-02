@@ -49,11 +49,12 @@ Dwell time per AOI expressed as a percentage of the participant's total fixation
 - **Scientific Meaning**: Normalises attention across participants with different overall scan durations, making comparison of spatial focus independent of scanning speed.
 
 ### 3. Mean Fixation Duration (`fixationDuration`)
-The arithmetic mean length of individual fixations.
+The average length of individual fixations.
 
 - **Raw Shape**: `aoi-vector`
 - **Unit**: `ms`
 - **Windowing**: Supported.
+- **Summary statistic**: When you project down to one number (**One AOI** or **Whole stimulus**), a **Summary** control offers mean, median, max or min. Median is the robust choice for the long right tail typical of fixation-duration distributions. The per-AOI vector itself is always the mean — see the note below the table in the [Metrics Library Overview](/docs/metrics).
 - **Invariants**: Uses the actual, unclipped fixation durations (`fix.duration`) instead of window-frame clipped durations. This preserves the cognitive reality of the fixation event; a windowed slice calculates the mean of actual fixations whose midpoints fall within that window.
 - **Measurement class**: Intensive (normalized). The value is already a per-participant average, so across participants it is averaged; a cohort total is not meaningful. For total dwell, use Absolute Dwell Time.
 - **Scientific Meaning**: Long average fixations are associated with high cognitive load, difficulty in extracting information, or detailed focus. Short average fixations suggest rapid visual exploration.
@@ -74,6 +75,7 @@ The average duration of distinct entries (visits) into an AOI boundary. A "visit
 - **Raw Shape**: `aoi-vector`
 - **Unit**: `ms`
 - **Windowing**: Supported.
+- **Summary statistic**: Same as Mean Fixation Duration above — mean, median, max or min, offered on the **One AOI** and **Whole stimulus** projections.
 - **Invariants**: Collapses consecutive fixations within the same AOI first to calculate distinct visits. 
 - **Measurement class**: Intensive (normalized). A per-participant average visit length, averaged across participants. For total dwell, use Absolute Dwell Time.
 - **Scientific Meaning**: Measures the cohesion of visual processing. Longer average visit durations imply that once a participant enters a region, they stay to process it thoroughly, whereas short visit durations suggest repeated brief scanning visits.

@@ -209,10 +209,11 @@ export interface InitCtx<P> {
   /**
    * How a sample-summarizing recipe ({@link MetricRecipe.sampleSummary})
    * collapses each slot's per-event sample in `finalize`. Declared by the
-   * instance's SUMMARY projection — `pick-category` carries a `statistic` —
-   * and always `'mean'` for vector outputs: the vector is the unmarked
-   * per-slot mean, and the summary choice belongs to the summary, never to
-   * the vector or a recipe param. Recipes without `sampleSummary` ignore it.
+   * instance's SUMMARY projection — `pick-aoi`, `pick-any-fixation` and
+   * `pick-category` each carry a `statistic` — and always `'mean'` for vector
+   * outputs: the vector is the unmarked per-slot mean, and the summary choice
+   * belongs to the summary, never to the vector or a recipe param. Recipes
+   * without `sampleSummary` ignore it.
    */
   summaryStatistic: SummaryStatistic
 }
@@ -386,8 +387,9 @@ export interface MetricRecipe<P, A> {
   /**
    * Declares that `finalize` collapses a per-event sample per slot using
    * {@link InitCtx.summaryStatistic} — the gate for statistic-bearing summary
-   * projections (a `pick-category` carrying a `statistic`), exactly as
-   * `aoiAggregate` gates `aggregate-aoi`. Registration requires an
+   * projections (a `pick-aoi` / `pick-any-fixation` / `pick-category` carrying
+   * a `statistic`), exactly as `aoiAggregate` gates `aggregate-aoi`.
+   * Registration requires an
    * `individuals` recipe (the sample must stay inspectable — distribution
    * plots pool it) and forbids combining with a `statistic` param: the summary
    * choice has ONE declaration channel per metric, never two.
@@ -409,8 +411,32 @@ export interface MetricRecipe<P, A> {
    */
   init?(ctx: InitCtx<P>): A
   onFixation?(acc: A, fix: FixationEvent, ctx: InitCtx<P>): void
+  /**
+   * The per-participant vector. OMIT IT on a {@link sampleSummary} recipe:
+   * there `finalize` is by definition `individuals` collapsed slot-by-slot with
+   * `ctx.summaryStatistic`, and `defineMetric` derives exactly that. Writing it
+   * out per recipe is what let the three sample metrics drift apart.
+   */
   finalize?(acc: A, slots: AoiSlotInfo, ctx: InitCtx<P>): number[]
-  individuals?(acc: A, slotIndex: number): number[]
+  /**
+   * WHERE the per-event sample lives — one array per slot, already the right
+   * length (allocated in `init`). These are the beeswarm's raw dots: every
+   * fixation, visit or segment that contributed, not a summary of them. Whole
+   * array, not one slot at a time, so no caller needs a recipe's slot count.
+   *
+   * Omit it when the per-participant value IS the single observation — a count,
+   * a total, a 0/100 indicator. `queryPooledIndividuals` then contributes one
+   * dot per participant from the cached aggregate: same number, no extra scan.
+   */
+  individuals?(acc: A): number[][]
+  /**
+   * Close out state still open at scan end so `individuals` is complete
+   * (visitDuration's in-progress visits). BOTH readers of the sample call it —
+   * the derived `finalize` and `runIndividualsAllSlots` — so the summary and
+   * the dots can never describe different events. Must therefore be
+   * idempotent: clear what you flush.
+   */
+  flush?(acc: A, slots: AoiSlotInfo): void
   /** Fixation-windowed metrics (RQA) slice the accumulator per window. */
   windowedFinalize?(acc: A, fromIndex: number, toIndex: number, ctx: InitCtx<P>): number
   /**

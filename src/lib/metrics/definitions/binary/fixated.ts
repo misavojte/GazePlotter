@@ -88,6 +88,12 @@ defineMetric({
   },
   // Per AOI: 100 (%) if the cumulative count and dwell met the threshold,
   // else a finite 0 — percent so the values match the declared unit.
+  //
+  // No `individuals`: this metric's per-participant value IS its single
+  // observation, and that is exactly what `queryPooledIndividuals` contributes
+  // for a recipe without the hook (one dot per participant from the cached
+  // aggregate). Declaring it would restate this expression per slot AND cost an
+  // extra uncached scan per participant to produce identical numbers.
   finalize: (acc) => {
     const out = new Array<number>(acc.count.length)
     for (let i = 0; i < out.length; i++) {
@@ -95,9 +101,4 @@ defineMetric({
     }
     return out
   },
-  // One finite 0/100 per participant for the slot — averaging across
-  // participants yields the noticed rate in percent directly.
-  individuals: (acc, slotIndex) => [
-    acc.count[slotIndex] >= acc.minFix && acc.dwell[slotIndex] >= acc.minDwell ? 100 : 0,
-  ],
 })

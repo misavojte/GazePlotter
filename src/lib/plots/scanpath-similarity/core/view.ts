@@ -77,7 +77,7 @@ function getScanpathSimilarityView(
       // colorbar's end ticks; we don't fabricate a "%" or a "0–1" pseudo-unit.
       legendTitle: buildMetricLabel(resolvedInstance, {
         fallback: 'Similarity',
-        includeProjection: true,
+        projection: 'full',
         extra: [timeRangeQualifier(settings.timelineStart ?? 0, settings.timelineEnd ?? 0)],
       }),
       placeholder: noMetric

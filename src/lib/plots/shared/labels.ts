@@ -4,6 +4,7 @@ import {
   formatProjectionReadout,
   type Metric,
   type MetricInstance,
+  type ProjectionLabelPart,
 } from '$lib/metrics'
 
 /**
@@ -111,40 +112,45 @@ export function rangeQualifier(
  * The instance's DERIVED qualifier tail for a plot axis/legend — its full
  * instance readout (`instanceReadout`: params + the cross-participant reduction,
  * the SAME readout the metric selector shows, so panel and figure agree and
- * exports self-document), plus the projection when `includeProjection`
- * (aggregate plots; omit for time-axis plots whose window already lives on the
- * time axis). `includeReduction: false` drops the reduction chip for the bar
- * plot, which discloses its statistic via its own mean±CI / median-IQR overlay
+ * exports self-document), plus as much of the projection as `projection` asks
+ * for. `includeReduction: false` drops the reduction chip for the bar plot,
+ * which discloses its statistic via its own mean±CI / median-IQR overlay
  * instead. Always derived, so a rename never drops these.
  */
 function metricQualifiers(
   instance: MetricInstance | null | undefined,
-  includeProjection = false,
+  projection: ProjectionLabelOption = 'none',
   includeReduction = true,
-  includeSummaryStat = true,
 ): string[] {
   if (!instance) return []
-  const qualifiers = instanceReadout(instance, { includeReduction, includeSummaryStat })
-  if (includeProjection) {
-    const projection = formatProjectionReadout(instance)
-    if (projection) qualifiers.push(projection)
+  const qualifiers = instanceReadout(instance, { includeReduction })
+  if (projection !== 'none') {
+    const readout = formatProjectionReadout(instance, projection)
+    if (readout) qualifiers.push(readout)
   }
   return qualifiers
 }
 
+/** {@link ProjectionLabelPart}, plus the option to print no projection at all. */
+type ProjectionLabelOption = ProjectionLabelPart | 'none'
+
 interface MetricLabelOptions {
   /** Fallback quantity name when no instance/metric resolves. */
   fallback?: string
-  /** Append the projection readout (aggregate plots). Omit for time-axis plots
-   *  whose window already lives on the time axis (avoids printing it twice). */
-  includeProjection?: boolean
+  /**
+   * How much of the projection to append. Default `'none'`.
+   *   - `'full'` for aggregate plots with no time axis (bar, matrices,
+   *     correlation): slice + window.
+   *   - `'leaf'` for TIME-AXIS plots (Metric Timeline, AOI Timeline): the slice
+   *     only, because the window is already drawn along x. Printing `'full'`
+   *     there states the window twice; printing `'none'` (as both did before)
+   *     silently drops WHICH AOI or type the instance picked, so two plots of
+   *     different AOIs came out wearing identical axis labels.
+   */
+  projection?: ProjectionLabelOption
   /** Append the cross-participant reduction chip. Default `true`; pass `false`
    *  for the bar plot, which discloses its statistic via its overlay instead. */
   includeReduction?: boolean
-  /** Append the within-participant summary-statistic chip (mean/median/… for
-   *  fixation/visit duration). Default `true`; pass `false` for the bar plot,
-   *  whose beeswarm + overlay already shows the distribution. */
-  includeSummaryStat?: boolean
   /** Append the IUPAC unit after the quantity. Default `true`; pass `false` for an
    *  axis carrying several metrics of differing units (correlation rows/cols). */
   unit?: boolean
@@ -174,9 +180,8 @@ export function buildMetricLabel(
     primary,
     ...metricQualifiers(
       instance,
-      opts.includeProjection ?? false,
-      opts.includeReduction ?? true,
-      opts.includeSummaryStat ?? true
+      opts.projection ?? 'none',
+      opts.includeReduction ?? true
     ),
     ...(opts.extra ?? [])
   )

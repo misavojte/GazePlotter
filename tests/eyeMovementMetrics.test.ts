@@ -236,7 +236,6 @@ describe('category-vector eye-movement metrics (scanSource: categories)', () => 
       vectorInst('mc', 'movementCount'),
       pickInst('md', 'movementDuration', 'Blink'),
       pickInst('mt', 'movementTime', 'Saccade'),
-      { id: 'ifi', baseId: 'interFixationInterval', params: { statistic: 'mean' }, label: '', projection: { kind: 'identity-scalar' } } as MetricInstance,
     ]
 
     const batch = queryBatch(instances(), { engine: e1 as any, stimulusId: STIM, participantId: 0 })
@@ -271,26 +270,8 @@ describe('category-vector eye-movement metrics (scanSource: categories)', () => 
 
     expect(metricIsCreatableInContract(getMetric('movementCount')!, vectorContract)).toBe(true)
     expect(metricIsCreatableInContract(getMetric('fixationCount')!, vectorContract)).toBe(false)
-    expect(metricIsCreatableInContract(getMetric('interFixationInterval')!, vectorContract)).toBe(false)
     // Metric Matrix / Correlation / Timeline consume one type via pick-category.
     expect(metricIsCreatableInContract(getMetric('movementTimeShare')!, scalarContract)).toBe(true)
   })
 })
 
-describe('inter-fixation interval', () => {
-  const scalarInst = (id: string, baseId: string, params: Record<string, unknown> = {}): MetricInstance =>
-    ({ id, baseId, params, label: '', projection: { kind: 'identity-scalar' } })
-
-  it('summarizes the gaps between consecutive fixations', () => {
-    const engine = createEngine()
-    expect(scalarValue(engine, scalarInst('m', 'interFixationInterval', { statistic: 'mean' }))).toBe(30)
-    expect(scalarValue(engine, scalarInst('md', 'interFixationInterval', { statistic: 'median' }))).toBe(30)
-    expect(scalarValue(engine, scalarInst('mx', 'interFixationInterval', { statistic: 'max' }))).toBe(40)
-    expect(scalarValue(engine, scalarInst('mn', 'interFixationInterval', { statistic: 'min' }))).toBe(20)
-  })
-
-  it('back-to-back fixations yield NaN, not a fake 0', () => {
-    const engine = createEngine([['Fixation', 'Fixation', '#000000']], [[[0, 100, 0], [100, 200, 0], [200, 300, 0]]])
-    expect(scalarValue(engine, scalarInst('m', 'interFixationInterval', { statistic: 'mean' }))).toBeNaN()
-  })
-})

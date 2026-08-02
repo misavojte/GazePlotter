@@ -15,13 +15,15 @@
     PROJECTION_LEAVES,
     MATRIX_REDUCERS,
     identityFor,
+    isSummaryLeaf,
+    isSummaryLeafKind,
     type Projection,
     type LeafProjection,
     type LeafKind,
-    type AoiReducer,
     type MatrixReducer,
     type WindowSpec,
   } from '$lib/metrics/core/projection'
+  import type { AoiReducer } from '$lib/metrics/core/numeric'
   import { recipeSupports } from '$lib/metrics/core/validation'
   import { categoryGroupNames } from '$lib/metrics/core/categoryScan'
   import { metricLeafKindsInContract, contractReductions, type PlotMetricContract } from '$lib/metrics/filters'
@@ -100,7 +102,7 @@
     // A sample-summarizing metric's pick always STATES its summary (mean
     // included — the collapse must be visible); normalize instances stored
     // before the choice existed to the explicit default.
-    if (leafDraft.kind === 'pick-category' && metric?.meta.sampleSummary && !leafDraft.statistic) {
+    if (isSummaryLeaf(leafDraft) && metric?.meta.sampleSummary && !leafDraft.statistic) {
       leafDraft = { ...leafDraft, statistic: 'mean' }
     }
   }
@@ -140,6 +142,13 @@
     }
   })
 
+  // Sample-summarizing metrics: the summary choice rides the SUMMARY leaf (see
+  // LeafProjection); always explicit, so the figure discloses it even at the
+  // default. Empty for every other metric/leaf, whose collapse is not a choice.
+  function summaryFieldFor(kind: LeafKind): { statistic?: SummaryStatistic } {
+    return metric?.meta.sampleSummary && isSummaryLeafKind(kind) ? { statistic: 'mean' } : {}
+  }
+
   function buildLeaf(kind: LeafKind, currentAoi: string | undefined = undefined): LeafProjection {
     const defaultAoi = currentAoi ?? aoiNameUnion[0] ?? ''
     switch (kind) {
@@ -148,15 +157,17 @@
       case 'identity-category-vector':           return { kind }
       case 'identity-aoi-pair-matrix':           return { kind }
       case 'identity-participant-pair-matrix':   return { kind }
-      case 'pick-aoi':         return { kind, aoiRef: { by: 'name', name: defaultAoi } }
+      case 'pick-aoi':         return {
+        kind,
+        aoiRef: { by: 'name', name: defaultAoi },
+        ...summaryFieldFor(kind),
+      }
       case 'pick-category':    return {
         kind,
         categoryName: categoryNameOptions()[0]?.value ?? '',
-        // Sample-summarizing metrics: the summary choice rides the pick (see
-        // LeafProjection); always explicit so the figure discloses it.
-        ...(metric?.meta.sampleSummary ? { statistic: 'mean' as const } : {}),
+        ...summaryFieldFor(kind),
       }
-      case 'pick-any-fixation': return { kind }
+      case 'pick-any-fixation': return { kind, ...summaryFieldFor(kind) }
       case 'aggregate-aoi':    return { kind, reducer: aoiExtremeOptions()[0]?.value ?? 'max' }
       case 'matrix-diagonal':  return { kind }
       case 'matrix-row':       return { kind, aoiRef: { by: 'name', name: defaultAoi } }
@@ -347,7 +358,7 @@
   }
 
   function updateLeafStatistic(statistic: SummaryStatistic) {
-    if (leafDraft.kind === 'pick-category') {
+    if (isSummaryLeaf(leafDraft)) {
       leafDraft = { ...leafDraft, statistic }
     }
   }
@@ -469,15 +480,20 @@
               emptyMessage="No eye-movement types in the loaded data"
               onchange={(e) => updateLeafCategoryName(detail(e))}
             />
-            {#if metric?.meta.sampleSummary}
-              <Select
-                compact
-                label="Summary"
-                options={[...SUMMARY_STATISTIC_OPTIONS]}
-                value={leafDraft.statistic ?? 'mean'}
-                onchange={(e) => updateLeafStatistic(detail(e) as SummaryStatistic)}
-              />
-            {/if}
+          {/if}
+
+          <!-- The summary statistic belongs to the SUMMARY, so the control sits
+               with whichever pick produced it (AOI, whole stimulus, type) —
+               never in Metric Parameters, where it would imply the vector
+               itself carries a collapse choice. -->
+          {#if isSummaryLeaf(leafDraft) && metric?.meta.sampleSummary}
+            <Select
+              compact
+              label="Summary"
+              options={[...SUMMARY_STATISTIC_OPTIONS]}
+              value={leafDraft.statistic ?? 'mean'}
+              onchange={(e) => updateLeafStatistic(detail(e) as SummaryStatistic)}
+            />
           {/if}
 
           {#if leafDraft.kind === 'matrix-cell'}

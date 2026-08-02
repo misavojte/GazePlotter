@@ -2,6 +2,7 @@ import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { SEGMENT_STRIDE, SegmentField } from '$lib/data/binary'
 import { buildAoiSlots } from './aoiSlots'
 import { resolveParams } from './params'
+import { projectionSummaryStatistic } from './projection'
 import { getRecipe } from './defineMetric'
 import { fillWindowFrame } from './dsl'
 import { cacheGetRaw, cacheSetRaw, runSingleWindow } from './runtime'
@@ -70,9 +71,19 @@ export function scanBatch(
       continue
     }
     const params = resolveParams(recipe.params, inst.params)
-    // categorySlotCount 0 / summaryStatistic 'mean': category-vector recipes
-    // (the only summary-projection bearers) were delegated above.
-    const ctx = { params, slots, scopeDurationMs, categorySlotCount: 0, summaryStatistic: 'mean' as const }
+    // categorySlotCount 0: category-vector recipes were delegated above, so no
+    // instance here indexes a per-type vector. The summary statistic, though,
+    // is NOT constant across this batch — the aoi-vector duration metrics are
+    // sample-summarizing too, and a `pick-aoi · median` instance must collapse
+    // by median here exactly as it does on the single path. Getting this wrong
+    // would also poison the shared raw cache, whose key carries the statistic.
+    const ctx = {
+      params,
+      slots,
+      scopeDurationMs,
+      categorySlotCount: 0,
+      summaryStatistic: projectionSummaryStatistic(inst.projection),
+    }
     active.push({ inst, onFixation, finalize, acc: init(ctx), ctx })
   }
   if (active.length === 0) return results

@@ -24,6 +24,7 @@ import type { MetricRecipe } from './dsl'
 import {
   PROJECTION_LEAVES,
   leafOf,
+  leafSummaryStatistic,
   type Projection,
 } from './projection'
 import { supportedMatrixReducers } from './measurement'
@@ -55,11 +56,12 @@ function checkReducer(
     if (!supportedMatrixReducers(recipe.measurementClass).includes(leaf.reducer)) {
       return `Reducer "${leaf.reducer}" across matrix cells is not meaningful for this metric.`
     }
-  } else if (leaf.kind === 'pick-category' && leaf.statistic) {
+  } else if (leafSummaryStatistic(leaf)) {
     // Same declaration-gates-disclosure rule as aggregate-aoi: a summary
     // statistic is valid only where the recipe declares a per-event sample to
     // collapse (`sampleSummary`). On anything else (counts, totals) it would
-    // disclose a summarization that never happens.
+    // disclose a summarization that never happens. Covers all three SUMMARY
+    // leaves via one predicate, so a fourth inherits the gate for free.
     if (!recipe.sampleSummary) {
       return `Metric "${recipe.id}" has no per-event sample to summarize.`
     }

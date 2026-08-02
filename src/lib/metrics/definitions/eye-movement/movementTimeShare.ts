@@ -1,5 +1,5 @@
 import { defineMetric } from '../../core/defineMetric'
-import { percentShare } from '../../core/projection'
+import { percentShare } from '../../core/numeric'
 
 /**
  * ## Eye-movement time share

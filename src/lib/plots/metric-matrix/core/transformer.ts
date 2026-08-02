@@ -27,7 +27,8 @@ import type {
  * a capture failure classifies identically under an extensive metric (which
  * would finalize to a finite 0 for a fixation-less scan) and an intensive one
  * (which returns NaN). Only a present, fixation-bearing recording ever reaches
- * `query()`, and there a benign missing-AOI (`aoiMissing` provenance) is kept
+ * `query()`, and there a benign unresolved reference (`refMissing` provenance,
+ * an AOI or eye-movement type this dataset lacks) is kept
  * distinct from a genuine non-finite (`not-computable`). A finite 0 is a REAL
  * value, never NA.
  */
@@ -116,7 +117,7 @@ export function getMetricMatrixData(
             timeEnd: 0,
           })
         )
-        if (res?.provenance.aoiMissing) {
+        if (res?.provenance.refMissing) {
           st = 'aoi-not-present' // benign: the instance's AOI ref isn't on this stimulus
         } else if (!res || !res.isFinite) {
           st = 'not-computable' // present + fixations, yet non-finite

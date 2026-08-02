@@ -352,8 +352,11 @@ export function getEvolvingMetricsData(
   const timeline = createAdaptiveTimeline(timelineMin, timelineMax, 6)
 
   const xAxisLabel = getEvolvingMetricsXAxisLabel(windowLabel(window, windowUnit))
-  // Time-axis plot: quantity + param qualifiers, NO projection (window on x).
-  const yAxisLabel = buildMetricLabel(instance)
+  // Time-axis plot: the window is on x, so the y label takes the projection's
+  // SLICE only — which AOI / type / matrix cell this series is. Dropping the
+  // projection wholesale (the old behaviour) left two plots of different AOIs
+  // with identical y labels, indistinguishable once exported.
+  const yAxisLabel = buildMetricLabel(instance, { projection: 'leaf' })
 
   return {
     participants,

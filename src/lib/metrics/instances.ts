@@ -3,8 +3,12 @@ import { getMetric, getRecipe } from './core/defineMetric'
 import { resolveParams, paramToLabel } from './core/params'
 import {
   identityFor,
+  isSummaryLeaf,
+  leafOf,
+  leafSummaryStatistic,
   projectionToLabel,
   type Projection,
+  type ProjectionLabelPart,
 } from './core/projection'
 import { STARTING_METRICS } from './startingMetrics'
 import { soundReductions, type GroupReduction } from './core/measurement'
@@ -132,6 +136,42 @@ export function isStrandedAoiAggregate(inst: any): boolean {
   return !((extreme === 'max' || extreme === 'min') && !!recipe.aoiAggregate?.[extreme])
 }
 
+/**
+ * Load-time normalization: carry a serialized `params.statistic` onto the
+ * instance's SUMMARY leaf. The summary choice moved from a recipe param to the
+ * projection, and a stale param would key the raw cache while `finalize` read
+ * the projection, so it is always consumed, never left behind.
+ *
+ * Gated on `meta.sampleSummary` rather than a baseId list, so a future migrated
+ * metric needs no edit here and an UNKNOWN recipe keeps its params verbatim
+ * (this build's registry is not the arbiter of a workspace it cannot read).
+ *
+ * A non-mean setting on an IDENTITY leaf (an AOI Timeline instance) has
+ * nowhere to go: a vector is the unmarked per-slot mean by construction. That
+ * instance drops to mean, which is the accepted cost of the move. Operates on
+ * raw untyped JSON (Web-Worker-safe, no engine); unknown recipes pass through.
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function carrySummaryStatistic(inst: any): any {
+  const statistic = inst?.params?.statistic
+  if (typeof statistic !== 'string') return inst
+  if (!getMetric(inst?.baseId)?.meta.sampleSummary) return inst
+
+  const { statistic: _drop, ...params } = inst.params
+  const proj = inst.projection
+  const leaf = proj?.kind === 'windowed' ? proj.inner : proj
+  // Already migrated (or hand-authored): never overwrite an explicit choice.
+  if (!leaf || !isSummaryLeaf(leaf) || leaf.statistic !== undefined) {
+    return { ...inst, params }
+  }
+  const next = { ...leaf, statistic }
+  return {
+    ...inst,
+    params,
+    projection: proj.kind === 'windowed' ? { ...proj, inner: next } : next,
+  }
+}
+
 // ─── Label / readout helpers ─────────────────────────────────────────────────
 
 /**
@@ -149,15 +189,22 @@ export function defaultInstanceLabel(baseId: string): string {
   return getMetric(baseId)?.meta.label ?? baseId
 }
 
-/** Human-readable readout of the projection (including window suffix). An
+/** Human-readable readout of the projection. `part` selects the slice alone or
+ *  the slice plus its window (see {@link ProjectionLabelPart}). An
  *  `aggregate-aoi` leaf prints the metric's own named meaning of the extreme
  *  ("most-dwelled AOI") — the same phrase that gated the projection. */
-export function formatProjectionReadout(instance: MetricInstance): string | null {
+export function formatProjectionReadout(
+  instance: MetricInstance,
+  part: ProjectionLabelPart = 'full',
+): string | null {
   const m = getMetric(instance.baseId)
   const unit = m?.meta.windowUnit ?? 'ms'
-  const label = projectionToLabel(instance.projection, unit, {
-    aoiAggregate: m?.meta.aoiAggregate,
-  })
+  const label = projectionToLabel(
+    instance.projection,
+    unit,
+    { aoiAggregate: m?.meta.aoiAggregate },
+    part,
+  )
   return label.length > 0 ? label : null
 }
 
@@ -172,9 +219,6 @@ export function formatParamReadout(instance: MetricInstance): string[] {
   const m = getMetric(instance.baseId)
   if (!m || m.meta.params.length === 0) return []
   return m.meta.params
-    // `statistic` is disclosed via summaryStatQualifier (so a plot can toggle it
-    // like the reduction chip), not as a generic param chip — skip it here.
-    .filter(p => p.id !== 'statistic')
     .map(p => paramToLabel(p, instance.params[p.id] ?? p.default))
     .filter((s): s is string => !!s)
 }
@@ -211,21 +255,23 @@ export function reductionQualifier(
 
 /**
  * The within-participant SUMMARY statistic as a mid-dot readout qualifier — how
- * a metric collapses each AOI-slot's per-fixation / per-visit sample into the
- * per-participant value (`fixationDuration` / `visitDuration` carry a settable
- * `statistic` param). Returns `null` for metrics without that param (their
- * collapse is fixed and conveyed by the metric name, e.g. "Absolute dwell
- * time"). UNLIKE {@link reductionQualifier}, it discloses `mean` too — the whole
- * point is that the summarization method is finally visible on the figure.
+ * a metric collapses each slot's per-event sample into the per-participant
+ * value. Read off the SUMMARY projection, the only place it can be declared.
+ *
+ * Deliberately disclosed here rather than inside the leaf label: a projection
+ * readout is printed by only some plots (`includeProjection`), and the
+ * summarization method must be visible on EVERY figure that shows one.
+ *
+ * `null` when nothing chose a statistic — an identity vector, whose collapse is
+ * fixed at the per-slot mean and so is not a choice to disclose. UNLIKE
+ * {@link reductionQualifier}, a statistic that WAS chosen discloses `mean` too:
+ * that is the whole point of the chip.
  */
 function summaryStatQualifier(
   instance: MetricInstance | null | undefined
 ): string | null {
   if (!instance) return null
-  const def = getMetric(instance.baseId)?.meta.params.find(p => p.id === 'statistic')
-  if (!def) return null
-  const value = (instance.params?.statistic as string | undefined) ?? (def.default as string)
-  return typeof value === 'string' && value.length > 0 ? value : null
+  return leafSummaryStatistic(leafOf(instance.projection)) ?? null
 }
 
 /**
@@ -233,20 +279,21 @@ function summaryStatQualifier(
  * summary statistic, and the cross-participant reduction. This is the SINGLE
  * readout the metric selector AND plot axes/legends compose from, so the panel
  * and the figure agree exactly and a static export is self-documenting.
- * `includeReduction: false` drops the reduction chip and `includeSummaryStat:
- * false` the summary chip — both for distribution plots (the bar plot, which
- * discloses spread via its mean±CI / median-IQR overlay rather than a point
- * statistic / generic chip).
+ * `includeReduction: false` drops the reduction chip for distribution plots
+ * (the bar plot, which discloses spread via its mean±CI / median-IQR overlay
+ * rather than a point statistic).
+ *
+ * There is no matching opt-out for the summary chip: a distribution plot
+ * consumes the raw VECTOR, and a vector never carries a chosen statistic, so
+ * the chip cannot appear there in the first place.
  */
 export function instanceReadout(
   instance: MetricInstance,
-  opts: { includeReduction?: boolean; includeSummaryStat?: boolean } = {},
+  opts: { includeReduction?: boolean } = {},
 ): string[] {
   const out = [...formatParamReadout(instance)]
-  if (opts.includeSummaryStat !== false) {
-    const stat = summaryStatQualifier(instance)
-    if (stat) out.push(stat)
-  }
+  const stat = summaryStatQualifier(instance)
+  if (stat) out.push(stat)
   if (opts.includeReduction !== false) {
     const red = reductionQualifier(instance)
     if (red) out.push(red)

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   defaultInstanceLabel,
   formatParamReadout,
+  formatProjectionReadout,
   instanceReadout,
   reductionQualifier,
   resolveReduction,
@@ -151,38 +152,49 @@ describe('instanceReadout (params + reduction — the one selector/figure source
 // ─── within-fixation summary statistic (mean/median/…) disclosure ─────────────
 
 describe('summary statistic disclosure', () => {
-  it('is disclosed via instanceReadout (mean shown too), NOT as a generic param chip', () => {
-    // Skipped in the generic param readout so a plot can toggle it like the
-    // reduction chip…
-    expect(formatParamReadout(inst('fixationDuration', {}))).toEqual([])
-    expect(formatParamReadout(inst('fixationDuration', { statistic: 'median' }))).toEqual([])
-    // …and disclosed via instanceReadout — unlike the reduction, `mean` shows too.
-    expect(instanceReadout(inst('fixationDuration', {}))).toEqual(['mean'])
-    expect(instanceReadout(inst('fixationDuration', { statistic: 'median' }))).toEqual(['median'])
-    expect(instanceReadout(inst('visitDuration', { statistic: 'max' }))).toEqual(['max'])
+  /** A summary leaf on a sample-summarizing metric — the only place a
+   *  statistic can now live for fixation/visit/movement duration. */
+  function pick(baseId: string, statistic?: string): MetricInstance {
+    return {
+      id: 'i', baseId, params: {}, label: '',
+      projection: {
+        kind: 'pick-aoi',
+        aoiRef: { by: 'name', name: 'Logo' },
+        ...(statistic ? { statistic: statistic as 'median' } : {}),
+      },
+    }
+  }
+
+  it('is disclosed via instanceReadout (mean shown too), NOT inside the leaf label', () => {
+    // Unlike the reduction, a CHOSEN statistic discloses `mean` too.
+    expect(instanceReadout(pick('fixationDuration', 'mean'))).toEqual(['mean'])
+    expect(instanceReadout(pick('fixationDuration', 'median'))).toEqual(['median'])
+    expect(instanceReadout(pick('visitDuration', 'max'))).toEqual(['max'])
+    // The leaf label itself stays statistic-free: the chip is the ONE
+    // disclosure site, so plots that print no projection still show it.
+    expect(formatProjectionReadout(pick('fixationDuration', 'median')))
+      .toBe('AOI "Logo"')
   })
-  it('metrics without a statistic param emit no summary chip', () => {
+  it('a vector carries no statistic, so it emits no chip', () => {
+    // Not a choice nobody made — a vector IS the unmarked per-slot mean.
+    expect(instanceReadout(inst('fixationDuration', {}))).toEqual([])
     expect(instanceReadout(inst('absoluteTime', {}))).toEqual([])
     expect(instanceReadout(inst('fixationCount', {}))).toEqual([])
   })
-  it('includeSummaryStat:false drops it (bar plot discloses via its overlay)', () => {
-    expect(
-      instanceReadout(inst('fixationDuration', { statistic: 'median' }), {
-        includeSummaryStat: false,
-      })
-    ).toEqual([])
+  it('a stale `statistic` PARAM is never read — the projection is the only channel', () => {
+    // No recipe declares a `statistic` param any more; the summary rides the
+    // SUMMARY leaf. A leftover param from an older workspace is inert.
+    expect(instanceReadout(inst('fixationDuration', { statistic: 'median' }))).toEqual([])
+    expect(formatParamReadout(inst('fixationDuration', { statistic: 'median' }))).toEqual([])
   })
-  it('buildMetricLabel puts the statistic on the colorbar; the bar opts out', () => {
-    expect(buildMetricLabel(inst('fixationDuration', {})))
+  it('buildMetricLabel puts the statistic on every plot, projection printed or not', () => {
+    expect(buildMetricLabel(pick('fixationDuration', 'mean')))
       .toBe('Fixation duration / ms · mean')
-    expect(
-      buildMetricLabel(inst('fixationDuration', { statistic: 'median' }))
-    ).toBe('Fixation duration / ms · median')
-    expect(
-      buildMetricLabel(inst('fixationDuration', { statistic: 'median' }), {
-        includeSummaryStat: false,
-      })
-    ).toBe('Fixation duration / ms')
+    expect(buildMetricLabel(pick('fixationDuration', 'median')))
+      .toBe('Fixation duration / ms · median')
+    // With the projection printed, the statistic is still stated ONCE.
+    expect(buildMetricLabel(pick('fixationDuration', 'median'), { projection: 'full' }))
+      .toBe('Fixation duration / ms · median · AOI "Logo"')
   })
 })
 
@@ -235,14 +247,65 @@ describe('buildMetricLabel (unified plot/colorbar label)', () => {
       id: 'i', baseId: 'absoluteTime', params: {}, label: '',
       projection: { kind: 'aggregate-aoi', reducer: 'max' },
     }
-    expect(buildMetricLabel(peak, { includeProjection: true }))
+    expect(buildMetricLabel(peak, { projection: 'full' }))
       .toBe('Absolute dwell time / ms · most-dwelled AOI')
 
     const firstHit: MetricInstance = {
       id: 'i', baseId: 'timeToFirstFixation', params: {}, label: '',
       projection: { kind: 'aggregate-aoi', reducer: 'min' },
     }
-    expect(buildMetricLabel(firstHit, { includeProjection: true }))
+    expect(buildMetricLabel(firstHit, { projection: 'full' }))
       .toBe('Time to first fixation / ms · first-reached AOI')
+  })
+})
+
+// ─── projection: 'leaf' vs 'full' (time-axis plots) ──────────────────────────
+
+describe('projection readout: the slice and the window are separable', () => {
+  const windowedPick = (aoi: string): MetricInstance => ({
+    id: 'i', baseId: 'fixationDuration', params: {}, label: '',
+    projection: {
+      kind: 'windowed',
+      window: { windowSize: 1000, stepSize: 100 },
+      inner: { kind: 'pick-aoi', aoiRef: { by: 'name', name: aoi }, statistic: 'mean' },
+    },
+  })
+
+  it("'full' states both; 'leaf' drops only the window", () => {
+    expect(buildMetricLabel(windowedPick('Logo'), { projection: 'full' }))
+      .toBe('Fixation duration / ms · mean · AOI "Logo" · 1000 ms window, 100 ms step')
+    expect(buildMetricLabel(windowedPick('Logo'), { projection: 'leaf' }))
+      .toBe('Fixation duration / ms · mean · AOI "Logo"')
+  })
+
+  it('two AOIs on a time-axis plot no longer share one label', () => {
+    // The regression this option exists for: with the projection omitted
+    // wholesale, both of these read 'Fixation duration / ms · mean' and an
+    // exported figure could not say which AOI it plotted.
+    const logo = buildMetricLabel(windowedPick('Logo'), { projection: 'leaf' })
+    const price = buildMetricLabel(windowedPick('Price'), { projection: 'leaf' })
+    expect(logo).not.toBe(price)
+    expect(buildMetricLabel(windowedPick('Logo'))).toBe(buildMetricLabel(windowedPick('Price')))
+  })
+
+  it("'leaf' is a no-op on an unwindowed projection", () => {
+    const flat: MetricInstance = {
+      id: 'i', baseId: 'absoluteTime', params: {}, label: '',
+      projection: { kind: 'pick-aoi', aoiRef: { by: 'name', name: 'Logo' } },
+    }
+    expect(buildMetricLabel(flat, { projection: 'leaf' }))
+      .toBe(buildMetricLabel(flat, { projection: 'full' }))
+  })
+
+  it('an identity leaf names no slice, so a vector time-axis plot stays clean', () => {
+    const stream: MetricInstance = {
+      id: 'i', baseId: 'absoluteTime', params: {}, label: '',
+      projection: {
+        kind: 'windowed',
+        window: { windowSize: 500, stepSize: 500 },
+        inner: { kind: 'identity-aoi-vector' },
+      },
+    }
+    expect(buildMetricLabel(stream, { projection: 'leaf' })).toBe('Absolute dwell time / ms')
   })
 })
