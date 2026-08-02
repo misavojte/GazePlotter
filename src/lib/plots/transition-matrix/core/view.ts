@@ -1,8 +1,7 @@
 import type { ComponentProps } from 'svelte'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import { MatrixPlotFigure, type CanvasExportProps } from '$lib/plots/shared'
+import { MatrixPlotFigure, resolvePickedInstance, type CanvasExportProps } from '$lib/plots/shared'
 import type { PlotView } from '$lib/plots/definePlot'
-import { getMetric, resolveInstance } from '$lib/metrics'
 import { METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
 import { getTransitionMatrixData } from './transformer'
 import { colorScaleToKey } from './sync.svelte'
@@ -49,11 +48,7 @@ export function getTransitionView(
   const { matrix, aoiLabels } = transitionData
   const noMetric = transitionData.noMetric ?? false
 
-  const resolvedInstance = resolveInstance(
-    engine.metadata?.metricInstances ?? [],
-    settings.metricInstanceIds[0] ?? null
-  )
-  const resolvedMetric = resolvedInstance ? getMetric(resolvedInstance.baseId) : undefined
+  const resolvedInstance = resolvePickedInstance(engine, settings.metricInstanceIds)
   const effectiveColorScale = settings.colorScale ?? []
   const currentStimulusColorRange: [number, number] =
     settings.stimuliColorValueRanges?.[settings.stimulusId] ?? [0, 0]
@@ -83,7 +78,6 @@ export function getTransitionView(
       formatCellValue,
       legendTitle: getLegendTitle(
         resolvedInstance,
-        resolvedMetric,
         settings.hideNoAoi ?? false,
         settings.timelineStart ?? 0,
         settings.timelineEnd ?? 0

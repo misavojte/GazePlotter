@@ -1,4 +1,10 @@
-import { instanceReadout, formatProjectionReadout, type Metric, type MetricInstance } from '$lib/metrics'
+import {
+  getMetric,
+  instanceReadout,
+  formatProjectionReadout,
+  type Metric,
+  type MetricInstance,
+} from '$lib/metrics'
 
 /**
  * Axis / legend / colorbar label grammar — ONE format for every plot.
@@ -48,12 +54,21 @@ export function formatQuantity(quantity: string, unit?: string | null): string {
  */
 export function formatInstanceLabel(
   instance: MetricInstance | null | undefined,
-  metric: Metric | null | undefined,
   fallback = 'Value'
 ): string {
+  const metric = metricOf(instance)
   const name = instance?.label?.trim() || metric?.meta.label?.trim()
   if (!name) return fallback
   return formatQuantity(name, metric?.meta.unit ?? '')
+}
+
+/**
+ * The instance's metric. Derived here rather than accepted as a parameter:
+ * an instance DETERMINES its metric (`baseId`), so passing both invited a
+ * mismatched pair and made every call site repeat the same lookup.
+ */
+function metricOf(instance: MetricInstance | null | undefined): Metric | undefined {
+  return instance ? getMetric(instance.baseId) : undefined
 }
 
 /**
@@ -149,13 +164,12 @@ interface MetricLabelOptions {
  */
 export function buildMetricLabel(
   instance: MetricInstance | null | undefined,
-  metric: Metric | null | undefined,
   opts: MetricLabelOptions = {}
 ): string {
   const primary =
     opts.unit === false
-      ? instance?.label?.trim() || metric?.meta.label?.trim() || opts.fallback || 'Value'
-      : formatInstanceLabel(instance, metric, opts.fallback)
+      ? instance?.label?.trim() || metricOf(instance)?.meta.label?.trim() || opts.fallback || 'Value'
+      : formatInstanceLabel(instance, opts.fallback)
   return withQualifiers(
     primary,
     ...metricQualifiers(

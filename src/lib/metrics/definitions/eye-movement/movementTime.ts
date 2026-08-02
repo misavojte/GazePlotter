@@ -1,18 +1,13 @@
 import { defineMetric } from '../../core/defineMetric'
-import { eyeMovementTypeParam } from './eyeMovementTypeParam'
-
-interface Acc {
-  total: number
-}
 
 /**
  * ## Eye-movement time
  *
- * Total time (ms) spent in segments of the chosen eye-movement type — the
- * scalar sibling of `absoluteTime` for saccades, blinks, and any other
- * recorded type.
+ * Total time (ms) spent in segments of EACH eye-movement type — one value per
+ * type on the canonical displayed-name axis; the per-type sibling of
+ * `absoluteTime`. Extract a single type via the `pick-category` projection.
  *
- * - **Shape:** `scalar`
+ * - **Shape:** `category-vector`
  * - **Unit:** `ms`
  * - **Category:** `eye-movement`
  * - **Windowing:** supported (in-window overlap, so a segment crossing window
@@ -20,32 +15,33 @@ interface Acc {
  *   equal the unwindowed total — mirrors `absoluteTime`)
  *
  * ### Parameters
- * - `eyeMovementType` — which segment category to total, by displayed name.
+ * None.
  *
  * ### Invariants
- * - 0 when the recording contains no such segments (same caveat as
+ * - 0 for types the recording contains no segments of (same caveat as
  *   `movementCount`: fixation-only sources cannot record them).
  */
 defineMetric({
   id: 'movementTime',
   label: 'Eye-movement time',
-  description: 'Stimulus-level: total time (ms) spent in segments of the chosen eye-movement type (by displayed name; saccades by default). 0 when the recording contains no such segments — fixation-only sources cannot record them.',
+  description: 'Per eye-movement type: total time (ms) spent in segments of that type. 0 for types the recording contains no segments of.',
   unit: 'ms',
   category: 'eye-movement',
-  rawShape: 'scalar',
+  rawShape: 'category-vector',
   windowUnit: 'ms',
   // Extensive: a physical duration that adds — cohort `sum` and
   // per-participant `mean` are both sound (mirrors absoluteTime).
   measurementClass: 'extensive',
   searchTags: ['saccade', 'blink', 'time', 'total', 'duration', 'eye movement', 'type'],
-  params: [eyeMovementTypeParam] as const,
-  scanSource: 'categoryParam',
+  params: [] as const,
+  scanSource: 'categories',
   accumulation: 'stateful',
-  init: (): Acc => ({ total: 0 }),
-  onFixation: (acc, { frame }) => {
+  init: ({ categorySlotCount }) => new Float64Array(categorySlotCount),
+  onFixation: (acc, { frame, categorySlot }) => {
     // Read `frame.duration` (in-window overlap) so windowed sums compose;
     // across an unbounded scope it equals the segment's own duration.
-    acc.total += frame.duration
+    if (categorySlot < 0) return
+    acc[categorySlot] += frame.duration
   },
-  finalize: acc => [acc.total],
+  finalize: acc => Array.from(acc),
 })

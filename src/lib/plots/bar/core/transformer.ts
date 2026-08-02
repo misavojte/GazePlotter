@@ -2,7 +2,6 @@ import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { getAois, getParticipantsIds, getParticipant } from '$lib/data/engine'
 import type { ExtendedInterpretedDataType } from '$lib/data/types'
 import {
-  asAoiVector,
   createAdaptiveTimeline,
   resolveMetric,
   type AdaptiveTimeline,
@@ -18,12 +17,9 @@ import type {
   AoiSummaryStatistics,
 } from '../types'
 import {
-  query,
-  queryIndividualsAllSlots,
+  queryPooledIndividuals,
   getMetric,
-  type MetricInstance,
   type PlotMetricContract,
-  type Scope,
 } from '$lib/metrics'
 
 const CONTRACT = { outputShape: 'aoi-vector', windowing: 'forbidden', crossParticipant: 'distribution' } as const satisfies PlotMetricContract
@@ -81,20 +77,17 @@ export function getBarPlotData(
     id => getParticipant(engine, id).displayedName
   )
 
-  const individualArrays = new Array<number[]>(totalSlots)
-  const individualNameArrays = new Array<string[]>(totalSlots)
-  extractIndividualValues(
-    engine,
+  // The shared beeswarm-pooling rule (see queryPooledIndividuals): one scan per
+  // participant, every event its own dot for metrics with an `individuals`
+  // recipe, per-slot fallback to the cached aggregate for the rest.
+  const { values: individualArrays, names: individualNameArrays } = queryPooledIndividuals(
     instance,
-    settings.stimulusId,
-    settings.aoiSelectionId,
-    participantIds,
-    totalSlots,
-    timeStart,
-    timeEnd,
+    participantIds.map(participantId => ({
+      engine, stimulusId: settings.stimulusId, participantId,
+      timeStart, timeEnd, aoiSelectionId: settings.aoiSelectionId,
+    })),
     participantDisplayNames,
-    individualArrays,
-    individualNameArrays
+    Array.from({ length: totalSlots }, (_, s) => s)
   )
 
   const statsArrays = new Array<AoiSummaryStatistics>(totalSlots)
@@ -115,7 +108,6 @@ export function getBarPlotData(
     rawData,
     aois,
     meta.noAoiTreatment,
-    instance,
     individualArrays,
     statsArrays,
     individualNameArrays
@@ -157,88 +149,15 @@ export function getBarPlotData(
   }
 }
 
-/**
- * Fills `valuesOut[slot]` / `namesOut[slot]` with the per-participant individual
- * values for every AOI slot, scanning each participant ONCE.
- *
- * The previous shape scanned per (slot × participant): for a metric with an
- * `individuals` recipe (e.g. "Was fixated") that meant a full, uncached fixation
- * scan per slot per participant — a `totalSlots`× redundant scan that stalled
- * large datasets. Here each participant is scanned once: `queryIndividualsAllSlots`
- * returns every slot's individuals from a single accumulator, and metrics without
- * an individuals recipe read the cached aggregate vector once per participant.
- *
- * Output is identical to the old per-slot routine: within each slot the values
- * stay in participant order, and a participant/slot with no individuals falls back
- * to that participant's aggregate value for the slot.
- */
-function extractIndividualValues(
-  engine: DataEngine,
-  instance: MetricInstance,
-  stimulusId: number,
-  aoiSelectionId: number | undefined,
-  participantIds: number[],
-  totalSlots: number,
-  timeStart: number,
-  timeEnd: number,
-  participantNames: string[],
-  valuesOut: number[][],
-  namesOut: string[][]
-): void {
-  for (let s = 0; s < totalSlots; s++) {
-    valuesOut[s] = []
-    namesOut[s] = []
-  }
-
-  for (let p = 0; p < participantIds.length; p++) {
-    const scope: Scope = {
-      engine, stimulusId, participantId: participantIds[p],
-      timeStart, timeEnd, aoiSelectionId,
-    }
-    const name = participantNames[p]
-    const perSlot = queryIndividualsAllSlots(instance, scope)
-    // Aggregate vector, fetched lazily and reused: the fallback for slots a
-    // participant has no individuals for, and the only source for metrics
-    // without an individuals recipe. `query` is cached, so it scans at most once
-    // per participant.
-    let aggregate: number[] | undefined
-    const aggregateAt = (slot: number): number => {
-      aggregate ??= asAoiVector(query(instance, scope))?.values ?? []
-      return aggregate[slot] ?? Number.NaN
-    }
-
-    for (let s = 0; s < totalSlots; s++) {
-      const individuals = perSlot?.[s]
-      if (individuals && individuals.length > 0) {
-        for (let k = 0; k < individuals.length; k++) {
-          const v = individuals[k]
-          if (Number.isFinite(v)) {
-            valuesOut[s].push(v)
-            namesOut[s].push(name)
-          }
-        }
-      } else {
-        const v = aggregateAt(s)
-        if (Number.isFinite(v)) {
-          valuesOut[s].push(v)
-          namesOut[s].push(name)
-        }
-      }
-    }
-  }
-}
-
 function createLabeledData(
   rawData: number[],
   aois: readonly ExtendedInterpretedDataType[],
   noAoiTreatment: { displayedName: string; color: string },
-  instance: MetricInstance,
   individualArrays: number[][] | null = null,
   statsArrays: AoiSummaryStatistics[] | null = null,
   individualNameArrays: string[][] | null = null
 ): BarPlotDataItem[] {
   const result: BarPlotDataItem[] = new Array(rawData.length)
-  const isTimeToFirstFixation = instance.baseId === 'timeToFirstFixation'
 
   for (let i = 0; i < rawData.length; i++) {
     const value = rawData[i]
@@ -246,11 +165,8 @@ function createLabeledData(
     const label = isNoAoi ? noAoiTreatment.displayedName : aois[i].displayedName
     const color = isNoAoi ? noAoiTreatment.color : aois[i].color
 
-    const formattedValue =
-      isTimeToFirstFixation && value === 0 ? 0 : formatDecimal(value)
-
     result[i] = {
-      value: formattedValue,
+      value: formatDecimal(value),
       label,
       color,
       stats: statsArrays ? statsArrays[i] : null,

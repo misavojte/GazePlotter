@@ -27,6 +27,12 @@ export function scanBatch(
 ): Map<string, number[]> {
   const slots = buildAoiSlots(engine, stimulusId, aoiSelectionId)
   if (!slots) return new Map()
+  // One scan → one extent, shared by every instance's ctx (see
+  // InitCtx.scopeDurationMs).
+  const scopeDurationMs =
+    timeEnd > 0
+      ? timeEnd - timeStart
+      : slots.reader.getParticipantEndTime(stimulusId, participantId)
 
   type ActiveInstance = {
     inst: MetricInstance
@@ -42,11 +48,11 @@ export function scanBatch(
     if (inst.projection.kind === 'windowed') continue
     const recipe = getRecipe(inst.baseId)
     if (!recipe) continue
-    // Category-scanning recipes have a per-INSTANCE iteration source (their
-    // eyeMovementType param), so they can't join the shared fixation pass —
-    // each computes via the single path, against the same raw cache, so
-    // batch==single holds by construction.
-    if (recipe.scanSource === 'categoryParam') {
+    // Category-vector recipes iterate every segment, not the fixation index,
+    // so they can't join the shared fixation pass — each computes via the
+    // single path, against the same raw cache, so batch==single holds by
+    // construction.
+    if (recipe.scanSource === 'categories') {
       results.set(
         inst.id,
         runSingleWindow(recipe, inst, { engine, stimulusId, participantId, aoiSelectionId }, timeStart, timeEnd),
@@ -64,7 +70,9 @@ export function scanBatch(
       continue
     }
     const params = resolveParams(recipe.params, inst.params)
-    const ctx = { params, slots }
+    // categorySlotCount 0 / summaryStatistic 'mean': category-vector recipes
+    // (the only summary-projection bearers) were delegated above.
+    const ctx = { params, slots, scopeDurationMs, categorySlotCount: 0, summaryStatistic: 'mean' as const }
     active.push({ inst, onFixation, finalize, acc: init(ctx), ctx })
   }
   if (active.length === 0) return results
@@ -95,6 +103,7 @@ export function scanBatch(
     frame,
     slots: resolvedSlots,
     index: 0,
+    categorySlot: -1,
   }
   let index = 0
 

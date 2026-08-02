@@ -14,15 +14,6 @@ import { defineMetric } from '../../core/defineMetric'
  * ### Parameters
  * None.
  *
- * ### Usage
- * ```ts
- * query(
- *   { id: 'fixationCount', baseId: 'fixationCount', params: {},
- *     projection: { kind: 'identity-aoi-vector' }, label: 'Fixation count' },
- *   { engine, stimulusId, participantId },
- * )
- * ```
- *
  * ### Invariants
  * - Increments `anyFixationSlot` once per fixation (not per labelled AOI),
  *   so it matches "how many fixations were there in total" — making

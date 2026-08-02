@@ -264,6 +264,78 @@ describe('visitDuration — mean sum-of-durations per visit', () => {
     expect(queryIndividualsAllSlots(inst('visitDuration'), scope(engine))![0]).toEqual([200, 100])
   })
 
+  it('defines the SAME visits as visitCount (cross-pin on the duplicated boundary logic)', () => {
+    // visitCount and visitDuration each implement the visit-boundary state
+    // machine (previousAois / setsMatch / no-AOI run collapsing) in their own
+    // hot loop — sharing it via a per-fixation callback is forbidden (measured
+    // ~15% slower and reverted), so the two definitions are pinned against
+    // each other instead: a visit COUNT is by definition the number of closed
+    // visits, so per slot it must equal visitDuration's individuals length.
+    //
+    // Unwindowed only: under windowing the two deliberately diverge
+    // (visitCount midpoint-gates, visitDuration is any-overlap).
+    const cases: Record<string, number[][]> = {
+      're-entry': [
+        [0, 100, 0, 1], [100, 200, 0, 1], [200, 300, 0, 2], [300, 400, 0, 1],
+      ],
+      'multi-AOI overlap': [
+        [0, 100, 0, 1, 2], [100, 200, 0, 1], [200, 300, 0, 1, 2], [300, 400, 0, 2],
+      ],
+      'no-AOI runs collapse': [
+        [0, 100, 0, 1], [100, 200, 0], [200, 300, 0], [300, 400, 0, 1], [400, 500, 0],
+      ],
+      'trailing open visit': [
+        [0, 100, 0, 2], [100, 200, 0, 1], [200, 300, 0, 1],
+      ],
+      'zero-duration fixation': [[100, 100, 0, 1]],
+    }
+    // EVERY slot, anyFixation included: there a visit is a run of constant AOI
+    // set, off-AOI runs counted like any other, so the two must agree there
+    // too. (They did not until 2026-08-02: leaving an AOI for off-AOI
+    // overwrote the open any-fixation visit instead of closing it, so the
+    // whole-stimulus sample held only off-AOI runs.)
+    for (const [name, segments] of Object.entries(cases)) {
+      const engine = createEngine(segments)
+      const counts = values(query(inst('visitCount'), scope(engine)))
+      const samples = queryIndividualsAllSlots(inst('visitDuration'), scope(engine))!
+      expect(
+        samples.map(s => s.length),
+        `visit definitions diverged on "${name}"`
+      ).toEqual(counts.map(c => (Number.isFinite(c) ? c : 0)))
+    }
+  })
+
+  it('any-fixation visits TILE the scan (durations sum to total fixation time)', () => {
+    // The whole-stimulus visits partition the recording, so their durations
+    // must sum to absoluteTime's any-fixation total. That is what makes
+    // "Whole stimulus" a decomposition of the session rather than a filtered
+    // subset, and it independently catches a dropped or double-counted visit.
+    // Unbounded scope only: visitDuration accumulates raw fixation durations
+    // while absoluteTime sums window-CLIPPED ones, so a bounded range differs
+    // by construction.
+    const cases: Record<string, number[][]> = {
+      'AOI/off-AOI alternation': [
+        [0, 100, 0, 1], [100, 200, 0], [200, 300, 0], [300, 400, 0, 1], [400, 500, 0],
+      ],
+      'multi-AOI overlap': [
+        [0, 100, 0, 1, 2], [100, 200, 0, 1], [200, 250, 0], [250, 400, 0, 2],
+      ],
+      'no off-AOI at all': [
+        [0, 100, 0, 2], [100, 200, 0, 1], [200, 300, 0, 1],
+      ],
+    }
+    for (const [name, segments] of Object.entries(cases)) {
+      const engine = createEngine(segments)
+      const samples = queryIndividualsAllSlots(inst('visitDuration'), scope(engine))!
+      const anyFixation = samples[samples.length - 1]
+      const totalFixationTime = values(query(inst('absoluteTime'), scope(engine)))[3]
+      expect(
+        anyFixation.reduce((a, b) => a + b, 0),
+        `any-fixation visits did not tile the scan on "${name}"`
+      ).toBe(totalFixationTime)
+    }
+  })
+
   it('counts a trailing zero-duration visit (anyFixation = 0, not dropped to NaN)', () => {
     // A single zero-duration fixation on AOI1 is a real (degenerate) visit; it
     // must be flushed to the anyFixation aggregate as 0, not silently dropped,

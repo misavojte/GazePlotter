@@ -1,18 +1,31 @@
 /**
- * Eye-movement metrics: the category-parameterized scan source
- * (`scanSource: 'categoryParam'`) and the fixation-gap metric.
+ * Eye-movement metrics: the category-vector shape (`scanSource: 'categories'`)
+ * and the fixation-gap metric.
  *
- * The load-bearing pin is scan-source equivalence: `movementCount` at type
- * Fixation must equal `fixationCount`'s any-fixation total — the category
- * walk and the prebuilt fixation index must select the same segments. The
- * other pins: batch==single through the scanner's per-instance delegation,
- * windowed==unwindowed composition on the trio path, MERGE-fold widening
- * (same displayed name = same logical entity), and cache invalidation when
- * the category table changes under an unchanged reader.
+ * The type axis is a SHAPE, never a parameter: recipes produce one value per
+ * displayed-name group (canonical `categoryGroups` order, Fixation first) and
+ * a single type is extracted via the `pick-category` PROJECTION — the exact
+ * aoi-vector / pick-aoi pattern. Load-bearing pins: scan equivalence (the
+ * Fixation slot must equal `fixationCount`'s any-fixation total), the order
+ * contract, MERGE-fold slot folding, batch==single through the scanner's
+ * per-instance delegation, windowed pick-category composition, the
+ * scopeDurationMs share denominator, and cache invalidation when the category
+ * table changes under an unchanged reader.
  */
 import { describe, it, expect } from 'vitest'
 import { makeTestEngine } from './helpers/testEngine'
-import { query, queryBatch, type MetricInstance, type Scope } from '../src/lib/metrics'
+import {
+  getMetric,
+  metricIsCreatableInContract,
+  query,
+  queryBatch,
+  queryIndividualsAllSlots,
+  type MetricInstance,
+  type PlotMetricContract,
+  type Scope,
+} from '../src/lib/metrics'
+import { getRecipe } from '../src/lib/metrics/core/defineMetric'
+import { recipeSupports } from '../src/lib/metrics/core/validation'
 
 const STIM = 1
 
@@ -23,9 +36,9 @@ const CATEGORIES = [
 ]
 
 // P0 timeline (rows: [start, end, categoryId, ...rawAoiIds]):
-// fixations [0,100] [130,200] [220,300] [340,400], saccades [100,130] (30 ms)
-// and [300,340] (40 ms), one blink [200,220] (20 ms).
-// Inter-fixation gaps: 30, 20, 40 ms.
+// fixations [0,100] [130,200] [220,300] [340,400] (durations 100/70/80/60),
+// saccades [100,130] (30 ms) and [300,340] (40 ms), one blink [200,220]
+// (20 ms). Recording ends 400. Axis slots: 0=Fixation, 1=Saccade, 2=Blink.
 const SEGMENTS: number[][][] = [
   [
     [0, 100, 0, 1],
@@ -39,25 +52,41 @@ const SEGMENTS: number[][][] = [
 ]
 
 function createEngine(categories: string[][] = CATEGORIES, segments: number[][][] = SEGMENTS) {
-  return makeTestEngine([[], segments], { categories })
+  // Clone the category rows: the cache pin below mutates its engine's table
+  // in place, and a shared module-level fixture would leak into later engines.
+  return makeTestEngine([[], segments], { categories: categories.map(r => [...r]) })
 }
 
-function scalarInst(id: string, baseId: string, params: Record<string, unknown> = {}): MetricInstance {
-  return { id, baseId, params, label: '', projection: { kind: 'identity-scalar' } }
+function vectorInst(id: string, baseId: string, params: Record<string, unknown> = {}): MetricInstance {
+  return { id, baseId, params, label: '', projection: { kind: 'identity-category-vector' } }
 }
 
-function windowedScalarInst(id: string, baseId: string, params: Record<string, unknown> = {}): MetricInstance {
+function pickInst(id: string, baseId: string, categoryName: string, params: Record<string, unknown> = {}): MetricInstance {
+  return { id, baseId, params, label: '', projection: { kind: 'pick-category', categoryName } }
+}
+
+function summaryPickInst(id: string, baseId: string, categoryName: string, statistic: 'mean' | 'median' | 'max' | 'min'): MetricInstance {
+  return { id, baseId, params: {}, label: '', projection: { kind: 'pick-category', categoryName, statistic } }
+}
+
+function windowedPickInst(id: string, baseId: string, categoryName: string): MetricInstance {
   return {
     id,
     baseId,
-    params,
+    params: {},
     label: '',
     projection: {
       kind: 'windowed',
       window: { windowSize: 100, stepSize: 100 },
-      inner: { kind: 'identity-scalar' },
+      inner: { kind: 'pick-category', categoryName },
     },
   }
+}
+
+function vectorValues(engine: unknown, inst: MetricInstance, scope: Partial<Scope> = {}): number[] {
+  const r = query(inst, { engine: engine as any, stimulusId: STIM, participantId: 0, ...scope })
+  if (r.shape !== 'category-vector') throw new Error(`unexpected shape ${r.shape}`)
+  return r.values
 }
 
 function scalarValue(engine: unknown, inst: MetricInstance, scope: Partial<Scope> = {}): number {
@@ -66,8 +95,8 @@ function scalarValue(engine: unknown, inst: MetricInstance, scope: Partial<Scope
   return r.value
 }
 
-describe('eye-movement category scan (scanSource: categoryParam)', () => {
-  it('movementCount at type Fixation equals fixationCount (scan-source equivalence pin)', () => {
+describe('category-vector eye-movement metrics (scanSource: categories)', () => {
+  it('the Fixation slot equals fixationCount (scan-source equivalence pin)', () => {
     const engine = createEngine()
     const fc = query(
       { id: 'fc', baseId: 'fixationCount', params: {}, label: '', projection: { kind: 'identity-aoi-vector' } },
@@ -76,76 +105,138 @@ describe('eye-movement category scan (scanSource: categoryParam)', () => {
     if (fc.shape !== 'aoi-vector') throw new Error('unexpected shape')
     const anyFixationTotal = fc.values[fc.slots.anyFixationSlot]
 
-    const mc = scalarValue(engine, scalarInst('mc', 'movementCount', { eyeMovementType: 'Fixation' }))
     expect(anyFixationTotal).toBe(4)
-    expect(mc).toBe(anyFixationTotal)
+    expect(vectorValues(engine, vectorInst('mc', 'movementCount'))[0]).toBe(anyFixationTotal)
+    expect(scalarValue(engine, pickInst('mcf', 'movementCount', 'Fixation'))).toBe(anyFixationTotal)
   })
 
-  it('counts, durations, and total time per type match hand-computed literals', () => {
+  it('vectors follow the canonical axis order with hand-computed literals', () => {
     const engine = createEngine()
-    expect(scalarValue(engine, scalarInst('c1', 'movementCount', { eyeMovementType: 'Saccade' }))).toBe(2)
-    expect(scalarValue(engine, scalarInst('c2', 'movementCount', { eyeMovementType: 'Blink' }))).toBe(1)
-
-    expect(scalarValue(engine, scalarInst('d1', 'movementDuration', { eyeMovementType: 'Saccade', statistic: 'mean' }))).toBe(35)
-    expect(scalarValue(engine, scalarInst('d2', 'movementDuration', { eyeMovementType: 'Saccade', statistic: 'max' }))).toBe(40)
-    expect(scalarValue(engine, scalarInst('d3', 'movementDuration', { eyeMovementType: 'Saccade', statistic: 'min' }))).toBe(30)
-    expect(scalarValue(engine, scalarInst('d4', 'movementDuration', { eyeMovementType: 'Blink', statistic: 'mean' }))).toBe(20)
-
-    expect(scalarValue(engine, scalarInst('t1', 'movementTime', { eyeMovementType: 'Saccade' }))).toBe(70)
-    expect(scalarValue(engine, scalarInst('t2', 'movementTime', { eyeMovementType: 'Blink' }))).toBe(20)
+    expect(vectorValues(engine, vectorInst('c', 'movementCount'))).toEqual([4, 2, 1])
+    // Duration carries NO summary param: the vector is the per-type MEAN, and
+    // the full per-event sample rides `individuals` for distribution plots.
+    expect(vectorValues(engine, vectorInst('d', 'movementDuration'))).toEqual([77.5, 35, 20])
+    expect(vectorValues(engine, vectorInst('t', 'movementTime'))).toEqual([310, 70, 20])
   })
 
-  it('a type the dataset does not record: count 0, time 0, duration NaN', () => {
+  it('pick-category extracts one type by displayed name; unknown names are NaN', () => {
     const engine = createEngine()
-    expect(scalarValue(engine, scalarInst('c', 'movementCount', { eyeMovementType: 'Smooth pursuit' }))).toBe(0)
-    expect(scalarValue(engine, scalarInst('t', 'movementTime', { eyeMovementType: 'Smooth pursuit' }))).toBe(0)
-    expect(scalarValue(engine, scalarInst('d', 'movementDuration', { eyeMovementType: 'Smooth pursuit' }))).toBeNaN()
+    expect(scalarValue(engine, pickInst('p1', 'movementCount', 'Saccade'))).toBe(2)
+    expect(scalarValue(engine, pickInst('p2', 'movementTime', 'Blink'))).toBe(20)
+    // Trimmed matching — the canonical displayed-name rule.
+    expect(scalarValue(engine, pickInst('p3', 'movementCount', ' Saccade '))).toBe(2)
+    expect(scalarValue(engine, pickInst('p4', 'movementCount', 'Smooth pursuit'))).toBeNaN()
   })
 
-  it('MERGE fold: two raw categories displayed under one name are scanned together', () => {
-    // Raw id 3 ('SaccadeVariant') displays as 'Saccade' — same displayed name
-    // = same logical entity, so the scan must include both raw ids.
+  it('the summary statistic rides the pick projection, never the vector or a param', () => {
+    const engine = createEngine()
+    // Identity vector: always the unmarked mean — no summary concept at all.
+    expect(vectorValues(engine, vectorInst('d', 'movementDuration'))).toEqual([77.5, 35, 20])
+    // The SUMMARY states its collapse (per participant, before any group
+    // reduction). Fixation sample [100, 70, 80, 60]; Saccade [30, 40].
+    expect(scalarValue(engine, summaryPickInst('m1', 'movementDuration', 'Fixation', 'median'))).toBe(75)
+    expect(scalarValue(engine, summaryPickInst('m2', 'movementDuration', 'Fixation', 'max'))).toBe(100)
+    expect(scalarValue(engine, summaryPickInst('m3', 'movementDuration', 'Saccade', 'min'))).toBe(30)
+    // No statistic → mean, identical to the vector's slot (and its raw cache).
+    expect(scalarValue(engine, pickInst('m4', 'movementDuration', 'Saccade'))).toBe(35)
+    // Per-window collapse: [0,200) fixations [100, 70], [200,400) [80, 60].
+    const wmax = query({
+      id: 'wm', baseId: 'movementDuration', params: {}, label: '',
+      projection: {
+        kind: 'windowed',
+        window: { windowSize: 200, stepSize: 200 },
+        inner: { kind: 'pick-category', categoryName: 'Fixation', statistic: 'max' },
+      },
+    }, { engine: engine as any, stimulusId: STIM, participantId: 0, timeStart: 0, timeEnd: 400 })
+    if (wmax.shape !== 'scalar-timeseries') throw new Error('unexpected shape')
+    expect(wmax.values).toEqual([100, 80])
+    // Declaration gate, mirroring aggregate-aoi: a statistic is valid only
+    // where the recipe declares a per-event sample (`sampleSummary`).
+    expect(
+      recipeSupports(getRecipe('movementDuration')!, { kind: 'pick-category', categoryName: 'Saccade', statistic: 'median' })
+    ).toBe(true)
+    expect(
+      recipeSupports(getRecipe('movementCount')!, { kind: 'pick-category', categoryName: 'Saccade', statistic: 'median' })
+    ).toContain('no per-event sample')
+  })
+
+  it('queryIndividualsAllSlots samples per TYPE slot for category-vector recipes', () => {
+    const engine = createEngine()
+    const perSlot = queryIndividualsAllSlots(
+      vectorInst('d', 'movementDuration'),
+      { engine: engine as any, stimulusId: STIM, participantId: 0 }
+    )
+    // Per-event durations on the canonical axis: fixations, saccades, blink.
+    expect(perSlot).toEqual([[100, 70, 80, 60], [30, 40], [20]])
+  })
+
+  it('MERGE fold: two raw categories displayed under one name share a slot', () => {
     const merged = [...CATEGORIES, ['SaccadeVariant', 'Saccade', '#333333']]
     const segments = SEGMENTS[0].map(row => (row[0] === 300 ? [300, 340, 3] : row))
     const engine = createEngine(merged, [segments])
-    expect(scalarValue(engine, scalarInst('c', 'movementCount', { eyeMovementType: 'Saccade' }))).toBe(2)
-    expect(scalarValue(engine, scalarInst('t', 'movementTime', { eyeMovementType: 'Saccade' }))).toBe(70)
+    // Axis stays [Fixation, Saccade, Blink] — id 3 folds into the Saccade slot.
+    expect(vectorValues(engine, vectorInst('c', 'movementCount'))).toEqual([4, 2, 1])
+    expect(scalarValue(engine, pickInst('t', 'movementTime', 'Saccade'))).toBe(70)
   })
 
   it('time-bounded scope: midpoint membership gates counts, overlap clips time', () => {
     const engine = createEngine()
     const bounded = { timeStart: 0, timeEnd: 320 }
-    // Second saccade [300,340]: midpoint 320 falls outside [0,320) → not counted;
-    // its in-window overlap [300,320) still contributes 20 ms of time.
-    expect(scalarValue(engine, scalarInst('c', 'movementCount', { eyeMovementType: 'Saccade' }), bounded)).toBe(1)
-    expect(scalarValue(engine, scalarInst('t', 'movementTime', { eyeMovementType: 'Saccade' }), bounded)).toBe(50)
+    // Midpoints in [0, 320): fixations 50/165/260 (370 is out), saccades 115
+    // (320 is out), blink 210.
+    expect(vectorValues(engine, vectorInst('c', 'movementCount'), bounded)).toEqual([3, 1, 1])
+    // Clipped overlap: fixations 100+70+80 (the 4th starts past the bound),
+    // saccades 30+20, blink 20.
+    expect(vectorValues(engine, vectorInst('t', 'movementTime'), bounded)).toEqual([250, 50, 20])
   })
 
-  it('windowed values compose: per-window counts and clipped times sum to the unwindowed totals', () => {
+  it('movementTimeShare: share of recording, of a bounded range, and per window', () => {
     const engine = createEngine()
-    const scope = { engine: engine as any, stimulusId: STIM, participantId: 0, timeStart: 0, timeEnd: 400 }
+    // Of the 400 ms recording: fixations 310, saccades 70, blink 20.
+    expect(vectorValues(engine, vectorInst('s', 'movementTimeShare'))).toEqual([77.5, 17.5, 5])
+    // Bounded [0, 320): clipped 250/50/20 of 320.
+    expect(
+      vectorValues(engine, vectorInst('s2', 'movementTimeShare'), { timeStart: 0, timeEnd: 320 })
+    ).toEqual([78.125, 15.625, 6.25])
+    // Windowed pick-category: each window's share is of the WINDOW size.
+    const windowed = query(windowedPickInst('ws', 'movementTimeShare', 'Saccade'), {
+      engine: engine as any, stimulusId: STIM, participantId: 0, timeStart: 0, timeEnd: 400,
+    })
+    if (windowed.shape !== 'scalar-timeseries') throw new Error('unexpected shape')
+    expect(windowed.values).toEqual([0, 30, 0, 40])
+  })
 
-    const count = query(windowedScalarInst('wc', 'movementCount', { eyeMovementType: 'Saccade' }), scope)
-    if (count.shape !== 'scalar-timeseries') throw new Error('unexpected shape')
-    expect(count.values).toEqual([0, 1, 0, 1])
-
-    const time = query(windowedScalarInst('wt', 'movementTime', { eyeMovementType: 'Saccade' }), scope)
-    if (time.shape !== 'scalar-timeseries') throw new Error('unexpected shape')
-    expect(time.values).toEqual([0, 30, 0, 40])
-    expect(time.values.reduce((a, b) => a + b, 0)).toBe(
-      scalarValue(engine, scalarInst('t', 'movementTime', { eyeMovementType: 'Saccade' })),
+  it('windowed pick-category counts compose to the unwindowed total', () => {
+    const engine = createEngine()
+    const windowed = query(windowedPickInst('wc', 'movementCount', 'Saccade'), {
+      engine: engine as any, stimulusId: STIM, participantId: 0, timeStart: 0, timeEnd: 400,
+    })
+    if (windowed.shape !== 'scalar-timeseries') throw new Error('unexpected shape')
+    expect(windowed.values).toEqual([0, 1, 0, 1])
+    expect(windowed.values.reduce((a, b) => a + b, 0)).toBe(
+      scalarValue(engine, pickInst('c', 'movementCount', 'Saccade'))
     )
   })
 
-  it('queryBatch equals per-instance query for category-scanning recipes (delegation pin)', () => {
+  it('the identity vector cannot be windowed (only scalar leaves window)', () => {
+    const recipe = getRecipe('movementCount')!
+    const verdict = recipeSupports(recipe, {
+      kind: 'windowed',
+      window: { windowSize: 100, stepSize: 100 },
+      inner: { kind: 'identity-category-vector' },
+    })
+    expect(typeof verdict).toBe('string')
+  })
+
+  it('queryBatch equals per-instance query for category-vector recipes (delegation pin)', () => {
     // Fresh engines per path so neither can serve the other's cache entries.
     const e1 = createEngine()
     const e2 = createEngine()
     const instances = () => [
-      scalarInst('mc', 'movementCount', { eyeMovementType: 'Saccade' }),
-      scalarInst('md', 'movementDuration', { eyeMovementType: 'Blink', statistic: 'mean' }),
-      scalarInst('mt', 'movementTime', { eyeMovementType: 'Saccade' }),
-      scalarInst('ifi', 'interFixationInterval', { statistic: 'mean' }),
+      vectorInst('mc', 'movementCount'),
+      pickInst('md', 'movementDuration', 'Blink'),
+      pickInst('mt', 'movementTime', 'Saccade'),
+      { id: 'ifi', baseId: 'interFixationInterval', params: { statistic: 'mean' }, label: '', projection: { kind: 'identity-scalar' } } as MetricInstance,
     ]
 
     const batch = queryBatch(instances(), { engine: e1 as any, stimulusId: STIM, participantId: 0 })
@@ -155,38 +246,41 @@ describe('eye-movement category scan (scanSource: categoryParam)', () => {
     }
   })
 
-  it('a category rename under an unchanged reader invalidates (cache token pin)', () => {
-    // Renames edit metadata only — the reader (the cache's WeakMap key) and the
+  it('a category MERGE under an unchanged reader invalidates (cache token pin)', () => {
+    // Folds edit metadata only — the reader (the cache's WeakMap key) and the
     // structural version both stay put, so freshness must come from the
-    // category table riding in the cache KEY.
+    // category table riding in the cache KEY: the axis itself changes shape.
     const engine = createEngine()
-    const inst = () => scalarInst('c', 'movementCount', { eyeMovementType: 'Saccade' })
-    expect(scalarValue(engine, inst())).toBe(2)
+    expect(vectorValues(engine, vectorInst('c', 'movementCount'))).toEqual([4, 2, 1])
 
-    engine.metadata.categories.data[1] = ['Saccade', 'SaccadeRenamed', '#111111']
-    expect(scalarValue(engine, inst())).toBe(0)
-    expect(scalarValue(engine, scalarInst('c2', 'movementCount', { eyeMovementType: 'SaccadeRenamed' }))).toBe(2)
+    engine.metadata.categories.data[1] = ['Saccade', 'Blink', '#111111']
+    expect(vectorValues(engine, vectorInst('c', 'movementCount'))).toEqual([4, 3])
   })
 
-  it('delimiter characters in names cannot collide the cache token (stale-cache pin)', () => {
-    // Both tables below serialize identically under naive ',' / ':' joining
-    // ("c0:F,1:S,2:B,2:X|") — the token must use non-typable separators so
-    // the rename still invalidates.
-    const engine = createEngine([
-      ['Fixation', 'F', '#000000'],
-      ['Saccade', 'S', '#111111'],
-      ['Blink', 'B,2:X', '#222222'],
-    ])
-    const inst = () => scalarInst('c', 'movementCount', { eyeMovementType: 'X' })
-    expect(scalarValue(engine, inst())).toBe(0)
+  it('the category-vector contract narrows the library; scalar plots get pick-category for free', () => {
+    const vectorContract = {
+      outputShape: 'category-vector',
+      windowing: 'forbidden',
+      crossParticipant: 'distribution',
+    } as const satisfies PlotMetricContract
+    const scalarContract = {
+      outputShape: 'scalar',
+      windowing: 'forbidden',
+      crossParticipant: 'per-participant',
+    } as const satisfies PlotMetricContract
 
-    engine.metadata.categories.data[1] = ['Saccade', 'S,2:B', '#111111']
-    engine.metadata.categories.data[2] = ['Blink', 'X', '#222222']
-    expect(scalarValue(engine, inst())).toBe(1)
+    expect(metricIsCreatableInContract(getMetric('movementCount')!, vectorContract)).toBe(true)
+    expect(metricIsCreatableInContract(getMetric('fixationCount')!, vectorContract)).toBe(false)
+    expect(metricIsCreatableInContract(getMetric('interFixationInterval')!, vectorContract)).toBe(false)
+    // Metric Matrix / Correlation / Timeline consume one type via pick-category.
+    expect(metricIsCreatableInContract(getMetric('movementTimeShare')!, scalarContract)).toBe(true)
   })
 })
 
 describe('inter-fixation interval', () => {
+  const scalarInst = (id: string, baseId: string, params: Record<string, unknown> = {}): MetricInstance =>
+    ({ id, baseId, params, label: '', projection: { kind: 'identity-scalar' } })
+
   it('summarizes the gaps between consecutive fixations', () => {
     const engine = createEngine()
     expect(scalarValue(engine, scalarInst('m', 'interFixationInterval', { statistic: 'mean' }))).toBe(30)
@@ -196,8 +290,6 @@ describe('inter-fixation interval', () => {
   })
 
   it('back-to-back fixations yield NaN, not a fake 0', () => {
-    // Pre-segmented exports often store fixations contiguously; a zero gap
-    // carries no inter-fixation episode, so nothing accumulates.
     const engine = createEngine([['Fixation', 'Fixation', '#000000']], [[[0, 100, 0], [100, 200, 0], [200, 300, 0]]])
     expect(scalarValue(engine, scalarInst('m', 'interFixationInterval', { statistic: 'mean' }))).toBeNaN()
   })

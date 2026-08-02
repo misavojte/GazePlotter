@@ -81,18 +81,40 @@ function assertShapeLifecycleInvariant(r: MetricRecipe<any, any>): void {
         `see MetricRecipe.accumulation`,
     )
   }
-  if (r.scanSource === 'categoryParam') {
-    // The fused windowed driver assembles per-AOI-slot sums and never resolves
-    // params — both assumptions break for category scans, so those recipes
-    // must stay on the trio path (see MetricRecipe.scanSource).
-    if (r.accumulation !== 'stateful') {
+  // The eye-movement-type axis is a SHAPE, never a parameter: a recipe that
+  // scans categories produces a value per type ('category-vector'), and one
+  // type is extracted via the pick-category PROJECTION downstream. The two
+  // declarations are inseparable, and the fused windowed driver's per-AOI-slot
+  // assembly assumes fixation scans, so category recipes stay on the trio path.
+  if (r.scanSource === 'categories' && r.rawShape !== 'category-vector') {
+    throw new Error(
+      `[metrics] recipe "${r.id}" scans categories and must declare rawShape: 'category-vector'`,
+    )
+  }
+  if (r.rawShape === 'category-vector' && r.scanSource !== 'categories') {
+    throw new Error(
+      `[metrics] recipe "${r.id}" declares rawShape 'category-vector' and must scan with scanSource: 'categories'`,
+    )
+  }
+  if (r.scanSource === 'categories' && r.accumulation !== 'stateful') {
+    throw new Error(
+      `[metrics] recipe "${r.id}" scans categories and must declare accumulation: 'stateful'`,
+    )
+  }
+  // The summary statistic has ONE declaration channel per metric: either the
+  // recipe-level `statistic` param (scalar/aoi sample metrics) or the
+  // projection-borne `sampleSummary` route (vector metrics, where the choice
+  // rides pick-category) — never both, and never a summary whose sample the
+  // consumer can't inspect.
+  if (r.sampleSummary) {
+    if (typeof r.individuals !== 'function') {
       throw new Error(
-        `[metrics] recipe "${r.id}" scans by category param and must declare accumulation: 'stateful'`,
+        `[metrics] recipe "${r.id}" declares sampleSummary but no individuals — a summarized sample must stay inspectable`,
       )
     }
-    if (!r.params?.some(p => p.id === 'eyeMovementType')) {
+    if (r.params?.some(p => p.id === 'statistic')) {
       throw new Error(
-        `[metrics] recipe "${r.id}" scans by category param but declares no 'eyeMovementType' param`,
+        `[metrics] recipe "${r.id}" declares sampleSummary AND a 'statistic' param — the summary choice has one channel, not two`,
       )
     }
   }
@@ -128,5 +150,6 @@ function toMeta(r: MetricRecipe<any, any>): MetricMeta {
     supportsWindowing: r.supportsWindowing ?? true,
     providesAnyFixation: r.providesAnyFixation ?? false,
     aoiAggregate: r.aoiAggregate,
+    sampleSummary: r.sampleSummary ?? false,
   }
 }

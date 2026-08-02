@@ -2,7 +2,7 @@ import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotView } from '$lib/plots/definePlot'
 import { MatrixPlotFigure } from '$lib/plots/shared'
 import { METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
-import { resolveInstance } from '$lib/metrics'
+import { resolvePickedInstance } from '$lib/plots/shared'
 import { INACTIVE_COLOR } from '$lib/color/palettes'
 import { getMetricMatrixData } from './transformer'
 import { getMetricMatrixLegendTitle, METRIC_MATRIX_DEFAULTS } from '../const'
@@ -44,10 +44,7 @@ export function deriveMetricMatrixView(
           ? 'No usable data for this metric'
           : null
 
-  const instance = resolveInstance(
-    engine.metadata?.metricInstances ?? [],
-    settings.metricInstanceIds?.[0] ?? null
-  )
+  const instance = resolvePickedInstance(engine, settings.metricInstanceIds)
 
   // [min, max]; max 0 = auto (the figure derives the finite data max itself).
   const colorValueRange: [number, number] = settings.scaleRange ?? [0, 0]

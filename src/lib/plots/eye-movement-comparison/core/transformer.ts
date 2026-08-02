@@ -1,13 +1,10 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import {
-  getAllCategories,
   applyCategorySelection,
   getParticipant,
   getParticipantsIds,
-  getParticipantEndTime,
 } from '$lib/data/engine'
-import { groupByDisplayedName } from '$lib/data/engine/utils/grouping'
-import { asScalar, createAdaptiveTimeline } from '$lib/plots/shared'
+import { resolveMetric } from '$lib/plots/shared'
 import {
   applySorting,
   computeSummaryStatistics,
@@ -15,26 +12,37 @@ import {
 } from '$lib/plots/bar/core/transformer'
 import type { BarPlotDataItem, BarPlotResult } from '$lib/plots/bar/types'
 import { formatDecimal } from '$lib/shared/utils/mathUtils'
-import { query, type MetricInstance, type Scope } from '$lib/metrics'
-import { METRIC_SOURCE } from './const'
-import type {
-  EyeMovementComparisonSettings,
-  EyeMovementMetric,
-} from '../types'
+import {
+  categoryGroups,
+  getMetric,
+  queryPooledIndividuals,
+  type PlotMetricContract,
+} from '$lib/metrics'
+import type { EyeMovementComparisonSettings } from '../types'
 
 /**
- * One bar per eye-movement type present in the dataset, computed through the
- * pinned eye-movement metric recipes (never a parallel computation): each
- * participant contributes one dot per type, and the bar is the mean of those
- * per-participant values — the exact data shape `BarPlotFigure` renders for
- * the AOI Comparison, so the whole figure (beeswarm, overlays, ordering,
- * scale) is inherited.
+ * Category-vector instances only: the metric IS the per-type vector, and this
+ * plot draws the whole vector as bars (identity projection). Single types are
+ * a `pick-category` projection concern on scalar plots, never a parameter.
+ */
+export const EYE_MOVEMENT_COMPARISON_CONTRACT = {
+  outputShape: 'category-vector',
+  windowing: 'forbidden',
+  crossParticipant: 'distribution',
+} as const satisfies PlotMetricContract
+
+/**
+ * One bar per eye-movement type, straight off the library instance's
+ * category-vector result (never a parallel computation): each participant is
+ * queried ONCE for the whole vector, contributes one dot per type, and the
+ * bar is the mean of those per-participant values — the exact data shape
+ * `BarPlotFigure` renders for the AOI Comparison, so the whole figure
+ * (beeswarm, overlays, ordering, scale) is inherited.
  *
- * Type rows: every type present — Fixation included — folds by displayed name
- * (same displayed name = same logical entity; Fixation's reserved name keeps
- * it a singleton) and narrows by the per-plot eye-movement-type SELECTION,
- * the same `applyCategorySelection` gate the scarf uses. 'None' narrows every
- * type away (an empty plot).
+ * Type rows: the canonical `categoryGroups` axis (the same order contract the
+ * recipes' vectors are indexed by), narrowed by the per-plot
+ * eye-movement-type SELECTION — the same `applyCategorySelection` gate the
+ * scarf uses. 'None' narrows every type away (an empty plot).
  */
 export function getEyeMovementComparisonData(
   engine: DataEngine,
@@ -43,7 +51,7 @@ export function getEyeMovementComparisonData(
     | 'stimulusId'
     | 'groupId'
     | 'categorySelectionId'
-    | 'metric'
+    | 'metricInstanceIds'
     | 'orderBy'
     | 'orderDirection'
     | 'scaleRange'
@@ -55,67 +63,54 @@ export function getEyeMovementComparisonData(
   const meta = engine.metadata
   if (!meta) throw new Error('No metadata found')
 
+  const resolved = resolveMetric({
+    instances: meta.metricInstances,
+    id: settings.metricInstanceIds?.[0] ?? null,
+    contract: EYE_MOVEMENT_COMPARISON_CONTRACT,
+  })
+  if (!resolved.ok) {
+    return { data: [], timeline: valueAxisTimeline(0, undefined), dataMax: 0, noMetric: true }
+  }
+  const { instance } = resolved
+  // A `proportion`-class metric (movementTimeShare) renders as a plain
+  // proportional bar, not a beeswarm — the same rule the AOI Comparison
+  // applies to `fixated`.
+  const isProportion =
+    getMetric(instance.baseId)?.meta.measurementClass === 'proportion'
+
   const participantIds = getParticipantsIds(
     engine,
     settings.groupId,
     settings.stimulusId
   )
   if (participantIds.length === 0) {
-    return { data: [], timeline: createAdaptiveTimeline(0, 100, 6), dataMax: 0 }
+    return { data: [], timeline: valueAxisTimeline(0, undefined), dataMax: 0 }
   }
 
-  const { kept } = applyCategorySelection(
-    engine,
-    groupByDisplayedName(getAllCategories(engine)),
-    settings.categorySelectionId
-  )
-  const types = kept.map(g => ({
-    displayedName: g.displayedName,
-    color: g.color,
-  }))
+  // The canonical type axis — the recipes' vectors are indexed by it — with
+  // each group's slot retained, then narrowed by the SELECTION.
+  const axis = categoryGroups(engine).map((g, slot) => ({ ...g, slot }))
+  const { kept } = applyCategorySelection(engine, axis, settings.categorySelectionId)
 
   const timeStart = settings.timelineStart ?? 0
   const timeEnd = settings.timelineEnd ?? 0
   const overlay = settings.statisticalOverlay ?? 'none'
-  const participantNames = participantIds.map(
-    id => getParticipant(engine, id).displayedName
-  )
-  // timeShare's denominator is type-invariant: the bounded range when one is
-  // set, otherwise each participant's recording length. The scan cannot see
-  // it (that is why the metric family has no share recipe); the plot can.
-  const shareDenominators =
-    settings.metric === 'timeShare'
-      ? participantIds.map(pid =>
-          timeEnd > timeStart
-            ? timeEnd - timeStart
-            : getParticipantEndTime(engine, settings.stimulusId, pid)
-        )
-      : null
 
-  const data: BarPlotDataItem[] = types.map(type => {
-    const instance = instanceForMetric(settings.metric, type.displayedName)
-    const values: number[] = []
-    const names: string[] = []
-    for (let p = 0; p < participantIds.length; p++) {
-      const scope: Scope = {
-        engine,
-        stimulusId: settings.stimulusId,
-        participantId: participantIds[p],
-        timeStart,
-        timeEnd,
-      }
-      let v = asScalar(query(instance, scope))?.value ?? Number.NaN
-      if (shareDenominators) {
-        const denominator = shareDenominators[p]
-        v = denominator > 0 ? (v / denominator) * 100 : Number.NaN
-      }
-      // NaN drops the participant from this type's distribution (e.g. mean
-      // duration with no such segments); a real 0 (count) stays a dot.
-      if (Number.isFinite(v)) {
-        values.push(v)
-        names.push(participantNames[p])
-      }
-    }
+  // The shared beeswarm-pooling rule (see queryPooledIndividuals) — the SAME
+  // call the AOI Comparison makes, over the kept TYPE slots instead of AOI
+  // slots: movementDuration's per-segment sample becomes one dot per segment,
+  // the totals contribute one dot per participant from the cached vector.
+  const pooled = queryPooledIndividuals(
+    instance,
+    participantIds.map(participantId => ({
+      engine, stimulusId: settings.stimulusId, participantId, timeStart, timeEnd,
+    })),
+    participantIds.map(pid => getParticipant(engine, pid).displayedName),
+    kept.map(type => type.slot)
+  )
+
+  const data: BarPlotDataItem[] = kept.map((type, i) => {
+    const values = pooled.values[i]
     const stats = computeSummaryStatistics(values)
     return {
       value: formatDecimal(stats.mean),
@@ -123,7 +118,7 @@ export function getEyeMovementComparisonData(
       color: type.color,
       stats,
       individualValues: values,
-      individualParticipantNames: names,
+      individualParticipantNames: pooled.names[i],
     }
   })
 
@@ -133,38 +128,29 @@ export function getEyeMovementComparisonData(
     settings.orderDirection || 'asc'
   )
 
-  // Axis maximum from the raw dots (and whiskers under a boxplot overlay) —
-  // the same rule the AOI Comparison applies.
+  // Axis maximum — the same rules the AOI Comparison applies: proportion bars
+  // are data-driven off the bar values; distributions scan the raw dots (and
+  // whiskers under a boxplot overlay).
   let dataMax = 0
-  for (const item of data) {
-    for (const v of item.individualValues ?? []) {
-      if (v > dataMax) dataMax = v
+  if (isProportion) {
+    for (const item of data) {
+      if (item.value > dataMax) dataMax = item.value
     }
-    if (overlay === 'boxplot' && item.stats && item.stats.whiskerHigh > dataMax) {
-      dataMax = item.stats.whiskerHigh
+  } else {
+    for (const item of data) {
+      for (const v of item.individualValues ?? []) {
+        if (v > dataMax) dataMax = v
+      }
+      if (overlay === 'boxplot' && item.stats && item.stats.whiskerHigh > dataMax) {
+        dataMax = item.stats.whiskerHigh
+      }
     }
   }
 
-  return { data: sortedData, timeline: valueAxisTimeline(dataMax, settings.scaleRange), dataMax }
-}
-
-/**
- * The metric instance computing `metric` for one displayed type name (per the
- * `METRIC_SOURCE` table). Plain literals, not library instances: the
- * library's one-type-per-instance design stays intact, and the result cache
- * keys on (baseId, params), so repeated derives hit the same entries as any
- * other consumer of these recipes.
- */
-function instanceForMetric(
-  metric: EyeMovementMetric,
-  displayedName: string
-): MetricInstance {
-  const source = METRIC_SOURCE[metric]
   return {
-    id: `eyeMovementComparison:${metric}:${displayedName}`,
-    baseId: source.baseId,
-    params: { ...source.params, eyeMovementType: displayedName },
-    label: '',
-    projection: { kind: 'identity-scalar' },
+    data: sortedData,
+    timeline: valueAxisTimeline(dataMax, settings.scaleRange),
+    dataMax,
+    proportion: isProportion,
   }
 }

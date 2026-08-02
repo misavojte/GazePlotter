@@ -10,7 +10,6 @@ import type { MetricInstance } from './instances'
 import { getRecipe } from './core/defineMetric'
 import {
   PROJECTION_LEAVES,
-  supportedLeaves,
   type LeafKind,
   type LeafProjection,
   type Projection,
@@ -90,6 +89,8 @@ function representativeLeaf(meta: MetricMeta, kind: LeafKind): LeafProjection {
     case 'matrix-row':
     case 'matrix-col':
       return { kind, aoiRef: { by: 'name', name: '' } }
+    case 'pick-category':
+      return { kind, categoryName: '' }
     case 'matrix-cell':
       return { kind, fromAoi: { by: 'name', name: '' }, toAoi: { by: 'name', name: '' } }
     case 'aggregate-aoi':
@@ -103,19 +104,22 @@ function representativeLeaf(meta: MetricMeta, kind: LeafKind): LeafProjection {
 
 /**
  * The projection leaf kinds a metric can actually produce under a plot's
- * contract: the metric's supported leaves ∩ the contract's allowed leaves,
- * validated through {@link recipeSupports} (windowing, reducer, and author
- * `rejects` gates). The "what could I build from this metric here?" answer —
- * read by the category/metric pickers to preview the options before Configure,
- * and by ConfigureMetric for its projection tabs.
+ * contract: the contract's allowed leaves, each validated through
+ * {@link recipeSupports}. The "what could I build from this metric here?"
+ * answer — read by the category/metric pickers to preview the options before
+ * Configure, and by ConfigureMetric for its projection tabs.
+ *
+ * {@link recipeSupports} is the ONE authority on leaf availability: raw-shape
+ * compatibility, `providesAnyFixation`, the named-extreme `aoiAggregate` gate,
+ * `sampleSummary`, windowing, and author `rejects` all live there. This used
+ * to pre-filter through a second enumerator (`supportedLeaves`) that
+ * re-encoded the first three gates and could drift from them.
  */
 export function metricLeafKindsInContract(m: Metric, c: PlotMetricContract): LeafKind[] {
   const recipe = getRecipe(m.meta.id)
   if (!recipe) return []
-  const allowed = new Set(contractLeafKinds(c))
   const windowed = c.windowing === 'required'
-  return supportedLeaves(m).filter(kind => {
-    if (!allowed.has(kind)) return false
+  return contractLeafKinds(c).filter(kind => {
     const leaf = representativeLeaf(m.meta, kind)
     const projection: Projection = windowed
       ? { kind: 'windowed', window: { windowSize: 500, stepSize: 500 }, inner: leaf }

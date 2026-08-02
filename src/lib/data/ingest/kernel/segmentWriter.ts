@@ -1,5 +1,6 @@
 import {
   FIXATION_CATEGORY_ID,
+  FIXATION_SEED_NAME,
   SEGMENT_STRIDE,
   SegmentField,
 } from '$lib/data/binary'
@@ -211,8 +212,8 @@ export class SegmentWriter {
   /** Reserve Fixation at id 0 before any other category is interned. */
   private ensureCategorySeed(): void {
     if (this.categorySeeded) return
-    this.categoryIds.set('Fixation', 0)
-    this.categoryNames.push('Fixation')
+    this.categoryIds.set(FIXATION_SEED_NAME, 0)
+    this.categoryNames.push(FIXATION_SEED_NAME)
     this.categorySeeded = true
   }
 
@@ -224,6 +225,12 @@ export class SegmentWriter {
    */
   internCategory(name: string): number {
     this.ensureCategorySeed()
+    // A vendor cell that TRIMS to the reserved name IS the fixation category
+    // ('Fixation ' with stray whitespace): fold it to id 0 rather than intern
+    // a doppelgänger the displayed-name fold would then claim — ingest is the
+    // third writer of the category table, and the name reservation must hold
+    // here too (the modal lock and updateCategories guard cover the others).
+    if (name.trim() === FIXATION_SEED_NAME) return 0
     const existing = this.categoryIds.get(name)
     if (existing !== undefined) return existing
     const id = this.categoryNames.length

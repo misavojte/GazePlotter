@@ -4,8 +4,17 @@ import './init'
 export { extractFixationSequence } from './core/fixations'
 
 // ─── Consumer surface (what plots + export pipelines call at runtime) ──────
-export { query, queryBatch, queryGroup, queryIndividualsAllSlots } from './query'
+export {
+  query,
+  queryBatch,
+  queryGroup,
+  queryIndividualsAllSlots,
+  queryPooledIndividuals,
+} from './query'
 export { getMetric } from './core/defineMetric'
+// The canonical eye-movement-type axis (order contract for category-vector
+// results, pick-category options, and per-type consumers).
+export { categoryGroups, categoryGroupNames } from './core/categoryScan'
 export {
   createDefaultMetricInstances,
   createMetricInstance,
@@ -16,12 +25,12 @@ export {
   reductionQualifier,
   resolveReduction,
   instanceReadout,
+  instanceDetailLine,
 } from './instances'
 
 // ─── Projection algebra (for the metric-library modal) ─────────────────────
 export {
   projectionOutputShape,
-  supportedLeaves,
   windowLabel,
 } from './core/projection'
 
@@ -51,6 +60,8 @@ export type { MetricResult, MetricProvenance, Scope, GroupScope } from './query'
 // ─── Plot contract + filters ───────────────────────────────────────────────
 export {
   instanceMatchesContract,
+  metricIsCreatableInContract,
+  metricLeafKindsInContract,
   contractReductions,
   contractDistributionStats,
 } from './filters'

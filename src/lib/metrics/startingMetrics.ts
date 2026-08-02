@@ -54,6 +54,9 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
   { id: 'fixated', baseId: 'fixated' },
   { id: 'timeToFirstFixation', baseId: 'timeToFirstFixation' },
   { id: 'firstFixationDuration', baseId: 'firstFixationDuration' },
+  // The eye-movement comparison's default instance (its pane references this
+  // slug); the rest of the family is added from the library as needed.
+  { id: 'movementCount', baseId: 'movementCount' },
 
   // ── windowed starters ────────────────────────────────────────────────
   {

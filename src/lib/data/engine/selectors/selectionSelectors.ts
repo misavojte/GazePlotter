@@ -84,21 +84,6 @@ export const resolveCategorySelectionMemberIds = (
  * keeps everything (self-healing, as above). This is the single definition of
  * the narrowing policy — plots must not re-derive it from the raw member set.
  */
-/**
- * Whether a plot's fixation LAYER survives its eye-movement-type SELECTION.
- * The fixation baseline's reserved displayed name keeps id 0 a singleton
- * group, so raw membership IS the group decision — this helper is the one
- * blessed raw-set read, living beside the group policy so the two can't
- * drift. `null` resolution (All/unset/unknown) keeps the layer.
- */
-export const fixationLayerVisible = (
-  engine: DataEngine,
-  categorySelectionId: number | undefined
-): boolean => {
-  const held = resolveCategorySelectionMemberIds(engine, categorySelectionId)
-  return held === null || held.has(FIXATION_CATEGORY_ID)
-}
-
 export const applyCategorySelection = <G extends GroupedByDisplayedName<unknown>>(
   engine: DataEngine,
   groups: G[],
@@ -113,6 +98,21 @@ export const applyCategorySelection = <G extends GroupedByDisplayedName<unknown>
     else narrowedAwayIds.push(...g.memberIds)
   }
   return { kept, narrowedAwayIds }
+}
+
+/**
+ * Whether a plot's fixation LAYER survives its eye-movement-type SELECTION.
+ * The fixation baseline's reserved displayed name keeps id 0 a singleton
+ * group, so raw membership IS the group decision — this helper is the one
+ * blessed raw-set read, living beside the group policy so the two can't
+ * drift. `null` resolution (All/unset/unknown) keeps the layer.
+ */
+export const fixationLayerVisible = (
+  engine: DataEngine,
+  categorySelectionId: number | undefined
+): boolean => {
+  const held = resolveCategorySelectionMemberIds(engine, categorySelectionId)
+  return held === null || held.has(FIXATION_CATEGORY_ID)
 }
 
 export const getEventsSelections = (engine: DataEngine): NameSelection[] =>

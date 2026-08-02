@@ -116,17 +116,22 @@ function dissolveGroup(
 
 /** Renaming the leader of a multi-member group renames every member (keeping
     them grouped); any other rename touches just the one item. In-place
-    mutation so `groups` re-derives (and regroups) reactively. */
+    mutation so `groups` re-derives (and regroups) reactively. `skipIds` rows
+    never rename — without it, a locked row folded into a card (someone typed
+    the reserved name) would be renamed through the leader fan-out. */
 function renameItemIn(
   items: BaseInterpretedDataType[],
   item: BaseInterpretedDataType,
   newName: string,
   isLeader: boolean,
-  group: MergeCard<BaseInterpretedDataType>
+  group: MergeCard<BaseInterpretedDataType>,
+  skipIds?: ReadonlySet<number>
 ) {
   if (isLeader && group.members.length > 1) {
     const memberIds = new Set(group.members.map(m => m.id))
-    for (const i of items) if (memberIds.has(i.id)) i.displayedName = newName
+    for (const i of items) {
+      if (memberIds.has(i.id) && !skipIds?.has(i.id)) i.displayedName = newName
+    }
   } else {
     const target = items.find(i => i.id === item.id)
     if (target) target.displayedName = newName
@@ -220,9 +225,11 @@ export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
     group: MergeCard<BaseInterpretedDataType>
   ) {
     // Locked rows never rename — the list renders them read-only; this also
-    // covers the tray's Merge verb, whose fold is a plain rename.
+    // covers the tray's Merge verb, whose fold is a plain rename. The set is
+    // ALSO threaded into the leader fan-out: when a locked row sits as a
+    // MEMBER of an invalid card, renaming the card's leader must not carry it.
     if (lockedNameIds.has(item.id)) return
-    renameItemIn(items, item, newName, isLeader, group)
+    renameItemIn(items, item, newName, isLeader, group, lockedNameIds)
   }
 
   function sort(column: string, direction: 'asc' | 'desc') {

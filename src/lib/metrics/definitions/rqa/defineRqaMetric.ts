@@ -9,6 +9,17 @@ import { rqaScalar, type RqaResult } from '../../core/rqa'
  * and report one {@link RqaResult} measure as a stimulus-level percentage.
  * They differ only in the measure, the optional min-line-length parameter,
  * and the scalar reported when the sequence has no recurrences.
+ *
+ * These are the only FIXATION-windowed metrics (`windowUnit: 'fixations'`):
+ * a window is a count of fixations, not a span of ms, so the projection's
+ * `windowSize`/`stepSize` are fixation counts and the inner leaf must be
+ * `identity-scalar` (enforced by the registry + validator):
+ *
+ * ```ts
+ * { kind: 'windowed',
+ *   window: { windowSize: 50, stepSize: 1 },
+ *   inner: { kind: 'identity-scalar' } }
+ * ```
  */
 export function defineRqaMetric(spec: {
   id: string

@@ -18,15 +18,6 @@ import { defineRqaMetric } from './defineRqaMetric'
  * - `include_no_aoi` (boolean, default `false`): include off-AOI fixations
  *   in the sequence via the `noAoiSlot` sentinel.
  *
- * ### Usage
- * ```ts
- * query(
- *   { id: 'rqaDet', baseId: 'rqaDet', params: { l_min: 2 },
- *     projection: { kind: 'identity-scalar' }, label: 'Determinism' },
- *   { engine, stimulusId, participantId },
- * )
- * ```
- *
  * ### Invariants
  * - Shares the `{ seq: number[] }` accumulator shape with other RQA
  *   metrics; `windowedFinalize` rescans a sliced sub-sequence per window.

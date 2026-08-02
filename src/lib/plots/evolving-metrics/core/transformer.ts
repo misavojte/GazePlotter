@@ -353,7 +353,7 @@ export function getEvolvingMetricsData(
 
   const xAxisLabel = getEvolvingMetricsXAxisLabel(windowLabel(window, windowUnit))
   // Time-axis plot: quantity + param qualifiers, NO projection (window on x).
-  const yAxisLabel = buildMetricLabel(instance, metric)
+  const yAxisLabel = buildMetricLabel(instance)
 
   return {
     participants,

@@ -2,14 +2,53 @@ import type { ComponentProps } from 'svelte'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { CanvasExportProps } from '$lib/plots/shared'
 import type { PlotView } from '$lib/plots/definePlot'
-import { resolveInstance } from '$lib/metrics'
+import type { MetricInstance } from '$lib/metrics'
+import { resolvePickedInstance } from '$lib/plots/shared'
 import BarPlotFigure from '../components/BarPlotFigure.svelte'
 import { getBarPlotData } from './transformer'
 import { getBarPlotAxisLabel } from '../const'
-import type { BarPlotSettings } from '../types'
+import type { BarPlotResult, BarPlotSettings } from '../types'
 
 /** The figure's data/config props (everything bar the canvas-sizing props). */
 export type BarFigureProps = Omit<ComponentProps<typeof BarPlotFigure>, keyof CanvasExportProps>
+
+/**
+ * THE props every `BarPlotFigure` plot renders with — the AOI Comparison and
+ * the Eye-movement Comparison. Owns the figure's fixed geometry and,
+ * load-bearing, the rule that a PROPORTION metric suppresses the overlay in
+ * the axis label: those render as plain proportional bars, so the label must
+ * not claim a mean ± CI / SD / boxplot statistic that isn't drawn. `extras`
+ * carries the only genuine per-plot differences (tooltip noun, cannot-fit
+ * hints, aria label) and is spread last.
+ */
+export function buildBarFigureProps(
+  result: BarPlotResult,
+  resolvedInstance: MetricInstance | null | undefined,
+  settings: Pick<
+    BarPlotSettings,
+    'timelineStart' | 'timelineEnd' | 'statisticalOverlay' | 'barPlottingType'
+  >,
+  extras?: Partial<BarFigureProps>
+): BarFigureProps {
+  return {
+    data: result.data,
+    timeline: result.timeline,
+    axisLabel: getBarPlotAxisLabel(
+      resolvedInstance,
+      settings.timelineStart,
+      settings.timelineEnd,
+      result.proportion ? 'none' : settings.statisticalOverlay
+    ),
+    barPlottingType: settings.barPlottingType,
+    barWidth: 200,
+    barSpacing: 20,
+    onDataHover: () => {},
+    statisticalOverlay: settings.statisticalOverlay,
+    noMetric: result.noMetric ?? false,
+    proportion: result.proportion ?? false,
+    ...extras,
+  }
+}
 
 export interface BarView {
   props: BarFigureProps
@@ -27,30 +66,9 @@ export interface BarView {
  */
 export function getBarView(engine: DataEngine, settings: BarPlotSettings): BarView {
   const result = getBarPlotData(engine, settings)
-  const resolvedInstance = resolveInstance(
-    engine.metadata?.metricInstances ?? [],
-    settings.metricInstanceIds[0] ?? null
-  )
+  const resolvedInstance = resolvePickedInstance(engine, settings.metricInstanceIds)
   return {
-    props: {
-      data: result.data,
-      timeline: result.timeline,
-      axisLabel: getBarPlotAxisLabel(
-        resolvedInstance,
-        settings.timelineStart,
-        settings.timelineEnd,
-        // Proportion metrics render as plain bars (no overlay), so the label must
-        // not claim a mean ± CI / SD / boxplot statistic.
-        result.proportion ? 'none' : settings.statisticalOverlay
-      ),
-      barPlottingType: settings.barPlottingType,
-      barWidth: 200,
-      barSpacing: 20,
-      onDataHover: () => {},
-      statisticalOverlay: settings.statisticalOverlay,
-      noMetric: result.noMetric ?? false,
-      proportion: result.proportion ?? false,
-    },
+    props: buildBarFigureProps(result, resolvedInstance, settings),
     dataMax: result.dataMax,
     syncKey: resolvedInstance?.id ?? null,
   }

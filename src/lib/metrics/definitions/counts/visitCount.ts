@@ -21,21 +21,14 @@ interface Acc {
  * ### Parameters
  * None.
  *
- * ### Usage
- * ```ts
- * query(
- *   { id: 'visitCount', baseId: 'visitCount', params: {},
- *     projection: { kind: 'identity-aoi-vector' }, label: 'Visit count' },
- *   { engine, stimulusId, participantId },
- * )
- * ```
- *
  * ### Invariants
  * - Increments slot `s` only if `s` was NOT in the previous fixation's slot
  *   set; a visit is a transition from absent → present.
- * - `anyFixationSlot` increments on any set-of-slots change (including when
- *   the set becomes empty), so it captures "number of distinct
- *   attended-to-something intervals".
+ * - `anyFixationSlot` counts RUNS OF CONSTANT AOI SET: it increments on any
+ *   set-of-slots change, including when the set becomes empty, so off-AOI
+ *   runs count as runs like any other. Same convention as `visitDuration`'s
+ *   any-fixation slot (pinned equal in metricFormulas.test.ts) and as
+ *   `anyFixation` everywhere else: all fixations, AOIs ignored.
  * - Off-AOI runs collapse to a single visit of `noAoiSlot`.
  */
 defineMetric({
@@ -60,6 +53,15 @@ defineMetric({
     wasInNoAoi: false,
   }),
   onFixation: (acc, { frame, slots }, { slots: info }) => {
+    // KEEP IN SYNC with visitDuration's onFixation — the two co-define what a
+    // VISIT is (previousAois / setsMatch / no-AOI run collapsing). They can't
+    // share the state machine: it is per-fixation hot-loop code, and hoisting
+    // it into an onEnter/onLeave callback is the shared-callback pattern that
+    // measured ~15% slower and was reverted. Pinned instead, slot for slot, by
+    // the "defines the SAME visits as visitCount" test in metricFormulas.test.ts
+    // (unwindowed; under windowing the two deliberately diverge — this one
+    // midpoint-gates, visitDuration is any-overlap).
+    //
     // SW-RQA membership: a visit "belongs to" the window containing the
     // visit's defining fixation midpoint. Skip-and-don't-update-state for
     // fixations whose midpoint falls outside the active scope so per-window

@@ -10,7 +10,15 @@
  */
 export const SEGMENT_STRIDE = 5 as const // Fields per segment in master buffer
 
-export const FIXATION_CATEGORY_ID = 0 as const // Category ID reserved for fixations
+export const FIXATION_CATEGORY_ID = 0
+
+/**
+ * The seed/reserved name of the fixation category (id 0) — the single
+ * constant behind the ingest interner's seed and trim-fold, the row parsers'
+ * local seed maps, and `reservedFixationName`'s fallback. One owner, so a
+ * rename cannot desynchronize the reservation's layers.
+ */
+export const FIXATION_SEED_NAME = 'Fixation' as const // Category ID reserved for fixations
 
 /**
  * Indices for segment fields in the master buffer (stride = SEGMENT_STRIDE).

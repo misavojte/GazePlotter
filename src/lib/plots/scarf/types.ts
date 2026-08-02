@@ -13,7 +13,9 @@ export type ScarfPlotSettings = {
   /** Per-plot AOI SELECTION id; unset/0 = all AOIs. */
   aoiSelectionId?: number
   /** Per-plot eye-movement-type SELECTION id; unset/0 = all types,
-      NONE_SELECTION_ID = fixations only. */
+      NONE_SELECTION_ID = no types at all (the fixation baseline is a full
+      SELECTION-domain member — a selection without id 0 gates the fixation
+      layer). */
   categorySelectionId?: number
   /** Per-plot event SELECTION id; unset/0 = all event channels,
       NONE_SELECTION_ID = overlay off. */

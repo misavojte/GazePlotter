@@ -1,5 +1,6 @@
 import type { EventContribution } from '../../../kernel/sink'
 import type { DatasetExclusionIssue } from '$lib/data/types'
+import { FIXATION_SEED_NAME } from '$lib/data/binary'
 import {
   encodeString,
   type TextEncoding,
@@ -151,7 +152,7 @@ export abstract class RowParser {
     }
     const name = this.categoryDecoder.decode(nameBytes)
     if (this.internCategory) return this.internCategory(name)
-    if (!this.localCategoryIds) this.localCategoryIds = new Map([['Fixation', 0]])
+    if (!this.localCategoryIds) this.localCategoryIds = new Map([[FIXATION_SEED_NAME, 0]])
     let id = this.localCategoryIds.get(name)
     if (id === undefined) {
       id = this.localCategoryIds.size

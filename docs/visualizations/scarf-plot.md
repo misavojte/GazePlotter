@@ -39,8 +39,8 @@ Narrows which AOIs this plot ranges over.
 - **Edit AOIs & selections…**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
 
 ### Eye-movement Types
-Narrows which non-fixation categories (e.g. Saccades, Blinks) this plot draws.
-- **Eye-movement type selection**: A dropdown containing *All*, *None*, and saved eye-movement type selections. Pick *None* for a "Fixations only" view.
+Narrows which eye-movement types this plot draws — Fixation included: a selection without it hides the fixation layer (the full-height AOI bands).
+- **Eye-movement type selection**: A dropdown containing *All*, *None*, and saved eye-movement type selections. *None* draws no eye-movement types at all; for a "Fixations only" view, save a selection holding just Fixation.
 - **Edit eye-movement types & selections…**: Opens the [Eye-movement Type Library](/docs/workspace/eye-movement-type-library/) to customize classification categories and selections.
 
 ### Events

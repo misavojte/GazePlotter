@@ -242,7 +242,7 @@ export function getAoiStreamPlotData(
     maxValue,
     // Time-axis plot: quantity + param qualifiers, NO projection (the window
     // lives on the x axis). Respects a renamed instance.
-    yAxisLabel: buildMetricLabel(instance, metric),
+    yAxisLabel: buildMetricLabel(instance),
     unit: metric?.meta.unit ?? '',
     windowLabel: windowLabel(window, metric?.meta.windowUnit ?? 'ms'),
   }

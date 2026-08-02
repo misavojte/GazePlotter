@@ -116,7 +116,7 @@ function resolveMetrics(
     // Correlation rows/cols must self-distinguish: name + derived qualifiers (so
     // two variants of one base metric don't collide). Unit is shown on the
     // diagonal, not here — hence `unit: false`.
-    const label = buildMetricLabel(inst, metric, { unit: false, includeProjection: true })
+    const label = buildMetricLabel(inst, { unit: false, includeProjection: true })
     metrics.push({ id: inst.id, label, unit: metric.meta.unit })
     instances.push(inst)
   }

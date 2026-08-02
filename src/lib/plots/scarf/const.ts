@@ -11,6 +11,20 @@ export const SCARF_IDENTIFIERS = {
   NOT_DEFINED: 'N', // Fallback for null/empty categories or AOIs
 } as const
 
+/**
+ * Whether a highlight identifier targets the fixation/AOI layer (AOI slices
+ * and the No-AOI band). The ONE owner of the prefix-collision rule — AOI
+ * ('a') is a string prefix of CATEGORY ('ac'), so a bare
+ * `startsWith(AOI)` would also claim category highlights; longest prefix
+ * wins here so no caller re-derives it.
+ */
+export function isAoiLayerHighlight(identifier: string): boolean {
+  return (
+    identifier.startsWith(SCARF_IDENTIFIERS.AOI) &&
+    !identifier.startsWith(SCARF_IDENTIFIERS.CATEGORY)
+  )
+}
+
 export const SCARF_LAYOUT = {
   // --- Basic Dimensions ---
   HEIGHT_BAR_DEFAULT: 15,

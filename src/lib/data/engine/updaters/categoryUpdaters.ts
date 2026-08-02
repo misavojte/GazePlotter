@@ -23,8 +23,11 @@ export const updateCategories = (
     const c = categories[i]
     if (c.id < 0 || c.id >= catData.length) continue
     const prev = catData[c.id]
+    // An empty reserved name locks nothing beyond row 0: the displayed-name
+    // fold keeps empty names standalone, so clearing a name is no collision.
     const nameLocked =
-      c.id === FIXATION_CATEGORY_ID || c.displayedName.trim() === reserved
+      c.id === FIXATION_CATEGORY_ID ||
+      (reserved !== '' && c.displayedName.trim() === reserved)
     catData[c.id] = [
       prev?.[0] ?? c.originalName,
       nameLocked ? (prev?.[1] ?? c.originalName) : c.displayedName,

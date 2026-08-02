@@ -60,7 +60,7 @@ export function getBarPlotAxisLabel(
   timelineEnd = 0,
   overlay: StatisticalOverlayType = 'none'
 ): string {
-  return buildMetricLabel(instance, instance ? getMetric(instance.baseId) : undefined, {
+  return buildMetricLabel(instance, {
     includeProjection: true,
     // The bar is a distribution plot built on individual values: it pools raw
     // fixations/visits and its overlay states the statistic (mean ± CI /

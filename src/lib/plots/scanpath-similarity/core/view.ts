@@ -1,10 +1,10 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotView } from '$lib/plots/definePlot'
-import { getMetric, resolveInstance } from '$lib/metrics'
 import {
   MatrixPlotFigure,
   buildMetricLabel,
   formatInstanceLabel,
+  resolvePickedInstance,
   timeRangeQualifier,
 } from '$lib/plots/shared'
 import { METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
@@ -58,14 +58,10 @@ function getScanpathSimilarityView(
     }
   }
 
-  const resolvedInstance = resolveInstance(
-    engine.metadata?.metricInstances ?? [],
-    settings.metricInstanceIds[0] ?? null
-  )
-  const resolvedMetric = resolvedInstance ? getMetric(resolvedInstance.baseId) : undefined
+  const resolvedInstance = resolvePickedInstance(engine, settings.metricInstanceIds)
   const { matrix, labels } = similarityData
   // Bare quantity (no qualifiers) for the per-cell tooltip key.
-  const valueLabel = formatInstanceLabel(resolvedInstance, resolvedMetric, 'Similarity')
+  const valueLabel = formatInstanceLabel(resolvedInstance, 'Similarity')
   return {
     component: MatrixPlotFigure,
     props: {
@@ -79,7 +75,7 @@ function getScanpathSimilarityView(
       // Similarity is a dimensionless [0,1] score — no unit, exactly like the
       // (dimensionless) correlation coefficient. The 0/1 bounds are shown by the
       // colorbar's end ticks; we don't fabricate a "%" or a "0–1" pseudo-unit.
-      legendTitle: buildMetricLabel(resolvedInstance, resolvedMetric, {
+      legendTitle: buildMetricLabel(resolvedInstance, {
         fallback: 'Similarity',
         includeProjection: true,
         extra: [timeRangeQualifier(settings.timelineStart ?? 0, settings.timelineEnd ?? 0)],

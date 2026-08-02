@@ -1,5 +1,8 @@
 import { definePlot } from '$lib/plots/definePlot'
-import { stimulusGroupSubtitle } from '$lib/plots/shared'
+import {
+  pickedInstanceIsProportion as isProportion,
+  stimulusGroupSubtitle,
+} from '$lib/plots/shared'
 import {
   DIRECTION_OPTIONS,
   ORIENTATION_OPTIONS,
@@ -7,19 +10,18 @@ import {
   overlaySummaryLabel,
 } from '$lib/plots/bar/const'
 import { deriveEyeMovementComparisonView } from './core/view'
-import { METRIC_LABELS } from './core/const'
-import type {
-  EyeMovementComparisonSettings,
-  EyeMovementMetric,
-} from './types'
+import { EYE_MOVEMENT_COMPARISON_CONTRACT } from './core/transformer'
+import type { EyeMovementComparisonSettings } from './types'
 
 /**
  * Per-type comparison of eye-movement metrics (fixations vs saccades vs
  * blinks vs whatever the dataset records), rendered through the AOI
- * Comparison's figure. The metric is the plot's own fixed enum — it builds
- * metric-instance literals internally, so it declares no `consumesMetrics`
- * and stays out of the metric-library flow, but the pane section keeps the
- * universal 'Metric' name.
+ * Comparison's figure. The Metric section is the SAME library flow every
+ * metric plot uses; the contract admits category-vector instances at
+ * identity, and the plot draws the instance's whole vector as bars — one per
+ * type on the canonical `categoryGroups` axis, narrowed by the per-plot
+ * eye-movement-type SELECTION. Single types are a `pick-category` projection
+ * concern on scalar plots, never anything this plot configures.
  */
 export const eyeMovementComparisonDefinition = definePlot<
   'eyeMovementComparison',
@@ -31,25 +33,7 @@ export const eyeMovementComparisonDefinition = definePlot<
   paneSections: [
     'stimulus',
     'group',
-    {
-      key: 'eyeMovementComparison:metric',
-      title: 'Metric',
-      fields: [
-        {
-          kind: 'enum',
-          key: 'metric',
-          label: 'Metric',
-          options: (
-            Object.entries(METRIC_LABELS) as [EyeMovementMetric, string][]
-          ).map(([value, label]) => ({ label, value })),
-        },
-      ],
-      summary: ctx => {
-        const metric = ctx.common(s => s.metric)
-        if (metric.mixed) return 'Mixed'
-        return METRIC_LABELS[metric.value as EyeMovementMetric] ?? ''
-      },
-    },
+    'metric',
     {
       key: 'eyeMovementComparison:visualisation',
       title: 'Visualisation',
@@ -59,6 +43,9 @@ export const eyeMovementComparisonDefinition = definePlot<
           key: 'statisticalOverlay',
           label: 'Statistical overlay',
           options: OVERLAY_OPTIONS,
+          // Proportion metrics (movementTimeShare) render as plain bars; the
+          // overlay does not apply — same gate as the AOI Comparison.
+          showWhen: ctx => !isProportion(ctx),
         },
         {
           kind: 'enum',
@@ -86,8 +73,13 @@ export const eyeMovementComparisonDefinition = definePlot<
       summary: ctx => {
         const orientation = ctx.common(s => s.barPlottingType)
         const overlay = ctx.common(s => s.statisticalOverlay)
+        const o = orientation.mixed
+          ? 'Mixed'
+          : orientation.value === 'horizontal'
+            ? 'Horizontal'
+            : 'Vertical'
+        if (isProportion(ctx)) return `${o} (Bars)`
         if (orientation.mixed || overlay.mixed) return 'Mixed'
-        const o = orientation.value === 'horizontal' ? 'Horizontal' : 'Vertical'
         return `${o} (${overlaySummaryLabel(String(overlay.value))})`
       },
     },
@@ -99,7 +91,7 @@ export const eyeMovementComparisonDefinition = definePlot<
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
     groupId: params.groupId ?? -1,
-    metric: 'count',
+    metricInstanceIds: ['movementCount'],
     barPlottingType: 'horizontal',
     orderBy: 'type',
     orderDirection: 'asc',
@@ -109,4 +101,5 @@ export const eyeMovementComparisonDefinition = definePlot<
     timelineEnd: 0,
   }),
   requireCapabilities: ['segmented'],
+  consumesMetrics: EYE_MOVEMENT_COMPARISON_CONTRACT,
 })

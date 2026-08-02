@@ -1,11 +1,12 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import type { ParamDef } from './params'
+import type { ParamDef, SummaryStatistic } from './params'
 import type { Projection } from './projection'
 import type { MeasurementClass, GroupReduction } from './measurement'
 
 export type OutputShape =
   | 'scalar'
   | 'aoi-vector'
+  | 'category-vector'
   | 'aoi-pair-matrix'
   | 'participant-pair-matrix'
   | 'scalar-timeseries'
@@ -175,11 +176,45 @@ export interface FixationEvent {
   frame: WindowFrame
   slots: ReadonlyArray<number>
   index: number
+  /**
+   * The segment's eye-movement-type slot, in the canonical displayed-name
+   * group order (`categoryGroups` — Fixation first by the id-0 reservation).
+   * Filled ONLY for `scanSource: 'categories'` recipes, whose accumulators
+   * index per-type vectors by it; `-1` on every other scan (the fixation
+   * index carries no type dimension).
+   */
+  categorySlot: number
 }
 
 export interface InitCtx<P> {
   params: P
   slots: AoiSlotInfo
+  /**
+   * The scan's effective time extent in ms — the denominator for
+   * share-of-recording metrics, which the per-segment scan cannot otherwise
+   * see. Bounded scopes: `timeEnd - timeStart`. Unbounded: the participant's
+   * recording length (last segment end). Time-windowed runs: the window size
+   * (every window of one run shares it, so the per-scan ctx stays shared).
+   * `0` when the participant has no segments — finalize to NaN, not a share
+   * of nothing.
+   */
+  scopeDurationMs: number
+  /**
+   * Length of the eye-movement-type axis for `scanSource: 'categories'`
+   * recipes (`categoryGroups(engine).length` — one slot per displayed-name
+   * group, canonical order, Fixation first). Their `finalize` returns a
+   * vector of exactly this length. `0` on fixation-index scans.
+   */
+  categorySlotCount: number
+  /**
+   * How a sample-summarizing recipe ({@link MetricRecipe.sampleSummary})
+   * collapses each slot's per-event sample in `finalize`. Declared by the
+   * instance's SUMMARY projection — `pick-category` carries a `statistic` —
+   * and always `'mean'` for vector outputs: the vector is the unmarked
+   * per-slot mean, and the summary choice belongs to the summary, never to
+   * the vector or a recipe param. Recipes without `sampleSummary` ignore it.
+   */
+  summaryStatistic: SummaryStatistic
 }
 
 /**
@@ -261,6 +296,8 @@ export interface MetricMeta {
    * an uninterpretable double reduction.
    */
   readonly aoiAggregate?: AoiAggregateLabels
+  /** See {@link MetricRecipe.sampleSummary}. */
+  readonly sampleSummary: boolean
 }
 
 export interface Metric { readonly meta: MetricMeta }
@@ -317,16 +354,19 @@ export interface MetricRecipe<P, A> {
    *
    * - `'fixationIndex'` (default) — the prebuilt category-0 index; the scan
    *   never reads segment categories (the classic fixation-only engine).
-   * - `'categoryParam'` — segments whose category's DISPLAYED name equals the
-   *   recipe's `eyeMovementType` param value (same displayed name = same
-   *   logical entity, so MERGE folds widen the scanned set). Registration
-   *   enforces an `eyeMovementType` param and `accumulation: 'stateful'`:
-   *   the fused windowed driver's per-AOI-slot assembly assumes fixation
-   *   scans, so category recipes always run the scan trio itself.
-   *   `onFixation` then receives each matching segment — the event shape is
-   *   identical, only the iteration source differs.
+   * - `'categories'` — EVERY segment, with `fix.categorySlot` carrying its
+   *   eye-movement-type slot in the canonical displayed-name group order.
+   *   For `rawShape: 'category-vector'` recipes: the type is a DIMENSION the
+   *   metric ranges over (a value per type), never a parameter — one type is
+   *   extracted downstream via the `pick-category` PROJECTION, exactly as
+   *   aoi-vector recipes pair with `pick-aoi`. Registration enforces
+   *   `rawShape: 'category-vector'` and `accumulation: 'stateful'`: the
+   *   fused windowed driver's per-AOI-slot assembly assumes fixation scans,
+   *   so category recipes always run the scan trio itself. `onFixation`
+   *   receives each segment — the event shape is identical, only the
+   *   iteration source differs.
    */
-  scanSource?: 'fixationIndex' | 'categoryParam'
+  scanSource?: 'fixationIndex' | 'categories'
   /**
    * Defaults to false. Set to true when the recipe writes a meaningful
    * stimulus-level aggregate into `anyFixationSlot`; opens the
@@ -343,6 +383,16 @@ export interface MetricRecipe<P, A> {
    * reducer would compose into a double reduction.
    */
   aoiAggregate?: AoiAggregateLabels
+  /**
+   * Declares that `finalize` collapses a per-event sample per slot using
+   * {@link InitCtx.summaryStatistic} — the gate for statistic-bearing summary
+   * projections (a `pick-category` carrying a `statistic`), exactly as
+   * `aoiAggregate` gates `aggregate-aoi`. Registration requires an
+   * `individuals` recipe (the sample must stay inspectable — distribution
+   * plots pool it) and forbids combining with a `statistic` param: the summary
+   * choice has ONE declaration channel per metric, never two.
+   */
+  sampleSummary?: boolean
   /**
    * Author-level veto over specific projections. Receives the full `Projection`
    * — use `p.kind === 'windowed' ? p.inner : p` when the check applies to the

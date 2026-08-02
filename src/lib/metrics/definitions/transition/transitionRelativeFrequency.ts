@@ -1,4 +1,5 @@
 import { defineTransitionMetric } from '../../core/defineTransitionMetric'
+import { percentShare } from '../../core/projection'
 
 interface Params { mode: 'fixation' | 'visit' }
 
@@ -39,9 +40,6 @@ defineTransitionMetric<Params>({
   finalize: acc => {
     let total = 0
     for (let i = 0; i < acc.matrix.length; i++) total += acc.matrix[i]
-    if (total === 0) return new Array<number>(acc.matrix.length).fill(Number.NaN)
-    const out = new Array<number>(acc.matrix.length)
-    for (let i = 0; i < acc.matrix.length; i++) out[i] = (acc.matrix[i] / total) * 100
-    return out
+    return percentShare(acc.matrix, total)
   },
 })

@@ -1,4 +1,5 @@
 import type { AoiAggregateLabels, Metric, OutputShape, WindowUnit } from './dsl'
+import type { SummaryStatistic } from './params'
 
 /**
  * Projection is a tree: a LeafProjection reshapes one window's raw finalize
@@ -33,9 +34,11 @@ export interface WindowSpec {
 export type LeafKind =
   | 'identity-scalar'
   | 'identity-aoi-vector'
+  | 'identity-category-vector'
   | 'identity-aoi-pair-matrix'
   | 'identity-participant-pair-matrix'
   | 'pick-aoi'
+  | 'pick-category'
   | 'pick-any-fixation'
   | 'aggregate-aoi'
   | 'matrix-diagonal'
@@ -47,9 +50,20 @@ export type LeafKind =
 export type LeafProjection =
   | { kind: 'identity-scalar' }
   | { kind: 'identity-aoi-vector' }
+  | { kind: 'identity-category-vector' }
   | { kind: 'identity-aoi-pair-matrix' }
   | { kind: 'identity-participant-pair-matrix' }
   | { kind: 'pick-aoi';          aoiRef: AoiRef }
+  /**
+   * By displayed name only — portable and MERGE-stable, like name AoiRefs.
+   * `statistic` is the SUMMARY choice for sample-summarizing recipes
+   * (`sampleSummary`): the summary statistic belongs to the summary
+   * projection, never to the vector or a recipe param. Threaded into the
+   * per-participant scan via `InitCtx.summaryStatistic` (so it collapses each
+   * participant's sample BEFORE any cross-participant reduction) and gated by
+   * `recipeSupports` — a statistic on a sample-less recipe is invalid.
+   */
+  | { kind: 'pick-category';     categoryName: string; statistic?: SummaryStatistic }
   | { kind: 'pick-any-fixation' }
   | { kind: 'aggregate-aoi';     reducer: AoiReducer }
   | { kind: 'matrix-diagonal' }
@@ -70,6 +84,7 @@ export type Projection = LeafProjection | WindowedProjection
 const IDENTITY_MAP: Record<OutputShape, LeafProjection> = {
   scalar: { kind: 'identity-scalar' },
   'aoi-vector': { kind: 'identity-aoi-vector' },
+  'category-vector': { kind: 'identity-category-vector' },
   'aoi-pair-matrix': { kind: 'identity-aoi-pair-matrix' },
   'participant-pair-matrix': { kind: 'identity-participant-pair-matrix' },
   'scalar-timeseries': { kind: 'identity-scalar' },
@@ -93,6 +108,12 @@ export interface ApplyContext {
   aoiNames: readonly string[]
   /** Raw finalize output for the current window. */
   rawValues: readonly number[]
+  /**
+   * Eye-movement-type display names in canonical group order (`categoryGroups`)
+   * — the `pick-category` leaf's resolution axis. Only category-vector
+   * queries supply it.
+   */
+  categoryNames?: readonly string[]
 }
 
 export interface ApplyResult {
@@ -117,6 +138,15 @@ export interface ProjectionLabelContext {
 export interface LeafKindDef<K extends LeafKind = LeafKind> {
   outputShape: OutputShape
   rawShapes: readonly OutputShape[]
+  /**
+   * Generic, instance-blind display name of the kind — the configure-metric
+   * projection picker's option title. Distinct from {@link LeafKindDef.label},
+   * which renders a CONCRETE projection's readout ("most-dwelled AOI", 'type
+   * "Saccade"'); this is the kind-level vocabulary.
+   */
+  title: string
+  /** One-line plain-language description of what the kind produces (picker copy). */
+  hint: string
   label:    (p: Extract<LeafProjection, { kind: K }>, ctx?: ProjectionLabelContext) => string
   cacheKey: (p: Extract<LeafProjection, { kind: K }>) => string
   apply:    (p: Extract<LeafProjection, { kind: K }>, ctx: ApplyContext) => ApplyResult
@@ -125,45 +155,64 @@ export interface LeafKindDef<K extends LeafKind = LeafKind> {
 const passthrough = (_p: LeafProjection, c: ApplyContext): ApplyResult =>
   ({ values: [...c.rawValues], aoiMissing: false })
 
+/**
+ * An identity leaf: the recipe's own shape, passed through untouched. Five
+ * kinds differ only in that shape, their cache token, and their picker copy.
+ */
+const identityLeaf = <K extends LeafKind>(
+  shape: OutputShape,
+  key: string,
+  title: string,
+  hint: string,
+): LeafKindDef<K> => ({
+  outputShape: shape,
+  rawShapes: [shape],
+  title,
+  hint,
+  label: () => '',
+  cacheKey: () => key,
+  apply: passthrough,
+})
+
 export const PROJECTION_LEAVES: { [K in LeafKind]: LeafKindDef<K> } = {
-  'identity-scalar': {
-    outputShape: 'scalar',
-    rawShapes: ['scalar'],
-    label: () => '',
-    cacheKey: () => 'id:s',
-    apply: passthrough,
-  },
-  'identity-aoi-vector': {
-    outputShape: 'aoi-vector',
-    rawShapes: ['aoi-vector'],
-    label: () => '',
-    cacheKey: () => 'id:v',
-    apply: passthrough,
-  },
-  'identity-aoi-pair-matrix': {
-    outputShape: 'aoi-pair-matrix',
-    rawShapes: ['aoi-pair-matrix'],
-    label: () => '',
-    cacheKey: () => 'id:m',
-    apply: passthrough,
-  },
-  'identity-participant-pair-matrix': {
-    outputShape: 'participant-pair-matrix',
-    rawShapes: ['participant-pair-matrix'],
-    label: () => '',
-    cacheKey: () => 'id:pm',
-    apply: passthrough,
-  },
+  'identity-scalar': identityLeaf('scalar', 'id:s',
+    'Single value', "the metric's single value"),
+  'identity-aoi-vector': identityLeaf('aoi-vector', 'id:v',
+    'Per AOI', 'one value for each AOI'),
+  'identity-category-vector': identityLeaf('category-vector', 'id:cv',
+    'Per eye-movement type', 'one value for each eye-movement type'),
+  'identity-aoi-pair-matrix': identityLeaf('aoi-pair-matrix', 'id:m',
+    'AOI matrix', 'every AOI-to-AOI pair'),
+  'identity-participant-pair-matrix': identityLeaf('participant-pair-matrix', 'id:pm',
+    'Participant matrix', 'a value for every participant pair'),
   'pick-aoi': {
     outputShape: 'scalar',
     rawShapes: ['aoi-vector'],
+    title: 'One AOI',
+    hint: 'the value at one chosen AOI',
     label:    (p) => aoiRefLabel(p.aoiRef),
     cacheKey: (p) => `pick:${aoiRefKey(p.aoiRef)}`,
     apply:    (p, c) => pickAoi(p.aoiRef, c),
   },
+  'pick-category': {
+    outputShape: 'scalar',
+    rawShapes: ['category-vector'],
+    title: 'One type',
+    hint: 'the value at one chosen eye-movement type',
+    // A set statistic is ALWAYS disclosed, mean included — the summarization
+    // method must be visible on the figure (same doctrine as the recipe-param
+    // channel's summaryStatQualifier). Sample-less picks carry none.
+    label:    (p) => p.statistic
+      ? `type "${p.categoryName}" · ${p.statistic}`
+      : `type "${p.categoryName}"`,
+    cacheKey: (p) => `pickcat:n=${p.categoryName}${p.statistic ? `~${p.statistic}` : ''}`,
+    apply:    (p, c) => pickCategory(p.categoryName, c),
+  },
   'pick-any-fixation': {
     outputShape: 'scalar',
     rawShapes: ['aoi-vector'],
+    title: 'Whole stimulus',
+    hint: 'one number from all fixations together (AOIs ignored)',
     label:    () => 'any fixation',
     cacheKey: () => 'pick:any',
     // Convention: recipes using the aoi-vector output-with-sentinels pattern
@@ -174,6 +223,8 @@ export const PROJECTION_LEAVES: { [K in LeafKind]: LeafKindDef<K> } = {
   'aggregate-aoi': {
     outputShape: 'scalar',
     rawShapes: ['aoi-vector'],
+    title: 'Highest / lowest AOI',
+    hint: 'the highest- or lowest-scoring AOI, per participant',
     // The metric's named meaning of the extreme when provided ("most-dwelled
     // AOI"); the generic operator phrase only as a metric-less fallback.
     label: (p, ctx) => {
@@ -189,6 +240,8 @@ export const PROJECTION_LEAVES: { [K in LeafKind]: LeafKindDef<K> } = {
   'matrix-diagonal': {
     outputShape: 'aoi-vector',
     rawShapes: ['aoi-pair-matrix'],
+    title: 'Self-transitions',
+    hint: "each AOI's transitions to itself",
     label: () => 'self-transitions',
     cacheKey: () => 'diag',
     apply: (_p, c) => matrixDiagonal(c),
@@ -196,6 +249,8 @@ export const PROJECTION_LEAVES: { [K in LeafKind]: LeafKindDef<K> } = {
   'matrix-row': {
     outputShape: 'aoi-vector',
     rawShapes: ['aoi-pair-matrix'],
+    title: 'From an AOI',
+    hint: 'transitions leaving one chosen AOI',
     label:    (p) => `from ${aoiRefLabel(p.aoiRef)}`,
     cacheKey: (p) => `row:${aoiRefKey(p.aoiRef)}`,
     apply:    (p, c) => matrixRowOrCol(p.aoiRef, c, 'row'),
@@ -203,6 +258,8 @@ export const PROJECTION_LEAVES: { [K in LeafKind]: LeafKindDef<K> } = {
   'matrix-col': {
     outputShape: 'aoi-vector',
     rawShapes: ['aoi-pair-matrix'],
+    title: 'To an AOI',
+    hint: 'transitions arriving at one chosen AOI',
     label:    (p) => `to ${aoiRefLabel(p.aoiRef)}`,
     cacheKey: (p) => `col:${aoiRefKey(p.aoiRef)}`,
     apply:    (p, c) => matrixRowOrCol(p.aoiRef, c, 'col'),
@@ -210,6 +267,8 @@ export const PROJECTION_LEAVES: { [K in LeafKind]: LeafKindDef<K> } = {
   'matrix-cell': {
     outputShape: 'scalar',
     rawShapes: ['aoi-pair-matrix'],
+    title: 'One transition',
+    hint: 'a single from → to AOI pair',
     label:    (p) => `${aoiRefLabel(p.fromAoi)} → ${aoiRefLabel(p.toAoi)}`,
     cacheKey: (p) => `cell:${aoiRefKey(p.fromAoi)}>${aoiRefKey(p.toAoi)}`,
     apply:    (p, c) => matrixCell(p.fromAoi, p.toAoi, c),
@@ -217,6 +276,8 @@ export const PROJECTION_LEAVES: { [K in LeafKind]: LeafKindDef<K> } = {
   'matrix-aggregate': {
     outputShape: 'scalar',
     rawShapes: ['aoi-pair-matrix'],
+    title: 'Matrix summary',
+    hint: 'one number for the whole matrix',
     label: (p) =>
       p.exclude === 'diagonal'
         ? `${p.reducer} excluding self-transitions`
@@ -228,59 +289,6 @@ export const PROJECTION_LEAVES: { [K in LeafKind]: LeafKindDef<K> } = {
 
 // Module-load invariant: any future windowable leaf must produce scalar or aoi-vector.
 // (The invariant is checked per-instance via recipeSupports at the validation layer.)
-
-// ─── Leaf display metadata (single source of truth for UI naming) ────────────
-
-/**
- * The generic, instance-blind display name of each projection leaf kind — the
- * ONE place these names live, read by the configure-metric projection picker.
- * Distinct from `PROJECTION_LEAVES[kind].label`, which renders an INSTANCE
- * readout ("most-dwelled AOI", "mean across all pairs") from a concrete
- * projection; this is the kind-level vocabulary.
- */
-const LEAF_TITLES: Record<LeafKind, string> = {
-  'identity-scalar': 'Single value',
-  'identity-aoi-vector': 'Per AOI',
-  'identity-aoi-pair-matrix': 'AOI matrix',
-  'identity-participant-pair-matrix': 'Participant matrix',
-  'pick-aoi': 'One AOI',
-  'pick-any-fixation': 'Whole stimulus',
-  'aggregate-aoi': 'Highest / lowest AOI',
-  'matrix-diagonal': 'Self-transitions',
-  'matrix-row': 'From an AOI',
-  'matrix-col': 'To an AOI',
-  'matrix-cell': 'One transition',
-  'matrix-aggregate': 'Matrix summary',
-}
-
-/** Generic display name of a projection leaf kind (see {@link LEAF_TITLES}). */
-export function leafKindLabel(kind: LeafKind): string {
-  return LEAF_TITLES[kind]
-}
-
-/**
- * One-line, plain-language description of what a leaf kind produces — the
- * supporting copy under each option in the configure-metric projection picker.
- */
-const LEAF_HINTS: Record<LeafKind, string> = {
-  'identity-scalar': "the metric's single value",
-  'identity-aoi-vector': 'one value for each AOI',
-  'identity-aoi-pair-matrix': 'every AOI-to-AOI pair',
-  'identity-participant-pair-matrix': 'a value for every participant pair',
-  'pick-aoi': 'the value at one chosen AOI',
-  'pick-any-fixation': 'one number from all fixations together (AOIs ignored)',
-  'aggregate-aoi': 'the highest- or lowest-scoring AOI, per participant',
-  'matrix-diagonal': "each AOI's transitions to itself",
-  'matrix-row': 'transitions leaving one chosen AOI',
-  'matrix-col': 'transitions arriving at one chosen AOI',
-  'matrix-cell': 'a single from → to AOI pair',
-  'matrix-aggregate': 'one number for the whole matrix',
-}
-
-/** One-line description of what a leaf kind produces (see {@link LEAF_HINTS}). */
-export function leafKindHint(kind: LeafKind): string {
-  return LEAF_HINTS[kind]
-}
 
 // ─── Public dispatchers ─────────────────────────────────────────────────────
 
@@ -296,6 +304,20 @@ export function leafDef(leaf: LeafProjection): LeafKindDef {
 export function applyProjection(projection: Projection, ctx: ApplyContext): ApplyResult {
   const leaf = leafOf(projection)
   return leafDef(leaf).apply(leaf, ctx)
+}
+
+/**
+ * The summary statistic an instance's projection declares — `'mean'` unless
+ * the leaf is a summary carrying an explicit choice (`pick-category`). The
+ * runtime threads this into the scan ctx (`InitCtx.summaryStatistic`) so
+ * sample-summarizing recipes collapse each participant's sample with it in
+ * `finalize`; a non-mean value also keys the raw cache (see `rawCacheKey`).
+ * The `apply` step stays a plain slot select — by the time a projection runs,
+ * the vector is already collapsed per slot.
+ */
+export function projectionSummaryStatistic(p: Projection): SummaryStatistic {
+  const leaf = leafOf(p)
+  return (leaf.kind === 'pick-category' ? leaf.statistic : undefined) ?? 'mean'
 }
 
 export function projectionOutputShape(projection: Projection): OutputShape {
@@ -325,30 +347,6 @@ export function projectionCacheKey(projection: Projection): string {
     return `w[${windowKey(projection.window)}]:${inner}`
   }
   return leafDef(projection).cacheKey(projection)
-}
-
-/**
- * The set of leaf kinds a metric can produce, given only its declared
- * `rawShape` and the meta-level capability declarations (`providesAnyFixation`,
- * `aoiAggregate`). The single answer to "what projection leaves does this
- * metric support?" — read by the metric-library modal, manifest builders, and
- * (future) agent-callable compute APIs so they don't each roll a one-line
- * filter against `PROJECTION_LEAVES`.
- *
- * Concrete-projection validity (reducer choice, slot-ref bounds, windowing
- * support) is layered on top via {@link recipeSupports} — this function only
- * answers the kind-level question.
- */
-export function supportedLeaves(metric: Metric): LeafKind[] {
-  const agg = metric.meta.aoiAggregate
-  const out: LeafKind[] = []
-  for (const kind of Object.keys(PROJECTION_LEAVES) as LeafKind[]) {
-    if (!PROJECTION_LEAVES[kind].rawShapes.includes(metric.meta.rawShape)) continue
-    if (kind === 'pick-any-fixation' && !metric.meta.providesAnyFixation) continue
-    if (kind === 'aggregate-aoi' && !(agg?.max || agg?.min)) continue
-    out.push(kind)
-  }
-  return out
 }
 
 // ─── Window label / key ─────────────────────────────────────────────────────
@@ -383,6 +381,15 @@ function pickAoi(ref: AoiRef, c: ApplyContext): ApplyResult {
   const slot = resolveAoiRef(ref, c.aoiNames)
   const aoiCount = c.aoiNames.length
   if (slot < 0 || slot >= aoiCount) return { values: [Number.NaN], aoiMissing: true }
+  return { values: [c.rawValues[slot] ?? Number.NaN], aoiMissing: false }
+}
+
+function pickCategory(name: string, c: ApplyContext): ApplyResult {
+  // Trimmed compare — the canonical displayed-name matching rule
+  // (groupByDisplayedName), so a ref never misses on stray whitespace.
+  const wanted = name.trim()
+  const slot = (c.categoryNames ?? []).findIndex(n => n.trim() === wanted)
+  if (slot < 0) return { values: [Number.NaN], aoiMissing: true }
   return { values: [c.rawValues[slot] ?? Number.NaN], aoiMissing: false }
 }
 
@@ -499,6 +506,30 @@ export function reduceNumeric(values: readonly number[], method: AoiReducer): nu
       return s.length % 2 === 0 ? (s[mid - 1] + s[mid]) / 2 : s[mid]
     }
   }
+}
+
+/**
+ * Each value as a PERCENTAGE of `total` — the share invariant every
+ * share-of-a-total recipe finalizes with (`relativeTime` over the anyFixation
+ * total, `movementTimeShare` over the scope duration,
+ * `transitionRelativeFrequency` over all transitions).
+ *
+ * `total <= 0` yields NaN, never 0: with no gaze to normalise against, 0/0 is
+ * UNDEFINED, and a real 0 would silently deflate every group and window mean
+ * that averages over it. A `0` numerator with a positive total is a genuine
+ * 0 % (attention went elsewhere) and stays 0.
+ *
+ * KEEP IN SYNC with the fused windowed driver's `clippedDurationShare`
+ * normalisation (runtime.ts), which inlines this expression over a reused
+ * scratch row to stay allocation-free; the windowed==oracle equivalence suite
+ * pins the two against each other.
+ */
+export function percentShare(values: ArrayLike<number>, total: number): number[] {
+  const out = new Array<number>(values.length)
+  for (let i = 0; i < values.length; i++) {
+    out[i] = total > 0 ? (values[i] / total) * 100 : Number.NaN
+  }
+  return out
 }
 
 function aoiRefLabel(ref: AoiRef): string {

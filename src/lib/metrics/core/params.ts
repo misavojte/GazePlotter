@@ -1,5 +1,3 @@
-import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-
 type ParamType = 'integer' | 'number' | 'enum' | 'boolean' | 'string'
 
 export interface ParamDef<T> {
@@ -19,13 +17,6 @@ export interface ParamDef<T> {
   step?: number
   unit?: string
   options?: readonly { value: T & string; label: string }[]
-  /**
-   * Dataset-derived alternative to the static `options` (e.g. eye-movement
-   * types, which are interned per dataset at ingest). The configure UI calls
-   * it with the live engine at render time; `paramToLabel` cannot resolve a
-   * label through it, so pair it with `toLabel`.
-   */
-  optionsFrom?: (engine: DataEngine) => readonly { value: T & string; label: string }[]
   /**
    * Render this param's value as an instance-label qualifier (mid-dot grammar),
    * or `null`/`''` to omit it (e.g. at a default value that carries no
@@ -85,9 +76,7 @@ export const enumParam = <ID extends string, V extends string>(
   label: string,
   defaultValue: V,
   options: readonly { value: V; label: string }[],
-  opts: Partial<
-    Pick<ParamDef<V>, 'description' | 'toLabel' | 'optionsFrom'>
-  > = {}
+  opts: Partial<Pick<ParamDef<V>, 'description' | 'toLabel'>> = {}
 ): ParamDef<V> & { id: ID } => ({
   id,
   label,
@@ -98,21 +87,41 @@ export const enumParam = <ID extends string, V extends string>(
 })
 
 /**
- * The shared "Summary" statistic param — how a recipe's per-event values
- * collapse to the per-participant value. Declared ONCE; every summary recipe
- * (fixationDuration, visitDuration, movementDuration, interFixationInterval)
- * imports it. (`sum` is deliberately absent everywhere — totals are their own
- * metrics: absoluteTime, movementTime.)
+ * The summary-collapse operator set — how a per-event sample collapses to one
+ * per-participant value. `sum` is deliberately absent: totals are their own
+ * metrics (absoluteTime, movementTime).
  */
-export const summaryStatisticParam = enumParam<
-  'statistic',
-  'mean' | 'median' | 'max' | 'min'
->('statistic', 'Summary', 'mean', [
+export type SummaryStatistic = 'mean' | 'median' | 'max' | 'min'
+
+/**
+ * The Mean/Median/Max/Min choice — ONE option list for BOTH declaration
+ * channels of the summary statistic: the recipe-level `statistic` param below,
+ * and the `pick-category` projection's Summary select in the configure UI
+ * (see {@link summaryStatisticParam} for which channel a metric uses).
+ */
+export const SUMMARY_STATISTIC_OPTIONS = [
   { value: 'mean', label: 'Mean' },
   { value: 'median', label: 'Median' },
   { value: 'max', label: 'Max' },
   { value: 'min', label: 'Min' },
-])
+] as const satisfies readonly { value: SummaryStatistic; label: string }[]
+
+/**
+ * The shared "Summary" statistic param — how a recipe's per-event values
+ * collapse to the per-participant value. Declared ONCE; every scalar/aoi
+ * summary recipe (fixationDuration, visitDuration, interFixationInterval)
+ * imports it. Vector metrics NEVER carry it: their vector is the unmarked
+ * per-slot mean, and the summary choice belongs to the SUMMARY projection —
+ * `pick-category` carries a `statistic`, threaded into finalize via
+ * `InitCtx.summaryStatistic` (recipes declare `sampleSummary`); the two
+ * channels are mutually exclusive (enforced at registration).
+ */
+export const summaryStatisticParam = enumParam<'statistic', SummaryStatistic>(
+  'statistic',
+  'Summary',
+  'mean',
+  SUMMARY_STATISTIC_OPTIONS
+)
 
 export type ParamsOf<T extends readonly ParamDef<any>[]> = {
   [K in T[number] as K['id']]: K extends ParamDef<infer V> ? V : never

@@ -8,6 +8,7 @@ import {
   getParticipants,
 } from '$lib/data/engine'
 import { buildScarfTooltipContent } from './tooltip'
+import { visibleHighlights } from './view'
 import { scarfTimelineSync } from './sync.svelte'
 import type { ScarfPlotSettings } from '../types'
 
@@ -166,7 +167,7 @@ export const scarfScreen: PlotScreenFactory<ScarfPlotSettings> = ctx => {
         : { ...effectiveSettings, ordinalEnd: syncedMax }
     },
     props: () => ({
-      highlights: ctx.item.settings.highlights ?? [],
+      highlights: visibleHighlights(ctx.engine, ctx.item.settings),
       onLegendClick: handleLegendClick,
       getTooltipContent: (participantId: number, segmentOrderId: number) =>
         buildScarfTooltipContent(

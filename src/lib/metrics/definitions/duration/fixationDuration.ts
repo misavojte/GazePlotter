@@ -22,15 +22,6 @@ interface Acc { durations: number[][] }
  *   the per-participant value: `mean` (default) | `median` | `max` | `min`.
  *   (`sum` is deliberately absent — that is the `absoluteTime` metric.)
  *
- * ### Usage
- * ```ts
- * query(
- *   { id: 'fixationDuration', baseId: 'fixationDuration', params: {},
- *     projection: { kind: 'identity-aoi-vector' }, label: 'Fixation duration' },
- *   { engine, stimulusId, participantId },
- * )
- * ```
- *
  * ### Invariants
  * - Accumulates per-slot duration arrays so `individuals(slotIndex)` can
  *   return every fixation duration that contributed to the mean — used by

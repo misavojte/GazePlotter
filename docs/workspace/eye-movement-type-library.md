@@ -17,7 +17,7 @@ Each classification category is represented as a row in the library modal with t
 - **Color** — Set the category's visualization color in scarf timelines and other charts.
 - **Move handle** — Drag to reorder categories. The order sets the sequence in plot legends and timeline stacks.
 
-The **Sort** and **Bulk actions** buttons above the list work similarly to other libraries, allowing you to sort categories by name or rename items using regular expressions. Select rows to merge or split them, or save them as a named selection in the tray below the list. Each plot picks a selection in its pane's **Eye-movement Types** section to narrow which non-fixation categories it draws — there is no separate hide toggle; the built-in *None* acts as a "Fixations only" filter.
+The **Sort** and **Bulk actions** buttons above the list work similarly to other libraries, allowing you to sort categories by name or rename items using regular expressions. Select rows to merge or split them, or save them as a named selection in the tray below the list. Each plot picks a selection in its pane's **Eye-movement Types** section to narrow which types it draws — Fixation included, so a selection without it hides the fixation layer too. There is no separate hide toggle; the built-in *None* draws no eye-movement types at all, and a "Fixations only" view is a saved selection holding just Fixation. Fixation's displayed name is reserved (it anchors every AOI-based metric), so it can be recolored and selected but never renamed or merged.
 
 ## Grouping categories
 

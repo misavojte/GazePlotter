@@ -17,16 +17,6 @@ import { defineMetric } from '../../core/defineMetric'
  * ### Parameters
  * None.
  *
- * ### Usage
- * ```ts
- * query(
- *   { id: 'absoluteTime', baseId: 'absoluteTime', params: {},
- *     projection: { kind: 'identity-aoi-vector' }, label: 'Absolute dwell time' },
- *   { engine, stimulusId, participantId },
- * )
- * // → { shape: 'aoi-vector', values: [ms_per_slot], ... }
- * ```
- *
  * ### Invariants
  * - Writes to `anyFixationSlot` regardless of AOI membership, so
  *   `pick-any-fixation` is available.

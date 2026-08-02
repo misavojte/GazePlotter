@@ -19,19 +19,6 @@ import { defineRqaMetric } from './defineRqaMetric'
  *   fixations (tagged by zero AOIs) participate in the sequence as the
  *   sentinel `noAoiSlot` category; otherwise they're skipped entirely.
  *
- * ### Usage
- * ```ts
- * query(
- *   { id: 'rqaRec', baseId: 'rqaRec', params: {},
- *     projection: { kind: 'identity-scalar' }, label: 'Recurrence rate' },
- *   { engine, stimulusId, participantId },
- * )
- * // or windowed (timeseries of REC over the scan):
- * { kind: 'windowed',
- *   window: { windowSize: 50, stepSize: 1 },
- *   inner: { kind: 'identity-scalar' } }
- * ```
- *
  * ### Invariants
  * - Accumulates into `{ seq: number[] }` — the shared fixation-windowed
  *   contract enforced by `core/runtime.ts`.

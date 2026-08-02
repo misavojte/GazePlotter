@@ -173,13 +173,13 @@ describe('summary statistic disclosure', () => {
     ).toEqual([])
   })
   it('buildMetricLabel puts the statistic on the colorbar; the bar opts out', () => {
-    expect(buildMetricLabel(inst('fixationDuration', {}), getMetric('fixationDuration')))
+    expect(buildMetricLabel(inst('fixationDuration', {})))
       .toBe('Fixation duration / ms · mean')
     expect(
-      buildMetricLabel(inst('fixationDuration', { statistic: 'median' }), getMetric('fixationDuration'))
+      buildMetricLabel(inst('fixationDuration', { statistic: 'median' }))
     ).toBe('Fixation duration / ms · median')
     expect(
-      buildMetricLabel(inst('fixationDuration', { statistic: 'median' }), getMetric('fixationDuration'), {
+      buildMetricLabel(inst('fixationDuration', { statistic: 'median' }), {
         includeSummaryStat: false,
       })
     ).toBe('Fixation duration / ms')
@@ -190,27 +190,27 @@ describe('summary statistic disclosure', () => {
 
 describe('buildMetricLabel (unified plot/colorbar label)', () => {
   it('composes quantity / unit · param qualifiers (mean reduction needs no chip)', () => {
-    expect(buildMetricLabel(inst('transitionProbability', { mode: 'visit', step: 2 }), getMetric('transitionProbability')))
+    expect(buildMetricLabel(inst('transitionProbability', { mode: 'visit', step: 2 })))
       .toBe('Transition probability / % · Visit changes · Step 2')
   })
   it('unit:false drops the unit (correlation rows/cols carry differing units)', () => {
-    expect(buildMetricLabel(inst('transitionProbability', { mode: 'visit', step: 2 }), getMetric('transitionProbability'), { unit: false }))
+    expect(buildMetricLabel(inst('transitionProbability', { mode: 'visit', step: 2 }), { unit: false }))
       .toBe('Transition probability · Visit changes · Step 2')
   })
   it('extra qualifiers append after the reduction, dropping falsy entries', () => {
     // transitionCount defaults to sum → "summed" chip is present.
-    expect(buildMetricLabel(inst('transitionCount', { mode: 'fixation' }), getMetric('transitionCount'), {
+    expect(buildMetricLabel(inst('transitionCount', { mode: 'fixation' }), {
       extra: [false, null, undefined, 'No-AOI excluded', 't ∈ [100, 5000] ms'],
     })).toBe('Transitions / count · Fixation pairs · summed · No-AOI excluded · t ∈ [100, 5000] ms')
   })
   it('includeReduction:false suppresses the chip (bar plot opt-out)', () => {
-    expect(buildMetricLabel(inst('transitionCount', { mode: 'fixation' }), getMetric('transitionCount'), { includeReduction: false }))
+    expect(buildMetricLabel(inst('transitionCount', { mode: 'fixation' }), { includeReduction: false }))
       .toBe('Transitions / count · Fixation pairs')
   })
   it('null instance → the fallback name, never blank', () => {
-    expect(buildMetricLabel(null, undefined)).toBe('Value')
-    expect(buildMetricLabel(null, undefined, { fallback: 'Similarity' })).toBe('Similarity')
-    expect(buildMetricLabel(null, undefined, { unit: false, fallback: 'Transition value' })).toBe('Transition value')
+    expect(buildMetricLabel(null)).toBe('Value')
+    expect(buildMetricLabel(null, { fallback: 'Similarity' })).toBe('Similarity')
+    expect(buildMetricLabel(null, { unit: false, fallback: 'Transition value' })).toBe('Transition value')
   })
 
   it('discloses only a cohort sum — summed override vs the bare default mean', () => {
@@ -220,11 +220,11 @@ describe('buildMetricLabel (unified plot/colorbar label)', () => {
       id: 'i', baseId: 'absoluteTime', params: {}, label: '',
       projection: { kind: 'identity-aoi-vector' }, reduction: 'sum',
     }
-    expect(buildMetricLabel(summed, getMetric('absoluteTime')))
+    expect(buildMetricLabel(summed))
       .toBe('Absolute dwell time / ms · summed')
 
     const plain: MetricInstance = { ...summed, reduction: undefined }
-    expect(buildMetricLabel(plain, getMetric('absoluteTime')))
+    expect(buildMetricLabel(plain))
       .toBe('Absolute dwell time / ms')
   })
 
@@ -235,14 +235,14 @@ describe('buildMetricLabel (unified plot/colorbar label)', () => {
       id: 'i', baseId: 'absoluteTime', params: {}, label: '',
       projection: { kind: 'aggregate-aoi', reducer: 'max' },
     }
-    expect(buildMetricLabel(peak, getMetric('absoluteTime'), { includeProjection: true }))
+    expect(buildMetricLabel(peak, { includeProjection: true }))
       .toBe('Absolute dwell time / ms · most-dwelled AOI')
 
     const firstHit: MetricInstance = {
       id: 'i', baseId: 'timeToFirstFixation', params: {}, label: '',
       projection: { kind: 'aggregate-aoi', reducer: 'min' },
     }
-    expect(buildMetricLabel(firstHit, getMetric('timeToFirstFixation'), { includeProjection: true }))
+    expect(buildMetricLabel(firstHit, { includeProjection: true }))
       .toBe('Time to first fixation / ms · first-reached AOI')
   })
 })

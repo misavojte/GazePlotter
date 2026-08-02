@@ -18,15 +18,6 @@ import { defineRqaMetric } from './defineRqaMetric'
  *   length counted as "laminar".
  * - `include_no_aoi` (boolean, default `false`): include off-AOI fixations.
  *
- * ### Usage
- * ```ts
- * query(
- *   { id: 'rqaLam', baseId: 'rqaLam', params: { v_min: 2 },
- *     projection: { kind: 'identity-scalar' }, label: 'Laminarity' },
- *   { engine, stimulusId, participantId },
- * )
- * ```
- *
  * ### Invariants
  * - Shares the `{ seq: number[] }` accumulator shape with other RQA metrics.
  */

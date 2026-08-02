@@ -3,7 +3,7 @@ import { scarfScreen } from './core/screen.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
 import type { ScarfPlotSettings } from './types'
-import { SCARF_IDENTIFIERS } from './const'
+import { SCARF_IDENTIFIERS, isAoiLayerHighlight } from './const'
 import { getAois } from '$lib/data/engine'
 import type { WorkspaceCommand } from '$lib/workspace/commands'
 
@@ -31,7 +31,8 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
         },
         // Layer visibility is a per-plot SELECTION: the 'event' and
         // 'eyeMovement' sections each offer the built-in "None" (events off /
-        // fixations only) — no hide toggles here.
+        // no eye-movement types at all, fixations included) — no hide
+        // toggles here.
       ],
     },
     {
@@ -78,10 +79,7 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
         u => u.itemId === item.id && 'stimulusId' in u.settings
       )
     ) {
-      const kept = highlights.filter(h =>
-        h.startsWith(SCARF_IDENTIFIERS.CATEGORY) ||
-        h.startsWith(SCARF_IDENTIFIERS.EVENT)
-      )
+      const kept = highlights.filter(h => !isAoiLayerHighlight(h))
       if (kept.length < highlights.length) {
         dispatch({
           type: 'updateSettings',
@@ -99,10 +97,8 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
       const validAoiIds = new Set(
         currentAois.map(a => `${SCARF_IDENTIFIERS.AOI}${a.id}`)
       )
-      const kept = highlights.filter(h =>
-        !h.startsWith(SCARF_IDENTIFIERS.AOI) ||
-        h.startsWith(SCARF_IDENTIFIERS.CATEGORY) ||
-        validAoiIds.has(h)
+      const kept = highlights.filter(
+        h => !isAoiLayerHighlight(h) || validAoiIds.has(h)
       )
       if (kept.length < highlights.length) {
         dispatch({

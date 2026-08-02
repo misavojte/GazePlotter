@@ -6,24 +6,12 @@ import {
   OVERLAY_OPTIONS,
   overlaySummaryLabel,
 } from './const'
-import { definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
-import { stimulusGroupSubtitle } from '$lib/plots/shared'
-import { resolveInstance, getMetric } from '$lib/metrics'
+import { definePlot } from '$lib/plots/definePlot'
+import {
+  pickedInstanceIsProportion as isProportion,
+  stimulusGroupSubtitle,
+} from '$lib/plots/shared'
 import type { BarPlotSettings } from './types'
-
-// Proportion metrics (e.g. noticed-rate) render as plain bars; the beeswarm
-// statistical-overlay paradigm does not apply, so its picker is hidden.
-const isProportion = (ctx: SectionFieldCtx): boolean => {
-  const metricId = ctx.common(s => s.metricInstanceIds?.[0] ?? null)
-  if (metricId.mixed || !metricId.value) return false
-  const inst = resolveInstance(
-    ctx.engine.metadata?.metricInstances ?? [],
-    metricId.value as string
-  )
-  return inst
-    ? getMetric(inst.baseId)?.meta.measurementClass === 'proportion'
-    : false
-}
 
 export const barPlotDefinition = definePlot<'barPlot', BarPlotSettings>({
   type: 'barPlot',

@@ -45,8 +45,9 @@
     }
   }
 
-  // Id-keyed selections (stored as metadata.categoriesSelections) — e.g. a
-  // "Fixations only" style filter once plots consume them.
+  // Id-keyed selections (stored as metadata.categoriesSelections), consumed
+  // by the scarf's layers and the eye-movement comparison — a "Fixations
+  // only" filter is a selection holding just id 0.
   const sel = idKeyedSelection<'memberIds', EntitySelection>('memberIds')
 
   const session = createSelectionSession<EntitySelection>({

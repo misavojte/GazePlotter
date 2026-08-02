@@ -16,15 +16,6 @@ import { defineFirstHitMetric } from '../ttf/defineFirstHitMetric'
  * ### Parameters
  * None.
  *
- * ### Usage
- * ```ts
- * query(
- *   { id: 'firstFixationDuration', baseId: 'firstFixationDuration', params: {},
- *     projection: { kind: 'identity-aoi-vector' }, label: 'First fixation duration' },
- *   { engine, stimulusId, participantId },
- * )
- * ```
- *
  * ### Invariants
  * - AOIs never fixated return `NaN` (represented as `-1` in the accumulator,
  *   mapped to `NaN` in `finalize`).

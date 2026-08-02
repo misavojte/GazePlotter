@@ -234,7 +234,7 @@ describe('retired scarf hideEvents flag → built-in "None" event selection', ()
 })
 
 describe('legacy hidden categories → categoriesSelections (global)', () => {
-  it('creates one id-keyed selection (fixation excluded) applied to every scarf', () => {
+  it('creates one id-keyed selection (fixation INCLUDED — the legacy model always drew fixations) applied to every scarf', () => {
     const file = buildFile(
       {
         categories: {
@@ -256,8 +256,10 @@ describe('legacy hidden categories → categoriesSelections (global)', () => {
     const m = runMigrations(file)
 
     expect(m.data.categories.hiddenCategories).toBeUndefined()
+    // Id 0 rides along: the fixation baseline joined the SELECTION domain,
+    // and a migrated selection without it would blank every fixation layer.
     expect(m.data.categoriesSelections).toEqual([
-      { id: 1, name: 'Migrated visibility', memberIds: [1] },
+      { id: 1, name: 'Migrated visibility', memberIds: [0, 1] },
     ])
     // Hidden categories were global — every scarf gets the selection.
     const byId = Object.fromEntries(m.gridItems.map((g: any) => [g.id, g.settings]))

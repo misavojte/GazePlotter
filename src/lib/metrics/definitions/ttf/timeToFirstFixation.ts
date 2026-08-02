@@ -15,15 +15,6 @@ import { defineFirstHitMetric } from './defineFirstHitMetric'
  * ### Parameters
  * None.
  *
- * ### Usage
- * ```ts
- * query(
- *   { id: 'timeToFirstFixation', baseId: 'timeToFirstFixation', params: {},
- *     projection: { kind: 'identity-aoi-vector' }, label: 'Time to first fixation' },
- *   { engine, stimulusId, participantId },
- * )
- * ```
- *
  * ### Invariants
  * - AOIs never fixated return `NaN` (represented as `-1` in the accumulator,
  *   mapped to `NaN` in `finalize`). Callers that prefer a sentinel numeric

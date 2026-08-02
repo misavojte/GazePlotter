@@ -254,3 +254,25 @@ export function instanceReadout(
   return out
 }
 
+/**
+ * The instance's one-line DETAIL text under its name — unit first, then the
+ * {@link instanceReadout} chips, then the projection.
+ *
+ * The projection is suppressed when the user's own label already contains it:
+ * renaming an instance to "Dwell · One AOI" must not print "One AOI" twice.
+ * That echo rule is a cross-surface semantic (the pane's metric selector and
+ * the library card have to agree, or the same instance reads differently in
+ * two places), so it lives here with the readout rather than being retyped per
+ * surface.
+ *
+ * Not every detail line composes this way — the export modal deliberately
+ * orders and filters differently — so this is the SHARED composition, not the
+ * only one.
+ */
+export function instanceDetailLine(instance: MetricInstance): string {
+  const unit = getMetric(instance.baseId)?.meta.unit ?? ''
+  const projection = formatProjectionReadout(instance)
+  const shown = projection && !instance.label.includes(projection) ? projection : null
+  return [unit, ...instanceReadout(instance), shown].filter(Boolean).join(' · ')
+}
+

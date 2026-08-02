@@ -1,56 +1,70 @@
 import { defineMetric } from '../../core/defineMetric'
-import { eyeMovementTypeParam } from './eyeMovementTypeParam'
-import { summaryStatisticParam } from '../../core/params'
 import { reduceNumeric } from '../../core/projection'
 
 interface Acc {
-  durations: number[]
+  durations: number[][]
 }
 
 /**
  * ## Eye-movement duration
  *
- * A summary (mean by default; also median / max / min) of the durations (ms)
- * of segments of the chosen eye-movement type. The scalar sibling of
- * `fixationDuration` for saccades, blinks, and any other recorded type.
- * (`sum` is deliberately absent — that is the `movementTime` metric.)
+ * Segment duration (ms) of EACH eye-movement type — one value per type on the
+ * canonical displayed-name axis, collapsed per participant by
+ * `ctx.summaryStatistic`.
  *
- * - **Shape:** `scalar`
+ * The recipe carries NO summary param, deliberately (`sampleSummary`): as a
+ * VECTOR the metric is the unmarked per-type mean, and distribution plots pool
+ * the full per-event sample via `individuals` (median/quartiles/extremes live
+ * in their overlay). The Mean/Median/Max/Min choice exists only where a
+ * SUMMARY is produced — the `pick-category` projection carries `statistic`
+ * ("One type · median"), threaded here by the runtime. Parity in spirit with
+ * the aoi-vector duration metrics: same per-participant collapse, same
+ * cross-participant reduction order, declared on the summary instead of a
+ * recipe param.
+ *
+ * - **Shape:** `category-vector`
  * - **Unit:** `ms`
  * - **Category:** `eye-movement`
  * - **Windowing:** supported (midpoint membership; values are the actual
  *   segment durations, not window-clipped — mirrors `fixationDuration`)
  *
  * ### Parameters
- * - `eyeMovementType` — which segment category to measure, by displayed name.
- * - `statistic` — `mean` (default) | `median` | `max` | `min`.
+ * None (see `sampleSummary` above).
  *
  * ### Invariants
- * - NaN (not 0) when the recording contains no such segments, so empty
- *   participants drop from downstream reduces instead of dragging the mean.
+ * - A type with no segments finalizes to NaN (not 0), so empty types drop
+ *   from downstream reduces instead of dragging the collapse.
+ * - Accumulates per-slot duration arrays so `individuals(slotIndex)` returns
+ *   every segment duration that contributed — the beeswarm/box overlays show
+ *   the full per-event distribution.
  */
 defineMetric({
   id: 'movementDuration',
   label: 'Eye-movement duration',
-  description: 'Stimulus-level: a summary (mean by default; also median / max / min) of the durations (ms) of segments of the chosen eye-movement type (by displayed name; saccades by default). NaN when the recording contains no such segments.',
+  description: 'Per eye-movement type: duration (ms) of segments of that type, collapsed per participant (mean unless a summary projection chooses otherwise). NaN for types the recording contains no segments of; distribution plots pool the raw per-segment sample instead.',
   unit: 'ms',
   category: 'eye-movement',
-  rawShape: 'scalar',
+  rawShape: 'category-vector',
   windowUnit: 'ms',
   // Intensive: a per-participant central value of segment durations — only
   // `mean` is sound across participants; for the cohort total use movementTime.
   measurementClass: 'intensive',
   searchTags: ['saccade', 'blink', 'duration', 'mean', 'median', 'eye movement', 'type'],
-  params: [eyeMovementTypeParam, summaryStatisticParam] as const,
-  scanSource: 'categoryParam',
+  params: [] as const,
+  scanSource: 'categories',
   accumulation: 'stateful',
-  init: (): Acc => ({ durations: [] }),
-  onFixation: (acc, { frame, duration }) => {
+  sampleSummary: true,
+  init: ({ categorySlotCount }): Acc => ({
+    durations: Array.from({ length: categorySlotCount }, () => []),
+  }),
+  onFixation: (acc, { frame, duration, categorySlot }) => {
     // SW-RQA membership for window attribution; the value is the actual
     // segment `duration` (NOT clipped) — "typical saccade length", not
     // "typical overlap with the window". Mirrors fixationDuration.
-    if (!frame.midpointInWindow) return
-    acc.durations.push(duration)
+    if (!frame.midpointInWindow || categorySlot < 0) return
+    acc.durations[categorySlot].push(duration)
   },
-  finalize: (acc, _slots, { params }) => [reduceNumeric(acc.durations, params.statistic)],
+  finalize: (acc, _slots, ctx) =>
+    acc.durations.map(arr => reduceNumeric(arr, ctx.summaryStatistic)),
+  individuals: (acc, slotIndex) => acc.durations[slotIndex] ?? [],
 })

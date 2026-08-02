@@ -1,7 +1,7 @@
 import type { FileInputType, FileMetadataType } from './ingest/types'
 import type { GridItemSnapshot } from '$lib/workspace/grid/types'
 import type { BinarySegmentBuffers } from './binary'
-import { FIXATION_CATEGORY_ID } from './binary'
+import { FIXATION_CATEGORY_ID, FIXATION_SEED_NAME } from './binary'
 import type { MetricInstance } from '$lib/metrics/instances'
 import type { PairingErrorKind } from './intervalPairing'
 export type { MetricInstance } from '$lib/metrics/instances'
@@ -92,7 +92,7 @@ export function reservedFixationName(
   catData: readonly (readonly string[] | null)[] | undefined
 ): string {
   const row = catData?.[FIXATION_CATEGORY_ID]
-  return ((row?.[1] ?? row?.[0]) ?? 'Fixation').trim()
+  return ((row?.[1] ?? row?.[0]) ?? FIXATION_SEED_NAME).trim()
 }
 
 /** Id-keyed saved selection for axes with numeric member ids

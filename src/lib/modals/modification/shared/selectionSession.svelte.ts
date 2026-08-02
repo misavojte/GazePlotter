@@ -98,11 +98,15 @@ export function createSelectionSession<TSel extends SelectionLike>(
     return (leader.displayedName || '').trim() || leader.originalName
   })
   // Why the selection can't merge despite having 2+ groups (tray tooltip).
+  // Checked over MEMBERS, not just the card id (= leader id): a locked row
+  // can sit as a member of an invalid folded card.
   const mergeBlockedReason = $derived.by(() => {
     if (selectedGroups.length < 2 || !cfg.lockedNameIds?.size) return undefined
-    const hit = selectedGroups.find(g => cfg.lockedNameIds!.has(g.id))
+    const hit = selectedGroups
+      .flatMap(g => g.members)
+      .find(m => cfg.lockedNameIds!.has(m.id))
     if (!hit) return undefined
-    const name = hit.members[0].displayedName || hit.members[0].originalName
+    const name = hit.displayedName || hit.originalName
     return `“${name}” has a reserved name and can't be merged`
   })
   const canSplit = $derived(selectedGroups.some(g => g.members.length > 1))

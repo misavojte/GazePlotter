@@ -1,6 +1,6 @@
 import { INACTIVE_COLOR } from '$lib/color'
 import { buildMetricLabel, timeRangeQualifier } from '$lib/plots/shared'
-import type { Metric, MetricInstance } from '$lib/metrics'
+import type { MetricInstance } from '$lib/metrics'
 
 export const TRANSITION_MATRIX_DEFAULTS = {
   inactiveColor: INACTIVE_COLOR,
@@ -23,12 +23,11 @@ export const TRANSITION_MATRIX_DEFAULTS = {
  */
 export function getLegendTitle(
   instance: MetricInstance | null | undefined,
-  metric: Metric | null | undefined,
   hideNoAoi = false,
   timelineStart = 0,
   timelineEnd = 0
 ): string {
-  return buildMetricLabel(instance, metric, {
+  return buildMetricLabel(instance, {
     fallback: 'Transition value',
     includeProjection: true,
     extra: [hideNoAoi && 'No-AOI excluded', timeRangeQualifier(timelineStart, timelineEnd)],

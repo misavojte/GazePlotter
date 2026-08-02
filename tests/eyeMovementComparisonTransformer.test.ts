@@ -1,12 +1,15 @@
 /**
- * Eye-movement comparison plot: one bar per type, computed through the pinned
- * eye-movement metric recipes, in the BarPlotFigure data shape.
+ * Eye-movement comparison plot: one bar per type, straight off the library
+ * instance's category-vector result (the SAME metric-library flow every
+ * metric plot consumes; the contract narrows the library to category-vector
+ * recipes, and the bars are the vector on the canonical axis).
  *
- * Pins: hand-computed per-type literals for every statistic, the NaN-drop rule
- * (a participant with no such segments leaves the distribution instead of
- * dragging it), the plot-side share denominator (bounded range vs recording
- * length), and the per-plot eye-movement-type SELECTION gate (None =
- * fixations only, same semantics as scarf).
+ * Pins: hand-computed per-type literals for every family instance, the
+ * NaN-drop rule (a participant with no such segments leaves the distribution
+ * instead of dragging it), the recipe-side share denominator (bounded range
+ * vs recording length via ctx.scopeDurationMs), the noMetric fallback, and
+ * the per-plot eye-movement-type SELECTION gate (None = every type narrowed
+ * away, Fixation included — same semantics as scarf).
  */
 import { describe, it, expect } from 'vitest'
 import { makeTestEngine } from './helpers/testEngine'
@@ -41,10 +44,22 @@ const SEGMENTS: number[][][] = [
   ],
 ]
 
+// Library instances the plot's Metric section would reference — identity
+// category-vector projections (the metric IS the per-type vector; none carry
+// params — the family has no summary knob, distributions live in the
+// pooled individuals + overlay).
+const INSTANCES = [
+  { id: 'mc', baseId: 'movementCount', params: {}, label: 'Eye-movement count', projection: { kind: 'identity-category-vector' as const } },
+  { id: 'md', baseId: 'movementDuration', params: {}, label: '', projection: { kind: 'identity-category-vector' as const } },
+  { id: 'mt', baseId: 'movementTime', params: {}, label: '', projection: { kind: 'identity-category-vector' as const } },
+  { id: 'share', baseId: 'movementTimeShare', params: {}, label: '', projection: { kind: 'identity-category-vector' as const } },
+]
+
 function createEngine() {
   return makeTestEngine([[], SEGMENTS], {
     categories: CATEGORIES,
     participants: [['P0', 'P0'], ['P1', 'P1']],
+    metricInstances: INSTANCES,
   })
 }
 
@@ -52,7 +67,7 @@ function makeSettings(over: Record<string, unknown> = {}) {
   return {
     stimulusId: STIM,
     groupId: -1,
-    metric: 'count' as const,
+    metricInstanceIds: ['mc'],
     orderBy: 'type' as const,
     orderDirection: 'asc' as const,
     scaleRange: [0, 0] as [number, number],
@@ -77,35 +92,42 @@ describe('eye-movement comparison transformer', () => {
     expect(result.dataMax).toBe(4)
   })
 
-  it('mean duration: NaN participants drop from the distribution', () => {
+  it('duration pools every segment into the beeswarm (individuals recipe)', () => {
     const result = getEyeMovementComparisonData(
       createEngine() as any,
-      makeSettings({ metric: 'meanDuration' })
+      makeSettings({ metricInstanceIds: ['md'] })
     )
     const saccade = result.data.find(d => d.label === 'Saccade')
     const blink = result.data.find(d => d.label === 'Blink')
-    expect(saccade?.individualValues).toEqual([35, 50])
-    expect(saccade?.value).toBe(42.5)
-    // P1 has no blink segments → NaN → dropped, only P0's dot remains.
+    // P0's saccades (30, 40 ms) + P1's (50 ms): every EVENT is a dot, exactly
+    // as fixationDuration pools raw fixations on the AOI Comparison.
+    expect(saccade?.individualValues).toEqual([30, 40, 50])
+    expect(saccade?.individualParticipantNames).toEqual(['P0', 'P0', 'P1'])
+    expect(saccade?.value).toBe(40)
+    // P1 has no blink segments → no dots from them; P0's single blink remains.
     expect(blink?.individualValues).toEqual([20])
     expect(blink?.individualParticipantNames).toEqual(['P0'])
   })
 
-  it('total time and share of recording (per-participant denominator)', () => {
+  it('total time and share of recording (per-participant denominator, proportion flag)', () => {
     const time = getEyeMovementComparisonData(
       createEngine() as any,
-      makeSettings({ metric: 'totalTime' })
+      makeSettings({ metricInstanceIds: ['mt'] })
     )
     expect(time.data.find(d => d.label === 'Saccade')?.individualValues).toEqual([70, 50])
+    expect(time.proportion).toBe(false)
 
     const share = getEyeMovementComparisonData(
       createEngine() as any,
-      makeSettings({ metric: 'timeShare' })
+      makeSettings({ metricInstanceIds: ['share'] })
     )
     // P0: 70 of 400 ms = 17.5 %; P1: 50 of 250 ms = 20 %. The bar value is
     // the display-formatted mean (formatDecimal → one decimal).
     expect(share.data.find(d => d.label === 'Saccade')?.individualValues).toEqual([17.5, 20])
     expect(share.data.find(d => d.label === 'Saccade')?.value).toBe(18.8)
+    // movementTimeShare is proportion-class → plain bars, like `fixated` on
+    // the AOI Comparison.
+    expect(share.proportion).toBe(true)
   })
 
   it('bounded time range: values clip and the share denominator is the range', () => {
@@ -116,16 +138,26 @@ describe('eye-movement comparison transformer', () => {
 
     const share = getEyeMovementComparisonData(
       createEngine() as any,
-      makeSettings({ metric: 'timeShare', timelineStart: 0, timelineEnd: 320 })
+      makeSettings({ metricInstanceIds: ['share'], timelineStart: 0, timelineEnd: 320 })
     )
     // P0: 30 + 20 (clipped) of 320 ms; P1: 50 of 320 ms.
     expect(share.data.find(d => d.label === 'Saccade')?.individualValues).toEqual([15.625, 15.625])
+  })
+
+  it('a missing or contract-rejected instance yields the noMetric fallback', () => {
+    const missing = getEyeMovementComparisonData(
+      createEngine() as any,
+      makeSettings({ metricInstanceIds: ['nope'] })
+    )
+    expect(missing.noMetric).toBe(true)
+    expect(missing.data).toEqual([])
   })
 
   it('eye-movement-type SELECTION narrows every type, Fixation included; None = no types', () => {
     const engine = makeTestEngine([[], SEGMENTS], {
       categories: CATEGORIES,
       participants: [['P0', 'P0'], ['P1', 'P1']],
+      metricInstances: INSTANCES,
       categoriesSelections: [
         { id: 5, name: 'Saccades only', memberIds: [1] },
         { id: 6, name: 'Fix + saccades', memberIds: [0, 1] },

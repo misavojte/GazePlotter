@@ -55,6 +55,14 @@ function checkReducer(
     if (!supportedMatrixReducers(recipe.measurementClass).includes(leaf.reducer)) {
       return `Reducer "${leaf.reducer}" across matrix cells is not meaningful for this metric.`
     }
+  } else if (leaf.kind === 'pick-category' && leaf.statistic) {
+    // Same declaration-gates-disclosure rule as aggregate-aoi: a summary
+    // statistic is valid only where the recipe declares a per-event sample to
+    // collapse (`sampleSummary`). On anything else (counts, totals) it would
+    // disclose a summarization that never happens.
+    if (!recipe.sampleSummary) {
+      return `Metric "${recipe.id}" has no per-event sample to summarize.`
+    }
   }
   return null
 }

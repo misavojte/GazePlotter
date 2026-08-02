@@ -5,9 +5,7 @@
   import { Select } from '$lib/shared/components'
   import type { SelectOption } from '$lib/shared/components/select'
   import {
-    instanceReadout,
-    formatProjectionReadout,
-    getMetric,
+    instanceDetailLine,
     instanceMatchesContract,
     type MetricInstance,
     type PlotMetricContract,
@@ -49,19 +47,11 @@
     instances.filter(i => instanceMatchesContract(i, contract))
   )
 
-  function readoutOf(inst: MetricInstance): string {
-    const unit = getMetric(inst.baseId)?.meta.unit ?? ''
-    const params = instanceReadout(inst)
-    const projLine = formatProjectionReadout(inst)
-    const filteredProjLine = projLine && !inst.label.includes(projLine) ? projLine : null
-    return [unit, ...params, filteredProjLine].filter(Boolean).join(' · ')
-  }
-
   const options = $derived<SelectOption[]>(
     visibleInstances.map(inst => ({
       label: inst.label,
       value: inst.id,
-      detail: readoutOf(inst),
+      detail: instanceDetailLine(inst),
       secondaryAction: {
         icon: Pencil,
         label: `Edit ${inst.label}`,
@@ -80,7 +70,7 @@
     if (!isSingleSelect) return undefined
     const sel = visibleInstances.find(i => selectedIds.includes(i.id))
     if (!sel) return undefined
-    const detail = readoutOf(sel)
+    const detail = instanceDetailLine(sel)
     return detail ? `Parameters: ${detail}` : undefined
   })
 

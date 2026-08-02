@@ -2,6 +2,7 @@ import './init'
 import { getRecipe } from './core/defineMetric'
 import { resolveParams } from './core/params'
 import {
+  projectLeaf,
   runProjected,
   runIndividualsAllSlots,
   runRaw,
@@ -12,11 +13,7 @@ import { scanBatch } from './core/scanner'
 import { buildAoiSlots } from './core/aoiSlots'
 import { reduceFinite } from './core/aggregation'
 import type { GroupReduction } from './core/measurement'
-import {
-  applyProjection,
-  projectionOutputShape,
-  type Projection,
-} from './core/projection'
+import type { Projection } from './core/projection'
 import type { AoiSlotInfo, GroupScope, OutputShape } from './core/dsl'
 import { getAois } from '$lib/data/engine'
 import { resolveReduction, type MetricInstance } from './instances'
@@ -40,6 +37,9 @@ export interface MetricProvenance {
 export type MetricResult =
   | { shape: 'scalar';                     metricId: string; unit: string; value: number; isFinite: boolean; provenance: MetricProvenance }
   | { shape: 'aoi-vector';                 metricId: string; unit: string; values: number[]; slots: AoiSlotInfo; provenance: MetricProvenance }
+  /** One value per eye-movement type, in the canonical `categoryGroups` order
+      (consumers derive names via `categoryGroupNames(engine)`). */
+  | { shape: 'category-vector';            metricId: string; unit: string; values: number[]; provenance: MetricProvenance }
   | { shape: 'aoi-pair-matrix';            metricId: string; unit: string; matrix: number[]; size: number; provenance: MetricProvenance }
   | { shape: 'participant-pair-matrix';    metricId: string; unit: string; matrix: number[]; size: number; participantIds: number[]; provenance: MetricProvenance }
   | { shape: 'scalar-timeseries';          metricId: string; unit: string; values: number[]; timeline: number[]; provenance: MetricProvenance }
@@ -94,13 +94,8 @@ export function queryBatch(instances: readonly MetricInstance[], scope: Scope): 
         if (!recipe) continue
         const raw = raws.get(inst.id)
         if (!raw) continue
-        const applied = applyProjection(inst.projection, { aoiNames, rawValues: raw })
-        out.set(inst.id, wrapProjectedResult(recipe.id, recipe.unit, inst, {
-          shape: projectionOutputShape(inst.projection),
-          values: applied.values,
-          slots,
-          aoiMissing: applied.aoiMissing,
-        }))
+        out.set(inst.id, wrapProjectedResult(recipe.id, recipe.unit, inst,
+          projectLeaf(recipe, inst.projection, scope.engine, aoiNames, raw, slots)))
       }
     }
   }
@@ -160,15 +155,10 @@ export function queryGroup(instance: MetricInstance, group: GroupScope): MetricR
   )
   const reduced = reducePerSlot(perParticipant, method)
   const aoiNames = getAois(group.engine, group.stimulusId, group.aoiSelectionId).map(a => a.displayedName)
-  const applied = applyProjection(instance.projection, { aoiNames, rawValues: reduced })
   const slots = buildAoiSlots(group.engine, group.stimulusId, group.aoiSelectionId)
   if (!slots) return emptyResult(instance, 'scalar', recipe.unit)
-  return wrapProjectedResult(recipe.id, recipe.unit, instance, {
-    shape: projectionOutputShape(instance.projection),
-    values: applied.values,
-    slots,
-    aoiMissing: applied.aoiMissing,
-  })
+  return wrapProjectedResult(recipe.id, recipe.unit, instance,
+    projectLeaf(recipe, instance.projection, group.engine, aoiNames, reduced, slots))
 }
 
 /**
@@ -180,6 +170,82 @@ export function queryIndividualsAllSlots(instance: MetricInstance, scope: Scope)
   const recipe = getRecipe(instance.baseId)
   if (!recipe) return null
   return runIndividualsAllSlots(recipe, instance, scope)
+}
+
+/** Per-slot pooled sample, each array parallel to the requested `slots`. */
+export interface PooledIndividuals {
+  values: number[][]
+  names: string[][]
+}
+
+/**
+ * THE beeswarm-pooling rule, for every distribution plot: pool each
+ * participant's per-EVENT sample per slot, tagged with who contributed it.
+ *
+ * A metric declaring an `individuals` recipe (fixationDuration's raw
+ * fixations, movementDuration's raw segments) contributes EVERY event as its
+ * own dot; one without contributes a single dot per participant from the
+ * cached aggregate vector. Non-finite values drop — NaN means "this
+ * participant has no such sample" (no fixations in that AOI, no segments of
+ * that type) and must leave the distribution rather than sit at zero and drag
+ * it, while a real 0 (a count) is data and stays.
+ *
+ * Costs ONE scan per participant regardless of slot count: the per-slot
+ * individuals come from a single accumulator and the aggregate is fetched
+ * lazily, at most once, only for slots that need the fallback. Callers pass
+ * the slots they will actually draw (the AOI slots incl. sentinels, or just
+ * the SELECTION-kept type slots), so a narrowed plot does no extra work.
+ *
+ * Within each slot, values stay in participant order — the dot order the
+ * figure and its tooltips rely on.
+ */
+export function queryPooledIndividuals(
+  instance: MetricInstance,
+  scopes: readonly Scope[],
+  participantNames: readonly string[],
+  slots: readonly number[],
+): PooledIndividuals {
+  const values: number[][] = slots.map(() => [])
+  const names: string[][] = slots.map(() => [])
+
+  for (let p = 0; p < scopes.length; p++) {
+    const scope = scopes[p]
+    const name = participantNames[p]
+    const perSlot = queryIndividualsAllSlots(instance, scope)
+    // Lazy + reused: the fallback for slots this participant has no
+    // individuals for, and the only source for metrics without the recipe.
+    // `query` is cached, so it scans at most once per participant.
+    let aggregate: number[] | undefined
+    const aggregateAt = (slot: number): number => {
+      if (!aggregate) {
+        const r = query(instance, scope)
+        // Whichever vector shape the plot's contract admitted — the shapes
+        // stay separate declarations, this only reads the values off one.
+        aggregate = r.shape === 'aoi-vector' || r.shape === 'category-vector' ? r.values : []
+      }
+      return aggregate[slot] ?? Number.NaN
+    }
+
+    for (let i = 0; i < slots.length; i++) {
+      const individuals = perSlot?.[slots[i]]
+      if (individuals && individuals.length > 0) {
+        for (let k = 0; k < individuals.length; k++) {
+          const v = individuals[k]
+          if (Number.isFinite(v)) {
+            values[i].push(v)
+            names[i].push(name)
+          }
+        }
+      } else {
+        const v = aggregateAt(slots[i])
+        if (Number.isFinite(v)) {
+          values[i].push(v)
+          names[i].push(name)
+        }
+      }
+    }
+  }
+  return { values, names }
 }
 
 // ─── Internal helpers ────────────────────────────────────────────────────────
@@ -210,6 +276,9 @@ function wrapProjectedResult(
   }
   if (shape === 'aoi-vector') {
     return { shape, metricId, unit, values, slots, provenance }
+  }
+  if (shape === 'category-vector') {
+    return { shape, metricId, unit, values, provenance }
   }
   if (shape === 'scalar-timeseries') {
     return { shape, metricId, unit, values, timeline: projected.timeline ?? [], provenance }

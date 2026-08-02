@@ -189,7 +189,7 @@ function migrateLegacyVisibility(payload: any, gridItems: unknown[]): void {
   const categories = payload?.categories
   if (categories?.hiddenCategories) {
     const rows: unknown[] = Array.isArray(categories.data) ? categories.data : []
-    // Fixation (id 0) is the baseline and never part of a selection.
+    // Fixation (id 0) could never be hidden in the legacy model.
     const hiddenIds = new Set(
       (Array.isArray(categories.hiddenCategories)
         ? categories.hiddenCategories
@@ -202,9 +202,12 @@ function migrateLegacyVisibility(payload: any, gridItems: unknown[]): void {
     if (hiddenIds.size > 0) {
       const selections: { id: number; name: string; memberIds: number[] }[] =
         (payload.categoriesSelections ??= [])
+      // Id 0 is INCLUDED: the fixation baseline joined the SELECTION domain,
+      // and the legacy model always drew fixations — a migrated selection
+      // without 0 would silently blank every fixation layer on load.
       const memberIds = rows
         .map((_, id) => id)
-        .filter(id => id > 0 && !hiddenIds.has(id))
+        .filter(id => !hiddenIds.has(id))
       const id = nextSelectionId(selections)
       selections.push({ id, name: MIGRATED_SELECTION_NAME, memberIds })
       // Hidden categories were global, so every plot gets the selection.

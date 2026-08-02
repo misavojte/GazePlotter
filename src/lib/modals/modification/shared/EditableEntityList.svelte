@@ -295,7 +295,19 @@
       value: 'rename',
       icon: Replace,
       component: BulkActionsFlyout,
-      componentProps: { items: groups, onRename },
+      // Locked rows are excluded from the flyout's match count — renameAll
+      // skips them, so counting them would overstate what Replace does.
+      componentProps: {
+        items: lockedNameIds?.size
+          ? groups
+              .map(g => ({
+                ...g,
+                members: g.members.filter(m => !lockedNameIds.has(m.id)),
+              }))
+              .filter(g => g.members.length > 0)
+          : groups,
+        onRename,
+      },
       componentWidth: 300,
       componentHeight: 240,
     }),
