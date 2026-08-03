@@ -48,8 +48,6 @@ export function buildBeeswarmFigureProps(
       result.proportion ? 'none' : settings.statisticalOverlay
     ),
     orientation: settings.orientation,
-    barWidth: 200,
-    barSpacing: 20,
     onDataHover: () => {},
     statisticalOverlay: settings.statisticalOverlay,
     noMetric: result.noMetric ?? false,

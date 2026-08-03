@@ -8,10 +8,8 @@ import { DEFAULT_AOI_COLORS, DEFAULT_CATEGORY_COLORS } from '$lib/color/palettes
 export const getDefaultColor = (index: number): string =>
   DEFAULT_AOI_COLORS[index % DEFAULT_AOI_COLORS.length]
 
-export const getDefaultCategoryColor = (index: number): string => {
-  const palIndex = index > 0 ? index - 1 : 0
-  return DEFAULT_CATEGORY_COLORS[palIndex % DEFAULT_CATEGORY_COLORS.length]
-}
+export const getDefaultCategoryColor = (index: number): string =>
+  DEFAULT_CATEGORY_COLORS[index % DEFAULT_CATEGORY_COLORS.length]
 
 /** Event channels have no palette; a neutral gray is the uniform fallback. */
 export const getDefaultEventChannelColor = (): string => '#888888'

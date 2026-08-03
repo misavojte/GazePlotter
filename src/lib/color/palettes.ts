@@ -103,10 +103,10 @@ export const DEFAULT_AOI_COLORS: readonly string[] = CATEGORICAL_PALETTE.filter(
  * Grayscale base color palette for categories (e.g. Saccades, Blinks) if none are specified.
  */
 export const DEFAULT_CATEGORY_COLORS = [
-  '#4a4a4a', // Dark gray
-  '#737373', // Medium dark gray
-  '#9c9c9c', // Medium light gray
-  '#c5c5c5', // Light gray
+  '#5b6375', // Slate dark
+  '#7d8597', // Slate medium dark
+  '#a3abb8', // Slate medium light
+  '#c8cee0', // Slate light
 ] as const
 
 /**

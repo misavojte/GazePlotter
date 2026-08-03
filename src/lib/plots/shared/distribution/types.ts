@@ -9,7 +9,7 @@ import type { AdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
  * Deliberately category-agnostic — a slot is an AOI on the AOI Comparison and
  * an eye-movement type on the Eye-movement Comparison. Nothing here names
  * either entity, and nothing names the mark: the marks are the renderers'
- * concern (`drawBeeswarmPoints`, `drawBoxplotOverlay`, `drawProportionalBars`).
+ * concern (`drawSwarmPoints`, `drawStatisticalOverlay`, `drawProportionalBars`).
  */
 
 // --- Which statistic the overlay draws on top of the swarm ---

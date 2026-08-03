@@ -223,6 +223,18 @@ export interface UsePlotOptions<THit = unknown> {
   // ---- axis chrome (drawPlotArea + axis titles) ----
   axes?: () => FrameAxes
 
+  /**
+   * Marks that belong ON TOP of the axis chrome. `drawPlotArea` strokes a border
+   * around the data rect as its last step, so anything drawn in `drawData` that
+   * touches the rect's edge gets that border painted across it — a dot sitting on
+   * the axis maximum comes out sliced in half. Draw such marks here instead.
+   *
+   * Still part of the cached data layer, so hover repaints blit it back like any
+   * other mark. This is NOT the hover layer: that is `drawOverlay`, which reruns
+   * every pointer frame. Never clipped by the harness; clip inside if you need it.
+   */
+  drawAboveAxes?: (ctx: CanvasRenderingContext2D, frame: PlotFrame) => void
+
   // ---- hover overlay, drawn unclipped on top of the chrome ----
   drawOverlay?: (ctx: CanvasRenderingContext2D, frame: PlotFrame) => void
 
@@ -713,9 +725,12 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
         drawYAxisMainLabel(ctx, axes.left.title, r.x, r.y, r.height, resolved.leftTitleOffset)
     }
 
-    // Snapshot the data layer (data + axes, no overlay) so overlay-only repaints
-    // can blit it back. Captures device pixels, so the active dpr transform is
-    // irrelevant to the copy.
+    // Marks that must sit over the axis border rather than be sliced by it.
+    options.drawAboveAxes?.(ctx, f)
+
+    // Snapshot the data layer (data + axes + above-axes marks, no overlay) so
+    // overlay-only repaints can blit it back. Captures device pixels, so the
+    // active dpr transform is irrelevant to the copy.
     if (options.drawOverlay) captureDataLayer()
 
     options.drawOverlay?.(ctx, f)

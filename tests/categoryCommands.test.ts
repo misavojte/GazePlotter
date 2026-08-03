@@ -10,9 +10,8 @@ import { groupCategoriesByDisplayedName } from '$lib/plots/scarf/core/transforme
 const engineMocks = vi.hoisted(() => ({
   updateCategories: vi.fn(),
   getDefaultCategoryColor: (index: number) => {
-    const pal = ['#4a4a4a', '#737373', '#9c9c9c', '#c5c5c5']
-    const palIndex = index > 0 ? index - 1 : 0
-    return pal[palIndex % pal.length]
+    const pal = ['#5b6375', '#7d8597', '#a3abb8', '#c8cee0']
+    return pal[index % pal.length]
   }
 }))
 
@@ -122,9 +121,9 @@ describe('categoryCommands', () => {
     expect(reversed?.type).toBe('updateCategories')
     if (reversed && reversed.type === 'updateCategories') {
       expect(reversed.categories).toEqual([
-        { id: 0, originalName: 'Fixation', displayedName: 'Fixation', color: '#4a4a4a' },
-        { id: 1, originalName: 'Saccade', displayedName: 'Saccade', color: '#4a4a4a' },
-        { id: 2, originalName: 'Blink', displayedName: 'Blink', color: '#737373' },
+        { id: 0, originalName: 'Fixation', displayedName: 'Fixation', color: '#5b6375' },
+        { id: 1, originalName: 'Saccade', displayedName: 'Saccade', color: '#7d8597' },
+        { id: 2, originalName: 'Blink', displayedName: 'Blink', color: '#a3abb8' },
       ])
     }
   })
