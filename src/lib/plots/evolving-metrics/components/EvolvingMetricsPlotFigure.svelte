@@ -9,6 +9,8 @@
     usePlot,
     NO_MARGINS,
     canvasBlockSelect,
+    participantIndexAxisWidth,
+    PLOT_EDGE_PAD_TOP,
     type CanvasExportProps,
     type PlotFrame,
     type FrameHit,
@@ -46,7 +48,6 @@
   import { rasterizeOverlayDensity, packOverlayDensity } from '../core/overlayDensity'
   import type { EvolvingMetricsResult, EvolvingMetricsWindow } from '../types'
 
-  const COMPACT_LEFT_MARGIN = 55
   const OVERLAY_SUMMARY_RGB = '205, 20, 4'
   const OVERLAY_SUMMARY_COLOR = `rgb(${OVERLAY_SUMMARY_RGB})`
   const OVERLAY_BAND_ALPHA = 0.12
@@ -115,7 +116,7 @@
   // (frame.height ← gutters.left ← isCompact ← probeHeight). LOAD-BEARING: do not
   // switch this to frame.height or the $derived graph cycles / settles stale.
   const probeHeight = $derived.by(() =>
-    Math.max(0, plot.plotAreaHeight - MARGIN.TOP - bottomReserveEstimate)
+    Math.max(0, plot.plotAreaHeight - PLOT_EDGE_PAD_TOP - bottomReserveEstimate)
   )
   const COMPACT_THRESHOLD = AXIS_CONFIG.fontSize + 2
   const isCompact = $derived(
@@ -178,14 +179,14 @@
     // ticks at fixed offsets, so there's no measured title to reserve against.
     gutters: () => {
       const pad: { top: number; right: number; left?: number } = {
-        top: MARGIN.TOP,
+        top: PLOT_EDGE_PAD_TOP,
         right: MARGIN.RIGHT,
       }
       let left: { title?: string; tickLabels?: string[] } | undefined
       if (alignment === 'overlay') {
         left = { title: data.yAxisLabel, tickLabels: yTicks?.labels ?? [] }
       } else if (isCompact) {
-        pad.left = COMPACT_LEFT_MARGIN
+        pad.left = participantIndexAxisWidth()
       } else {
         left = { tickLabels: participantLabels }
       }

@@ -21,6 +21,7 @@
     GRIDLINE_SECONDARY,
     GRIDLINE_PRIMARY,
     FONT_PRIMARY,
+    PLOT_EDGE_PAD_TOP,
     PLOT_LEGEND_GAP,
   } from '$lib/plots/shared/const'
   import {
@@ -230,7 +231,7 @@
     gutters: () => ({
       left: leftEdge,
       bottom: { title: X_AXIS_LABEL, tickLabels: xAxisTicks.labels ?? [] },
-      pad: { top: MARGIN.TOP, right: effectiveRightMargin },
+      pad: { top: PLOT_EDGE_PAD_TOP, right: effectiveRightMargin },
       legendHeight: legendHeight > 0 ? PLOT_LEGEND_GAP + legendHeight : 0,
     }),
     clipData: false,

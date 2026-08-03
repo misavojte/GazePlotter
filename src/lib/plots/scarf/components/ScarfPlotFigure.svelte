@@ -8,15 +8,12 @@
     computeGroupedLegendGeometry,
     drawLegend,
     drawLegendGroupTitles,
-    drawPlotArea,
-    drawXAxisLabel,
     hitTestLegend,
     niceTimelineTicks,
     SCARF_LEGEND_CONFIG,
     usePlot,
     NO_MARGINS,
     canvasBlockSelect,
-    FONT_PRIMARY,
     type BlockedRegion,
     type CanvasExportProps,
     type FrameHit,
@@ -25,20 +22,18 @@
     type LegendGeometry,
     type LegendGroup,
     type LegendItemGeometry,
-    getXAxisHeight,
-    getXAxisLabelOffset,
-    maxAxisTitleHeight,
+    type PlotFrame,
+    type FrameGutters,
+    type PlotPlaceholderContent,
     PLOT_LEGEND_GAP,
     cannotFitPlaceholder,
+    resolveFrameLayout,
   } from '$lib/plots/shared'
   import { onDestroy } from 'svelte'
-  import { measureTextHeight } from '$lib/shared/utils/textUtils'
   import { SCARF_LAYOUT } from '../const'
   import { FIXATION_CATEGORY_ID } from '$lib/data/types'
   import { SEGMENT_STRIDE, SegmentField } from '$lib/data/binary/schema'
   import {
-    calculateEffectiveMarginTop,
-    calculateIntrinsicContentHeight,
     calculateIsCompactMode,
     calculateLegendStructuralHeight,
     calculateLeftLabelWidth,
@@ -47,6 +42,7 @@
     calculatePlotLayout,
     getScarfIdentifierSystem,
     getXAxisLabel,
+    scarfFrameGutters,
   } from '../core/layout'
   import {
     calculateHighlightMask,
@@ -92,9 +88,6 @@
     margins = NO_MARGINS,
   }: Props = $props()
 
-  const INTERNAL_PADDING_TOP = 6
-  const INTERNAL_PADDING_BOTTOM = 0
-
   const isOverlayMode = $derived(data.isOverlay)
 
   const xAxisLabel = $derived(
@@ -109,42 +102,46 @@
   const legendHeight = $derived(
     calculateLegendStructuralHeight(data.legendData?.groups ?? [], width)
   )
+  /** Legend block reserved at the bottom, gap folded in (the resolver abuts the
+   *  block straight to the x-axis gutter). */
+  const legendSpace = $derived(legendHeight > 0 ? PLOT_LEGEND_GAP + legendHeight : 0)
 
-  const tickLabelHeight = $derived.by(() => {
-    let maxHeight = 0
-    const ticks = niceTimelineTicks(data.timeline).labels || []
-    for (const t of ticks) {
-      const h = measureTextHeight(t, FONT_PRIMARY.SIZE, FONT_PRIMARY.FAMILY)
-      if (h > maxHeight) maxHeight = h
-    }
-    return maxHeight
-  })
-  // Reserve the worst-case (2-line) x-title height — the plot width the title
-  // wraps to depends on the left-label width, which depends (via compact mode →
-  // plot height → bottom margin) back on this height, so it can't be wrapped
-  // exactly here without a cycle. The draw still wraps to the real width.
-  const axisTitleHeight = $derived(xAxisLabel ? maxAxisTitleHeight(FONT_PRIMARY.SIZE) : 0)
-  const xAxisHeight = $derived(
-    xAxisLabel ? getXAxisHeight(tickLabelHeight, axisTitleHeight, 10) : 10 + tickLabelHeight
-  )
-  const xAxisLabelOffset = $derived(getXAxisLabelOffset(tickLabelHeight, 10))
+  const xAxisTicks = $derived(niceTimelineTicks(data.timeline))
 
-  const fixedOverheadAbove = $derived(margins.top + INTERNAL_PADDING_TOP)
-  const fixedOverheadBelow = $derived.by(() => {
-    const legendSpace = legendHeight > 0 ? PLOT_LEGEND_GAP + legendHeight : 0
-    return xAxisHeight + legendSpace + margins.bottom + INTERNAL_PADDING_BOTTOM
+  const guttersFor = (leftLabelWidth: number): FrameGutters =>
+    scarfFrameGutters({
+      tickLabels: xAxisTicks.labels ?? [],
+      axisTitle: xAxisLabel,
+      leftLabelWidth,
+      legendSpace,
+    })
+
+  // ── The row band: the ONE height the scarf's layout reads ──
+  // It cannot be `plot.frame.height`, because compact mode decides the left label
+  // gutter and would close a loop: pad.left ← isCompact ← row band ← bottom
+  // gutter ← the plot width the resolver wraps the axis title to ← pad.left.
+  // So the band asks the SAME resolver over the same declaration, with the left
+  // inset pinned at its cap: independent of compact mode, and the narrowest plot
+  // the scarf can have, so the title wraps to its tallest and the band is never
+  // taller than the frame the figure ends up drawing in.
+  // LOAD-BEARING: reading frame.height here cycles the derived graph.
+  const rowBandHeight = $derived.by(() => {
+    const { rect } = resolveFrameLayout(guttersFor(SCARF_LAYOUT.LEFT_LABEL_MAX_WIDTH), {
+      left: 0,
+      top: 0,
+      right: plot.plotAreaWidth,
+      bottom: plot.plotAreaHeight,
+    })
+    return Math.max(1, rect.height)
   })
-  const netAvailableHeight = $derived(
-    Math.max(1, height - fixedOverheadAbove - fixedOverheadBelow)
-  )
 
   const layout = $derived.by(() => {
     const count = data.participants.length
     if (isOverlayMode) {
-      return calculateOverlayLayout(count, data.eventZoneConcurrency ?? 0, netAvailableHeight)
+      return calculateOverlayLayout(count, data.eventZoneConcurrency ?? 0, rowBandHeight)
     }
-    const compact = calculateIsCompactMode(count, netAvailableHeight)
-    const base = calculatePlotLayout(count, netAvailableHeight, compact)
+    const compact = calculateIsCompactMode(count, rowBandHeight)
+    const base = calculatePlotLayout(count, rowBandHeight, compact)
     return {
       ...base,
       eventLaneHeight: 0,
@@ -159,42 +156,42 @@
   )
   const LEFT_LABEL_WIDTH = $derived(calculateLeftLabelWidth(isCompactMode, participantLabels))
 
-  const plotAreaWidth = $derived(
-    Math.max(
-      0,
-      width - margins.left - margins.right - LEFT_LABEL_WIDTH - SCARF_LAYOUT.RIGHT_MARGIN
-    )
-  )
-
   const participantBarsHeight = $derived(
     data.participants.length * layout.heightOfBarWrap
-  )
-  const legendY = $derived(
-    participantBarsHeight + xAxisHeight + (legendHeight > 0 ? PLOT_LEGEND_GAP : 0)
   )
 
   /** Harness hover payload: crosshair row + mouse x (canvas px). */
   type ScarfHover = { row: number; x: number }
-
-  // Pointer/drag scratch (not reactive — read only inside pointer callbacks)
-  let canDrag = false
-  let dragActive = false
-  let lastDragX = 0
 
   const plot = usePlot<ScarfHover>({
     width: () => width,
     height: () => height,
     margins: () => margins,
     dpiOverride: () => dpiOverride,
+    // Every input to the resolved frame and to `plotTop` is already listed here
+    // (they derive from data/settings and the canvas box), so neither is a dep in
+    // its own right — and referencing one would make `plot`'s options depend on
+    // `plot`'s own type.
     deps: () => [
       data, settings, highlights,
       width, height, dpiOverride,
-      margins.left, margins.right, effectiveMarginTop, margins.bottom,
+      margins.top, margins.right, margins.bottom, margins.left,
     ],
-    // Scarf owns its layout (gutters are scaffold-only), so the fit verdict is
-    // computed against its own layout math rather than the resolved frame.
-    fit: () => placeholderMessage,
-    gutters: () => ({}),
+    // The verdict is about the row band (see `rowBandHeight`), which the scarf
+    // measures itself to keep the left gutter out of a cycle — hence the unused
+    // frame argument. It is still a fit guard, not a data placeholder: it turns
+    // on and off with the canvas size.
+    fit: (): PlotPlaceholderContent | null => placeholderMessage,
+    // Same declaration the row band probes, with the real label column: so
+    // `frame.x`/`frame.width` ARE the scarf's plot columns, and the resolver owns
+    // the x-axis gutter and the legend block. Only the vertical placement stays
+    // scarf-owned (see `plotTop`).
+    // (Return type annotated: the declaration reads values that derive from the
+    // handle's own geometry, so inferring it would chase `plot` through itself.)
+    gutters: (): FrameGutters => guttersFor(LEFT_LABEL_WIDTH),
+    axes: () => ({
+      bottom: { title: xAxisLabel, ticks: xAxisTicks },
+    }),
     clipData: false,
     drawData: renderScarf,
     drawOverlay: drawScarfOverlay,
@@ -204,7 +201,7 @@
       highlights: () => highlights,
     },
     hitTest: plotHitTest,
-    blockedRegions: () => blockedRegions,
+    blockedRegions: (): BlockedRegion[] => blockedRegions,
     pointer: {
       onDown: handlePointerDown,
       onDrag: handlePointerDrag,
@@ -217,17 +214,10 @@
     mapDataToLegendGroups(data.legendData?.groups ?? [])
   )
 
-  const intrinsicContentHeight = $derived(
-    calculateIntrinsicContentHeight(
-      legendHeight, legendY, xAxisHeight, participantBarsHeight, INTERNAL_PADDING_BOTTOM
-    )
-  )
-
-  const effectiveMarginTop = $derived(
-    calculateEffectiveMarginTop(
-      height, intrinsicContentHeight, margins.top, margins.bottom, INTERNAL_PADDING_TOP
-    )
-  )
+  // ── Vertical placement ──
+  // Top-anchored at frame.y matching standard row/heatmap visualizations.
+  const plotTop = $derived(plot.frame.y)
+  const legendTop = $derived(plot.frame.legendY + PLOT_LEGEND_GAP)
 
   const legendGeometry: LegendGeometry = $derived.by(() => {
     if (legendGroups.length === 0) {
@@ -237,17 +227,19 @@
       legendGroups,
       SCARF_LEGEND_CONFIG,
       margins.left,
-      legendY + effectiveMarginTop,
+      legendTop,
       width
     )
   })
 
-  // The legend items' blocked rects come from the harness legend band.
+  // The rows, not the frame's full band — the harness default would block the
+  // centring slack too. The legend items' blocked rects come from the harness
+  // legend band.
   const blockedRegions = $derived.by<BlockedRegion[]>(() => [
     {
-      x: LEFT_LABEL_WIDTH + margins.left,
-      y: effectiveMarginTop,
-      w: plotAreaWidth,
+      x: plot.frame.x,
+      y: plotTop,
+      w: plot.frame.width,
       h: participantBarsHeight,
     },
   ])
@@ -288,12 +280,12 @@
     const count = data.participants.length
     if (isOverlayMode) {
       const minPitch = calculateOverlayMinRowPitch(data.eventZoneConcurrency ?? 0)
-      return netAvailableHeight >= Math.max(count * minPitch, SCARF_LAYOUT.MIN_PLOT_HEIGHT_COMPACT)
+      return rowBandHeight >= Math.max(count * minPitch, SCARF_LAYOUT.MIN_PLOT_HEIGHT_COMPACT)
     }
     const minPlotHeight = isCompactMode
       ? Math.max(count * SCARF_LAYOUT.MIN_BAR_HEIGHT, SCARF_LAYOUT.MIN_PLOT_HEIGHT_COMPACT)
       : SCARF_LAYOUT.MIN_PLOT_HEIGHT_COMPACT
-    return netAvailableHeight >= minPlotHeight
+    return rowBandHeight >= minPlotHeight
   })
 
   const placeholderMessage = $derived.by(() => {
@@ -327,10 +319,7 @@
   const rectStyleArray = $derived(styleArrays.rectStyles)
   const eventStyleArray = $derived(styleArrays.eventStyles)
 
-  function renderScarf(ctx: CanvasRenderingContext2D) {
-    const scarfPlotLeft = Math.floor(LEFT_LABEL_WIDTH + margins.left)
-    const scarfPlotWidth = Math.floor(plotAreaWidth)
-
+  function renderScarf(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
     const renderCtx: ScarfLayoutContext = {
       heightOfBar: layout.heightOfBar,
       spaceAboveRect: layout.spaceAboveRect,
@@ -338,12 +327,10 @@
       heightOfBarWrap: layout.heightOfBarWrap,
       scaleFactor: layout.scaleFactor,
       isCompact: layout.isCompact,
-      leftLabelWidth: LEFT_LABEL_WIDTH,
-      plotAreaWidth,
-      effectiveMarginTop,
+      plotLeft: frame.x,
+      plotWidth: frame.width,
+      plotTop,
       participantBarsHeight,
-      totalWidth: width,
-      marginLeft: margins.left,
       eventLaneHeight: layout.eventLaneHeight,
       eventZoneHeight: layout.eventZoneHeight,
       eventBandTop: layout.eventBandTop,
@@ -368,19 +355,6 @@
       highlightMask: highlightMaskByIndex,
     })
 
-    const scarfXTicks = niceTimelineTicks(data.timeline)
-    drawPlotArea(ctx, {
-      x: scarfPlotLeft,
-      y: effectiveMarginTop,
-      width: scarfPlotWidth,
-      height: participantBarsHeight,
-      ticks: { bottom: scarfXTicks, top: { positions: scarfXTicks.positions } },
-    })
-    drawXAxisLabel(
-      ctx, xAxisLabel, scarfPlotLeft, scarfPlotWidth,
-      participantBarsHeight + effectiveMarginTop, xAxisLabelOffset
-    )
-
     drawLegendGroupTitles(ctx, legendGeometry, SCARF_LEGEND_CONFIG)
     drawLegend(ctx, legendGeometry, SCARF_LEGEND_CONFIG, highlights)
   }
@@ -388,15 +362,15 @@
   // Overlay layer: only the hover crosshair, driven by the harness-owned
   // hover payload. Drawn on top of the cached data layer so mouse-moves
   // repaint via blit instead of re-running renderScarf.
-  function drawScarfOverlay(ctx: CanvasRenderingContext2D) {
+  function drawScarfOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
     const hover = plot.hover.data
     if (!hover) return
     drawCrosshairHighlight(
       ctx,
       hover,
-      Math.floor(LEFT_LABEL_WIDTH + margins.left),
-      effectiveMarginTop,
-      Math.floor(plotAreaWidth),
+      frame.x,
+      plotTop,
+      frame.width,
       participantBarsHeight,
       layout.heightOfBarWrap
     )
@@ -424,24 +398,27 @@
     return hitTestLegend(legendGeometry, SCARF_LEGEND_CONFIG, mouseX, mouseY)
   }
 
+  // The rows, not the frame's band: the harness gate (the frame rect) also covers
+  // the centring slack above and below them, and the pointer handlers aren't
+  // gated at all.
   function inPlotArea(mx: number, my: number): boolean {
     return (
-      mx >= LEFT_LABEL_WIDTH + margins.left &&
-      mx <= LEFT_LABEL_WIDTH + plotAreaWidth + margins.left &&
-      my >= effectiveMarginTop &&
-      my <= participantBarsHeight + effectiveMarginTop
+      mx >= plot.frame.x &&
+      mx <= plot.frame.right &&
+      my >= plotTop &&
+      my <= plotTop + participantBarsHeight
     )
   }
 
   // ── Hover (harness hitTest contract; the legend band is harness-owned —
   // it attaches no `data`, so a legend hover clears the crosshair) ──
-  function plotHitTest(mx: number, my: number): FrameHit<ScarfHover> | null {
+  function plotHitTest(mx: number, my: number, frame: PlotFrame): FrameHit<ScarfHover> | null {
     if (!inPlotArea(mx, my)) return null
     const rowHeight = layout.heightOfBarWrap
-    const row = Math.floor((my - effectiveMarginTop) / rowHeight)
+    const row = Math.floor((my - plotTop) / rowHeight)
     if (row < 0 || row >= data.participants.length) return null
 
-    const seg = findSegmentAtRowAndTime(row, mx)
+    const seg = findSegmentAtRowAndTime(row, mx, frame)
     if (!seg) {
       // Track-only hit: crosshair follows the mouse, no tooltip.
       return {
@@ -453,13 +430,11 @@
       }
     }
 
-    const floorLeft = Math.floor(LEFT_LABEL_WIDTH + margins.left)
-    const floorWidth = Math.floor(plotAreaWidth)
     return {
       tooltipId: 'scarf-segment-tooltip',
       content: getTooltipContent(seg.participantId as number, seg.orderId),
-      anchorX: floorLeft + (seg.x + seg.width) * floorWidth,
-      anchorY: seg.y * rowHeight + rowHeight + effectiveMarginTop,
+      anchorX: frame.x + (seg.x + seg.width) * frame.width,
+      anchorY: seg.y * rowHeight + rowHeight + plotTop,
       tooltipWidth: SCARF_LAYOUT.TOOLTIP_WIDTH,
       data: { row, x: mx },
     }
@@ -468,41 +443,25 @@
   // ── Pointer / drag (via the frame's generic pointer lifecycle) ──
   function handlePointerDown(p: FramePointer) {
     const item = isMouseOverLegendItem(p.x, p.y)
-    if (item) {
-      onLegendClick(item.identifier)
-      canDrag = false
-      return
-    }
-    canDrag = inPlotArea(p.x, p.y)
-    dragActive = false
-    lastDragX = p.x
+    if (item) onLegendClick(item.identifier)
   }
 
   function handlePointerDrag(d: FrameDrag) {
-    if (!canDrag) return
-    if (isMouseOverLegendItem(d.x, d.y)) {
-      canDrag = false
-      return
-    }
-    const inc = d.x - lastDragX
-    if (Math.abs(inc) > 1) {
-      dragActive = true
-      onDragStepX(inc, width)
-      lastDragX = d.x
+    if (!inPlotArea(d.startX, d.startY)) return
+    if (Math.abs(d.dx) > 0.5) {
+      onDragStepX(d.dx, width)
     }
   }
 
-  function handlePointerUp(_p: FramePointer & { dragged: boolean }) {
-    if (dragActive) onDragEnd()
-    canDrag = false
-    dragActive = false
+  function handlePointerUp(p: FramePointer & { dragged: boolean }) {
+    if (p.dragged) onDragEnd()
   }
 
-  function findSegmentAtRowAndTime(rowIndex: number, mouseX: number) {
+  function findSegmentAtRowAndTime(rowIndex: number, mouseX: number, frame: PlotFrame) {
     const { indexToId } = identifierSystem
     const scale = layout.scaleFactor
-    const floorLeft = Math.floor(LEFT_LABEL_WIDTH + margins.left)
-    const floorWidth = Math.floor(plotAreaWidth)
+    const floorLeft = frame.x
+    const floorWidth = frame.width
 
     // Scan the row's binary segments directly (no rect buckets), resolving
     // AOI/category inline. Segments in a row are time-disjoint, so at most one

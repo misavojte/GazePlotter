@@ -28,12 +28,17 @@ export interface ScarfLayoutContext {
   heightOfBarWrap: number
   scaleFactor: number
   isCompact: boolean
-  leftLabelWidth: number
-  plotAreaWidth: number
-  effectiveMarginTop: number
+  /**
+   * The data rect in absolute canvas px, floored. `plotLeft`/`plotWidth` come
+   * straight from the harness frame (the left label gutter and right margin are
+   * declared as frame padding). `plotTop` and `participantBarsHeight` are
+   * scarf-owned: the rect is quantized to whole participant rows and centred in
+   * the band the frame resolved, so it is shorter than `frame.height`.
+   */
+  plotLeft: number
+  plotWidth: number
+  plotTop: number
   participantBarsHeight: number
-  totalWidth: number
-  marginLeft: number
   /** Combined-mode: height of one event lane (strip slot). 0 otherwise. */
   eventLaneHeight: number
   /** Combined-mode: total event-band height = lanes × eventLaneHeight (every
@@ -62,7 +67,7 @@ export function drawScarfLabels(
 ) {
   const { participants } = data
   const len = participants.length
-  const leftX = Math.floor(layout.leftLabelWidth + layout.marginLeft)
+  const leftX = layout.plotLeft
 
   ctx.font = `${FONT_PRIMARY.SIZE}px ${FONT_PRIMARY.FAMILY}`
   ctx.textAlign = 'center'
@@ -71,7 +76,7 @@ export function drawScarfLabels(
 
   if (layout.isCompact) {
     drawParticipantIndexAxis(
-      ctx, len, leftX, layout.effectiveMarginTop, layout.heightOfBarWrap
+      ctx, len, leftX, layout.plotTop, layout.heightOfBarWrap
     )
   } else {
     ctx.textAlign = 'end'
@@ -80,9 +85,7 @@ export function drawScarfLabels(
       ctx.fillText(
         participants[i].label,
         xPos,
-        i * layout.heightOfBarWrap +
-          layout.heightOfBarWrap / 2 +
-          layout.effectiveMarginTop
+        i * layout.heightOfBarWrap + layout.heightOfBarWrap / 2 + layout.plotTop
       )
     }
   }
@@ -96,12 +99,10 @@ export function drawScarfGrid(
   data: ScarfData,
   layout: ScarfLayoutContext
 ) {
-  const leftX = Math.floor(layout.leftLabelWidth + layout.marginLeft)
-  const rightX = leftX + Math.floor(layout.plotAreaWidth)
-  const yTop = Math.floor(layout.effectiveMarginTop)
-  const yBottom = Math.floor(
-    layout.participantBarsHeight + layout.effectiveMarginTop
-  )
+  const leftX = layout.plotLeft
+  const rightX = leftX + layout.plotWidth
+  const yTop = layout.plotTop
+  const yBottom = Math.floor(layout.plotTop + layout.participantBarsHeight)
 
   // Vertical axis lines
   ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
@@ -117,9 +118,7 @@ export function drawScarfGrid(
     const step = calculateTickStep(data.participants.length)
     for (let i = 0; i < data.participants.length; i += step) {
       const y = alignToPixelCenter(
-        i * layout.heightOfBarWrap +
-          layout.heightOfBarWrap / 2 +
-          layout.effectiveMarginTop
+        i * layout.heightOfBarWrap + layout.heightOfBarWrap / 2 + layout.plotTop
       )
       ctx.beginPath()
       ctx.moveTo(leftX + 0.5, y)
@@ -133,9 +132,7 @@ export function drawScarfGrid(
     ctx.strokeStyle = GRIDLINE_SECONDARY.COLOR
     ctx.lineWidth = GRIDLINE_SECONDARY.WIDTH
     for (let i = 0; i <= data.participants.length; i++) {
-      const y = alignToPixelCenter(
-        i * layout.heightOfBarWrap + layout.effectiveMarginTop
-      )
+      const y = alignToPixelCenter(i * layout.heightOfBarWrap + layout.plotTop)
       ctx.beginPath()
       ctx.moveTo(leftX + 0.5, y)
       ctx.lineTo(rightX + 0.5, y)
@@ -481,11 +478,11 @@ function paintGazeRects(
   styleArray: ScarfRectStyle[],
   highlightMask: Uint8Array | null
 ) {
-  const pLeft = Math.floor(layout.leftLabelWidth + layout.marginLeft)
-  const pWidth = Math.floor(layout.plotAreaWidth)
+  const pLeft = layout.plotLeft
+  const pWidth = layout.plotWidth
   if (pWidth <= 0) return
   const rows = data.participants.length
-  const top = layout.effectiveMarginTop
+  const top = layout.plotTop
   const pitch = layout.heightOfBarWrap
   const barTop = layout.spaceAboveRect
   const barH = layout.heightOfBar
@@ -668,13 +665,13 @@ function paintEventStrips(
   if (layout.eventLaneHeight <= 0 || buckets.length === 0) return
 
   const isHighlightActive = highlightMask !== null
-  const pLeft = Math.floor(layout.leftLabelWidth + layout.marginLeft)
-  const pWidth = Math.floor(layout.plotAreaWidth)
+  const pLeft = layout.plotLeft
+  const pWidth = layout.plotWidth
   const pRight = pLeft + pWidth
   const laneH = layout.eventLaneHeight
   const bandTop = layout.eventBandTop
   const pitch = layout.heightOfBarWrap
-  const top = layout.effectiveMarginTop
+  const top = layout.plotTop
   const stripGap = layout.isCompact ? 0 : SCARF_LAYOUT.EVENT_LANE_GAP
   const stripH = Math.max(1, laneH - stripGap)
   const minInterval = SCARF_LAYOUT.MIN_INTERVAL_PX
@@ -970,11 +967,11 @@ export function drawScarfHighlightMarkers(
   const { highlightMask } = opts
   if (highlightMask === null) return
 
-  const pLeft = Math.floor(layout.leftLabelWidth + layout.marginLeft)
-  const pWidth = Math.floor(layout.plotAreaWidth)
+  const pLeft = layout.plotLeft
+  const pWidth = layout.plotWidth
   if (pWidth <= 0) return
   const rows = data.participants.length
-  const top = layout.effectiveMarginTop
+  const top = layout.plotTop
   const pitch = layout.heightOfBarWrap
   const barH = layout.heightOfBar
   if (rows <= 0 || barH <= 0) return

@@ -178,8 +178,14 @@ export interface FramePointer {
 export interface FrameDrag extends FramePointer {
   startX: number
   startY: number
+  /** Incremental delta (px) since the previous drag event. */
   dx: number
+  /** Incremental delta (px) since the previous drag event. */
   dy: number
+  /** Total cumulative delta (px) since drag start. */
+  totalDx: number
+  /** Total cumulative delta (px) since drag start. */
+  totalDy: number
 }
 
 export interface FramePointerHandlers {
@@ -991,15 +997,19 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
       teardownDrag()
       const start = scaled(e)
       let started = false
+      let lastX = start.x
+      let lastY = start.y
       const threshold = pointer.dragThreshold ?? 5
       pointer.onDown?.({ x: start.x, y: start.y, isOver: true, buttons: e.buttons })
 
       winMove = (ev: MouseEvent) => {
         const p = scaled(ev)
-        const dx = p.x - start.x
-        const dy = p.y - start.y
-        if (!started && Math.hypot(dx, dy) >= threshold) started = true
-        if (started)
+        const totalDx = p.x - start.x
+        const totalDy = p.y - start.y
+        const dx = p.x - lastX
+        const dy = p.y - lastY
+        if (!started && Math.hypot(totalDx, totalDy) >= threshold) started = true
+        if (started) {
           pointer.onDrag?.({
             x: p.x,
             y: p.y,
@@ -1007,9 +1017,14 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
             startY: start.y,
             dx,
             dy,
+            totalDx,
+            totalDy,
             isOver: true,
             buttons: ev.buttons,
           })
+          lastX = p.x
+          lastY = p.y
+        }
       }
       winUp = (ev: MouseEvent) => {
         const p = scaled(ev)

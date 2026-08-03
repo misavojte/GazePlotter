@@ -1,9 +1,17 @@
 import { describe, expect, test } from 'vitest'
 import {
+  calculateLeftLabelWidth,
   calculateOverlayLayout,
   calculateOverlayMinRowPitch,
+  scarfFrameGutters,
   SCARF_LAYOUT,
 } from '$lib/plots/scarf'
+import { resolveFrameLayout } from '$lib/plots/shared/usePlot.svelte'
+import {
+  axisTitleLineHeight,
+  participantIndexAxisWidth,
+  PLOT_LEGEND_GAP,
+} from '$lib/plots/shared'
 
 describe('calculateOverlayLayout (combined mode: AOI top-anchored, events hang below)', () => {
   test('event band hangs below the seam across a whitespace gap', () => {
@@ -44,6 +52,83 @@ describe('calculateOverlayLayout (combined mode: AOI top-anchored, events hang b
     const l = calculateOverlayLayout(10, 0, 400)
     expect(l.eventZoneHeight).toBe(0)
     expect(l.eventLaneHeight).toBe(0)
+  })
+})
+
+/**
+ * The scarf takes x/width from the harness frame but keeps its own vertical
+ * placement, so it measures its row band by resolving its OWN declaration with
+ * the left inset pinned at its cap. These pin that seam: the probe must never
+ * hand back more height than the frame the figure actually draws in, or the rows
+ * would overrun the axis they are centred above.
+ */
+describe('scarf row band vs the resolved frame', () => {
+  const H = 400
+  const W = 900
+  const bounds = { left: 0, top: 0, right: W, bottom: H }
+
+  const resolveWith = (leftLabelWidth: number, title: string, legendSpace: number) =>
+    resolveFrameLayout(
+      scarfFrameGutters({
+        tickLabels: ['0', '2500', '5000'],
+        axisTitle: title,
+        leftLabelWidth,
+        legendSpace,
+      }),
+      bounds
+    )
+
+  /** What the figure computes as `rowBandHeight`. */
+  const rowBand = (title: string, legendSpace: number) =>
+    resolveWith(SCARF_LAYOUT.LEFT_LABEL_MAX_WIDTH, title, legendSpace).rect.height
+
+  const TITLES = {
+    short: 'Elapsed time / ms',
+    long: 'Elapsed time / % · [t = 1200 ms … 8400 ms]',
+    none: '',
+  }
+  /** Every label column the scarf can ask for: compact, a measured name, the cap. */
+  const LEFT_WIDTHS = [
+    participantIndexAxisWidth(),
+    calculateLeftLabelWidth(false, ['P1', 'P2']),
+    SCARF_LAYOUT.LEFT_LABEL_MAX_WIDTH,
+  ]
+
+  for (const [name, title] of Object.entries(TITLES)) {
+    for (const legendSpace of [0, PLOT_LEGEND_GAP + 64]) {
+      test(`band fits every label column (${name} title, legend ${legendSpace})`, () => {
+        const band = rowBand(title, legendSpace)
+        for (const left of LEFT_WIDTHS) {
+          const { rect } = resolveWith(left, title, legendSpace)
+          expect(band).toBeLessThanOrEqual(rect.height)
+          // The only way the real frame can be taller is the title wrapping to
+          // fewer lines in a wider plot, which is bounded by one line.
+          expect(rect.height - band).toBeLessThanOrEqual(axisTitleLineHeight())
+        }
+        // At the cap the probe IS the frame: same declaration, same numbers.
+        expect(band).toBe(
+          resolveWith(SCARF_LAYOUT.LEFT_LABEL_MAX_WIDTH, title, legendSpace).rect.height
+        )
+      })
+    }
+  }
+
+  test('the plot columns are the frame rect (label column + right margin are pad)', () => {
+    // A measured label column is fractional; the frame floors to whole pixels.
+    const left = calculateLeftLabelWidth(false, ['P1', 'P2'])
+    const { rect } = resolveWith(left, TITLES.short, 0)
+    expect(rect.x).toBe(Math.floor(left))
+    expect(rect.width).toBe(Math.floor(W - left - SCARF_LAYOUT.RIGHT_MARGIN))
+  })
+
+  test('legendY − bottom IS the axis carve, with or without a legend block', () => {
+    const bare = resolveWith(90, TITLES.short, 0)
+    const withLegend = resolveWith(90, TITLES.short, PLOT_LEGEND_GAP + 64)
+    const axisCarve = bare.rect.legendY - bare.rect.bottom
+    expect(axisCarve).toBeGreaterThan(0)
+    // The scarf reads this gap to place its legend under the centred content, so
+    // the legend block must not change it.
+    expect(withLegend.rect.legendY - withLegend.rect.bottom).toBe(axisCarve)
   })
 })
 

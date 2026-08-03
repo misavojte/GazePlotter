@@ -4,7 +4,14 @@ import { wrapTextToWidth } from '$lib/shared/utils/textUtils'
 /** Max wrapped lines for an axis title before it ellipsises (bounds the gutter). */
 const MAX_AXIS_TITLE_LINES = 2
 
-const axisLineHeight = (fontSize: number) => Math.ceil(fontSize * 1.25)
+/**
+ * Height (px) of ONE line of axis-title text. The single owner of that step:
+ * title draws stack by it, gutter reservations are multiples of it, and callers
+ * that need to reason about "one line more or less" (tests, probes) ask here
+ * instead of restating the number.
+ */
+export const axisTitleLineHeight = (fontSize: number = FONT_PRIMARY.SIZE) =>
+  Math.ceil(fontSize * 1.25)
 
 /**
  * Reserved height (px) for an axis title wrapped to `maxExtent` — the plot WIDTH
@@ -20,7 +27,7 @@ export function measureAxisTitleHeight(
 ): number {
   if (!label) return 0
   const lines = wrapTextToWidth(label, maxExtent, fontSize, fontFamily, MAX_AXIS_TITLE_LINES)
-  return lines.length * axisLineHeight(fontSize)
+  return lines.length * axisTitleLineHeight(fontSize)
 }
 
 /**
@@ -30,7 +37,7 @@ export function measureAxisTitleHeight(
  * plot size); reserving the max is safe and never under-reserves.
  */
 export function maxAxisTitleHeight(fontSize: number = FONT_PRIMARY.SIZE): number {
-  return MAX_AXIS_TITLE_LINES * axisLineHeight(fontSize)
+  return MAX_AXIS_TITLE_LINES * axisTitleLineHeight(fontSize)
 }
 
 interface AxisConfig {
@@ -81,7 +88,7 @@ export function drawXAxisLabel(
   const labelY = plotBottom + offset
 
   const lines = wrapTextToWidth(label, floorWidth, config.fontSize, config.fontFamily, MAX_AXIS_TITLE_LINES)
-  const lineHeight = axisLineHeight(config.fontSize)
+  const lineHeight = axisTitleLineHeight(config.fontSize)
   for (let i = 0; i < lines.length; i++) {
     ctx.fillText(lines[i], labelX + 0.5, labelY + i * lineHeight)
   }
@@ -116,7 +123,7 @@ export function drawYAxisMainLabel(
   // After the −90° rotation, local −y points away from the plot (leftward), so
   // each extra wrapped line sits further into the gutter at −i·lineHeight.
   const lines = wrapTextToWidth(label, Math.floor(plotAreaHeight), config.fontSize, config.fontFamily, MAX_AXIS_TITLE_LINES)
-  const lineHeight = axisLineHeight(config.fontSize)
+  const lineHeight = axisTitleLineHeight(config.fontSize)
   for (let i = 0; i < lines.length; i++) {
     ctx.fillText(lines[i], 0, -i * lineHeight)
   }
@@ -129,6 +136,26 @@ const NICE_STEPS = [5, 10, 20, 25, 50, 100, 200, 500, 1000]
 export function calculateTickStep(count: number): number {
   return NICE_STEPS.find(step => count / step <= 10) ?? 1000
 }
+
+/**
+ * Distance (px) from the plot's left edge to the rotated participant-index
+ * title's baseline. It clears the index tick labels drawn at
+ * {@link INDEX_AXIS_TICK_GAP} plus their own width.
+ */
+const INDEX_AXIS_TITLE_OFFSET = 40
+/** Gap (px) from the plot's left edge to the right-aligned index tick labels. */
+const INDEX_AXIS_TICK_GAP = 8
+
+/**
+ * Left gutter (px) that {@link drawParticipantIndexAxis} needs — the rotated
+ * title's baseline plus the half-block its two lines straddle. Derived from what
+ * the draw actually uses, so a figure reserving room for that axis never has to
+ * guess a width (scarf's compact label column, evolving-metrics' compact
+ * heatmap).
+ */
+export const participantIndexAxisWidth = (
+  fontSize: number = FONT_PRIMARY.SIZE
+): number => INDEX_AXIS_TITLE_OFFSET + Math.ceil(axisTitleLineHeight(fontSize) / 2)
 
 /**
  * Rotated participant-index Y axis for compact participant-row plots (scarf,
@@ -151,15 +178,15 @@ export function drawParticipantIndexAxis(
 
   ctx.save()
   ctx.textAlign = 'center'
-  ctx.translate(plotLeft - 40, plotTop + (count * rowPitch) / 2)
+  ctx.translate(plotLeft - INDEX_AXIS_TITLE_OFFSET, plotTop + (count * rowPitch) / 2)
   ctx.rotate(-Math.PI / 2)
-  const lineHeight = config.fontSize * 1.2
+  const lineHeight = axisTitleLineHeight(config.fontSize)
   ctx.fillText('Participants', 0, -lineHeight / 2)
   ctx.fillText('[order indices]', 0, lineHeight / 2)
   ctx.restore()
 
   ctx.textAlign = 'right'
-  const tickX = plotLeft - 8
+  const tickX = plotLeft - INDEX_AXIS_TICK_GAP
   const step = calculateTickStep(count)
   for (let i = 0; i < count; i += step) {
     ctx.fillText(String(i), tickX, plotTop + i * rowPitch + rowPitch / 2)

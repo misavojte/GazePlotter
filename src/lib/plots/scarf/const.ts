@@ -1,5 +1,3 @@
-import { UI_COLORS } from '$lib/color'
-
 /**
  * Unified constants and identifiers for the Scarf Plot.
  */
@@ -30,29 +28,18 @@ export const SCARF_LAYOUT = {
   HEIGHT_BAR_DEFAULT: 15,
   HEIGHT_NON_FIXATION_DEFAULT: 4,
   SPACE_ABOVE_RECT_DEFAULT: 5,
-  HEIGHT_X_AXIS: 20,
+  // Frame padding past the last timeline tick, declared as `gutters.pad.right`.
+  // Not a clipping reserve — drawPlotArea already clamps the last tick label
+  // inside the border — just breathing room at the end of the timeline. The top
+  // pad is the shared PLOT_EDGE_PAD_TOP; the x-axis and legend reservations that
+  // used to sit here now come from the resolver measuring those edges.
   RIGHT_MARGIN: 8,
 
   // --- Tooltips ---
   TOOLTIP_WIDTH: 150,
-  TOOLTIP_HIDE_DELAY: 200,
 
   // --- Labels and Typography ---
   LEFT_LABEL_MAX_WIDTH: 125,
-  AXIS_LABEL_HEIGHT: 40,
-  LABEL_FONT_SIZE: 12,
-  TICK_LENGTH: 5,
-
-  // --- Styling ---
-  GRID_COLOR: UI_COLORS.GRID_PRIMARY,
-  GRID_STROKE_WIDTH: 1,
-
-  // --- Legend Configuration ---
-  LEGEND_ITEMS_PER_ROW: 3,
-  LEGEND_TITLE_HEIGHT: 18,
-  LEGEND_ITEM_PADDING: 8,
-  LEGEND_GROUP_SPACING: 10,
-  LEGEND_ITEM_SPACING: 15,
 
   // --- Dynamic Scaling & Compact Mode ---
   MAX_BAR_SCALE: 2.0,
