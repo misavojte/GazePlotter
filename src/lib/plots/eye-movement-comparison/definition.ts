@@ -1,27 +1,23 @@
 import { definePlot } from '$lib/plots/definePlot'
-import {
-  pickedInstanceIsProportion as isProportion,
-  stimulusGroupSubtitle,
-} from '$lib/plots/shared'
-import {
-  DIRECTION_OPTIONS,
-  ORIENTATION_OPTIONS,
-  OVERLAY_OPTIONS,
-  overlaySummaryLabel,
-} from '$lib/plots/shared/distribution'
-import { deriveEyeMovementComparisonView } from './core/view'
+import { stimulusGroupSubtitle } from '$lib/plots/shared'
+import { distributionVisualisationSection } from '$lib/plots/shared/distribution/paneSection'
 import { EYE_MOVEMENT_COMPARISON_CONTRACT } from './core/transformer'
+import { deriveEyeMovementComparisonView } from './core/view'
 import type { EyeMovementComparisonSettings } from './types'
 
 /**
- * Per-type comparison of eye-movement metrics (fixations vs saccades vs
- * blinks vs whatever the dataset records), rendered through the shared
- * `BeeswarmFigure`. The Metric section is the SAME library flow every
- * metric plot uses; the contract admits category-vector instances at
- * identity, and the plot draws the instance's whole vector as bars — one per
- * type on the canonical `categoryGroups` axis, narrowed by the per-plot
- * eye-movement-type SELECTION. Single types are a `pick-category` projection
- * concern on scalar plots, never anything this plot configures.
+ * Per-type comparison of eye-movement metrics (fixations vs saccades vs blinks
+ * vs whatever the dataset records), rendered through the shared distribution
+ * layer. The Metric section is the SAME library flow every metric plot uses;
+ * the contract admits category-vector instances at identity, and the plot draws
+ * the instance's whole vector — one distribution per type on the canonical
+ * `categoryGroups` axis, narrowed by the per-plot eye-movement-type SELECTION.
+ * Single types are a `pick-category` projection concern on scalar plots, never
+ * anything this plot configures.
+ *
+ * No `screen` recipe: this plot does not sync its value axis across siblings
+ * today. Its view already carries the meta for it, so opting in is adding
+ * `screen: distributionValueAxisScreen()` and nothing else.
  */
 export const eyeMovementComparisonDefinition = definePlot<
   'eyeMovementComparison',
@@ -34,60 +30,10 @@ export const eyeMovementComparisonDefinition = definePlot<
     'stimulus',
     'group',
     'metric',
-    {
+    distributionVisualisationSection({
       key: 'eyeMovementComparison:visualisation',
-      title: 'Visualisation',
-      fields: [
-        {
-          kind: 'enum',
-          key: 'statisticalOverlay',
-          label: 'Statistical overlay',
-          options: OVERLAY_OPTIONS,
-          // Proportion metrics render as plain bars; the overlay does not
-          // apply — the same shared gate the AOI Comparison uses. No
-          // category-vector metric is proportion-class today (the time SHARE
-          // is intensive, like relativeTime), so this reads as false for
-          // every instance the contract currently admits; it stays because
-          // the rule belongs to the metric's declared class, not to a list of
-          // recipe ids.
-          showWhen: ctx => !isProportion(ctx),
-        },
-        {
-          kind: 'enum',
-          key: 'orientation',
-          label: 'Orientation',
-          options: ORIENTATION_OPTIONS,
-        },
-        {
-          kind: 'enum',
-          key: 'orderBy',
-          label: 'Order by',
-          options: [
-            { label: 'Value', value: 'value' },
-            { label: 'Type order', value: 'type' },
-          ],
-        },
-        {
-          kind: 'enum',
-          key: 'orderDirection',
-          label: 'Direction',
-          options: DIRECTION_OPTIONS,
-        },
-        { kind: 'scaleRange', key: 'scaleRange', legend: 'Scale range' },
-      ],
-      summary: ctx => {
-        const orientation = ctx.common(s => s.orientation)
-        const overlay = ctx.common(s => s.statisticalOverlay)
-        const o = orientation.mixed
-          ? 'Mixed'
-          : orientation.value === 'horizontal'
-            ? 'Horizontal'
-            : 'Vertical'
-        if (isProportion(ctx)) return `${o} (Bars)`
-        if (orientation.mixed || overlay.mixed) return 'Mixed'
-        return `${o} (${overlaySummaryLabel(String(overlay.value))})`
-      },
-    },
+      categoryOrder: { label: 'Type order', value: 'type' },
+    }),
     'timelineRange',
     'eyeMovement',
   ],

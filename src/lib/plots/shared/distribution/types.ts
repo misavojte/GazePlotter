@@ -1,4 +1,5 @@
-import type { AdaptiveTimeline } from '$lib/plots/shared'
+import type { Scope } from '$lib/metrics'
+import type { AdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
 
 /**
  * The figure's data contract: ONE DISTRIBUTION PER CATEGORY SLOT, drawn as a
@@ -36,6 +37,32 @@ export interface SummaryStatistics {
   outliers: number[] // values beyond whiskers
 }
 
+// --- What a plot contributes: its category axis ---
+
+/** One category slot: where to read it from the metric, and how to draw it. */
+export interface DistributionSlot {
+  /** Index into the metric's vector — the slot its result is indexed by. */
+  slot: number
+  label: string
+  color: string
+}
+
+/**
+ * The ONLY per-plot input to a distribution: the category axis in drawn order
+ * (already narrowed by the plot's SELECTION) and the participant scopes to
+ * query (already carrying the stimulus, the sub-stimulus time range and any AOI
+ * SELECTION). A slot is an AOI on the AOI Comparison and an eye-movement type
+ * on the Eye-movement Comparison; everything downstream — metric resolution,
+ * pooling, statistics, ordering, scale — is `collectDistribution`'s job and is
+ * identical for both.
+ */
+export interface DistributionAxis {
+  slots: readonly DistributionSlot[]
+  scopes: readonly Scope[]
+  /** Display names, parallel to `scopes` — the dot-hover attribution. */
+  participantNames: readonly string[]
+}
+
 /** One category slot: its distribution, its summary, and its chrome. */
 export interface CategoryDistribution {
   value: number
@@ -63,4 +90,17 @@ export interface DistributionResult {
    * already scaled to percent.
    */
   proportion?: boolean
+}
+
+/**
+ * The screen-coordination surface every distribution view carries on
+ * `PlotView.meta`. Read by `distributionValueAxisScreen`, so a plot opts into
+ * cross-plot value-axis sync with one line in its definition and nothing in its
+ * derivation; plots without the recipe simply carry it unread.
+ */
+export interface DistributionViewMeta {
+  /** Metric instance id used as the sync key, or null when nothing is picked. */
+  syncKey: string | null
+  /** Unsynced data maximum — what a sibling plot's axis is compared against. */
+  dataMax: number
 }

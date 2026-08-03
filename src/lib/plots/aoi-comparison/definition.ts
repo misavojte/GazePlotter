@@ -1,18 +1,18 @@
-import { deriveAoiComparisonView } from './core/view'
-import { aoiComparisonScreen } from './core/screen.svelte'
 import { definePlot } from '$lib/plots/definePlot'
-import {
-  pickedInstanceIsProportion as isProportion,
-  stimulusGroupSubtitle,
-} from '$lib/plots/shared'
-import {
-  DIRECTION_OPTIONS,
-  ORIENTATION_OPTIONS,
-  OVERLAY_OPTIONS,
-  overlaySummaryLabel,
-} from '$lib/plots/shared/distribution'
+import { stimulusGroupSubtitle } from '$lib/plots/shared'
+import { distributionVisualisationSection } from '$lib/plots/shared/distribution/paneSection'
+import { distributionValueAxisScreen } from '$lib/plots/shared/distribution/screen.svelte'
+import { AOI_COMPARISON_CONTRACT } from './core/transformer'
+import { deriveAoiComparisonView } from './core/view'
 import type { AoiComparisonSettings } from './types'
 
+/**
+ * Per-AOI comparison of a metric, rendered through the shared distribution
+ * layer: the Metric section is the SAME library flow every metric plot uses,
+ * the contract admits aoi-vector instances at identity, and the plot draws the
+ * instance's whole vector — one distribution per AOI of the plot's AOI
+ * SELECTION, plus the No-AOI slot.
+ */
 export const aoiComparisonDefinition = definePlot<
   'aoiComparison',
   AoiComparisonSettings
@@ -24,58 +24,15 @@ export const aoiComparisonDefinition = definePlot<
     'stimulus',
     'group',
     'metric',
-    {
+    distributionVisualisationSection({
       key: 'aoiComparison:visualisation',
-      title: 'Visualisation',
-      fields: [
-        {
-          kind: 'enum',
-          key: 'statisticalOverlay',
-          label: 'Statistical overlay',
-          options: OVERLAY_OPTIONS,
-          showWhen: ctx => !isProportion(ctx),
-        },
-        {
-          kind: 'enum',
-          key: 'orientation',
-          label: 'Orientation',
-          options: ORIENTATION_OPTIONS,
-        },
-        {
-          kind: 'enum',
-          key: 'orderBy',
-          label: 'Order by',
-          options: [
-            { label: 'Value', value: 'value' },
-            { label: 'AOI order', value: 'aoi' },
-          ],
-        },
-        {
-          kind: 'enum',
-          key: 'orderDirection',
-          label: 'Direction',
-          options: DIRECTION_OPTIONS,
-        },
-        { kind: 'scaleRange', key: 'scaleRange', legend: 'Scale range' },
-      ],
-      summary: ctx => {
-        const orientation = ctx.common(s => s.orientation)
-        const overlay = ctx.common(s => s.statisticalOverlay)
-        const o = orientation.mixed
-          ? 'Mixed'
-          : orientation.value === 'horizontal'
-            ? 'Horizontal'
-            : 'Vertical'
-        if (isProportion(ctx)) return `${o} (Bars)`
-        if (orientation.mixed || overlay.mixed) return 'Mixed'
-        return `${o} (${overlaySummaryLabel(String(overlay.value))})`
-      },
-    },
+      categoryOrder: { label: 'AOI order', value: 'aoi' },
+    }),
     'timelineRange',
     'aoi',
   ],
   view: { deriveView: deriveAoiComparisonView },
-  screen: aoiComparisonScreen,
+  screen: distributionValueAxisScreen(),
   getSubtitle: stimulusGroupSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
@@ -91,9 +48,5 @@ export const aoiComparisonDefinition = definePlot<
     hideNoAoi: false,
   }),
   requireCapabilities: ['segmented'],
-  consumesMetrics: {
-    outputShape: 'aoi-vector',
-    windowing: 'forbidden',
-    crossParticipant: 'distribution',
-  },
+  consumesMetrics: AOI_COMPARISON_CONTRACT,
 })

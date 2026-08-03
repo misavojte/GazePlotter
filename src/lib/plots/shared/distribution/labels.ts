@@ -1,11 +1,12 @@
 import type { MetricInstance } from '$lib/metrics'
-import { buildMetricLabel, timeRangeQualifier } from '$lib/plots/shared'
+import { buildMetricLabel, timeRangeQualifier } from '$lib/plots/shared/labels'
 import type { StatisticalOverlayType } from './types'
 
 /**
- * Shared Visualisation-pane vocabulary for the plots rendering through
- * `DistributionFigure` (AOI Comparison + Eye-movement Comparison) — one home so
- * the user-visible labels cannot drift between them.
+ * Shared Visualisation-pane vocabulary for the plots that draw a distribution
+ * (AOI Comparison + Eye-movement Comparison) — one home so the user-visible
+ * labels cannot drift between them. The section that arranges these controls is
+ * `distributionVisualisationSection`.
  */
 export const OVERLAY_OPTIONS = [
   { label: 'None', value: 'none' },

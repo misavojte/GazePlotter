@@ -7,7 +7,7 @@
 import { describe, it, expect } from 'vitest'
 import { makeTestEngine } from './helpers/testEngine'
 import { getAoiComparisonData } from '../src/lib/plots/aoi-comparison/core/transformer'
-import { getAoiComparisonView } from '../src/lib/plots/aoi-comparison/core/view'
+import { deriveAoiComparisonView } from '../src/lib/plots/aoi-comparison/core/view'
 import '../src/lib/metrics/init'
 
 const ID = { kind: 'identity-aoi-vector' as const }
@@ -75,7 +75,7 @@ describe('bar plot — proportion metric (noticed rate)', () => {
       metricInstanceIds: ['fixated'], scaleRange: [0, 0],
       statisticalOverlay: 'meanCi95', // set, but must be ignored for a proportion
     }
-    const view = getAoiComparisonView(engine as any, settings as any)
+    const view = deriveAoiComparisonView(engine as any, settings as any)
     // Full params on the plot (reproducible); the point here is NO statistic suffix.
     expect(view.props.axisLabel).toBe('Was fixated / % · Min fixations 1 · Min dwell 0 ms')
     expect(view.props.axisLabel).not.toMatch(/CI|SD|IQR/)
@@ -89,7 +89,7 @@ describe('bar plot — proportion metric (noticed rate)', () => {
       metricInstanceIds: ['absoluteTime'], scaleRange: [0, 0],
       statisticalOverlay: 'meanCi95',
     }
-    const view = getAoiComparisonView(engine as any, settings as any)
+    const view = deriveAoiComparisonView(engine as any, settings as any)
     expect(view.props.axisLabel).toMatch(/95% CI/)
   })
 

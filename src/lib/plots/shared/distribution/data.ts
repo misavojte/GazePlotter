@@ -1,14 +1,17 @@
-import { createAdaptiveTimeline, type AdaptiveTimeline } from '$lib/plots/shared'
+import {
+  createAdaptiveTimeline,
+  type AdaptiveTimeline,
+} from '$lib/plots/shared/timelineUtils'
 import type { CategoryDistribution } from './types'
 
 /**
- * One sort policy for every plot rendering through `DistributionFigure`. Any
- * `orderBy` other than `'value'` keeps the caller's category order ('aoi',
- * 'type', ...), reversed for desc.
+ * One sort policy for every plot rendering a distribution. Any `orderBy` other
+ * than `'value'` — including an unset one — keeps the caller's category order
+ * ('aoi', 'type', ...), reversed for desc.
  */
 export function applySorting(
   data: CategoryDistribution[],
-  orderBy: 'value' | (string & {}),
+  orderBy: 'value' | (string & {}) | undefined,
   orderDirection: 'asc' | 'desc'
 ): CategoryDistribution[] {
   if (orderBy !== 'value') {
@@ -20,7 +23,7 @@ export function applySorting(
 }
 
 /**
- * The figure's value-axis policy — nice timeline from the data max, with
+ * The distribution's value-axis policy — nice timeline from the data max, with
  * `scaleRange`'s zero-means-unset overrides and the +1 floor guard. Shared so
  * the plots cannot drift on scale semantics.
  */
