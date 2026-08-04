@@ -189,7 +189,6 @@ export interface UsePlotOptions<THit = unknown> {
   width: () => number
   height: () => number
   margin: () => number
-  dpiOverride?: () => number | null
   /** Reactive dependency getter — a redraw is scheduled whenever it changes. */
   deps: () => unknown
   /**
@@ -468,7 +467,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   let canvasState = $state<CanvasState>(createCanvasState())
   const exportRegistrar = getContext<ExportSourceRegistrar | undefined>(EXPORT_SOURCE_CONTEXT)
 
-  const getDpiOverride = () => (options.dpiOverride ? options.dpiOverride() : null)
+  const getDpiOverride = () => exportRegistrar?.dpiOverride ?? null
   const getDimensions = () => ({
     width: Math.max(1, options.width()),
     height: Math.max(1, options.height()),

@@ -15,6 +15,5 @@ export interface PlotDimensions {
 export interface CanvasExportProps {
   width: number
   height: number
-  dpiOverride?: number | null
   margin?: number
 }

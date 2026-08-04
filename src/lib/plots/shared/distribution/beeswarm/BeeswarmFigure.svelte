@@ -88,7 +88,6 @@
     orientation,
     onDataHover,
     statisticalOverlay = 'none',
-    dpiOverride = null,
     margin = 0,
     noMetric = false,
     proportion = false,
@@ -132,7 +131,6 @@
     width: () => width,
     height: () => height,
     margin: () => margin,
-    dpiOverride: () => dpiOverride,
     deps: () => [data, timeline, axisLabel, orientation, statisticalOverlay, noMetric, proportion],
     placeholder: () => (noMetric ? METRIC_MISSING_MESSAGE : null),
     fit: frame => {

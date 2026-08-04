@@ -24,7 +24,6 @@
     showNumbers = true,
     width = 400,
     height = 400,
-    dpiOverride = null,
     margin = 0,
     unavailableMessage = null,
   }: Props = $props()
@@ -91,7 +90,6 @@
     width: () => width,
     height: () => height,
     margin: () => margin,
-    dpiOverride: () => dpiOverride,
     deps: () => [data, showFixationOrder, showNumbers, unavailableMessage],
     placeholder: () => unavailableMessage,
     gutters: () => {

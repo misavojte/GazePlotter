@@ -85,7 +85,6 @@
     data,
     alignment = 'heatmap',
     colorScale,
-    dpiOverride = null,
     margin = 0,
     timeCursor = null,
   }: Props = $props()
@@ -167,7 +166,6 @@
     width: () => width,
     height: () => height,
     margin: () => margin,
-    dpiOverride: () => dpiOverride,
     // colorScale reaches the figure as its own prop (not through `data`), so
     // it must be a dep — without it a palette edit left the heatmap stale.
     deps: () => [data, alignment, colorScale],

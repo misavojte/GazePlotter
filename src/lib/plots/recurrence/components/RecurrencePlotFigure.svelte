@@ -32,7 +32,6 @@
     highlightMask = null,
     width = 400,
     height = 400,
-    dpiOverride = null,
     margin = 0,
   }: Props = $props()
 
@@ -103,7 +102,6 @@
     width: () => width,
     height: () => height,
     margin: () => margin,
-    dpiOverride: () => dpiOverride,
     deps: () => [data, highlight, masking, highlightMask],
     // No fit guard: the recurrence matrix is rendered as a texture (drawRaster)
     // at any density, so hundreds of fixations stay legible as a pattern. The

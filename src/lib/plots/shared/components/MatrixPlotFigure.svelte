@@ -115,7 +115,6 @@
     drawCells,
     width,
     height,
-    dpiOverride = null,
     margin = 0,
   }: Props = $props()
 
@@ -222,7 +221,6 @@
     width: () => width,
     height: () => height,
     margin: () => margin,
-    dpiOverride: () => dpiOverride,
     deps: () => [
       matrix,
       rows,

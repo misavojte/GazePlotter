@@ -60,7 +60,6 @@
                 {...view.props}
                 width={exportProps.width}
                 height={exportProps.height}
-                dpiOverride={exportProps.dpiOverride}
                 margin={exportProps.margin}
               />
               {#snippet failed()}

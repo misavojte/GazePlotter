@@ -91,7 +91,6 @@
     highlights = [],
     alignment = 'stream',
     onLegendClick = () => {},
-    dpiOverride = null,
     margin = 0,
     syncedMTopOverride = null,
     ridgelineScale,
@@ -212,7 +211,6 @@
     width: () => width,
     height: () => height,
     margin: () => margin,
-    dpiOverride: () => dpiOverride,
     deps: () => [data, alignment, ridgelineScale, syncedMTopOverride, colorScale, highlights],
     placeholder: () => (data.noMetric ? METRIC_MISSING_MESSAGE : null),
     fit: frame => {

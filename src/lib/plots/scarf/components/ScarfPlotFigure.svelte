@@ -92,7 +92,6 @@
     timeCursor = null,
     width = 0,
     height,
-    dpiOverride = null,
     margin = 0,
   }: Props = $props()
 
@@ -175,16 +174,11 @@
     width: () => width,
     height: () => height,
     margin: () => margin,
-    dpiOverride: () => dpiOverride,
     // Every input to the resolved frame and to `plotTop` is already listed here
     // (they derive from data/settings and the canvas box), so neither is a dep in
     // its own right — and referencing one would make `plot`'s options depend on
     // `plot`'s own type.
-    deps: () => [
-      data, settings, highlights,
-      width, height, dpiOverride,
-      margin,
-    ],
+    deps: () => [data, settings, highlights],
     // The verdict is about the row band (see `rowBandHeight`), which the scarf
     // measures itself to keep the left gutter out of a cycle — hence the unused
     // frame argument. It is still a fit guard, not a data placeholder: it turns

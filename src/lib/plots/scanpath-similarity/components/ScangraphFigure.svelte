@@ -38,7 +38,6 @@
     highlights = [],
     noMetric = false,
     onNodeClick,
-    dpiOverride = null,
     margin = 0,
   }: Props = $props()
 
@@ -46,7 +45,6 @@
     width: () => width,
     height: () => height,
     margin: () => margin,
-    dpiOverride: () => dpiOverride,
     deps: () => [data, threshold, highlights, noMetric],
     placeholder: () =>
       noMetric
