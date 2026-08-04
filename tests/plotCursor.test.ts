@@ -8,10 +8,11 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   createPlotCursorPort,
   cursorRows,
-  drawTimeGuide,
+  drawTimeGuides,
   strokeCrosshairPanel,
   timeAtX,
   timeGuideX,
+  timeGuideXs,
 } from '$lib/plots/shared/plotCursor.svelte'
 import { absoluteTimeScope } from '$lib/plots/scarf/core/screen.svelte'
 import {
@@ -69,33 +70,36 @@ afterEach(() => {
   notAbsolute.publish(null)
 })
 
-describe('time channel', () => {
+describe('times channel', () => {
   it('marks siblings on the same stimulus and never the publisher itself', () => {
-    a.publish({ time: () => 500 })
-    expect(b.time).toBe(500)
-    expect(a.time).toBeNull()
+    a.publish({ times: () => [500] })
+    expect(b.times).toEqual([500])
+    expect(a.times).toEqual([])
   })
 
   it('does not cross stimuli', () => {
-    a.publish({ time: () => 500 })
-    expect(otherStimulus.time).toBeNull()
+    a.publish({ times: () => [500] })
+    expect(otherStimulus.times).toEqual([])
   })
 
   it('treats 0 ms as a real position', () => {
-    a.publish({ time: () => 0 })
-    expect(b.time).toBe(0)
+    a.publish({ times: () => [0] })
+    expect(b.times).toEqual([0])
   })
 
   it('neither publishes nor marks without a scope (ordinal / relative axes)', () => {
-    notAbsolute.publish({ time: () => 500 })
-    expect(b.time).toBeNull()
-    a.publish({ time: () => 500 })
-    expect(notAbsolute.time).toBeNull()
+    notAbsolute.publish({ times: () => [500] })
+    expect(b.times).toEqual([])
+    // READING is gated too, which is the trap: a plot that only wants to RECEIVE a
+    // time still has to declare a scope. Recurrence draws fixation indices, not ms,
+    // and was silently deaf until its recipe passed one.
+    a.publish({ times: () => [500] })
+    expect(notAbsolute.times).toEqual([])
   })
 
   it('is absent when the publisher has no time axis', () => {
     a.publish({ participants: () => [12] })
-    expect(b.time).toBeNull()
+    expect(b.times).toEqual([])
   })
 
   it('re-reads the publisher live, so losing its scope drops the mark', () => {
@@ -103,20 +107,20 @@ describe('time channel', () => {
     // event fires, so a snapshot would strand the mark on every sibling.
     let mode: 'absolute' | 'ordinal' = 'absolute'
     const scarf = createPlotCursorPort(5, () => (mode === 'absolute' ? 7 : null))
-    scarf.publish({ time: () => 500 })
-    expect(b.time).toBe(500)
+    scarf.publish({ times: () => [500] })
+    expect(b.times).toEqual([500])
     mode = 'ordinal'
-    expect(b.time).toBeNull()
+    expect(b.times).toEqual([])
     scarf.publish(null)
   })
 
   it('re-reads the published time live, so a pan moves the mark', () => {
     let ms = 500
     const scarf = createPlotCursorPort(6, () => 7)
-    scarf.publish({ time: () => ms })
-    expect(b.time).toBe(500)
+    scarf.publish({ times: () => [ms] })
+    expect(b.times).toEqual([500])
     ms = 1800
-    expect(b.time).toBe(1800)
+    expect(b.times).toEqual([1800])
     scarf.publish(null)
   })
 })
@@ -125,9 +129,9 @@ describe('participants channel', () => {
   it('marks the same participant ACROSS stimuli — deliberately unscoped', () => {
     // One person's row on another stimulus is the point of the channel; only the
     // time channel is stimulus-gated.
-    a.publish({ time: () => 500, participants: () => [12] })
+    a.publish({ times: () => [500], participants: () => [12] })
     expect(otherStimulus.participants).toEqual([12])
-    expect(otherStimulus.time).toBeNull()
+    expect(otherStimulus.times).toEqual([])
   })
 
   it('carries a PAIR, so a similarity cell marks both people', () => {
@@ -142,14 +146,14 @@ describe('participants channel', () => {
   })
 
   it('is empty when the publisher has no participant under the pointer', () => {
-    a.publish({ time: () => 500 })
+    a.publish({ times: () => [500] })
     expect(b.participants).toEqual([])
   })
 
   it('survives a publisher with no time scope (a matrix spanning stimuli)', () => {
     notAbsolute.publish({ participants: () => [12] })
     expect(b.participants).toEqual([12])
-    expect(b.time).toBeNull()
+    expect(b.times).toEqual([])
   })
 
   it('re-reads the published set live', () => {
@@ -161,12 +165,12 @@ describe('participants channel', () => {
   })
 
   it('retracts both channels at once, publisher-scoped', () => {
-    a.publish({ time: () => 500, participants: () => [12] })
+    a.publish({ times: () => [500], participants: () => [12] })
     b.publish(null)
-    expect(b.time).toBe(500)
+    expect(b.times).toEqual([500])
     expect(b.participants).toEqual([12])
     a.publish(null)
-    expect(b.time).toBeNull()
+    expect(b.times).toEqual([])
     expect(b.participants).toEqual([])
   })
 
@@ -234,24 +238,39 @@ describe('time projection', () => {
 })
 
 describe('time guide mark', () => {
-  it('strokes one full-height guide clipped to the band', () => {
+  it('strokes one full-height guide per instant, clipped to the band', () => {
     const { points, clips, ctx } = recorder()
-    drawTimeGuide(ctx, BAND, 300.5)
+    drawTimeGuides(ctx, BAND, [300.5])
     expect(points).toEqual([300.5, 50, 300.5, 250])
     expect(clips).toEqual([100, 50, 400, 200])
   })
 
+  it('strokes BOTH moments of a recurrence pair in one batch', () => {
+    const { points, dashes, ctx } = recorder()
+    drawTimeGuides(ctx, BAND, [180.5, 420.5])
+    expect(points).toEqual([180.5, 50, 180.5, 250, 420.5, 50, 420.5, 250])
+    // One dash setup for the batch: the guides cannot drift apart in style.
+    expect(dashes).toEqual([CROSSHAIR_DASH])
+  })
+
   it('is the shared dashed CROSSHAIR guide, not a bespoke stroke', () => {
     const { dashes, ctx } = recorder()
-    drawTimeGuide(ctx, BAND, 300.5)
-    expect(dashes).toEqual([[2, 2]])
+    drawTimeGuides(ctx, BAND, [300.5])
+    expect(dashes).toEqual([CROSSHAIR_DASH])
     expect(ctx.strokeStyle).toBe(CROSSHAIR_COLOR)
   })
 
-  it('draws nothing without a pixel', () => {
-    const { points, ctx } = recorder()
-    drawTimeGuide(ctx, BAND, null)
+  it('draws nothing for an empty set', () => {
+    const { points, clips, ctx } = recorder()
+    drawTimeGuides(ctx, BAND, [])
     expect(points).toEqual([])
+    expect(clips).toEqual([])
+  })
+
+  it('maps a set of instants, dropping the ones outside the window', () => {
+    // A recurrence pair whose second moment the receiving plot has panned past.
+    expect(timeGuideXs(BAND, WINDOW, [1000, 2000, 4000])).toEqual([100.5, 300.5])
+    expect(timeGuideXs(BAND, WINDOW, [])).toEqual([])
   })
 })
 

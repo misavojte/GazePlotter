@@ -13,9 +13,9 @@
     type FrameHit,
   } from '$lib/plots/shared'
   import {
-    drawTimeGuide,
+    drawTimeGuides,
     timeAtX,
-    timeGuideX,
+    timeGuideXs,
     type PlotCursorPort,
   } from '$lib/plots/shared/plotCursor.svelte'
   import { estimateTextWidth, truncateTextToPixelWidth } from '$lib/shared/utils/textUtils'
@@ -261,21 +261,22 @@
       plotCursor?.publish(
         px === undefined
           ? null
-          : { time: () => timeAtX(plot.frame, data.timeline, px) }
+          : { times: () => [timeAtX(plot.frame, data.timeline, px)] }
       )
     },
     // Return type annotated: `cursorX` reads `plot`, so inference would loop.
-    overlayDeps: (): number | null => cursorX,
+    overlayDeps: (): string => cursorXsKey,
   })
 
   // Gated on real bins: the empty result carries a fabricated 0–100 ms timeline
   // (`emptyAoiStreamResult`) that this plot never draws, so neither direction of
   // the cursor may run on it.
-  const cursorX = $derived(
+  const cursorXs = $derived(
     data.binCount > 0
-      ? timeGuideX(plot.frame, data.timeline, plotCursor?.time ?? null)
-      : null
+      ? timeGuideXs(plot.frame, data.timeline, plotCursor?.times ?? [])
+      : []
   )
+  const cursorXsKey = $derived(cursorXs.join(','))
 
   // Legend geometry sits in the bottom band, below the x-axis.
   const legendGeometry: LegendGeometry = $derived.by(() =>
@@ -562,7 +563,7 @@
   // (which re-derives every series' coordinates).
   function drawStreamOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
     // Before the local-hover early return below: the remote mark must survive it.
-    drawTimeGuide(ctx, frame, cursorX)
+    drawTimeGuides(ctx, frame, cursorXs)
     const tag = plot.hover.data
     const hoveredBinIndex = tag?.kind === 'bin' ? (tag.binIndex ?? null) : null
     const mouseXPx = tag?.kind === 'bin' ? (tag.x ?? null) : null

@@ -33,6 +33,7 @@ function referenceAoiMatrix(fixations: FixationRecord[], N: number): Uint8Array 
 const fix = (aoiIds: number[]): FixationRecord => ({
   x: 0,
   y: 0,
+  start: 0,
   duration: 0,
   aoiIds,
 })

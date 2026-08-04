@@ -61,12 +61,48 @@ export function collectFixations(
     fixations.push({
       x: spatial?.x ?? 0,
       y: spatial?.y ?? 0,
+      start: segStart,
       duration,
       aoiIds,
     })
   }
 
   return fixations
+}
+
+/**
+ * Index of the fixation this participant was holding at `time`, or `-1`.
+ *
+ * `-1` during a saccade, in a tracking gap, and outside the recording: at those
+ * instants they were fixating NOTHING, and snapping to the nearest fixation would
+ * invent a position they never held. Binary search over the ascending onsets.
+ */
+export function fixationAt(data: RecurrenceData, time: number): number {
+  const { fixationStarts: starts, fixationEnds: ends } = data
+  let lo = 0
+  let hi = data.fixationCount - 1
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1
+    if (time < starts[mid]) hi = mid - 1
+    else if (time >= ends[mid]) lo = mid + 1
+    else return mid
+  }
+  return -1
+}
+
+/**
+ * The instant that REPRESENTS fixation `index`: its temporal midpoint, or `NaN`
+ * out of range (a live read whose data shrank under a resting pointer).
+ *
+ * The midpoint, not the onset, because a fixation is a SPAN and its middle is
+ * where it is anchored — the same convention as `EvolvingMetricsWindow.centerMs`.
+ * An onset would put the mark on the boundary with the preceding saccade. Note
+ * this is an ANCHOR, not a claim of instantaneous precision: a 200 ms fixation is
+ * being represented by one guide line.
+ */
+export function fixationMidpoint(data: RecurrenceData, index: number): number {
+  if (index < 0 || index >= data.fixationCount) return Number.NaN
+  return (data.fixationStarts[index] + data.fixationEnds[index]) / 2
 }
 
 /**
@@ -131,6 +167,9 @@ export function collectRecurrenceData(
   const meta = engine.metadata
   const aoiData = meta?.aois?.data?.[stimulusId] ?? []
   const fixationAoiColors: (string | null)[] = new Array(N)
+  // Onsets and ends, so a shared TIME can be resolved to the fixation it lands in.
+  const fixationStarts = new Float64Array(N)
+  const fixationEnds = new Float64Array(N)
   for (let i = 0; i < N; i++) {
     const aoiIds = fixations[i].aoiIds
     if (aoiIds.length > 0 && aoiData[aoiIds[0]]?.[2]) {
@@ -138,9 +177,18 @@ export function collectRecurrenceData(
     } else {
       fixationAoiColors[i] = null
     }
+    fixationStarts[i] = fixations[i].start
+    fixationEnds[i] = fixations[i].start + fixations[i].duration
   }
 
-  return { matrix, durationMatrix, fixationCount: N, fixationAoiColors }
+  return {
+    matrix,
+    durationMatrix,
+    fixationCount: N,
+    fixationAoiColors,
+    fixationStarts,
+    fixationEnds,
+  }
 }
 
 function buildFixedDistanceMatrix(

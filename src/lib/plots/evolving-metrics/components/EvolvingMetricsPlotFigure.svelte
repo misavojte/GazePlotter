@@ -18,9 +18,9 @@
   } from '$lib/plots/shared'
   import {
     cursorRows,
-    drawTimeGuide,
+    drawTimeGuides,
     timeAtX,
-    timeGuideX,
+    timeGuideXs,
     type PlotCursorPort,
   } from '$lib/plots/shared/plotCursor.svelte'
   import { estimateTextWidth, measureTextHeight, truncateTextToPixelWidth } from '$lib/shared/utils/textUtils'
@@ -218,7 +218,7 @@
         hit === null
           ? null
           : {
-              time: () => timeAtX(plot.frame, data.timeline, hit.x),
+              times: () => [timeAtX(plot.frame, data.timeline, hit.x)],
               // Slice, not index: an undo that narrows the participants under a
               // resting pointer must read back EMPTY, never throw into a sibling.
               participants:
@@ -230,7 +230,7 @@
     },
     // Annotated: `cursorX` reads `plot`, so inference would loop. The rows KEY, not
     // the array: moving within one row must not repaint every sibling.
-    overlayDeps: (): string => `${cursorX}:${cursorRowsKey}`,
+    overlayDeps: (): string => `${cursorXsKey}:${cursorRowsKey}`,
   })
 
   const hoveredMsTime = $derived(plot.hover.data?.t ?? null)
@@ -239,11 +239,12 @@
   // `resolveFrameLayout` already floors the rect, so this is the same band (and
   // the same pixel) as the local crossline's floored frame. Gated on real
   // participants: the empty result carries a fabricated 0–100 ms timeline.
-  const cursorX = $derived(
+  const cursorXs = $derived(
     data.participants.length > 0
-      ? timeGuideX(plot.frame, data.timeline, plotCursor?.time ?? null)
-      : null
+      ? timeGuideXs(plot.frame, data.timeline, plotCursor?.times ?? [])
+      : []
   )
+  const cursorXsKey = $derived(cursorXs.join(','))
   /** Row order for the PLOT CURSOR — rebuilt on a data change, not per frame. */
   const participantIds = $derived(data.participants.map(p => p.id))
   const cursorRowIndices = $derived(
@@ -374,7 +375,7 @@
   function drawEvolvingOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
     // Both PLOT CURSOR channels first: they are independent of this plot's own
     // hover state, which the local chrome below drops out on.
-    drawTimeGuide(ctx, frame, cursorX)
+    drawTimeGuides(ctx, frame, cursorXs)
     if (
       hoveredMsTime === null &&
       hoveredParticipantIndex === null &&

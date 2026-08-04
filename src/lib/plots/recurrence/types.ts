@@ -33,11 +33,19 @@ export interface RecurrenceData {
   fixationCount: number
   /** Per-fixation primary AOI color (hex string), null if no AOI */
   fixationAoiColors: (string | null)[]
+  /** Per-fixation absolute onset / end (ms), ascending. Resolves a shared TIME to
+   *  the fixation it falls in; the gap between `ends[i]` and `starts[i+1]` is the
+   *  saccade, where this participant was fixating nothing. */
+  fixationStarts: Float64Array
+  fixationEnds: Float64Array
 }
 
 export interface FixationRecord {
   x: number
   y: number
+  /** Absolute onset (ms from this participant's first sample on the stimulus).
+   *  NEVER a cumulative sum of durations — that ignores saccades and gaps. */
+  start: number
   duration: number
   aoiIds: number[]
 }

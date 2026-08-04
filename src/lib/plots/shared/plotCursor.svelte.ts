@@ -2,19 +2,19 @@
  * THE PLOT CURSOR — one shared "where is the pointer", in data terms.
  *
  * Two independent channels, published together from one hover:
- *   TIME         — absolute ms from the participant's first sample on the stimulus.
+ *   TIMES        — absolute ms from the participant's first sample on the stimulus.
  *                  Comparable only WITHIN one stimulus, so it is scope-gated.
- *   PARTICIPANTS — the participant ids under the pointer, as a SET. Comparable
- *                  everywhere (that is the point: one person across stimuli), so
- *                  NOT scope-gated.
+ *   PARTICIPANTS — the participant ids under the pointer. Comparable everywhere
+ *                  (that is the point: one person across stimuli), so NOT gated.
  * A publisher may carry either, both, or neither. Two comparability rules in one
  * record is deliberate: a pointer position genuinely has independent channels.
  *
- * The participant channel is a SET, not one id, because a cell can designate a
- * PAIR: a similarity matrix cell is (row participant, column participant), and
- * hovering it must mark both people everywhere. One id would have silently
- * dropped the column. Arity is the publisher's business — 0, 1 or 2 — the
- * diagonal dedupes to 1, and a pair is sorted because it is a set.
+ * BOTH channels are SETS, for one reason: a pointer can designate a PAIR. A
+ * similarity-matrix cell is (row participant, column participant) and must mark
+ * both people; a recurrence cell is (fixation i, fixation j) and must mark both
+ * moments. A scalar would silently drop half of either datum. Arity is the
+ * publisher's business, the diagonal dedupes to 1, and a pair is sorted because it
+ * is a set.
  *
  * Vocabulary: PLOT CURSOR (this shared position) vs CROSSHAIR (a plot's own
  * pointer feedback) vs guide/outline (the marks). Never "sync" — that is
@@ -50,20 +50,21 @@ import {
 type PlotCursor = {
   plotId: number
   /** Null when the publisher's x is not elapsed ms (a scarf in 'ordinal'). */
-  time: { scope: () => number | null; at: () => number } | null
+  times: { scope: () => number | null; at: () => readonly number[] } | null
   /** Null when the publisher has no participant under the pointer (an AOI stream). */
   participants: (() => readonly number[]) | null
 }
 
 /** One shared empty set, so a cursor-less read is reference-stable. */
-const NO_PARTICIPANTS: readonly number[] = []
+const NO_IDS: readonly number[] = []
 
 // One pointer, one cursor: a module singleton like `tooltipState`.
 let cursor = $state.raw<PlotCursor | null>(null)
 
 /** What the pointer is over, as live reads. Omit a channel the plot lacks. */
 type PlotCursorPosition = {
-  time?: () => number
+  /** The instants under the pointer; a recurrence cell designates two. */
+  times?: () => readonly number[]
   /** The ids under the pointer; may read back empty if the rows are gone. */
   participants?: () => readonly number[]
 }
@@ -71,8 +72,8 @@ type PlotCursorPosition = {
 export interface PlotCursorPort {
   /** Publish the pointer's position; `null` when it leaves. */
   publish: (at: PlotCursorPosition | null) => void
-  /** ANOTHER plot's time when it is comparable here, else `null`. */
-  readonly time: number | null
+  /** ANOTHER plot's instants when they are comparable here; empty when not. */
+  readonly times: readonly number[]
   /** ANOTHER plot's participants under the pointer; empty when there are none. */
   readonly participants: readonly number[]
 }
@@ -99,18 +100,18 @@ export function createPlotCursorPort(
       }
       cursor = {
         plotId,
-        time: at.time ? { scope: timeScope, at: at.time } : null,
+        times: at.times ? { scope: timeScope, at: at.times } : null,
         participants: at.participants ?? null,
       }
     },
-    get time() {
+    get times() {
       const c = others()
       const mine = timeScope()
-      if (c?.time == null || mine === null) return null
-      return c.time.scope() === mine ? c.time.at() : null
+      if (c?.times == null || mine === null) return NO_IDS
+      return c.times.scope() === mine ? c.times.at() : NO_IDS
     },
     get participants() {
-      return others()?.participants?.() ?? NO_PARTICIPANTS
+      return others()?.participants?.() ?? NO_IDS
     },
   }
 }
@@ -135,12 +136,22 @@ export function plotCursorPort(
 
 /**
  * The whole screen recipe for a plot whose only screen state is this port — one
- * recipe instead of one per plot. No time scope: every such plot's x axis is an
- * ordinal index or a metric value, never absolute ms.
+ * recipe instead of one per plot.
+ *
+ * `timeScopeOf` is needed by any plot that READS the time channel, even one whose
+ * own axes are not time: the scope gates reading as well as publishing, so a port
+ * without it is permanently deaf to time (recurrence resolves a shared instant to
+ * a fixation index while drawing ordinal axes). Omit it only when the plot neither
+ * publishes nor reads a time.
  */
-export function plotCursorScreen<S>(): PlotScreenFactory<S> {
+export function plotCursorScreen<S>(
+  timeScopeOf?: (settings: S) => number | null
+): PlotScreenFactory<S> {
   return ctx => {
-    const plotCursor = plotCursorPort(ctx.item.id)
+    const plotCursor = plotCursorPort(
+      ctx.item.id,
+      timeScopeOf && (() => timeScopeOf(ctx.item.settings))
+    )
     return { props: () => ({ plotCursor }) }
   }
 }
@@ -172,6 +183,23 @@ export function timeGuideX(
   return alignToPixelCenter(band.x + ((time - minValue) / range) * band.width)
 }
 
+/**
+ * The drawable guide positions for a set of instants, in order, dropping any this
+ * plot's window excludes. The `.join()` of the result is the repaint key.
+ */
+export function timeGuideXs(
+  band: TimeGuideBand,
+  timeline: { minValue: number; maxValue: number },
+  times: readonly number[]
+): number[] {
+  const xs: number[] = []
+  for (const t of times) {
+    const x = timeGuideX(band, timeline, t)
+    if (x !== null) xs.push(x)
+  }
+  return xs
+}
+
 /** The inverse of {@link timeGuideX} (before its alignment), unclamped. */
 export function timeAtX(
   band: TimeGuideBand,
@@ -183,19 +211,22 @@ export function timeAtX(
 }
 
 /**
- * The time guide. Self-clipping, so it is safe as any `drawOverlay`'s first line.
+ * The time guides, one per instant. Self-clipping, so it is safe as any
+ * `drawOverlay`'s first line, and a no-op on an empty set.
  */
-export function drawTimeGuide(
+export function drawTimeGuides(
   ctx: CanvasRenderingContext2D,
   band: TimeGuideBand,
-  x: number | null
+  xs: readonly number[]
 ): void {
-  if (x === null) return
+  if (xs.length === 0) return
+  const segments: number[] = []
+  for (const x of xs) segments.push(x, band.y, x, band.y + band.height)
   ctx.save()
   ctx.beginPath()
   ctx.rect(band.x, band.y, band.width, band.height)
   ctx.clip()
-  strokeCrosshairGuides(ctx, [x, band.y, x, band.y + band.height])
+  strokeCrosshairGuides(ctx, segments)
   ctx.restore()
 }
 

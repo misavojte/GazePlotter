@@ -30,9 +30,9 @@
   } from '$lib/plots/shared'
   import {
     cursorRows,
-    drawTimeGuide,
+    drawTimeGuides,
     timeAtX,
-    timeGuideX,
+    timeGuideXs,
     type PlotCursorPort,
   } from '$lib/plots/shared/plotCursor.svelte'
   import { onDestroy } from 'svelte'
@@ -213,7 +213,7 @@
       plotCursor?.publish(
         hover
           ? {
-              time: () => timeAtX(rowBand, data.timeline, hover.x),
+              times: () => [timeAtX(rowBand, data.timeline, hover.x)],
               // Slice, not index: an undo that narrows the participants under a
               // resting pointer must read back EMPTY, never throw into a sibling.
               participants: () => participantIds.slice(hover.row, hover.row + 1),
@@ -222,7 +222,7 @@
       ),
     // Return type annotated, same cycle as `gutters`. The rows KEY, not the array:
     // moving within one row must not repaint every sibling.
-    overlayDeps: (): string => `${cursorX}:${cursorRowsKey}`,
+    overlayDeps: (): string => `${cursorXsKey}:${cursorRowsKey}`,
     blockedRegions: (): BlockedRegion[] => blockedRegions,
     pointer: {
       onDown: handlePointerDown,
@@ -269,9 +269,10 @@
     { x: rowBand.x, y: rowBand.y, w: rowBand.width, h: rowBand.height },
   ])
 
-  const cursorX = $derived(
-    timeGuideX(rowBand, data.timeline, plotCursor?.time ?? null)
+  const cursorXs = $derived(
+    timeGuideXs(rowBand, data.timeline, plotCursor?.times ?? [])
   )
+  const cursorXsKey = $derived(cursorXs.join(','))
   const cursorRowIndices = $derived(
     cursorRows(participantIds, plotCursor?.participants ?? [])
   )
@@ -397,7 +398,7 @@
   // renderScarf. Both channels come first — they must survive the local-hover
   // early return.
   function drawScarfOverlay(ctx: CanvasRenderingContext2D) {
-    drawTimeGuide(ctx, rowBand, cursorX)
+    drawTimeGuides(ctx, rowBand, cursorXs)
     // The cursor's rows and the local hover row get the SAME mark: it says "this
     // participant", never who pointed at them. Only the EXTENT differs below —
     // a local hover also knows an instant, so it adds the vertical guide.

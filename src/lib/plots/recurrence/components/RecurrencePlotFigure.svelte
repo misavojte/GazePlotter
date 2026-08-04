@@ -5,16 +5,14 @@
     canvasBlockSelect,
     packRgb,
     drawMatrixCrosshair,
+    drawMatrixParticipantStrips,
     type CanvasExportProps,
     type PlotFrame,
     type FrameHit,
   } from '$lib/plots/shared'
-  import {
-    strokeCrosshairPanel,
-    type PlotCursorPort,
-  } from '$lib/plots/shared/plotCursor.svelte'
+  import type { PlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
   import { hexToRgb, convertToHex } from '$lib/color'
-  import { rasterizeRecurrenceTexture } from '../core'
+  import { fixationAt, fixationMidpoint, rasterizeRecurrenceTexture } from '../core'
   import { RECURRENCE_LAYOUT } from '../const'
   import type {
     RecurrenceData,
@@ -45,11 +43,40 @@
     margin = 0,
   }: Props = $props()
 
-  /** The cursor either means this whole panel or nothing: one participant, one plot. */
-  const cursorIsMine = $derived(
-    participantId !== undefined &&
-      (plotCursor?.participants ?? []).includes(participantId)
-  )
+  /**
+   * The fixation the cursor's instant lands in, or -1.
+   *
+   * Gated on the cursor naming THIS participant, which is what makes the mark
+   * honest: absolute time is zeroed per participant, so another person's clock
+   * must never be read against this person's fixations. A publisher that carries a
+   * time but no participant (an AOI stream, whose series are group-aggregated)
+   * therefore marks nothing here, correctly.
+   */
+  const cursorFixations = $derived.by(() => {
+    if (!data || participantId === undefined) return []
+    if (!(plotCursor?.participants ?? []).includes(participantId)) return []
+    const found: number[] = []
+    for (const t of plotCursor?.times ?? []) {
+      const i = fixationAt(data, t)
+      if (i >= 0) found.push(i)
+    }
+    return found
+  })
+  const cursorFixationsKey = $derived(cursorFixations.join(','))
+
+  /**
+   * The instants a hovered cell designates: fixation i and fixation j, deduped on
+   * the diagonal. A masked cell (row -1) has no datum, so it publishes the
+   * participant but no time.
+   */
+  function cellTimes(cell: { row: number; col: number }): number[] {
+    if (!data || cell.row < 0) return []
+    const both =
+      cell.row === cell.col
+        ? [fixationMidpoint(data, cell.row)]
+        : [fixationMidpoint(data, cell.row), fixationMidpoint(data, cell.col)]
+    return both.filter(Number.isFinite).sort((a, b) => a - b)
+  }
 
   const L = RECURRENCE_LAYOUT
   // Below this cell size individual dots stop resolving; the matrix is drawn as
@@ -159,13 +186,18 @@
     },
     drawOverlay: drawRecurrenceOverlay,
     // This panel IS one participant, so a hover anywhere in it means that person.
+    // A CELL additionally means two moments — "they looked here at t1 and again at
+    // t2" — which is the datum the time plots can show and this one cannot.
     onHover: cell =>
       plotCursor?.publish(
         cell !== null && participantId !== undefined
-          ? { participants: () => [participantId] }
+          ? {
+              participants: () => [participantId],
+              times: () => cellTimes(cell),
+            }
           : null
       ),
-    overlayDeps: (): boolean => cursorIsMine,
+    overlayDeps: (): string => cursorFixationsKey,
     hitTest: (x, y, frame) => {
       if (!data || N < 2) return null
       const cell = cellAt(x, y, frame)
@@ -424,26 +456,31 @@
   }
 
   function drawRecurrenceOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
-    // Remote participant OUTLINED (inset so it never repaints the axis border),
-    // local hover filled — same colour, different mark.
-    if (cursorIsMine) strokeCrosshairPanel(ctx, frame)
+    const geom = {
+      xOffset: frame.x,
+      yOffset: frame.y,
+      cellSize: frame.width / N,
+      gridWidth: frame.width,
+      gridHeight: frame.width,
+    }
+    // The cursor's instant, as the fixation it lands in: its row and column are
+    // every other fixation that recurred with it. Same strip mark as any matrix,
+    // and bottom-origin rows convert to display space exactly as below.
+    if (cursorFixations.length > 0) {
+      drawMatrixParticipantStrips(ctx, geom, {
+        rows: cursorFixations.map(i => N - 1 - i),
+        cols: cursorFixations,
+      })
+    }
     const hoveredCell = plot.hover.data
     if (!hoveredCell) return
     if (hoveredCell.row < 0) return // masked cell: cursor only, no local crosshair
-    const cellSize = frame.width / N
     // Recurrence rows are bottom-origin (fixation i counts upward), so convert
     // to the shared helper's display space (top-left origin).
-    drawMatrixCrosshair(
-      ctx,
-      {
-        xOffset: frame.x,
-        yOffset: frame.y,
-        cellSize,
-        gridWidth: frame.width,
-        gridHeight: frame.width,
-      },
-      { row: N - 1 - hoveredCell.row, col: hoveredCell.col }
-    )
+    drawMatrixCrosshair(ctx, geom, {
+      row: N - 1 - hoveredCell.row,
+      col: hoveredCell.col,
+    })
   }
 </script>
 
