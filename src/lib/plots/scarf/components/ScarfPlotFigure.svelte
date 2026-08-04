@@ -1,7 +1,7 @@
 <script lang="ts">
   import {
     alignToPixelCenter,
-    fillCrosshairBand,
+    markCrosshairStrip,
     strokeCrosshairGuides,
   } from '$lib/plots/shared/canvasUtils'
   import {
@@ -29,11 +29,12 @@
     resolveFrameLayout,
   } from '$lib/plots/shared'
   import {
-    drawTimeCursor,
+    cursorRows,
+    drawTimeGuide,
     timeAtX,
-    timeCursorX,
-    type TimeCursorPort,
-  } from '$lib/plots/shared/timeCursor.svelte'
+    timeGuideX,
+    type PlotCursorPort,
+  } from '$lib/plots/shared/plotCursor.svelte'
   import { onDestroy } from 'svelte'
   import { SCARF_LAYOUT } from '../const'
   import { FIXATION_CATEGORY_ID } from '$lib/data/types'
@@ -77,8 +78,8 @@
     ) => Array<{ key: string; value: string }>
     onDragStepX?: (stepChange: number, width: number) => void
     onDragEnd?: () => void
-    /** Shared TIME CURSOR (screen-only; export renders without one). */
-    timeCursor?: TimeCursorPort | null
+    /** Shared PLOT CURSOR (screen-only; export renders without one). */
+    plotCursor?: PlotCursorPort | null
   }
 
   let {
@@ -89,7 +90,7 @@
     getTooltipContent = () => [],
     onDragStepX = () => {},
     onDragEnd = () => {},
-    timeCursor = null,
+    plotCursor = null,
     width = 0,
     height,
     margin = 0,
@@ -161,6 +162,8 @@
   const participantLabels = $derived.by(() =>
     isCompactMode ? [] : data.participants.map(p => p.label)
   )
+  /** Row order for the PLOT CURSOR — rebuilt on a data change, not per frame. */
+  const participantIds = $derived(data.participants.map(p => p.id))
   const LEFT_LABEL_WIDTH = $derived(calculateLeftLabelWidth(isCompactMode, participantLabels))
 
   const participantBarsHeight = $derived(
@@ -204,14 +207,22 @@
     },
     hitTest: plotHitTest,
     // The track-only hit covers empty timeline too, so the cursor follows the
-    // pointer across gaps. Published as a live read of the hovered PIXEL, so a
+    // pointer across gaps. Published as live reads of the hovered PIXEL and ROW, so a
     // drag-pan or an undo under a resting pointer re-derives the time.
     onHover: hover =>
-      timeCursor?.publish(
-        hover ? () => timeAtX(rowBand, data.timeline, hover.x) : null
+      plotCursor?.publish(
+        hover
+          ? {
+              time: () => timeAtX(rowBand, data.timeline, hover.x),
+              // Slice, not index: an undo that narrows the participants under a
+              // resting pointer must read back EMPTY, never throw into a sibling.
+              participants: () => participantIds.slice(hover.row, hover.row + 1),
+            }
+          : null
       ),
-    // Return type annotated, same cycle as `gutters`.
-    overlayDeps: (): number | null => cursorX,
+    // Return type annotated, same cycle as `gutters`. The rows KEY, not the array:
+    // moving within one row must not repaint every sibling.
+    overlayDeps: (): string => `${cursorX}:${cursorRowsKey}`,
     blockedRegions: (): BlockedRegion[] => blockedRegions,
     pointer: {
       onDown: handlePointerDown,
@@ -244,7 +255,7 @@
   })
 
   // The rows, not the frame's full band — the frame includes centring slack the
-  // marks never fill. One source for both the blocked region and the TIME CURSOR
+  // marks never fill. One source for the blocked region, the time guide and the PLOT CURSOR
   // mark, so a guide can never hang below the last row.
   const rowBand = $derived({
     x: plot.frame.x,
@@ -259,8 +270,12 @@
   ])
 
   const cursorX = $derived(
-    timeCursorX(rowBand, data.timeline, timeCursor?.time ?? null)
+    timeGuideX(rowBand, data.timeline, plotCursor?.time ?? null)
   )
+  const cursorRowIndices = $derived(
+    cursorRows(participantIds, plotCursor?.participants ?? [])
+  )
+  const cursorRowsKey = $derived(cursorRowIndices.join(','))
 
   const identifierSystem = $derived.by(() => {
     if (!data.stylingAndLegend)
@@ -377,41 +392,29 @@
     drawLegend(ctx, legendGeometry, SCARF_LEGEND_CONFIG, highlights)
   }
 
-  // Overlay layer: only the hover crosshair, driven by the harness-owned
-  // hover payload. Drawn on top of the cached data layer so mouse-moves
-  // repaint via blit instead of re-running renderScarf.
-  function drawScarfOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
-    // Before the local-hover early return below: the remote mark must survive it.
-    drawTimeCursor(ctx, rowBand, cursorX)
+  // Overlay layer: the PLOT CURSOR's marks plus the local CROSSHAIR, drawn on top
+  // of the cached data layer so mouse-moves repaint via blit instead of re-running
+  // renderScarf. Both channels come first — they must survive the local-hover
+  // early return.
+  function drawScarfOverlay(ctx: CanvasRenderingContext2D) {
+    drawTimeGuide(ctx, rowBand, cursorX)
+    // The cursor's rows and the local hover row get the SAME mark: it says "this
+    // participant", never who pointed at them. Only the EXTENT differs below —
+    // a local hover also knows an instant, so it adds the vertical guide.
+    for (const row of cursorRowIndices) markRow(ctx, row)
     const hover = plot.hover.data
     if (!hover) return
-    drawCrosshairHighlight(
-      ctx,
-      hover,
-      frame.x,
-      plotTop,
-      frame.width,
-      participantBarsHeight,
-      layout.heightOfBarWrap
-    )
+    markRow(ctx, hover.row)
+    const x = alignToPixelCenter(hover.x)
+    strokeCrosshairGuides(ctx, [x, rowBand.y, x, rowBand.y + rowBand.height])
   }
 
-  function drawCrosshairHighlight(
-    ctx: CanvasRenderingContext2D,
-    hover: ScarfHover,
-    plotLeft: number, plotTop: number, plotWidth: number, plotHeight: number, rowHeight: number
-  ) {
-    const rowY = plotTop + hover.row * rowHeight
-    fillCrosshairBand(ctx, plotLeft, rowY, plotWidth, rowHeight, 0.2)
-    const topEdge = alignToPixelCenter(rowY)
-    const bottomEdge = alignToPixelCenter(rowY + rowHeight)
-    const x = alignToPixelCenter(hover.x)
-    strokeCrosshairGuides(ctx, [
-      plotLeft, topEdge, plotLeft + plotWidth, topEdge,
-      plotLeft, bottomEdge, plotLeft + plotWidth, bottomEdge,
-      x, plotTop, x, plotTop + plotHeight,
-    ])
-  }
+  const rowY = (row: number) => rowBand.y + row * layout.heightOfBarWrap
+
+  const markRow = (ctx: CanvasRenderingContext2D, row: number) =>
+    markCrosshairStrip(
+      ctx, rowBand.x, rowY(row), rowBand.width, layout.heightOfBarWrap, 0.2, 'x'
+    )
 
   function isMouseOverLegendItem(mouseX: number, mouseY: number): LegendItemGeometry | null {
     if (!data.stylingAndLegend || !legendGeometry.items.length) return null

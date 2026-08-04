@@ -3,9 +3,14 @@
     usePlot,
     canvasBlockSelect,
     type CanvasExportProps,
+    type FrameHit,
     type PlotFrame,
     type PlotAreaTicks,
   } from '$lib/plots/shared'
+  import {
+    strokeCrosshairPanel,
+    type PlotCursorPort,
+  } from '$lib/plots/shared/plotCursor.svelte'
   import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
   import { SCANPATH_COLORS, SCANPATH_LAYOUT } from '../const'
   import type { ScanpathData } from '../types'
@@ -16,6 +21,10 @@
     showFixationOrder?: boolean
     showNumbers?: boolean
     unavailableMessage?: string | WarningPlaceholder | null
+    /** The one participant this panel is about. */
+    participantId?: number
+    /** Shared PLOT CURSOR (screen-only; export renders without one). */
+    plotCursor?: PlotCursorPort | null
   }
 
   let {
@@ -26,7 +35,20 @@
     height = 400,
     margin = 0,
     unavailableMessage = null,
+    participantId,
+    plotCursor = null,
   }: Props = $props()
+
+  /** The cursor either means this whole panel or nothing: one participant, one plot. */
+  const cursorIsMine = $derived(
+    participantId !== undefined &&
+      (plotCursor?.participants ?? []).includes(participantId)
+  )
+
+  /** The PLOT CURSOR only: the whole data rect is this participant's region. */
+  function drawScanpathOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+    if (cursorIsMine) strokeCrosshairPanel(ctx, frame)
+  }
 
   const L = SCANPATH_LAYOUT
 
@@ -86,7 +108,7 @@
     }
   })
 
-  const plot = usePlot({
+  const plot = usePlot<boolean>({
     width: () => width,
     height: () => height,
     margin: () => margin,
@@ -109,6 +131,23 @@
     // Marks may slightly overflow the plot area (edge fixations); the axis
     // frame is drawn on top afterwards, matching the pre-frame behaviour.
     clipData: false,
+    drawOverlay: drawScanpathOverlay,
+    // Track-only hit (empty content = no tooltip): this panel IS one participant,
+    // so "the pointer is in here" is the whole publishable fact. The payload is a
+    // STABLE `true`, so the harness sees no hover change and schedules no repaint.
+    hitTest: (): FrameHit<boolean> => ({
+      tooltipId: 'scanpath-cursor',
+      content: [],
+      anchorX: 0,
+      anchorY: 0,
+      cursor: 'default',
+      data: true,
+    }),
+    onHover: over =>
+      plotCursor?.publish(
+        over && participantId !== undefined ? { participants: () => [participantId] } : null
+      ),
+    overlayDeps: (): boolean => cursorIsMine,
     axes: () => {
       if (unavailableMessage) return {}
       return {

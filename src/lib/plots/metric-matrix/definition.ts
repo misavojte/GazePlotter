@@ -1,4 +1,5 @@
 import { deriveMetricMatrixView } from './core/view'
+import { plotCursorScreen } from '$lib/plots/shared/plotCursor.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import {
@@ -47,6 +48,7 @@ export const metricMatrixDefinition = definePlot<
     },
   ],
   view: { deriveView: deriveMetricMatrixView },
+  screen: plotCursorScreen(),
   getSubtitle: metricMatrixSubtitle,
   getDefaultSettings: (params = {}) => ({
     groupId: params.groupId ?? -1,

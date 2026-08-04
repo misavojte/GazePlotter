@@ -56,6 +56,9 @@ export function deriveMetricMatrixView(
       matrix: data.values,
       rowLabels,
       colLabels,
+      // Rows are participants (columns are stimuli), so only rows join the PLOT
+      // CURSOR's participant channel.
+      rowParticipantIds: data.rows.map(r => r.id),
       xAxisTitle: METRIC_MATRIX_DEFAULTS.xAxisTitle,
       yAxisTitle: METRIC_MATRIX_DEFAULTS.yAxisTitle,
       colorScale,

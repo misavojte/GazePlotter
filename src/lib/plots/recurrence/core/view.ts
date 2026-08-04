@@ -40,6 +40,7 @@ function getRecurrenceView(
       highlight: effectiveSettings.highlight,
       masking: effectiveSettings.masking,
       highlightMask,
+      participantId: effectiveSettings.participantId,
     },
   }
 }

@@ -52,6 +52,8 @@ function getScanpathSimilarityView(
         noMetric,
         threshold,
         highlights: settings.participantHighlights ?? [],
+        // Node index -> participant id, for the PLOT CURSOR's ring.
+        participantIds: similarityData.participantIds,
         onNodeClick: opts.onNodeClick,
       },
       hasData,
@@ -67,6 +69,9 @@ function getScanpathSimilarityView(
     props: {
       matrix,
       labels,
+      // Both axes are participants, so the PLOT CURSOR marks a row AND a column.
+      rowParticipantIds: similarityData.participantIds,
+      colParticipantIds: similarityData.participantIds,
       xAxisTitle: 'Participant',
       yAxisTitle: 'Participant',
       colorScale: settings.colorScale ?? [],

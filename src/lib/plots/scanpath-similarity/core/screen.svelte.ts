@@ -1,12 +1,15 @@
 import { untrack } from 'svelte'
 import type { PlotScreenFactory } from '$lib/plots/definePlot'
 import { toggleInArray } from '$lib/plots/shared'
+import { plotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
 import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 import type { ScanpathSimilaritySettings } from '../types'
 
 /**
- * Screen recipe: the scangraph's node click toggles the participant highlight
- * via a workspace command. Export renders without the handler.
+ * Screen recipe: the shared PLOT CURSOR (matrix view: both axes are
+ * participants) and the scangraph's node click, which toggles the PERSISTED
+ * `participantHighlights` — a deliberate choice the user made, distinct from the
+ * transient cursor and drawn by the scangraph only. Export renders without both.
  */
 export const scanpathSimilarityScreen: PlotScreenFactory<
   ScanpathSimilaritySettings
@@ -14,6 +17,9 @@ export const scanpathSimilarityScreen: PlotScreenFactory<
   const source = untrack(() =>
     createCommandSourcePlotPattern(ctx.item, 'plot')
   )
+
+  // No time axis here, so no time scope.
+  const plotCursor = plotCursorPort(ctx.item.id)
 
   const handleNodeClick = (nodeIndex: number) => {
     ctx.workspace.updateItemSettings(
@@ -29,7 +35,7 @@ export const scanpathSimilarityScreen: PlotScreenFactory<
   }
 
   return {
-    props: () => ({ onNodeClick: handleNodeClick }),
+    props: () => ({ onNodeClick: handleNodeClick, plotCursor }),
   }
 }
 

@@ -2,7 +2,9 @@
   import {
     alignToPixelCenter,
     CROSSHAIR_COLOR,
+    CROSSHAIR_DASH,
     fillCrosshairBand,
+    markCrosshairStrip,
     strokeCrosshairGuides,
   } from '$lib/plots/shared/canvasUtils'
   import {
@@ -15,11 +17,12 @@
     type FrameHit,
   } from '$lib/plots/shared'
   import {
-    drawTimeCursor,
+    cursorRows,
+    drawTimeGuide,
     timeAtX,
-    timeCursorX,
-    type TimeCursorPort,
-  } from '$lib/plots/shared/timeCursor.svelte'
+    timeGuideX,
+    type PlotCursorPort,
+  } from '$lib/plots/shared/plotCursor.svelte'
   import { estimateTextWidth, measureTextHeight, truncateTextToPixelWidth } from '$lib/shared/utils/textUtils'
   import { percentileSorted } from '$lib/shared/utils/mathUtils'
   import { samplePalette } from '$lib/color'
@@ -75,8 +78,8 @@
     data: EvolvingMetricsResult
     alignment?: 'heatmap' | 'overlay'
     colorScale?: string[]
-    /** Shared TIME CURSOR (screen-only; export renders without one). */
-    timeCursor?: TimeCursorPort | null
+    /** Shared PLOT CURSOR (screen-only; export renders without one). */
+    plotCursor?: PlotCursorPort | null
   }
 
   let {
@@ -86,7 +89,7 @@
     alignment = 'heatmap',
     colorScale,
     margin = 0,
-    timeCursor = null,
+    plotCursor = null,
   }: Props = $props()
 
   const X_AXIS_LABEL = $derived(data.xAxisLabel)
@@ -207,16 +210,27 @@
     drawData: drawEvolving,
     drawOverlay: drawEvolvingOverlay,
     hitTest: computeHit,
-    // A live read of the hovered PIXEL, so a resize or an undo under a resting
-    // pointer re-derives the time instead of stranding the old one.
+    // Live reads of the hovered PIXEL and ROW, so a resize or an undo under a
+    // resting pointer re-derives them instead of stranding the old values.
     onHover: hit => {
-      const px = hit?.x
-      timeCursor?.publish(
-        px === undefined ? null : () => timeAtX(plot.frame, data.timeline, px)
+      const idx = hit?.participantIdx
+      plotCursor?.publish(
+        hit === null
+          ? null
+          : {
+              time: () => timeAtX(plot.frame, data.timeline, hit.x),
+              // Slice, not index: an undo that narrows the participants under a
+              // resting pointer must read back EMPTY, never throw into a sibling.
+              participants:
+                idx === null || idx === undefined
+                  ? undefined
+                  : () => participantIds.slice(idx, idx + 1),
+            }
       )
     },
-    // Return type annotated: `cursorX` reads `plot`, so inference would loop.
-    overlayDeps: (): number | null => cursorX,
+    // Annotated: `cursorX` reads `plot`, so inference would loop. The rows KEY, not
+    // the array: moving within one row must not repaint every sibling.
+    overlayDeps: (): string => `${cursorX}:${cursorRowsKey}`,
   })
 
   const hoveredMsTime = $derived(plot.hover.data?.t ?? null)
@@ -227,9 +241,15 @@
   // participants: the empty result carries a fabricated 0–100 ms timeline.
   const cursorX = $derived(
     data.participants.length > 0
-      ? timeCursorX(plot.frame, data.timeline, timeCursor?.time ?? null)
+      ? timeGuideX(plot.frame, data.timeline, plotCursor?.time ?? null)
       : null
   )
+  /** Row order for the PLOT CURSOR — rebuilt on a data change, not per frame. */
+  const participantIds = $derived(data.participants.map(p => p.id))
+  const cursorRowIndices = $derived(
+    cursorRows(participantIds, plotCursor?.participants ?? [])
+  )
+  const cursorRowsKey = $derived(cursorRowIndices.join(','))
 
   const palette = $derived<string[]>(
     colorScale && colorScale.length >= 2 ? colorScale : [...PRESET_PALETTES.HEAT.colors]
@@ -352,9 +372,15 @@
   // data layer, so a mouse move blits that back and repaints only this — instead
   // of re-running the full heatmap/overlay draw on every move.
   function drawEvolvingOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
-    // Before the local-hover early return below: the remote mark must survive it.
-    drawTimeCursor(ctx, frame, cursorX)
-    if (hoveredMsTime === null && hoveredParticipantIndex === null) return
+    // Both PLOT CURSOR channels first: they are independent of this plot's own
+    // hover state, which the local chrome below drops out on.
+    drawTimeGuide(ctx, frame, cursorX)
+    if (
+      hoveredMsTime === null &&
+      hoveredParticipantIndex === null &&
+      cursorRowIndices.length === 0
+    )
+      return
     const floorLeft = Math.floor(frame.x)
     const floorTop = Math.floor(frame.y)
     const floorWidth = Math.floor(frame.width)
@@ -364,16 +390,28 @@
     const floorBottom = floorTop + floorHeight
     const floorRight = floorLeft + floorWidth
 
+    const rowHeight = alignment === 'overlay' ? null : floorHeight / participantCount
+
     ctx.save()
     ctx.beginPath()
     ctx.rect(floorLeft, floorTop, floorWidth, floorHeight)
     ctx.clip()
+    // The remote participants are OUTLINED (heatmap) or DASHED (overlay); the local
+    // hover is filled or solid. Same colour, different mark.
+    for (const row of cursorRowIndices) {
+      if (rowHeight === null) {
+        drawStepLine(ctx, row, floorLeft, floorWidth, floorHeight, floorBottom, true)
+      } else {
+        markCrosshairStrip(
+          ctx, floorLeft, floorTop + row * rowHeight, floorWidth, rowHeight, 0.15, 'x'
+        )
+      }
+    }
     drawHoveredWindowChrome(
-      ctx, floorLeft, floorTop, floorWidth, floorHeight, floorRight,
-      alignment === 'overlay' ? null : floorHeight / participantCount
+      ctx, floorLeft, floorTop, floorWidth, floorHeight, floorRight, rowHeight
     )
-    if (alignment === 'overlay') {
-      drawHoveredStepLine(ctx, floorLeft, floorWidth, floorHeight, floorBottom)
+    if (rowHeight === null && hoveredParticipantIndex !== null) {
+      drawStepLine(ctx, hoveredParticipantIndex, floorLeft, floorWidth, floorHeight, floorBottom)
     }
     ctx.restore()
   }
@@ -424,24 +462,29 @@
   }
 
   // Overlay mode also re-strokes the hovered participant's step line on top.
-  function drawHoveredStepLine(
+  function drawStepLine(
     ctx: CanvasRenderingContext2D,
-    floorLeft: number, floorWidth: number, floorHeight: number, floorBottom: number
+    participantIdx: number,
+    floorLeft: number, floorWidth: number, floorHeight: number, floorBottom: number,
+    /** Dashed marks the PLOT CURSOR's participant; solid marks this plot's own. */
+    dashed = false
   ) {
-    if (hoveredParticipantIndex === null) return
-    const wins = data.participants[hoveredParticipantIndex].windows
+    const wins = data.participants[participantIdx].windows
     if (wins.length === 0) return
     const timelineMin = data.timeline.minValue
     const duration = Math.max(1, data.timeline.maxValue - timelineMin)
     const invMsPerPx = floorWidth / duration
+    ctx.save()
     ctx.strokeStyle = CROSSHAIR_COLOR
     ctx.lineWidth = 1
+    if (dashed) ctx.setLineDash(CROSSHAIR_DASH)
     drawStepLinePath(
       ctx, wins,
       (ms: number) => floorLeft + (ms - timelineMin) * invMsPerPx,
       (v: number) => floorBottom - (v / yAxisMax) * floorHeight
     )
     ctx.stroke()
+    ctx.restore()
   }
 
   // ── HEATMAP ──

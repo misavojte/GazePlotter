@@ -9,6 +9,10 @@
     type PlotFrame,
     type FrameHit,
   } from '$lib/plots/shared'
+  import {
+    strokeCrosshairPanel,
+    type PlotCursorPort,
+  } from '$lib/plots/shared/plotCursor.svelte'
   import { hexToRgb, convertToHex } from '$lib/color'
   import { rasterizeRecurrenceTexture } from '../core'
   import { RECURRENCE_LAYOUT } from '../const'
@@ -23,6 +27,10 @@
     highlight?: RecurrenceHighlight
     masking?: RecurrenceMasking
     highlightMask?: Uint8Array | null
+    /** The one participant this panel is about. */
+    participantId?: number
+    /** Shared PLOT CURSOR (screen-only; export renders without one). */
+    plotCursor?: PlotCursorPort | null
   }
 
   let {
@@ -30,10 +38,18 @@
     highlight = 'none',
     masking = 'diagonal',
     highlightMask = null,
+    participantId,
+    plotCursor = null,
     width = 400,
     height = 400,
     margin = 0,
   }: Props = $props()
+
+  /** The cursor either means this whole panel or nothing: one participant, one plot. */
+  const cursorIsMine = $derived(
+    participantId !== undefined &&
+      (plotCursor?.participants ?? []).includes(participantId)
+  )
 
   const L = RECURRENCE_LAYOUT
   // Below this cell size individual dots stop resolving; the matrix is drawn as
@@ -98,6 +114,18 @@
     return { rgb, hasAoi }
   })
 
+  // A masked cell has no datum, but the panel is still this participant: a
+  // track-only hit with STABLE identity keeps the cursor published and repaints
+  // nothing. `row: -1` marks it, so the local crosshair skips it.
+  const MASKED_HIT: FrameHit<{ row: number; col: number }> = {
+    tooltipId: 'recurrence-tooltip',
+    content: [],
+    anchorX: 0,
+    anchorY: 0,
+    cursor: 'default',
+    data: { row: -1, col: -1 },
+  }
+
   const plot = usePlot<{ row: number; col: number }>({
     width: () => width,
     height: () => height,
@@ -129,15 +157,23 @@
         },
       }
     },
-    drawOverlay: drawHoverCrosshair,
+    drawOverlay: drawRecurrenceOverlay,
+    // This panel IS one participant, so a hover anywhere in it means that person.
+    onHover: cell =>
+      plotCursor?.publish(
+        cell !== null && participantId !== undefined
+          ? { participants: () => [participantId] }
+          : null
+      ),
+    overlayDeps: (): boolean => cursorIsMine,
     hitTest: (x, y, frame) => {
       if (!data || N < 2) return null
       const cell = cellAt(x, y, frame)
       if (!cell) return null
       const maskDiagonal = masking === 'diagonal' || masking === 'diagonalLower'
       const maskLower = masking === 'diagonalLower'
-      if (maskLower && cell.col >= cell.row) return null
-      if (maskDiagonal && cell.col === cell.row) return null
+      if ((maskLower && cell.col >= cell.row) || (maskDiagonal && cell.col === cell.row))
+        return MASKED_HIT
 
       const idx = cell.row * N + cell.col
       const isRecurrent = !!data.matrix[idx]
@@ -387,9 +423,13 @@
     ctx.imageSmoothingEnabled = prevSmoothing
   }
 
-  function drawHoverCrosshair(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+  function drawRecurrenceOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+    // Remote participant OUTLINED (inset so it never repaints the axis border),
+    // local hover filled — same colour, different mark.
+    if (cursorIsMine) strokeCrosshairPanel(ctx, frame)
     const hoveredCell = plot.hover.data
     if (!hoveredCell) return
+    if (hoveredCell.row < 0) return // masked cell: cursor only, no local crosshair
     const cellSize = frame.width / N
     // Recurrence rows are bottom-origin (fixation i counts upward), so convert
     // to the shared helper's display space (top-left origin).

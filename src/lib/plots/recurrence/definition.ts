@@ -1,4 +1,5 @@
 import { deriveRecurrenceView } from './core/view'
+import { plotCursorScreen } from '$lib/plots/shared/plotCursor.svelte'
 import { definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
 import { stimulusParticipantSubtitle } from '$lib/plots/shared'
 import { RECURRENCE_HIGHLIGHTS, RECURRENCE_MASKINGS, RECURRENCE_METHODS } from './const'
@@ -94,6 +95,7 @@ export const recurrencePlotDefinition = definePlot<
     'aoi',
   ],
   view: { deriveView: deriveRecurrenceView },
+  screen: plotCursorScreen(),
   getSubtitle: stimulusParticipantSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,

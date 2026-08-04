@@ -557,7 +557,9 @@ export function alignToPixelCenter(val: number): number {
 /** The one hover-crosshair color shared by every plot figure's hover chrome. */
 export const CROSSHAIR_COLOR = '#007acc'
 
-const CROSSHAIR_DASH = [2, 2]
+/** THE hover-mark dash. Exported so a figure dashing its own path (an emphasised
+ *  step line) reuses it instead of duplicating the appearance. */
+export const CROSSHAIR_DASH = [2, 2]
 
 /**
  * Translucent crosshair band — the shared hover-highlight fill. Alpha varies
@@ -597,6 +599,112 @@ export function strokeCrosshairGuides(
     ctx.moveTo(segments[i], segments[i + 1])
     ctx.lineTo(segments[i + 2], segments[i + 3])
   }
+  ctx.stroke()
+  ctx.restore()
+}
+
+/**
+ * THE strip mark: "this row / column is designated". A translucent band plus its
+ * two LONG edges dashed — `along: 'x'` for a row (horizontal edges), `'y'` for a
+ * column. Nothing about it encodes WHO designated the strip, so a plot's own
+ * CROSSHAIR and the PLOT CURSOR draw the identical mark and only their EXTENT
+ * differs (a local hover knows a cell, the cursor knows a participant).
+ * `alpha` stays per-plot: each plot's established hover weight, which its cursor
+ * then matches exactly.
+ */
+export function markCrosshairStrip(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  alpha: number,
+  along: 'x' | 'y'
+): void {
+  fillCrosshairBand(ctx, x, y, width, height, alpha)
+  if (along === 'x') {
+    const top = alignToPixelCenter(y)
+    const bottom = alignToPixelCenter(y + height)
+    strokeCrosshairGuides(ctx, [x, top, x + width, top, x, bottom, x + width, bottom])
+  } else {
+    const left = alignToPixelCenter(x)
+    const right = alignToPixelCenter(x + width)
+    strokeCrosshairGuides(ctx, [left, y, left, y + height, right, y, right, y + height])
+  }
+}
+
+/**
+ * Dashed 1px crosshair rectangle — the closed-outline form, for a region that is
+ * not a strip (a whole panel; see `strokeCrosshairPanel`).
+ */
+export function strokeCrosshairRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): void {
+  const left = alignToPixelCenter(x)
+  const top = alignToPixelCenter(y)
+  const right = alignToPixelCenter(x + width)
+  const bottom = alignToPixelCenter(y + height)
+  // Co-directional, NOT a perimeter walk: canvas restarts the dash phase per
+  // subpath, so reversed opposing edges would render a shared edge between two
+  // adjacent outlines solid.
+  strokeCrosshairGuides(ctx, [
+    left, top, right, top,
+    left, bottom, right, bottom,
+    left, top, left, bottom,
+    right, top, right, bottom,
+  ])
+}
+
+/**
+ * THE point mark: "this node / dot is designated". The strip mark's sibling for a
+ * round thing — a translucent halo plus its dashed ring — so a 1px ring alone is
+ * never all there is to find. Like the strip mark it says nothing about WHO
+ * designated the point, so a plot's own hover and the PLOT CURSOR share it.
+ *
+ * The alpha is fixed here, unlike `markCrosshairStrip`: strips carry three
+ * established per-plot hover weights, points have none.
+ */
+export function markCrosshairNode(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  radius: number
+): void {
+  ctx.save()
+  ctx.beginPath()
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2)
+  ctx.globalAlpha = 0.2
+  ctx.fillStyle = CROSSHAIR_COLOR
+  ctx.fill()
+  ctx.globalAlpha = 1
+  ctx.strokeStyle = CROSSHAIR_COLOR
+  ctx.lineWidth = 1
+  ctx.setLineDash(CROSSHAIR_DASH)
+  ctx.stroke()
+  ctx.restore()
+}
+
+/**
+ * The point mark's WEAKER tier: the ring alone, no halo — "adjacent to something
+ * designated", not designated itself. Only a graph has this second tier, and the
+ * missing fill is the whole difference, so the two can never be misread.
+ */
+export function strokeCrosshairRing(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  radius: number
+): void {
+  ctx.save()
+  ctx.strokeStyle = CROSSHAIR_COLOR
+  ctx.lineWidth = 1
+  ctx.setLineDash(CROSSHAIR_DASH)
+  ctx.beginPath()
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2)
   ctx.stroke()
   ctx.restore()
 }

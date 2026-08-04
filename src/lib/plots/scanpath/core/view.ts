@@ -56,6 +56,8 @@ export function getScanpathView(
       showFixationOrder: settings.showFixationOrder,
       showNumbers: settings.showNumbers,
       unavailableMessage: null,
+      // Only on the drawable branch: a parked placeholder draws no overlay.
+      participantId: settings.participantId,
     },
   }
 }

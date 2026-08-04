@@ -1,5 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import { getParticipantsIds, getParticipant } from '$lib/data/engine'
+import { getParticipantsIds } from '$lib/data/engine'
 import {
   getMetric,
   instanceMatchesContract,
@@ -47,10 +47,6 @@ export function getMetricCorrelationData(
   if (metrics.length < 2) return emptyResult(settings, true)
   if (participantIds.length === 0) return emptyResult(settings)
 
-  const participantLabels = participantIds.map(
-    id => getParticipant(engine, id).displayedName
-  )
-
   const vectors: MetricVector[] = metrics.map(m => ({
     metricId: m.id,
     values: new Array<number>(participantIds.length),
@@ -78,8 +74,7 @@ export function getMetricCorrelationData(
     metrics,
     vectors,
     settings.correlationMethod,
-    options.includePoints,
-    participantLabels
+    options.includePoints
   )
 
   return {
@@ -88,7 +83,7 @@ export function getMetricCorrelationData(
     cells,
     correlationMethod: settings.correlationMethod,
     sampleSize: participantIds.length,
-    participantLabels,
+    participantIds,
     timelineStart: settings.timelineStart ?? 0,
     timelineEnd: settings.timelineEnd ?? 0,
   }
@@ -127,8 +122,7 @@ function computeCells(
   metrics: MetricDescriptor[],
   vectors: MetricVector[],
   method: MetricCorrelationSettings['correlationMethod'],
-  includePoints: boolean,
-  participantLabels: string[]
+  includePoints: boolean
 ): CorrelationCell[] {
   const cells: CorrelationCell[] = []
   for (let row = 0; row < metrics.length; row++) {
@@ -150,7 +144,7 @@ function computeCells(
           const x = colVec[i]
           const y = rowVec[i]
           if (Number.isNaN(x) || Number.isNaN(y)) continue
-          points.push({ x, y, participantLabel: participantLabels[i] })
+          points.push({ x, y })
         }
       }
 
@@ -173,6 +167,7 @@ function emptyResult(settings: MetricCorrelationSettings, noMetric = false): Met
     cells: [],
     correlationMethod: settings.correlationMethod,
     sampleSize: 0,
+    participantIds: [],
     ...(noMetric ? { noMetric: true as const } : {}),
   }
 }

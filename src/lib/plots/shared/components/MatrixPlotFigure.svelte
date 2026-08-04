@@ -11,9 +11,15 @@
   import {
     renderMatrixContent,
     drawMatrixCrosshair,
+    drawMatrixParticipantStrips,
     matrixCellAt,
+    matrixCellParticipants,
     type MatrixRenderConfig,
   } from '../matrixRenderer'
+  import {
+    cursorRows,
+    type PlotCursorPort,
+  } from '../plotCursor.svelte'
   import {
     computeGradientLegendGeometry,
     drawGradientLegend,
@@ -22,7 +28,6 @@
   import {
     usePlot,
     type FrameHit,
-    type PlotFrame,
   } from '../usePlot.svelte'
   import {
     canvasBlockSelect,
@@ -47,6 +52,15 @@
     rowLabels?: string[]
     /** Column (x-axis) labels. Falls back to `labels` when omitted (square case). */
     colLabels?: string[]
+    /**
+     * Participant id per row / column, when that axis IS participants. Opt-in:
+     * a matrix whose axes are AOIs or metrics passes neither and takes no part in
+     * the PLOT CURSOR's participant channel.
+     */
+    rowParticipantIds?: number[]
+    colParticipantIds?: number[]
+    /** Shared PLOT CURSOR (screen-only; export renders without one). */
+    plotCursor?: PlotCursorPort | null
     xAxisTitle: string
     yAxisTitle: string
     /** Gradient stops (2 or 3 colors) for the shared value→color mapping. */
@@ -85,6 +99,13 @@
     ) => Array<{ key: string; value: string }>
     /** Replaces the heat-cell fill pass; grid, labels and hover stay shared. */
     drawCells?: (ctx: CanvasRenderingContext2D, layout: MatrixLayout) => void
+    /** `drawCells`' overlay twin: the PLOT CURSOR's participant INSIDE the cells
+     *  (a SPLOM dot). Opt-in, like the id arrays, and never a `deps` entry. */
+    drawCellsCursor?: (
+      ctx: CanvasRenderingContext2D,
+      layout: MatrixLayout,
+      participants: readonly number[]
+    ) => void
   }
 
   let {
@@ -113,6 +134,10 @@
     tooltipWidth = 160,
     getCellTooltip,
     drawCells,
+    drawCellsCursor,
+    rowParticipantIds,
+    colParticipantIds,
+    plotCursor = null,
     width,
     height,
     margin = 0,
@@ -122,6 +147,27 @@
   // the two axes independently. Everything downstream reads rows/cols.
   const rows = $derived(rowLabels ?? labels)
   const cols = $derived(colLabels ?? labels)
+
+  // PLOT CURSOR, participants channel only — a matrix has no time axis. An axis
+  // that is not participants passes no ids and stays empty.
+  const cursorStrips = $derived.by(() => {
+    const ids = plotCursor?.participants ?? []
+    return {
+      rows: cursorRows(rowParticipantIds ?? [], ids),
+      cols: cursorRows(colParticipantIds ?? [], ids),
+    }
+  })
+  // Equality-stable keys: `overlayDeps` must read ONLY these, never the cursor
+  // itself, or the repaint effect re-subscribes to every pointer frame. The ids
+  // key is separate because a SPLOM has no participant AXIS — its ring moves while
+  // both strip sets stay empty — and gated on that seam, so a matrix with no
+  // in-cell painter never repaints for ids it cannot render.
+  const cursorStripsKey = $derived(
+    `${cursorStrips.rows.join(',')}|${cursorStrips.cols.join(',')}`
+  )
+  const cursorIdsKey = $derived(
+    drawCellsCursor ? (plotCursor?.participants ?? []).join(',') : ''
+  )
 
   const effectiveMaxValue = $derived.by(() => {
     if (colorValueRange[1] !== 0) return colorValueRange[1]
@@ -212,7 +258,12 @@
     if (legendGeometry) drawGradientLegend(ctx, legendGeometry)
   }
 
-  function drawHoverCrosshair(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+  function drawHoverCrosshair(ctx: CanvasRenderingContext2D) {
+    // The remote participants first: independent of this plot's own hover, and
+    // outlines rather than bands so the two never read as the same thing.
+    drawMatrixParticipantStrips(ctx, layout, cursorStrips)
+    const ids = plotCursor?.participants ?? []
+    if (ids.length > 0) drawCellsCursor?.(ctx, layout, ids)
     const hoveredCell = plot.hover.data
     if (hoveredCell) drawMatrixCrosshair(ctx, layout, hoveredCell)
   }
@@ -261,8 +312,23 @@
     },
     hitTest: computeHit,
     drawOverlay: drawHoverCrosshair,
+    // A cell designates whoever its axes carry: one participant on a
+    // participant x stimulus matrix, a PAIR on a participant x participant one.
+    // The other axis (a stimulus, an AOI, a metric) is in no channel. Published as
+    // a live read of the hovered INDICES, so a data change under a resting pointer
+    // re-derives who they are. Nothing to publish means retract, not an empty record.
+    onHover: cell =>
+      plotCursor?.publish(
+        cell === null || participantsAt(cell).length === 0
+          ? null
+          : { participants: () => participantsAt(cell) }
+      ),
+    overlayDeps: (): string => `${cursorStripsKey}|${cursorIdsKey}`,
     blockedRegions: () => blockedRegions,
   })
+
+  const participantsAt = (cell: { row: number; col: number }) =>
+    matrixCellParticipants(rowParticipantIds, colParticipantIds, cell)
 
   // The matrix body is the only blocked region; the legend below is static
   // chrome (no clickable cells), so it stays selectable.

@@ -1,6 +1,7 @@
 import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
 import { UI_COLORS } from '$lib/color'
-import type { MatrixLayout } from '$lib/plots/shared'
+import { markCrosshairNode, type MatrixLayout } from '$lib/plots/shared'
+import { cursorRows } from '$lib/plots/shared/plotCursor.svelte'
 import type { MetricCorrelationResult } from '../types'
 
 function rangeOf(values: number[]): { min: number; max: number } {
@@ -34,6 +35,68 @@ function rColor(r: number): string {
 }
 
 /**
+ * Per-cell scatter projection — ONE geometry, shared by the dots (data pass) and
+ * the PLOT CURSOR's ring (overlay pass), so the two can never disagree. Built per
+ * cell, not per dot, so the point loop allocates nothing.
+ */
+function cellProjection(
+  layout: MatrixLayout,
+  ranges: { min: number; max: number }[],
+  row: number,
+  col: number
+) {
+  const { xOffset, yOffset, cellSize } = layout
+  const pad = Math.max(3, cellSize * 0.08)
+  const inner = cellSize - pad * 2
+  const xR = ranges[col]
+  const yR = ranges[row]
+  const xDen = xR.max - xR.min || 1
+  const yDen = yR.max - yR.min || 1
+  const innerX = xOffset + col * cellSize + pad
+  const innerY = yOffset + row * cellSize + pad
+  const dotR = Math.max(1.2, Math.min(2.8, inner / 40))
+  return {
+    dotR,
+    /** Cursor-ring radius: bounded by the cell so it cannot bleed past its edge. */
+    ringR: Math.min(dotR + 3, Math.max(dotR + 1, inner / 2)),
+    px: (x: number) => innerX + ((x - xR.min) / xDen) * inner,
+    py: (y: number) => innerY + inner - ((y - yR.min) / yDen) * inner,
+  }
+}
+
+/**
+ * The PLOT CURSOR's participants, each ringed in every lower-triangle cell where
+ * they have a complete pair. Reads the VECTORS, not `cell.points`: the points are
+ * NaN-filtered, so a point index is not a participant row.
+ */
+export function createSplomCursorRing(result: MetricCorrelationResult) {
+  const ranges = result.vectors.map(v => rangeOf(v.values))
+  const n = result.metrics.length
+
+  return (
+    ctx: CanvasRenderingContext2D,
+    layout: MatrixLayout,
+    participants: readonly number[]
+  ) => {
+    const rows = cursorRows(result.participantIds, participants)
+    if (rows.length === 0) return
+    for (let row = 1; row < n; row++) {
+      for (let col = 0; col < row; col++) {
+        const proj = cellProjection(layout, ranges, row, col)
+        for (const p of rows) {
+          const x = result.vectors[col].values[p]
+          const y = result.vectors[row].values[p]
+          if (Number.isNaN(x) || Number.isNaN(y)) continue
+          // Standoff, not a hug: `dotR` sits at its 1.2 floor until cells are
+          // ~57px, so a fixed +1.5 would read as a slightly bigger dot.
+          markCrosshairNode(ctx, proj.px(x), proj.py(y), proj.ringR)
+        }
+      }
+    }
+  }
+}
+
+/**
  * SPLOM cell painter for `MatrixPlotFigure.drawCells`: diagonal shows the
  * metric unit, upper triangle the r value, lower triangle a scatter of the
  * per-participant value pairs. Per-metric value ranges place the scatter
@@ -45,8 +108,6 @@ export function createSplomCellRenderer(result: MetricCorrelationResult) {
 
   return (ctx: CanvasRenderingContext2D, layout: MatrixLayout) => {
     const { xOffset, yOffset, cellSize } = layout
-    const pad = Math.max(3, cellSize * 0.08)
-    const innerSize = cellSize - pad * 2
 
     const scatterFontSize = Math.min(14, Math.max(9, cellSize / 5))
     const rFontSize = Math.min(20, Math.max(11, cellSize / 3.2))
@@ -86,22 +147,13 @@ export function createSplomCellRenderer(result: MetricCorrelationResult) {
         } else {
           // Lower triangle: scatter
           if (!cell.points || cell.points.length === 0) continue
-          const xRange = ranges[col]
-          const yRange = ranges[row]
-          const xDen = xRange.max - xRange.min || 1
-          const yDen = yRange.max - yRange.min || 1
-          const innerX = x + pad
-          const innerY = y + pad
-          const dotR = Math.max(1.2, Math.min(2.8, innerSize / 40))
+          const proj = cellProjection(layout, ranges, row, col)
 
           ctx.fillStyle = '#2c3e50'
           ctx.globalAlpha = 0.65
           for (const point of cell.points) {
-            const px = innerX + ((point.x - xRange.min) / xDen) * innerSize
-            const py =
-              innerY + innerSize - ((point.y - yRange.min) / yDen) * innerSize
             ctx.beginPath()
-            ctx.arc(px, py, dotR, 0, Math.PI * 2)
+            ctx.arc(proj.px(point.x), proj.py(point.y), proj.dotR, 0, Math.PI * 2)
             ctx.fill()
           }
           ctx.globalAlpha = 1

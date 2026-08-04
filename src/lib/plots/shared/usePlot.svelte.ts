@@ -195,6 +195,11 @@ export interface UsePlotOptions<THit = unknown> {
    * `deps`' overlay-only twin, for view state the data layer doesn't depend on
    * (hover marks, a shared cursor): a change repaints `drawOverlay` over the
    * cached data layer instead of re-running `drawData`.
+   *
+   * The RETURN VALUE IS IGNORED — what schedules the repaint is what this getter
+   * READS. So read only equality-stable `$derived`s (a number, a boolean, a joined
+   * key), never a live source that changes faster than the mark does, or the
+   * overlay repaints on every pointer frame for nothing.
    */
   overlayDeps?: () => unknown
 

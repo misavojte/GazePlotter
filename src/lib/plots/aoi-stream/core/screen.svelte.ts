@@ -1,4 +1,3 @@
-import { onDestroy } from 'svelte'
 import type { PlotScreenFactory, PlotView } from '$lib/plots/definePlot'
 import { usePlotSync } from '$lib/plots/shared/PlotSyncRegistry.svelte'
 import {
@@ -6,7 +5,7 @@ import {
   getParticipantEndTime,
 } from '$lib/data/engine'
 import { toggleInArray } from '$lib/plots/shared'
-import { timeCursorPort } from '$lib/plots/shared/timeCursor.svelte'
+import { plotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
 import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 import { computeMTop } from './ridgeline'
 import {
@@ -18,15 +17,14 @@ import type { AoiStreamPlotResult, AoiStreamPlotSettings } from '../types'
 
 /**
  * Screen recipe: cross-plot timeline sync (same width, fully-auto timeline),
- * ridgeline data-scale sync (same height, scale, series count), the shared TIME
+ * ridgeline data-scale sync (same height, scale, series count), the shared PLOT
  * CURSOR and legend highlight toggling. Export renders the raw view — no sync,
  * no cursor, no handlers.
  */
 export const aoiStreamScreen: PlotScreenFactory<AoiStreamPlotSettings> = ctx => {
   // x is always absolute ms here, in all four alignments. Retract on destroy: a
   // plot removed under the pointer gets no `mouseleave`.
-  const timeCursor = timeCursorPort(ctx.item.id, () => ctx.item.settings.stimulusId)
-  onDestroy(() => timeCursor.publish(null))
+  const plotCursor = plotCursorPort(ctx.item.id, () => ctx.item.settings.stimulusId)
 
   // A plot participates in timeline sync only while its timeline is fully
   // auto: no global `timelineEnd` and no per-stimulus limits.
@@ -127,7 +125,7 @@ export const aoiStreamScreen: PlotScreenFactory<AoiStreamPlotSettings> = ctx => 
         highlights: ctx.item.settings.highlights ?? [],
         onLegendClick: handleLegendClick,
         syncedMTopOverride,
-        timeCursor,
+        plotCursor,
       }
     },
   }

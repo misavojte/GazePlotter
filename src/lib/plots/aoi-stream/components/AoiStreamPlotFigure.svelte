@@ -13,11 +13,11 @@
     type FrameHit,
   } from '$lib/plots/shared'
   import {
-    drawTimeCursor,
+    drawTimeGuide,
     timeAtX,
-    timeCursorX,
-    type TimeCursorPort,
-  } from '$lib/plots/shared/timeCursor.svelte'
+    timeGuideX,
+    type PlotCursorPort,
+  } from '$lib/plots/shared/plotCursor.svelte'
   import { estimateTextWidth, truncateTextToPixelWidth } from '$lib/shared/utils/textUtils'
   import { desaturateToWhite, INACTIVE_COLOR } from '$lib/color'
   import { PRESET_PALETTES } from '$lib/color/palettes'
@@ -80,8 +80,8 @@
     syncedMTopOverride?: number | null
     ridgelineScale?: number
     colorScale?: string[]
-    /** Shared TIME CURSOR (screen-only; export renders without one). */
-    timeCursor?: TimeCursorPort | null
+    /** Shared PLOT CURSOR (screen-only; export renders without one). */
+    plotCursor?: PlotCursorPort | null
   }
 
   let {
@@ -95,7 +95,7 @@
     syncedMTopOverride = null,
     ridgelineScale,
     colorScale,
-    timeCursor = null,
+    plotCursor = null,
   }: Props = $props()
 
   // Mirror core/layout.ts's HEAT fallback so the gradient legend isn't empty
@@ -254,10 +254,14 @@
     // Published through the TIME map (the one the axis ticks and areas use), NOT
     // the bin-index map the hovered-bin bands use; they differ once
     // stepSize !== windowSize. A legend hover clears it, like the local CROSSHAIR.
+    // No PARTICIPANTS channel: every series here is group-aggregated, so there is
+    // no participant under the pointer to publish.
     onHover: hit => {
       const px = hit?.kind === 'bin' ? hit.x : undefined
-      timeCursor?.publish(
-        px === undefined ? null : () => timeAtX(plot.frame, data.timeline, px)
+      plotCursor?.publish(
+        px === undefined
+          ? null
+          : { time: () => timeAtX(plot.frame, data.timeline, px) }
       )
     },
     // Return type annotated: `cursorX` reads `plot`, so inference would loop.
@@ -269,7 +273,7 @@
   // the cursor may run on it.
   const cursorX = $derived(
     data.binCount > 0
-      ? timeCursorX(plot.frame, data.timeline, timeCursor?.time ?? null)
+      ? timeGuideX(plot.frame, data.timeline, plotCursor?.time ?? null)
       : null
   )
 
@@ -558,7 +562,7 @@
   // (which re-derives every series' coordinates).
   function drawStreamOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
     // Before the local-hover early return below: the remote mark must survive it.
-    drawTimeCursor(ctx, frame, cursorX)
+    drawTimeGuide(ctx, frame, cursorX)
     const tag = plot.hover.data
     const hoveredBinIndex = tag?.kind === 'bin' ? (tag.binIndex ?? null) : null
     const mouseXPx = tag?.kind === 'bin' ? (tag.x ?? null) : null

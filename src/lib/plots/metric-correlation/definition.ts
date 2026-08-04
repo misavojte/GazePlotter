@@ -1,4 +1,5 @@
 import { deriveMetricCorrelationView } from './core/view'
+import { plotCursorScreen } from '$lib/plots/shared/plotCursor.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
 import {
@@ -54,6 +55,7 @@ export const metricCorrelationDefinition = definePlot<
     'aoi',
   ],
   view: { deriveView: deriveMetricCorrelationView },
+  screen: plotCursorScreen(),
   getSubtitle: stimulusGroupSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
