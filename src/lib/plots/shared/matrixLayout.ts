@@ -1,9 +1,9 @@
 import { getGradientLegendRequiredHeight } from './legendGradient'
 import { calculateTickStep } from './axisUtils'
+import { estimateTextWidth } from '$lib/shared/utils/textUtils'
 
 const AXIS_TITLE_GAP = 12
 const SIN_45 = 0.7071
-const APPROX_CHAR_WIDTH = 0.6
 const COMPACT_LABEL_SIZE = 25
 
 /**
@@ -88,11 +88,11 @@ function estimateMaxLabelWidth(
   fontSize: number,
   maxLabelLength: number
 ): number {
-  const approxCharWidth = fontSize * APPROX_CHAR_WIDTH
-  const maxPixelWidth = labels.reduce(
-    (max, label) => Math.max(max, label.length * approxCharWidth),
-    0
-  )
+  let maxPixelWidth = 0
+  for (let i = 0; i < labels.length; i++) {
+    const w = estimateTextWidth(labels[i], fontSize)
+    if (w > maxPixelWidth) maxPixelWidth = w
+  }
   return Math.min(maxPixelWidth, maxLabelLength)
 }
 
@@ -106,7 +106,7 @@ function compactThinFactor(
   fontSize: number,
   cellSize: number
 ): number {
-  const approxIndexWidth = count.toString().length * (fontSize * APPROX_CHAR_WIDTH)
+  const approxIndexWidth = estimateTextWidth(count.toString(), fontSize)
   return Math.max(1, Math.ceil((approxIndexWidth + 4) / cellSize))
 }
 
