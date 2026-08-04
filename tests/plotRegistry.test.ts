@@ -27,6 +27,13 @@ describe('plotRegistry helpers', () => {
     expect(getPlotDisplayName('aoiComparison')).toBe('AOI Comparison')
   })
 
+  // Metric Timeline's screen recipe exists ONLY to build its TIME CURSOR port,
+  // and `screen` is optional in the contract — dropping the line is type-legal
+  // and leaves the plot silently cursor-less.
+  it('registers the screen recipe that gives the Metric Timeline its time cursor', () => {
+    expect(resolvePlotDefinition('evolvingMetrics').screen).toBeTypeOf('function')
+  })
+
   it('falls back to the raw plot type label and throws for unknown plot types', () => {
     expect(getPlotDisplayName('missing-plot')).toBe('missing-plot')
     expect(() => resolvePlotDefinition('missing-plot')).toThrow(

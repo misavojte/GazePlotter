@@ -13,6 +13,12 @@
     type PlotFrame,
     type FrameHit,
   } from '$lib/plots/shared'
+  import {
+    drawTimeCursor,
+    timeAtX,
+    timeCursorX,
+    type TimeCursorPort,
+  } from '$lib/plots/shared/timeCursor.svelte'
   import { estimateTextWidth, truncateTextToPixelWidth } from '$lib/shared/utils/textUtils'
   import { desaturateToWhite, INACTIVE_COLOR } from '$lib/color'
   import { PRESET_PALETTES } from '$lib/color/palettes'
@@ -75,6 +81,8 @@
     syncedMTopOverride?: number | null
     ridgelineScale?: number
     colorScale?: string[]
+    /** Shared TIME CURSOR (screen-only; export renders without one). */
+    timeCursor?: TimeCursorPort | null
   }
 
   let {
@@ -89,6 +97,7 @@
     syncedMTopOverride = null,
     ridgelineScale,
     colorScale,
+    timeCursor = null,
   }: Props = $props()
 
   // Mirror core/layout.ts's HEAT fallback so the gradient legend isn't empty
@@ -245,7 +254,27 @@
       hitData: item => ({ kind: 'legend' as const, item }),
     },
     hitTest: hitTestBin,
+    // Published through the TIME map (the one the axis ticks and areas use), NOT
+    // the bin-index map the hovered-bin bands use; they differ once
+    // stepSize !== windowSize. A legend hover clears it, like the local CROSSHAIR.
+    onHover: hit => {
+      const px = hit?.kind === 'bin' ? hit.x : undefined
+      timeCursor?.publish(
+        px === undefined ? null : () => timeAtX(plot.frame, data.timeline, px)
+      )
+    },
+    // Return type annotated: `cursorX` reads `plot`, so inference would loop.
+    overlayDeps: (): number | null => cursorX,
   })
+
+  // Gated on real bins: the empty result carries a fabricated 0–100 ms timeline
+  // (`emptyAoiStreamResult`) that this plot never draws, so neither direction of
+  // the cursor may run on it.
+  const cursorX = $derived(
+    data.binCount > 0
+      ? timeCursorX(plot.frame, data.timeline, timeCursor?.time ?? null)
+      : null
+  )
 
   // Legend geometry sits in the bottom band, below the x-axis.
   const legendGeometry: LegendGeometry = $derived.by(() =>
@@ -531,6 +560,8 @@
   // hover blits it back and repaints only this instead of re-running drawStream
   // (which re-derives every series' coordinates).
   function drawStreamOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+    // Before the local-hover early return below: the remote mark must survive it.
+    drawTimeCursor(ctx, frame, cursorX)
     const tag = plot.hover.data
     const hoveredBinIndex = tag?.kind === 'bin' ? (tag.binIndex ?? null) : null
     const mouseXPx = tag?.kind === 'bin' ? (tag.x ?? null) : null
@@ -583,6 +614,9 @@
     binIndex?: number
     x?: number
   }> | null {
+    // No bins means the blank empty-result shell: no axis was drawn, so there is
+    // nothing to report a position in.
+    if (data.binCount <= 0) return null
     const binWidth = frame.width / data.binCount
     const binIndex = Math.max(0, Math.min(data.binCount - 1, Math.floor((mx - frame.x) / binWidth)))
 

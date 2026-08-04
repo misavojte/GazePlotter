@@ -79,11 +79,6 @@ export interface CanvasPlotMargins {
 /** Zero margins — the default for on-screen rendering (export padding only). */
 export const NO_MARGINS: CanvasPlotMargins = { top: 0, right: 0, bottom: 0, left: 0 }
 
-export interface PlotProjection {
-  toPixels: (val: number, clamp?: boolean) => number
-  toLogical: (px: number) => number
-}
-
 // ── Frame spec types ──
 
 /** Per-edge gutter declaration: what to measure to reserve space on that edge. */
@@ -205,6 +200,12 @@ export interface UsePlotOptions<THit = unknown> {
   dpiOverride?: () => number | null
   /** Reactive dependency getter — a redraw is scheduled whenever it changes. */
   deps: () => unknown
+  /**
+   * `deps`' overlay-only twin, for view state the data layer doesn't depend on
+   * (hover marks, a shared cursor): a change repaints `drawOverlay` over the
+   * cached data layer instead of re-running `drawData`.
+   */
+  overlayDeps?: () => unknown
 
   /** Data-level placeholder (missing metric, empty selection). Checked first. */
   placeholder?: () => PlotPlaceholderContent | null
@@ -300,17 +301,6 @@ export interface UsePlotHandle<THit = unknown> {
    * per-figure `$state` mirrors of the hit.
    */
   readonly hover: { readonly data: THit | null }
-  /** Throttled rAF render scheduler (re-runs the full drawData). */
-  readonly scheduleRender: () => void
-  /**
-   * Throttled rAF scheduler that repaints ONLY `drawOverlay`, blitting the
-   * cached data layer back instead of re-running the (expensive) `drawData`.
-   * Use for hover-only visuals — crosshairs, hovered-cell highlights, tooltip
-   * guide lines — that don't change the data layer. Falls back to a full render
-   * if no data layer is cached yet or `drawOverlay` isn't declared.
-   */
-  readonly scheduleOverlayRender: () => void
-
   // Lower-level surface (for the rare figure that needs it directly)
   readonly canvasState: CanvasState
   readonly plotAreaWidth: number
@@ -322,12 +312,6 @@ export interface UsePlotHandle<THit = unknown> {
   readonly safeWidth: number
   readonly safeHeight: number
   readonly setCursor: (cursor: string) => void
-  createLinearProjection: (
-    min: number,
-    max: number,
-    pixelStart: number,
-    pixelEnd: number
-  ) => PlotProjection
   showTooltip: (
     id: string,
     content: Array<{ key: string; value: string }>,
@@ -619,28 +603,6 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   function setCursor(cursor: string) {
     const c = canvasState.canvas
     if (c) c.style.cursor = cursor
-  }
-
-  function createLinearProjection(
-    min: number,
-    max: number,
-    pixelStart: number,
-    pixelEnd: number
-  ): PlotProjection {
-    const range = max - min
-    const invRange = range > 0 ? 1 / range : 0
-    const pixelRange = pixelEnd - pixelStart
-    return {
-      toPixels(val: number, clamp = true): number {
-        let ratio = (val - min) * invRange
-        if (clamp) ratio = Math.max(0, Math.min(1, ratio))
-        return pixelStart + ratio * pixelRange
-      },
-      toLogical(px: number): number {
-        const ratio = pixelRange !== 0 ? (px - pixelStart) / pixelRange : 0
-        return min + ratio * range
-      },
-    }
   }
 
   function showTooltip(
@@ -973,6 +935,13 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     renderFailed = false
     untrack(scheduleRender)
   })
+  $effect(() => {
+    options.overlayDeps?.()
+    // Parked on a placeholder: only a full render can un-park, and an overlay
+    // render would promote itself to one and redraw the card per pointer frame.
+    if (placeholderActive) return
+    untrack(scheduleOverlayRender)
+  })
 
   // ---- composed action: canvas lifecycle + mouse listeners + pointer/drag ----
   const scaled = (e: MouseEvent) => getScaledMousePosition(canvasState, e)
@@ -1097,8 +1066,6 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
         return hoverData
       },
     },
-    scheduleRender,
-    scheduleOverlayRender,
     get canvasState() {
       return canvasState
     },
@@ -1127,7 +1094,6 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
       return safeHeight
     },
     setCursor,
-    createLinearProjection,
     showTooltip,
     hideTooltip,
   }

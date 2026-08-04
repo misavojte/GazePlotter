@@ -29,6 +29,12 @@
     cannotFitPlaceholder,
     resolveFrameLayout,
   } from '$lib/plots/shared'
+  import {
+    drawTimeCursor,
+    timeAtX,
+    timeCursorX,
+    type TimeCursorPort,
+  } from '$lib/plots/shared/timeCursor.svelte'
   import { onDestroy } from 'svelte'
   import { SCARF_LAYOUT } from '../const'
   import { FIXATION_CATEGORY_ID } from '$lib/data/types'
@@ -72,6 +78,8 @@
     ) => Array<{ key: string; value: string }>
     onDragStepX?: (stepChange: number, width: number) => void
     onDragEnd?: () => void
+    /** Shared TIME CURSOR (screen-only; export renders without one). */
+    timeCursor?: TimeCursorPort | null
   }
 
   let {
@@ -82,6 +90,7 @@
     getTooltipContent = () => [],
     onDragStepX = () => {},
     onDragEnd = () => {},
+    timeCursor = null,
     width = 0,
     height,
     dpiOverride = null,
@@ -201,6 +210,15 @@
       highlights: () => highlights,
     },
     hitTest: plotHitTest,
+    // The track-only hit covers empty timeline too, so the cursor follows the
+    // pointer across gaps. Published as a live read of the hovered PIXEL, so a
+    // drag-pan or an undo under a resting pointer re-derives the time.
+    onHover: hover =>
+      timeCursor?.publish(
+        hover ? () => timeAtX(rowBand, data.timeline, hover.x) : null
+      ),
+    // Return type annotated, same cycle as `gutters`.
+    overlayDeps: (): number | null => cursorX,
     blockedRegions: (): BlockedRegion[] => blockedRegions,
     pointer: {
       onDown: handlePointerDown,
@@ -232,17 +250,24 @@
     )
   })
 
-  // The rows, not the frame's full band — the harness default would block the
-  // centring slack too. The legend items' blocked rects come from the harness
-  // legend band.
+  // The rows, not the frame's full band — the frame includes centring slack the
+  // marks never fill. One source for both the blocked region and the TIME CURSOR
+  // mark, so a guide can never hang below the last row.
+  const rowBand = $derived({
+    x: plot.frame.x,
+    y: plotTop,
+    width: plot.frame.width,
+    height: participantBarsHeight,
+  })
+
+  // The legend items' blocked rects come from the harness legend band.
   const blockedRegions = $derived.by<BlockedRegion[]>(() => [
-    {
-      x: plot.frame.x,
-      y: plotTop,
-      w: plot.frame.width,
-      h: participantBarsHeight,
-    },
+    { x: rowBand.x, y: rowBand.y, w: rowBand.width, h: rowBand.height },
   ])
+
+  const cursorX = $derived(
+    timeCursorX(rowBand, data.timeline, timeCursor?.time ?? null)
+  )
 
   const identifierSystem = $derived.by(() => {
     if (!data.stylingAndLegend)
@@ -363,6 +388,8 @@
   // hover payload. Drawn on top of the cached data layer so mouse-moves
   // repaint via blit instead of re-running renderScarf.
   function drawScarfOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+    // Before the local-hover early return below: the remote mark must survive it.
+    drawTimeCursor(ctx, rowBand, cursorX)
     const hover = plot.hover.data
     if (!hover) return
     drawCrosshairHighlight(

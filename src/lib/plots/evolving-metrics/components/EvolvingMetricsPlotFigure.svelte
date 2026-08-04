@@ -15,6 +15,12 @@
     type PlotFrame,
     type FrameHit,
   } from '$lib/plots/shared'
+  import {
+    drawTimeCursor,
+    timeAtX,
+    timeCursorX,
+    type TimeCursorPort,
+  } from '$lib/plots/shared/timeCursor.svelte'
   import { estimateTextWidth, measureTextHeight, truncateTextToPixelWidth } from '$lib/shared/utils/textUtils'
   import { percentileSorted } from '$lib/shared/utils/mathUtils'
   import { samplePalette } from '$lib/color'
@@ -70,6 +76,8 @@
     data: EvolvingMetricsResult
     alignment?: 'heatmap' | 'overlay'
     colorScale?: string[]
+    /** Shared TIME CURSOR (screen-only; export renders without one). */
+    timeCursor?: TimeCursorPort | null
   }
 
   let {
@@ -80,6 +88,7 @@
     colorScale,
     dpiOverride = null,
     margins = NO_MARGINS,
+    timeCursor = null,
   }: Props = $props()
 
   const X_AXIS_LABEL = $derived(data.xAxisLabel)
@@ -155,7 +164,7 @@
     )
   })
 
-  const plot = usePlot<{ t: number; participantIdx: number | null }>({
+  const plot = usePlot<{ t: number; x: number; participantIdx: number | null }>({
     width: () => width,
     height: () => height,
     margins: () => margins,
@@ -201,10 +210,29 @@
     drawData: drawEvolving,
     drawOverlay: drawEvolvingOverlay,
     hitTest: computeHit,
+    // A live read of the hovered PIXEL, so a resize or an undo under a resting
+    // pointer re-derives the time instead of stranding the old one.
+    onHover: hit => {
+      const px = hit?.x
+      timeCursor?.publish(
+        px === undefined ? null : () => timeAtX(plot.frame, data.timeline, px)
+      )
+    },
+    // Return type annotated: `cursorX` reads `plot`, so inference would loop.
+    overlayDeps: (): number | null => cursorX,
   })
 
   const hoveredMsTime = $derived(plot.hover.data?.t ?? null)
   const hoveredParticipantIndex = $derived(plot.hover.data?.participantIdx ?? null)
+
+  // `resolveFrameLayout` already floors the rect, so this is the same band (and
+  // the same pixel) as the local crossline's floored frame. Gated on real
+  // participants: the empty result carries a fabricated 0–100 ms timeline.
+  const cursorX = $derived(
+    data.participants.length > 0
+      ? timeCursorX(plot.frame, data.timeline, timeCursor?.time ?? null)
+      : null
+  )
 
   const palette = $derived<string[]>(
     colorScale && colorScale.length >= 2 ? colorScale : [...PRESET_PALETTES.HEAT.colors]
@@ -327,6 +355,8 @@
   // data layer, so a mouse move blits that back and repaints only this — instead
   // of re-running the full heatmap/overlay draw on every move.
   function drawEvolvingOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+    // Before the local-hover early return below: the remote mark must survive it.
+    drawTimeCursor(ctx, frame, cursorX)
     if (hoveredMsTime === null && hoveredParticipantIndex === null) return
     const floorLeft = Math.floor(frame.x)
     const floorTop = Math.floor(frame.y)
@@ -692,7 +722,11 @@
     mx: number,
     my: number,
     frame: PlotFrame
-  ): FrameHit<{ t: number; participantIdx: number | null }> | null {
+  ): FrameHit<{ t: number; x: number; participantIdx: number | null }> | null {
+    // No participants means the blank empty-result shell: a fabricated 0–100 ms
+    // timeline this plot never drew, and a heatmap row index that would resolve
+    // to a participant that does not exist.
+    if (data.participants.length === 0) return null
     const timelineMin = data.timeline.minValue
     const duration = Math.max(1, data.timeline.maxValue - timelineMin)
     const t = timelineMin + ((mx - frame.x) / frame.width) * duration
@@ -727,7 +761,7 @@
         anchorY: my,
         delay: 0,
         cursor: 'default',
-        data: { t, participantIdx: null },
+        data: { t, x: mx, participantIdx: null },
       }
     }
 
@@ -744,7 +778,7 @@
       anchorY: my,
       offset: { x: 15, y: 15 },
       cursor: 'crosshair',
-      data: { t, participantIdx },
+      data: { t, x: mx, participantIdx },
     }
   }
 
