@@ -3,7 +3,6 @@
     usePlot,
     categoryTicks,
     canvasBlockSelect,
-    NO_MARGINS,
     packRgb,
     drawMatrixCrosshair,
     type CanvasExportProps,
@@ -34,7 +33,7 @@
     width = 400,
     height = 400,
     dpiOverride = null,
-    margins = NO_MARGINS,
+    margin = 0,
   }: Props = $props()
 
   const L = RECURRENCE_LAYOUT
@@ -103,7 +102,7 @@
   const plot = usePlot<{ row: number; col: number }>({
     width: () => width,
     height: () => height,
-    margins: () => margins,
+    margin: () => margin,
     dpiOverride: () => dpiOverride,
     deps: () => [data, highlight, masking, highlightMask],
     // No fit guard: the recurrence matrix is rendered as a texture (drawRaster)

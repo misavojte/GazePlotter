@@ -2,7 +2,6 @@
   import {
     usePlot,
     canvasBlockSelect,
-    NO_MARGINS,
     type CanvasExportProps,
     type PlotFrame,
     type PlotAreaTicks,
@@ -26,7 +25,7 @@
     width = 400,
     height = 400,
     dpiOverride = null,
-    margins = NO_MARGINS,
+    margin = 0,
     unavailableMessage = null,
   }: Props = $props()
 
@@ -91,7 +90,7 @@
   const plot = usePlot({
     width: () => width,
     height: () => height,
-    margins: () => margins,
+    margin: () => margin,
     dpiOverride: () => dpiOverride,
     deps: () => [data, showFixationOrder, showNumbers, unavailableMessage],
     placeholder: () => unavailableMessage,

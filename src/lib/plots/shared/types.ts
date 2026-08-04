@@ -6,7 +6,6 @@ export interface PlotDimensions {
   height: number
 }
 
-import type { CanvasPlotMargins } from './usePlot.svelte'
 
 /**
  * Props every canvas plot figure accepts for sizing and export. `width`/`height`
@@ -17,5 +16,5 @@ export interface CanvasExportProps {
   width: number
   height: number
   dpiOverride?: number | null
-  margins?: CanvasPlotMargins
+  margin?: number
 }

@@ -12,7 +12,6 @@
     niceTimelineTicks,
     SCARF_LEGEND_CONFIG,
     usePlot,
-    NO_MARGINS,
     canvasBlockSelect,
     type BlockedRegion,
     type CanvasExportProps,
@@ -94,7 +93,7 @@
     width = 0,
     height,
     dpiOverride = null,
-    margins = NO_MARGINS,
+    margin = 0,
   }: Props = $props()
 
   const isOverlayMode = $derived(data.isOverlay)
@@ -175,7 +174,7 @@
   const plot = usePlot<ScarfHover>({
     width: () => width,
     height: () => height,
-    margins: () => margins,
+    margin: () => margin,
     dpiOverride: () => dpiOverride,
     // Every input to the resolved frame and to `plotTop` is already listed here
     // (they derive from data/settings and the canvas box), so neither is a dep in
@@ -184,7 +183,7 @@
     deps: () => [
       data, settings, highlights,
       width, height, dpiOverride,
-      margins.top, margins.right, margins.bottom, margins.left,
+      margin,
     ],
     // The verdict is about the row band (see `rowBandHeight`), which the scarf
     // measures itself to keep the left gutter out of a cycle — hence the unused
@@ -244,7 +243,7 @@
     return computeGroupedLegendGeometry(
       legendGroups,
       SCARF_LEGEND_CONFIG,
-      margins.left,
+      margin,
       legendTop,
       width
     )

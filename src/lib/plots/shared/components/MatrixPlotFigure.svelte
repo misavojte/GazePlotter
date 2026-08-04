@@ -21,7 +21,6 @@
   import { drawPlotArea } from '../plotArea'
   import {
     usePlot,
-    NO_MARGINS,
     type FrameHit,
     type PlotFrame,
   } from '../usePlot.svelte'
@@ -117,7 +116,7 @@
     width,
     height,
     dpiOverride = null,
-    margins = NO_MARGINS,
+    margin = 0,
   }: Props = $props()
 
   // `labels` is the square shorthand; a rectangular consumer (metric matrix) sets
@@ -146,7 +145,7 @@
         formatCellValue(effectiveMaxValue).length +
         (colorValueRange[0] < 0 ? 1 : 0),
       layoutConfig: MATRIX_LAYOUT,
-      margins,
+      margin,
     })
   )
 
@@ -195,13 +194,13 @@
     if (legendTitle === null) return null
     // A fixed-length legend centers under the whole figure (its grid width
     // varies); the default sizes and centers it under the grid.
-    const spanWidth = width - margins.left - margins.right
+    const spanWidth = width - margin * 2
     return computeGradientLegendGeometry({
-      x: legendFixedWidth ? margins.left : layout.xOffset,
+      x: legendFixedWidth ? margin : layout.xOffset,
       y: layout.matrixBottom + MATRIX_LEGEND_GAP,
       availableWidth: legendFixedWidth ? spanWidth : layout.gridWidth,
       availableHeight:
-        height - layout.matrixBottom - MATRIX_LEGEND_GAP - margins.bottom,
+        height - layout.matrixBottom - MATRIX_LEGEND_GAP - margin,
       colorScale,
       valueRange: colorValueRange,
       effectiveMaxValue,
@@ -222,7 +221,7 @@
   const plot = usePlot<{ row: number; col: number }>({
     width: () => width,
     height: () => height,
-    margins: () => margins,
+    margin: () => margin,
     dpiOverride: () => dpiOverride,
     deps: () => [
       matrix,

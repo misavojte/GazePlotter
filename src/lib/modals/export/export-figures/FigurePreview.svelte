@@ -61,7 +61,7 @@
                 width={exportProps.width}
                 height={exportProps.height}
                 dpiOverride={exportProps.dpiOverride}
-                margins={exportProps.margins}
+                margin={exportProps.margin}
               />
               {#snippet failed()}
                 <p class="preview-message">

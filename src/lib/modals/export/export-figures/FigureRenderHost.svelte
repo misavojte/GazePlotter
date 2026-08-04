@@ -70,7 +70,7 @@
       width={exportProps.width}
       height={exportProps.height}
       dpiOverride={exportProps.dpiOverride}
-      margins={exportProps.margins}
+      margin={exportProps.margin}
     />
   </svelte:boundary>
 </div>

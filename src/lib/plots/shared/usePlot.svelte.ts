@@ -68,16 +68,8 @@ const RENDER_FAILED_PLACEHOLDER: PlotPlaceholderContent = {
  * the same handle for the rare figure that needs it.
  */
 
-/** Plot margins as a geometry rectangle. */
-export interface CanvasPlotMargins {
-  top: number
-  right: number
-  bottom: number
-  left: number
-}
-
-/** Zero margins — the default for on-screen rendering (export padding only). */
-export const NO_MARGINS: CanvasPlotMargins = { top: 0, right: 0, bottom: 0, left: 0 }
+/** Zero margin default for on-screen rendering (export padding only). */
+export const NO_MARGINS = 0
 
 // ── Frame spec types ──
 
@@ -196,7 +188,7 @@ export interface UsePlotOptions<THit = unknown> {
   // ---- sizing ----
   width: () => number
   height: () => number
-  margins: () => CanvasPlotMargins
+  margin: () => number
   dpiOverride?: () => number | null
   /** Reactive dependency getter — a redraw is scheduled whenever it changes. */
   deps: () => unknown
@@ -581,15 +573,15 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
 
   // ---- plot bounds (content area = total minus export margins) ----
   const plotAreaWidth = $derived(
-    Math.max(1, options.width() - options.margins().left - options.margins().right)
+    Math.max(1, options.width() - options.margin() * 2)
   )
   const plotAreaHeight = $derived(
-    Math.max(1, options.height() - options.margins().top - options.margins().bottom)
+    Math.max(1, options.height() - options.margin() * 2)
   )
-  const plotLeft = $derived(options.margins().left)
-  const plotRight = $derived(options.width() - options.margins().right)
-  const plotTop = $derived(options.margins().top)
-  const plotBottom = $derived(options.height() - options.margins().bottom)
+  const plotLeft = $derived(options.margin())
+  const plotRight = $derived(options.width() - options.margin())
+  const plotTop = $derived(options.margin())
+  const plotBottom = $derived(options.height() - options.margin())
   const safeWidth = $derived(Math.max(1, options.width()))
   const safeHeight = $derived(Math.max(1, options.height()))
 
@@ -920,10 +912,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     const _ = [
       options.width(),
       options.height(),
-      options.margins().top,
-      options.margins().right,
-      options.margins().bottom,
-      options.margins().left,
+      options.margin(),
       getDpiOverride(),
     ]
     void _

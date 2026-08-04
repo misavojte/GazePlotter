@@ -7,7 +7,6 @@
   } from '$lib/plots/shared/canvasUtils'
   import {
     usePlot,
-    NO_MARGINS,
     canvasBlockSelect,
     participantIndexAxisWidth,
     PLOT_EDGE_PAD_TOP,
@@ -87,7 +86,7 @@
     alignment = 'heatmap',
     colorScale,
     dpiOverride = null,
-    margins = NO_MARGINS,
+    margin = 0,
     timeCursor = null,
   }: Props = $props()
 
@@ -167,7 +166,7 @@
   const plot = usePlot<{ t: number; x: number; participantIdx: number | null }>({
     width: () => width,
     height: () => height,
-    margins: () => margins,
+    margin: () => margin,
     dpiOverride: () => dpiOverride,
     // colorScale reaches the figure as its own prop (not through `data`), so
     // it must be a dep — without it a palette edit left the heatmap stale.
@@ -254,7 +253,7 @@
   const gradientLegendGeometry = $derived.by(() => {
     if (alignment !== 'heatmap') return null
     return computeGradientLegendGeometry({
-      x: margins.left,
+      x: margin,
       y: plot.frame.legendY + PLOT_LEGEND_GAP,
       availableWidth: plot.plotAreaWidth,
       availableHeight: legendHeight,

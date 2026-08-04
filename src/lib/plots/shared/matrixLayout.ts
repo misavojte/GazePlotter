@@ -1,6 +1,5 @@
 import { getGradientLegendRequiredHeight } from './legendGradient'
 import { calculateTickStep } from './axisUtils'
-import type { CanvasPlotMargins } from './usePlot.svelte'
 
 const AXIS_TITLE_GAP = 12
 const SIN_45 = 0.7071
@@ -56,7 +55,7 @@ export type MatrixLayoutInput = {
   colLabels: string[]
   cellValueLabelLength: number
   layoutConfig: MatrixLayoutConfig
-  margins: CanvasPlotMargins
+  margin?: number
 }
 
 export type MatrixLayout = {
@@ -120,13 +119,11 @@ export function computeMatrixLayout(input: MatrixLayoutInput): MatrixLayout {
     cellValueLabelLength: labelLen,
     layoutConfig: cfg,
   } = input
-  // Adapt the geometry margins to the local names the math below uses.
-  const {
-    top: marginTop,
-    right: marginRight,
-    bottom: marginBottom,
-    left: marginLeft,
-  } = input.margins
+  const margin = input.margin ?? 0
+  const marginTop = margin
+  const marginRight = margin
+  const marginBottom = margin
+  const marginLeft = margin
 
   const rowCount = rowLabels.length
   const colCount = colLabels.length

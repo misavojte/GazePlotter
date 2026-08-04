@@ -53,6 +53,6 @@ export function itemExportProps(
     width,
     height,
     dpiOverride: dpi,
-    margins: { top: margin, right: margin, bottom: margin, left: margin },
+    margin,
   }
 }

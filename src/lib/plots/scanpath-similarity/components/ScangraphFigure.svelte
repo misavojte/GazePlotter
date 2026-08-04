@@ -4,7 +4,6 @@
   import {
     drawPlotArea,
     usePlot,
-    NO_MARGINS,
     canvasBlockSelect,
     type CanvasExportProps,
     type PlotFrame,
@@ -40,13 +39,13 @@
     noMetric = false,
     onNodeClick,
     dpiOverride = null,
-    margins = NO_MARGINS,
+    margin = 0,
   }: Props = $props()
 
   const plot = usePlot<NodePosition>({
     width: () => width,
     height: () => height,
-    margins: () => margins,
+    margin: () => margin,
     dpiOverride: () => dpiOverride,
     deps: () => [data, threshold, highlights, noMetric],
     placeholder: () =>
@@ -110,14 +109,14 @@
   const layoutResult = $derived.by((): LayoutResult => {
     const nl = normalizedLayout
     if (nl.nodes.length === 0) return nl
-    const contentW = Math.max(1, width - margins.left - margins.right)
-    const contentH = Math.max(1, height - margins.top - margins.bottom)
+    const contentW = Math.max(1, width - margin * 2)
+    const contentH = Math.max(1, height - margin * 2)
     const sx = contentW / CANON
     const sy = contentH / CANON
     const nodes = nl.nodes.map(n => ({
       ...n,
-      x: margins.left + n.x * sx,
-      y: margins.top + n.y * sy,
+      x: margin + n.x * sx,
+      y: margin + n.y * sy,
     }))
     return { nodes, links: nl.links }
   })
@@ -171,10 +170,10 @@
       for (const rx of candidates) {
         const rect: Rect = { x: rx, y: baseY, w: labelW, h: labelH }
         if (
-          rect.x < margins.left ||
-          rect.y < margins.top ||
-          rect.x + rect.w > margins.left + width ||
-          rect.y + rect.h > margins.top + height
+          rect.x < margin ||
+          rect.y < margin ||
+          rect.x + rect.w > margin + width ||
+          rect.y + rect.h > margin + height
         ) {
           continue
         }

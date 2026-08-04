@@ -6,7 +6,6 @@
   } from '$lib/plots/shared/canvasUtils'
   import {
     usePlot,
-    NO_MARGINS,
     canvasBlockSelect,
     withQualifiers,
     type CanvasExportProps,
@@ -93,7 +92,7 @@
     alignment = 'stream',
     onLegendClick = () => {},
     dpiOverride = null,
-    margins = NO_MARGINS,
+    margin = 0,
     syncedMTopOverride = null,
     ridgelineScale,
     colorScale,
@@ -212,7 +211,7 @@
   }>({
     width: () => width,
     height: () => height,
-    margins: () => margins,
+    margin: () => margin,
     dpiOverride: () => dpiOverride,
     deps: () => [data, alignment, ridgelineScale, syncedMTopOverride, colorScale, highlights],
     placeholder: () => (data.noMetric ? METRIC_MISSING_MESSAGE : null),
@@ -281,7 +280,7 @@
     computeFlatLegendGeometry(
       legendItems,
       STREAM_LEGEND_CONFIG,
-      margins.left,
+      margin,
       plot.frame.legendY + PLOT_LEGEND_GAP,
       Math.max(0, plot.plotAreaWidth)
     )
@@ -290,7 +289,7 @@
   const gradientLegendGeometry = $derived.by(() => {
     if (alignment !== 'heatmap') return null
     return computeGradientLegendGeometry({
-      x: margins.left,
+      x: margin,
       y: plot.frame.legendY + PLOT_LEGEND_GAP,
       availableWidth: plot.plotAreaWidth,
       availableHeight: legendHeight,
