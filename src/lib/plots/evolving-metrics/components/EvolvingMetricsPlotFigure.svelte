@@ -51,7 +51,7 @@
     METRIC_MISSING_MESSAGE,
     cannotFitPlaceholder,
   } from '$lib/plots/shared/drawCanvasPlaceholder'
-  import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
+  import { createAdaptiveTimeline, formatTimelineLabel } from '$lib/plots/shared/timelineUtils'
   import { MARGIN, AXIS_CONFIG } from '../const'
   import { rasterizeOverlayDensity, packOverlayDensity } from '../core/overlayDensity'
   import type { EvolvingMetricsResult, EvolvingMetricsWindow } from '../types'
@@ -144,7 +144,10 @@
   const yTicks = $derived.by(() => {
     if (!yTimeline) return null
     const niceValues = yTimeline.ticks.filter(t => t.isNice).map(t => t.value)
-    return bottomOriginYTicks(niceValues, yAxisMax, v => String(Math.round(v)))
+    // The timeline's own formatter, never a rounding one: a nice step is often
+    // fractional (2.5 × 10^n), and rounding collapses distinct ticks onto one
+    // string — 0, 0.5, 1, 1.5 printed "0", "1", "1", "2".
+    return bottomOriginYTicks(niceValues, yAxisMax, formatTimelineLabel)
   })
 
   // Heatmap participant row labels: cap reserved width + pre-truncate so the
@@ -156,7 +159,10 @@
       const w = estimateTextWidth(p.label, AXIS_CONFIG.fontSize, AXIS_CONFIG.fontFamily)
       if (w > max) max = w
     }
-    return Math.min(200, max + 20)
+    // Capped against the canvas too, or long names on a narrow card reserve the
+    // whole width and the heatmap draws nothing at all. Reads the WIDTH PROP, not
+    // `plot.frame` — the frame depends on this budget.
+    return Math.min(200, max + 20, width * 0.4)
   })
   const participantLabels = $derived.by<string[]>(() => {
     if (alignment !== 'heatmap' || isCompact) return []
@@ -234,7 +240,14 @@
   })
 
   const hoveredMsTime = $derived(plot.hover.data?.t ?? null)
-  const hoveredParticipantIndex = $derived(plot.hover.data?.participantIdx ?? null)
+  // Validated HERE, once, because the harness keeps `hover.data` across a data
+  // change — only a pointer event clears it — so an index from a wider
+  // participant set outlives it, and every reader below would throw on a row
+  // that no longer exists (a keyboard undo/redo never moves the pointer).
+  const hoveredParticipantIndex = $derived.by(() => {
+    const idx = plot.hover.data?.participantIdx ?? null
+    return idx !== null && idx < data.participants.length ? idx : null
+  })
 
   // `resolveFrameLayout` already floors the rect, so this is the same band (and
   // the same pixel) as the local crossline's floored frame. Gated on real
@@ -277,8 +290,11 @@
       availableWidth: plot.plotAreaWidth,
       availableHeight: legendHeight,
       colorScale: palette,
-      valueRange: [Math.round(data.valueMin), Math.round(data.valueMax)],
-      effectiveMaxValue: Math.round(data.valueMax),
+      // Raw, not rounded: the legend must advertise the range the cells are
+      // actually coloured by. `formatLegendValue` already renders 0.2 as "0.2";
+      // rounding turned a 0.2–0.9 ramp into a "0–1" one and misread every cell.
+      valueRange: [data.valueMin, data.valueMax],
+      effectiveMaxValue: data.valueMax,
       title: data.yAxisLabel,
       belowMinColor: INACTIVE_COLOR,
     })
@@ -315,6 +331,9 @@
       let sum = 0
       for (let j = 0; j < temp.length; j++) sum += temp[j]
       meanValues[s] = sum / temp.length
+      // With one contributor p25 === p75, which draws a zero-height band — it
+      // reads as perfect agreement exactly where the cohort is thinnest. No band.
+      if (temp.length < 2) continue
       temp.sort((a, b) => a - b)
       p25Values[s] = percentileSorted(temp, 0.25)
       p75Values[s] = percentileSorted(temp, 0.75)
@@ -430,34 +449,49 @@
     const duration = Math.max(1, data.timeline.maxValue - timelineMin)
     const invMsPerPx = floorWidth / duration
 
-    let w: EvolvingMetricsWindow | null = null
-    if (hoveredParticipantIndex !== null) {
-      w = findWindowAt(data.participants[hoveredParticipantIndex].windows, hoveredMsTime)
+    /** A window's two spans, banded over ONE participant's vertical extent. */
+    const bandWindow = (w: EvolvingMetricsWindow, y: number, h: number) => {
+      const spanX = (fromMs: number, toMs: number) => {
+        const x = Math.max(floorLeft, floorLeft + (fromMs - timelineMin) * invMsPerPx)
+        return {
+          x,
+          width: Math.min(floorRight, floorLeft + (toMs - timelineMin) * invMsPerPx) - x,
+        }
+      }
+      // The WINDOW this value summarises (0.08) under the PAINT span (the cell,
+      // 0.15). Both come from this participant's own window.
+      const win = spanX(w.windowStartMs, w.windowEndMs)
+      const step = spanX(w.startMs, w.endMs)
+      if (win.width > 0) fillCrosshairBand(ctx, win.x, y, win.width, h, 0.08)
+      if (step.width > 0) fillCrosshairBand(ctx, step.x, y, step.width, h, 0.15)
+      return step
     }
-    if (!w) {
-      for (const p of data.participants) {
-        w = findWindowAt(p.windows, hoveredMsTime)
-        if (w) break
+
+    if (rowHeight === null) {
+      // Overlay: no rows, so only the line under the pointer can be banded. No
+      // borrowing — a participant without a window here gets no band at all.
+      const idx = hoveredParticipantIndex
+      const w = idx === null ? null : findWindowAt(data.participants[idx].windows, hoveredMsTime)
+      if (w) bandWindow(w, floorTop, floorHeight)
+    } else {
+      // Heatmap: band each row from its OWN window. Time-windowed metrics share
+      // one window grid so the widths usually match, but PRESENCE does not — a row
+      // with no window here gets no band, and nothing is borrowed. One full-height
+      // band was a single participant's span painted across everyone, cutting the
+      // other rows' cells mid-cell.
+      for (let p = 0; p < data.participants.length; p++) {
+        const w = findWindowAt(data.participants[p].windows, hoveredMsTime)
+        if (!w) continue
+        const step = bandWindow(w, floorTop + p * rowHeight, rowHeight)
+        // The row under the pointer, banded twice, so it reads as the one you are on.
+        if (p === hoveredParticipantIndex && step.width > 0) {
+          fillCrosshairBand(ctx, step.x, floorTop + p * rowHeight, step.width, rowHeight, 0.15)
+        }
       }
     }
-    if (w) {
-      // Step boundaries (the 100ms step)
-      const stepX = Math.max(floorLeft, floorLeft + (w.startMs - timelineMin) * invMsPerPx)
-      const stepWidth = Math.min(floorRight, floorLeft + (w.endMs - timelineMin) * invMsPerPx) - stepX
 
-      // Window boundaries (the 1000ms window)
-      const winStart = w.dataStartMs ?? (w.centerMs - 500)
-      const winEnd = w.dataEndMs ?? (w.centerMs + 500)
-      const winX = Math.max(floorLeft, floorLeft + (winStart - timelineMin) * invMsPerPx)
-      const winWidth = Math.min(floorRight, floorLeft + (winEnd - timelineMin) * invMsPerPx) - winX
-
-      if (winWidth > 0) fillCrosshairBand(ctx, winX, floorTop, winWidth, floorHeight, 0.08)
-      if (stepWidth > 0) fillCrosshairBand(ctx, stepX, floorTop, stepWidth, floorHeight, 0.15)
-      if (rowHeight !== null && hoveredParticipantIndex !== null && stepWidth > 0) {
-        fillCrosshairBand(ctx, stepX, floorTop + hoveredParticipantIndex * rowHeight, stepWidth, rowHeight, 0.15)
-      }
-    }
-
+    // The INSTANT is shared by every participant, so this one is legitimately
+    // full height — unlike the bands above.
     const cx = alignToPixelCenter(floorLeft + (hoveredMsTime - timelineMin) * invMsPerPx)
     strokeCrosshairGuides(ctx, [cx, floorTop, cx, floorTop + floorHeight])
   }
@@ -812,7 +846,15 @@
       tooltipId: 'evolving-metrics-tooltip',
       content: [
         { key: 'Participant', value: participant.label },
-        { key: 'Time', value: w ? `${Math.round(w.startMs)}–${Math.round(w.endMs)} ms` : `${Math.round(t)} ms` },
+        // The WINDOW, so the number matches the band drawn behind the pointer —
+        // the paint span is narrower than the measurement and reading it as the
+        // measurement understates it by up to windowSize/stepSize.
+        {
+          key: w ? 'Window' : 'Time',
+          value: w
+            ? `${Math.round(w.windowStartMs)}–${Math.round(w.windowEndMs)} ms`
+            : `${Math.round(t)} ms`,
+        },
         { key: data.yAxisLabel, value: w ? w.value.toFixed(2) : 'No data' },
       ],
       anchorX: mx,

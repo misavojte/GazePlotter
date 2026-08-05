@@ -139,4 +139,26 @@ describe('timelineUtils', () => {
       expect(getIntermediateTicks(timeline)).toHaveLength(0)
     })
   })
+
+  describe('a VALUE axis must be labelled by the tick labels, never by rounding', () => {
+    // A nice step is often fractional — 2.5 × 10^n, or anything at all when the
+    // range is small — so an integer formatter collapses distinct ticks onto one
+    // string and can print a top label ABOVE the axis maximum. The Metric
+    // Timeline's overlay Y axis did exactly that (0, 0.5, 1, 1.5 -> "0","1","1","2").
+    it.each([3, 2.5, 1, 0.8, 15, 12])('keeps ticks distinct and truthful for max %s', max => {
+      const nice = createAdaptiveTimeline(0, max, 6).ticks.filter(t => t.isNice)
+      const labels = nice.map(t => t.label)
+
+      expect(new Set(labels).size).toBe(labels.length)
+      for (const t of nice) {
+        expect(Number(t.label.replace(/,/g, ''))).toBeCloseTo(t.value, 6)
+        expect(t.value).toBeLessThanOrEqual(max)
+      }
+    })
+
+    it('produces a fractional step for a small range, which is why rounding lies', () => {
+      expect(calculateNiceStepSize(3, 6)).toBe(0.5)
+      expect(calculateNiceStepSize(15, 6)).toBe(2.5)
+    })
+  })
 })
