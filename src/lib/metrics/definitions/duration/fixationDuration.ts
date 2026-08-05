@@ -21,13 +21,19 @@ defineMetric({
   measurementClass: 'intensive',
   searchTags: ['fixation', 'duration', 'average', 'mean', 'median', 'fix', 'aoi'],
   params: [] as const,
+  // A mean over events, not a sum: no additivity to protect, and 'own' would report
+  // NaN for a window a fixation plainly covers. Full durations, any overlap.
+  windowMembership: 'all',
   accumulation: 'stateful',
   sampleSummary: true,
   init: ({ slots }): Acc => ({ durations: Array.from({ length: slots.totalSlots }, () => []) }),
-  onFixation: (acc, { frame, duration, slots }, { slots: info }) => {
-    // Midpoint picks the window; the value is the ACTUAL duration, not the
-    // clipped one — "typical fixation length", not "typical window overlap".
-    if (!frame.midpointInWindow) return
+  onFixation: (acc, { duration, slots }, { slots: info }) => {
+    // ANY overlap counts, like visitDuration: a fixation the window covers is a
+    // fixation in that window, and gating on the midpoint left NaN — a hole — in
+    // windows with a fixation plainly inside them. The midpoint rule exists so
+    // per-window COUNTS sum to the unwindowed total; a mean is intensive and has
+    // no such sum to protect. The value is the ACTUAL duration, not the clipped
+    // one — "typical fixation length", not "typical window overlap".
     acc.durations[info.anyFixationSlot].push(duration)
     if (slots.length === 0) { acc.durations[info.noAoiSlot].push(duration); return }
     for (let i = 0; i < slots.length; i++) acc.durations[slots[i]].push(duration)

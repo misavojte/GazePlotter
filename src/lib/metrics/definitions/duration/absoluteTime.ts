@@ -14,6 +14,9 @@ defineMetric({
   measurementClass: 'extensive',
   searchTags: ['dwell', 'gaze', 'time', 'absolute', 'total', 'duration', 'aoi'],
   params: [] as const,
+  // Time is divisible: clipping each fixation to the window already partitions it,
+  // so every overlapping window takes its share and the shares sum to the total.
+  windowMembership: 'all',
   accumulation: 'clippedDuration',
   init: ({ slots }) => new Float64Array(slots.totalSlots),
   onFixation: (acc, { frame, slots }, { slots: info }) => {

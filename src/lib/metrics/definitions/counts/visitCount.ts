@@ -24,6 +24,9 @@ defineMetric({
   measurementClass: 'extensive',
   searchTags: ['visit', 'entry', 'entries', 'count', 'aoi', 'number', 'transitions'],
   params: [] as const,
+  // Indivisible events; see fixationCount. The driver skips a non-owned fixation
+  // WITHOUT touching this accumulator's run state, so per-window counts still sum.
+  windowMembership: 'own',
   accumulation: 'stateful',
   init: ({ slots }): Acc => ({
     entries: new Float64Array(slots.totalSlots),
@@ -35,11 +38,8 @@ defineMetric({
     // (previousAois / setsMatch / no-AOI run collapsing). Not shared: hoisting
     // this hot-loop state machine into an onEnter/onLeave callback measured
     // ~15% slower and was reverted. Pinned slot-for-slot in
-    // metricFormulas.test.ts (unwindowed only — windowed, this midpoint-gates
-    // while visitDuration is any-overlap).
-    //
-    // Skip without updating state, so per-window counts sum to the total.
-    if (!frame.midpointInWindow) return
+    // metricFormulas.test.ts (unwindowed only — windowed, this counts visits the
+    // window OWNS while visitDuration summarises every visit it overlaps).
     if (slots.length === 0) {
       if (!acc.wasInNoAoi) {
         acc.entries[info.noAoiSlot]++

@@ -211,11 +211,16 @@ describe('runTimeWindowed × identity-aoi-vector → aoi-vector-timeseries', () 
     expect(total).toBe(1)
   })
 
-  it('windowed fixationDuration: midpoint membership for which window, full duration for the value', () => {
-    // F1 [50, 250] AOI1, duration 200 ms. Its midpoint (t=150) belongs to
-    // window [100, 200) → contributes its FULL duration (200) to that
-    // window's mean — NOT the clipped 100 ms. The mean describes "typical
-    // fixation length on this AOI", not "typical overlap with the window".
+  it('windowed fixationDuration: ANY overlap counts the window, full duration for the value', () => {
+    // F1 [50, 250] AOI1, duration 200 ms, spanning all three windows. Every
+    // window the fixation covers reports it, at its FULL duration (200) — NOT
+    // the clipped overlap. The mean describes "typical fixation length on this
+    // AOI", not "typical overlap with the window".
+    //
+    // Midpoint membership (the rule for COUNTS, so they sum to the unwindowed
+    // total) would leave [0,100) and [200,300) NaN — a HOLE in a window this
+    // fixation plainly covers. A mean is intensive; it has no sum to protect.
+    // Contrast the absoluteTime case below, which is additive and so clips.
     const engine = createEngine([[50, 250, 0, 1]])
     const result = query(
       windowedAoiVectorInst('fixationDuration'),
@@ -224,9 +229,47 @@ describe('runTimeWindowed × identity-aoi-vector → aoi-vector-timeseries', () 
 
     if (result.shape !== 'aoi-vector-timeseries') throw new Error('wrong shape')
     expect(result.vectors).toHaveLength(3)
-    expect(Number.isNaN(result.vectors[0][0])).toBe(true) // no fixations belong to [0,100)
-    expect(result.vectors[1][0]).toBe(200)                 // mean over the one fixation in [100,200)
-    expect(Number.isNaN(result.vectors[2][0])).toBe(true) // no fixations belong to [200,300)
+    expect(result.vectors[0][0]).toBe(200) // overlaps [0,100) — 50..100
+    expect(result.vectors[1][0]).toBe(200) // covers [100,200) entirely
+    expect(result.vectors[2][0]).toBe(200) // overlaps [200,300) — 200..250
+  })
+
+  it('windowed fixationDuration: a window with no fixation at all is still NaN', () => {
+    // The refusal that matters is unchanged: no overlap means no measurement, so
+    // the Metric Timeline leaves that span unpainted instead of holding a value.
+    const engine = createEngine([[50, 150, 0, 1]])
+    const result = query(
+      windowedAoiVectorInst('fixationDuration'),
+      scope(engine, 0, 300)
+    )
+
+    if (result.shape !== 'aoi-vector-timeseries') throw new Error('wrong shape')
+    expect(result.vectors[0][0]).toBe(100)                // overlaps [0,100)
+    expect(result.vectors[1][0]).toBe(100)                // overlaps [100,200)
+    expect(Number.isNaN(result.vectors[2][0])).toBe(true) // nothing in [200,300)
+  })
+
+  it('windowed fixated: an AOI covered for the whole window is fixated in it', () => {
+    // Presence, so ANY overlap is a yes. Midpoint membership answered "not fixated"
+    // for the outer two windows, i.e. 0% for an AOI under continuous gaze, which
+    // deflates the noticed rate this metric exists to report.
+    const engine = createEngine([[50, 250, 0, 1]])
+    const result = query(windowedAoiVectorInst('fixated'), scope(engine, 0, 300))
+
+    if (result.shape !== 'aoi-vector-timeseries') throw new Error('wrong shape')
+    expect(result.vectors.map(v => v[0])).toEqual([100, 100, 100])
+  })
+
+  it('windowed fixationCount stays midpoint-owned, so per-window counts still sum', () => {
+    // The counterpart invariant: an indivisible event belongs to ONE window, so the
+    // same fixture yields a single 1. This is what `windowMembership: 'own'` protects.
+    const engine = createEngine([[50, 250, 0, 1]])
+    const result = query(windowedAoiVectorInst('fixationCount'), scope(engine, 0, 300))
+
+    if (result.shape !== 'aoi-vector-timeseries') throw new Error('wrong shape')
+    const counts = result.vectors.map(v => v[0])
+    expect(counts).toEqual([0, 1, 0])
+    expect(counts.reduce((a, b) => a + b, 0)).toBe(1)
   })
 
   it('WindowFrame.duration matches legacy aoi-stream collector overlap math', () => {

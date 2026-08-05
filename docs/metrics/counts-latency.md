@@ -33,7 +33,7 @@ The total number of separate fixations landing within each Area of Interest (AOI
 
 - **Raw Shape**: `aoi-vector`
 - **Unit**: `count`
-- **Windowing**: Supported. Gated by midpoint-in-window membership (`frame.midpointInWindow`). A fixation is counted in a window if and only if its midpoint falls within the window's boundaries. This ensures that fixations are never counted twice across sliding/overlapping windows.
+- **Windowing**: Supported. Each fixation is counted once, in the window holding its midpoint, so the counts still add up to the total when windows do not overlap. With sliding windows a fixation appears in several of them.
 - **Measurement class**: Extensive (additive total). Across participants, show a per-participant mean or a cohort total (the group's combined fixation count).
 - **Scientific Meaning**: Indicates the importance or relevance of an AOI. A higher fixation count suggests that the region was repeatedly inspected or required substantial visual attention.
 

@@ -17,11 +17,12 @@ defineMetric({
   searchTags: ['saccade', 'blink', 'fixation', 'count', 'number', 'eye movement', 'type'],
   params: [] as const,
   scanSource: 'categories',
+  // Indivisible events; see fixationCount.
+  windowMembership: 'own',
   accumulation: 'stateful',
   init: ({ categorySlotCount }) => new Float64Array(categorySlotCount),
-  onFixation: (acc, { frame, categorySlot }) => {
-    // SW-RQA membership; see fixationCount.
-    if (!frame.midpointInWindow || categorySlot < 0) return
+  onFixation: (acc, { categorySlot }) => {
+    if (categorySlot < 0) return
     acc[categorySlot]++
   },
   finalize: acc => Array.from(acc),

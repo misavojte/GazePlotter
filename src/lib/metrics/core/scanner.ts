@@ -36,6 +36,8 @@ export function scanBatch(
   type ActiveInstance = {
     inst: MetricInstance
     onFixation: NonNullable<MetricRecipe<any, any>['onFixation']>
+    /** Declared membership; a bounded scope is one window. See MetricRecipe.windowMembership. */
+    ownWindowOnly: boolean
     finalize: NonNullable<MetricRecipe<any, any>['finalize']>
     acc: any
     ctx: InitCtx<Record<string, unknown>>
@@ -79,7 +81,10 @@ export function scanBatch(
       categorySlotCount: 0,
       summaryStatistic: projectionSummaryStatistic(inst.projection),
     }
-    active.push({ inst, onFixation, finalize, acc: init(ctx), ctx })
+    active.push({
+      inst, onFixation, finalize, acc: init(ctx), ctx,
+      ownWindowOnly: recipe.windowMembership === 'own',
+    })
   }
   if (active.length === 0) return results
 
@@ -99,7 +104,6 @@ export function scanBatch(
     start: 0,
     end: 0,
     duration: 0,
-    midpointInWindow: true,
   }
   const fixEvent: FixationEvent = {
     start: 0,
@@ -131,11 +135,14 @@ export function scanBatch(
     }
 
     const duration = end - start
-    fillWindowFrame(frame, start, end, duration, timeStart, timeEnd)
+    const midInScope = fillWindowFrame(frame, start, end, timeStart, timeEnd)
     fixEvent.start = start
     fixEvent.duration = duration
     fixEvent.index = index
-    for (const a of active) a.onFixation(a.acc, fixEvent, a.ctx)
+    for (const a of active) {
+      if (a.ownWindowOnly && !midInScope) continue
+      a.onFixation(a.acc, fixEvent, a.ctx)
+    }
     index++
   }
 

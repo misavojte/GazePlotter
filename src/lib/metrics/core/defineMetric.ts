@@ -119,6 +119,36 @@ function assertShapeLifecycleInvariant(r: MetricRecipe<any, any>): void {
       `[metrics] recipe "${r.id}" scans categories and must declare accumulation: 'stateful'`,
     )
   }
+  // MEMBERSHIP. Additivity is the only thing that depends on this rule, so the
+  // `extensive` class must say it out loud rather than inherit a default — a count
+  // that silently takes 'all' stops summing to the unwindowed total, and a mean
+  // that silently takes 'own' reports NaN for a window a fixation plainly covers.
+  if (r.windowUnit === 'ms' && r.measurementClass === 'extensive' && !r.windowMembership) {
+    throw new Error(
+      `[metrics] recipe "${r.id}" is extensive and windowed in ms, so it must declare ` +
+        `windowMembership: 'own' (indivisible events, keeps per-window values summing to ` +
+        `the total) or 'all' (divisible contribution, e.g. clipped dwell)`,
+    )
+  }
+  // The fused driver's `midpointCount` kernel IS the 'own' rule; a clipped kernel
+  // IS the 'all' rule. Declaring the opposite is the contradiction `fixated` shipped
+  // with (clipped dwell, midpoint gate), so make it unrepresentable.
+  if (r.accumulation === 'midpointCount' && r.windowMembership !== 'own') {
+    throw new Error(
+      `[metrics] recipe "${r.id}" accumulates 'midpointCount' but declares ` +
+        `windowMembership '${r.windowMembership}'; counting an indivisible event requires 'own'`,
+    )
+  }
+  if (
+    (r.accumulation === 'clippedDuration' || r.accumulation === 'clippedDurationShare') &&
+    r.windowMembership === 'own'
+  ) {
+    throw new Error(
+      `[metrics] recipe "${r.id}" clips its contribution to the window, which already ` +
+        `partitions divisible time; windowMembership 'own' would also drop the clipped ` +
+        `remainder of every boundary-crossing fixation`,
+    )
+  }
   // ONE declaration channel for the summary statistic: the SUMMARY projection.
   // A recipe-level `statistic` param is the retired second channel, rejected
   // here so it cannot be reinvented on any recipe.

@@ -58,15 +58,17 @@ A projection can also wrap a leaf projection in a temporal or ordinal window to 
 
 ### Svelte-Side Frame Mathematics
 
-To compute windowed values accurately, GazePlotter projects fixations onto moving time windows using two distinct scientific signals:
+GazePlotter projects fixations onto moving time windows with two independent signals: how much a fixation contributes, and which windows it belongs to.
 
 1. **Sub-bin Overlap Duration (`frame.duration`)**:
    Computed as `min(fixation.end, window.end) - max(fixation.start, window.start)`. 
    This matches the legacy overlap math exactly. It is used for duration metrics (like `absoluteTime` and `relativeTime`) so a fixation crossing a window boundary contributes only its in-window portion, ensuring the sum of windowed values equals the total unwindowed dwell time.
    
-2. **Midpoint-in-Window Membership (`frame.midpointInWindow`)**:
-   A fixation belongs to a window if its temporal midpoint (`start + duration / 2`) falls within the window's boundaries.
-   This is used to gate count-style metrics (like `fixationCount` and `visitCount`) and RQA metrics so that each fixation contributes to exactly one window, preventing double-counting.
+2. **Membership (`windowMembership`)**:
+   Which windows a fixation belongs to. Each metric declares its rule once, and a plain time range counts as a single window.
+   - `'all'` (default): every window the fixation overlaps. Use it when a fixation can be split across windows, as clipped durations are, and for yes/no questions like "was this AOI looked at here".
+   - `'own'`: only the window holding the fixation's midpoint. Use it when counting things that cannot be split (`fixationCount`, `visitCount`, `movementCount`), so the per-window numbers still add up to the total when the windows do not overlap. A window that owns nothing reports 0, not missing data.
+   Metrics reporting additive totals must state their rule explicitly, and a contradictory choice is rejected when the metric is registered. An average must never use `'own'`: it would report no data for a window a fixation plainly covers.
 
 ---
 

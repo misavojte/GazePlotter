@@ -82,7 +82,9 @@ const N = 2 // noAoiSlot (2 selected AOIs)
 function recipeSeq(
   engine: ReturnType<typeof makeEngine>,
   baseId: string,
-  params: Record<string, unknown>
+  params: Record<string, unknown>,
+  timeStart = 0,
+  timeEnd = 0
 ): number[] {
   const recipe = getRecipe(baseId)
   expect(recipe).toBeDefined()
@@ -91,8 +93,8 @@ function recipeSeq(
     inst(baseId, params),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     { engine: engine as any, stimulusId: STIM, participantId: 0, aoiSelectionId: SELECTION_ID },
-    0,
-    0
+    timeStart,
+    timeEnd
   )
   expect(out).not.toBeNull()
   return (out!.acc as { seq: number[] }).seq
@@ -133,6 +135,24 @@ describe('extractFixationSequence == RQA recipe onFixation through the real scan
     expect(recipeSeq(engine, 'rqaRec', { include_no_aoi: true })).toEqual(
       extracted.seq
     )
+  })
+
+  it('a time range clips BOTH builders identically, so window indices keep meaning', () => {
+    // The Metric Timeline resolves `timeline[i]` (an index into the scan's
+    // sequence) against this extract, so a range the scan applies and the extract
+    // does not would silently draw every cell on the wrong fixation.
+    const extracted = extractFixationSequence(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      engine as any,
+      STIM,
+      0,
+      { includeNoAoi: true, aoiSelectionId: SELECTION_ID, timeStart: 300, timeEnd: 600 }
+    )
+    expect(extracted.timestamps).toEqual([300, 400, 500])
+
+    expect(
+      recipeSeq(engine, 'rqaRec', { include_no_aoi: true }, 300, 600)
+    ).toEqual(extracted.seq)
   })
 
   it('holds for every fixation-windowed RQA recipe (shared factory gate)', () => {

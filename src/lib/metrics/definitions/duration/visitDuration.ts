@@ -31,6 +31,9 @@ defineMetric({
   measurementClass: 'intensive',
   searchTags: ['visit', 'dwell', 'duration', 'average', 'mean', 'median', 'aoi'],
   params: [] as const,
+  // Mean over visits; see fixationDuration. This is what the header's 'any-overlap'
+  // note has always described — now declared instead of implied by an absent gate.
+  windowMembership: 'all',
   accumulation: 'stateful',
   sampleSummary: true,
   init: ({ slots }): Acc => ({

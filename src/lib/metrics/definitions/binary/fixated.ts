@@ -35,6 +35,9 @@ defineMetric({
   measurementClass: 'proportion',
   searchTags: ['fixated', 'hit', 'hit ratio', 'noticed', 'presence', 'attention', 'capture', 'rate', 'proportion', 'aoi', 'visible'],
   params: [minFixationCount, minDwellMs] as const,
+  // A presence question: any overlap is a yes. 'own' answered 'not fixated' for an
+  // AOI fixated across the whole window.
+  windowMembership: 'all',
   accumulation: 'stateful',
   init: ({ slots, params }) => ({
     count: new Float64Array(slots.totalSlots),
@@ -43,8 +46,10 @@ defineMetric({
     minDwell: params.minDwellMs,
   }),
   onFixation: (acc, { frame, slots }, { slots: info }) => {
-    // SW-RQA membership; see fixationCount.
-    if (!frame.midpointInWindow) return
+    // Presence question, so ANY overlap counts: gating on the midpoint reported
+    // "not fixated" for an AOI the participant fixated for the WHOLE window, which
+    // deflates the same noticed rate the header protects. `frame.duration` is the
+    // in-window overlap, so `minDwellMs` means what its description promises.
     const dur = frame.duration
     if (slots.length === 0) {
       acc.count[info.noAoiSlot]++

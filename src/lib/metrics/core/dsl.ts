@@ -12,6 +12,8 @@ export type OutputShape =
   | 'scalar-timeseries'
   | 'aoi-vector-timeseries'
 export type WindowUnit = 'ms' | 'fixations'
+/** See {@link MetricRecipe.windowMembership}. */
+export type WindowMembership = 'all' | 'own'
 
 /** See {@link MetricRecipe.accumulation}. */
 type WindowAccumulation =
@@ -63,8 +65,11 @@ export interface AoiSlotInfo {
  * field it reads rather than by a meta flag.
  *
  * Unbounded scopes (`timeStart === 0 && timeEnd === 0`): `windowStart` 0,
- * `windowEnd` +Infinity, `start`/`end`/`duration` mirror the fixation,
- * `midpointInWindow` true.
+ * `windowEnd` +Infinity, `start`/`end`/`duration` mirror the fixation.
+ *
+ * CONTRIBUTION only. Whether a fixation is a MEMBER of the window is not a field
+ * here — a gate is not something you read to compute a value — it is declared by
+ * {@link MetricRecipe.windowMembership} and enforced once by the driver.
  */
 export interface WindowFrame {
   /** Active scope's lower bound (inclusive). `0` for unbounded scopes. */
@@ -82,17 +87,11 @@ export interface WindowFrame {
    * semantics, matching the legacy aoi-stream collector; never drift.
    */
   duration: number
-  /**
-   * SW-RQA membership rule: a fixation belongs to exactly one window, the one
-   * containing its midpoint. Gates count-style metrics so per-window counts
-   * sum to the unwindowed total. `true` for unbounded scopes.
-   */
-  midpointInWindow: boolean
 }
 
 /**
- * The one construction of a {@link WindowFrame} — every scan fills through
- * here, so midpoint semantics and overlap math live in one place. Writes into
+ * Fills a {@link WindowFrame} for the two unwindowed scans; the windowed driver
+ * inlines the same math to avoid a call per dispatch. Writes into
  * `out` and allocates nothing: scans reuse ONE frame across millions of
  * fixations, safe because `onFixation` reads synchronously and never retains it.
  */
@@ -100,23 +99,23 @@ export function fillWindowFrame(
   out: WindowFrame,
   start: number,
   end: number,
-  duration: number,
   timeStart: number,
   timeEnd: number,
-): WindowFrame {
+): boolean {
   const bounded = timeEnd > 0
   const windowStart = bounded ? timeStart : 0
   const windowEnd = bounded ? timeEnd : Number.POSITIVE_INFINITY
   const frameStart = Math.max(start, windowStart)
   const frameEnd = bounded ? Math.min(end, windowEnd) : end
-  const mid = start + duration / 2
   out.windowStart = windowStart
   out.windowEnd = windowEnd
   out.start = frameStart
   out.end = frameEnd
   out.duration = frameEnd - frameStart
-  out.midpointInWindow = bounded ? mid >= windowStart && mid < windowEnd : true
-  return out
+  // A bounded scope IS one window, so membership applies here too. This returns the
+  // FACT (is the midpoint inside?); the POLICY is the recipe's `windowMembership`,
+  // applied by the caller — one fact per fixation, N recipes may judge it differently.
+  return bounded ? (start + end) / 2 >= windowStart && (start + end) / 2 < windowEnd : true
 }
 
 /**
@@ -232,6 +231,26 @@ export interface MetricRecipe<P, A> {
   category: string
   rawShape: OutputShape
   windowUnit: WindowUnit
+  /**
+   * WHICH windows a fixation belongs to. The driver enforces it once, so no
+   * recipe writes a membership `if`.
+   *
+   *   - `'all'` (default) — every window the fixation overlaps. Right whenever the
+   *     contribution is divisible (`frame.duration` clips it, so per-window sums
+   *     still equal the total), and for any question of the form "did this happen
+   *     in this interval" or "how big were the events around here".
+   *   - `'own'` — only the window holding the fixation's midpoint. For sums of
+   *     INDIVISIBLE events (a count), where it is what makes per-window values add
+   *     up to the unwindowed total OVER NON-OVERLAPPING windows (a sliding window
+   *     shares each event with its neighbours by design). Absence is still 0, never NaN: the window was
+   *     evaluated, it just owns nothing.
+   *
+   * Required for `extensive` metrics — the class whose additivity depends on it —
+   * so a new count cannot silently inherit the wrong rule. Never gate an
+   * intensive MEAN on `'own'`: it reports NaN, i.e. a hole, for a window a
+   * fixation plainly covers.
+   */
+  windowMembership?: WindowMembership
   params?: readonly ParamDef<any>[]
   searchTags?: readonly string[]
   /** See {@link MeasurementClass}. Required. */

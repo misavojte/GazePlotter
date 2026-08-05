@@ -319,6 +319,7 @@ function computeTimeWindowedFused(
   const noIdx = slots.noAoiSlot
   const slotSums = new Float64Array(W * stride)
   const isDurationWeighted = accumulation !== 'midpointCount'
+  const ownWindowOnly = recipe.windowMembership === 'own'
   const useBitmask = noIdx <= 31
   const wideSlotScratch: number[] = []
 
@@ -368,6 +369,10 @@ function computeTimeWindowedFused(
     const mid = start + (end - start) * 0.5
     for (let w = wLo; w <= wHi; w++) {
       const wStart = timeline[w]
+      // The SAME declared membership the general driver enforces, so the two
+      // engines cannot drift. Separate axis from the weighting below: membership
+      // decides whether the fixation belongs here, weighting decides by how much.
+      if (ownWindowOnly && (mid < wStart || mid >= wStart + windowSize)) continue
       let v: number
       if (isDurationWeighted) {
         const s0 = start > wStart ? start : wStart
@@ -375,7 +380,6 @@ function computeTimeWindowedFused(
         const e0 = end < wEnd ? end : wEnd
         v = e0 - s0
       } else {
-        if (mid < wStart || mid >= wStart + windowSize) continue
         v = 1
       }
       const rowBase = w * stride
@@ -493,6 +497,9 @@ function computeTimeWindowed(
   const init = recipe.init
   const onFixation = recipe.onFixation
   const finalize = recipe.finalize
+  // Hoisted out of the dispatch loop: one boolean test per (fixation, window),
+  // and it SKIPS a call rather than adding one.
+  const ownWindowOnly = recipe.windowMembership === 'own'
   const aoiNames = getAoiNames(scope)
 
   // accs[w] holds an accumulator only while window w is open (sparse).
@@ -553,7 +560,6 @@ function computeTimeWindowed(
     start: 0,
     end: 0,
     duration: 0,
-    midpointInWindow: true,
   }
   const fixEvent: FixationEvent = {
     start: 0,
@@ -614,9 +620,15 @@ function computeTimeWindowed(
     const mid = start + duration * 0.5
     for (let w = wLo; w <= wHi; w++) {
       let acc = accs[w]
+      // Init BEFORE the membership gate: a window whose overlapping fixations are
+      // all non-members has still been evaluated, so a count reports 0, not NaN.
       if (acc === undefined) acc = accs[w] = init(ctx)
       const wStart = timeline[w]
       const wEnd = wStart + windowSize
+      // THE membership gate, for every metric, written once. Declared per recipe
+      // (`windowMembership`) instead of an `if` copied into each `onFixation`,
+      // which is how three recipes ended up with the rule for a different family.
+      if (ownWindowOnly && !(mid >= wStart && mid < wEnd)) continue
       // Inlined `fillWindowFrame`, bounded case (a windowed scope always is),
       // to avoid a call per dispatch in the hot loop.
       const fStartClip = start > wStart ? start : wStart
@@ -626,7 +638,6 @@ function computeTimeWindowed(
       frame.start = fStartClip
       frame.end = fEndClip
       frame.duration = fEndClip - fStartClip
-      frame.midpointInWindow = mid >= wStart && mid < wEnd
       fixEvent.index = indices[w]++
       onFixation(acc, fixEvent, ctx)
     }
@@ -667,7 +678,9 @@ function computeFixationWindowed(
 
   const N = seq.length
   const { windowSize, stepSize } = projection.window
-  const step = stepSize
+  // Same normalisation the two time-windowed drivers do; a persisted 0 would
+  // hang the loop below.
+  const step = stepSize > 0 ? stepSize : windowSize
   if (N < windowSize) return emptyTimeseries(false, slots)
 
   const values: number[] = []
@@ -716,7 +729,12 @@ export function runWindowedGroup(
   if (tEnd <= tStart) return emptyTimeseries(isVector, slots)
 
   const { window } = projection
-  const timeline = buildTimeline(tStart, tEnd, window.windowSize, window.stepSize)
+  // Same normalisation the per-participant drivers do; a persisted 0 step would
+  // make buildTimeline loop forever.
+  const timeline = buildTimeline(
+    tStart, tEnd, window.windowSize,
+    window.stepSize > 0 ? window.stepSize : window.windowSize
+  )
   const W = timeline.length
 
   const stride = isVector ? slots.totalSlots : 1
@@ -836,6 +854,7 @@ export function scanAccumulator(
 ): ScanOutput<any> | null {
   // Group-shape recipes never reach here — filtered upstream.
   if (!recipe.init || !recipe.onFixation) return null
+  const ownWindowOnly = recipe.windowMembership === 'own'
   const slots = buildAoiSlots(scope.engine, scope.stimulusId, scope.aoiSelectionId)
   if (!slots) return null
   const params = resolveParams(recipe.params, instance.params)
@@ -874,7 +893,6 @@ export function scanAccumulator(
     start: 0,
     end: 0,
     duration: 0,
-    midpointInWindow: true,
   }
   const fixEvent: FixationEvent = {
     start: 0,
@@ -914,7 +932,9 @@ export function scanAccumulator(
     }
 
     const duration = end - start
-    fillWindowFrame(frame, start, end, duration, timeStart, timeEnd)
+    const midInScope = fillWindowFrame(frame, start, end, timeStart, timeEnd)
+    // A bounded scope is one window, so the declared membership applies here too.
+    if (ownWindowOnly && !midInScope) continue
     fixEvent.start = start
     fixEvent.duration = duration
     fixEvent.index = index

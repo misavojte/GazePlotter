@@ -77,4 +77,4 @@ Unlike duration-based metrics which slide across time in milliseconds, RQA metri
 - **Step Size**: The fixation shift between consecutive bins (e.g., 1 fixation).
 - **Inner Leaf**: The inner projection must be `identity-scalar`, yielding a `scalar-timeseries` output shape.
 
-> **Midpoint Membership**: The scan runtime uses midpoint-in-window gating (`frame.midpointInWindow`) to assign each fixation to its respective ordinal bins.
+> **Ordinal Binning**: RQA bins by fixation position, not by time. The qualifying fixations form one sequence, and each window is a slice of consecutive positions in it. When the step is smaller than the window the slices overlap, so a fixation belongs to every slice covering its position. Time never enters the binning, which is why the window size is given in fixations.

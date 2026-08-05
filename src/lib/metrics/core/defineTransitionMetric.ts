@@ -62,6 +62,11 @@ export function defineTransitionMetric<P>(
     category: 'transition',
     rawShape: 'aoi-pair-matrix',
     windowUnit: 'ms',
+    // A transition needs BOTH its fixations, so a window emits it only when it sees
+    // the pair: at most once per window of a partition, and NOT AT ALL when the two
+    // straddle a boundary. Counts therefore undercount slightly over a partition;
+    // 'own' would not help, since ownership is defined per fixation, not per pair.
+    windowMembership: 'all',
     measurementClass: spec.measurementClass,
     defaultReduction: spec.defaultReduction,
     searchTags: spec.searchTags,

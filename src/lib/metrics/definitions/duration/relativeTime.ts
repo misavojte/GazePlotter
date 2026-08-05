@@ -13,6 +13,8 @@ defineMetric({
   measurementClass: 'intensive',
   searchTags: ['dwell', 'gaze', 'time', 'relative', 'percent', 'proportion', 'duration', 'aoi'],
   params: [] as const,
+  // Clipped share of divisible time; see absoluteTime.
+  windowMembership: 'all',
   accumulation: 'clippedDurationShare',
   init: ({ slots }) => new Float64Array(slots.totalSlots),
   onFixation: (acc, { frame, slots }, { slots: info }) => {

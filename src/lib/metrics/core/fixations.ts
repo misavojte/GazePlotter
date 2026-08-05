@@ -25,27 +25,37 @@ export interface FixationSequence {
  * recurrence PLOT keeps all AOIs with shares-any-AOI recurrence. Different
  * scientific questions; do not unify them.
  *
- * Callers feeding a recipe's accumulator must pass the same `includeNoAoi` the
- * recipe was instantiated with, or the indices stop aligning. Pinned by
- * `tests/fixationSequenceAlignment.test.ts`.
+ * Callers feeding a recipe's accumulator must pass the same `includeNoAoi`,
+ * `aoiSelectionId` and time range the recipe was queried with, or the indices
+ * stop aligning. Pinned by `tests/fixationSequenceAlignment.test.ts`.
  */
 export function extractFixationSequence(
   engine: DataEngine,
   stimulusId: number,
   participantId: number,
-  options?: { includeNoAoi?: boolean; aoiSelectionId?: number },
+  options?: {
+    includeNoAoi?: boolean
+    aoiSelectionId?: number
+    /** Same half-open clip `scanAccumulator` applies; `timeEnd` 0 = unbounded. */
+    timeStart?: number
+    timeEnd?: number
+  },
 ): FixationSequence {
   const slots = buildAoiSlots(engine, stimulusId, options?.aoiSelectionId)
   if (!slots) return { seq: [], timestamps: [], endTimestamps: [] }
   const { reader, rawToSlot, noAoiSlot } = slots
   const { startIndex, endIndex } = reader.getSegmentRange(stimulusId, participantId)
   const includeNoAoi = options?.includeNoAoi ?? false
+  const timeStart = options?.timeStart ?? 0
+  const timeEnd = options?.timeEnd ?? 0
   const seq: number[] = []
   const timestamps: number[] = []
   const endTimestamps: number[] = []
   const aoiSet = new Set<number>()
   for (let i = startIndex; i < endIndex; i++) {
     if (reader.getSegmentCategory(i) !== FIXATION_CATEGORY_ID) continue
+    if (timeEnd > 0 && reader.getSegmentStart(i) >= timeEnd) break
+    if (reader.getSegmentEnd(i) <= timeStart) continue
     aoiSet.clear()
     const rawAois = reader.getRawAois(i)
     for (let r = 0; r < rawAois.length; r++) {

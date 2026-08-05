@@ -18,15 +18,18 @@ defineMetric({
   searchTags: ['saccade', 'blink', 'duration', 'mean', 'median', 'eye movement', 'type'],
   params: [] as const,
   scanSource: 'categories',
+  // Mean over events; see fixationDuration.
+  windowMembership: 'all',
   accumulation: 'stateful',
   sampleSummary: true,
   init: ({ categorySlotCount }): Acc => ({
     durations: Array.from({ length: categorySlotCount }, () => []),
   }),
-  onFixation: (acc, { frame, duration, categorySlot }) => {
+  onFixation: (acc, { duration, categorySlot }) => {
     // Actual segment `duration`, NOT clipped — "typical saccade length", not
-    // "typical overlap with the window". Mirrors fixationDuration.
-    if (!frame.midpointInWindow || categorySlot < 0) return
+    // "typical overlap with the window". Mirrors fixationDuration, including its
+    // ANY-overlap membership: midpoint gating is for sums, not means.
+    if (categorySlot < 0) return
     acc.durations[categorySlot].push(duration)
   },
   individuals: acc => acc.durations,

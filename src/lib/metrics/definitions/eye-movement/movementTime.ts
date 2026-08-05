@@ -13,6 +13,8 @@ defineMetric({
   searchTags: ['saccade', 'blink', 'time', 'total', 'duration', 'eye movement', 'type'],
   params: [] as const,
   scanSource: 'categories',
+  // Divisible time, clipped per window; see absoluteTime.
+  windowMembership: 'all',
   accumulation: 'stateful',
   init: ({ categorySlotCount }) => new Float64Array(categorySlotCount),
   onFixation: (acc, { frame, categorySlot }) => {

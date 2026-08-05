@@ -55,7 +55,7 @@ The average length of individual fixations.
 - **Unit**: `ms`
 - **Windowing**: Supported.
 - **Summary statistic**: When you project down to one number (**One AOI** or **Whole stimulus**), a **Summary** control offers mean, median, max or min. Median is the robust choice for the long right tail typical of fixation-duration distributions. The per-AOI vector itself is always the mean — see the note below the table in the [Metrics Library Overview](/docs/metrics).
-- **Invariants**: Uses the actual, unclipped fixation durations (`fix.duration`) instead of window-frame clipped durations. This preserves the cognitive reality of the fixation event; a windowed slice calculates the mean of actual fixations whose midpoints fall within that window.
+- **Invariants**: Every fixation overlapping the window counts, and each contributes its full length, not just the part inside the window. The value reads as the typical fixation length around that time.
 - **Measurement class**: Intensive (normalized). The value is already a per-participant average, so across participants it is averaged; a cohort total is not meaningful. For total dwell, use Absolute Dwell Time.
 - **Scientific Meaning**: Long average fixations are associated with high cognitive load, difficulty in extracting information, or detailed focus. Short average fixations suggest rapid visual exploration.
 
