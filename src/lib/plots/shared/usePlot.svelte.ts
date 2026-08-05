@@ -601,6 +601,10 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     if (c) c.style.cursor = cursor
   }
 
+  // The tooltip is a singleton: own it before retracting it, or destroy would
+  // erase a sibling's.
+  let tooltipShown = false
+
   function showTooltip(
     id: string,
     content: Array<{ key: string; value: string }>,
@@ -615,9 +619,11 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
       { id, visible: true, content, x: screenPos.x, y: screenPos.y, width: tooltipWidth },
       delay
     )
+    tooltipShown = true
   }
 
   function hideTooltip(delay?: number) {
+    tooltipShown = false
     updateTooltip(null, delay)
   }
 
@@ -1019,6 +1025,9 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
         }
         if (pointer && browser) node.removeEventListener('mousedown', onDown)
         teardownDrag()
+        // Like the plot cursor: a plot removed under the pointer gets no
+        // `mouseleave`, so it retracts itself.
+        if (tooltipShown) hideTooltip(0)
         life?.destroy?.()
       },
     }

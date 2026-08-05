@@ -4,6 +4,7 @@
   import Button from '$lib/shared/components/Button.svelte'
   import type { ModalStackEntry } from '$lib/modals/modalState.svelte'
   import { getGazePlotterSession } from '$lib/session'
+  import { contextMenuState } from '$lib/context-menu'
 
   const { errorService, modalState } = getGazePlotterSession()
 
@@ -15,6 +16,9 @@
   }
 
   function handleKeydown(event: KeyboardEvent) {
+    // A dropdown in front owns this Escape (every Select opens through
+    // contextMenuAction); closing the whole modal would discard staged work.
+    if (contextMenuState.current) return
     if (event.key === 'Escape' && activeModal) {
       handleClose()
     }

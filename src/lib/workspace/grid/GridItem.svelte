@@ -631,12 +631,6 @@
     background: rgba(255, 255, 255, 0.18);
   }
 
-  .header-content {
-    display: flex;
-    gap: 4px;
-    margin-left: auto;
-  }
-
   /* Tactile "press" feedback */
   .grid-item-scaler.is-pressed:not(.selected) .grid-item-frame {
     /* Add a subtle inner shadow to make it feel pushed 'in' */

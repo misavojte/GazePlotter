@@ -21,7 +21,9 @@
   } from './grid/interaction'
   import { plotRegistry } from '$lib/plots/registry'
   import { generateUniqueId } from '$lib/shared/utils/idUtils'
-  import { clampZoom, ZOOM_WHEEL_SENSITIVITY, ZOOM_STEP } from './zoom'
+  import { WorkspaceZoom, wheelZoomAction } from './zoom.svelte'
+  import { FileDropTarget } from './fileDrop.svelte'
+  import { isTextEntryTarget, resolveWorkspaceShortcut } from './keys'
   import type { WorkspaceCommandChain } from './commands'
   import type { GridItemSnapshot } from './'
 
@@ -31,7 +33,7 @@
   }
 
   const { onWorkspaceCommandChain, initialLayoutState = null }: Props = $props()
-  const { ingest, grid, workspace } = getGazePlotterSession()
+  const { ingest, grid, workspace, modalState } = getGazePlotterSession()
 
   // Single upload owner for the workspace: the drag-drop handler below and the
   // click entry points (ribbon item, empty-state button) all feed ingest here.
@@ -78,14 +80,14 @@
   // State tracking (Svelte 5 Runes)
   // ---------------------------------------------------
 
-  // Sync external file processing state with the grid class
-  $effect(() => {
-    grid.isLoading = ingest.isLoading
-  })
+  // "No grid on screen": ingest owns this state, and it is read straight from
+  // there. A mirror on GridState would lag it by a flush for no other reader.
+  const isLoading = $derived(ingest.isLoading)
 
   let workspaceContainer: HTMLElement | null = $state(null)
   let mobileRailElement: HTMLElement | null = $state(null)
-  let zoom = $state(1)
+  const zoom = new WorkspaceZoom()
+  const fileDrop = new FileDropTarget()
   const interaction = new GridInteractionController()
   const positionsWithPreview = $derived.by(() =>
     interaction.getPositionsWithPreview(grid.positions)
@@ -94,7 +96,7 @@
     const baseHeight = calculateGridHeight(
       positionsWithPreview,
       grid.isEmpty,
-      grid.isLoading,
+      isLoading,
       gridConfig
     )
 
@@ -125,7 +127,11 @@
   })
 
   $effect(() => {
-    interaction.setZoom(zoom)
+    interaction.setZoom(zoom.value)
+  })
+
+  $effect(() => {
+    zoom.setViewport(workspaceContainer)
   })
 
   $effect(() => {
@@ -168,38 +174,28 @@
   // Keyboard Shortcuts (Global)
   // ---------------------------------------------------
 
-  function handleGlobalKeydown(event: KeyboardEvent): void {
-    const isCtrlOrMeta = event.ctrlKey || event.metaKey
-    if (!isCtrlOrMeta) return
+  // History acts on the grid, so it waits for the screen that shows it: the
+  // load replaces grid and history, a modal is in front, a field owns its own
+  // undo. Zoom answers always — it is the workspace's own state, and skipping
+  // its `preventDefault` would hand Ctrl+-/0 to the browser's page zoom.
+  const canEditHistory = $derived(!isLoading && !modalState.activeModal)
 
-    // Undo: Ctrl+Z
-    if (event.code === 'KeyZ' && !event.shiftKey) {
+  function handleGlobalKeydown(event: KeyboardEvent): void {
+    const shortcut = resolveWorkspaceShortcut(event)
+    if (shortcut === null) return
+
+    if (shortcut === 'undo' || shortcut === 'redo') {
+      if (!canEditHistory || isTextEntryTarget(event)) return
       event.preventDefault()
-      workspace.undo()
+      if (shortcut === 'undo') workspace.undo()
+      else workspace.redo()
+      return
     }
-    // Redo: Ctrl+Y or Ctrl+Shift+Z
-    else if (
-      (event.code === 'KeyY' && !event.shiftKey) ||
-      (event.code === 'KeyZ' && event.shiftKey)
-    ) {
-      event.preventDefault()
-      workspace.redo()
-    }
-    // Zoom In: Ctrl + Plus / Equal
-    else if (event.key === '+' || event.key === '=') {
-      event.preventDefault()
-      zoom = clampZoom(zoom + ZOOM_STEP)
-    }
-    // Zoom Out: Ctrl + Minus
-    else if (event.key === '-') {
-      event.preventDefault()
-      zoom = clampZoom(zoom - ZOOM_STEP)
-    }
-    // Reset Zoom: Ctrl + 0
-    else if (event.key === '0') {
-      event.preventDefault()
-      zoom = 1
-    }
+
+    event.preventDefault()
+    if (shortcut === 'zoom-in') zoom.in()
+    else if (shortcut === 'zoom-out') zoom.out()
+    else zoom.reset()
   }
 
   $effect(() => {
@@ -209,100 +205,24 @@
     }
   })
 
-  // ---------------------------------------------------
-  // Ctrl+Wheel / Trackpad-pinch zoom
-  // ---------------------------------------------------
-
-  /**
-   * Zoom toward / away from the pointer while keeping the point
-   * under the cursor visually stationary (scroll-compensation).
-   *
-   * Browsers fire `ctrlKey = true` for both Ctrl+wheel and
-   * trackpad pinch gestures, so this single handler covers
-   * Windows, Mac, and touchpads.
-   */
-  function handleWheelZoom(event: WheelEvent): void {
-    if (!(event.ctrlKey || event.metaKey)) return
-    event.preventDefault()
-
-    const container = workspaceContainer
-    if (!container) return
-
-    const oldZoom = zoom
-    const newZoom = clampZoom(oldZoom - event.deltaY * ZOOM_WHEEL_SENSITIVITY)
-    if (newZoom === oldZoom) return
-
-    // Pointer position relative to the container's padding box.
-    const rect = container.getBoundingClientRect()
-    const pointerX = event.clientX - rect.left
-    const pointerY = event.clientY - rect.top
-
-    // The grid-space coordinate under the cursor before zoom.
-    const gridX = (container.scrollLeft + pointerX) / oldZoom
-    const gridY = (container.scrollTop + pointerY) / oldZoom
-
-    zoom = newZoom
-
-    // After Svelte flushes the DOM with the new zoom, adjust
-    // scroll so the same grid-space point stays under the cursor.
-    requestAnimationFrame(() => {
-      container.scrollLeft = gridX * newZoom - pointerX
-      container.scrollTop = gridY * newZoom - pointerY
-    })
-  }
-
-  let workspaceWrapper: HTMLElement | null = $state(null)
-
-  $effect(() => {
-    const wrapper = workspaceWrapper
-    if (!wrapper) return
-
-    // Must be { passive: false } to allow preventDefault on wheel.
-    wrapper.addEventListener('wheel', handleWheelZoom, { passive: false })
-
-    return () => {
-      wrapper.removeEventListener('wheel', handleWheelZoom)
-    }
-  })
-
-  // ---------------------------------------------------
-  // Drag-and-drop file overlay
-  // ---------------------------------------------------
-
-  let dragCounter = $state(0)
-  const isDraggingOver = $derived(dragCounter > 0)
-
-  function handleDragEnter(event: DragEvent): void {
-    if (!event.dataTransfer?.types.includes('Files')) return
-    event.preventDefault()
-    dragCounter++
-  }
-
-  function handleDragOver(event: DragEvent): void {
-    if (!event.dataTransfer?.types.includes('Files')) return
-    event.preventDefault()
-    event.dataTransfer.dropEffect = 'copy'
-  }
-
-  function handleDragLeave(event: DragEvent): void {
-    // Same guard as handleDragEnter — a non-file drag (text, URL) never
-    // increments, so it must never decrement either (counter went negative
-    // and swallowed the overlay on the next real file drag).
-    if (!event.dataTransfer?.types.includes('Files')) return
-    dragCounter--
-  }
-
   async function handleDrop(event: DragEvent): Promise<void> {
-    dragCounter = 0
-    if (!event.dataTransfer?.files.length) return
-    event.preventDefault()
-    await ingest.loadFiles(event.dataTransfer.files)
+    const files = fileDrop.drop(event)
+    if (files) await ingest.loadFiles(files)
   }
 
   const styleProps = `--min-workspace-height: ${MIN_WORKSPACE_HEIGHT}px; --grid-container-min-height: ${MIN_WORKSPACE_HEIGHT - 100}px;`
 </script>
 
-<div class="workspace-wrapper" style={styleProps} bind:this={workspaceWrapper}>
+{#snippet dropHint()}
+  <div class="drop-indicator">
+    <div class="drop-copy">
+      <p class="drop-title">Drop files to load</p>
+      <p class="drop-hint">Supported formats are detected and parsed automatically</p>
+    </div>
+  </div>
+{/snippet}
+
+<div class="workspace-wrapper" style={styleProps} use:wheelZoomAction={zoom}>
   <input
     type="file"
     multiple
@@ -320,7 +240,7 @@
       <Rail
         {initialLayoutState}
         {visualizations}
-        bind:zoom
+        bind:zoom={zoom.value}
         onAddVisualization={handleAddVisualization}
       />
     {/if}
@@ -329,43 +249,47 @@
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
       class="workspace-container"
+      class:is-drop-target={fileDrop.isActive}
       bind:this={workspaceContainer}
       role="none"
-      ondragenter={handleDragEnter}
-      ondragover={handleDragOver}
-      ondragleave={handleDragLeave}
+      ondragenter={fileDrop.enter}
+      ondragover={fileDrop.over}
+      ondragleave={fileDrop.leave}
       ondrop={handleDrop}
       onclick={handleWorkspaceBackgroundClick}
       use:panSurfaceAction={{
-        enabled: !grid.isEmpty && !grid.isLoading && !ingest.isLoading,
+        enabled: !grid.isEmpty && !isLoading,
         interaction,
         workspaceContainer,
         shouldStart: shouldStartPan,
       }}
     >
-      <SelectionIndicator
-        {workspaceContainer}
-        {zoom}
-        {gridConfig}
-        bottomOcclusionElement={mobileRailElement}
-      />
-      {#if isDraggingOver}
-        <div class="drop-indicator">
-          <p class="drop-title">Drop files to load</p>
-          <p class="drop-hint">Supported formats are detected and parsed automatically</p>
-        </div>
-      {:else if grid.isEmpty && !(ingest.isLoading || grid.isLoading)}
+      {#if fileDrop.isActive && (grid.isEmpty || isLoading)}
+        <!-- Replaces an indicator card rather than stacking on it: both are
+             centred at inset 0, and there are no plots here to preserve. -->
+        {@render dropHint()}
+      {:else if grid.isEmpty && !isLoading}
         <IndicatorEmpty {initialLayoutState} onUpload={triggerUpload} />
-      {:else if ingest.isLoading || grid.isLoading}
+      {:else if isLoading}
         <IndicatorLoading />
       {:else}
+        <!-- Lives with the grid it points into, so no branch can strand it.
+             Outside .zoom-surface: a transformed ancestor would become the
+             containing block for its `position: fixed`. -->
+        <SelectionIndicator
+          {workspaceContainer}
+          zoom={zoom.value}
+          {gridConfig}
+          bottomOcclusionElement={mobileRailElement}
+        />
         <div
           class="zoom-viewport"
-          style="width: {gridWidth * zoom}px; height: {gridHeight * zoom}px;"
+          style="width: {gridWidth * zoom.value}px; height: {gridHeight *
+            zoom.value}px;"
         >
           <div
             class="zoom-surface"
-            style="transform: scale({zoom}); width: {gridWidth}px; height: {gridHeight}px;"
+            style="transform: scale({zoom.value}); width: {gridWidth}px; height: {gridHeight}px;"
           >
             <Grid
               gridItems={grid.items}
@@ -377,6 +301,12 @@
             />
           </div>
         </div>
+        <!-- Overlays the plots, never replaces them: dragging a file across
+             the way must not unmount every canvas and lose the scroll
+             position. -->
+        {#if fileDrop.isActive}
+          {@render dropHint()}
+        {/if}
       {/if}
     </div>
 
@@ -395,7 +325,7 @@
     <Rail
       {initialLayoutState}
       {visualizations}
-      bind:zoom
+      bind:zoom={zoom.value}
       bind:element={mobileRailElement}
       onAddVisualization={handleAddVisualization}
     />
@@ -460,6 +390,17 @@
 
   /* ---- drag-and-drop indicator ---- */
 
+  /* On the container itself: a scroll container paints background and outline
+     on its visible box, so the cue survives any scroll position. */
+  .workspace-container.is-drop-target {
+    background-color: color-mix(in srgb, var(--c-info) 5%, var(--c-darkwhite));
+    outline: 2px dashed var(--c-info);
+    outline-offset: -12px;
+  }
+
+  /* Carded so it reads over plots, and inert so the container keeps the drop
+     and its enter/leave counter. In content space, so it scrolls with the
+     grid: the frame above is the cue that always holds. */
   .drop-indicator {
     position: absolute;
     inset: 0;
@@ -469,6 +410,19 @@
     justify-content: center;
     gap: 4px;
     z-index: 10;
+    pointer-events: none;
+  }
+
+  .drop-copy {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    padding: 12px 20px;
+    border-radius: var(--rounded-md);
+    background-color: var(--c-lightgrey);
+    border: 1px solid var(--c-border);
+    box-shadow: var(--shadow-sm);
   }
 
   .drop-title {

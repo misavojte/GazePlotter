@@ -13,6 +13,7 @@
   import { PANE_ACCORDION_KEY, type PaneAccordion } from './accordion'
   import { PANE_TRANSITION, slideFlex } from './transition'
   import { responsive } from '../responsive.svelte'
+  import { contextMenuState } from '$lib/context-menu'
 
   // Shared open states for every PaneSection inside this Pane.
   // Opening or closing one section does not affect other sections.
@@ -108,13 +109,18 @@
   $effect(() => {
     if (!paneItem && !isBulk) return
     function onKey(e: KeyboardEvent) {
+      // A surface in front owns Escape, including a modal this pane opened
+      // (Download plot) that would otherwise close both at once. Capture, so
+      // the modal's own `window` listener cannot clear this state first.
+      if (modalState.activeModal || contextMenuState.current) return
       if (e.key === 'Escape') {
         e.preventDefault()
         close()
       }
     }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
+    document.addEventListener('keydown', onKey, { capture: true })
+    return () =>
+      document.removeEventListener('keydown', onKey, { capture: true })
   })
 
 </script>

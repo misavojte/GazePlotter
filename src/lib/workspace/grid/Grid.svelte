@@ -22,29 +22,28 @@
   } from './interaction'
   import { responsive } from '../responsive.svelte'
   import { generateSelectionPath } from './selectionPath'
+  import { contextMenuState } from '$lib/context-menu'
+  import { isTextEntryTarget } from '../keys'
 
-  const { engine, errorService, workspace, grid } = getGazePlotterSession()
+  const { engine, errorService, workspace, grid, modalState } =
+    getGazePlotterSession()
 
   // Mac's main "delete" key emits Backspace, so we handle both.
+  // Capture on `document`, like selectionSession's Esc unwinding: the modal and
+  // the context menu bubble on `window` and clear the state this guard reads,
+  // so phase must decide who reads first, never registration order.
   $effect(() => {
     function onKeydown(event: KeyboardEvent) {
       if (event.metaKey || event.ctrlKey || event.altKey) return
+      if (isTextEntryTarget(event)) return
+      // A surface in front owns the key: one Escape dismisses one surface, and
+      // Delete never removes a plot the user cannot see.
+      if (modalState.activeModal || contextMenuState.current) return
       // Operate on the whole selection (single = a set of one). Reading the
       // set directly — not the single-only `selectedItemId` getter — keeps
       // Delete/Escape working for a multi-selection.
       const selectedIds = grid.selectedItemIds
       if (selectedIds.length === 0) return
-      const target = event.target as HTMLElement | null
-      if (target) {
-        const tag = target.tagName
-        if (
-          tag === 'INPUT' ||
-          tag === 'TEXTAREA' ||
-          tag === 'SELECT' ||
-          target.isContentEditable
-        )
-          return
-      }
       if (event.key === 'Delete' || event.key === 'Backspace') {
         event.preventDefault()
         // Snapshot first — removeItem mutates the selection set as it goes.
@@ -54,14 +53,17 @@
         return
       }
       if (event.key === 'Escape') {
+        // The Pane owns Escape while it is up, for both cardinalities: on
+        // mobile it closes the sheet and KEEPS the selection so the Edit FAB
+        // returns, and its bulk close clears the selection itself.
+        if (grid.paneOpenId !== null || grid.selectedCount > 1) return
         event.preventDefault()
-        // clearSelection (not the pane) owns deselect, so Escape works for a
-        // multi-selection regardless of whether the bulk pane is mounted.
         grid.clearSelection()
       }
     }
-    window.addEventListener('keydown', onKeydown)
-    return () => window.removeEventListener('keydown', onKeydown)
+    document.addEventListener('keydown', onKeydown, { capture: true })
+    return () =>
+      document.removeEventListener('keydown', onKeydown, { capture: true })
   })
 
   interface Props {

@@ -66,14 +66,16 @@ export function createRailItems(
       label: undoLabel,
       icon: railIcons.undo,
       actions: [{ label: undoLabel, run: options.onUndo }],
-      disabled: !options.canUndo,
+      // Processing gates every workspace action alike: the load replaces the
+      // grid and its history, so there is nothing to undo into.
+      disabled: options.isProcessing || !options.canUndo,
     },
     {
       id: 'redo',
       label: redoLabel,
       icon: railIcons.redo,
       actions: [{ label: redoLabel, run: options.onRedo }],
-      disabled: !options.canRedo,
+      disabled: options.isProcessing || !options.canRedo,
     },
     {
       id: 'reset-layout',

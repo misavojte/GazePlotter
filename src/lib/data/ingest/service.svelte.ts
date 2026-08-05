@@ -642,6 +642,11 @@ export class IngestService {
         return false
       }
 
+      // The parse is now committed, so the selection into the grid it replaces
+      // dies here: the pane, the off-screen arrow and the mobile plot rail
+      // follow it. Not earlier — the refusals above leave the grid standing.
+      this.deps.grid.clearSelection()
+
       return await new Promise<boolean>(resolve => {
         const client = new IngestWorkerClient(
           async data => {

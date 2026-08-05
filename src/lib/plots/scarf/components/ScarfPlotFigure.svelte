@@ -35,7 +35,6 @@
     timeGuideXs,
     type PlotCursorPort,
   } from '$lib/plots/shared/plotCursor.svelte'
-  import { onDestroy } from 'svelte'
   import { SCARF_LAYOUT } from '../const'
   import { FIXATION_CATEGORY_ID } from '$lib/data/types'
   import { SEGMENT_STRIDE, SegmentField } from '$lib/data/binary/schema'
@@ -581,9 +580,6 @@
     return null
   }
 
-  onDestroy(() => {
-    plot.hideTooltip(0)
-  })
 </script>
 
 <canvas
