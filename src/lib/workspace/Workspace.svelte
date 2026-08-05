@@ -150,7 +150,7 @@
 
   function handleAddVisualization(vizType: string): void {
     const newId = generateUniqueId()
-    if (workspace.addVisualization(vizType, 'rail', newId)) {
+    if (workspace.addGridItem(vizType, 'rail', newId)) {
       grid.setSelectedItem(newId)
       if (!responsive.isMobile) {
         grid.openPane(newId)

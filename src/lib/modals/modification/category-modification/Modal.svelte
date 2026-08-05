@@ -94,14 +94,25 @@
   const handleSubmit = () => {
     if (editor.hasInvalidGroup) return
     // hidden = [] retires visibility for good (selections replace it).
-    if (!workspace.updateCategories(editor.getCleanedItems(), source)) return
+    const applied = workspace.apply({
+      type: 'updateCategories',
+      categories: editor.getCleanedItems(),
+      source,
+    })
+    if (!applied) return
 
     const committed = sel.commit(session.selections, editor.groups)
     if (
       sel.canonical(committed) !==
       sel.canonical(getCategoriesSelections(engine))
     ) {
-      if (!workspace.updateSelections('category', committed, source)) return
+      const saved = workspace.apply({
+        type: 'updateSelections',
+        axis: 'category',
+        selections: committed,
+        source,
+      })
+      if (!saved) return
     }
     modalState.close()
   }

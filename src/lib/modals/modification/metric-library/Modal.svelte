@@ -74,7 +74,11 @@
       const toGlobal = indices[to]
       const [item] = all.splice(fromGlobal, 1)
       all.splice(toGlobal, 0, item)
-      workspace.updateMetricInstances(all, 'metricLibrary.reorder')
+      workspace.apply({
+        type: 'updateMetricInstances',
+        instances: all,
+        source: 'metricLibrary.reorder',
+      })
     },
   })
 

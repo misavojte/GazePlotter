@@ -270,7 +270,13 @@
     if (itemsSignature(cleaned) === itemsSignature(getAllAois(engine, stimulusId))) {
       return true
     }
-    return workspace.updateAois(cleaned, stimulusId, 'this_stimulus', source)
+    return workspace.apply({
+      type: 'updateAois',
+      aois: cleaned,
+      stimulusId,
+      applyTo: 'this_stimulus',
+      source,
+    })
   }
 
   function saveAllScope(): boolean {
@@ -319,9 +325,16 @@
         if (sorted.some((it, i) => it.id !== items[i].id)) changed = true
         items = sorted
       }
-      if (changed && !workspace.updateAois(items, s.id, 'this_stimulus', source)) {
-        return false
-      }
+      const applied =
+        !changed ||
+        workspace.apply({
+          type: 'updateAois',
+          aois: items,
+          stimulusId: s.id,
+          applyTo: 'this_stimulus',
+          source,
+        })
+      if (!applied) return false
     }
     return true
   }
@@ -341,22 +354,26 @@
       noAoiTreatment.displayedName !== noAoiSnapshot.displayedName ||
       noAoiTreatment.color !== noAoiSnapshot.color
     ) {
-      if (
-        !workspace.updateNoAoiTreatment(
-          {
-            displayedName: (noAoiTreatment.displayedName || 'No AOI').trim(),
-            color: noAoiTreatment.color,
-          },
-          source
-        )
-      ) {
-        return
-      }
+      const renamed = workspace.apply({
+        type: 'updateNoAoiTreatment',
+        noAoiTreatment: {
+          displayedName: (noAoiTreatment.displayedName || 'No AOI').trim(),
+          color: noAoiTreatment.color,
+        },
+        source,
+      })
+      if (!renamed) return
     }
 
     // 3. Selections, only on a real change (avoids a spurious undo step).
     if (canonicalNameSelections(committed) !== selectionsSnapshot) {
-      if (!workspace.updateSelections('aoi', committed, source)) return
+      const saved = workspace.apply({
+        type: 'updateSelections',
+        axis: 'aoi',
+        selections: committed,
+        source,
+      })
+      if (!saved) return
     }
 
     modalState.close()

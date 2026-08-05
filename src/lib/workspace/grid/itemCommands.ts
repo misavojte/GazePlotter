@@ -1,14 +1,17 @@
-import type { WorkspaceService } from '$lib/workspace/service.svelte'
+import type { WorkspaceCommandBus } from '$lib/workspace/commands/bus'
 import type { AllGridTypes } from '$lib/workspace'
+import type {
+  RemoveGridItemCommand,
+  UpdateLayoutCommand,
+} from '$lib/workspace/commands'
 import type { GridConfig } from './types'
 
-type WorkspaceGridCommands = Pick<
-  WorkspaceService,
-  | 'duplicateVisualization'
-  | 'removeVisualization'
-  | 'updateItemLayout'
-  | 'updateItemsLayout'
->
+// Narrowed by COMMAND, not by method name: `apply` accepts the whole union, so
+// naming the two members here is what still stops this layer reaching for the
+// rest of it. A full WorkspaceCommandBus satisfies this.
+type WorkspaceGridCommands = Pick<WorkspaceCommandBus, 'duplicateGridItem'> & {
+  apply: (command: UpdateLayoutCommand | RemoveGridItemCommand) => boolean
+}
 
 type GridItemIdentity = Pick<AllGridTypes, 'id' | 'type'>
 type GridItemMinimum = Pick<AllGridTypes, 'min'>
@@ -64,7 +67,11 @@ export function commitGridItemGroupMove(
   if (updates.length === 0) return false
 
   const anchor = findGridItem(items, commits[0].id) ?? items[0]
-  return workspace.updateItemsLayout(updates, getGridItemCommandSource(anchor))
+  return workspace.apply({
+    type: 'updateLayout',
+    updates,
+    source: getGridItemCommandSource(anchor),
+  })
 }
 
 export function commitGridItemResize(
@@ -82,16 +89,21 @@ export function commitGridItemResize(
   // x/y as the opposite dimension shrinks. Persist the new position along
   // with the new size; committing only w/h would leave the item anchored
   // to its original top-left on the grid.
-  return workspace.updateItemLayout(
-    item.id,
-    {
-      x: Math.max(0, commit.x),
-      y: Math.max(0, commit.y),
-      w: Math.max(min.w, commit.w),
-      h: Math.max(min.h, commit.h),
-    },
-    getGridItemCommandSource(item)
-  )
+  return workspace.apply({
+    type: 'updateLayout',
+    updates: [
+      {
+        itemId: item.id,
+        layout: {
+          x: Math.max(0, commit.x),
+          y: Math.max(0, commit.y),
+          w: Math.max(min.w, commit.w),
+          h: Math.max(min.h, commit.h),
+        },
+      },
+    ],
+    source: getGridItemCommandSource(item),
+  })
 }
 
 export function commitGridItemRemoval(
@@ -102,7 +114,11 @@ export function commitGridItemRemoval(
   const item = findGridItem(items, commit.id)
   if (!item) return false
 
-  return workspace.removeVisualization(item.id, getGridItemCommandSource(item))
+  return workspace.apply({
+    type: 'removeGridItem',
+    itemId: item.id,
+    source: getGridItemCommandSource(item),
+  })
 }
 
 export function commitGridItemDuplication(
@@ -113,7 +129,7 @@ export function commitGridItemDuplication(
   const item = findGridItem(items, commit.id)
   if (!item) return false
 
-  return workspace.duplicateVisualization(
+  return workspace.duplicateGridItem(
     item.id,
     getGridItemCommandSource(item),
     { duplicateId: commit.duplicateId }

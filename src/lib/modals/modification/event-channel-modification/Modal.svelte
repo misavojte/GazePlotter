@@ -140,20 +140,24 @@
     const committed = commitNameSelections(renameMap, session.selections)
 
     // hidden = [] retires visibility for good (selections replace it).
-    if (
-      !workspace.updateEventChannels(
-        editor.getCleanedItems(),
-        stimulusId(),
-        source
-      )
-    ) {
-      return
-    }
+    const applied = workspace.apply({
+      type: 'updateEventChannels',
+      channels: editor.getCleanedItems(),
+      stimulusId: stimulusId(),
+      source,
+    })
+    if (!applied) return
     if (
       canonicalNameSelections(committed) !==
       canonicalNameSelections(getEventsSelections(engine))
     ) {
-      if (!workspace.updateSelections('event', committed, source)) return
+      const saved = workspace.apply({
+        type: 'updateSelections',
+        axis: 'event',
+        selections: committed,
+        source,
+      })
+      if (!saved) return
     }
     modalState.close()
   }

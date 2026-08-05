@@ -3,7 +3,7 @@ import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { DataCapabilityRequirements } from '$lib/data/types'
 import type { PlotMetricContract } from '$lib/metrics'
 import type { WorkspaceCommand, WorkspaceCommandChain } from '$lib/workspace/commands'
-import type { WorkspaceService } from '$lib/workspace/service.svelte'
+import type { WorkspaceCommandBus } from '$lib/workspace/commands/bus'
 import type { ModalState } from '$lib/modals/modalState.svelte'
 import type { PlotGroup } from './groups'
 
@@ -116,7 +116,7 @@ export type PlotScreenContext<TSettings> = {
   /** The live grid item (reactive getter — do not capture the value). */
   readonly item: PlotItemContract<string, TSettings>
   engine: DataEngine
-  workspace: WorkspaceService
+  workspace: WorkspaceCommandBus
   /**
    * The current derived view. Valid inside effects, deriveds and event
    * handlers (it is bound after the container initializes) — do not call it
@@ -174,7 +174,7 @@ export type SectionFieldOption = { value: string; label: string }
  */
 export type SectionFieldCtx = {
   engine: DataEngine
-  workspace: WorkspaceService
+  workspace: WorkspaceCommandBus
   modalState: ModalState
   /** The representative grid item (for its plot type and id). */
   item: PaneSectionItem

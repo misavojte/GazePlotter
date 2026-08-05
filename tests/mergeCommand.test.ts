@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { DataEngine } from '../src/lib/data/engine/dataEngine.svelte'
-import { WorkspaceService } from '../src/lib/workspace/service.svelte'
+import { WorkspaceCommandBus } from '../src/lib/workspace/commands/bus'
 import { createWorkspaceCommandRegistry } from '../src/lib/workspace/commands/registry'
 import { getParticipantsWithMerged, getStimuliWithMerged } from '../src/lib/data/engine'
 import type { WorkspaceCommandChain } from '../src/lib/workspace/commands'
@@ -44,7 +44,7 @@ const makeStimulusData = (): DataType =>
   )
 
 const makeService = (engine: DataEngine) =>
-  new WorkspaceService({
+  new WorkspaceCommandBus({
     engine,
     errorService: { report: vi.fn() },
     grid: createMockGridStore([]),
@@ -179,9 +179,9 @@ describe('mergeEntities commands (through a real DataEngine)', () => {
 // ============================================================================
 // 2. reconcileMerges Orchestrator Suite (from reconcileMergesCommand.test.ts)
 // ============================================================================
-describe('reconcileMerges through the WorkspaceService', () => {
+describe('reconcileMerges through the command bus', () => {
   let engine: DataEngine
-  let ws: WorkspaceService
+  let ws: WorkspaceCommandBus
 
   describe('Participant axis reconciliation', () => {
     beforeEach(() => {
@@ -194,12 +194,13 @@ describe('reconcileMerges through the WorkspaceService', () => {
       const before = nested(engine)
 
       const items = withName(getParticipantsWithMerged(engine), 1, 'P0')
-      ws.reconcileMerges(
-        'participant',
+      ws.apply({
+        type: 'reconcileMerges',
+        axis: 'participant',
         items,
-        [{ representativeId: 0, memberIds: [1], at: 100 }],
-        'test.modal'
-      )
+        groups: [{ representativeId: 0, memberIds: [1], at: 100 }],
+        source: 'test.modal',
+      })
 
       expect(engine.metadata!.participants.orderVector).toEqual([0, 2])
       expect(engine.metadata!.participantsSelections[0].participantsIds).toEqual([0, 2])
@@ -232,7 +233,13 @@ describe('reconcileMerges through the WorkspaceService', () => {
       expect(merged.find(r => r.id === 1)!.displayedName).toBe('P0')
 
       const items = withName(merged, 1, 'P1 restored')
-      ws.reconcileMerges('participant', items, [], 'test.modal')
+      ws.apply({
+        type: 'reconcileMerges',
+        axis: 'participant',
+        items,
+        groups: [],
+        source: 'test.modal',
+      })
 
       expect(engine.metadata!.participants.orderVector).toEqual([0, 1, 2])
       expect(engine.metadata!.merges ?? []).toHaveLength(0)
@@ -255,12 +262,13 @@ describe('reconcileMerges through the WorkspaceService', () => {
       ws = makeService(engine)
 
       const items = withName(getStimuliWithMerged(engine), 1, 'S0')
-      ws.reconcileMerges(
-        'stimulus',
+      ws.apply({
+        type: 'reconcileMerges',
+        axis: 'stimulus',
         items,
-        [{ representativeId: 0, memberIds: [1], at: 100 }],
-        'test.modal'
-      )
+        groups: [{ representativeId: 0, memberIds: [1], at: 100 }],
+        source: 'test.modal',
+      })
 
       expect(engine.metadata!.stimuli.orderVector).toEqual([0])
       expect(engine.metadata!.merges).toHaveLength(1)

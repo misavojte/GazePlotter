@@ -1,4 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import { reportProgress, type ExportProgress } from '../progress'
 import {
   getParticipant,
   getParticipantEndTime,
@@ -241,7 +242,7 @@ export function longFormatMetricColumns(
 export async function generateMetricExport(
   engine: DataEngine,
   options: MetricDataExportOptions,
-  onProgress?: (position: number, total: number, name: string) => void | Promise<void>
+  onProgress?: ExportProgress
 ): Promise<{
   dataContent: string
   codebookContent: string | null
@@ -339,10 +340,7 @@ export async function generateMetricExport(
         count++
         const participantName = getParticipant(engine, participantId).displayedName
 
-        if (onProgress) {
-          await onProgress(count, total, `Computing metrics for ${participantName} · ${stimulusName}`)
-          await new Promise(resolve => setTimeout(resolve, 0))
-        }
+        await reportProgress(onProgress, count, total, `Computing metrics for ${participantName} · ${stimulusName}`)
 
         // Clamp to the participant's own recording end so windowed timelines
         // stay ragged per participant: a short recording must not receive
@@ -574,10 +572,7 @@ export async function generateMetricExport(
         count++
         const participantName = getParticipant(engine, participantId).displayedName
 
-        if (onProgress) {
-          await onProgress(count, total, `Computing metrics for ${participantName} · ${stimulusName}`)
-          await new Promise(resolve => setTimeout(resolve, 0))
-        }
+        await reportProgress(onProgress, count, total, `Computing metrics for ${participantName} · ${stimulusName}`)
 
         const participantEnd = getParticipantEndTime(engine, stimulusId, participantId)
         const scope: Scope = {

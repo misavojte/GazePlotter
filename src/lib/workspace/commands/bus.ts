@@ -1,45 +1,39 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { ErrorService } from '$lib/errors'
 import type { ToastState } from '$lib/toaster/toastState.svelte'
-import { GridState } from '$lib/workspace/grid/gridState.svelte'
-import {
-  createCommandHandler,
-  createRootCommand,
-  type UpdateAoisCommand,
-  type ReconcileMergesCommand,
-  type SelectionsAxis,
-  type SelectionsByAxis,
-  type WorkspaceCommand,
-  type WorkspaceCommandChain,
-  UndoRedoStateStore,
-} from '$lib/workspace/commands'
-import { getCommandLabel } from '$lib/workspace/commands/labels'
+import { GridState } from '../grid/gridState.svelte'
+import { createCommandHandler } from './handler'
+import { createRootCommand } from './utils'
+import { getCommandLabel } from './labels'
+import { UndoRedoStateStore } from './undoRedoState.svelte'
+import type { WorkspaceCommand, WorkspaceCommandChain } from './types'
 import { generateUniqueId } from '$lib/shared/utils/idUtils'
+// From the owning module, not the `$lib/workspace` barrel, which also
+// re-exports this file's own consumers.
 import type {
   AllPlotSettings,
   GridItemMap,
   GridItemSnapshot,
-  GridItemLayoutUpdate,
-} from '$lib/workspace'
-import type {
-  BaseInterpretedDataType,
-  ExtendedInterpretedDataType,
-  NoAoiTreatmentType,
-} from '$lib/data/types'
-import type { MetricInstance } from '$lib/metrics'
+} from '../grid/types'
 
 function isWorkspaceHistoryError(error: unknown): boolean {
   return error instanceof Error && error.name === 'WorkspaceHistoryError'
 }
 
-type WorkspaceServiceDeps = {
+type CommandBusDeps = {
   engine: DataEngine
   errorService: Pick<ErrorService, 'report'>
   grid: GridState
   toastState: Pick<ToastState, 'addSuccess'>
 }
 
-export class WorkspaceService {
+/**
+ * The command bus's public face: what the UI calls to change the workspace.
+ * Dispatch lives in {@link createCommandHandler}, per-command execute/reverse in
+ * the registry, the stack in {@link UndoRedoStateStore}. This owns the entry
+ * point, the error boundary around it, and the history verbs.
+ */
+export class WorkspaceCommandBus {
   readonly history = new UndoRedoStateStore()
 
   private onCommandApplied: (command: WorkspaceCommandChain) => void = () => {}
@@ -48,7 +42,7 @@ export class WorkspaceService {
   private readonly errorService: Pick<ErrorService, 'report'>
   private readonly grid: GridState
 
-  constructor(deps: WorkspaceServiceDeps) {
+  constructor(deps: CommandBusDeps) {
     this.errorService = deps.errorService
     this.grid = deps.grid
     this.handleCommand = createCommandHandler(
@@ -104,7 +98,14 @@ export class WorkspaceService {
     }
   }
 
-  applyRoot(command: WorkspaceCommand): boolean {
+  /**
+   * Apply one command as a root (a new undo step). This is the workspace's
+   * mutation verb: the {@link WorkspaceCommand} union already names and types
+   * every operation, so a per-command forwarding method would only restate it.
+   * Methods on this class exist where they add something the command cannot
+   * carry: an id to default, a payload to compute, a precondition to report.
+   */
+  apply(command: WorkspaceCommand): boolean {
     return this.execute(createRootCommand(command))
   }
 
@@ -129,14 +130,7 @@ export class WorkspaceService {
     return this.replay(this.history.redo())
   }
 
-  resetLayout(layoutState: GridItemSnapshot[]): boolean {
-    return this.applyRoot({
-      type: 'setLayoutState',
-      layoutState,
-      source: 'workspace',
-    })
-  }
-
+  /** Reset guarded by the precondition its callers cannot express in a command. */
   resetLayoutGuarded(
     initialLayoutState: GridItemSnapshot[] | null,
     componentName: string
@@ -155,11 +149,15 @@ export class WorkspaceService {
       })
       return false
     }
-    return this.resetLayout(initialLayoutState)
+    return this.apply({
+      type: 'setLayoutState',
+      layoutState: initialLayoutState,
+      source: 'workspace',
+    })
   }
 
-  addVisualization(vizType: string, source: string, itemId?: number): boolean {
-    return this.applyRoot({
+  addGridItem(vizType: string, source: string, itemId?: number): boolean {
+    return this.apply({
       type: 'addGridItem',
       vizType: vizType as keyof GridItemMap,
       source,
@@ -172,7 +170,7 @@ export class WorkspaceService {
     settings: Partial<AllPlotSettings>,
     source: string
   ): boolean {
-    return this.applyRoot({
+    return this.apply({
       type: 'updateSettings',
       updates: [{ itemId, settings }],
       source,
@@ -190,7 +188,7 @@ export class WorkspaceService {
     source: string
   ): boolean {
     if (itemIds.length === 0) return true
-    return this.applyRoot({
+    return this.apply({
       type: 'updateSettings',
       updates: itemIds.map(itemId => ({ itemId, settings })),
       source,
@@ -219,169 +217,20 @@ export class WorkspaceService {
       }
     }
     if (updates.length === 0) return true
-    return this.applyRoot({ type: 'updateSettings', updates, source })
+    return this.apply({ type: 'updateSettings', updates, source })
   }
 
-  updateItemLayout(
-    itemId: number,
-    layout: GridItemLayoutUpdate,
-    source: string
-  ): boolean {
-    return this.applyRoot({
-      type: 'updateLayout',
-      updates: [{ itemId, layout }],
-      source,
-    })
-  }
-
-  /**
-   * Moves/resizes several items as ONE atomic command (single undo step) —
-   * used by group move. A single-item layout change is just `updateItemLayout`
-   * (a set of one); same command, same code path.
-   */
-  updateItemsLayout(
-    updates: { itemId: number; layout: GridItemLayoutUpdate }[],
-    source: string
-  ): boolean {
-    if (updates.length === 0) return true
-    return this.applyRoot({
-      type: 'updateLayout',
-      updates,
-      source,
-    })
-  }
-
-  removeVisualization(itemId: number, source: string): boolean {
-    return this.applyRoot({
-      type: 'removeGridItem',
-      itemId,
-      source,
-    })
-  }
-
-  duplicateVisualization(
+  duplicateGridItem(
     itemId: number,
     source: string,
     options: { duplicateId?: number } = {}
   ): boolean {
-    return this.applyRoot({
+    return this.apply({
       type: 'duplicateGridItem',
       itemId,
       duplicateId: options.duplicateId ?? generateUniqueId(),
       source,
     })
-  }
-
-  /**
-   * Commit the entity modification modal for one merge axis as ONE atomic step
-   * (PLANMERGE.md M2 UX): edited names + order plus the desired merge groups,
-   * reconciled against the current merges in a single chain so rename, merge
-   * and un-merge undo together. See {@link ReconcileMergesCommand}.
-   */
-  reconcileMerges(
-    axis: 'participant' | 'stimulus',
-    items: BaseInterpretedDataType[],
-    groups: ReconcileMergesCommand['groups'],
-    source: string
-  ): boolean {
-    return this.applyRoot({
-      type: 'reconcileMerges',
-      axis,
-      items,
-      groups,
-      source,
-    })
-  }
-
-  /**
-   * Replace one axis' SELECTIONS wholesale (create/rename/delete/edit are all
-   * deltas of the same array). One undoable step; metadata-only.
-   */
-  updateSelections<A extends SelectionsAxis>(
-    axis: A,
-    selections: SelectionsByAxis[A],
-    source: string
-  ): boolean {
-    return this.applyRoot({
-      type: 'updateSelections',
-      axis,
-      selections,
-      source,
-    } as WorkspaceCommand)
-  }
-
-  /**
-   * Replaces the metric library wholesale (rename/create/delete/replace/
-   * reorder are all deltas of the same array). The ONLY mutation path for
-   * `metadata.metricInstances` — going through the command bus gives metric
-   * edits undo/redo and the workspace-wide redraw epoch bump.
-   */
-  updateMetricInstances(
-    instances: MetricInstance[],
-    source: string
-  ): boolean {
-    return this.applyRoot({ type: 'updateMetricInstances', instances, source })
-  }
-
-  updateAois(
-    aois: ExtendedInterpretedDataType[],
-    stimulusId: number,
-    applyTo: UpdateAoisCommand['applyTo'],
-    source: string
-  ): boolean {
-    return this.applyRoot({
-      type: 'updateAois',
-      aois,
-      stimulusId,
-      applyTo,
-      source,
-    })
-  }
-
-  updateEventData(
-    stimulusId: number,
-    channelDefs: string[][],
-    eventBuffers: number[][][],
-    source: string
-  ): boolean {
-    return this.applyRoot({
-      type: 'updateEventData',
-      stimulusId,
-      channelDefs,
-      eventBuffers,
-      source,
-    })
-  }
-
-  updateEventChannels(
-    channels: ExtendedInterpretedDataType[],
-    stimulusId: number,
-    source: string
-  ): boolean {
-    return this.applyRoot({
-      type: 'updateEventChannels',
-      channels,
-      stimulusId,
-      source,
-    })
-  }
-
-  updateNoAoiTreatment(
-    noAoiTreatment: NoAoiTreatmentType,
-    source: string
-  ): boolean {
-    return this.applyRoot({
-      type: 'updateNoAoiTreatment',
-      noAoiTreatment,
-      source,
-    })
-  }
-
-  updateCategories(
-    categories: ExtendedInterpretedDataType[],
-    source: string
-  ): boolean {
-    return this.applyRoot({ type: 'updateCategories', categories, source })
   }
 
   clearHistory(): void {

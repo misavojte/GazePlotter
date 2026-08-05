@@ -5,6 +5,7 @@
   import { cubicInOut } from 'svelte/easing'
   import type { GridItemSnapshot } from '$lib/workspace'
   import { responsive } from '../responsive.svelte'
+  import { stickyBanner } from '../stickyBanner.svelte'
   import {
     createRailItems,
     createEditPlotRailItem,
@@ -30,19 +31,11 @@
   // opens/closes a pane) animates normally.
   let mounted = $state(false)
 
-  let bannerHeight = $state(0)
   // Desktop layout uses sticky positioning anchored to the top of the
   // viewport with a small upward offset (-24px) so icons align with the
   // bordered workspace chrome. Mobile anchors to its own row-in-flex
   // and has no banner to clear.
-  let toolbarTop = $derived(bannerHeight - 24)
-
-  function detectOnScrollBannerHeight() {
-    const banner = document.querySelector('.scroll-banner')
-    if (banner) {
-      bannerHeight = (banner as HTMLElement).offsetHeight
-    }
-  }
+  const toolbarTop = $derived(stickyBanner.height - 24)
 
   let {
     visualizations = [],
@@ -112,26 +105,19 @@
       onAddVisualization: id =>
         onAddVisualization
           ? onAddVisualization(id)
-          : workspace.addVisualization(id, 'toolbar'),
+          : workspace.addGridItem(id, 'toolbar'),
     })
   )
 
   const editRailItem = $derived(createEditPlotRailItem(handleEditPlot))
 
   onMount(() => {
-    // Detect synchronously so `toolbarTop` is correct on the very first
-    // frame when the rail re-mounts after being hidden by a pane
-    // selection — otherwise the enter animation would start with a
-    // stale bannerHeight of 0 and snap into place only once the user
-    // next scrolls.
-    detectOnScrollBannerHeight()
+    // Measure synchronously so `toolbarTop` is correct on the very first frame
+    // when the rail re-mounts after being hidden by a pane selection —
+    // otherwise the enter animation starts from a stale 0 and snaps into place
+    // only once the user next scrolls.
+    stickyBanner.measure()
     mounted = true
-    window.addEventListener('scroll', detectOnScrollBannerHeight, {
-      passive: true,
-    })
-    return () => {
-      window.removeEventListener('scroll', detectOnScrollBannerHeight)
-    }
   })
 </script>
 

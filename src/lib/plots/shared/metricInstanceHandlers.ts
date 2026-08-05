@@ -1,5 +1,5 @@
 import type { DataEngine } from '$lib/data/engine'
-import type { WorkspaceService } from '$lib/workspace/service.svelte'
+import type { WorkspaceCommandBus } from '$lib/workspace/commands/bus'
 import { createMetricInstance } from '$lib/metrics'
 import type { GroupReduction, MetricInstance, Projection } from '$lib/metrics'
 
@@ -55,14 +55,20 @@ function renamed(
 
 function baseHandlers(
   engine: DataEngine,
-  workspace: WorkspaceService,
+  workspace: WorkspaceCommandBus,
   onCreated: (newId: string, replacingId?: string) => void,
   onDeleted: (id: string) => void,
 ): BaseHandlers {
   return {
     onrenameInstance: (id, label) => {
       const next = renamed(currentInstances(engine), id, label)
-      if (next) workspace.updateMetricInstances(next, 'metricLibrary.rename')
+      if (next) {
+        workspace.apply({
+          type: 'updateMetricInstances',
+          instances: next,
+          source: 'metricLibrary.rename',
+        })
+      }
     },
     oncreateInstance: (baseId, params, label, projection, replacingId, reduction) => {
       const inst = createMetricInstance({ baseId, params, projection, label, reduction })
@@ -72,14 +78,19 @@ function baseHandlers(
         replacingId != null
           ? [...current.filter(i => i.id !== replacingId), inst]
           : [...current, inst]
-      workspace.updateMetricInstances(next, 'metricLibrary.create')
+      workspace.apply({
+        type: 'updateMetricInstances',
+        instances: next,
+        source: 'metricLibrary.create',
+      })
       onCreated(inst.id, replacingId)
     },
     ondeleteInstance: id => {
-      workspace.updateMetricInstances(
-        currentInstances(engine).filter(i => i.id !== id),
-        'metricLibrary.delete'
-      )
+      workspace.apply({
+        type: 'updateMetricInstances',
+        instances: currentInstances(engine).filter(i => i.id !== id),
+        source: 'metricLibrary.delete',
+      })
       onDeleted(id)
     },
   }
@@ -87,7 +98,7 @@ function baseHandlers(
 
 export function singleSelectMetricHandlers(
   engine: DataEngine,
-  workspace: WorkspaceService,
+  workspace: WorkspaceCommandBus,
   getSelected: () => string | null,
   setSelected: (id: string | null) => void,
 ): SingleSelectMetricHandlers {
@@ -106,7 +117,7 @@ export function singleSelectMetricHandlers(
 
 export function multiSelectMetricHandlers(
   engine: DataEngine,
-  workspace: WorkspaceService,
+  workspace: WorkspaceCommandBus,
   getSelected: () => string[],
   setSelected: (ids: string[]) => void,
 ): MultiSelectMetricHandlers {

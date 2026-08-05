@@ -13,6 +13,7 @@
   import { PANE_ACCORDION_KEY, type PaneAccordion } from './accordion'
   import { PANE_TRANSITION, slideFlex } from './transition'
   import { responsive } from '../responsive.svelte'
+  import { stickyBanner } from '../stickyBanner.svelte'
   import { contextMenuState } from '$lib/context-menu'
 
   // Shared open states for every PaneSection inside this Pane.
@@ -80,27 +81,14 @@
     }
   }
 
-  // Match Rail.svelte:17-24 viewport-anchoring mechanism so the pane's
-  // content stays in view when the page is scrolled down. Unlike the rail
-  // (which offsets -24px for its icon-only layout), the pane must stick
-  // flush with the viewport top so the title isn't clipped.
-  let bannerHeight = $state(0)
-  let contentTop = $derived(bannerHeight)
-
-  function detectOnScrollBannerHeight() {
-    const banner = document.querySelector('.scroll-banner')
-    if (banner) {
-      bannerHeight = (banner as HTMLElement).offsetHeight
-    }
-  }
+  // Same viewport anchoring as the rail, so the pane's content stays in view
+  // when the page is scrolled down. Unlike the rail (which offsets -24px for
+  // its icon-only layout), the pane sticks flush with the viewport top so the
+  // title isn't clipped.
+  const contentTop = $derived(stickyBanner.height)
 
   onMount(() => {
-    detectOnScrollBannerHeight()
-    window.addEventListener('scroll', detectOnScrollBannerHeight, {
-      passive: true,
-    })
-    return () =>
-      window.removeEventListener('scroll', detectOnScrollBannerHeight)
+    stickyBanner.measure()
   })
 
   // Escape closes whichever surface is open (desktop pane, bulk pane, or
@@ -199,7 +187,7 @@
 
   .pane-content {
     position: sticky;
-    top: unset; /* set inline from bannerHeight */
+    top: unset; /* set inline from stickyBanner.height */
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
