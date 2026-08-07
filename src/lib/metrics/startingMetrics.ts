@@ -198,17 +198,22 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
   // ── scanpath similarity starters ──────────────────────────────────
   {
     id: 'participantPairSimilarity-lev',
-    baseId: 'participantPairSimilarity',
-    params: { method: 'levenshtein', collapsed: false },
+    baseId: 'scanpathLevenshteinSimilarity',
+    params: { collapsed: false },
   },
   {
     id: 'participantPairSimilarity-lev-collapsed',
-    baseId: 'participantPairSimilarity',
-    params: { method: 'levenshtein', collapsed: true },
+    baseId: 'scanpathLevenshteinSimilarity',
+    params: { collapsed: true },
   },
   {
     id: 'participantPairSimilarity-nw',
-    baseId: 'participantPairSimilarity',
-    params: { method: 'needlemanWunsch', collapsed: false },
+    baseId: 'scanpathNeedlemanWunschSimilarity',
+    params: { collapsed: false },
+  },
+  {
+    id: 'participantPairSimilarity-nw-collapsed',
+    baseId: 'scanpathNeedlemanWunschSimilarity',
+    params: { collapsed: true },
   },
 ]

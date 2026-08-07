@@ -98,7 +98,7 @@
   function fieldState(f: SectionField): { value: unknown; mixed: boolean } {
     // Display-only: no settings key to read.
     if (f.kind === 'info') return { value: undefined, mixed: false }
-    if (f.kind === 'enum' && f.read) {
+    if ((f.kind === 'enum' || f.kind === 'number') && f.read) {
       return bulk.common(s => f.read!(s as Record<string, unknown>, engine))
     }
     const fallback = 'default' in f ? f.default : undefined
@@ -109,6 +109,13 @@
     f: Extract<SectionField, { kind: 'enum' }>
   ): readonly { value: string; label: string }[] {
     return typeof f.options === 'function' ? f.options(ctx) : f.options
+  }
+
+  function labelOf(f: SectionField): string | undefined {
+    if ('label' in f && f.label) {
+      return typeof f.label === 'function' ? f.label(ctx) : f.label
+    }
+    return undefined
   }
 
   const summary = $derived.by(() => {
@@ -131,6 +138,11 @@
     bulk.update({ [f.key]: v ?? f.default ?? fieldState(f).value })
   }
 
+  // Read-override number fields display a DERIVED value, but InputNumber
+  // echoes the last typed number past blur. Remounting on blur re-reads the
+  // authority; keyed per field, and focus is already gone when it fires.
+  let readNumberEpoch = $state<Record<string, number>>({})
+
   function commitScaleRange(
     f: Extract<SectionField, { kind: 'scaleRange' }>,
     next: { min?: number; max?: number }
@@ -146,7 +158,12 @@
 
 {#snippet fieldControl(f: SectionField)}
   {@const visible = fieldVisible(f)}
-  {@const state = fieldState(f)}
+  <!-- A hidden control keeps its mount but not its display state: read
+       overrides, dynamic options, and dynamic labels can be expensive (the
+       scangraph's derive a full similarity matrix), and an invisible control
+       shows nothing. -->
+  {@const state = visible ? fieldState(f) : { value: undefined, mixed: false }}
+  {@const label = visible ? labelOf(f) : undefined}
   <!-- Keep-mounted visibility for every control: `display: none` instead
        of `{#if}` so bindable plumbing never tears down mid-edit. -->
   <div style:display={visible ? 'contents' : 'none'}>
@@ -159,8 +176,8 @@
       />
     {:else if f.kind === 'enum'}
       <Select
-        options={optionsOf(f)}
-        label={f.label}
+        options={visible ? optionsOf(f) : []}
+        label={label}
         compact
         value={String(state.value ?? '')}
         mixed={state.mixed}
@@ -171,27 +188,32 @@
       />
     {:else if f.kind === 'boolean'}
       <InputCheck
-        label={f.label}
+        label={label ?? ''}
         compact
         checked={!!state.value}
         mixed={state.mixed}
         onchange={e => bulk.update({ [f.key]: (e as CustomEvent<boolean>).detail })}
       />
     {:else if f.kind === 'number'}
-      <InputNumber
-        id="{entry.key}-{f.key}"
-        label={f.label}
-        compact
-        value={state.value as number}
-        mixed={state.mixed}
-        min={f.min}
-        max={f.max}
-        step={f.step}
-        onValueChange={v => commitNumber(f, v)}
-      />
+      {#key f.read ? (readNumberEpoch[f.key] ?? 0) : 0}
+        <InputNumber
+          id="{entry.key}-{f.key}"
+          label={label ?? ''}
+          compact
+          value={state.value as number}
+          mixed={state.mixed}
+          min={f.min}
+          max={f.max}
+          step={f.step}
+          onValueChange={v => commitNumber(f, v)}
+          onBlur={f.read
+            ? () => (readNumberEpoch[f.key] = (readNumberEpoch[f.key] ?? 0) + 1)
+            : undefined}
+        />
+      {/key}
     {:else if f.kind === 'color'}
       <InputColor
-        label={f.label}
+        label={label ?? ''}
         compact
         width={40}
         value={state.value as string}

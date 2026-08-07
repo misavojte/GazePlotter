@@ -163,7 +163,13 @@ export type PaneSection = Component<{ item: any }>
 
 // ─── Declarative settings schema ─────────────────────────────────────────────
 
-export type SectionFieldOption = { value: string; label: string }
+export type SectionFieldOption = {
+  value: string
+  label: string
+  /** Muted secondary line in the dropdown row (the menu's `detail`
+   *  pass-through) — e.g. a clique's internal-agreement readout. */
+  detail?: string
+}
 
 /**
  * Context handed to a schema field's functions (`showWhen`, function-form
@@ -226,7 +232,7 @@ export type SectionField = SectionFieldPresentation & (
        *  (radios are a modal affordance, not a pane one). */
       kind: 'enum'
       key: string
-      label?: string
+      label?: string | ((ctx: SectionFieldCtx) => string)
       options:
         | readonly SectionFieldOption[]
         | ((ctx: SectionFieldCtx) => readonly SectionFieldOption[])
@@ -248,26 +254,30 @@ export type SectionField = SectionFieldPresentation & (
   | {
       kind: 'boolean'
       key: string
-      label: string
+      label: string | ((ctx: SectionFieldCtx) => string)
       default?: boolean
       showWhen?: (ctx: SectionFieldCtx) => boolean
     }
   | {
       kind: 'number'
       key: string
-      label: string
+      label: string | ((ctx: SectionFieldCtx) => string)
       min?: number
       max?: number
       step?: number
       /** Display fallback AND the value an emptied input commits; when absent,
        *  an emptied input recommits the current value. */
       default?: number
+      /** Effective-value override replacing the plain `settings[key]` read —
+       *  for controls whose displayed value is derived (e.g. the scangraph's
+       *  edge share at the current threshold). Commits still write `key`. */
+      read?: (settings: Record<string, unknown>, engine: DataEngine) => number
       showWhen?: (ctx: SectionFieldCtx) => boolean
     }
   | {
       kind: 'color'
       key: string
-      label: string
+      label: string | ((ctx: SectionFieldCtx) => string)
       default?: string
       showWhen?: (ctx: SectionFieldCtx) => boolean
     }

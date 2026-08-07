@@ -761,12 +761,31 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
   // re-serialized into every export. There is no sound remap (the projection
   // has no defined reading); a plot that referenced a pruned instance falls
   // back to its metric placeholder, same as any missing instance.
+function migrateLegacyParticipantPairSimilarity(inst: any): any {
+  if (!inst || typeof inst !== 'object') return inst
+  if (inst.baseId === 'participantPairSimilarity') {
+    const method = inst.params?.method
+    const { method: _, ...restParams } = inst.params || {}
+    const newBaseId =
+      method === 'needlemanWunsch'
+        ? 'scanpathNeedlemanWunschSimilarity'
+        : 'scanpathLevenshteinSimilarity'
+    return {
+      ...inst,
+      baseId: newBaseId,
+      params: restParams,
+    }
+  }
+  return inst
+}
+
   const instances = data?.data?.metricInstances
   if (Array.isArray(instances)) {
     data.data.metricInstances = instances
       .map(collapseWindowMode)
       .map(carryReduction)
       .map(carrySummaryStatistic)
+      .map(migrateLegacyParticipantPairSimilarity)
       .filter((inst: any) => !isStrandedAoiAggregate(inst))
   }
 

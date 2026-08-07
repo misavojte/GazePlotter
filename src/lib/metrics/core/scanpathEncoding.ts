@@ -37,6 +37,15 @@ export function collectScanpath(
   )
 }
 
+/** The letter policy: index i in the passed `aois` list encodes as 'A'+i.
+ *  The ScanGraph export's legend inverts it with {@link aoiLetterIndexOf} —
+ *  change one only through these two helpers. */
+export const aoiLetter = (index: number): string =>
+  String.fromCharCode(65 + index)
+
+export const aoiLetterIndexOf = (letter: string): number =>
+  letter.charCodeAt(0) - 65
+
 /** AOI id → letter index. Depends only on `aois`, so a multi-participant run
  *  builds it once rather than per participant (see {@link collectAllScanpaths}). */
 function aoiLetterIndex(
@@ -106,7 +115,7 @@ function encodeScanpath(
           break
         }
       }
-      ch = foundIdx >= 0 ? String.fromCharCode(65 + foundIdx) : '#'
+      ch = foundIdx >= 0 ? aoiLetter(foundIdx) : '#'
     }
 
     if (collapsed && ch === prevChar) continue

@@ -9,7 +9,12 @@ import {
 } from '$lib/plots/shared'
 import { METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
 import ScangraphFigure from '../components/ScangraphFigure.svelte'
-import { getScanpathSimilarityData, buildScangraphData } from './transformer'
+import {
+  similarityDataFor,
+  buildScangraphData,
+  cliquesOfMinSize,
+  scangraphCliques,
+} from './transformer'
 import { SCANPATH_SIMILARITY_DEFAULTS } from '../const'
 import type { ScanpathSimilaritySettings } from '../types'
 
@@ -29,15 +34,7 @@ function getScanpathSimilarityView(
   settings: ScanpathSimilaritySettings,
   opts: { onNodeClick?: (nodeIndex: number) => void } = {}
 ): ScanpathSimilarityView {
-  const similarityData = getScanpathSimilarityData(
-    engine,
-    settings.stimulusId,
-    settings.groupId,
-    settings.metricInstanceIds[0] ?? null,
-    settings.timelineStart ?? 0,
-    settings.timelineEnd ?? 0,
-    settings.aoiSelectionId
-  )
+  const similarityData = similarityDataFor(engine, settings)
   const noMetric = similarityData.noMetric ?? false
   const hasData = similarityData.size > 0 || noMetric
 
@@ -45,13 +42,34 @@ function getScanpathSimilarityView(
     const threshold = settings.threshold ?? SCANPATH_SIMILARITY_DEFAULTS.threshold
     const scangraphData =
       similarityData.size === 0 ? null : buildScangraphData(similarityData, threshold)
+    // Same min-members floor as the picker, so a selection the pane reads as
+    // 'none' never silently keeps highlighting.
+    const cliqueKey = settings.selectedClique ?? 'none'
+    const clique =
+      cliqueKey === 'none'
+        ? undefined
+        : (
+            cliquesOfMinSize(
+              scangraphCliques(similarityData, threshold),
+              settings.minCliqueSize ?? 2
+            ) ?? []
+          ).find(c => c.key === cliqueKey)
+    // Manual highlights are stored as participant IDS; the figure works in
+    // node indices. Ids outside the current graph drop out here.
+    const nodeIndexByPid = new Map(
+      similarityData.participantIds.map((pid, i) => [pid, i])
+    )
+    const manual = (settings.highlightedParticipants ?? [])
+      .map(pid => nodeIndexByPid.get(pid))
+      .filter((i): i is number => i !== undefined)
     return {
       component: ScangraphFigure,
       props: {
         data: scangraphData ?? { nodes: [], links: [] },
         noMetric,
         threshold,
-        highlights: settings.participantHighlights ?? [],
+        highlights: manual,
+        cliqueMembers: clique?.nodeIndices ?? [],
         // Node index -> participant id, for the PLOT CURSOR's ring.
         participantIds: similarityData.participantIds,
         onNodeClick: opts.onNodeClick,
@@ -95,11 +113,15 @@ function getScanpathSimilarityView(
       ],
       tooltipId: 'similarity-matrix-tooltip',
       tooltipWidth: 160,
-      getCellTooltip: (row: number, col: number) => [
-        { key: 'Row', value: labels[row] },
-        { key: 'Column', value: labels[col] },
-        { key: valueLabel, value: (matrix[row * labels.length + col] ?? 0).toFixed(3) },
-      ],
+      getCellTooltip: (row: number, col: number) => {
+        const v = matrix[row * labels.length + col]
+        return [
+          { key: 'Row', value: labels[row] },
+          { key: 'Column', value: labels[col] },
+          // NaN = both scanpaths empty: no data to compare, not a score.
+          { key: valueLabel, value: Number.isFinite(v) ? v.toFixed(3) : '—' },
+        ]
+      },
     },
     hasData,
   }

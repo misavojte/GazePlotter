@@ -135,21 +135,10 @@ export async function downloadEventBatchZip(
 export async function downloadScanGraph(
   engine: DataEngine,
   stimulusId: number,
-  fileName: string
+  fileName: string,
+  collapsed: boolean
 ): Promise<void> {
-  const meta = engine.metadata
-  const reader = engine.getReader()
-  const aoiGroupReader = engine.getAoiGroupReader()
-  if (!meta || !reader || !aoiGroupReader) {
-    throw new Error('Data engine not ready for ScanGraph export')
-  }
-
-  const content = await generateScanGraph(
-    meta,
-    reader,
-    aoiGroupReader,
-    stimulusId
-  )
+  const content = generateScanGraph(engine, stimulusId, collapsed)
   triggerDownload(content, fileName, '.txt')
 }
 

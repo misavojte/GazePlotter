@@ -30,12 +30,19 @@
   const HIGHLIGHT_COLOR = '#e53e3e'
   const HIGHLIGHT_FILL = '#fbbf24'
   const HIGHLIGHT_CONNECTED_STROKE = '#e53e3e'
+  /** Alpha for everything outside an active clique — the clique reads by the
+   *  rest receding, not by extra marks on non-members. */
+  const DIM_ALPHA = 0.25
   const MIN_NODE_SPACING = 3
 
   interface Props extends CanvasExportProps {
     data: ScangraphData
     threshold?: number
+    /** Manually clicked nodes (indices): neighbourhood emphasis. */
     highlights?: number[]
+    /** The selected clique's nodes (indices): members and their intra-clique
+     *  edges pop, everything else dims. */
+    cliqueMembers?: number[]
     noMetric?: boolean
     onNodeClick?: (nodeIndex: number) => void
     /** Participant id per node index — the PLOT CURSOR's participant channel. */
@@ -50,6 +57,7 @@
     width = 500,
     threshold = 0.5,
     highlights = [],
+    cliqueMembers = [],
     noMetric = false,
     onNodeClick,
     participantIds,
@@ -69,7 +77,7 @@
     width: () => width,
     height: () => height,
     margin: () => margin,
-    deps: () => [data, threshold, highlights, noMetric],
+    deps: () => [data, threshold, highlights, cliqueMembers, noMetric],
     placeholder: () =>
       noMetric
         ? METRIC_MISSING_MESSAGE
@@ -163,7 +171,10 @@
     const r = nodeRadius + 3
 
     // `&&` for a pair (that one edge), `||` for a participant (all of its edges) —
-    // the same operator distinction the matrix highlight draws.
+    // the same operator distinction the matrix highlight draws. Both endpoints of
+    // a drawn edge carry a ring (designated or neighbour), so the stroke stops at
+    // the ring's outer rim instead of running under the mark to the centre.
+    const rim = r + 0.5
     ctx.save()
     ctx.strokeStyle = CROSSHAIR_COLOR
     for (const link of links) {
@@ -174,10 +185,7 @@
       const t = nodes[link.target]
       if (!s || !t) continue
       ctx.lineWidth = linkWidth(link.value)
-      ctx.beginPath()
-      ctx.moveTo(s.x, s.y)
-      ctx.lineTo(t.x, t.y)
-      ctx.stroke()
+      strokeTrimmedLink(ctx, s, t, rim, rim)
     }
     ctx.restore()
 
@@ -208,9 +216,40 @@
     return 0.5 + (range > 0 ? (value - threshold) / range : 0) * 3.5
   }
 
+  /**
+   * Stroke s→t with each end pulled back by its rim, so the line stops at a
+   * mark's or a translucent node's boundary instead of running under it to the
+   * centre. Rims that would consume the whole segment fall back to
+   * centre-to-centre: dropping the edge would read as "not linked".
+   */
+  function strokeTrimmedLink(
+    ctx: CanvasRenderingContext2D,
+    s: NodePosition,
+    t: NodePosition,
+    rimS: number,
+    rimT: number
+  ) {
+    const dx = t.x - s.x
+    const dy = t.y - s.y
+    const len = Math.hypot(dx, dy)
+    ctx.beginPath()
+    if (len <= rimS + rimT) {
+      ctx.moveTo(s.x, s.y)
+      ctx.lineTo(t.x, t.y)
+    } else {
+      const ux = dx / len
+      const uy = dy / len
+      ctx.moveTo(s.x + ux * rimS, s.y + uy * rimS)
+      ctx.lineTo(t.x - ux * rimT, t.y - uy * rimT)
+    }
+    ctx.stroke()
+  }
+
   const highlightSet = $derived(new Set(highlights))
 
   const connectedToHighlight = $derived(neighboursOf(highlightSet))
+
+  const cliqueSet = $derived(new Set(cliqueMembers))
 
   // Canonical square the force sim runs in. Fixed so the (expensive) simulation
   // is independent of the plot's pixel size.
@@ -259,13 +298,15 @@
   /**
    * Label placement: above the node, sliding right then left if needed. Skips a
    * label that can't be placed without colliding with a node or another label
-   * (the tooltip still works for those).
+   * (the tooltip still works for those). `priority` nodes place FIRST — an
+   * emphasised node must not lose its name to a plain neighbour's label.
    */
   function computeVisibleLabels(
     ctx: CanvasRenderingContext2D,
     nodes: NodePosition[],
     r: number,
-    fontSize: number
+    fontSize: number,
+    priority: ReadonlySet<number>
   ): { nodeIndex: number; rect: Rect }[] {
     const gap = 3
     const labelH = fontSize + 2
@@ -274,7 +315,11 @@
     const placedLabels: Rect[] = []
     const result: { nodeIndex: number; rect: Rect }[] = []
 
-    for (let i = 0; i < nodes.length; i++) {
+    const order: number[] = []
+    for (let i = 0; i < nodes.length; i++) if (priority.has(i)) order.push(i)
+    for (let i = 0; i < nodes.length; i++) if (!priority.has(i)) order.push(i)
+
+    for (const i of order) {
       const node = nodes[i]
       const labelW = ctx.measureText(node.label).width
       const baseY = node.y - r - gap - labelH
@@ -322,22 +367,61 @@
     return result
   }
 
+  /** Full-strength while a clique is active: the clique itself plus the manual
+   *  neighbourhood emphasis, which stays readable on top of the dim. */
+  const nodeEmphasised = (ni: number): boolean =>
+    cliqueSet.has(ni) || highlightSet.has(ni) || connectedToHighlight.has(ni)
+
   function drawGraph(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
     const { nodes, links } = layoutResult
     const r = nodeRadius
     const hasHighlights = highlightSet.size > 0
+    const hasClique = cliqueSet.size > 0
 
-    // Links — thickness encodes similarity value (see `linkWidth`, shared with the
-    // overlay marks so an emphasised edge keeps its similarity reading).
+    // Links — thickness encodes similarity value (see `linkWidth`, shared with
+    // the overlay marks so an emphasised edge keeps its similarity reading).
+    // Two passes so emphasis never sits under plain strokes: plain first
+    // (receding while a clique is active), then the intra-clique edges and the
+    // manual highlights' edges in the highlight colour. An edge LEAVING the
+    // clique stays plain — the clique is its members and their mutual edges.
+    // Edge ends stop at a dimmed (translucent) node's outer rim: radius plus
+    // half its 1.5px outline. Opaque endpoints stay centre-to-centre, occluded.
+    const dimRim = hasClique ? r + 0.75 : 0
+    const emphasised: typeof links = []
     for (const link of links) {
       const s = nodes[link.source]
       const t = nodes[link.target]
       if (!s || !t) continue
+      const intraClique =
+        hasClique && cliqueSet.has(link.source) && cliqueSet.has(link.target)
       const touchesHighlight =
         hasHighlights && (highlightSet.has(link.source) || highlightSet.has(link.target))
+      if (intraClique || touchesHighlight) {
+        emphasised.push(link)
+        continue
+      }
       ctx.lineWidth = linkWidth(link.value)
-      ctx.strokeStyle = touchesHighlight ? HIGHLIGHT_COLOR : SCANGRAPH_LAYOUT.linkColor
-      ctx.globalAlpha = touchesHighlight ? 0.8 : SCANGRAPH_LAYOUT.linkOpacity
+      ctx.strokeStyle = SCANGRAPH_LAYOUT.linkColor
+      ctx.globalAlpha = hasClique
+        ? SCANGRAPH_LAYOUT.linkOpacity * DIM_ALPHA
+        : SCANGRAPH_LAYOUT.linkOpacity
+      strokeTrimmedLink(
+        ctx,
+        s,
+        t,
+        nodeEmphasised(link.source) ? 0 : dimRim,
+        nodeEmphasised(link.target) ? 0 : dimRim
+      )
+    }
+    // Centre-to-centre: both endpoints of an emphasised edge are themselves
+    // emphasised, so they stay opaque and occlude the stroke.
+    ctx.strokeStyle = HIGHLIGHT_COLOR
+    ctx.globalAlpha = 0.8
+    for (const link of emphasised) {
+      const s = nodes[link.source]
+      const t = nodes[link.target]
+      if (!s || !t) continue
+      ctx.lineWidth = linkWidth(link.value)
       ctx.beginPath()
       ctx.moveTo(s.x, s.y)
       ctx.lineTo(t.x, t.y)
@@ -345,23 +429,27 @@
     }
     ctx.globalAlpha = 1
 
-    // Nodes
+    // Nodes — clique members and manual highlights fill amber; while a clique
+    // is active every unemphasised node recedes with its links.
     for (let ni = 0; ni < nodes.length; ni++) {
       const node = nodes[ni]
-      const isHighlighted = hasHighlights && highlightSet.has(ni)
-      const isConnected = hasHighlights && connectedToHighlight.has(ni)
+      const isFilled = highlightSet.has(ni) || (hasClique && cliqueSet.has(ni))
+      const isStroked =
+        isFilled || (hasHighlights && connectedToHighlight.has(ni))
+      ctx.globalAlpha = hasClique && !nodeEmphasised(ni) ? DIM_ALPHA : 1
       ctx.beginPath()
       ctx.arc(node.x, node.y, r, 0, Math.PI * 2)
-      ctx.fillStyle = isHighlighted
+      ctx.fillStyle = isFilled
         ? HIGHLIGHT_FILL
         : node.degree > 0
           ? '#4a90d9'
           : UI_COLORS.TEXT_SECONDARY
       ctx.fill()
-      ctx.strokeStyle = isHighlighted || isConnected ? HIGHLIGHT_CONNECTED_STROKE : '#fff'
-      ctx.lineWidth = isHighlighted || isConnected ? 2 : 1.5
+      ctx.strokeStyle = isStroked ? HIGHLIGHT_CONNECTED_STROKE : '#fff'
+      ctx.lineWidth = isStroked ? 2 : 1.5
       ctx.stroke()
     }
+    ctx.globalAlpha = 1
 
     // Outline around the content area. Inset by 1px right/bottom: the graph fills
     // the canvas with no axis margin, so a full-size rect would crop its stroke.
@@ -372,15 +460,19 @@
       height: frame.height - 1,
     })
 
-    // Labels — last, on top.
+    // Labels — last, on top; emphasised nodes place first and keep full
+    // strength, the rest recede with their nodes while a clique is active.
+    const priority = new Set<number>([...cliqueSet, ...highlightSet])
     const fontSize = Math.max(8, Math.min(11, Math.round(r * 1.6)))
     ctx.font = `${fontSize}px ${SYSTEM_SANS_SERIF_STACK}`
     ctx.fillStyle = UI_COLORS.TEXT_PRIMARY
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
-    for (const lbl of computeVisibleLabels(ctx, nodes, r, fontSize)) {
+    for (const lbl of computeVisibleLabels(ctx, nodes, r, fontSize, priority)) {
+      ctx.globalAlpha = hasClique && !nodeEmphasised(lbl.nodeIndex) ? DIM_ALPHA : 1
       ctx.fillText(nodes[lbl.nodeIndex].label, lbl.rect.x, lbl.rect.y)
     }
+    ctx.globalAlpha = 1
   }
 
   const MAX_TOOLTIP_CONNECTIONS = 4

@@ -61,7 +61,8 @@ describe('defaultInstanceLabel (bare quantity name)', () => {
   it('returns the recipe quantity name only — params live in the readout', () => {
     expect(defaultInstanceLabel('transitionCount')).toBe('Transitions')
     expect(defaultInstanceLabel('transitionProbability')).toBe('Transition probability')
-    expect(defaultInstanceLabel('participantPairSimilarity')).toBe('Scanpath similarity')
+    expect(defaultInstanceLabel('scanpathLevenshteinSimilarity')).toBe('Levenshtein similarity')
+    expect(defaultInstanceLabel('scanpathNeedlemanWunschSimilarity')).toBe('Needleman-Wunsch similarity')
   })
 })
 
@@ -80,11 +81,11 @@ describe('formatParamReadout (full — same in selector and on plots)', () => {
     expect(formatParamReadout(inst('transitionProbability', { mode: 'visit', step: 2 })))
       .toEqual(['Visit changes', 'Step 2'])
   })
-  it('similarity method + collapsed (collapsed shown only when on, no parens)', () => {
-    expect(formatParamReadout(inst('participantPairSimilarity', { method: 'levenshtein', collapsed: false })))
-      .toEqual(['Levenshtein'])
-    expect(formatParamReadout(inst('participantPairSimilarity', { method: 'needlemanWunsch', collapsed: true })))
-      .toEqual(['Needleman-Wunsch', 'collapsed'])
+  it('similarity collapsed (collapsed shown only when on, no parens)', () => {
+    expect(formatParamReadout(inst('scanpathLevenshteinSimilarity', { collapsed: false })))
+      .toEqual([])
+    expect(formatParamReadout(inst('scanpathNeedlemanWunschSimilarity', { collapsed: true })))
+      .toEqual(['collapsed'])
   })
   it('stays purely params — the reduction is composed separately', () => {
     // formatParamReadout never carries the reduction; that keeps it composable.

@@ -55,6 +55,8 @@ export type EventExportOptions = {
 export type ScangraphExportOptions = {
   fileName: string
   stimulusId: number
+  /** Fold consecutive same-AOI fixations ("AABBC" → "ABC") before export. */
+  collapsed: boolean
 }
 
 export type FigureBatchExportOptions = {
@@ -259,7 +261,8 @@ export class ExportService {
           downloadScanGraph(
             this.deps.engine,
             options.stimulusId,
-            this.resolveFileName(options.fileName)
+            this.resolveFileName(options.fileName),
+            options.collapsed
           ),
       'ScanGraph file exported successfully',
       {
