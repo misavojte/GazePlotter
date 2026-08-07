@@ -1,12 +1,12 @@
 # Fixation Counts & Latency
 
-Count-based metrics quantify how often a participant returns to or interacts with specific regions, while latency metrics measure the speed of initial attraction via Time to First Fixation (TTFF, also called entry time or first fixation latency).
+Count-based metrics quantify how often a participant returns to or interacts with specific regions, while latency metrics measure the speed of initial attraction via Time to First Fixation (TTFF, also called entry time or first fixation latency). For latency on the eye-movement type axis (time to first saccade, i.e. saccadic latency), see [Eye-movement Type Metrics](/docs/metrics/eye-movement).
 
 ---
 
 ## Output Shape and Projections Translation
 
-All count and latency metrics naturally output an `aoi-vector` (an array of values mapping to each active AOI, plus `noAoi` and `anyFixation` sentinel slots). Using GazePlotter's projection algebra, you can translate this raw vector into a scalar, making count and latency metrics compatible with different visualizers.
+All count and latency metrics on this page naturally output an `aoi-vector` (an array of values mapping to each active AOI, plus `noAoi` and `anyFixation` sentinel slots). Using GazePlotter's projection algebra, you can translate this raw vector into a scalar, making count and latency metrics compatible with different visualizers.
 
 ### 1. Vector Passthrough (`aoi-vector`)
 You can pass the vector through directly to analyze the values for all Areas of Interest (AOIs) simultaneously:

@@ -24,9 +24,10 @@ The projection layer defines how raw values computed by a recipe translate to th
 
 ### Raw vs. Projected Shapes
 
-Recipes calculate values into four canonical **Raw Shapes**:
+Recipes calculate values into five canonical **Raw Shapes**:
 - `scalar`: A single numerical value per participant (e.g., Recurrence Rate).
 - `aoi-vector`: An array of values mapping to each active AOI slot (e.g., Dwell Time per AOI).
+- `category-vector`: An array of values mapping to each eye-movement type (e.g., Eye-movement Count per type).
 - `aoi-pair-matrix`: A 2D grid of values mapping transitions between AOI pairs (e.g., Transition Probability).
 - `participant-pair-matrix`: A 2D grid representing pairwise comparisons between participants (e.g., Scanpath Similarity).
 
@@ -36,10 +37,12 @@ Projections act as a transformation tree, using **Leaf Projections** to reshape 
 | --- | --- | --- | --- |
 | `identity-scalar` | `scalar` | `scalar` | Passes the scalar value through directly. |
 | `identity-aoi-vector` | `aoi-vector` | `aoi-vector` | Passes the AOI vector through directly. |
+| `identity-category-vector` | `category-vector` | `category-vector` | Passes the eye-movement type vector through directly. |
 | `identity-aoi-pair-matrix` | `aoi-pair-matrix` | `aoi-pair-matrix` | Passes the N×N transition matrix through directly. |
 | `identity-participant-pair-matrix` | `participant-pair-matrix` | `participant-pair-matrix` | Passes the M×M similarity matrix through directly. |
 | `pick-aoi` | `aoi-vector` | `scalar` | Extracts a single target AOI value from the vector. |
 | `pick-any-fixation` | `aoi-vector` | `scalar` | Extracts the total stimulus-level value (any fixation). |
+| `pick-category` | `category-vector` | `scalar` | Extracts a single eye-movement type value by displayed name. |
 | `aggregate-aoi` | `aoi-vector` | `scalar` | Reduces the vector using `max` or `min` across AOIs. |
 | `matrix-diagonal` | `aoi-pair-matrix` | `aoi-vector` | Extracts the diagonal cells (self-transitions) as a vector. |
 | `matrix-row` | `aoi-pair-matrix` | `aoi-vector` | Extracts a row (outgoing transitions from a source AOI) as a vector. |

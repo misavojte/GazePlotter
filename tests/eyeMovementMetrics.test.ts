@@ -256,6 +256,111 @@ describe('category-vector eye-movement metrics (scanSource: categories)', () => 
     expect(vectorValues(engine, vectorInst('c', 'movementCount'))).toEqual([4, 3])
   })
 
+  it('movementLatency records each type\'s first start; later segments never overwrite', () => {
+    const engine = createEngine()
+    // First starts on the fixture: Fixation 0, Saccade 100 (not 300), Blink 200.
+    expect(vectorValues(engine, vectorInst('l', 'movementLatency'))).toEqual([0, 100, 200])
+    expect(scalarValue(engine, pickInst('ls', 'movementLatency', 'Saccade'))).toBe(100)
+  })
+
+  it('movementLatency counts a leading gap; the Fixation slot equals TTFF (cross-axis pin)', () => {
+    // Stream opens with a saccade 50 ms after time zero; no blink recorded.
+    const segments = [
+      [
+        [50, 90, 1],
+        [90, 200, 0, 1],
+        [230, 260, 1],
+        [260, 320, 0],
+      ],
+    ]
+    const engine = createEngine(CATEGORIES, segments)
+    const v = vectorValues(engine, vectorInst('l', 'movementLatency'))
+    expect(v[1]).toBe(50) // the gap before the first segment counts toward latency
+    expect(v[2]).toBeNaN() // Blink is on the axis but absent for the participant
+    const ttff = query(
+      { id: 't', baseId: 'timeToFirstFixation', params: {}, label: '', projection: { kind: 'pick-any-fixation' } },
+      { engine: engine as any, stimulusId: STIM, participantId: 0 },
+    )
+    if (ttff.shape !== 'scalar') throw new Error('unexpected shape')
+    expect(v[0]).toBe(ttff.value)
+  })
+
+  it('movementLatency reads a saccade at time zero as 0, a real value', () => {
+    const engine = createEngine(CATEGORIES, [
+      [
+        [0, 40, 1],
+        [40, 140, 0, 1],
+      ],
+    ])
+    expect(scalarValue(engine, pickInst('l', 'movementLatency', 'Saccade'))).toBe(0)
+  })
+
+  it('movementLatency on fixation-only sources has no Saccade slot: NaN, never a proxy', () => {
+    const engine = createEngine(
+      [['Fixation', 'Fixation', '#000000']],
+      [
+        [
+          [0, 100, 0],
+          [130, 200, 0],
+        ],
+      ],
+    )
+    expect(scalarValue(engine, pickInst('l', 'movementLatency', 'Saccade'))).toBeNaN()
+    expect(vectorValues(engine, vectorInst('lv', 'movementLatency'))).toEqual([0])
+  })
+
+  it('movementLatency reports negative onsets as-is, including exactly -1 ms (no in-band sentinel)', () => {
+    // Workspace JSON permits negative starts; -1 must not read as "unset".
+    const engine = createEngine(CATEGORIES, [
+      [
+        [-1, 30, 1],
+        [30, 100, 0],
+      ],
+    ])
+    expect(scalarValue(engine, pickInst('l', 'movementLatency', 'Saccade'))).toBe(-1)
+    expect(scalarValue(engine, pickInst('lf', 'movementLatency', 'Fixation'))).toBe(30)
+  })
+
+  it('movementLatency MERGE fold takes the earliest first start across the folded group', () => {
+    const merged = [...CATEGORIES, ['SaccadeVariant', 'Saccade', '#333333']]
+    // The EARLIER saccade becomes the variant; the fold must still report 100.
+    const segments = SEGMENTS[0].map(row => (row[0] === 100 ? [100, 130, 3] : row))
+    const engine = createEngine(merged, [segments])
+    expect(scalarValue(engine, pickInst('l', 'movementLatency', 'Saccade'))).toBe(100)
+  })
+
+  it('movementLatency on a bounded scope reports true onsets, not clipped frame starts', () => {
+    const engine = createEngine()
+    // [110, 400): fixation [0,100] falls out entirely; saccade [100,130]
+    // overlaps the bound and reports its actual start, not 110.
+    expect(
+      vectorValues(engine, vectorInst('l', 'movementLatency'), { timeStart: 110, timeEnd: 400 })
+    ).toEqual([130, 100, 200])
+  })
+
+  it('movementLatency vetoes windowing: no windowed projection, no Metric Timeline', () => {
+    const verdict = recipeSupports(getRecipe('movementLatency')!, {
+      kind: 'windowed',
+      window: { windowSize: 100, stepSize: 100 },
+      inner: { kind: 'pick-category', categoryName: 'Saccade' },
+    })
+    expect(typeof verdict).toBe('string')
+    expect(
+      metricIsCreatableInContract(getMetric('movementLatency')!, {
+        outputShape: 'scalar',
+        windowing: 'required',
+        crossParticipant: 'per-participant',
+      })
+    ).toBe(false)
+    expect(
+      metricIsCreatableInContract(getMetric('movementLatency')!, {
+        outputShape: 'category-vector',
+        windowing: 'forbidden',
+        crossParticipant: 'distribution',
+      })
+    ).toBe(true)
+  })
+
   it('the category-vector contract narrows the library; scalar plots get pick-category for free', () => {
     const vectorContract = {
       outputShape: 'category-vector',

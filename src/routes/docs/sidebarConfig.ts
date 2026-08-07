@@ -167,6 +167,12 @@ export const SIDEBAR: readonly SidebarItem[] = [
         seoTitle: 'Eye-Tracking Scanpath Similarity Metrics',
         description: 'Mathematical specifications for scanpath comparison algorithms, including Levenshtein edit distance and global Needleman-Wunsch alignments.'
       },
+      {
+        name: 'Eye-movement Type Metrics',
+        href: '/docs/metrics/eye-movement',
+        seoTitle: 'Eye-movement Type Metrics & Saccadic Latency',
+        description: 'Measure fixations, saccades, and blinks as first-class types: counts, time budgets, segment durations, and time to first saccade (saccadic latency).'
+      },
     ],
   },
   {

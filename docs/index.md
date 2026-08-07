@@ -26,6 +26,7 @@ Whether you're a researcher analyzing attention patterns, a student learning abo
 - **[AOI Transitions & Markov Metrics](/docs/metrics/transitions)** - Shift counts, k-step Markov probabilities, and cell/row/col projections.
 - **[Recurrence Quantification Analysis (RQA)](/docs/metrics/rqa)** - Non-linear recurrences, laminarity, and determinism metrics.
 - **[Scanpath Similarity Metrics](/docs/metrics/scanpath-similarity)** - Sequence alignment similarity calculations (Levenshtein, Needleman-Wunsch).
+- **[Eye-movement Type Metrics](/docs/metrics/eye-movement)** - Per-type counts, time budgets, segment durations, and time to first saccade (saccadic latency).
 
 ### Workspace Management
 

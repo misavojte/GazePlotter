@@ -41,6 +41,16 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
   { id: 'movementTimeShare', baseId: 'movementTimeShare' },
   { id: 'movementDuration', baseId: 'movementDuration' },
   { id: 'movementCount', baseId: 'movementCount' },
+  { id: 'movementLatency', baseId: 'movementLatency' },
+  {
+    // Seeded on Fixation, the one displayed name every dataset carries (id 0,
+    // name-locked), so the pick always resolves; a hard-coded 'Saccade' seed
+    // reads NaN dataset-wide on sources spelling the type differently. Switch
+    // the type in the library (real dataset names) for saccadic latency.
+    id: 'movementLatency-fixation',
+    baseId: 'movementLatency',
+    projection: { kind: 'pick-category', categoryName: 'Fixation' },
+  },
 
   // ── windowed starters ────────────────────────────────────────────────
   {
