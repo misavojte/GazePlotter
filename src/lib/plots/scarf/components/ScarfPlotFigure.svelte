@@ -1,8 +1,9 @@
 <script lang="ts">
   import {
     alignToPixelCenter,
-    markCrosshairStrip,
+    markCrosshairStrips,
     strokeCrosshairGuides,
+    type HighlightRect,
   } from '$lib/plots/shared/canvasUtils'
   import {
     computeGroupedLegendGeometry,
@@ -398,23 +399,38 @@
   // early return.
   function drawScarfOverlay(ctx: CanvasRenderingContext2D) {
     drawTimeGuides(ctx, rowBand, cursorXs)
-    // The cursor's rows and the local hover row get the SAME mark: it says "this
-    // participant", never who pointed at them. Only the EXTENT differs below —
-    // a local hover also knows an instant, so it adds the vertical guide.
-    for (const row of cursorRowIndices) markRow(ctx, row)
+    const rects: HighlightRect[] = []
+    for (const row of cursorRowIndices) {
+      rects.push({
+        x: rowBand.x,
+        y: rowY(row),
+        width: rowBand.width,
+        height: layout.heightOfBarWrap,
+        alpha: 0.2,
+        along: 'x',
+      })
+    }
     const hover = plot.hover.data
-    if (!hover) return
-    markRow(ctx, hover.row)
-    const x = alignToPixelCenter(hover.x)
-    strokeCrosshairGuides(ctx, [x, rowBand.y, x, rowBand.y + rowBand.height])
+    if (hover) {
+      rects.push({
+        x: rowBand.x,
+        y: rowY(hover.row),
+        width: rowBand.width,
+        height: layout.heightOfBarWrap,
+        alpha: 0.2,
+        along: 'x',
+      })
+    }
+    if (rects.length > 0) {
+      markCrosshairStrips(ctx, rects)
+    }
+    if (hover) {
+      const x = alignToPixelCenter(hover.x)
+      strokeCrosshairGuides(ctx, [x, rowBand.y, x, rowBand.y + rowBand.height])
+    }
   }
 
   const rowY = (row: number) => rowBand.y + row * layout.heightOfBarWrap
-
-  const markRow = (ctx: CanvasRenderingContext2D, row: number) =>
-    markCrosshairStrip(
-      ctx, rowBand.x, rowY(row), rowBand.width, layout.heightOfBarWrap, 0.2, 'x'
-    )
 
   function isMouseOverLegendItem(mouseX: number, mouseY: number): LegendItemGeometry | null {
     if (!data.stylingAndLegend || !legendGeometry.items.length) return null

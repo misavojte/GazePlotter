@@ -4,8 +4,9 @@
     CROSSHAIR_COLOR,
     CROSSHAIR_DASH,
     fillCrosshairBand,
-    markCrosshairStrip,
+    markCrosshairStrips,
     strokeCrosshairGuides,
+    type HighlightRect,
   } from '$lib/plots/shared/canvasUtils'
   import {
     usePlot,
@@ -416,16 +417,23 @@
     ctx.beginPath()
     ctx.rect(floorLeft, floorTop, floorWidth, floorHeight)
     ctx.clip()
-    // The remote participants are OUTLINED (heatmap) or DASHED (overlay); the local
-    // hover is filled or solid. Same colour, different mark.
+    const cursorRowRects: HighlightRect[] = []
     for (const row of cursorRowIndices) {
       if (rowHeight === null) {
         drawStepLine(ctx, row, floorLeft, floorWidth, floorHeight, floorBottom, true)
       } else {
-        markCrosshairStrip(
-          ctx, floorLeft, floorTop + row * rowHeight, floorWidth, rowHeight, 0.15, 'x'
-        )
+        cursorRowRects.push({
+          x: floorLeft,
+          y: floorTop + row * rowHeight,
+          width: floorWidth,
+          height: rowHeight,
+          alpha: 0.15,
+          along: 'x',
+        })
       }
+    }
+    if (cursorRowRects.length > 0) {
+      markCrosshairStrips(ctx, cursorRowRects)
     }
     drawHoveredWindowChrome(
       ctx, floorLeft, floorTop, floorWidth, floorHeight, floorRight, rowHeight

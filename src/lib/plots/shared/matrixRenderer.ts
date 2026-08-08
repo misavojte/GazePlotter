@@ -5,9 +5,9 @@ import {
 } from '$lib/shared/utils/textUtils'
 import {
   alignToPixelCenter,
-  fillCrosshairBand,
-  markCrosshairStrip,
+  markCrosshairStrips,
   strokeCrosshairGuides,
+  type HighlightRect,
 } from '$lib/plots/shared/canvasUtils'
 import { UI_COLORS } from '$lib/color'
 import type { MatrixLayout } from './matrixLayout'
@@ -319,50 +319,59 @@ type MatrixGeom = Pick<
 
 const MATRIX_STRIP_ALPHA = 0.18
 
-/** One row strip of a matrix, marked. */
-function markMatrixRow(ctx: CanvasRenderingContext2D, geom: MatrixGeom, row: number): void {
+function matrixRowRect(geom: MatrixGeom, row: number): HighlightRect {
   const { xOffset, yOffset, cellSize, gridWidth } = geom
-  markCrosshairStrip(
-    ctx, xOffset, yOffset + row * cellSize, gridWidth, cellSize, MATRIX_STRIP_ALPHA, 'x'
-  )
+  return {
+    x: xOffset,
+    y: yOffset + row * cellSize,
+    width: gridWidth,
+    height: cellSize,
+    along: 'x',
+    alpha: MATRIX_STRIP_ALPHA,
+  }
 }
 
-/** One column strip of a matrix, marked. */
-function markMatrixCol(ctx: CanvasRenderingContext2D, geom: MatrixGeom, col: number): void {
+function matrixColRect(geom: MatrixGeom, col: number): HighlightRect {
   const { xOffset, yOffset, cellSize, gridHeight } = geom
-  markCrosshairStrip(
-    ctx, xOffset + col * cellSize, yOffset, cellSize, gridHeight, MATRIX_STRIP_ALPHA, 'y'
-  )
+  return {
+    x: xOffset + col * cellSize,
+    y: yOffset,
+    width: cellSize,
+    height: gridHeight,
+    along: 'y',
+    alpha: MATRIX_STRIP_ALPHA,
+  }
 }
 
 /**
  * The PLOT CURSOR's participants: the SAME strip mark the local crosshair below
- * uses, for whichever strips this matrix shows them in. Both sets are empty when
- * it shows none of them, and a participant x participant matrix marks two of each
- * when the cursor carries a pair. The cursor knows no cell, so it marks no cell —
- * that missing extent, not a different appearance, is what distinguishes it.
+ * uses, for whichever strips this matrix shows them in.
  */
 export function drawMatrixParticipantStrips(
   ctx: CanvasRenderingContext2D,
   geom: MatrixGeom,
   at: { rows: readonly number[]; cols: readonly number[] }
 ): void {
-  for (const row of at.rows) markMatrixRow(ctx, geom, row)
-  for (const col of at.cols) markMatrixCol(ctx, geom, col)
+  if (at.rows.length === 0 && at.cols.length === 0) return
+  const rects: HighlightRect[] = []
+  for (const row of at.rows) rects.push(matrixRowRect(geom, row))
+  for (const col of at.cols) rects.push(matrixColRect(geom, col))
+  markCrosshairStrips(ctx, rects)
 }
 
 /**
  * Hover crosshair over a matrix: the hovered cell's row AND column strips, both
- * marked. `cell.row`/`cell.col` are DISPLAY-space indices (top-left origin);
- * callers whose data rows are inverted (recurrence) convert before calling.
+ * marked together with outer dashed lines and no inner lines at the crossing.
  */
 export function drawMatrixCrosshair(
   ctx: CanvasRenderingContext2D,
   geom: MatrixGeom,
   cell: { row: number; col: number }
 ): void {
-  markMatrixCol(ctx, geom, cell.col)
-  markMatrixRow(ctx, geom, cell.row)
+  markCrosshairStrips(ctx, [
+    matrixColRect(geom, cell.col),
+    matrixRowRect(geom, cell.row),
+  ])
 }
 
 /** Map canvas coords to a matrix cell (display space), or null outside. */
