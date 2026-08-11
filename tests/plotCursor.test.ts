@@ -35,10 +35,13 @@ const TIMELINE = { minValue: 0, maxValue: 1000 }
 /** A panned window: pins the `minValue` offset both maps must carry. */
 const WINDOW = { minValue: 1000, maxValue: 3000 }
 
-/** Records what the marks batch: segments, arcs, bands, clip rects, dashes. */
+/**
+ * Records what the marks batch: segments, arcs, bands, dashes, and `rect` calls,
+ * which serve as both clip regions and the band's fill subpaths.
+ */
 function recorder() {
   const points: number[] = []
-  const clips: number[] = []
+  const rects: number[] = []
   const dashes: number[][] = []
   const arcs: number[] = []
   const bands: number[] = []
@@ -47,7 +50,7 @@ function recorder() {
     save() {}, restore() {}, beginPath() {}, stroke() {},
     setLineDash(d: number[]) { dashes.push(d) },
     strokeStyle: '', fillStyle: '', lineWidth: 0, globalAlpha: 1,
-    rect(x: number, y: number, w: number, h: number) { clips.push(x, y, w, h) },
+    rect(x: number, y: number, w: number, h: number) { rects.push(x, y, w, h) },
     clip() {},
     fillRect(x: number, y: number, w: number, h: number) { bands.push(x, y, w, h) },
     fill() { fills.push(1) },
@@ -55,7 +58,7 @@ function recorder() {
     moveTo(x: number, y: number) { points.push(x, y) },
     lineTo(x: number, y: number) { points.push(x, y) },
   } as unknown as CanvasRenderingContext2D
-  return { points, clips, dashes, arcs, bands, fills, ctx }
+  return { points, rects, dashes, arcs, bands, fills, ctx }
 }
 
 // Module singleton (one pointer exists) — retract between cases.
@@ -239,10 +242,10 @@ describe('time projection', () => {
 
 describe('time guide mark', () => {
   it('strokes one full-height guide per instant, clipped to the band', () => {
-    const { points, clips, ctx } = recorder()
+    const { points, rects, ctx } = recorder()
     drawTimeGuides(ctx, BAND, [300.5])
     expect(points).toEqual([300.5, 50, 300.5, 250])
-    expect(clips).toEqual([100, 50, 400, 200])
+    expect(rects).toEqual([100, 50, 400, 200])
   })
 
   it('strokes BOTH moments of a recurrence pair in one batch', () => {
@@ -261,10 +264,10 @@ describe('time guide mark', () => {
   })
 
   it('draws nothing for an empty set', () => {
-    const { points, clips, ctx } = recorder()
+    const { points, rects, ctx } = recorder()
     drawTimeGuides(ctx, BAND, [])
     expect(points).toEqual([])
-    expect(clips).toEqual([])
+    expect(rects).toEqual([])
   })
 
   it('maps a set of instants, dropping the ones outside the window', () => {
@@ -275,14 +278,19 @@ describe('time guide mark', () => {
 })
 
 // PARITY: nothing in a mark encodes WHO designated it. A plot's own CROSSHAIR and
-// the PLOT CURSOR draw the IDENTICAL strip mark; only their extent differs. Shapes
-// with no local mark at all (a node, a SPLOM dot, a whole panel) use the dashed
-// outline forms, which are then the only mark those shapes have.
+// the PLOT CURSOR hand the SAME helper their rects, so they differ only in which
+// rects they pass: one fill pass over the union, dashes along the union's OUTER
+// edge only. Shapes with no local mark at all (a node, a SPLOM dot, a whole panel)
+// use the dashed outline forms, which are then the only mark those shapes have.
 describe('mark parity', () => {
   it('marks a strip with a band plus its two LONG edges dashed', () => {
     const row = recorder()
     markCrosshairStrip(row.ctx, 100, 50, 400, 20, 0.2, 'x')
-    expect(row.bands).toEqual([100, 50, 400, 20])
+    // The band is a filled subpath, not a bare fillRect: strips that meet share the
+    // one pass, so their overlap cannot stack alpha and read as its own weight.
+    expect(row.rects).toEqual([100, 50, 400, 20])
+    expect(row.fills).toHaveLength(1)
+    expect(row.ctx.fillStyle).toBe(CROSSHAIR_COLOR)
     expect(row.points).toEqual([100, 50.5, 500, 50.5, 100, 70.5, 500, 70.5])
     expect(row.dashes).toEqual([CROSSHAIR_DASH])
     expect(row.ctx.strokeStyle).toBe(CROSSHAIR_COLOR)
@@ -292,17 +300,26 @@ describe('mark parity', () => {
     expect(col.points).toEqual([100.5, 50, 100.5, 450, 120.5, 50, 120.5, 450])
   })
 
-  it('gives the local crosshair and the cursor the identical strip', () => {
-    // THE parity pin: a matrix cursor marking row 1 must be byte-identical to the
-    // row half of the local crosshair over any cell in row 1.
+  it('gives the local crosshair and the cursor the same strip, less the crossing', () => {
+    // THE parity pin: a matrix cursor marking row 1 and the row half of the local
+    // crosshair over a cell in row 1 are one mark. Only where the crosshair's own
+    // column crosses the row edge does that edge turn interior and drop out.
     const geom = { xOffset: 10, yOffset: 20, cellSize: 30, gridWidth: 90, gridHeight: 60 }
     const cursor = recorder()
     drawMatrixParticipantStrips(cursor.ctx, geom, { rows: [1], cols: [] })
+    expect(cursor.rects).toEqual([10, 50, 90, 30])
+    expect(cursor.points).toEqual([10, 50.5, 100, 50.5, 10, 80.5, 100, 80.5])
+
     const local = recorder()
     drawMatrixCrosshair(local.ctx, geom, { row: 1, col: 2 })
-    // The local mark is its column strip followed by the SAME row strip.
-    expect(local.points.slice(8)).toEqual(cursor.points)
-    expect(local.dashes).toEqual([CROSSHAIR_DASH, CROSSHAIR_DASH])
+    // Both strips in ONE fill pass, so the crossed cell is no darker than the rest.
+    expect(local.rects).toEqual([70, 20, 30, 60, 10, 50, 90, 30])
+    expect(local.fills).toHaveLength(1)
+    // The column strip, then the SAME row strip: its top edge cut over the column's
+    // 70..100 span, its bottom edge whole because nothing is highlighted below it.
+    expect(local.points.slice(8)).toEqual([10, 50.5, 70, 50.5, 10, 80.5, 100, 80.5])
+    // One dash setup for the whole mark, so the two strips cannot drift apart.
+    expect(local.dashes).toEqual([CROSSHAIR_DASH])
   })
 
   it('closes the outline only where the region is not a strip', () => {
@@ -362,7 +379,8 @@ describe('mark parity', () => {
   })
 
   it('marks every strip the cursor set occupies, on either axis', () => {
-    const geom = { xOffset: 10, yOffset: 20, cellSize: 30, gridWidth: 90, gridHeight: 60 }
+    // Square, so the pair below has a row AND a column for both participants.
+    const geom = { xOffset: 10, yOffset: 20, cellSize: 30, gridWidth: 90, gridHeight: 90 }
     // 8 numbers = 2 segments = one strip's long edges.
     const rowOnly = recorder()
     drawMatrixParticipantStrips(rowOnly.ctx, geom, { rows: [1], cols: [] })
@@ -370,12 +388,21 @@ describe('mark parity', () => {
     // the row's y — so a row/col or cellSize/gridHeight swap cannot pass.
     expect(rowOnly.points).toEqual([10, 50.5, 100, 50.5, 10, 80.5, 100, 80.5])
 
-    // A PAIR on a participant x participant matrix: two rows and two columns.
+    // A PAIR on a participant x participant matrix: two rows and two columns. Every
+    // strip still contributes its two long edges, but only the parts on the union's
+    // outer edge: an edge crossing another marked strip is interior and drops out.
     const pair = recorder()
     drawMatrixParticipantStrips(pair.ctx, geom, { rows: [0, 2], cols: [0, 2] })
-    expect(pair.points).toHaveLength(32)
-    // Third strip = the first COLUMN: one cell wide, full grid height.
-    expect(pair.points.slice(16, 24)).toEqual([10.5, 20, 10.5, 80, 40.5, 20, 40.5, 80])
+    expect(pair.points).toEqual([
+      10, 20.5, 100, 20.5,      // row 0, top: the union's outer edge, full width
+      40, 50.5, 70, 50.5,       // row 0, bottom: only the span between the columns
+      40, 80.5, 70, 80.5,       // row 2, top: likewise
+      10, 110.5, 100, 110.5,    // row 2, bottom: outer edge, full width
+      10.5, 20, 10.5, 110,      // col 0, left: outer edge, full height
+      40.5, 50, 40.5, 80,       // col 0, right: only the span between the rows
+      70.5, 50, 70.5, 80,       // col 2, left: likewise
+      100.5, 20, 100.5, 110,    // col 2, right: outer edge, full height
+    ])
 
     const neither = recorder()
     drawMatrixParticipantStrips(neither.ctx, geom, { rows: [], cols: [] })

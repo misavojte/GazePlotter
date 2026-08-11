@@ -197,6 +197,12 @@ export const SIDEBAR: readonly SidebarItem[] = [
         description: 'Generate comparative bar charts of dwell times, fixation counts, and latencies across Areas of Interest, filtered by custom participant groups.'
       },
       {
+        name: 'Eye-movement Comparison',
+        href: '/docs/visualizations/eye-movement-comparison',
+        seoTitle: 'Compare Fixations, Saccades & Blinks',
+        description: 'Compare eye-movement types side by side: per-type counts, time budgets, segment durations, and saccadic latency, with distribution overlays across participants.'
+      },
+      {
         name: 'Transition Matrix',
         href: '/docs/visualizations/transition-matrix',
         seoTitle: 'AOI Transition Matrix for Eye Tracking',

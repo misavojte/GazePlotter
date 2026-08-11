@@ -52,7 +52,6 @@ Configure the visual layout and rendering options for the bar chart.
 - **Order by**: Sort bars by *Value* or by *AOI order*.
 - **Direction**: Sort bars ascending (*ASC*) or descending (*DESC*).
 - **Scale range**: Explicitly set the value axis minimum and maximum (*0 = Auto*).
-- **Hide data**: Check *No AOI data* to hide participants who have zero registered fixations/events across all AOIs.
 
 ### Time range [ms]
 Filter the temporal range from which fixations and saccades are fetched.
@@ -62,6 +61,7 @@ Filter the temporal range from which fixations and saccades are fetched.
 ### Areas of Interest
 Filters which Areas of Interest (AOIs) are rendered in the bar chart.
 - **AOI selection**: A dropdown containing *All* and saved AOI selections; AOIs outside the picked selection count as no-AOI in this plot.
+- **Hide No AOI data**: Drops the No-AOI slot from the chart, so only the named AOIs are compared.
 - **Edit AOIs & selections…**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
 
 ### Export
