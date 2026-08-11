@@ -3,7 +3,7 @@
  * small synthetic dataset and asserts the metric's output against a hand-
  * computed expected value — not against what the code happens to do today.
  *
- * Behaviour-level coverage lives in `barPlotDataCollection.test.ts`.
+ * Behaviour-level coverage lives in `aoiComparisonDataCollection.test.ts`.
  */
 import { describe, it, expect } from 'vitest'
 import { makeGroupedAoiEngine, makeTestEngine } from './helpers/testEngine'
@@ -15,6 +15,7 @@ import {
   type Scope,
   type GroupScope,
 } from '../src/lib/metrics'
+import { reduceNumeric } from '../src/lib/metrics/core/numeric'
 
 const STIM = 1
 const PID = 0
@@ -185,9 +186,27 @@ describe('fixationDuration — mean of per-fixation durations on AOI', () => {
   })
 })
 
-// ─── fixationDuration / visitDuration — settable summary statistic ────────────
+// ─── fixationDuration / visitDuration — summary statistic on the SUMMARY leaf ─
 
-describe('fixationDuration — settable summary statistic (mean/median/max/min)', () => {
+/**
+ * An AOI-slot pick carrying a summary `statistic` — the ONE channel the
+ * aoi-vector duration metrics offer, mirroring `movementDuration`'s
+ * `pick-category`. The statistic collapses the slot's per-event sample inside
+ * `finalize`, so it must be read off the SCALAR the pick produces; the raw
+ * vector these recipes emit is the unmarked per-slot mean by construction.
+ */
+function pickAoiInst(
+  baseId: string,
+  slot: number,
+  statistic?: 'mean' | 'median' | 'max' | 'min',
+): MetricInstance {
+  return {
+    id: 't1', baseId, params: {}, label: '',
+    projection: { kind: 'pick-aoi', aoiRef: { by: 'slot', slot }, ...(statistic ? { statistic } : {}) },
+  }
+}
+
+describe('fixationDuration — summary statistic on the pick (mean/median/max/min)', () => {
   // Three fixations on AOI1 with durations 100, 200, 600.
   //   mean = 300, median = 200, max = 600, min = 100.
   const engine = createEngine([
@@ -195,21 +214,33 @@ describe('fixationDuration — settable summary statistic (mean/median/max/min)'
     [100, 300, 0, 1],
     [300, 900, 0, 1],
   ])
-  it('defaults to mean (back-compat: an instance with no statistic param)', () => {
-    expect(values(query(inst('fixationDuration'), scope(engine)))[0]).toBe(300)
+  it('defaults to mean (a pick with no statistic)', () => {
+    expect(scalar(query(pickAoiInst('fixationDuration', 0), scope(engine)))).toBe(300)
   })
   it('median', () => {
-    expect(values(query(inst('fixationDuration', { statistic: 'median' }), scope(engine)))[0]).toBe(200)
+    expect(scalar(query(pickAoiInst('fixationDuration', 0, 'median'), scope(engine)))).toBe(200)
   })
   it('max', () => {
-    expect(values(query(inst('fixationDuration', { statistic: 'max' }), scope(engine)))[0]).toBe(600)
+    expect(scalar(query(pickAoiInst('fixationDuration', 0, 'max'), scope(engine)))).toBe(600)
   })
   it('min', () => {
-    expect(values(query(inst('fixationDuration', { statistic: 'min' }), scope(engine)))[0]).toBe(100)
+    expect(scalar(query(pickAoiInst('fixationDuration', 0, 'min'), scope(engine)))).toBe(100)
+  })
+  it('the raw VECTOR is always the per-slot mean — it has no statistic to carry', () => {
+    expect(values(query(inst('fixationDuration'), scope(engine)))[0]).toBe(300)
+  })
+  it('pick-any-fixation carries the statistic too (whole-stimulus summary)', () => {
+    const anyPick = (statistic?: 'median' | 'max'): MetricInstance => ({
+      id: 't1', baseId: 'fixationDuration', params: {}, label: '',
+      projection: { kind: 'pick-any-fixation', ...(statistic ? { statistic } : {}) },
+    })
+    expect(scalar(query(anyPick(), scope(engine)))).toBe(300)
+    expect(scalar(query(anyPick('median'), scope(engine)))).toBe(200)
+    expect(scalar(query(anyPick('max'), scope(engine)))).toBe(600)
   })
 })
 
-describe('visitDuration — settable summary statistic', () => {
+describe('visitDuration — summary statistic on the pick', () => {
   // Three separate AOI1 visits (dwells 100, 200, 600), each broken by an AOI2 fixation.
   const engine = createEngine([
     [0, 100, 0, 1],
@@ -219,10 +250,10 @@ describe('visitDuration — settable summary statistic', () => {
     [500, 1100, 0, 1],
   ])
   it('median of per-visit dwells', () => {
-    expect(values(query(inst('visitDuration', { statistic: 'median' }), scope(engine)))[0]).toBe(200)
+    expect(scalar(query(pickAoiInst('visitDuration', 0, 'median'), scope(engine)))).toBe(200)
   })
   it('mean by default', () => {
-    expect(values(query(inst('visitDuration'), scope(engine)))[0]).toBe(300)
+    expect(scalar(query(pickAoiInst('visitDuration', 0), scope(engine)))).toBe(300)
   })
 })
 
@@ -262,6 +293,78 @@ describe('visitDuration — mean sum-of-durations per visit', () => {
     expect(result[0]).toBe(150)
     expect(result[1]).toBe(100)
     expect(queryIndividualsAllSlots(inst('visitDuration'), scope(engine))![0]).toEqual([200, 100])
+  })
+
+  it('defines the SAME visits as visitCount (cross-pin on the duplicated boundary logic)', () => {
+    // visitCount and visitDuration each implement the visit-boundary state
+    // machine (previousAois / setsMatch / no-AOI run collapsing) in their own
+    // hot loop — sharing it via a per-fixation callback is forbidden (measured
+    // ~15% slower and reverted), so the two definitions are pinned against
+    // each other instead: a visit COUNT is by definition the number of closed
+    // visits, so per slot it must equal visitDuration's individuals length.
+    //
+    // Unwindowed only: under windowing the two deliberately diverge
+    // (visitCount midpoint-gates, visitDuration is any-overlap).
+    const cases: Record<string, number[][]> = {
+      're-entry': [
+        [0, 100, 0, 1], [100, 200, 0, 1], [200, 300, 0, 2], [300, 400, 0, 1],
+      ],
+      'multi-AOI overlap': [
+        [0, 100, 0, 1, 2], [100, 200, 0, 1], [200, 300, 0, 1, 2], [300, 400, 0, 2],
+      ],
+      'no-AOI runs collapse': [
+        [0, 100, 0, 1], [100, 200, 0], [200, 300, 0], [300, 400, 0, 1], [400, 500, 0],
+      ],
+      'trailing open visit': [
+        [0, 100, 0, 2], [100, 200, 0, 1], [200, 300, 0, 1],
+      ],
+      'zero-duration fixation': [[100, 100, 0, 1]],
+    }
+    // EVERY slot, anyFixation included: there a visit is a run of constant AOI
+    // set, off-AOI runs counted like any other, so the two must agree there
+    // too. (They did not until 2026-08-02: leaving an AOI for off-AOI
+    // overwrote the open any-fixation visit instead of closing it, so the
+    // whole-stimulus sample held only off-AOI runs.)
+    for (const [name, segments] of Object.entries(cases)) {
+      const engine = createEngine(segments)
+      const counts = values(query(inst('visitCount'), scope(engine)))
+      const samples = queryIndividualsAllSlots(inst('visitDuration'), scope(engine))!
+      expect(
+        samples.map(s => s.length),
+        `visit definitions diverged on "${name}"`
+      ).toEqual(counts.map(c => (Number.isFinite(c) ? c : 0)))
+    }
+  })
+
+  it('any-fixation visits TILE the scan (durations sum to total fixation time)', () => {
+    // The whole-stimulus visits partition the recording, so their durations
+    // must sum to absoluteTime's any-fixation total. That is what makes
+    // "Whole stimulus" a decomposition of the session rather than a filtered
+    // subset, and it independently catches a dropped or double-counted visit.
+    // Unbounded scope only: visitDuration accumulates raw fixation durations
+    // while absoluteTime sums window-CLIPPED ones, so a bounded range differs
+    // by construction.
+    const cases: Record<string, number[][]> = {
+      'AOI/off-AOI alternation': [
+        [0, 100, 0, 1], [100, 200, 0], [200, 300, 0], [300, 400, 0, 1], [400, 500, 0],
+      ],
+      'multi-AOI overlap': [
+        [0, 100, 0, 1, 2], [100, 200, 0, 1], [200, 250, 0], [250, 400, 0, 2],
+      ],
+      'no off-AOI at all': [
+        [0, 100, 0, 2], [100, 200, 0, 1], [200, 300, 0, 1],
+      ],
+    }
+    for (const [name, segments] of Object.entries(cases)) {
+      const engine = createEngine(segments)
+      const samples = queryIndividualsAllSlots(inst('visitDuration'), scope(engine))!
+      const anyFixation = samples[samples.length - 1]
+      const totalFixationTime = values(query(inst('absoluteTime'), scope(engine)))[3]
+      expect(
+        anyFixation.reduce((a, b) => a + b, 0),
+        `any-fixation visits did not tile the scan on "${name}"`
+      ).toBe(totalFixationTime)
+    }
   })
 
   it('counts a trailing zero-duration visit (anyFixation = 0, not dropped to NaN)', () => {
@@ -1100,5 +1203,87 @@ describe('transitionDwellMean — per-cell mean of pre-transition dwell times', 
     ])
     const result = values(query(inst('transitionDwellMean', { mode: 'fixation' }), scope(engine)))
     expect(result[0 * 3 + 1]).toBe(150)
+  })
+})
+
+// ─── the sample-summary contract (derived finalize) ──────────────────────────
+
+/**
+ * For every `sampleSummary` recipe the vector IS its own sample collapsed per
+ * slot — `defineMetric` derives `finalize` from `individuals` precisely so the
+ * two cannot drift. This pins the equivalence behaviourally, across all four
+ * statistics and both slot axes, so a recipe that ever hand-writes `finalize`
+ * again has to keep agreeing with the dots it publishes.
+ */
+describe('sampleSummary: the vector equals its own individuals, collapsed', () => {
+  // Uneven durations and multi-visit AOIs, so mean/median/max/min all differ.
+  const aoiEngine = createEngine([
+    [0, 100, 0, 1],
+    [100, 400, 0, 1],
+    [400, 500, 0, 2],
+    [500, 1100, 0, 1],
+    [1100, 1200, 0],
+  ])
+
+  const STATS = ['mean', 'median', 'max', 'min'] as const
+  // Slot layout is [AOI1, AOI2, noAoi, anyFixation]; `pick-aoi` addresses only
+  // the real AOIs, and the whole-stimulus slot has its own leaf (below).
+  const AOI_SLOTS = 2
+  const ANY_FIXATION_SLOT = 3
+
+  const anyPick = (baseId: string, statistic: typeof STATS[number]): MetricInstance => ({
+    id: 't1', baseId, params: {}, label: '',
+    projection: { kind: 'pick-any-fixation', statistic },
+  })
+
+  const expectSame = (actual: number, expected: number, why: string) => {
+    if (Number.isNaN(expected)) expect(Number.isNaN(actual), why).toBe(true)
+    else expect(actual, why).toBeCloseTo(expected, 10)
+  }
+
+  for (const baseId of ['fixationDuration', 'visitDuration']) {
+    it(`${baseId} — every pick equals its slot's dots, collapsed`, () => {
+      const samples = queryIndividualsAllSlots(inst(baseId), scope(aoiEngine))!
+      expect(samples.length).toBeGreaterThan(AOI_SLOTS)
+      for (const statistic of STATS) {
+        for (let slot = 0; slot < AOI_SLOTS; slot++) {
+          expectSame(
+            scalar(query(pickAoiInst(baseId, slot, statistic), scope(aoiEngine))),
+            reduceNumeric(samples[slot], statistic),
+            `${baseId} · ${statistic} · slot ${slot}`
+          )
+        }
+        expectSame(
+          scalar(query(anyPick(baseId, statistic), scope(aoiEngine))),
+          reduceNumeric(samples[ANY_FIXATION_SLOT], statistic),
+          `${baseId} · ${statistic} · any fixation`
+        )
+      }
+    })
+  }
+
+  it('the identity vector is the same sample collapsed by the mean', () => {
+    // The vector carries no statistic, so it must equal the mean of the dots.
+    for (const baseId of ['fixationDuration', 'visitDuration']) {
+      const samples = queryIndividualsAllSlots(inst(baseId), scope(aoiEngine))!
+      const vector = values(query(inst(baseId), scope(aoiEngine)))
+      expect(vector.length, baseId).toBe(samples.length)
+      for (let slot = 0; slot < samples.length; slot++) {
+        const expected = reduceNumeric(samples[slot], 'mean')
+        if (Number.isNaN(expected)) expect(Number.isNaN(vector[slot])).toBe(true)
+        else expect(vector[slot], `${baseId} slot ${slot}`).toBeCloseTo(expected, 10)
+      }
+    }
+  })
+
+  it('flush is idempotent — reading the dots never double-counts a trailing visit', () => {
+    // visitDuration's last visit is still open when the scan ends. Both the
+    // summary and the dots complete it before reading; if `flush` were not
+    // idempotent the second reader would push it twice.
+    const before = queryIndividualsAllSlots(inst('visitDuration'), scope(aoiEngine))!
+    const after = queryIndividualsAllSlots(inst('visitDuration'), scope(aoiEngine))!
+    expect(after).toEqual(before)
+    // AOI 1's three visits (100+300 merged, then 600) survive exactly once.
+    expect(before[0]).toEqual([400, 600])
   })
 })

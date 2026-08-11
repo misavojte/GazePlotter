@@ -11,6 +11,7 @@
     EntitySelection,
     ParticipantsSelection,
   } from '$lib/data/types'
+  import type { WorkspaceCommand } from '$lib/workspace/commands'
   import type { MergeAxisMessages } from './mergeAxisEditor.svelte'
   import type { SelectionLike } from './selectionSession.svelte'
   import type { TableColumn } from './EditableEntityList.svelte'
@@ -32,13 +33,18 @@
     getItems: (engine: DataEngine) => BaseInterpretedDataType[]
     /** The axis' saved SELECTIONS. */
     getSelections: (engine: DataEngine) => TSel[]
+    /**
+     * The command that saves this axis' selections. Declared per axis because
+     * `updateSelections` correlates the axis literal with the payload type, and
+     * only here is `TSel` concrete — the shared body below cannot prove the
+     * pairing across its generic, and asserting it there would need a cast.
+     */
+    selectionsCommand: (selections: TSel[], source: string) => WorkspaceCommand
     messages: MergeAxisMessages
     title: string
     emptyMessage: string
     /** Plural entity noun for the tray verbs and tooltips. */
     noun: string
-    /** One-line tray explainer while the axis has no selections yet. */
-    firstRunHelp: string
     columns: TableColumn[]
   }
 
@@ -50,6 +56,12 @@
     field: 'participantsIds',
     getItems: getParticipantsWithMerged,
     getSelections: engine => getParticipantsSelections(engine),
+    selectionsCommand: (selections, source) => ({
+      type: 'updateSelections',
+      axis: 'participant',
+      selections,
+      source,
+    }),
     messages: {
       conflict: n =>
         `Can't merge: recordings overlap on ${n} ${n > 1 ? 'stimuli' : 'stimulus'}.`,
@@ -61,7 +73,6 @@
     title: 'Participants',
     emptyMessage: 'No participants found',
     noun: 'participants',
-    firstRunHelp: 'A plot can show only the participants in a selection.',
     columns: [
       { label: 'Move', width: '28px', type: 'handle' },
       {
@@ -92,6 +103,12 @@
     field: 'memberIds',
     getItems: getStimuliWithMerged,
     getSelections: getStimuliSelections,
+    selectionsCommand: (selections, source) => ({
+      type: 'updateSelections',
+      axis: 'stimulus',
+      selections,
+      source,
+    }),
     messages: {
       conflict: n =>
         `Can't merge: ${n} participant${n > 1 ? 's have' : ' has'} recordings on more than one.`,
@@ -103,7 +120,6 @@
     title: 'Stimuli',
     emptyMessage: 'No stimuli found',
     noun: 'stimuli',
-    firstRunHelp: 'The metric matrix can range over one stimulus selection.',
     columns: [
       { label: 'Move', width: '28px', type: 'handle' },
       {
@@ -132,12 +148,15 @@
 >
   import { Section, ModalButtons } from '$lib/modals'
   import { getGazePlotterSession } from '$lib/session'
-  import type { SelectionsByAxis } from '$lib/workspace/commands'
   import EditableEntityList from './EditableEntityList.svelte'
   import SelectionTray from './SelectionTray.svelte'
   import { createMergeAxisEditor } from './mergeAxisEditor.svelte'
   import { createSelectionSession } from './selectionSession.svelte'
-  import { idKeyedSelection, selectionChips } from './selectionAdapters'
+  import {
+    idKeyedSelection,
+    referencedSelectionIds,
+    selectionChips,
+  } from './selectionAdapters'
 
   interface Props {
     config: MergeAxisModalConfig<K, TSel>
@@ -145,7 +164,7 @@
   }
 
   let { config, source }: Props = $props()
-  const { engine, modalState, workspace, toastState } = getGazePlotterSession()
+  const { engine, grid, modalState, workspace, toastState } = getGazePlotterSession()
 
   // `config` is a frozen module constant picked by the thin per-axis wrapper;
   // capturing its initial value at init is the point, not a reactivity bug.
@@ -170,13 +189,17 @@
 
   const session = createSelectionSession<TSel>({
     initial: sel.clone(cfg.getSelections(engine)),
+    reservedIds: () =>
+      referencedSelectionIds(
+        grid.items,
+        cfg.axis === 'participant' ? 'groupId' : 'stimulusSelectionId'
+      ),
     groups: () => editor.groups,
     ...sel.membership,
     renameItem: editor.handleNameInput,
     reorderGroups: editor.reorderGroups,
     notify: msg => toastState.addInfo(msg),
   })
-  const firstRun = cfg.getSelections(engine).length === 0
 
   const chips = $derived(selectionChips(session, cfg.noun))
 
@@ -185,8 +208,14 @@
     const items = editor.getItems()
 
     if (merge.itemsChanged(items)) {
-      if (!workspace.reconcileMerges(cfg.axis, items, merge.planGroups(items), source))
-        return
+      const reconciled = workspace.apply({
+        type: 'reconcileMerges',
+        axis: cfg.axis,
+        items,
+        groups: merge.planGroups(items),
+        source,
+      })
+      if (!reconciled) return
     }
 
     const committed = sel.commit(session.selections, editor.groups)
@@ -195,10 +224,7 @@
     // the merge-time membership snapshot), and comparing against the stale
     // open snapshot would skip the re-commit and silently revert selections.
     if (sel.canonical(committed) !== sel.canonical(cfg.getSelections(engine))) {
-      // TSel and the axis are correlated by construction of the two configs
-      // above; TS cannot prove it across the generic boundary, so re-assert.
-      const selections = committed as unknown as SelectionsByAxis[typeof cfg.axis]
-      if (!workspace.updateSelections(cfg.axis, selections, source)) return
+      if (!workspace.apply(cfg.selectionsCommand(committed, source))) return
     }
 
     modalState.close()
@@ -222,12 +248,7 @@
     grouped={{ onNameInput: editor.handleNameInput }}
   />
 
-  <SelectionTray
-    {session}
-    {chips}
-    noun={config.noun}
-    helpText={firstRun ? config.firstRunHelp : undefined}
-  />
+  <SelectionTray {session} {chips} noun={config.noun} />
 </Section>
 
 <ModalButtons

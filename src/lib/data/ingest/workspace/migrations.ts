@@ -1,5 +1,6 @@
 import { LEGACY_VISUALIZATION_TYPES } from '$lib/plots/legacyTypes'
 import {
+  carrySummaryStatistic,
   createDefaultMetricInstances,
   createMetricInstance,
   isStrandedAoiAggregate,
@@ -8,7 +9,8 @@ import {
 import {
   type MigratedJsonFormat,
   CURRENT_SCHEMA_VERSION,
-  NONE_SELECTION_ID,
+  seededCategoriesSelection,
+  seededEventsSelection,
 } from '$lib/data/types'
 
 const CORE_LAYOUT_KEYS = new Set([
@@ -22,9 +24,15 @@ const CORE_LAYOUT_KEYS = new Set([
   'redrawTimestamp',
 ])
 
-/** Plot types carrying the `hideNoAoi` setting (backfilled to `false` below). */
+/**
+ * Plot types carrying the `hideNoAoi` setting (backfilled to `false` below).
+ *
+ * CURRENT registry keys, not on-disk ones: every set here is consulted AFTER
+ * the version-independent `LEGACY_VISUALIZATION_TYPES` rewrite below, so a
+ * file saying 'barPlot' already reads as 'aoiComparison' by then.
+ */
 const HIDE_NO_AOI_PLOT_TYPES = new Set([
-  'barPlot',
+  'aoiComparison',
   'aoiStreamPlot',
   'transitionMatrix',
   'scarf',
@@ -33,7 +41,7 @@ const HIDE_NO_AOI_PLOT_TYPES = new Set([
 /** Plot types whose settings carry a per-plot `aoiSelectionId`. */
 const AOI_SELECTION_PLOT_TYPES = new Set([
   'scarf',
-  'barPlot',
+  'aoiComparison',
   'aoiStreamPlot',
   'transitionMatrix',
   'recurrencePlot',
@@ -47,9 +55,90 @@ const CATEGORY_SELECTION_PLOT_TYPES = new Set(['scarf'])
 
 const MIGRATED_SELECTION_NAME = 'Migrated visibility'
 
+/** 1.9.2's built-in "None" picker option, retired in favour of seeded rows. */
+const RETIRED_NONE_SELECTION_ID = -1
+
 /** Next free selection id: 1 + the highest id already present (0 when empty). */
 function nextSelectionId(selections: { id: number }[]): number {
   return selections.reduce((m, sel) => Math.max(m, Number(sel?.id) || 0), 0) + 1
+}
+
+/** The axis's stored rows, healing a missing or corrupt field to `[]`. */
+function selectionRows(payload: any, key: string): { id: number; name?: string }[] {
+  if (!Array.isArray(payload[key])) payload[key] = []
+  return payload[key]
+}
+
+/** The id of the row named `name`, or a fresh one seeded through `seed`. */
+function findOrSeed<T extends { id: number; name: string }>(
+  rows: { id: number; name?: string }[],
+  name: string,
+  seed: (id: number) => T
+): number {
+  const existing = rows.find(r => r?.name === name)
+  if (existing) return existing.id
+  const id = nextSelectionId(rows)
+  rows.push(seed(id))
+  return id
+}
+
+/**
+ * V5 → V6, the layer-off half: give every migrated workspace the two rows that
+ * replace the retired `-1` picker option, so the narrowing 1.9.2 offered stays
+ * reachable. Adopts a same-named row rather than duplicating it: 1.9.2 users
+ * were told to hand-build exactly these.
+ */
+function seedLayerOffSelections(payload: any): void {
+  findOrSeed(
+    selectionRows(payload, 'categoriesSelections'),
+    seededCategoriesSelection(0).name,
+    seededCategoriesSelection
+  )
+  findOrSeed(
+    selectionRows(payload, 'eventsSelections'),
+    seededEventsSelection(0).name,
+    seededEventsSelection
+  )
+}
+
+/**
+ * Version-independent: point the older spellings of "layer off" at a seeded row
+ * (a stored `-1`, the scarf's retired `hideEvents`). Left alone both fall
+ * through `<= 0 → All`, switching a hidden layer back on. NOT version-gated
+ * because in-branch builds stamped v6 while the sentinel was still live, so the
+ * value outlived the format step. Self-limiting: it seeds only when a straggler
+ * needs a target, so a deleted row never comes back on a later load.
+ * `hideEvents` beats the later hidden-channels pass because the id it stamps is
+ * non-zero, which `stampSelectionOnPlots` skips.
+ */
+function sweepRetiredSentinel(payload: any, gridItems: any[]): void {
+  const holds = (key: string): boolean =>
+    gridItems.some(i => i?.settings?.[key] === RETIRED_NONE_SELECTION_ID)
+  const needsEvents =
+    holds('eventSelectionId') ||
+    gridItems.some(i => i?.settings?.hideEvents === true)
+  if (!holds('categorySelectionId') && !needsEvents) return
+
+  const categoryId = findOrSeed(
+    selectionRows(payload, 'categoriesSelections'),
+    seededCategoriesSelection(0).name,
+    seededCategoriesSelection
+  )
+  const eventId = findOrSeed(
+    selectionRows(payload, 'eventsSelections'),
+    seededEventsSelection(0).name,
+    seededEventsSelection
+  )
+  for (const item of gridItems) {
+    const s = item?.settings
+    if (!s || typeof s !== 'object') continue
+    if (s.hideEvents === true) s.eventSelectionId = eventId
+    delete s.hideEvents
+    if (s.categorySelectionId === RETIRED_NONE_SELECTION_ID)
+      s.categorySelectionId = categoryId
+    if (s.eventSelectionId === RETIRED_NONE_SELECTION_ID)
+      s.eventSelectionId = eventId
+  }
 }
 
 /**
@@ -178,7 +267,8 @@ function migrateLegacyVisibility(payload: any, gridItems: unknown[]): void {
       selections,
       stimulusName
     )
-    if (selections.length === 0) delete payload.eventsSelections
+    // No empty-array cleanup here, unlike the AOI axis above: the v6 → v7 seed
+    // already put a row in this list, so it is never empty by now.
     stampSelectionOnPlots(gridItems, EVENT_SELECTION_PLOT_TYPES, 'eventSelectionId', s =>
       byStimulus.get(s)
     )
@@ -189,7 +279,7 @@ function migrateLegacyVisibility(payload: any, gridItems: unknown[]): void {
   const categories = payload?.categories
   if (categories?.hiddenCategories) {
     const rows: unknown[] = Array.isArray(categories.data) ? categories.data : []
-    // Fixation (id 0) is the baseline and never part of a selection.
+    // Fixation (id 0) could never be hidden in the legacy model.
     const hiddenIds = new Set(
       (Array.isArray(categories.hiddenCategories)
         ? categories.hiddenCategories
@@ -202,9 +292,12 @@ function migrateLegacyVisibility(payload: any, gridItems: unknown[]): void {
     if (hiddenIds.size > 0) {
       const selections: { id: number; name: string; memberIds: number[] }[] =
         (payload.categoriesSelections ??= [])
+      // Id 0 is INCLUDED: the fixation baseline joined the SELECTION domain,
+      // and the legacy model always drew fixations — a migrated selection
+      // without 0 would silently blank every fixation layer on load.
       const memberIds = rows
         .map((_, id) => id)
-        .filter(id => id > 0 && !hiddenIds.has(id))
+        .filter(id => !hiddenIds.has(id))
       const id = nextSelectionId(selections)
       selections.push({ id, name: MIGRATED_SELECTION_NAME, memberIds })
       // Hidden categories were global, so every plot gets the selection.
@@ -363,21 +456,23 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
     version = 4
   }
 
-  // V4 → V5: the 1.9.0 metrics-system migration — the single schema bump above
-  // `main` (v4). v5 is the current format. (An earlier in-branch split into a
-  // separate v5 → v6 step was collapsed here; both halves now run as one bump,
-  // so the export's stamped version always matches the data it writes. Since
-  // `main` never released v5 or v6, there are no intermediate files to migrate,
-  // and the former baseId-rename / label-upgrade passes — which only ever fired
-  // on hand-authored intermediate v5 files — were dropped as unreachable.)
+  // V4 → V5: the 1.9.0 metrics-system migration. (An earlier in-branch split
+  // into a separate v5 → v6 step was collapsed here; both halves now run as one
+  // bump, so the export's stamped version always matches the data it writes.
+  // The former baseId-rename / label-upgrade passes, which only ever fired on
+  // hand-authored intermediate v5 files, were dropped as unreachable.)
+  //
+  // v5 has since SHIPPED on `main` (1.9.2), so real v5 files exist and this
+  // step no longer terminates the chain — it hands off to the v5 → v6 step
+  // below rather than stamping CURRENT_SCHEMA_VERSION.
   //   1. Materialize `eventData` from legacy `aois.dynamicVisibility`.
   //   2. Seed `payload.metricInstances` with the slug-keyed starter library.
   //   3. Translate legacy bar / transition-matrix settings to reference that
   //      library:
   //      - barPlot:          aggregationMethod (string) → metricInstanceId (slug)
   //      - transitionMatrix: aggregationMethod (string) → metricInstanceId
-  //        (slug for the 4 starter-backed methods; new UUID-keyed custom
-  //        instance for frequencyRelative / probability2 / probability3).
+  //        (slug for the 5 starter-backed methods; new UUID-keyed custom
+  //        instance for probability2 / probability3, which have no starter).
   //   4. Migrate `aoiStreamPlot` off its bespoke `binSize` onto a windowed ×
   //      identity-aoi-vector metric instance.
   //   5. Normalize every metric-reference settings field to the canonical
@@ -514,8 +609,9 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
         case 'probability':      return 'transitionProbability-fix'
         case 'dwellTime':        return 'transitionDwellMean-fix'
         case 'segmentDwellTime': return 'transitionDwellMean-visit'
-        case 'frequencyRelative':
-          return ensureCustomMatrix('transitionRelativeFrequency', { mode: 'fixation' })
+        // Starter-backed since transitionRelativeFrequency was seeded; minting
+        // a custom instance here would duplicate that starter in the library.
+        case 'frequencyRelative': return 'transitionRelativeFrequency-fix'
         case 'probability2':
           return ensureCustomMatrix('transitionProbability', { mode: 'fixation', step: 2 })
         case 'probability3':
@@ -530,6 +626,9 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
         const s = item.settings
         if (!s || typeof s !== 'object') return item
 
+        // Raw ON-DISK type, deliberately not the current 'aoiComparison' key:
+        // this versioned step runs BEFORE the legacy-type rewrite below, so the
+        // only value it can ever see for this plot is the old 'barPlot'.
         if (item.type === 'barPlot') {
           const baseId =
             typeof s.aggregationMethod === 'string' ? s.aggregationMethod : 'absoluteTime'
@@ -650,8 +749,51 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
     // `payload.metricInstances` already references the seeded `metricInstances`
     // array (mutated in place by the aoi-stream pass above), so no reassignment
     // is needed here.
-    data = { ...data, version: CURRENT_SCHEMA_VERSION, data: payload }
+    //
+    // Stamps a LITERAL 5, not CURRENT_SCHEMA_VERSION: a v4 file carries
+    // `barPlottingType` just like a v5 one, so it has to fall through the
+    // v5 → v6 step below instead of jumping the chain to the ceiling.
+    data = { ...data, version: 5, data: payload }
+    version = 5
+  }
+
+  // V5 → V6: `barPlottingType` → `orientation` on plot settings. The key was
+  // named after the AOI Comparison's old mark ('barPlot') while it only ever
+  // meant the category axis direction — and the figure it configures draws a
+  // beeswarm, not bars, for every non-proportion metric. Renamed with the plot
+  // itself (barPlot → aoiComparison).
+  //
+  // Keyed on the FIELD, not on a plot-type list: the only two plots that carry
+  // it both take the same values, and a settings key rename has no reason to
+  // care which plot holds it. Idempotent — an already-renamed file has no
+  // `barPlottingType` left to move, and an explicit `orientation` always wins.
+  if (version === 5) {
+    if (Array.isArray(data.gridItems)) {
+      data.gridItems = data.gridItems.map((item: any) => {
+        if (!item || typeof item !== 'object') return item
+        const s = item.settings
+        if (!s || typeof s !== 'object' || !('barPlottingType' in s)) return item
+        const { barPlottingType, ...rest } = s
+        return {
+          ...item,
+          settings: { ...rest, orientation: rest.orientation ?? barPlottingType },
+        }
+      })
+    }
+    // The bump's other half: every migrated workspace gains the layer-off rows.
+    if (data?.data) seedLayerOffSelections(data.data)
+    data = { ...data, version: CURRENT_SCHEMA_VERSION }
     version = CURRENT_SCHEMA_VERSION
+  }
+
+  // Version-independent: the retired `-1` sentinel and `hideEvents` are legacy
+  // VALUES, not a format step — in-branch builds stamped v6 while both were
+  // still live. Runs after the passes above so a seeded row is already in place.
+  if (data?.data) {
+    sweepRetiredSentinel(
+      data.data,
+      Array.isArray(data.gridItems) ? data.gridItems : []
+    )
   }
 
   // Version-independent normalization: rewrite any legacy gridItem `type`
@@ -689,34 +831,43 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
     )
   }
 
-  // Version-independent: the scarf's retired `hideEvents` flag → the built-in
-  // "None" event SELECTION. Runs AFTER migrateLegacyVisibility so a stamped
-  // hidden-channels keep-list never resurrects an overlay the flag kept off.
-  if (Array.isArray(data.gridItems)) {
-    for (const item of data.gridItems) {
-      if (item?.type !== 'scarf' || typeof item.settings !== 'object' || !item.settings) continue
-      if (item.settings.hideEvents === true) {
-        item.settings.eventSelectionId = NONE_SELECTION_ID
-      }
-      delete item.settings.hideEvents
-    }
-  }
-
   // Version-independent normalization of the metric-instance library, in pass
   // order: collapse the legacy WindowSpec `mode` into an explicit `stepSize`
   // (`collapseWindowMode`), carry the renamed `groupAggregation` field across
-  // as `reduction` (`carryReduction`), then prune `aggregate-aoi` extremes the
+  // as `reduction` (`carryReduction`), move a `statistic` param onto the
+  // summary leaf that now owns it (`carrySummaryStatistic`), then prune
+  // `aggregate-aoi` extremes the
   // metric no longer NAMES (`meta.aoiAggregate`) — 1.9.x offered max/min on
   // every aoi-vector metric, and such an instance would strand invisibly:
   // rejected by every plot contract, so no library card, no delete button, yet
   // re-serialized into every export. There is no sound remap (the projection
   // has no defined reading); a plot that referenced a pruned instance falls
   // back to its metric placeholder, same as any missing instance.
+function migrateLegacyParticipantPairSimilarity(inst: any): any {
+  if (!inst || typeof inst !== 'object') return inst
+  if (inst.baseId === 'participantPairSimilarity') {
+    const method = inst.params?.method
+    const { method: _, ...restParams } = inst.params || {}
+    const newBaseId =
+      method === 'needlemanWunsch'
+        ? 'scanpathNeedlemanWunschSimilarity'
+        : 'scanpathLevenshteinSimilarity'
+    return {
+      ...inst,
+      baseId: newBaseId,
+      params: restParams,
+    }
+  }
+  return inst
+}
+
   const instances = data?.data?.metricInstances
   if (Array.isArray(instances)) {
     data.data.metricInstances = instances
       .map(collapseWindowMode)
       .map(carryReduction)
+      .map(carrySummaryStatistic)
+      .map(migrateLegacyParticipantPairSimilarity)
       .filter((inst: any) => !isStrandedAoiAggregate(inst))
   }
 

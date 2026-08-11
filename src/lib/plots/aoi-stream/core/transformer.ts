@@ -242,7 +242,10 @@ export function getAoiStreamPlotData(
     maxValue,
     // Time-axis plot: quantity + param qualifiers, NO projection (the window
     // lives on the x axis). Respects a renamed instance.
-    yAxisLabel: buildMetricLabel(instance, metric),
+    // Time-axis plot: window on x, so the y label takes the SLICE only. Usually
+    // empty (an identity aoi-vector names no slice), but a matrix-row instance
+    // says "from AOI X" — which nothing on this figure disclosed before.
+    yAxisLabel: buildMetricLabel(instance, { projection: 'leaf' }),
     unit: metric?.meta.unit ?? '',
     windowLabel: windowLabel(window, metric?.meta.windowUnit ?? 'ms'),
   }

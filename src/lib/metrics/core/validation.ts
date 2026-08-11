@@ -1,29 +1,16 @@
 /**
- * Single validation entry point. Given a recipe and a projection, returns
- * either `true` or a human-readable rejection reason.
+ * The single validation entry point: a recipe plus a projection gives `true`
+ * or a human-readable rejection reason. Layers, in order — raw-shape
+ * compatibility, the windowing wrapper, slot refs, the reducer gates below,
+ * then the author's own `rejects` hook.
  *
- * Layers:
- *   1. Registry invariant: the projection's leaf must accept the recipe's raw shape.
- *   2. Wrapper invariant: a windowed projection requires a scalar-producing leaf
- *      AND the recipe must opt-in to windowing.
- *   3. Non-negative slot references.
- *   4. Reducer gates. `matrix-aggregate` is a pure table keyed on the recipe's
- *      `measurementClass` (`supportedMatrixReducers` in `core/measurement`) —
- *      no string-matching on units; only `extensive` unlocks sum/mean across
- *      matrix cells. `aggregate-aoi` is gated by the recipe's own
- *      `aoiAggregate` declaration: only extremes are ever offered (order
- *      statistics are invariant to the AOI segmentation; sum/mean/median
- *      across AOIs are biased by it), and an extreme is valid only where the
- *      metric NAMES what it means (`{ max: 'most-dwelled AOI', … }`).
- *   5. Author-level `rejects` hook as a final escape hatch.
- *
- * Invalid combinations are hidden outright — no warning copy — per the
- * codified "no hedging" preference.
+ * Invalid combinations are hidden outright, with no warning copy.
  */
 import type { MetricRecipe } from './dsl'
 import {
   PROJECTION_LEAVES,
   leafOf,
+  leafSummaryStatistic,
   type Projection,
 } from './projection'
 import { supportedMatrixReducers } from './measurement'
@@ -31,13 +18,11 @@ import { supportedMatrixReducers } from './measurement'
 export type ValidationResult = true | string
 
 /**
- * Within-participant reducer gates. `aggregate-aoi`: extremes only (a blanket
- * statistical rule — max/min are order statistics, invariant to how many AOIs
- * the analyst drew, while sum/mean/median are biased by the segmentation), and
- * the extreme must be NAMED by the recipe's `aoiAggregate` declaration — an
- * unnamed extreme has no defined reading for that metric. `matrix-aggregate`:
- * a pure table on the recipe's `measurementClass` (`core/measurement.ts`); the
- * full set only for `extensive` quantities. No string-matching on units.
+ * `aggregate-aoi`: extremes only (max/min are order statistics, invariant to
+ * how many AOIs the analyst drew, while sum/mean/median are biased by the
+ * segmentation), and the extreme must be NAMED by the recipe — an unnamed one
+ * has no defined reading. `matrix-aggregate`: a pure table on
+ * `measurementClass`, never string-matching on units.
  */
 function checkReducer(
   recipe: MetricRecipe<any, any>,
@@ -54,6 +39,13 @@ function checkReducer(
   } else if (leaf.kind === 'matrix-aggregate') {
     if (!supportedMatrixReducers(recipe.measurementClass).includes(leaf.reducer)) {
       return `Reducer "${leaf.reducer}" across matrix cells is not meaningful for this metric.`
+    }
+  } else if (leafSummaryStatistic(leaf)) {
+    // Declaration gates disclosure, as with aggregate-aoi: on a recipe with no
+    // sample (a count, a total) a statistic would advertise a summarization
+    // that never happens. One predicate, so a fourth SUMMARY leaf inherits it.
+    if (!recipe.sampleSummary) {
+      return `Metric "${recipe.id}" has no per-event sample to summarize.`
     }
   }
   return null

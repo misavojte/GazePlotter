@@ -14,7 +14,7 @@
 import { describe, it, expect } from 'vitest'
 import '../src/lib/metrics/init'
 import { recipeSupports } from '../src/lib/metrics/core/validation'
-import { getRecipe } from '../src/lib/metrics/core/defineMetric'
+import { getMetric, getRecipe, listMetrics } from '../src/lib/metrics/core/defineMetric'
 import type { Projection } from '../src/lib/metrics/core/projection'
 
 function recipe(id: string) {
@@ -208,5 +208,69 @@ describe('raw-shape compatibility', () => {
     const r = recipe('rqaDet')
     const p: Projection = { kind: 'identity-scalar' }
     expect(recipeSupports(r, p)).toBe(true)
+  })
+})
+
+// ─── summary-statistic gate (declaration gates disclosure) ───────────────────
+
+describe('summary statistic on a SUMMARY leaf', () => {
+  /** Every leaf that may carry a `statistic`, with a valid concrete instance
+   *  of each for the two aoi-vector recipes and the category-vector one. */
+  const AOI_SUMMARY_LEAVES = [
+    { kind: 'pick-aoi', aoiRef: { by: 'name', name: 'AOI 1' } },
+    { kind: 'pick-any-fixation' },
+  ] as const
+
+  it('accepts a statistic on the aoi-axis sample-summarizing recipes', () => {
+    for (const baseId of ['fixationDuration', 'visitDuration']) {
+      for (const leaf of AOI_SUMMARY_LEAVES) {
+        const p = { ...leaf, statistic: 'median' } as Projection
+        expect(recipeSupports(recipe(baseId), p), `${baseId}/${leaf.kind}`).toBe(true)
+      }
+    }
+  })
+
+  it('accepts a statistic on the category-axis recipe (pick-category)', () => {
+    const p: Projection = { kind: 'pick-category', categoryName: 'Saccade', statistic: 'max' }
+    expect(recipeSupports(recipe('movementDuration'), p)).toBe(true)
+  })
+
+  it('rejects a statistic where the recipe declares no per-event sample', () => {
+    // Counts and totals have nothing to summarize; a statistic there would
+    // disclose a collapse that never happens. Same shape, same leaf — only
+    // the recipe's `sampleSummary` declaration differs.
+    for (const baseId of ['fixationCount', 'absoluteTime', 'visitCount']) {
+      for (const leaf of AOI_SUMMARY_LEAVES) {
+        const p = { ...leaf, statistic: 'median' } as Projection
+        expect(recipeSupports(recipe(baseId), p), `${baseId}/${leaf.kind}`).not.toBe(true)
+      }
+    }
+    const cat: Projection = { kind: 'pick-category', categoryName: 'Saccade', statistic: 'median' }
+    expect(recipeSupports(recipe('movementCount'), cat)).not.toBe(true)
+  })
+
+  it('the same leaves stay valid WITHOUT a statistic on those recipes', () => {
+    for (const leaf of AOI_SUMMARY_LEAVES) {
+      expect(recipeSupports(recipe('fixationCount'), leaf as Projection), leaf.kind).toBe(true)
+    }
+  })
+})
+
+// ─── registry views are shared, not rebuilt ──────────────────────────────────
+
+describe('getMetric returns one stable, frozen view per recipe', () => {
+  it('is identity-stable across calls and across listMetrics', () => {
+    // A recipe is immutable after registration, so its Metric view is built
+    // once. Identity matters beyond the allocation: a `$derived` over a metric
+    // must not re-run merely because the wrapper was rebuilt.
+    const a = getMetric('absoluteTime')!
+    expect(getMetric('absoluteTime')).toBe(a)
+    expect(listMetrics().find(m => m.meta.id === 'absoluteTime')).toBe(a)
+  })
+
+  it('is frozen, because the value is now shared between callers', () => {
+    const m = getMetric('fixationDuration')!
+    expect(Object.isFrozen(m)).toBe(true)
+    expect(Object.isFrozen(m.meta)).toBe(true)
   })
 })

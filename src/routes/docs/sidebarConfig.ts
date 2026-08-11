@@ -167,6 +167,12 @@ export const SIDEBAR: readonly SidebarItem[] = [
         seoTitle: 'Eye-Tracking Scanpath Similarity Metrics',
         description: 'Mathematical specifications for scanpath comparison algorithms, including Levenshtein edit distance and global Needleman-Wunsch alignments.'
       },
+      {
+        name: 'Eye-movement Type Metrics',
+        href: '/docs/metrics/eye-movement',
+        seoTitle: 'Eye-movement Type Metrics & Saccadic Latency',
+        description: 'Measure fixations, saccades, and blinks as first-class types: counts, time budgets, segment durations, and time to first saccade (saccadic latency).'
+      },
     ],
   },
   {
@@ -189,6 +195,12 @@ export const SIDEBAR: readonly SidebarItem[] = [
         href: '/docs/visualizations/aoi-comparison',
         seoTitle: 'AOI Comparison: Eye-Tracking Bar Charts',
         description: 'Generate comparative bar charts of dwell times, fixation counts, and latencies across Areas of Interest, filtered by custom participant groups.'
+      },
+      {
+        name: 'Eye-movement Comparison',
+        href: '/docs/visualizations/eye-movement-comparison',
+        seoTitle: 'Compare Fixations, Saccades & Blinks',
+        description: 'Compare eye-movement types side by side: per-type counts, time budgets, segment durations, and saccadic latency, with distribution overlays across participants.'
       },
       {
         name: 'Transition Matrix',

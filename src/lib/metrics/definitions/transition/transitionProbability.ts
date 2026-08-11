@@ -5,39 +5,14 @@ import { matrixPower } from '../../core/transitionScan'
 interface Params { mode: 'fixation' | 'visit'; step: number }
 
 /**
- * ## Transition probability
+ * `step = 1` rows sum to 100% per participant. `step = k > 1` rows may sum to
+ * LESS: the missing mass is the probability the recording ended before `k`
+ * transitions out of `i`. The visible cells stay exact — `P^k[i][j]` is the
+ * probability among trajectories that survived.
  *
- * Row-normalised transition probability matrix — the classical eye-tracking
- * Markov view. Cell `[i, j]` = probability that the next transition from
- * AOI `i` lands on AOI `j`.
- *
- * - **Shape:** `aoi-pair-matrix`
- * - **Unit:** `%`
- * - **Category:** `transition`
- * - **Windowing:** supported (matrix-cell / matrix-aggregate inner leaf).
- *
- * ### Parameters
- * - `mode` (enum, default `'fixation'`): `'fixation'` or `'visit'` counting.
- * - `step` (integer, default `1`, range 1–10): k-step matrix power.
- *   `step = 1` is the direct one-step probability; `step = k > 1` returns
- *   `P^k`, the probability of being at AOI `j` after `k` transitions.
- *
- * ### Invariants
- * - A "from" AOI with no out-transitions (the recording ended there, so its
- *   distribution is undefined) has an all-`NaN` row, which drops from
- *   cross-participant reduction rather than deflating group rows. A participant
- *   with zero transitions at all is all-`NaN`.
- * - `step = 1` rows sum to 100% per participant. `step = k > 1` rows may sum
- *   to LESS than 100%: the missing mass is the probability the gaze sequence
- *   ENDED (the recording finished) before completing `k` transitions from `i`.
- *   The visible cells are still exact — `P^k[i][j]` is the probability of
- *   being at `j` after `k` transitions among trajectories that survived.
- * - `measurementClass: 'intensive'` — row-stochastic matrices are not summable
- *   across cells, so `matrix-aggregate` is restricted to `max | min` and
- *   cross-participant reduction to `mean`.
- * - The cross-participant `mean` is taken per row only over participants that
- *   have an out-transition there (NaN rows excluded), so group rows stay
- *   row-stochastic at `step = 1`.
+ * NaN rows (no out-transition) drop from the cross-participant mean, so group
+ * rows are averaged only over participants who left that AOI and stay
+ * row-stochastic at `step = 1`.
  */
 defineTransitionMetric<Params>({
   id: 'transitionProbability',
@@ -48,8 +23,6 @@ defineTransitionMetric<Params>({
     'P^k (the probability of being at target AOI after k transitions); k-step rows may sum to under ' +
     '100%, where the remainder is the probability the gaze sequence ended before completing k transitions.',
   unit: '%',
-  // Intensive: a row-stochastic conditional probability. Only `mean` is sound
-  // across participants and cells; summing probabilities is nonsense.
   measurementClass: 'intensive',
   searchTags: ['transition', 'probability', 'markov', 'chain', 'aoi', 'pair', 'k-step'],
   extraParams: [integerParam('step', 'Step', 1, { min: 1, max: 10 })],
@@ -73,10 +46,7 @@ defineTransitionMetric<Params>({
     const Pk = params.step > 1 ? matrixPower(P, n, params.step) : P
     const out = new Array<number>(n * n)
     // A "from" AOI with no out-transitions has an UNDEFINED distribution (0/0),
-    // not a row of real 0%. Emit NaN so it drops from cross-participant
-    // reduction — the group mean then averages only participants who actually
-    // left that AOI, and each such row is genuinely stochastic, so group rows
-    // sum to 100% again (the Markov invariant the metric advertises).
+    // not a row of real 0% — NaN so it drops from the reduce (see above).
     for (let i = 0; i < n; i++) {
       const row = i * n
       for (let j = 0; j < n; j++) {

@@ -26,11 +26,6 @@
     /** Open the modal on the representative's stimulus (stimulus-scoped
      *  modal surfaces: AOIs, events). */
     passSelectedStimulus?: boolean
-    /** Offer the built-in "None" option (empty narrowing = layer off).
-     *  Only for axes where an empty selection is meaningful — events and
-     *  eye-movement types — never for partition axes, where it would just
-     *  blank the plot. */
-    noneOption?: boolean
     /** Surface the plot-specific "Hide No AOI data" toggle beneath the picker
      *  (only the AOI axis carries it). Declared here as data so the section
      *  stays generic — no per-axis special-casing in the component body. Shown
@@ -47,8 +42,8 @@
    * modal (names, colors, merges, selections — one surface). Selections are
    * global, so the option list is stimulus-independent —
    * `config.getSelections(engine)` plus a leading "All" (unset / id 0 = no
-   * narrowing; self-healing on unknown ids) and, on layer axes, the built-in
-   * "None" (empty narrowing = layer off).
+   * narrowing; self-healing on unknown ids). "All" is the only built-in — the
+   * layer-off narrowings are seeded rows inside the lists themselves.
    *
    * A bespoke component (not a schema section) because the `Select` +
    * edit-link pair and the "0 = All" summary don't fit the schema field
@@ -59,11 +54,7 @@
   import { Select, InputCheck } from '$lib/shared/components'
   import { PaneSection, PaneEditLink, PaneEditRow } from '$lib/workspace/pane'
   import { getGazePlotterSession } from '$lib/session'
-  import {
-    ALL_SELECTION_LABEL,
-    NONE_SELECTION_ID,
-    NONE_SELECTION_LABEL,
-  } from '$lib/data/types'
+  import { ALL_SELECTION_LABEL } from '$lib/data/types'
   import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
   import { createBulkContext } from './sections/common'
   import type { PaneSectionItem } from '../../definePlot'
@@ -82,9 +73,6 @@
   const selections = $derived(config.getSelections(engine))
   const options = $derived([
     { value: '0', label: ALL_SELECTION_LABEL },
-    ...(config.noneOption
-      ? [{ value: String(NONE_SELECTION_ID), label: NONE_SELECTION_LABEL }]
-      : []),
     ...selections.map(s => ({ value: String(s.id), label: s.name })),
   ])
 
@@ -107,12 +95,9 @@
 
   const summary = $derived.by(() => {
     if (state.mixed) return 'Mixed'
-    const baseName =
-      state.value === NONE_SELECTION_ID
-        ? NONE_SELECTION_LABEL
-        : !state.value
-          ? ALL_SELECTION_LABEL
-          : (selections.find(s => s.id === state.value)?.name ?? ALL_SELECTION_LABEL)
+    const baseName = !state.value
+      ? ALL_SELECTION_LABEL
+      : (selections.find(s => s.id === state.value)?.name ?? ALL_SELECTION_LABEL)
     // Only deviations from the default surface in the summary.
     if (hideNoAoi?.mixed) return `${baseName} (mixed No AOI)`
     if (hideNoAoi?.value) return `${baseName} - No AOI`

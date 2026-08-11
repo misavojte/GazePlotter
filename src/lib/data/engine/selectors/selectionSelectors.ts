@@ -1,6 +1,6 @@
 import {
   ALL_SELECTION_LABEL,
-  NONE_SELECTION_ID,
+  FIXATION_CATEGORY_ID,
   type EntitySelection,
   type NameSelection,
   type ParticipantsSelection,
@@ -52,19 +52,17 @@ export const getCategoriesSelections = (engine: DataEngine): EntitySelection[] =
 
 /**
  * Resolve a per-plot `categorySelectionId` to the raw set of category ids the
- * selection holds. Returns `null` for "All"/unset/unknown selection, meaning
- * NO narrowing — the same self-healing contract as
- * resolveAoiSelectionVisibleIds. The built-in "None" resolves to the empty
- * set: every group is narrowed away (on the scarf, fixations-only — the
- * fixation baseline never enters the narrowing). Plots narrowing
- * displayed-name groups go through applyCategorySelection below rather than
- * this raw set.
+ * selection holds. `null` for "All"/unset/unknown means NO narrowing, the same
+ * self-healing contract as resolveAoiSelectionVisibleIds.
+ * The fixation baseline is a full member of the domain, and its reserved
+ * displayed name keeps id 0 a singleton group, so consumers may gate the
+ * fixation layer on raw membership of 0.
+ * Plots narrowing displayed-name groups go through applyCategorySelection below.
  */
 export const resolveCategorySelectionMemberIds = (
   engine: DataEngine,
   categorySelectionId: number | undefined
 ): Set<number> | null => {
-  if (categorySelectionId === NONE_SELECTION_ID) return new Set()
   if (categorySelectionId == null || categorySelectionId <= 0) return null
   const selection = getCategoriesSelections(engine).find(
     s => s.id === categorySelectionId
@@ -96,6 +94,21 @@ export const applyCategorySelection = <G extends GroupedByDisplayedName<unknown>
     else narrowedAwayIds.push(...g.memberIds)
   }
   return { kept, narrowedAwayIds }
+}
+
+/**
+ * Whether a plot's fixation LAYER survives its eye-movement-type SELECTION.
+ * The fixation baseline's reserved displayed name keeps id 0 a singleton
+ * group, so raw membership IS the group decision — this helper is the one
+ * blessed raw-set read, living beside the group policy so the two can't
+ * drift. `null` resolution (All/unset/unknown) keeps the layer.
+ */
+export const fixationLayerVisible = (
+  engine: DataEngine,
+  categorySelectionId: number | undefined
+): boolean => {
+  const held = resolveCategorySelectionMemberIds(engine, categorySelectionId)
+  return held === null || held.has(FIXATION_CATEGORY_ID)
 }
 
 export const getEventsSelections = (engine: DataEngine): NameSelection[] =>
@@ -131,6 +144,11 @@ const getParticipantsSelection = (
  * vector: stored selections may hold merged-away (tombstoned) member ids for
  * unmerge-reversibility, and feeding those raw to plot transformers renders
  * ghost participants. Unknown ids self-heal to all participants.
+ *
+ * The two built-ins stay ids rather than seeded rows, unlike the layer-off
+ * narrowings: `-2` is computed PER STIMULUS so no stored row can express it, and
+ * resolving `-1` through the built-in list would run that computation on every
+ * call, including this per-render fast path.
  */
 export const getParticipantsIds = (
   engine: DataEngine,

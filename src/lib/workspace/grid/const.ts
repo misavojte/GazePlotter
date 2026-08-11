@@ -7,7 +7,7 @@ import type { GridConfig } from './types'
 export const DEFAULT_GRID_STATE_DATA: GridItemSnapshot[] = [
   { type: 'scarf', x: 0, y: 0 },
   { type: 'transitionMatrix', x: 20, y: 0, w: 12, h: 12 },
-  { type: 'barPlot', x: 0, y: 12, w: 12, h: 12 },
+  { type: 'aoiComparison', x: 0, y: 12, w: 12, h: 12 },
   { type: 'aoiStreamPlot', x: 12, y: 12, w: 12, h: 12 },
 ]
 

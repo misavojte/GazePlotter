@@ -24,9 +24,6 @@ export class GridState {
   items = $state<AllGridTypes[]>([])
   config = $state<GridConfig>(DEFAULT_GRID_CONFIG)
 
-  // UI sync state that needs to survive outside local components.
-  isLoading = $state(false)
-
   // Ephemeral selection set: which grid items are currently selected.
   // A single selection is just a set of size 1; a multi-selection is a set
   // of N. Not persisted to workspace JSON; lives only in runtime state.

@@ -9,10 +9,9 @@
   import Plus from 'lucide-svelte/icons/plus'
   import { createListReorder } from '../shared/listReorder.action'
   import { getGazePlotterSession } from '$lib/session'
-  import { getMetric, listMetrics } from '$lib/metrics/core/defineMetric'
+  import { listMetrics } from '$lib/metrics/core/defineMetric'
   import {
-    instanceReadout,
-    formatProjectionReadout,
+    instanceDetailLine,
     resolveInstance,
     type MetricInstance,
   } from '$lib/metrics/instances'
@@ -21,7 +20,6 @@
     metricIsCreatableInContract,
     type PlotMetricContract,
   } from '$lib/metrics/filters'
-  import type { Metric } from '$lib/metrics/core/dsl'
   import type { Projection } from '$lib/metrics'
   import type { CreateInstanceHandler } from '$lib/plots/shared/metricInstanceHandlers'
   import { pickMetricModal, configureMetricModal } from './definition-steps'
@@ -76,7 +74,11 @@
       const toGlobal = indices[to]
       const [item] = all.splice(fromGlobal, 1)
       all.splice(toGlobal, 0, item)
-      workspace.updateMetricInstances(all, 'metricLibrary.reorder')
+      workspace.apply({
+        type: 'updateMetricInstances',
+        instances: all,
+        source: 'metricLibrary.reorder',
+      })
     },
   })
 
@@ -126,12 +128,7 @@
   {#if instances.length > 0}
     <div class="metric-grid">
       {#each instances as inst (inst.id)}
-        {@const metric = getMetric(inst.baseId)}
-        {@const unit = metric?.meta.unit ?? ''}
-        {@const readout = instanceReadout(inst)}
-        {@const projLine = formatProjectionReadout(inst)}
-        {@const showProjLine = projLine && !inst.label.includes(projLine) ? projLine : null}
-        {@const detail = [unit, ...readout, showProjLine].filter(Boolean).join(' · ')}
+        {@const detail = instanceDetailLine(inst)}
         <div
           class="metric-card"
           class:dragging={dragItemId === inst.id}

@@ -1,10 +1,15 @@
 import {
   FIXATION_CATEGORY_ID,
+  FIXATION_SEED_NAME,
   SEGMENT_STRIDE,
   SegmentField,
 } from '$lib/data/binary'
 import type { DataType } from '$lib/data/types'
-import { DEFAULT_NO_AOI_TREATMENT } from '$lib/data/types'
+import {
+  DEFAULT_NO_AOI_TREATMENT,
+  seededCategoriesSelection,
+  seededEventsSelection,
+} from '$lib/data/types'
 import type { SegmentRow } from '../types'
 import type { TextEncoding } from '$lib/data/ingest/utils/byteUtils'
 import { decodeBytes, encodeString } from '$lib/data/ingest/utils/byteUtils'
@@ -211,8 +216,8 @@ export class SegmentWriter {
   /** Reserve Fixation at id 0 before any other category is interned. */
   private ensureCategorySeed(): void {
     if (this.categorySeeded) return
-    this.categoryIds.set('Fixation', 0)
-    this.categoryNames.push('Fixation')
+    this.categoryIds.set(FIXATION_SEED_NAME, 0)
+    this.categoryNames.push(FIXATION_SEED_NAME)
     this.categorySeeded = true
   }
 
@@ -224,6 +229,12 @@ export class SegmentWriter {
    */
   internCategory(name: string): number {
     this.ensureCategorySeed()
+    // A vendor cell that TRIMS to the reserved name IS the fixation category
+    // ('Fixation ' with stray whitespace): fold it to id 0 rather than intern
+    // a doppelgänger the displayed-name fold would then claim — ingest is the
+    // third writer of the category table, and the name reservation must hold
+    // here too (the modal lock and updateCategories guard cover the others).
+    if (name.trim() === FIXATION_SEED_NAME) return 0
     const existing = this.categoryIds.get(name)
     if (existing !== undefined) return existing
     const id = this.categoryNames.length
@@ -587,6 +598,8 @@ export class SegmentWriter {
       return indices
     })
 
+    const categoriesData = this.buildCategoriesData()
+
     return {
       isOrdinalOnly: false,
       capabilities: {
@@ -604,14 +617,19 @@ export class SegmentWriter {
       },
       participantsSelections: [],
       stimuliSelections: [],
-      categoriesSelections: [],
-      eventsSelections: [],
+      // Seeded here, where Fixation is guaranteed at id 0 (buildCategoriesData);
+      // a fresh dataset has no other rows, so id 1 is free on both axes. Skipped
+      // on a fixation-only source: with nothing else on the axis the row would
+      // resolve to exactly what "All" resolves to.
+      categoriesSelections:
+        categoriesData.length > 1 ? [seededCategoriesSelection(1)] : [],
+      eventsSelections: [seededEventsSelection(1)],
       // Deliberately empty: starter seeding happens on the MAIN thread
       // (IngestService.handleDone) so the worker never bundles the metric
       // registry. Fresh datasets are the only thing this writer produces, so
       // the seam is unconditional there.
       metricInstances: [],
-      categories: { data: this.buildCategoriesData(), orderVector: [] },
+      categories: { data: categoriesData, orderVector: [] },
       aois: {
         // Assign each AOI its default color by its NAME-SORTED rank rather than
         // its encounter-order id, so the color sequence follows the order AOIs

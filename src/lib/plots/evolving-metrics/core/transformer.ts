@@ -9,19 +9,10 @@
  * — heatmap rectangles, overlay step lines, aggregate sampling, hover
  * lookups — consumes this single signal definition.
  *
- *   - Fixation-windowed metrics paint by **sample-and-hold from the middle
- *     fixation's onset, one step forward**: `startMs = timestamps[midFix[k]]`,
- *     `endMs = timestamps[midFix[k] + stepSize]` (which equals
- *     `timestamps[midFix[k+1]]` for all but the last sample). The last cell
- *     is the same width as the interior — symmetric to the `floor(W/2)`
- *     leading fixations that have no anchor and stay unpainted. We never
- *     paint past the recording's last fixation. Consecutive cells exactly
- *     touch, so the overlay line connects naturally.
- *   - Time-windowed metrics paint Voronoi-style boundaries derived from
- *     adjacent centres — when `stepSize === windowSize` this equals the
- *     window's own span (non-overlapping), otherwise it equals `stepSize`
- *     wide centred on each `centerMs` (overlapping). Both give gap-free
- *     coverage on the ms axis.
+ * The paint rules live in `windowSpans.ts` — pure and unit-tested, because a
+ * span that reached over unmeasured time was invisible from here. This file
+ * resolves the metric, the display stride and each participant's scope, then
+ * hands over.
  */
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import {
@@ -46,6 +37,7 @@ import {
   type WindowedProjection,
 } from '$lib/metrics'
 import { getEvolvingMetricsXAxisLabel } from '../const'
+import { fixationWindowSpans, timeWindowSpans } from './windowSpans'
 import type {
   EvolvingMetricsSettings,
   EvolvingMetricsResult,
@@ -72,52 +64,6 @@ function emptyEvolvingMetricsResult(noMetric = false): EvolvingMetricsResult {
     valueMax: 1,
     ...(noMetric ? { noMetric: true as const } : {}),
   }
-}
-
-/**
- * Given an array of center-ms per window, return paired
- * `(startMs[], endMs[])` Voronoi boundaries. First and last windows use
- * symmetric half-gap extrapolation so they render the same width as their
- * interior neighbours. `NaN` centers produce `NaN` boundaries (skipped
- * downstream). Arrays with a single finite center return `null` for its
- * boundaries — the caller falls back to the window's raw data span.
- */
-function voronoiBoundaries(
-  centers: Float64Array,
-): { starts: Float64Array; ends: Float64Array } {
-  const N = centers.length
-  const starts = new Float64Array(N).fill(NaN)
-  const ends = new Float64Array(N).fill(NaN)
-
-  // Walk only the valid (finite) centers so NaN slots in the middle don't
-  // break Voronoi for their neighbours — they just get skipped.
-  const validIdx: number[] = []
-  for (let i = 0; i < N; i++) if (Number.isFinite(centers[i])) validIdx.push(i)
-
-  for (let k = 0; k < validIdx.length; k++) {
-    const i = validIdx[k]
-    const c = centers[i]
-    const hasPrev = k > 0
-    const hasNext = k < validIdx.length - 1
-    if (hasPrev && hasNext) {
-      const prev = centers[validIdx[k - 1]]
-      const next = centers[validIdx[k + 1]]
-      starts[i] = (prev + c) / 2
-      ends[i] = (c + next) / 2
-    } else if (hasNext) {
-      const next = centers[validIdx[k + 1]]
-      const half = (next - c) / 2
-      starts[i] = c - half
-      ends[i] = c + half
-    } else if (hasPrev) {
-      const prev = centers[validIdx[k - 1]]
-      const half = (c - prev) / 2
-      starts[i] = c - half
-      ends[i] = c + half
-    }
-    // else: sole valid center — leave NaN, caller falls back to raw span
-  }
-  return { starts, ends }
 }
 
 export function getEvolvingMetricsData(
@@ -164,7 +110,6 @@ export function getEvolvingMetricsData(
   const timelineMax = settings.timelineMax ?? maxTime
 
   const windowUnit = metric.meta.windowUnit
-  const halfWindowSize = window.windowSize / 2
   // Centered anchor: each window's value is attributed to its middle
   // fixation. Chosen for evolution-over-time semantics — zero phase lag,
   // peaks appear where they occurred. TODO: a future event-locked plot
@@ -241,106 +186,30 @@ export function getEvolvingMetricsData(
 
     const values = result.values
     const timeline = result.timeline
-    const N = values.length
-    const windows: EvolvingMetricsWindow[] = []
+    let windows: EvolvingMetricsWindow[]
 
     if (windowUnit === 'fixations') {
-      // Sample-and-hold from each measurement's middle-fixation onset to the
-      // next measurement's middle-fixation onset. Validity begins when the
-      // anchor fixation begins; every cell — *including the last* — spans
-      // exactly `stepSize` fixations forward, symmetric to the
-      // `floor(windowSize/2)` leading fixations that have no anchor and stay
-      // unpainted at the start. The `centerMs` anchor (middle fixation's
-      // midpoint) is unchanged.
-      // Keep extract's filter in lock-step with the recipe's onFixation so
-      // timeline indices stay aligned. For RQA metrics this is driven by the
-      // instance's `include_no_aoi` boolean (default false).
-      const includeNoAoi = Boolean(instance.params?.include_no_aoi)
-      const seq = extractFixationSequence(engine, stimulusId, pid, { includeNoAoi })
-      const totalFix = seq.timestamps.length
-      // Strided step: the query emitted windows `stride` fixations apart, so the
-      // last cell extends one display step (not one configured step) forward.
-      const stepFix = effStep
-      const samples: { midFix: number; centerMs: number; value: number; dataStartMs: number; dataEndMs: number }[] = []
-      for (let i = 0; i < N; i++) {
-        const v = values[i]
-        if (!Number.isFinite(v)) continue
-        const midFix = timeline[i] + midOffsetFix
-        if (midFix >= totalFix) continue
-        const a = seq.timestamps[midFix]
-        const b = seq.endTimestamps[midFix]
-        if (!Number.isFinite(a) || !Number.isFinite(b) || b <= a) continue
-
-        // Find raw window start and end in ms
-        const winStartIdx = timeline[i]
-        const winEndIdx = Math.min(totalFix - 1, timeline[i] + window.windowSize - 1)
-        const winStartMs = seq.timestamps[winStartIdx]
-        const winEndMs = seq.endTimestamps[winEndIdx]
-
-        samples.push({ midFix, centerMs: (a + b) / 2, value: v, dataStartMs: winStartMs, dataEndMs: winEndMs })
-      }
-      for (let k = 0; k < samples.length; k++) {
-        const s = samples[k]
-        const startMs = seq.timestamps[s.midFix]
-        let endMs: number
-        if (k + 1 < samples.length) {
-          endMs = seq.timestamps[samples[k + 1].midFix]
-        } else {
-          // Last cell: extend exactly one step forward, mirroring how each
-          // interior cell spans its anchor + the `stepFix - 1` fixations
-          // that follow. If the next-step index would overshoot available
-          // fixations, end at the anchor fixation's own offset — never
-          // paint past real data.
-          const nextMid = s.midFix + stepFix
-          endMs = nextMid < totalFix
-            ? seq.timestamps[nextMid]
-            : seq.endTimestamps[s.midFix]
-        }
-        if (!Number.isFinite(endMs) || endMs <= startMs) continue
-        windows.push({
-          startMs,
-          endMs,
-          centerMs: s.centerMs,
-          value: s.value,
-          dataStartMs: s.dataStartMs,
-          dataEndMs: s.dataEndMs
-        })
-        if (s.value < valueMin) valueMin = s.value
-        if (s.value > valueMax) valueMax = s.value
-      }
+      // Keep extract's filter in lock-step with the recipe's onFixation AND its
+      // scope with the query's, or `timeline`'s indices address a different
+      // sequence and every cell lands on the wrong fixation. The filter half is
+      // the instance's `include_no_aoi` (default false).
+      const seq = extractFixationSequence(engine, stimulusId, pid, {
+        includeNoAoi: Boolean(instance.params?.include_no_aoi),
+        aoiSelectionId: settings.aoiSelectionId,
+        timeStart: scope.timeStart,
+        timeEnd: scope.timeEnd,
+      })
+      // Strided step: the query emitted windows `stride` fixations apart.
+      windows = fixationWindowSpans(
+        timeline, values, seq.timestamps, seq.endTimestamps,
+        window.windowSize, effStep, midOffsetFix,
+      )
     } else {
-      // Time-windowed: Voronoi boundaries give gap-free coverage (equal to
-      // the window itself for epoch, `stepSize` wide for sliding).
-      const centers = new Float64Array(N).fill(NaN)
-      for (let i = 0; i < N; i++) {
-        if (!Number.isFinite(values[i])) continue
-        centers[i] = timeline[i] + halfWindowSize
-      }
-      const { starts, ends } = voronoiBoundaries(centers)
-      for (let i = 0; i < N; i++) {
-        const v = values[i]
-        if (!Number.isFinite(v)) continue
-        const c = centers[i]
-        if (!Number.isFinite(c)) continue
-        let startMs = starts[i]
-        let endMs = ends[i]
-        if (!Number.isFinite(startMs) || !Number.isFinite(endMs)) {
-          // Lone window fallback: use the raw time-window span.
-          startMs = timeline[i]
-          endMs = timeline[i] + window.windowSize
-        }
-        if (endMs <= startMs) continue
-        windows.push({
-          startMs,
-          endMs,
-          centerMs: c,
-          value: v,
-          dataStartMs: c - window.windowSize / 2,
-          dataEndMs: c + window.windowSize / 2
-        })
-        if (v < valueMin) valueMin = v
-        if (v > valueMax) valueMax = v
-      }
+      windows = timeWindowSpans(timeline, values, window.windowSize)
+    }
+    for (const w of windows) {
+      if (w.value < valueMin) valueMin = w.value
+      if (w.value > valueMax) valueMax = w.value
     }
 
     participants[p] = { id: pid, label, windows }
@@ -352,8 +221,11 @@ export function getEvolvingMetricsData(
   const timeline = createAdaptiveTimeline(timelineMin, timelineMax, 6)
 
   const xAxisLabel = getEvolvingMetricsXAxisLabel(windowLabel(window, windowUnit))
-  // Time-axis plot: quantity + param qualifiers, NO projection (window on x).
-  const yAxisLabel = buildMetricLabel(instance, metric)
+  // Time-axis plot: the window is on x, so the y label takes the projection's
+  // SLICE only — which AOI / type / matrix cell this series is. Dropping the
+  // projection wholesale (the old behaviour) left two plots of different AOIs
+  // with identical y labels, indistinguishable once exported.
+  const yAxisLabel = buildMetricLabel(instance, { projection: 'leaf' })
 
   return {
     participants,

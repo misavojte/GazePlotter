@@ -1,12 +1,12 @@
 # Fixation Counts & Latency
 
-Count-based metrics quantify how often a participant returns to or interacts with specific regions, while latency metrics measure the speed of initial attraction via Time to First Fixation (TTFF, also called entry time or first fixation latency).
+Count-based metrics quantify how often a participant returns to or interacts with specific regions, while latency metrics measure the speed of initial attraction via Time to First Fixation (TTFF, also called entry time or first fixation latency). For latency on the eye-movement type axis (time to first saccade, i.e. saccadic latency), see [Eye-movement Type Metrics](/docs/metrics/eye-movement).
 
 ---
 
 ## Output Shape and Projections Translation
 
-All count and latency metrics naturally output an `aoi-vector` (an array of values mapping to each active AOI, plus `noAoi` and `anyFixation` sentinel slots). Using GazePlotter's projection algebra, you can translate this raw vector into a scalar, making count and latency metrics compatible with different visualizers.
+All count and latency metrics on this page naturally output an `aoi-vector` (an array of values mapping to each active AOI, plus `noAoi` and `anyFixation` sentinel slots). Using GazePlotter's projection algebra, you can translate this raw vector into a scalar, making count and latency metrics compatible with different visualizers.
 
 ### 1. Vector Passthrough (`aoi-vector`)
 You can pass the vector through directly to analyze the values for all Areas of Interest (AOIs) simultaneously:
@@ -33,7 +33,7 @@ The total number of separate fixations landing within each Area of Interest (AOI
 
 - **Raw Shape**: `aoi-vector`
 - **Unit**: `count`
-- **Windowing**: Supported. Gated by midpoint-in-window membership (`frame.midpointInWindow`). A fixation is counted in a window if and only if its midpoint falls within the window's boundaries. This ensures that fixations are never counted twice across sliding/overlapping windows.
+- **Windowing**: Supported. Each fixation is counted once, in the window holding its midpoint, so the counts still add up to the total when windows do not overlap. With sliding windows a fixation appears in several of them.
 - **Measurement class**: Extensive (additive total). Across participants, show a per-participant mean or a cohort total (the group's combined fixation count).
 - **Scientific Meaning**: Indicates the importance or relevance of an AOI. A higher fixation count suggests that the region was repeatedly inspected or required substantial visual attention.
 

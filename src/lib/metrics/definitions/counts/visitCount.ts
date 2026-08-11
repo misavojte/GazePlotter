@@ -7,36 +7,9 @@ interface Acc {
 }
 
 /**
- * ## Visit count
- *
- * Number of distinct visits (entries) to each AOI. Each return after leaving
- * counts as a new visit. Reflects revisitation frequency and scanning
- * strategy.
- *
- * - **Shape:** `aoi-vector`
- * - **Unit:** `count`
- * - **Category:** `counts`
- * - **Windowing:** supported
- *
- * ### Parameters
- * None.
- *
- * ### Usage
- * ```ts
- * query(
- *   { id: 'visitCount', baseId: 'visitCount', params: {},
- *     projection: { kind: 'identity-aoi-vector' }, label: 'Visit count' },
- *   { engine, stimulusId, participantId },
- * )
- * ```
- *
- * ### Invariants
- * - Increments slot `s` only if `s` was NOT in the previous fixation's slot
- *   set; a visit is a transition from absent → present.
- * - `anyFixationSlot` increments on any set-of-slots change (including when
- *   the set becomes empty), so it captures "number of distinct
- *   attended-to-something intervals".
- * - Off-AOI runs collapse to a single visit of `noAoiSlot`.
+ * `anyFixationSlot` counts RUNS OF CONSTANT AOI SET — including runs where the
+ * set is empty, so off-AOI runs count like any other. Same convention as
+ * visitDuration's any-fixation slot (pinned equal in metricFormulas.test.ts).
  */
 defineMetric({
   id: 'visitCount',
@@ -48,11 +21,12 @@ defineMetric({
   windowUnit: 'ms',
   providesAnyFixation: true,
   aoiAggregate: { max: 'most-visited AOI', min: 'least-visited AOI' },
-  // Extensive: a raw count. Cohort `sum` and per-participant `mean` are both
-  // sound across participants, and sum/mean are sound across matrix cells.
   measurementClass: 'extensive',
   searchTags: ['visit', 'entry', 'entries', 'count', 'aoi', 'number', 'transitions'],
   params: [] as const,
+  // Indivisible events; see fixationCount. The driver skips a non-owned fixation
+  // WITHOUT touching this accumulator's run state, so per-window counts still sum.
+  windowMembership: 'own',
   accumulation: 'stateful',
   init: ({ slots }): Acc => ({
     entries: new Float64Array(slots.totalSlots),
@@ -60,13 +34,12 @@ defineMetric({
     wasInNoAoi: false,
   }),
   onFixation: (acc, { frame, slots }, { slots: info }) => {
-    // SW-RQA membership: a visit "belongs to" the window containing the
-    // visit's defining fixation midpoint. Skip-and-don't-update-state for
-    // fixations whose midpoint falls outside the active scope so per-window
-    // visit counts compose to the unwindowed total. For unbounded scopes
-    // `midpointInWindow` is always true, so non-windowed queries match the
-    // existing behaviour.
-    if (!frame.midpointInWindow) return
+    // KEEP IN SYNC with visitDuration's onFixation — the two co-define a VISIT
+    // (previousAois / setsMatch / no-AOI run collapsing). Not shared: hoisting
+    // this hot-loop state machine into an onEnter/onLeave callback measured
+    // ~15% slower and was reverted. Pinned slot-for-slot in
+    // metricFormulas.test.ts (unwindowed only — windowed, this counts visits the
+    // window OWNS while visitDuration summarises every visit it overlaps).
     if (slots.length === 0) {
       if (!acc.wasInNoAoi) {
         acc.entries[info.noAoiSlot]++

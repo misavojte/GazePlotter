@@ -1,10 +1,47 @@
 import {
+  getMetric,
   instanceMatchesContract,
   resolveInstance,
   type MetricInstance,
   type PlotMetricContract,
   type WindowSpec,
 } from '$lib/metrics'
+import type { SectionFieldCtx } from '$lib/plots/definePlot'
+
+/**
+ * Whether the plot's picked metric instance is `proportion`-class — the ONE
+ * derivation behind "proportion metrics take no statistical overlay" for
+ * every plot rendering through `BeeswarmFigure` (the figure draws plain
+ * proportional bars and ignores the overlay). Both the AOI Comparison and
+ * the Eye-movement Comparison gate their overlay field and pane summary on
+ * this, so the rule cannot drift between them.
+ */
+export function pickedInstanceIsProportion(ctx: SectionFieldCtx): boolean {
+  const metricId = ctx.common(s => (s as { metricInstanceIds?: string[] }).metricInstanceIds?.[0] ?? null)
+  if (metricId.mixed || !metricId.value) return false
+  const inst = resolveInstance(
+    ctx.engine.metadata?.metricInstances ?? [],
+    metricId.value as string
+  )
+  return inst
+    ? getMetric(inst.baseId)?.meta.measurementClass === 'proportion'
+    : false
+}
+
+/**
+ * The plot's PICKED metric instance, resolved WITHOUT contract validation —
+ * deliberately distinct from {@link resolveMetric}. A view needs the instance
+ * to name its axis/legend even when the instance fails the contract, so the
+ * figure shows "Absolute dwell time / ms" beside the noMetric placeholder
+ * rather than an anonymous empty frame. Do not "fix" this into the contract
+ * path; the transformer already gates the DATA on the contract.
+ */
+export function resolvePickedInstance(
+  engine: { metadata?: { metricInstances?: readonly MetricInstance[] } | null },
+  ids: readonly string[] | undefined
+): MetricInstance | undefined {
+  return resolveInstance(engine.metadata?.metricInstances ?? [], ids?.[0] ?? null)
+}
 
 /**
  * Single-call resolution + contract validation for a plot's metric instance.

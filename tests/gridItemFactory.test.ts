@@ -6,8 +6,8 @@ import {
 
 describe('gridItemFactory', () => {
   it('creates a grid item with merged defaults from the plot registry', () => {
-    const item = createGridItem('barPlot', {
-      type: 'barPlot',
+    const item = createGridItem('aoiComparison', {
+      type: 'aoiComparison',
       id: 42,
       settings: {
         stimulusId: 3,
@@ -16,7 +16,7 @@ describe('gridItemFactory', () => {
 
     expect(item).toMatchObject({
       id: 42,
-      type: 'barPlot',
+      type: 'aoiComparison',
       x: 0,
       y: 0,
       w: 12,

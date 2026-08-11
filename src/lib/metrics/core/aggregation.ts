@@ -1,26 +1,20 @@
 /**
  * # Cross-participant aggregation runtime
  *
- * The runtime maths + resolution for the cross-participant reduction axis,
- * built on the pure capability algebra in {@link ./measurement}. Kept separate
- * from `measurement.ts` (which is pure predicates / "what is allowed") so this
- * file owns only the "how it is computed and disclosed" side.
+ * How the cross-participant reduction is computed and disclosed, built on the
+ * pure predicates in {@link ./measurement} (which stay "what is allowed").
  *
- * The resolution rule is deliberately trivial and shape-independent so that an
- * MCP/LLM gets **request === result**: a sound requested reduction is honoured
- * verbatim; only an unsound or stale value falls back to the metric's natural
- * default. No silent median→mean, no projection-shape downgrade, no guard.
+ * The resolution rule is trivial and shape-independent by design, so
+ * request === result: a sound requested reduction is honoured verbatim, and
+ * only an unsound or stale one falls back. No silent downgrade, no guard.
  */
 import type { MetricMeta } from './dsl'
 import { soundReductions, type GroupReduction } from './measurement'
 
 /**
- * The effective cross-participant reduction for a (metric, requested) pair —
- * the single source of truth shared by the label and the runtime, so what is
- * disclosed always equals what is computed. Pure: `requested` wins when it is in
- * the sound set; otherwise the metric's `defaultReduction` (clamped into the
- * sound set) is used. `relational` metrics have no sound reduction and never
- * reach a per-slot reduce, so the inert `'mean'` is returned.
+ * Shared by the label and the runtime, so what is disclosed always equals what
+ * is computed. `relational` metrics have no sound reduction and never reach a
+ * per-slot reduce, so the inert `'mean'` comes back.
  */
 export function effectiveReduction(
   meta: MetricMeta,
@@ -33,10 +27,13 @@ export function effectiveReduction(
 }
 
 /**
- * Reduce finite values across one dimension (participants, or window·slot cells)
- * by `mean` or `sum`. Non-finite entries are skipped; an all-non-finite input
- * yields `NaN` (so absent participants drop rather than bias toward zero). The
- * atomic reduction the per-slot and windowed group paths compose against.
+ * Reduce finite values across one dimension (participants, or window·slot
+ * cells). Non-finite entries skip; an all-non-finite input yields `NaN`, so
+ * absent participants drop rather than bias toward zero.
+ *
+ * The cross-participant sibling of `reduceNumeric` (core/numeric.ts). It folds
+ * in one pass instead of materialising a filtered array, because it runs per
+ * (slot × participant) cell — deliberate duplication, not drift.
  */
 export function reduceFinite(
   values: readonly number[],
@@ -55,11 +52,8 @@ export function reduceFinite(
   return reduction === 'sum' ? sum : sum / n
 }
 
-/**
- * The disclosure word for a reduction, as a mid-dot readout qualifier. `mean`
- * is the conventional default and needs no disclosure (returns `null`); only a
- * cohort `sum` is surfaced so a summed series reads `· summed`.
- */
+/** `mean` is the conventional default and needs no disclosure (`null`); only a
+ *  cohort sum is surfaced, so a summed series reads `· summed`. */
 export function reductionLabel(reduction: GroupReduction): string | null {
   return reduction === 'sum' ? 'summed' : null
 }

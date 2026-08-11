@@ -1,6 +1,7 @@
 import type { PlotScreenFactory } from '$lib/plots/definePlot'
 import { toggleInArray } from '$lib/plots/shared'
 import { usePlotSync } from '$lib/plots/shared/PlotSyncRegistry.svelte'
+import { plotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
 import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 import {
   getNumberOfSegments,
@@ -8,6 +9,7 @@ import {
   getParticipants,
 } from '$lib/data/engine'
 import { buildScarfTooltipContent } from './tooltip'
+import { visibleHighlights } from './view'
 import { scarfTimelineSync } from './sync.svelte'
 import type { ScarfPlotSettings } from '../types'
 
@@ -21,10 +23,19 @@ type DragOverrides = Partial<
 type TimelineShape = { timeline: { minValue: number; maxValue: number } }
 
 /**
+ * The plot's TIME-channel scope: only 'absolute' x is elapsed ms — 'ordinal' is a
+ * segment index and 'relative' a percent of each row's own session, so a shared
+ * ms would be a lie in both. `null` keeps the plot out of BOTH directions, which
+ * is why the figure carries no mode conditional. Exported to be pinned.
+ */
+export const absoluteTimeScope = (settings: ScarfPlotSettings): number | null =>
+  settings.timeline === 'absolute' ? settings.stimulusId : null
+
+/**
  * Screen recipe: cross-plot timeline sync, drag-to-pan with transient
- * overrides (committed as one settings command on release), segment-tooltip
- * content, and legend highlight toggling. Export renders the raw view with
- * noop handlers and no sync.
+ * overrides (committed as one settings command on release), the shared PLOT
+ * CURSOR, segment-tooltip content, and legend highlight toggling. Export renders
+ * the raw view with noop handlers, no sync and no cursor.
  */
 export const scarfScreen: PlotScreenFactory<ScarfPlotSettings> = ctx => {
   // Transient drag-only overrides. The view derives from the overridden
@@ -51,6 +62,10 @@ export const scarfScreen: PlotScreenFactory<ScarfPlotSettings> = ctx => {
     }
     return max
   })
+
+  const plotCursor = plotCursorPort(ctx.item.id, () =>
+    absoluteTimeScope(effectiveSettings)
+  )
 
   const isDefaultRange = $derived.by(() => {
     const s = effectiveSettings
@@ -166,7 +181,7 @@ export const scarfScreen: PlotScreenFactory<ScarfPlotSettings> = ctx => {
         : { ...effectiveSettings, ordinalEnd: syncedMax }
     },
     props: () => ({
-      highlights: ctx.item.settings.highlights ?? [],
+      highlights: visibleHighlights(ctx.engine, ctx.item.settings),
       onLegendClick: handleLegendClick,
       getTooltipContent: (participantId: number, segmentOrderId: number) =>
         buildScarfTooltipContent(
@@ -177,7 +192,8 @@ export const scarfScreen: PlotScreenFactory<ScarfPlotSettings> = ctx => {
         ),
       onDragStepX: handleDragStepX,
       onDragEnd: handleDragEnd,
-      margins: { top: 0, right: 0, bottom: 0, left: 0 },
+      margin: 0,
+      plotCursor,
     }),
   }
 }

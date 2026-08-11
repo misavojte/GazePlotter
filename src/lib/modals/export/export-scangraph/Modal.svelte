@@ -1,5 +1,6 @@
 <script lang="ts">
   import { Select } from '$lib/shared/components'
+  import Radio from '$lib/shared/components/Radio.svelte'
   import { ModalButtons, Step, StepList, HelpText } from '$lib/modals'
   import { getStimuliOptions } from '$lib/plots/shared'
   import { getGazePlotterSession } from '$lib/session'
@@ -9,12 +10,22 @@
   const { engine, exportService, modalState } = getGazePlotterSession()
   const fileName = 'GazePlotter-ScanGraph'
   let stimulusId = $state('0')
+  let stringForm = $state('original')
   let isExporting = $state(false)
 
   const stimulusOptions = getStimuliOptions(engine)
 
+  const STRING_FORM_OPTIONS = [
+    { value: 'original', label: 'Original (one letter per fixation)' },
+    { value: 'collapsed', label: 'Collapsed (consecutive same-AOI fixations folded)' },
+  ]
+
   const stimulusSummary = $derived(
     stimulusOptions.find(o => o.value === stimulusId)?.label ?? ''
+  )
+
+  const stringFormSummary = $derived(
+    stringForm === 'collapsed' ? 'Collapsed' : 'Original'
   )
 
   const handleExport = async () => {
@@ -24,6 +35,7 @@
         exportService.exportScangraph({
           fileName,
           stimulusId: parseInt(stimulusId, 10),
+          collapsed: stringForm === 'collapsed',
         })
     )
   }
@@ -49,7 +61,6 @@
       description="A ScanGraph file covers one stimulus."
       summary={stimulusSummary}
       done={true}
-      last
     >
       <Select
         label="Stimulus"
@@ -61,6 +72,25 @@
         optimized for comparing eye movement patterns between participants. It
         can be uploaded directly to eyetracking.upol.cz/scangraph for scanpath
         similarity research.
+      </HelpText>
+    </Step>
+    <Step
+      n={2}
+      title="Choose string form"
+      description="How fixations become letters."
+      summary={stringFormSummary}
+      done={true}
+      last
+    >
+      <Radio
+        ariaLabel="Scanpath string form"
+        options={STRING_FORM_OPTIONS}
+        bind:value={stringForm}
+      />
+      <HelpText>
+        Original strings keep one letter per fixation, so dwell duration
+        weighs into the comparison. Collapsed strings fold consecutive
+        fixations in the same AOI, comparing the order of visited AOIs only.
       </HelpText>
     </Step>
   </StepList>

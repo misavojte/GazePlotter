@@ -6,7 +6,7 @@ import { IngestService } from '$lib/data/ingest'
 import { ModalState } from '$lib/modals/modalState.svelte'
 import { ToastState } from '$lib/toaster/toastState.svelte'
 import { GridState } from '$lib/workspace/grid/gridState.svelte'
-import { WorkspaceService } from '$lib/workspace/service.svelte'
+import { WorkspaceCommandBus } from '$lib/workspace/commands/bus'
 
 const GAZEPLOTTER_SESSION_CONTEXT = Symbol.for('gazeplotter-session')
 
@@ -16,7 +16,7 @@ export type GazePlotterSession = {
   exportService: ExportService
   ingest: IngestService
   grid: GridState
-  workspace: WorkspaceService
+  workspace: WorkspaceCommandBus
   modalState: ModalState
   toastState: ToastState
 }
@@ -27,7 +27,7 @@ export function createGazePlotterSession(): GazePlotterSession {
   const modalState = new ModalState()
   const toastState = new ToastState()
   const errorService = new ErrorService(toastState)
-  const workspace = new WorkspaceService({
+  const workspace = new WorkspaceCommandBus({
     engine,
     errorService,
     grid,

@@ -19,10 +19,10 @@ const gridConfig: GridConfig = {
 
 function createWorkspacePort() {
   return {
-    updateItemLayout: vi.fn(() => true),
-    updateItemsLayout: vi.fn(() => true),
-    removeVisualization: vi.fn(() => true),
-    duplicateVisualization: vi.fn(() => true),
+    // One mutation verb, so these assertions pin the COMMAND that reaches the
+    // bus, not merely which forwarding method was picked.
+    apply: vi.fn(() => true),
+    duplicateGridItem: vi.fn(() => true),
   }
 }
 
@@ -31,20 +31,20 @@ describe('gridItemCommands', () => {
     expect(
       getGridItemCommandSource({
         id: 17,
-        type: 'barPlot',
+        type: 'aoiComparison',
       })
-    ).toBe('barPlot.17.workspace')
+    ).toBe('aoiComparison.17.workspace')
   })
 
   it('resolves the minimum size from item-specific bounds and grid config', () => {
-    const item = createGridItem('barPlot', { type: 'barPlot', id: 9 })
+    const item = createGridItem('aoiComparison', { type: 'aoiComparison', id: 9 })
 
     expect(getGridItemMinimumSize(item, gridConfig)).toEqual({ w: 11, h: 10 })
   })
 
   it('commits resize, remove, and duplicate operations through the workspace service', () => {
     const workspace = createWorkspacePort()
-    const item = createGridItem('barPlot', { type: 'barPlot', id: 21 })
+    const item = createGridItem('aoiComparison', { type: 'aoiComparison', id: 21 })
     const items = [item]
 
     expect(
@@ -56,31 +56,31 @@ describe('gridItemCommands', () => {
         h: 1,
       })
     ).toBe(true)
-    expect(workspace.updateItemLayout).toHaveBeenNthCalledWith(
-      1,
-      21,
-      { x: 3, y: 4, w: 11, h: 10 },
-      'barPlot.21.workspace'
-    )
+    expect(workspace.apply).toHaveBeenNthCalledWith(1, {
+      type: 'updateLayout',
+      updates: [{ itemId: 21, layout: { x: 3, y: 4, w: 11, h: 10 } }],
+      source: 'aoiComparison.21.workspace',
+    })
 
     expect(commitGridItemRemoval(workspace, items, { id: 21 })).toBe(true)
-    expect(workspace.removeVisualization).toHaveBeenCalledWith(
-      21,
-      'barPlot.21.workspace'
-    )
+    expect(workspace.apply).toHaveBeenNthCalledWith(2, {
+      type: 'removeGridItem',
+      itemId: 21,
+      source: 'aoiComparison.21.workspace',
+    })
 
     expect(commitGridItemDuplication(workspace, items, { id: 21 })).toBe(true)
-    expect(workspace.duplicateVisualization).toHaveBeenCalledWith(
+    expect(workspace.duplicateGridItem).toHaveBeenCalledWith(
       21,
-      'barPlot.21.workspace',
+      'aoiComparison.21.workspace',
       { duplicateId: undefined, position: undefined }
     )
   })
 
-  it('commits a group move as one atomic updateItemsLayout call', () => {
+  it('commits a group move as one atomic updateLayout command', () => {
     const workspace = createWorkspacePort()
-    const a = createGridItem('barPlot', { type: 'barPlot', id: 21 })
-    const b = createGridItem('barPlot', { type: 'barPlot', id: 22 })
+    const a = createGridItem('aoiComparison', { type: 'aoiComparison', id: 21 })
+    const b = createGridItem('aoiComparison', { type: 'aoiComparison', id: 22 })
     const items = [a, b]
 
     expect(
@@ -89,20 +89,21 @@ describe('gridItemCommands', () => {
         { id: 22, x: 9, y: 5 },
       ])
     ).toBe(true)
-    // One bulk command (single undo step), not two updateItemLayout calls.
-    expect(workspace.updateItemLayout).not.toHaveBeenCalled()
-    expect(workspace.updateItemsLayout).toHaveBeenCalledWith(
-      [
+    // One bulk command (single undo step), not one command per item.
+    expect(workspace.apply).toHaveBeenCalledTimes(1)
+    expect(workspace.apply).toHaveBeenCalledWith({
+      type: 'updateLayout',
+      updates: [
         { itemId: 21, layout: { x: 7, y: 5 } },
         { itemId: 22, layout: { x: 9, y: 5 } },
       ],
-      'barPlot.21.workspace'
-    )
+      source: 'aoiComparison.21.workspace',
+    })
   })
 
   it('group move drops commits for items that no longer exist', () => {
     const workspace = createWorkspacePort()
-    const a = createGridItem('barPlot', { type: 'barPlot', id: 21 })
+    const a = createGridItem('aoiComparison', { type: 'aoiComparison', id: 21 })
 
     expect(
       commitGridItemGroupMove(workspace, [a], [
@@ -110,10 +111,11 @@ describe('gridItemCommands', () => {
         { id: 999, x: 2, y: 2 },
       ])
     ).toBe(true)
-    expect(workspace.updateItemsLayout).toHaveBeenCalledWith(
-      [{ itemId: 21, layout: { x: 1, y: 1 } }],
-      'barPlot.21.workspace'
-    )
+    expect(workspace.apply).toHaveBeenCalledWith({
+      type: 'updateLayout',
+      updates: [{ itemId: 21, layout: { x: 1, y: 1 } }],
+      source: 'aoiComparison.21.workspace',
+    })
   })
 
   it('returns false when the target item is missing', () => {
@@ -131,8 +133,7 @@ describe('gridItemCommands', () => {
     expect(commitGridItemRemoval(workspace, [], { id: 999 })).toBe(false)
     expect(commitGridItemDuplication(workspace, [], { id: 999 })).toBe(false)
 
-    expect(workspace.updateItemLayout).not.toHaveBeenCalled()
-    expect(workspace.removeVisualization).not.toHaveBeenCalled()
-    expect(workspace.duplicateVisualization).not.toHaveBeenCalled()
+    expect(workspace.apply).not.toHaveBeenCalled()
+    expect(workspace.duplicateGridItem).not.toHaveBeenCalled()
   })
 })

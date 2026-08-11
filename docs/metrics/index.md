@@ -24,9 +24,10 @@ The projection layer defines how raw values computed by a recipe translate to th
 
 ### Raw vs. Projected Shapes
 
-Recipes calculate values into four canonical **Raw Shapes**:
+Recipes calculate values into five canonical **Raw Shapes**:
 - `scalar`: A single numerical value per participant (e.g., Recurrence Rate).
 - `aoi-vector`: An array of values mapping to each active AOI slot (e.g., Dwell Time per AOI).
+- `category-vector`: An array of values mapping to each eye-movement type (e.g., Eye-movement Count per type).
 - `aoi-pair-matrix`: A 2D grid of values mapping transitions between AOI pairs (e.g., Transition Probability).
 - `participant-pair-matrix`: A 2D grid representing pairwise comparisons between participants (e.g., Scanpath Similarity).
 
@@ -36,16 +37,20 @@ Projections act as a transformation tree, using **Leaf Projections** to reshape 
 | --- | --- | --- | --- |
 | `identity-scalar` | `scalar` | `scalar` | Passes the scalar value through directly. |
 | `identity-aoi-vector` | `aoi-vector` | `aoi-vector` | Passes the AOI vector through directly. |
+| `identity-category-vector` | `category-vector` | `category-vector` | Passes the eye-movement type vector through directly. |
 | `identity-aoi-pair-matrix` | `aoi-pair-matrix` | `aoi-pair-matrix` | Passes the N×N transition matrix through directly. |
 | `identity-participant-pair-matrix` | `participant-pair-matrix` | `participant-pair-matrix` | Passes the M×M similarity matrix through directly. |
 | `pick-aoi` | `aoi-vector` | `scalar` | Extracts a single target AOI value from the vector. |
 | `pick-any-fixation` | `aoi-vector` | `scalar` | Extracts the total stimulus-level value (any fixation). |
+| `pick-category` | `category-vector` | `scalar` | Extracts a single eye-movement type value by displayed name. |
 | `aggregate-aoi` | `aoi-vector` | `scalar` | Reduces the vector using `max` or `min` across AOIs. |
 | `matrix-diagonal` | `aoi-pair-matrix` | `aoi-vector` | Extracts the diagonal cells (self-transitions) as a vector. |
 | `matrix-row` | `aoi-pair-matrix` | `aoi-vector` | Extracts a row (outgoing transitions from a source AOI) as a vector. |
 | `matrix-col` | `aoi-pair-matrix` | `aoi-vector` | Extracts a column (incoming transitions to a target AOI) as a vector. |
 | `matrix-cell` | `aoi-pair-matrix` | `scalar` | Extracts a single transition cell (`fromAoi` &gt; `toAoi`) as a scalar. |
 | `matrix-aggregate` | `aoi-pair-matrix` | `scalar` | Reduces all cells to a scalar using a reducer (`sum`, `mean`, `max`, `min`). |
+
+> **Where the summary statistic lives**: For metrics built on a per-event sample (fixation duration, visit duration, eye-movement duration), the mean/median/max/min choice belongs to the projection that produces a **summary** — `pick-aoi`, `pick-any-fixation` and `pick-category` each carry it, and it appears as a **Summary** control next to that projection's own settings. A vector projection carries no such choice: one value per AOI (or per eye-movement type) is always the mean of that slot's sample. If you need a median per AOI, project to **One AOI**; if you need the whole distribution, use AOI Comparison, whose beeswarm and overlay show it directly.
 
 
 ## Windowing and Binning Rules
@@ -56,15 +61,17 @@ A projection can also wrap a leaf projection in a temporal or ordinal window to 
 
 ### Svelte-Side Frame Mathematics
 
-To compute windowed values accurately, GazePlotter projects fixations onto moving time windows using two distinct scientific signals:
+GazePlotter projects fixations onto moving time windows with two independent signals: how much a fixation contributes, and which windows it belongs to.
 
 1. **Sub-bin Overlap Duration (`frame.duration`)**:
    Computed as `min(fixation.end, window.end) - max(fixation.start, window.start)`. 
    This matches the legacy overlap math exactly. It is used for duration metrics (like `absoluteTime` and `relativeTime`) so a fixation crossing a window boundary contributes only its in-window portion, ensuring the sum of windowed values equals the total unwindowed dwell time.
    
-2. **Midpoint-in-Window Membership (`frame.midpointInWindow`)**:
-   A fixation belongs to a window if its temporal midpoint (`start + duration / 2`) falls within the window's boundaries.
-   This is used to gate count-style metrics (like `fixationCount` and `visitCount`) and RQA metrics so that each fixation contributes to exactly one window, preventing double-counting.
+2. **Membership (`windowMembership`)**:
+   Which windows a fixation belongs to. Each metric declares its rule once, and a plain time range counts as a single window.
+   - `'all'` (default): every window the fixation overlaps. Use it when a fixation can be split across windows, as clipped durations are, and for yes/no questions like "was this AOI looked at here".
+   - `'own'`: only the window holding the fixation's midpoint. Use it when counting things that cannot be split (`fixationCount`, `visitCount`, `movementCount`), so the per-window numbers still add up to the total when the windows do not overlap. A window that owns nothing reports 0, not missing data.
+   Metrics reporting additive totals must state their rule explicitly, and a contradictory choice is rejected when the metric is registered. An average must never use `'own'`: it would report no data for a window a fixation plainly covers.
 
 ---
 

@@ -1,4 +1,5 @@
 import { deriveEvolvingMetricsView } from './core/view'
+import { evolvingMetricsScreen } from './core/screen.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
 import { PRESET_PALETTES } from '$lib/color/palettes'
@@ -48,6 +49,7 @@ export const evolvingMetricsDefinition = definePlot<
     deriveView: deriveEvolvingMetricsView,
     viewDependsOnWidth: true,
   },
+  screen: evolvingMetricsScreen,
   getSubtitle: stimulusGroupSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,

@@ -557,7 +557,9 @@ export function alignToPixelCenter(val: number): number {
 /** The one hover-crosshair color shared by every plot figure's hover chrome. */
 export const CROSSHAIR_COLOR = '#007acc'
 
-const CROSSHAIR_DASH = [2, 2]
+/** THE hover-mark dash. Exported so a figure dashing its own path (an emphasised
+ *  step line) reuses it instead of duplicating the appearance. */
+export const CROSSHAIR_DASH = [2, 2]
 
 /**
  * Translucent crosshair band — the shared hover-highlight fill. Alpha varies
@@ -597,6 +599,341 @@ export function strokeCrosshairGuides(
     ctx.moveTo(segments[i], segments[i + 1])
     ctx.lineTo(segments[i + 2], segments[i + 3])
   }
+  ctx.stroke()
+  ctx.restore()
+}
+
+export interface HighlightRect {
+  x: number
+  y: number
+  width: number
+  height: number
+  alpha?: number
+  along?: 'x' | 'y' | 'both'
+}
+
+let _segmentsScratch: number[] = []
+
+/**
+ * Given a set of rectangular highlight regions, calculates flat [x1, y1, x2, y2, ...]
+ * coordinate segments for dashed guide lines strictly along the OUTER edges of their union.
+ * Inner dashed lines at crossings or shared abutting borders are omitted.
+ */
+export function getOuterCrosshairSegments(rects: readonly HighlightRect[]): readonly number[] {
+  _segmentsScratch.length = 0
+  if (rects.length === 0) return _segmentsScratch
+
+  const n = rects.length
+
+  for (let i = 0; i < n; i++) {
+    const r = rects[i]
+    const along = r.along ?? 'both'
+    const x1 = r.x
+    const x2 = r.x + r.width
+    const y1 = r.y
+    const y2 = r.y + r.height
+
+    const cx1 = alignToPixelCenter(x1)
+    const cx2 = alignToPixelCenter(x2)
+    const cy1 = alignToPixelCenter(y1)
+    const cy2 = alignToPixelCenter(y2)
+
+    // Horizontal edges (Top & Bottom) for along === 'x' or 'both'
+    if (along === 'x' || along === 'both') {
+      // Top Edge (y = y1, x in [x1, x2])
+      {
+        const covered: Array<{ min: number; max: number }> = []
+        for (let j = 0; j < n; j++) {
+          if (i === j) continue
+          const o = rects[j]
+          const oAlong = o.along ?? 'both'
+          const ox1 = o.x
+          const ox2 = o.x + o.width
+          const oy1 = o.y
+          const oy2 = o.y + o.height
+
+          if (y1 > oy1 && y1 < oy2) {
+            covered.push({ min: ox1, max: ox2 })
+          } else if (y1 === oy2 && (oAlong === 'x' || oAlong === 'both')) {
+            covered.push({ min: ox1, max: ox2 })
+          } else if (y1 === oy1 && (oAlong === 'x' || oAlong === 'both') && j < i) {
+            covered.push({ min: ox1, max: ox2 })
+          }
+        }
+        subtractIntervalsAndPushHorizontal(x1, x2, cy1, covered)
+      }
+
+      // Bottom Edge (y = y2, x in [x1, x2])
+      {
+        const covered: Array<{ min: number; max: number }> = []
+        for (let j = 0; j < n; j++) {
+          if (i === j) continue
+          const o = rects[j]
+          const oAlong = o.along ?? 'both'
+          const ox1 = o.x
+          const ox2 = o.x + o.width
+          const oy1 = o.y
+          const oy2 = o.y + o.height
+
+          if (y2 > oy1 && y2 < oy2) {
+            covered.push({ min: ox1, max: ox2 })
+          } else if (y2 === oy1 && (oAlong === 'x' || oAlong === 'both')) {
+            covered.push({ min: ox1, max: ox2 })
+          } else if (y2 === oy2 && (oAlong === 'x' || oAlong === 'both') && j < i) {
+            covered.push({ min: ox1, max: ox2 })
+          }
+        }
+        subtractIntervalsAndPushHorizontal(x1, x2, cy2, covered)
+      }
+    }
+
+    // Vertical edges (Left & Right) for along === 'y' or 'both'
+    if (along === 'y' || along === 'both') {
+      // Left Edge (x = x1, y in [y1, y2])
+      {
+        const covered: Array<{ min: number; max: number }> = []
+        for (let j = 0; j < n; j++) {
+          if (i === j) continue
+          const o = rects[j]
+          const oAlong = o.along ?? 'both'
+          const ox1 = o.x
+          const ox2 = o.x + o.width
+          const oy1 = o.y
+          const oy2 = o.y + o.height
+
+          if (x1 > ox1 && x1 < ox2) {
+            covered.push({ min: oy1, max: oy2 })
+          } else if (x1 === ox2 && (oAlong === 'y' || oAlong === 'both')) {
+            covered.push({ min: oy1, max: oy2 })
+          } else if (x1 === ox1 && (oAlong === 'y' || oAlong === 'both') && j < i) {
+            covered.push({ min: oy1, max: oy2 })
+          }
+        }
+        subtractIntervalsAndPushVertical(y1, y2, cx1, covered)
+      }
+
+      // Right Edge (x = x2, y in [y1, y2])
+      {
+        const covered: Array<{ min: number; max: number }> = []
+        for (let j = 0; j < n; j++) {
+          if (i === j) continue
+          const o = rects[j]
+          const oAlong = o.along ?? 'both'
+          const ox1 = o.x
+          const ox2 = o.x + o.width
+          const oy1 = o.y
+          const oy2 = o.y + o.height
+
+          if (x2 > ox1 && x2 < ox2) {
+            covered.push({ min: oy1, max: oy2 })
+          } else if (x2 === ox1 && (oAlong === 'y' || oAlong === 'both')) {
+            covered.push({ min: oy1, max: oy2 })
+          } else if (x2 === ox2 && (oAlong === 'y' || oAlong === 'both') && j < i) {
+            covered.push({ min: oy1, max: oy2 })
+          }
+        }
+        subtractIntervalsAndPushVertical(y1, y2, cx2, covered)
+      }
+    }
+  }
+
+  return _segmentsScratch
+}
+
+function subtractIntervalsAndPushHorizontal(
+  start: number,
+  end: number,
+  cy: number,
+  covered: readonly { min: number; max: number }[]
+): void {
+  if (covered.length === 0) {
+    if (end > start) _segmentsScratch.push(start, cy, end, cy)
+    return
+  }
+
+  let remaining = [{ min: start, max: end }]
+  for (let cIdx = 0; cIdx < covered.length; cIdx++) {
+    const c = covered[cIdx]
+    const next: Array<{ min: number; max: number }> = []
+    for (let rIdx = 0; rIdx < remaining.length; rIdx++) {
+      const r = remaining[rIdx]
+      if (c.max <= r.min || c.min >= r.max) {
+        next.push(r)
+      } else {
+        if (c.min > r.min) next.push({ min: r.min, max: c.min })
+        if (c.max < r.max) next.push({ min: c.max, max: r.max })
+      }
+    }
+    remaining = next
+    if (remaining.length === 0) break
+  }
+
+  for (let k = 0; k < remaining.length; k++) {
+    const seg = remaining[k]
+    if (seg.max > seg.min) {
+      _segmentsScratch.push(seg.min, cy, seg.max, cy)
+    }
+  }
+}
+
+function subtractIntervalsAndPushVertical(
+  start: number,
+  end: number,
+  cx: number,
+  covered: readonly { min: number; max: number }[]
+): void {
+  if (covered.length === 0) {
+    if (end > start) _segmentsScratch.push(cx, start, cx, end)
+    return
+  }
+
+  let remaining = [{ min: start, max: end }]
+  for (let cIdx = 0; cIdx < covered.length; cIdx++) {
+    const c = covered[cIdx]
+    const next: Array<{ min: number; max: number }> = []
+    for (let rIdx = 0; rIdx < remaining.length; rIdx++) {
+      const r = remaining[rIdx]
+      if (c.max <= r.min || c.min >= r.max) {
+        next.push(r)
+      } else {
+        if (c.min > r.min) next.push({ min: r.min, max: c.min })
+        if (c.max < r.max) next.push({ min: c.max, max: r.max })
+      }
+    }
+    remaining = next
+    if (remaining.length === 0) break
+  }
+
+  for (let k = 0; k < remaining.length; k++) {
+    const seg = remaining[k]
+    if (seg.max > seg.min) {
+      _segmentsScratch.push(cx, seg.min, cx, seg.max)
+    }
+  }
+}
+
+/**
+ * Renders one or more highlight areas (strips, cells, or bands), filling their translucent
+ * background in a single unified path pass (so meeting/crossing areas have uniform color
+ * with zero alpha stacking) and drawing dashed outlines ONLY on the outer perimeter of their union.
+ * Inner dashed lines at crossings or abutting borders are automatically omitted.
+ */
+export function markCrosshairStrips(
+  ctx: CanvasRenderingContext2D,
+  rects: readonly HighlightRect[],
+  defaultAlpha = 0.18
+): void {
+  if (rects.length === 0) return
+
+  const alpha = rects[0].alpha ?? defaultAlpha
+
+  // Fill all rects in a single path pass so overlapping areas (crossings) do not stack alpha
+  ctx.save()
+  ctx.globalAlpha = alpha
+  ctx.fillStyle = CROSSHAIR_COLOR
+  ctx.beginPath()
+  for (let i = 0; i < rects.length; i++) {
+    const r = rects[i]
+    ctx.rect(r.x, r.y, r.width, r.height)
+  }
+  ctx.fill()
+  ctx.restore()
+
+  const segments = getOuterCrosshairSegments(rects)
+  if (segments.length > 0) {
+    strokeCrosshairGuides(ctx, segments)
+  }
+}
+
+/**
+ * THE strip mark: "this row / column is designated". A translucent band plus its
+ * two LONG edges dashed — `along: 'x'` for a row (horizontal edges), `'y'` for a
+ * column.
+ */
+export function markCrosshairStrip(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  alpha: number,
+  along: 'x' | 'y'
+): void {
+  markCrosshairStrips(ctx, [{ x, y, width, height, alpha, along }])
+}
+
+/**
+ * Dashed 1px crosshair rectangle — the closed-outline form, for a region that is
+ * not a strip (a whole panel; see `strokeCrosshairPanel`).
+ */
+export function strokeCrosshairRect(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number
+): void {
+  const left = alignToPixelCenter(x)
+  const top = alignToPixelCenter(y)
+  const right = alignToPixelCenter(x + width)
+  const bottom = alignToPixelCenter(y + height)
+  // Co-directional, NOT a perimeter walk: canvas restarts the dash phase per
+  // subpath, so reversed opposing edges would render a shared edge between two
+  // adjacent outlines solid.
+  strokeCrosshairGuides(ctx, [
+    left, top, right, top,
+    left, bottom, right, bottom,
+    left, top, left, bottom,
+    right, top, right, bottom,
+  ])
+}
+
+/**
+ * THE point mark: "this node / dot is designated". The strip mark's sibling for a
+ * round thing — a translucent halo plus its dashed ring — so a 1px ring alone is
+ * never all there is to find. Like the strip mark it says nothing about WHO
+ * designated the point, so a plot's own hover and the PLOT CURSOR share it.
+ *
+ * The alpha is fixed here, unlike `markCrosshairStrip`: strips carry three
+ * established per-plot hover weights, points have none.
+ */
+export function markCrosshairNode(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  radius: number
+): void {
+  ctx.save()
+  ctx.beginPath()
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2)
+  ctx.globalAlpha = 0.2
+  ctx.fillStyle = CROSSHAIR_COLOR
+  ctx.fill()
+  ctx.globalAlpha = 1
+  ctx.strokeStyle = CROSSHAIR_COLOR
+  ctx.lineWidth = 1
+  ctx.setLineDash(CROSSHAIR_DASH)
+  ctx.stroke()
+  ctx.restore()
+}
+
+/**
+ * The point mark's WEAKER tier: the ring alone, no halo — "adjacent to something
+ * designated", not designated itself. Only a graph has this second tier, and the
+ * missing fill is the whole difference, so the two can never be misread.
+ */
+export function strokeCrosshairRing(
+  ctx: CanvasRenderingContext2D,
+  cx: number,
+  cy: number,
+  radius: number
+): void {
+  ctx.save()
+  ctx.strokeStyle = CROSSHAIR_COLOR
+  ctx.lineWidth = 1
+  ctx.setLineDash(CROSSHAIR_DASH)
+  ctx.beginPath()
+  ctx.arc(cx, cy, radius, 0, Math.PI * 2)
   ctx.stroke()
   ctx.restore()
 }

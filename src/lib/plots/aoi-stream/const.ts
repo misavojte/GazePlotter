@@ -29,7 +29,6 @@ export const RIDGELINE_MIN_M_TOP = 0.2
 export const STREAM_SYMMETRY_FACTOR = 0.5
 
 export const MARGIN = {
-  TOP: 5,
   RIGHT: 1,
 }
 

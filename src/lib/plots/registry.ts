@@ -6,7 +6,7 @@ import type {
   PaneSectionEntry,
 } from './definePlot'
 import { aoiStreamPlotDefinition } from './aoi-stream'
-import { barPlotDefinition } from './bar'
+import { aoiComparisonDefinition } from './aoi-comparison'
 import { scarfPlotDefinition } from './scarf'
 import { transitionMatrixDefinition } from './transition-matrix'
 import { scanpathSimilarityDefinition } from './scanpath-similarity'
@@ -15,11 +15,12 @@ import { recurrencePlotDefinition } from './recurrence'
 import { evolvingMetricsDefinition } from './evolving-metrics'
 import { metricCorrelationDefinition } from './metric-correlation'
 import { metricMatrixDefinition } from './metric-matrix'
+import { eyeMovementComparisonDefinition } from './eye-movement-comparison'
 
 export const plotRegistry = {
   scarf: scarfPlotDefinition,
   transitionMatrix: transitionMatrixDefinition,
-  barPlot: barPlotDefinition,
+  aoiComparison: aoiComparisonDefinition,
   aoiStreamPlot: aoiStreamPlotDefinition,
   scanpathSimilarity: scanpathSimilarityDefinition,
   scanpath: scanpathPlotDefinition,
@@ -27,6 +28,7 @@ export const plotRegistry = {
   evolvingMetrics: evolvingMetricsDefinition,
   metricCorrelation: metricCorrelationDefinition,
   metricMatrix: metricMatrixDefinition,
+  eyeMovementComparison: eyeMovementComparisonDefinition,
 } as const
 
 /**

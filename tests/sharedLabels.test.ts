@@ -6,29 +6,9 @@ import {
   rangeQualifier,
   timeRangeQualifier,
 } from '../src/lib/plots/shared/labels'
-import type { Metric, MetricInstance } from '../src/lib/metrics'
+import type { MetricInstance } from '../src/lib/metrics'
 
-function buildMetric(label: string, unit: string): Metric {
-  return {
-    meta: {
-      id: 'm',
-      label,
-      unit,
-      description: '',
-      category: 'duration',
-      rawShape: 'aoi-vector',
-      windowUnit: 'ms',
-      params: [],
-      searchTags: [],
-      measurementClass: 'intensive',
-      defaultReduction: 'mean',
-      supportsWindowing: true,
-      providesAnyFixation: false,
-    },
-  }
-}
-
-function buildInstance(label: string, baseId = 'm'): MetricInstance {
+function buildInstance(label: string, baseId = 'absoluteTime'): MetricInstance {
   return { id: 'i', baseId, params: {}, label, projection: { kind: 'identity-aoi-vector' } }
 }
 
@@ -48,20 +28,25 @@ describe('formatQuantity (IUPAC)', () => {
 })
 
 describe('formatInstanceLabel', () => {
+  // The metric is DERIVED from the instance's baseId, never passed alongside
+  // it — so these use real registered ids (absoluteTime / ms, fixationCount /
+  // count) and a mismatched (instance, metric) pair is unrepresentable.
   it('uses the instance label (carries projection) + the metric unit', () => {
-    expect(formatInstanceLabel(buildInstance('Time on AOI · 500 ms window'), buildMetric('Absolute dwell time', 'ms')))
+    expect(formatInstanceLabel(buildInstance('Time on AOI · 500 ms window', 'absoluteTime')))
       .toBe('Time on AOI · 500 ms window / ms')
   })
   it('prefers the instance label over the metric generic name', () => {
-    expect(formatInstanceLabel(buildInstance('My renamed metric'), buildMetric('Fixation count', 'count')))
+    expect(formatInstanceLabel(buildInstance('My renamed metric', 'fixationCount')))
       .toBe('My renamed metric / count')
   })
-  it('falls back to the metric generic name when no instance', () => {
-    expect(formatInstanceLabel(null, buildMetric('Fixation count', 'count'))).toBe('Fixation count / count')
+  it('falls back to the metric generic name when the instance has no label', () => {
+    expect(formatInstanceLabel(buildInstance('', 'fixationCount'))).toBe('Fixation count / count')
   })
-  it('uses the explicit fallback when neither instance nor metric resolve', () => {
-    expect(formatInstanceLabel(null, undefined, 'Similarity')).toBe('Similarity')
-    expect(formatInstanceLabel(null, undefined)).toBe('Value')
+  it('uses the explicit fallback when no instance resolves', () => {
+    expect(formatInstanceLabel(null, 'Similarity')).toBe('Similarity')
+    expect(formatInstanceLabel(null)).toBe('Value')
+    // An instance naming a metric that no longer exists degrades the same way.
+    expect(formatInstanceLabel(buildInstance('', 'goneMetric'), 'Similarity')).toBe('Similarity')
   })
 })
 
@@ -121,7 +106,7 @@ describe('composed plot labels (the unified grammar)', () => {
       .toBe('Transition probability / % · No-AOI excluded · t ∈ [100, 5000] ms')
   })
   it('bar value axis: instance / unit · statistic (no time range when unbounded)', () => {
-    const primary = formatInstanceLabel(buildInstance('Fixation count'), buildMetric('Fixation count', 'count'))
+    const primary = formatInstanceLabel(buildInstance('Fixation count', 'fixationCount'))
     expect(withQualifiers(primary, 'mean ± 95% CI', timeRangeQualifier(0, 0)))
       .toBe('Fixation count / count · mean ± 95% CI')
   })

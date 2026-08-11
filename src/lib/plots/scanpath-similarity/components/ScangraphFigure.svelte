@@ -1,10 +1,10 @@
 <script lang="ts">
   import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
+  import { distanceToSegment } from '$lib/shared/utils/mathUtils'
   import { UI_COLORS } from '$lib/color'
   import {
     drawPlotArea,
     usePlot,
-    NO_MARGINS,
     canvasBlockSelect,
     type CanvasExportProps,
     type PlotFrame,
@@ -14,6 +14,15 @@
     METRIC_MISSING_MESSAGE,
     cannotFitPlaceholder,
   } from '$lib/plots/shared/drawCanvasPlaceholder'
+  import {
+    CROSSHAIR_COLOR,
+    markCrosshairNode,
+    strokeCrosshairRing,
+  } from '$lib/plots/shared/canvasUtils'
+  import {
+    cursorRows,
+    type PlotCursorPort,
+  } from '$lib/plots/shared/plotCursor.svelte'
   import { SCANGRAPH_LAYOUT } from '../const'
   import type { ScangraphData } from '../types'
   import { computeForceLayout, type LayoutResult, type NodePosition } from '../core/forceLayout'
@@ -21,14 +30,25 @@
   const HIGHLIGHT_COLOR = '#e53e3e'
   const HIGHLIGHT_FILL = '#fbbf24'
   const HIGHLIGHT_CONNECTED_STROKE = '#e53e3e'
+  /** Alpha for everything outside an active clique — the clique reads by the
+   *  rest receding, not by extra marks on non-members. */
+  const DIM_ALPHA = 0.25
   const MIN_NODE_SPACING = 3
 
   interface Props extends CanvasExportProps {
     data: ScangraphData
     threshold?: number
+    /** Manually clicked nodes (indices): neighbourhood emphasis. */
     highlights?: number[]
+    /** The selected clique's nodes (indices): members and their intra-clique
+     *  edges pop, everything else dims. */
+    cliqueMembers?: number[]
     noMetric?: boolean
     onNodeClick?: (nodeIndex: number) => void
+    /** Participant id per node index — the PLOT CURSOR's participant channel. */
+    participantIds?: number[]
+    /** Shared PLOT CURSOR (screen-only; export renders without one). */
+    plotCursor?: PlotCursorPort | null
   }
 
   let {
@@ -37,18 +57,27 @@
     width = 500,
     threshold = 0.5,
     highlights = [],
+    cliqueMembers = [],
     noMetric = false,
     onNodeClick,
-    dpiOverride = null,
-    margins = NO_MARGINS,
+    participantIds,
+    plotCursor = null,
+    margin = 0,
   }: Props = $props()
 
-  const plot = usePlot<NodePosition>({
+  /**
+   * What the pointer is on. A NODE is one participant; an EDGE is a pair, exactly
+   * like a similarity-matrix cell, so it designates both endpoints.
+   */
+  type ScangraphHover =
+    | { kind: 'node'; node: NodePosition }
+    | { kind: 'edge'; source: number; target: number; value: number }
+
+  const plot = usePlot<ScangraphHover>({
     width: () => width,
     height: () => height,
-    margins: () => margins,
-    dpiOverride: () => dpiOverride,
-    deps: () => [data, threshold, highlights, noMetric],
+    margin: () => margin,
+    deps: () => [data, threshold, highlights, cliqueMembers, noMetric],
     placeholder: () =>
       noMetric
         ? METRIC_MISSING_MESSAGE
@@ -70,8 +99,109 @@
     gutters: () => ({}),
     clipData: false,
     drawData: drawGraph,
+    drawOverlay: drawNodeMarks,
     hitTest: computeHit,
+    // Live reads of the hovered INDICES, like every other publisher: an undo under
+    // a resting pointer re-derives who they are, or reads back empty. An edge
+    // publishes a sorted PAIR, the same set a similarity-matrix cell publishes.
+    onHover: hover => {
+      const at = () => {
+        const ids = participantIds ?? []
+        if (hover === null) return []
+        if (hover.kind === 'node') return ids.slice(hover.node.id, hover.node.id + 1)
+        return [ids[hover.source], ids[hover.target]]
+          .filter((id): id is number => id !== undefined)
+          .sort((x, y) => x - y)
+      }
+      plotCursor?.publish(at().length === 0 ? null : { participants: at })
+    },
+    overlayDeps: (): string => cursorNodesKey,
   })
+
+  const cursorNodes = $derived(
+    cursorRows(participantIds ?? [], plotCursor?.participants ?? [])
+  )
+  const cursorNodesKey = $derived(cursorNodes.join(','))
+
+  /**
+   * What is designated RIGHT NOW, and whether the designation is a PAIR. One
+   * derived for all three sources — this plot's node hover, this plot's edge
+   * hover, or the cursor — and everything below reads only this, never which
+   * source filled it. That is what makes p1 look identical hovered here and
+   * hovered in a scarf.
+   *
+   * `pair` is what an edge hover means: the relation itself, so the marks stay on
+   * the two endpoints and their one shared edge. A node hover instead asks "who is
+   * like this participant", so it fans out to the whole neighbourhood.
+   */
+  const designated = $derived.by(() => {
+    const hovered = plot.hover.data
+    if (hovered?.kind === 'edge') {
+      return { nodes: new Set([hovered.source, hovered.target]), pair: true }
+    }
+    if (hovered?.kind === 'node') {
+      return { nodes: new Set([hovered.node.id]), pair: false }
+    }
+    return { nodes: new Set(cursorNodes), pair: false }
+  })
+
+  /** Nodes adjacent to `of`, itself excluded. */
+  function neighboursOf(of: ReadonlySet<number>): Set<number> {
+    const set = new Set<number>()
+    if (of.size === 0 || !data) return set
+    for (const link of data.links) {
+      if (of.has(link.source) && !of.has(link.target)) set.add(link.target)
+      if (of.has(link.target) && !of.has(link.source)) set.add(link.source)
+    }
+    return set
+  }
+
+  /**
+   * A designated node's neighbourhood, in two tiers — a graph's own answer to
+   * "who is this?", which is why the mark is richer here than a row outline: the
+   * node itself gets the halo + ring, its edges keep their similarity thickness in
+   * the cursor colour, and its neighbours get the ring ALONE (adjacent, not
+   * designated). The cursor still carries only the designated participant; the
+   * neighbourhood is this plot's rendering of it, never extra channel content.
+   */
+  function drawNodeMarks(ctx: CanvasRenderingContext2D) {
+    const { nodes: marked, pair } = designated
+    if (marked.size === 0) return
+    const { nodes, links } = layoutResult
+    const r = nodeRadius + 3
+
+    // `&&` for a pair (that one edge), `||` for a participant (all of its edges) —
+    // the same operator distinction the matrix highlight draws. Both endpoints of
+    // a drawn edge carry a ring (designated or neighbour), so the stroke stops at
+    // the ring's outer rim instead of running under the mark to the centre.
+    const rim = r + 0.5
+    ctx.save()
+    ctx.strokeStyle = CROSSHAIR_COLOR
+    for (const link of links) {
+      const a = marked.has(link.source)
+      const b = marked.has(link.target)
+      if (pair ? !(a && b) : !(a || b)) continue
+      const s = nodes[link.source]
+      const t = nodes[link.target]
+      if (!s || !t) continue
+      ctx.lineWidth = linkWidth(link.value)
+      strokeTrimmedLink(ctx, s, t, rim, rim)
+    }
+    ctx.restore()
+
+    // A pair designates the relation, not a neighbourhood: no second tier, or the
+    // two endpoints would be buried among their other neighbours.
+    if (!pair) {
+      for (const index of neighboursOf(marked)) {
+        const node = nodes[index]
+        if (node) strokeCrosshairRing(ctx, node.x, node.y, r)
+      }
+    }
+    for (const index of marked) {
+      const node = nodes[index]
+      if (node) markCrosshairNode(ctx, node.x, node.y, r)
+    }
+  }
 
   const nodeRadius = $derived.by(() => {
     const n = data?.nodes.length ?? 0
@@ -80,17 +210,46 @@
     return Math.round(Math.max(3, Math.min(8, minDim / (n * 1.2))) * 10) / 10
   })
 
+  /** Link thickness encodes similarity — one rule for the data pass and the marks. */
+  const linkWidth = (value: number) => {
+    const range = 1 - threshold
+    return 0.5 + (range > 0 ? (value - threshold) / range : 0) * 3.5
+  }
+
+  /**
+   * Stroke s→t with each end pulled back by its rim, so the line stops at a
+   * mark's or a translucent node's boundary instead of running under it to the
+   * centre. Rims that would consume the whole segment fall back to
+   * centre-to-centre: dropping the edge would read as "not linked".
+   */
+  function strokeTrimmedLink(
+    ctx: CanvasRenderingContext2D,
+    s: NodePosition,
+    t: NodePosition,
+    rimS: number,
+    rimT: number
+  ) {
+    const dx = t.x - s.x
+    const dy = t.y - s.y
+    const len = Math.hypot(dx, dy)
+    ctx.beginPath()
+    if (len <= rimS + rimT) {
+      ctx.moveTo(s.x, s.y)
+      ctx.lineTo(t.x, t.y)
+    } else {
+      const ux = dx / len
+      const uy = dy / len
+      ctx.moveTo(s.x + ux * rimS, s.y + uy * rimS)
+      ctx.lineTo(t.x - ux * rimT, t.y - uy * rimT)
+    }
+    ctx.stroke()
+  }
+
   const highlightSet = $derived(new Set(highlights))
 
-  const connectedToHighlight = $derived.by(() => {
-    const set = new Set<number>()
-    if (highlightSet.size === 0 || !data) return set
-    for (const link of data.links) {
-      if (highlightSet.has(link.source) && !highlightSet.has(link.target)) set.add(link.target)
-      if (highlightSet.has(link.target) && !highlightSet.has(link.source)) set.add(link.source)
-    }
-    return set
-  })
+  const connectedToHighlight = $derived(neighboursOf(highlightSet))
+
+  const cliqueSet = $derived(new Set(cliqueMembers))
 
   // Canonical square the force sim runs in. Fixed so the (expensive) simulation
   // is independent of the plot's pixel size.
@@ -110,14 +269,14 @@
   const layoutResult = $derived.by((): LayoutResult => {
     const nl = normalizedLayout
     if (nl.nodes.length === 0) return nl
-    const contentW = Math.max(1, width - margins.left - margins.right)
-    const contentH = Math.max(1, height - margins.top - margins.bottom)
+    const contentW = Math.max(1, width - margin * 2)
+    const contentH = Math.max(1, height - margin * 2)
     const sx = contentW / CANON
     const sy = contentH / CANON
     const nodes = nl.nodes.map(n => ({
       ...n,
-      x: margins.left + n.x * sx,
-      y: margins.top + n.y * sy,
+      x: margin + n.x * sx,
+      y: margin + n.y * sy,
     }))
     return { nodes, links: nl.links }
   })
@@ -139,13 +298,15 @@
   /**
    * Label placement: above the node, sliding right then left if needed. Skips a
    * label that can't be placed without colliding with a node or another label
-   * (the tooltip still works for those).
+   * (the tooltip still works for those). `priority` nodes place FIRST — an
+   * emphasised node must not lose its name to a plain neighbour's label.
    */
   function computeVisibleLabels(
     ctx: CanvasRenderingContext2D,
     nodes: NodePosition[],
     r: number,
-    fontSize: number
+    fontSize: number,
+    priority: ReadonlySet<number>
   ): { nodeIndex: number; rect: Rect }[] {
     const gap = 3
     const labelH = fontSize + 2
@@ -154,7 +315,11 @@
     const placedLabels: Rect[] = []
     const result: { nodeIndex: number; rect: Rect }[] = []
 
-    for (let i = 0; i < nodes.length; i++) {
+    const order: number[] = []
+    for (let i = 0; i < nodes.length; i++) if (priority.has(i)) order.push(i)
+    for (let i = 0; i < nodes.length; i++) if (!priority.has(i)) order.push(i)
+
+    for (const i of order) {
       const node = nodes[i]
       const labelW = ctx.measureText(node.label).width
       const baseY = node.y - r - gap - labelH
@@ -171,10 +336,10 @@
       for (const rx of candidates) {
         const rect: Rect = { x: rx, y: baseY, w: labelW, h: labelH }
         if (
-          rect.x < margins.left ||
-          rect.y < margins.top ||
-          rect.x + rect.w > margins.left + width ||
-          rect.y + rect.h > margins.top + height
+          rect.x < margin ||
+          rect.y < margin ||
+          rect.x + rect.w > margin + width ||
+          rect.y + rect.h > margin + height
         ) {
           continue
         }
@@ -202,23 +367,61 @@
     return result
   }
 
+  /** Full-strength while a clique is active: the clique itself plus the manual
+   *  neighbourhood emphasis, which stays readable on top of the dim. */
+  const nodeEmphasised = (ni: number): boolean =>
+    cliqueSet.has(ni) || highlightSet.has(ni) || connectedToHighlight.has(ni)
+
   function drawGraph(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
     const { nodes, links } = layoutResult
     const r = nodeRadius
     const hasHighlights = highlightSet.size > 0
+    const hasClique = cliqueSet.size > 0
 
-    // Links — thickness encodes similarity value
-    const thresholdRange = 1 - threshold
+    // Links — thickness encodes similarity value (see `linkWidth`, shared with
+    // the overlay marks so an emphasised edge keeps its similarity reading).
+    // Two passes so emphasis never sits under plain strokes: plain first
+    // (receding while a clique is active), then the intra-clique edges and the
+    // manual highlights' edges in the highlight colour. An edge LEAVING the
+    // clique stays plain — the clique is its members and their mutual edges.
+    // Edge ends stop at a dimmed (translucent) node's outer rim: radius plus
+    // half its 1.5px outline. Opaque endpoints stay centre-to-centre, occluded.
+    const dimRim = hasClique ? r + 0.75 : 0
+    const emphasised: typeof links = []
     for (const link of links) {
       const s = nodes[link.source]
       const t = nodes[link.target]
       if (!s || !t) continue
+      const intraClique =
+        hasClique && cliqueSet.has(link.source) && cliqueSet.has(link.target)
       const touchesHighlight =
         hasHighlights && (highlightSet.has(link.source) || highlightSet.has(link.target))
-      const norm = thresholdRange > 0 ? (link.value - threshold) / thresholdRange : 0
-      ctx.lineWidth = 0.5 + norm * 3.5
-      ctx.strokeStyle = touchesHighlight ? HIGHLIGHT_COLOR : SCANGRAPH_LAYOUT.linkColor
-      ctx.globalAlpha = touchesHighlight ? 0.8 : SCANGRAPH_LAYOUT.linkOpacity
+      if (intraClique || touchesHighlight) {
+        emphasised.push(link)
+        continue
+      }
+      ctx.lineWidth = linkWidth(link.value)
+      ctx.strokeStyle = SCANGRAPH_LAYOUT.linkColor
+      ctx.globalAlpha = hasClique
+        ? SCANGRAPH_LAYOUT.linkOpacity * DIM_ALPHA
+        : SCANGRAPH_LAYOUT.linkOpacity
+      strokeTrimmedLink(
+        ctx,
+        s,
+        t,
+        nodeEmphasised(link.source) ? 0 : dimRim,
+        nodeEmphasised(link.target) ? 0 : dimRim
+      )
+    }
+    // Centre-to-centre: both endpoints of an emphasised edge are themselves
+    // emphasised, so they stay opaque and occlude the stroke.
+    ctx.strokeStyle = HIGHLIGHT_COLOR
+    ctx.globalAlpha = 0.8
+    for (const link of emphasised) {
+      const s = nodes[link.source]
+      const t = nodes[link.target]
+      if (!s || !t) continue
+      ctx.lineWidth = linkWidth(link.value)
       ctx.beginPath()
       ctx.moveTo(s.x, s.y)
       ctx.lineTo(t.x, t.y)
@@ -226,23 +429,27 @@
     }
     ctx.globalAlpha = 1
 
-    // Nodes
+    // Nodes — clique members and manual highlights fill amber; while a clique
+    // is active every unemphasised node recedes with its links.
     for (let ni = 0; ni < nodes.length; ni++) {
       const node = nodes[ni]
-      const isHighlighted = hasHighlights && highlightSet.has(ni)
-      const isConnected = hasHighlights && connectedToHighlight.has(ni)
+      const isFilled = highlightSet.has(ni) || (hasClique && cliqueSet.has(ni))
+      const isStroked =
+        isFilled || (hasHighlights && connectedToHighlight.has(ni))
+      ctx.globalAlpha = hasClique && !nodeEmphasised(ni) ? DIM_ALPHA : 1
       ctx.beginPath()
       ctx.arc(node.x, node.y, r, 0, Math.PI * 2)
-      ctx.fillStyle = isHighlighted
+      ctx.fillStyle = isFilled
         ? HIGHLIGHT_FILL
         : node.degree > 0
           ? '#4a90d9'
           : UI_COLORS.TEXT_SECONDARY
       ctx.fill()
-      ctx.strokeStyle = isHighlighted || isConnected ? HIGHLIGHT_CONNECTED_STROKE : '#fff'
-      ctx.lineWidth = isHighlighted || isConnected ? 2 : 1.5
+      ctx.strokeStyle = isStroked ? HIGHLIGHT_CONNECTED_STROKE : '#fff'
+      ctx.lineWidth = isStroked ? 2 : 1.5
       ctx.stroke()
     }
+    ctx.globalAlpha = 1
 
     // Outline around the content area. Inset by 1px right/bottom: the graph fills
     // the canvas with no axis margin, so a full-size rect would crop its stroke.
@@ -253,15 +460,19 @@
       height: frame.height - 1,
     })
 
-    // Labels — last, on top.
+    // Labels — last, on top; emphasised nodes place first and keep full
+    // strength, the rest recede with their nodes while a clique is active.
+    const priority = new Set<number>([...cliqueSet, ...highlightSet])
     const fontSize = Math.max(8, Math.min(11, Math.round(r * 1.6)))
     ctx.font = `${fontSize}px ${SYSTEM_SANS_SERIF_STACK}`
     ctx.fillStyle = UI_COLORS.TEXT_PRIMARY
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'
-    for (const lbl of computeVisibleLabels(ctx, nodes, r, fontSize)) {
+    for (const lbl of computeVisibleLabels(ctx, nodes, r, fontSize, priority)) {
+      ctx.globalAlpha = hasClique && !nodeEmphasised(lbl.nodeIndex) ? DIM_ALPHA : 1
       ctx.fillText(nodes[lbl.nodeIndex].label, lbl.rect.x, lbl.rect.y)
     }
+    ctx.globalAlpha = 1
   }
 
   const MAX_TOOLTIP_CONNECTIONS = 4
@@ -310,31 +521,95 @@
     return null
   }
 
-  function computeHit(mx: number, my: number): FrameHit<NodePosition> | null {
-    const node = findNodeAt(mx, my)
-    if (!node) return null
-    const connectionItems = getConnectionItems(node.id)
-    const content: FrameHit['content'] = [{ key: 'Participant', value: node.label }]
-    if (connectionItems.length > 0) {
-      content.push({ key: 'Connections', value: connectionItems[0].value })
-      for (let i = 1; i < connectionItems.length; i++) content.push(connectionItems[i])
+  const EDGE_HIT_TOLERANCE = 4
+
+  /**
+   * The nearest link under the pointer, or null. Tolerance is measured from the
+   * stroke's EDGE, so a thick (highly similar) link is as easy to hit as it looks.
+   * Nodes are tested first by the caller, so an endpoint never resolves to a link.
+   */
+  function findEdgeAt(mx: number, my: number) {
+    const { nodes, links } = layoutResult
+    let best: (typeof links)[number] | null = null
+    let bestSlack = EDGE_HIT_TOLERANCE
+    for (const link of links) {
+      const s = nodes[link.source]
+      const t = nodes[link.target]
+      if (!s || !t) continue
+      const slack =
+        distanceToSegment(mx, my, s.x, s.y, t.x, t.y) - linkWidth(link.value) / 2
+      if (slack < bestSlack) {
+        bestSlack = slack
+        best = link
+      }
     }
+    return best
+  }
+
+  /**
+   * Crosshair across the WHOLE plot area, not only over nodes. Track-only (empty
+   * content = no tooltip) and carrying NO node, so it marks nothing, clicks
+   * nothing and — unlike recurrence's masked-cell hit — publishes nothing: empty
+   * graph space designates no participant. Module-stable identity, so hovering it
+   * schedules no repaint.
+   */
+  const EMPTY_HIT: FrameHit<ScangraphHover> = {
+    tooltipId: 'scangraph-tooltip',
+    content: [],
+    anchorX: 0,
+    anchorY: 0,
+    cursor: 'crosshair',
+  }
+
+  function computeHit(mx: number, my: number): FrameHit<ScangraphHover> | null {
+    // Nodes win: an endpoint is a participant, not the pair it happens to sit on.
+    const node = findNodeAt(mx, my)
+    if (node) {
+      const connectionItems = getConnectionItems(node.id)
+      const content: FrameHit['content'] = [{ key: 'Participant', value: node.label }]
+      if (connectionItems.length > 0) {
+        content.push({ key: 'Connections', value: connectionItems[0].value })
+        for (let i = 1; i < connectionItems.length; i++) content.push(connectionItems[i])
+      }
+      return {
+        tooltipId: 'scangraph-tooltip',
+        content,
+        anchorX: node.x + 10,
+        anchorY: node.y,
+        offset: { x: 10, y: 0 },
+        tooltipWidth: 160,
+        // Crosshair, like every other plot's data area; the node stays clickable.
+        cursor: 'crosshair',
+        data: { kind: 'node', node },
+      }
+    }
+
+    // The pair itself: the one place this plot states a similarity VALUE, which
+    // until now was readable only as stroke thickness.
+    const link = findEdgeAt(mx, my)
+    if (!link) return EMPTY_HIT
+    const s = layoutResult.nodes[link.source]
+    const t = layoutResult.nodes[link.target]
     return {
       tooltipId: 'scangraph-tooltip',
-      content,
-      anchorX: node.x + 10,
-      anchorY: node.y,
+      content: [
+        { key: 'Participants', value: `${clipLabel(s.label)} ↔ ${clipLabel(t.label)}` },
+        { key: 'Similarity', value: link.value.toFixed(3) },
+      ],
+      anchorX: (s.x + t.x) / 2,
+      anchorY: (s.y + t.y) / 2,
       offset: { x: 10, y: 0 },
       tooltipWidth: 160,
-      cursor: 'pointer',
-      data: node,
+      cursor: 'crosshair',
+      data: { kind: 'edge', source: link.source, target: link.target, value: link.value },
     }
   }
 
   function handleClick() {
-    // The harness tracks the hovered node, so the click needs no coordinates.
-    const hoveredNode = plot.hover.data
-    if (hoveredNode && onNodeClick) onNodeClick(hoveredNode.id)
+    // The harness tracks the hover, so the click needs no coordinates. Only a node
+    // toggles the persisted highlight; a pair has nothing to persist.
+    const hovered = plot.hover.data
+    if (hovered?.kind === 'node' && onNodeClick) onNodeClick(hovered.node.id)
   }
 </script>
 

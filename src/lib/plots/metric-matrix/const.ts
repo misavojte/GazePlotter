@@ -53,10 +53,9 @@ export const METRIC_MATRIX_DEFAULTS = {
 export function getMetricMatrixLegendTitle(
   instance: MetricInstance | null | undefined
 ): string {
-  const metric = instance ? getMetric(instance.baseId) : undefined
-  return buildMetricLabel(instance, metric, {
+  return buildMetricLabel(instance, {
     fallback: 'Metric value',
-    includeProjection: true,
+    projection: 'full',
   })
 }
 

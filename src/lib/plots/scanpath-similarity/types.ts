@@ -16,13 +16,25 @@ export type ScanpathSimilaritySettings = {
   timelineStart?: number
   timelineEnd?: number
   view: ScanpathSimilarityView
-  /** Threshold parameter for scangraph adjacency (0-1) */
+  /** Threshold parameter p for scangraph adjacency (0-1) — the single source
+   *  the graph is built from. */
   threshold: number
+  /** Edge-share input (%): a pane edit here is converted into the matching
+   *  `threshold` by onCommand; the DISPLAYED value is always derived from the
+   *  current graph, never read from this key. The paper's advised graph is 5. */
+  edgePercent: number
   colorScale: string[]
   /** Per-stimulus color value ranges [min, max] */
   stimuliColorValueRanges: [number, number][]
-  /** Highlighted participant node indices (scangraph) */
-  participantHighlights?: number[]
+  /** Manually highlighted participants (scangraph), by participant ID so the
+   *  emphasis follows the participant across group/stimulus changes; ids not
+   *  in the current graph silently don't draw. */
+  highlightedParticipants?: number[]
+  /** Smallest clique the picker offers (and the view highlights); 2 = all. */
+  minCliqueSize: number
+  /** Highlighted clique: content key of member participant ids ('none' = off).
+   *  See ScangraphClique.key. */
+  selectedClique?: string
 }
 
 export interface ScanpathSimilarityData {

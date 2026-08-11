@@ -5,26 +5,16 @@ export interface ParamDef<T> {
   label: string
   type: ParamType
   default: T
-  /**
-   * One-sentence explanation of what the parameter does. Optional today, but
-   * required for agent-callable manifests (WebMCP / future MCP surfaces) — the
-   * description is what an LLM reads to pick a sensible value. Recipe authors
-   * should backfill it for any param whose `label` isn't self-evident.
-   */
+  /** Backfill for any param whose `label` isn't self-evident. */
   description?: string
   min?: number
   max?: number
   step?: number
   unit?: string
   options?: readonly { value: T & string; label: string }[]
-  /**
-   * Render this param's value as an instance-label qualifier (mid-dot grammar),
-   * or `null`/`''` to omit it (e.g. at a default value that carries no
-   * information). When absent, {@link paramToLabel} falls back to a type
-   * default: enums show the selected option's label, booleans show the param
-   * label when true, numeric/string params are omitted. Opt in here for
-   * bespoke phrasing (e.g. `step` → `"2-step"`, shown only when `> 1`).
-   */
+  /** Bespoke phrasing for the instance-label qualifier (`step` → `"2-step"`,
+   *  shown only when `> 1`); `null`/`''` omits it. See {@link paramToLabel}
+   *  for the type defaults this overrides. */
   toLabel?: (value: T) => string | null | undefined
 }
 
@@ -75,14 +65,37 @@ export const enumParam = <ID extends string, V extends string>(
   id: ID,
   label: string,
   defaultValue: V,
-  options: readonly { value: V; label: string }[]
+  options: readonly { value: V; label: string }[],
+  opts: Partial<Pick<ParamDef<V>, 'description' | 'toLabel'>> = {}
 ): ParamDef<V> & { id: ID } => ({
   id,
   label,
   type: 'enum',
   default: defaultValue,
   options: options as readonly { value: V & string; label: string }[],
+  ...opts,
 })
+
+/**
+ * How a per-event sample collapses to one per-participant value. `sum` is
+ * absent: totals are their own metrics (absoluteTime, movementTime).
+ */
+export type SummaryStatistic = 'mean' | 'median' | 'max' | 'min'
+
+/**
+ * The configure UI's Summary select. Exactly ONE place declares a summary
+ * statistic — the SUMMARY projection; a recipe-level `statistic` param is
+ * rejected at registration.
+ *
+ * Accepted consequence: a plot consuming the raw VECTOR always shows the
+ * per-slot mean, having nowhere to say otherwise. That is the rule.
+ */
+export const SUMMARY_STATISTIC_OPTIONS = [
+  { value: 'mean', label: 'Mean' },
+  { value: 'median', label: 'Median' },
+  { value: 'max', label: 'Max' },
+  { value: 'min', label: 'Min' },
+] as const satisfies readonly { value: SummaryStatistic; label: string }[]
 
 export type ParamsOf<T extends readonly ParamDef<any>[]> = {
   [K in T[number] as K['id']]: K extends ParamDef<infer V> ? V : never
@@ -117,13 +130,11 @@ function coerceParam<T>(def: ParamDef<T>, raw: unknown): T {
 }
 
 /**
- * Render a single param value as an instance-label qualifier, or `null` to omit
- * it. THE single rule every label composes from — a param renders identically in
- * the metric selector and on every plot, with no per-metric punctuation. Shows
- * the full operational definition (so a static export is reproducible): enums
- * show the selected option, booleans show the param label when on, numerics show
- * `"Label value [unit]"` (incl. defaults). `toLabel` overrides for short phrasing
- * (e.g. `collapsed` → `"collapsed"`); return `null` from it to omit a value.
+ * THE single rule every label composes from, so a param renders identically in
+ * the metric selector and on every plot. Shows the full operational definition,
+ * defaults included, to keep a static export reproducible: enums show the
+ * selected option, booleans the param label when on, numerics
+ * `"Label value [unit]"`. `toLabel` overrides; `null` omits.
  */
 export function paramToLabel<T>(def: ParamDef<T>, value: T): string | null {
   if (def.toLabel) {

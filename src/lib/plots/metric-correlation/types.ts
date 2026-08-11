@@ -38,8 +38,6 @@ export interface CorrelationPoint {
   /** Raw (x, y) pair for SPLOM scatter cells. */
   x: number
   y: number
-  /** Participant label for hover tooltip. */
-  participantLabel?: string
 }
 
 export interface CorrelationCell {
@@ -60,8 +58,8 @@ export interface MetricCorrelationResult {
   correlationMethod: CorrelationMethod
   /** Number of participants in the group (base N before NaN filtering). */
   sampleSize: number
-  /** Participant labels parallel to vectors' rows (for SPLOM tooltips). */
-  participantLabels?: string[]
+  /** Participant ids parallel to vectors' rows — the PLOT CURSOR's key. */
+  participantIds: readonly number[]
   /** Sub-stimulus analysis window, disclosed on the colorbar (0 = unbounded). */
   timelineStart?: number
   timelineEnd?: number

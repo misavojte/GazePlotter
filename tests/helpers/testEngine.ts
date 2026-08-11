@@ -25,6 +25,8 @@ export type TestEngineOptions = {
   stimuli?: string[][]
   stimuliOrderVector?: number[]
   categories?: string[][]
+  /** Named eye-movement-type SELECTIONS (id-keyed, per-plot narrowing via categorySelectionId). */
+  categoriesSelections?: { id: number; name: string; memberIds: number[] }[]
   participantsSelections?: unknown[]
   metricInstances?: unknown[]
   isOrdinalOnly?: boolean
@@ -47,6 +49,7 @@ export type TestEngine = {
       selections?: { id: number; name: string; names: string[] }[]
     }
     categories: { data: string[][]; orderVector: number[] }
+    categoriesSelections: { id: number; name: string; memberIds: number[] }[]
     participants: { data: string[][]; orderVector: number[] }
     participantsSelections: unknown[]
     stimuli: { data: string[][]; orderVector: number[] }
@@ -119,6 +122,7 @@ export function makeTestEngine(
       data: options.categories ?? [['Fixation', 'Fixation', '#000000']],
       orderVector: [] as number[],
     },
+    categoriesSelections: options.categoriesSelections ?? [],
     participants: {
       data:
         options.participants ??

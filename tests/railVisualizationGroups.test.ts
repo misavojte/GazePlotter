@@ -79,7 +79,7 @@ describe('add-visualization menu grouping', () => {
     ])
 
     expect(layout).toEqual([
-      ['Gaze behavior', ['Scarf Plot', 'Scanpath', 'Recurrence Plot']],
+      ['Gaze behavior', ['Scarf Plot', 'Scanpath', 'Recurrence Plot', 'Eye-movement Comparison']],
       ['Per AOI', ['AOI Comparison', 'AOI Timeline']],
       ['Inter-AOI', ['Transition Matrix']],
       ['Per participant', ['Metric Timeline', 'Metric Correlation', 'Metric Matrix']],

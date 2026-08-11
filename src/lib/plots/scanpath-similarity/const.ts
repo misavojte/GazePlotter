@@ -2,6 +2,8 @@ import { PRESET_PALETTES } from '$lib/color'
 
 export const SCANPATH_SIMILARITY_DEFAULTS = {
   threshold: 0.5,
+  /** The ScanGraph paper's advised graph: 5% of possible edges. */
+  edgePercent: 5,
   colorScale: [...PRESET_PALETTES.BLUE.colors],
 } as const
 

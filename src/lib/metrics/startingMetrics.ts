@@ -1,48 +1,29 @@
 import type { Projection } from './core/projection'
 import type { GroupReduction } from './core/measurement'
 
-/**
- * Seed for a starter instance emitted into a fresh workspace's metric library.
- * Missing fields fall back to:
- *   - `projection`: identity for the recipe's raw shape
- *   - `params`    : empty object (recipes' own param defaults are applied at evaluation time)
- *   - `label`     : `defaultInstanceLabel(baseId)` (the bare quantity name)
- */
+/** Seed for a starter instance in a fresh workspace's metric library. See
+ *  `createMetricInstance` for what the optional fields fall back to. */
 export interface StartingMetricSpec {
   /**
-   * Stable human-readable slug. Forms the workspace-level `MetricInstance.id`.
-   * User-created instances use `crypto.randomUUID()` — so hand-authored slugs
-   * and runtime UUIDs share the `string` namespace without colliding.
+   * Becomes the workspace-level `MetricInstance.id`. APPEND-ONLY: never rename
+   * a shipped slug and never reuse a deleted one — some saved workspace out
+   * there may still reference it.
    *
-   * Append-only: never rename a slug that's already shipped, and never reuse
-   * a deleted one — some saved workspace out there might still reference it.
-   *
-   * Some slugs carry a legacy recipe-id prefix (`avgFixationDuration-any-windowed`)
-   * even though the `baseId` reads as the canonical name (`fixationDuration`).
-   * This drift is deliberate: slugs are workspace-persisted identifiers and are
-   * never renamed; `baseId` is the recipe key. Do NOT "fix" the slug spellings.
+   * Hence a few carry a legacy recipe-id prefix
+   * (`avgFixationDuration-any-windowed` on `baseId: 'fixationDuration'`). Do
+   * NOT "fix" those spellings.
    */
   id: string
   baseId: string
   params?: Record<string, unknown>
   projection?: Projection
   label?: string
-  /**
-   * Per-instance cross-participant reduction, overriding the metric's default.
-   * Set only where the starter's intended reading differs from the metric's
-   * conventional reduction — see the windowed AOI starters, which sum across the
-   * cohort so an AOI Timeline's band reflects total attention and tapers as
-   * participants drop out, rather than the default mean (which averages only
-   * participants still recording in a window and so never tapers).
-   */
+  /** Set only where the starter's intended reading differs from the metric's
+   *  conventional reduction — see the windowed AOI starters below. */
   reduction?: GroupReduction
 }
 
-/**
- * Every metric instance seeded into a fresh project. Order is presentation-only
- * (it's what the library sidebar renders first-pass); IDs are the source of
- * truth for identity.
- */
+/** Order is presentation-only; the ids are the identity. */
 export const STARTING_METRICS: readonly StartingMetricSpec[] = [
   // ── identity starters ────────────────────────────────────────────────
   { id: 'absoluteTime', baseId: 'absoluteTime' },
@@ -54,17 +35,36 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
   { id: 'fixated', baseId: 'fixated' },
   { id: 'timeToFirstFixation', baseId: 'timeToFirstFixation' },
   { id: 'firstFixationDuration', baseId: 'firstFixationDuration' },
+  // The eye-movement family. Total before share, mirroring absoluteTime /
+  // relativeTime on the AOI axis.
+  { id: 'movementTime', baseId: 'movementTime' },
+  { id: 'movementTimeShare', baseId: 'movementTimeShare' },
+  { id: 'movementDuration', baseId: 'movementDuration' },
+  { id: 'movementCount', baseId: 'movementCount' },
+  { id: 'movementLatency', baseId: 'movementLatency' },
+  {
+    // Seeded on Fixation, the one displayed name every dataset carries (id 0,
+    // name-locked), so the pick always resolves; a hard-coded 'Saccade' seed
+    // reads NaN dataset-wide on sources spelling the type differently. Switch
+    // the type in the library (real dataset names) for saccadic latency.
+    id: 'movementLatency-fixation',
+    baseId: 'movementLatency',
+    projection: { kind: 'pick-category', categoryName: 'Fixation' },
+  },
 
   // ── windowed starters ────────────────────────────────────────────────
   {
-    // Slug retains the legacy `avgFixationDuration-` prefix (see interface doc).
+    // Legacy `avgFixationDuration-` prefix (see interface doc).
     id: 'avgFixationDuration-any-windowed',
     baseId: 'fixationDuration',
     label: 'Average fixation duration',
     projection: {
       kind: 'windowed',
       window: { windowSize: 1000, stepSize: 100 },
-      inner: { kind: 'pick-any-fixation' },
+      // Explicit `mean` on every sample-summarizing starter: it IS a choice on
+      // a summary leaf, so state it — the same normalization the configure
+      // modal applies on edit.
+      inner: { kind: 'pick-any-fixation', statistic: 'mean' },
     },
   },
   {
@@ -83,10 +83,10 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
     id: 'absoluteTime-aoi-windowed-500',
     baseId: 'absoluteTime',
     label: 'Time on AOI',
-    // Cohort total per window, not per-participant mean: a mean over only the
-    // participants still recording in a window never tapers, so a late window
-    // with two stragglers reads as full height and hides cohort drop-off. Sum
-    // tapers honestly. relativeTime (below) stays the per-participant share.
+    // Cohort total, not per-participant mean: a mean over only the
+    // participants still recording never tapers, so a late window with two
+    // stragglers reads as full height and hides the drop-off. Sum tapers
+    // honestly. relativeTime (below) stays the per-participant share.
     reduction: 'sum',
     projection: {
       kind: 'windowed',
@@ -143,7 +143,7 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
   {
     id: 'visitDuration-any',
     baseId: 'visitDuration',
-    projection: { kind: 'pick-any-fixation' },
+    projection: { kind: 'pick-any-fixation', statistic: 'mean' },
   },
   {
     id: 'fixationCount-any',
@@ -153,7 +153,7 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
   {
     id: 'fixationDuration-any',
     baseId: 'fixationDuration',
-    projection: { kind: 'pick-any-fixation' },
+    projection: { kind: 'pick-any-fixation', statistic: 'mean' },
   },
   {
     id: 'timeToFirstFixation-any',
@@ -192,6 +192,13 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
     baseId: 'transitionDwellMean',
     params: { mode: 'visit' },
   },
+  {
+    // One variant only, as with transitionProbability; the visit reading is
+    // added from the library when wanted.
+    id: 'transitionRelativeFrequency-fix',
+    baseId: 'transitionRelativeFrequency',
+    params: { mode: 'fixation' },
+  },
 
   // ── rqa starters ──────────────────────────────────────────────────
   { id: 'rqaRec', baseId: 'rqaRec' },
@@ -201,17 +208,22 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
   // ── scanpath similarity starters ──────────────────────────────────
   {
     id: 'participantPairSimilarity-lev',
-    baseId: 'participantPairSimilarity',
-    params: { method: 'levenshtein', collapsed: false },
+    baseId: 'scanpathLevenshteinSimilarity',
+    params: { collapsed: false },
   },
   {
     id: 'participantPairSimilarity-lev-collapsed',
-    baseId: 'participantPairSimilarity',
-    params: { method: 'levenshtein', collapsed: true },
+    baseId: 'scanpathLevenshteinSimilarity',
+    params: { collapsed: true },
   },
   {
     id: 'participantPairSimilarity-nw',
-    baseId: 'participantPairSimilarity',
-    params: { method: 'needlemanWunsch', collapsed: false },
+    baseId: 'scanpathNeedlemanWunschSimilarity',
+    params: { collapsed: false },
+  },
+  {
+    id: 'participantPairSimilarity-nw-collapsed',
+    baseId: 'scanpathNeedlemanWunschSimilarity',
+    params: { collapsed: true },
   },
 ]

@@ -9,7 +9,7 @@ import { makeTestEngine } from './helpers/testEngine'
 import {
   query,
   instanceMatchesContract,
-  supportedLeaves,
+  metricLeafKindsInContract,
   getMetric,
   type MetricInstance,
   type PlotMetricContract,
@@ -68,10 +68,10 @@ describe('projection via query()', () => {
     if (r.shape !== 'scalar') return
     expect(r.value).toBe(200)
     expect(r.provenance.projection).toEqual({ kind: 'pick-aoi', aoiRef: { by: 'name', name: 'CTA' } })
-    expect(r.provenance.aoiMissing).toBeUndefined()
+    expect(r.provenance.refMissing).toBeUndefined()
   })
 
-  it('pick-aoi missing name sets aoiMissing in provenance', () => {
+  it('pick-aoi missing name sets refMissing in provenance', () => {
     const engine = createEngine(SEGMENTS)
     const instance: MetricInstance = {
       id: 't1', baseId: 'absoluteTime', params: {}, label: '',
@@ -81,7 +81,7 @@ describe('projection via query()', () => {
     expect(r.shape).toBe('scalar')
     if (r.shape !== 'scalar') return
     expect(Number.isNaN(r.value)).toBe(true)
-    expect(r.provenance.aoiMissing).toBe(true)
+    expect(r.provenance.refMissing).toBe(true)
   })
 
   it('aggregate-aoi mean excludes noAoi & anyFixation slots', () => {
@@ -119,12 +119,20 @@ describe('projection via query()', () => {
     expect(instanceMatchesContract(unnamed, GLOBAL_SCALAR_CONTRACT)).toBe(false)
   })
 
-  it('supportedLeaves offers aggregate-aoi only to metrics naming an extreme', () => {
-    expect(supportedLeaves(getMetric('absoluteTime')!)).toContain('aggregate-aoi')
-    expect(supportedLeaves(getMetric('timeToFirstFixation')!)).toContain('aggregate-aoi')
-    expect(supportedLeaves(getMetric('fixationDuration')!)).not.toContain('aggregate-aoi')
-    expect(supportedLeaves(getMetric('visitDuration')!)).not.toContain('aggregate-aoi')
-    expect(supportedLeaves(getMetric('firstFixationDuration')!)).not.toContain('aggregate-aoi')
+  it('the offered leaves include aggregate-aoi only for metrics naming an extreme', () => {
+    // Same gate as the saved-instance case above, asked the other way round:
+    // what the library OFFERS must equal what an instance may BE, because both
+    // now route through the one authority (recipeSupports).
+    const offered = (id: string) =>
+      metricLeafKindsInContract(getMetric(id)!, GLOBAL_SCALAR_CONTRACT)
+    expect(offered('absoluteTime')).toContain('aggregate-aoi')
+    expect(offered('timeToFirstFixation')).toContain('aggregate-aoi')
+    expect(offered('fixationDuration')).not.toContain('aggregate-aoi')
+    expect(offered('visitDuration')).not.toContain('aggregate-aoi')
+    expect(offered('firstFixationDuration')).not.toContain('aggregate-aoi')
+    // The raw-shape and providesAnyFixation gates travel with it.
+    expect(offered('absoluteTime')).toContain('pick-aoi')
+    expect(offered('movementDuration')).toEqual(['pick-category'])
   })
 
   it('valid saved instance stays in contract (matrix-cell on probability)', () => {

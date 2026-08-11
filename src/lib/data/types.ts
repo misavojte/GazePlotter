@@ -1,6 +1,7 @@
 import type { FileInputType, FileMetadataType } from './ingest/types'
 import type { GridItemSnapshot } from '$lib/workspace/grid/types'
 import type { BinarySegmentBuffers } from './binary'
+import { FIXATION_CATEGORY_ID, FIXATION_SEED_NAME } from './binary'
 import type { MetricInstance } from '$lib/metrics/instances'
 import type { PairingErrorKind } from './intervalPairing'
 export type { MetricInstance } from '$lib/metrics/instances'
@@ -71,14 +72,18 @@ interface AttributeDataType {
 export const ALL_SELECTION_LABEL = 'All'
 
 /**
- * The built-in empty SELECTION — "All"'s other endpoint, turning a layer off
- * (e.g. no event overlays, fixations-only eye-movement types). A constant
- * picker option, never stored data: offered only on axes where an empty
- * narrowing is meaningful, and resolved by that axis's narrowing selector.
- * (Participants' built-ins -1/-2 live in their own id space, `groupId`.)
+ * The reserved displayed name of the fixation baseline: id 0's row is the
+ * substrate every AOI metric and the scarf's AOI layer scan, so its name is
+ * a locked identity anchor. The single derivation behind all three guard
+ * layers — the modal lock, the `updateCategories` write guard, and the
+ * workspace-load heal — which refuse or repair any other row taking it.
  */
-export const NONE_SELECTION_ID = -1
-export const NONE_SELECTION_LABEL = 'None'
+export function reservedFixationName(
+  catData: readonly (readonly string[] | null)[] | undefined
+): string {
+  const row = catData?.[FIXATION_CATEGORY_ID]
+  return ((row?.[1] ?? row?.[0]) ?? FIXATION_SEED_NAME).trim()
+}
 
 /** Id-keyed saved selection for axes with numeric member ids
     (stimuli, eye-movement categories). */
@@ -113,6 +118,27 @@ export interface ParticipantsSelection {
   name: string
   participantsIds: number[]
 }
+
+/**
+ * The two "layer off" narrowings are ORDINARY rows, not a sentinel id, so a
+ * selection id either names a stored row or means "All" (unset / 0 / unknown).
+ * Seeded once per workspace (ingest kernel for a fresh dataset, the v5 → v6
+ * migration for an older file); after that they are user data, so renaming or
+ * deleting one sticks. (Participants' -1/-2 are a different id space.)
+ */
+export const seededCategoriesSelection = (id: number): EntitySelection => ({
+  id,
+  name: 'Just fixations',
+  memberIds: [FIXATION_CATEGORY_ID],
+})
+
+/** Named for what it holds, so it reads the same in the picker and as a
+    library chip — where a row called "None" would not. */
+export const seededEventsSelection = (id: number): NameSelection => ({
+  id,
+  name: 'No events',
+  names: [],
+})
 
 /**
  * All event data for the workspace.
@@ -345,16 +371,24 @@ export type JsonImportOldFormat = Omit<DataType, 'segments'> & {
 }
 
 /**
- * Current workspace-schema version. `main` ships v4; the 1.9.0 metrics refactor
- * is the single bump above it (v4 → v5). Both the export mapper (the version it
- * stamps) and the migration ceiling (the version it produces) source this one
- * constant, so a freshly-exported file always carries the version of the data
- * inside it — no re-import migration is relied upon to reconcile a mislabel.
+ * Current workspace-schema version. `main` ships v5 (1.9.2); the settings-key
+ * rename `barPlottingType` → `orientation` and the seeded layer-off selections
+ * are the single bump above it (v5 → v6). The retired `-1` sentinel gets no
+ * version of its own: it is a legacy VALUE, swept wherever it appears, because
+ * in-branch builds stamped 6 while it was still live. Both the export mapper
+ * (the version it stamps) and the migration
+ * ceiling (the version it produces) source this one constant, so a freshly
+ * exported file always carries the version of the data inside it — no
+ * re-import migration is relied upon to reconcile a mislabel.
+ *
+ * Keep this comment's "`main` ships vN" claim checked against `main` when
+ * bumping: it went stale once already (it still said v4 after v5 shipped),
+ * which would have sent a released format down an unreachable migration path.
  */
-export const CURRENT_SCHEMA_VERSION = 5
+export const CURRENT_SCHEMA_VERSION = 6
 
 export interface JsonImportNewFormat {
-  version: 2 | 3 | 4 | 5
+  version: 2 | 3 | 4 | 5 | 6
   data: DataType
   gridItems?: GridItemSnapshot[]
   fileMetadata?: FileMetadataType | null

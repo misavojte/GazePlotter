@@ -3,13 +3,9 @@ import { buildAoiSlots } from './aoiSlots'
 import { FIXATION_CATEGORY_ID } from '$lib/data/binary'
 
 /**
- * Consumer-facing helpers for fixation-windowed metrics.
- *
- * Convention: any metric with `windowUnit: 'fixations'` accumulates into an
- * object with a `.seq: number[]` field (populated in `onFixation`). The helpers
- * below rely on that convention to let plots (e.g. evolving-metrics) compute
- * a metric's scalar over a pre-extracted sub-sequence without going through the
- * DSL's default windowing reduction.
+ * Consumer-facing helpers for fixation-windowed metrics, which by convention
+ * all accumulate into a `.seq: number[]`. They let a plot compute a metric's
+ * scalar over a pre-extracted sub-sequence, bypassing the DSL's windowing.
  */
 
 export interface FixationSequence {
@@ -19,47 +15,55 @@ export interface FixationSequence {
 }
 
 /**
- * Extract the fixation sequence with segment timestamps for a participant.
- * Single-AOI fixations are always included. Multi-AOI fixations are always
- * skipped — there is no canonical sentinel for "simultaneously in several
- * AOIs". Zero-AOI (off-AOI) fixations are included only when `includeNoAoi`
- * is set, in which case they map to `slots.noAoiSlot` so the RQA equality
- * check treats two off-AOI fixations as recurrent.
+ * Single-AOI fixations always count. Multi-AOI ones are always skipped — there
+ * is no canonical sentinel for "in several AOIs at once". Off-AOI ones count
+ * only under `includeNoAoi`, mapping to `slots.noAoiSlot` so the RQA equality
+ * check treats two of them as recurrent.
  *
- * NOTE: this is ONE of three deliberately different multi-AOI policies for
- * "the AOI sequence" — the scanpath encoder keeps the first visible AOI
- * (`scanpathEncoding.collectScanpath`), and the recurrence PLOT keeps all
- * AOIs with shares-any-AOI recurrence (`plots/recurrence/core/collector`).
- * They answer different scientific questions; do not unify them.
+ * ONE of three deliberately different multi-AOI policies for "the AOI
+ * sequence" — the scanpath encoder keeps the first visible AOI, and the
+ * recurrence PLOT keeps all AOIs with shares-any-AOI recurrence. Different
+ * scientific questions; do not unify them.
  *
- * Must stay index-aligned with the metric recipe's `onFixation` filter:
- * callers that feed a recipe's accumulator (e.g. the evolving-metrics
- * transformer resolving window start indices back to ms) must pass the
- * same `includeNoAoi` value the recipe was instantiated with. Pinned by
- * `tests/fixationSequenceAlignment.test.ts`.
+ * Callers feeding a recipe's accumulator must pass the same `includeNoAoi`,
+ * `aoiSelectionId` and time range the recipe was queried with, or the indices
+ * stop aligning. Pinned by `tests/fixationSequenceAlignment.test.ts`.
  */
 export function extractFixationSequence(
   engine: DataEngine,
   stimulusId: number,
   participantId: number,
-  options?: { includeNoAoi?: boolean; aoiSelectionId?: number },
+  options?: {
+    includeNoAoi?: boolean
+    aoiSelectionId?: number
+    /** Same half-open clip `scanAccumulator` applies; `timeEnd` 0 = unbounded. */
+    timeStart?: number
+    timeEnd?: number
+  },
 ): FixationSequence {
   const slots = buildAoiSlots(engine, stimulusId, options?.aoiSelectionId)
   if (!slots) return { seq: [], timestamps: [], endTimestamps: [] }
-  const { reader, aoiLookup, noAoiSlot } = slots
+  const { reader, rawToSlot, noAoiSlot } = slots
   const { startIndex, endIndex } = reader.getSegmentRange(stimulusId, participantId)
   const includeNoAoi = options?.includeNoAoi ?? false
+  const timeStart = options?.timeStart ?? 0
+  const timeEnd = options?.timeEnd ?? 0
   const seq: number[] = []
   const timestamps: number[] = []
   const endTimestamps: number[] = []
   const aoiSet = new Set<number>()
   for (let i = startIndex; i < endIndex; i++) {
     if (reader.getSegmentCategory(i) !== FIXATION_CATEGORY_ID) continue
+    if (timeEnd > 0 && reader.getSegmentStart(i) >= timeEnd) break
+    if (reader.getSegmentEnd(i) <= timeStart) continue
     aoiSet.clear()
     const rawAois = reader.getRawAois(i)
     for (let r = 0; r < rawAois.length; r++) {
-      const slot = aoiLookup.get(engine.getAoiMapping(stimulusId, rawAois[r]))
-      if (slot !== undefined) aoiSet.add(slot)
+      // Same cached table the scans resolve through, so this function cannot
+      // drift from them on the resolution half; the alignment test then only
+      // has to hold the POLICY half (which fixations are kept).
+      const slot = rawToSlot[rawAois[r]]
+      if (slot >= 0) aoiSet.add(slot)
     }
     if (aoiSet.size === 1) {
       seq.push(aoiSet.values().next().value!)

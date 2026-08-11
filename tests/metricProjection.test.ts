@@ -80,14 +80,14 @@ describe('applyProjection on aoi-vector', () => {
     const p: Projection = { kind: 'pick-aoi', aoiRef: { by: 'name', name: 'CTA' } }
     const out = applyProjection(p, { aoiNames: AOIS, rawValues: raw })
     expect(out.values).toEqual([20])
-    expect(out.aoiMissing).toBe(false)
+    expect(out.refMissing).toBe(false)
   })
 
-  it('pick-aoi missing name → NaN + aoiMissing flag', () => {
+  it('pick-aoi missing name → NaN + refMissing flag', () => {
     const p: Projection = { kind: 'pick-aoi', aoiRef: { by: 'name', name: 'Nope' } }
     const out = applyProjection(p, { aoiNames: AOIS, rawValues: raw })
     expect(Number.isNaN(out.values[0])).toBe(true)
-    expect(out.aoiMissing).toBe(true)
+    expect(out.refMissing).toBe(true)
   })
 
   it('aggregate-aoi mean ignores noAoi + anyFixation slots', () => {
@@ -143,10 +143,10 @@ describe('applyProjection on aoi-pair-matrix', () => {
     const out = applyProjection(p, { aoiNames: AOIS, rawValues: raw })
     // row=0 (Nav), col=2 (Hero), side=4 → raw[0*4 + 2] = 2
     expect(out.values).toEqual([2])
-    expect(out.aoiMissing).toBe(false)
+    expect(out.refMissing).toBe(false)
   })
 
-  it('matrix-cell missing AOI → NaN + aoiMissing flag', () => {
+  it('matrix-cell missing AOI → NaN + refMissing flag', () => {
     const p: Projection = {
       kind: 'matrix-cell',
       fromAoi: { by: 'name', name: 'Nav' },
@@ -154,7 +154,7 @@ describe('applyProjection on aoi-pair-matrix', () => {
     }
     const out = applyProjection(p, { aoiNames: AOIS, rawValues: raw })
     expect(Number.isNaN(out.values[0])).toBe(true)
-    expect(out.aoiMissing).toBe(true)
+    expect(out.refMissing).toBe(true)
   })
 
   it('matrix-aggregate sum excluding diagonal', () => {

@@ -2,6 +2,16 @@
 
 ## 1.9.x
 
+### 1.9.3
+
+* *Released on August 11, 2026*
+* **Eye-movement Types**: Added [eye-movement type metrics](/docs/metrics/eye-movement) (per-type counts, time budgets, segment durations, and saccadic latency) and the [Eye-movement Comparison](/docs/visualizations/eye-movement-comparison) plot that draws them, one distribution per type. Types merged in the [Eye-movement Type Library](/docs/workspace/eye-movement-type-library) are measured as one, and each metric can also be picked at a single type for the scalar plots.
+* **Linked Hovering**: Hovering one plot marks the same moment and the same participant in the others, within a stimulus for moments and across stimuli for participants. See [Linked Hovering Across Plots](/docs/visualizations/#linked-hovering-across-plots).
+* **Scanpath Similarity**: The [ScanGraph](/docs/visualizations/scanpath-similarity) network now follows Doležalová and Popelka (2016): article-scored Needleman-Wunsch, so its threshold is the article's *p*, plus a percentage-of-edges reading and clique groups. Levenshtein and Needleman-Wunsch are separate metrics now, each with a collapsed variant.
+* **Selections**: The [eye-movement type](/docs/workspace/eye-movement-type-library) and [event](/docs/workspace/event-library) libraries ship *Just fixations* and *No events* as ordinary selections, replacing the built-in picker options; older workspaces are pointed at them automatically.
+* **Plots**: [Metric Timeline](/docs/visualizations/metric-timeline) paints only where its metric actually measured.
+* **Internals**: A shared distribution layer behind the comparison plots, unified plot highlight marks, and the workspace canvas behaviours split into their own modules.
+
 ### 1.9.2
 
 * *Released on July 23, 2026*

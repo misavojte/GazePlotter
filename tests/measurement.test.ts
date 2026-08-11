@@ -73,7 +73,7 @@ describe('effectiveReduction (request === result; no silent between-sound downgr
   const extensive = getMetric('absoluteTime')!.meta // default mean
   const sumDefault = getMetric('transitionCount')!.meta // default sum
   const intensive = getMetric('relativeTime')!.meta
-  const relational = getMetric('participantPairSimilarity')!.meta
+  const relational = getMetric('scanpathLevenshteinSimilarity')!.meta
 
   it('honours a sound request verbatim', () => {
     expect(effectiveReduction(extensive, 'sum')).toBe('sum')

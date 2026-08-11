@@ -4,11 +4,12 @@ import { rqaScalar, type RqaResult } from '../../core/rqa'
 
 /**
  * Shared scaffold for the AOI-sequence RQA scalars (REC/DET/LAM). All three
- * accumulate the same categorical fixation sequence (`{ seq: number[] }`,
- * single-AOI fixations only, optional off-AOI sentinel via `include_no_aoi`)
- * and report one {@link RqaResult} measure as a stimulus-level percentage.
- * They differ only in the measure, the optional min-line-length parameter,
- * and the scalar reported when the sequence has no recurrences.
+ * accumulate the same `{ seq: number[] }` (single-AOI fixations only, optional
+ * off-AOI sentinel) and differ only in the measure, the min-line param, and
+ * the no-recurrence value.
+ *
+ * The only FIXATION-windowed metrics: `windowSize`/`stepSize` are fixation
+ * counts, not ms, and the inner leaf must be `identity-scalar`.
  */
 export function defineRqaMetric(spec: {
   id: string
@@ -21,8 +22,7 @@ export function defineRqaMetric(spec: {
    *  pair counting needs no line length; 2 is passed through untouched. */
   minLineParam?: 'l_min' | 'v_min'
   /** Reported when `R === 0`. REC pins 0 (zero recurrences IS a 0% rate);
-   *  line-based measures keep rqaScalar's NaN default (undefined without
-   *  recurrences). */
+   *  line-based measures keep rqaScalar's NaN default. */
   onNoRecurrence?: number
 }): void {
   const { measure, minLineParam, onNoRecurrence } = spec
@@ -43,8 +43,6 @@ export function defineRqaMetric(spec: {
     category: 'rqa-aoi',
     rawShape: 'scalar',
     windowUnit: 'fixations',
-    // Intensive: a per-participant rate (%) over the whole scanpath. Only
-    // `mean` is sound across participants; summing rates is meaningless.
     measurementClass: 'intensive',
     searchTags: spec.searchTags,
     params,

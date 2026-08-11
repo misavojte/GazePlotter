@@ -3,7 +3,7 @@ import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { DataCapabilityRequirements } from '$lib/data/types'
 import type { PlotMetricContract } from '$lib/metrics'
 import type { WorkspaceCommand, WorkspaceCommandChain } from '$lib/workspace/commands'
-import type { WorkspaceService } from '$lib/workspace/service.svelte'
+import type { WorkspaceCommandBus } from '$lib/workspace/commands/bus'
 import type { ModalState } from '$lib/modals/modalState.svelte'
 import type { PlotGroup } from './groups'
 
@@ -116,7 +116,7 @@ export type PlotScreenContext<TSettings> = {
   /** The live grid item (reactive getter — do not capture the value). */
   readonly item: PlotItemContract<string, TSettings>
   engine: DataEngine
-  workspace: WorkspaceService
+  workspace: WorkspaceCommandBus
   /**
    * The current derived view. Valid inside effects, deriveds and event
    * handlers (it is bound after the container initializes) — do not call it
@@ -163,7 +163,13 @@ export type PaneSection = Component<{ item: any }>
 
 // ─── Declarative settings schema ─────────────────────────────────────────────
 
-export type SectionFieldOption = { value: string; label: string }
+export type SectionFieldOption = {
+  value: string
+  label: string
+  /** Muted secondary line in the dropdown row (the menu's `detail`
+   *  pass-through) — e.g. a clique's internal-agreement readout. */
+  detail?: string
+}
 
 /**
  * Context handed to a schema field's functions (`showWhen`, function-form
@@ -174,7 +180,7 @@ export type SectionFieldOption = { value: string; label: string }
  */
 export type SectionFieldCtx = {
   engine: DataEngine
-  workspace: WorkspaceService
+  workspace: WorkspaceCommandBus
   modalState: ModalState
   /** The representative grid item (for its plot type and id). */
   item: PaneSectionItem
@@ -226,7 +232,7 @@ export type SectionField = SectionFieldPresentation & (
        *  (radios are a modal affordance, not a pane one). */
       kind: 'enum'
       key: string
-      label?: string
+      label?: string | ((ctx: SectionFieldCtx) => string)
       options:
         | readonly SectionFieldOption[]
         | ((ctx: SectionFieldCtx) => readonly SectionFieldOption[])
@@ -248,26 +254,30 @@ export type SectionField = SectionFieldPresentation & (
   | {
       kind: 'boolean'
       key: string
-      label: string
+      label: string | ((ctx: SectionFieldCtx) => string)
       default?: boolean
       showWhen?: (ctx: SectionFieldCtx) => boolean
     }
   | {
       kind: 'number'
       key: string
-      label: string
+      label: string | ((ctx: SectionFieldCtx) => string)
       min?: number
       max?: number
       step?: number
       /** Display fallback AND the value an emptied input commits; when absent,
        *  an emptied input recommits the current value. */
       default?: number
+      /** Effective-value override replacing the plain `settings[key]` read —
+       *  for controls whose displayed value is derived (e.g. the scangraph's
+       *  edge share at the current threshold). Commits still write `key`. */
+      read?: (settings: Record<string, unknown>, engine: DataEngine) => number
       showWhen?: (ctx: SectionFieldCtx) => boolean
     }
   | {
       kind: 'color'
       key: string
-      label: string
+      label: string | ((ctx: SectionFieldCtx) => string)
       default?: string
       showWhen?: (ctx: SectionFieldCtx) => boolean
     }

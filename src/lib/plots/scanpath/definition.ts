@@ -1,4 +1,5 @@
 import { deriveScanpathView } from './core/view'
+import { plotCursorScreen } from '$lib/plots/shared/plotCursor.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import { stimulusParticipantSubtitle } from '$lib/plots/shared'
 import type { ScanpathPlotSettings } from './types'
@@ -29,6 +30,7 @@ export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSetting
     },
   ],
   view: { deriveView: deriveScanpathView },
+  screen: plotCursorScreen(),
   getSubtitle: stimulusParticipantSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,

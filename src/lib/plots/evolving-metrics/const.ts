@@ -6,7 +6,6 @@ import {
 import { withQualifiers } from '$lib/plots/shared/labels'
 
 export const MARGIN = {
-  TOP: 5,
   RIGHT: 10,
 }
 

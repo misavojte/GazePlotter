@@ -3,7 +3,7 @@ import { createWorkspaceCommandRegistry } from '../src/lib/workspace/commands/re
 import type { WorkspaceCommandChain } from '../src/lib/workspace/commands'
 import type { GridState } from '../src/lib/workspace/grid'
 import {
-  createBarPlotGridItem,
+  createAoiComparisonGridItem,
   createChainedCommand,
   createEmptyMockMetadata,
   createMockEngine,
@@ -26,7 +26,7 @@ describe('Workspace Command Reversal', () => {
     mockEngine = createMockEngine()
     mockGridStore = createMockGridStore([
       createScarfGridItem(),
-      createBarPlotGridItem(),
+      createAoiComparisonGridItem(),
     ])
     reverseCommand = createWorkspaceCommandRegistry(
       mockGridStore,

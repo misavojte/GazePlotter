@@ -12,7 +12,7 @@ import type { GridState } from '$lib/workspace/grid'
 import type { AllGridTypes, GridItemMap } from '$lib/workspace'
 import { createGridItem } from '$lib/workspace/grid/itemFactory'
 import type { ScarfPlotSettings } from '$lib/plots/scarf/types'
-import type { BarPlotSettings } from '$lib/plots/bar/types'
+import type { AoiComparisonSettings } from '$lib/plots/aoi-comparison/types'
 
 export type MockMetadata = Omit<DataType, 'segments' | 'participantsSelections'> & {
   participantsSelections: ParticipantsSelection[]
@@ -196,14 +196,14 @@ export function createScarfGridItem(
 }
 
 /** See {@link createScarfGridItem}. */
-export function createBarPlotGridItem(
-  overrides: Partial<Omit<GridItemMap['barPlot'], 'settings'>> & {
-    settings?: Partial<BarPlotSettings>
+export function createAoiComparisonGridItem(
+  overrides: Partial<Omit<GridItemMap['aoiComparison'], 'settings'>> & {
+    settings?: Partial<AoiComparisonSettings>
   } = {}
-): GridItemMap['barPlot'] {
+): GridItemMap['aoiComparison'] {
   const { settings, redrawTimestamp, ...itemOverrides } = overrides
-  const item = createGridItem('barPlot', {
-    type: 'barPlot',
+  const item = createGridItem('aoiComparison', {
+    type: 'aoiComparison',
     id: 2,
     x: 6,
     y: 0,
@@ -212,13 +212,13 @@ export function createBarPlotGridItem(
     min: { w: 4, h: 4 },
     ...itemOverrides,
     settings: { stimulusId: 1, ...settings },
-  }) as GridItemMap['barPlot']
+  }) as GridItemMap['aoiComparison']
   item.redrawTimestamp = redrawTimestamp ?? 1
   return item
 }
 
 export function createDefaultGridItems(): AllGridTypes[] {
-  return [createScarfGridItem(), createBarPlotGridItem()]
+  return [createScarfGridItem(), createAoiComparisonGridItem()]
 }
 
 export function createChainedCommand<const TCommand extends { type: string }>(

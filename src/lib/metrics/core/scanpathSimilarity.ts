@@ -2,7 +2,8 @@
  * Pairwise similarity kernels for AOI-letter scanpaths.
  *
  * Levenshtein: edit distance normalized to 0-1 similarity.
- * Needleman-Wunsch: global alignment score normalized to 0-1 similarity.
+ * Needleman-Wunsch: ScanGraph scoring (match +1, gap 0, mismatch -1),
+ * score / max length — the parameter p of Dolezalova & Popelka (2016).
  */
 
 export type SimilarityMethod = 'levenshtein' | 'needlemanWunsch'
@@ -46,7 +47,7 @@ function needlemanWunschScore(
   b: string,
   matchScore = 1,
   mismatchScore = -1,
-  gapPenalty = -1
+  gapPenalty = 0
 ): number {
   const m = a.length
   const n = b.length
@@ -70,24 +71,27 @@ function needlemanWunschScore(
   return prev[n]
 }
 
-/** Normalized Levenshtein similarity (0-1, where 1 = identical). */
+/** Normalized Levenshtein similarity (0-1, where 1 = identical). Two EMPTY
+ *  scanpaths are 0/0 — no data to compare, not identical strategies — so the
+ *  pair carries no value: NaN renders as a missing cell and never forms an
+ *  edge or clique. One-sided emptiness stays formula-defined (p = 0). */
 function levenshteinSimilarity(a: string, b: string): number {
-  if (a.length === 0 && b.length === 0) return 1
+  if (a.length === 0 && b.length === 0) return NaN
   const maxLen = Math.max(a.length, b.length)
   const distance = levenshteinDistance(a, b)
   return 1 - distance / maxLen
 }
 
-/** Normalized Needleman-Wunsch similarity (0-1, where 1 = identical). */
+/** Normalized Needleman-Wunsch similarity (0-1, where 1 = identical). Both
+ *  empty is 0/0 — see {@link levenshteinSimilarity}. */
 function needlemanWunschSimilarity(a: string, b: string): number {
-  if (a.length === 0 && b.length === 0) return 1
+  if (a.length === 0 && b.length === 0) return NaN
   const maxLen = Math.max(a.length, b.length)
   const score = needlemanWunschScore(a, b)
-  // NW score ranges from maxLen*gapPenalty (worst) to maxLen*matchScore (best)
-  // With defaults: worst = -maxLen, best = maxLen
-  const best = maxLen
-  const worst = -maxLen
-  return (score - worst) / (best - worst)
+  // With gap 0 the all-gaps alignment scores 0, so score is in
+  // [0, min(|a|,|b|)] and score/maxLen is in [0, 1], hitting 1 only for
+  // identical strings.
+  return score / maxLen
 }
 
 const SIMILARITY_FN: Record<SimilarityMethod, (a: string, b: string) => number> = {
@@ -98,7 +102,8 @@ const SIMILARITY_FN: Record<SimilarityMethod, (a: string, b: string) => number> 
 /**
  * Compute a symmetric pairwise similarity matrix (flat row-major) over a set of
  * scanpaths using the chosen kernel. Diagonal = 1; off-diagonal cells are
- * rounded to three decimals to keep label readouts stable.
+ * rounded to three decimals to keep label readouts stable. A pair of empty
+ * scanpaths carries NaN (no data), which survives the rounding.
  */
 export function computeSimilarityMatrix(
   scanpaths: readonly string[],

@@ -20,24 +20,27 @@ export type EvolvingMetricsSettings = {
 /**
  * A single windowed measurement. `centerMs` is where the value is
  * scientifically anchored — the temporal midpoint of the window (midpoint of
- * the middle fixation for fixation-windowed metrics). `startMs` and `endMs`
- * are Voronoi-style paint boundaries: each window "owns" the span from
- * halfway back to the previous window's center to halfway forward to the
- * next's, so colored regions butt together without gaps while each value is
- * still visually centered on its true anchor.
+ * the middle fixation for fixation-windowed metrics).
  *
- * The first and last windows use symmetric half-gap extrapolation (the gap
- * to their single neighbour mirrored on the opposite side) so edge windows
- * are the same width as their interior neighbours rather than stretching to
- * the trial bounds.
+ * `startMs`/`endMs` are the PAINT span, and the rules differ per branch — see
+ * `core/windowSpans.ts`, the single source of truth. Coverage is NOT gap-free:
+ * where a window was dropped its span stays unpainted rather than being
+ * inherited by a neighbour.
  */
 export interface EvolvingMetricsWindow {
   startMs: number
   endMs: number
   centerMs: number
   value: number
-  dataStartMs?: number
-  dataEndMs?: number
+  /**
+   * The WINDOW this value summarises — `windowSize` wide and so identical for
+   * every window of a time-windowed metric, first fixation's onset to last
+   * fixation's end for a fixation-windowed one. Bounds `startMs`/`endMs`, and is
+   * what the hover band shows. Required: both construction sites set it, and a
+   * fallback here would have to invent a duration.
+   */
+  windowStartMs: number
+  windowEndMs: number
 }
 
 export interface EvolvingMetricsParticipant {

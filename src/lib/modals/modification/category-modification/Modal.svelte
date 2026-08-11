@@ -4,46 +4,89 @@
   import { getAllCategories, getCategoriesSelections } from '$lib/data/engine'
   import EditableEntityList from '../shared/EditableEntityList.svelte'
   import SelectionTray from '../shared/SelectionTray.svelte'
-  import { createGroupedEntityEditor } from '../shared/groupedEntityEditor.svelte'
+  import {
+    createGroupedEntityEditor,
+    type MergeCard,
+  } from '../shared/groupedEntityEditor.svelte'
   import { createSelectionSession } from '../shared/selectionSession.svelte'
-  import { idKeyedSelection, selectionChips } from '../shared/selectionAdapters'
-  import { FIXATION_CATEGORY_ID, type EntitySelection } from '$lib/data/types'
+  import {
+    idKeyedSelection,
+    referencedSelectionIds,
+    selectionChips,
+  } from '../shared/selectionAdapters'
+  import {
+    FIXATION_CATEGORY_ID,
+    type BaseInterpretedDataType,
+    type EntitySelection,
+  } from '$lib/data/types'
 
   interface Props {
     source: string
   }
 
   let { source }: Props = $props()
-  const { engine, modalState, workspace, toastState } = getGazePlotterSession()
+  const { engine, grid, modalState, workspace, toastState } = getGazePlotterSession()
 
-  // Fixations are the baseline category and stay out of the editable list.
+  // Fixation is a normal eye-movement type here (recolorable, selectable in
+  // SELECTIONS) EXCEPT its displayed name: id 0 is the substrate every AOI
+  // metric and the scarf's AOI layer scan, so the name is a locked identity
+  // anchor — no rename, no merge into or out of it. The editor owns the lock
+  // set; the list and session read it from there.
   const editor = createGroupedEntityEditor({
-    getItems: () =>
-      getAllCategories(engine).filter(c => c.id !== FIXATION_CATEGORY_ID),
+    getItems: () => getAllCategories(engine),
+    lockedNameIds: new Set([FIXATION_CATEGORY_ID]),
   })
 
-  // Id-keyed selections (stored as metadata.categoriesSelections) — e.g. a
-  // "Fixations only" style filter once plots consume them.
+  // A row renamed into the reserved name folds into Fixation's card — an
+  // invalid group: notice + Undo, and Apply stays blocked while it exists.
+  const fixationNotice = (group: MergeCard<BaseInterpretedDataType>) => {
+    if (editor.conflictsFor(group).length === 0) return null
+    return {
+      tone: 'warn' as const,
+      message:
+        'Fixation is the reserved baseline type. Other types can’t take its name.',
+      action: { label: 'Undo', onClick: () => editor.acknowledge(group) },
+    }
+  }
+
+  // Id-keyed selections (stored as metadata.categoriesSelections), consumed
+  // by the scarf's layers and the eye-movement comparison — a "Fixations
+  // only" filter is a selection holding just id 0.
   const sel = idKeyedSelection<'memberIds', EntitySelection>('memberIds')
 
   const session = createSelectionSession<EntitySelection>({
     initial: sel.clone(getCategoriesSelections(engine)),
+    reservedIds: () => referencedSelectionIds(grid.items, 'categorySelectionId'),
     groups: () => editor.groups,
     ...sel.membership,
     renameItem: editor.handleNameInput,
     reorderGroups: editor.reorderGroups,
     notify: msg => toastState.addInfo(msg),
+    lockedNameIds: editor.lockedNameIds,
   })
-
-  const firstRun = getCategoriesSelections(engine).length === 0
 
   const chips = $derived(selectionChips(session, 'types'))
 
   const COLUMNS = [
     { label: 'Move', width: '28px', type: 'handle' as const },
-    { label: 'Original', width: '1fr', type: 'readonly' as const, key: 'originalName' },
-    { label: 'Displayed', width: '1fr', type: 'text' as const, key: 'displayedName' },
-    { label: 'Color', width: '40px', type: 'color' as const, align: 'center' as const },
+    {
+      label: 'Original',
+      width: '1fr',
+      type: 'readonly' as const,
+      key: 'originalName',
+    },
+    {
+      label: 'Displayed',
+      width: '1fr',
+      type: 'text' as const,
+      key: 'displayedName',
+    },
+    {
+      label: 'Color',
+      width: '40px',
+      type: 'color' as const,
+      align: 'center' as const,
+    },
   ]
 
   const SORT_COLUMNS = [
@@ -52,14 +95,27 @@
   ]
 
   const handleSubmit = () => {
+    if (editor.hasInvalidGroup) return
     // hidden = [] retires visibility for good (selections replace it).
-    if (!workspace.updateCategories(editor.getCleanedItems(), source)) return
+    const applied = workspace.apply({
+      type: 'updateCategories',
+      categories: editor.getCleanedItems(),
+      source,
+    })
+    if (!applied) return
 
     const committed = sel.commit(session.selections, editor.groups)
     if (
-      sel.canonical(committed) !== sel.canonical(getCategoriesSelections(engine))
+      sel.canonical(committed) !==
+      sel.canonical(getCategoriesSelections(engine))
     ) {
-      if (!workspace.updateSelections('category', committed, source)) return
+      const saved = workspace.apply({
+        type: 'updateSelections',
+        axis: 'category',
+        selections: committed,
+        source,
+      })
+      if (!saved) return
     }
     modalState.close()
   }
@@ -78,24 +134,24 @@
     episode={session.editingId}
     selection={session.listSelection}
     previewIds={session.previewIds}
+    groupNotice={fixationNotice}
+    lockedNameIds={editor.lockedNameIds}
     grouped={{
       onNameInput: editor.handleNameInput,
       onColorInput: editor.handleColorInput,
     }}
   />
 
-  <SelectionTray
-    {session}
-    {chips}
-    noun="types"
-    helpText={firstRun
-      ? 'Selections let plots range over a subset of eye-movement types.'
-      : undefined}
-  />
+  <SelectionTray {session} {chips} noun="types" />
 
   <ModalButtons
     buttons={[
-      { label: 'Apply', onclick: handleSubmit, variant: 'primary' },
+      {
+        label: 'Apply',
+        onclick: handleSubmit,
+        variant: 'primary',
+        isDisabled: editor.hasInvalidGroup,
+      },
       { label: 'Cancel', onclick: () => modalState.close() },
     ]}
   />

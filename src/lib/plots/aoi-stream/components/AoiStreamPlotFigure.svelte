@@ -6,13 +6,18 @@
   } from '$lib/plots/shared/canvasUtils'
   import {
     usePlot,
-    NO_MARGINS,
     canvasBlockSelect,
     withQualifiers,
     type CanvasExportProps,
     type PlotFrame,
     type FrameHit,
   } from '$lib/plots/shared'
+  import {
+    drawTimeGuides,
+    timeAtX,
+    timeGuideXs,
+    type PlotCursorPort,
+  } from '$lib/plots/shared/plotCursor.svelte'
   import { estimateTextWidth, truncateTextToPixelWidth } from '$lib/shared/utils/textUtils'
   import { desaturateToWhite, INACTIVE_COLOR } from '$lib/color'
   import { PRESET_PALETTES } from '$lib/color/palettes'
@@ -21,6 +26,7 @@
     GRIDLINE_SECONDARY,
     GRIDLINE_PRIMARY,
     FONT_PRIMARY,
+    PLOT_EDGE_PAD_TOP,
     PLOT_LEGEND_GAP,
   } from '$lib/plots/shared/const'
   import {
@@ -74,6 +80,8 @@
     syncedMTopOverride?: number | null
     ridgelineScale?: number
     colorScale?: string[]
+    /** Shared PLOT CURSOR (screen-only; export renders without one). */
+    plotCursor?: PlotCursorPort | null
   }
 
   let {
@@ -83,11 +91,11 @@
     highlights = [],
     alignment = 'stream',
     onLegendClick = () => {},
-    dpiOverride = null,
-    margins = NO_MARGINS,
+    margin = 0,
     syncedMTopOverride = null,
     ridgelineScale,
     colorScale,
+    plotCursor = null,
   }: Props = $props()
 
   // Mirror core/layout.ts's HEAT fallback so the gradient legend isn't empty
@@ -202,8 +210,7 @@
   }>({
     width: () => width,
     height: () => height,
-    margins: () => margins,
-    dpiOverride: () => dpiOverride,
+    margin: () => margin,
     deps: () => [data, alignment, ridgelineScale, syncedMTopOverride, colorScale, highlights],
     placeholder: () => (data.noMetric ? METRIC_MISSING_MESSAGE : null),
     fit: frame => {
@@ -230,7 +237,7 @@
     gutters: () => ({
       left: leftEdge,
       bottom: { title: X_AXIS_LABEL, tickLabels: xAxisTicks.labels ?? [] },
-      pad: { top: MARGIN.TOP, right: effectiveRightMargin },
+      pad: { top: PLOT_EDGE_PAD_TOP, right: effectiveRightMargin },
       legendHeight: legendHeight > 0 ? PLOT_LEGEND_GAP + legendHeight : 0,
     }),
     clipData: false,
@@ -244,14 +251,39 @@
       hitData: item => ({ kind: 'legend' as const, item }),
     },
     hitTest: hitTestBin,
+    // Published through the TIME map (the one the axis ticks and areas use), NOT
+    // the bin-index map the hovered-bin bands use; they differ once
+    // stepSize !== windowSize. A legend hover clears it, like the local CROSSHAIR.
+    // No PARTICIPANTS channel: every series here is group-aggregated, so there is
+    // no participant under the pointer to publish.
+    onHover: hit => {
+      const px = hit?.kind === 'bin' ? hit.x : undefined
+      plotCursor?.publish(
+        px === undefined
+          ? null
+          : { times: () => [timeAtX(plot.frame, data.timeline, px)] }
+      )
+    },
+    // Return type annotated: `cursorX` reads `plot`, so inference would loop.
+    overlayDeps: (): string => cursorXsKey,
   })
+
+  // Gated on real bins: the empty result carries a fabricated 0–100 ms timeline
+  // (`emptyAoiStreamResult`) that this plot never draws, so neither direction of
+  // the cursor may run on it.
+  const cursorXs = $derived(
+    data.binCount > 0
+      ? timeGuideXs(plot.frame, data.timeline, plotCursor?.times ?? [])
+      : []
+  )
+  const cursorXsKey = $derived(cursorXs.join(','))
 
   // Legend geometry sits in the bottom band, below the x-axis.
   const legendGeometry: LegendGeometry = $derived.by(() =>
     computeFlatLegendGeometry(
       legendItems,
       STREAM_LEGEND_CONFIG,
-      margins.left,
+      margin,
       plot.frame.legendY + PLOT_LEGEND_GAP,
       Math.max(0, plot.plotAreaWidth)
     )
@@ -260,7 +292,7 @@
   const gradientLegendGeometry = $derived.by(() => {
     if (alignment !== 'heatmap') return null
     return computeGradientLegendGeometry({
-      x: margins.left,
+      x: margin,
       y: plot.frame.legendY + PLOT_LEGEND_GAP,
       availableWidth: plot.plotAreaWidth,
       availableHeight: legendHeight,
@@ -530,6 +562,8 @@
   // hover blits it back and repaints only this instead of re-running drawStream
   // (which re-derives every series' coordinates).
   function drawStreamOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+    // Before the local-hover early return below: the remote mark must survive it.
+    drawTimeGuides(ctx, frame, cursorXs)
     const tag = plot.hover.data
     const hoveredBinIndex = tag?.kind === 'bin' ? (tag.binIndex ?? null) : null
     const mouseXPx = tag?.kind === 'bin' ? (tag.x ?? null) : null
@@ -582,6 +616,9 @@
     binIndex?: number
     x?: number
   }> | null {
+    // No bins means the blank empty-result shell: no axis was drawn, so there is
+    // nothing to report a position in.
+    if (data.binCount <= 0) return null
     const binWidth = frame.width / data.binCount
     const binIndex = Math.max(0, Math.min(data.binCount - 1, Math.floor((mx - frame.x) / binWidth)))
 

@@ -83,3 +83,25 @@ export function arraysHaveSameElements<T>(
     return true
   }
 }
+
+/**
+ * Distance from a point to a line SEGMENT (clamped projection, so the ends are
+ * caps rather than an infinite line). Used to hit-test a drawn link.
+ */
+export function distanceToSegment(
+  px: number,
+  py: number,
+  ax: number,
+  ay: number,
+  bx: number,
+  by: number
+): number {
+  const dx = bx - ax
+  const dy = by - ay
+  const lenSq = dx * dx + dy * dy
+  const t =
+    lenSq > 0
+      ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / lenSq))
+      : 0
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy))
+}

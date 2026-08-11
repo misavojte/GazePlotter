@@ -7,6 +7,10 @@ import {
   type MetricInstance,
 } from '../src/lib/metrics/instances'
 import { STARTING_METRICS } from '../src/lib/metrics/startingMetrics'
+// A v4 file runs the WHOLE chain (v4 → v5 → v6), so these assert the ceiling,
+// not the v5 step's own stamp — sourced from the constant so the next bump
+// doesn't leave a stale literal behind.
+import { CURRENT_SCHEMA_VERSION } from '../src/lib/data/types'
 import { getRecipe } from '../src/lib/metrics/core/defineMetric'
 
 // Reference starter count for seed assertions. Matches STARTING_METRICS length.
@@ -51,7 +55,7 @@ describe('V4 → V5 consolidated migration: metric-instance seeding', () => {
   it('seeds metricInstances with the slug-keyed starter library', () => {
     const migrated = runMigrations(buildV4File())
 
-    expect(migrated.version).toBe(5)
+    expect(migrated.version).toBe(CURRENT_SCHEMA_VERSION)
     const seeded = migrated.data.metricInstances as MetricInstance[]
     expect(Array.isArray(seeded)).toBe(true)
     expect(seeded.length).toBe(STARTER_COUNT)
@@ -98,8 +102,8 @@ describe('V4 → V5 transition-matrix settings migration', () => {
     ])
   }
 
-  it('bumps version to 5', () => {
-    expect(runMigrations(buildTMFile('sum')).version).toBe(5)
+  it('bumps the version to the current schema', () => {
+    expect(runMigrations(buildTMFile('sum')).version).toBe(CURRENT_SCHEMA_VERSION)
   })
 
   it('drops aggregationMethod from migrated settings', () => {
@@ -127,16 +131,17 @@ describe('V4 → V5 transition-matrix settings migration', () => {
     expect(s.metricInstanceIds[0]).toBe('transitionDwellMean-visit')
   })
 
-  it('frequencyRelative → creates custom transitionRelativeFrequency instance (UUID id)', () => {
+  // Starter-backed since transitionRelativeFrequency was seeded: the migration
+  // points at the slug rather than minting a duplicate custom instance.
+  it('frequencyRelative → "transitionRelativeFrequency-fix"', () => {
     const m = runMigrations(buildTMFile('frequencyRelative'))
-    const id = m.gridItems[0].settings.metricInstanceIds[0]
-    expect(typeof id).toBe('string')
-    expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i)
-    const created = (m.data.metricInstances as MetricInstance[]).find(i => i.id === id)
-    expect(created).toBeDefined()
-    expect(created!.baseId).toBe('transitionRelativeFrequency')
-    expect(created!.params).toEqual({ mode: 'fixation' })
-    expect((created as unknown as { system?: unknown }).system).toBeUndefined()
+    expect(m.gridItems[0].settings.metricInstanceIds[0]).toBe(
+      'transitionRelativeFrequency-fix'
+    )
+    const matching = (m.data.metricInstances as MetricInstance[]).filter(
+      i => i.baseId === 'transitionRelativeFrequency'
+    )
+    expect(matching).toHaveLength(1)
   })
 
   it('probability2 / probability3 → custom transitionProbability instances with step 2/3', () => {
@@ -176,21 +181,23 @@ describe('V4 → V5 transition-matrix settings migration', () => {
         id: 'tm-1',
         type: 'transitionMatrix',
         x: 0, y: 0, w: 12, h: 12,
-        settings: { stimulusId: 0, groupId: -1, aggregationMethod: 'frequencyRelative', colorScale: [] },
+        settings: { stimulusId: 0, groupId: -1, aggregationMethod: 'probability2', colorScale: [] },
       },
       {
         id: 'tm-2',
         type: 'transitionMatrix',
         x: 0, y: 12, w: 12, h: 12,
-        settings: { stimulusId: 0, groupId: -1, aggregationMethod: 'frequencyRelative', colorScale: [] },
+        settings: { stimulusId: 0, groupId: -1, aggregationMethod: 'probability2', colorScale: [] },
       },
     ])
     const m = runMigrations(file)
     const [id1, id2] = m.gridItems.map((g: any) => g.settings.metricInstanceIds[0])
     expect(id1).toBe(id2)
-    // Only one custom instance should exist for that baseId+params.
+    // Only one custom instance for that baseId+params. Uses probability2,
+    // which genuinely has no starter — the step-1 `transitionProbability-fix`
+    // starter is a different instance and must not be conflated with it.
     const instances = (m.data.metricInstances as MetricInstance[]).filter(
-      i => i.baseId === 'transitionRelativeFrequency',
+      i => i.baseId === 'transitionProbability' && Number(i.params.step) === 2,
     )
     expect(instances).toHaveLength(1)
   })
@@ -226,8 +233,8 @@ describe('V4 → V5 bar-plot settings migration', () => {
     avgFirstFixationDuration: 'firstFixationDuration',
   }
 
-  it('bumps version to 5', () => {
-    expect(runMigrations(buildBarFile('absoluteTime')).version).toBe(5)
+  it('bumps the version to the current schema', () => {
+    expect(runMigrations(buildBarFile('absoluteTime')).version).toBe(CURRENT_SCHEMA_VERSION)
   })
 
   it('drops aggregationMethod from migrated settings', () => {
@@ -520,7 +527,7 @@ describe('V4 → V5 metric-reference normalization to metricInstanceIds: string[
         settings: { stimulusId: 0, groupId: -1, binSize: 500, absoluteStimuliLimits: [] },
       },
     ]))
-    const bar = m.gridItems.find((g: any) => g.type === 'barPlot').settings
+    const bar = m.gridItems.find((g: any) => g.type === 'aoiComparison').settings
     const stream = m.gridItems.find((g: any) => g.type === 'aoiStreamPlot').settings
     expect(bar.metricInstanceIds).toEqual(['visitCount'])
     expect(stream.binSize).toBeUndefined()
@@ -678,5 +685,137 @@ describe('resolveInstance — direct lookup, no fallback', () => {
 
   it('returns undefined when id is null', () => {
     expect(resolveInstance(library, null)).toBeUndefined()
+  })
+})
+
+describe('version-independent: statistic param → summary leaf', () => {
+  const build = (
+    baseId: string,
+    projection: unknown,
+    params: Record<string, unknown> = { statistic: 'median' },
+  ): Record<string, unknown> => ({
+    version: 5,
+    data: {
+      metricInstances: [{ id: 'x', baseId, params, label: 'X', projection }],
+    },
+    gridItems: [],
+    fileMetadata: null,
+  })
+  const migrated = (...args: Parameters<typeof build>) =>
+    runMigrations(build(...args)).data.metricInstances[0]
+
+  it('moves the param onto a pick-aoi leaf', () => {
+    const inst = migrated('fixationDuration', {
+      kind: 'pick-aoi',
+      aoiRef: { by: 'name', name: 'Logo' },
+    })
+    expect(inst.projection.statistic).toBe('median')
+    expect('statistic' in inst.params).toBe(false)
+  })
+
+  it('moves it onto a pick-any-fixation leaf, and through a windowed wrapper', () => {
+    const inst = migrated('visitDuration', {
+      kind: 'windowed',
+      window: { windowSize: 1000, stepSize: 100 },
+      inner: { kind: 'pick-any-fixation' },
+    }, { statistic: 'max' })
+    expect(inst.projection.inner.statistic).toBe('max')
+    expect(inst.projection.window).toEqual({ windowSize: 1000, stepSize: 100 })
+    expect('statistic' in inst.params).toBe(false)
+  })
+
+  it('consumes the param on an IDENTITY leaf, which has nowhere to carry it', () => {
+    // The accepted cost of the move: a vector is the unmarked per-slot mean.
+    // The param is still dropped — left behind it would key the raw cache
+    // while `finalize` read the projection.
+    const inst = migrated('fixationDuration', { kind: 'identity-aoi-vector' })
+    expect('statistic' in inst.params).toBe(false)
+    expect(inst.projection).toEqual({ kind: 'identity-aoi-vector' })
+  })
+
+  it('never overwrites a statistic the leaf already states', () => {
+    const inst = migrated('fixationDuration', {
+      kind: 'pick-aoi',
+      aoiRef: { by: 'name', name: 'Logo' },
+      statistic: 'min',
+    })
+    expect(inst.projection.statistic).toBe('min')
+    expect('statistic' in inst.params).toBe(false)
+  })
+
+  it('leaves an unknown recipe untouched — this build is not the arbiter of theirs', () => {
+    const inst = migrated('someFutureMetric', { kind: 'identity-scalar' })
+    expect(inst.params.statistic).toBe('median')
+  })
+
+  it('is idempotent and leaves statistic-free instances untouched', () => {
+    const once = build('fixationDuration', { kind: 'pick-aoi', aoiRef: { by: 'name', name: 'Logo' } })
+    const first = runMigrations(once).data.metricInstances[0]
+    const second = runMigrations({
+      version: 5,
+      data: { metricInstances: [first] },
+      gridItems: [],
+      fileMetadata: null,
+    }).data.metricInstances[0]
+    expect(second).toEqual(first)
+    const plain = migrated('fixationCount', { kind: 'identity-aoi-vector' }, {})
+    expect(plain.params).toEqual({})
+  })
+})
+
+describe('V5 → V6: barPlottingType → orientation', () => {
+  const buildV5 = (settings: Record<string, unknown>): Record<string, unknown> => ({
+    version: 5,
+    data: { metricInstances: [] },
+    gridItems: [
+      { id: 'p1', type: 'aoiComparison', x: 0, y: 0, w: 8, h: 8, settings },
+    ],
+  })
+  const settingsOf = (file: Record<string, unknown>) =>
+    runMigrations(file).gridItems[0].settings
+
+  it('moves the value onto `orientation` and drops the old key', () => {
+    const s = settingsOf(buildV5({ stimulusId: 0, barPlottingType: 'vertical' }))
+    expect(s.orientation).toBe('vertical')
+    expect('barPlottingType' in s).toBe(false)
+  })
+
+  it('bumps a v5 file to the current schema', () => {
+    expect(runMigrations(buildV5({ barPlottingType: 'vertical' })).version).toBe(
+      CURRENT_SCHEMA_VERSION
+    )
+  })
+
+  // The whole chain, not just the last hop: a v4 file carries the old key too,
+  // so v4 → v5 must hand off rather than stamp the ceiling and skip this step.
+  it('reaches v4 files through the full chain', () => {
+    const m = runMigrations({
+      version: 4,
+      data: { stimuli: { data: [] }, participants: { data: [] } },
+      gridItems: [{
+        id: 'b', type: 'barPlot', x: 0, y: 0, w: 8, h: 8,
+        settings: { stimulusId: 0, groupId: -1, barPlottingType: 'vertical' },
+      }],
+    })
+    expect(m.version).toBe(CURRENT_SCHEMA_VERSION)
+    expect(m.gridItems[0].type).toBe('aoiComparison')
+    expect(m.gridItems[0].settings.orientation).toBe('vertical')
+    expect('barPlottingType' in m.gridItems[0].settings).toBe(false)
+  })
+
+  it('is idempotent and never clobbers an explicit orientation', () => {
+    const once = runMigrations(buildV5({ barPlottingType: 'vertical' }))
+    const twice = runMigrations(JSON.parse(JSON.stringify(once)))
+    expect(twice.gridItems[0].settings.orientation).toBe('vertical')
+
+    const conflict = settingsOf(
+      buildV5({ barPlottingType: 'vertical', orientation: 'horizontal' })
+    )
+    expect(conflict.orientation).toBe('horizontal')
+  })
+
+  it('leaves settings without the key untouched', () => {
+    const s = settingsOf(buildV5({ stimulusId: 3, orderBy: 'aoi' }))
+    expect(s).toEqual({ stimulusId: 3, orderBy: 'aoi', hideNoAoi: false })
   })
 })

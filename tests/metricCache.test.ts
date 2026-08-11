@@ -61,6 +61,21 @@ function vectorInst(id: string, baseId: string): MetricInstance {
   }
 }
 
+/** An AOI pick carrying a summary `statistic` (the summary-projection channel). */
+function pickInst(
+  id: string,
+  baseId: string,
+  statistic: 'mean' | 'median' | 'max' | 'min',
+): MetricInstance {
+  return {
+    id,
+    baseId,
+    params: {},
+    label: '',
+    projection: { kind: 'pick-aoi', aoiRef: { by: 'slot', slot: 0 }, statistic },
+  }
+}
+
 function windowedInst(id: string, baseId: string): MetricInstance {
   return {
     id,
@@ -140,12 +155,18 @@ describe('metric cache', () => {
     // pin is what keeps the copies from drifting. The data exercises both
     // invariants: a fixation tagged with a duplicate raw AOI id (dedupe) and
     // an out-of-selection AOI (resolves to no slot).
+    //
+    // Durations on the kept AOI are deliberately UNEQUAL (100 / 200 / 600 →
+    // mean 300, median 200, max 600, min 100). With equal durations every
+    // summary statistic coincides and the sample-summarizing instances below
+    // would agree across paths no matter which statistic the batch used.
     const segs: number[][][] = [
       [
         [0, 100, 0, 1, 1], // duplicate raw id → one slot after dedupe
         [100, 200, 0, 2], // outside the selection → resolves to no slots
-        [200, 300, 0, 1, 2], // mixed: one selected + one out-of-selection
-        [300, 400, 0], // no AOI at all
+        [200, 400, 0, 1, 2], // mixed: one selected + one out-of-selection
+        [400, 1000, 0, 1], // the long one, so the statistics diverge
+        [1000, 1100, 0], // no AOI at all
       ],
     ]
     const selections = [{ id: 9, name: 'Focus', names: ['AOI 1'] }]
@@ -159,6 +180,14 @@ describe('metric cache', () => {
       vectorInst('at', 'absoluteTime'),
       vectorInst('rt', 'relativeTime'),
       vectorInst('vc', 'visitCount'),
+      // Sample-summarizing recipes with a NON-MEAN summary on the pick. The
+      // batch path builds its own InitCtx, so it must read the statistic off
+      // each instance's projection rather than assume mean — otherwise it
+      // computes the mean AND writes it into the raw cache under the median's
+      // key, poisoning the single path that shares that entry.
+      pickInst('fd-med', 'fixationDuration', 'median'),
+      pickInst('vd-max', 'visitDuration', 'max'),
+      pickInst('fd-mean', 'fixationDuration', 'mean'),
     ]
 
     const batch = queryBatch(instances(), {

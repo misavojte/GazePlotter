@@ -64,7 +64,7 @@ describe('commonSectionKeys (cross-type bulk section intersection)', () => {
       'stimulus',
       'group',
       'metric',
-      'barPlot:visualisation',
+      'aoiComparison:visualisation',
       'timelineRange',
       'aoi',
     ]
@@ -105,7 +105,7 @@ describe('commonSectionKeys (cross-type bulk section intersection)', () => {
       'stimulus',
       'group',
       'metric',
-      'barPlot:visualisation',
+      'aoiComparison:visualisation',
       'timelineRange',
       'aoi',
     ]

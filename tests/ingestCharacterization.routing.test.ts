@@ -102,7 +102,7 @@ function loadHarness() {
   const deps = {
     engine: { loadDataset: vi.fn(), metadata: null },
     errorService: { clearAll: vi.fn(), clearFatalLoad: vi.fn(), report },
-    grid: { reset: vi.fn() },
+    grid: { reset: vi.fn(), clearSelection: vi.fn() },
     modalState: { open: vi.fn(), close: vi.fn() },
     toastState: {
       addInfo: vi.fn(),

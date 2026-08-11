@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { ZOOM_MIN, ZOOM_MAX, ZOOM_STEP } from '$lib/workspace/zoom'
+  import { ZOOM_MIN, ZOOM_MAX, ZOOM_STEP } from '$lib/workspace/zoom.svelte'
   import { tooltipAction } from '$lib/tooltip'
   import { responsive } from '../responsive.svelte'
 

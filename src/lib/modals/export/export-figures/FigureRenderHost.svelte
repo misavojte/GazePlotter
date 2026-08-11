@@ -36,6 +36,9 @@
     register: next => {
       source = next
     },
+    get dpiOverride() {
+      return exportProps.dpiOverride
+    },
   }
   setContext(EXPORT_SOURCE_CONTEXT, registrar)
 
@@ -69,8 +72,7 @@
       {...view.props}
       width={exportProps.width}
       height={exportProps.height}
-      dpiOverride={exportProps.dpiOverride}
-      margins={exportProps.margins}
+      margin={exportProps.margin}
     />
   </svelte:boundary>
 </div>

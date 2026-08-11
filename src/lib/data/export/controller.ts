@@ -1,6 +1,7 @@
 import { type DataType } from '$lib/data/types'
 import { type CsvFormatOptions } from './encoders/csv'
 import { type ExportNaming } from './types'
+import { reportProgress, type ExportProgress } from './progress'
 import {
   generateUnifiedCsv,
   generateMetadataForBatchCsv,
@@ -28,12 +29,9 @@ export async function downloadUnifiedCsv(
   filterCategoryIds?: Set<number> | boolean,
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed',
-  onProgress?: (position: number, total: number, name: string) => void | Promise<void>
+  onProgress?: ExportProgress
 ): Promise<void> {
-  if (onProgress) {
-    await onProgress(0, 100, 'Preparing data...')
-    await new Promise(resolve => setTimeout(resolve, 0))
-  }
+  await reportProgress(onProgress, 0, 100, 'Preparing data...')
   const csv = generateUnifiedCsv(
     data,
     stimulusIds,
@@ -42,10 +40,7 @@ export async function downloadUnifiedCsv(
     options,
     naming
   )
-  if (onProgress) {
-    await onProgress(100, 100, 'Downloading...')
-    await new Promise(resolve => setTimeout(resolve, 0))
-  }
+  await reportProgress(onProgress, 100, 100, 'Downloading...')
   triggerDownload(csv, fileName, '.csv')
 }
 
@@ -55,7 +50,7 @@ export async function downloadUnifiedCsv(
 async function archiveBatch(
   batch: Array<{ fileName: string; content: string }>,
   zipFileName: string,
-  onProgress?: (position: number, total: number, name: string) => void | Promise<void>
+  onProgress?: ExportProgress
 ): Promise<Blob> {
   const archiver = new Archiver()
   const total = batch.length
@@ -63,17 +58,11 @@ async function archiveBatch(
 
   for (const item of batch) {
     count++
-    if (onProgress) {
-      await onProgress(count, total, `Packaging ${item.fileName}`)
-      await new Promise(resolve => setTimeout(resolve, 0))
-    }
+    await reportProgress(onProgress, count, total, `Packaging ${item.fileName}`)
     archiver.addFile(`${item.fileName}_${zipFileName}.csv`, item.content)
   }
 
-  if (onProgress) {
-    await onProgress(total, total, 'Generating ZIP archive...')
-    await new Promise(resolve => setTimeout(resolve, 0))
-  }
+  await reportProgress(onProgress, total, total, 'Generating ZIP archive...')
 
   return archiver.generateBlob()
 }
@@ -89,12 +78,9 @@ export async function downloadBatchZip(
   filterCategoryIds?: Set<number> | boolean,
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed',
-  onProgress?: (position: number, total: number, name: string) => void | Promise<void>
+  onProgress?: ExportProgress
 ): Promise<void> {
-  if (onProgress) {
-    await onProgress(0, 100, 'Generating individual CSV files...')
-    await new Promise(resolve => setTimeout(resolve, 0))
-  }
+  await reportProgress(onProgress, 0, 100, 'Generating individual CSV files...')
   const batch = generateMetadataForBatchCsv(
     data,
     stimulusIds,
@@ -117,17 +103,11 @@ export async function downloadEventUnifiedCsv(
   participantIds?: Set<string>,
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed',
-  onProgress?: (position: number, total: number, name: string) => void | Promise<void>
+  onProgress?: ExportProgress
 ): Promise<void> {
-  if (onProgress) {
-    await onProgress(0, 100, 'Preparing event data...')
-    await new Promise(resolve => setTimeout(resolve, 0))
-  }
+  await reportProgress(onProgress, 0, 100, 'Preparing event data...')
   const csv = generateEventUnifiedCsv(data, stimulusIds, participantIds, options, naming)
-  if (onProgress) {
-    await onProgress(100, 100, 'Downloading...')
-    await new Promise(resolve => setTimeout(resolve, 0))
-  }
+  await reportProgress(onProgress, 100, 100, 'Downloading...')
   triggerDownload(csv, fileName, '.csv')
 }
 
@@ -141,12 +121,9 @@ export async function downloadEventBatchZip(
   participantIds?: Set<string>,
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed',
-  onProgress?: (position: number, total: number, name: string) => void | Promise<void>
+  onProgress?: ExportProgress
 ): Promise<void> {
-  if (onProgress) {
-    await onProgress(0, 100, 'Generating individual event CSV files...')
-    await new Promise(resolve => setTimeout(resolve, 0))
-  }
+  await reportProgress(onProgress, 0, 100, 'Generating individual event CSV files...')
   const batch = generateEventBatchCsv(data, stimulusIds, participantIds, options, naming)
   const blob = await archiveBatch(batch, fileName, onProgress)
   triggerDownload(blob, fileName, '.zip')
@@ -158,21 +135,10 @@ export async function downloadEventBatchZip(
 export async function downloadScanGraph(
   engine: DataEngine,
   stimulusId: number,
-  fileName: string
+  fileName: string,
+  collapsed: boolean
 ): Promise<void> {
-  const meta = engine.metadata
-  const reader = engine.getReader()
-  const aoiGroupReader = engine.getAoiGroupReader()
-  if (!meta || !reader || !aoiGroupReader) {
-    throw new Error('Data engine not ready for ScanGraph export')
-  }
-
-  const content = await generateScanGraph(
-    meta,
-    reader,
-    aoiGroupReader,
-    stimulusId
-  )
+  const content = generateScanGraph(engine, stimulusId, collapsed)
   triggerDownload(content, fileName, '.txt')
 }
 

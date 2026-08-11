@@ -1,4 +1,3 @@
-import type { CanvasPlotMargins } from '$lib/plots/shared'
 
 /**
  * Canvas-sizing props the export host injects into a figure component, next to
@@ -11,5 +10,5 @@ export interface PlotExportProps {
   width: number
   height: number
   dpiOverride: number | null
-  margins: CanvasPlotMargins
+  margin: number
 }

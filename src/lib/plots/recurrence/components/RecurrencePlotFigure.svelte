@@ -3,15 +3,16 @@
     usePlot,
     categoryTicks,
     canvasBlockSelect,
-    NO_MARGINS,
     packRgb,
     drawMatrixCrosshair,
+    drawMatrixParticipantStrips,
     type CanvasExportProps,
     type PlotFrame,
     type FrameHit,
   } from '$lib/plots/shared'
+  import type { PlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
   import { hexToRgb, convertToHex } from '$lib/color'
-  import { rasterizeRecurrenceTexture } from '../core'
+  import { fixationAt, fixationMidpoint, rasterizeRecurrenceTexture } from '../core'
   import { RECURRENCE_LAYOUT } from '../const'
   import type {
     RecurrenceData,
@@ -24,6 +25,10 @@
     highlight?: RecurrenceHighlight
     masking?: RecurrenceMasking
     highlightMask?: Uint8Array | null
+    /** The one participant this panel is about. */
+    participantId?: number
+    /** Shared PLOT CURSOR (screen-only; export renders without one). */
+    plotCursor?: PlotCursorPort | null
   }
 
   let {
@@ -31,11 +36,47 @@
     highlight = 'none',
     masking = 'diagonal',
     highlightMask = null,
+    participantId,
+    plotCursor = null,
     width = 400,
     height = 400,
-    dpiOverride = null,
-    margins = NO_MARGINS,
+    margin = 0,
   }: Props = $props()
+
+  /**
+   * The fixation the cursor's instant lands in, or -1.
+   *
+   * Gated on the cursor naming THIS participant, which is what makes the mark
+   * honest: absolute time is zeroed per participant, so another person's clock
+   * must never be read against this person's fixations. A publisher that carries a
+   * time but no participant (an AOI stream, whose series are group-aggregated)
+   * therefore marks nothing here, correctly.
+   */
+  const cursorFixations = $derived.by(() => {
+    if (!data || participantId === undefined) return []
+    if (!(plotCursor?.participants ?? []).includes(participantId)) return []
+    const found: number[] = []
+    for (const t of plotCursor?.times ?? []) {
+      const i = fixationAt(data, t)
+      if (i >= 0) found.push(i)
+    }
+    return found
+  })
+  const cursorFixationsKey = $derived(cursorFixations.join(','))
+
+  /**
+   * The instants a hovered cell designates: fixation i and fixation j, deduped on
+   * the diagonal. A masked cell (row -1) has no datum, so it publishes the
+   * participant but no time.
+   */
+  function cellTimes(cell: { row: number; col: number }): number[] {
+    if (!data || cell.row < 0) return []
+    const both =
+      cell.row === cell.col
+        ? [fixationMidpoint(data, cell.row)]
+        : [fixationMidpoint(data, cell.row), fixationMidpoint(data, cell.col)]
+    return both.filter(Number.isFinite).sort((a, b) => a - b)
+  }
 
   const L = RECURRENCE_LAYOUT
   // Below this cell size individual dots stop resolving; the matrix is drawn as
@@ -100,11 +141,22 @@
     return { rgb, hasAoi }
   })
 
+  // A masked cell has no datum, but the panel is still this participant: a
+  // track-only hit with STABLE identity keeps the cursor published and repaints
+  // nothing. `row: -1` marks it, so the local crosshair skips it.
+  const MASKED_HIT: FrameHit<{ row: number; col: number }> = {
+    tooltipId: 'recurrence-tooltip',
+    content: [],
+    anchorX: 0,
+    anchorY: 0,
+    cursor: 'default',
+    data: { row: -1, col: -1 },
+  }
+
   const plot = usePlot<{ row: number; col: number }>({
     width: () => width,
     height: () => height,
-    margins: () => margins,
-    dpiOverride: () => dpiOverride,
+    margin: () => margin,
     deps: () => [data, highlight, masking, highlightMask],
     // No fit guard: the recurrence matrix is rendered as a texture (drawRaster)
     // at any density, so hundreds of fixations stay legible as a pattern. The
@@ -132,15 +184,28 @@
         },
       }
     },
-    drawOverlay: drawHoverCrosshair,
+    drawOverlay: drawRecurrenceOverlay,
+    // This panel IS one participant, so a hover anywhere in it means that person.
+    // A CELL additionally means two moments — "they looked here at t1 and again at
+    // t2" — which is the datum the time plots can show and this one cannot.
+    onHover: cell =>
+      plotCursor?.publish(
+        cell !== null && participantId !== undefined
+          ? {
+              participants: () => [participantId],
+              times: () => cellTimes(cell),
+            }
+          : null
+      ),
+    overlayDeps: (): string => cursorFixationsKey,
     hitTest: (x, y, frame) => {
       if (!data || N < 2) return null
       const cell = cellAt(x, y, frame)
       if (!cell) return null
       const maskDiagonal = masking === 'diagonal' || masking === 'diagonalLower'
       const maskLower = masking === 'diagonalLower'
-      if (maskLower && cell.col >= cell.row) return null
-      if (maskDiagonal && cell.col === cell.row) return null
+      if ((maskLower && cell.col >= cell.row) || (maskDiagonal && cell.col === cell.row))
+        return MASKED_HIT
 
       const idx = cell.row * N + cell.col
       const isRecurrent = !!data.matrix[idx]
@@ -390,23 +455,32 @@
     ctx.imageSmoothingEnabled = prevSmoothing
   }
 
-  function drawHoverCrosshair(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+  function drawRecurrenceOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+    const geom = {
+      xOffset: frame.x,
+      yOffset: frame.y,
+      cellSize: frame.width / N,
+      gridWidth: frame.width,
+      gridHeight: frame.width,
+    }
+    // The cursor's instant, as the fixation it lands in: its row and column are
+    // every other fixation that recurred with it. Same strip mark as any matrix,
+    // and bottom-origin rows convert to display space exactly as below.
+    if (cursorFixations.length > 0) {
+      drawMatrixParticipantStrips(ctx, geom, {
+        rows: cursorFixations.map(i => N - 1 - i),
+        cols: cursorFixations,
+      })
+    }
     const hoveredCell = plot.hover.data
     if (!hoveredCell) return
-    const cellSize = frame.width / N
+    if (hoveredCell.row < 0) return // masked cell: cursor only, no local crosshair
     // Recurrence rows are bottom-origin (fixation i counts upward), so convert
     // to the shared helper's display space (top-left origin).
-    drawMatrixCrosshair(
-      ctx,
-      {
-        xOffset: frame.x,
-        yOffset: frame.y,
-        cellSize,
-        gridWidth: frame.width,
-        gridHeight: frame.width,
-      },
-      { row: N - 1 - hoveredCell.row, col: hoveredCell.col }
-    )
+    drawMatrixCrosshair(ctx, geom, {
+      row: N - 1 - hoveredCell.row,
+      col: hoveredCell.col,
+    })
   }
 </script>
 

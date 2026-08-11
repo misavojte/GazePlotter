@@ -177,12 +177,7 @@
     // One plain `updateEventData` command per affected stimulus — the
     // undo layer only ever sees "events changed".
     for (const update of updates) {
-      workspace.updateEventData(
-        update.stimulusId,
-        update.channelDefs,
-        update.eventBuffers,
-        source
-      )
+      workspace.apply({ type: 'updateEventData', ...update, source })
     }
     toastState.addSuccess(
       `Created ${drafts.length} interval channel${drafts.length === 1 ? '' : 's'}`
@@ -199,12 +194,7 @@
       engine,
       new Set([name])
     )) {
-      workspace.updateEventData(
-        update.stimulusId,
-        update.channelDefs,
-        update.eventBuffers,
-        source
-      )
+      workspace.apply({ type: 'updateEventData', ...update, source })
     }
     mutated = true
     summary = getEventChannelSummary(engine)

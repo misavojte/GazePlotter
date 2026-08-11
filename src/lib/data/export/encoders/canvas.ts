@@ -11,6 +11,7 @@ export type ExportSource = CanvasExportSource
 
 export type ExportSourceRegistrar = {
   register: (source: ExportSource | null) => void
+  dpiOverride?: number | null
 }
 
 /**

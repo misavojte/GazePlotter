@@ -8,7 +8,7 @@ import {
 } from '$lib/plots/shared'
 import { METRIC_MISSING_MULTI_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
 import { getMetricCorrelationData } from './transformer'
-import { createSplomCellRenderer } from './splom'
+import { createSplomCellRenderer, createSplomCursorRing } from './splom'
 import type { MetricCorrelationResult, MetricCorrelationSettings } from '../types'
 
 const HEATMAP_COLOR_SCALE = ['#2166ac', '#ffffff', '#ca0020']
@@ -81,6 +81,7 @@ export function deriveMetricCorrelationView(
         minLegibleCellSize: MIN_LEGIBLE_SPLOM_CELL_SIZE,
         tooltipWidth: 220,
         drawCells: createSplomCellRenderer(result),
+        drawCellsCursor: createSplomCursorRing(result),
       },
     }
   }

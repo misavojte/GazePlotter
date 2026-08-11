@@ -69,6 +69,7 @@ async function loadHarness(workerPostMessage: WorkerPostMessage) {
     },
     grid: {
       reset: vi.fn(),
+      clearSelection: vi.fn(),
     },
     modalState: {
       open: vi.fn(),
@@ -226,7 +227,7 @@ describe('IngestService', () => {
       return new IngestService({
         engine: { loadDataset: vi.fn() },
         errorService,
-        grid: { reset: vi.fn() },
+        grid: { reset: vi.fn(), clearSelection: vi.fn() },
         modalState: { open: vi.fn(), close: vi.fn() },
         toastState,
         resetWorkspaceHistory: vi.fn(),
@@ -280,6 +281,35 @@ describe('IngestService', () => {
     recoveredService.applyEmpty()
     expect(recoveredService.status).toBe('ready')
   })
+
+  it('clears the grid selection before the worker starts parsing', async () => {
+    // Snapshot at the moment the worker first receives anything: an
+    // implementation that cleared at commit (in applyParsedData / applyFailure,
+    // after the worker replies) would leave the pane, the off-screen arrow and
+    // the mobile plot rail on plots the loading screen has already hidden.
+    let clearedBeforeWorkerSaw: boolean | null = null
+    let harness: Awaited<ReturnType<typeof loadHarness>>
+
+    harness = await loadHarness(message => {
+      clearedBeforeWorkerSaw ??=
+        harness.deps.grid.clearSelection.mock.calls.length > 0
+      if (message.type === 'test-stream') {
+        throw new Error('Stream transfer is not supported in this environment')
+      }
+    })
+
+    const file = {
+      name: 'selection.csv',
+      size: 3,
+      stream: vi.fn(() => new ReadableStream()),
+      arrayBuffer: vi.fn().mockRejectedValue(new Error('arrayBuffer failed')),
+    } as unknown as File
+
+    await harness.service.loadFiles([file])
+
+    expect(clearedBeforeWorkerSaw).toBe(true)
+    expect(harness.deps.grid.clearSelection).toHaveBeenCalledTimes(1)
+  }, 15000)
 
   it('loadFiles accepts a plain File[] (not just FileList)', async () => {
     const { service, report, workerInstances } = await loadHarness(message => {

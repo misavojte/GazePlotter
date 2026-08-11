@@ -51,3 +51,11 @@ export const PLOT_LEGEND_GAP = 14
 
 /** Standard/default gap in px from the axis baseline to its tick labels. */
 export const PLOT_TICK_LABEL_GAP = 10
+
+/**
+ * Breathing room in px above the data rect, so the top border (and the first row
+ * of a row plot) never sits flush against the canvas edge. Declared as
+ * `gutters.pad.top`; one value for every plot, rather than each figure carrying
+ * its own near-identical margin constant.
+ */
+export const PLOT_EDGE_PAD_TOP = 5

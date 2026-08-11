@@ -63,9 +63,9 @@ function createTestData(): DataType {
       },
       {
         id: 'participantPairSimilarity-inst',
-        baseId: 'participantPairSimilarity',
-        params: { method: 'levenshtein', collapsed: false },
-        label: 'Scanpath Similarity',
+        baseId: 'scanpathLevenshteinSimilarity',
+        params: { collapsed: false },
+        label: 'Levenshtein similarity',
         projection: { kind: 'identity-participant-pair-matrix' as const },
       },
     ],
@@ -373,8 +373,8 @@ describe('Metric Data Export Mapping', () => {
     const header = lines[0].split(',')
     expect(new Set(header).size).toBe(header.length)
 
-    const colP1 = header.indexOf('Scanpath_Similarity_ParticipantOne')
-    const colP2 = header.indexOf('Scanpath_Similarity_ParticipantTwo')
+    const colP1 = header.indexOf('Levenshtein_similarity_ParticipantOne')
+    const colP2 = header.indexOf('Levenshtein_similarity_ParticipantTwo')
     expect(colP1).toBeGreaterThan(-1)
     expect(colP2).toBeGreaterThan(-1)
 
@@ -413,8 +413,8 @@ describe('Metric Data Export Mapping', () => {
     })
     const wideHeader = wide.dataContent.split('\n')[0].split(',')
     // Relational columns cover only the selected participants
-    expect(wideHeader).toContain('Scanpath_Similarity_ParticipantTwo')
-    expect(wideHeader).not.toContain('Scanpath_Similarity_ParticipantOne')
+    expect(wideHeader).toContain('Levenshtein_similarity_ParticipantTwo')
+    expect(wideHeader).not.toContain('Levenshtein_similarity_ParticipantOne')
   })
 
   it('rejects a non-finite or inverted time range', async () => {

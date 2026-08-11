@@ -1,4 +1,11 @@
-import { instanceReadout, formatProjectionReadout, type Metric, type MetricInstance } from '$lib/metrics'
+import {
+  getMetric,
+  instanceReadout,
+  formatProjectionReadout,
+  type Metric,
+  type MetricInstance,
+  type ProjectionLabelPart,
+} from '$lib/metrics'
 
 /**
  * Axis / legend / colorbar label grammar — ONE format for every plot.
@@ -48,12 +55,21 @@ export function formatQuantity(quantity: string, unit?: string | null): string {
  */
 export function formatInstanceLabel(
   instance: MetricInstance | null | undefined,
-  metric: Metric | null | undefined,
   fallback = 'Value'
 ): string {
+  const metric = metricOf(instance)
   const name = instance?.label?.trim() || metric?.meta.label?.trim()
   if (!name) return fallback
   return formatQuantity(name, metric?.meta.unit ?? '')
+}
+
+/**
+ * The instance's metric. Derived here rather than accepted as a parameter:
+ * an instance DETERMINES its metric (`baseId`), so passing both invited a
+ * mismatched pair and made every call site repeat the same lookup.
+ */
+function metricOf(instance: MetricInstance | null | undefined): Metric | undefined {
+  return instance ? getMetric(instance.baseId) : undefined
 }
 
 /**
@@ -96,40 +112,45 @@ export function rangeQualifier(
  * The instance's DERIVED qualifier tail for a plot axis/legend — its full
  * instance readout (`instanceReadout`: params + the cross-participant reduction,
  * the SAME readout the metric selector shows, so panel and figure agree and
- * exports self-document), plus the projection when `includeProjection`
- * (aggregate plots; omit for time-axis plots whose window already lives on the
- * time axis). `includeReduction: false` drops the reduction chip for the bar
- * plot, which discloses its statistic via its own mean±CI / median-IQR overlay
+ * exports self-document), plus as much of the projection as `projection` asks
+ * for. `includeReduction: false` drops the reduction chip for the bar plot,
+ * which discloses its statistic via its own mean±CI / median-IQR overlay
  * instead. Always derived, so a rename never drops these.
  */
 function metricQualifiers(
   instance: MetricInstance | null | undefined,
-  includeProjection = false,
+  projection: ProjectionLabelOption = 'none',
   includeReduction = true,
-  includeSummaryStat = true,
 ): string[] {
   if (!instance) return []
-  const qualifiers = instanceReadout(instance, { includeReduction, includeSummaryStat })
-  if (includeProjection) {
-    const projection = formatProjectionReadout(instance)
-    if (projection) qualifiers.push(projection)
+  const qualifiers = instanceReadout(instance, { includeReduction })
+  if (projection !== 'none') {
+    const readout = formatProjectionReadout(instance, projection)
+    if (readout) qualifiers.push(readout)
   }
   return qualifiers
 }
 
+/** {@link ProjectionLabelPart}, plus the option to print no projection at all. */
+type ProjectionLabelOption = ProjectionLabelPart | 'none'
+
 interface MetricLabelOptions {
   /** Fallback quantity name when no instance/metric resolves. */
   fallback?: string
-  /** Append the projection readout (aggregate plots). Omit for time-axis plots
-   *  whose window already lives on the time axis (avoids printing it twice). */
-  includeProjection?: boolean
+  /**
+   * How much of the projection to append. Default `'none'`.
+   *   - `'full'` for aggregate plots with no time axis (bar, matrices,
+   *     correlation): slice + window.
+   *   - `'leaf'` for TIME-AXIS plots (Metric Timeline, AOI Timeline): the slice
+   *     only, because the window is already drawn along x. Printing `'full'`
+   *     there states the window twice; printing `'none'` (as both did before)
+   *     silently drops WHICH AOI or type the instance picked, so two plots of
+   *     different AOIs came out wearing identical axis labels.
+   */
+  projection?: ProjectionLabelOption
   /** Append the cross-participant reduction chip. Default `true`; pass `false`
    *  for the bar plot, which discloses its statistic via its overlay instead. */
   includeReduction?: boolean
-  /** Append the within-participant summary-statistic chip (mean/median/… for
-   *  fixation/visit duration). Default `true`; pass `false` for the bar plot,
-   *  whose beeswarm + overlay already shows the distribution. */
-  includeSummaryStat?: boolean
   /** Append the IUPAC unit after the quantity. Default `true`; pass `false` for an
    *  axis carrying several metrics of differing units (correlation rows/cols). */
   unit?: boolean
@@ -149,20 +170,18 @@ interface MetricLabelOptions {
  */
 export function buildMetricLabel(
   instance: MetricInstance | null | undefined,
-  metric: Metric | null | undefined,
   opts: MetricLabelOptions = {}
 ): string {
   const primary =
     opts.unit === false
-      ? instance?.label?.trim() || metric?.meta.label?.trim() || opts.fallback || 'Value'
-      : formatInstanceLabel(instance, metric, opts.fallback)
+      ? instance?.label?.trim() || metricOf(instance)?.meta.label?.trim() || opts.fallback || 'Value'
+      : formatInstanceLabel(instance, opts.fallback)
   return withQualifiers(
     primary,
     ...metricQualifiers(
       instance,
-      opts.includeProjection ?? false,
-      opts.includeReduction ?? true,
-      opts.includeSummaryStat ?? true
+      opts.projection ?? 'none',
+      opts.includeReduction ?? true
     ),
     ...(opts.extra ?? [])
   )

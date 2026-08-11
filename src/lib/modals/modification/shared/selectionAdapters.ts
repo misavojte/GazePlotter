@@ -12,6 +12,20 @@ const memberIdsOf = (groups: Group[]): number[] =>
   groups.flatMap(g => g.members.map(m => m.id))
 
 /**
+ * Selection ids the open plots point at on one axis, for a session's
+ * `reservedIds`. A dissolved selection leaves its id behind on every plot that
+ * named it (settings are not rewritten, they self-heal to "All" on read), so
+ * these ids must stay spent or the next created selection would inherit them.
+ */
+export const referencedSelectionIds = (
+  items: readonly { settings?: Record<string, unknown> }[],
+  settingsKey: string
+): number[] =>
+  items
+    .map(i => i.settings?.[settingsKey])
+    .filter((id): id is number => typeof id === 'number' && id > 0)
+
+/**
  * The id-keyed membership half of a selection session, shared by the
  * participant / stimulus / eye-movement-type modals: ids are stable across
  * renames so membership needs no rename map; toggling a merged card toggles

@@ -1,16 +1,13 @@
 /**
- * Single-source-of-truth filter between a plot's metric contract and the
- * library of MetricInstance objects. Plots declare `{outputShape, windowing}`
- * via `PlotMetricContract`; this module answers three questions against that
- * contract: does this instance match, could this recipe instantiate into it,
- * which instances from a library apply.
+ * The filter between a plot's `PlotMetricContract` and the metric library:
+ * does this instance match, could this recipe instantiate into it, which
+ * instances apply.
  */
 import type { Metric, MetricMeta, OutputShape } from './core/dsl'
 import type { MetricInstance } from './instances'
 import { getRecipe } from './core/defineMetric'
 import {
   PROJECTION_LEAVES,
-  supportedLeaves,
   type LeafKind,
   type LeafProjection,
   type Projection,
@@ -25,16 +22,15 @@ import {
 } from './core/measurement'
 
 /**
- * How a plot treats the cross-participant dimension — the capability that, with
- * a metric's `measurementClass`, determines which reduction / statistic controls
- * the metric library offers when opened from that plot.
+ * How a plot treats the cross-participant dimension. With a metric's
+ * `measurementClass`, this decides which controls the library offers.
  *
- *   - `reduce`          collapse to one value per cell → a {@link GroupReduction}
+ *   - `reduce`          one value per cell → a {@link GroupReduction}
  *     (AOI Timeline, Transition matrix).
- *   - `distribution`    draw the per-participant distribution → a
+ *   - `distribution`    the per-participant distribution → a
  *     {@link DistributionStat} overlay (AOI Comparison / bar).
- *   - `per-participant` one series per participant, no reduction (Metric Timeline).
- *   - `samples`         participants are the N of a statistic (Metric Correlation).
+ *   - `per-participant` one series each, no reduction (Metric Timeline).
+ *   - `samples`         participants are the N of a statistic (Correlation).
  *   - `group-axis`      participants are the matrix axes (Scanpath comparison).
  */
 type CrossParticipantMode =
@@ -51,22 +47,13 @@ export type PlotMetricContract = {
   multiSelect?: boolean
 }
 
-/**
- * The cross-participant reduction options the metric library should offer for a
- * metric under this plot's contract — the metric's sound set ({@link
- * soundReductions}) when the plot reduces to one value per cell, else `[]`. Pure
- * intersection of plot capability and metric nature; an MCP caller reads the
- * same function to know what it may set.
- */
+/** The intersection of plot capability and metric nature: the metric's sound
+ *  set when the plot reduces to one value per cell, else `[]`. */
 export function contractReductions(c: PlotMetricContract, meta: MetricMeta): GroupReduction[] {
   return c.crossParticipant === 'reduce' ? soundReductions(meta.measurementClass) : []
 }
 
-/**
- * The distribution statistics the metric library should offer for a metric under
- * this plot's contract — the metric's set ({@link distributionStatistics}) when
- * the plot draws a distribution, else `[]`.
- */
+/** Likewise, the metric's set when the plot draws a distribution, else `[]`. */
 export function contractDistributionStats(c: PlotMetricContract, meta: MetricMeta): DistributionStat[] {
   return c.crossParticipant === 'distribution' ? distributionStatistics(meta.measurementClass) : []
 }
@@ -79,10 +66,10 @@ function contractLeafKinds(c: PlotMetricContract): LeafKind[] {
 }
 
 /**
- * A minimal VALID concrete leaf of `kind` for a metric — used only to ask
- * {@link recipeSupports} whether the kind is reachable. AOI names/slots are
- * irrelevant to validity (name-refs always pass), but reducer-bearing kinds must
- * carry a reducer the metric actually offers or the reducer gate spuriously fails.
+ * A minimal valid leaf of `kind`, only ever passed to {@link recipeSupports}
+ * to ask whether the kind is reachable. AOI names are irrelevant to validity
+ * (name-refs always pass), but a reducer-bearing kind must carry a reducer the
+ * metric actually offers or its gate fails spuriously.
  */
 function representativeLeaf(meta: MetricMeta, kind: LeafKind): LeafProjection {
   switch (kind) {
@@ -90,6 +77,8 @@ function representativeLeaf(meta: MetricMeta, kind: LeafKind): LeafProjection {
     case 'matrix-row':
     case 'matrix-col':
       return { kind, aoiRef: { by: 'name', name: '' } }
+    case 'pick-category':
+      return { kind, categoryName: '' }
     case 'matrix-cell':
       return { kind, fromAoi: { by: 'name', name: '' }, toAoi: { by: 'name', name: '' } }
     case 'aggregate-aoi':
@@ -102,20 +91,18 @@ function representativeLeaf(meta: MetricMeta, kind: LeafKind): LeafProjection {
 }
 
 /**
- * The projection leaf kinds a metric can actually produce under a plot's
- * contract: the metric's supported leaves ∩ the contract's allowed leaves,
- * validated through {@link recipeSupports} (windowing, reducer, and author
- * `rejects` gates). The "what could I build from this metric here?" answer —
- * read by the category/metric pickers to preview the options before Configure,
- * and by ConfigureMetric for its projection tabs.
+ * "What could I build from this metric here?" — the contract's allowed leaves,
+ * each validated through {@link recipeSupports}, which is the ONE authority on
+ * availability (raw shape, `providesAnyFixation`, `aoiAggregate`,
+ * `sampleSummary`, windowing, author `rejects`). Never pre-filter through a
+ * second enumerator; the one that existed re-encoded three of those gates and
+ * drifted.
  */
 export function metricLeafKindsInContract(m: Metric, c: PlotMetricContract): LeafKind[] {
   const recipe = getRecipe(m.meta.id)
   if (!recipe) return []
-  const allowed = new Set(contractLeafKinds(c))
   const windowed = c.windowing === 'required'
-  return supportedLeaves(m).filter(kind => {
-    if (!allowed.has(kind)) return false
+  return contractLeafKinds(c).filter(kind => {
     const leaf = representativeLeaf(m.meta, kind)
     const projection: Projection = windowed
       ? { kind: 'windowed', window: { windowSize: 500, stepSize: 500 }, inner: leaf }

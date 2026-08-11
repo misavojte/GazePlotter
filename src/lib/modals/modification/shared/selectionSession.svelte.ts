@@ -16,6 +16,9 @@ export interface SelectionLike {
  */
 export interface SelectionSessionConfig<TSel extends SelectionLike> {
   initial: TSel[]
+  /** Selection ids plots still point at, including ones already dissolved.
+      Keeps `nextSelId` past them so a recycled id cannot capture those plots. */
+  reservedIds?: () => Iterable<number>
   /** The active editor's groups (a card = one logical entity). */
   groups: () => Group[]
   /** Group ids that cannot ring or toggle while editing a saved selection. */
@@ -34,6 +37,10 @@ export interface SelectionSessionConfig<TSel extends SelectionLike> {
   ) => void
   reorderGroups: (from: number, to: number, withIds?: ReadonlySet<number>) => void
   notify: (message: string) => void
+  /** Group ids the Merge verb must refuse (name-locked identity anchors like
+      the Fixation baseline — a merge is a rename fold, which they reject).
+      Pass the editor's `lockedNameIds` so all three surfaces share one set. */
+  lockedNameIds?: ReadonlySet<number>
 }
 
 /**
@@ -54,8 +61,10 @@ export function createSelectionSession<TSel extends SelectionLike>(
   let nameFocusPending = $state(false)
   let transientIds = $state(new Set<number>())
   // Monotonic ids: never recycle a dissolved selection's id — panes pinned
-  // to the old id would silently show the unrelated newcomer.
-  let nextSelId = Math.max(0, ...cfg.initial.map(s => s.id)) + 1
+  // to the old id would silently show the unrelated newcomer. Spans reopens by
+  // counting the ids plots reference, which outlive the row they named.
+  let nextSelId =
+    Math.max(0, ...cfg.initial.map(s => s.id), ...(cfg.reservedIds?.() ?? [])) + 1
 
   const editingSelection = $derived(
     selections.find(s => s.id === editingId) ?? null
@@ -92,6 +101,18 @@ export function createSelectionSession<TSel extends SelectionLike>(
     if (selectedGroups.length < 2) return undefined
     const leader = selectedGroups[0].members[0]
     return (leader.displayedName || '').trim() || leader.originalName
+  })
+  // Why the selection can't merge despite having 2+ groups (tray tooltip).
+  // Checked over MEMBERS, not just the card id (= leader id): a locked row
+  // can sit as a member of an invalid folded card.
+  const mergeBlockedReason = $derived.by(() => {
+    if (selectedGroups.length < 2 || !cfg.lockedNameIds?.size) return undefined
+    const hit = selectedGroups
+      .flatMap(g => g.members)
+      .find(m => cfg.lockedNameIds!.has(m.id))
+    if (!hit) return undefined
+    const name = hit.displayedName || hit.originalName
+    return `“${name}” has a reserved name and can't be merged`
   })
   const canSplit = $derived(selectedGroups.some(g => g.members.length > 1))
 
@@ -150,7 +171,7 @@ export function createSelectionSession<TSel extends SelectionLike>(
   // ── Verbs on the transient selection ───────────────────────────────────────
   const mergeSelected = () => {
     const sel = selectedGroups
-    if (!mergeTargetName) return // defined only once 2+ groups are selected
+    if (!mergeTargetName || mergeBlockedReason) return // 2+ groups, none locked
     for (const g of sel.slice(1)) {
       cfg.renameItem(g.members[0], mergeTargetName, true, g)
     }
@@ -317,8 +338,11 @@ export function createSelectionSession<TSel extends SelectionLike>(
     get mergeTargetName() {
       return mergeTargetName
     },
+    get mergeBlockedReason() {
+      return mergeBlockedReason
+    },
     get canMerge() {
-      return selectedGroups.length >= 2
+      return selectedGroups.length >= 2 && !mergeBlockedReason
     },
     get canSplit() {
       return canSplit
@@ -366,6 +390,7 @@ export interface SelectionSessionApi {
   readonly visibleCount: number
   readonly allVisibleSelected: boolean
   readonly mergeTargetName: string | undefined
+  readonly mergeBlockedReason: string | undefined
   readonly canMerge: boolean
   readonly canSplit: boolean
   readonly nameFocusPending: boolean

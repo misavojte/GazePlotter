@@ -79,15 +79,6 @@ export type UpdateSelectionsCommand = BaseCommandInterface & {
 
 export type SelectionsAxis = UpdateSelectionsCommand['axis']
 
-/** Selection payload per axis (the correlated form of UpdateSelectionsCommand). */
-export type SelectionsByAxis = {
-  participant: ParticipantsSelection[]
-  stimulus: EntitySelection[]
-  category: EntitySelection[]
-  event: NameSelection[]
-  aoi: NameSelection[]
-}
-
 export interface UpdateNoAoiTreatmentCommand extends BaseCommandInterface {
   type: 'updateNoAoiTreatment'
   noAoiTreatment: { displayedName: string; color: string }

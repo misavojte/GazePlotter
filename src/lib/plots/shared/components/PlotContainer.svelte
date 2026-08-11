@@ -6,7 +6,7 @@
   import BasePlot from './BasePlot.svelte'
   import type { PlotItemContract, PlotView } from '$lib/plots/definePlot'
   import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-  import type { WorkspaceService } from '$lib/workspace/service.svelte'
+  import type { WorkspaceCommandBus } from '$lib/workspace/commands/bus'
 
   interface Props {
     item: PlotItemContract<string, object>
@@ -34,7 +34,7 @@
     screen?: (ctx: {
       item: PlotItemContract<string, object>
       engine: DataEngine
-      workspace: WorkspaceService
+      workspace: WorkspaceCommandBus
       view: () => PlotView | null
     }) => {
       settings?: () => object

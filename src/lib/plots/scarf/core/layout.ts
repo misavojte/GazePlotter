@@ -1,13 +1,46 @@
 import {
   FONT_PRIMARY,
   computeGroupedLegendGeometry,
+  participantIndexAxisWidth,
+  PLOT_EDGE_PAD_TOP,
+  ROW_LABEL_GAP,
   SCARF_LEGEND_CONFIG,
   withQualifiers,
   timeRangeQualifier,
   rangeQualifier,
+  type FrameGutters,
 } from '$lib/plots/shared'
 import { calculateTextMetrics } from '$lib/shared/utils/textUtils'
 import { SCARF_LAYOUT } from '../const'
+
+/**
+ * The scarf's frame declaration: the left label column and the right margin as
+ * padding, the timeline ticks + title on the bottom edge, and the legend as a
+ * reserved bottom block. So `frame.x`/`frame.width` come out as the plot columns
+ * and the resolver owns all of the edge measuring.
+ *
+ * ONE owner, called twice. The figure passes the real `leftLabelWidth` for the
+ * frame it draws in, and `LEFT_LABEL_MAX_WIDTH` to probe the row band: pinning
+ * the left inset at its cap keeps the probe independent of compact mode (which
+ * is what the band decides) and wraps the axis title at its narrowest, so the
+ * probe never reserves less than the real frame does.
+ */
+export function scarfFrameGutters(opts: {
+  tickLabels: string[]
+  axisTitle: string
+  leftLabelWidth: number
+  legendSpace: number
+}): FrameGutters {
+  return {
+    bottom: { tickLabels: opts.tickLabels, title: opts.axisTitle },
+    pad: {
+      top: PLOT_EDGE_PAD_TOP,
+      left: opts.leftLabelWidth,
+      right: SCARF_LAYOUT.RIGHT_MARGIN,
+    },
+    legendHeight: opts.legendSpace,
+  }
+}
 
 /**
  * Calculates if compact mode should be active based on available vertical space.
@@ -39,7 +72,9 @@ export function calculateLeftLabelWidth(
   isCompact: boolean,
   participantLabels: string[]
 ): number {
-  if (isCompact) return 55
+  // Compact rows carry the index axis instead of names, so the column is exactly
+  // what that axis draws into.
+  if (isCompact) return participantIndexAxisWidth()
   if (participantLabels.length === 0) return SCARF_LAYOUT.LEFT_LABEL_MAX_WIDTH
 
   const { maxWidth: measuredMaxWidth } = calculateTextMetrics(
@@ -48,10 +83,9 @@ export function calculateLeftLabelWidth(
     FONT_PRIMARY.FAMILY
   )
 
-  // Use the measured max width plus some padding, capped at a reasonable max
-  // Default padding is 15px (10px for alignment)
-  const paddedWidth = measuredMaxWidth + 10
-  return Math.min(SCARF_LAYOUT.LEFT_LABEL_MAX_WIDTH, paddedWidth)
+  // The widest name plus the gap it is drawn with (drawScarfLabels right-aligns
+  // at plotLeft − ROW_LABEL_GAP), capped so one long name cannot eat the plot.
+  return Math.min(SCARF_LAYOUT.LEFT_LABEL_MAX_WIDTH, measuredMaxWidth + ROW_LABEL_GAP)
 }
 
 /**
@@ -343,43 +377,3 @@ export function calculateLegendStructuralHeight(
   return tempLayout.totalHeight
 }
 
-/**
- * Calculates the intrinsic content height of the visualization.
- */
-export function calculateIntrinsicContentHeight(
-  legendHeight: number,
-  legendY: number,
-  xAxisHeight: number,
-  participantBarsHeight: number,
-  internalPaddingBottom: number
-): number {
-  if (legendHeight > 0) {
-    return legendY + legendHeight + internalPaddingBottom
-  }
-  return participantBarsHeight + xAxisHeight + internalPaddingBottom
-}
-
-/**
- * Calculates the effective top margin based on available space and centering.
- */
-export function calculateEffectiveMarginTop(
-  availableHeight: number,
-  intrinsicHeight: number,
-  marginTop: number,
-  marginBottom: number,
-  internalPaddingTop: number
-): number {
-  const centeringOffset =
-    availableHeight >
-    intrinsicHeight + marginTop + marginBottom + internalPaddingTop
-      ? Math.floor(
-          (availableHeight -
-            intrinsicHeight -
-            marginTop -
-            marginBottom -
-            internalPaddingTop) /
-            2
-        )
-      : 0
-  return marginTop + centeringOffset + internalPaddingTop
-}

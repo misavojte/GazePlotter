@@ -15,21 +15,22 @@
     PROJECTION_LEAVES,
     MATRIX_REDUCERS,
     identityFor,
-    leafKindHint,
-    leafKindLabel,
+    isSummaryLeaf,
+    isSummaryLeafKind,
     type Projection,
     type LeafProjection,
     type LeafKind,
-    type AoiReducer,
     type MatrixReducer,
     type WindowSpec,
   } from '$lib/metrics/core/projection'
+  import type { AoiReducer } from '$lib/metrics/core/numeric'
   import { recipeSupports } from '$lib/metrics/core/validation'
+  import { categoryGroupNames } from '$lib/metrics/core/categoryScan'
   import { metricLeafKindsInContract, contractReductions, type PlotMetricContract } from '$lib/metrics/filters'
   import type { Metric } from '$lib/metrics/core/dsl'
   import type { GroupReduction } from '$lib/metrics/core/measurement'
-  import type { ParamDef } from '$lib/metrics/core/params'
-  import { resolveParams } from '$lib/metrics/core/params'
+  import type { ParamDef, SummaryStatistic } from '$lib/metrics/core/params'
+  import { resolveParams, SUMMARY_STATISTIC_OPTIONS } from '$lib/metrics/core/params'
   import { getAois } from '$lib/data/engine'
   import type { CreateInstanceHandler } from '$lib/plots/shared/metricInstanceHandlers'
 
@@ -98,6 +99,12 @@
       leafDraft = { ...p }
       windowDraft = null
     }
+    // A sample-summarizing metric's pick always STATES its summary (mean
+    // included — the collapse must be visible); normalize instances stored
+    // before the choice existed to the explicit default.
+    if (isSummaryLeaf(leafDraft) && metric?.meta.sampleSummary && !leafDraft.statistic) {
+      leafDraft = { ...leafDraft, statistic: 'mean' }
+    }
   }
 
   onMount(() => {
@@ -135,15 +142,32 @@
     }
   })
 
+  // Sample-summarizing metrics: the summary choice rides the SUMMARY leaf (see
+  // LeafProjection); always explicit, so the figure discloses it even at the
+  // default. Empty for every other metric/leaf, whose collapse is not a choice.
+  function summaryFieldFor(kind: LeafKind): { statistic?: SummaryStatistic } {
+    return metric?.meta.sampleSummary && isSummaryLeafKind(kind) ? { statistic: 'mean' } : {}
+  }
+
   function buildLeaf(kind: LeafKind, currentAoi: string | undefined = undefined): LeafProjection {
     const defaultAoi = currentAoi ?? aoiNameUnion[0] ?? ''
     switch (kind) {
       case 'identity-scalar':                    return { kind }
       case 'identity-aoi-vector':                return { kind }
+      case 'identity-category-vector':           return { kind }
       case 'identity-aoi-pair-matrix':           return { kind }
       case 'identity-participant-pair-matrix':   return { kind }
-      case 'pick-aoi':         return { kind, aoiRef: { by: 'name', name: defaultAoi } }
-      case 'pick-any-fixation': return { kind }
+      case 'pick-aoi':         return {
+        kind,
+        aoiRef: { by: 'name', name: defaultAoi },
+        ...summaryFieldFor(kind),
+      }
+      case 'pick-category':    return {
+        kind,
+        categoryName: categoryNameOptions()[0]?.value ?? '',
+        ...summaryFieldFor(kind),
+      }
+      case 'pick-any-fixation': return { kind, ...summaryFieldFor(kind) }
       case 'aggregate-aoi':    return { kind, reducer: aoiExtremeOptions()[0]?.value ?? 'max' }
       case 'matrix-diagonal':  return { kind }
       case 'matrix-row':       return { kind, aoiRef: { by: 'name', name: defaultAoi } }
@@ -309,24 +333,44 @@
   // The shared Select dispatches CustomEvent<string> — one cast, one place.
   const detail = (e: Event) => (e as CustomEvent<string>).detail
 
-  // Which leaves need per-shape configuration (an AOI to pick, a reducer to
-  // choose) — so a config panel only renders under the selected card when there's
-  // actually something to set.
+  // Whether a leaf needs per-shape configuration (an AOI or type to pick, a
+  // reducer to choose) — so the Options section only renders when there is
+  // something to set. DERIVED from buildLeaf, which already is the per-kind
+  // field descriptor: a kind carries config exactly when it carries a field
+  // beyond `kind`. This replaced a hand-maintained set that had to be kept in
+  // sync with the template's branches, and had silently drifted once
+  // (pick-category's type selector was unreachable under contracts offering
+  // neither windowing nor reductions).
   function leafHasConfig(kind: LeafKind): boolean {
-    return (
-      kind === 'pick-aoi' ||
-      kind === 'matrix-row' ||
-      kind === 'matrix-col' ||
-      kind === 'matrix-cell' ||
-      kind === 'aggregate-aoi' ||
-      kind === 'matrix-aggregate'
-    )
+    return Object.keys(buildLeaf(kind)).length > 1
   }
 
   function updateLeafAoiRef(name: string) {
     if (leafDraft.kind === 'pick-aoi' || leafDraft.kind === 'matrix-row' || leafDraft.kind === 'matrix-col') {
       leafDraft = { ...leafDraft, aoiRef: { by: 'name', name } } as LeafProjection
     }
+  }
+
+  function updateLeafCategoryName(name: string) {
+    if (leafDraft.kind === 'pick-category') {
+      leafDraft = { ...leafDraft, categoryName: name }
+    }
+  }
+
+  function updateLeafStatistic(statistic: SummaryStatistic) {
+    if (isSummaryLeaf(leafDraft)) {
+      leafDraft = { ...leafDraft, statistic }
+    }
+  }
+
+  // Eye-movement-type options for the pick-category leaf — the canonical
+  // displayed-name axis, plus the current value when it names a type absent
+  // from the loaded dataset (so editing an instance never drops its type).
+  function categoryNameOptions(current = ''): SelectOption[] {
+    const names = categoryGroupNames(engine)
+    const withCurrent =
+      current && !names.includes(current) ? [current, ...names] : names
+    return withCurrent.map(n => ({ label: n, value: n }))
   }
 
   // The two matrix-cell endpoints are one control rendered twice (see the
@@ -426,6 +470,32 @@
             />
           {/if}
 
+          {#if leafDraft.kind === 'pick-category'}
+            <Select
+              compact
+              label="Eye-movement type"
+              options={categoryNameOptions(leafDraft.categoryName)}
+              value={leafDraft.categoryName}
+              placeholder="Choose a type"
+              emptyMessage="No eye-movement types in the loaded data"
+              onchange={(e) => updateLeafCategoryName(detail(e))}
+            />
+          {/if}
+
+          <!-- The summary statistic belongs to the SUMMARY, so the control sits
+               with whichever pick produced it (AOI, whole stimulus, type) —
+               never in Metric Parameters, where it would imply the vector
+               itself carries a collapse choice. -->
+          {#if isSummaryLeaf(leafDraft) && metric?.meta.sampleSummary}
+            <Select
+              compact
+              label="Summary"
+              options={[...SUMMARY_STATISTIC_OPTIONS]}
+              value={leafDraft.statistic ?? 'mean'}
+              onchange={(e) => updateLeafStatistic(detail(e) as SummaryStatistic)}
+            />
+          {/if}
+
           {#if leafDraft.kind === 'matrix-cell'}
             {@const cell = leafDraft}
             <div class="two-col">
@@ -505,8 +575,8 @@
                 }}
               >
                 <span class="so-text">
-                  <span class="so-name">{leafKindLabel(kind)}</span>
-                  <span class="so-hint">{leafKindHint(kind)}</span>
+                  <span class="so-name">{PROJECTION_LEAVES[kind].title}</span>
+                  <span class="so-hint">{PROJECTION_LEAVES[kind].hint}</span>
                 </span>
                 {#if selected}<span class="so-check"><Check size={15} /></span>{/if}
               </button>

@@ -1,5 +1,9 @@
 import type { DataCapabilities, DataType, RawIngestPayload, BinarySegmentBuffers } from '$lib/data/types'
-import { jsonSegmentsToBinary, DEFAULT_NO_AOI_TREATMENT } from '$lib/data/types'
+import {
+  jsonSegmentsToBinary,
+  reservedFixationName,
+  DEFAULT_NO_AOI_TREATMENT,
+} from '$lib/data/types'
 
 /**
  * Validates the basic structure of the data
@@ -47,6 +51,43 @@ export function processAndValidateData(
   delete (ed as { hiddenChannels?: unknown }).hiddenChannels
   if (data.categories) {
     delete (data.categories as { hiddenCategories?: unknown }).hiddenCategories
+    // The fixation row's displayed name is reserved (id 0 is the substrate
+    // every AOI metric scans). Heal files — hand-edited or saved before the
+    // guard existed — where another row took it, or the display fold would
+    // silently claim that type is the fixation baseline. An EMPTY reserved
+    // name heals nothing: the fold keeps empty names standalone, so there is
+    // no collision to prevent.
+    const rows = (data.categories as { data?: (string[] | null)[] }).data
+    if (Array.isArray(rows) && rows.length > 0) {
+      const reserved = reservedFixationName(rows)
+      const taken = new Set(
+        rows.map(r => (((r?.[1] ?? r?.[0]) ?? '') as string).trim())
+      )
+      for (let i = 1; reserved !== '' && i < rows.length; i++) {
+        const row = rows[i]
+        if (!row) continue
+        if (((row[1] ?? row[0]) ?? '').trim() === reserved) {
+          // Unique suffix: landing on another row's name would silently MERGE
+          // two distinct types via the displayed-name fold.
+          let n = i + 1
+          while (taken.has(`${reserved} (${n})`)) n++
+          row[1] = `${reserved} (${n})`
+          taken.add(row[1])
+        }
+      }
+    }
+    // Pre-1.9.3 category-modal Applies persisted categories.orderVector
+    // WITHOUT id 0 (the old modal excluded the fixation row). The undo
+    // inverse snapshots through that vector, so heal it or undoing a
+    // fixation recolor cannot restore row 0.
+    const orderVector = (data.categories as { orderVector?: number[] }).orderVector
+    if (
+      Array.isArray(orderVector) &&
+      orderVector.length > 0 &&
+      !orderVector.includes(0)
+    ) {
+      orderVector.unshift(0)
+    }
   }
 
   const events = ed.events ?? []

@@ -68,21 +68,8 @@ const RENDER_FAILED_PLACEHOLDER: PlotPlaceholderContent = {
  * the same handle for the rare figure that needs it.
  */
 
-/** Plot margins as a geometry rectangle. */
-export interface CanvasPlotMargins {
-  top: number
-  right: number
-  bottom: number
-  left: number
-}
-
-/** Zero margins — the default for on-screen rendering (export padding only). */
-export const NO_MARGINS: CanvasPlotMargins = { top: 0, right: 0, bottom: 0, left: 0 }
-
-export interface PlotProjection {
-  toPixels: (val: number, clamp?: boolean) => number
-  toLogical: (px: number) => number
-}
+/** Zero margin default for on-screen rendering (export padding only). */
+export const NO_MARGINS = 0
 
 // ── Frame spec types ──
 
@@ -178,8 +165,14 @@ export interface FramePointer {
 export interface FrameDrag extends FramePointer {
   startX: number
   startY: number
+  /** Incremental delta (px) since the previous drag event. */
   dx: number
+  /** Incremental delta (px) since the previous drag event. */
   dy: number
+  /** Total cumulative delta (px) since drag start. */
+  totalDx: number
+  /** Total cumulative delta (px) since drag start. */
+  totalDy: number
 }
 
 export interface FramePointerHandlers {
@@ -195,10 +188,20 @@ export interface UsePlotOptions<THit = unknown> {
   // ---- sizing ----
   width: () => number
   height: () => number
-  margins: () => CanvasPlotMargins
-  dpiOverride?: () => number | null
+  margin: () => number
   /** Reactive dependency getter — a redraw is scheduled whenever it changes. */
   deps: () => unknown
+  /**
+   * `deps`' overlay-only twin, for view state the data layer doesn't depend on
+   * (hover marks, a shared cursor): a change repaints `drawOverlay` over the
+   * cached data layer instead of re-running `drawData`.
+   *
+   * The RETURN VALUE IS IGNORED — what schedules the repaint is what this getter
+   * READS. So read only equality-stable `$derived`s (a number, a boolean, a joined
+   * key), never a live source that changes faster than the mark does, or the
+   * overlay repaints on every pointer frame for nothing.
+   */
+  overlayDeps?: () => unknown
 
   /** Data-level placeholder (missing metric, empty selection). Checked first. */
   placeholder?: () => PlotPlaceholderContent | null
@@ -222,6 +225,18 @@ export interface UsePlotOptions<THit = unknown> {
 
   // ---- axis chrome (drawPlotArea + axis titles) ----
   axes?: () => FrameAxes
+
+  /**
+   * Marks that belong ON TOP of the axis chrome. `drawPlotArea` strokes a border
+   * around the data rect as its last step, so anything drawn in `drawData` that
+   * touches the rect's edge gets that border painted across it — a dot sitting on
+   * the axis maximum comes out sliced in half. Draw such marks here instead.
+   *
+   * Still part of the cached data layer, so hover repaints blit it back like any
+   * other mark. This is NOT the hover layer: that is `drawOverlay`, which reruns
+   * every pointer frame. Never clipped by the harness; clip inside if you need it.
+   */
+  drawAboveAxes?: (ctx: CanvasRenderingContext2D, frame: PlotFrame) => void
 
   // ---- hover overlay, drawn unclipped on top of the chrome ----
   drawOverlay?: (ctx: CanvasRenderingContext2D, frame: PlotFrame) => void
@@ -282,17 +297,6 @@ export interface UsePlotHandle<THit = unknown> {
    * per-figure `$state` mirrors of the hit.
    */
   readonly hover: { readonly data: THit | null }
-  /** Throttled rAF render scheduler (re-runs the full drawData). */
-  readonly scheduleRender: () => void
-  /**
-   * Throttled rAF scheduler that repaints ONLY `drawOverlay`, blitting the
-   * cached data layer back instead of re-running the (expensive) `drawData`.
-   * Use for hover-only visuals — crosshairs, hovered-cell highlights, tooltip
-   * guide lines — that don't change the data layer. Falls back to a full render
-   * if no data layer is cached yet or `drawOverlay` isn't declared.
-   */
-  readonly scheduleOverlayRender: () => void
-
   // Lower-level surface (for the rare figure that needs it directly)
   readonly canvasState: CanvasState
   readonly plotAreaWidth: number
@@ -304,12 +308,6 @@ export interface UsePlotHandle<THit = unknown> {
   readonly safeWidth: number
   readonly safeHeight: number
   readonly setCursor: (cursor: string) => void
-  createLinearProjection: (
-    min: number,
-    max: number,
-    pixelStart: number,
-    pixelEnd: number
-  ) => PlotProjection
   showTooltip: (
     id: string,
     content: Array<{ key: string; value: string }>,
@@ -474,7 +472,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   let canvasState = $state<CanvasState>(createCanvasState())
   const exportRegistrar = getContext<ExportSourceRegistrar | undefined>(EXPORT_SOURCE_CONTEXT)
 
-  const getDpiOverride = () => (options.dpiOverride ? options.dpiOverride() : null)
+  const getDpiOverride = () => exportRegistrar?.dpiOverride ?? null
   const getDimensions = () => ({
     width: Math.max(1, options.width()),
     height: Math.max(1, options.height()),
@@ -579,15 +577,15 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
 
   // ---- plot bounds (content area = total minus export margins) ----
   const plotAreaWidth = $derived(
-    Math.max(1, options.width() - options.margins().left - options.margins().right)
+    Math.max(1, options.width() - options.margin() * 2)
   )
   const plotAreaHeight = $derived(
-    Math.max(1, options.height() - options.margins().top - options.margins().bottom)
+    Math.max(1, options.height() - options.margin() * 2)
   )
-  const plotLeft = $derived(options.margins().left)
-  const plotRight = $derived(options.width() - options.margins().right)
-  const plotTop = $derived(options.margins().top)
-  const plotBottom = $derived(options.height() - options.margins().bottom)
+  const plotLeft = $derived(options.margin())
+  const plotRight = $derived(options.width() - options.margin())
+  const plotTop = $derived(options.margin())
+  const plotBottom = $derived(options.height() - options.margin())
   const safeWidth = $derived(Math.max(1, options.width()))
   const safeHeight = $derived(Math.max(1, options.height()))
 
@@ -603,27 +601,9 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     if (c) c.style.cursor = cursor
   }
 
-  function createLinearProjection(
-    min: number,
-    max: number,
-    pixelStart: number,
-    pixelEnd: number
-  ): PlotProjection {
-    const range = max - min
-    const invRange = range > 0 ? 1 / range : 0
-    const pixelRange = pixelEnd - pixelStart
-    return {
-      toPixels(val: number, clamp = true): number {
-        let ratio = (val - min) * invRange
-        if (clamp) ratio = Math.max(0, Math.min(1, ratio))
-        return pixelStart + ratio * pixelRange
-      },
-      toLogical(px: number): number {
-        const ratio = pixelRange !== 0 ? (px - pixelStart) / pixelRange : 0
-        return min + ratio * range
-      },
-    }
-  }
+  // The tooltip is a singleton: own it before retracting it, or destroy would
+  // erase a sibling's.
+  let tooltipShown = false
 
   function showTooltip(
     id: string,
@@ -639,9 +619,11 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
       { id, visible: true, content, x: screenPos.x, y: screenPos.y, width: tooltipWidth },
       delay
     )
+    tooltipShown = true
   }
 
   function hideTooltip(delay?: number) {
+    tooltipShown = false
     updateTooltip(null, delay)
   }
 
@@ -713,9 +695,12 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
         drawYAxisMainLabel(ctx, axes.left.title, r.x, r.y, r.height, resolved.leftTitleOffset)
     }
 
-    // Snapshot the data layer (data + axes, no overlay) so overlay-only repaints
-    // can blit it back. Captures device pixels, so the active dpr transform is
-    // irrelevant to the copy.
+    // Marks that must sit over the axis border rather than be sliced by it.
+    options.drawAboveAxes?.(ctx, f)
+
+    // Snapshot the data layer (data + axes + above-axes marks, no overlay) so
+    // overlay-only repaints can blit it back. Captures device pixels, so the
+    // active dpr transform is irrelevant to the copy.
     if (options.drawOverlay) captureDataLayer()
 
     options.drawOverlay?.(ctx, f)
@@ -937,10 +922,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     const _ = [
       options.width(),
       options.height(),
-      options.margins().top,
-      options.margins().right,
-      options.margins().bottom,
-      options.margins().left,
+      options.margin(),
       getDpiOverride(),
     ]
     void _
@@ -951,6 +933,13 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     // New data or settings clear a parked render failure — natural retry.
     renderFailed = false
     untrack(scheduleRender)
+  })
+  $effect(() => {
+    options.overlayDeps?.()
+    // Parked on a placeholder: only a full render can un-park, and an overlay
+    // render would promote itself to one and redraw the card per pointer frame.
+    if (placeholderActive) return
+    untrack(scheduleOverlayRender)
   })
 
   // ---- composed action: canvas lifecycle + mouse listeners + pointer/drag ----
@@ -976,15 +965,19 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
       teardownDrag()
       const start = scaled(e)
       let started = false
+      let lastX = start.x
+      let lastY = start.y
       const threshold = pointer.dragThreshold ?? 5
       pointer.onDown?.({ x: start.x, y: start.y, isOver: true, buttons: e.buttons })
 
       winMove = (ev: MouseEvent) => {
         const p = scaled(ev)
-        const dx = p.x - start.x
-        const dy = p.y - start.y
-        if (!started && Math.hypot(dx, dy) >= threshold) started = true
-        if (started)
+        const totalDx = p.x - start.x
+        const totalDy = p.y - start.y
+        const dx = p.x - lastX
+        const dy = p.y - lastY
+        if (!started && Math.hypot(totalDx, totalDy) >= threshold) started = true
+        if (started) {
           pointer.onDrag?.({
             x: p.x,
             y: p.y,
@@ -992,9 +985,14 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
             startY: start.y,
             dx,
             dy,
+            totalDx,
+            totalDy,
             isOver: true,
             buttons: ev.buttons,
           })
+          lastX = p.x
+          lastY = p.y
+        }
       }
       winUp = (ev: MouseEvent) => {
         const p = scaled(ev)
@@ -1027,6 +1025,9 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
         }
         if (pointer && browser) node.removeEventListener('mousedown', onDown)
         teardownDrag()
+        // Like the plot cursor: a plot removed under the pointer gets no
+        // `mouseleave`, so it retracts itself.
+        if (tooltipShown) hideTooltip(0)
         life?.destroy?.()
       },
     }
@@ -1067,8 +1068,6 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
         return hoverData
       },
     },
-    scheduleRender,
-    scheduleOverlayRender,
     get canvasState() {
       return canvasState
     },
@@ -1097,7 +1096,6 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
       return safeHeight
     },
     setCursor,
-    createLinearProjection,
     showTooltip,
     hideTooltip,
   }

@@ -24,6 +24,7 @@
     commitNameSelections,
     stagedDomainNames,
   } from '../shared/nameKeyedSelection'
+  import { referencedSelectionIds } from '../shared/selectionAdapters'
   import type { NameSelection } from '$lib/data/types'
 
   interface Props {
@@ -32,7 +33,7 @@
   }
 
   let { selectedStimulus = '0', source }: Props = $props()
-  const { engine, modalState, workspace, toastState } = getGazePlotterSession()
+  const { engine, grid, modalState, workspace, toastState } = getGazePlotterSession()
 
   const stimuliOptions = getStimuliOptions(engine)
   // The opener's stimulus is only the STARTING scope; `stimulus` owns it after.
@@ -85,6 +86,7 @@
   // stimuli exactly like AOI selections.
   const session = createSelectionSession<NameSelection>({
     initial: cloneNameSelections(getEventsSelections(engine)),
+    reservedIds: () => referencedSelectionIds(grid.items, 'eventSelectionId'),
     groups: () => editor.groups,
     inertIds: () => inertIds,
     ...nameKeyedMembership({ renameMap: () => renameMap, openNameOf }),
@@ -92,8 +94,6 @@
     reorderGroups: editor.reorderGroups,
     notify: msg => toastState.addInfo(msg),
   })
-  const firstRun = getEventsSelections(engine).length === 0
-
   const inertIds = $derived(nameKeyedInertIds(editor.groups))
 
   const domainNames = $derived(
@@ -140,20 +140,24 @@
     const committed = commitNameSelections(renameMap, session.selections)
 
     // hidden = [] retires visibility for good (selections replace it).
-    if (
-      !workspace.updateEventChannels(
-        editor.getCleanedItems(),
-        stimulusId(),
-        source
-      )
-    ) {
-      return
-    }
+    const applied = workspace.apply({
+      type: 'updateEventChannels',
+      channels: editor.getCleanedItems(),
+      stimulusId: stimulusId(),
+      source,
+    })
+    if (!applied) return
     if (
       canonicalNameSelections(committed) !==
       canonicalNameSelections(getEventsSelections(engine))
     ) {
-      if (!workspace.updateSelections('event', committed, source)) return
+      const saved = workspace.apply({
+        type: 'updateSelections',
+        axis: 'event',
+        selections: committed,
+        source,
+      })
+      if (!saved) return
     }
     modalState.close()
   }
@@ -200,18 +204,13 @@
     </EditableEntityList>
   {/key}
 
-  <SelectionTray
-    {session}
-    {chips}
-    noun="channels"
-    helpText={firstRun
-      ? 'A plot can overlay just the event channels in a selection.'
-      : undefined}
-  />
+  <SelectionTray {session} {chips} noun="channels" />
 
   <ModalButtons
     buttons={[
-      ...(editor.groups.length > 0
+      // Selections count too: a dataset with no channels still shows the tray,
+      // so gating on channels alone left its chips editable but uncommittable.
+      ...(editor.groups.length > 0 || session.selections.length > 0
         ? [
             {
               label: 'Apply',

@@ -22,6 +22,8 @@
      *  resolves the divergence across the set). */
     mixed?: boolean
     id?: string
+    /** Fires after focus leaves the input (the typed draft stops displaying). */
+    onBlur?: () => void
   }
 
   let {
@@ -37,6 +39,7 @@
     allowEmpty = false,
     mixed = false,
     id,
+    onBlur,
   }: Props = $props()
 
   let inputValue = $state('')
@@ -64,6 +67,7 @@
 
   function handleBlur() {
     isFocused = false
+    onBlur?.()
   }
 
   const generatedId = untrack(() => `number-${crypto.randomUUID()}`)
