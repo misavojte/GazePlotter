@@ -12,13 +12,12 @@ export type ScarfPlotSettings = {
   groupId: number
   /** Per-plot AOI SELECTION id; unset/0 = all AOIs. */
   aoiSelectionId?: number
-  /** Per-plot eye-movement-type SELECTION id; unset/0 = all types,
-      NONE_SELECTION_ID = no types at all (the fixation baseline is a full
-      SELECTION-domain member — a selection without id 0 gates the fixation
-      layer). */
+  /** Per-plot eye-movement-type SELECTION id; unset/0 = all types. The fixation
+      baseline is a full SELECTION-domain member, so a row without id 0 gates the
+      fixation layer off. */
   categorySelectionId?: number
-  /** Per-plot event SELECTION id; unset/0 = all event channels,
-      NONE_SELECTION_ID = overlay off. */
+  /** Per-plot event SELECTION id; unset/0 = all event channels. A row holding no
+      names turns the overlay off. */
   eventSelectionId?: number
   timeline: 'absolute' | 'relative' | 'ordinal'
   absoluteStimuliLimits: [number, number][]

@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import { SegmentWriter } from '$lib/data/ingest/kernel/segmentWriter'
 import { encodeString } from '$lib/data/ingest/utils/byteUtils'
+import {
+  seededCategoriesSelection,
+  seededEventsSelection,
+} from '$lib/data/types'
 
 const enc = (s: string) => encodeString(s, 'utf-8')
 
@@ -18,6 +22,29 @@ describe('SegmentWriter — data-derived categories', () => {
     w.addSegmentBytes(100, 200, fix, enc('S1'), enc('P1'), null)
 
     expect(w.buildFinalData().categories.data).toEqual([['Fixation']])
+  })
+
+  it('seeds the layer-off selections a fresh dataset can actually use', () => {
+    const w = writer()
+    const fix = w.internCategory('Fixation')
+    const sac = w.internCategory('Saccade')
+    w.addSegmentBytes(0, 100, fix, enc('S1'), enc('P1'), null)
+    w.addSegmentBytes(100, 110, sac, enc('S1'), enc('P1'), null)
+
+    const data = w.buildFinalData()
+    expect(data.categoriesSelections).toEqual([seededCategoriesSelection(1)])
+    expect(data.eventsSelections).toEqual([seededEventsSelection(1)])
+  })
+
+  it('skips the type row on a fixation-only source, where it would equal All', () => {
+    const w = writer()
+    const fix = w.internCategory('Fixation')
+    w.addSegmentBytes(0, 100, fix, enc('S1'), enc('P1'), null)
+
+    const data = w.buildFinalData()
+    expect(data.categoriesSelections).toEqual([])
+    // Events arrive by later upload, so that row is seeded regardless.
+    expect(data.eventsSelections).toEqual([seededEventsSelection(1)])
   })
 
   it('preserves distinct source types as separate categories (Tobii-like)', () => {

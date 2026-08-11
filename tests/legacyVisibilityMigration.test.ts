@@ -7,9 +7,16 @@
  * hidden set into a keep-list selection (stimuli with identical keep-lists
  * share one), applies it to every existing plot showing that stimulus, and
  * consumes the legacy fields so the pass is idempotent.
+ *
+ * Same contract for the v5 → v6 layer-off seeding, which retires 1.9.2's `-1`
+ * selection sentinel.
  */
 import { describe, expect, it } from 'vitest'
-import { NONE_SELECTION_ID } from '../src/lib/data/types'
+import {
+  CURRENT_SCHEMA_VERSION,
+  seededCategoriesSelection,
+  seededEventsSelection,
+} from '../src/lib/data/types'
 import { runMigrations as runMigrationsTyped } from '../src/lib/data/ingest/workspace/migrations'
 const runMigrations = runMigrationsTyped as (parsedJson: unknown) => any
 
@@ -185,18 +192,20 @@ describe('legacy hidden event channels → eventsSelections', () => {
     const m = runMigrations(file)
 
     expect(m.data.eventData.hiddenChannels).toBeUndefined()
+    // The v5 → v6 seeding runs first, so the keep-list allocates above it.
     expect(m.data.eventsSelections).toEqual([
-      { id: 1, name: 'Migrated visibility', names: ['Click'] },
+      seededEventsSelection(1),
+      { id: 2, name: 'Migrated visibility', names: ['Click'] },
     ])
     const byId = Object.fromEntries(m.gridItems.map((g: any) => [g.id, g.settings]))
-    expect(byId['scarf-1'].eventSelectionId).toBe(1)
+    expect(byId['scarf-1'].eventSelectionId).toBe(2)
     // Stimulus 1 hid nothing — its plot stays on "All".
     expect(byId['scarf-2'].eventSelectionId).toBeUndefined()
   })
 })
 
-describe('retired scarf hideEvents flag → built-in "None" event selection', () => {
-  it('converts hideEvents:true to None, drops the flag everywhere', () => {
+describe('retired scarf hideEvents flag → the seeded "No events" selection', () => {
+  it('converts hideEvents:true to the seeded row, drops the flag everywhere', () => {
     const file = buildFile({}, [
       plot('scarf-1', 'scarf', { stimulusId: 0, groupId: -1, hideEvents: true }),
       plot('scarf-2', 'scarf', { stimulusId: 0, groupId: -1, hideEvents: false }),
@@ -205,7 +214,8 @@ describe('retired scarf hideEvents flag → built-in "None" event selection', ()
     const m = runMigrations(file)
 
     const byId = Object.fromEntries(m.gridItems.map((g: any) => [g.id, g.settings]))
-    expect(byId['scarf-1'].eventSelectionId).toBe(NONE_SELECTION_ID)
+    expect(m.data.eventsSelections).toEqual([seededEventsSelection(1)])
+    expect(byId['scarf-1'].eventSelectionId).toBe(1)
     // `false` was the default — no narrowing stamped, flag still consumed.
     expect(byId['scarf-2'].eventSelectionId).toBeUndefined()
     // An explicit selection without the flag stays untouched.
@@ -232,7 +242,166 @@ describe('retired scarf hideEvents flag → built-in "None" event selection', ()
       [plot('scarf-1', 'scarf', { stimulusId: 0, groupId: -1, hideEvents: true })]
     )
     const m = runMigrations(file)
-    expect(m.gridItems[0].settings.eventSelectionId).toBe(NONE_SELECTION_ID)
+    expect(m.gridItems[0].settings.eventSelectionId).toBe(1)
+    expect(m.data.eventsSelections).toContainEqual(seededEventsSelection(1))
+  })
+})
+
+describe('retired -1 sentinel → the seeded layer-off rows', () => {
+  it('heals a current-version file, which stamped 6 while the sentinel was live', () => {
+    const m = runMigrations({
+      ...buildFile({}, [
+        plot('scarf-1', 'scarf', {
+          stimulusId: 0,
+          groupId: -1,
+          categorySelectionId: -1,
+          eventSelectionId: -1,
+        }),
+      ]),
+      version: 6,
+    })
+    expect(m.version).toBe(CURRENT_SCHEMA_VERSION)
+    expect(m.gridItems[0].settings).toMatchObject({
+      categorySelectionId: 1,
+      eventSelectionId: 1,
+    })
+  })
+
+  it('writes each axis its OWN seeded id, so a cross-axis mix-up cannot pass', () => {
+    // Distinct ids per axis: the category row lands above the user's rows while
+    // the event row is still free at 1.
+    const m = runMigrations(
+      buildFile(
+        {
+          categoriesSelections: [
+            { id: 1, name: 'Mine', memberIds: [0] },
+            { id: 2, name: 'Also mine', memberIds: [1] },
+          ],
+        },
+        [
+          plot('scarf-1', 'scarf', {
+            stimulusId: 0,
+            groupId: -1,
+            categorySelectionId: -1,
+            eventSelectionId: -1,
+          }),
+        ]
+      )
+    )
+    expect(m.data.categoriesSelections).toContainEqual(seededCategoriesSelection(3))
+    expect(m.data.eventsSelections).toEqual([seededEventsSelection(1)])
+    expect(m.gridItems[0].settings).toMatchObject({
+      categorySelectionId: 3,
+      eventSelectionId: 1,
+    })
+  })
+
+  it('adopts a same-named row a 1.9.2 user built by hand instead of duplicating it', () => {
+    const m = runMigrations(
+      buildFile(
+        {
+          categoriesSelections: [
+            { id: 1, name: 'Just fixations', memberIds: [0] },
+          ],
+        },
+        [
+          plot('scarf-1', 'scarf', {
+            stimulusId: 0,
+            groupId: -1,
+            categorySelectionId: -1,
+          }),
+        ]
+      )
+    )
+    expect(m.data.categoriesSelections).toEqual([
+      { id: 1, name: 'Just fixations', memberIds: [0] },
+    ])
+    expect(m.gridItems[0].settings.categorySelectionId).toBe(1)
+  })
+
+  it('survives a selections field that is not an array', () => {
+    const m = runMigrations(
+      buildFile({ categoriesSelections: 'corrupt' as never }, [
+        plot('scarf-1', 'scarf', { stimulusId: 0, groupId: -1 }),
+      ])
+    )
+    expect(m.data.categoriesSelections).toEqual([seededCategoriesSelection(1)])
+  })
+
+  it('seeds both rows once and retargets a stored -1 on BOTH fields', () => {
+    const once = runMigrations(
+      buildFile({}, [
+        plot('scarf-1', 'scarf', {
+          stimulusId: 0,
+          groupId: -1,
+          categorySelectionId: -1,
+          eventSelectionId: -1,
+        }),
+      ])
+    )
+    expect(once.version).toBe(CURRENT_SCHEMA_VERSION)
+    expect(once.data.categoriesSelections).toEqual([seededCategoriesSelection(1)])
+    expect(once.data.eventsSelections).toEqual([seededEventsSelection(1)])
+    // Left at -1 both ids would fall through to `<= 0 → All`, switching the
+    // hidden layers back on.
+    expect(once.gridItems[0].settings).toMatchObject({
+      categorySelectionId: 1,
+      eventSelectionId: 1,
+    })
+
+    // Re-importing the v6 result re-seeds nothing — the rows are user data now.
+    const twice = runMigrations(JSON.parse(JSON.stringify(once)))
+    expect(twice.data.categoriesSelections).toEqual(once.data.categoriesSelections)
+    expect(twice.data.eventsSelections).toEqual(once.data.eventsSelections)
+  })
+
+  it('a stored -1 survives the legacy keep-list stamped by the same load', () => {
+    // The two passes meet here: seeding allocates first, then the hidden-category
+    // keep-list stamps plots still on "All". A plot that asked for the layer off
+    // must keep that, so `stampSelectionOnPlots` skipping non-zero is load-bearing.
+    const m = runMigrations(
+      buildFile(
+        {
+          categories: {
+            data: [
+              ['Fixation', 'Fixation', '#000'],
+              ['Saccade', 'Saccade', '#111'],
+            ],
+            orderVector: [0, 1],
+            hiddenCategories: [1],
+          },
+        },
+        [
+          plot('scarf-1', 'scarf', {
+            stimulusId: 0,
+            groupId: -1,
+            categorySelectionId: -1,
+          }),
+          plot('scarf-2', 'scarf', { stimulusId: 0, groupId: -1 }),
+        ]
+      )
+    )
+    const byId = Object.fromEntries(m.gridItems.map((g: any) => [g.id, g.settings]))
+    expect(m.data.categoriesSelections).toEqual([
+      seededCategoriesSelection(1),
+      { id: 2, name: 'Migrated visibility', memberIds: [0] },
+    ])
+    expect(byId['scarf-1'].categorySelectionId).toBe(1)
+    expect(byId['scarf-2'].categorySelectionId).toBe(2)
+  })
+
+  it('a current-version file that deleted a seeded row keeps it deleted', () => {
+    const m = runMigrations({
+      ...buildFile({
+        categoriesSelections: [{ id: 4, name: 'My types', memberIds: [0, 1] }],
+        eventsSelections: [],
+      }),
+      version: CURRENT_SCHEMA_VERSION,
+    })
+    expect(m.data.categoriesSelections).toEqual([
+      { id: 4, name: 'My types', memberIds: [0, 1] },
+    ])
+    expect(m.data.eventsSelections).toEqual([])
   })
 })
 
@@ -262,12 +431,13 @@ describe('legacy hidden categories → categoriesSelections (global)', () => {
     // Id 0 rides along: the fixation baseline joined the SELECTION domain,
     // and a migrated selection without it would blank every fixation layer.
     expect(m.data.categoriesSelections).toEqual([
-      { id: 1, name: 'Migrated visibility', memberIds: [0, 1] },
+      seededCategoriesSelection(1),
+      { id: 2, name: 'Migrated visibility', memberIds: [0, 1] },
     ])
     // Hidden categories were global — every scarf gets the selection.
     const byId = Object.fromEntries(m.gridItems.map((g: any) => [g.id, g.settings]))
-    expect(byId['scarf-1'].categorySelectionId).toBe(1)
-    expect(byId['scarf-2'].categorySelectionId).toBe(1)
+    expect(byId['scarf-1'].categorySelectionId).toBe(2)
+    expect(byId['scarf-2'].categorySelectionId).toBe(2)
   })
 })
 
@@ -289,7 +459,7 @@ describe('migration hygiene', () => {
     expect(twice.gridItems).toEqual(once.gridItems)
   })
 
-  it('leaves files without legacy fields completely untouched', () => {
+  it('invents no keep-lists for files without legacy fields (only the seeded rows)', () => {
     const file = buildFile(
       {
         aois: {
@@ -302,8 +472,8 @@ describe('migration hygiene', () => {
     )
     const m = runMigrations(file)
     expect(m.data.aois.selections).toEqual([{ id: 3, name: 'Mine', names: ['A'] }])
-    expect(m.data.eventsSelections).toBeUndefined()
-    expect(m.data.categoriesSelections).toBeUndefined()
+    expect(m.data.eventsSelections).toEqual([seededEventsSelection(1)])
+    expect(m.data.categoriesSelections).toEqual([seededCategoriesSelection(1)])
     expect(m.gridItems[0].settings.aoiSelectionId).toBeUndefined()
   })
 })

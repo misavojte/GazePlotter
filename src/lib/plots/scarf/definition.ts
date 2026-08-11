@@ -30,8 +30,8 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
           summary: true,
         },
         // Layer visibility is a per-plot SELECTION: the 'event' and
-        // 'eyeMovement' sections each offer the built-in "None" (events off /
-        // no eye-movement types at all, fixations included) — no hide
+        // 'eyeMovement' sections each offer a seeded layer-off row ("No events"
+        // = overlay off, "Just fixations" = the AOI layer alone) — no hide
         // toggles here.
       ],
     },

@@ -16,6 +16,9 @@ export interface SelectionLike {
  */
 export interface SelectionSessionConfig<TSel extends SelectionLike> {
   initial: TSel[]
+  /** Selection ids plots still point at, including ones already dissolved.
+      Keeps `nextSelId` past them so a recycled id cannot capture those plots. */
+  reservedIds?: () => Iterable<number>
   /** The active editor's groups (a card = one logical entity). */
   groups: () => Group[]
   /** Group ids that cannot ring or toggle while editing a saved selection. */
@@ -58,8 +61,10 @@ export function createSelectionSession<TSel extends SelectionLike>(
   let nameFocusPending = $state(false)
   let transientIds = $state(new Set<number>())
   // Monotonic ids: never recycle a dissolved selection's id — panes pinned
-  // to the old id would silently show the unrelated newcomer.
-  let nextSelId = Math.max(0, ...cfg.initial.map(s => s.id)) + 1
+  // to the old id would silently show the unrelated newcomer. Spans reopens by
+  // counting the ids plots reference, which outlive the row they named.
+  let nextSelId =
+    Math.max(0, ...cfg.initial.map(s => s.id), ...(cfg.reservedIds?.() ?? [])) + 1
 
   const editingSelection = $derived(
     selections.find(s => s.id === editingId) ?? null

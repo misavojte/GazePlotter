@@ -23,6 +23,7 @@
     commitNameSelections,
     stagedDomainNames,
   } from '../shared/nameKeyedSelection'
+  import { referencedSelectionIds } from '../shared/selectionAdapters'
 
   interface Props {
     selectedStimulus?: string
@@ -30,7 +31,7 @@
   }
 
   let { selectedStimulus = '0', source }: Props = $props()
-  const { engine, modalState, toastState, workspace } = getGazePlotterSession()
+  const { engine, grid, modalState, toastState, workspace } = getGazePlotterSession()
 
   const meta = engine.metadata
   if (!meta) throw new Error('Data engine metadata not available')
@@ -186,6 +187,7 @@
   )
   const session = createSelectionSession<NameSelection>({
     initial: cloneNameSelections(getAoiSelections(engine)),
+    reservedIds: () => referencedSelectionIds(grid.items, 'aoiSelectionId'),
     groups: () => activeEditor.groups,
     inertIds: () => inertIds,
     ...nameKeyedMembership({ renameMap: () => renameMap, openNameOf }),
@@ -196,7 +198,6 @@
       activeEditor.reorderGroups(from, to, withIds),
     notify: msg => toastState.addInfo(msg),
   })
-  const firstRun = getAoiSelections(engine).length === 0
 
   const selectionsSnapshot = canonicalNameSelections(getAoiSelections(engine))
 
@@ -458,14 +459,7 @@
     </EditableEntityList>
   {/key}
 
-  <SelectionTray
-    {session}
-    {chips}
-    noun="AOIs"
-    helpText={firstRun
-      ? 'A plot can focus on one selection; AOIs outside it count as No AOI.'
-      : undefined}
-  />
+  <SelectionTray {session} {chips} noun="AOIs" />
 </Section>
 
 <ModalButtons

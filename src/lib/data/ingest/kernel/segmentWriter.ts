@@ -5,7 +5,11 @@ import {
   SegmentField,
 } from '$lib/data/binary'
 import type { DataType } from '$lib/data/types'
-import { DEFAULT_NO_AOI_TREATMENT } from '$lib/data/types'
+import {
+  DEFAULT_NO_AOI_TREATMENT,
+  seededCategoriesSelection,
+  seededEventsSelection,
+} from '$lib/data/types'
 import type { SegmentRow } from '../types'
 import type { TextEncoding } from '$lib/data/ingest/utils/byteUtils'
 import { decodeBytes, encodeString } from '$lib/data/ingest/utils/byteUtils'
@@ -594,6 +598,8 @@ export class SegmentWriter {
       return indices
     })
 
+    const categoriesData = this.buildCategoriesData()
+
     return {
       isOrdinalOnly: false,
       capabilities: {
@@ -611,14 +617,19 @@ export class SegmentWriter {
       },
       participantsSelections: [],
       stimuliSelections: [],
-      categoriesSelections: [],
-      eventsSelections: [],
+      // Seeded here, where Fixation is guaranteed at id 0 (buildCategoriesData);
+      // a fresh dataset has no other rows, so id 1 is free on both axes. Skipped
+      // on a fixation-only source: with nothing else on the axis the row would
+      // resolve to exactly what "All" resolves to.
+      categoriesSelections:
+        categoriesData.length > 1 ? [seededCategoriesSelection(1)] : [],
+      eventsSelections: [seededEventsSelection(1)],
       // Deliberately empty: starter seeding happens on the MAIN thread
       // (IngestService.handleDone) so the worker never bundles the metric
       // registry. Fresh datasets are the only thing this writer produces, so
       // the seam is unconditional there.
       metricInstances: [],
-      categories: { data: this.buildCategoriesData(), orderVector: [] },
+      categories: { data: categoriesData, orderVector: [] },
       aois: {
         // Assign each AOI its default color by its NAME-SORTED rank rather than
         // its encounter-order id, so the color sequence follows the order AOIs

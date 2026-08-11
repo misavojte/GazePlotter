@@ -72,16 +72,6 @@ interface AttributeDataType {
 export const ALL_SELECTION_LABEL = 'All'
 
 /**
- * The built-in empty SELECTION — "All"'s other endpoint, turning a layer off
- * (e.g. no event overlays, no eye-movement types at all). A constant
- * picker option, never stored data: offered only on axes where an empty
- * narrowing is meaningful, and resolved by that axis's narrowing selector.
- * (Participants' built-ins -1/-2 live in their own id space, `groupId`.)
- */
-export const NONE_SELECTION_ID = -1
-export const NONE_SELECTION_LABEL = 'None'
-
-/**
  * The reserved displayed name of the fixation baseline: id 0's row is the
  * substrate every AOI metric and the scarf's AOI layer scan, so its name is
  * a locked identity anchor. The single derivation behind all three guard
@@ -128,6 +118,27 @@ export interface ParticipantsSelection {
   name: string
   participantsIds: number[]
 }
+
+/**
+ * The two "layer off" narrowings are ORDINARY rows, not a sentinel id, so a
+ * selection id either names a stored row or means "All" (unset / 0 / unknown).
+ * Seeded once per workspace (ingest kernel for a fresh dataset, the v5 → v6
+ * migration for an older file); after that they are user data, so renaming or
+ * deleting one sticks. (Participants' -1/-2 are a different id space.)
+ */
+export const seededCategoriesSelection = (id: number): EntitySelection => ({
+  id,
+  name: 'Just fixations',
+  memberIds: [FIXATION_CATEGORY_ID],
+})
+
+/** Named for what it holds, so it reads the same in the picker and as a
+    library chip — where a row called "None" would not. */
+export const seededEventsSelection = (id: number): NameSelection => ({
+  id,
+  name: 'No events',
+  names: [],
+})
 
 /**
  * All event data for the workspace.
@@ -361,8 +372,11 @@ export type JsonImportOldFormat = Omit<DataType, 'segments'> & {
 
 /**
  * Current workspace-schema version. `main` ships v5 (1.9.2); the settings-key
- * rename `barPlottingType` → `orientation` is the single bump above it
- * (v5 → v6). Both the export mapper (the version it stamps) and the migration
+ * rename `barPlottingType` → `orientation` and the seeded layer-off selections
+ * are the single bump above it (v5 → v6). The retired `-1` sentinel gets no
+ * version of its own: it is a legacy VALUE, swept wherever it appears, because
+ * in-branch builds stamped 6 while it was still live. Both the export mapper
+ * (the version it stamps) and the migration
  * ceiling (the version it produces) source this one constant, so a freshly
  * exported file always carries the version of the data inside it — no
  * re-import migration is relied upon to reconcile a mislabel.

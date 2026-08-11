@@ -8,13 +8,14 @@
  * NaN-drop rule (a participant with no such segments leaves the distribution
  * instead of dragging it), the recipe-side share denominator (bounded range
  * vs recording length via ctx.scopeDurationMs), the noMetric fallback, and
- * the per-plot eye-movement-type SELECTION gate (None = every type narrowed
- * away, Fixation included — same semantics as scarf).
+ * the per-plot eye-movement-type SELECTION gate (Fixation is an ordinary member
+ * of the axis, so the seeded "Just fixations" row leaves its slot alone — same
+ * semantics as scarf).
  */
 import { describe, it, expect } from 'vitest'
 import { makeTestEngine } from './helpers/testEngine'
 import { getEyeMovementComparisonData } from '../src/lib/plots/eye-movement-comparison'
-import { NONE_SELECTION_ID } from '../src/lib/data/types'
+import { seededCategoriesSelection } from '../src/lib/data/types'
 
 const STIM = 1
 
@@ -157,7 +158,7 @@ describe('eye-movement comparison transformer', () => {
     expect(missing.data).toEqual([])
   })
 
-  it('eye-movement-type SELECTION narrows every type, Fixation included; None = no types', () => {
+  it('eye-movement-type SELECTION narrows every type, Fixation included; the seeded row leaves the Fixation slot alone', () => {
     const engine = makeTestEngine([[], SEGMENTS], {
       categories: CATEGORIES,
       participants: [['P0', 'P0'], ['P1', 'P1']],
@@ -165,6 +166,8 @@ describe('eye-movement comparison transformer', () => {
       categoriesSelections: [
         { id: 5, name: 'Saccades only', memberIds: [1] },
         { id: 6, name: 'Fix + saccades', memberIds: [0, 1] },
+        seededCategoriesSelection(7),
+        { id: 8, name: 'Nothing', memberIds: [] },
       ],
     })
     // Fixation is a full SELECTION-domain member: a selection without id 0
@@ -181,11 +184,20 @@ describe('eye-movement comparison transformer', () => {
     )
     expect(withFixation.data.map(d => d.label)).toEqual(['Fixation', 'Saccade'])
 
-    const none = getEyeMovementComparisonData(
+    // The seeded row holds id 0 alone: exactly one slot, and it is Fixation.
+    const justFixations = getEyeMovementComparisonData(
       engine as any,
-      makeSettings({ categorySelectionId: NONE_SELECTION_ID })
+      makeSettings({ categorySelectionId: 7 })
     )
-    expect(none.data).toEqual([])
+    expect(justFixations.data.map(d => d.label)).toEqual(['Fixation'])
+    expect(justFixations.data[0].individualValues).toEqual([4, 2])
+
+    // An emptied row is the only way to an empty plot now.
+    const nothing = getEyeMovementComparisonData(
+      engine as any,
+      makeSettings({ categorySelectionId: 8 })
+    )
+    expect(nothing.data).toEqual([])
   })
 
   it('orderBy value sorts bars by their mean', () => {

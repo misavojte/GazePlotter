@@ -11,7 +11,7 @@ Slots come from the [Eye-movement Type Library](/docs/workspace/eye-movement-typ
 - Types merged under one displayed name are measured as one slot, not summed after the fact.
 - A dataset only carries the types its source recorded. Fixation-only exports (GazePoint, plain CSV fixation lists) have no Saccade slot at all, so a saccade reading reports no value rather than an approximation.
 
-The plot's **Eye-movement Types** selection narrows which slots are drawn; picking *None* narrows every type away and leaves the plot empty.
+The plot's **Eye-movement Types** selection narrows which slots are drawn. The library ships a *Just fixations* selection, which narrows the axis to the Fixation slot and drops every other type.
 
 ## Metric Contract
 
@@ -71,7 +71,7 @@ Note that *Time to first eye movement* does not re-zero its clock to the range s
 
 ### Eye-movement Types
 Filters which eye-movement types are drawn.
-- **Eye-movement type selection**: A dropdown containing *All*, *None*, and saved eye-movement type selections.
+- **Eye-movement type selection**: A dropdown containing *All* and the saved eye-movement type selections, including the shipped *Just fixations*.
 - **Edit eye-movement types & selections…**: Opens the [Eye-movement Type Library](/docs/workspace/eye-movement-type-library/) to rename, recolor, merge, and build selections.
 
 ### Export

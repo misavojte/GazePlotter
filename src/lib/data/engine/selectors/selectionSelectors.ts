@@ -1,7 +1,6 @@
 import {
   ALL_SELECTION_LABEL,
   FIXATION_CATEGORY_ID,
-  NONE_SELECTION_ID,
   type EntitySelection,
   type NameSelection,
   type ParticipantsSelection,
@@ -53,20 +52,17 @@ export const getCategoriesSelections = (engine: DataEngine): EntitySelection[] =
 
 /**
  * Resolve a per-plot `categorySelectionId` to the raw set of category ids the
- * selection holds. Returns `null` for "All"/unset/unknown selection, meaning
- * NO narrowing — the same self-healing contract as
- * resolveAoiSelectionVisibleIds. The built-in "None" resolves to the empty
- * set: every type is narrowed away, the fixation baseline included (id 0
- * joined the SELECTION domain; its reserved displayed name keeps it a
- * singleton group, so consumers may gate the fixation layer on raw
- * membership of id 0). Plots narrowing displayed-name groups go through
- * applyCategorySelection below rather than this raw set.
+ * selection holds. `null` for "All"/unset/unknown means NO narrowing, the same
+ * self-healing contract as resolveAoiSelectionVisibleIds.
+ * The fixation baseline is a full member of the domain, and its reserved
+ * displayed name keeps id 0 a singleton group, so consumers may gate the
+ * fixation layer on raw membership of 0.
+ * Plots narrowing displayed-name groups go through applyCategorySelection below.
  */
 export const resolveCategorySelectionMemberIds = (
   engine: DataEngine,
   categorySelectionId: number | undefined
 ): Set<number> | null => {
-  if (categorySelectionId === NONE_SELECTION_ID) return new Set()
   if (categorySelectionId == null || categorySelectionId <= 0) return null
   const selection = getCategoriesSelections(engine).find(
     s => s.id === categorySelectionId
@@ -148,6 +144,11 @@ const getParticipantsSelection = (
  * vector: stored selections may hold merged-away (tombstoned) member ids for
  * unmerge-reversibility, and feeding those raw to plot transformers renders
  * ghost participants. Unknown ids self-heal to all participants.
+ *
+ * The two built-ins stay ids rather than seeded rows, unlike the layer-off
+ * narrowings: `-2` is computed PER STIMULUS so no stored row can express it, and
+ * resolving `-1` through the built-in list would run that computation on every
+ * call, including this per-render fast path.
  */
 export const getParticipantsIds = (
   engine: DataEngine,

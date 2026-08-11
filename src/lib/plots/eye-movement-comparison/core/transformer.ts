@@ -59,7 +59,8 @@ export function getEyeMovementComparisonData(
  * The type axis: the canonical `categoryGroups` order (the same contract the
  * recipes' vectors are indexed by, so each group keeps its slot), narrowed by
  * the per-plot eye-movement-type SELECTION — the same `applyCategorySelection`
- * gate the scarf uses. 'None' narrows every type away (an empty plot).
+ * gate the scarf uses. The Fixation group is in the axis like any other, so the
+ * seeded "Just fixations" row leaves exactly one slot.
  */
 function typeAxis(
   engine: DataEngine,

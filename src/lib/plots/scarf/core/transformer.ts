@@ -423,7 +423,7 @@ export function transformDataToScarfPlot(
   const { minValue, maxValue } = timeline
   const invVisibleRange = 1 / (maxValue - minValue || 1)
 
-  const visibleEventChannels = hasEventsForStimulus(engine, stimulusId)
+  const visibleEventChannels = stimulusHasEvents
     ? getSelectedEventChannels(engine, stimulusId, settings.eventSelectionId)
     : []
   const groupedEventChannels =
@@ -443,8 +443,8 @@ export function transformDataToScarfPlot(
     ),
     settings.categorySelectionId
   )
-  // Fixation-layer gate: the SELECTION covers the fixation baseline too
-  // ('None' = nothing shows). All-or-nothing and cold-path: the gate empties
+  // Fixation-layer gate: the SELECTION covers the fixation baseline too, so a
+  // row without id 0 hides it. All-or-nothing and cold-path: the gate empties
   // the resolved slices and the no-AOI sentinel below, which paint, hover,
   // and highlight already honor.
   const fixationsVisible = fixationLayerVisible(

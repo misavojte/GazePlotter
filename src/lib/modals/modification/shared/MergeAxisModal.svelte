@@ -45,8 +45,6 @@
     emptyMessage: string
     /** Plural entity noun for the tray verbs and tooltips. */
     noun: string
-    /** One-line tray explainer while the axis has no selections yet. */
-    firstRunHelp: string
     columns: TableColumn[]
   }
 
@@ -75,7 +73,6 @@
     title: 'Participants',
     emptyMessage: 'No participants found',
     noun: 'participants',
-    firstRunHelp: 'A plot can show only the participants in a selection.',
     columns: [
       { label: 'Move', width: '28px', type: 'handle' },
       {
@@ -123,7 +120,6 @@
     title: 'Stimuli',
     emptyMessage: 'No stimuli found',
     noun: 'stimuli',
-    firstRunHelp: 'The metric matrix can range over one stimulus selection.',
     columns: [
       { label: 'Move', width: '28px', type: 'handle' },
       {
@@ -156,7 +152,11 @@
   import SelectionTray from './SelectionTray.svelte'
   import { createMergeAxisEditor } from './mergeAxisEditor.svelte'
   import { createSelectionSession } from './selectionSession.svelte'
-  import { idKeyedSelection, selectionChips } from './selectionAdapters'
+  import {
+    idKeyedSelection,
+    referencedSelectionIds,
+    selectionChips,
+  } from './selectionAdapters'
 
   interface Props {
     config: MergeAxisModalConfig<K, TSel>
@@ -164,7 +164,7 @@
   }
 
   let { config, source }: Props = $props()
-  const { engine, modalState, workspace, toastState } = getGazePlotterSession()
+  const { engine, grid, modalState, workspace, toastState } = getGazePlotterSession()
 
   // `config` is a frozen module constant picked by the thin per-axis wrapper;
   // capturing its initial value at init is the point, not a reactivity bug.
@@ -189,13 +189,17 @@
 
   const session = createSelectionSession<TSel>({
     initial: sel.clone(cfg.getSelections(engine)),
+    reservedIds: () =>
+      referencedSelectionIds(
+        grid.items,
+        cfg.axis === 'participant' ? 'groupId' : 'stimulusSelectionId'
+      ),
     groups: () => editor.groups,
     ...sel.membership,
     renameItem: editor.handleNameInput,
     reorderGroups: editor.reorderGroups,
     notify: msg => toastState.addInfo(msg),
   })
-  const firstRun = cfg.getSelections(engine).length === 0
 
   const chips = $derived(selectionChips(session, cfg.noun))
 
@@ -244,12 +248,7 @@
     grouped={{ onNameInput: editor.handleNameInput }}
   />
 
-  <SelectionTray
-    {session}
-    {chips}
-    noun={config.noun}
-    helpText={firstRun ? config.firstRunHelp : undefined}
-  />
+  <SelectionTray {session} {chips} noun={config.noun} />
 </Section>
 
 <ModalButtons

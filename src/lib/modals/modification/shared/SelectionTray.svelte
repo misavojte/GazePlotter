@@ -37,11 +37,9 @@
     chips: Chip[]
     /** Plural entity noun for tooltips and labels, e.g. "AOIs". */
     noun: string
-    /** One-line explainer under the dock (first run only). */
-    helpText?: string
   }
 
-  let { session, chips, noun, helpText }: Props = $props()
+  let { session, chips, noun }: Props = $props()
 
   /** Muted gesture hint shown while nothing is selected. */
   const idleHint = 'Click rows to select · Shift-click for a range · Esc clears'
@@ -272,9 +270,6 @@
     </button>
   </div>
 
-  {#if helpText}
-    <p class="tray-help">{helpText}</p>
-  {/if}
   </div>
 </div>
 
@@ -479,10 +474,4 @@
     color: var(--c-info);
   }
 
-  .tray-help {
-    margin: 6px 0 0;
-    font-size: 12px; /* matches the "Selections" label */
-    line-height: 1.4;
-    color: var(--c-darkgrey);
-  }
 </style>

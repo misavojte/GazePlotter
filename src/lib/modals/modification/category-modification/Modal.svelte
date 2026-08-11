@@ -9,7 +9,11 @@
     type MergeCard,
   } from '../shared/groupedEntityEditor.svelte'
   import { createSelectionSession } from '../shared/selectionSession.svelte'
-  import { idKeyedSelection, selectionChips } from '../shared/selectionAdapters'
+  import {
+    idKeyedSelection,
+    referencedSelectionIds,
+    selectionChips,
+  } from '../shared/selectionAdapters'
   import {
     FIXATION_CATEGORY_ID,
     type BaseInterpretedDataType,
@@ -21,7 +25,7 @@
   }
 
   let { source }: Props = $props()
-  const { engine, modalState, workspace, toastState } = getGazePlotterSession()
+  const { engine, grid, modalState, workspace, toastState } = getGazePlotterSession()
 
   // Fixation is a normal eye-movement type here (recolorable, selectable in
   // SELECTIONS) EXCEPT its displayed name: id 0 is the substrate every AOI
@@ -52,6 +56,7 @@
 
   const session = createSelectionSession<EntitySelection>({
     initial: sel.clone(getCategoriesSelections(engine)),
+    reservedIds: () => referencedSelectionIds(grid.items, 'categorySelectionId'),
     groups: () => editor.groups,
     ...sel.membership,
     renameItem: editor.handleNameInput,
@@ -59,8 +64,6 @@
     notify: msg => toastState.addInfo(msg),
     lockedNameIds: editor.lockedNameIds,
   })
-
-  const firstRun = getCategoriesSelections(engine).length === 0
 
   const chips = $derived(selectionChips(session, 'types'))
 
@@ -139,14 +142,7 @@
     }}
   />
 
-  <SelectionTray
-    {session}
-    {chips}
-    noun="types"
-    helpText={firstRun
-      ? 'Selections let plots range over a subset of eye-movement types.'
-      : undefined}
-  />
+  <SelectionTray {session} {chips} noun="types" />
 
   <ModalButtons
     buttons={[

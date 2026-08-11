@@ -17,7 +17,9 @@ import {
 } from '../src/lib/modals/modification/shared/nameKeyedSelection'
 import type { ScarfPlotSettings } from '../src/lib/plots/scarf/types'
 import {
-  NONE_SELECTION_ID,
+  FIXATION_CATEGORY_ID,
+  seededCategoriesSelection,
+  seededEventsSelection,
   type EntitySelection,
   type NameSelection,
 } from '../src/lib/data/types'
@@ -234,20 +236,30 @@ describe('eye-movement-type selection (scarf narrowing)', () => {
     expect(data.legendData.groups.map(g => g.title)).not.toContain('Fixations')
   })
 
-  it('the built-in "None" narrows every type away without any saved selection', () => {
-    const engine = makeScarfEngine(THREE_CATEGORIES, [])
-    expect(
-      resolveCategorySelectionMemberIds(engine, NONE_SELECTION_ID)
-    ).toEqual(new Set())
-    const data = transformDataToScarfPlot(
-      engine, STIM, [0],
-      { ...SCARF_SETTINGS, categorySelectionId: NONE_SELECTION_ID }, NO_AOI
+  it('the seeded "Just fixations" row keeps the AOI layer and drops every other type', () => {
+    const engine = makeScarfEngine(THREE_CATEGORIES, [seededCategoriesSelection(1)])
+    expect(resolveCategorySelectionMemberIds(engine, 1)).toEqual(
+      new Set([FIXATION_CATEGORY_ID])
     )
+    const data = transformDataToScarfPlot(
+      engine, STIM, [0], { ...SCARF_SETTINGS, categorySelectionId: 1 }, NO_AOI
+    )
+    // Saccade and Blink drop out of the legend and the paint loop...
     expect(data.stylingAndLegend.category).toEqual([])
     expect(data.gazeSource.categoryStyleIdxMap[1]).toBe(-1)
     expect(data.gazeSource.categoryStyleIdxMap[2]).toBe(-1)
-    expect(data.gazeSource.noAoiStyleIdx).toBe(-1)
-    expect(data.legendData.groups.map(g => g.title)).not.toContain('Fixations')
+    // ...while the fixation layer survives: AOI slices, the No-AOI sentinel and
+    // the 'Fixations' legend group all stay.
+    expect(data.gazeSource.noAoiStyleIdx).toBeGreaterThanOrEqual(0)
+    expect(
+      data.gazeSource.resolvedSliceStart[1] - data.gazeSource.resolvedSliceStart[0]
+    ).toBeGreaterThan(0)
+    expect(data.legendData.groups.map(g => g.title)).toContain('Fixations')
+    expect(data.stylingAndLegend.aoi.map(a => a.name)).toEqual([
+      'AOI 1',
+      'AOI 2',
+      'Outside',
+    ])
   })
 
   it('holding ANY member id keeps the whole displayed-name group drawable', () => {
@@ -295,9 +307,9 @@ describe('event selection (channel narrowing)', () => {
     expect(getSelectedEventChannels(engine, STIM, 2)).toEqual([])
   })
 
-  it('the built-in "None" narrows to no channels (events off)', () => {
-    const engine = makeEventEngine([])
-    expect(getSelectedEventChannels(engine, STIM, NONE_SELECTION_ID)).toEqual([])
+  it('the seeded "None" row narrows to no channels (events off)', () => {
+    const engine = makeEventEngine([seededEventsSelection(1)])
+    expect(getSelectedEventChannels(engine, STIM, 1)).toEqual([])
   })
 })
 

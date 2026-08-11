@@ -9,7 +9,8 @@ import {
 import {
   type MigratedJsonFormat,
   CURRENT_SCHEMA_VERSION,
-  NONE_SELECTION_ID,
+  seededCategoriesSelection,
+  seededEventsSelection,
 } from '$lib/data/types'
 
 const CORE_LAYOUT_KEYS = new Set([
@@ -54,9 +55,90 @@ const CATEGORY_SELECTION_PLOT_TYPES = new Set(['scarf'])
 
 const MIGRATED_SELECTION_NAME = 'Migrated visibility'
 
+/** 1.9.2's built-in "None" picker option, retired in favour of seeded rows. */
+const RETIRED_NONE_SELECTION_ID = -1
+
 /** Next free selection id: 1 + the highest id already present (0 when empty). */
 function nextSelectionId(selections: { id: number }[]): number {
   return selections.reduce((m, sel) => Math.max(m, Number(sel?.id) || 0), 0) + 1
+}
+
+/** The axis's stored rows, healing a missing or corrupt field to `[]`. */
+function selectionRows(payload: any, key: string): { id: number; name?: string }[] {
+  if (!Array.isArray(payload[key])) payload[key] = []
+  return payload[key]
+}
+
+/** The id of the row named `name`, or a fresh one seeded through `seed`. */
+function findOrSeed<T extends { id: number; name: string }>(
+  rows: { id: number; name?: string }[],
+  name: string,
+  seed: (id: number) => T
+): number {
+  const existing = rows.find(r => r?.name === name)
+  if (existing) return existing.id
+  const id = nextSelectionId(rows)
+  rows.push(seed(id))
+  return id
+}
+
+/**
+ * V5 → V6, the layer-off half: give every migrated workspace the two rows that
+ * replace the retired `-1` picker option, so the narrowing 1.9.2 offered stays
+ * reachable. Adopts a same-named row rather than duplicating it: 1.9.2 users
+ * were told to hand-build exactly these.
+ */
+function seedLayerOffSelections(payload: any): void {
+  findOrSeed(
+    selectionRows(payload, 'categoriesSelections'),
+    seededCategoriesSelection(0).name,
+    seededCategoriesSelection
+  )
+  findOrSeed(
+    selectionRows(payload, 'eventsSelections'),
+    seededEventsSelection(0).name,
+    seededEventsSelection
+  )
+}
+
+/**
+ * Version-independent: point the older spellings of "layer off" at a seeded row
+ * (a stored `-1`, the scarf's retired `hideEvents`). Left alone both fall
+ * through `<= 0 → All`, switching a hidden layer back on. NOT version-gated
+ * because in-branch builds stamped v6 while the sentinel was still live, so the
+ * value outlived the format step. Self-limiting: it seeds only when a straggler
+ * needs a target, so a deleted row never comes back on a later load.
+ * `hideEvents` beats the later hidden-channels pass because the id it stamps is
+ * non-zero, which `stampSelectionOnPlots` skips.
+ */
+function sweepRetiredSentinel(payload: any, gridItems: any[]): void {
+  const holds = (key: string): boolean =>
+    gridItems.some(i => i?.settings?.[key] === RETIRED_NONE_SELECTION_ID)
+  const needsEvents =
+    holds('eventSelectionId') ||
+    gridItems.some(i => i?.settings?.hideEvents === true)
+  if (!holds('categorySelectionId') && !needsEvents) return
+
+  const categoryId = findOrSeed(
+    selectionRows(payload, 'categoriesSelections'),
+    seededCategoriesSelection(0).name,
+    seededCategoriesSelection
+  )
+  const eventId = findOrSeed(
+    selectionRows(payload, 'eventsSelections'),
+    seededEventsSelection(0).name,
+    seededEventsSelection
+  )
+  for (const item of gridItems) {
+    const s = item?.settings
+    if (!s || typeof s !== 'object') continue
+    if (s.hideEvents === true) s.eventSelectionId = eventId
+    delete s.hideEvents
+    if (s.categorySelectionId === RETIRED_NONE_SELECTION_ID)
+      s.categorySelectionId = categoryId
+    if (s.eventSelectionId === RETIRED_NONE_SELECTION_ID)
+      s.eventSelectionId = eventId
+  }
 }
 
 /**
@@ -185,7 +267,8 @@ function migrateLegacyVisibility(payload: any, gridItems: unknown[]): void {
       selections,
       stimulusName
     )
-    if (selections.length === 0) delete payload.eventsSelections
+    // No empty-array cleanup here, unlike the AOI axis above: the v6 → v7 seed
+    // already put a row in this list, so it is never empty by now.
     stampSelectionOnPlots(gridItems, EVENT_SELECTION_PLOT_TYPES, 'eventSelectionId', s =>
       byStimulus.get(s)
     )
@@ -697,8 +780,20 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
         }
       })
     }
+    // The bump's other half: every migrated workspace gains the layer-off rows.
+    if (data?.data) seedLayerOffSelections(data.data)
     data = { ...data, version: CURRENT_SCHEMA_VERSION }
     version = CURRENT_SCHEMA_VERSION
+  }
+
+  // Version-independent: the retired `-1` sentinel and `hideEvents` are legacy
+  // VALUES, not a format step — in-branch builds stamped v6 while both were
+  // still live. Runs after the passes above so a seeded row is already in place.
+  if (data?.data) {
+    sweepRetiredSentinel(
+      data.data,
+      Array.isArray(data.gridItems) ? data.gridItems : []
+    )
   }
 
   // Version-independent normalization: rewrite any legacy gridItem `type`
@@ -734,19 +829,6 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
       data.data,
       Array.isArray(data.gridItems) ? data.gridItems : []
     )
-  }
-
-  // Version-independent: the scarf's retired `hideEvents` flag → the built-in
-  // "None" event SELECTION. Runs AFTER migrateLegacyVisibility so a stamped
-  // hidden-channels keep-list never resurrects an overlay the flag kept off.
-  if (Array.isArray(data.gridItems)) {
-    for (const item of data.gridItems) {
-      if (item?.type !== 'scarf' || typeof item.settings !== 'object' || !item.settings) continue
-      if (item.settings.hideEvents === true) {
-        item.settings.eventSelectionId = NONE_SELECTION_ID
-      }
-      delete item.settings.hideEvents
-    }
   }
 
   // Version-independent normalization of the metric-instance library, in pass
