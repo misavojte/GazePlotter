@@ -960,3 +960,53 @@ export function strokeCrispRect(
   ctx.strokeRect((x | 0) + 0.5, (y | 0) + 0.5, width | 0, height | 0)
   ctx.restore()
 }
+
+// ============================================================================
+// SCRATCH LAYERS
+// ============================================================================
+
+/**
+ * Device-pixel cap for offscreen scratch layers (~256 MB at 4 bytes/px). The
+ * main canvas of a very large plot is already near browser canvas limits;
+ * mirroring it would double an already-huge buffer, and `new OffscreenCanvas`
+ * can throw. Above the cap callers skip the layer and render without it.
+ */
+export const MAX_SCRATCH_PX = 64 * 1024 * 1024
+
+export interface ScratchLayer {
+  canvas: OffscreenCanvas | HTMLCanvasElement
+  ctx: OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D
+}
+
+/**
+ * Allocate an offscreen scratch canvas with its 2d context. Returns null when
+ * the size is unsafe, the environment has no canvas (node tests), or the
+ * allocation throws; callers treat null as "skip the layer".
+ */
+export function createScratchLayer(
+  width: number,
+  height: number
+): ScratchLayer | null {
+  if (
+    width <= 0 ||
+    height <= 0 ||
+    width > 16384 ||
+    height > 16384 ||
+    width * height > MAX_SCRATCH_PX
+  ) {
+    return null
+  }
+  try {
+    const canvas =
+      typeof OffscreenCanvas !== 'undefined'
+        ? new OffscreenCanvas(width, height)
+        : typeof document !== 'undefined'
+          ? Object.assign(document.createElement('canvas'), { width, height })
+          : null
+    if (!canvas) return null
+    const ctx = canvas.getContext('2d') as ScratchLayer['ctx'] | null
+    return ctx ? { canvas, ctx } : null
+  } catch {
+    return null
+  }
+}

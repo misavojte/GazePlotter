@@ -174,8 +174,13 @@
 
   // Heatmap AOI row labels: cap the reserved width (one long AOI name must not
   // eat the plot) and pre-truncate so the gutter reserves exactly what we draw.
+  // Capped against the canvas too, or long names on a narrow card reserve the
+  // whole width and the heatmap draws nothing at all. Reads the WIDTH PROP, not
+  // `plot.frame`; the frame depends on this budget.
   const aoiLeftBudget = $derived(
-    alignment === 'heatmap' ? Math.min(200, maxAoiLabelWidth + 20) : 0
+    alignment === 'heatmap'
+      ? Math.min(200, maxAoiLabelWidth + 20, width * 0.4)
+      : 0
   )
   const heatmapAoiLabels = $derived.by<string[]>(() => {
     if (alignment !== 'heatmap') return []

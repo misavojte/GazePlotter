@@ -6,7 +6,10 @@ import {
   calculateTickStep,
   drawParticipantIndexAxis,
 } from '$lib/plots/shared'
-import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
+import {
+  alignToPixelCenter,
+  createScratchLayer,
+} from '$lib/plots/shared/canvasUtils'
 import { desaturateToWhite, convertToHex, hexToRgb } from '$lib/color'
 import {
   OVERLAY_EVENT_STRIDE,
@@ -568,21 +571,12 @@ function blitCompositeLayer(
   // the reuse check stable so the offscreen isn't reallocated every frame.
   const offH = Math.ceil(rows * pitch) + 2
   if (!_offCanvas || _offCanvas.width !== pWidth || _offCanvas.height !== offH) {
-    if (typeof OffscreenCanvas !== 'undefined') {
-      _offCanvas = new OffscreenCanvas(pWidth, offH)
-    } else if (typeof document !== 'undefined') {
-      _offCanvas = Object.assign(document.createElement('canvas'), {
-        width: pWidth,
-        height: offH,
-      })
-    } else {
-      return // canvas-less environment (tests): nothing to render
-    }
-    _offCtx = _offCanvas.getContext('2d') as
-      | OffscreenCanvasRenderingContext2D
-      | CanvasRenderingContext2D
-      | null
-    _offImg = _offCtx ? _offCtx.createImageData(pWidth, offH) : null
+    // null = unsafe size or canvas-less environment (tests): skip the band
+    const layer = createScratchLayer(pWidth, offH)
+    if (!layer) return
+    _offCanvas = layer.canvas
+    _offCtx = layer.ctx
+    _offImg = _offCtx.createImageData(pWidth, offH)
   }
   if (!_offCtx || !_offImg) return
 

@@ -1,6 +1,7 @@
 <script lang="ts">
   import {
     alignToPixelCenter,
+    createScratchLayer,
     CROSSHAIR_COLOR,
     CROSSHAIR_DASH,
     fillCrosshairBand,
@@ -704,18 +705,12 @@
     const cellCount = W * H
 
     if (!densCounts || densW !== W || densH !== H) {
-      if (typeof OffscreenCanvas !== 'undefined') {
-        densCanvas = new OffscreenCanvas(W, H)
-      } else if (typeof document !== 'undefined') {
-        densCanvas = Object.assign(document.createElement('canvas'), { width: W, height: H })
-      } else {
-        return // canvas-less environment (tests): nothing to render
-      }
-      densCtx = densCanvas.getContext('2d') as
-        | OffscreenCanvasRenderingContext2D
-        | CanvasRenderingContext2D
-        | null
-      densImg = densCtx ? densCtx.createImageData(W, H) : null
+      // null = unsafe size or canvas-less environment (tests): skip the overlay
+      const layer = createScratchLayer(W, H)
+      if (!layer) return
+      densCanvas = layer.canvas
+      densCtx = layer.ctx
+      densImg = densCtx.createImageData(W, H)
       densCounts = new Int32Array(cellCount)
       densStamp = new Int32Array(cellCount)
       densW = W

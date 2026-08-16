@@ -10,6 +10,7 @@ import {
   canvasLifecycleAction,
   beginCanvasDrawing,
   finishCanvasDrawing,
+  createScratchLayer,
   type CanvasState,
   type CanvasLifecycleActionOptions,
 } from './canvasUtils'
@@ -705,36 +706,18 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     finishCanvasDrawing(canvasState)
   }
 
-  // Cap on the cached layer's device-pixel area. The main canvas of a very
-  // large/tall plot is already near the browser's canvas limits; mirroring it
-  // would double an already-huge buffer (and `new OffscreenCanvas(hugeDims)`
-  // can throw). Above the cap we skip the cache and overlay renders fall back to
-  // a full render — correct, just not accelerated.
-  const MAX_CACHE_PX = 64 * 1024 * 1024 // ~256 MB at 4 bytes/px
-
+  // Size/throw guarding lives in createScratchLayer; above its cap we skip the
+  // cache and overlay renders fall back to a full render (correct, just not
+  // accelerated).
   function captureDataLayer() {
     const canvas = canvasState.canvas
     if (!canvas) return
     const w = canvas.width
     const h = canvas.height
-    if (w === 0 || h === 0 || w > 16384 || h > 16384 || w * h > MAX_CACHE_PX) {
-      dataLayerValid = false
-      return
-    }
     if (!dataLayer || dataLayer.width !== w || dataLayer.height !== h) {
-      try {
-        dataLayer =
-          typeof OffscreenCanvas !== 'undefined'
-            ? new OffscreenCanvas(w, h)
-            : Object.assign(document.createElement('canvas'), { width: w, height: h })
-        dataLayerCtx = dataLayer.getContext('2d') as
-          | OffscreenCanvasRenderingContext2D
-          | CanvasRenderingContext2D
-          | null
-      } catch {
-        dataLayer = null
-        dataLayerCtx = null
-      }
+      const layer = createScratchLayer(w, h)
+      dataLayer = layer?.canvas ?? null
+      dataLayerCtx = layer?.ctx ?? null
     }
     if (!dataLayerCtx) {
       dataLayerValid = false

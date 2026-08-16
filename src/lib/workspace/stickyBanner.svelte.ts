@@ -22,8 +22,11 @@ function createStickyBanner() {
     height = banner instanceof HTMLElement ? banner.offsetHeight : 0
   }
 
+  // Resize too: a narrower viewport can rewrap the banner text and change its
+  // height without any scroll happening.
   if (typeof window !== 'undefined') {
     window.addEventListener('scroll', measure, { passive: true })
+    window.addEventListener('resize', measure, { passive: true })
   }
 
   return {

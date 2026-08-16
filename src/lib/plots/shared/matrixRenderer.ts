@@ -145,19 +145,36 @@ function drawMatrixAxisLabels(
     axisTitleGap,
   } = layout
 
+  // The layout reserves a single title line per axis (fontSize + gap), so long
+  // titles truncate to the grid extent instead of overflowing the canvas.
+  // Wrapping like axisUtils would need title-aware space reservation upstream.
   ctx.textAlign = 'center'
   ctx.textBaseline = 'bottom'
+  const xTitle = truncateTextToPixelWidth(
+    config.xAxisTitle,
+    gridWidth,
+    FONT_PRIMARY.SIZE,
+    FONT_PRIMARY.FAMILY,
+    '…'
+  )
   const xTitleY = yOffset - xAxisLabelHeight - axisTitleGap
-  ctx.fillText(config.xAxisTitle, xOffset + gridWidth * 0.5, xTitleY)
+  ctx.fillText(xTitle, xOffset + gridWidth * 0.5, xTitleY)
 
   ctx.save()
+  const yTitle = truncateTextToPixelWidth(
+    config.yAxisTitle,
+    gridHeight,
+    FONT_PRIMARY.SIZE,
+    FONT_PRIMARY.FAMILY,
+    '…'
+  )
   const yTitleX = xOffset - yAxisLabelWidth - axisTitleGap
   const yTitleY = yOffset + gridHeight * 0.5
   ctx.translate(yTitleX, yTitleY)
   ctx.rotate(-Math.PI / 2)
   ctx.textAlign = 'center'
   ctx.textBaseline = 'bottom'
-  ctx.fillText(config.yAxisTitle, 0, 0)
+  ctx.fillText(yTitle, 0, 0)
   ctx.restore()
 }
 
