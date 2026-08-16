@@ -2,11 +2,7 @@
   import { onDestroy, untrack } from 'svelte'
   import ChevronLeft from 'lucide-svelte/icons/chevron-left'
   import ChevronRight from 'lucide-svelte/icons/chevron-right'
-  import {
-    InputNumber,
-    Select,
-    ButtonPreset,
-  } from '$lib/shared/components'
+  import { InputNumber, Select, ButtonPreset } from '$lib/shared/components'
   import {
     ModalButtons,
     CheckboxListField,
@@ -30,7 +26,7 @@
     listSummary,
     mapSelectableItems,
     toggleSetValue,
-    waitForExportUi,
+    withExportBusy,
     DEFAULT_CANVAS_EXPORT_MARGIN,
     DPI_PRESET_OPTIONS,
     IMAGE_TYPE_OPTIONS,
@@ -188,19 +184,25 @@
     })
   }
 
+  // Exporting off implies no in-flight progress or render job.
+  const setExporting = (exporting: boolean) => {
+    isExporting = exporting
+    if (!exporting) {
+      exportProgress = null
+      renderJob = null
+    }
+  }
+
   const handleExport = async () => {
     if (!canExport || isExporting) return
 
-    isExporting = true
     const items = selectedItemsInOrder
     const fileName = exportFileName
     const mimeType = getMimeType(fileType)
     const quality = getQuality(fileType)
     const files: Array<{ name: string; content: Blob }> = []
 
-    try {
-      await waitForExportUi()
-
+    await withExportBusy(setExporting, async () => {
       for (let i = 0; i < items.length; i++) {
         if (cancelled) return
         const item = items[i]
@@ -257,11 +259,7 @@
         files,
         requestedCount: items.length,
       })
-    } finally {
-      isExporting = false
-      exportProgress = null
-      renderJob = null
-    }
+    })
   }
 
   const exportButtons = $derived(
@@ -310,16 +308,8 @@
           options={IMAGE_TYPE_OPTIONS}
           bind:value={fileType}
         />
-        <InputNumber
-          label="Margin [px]"
-          bind:value={margin}
-          min={0}
-        />
-        <InputNumber
-          label="Resolution [DPI]"
-          bind:value={dpi}
-          min={72}
-        />
+        <InputNumber label="Margin [px]" bind:value={margin} min={0} />
+        <InputNumber label="Resolution [DPI]" bind:value={dpi} min={72} />
       </FieldGrid>
       <div class="dpi-presets">
         <span class="presets-label">DPI Presets:</span>
@@ -335,7 +325,9 @@
         <HelpText tone="error">Resolution must be at least 72 DPI</HelpText>
       {/if}
       {#if !marginValid}
-        <HelpText tone="error">Margin must be zero or a positive number of pixels</HelpText>
+        <HelpText tone="error"
+          >Margin must be zero or a positive number of pixels</HelpText
+        >
       {/if}
     </Step>
 
@@ -386,7 +378,15 @@
     </Step>
   </StepList>
 
-  <ExportProgressBar progress={exportProgress ? { position: exportProgress.position, total: exportProgress.total, name: `Rendering figure ${exportProgress.name}` } : null} />
+  <ExportProgressBar
+    progress={exportProgress
+      ? {
+          position: exportProgress.position,
+          total: exportProgress.total,
+          name: `Rendering figure ${exportProgress.name}`,
+        }
+      : null}
+  />
 
   <ModalButtons buttons={exportButtons} />
 </ExportShell>

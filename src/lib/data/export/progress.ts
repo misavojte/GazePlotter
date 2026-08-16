@@ -12,6 +12,15 @@ export type ExportProgress = (
   name: string
 ) => void | Promise<void>
 
+/**
+ * Yield one macrotask so pending UI state (busy flag, progress bar) paints.
+ * A macrotask, not a microtask: `await` alone stays inside the same task and
+ * paints nothing.
+ */
+export function yieldToPaint(): Promise<void> {
+  return new Promise(resolve => setTimeout(resolve, 0))
+}
+
 /** Report progress and let it paint. A no-op when the caller wants no reports. */
 export async function reportProgress(
   onProgress: ExportProgress | undefined,
@@ -21,7 +30,5 @@ export async function reportProgress(
 ): Promise<void> {
   if (!onProgress) return
   await onProgress(position, total, name)
-  // A macrotask, not a microtask: `await` alone stays inside the same task and
-  // paints nothing.
-  await new Promise(resolve => setTimeout(resolve, 0))
+  await yieldToPaint()
 }

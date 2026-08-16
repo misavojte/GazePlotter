@@ -3,6 +3,7 @@ import type {
   ExportFileType,
   ExportNaming,
 } from '$lib/data/export'
+import { yieldToPaint } from '$lib/data/export/progress'
 import { PLOT_BASE_CHROME_HEIGHT } from '$lib/plots/shared/const'
 import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/plotSizeUtility'
 import type { GridConfig } from '$lib/workspace/grid'
@@ -24,7 +25,6 @@ type ExportButtonConfig = {
   onExport: () => void
 }
 
-const EXPORT_UI_DELAY_MS = 100
 export const DEFAULT_CANVAS_EXPORT_MARGIN = 20
 
 type GridSizedFrame = {
@@ -110,15 +110,15 @@ export function getWorkspaceCanvasExportDimensions(
   }
 }
 
-export function waitForExportUi() {
-  return new Promise(resolve => setTimeout(resolve, EXPORT_UI_DELAY_MS))
-}
-
 /**
  * One-line selection readout for a collapsed step header: `None selected`,
  * `All (5)`, the single selected item's name, or `3 of 12`.
  */
-export function listSummary(count: number, total: number, single?: string): string {
+export function listSummary(
+  count: number,
+  total: number,
+  single?: string
+): string {
   if (count === 0) return 'None selected'
   if (count === total && total > 0) return `All (${total})`
   if (count === 1 && single) return single
@@ -185,10 +185,9 @@ export async function withExportBusy(
 ): Promise<void> {
   setExporting(true)
   try {
-    await waitForExportUi()
+    await yieldToPaint()
     await exportFn()
   } finally {
     setExporting(false)
   }
 }
-

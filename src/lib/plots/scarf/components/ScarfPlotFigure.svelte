@@ -38,8 +38,7 @@
   } from '$lib/plots/shared/plotCursor.svelte'
   import { OVERLAY_EVENT_STRIDE, SCARF_LAYOUT } from '../const'
   import { buildScarfEventTooltipContent } from '../core/tooltip'
-  import { FIXATION_CATEGORY_ID } from '$lib/data/types'
-  import { SEGMENT_STRIDE, SegmentField } from '$lib/data/binary/schema'
+  import { findGazeSegmentAt } from '../core/hitTest'
   import {
     calculateIsCompactMode,
     calculateLegendStructuralHeight,
@@ -581,104 +580,21 @@
     return null
   }
 
+  // The tooltip reads only position + identity; style/geometry resolution
+  // lives in core/hitTest.ts so the parity test can pin it against the
+  // composite's walk.
   function findSegmentAtRowAndTime(rowIndex: number, mouseX: number, frame: PlotFrame) {
-    const { indexToId } = identifierSystem
-    const scale = layout.scaleFactor
-    const floorLeft = frame.x
-    const floorWidth = frame.width
-
-    // Scan the row's binary segments directly (no rect buckets), resolving
-    // AOI/category inline. Segments in a row are time-disjoint, so at most one
-    // contains mouseX; a multi-AOI fixation's topmost sub-rect wins.
-    if (data.gazeSource) {
-      const gs = data.gazeSource
-      if (rowIndex < 0 || rowIndex >= gs.participantIds.length) return null
-      const HNF = SCARF_LAYOUT.HEIGHT_NON_FIXATION_DEFAULT
-      const HBAR = SCARF_LAYOUT.HEIGHT_BAR_DEFAULT
-      const SAR = SCARF_LAYOUT.SPACE_ABOVE_RECT_DEFAULT
-      const segBuf = gs.reader.segmentBufferRaw
-      const clipMin = gs.projClipMin[rowIndex]
-      const clipMax = gs.projClipMax[rowIndex]
-      const pScale = gs.projScale[rowIndex]
-      const pid = gs.participantIds[rowIndex]
-      const { startIndex, endIndex } = gs.reader.getSegmentRange(gs.stimulusId, pid)
-
-      // `thin` mirrors the renderer's explicit flag (see gazeRectVPlacement):
-      // a 5-visible-AOI fixation slice's height equals HNF, so the value alone
-      // cannot discriminate.
-      const build = (styleIdx: number, thin: boolean, hOrig: number, internalYDefault: number, orderId: number, xN: number, wN: number) => {
-        let rectH = hOrig
-        let internalY = internalYDefault
-        if (scale !== 1) {
-          if (thin) {
-            rectH = layout.nonFixationHeight
-            internalY = layout.spaceAboveRect + (layout.heightOfBar - layout.nonFixationHeight) / 2
-          } else {
-            rectH = hOrig * scale
-            internalY = layout.spaceAboveRect + (internalYDefault - SAR) * scale
-          }
-        }
-        return {
-          x: xN,
-          y: rowIndex,
-          width: wN,
-          height: rectH,
-          internalY,
-          identifier: indexToId.get(styleIdx) ?? '',
-          participantId: data.participants[rowIndex]?.id ?? rowIndex,
-          segmentId: orderId,
-          orderId,
-        }
-      }
-
-      let hit: ReturnType<typeof build> | null = null
-      for (let i = startIndex; i < endIndex; i++) {
-        const localId = i - startIndex
-        const segBase = i * SEGMENT_STRIDE
-        const categoryId = segBuf[segBase + SegmentField.CATEGORY_ID] | 0
-        let start = gs.isOrdinal ? localId : segBuf[segBase + SegmentField.START_TIME]
-        let end = gs.isOrdinal ? localId + 1 : segBuf[segBase + SegmentField.END_TIME]
-        if (end <= clipMin) continue
-        // Time-ordered per participant: nothing later can intersect the clip.
-        if (start >= clipMax) break
-        start = Math.max(clipMin, start)
-        end = Math.min(clipMax, end)
-        const xN = (start - clipMin) * pScale
-        const wN = (end - start) * pScale
-        const pxX = floorLeft + xN * floorWidth
-        const pxW = wN * floorWidth
-        if (mouseX < pxX || mouseX > pxX + pxW) continue
-
-        if (categoryId !== FIXATION_CATEGORY_ID) {
-          const sIdx =
-            categoryId >= 0 && categoryId < gs.categoryStyleIdxMap.length
-              ? gs.categoryStyleIdxMap[categoryId]
-              : -1
-          if (sIdx === -1) continue
-          hit = build(sIdx, true, HNF, SAR + (HBAR - HNF) * 0.5, localId, xN, wN)
-        } else {
-          // The transformer's precomputed VISIBLE slices (buildResolvedSlices)
-          // — the same data the composite and highlight painters read, so
-          // hover identity always matches the rendered bands.
-          const slot = gs.resolvedSlotBase[rowIndex] + localId
-          const s0 = gs.resolvedSliceStart[slot]
-          const resolved = gs.resolvedSliceStart[slot + 1] - s0
-
-          if (resolved === 0) {
-            if (gs.noAoiStyleIdx < 0) continue
-            hit = build(gs.noAoiStyleIdx, false, HBAR, SAR, localId, xN, wN)
-          } else {
-            const h = HBAR / resolved
-            for (let j = 0; j < resolved; j++) {
-              hit = build(gs.resolvedSliceStyles[s0 + j], false, h, SAR + j * h, localId, xN, wN) // topmost = last
-            }
-          }
-        }
-      }
-      return hit
+    if (!data.gazeSource) return null
+    const xNorm = (mouseX - frame.x) / frame.width
+    const hit = findGazeSegmentAt(data.gazeSource, rowIndex, xNorm)
+    if (!hit) return null
+    return {
+      x: hit.x,
+      y: rowIndex,
+      width: hit.width,
+      participantId: data.participants[rowIndex]?.id ?? rowIndex,
+      orderId: hit.orderId,
     }
-
-    return null
   }
 
 </script>

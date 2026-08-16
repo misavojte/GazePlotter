@@ -231,7 +231,7 @@ let _offImg: ImageData | null = null
 
 /** A >=1px gaze rect deferred to the exact (pass-3) draw, collected during the
  *  fused single pass so wide rects still land ON TOP of the composite blit. */
-interface FusedWideRect {
+export interface FusedWideRect {
   x0px: number
   wPx: number
   pIdx: number
@@ -389,7 +389,8 @@ export function compositeGazeBinaryAcc(
         // buildResolvedSlices (same getSegmentAoisUniqueDirect + aoiOrderMap
         // walk this loop used to run per frame — an empty range is the no-AOI
         // fallback). KEEP IN SYNC with drawHighlightMarkersFromBinary +
-        // ScarfPlotFigure.findSegmentAtRowAndTime, which still resolve inline.
+        // core/hitTest.ts findGazeSegmentAt (hover), which still resolve
+        // inline; tests/scarfHoverRenderParity.test.ts pins hover vs composite.
         const slot = resolvedSlotBase[pIndex] + localId
         const s0 = resolvedSliceStart[slot]
         const resolved = resolvedSliceStart[slot + 1] - s0
