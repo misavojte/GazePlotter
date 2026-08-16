@@ -79,6 +79,8 @@ function representativeLeaf(meta: MetricMeta, kind: LeafKind): LeafProjection {
       return { kind, aoiRef: { by: 'name', name: '' } }
     case 'pick-category':
       return { kind, categoryName: '' }
+    case 'pick-event':
+      return { kind, eventName: '' }
     case 'matrix-cell':
       return { kind, fromAoi: { by: 'name', name: '' }, toAoi: { by: 'name', name: '' } }
     case 'aggregate-aoi':

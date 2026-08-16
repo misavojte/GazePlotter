@@ -1,18 +1,18 @@
 import { defineMetric } from '../../core/defineMetric'
 
-/** The category-axis twin of `absoluteTime`. A 0 means "none recorded". */
+/** The event-axis twin of `absoluteTime`/`movementTime`. A 0 means "none recorded". */
 defineMetric({
-  id: 'movementTime',
-  label: 'Eye-movement time',
-  description: 'Per eye-movement type: total time (ms) spent in segments of that type. 0 for types the recording contains no segments of.',
+  id: 'eventTime',
+  label: 'Event time',
+  description: 'Per event channel: total time (ms) the channel is active. Overlapping occurrences on one channel each count in full, so the total can exceed the range. Instant markers contribute 0.',
   unit: 'ms',
-  category: 'eye-movement',
-  rawShape: 'category-vector',
+  category: 'events',
+  rawShape: 'event-vector',
   windowUnit: 'ms',
   measurementClass: 'extensive',
-  searchTags: ['saccade', 'blink', 'time', 'total', 'duration', 'eye movement', 'type'],
+  searchTags: ['event', 'marker', 'channel', 'time', 'total', 'duration'],
   params: [] as const,
-  scanSource: 'categories',
+  scanSource: 'events',
   // Divisible time, clipped per window; see absoluteTime.
   windowMembership: 'all',
   accumulation: 'stateful',

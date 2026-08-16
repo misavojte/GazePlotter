@@ -11,6 +11,7 @@
  */
 import { createReaderFromJson } from '../../src/lib/data/binary/converters'
 import { AoiGroupReader } from '../../src/lib/data/binary/reader.aoiGroup'
+import { EventBufferReader } from '../../src/lib/data/binary/reader.event'
 
 export type TestEngineOptions = {
   /** aois.data rows per stimulus: [originalName, displayedName, color]; null = id gap. */
@@ -29,6 +30,13 @@ export type TestEngineOptions = {
   categoriesSelections?: { id: number; name: string; memberIds: number[] }[]
   participantsSelections?: unknown[]
   metricInstances?: unknown[]
+  /** eventData.data channel rows per stimulus: [originalName, displayedName, color?]. */
+  eventData?: string[][][]
+  eventOrderVector?: number[][]
+  /** Occurrences `[stimulus][channel][participant]` as flat stride-2 [start, duration, ...]. */
+  events?: number[][][][]
+  /** Named event SELECTIONS (name-keyed, per-plot narrowing via eventSelectionId). */
+  eventsSelections?: { id: number; name: string; names: string[] }[]
   isOrdinalOnly?: boolean
   capabilities?: { segmented: boolean; spatial: boolean; event: boolean }
   noAoiTreatment?: { displayedName: string; color: string }
@@ -55,8 +63,13 @@ export type TestEngine = {
     stimuli: { data: string[][]; orderVector: number[] }
     noAoiTreatment: { displayedName: string; color: string }
     metricInstances: unknown[]
+    eventData: { data: string[][][]; orderVector: number[][] }
+    eventsSelections: { id: number; name: string; names: string[] }[]
   }
+  /** Mutable, mirroring DataEngine.eventVersion: bump after getEventReader().load(). */
+  eventVersion: number
   getReader: () => ReturnType<typeof createReaderFromJson>
+  getEventReader: () => EventBufferReader
   getAoiMapping: (stimulusId: number, rawId: number) => number
   getAoiGroupReader: () => AoiGroupReader | undefined
 }
@@ -97,6 +110,8 @@ export function makeTestEngine(
   options: TestEngineOptions = {}
 ): TestEngine {
   const reader = createReaderFromJson(segments)
+  const eventReader = new EventBufferReader()
+  eventReader.load(options.events ?? [])
 
   const participantCount = Math.max(
     1,
@@ -107,7 +122,8 @@ export function makeTestEngine(
   const metadata = {
     isOrdinalOnly: options.isOrdinalOnly ?? false,
     capabilities:
-      options.capabilities ?? { segmented: true, spatial: false, event: false },
+      options.capabilities ??
+      { segmented: true, spatial: false, event: (options.events?.length ?? 0) > 0 },
     aois: {
       data:
         options.aoiData ??
@@ -139,14 +155,25 @@ export function makeTestEngine(
     noAoiTreatment:
       options.noAoiTreatment ?? { displayedName: 'Outside', color: 'gray' },
     metricInstances: options.metricInstances ?? [],
+    eventData: {
+      data: options.eventData ?? [],
+      orderVector: options.eventOrderVector ?? [],
+    },
+    eventsSelections: options.eventsSelections ?? [],
+  }
+
+  const base = {
+    metadata,
+    eventVersion: 0,
+    getReader: () => reader,
+    getEventReader: () => eventReader,
   }
 
   if (options.aoiMapping === 'group') {
     const aoiGroupReader = new AoiGroupReader(reader)
     aoiGroupReader.updateMap(metadata as never)
     return {
-      metadata,
-      getReader: () => reader,
+      ...base,
       getAoiGroupReader: () => aoiGroupReader,
       getAoiMapping: (stimulusId: number, rawId: number) =>
         aoiGroupReader.getAoiMapping(stimulusId, rawId),
@@ -154,8 +181,7 @@ export function makeTestEngine(
   }
 
   return {
-    metadata,
-    getReader: () => reader,
+    ...base,
     getAoiGroupReader: () => undefined,
     getAoiMapping: (_stimulusId: number, rawId: number) => rawId,
   }

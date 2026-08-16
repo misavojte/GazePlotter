@@ -42,14 +42,27 @@ export const getEventChannels = (
 }
 
 /**
+ * Resolves an event SELECTION id to its displayed-name set, `null` meaning no
+ * narrowing. Matched by displayed name — NameSelections are portable across
+ * stimuli exactly like AOI selections; a row holding no names, which the
+ * seeded "No events" is, narrows to nothing. Unset / 0 / unknown → `null`,
+ * the same self-healing contract as getAois' aoiSelectionId. THE resolution
+ * rule for every event-axis consumer (channel lists and channel MERGE axes).
+ */
+export const resolveEventSelectionNames = (
+  engine: DataEngine,
+  eventSelectionId?: number
+): Set<string> | null => {
+  if (eventSelectionId == null || eventSelectionId <= 0) return null
+  const selection = (engine.metadata?.eventsSelections ?? []).find(
+    s => s.id === eventSelectionId
+  )
+  return selection ? new Set(selection.names) : null
+}
+
+/**
  * The event channels a plot shows for a stimulus, in order-vector order. Global
  * channel visibility is retired — a named event SELECTION is the only narrowing.
- *
- * `eventSelectionId` optionally narrows to a named event SELECTION (matched by
- * displayed name — NameSelections are portable across stimuli exactly like AOI
- * selections). A row holding no names, which the seeded "No events" is, narrows
- * to no channels, so the overlay is off. Unset / 0 / unknown → no narrowing, same
- * self-healing contract as getAois' aoiSelectionId.
  */
 export const getSelectedEventChannels = (
   engine: DataEngine,
@@ -57,13 +70,8 @@ export const getSelectedEventChannels = (
   eventSelectionId?: number
 ): ExtendedInterpretedDataType[] => {
   const all = getEventChannels(engine, stimulusId)
-  if (eventSelectionId == null || eventSelectionId <= 0) return all
-  const selection = (engine.metadata?.eventsSelections ?? []).find(
-    s => s.id === eventSelectionId
-  )
-  if (!selection) return all
-  const names = new Set(selection.names)
-  return all.filter(ch => names.has(ch.displayedName))
+  const names = resolveEventSelectionNames(engine, eventSelectionId)
+  return names ? all.filter(ch => names.has(ch.displayedName)) : all
 }
 
 /**

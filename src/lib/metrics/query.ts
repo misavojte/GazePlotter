@@ -27,8 +27,8 @@ export interface MetricProvenance {
   baseId: string
   params: Record<string, unknown>
   projection: Projection
-  /** True when a reference the projection names (an AOI, an eye-movement type)
-   *  could not be resolved in this dataset. */
+  /** True when a reference the projection names (an AOI, an eye-movement
+   *  type, an event channel) could not be resolved in this dataset. */
   refMissing?: boolean
 }
 
@@ -38,6 +38,9 @@ export type MetricResult =
   /** One value per eye-movement type, in the canonical `categoryGroups` order
       (consumers derive names via `categoryGroupNames(engine)`). */
   | { shape: 'category-vector';            metricId: string; unit: string; values: number[]; provenance: MetricProvenance }
+  /** One value per event channel of the scope's stimulus, in `eventGroups`
+      order (consumers derive names via `eventGroupNames(engine, stimulusId)`). */
+  | { shape: 'event-vector';               metricId: string; unit: string; values: number[]; provenance: MetricProvenance }
   | { shape: 'aoi-pair-matrix';            metricId: string; unit: string; matrix: number[]; size: number; provenance: MetricProvenance }
   | { shape: 'participant-pair-matrix';    metricId: string; unit: string; matrix: number[]; size: number; participantIds: number[]; provenance: MetricProvenance }
   | { shape: 'scalar-timeseries';          metricId: string; unit: string; values: number[]; timeline: number[]; provenance: MetricProvenance }
@@ -91,7 +94,7 @@ export function queryBatch(instances: readonly MetricInstance[], scope: Scope): 
         const raw = raws.get(inst.id)
         if (!raw) continue
         out.set(inst.id, wrapProjectedResult(recipe.id, recipe.unit, inst,
-          projectLeaf(recipe, inst.projection, scope.engine, aoiNames, raw, slots)))
+          projectLeaf(recipe, inst.projection, scope.engine, scope.stimulusId, aoiNames, raw, slots)))
       }
     }
   }
@@ -151,7 +154,7 @@ export function queryGroup(instance: MetricInstance, group: GroupScope): MetricR
   const slots = buildAoiSlots(group.engine, group.stimulusId, group.aoiSelectionId)
   if (!slots) return emptyResult(instance, 'scalar', recipe.unit)
   return wrapProjectedResult(recipe.id, recipe.unit, instance,
-    projectLeaf(recipe, instance.projection, group.engine, aoiNames, reduced, slots))
+    projectLeaf(recipe, instance.projection, group.engine, group.stimulusId, aoiNames, reduced, slots))
 }
 
 /** Per-event values by slot from ONE participant scan — the beeswarm's dots.
@@ -204,7 +207,10 @@ export function queryPooledIndividuals(
       if (!aggregate) {
         const r = query(instance, scope)
         // Whichever vector shape the plot's contract admitted.
-        aggregate = r.shape === 'aoi-vector' || r.shape === 'category-vector' ? r.values : []
+        aggregate =
+          r.shape === 'aoi-vector' || r.shape === 'category-vector' || r.shape === 'event-vector'
+            ? r.values
+            : []
       }
       return aggregate[slot] ?? Number.NaN
     }
@@ -261,6 +267,9 @@ function wrapProjectedResult(
     return { shape, metricId, unit, values, slots, provenance }
   }
   if (shape === 'category-vector') {
+    return { shape, metricId, unit, values, provenance }
+  }
+  if (shape === 'event-vector') {
     return { shape, metricId, unit, values, provenance }
   }
   if (shape === 'scalar-timeseries') {

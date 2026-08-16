@@ -20,10 +20,10 @@ defineMetric({
   // Indivisible events; see fixationCount.
   windowMembership: 'own',
   accumulation: 'stateful',
-  init: ({ categorySlotCount }) => new Float64Array(categorySlotCount),
-  onFixation: (acc, { categorySlot }) => {
-    if (categorySlot < 0) return
-    acc[categorySlot]++
+  init: ({ axisSlotCount }) => new Float64Array(axisSlotCount),
+  onFixation: (acc, { axisSlot }) => {
+    if (axisSlot < 0) return
+    acc[axisSlot]++
   },
   finalize: acc => Array.from(acc),
 })

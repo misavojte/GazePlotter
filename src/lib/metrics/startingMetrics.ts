@@ -51,6 +51,13 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
     baseId: 'movementLatency',
     projection: { kind: 'pick-category', categoryName: 'Fixation' },
   },
+  // The event-channel family, same ordering. No pick-event starter: unlike
+  // Fixation, no channel name is guaranteed to exist in any dataset.
+  { id: 'eventTime', baseId: 'eventTime' },
+  { id: 'eventTimeShare', baseId: 'eventTimeShare' },
+  { id: 'eventDuration', baseId: 'eventDuration' },
+  { id: 'eventCount', baseId: 'eventCount' },
+  { id: 'eventLatency', baseId: 'eventLatency' },
 
   // ── windowed starters ────────────────────────────────────────────────
   {

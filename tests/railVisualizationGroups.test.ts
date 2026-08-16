@@ -84,6 +84,7 @@ describe('add-visualization menu grouping', () => {
       ['Inter-AOI', ['Transition Matrix']],
       ['Per participant', ['Metric Timeline', 'Metric Correlation', 'Metric Matrix']],
       ['Inter-participant', ['Scanpath Similarity']],
+      ['Per event', ['Event Comparison']],
     ])
   })
 })

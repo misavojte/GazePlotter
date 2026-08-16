@@ -1,8 +1,9 @@
-import { getAois, getParticipant, getParticipantsIds } from '$lib/data/engine'
+import { getAois } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotMetricContract } from '$lib/metrics'
 import {
   collectDistribution,
+  distributionParticipants,
   type DistributionAxis,
   type DistributionResult,
   type DistributionSlot,
@@ -81,26 +82,5 @@ function aoiAxis(
     })
   }
 
-  const participantIds = getParticipantsIds(
-    engine,
-    settings.groupId,
-    settings.stimulusId
-  )
-  const timeStart = settings.timelineStart ?? 0
-  const timeEnd = settings.timelineEnd ?? 0
-
-  return {
-    slots,
-    scopes: participantIds.map(participantId => ({
-      engine,
-      stimulusId: settings.stimulusId,
-      participantId,
-      timeStart,
-      timeEnd,
-      aoiSelectionId: settings.aoiSelectionId,
-    })),
-    participantNames: participantIds.map(
-      id => getParticipant(engine, id).displayedName
-    ),
-  }
+  return { slots, ...distributionParticipants(engine, settings) }
 }

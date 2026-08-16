@@ -24,10 +24,11 @@ The projection layer defines how raw values computed by a recipe translate to th
 
 ### Raw vs. Projected Shapes
 
-Recipes calculate values into five canonical **Raw Shapes**:
+Recipes calculate values into six canonical **Raw Shapes**:
 - `scalar`: A single numerical value per participant (e.g., Recurrence Rate).
 - `aoi-vector`: An array of values mapping to each active AOI slot (e.g., Dwell Time per AOI).
 - `category-vector`: An array of values mapping to each eye-movement type (e.g., Eye-movement Count per type).
+- `event-vector`: An array of values mapping to each event channel of the stimulus (e.g., Event Time per channel).
 - `aoi-pair-matrix`: A 2D grid of values mapping transitions between AOI pairs (e.g., Transition Probability).
 - `participant-pair-matrix`: A 2D grid representing pairwise comparisons between participants (e.g., Scanpath Similarity).
 
@@ -38,11 +39,13 @@ Projections act as a transformation tree, using **Leaf Projections** to reshape 
 | `identity-scalar` | `scalar` | `scalar` | Passes the scalar value through directly. |
 | `identity-aoi-vector` | `aoi-vector` | `aoi-vector` | Passes the AOI vector through directly. |
 | `identity-category-vector` | `category-vector` | `category-vector` | Passes the eye-movement type vector through directly. |
+| `identity-event-vector` | `event-vector` | `event-vector` | Passes the event channel vector through directly. |
 | `identity-aoi-pair-matrix` | `aoi-pair-matrix` | `aoi-pair-matrix` | Passes the N×N transition matrix through directly. |
 | `identity-participant-pair-matrix` | `participant-pair-matrix` | `participant-pair-matrix` | Passes the M×M similarity matrix through directly. |
 | `pick-aoi` | `aoi-vector` | `scalar` | Extracts a single target AOI value from the vector. |
 | `pick-any-fixation` | `aoi-vector` | `scalar` | Extracts the total stimulus-level value (any fixation). |
 | `pick-category` | `category-vector` | `scalar` | Extracts a single eye-movement type value by displayed name. |
+| `pick-event` | `event-vector` | `scalar` | Extracts a single event channel value by displayed name, resolved per stimulus. |
 | `aggregate-aoi` | `aoi-vector` | `scalar` | Reduces the vector using `max` or `min` across AOIs. |
 | `matrix-diagonal` | `aoi-pair-matrix` | `aoi-vector` | Extracts the diagonal cells (self-transitions) as a vector. |
 | `matrix-row` | `aoi-pair-matrix` | `aoi-vector` | Extracts a row (outgoing transitions from a source AOI) as a vector. |
@@ -50,7 +53,7 @@ Projections act as a transformation tree, using **Leaf Projections** to reshape 
 | `matrix-cell` | `aoi-pair-matrix` | `scalar` | Extracts a single transition cell (`fromAoi` &gt; `toAoi`) as a scalar. |
 | `matrix-aggregate` | `aoi-pair-matrix` | `scalar` | Reduces all cells to a scalar using a reducer (`sum`, `mean`, `max`, `min`). |
 
-> **Where the summary statistic lives**: For metrics built on a per-event sample (fixation duration, visit duration, eye-movement duration), the mean/median/max/min choice belongs to the projection that produces a **summary** — `pick-aoi`, `pick-any-fixation` and `pick-category` each carry it, and it appears as a **Summary** control next to that projection's own settings. A vector projection carries no such choice: one value per AOI (or per eye-movement type) is always the mean of that slot's sample. If you need a median per AOI, project to **One AOI**; if you need the whole distribution, use AOI Comparison, whose beeswarm and overlay show it directly.
+> **Where the summary statistic lives**: For metrics built on a per-event sample (fixation duration, visit duration, eye-movement duration, event duration), the mean/median/max/min choice belongs to the projection that produces a **summary** — `pick-aoi`, `pick-any-fixation`, `pick-category` and `pick-event` each carry it, and it appears as a **Summary** control next to that projection's own settings. A vector projection carries no such choice: one value per AOI (or per eye-movement type) is always the mean of that slot's sample. If you need a median per AOI, project to **One AOI**; if you need the whole distribution, use AOI Comparison, whose beeswarm and overlay show it directly.
 
 
 ## Windowing and Binning Rules
@@ -70,7 +73,7 @@ GazePlotter projects fixations onto moving time windows with two independent sig
 2. **Membership (`windowMembership`)**:
    Which windows a fixation belongs to. Each metric declares its rule once, and a plain time range counts as a single window.
    - `'all'` (default): every window the fixation overlaps. Use it when a fixation can be split across windows, as clipped durations are, and for yes/no questions like "was this AOI looked at here".
-   - `'own'`: only the window holding the fixation's midpoint. Use it when counting things that cannot be split (`fixationCount`, `visitCount`, `movementCount`), so the per-window numbers still add up to the total when the windows do not overlap. A window that owns nothing reports 0, not missing data.
+   - `'own'`: only the window holding the fixation's midpoint. Use it when counting things that cannot be split (`fixationCount`, `visitCount`, `movementCount`), so the per-window numbers still add up to the total when the windows do not overlap. A window that owns nothing reports 0, not missing data. Event Count deliberately uses `'all'` instead: it counts the occurrences ACTIVE in each window, a concurrency reading whose per-window values do not tile to a total.
    Metrics reporting additive totals must state their rule explicitly, and a contradictory choice is rejected when the metric is registered. An average must never use `'own'`: it would report no data for a window a fixation plainly covers.
 
 ---

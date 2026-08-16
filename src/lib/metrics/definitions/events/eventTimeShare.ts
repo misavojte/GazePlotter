@@ -7,20 +7,19 @@ import { percentShare } from '../../core/numeric'
  * NaN when the scan has no extent: never a share of nothing.
  */
 defineMetric({
-  id: 'movementTimeShare',
-  label: 'Eye-movement time share',
-  description: 'Per eye-movement type: share (%) of the recording (or the bounded range / window) spent in segments of that type. 0 for types the recording contains no segments of.',
+  id: 'eventTimeShare',
+  label: 'Event time share',
+  description: 'Per event channel: share (%) of the recording (or the bounded range / window) the channel is active. Overlapping occurrences on one channel each count in full, and an occurrence can outlast the gaze recording, so the share can exceed 100.',
   unit: '%',
-  category: 'eye-movement',
-  rawShape: 'category-vector',
+  category: 'events',
+  rawShape: 'event-vector',
   windowUnit: 'ms',
-  // Intensive like `relativeTime`, NOT `proportion` — that class is a 0/1
-  // indicator (`fixated`) and offers no distribution statistics, whereas this
-  // percentage has a real per-participant spread worth an overlay.
+  // Intensive like movementTimeShare: a real per-participant spread, not a
+  // 0/1 indicator.
   measurementClass: 'intensive',
-  searchTags: ['saccade', 'blink', 'share', 'proportion', 'percentage', 'time', 'eye movement', 'type'],
+  searchTags: ['event', 'marker', 'channel', 'share', 'proportion', 'percentage', 'time'],
   params: [] as const,
-  scanSource: 'categories',
+  scanSource: 'events',
   accumulation: 'stateful',
   init: ({ axisSlotCount }) => new Float64Array(axisSlotCount),
   onFixation: (acc, { frame, axisSlot }) => {

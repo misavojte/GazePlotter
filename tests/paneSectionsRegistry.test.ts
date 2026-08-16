@@ -26,9 +26,10 @@ describe('paneSections / SHARED_SECTIONS consistency', () => {
     // the otherwise-universal 'stimulus', alongside scanpath for 'aoi'.
     const STIMULUS_SPANNING = new Set(['metricMatrix'])
     // Plots whose unit is not the AOI: scanpath draws raw gaze; the
-    // eye-movement comparison's bars are types, and its scalar per-type
-    // metrics ignore AOI slots, so an 'aoi' section would be a dead control.
-    const NO_AOI_SECTION = new Set(['scanpath', 'eyeMovementComparison'])
+    // eye-movement and event comparisons' bars are types and channels, and
+    // their metrics ignore AOI slots, so an 'aoi' section would be a dead
+    // control.
+    const NO_AOI_SECTION = new Set(['scanpath', 'eyeMovementComparison', 'eventComparison'])
     for (const def of defs) {
       const keys = def.paneSections.map(paneSectionKey)
       expect(keys.length).toBeGreaterThan(0)

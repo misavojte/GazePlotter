@@ -36,7 +36,8 @@
     timeGuideXs,
     type PlotCursorPort,
   } from '$lib/plots/shared/plotCursor.svelte'
-  import { SCARF_LAYOUT } from '../const'
+  import { OVERLAY_EVENT_STRIDE, SCARF_LAYOUT } from '../const'
+  import { buildScarfEventTooltipContent } from '../core/tooltip'
   import { FIXATION_CATEGORY_ID } from '$lib/data/types'
   import { SEGMENT_STRIDE, SegmentField } from '$lib/data/binary/schema'
   import {
@@ -457,6 +458,26 @@
     const row = Math.floor((my - plotTop) / rowHeight)
     if (row < 0 || row >= data.participants.length) return null
 
+    // The event band hangs below the AOI seam; a pointer inside it asks about
+    // the strip there, not the gaze segment sharing its x.
+    const ev = findEventStripAt(row, mx, my, frame)
+    if (ev) {
+      return {
+        tooltipId: 'scarf-segment-tooltip',
+        content: buildScarfEventTooltipContent(
+          data.participants[row]?.label ?? '',
+          ev.name,
+          ev.start,
+          ev.end,
+          ev.isPoint
+        ),
+        anchorX: ev.anchorX,
+        anchorY: row * rowHeight + rowHeight + plotTop,
+        tooltipWidth: SCARF_LAYOUT.TOOLTIP_WIDTH,
+        data: { row, x: mx },
+      }
+    }
+
     const seg = findSegmentAtRowAndTime(row, mx, frame)
     if (!seg) {
       // Track-only hit: crosshair follows the mouse, no tooltip.
@@ -494,6 +515,70 @@
 
   function handlePointerUp(p: FramePointer & { dragged: boolean }) {
     if (p.dragged) onDragEnd()
+  }
+
+  /**
+   * Hit-test the event band of one row against the SAME geometry
+   * paintEventStrips draws: lanes hang below the seam, intervals are
+   * min-width clamped, points are min-width diamonds — so everything visible
+   * is hoverable. Times un-normalize through the row's projection, giving
+   * back the clipped-to-view span the strip covers.
+   */
+  function findEventStripAt(rowIndex: number, mouseX: number, mouseY: number, frame: PlotFrame) {
+    const buckets = visualEventBuckets
+    const gs = data.gazeSource
+    if (!data.isOverlay || !gs || buckets.length === 0 || layout.eventLaneHeight <= 0) return null
+    const yIn = mouseY - (plotTop + rowIndex * layout.heightOfBarWrap)
+    const bandTop = layout.eventBandTop
+    if (yIn < bandTop || yIn >= bandTop + layout.eventZoneHeight) return null
+    const lane = Math.floor((yIn - bandTop) / layout.eventLaneHeight)
+
+    const pLeft = frame.x
+    const pWidth = frame.width
+    const pRight = pLeft + pWidth
+    const minInterval = SCARF_LAYOUT.MIN_INTERVAL_PX
+    const hw = SCARF_LAYOUT.MIN_POINT_PX / 2
+    const clipMin = gs.projClipMin[rowIndex]
+    const clipRange = gs.projClipMax[rowIndex] - clipMin || 1
+    const { indexToId } = identifierSystem
+
+    for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
+      const buffer = buckets[styleIdx]
+      const count = buffer.length / OVERLAY_EVENT_STRIDE
+      for (let i = 0; i < count; i++) {
+        const idx = i * OVERLAY_EVENT_STRIDE
+        if ((buffer[idx + 1] | 0) !== rowIndex) continue
+        if ((buffer[idx + 3] | 0) !== lane) continue
+        const xNorm = buffer[idx]
+        const wNorm = buffer[idx + 2]
+        const isPoint = (buffer[idx + 4] | 0) === 1
+        const x = pLeft + xNorm * pWidth
+        let anchorX: number
+        if (isPoint) {
+          const cx = Math.min(pRight - hw, Math.max(pLeft + hw, x))
+          if (mouseX < cx - hw || mouseX > cx + hw) continue
+          anchorX = cx + hw
+        } else {
+          let w = wNorm * pWidth
+          if (w < minInterval) w = minInterval
+          if (x + w > pRight) w = pRight - x
+          if (w <= 0 || mouseX < x || mouseX > x + w) continue
+          anchorX = x + w
+        }
+        const identifier = indexToId.get(styleIdx) ?? ''
+        const start = clipMin + xNorm * clipRange
+        return {
+          name:
+            data.stylingAndLegend?.event.find(e => e.identifier === identifier)
+              ?.name ?? '',
+          start,
+          end: start + wNorm * clipRange,
+          isPoint,
+          anchorX,
+        }
+      }
+    }
+    return null
   }
 
   function findSegmentAtRowAndTime(rowIndex: number, mouseX: number, frame: PlotFrame) {

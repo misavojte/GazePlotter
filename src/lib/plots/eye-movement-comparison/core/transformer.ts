@@ -1,8 +1,9 @@
-import { applyCategorySelection, getParticipant, getParticipantsIds } from '$lib/data/engine'
+import { applyCategorySelection } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { categoryGroups, type PlotMetricContract } from '$lib/metrics'
 import {
   collectDistribution,
+  distributionParticipants,
   type DistributionAxis,
   type DistributionResult,
 } from '$lib/plots/shared/distribution'
@@ -73,29 +74,12 @@ function typeAxis(
     settings.categorySelectionId
   )
 
-  const participantIds = getParticipantsIds(
-    engine,
-    settings.groupId,
-    settings.stimulusId
-  )
-  const timeStart = settings.timelineStart ?? 0
-  const timeEnd = settings.timelineEnd ?? 0
-
   return {
     slots: kept.map(type => ({
       slot: type.slot,
       label: type.displayedName,
       color: type.color,
     })),
-    scopes: participantIds.map(participantId => ({
-      engine,
-      stimulusId: settings.stimulusId,
-      participantId,
-      timeStart,
-      timeEnd,
-    })),
-    participantNames: participantIds.map(
-      id => getParticipant(engine, id).displayedName
-    ),
+    ...distributionParticipants(engine, settings),
   }
 }
