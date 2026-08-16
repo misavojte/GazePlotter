@@ -4,7 +4,7 @@ import {
   participantIndexAxisWidth,
   PLOT_EDGE_PAD_TOP,
   ROW_LABEL_GAP,
-  SCARF_LEGEND_CONFIG,
+  LEGEND_CONFIG,
   withQualifiers,
   timeRangeQualifier,
   rangeQualifier,
@@ -369,7 +369,7 @@ export function calculateLegendStructuralHeight(
 
   const tempLayout = computeGroupedLegendGeometry(
     dummyGroups,
-    SCARF_LEGEND_CONFIG,
+    LEGEND_CONFIG,
     0,
     0,
     chartWidth

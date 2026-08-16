@@ -33,7 +33,7 @@
     computeFlatLegendGeometry,
     calculateFlatLegendHeight,
     drawLegend,
-    STREAM_LEGEND_CONFIG,
+    LEGEND_CONFIG,
     type LegendItem,
     type LegendGeometry,
     type LegendItemGeometry,
@@ -154,7 +154,7 @@
     if (alignment === 'heatmap') return getGradientLegendRequiredHeight(AXIS_CONFIG.fontSize)
     if (legendItems.length === 0) return 0
     let maxTextWidth = 0
-    const { fontSize, fontFamily } = STREAM_LEGEND_CONFIG
+    const { fontSize, fontFamily } = LEGEND_CONFIG
     for (const item of legendItems) {
       const w = estimateTextWidth(item.name, fontSize, fontFamily)
       if (w > maxTextWidth) maxTextWidth = w
@@ -162,7 +162,7 @@
     return calculateFlatLegendHeight(
       legendItems.length,
       Math.max(0, plot.plotAreaWidth),
-      STREAM_LEGEND_CONFIG,
+      LEGEND_CONFIG,
       maxTextWidth
     )
   })
@@ -246,7 +246,7 @@
     legend: {
       geometry: () =>
         alignment === 'heatmap' || legendHeight === 0 ? null : legendGeometry,
-      config: STREAM_LEGEND_CONFIG,
+      config: LEGEND_CONFIG,
       highlights: () => usedHighlights,
       hitData: item => ({ kind: 'legend' as const, item }),
     },
@@ -282,7 +282,7 @@
   const legendGeometry: LegendGeometry = $derived.by(() =>
     computeFlatLegendGeometry(
       legendItems,
-      STREAM_LEGEND_CONFIG,
+      LEGEND_CONFIG,
       margin,
       plot.frame.legendY + PLOT_LEGEND_GAP,
       Math.max(0, plot.plotAreaWidth)
@@ -551,7 +551,7 @@
       }
     } else if (legendGeometry.items.length > 0 && legendHeight > 0) {
       setUpFont(ctx)
-      drawLegend(ctx, legendGeometry, STREAM_LEGEND_CONFIG, usedHighlights)
+      drawLegend(ctx, legendGeometry, LEGEND_CONFIG, usedHighlights)
     }
   }
 

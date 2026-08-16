@@ -11,7 +11,7 @@
     drawLegendGroupTitles,
     hitTestLegend,
     niceTimelineTicks,
-    SCARF_LEGEND_CONFIG,
+    LEGEND_CONFIG,
     usePlot,
     canvasBlockSelect,
     type BlockedRegion,
@@ -203,7 +203,7 @@
     drawOverlay: drawScarfOverlay,
     legend: {
       geometry: () => (data.stylingAndLegend ? legendGeometry : null),
-      config: SCARF_LEGEND_CONFIG,
+      config: LEGEND_CONFIG,
       highlights: () => highlights,
     },
     hitTest: plotHitTest,
@@ -248,7 +248,7 @@
     }
     return computeGroupedLegendGeometry(
       legendGroups,
-      SCARF_LEGEND_CONFIG,
+      LEGEND_CONFIG,
       margin,
       legendTop,
       width
@@ -390,8 +390,8 @@
       highlightMask: highlightMaskByIndex,
     })
 
-    drawLegendGroupTitles(ctx, legendGeometry, SCARF_LEGEND_CONFIG)
-    drawLegend(ctx, legendGeometry, SCARF_LEGEND_CONFIG, highlights)
+    drawLegendGroupTitles(ctx, legendGeometry, LEGEND_CONFIG)
+    drawLegend(ctx, legendGeometry, LEGEND_CONFIG, highlights)
   }
 
   // Overlay layer: the PLOT CURSOR's marks plus the local CROSSHAIR, drawn on top
@@ -435,7 +435,7 @@
 
   function isMouseOverLegendItem(mouseX: number, mouseY: number): LegendItemGeometry | null {
     if (!data.stylingAndLegend || !legendGeometry.items.length) return null
-    return hitTestLegend(legendGeometry, SCARF_LEGEND_CONFIG, mouseX, mouseY)
+    return hitTestLegend(legendGeometry, LEGEND_CONFIG, mouseX, mouseY)
   }
 
   // The rows, not the frame's band: the harness gate (the frame rect) also covers

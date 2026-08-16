@@ -1,7 +1,7 @@
 import { describe, expect, test } from 'vitest'
 import {
   computeGroupedLegendGeometry,
-  SCARF_LEGEND_CONFIG,
+  LEGEND_CONFIG,
   type LegendGroup,
   type LegendItem,
 } from '$lib/plots/shared'
@@ -10,7 +10,7 @@ import {
 // uses its deterministic char-count fallback (length * fontSize * 0.55). All the
 // gutter / column maths below are therefore stable across machines.
 
-const CFG = SCARF_LEGEND_CONFIG
+const CFG = LEGEND_CONFIG
 
 function group(
   title: string,
@@ -113,6 +113,18 @@ describe('computeGroupedLegendGeometry — inline title gutter', () => {
     const narrow = computeGroupedLegendGeometry(REALISTIC, CFG, 0, 0, 320)
     const wide = computeGroupedLegendGeometry(REALISTIC, CFG, 0, 0, 900)
     expect(wide.itemsPerRow).toBeGreaterThan(narrow.itemsPerRow)
+  })
+})
+
+describe('computeGroupedLegendGeometry — empty input', () => {
+  test('all-empty groups report zero height, not a negative one', () => {
+    const empty: LegendGroup[] = [group('Fixations', [], 'fixation')]
+    for (const groups of [[], empty]) {
+      const geo = computeGroupedLegendGeometry(groups, CFG, 0, 0, WIDE)
+      expect(geo.items).toEqual([])
+      expect(geo.groupTitles).toEqual([])
+      expect(geo.totalHeight).toBe(0)
+    }
   })
 })
 

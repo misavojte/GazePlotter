@@ -18,7 +18,7 @@ vi.mock('$lib/plots/shared', () => ({
 
 vi.mock('$lib/plots/shared/legendRendering', () => ({
   calculateFlatLegendHeight: () => 50,
-  STREAM_LEGEND_CONFIG: { fontSize: 12, fontFamily: 'Arial' },
+  LEGEND_CONFIG: { fontSize: 12, fontFamily: 'Arial' },
 }))
 
 vi.mock('$lib/shared/utils/textUtils', () => ({
