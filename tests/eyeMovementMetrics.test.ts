@@ -13,7 +13,7 @@
  * table changes under an unchanged reader.
  */
 import { describe, it, expect } from 'vitest'
-import { makeTestEngine } from './helpers/testEngine'
+import { ALL_CAPS, makeTestEngine } from './helpers/testEngine'
 import {
   getMetric,
   metricIsCreatableInContract,
@@ -26,7 +26,6 @@ import {
 } from '../src/lib/metrics'
 import { getRecipe } from '../src/lib/metrics/core/defineMetric'
 import { recipeSupports } from '../src/lib/metrics/core/validation'
-
 const STIM = 1
 
 const CATEGORIES = [
@@ -350,14 +349,14 @@ describe('category-vector eye-movement metrics (scanSource: categories)', () => 
         outputShape: 'scalar',
         windowing: 'required',
         crossParticipant: 'per-participant',
-      })
+      }, ALL_CAPS)
     ).toBe(false)
     expect(
       metricIsCreatableInContract(getMetric('movementLatency')!, {
         outputShape: 'category-vector',
         windowing: 'forbidden',
         crossParticipant: 'distribution',
-      })
+      }, ALL_CAPS)
     ).toBe(true)
   })
 
@@ -373,10 +372,10 @@ describe('category-vector eye-movement metrics (scanSource: categories)', () => 
       crossParticipant: 'per-participant',
     } as const satisfies PlotMetricContract
 
-    expect(metricIsCreatableInContract(getMetric('movementCount')!, vectorContract)).toBe(true)
-    expect(metricIsCreatableInContract(getMetric('fixationCount')!, vectorContract)).toBe(false)
+    expect(metricIsCreatableInContract(getMetric('movementCount')!, vectorContract, ALL_CAPS)).toBe(true)
+    expect(metricIsCreatableInContract(getMetric('fixationCount')!, vectorContract, ALL_CAPS)).toBe(false)
     // Metric Matrix / Correlation / Timeline consume one type via pick-category.
-    expect(metricIsCreatableInContract(getMetric('movementTimeShare')!, scalarContract)).toBe(true)
+    expect(metricIsCreatableInContract(getMetric('movementTimeShare')!, scalarContract, ALL_CAPS)).toBe(true)
   })
 })
 

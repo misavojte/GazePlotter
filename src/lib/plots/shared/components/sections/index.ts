@@ -141,6 +141,8 @@ export const SHARED_SECTIONS: Record<string, SharedPaneSection> = {
     modal: eventChannelModificationModal,
     editLabel: 'Edit events & selections',
     passSelectedStimulus: true,
+    // No events in the dataset → nothing the section could narrow or edit.
+    requireCapabilities: ['event'],
   }),
   eyeMovement: entitySection({
     title: 'Eye-movement Types',

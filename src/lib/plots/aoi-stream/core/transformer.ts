@@ -86,7 +86,7 @@ export function getAoiStreamPlotData(
   if (!meta) return emptyAoiStreamResult()
 
   const resolved = resolveMetric({
-    instances: meta.metricInstances,
+    engine,
     id: settings.metricInstanceIds?.[0] ?? null,
     contract: CONTRACT,
   })

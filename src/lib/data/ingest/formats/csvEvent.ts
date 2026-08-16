@@ -9,11 +9,14 @@
  * resolution against a dataset happens later — `mergeEvents` for a
  * dataset being built, `resolveContributionsForEngine` for the live
  * engine (which additionally matches displayed names and inherits AOI
- * colors, both meaningless for a fresh dataset).
+ * colors, both meaningless for a fresh dataset), or
+ * `buildDataTypeFromCsvEvents` when the upload carries no gaze data at all.
  */
 
 import type { EnrichmentFormatDefinition } from '../kernel/format'
-import type { EventContribution } from '../kernel/sink'
+import { mergeEvents, type EventContribution } from '../kernel/sink'
+import type { DataType } from '$lib/data/types'
+import { DEFAULT_NO_AOI_TREATMENT, seededEventsSelection } from '$lib/data/types'
 import { csvDelimiterOfHeader } from './lib/rows/csvDelimiter'
 
 const REQUIRED_COLUMNS = [
@@ -241,6 +244,85 @@ export function mergeIntoStimulusMap(
   }
 }
 
-// NOTE: standalone event-only datasets were removed (1.9.0). Event files
-// annotate eye-tracking data; they are resolved against a loaded engine via
-// `resolveContributionsForEngine`, never built into a dataset on their own.
+/**
+ * Build a complete event-only DataType from CSV event contributions alone (no
+ * gaze data). Stimuli and participants are extracted from the contributions
+ * themselves; the occurrences are then folded in by `mergeEvents`, THE
+ * fresh-dataset resolution rule (which also flips `capabilities.event`).
+ * Segments stay empty and `capabilities.segmented` stays false, which is the
+ * one flag gaze analysis (plots and metrics alike) hides on.
+ *
+ * Removed in 1.9.0 because back then every plot required `segmented`;
+ * restored for the Event Comparison plot, which consumes event data only.
+ *
+ * `metricInstances` is deliberately left empty: starters are seeded by the
+ * caller (IngestService), the same main-thread seam fresh gaze datasets use —
+ * this module is bundled into the ingest worker via the format registry and
+ * must not pull in the metric registry.
+ */
+export function buildDataTypeFromCsvEvents(contributions: EventContribution[]): {
+  data: DataType
+  warnings: string[]
+} {
+  const warnings: string[] = []
+
+  // Unique ORIGINAL names in file order — the identity rule `mergeEvents`
+  // resolves against.
+  const stimulusNames = [...new Set(contributions.map(c => c.stimulus))]
+  const participantNames = [
+    ...new Set(contributions.map(c => c.participant).filter(p => p !== '*')),
+  ]
+  if (participantNames.length === 0) {
+    participantNames.push('Participant')
+    warnings.push(
+      'All rows use wildcard participant "*". Created a default participant.'
+    )
+  }
+  const stimuliCount = stimulusNames.length
+  const participantCount = participantNames.length
+
+  const data: DataType = {
+    isOrdinalOnly: false,
+    // `event` is flipped by mergeEvents below.
+    capabilities: { segmented: false, spatial: false, event: false },
+    // Single-element `[name]` rows: the shape SegmentWriter ships for fresh
+    // datasets (displayed name falls back to the original).
+    stimuli: {
+      data: stimulusNames.map(name => [name]),
+      orderVector: stimulusNames.map((_, i) => i),
+    },
+    participants: {
+      data: participantNames.map(name => [name]),
+      orderVector: participantNames.map((_, i) => i),
+    },
+    participantsSelections: [],
+    stimuliSelections: [],
+    // No gaze categories on the axis at all, so no seeded category selection
+    // (SegmentWriter skips it for fixation-only sources for the same reason).
+    categoriesSelections: [],
+    eventsSelections: [seededEventsSelection(1)],
+    metricInstances: [],
+    categories: { data: [], orderVector: [] },
+    noAoiTreatment: DEFAULT_NO_AOI_TREATMENT,
+    aois: {
+      data: Array.from({ length: stimuliCount }, () => []),
+      orderVector: Array.from({ length: stimuliCount }, () => []),
+    },
+    segments: {
+      segmentBuffer: new Float32Array(0),
+      indexTable: new Uint32Array(stimuliCount * participantCount * 2),
+      aoiPool: new Uint16Array(0),
+      hasSpatialData: false,
+      maxParticipants: participantCount,
+      stimuliCount,
+    },
+    eventData: {
+      data: Array.from({ length: stimuliCount }, () => []),
+      orderVector: [],
+      events: Array.from({ length: stimuliCount }, () => []),
+    },
+  }
+
+  warnings.push(...mergeEvents(data, contributions))
+  return { data, warnings }
+}

@@ -46,12 +46,16 @@
   // detail line carry what it measures and how it's projected — the list is a flat
   // roster keyed by what the researcher named, not by the shape of the output.
   const instances = $derived(
-    (engine.metadata?.metricInstances ?? []).filter(i => instanceMatchesContract(i, contract)),
+    (engine.metadata?.metricInstances ?? []).filter(i =>
+      instanceMatchesContract(i, contract, engine.capabilities),
+    ),
   )
 
   const addableMetrics = $derived.by(() => {
     const allBaseMetrics = listMetrics()
-    return allBaseMetrics.filter(m => metricIsCreatableInContract(m, contract))
+    return allBaseMetrics.filter(m =>
+      metricIsCreatableInContract(m, contract, engine.capabilities),
+    )
   })
 
   // ── Drag reorder ─────────────────────────────────────────
@@ -67,7 +71,7 @@
     onReorder: (from, to) => {
       const all = [...(engine.metadata?.metricInstances ?? [])]
       const indices = all.reduce<number[]>((acc, inst, i) => {
-        if (instanceMatchesContract(inst, contract)) acc.push(i)
+        if (instanceMatchesContract(inst, contract, engine.capabilities)) acc.push(i)
         return acc
       }, [])
       const fromGlobal = indices[from]

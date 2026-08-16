@@ -40,11 +40,11 @@
     mixed = false,
   }: Props = $props()
 
-  const { modalState } = getGazePlotterSession()
+  const { engine, modalState } = getGazePlotterSession()
 
-  /** Instances filtered by the contract descriptor. */
+  /** Instances filtered by the contract descriptor and the dataset's capabilities. */
   const visibleInstances = $derived(
-    instances.filter(i => instanceMatchesContract(i, contract))
+    instances.filter(i => instanceMatchesContract(i, contract, engine.capabilities))
   )
 
   const options = $derived<SelectOption[]>(

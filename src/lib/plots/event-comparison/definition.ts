@@ -15,8 +15,10 @@ import type { EventComparisonSettings } from './types'
  * per-plot event SELECTION. Single channels are a `pick-event` projection
  * concern on scalar plots, never anything this plot configures.
  *
- * Gated on the `event` capability: without event data the plot has no axis,
- * so the add menu offers it only when a dataset carries events.
+ * Gated on the `event` capability ALONE: without event data the plot has no
+ * axis, and gaze segments are not consumed anywhere in it — the event scan
+ * reads occurrence buffers only — so an event-only dataset gets this plot as
+ * its native (and default) visualization.
  *
  * No `screen` recipe: this plot does not sync its value axis across siblings
  * today, matching the Eye-movement Comparison.
@@ -53,6 +55,6 @@ export const eventComparisonDefinition = definePlot<
     timelineStart: 0,
     timelineEnd: 0,
   }),
-  requireCapabilities: ['segmented', 'event'],
+  requireCapabilities: ['event'],
   consumesMetrics: EVENT_COMPARISON_CONTRACT,
 })

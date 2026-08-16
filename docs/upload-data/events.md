@@ -23,7 +23,7 @@ Additionally, GazePlotter accepts a **Custom CSV** format for manual event defin
 
 ## Uploading event files
 
-Event files must be uploaded together with eye-tracking data files in the same file selection. They cannot be uploaded separately.
+XML and JSON event files must be uploaded together with eye-tracking data files in the same file selection: they are mapped onto the loaded stimuli and participants. Custom CSV event files carry their own stimulus and participant names, so they can also be uploaded on their own; see [Event-only datasets](#event-only-datasets) below.
 
 1. Click **Import** in the workspace header.
 2. In the file picker, select both your eye-tracking data files and your event files.
@@ -78,6 +78,10 @@ The delimiter is auto-detected (`,` or `;`). Columns can appear in any order.
 Custom CSV event files are self-describing — they contain stimulus and participant information directly, so the **Map Event Files** modal does not appear for them. Rows referencing unrecognized stimulus or participant names are skipped with a warning.
 
 Custom CSV event files can be uploaded together with SMI or Tobii event files in the same file selection. All sources are merged before being applied.
+
+## Event-only datasets
+
+A file selection containing only Custom CSV event files loads as an event-only dataset: stimuli and participants are taken from the CSV rows themselves. Since such a dataset carries no gaze recording, gaze analysis stays hidden; the workspace opens with an [Event Comparison](/docs/visualizations/event-comparison/) plot and the metric library offers the [event metrics](/docs/metrics/events/). XML and JSON event files cannot stand alone, as they rely on already-loaded stimuli for mapping.
 
 ## After uploading
 

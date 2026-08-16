@@ -276,7 +276,7 @@ export async function generateMetricExport(
   const contract =
     options.format === 'long' ? METRIC_EXPORT_CONTRACT_LONG : METRIC_EXPORT_CONTRACT_WIDE
   const incompatible = selectedInstances.filter(
-    inst => !instanceMatchesContract(inst, contract)
+    inst => !instanceMatchesContract(inst, contract, engine.capabilities)
   )
   if (incompatible.length > 0) {
     const names = incompatible

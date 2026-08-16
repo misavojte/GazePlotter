@@ -5,7 +5,7 @@
  * is exercised.
  */
 import { describe, it, expect } from 'vitest'
-import { makeTestEngine } from './helpers/testEngine'
+import { ALL_CAPS, makeTestEngine } from './helpers/testEngine'
 import {
   query,
   instanceMatchesContract,
@@ -101,7 +101,7 @@ describe('projection via query()', () => {
       id: 't1', baseId: 'transitionProbability', params: { mode: 'fixation', step: 1 }, label: '',
       projection: { kind: 'matrix-aggregate', reducer: 'mean' },
     }
-    expect(instanceMatchesContract(invalid, GLOBAL_SCALAR_CONTRACT)).toBe(false)
+    expect(instanceMatchesContract(invalid, GLOBAL_SCALAR_CONTRACT, ALL_CAPS)).toBe(false)
   })
 
   it('aggregate-aoi stays in contract only where the metric names the extreme', () => {
@@ -115,8 +115,8 @@ describe('projection via query()', () => {
     const unnamed: MetricInstance = {
       id: 't2', baseId: 'fixationDuration', params: { statistic: 'mean' }, label: '', projection: proj,
     }
-    expect(instanceMatchesContract(named, GLOBAL_SCALAR_CONTRACT)).toBe(true)
-    expect(instanceMatchesContract(unnamed, GLOBAL_SCALAR_CONTRACT)).toBe(false)
+    expect(instanceMatchesContract(named, GLOBAL_SCALAR_CONTRACT, ALL_CAPS)).toBe(true)
+    expect(instanceMatchesContract(unnamed, GLOBAL_SCALAR_CONTRACT, ALL_CAPS)).toBe(false)
   })
 
   it('the offered leaves include aggregate-aoi only for metrics naming an extreme', () => {
@@ -144,7 +144,7 @@ describe('projection via query()', () => {
         toAoi:   { by: 'name', name: 'CTA' },
       },
     }
-    expect(instanceMatchesContract(valid, GLOBAL_SCALAR_CONTRACT)).toBe(true)
+    expect(instanceMatchesContract(valid, GLOBAL_SCALAR_CONTRACT, ALL_CAPS)).toBe(true)
   })
 
   it('transition matrix + matrix-diagonal → aoi-vector', () => {

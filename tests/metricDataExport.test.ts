@@ -135,15 +135,17 @@ describe('Metric Data Export Mapping', () => {
     const windowed = engine.metadata!.metricInstances.find(i => i.id === 'absoluteTime-windowed-inst')!
     const relational = engine.metadata!.metricInstances.find(i => i.id === 'participantPairSimilarity-inst')!
 
+    const caps = engine.capabilities
+
     // Long contract allows all shapes and windowed
-    expect(instanceMatchesContract(plain, METRIC_EXPORT_CONTRACT_LONG)).toBe(true)
-    expect(instanceMatchesContract(windowed, METRIC_EXPORT_CONTRACT_LONG)).toBe(true)
-    expect(instanceMatchesContract(relational, METRIC_EXPORT_CONTRACT_LONG)).toBe(true)
+    expect(instanceMatchesContract(plain, METRIC_EXPORT_CONTRACT_LONG, caps)).toBe(true)
+    expect(instanceMatchesContract(windowed, METRIC_EXPORT_CONTRACT_LONG, caps)).toBe(true)
+    expect(instanceMatchesContract(relational, METRIC_EXPORT_CONTRACT_LONG, caps)).toBe(true)
 
     // Wide contract forbids windowed; relational exports as the matrix grid
-    expect(instanceMatchesContract(plain, METRIC_EXPORT_CONTRACT_WIDE)).toBe(true)
-    expect(instanceMatchesContract(windowed, METRIC_EXPORT_CONTRACT_WIDE)).toBe(false)
-    expect(instanceMatchesContract(relational, METRIC_EXPORT_CONTRACT_WIDE)).toBe(true)
+    expect(instanceMatchesContract(plain, METRIC_EXPORT_CONTRACT_WIDE, caps)).toBe(true)
+    expect(instanceMatchesContract(windowed, METRIC_EXPORT_CONTRACT_WIDE, caps)).toBe(false)
+    expect(instanceMatchesContract(relational, METRIC_EXPORT_CONTRACT_WIDE, caps)).toBe(true)
   })
 
   it('exports long format with plain instances, omitting window/relational headers', async () => {

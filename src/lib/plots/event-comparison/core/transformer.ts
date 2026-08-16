@@ -49,7 +49,7 @@ export function getEventComparisonData(
   if (!meta) throw new Error('No metadata found')
 
   return collectDistribution({
-    instances: meta.metricInstances,
+    engine,
     contract: EVENT_COMPARISON_CONTRACT,
     settings,
     axis: () => channelAxis(engine, settings),

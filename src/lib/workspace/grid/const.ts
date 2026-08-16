@@ -11,6 +11,15 @@ export const DEFAULT_GRID_STATE_DATA: GridItemSnapshot[] = [
   { type: 'aoiStreamPlot', x: 12, y: 12, w: 12, h: 12 },
 ]
 
+/**
+ * Initial layout for event-only datasets (`segmented: false`): every plot in
+ * the default layout above is gaze analysis, so an event-only load starts
+ * from the one plot its data can feed.
+ */
+export const EVENT_ONLY_GRID_STATE_DATA: GridItemSnapshot[] = [
+  { type: 'eventComparison', x: 0, y: 0, w: 20, h: 12 },
+]
+
 // Default grid configuration
 export const DEFAULT_GRID_CONFIG: GridConfig = {
   cellSize: { width: 40, height: 40 },

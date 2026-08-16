@@ -15,9 +15,10 @@
  * the scanner's per-instance delegation.
  */
 import { describe, it, expect } from 'vitest'
-import { makeTestEngine, type TestEngineOptions } from './helpers/testEngine'
+import { ALL_CAPS, makeTestEngine, type TestEngineOptions } from './helpers/testEngine'
 import {
   getMetric,
+  instanceMatchesContract,
   metricIsCreatableInContract,
   query,
   queryBatch,
@@ -28,6 +29,7 @@ import {
 } from '../src/lib/metrics'
 import { defineMetric, getRecipe } from '../src/lib/metrics/core/defineMetric'
 import { recipeSupports } from '../src/lib/metrics/core/validation'
+import type { DataCapabilities } from '../src/lib/data/types'
 
 const STIM = 1
 
@@ -351,7 +353,7 @@ describe('event-vector metrics (scanSource: events)', () => {
         outputShape: 'scalar',
         windowing: 'required',
         crossParticipant: 'per-participant',
-      })
+      }, ALL_CAPS)
     ).toBe(false)
   })
 
@@ -367,11 +369,47 @@ describe('event-vector metrics (scanSource: events)', () => {
       crossParticipant: 'per-participant',
     } as const satisfies PlotMetricContract
 
-    expect(metricIsCreatableInContract(getMetric('eventCount')!, vectorContract)).toBe(true)
-    expect(metricIsCreatableInContract(getMetric('movementCount')!, vectorContract)).toBe(false)
-    expect(metricIsCreatableInContract(getMetric('fixationCount')!, vectorContract)).toBe(false)
+    expect(metricIsCreatableInContract(getMetric('eventCount')!, vectorContract, ALL_CAPS)).toBe(true)
+    expect(metricIsCreatableInContract(getMetric('movementCount')!, vectorContract, ALL_CAPS)).toBe(false)
+    expect(metricIsCreatableInContract(getMetric('fixationCount')!, vectorContract, ALL_CAPS)).toBe(false)
     // Metric Matrix / Correlation / Timeline consume one channel via pick-event.
-    expect(metricIsCreatableInContract(getMetric('eventTimeShare')!, scalarContract)).toBe(true)
+    expect(metricIsCreatableInContract(getMetric('eventTimeShare')!, scalarContract, ALL_CAPS)).toBe(true)
+  })
+
+  it('capabilities gate the library both ways: no events hides event metrics, no segments hides gaze metrics', () => {
+    const scalarContract = {
+      outputShape: 'scalar',
+      windowing: 'forbidden',
+      crossParticipant: 'per-participant',
+    } as const satisfies PlotMetricContract
+    const noEvents: DataCapabilities = { segmented: true, spatial: false, event: false }
+    const eventOnly: DataCapabilities = { segmented: false, spatial: false, event: true }
+
+    // Gaze-only dataset: pick-event metrics vanish, gaze metrics stay.
+    expect(metricIsCreatableInContract(getMetric('eventCount')!, scalarContract, noEvents)).toBe(false)
+    expect(metricIsCreatableInContract(getMetric('fixationCount')!, scalarContract, noEvents)).toBe(true)
+    // Event-only dataset: the mirror image.
+    expect(metricIsCreatableInContract(getMetric('eventCount')!, scalarContract, eventOnly)).toBe(true)
+    expect(metricIsCreatableInContract(getMetric('fixationCount')!, scalarContract, eventOnly)).toBe(false)
+    expect(metricIsCreatableInContract(getMetric('movementCount')!, {
+      outputShape: 'category-vector',
+      windowing: 'forbidden',
+      crossParticipant: 'distribution',
+    }, eventOnly)).toBe(false)
+
+    // Saved INSTANCES take the same gate: the seeded event starters vanish
+    // from every list (and every plot resolution) the moment events do.
+    const vectorContract = {
+      outputShape: 'event-vector',
+      windowing: 'forbidden',
+      crossParticipant: 'distribution',
+    } as const satisfies PlotMetricContract
+    const eventStarter: MetricInstance = {
+      id: 'eventCount', baseId: 'eventCount', params: {}, label: '',
+      projection: { kind: 'identity-event-vector' },
+    }
+    expect(instanceMatchesContract(eventStarter, vectorContract, eventOnly)).toBe(true)
+    expect(instanceMatchesContract(eventStarter, vectorContract, noEvents)).toBe(false)
   })
 
   it('registration refuses inconsistent event-axis declarations', () => {

@@ -49,7 +49,7 @@ export function getEyeMovementComparisonData(
   if (!meta) throw new Error('No metadata found')
 
   return collectDistribution({
-    instances: meta.metricInstances,
+    engine,
     contract: EYE_MOVEMENT_COMPARISON_CONTRACT,
     settings,
     axis: () => typeAxis(engine, settings),

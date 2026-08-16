@@ -66,6 +66,7 @@ export {
   instanceMatchesContract,
   metricIsCreatableInContract,
   metricLeafKindsInContract,
+  datasetCanFeed,
   contractReductions,
   contractDistributionStats,
 } from './filters'

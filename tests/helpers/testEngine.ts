@@ -13,6 +13,9 @@ import { createReaderFromJson } from '../../src/lib/data/binary/converters'
 import { AoiGroupReader } from '../../src/lib/data/binary/reader.aoiGroup'
 import { EventBufferReader } from '../../src/lib/data/binary/reader.event'
 
+/** Every capability on — the fixture for tests that are not about gating. */
+export const ALL_CAPS = { segmented: true, spatial: true, event: true }
+
 export type TestEngineOptions = {
   /** aois.data rows per stimulus: [originalName, displayedName, color]; null = id gap. */
   aoiData?: (string[] | null)[][]
@@ -66,6 +69,8 @@ export type TestEngine = {
     eventData: { data: string[][][]; orderVector: number[][] }
     eventsSelections: { id: number; name: string; names: string[] }[]
   }
+  /** Mirrors DataEngine.capabilities (the $derived view of metadata.capabilities). */
+  capabilities: { segmented: boolean; spatial: boolean; event: boolean }
   /** Mutable, mirroring DataEngine.eventVersion: bump after getEventReader().load(). */
   eventVersion: number
   getReader: () => ReturnType<typeof createReaderFromJson>
@@ -164,6 +169,7 @@ export function makeTestEngine(
 
   const base = {
     metadata,
+    capabilities: metadata.capabilities,
     eventVersion: 0,
     getReader: () => reader,
     getEventReader: () => eventReader,

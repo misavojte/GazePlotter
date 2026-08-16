@@ -50,7 +50,7 @@ export function getAoiComparisonData(
   if (!meta) throw new Error('No metadata found')
 
   return collectDistribution({
-    instances: meta.metricInstances,
+    engine,
     contract: AOI_COMPARISON_CONTRACT,
     settings,
     axis: () => aoiAxis(engine, settings, meta.noAoiTreatment),

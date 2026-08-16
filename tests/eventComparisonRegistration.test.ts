@@ -18,7 +18,8 @@ describe('event comparison registration', () => {
     expect(defaults.orderBy).toBe('channel')
     expect(defaults.statisticalOverlay).toBe('meanCi95')
     expect(def.consumesMetrics?.outputShape).toBe('event-vector')
-    // No axis without event data: the add menu offers the plot only then.
-    expect(def.requireCapabilities).toEqual(['segmented', 'event'])
+    // No axis without event data — and no segment dependency, so event-only
+    // datasets (segmented: false) still get the plot.
+    expect(def.requireCapabilities).toEqual(['event'])
   })
 })

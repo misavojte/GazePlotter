@@ -4,6 +4,7 @@ import {
   buildEventChannelsFromParsed,
 } from '$lib/modals/import/shared/aoiVisibilityServices'
 import {
+  buildDataTypeFromCsvEvents,
   parseCsvEventText,
   resolveContributionsForEngine,
   mergeIntoStimulusMap,
@@ -13,13 +14,14 @@ import {
 } from './formats/registry'
 import { foldMerges } from '$lib/data/merge/applyMerges'
 import type { EnrichmentFormatDefinition } from './kernel/format'
+import type { EventContribution } from './kernel/sink'
 import { probeFromText } from './kernel/source'
 import { getStimuliOptions, getParticipantOptions } from '$lib/plots/shared'
 import { getStimulusHighestEndTime } from '$lib/data/engine'
 import { isArchiveFileName } from './formats/routing'
 import { INGEST_PROMPTS } from './prompts'
 import type { IngestResult } from './kernel/result'
-import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace'
+import { DEFAULT_GRID_STATE_DATA, EVENT_ONLY_GRID_STATE_DATA } from '$lib/workspace'
 import type { ErrorService } from '$lib/errors'
 import { formatDuration } from '$lib/shared/utils/timeUtils'
 import { formatFileSize } from '$lib/shared/utils/fileUtils'
@@ -622,24 +624,12 @@ export class IngestService {
       const { eyeFiles, eventFiles } = await partitionUploadFiles(allFiles)
 
       if (eyeFiles.length === 0 && eventFiles.length > 0) {
-        // Event files annotate eye-tracking data — they have no standalone
-        // visualisation (scarf renders events as overlays on segment bars,
-        // and every plot requires `segmented`). Fail fast rather than load a
-        // dataset that no plot can show.
-        this.deps.errorService.report({
-          origin: 'ingest',
-          severity: 'fatal-load',
-          userMessage:
-            'Only event files were uploaded. Event files annotate eye-tracking data and must be uploaded together with it.',
-          cause: new Error(
-            'Event-only upload has no eye-tracking data to annotate'
-          ),
-          context: {
-            eventFileNames: eventFiles.map(e => e.file.name),
-          },
-        })
-        this.explicitStatus = 'error'
-        return false
+        // CSV event files carry their own stimulus/participant names, so they
+        // can stand alone as an event-only dataset (Event Comparison is its
+        // native plot; gaze analysis hides off `segmented: false`). XML/JSON
+        // event files map onto EXISTING stimuli via a modal, so those still
+        // require eye-tracking data.
+        return await this.processStandaloneEventFiles(eventFiles)
       }
 
       // The parse is now committed, so the selection into the grid it replaces
@@ -758,6 +748,99 @@ export class IngestService {
     this.deps.engine.loadDataset(createEmptyDataset())
     this.deps.resetWorkspaceHistory()
     this.explicitStatus = 'error'
+  }
+
+  /**
+   * Event-only upload: build a dataset from CSV event contributions alone.
+   * XML/JSON event files cannot stand alone (their import maps channels onto
+   * EXISTING stimuli via a modal), so the upload must contain at least one
+   * CSV event file; lone XML/JSON uploads stay a fatal refusal.
+   */
+  private async processStandaloneEventFiles(
+    eventFiles: ClaimedEventFile[]
+  ): Promise<boolean> {
+    const csvFiles: File[] = []
+    const legacyFiles: File[] = []
+    for (const { file, format } of eventFiles) {
+      if (format.consume === 'contributions') csvFiles.push(file)
+      else legacyFiles.push(file)
+    }
+
+    if (csvFiles.length === 0) {
+      this.deps.errorService.report({
+        origin: 'ingest',
+        severity: 'fatal-load',
+        userMessage:
+          'Only XML/JSON event files were uploaded. These annotate eye-tracking data and must be uploaded together with it. Standalone event uploads need CSV event files.',
+        cause: new Error('No CSV event files found in event-only upload'),
+        context: { eventFileNames: eventFiles.map(e => e.file.name) },
+      })
+      this.explicitStatus = 'error'
+      return false
+    }
+
+    if (legacyFiles.length > 0) {
+      this.deps.toastState.addWarning(
+        `${legacyFiles.length} XML/JSON event file${legacyFiles.length > 1 ? 's' : ''} ignored (they map onto existing eye-tracking data)`
+      )
+    }
+
+    const contributions: EventContribution[] = []
+    const warnings: string[] = []
+    for (const file of csvFiles) {
+      const text = await file.text()
+      const parsed = parseCsvEventText(text)
+      warnings.push(...parsed.warnings.map(w => `${file.name}: ${w}`))
+      contributions.push(...parsed.contributions)
+    }
+
+    if (contributions.length === 0) {
+      this.deps.errorService.report({
+        origin: 'ingest',
+        severity: 'fatal-load',
+        userMessage:
+          'No valid event data found in the uploaded CSV file(s). Check that the files contain rows with stimulus, participant, eventName, start, and duration columns.',
+        cause: new Error('CSV event files produced zero valid rows'),
+        context: { csvFileNames: csvFiles.map(f => f.name), warnings },
+      })
+      this.explicitStatus = 'error'
+      return false
+    }
+
+    const built = buildDataTypeFromCsvEvents(contributions)
+    warnings.push(...built.warnings)
+    if (warnings.length > 0) {
+      this.deps.toastState.addWarning(
+        `Event CSV: ${warnings.length} warning${warnings.length > 1 ? 's' : ''} (${warnings.slice(0, 3).join('; ')}${warnings.length > 3 ? '...' : ''})`
+      )
+    }
+
+    // Same main-thread seam as handleDone: fresh datasets get their starter
+    // metric library here, never in the builder (worker-bundling invariant).
+    built.data.metricInstances = createDefaultMetricInstances()
+
+    // The load is now committed, so the selection into the grid it replaces
+    // dies here (parity with the eye-tracking path above).
+    this.deps.grid.clearSelection()
+    this.applyParsedData({
+      version: 4,
+      data: built.data,
+      gridItems: EVENT_ONLY_GRID_STATE_DATA,
+      fileMetadata: null,
+      current: {
+        fileNames: csvFiles.map(f => f.name),
+        fileSizes: csvFiles.map(f => f.size),
+        parseDate: new Date().toISOString(),
+      },
+      freshDataset: true,
+    })
+    this.deps.toastState.addSuccess(
+      `Event data loaded: ${formatFileInfo(
+        csvFiles.map(f => f.name),
+        csvFiles.map(f => f.size)
+      )}`
+    )
+    return true
   }
 
   private async processEventFilesPostLoad(

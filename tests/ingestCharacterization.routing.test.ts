@@ -8,8 +8,9 @@
  *     to the worker; the first-file-wins JSON rule became the explicit
  *     workspace-precedence policy inside IngestJob (pinned at the worker
  *     protocol level in ingestCharacterization.protocol.test.ts),
- *   - event-only uploads (any format, CSV included) fail fast: event files
- *     annotate eye-tracking data and have no standalone visualisation,
+ *   - event-only CSV uploads build a standalone event-only dataset on the
+ *     main thread (never via the worker); event-only XML/JSON uploads fail
+ *     fast, since those map onto existing stimuli via the mapping modal,
  *   - a worker 'done' IngestResult envelope becomes a version-4 ParsedData
  *     envelope.
  *
@@ -193,28 +194,39 @@ describe('IngestService routing', () => {
     expect(report).toHaveBeenCalledWith(
       expect.objectContaining({
         userMessage:
-          'Only event files were uploaded. Event files annotate eye-tracking data and must be uploaded together with it.',
+          'Only XML/JSON event files were uploaded. These annotate eye-tracking data and must be uploaded together with it. Standalone event uploads need CSV event files.',
       })
     )
     expect(service.status).toBe('error')
   })
 
-  it('event-only CSV upload fails fast (no standalone event-only dataset)', async () => {
-    const { service, report, deps, posted } = loadHarness()
+  it('event-only CSV upload builds a standalone event-only dataset on the main thread', async () => {
+    const { service, deps, posted } = loadHarness()
     const csv = fakeFile('events.csv', eventCsv)
 
     const result = await service.loadFiles(createFileList([csv]))
 
-    expect(result).toBe(false)
+    expect(result).toBe(true)
     expect(posted).toEqual([]) // never went near the worker
-    expect(deps.engine.loadDataset).not.toHaveBeenCalled() // no dataset built
-    expect(report).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userMessage:
-          'Only event files were uploaded. Event files annotate eye-tracking data and must be uploaded together with it.',
-      })
-    )
-    expect(service.status).toBe('error')
+    expect(deps.engine.loadDataset).toHaveBeenCalledTimes(1)
+    const data = deps.engine.loadDataset.mock.calls[0][0]
+    // Gaze analysis hides off `segmented: false`; events carry the dataset.
+    expect(data.capabilities).toEqual({
+      segmented: false,
+      spatial: false,
+      event: true,
+    })
+    expect(data.stimuli.data).toEqual([['Stim1']])
+    expect(data.participants.data).toEqual([['P1'], ['P2']])
+    expect(data.eventData.data[0].map((d: string[]) => d[0])).toEqual(['Blink'])
+    // Starter metric library seeded on the main thread, like handleDone.
+    expect(data.metricInstances.length).toBeGreaterThan(0)
+    // The default grid is the one plot event-only data can feed.
+    expect(deps.grid.reset).toHaveBeenCalledWith([
+      expect.objectContaining({ type: 'eventComparison' }),
+    ])
+    expect(deps.toastState.addSuccess).toHaveBeenCalled()
+    expect(service.status).toBe('ready')
   })
 
   it("a worker 'done' message becomes a version-4 success envelope", async () => {
