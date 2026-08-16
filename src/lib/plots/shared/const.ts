@@ -17,6 +17,12 @@ export const FONT_PRIMARY = {
   FAMILY: SYSTEM_SANS_SERIF_STACK,
 }
 
+/** 1px light divider between stacked heatmap rows / stream strips. */
+export const AREA_DIVIDER = {
+  COLOR: 'rgba(255, 255, 255, 0.4)',
+  WIDTH: 1,
+}
+
 // Legend specific settings to be used across all charts
 export const LEGEND_FONT = {
   FAMILY: FONT_PRIMARY.FAMILY,

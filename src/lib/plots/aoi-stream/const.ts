@@ -1,8 +1,3 @@
-import {
-  FONT_PRIMARY,
-  GRIDLINE_SECONDARY,
-  GRIDLINE_PRIMARY,
-} from '$lib/plots/shared/const'
 import { FIXATION_CATEGORY_ID } from '$lib/data/binary/schema'
 export { FIXATION_CATEGORY_ID }
 
@@ -33,17 +28,6 @@ export const MARGIN = {
 }
 
 export const FLOW_CURVE_TENSION = 0
-
-export const AXIS_CONFIG = {
-  tickLength: 5,
-  fontSize: FONT_PRIMARY.SIZE,
-  fontFamily: FONT_PRIMARY.FAMILY,
-  color: FONT_PRIMARY.COLOR,
-  gridColor: GRIDLINE_SECONDARY.COLOR,
-  baselineColor: GRIDLINE_PRIMARY.COLOR,
-  tickLabelOffset: 10,
-  labelOffset: 24,
-}
 
 export const Y_AXIS = {
   // The centered streamgraph uses a symmetric domain (e.g. [-50, +50] for 100%).

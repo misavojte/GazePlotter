@@ -5,7 +5,6 @@
  */
 export function sanitizeFileName(name: string): string {
   const cleaned = name
-    // eslint-disable-next-line no-control-regex
     .replace(/[/\\:*?"<>|\u0000-\u001f]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()

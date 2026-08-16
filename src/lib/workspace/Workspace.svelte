@@ -25,7 +25,7 @@
   import { FileDropTarget } from './fileDrop.svelte'
   import { isTextEntryTarget, resolveWorkspaceShortcut } from './keys'
   import type { WorkspaceCommandChain } from './commands'
-  import type { GridItemSnapshot } from './'
+  import type { GridItemSnapshot, PlotType } from './'
 
   interface Props {
     onWorkspaceCommandChain: (command: WorkspaceCommandChain) => void
@@ -142,13 +142,13 @@
     }
   })
 
-  const visualizations = Object.entries(plotRegistry).map(([id, config]) => ({
+  const visualizations = (Object.keys(plotRegistry) as PlotType[]).map(id => ({
     id,
-    label: config.name,
-    group: config.group,
+    label: plotRegistry[id].name,
+    group: plotRegistry[id].group,
   }))
 
-  function handleAddVisualization(vizType: string): void {
+  function handleAddVisualization(vizType: PlotType): void {
     const newId = generateUniqueId()
     if (workspace.addGridItem(vizType, 'rail', newId)) {
       grid.setSelectedItem(newId)

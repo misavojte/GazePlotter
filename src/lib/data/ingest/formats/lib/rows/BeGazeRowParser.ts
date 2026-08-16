@@ -48,7 +48,7 @@ export class BeGazeRowParser extends RowParser {
     ])
   }
 
-  protected deserializeFromBytes(_rawRowRef: Uint8Array): void {
+  protected override deserializeFromBytes(_rawRowRef: Uint8Array): void {
     const startNum = this.getNumber(this.pStart)
     const endNum = this.getNumber(this.pEnd)
     if (!Number.isFinite(startNum) || !Number.isFinite(endNum)) return

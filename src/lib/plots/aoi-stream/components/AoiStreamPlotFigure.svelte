@@ -23,6 +23,7 @@
   import { PRESET_PALETTES } from '$lib/color/palettes'
 
   import {
+    AREA_DIVIDER,
     GRIDLINE_SECONDARY,
     GRIDLINE_PRIMARY,
     FONT_PRIMARY,
@@ -44,6 +45,7 @@
     getGradientLegendRequiredHeight,
   } from '$lib/plots/shared/legendGradient'
   import {
+    AXIS_CONFIG,
     drawXAxisLabel,
     drawYAxisMainLabel,
   } from '$lib/plots/shared/axisUtils'
@@ -59,11 +61,7 @@
     METRIC_MISSING_MESSAGE,
     cannotFitPlaceholder,
   } from '$lib/plots/shared/drawCanvasPlaceholder'
-  import {
-    AXIS_CONFIG,
-    MARGIN as AOI_MARGIN,
-    RIDGELINE_CONTENT_FILL,
-  } from '../const'
+  import { MARGIN as AOI_MARGIN, RIDGELINE_CONTENT_FILL } from '../const'
   import {
     drawCatmullRom,
     transformStreamDataToCoordinates,
@@ -108,7 +106,6 @@
   // the time label (e.g. "Elapsed time / ms · 500 ms window / 100 ms step"); no
   // time-range qualifier — the axis itself shows the range.
   const X_AXIS_LABEL = $derived(withQualifiers('Elapsed time / ms', data.windowLabel))
-  const AREA_DIVIDER = { COLOR: 'rgba(255, 255, 255, 0.4)', WIDTH: 1 }
   const MARGIN = AOI_MARGIN
   const MIN_SERIES_ROW_HEIGHT = 8
   const MIN_STREAM_HEIGHT = 40

@@ -51,7 +51,7 @@ interface AxisConfig {
   labelOffset: number
 }
 
-const DEFAULT_AXIS_CONFIG: AxisConfig = {
+export const AXIS_CONFIG: AxisConfig = {
   tickLength: 5,
   fontSize: FONT_PRIMARY.SIZE,
   fontFamily: FONT_PRIMARY.FAMILY,
@@ -73,8 +73,8 @@ export function drawXAxisLabel(
   plotLeft: number,
   plotAreaWidth: number,
   plotBottom: number,
-  offset: number = DEFAULT_AXIS_CONFIG.labelOffset,
-  config: AxisConfig = DEFAULT_AXIS_CONFIG
+  offset: number = AXIS_CONFIG.labelOffset,
+  config: AxisConfig = AXIS_CONFIG
 ): void {
   ctx.save()
   ctx.font = `${config.fontSize}px ${config.fontFamily}`
@@ -107,7 +107,7 @@ export function drawYAxisMainLabel(
   plotTop: number,
   plotAreaHeight: number,
   offset: number = 36,
-  config: AxisConfig = DEFAULT_AXIS_CONFIG
+  config: AxisConfig = AXIS_CONFIG
 ): void {
   ctx.save()
   const labelX = plotLeft - offset
@@ -169,7 +169,7 @@ export function drawParticipantIndexAxis(
   plotLeft: number,
   plotTop: number,
   rowPitch: number,
-  config: AxisConfig = DEFAULT_AXIS_CONFIG
+  config: AxisConfig = AXIS_CONFIG
 ): void {
   ctx.save()
   ctx.font = `${config.fontSize}px ${config.fontFamily}`

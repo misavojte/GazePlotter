@@ -3,6 +3,7 @@ import {
   truncateTextToPixelWidth,
   SYSTEM_SANS_SERIF_STACK,
 } from '$lib/shared/utils/textUtils'
+import { FONT_PRIMARY } from './const'
 import {
   alignToPixelCenter,
   markCrosshairStrips,
@@ -37,8 +38,8 @@ export type MatrixRenderConfig = {
 }
 
 function setUpFont(ctx: CanvasRenderingContext2D) {
-  ctx.font = `12px ${SYSTEM_SANS_SERIF_STACK}`
-  ctx.fillStyle = UI_COLORS.TEXT_PRIMARY
+  ctx.font = `${FONT_PRIMARY.SIZE}px ${FONT_PRIMARY.FAMILY}`
+  ctx.fillStyle = FONT_PRIMARY.COLOR
 }
 
 function drawMatrixGrid(

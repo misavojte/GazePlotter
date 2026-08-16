@@ -671,7 +671,7 @@ export class TobiiRowParser extends RowParser {
   }
 
   /* ── Public API ─────────────────────────────────────────────────── */
-  protected deserializeFromBytes(_rawRowRef: Uint8Array): void {
+  protected override deserializeFromBytes(_rawRowRef: Uint8Array): void {
     this.stimulusUpdater()
 
     let categoryBytes: Uint8Array

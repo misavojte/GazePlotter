@@ -12,8 +12,8 @@ import { generateUniqueId } from '$lib/shared/utils/idUtils'
 // re-exports this file's own consumers.
 import type {
   AllPlotSettings,
-  GridItemMap,
   GridItemSnapshot,
+  PlotType,
 } from '../grid/types'
 
 function isWorkspaceHistoryError(error: unknown): boolean {
@@ -156,10 +156,10 @@ export class WorkspaceCommandBus {
     })
   }
 
-  addGridItem(vizType: string, source: string, itemId?: number): boolean {
+  addGridItem(vizType: PlotType, source: string, itemId?: number): boolean {
     return this.apply({
       type: 'addGridItem',
-      vizType: vizType as keyof GridItemMap,
+      vizType,
       source,
       itemId: itemId ?? generateUniqueId(),
     })

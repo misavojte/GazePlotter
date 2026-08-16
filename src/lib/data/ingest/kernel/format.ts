@@ -133,12 +133,6 @@ export type EnrichmentFormatDefinition = {
   | { consume: 'interactive' }
 )
 
-export type FormatDefinition =
-  | StreamFormatDefinition
-  | ArchiveFormatDefinition
-  | WorkspaceFormatDefinition
-  | EnrichmentFormatDefinition
-
 export function resolveColumnDelimiter(
   def: StreamFormatDefinition,
   probe: SourceProbe

@@ -68,9 +68,6 @@ const RENDER_FAILED_PLACEHOLDER: PlotPlaceholderContent = {
  * the same handle for the rare figure that needs it.
  */
 
-/** Zero margin default for on-screen rendering (export padding only). */
-export const NO_MARGINS = 0
-
 // ── Frame spec types ──
 
 /** Per-edge gutter declaration: what to measure to reserve space on that edge. */

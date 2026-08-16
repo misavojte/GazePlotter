@@ -3,7 +3,7 @@
   import { onMount } from 'svelte'
   import { fly } from 'svelte/transition'
   import { cubicInOut } from 'svelte/easing'
-  import type { GridItemSnapshot } from '$lib/workspace'
+  import type { GridItemSnapshot, PlotType } from '$lib/workspace'
   import { responsive } from '../responsive.svelte'
   import { stickyBanner } from '../stickyBanner.svelte'
   import {
@@ -20,7 +20,7 @@
     visualizations?: RailVisualization[]
     initialLayoutState?: GridItemSnapshot[] | null
     zoom?: number
-    onAddVisualization?: (vizType: string) => void
+    onAddVisualization?: (vizType: PlotType) => void
     element?: HTMLElement | null
   }
 
@@ -59,10 +59,9 @@
   const canRedo = $derived(workspace.canRedo)
 
   const filteredVisualizations = $derived(
-    visualizations.filter(v => {
-      const config = plotRegistry[v.id as keyof typeof plotRegistry]
-      return engine.hasCapabilities(config?.requireCapabilities)
-    })
+    visualizations.filter(v =>
+      engine.hasCapabilities(plotRegistry[v.id].requireCapabilities)
+    )
   )
 
   const undoLabel: string | null = $derived(workspace.lastUndoLabel)

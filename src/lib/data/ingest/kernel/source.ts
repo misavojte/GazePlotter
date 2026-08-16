@@ -11,10 +11,10 @@
  * deliver ≥64 KB chunks; the buffer path chunks at 1 MB.
  */
 
+import type { TextEncoding } from '$lib/data/ingest/utils/byteUtils'
+
 const MAX_HEADER_BYTES = 256 * 1024
 const BUFFER_CHUNK_BYTES = 1024 * 1024
-
-export type TextEncoding = 'utf-8' | 'utf-16le' | 'utf-16be'
 
 export interface IngestSource {
   readonly name: string

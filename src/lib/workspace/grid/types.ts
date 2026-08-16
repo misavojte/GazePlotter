@@ -61,8 +61,6 @@ export type GridItemMap = {
 
 export type AllGridTypes = GridItemMap[keyof GridItemMap]
 
-export type GridType = GridItemBase
-
 export type GridItemLayoutUpdate = Partial<
   Pick<GridItemBase, 'x' | 'y' | 'w' | 'h' | 'min' | 'redrawTimestamp'>
 >
@@ -72,5 +70,3 @@ export type GridItemSnapshot<K extends PlotType = PlotType> =
     type: K
     settings?: Partial<PlotSettingsMap[K]>
   }
-
-export type VisualizationConfig<K extends PlotType> = PlotDefinitions[K]

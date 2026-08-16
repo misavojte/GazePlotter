@@ -156,7 +156,7 @@ export class CsvSegmentedDurationRowParser extends RowParser {
    * @param {string[]} row - An array representing a single row from the CSV file
    * @returns {void}
    */
-  protected deserializeFromBytes(_rawRowRef: Uint8Array): void {
+  protected override deserializeFromBytes(_rawRowRef: Uint8Array): void {
     const timestampNum = this.getNumber(this.pTimestamp)
     const durationNum = this.getNumber(this.pDuration)
     const aoiBytes = this.getBytes(this.pAoi)

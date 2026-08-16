@@ -265,7 +265,6 @@ export abstract class RowParser {
           this.deserializeFromBytes(rawRow);
         };
       `
-      // eslint-disable-next-line no-new-func
       this.binaryRowParser = new Function(parserSource)().bind(this)
       return
     }
@@ -394,7 +393,6 @@ export abstract class RowParser {
       };
     `
 
-    // eslint-disable-next-line no-new-func
     this.binaryRowParser = new Function(parserSource)().bind(this)
   }
 

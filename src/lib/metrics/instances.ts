@@ -106,7 +106,6 @@ export function resolveInstance(
  * engine); unknown recipes never strand, this build's registry not being the
  * arbiter of theirs.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function isStrandedAoiAggregate(inst: any): boolean {
   const proj = inst?.projection
   const leaf = proj?.kind === 'windowed' ? proj.inner : proj
@@ -129,7 +128,6 @@ export function isStrandedAoiAggregate(inst: any): boolean {
  * mean — the accepted cost of the move. Raw untyped JSON; unknown recipes pass
  * through with their params verbatim.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function carrySummaryStatistic(inst: any): any {
   const statistic = inst?.params?.statistic
   if (typeof statistic !== 'string') return inst

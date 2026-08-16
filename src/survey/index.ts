@@ -3,7 +3,7 @@
  */
 
 // Export types
-export type { SurveyTask, SurveyState, SurveyActions, UEQSResults, EyeTrackingExperienceResult } from './types/index';
+export type { SurveyTask, UEQSResults, EyeTrackingExperienceResult } from './types/index';
 export { EyeTrackingExperience } from './types/index';
 
 // Export store

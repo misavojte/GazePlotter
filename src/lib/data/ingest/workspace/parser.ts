@@ -1,4 +1,4 @@
-import type { DataType, JsonImportNewFormat } from '$lib/data/types'
+import type { JsonImportNewFormat } from '$lib/data/types'
 import type { FileMetadataType } from '../types'
 import type { GridItemSnapshot } from '$lib/workspace/grid/types'
 import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace/grid/const'
@@ -6,14 +6,6 @@ import { runMigrations } from './migrations'
 import { processAndValidateData, validateBasicStructure } from './validator'
 
 
-
-/**
- * Type for the result of processing a JSON file
- */
-export type JsonProcessingResult = {
-  data: DataType
-  gridItems?: GridItemSnapshot[]
-}
 
 /**
  * Processes a JSON file and returns both the data and grid items if available.

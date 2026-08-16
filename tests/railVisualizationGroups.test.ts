@@ -2,6 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { createRailItems, type RailVisualization } from '$lib/workspace/rail/config'
 import { PLOT_GROUPS } from '$lib/plots/groups'
 import { plotRegistry } from '$lib/plots/registry'
+import type { PlotType } from '$lib/workspace/grid/types'
+
+const allVisualizations = (): RailVisualization[] =>
+  (Object.keys(plotRegistry) as PlotType[]).map(id => ({
+    id,
+    label: plotRegistry[id].name,
+    group: plotRegistry[id].group,
+  }))
 
 const baseOptions = {
   undoLabel: null,
@@ -31,10 +39,11 @@ function addVisualizationActions(
 
 describe('add-visualization menu grouping', () => {
   it('groups plots into submenus ordered by PLOT_GROUPS, dropping empty groups', () => {
+    // The grouping reads the object's `group` field, so any registered ids work.
     const actions = addVisualizationActions([
-      { id: 'a', label: 'A', group: 'per-aoi' },
-      { id: 'b', label: 'B', group: 'gaze-behavior' },
-      { id: 'c', label: 'C', group: 'per-aoi' },
+      { id: 'aoiComparison', label: 'A', group: 'per-aoi' },
+      { id: 'scarf', label: 'B', group: 'gaze-behavior' },
+      { id: 'aoiStreamPlot', label: 'C', group: 'per-aoi' },
     ])
 
     // gaze-behavior precedes per-aoi in PLOT_GROUPS; the three unused groups drop.
@@ -57,9 +66,7 @@ describe('add-visualization menu grouping', () => {
   })
 
   it('places every registered plot under exactly one known group', () => {
-    const visualizations: RailVisualization[] = Object.entries(plotRegistry).map(
-      ([id, config]) => ({ id, label: config.name, group: config.group })
-    )
+    const visualizations = allVisualizations()
     const actions = addVisualizationActions(visualizations)
 
     const flattened = actions.flatMap(a => a.children ?? [])
@@ -70,10 +77,7 @@ describe('add-visualization menu grouping', () => {
   })
 
   it('lays out the current taxonomy as expected', () => {
-    const visualizations: RailVisualization[] = Object.entries(plotRegistry).map(
-      ([id, config]) => ({ id, label: config.name, group: config.group })
-    )
-    const layout = addVisualizationActions(visualizations).map(a => [
+    const layout = addVisualizationActions(allVisualizations()).map(a => [
       a.label,
       a.children?.map(c => c.label),
     ])

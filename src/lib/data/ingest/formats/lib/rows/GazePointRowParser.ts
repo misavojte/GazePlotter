@@ -116,7 +116,7 @@ export class GazePointRowParser extends RowParser {
     ])
   }
 
-  protected deserializeFromBytes(_rawRowRef: Uint8Array): void {
+  protected override deserializeFromBytes(_rawRowRef: Uint8Array): void {
     const time = this.getNumber(this.pTime)
     const startRaw = this.getNumber(this.pStart)
     const durFix = this.getNumber(this.pFixDur)

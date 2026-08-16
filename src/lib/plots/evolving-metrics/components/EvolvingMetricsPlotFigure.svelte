@@ -29,13 +29,14 @@
   import { samplePalette } from '$lib/color'
   import { INACTIVE_COLOR, PRESET_PALETTES } from '$lib/color/palettes'
 
-  import { FONT_PRIMARY, PLOT_LEGEND_GAP } from '$lib/plots/shared/const'
+  import { AREA_DIVIDER, FONT_PRIMARY, PLOT_LEGEND_GAP } from '$lib/plots/shared/const'
   import {
     computeGradientLegendGeometry,
     drawGradientLegend,
     getGradientLegendRequiredHeight,
   } from '$lib/plots/shared/legendGradient'
   import {
+    AXIS_CONFIG,
     drawParticipantIndexAxis,
     drawXAxisLabel,
     drawYAxisMainLabel,
@@ -53,7 +54,7 @@
     cannotFitPlaceholder,
   } from '$lib/plots/shared/drawCanvasPlaceholder'
   import { createAdaptiveTimeline, formatTimelineLabel } from '$lib/plots/shared/timelineUtils'
-  import { MARGIN, AXIS_CONFIG } from '../const'
+  import { MARGIN } from '../const'
   import { rasterizeOverlayDensity, packOverlayDensity } from '../core/overlayDensity'
   import type { EvolvingMetricsResult, EvolvingMetricsWindow } from '../types'
 
@@ -94,7 +95,6 @@
   }: Props = $props()
 
   const X_AXIS_LABEL = $derived(data.xAxisLabel)
-  const AREA_DIVIDER = { COLOR: 'rgba(255, 255, 255, 0.4)', WIDTH: 1 }
 
 
   const legendHeight = $derived(
