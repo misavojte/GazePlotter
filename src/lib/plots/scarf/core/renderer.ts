@@ -9,6 +9,7 @@ import {
 import {
   alignToPixelCenter,
   createScratchLayer,
+  strokeParallelLines,
 } from '$lib/plots/shared/canvasUtils'
 import { desaturateToWhite, convertToHex, hexToRgb } from '$lib/color'
 import {
@@ -119,28 +120,24 @@ export function drawScarfGrid(
 
   if (layout.isCompact) {
     const step = calculateTickStep(data.participants.length)
-    for (let i = 0; i < data.participants.length; i += step) {
-      const y = alignToPixelCenter(
-        i * layout.heightOfBarWrap + layout.heightOfBarWrap / 2 + layout.plotTop
-      )
-      ctx.beginPath()
-      ctx.moveTo(leftX + 0.5, y)
-      ctx.lineTo(leftX - 4.5, y)
-      ctx.stroke()
-    }
+    strokeParallelLines(
+      ctx, true, Math.ceil(data.participants.length / step),
+      i => alignToPixelCenter(
+        i * step * layout.heightOfBarWrap + layout.heightOfBarWrap / 2 + layout.plotTop
+      ),
+      leftX + 0.5, leftX - 4.5
+    )
   } else {
     // Dividers between participant rows (all modes). In combined mode the gaze
     // and the event band are separated by the whitespace seam gap, so gray is
     // used only here, to divide participants.
     ctx.strokeStyle = GRIDLINE_SECONDARY.COLOR
     ctx.lineWidth = GRIDLINE_SECONDARY.WIDTH
-    for (let i = 0; i <= data.participants.length; i++) {
-      const y = alignToPixelCenter(i * layout.heightOfBarWrap + layout.plotTop)
-      ctx.beginPath()
-      ctx.moveTo(leftX + 0.5, y)
-      ctx.lineTo(rightX + 0.5, y)
-      ctx.stroke()
-    }
+    strokeParallelLines(
+      ctx, true, data.participants.length + 1,
+      i => alignToPixelCenter(i * layout.heightOfBarWrap + layout.plotTop),
+      leftX + 0.5, rightX + 0.5
+    )
   }
 }
 

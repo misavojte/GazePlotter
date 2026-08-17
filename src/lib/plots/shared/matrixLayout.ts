@@ -1,5 +1,5 @@
 import { getGradientLegendRequiredHeight } from './legendGradient'
-import { calculateTickStep } from './axisUtils'
+import { axisTitleLineHeight, calculateTickStep, wrapAxisTitle } from './axisUtils'
 import { estimateTextWidth } from '$lib/shared/utils/textUtils'
 
 const AXIS_TITLE_GAP = 12
@@ -53,6 +53,9 @@ export type MatrixLayoutInput = {
   height: number
   rowLabels: string[]
   colLabels: string[]
+  /** Axis titles; the layout wraps them (≤2 lines) and reserves their height. */
+  xAxisTitle: string
+  yAxisTitle: string
   cellValueLabelLength: number
   layoutConfig: MatrixLayoutConfig
   margin?: number
@@ -63,6 +66,10 @@ export type MatrixLayout = {
   xAxisLabelHeight: number
   yAxisLabelWidth: number
   axisTitleGap: number
+  /** Pre-wrapped axis-title lines; the reservation covers exactly these, so the
+   *  renderer draws them verbatim instead of re-wrapping. */
+  xTitleLines: string[]
+  yTitleLines: string[]
   xOffset: number
   yOffset: number
   cellSize: number
@@ -116,6 +123,8 @@ export function computeMatrixLayout(input: MatrixLayoutInput): MatrixLayout {
     height,
     rowLabels,
     colLabels,
+    xAxisTitle,
+    yAxisTitle,
     cellValueLabelLength: labelLen,
     layoutConfig: cfg,
   } = input
@@ -141,10 +150,13 @@ export function computeMatrixLayout(input: MatrixLayoutInput): MatrixLayout {
   const legendSpace = MATRIX_LEGEND_GAP + getGradientLegendRequiredHeight(fontSize) + marginBottom
 
   // Axis space = outer margin + config margin + axis title + gap + labels + pad.
-  const ySpaceFor = (labelWidth: number) =>
-    marginLeft + cfg.leftMargin + fontSize + AXIS_TITLE_GAP + labelWidth + 10
-  const xSpaceFor = (labelHeight: number) =>
-    marginTop + cfg.topMargin + fontSize + AXIS_TITLE_GAP + labelHeight + 10
+  // Title space defaults to one wrapped line; the second pass below re-reserves
+  // the real (≤2-line) height once the grid extent to wrap to is known.
+  const titleLineHeight = axisTitleLineHeight(fontSize)
+  const ySpaceFor = (labelWidth: number, titleWidth = titleLineHeight) =>
+    marginLeft + cfg.leftMargin + titleWidth + AXIS_TITLE_GAP + labelWidth + 10
+  const xSpaceFor = (labelHeight: number, titleHeight = titleLineHeight) =>
+    marginTop + cfg.topMargin + titleHeight + AXIS_TITLE_GAP + labelHeight + 10
 
   // One fit rule for every pass: carve the axis spaces + legend out, fit
   // square cells to the shorter axis (never negative).
@@ -172,8 +184,17 @@ export function computeMatrixLayout(input: MatrixLayoutInput): MatrixLayout {
   const yAxisLabelWidth = isCompactMode ? COMPACT_LABEL_SIZE : standardYAxisLabelWidth
   const xAxisLabelHeight = isCompactMode ? COMPACT_LABEL_SIZE : standardXAxisHeight
 
-  const yAxisSpace = ySpaceFor(yAxisLabelWidth)
-  const xAxisSpace = xSpaceFor(xAxisLabelHeight)
+  // Two-pass title reservation (resolveFrameLayout does the same): pass 1 sizes
+  // the grid with single-line titles, the titles wrap to that extent, and pass 2
+  // reserves their real (≤2-line) height. The wrapped lines are returned for
+  // drawMatrixAxisLabels to draw verbatim, so reservation and draw can never
+  // disagree on the line count.
+  const cellPass1 = cellFor(ySpaceFor(yAxisLabelWidth), xSpaceFor(xAxisLabelHeight))
+  const xTitleLines = wrapAxisTitle(xAxisTitle, Math.max(0, cellPass1 * safeColCount), fontSize)
+  const yTitleLines = wrapAxisTitle(yAxisTitle, Math.max(0, cellPass1 * safeRowCount), fontSize)
+
+  const yAxisSpace = ySpaceFor(yAxisLabelWidth, yTitleLines.length * titleLineHeight)
+  const xAxisSpace = xSpaceFor(xAxisLabelHeight, xTitleLines.length * titleLineHeight)
 
   const availableWidth = width - yAxisSpace - marginRight - cfg.rightMargin
 
@@ -236,6 +257,8 @@ export function computeMatrixLayout(input: MatrixLayoutInput): MatrixLayout {
     xAxisLabelHeight,
     yAxisLabelWidth,
     axisTitleGap: AXIS_TITLE_GAP,
+    xTitleLines,
+    yTitleLines,
     xOffset,
     yOffset,
     cellSize,

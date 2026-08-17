@@ -186,6 +186,8 @@
       height,
       rowLabels: rows,
       colLabels: cols,
+      xAxisTitle,
+      yAxisTitle,
       cellValueLabelLength:
         formatCellValue(effectiveMaxValue).length +
         (colorValueRange[0] < 0 ? 1 : 0),
@@ -226,8 +228,6 @@
     colLabels: cols,
     matrix,
     maxLabelLength: MATRIX_LAYOUT.maxLabelLength,
-    xAxisTitle,
-    yAxisTitle,
     formatCellValue: (v: number) => (Number.isFinite(v) ? formatCellValue(v) : '—'),
     getCellColor,
     showCellValue,

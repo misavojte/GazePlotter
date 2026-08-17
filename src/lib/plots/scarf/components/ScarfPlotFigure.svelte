@@ -30,10 +30,9 @@
     resolveFrameLayout,
   } from '$lib/plots/shared'
   import {
-    cursorRows,
+    cursorGuides,
     drawTimeGuides,
     timeAtX,
-    timeGuideXs,
     type PlotCursorPort,
   } from '$lib/plots/shared/plotCursor.svelte'
   import { OVERLAY_EVENT_STRIDE, SCARF_LAYOUT } from '../const'
@@ -222,7 +221,7 @@
       ),
     // Return type annotated, same cycle as `gutters`. The rows KEY, not the array:
     // moving within one row must not repaint every sibling.
-    overlayDeps: (): string => `${cursorXsKey}:${cursorRowsKey}`,
+    overlayDeps: (): string => `${cursorGuide.xsKey}:${cursorGuide.rowsKey}`,
     blockedRegions: (): BlockedRegion[] => blockedRegions,
     pointer: {
       onDown: handlePointerDown,
@@ -269,14 +268,12 @@
     { x: rowBand.x, y: rowBand.y, w: rowBand.width, h: rowBand.height },
   ])
 
-  const cursorXs = $derived(
-    timeGuideXs(rowBand, data.timeline, plotCursor?.times ?? [])
-  )
-  const cursorXsKey = $derived(cursorXs.join(','))
-  const cursorRowIndices = $derived(
-    cursorRows(participantIds, plotCursor?.participants ?? [])
-  )
-  const cursorRowsKey = $derived(cursorRowIndices.join(','))
+  const cursorGuide = cursorGuides({
+    cursor: () => plotCursor,
+    band: () => rowBand,
+    timeline: () => data.timeline,
+    rowIds: () => participantIds,
+  })
 
   const identifierSystem = $derived.by(() => {
     if (!data.stylingAndLegend)
@@ -398,9 +395,9 @@
   // renderScarf. Both channels come first — they must survive the local-hover
   // early return.
   function drawScarfOverlay(ctx: CanvasRenderingContext2D) {
-    drawTimeGuides(ctx, rowBand, cursorXs)
+    drawTimeGuides(ctx, rowBand, cursorGuide.xs)
     const rects: HighlightRect[] = []
-    for (const row of cursorRowIndices) {
+    for (const row of cursorGuide.rows) {
       rects.push({
         x: rowBand.x,
         y: rowY(row),

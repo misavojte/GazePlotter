@@ -16,6 +16,7 @@
 import {
   alignToPixelCenter,
   strokeCrispRect,
+  strokeParallelLines,
 } from '$lib/plots/shared/canvasUtils'
 import { GRIDLINE_PRIMARY, FONT_PRIMARY } from './const'
 import type { AdaptiveTimeline } from './timelineUtils'
@@ -170,13 +171,11 @@ function drawHorizontalEdge(
   const len = positions.length
 
   // Tick marks
-  for (let i = 0; i < len; i++) {
-    const x = alignToPixelCenter(floorLeft + Math.round(positions[i] * floorWidth))
-    ctx.beginPath()
-    ctx.moveTo(x, yLine)
-    ctx.lineTo(x, tickEnd)
-    ctx.stroke()
-  }
+  strokeParallelLines(
+    ctx, false, len,
+    i => alignToPixelCenter(floorLeft + Math.round(positions[i] * floorWidth)),
+    yLine, tickEnd
+  )
 
   // Labels (with right-edge clamp so the last label never extends past the border)
   if (!labels) return
@@ -214,13 +213,11 @@ function drawVerticalEdge(
   const len = positions.length
 
   // Tick marks — position 0 is top, 1 is bottom (standard y-down canvas).
-  for (let i = 0; i < len; i++) {
-    const y = alignToPixelCenter(floorTop + Math.round(positions[i] * floorHeight))
-    ctx.beginPath()
-    ctx.moveTo(xLine, y)
-    ctx.lineTo(tickEnd, y)
-    ctx.stroke()
-  }
+  strokeParallelLines(
+    ctx, true, len,
+    i => alignToPixelCenter(floorTop + Math.round(positions[i] * floorHeight)),
+    xLine, tickEnd
+  )
 
   // Labels — right-aligned on the left edge, left-aligned on the right edge.
   if (!labels) return

@@ -1,5 +1,9 @@
 import { GRIDLINE_PRIMARY, GRIDLINE_SECONDARY, FONT_PRIMARY, PLOT_AXIS_TITLE_GAP, PLOT_TICK_LABEL_GAP } from './const'
-import { wrapTextToWidth } from '$lib/shared/utils/textUtils'
+import {
+  estimateTextWidth,
+  truncateTextToPixelWidth,
+  wrapTextToWidth,
+} from '$lib/shared/utils/textUtils'
 
 /** Max wrapped lines for an axis title before it ellipsises (bounds the gutter). */
 const MAX_AXIS_TITLE_LINES = 2
@@ -25,9 +29,44 @@ export function measureAxisTitleHeight(
   fontSize: number = FONT_PRIMARY.SIZE,
   fontFamily: string = FONT_PRIMARY.FAMILY
 ): number {
-  if (!label) return 0
-  const lines = wrapTextToWidth(label, maxExtent, fontSize, fontFamily, MAX_AXIS_TITLE_LINES)
-  return lines.length * axisTitleLineHeight(fontSize)
+  return wrapAxisTitle(label, maxExtent, fontSize, fontFamily).length * axisTitleLineHeight(fontSize)
+}
+
+/**
+ * An axis title's wrapped lines (≤ {@link MAX_AXIS_TITLE_LINES}, ellipsis
+ * beyond), empty for an empty title. The single wrap rule, so a layout that
+ * reserves per-line space (matrixLayout) and the draw that stacks the lines
+ * can never disagree on the count.
+ */
+export function wrapAxisTitle(
+  label: string,
+  maxExtent: number,
+  fontSize: number = FONT_PRIMARY.SIZE,
+  fontFamily: string = FONT_PRIMARY.FAMILY
+): string[] {
+  if (!label) return []
+  return wrapTextToWidth(label, maxExtent, fontSize, fontFamily, MAX_AXIS_TITLE_LINES)
+}
+
+/**
+ * Truncated row labels for a heatmap's left gutter. Caps the reserved width
+ * (one long name must not eat the plot; capped against the CANVAS width too, or
+ * long names on a narrow card reserve everything and the plot draws nothing)
+ * and pre-truncates, so the gutter reserves exactly what the figure draws.
+ */
+export function truncatedRowLabels(
+  labels: readonly string[],
+  canvasWidth: number
+): string[] {
+  let max = 0
+  for (const label of labels) {
+    const w = estimateTextWidth(label, AXIS_CONFIG.fontSize, AXIS_CONFIG.fontFamily)
+    if (w > max) max = w
+  }
+  const budget = Math.min(200, max + 20, canvasWidth * 0.4)
+  return labels.map(label =>
+    truncateTextToPixelWidth(label, budget - 15, AXIS_CONFIG.fontSize, AXIS_CONFIG.fontFamily, '…')
+  )
 }
 
 /**

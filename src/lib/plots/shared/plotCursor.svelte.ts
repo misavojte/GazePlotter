@@ -263,3 +263,34 @@ export function cursorRows(
   }
   return rows
 }
+
+/**
+ * The cursor's read-side, as one derived bundle: guide `xs` from the TIME
+ * channel ({@link timeGuideXs} over `band`) and `rows` from the PARTICIPANTS
+ * channel ({@link cursorRows} over `rowIds`), each with its `.join()` repaint
+ * key for `overlayDeps`. All inputs are live accessors; `band` returning null
+ * gates the time channel off (a plot whose empty result carries a fabricated
+ * timeline must not project into it). Omit `rowIds` for a plot with no
+ * participant rows.
+ */
+export function cursorGuides(opts: {
+  cursor: () => PlotCursorPort | null
+  band: () => TimeGuideBand | null
+  timeline: () => { minValue: number; maxValue: number }
+  rowIds?: () => readonly number[]
+}) {
+  const xs = $derived.by(() => {
+    const band = opts.band()
+    if (band === null) return []
+    return timeGuideXs(band, opts.timeline(), opts.cursor()?.times ?? [])
+  })
+  const rows = $derived.by(() =>
+    opts.rowIds ? cursorRows(opts.rowIds(), opts.cursor()?.participants ?? []) : []
+  )
+  return {
+    get xs() { return xs },
+    get xsKey() { return xs.join(',') },
+    get rows() { return rows },
+    get rowsKey() { return rows.join(',') },
+  }
+}
