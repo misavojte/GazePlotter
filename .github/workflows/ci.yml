@@ -26,8 +26,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+          # No lockfile in this repo (deliberate), so the npm cache keys on
+          # package.json instead and installs resolve fresh via npm i.
           cache: npm
-      - run: npm ci
+          cache-dependency-path: package.json
+      - run: npm i
       - run: npm run check
 
   test:
@@ -38,8 +41,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+          # No lockfile in this repo (deliberate), so the npm cache keys on
+          # package.json instead and installs resolve fresh via npm i.
           cache: npm
-      - run: npm ci
+          cache-dependency-path: package.json
+      - run: npm i
       # The npm script is watch-mode vitest; --run is the CI one-shot.
       - run: npm test -- --run
 
@@ -53,8 +59,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+          # No lockfile in this repo (deliberate), so the npm cache keys on
+          # package.json instead and installs resolve fresh via npm i.
           cache: npm
-      - run: npm ci
+          cache-dependency-path: package.json
+      - run: npm i
       - run: npm run package
 
   build:
@@ -65,8 +74,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+          # No lockfile in this repo (deliberate), so the npm cache keys on
+          # package.json instead and installs resolve fresh via npm i.
           cache: npm
-      - run: npm ci
+          cache-dependency-path: package.json
+      - run: npm i
       - run: npm run build
       - name: Upload Pages artifact
         if: github.ref == 'refs/heads/main'
