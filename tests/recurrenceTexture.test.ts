@@ -37,6 +37,14 @@ function baseInput(
 }
 
 describe('rasterizeRecurrenceTexture', () => {
+  // Raw-literal anchor for the local packer: every other assertion routes
+  // through p(), so without this pin a channel-order regression in the
+  // rasterizer's packing would shift both sides together and pass.
+  it('packs alpha into the high byte over the rgb value', () => {
+    expect(p(0x000200, 255)).toBe(0xff000200)
+    expect(p(0xaabbcc, 200)).toBe(0xc8aabbcc)
+  })
+
   it('maps data row i to display row n-1-i and paints recurrent cells with the column colour', () => {
     const n = 3
     const res = 3

@@ -15,7 +15,12 @@
  * inflate totals across overlapping windows).
  */
 import { describe, it, expect } from 'vitest'
-import { makeTestEngine } from './helpers/testEngine'
+import {
+  makeSingleParticipantEngine,
+  makeMultiParticipantEngine,
+  makeScope,
+} from './helpers/testEngine'
+import type { DataEngine } from '../src/lib/data/engine/dataEngine.svelte'
 import {
   query,
   queryGroup,
@@ -31,14 +36,6 @@ const STIM = 1
 const PID = 0
 
 // Slot layout (2 AOIs): 0=AOI1, 1=AOI2, 2=noAoi, 3=anyFixation
-function createEngine(segmentsForPid: number[][]) {
-  return makeTestEngine([[], [segmentsForPid]])
-}
-
-function createMultiParticipantEngine(perParticipantSegments: number[][][]) {
-  return makeTestEngine([[], perParticipantSegments])
-}
-
 function windowedAoiVectorInst(
   baseId: string,
   windowSize = 100,
@@ -56,16 +53,15 @@ function windowedAoiVectorInst(
   }
 }
 
-function scope(engine: any, timeStart = 0, timeEnd = 0): Scope {
-  return { engine, stimulusId: STIM, participantId: PID, timeStart, timeEnd }
-}
+const scope = (engine: DataEngine, timeStart = 0, timeEnd = 0): Scope =>
+  makeScope(engine, { timeStart, timeEnd })
 
 describe('runTimeWindowed × identity-aoi-vector → aoi-vector-timeseries', () => {
   it('per-window aoi-vectors — fixations cleanly inside their windows', () => {
     // F1 [0,100] AOI1, F2 [100,200] AOI2, F3 [200,300] AOI1
     // windows: [0,100), [100,200), [200,300)
     // expected: AOI1 dur per window = [100, 0, 100]; AOI2 = [0, 100, 0]
-    const engine = createEngine([
+    const engine = makeSingleParticipantEngine([
       [0, 100, 0, 1],
       [100, 200, 0, 2],
       [200, 300, 0, 1],
@@ -86,7 +82,7 @@ describe('runTimeWindowed × identity-aoi-vector → aoi-vector-timeseries', () 
   })
 
   it('empty time range → empty vectors + empty timeline', () => {
-    const engine = createEngine([[0, 100, 0, 1]])
+    const engine = makeSingleParticipantEngine([[0, 100, 0, 1]])
     const result = query(windowedAoiVectorInst('absoluteTime'), scope(engine, 0, 0))
 
     expect(result.shape).toBe('aoi-vector-timeseries')
@@ -96,7 +92,7 @@ describe('runTimeWindowed × identity-aoi-vector → aoi-vector-timeseries', () 
   })
 
   it('slots field is populated from aoi-vector layout', () => {
-    const engine = createEngine([
+    const engine = makeSingleParticipantEngine([
       [0, 100, 0, 1],
       [100, 200, 0, 2],
     ])
@@ -116,7 +112,7 @@ describe('runTimeWindowed × identity-aoi-vector → aoi-vector-timeseries', () 
     //   window [100,200): min(250,200) - max(50,100) = 100
     //   window [200,300): min(250,300) - max(50,200) = 50
     // Sum across windows = 200 = the fixation's actual duration (no double-counting).
-    const engine = createEngine([[50, 250, 0, 1]])
+    const engine = makeSingleParticipantEngine([[50, 250, 0, 1]])
     const result = query(windowedAoiVectorInst('absoluteTime'), scope(engine, 0, 300))
 
     if (result.shape !== 'aoi-vector-timeseries') throw new Error('wrong shape')
@@ -134,7 +130,7 @@ describe('runTimeWindowed × identity-aoi-vector → aoi-vector-timeseries', () 
     // Window 100ms × 100ms step, range [0, 200]
     // window [0,100): F1+F2 → AOI1=1, AOI2=1
     // window [100,200): F3 → AOI1=1, AOI2=0
-    const engine = createEngine([
+    const engine = makeSingleParticipantEngine([
       [0, 50, 0, 1],
       [50, 100, 0, 2],
       [100, 150, 0, 1],
@@ -150,7 +146,7 @@ describe('runTimeWindowed × identity-aoi-vector → aoi-vector-timeseries', () 
   })
 
   it('provenance carries the windowed projection', () => {
-    const engine = createEngine([[0, 100, 0, 1]])
+    const engine = makeSingleParticipantEngine([[0, 100, 0, 1]])
     const inst = windowedAoiVectorInst('absoluteTime', 100, 100)
     const result = query(inst, scope(engine, 0, 100))
 
@@ -170,7 +166,7 @@ describe('runTimeWindowed × identity-aoi-vector → aoi-vector-timeseries', () 
     // (Status quo any-overlap would have given 1+1+1 = 3, treble-counting the
     // fixation. The SW-RQA correction makes per-window counts compose
     // cleanly to the unwindowed total — codified ET aggregation rule.)
-    const engine = createEngine([[50, 250, 0, 1]])
+    const engine = makeSingleParticipantEngine([[50, 250, 0, 1]])
     const result = query(
       windowedAoiVectorInst('fixationCount'),
       scope(engine, 0, 300)
@@ -196,7 +192,7 @@ describe('runTimeWindowed × identity-aoi-vector → aoi-vector-timeseries', () 
     //   [0, 100):   0
     //   [100, 200): 1
     //   [200, 300): 0
-    const engine = createEngine([[50, 250, 0, 1]])
+    const engine = makeSingleParticipantEngine([[50, 250, 0, 1]])
     const result = query(
       windowedAoiVectorInst('visitCount'),
       scope(engine, 0, 300)
@@ -221,7 +217,7 @@ describe('runTimeWindowed × identity-aoi-vector → aoi-vector-timeseries', () 
     // total) would leave [0,100) and [200,300) NaN — a HOLE in a window this
     // fixation plainly covers. A mean is intensive; it has no sum to protect.
     // Contrast the absoluteTime case below, which is additive and so clips.
-    const engine = createEngine([[50, 250, 0, 1]])
+    const engine = makeSingleParticipantEngine([[50, 250, 0, 1]])
     const result = query(
       windowedAoiVectorInst('fixationDuration'),
       scope(engine, 0, 300)
@@ -237,7 +233,7 @@ describe('runTimeWindowed × identity-aoi-vector → aoi-vector-timeseries', () 
   it('windowed fixationDuration: a window with no fixation at all is still NaN', () => {
     // The refusal that matters is unchanged: no overlap means no measurement, so
     // the Metric Timeline leaves that span unpainted instead of holding a value.
-    const engine = createEngine([[50, 150, 0, 1]])
+    const engine = makeSingleParticipantEngine([[50, 150, 0, 1]])
     const result = query(
       windowedAoiVectorInst('fixationDuration'),
       scope(engine, 0, 300)
@@ -253,7 +249,7 @@ describe('runTimeWindowed × identity-aoi-vector → aoi-vector-timeseries', () 
     // Presence, so ANY overlap is a yes. Midpoint membership answered "not fixated"
     // for the outer two windows, i.e. 0% for an AOI under continuous gaze, which
     // deflates the noticed rate this metric exists to report.
-    const engine = createEngine([[50, 250, 0, 1]])
+    const engine = makeSingleParticipantEngine([[50, 250, 0, 1]])
     const result = query(windowedAoiVectorInst('fixated'), scope(engine, 0, 300))
 
     if (result.shape !== 'aoi-vector-timeseries') throw new Error('wrong shape')
@@ -263,7 +259,7 @@ describe('runTimeWindowed × identity-aoi-vector → aoi-vector-timeseries', () 
   it('windowed fixationCount stays midpoint-owned, so per-window counts still sum', () => {
     // The counterpart invariant: an indivisible event belongs to ONE window, so the
     // same fixture yields a single 1. This is what `windowMembership: 'own'` protects.
-    const engine = createEngine([[50, 250, 0, 1]])
+    const engine = makeSingleParticipantEngine([[50, 250, 0, 1]])
     const result = query(windowedAoiVectorInst('fixationCount'), scope(engine, 0, 300))
 
     if (result.shape !== 'aoi-vector-timeseries') throw new Error('wrong shape')
@@ -278,7 +274,7 @@ describe('runTimeWindowed × identity-aoi-vector → aoi-vector-timeseries', () 
     // per-window contribution equals the in-window overlap exactly.
     // This is the *fractional sub-bin overlap* the legacy collector
     // computed via its diff/partial accumulators.
-    const engine = createEngine([[50, 250, 0, 1]])
+    const engine = makeSingleParticipantEngine([[50, 250, 0, 1]])
     const result = query(
       windowedAoiVectorInst('absoluteTime'),
       scope(engine, 0, 300)
@@ -312,7 +308,7 @@ describe('queryGroup: windowed × aoi-vector cross-participant aggregation', () 
     //   P0, P1: AOI1 in both windows → AOI1 [1,1], AOI2 [0,0]
     //   P2:     AOI2 in both windows → AOI1 [0,0], AOI2 [1,1]
     // mean AOI1 = (1+1+0)/3 = 2/3 per window; mean AOI2 = 1/3 per window.
-    const engine = createMultiParticipantEngine([
+    const engine = makeMultiParticipantEngine([
       [[10, 90, 0, 1], [110, 200, 0, 1]], // P0: AOI1 in w0 (mid 50) & w1 (mid 155)
       [[10, 90, 0, 1], [110, 200, 0, 1]], // P1: AOI1 in both windows
       [[10, 90, 0, 2], [110, 200, 0, 2]], // P2: AOI2 in both windows
@@ -335,7 +331,7 @@ describe('queryGroup: windowed × aoi-vector cross-participant aggregation', () 
     // fully inside its window, so its clipped duration equals its full length
     // (80 ms in w0, 90 ms in w1). AOI1 dwell is averaged over the 3
     // participants (P2 contributes 0 ms to AOI1).
-    const engine = createMultiParticipantEngine([
+    const engine = makeMultiParticipantEngine([
       [[10, 90, 0, 1], [110, 200, 0, 1]], // P0: AOI1 80 ms + 90 ms
       [[10, 90, 0, 1], [110, 200, 0, 1]], // P1: AOI1 80 ms + 90 ms
       [[10, 90, 0, 2], [110, 200, 0, 2]], // P2: AOI2 (AOI1 = 0)
@@ -352,7 +348,7 @@ describe('queryGroup: windowed × aoi-vector cross-participant aggregation', () 
   })
 
   it('threads result.slots so consumers never reconstruct slot layout', () => {
-    const engine = createMultiParticipantEngine([
+    const engine = makeMultiParticipantEngine([
       [[10, 80, 0, 1]],
       [[110, 180, 0, 1]],
     ])
@@ -368,7 +364,7 @@ describe('queryGroup: windowed × aoi-vector cross-participant aggregation', () 
   })
 
   it('falls back to participant max-end when group.timeEnd is unset', () => {
-    const engine = createMultiParticipantEngine([
+    const engine = makeMultiParticipantEngine([
       [[10, 80, 0, 1]],
       [[210, 280, 0, 1]],
     ])
@@ -399,7 +395,7 @@ describe('queryGroup: windowed × aoi-vector cross-participant aggregation', () 
     // own data-end (100), so P1 contributes NOTHING to w1 → mean(1) = 1.
     // WITHOUT the clamp, P1's empty w1 would finalize to a real 0 and the
     // mean would be (1 + 0) / 2 = 0.5 — silently-wrong dilution toward zero.
-    const engine = createMultiParticipantEngine([
+    const engine = makeMultiParticipantEngine([
       [[10, 90, 0, 1], [110, 200, 0, 1]], // P0: ends at 200
       [[10, 100, 0, 1]],                   // P1: ends at 100
     ])
@@ -429,7 +425,7 @@ describe('queryGroup: windowed × aoi-vector cross-participant aggregation', () 
     //   w0: P0 80 ms + P1 90 ms       sum = 170 ; mean = 85
     //   w1: P0 90 ms (P1 clamped out) sum =  90 ; mean = 90
     // → sum tapers 170 → 90; mean RISES 85 → 90, hiding the drop-off.
-    const engine = createMultiParticipantEngine([
+    const engine = makeMultiParticipantEngine([
       [[10, 90, 0, 1], [110, 200, 0, 1]], // P0: ends at 200
       [[10, 100, 0, 1]],                   // P1: ends at 100
     ])
@@ -461,7 +457,7 @@ describe('queryGroup: windowed × aoi-vector cross-participant aggregation', () 
     // (mean), matching the un-overridden result. Request === result for sound
     // values; an unsound value resolves to the default, never silently between
     // two sound values.
-    const engine = createMultiParticipantEngine([
+    const engine = makeMultiParticipantEngine([
       [[10, 90, 0, 1], [110, 200, 0, 1]],
       [[10, 100, 0, 1]],
     ])
@@ -480,7 +476,7 @@ describe('queryGroup: windowed × aoi-vector cross-participant aggregation', () 
     // so without the clamp the short participant's absent tail would drag
     // the percentage mean down too. With the clamp, w1 reflects only P0,
     // whose entire windowed dwell is on AOI1 → 100%.
-    const engine = createMultiParticipantEngine([
+    const engine = makeMultiParticipantEngine([
       [[10, 90, 0, 1], [110, 200, 0, 1]], // P0: ends at 200, all on AOI1
       [[10, 100, 0, 1]],                   // P1: ends at 100
     ])

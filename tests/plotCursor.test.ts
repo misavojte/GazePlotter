@@ -29,37 +29,12 @@ import {
   matrixCellParticipants,
 } from '$lib/plots/shared/matrixRenderer'
 import type { ScarfPlotSettings } from '$lib/plots/scarf/types'
+import { canvasRecorder as recorder } from './helpers/canvasRecorder'
 
 const BAND = { x: 100, y: 50, width: 400, height: 200 }
 const TIMELINE = { minValue: 0, maxValue: 1000 }
 /** A panned window: pins the `minValue` offset both maps must carry. */
 const WINDOW = { minValue: 1000, maxValue: 3000 }
-
-/**
- * Records what the marks batch: segments, arcs, bands, dashes, and `rect` calls,
- * which serve as both clip regions and the band's fill subpaths.
- */
-function recorder() {
-  const points: number[] = []
-  const rects: number[] = []
-  const dashes: number[][] = []
-  const arcs: number[] = []
-  const bands: number[] = []
-  const fills: number[] = []
-  const ctx = {
-    save() {}, restore() {}, beginPath() {}, stroke() {},
-    setLineDash(d: number[]) { dashes.push(d) },
-    strokeStyle: '', fillStyle: '', lineWidth: 0, globalAlpha: 1,
-    rect(x: number, y: number, w: number, h: number) { rects.push(x, y, w, h) },
-    clip() {},
-    fillRect(x: number, y: number, w: number, h: number) { bands.push(x, y, w, h) },
-    fill() { fills.push(1) },
-    arc(cx: number, cy: number, r: number) { arcs.push(cx, cy, r) },
-    moveTo(x: number, y: number) { points.push(x, y) },
-    lineTo(x: number, y: number) { points.push(x, y) },
-  } as unknown as CanvasRenderingContext2D
-  return { points, rects, dashes, arcs, bands, fills, ctx }
-}
 
 // Module singleton (one pointer exists) — retract between cases.
 const a = createPlotCursorPort(1, () => 7)
@@ -342,7 +317,7 @@ describe('mark parity', () => {
     // "adjacent to the designated node" cannot be misread as designated.
     const { arcs, dashes, fills, ctx } = recorder()
     strokeCrosshairRing(ctx, 40, 60, 8)
-    expect(arcs).toEqual([40, 60, 8])
+    expect(arcs).toEqual([{ cx: 40, cy: 60, r: 8 }])
     expect(fills).toHaveLength(0)
     expect(dashes).toEqual([CROSSHAIR_DASH])
     expect(ctx.strokeStyle).toBe(CROSSHAIR_COLOR)
@@ -353,7 +328,7 @@ describe('mark parity', () => {
     // a 1px dashed ring alone is not enough to find, so it is filled too.
     const { arcs, dashes, fills, ctx } = recorder()
     markCrosshairNode(ctx, 40, 60, 8)
-    expect(arcs).toEqual([40, 60, 8])
+    expect(arcs).toEqual([{ cx: 40, cy: 60, r: 8 }])
     expect(fills).toHaveLength(1)
     expect(dashes).toEqual([CROSSHAIR_DASH])
     expect(ctx.strokeStyle).toBe(CROSSHAIR_COLOR)

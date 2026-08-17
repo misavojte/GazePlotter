@@ -22,10 +22,10 @@ describe('drawCanvasPlaceholder', () => {
     expect(mockCtx.save).toHaveBeenCalled()
     expect(mockCtx.clearRect).toHaveBeenCalledWith(0, 0, 600, 400)
     expect(mockCtx.roundRect).toHaveBeenCalledWith(0, 0, 600, 400, 20)
-    expect(mockCtx.fill).toHaveBeenCalledTimes(2) // 1 background, 1 icon
-    expect(mockCtx.stroke).toHaveBeenCalledTimes(1) // 1 icon border
-    // Exclamation mark (!) + the text line = 2 calls to fillText
-    expect(mockCtx.fillText).toHaveBeenCalledTimes(2)
+    // The user-visible contract is WHAT text is drawn; draw-call counts are
+    // implementation detail (batching or a different icon breaks them).
+    const drawn = mockCtx.fillText.mock.calls.map((c: unknown[]) => c[0])
+    expect(drawn).toContain('Single line warning')
     expect(mockCtx.restore).toHaveBeenCalled()
   })
 
@@ -51,11 +51,13 @@ describe('drawCanvasPlaceholder', () => {
 
     expect(mockCtx.save).toHaveBeenCalled()
     expect(mockCtx.clearRect).toHaveBeenCalledWith(0, 0, 600, 400)
-    expect(mockCtx.arcTo).toHaveBeenCalledTimes(4) // fallback rounded corners
-    expect(mockCtx.fill).toHaveBeenCalledTimes(2) // 1 background, 1 icon
-    expect(mockCtx.stroke).toHaveBeenCalledTimes(1) // 1 icon border
-    // Exclamation mark (!) + 1 main message + 2 steps = 4 calls to fillText
-    expect(mockCtx.fillText).toHaveBeenCalledTimes(4)
+    expect(mockCtx.arcTo).toHaveBeenCalled() // the roundRect fallback path ran
+    // Message and every step must reach the canvas (steps are bulleted);
+    // counts are detail.
+    const drawn = mockCtx.fillText.mock.calls.map((c: unknown[]) => c[0])
+    expect(drawn).toEqual(
+      expect.arrayContaining(['Warn Line 1', '• Warn Line 2', '• Warn Line 3'])
+    )
     expect(mockCtx.restore).toHaveBeenCalled()
   })
 })

@@ -20,14 +20,11 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { IngestService } from '$lib/data/ingest/service.svelte'
-
-type PostedMessage = { type: string; data?: unknown }
-
-function createFileList(files: unknown[]): FileList {
-  return Object.assign(files, {
-    item: (index: number) => files[index] ?? null,
-  }) as unknown as FileList
-}
+import {
+  createFileList,
+  createIngestDeps,
+  stubWorkerGlobals,
+} from './helpers/ingestServiceHarness'
 
 /** Minimal File stand-in covering every member the service touches. */
 function fakeFile(name: string, content: string) {
@@ -68,50 +65,10 @@ class FakeFileReader {
 }
 
 function loadHarness() {
-  const posted: PostedMessage[] = []
-  const workerInstances: FakeWorker[] = []
-
-  class FakeWorker {
-    onmessage: ((event: { data: unknown }) => void) | null = null
-    onerror: ((event: unknown) => void) | null = null
-    onmessageerror: ((event: unknown) => void) | null = null
-    postMessage = vi.fn((message: PostedMessage) => {
-      posted.push(message)
-    })
-    terminate = vi.fn()
-
-    constructor(_url: URL, _options: { type: string }) {
-      workerInstances.push(this)
-    }
-  }
-
-  vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+  const { posted, workerInstances } = stubWorkerGlobals()
   vi.stubGlobal('FileReader', FakeFileReader as unknown as typeof FileReader)
-  vi.stubGlobal('navigator', { userAgent: 'vitest' })
 
-  const report = vi.fn((input: { userMessage: string; cause: unknown }) => ({
-    id: 1,
-    createdAt: '2026-06-10T00:00:00.000Z',
-    origin: 'ingest',
-    severity: 'fatal-load',
-    userMessage: input.userMessage,
-    debugMessage:
-      input.cause instanceof Error ? input.cause.message : String(input.cause),
-    stack: undefined,
-  }))
-
-  const deps = {
-    engine: { loadDataset: vi.fn(), metadata: null },
-    errorService: { clearAll: vi.fn(), clearFatalLoad: vi.fn(), report },
-    grid: { reset: vi.fn(), clearSelection: vi.fn() },
-    modalState: { open: vi.fn(), close: vi.fn() },
-    toastState: {
-      addInfo: vi.fn(),
-      addSuccess: vi.fn(),
-      addWarning: vi.fn(),
-    },
-    resetWorkspaceHistory: vi.fn(),
-  }
+  const { deps, report } = createIngestDeps()
 
   return {
     service: new IngestService(deps as never),

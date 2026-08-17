@@ -12,6 +12,15 @@
 import { createReaderFromJson } from '../../src/lib/data/binary/converters'
 import { AoiGroupReader } from '../../src/lib/data/binary/reader.aoiGroup'
 import { EventBufferReader } from '../../src/lib/data/binary/reader.event'
+import type { DataEngine } from '../../src/lib/data/engine/dataEngine.svelte'
+import type { Scope } from '../../src/lib/metrics'
+import type {
+  DataCapabilities,
+  EngineMetadata,
+  EntitySelection,
+  NameSelection,
+  ParticipantsSelection,
+} from '../../src/lib/data/types'
 
 /** Every capability on — the fixture for tests that are not about gating. */
 export const ALL_CAPS = { segmented: true, spatial: true, event: true }
@@ -21,7 +30,7 @@ export type TestEngineOptions = {
   aoiData?: (string[] | null)[][]
   aoiOrderVector?: number[][]
   /** Named AOI SELECTIONS (name-keyed, per-plot narrowing via aoiSelectionId). */
-  aoiSelections?: { id: number; name: string; names: string[] }[]
+  aoiSelections?: NameSelection[]
   /** [originalName, displayedName] rows. Default: P0..Pn−1 derived from `segments`. */
   participants?: string[][]
   participantsOrderVector?: number[]
@@ -30,59 +39,67 @@ export type TestEngineOptions = {
   stimuliOrderVector?: number[]
   categories?: string[][]
   /** Named eye-movement-type SELECTIONS (id-keyed, per-plot narrowing via categorySelectionId). */
-  categoriesSelections?: { id: number; name: string; memberIds: number[] }[]
-  participantsSelections?: unknown[]
-  metricInstances?: unknown[]
+  categoriesSelections?: EntitySelection[]
+  participantsSelections?: ParticipantsSelection[]
+  metricInstances?: EngineMetadata['metricInstances']
   /** eventData.data channel rows per stimulus: [originalName, displayedName, color?]. */
   eventData?: string[][][]
   eventOrderVector?: number[][]
   /** Occurrences `[stimulus][channel][participant]` as flat stride-2 [start, duration, ...]. */
   events?: number[][][][]
   /** Named event SELECTIONS (name-keyed, per-plot narrowing via eventSelectionId). */
-  eventsSelections?: { id: number; name: string; names: string[] }[]
+  eventsSelections?: NameSelection[]
   isOrdinalOnly?: boolean
-  capabilities?: { segmented: boolean; spatial: boolean; event: boolean }
+  capabilities?: DataCapabilities
   noAoiTreatment?: { displayedName: string; color: string }
   /** 'identity' (default): raw AOI id → itself; getAoiGroupReader() returns
-   *  undefined — note consumers that REQUIRE a group reader then take their
+   *  null; consumers that REQUIRE a group reader then take their
    *  guarded path (e.g. scanpathEncoding returns '' instead of throwing).
    *  'group': real AoiGroupReader-backed mapping + getAoiGroupReader(). */
   aoiMapping?: 'identity' | 'group'
 }
 
-export type TestEngine = {
-  metadata: {
-    isOrdinalOnly: boolean
-    capabilities: { segmented: boolean; spatial: boolean; event: boolean }
-    aois: {
-      data: (string[] | null)[][]
-      orderVector: number[][]
-      selections?: { id: number; name: string; names: string[] }[]
-    }
-    categories: { data: string[][]; orderVector: number[] }
-    categoriesSelections: { id: number; name: string; memberIds: number[] }[]
-    participants: { data: string[][]; orderVector: number[] }
-    participantsSelections: unknown[]
-    stimuli: { data: string[][]; orderVector: number[] }
-    noAoiTreatment: { displayedName: string; color: string }
-    metricInstances: unknown[]
-    eventData: { data: string[][][]; orderVector: number[][] }
-    eventsSelections: { id: number; name: string; names: string[] }[]
-  }
-  /** Mirrors DataEngine.capabilities (the $derived view of metadata.capabilities). */
-  capabilities: { segmented: boolean; spatial: boolean; event: boolean }
+/**
+ * The structural slice of DataEngine the tests exercise, `satisfies`-checked
+ * against the real member types so the fixture cannot silently diverge from
+ * the engine. The final cast in makeTestEngine exists only because DataEngine
+ * is a class with private fields (nominal), so no stub is assignable to it.
+ */
+type EngineSurface = {
+  metadata: EngineMetadata
+  capabilities: DataCapabilities
+  /** Static mirror of the engine's $derived presence flags (fixture data never
+   *  changes after construction, so no reactivity is needed). */
+  eventsPerStimulus: boolean[]
   /** Mutable, mirroring DataEngine.eventVersion: bump after getEventReader().load(). */
   eventVersion: number
-  getReader: () => ReturnType<typeof createReaderFromJson>
-  getEventReader: () => EventBufferReader
-  getAoiMapping: (stimulusId: number, rawId: number) => number
-  getAoiGroupReader: () => AoiGroupReader | undefined
+  getReader: () => NonNullable<ReturnType<DataEngine['getReader']>>
+  getEventReader: DataEngine['getEventReader']
+  getAoiMapping: DataEngine['getAoiMapping']
+  getAoiGroupReader: () => AoiGroupReader | null
 }
 
-/**
- * Build an engine stub over `segments[stimulusId][participantId][segIdx]`
- * rows of `[start, end, categoryId, ...rawAoiIds]` (category 0 = fixation).
- */
+/** Engine over ONE participant's segment rows at stimulus 1 (the common fixture). */
+export function makeSingleParticipantEngine(
+  segments: number[][],
+  options: TestEngineOptions = {}
+): DataEngine {
+  return makeTestEngine([[], [segments]], options)
+}
+
+/** Engine over per-participant segment rows at stimulus 1. */
+export function makeMultiParticipantEngine(
+  perParticipant: number[][][],
+  options: TestEngineOptions = {}
+): DataEngine {
+  return makeTestEngine([[], perParticipant], options)
+}
+
+/** Scope at stimulus 1, participant 0, full time range; override what the pin is about. */
+export function makeScope(engine: DataEngine, over: Partial<Scope> = {}): Scope {
+  return { engine, stimulusId: 1, participantId: 0, timeStart: 0, timeEnd: 0, ...over }
+}
+
 /**
  * Production-realistic single-stimulus engine (STIM = 1): builds the
  * `[null, ...rows]` convention (raw id i == data[1][i]) from `aoiNames` and
@@ -96,7 +113,7 @@ export type TestEngine = {
 export function makeGroupedAoiEngine(
   aoiNames: string[],
   segmentsForPid: number[][]
-): TestEngine {
+): DataEngine {
   const aoiData: (string[] | null)[] = [null]
   const order: number[] = []
   for (let i = 0; i < aoiNames.length; i++) {
@@ -110,10 +127,14 @@ export function makeGroupedAoiEngine(
   })
 }
 
+/**
+ * Build an engine stub over `segments[stimulusId][participantId][segIdx]`
+ * rows of `[start, end, categoryId, ...rawAoiIds]` (category 0 = fixation).
+ */
 export function makeTestEngine(
   segments: number[][][][],
   options: TestEngineOptions = {}
-): TestEngine {
+): DataEngine {
   const reader = createReaderFromJson(segments)
   const eventReader = new EventBufferReader()
   eventReader.load(options.events ?? [])
@@ -124,18 +145,18 @@ export function makeTestEngine(
   )
   const stimulusCount = Math.max(2, segments.length)
 
-  const metadata = {
+  const metadata: EngineMetadata = {
     isOrdinalOnly: options.isOrdinalOnly ?? false,
     capabilities:
       options.capabilities ??
       { segmented: true, spatial: false, event: (options.events?.length ?? 0) > 0 },
     aois: {
-      data:
-        options.aoiData ??
-        ([[], [null, ['AOI 1', 'AOI 1', 'red'], ['AOI 2', 'AOI 2', 'blue']]] as (
-          | string[]
-          | null
-        )[][]),
+      // Fixture rows use the ingest `[null, ...rows]` id-gap convention; the
+      // declared AoiDataType admits no null, but real ingested data carries
+      // them, so this cast mirrors production reality, not a fixture shortcut.
+      data: (options.aoiData ??
+        [[], [null, ['AOI 1', 'AOI 1', 'red'], ['AOI 2', 'AOI 2', 'blue']]]) as
+        EngineMetadata['aois']['data'],
       orderVector: options.aoiOrderVector ?? [[], [1, 2]],
       ...(options.aoiSelections ? { selections: options.aoiSelections } : {}),
     },
@@ -170,25 +191,29 @@ export function makeTestEngine(
   const base = {
     metadata,
     capabilities: metadata.capabilities,
+    eventsPerStimulus: eventReader.presencePerStimulus(),
     eventVersion: 0,
     getReader: () => reader,
     getEventReader: () => eventReader,
   }
 
+  let engine: EngineSurface
   if (options.aoiMapping === 'group') {
     const aoiGroupReader = new AoiGroupReader(reader)
     aoiGroupReader.updateMap(metadata as never)
-    return {
+    engine = {
       ...base,
       getAoiGroupReader: () => aoiGroupReader,
       getAoiMapping: (stimulusId: number, rawId: number) =>
         aoiGroupReader.getAoiMapping(stimulusId, rawId),
-    }
+    } satisfies EngineSurface
+  } else {
+    engine = {
+      ...base,
+      getAoiGroupReader: () => null,
+      getAoiMapping: (_stimulusId: number, rawId: number) => rawId,
+    } satisfies EngineSurface
   }
 
-  return {
-    ...base,
-    getAoiGroupReader: () => undefined,
-    getAoiMapping: (_stimulusId: number, rawId: number) => rawId,
-  }
+  return engine as unknown as DataEngine
 }

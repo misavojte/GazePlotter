@@ -38,29 +38,29 @@ describe('collectScanpath — displayed-name grouping', () => {
   it('same-name raw AOIs encode to the same letter', () => {
     const engine = groupedEngine()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const aois = getAois(engine as any, STIM)
+    const aois = getAois(engine, STIM)
     expect(aois.map(a => a.displayedName)).toEqual(['Logo', 'Button'])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect(collectScanpath(engine as any, STIM, 0, aois, false)).toBe('AAB')
+    expect(collectScanpath(engine, STIM, 0, aois, false)).toBe('AAB')
   })
 
   it('collapse folds a run that spans the group boundary', () => {
     const engine = groupedEngine()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const aois = getAois(engine as any, STIM)
+    const aois = getAois(engine, STIM)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    expect(collectScanpath(engine as any, STIM, 0, aois, true)).toBe('AB')
+    expect(collectScanpath(engine, STIM, 0, aois, true)).toBe('AB')
   })
 
   it('collectAllScanpaths matches per-participant collectScanpath', () => {
     const engine = groupedEngine()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const aois = getAois(engine as any, STIM)
+    const aois = getAois(engine, STIM)
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const [entry] = collectAllScanpaths(engine as any, STIM, [0], aois, false)
+    const [entry] = collectAllScanpaths(engine, STIM, [0], aois, false)
     expect(entry.scanpath).toBe(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      collectScanpath(engine as any, STIM, 0, aois, false)
+      collectScanpath(engine, STIM, 0, aois, false)
     )
   })
 })

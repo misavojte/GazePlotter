@@ -58,102 +58,26 @@ const csvSegmentedDurationSlice =
   'stimulus,participant,timestamp,duration,eyemovementtype,AOI\r\nSMI Base,Anna,226.2,72,1,\r\nSMI Base,Anna,298.2,120,0,Map'
 
 describe('detection: classification settings per format', () => {
-  test('tobii', () => {
-    expect(classify(tobiiSlice)).toEqual({
-      type: 'tobii',
-      rowDelimiter: '\n',
-      columnDelimiter: '\t',
+  // [name, slice, type, rowDelimiter, columnDelimiter, headerRowId]
+  // encoding is always 'utf-8' and userInputSetting always '' for text probes.
+  test.each([
+    ['tobii', tobiiSlice, 'tobii', '\n', '\t', 0],
+    ['tobii with an Event column resolves to the tobii-with-event variant', tobiiWithEventSlice, 'tobii-with-event', '\n', '\t', 0],
+    ['varjo', varjoSlice, 'varjo', '\n', ';', 0],
+    ['begaze', beGazeSlice, 'begaze', '\n', '\t', 0],
+    ['gazepoint', gazePointSlice, 'gazepoint', '\n', ',', 0],
+    ['ogama (header on row 8)', ogamaSlice, 'ogama', '\n', '\t', 8],
+    ['csv (continuous time series)', csvSlice, 'csv', '\r\n', ',', 0],
+    ['csv-segmented (From/To columns)', csvSegmentedSlice, 'csv-segmented', '\r\n', ',', 0],
+    ['csv-segmented-duration (timestamp + duration)', csvSegmentedDurationSlice, 'csv-segmented-duration', '\r\n', ',', 0],
+  ] as const)('%s', (_name, slice, type, rowDelimiter, columnDelimiter, headerRowId) => {
+    expect(classify(slice)).toEqual({
+      type,
+      rowDelimiter,
+      columnDelimiter,
       encoding: 'utf-8',
       userInputSetting: '',
-      headerRowId: 0,
-    })
-  })
-
-  test('tobii with an Event column resolves to the tobii-with-event variant', () => {
-    expect(classify(tobiiWithEventSlice)).toEqual({
-      type: 'tobii-with-event',
-      rowDelimiter: '\n',
-      columnDelimiter: '\t',
-      encoding: 'utf-8',
-      userInputSetting: '',
-      headerRowId: 0,
-    })
-  })
-
-  test('varjo', () => {
-    expect(classify(varjoSlice)).toEqual({
-      type: 'varjo',
-      rowDelimiter: '\n',
-      columnDelimiter: ';',
-      encoding: 'utf-8',
-      userInputSetting: '',
-      headerRowId: 0,
-    })
-  })
-
-  test('begaze', () => {
-    expect(classify(beGazeSlice)).toEqual({
-      type: 'begaze',
-      rowDelimiter: '\n',
-      columnDelimiter: '\t',
-      encoding: 'utf-8',
-      userInputSetting: '',
-      headerRowId: 0,
-    })
-  })
-
-  test('gazepoint', () => {
-    expect(classify(gazePointSlice)).toEqual({
-      type: 'gazepoint',
-      rowDelimiter: '\n',
-      columnDelimiter: ',',
-      encoding: 'utf-8',
-      userInputSetting: '',
-      headerRowId: 0,
-    })
-  })
-
-  test('ogama (header on row 8)', () => {
-    expect(classify(ogamaSlice)).toEqual({
-      type: 'ogama',
-      rowDelimiter: '\n',
-      columnDelimiter: '\t',
-      encoding: 'utf-8',
-      userInputSetting: '',
-      headerRowId: 8,
-    })
-  })
-
-  test('csv (continuous time series)', () => {
-    expect(classify(csvSlice)).toEqual({
-      type: 'csv',
-      rowDelimiter: '\r\n',
-      columnDelimiter: ',',
-      encoding: 'utf-8',
-      userInputSetting: '',
-      headerRowId: 0,
-    })
-  })
-
-  test('csv-segmented (From/To columns)', () => {
-    expect(classify(csvSegmentedSlice)).toEqual({
-      type: 'csv-segmented',
-      rowDelimiter: '\r\n',
-      columnDelimiter: ',',
-      encoding: 'utf-8',
-      userInputSetting: '',
-      headerRowId: 0,
-    })
-  })
-
-  test('csv-segmented-duration (timestamp + duration)', () => {
-    expect(classify(csvSegmentedDurationSlice)).toEqual({
-      type: 'csv-segmented-duration',
-      rowDelimiter: '\r\n',
-      columnDelimiter: ',',
-      encoding: 'utf-8',
-      userInputSetting: '',
-      headerRowId: 0,
+      headerRowId,
     })
   })
 })

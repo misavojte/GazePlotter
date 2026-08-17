@@ -81,7 +81,7 @@ function makeSettings(over: Record<string, unknown> = {}) {
 
 describe('eye-movement comparison transformer', () => {
   it('count: one bar per type in type order, per-participant dots, mean bar value', () => {
-    const result = getEyeMovementComparisonData(createEngine() as any, makeSettings())
+    const result = getEyeMovementComparisonData(createEngine(), makeSettings())
     expect(result.data.map(d => d.label)).toEqual(['Fixation', 'Saccade', 'Blink'])
     expect(result.data[0].individualValues).toEqual([4, 2])
     expect(result.data[1].individualValues).toEqual([2, 1])
@@ -95,7 +95,7 @@ describe('eye-movement comparison transformer', () => {
 
   it('duration pools every segment into the beeswarm (individuals recipe)', () => {
     const result = getEyeMovementComparisonData(
-      createEngine() as any,
+      createEngine(),
       makeSettings({ metricInstanceIds: ['md'] })
     )
     const saccade = result.data.find(d => d.label === 'Saccade')
@@ -112,14 +112,14 @@ describe('eye-movement comparison transformer', () => {
 
   it('total time and share of recording (per-participant denominator, distribution kept)', () => {
     const time = getEyeMovementComparisonData(
-      createEngine() as any,
+      createEngine(),
       makeSettings({ metricInstanceIds: ['mt'] })
     )
     expect(time.data.find(d => d.label === 'Saccade')?.individualValues).toEqual([70, 50])
     expect(time.proportion).toBe(false)
 
     const share = getEyeMovementComparisonData(
-      createEngine() as any,
+      createEngine(),
       makeSettings({ metricInstanceIds: ['share'] })
     )
     // P0: 70 of 400 ms = 17.5 %; P1: 50 of 250 ms = 20 %. The bar value is
@@ -137,12 +137,12 @@ describe('eye-movement comparison transformer', () => {
 
   it('bounded time range: values clip and the share denominator is the range', () => {
     const bounded = makeSettings({ timelineStart: 0, timelineEnd: 320 })
-    const count = getEyeMovementComparisonData(createEngine() as any, bounded)
+    const count = getEyeMovementComparisonData(createEngine(), bounded)
     // P0's second saccade has midpoint 320 → outside [0, 320).
     expect(count.data.find(d => d.label === 'Saccade')?.individualValues).toEqual([1, 1])
 
     const share = getEyeMovementComparisonData(
-      createEngine() as any,
+      createEngine(),
       makeSettings({ metricInstanceIds: ['share'], timelineStart: 0, timelineEnd: 320 })
     )
     // P0: 30 + 20 (clipped) of 320 ms; P1: 50 of 320 ms.
@@ -151,7 +151,7 @@ describe('eye-movement comparison transformer', () => {
 
   it('a missing or contract-rejected instance yields the noMetric fallback', () => {
     const missing = getEyeMovementComparisonData(
-      createEngine() as any,
+      createEngine(),
       makeSettings({ metricInstanceIds: ['nope'] })
     )
     expect(missing.noMetric).toBe(true)
@@ -173,20 +173,20 @@ describe('eye-movement comparison transformer', () => {
     // Fixation is a full SELECTION-domain member: a selection without id 0
     // hides the Fixation bar.
     const noFixation = getEyeMovementComparisonData(
-      engine as any,
+      engine,
       makeSettings({ categorySelectionId: 5 })
     )
     expect(noFixation.data.map(d => d.label)).toEqual(['Saccade'])
 
     const withFixation = getEyeMovementComparisonData(
-      engine as any,
+      engine,
       makeSettings({ categorySelectionId: 6 })
     )
     expect(withFixation.data.map(d => d.label)).toEqual(['Fixation', 'Saccade'])
 
     // The seeded row holds id 0 alone: exactly one slot, and it is Fixation.
     const justFixations = getEyeMovementComparisonData(
-      engine as any,
+      engine,
       makeSettings({ categorySelectionId: 7 })
     )
     expect(justFixations.data.map(d => d.label)).toEqual(['Fixation'])
@@ -194,7 +194,7 @@ describe('eye-movement comparison transformer', () => {
 
     // An emptied row is the only way to an empty plot now.
     const nothing = getEyeMovementComparisonData(
-      engine as any,
+      engine,
       makeSettings({ categorySelectionId: 8 })
     )
     expect(nothing.data).toEqual([])
@@ -202,7 +202,7 @@ describe('eye-movement comparison transformer', () => {
 
   it('orderBy value sorts bars by their mean', () => {
     const result = getEyeMovementComparisonData(
-      createEngine() as any,
+      createEngine(),
       makeSettings({ orderBy: 'value', orderDirection: 'asc' })
     )
     expect(result.data.map(d => d.label)).toEqual(['Blink', 'Saccade', 'Fixation'])

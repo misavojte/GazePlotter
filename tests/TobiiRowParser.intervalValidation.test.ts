@@ -13,20 +13,13 @@ import { TobiiRowParser } from '$lib/data/ingest/formats/lib/rows/TobiiRowParser
 import { DatasetBuilder } from '$lib/data/ingest/kernel/sink'
 import { BinaryBufferReader } from '$lib/data/binary'
 import type { ParseSettings } from '$lib/data/ingest/types'
-import { processAdapterRows } from './helpers/ingestAdapterHarness'
+import {
+  TOBII_HEADER,
+  tobiiRow,
+  processAdapterRows,
+} from './helpers/ingestAdapterHarness'
 
-const HEADER = [
-  'Recording timestamp',
-  'Sensor',
-  'Participant name',
-  'Recording name',
-  'Event',
-  'Eye movement type',
-  'Eye movement type index',
-  'AOI hit [scene - X]',
-  'AOI hit [scene - Y]',
-]
-const AOI_COL = { X: 7, Y: 8 } as const
+const HEADER = [...TOBII_HEADER, 'AOI hit [scene - X]', 'AOI hit [scene - Y]']
 const CONFIG = '{"stimulusStartSuffix":"-0","stimulusEndSuffix":"-1"}'
 const SETTINGS: ParseSettings = {
   type: 'tobii-with-event',
@@ -37,31 +30,26 @@ const SETTINGS: ParseSettings = {
   headerRowId: 0,
 }
 
-const evt = (ts: number, event: string, p = 'P1', r = 'R1'): string => {
-  const c = new Array(HEADER.length).fill('')
-  c[0] = String(ts)
-  c[2] = p
-  c[3] = r
-  c[4] = event
-  return c.join('\t')
-}
+const evt = (ts: number, event: string, p = 'P1', r = 'R1'): string =>
+  tobiiRow({ ts, event, participant: p, recording: r }, HEADER)
 const gaze = (
   ts: number,
   idx: number,
   p = 'P1',
   r = 'R1',
-  aoi: Array<keyof typeof AOI_COL> = []
-): string => {
-  const c = new Array(HEADER.length).fill('')
-  c[0] = String(ts)
-  c[1] = 'Eye Tracker'
-  c[2] = p
-  c[3] = r
-  c[5] = 'Fixation'
-  c[6] = String(idx)
-  for (const name of aoi) c[AOI_COL[name]] = '1'
-  return c.join('\t')
-}
+  aoi: Array<'X' | 'Y'> = []
+): string =>
+  tobiiRow(
+    {
+      ts,
+      gaze: true,
+      catIdx: idx,
+      participant: p,
+      recording: r,
+      cells: Object.fromEntries(aoi.map(a => [`AOI hit [scene - ${a}]`, '1'])),
+    },
+    HEADER
+  )
 
 /** Drive a parse through the real DatasetBuilder so exclusions drop segments,
  *  events, and orphaned AOIs, and accrue the persisted `dataExclusions`. */

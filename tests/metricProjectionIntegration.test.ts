@@ -5,7 +5,12 @@
  * is exercised.
  */
 import { describe, it, expect } from 'vitest'
-import { ALL_CAPS, makeTestEngine } from './helpers/testEngine'
+import {
+  ALL_CAPS,
+  makeTestEngine,
+  makeSingleParticipantEngine,
+  makeScope,
+} from './helpers/testEngine'
 import {
   query,
   instanceMatchesContract,
@@ -26,15 +31,12 @@ const GLOBAL_SCALAR_CONTRACT: PlotMetricContract = {
   multiSelect: true,
 }
 
-function createEngine(segmentsForPid: number[][]) {
-  return makeTestEngine([[], [segmentsForPid]], {
+const createEngine = (segmentsForPid: number[][]) =>
+  makeSingleParticipantEngine(segmentsForPid, {
     aoiData: [[], [null, ['Nav', 'Nav', 'red'], ['CTA', 'CTA', 'blue']]],
   })
-}
 
-const scope = (engine: any): Scope => ({
-  engine, stimulusId: STIM, participantId: PID, timeStart: 0, timeEnd: 0,
-})
+
 
 // Segments: [startTime, endTime, categoryId, ...aoiIds]
 // category 0 = Fixation. Two fixations: 100ms on Nav, 200ms on CTA.
@@ -50,7 +52,7 @@ describe('projection via query()', () => {
       id: 't1', baseId: 'absoluteTime', params: {}, label: '',
       projection: { kind: 'identity-aoi-vector' },
     }
-    const r = query(instance, scope(engine))
+    const r = query(instance, makeScope(engine))
     expect(r.shape).toBe('aoi-vector')
     if (r.shape !== 'aoi-vector') return
     expect(r.values[0]).toBe(100) // Nav
@@ -63,7 +65,7 @@ describe('projection via query()', () => {
       id: 't1', baseId: 'absoluteTime', params: {}, label: '',
       projection: { kind: 'pick-aoi', aoiRef: { by: 'name', name: 'CTA' } },
     }
-    const r = query(instance, scope(engine))
+    const r = query(instance, makeScope(engine))
     expect(r.shape).toBe('scalar')
     if (r.shape !== 'scalar') return
     expect(r.value).toBe(200)
@@ -77,7 +79,7 @@ describe('projection via query()', () => {
       id: 't1', baseId: 'absoluteTime', params: {}, label: '',
       projection: { kind: 'pick-aoi', aoiRef: { by: 'name', name: 'DoesNotExist' } },
     }
-    const r = query(instance, scope(engine))
+    const r = query(instance, makeScope(engine))
     expect(r.shape).toBe('scalar')
     if (r.shape !== 'scalar') return
     expect(Number.isNaN(r.value)).toBe(true)
@@ -90,7 +92,7 @@ describe('projection via query()', () => {
       id: 't1', baseId: 'absoluteTime', params: {}, label: '',
       projection: { kind: 'aggregate-aoi', reducer: 'mean' },
     }
-    const r = query(instance, scope(engine))
+    const r = query(instance, makeScope(engine))
     expect(r.shape).toBe('scalar')
     if (r.shape !== 'scalar') return
     expect(r.value).toBe(150) // (100 + 200) / 2
@@ -153,7 +155,7 @@ describe('projection via query()', () => {
       id: 't1', baseId: 'transitionCount', params: { mode: 'fixation' }, label: '',
       projection: { kind: 'matrix-diagonal' },
     }
-    const r = query(instance, scope(engine))
+    const r = query(instance, makeScope(engine))
     expect(r.shape).toBe('aoi-vector')
   })
 })

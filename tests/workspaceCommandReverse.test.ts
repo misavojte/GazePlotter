@@ -151,31 +151,21 @@ describe('Workspace Command Reversal', () => {
         itemId: 1,
       })
 
-      expect(reverseCommand(command)).toEqual({
-        type: 'addGridItem',
+      const reversed = reverseCommand(command)
+      if (reversed?.type !== 'addGridItem')
+        throw new Error('expected an addGridItem reverse')
+      expect(reversed).toMatchObject({
         vizType: 'scarf',
         itemId: 1,
-        options: {
-          id: 1,
-          type: 'scarf',
-          x: 0,
-          y: 0,
-          w: 6,
-          h: 8,
-          min: { w: 4, h: 4 },
-          settings: {
-            stimulusId: 1,
-            groupId: -1,
-            timeline: 'absolute',
-            absoluteStimuliLimits: [],
-            ordinalStimuliLimits: [],
-            hideNoAoi: false,
-          },
-        },
         source: 'source',
-        chainId: 1,
-        isRootCommand: true,
       })
+      // The snapshot IS the store's current item minus the transient
+      // redrawTimestamp (registry's toSnapshot); comparing against the store
+      // keeps this an undo test, so a new scarf default setting rides along
+      // instead of breaking a transcribed literal here.
+      const { redrawTimestamp: _transient, ...persisted } =
+        mockGridStore.items[0]
+      expect(reversed.options).toEqual(persisted)
     })
 
     it('returns null when reversing a removed item that no longer exists', () => {

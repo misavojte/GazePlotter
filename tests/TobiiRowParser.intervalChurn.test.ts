@@ -14,41 +14,10 @@
  * terminates. This test would never return on the buggy parser.
  */
 import { describe, it, expect } from 'vitest'
-import { TobiiRowParser } from '$lib/data/ingest/formats/lib/rows/TobiiRowParser'
-import { collectAdapterOutputs, processAdapterRows } from './helpers/ingestAdapterHarness'
-
-const HEADER = [
-  'Recording timestamp',
-  'Sensor',
-  'Participant name',
-  'Recording name',
-  'Event',
-  'Eye movement type',
-  'Eye movement type index',
-]
+import { tobiiRow, runTobiiParser } from './helpers/ingestAdapterHarness'
 
 const INTERVAL_CONFIG =
   '{"stimulusStartSuffix":"IntervalStart","stimulusEndSuffix":"IntervalEnd"}'
-
-function eventRow(ts: number, event: string): string {
-  const c = new Array(HEADER.length).fill('')
-  c[0] = String(ts)
-  c[2] = 'P1'
-  c[3] = 'R1'
-  c[4] = event
-  return c.join('\t')
-}
-
-function gazeRow(ts: number, idx: number): string {
-  const c = new Array(HEADER.length).fill('')
-  c[0] = String(ts)
-  c[1] = 'Eye Tracker'
-  c[2] = 'P1'
-  c[3] = 'R1'
-  c[5] = 'Fixation'
-  c[6] = String(idx)
-  return c.join('\t')
-}
 
 describe('TobiiRowParser — interval start-time map under churn', () => {
   it('parses thousands of open/close cycles without spinning (tombstone purge)', () => {
@@ -59,14 +28,13 @@ describe('TobiiRowParser — interval start-time map under churn', () => {
     const rows: string[] = []
     for (let i = 0; i < INTERVALS; i++) {
       const base = i * 10_000
-      rows.push(eventRow(base, `iv${i} IntervalStart`))
-      rows.push(gazeRow(base + 1_000, i)) // within 50 ms → deletes the start time
-      rows.push(eventRow(base + 2_000, `iv${i} IntervalEnd`))
+      rows.push(tobiiRow({ ts: base, event: `iv${i} IntervalStart` }))
+      // within 50 ms, so the gaze sample deletes the start time
+      rows.push(tobiiRow({ ts: base + 1_000, gaze: true, catIdx: i }))
+      rows.push(tobiiRow({ ts: base + 2_000, event: `iv${i} IntervalEnd` }))
     }
 
-    const parser = new TobiiRowParser(HEADER, INTERVAL_CONFIG, '\t')
-    const segments = collectAdapterOutputs(parser)
-    processAdapterRows(parser, rows, { finalize: true })
+    const { outputs: segments } = runTobiiParser(rows, INTERVAL_CONFIG)
 
     // One fixation segment per interval; reaching this line at all is the point.
     expect(segments.length).toBe(INTERVALS)

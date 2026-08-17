@@ -7,6 +7,7 @@ import {
 import { SCARF_LAYOUT } from '../src/lib/plots/scarf/const'
 import { SEGMENT_STRIDE, SegmentField, FIXATION_CATEGORY_ID } from '../src/lib/data/binary/schema'
 import type { ScarfGazeSource } from '../src/lib/plots/scarf/types'
+import { canvasRecorder, type RecordedArc } from './helpers/canvasRecorder'
 
 const T = SCARF_LAYOUT.HIGHLIGHT_VISIBLE_COVERAGE
 
@@ -16,41 +17,6 @@ const T = SCARF_LAYOUT.HIGHLIGHT_VISIBLE_COVERAGE
 // accumulated column alpha (Σ coverage × bar-height share) clears
 // HIGHLIGHT_VISIBLE_COVERAGE. These tests pin that rule via the single-pass gaze
 // path (composited straight from the binary segment store).
-
-interface RecordedArc {
-  cx: number
-  cy: number
-  r: number
-}
-
-/** Minimal 2D-context stand-in that records the circle centres/radii passed to
- *  `arc()` — enough to observe where rings land without a real canvas. */
-function mockCtx(): {
-  ctx: CanvasRenderingContext2D
-  arcs: RecordedArc[]
-  rects: { x: number; y: number; w: number; h: number }[]
-} {
-  const arcs: RecordedArc[] = []
-  const rects: { x: number; y: number; w: number; h: number }[] = []
-  const ctx = {
-    save() {},
-    restore() {},
-    beginPath() {},
-    stroke() {},
-    clip() {},
-    lineTo() {},
-    closePath() {},
-    rect(x: number, y: number, w: number, h: number) {
-      rects.push({ x, y, w, h })
-    },
-    arc(cx: number, cy: number, r: number) {
-      arcs.push({ cx, cy, r })
-    },
-    strokeStyle: '',
-    lineWidth: 0,
-  } as unknown as CanvasRenderingContext2D
-  return { ctx, arcs, rects }
-}
 
 /** Distinct ring centres — each ring emits two arcs (white halo + colour). */
 function ringCentres(arcs: RecordedArc[]): RecordedArc[] {
@@ -128,7 +94,7 @@ const layout = {
 
 /** Run the highlight markers over ONE row of crafted segments; return the arcs. */
 function run(segs: { x: number; w: number }[], fill = '#ff0000'): RecordedArc[] {
-  const { ctx, arcs } = mockCtx()
+  const { ctx, arcs } = canvasRecorder()
   drawScarfHighlightMarkers(
     ctx,
     { gazeSource: gazeSource([segs]), participants: [{ label: 'p' }] } as never,
@@ -255,17 +221,6 @@ describe('drawScarfHighlightMarkers', () => {
 // The gaze band must land on whole logical pixels so it can't bleed ~0.5px past
 // the bar into the seam via anti-aliasing.
 
-function bandMock(): { ctx: CanvasRenderingContext2D; rects: { y: number; h: number }[] } {
-  const rects: { y: number; h: number }[] = []
-  const ctx = {
-    fillStyle: '',
-    fillRect(_x: number, y: number, _w: number, h: number) {
-      rects.push({ y, h })
-    },
-  } as unknown as CanvasRenderingContext2D
-  return { ctx, rects }
-}
-
 function fracLayout(deviceScale: number): ScarfLayoutContext {
   return {
     spaceAboveRect: 5,
@@ -286,7 +241,7 @@ function fracLayout(deviceScale: number): ScarfLayoutContext {
  *  which draws straight to the passed ctx and so is observable without a real
  *  canvas (the composite blit no-ops in node). Returns the emitted rects. */
 function exactRects(layout: ScarfLayoutContext): { y: number; h: number }[] {
-  const { ctx, rects } = bandMock()
+  const { ctx, fillRects: rects } = canvasRecorder()
   drawScarfBands(
     ctx,
     {

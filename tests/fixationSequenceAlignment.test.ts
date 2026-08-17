@@ -92,7 +92,7 @@ function recipeSeq(
     recipe!,
     inst(baseId, params),
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    { engine: engine as any, stimulusId: STIM, participantId: 0, aoiSelectionId: SELECTION_ID },
+    { engine: engine, stimulusId: STIM, participantId: 0, aoiSelectionId: SELECTION_ID },
     timeStart,
     timeEnd
   )
@@ -106,7 +106,7 @@ describe('extractFixationSequence == RQA recipe onFixation through the real scan
   it('default gate (multi-AOI dropped, no sentinel) — sequences and expected literals agree', () => {
     const extracted = extractFixationSequence(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      engine as any,
+      engine,
       STIM,
       0,
       { aoiSelectionId: SELECTION_ID }
@@ -124,7 +124,7 @@ describe('extractFixationSequence == RQA recipe onFixation through the real scan
   it('include_no_aoi — zero-AOI and out-of-selection fixations become the sentinel in BOTH builders', () => {
     const extracted = extractFixationSequence(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      engine as any,
+      engine,
       STIM,
       0,
       { includeNoAoi: true, aoiSelectionId: SELECTION_ID }
@@ -143,7 +143,7 @@ describe('extractFixationSequence == RQA recipe onFixation through the real scan
     // does not would silently draw every cell on the wrong fixation.
     const extracted = extractFixationSequence(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      engine as any,
+      engine,
       STIM,
       0,
       { includeNoAoi: true, aoiSelectionId: SELECTION_ID, timeStart: 300, timeEnd: 600 }
@@ -160,7 +160,7 @@ describe('extractFixationSequence == RQA recipe onFixation through the real scan
       for (const includeNoAoi of [false, true]) {
         const extracted = extractFixationSequence(
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          engine as any,
+          engine,
           STIM,
           0,
           { includeNoAoi, aoiSelectionId: SELECTION_ID }

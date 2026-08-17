@@ -21,7 +21,8 @@ describe('metric-correlation correlations', () => {
     })
 
     it('matches a known fixture', () => {
-      // Classic textbook example: r ≈ 0.9746318
+      // Hand derivation for THIS data: sum(dx*dy) = 478, sum(dx^2) = 1240.83,
+      // sum(dy^2) = 656 -> r = 478 / sqrt(1240.83 * 656) = 478 / 902.21 = 0.5298
       const { r } = pearson([43, 21, 25, 42, 57, 59], [99, 65, 79, 75, 87, 81])
       expect(r).not.toBeNull()
       expect(r!).toBeCloseTo(0.5298, 3)

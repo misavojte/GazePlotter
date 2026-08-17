@@ -35,20 +35,14 @@ const DEFAULT_SEGMENTS: number[][][] = [
   ],
 ]
 
+// The REAL AoiGroupReader is wired ('group'), so version semantics are the
+// engine's own: an AOI edit invalidates via updateMap(), exactly as production
+// calls it, instead of a hand-rolled version stub.
 function createEngine(perParticipant: number[][][] = DEFAULT_SEGMENTS) {
-  let appearanceVersion = 0
-  return {
-    ...makeTestEngine([[], perParticipant], {
-      participants: [['P0', 'P0'], ['P1', 'P1']],
-    }),
-    // Structural version stays 0 throughout — none of these tests change
-    // grouping, mirroring the real engine.
-    getAoiGroupReader: () => ({ version: 0, appearanceVersion }),
-    /** Simulates updateMap() — bumps on every AOI edit in the real engine. */
-    bumpAoiVersion: () => {
-      appearanceVersion++
-    },
-  }
+  return makeTestEngine([[], perParticipant], {
+    participants: [['P0', 'P0'], ['P1', 'P1']],
+    aoiMapping: 'group',
+  })
 }
 
 function vectorInst(id: string, baseId: string): MetricInstance {
@@ -93,12 +87,12 @@ function windowedInst(id: string, baseId: string): MetricInstance {
 describe('metric cache', () => {
   it('answers a repeat query from cache after a participant rename (no rescan)', () => {
     const engine = createEngine()
-    const s: Scope = { engine: engine as any, stimulusId: STIM, participantId: 0 }
+    const s: Scope = { engine, stimulusId: STIM, participantId: 0 }
     const inst = vectorInst('fc', 'fixationCount')
 
     const first = query(inst, s)
-    engine.metadata.participants.data[0] = ['P0', 'Renamed participant']
-    const spy = vi.spyOn(engine.getReader(), 'getFixationRange')
+    engine.metadata!.participants.data[0] = ['P0', 'Renamed participant']
+    const spy = vi.spyOn(engine.getReader()!, 'getFixationRange')
     const second = query(inst, s)
 
     expect(spy).not.toHaveBeenCalled()
@@ -107,11 +101,11 @@ describe('metric cache', () => {
 
   it('queryBatch consults the same cache — a repeat batch never rescans', () => {
     const engine = createEngine()
-    const s: Scope = { engine: engine as any, stimulusId: STIM, participantId: 0 }
+    const s: Scope = { engine, stimulusId: STIM, participantId: 0 }
     const insts = [vectorInst('fc', 'fixationCount'), vectorInst('at', 'absoluteTime')]
 
     const r1 = queryBatch(insts, s)
-    const spy = vi.spyOn(engine.getReader(), 'getFixationRange')
+    const spy = vi.spyOn(engine.getReader()!, 'getFixationRange')
     const r2 = queryBatch(insts, s)
 
     expect(spy).not.toHaveBeenCalled()
@@ -120,11 +114,11 @@ describe('metric cache', () => {
 
   it('caches windowed queries; per-participant results are frozen and shared', () => {
     const engine = createEngine()
-    const group = { engine: engine as any, stimulusId: STIM, participantIds: [0, 1] }
+    const group = { engine, stimulusId: STIM, participantIds: [0, 1] }
     const inst = windowedInst('w', 'absoluteTime')
 
     const g1 = queryGroup(inst, group)
-    const spy = vi.spyOn(engine.getReader(), 'getFixationRange')
+    const spy = vi.spyOn(engine.getReader()!, 'getFixationRange')
     const g2 = queryGroup(inst, group)
     expect(spy).not.toHaveBeenCalled()
     expect(g2).toEqual(g1)
@@ -139,7 +133,7 @@ describe('metric cache', () => {
 
     // Per-participant windowed results are zero-copy: the SAME frozen arrays
     // are shared across hits, and mutation throws instead of corrupting.
-    const scope = { engine: engine as any, stimulusId: STIM, participantId: 0 }
+    const scope = { engine, stimulusId: STIM, participantId: 0 }
     const q1 = query(inst, scope)
     const q2 = query(inst, scope)
     if (q1.shape !== 'aoi-vector-timeseries' || q2.shape !== 'aoi-vector-timeseries')
@@ -173,8 +167,8 @@ describe('metric cache', () => {
     // Fresh engines per path so neither can serve the other's cache entries.
     const e1 = createEngine(segs)
     const e2 = createEngine(segs)
-    e1.metadata.aois.selections = selections
-    e2.metadata.aois.selections = selections
+    e1.metadata!.aois.selections = selections
+    e2.metadata!.aois.selections = selections
     const instances = () => [
       vectorInst('fc', 'fixationCount'),
       vectorInst('at', 'absoluteTime'),
@@ -191,14 +185,14 @@ describe('metric cache', () => {
     ]
 
     const batch = queryBatch(instances(), {
-      engine: e1 as any,
+      engine: e1,
       stimulusId: STIM,
       participantId: 0,
       aoiSelectionId: 9,
     })
     for (const inst of instances()) {
       const single = query(inst, {
-        engine: e2 as any,
+        engine: e2,
         stimulusId: STIM,
         participantId: 0,
         aoiSelectionId: 9,
@@ -209,7 +203,7 @@ describe('metric cache', () => {
 
   it('an AOI edit invalidates: rescans and reflects new slot order (reorder bug pin)', () => {
     const engine = createEngine()
-    const s: Scope = { engine: engine as any, stimulusId: STIM, participantId: 0 }
+    const s: Scope = { engine, stimulusId: STIM, participantId: 0 }
     const inst = vectorInst('fc', 'fixationCount')
 
     const before = query(inst, s)
@@ -217,13 +211,13 @@ describe('metric cache', () => {
     expect(before.values[0]).toBe(2) // AOI 1
     expect(before.values[1]).toBe(1) // AOI 2
 
-    // Reorder AOIs (display order flips). The real engine calls updateMap()
-    // on every AOI edit, bumping appearanceVersion; slot order follows the
+    // Reorder AOIs (display order flips) and rebuild the REAL group reader,
+    // exactly what the engine does on every AOI edit; slot order follows the
     // display order, so cached vectors indexed by the OLD order are stale.
-    engine.metadata.aois.orderVector = [[], [2, 1]]
-    engine.bumpAoiVersion()
+    engine.metadata!.aois.orderVector = [[], [2, 1]]
+    engine.getAoiGroupReader()!.updateMap(engine.metadata!)
 
-    const spy = vi.spyOn(engine.getReader(), 'getFixationRange')
+    const spy = vi.spyOn(engine.getReader()!, 'getFixationRange')
     const after = query(inst, s)
     expect(spy).toHaveBeenCalled()
     if (after.shape !== 'aoi-vector') throw new Error('unexpected shape')

@@ -68,7 +68,7 @@ describe('recurrence collectFixations — boundary rule B (start ∈ [timeStart,
   ])
 
   it('keeps onset-at-timeStart (lower edge inclusive)', () => {
-    const fixations = collectFixations(engine as any, STIM, 0, false, 100, 200)
+    const fixations = collectFixations(engine, STIM, 0, false, 100, 200)
     expect(fixations).not.toBeNull()
     expect(fixations!.length).toBe(1)
     expect(fixations![0].duration).toBe(50)
@@ -77,18 +77,18 @@ describe('recurrence collectFixations — boundary rule B (start ∈ [timeStart,
   it('excludes onset-at-timeEnd (upper edge exclusive)', () => {
     // Same engine, widen the window so the third fixation's onset is the
     // upper boundary value. It must NOT be included.
-    const fixations = collectFixations(engine as any, STIM, 0, false, 0, 200)
+    const fixations = collectFixations(engine, STIM, 0, false, 0, 200)
     expect(fixations).not.toBeNull()
     expect(fixations!.length).toBe(2) // onsets 0 and 100 — not 200
   })
 
   it('timeEnd <= 0 is unbounded above', () => {
-    const fixations = collectFixations(engine as any, STIM, 0, false, 100, 0)
+    const fixations = collectFixations(engine, STIM, 0, false, 100, 0)
     expect(fixations!.length).toBe(2) // onsets 100 and 200
   })
 
   it('default args (0, 0) return all fixations', () => {
-    const fixations = collectFixations(engine as any, STIM, 0, false)
+    const fixations = collectFixations(engine, STIM, 0, false)
     expect(fixations!.length).toBe(3)
   })
 })
@@ -111,23 +111,23 @@ describe('collectScanpath — boundary rule B (start ∈ [timeStart, timeEnd))',
   ] as any
 
   it('window [100, 200) keeps only the middle fixation (onset 100)', () => {
-    const sp = collectScanpath(engine as any, STIM, 0, aois, false, 100, 200)
+    const sp = collectScanpath(engine, STIM, 0, aois, false, 100, 200)
     expect(sp).toBe('A')
   })
 
   it('window [0, 200) excludes the onset-at-200 fixation', () => {
-    const sp = collectScanpath(engine as any, STIM, 0, aois, false, 0, 200)
+    const sp = collectScanpath(engine, STIM, 0, aois, false, 0, 200)
     expect(sp).toBe('AA')
   })
 
   it('window [100, 0) (unbounded upper) keeps onsets 100 and 200', () => {
-    const sp = collectScanpath(engine as any, STIM, 0, aois, false, 100, 0)
+    const sp = collectScanpath(engine, STIM, 0, aois, false, 100, 0)
     expect(sp).toBe('AB')
   })
 
   it('collectAllScanpaths forwards the window per-participant', () => {
     const entries = collectAllScanpaths(
-      engine as any,
+      engine,
       STIM,
       [0],
       aois,
@@ -140,7 +140,7 @@ describe('collectScanpath — boundary rule B (start ∈ [timeStart, timeEnd))',
   })
 
   it('default args (0, 0) preserve the full scanpath', () => {
-    const sp = collectScanpath(engine as any, STIM, 0, aois, false)
+    const sp = collectScanpath(engine, STIM, 0, aois, false)
     expect(sp).toBe('AAB')
   })
 })
@@ -168,7 +168,7 @@ describe('queryGroup(transitionCount) — GroupScope.timeStart/timeEnd narrow th
 
   it('full window (no bounds) yields both transitions', () => {
     const m = matrixOf({
-      engine: engine as any,
+      engine: engine,
       stimulusId: STIM,
       participantIds: [0],
     })
@@ -179,7 +179,7 @@ describe('queryGroup(transitionCount) — GroupScope.timeStart/timeEnd narrow th
 
   it('window starting after the first fixation drops the AOI1→AOI1 transition', () => {
     const m = matrixOf({
-      engine: engine as any,
+      engine: engine,
       stimulusId: STIM,
       participantIds: [0],
       timeStart: 80,  // excludes fixation at onset 0
@@ -191,7 +191,7 @@ describe('queryGroup(transitionCount) — GroupScope.timeStart/timeEnd narrow th
 
   it('window ending before the last fixation drops the AOI1→AOI2 transition', () => {
     const m = matrixOf({
-      engine: engine as any,
+      engine: engine,
       stimulusId: STIM,
       participantIds: [0],
       timeStart: 0,

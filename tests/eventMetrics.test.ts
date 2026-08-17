@@ -30,6 +30,7 @@ import {
 import { defineMetric, getRecipe } from '../src/lib/metrics/core/defineMetric'
 import { recipeSupports } from '../src/lib/metrics/core/validation'
 import type { DataCapabilities } from '../src/lib/data/types'
+import type { DataEngine } from '../src/lib/data/engine/dataEngine.svelte'
 
 const STIM = 1
 
@@ -100,14 +101,14 @@ function windowedPickInst(id: string, baseId: string, eventName: string): Metric
   }
 }
 
-function vectorValues(engine: unknown, inst: MetricInstance, scope: Partial<Scope> = {}): number[] {
-  const r = query(inst, { engine: engine as any, stimulusId: STIM, participantId: 0, ...scope })
+function vectorValues(engine: DataEngine, inst: MetricInstance, scope: Partial<Scope> = {}): number[] {
+  const r = query(inst, { engine: engine, stimulusId: STIM, participantId: 0, ...scope })
   if (r.shape !== 'event-vector') throw new Error(`unexpected shape ${r.shape}`)
   return r.values
 }
 
-function scalarValue(engine: unknown, inst: MetricInstance, scope: Partial<Scope> = {}): number {
-  const r = query(inst, { engine: engine as any, stimulusId: STIM, participantId: 0, ...scope })
+function scalarValue(engine: DataEngine, inst: MetricInstance, scope: Partial<Scope> = {}): number {
+  const r = query(inst, { engine: engine, stimulusId: STIM, participantId: 0, ...scope })
   if (r.shape !== 'scalar') throw new Error(`unexpected shape ${r.shape}`)
   return r.value
 }
@@ -135,7 +136,7 @@ describe('event-vector metrics (scanSource: events)', () => {
     // Trimmed matching — the canonical displayed-name rule.
     expect(scalarValue(engine, pickInst('p2', 'eventTime', ' Task '))).toBe(500)
     const missing = query(pickInst('p3', 'eventTime', 'Speech'), {
-      engine: engine as any, stimulusId: STIM, participantId: 0,
+      engine: engine, stimulusId: STIM, participantId: 0,
     })
     if (missing.shape !== 'scalar') throw new Error('unexpected shape')
     expect(missing.value).toBeNaN()
@@ -144,7 +145,7 @@ describe('event-vector metrics (scanSource: events)', () => {
 
   it('MERGE fold: two channels displayed under one name share a slot', () => {
     const engine = createEngine()
-    engine.metadata.eventData.data[1][1][1] = 'Music'
+    engine.metadata!.eventData.data[1][1][1] = 'Music'
     // Axis folds to [Music, Task]; Marker's instants join the Music slot.
     expect(vectorValues(engine, vectorInst('c', 'eventCount'))).toEqual([4, 2])
     expect(vectorValues(engine, vectorInst('t', 'eventTime'))).toEqual([150, 500])
@@ -159,7 +160,7 @@ describe('event-vector metrics (scanSource: events)', () => {
     expect(scalarValue(engine, pickInst('s', 'eventTimeShare', 'Marker'))).toBe(0)
     const perSlot = queryIndividualsAllSlots(
       vectorInst('d', 'eventDuration'),
-      { engine: engine as any, stimulusId: STIM, participantId: 0 },
+      { engine: engine, stimulusId: STIM, participantId: 0 },
     )
     expect(perSlot).toEqual([[100, 50], [0, 0], [300, 200]])
   })
@@ -189,7 +190,7 @@ describe('event-vector metrics (scanSource: events)', () => {
     ).toEqual([37.5, 0, 131.25])
     // Windowed pick-event: each window's share is of the WINDOW size.
     const windowed = query(windowedPickInst('ws', 'eventTimeShare', 'Music'), {
-      engine: engine as any, stimulusId: STIM, participantId: 0, timeStart: 0, timeEnd: 400,
+      engine: engine, stimulusId: STIM, participantId: 0, timeStart: 0, timeEnd: 400,
     })
     if (windowed.shape !== 'scalar-timeseries') throw new Error('unexpected shape')
     expect(windowed.values).toEqual([50, 50, 0, 50])
@@ -232,7 +233,7 @@ describe('event-vector metrics (scanSource: events)', () => {
     const engine = createEngine({
       events: [[], [[[2000, 10000], []], [[], []], [[], []]]],
     })
-    const scope = { engine: engine as any, stimulusId: STIM, participantId: 0, timeStart: 0, timeEnd: 7050 }
+    const scope = { engine: engine, stimulusId: STIM, participantId: 0, timeStart: 0, timeEnd: 7050 }
     const wc = query(windowedPickInst('wl', 'eventCount', 'Music'), scope)
     if (wc.shape !== 'scalar-timeseries') throw new Error('unexpected shape')
     expect(wc.values.length).toBe(70)
@@ -292,12 +293,12 @@ describe('event-vector metrics (scanSource: events)', () => {
   it('per-stimulus axis: a stimulus without channels has an empty vector; picks miss', () => {
     const engine = createEngine()
     const identity = query(vectorInst('c', 'eventCount'), {
-      engine: engine as any, stimulusId: 0, participantId: 0,
+      engine: engine, stimulusId: 0, participantId: 0,
     })
     if (identity.shape !== 'event-vector') throw new Error('unexpected shape')
     expect(identity.values).toEqual([])
     const pick = query(pickInst('p', 'eventTime', 'Music'), {
-      engine: engine as any, stimulusId: 0, participantId: 0,
+      engine: engine, stimulusId: 0, participantId: 0,
     })
     if (pick.shape !== 'scalar') throw new Error('unexpected shape')
     expect(pick.value).toBeNaN()
@@ -307,7 +308,7 @@ describe('event-vector metrics (scanSource: events)', () => {
   it('a channel rename under an unchanged reader invalidates (table half of the token)', () => {
     const engine = createEngine()
     expect(vectorValues(engine, vectorInst('t', 'eventTime'))).toEqual([150, 0, 500])
-    engine.metadata.eventData.data[1][1][1] = 'Music'
+    engine.metadata!.eventData.data[1][1][1] = 'Music'
     expect(vectorValues(engine, vectorInst('t', 'eventTime'))).toEqual([150, 500])
   })
 
@@ -330,9 +331,9 @@ describe('event-vector metrics (scanSource: events)', () => {
       pickInst('et', 'eventTime', 'Music'),
       pickInst('ed', 'eventDuration', 'Task'),
     ]
-    const batch = queryBatch(instances(), { engine: e1 as any, stimulusId: STIM, participantId: 0 })
+    const batch = queryBatch(instances(), { engine: e1, stimulusId: STIM, participantId: 0 })
     for (const inst of instances()) {
-      const single = query(inst, { engine: e2 as any, stimulusId: STIM, participantId: 0 })
+      const single = query(inst, { engine: e2, stimulusId: STIM, participantId: 0 })
       expect(batch.get(inst.id), inst.baseId).toEqual(single)
     }
   })

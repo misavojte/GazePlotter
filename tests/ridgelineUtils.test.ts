@@ -67,35 +67,27 @@ function buildData(opts: {
   } as any
 }
 
-// Closed-form expected values derived from the geometry formulas in
-// `ridgeline.ts`. Tests assert against these so the suite documents the
-// invariants rather than locking in coincidental numbers.
-const expectedFilledStripHeight = (plotHeight: number, n: number, scale: number) =>
-  (plotHeight * scale) / (n - 1 + scale)
-
-const expectedIdealStripHeight = (plotHeight: number, n: number, scale: number, mTop: number) =>
-  (plotHeight * scale) / (n - 1 + mTop * scale)
-
-const expectedMTop = (topPeak: number, maxValue: number) =>
-  (topPeak / maxValue) * RIDGELINE_CONTENT_FILL
-
 // ─── Tests ───────────────────────────────────────────────────────────────────
+// Expected values are HAND-DERIVED numbers (derivation in each comment), never
+// a transcription of the production formula: a transcription moves in lockstep
+// with the code and can only catch a one-sided edit.
 
 describe('Ridgeline geometry invariants', () => {
   describe('calculateFilledRidgelineStripHeight', () => {
-    it.each([
-      { plotHeight: 100, n: 1, scale: 2.5 },
-      { plotHeight: 100, n: 2, scale: 2.5 },
-      { plotHeight: 100, n: 5, scale: 2.5 },
-      { plotHeight: 600, n: 8, scale: 1 },
-      { plotHeight: 240, n: 3, scale: 1.5 },
-    ])(
-      'matches closed-form: $plotHeight × $scale / ($n − 1 + $scale) [n=$n, plotHeight=$plotHeight, scale=$scale]',
-      ({ plotHeight, n, scale }) => {
-        const h = calculateFilledRidgelineStripHeight(plotHeight, n, scale)
-        expect(h).toBeCloseTo(expectedFilledStripHeight(plotHeight, n, scale), 6)
-      }
-    )
+    it('a single series fills the whole plot at any scale', () => {
+      // h * (1 - 1 + scale) / scale = plotHeight -> h = plotHeight
+      expect(calculateFilledRidgelineStripHeight(100, 1, 2.5)).toBeCloseTo(100, 6)
+    })
+
+    it('scale 1 (no overlap) slices the plot into equal strips', () => {
+      // 600 / 8
+      expect(calculateFilledRidgelineStripHeight(600, 8, 1)).toBeCloseTo(75, 6)
+    })
+
+    it('overlap lets each strip exceed the equal-slice height', () => {
+      // 100 * 2.5 / (2 - 1 + 2.5) = 250 / 3.5
+      expect(calculateFilledRidgelineStripHeight(100, 2, 2.5)).toBeCloseTo(250 / 3.5, 6)
+    })
 
     it('returns plotHeight when seriesCount <= 0 (degenerate fallback)', () => {
       expect(calculateFilledRidgelineStripHeight(100, 0, 2.5)).toBe(100)
@@ -103,9 +95,15 @@ describe('Ridgeline geometry invariants', () => {
   })
 
   describe('computeMTop', () => {
-    it('mTop scales as peak / maxValue × CONTENT_FILL', () => {
+    it('a full-height peak reserves exactly the content fill', () => {
       const data = buildData({ seriesCount: 1, topPeak: 1, maxValue: 1 })
-      expect(computeMTop(data)).toBeCloseTo(expectedMTop(1, 1), 6)
+      expect(computeMTop(data)).toBeCloseTo(RIDGELINE_CONTENT_FILL, 6)
+    })
+
+    it('a half-height peak reserves half the content fill', () => {
+      // (0.5 / 1) * 0.9
+      const data = buildData({ seriesCount: 1, topPeak: 0.5, maxValue: 1 })
+      expect(computeMTop(data)).toBeCloseTo(0.45, 6)
     })
 
     it('doubling maxValue halves mTop when top peak is unchanged', () => {
@@ -142,21 +140,24 @@ describe('Ridgeline geometry invariants', () => {
   })
 
   describe('calculateIdealStripHeight', () => {
+    // Hand-derived from h = plotHeight * scale / (n - 1 + mTop * scale) with
+    // scale = 2.5 and mTop = (topPeak / maxValue) * 0.9.
     it.each([
-      // (n, plotHeight, scale, topPeak, maxValue, applyMinTopHeight)
-      { n: 1, plotHeight: 100, scale: RIDGELINE_SCALE, topPeak: 1, maxValue: 1, applyMin: false },
-      { n: 2, plotHeight: 100, scale: RIDGELINE_SCALE, topPeak: 0, maxValue: 1, applyMin: false },
-      { n: 2, plotHeight: 100, scale: RIDGELINE_SCALE, topPeak: 0, maxValue: 1, applyMin: true },
-      { n: 2, plotHeight: 100, scale: RIDGELINE_SCALE, topPeak: 1, maxValue: 1, applyMin: false },
-      { n: 5, plotHeight: 600, scale: RIDGELINE_SCALE, topPeak: 0.4, maxValue: 1, applyMin: false },
+      // n=1, full peak: mTop 0.9 -> 250 / 2.25 (exceeds plotHeight: only the
+      // top strip's own data bounds it)
+      { n: 1, topPeak: 1, applyMin: false, expected: 250 / 2.25 },
+      // n=2, zero peak, no floor: mTop 0 -> 250 / 1
+      { n: 2, topPeak: 0, applyMin: false, expected: 250 },
+      // n=2, zero peak, floored: mTop 0.2 -> 250 / 1.5
+      { n: 2, topPeak: 0, applyMin: true, expected: 250 / 1.5 },
+      // n=2, full peak: mTop 0.9 -> 250 / 3.25
+      { n: 2, topPeak: 1, applyMin: false, expected: 250 / 3.25 },
     ])(
-      'matches geometric identity h × ((N−1)/scale + mTop) = plotHeight  [n=$n, plotHeight=$plotHeight, scale=$scale, topPeak=$topPeak, maxValue=$maxValue, applyMin=$applyMin]',
-      ({ n, plotHeight, scale, topPeak, maxValue, applyMin }) => {
-        const data = buildData({ seriesCount: n, topPeak, maxValue })
-        const h = calculateIdealStripHeight(data, plotHeight, applyMin, scale)
-        const mTopRaw = expectedMTop(topPeak, maxValue)
-        const mTop = applyMin ? Math.max(mTopRaw, RIDGELINE_MIN_M_TOP) : mTopRaw
-        expect(h).toBeCloseTo(expectedIdealStripHeight(plotHeight, n, scale, mTop), 4)
+      'pins the ideal height [n=$n, topPeak=$topPeak, applyMin=$applyMin]',
+      ({ n, topPeak, applyMin, expected }) => {
+        const data = buildData({ seriesCount: n, topPeak, maxValue: 1 })
+        const h = calculateIdealStripHeight(data, 100, applyMin, RIDGELINE_SCALE)
+        expect(h).toBeCloseTo(expected, 4)
       }
     )
 

@@ -92,7 +92,12 @@ function digest(data: DataType) {
     stimuli: data.stimuli.data,
     participants: data.participants.data,
     categories: data.categories.data,
-    aois: data.aois.data,
+    // Names only: colors are OWNED by the 'AOI default colors' test below, and
+    // digesting them here made a pure palette edit rewrite four decoding
+    // snapshots.
+    aois: data.aois.data.map(rows =>
+      rows.map(row => (row ? row.slice(0, 2) : row))
+    ),
     capabilities: data.capabilities,
     isOrdinalOnly: data.isOrdinalOnly,
     hasSpatialData: data.segments.hasSpatialData,
@@ -153,24 +158,20 @@ describe('pipeline end-to-end: csv', () => {
             [
               "Region_1",
               "Region_1",
-              "#1f77b4",
             ],
             [
               "Region_2",
               "Region_2",
-              "#ff7f0e",
             ],
           ],
           [
             [
               "Region_1",
               "Region_1",
-              "#1f77b4",
             ],
             [
               "Region_2",
               "Region_2",
-              "#ff7f0e",
             ],
           ],
         ],
@@ -319,12 +320,10 @@ describe('pipeline end-to-end: begaze', () => {
             [
               "Region_1",
               "Region_1",
-              "#1f77b4",
             ],
             [
               "Region_2",
               "Region_2",
-              "#ff7f0e",
             ],
           ],
         ],
@@ -414,12 +413,10 @@ describe('pipeline end-to-end: csv-segmented (From/To)', () => {
             [
               "Region_1",
               "Region_1",
-              "#1f77b4",
             ],
             [
               "Region_2",
               "Region_2",
-              "#ff7f0e",
             ],
           ],
         ],
@@ -500,12 +497,10 @@ Map_A,P1,150,150,0,Region_2`
             [
               "Region_1",
               "Region_1",
-              "#1f77b4",
             ],
             [
               "Region_2",
               "Region_2",
-              "#ff7f0e",
             ],
           ],
         ],

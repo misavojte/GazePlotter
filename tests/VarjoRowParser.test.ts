@@ -29,101 +29,25 @@ describe('VarjoRowParser', () => {
   const varjoRows = varjoMockData.split('\n')
   const header = varjoRows[0].split(',')
   const delim = ','
-  test('Process first row', () => {
+  const seg = { categoryId: 0, participant: 'VarjoXXX', stimulus: 'VarjoScene' }
+
+  test('emits a segment per AOI run, flushed by the next AOI change', () => {
     const sut = new VarjoRowParser(header, 'VarjoXXX.csv', delim)
-    const { outputs, processRow } = createAdapterHarness(sut)
-    processRow(varjoRows[1])
-    expect(outputs).toHaveLength(0)
+    const { outputs, processRows } = createAdapterHarness(sut)
+    processRows(varjoRows.slice(1))
+    // The open Region_4 run stays buffered until finalize.
+    expect(outputs).toEqual([
+      { ...seg, aoi: ['Region_1'], start: 0, end: 2 },
+      { ...seg, aoi: ['Region_2'], start: 3, end: 3 },
+      { ...seg, aoi: ['Region_3'], start: 4, end: 4 },
+    ])
   })
 
-  test('Process second row', () => {
+  test('Finalize flushes the last open segment', () => {
     const sut = new VarjoRowParser(header, 'VarjoXXX.csv', delim)
-    const { outputs, processRow } = createAdapterHarness(sut)
-    processRow(varjoRows[1])
-    processRow(varjoRows[2])
-    expect(outputs).toHaveLength(0)
-  })
-
-  test('Process third row', () => {
-    const sut = new VarjoRowParser(header, 'VarjoXXX.csv', delim)
-    const { outputs, processRow } = createAdapterHarness(sut)
-    processRow(varjoRows[1])
-    processRow(varjoRows[2])
-    processRow(varjoRows[3])
-    expect(outputs).toHaveLength(0)
-  })
-
-  test('Process fourth row', () => {
-    const sut = new VarjoRowParser(header, 'VarjoXXX.csv', delim)
-    const { outputs, processRow } = createAdapterHarness(sut)
-    processRow(varjoRows[1])
-    processRow(varjoRows[2])
-    processRow(varjoRows[3])
-    processRow(varjoRows[4])
-    const result = outputs[0]
-    expect(result).toBeDefined()
-    expect(result.aoi).toEqual(['Region_1'])
-    expect(result.categoryId).toEqual(0)
-    expect(result.end).toEqual(2)
-    expect(result.participant).toEqual('VarjoXXX')
-    expect(result.stimulus).toEqual('VarjoScene')
-    expect(result.start).toEqual(0)
-  })
-
-  test('Process fifth row', () => {
-    const sut = new VarjoRowParser(header, 'VarjoXXX.csv', delim)
-    const { outputs, processRow } = createAdapterHarness(sut)
-    processRow(varjoRows[1])
-    processRow(varjoRows[2])
-    processRow(varjoRows[3])
-    processRow(varjoRows[4])
-    processRow(varjoRows[5])
-    const result = outputs[1]
-    expect(result).toBeDefined()
-    expect(result.aoi).toEqual(['Region_2'])
-    expect(result.categoryId).toEqual(0)
-    expect(result.end).toEqual(3)
-    expect(result.participant).toEqual('VarjoXXX')
-    expect(result.stimulus).toEqual('VarjoScene')
-    expect(result.start).toEqual(3)
-  })
-
-  test('Process sixth row', () => {
-    const sut = new VarjoRowParser(header, 'VarjoXXX.csv', delim)
-    const { outputs, processRow } = createAdapterHarness(sut)
-    processRow(varjoRows[1])
-    processRow(varjoRows[2])
-    processRow(varjoRows[3])
-    processRow(varjoRows[4])
-    processRow(varjoRows[5])
-    processRow(varjoRows[6])
-    const result = outputs[2]
-    expect(result).toBeDefined()
-    expect(result.aoi).toEqual(['Region_3'])
-    expect(result.categoryId).toEqual(0)
-    expect(result.end).toEqual(4)
-    expect(result.participant).toEqual('VarjoXXX')
-    expect(result.stimulus).toEqual('VarjoScene')
-    expect(result.start).toEqual(4)
-  })
-
-  test('Finalize', () => {
-    const sut = new VarjoRowParser(header, 'VarjoXXX.csv', delim)
-    const { outputs, processRow, finalize } = createAdapterHarness(sut)
-    processRow(varjoRows[1])
-    processRow(varjoRows[2])
-    processRow(varjoRows[3])
-    processRow(varjoRows[4])
-    processRow(varjoRows[5])
-    processRow(varjoRows[6])
-    finalize()
-    const result = outputs[3]
-    expect(result).toBeDefined()
-    expect(result.aoi).toEqual(['Region_4'])
-    expect(result.categoryId).toEqual(0)
-    expect(result.end).toEqual(5)
-    expect(result.participant).toEqual('VarjoXXX')
-    expect(result.stimulus).toEqual('VarjoScene')
-    expect(result.start).toEqual(5)
+    const { outputs, processRows } = createAdapterHarness(sut)
+    processRows(varjoRows.slice(1), { finalize: true })
+    expect(outputs).toHaveLength(4)
+    expect(outputs[3]).toEqual({ ...seg, aoi: ['Region_4'], start: 5, end: 5 })
   })
 })

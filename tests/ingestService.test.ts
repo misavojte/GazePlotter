@@ -1,89 +1,23 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import {
+  createFileList,
+  createIngestDeps,
+  stubWorkerGlobals,
+  type PostedMessage,
+} from './helpers/ingestServiceHarness'
 
-type WorkerPostMessage = (message: {
-  type: string
-  data?: unknown
-}) => void
-
-function createFileList(files: any[]): FileList {
-  return Object.assign(files, {
-    item: (index: number) => files[index] ?? null,
-  }) as unknown as FileList
-}
-
-function createErrorRecord(input: {
-  origin: string
-  severity: string
-  userMessage: string
-  cause: unknown
-  context?: Record<string, unknown>
-}) {
-  return {
-    id: 1,
-    createdAt: '2026-03-13T00:00:00.000Z',
-    origin: input.origin,
-    severity: input.severity,
-    userMessage: input.userMessage,
-    debugMessage:
-      input.cause instanceof Error ? input.cause.message : String(input.cause),
-    stack: input.cause instanceof Error ? input.cause.stack : undefined,
-    context: input.context,
-  }
-}
-
-async function loadHarness(workerPostMessage: WorkerPostMessage) {
+async function loadHarness(
+  workerPostMessage: (message: PostedMessage) => void
+) {
   vi.resetModules()
 
-  const workerInstances: Array<{
-    terminate: ReturnType<typeof vi.fn>
-  }> = []
-
-  class FakeWorker {
-    onmessage: ((event: MessageEvent) => void) | null = null
-    onerror: ((event: ErrorEvent) => void) | null = null
-    onmessageerror: ((event: MessageEvent) => void) | null = null
-    postMessage = vi.fn((message: { type: string; data?: unknown }) =>
-      workerPostMessage(message)
-    )
-    terminate = vi.fn()
-
-    constructor(_url: URL, _options: { type: string }) {
-      workerInstances.push({ terminate: this.terminate })
-    }
-  }
-
-  vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
-  vi.stubGlobal('navigator', { userAgent: 'vitest' })
+  const { workerInstances } = stubWorkerGlobals(workerPostMessage)
 
   const { IngestService } = await import('$lib/data/ingest/service.svelte')
-
-  const report = vi.fn((input: any) => createErrorRecord(input))
-  const deps = {
-    engine: {
-      loadDataset: vi.fn(),
-    },
-    errorService: {
-      clearAll: vi.fn(),
-      clearFatalLoad: vi.fn(),
-      report,
-    },
-    grid: {
-      reset: vi.fn(),
-      clearSelection: vi.fn(),
-    },
-    modalState: {
-      open: vi.fn(),
-      close: vi.fn(),
-    },
-    toastState: {
-      addInfo: vi.fn(),
-      addSuccess: vi.fn(),
-    },
-    resetWorkspaceHistory: vi.fn(),
-  } as any
+  const { deps, report } = createIngestDeps()
 
   return {
-    service: new IngestService(deps),
+    service: new IngestService(deps as any),
     deps,
     report,
     workerInstances,
@@ -203,16 +137,7 @@ describe('IngestService', () => {
 
   it('derived status reflects errorService.fatalLoad regardless of explicitStatus', async () => {
     vi.resetModules()
-
-    class FakeWorker {
-      onmessage: ((event: MessageEvent) => void) | null = null
-      onerror: ((event: ErrorEvent) => void) | null = null
-      onmessageerror: ((event: MessageEvent) => void) | null = null
-      postMessage = vi.fn()
-      terminate = vi.fn()
-    }
-    vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
-    vi.stubGlobal('navigator', { userAgent: 'vitest' })
+    stubWorkerGlobals()
 
     const { IngestService } = await import('$lib/data/ingest/service.svelte')
     const { ErrorService } = await import('$lib/errors')

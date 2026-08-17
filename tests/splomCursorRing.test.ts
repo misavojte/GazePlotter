@@ -11,28 +11,10 @@ import {
 } from '$lib/plots/metric-correlation/core/splom'
 import type { MetricCorrelationResult } from '$lib/plots/metric-correlation/types'
 import type { MatrixLayout } from '$lib/plots/shared'
+// `filledArcs` = the dots (data pass), `strokedArcs` = the rings (overlay pass).
+import { canvasRecorder as recorder } from './helpers/canvasRecorder'
 
 const LAYOUT = { xOffset: 10, yOffset: 20, cellSize: 100 } as MatrixLayout
-
-/** Records filled dots (data pass) and stroked rings (overlay pass) separately. */
-function recorder() {
-  const arcs: { x: number; y: number; r: number }[] = []
-  let pending: { x: number; y: number; r: number } | null = null
-  const fills: typeof arcs = []
-  const strokes: typeof arcs = []
-  const ctx = {
-    save() {}, restore() {}, beginPath() {}, setLineDash() {}, fillRect() {}, fillText() {},
-    strokeStyle: '', fillStyle: '', lineWidth: 0, globalAlpha: 1, font: '',
-    textAlign: '', textBaseline: '',
-    arc(x: number, y: number, r: number) {
-      pending = { x, y, r }
-      arcs.push(pending)
-    },
-    fill() { if (pending) fills.push(pending) },
-    stroke() { if (pending) strokes.push(pending) },
-  } as unknown as CanvasRenderingContext2D
-  return { fills, strokes, ctx }
-}
 
 /** 3 metrics x 3 participants. p1 has a NaN on metric 2. */
 function result(participantIds: readonly number[] = [11, 22, 33]): MetricCorrelationResult {
@@ -74,10 +56,10 @@ describe('splom cursor ring', () => {
 
     // Participant 33 is row index 2, and has no NaN, so every lower-triangle cell
     // rings. Each ring centre must coincide with one drawn dot.
-    expect(rings.strokes).toHaveLength(3)
-    for (const ring of rings.strokes) {
+    expect(rings.strokedArcs).toHaveLength(3)
+    for (const ring of rings.strokedArcs) {
       expect(
-        dots.fills.some(d => d.x === ring.x && d.y === ring.y)
+        dots.filledArcs.some(d => d.cx === ring.cx && d.cy === ring.cy)
       ).toBe(true)
     }
   })
@@ -86,19 +68,19 @@ describe('splom cursor ring', () => {
     const rings = recorder()
     // Participant 22 is NaN on metric 'c', so the two cells pairing c drop out.
     createSplomCursorRing(result())(rings.ctx, LAYOUT, [22])
-    expect(rings.strokes).toHaveLength(1)
+    expect(rings.strokedArcs).toHaveLength(1)
   })
 
   it('draws nothing for a participant this plot does not show', () => {
     const rings = recorder()
     createSplomCursorRing(result())(rings.ctx, LAYOUT, [999])
-    expect(rings.strokes).toHaveLength(0)
+    expect(rings.strokedArcs).toHaveLength(0)
   })
 
   it('rings BOTH of a cursor pair, in every cell where each has a pair', () => {
     const rings = recorder()
     // 11 (no NaN) rings 3 cells; 22 (NaN on 'c') rings 1. Never merged, never one.
     createSplomCursorRing(result())(rings.ctx, LAYOUT, [11, 22])
-    expect(rings.strokes).toHaveLength(4)
+    expect(rings.strokedArcs).toHaveLength(4)
   })
 })

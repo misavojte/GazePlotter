@@ -22,9 +22,13 @@ describe('gridSizing', () => {
   })
 
   it('calculates grid size from item positions', () => {
+    // Bottom edge (3+2) * (40+10) + trailing gap 10 = 260, plus the 90px
+    // workspace bottom padding = 350. The two flags are isEmpty / isLoading.
     expect(
       calculateGridHeight([{ y: 3, h: 2 }], false, false, gridConfig)
     ).toBe(350)
+    // Right edge (4+3) * (40+10) = 350 stays under DEFAULT_WORKSPACE_WIDTH
+    // (1000), which therefore wins as the floor.
     expect(calculateGridWidth([{ x: 4, w: 3 }], gridConfig)).toBe(1000)
   })
 
