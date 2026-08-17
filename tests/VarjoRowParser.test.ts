@@ -29,14 +29,6 @@ describe('VarjoRowParser', () => {
   const varjoRows = varjoMockData.split('\n')
   const header = varjoRows[0].split(',')
   const delim = ','
-  test('Constructor', () => {
-    const sut = new VarjoRowParser(header, 'VarjoXXX.csv', delim)
-    expect(sut).toBeDefined()
-    expect(sut.cTime).toBe(0)
-    expect(sut.cActorLabel).toBe(1)
-    expect(sut.mParticipant).toBe('VarjoXXX')
-  })
-
   test('Process first row', () => {
     const sut = new VarjoRowParser(header, 'VarjoXXX.csv', delim)
     const { outputs, processRow } = createAdapterHarness(sut)

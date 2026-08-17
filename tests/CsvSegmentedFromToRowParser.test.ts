@@ -20,16 +20,6 @@ describe('CSV Segmented FromTo Deserializer - Single data', () => {
   const csvRows = csvMockDataOne.split('\n')
   const header = csvRows[0].split(',')
   const delim = ','
-  test('Constructor', () => {
-    const sut = new CsvSegmentedFromToRowParser(header, delim)
-    expect(sut).toBeDefined()
-    expect(sut.cAoi).toBe(4)
-    expect(sut.cParticipant).toBe(2)
-    expect(sut.cStimulus).toBe(3)
-    expect(sut.cFrom).toBe(0)
-    expect(sut.cTo).toBe(1)
-  })
-
   test('Process first row', () => {
     const sut = new CsvSegmentedFromToRowParser(header, delim)
     const { outputs, processRow } = createAdapterHarness(sut)

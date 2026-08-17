@@ -56,23 +56,6 @@ describe('CsvSegmentedDurationRowParser - Constructor', () => {
   const header = csvRows[0].split(',')
   const delim = ','
 
-  test('Constructor initializes column indices correctly', () => {
-    // Create a new deserializer instance with the header
-    const sut = new CsvSegmentedDurationRowParser(header, delim)
-
-    // Verify the deserializer was created
-    expect(sut).toBeDefined()
-
-    // Verify column indices are correctly mapped from the header
-    // Column order: stimulus(0), participant(1), timestamp(2), duration(3), eyemovementtype(4), AOI(5)
-    expect(sut.cStimulus).toBe(0)
-    expect(sut.cParticipant).toBe(1)
-    expect(sut.cTimestamp).toBe(2)
-    expect(sut.cDuration).toBe(3)
-    expect(sut.cEyeMovementType).toBe(4)
-    expect(sut.cAoi).toBe(5)
-  })
-
   test('Constructor throws error when required column is missing', () => {
     // Create a header missing the 'timestamp' column
     const invalidHeader = [

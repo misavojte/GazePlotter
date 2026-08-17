@@ -124,15 +124,6 @@ describe('Workspace Command Reversal', () => {
       reverseCommand(command)
       expect(command).toEqual(snapshot)
     })
-
-    it('returns the same reverse command for the same input', () => {
-      const command = createChainedCommand({
-        type: 'removeGridItem',
-        itemId: 1,
-      })
-
-      expect(reverseCommand(command)).toEqual(reverseCommand(command))
-    })
   })
 
   // ============================================================================

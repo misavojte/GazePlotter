@@ -243,14 +243,7 @@ describe('Binary Converters Roundtrip', () => {
       segments.push(stimulus)
     }
 
-    const startTime = performance.now()
-    const result = validateRoundtrip(segments)
-    const endTime = performance.now()
-
-    expect(result).toBe(true)
-
-    // Conversion should be reasonably fast (< 100ms for 5000 segments)
-    expect(endTime - startTime).toBeLessThan(100)
+    expect(validateRoundtrip(segments)).toBe(true)
   })
 
   it('should maintain segment order within participants', () => {

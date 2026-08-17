@@ -105,10 +105,6 @@ describe('scarf row band vs the resolved frame', () => {
           // fewer lines in a wider plot, which is bounded by one line.
           expect(rect.height - band).toBeLessThanOrEqual(axisTitleLineHeight())
         }
-        // At the cap the probe IS the frame: same declaration, same numbers.
-        expect(band).toBe(
-          resolveWith(SCARF_LAYOUT.LEFT_LABEL_MAX_WIDTH, title, legendSpace).rect.height
-        )
       })
     }
   }

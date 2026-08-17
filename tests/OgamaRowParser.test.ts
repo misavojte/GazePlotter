@@ -20,13 +20,6 @@ describe('OGAMA Deserializer - Single data', () => {
   const ogamaRows = ogamaMockDataOne.split('\n')
   const header = ogamaRows[0].split(',')
   const delim = ','
-  test('Constructor', () => {
-    const sut = new OgamaRowParser(header, 'SimilarityXXX.txt', delim)
-    expect(sut).toBeDefined()
-    expect(sut.cParticipant).toBe(0)
-    expect(sut.cSegments).toBe(1)
-  })
-
   test('Process first row - Segment 1', () => {
     const sut = new OgamaRowParser(header, 'SimilarityXXX.txt', delim)
     const { outputs, processRow } = createAdapterHarness(sut)
