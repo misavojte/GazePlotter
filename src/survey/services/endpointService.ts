@@ -250,6 +250,8 @@ export class EndpointService {
 
   /**
    * Persist the provided consent session identifier to localStorage for future visits.
+   * Throws when localStorage rejects the write (quota, privacy mode); the caller
+   * owns user-facing reporting.
    *
    * @param sessionId - The consent session identifier obtained after the participant confirms informed consent.
    */
@@ -259,11 +261,7 @@ export class EndpointService {
       return;
     }
 
-    try {
-      localStorage.setItem(this.LAST_CONSENT_SESSION_ID_KEY, sessionId);
-    } catch (error) {
-      console.error('Failed to persist consent session identifier:', error);
-    }
+    localStorage.setItem(this.LAST_CONSENT_SESSION_ID_KEY, sessionId);
   }
 
   /**

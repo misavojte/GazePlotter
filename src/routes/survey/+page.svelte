@@ -92,9 +92,9 @@
               taskText: completedTask.text,
             },
           })
-          .catch(error => {
-            console.error('Failed to log task fulfillment:', error)
-          })
+          .catch(
+            reportSurveyError('A survey task completion could not be logged.')
+          )
       }
     }
 
@@ -115,10 +115,14 @@
     feedbackValue: '',
   })
 
-  // Initialize endpoint service for logging (only in browser)
-  if (browser) {
-    endpointService.initialize(endpointConfig).catch(error => {
-      console.error('Failed to initialize endpoint service:', error)
+  // Survey logging is fire-and-forget; failures surface through the session's
+  // error service (toast + console detail) instead of dying in the console.
+  const reportSurveyError = (userMessage: string) => (error: unknown) => {
+    gazePlotterRef?.getSession().errorService.report({
+      origin: 'survey',
+      severity: 'recoverable',
+      userMessage,
+      cause: error,
     })
   }
 
@@ -126,6 +130,11 @@
     if (!browser) {
       return
     }
+
+    // In onMount so gazePlotterRef is already bound when a failure lands.
+    endpointService.initialize(endpointConfig).catch(
+      reportSurveyError('Survey logging could not be initialized.')
+    )
 
     const storedSessionId = endpointService.getLastConsentSessionId()
     if (storedSessionId) {
@@ -163,9 +172,7 @@
               skipReason: reason,
             },
           })
-          .catch(error => {
-            console.error('Failed to log task skip:', error)
-          })
+          .catch(reportSurveyError('A survey task skip could not be logged.'))
       }
     }
   }
@@ -200,18 +207,24 @@
                 windowDimensions: window.innerWidth + 'x' + window.innerHeight,
               },
             })
-            .catch(error => {
-              console.error('Failed to log informed consent:', error)
-            })
+            .catch(
+              reportSurveyError('Your consent confirmation could not be logged.')
+            )
         }
 
         // Set consent flag to enable data collection
         hasInformedConsent = true
 
         // Persist the consent session identifier for future visits and hide the banner for this session
-        endpointService.persistLastConsentSessionId(
-          endpointService.getSessionId()
-        )
+        try {
+          endpointService.persistLastConsentSessionId(
+            endpointService.getSessionId()
+          )
+        } catch (error) {
+          reportSurveyError(
+            'The consent session identifier could not be saved on this device.'
+          )(error)
+        }
         previousConsentSessionId = null
         showPreviousConsentBanner = false
 
@@ -323,9 +336,9 @@
                 feedback: surveyResults.feedback,
               },
             })
-            .catch(error => {
-              console.error('Failed to log survey completion:', error)
-            })
+            .catch(
+              reportSurveyError('Your survey answers could not be logged.')
+            )
         }
 
         explorationCondition.set(true) // Manually trigger condition
@@ -370,9 +383,9 @@
           timestamp: Date.now(),
           data: { command: commandSnapshot },
         })
-        .catch(error => {
-          console.error('Failed to log workspace command:', error)
-        })
+        .catch(
+          reportSurveyError('A survey interaction could not be logged.')
+        )
     }
 
     // Prevent any conditions from being set until informed consent is given

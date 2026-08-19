@@ -333,7 +333,9 @@
   })
 </script>
 
-<div class="section-title-row">
+<!-- data-selection-keep: pointerdowns here must not end the editing episode
+     (selectionSession.onOutsideDown). -->
+<div class="section-title-row" data-selection-keep>
   <span class="section-title">{title}</span>
   <div class="title-actions">
     {@render titleExtra?.()}
@@ -377,6 +379,7 @@
 {:else}
   <div
     class="entity-grid"
+    data-selection-keep
     bind:this={gridEl}
     style:--grid-columns={gridTemplate}
   >

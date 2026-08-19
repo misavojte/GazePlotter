@@ -103,7 +103,9 @@
   onpointerdowncapture={session.onOutsideDown}
 />
 
-<div class="tray">
+<!-- data-selection-keep: pointerdowns here must not end the editing episode
+     (selectionSession.onOutsideDown). -->
+<div class="tray" data-selection-keep>
   <div class="panel">
   <div class="status">
     {#if activeChip}

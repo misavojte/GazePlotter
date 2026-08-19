@@ -10,6 +10,7 @@ type ErrorOrigin =
   | 'bootstrap'
   | 'modal'
   | 'plot'
+  | 'survey'
 type ErrorSeverity = 'recoverable' | 'fatal-load'
 
 export type ErrorInput = {

@@ -1,7 +1,14 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest'
+import type { ErrorService } from '../src/lib/errors'
 import { createWorkspaceCommandRegistry } from '../src/lib/workspace/commands/registry'
-import type { WorkspaceCommandChain } from '../src/lib/workspace/commands'
-import type { GridState } from '../src/lib/workspace/grid'
+import { WorkspaceCommandBus } from '../src/lib/workspace/commands/bus'
+import { DataEngine } from '../src/lib/data/engine/dataEngine.svelte'
+import type {
+  WorkspaceCommand,
+  WorkspaceCommandChain,
+} from '../src/lib/workspace/commands'
+import { GridState } from '../src/lib/workspace/grid'
+import { makeDataType, normalizeSegments } from './helpers/dataTypeFixtures'
 import {
   createAoiComparisonGridItem,
   createChainedCommand,
@@ -495,5 +502,296 @@ describe('Workspace Command Reversal', () => {
         ).toBeNull()
       }
     )
+  })
+})
+
+// ============================================================================
+// 4. Undo round-trip through the bus (real engine + real grid)
+// ============================================================================
+// The user contract: apply -> undo restores the workspace exactly. One table
+// row per command type; mergeEntities/unmergeEntities/reconcileMerges have
+// their own round-trips in mergeCommand.test.ts.
+describe('Undo round-trip through the command bus', () => {
+  // Every axis carries a non-empty saved selection and stimulus 0 carries two
+  // event channels, so each command in the table has real state to restore.
+  const makeRoundTripData = () =>
+    makeDataType(
+      [
+        [[[0, 100, 0, 0]], [[0, 50, 0, 0]]],
+        [[[10, 20, 0, 0]], []],
+      ],
+      {
+        capabilities: { segmented: true, spatial: false, event: true },
+        // Fixation's displayed name is locked (categoryUpdaters), so the
+        // updateCategories row renames Saccade instead.
+        categories: {
+          data: [
+            ['Fixation', 'Fixation', '#000000'],
+            ['Saccade', 'Saccade', '#ff00ff'],
+          ],
+          orderVector: [0, 1],
+        },
+        participantsSelections: [{ id: 1, name: 'G', participantsIds: [0, 1] }],
+        stimuliSelections: [{ id: 1, name: 'SG', memberIds: [0] }],
+        categoriesSelections: [{ id: 1, name: 'CG', memberIds: [0] }],
+        eventsSelections: [{ id: 1, name: 'EG', names: ['X'] }],
+        aois: {
+          data: [[['A', 'A', '#ff0000']], [['A', 'A', '#ff0000']]],
+          orderVector: [[0], [0]],
+          selections: [{ id: 1, name: 'AG', names: ['A'] }],
+        },
+        eventData: {
+          data: [
+            [
+              ['X', 'X', '#111111'],
+              ['Y', 'Y', '#222222'],
+            ],
+            [],
+          ],
+          orderVector: [[0, 1], []],
+          events: [[[[10, 0]], [[20, 0]]], []],
+        },
+      }
+    )
+
+  let engine: DataEngine
+  let grid: GridState
+  let ws: WorkspaceCommandBus
+  let report: Mock<ErrorService['report']>
+
+  beforeEach(() => {
+    engine = new DataEngine()
+    engine.loadDataset(makeRoundTripData())
+    grid = new GridState({ getAvailableColumns: () => 24 })
+    grid.items = [createScarfGridItem(), createAoiComparisonGridItem()]
+    report = vi.fn<ErrorService['report']>()
+    ws = new WorkspaceCommandBus({
+      engine,
+      errorService: { report },
+      grid,
+      toastState: { addSuccess: vi.fn() },
+    })
+  })
+
+  // Everything the command set can mutate, minus the transient
+  // redrawTimestamp; items sorted by id because undoing a removal re-appends.
+  const snapshot = () =>
+    JSON.parse(
+      JSON.stringify({
+        data: normalizeSegments(engine.toDataType()!),
+        items: [...grid.items]
+          .sort((a, b) => a.id - b.id)
+          .map(({ redrawTimestamp: _t, ...rest }) => rest),
+      })
+    )
+
+  const source = 'test.roundTrip'
+  const rows: {
+    label: string
+    command: () => WorkspaceCommand
+    mutates?: boolean
+  }[] = [
+    {
+      label: 'updateAois',
+      command: () => ({
+        type: 'updateAois',
+        stimulusId: 0,
+        applyTo: 'this_stimulus',
+        aois: [
+          { id: 0, originalName: 'A', displayedName: 'A renamed', color: '#00ff00' },
+        ],
+        source,
+      }),
+    },
+    {
+      label: 'updateEntities (participant)',
+      command: () => ({
+        type: 'updateEntities',
+        axis: 'participant',
+        items: [
+          { id: 0, originalName: 'P0', displayedName: 'P0 renamed' },
+          { id: 1, originalName: 'P1', displayedName: 'P1' },
+        ],
+        source,
+      }),
+    },
+    {
+      label: 'updateEntities (stimulus)',
+      command: () => ({
+        type: 'updateEntities',
+        axis: 'stimulus',
+        items: [
+          { id: 0, originalName: 'S0', displayedName: 'S0 renamed' },
+          { id: 1, originalName: 'S1', displayedName: 'S1' },
+        ],
+        source,
+      }),
+    },
+    {
+      label: 'updateEventData',
+      command: () => ({
+        type: 'updateEventData',
+        stimulusId: 0,
+        channelDefs: [['Z', 'Z', '#333333']],
+        eventBuffers: [[[5, 0]]],
+        source,
+      }),
+    },
+    {
+      label: 'updateEventChannels (rename + reorder)',
+      command: () => ({
+        type: 'updateEventChannels',
+        stimulusId: 0,
+        channels: [
+          { id: 1, originalName: 'Y', displayedName: 'Y', color: '#222222' },
+          { id: 0, originalName: 'X', displayedName: 'X renamed', color: '#111111' },
+        ],
+        source,
+      }),
+    },
+    {
+      label: 'updateSelections (participant)',
+      command: () => ({
+        type: 'updateSelections',
+        axis: 'participant',
+        selections: [{ id: 1, name: 'G renamed', participantsIds: [0] }],
+        source,
+      }),
+    },
+    {
+      label: 'updateSelections (stimulus)',
+      command: () => ({
+        type: 'updateSelections',
+        axis: 'stimulus',
+        selections: [
+          { id: 1, name: 'SG', memberIds: [0] },
+          { id: 2, name: 'SG2', memberIds: [1] },
+        ],
+        source,
+      }),
+    },
+    {
+      label: 'updateSelections (category, cleared)',
+      command: () => ({
+        type: 'updateSelections',
+        axis: 'category',
+        selections: [],
+        source,
+      }),
+    },
+    {
+      label: 'updateSelections (event)',
+      command: () => ({
+        type: 'updateSelections',
+        axis: 'event',
+        selections: [{ id: 1, name: 'EG', names: ['X', 'Y'] }],
+        source,
+      }),
+    },
+    {
+      label: 'updateSelections (aoi)',
+      command: () => ({
+        type: 'updateSelections',
+        axis: 'aoi',
+        selections: [{ id: 1, name: 'AG renamed', names: ['A'] }],
+        source,
+      }),
+    },
+    {
+      label: 'updateNoAoiTreatment',
+      command: () => ({
+        type: 'updateNoAoiTreatment',
+        noAoiTreatment: { displayedName: 'Background', color: '#123456' },
+        source,
+      }),
+    },
+    {
+      label: 'updateCategories',
+      command: () => ({
+        type: 'updateCategories',
+        categories: [
+          {
+            id: 0,
+            originalName: 'Fixation',
+            displayedName: 'Fixation',
+            color: '#000000',
+          },
+          {
+            id: 1,
+            originalName: 'Saccade',
+            displayedName: 'Saccade renamed',
+            color: '#00ffff',
+          },
+        ],
+        source,
+      }),
+    },
+    {
+      label: 'updateMetricInstances (cleared)',
+      command: () => ({ type: 'updateMetricInstances', instances: [], source }),
+    },
+    {
+      label: 'updateSettings',
+      command: () => ({
+        type: 'updateSettings',
+        updates: [{ itemId: 1, settings: { timeline: 'relative' } }],
+        source,
+      }),
+    },
+    {
+      // Moves item 1 onto item 2, so the chain includes a collision child;
+      // undo must replay the whole chain in reverse.
+      label: 'updateLayout (with collision child)',
+      command: () => ({
+        type: 'updateLayout',
+        updates: [{ itemId: 1, layout: { x: 10, y: 6 } }],
+        source,
+      }),
+    },
+    {
+      label: 'addGridItem',
+      command: () => ({ type: 'addGridItem', vizType: 'scarf', itemId: 77, source }),
+    },
+    {
+      label: 'removeGridItem',
+      command: () => ({ type: 'removeGridItem', itemId: 2, source }),
+    },
+    {
+      label: 'duplicateGridItem',
+      command: () => ({
+        type: 'duplicateGridItem',
+        itemId: 1,
+        duplicateId: 55,
+        source,
+      }),
+    },
+    {
+      label: 'setLayoutState',
+      command: () => ({
+        type: 'setLayoutState',
+        layoutState: grid.items.map(({ redrawTimestamp: _t, ...rest }) => ({
+          ...rest,
+          y: rest.y + 10,
+        })),
+        source,
+      }),
+    },
+    {
+      label: 'noop',
+      command: () => ({ type: 'noop', source }),
+      mutates: false,
+    },
+  ]
+
+  it.each(rows)('$label: undo restores the exact prior state', row => {
+    const before = snapshot()
+
+    expect(ws.apply(row.command())).toBe(true)
+    const after = snapshot()
+    if (row.mutates !== false) expect(after).not.toEqual(before)
+
+    expect(ws.undo()).toBe(true)
+    expect(snapshot()).toEqual(before)
+    expect(report).not.toHaveBeenCalled()
   })
 })
