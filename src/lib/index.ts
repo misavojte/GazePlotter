@@ -13,6 +13,5 @@ export type { DataLoader } from '$lib/data/ingest/types'
 // than replace them (e.g. try native, fall back to the browser picker).
 export { triggerDownload } from '$lib/data/export/download'
 export { openFilesViaBrowser, INGEST_FILE_ACCEPT } from '$lib/data/ingest/openFiles'
-export { DEFAULT_COLORS } from '$lib/designTokens'
 export * from '$lib/workspace/grid'
 export * from '$lib/workspace/commands'

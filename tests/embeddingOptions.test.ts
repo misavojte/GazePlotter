@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createGazePlotterSession } from '$lib/session'
-import { TOKEN_CSS, cssColorVar } from '$lib/designTokens'
+import { cssColorVar } from '$lib/DesignTokens.svelte'
 import { ExportService } from '$lib/data/export'
 import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace'
 import type { GridItemSnapshot } from '$lib/workspace'
@@ -45,14 +45,6 @@ describe('session wiring of embedding options', () => {
 })
 
 describe('design tokens', () => {
-  // Color overrides go through CSSOM (setProperty), never markup, so there
-  // is no injection surface to pin; the token block is a constant.
-  it('the token block carries the built-in palette', () => {
-    expect(TOKEN_CSS).toContain('--c-brand: #cd1404;')
-    expect(TOKEN_CSS).toContain('--c-brand-dark: #a20d03;')
-    expect(TOKEN_CSS).toContain('--c-border: color-mix')
-  })
-
   it('palette keys map to kebab-case custom properties', () => {
     expect(cssColorVar('brandDark')).toBe('--c-brand-dark')
   })

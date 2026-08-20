@@ -13,7 +13,7 @@ import { GridState } from '$lib/workspace/grid/gridState.svelte'
 import { WorkspaceCommandBus } from '$lib/workspace/commands/bus'
 import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace/grid/const'
 import type { GridItemSnapshot } from '$lib/workspace/grid/types'
-import type { GazePlotterColors } from '$lib/designTokens'
+import type { GazePlotterColors } from '$lib/DesignTokens.svelte'
 
 export type { SaveFile, OpenFiles, GazePlotterColors }
 

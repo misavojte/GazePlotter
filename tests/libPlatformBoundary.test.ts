@@ -24,6 +24,17 @@ describe('src/lib platform boundary', () => {
     expect(Object.keys(sources).length).toBeGreaterThan(100)
   })
 
+  it('root-level :global styling exists only in DesignTokens.svelte', () => {
+    // Design tokens are global by definition; that exception is granted to
+    // exactly one file. Descendant-scoped :global(...) is not covered here.
+    const offenders = Object.keys(sources).filter(
+      file =>
+        sources[file].includes(':global(:root') &&
+        file !== '/src/lib/DesignTokens.svelte'
+    )
+    expect(offenders).toEqual([])
+  })
+
   it('never imports the website host', () => {
     const violations: string[] = []
     for (const [file, content] of Object.entries(sources)) {

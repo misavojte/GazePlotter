@@ -140,8 +140,7 @@ Tauri configuration:
 
 - Window `dragDropEnabled: false`, so HTML5 drag-and-drop reaches the
   webview.
-- CSP must allow `blob:` URLs, workers, and inline `<style>` elements (the
-  design-token injection).
+- CSP must allow `blob:` URLs and workers.
 
 The `__APP_VERSION__` build define is optional; without it, the citation
 line and workspace metadata report `unknown`. To set it:
