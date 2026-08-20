@@ -391,8 +391,8 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
   // V3 to V4: Flat to Nested Translation
   if (version === 3) {
     const sourceItems: any[] | undefined = data.gridItems
-    // If no gridItems existed in the source, keep undefined so the parser's
-    // `?? DEFAULT_GRID_STATE_DATA` fallback applies the default layout.
+    // If no gridItems existed in the source, keep undefined so the ingest
+    // apply resolves the session's default layout.
     let migratedItems: any[] | undefined
     if (sourceItems && sourceItems.length > 0) {
       migratedItems = sourceItems.map((item: any) => {

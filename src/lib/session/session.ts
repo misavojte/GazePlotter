@@ -1,14 +1,45 @@
 import { getContext, hasContext, setContext } from 'svelte'
 import { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import { ExportService } from '$lib/data/export'
+import { ExportService, triggerDownload, type SaveFile } from '$lib/data/export'
 import { ErrorService } from '$lib/errors'
-import { IngestService } from '$lib/data/ingest'
+import {
+  IngestService,
+  openFilesViaBrowser,
+  type OpenFiles,
+} from '$lib/data/ingest'
 import { ModalState } from '$lib/modals/modalState.svelte'
 import { ToastState } from '$lib/toaster/toastState.svelte'
 import { GridState } from '$lib/workspace/grid/gridState.svelte'
 import { WorkspaceCommandBus } from '$lib/workspace/commands/bus'
+import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace/grid/const'
+import type { GridItemSnapshot } from '$lib/workspace/grid/types'
+import type { GazePlotterColors } from '$lib/designTokens'
+
+export type { SaveFile, OpenFiles, GazePlotterColors }
 
 const GAZEPLOTTER_SESSION_CONTEXT = Symbol.for('gazeplotter-session')
+
+/**
+ * The host embedding contract: every host need is one optional field, every
+ * default preserves the web behavior. The session resolves each field into
+ * the service that owns it; `colors` is UI-only, consumed by the
+ * `<GazePlotter>` token render.
+ */
+export type GazePlotterOptions = {
+  /**
+   * Layout for datasets that carry none (fresh parses, empty workspace);
+   * workspace files keep their saved layout, event-only data the event
+   * layout. Omitted snapshot fields get per-plot defaults.
+   */
+  defaultLayout?: GridItemSnapshot[]
+  /** Delivers one export file. Default: anchor + blob browser download. */
+  saveFile?: SaveFile
+  /** What the upload affordances open. Default: browser file picker. */
+  openFiles?: OpenFiles
+  /** Palette overrides; unset keys keep the builtin. Unlike the other
+   *  fields, applied reactively. See {@link GazePlotterColors}. */
+  colors?: GazePlotterColors
+}
 
 export type GazePlotterSession = {
   engine: DataEngine
@@ -21,7 +52,9 @@ export type GazePlotterSession = {
   toastState: ToastState
 }
 
-export function createGazePlotterSession(): GazePlotterSession {
+export function createGazePlotterSession(
+  options: GazePlotterOptions = {}
+): GazePlotterSession {
   const engine = new DataEngine()
   const grid = new GridState()
   const modalState = new ModalState()
@@ -40,6 +73,8 @@ export function createGazePlotterSession(): GazePlotterSession {
     modalState,
     toastState,
     resetWorkspaceHistory: () => workspace.clearHistory(),
+    defaultLayout: options.defaultLayout ?? DEFAULT_GRID_STATE_DATA,
+    openFiles: options.openFiles ?? openFilesViaBrowser,
   })
 
   return {
@@ -51,6 +86,7 @@ export function createGazePlotterSession(): GazePlotterSession {
       grid,
       ingest,
       toastState,
+      saveFile: options.saveFile ?? triggerDownload,
     }),
     ingest,
     grid,

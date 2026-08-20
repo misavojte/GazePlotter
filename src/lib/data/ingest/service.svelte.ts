@@ -21,7 +21,9 @@ import { getStimulusHighestEndTime } from '$lib/data/engine'
 import { isArchiveFileName } from './formats/routing'
 import { INGEST_PROMPTS } from './prompts'
 import type { IngestResult } from './kernel/result'
-import { DEFAULT_GRID_STATE_DATA, EVENT_ONLY_GRID_STATE_DATA } from '$lib/workspace'
+import { EVENT_ONLY_GRID_STATE_DATA } from '$lib/workspace'
+import { GAZEPLOTTER_VERSION } from '$lib/version'
+import type { OpenFiles } from './openFiles'
 import type { ErrorService } from '$lib/errors'
 import { formatDuration } from '$lib/shared/utils/timeUtils'
 import { formatFileSize } from '$lib/shared/utils/fileUtils'
@@ -55,6 +57,9 @@ type IngestDependencies = {
   modalState: ModalState
   toastState: ToastState
   resetWorkspaceHistory: () => void
+  /** Session-resolved embedding options (see PLANDESKTOP.md). */
+  defaultLayout: GridItemSnapshot[]
+  openFiles: OpenFiles
 }
 
 /** Fresh empty dataset per load. The engine takes ownership of what it loads
@@ -427,7 +432,7 @@ class IngestWorkerClient {
       parseSettings: classified,
       parseDate: new Date().toISOString(),
       parseDuration,
-      gazePlotterVersion: __APP_VERSION__,
+      gazePlotterVersion: GAZEPLOTTER_VERSION,
       clientUserAgent: navigator.userAgent,
     }
     const timeString = formatDuration(parseDuration)
@@ -441,7 +446,6 @@ class IngestWorkerClient {
       data,
       fileMetadata,
       version: 4,
-      gridItems: DEFAULT_GRID_STATE_DATA,
       current: {
         fileNames: this.fileNames,
         fileSizes: this.fileSizes,
@@ -535,7 +539,7 @@ class IngestWorkerClient {
       debugMessage: record.debugMessage,
       stack: record.stack,
       attemptedParseDuration,
-      gazePlotterVersion: __APP_VERSION__,
+      gazePlotterVersion: GAZEPLOTTER_VERSION,
       clientUserAgent: navigator.userAgent,
     } satisfies FileMetadataFailureType
 
@@ -599,6 +603,13 @@ export class IngestService {
   isLoading = $derived(this.status === 'loading')
 
   constructor(private readonly deps: IngestDependencies) {}
+
+  /** Open the host's file source (`openFiles` option) and load a non-empty
+   *  pick; `[]` means cancelled. */
+  async openAndLoadFiles(): Promise<boolean> {
+    const files = await this.deps.openFiles()
+    return files.length > 0 ? this.loadFiles(files) : false
+  }
 
   async loadFiles(files: FileList | readonly File[]): Promise<boolean> {
     if (files.length === 0) return false
@@ -707,7 +718,7 @@ export class IngestService {
     this.metadata = null
     this.input = null
     this.deps.engine.loadDataset(createEmptyDataset())
-    this.deps.grid.reset(DEFAULT_GRID_STATE_DATA as GridItemSnapshot[])
+    this.deps.grid.reset(this.deps.defaultLayout)
     this.deps.resetWorkspaceHistory()
     this.explicitStatus = 'ready'
   }
@@ -722,9 +733,7 @@ export class IngestService {
     // merge log; re-derive the merged working view here. No-op (same object)
     // when nothing was merged, so fresh imports are unaffected.
     this.deps.engine.loadDataset(foldMerges(parsedData.data))
-    this.deps.grid.reset(
-      (parsedData.gridItems ?? DEFAULT_GRID_STATE_DATA) as GridItemSnapshot[]
-    )
+    this.deps.grid.reset(parsedData.gridItems ?? this.deps.defaultLayout)
     this.deps.resetWorkspaceHistory()
     this.explicitStatus = 'ready'
   }

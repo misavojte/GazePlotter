@@ -1,6 +1,7 @@
 <script lang="ts">
   import { Toaster } from '$lib/toaster'
   import { Modal } from '$lib/modals'
+  import DesignTokens from '$lib/DesignTokens.svelte'
   import Workspace from '$lib/workspace/Workspace.svelte'
   import { Tooltip } from '$lib/tooltip'
   import { ContextMenu } from '$lib/context-menu'
@@ -8,6 +9,7 @@
   import {
     createGazePlotterSession,
     setGazePlotterSessionContext,
+    type GazePlotterOptions,
   } from '$lib/session'
 
   import type { GridItemSnapshot } from '$lib/workspace'
@@ -26,12 +28,15 @@
      * `<GazePlotter>` in `{#key value}` to remount.
      */
     load: DataLoader
+    /** Read once on mount; see {@link GazePlotterOptions}. */
+    options?: GazePlotterOptions
     onWorkspaceCommandChain?: (command: WorkspaceCommandChain) => void
   }
 
-  const { load, onWorkspaceCommandChain = () => {} }: Props = $props()
+  const { load, options, onWorkspaceCommandChain = () => {} }: Props = $props()
 
-  const session = setGazePlotterSessionContext(createGazePlotterSession())
+  // svelte-ignore state_referenced_locally -- read once by design (see prop doc)
+  const session = setGazePlotterSessionContext(createGazePlotterSession(options))
   const { errorService, ingest } = session
 
   let initialGridItemsSnapshot = $state<GridItemSnapshot[] | null>(null)
@@ -102,6 +107,8 @@
     return session
   }
 </script>
+
+<DesignTokens colors={options?.colors} />
 
 <div id="GP-gazeplotter">
   <Workspace

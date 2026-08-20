@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte'
+  import { GAZEPLOTTER_VERSION } from '$lib/version'
   import ArrowLeft from 'lucide-svelte/icons/arrow-left'
   import Button from '$lib/shared/components/Button.svelte'
   import type { ModalStackEntry } from '$lib/modals/modalState.svelte'
@@ -290,7 +291,7 @@
             {:else if isActive && showVersionMessage}
               <div class="footer-content">
                 <span
-                  >GazePlotter {__APP_VERSION__} by Vojtechovska & Popelka,
+                  >GazePlotter {GAZEPLOTTER_VERSION} by Vojtechovska & Popelka,
                   2025</span
                 >
               </div>

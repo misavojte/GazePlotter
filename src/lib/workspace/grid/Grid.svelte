@@ -142,7 +142,7 @@
 
 <div
   class="grid-container"
-  class:pointer-events-none={interaction.isInteracting}
+  class:is-interacting={interaction.isInteracting}
   class:is-panning={interaction.isPanning}
   style="width: {gridWidth}px; height: {gridHeight}px;"
   role="application"
@@ -226,6 +226,10 @@
 
 
 <style>
+  .grid-container.is-interacting {
+    pointer-events: none;
+  }
+
   .grid-container.is-panning {
     cursor: grabbing;
   }

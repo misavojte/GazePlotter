@@ -11,26 +11,28 @@ import {
   generateEventBatchCsv,
 } from './mappers/events'
 import { Archiver } from './encoders/zip'
-import { triggerDownload } from './download'
 import { generateScanGraph } from './mappers/scangraph'
 import { generateWorkspaceJson } from './mappers/workspace'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { AllGridTypes } from '$lib/workspace'
 import type { FileMetadataType } from '$lib/data/ingest/types'
 
+/** What a build produces. Delivery is the ExportService's job, through the
+ *  session's `saveFile` embedding option. */
+export type ExportPayload = { content: string | Blob; extension: string }
+
 /**
- * Downloads a unified CSV of all gaze segments.
+ * Builds a unified CSV of all gaze segments.
  */
-export async function downloadUnifiedCsv(
+export async function buildUnifiedCsv(
   data: DataType,
-  fileName: string,
   stimulusIds?: Set<string>,
   participantIds?: Set<string>,
   filterCategoryIds?: Set<number> | boolean,
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed',
   onProgress?: ExportProgress
-): Promise<void> {
+): Promise<ExportPayload> {
   await reportProgress(onProgress, 0, 100, 'Preparing data...')
   const csv = generateUnifiedCsv(
     data,
@@ -40,8 +42,7 @@ export async function downloadUnifiedCsv(
     options,
     naming
   )
-  await reportProgress(onProgress, 100, 100, 'Downloading...')
-  triggerDownload(csv, fileName, '.csv')
+  return { content: csv, extension: '.csv' }
 }
 
 /**
@@ -68,9 +69,10 @@ async function archiveBatch(
 }
 
 /**
- * Downloads a ZIP containing individual CSVs for each participant/stimulus.
+ * Builds a ZIP of individual per-participant/stimulus CSVs. `fileName` names
+ * the zip entries, not the delivered file.
  */
-export async function downloadBatchZip(
+export async function buildBatchZip(
   data: DataType,
   fileName: string,
   stimulusIds?: Set<string>,
@@ -79,7 +81,7 @@ export async function downloadBatchZip(
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed',
   onProgress?: ExportProgress
-): Promise<void> {
+): Promise<ExportPayload> {
   await reportProgress(onProgress, 0, 100, 'Generating individual CSV files...')
   const batch = generateMetadataForBatchCsv(
     data,
@@ -90,31 +92,30 @@ export async function downloadBatchZip(
     naming
   )
   const blob = await archiveBatch(batch, fileName, onProgress)
-  triggerDownload(blob, fileName, '.zip')
+  return { content: blob, extension: '.zip' }
 }
 
 /**
- * Downloads a unified CSV of all event occurrences.
+ * Builds a unified CSV of all event occurrences.
  */
-export async function downloadEventUnifiedCsv(
+export async function buildEventUnifiedCsv(
   data: DataType,
-  fileName: string,
   stimulusIds?: Set<string>,
   participantIds?: Set<string>,
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed',
   onProgress?: ExportProgress
-): Promise<void> {
+): Promise<ExportPayload> {
   await reportProgress(onProgress, 0, 100, 'Preparing event data...')
   const csv = generateEventUnifiedCsv(data, stimulusIds, participantIds, options, naming)
-  await reportProgress(onProgress, 100, 100, 'Downloading...')
-  triggerDownload(csv, fileName, '.csv')
+  return { content: csv, extension: '.csv' }
 }
 
 /**
- * Downloads a ZIP of per-participant/stimulus event CSVs.
+ * Builds a ZIP of per-participant/stimulus event CSVs. `fileName` names the
+ * zip entries, not the delivered file.
  */
-export async function downloadEventBatchZip(
+export async function buildEventBatchZip(
   data: DataType,
   fileName: string,
   stimulusIds?: Set<string>,
@@ -122,35 +123,37 @@ export async function downloadEventBatchZip(
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed',
   onProgress?: ExportProgress
-): Promise<void> {
+): Promise<ExportPayload> {
   await reportProgress(onProgress, 0, 100, 'Generating individual event CSV files...')
   const batch = generateEventBatchCsv(data, stimulusIds, participantIds, options, naming)
   const blob = await archiveBatch(batch, fileName, onProgress)
-  triggerDownload(blob, fileName, '.zip')
+  return { content: blob, extension: '.zip' }
 }
 
 /**
- * Downloads a ScanGraph TXT file for a specific stimulus.
+ * Builds a ScanGraph TXT file for a specific stimulus.
  */
-export async function downloadScanGraph(
+export function buildScanGraph(
   engine: DataEngine,
   stimulusId: number,
-  fileName: string,
   collapsed: boolean
-): Promise<void> {
-  const content = generateScanGraph(engine, stimulusId, collapsed)
-  triggerDownload(content, fileName, '.txt')
+): ExportPayload {
+  return {
+    content: generateScanGraph(engine, stimulusId, collapsed),
+    extension: '.txt',
+  }
 }
 
 /**
- * High-level action to download the entire workspace state as JSON.
+ * Builds the entire workspace state as JSON.
  */
-export function downloadWorkspace(
+export function buildWorkspace(
   data: DataType,
-  fileName: string,
   layoutState: AllGridTypes[],
   metadata: FileMetadataType | null
-): void {
-  const json = generateWorkspaceJson(data, layoutState, metadata)
-  triggerDownload(json, fileName, '.json')
+): ExportPayload {
+  return {
+    content: generateWorkspaceJson(data, layoutState, metadata),
+    extension: '.json',
+  }
 }

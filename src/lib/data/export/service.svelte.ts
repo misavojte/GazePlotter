@@ -5,12 +5,13 @@ import type { GridState } from '$lib/workspace/grid/gridState.svelte'
 import type { IngestService } from '$lib/data/ingest'
 import type { ToastState } from '$lib/toaster/toastState.svelte'
 import {
-  downloadBatchZip,
-  downloadEventBatchZip,
-  downloadEventUnifiedCsv,
-  downloadScanGraph,
-  downloadUnifiedCsv,
-  downloadWorkspace,
+  buildBatchZip,
+  buildEventBatchZip,
+  buildEventUnifiedCsv,
+  buildScanGraph,
+  buildUnifiedCsv,
+  buildWorkspace,
+  type ExportPayload,
 } from './controller'
 import type { CsvFormatOptions } from './encoders/csv'
 import { unfoldMerges } from '$lib/data/merge/applyMerges'
@@ -19,7 +20,8 @@ import {
   type MetricDataExportOptions,
   generateMetricExport,
 } from './mappers/metrics'
-import { triggerDownload } from './download'
+import type { SaveFile } from './download'
+import type { ExportProgress } from './progress'
 
 type ExportServiceDeps = {
   engine: DataEngine
@@ -27,6 +29,8 @@ type ExportServiceDeps = {
   grid: GridState
   ingest: IngestService
   toastState: Pick<ToastState, 'addSuccess'>
+  /** Session-resolved `saveFile` embedding option (web: anchor download). */
+  saveFile: SaveFile
 }
 
 export type WorkspaceExportOptions = {
@@ -70,6 +74,11 @@ export type FigureBatchExportOptions = {
 export class ExportService {
   progress = $state<{ position: number; total: number; name: string } | null>(null)
 
+  /** Progress sink handed to the builders. */
+  private readonly track: ExportProgress = (position, total, name) => {
+    this.progress = { position, total, name }
+  }
+
   constructor(private readonly deps: ExportServiceDeps) {}
 
   private getExportData(): DataType {
@@ -88,6 +97,15 @@ export class ExportService {
         events: this.deps.engine.getEventBuffersJson(),
       },
     }
+  }
+
+  /** Single delivery point: applies the extension-join policy, then hands
+   *  the payload to the host's saveFile. */
+  private deliver({ content, extension }: ExportPayload, fileName: string): void {
+    const finalName = fileName.endsWith(extension)
+      ? fileName
+      : fileName + extension
+    this.deps.saveFile(content, finalName, extension)
   }
 
   private resolveFileName(fileName: string): string {
@@ -132,11 +150,13 @@ export class ExportService {
       // Original-on-disk (PLANMERGE §4): persist the pristine pre-merge data +
       // the merge log, not the folded working view. `unfoldMerges` is a no-op
       // when nothing is merged. The merged view is re-derived on load.
-      downloadWorkspace(
-        unfoldMerges(this.getExportData()),
-        this.resolveFileName(options.fileName),
-        this.deps.grid.items,
-        this.deps.ingest.metadata
+      this.deliver(
+        buildWorkspace(
+          unfoldMerges(this.getExportData()),
+          this.deps.grid.items,
+          this.deps.ingest.metadata
+        ),
+        this.resolveFileName(options.fileName)
       )
     }, 'Workspace exported successfully', {
       exportType: 'workspace',
@@ -144,51 +164,45 @@ export class ExportService {
     })
   }
 
-  async exportSegmentedData(options: SegmentedExportOptions): Promise<boolean> {
-    return this.runExport(async () => {
-      if (options.stimulusIds.size === 0) {
-        throw new Error('Select at least one stimulus to export')
-      }
-      if (options.participantIds.size === 0) {
-        throw new Error('Select at least one participant to export')
-      }
-
-      const data = this.getExportData()
-      const fileName = this.resolveFileName(options.fileName)
-      const naming = options.naming ?? 'displayed'
-
-      if (options.exportType === 'csv') {
-        await downloadUnifiedCsv(
-          data,
-          fileName,
-          options.stimulusIds,
-          options.participantIds,
-          options.filterCategoryIds,
-          options.csvOptions,
-          naming,
-          (position, total, name) => {
-            this.progress = { position, total, name }
-          }
-        )
-        return
-      }
-
-      await downloadBatchZip(
-        data,
-        fileName,
-        options.stimulusIds,
-        options.participantIds,
-        options.filterCategoryIds,
-        options.csvOptions,
-        naming,
-        (position, total, name) => {
-          this.progress = { position, total, name }
+  /** Shared shell of the two tabular exports: selection guards, naming,
+   *  build, deliver. */
+  private exportCsvOrZip(
+    options: Pick<
+      SegmentedExportOptions,
+      'fileName' | 'exportType' | 'stimulusIds' | 'participantIds' | 'naming'
+    >,
+    context: Record<string, unknown>,
+    build: (
+      data: DataType,
+      fileName: string,
+      naming: ExportNaming
+    ) => Promise<ExportPayload>
+  ): Promise<boolean> {
+    return this.runExport(
+      async () => {
+        if (options.stimulusIds.size === 0) {
+          throw new Error('Select at least one stimulus to export')
         }
-      )
-    },
+        if (options.participantIds.size === 0) {
+          throw new Error('Select at least one participant to export')
+        }
+        const data = this.getExportData()
+        const fileName = this.resolveFileName(options.fileName)
+        this.deliver(
+          await build(data, fileName, options.naming ?? 'displayed'),
+          fileName
+        )
+      },
       options.exportType === 'csv'
         ? 'Single CSV file exported successfully'
         : 'Individual CSV files exported and zipped successfully',
+      context
+    )
+  }
+
+  async exportSegmentedData(options: SegmentedExportOptions): Promise<boolean> {
+    return this.exportCsvOrZip(
+      options,
       {
         exportType: options.exportType,
         fileName: options.fileName,
@@ -198,72 +212,70 @@ export class ExportService {
           ? Array.from(options.filterCategoryIds)
           : undefined,
         naming: options.naming ?? 'displayed',
-      }
+      },
+      (data, fileName, naming) =>
+        options.exportType === 'csv'
+          ? buildUnifiedCsv(
+              data,
+              options.stimulusIds,
+              options.participantIds,
+              options.filterCategoryIds,
+              options.csvOptions,
+              naming,
+              this.track
+            )
+          : buildBatchZip(
+              data,
+              fileName,
+              options.stimulusIds,
+              options.participantIds,
+              options.filterCategoryIds,
+              options.csvOptions,
+              naming,
+              this.track
+            )
     )
   }
 
   async exportEventData(options: EventExportOptions): Promise<boolean> {
-    return this.runExport(async () => {
-      if (options.stimulusIds.size === 0) {
-        throw new Error('Select at least one stimulus to export')
-      }
-      if (options.participantIds.size === 0) {
-        throw new Error('Select at least one participant to export')
-      }
-
-      const data = this.getExportData()
-      const fileName = this.resolveFileName(options.fileName)
-      const naming = options.naming ?? 'displayed'
-
-      if (options.exportType === 'csv') {
-        await downloadEventUnifiedCsv(
-          data,
-          fileName,
-          options.stimulusIds,
-          options.participantIds,
-          options.csvOptions,
-          naming,
-          (position, total, name) => {
-            this.progress = { position, total, name }
-          }
-        )
-        return
-      }
-
-      await downloadEventBatchZip(
-        data,
-        fileName,
-        options.stimulusIds,
-        options.participantIds,
-        options.csvOptions,
-        naming,
-        (position, total, name) => {
-          this.progress = { position, total, name }
-        }
-      )
-    },
-      options.exportType === 'csv'
-        ? 'Single CSV file exported successfully'
-        : 'Individual CSV files exported and zipped successfully',
+    return this.exportCsvOrZip(
+      options,
       {
         exportType: options.exportType,
         fileName: options.fileName,
         stimulusCount: options.stimulusIds.size,
         participantCount: options.participantIds.size,
         naming: options.naming ?? 'displayed',
-      }
+      },
+      (data, fileName, naming) =>
+        options.exportType === 'csv'
+          ? buildEventUnifiedCsv(
+              data,
+              options.stimulusIds,
+              options.participantIds,
+              options.csvOptions,
+              naming,
+              this.track
+            )
+          : buildEventBatchZip(
+              data,
+              fileName,
+              options.stimulusIds,
+              options.participantIds,
+              options.csvOptions,
+              naming,
+              this.track
+            )
     )
   }
 
   async exportScangraph(options: ScangraphExportOptions): Promise<boolean> {
     return this.runExport(
       () =>
-          downloadScanGraph(
-            this.deps.engine,
-            options.stimulusId,
-            this.resolveFileName(options.fileName),
-            options.collapsed
-          ),
+        this.deliver(
+          buildScanGraph(this.deps.engine, options.stimulusId, options.collapsed),
+          this.resolveFileName(options.fileName)
+        ),
       'ScanGraph file exported successfully',
       {
         exportType: 'scangraph',
@@ -273,9 +285,9 @@ export class ExportService {
     )
   }
 
-  /** Download pre-rendered figure images: a single requested figure as a bare
+  /** Deliver pre-rendered figure images: a single requested figure as a bare
    *  image, several bundled into one ZIP. Rendering happens in the modal
-   *  (figures are live Svelte components); this owns the packaging, download,
+   *  (figures are live Svelte components); this owns the packaging, delivery,
    *  and user acknowledgement. */
   async exportFigures(options: FigureBatchExportOptions): Promise<boolean> {
     return this.runExport(
@@ -288,7 +300,7 @@ export class ExportService {
         if (options.requestedCount === 1) {
           const file = options.files[0]
           const extension = file.name.slice(file.name.lastIndexOf('.'))
-          triggerDownload(file.content, fileName, extension)
+          this.deliver({ content: file.content, extension }, fileName)
           return
         }
 
@@ -298,7 +310,7 @@ export class ExportService {
           archiver.addFile(file.name, file.content)
         }
         const zipBlob = await archiver.generateBlob()
-        triggerDownload(zipBlob, fileName, '.zip')
+        this.deliver({ content: zipBlob, extension: '.zip' }, fileName)
       },
       () => {
         const count = options.files.length
@@ -312,6 +324,23 @@ export class ExportService {
         figureCount: options.files.length,
         requestedCount: options.requestedCount,
       }
+    )
+  }
+
+  /** Deliver a report a modal assembles; `buildContent` runs inside the
+   *  export shell so its failures report like every other export. */
+  async exportMetadataReport(options: {
+    fileName: string
+    buildContent: () => string
+  }): Promise<boolean> {
+    return this.runExport(
+      () =>
+        this.deliver(
+          { content: options.buildContent(), extension: '.csv' },
+          this.resolveFileName(options.fileName)
+        ),
+      'Metadata report exported successfully',
+      { exportType: 'metadata-report', fileName: options.fileName }
     )
   }
 
@@ -337,9 +366,7 @@ export class ExportService {
           ...options,
           fileName,
         },
-        (position, total, name) => {
-          this.progress = { position, total, name }
-        }
+        this.track
       )
       exportedRows = result.rows
 
@@ -349,9 +376,9 @@ export class ExportService {
         archiver.addFile(`${fileName}.csv`, result.dataContent)
         archiver.addFile(`${fileName}-codebook.csv`, result.codebookContent)
         const zipBlob = await archiver.generateBlob()
-        triggerDownload(zipBlob, fileName, '.zip')
+        this.deliver({ content: zipBlob, extension: '.zip' }, fileName)
       } else {
-        triggerDownload(result.dataContent, fileName, '.csv')
+        this.deliver({ content: result.dataContent, extension: '.csv' }, fileName)
       }
     },
       () => {

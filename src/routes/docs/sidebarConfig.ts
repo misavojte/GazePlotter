@@ -339,6 +339,12 @@ export const SIDEBAR: readonly SidebarItem[] = [
         href: '/docs/advanced/download-gazeplotter',
         description: 'Install GazePlotter locally as a Progressive Web App (PWA) on Windows, macOS, Linux, or mobile for secure, offline analysis.'
       },
+      {
+        name: 'Embedding GazePlotter',
+        href: '/docs/advanced/embedding',
+        seoTitle: 'Embed Eye-Tracking Plots in Your App',
+        description: 'Embed the GazePlotter workspace as a Svelte component in your own application: Tauri or Electron desktop shells, web apps, or eye-tracking software. Covers data loading, save and open hooks, layout, and theming.'
+      },
     ],
   },
 ]

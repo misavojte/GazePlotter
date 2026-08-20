@@ -11,30 +11,23 @@ export function sanitizeFileName(name: string): string {
   return cleaned.length > 0 ? cleaned : 'untitled'
 }
 
-/**
- * Trigger a browser download of a blob or string content.
- */
-export function triggerDownload(
+/** The `saveFile` embedding option: put these bytes at that name. `fileName`
+ *  arrives with the extension already applied (ExportService.deliver owns
+ *  that policy); `extension` is passed separately for save-dialog filters. */
+export type SaveFile = (
   content: string | Blob,
   fileName: string,
   extension: string
-): void {
+) => void
+
+/**
+ * Web default for `saveFile`: an anchor + blob browser download.
+ */
+export const triggerDownload: SaveFile = (content, fileName, extension) => {
   const finalFileName = fileName.endsWith(extension)
     ? fileName
     : fileName + extension
 
-  // If content is already a blob URL string, just use it
-  if (typeof content === 'string' && content.startsWith('blob:')) {
-    const link = document.createElement('a')
-    link.href = content
-    link.download = finalFileName
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    return
-  }
-
-  // Create a blob from string or use existing blob
   const blob =
     typeof content === 'string'
       ? new Blob([content], { type: 'text/plain' })

@@ -73,6 +73,8 @@ export function createIngestDeps() {
       addWarning: vi.fn(),
     },
     resetWorkspaceHistory: vi.fn(),
+    defaultLayout: [{ type: 'scarf', x: 0, y: 0 }],
+    openFiles: vi.fn(async () => []),
   }
 
   return { deps, report }

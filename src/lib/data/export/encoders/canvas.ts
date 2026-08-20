@@ -1,5 +1,3 @@
-import { triggerDownload } from '../download'
-
 export type ExportFileType = '.png' | '.jpg'
 
 type CanvasExportSource = {

@@ -8,7 +8,6 @@ import type {
 } from '$lib/workspace'
 import { DEFAULT_GRID_CONFIG } from './const'
 import type { GridConfig, GridItemPosition } from './types'
-import { DEFAULT_GRID_STATE_DATA } from './const'
 import * as GridEngine from './engine'
 import { createGridItem, duplicateGridItem } from './itemFactory'
 import { calculateViewportGridColumns } from './sizing'
@@ -262,7 +261,7 @@ export class GridState {
     }
   }
 
-  reset(layout: GridItemSnapshot[] = DEFAULT_GRID_STATE_DATA) {
+  reset(layout: GridItemSnapshot[]) {
     // Build all items locally first to avoid intermediate reactive updates.
     // Previously, `this.items = []` followed by N `push()` calls caused N+1
     // reactive updates with partial/empty arrays, crashing downstream components

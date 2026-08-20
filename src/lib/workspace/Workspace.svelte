@@ -35,18 +35,9 @@
   const { onWorkspaceCommandChain, initialLayoutState = null }: Props = $props()
   const { ingest, grid, workspace, modalState } = getGazePlotterSession()
 
-  // Single upload owner for the workspace: the drag-drop handler below and the
-  // click entry points (ribbon item, empty-state button) all feed ingest here.
-  let fileUploadInput = $state<HTMLInputElement>()
-
-  const handleFileUpload = async (e: Event) => {
-    const files = (e.target as HTMLInputElement).files
-    if (!(files instanceof FileList) || files.length === 0) return
-    await ingest.loadFiles(files)
-    if (fileUploadInput) fileUploadInput.value = ''
-  }
-
-  const triggerUpload = () => fileUploadInput?.click()
+  // Single upload owner: the drag-drop handler below and the click entry
+  // points (ribbon item, empty-state button) all feed ingest.
+  const triggerUpload = () => ingest.openAndLoadFiles()
 
   function handleWorkspaceBackgroundClick(event: MouseEvent): void {
     // Clicking anywhere in the workspace that isn't a grid item deselects
@@ -223,14 +214,6 @@
 {/snippet}
 
 <div class="workspace-wrapper" style={styleProps} use:wheelZoomAction={zoom}>
-  <input
-    type="file"
-    multiple
-    accept=".csv,.txt,.tsv,.json,.zip,.xml"
-    onchange={handleFileUpload}
-    bind:this={fileUploadInput}
-    hidden
-  />
   <Ribbon onUpload={triggerUpload} />
 
   <div class="workspace-body" class:mobile={responsive.isMobile}>
