@@ -47,7 +47,7 @@
   } from '$lib/metrics'
   import { multiSelectMetricHandlers } from '$lib/plots/shared/metricInstanceHandlers'
 
-  interface Props {
+  export interface Props {
     /** Prefill: preselect this participant group's members. */
     groupId?: number
     stimulusId?: number

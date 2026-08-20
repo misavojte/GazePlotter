@@ -27,7 +27,7 @@
   import { referencedSelectionIds } from '../shared/selectionAdapters'
   import type { NameSelection } from '$lib/data/types'
 
-  interface Props {
+  export interface Props {
     selectedStimulus?: string
     source: string
   }

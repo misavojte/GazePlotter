@@ -25,7 +25,7 @@
   } from '../shared/nameKeyedSelection'
   import { referencedSelectionIds } from '../shared/selectionAdapters'
 
-  interface Props {
+  export interface Props {
     selectedStimulus?: string
     source: string
   }

@@ -45,7 +45,7 @@
    * preseeded selection (plot pane: that plot; bulk pane: the selection;
    * export hub: everything).
    */
-  interface Props {
+  export interface Props {
     /** Prefill: preselect these grid items. Read once by design. */
     itemIds?: number[]
   }

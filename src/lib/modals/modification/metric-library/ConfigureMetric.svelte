@@ -35,7 +35,7 @@
   import { getAois } from '$lib/data/engine'
   import type { CreateInstanceHandler } from '$lib/plots/shared/metricInstanceHandlers'
 
-  interface Props {
+  export interface Props {
     contract: PlotMetricContract
     selectedMetricId?: string // Present in Create Mode
     editMetricId?: string // Present in Edit Mode

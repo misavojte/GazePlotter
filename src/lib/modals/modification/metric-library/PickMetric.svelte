@@ -12,7 +12,7 @@
   import MetricPickCard from './MetricPickCard.svelte'
   import { configureMetricModal } from './definition-steps'
 
-  interface Props {
+  export interface Props {
     contract: PlotMetricContract
     oncreateInstance?: CreateInstanceHandler
   }

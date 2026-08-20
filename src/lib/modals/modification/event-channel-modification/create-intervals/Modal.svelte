@@ -20,7 +20,7 @@
     rowIncludable,
   } from './drafts'
 
-  interface Props {
+  export interface Props {
     source: string
   }
 

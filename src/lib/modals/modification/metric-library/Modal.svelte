@@ -24,7 +24,7 @@
   import type { CreateInstanceHandler } from '$lib/plots/shared/metricInstanceHandlers'
   import { pickMetricModal, configureMetricModal } from './definition-steps'
 
-  interface Props {
+  export interface Props {
     contract: PlotMetricContract
     editMetricId?: string
     oncreateInstance?: CreateInstanceHandler
