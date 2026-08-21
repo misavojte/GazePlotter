@@ -790,7 +790,6 @@
     if (participantIdx === null) {
       // Overlay with no window under the cursor — track the ms line, no tooltip.
       return {
-        tooltipId: 'evolving-metrics-tooltip',
         content: [],
         anchorX: mx,
         anchorY: my,
@@ -803,7 +802,6 @@
     const participant = data.participants[participantIdx]
     const w = findWindowAt(participant.windows, t)
     return {
-      tooltipId: 'evolving-metrics-tooltip',
       content: [
         { key: 'Participant', value: participant.label },
         // The WINDOW, so the number matches the band drawn behind the pointer —

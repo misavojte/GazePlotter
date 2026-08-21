@@ -136,7 +136,6 @@
     // so "the pointer is in here" is the whole publishable fact. The payload is a
     // STABLE `true`, so the harness sees no hover change and schedules no repaint.
     hitTest: (): FrameHit<boolean> => ({
-      tooltipId: 'scanpath-cursor',
       content: [],
       anchorX: 0,
       anchorY: 0,

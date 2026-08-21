@@ -146,7 +146,6 @@
   // track-only hit with STABLE identity keeps the cursor published and repaints
   // nothing. `row: -1` marks it, so the local crosshair skips it.
   const MASKED_HIT: FrameHit<{ row: number; col: number }> = {
-    tooltipId: 'recurrence-tooltip',
     content: [],
     anchorX: 0,
     anchorY: 0,
@@ -223,7 +222,6 @@
       }
       const cellSize = frame.width / N
       return {
-        tooltipId: 'recurrence-tooltip',
         content,
         anchorX: frame.x + (cell.col + 1) * cellSize,
         anchorY: frame.y + (N - 1 - cell.row) * cellSize + cellSize / 2,

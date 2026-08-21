@@ -420,7 +420,6 @@
     }
 
     return {
-      tooltipId: 'beeswarm-crosshair',
       content,
       anchorX: x,
       anchorY: y,

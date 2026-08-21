@@ -2,11 +2,8 @@
   import { getMenuSize } from './layout'
   import { adjustForViewport } from '$lib/shared/placement'
   import { MENU_WIDTH, DEFAULT_COMPONENT_HEIGHT } from './const'
-  import {
-    type MenuFlyoutItem,
-    type MenuItem,
-    isMenuDivider,
-  } from './types'
+  import { highlightMenuItem } from './behavior'
+  import type { MenuFlyoutItem, MenuItem } from './types'
   import ContextSubMenuContent from './ContextSubMenuContent.svelte'
 
   interface Props {
@@ -17,7 +14,7 @@
     onToggle: () => void
   }
 
-  const { item, siblings, parentZIndex, isOpen, onToggle } = $props()
+  const { item, siblings, parentZIndex, isOpen, onToggle }: Props = $props()
 
   let anchorElement: HTMLElement | null = $state(null)
   let coords = $state({ x: 0, y: 0 })
@@ -78,14 +75,8 @@
       item.onAction?.()
     }
 
-    // Immediate visual feedback: Clear siblings and highlight self
-    if (siblings) {
-      siblings.forEach((sibling: MenuItem): void => {
-        if (!isMenuDivider(sibling)) {
-          sibling.isHighlighted = sibling.label === item.label
-        }
-      })
-    }
+    // Immediate visual feedback: clear siblings and highlight self.
+    highlightMenuItem(siblings, item.label)
 
     onToggle()
   }
@@ -125,7 +116,8 @@
     </svg>
   </button>
 
-  {#if isOpen && (item.children || item.component)}
+  <!-- A flyout item always carries children or a component (MenuFlyoutItem). -->
+  {#if isOpen}
     <ContextSubMenuContent
       {item}
       {coords}

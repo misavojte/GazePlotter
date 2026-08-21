@@ -31,7 +31,3 @@ export function highlightMenuItem(
 export function shouldCloseMenuOnAction(item: MenuInteractiveItem): boolean {
   return !isMenuFlyoutItem(item) && item.closeOnAction !== false
 }
-
-export function isMenuActionActivationKey(key: string): boolean {
-  return key === 'Enter' || key === ' '
-}

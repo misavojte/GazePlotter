@@ -89,14 +89,6 @@ const contextMenuAction = (
   const finalizeClosure = () => {
     if (!ownsMenu) return
     ownsMenu = false
-    // Remove the visual active marker from the anchor when menu closes
-    try {
-      if (state.anchor && state.anchor.classList) {
-        state.anchor.classList.remove('context-menu-anchor-active')
-      }
-    } catch (e) {
-      // defensive: ignore if node removed
-    }
     detachGlobalListeners()
     options.onClose?.()
   }
@@ -135,7 +127,6 @@ const contextMenuAction = (
     )
 
     menu.update({
-      visible: true,
       items: options.items,
       content: options.content,
       x: adjustedPlacement.left,

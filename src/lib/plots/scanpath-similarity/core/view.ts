@@ -111,7 +111,6 @@ function getScanpathSimilarityView(
       fitSteps: [
         'Reduce the number of participants in Plot Settings > Participants',
       ],
-      tooltipId: 'similarity-matrix-tooltip',
       tooltipWidth: 160,
       getCellTooltip: (row: number, col: number) => {
         const v = matrix[row * labels.length + col]

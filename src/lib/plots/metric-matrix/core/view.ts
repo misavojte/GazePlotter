@@ -75,7 +75,6 @@ export function deriveMetricMatrixView(
         'Reduce the number of participants or stimuli shown',
         'Or extend the plot',
       ],
-      tooltipId: 'metric-matrix-tooltip',
       tooltipWidth: 240,
       formatCellValue,
       getCellTooltip: (row: number, col: number) => buildTooltip(data, row, col),

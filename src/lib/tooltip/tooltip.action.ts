@@ -57,12 +57,10 @@ const tooltipAction = (
   options: TooltipActionOptions
 ) => {
   let isHovering = false
-  const id = Math.random().toString(36).substring(2, 9)
 
   const getResolvedOptions = (opts: TooltipActionOptions) => {
     const content = normalizeContent(opts.content)
     return {
-      id,
       content,
       position: opts.position ?? 'top',
       width: opts.width ?? estimateTooltipWidth(content),
@@ -96,8 +94,6 @@ const tooltipAction = (
       height: window.innerHeight,
     })
     tooltip.update({
-      id: state.id,
-      visible: true,
       content: state.content,
       x: left,
       y: top,

@@ -459,7 +459,6 @@
     const ev = findEventStripAt(row, mx, my, frame)
     if (ev) {
       return {
-        tooltipId: 'scarf-segment-tooltip',
         content: buildScarfEventTooltipContent(
           data.participants[row]?.label ?? '',
           ev.name,
@@ -478,7 +477,6 @@
     if (!seg) {
       // Track-only hit: crosshair follows the mouse, no tooltip.
       return {
-        tooltipId: 'scarf-segment-tooltip',
         content: [],
         anchorX: mx,
         anchorY: my,
@@ -487,7 +485,6 @@
     }
 
     return {
-      tooltipId: 'scarf-segment-tooltip',
       content: getTooltipContent(seg.participantId as number, seg.orderId),
       anchorX: frame.x + (seg.x + seg.width) * frame.width,
       anchorY: seg.y * rowHeight + rowHeight + plotTop,

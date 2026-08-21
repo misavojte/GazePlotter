@@ -94,8 +94,6 @@ export interface ContextMenuOptions {
  * currently "owns" the menu.
  */
 export interface OpenContextMenu {
-  /** Whether the menu should be visible. */
-  visible: boolean
   /** The menu entries rendered for actionable items. */
   items?: MenuItem[]
   /** Optional custom markup content. */

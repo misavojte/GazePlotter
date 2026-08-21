@@ -623,7 +623,6 @@
     }
 
     return {
-      tooltipId: 'aoi-stream-bin-tooltip',
       content,
       anchorX: mx,
       anchorY: my,

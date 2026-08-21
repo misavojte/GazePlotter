@@ -135,7 +135,6 @@ export interface PlotFrame {
  * for figures that don't carry hover state.
  */
 export interface FrameHit<THit = unknown> {
-  tooltipId: string
   content: Array<{ key: string; value: string }>
   /** Logical anchor for the tooltip (canvas px). */
   anchorX: number
@@ -307,7 +306,6 @@ export interface UsePlotHandle<THit = unknown> {
   readonly safeHeight: number
   readonly setCursor: (cursor: string) => void
   showTooltip: (
-    id: string,
     content: Array<{ key: string; value: string }>,
     logicalX: number,
     logicalY: number,
@@ -605,7 +603,6 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   let tooltipShown = false
 
   function showTooltip(
-    id: string,
     content: Array<{ key: string; value: string }>,
     logicalX: number,
     logicalY: number,
@@ -615,7 +612,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   ) {
     const screenPos = getTooltipPosition(canvasState, logicalX, logicalY, offset)
     tooltip.update(
-      { id, visible: true, content, x: screenPos.x, y: screenPos.y, width: tooltipWidth },
+      { content, x: screenPos.x, y: screenPos.y, width: tooltipWidth },
       delay
     )
     tooltipShown = true
@@ -774,7 +771,6 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     if (!item) return null
     const pos = getLegendTooltipPosition(item, band.config)
     return {
-      tooltipId: item.identifier,
       content: getLegendTooltipContent(
         item,
         band.highlights().includes(item.identifier)
@@ -840,7 +836,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
         // An empty-content hit is "track-only" — updates hover state via
         // onHoverChange (e.g. a crosshair position) but shows no tooltip.
         if (hit.content.length > 0) {
-          showTooltip(hit.tooltipId, hit.content, hit.anchorX, hit.anchorY, hit.offset, hit.tooltipWidth, hit.delay)
+          showTooltip(hit.content, hit.anchorX, hit.anchorY, hit.offset, hit.tooltipWidth, hit.delay)
         } else {
           hideTooltip(0)
         }

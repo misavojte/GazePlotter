@@ -59,7 +59,6 @@ export function deriveMetricCorrelationView(
     placeholder:
       result.noMetric || labels.length < 2 ? METRIC_MISSING_MULTI_MESSAGE : null,
     fitSteps: ['Select fewer metrics in Plot Settings > Metrics'],
-    tooltipId: 'metric-correlation-tooltip',
     getCellTooltip: (row: number, col: number) => {
       const cell = result.cells[row * labels.length + col]
       return [

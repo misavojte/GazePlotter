@@ -33,8 +33,6 @@
       },
     }
   }
-
-  export { portal }
 </script>
 
 <script lang="ts">
@@ -78,9 +76,6 @@
 
   .tooltip > div {
     padding: 5px 7px;
-  }
-  .tooltip-item-value {
-    border-bottom: none;
   }
   .tooltip-item-title {
     font-size: 70%;

@@ -7,13 +7,18 @@ import {
 } from './const'
 
 export interface TooltipStateType {
-  id: string
-  visible: boolean
   content: Array<{ key: string; value: string }>
   x: number
   y: number
   width?: number
 }
+
+/** Stored tooltip: the payload plus the identity `update` assigns. The id
+    drives the keyed render (slide between same-id positions, fade across
+    different ids); it is owned here and nowhere else. */
+export type CurrentTooltip = TooltipStateType & { id: string }
+
+const newTooltipId = () => Math.random().toString(36).substring(2, 9)
 
 /**
  * Estimates the width of the tooltip based on its content.
@@ -35,7 +40,7 @@ export const estimateTooltipWidth = (
 
 /** Per-session tooltip (`useTooltip`); the debounce timer lives with it. */
 export class TooltipState {
-  current = $state<TooltipStateType | null>(null)
+  current = $state<CurrentTooltip | null>(null)
   private timer: ReturnType<typeof setTimeout> | null = null
 
   /** Update with debounce to prevent flickering; `null` hides. */
@@ -45,23 +50,27 @@ export class TooltipState {
   ): void {
     if (this.timer !== null) clearTimeout(this.timer)
 
+    let next: CurrentTooltip | null = null
     if (value) {
-      // Conserve identity (ID) only for small jumps: smooth slides for nearby
+      // Conserve identity only for small jumps: smooth slides for nearby
       // elements, fade out/in for far ones.
-      if (this.current && this.current.visible) {
+      let id = newTooltipId()
+      if (this.current) {
         const dx = value.x - this.current.x
         const dy = value.y - this.current.y
-        if (Math.sqrt(dx * dx + dy * dy) >= TOOLTIP_JUMP_THRESHOLD) {
-          value.id = Math.random().toString(36).substring(2, 9)
-        } else {
-          value.id = this.current.id
+        if (Math.sqrt(dx * dx + dy * dy) < TOOLTIP_JUMP_THRESHOLD) {
+          id = this.current.id
         }
       }
-      if (!value.width) value.width = estimateTooltipWidth(value.content)
+      next = {
+        ...value,
+        id,
+        width: value.width ?? estimateTooltipWidth(value.content),
+      }
     }
 
     this.timer = setTimeout(() => {
-      this.current = value
+      this.current = next
       this.timer = null
     }, delay)
   }
