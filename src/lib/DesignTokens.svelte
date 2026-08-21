@@ -1,7 +1,6 @@
 <script lang="ts" module>
-  /** Palette keys overridable via the `colors` embedding option; values live
-   *  once, in this component's CSS. `--c-border` and the shadows derive from
-   *  `black`, so they follow an override automatically. */
+  /** Overridable palette keys; values live once, in this component's CSS.
+   *  Border and shadows derive from `black`, so they follow it. */
   export type GazePlotterColors = Partial<
     Record<
       | 'brand'
@@ -28,11 +27,8 @@
 </script>
 
 <script lang="ts">
-  // The one sanctioned root-level :global in src/lib (pinned by
-  // tests/libPlatformBoundary.test.ts): design tokens are global by
-  // definition. As compiled CSS they ship with the component, so any host is
-  // styled with zero setup, at first paint, with no inline-style CSP
-  // allowance.
+  // The one pinned :global(:root) in lib: tokens are global by definition,
+  // and as compiled CSS they style any host with zero setup.
   interface Props {
     /** Palette overrides; applied reactively, so hosts can theme live. */
     colors?: GazePlotterColors
@@ -40,9 +36,7 @@
 
   const { colors }: Props = $props()
 
-  // Overrides go through CSSOM, never string-interpolated markup: a hostile
-  // value cannot escape setProperty, so no sanitizer is needed. On shared
-  // keys the last mounted instance wins; cleanup restores the defaults.
+  // CSSOM, never markup: a hostile value cannot escape setProperty.
   $effect(() => {
     const style = document.documentElement.style
     const entries = Object.entries(colors ?? {}) as [

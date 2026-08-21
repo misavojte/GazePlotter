@@ -1,7 +1,9 @@
 <script lang="ts">
   import ChevronDown from 'lucide-svelte/icons/chevron-down'
   import { untrack } from 'svelte'
-  import { contextMenuAction } from '$lib/context-menu'
+  import { useContextMenuAction } from '$lib/context-menu'
+
+  const contextMenuAction = useContextMenuAction()
   import type {
     MenuActionItem,
     MenuItem,

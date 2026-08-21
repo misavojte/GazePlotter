@@ -1,5 +1,7 @@
 import { describe, it, expect, afterEach } from 'vitest'
-import { scarfTimelineSync } from '../src/lib/plots/scarf/core/sync.svelte'
+import { ScarfTimelineSync } from '../src/lib/plots/scarf/core/sync.svelte'
+
+const scarfTimelineSync = new ScarfTimelineSync()
 
 // Shared singleton — clear the ids each test registers so cases don't bleed.
 afterEach(() => {

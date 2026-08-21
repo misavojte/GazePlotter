@@ -1,4 +1,4 @@
-import { contextMenuState } from '$lib/context-menu'
+import { useContextMenu } from '$lib/context-menu'
 import type { BaseInterpretedDataType } from '$lib/data/types'
 import type { MergeCard } from './groupedEntityEditor.svelte'
 
@@ -53,6 +53,7 @@ export interface SelectionSessionConfig<TSel extends SelectionLike> {
 export function createSelectionSession<TSel extends SelectionLike>(
   cfg: SelectionSessionConfig<TSel>
 ) {
+  const contextMenuState = useContextMenu()
   let selections = $state(cfg.initial)
   let editingId = $state<number | null>(null)
   let hoveredId = $state<number | null>(null)

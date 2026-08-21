@@ -1,48 +1,36 @@
-import type { ContextMenuState } from './types'
+import { sessionScoped } from '$lib/session/context'
+import { isOwnedContextMenuState } from './behavior'
+import type { OpenContextMenu } from './types'
 
-/** Reactive state for the active context menu. */
-let _state = $state<ContextMenuState | null>(null)
+/** Per-session context-menu state (`useContextMenu`). */
+export class ContextMenuState {
+  current = $state<OpenContextMenu | null>(null)
 
-/**
- * Global accessor for the context menu state.
- * Using a getter allows the state to remain reactive across module boundaries.
- */
-export const contextMenuState = {
-  get current() {
-    return _state
-  },
-  set current(value: ContextMenuState | null) {
-    updateContextMenu(value)
-  },
+  /** Set, or map the current menu to the next; runs the outgoing cleanup. */
+  update(
+    next:
+      | OpenContextMenu
+      | null
+      | ((curr: OpenContextMenu | null) => OpenContextMenu | null)
+  ): void {
+    const previous = this.current
+    const incoming = typeof next === 'function' ? next(previous) : next
+    if (previous && previous.cleanup && previous.ownerId !== incoming?.ownerId) {
+      previous.cleanup()
+    }
+    this.current = incoming
+  }
+
   /** Clear the current menu state. */
-  reset() {
-    updateContextMenu(null)
-  },
-}
-
-/**
- * Update the context menu state with either a new value or a mutator.
- *
- * @param next - The next state or a function that maps the current state to the next state.
- */
-export function updateContextMenu(
-  next:
-    | ContextMenuState
-    | null
-    | ((curr: ContextMenuState | null) => ContextMenuState | null)
-): void {
-  const previous = _state
-  let incoming: ContextMenuState | null = null
-
-  if (typeof next === 'function') {
-    incoming = next(_state)
-  } else {
-    incoming = next
+  reset(): void {
+    this.update(null)
   }
 
-  if (previous && previous.cleanup && previous.ownerId !== incoming?.ownerId) {
-    previous.cleanup()
+  /** Clear only when `ownerId` owns the open menu. */
+  clearOwned(ownerId: symbol): void {
+    this.update(curr => (isOwnedContextMenuState(ownerId, curr) ? null : curr))
   }
-
-  _state = incoming
 }
+
+/** This session's context menu; resolve at component init. */
+export const useContextMenu = sessionScoped(() => new ContextMenuState())

@@ -1,6 +1,8 @@
 <script lang="ts">
   import { ZOOM_MIN, ZOOM_MAX, ZOOM_STEP } from '$lib/workspace/zoom.svelte'
-  import { tooltipAction } from '$lib/tooltip'
+  import { useTooltipAction } from '$lib/tooltip'
+
+  const tooltipAction = useTooltipAction()
   import { responsive } from '../responsive.svelte'
 
   interface Props {

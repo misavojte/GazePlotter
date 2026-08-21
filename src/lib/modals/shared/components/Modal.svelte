@@ -5,7 +5,9 @@
   import Button from '$lib/shared/components/Button.svelte'
   import type { ModalStackEntry } from '$lib/modals/modalState.svelte'
   import { getGazePlotterSession } from '$lib/session'
-  import { contextMenuState } from '$lib/context-menu'
+  import { useContextMenu } from '$lib/context-menu'
+
+  const contextMenuState = useContextMenu()
 
   const { errorService, modalState } = getGazePlotterSession()
 

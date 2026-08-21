@@ -93,7 +93,7 @@ export interface ContextMenuOptions {
  * the single rendered menu instance so that an anchor can recognise whether it
  * currently "owns" the menu.
  */
-export interface ContextMenuState {
+export interface OpenContextMenu {
   /** Whether the menu should be visible. */
   visible: boolean
   /** The menu entries rendered for actionable items. */

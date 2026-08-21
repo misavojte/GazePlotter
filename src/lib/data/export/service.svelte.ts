@@ -99,8 +99,7 @@ export class ExportService {
     }
   }
 
-  /** Single delivery point: applies the extension-join policy, then hands
-   *  the payload to the host's saveFile. */
+  /** Single delivery point; owns the extension-join policy. */
   private deliver({ content, extension }: ExportPayload, fileName: string): void {
     const finalName = fileName.endsWith(extension)
       ? fileName
@@ -164,8 +163,7 @@ export class ExportService {
     })
   }
 
-  /** Shared shell of the two tabular exports: selection guards, naming,
-   *  build, deliver. */
+  /** Shared shell of the two tabular exports. */
   private exportCsvOrZip(
     options: Pick<
       SegmentedExportOptions,
@@ -327,8 +325,7 @@ export class ExportService {
     )
   }
 
-  /** Deliver a report a modal assembles; `buildContent` runs inside the
-   *  export shell so its failures report like every other export. */
+  /** `buildContent` runs inside the shell so its failures report normally. */
   async exportMetadataReport(options: {
     fileName: string
     buildContent: () => string

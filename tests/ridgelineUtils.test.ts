@@ -236,43 +236,45 @@ describe('Ridgeline geometry invariants', () => {
 
 describe('AOI Timeline sync registries (push-based, replaces grid scanning)', () => {
   it('timeline: syncs the max across same-width participants only', async () => {
-    const { aoiStreamTimelineSync } = await import(
+    const { AoiStreamTimelineSync } = await import(
       '$lib/plots/aoi-stream/core/sync.svelte'
     )
-    aoiStreamTimelineSync.setEntry(1, { w: 6, dataMax: 100 })
-    aoiStreamTimelineSync.setEntry(2, { w: 6, dataMax: 250 })
-    aoiStreamTimelineSync.setEntry(3, { w: 8, dataMax: 900 })
-    expect(aoiStreamTimelineSync.getSyncedMax(6)).toBe(250)
-    expect(aoiStreamTimelineSync.getSyncedMax(8)).toBe(900)
-    expect(aoiStreamTimelineSync.getSyncedMax(12)).toBe(0)
+    const timelineSync = new AoiStreamTimelineSync()
+    timelineSync.setEntry(1, { w: 6, dataMax: 100 })
+    timelineSync.setEntry(2, { w: 6, dataMax: 250 })
+    timelineSync.setEntry(3, { w: 8, dataMax: 900 })
+    expect(timelineSync.getSyncedMax(6)).toBe(250)
+    expect(timelineSync.getSyncedMax(8)).toBe(900)
+    expect(timelineSync.getSyncedMax(12)).toBe(0)
     // Unregistering (opt-out / unmount) removes the contribution.
-    aoiStreamTimelineSync.clearEntry(2)
-    expect(aoiStreamTimelineSync.getSyncedMax(6)).toBe(100)
-    aoiStreamTimelineSync.clearEntry(1)
-    aoiStreamTimelineSync.clearEntry(3)
+    timelineSync.clearEntry(2)
+    expect(timelineSync.getSyncedMax(6)).toBe(100)
+    timelineSync.clearEntry(1)
+    timelineSync.clearEntry(3)
   })
 
   it('ridgeline: syncs mTop only across (h, scale, seriesCount) matches', async () => {
-    const { aoiStreamRidgelineSync } = await import(
+    const { AoiStreamRidgelineSync } = await import(
       '$lib/plots/aoi-stream/core/sync.svelte'
     )
-    aoiStreamRidgelineSync.setEntry(1, { h: 10, scale: 0.6, seriesCount: 3, dataMax: 0.4 })
-    aoiStreamRidgelineSync.setEntry(2, { h: 10, scale: 0.6, seriesCount: 3, dataMax: 0.7 })
-    aoiStreamRidgelineSync.setEntry(3, { h: 10, scale: 0.6, seriesCount: 4, dataMax: 0.9 })
-    aoiStreamRidgelineSync.setEntry(4, { h: 12, scale: 0.6, seriesCount: 3, dataMax: 0.95 })
-    aoiStreamRidgelineSync.setEntry(5, { h: 10, scale: 1.2, seriesCount: 3, dataMax: 0.99 })
+    const ridgelineSync = new AoiStreamRidgelineSync()
+    ridgelineSync.setEntry(1, { h: 10, scale: 0.6, seriesCount: 3, dataMax: 0.4 })
+    ridgelineSync.setEntry(2, { h: 10, scale: 0.6, seriesCount: 3, dataMax: 0.7 })
+    ridgelineSync.setEntry(3, { h: 10, scale: 0.6, seriesCount: 4, dataMax: 0.9 })
+    ridgelineSync.setEntry(4, { h: 12, scale: 0.6, seriesCount: 3, dataMax: 0.95 })
+    ridgelineSync.setEntry(5, { h: 10, scale: 1.2, seriesCount: 3, dataMax: 0.99 })
 
     // Same height + scale + series count → most constraining mTop.
-    expect(aoiStreamRidgelineSync.getSyncedMTop(10, 0.6, 3)).toBeCloseTo(0.7, 6)
+    expect(ridgelineSync.getSyncedMTop(10, 0.6, 3)).toBeCloseTo(0.7, 6)
     // Scale matches within tolerance (1e-4), not exact equality.
-    expect(aoiStreamRidgelineSync.getSyncedMTop(10, 0.60005, 3)).toBeCloseTo(0.7, 6)
+    expect(ridgelineSync.getSyncedMTop(10, 0.60005, 3)).toBeCloseTo(0.7, 6)
     // Different series count / height / scale are separate sync groups.
-    expect(aoiStreamRidgelineSync.getSyncedMTop(10, 0.6, 4)).toBeCloseTo(0.9, 6)
-    expect(aoiStreamRidgelineSync.getSyncedMTop(12, 0.6, 3)).toBeCloseTo(0.95, 6)
-    expect(aoiStreamRidgelineSync.getSyncedMTop(10, 1.2, 3)).toBeCloseTo(0.99, 6)
+    expect(ridgelineSync.getSyncedMTop(10, 0.6, 4)).toBeCloseTo(0.9, 6)
+    expect(ridgelineSync.getSyncedMTop(12, 0.6, 3)).toBeCloseTo(0.95, 6)
+    expect(ridgelineSync.getSyncedMTop(10, 1.2, 3)).toBeCloseTo(0.99, 6)
     // No match → 0; the container then keeps its local mTop (null override).
-    expect(aoiStreamRidgelineSync.getSyncedMTop(20, 0.6, 3)).toBe(0)
+    expect(ridgelineSync.getSyncedMTop(20, 0.6, 3)).toBe(0)
 
-    for (const id of [1, 2, 3, 4, 5]) aoiStreamRidgelineSync.clearEntry(id)
+    for (const id of [1, 2, 3, 4, 5]) ridgelineSync.clearEntry(id)
   })
 })

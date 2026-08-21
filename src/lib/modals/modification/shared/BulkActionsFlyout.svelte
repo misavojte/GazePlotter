@@ -13,7 +13,9 @@
 
 <script lang="ts">
   import { InputText, ButtonPreset, Button } from '$lib/shared/components'
-  import { tooltipAction } from '$lib/tooltip'
+  import { useTooltipAction } from '$lib/tooltip'
+
+  const tooltipAction = useTooltipAction()
   import type { MenuComponentBridgeProps } from '$lib/context-menu'
 
   // The flyout bridge (ContextSubMenuContent) spreads `componentProps` and

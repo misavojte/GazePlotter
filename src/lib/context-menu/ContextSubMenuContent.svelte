@@ -14,7 +14,9 @@
     isMenuDivider,
     isMenuFlyoutItem,
   } from './types'
-  import { contextMenuState } from './contextMenuState.svelte'
+  import { useContextMenu } from './contextMenuState.svelte'
+
+  const contextMenuState = useContextMenu()
   import { portal } from '$lib/shared/placement'
   import ContextSubMenu from './ContextSubMenu.svelte'
 

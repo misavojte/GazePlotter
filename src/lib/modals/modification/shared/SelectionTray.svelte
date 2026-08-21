@@ -13,8 +13,12 @@
    *    a transient set exists opens a menu: Edit / Add n / Remove n.
    */
   import Plus from 'lucide-svelte/icons/plus'
-  import { contextMenuAction, type MenuItem } from '$lib/context-menu'
-  import { tooltipAction } from '$lib/tooltip'
+  import { useContextMenuAction, type MenuItem } from '$lib/context-menu'
+
+  const contextMenuAction = useContextMenuAction()
+  import { useTooltipAction } from '$lib/tooltip'
+
+  const tooltipAction = useTooltipAction()
   import type { SelectionSessionApi } from './selectionSession.svelte'
 
   interface Chip {

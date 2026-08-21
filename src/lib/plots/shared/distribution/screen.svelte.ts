@@ -18,6 +18,8 @@ export function distributionValueAxisScreen<
   S extends { scaleRange?: [number, number] },
 >(): PlotScreenFactory<S> {
   return ctx => {
+    const axisSync = distributionValueAxisSync()
+
     const hasCustomScale = () => {
       const s = ctx.item.settings
       return (
@@ -27,7 +29,7 @@ export function distributionValueAxisScreen<
     }
 
     usePlotSync(
-      distributionValueAxisSync,
+      axisSync,
       () => ctx.item.id,
       () => {
         const meta = (ctx.view()?.meta ?? null) as DistributionViewMeta | null
@@ -46,7 +48,7 @@ export function distributionValueAxisScreen<
       props: view => {
         const meta = view.meta as DistributionViewMeta
         if (hasCustomScale() || meta.syncKey === null) return {}
-        const syncedMax = distributionValueAxisSync.getSyncedMax(
+        const syncedMax = axisSync.getSyncedMax(
           ctx.item.type,
           meta.syncKey,
           ctx.item.w,

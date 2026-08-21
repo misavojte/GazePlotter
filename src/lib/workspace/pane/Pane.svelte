@@ -14,7 +14,9 @@
   import { PANE_TRANSITION, slideFlex } from './transition'
   import { responsive } from '../responsive.svelte'
   import { stickyBanner } from '../stickyBanner.svelte'
-  import { contextMenuState } from '$lib/context-menu'
+  import { useContextMenu } from '$lib/context-menu'
+
+  const contextMenuState = useContextMenu()
 
   // Shared open states for every PaneSection inside this Pane.
   // Opening or closing one section does not affect other sections.

@@ -1,6 +1,5 @@
-// svelte-package rewrites `$lib` import specifiers to relative paths but not
-// strings inside `new URL()`, so the packaged ingest worker pointer must be
-// repointed at its emitted .js neighbour. Runs in the `package` script.
+// svelte-package rewrites `$lib` imports but not `new URL()` strings; repoint
+// the packaged ingest worker at its emitted .js neighbour.
 import { readFileSync, writeFileSync } from 'node:fs'
 
 const FILE = 'dist/data/ingest/service.svelte.js'

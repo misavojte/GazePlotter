@@ -1,6 +1,8 @@
-import { clearOwnedContextMenu, isOwnedContextMenuState } from './behavior'
 import type { Action } from 'svelte/action'
-import { contextMenuState, updateContextMenu } from './contextMenuState.svelte'
+import {
+  useContextMenu,
+  type ContextMenuState,
+} from './contextMenuState.svelte'
 import {
   getMenuSize,
 } from './layout'
@@ -41,9 +43,16 @@ const resolveInternalState = (
   disabled: options.disabled ?? previous?.disabled ?? false,
 })
 
-export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
-  node,
-  opts = {}
+/** Session-bound action; resolve at init, use as `use:contextMenuAction`. */
+export function useContextMenuAction(): Action<HTMLElement, ContextMenuOptions> {
+  const menu = useContextMenu()
+  return (node, opts) => contextMenuAction(menu, node, opts)
+}
+
+const contextMenuAction = (
+  menu: ContextMenuState,
+  node: HTMLElement,
+  opts: ContextMenuOptions = {}
 ) => {
   let options = { ...opts }
   let state = resolveInternalState(node, null, options)
@@ -94,7 +103,7 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
 
   const close = () => {
     if (!ownsMenu) return
-    clearOwnedContextMenu(ownerId)
+    menu.clearOwned(ownerId)
   }
 
   const openAt = () => {
@@ -125,7 +134,7 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
       { width: window.innerWidth, height: window.innerHeight }
     )
 
-    updateContextMenu({
+    menu.update({
       visible: true,
       items: options.items,
       content: options.content,

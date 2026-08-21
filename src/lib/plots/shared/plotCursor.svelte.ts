@@ -40,6 +40,7 @@
  * `drawTimeGuide` (the time channel).
  */
 import { onDestroy } from 'svelte'
+import { sessionScoped } from '$lib/session/context'
 import type { PlotScreenFactory } from '$lib/plots/definePlot'
 import {
   alignToPixelCenter,
@@ -58,8 +59,12 @@ type PlotCursor = {
 /** One shared empty set, so a cursor-less read is reference-stable. */
 const NO_IDS: readonly number[] = []
 
-// One pointer, one cursor: a module singleton like `tooltipState`.
-let cursor = $state.raw<PlotCursor | null>(null)
+/** One pointer, one cursor per session (never module state). */
+export class PlotCursorState {
+  current = $state.raw<PlotCursor | null>(null)
+}
+
+const usePlotCursor = sessionScoped(() => new PlotCursorState())
 
 /** What the pointer is over, as live reads. Omit a channel the plot lacks. */
 type PlotCursorPosition = {
@@ -84,21 +89,25 @@ export interface PlotCursorPort {
  * {@link plotCursorPort} instead.
  */
 export function createPlotCursorPort(
+  state: PlotCursorState,
   plotId: number,
   timeScope: () => number | null = () => null
 ): PlotCursorPort {
   // Self-exclusion: the publisher's own CROSSHAIR already marks the pointer, and
   // it is what stops a reader ever re-entering its own projection.
-  const others = () => (cursor === null || cursor.plotId === plotId ? null : cursor)
+  const others = () => {
+    const cursor = state.current
+    return cursor === null || cursor.plotId === plotId ? null : cursor
+  }
   return {
     publish(at) {
       // Publisher-scoped, so a stray leave can't erase the cursor under the
       // pointer, and last writer wins.
       if (at === null) {
-        if (cursor?.plotId === plotId) cursor = null
+        if (state.current?.plotId === plotId) state.current = null
         return
       }
-      cursor = {
+      state.current = {
         plotId,
         times: at.times ? { scope: timeScope, at: at.times } : null,
         participants: at.participants ?? null,
@@ -129,7 +138,7 @@ export function plotCursorPort(
   plotId: number,
   timeScope?: () => number | null
 ): PlotCursorPort {
-  const port = createPlotCursorPort(plotId, timeScope)
+  const port = createPlotCursorPort(usePlotCursor(), plotId, timeScope)
   onDestroy(() => port.publish(null))
   return port
 }

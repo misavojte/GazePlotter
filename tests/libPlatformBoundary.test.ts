@@ -24,9 +24,20 @@ describe('src/lib platform boundary', () => {
     expect(Object.keys(sources).length).toBeGreaterThan(100)
   })
 
+  it('module scope holds no reactive state', () => {
+    // Per-session state goes through sessionScoped; column-0 declarations
+    // only, so component/class/function state stays untouched.
+    const offenders = Object.entries(sources)
+      .filter(([file]) => !file.endsWith('.svelte'))
+      .filter(([, content]) =>
+        /^(?:export )?(?:let|const|var) [^\n]*\$state[.(]/m.test(content)
+      )
+      .map(([file]) => file)
+    expect(offenders).toEqual([])
+  })
+
   it('root-level :global styling exists only in DesignTokens.svelte', () => {
-    // Design tokens are global by definition; that exception is granted to
-    // exactly one file. Descendant-scoped :global(...) is not covered here.
+    // Descendant-scoped :global(el) is not covered here.
     const offenders = Object.keys(sources).filter(
       file =>
         sources[file].includes(':global(:root') &&

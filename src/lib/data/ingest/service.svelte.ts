@@ -604,8 +604,7 @@ export class IngestService {
 
   constructor(private readonly deps: IngestDependencies) {}
 
-  /** Open the host's file source (`openFiles` option) and load a non-empty
-   *  pick; `[]` means cancelled. */
+  /** Open the host's file source and load the pick; `[]` means cancelled. */
   async openAndLoadFiles(): Promise<boolean> {
     const files = await this.deps.openFiles()
     return files.length > 0 ? this.loadFiles(files) : false

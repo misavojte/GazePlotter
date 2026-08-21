@@ -22,7 +22,9 @@
   } from './interaction'
   import { responsive } from '../responsive.svelte'
   import { generateSelectionPath } from './selectionPath'
-  import { contextMenuState } from '$lib/context-menu'
+  import { useContextMenu } from '$lib/context-menu'
+
+  const contextMenuState = useContextMenu()
   import { isTextEntryTarget } from '../keys'
 
   const { engine, errorService, workspace, grid, modalState } =

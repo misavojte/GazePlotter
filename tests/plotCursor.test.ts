@@ -6,6 +6,7 @@
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  PlotCursorState,
   createPlotCursorPort,
   cursorRows,
   drawTimeGuides,
@@ -36,11 +37,12 @@ const TIMELINE = { minValue: 0, maxValue: 1000 }
 /** A panned window: pins the `minValue` offset both maps must carry. */
 const WINDOW = { minValue: 1000, maxValue: 3000 }
 
-// Module singleton (one pointer exists) — retract between cases.
-const a = createPlotCursorPort(1, () => 7)
-const b = createPlotCursorPort(2, () => 7)
-const otherStimulus = createPlotCursorPort(3, () => 9)
-const notAbsolute = createPlotCursorPort(4, () => null)
+// One cursor per session (one pointer exists) — retract between cases.
+const cursorState = new PlotCursorState()
+const a = createPlotCursorPort(cursorState, 1, () => 7)
+const b = createPlotCursorPort(cursorState, 2, () => 7)
+const otherStimulus = createPlotCursorPort(cursorState, 3, () => 9)
+const notAbsolute = createPlotCursorPort(cursorState, 4, () => null)
 afterEach(() => {
   a.publish(null)
   b.publish(null)
@@ -84,7 +86,7 @@ describe('times channel', () => {
     // An undo switching a scarf to 'ordinal' under a resting pointer: no pointer
     // event fires, so a snapshot would strand the mark on every sibling.
     let mode: 'absolute' | 'ordinal' = 'absolute'
-    const scarf = createPlotCursorPort(5, () => (mode === 'absolute' ? 7 : null))
+    const scarf = createPlotCursorPort(cursorState, 5, () => (mode === 'absolute' ? 7 : null))
     scarf.publish({ times: () => [500] })
     expect(b.times).toEqual([500])
     mode = 'ordinal'
@@ -94,7 +96,7 @@ describe('times channel', () => {
 
   it('re-reads the published time live, so a pan moves the mark', () => {
     let ms = 500
-    const scarf = createPlotCursorPort(6, () => 7)
+    const scarf = createPlotCursorPort(cursorState, 6, () => 7)
     scarf.publish({ times: () => [ms] })
     expect(b.times).toEqual([500])
     ms = 1800

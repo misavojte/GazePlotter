@@ -19,7 +19,7 @@ import {
   type ExportSourceRegistrar,
   registerCanvasExportSource,
 } from '$lib/data/export'
-import { updateTooltip } from '$lib/tooltip'
+import { useTooltip } from '$lib/tooltip'
 import { drawPlotArea, type PlotAreaTicks } from './plotArea'
 import {
   drawXAxisLabel,
@@ -599,8 +599,9 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     if (c) c.style.cursor = cursor
   }
 
-  // The tooltip is a singleton: own it before retracting it, or destroy would
-  // erase a sibling's.
+  // The tooltip is one per session: own it before retracting it, or destroy
+  // would erase a sibling's.
+  const tooltip = useTooltip()
   let tooltipShown = false
 
   function showTooltip(
@@ -613,7 +614,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     delay?: number
   ) {
     const screenPos = getTooltipPosition(canvasState, logicalX, logicalY, offset)
-    updateTooltip(
+    tooltip.update(
       { id, visible: true, content, x: screenPos.x, y: screenPos.y, width: tooltipWidth },
       delay
     )
@@ -622,7 +623,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
 
   function hideTooltip(delay?: number) {
     tooltipShown = false
-    updateTooltip(null, delay)
+    tooltip.update(null, delay)
   }
 
   // ---- frame: gutters → data rect ----

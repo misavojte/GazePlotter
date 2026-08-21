@@ -1,5 +1,4 @@
 <script lang="ts" module>
-  import { tooltipState } from './tooltipState.svelte'
   import {
     TOOLTIP_JUMP_THRESHOLD,
     TOOLTIP_TRANSITION_DURATION,
@@ -40,6 +39,9 @@
 
 <script lang="ts">
   import { fade } from 'svelte/transition'
+  import { useTooltip } from './tooltipState.svelte'
+
+  const tooltipState = useTooltip()
 </script>
 
 {#each tooltipState.current ? [tooltipState.current] : [] as current (current.id)}

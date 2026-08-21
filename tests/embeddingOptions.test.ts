@@ -5,9 +5,8 @@ import { ExportService } from '$lib/data/export'
 import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace'
 import type { GridItemSnapshot } from '$lib/workspace'
 
-// Embedding contract (PLANDESKTOP.md): options resolve once at session
-// creation into the owning service; injected functions are used verbatim,
-// absent ones fall back to the web default.
+// Embedding contract (PLANDESKTOP.md): injected options verbatim, absent
+// options fall back to the web default.
 
 describe('session wiring of embedding options', () => {
   it('injected saveFile receives deliveries, extension applied', async () => {

@@ -11,9 +11,8 @@ export function sanitizeFileName(name: string): string {
   return cleaned.length > 0 ? cleaned : 'untitled'
 }
 
-/** The `saveFile` embedding option: put these bytes at that name. `fileName`
- *  arrives with the extension already applied (ExportService.deliver owns
- *  that policy); `extension` is passed separately for save-dialog filters. */
+/** The `saveFile` embedding option. `fileName` arrives with the extension
+ *  applied; `extension` is separate for save-dialog filters. */
 export type SaveFile = (
   content: string | Blob,
   fileName: string,

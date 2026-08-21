@@ -1,11 +1,16 @@
 <script lang="ts">
   import type { LucideIconComponent } from '$lib/shared/types'
-  import { tooltipAction } from '$lib/tooltip'
+  import { useTooltipAction } from '$lib/tooltip'
+
+  const tooltipAction = useTooltipAction()
   import {
-    contextMenuAction,
+    useContextMenuAction,
     type MenuItem,
-    contextMenuState,
+    useContextMenu,
   } from '$lib/context-menu'
+
+  const contextMenuAction = useContextMenuAction()
+  const contextMenuState = useContextMenu()
   import { responsive } from '../responsive.svelte'
 
   interface ActionItem {

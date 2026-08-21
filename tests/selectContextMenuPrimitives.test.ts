@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Component } from 'svelte'
 import {
-  clearOwnedContextMenu,
   highlightMenuItem,
   isMenuActionActivationKey,
   isOwnedContextMenuState,
   shouldCloseMenuOnAction,
 } from '../src/lib/context-menu/behavior'
-import { contextMenuState } from '../src/lib/context-menu/contextMenuState.svelte'
+import { ContextMenuState } from '../src/lib/context-menu/contextMenuState.svelte'
+
+const contextMenuState = new ContextMenuState()
 import {
   createMenuComponentItem,
   isMenuComponentItem,
@@ -110,7 +111,7 @@ describe('select and context-menu primitives', () => {
       false
     )
 
-    clearOwnedContextMenu(otherOwnerId)
+    contextMenuState.clearOwned(otherOwnerId)
     expect(contextMenuState.current?.ownerId).toBe(ownerId)
 
     highlightMenuItem(items, 'Save')
@@ -121,7 +122,7 @@ describe('select and context-menu primitives', () => {
     expect(shouldCloseMenuOnAction(stickyItem)).toBe(false)
     expect(shouldCloseMenuOnAction(submenuItem)).toBe(false)
 
-    clearOwnedContextMenu(ownerId)
+    contextMenuState.clearOwned(ownerId)
     expect(contextMenuState.current).toBeNull()
   })
 })

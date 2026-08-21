@@ -1,4 +1,3 @@
-import { getContext, hasContext, setContext } from 'svelte'
 import { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { ExportService, triggerDownload, type SaveFile } from '$lib/data/export'
 import { ErrorService } from '$lib/errors'
@@ -17,27 +16,16 @@ import type { GazePlotterColors } from '$lib/DesignTokens.svelte'
 
 export type { SaveFile, OpenFiles, GazePlotterColors }
 
-const GAZEPLOTTER_SESSION_CONTEXT = Symbol.for('gazeplotter-session')
-
-/**
- * The host embedding contract: every host need is one optional field, every
- * default preserves the web behavior. The session resolves each field into
- * the service that owns it; `colors` is UI-only, consumed by the
- * `<GazePlotter>` token render.
- */
+/** The host embedding contract: one optional field per host need, every
+ *  default preserves the web behavior. See PLANDESKTOP.md. */
 export type GazePlotterOptions = {
-  /**
-   * Layout for datasets that carry none (fresh parses, empty workspace);
-   * workspace files keep their saved layout, event-only data the event
-   * layout. Omitted snapshot fields get per-plot defaults.
-   */
+  /** Layout for datasets that carry none (fresh parses, empty workspace). */
   defaultLayout?: GridItemSnapshot[]
   /** Delivers one export file. Default: anchor + blob browser download. */
   saveFile?: SaveFile
   /** What the upload affordances open. Default: browser file picker. */
   openFiles?: OpenFiles
-  /** Palette overrides; unset keys keep the builtin. Unlike the other
-   *  fields, applied reactively. See {@link GazePlotterColors}. */
+  /** Palette overrides; applied reactively, unlike the other fields. */
   colors?: GazePlotterColors
 }
 
@@ -94,26 +82,5 @@ export function createGazePlotterSession(
     modalState,
     toastState,
   }
-}
-
-export function setGazePlotterSessionContext(
-  session: GazePlotterSession
-): GazePlotterSession {
-  setContext(GAZEPLOTTER_SESSION_CONTEXT, session)
-  return session
-}
-
-export function getGazePlotterSession(): GazePlotterSession {
-  try {
-    if (hasContext(GAZEPLOTTER_SESSION_CONTEXT)) {
-      return getContext<GazePlotterSession>(GAZEPLOTTER_SESSION_CONTEXT)
-    }
-  } catch {
-    // Context access is only available during component initialization.
-  }
-
-  throw new Error(
-    'GazePlotter session is not available. Access it from within a GazePlotter tree or pass dependencies explicitly.'
-  )
 }
 

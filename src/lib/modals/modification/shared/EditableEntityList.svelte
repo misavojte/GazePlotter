@@ -27,12 +27,16 @@
   import GripVertical from 'lucide-svelte/icons/grip-vertical'
   import SlidersHorizontal from 'lucide-svelte/icons/sliders-horizontal'
   import Replace from 'lucide-svelte/icons/replace'
-  import { tooltipAction } from '$lib/tooltip'
+  import { useTooltipAction } from '$lib/tooltip'
+
+  const tooltipAction = useTooltipAction()
   import {
-    contextMenuAction,
+    useContextMenuAction,
     createMenuComponentItem,
     type MenuItem,
   } from '$lib/context-menu'
+
+  const contextMenuAction = useContextMenuAction()
   import { createListReorder, type ListReorderConfig } from './listReorder.action'
   import type { MergeCard } from './groupedEntityEditor.svelte'
   import BulkActionsFlyout, {

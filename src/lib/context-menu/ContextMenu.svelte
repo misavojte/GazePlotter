@@ -5,7 +5,7 @@
     shouldCloseMenuOnAction,
   } from './behavior'
   import Check from 'lucide-svelte/icons/check'
-  import { contextMenuState } from './contextMenuState.svelte'
+  import { useContextMenu } from './contextMenuState.svelte'
   import { MENU_MAX_HEIGHT, MENU_WIDTH } from './const'
   import {
     type MenuInteractiveItem,
@@ -16,6 +16,8 @@
   import { scale } from 'svelte/transition'
   import { cubicOut } from 'svelte/easing'
   import ContextSubMenu from './ContextSubMenu.svelte'
+
+  const contextMenuState = useContextMenu()
 
   // State for which inner submenu is active.
   let activeItemLabel = $state<string | null>(null)

@@ -1,5 +1,10 @@
-import { estimateTooltipWidth, updateTooltip } from './tooltipState.svelte'
+import {
+  estimateTooltipWidth,
+  useTooltip,
+  type TooltipState,
+} from './tooltipState.svelte'
 import { TOOLTIP_DEFAULT_OFFSET, WIDTH_ESTIMATION } from './const'
+import type { Action } from 'svelte/action'
 import { estimateTextWidth } from '$lib/shared/utils/textUtils'
 import {
   computePlacement,
@@ -40,7 +45,14 @@ const estimateTooltipHeight = (
   return lines * ROW_HEIGHT + BASE_PADDING
 }
 
-export const tooltipAction = (
+/** Session-bound action; resolve at init, use as `use:tooltipAction`. */
+export function useTooltipAction(): Action<HTMLElement, TooltipActionOptions> {
+  const tooltip = useTooltip()
+  return (node, options) => tooltipAction(tooltip, node, options)
+}
+
+const tooltipAction = (
+  tooltip: TooltipState,
   node: HTMLElement,
   options: TooltipActionOptions
 ) => {
@@ -83,7 +95,7 @@ export const tooltipAction = (
       width: window.innerWidth,
       height: window.innerHeight,
     })
-    updateTooltip({
+    tooltip.update({
       id: state.id,
       visible: true,
       content: state.content,
@@ -95,12 +107,12 @@ export const tooltipAction = (
 
   const hide = () => {
     isHovering = false
-    updateTooltip(null)
+    tooltip.update(null)
   }
 
   const hideImmediate = () => {
     isHovering = false
-    updateTooltip(null, 0)
+    tooltip.update(null, 0)
   }
 
   const refresh = () => {

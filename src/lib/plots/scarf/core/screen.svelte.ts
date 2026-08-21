@@ -38,6 +38,8 @@ export const absoluteTimeScope = (settings: ScarfPlotSettings): number | null =>
  * the raw view with noop handlers, no sync and no cursor.
  */
 export const scarfScreen: PlotScreenFactory<ScarfPlotSettings> = ctx => {
+  const timelineSync = scarfTimelineSync()
+
   // Transient drag-only overrides. The view derives from the overridden
   // settings so the timeline redraws while the user drags; release commits once.
   let dragOverrides = $state<DragOverrides | null>(null)
@@ -83,7 +85,7 @@ export const scarfScreen: PlotScreenFactory<ScarfPlotSettings> = ctx => {
   })
 
   usePlotSync(
-    scarfTimelineSync,
+    timelineSync,
     () => ctx.item.id,
     () => {
       if (!isDefaultRange) return null
@@ -174,7 +176,7 @@ export const scarfScreen: PlotScreenFactory<ScarfPlotSettings> = ctx => {
     settings: () => {
       if (!isDefaultRange) return effectiveSettings
       const timeline = effectiveSettings.timeline as 'absolute' | 'ordinal'
-      const syncedMax = scarfTimelineSync.getSyncedMax(timeline, ctx.item.w)
+      const syncedMax = timelineSync.getSyncedMax(timeline, ctx.item.w)
       if (syncedMax <= ownDataMax) return effectiveSettings
       return timeline === 'absolute'
         ? { ...effectiveSettings, timelineEnd: syncedMax }

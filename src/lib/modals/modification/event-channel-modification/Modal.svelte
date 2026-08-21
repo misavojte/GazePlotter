@@ -3,7 +3,9 @@
   import { Section, ModalButtons } from '$lib/modals'
   import { createEventIntervalsModal } from './definition-steps'
   import { getGazePlotterSession } from '$lib/session'
-  import { tooltipAction } from '$lib/tooltip'
+  import { useTooltipAction } from '$lib/tooltip'
+
+  const tooltipAction = useTooltipAction()
   import {
     getEventChannels,
     getEventsSelections,

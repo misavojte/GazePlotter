@@ -1,6 +1,8 @@
 <script lang="ts">
   import type { LucideIconComponent } from '$lib/shared/types'
-  import { tooltipAction } from '$lib/tooltip'
+  import { useTooltipAction } from '$lib/tooltip'
+
+  const tooltipAction = useTooltipAction()
 
   interface Props {
     label: string

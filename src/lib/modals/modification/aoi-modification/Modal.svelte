@@ -2,7 +2,9 @@
   import { InputColor, InputText, Select } from '$lib/shared/components'
   import { Section, ModalButtons } from '$lib/modals'
   import { getGazePlotterSession } from '$lib/session'
-  import { tooltipAction } from '$lib/tooltip'
+  import { useTooltipAction } from '$lib/tooltip'
+
+  const tooltipAction = useTooltipAction()
   import { getAllAois, getStimuli, getAoiSelections } from '$lib/data/engine'
   import { getStimuliOptions } from '$lib/plots/shared'
   import type {
