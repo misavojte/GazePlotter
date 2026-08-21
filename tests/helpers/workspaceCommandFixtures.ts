@@ -160,8 +160,6 @@ export function createMockGridStore(
     duplicateItem: vi.fn(),
     addItem: vi.fn(),
     resolveItemPositionCollisions: vi.fn(() => []),
-    setLayoutState: vi.fn(),
-    updateItem: vi.fn(),
   }
 
   return gridStore as GridState

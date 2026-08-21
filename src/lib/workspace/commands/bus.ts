@@ -170,11 +170,7 @@ export class WorkspaceCommandBus {
     settings: Partial<AllPlotSettings>,
     source: string
   ): boolean {
-    return this.apply({
-      type: 'updateSettings',
-      updates: [{ itemId, settings }],
-      source,
-    })
+    return this.updateItemsSettings([itemId], settings, source)
   }
 
   /**

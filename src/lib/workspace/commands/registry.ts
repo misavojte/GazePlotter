@@ -1,4 +1,5 @@
 import type {
+  SelectionsAxis,
   WorkspaceCommand,
   WorkspaceCommandChain,
 } from './types'
@@ -26,7 +27,12 @@ import type {
   GridItemLayoutUpdate,
   GridItemSnapshot,
 } from '$lib/workspace'
-import type { ExtendedInterpretedDataType } from '$lib/data/types'
+import type {
+  EntitySelection,
+  ExtendedInterpretedDataType,
+  NameSelection,
+  ParticipantsSelection,
+} from '$lib/data/types'
 
 export type WorkspaceCommandDispatcher = (
   command: WorkspaceCommandChain
@@ -56,12 +62,6 @@ type ReverseHandlers = {
     meta: CommandMeta
   ) => WorkspaceCommandChain | null
 }
-
-type CommandType = WorkspaceCommandChain['type']
-type CommandOfType<TType extends CommandType> = Extract<
-  WorkspaceCommandChain,
-  { type: TType }
->
 
 export type WorkspaceCommandRegistry = {
   execute: (
@@ -93,6 +93,39 @@ export function createWorkspaceCommandRegistry(
     if (!meta) throw new Error('Data engine metadata not available for command reversal')
     return meta
   }
+
+  // One row per SELECTIONS axis: how to apply an update, and how to read the
+  // current array for the inverse snapshot. Both handlers dispatch through
+  // this table, so adding an axis touches one place. The payload type follows
+  // the axis (see UpdateSelectionsCommand).
+  const selectionsAxes = {
+    participant: {
+      set: (s: ParticipantsSelection[]) => engine.setParticipantsSelections(s),
+      current: m => m.participantsSelections ?? [],
+    },
+    stimulus: {
+      set: (s: EntitySelection[]) => engine.setStimuliSelections(s),
+      current: m => m.stimuliSelections ?? [],
+    },
+    category: {
+      set: (s: EntitySelection[]) => engine.setCategoriesSelections(s),
+      current: m => m.categoriesSelections ?? [],
+    },
+    event: {
+      set: (s: NameSelection[]) => engine.setEventsSelections(s),
+      current: m => m.eventsSelections ?? [],
+    },
+    aoi: {
+      set: (s: NameSelection[]) => engine.setAoiSelections(s),
+      current: m => m.aois.selections ?? [],
+    },
+  } satisfies Record<
+    SelectionsAxis,
+    {
+      set: (selections: never) => void
+      current: (meta: ReturnType<typeof requireMetadata>) => unknown
+    }
+  >
 
   // Find a grid item by id or throw. The throw is load-bearing on the reverse
   // path: a missing item makes the reverse handler throw, which the bus turns
@@ -195,23 +228,9 @@ export function createWorkspaceCommandRegistry(
     },
 
     updateSelections: command => {
-      switch (command.axis) {
-        case 'participant':
-          engine.setParticipantsSelections(command.selections)
-          break
-        case 'stimulus':
-          engine.setStimuliSelections(command.selections)
-          break
-        case 'category':
-          engine.setCategoriesSelections(command.selections)
-          break
-        case 'event':
-          engine.setEventsSelections(command.selections)
-          break
-        case 'aoi':
-          engine.setAoiSelections(command.selections)
-          break
-      }
+      // The command ties axis to payload; the indexed lookup can't carry that
+      // correlation, so one cast re-asserts it.
+      selectionsAxes[command.axis].set(command.selections as never)
       // Only participant and AOI selections feed plot transforms directly;
       // the other axes narrow via reactive selectors, so no epoch bump.
       if (command.axis === 'participant' || command.axis === 'aoi')
@@ -283,7 +302,7 @@ export function createWorkspaceCommandRegistry(
       for (const { itemId, settings } of command.updates) {
         requireItem(itemId, `Grid item ${itemId} not found`)
 
-        gridStore.updateItem(itemId, settings)
+        gridStore.updateSettings(itemId, settings)
         gridStore.updateLayout(itemId, {
           redrawTimestamp: Date.now(),
         })
@@ -351,7 +370,7 @@ export function createWorkspaceCommandRegistry(
     },
 
     setLayoutState: command => {
-      gridStore.setLayoutState(command.layoutState)
+      gridStore.reset(command.layoutState)
     },
   }
 
@@ -429,23 +448,15 @@ export function createWorkspaceCommandRegistry(
     },
 
     // Reverse = snapshot of the axis' current selections array.
-    updateSelections: (cmd, meta) => {
-      const dataMeta = requireMetadata()
-      const selections =
-        cmd.axis === 'participant'
-          ? dataMeta.participantsSelections ?? []
-          : cmd.axis === 'stimulus'
-            ? dataMeta.stimuliSelections ?? []
-            : cmd.axis === 'category'
-              ? dataMeta.categoriesSelections ?? []
-              : cmd.axis === 'event'
-                ? dataMeta.eventsSelections ?? []
-                : dataMeta.aois.selections ?? []
-      return withMeta(
-        { type: 'updateSelections', axis: cmd.axis, selections },
+    updateSelections: (cmd, meta) =>
+      withMeta(
+        {
+          type: 'updateSelections',
+          axis: cmd.axis,
+          selections: selectionsAxes[cmd.axis].current(requireMetadata()),
+        },
         meta
-      )
-    },
+      ),
 
     // Reverse-before-execute: the merge log entry is a pure function of the
     // current (pre-merge) dataset, so we precompute it here — dry-running the
@@ -588,22 +599,22 @@ export function createWorkspaceCommandRegistry(
       ),
   }
 
+  // `command.type` picks the matching handler, but TS can't correlate a union
+  // member with its handler through an index, so each lookup re-asserts the
+  // pairing (correct by construction).
+
   function execute(
     command: WorkspaceCommandChain,
     context: WorkspaceCommandExecutionContext
   ): void {
-    executeTypedCommand(command, context)
+    const handler = handlers[command.type] as (
+      command: WorkspaceCommandChain,
+      context: WorkspaceCommandExecutionContext
+    ) => void
+    handler(command, context)
     if (command.isRootCommand && !context.isUndoRedoOperation) {
       invokeOnCommandHooks(command, context)
     }
-  }
-
-  function executeTypedCommand<TType extends CommandType>(
-    command: CommandOfType<TType>,
-    context: WorkspaceCommandExecutionContext
-  ): void {
-    const handler = handlers[command.type]
-    handler(command, context)
   }
 
   function reverse(
@@ -615,20 +626,15 @@ export function createWorkspaceCommandRegistry(
         chainId: command.chainId,
         isRootCommand: command.isRootCommand,
       }
-
-      return reverseTypedCommand(command, meta)
+      const handler = reverseHandlers[command.type] as (
+        command: WorkspaceCommandChain,
+        meta: CommandMeta
+      ) => WorkspaceCommandChain | null
+      return handler(command, meta)
     } catch (error) {
       onError?.(error, { phase: 'reverse', command })
       return null
     }
-  }
-
-  function reverseTypedCommand<TType extends CommandType>(
-    command: CommandOfType<TType>,
-    meta: CommandMeta
-  ): WorkspaceCommandChain | null {
-    const handler = reverseHandlers[command.type]
-    return handler(command, meta)
   }
 
   return { execute, reverse }

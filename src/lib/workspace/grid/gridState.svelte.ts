@@ -185,17 +185,7 @@ export class GridState {
     }
   }
 
-  setSelectedItem(id: number | null) {
-    if (id === null) {
-      this.clearSelection()
-      return
-    }
-    // Single-select entry point: collapse the set to exactly this item.
-    // Used by add/duplicate flows that then call `openPane(newId)`.
-    if (this.items.some(i => i.id === id)) this.selectedItemIds = [id]
-  }
-
-  /** Replace the selection with exactly this item (plain click). */
+  /** Replace the selection with exactly this item (plain click, add/duplicate). */
   selectOnly(id: number) {
     if (this.items.some(i => i.id === id)) this.selectedItemIds = [id]
   }
@@ -290,13 +280,6 @@ export class GridState {
     })
   }
 
-  updateItem(
-    id: number,
-    settings: Partial<PlotSettingsMap[keyof PlotSettingsMap]>
-  ) {
-    this.updateSettings(id, settings)
-  }
-
   duplicateItem(item: AllGridTypes, duplicateId?: number) {
     const duplicate = duplicateGridItem(item, duplicateId)
     const placement = this.resolvePlacement(
@@ -309,11 +292,6 @@ export class GridState {
     duplicate.y = placement.y
     this.items.push(duplicate)
     return duplicate.id
-  }
-
-  setLayoutState(layout: GridItemSnapshot[]) {
-    // Delegate to reset() which handles batched item creation
-    this.reset(layout)
   }
 
   /**

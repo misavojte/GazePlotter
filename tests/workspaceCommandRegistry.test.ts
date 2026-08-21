@@ -101,8 +101,8 @@ describe('workspaceCommandRegistry', () => {
     })
 
     // Every targeted item is updated by the single command.
-    expect(gridStore.updateItem).toHaveBeenCalledWith(11, { stimulusId: 2 })
-    expect(gridStore.updateItem).toHaveBeenCalledWith(12, { stimulusId: 2 })
+    expect(gridStore.updateSettings).toHaveBeenCalledWith(11, { stimulusId: 2 })
+    expect(gridStore.updateSettings).toHaveBeenCalledWith(12, { stimulusId: 2 })
 
     // Each scarf's stale AOI highlights are cleared for its own id, sharing
     // the command's chain (so the whole bulk is one atomic undo step).
@@ -315,7 +315,7 @@ describe('workspaceCommandRegistry', () => {
     
     const items = [initialItem]
     const gridStore = createMockGridStore(items)
-    gridStore.updateItem = vi.fn((id, settings) => {
+    gridStore.updateSettings = vi.fn((id, settings) => {
       const item = items.find(i => i.id === id)
       if (item) {
         item.settings = { ...item.settings, ...settings }
@@ -372,7 +372,7 @@ describe('workspaceCommandRegistry', () => {
       createScarfGridItem({ id: 12, settings: { stimulusId: 3 } }),
     ]
     const gridStore = createMockGridStore(items)
-    gridStore.updateItem = vi.fn((id, settings) => {
+    gridStore.updateSettings = vi.fn((id, settings) => {
       const item = items.find(i => i.id === id)
       if (item) item.settings = { ...item.settings, ...settings }
     })

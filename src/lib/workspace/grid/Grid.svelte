@@ -102,7 +102,7 @@
         duplicateId: newId,
       })
     ) {
-      grid.setSelectedItem(newId)
+      grid.selectOnly(newId)
       if (!responsive.isMobile) {
         grid.openPane(newId)
       }
@@ -170,8 +170,6 @@
           minH={item.min?.h || gridConfig.minHeight}
           cellSize={gridConfig.cellSize}
           gap={gridConfig.gap}
-          resizable={true}
-          draggable={true}
           {interaction}
           title={plotLabel}
           subtitle={plotSubtitle}

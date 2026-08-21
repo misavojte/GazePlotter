@@ -47,16 +47,8 @@ export type PlotSettingsMap = {
 
 export type AllPlotSettings = PlotSettingsMap[keyof PlotSettingsMap]
 
-/**
- * Generic plot item shape used across the workspace.
- */
-export type PlotItem<
-  TType extends PlotType,
-  TSettings extends AllPlotSettings,
-> = PlotItemContract<TType, TSettings>
-
 export type GridItemMap = {
-  [K in PlotType]: PlotItem<K, PlotSettingsMap[K]>
+  [K in PlotType]: PlotItemContract<K, PlotSettingsMap[K]>
 }
 
 export type AllGridTypes = GridItemMap[keyof GridItemMap]

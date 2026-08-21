@@ -28,21 +28,16 @@
     h: number
     minW?: number
     minH?: number
-    cellSize?: { width: number; height: number }
-    gap?: number
-    resizable?: boolean
-    draggable?: boolean
+    cellSize: { width: number; height: number }
+    gap: number
     title?: string
     subtitle?: PlotSubtitleParts
-    removable?: boolean
-    class?: string
-    body?: Snippet
-    children?: Snippet
+    body: Snippet
     interaction: GridInteractionController
-    onmove?: GridEvent<GridRect[]>
-    onresize?: GridEvent<GridRect>
-    onremove?: GridEvent<IdOnly>
-    onduplicate?: GridEvent<DuplicateRequest>
+    onmove: GridEvent<GridRect[]>
+    onresize: GridEvent<GridRect>
+    onremove: GridEvent<IdOnly>
+    onduplicate: GridEvent<DuplicateRequest>
   }
 
   let {
@@ -53,21 +48,16 @@
     h,
     minW = 1,
     minH = 1,
-    cellSize = { width: 40, height: 40 },
-    gap = 10,
-    resizable = true,
-    draggable: isDraggableEnabled = true,
+    cellSize,
+    gap,
     title = '',
     subtitle,
-    removable = true,
-    class: customClass = '',
     body,
-    children,
     interaction,
-    onmove = () => {},
-    onresize = () => {},
-    onremove = () => {},
-    onduplicate = () => {},
+    onmove,
+    onresize,
+    onremove,
+    onduplicate,
   }: Props = $props()
 
   const item = $derived({ id, x, y, w, h })
@@ -133,7 +123,6 @@
   let isPressed = $state(false)
 
   function onPointerDown(e: PointerEvent) {
-    if (!isDraggableEnabled && !removable && !resizable && !onmove) return
     const target = e.target as HTMLElement | null
     if (target?.closest(BLOCK_SELECTOR)) return
     isPressed = true
@@ -169,7 +158,7 @@
   // the interaction, so a plain click on the frame still toggles
   // selection cleanly rather than spawning a no-op move session.
   const frameMoveActionParams = $derived({
-    enabled: isDraggableEnabled && isSelected,
+    enabled: isSelected,
     items: moveItems,
     interaction,
     onCommit: (rects: GridRect[]) => onmove(rects),
@@ -183,7 +172,7 @@
 
   const resizeParams = $derived.by(() => {
     const base = {
-      enabled: resizable,
+      enabled: true,
       item,
       min: minimumSize,
       interaction,
@@ -199,7 +188,7 @@
 </script>
 
 <div
-  class="grid-item {customClass}"
+  class="grid-item"
   class:is-being-dragged={isDragging}
   class:resizing={isResizing}
   class:is-ghosted={isGhosted}
@@ -256,15 +245,11 @@
     </div>
 
     <div class="grid-item-body">
-      {#if body}
-        {@render body()}
-      {:else}
-        {@render children?.()}
-      {/if}
+      {@render body()}
     </div>
   </div>
 
-  {#if resizable && isSoleSelection}
+  {#if isSoleSelection}
     <!-- Corner resize affordances. Placed outside the .grid-item-frame
          (which has overflow:hidden) so their half-outside-half-inside
          positioning isn't clipped. All four corners are wired to the
@@ -285,7 +270,7 @@
     {@render cornerHandle('bottom-right', resizeParams.br)}
   {/if}
 
-  {#if isSoleSelection && (isDraggableEnabled || removable)}
+  {#if isSoleSelection}
     <!-- Compact action chip anchored at the top-left, sitting on the
          selection outline's top edge. Pill-shaped with both top corners
          rounded; sibling of the frame so it isn't clipped by
@@ -297,29 +282,25 @@
          Move button duplicates the affordance and mixes drag-to-act
          with the click-to-act Duplicate/Remove buttons next to it. -->
     <div class="action-toolbar" data-block-select>
-      {#if isDraggableEnabled}
-        <button
-          type="button"
-          class="action-toolbar-button"
-          onclick={e =>
-            onduplicate({ id, clientX: e.clientX, clientY: e.clientY })}
-          aria-label="Duplicate item"
-        >
-          <Copy size={12} strokeWidth={1.75} aria-hidden="true" />
-          <span>Duplicate</span>
-        </button>
-      {/if}
-      {#if removable}
-        <button
-          type="button"
-          class="action-toolbar-button"
-          onclick={() => onremove({ id })}
-          aria-label="Remove item"
-        >
-          <X size={12} strokeWidth={1.75} aria-hidden="true" />
-          <span>Remove</span>
-        </button>
-      {/if}
+      <button
+        type="button"
+        class="action-toolbar-button"
+        onclick={e =>
+          onduplicate({ id, clientX: e.clientX, clientY: e.clientY })}
+        aria-label="Duplicate item"
+      >
+        <Copy size={12} strokeWidth={1.75} aria-hidden="true" />
+        <span>Duplicate</span>
+      </button>
+      <button
+        type="button"
+        class="action-toolbar-button"
+        onclick={() => onremove({ id })}
+        aria-label="Remove item"
+      >
+        <X size={12} strokeWidth={1.75} aria-hidden="true" />
+        <span>Remove</span>
+      </button>
     </div>
   {/if}
   </div>
@@ -423,12 +404,9 @@
     /* Signals the selected-frame "drag-from-anywhere" affordance: once
        selected, the whole frame becomes a grab target (see
        frameMoveActionParams in the script). Dragging any selected member
-       moves the whole selection together. Children that have their own
-       click semantics — anything inside `[data-block-select]` — reset to
-       `auto` so the plot canvas, inputs, buttons etc. keep their own
-       cursors. Interactive elements like buttons/links already carry their
-       own `cursor: pointer`, so this mostly matters for canvas and static
-       chrome inside figures. */
+       moves the whole selection together. Interactive children carry their
+       own cursors; scoped CSS cannot reach `[data-block-select]` content
+       rendered by other components, so there is no override for it here. */
     cursor: move;
   }
 
@@ -438,10 +416,6 @@
   .grid-item-frame.group-member {
     outline-width: 1px;
     outline-style: dashed;
-  }
-
-  .grid-item-frame.selected [data-block-select] {
-    cursor: auto;
   }
 
   .grid-item-header {

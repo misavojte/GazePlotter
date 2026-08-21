@@ -69,17 +69,14 @@
     isBulk ? 'Bulk plot settings' : `${title} settings`
   )
 
-  // Desktop: closing the pane also deselects (setSelectedItem(null)/
-  // clearSelection() clears paneOpenId transitively). Mobile: keep the plot
-  // selected so the FAB returns and the user can still drag — closePane()
-  // only closes the sheet.
+  // Desktop: closing the pane also deselects (clearSelection() clears
+  // paneOpenId transitively). Mobile: keep the plot selected so the FAB
+  // returns and the user can still drag; closePane() only closes the sheet.
   function close() {
-    if (isBulk) {
-      grid.clearSelection()
-    } else if (responsive.isMobile) {
+    if (responsive.isMobile && !isBulk) {
       grid.closePane()
     } else {
-      grid.setSelectedItem(null)
+      grid.clearSelection()
     }
   }
 

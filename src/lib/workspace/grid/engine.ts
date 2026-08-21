@@ -90,6 +90,23 @@ type ResolutionCommand = {
   settings: GridItemLayoutUpdate
 }
 
+// Relocate `id` to the first free cell against everything else in the sim
+// (the one relocation rule all three strategies below share). Mutates the
+// sim; returns true when the item actually moved.
+function relocateInSim(
+  id: number,
+  sim: Map<number, GridItemPosition>,
+  availableColumns: number
+): boolean {
+  const current = sim.get(id)
+  if (!current) return false
+  const others = Array.from(sim.values()).filter(p => p.id !== id)
+  const next = findOptimalPosition(current.w, current.h, others, availableColumns)
+  if (next.x === current.x && next.y === current.y) return false
+  sim.set(id, { ...current, x: next.x, y: next.y })
+  return true
+}
+
 type ResolutionPlan = {
   updates: ResolutionCommand[]
   cost: number
@@ -185,8 +202,7 @@ function runCascadeResolution(
 
   for (const id of initialColliders) {
     if (id === priority.id) continue
-    const current = sim.get(id)
-    if (!current) continue
+    if (!sim.has(id)) continue
 
     let best:
       | { chain: Map<number, { x: number; y: number }>; cost: number }
@@ -222,17 +238,7 @@ function runCascadeResolution(
     }
 
     // No direction works — fall back to first-free cell.
-    const simArray = Array.from(sim.values()).filter(p => p.id !== id)
-    const next = findOptimalPosition(
-      current.w,
-      current.h,
-      simArray,
-      availableColumns
-    )
-    if (next.x !== current.x || next.y !== current.y) {
-      sim.set(id, { ...current, x: next.x, y: next.y })
-      moved.add(id)
-    }
+    if (relocateInSim(id, sim, availableColumns)) moved.add(id)
   }
 
   const updates: ResolutionCommand[] = []
@@ -264,19 +270,10 @@ function runRelocateResolution(
 
   for (const id of directColliders) {
     if (id === priority.id) continue
-    const current = sim.get(id)
-    if (!current) continue
-    const simArray = Array.from(sim.values()).filter(p => p.id !== id)
-    const next = findOptimalPosition(
-      current.w,
-      current.h,
-      simArray,
-      availableColumns
-    )
-    if (next.x === current.x && next.y === current.y) continue
-    sim.set(id, { ...current, x: next.x, y: next.y })
+    if (!relocateInSim(id, sim, availableColumns)) continue
     const orig = original.get(id)
-    if (!orig) continue
+    const next = sim.get(id)
+    if (!orig || !next) continue
     updates.push({ itemId: id, settings: { x: next.x, y: next.y } })
     cost += Math.abs(next.x - orig.x) + Math.abs(next.y - orig.y)
   }
@@ -316,14 +313,11 @@ function resolveGroupCollisions(
   const sim = new Map(positions.map(p => [p.id, { ...p }]))
   const updates: Array<{ itemId: number; settings: GridItemLayoutUpdate }> = []
   for (const id of colliders) {
-    const current = sim.get(id)
-    if (!current) continue
-    // Search free cells against everything else, including the (fixed)
-    // priority items and already-relocated colliders.
-    const others = Array.from(sim.values()).filter(p => p.id !== id)
-    const next = findOptimalPosition(current.w, current.h, others, availableColumns)
-    if (next.x === current.x && next.y === current.y) continue
-    sim.set(id, { ...current, x: next.x, y: next.y })
+    // The sim already holds the (fixed) priority items and every
+    // already-relocated collider, so each relocation sees all of them.
+    if (!relocateInSim(id, sim, availableColumns)) continue
+    const next = sim.get(id)
+    if (!next) continue
     updates.push({ itemId: id, settings: { x: next.x, y: next.y } })
   }
   return updates

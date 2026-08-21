@@ -19,13 +19,11 @@
     GridInteractionController,
     panSurfaceAction,
   } from './grid/interaction'
-  import { plotRegistry } from '$lib/plots/registry'
-  import { generateUniqueId } from '$lib/shared/utils/idUtils'
   import { WorkspaceZoom, wheelZoomAction } from './zoom.svelte'
   import { FileDropTarget } from './fileDrop.svelte'
   import { isTextEntryTarget, resolveWorkspaceShortcut } from './keys'
   import type { WorkspaceCommandChain } from './commands'
-  import type { GridItemSnapshot, PlotType } from './'
+  import type { GridItemSnapshot } from './'
 
   interface Props {
     onWorkspaceCommandChain: (command: WorkspaceCommandChain) => void
@@ -48,7 +46,7 @@
     const target = event.target as HTMLElement | null
     if (!target) return
     if (target.closest('.grid-item')) return
-    grid.setSelectedItem(null)
+    grid.clearSelection()
   }
 
   // Drag-to-pan starts from anywhere in the scroll container's empty
@@ -133,22 +131,6 @@
     }
   })
 
-  const visualizations = (Object.keys(plotRegistry) as PlotType[]).map(id => ({
-    id,
-    label: plotRegistry[id].name,
-    group: plotRegistry[id].group,
-  }))
-
-  function handleAddVisualization(vizType: PlotType): void {
-    const newId = generateUniqueId()
-    if (workspace.addGridItem(vizType, 'rail', newId)) {
-      grid.setSelectedItem(newId)
-      if (!responsive.isMobile) {
-        grid.openPane(newId)
-      }
-    }
-  }
-
   $effect(() => {
     workspace.setCommandListener(onWorkspaceCommandChain)
 
@@ -220,12 +202,7 @@
     {#if !responsive.isMobile}
       <!-- Desktop: Rail is a flex item on the left edge of the -->
       <!-- workspace-body row, next to the scrolling container. -->
-      <Rail
-        {initialLayoutState}
-        {visualizations}
-        bind:zoom={zoom.value}
-        onAddVisualization={handleAddVisualization}
-      />
+      <Rail {initialLayoutState} bind:zoom={zoom.value} />
     {/if}
 
     <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -307,10 +284,8 @@
     <!-- enters the viewport and the rail scrolls away with it. -->
     <Rail
       {initialLayoutState}
-      {visualizations}
       bind:zoom={zoom.value}
       bind:element={mobileRailElement}
-      onAddVisualization={handleAddVisualization}
     />
   {/if}
 </div>

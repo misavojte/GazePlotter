@@ -91,7 +91,7 @@ describe('GridState selection set', () => {
     expect(grid.paneOpenId).toBe(2)
   })
 
-  it('clearSelection and setSelectedItem(null) clear both selection and pane', () => {
+  it('clearSelection clears both selection and pane', () => {
     const grid = gridWithItems()
     grid.selectOnly(1)
     grid.openPane(1)
@@ -100,10 +100,6 @@ describe('GridState selection set', () => {
     grid.clearSelection()
     expect(grid.selectedItemIds).toEqual([])
     expect(grid.paneOpenId).toBeNull()
-
-    grid.selectOnly(3)
-    grid.setSelectedItem(null)
-    expect(grid.selectedItemIds).toEqual([])
   })
 
   it('removeItem drops only that item from the selection and keeps single pane in sync', () => {
