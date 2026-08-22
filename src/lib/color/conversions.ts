@@ -116,108 +116,14 @@ export function convertToHex(color: string, defaultValue = '#000000'): string {
 }
 
 /**
- * Converts HSV to HSL
+ * Converts RGB (0-255) to HSV (h 0-360, s/v 0-100) directly.
+ * The picker's native model; no HSL hop, so values round once.
  */
-export function hsvToHsl(
-  h: number,
-  s: number,
-  v: number
-): { h: number; s: number; l: number } {
-  const sNormalized = s / 100
-  const vNormalized = v / 100
-
-  const lNormalized = vNormalized * (1 - sNormalized / 2)
-  const newS =
-    lNormalized === 0 || lNormalized === 1
-      ? 0
-      : (vNormalized - lNormalized) / Math.min(lNormalized, 1 - lNormalized)
-
-  return {
-    h,
-    s: Math.round(newS * 100),
-    l: Math.round(lNormalized * 100),
-  }
-}
-
-/**
- * Converts HSL to HSV
- */
-export function hslToHsv(
-  h: number,
-  s: number,
-  l: number
-): { h: number; s: number; v: number } {
-  const sNormalized = s / 100
-  const lNormalized = l / 100
-
-  const vNormalized =
-    lNormalized + sNormalized * Math.min(lNormalized, 1 - lNormalized)
-  const newS = vNormalized === 0 ? 0 : 2 * (1 - lNormalized / vNormalized)
-
-  return {
-    h,
-    s: Math.round(newS * 100),
-    v: Math.round(vNormalized * 100),
-  }
-}
-
-/**
- * Converts HSL to RGB
- * Handles hue wrapping [0, 360] and ensures precision.
- */
-export function hslToRgb(
-  h: number,
-  s: number,
-  l: number
-): { r: number; g: number; b: number } {
-  // Normalize hue to [0, 360) for calculation, but handle 360 specifically
-  const hCalc = h === 360 ? 0 : ((h % 360) + 360) % 360
-
-  const sNorm = Math.max(0, Math.min(100, s)) / 100
-  const lNorm = Math.max(0, Math.min(100, l)) / 100
-
-  if (sNorm === 0) {
-    const v = Math.round(lNorm * 255)
-    return { r: v, g: v, b: v }
-  }
-
-  const c = (1 - Math.abs(2 * lNorm - 1)) * sNorm
-  const x = c * (1 - Math.abs(((hCalc / 60) % 2) - 1))
-  const m = lNorm - c / 2
-
-  let r = 0,
-    g = 0,
-    b = 0
-
-  if (0 <= hCalc && hCalc < 60) {
-    ;[r, g, b] = [c, x, 0]
-  } else if (60 <= hCalc && hCalc < 120) {
-    ;[r, g, b] = [x, c, 0]
-  } else if (120 <= hCalc && hCalc < 180) {
-    ;[r, g, b] = [0, c, x]
-  } else if (180 <= hCalc && hCalc < 240) {
-    ;[r, g, b] = [0, x, c]
-  } else if (240 <= hCalc && hCalc < 300) {
-    ;[r, g, b] = [x, 0, c]
-  } else if (300 <= hCalc && hCalc < 360) {
-    ;[r, g, b] = [c, 0, x]
-  }
-
-  return {
-    r: Math.round((r + m) * 255),
-    g: Math.round((g + m) * 255),
-    b: Math.round((b + m) * 255),
-  }
-}
-
-/**
- * Converts RGB to HSL
- */
-export function rgbToHsl(
+export function rgbToHsv(
   r: number,
   g: number,
   b: number
-): { h: number; s: number; l: number } {
+): { h: number; s: number; v: number } {
   const rNorm = r / 255
   const gNorm = g / 255
   const bNorm = b / 255
@@ -227,12 +133,7 @@ export function rgbToHsl(
   const d = max - min
 
   let h = 0
-  let s = 0
-  const l = (max + min) / 2
-
   if (d !== 0) {
-    s = l > 0.5 ? d / (2 - max - min) : d / (max + min)
-
     switch (max) {
       case rNorm:
         h = (gNorm - bNorm) / d + (gNorm < bNorm ? 6 : 0)
@@ -249,7 +150,50 @@ export function rgbToHsl(
 
   return {
     h: Math.round(h),
-    s: Math.round(s * 100),
-    l: Math.round(l * 100),
+    s: Math.round((max === 0 ? 0 : d / max) * 100),
+    v: Math.round(max * 100),
+  }
+}
+
+/**
+ * Converts HSV (h 0-360, s/v 0-100) to RGB (0-255).
+ * Handles hue wrapping [0, 360] and clamps s/v.
+ */
+export function hsvToRgb(
+  h: number,
+  s: number,
+  v: number
+): { r: number; g: number; b: number } {
+  // Normalize hue to [0, 360) for calculation, but handle 360 specifically
+  const hCalc = h === 360 ? 0 : ((h % 360) + 360) % 360
+  const sNorm = Math.max(0, Math.min(100, s)) / 100
+  const vNorm = Math.max(0, Math.min(100, v)) / 100
+
+  const c = vNorm * sNorm
+  const x = c * (1 - Math.abs(((hCalc / 60) % 2) - 1))
+  const m = vNorm - c
+
+  let r = 0,
+    g = 0,
+    b = 0
+
+  if (hCalc < 60) {
+    ;[r, g, b] = [c, x, 0]
+  } else if (hCalc < 120) {
+    ;[r, g, b] = [x, c, 0]
+  } else if (hCalc < 180) {
+    ;[r, g, b] = [0, c, x]
+  } else if (hCalc < 240) {
+    ;[r, g, b] = [0, x, c]
+  } else if (hCalc < 300) {
+    ;[r, g, b] = [x, 0, c]
+  } else {
+    ;[r, g, b] = [c, 0, x]
+  }
+
+  return {
+    r: Math.round((r + m) * 255),
+    g: Math.round((g + m) * 255),
+    b: Math.round((b + m) * 255),
   }
 }

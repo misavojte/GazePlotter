@@ -3,12 +3,10 @@
     convertToHex,
     detectColorFormat,
     getContrastTextColor,
-    hslToHsv,
-    hslToRgb,
-    hsvToHsl,
+    hsvToRgb,
     isDarkColor,
     rgbToHex,
-    rgbToHsl,
+    rgbToHsv,
     hexToRgb,
   } from '$lib/color'
   import { CATEGORICAL_PALETTE } from '$lib/color/palettes'
@@ -56,8 +54,7 @@
 
     const actualHex = convertToHex(hexColor)
     const rgb = hexToRgb(actualHex)
-    const hslValues = rgbToHsl(rgb.r, rgb.g, rgb.b)
-    const hsvValues = hslToHsv(hslValues.h, hslValues.s, hslValues.l)
+    const hsvValues = rgbToHsv(rgb.r, rgb.g, rgb.b)
 
     hue = hsvValues.h
     saturationHsv = hsvValues.s
@@ -66,8 +63,7 @@
 
   // Update color from HSV
   const updateColorFromHsv = () => {
-    const hslValues = hsvToHsl(hue, saturationHsv, valueHsv)
-    const rgb = hslToRgb(hslValues.h, hslValues.s, hslValues.l)
+    const rgb = hsvToRgb(hue, saturationHsv, valueHsv)
     const hexValue = rgbToHex(rgb.r, rgb.g, rgb.b)
 
     // Update internal tracking first to prevent the effect from re-syncing

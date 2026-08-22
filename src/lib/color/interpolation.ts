@@ -1,3 +1,5 @@
+import { hexToRgb, rgbToHex } from './conversions'
+
 /**
  * Interpolates between two hex colors
  * @param color1 - Starting hex color (e.g., '#FFFFFF')
@@ -95,19 +97,10 @@ export function samplePalette(palette: readonly string[], t: number): string {
  * @param amount The amount to mix with white (0 = original color, 1 = white)
  */
 export function desaturateToWhite(hex: string, amount: number): string {
-  // Handle short hex
-  let c = hex.replace('#', '')
-  if (c.length === 3) {
-    c = c[0] + c[0] + c[1] + c[1] + c[2] + c[2]
-  }
-
-  const r = parseInt(c.substring(0, 2), 16)
-  const g = parseInt(c.substring(2, 4), 16)
-  const b = parseInt(c.substring(4, 6), 16)
-
-  const newR = Math.round(r + (255 - r) * amount)
-  const newG = Math.round(g + (255 - g) * amount)
-  const newB = Math.round(b + (255 - b) * amount)
-
-  return `#${newR.toString(16).padStart(2, '0')}${newG.toString(16).padStart(2, '0')}${newB.toString(16).padStart(2, '0')}`
+  const { r, g, b } = hexToRgb(hex)
+  return rgbToHex(
+    r + (255 - r) * amount,
+    g + (255 - g) * amount,
+    b + (255 - b) * amount
+  )
 }

@@ -10,63 +10,38 @@ import {
  * Detaches the floating UI logic from the input component.
  */
 export class ColorPickerState {
-  #isOpen = $state(false)
-  #triggerElement = $state<HTMLElement | null>(null)
-  #popupElement = $state<HTMLElement | null>(null)
-  #position = $state({ top: 0, left: 0 })
-
   /** Whether the color picker popup is currently open. */
-  get isOpen() {
-    return this.#isOpen
-  }
-  set isOpen(value: boolean) {
-    this.#isOpen = value
-  }
-
+  isOpen = $state(false)
   /** Reference to the element that triggers the popup. */
-  get triggerElement() {
-    return this.#triggerElement
-  }
-  set triggerElement(value: HTMLElement | null) {
-    this.#triggerElement = value
-  }
-
+  triggerElement = $state<HTMLElement | null>(null)
   /** Reference to the popup element itself. */
-  get popupElement() {
-    return this.#popupElement
-  }
-  set popupElement(value: HTMLElement | null) {
-    this.#popupElement = value
-  }
-
+  popupElement = $state<HTMLElement | null>(null)
   /** The calculated viewport-relative position of the popup. */
-  get position() {
-    return this.#position
-  }
+  position = $state({ top: 0, left: 0 })
 
   /** Toggles the popup state and recalculates position if opening. */
   async toggle() {
-    this.#isOpen = !this.#isOpen
-    if (this.#isOpen) {
+    this.isOpen = !this.isOpen
+    if (this.isOpen) {
       await this.calculatePosition()
     }
   }
 
   /** Closes the popup. */
   close() {
-    this.#isOpen = false
+    this.isOpen = false
   }
 
   /** Calculates the optimal position for the popup relative to the trigger. */
   async calculatePosition() {
-    if (!this.#triggerElement) return
+    if (!this.triggerElement) return
 
     // Wait for the popup to be rendered so we can measure it
     await tick()
 
-    const triggerRect = this.#triggerElement.getBoundingClientRect()
-    const popupWidth = this.#popupElement?.offsetWidth ?? 0
-    const popupHeight = this.#popupElement?.offsetHeight ?? 0
+    const triggerRect = this.triggerElement.getBoundingClientRect()
+    const popupWidth = this.popupElement?.offsetWidth ?? 0
+    const popupHeight = this.popupElement?.offsetHeight ?? 0
     const floatingSize = { width: popupWidth, height: popupHeight }
 
     const preferred = computePlacement(
@@ -82,7 +57,7 @@ export class ColorPickerState {
       height: window.innerHeight,
     })
 
-    this.#position = { top, left }
+    this.position = { top, left }
   }
 
   /**
@@ -94,7 +69,7 @@ export class ColorPickerState {
 
     // The popup opens on the trigger's CLICK, so this mount runs after the
     // opening pointerdown already fired; the listener can attach immediately.
-    const trigger = this.#triggerElement
+    const trigger = this.triggerElement
     const detach = attachOutsideDismiss({
       isInside: target =>
         node.contains(target) ||
