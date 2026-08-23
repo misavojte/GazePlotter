@@ -92,6 +92,11 @@ export interface FrameGutters {
   pad?: { top?: number; right?: number; bottom?: number; left?: number }
   /** Height reserved for a legend block at the bottom of the canvas (px). */
   legendHeight?: number
+  /** Cap the data rect height (px): a taller carve shrinks to the cap and the
+   *  rect centres vertically; the axis chrome and the legend block follow it,
+   *  so the whole plot centres as one (row plots whose row stack stops growing
+   *  at its max scale). */
+  maxHeight?: number
   /** Force a centred square data rect (recurrence, square matrices). */
   square?: boolean
 }
@@ -118,7 +123,8 @@ export interface PlotFrame {
   height: number
   right: number
   bottom: number
-  /** Top of the reserved legend block (canvas px); `bottom`-aligned if none. */
+  /** Top of the legend block (canvas px): directly below the bottom-edge
+   *  gutter, so it follows the rect when a cap shrinks + centres it. */
   legendY: number
   /** Offset (px) from the left edge to the rotated left-axis title's baseline,
    *  past the reserved tick labels. Pass straight to `drawYAxisMainLabel` so a
@@ -433,6 +439,11 @@ export function resolveFrameLayout(
   let w = Math.max(0, x1 - x0)
   let h = Math.max(0, y1 - y0)
 
+  if (gutters.maxHeight !== undefined && h > gutters.maxHeight) {
+    y0 += (h - gutters.maxHeight) / 2
+    h = gutters.maxHeight
+  }
+
   if (gutters.square) {
     const s = Math.min(w, h)
     x0 += (w - s) / 2
@@ -454,7 +465,11 @@ export function resolveFrameLayout(
       height: fh,
       right: x + fw,
       bottom: y + fh,
-      legendY: bounds.bottom - legendHeight,
+      // The legend block sits directly below the bottom-edge gutter, so it
+      // follows the rect when a cap (maxHeight/square) shrinks + centres it,
+      // and the whole block centres as one. Uncapped, this lands at the
+      // reserved space at the bounds bottom as before.
+      legendY: y + fh + insetBottom,
     },
     leftTitleOffset: left.titleOffset,
     bottomTitleOffset: bottom.titleOffset,

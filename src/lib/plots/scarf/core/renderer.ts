@@ -35,9 +35,9 @@ export interface ScarfLayoutContext {
   /**
    * The data rect in absolute canvas px, floored. `plotLeft`/`plotWidth` come
    * straight from the harness frame (the left label gutter and right margin are
-   * declared as frame padding). `plotTop` and `participantBarsHeight` are
-   * scarf-owned: the rect is quantized to whole participant rows and centred in
-   * the band the frame resolved, so it is shorter than `frame.height`.
+   * declared as frame padding). Vertically the frame is capped to the row stack
+   * and centred by the resolver; `plotTop` is its top edge and
+   * `participantBarsHeight` the fractional stack the cap was ceiled from.
    */
   plotLeft: number
   plotWidth: number

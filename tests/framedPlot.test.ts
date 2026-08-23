@@ -93,6 +93,27 @@ describe('resolveFrameLayout', () => {
     expect(rect.y).toBe(0)
   })
 
+  it('caps the rect at maxHeight and centres it vertically', () => {
+    const { rect } = resolveFrameLayout({ maxHeight: 100 }, bounds)
+    expect(rect.height).toBe(100)
+    expect(rect.y).toBe(100) // (300 − 100) / 2
+    expect(rect.bottom).toBe(200)
+  })
+
+  it('keeps the legend block snug below the capped rect', () => {
+    const { rect } = resolveFrameLayout({ maxHeight: 100, legendHeight: 40 }, bounds)
+    // carve above the legend is 260 tall → rect centred at (260 − 100) / 2
+    expect(rect.y).toBe(80)
+    expect(rect.bottom).toBe(180)
+    // no bottom gutter declared, so the legend follows the rect directly
+    expect(rect.legendY).toBe(180)
+  })
+
+  it('leaves the rect alone when maxHeight is not binding', () => {
+    const { rect } = resolveFrameLayout({ maxHeight: 500 }, bounds)
+    expect(rect).toMatchObject({ y: 0, height: 300 })
+  })
+
   it('measures tick labels + title to size the bottom gutter', () => {
     const withAxis = resolveFrameLayout(
       { bottom: { tickLabels: ['0', '100'], title: 'Time [ms]' } },

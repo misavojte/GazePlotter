@@ -115,12 +115,13 @@
 
   const xAxisTicks = $derived(niceTimelineTicks(data.timeline))
 
-  const guttersFor = (leftLabelWidth: number): FrameGutters =>
+  const guttersFor = (leftLabelWidth: number, maxHeight?: number): FrameGutters =>
     scarfFrameGutters({
       tickLabels: xAxisTicks.labels ?? [],
       axisTitle: xAxisLabel,
       leftLabelWidth,
       legendSpace,
+      maxHeight,
     })
 
   // ── The row band: the ONE height the scarf's layout reads ──
@@ -131,7 +132,9 @@
   // inset pinned at its cap: independent of compact mode, and the narrowest plot
   // the scarf can have, so the title wraps to its tallest and the band is never
   // taller than the frame the figure ends up drawing in.
-  // LOAD-BEARING: reading frame.height here cycles the derived graph.
+  // LOAD-BEARING: reading frame.height here cycles the derived graph; so would
+  // passing the row-stack cap (it derives from the layout this band feeds), so
+  // the probe is always uncapped: the full band the rows may grow into.
   const rowBandHeight = $derived.by(() => {
     const { rect } = resolveFrameLayout(guttersFor(SCARF_LAYOUT.LEFT_LABEL_MAX_WIDTH), {
       left: 0,
@@ -188,11 +191,20 @@
     fit: (): PlotPlaceholderContent | null => placeholderMessage,
     // Same declaration the row band probes, with the real label column: so
     // `frame.x`/`frame.width` ARE the scarf's plot columns, and the resolver owns
-    // the x-axis gutter and the legend block. Only the vertical placement stays
-    // scarf-owned (see `plotTop`).
+    // the x-axis gutter and the legend block. The row stack caps the frame
+    // height: when the rows stop growing (MAX_BAR_SCALE) the resolver cuts the
+    // frame to them and centres it, so the border and x-axis hug the rows
+    // instead of stretching over empty band.
     // (Return type annotated: the declaration reads values that derive from the
     // handle's own geometry, so inferring it would chase `plot` through itself.)
-    gutters: (): FrameGutters => guttersFor(LEFT_LABEL_WIDTH),
+    gutters: (): FrameGutters =>
+      guttersFor(
+        LEFT_LABEL_WIDTH,
+        // Ceiled so the border never lands inside the last fractional row.
+        data.participants.length > 0
+          ? Math.ceil(participantBarsHeight)
+          : undefined
+      ),
     axes: () => ({
       bottom: { title: xAxisLabel, ticks: xAxisTicks },
     }),
@@ -236,7 +248,8 @@
   )
 
   // ── Vertical placement ──
-  // Top-anchored at frame.y matching standard row/heatmap visualizations.
+  // The frame is already capped to the row stack and centred by the resolver
+  // (see `gutters`), so the rows simply start at its top edge.
   const plotTop = $derived(plot.frame.y)
   const legendTop = $derived(plot.frame.legendY + PLOT_LEGEND_GAP)
 
@@ -253,9 +266,10 @@
     )
   })
 
-  // The rows, not the frame's full band — the frame includes centring slack the
-  // marks never fill. One source for the blocked region, the time guide and the PLOT CURSOR
-  // mark, so a guide can never hang below the last row.
+  // The rows, not the frame: the frame is the stack's whole-pixel cap (and,
+  // under the min-scale floor, can be shorter), so the fractional row stack
+  // stays the truth. One source for the blocked region, the time guide and the
+  // PLOT CURSOR mark, so a guide can never hang below the last row.
   const rowBand = $derived({
     x: plot.frame.x,
     y: plotTop,
@@ -434,9 +448,8 @@
     return hitTestLegend(legendGeometry, LEGEND_CONFIG, mouseX, mouseY)
   }
 
-  // The rows, not the frame's band: the harness gate (the frame rect) also covers
-  // the centring slack above and below them, and the pointer handlers aren't
-  // gated at all.
+  // The rows, not the frame's band: the fractional row stack is the truth (the
+  // frame is its whole-pixel cap), and the pointer handlers aren't gated at all.
   function inPlotArea(mx: number, my: number): boolean {
     return (
       mx >= plot.frame.x &&

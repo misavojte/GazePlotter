@@ -30,6 +30,9 @@ export function scarfFrameGutters(opts: {
   axisTitle: string
   leftLabelWidth: number
   legendSpace: number
+  /** Row-stack height: rows stop growing at MAX_BAR_SCALE, so on a tall canvas
+   *  the frame is capped here and centred instead of stretching past the rows. */
+  maxHeight?: number
 }): FrameGutters {
   return {
     bottom: { tickLabels: opts.tickLabels, title: opts.axisTitle },
@@ -39,6 +42,7 @@ export function scarfFrameGutters(opts: {
       right: SCARF_LAYOUT.RIGHT_MARGIN,
     },
     legendHeight: opts.legendSpace,
+    maxHeight: opts.maxHeight,
   }
 }
 
