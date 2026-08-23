@@ -7,7 +7,7 @@
   } from '$lib/plots/registry'
   import PlotContainer from '$lib/plots/shared/components/PlotContainer.svelte'
   import { getGazePlotterSession } from '$lib/session'
-  import { generateUniqueId } from '$lib/shared/utils/idUtils'
+  import { generateUniqueId } from '$lib/shared/uniqueId'
   import type { AllGridTypes } from '$lib/workspace'
   import type { GridConfig } from './types'
   import {

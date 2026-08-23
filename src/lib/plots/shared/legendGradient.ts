@@ -13,7 +13,7 @@ import { strokeCrispRect } from '$lib/plots/shared/canvasUtils'
 
 import { GRIDLINE_PRIMARY, LEGEND_FONT, PLOT_LEGEND_GAP } from './const'
 import { COLOR_FALLBACKS } from '$lib/color'
-import { wrapTextToWidth } from '$lib/shared/utils/textUtils'
+import { wrapTextToWidth } from '$lib/shared/textMeasure'
 
 /** Max wrapped lines for the colorbar title before it ellipsises (bounds the
  *  reserved legend height so the layout never has to grow unpredictably). */

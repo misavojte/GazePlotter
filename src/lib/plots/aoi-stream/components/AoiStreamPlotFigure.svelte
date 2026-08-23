@@ -18,7 +18,7 @@
     timeAtX,
     type PlotCursorPort,
   } from '$lib/plots/shared/plotCursor.svelte'
-  import { estimateTextWidth } from '$lib/shared/utils/textUtils'
+  import { estimateTextWidth } from '$lib/shared/textMeasure'
   import { desaturateToWhite, INACTIVE_COLOR } from '$lib/color'
   import { PRESET_PALETTES } from '$lib/color/palettes'
 

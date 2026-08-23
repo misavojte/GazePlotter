@@ -20,7 +20,7 @@ import { FONT_PRIMARY } from './const'
 import {
   truncateTextToPixelWidth,
   estimateTextWidth,
-} from '$lib/shared/utils/textUtils'
+} from '$lib/shared/textMeasure'
 import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
 import { desaturateToWhite } from '$lib/color'
 

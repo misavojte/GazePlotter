@@ -21,7 +21,7 @@ vi.mock('$lib/plots/shared/legendRendering', () => ({
   LEGEND_CONFIG: { fontSize: 12, fontFamily: 'Arial' },
 }))
 
-vi.mock('$lib/shared/utils/textUtils', () => ({
+vi.mock('$lib/shared/textMeasure', () => ({
   estimateTextWidth: () => 10,
   SYSTEM_SANS_SERIF_STACK: 'Arial',
 }))

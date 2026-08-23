@@ -26,7 +26,7 @@
     /** Allows the scaffold wrapper to grow within flex layouts */
     fill?: boolean
     /** The input element(s) to be wrapped by the scaffold */
-    children?: import('svelte').Snippet<[any]>
+    children?: import('svelte').Snippet
   }
 
   let {
@@ -45,7 +45,7 @@
     <label class:compact-label={compact} for={id}>{label}</label
     >
   {/if}
-  {@render children?.({ itemtype: 'input' })}
+  {@render children?.()}
 </div>
 
 <style>

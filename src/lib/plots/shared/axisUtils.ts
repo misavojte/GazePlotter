@@ -3,7 +3,7 @@ import {
   estimateTextWidth,
   truncateTextToPixelWidth,
   wrapTextToWidth,
-} from '$lib/shared/utils/textUtils'
+} from '$lib/shared/textMeasure'
 
 /** Max wrapped lines for an axis title before it ellipsises (bounds the gutter). */
 const MAX_AXIS_TITLE_LINES = 2

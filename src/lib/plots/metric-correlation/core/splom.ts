@@ -1,4 +1,4 @@
-import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
+import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/textMeasure'
 import { UI_COLORS } from '$lib/color'
 import { markCrosshairNode, type MatrixLayout } from '$lib/plots/shared'
 import { cursorRows } from '$lib/plots/shared/plotCursor.svelte'

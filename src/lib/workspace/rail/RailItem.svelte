@@ -1,5 +1,5 @@
 <script lang="ts">
-  import type { LucideIconComponent } from '$lib/shared/types'
+  import type { LucideIconComponent } from '$lib/shared/icon'
   import { useTooltipAction } from '$lib/tooltip'
 
   const tooltipAction = useTooltipAction()

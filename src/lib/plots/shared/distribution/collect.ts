@@ -7,7 +7,7 @@ import {
   resolveMetric,
   type MetricResolutionEngine,
 } from '$lib/plots/shared/metricResolver'
-import { formatDecimal } from '$lib/shared/utils/mathUtils'
+import { formatDecimal } from '$lib/shared/format'
 import { applySorting, valueAxisTimeline } from './data'
 import { computeSummaryStatistics } from './summaryStatistics'
 import type {

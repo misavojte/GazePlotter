@@ -10,7 +10,7 @@ import {
   rangeQualifier,
   type FrameGutters,
 } from '$lib/plots/shared'
-import { calculateTextMetrics } from '$lib/shared/utils/textUtils'
+import { calculateTextMetrics } from '$lib/shared/textMeasure'
 import { SCARF_LAYOUT } from '../const'
 
 /**

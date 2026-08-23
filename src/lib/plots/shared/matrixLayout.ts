@@ -1,6 +1,6 @@
 import { getGradientLegendRequiredHeight } from './legendGradient'
 import { axisTitleLineHeight, calculateTickStep, wrapAxisTitle } from './axisUtils'
-import { estimateTextWidth } from '$lib/shared/utils/textUtils'
+import { estimateTextWidth } from '$lib/shared/textMeasure'
 
 const AXIS_TITLE_GAP = 12
 const SIN_45 = 0.7071

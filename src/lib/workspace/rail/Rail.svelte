@@ -8,7 +8,7 @@
   import { stickyBanner } from '../stickyBanner.svelte'
   import { createRailItems, createEditPlotRailItem } from './config'
   import { plotRegistry } from '$lib/plots/registry'
-  import { generateUniqueId } from '$lib/shared/utils/idUtils'
+  import { generateUniqueId } from '$lib/shared/uniqueId'
   import RailItem from './RailItem.svelte'
   import RailZoomSlider from './RailZoomSlider.svelte'
   import X from 'lucide-svelte/icons/x'

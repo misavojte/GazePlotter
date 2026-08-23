@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { formatFileSize } from '$lib/shared/utils/fileUtils'
+  import { formatFileSize } from '$lib/shared/format'
   import { Card } from '$lib/shared/components'
   import MetadataSection from './MetadataSection.svelte'
   import InfoRow from './InfoRow.svelte'

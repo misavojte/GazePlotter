@@ -25,8 +25,8 @@
     timeAtX,
     type PlotCursorPort,
   } from '$lib/plots/shared/plotCursor.svelte'
-  import { measureTextHeight } from '$lib/shared/utils/textUtils'
-  import { percentileSorted } from '$lib/shared/utils/mathUtils'
+  import { measureTextHeight } from '$lib/shared/textMeasure'
+  import { percentileSorted } from '$lib/shared/stats'
   import { samplePalette } from '$lib/color'
   import { INACTIVE_COLOR, PRESET_PALETTES } from '$lib/color/palettes'
 

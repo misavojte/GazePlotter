@@ -47,7 +47,7 @@ type SettingsPatch = Parameters<UpdateSettings>[1]
  * so the item is read reactively:
  *   const bulk = createBulkContext<MySettings>(() => item)
  *   const overlay = $derived(bulk.common(s => s.statisticalOverlay))
- *   <Radio value={overlay.value} mixed={overlay.mixed}
+ *   <InputRadio value={overlay.value} mixed={overlay.mixed}
  *          onchange={e => bulk.update({ statisticalOverlay: e.detail })} />
  */
 export function createBulkContext<S = Record<string, unknown>>(

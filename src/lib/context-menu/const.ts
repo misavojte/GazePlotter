@@ -1,5 +1,3 @@
-import { DEFAULT_Z_INDEX, MODAL_Z_INDEX } from '$lib/shared/placement'
-
 export const MENU_WIDTH = 220
 export const MENU_MAX_HEIGHT = 400
 

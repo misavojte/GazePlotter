@@ -7,7 +7,7 @@ import { createRootCommand } from './utils'
 import { getCommandLabel } from './labels'
 import { UndoRedoStateStore } from './undoRedoState.svelte'
 import type { WorkspaceCommand, WorkspaceCommandChain } from './types'
-import { generateUniqueId } from '$lib/shared/utils/idUtils'
+import { generateUniqueId } from '$lib/shared/uniqueId'
 // From the owning module, not the `$lib/workspace` barrel, which also
 // re-exports this file's own consumers.
 import type {

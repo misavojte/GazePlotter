@@ -1,12 +1,7 @@
 /**
- * Utility functions for text measurement and manipulation in SVG elements
+ * Canvas-based text measurement: width/height estimation, per-list metrics,
+ * and the measurement-driven truncate/wrap helpers built on them.
  */
-
-/**
- * Defines the shape of our helper function, including its
- * static 'context' property for caching.
- */
-// --- Caching for Performance ---
 
 /**
  * Cache for Canvas contexts per unique font string.
@@ -14,6 +9,20 @@
  * which can be a bottleneck when measuring many strings.
  */
 const contextCache = new Map<string, CanvasRenderingContext2D>()
+
+/** The measuring context for `fontKey`, created and cached on first use. */
+function measureContext(fontKey: string): CanvasRenderingContext2D | null {
+  let ctx = contextCache.get(fontKey)
+  if (!ctx && typeof document !== 'undefined') {
+    const newCtx = document.createElement('canvas').getContext('2d')
+    if (newCtx) {
+      newCtx.font = fontKey
+      contextCache.set(fontKey, newCtx)
+      ctx = newCtx
+    }
+  }
+  return ctx ?? null
+}
 
 /**
  * Cache for measured text widths.
@@ -60,31 +69,17 @@ export const estimateTextWidth = (
   if (cachedWidth !== undefined) return cachedWidth
 
   // 2. Performance: Browser environment measurement
-  if (typeof document !== 'undefined') {
-    let ctx = contextCache.get(fontKey)
+  const ctx = measureContext(fontKey)
+  if (ctx) {
+    const width = ctx.measureText(text).width
 
-    if (!ctx) {
-      const canvas = document.createElement('canvas')
-      const newCtx = canvas.getContext('2d')
-      if (newCtx) {
-        newCtx.font = fontKey
-        contextCache.set(fontKey, newCtx)
-        ctx = newCtx
-      }
+    // Store in memoization cache
+    // Simple cap to prevent unbounded growth in very dynamic apps
+    if (widthCache.size < 5000) {
+      widthCache.set(cacheKey, width)
     }
 
-    if (ctx) {
-      const metrics = ctx.measureText(text)
-      const width = metrics.width
-
-      // Store in memoization cache
-      // Simple cap to prevent unbounded growth in very dynamic apps
-      if (widthCache.size < 5000) {
-        widthCache.set(cacheKey, width)
-      }
-
-      return width
-    }
+    return width
   }
 
   // 3. Fallback path: SSR or context failure
@@ -261,27 +256,13 @@ export function measureTextHeight(
   fontSize: number,
   fontFamily: string = SYSTEM_SANS_SERIF_STACK
 ): number {
-  if (typeof document !== 'undefined') {
-    const fontKey = `${fontSize}px ${fontFamily}`
-    let ctx = contextCache.get(fontKey)
-
-    if (!ctx) {
-      const canvas = document.createElement('canvas')
-      const newCtx = canvas.getContext('2d')
-      if (newCtx) {
-        newCtx.font = fontKey
-        contextCache.set(fontKey, newCtx)
-        ctx = newCtx
-      }
-    }
-
-    if (ctx && text) {
-      const metrics = ctx.measureText(text)
-      const ascent = metrics.actualBoundingBoxAscent
-      const descent = metrics.actualBoundingBoxDescent
-      if (Number.isFinite(ascent) && Number.isFinite(descent)) {
-        return ascent + descent
-      }
+  const ctx = measureContext(`${fontSize}px ${fontFamily}`)
+  if (ctx && text) {
+    const metrics = ctx.measureText(text)
+    const ascent = metrics.actualBoundingBoxAscent
+    const descent = metrics.actualBoundingBoxDescent
+    if (Number.isFinite(ascent) && Number.isFinite(descent)) {
+      return ascent + descent
     }
   }
 

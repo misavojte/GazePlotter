@@ -1,4 +1,4 @@
-import { percentileSorted } from '$lib/shared/utils/mathUtils'
+import { percentileSorted } from '$lib/shared/stats'
 import type { SummaryStatistics } from './types'
 
 /**

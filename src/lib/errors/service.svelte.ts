@@ -1,4 +1,4 @@
-import { generateUniqueId } from '$lib/shared/utils/idUtils'
+import { generateUniqueId } from '$lib/shared/uniqueId'
 import type { ToastState } from '$lib/toaster/toastState.svelte'
 
 const MAX_RECENT_ERRORS = 20

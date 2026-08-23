@@ -1,5 +1,5 @@
 import { sessionScoped } from '$lib/session/context'
-import { estimateTextWidth } from '$lib/shared/utils/textUtils'
+import { estimateTextWidth } from '$lib/shared/textMeasure'
 import {
   TOOLTIP_JUMP_THRESHOLD,
   TOOLTIP_DEBOUNCE_DELAY,

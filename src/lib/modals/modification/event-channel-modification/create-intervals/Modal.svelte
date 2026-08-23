@@ -1,6 +1,6 @@
 <script lang="ts">
   import InputText from '$lib/shared/components/InputText.svelte'
-  import Radio from '$lib/shared/components/Radio.svelte'
+  import InputRadio from '$lib/shared/components/InputRadio.svelte'
   import Select from '$lib/shared/components/Select.svelte'
   import { Section, ModalButtons } from '$lib/modals'
   import { getGazePlotterSession } from '$lib/session'
@@ -371,7 +371,7 @@
         </div>
 
         <div class="options-row">
-          <Radio
+          <InputRadio
             legend="Pairs with errors"
             compact
             direction="row"

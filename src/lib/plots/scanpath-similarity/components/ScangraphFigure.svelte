@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
-  import { distanceToSegment } from '$lib/shared/utils/mathUtils'
+  import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/textMeasure'
   import { UI_COLORS } from '$lib/color'
   import {
     drawPlotArea,
@@ -25,7 +24,7 @@
   } from '$lib/plots/shared/plotCursor.svelte'
   import { SCANGRAPH_LAYOUT } from '../const'
   import type { ScangraphData } from '../types'
-  import { computeForceLayout, type LayoutResult, type NodePosition } from '../core/forceLayout'
+  import { computeForceLayout, distanceToSegment, type LayoutResult, type NodePosition } from '../core/forceLayout'
 
   const HIGHLIGHT_COLOR = '#e53e3e'
   const HIGHLIGHT_FILL = '#fbbf24'

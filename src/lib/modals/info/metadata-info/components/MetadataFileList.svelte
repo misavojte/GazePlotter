@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { formatFileSize } from '$lib/shared/utils/fileUtils'
+  import { formatFileSize } from '$lib/shared/format'
 
   const { fileNames, fileSizes } = $props<{
     fileNames: string[]

@@ -1,5 +1,5 @@
 import type { Component } from 'svelte'
-import type { LucideIconComponent } from '$lib/shared/types'
+import type { LucideIconComponent } from '$lib/shared/icon'
 import type { Position, Alignment } from '$lib/shared/placement/types'
 
 export type SlideFrom = 'top' | 'left'

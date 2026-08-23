@@ -1,5 +1,5 @@
 import type { ToastFillingType } from './types'
-import { generateUniqueId } from '$lib/shared/utils/idUtils'
+import { generateUniqueId } from '$lib/shared/uniqueId'
 
 const MAX_VISIBLE_TOASTS = 5
 const MAX_MESSAGE_LENGTH = 280

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { wrapTextToWidth } from '../src/lib/shared/utils/textUtils'
+import { wrapTextToWidth } from '../src/lib/shared/textMeasure'
 
 describe('wrapTextToWidth', () => {
   it('returns [] for empty/blank text', () => {

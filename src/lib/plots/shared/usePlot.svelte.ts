@@ -43,7 +43,7 @@ import {
   type LegendItemGeometry,
 } from './legendRendering'
 import { FONT_PRIMARY, PLOT_AXIS_TITLE_GAP, PLOT_TICK_LABEL_GAP } from './const'
-import { measureTextHeight, calculateLabelOffset } from '$lib/shared/utils/textUtils'
+import { measureTextHeight, calculateLabelOffset } from '$lib/shared/textMeasure'
 
 const browser = typeof document !== 'undefined'
 const FONT = FONT_PRIMARY.SIZE

@@ -2,7 +2,7 @@ import { getContrastTextColor } from '$lib/color'
 import {
   truncateTextToPixelWidth,
   SYSTEM_SANS_SERIF_STACK,
-} from '$lib/shared/utils/textUtils'
+} from '$lib/shared/textMeasure'
 import { axisTitleLineHeight } from './axisUtils'
 import { FONT_PRIMARY } from './const'
 import {

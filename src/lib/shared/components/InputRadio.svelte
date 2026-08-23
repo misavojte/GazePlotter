@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { generateUniqueId } from '$lib/shared/utils/idUtils'
+  import { generateUniqueId } from '$lib/shared/uniqueId'
 
   interface Props {
     options: { value: string; label: string }[]

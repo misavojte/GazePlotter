@@ -5,7 +5,7 @@ import {
 } from './tooltipState.svelte'
 import { TOOLTIP_DEFAULT_OFFSET, WIDTH_ESTIMATION } from './const'
 import type { Action } from 'svelte/action'
-import { estimateTextWidth } from '$lib/shared/utils/textUtils'
+import { estimateTextWidth } from '$lib/shared/textMeasure'
 import {
   computePlacement,
   adjustForViewport,
