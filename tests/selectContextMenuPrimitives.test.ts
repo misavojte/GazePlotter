@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Component } from 'svelte'
 import {
-  clearOwnedContextMenu,
   highlightMenuItem,
-  isMenuActionActivationKey,
   isOwnedContextMenuState,
   shouldCloseMenuOnAction,
 } from '../src/lib/context-menu/behavior'
-import { contextMenuState } from '../src/lib/context-menu/contextMenuState.svelte'
+import { ContextMenuState } from '../src/lib/context-menu/contextMenuState.svelte'
+
+const contextMenuState = new ContextMenuState()
 import {
   createMenuComponentItem,
   isMenuComponentItem,
@@ -60,7 +60,7 @@ describe('select and context-menu primitives', () => {
     expect(getSelectLabel(undefined, [])).toBe('')
   })
 
-  it('keeps menu component items on the flyout path and exposes activation helpers', () => {
+  it('keeps menu component items on the flyout path', () => {
     const componentItem = createMenuComponentItem<Record<string, unknown>>({
       label: 'Custom',
       value: 'custom',
@@ -75,9 +75,6 @@ describe('select and context-menu primitives', () => {
     expect(isMenuComponentItem(componentItem)).toBe(true)
     expect(isMenuFlyoutItem(componentItem)).toBe(true)
     expect(isMenuFlyoutItem(flyoutItem)).toBe(true)
-    expect(isMenuActionActivationKey('Enter')).toBe(true)
-    expect(isMenuActionActivationKey(' ')).toBe(true)
-    expect(isMenuActionActivationKey('Escape')).toBe(false)
   })
 
   it('tracks menu ownership, highlighting, and close-on-action semantics', () => {
@@ -96,7 +93,6 @@ describe('select and context-menu primitives', () => {
     }
 
     contextMenuState.current = {
-      visible: true,
       items,
       x: 10,
       y: 20,
@@ -110,7 +106,7 @@ describe('select and context-menu primitives', () => {
       false
     )
 
-    clearOwnedContextMenu(otherOwnerId)
+    contextMenuState.clearOwned(otherOwnerId)
     expect(contextMenuState.current?.ownerId).toBe(ownerId)
 
     highlightMenuItem(items, 'Save')
@@ -121,7 +117,7 @@ describe('select and context-menu primitives', () => {
     expect(shouldCloseMenuOnAction(stickyItem)).toBe(false)
     expect(shouldCloseMenuOnAction(submenuItem)).toBe(false)
 
-    clearOwnedContextMenu(ownerId)
+    contextMenuState.clearOwned(ownerId)
     expect(contextMenuState.current).toBeNull()
   })
 })

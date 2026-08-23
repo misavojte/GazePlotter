@@ -41,12 +41,12 @@ const cat = (
 describe('updateCategories guard (engine layer)', () => {
   it('preserves the fixation row names; only its color follows the edit', () => {
     const engine = createEngine()
-    updateCategories(engine as any, [
+    updateCategories(engine, [
       cat(0, 'Renamed', 'Renamed', '#ff0000'),
       cat(1, 'Saccade', 'Saccade', '#111111'),
       cat(2, 'Blink', 'Blink', '#222222'),
     ])
-    expect(engine.metadata.categories.data[0]).toEqual([
+    expect(engine.metadata!.categories.data[0]).toEqual([
       'Fixation',
       'Fixation',
       '#ff0000',
@@ -55,12 +55,12 @@ describe('updateCategories guard (engine layer)', () => {
 
   it('refuses giving another row the reserved displayed name', () => {
     const engine = createEngine()
-    updateCategories(engine as any, [
+    updateCategories(engine, [
       cat(0, 'Fixation', 'Fixation', '#000000'),
       cat(1, 'Saccade', 'Fixation', '#111111'),
       cat(2, 'Blink', 'Blink', '#222222'),
     ])
-    expect(engine.metadata.categories.data[1]).toEqual([
+    expect(engine.metadata!.categories.data[1]).toEqual([
       'Saccade',
       'Saccade',
       '#111111',

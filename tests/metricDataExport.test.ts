@@ -1,6 +1,5 @@
 import { describe, it, expect } from 'vitest'
 import { DataEngine } from '../src/lib/data/engine/dataEngine.svelte'
-import { jsonSegmentsToBinary } from '../src/lib/data/binary'
 import {
   generateMetricExport,
   deduplicateMetricLabels,
@@ -9,11 +8,38 @@ import {
 } from '../src/lib/data/export/mappers/metrics'
 import { instanceMatchesContract, type MetricInstance } from '../src/lib/metrics'
 import type { DataType } from '../src/lib/data/types'
+import { makeDataType } from './helpers/dataTypeFixtures'
 
 function createTestData(): DataType {
-  return {
-    isOrdinalOnly: false,
-    capabilities: { segmented: true, spatial: false, event: false },
+  // Segment rows are [startTime, endTime, categoryId, ...aoiIds], nested as
+  // [stimulus][participant][segment].
+  const segments = [
+    // Stimulus S1 (index 0)
+    [
+      // Participant P1 (index 0)
+      [
+        [0, 1000, 0, 1], // Nav
+        [1000, 2000, 0, 2], // CTA
+      ],
+      // Participant P2 (index 1)
+      [
+        [0, 500, 0, 1], // Nav
+        [500, 1500, 0], // Outside (no AOI)
+      ],
+    ],
+    // Stimulus S2 (index 1)
+    [
+      // Participant P1 (index 0)
+      [
+        [0, 1000, 0, 1], // Logo
+      ],
+      // Participant P2 (index 1)
+      [
+        [0, 1500, 0, 1], // Logo
+      ],
+    ],
+  ]
+  return makeDataType(segments, {
     stimuli: {
       data: [
         ['S1', 'StimulusOne'],
@@ -69,8 +95,6 @@ function createTestData(): DataType {
         projection: { kind: 'identity-participant-pair-matrix' as const },
       },
     ],
-    categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [0] },
-    noAoiTreatment: { displayedName: 'No AOI', color: '#cbd5e1' },
     aois: {
       data: [
         // S1 AOIs: index 0 dummy, index 1 Nav, index 2 CTA
@@ -90,65 +114,39 @@ function createTestData(): DataType {
         [1],
       ],
     },
-    // We construct binary segment buffer:
-    // segments: [startTime, endTime, categoryId, ...aoiIds]
-    segments: jsonSegmentsToBinary([
-      // Stimulus S1 (index 0)
-      [
-        // Participant P1 (index 0)
-        [
-          [0, 1000, 0, 1], // Nav
-          [1000, 2000, 0, 2], // CTA
-        ],
-        // Participant P2 (index 1)
-        [
-          [0, 500, 0, 1], // Nav
-          [500, 1500, 0], // Outside (no AOI)
-        ],
-      ],
-      // Stimulus S2 (index 1)
-      [
-        // Participant P1 (index 0)
-        [
-          [0, 1000, 0, 1], // Logo
-        ],
-        // Participant P2 (index 1)
-        [
-          [0, 1500, 0, 1], // Logo
-        ],
-      ],
-    ]),
-    eventData: {
-      data: [[]],
-      orderVector: [[]],
-      events: [],
-    },
-  }
+  })
+}
+
+// One freshly loaded engine per case; the cases never share state.
+function loadedEngine(data: DataType = createTestData()): DataEngine {
+  const engine = new DataEngine()
+  engine.loadDataset(data)
+  return engine
 }
 
 describe('Metric Data Export Mapping', () => {
   it('verifies export contract matching rules', () => {
-    const engine = new DataEngine()
-    engine.loadDataset(createTestData())
+    const engine = loadedEngine()
 
     const plain = engine.metadata!.metricInstances.find(i => i.id === 'absoluteTime-inst')!
     const windowed = engine.metadata!.metricInstances.find(i => i.id === 'absoluteTime-windowed-inst')!
     const relational = engine.metadata!.metricInstances.find(i => i.id === 'participantPairSimilarity-inst')!
 
+    const caps = engine.capabilities
+
     // Long contract allows all shapes and windowed
-    expect(instanceMatchesContract(plain, METRIC_EXPORT_CONTRACT_LONG)).toBe(true)
-    expect(instanceMatchesContract(windowed, METRIC_EXPORT_CONTRACT_LONG)).toBe(true)
-    expect(instanceMatchesContract(relational, METRIC_EXPORT_CONTRACT_LONG)).toBe(true)
+    expect(instanceMatchesContract(plain, METRIC_EXPORT_CONTRACT_LONG, caps)).toBe(true)
+    expect(instanceMatchesContract(windowed, METRIC_EXPORT_CONTRACT_LONG, caps)).toBe(true)
+    expect(instanceMatchesContract(relational, METRIC_EXPORT_CONTRACT_LONG, caps)).toBe(true)
 
     // Wide contract forbids windowed; relational exports as the matrix grid
-    expect(instanceMatchesContract(plain, METRIC_EXPORT_CONTRACT_WIDE)).toBe(true)
-    expect(instanceMatchesContract(windowed, METRIC_EXPORT_CONTRACT_WIDE)).toBe(false)
-    expect(instanceMatchesContract(relational, METRIC_EXPORT_CONTRACT_WIDE)).toBe(true)
+    expect(instanceMatchesContract(plain, METRIC_EXPORT_CONTRACT_WIDE, caps)).toBe(true)
+    expect(instanceMatchesContract(windowed, METRIC_EXPORT_CONTRACT_WIDE, caps)).toBe(false)
+    expect(instanceMatchesContract(relational, METRIC_EXPORT_CONTRACT_WIDE, caps)).toBe(true)
   })
 
   it('exports long format with plain instances, omitting window/relational headers', async () => {
-    const engine = new DataEngine()
-    engine.loadDataset(createTestData())
+    const engine = loadedEngine()
 
     const res = await generateMetricExport(engine, {
       fileName: 'test-export',
@@ -173,8 +171,7 @@ describe('Metric Data Export Mapping', () => {
   })
 
   it('exports long format with windowed instances, adding Window_Start and Window_End columns', async () => {
-    const engine = new DataEngine()
-    engine.loadDataset(createTestData())
+    const engine = loadedEngine()
 
     const res = await generateMetricExport(engine, {
       fileName: 'test-export',
@@ -194,8 +191,7 @@ describe('Metric Data Export Mapping', () => {
   })
 
   it('exports long format with relational instance, adding Participant_B column', async () => {
-    const engine = new DataEngine()
-    engine.loadDataset(createTestData())
+    const engine = loadedEngine()
 
     const res = await generateMetricExport(engine, {
       fileName: 'test-export',
@@ -215,8 +211,7 @@ describe('Metric Data Export Mapping', () => {
   })
 
   it('exports wide format with case-per-row, sanitizing and de-duplicating column names', async () => {
-    const engine = new DataEngine()
-    engine.loadDataset(createTestData())
+    const engine = loadedEngine()
 
     const res = await generateMetricExport(engine, {
       fileName: 'test-export',
@@ -254,8 +249,7 @@ describe('Metric Data Export Mapping', () => {
   })
 
   it('verifies never-fixated AOIs in TTFF export as empty cells (never -1)', async () => {
-    const engine = new DataEngine()
-    engine.loadDataset(createTestData())
+    const engine = loadedEngine()
 
     const res = await generateMetricExport(engine, {
       fileName: 'test-export',
@@ -272,8 +266,7 @@ describe('Metric Data Export Mapping', () => {
   })
 
   it('generates a descriptive sidecar codebook CSV', async () => {
-    const engine = new DataEngine()
-    engine.loadDataset(createTestData())
+    const engine = loadedEngine()
 
     const res = await generateMetricExport(engine, {
       fileName: 'test-export',
@@ -297,8 +290,7 @@ describe('Metric Data Export Mapping', () => {
   })
 
   it('verifies CSV escaping and options like delimiter/decimal comma', async () => {
-    const engine = new DataEngine()
-    engine.loadDataset(createTestData())
+    const engine = loadedEngine()
 
     const res = await generateMetricExport(engine, {
       fileName: 'test-export',
@@ -319,8 +311,7 @@ describe('Metric Data Export Mapping', () => {
   })
 
   it('clamps windowed timelines to each participant own recording end (ragged, no fabricated rows)', async () => {
-    const engine = new DataEngine()
-    engine.loadDataset(createTestData())
+    const engine = loadedEngine()
 
     const res = await generateMetricExport(engine, {
       fileName: 'test-export',
@@ -341,8 +332,7 @@ describe('Metric Data Export Mapping', () => {
   })
 
   it('rejects contract-incompatible instances at the mapper, not only in the modal UI', async () => {
-    const engine = new DataEngine()
-    engine.loadDataset(createTestData())
+    const engine = loadedEngine()
 
     const base = {
       fileName: 'test-export',
@@ -357,8 +347,7 @@ describe('Metric Data Export Mapping', () => {
   })
 
   it('exports a relational metric in wide format as the full matrix grid', async () => {
-    const engine = new DataEngine()
-    engine.loadDataset(createTestData())
+    const engine = loadedEngine()
 
     const res = await generateMetricExport(engine, {
       fileName: 'test-export',
@@ -388,8 +377,7 @@ describe('Metric Data Export Mapping', () => {
   })
 
   it('exports exactly the selected participants, in both formats', async () => {
-    const engine = new DataEngine()
-    engine.loadDataset(createTestData())
+    const engine = loadedEngine()
 
     const long = await generateMetricExport(engine, {
       fileName: 'test-export',
@@ -418,8 +406,7 @@ describe('Metric Data Export Mapping', () => {
   })
 
   it('rejects a non-finite or inverted time range', async () => {
-    const engine = new DataEngine()
-    engine.loadDataset(createTestData())
+    const engine = loadedEngine()
 
     const base = {
       fileName: 'test-export',
@@ -458,8 +445,7 @@ describe('Metric Data Export Mapping', () => {
     const data = createTestData()
     // Rename S1's "Nav" so its displayed name collides with the synthetic slot.
     data.aois.data[0][1] = ['Nav', 'No_AOI', 'red']
-    const engine = new DataEngine()
-    engine.loadDataset(data)
+    const engine = loadedEngine(data)
 
     const res = await generateMetricExport(engine, {
       fileName: 'test-export',

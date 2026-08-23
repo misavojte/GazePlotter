@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { CURRENT_SCHEMA_VERSION, type DataType } from '../src/lib/data/types'
-import { jsonSegmentsToBinary } from '../src/lib/data/binary'
-import { createDefaultMetricInstances } from '../src/lib/metrics/instances'
+import { makeDataType } from './helpers/dataTypeFixtures'
 import { generateWorkspaceJson } from '../src/lib/data/export/mappers/workspace'
 import { runMigrations } from '../src/lib/data/ingest/workspace/migrations'
 import { processJsonFileWithGrid } from '../src/lib/data/ingest/workspace/parser'
@@ -14,22 +13,14 @@ import { processJsonFileWithGrid } from '../src/lib/data/ingest/workspace/parser
 // re-importing triggers no migration at all.
 
 function createData(): DataType {
-  return {
-    isOrdinalOnly: false,
-    capabilities: { segmented: true, spatial: false, event: false },
+  return makeDataType([[[[0, 100, 0, 0]]]], {
     stimuli: { data: [['Stimulus A', 'Stimulus A']], orderVector: [0] },
     participants: { data: [['Participant A', 'Participant A']], orderVector: [0] },
-    participantsSelections: [],
-    metricInstances: createDefaultMetricInstances(),
-    categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [0] },
-    noAoiTreatment: { displayedName: 'No AOI', color: '#cbd5e1' },
     aois: {
       data: [[['AOI 1', 'AOI 1', '#ff0000']]],
       orderVector: [[0]],
     },
-    segments: jsonSegmentsToBinary([[[[0, 100, 0, 0]]]]),
-    eventData: { data: [[]], orderVector: [], events: [[]] },
-  }
+  })
 }
 
 // Live-shape grid items: already on `metricInstanceIds` and with `hideNoAoi`

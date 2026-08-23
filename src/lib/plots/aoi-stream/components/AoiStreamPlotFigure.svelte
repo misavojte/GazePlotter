@@ -13,16 +13,17 @@
     type FrameHit,
   } from '$lib/plots/shared'
   import {
+    cursorGuides,
     drawTimeGuides,
     timeAtX,
-    timeGuideXs,
     type PlotCursorPort,
   } from '$lib/plots/shared/plotCursor.svelte'
-  import { estimateTextWidth, truncateTextToPixelWidth } from '$lib/shared/utils/textUtils'
+  import { estimateTextWidth } from '$lib/shared/textMeasure'
   import { desaturateToWhite, INACTIVE_COLOR } from '$lib/color'
   import { PRESET_PALETTES } from '$lib/color/palettes'
 
   import {
+    AREA_DIVIDER,
     GRIDLINE_SECONDARY,
     GRIDLINE_PRIMARY,
     FONT_PRIMARY,
@@ -33,19 +34,21 @@
     computeFlatLegendGeometry,
     calculateFlatLegendHeight,
     drawLegend,
-    STREAM_LEGEND_CONFIG,
+    LEGEND_CONFIG,
     type LegendItem,
     type LegendGeometry,
     type LegendItemGeometry,
   } from '$lib/plots/shared/legendRendering'
   import {
-    computeGradientLegendGeometry,
+    bottomGradientLegendGeometry,
     drawGradientLegend,
     getGradientLegendRequiredHeight,
   } from '$lib/plots/shared/legendGradient'
   import {
+    AXIS_CONFIG,
     drawXAxisLabel,
     drawYAxisMainLabel,
+    truncatedRowLabels,
   } from '$lib/plots/shared/axisUtils'
   import {
     drawPlotArea,
@@ -59,11 +62,7 @@
     METRIC_MISSING_MESSAGE,
     cannotFitPlaceholder,
   } from '$lib/plots/shared/drawCanvasPlaceholder'
-  import {
-    AXIS_CONFIG,
-    MARGIN as AOI_MARGIN,
-    RIDGELINE_CONTENT_FILL,
-  } from '../const'
+  import { MARGIN as AOI_MARGIN, RIDGELINE_CONTENT_FILL } from '../const'
   import {
     drawCatmullRom,
     transformStreamDataToCoordinates,
@@ -108,7 +107,6 @@
   // the time label (e.g. "Elapsed time / ms · 500 ms window / 100 ms step"); no
   // time-range qualifier — the axis itself shows the range.
   const X_AXIS_LABEL = $derived(withQualifiers('Elapsed time / ms', data.windowLabel))
-  const AREA_DIVIDER = { COLOR: 'rgba(255, 255, 255, 0.4)', WIDTH: 1 }
   const MARGIN = AOI_MARGIN
   const MIN_SERIES_ROW_HEIGHT = 8
   const MIN_STREAM_HEIGHT = 40
@@ -125,16 +123,6 @@
       if (!isNaN(id)) mask.set(id, true)
     }
     return mask
-  })
-
-  const maxAoiLabelWidth = $derived.by(() => {
-    if (alignment !== 'heatmap') return 0
-    let max = 0
-    for (const s of data.series) {
-      const w = estimateTextWidth(s.label, AXIS_CONFIG.fontSize, AXIS_CONFIG.fontFamily)
-      if (w > max) max = w
-    }
-    return max
   })
 
   const effectiveRightMargin = $derived(
@@ -154,7 +142,7 @@
     if (alignment === 'heatmap') return getGradientLegendRequiredHeight(AXIS_CONFIG.fontSize)
     if (legendItems.length === 0) return 0
     let maxTextWidth = 0
-    const { fontSize, fontFamily } = STREAM_LEGEND_CONFIG
+    const { fontSize, fontFamily } = LEGEND_CONFIG
     for (const item of legendItems) {
       const w = estimateTextWidth(item.name, fontSize, fontFamily)
       if (w > maxTextWidth) maxTextWidth = w
@@ -162,7 +150,7 @@
     return calculateFlatLegendHeight(
       legendItems.length,
       Math.max(0, plot.plotAreaWidth),
-      STREAM_LEGEND_CONFIG,
+      LEGEND_CONFIG,
       maxTextWidth
     )
   })
@@ -175,17 +163,14 @@
   const xAxisTicks = $derived(niceTimelineTicks(data.timeline))
   const yDomain = $derived(computeAoiStreamYAxis(data, alignment))
 
-  // Heatmap AOI row labels: cap the reserved width (one long AOI name must not
-  // eat the plot) and pre-truncate so the gutter reserves exactly what we draw.
-  const aoiLeftBudget = $derived(
-    alignment === 'heatmap' ? Math.min(200, maxAoiLabelWidth + 20) : 0
+  // Heatmap AOI row labels, capped + pre-truncated (truncatedRowLabels owns the
+  // budget rule). Reads the WIDTH PROP, not `plot.frame`; the frame depends on
+  // the reserved width.
+  const heatmapAoiLabels = $derived(
+    alignment === 'heatmap'
+      ? truncatedRowLabels(data.series.map(s => s.label), width)
+      : []
   )
-  const heatmapAoiLabels = $derived.by<string[]>(() => {
-    if (alignment !== 'heatmap') return []
-    return data.series.map(s =>
-      truncateTextToPixelWidth(s.label, aoiLeftBudget - 15, AXIS_CONFIG.fontSize, AXIS_CONFIG.fontFamily, '…')
-    )
-  })
 
   // Left edge per mode: value ticks + rotated metric title (stream/distribution),
   // the scale-bar strip + title (ridgeline), or truncated AOI row labels with no
@@ -246,7 +231,7 @@
     legend: {
       geometry: () =>
         alignment === 'heatmap' || legendHeight === 0 ? null : legendGeometry,
-      config: STREAM_LEGEND_CONFIG,
+      config: LEGEND_CONFIG,
       highlights: () => usedHighlights,
       hitData: item => ({ kind: 'legend' as const, item }),
     },
@@ -264,25 +249,24 @@
           : { times: () => [timeAtX(plot.frame, data.timeline, px)] }
       )
     },
-    // Return type annotated: `cursorX` reads `plot`, so inference would loop.
-    overlayDeps: (): string => cursorXsKey,
+    // Return type annotated: the guide reads `plot`, so inference would loop.
+    overlayDeps: (): string => cursorGuide.xsKey,
   })
 
   // Gated on real bins: the empty result carries a fabricated 0–100 ms timeline
   // (`emptyAoiStreamResult`) that this plot never draws, so neither direction of
   // the cursor may run on it.
-  const cursorXs = $derived(
-    data.binCount > 0
-      ? timeGuideXs(plot.frame, data.timeline, plotCursor?.times ?? [])
-      : []
-  )
-  const cursorXsKey = $derived(cursorXs.join(','))
+  const cursorGuide = cursorGuides({
+    cursor: () => plotCursor,
+    band: () => (data.binCount > 0 ? plot.frame : null),
+    timeline: () => data.timeline,
+  })
 
   // Legend geometry sits in the bottom band, below the x-axis.
   const legendGeometry: LegendGeometry = $derived.by(() =>
     computeFlatLegendGeometry(
       legendItems,
-      STREAM_LEGEND_CONFIG,
+      LEGEND_CONFIG,
       margin,
       plot.frame.legendY + PLOT_LEGEND_GAP,
       Math.max(0, plot.plotAreaWidth)
@@ -291,11 +275,7 @@
 
   const gradientLegendGeometry = $derived.by(() => {
     if (alignment !== 'heatmap') return null
-    return computeGradientLegendGeometry({
-      x: margin,
-      y: plot.frame.legendY + PLOT_LEGEND_GAP,
-      availableWidth: plot.plotAreaWidth,
-      availableHeight: legendHeight,
+    return bottomGradientLegendGeometry(plot, margin, legendHeight, {
       colorScale: effectiveColorScale,
       valueRange: [0, Math.max(1, data.maxValue)],
       effectiveMaxValue: Math.max(1, data.maxValue),
@@ -309,26 +289,21 @@
     ctx.fillStyle = AXIS_CONFIG.color
   }
 
+  // The frame arrives already floored (resolveFrameLayout floors the rect), so
+  // draws read it directly — no re-flooring preamble.
   function drawStream(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
-    const floorLeft = Math.floor(frame.x)
-    const floorTop = Math.floor(frame.y)
-    const floorWidth = Math.floor(frame.width)
-    const floorHeight = Math.floor(frame.height)
-    const floorBottom = floorTop + floorHeight
-    const floorRight = floorLeft + floorWidth
-
-    if (floorWidth <= 0 || floorHeight <= 0 || data.binCount <= 0) return
+    if (frame.width <= 0 || frame.height <= 0 || data.binCount <= 0) return
 
     const { buckets, yAxisMax, axisTicks, seriesPaint, axisHalfRange, seriesRanks } =
       transformStreamDataToCoordinates(
         {
           data,
           alignment,
-          floorLeft,
-          floorTop,
-          floorWidth,
-          floorHeight,
-          floorBottom,
+          floorLeft: frame.x,
+          floorTop: frame.y,
+          floorWidth: frame.width,
+          floorHeight: frame.height,
+          floorBottom: frame.bottom,
           syncedMTopOverride,
           highlightMaskById,
           ridgelineScale,
@@ -343,11 +318,11 @@
 
     ctx.save()
     ctx.beginPath()
-    ctx.rect(floorLeft, floorTop, floorWidth, floorHeight)
+    ctx.rect(frame.x, frame.y, frame.width, frame.height)
     ctx.clip()
 
     if (alignment === 'heatmap') {
-      fillPlotAreaBackground(ctx, floorLeft, floorTop, floorWidth, floorHeight, INACTIVE_COLOR)
+      fillPlotAreaBackground(ctx, frame.x, frame.y, frame.width, frame.height, INACTIVE_COLOR)
     }
 
     for (let s = 0; s < data.series.length; s++) {
@@ -355,17 +330,17 @@
       const paint = seriesPaint[s]
 
       if (paint.heatmapBinColors) {
-        const binWidth = floorWidth / data.binCount
+        const binWidth = frame.width / data.binCount
         for (let i = 1; i <= data.binCount; i++) {
           const color = paint.heatmapBinColors[i]
           if (color === 'transparent') continue
-          const x = floorLeft + (i - 1) * binWidth
+          const x = frame.x + (i - 1) * binWidth
           const y = bucket.topY[i]
           ctx.fillStyle = color
           ctx.fillRect(x, y, binWidth + 0.5, bucket.bottomY[i] - y)
         }
       } else if (alignment === 'distribution' && seriesRanks) {
-        const binWidth = floorWidth / data.binCount
+        const binWidth = frame.width / data.binCount
         ctx.fillStyle = paint.color
         ctx.strokeStyle = AREA_DIVIDER.COLOR
         ctx.lineWidth = AREA_DIVIDER.WIDTH
@@ -380,12 +355,12 @@
           }
           ctx.beginPath()
           for (let j = runStart; j <= runEnd; j++) {
-            const x = floorLeft + (j - 1) * binWidth
+            const x = frame.x + (j - 1) * binWidth
             ctx.lineTo(x, bucket.topY[j])
             ctx.lineTo(x + binWidth, bucket.topY[j])
           }
           for (let j = runEnd; j >= runStart; j--) {
-            const x = floorLeft + (j - 1) * binWidth
+            const x = frame.x + (j - 1) * binWidth
             ctx.lineTo(x + binWidth, bucket.bottomY[j])
             ctx.lineTo(x, bucket.bottomY[j])
           }
@@ -413,8 +388,8 @@
 
       if (alignment === 'ridgeline' && paint.stripBottom !== undefined) {
         ctx.beginPath()
-        ctx.moveTo(alignToPixelCenter(floorLeft), paint.stripBottom)
-        ctx.lineTo(alignToPixelCenter(floorLeft + floorWidth), paint.stripBottom)
+        ctx.moveTo(alignToPixelCenter(frame.x), paint.stripBottom)
+        ctx.lineTo(alignToPixelCenter(frame.x + frame.width), paint.stripBottom)
         ctx.strokeStyle = GRIDLINE_SECONDARY.COLOR
         ctx.lineWidth = GRIDLINE_SECONDARY.WIDTH
         ctx.stroke()
@@ -469,15 +444,15 @@
         if (paint.stripBottom !== undefined && paint.stripHeight !== undefined) {
           const labelY = paint.stripBottom - paint.stripHeight / 2
           // Pre-truncated to the same budget the gutter reserved (single source).
-          ctx.fillText(heatmapAoiLabels[s], floorLeft - 10, labelY)
+          ctx.fillText(heatmapAoiLabels[s], frame.x - 10, labelY)
         }
         const stripBottom = paint.stripBottom
         if (s < data.series.length - 1 && stripBottom !== undefined) {
           ctx.beginPath()
           ctx.strokeStyle = AREA_DIVIDER.COLOR
           ctx.lineWidth = AREA_DIVIDER.WIDTH
-          ctx.moveTo(floorLeft, stripBottom)
-          ctx.lineTo(floorRight, stripBottom)
+          ctx.moveTo(frame.x, stripBottom)
+          ctx.lineTo(frame.right, stripBottom)
           ctx.stroke()
         }
       }
@@ -488,17 +463,17 @@
 
     // Ridgeline scale bar
     if (alignment === 'ridgeline') {
-      const centerY = floorTop + floorHeight / 2
+      const centerY = frame.y + frame.height / 2
       const referenceHeight = seriesPaint[0]?.referenceHeight ?? 0
       let scaleHeight = referenceHeight * RIDGELINE_CONTENT_FILL
       let scaleMaxValue = 100
-      while (scaleHeight > floorHeight && scaleMaxValue > 1) {
+      while (scaleHeight > frame.height && scaleMaxValue > 1) {
         scaleHeight /= 2
         scaleMaxValue /= 2
       }
       const scaleTop = alignToPixelCenter(centerY - scaleHeight / 2)
       const scaleBottom = alignToPixelCenter(centerY + scaleHeight / 2)
-      const scaleX = alignToPixelCenter(floorLeft - 5)
+      const scaleX = alignToPixelCenter(frame.x - 5)
       const tickXStart = alignToPixelCenter(scaleX - 5)
       ctx.save()
       ctx.textAlign = 'right'
@@ -532,15 +507,15 @@
       rightTicks = { positions: leftTicks.positions }
     }
     drawPlotArea(ctx, {
-      x: floorLeft,
-      y: floorTop,
-      width: floorWidth,
-      height: floorHeight,
+      x: frame.x,
+      y: frame.y,
+      width: frame.width,
+      height: frame.height,
       ticks: { bottom: xTicks, top: { positions: xTicks.positions }, left: leftTicks, right: rightTicks },
     })
 
     if (alignment !== 'heatmap') {
-      drawYAxisMainLabel(ctx, data.yAxisLabel, floorLeft, floorTop, floorHeight, frame.leftTitleOffset, AXIS_CONFIG)
+      drawYAxisMainLabel(ctx, data.yAxisLabel, frame.x, frame.y, frame.height, frame.leftTitleOffset, AXIS_CONFIG)
     }
     drawXAxisLabel(ctx, X_AXIS_LABEL, frame.x, frame.width, frame.bottom, frame.bottomTitleOffset, AXIS_CONFIG)
 
@@ -551,7 +526,7 @@
       }
     } else if (legendGeometry.items.length > 0 && legendHeight > 0) {
       setUpFont(ctx)
-      drawLegend(ctx, legendGeometry, STREAM_LEGEND_CONFIG, usedHighlights)
+      drawLegend(ctx, legendGeometry, LEGEND_CONFIG, usedHighlights)
     }
   }
 
@@ -563,26 +538,21 @@
   // (which re-derives every series' coordinates).
   function drawStreamOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
     // Before the local-hover early return below: the remote mark must survive it.
-    drawTimeGuides(ctx, frame, cursorXs)
+    drawTimeGuides(ctx, frame, cursorGuide.xs)
     const tag = plot.hover.data
     const hoveredBinIndex = tag?.kind === 'bin' ? (tag.binIndex ?? null) : null
     const mouseXPx = tag?.kind === 'bin' ? (tag.x ?? null) : null
     if (hoveredBinIndex === null && mouseXPx === null) return
-    const floorLeft = Math.floor(frame.x)
-    const floorTop = Math.floor(frame.y)
-    const floorWidth = Math.floor(frame.width)
-    const floorHeight = Math.floor(frame.height)
-    if (floorWidth <= 0 || floorHeight <= 0 || data.binCount <= 0) return
-    const floorBottom = floorTop + floorHeight
+    if (frame.width <= 0 || frame.height <= 0 || data.binCount <= 0) return
 
     ctx.save()
     ctx.beginPath()
-    ctx.rect(floorLeft, floorTop, floorWidth, floorHeight)
+    ctx.rect(frame.x, frame.y, frame.width, frame.height)
     ctx.clip()
 
     if (hoveredBinIndex !== null) {
-      const binWidth = floorWidth / data.binCount
-      const binX = floorLeft + hoveredBinIndex * binWidth
+      const binWidth = frame.width / data.binCount
+      const binX = frame.x + hoveredBinIndex * binWidth
 
       // Window highlight stays in the SAME bin-index space as the step so the two
       // stay concentric (time space would slide the band off the step for sliding
@@ -590,17 +560,17 @@
       const windowBins = data.stepSize > 0 ? data.windowSize / data.stepSize : 1
       const binCenterX = binX + binWidth / 2
       const halfWindowPx = (windowBins * binWidth) / 2
-      const xStart = Math.max(floorLeft, binCenterX - halfWindowPx)
-      const xEnd = Math.min(floorLeft + floorWidth, binCenterX + halfWindowPx)
+      const xStart = Math.max(frame.x, binCenterX - halfWindowPx)
+      const xEnd = Math.min(frame.x + frame.width, binCenterX + halfWindowPx)
       const rectWidth = xEnd - xStart
 
-      if (rectWidth > 0) fillCrosshairBand(ctx, xStart, floorTop, rectWidth, floorHeight, 0.08)
-      fillCrosshairBand(ctx, binX, floorTop, binWidth, floorHeight, 0.15)
+      if (rectWidth > 0) fillCrosshairBand(ctx, xStart, frame.y, rectWidth, frame.height, 0.08)
+      fillCrosshairBand(ctx, binX, frame.y, binWidth, frame.height, 0.15)
     }
 
     if (mouseXPx !== null) {
       const x = alignToPixelCenter(mouseXPx)
-      strokeCrosshairGuides(ctx, [x, floorTop, x, floorBottom])
+      strokeCrosshairGuides(ctx, [x, frame.y, x, frame.bottom])
     }
 
     ctx.restore()
@@ -653,7 +623,6 @@
     }
 
     return {
-      tooltipId: 'aoi-stream-bin-tooltip',
       content,
       anchorX: mx,
       anchorY: my,

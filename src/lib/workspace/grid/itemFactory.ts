@@ -1,6 +1,6 @@
 import { getVizConfig } from '$lib/plots/registry'
 import { DEFAULT_PLOT_SIZE } from '$lib/plots/definePlot'
-import { generateUniqueId } from '$lib/shared/utils/idUtils'
+import { generateUniqueId } from '$lib/shared/uniqueId'
 import type {
   AllGridTypes,
   GridItemMap,

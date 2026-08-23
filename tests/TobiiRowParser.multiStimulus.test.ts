@@ -6,17 +6,18 @@
  * @see $lib/data/ingest/formats/lib/rows/TobiiRowParser.ts
  */
 import { describe, it, expect } from 'vitest'
-import { TobiiRowParser } from '$lib/data/ingest/formats/lib/rows/TobiiRowParser'
-import { createAdapterHarness } from './helpers/ingestAdapterHarness'
+import {
+  TOBII_HEADER,
+  tobiiRow,
+  runTobiiParser,
+} from './helpers/ingestAdapterHarness'
+
+const STIMS = ['01-walk', '02-walk', '03-ride', '04-ride'] as const
 
 // Header layout mirrors the Advolution-style export: four mapped category /
 // fixation columns, only the active stimulus's column carries data.
 const HEADER = [
-  'Recording timestamp',
-  'Sensor',
-  'Participant name',
-  'Recording name',
-  'Event',
+  ...TOBII_HEADER.slice(0, 5), // through Event
   'Mapped eye movement type [02-walk]',
   'Mapped eye movement type [01-walk]',
   'Mapped eye movement type [03-ride]',
@@ -33,8 +34,7 @@ const HEADER = [
   'Mapped fixation Y [03-ride]',
   'Mapped fixation X [04-ride]',
   'Mapped fixation Y [04-ride]',
-  'Eye movement type',
-  'Eye movement type index',
+  ...TOBII_HEADER.slice(5), // Eye movement type + index
   'Fixation point X',
   'Fixation point Y',
   'AOI hit [01-walk - a]',
@@ -42,33 +42,6 @@ const HEADER = [
   'AOI hit [03-ride - a]',
   'AOI hit [04-ride - a]',
 ]
-
-const STIMS = ['01-walk', '02-walk', '03-ride', '04-ride'] as const
-
-const COL_CATEGORY: Record<(typeof STIMS)[number], number> = {
-  '01-walk': HEADER.indexOf('Mapped eye movement type [01-walk]'),
-  '02-walk': HEADER.indexOf('Mapped eye movement type [02-walk]'),
-  '03-ride': HEADER.indexOf('Mapped eye movement type [03-ride]'),
-  '04-ride': HEADER.indexOf('Mapped eye movement type [04-ride]'),
-}
-const COL_CATEGORY_INDEX: Record<(typeof STIMS)[number], number> = {
-  '01-walk': HEADER.indexOf('Mapped eye movement type index [01-walk]'),
-  '02-walk': HEADER.indexOf('Mapped eye movement type index [02-walk]'),
-  '03-ride': HEADER.indexOf('Mapped eye movement type index [03-ride]'),
-  '04-ride': HEADER.indexOf('Mapped eye movement type index [04-ride]'),
-}
-const COL_FIX_X: Record<(typeof STIMS)[number], number> = {
-  '01-walk': HEADER.indexOf('Mapped fixation X [01-walk]'),
-  '02-walk': HEADER.indexOf('Mapped fixation X [02-walk]'),
-  '03-ride': HEADER.indexOf('Mapped fixation X [03-ride]'),
-  '04-ride': HEADER.indexOf('Mapped fixation X [04-ride]'),
-}
-const COL_FIX_Y: Record<(typeof STIMS)[number], number> = {
-  '01-walk': HEADER.indexOf('Mapped fixation Y [01-walk]'),
-  '02-walk': HEADER.indexOf('Mapped fixation Y [02-walk]'),
-  '03-ride': HEADER.indexOf('Mapped fixation Y [03-ride]'),
-  '04-ride': HEADER.indexOf('Mapped fixation Y [04-ride]'),
-}
 
 function rowFor(opts: {
   ts: number
@@ -80,41 +53,35 @@ function rowFor(opts: {
   fixX?: number
   fixY?: number
 }): string {
-  const cells: string[] = new Array(HEADER.length).fill('')
-  cells[0] = String(opts.ts)
-  cells[1] = opts.sensor
-  cells[2] = 'P1'
-  cells[3] = 'R1'
-  cells[4] = opts.event ?? ''
-
-  if (opts.stim && opts.cat) {
-    cells[COL_CATEGORY[opts.stim]] = opts.cat
-    cells[COL_CATEGORY_INDEX[opts.stim]] = String(opts.catIdx ?? 1)
-    if (opts.fixX !== undefined) cells[COL_FIX_X[opts.stim]] = String(opts.fixX)
-    if (opts.fixY !== undefined) cells[COL_FIX_Y[opts.stim]] = String(opts.fixY)
+  // Generic fallbacks on every row; the parser must prefer the mapped columns.
+  const cells: Record<string, string> = {
+    Sensor: opts.sensor,
+    'Eye movement type': 'Fixation',
+    'Eye movement type index': '1',
+    'Fixation point X': '500',
+    'Fixation point Y': '500',
   }
-
-  // Generic fallbacks
-  cells[HEADER.indexOf('Eye movement type')] = 'Fixation'
-  cells[HEADER.indexOf('Eye movement type index')] = '1'
-  cells[HEADER.indexOf('Fixation point X')] = '500'
-  cells[HEADER.indexOf('Fixation point Y')] = '500'
-
-  return cells.join('\t')
+  if (opts.stim && opts.cat) {
+    cells[`Mapped eye movement type [${opts.stim}]`] = opts.cat
+    cells[`Mapped eye movement type index [${opts.stim}]`] = String(
+      opts.catIdx ?? 1
+    )
+    if (opts.fixX !== undefined)
+      cells[`Mapped fixation X [${opts.stim}]`] = String(opts.fixX)
+    if (opts.fixY !== undefined)
+      cells[`Mapped fixation Y [${opts.stim}]`] = String(opts.fixY)
+  }
+  return tobiiRow({ ts: opts.ts, event: opts.event, cells }, HEADER)
 }
 
 // Header used by the media-mode test: a single media stimulus name plus the
 // per-stimulus mapped category columns that media mode must NOT read.
 const MEDIA_HEADER = [
-  'Recording timestamp',
-  'Sensor',
-  'Participant name',
-  'Recording name',
+  ...TOBII_HEADER.slice(0, 4),
   'Recording media name',
   'Mapped eye movement type [02-walk]',
   'Mapped eye movement type [01-walk]',
-  'Eye movement type',
-  'Eye movement type index',
+  ...TOBII_HEADER.slice(5), // Eye movement type + index, no Event column
   'Fixation point X',
   'Fixation point Y',
 ]
@@ -151,13 +118,11 @@ describe('TobiiRowParser — multi-stimulus mapped columns', () => {
       ts += 50_000
     }
 
-    const adapter = new TobiiRowParser(
-      HEADER,
+    const { outputs } = runTobiiParser(
+      rows,
       '{"stimulusStartSuffix":"IntervalStart","stimulusEndSuffix":"IntervalEnd"}',
-      '\t'
+      HEADER
     )
-    const { outputs, processRows } = createAdapterHarness(adapter)
-    processRows(rows, { finalize: true })
 
     const stimuli = new Set(outputs.map(o => o.stimulus))
     expect(stimuli).toEqual(new Set(STIMS))
@@ -168,19 +133,6 @@ describe('TobiiRowParser — multi-stimulus mapped columns', () => {
   })
 
   it('media-name parsing reads only unmapped Eye movement type / Fixation point', () => {
-    const idxTs = MEDIA_HEADER.indexOf('Recording timestamp')
-    const idxSensor = MEDIA_HEADER.indexOf('Sensor')
-    const idxParticipant = MEDIA_HEADER.indexOf('Participant name')
-    const idxRecording = MEDIA_HEADER.indexOf('Recording name')
-    const idxMedia = MEDIA_HEADER.indexOf('Recording media name')
-    const idxMapped02 = MEDIA_HEADER.indexOf(
-      'Mapped eye movement type [02-walk]'
-    )
-    const idxEMT = MEDIA_HEADER.indexOf('Eye movement type')
-    const idxEMTIdx = MEDIA_HEADER.indexOf('Eye movement type index')
-    const idxFX = MEDIA_HEADER.indexOf('Fixation point X')
-    const idxFY = MEDIA_HEADER.indexOf('Fixation point Y')
-
     function row(opts: {
       ts: number
       mapped02?: string // value placed in the per-stimulus mapped column
@@ -189,18 +141,17 @@ describe('TobiiRowParser — multi-stimulus mapped columns', () => {
       fx?: number
       fy?: number
     }): string {
-      const cells = new Array(MEDIA_HEADER.length).fill('')
-      cells[idxTs] = String(opts.ts)
-      cells[idxSensor] = 'Eye Tracker'
-      cells[idxParticipant] = 'P1'
-      cells[idxRecording] = 'R1'
-      cells[idxMedia] = 'scenevideo.mp4'
-      if (opts.mapped02) cells[idxMapped02] = opts.mapped02
-      if (opts.emt) cells[idxEMT] = opts.emt
-      if (opts.emtIdx) cells[idxEMTIdx] = opts.emtIdx
-      if (opts.fx !== undefined) cells[idxFX] = String(opts.fx)
-      if (opts.fy !== undefined) cells[idxFY] = String(opts.fy)
-      return cells.join('\t')
+      const cells: Record<string, string> = {
+        Sensor: 'Eye Tracker',
+        'Recording media name': 'scenevideo.mp4',
+      }
+      if (opts.mapped02)
+        cells['Mapped eye movement type [02-walk]'] = opts.mapped02
+      if (opts.emt) cells['Eye movement type'] = opts.emt
+      if (opts.emtIdx) cells['Eye movement type index'] = opts.emtIdx
+      if (opts.fx !== undefined) cells['Fixation point X'] = String(opts.fx)
+      if (opts.fy !== undefined) cells['Fixation point Y'] = String(opts.fy)
+      return tobiiRow({ ts: opts.ts, cells }, MEDIA_HEADER)
     }
 
     // The mapped column carries garbage; if media mode reads it, the test
@@ -233,9 +184,7 @@ describe('TobiiRowParser — multi-stimulus mapped columns', () => {
       }),
     ]
 
-    const adapter = new TobiiRowParser(MEDIA_HEADER, '', '\t')
-    const { outputs, processRows } = createAdapterHarness(adapter)
-    processRows(rows, { finalize: true })
+    const { outputs } = runTobiiParser(rows, '', MEDIA_HEADER)
 
     expect(outputs.length).toBeGreaterThan(0)
     // categoryId 0 == Fixation (per TobiiRowParser.getCategoryId)

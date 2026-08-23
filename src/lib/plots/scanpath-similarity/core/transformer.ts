@@ -40,7 +40,7 @@ export function getScanpathSimilarityData(
   }
 
   const resolved = resolveMetric({
-    instances: meta.metricInstances,
+    engine,
     id: metricInstanceId,
     contract: CONTRACT,
   })

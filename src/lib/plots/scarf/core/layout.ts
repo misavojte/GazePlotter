@@ -4,13 +4,13 @@ import {
   participantIndexAxisWidth,
   PLOT_EDGE_PAD_TOP,
   ROW_LABEL_GAP,
-  SCARF_LEGEND_CONFIG,
+  LEGEND_CONFIG,
   withQualifiers,
   timeRangeQualifier,
   rangeQualifier,
   type FrameGutters,
 } from '$lib/plots/shared'
-import { calculateTextMetrics } from '$lib/shared/utils/textUtils'
+import { calculateTextMetrics } from '$lib/shared/textMeasure'
 import { SCARF_LAYOUT } from '../const'
 
 /**
@@ -30,6 +30,9 @@ export function scarfFrameGutters(opts: {
   axisTitle: string
   leftLabelWidth: number
   legendSpace: number
+  /** Row-stack height: rows stop growing at MAX_BAR_SCALE, so on a tall canvas
+   *  the frame is capped here and centred instead of stretching past the rows. */
+  maxHeight?: number
 }): FrameGutters {
   return {
     bottom: { tickLabels: opts.tickLabels, title: opts.axisTitle },
@@ -39,6 +42,7 @@ export function scarfFrameGutters(opts: {
       right: SCARF_LAYOUT.RIGHT_MARGIN,
     },
     legendHeight: opts.legendSpace,
+    maxHeight: opts.maxHeight,
   }
 }
 
@@ -369,7 +373,7 @@ export function calculateLegendStructuralHeight(
 
   const tempLayout = computeGroupedLegendGeometry(
     dummyGroups,
-    SCARF_LEGEND_CONFIG,
+    LEGEND_CONFIG,
     0,
     0,
     chartWidth

@@ -1,6 +1,7 @@
 <script lang="ts" module>
   import type { Component } from 'svelte'
   import type { DataEngine } from '$lib/data/engine'
+  import type { DataCapabilityRequirements } from '$lib/data/types'
   import type { ModalDefinition } from '$lib/modals/defineModal'
 
   /**
@@ -31,6 +32,11 @@
      *  stays generic — no per-axis special-casing in the component body. Shown
      *  only when an edit target actually has the `hideNoAoi` setting. */
     hideNoAoiToggle?: boolean
+    /** Dataset capabilities the section needs — the plot definitions'
+     *  `requireCapabilities` vocabulary, evaluated by `hasCapabilities`.
+     *  Only the event axis sets this (events are a dataset-level capability);
+     *  the other axes always exist. Absent = always shown. */
+    requireCapabilities?: DataCapabilityRequirements
   }
 </script>
 
@@ -105,6 +111,7 @@
   })
 </script>
 
+{#if engine.hasCapabilities(config.requireCapabilities)}
 <PaneSection title={config.title} {summary}>
   <Select
     {options}
@@ -137,3 +144,4 @@
     </PaneEditLink>
   </PaneEditRow>
 </PaneSection>
+{/if}

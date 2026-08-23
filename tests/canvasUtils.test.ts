@@ -5,6 +5,17 @@ import {
   type HighlightRect,
 } from '$lib/plots/shared/canvasUtils'
 
+// Anchor for the +0.5 crisp-stroke offset. The crosshair expectations below
+// are BUILT with alignToPixelCenter, so without this pin a regression to
+// identity would shift both sides together and pass.
+describe('alignToPixelCenter', () => {
+  it('truncates to the integer grid and offsets to the pixel center', () => {
+    expect(alignToPixelCenter(100)).toBe(100.5)
+    expect(alignToPixelCenter(100.9)).toBe(100.5)
+    expect(alignToPixelCenter(0)).toBe(0.5)
+  })
+})
+
 describe('getOuterCrosshairSegments', () => {
   it('returns outer dashed segments with zero inner lines at matrix crosshair crossings', () => {
     // Row strip: y in [100, 140], x in [0, 500]

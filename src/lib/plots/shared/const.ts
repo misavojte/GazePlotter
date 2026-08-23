@@ -1,4 +1,4 @@
-import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
+import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/textMeasure'
 import { UI_COLORS } from '$lib/color'
 
 export const GRIDLINE_SECONDARY = {
@@ -15,6 +15,12 @@ export const FONT_PRIMARY = {
   COLOR: UI_COLORS.TEXT_PRIMARY,
   SIZE: 12,
   FAMILY: SYSTEM_SANS_SERIF_STACK,
+}
+
+/** 1px light divider between stacked heatmap rows / stream strips. */
+export const AREA_DIVIDER = {
+  COLOR: 'rgba(255, 255, 255, 0.4)',
+  WIDTH: 1,
 }
 
 // Legend specific settings to be used across all charts

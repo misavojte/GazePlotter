@@ -143,10 +143,7 @@ export class UndoRedoStateStore {
    */
   undo(): WorkspaceCommandChain[] | null {
     // Finalize any pending chain first
-    if (this.pendingChain) {
-      this.undoStack = [...this.undoStack, this.pendingChain]
-      this.pendingChain = null
-    }
+    this.finalizeChain()
 
     // Check if there's anything to undo
     if (this.undoStack.length === 0) {

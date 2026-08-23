@@ -2,6 +2,14 @@
 
 ## 1.9.x
 
+### 1.9.4
+
+* *Released on August 23, 2026*
+* **Event Analysis**: Added [event metrics](/docs/metrics/events) (per-channel occurrence counts, active time, time shares, occurrence durations, and time to first event) and the [Event Comparison](/docs/visualizations/event-comparison) plot that draws them, one distribution per channel. Channels merged in the [Event Library](/docs/workspace/event-library) are measured as one, and each metric can also be picked at a single channel for the scalar plots, including windowed on the [Metric Timeline](/docs/visualizations/metric-timeline).
+* **Scarf Plot**: Hovering an event strip now shows the event's channel, start, end, and duration (or its moment, for instant markers) instead of the gaze segment behind it.
+* **Event-only Datasets**: A [Custom CSV event file](/docs/upload-data/events/#custom-csv-event-format) can now be uploaded on its own; the workspace opens with an Event Comparison plot and gaze analysis stays hidden. Symmetrically, datasets without events no longer offer event metrics or the Event Comparison plot: metrics and plots follow what the data actually contains.
+* **Internals**: Reworked legend height calculation, unified figure export internals, and prepared the library for embedding in other apps.
+
 ### 1.9.3
 
 * *Released on August 11, 2026*

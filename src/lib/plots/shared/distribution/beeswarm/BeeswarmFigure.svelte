@@ -17,7 +17,7 @@
     calculateLabelOffset,
     truncateTextToPixelWidth,
     measureTextHeight,
-  } from '$lib/shared/utils/textUtils'
+  } from '$lib/shared/textMeasure'
   import {
     alignToPixelCenter,
     fillCrosshairBand,
@@ -420,7 +420,6 @@
     }
 
     return {
-      tooltipId: 'beeswarm-crosshair',
       content,
       anchorX: x,
       anchorY: y,

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DataType } from '../src/lib/data/types'
-import { jsonSegmentsToBinary } from '../src/lib/data/binary'
+import { makeDataType } from './helpers/dataTypeFixtures'
 import { generateUnifiedCsv } from '../src/lib/data/export/mappers/segments'
 
 /**
@@ -10,15 +10,11 @@ import { generateUnifiedCsv } from '../src/lib/data/export/mappers/segments'
  * Category 0 is imported as "Fixation" but renamed (displayed) to "Gaze".
  */
 function createData(): DataType {
-  return {
-    isOrdinalOnly: false,
-    capabilities: { segmented: true, spatial: false, event: false },
+  return makeDataType([[[[0, 100, 0, 0, 1, 2]]]], {
     stimuli: { data: [['S1', 'StimulusOne']], orderVector: [0] },
     participants: { data: [['P1', 'ParticipantOne']], orderVector: [0] },
-    participantsSelections: [],
     metricInstances: [],
     categories: { data: [['Fixation', 'Gaze', '#000000']], orderVector: [0] },
-    noAoiTreatment: { displayedName: 'No AOI', color: '#cbd5e1' },
     aois: {
       data: [
         [
@@ -29,9 +25,7 @@ function createData(): DataType {
       ],
       orderVector: [[0, 1, 2]],
     },
-    segments: jsonSegmentsToBinary([[[[0, 100, 0, 0, 1, 2]]]]),
-    eventData: { data: [[]], orderVector: [], events: [[]] },
-  }
+  })
 }
 
 describe('segment export naming', () => {

@@ -1,4 +1,4 @@
-import type { AoiAggregateLabels, Metric, OutputShape, WindowUnit } from './dsl'
+import type { AoiAggregateLabels, OutputShape, WindowUnit } from './dsl'
 import { reduceNumeric, type AoiReducer } from './numeric'
 import type { SummaryStatistic } from './params'
 
@@ -33,10 +33,12 @@ export type LeafKind =
   | 'identity-scalar'
   | 'identity-aoi-vector'
   | 'identity-category-vector'
+  | 'identity-event-vector'
   | 'identity-aoi-pair-matrix'
   | 'identity-participant-pair-matrix'
   | 'pick-aoi'
   | 'pick-category'
+  | 'pick-event'
   | 'pick-any-fixation'
   | 'aggregate-aoi'
   | 'matrix-diagonal'
@@ -49,6 +51,7 @@ export type LeafProjection =
   | { kind: 'identity-scalar' }
   | { kind: 'identity-aoi-vector' }
   | { kind: 'identity-category-vector' }
+  | { kind: 'identity-event-vector' }
   | { kind: 'identity-aoi-pair-matrix' }
   | { kind: 'identity-participant-pair-matrix' }
   /**
@@ -63,6 +66,8 @@ export type LeafProjection =
   | { kind: 'pick-aoi';          aoiRef: AoiRef; statistic?: SummaryStatistic }
   /** By displayed name only — portable and MERGE-stable, like name AoiRefs. */
   | { kind: 'pick-category';     categoryName: string; statistic?: SummaryStatistic }
+  /** By displayed name only, resolved per stimulus against its event axis. */
+  | { kind: 'pick-event';        eventName: string; statistic?: SummaryStatistic }
   | { kind: 'pick-any-fixation'; statistic?: SummaryStatistic }
   | { kind: 'aggregate-aoi';     reducer: AoiReducer }
   | { kind: 'matrix-diagonal' }
@@ -84,6 +89,7 @@ const IDENTITY_MAP: Record<OutputShape, LeafProjection> = {
   scalar: { kind: 'identity-scalar' },
   'aoi-vector': { kind: 'identity-aoi-vector' },
   'category-vector': { kind: 'identity-category-vector' },
+  'event-vector': { kind: 'identity-event-vector' },
   'aoi-pair-matrix': { kind: 'identity-aoi-pair-matrix' },
   'participant-pair-matrix': { kind: 'identity-participant-pair-matrix' },
   'scalar-timeseries': { kind: 'identity-scalar' },
@@ -108,11 +114,13 @@ export interface ApplyContext {
   /** Raw finalize output for the current window. */
   rawValues: readonly number[]
   /**
-   * Eye-movement-type display names in canonical group order (`categoryGroups`)
-   * — the `pick-category` leaf's resolution axis. Only category-vector
-   * queries supply it.
+   * Display names of the scan source's canonical axis — `categoryGroups`
+   * order for category-vector queries (workspace-global), the scope
+   * stimulus's `eventGroups` order for event-vector ones (see
+   * `axisNamesFor`). The name-picking leaves' resolution axis; only
+   * vector-over-an-axis queries supply it.
    */
-  categoryNames?: readonly string[]
+  axisNames?: readonly string[]
 }
 
 export interface ApplyResult {
@@ -120,8 +128,8 @@ export interface ApplyResult {
   /**
    * True when a REFERENCE the projection names could not be resolved to a slot:
    * an AOI (by name or index) for the pick/matrix leaves, an eye-movement type
-   * for `pick-category`. Not AOI-specific — a category-vector metric can raise
-   * it with no AOI involved at all.
+   * for `pick-category`, an event channel for `pick-event`. Not AOI-specific —
+   * a vector metric can raise it with no AOI involved at all.
    */
   refMissing: boolean
 }
@@ -188,6 +196,8 @@ export const PROJECTION_LEAVES: { [K in LeafKind]: LeafKindDef<K> } = {
     'Per AOI', 'one value for each AOI'),
   'identity-category-vector': identityLeaf('category-vector', 'id:cv',
     'Per eye-movement type', 'one value for each eye-movement type'),
+  'identity-event-vector': identityLeaf('event-vector', 'id:ev',
+    'Per event channel', 'one value for each event channel'),
   'identity-aoi-pair-matrix': identityLeaf('aoi-pair-matrix', 'id:m',
     'AOI matrix', 'every AOI-to-AOI pair'),
   'identity-participant-pair-matrix': identityLeaf('participant-pair-matrix', 'id:pm',
@@ -208,7 +218,16 @@ export const PROJECTION_LEAVES: { [K in LeafKind]: LeafKindDef<K> } = {
     hint: 'the value at one chosen eye-movement type',
     label:    (p) => `type "${p.categoryName}"`,
     cacheKey: (p) => `pickcat:n=${p.categoryName}${statisticKey(p.statistic)}`,
-    apply:    (p, c) => pickCategory(p.categoryName, c),
+    apply:    (p, c) => pickAxisName(p.categoryName, c),
+  },
+  'pick-event': {
+    outputShape: 'scalar',
+    rawShapes: ['event-vector'],
+    title: 'One channel',
+    hint: 'the value at one chosen event channel',
+    label:    (p) => `channel "${p.eventName}"`,
+    cacheKey: (p) => `pickev:n=${p.eventName}${statisticKey(p.statistic)}`,
+    apply:    (p, c) => pickAxisName(p.eventName, c),
   },
   'pick-any-fixation': {
     outputShape: 'scalar',
@@ -309,16 +328,21 @@ export function projectionSummaryStatistic(p: Projection): SummaryStatistic {
   return leafSummaryStatistic(leafOf(p)) ?? 'mean'
 }
 
-/** The three leaves that collapse a vector to one number. */
+/** The leaves that collapse a vector to one number. */
 export type SummaryLeaf = Extract<
   LeafProjection,
-  { kind: 'pick-aoi' | 'pick-category' | 'pick-any-fixation' }
+  { kind: 'pick-aoi' | 'pick-category' | 'pick-event' | 'pick-any-fixation' }
 >
 
 /** THE predicate for "may carry a `statistic`" — read by the validator's gate,
  *  the label layer, and the configure modal's Summary select alike. */
 export function isSummaryLeafKind(kind: LeafKind): kind is SummaryLeaf['kind'] {
-  return kind === 'pick-aoi' || kind === 'pick-category' || kind === 'pick-any-fixation'
+  return (
+    kind === 'pick-aoi' ||
+    kind === 'pick-category' ||
+    kind === 'pick-event' ||
+    kind === 'pick-any-fixation'
+  )
 }
 
 export function isSummaryLeaf(leaf: LeafProjection): leaf is SummaryLeaf {
@@ -403,11 +427,13 @@ function pickAoi(ref: AoiRef, c: ApplyContext): ApplyResult {
   return { values: [c.rawValues[slot] ?? Number.NaN], refMissing: false }
 }
 
-function pickCategory(name: string, c: ApplyContext): ApplyResult {
-  // Trimmed compare, the canonical displayed-name matching rule
-  // (groupByDisplayedName), so a ref never misses on stray whitespace.
+// One resolver for every name-picking leaf (pick-category, pick-event): the
+// leaf kinds differ in vocabulary and cache key, never in resolution.
+// Trimmed compare, the canonical displayed-name matching rule
+// (groupByDisplayedName), so a ref never misses on stray whitespace.
+function pickAxisName(name: string, c: ApplyContext): ApplyResult {
   const wanted = name.trim()
-  const slot = (c.categoryNames ?? []).findIndex(n => n.trim() === wanted)
+  const slot = (c.axisNames ?? []).findIndex(n => n.trim() === wanted)
   if (slot < 0) return { values: [Number.NaN], refMissing: true }
   return { values: [c.rawValues[slot] ?? Number.NaN], refMissing: false }
 }

@@ -1,11 +1,13 @@
 import {
   getMetric,
   queryPooledIndividuals,
-  type MetricInstance,
   type PlotMetricContract,
 } from '$lib/metrics'
-import { resolveMetric } from '$lib/plots/shared/metricResolver'
-import { formatDecimal } from '$lib/shared/utils/mathUtils'
+import {
+  resolveMetric,
+  type MetricResolutionEngine,
+} from '$lib/plots/shared/metricResolver'
+import { formatDecimal } from '$lib/shared/format'
 import { applySorting, valueAxisTimeline } from './data'
 import { computeSummaryStatistics } from './summaryStatistics'
 import type {
@@ -52,7 +54,7 @@ export interface DistributionSettings {
  * contract-failing instance costs no engine queries.
  */
 export function collectDistribution(args: {
-  instances: readonly MetricInstance[] | undefined
+  engine: MetricResolutionEngine
   contract: PlotMetricContract
   settings: DistributionSettings
   axis: () => DistributionAxis
@@ -64,7 +66,7 @@ export function collectDistribution(args: {
   })
 
   const resolved = resolveMetric({
-    instances: args.instances,
+    engine: args.engine,
     id: args.settings.metricInstanceIds?.[0] ?? null,
     contract: args.contract,
   })

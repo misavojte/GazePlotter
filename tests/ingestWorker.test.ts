@@ -10,33 +10,13 @@
  */
 
 import JSZip from 'jszip'
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-
-type Posted = { message: any; options?: { transfer?: unknown[] } }
-
-let posted: Posted[]
-let workerSelf: {
-  postMessage: (message: unknown, options?: { transfer?: unknown[] }) => void
-  onmessage: ((event: { data: unknown }) => Promise<void>) | null
-}
-
-async function bootWorker() {
-  posted = []
-  // Inherit from globalThis so transitive deps that environment-sniff via
-  // `self` (jszip → setimmediate) still find node's scheduling primitives.
-  workerSelf = Object.assign(Object.create(globalThis), {
-    postMessage: (message: unknown, options?: { transfer?: unknown[] }) => {
-      posted.push({ message, options })
-    },
-    onmessage: null,
-  })
-  vi.stubGlobal('self', workerSelf)
-  vi.resetModules()
-  await import('$lib/data/ingest/worker')
-}
-
-const send = (type: string, data?: unknown) =>
-  workerSelf.onmessage!({ data: { type, data } })
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import {
+  bootWorker,
+  posted,
+  resetWorkerGlobals,
+  send,
+} from './helpers/ingestServiceHarness'
 
 const failMessage = () => {
   const fail = posted.find(p => p.message.type === 'fail')
@@ -47,10 +27,7 @@ const failMessage = () => {
 
 describe('ingest worker ZIP handling', () => {
   beforeEach(bootWorker)
-  afterEach(() => {
-    vi.unstubAllGlobals()
-    vi.resetModules()
-  })
+  afterEach(resetWorkerGlobals)
 
   it("a zip missing the required Pupil Cloud CSVs posts a 'fail' with the pinned message", async () => {
     const zip = new JSZip()

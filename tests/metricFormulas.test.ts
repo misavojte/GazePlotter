@@ -6,7 +6,13 @@
  * Behaviour-level coverage lives in `aoiComparisonDataCollection.test.ts`.
  */
 import { describe, it, expect } from 'vitest'
-import { makeGroupedAoiEngine, makeTestEngine } from './helpers/testEngine'
+import {
+  makeGroupedAoiEngine,
+  makeTestEngine,
+  makeSingleParticipantEngine,
+  makeMultiParticipantEngine,
+  makeScope,
+} from './helpers/testEngine'
 import {
   query,
   queryGroup,
@@ -21,17 +27,6 @@ const STIM = 1
 const PID = 0
 
 // Slot layout (2 AOIs): 0=AOI1, 1=AOI2, 2=noAoi, 3=anyFixation
-
-function createEngine(segmentsForPid: number[][]) {
-  // segmentsForPid = one participant's segments; shape number[][].
-  // makeTestEngine wants segments[stimulusId][participantId][segIdx][fieldIdx].
-  return makeTestEngine([[], [segmentsForPid]])
-}
-
-function createMultiParticipantEngine(perParticipantSegments: number[][][]) {
-  // perParticipantSegments[participantId] = that participant's segment rows.
-  return makeTestEngine([[], perParticipantSegments])
-}
 
 /**
  * Engine factory for high-AOI-cardinality stress tests. Generates `n` AOIs
@@ -64,10 +59,6 @@ function inst(baseId: string, params: Record<string, unknown> = {}): MetricInsta
   }
 }
 
-function scope(engine: any): Scope {
-  return { engine, stimulusId: STIM, participantId: PID, timeStart: 0, timeEnd: 0 }
-}
-
 function values(result: ReturnType<typeof query>): number[] {
   if (result.shape === 'aoi-vector') return result.values
   if (result.shape === 'scalar') return [result.value]
@@ -91,12 +82,12 @@ describe('absoluteTime — Σ of fixation durations on the AOI', () => {
     //   AOI2: 100 + 100 = 200
     //   noAoi: 0
     //   anyFixation: 100 + 100 + 100 = 300 (each fixation counted once)
-    const engine = createEngine([
+    const engine = makeSingleParticipantEngine([
       [0, 100, 0, 1],
       [100, 200, 0, 1, 2],
       [200, 300, 0, 2],
     ])
-    const result = values(query(inst('absoluteTime'), scope(engine)))
+    const result = values(query(inst('absoluteTime'), makeScope(engine)))
     expect(result[0]).toBe(200)
     expect(result[1]).toBe(200)
     expect(result[2]).toBe(0)
@@ -111,12 +102,12 @@ describe('relativeTime — (absolute / total fixation time) × 100', () => {
     // 3 fixations of 100ms: AOI1, AOI2, noAoi
     //   total fixation time (anyFixation) = 300
     //   expected: AOI1=33.33, AOI2=33.33, noAoi=33.33, anyFixation=100
-    const engine = createEngine([
+    const engine = makeSingleParticipantEngine([
       [0, 100, 0, 1],
       [100, 200, 0, 2],
       [200, 300, 0],
     ])
-    const result = values(query(inst('relativeTime'), scope(engine)))
+    const result = values(query(inst('relativeTime'), makeScope(engine)))
     expect(result[0]).toBeCloseTo(100 / 3, 6)
     expect(result[1]).toBeCloseTo(100 / 3, 6)
     expect(result[2]).toBeCloseTo(100 / 3, 6)
@@ -128,8 +119,8 @@ describe('relativeTime — (absolute / total fixation time) × 100', () => {
     // 1 fixation of 100ms in [AOI1, AOI2]
     //   AOI1=100, AOI2=100, noAoi=0, anyFixation=100
     //   relativeTime: AOI1=100, AOI2=100, noAoi=0, anyFixation=100
-    const engine = createEngine([[0, 100, 0, 1, 2]])
-    const result = values(query(inst('relativeTime'), scope(engine)))
+    const engine = makeSingleParticipantEngine([[0, 100, 0, 1, 2]])
+    const result = values(query(inst('relativeTime'), makeScope(engine)))
     expect(result[0]).toBe(100)
     expect(result[1]).toBe(100)
     expect(result[2]).toBe(0)
@@ -139,8 +130,8 @@ describe('relativeTime — (absolute / total fixation time) × 100', () => {
   it('zero fixations → NaN (0/0 is undefined, not a real 0%)', () => {
     // No gaze to normalise against: every slot is undefined, so the participant
     // drops out of cross-participant/window reduction instead of deflating it.
-    const engine = createEngine([])
-    const result = values(query(inst('relativeTime'), scope(engine)))
+    const engine = makeSingleParticipantEngine([])
+    const result = values(query(inst('relativeTime'), makeScope(engine)))
     expect(result[0]).toBeNaN()
     expect(result[3]).toBeNaN()
   })
@@ -152,13 +143,13 @@ describe('fixationCount — count of fixations landing in AOI', () => {
   it('counts per slot with overlaps and noAoi', () => {
     // 4 fixations: AOI1, [AOI1,AOI2], noAoi, AOI2
     //   AOI1=2, AOI2=2, noAoi=1, anyFixation=4
-    const engine = createEngine([
+    const engine = makeSingleParticipantEngine([
       [0, 100, 0, 1],
       [100, 200, 0, 1, 2],
       [200, 300, 0],
       [300, 400, 0, 2],
     ])
-    const result = values(query(inst('fixationCount'), scope(engine)))
+    const result = values(query(inst('fixationCount'), makeScope(engine)))
     expect(result[0]).toBe(2)
     expect(result[1]).toBe(2)
     expect(result[2]).toBe(1)
@@ -173,12 +164,12 @@ describe('fixationDuration — mean of per-fixation durations on AOI', () => {
     // Fixations:
     //   100ms on AOI1, 300ms on AOI1, 200ms on AOI2
     //   mean AOI1 = 200, mean AOI2 = 200, noAoi = NaN, mean anyFixation = 200
-    const engine = createEngine([
+    const engine = makeSingleParticipantEngine([
       [0, 100, 0, 1],
       [100, 400, 0, 1],
       [400, 600, 0, 2],
     ])
-    const result = values(query(inst('fixationDuration'), scope(engine)))
+    const result = values(query(inst('fixationDuration'), makeScope(engine)))
     expect(result[0]).toBe(200)
     expect(result[1]).toBe(200)
     expect(Number.isNaN(result[2])).toBe(true)
@@ -209,40 +200,40 @@ function pickAoiInst(
 describe('fixationDuration — summary statistic on the pick (mean/median/max/min)', () => {
   // Three fixations on AOI1 with durations 100, 200, 600.
   //   mean = 300, median = 200, max = 600, min = 100.
-  const engine = createEngine([
+  const engine = makeSingleParticipantEngine([
     [0, 100, 0, 1],
     [100, 300, 0, 1],
     [300, 900, 0, 1],
   ])
   it('defaults to mean (a pick with no statistic)', () => {
-    expect(scalar(query(pickAoiInst('fixationDuration', 0), scope(engine)))).toBe(300)
+    expect(scalar(query(pickAoiInst('fixationDuration', 0), makeScope(engine)))).toBe(300)
   })
   it('median', () => {
-    expect(scalar(query(pickAoiInst('fixationDuration', 0, 'median'), scope(engine)))).toBe(200)
+    expect(scalar(query(pickAoiInst('fixationDuration', 0, 'median'), makeScope(engine)))).toBe(200)
   })
   it('max', () => {
-    expect(scalar(query(pickAoiInst('fixationDuration', 0, 'max'), scope(engine)))).toBe(600)
+    expect(scalar(query(pickAoiInst('fixationDuration', 0, 'max'), makeScope(engine)))).toBe(600)
   })
   it('min', () => {
-    expect(scalar(query(pickAoiInst('fixationDuration', 0, 'min'), scope(engine)))).toBe(100)
+    expect(scalar(query(pickAoiInst('fixationDuration', 0, 'min'), makeScope(engine)))).toBe(100)
   })
   it('the raw VECTOR is always the per-slot mean — it has no statistic to carry', () => {
-    expect(values(query(inst('fixationDuration'), scope(engine)))[0]).toBe(300)
+    expect(values(query(inst('fixationDuration'), makeScope(engine)))[0]).toBe(300)
   })
   it('pick-any-fixation carries the statistic too (whole-stimulus summary)', () => {
     const anyPick = (statistic?: 'median' | 'max'): MetricInstance => ({
       id: 't1', baseId: 'fixationDuration', params: {}, label: '',
       projection: { kind: 'pick-any-fixation', ...(statistic ? { statistic } : {}) },
     })
-    expect(scalar(query(anyPick(), scope(engine)))).toBe(300)
-    expect(scalar(query(anyPick('median'), scope(engine)))).toBe(200)
-    expect(scalar(query(anyPick('max'), scope(engine)))).toBe(600)
+    expect(scalar(query(anyPick(), makeScope(engine)))).toBe(300)
+    expect(scalar(query(anyPick('median'), makeScope(engine)))).toBe(200)
+    expect(scalar(query(anyPick('max'), makeScope(engine)))).toBe(600)
   })
 })
 
 describe('visitDuration — summary statistic on the pick', () => {
   // Three separate AOI1 visits (dwells 100, 200, 600), each broken by an AOI2 fixation.
-  const engine = createEngine([
+  const engine = makeSingleParticipantEngine([
     [0, 100, 0, 1],
     [100, 200, 0, 2],
     [200, 400, 0, 1],
@@ -250,10 +241,10 @@ describe('visitDuration — summary statistic on the pick', () => {
     [500, 1100, 0, 1],
   ])
   it('median of per-visit dwells', () => {
-    expect(scalar(query(pickAoiInst('visitDuration', 0, 'median'), scope(engine)))).toBe(200)
+    expect(scalar(query(pickAoiInst('visitDuration', 0, 'median'), makeScope(engine)))).toBe(200)
   })
   it('mean by default', () => {
-    expect(scalar(query(pickAoiInst('visitDuration', 0), scope(engine)))).toBe(300)
+    expect(scalar(query(pickAoiInst('visitDuration', 0), makeScope(engine)))).toBe(300)
   })
 })
 
@@ -264,13 +255,13 @@ describe('visitCount — distinct entries; consecutive-same = one visit', () => 
     // Fixations: AOI1, AOI1, AOI2, AOI1
     //   AOI1 visits: {0-1}, {3} → 2 entries
     //   AOI2 visits: {2} → 1 entry
-    const engine = createEngine([
+    const engine = makeSingleParticipantEngine([
       [0, 100, 0, 1],
       [100, 200, 0, 1],
       [200, 300, 0, 2],
       [300, 400, 0, 1],
     ])
-    const result = values(query(inst('visitCount'), scope(engine)))
+    const result = values(query(inst('visitCount'), makeScope(engine)))
     expect(result[0]).toBe(2)
     expect(result[1]).toBe(1)
   })
@@ -283,16 +274,16 @@ describe('visitDuration — mean sum-of-durations per visit', () => {
     // Fixations: AOI1 (0-100), AOI1 (100-200), AOI2 (200-300), AOI1 (300-400)
     //   AOI1 visits: [200ms, 100ms] → mean 150
     //   AOI2 visits: [100ms] → mean 100
-    const engine = createEngine([
+    const engine = makeSingleParticipantEngine([
       [0, 100, 0, 1],
       [100, 200, 0, 1],
       [200, 300, 0, 2],
       [300, 400, 0, 1],
     ])
-    const result = values(query(inst('visitDuration'), scope(engine)))
+    const result = values(query(inst('visitDuration'), makeScope(engine)))
     expect(result[0]).toBe(150)
     expect(result[1]).toBe(100)
-    expect(queryIndividualsAllSlots(inst('visitDuration'), scope(engine))![0]).toEqual([200, 100])
+    expect(queryIndividualsAllSlots(inst('visitDuration'), makeScope(engine))![0]).toEqual([200, 100])
   })
 
   it('defines the SAME visits as visitCount (cross-pin on the duplicated boundary logic)', () => {
@@ -326,9 +317,9 @@ describe('visitDuration — mean sum-of-durations per visit', () => {
     // overwrote the open any-fixation visit instead of closing it, so the
     // whole-stimulus sample held only off-AOI runs.)
     for (const [name, segments] of Object.entries(cases)) {
-      const engine = createEngine(segments)
-      const counts = values(query(inst('visitCount'), scope(engine)))
-      const samples = queryIndividualsAllSlots(inst('visitDuration'), scope(engine))!
+      const engine = makeSingleParticipantEngine(segments)
+      const counts = values(query(inst('visitCount'), makeScope(engine)))
+      const samples = queryIndividualsAllSlots(inst('visitDuration'), makeScope(engine))!
       expect(
         samples.map(s => s.length),
         `visit definitions diverged on "${name}"`
@@ -356,10 +347,10 @@ describe('visitDuration — mean sum-of-durations per visit', () => {
       ],
     }
     for (const [name, segments] of Object.entries(cases)) {
-      const engine = createEngine(segments)
-      const samples = queryIndividualsAllSlots(inst('visitDuration'), scope(engine))!
+      const engine = makeSingleParticipantEngine(segments)
+      const samples = queryIndividualsAllSlots(inst('visitDuration'), makeScope(engine))!
       const anyFixation = samples[samples.length - 1]
-      const totalFixationTime = values(query(inst('absoluteTime'), scope(engine)))[3]
+      const totalFixationTime = values(query(inst('absoluteTime'), makeScope(engine)))[3]
       expect(
         anyFixation.reduce((a, b) => a + b, 0),
         `any-fixation visits did not tile the scan on "${name}"`
@@ -371,8 +362,8 @@ describe('visitDuration — mean sum-of-durations per visit', () => {
     // A single zero-duration fixation on AOI1 is a real (degenerate) visit; it
     // must be flushed to the anyFixation aggregate as 0, not silently dropped,
     // so anyFixation summarises the same visits as the per-AOI slots.
-    const engine = createEngine([[100, 100, 0, 1]])
-    const result = values(query(inst('visitDuration'), scope(engine)))
+    const engine = makeSingleParticipantEngine([[100, 100, 0, 1]])
+    const result = values(query(inst('visitDuration'), makeScope(engine)))
     expect(result[0]).toBe(0) // AOI1 visit dwell = 0 (recorded)
     expect(result[3]).toBe(0) // anyFixation = 0 (counted), not NaN
   })
@@ -384,11 +375,11 @@ describe('timeToFirstFixation — segment start of first fixation on AOI', () =>
   it('returns the start time of the first matching fixation; NaN if never', () => {
     // Fixations: noAoi (0-50), AOI1 (50-150)
     //   ttff[AOI1] = 50, ttff[AOI2] = NaN, ttff[noAoi] = 0, ttff[anyFixation] = 0
-    const engine = createEngine([
+    const engine = makeSingleParticipantEngine([
       [0, 50, 0],
       [50, 150, 0, 1],
     ])
-    const result = values(query(inst('timeToFirstFixation'), scope(engine)))
+    const result = values(query(inst('timeToFirstFixation'), makeScope(engine)))
     expect(result[0]).toBe(50)
     expect(Number.isNaN(result[1])).toBe(true)
     expect(result[2]).toBe(0)
@@ -402,11 +393,11 @@ describe('firstFixationDuration — duration of the first fixation on AOI', () =
   it('captures the FIRST fixation duration only, not subsequent ones', () => {
     // Fixations: AOI1 (0-100, dur=100), AOI1 (200-500, dur=300)
     //   firstFixDur[AOI1] = 100 (not 200 = mean)
-    const engine = createEngine([
+    const engine = makeSingleParticipantEngine([
       [0, 100, 0, 1],
       [200, 500, 0, 1],
     ])
-    const result = values(query(inst('firstFixationDuration'), scope(engine)))
+    const result = values(query(inst('firstFixationDuration'), makeScope(engine)))
     expect(result[0]).toBe(100)
     expect(Number.isNaN(result[1])).toBe(true)
   })
@@ -420,24 +411,24 @@ describe('rqaRec — REC% = 100 × 2R / (N(N−1))', () => {
     // Upper-triangle recurrent pairs (i<j, seq[i]==seq[j]):
     //   (0,1), (0,3), (0,4), (1,3), (1,4), (3,4) → R = 6, N = 5
     //   REC = 100 × 12 / 20 = 60%
-    const engine = createEngine([
+    const engine = makeSingleParticipantEngine([
       [0, 100, 0, 1],
       [100, 200, 0, 1],
       [200, 300, 0, 2],
       [300, 400, 0, 1],
       [400, 500, 0, 1],
     ])
-    expect(scalar(query(inst('rqaRec'), scope(engine)))).toBeCloseTo(60, 6)
+    expect(scalar(query(inst('rqaRec'), makeScope(engine)))).toBeCloseTo(60, 6)
   })
 
   it('returns 0% when no recurrences exist (all distinct AOIs)', () => {
     // Sequence [AOI1, AOI2] — no recurrent pairs
     //   REC should be 0, not NaN (REC=0 is a real fact, not missing data)
-    const engine = createEngine([
+    const engine = makeSingleParticipantEngine([
       [0, 100, 0, 1],
       [100, 200, 0, 2],
     ])
-    expect(scalar(query(inst('rqaRec'), scope(engine)))).toBe(0)
+    expect(scalar(query(inst('rqaRec'), makeScope(engine)))).toBe(0)
   })
 })
 
@@ -453,14 +444,14 @@ describe('rqaDet — DET% = 100 × (points on diagonals ≥ L) / R', () => {
     //   k=4: [1] → length 1.
     // DL = 2
     // DET = 100 × 2 / 6 = 33.333…
-    const engine = createEngine([
+    const engine = makeSingleParticipantEngine([
       [0, 100, 0, 1],
       [100, 200, 0, 1],
       [200, 300, 0, 2],
       [300, 400, 0, 1],
       [400, 500, 0, 1],
     ])
-    expect(scalar(query(inst('rqaDet'), scope(engine)))).toBeCloseTo(100 / 3, 6)
+    expect(scalar(query(inst('rqaDet'), makeScope(engine)))).toBeCloseTo(100 / 3, 6)
   })
 })
 
@@ -479,14 +470,14 @@ describe('rqaLam — LAM% = 100 × (HL + VL) / (2R); for symmetric matrix equals
     //   VL = 4
     // LAM = 100 × (4 + 4) / (2 × 6) = 66.666…
     // Equivalently VL/R = 4/6 = 66.67% — confirms the symmetric identity.
-    const engine = createEngine([
+    const engine = makeSingleParticipantEngine([
       [0, 100, 0, 1],
       [100, 200, 0, 1],
       [200, 300, 0, 2],
       [300, 400, 0, 1],
       [400, 500, 0, 1],
     ])
-    expect(scalar(query(inst('rqaLam'), scope(engine)))).toBeCloseTo(200 / 3, 6)
+    expect(scalar(query(inst('rqaLam'), makeScope(engine)))).toBeCloseTo(200 / 3, 6)
   })
 })
 
@@ -498,12 +489,12 @@ describe('transitionCount — count of AOI transitions (fixation pairs or visit 
     // Matrix size = 3 (2 AOIs + outside). Row-major [from × size + to].
     //   AOI1→AOI1 (0→0): matrix[0*3+0] = 1
     //   AOI1→AOI2 (0→1): matrix[0*3+1] = 1
-    const engine = createEngine([
+    const engine = makeSingleParticipantEngine([
       [0, 100, 0, 1],
       [100, 200, 0, 1],
       [200, 300, 0, 2],
     ])
-    const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
+    const result = values(query(inst('transitionCount', { mode: 'fixation' }), makeScope(engine)))
     expect(result[0 * 3 + 0]).toBe(1) // AOI1 → AOI1 (consecutive same)
     expect(result[0 * 3 + 1]).toBe(1) // AOI1 → AOI2
     expect(result[1 * 3 + 0]).toBe(0) // AOI2 → AOI1 (didn't happen)
@@ -512,12 +503,12 @@ describe('transitionCount — count of AOI transitions (fixation pairs or visit 
   it('visit mode: AOI-stable consecutive pairs are skipped', () => {
     // Same fixations. Consecutive-same (AOI1→AOI1) is a continuation, not a transition.
     //   Only AOI1→AOI2 counts.
-    const engine = createEngine([
+    const engine = makeSingleParticipantEngine([
       [0, 100, 0, 1],
       [100, 200, 0, 1],
       [200, 300, 0, 2],
     ])
-    const result = values(query(inst('transitionCount', { mode: 'visit' }), scope(engine)))
+    const result = values(query(inst('transitionCount', { mode: 'visit' }), makeScope(engine)))
     expect(result[0 * 3 + 0]).toBe(0) // no self-transition in visit mode
     expect(result[0 * 3 + 1]).toBe(1) // AOI1 → AOI2 (the real transition)
   })
@@ -527,12 +518,12 @@ describe('transitionCount — count of AOI transitions (fixation pairs or visit 
     //   per-participant matrix[0, 1] = 1
     //   Sum across participants → matrix[0, 1] = 2
     //   (Default 'mean' would give 1, which is WRONG for counts.)
-    const engine = createMultiParticipantEngine([
+    const engine = makeMultiParticipantEngine([
       [[0, 100, 0, 1], [100, 200, 0, 2]],
       [[0, 100, 0, 1], [100, 200, 0, 2]],
     ])
     const groupScope: GroupScope = {
-      engine: engine as any,
+      engine: engine,
       stimulusId: STIM,
       participantIds: [0, 1],
     }
@@ -554,7 +545,7 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
     const segs: number[][] = []
     for (let i = 0; i < N; i++) segs.push([i * 100, (i + 1) * 100, 0, i + 1])
     const engine = createWideEngine(N, segs)
-    const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
+    const result = values(query(inst('transitionCount', { mode: 'fixation' }), makeScope(engine)))
     const size = N + 1
     for (let i = 0; i < N - 1; i++) {
       expect(result[i * size + (i + 1)]).toBe(1)
@@ -577,7 +568,7 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
     for (let i = 0; i < 5; i++) segs.push([(i + 1) * 100, (i + 2) * 100, 0]) // no AOI
     segs.push([600, 700, 0, 2])
     const engine = createWideEngine(N, segs)
-    const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
+    const result = values(query(inst('transitionCount', { mode: 'fixation' }), makeScope(engine)))
     const size = N + 1
     const outside = N // outsideSlot index
     expect(result[0 * size + outside]).toBe(1)            // AOI1 → outside
@@ -605,7 +596,7 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
       }
     }
     const engine = createWideEngine(N, segs)
-    const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
+    const result = values(query(inst('transitionCount', { mode: 'fixation' }), makeScope(engine)))
     const size = N + 1
     const outside = N
 
@@ -664,17 +655,20 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
     for (let i = 1; i <= totalRaw; i++) {
       segs.push([(i - 1) * 100, i * 100, 0, i])
     }
-    const engine = {
-      ...makeTestEngine([[], [segs]], {
+    // Object.assign keeps the DataEngine type while overriding the mapping.
+    const engine = Object.assign(
+      makeTestEngine([[], [segs]], {
         aoiData: [[], aoiData],
         aoiOrderVector: [[], order],
       }),
-      // Simulate AoiGroupReader: each pair's first raw id is the rep.
-      // raw 1,2 → 1 ;  raw 3,4 → 3 ;  …  raw (2k-1), 2k → (2k-1).
-      getAoiMapping: (_s: number, rawId: number) =>
-        Math.floor((rawId - 1) / groupSize) * groupSize + 1,
-    }
-    const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
+      {
+        // Simulate AoiGroupReader: each pair's first raw id is the rep.
+        // raw 1,2 → 1 ;  raw 3,4 → 3 ;  …  raw (2k-1), 2k → (2k-1).
+        getAoiMapping: (_s: number, rawId: number) =>
+          Math.floor((rawId - 1) / groupSize) * groupSize + 1,
+      }
+    )
+    const result = values(query(inst('transitionCount', { mode: 'fixation' }), makeScope(engine)))
     const size = numGroups + 1 // 66
 
     // Self-transitions on the diagonal: every adjacent pair-member fires one
@@ -696,7 +690,7 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
     const segs: number[][] = []
     for (let i = 0; i < N; i++) segs.push([i * 100, (i + 1) * 100, 0, i + 1])
     const engine = makeGroupedAoiEngine(names, segs)
-    const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
+    const result = values(query(inst('transitionCount', { mode: 'fixation' }), makeScope(engine)))
     const size = N + 1
     for (let i = 0; i < N - 1; i++) {
       expect(result[i * size + (i + 1)]).toBe(1)
@@ -721,7 +715,7 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
       }
     }
     const engine = makeGroupedAoiEngine(names, segs)
-    const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
+    const result = values(query(inst('transitionCount', { mode: 'fixation' }), makeScope(engine)))
     const size = N + 1
     const outside = N
 
@@ -754,7 +748,7 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
     for (let i = 1; i <= totalRaw; i++) segs.push([(i - 1) * 100, i * 100, 0, i])
 
     const engine = makeGroupedAoiEngine(names, segs)
-    const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
+    const result = values(query(inst('transitionCount', { mode: 'fixation' }), makeScope(engine)))
     const size = numGroups + 1
 
     for (let k = 0; k < numGroups; k++) {
@@ -786,10 +780,10 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
       [400, 500, 0, 25],
     ]
     const engine = makeGroupedAoiEngine(names, segs)
-    engine.metadata.aois.selections = [{ id: 7, name: 'Keep', names: keptNames }]
+    engine.metadata!.aois.selections = [{ id: 7, name: 'Keep', names: keptNames }]
     const result = values(
       query(inst('transitionCount', { mode: 'fixation' }), {
-        ...scope(engine),
+        ...makeScope(engine),
         aoiSelectionId: 7,
       })
     )
@@ -845,7 +839,7 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
       }
     }
     const engine = makeGroupedAoiEngine(names, segs)
-    const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
+    const result = values(query(inst('transitionCount', { mode: 'fixation' }), makeScope(engine)))
     const size = N + 1
     const outside = N
     expect(result[outside * size + outside]).toBe(expectedOutsideSelf)
@@ -882,7 +876,7 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
     // So this should be safe. But to be defensive, use a valid raw id (1) for the saccade.
     segs[1][3] = 1
     const engine = makeGroupedAoiEngine(names, segs)
-    const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
+    const result = values(query(inst('transitionCount', { mode: 'fixation' }), makeScope(engine)))
     const size = N + 1
     const outside = N
     expect(result[0 * size + 0]).toBe(1)            // AOI1 → AOI1
@@ -915,7 +909,7 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
     const fixCount = inst('fixationCount')
 
     // Phase 1: three distinct AOIs.
-    const before = values(query(fixCount, scope(engine)))
+    const before = values(query(fixCount, makeScope(engine)))
     // slots 0..2 = AOIs, 3 = noAoi, 4 = anyFixation. Counts: [2, 1, 1, 0, 4].
     expect(before[0]).toBe(2)
     expect(before[1]).toBe(1)
@@ -925,10 +919,10 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
     // Phase 2: rename 'AOI 2' to 'AOI 1' (displayed-name merge into raw 1's
     // group). In production, the modal commit mutates metadata then calls
     // _aoiGroupReader.updateMap(metadata). We mimic that here directly.
-    ;(engine.metadata.aois.data[STIM][2] as string[])[1] = 'AOI 1'
+    ;(engine.metadata!.aois.data[STIM][2] as string[])[1] = 'AOI 1'
     engine.getAoiGroupReader()!.updateMap(engine.metadata as any)
 
-    const after = values(query(fixCount, scope(engine)))
+    const after = values(query(fixCount, makeScope(engine)))
     // AOI 2's fixation now counts into the merged 'AOI 1' group; the
     // (now-2-group) layout is slots 0..1 = AOI 1 group, AOI 3; slot 2 = noAoi;
     // slot 3 = anyFixation. Counts: [3, 1, 0, 4]. Length 4 (was 5).
@@ -962,7 +956,7 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
     const fixInst = inst('transitionCount', { mode: 'fixation' })
     const visInst = inst('transitionCount', { mode: 'visit' })
 
-    const demoFix = values(query(fixInst, scope(engine)))
+    const demoFix = values(query(fixInst, makeScope(engine)))
     expect(demoFix.length).toBe(9) // 2 AOIs → 3×3
 
     // --- Phase 2: "AdVolution" — mutate the SAME engine object ---
@@ -983,11 +977,11 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
     engine.getAoiMapping = advReplacement.getAoiMapping
 
     // Visit mode: NOT cached during phase 1 → fresh compute on AdVolution → correct.
-    const advVis = values(query(visInst, scope(engine)))
+    const advVis = values(query(visInst, makeScope(engine)))
     expect(advVis.length, 'visit matrix is fresh').toBe(1681)
 
     // Fixation mode: CACHED during phase 1 → returns stale demo matrix.
-    const advFix = values(query(fixInst, scope(engine)))
+    const advFix = values(query(fixInst, makeScope(engine)))
     expect(advFix.length, 'fixation matrix is stale (demo cached)').toBe(1681)
   })
 
@@ -997,7 +991,7 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
     const segs: number[][] = []
     for (let i = 0; i < 10; i++) segs.push([i * 100, (i + 1) * 100, 0])
     const engine = createWideEngine(N, segs)
-    const result = values(query(inst('transitionCount', { mode: 'fixation' }), scope(engine)))
+    const result = values(query(inst('transitionCount', { mode: 'fixation' }), makeScope(engine)))
     const size = N + 1
     const outside = N
     expect(result[outside * size + outside]).toBe(9)
@@ -1015,7 +1009,7 @@ describe('fixationCount — 130-AOI cascade (high cardinality stress)', () => {
     const segs: number[][] = []
     for (let i = 0; i < N; i++) segs.push([i * 100, (i + 1) * 100, 0, i + 1])
     const engine = createWideEngine(N, segs)
-    const result = values(query(inst('fixationCount'), scope(engine)))
+    const result = values(query(inst('fixationCount'), makeScope(engine)))
     // slots: 0..129 = AOIs, 130 = noAoi, 131 = anyFixation
     for (let i = 0; i < N; i++) {
       expect(result[i]).toBe(1)
@@ -1032,7 +1026,7 @@ describe('fixationCount — 130-AOI cascade (high cardinality stress)', () => {
     const TARGET_RAW = 41 // slot 40
     for (let i = 0; i < 20; i++) segs.push([i * 100, (i + 1) * 100, 0, TARGET_RAW])
     const engine = createWideEngine(N, segs)
-    const result = values(query(inst('fixationCount'), scope(engine)))
+    const result = values(query(inst('fixationCount'), makeScope(engine)))
     expect(result[40]).toBe(20)
     expect(result[8]).toBe(0) // would be non-zero if (1 << 40) collapsed to (1 << 8)
     expect(result[N + 1]).toBe(20)
@@ -1047,12 +1041,12 @@ describe('transitionDwellSum — Σ of pre-transition durations per AOI pair', (
     //   Transition 1 (fix 0 → fix 1): from=AOI1, dur=100 → matrix[0, 0] += 100
     //   Transition 2 (fix 1 → fix 2): from=AOI1, dur=200 → matrix[0, 1] += 200
     //   Expected: matrix[0, 0] = 100, matrix[0, 1] = 200, rest = 0
-    const engine = createEngine([
+    const engine = makeSingleParticipantEngine([
       [0, 100, 0, 1],
       [100, 300, 0, 1],
       [300, 600, 0, 2],
     ])
-    const result = values(query(inst('transitionDwellSum', { mode: 'fixation' }), scope(engine)))
+    const result = values(query(inst('transitionDwellSum', { mode: 'fixation' }), makeScope(engine)))
     expect(result[0 * 3 + 0]).toBe(100) // AOI1 → AOI1 (dur of first fixation)
     expect(result[0 * 3 + 1]).toBe(200) // AOI1 → AOI2 (dur of second fixation)
     expect(result[1 * 3 + 0]).toBe(0)
@@ -1065,12 +1059,12 @@ describe('transitionDwellSum — Σ of pre-transition durations per AOI pair', (
     //   Visit 2: AOI2 over 300..600 → total duration 300
     //   Only transition: visit1(AOI1, 300ms) → visit2(AOI2)
     //   matrix[0, 1] = 300
-    const engine = createEngine([
+    const engine = makeSingleParticipantEngine([
       [0, 100, 0, 1],
       [100, 300, 0, 1],
       [300, 600, 0, 2],
     ])
-    const result = values(query(inst('transitionDwellSum', { mode: 'visit' }), scope(engine)))
+    const result = values(query(inst('transitionDwellSum', { mode: 'visit' }), makeScope(engine)))
     expect(result[0 * 3 + 1]).toBe(300)
     expect(result[0 * 3 + 0]).toBe(0) // no AOI1→AOI1 visit-transition
   })
@@ -1084,13 +1078,13 @@ describe('transitionRelativeFrequency — per-cell share of participant total, i
     //   AOI1→AOI2 twice, AOI2→AOI1 once. total = 3.
     //   matrix[0,1] = 2/3 × 100 = 66.67
     //   matrix[1,0] = 1/3 × 100 = 33.33
-    const engine = createEngine([
+    const engine = makeSingleParticipantEngine([
       [0, 100, 0, 1],
       [100, 200, 0, 2],
       [200, 300, 0, 1],
       [300, 400, 0, 2],
     ])
-    const result = values(query(inst('transitionRelativeFrequency', { mode: 'fixation' }), scope(engine)))
+    const result = values(query(inst('transitionRelativeFrequency', { mode: 'fixation' }), makeScope(engine)))
     expect(result[0 * 3 + 1]).toBeCloseTo(66.6666, 3)
     expect(result[1 * 3 + 0]).toBeCloseTo(33.3333, 3)
     expect(result[0 * 3 + 0]).toBe(0)
@@ -1102,8 +1096,8 @@ describe('transitionRelativeFrequency — per-cell share of participant total, i
 
   it('emits NaN when the participant has no transitions at all', () => {
     // Single fixation → 0 transitions → all-NaN so group reduce excludes this participant.
-    const engine = createEngine([[0, 100, 0, 1]])
-    const result = values(query(inst('transitionRelativeFrequency', { mode: 'fixation' }), scope(engine)))
+    const engine = makeSingleParticipantEngine([[0, 100, 0, 1]])
+    const result = values(query(inst('transitionRelativeFrequency', { mode: 'fixation' }), makeScope(engine)))
     expect(result.every(v => Number.isNaN(v))).toBe(true)
   })
 })
@@ -1115,13 +1109,13 @@ describe('transitionProbability — row-normalised Markov transition matrix, in 
     // Same sequence: AOI1, AOI2, AOI1, AOI2 → 3 transitions.
     //   Row 0 (from AOI1, 2 out-transitions, both to AOI2): matrix[0,1] = 100%.
     //   Row 1 (from AOI2, 1 out-transition, to AOI1):        matrix[1,0] = 100%.
-    const engine = createEngine([
+    const engine = makeSingleParticipantEngine([
       [0, 100, 0, 1],
       [100, 200, 0, 2],
       [200, 300, 0, 1],
       [300, 400, 0, 2],
     ])
-    const result = values(query(inst('transitionProbability', { mode: 'fixation', step: 1 }), scope(engine)))
+    const result = values(query(inst('transitionProbability', { mode: 'fixation', step: 1 }), makeScope(engine)))
     expect(result[0 * 3 + 1]).toBe(100)
     expect(result[1 * 3 + 0]).toBe(100)
     expect(result[0 * 3 + 0]).toBe(0)
@@ -1132,21 +1126,21 @@ describe('transitionProbability — row-normalised Markov transition matrix, in 
     // P² = [[1, 0, 0], [0, 1, 0], [0, 0, 0]].  (×100 for percent output)
     //   From AOI1 after 2 transitions → back at AOI1 with 100%.
     //   From AOI2 after 2 transitions → back at AOI2 with 100%.
-    const engine = createEngine([
+    const engine = makeSingleParticipantEngine([
       [0, 100, 0, 1],
       [100, 200, 0, 2],
       [200, 300, 0, 1],
       [300, 400, 0, 2],
     ])
-    const result = values(query(inst('transitionProbability', { mode: 'fixation', step: 2 }), scope(engine)))
+    const result = values(query(inst('transitionProbability', { mode: 'fixation', step: 2 }), makeScope(engine)))
     expect(result[0 * 3 + 0]).toBe(100)
     expect(result[1 * 3 + 1]).toBe(100)
     expect(result[0 * 3 + 1]).toBe(0)
   })
 
   it('emits NaN when no transitions exist at all', () => {
-    const engine = createEngine([[0, 100, 0, 1]])
-    const result = values(query(inst('transitionProbability', { mode: 'fixation', step: 1 }), scope(engine)))
+    const engine = makeSingleParticipantEngine([[0, 100, 0, 1]])
+    const result = values(query(inst('transitionProbability', { mode: 'fixation', step: 1 }), makeScope(engine)))
     expect(result.every(v => Number.isNaN(v))).toBe(true)
   })
 
@@ -1154,11 +1148,11 @@ describe('transitionProbability — row-normalised Markov transition matrix, in 
     // AOI1 → AOI2, then the scan ends: AOI2 is never left, so its row is an
     // undefined distribution. It must be NaN so it drops from cross-participant
     // reduction (keeping group rows summing to 100%), not a row of real 0%.
-    const engine = createEngine([
+    const engine = makeSingleParticipantEngine([
       [0, 100, 0, 1],
       [100, 200, 0, 2],
     ])
-    const result = values(query(inst('transitionProbability', { mode: 'fixation', step: 1 }), scope(engine)))
+    const result = values(query(inst('transitionProbability', { mode: 'fixation', step: 1 }), makeScope(engine)))
     expect(result[0 * 3 + 1]).toBe(100) // from AOI1 → AOI2 (real)
     expect(result[1 * 3 + 0]).toBeNaN() // from AOI2: no out-transition
     expect(result[1 * 3 + 1]).toBeNaN()
@@ -1179,12 +1173,12 @@ describe('transitionDwellMean — per-cell mean of pre-transition dwell times', 
     //     cell[0,1] = 100/1 = 100
     //     cell[1,0] = 300/1 = 300
     //   Cells with count=0: NaN (not 0 — "no transition to average" ≠ "average is zero").
-    const engine = createEngine([
+    const engine = makeSingleParticipantEngine([
       [0, 100, 0, 1],
       [100, 400, 0, 2],
       [400, 600, 0, 1],
     ])
-    const result = values(query(inst('transitionDwellMean', { mode: 'fixation' }), scope(engine)))
+    const result = values(query(inst('transitionDwellMean', { mode: 'fixation' }), makeScope(engine)))
     expect(result[0 * 3 + 1]).toBe(100)
     expect(result[1 * 3 + 0]).toBe(300)
     expect(Number.isNaN(result[0 * 3 + 0])).toBe(true)
@@ -1195,13 +1189,13 @@ describe('transitionDwellMean — per-cell mean of pre-transition dwell times', 
     // Fixations AOI1(dur 100), AOI2(dur 0), AOI1(dur 200), AOI2(dur 0).
     //   Transitions into [0,1] (AOI1→AOI2): twice, dwellSums = [100, 200]; count=2.
     //   Mean = 300 / 2 = 150.
-    const engine = createEngine([
+    const engine = makeSingleParticipantEngine([
       [0, 100, 0, 1],
       [100, 100, 0, 2],
       [100, 300, 0, 1],
       [300, 300, 0, 2],
     ])
-    const result = values(query(inst('transitionDwellMean', { mode: 'fixation' }), scope(engine)))
+    const result = values(query(inst('transitionDwellMean', { mode: 'fixation' }), makeScope(engine)))
     expect(result[0 * 3 + 1]).toBe(150)
   })
 })
@@ -1217,13 +1211,44 @@ describe('transitionDwellMean — per-cell mean of pre-transition dwell times', 
  */
 describe('sampleSummary: the vector equals its own individuals, collapsed', () => {
   // Uneven durations and multi-visit AOIs, so mean/median/max/min all differ.
-  const aoiEngine = createEngine([
+  const aoiEngine = makeSingleParticipantEngine([
     [0, 100, 0, 1],
     [100, 400, 0, 1],
     [400, 500, 0, 2],
     [500, 1100, 0, 1],
     [1100, 1200, 0],
   ])
+
+  // The two independent anchors that keep the equivalence loops below from
+  // being circular: the reducer is pinned on hand-computed numbers, and the
+  // dots are pinned as literals derived from the segments above by hand.
+  it('reduceNumeric agrees with hand-computed statistics', () => {
+    const sample = [100, 300, 100, 600, 100]
+    expect(reduceNumeric(sample, 'mean')).toBeCloseTo(240, 10) // 1200 / 5
+    expect(reduceNumeric(sample, 'median')).toBe(100) // sorted mid of 5
+    expect(reduceNumeric(sample, 'max')).toBe(600)
+    expect(reduceNumeric(sample, 'min')).toBe(100)
+    expect(reduceNumeric([100, 300], 'median')).toBe(200) // even count: midpoint
+  })
+
+  it('the dots are the hand-derived per-slot samples', () => {
+    // fixationDuration: one dot per fixation. visitDuration: one dot per
+    // visit; abutting same-AOI fixations merge (0-400), and the any-fixation
+    // slot's visits break at AOI-composition changes, tiling the whole scan
+    // (400 + 100 + 600 + 100 = 1200).
+    expect(queryIndividualsAllSlots(inst('fixationDuration'), makeScope(aoiEngine))).toEqual([
+      [100, 300, 600],
+      [100],
+      [100],
+      [100, 300, 100, 600, 100],
+    ])
+    expect(queryIndividualsAllSlots(inst('visitDuration'), makeScope(aoiEngine))).toEqual([
+      [400, 600],
+      [100],
+      [100],
+      [400, 100, 600, 100],
+    ])
+  })
 
   const STATS = ['mean', 'median', 'max', 'min'] as const
   // Slot layout is [AOI1, AOI2, noAoi, anyFixation]; `pick-aoi` addresses only
@@ -1243,18 +1268,18 @@ describe('sampleSummary: the vector equals its own individuals, collapsed', () =
 
   for (const baseId of ['fixationDuration', 'visitDuration']) {
     it(`${baseId} — every pick equals its slot's dots, collapsed`, () => {
-      const samples = queryIndividualsAllSlots(inst(baseId), scope(aoiEngine))!
+      const samples = queryIndividualsAllSlots(inst(baseId), makeScope(aoiEngine))!
       expect(samples.length).toBeGreaterThan(AOI_SLOTS)
       for (const statistic of STATS) {
         for (let slot = 0; slot < AOI_SLOTS; slot++) {
           expectSame(
-            scalar(query(pickAoiInst(baseId, slot, statistic), scope(aoiEngine))),
+            scalar(query(pickAoiInst(baseId, slot, statistic), makeScope(aoiEngine))),
             reduceNumeric(samples[slot], statistic),
             `${baseId} · ${statistic} · slot ${slot}`
           )
         }
         expectSame(
-          scalar(query(anyPick(baseId, statistic), scope(aoiEngine))),
+          scalar(query(anyPick(baseId, statistic), makeScope(aoiEngine))),
           reduceNumeric(samples[ANY_FIXATION_SLOT], statistic),
           `${baseId} · ${statistic} · any fixation`
         )
@@ -1265,8 +1290,8 @@ describe('sampleSummary: the vector equals its own individuals, collapsed', () =
   it('the identity vector is the same sample collapsed by the mean', () => {
     // The vector carries no statistic, so it must equal the mean of the dots.
     for (const baseId of ['fixationDuration', 'visitDuration']) {
-      const samples = queryIndividualsAllSlots(inst(baseId), scope(aoiEngine))!
-      const vector = values(query(inst(baseId), scope(aoiEngine)))
+      const samples = queryIndividualsAllSlots(inst(baseId), makeScope(aoiEngine))!
+      const vector = values(query(inst(baseId), makeScope(aoiEngine)))
       expect(vector.length, baseId).toBe(samples.length)
       for (let slot = 0; slot < samples.length; slot++) {
         const expected = reduceNumeric(samples[slot], 'mean')
@@ -1280,8 +1305,8 @@ describe('sampleSummary: the vector equals its own individuals, collapsed', () =
     // visitDuration's last visit is still open when the scan ends. Both the
     // summary and the dots complete it before reading; if `flush` were not
     // idempotent the second reader would push it twice.
-    const before = queryIndividualsAllSlots(inst('visitDuration'), scope(aoiEngine))!
-    const after = queryIndividualsAllSlots(inst('visitDuration'), scope(aoiEngine))!
+    const before = queryIndividualsAllSlots(inst('visitDuration'), makeScope(aoiEngine))!
+    const after = queryIndividualsAllSlots(inst('visitDuration'), makeScope(aoiEngine))!
     expect(after).toEqual(before)
     // AOI 1's three visits (100+300 merged, then 600) survive exactly once.
     expect(before[0]).toEqual([400, 600])

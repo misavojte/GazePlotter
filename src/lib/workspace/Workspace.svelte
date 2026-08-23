@@ -19,8 +19,6 @@
     GridInteractionController,
     panSurfaceAction,
   } from './grid/interaction'
-  import { plotRegistry } from '$lib/plots/registry'
-  import { generateUniqueId } from '$lib/shared/utils/idUtils'
   import { WorkspaceZoom, wheelZoomAction } from './zoom.svelte'
   import { FileDropTarget } from './fileDrop.svelte'
   import { isTextEntryTarget, resolveWorkspaceShortcut } from './keys'
@@ -35,18 +33,9 @@
   const { onWorkspaceCommandChain, initialLayoutState = null }: Props = $props()
   const { ingest, grid, workspace, modalState } = getGazePlotterSession()
 
-  // Single upload owner for the workspace: the drag-drop handler below and the
-  // click entry points (ribbon item, empty-state button) all feed ingest here.
-  let fileUploadInput = $state<HTMLInputElement>()
-
-  const handleFileUpload = async (e: Event) => {
-    const files = (e.target as HTMLInputElement).files
-    if (!(files instanceof FileList) || files.length === 0) return
-    await ingest.loadFiles(files)
-    if (fileUploadInput) fileUploadInput.value = ''
-  }
-
-  const triggerUpload = () => fileUploadInput?.click()
+  // Single upload owner: the drag-drop handler below and the click entry
+  // points (ribbon item, empty-state button) all feed ingest.
+  const triggerUpload = () => ingest.openAndLoadFiles()
 
   function handleWorkspaceBackgroundClick(event: MouseEvent): void {
     // Clicking anywhere in the workspace that isn't a grid item deselects
@@ -57,7 +46,7 @@
     const target = event.target as HTMLElement | null
     if (!target) return
     if (target.closest('.grid-item')) return
-    grid.setSelectedItem(null)
+    grid.clearSelection()
   }
 
   // Drag-to-pan starts from anywhere in the scroll container's empty
@@ -142,22 +131,6 @@
     }
   })
 
-  const visualizations = Object.entries(plotRegistry).map(([id, config]) => ({
-    id,
-    label: config.name,
-    group: config.group,
-  }))
-
-  function handleAddVisualization(vizType: string): void {
-    const newId = generateUniqueId()
-    if (workspace.addGridItem(vizType, 'rail', newId)) {
-      grid.setSelectedItem(newId)
-      if (!responsive.isMobile) {
-        grid.openPane(newId)
-      }
-    }
-  }
-
   $effect(() => {
     workspace.setCommandListener(onWorkspaceCommandChain)
 
@@ -223,26 +196,13 @@
 {/snippet}
 
 <div class="workspace-wrapper" style={styleProps} use:wheelZoomAction={zoom}>
-  <input
-    type="file"
-    multiple
-    accept=".csv,.txt,.tsv,.json,.zip,.xml"
-    onchange={handleFileUpload}
-    bind:this={fileUploadInput}
-    hidden
-  />
   <Ribbon onUpload={triggerUpload} />
 
   <div class="workspace-body" class:mobile={responsive.isMobile}>
     {#if !responsive.isMobile}
       <!-- Desktop: Rail is a flex item on the left edge of the -->
       <!-- workspace-body row, next to the scrolling container. -->
-      <Rail
-        {initialLayoutState}
-        {visualizations}
-        bind:zoom={zoom.value}
-        onAddVisualization={handleAddVisualization}
-      />
+      <Rail {initialLayoutState} bind:zoom={zoom.value} />
     {/if}
 
     <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -324,10 +284,8 @@
     <!-- enters the viewport and the rail scrolls away with it. -->
     <Rail
       {initialLayoutState}
-      {visualizations}
       bind:zoom={zoom.value}
       bind:element={mobileRailElement}
-      onAddVisualization={handleAddVisualization}
     />
   {/if}
 </div>

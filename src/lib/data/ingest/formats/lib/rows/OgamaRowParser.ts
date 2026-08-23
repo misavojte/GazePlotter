@@ -34,7 +34,7 @@ export class OgamaRowParser extends RowParser {
     return
   }
 
-  protected deserializeFromBytes(_rawRowRef: Uint8Array): void {
+  protected override deserializeFromBytes(_rawRowRef: Uint8Array): void {
     const segmentsBytes = this.getBytes(this.pSegments)
     const participantBytes = this.getBytes(this.pParticipant)
     if (!segmentsBytes.length || !participantBytes.length) return

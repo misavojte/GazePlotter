@@ -7,61 +7,22 @@
  * outside any stimulus.
  */
 import { describe, it, expect } from 'vitest'
-import { TobiiRowParser } from '$lib/data/ingest/formats/lib/rows/TobiiRowParser'
-import type { EventContribution } from '$lib/data/ingest/kernel/sink'
-import { processAdapterRows } from './helpers/ingestAdapterHarness'
+import {
+  TOBII_HEADER,
+  tobiiRow,
+  runTobiiParser,
+  type TobiiRowOpts,
+} from './helpers/ingestAdapterHarness'
 
-const HEADER = [
-  'Recording timestamp',
-  'Sensor',
-  'Participant name',
-  'Recording name',
-  'Event',
-  'Eye movement type',
-  'Eye movement type index',
-  'Fixation point X',
-  'Fixation point Y',
-]
+const HEADER = [...TOBII_HEADER, 'Fixation point X', 'Fixation point Y']
 
-function row(opts: {
-  ts: number
-  event?: string
-  gaze?: boolean
-  catIdx?: number
-  participant?: string
-  recording?: string
-}): string {
-  const cells: string[] = new Array(HEADER.length).fill('')
-  cells[0] = String(opts.ts)
-  cells[2] = opts.participant ?? 'P1'
-  cells[3] = opts.recording ?? 'R1'
-  cells[4] = opts.event ?? ''
-  if (opts.gaze) {
-    cells[1] = 'Eye Tracker'
-    cells[5] = 'Fixation'
-    cells[6] = String(opts.catIdx ?? 1)
-    cells[7] = '500'
-    cells[8] = '500'
-  }
-  return cells.join('\t')
-}
+const row = (opts: TobiiRowOpts): string => tobiiRow(opts, HEADER)
 
 const INTERVAL_CONFIG =
   '{"stimulusStartSuffix":"IntervalStart","stimulusEndSuffix":"IntervalEnd"}'
 
-function run(
-  rows: string[],
-  config: string,
-  header: string[] = HEADER
-): { events: EventContribution[]; warnings: string[] } {
-  const parser = new TobiiRowParser(header, config, '\t')
-  const events: EventContribution[] = []
-  const warnings: string[] = []
-  parser.onEvent = event => events.push(event)
-  parser.onWarning = message => warnings.push(message)
-  processAdapterRows(parser, rows, { finalize: true })
-  return { events, warnings }
-}
+const run = (rows: string[], config: string, header: string[] = HEADER) =>
+  runTobiiParser(rows, config, header)
 
 describe('TobiiRowParser — discrete event extraction', () => {
   it('imports every event as discrete, rebased to the stimulus base time', () => {
@@ -161,39 +122,22 @@ describe('TobiiRowParser — discrete event extraction', () => {
 
   it('media mode: events attach to the current media stimulus', () => {
     const mediaHeader = [
-      'Recording timestamp',
-      'Sensor',
-      'Participant name',
-      'Recording name',
+      ...TOBII_HEADER.slice(0, 4),
       'Recording media name',
-      'Event',
-      'Eye movement type',
-      'Eye movement type index',
+      ...TOBII_HEADER.slice(4),
       'Fixation point X',
       'Fixation point Y',
     ]
-    const mediaRow = (opts: {
-      ts: number
-      media?: string
-      event?: string
-      gaze?: boolean
-      catIdx?: number
-    }): string => {
-      const cells: string[] = new Array(mediaHeader.length).fill('')
-      cells[0] = String(opts.ts)
-      cells[2] = 'P1'
-      cells[3] = 'R1'
-      cells[4] = opts.media ?? ''
-      cells[5] = opts.event ?? ''
-      if (opts.gaze) {
-        cells[1] = 'Eye Tracker'
-        cells[6] = 'Fixation'
-        cells[7] = String(opts.catIdx ?? 1)
-        cells[8] = '500'
-        cells[9] = '500'
-      }
-      return cells.join('\t')
-    }
+    const mediaRow = ({
+      media,
+      ...rest
+    }: TobiiRowOpts & { media?: string }): string =>
+      tobiiRow(
+        media
+          ? { ...rest, cells: { 'Recording media name': media } }
+          : rest,
+        mediaHeader
+      )
 
     const { events, warnings } = run(
       [
@@ -219,16 +163,8 @@ describe('TobiiRowParser — discrete event extraction', () => {
 
   it("the plain 'tobii' variant (no Event column) extracts nothing", () => {
     const noEventHeader = HEADER.filter(name => name !== 'Event')
-    const noEventRow = (ts: number): string => {
-      const cells: string[] = new Array(noEventHeader.length).fill('')
-      cells[0] = String(ts)
-      cells[1] = 'Eye Tracker'
-      cells[2] = 'P1'
-      cells[3] = 'R1'
-      cells[4] = 'Fixation'
-      cells[5] = '1'
-      return cells.join('\t')
-    }
+    const noEventRow = (ts: number): string =>
+      tobiiRow({ ts, gaze: true }, noEventHeader)
     const { events, warnings } = run(
       [noEventRow(1000), noEventRow(2000)],
       '',

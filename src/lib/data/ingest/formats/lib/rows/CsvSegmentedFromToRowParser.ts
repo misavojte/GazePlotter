@@ -61,7 +61,7 @@ export class CsvSegmentedFromToRowParser extends RowParser {
    *                         Expected to contain values for 'from', 'to', 'aoi', 'participant', and 'stimulus'.
    * @returns {void}
    */
-  protected deserializeFromBytes(_rawRowRef: Uint8Array): void {
+  protected override deserializeFromBytes(_rawRowRef: Uint8Array): void {
     const from = this.getNumber(this.pFrom)
     const to = this.getNumber(this.pTo)
     const aoiBytes = this.getBytes(this.pAoi)

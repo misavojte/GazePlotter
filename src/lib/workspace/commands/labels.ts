@@ -8,11 +8,9 @@ import type { SelectionsAxis, WorkspaceCommand } from './types'
  */
 
 interface CommandLabels {
-  /** Label for when this command is being undone */
-  undone: string
-  /** Label for when this command is being redone */
-  redone: string
-  /** Label for normal command execution */
+  /** Mid-sentence noun phrase; prefixed with "Undo"/"Redo" for history labels. */
+  action: string
+  /** Label for normal command execution (the success toast). */
   default: string
 }
 
@@ -21,8 +19,7 @@ const selectionsLabels = (
   noun: string,
   sentenceNoun = noun.toLowerCase()
 ): CommandLabels => ({
-  undone: `Undo ${sentenceNoun} selections update`,
-  redone: `Redo ${sentenceNoun} selections update`,
+  action: `${sentenceNoun} selections update`,
   default: `${noun} selections updated`,
 })
 
@@ -43,110 +40,66 @@ const WORKSPACE_COMMAND_LABELS: Record<
   CommandLabels
 > = {
   // Data change commands
-  updateAois: {
-    undone: 'Undo AOI update',
-    redone: 'Redo AOI update',
-    default: 'AOIs updated',
-  },
+  updateAois: { action: 'AOI update', default: 'AOIs updated' },
 
   // Entity merge/update commands only ever run as children of `reconcileMerges`,
   // whose (root) label is what the toast and undo/redo tooltips show — these
   // never surface, so one generic entry per type suffices.
-  updateEntities: {
-    undone: 'Undo update',
-    redone: 'Redo update',
-    default: 'Updated',
-  },
+  updateEntities: { action: 'update', default: 'Updated' },
 
-  updateEventData: {
-    undone: 'Undo event data update',
-    redone: 'Redo event data update',
-    default: 'Event data updated',
-  },
+  updateEventData: { action: 'event data update', default: 'Event data updated' },
 
   updateEventChannels: {
-    undone: 'Undo event channels update',
-    redone: 'Redo event channels update',
+    action: 'event channels update',
     default: 'Event channels updated',
   },
 
   updateNoAoiTreatment: {
-    undone: 'Undo No AOI treatment update',
-    redone: 'Redo No AOI treatment update',
+    action: 'No AOI treatment update',
     default: 'No AOI treatment updated',
   },
 
-  mergeEntities: {
-    undone: 'Undo merge',
-    redone: 'Redo merge',
-    default: 'Merged',
-  },
+  mergeEntities: { action: 'merge', default: 'Merged' },
 
-  unmergeEntities: {
-    undone: 'Undo un-merge',
-    redone: 'Redo un-merge',
-    default: 'Un-merged',
-  },
+  unmergeEntities: { action: 'un-merge', default: 'Un-merged' },
 
-  reconcileMerges: {
-    undone: 'Undo changes',
-    redone: 'Redo changes',
-    default: 'Changes applied',
-  },
+  reconcileMerges: { action: 'changes', default: 'Changes applied' },
 
-  noop: {
-    undone: '',
-    redone: '',
-    default: '',
-  },
+  noop: { action: '', default: '' },
 
   updateCategories: {
-    undone: 'Undo eye-movement types update',
-    redone: 'Redo eye-movement types update',
+    action: 'eye-movement types update',
     default: 'Eye-movement types updated',
   },
 
   updateMetricInstances: {
-    undone: 'Undo metric library update',
-    redone: 'Redo metric library update',
+    action: 'metric library update',
     default: 'Metric library updated',
   },
 
   // Settings change command
-  updateSettings: {
-    undone: 'Undo plot update',
-    redone: 'Redo plot update',
-    default: 'Plot updated',
-  },
+  updateSettings: { action: 'plot update', default: 'Plot updated' },
 
-  updateLayout: {
-    undone: 'Undo layout update',
-    redone: 'Redo layout update',
-    default: 'Layout updated',
-  },
+  updateLayout: { action: 'layout update', default: 'Layout updated' },
 
   // Grid item management commands
   addGridItem: {
-    undone: 'Undo plot addition',
-    redone: 'Redo plot addition',
+    action: 'plot addition',
     default: 'Added plot to the nearest empty space in the workspace',
   },
 
   removeGridItem: {
-    undone: 'Undo plot removal',
-    redone: 'Redo plot removal',
+    action: 'plot removal',
     default: 'Removed plot from workspace',
   },
 
   duplicateGridItem: {
-    undone: 'Undo plot duplication',
-    redone: 'Redo plot duplication',
+    action: 'plot duplication',
     default: 'Duplicated plot to the nearest empty space in the workspace',
   },
 
   setLayoutState: {
-    undone: 'Undo layout reset',
-    redone: 'Redo layout reset',
+    action: 'layout reset',
     default: 'Workspace layout returned to the initial state',
   },
 }
@@ -164,11 +117,7 @@ export function getCommandLabel(
       ? SELECTIONS_LABELS[command.axis]
       : WORKSPACE_COMMAND_LABELS[command.type]
 
-  if (history === 'undo') {
-    return labels.undone
-  } else if (history === 'redo') {
-    return labels.redone
-  } else {
-    return labels.default
-  }
+  if (!history) return labels.default
+  if (!labels.action) return ''
+  return `${history === 'undo' ? 'Undo' : 'Redo'} ${labels.action}`
 }

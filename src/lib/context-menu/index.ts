@@ -1,4 +1,4 @@
-export { contextMenuAction } from './contextMenu.action'
+export { useContextMenuAction } from './contextMenu.action'
 export type {
   MenuActionItem,
   MenuComponentBridgeProps,
@@ -9,5 +9,5 @@ export type {
 export {
   createMenuComponentItem,
 } from './types'
-export { contextMenuState } from './contextMenuState.svelte'
+export { useContextMenu, ContextMenuState } from './contextMenuState.svelte'
 export { default as ContextMenu } from './ContextMenu.svelte'

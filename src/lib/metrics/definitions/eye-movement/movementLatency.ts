@@ -21,11 +21,11 @@ defineMetric({
   params: [] as const,
   scanSource: 'categories',
   accumulation: 'stateful',
-  init: ({ categorySlotCount }) => new Float64Array(categorySlotCount).fill(Number.NaN),
+  init: ({ axisSlotCount }) => new Float64Array(axisSlotCount).fill(Number.NaN),
   // fix.start is the segment's actual onset, never the scope-clipped frame.
-  onFixation: (acc, { categorySlot, start }) => {
-    if (categorySlot < 0) return
-    if (Number.isNaN(acc[categorySlot])) acc[categorySlot] = start
+  onFixation: (acc, { axisSlot, start }) => {
+    if (axisSlot < 0) return
+    if (Number.isNaN(acc[axisSlot])) acc[axisSlot] = start
   },
   finalize: acc => Array.from(acc),
 })

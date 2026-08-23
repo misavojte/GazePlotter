@@ -1,6 +1,8 @@
 import type { GridConfig } from './types'
 import {
   DEFAULT_WORKSPACE_WIDTH,
+  MIN_WORKSPACE_HEIGHT,
+  WORKSPACE_BOTTOM_PADDING,
   WORKSPACE_RIGHT_PADDING,
 } from './const'
 
@@ -22,13 +24,16 @@ export function calculateRightEdgePosition(
   return (x + w) * (gridConfig.cellSize.width + gridConfig.gap)
 }
 
-function calculateRequiredWorkspaceHeight(
+export function calculateGridHeight(
   positions: { y: number; h: number }[],
-  gridConfig: GridConfig,
-  minHeight: number = 300,
-  padding: number = 90
+  isEmpty: boolean,
+  isLoading: boolean,
+  gridConfig: GridConfig
 ): number {
-  if (positions.length === 0) return minHeight
+  if (isEmpty || isLoading) {
+    return 500
+  }
+  if (positions.length === 0) return MIN_WORKSPACE_HEIGHT
 
   let maxBottom = 0
   for (let i = 0; i < positions.length; i++) {
@@ -40,27 +45,14 @@ function calculateRequiredWorkspaceHeight(
     if (edge > maxBottom) maxBottom = edge
   }
 
-  return Math.max(minHeight, maxBottom + padding)
+  return Math.max(MIN_WORKSPACE_HEIGHT, maxBottom + WORKSPACE_BOTTOM_PADDING)
 }
 
-export function calculateGridHeight(
-  positions: { y: number; h: number }[],
-  isEmpty: boolean,
-  isLoading: boolean,
-  gridConfig: GridConfig
-): number {
-  if (isEmpty || isLoading) {
-    return 500
-  }
-
-  return calculateRequiredWorkspaceHeight(positions, gridConfig)
-}
-
-function calculateRequiredWorkspaceWidth(
+export function calculateGridWidth(
   positions: { x: number; w: number }[],
   gridConfig: GridConfig
 ): number {
-  if (positions.length === 0) return DEFAULT_WORKSPACE_WIDTH
+  if (positions.length === 0) return 0
 
   let maxRightEdge = 0
   for (let i = 0; i < positions.length; i++) {
@@ -76,15 +68,6 @@ function calculateRequiredWorkspaceWidth(
     DEFAULT_WORKSPACE_WIDTH,
     maxRightEdge + WORKSPACE_RIGHT_PADDING
   )
-}
-
-export function calculateGridWidth(
-  positions: { x: number; w: number }[],
-  gridConfig: GridConfig
-): number {
-  if (positions.length === 0) return 0
-
-  return calculateRequiredWorkspaceWidth(positions, gridConfig)
 }
 
 export function calculateViewportGridColumns(

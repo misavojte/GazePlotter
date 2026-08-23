@@ -15,6 +15,9 @@ export { getMetric } from './core/defineMetric'
 // The canonical eye-movement-type axis (order contract for category-vector
 // results, pick-category options, and per-type consumers).
 export { categoryGroups, categoryGroupNames } from './core/categoryScan'
+// The canonical per-stimulus event axis (order contract for event-vector
+// results, pick-event options, and per-channel consumers).
+export { eventGroups, eventGroupNames, eventGroupNamesUnion } from './core/eventScan'
 export {
   createDefaultMetricInstances,
   createMetricInstance,
@@ -63,6 +66,7 @@ export {
   instanceMatchesContract,
   metricIsCreatableInContract,
   metricLeafKindsInContract,
+  datasetCanFeed,
   contractReductions,
   contractDistributionStats,
 } from './filters'

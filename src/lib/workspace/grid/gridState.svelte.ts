@@ -8,7 +8,6 @@ import type {
 } from '$lib/workspace'
 import { DEFAULT_GRID_CONFIG } from './const'
 import type { GridConfig, GridItemPosition } from './types'
-import { DEFAULT_GRID_STATE_DATA } from './const'
 import * as GridEngine from './engine'
 import { createGridItem, duplicateGridItem } from './itemFactory'
 import { calculateViewportGridColumns } from './sizing'
@@ -186,17 +185,7 @@ export class GridState {
     }
   }
 
-  setSelectedItem(id: number | null) {
-    if (id === null) {
-      this.clearSelection()
-      return
-    }
-    // Single-select entry point: collapse the set to exactly this item.
-    // Used by add/duplicate flows that then call `openPane(newId)`.
-    if (this.items.some(i => i.id === id)) this.selectedItemIds = [id]
-  }
-
-  /** Replace the selection with exactly this item (plain click). */
+  /** Replace the selection with exactly this item (plain click, add/duplicate). */
   selectOnly(id: number) {
     if (this.items.some(i => i.id === id)) this.selectedItemIds = [id]
   }
@@ -262,7 +251,7 @@ export class GridState {
     }
   }
 
-  reset(layout: GridItemSnapshot[] = DEFAULT_GRID_STATE_DATA) {
+  reset(layout: GridItemSnapshot[]) {
     // Build all items locally first to avoid intermediate reactive updates.
     // Previously, `this.items = []` followed by N `push()` calls caused N+1
     // reactive updates with partial/empty arrays, crashing downstream components
@@ -291,13 +280,6 @@ export class GridState {
     })
   }
 
-  updateItem(
-    id: number,
-    settings: Partial<PlotSettingsMap[keyof PlotSettingsMap]>
-  ) {
-    this.updateSettings(id, settings)
-  }
-
   duplicateItem(item: AllGridTypes, duplicateId?: number) {
     const duplicate = duplicateGridItem(item, duplicateId)
     const placement = this.resolvePlacement(
@@ -310,11 +292,6 @@ export class GridState {
     duplicate.y = placement.y
     this.items.push(duplicate)
     return duplicate.id
-  }
-
-  setLayoutState(layout: GridItemSnapshot[]) {
-    // Delegate to reset() which handles batched item creation
-    this.reset(layout)
   }
 
   /**

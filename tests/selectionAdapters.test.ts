@@ -55,14 +55,14 @@ describe('AOI selection (reduced alphabet)', () => {
     const engine = makeTestEngine([[], [[[0, 100, 0, 1]], [[0, 100, 0, 2]]]], {
       aoiMapping: 'group',
     })
-    ;(engine.metadata.aois as { selections?: NameSelection[] }).selections = selections
+    ;(engine.metadata!.aois as { selections?: NameSelection[] }).selections = selections
     return engine
   }
 
   it('unset / 0 / unknown returns the base list BY REFERENCE (byte-identical)', () => {
     const engine = withSelection([{ id: 1, name: 'Faces', names: ['AOI 1'] }])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const e = engine as any
+    const e = engine
     const base = getAois(e, STIM)
     expect(base.map(a => a.displayedName)).toEqual(['AOI 1', 'AOI 2'])
     expect(getAois(e, STIM, 0)).toBe(base)
@@ -73,14 +73,14 @@ describe('AOI selection (reduced alphabet)', () => {
   it('a selection narrows getAois to its members (by displayed name)', () => {
     const engine = withSelection([{ id: 1, name: 'Faces', names: ['AOI 1'] }])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const narrowed = getAois(engine as any, STIM, 1)
+    const narrowed = getAois(engine, STIM, 1)
     expect(narrowed.map(a => a.displayedName)).toEqual(['AOI 1'])
   })
 
   it('resolveAoiSelectionVisibleIds returns the kept logical ids (null for All)', () => {
     const engine = withSelection([{ id: 1, name: 'Faces', names: ['AOI 1'] }])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const e = engine as any
+    const e = engine
     expect(resolveAoiSelectionVisibleIds(e, STIM, 0)).toBeNull()
     const keep = resolveAoiSelectionVisibleIds(e, STIM, 1)!
     expect(keep.has(1)).toBe(true)
@@ -90,7 +90,7 @@ describe('AOI selection (reduced alphabet)', () => {
   it('buildAoiSlots drops out-of-selection raw AOIs to slot -1 (→ no-AOI in the scan)', () => {
     const engine = withSelection([{ id: 1, name: 'Faces', names: ['AOI 1'] }])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const e = engine as any
+    const e = engine
     const base = buildAoiSlots(e, STIM)!
     expect(base.rawToSlot[1]).toBeGreaterThanOrEqual(0)
     expect(base.rawToSlot[2]).toBeGreaterThanOrEqual(0)
@@ -109,7 +109,7 @@ describe('AOI selection (reduced alphabet)', () => {
       { id: 2, name: 'B', names: ['AOI 1'] },
     ])
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const e = engine as any
+    const e = engine
     expect(getAois(e, STIM, 2)).toBe(getAois(e, STIM, 1))
     expect(buildAoiSlots(e, STIM, 2)).toBe(buildAoiSlots(e, STIM, 1))
   })
@@ -122,21 +122,17 @@ const makeScarfEngine = (
   categories: string[][],
   categoriesSelections: EntitySelection[]
 ) => {
-  const engine = makeTestEngine(SEGMENTS, {
+  return makeTestEngine(SEGMENTS, {
     aoiMapping: 'group',
     categories,
     categoriesSelections,
-  })
-  return Object.assign(engine, {
     capabilities: { segmented: true, spatial: false, event: false },
-    eventsPerStimulus: [] as boolean[],
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  }) as any
+  })
 }
 
 const makeEventEngine = (eventsSelections: NameSelection[]) => {
   const engine = makeTestEngine(SEGMENTS)
-  Object.assign(engine.metadata, {
+  Object.assign(engine.metadata!, {
     eventData: {
       data: [
         [],
@@ -152,7 +148,7 @@ const makeEventEngine = (eventsSelections: NameSelection[]) => {
     eventsSelections,
   })
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return engine as any
+  return engine
 }
 
 describe('eye-movement-type selection (scarf narrowing)', () => {

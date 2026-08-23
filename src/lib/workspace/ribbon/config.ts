@@ -1,7 +1,7 @@
 import Upload from 'lucide-svelte/icons/upload'
 import Download from 'lucide-svelte/icons/download'
 import FileText from 'lucide-svelte/icons/file-text'
-import type { LucideIconComponent } from '$lib/shared/types'
+import type { LucideIconComponent } from '$lib/shared/icon'
 
 export interface RibbonItemConfig {
   id: RibbonItemId

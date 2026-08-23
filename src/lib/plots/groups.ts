@@ -14,6 +14,7 @@ export type PlotGroup =
   | 'inter-aoi'
   | 'per-participant'
   | 'inter-participant'
+  | 'per-event'
 
 /**
  * Ordered group list for the menu. The order pairs each entity with its inter-
@@ -27,4 +28,5 @@ export const PLOT_GROUPS: readonly { key: PlotGroup; label: string }[] = [
   { key: 'inter-aoi', label: 'Inter-AOI' },
   { key: 'per-participant', label: 'Per participant' },
   { key: 'inter-participant', label: 'Inter-participant' },
+  { key: 'per-event', label: 'Per event' },
 ]

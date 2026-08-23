@@ -38,3 +38,32 @@ export const buildScarfTooltipContent = (
   )
   return content
 }
+
+/**
+ * Content for an event-strip hover. Pure values: the figure already holds
+ * everything (a strip is a per-participant run of same-channel occurrences,
+ * clipped to the visible range, exactly as drawn). An instant marker shows
+ * its moment; an interval shows the span the strip covers.
+ */
+export const buildScarfEventTooltipContent = (
+  participant: string,
+  eventName: string,
+  start: number,
+  end: number,
+  isPoint: boolean
+): Array<{ key: string; value: string }> => {
+  const content: Array<{ key: string; value: string }> = [
+    { key: 'Participant', value: participant },
+    { key: 'Event', value: eventName },
+  ]
+  if (isPoint) {
+    content.push({ key: 'Time', value: start.toFixed(1) })
+  } else {
+    content.push(
+      { key: 'Start', value: start.toFixed(1) },
+      { key: 'End', value: end.toFixed(1) },
+      { key: 'Duration', value: (end - start).toFixed(1) }
+    )
+  }
+  return content
+}

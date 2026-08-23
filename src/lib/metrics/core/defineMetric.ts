@@ -119,6 +119,22 @@ function assertShapeLifecycleInvariant(r: MetricRecipe<any, any>): void {
       `[metrics] recipe "${r.id}" scans categories and must declare accumulation: 'stateful'`,
     )
   }
+  // The event axis is a SHAPE too; same inseparability, same stateful rule.
+  if (r.scanSource === 'events' && r.rawShape !== 'event-vector') {
+    throw new Error(
+      `[metrics] recipe "${r.id}" scans events and must declare rawShape: 'event-vector'`,
+    )
+  }
+  if (r.rawShape === 'event-vector' && r.scanSource !== 'events') {
+    throw new Error(
+      `[metrics] recipe "${r.id}" declares rawShape 'event-vector' and must scan with scanSource: 'events'`,
+    )
+  }
+  if (r.scanSource === 'events' && r.accumulation !== 'stateful') {
+    throw new Error(
+      `[metrics] recipe "${r.id}" scans events and must declare accumulation: 'stateful'`,
+    )
+  }
   // MEMBERSHIP. Additivity is the only thing that depends on this rule, so the
   // `extensive` class must say it out loud rather than inherit a default — a count
   // that silently takes 'all' stops summing to the unwindowed total, and a mean

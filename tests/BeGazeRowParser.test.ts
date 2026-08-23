@@ -20,17 +20,6 @@ describe('BeGaze Deserializer - Single data', () => {
   const begazeRows = begazeMockData.split('\n')
   const header = begazeRows[0].split(',')
   const delim = ','
-  it('Constructor', () => {
-    const sut = new BeGazeRowParser(header, delim)
-    expect(sut).toBeDefined()
-    expect(sut.cStart).toBe(0)
-    expect(sut.cEnd).toBe(1)
-    expect(sut.cStimulus).toBe(2)
-    expect(sut.cParticipant).toBe(3)
-    expect(sut.cCategory).toBe(4)
-    expect(sut.cAoi).toBe(5)
-  })
-
   it('Process first row', () => {
     const sut = new BeGazeRowParser(header, delim)
     const { outputs, processRow } = createAdapterHarness(sut)

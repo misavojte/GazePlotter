@@ -91,7 +91,6 @@
     /** Fix-it steps for the too-small fit guard. */
     fitSteps?: string[]
     minLegibleCellSize?: number
-    tooltipId: string
     tooltipWidth?: number
     getCellTooltip: (
       row: number,
@@ -130,7 +129,6 @@
     placeholder = null,
     fitSteps = [],
     minLegibleCellSize = MIN_LEGIBLE_CELL_SIZE,
-    tooltipId,
     tooltipWidth = 160,
     getCellTooltip,
     drawCells,
@@ -186,6 +184,8 @@
       height,
       rowLabels: rows,
       colLabels: cols,
+      xAxisTitle,
+      yAxisTitle,
       cellValueLabelLength:
         formatCellValue(effectiveMaxValue).length +
         (colorValueRange[0] < 0 ? 1 : 0),
@@ -226,8 +226,6 @@
     colLabels: cols,
     matrix,
     maxLabelLength: MATRIX_LAYOUT.maxLabelLength,
-    xAxisTitle,
-    yAxisTitle,
     formatCellValue: (v: number) => (Number.isFinite(v) ? formatCellValue(v) : '—'),
     getCellColor,
     showCellValue,
@@ -352,7 +350,6 @@
     if (!cell) return null
     const { xOffset, yOffset, cellSize } = layout
     return {
-      tooltipId,
       content: getCellTooltip(cell.row, cell.col),
       anchorX: xOffset + cell.col * cellSize + cellSize,
       anchorY: yOffset + cell.row * cellSize + cellSize,

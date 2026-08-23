@@ -10,6 +10,7 @@ import {
   canvasLifecycleAction,
   beginCanvasDrawing,
   finishCanvasDrawing,
+  createScratchLayer,
   type CanvasState,
   type CanvasLifecycleActionOptions,
 } from './canvasUtils'
@@ -18,7 +19,7 @@ import {
   type ExportSourceRegistrar,
   registerCanvasExportSource,
 } from '$lib/data/export'
-import { updateTooltip } from '$lib/tooltip'
+import { useTooltip } from '$lib/tooltip'
 import { drawPlotArea, type PlotAreaTicks } from './plotArea'
 import {
   drawXAxisLabel,
@@ -42,7 +43,7 @@ import {
   type LegendItemGeometry,
 } from './legendRendering'
 import { FONT_PRIMARY, PLOT_AXIS_TITLE_GAP, PLOT_TICK_LABEL_GAP } from './const'
-import { measureTextHeight, calculateLabelOffset } from '$lib/shared/utils/textUtils'
+import { measureTextHeight, calculateLabelOffset } from '$lib/shared/textMeasure'
 
 const browser = typeof document !== 'undefined'
 const FONT = FONT_PRIMARY.SIZE
@@ -68,9 +69,6 @@ const RENDER_FAILED_PLACEHOLDER: PlotPlaceholderContent = {
  * the same handle for the rare figure that needs it.
  */
 
-/** Zero margin default for on-screen rendering (export padding only). */
-export const NO_MARGINS = 0
-
 // ── Frame spec types ──
 
 /** Per-edge gutter declaration: what to measure to reserve space on that edge. */
@@ -94,6 +92,11 @@ export interface FrameGutters {
   pad?: { top?: number; right?: number; bottom?: number; left?: number }
   /** Height reserved for a legend block at the bottom of the canvas (px). */
   legendHeight?: number
+  /** Cap the data rect height (px): a taller carve shrinks to the cap and the
+   *  rect centres vertically; the axis chrome and the legend block follow it,
+   *  so the whole plot centres as one (row plots whose row stack stops growing
+   *  at its max scale). */
+  maxHeight?: number
   /** Force a centred square data rect (recurrence, square matrices). */
   square?: boolean
 }
@@ -120,7 +123,8 @@ export interface PlotFrame {
   height: number
   right: number
   bottom: number
-  /** Top of the reserved legend block (canvas px); `bottom`-aligned if none. */
+  /** Top of the legend block (canvas px): directly below the bottom-edge
+   *  gutter, so it follows the rect when a cap shrinks + centres it. */
   legendY: number
   /** Offset (px) from the left edge to the rotated left-axis title's baseline,
    *  past the reserved tick labels. Pass straight to `drawYAxisMainLabel` so a
@@ -137,7 +141,6 @@ export interface PlotFrame {
  * for figures that don't carry hover state.
  */
 export interface FrameHit<THit = unknown> {
-  tooltipId: string
   content: Array<{ key: string; value: string }>
   /** Logical anchor for the tooltip (canvas px). */
   anchorX: number
@@ -309,7 +312,6 @@ export interface UsePlotHandle<THit = unknown> {
   readonly safeHeight: number
   readonly setCursor: (cursor: string) => void
   showTooltip: (
-    id: string,
     content: Array<{ key: string; value: string }>,
     logicalX: number,
     logicalY: number,
@@ -437,6 +439,11 @@ export function resolveFrameLayout(
   let w = Math.max(0, x1 - x0)
   let h = Math.max(0, y1 - y0)
 
+  if (gutters.maxHeight !== undefined && h > gutters.maxHeight) {
+    y0 += (h - gutters.maxHeight) / 2
+    h = gutters.maxHeight
+  }
+
   if (gutters.square) {
     const s = Math.min(w, h)
     x0 += (w - s) / 2
@@ -458,7 +465,11 @@ export function resolveFrameLayout(
       height: fh,
       right: x + fw,
       bottom: y + fh,
-      legendY: bounds.bottom - legendHeight,
+      // The legend block sits directly below the bottom-edge gutter, so it
+      // follows the rect when a cap (maxHeight/square) shrinks + centres it,
+      // and the whole block centres as one. Uncapped, this lands at the
+      // reserved space at the bounds bottom as before.
+      legendY: y + fh + insetBottom,
     },
     leftTitleOffset: left.titleOffset,
     bottomTitleOffset: bottom.titleOffset,
@@ -601,12 +612,12 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     if (c) c.style.cursor = cursor
   }
 
-  // The tooltip is a singleton: own it before retracting it, or destroy would
-  // erase a sibling's.
+  // The tooltip is one per session: own it before retracting it, or destroy
+  // would erase a sibling's.
+  const tooltip = useTooltip()
   let tooltipShown = false
 
   function showTooltip(
-    id: string,
     content: Array<{ key: string; value: string }>,
     logicalX: number,
     logicalY: number,
@@ -615,8 +626,8 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     delay?: number
   ) {
     const screenPos = getTooltipPosition(canvasState, logicalX, logicalY, offset)
-    updateTooltip(
-      { id, visible: true, content, x: screenPos.x, y: screenPos.y, width: tooltipWidth },
+    tooltip.update(
+      { content, x: screenPos.x, y: screenPos.y, width: tooltipWidth },
       delay
     )
     tooltipShown = true
@@ -624,7 +635,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
 
   function hideTooltip(delay?: number) {
     tooltipShown = false
-    updateTooltip(null, delay)
+    tooltip.update(null, delay)
   }
 
   // ---- frame: gutters → data rect ----
@@ -708,36 +719,18 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     finishCanvasDrawing(canvasState)
   }
 
-  // Cap on the cached layer's device-pixel area. The main canvas of a very
-  // large/tall plot is already near the browser's canvas limits; mirroring it
-  // would double an already-huge buffer (and `new OffscreenCanvas(hugeDims)`
-  // can throw). Above the cap we skip the cache and overlay renders fall back to
-  // a full render — correct, just not accelerated.
-  const MAX_CACHE_PX = 64 * 1024 * 1024 // ~256 MB at 4 bytes/px
-
+  // Size/throw guarding lives in createScratchLayer; above its cap we skip the
+  // cache and overlay renders fall back to a full render (correct, just not
+  // accelerated).
   function captureDataLayer() {
     const canvas = canvasState.canvas
     if (!canvas) return
     const w = canvas.width
     const h = canvas.height
-    if (w === 0 || h === 0 || w > 16384 || h > 16384 || w * h > MAX_CACHE_PX) {
-      dataLayerValid = false
-      return
-    }
     if (!dataLayer || dataLayer.width !== w || dataLayer.height !== h) {
-      try {
-        dataLayer =
-          typeof OffscreenCanvas !== 'undefined'
-            ? new OffscreenCanvas(w, h)
-            : Object.assign(document.createElement('canvas'), { width: w, height: h })
-        dataLayerCtx = dataLayer.getContext('2d') as
-          | OffscreenCanvasRenderingContext2D
-          | CanvasRenderingContext2D
-          | null
-      } catch {
-        dataLayer = null
-        dataLayerCtx = null
-      }
+      const layer = createScratchLayer(w, h)
+      dataLayer = layer?.canvas ?? null
+      dataLayerCtx = layer?.ctx ?? null
     }
     if (!dataLayerCtx) {
       dataLayerValid = false
@@ -793,7 +786,6 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     if (!item) return null
     const pos = getLegendTooltipPosition(item, band.config)
     return {
-      tooltipId: item.identifier,
       content: getLegendTooltipContent(
         item,
         band.highlights().includes(item.identifier)
@@ -859,7 +851,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
         // An empty-content hit is "track-only" — updates hover state via
         // onHoverChange (e.g. a crosshair position) but shows no tooltip.
         if (hit.content.length > 0) {
-          showTooltip(hit.tooltipId, hit.content, hit.anchorX, hit.anchorY, hit.offset, hit.tooltipWidth, hit.delay)
+          showTooltip(hit.content, hit.anchorX, hit.anchorY, hit.offset, hit.tooltipWidth, hit.delay)
         } else {
           hideTooltip(0)
         }

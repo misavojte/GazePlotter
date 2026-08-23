@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { ALL_CAPS } from './helpers/testEngine'
 import { resolveMetric } from '../src/lib/plots/shared/metricResolver'
 import {
   createDefaultMetricInstances,
@@ -7,6 +8,8 @@ import {
 } from '../src/lib/metrics'
 
 const instances = createDefaultMetricInstances()
+
+const engine = { metadata: { metricInstances: instances }, capabilities: ALL_CAPS }
 
 function findStarter(id: string): MetricInstance {
   const inst = instances.find(i => i.id === id)
@@ -32,7 +35,7 @@ const windowedAoiVectorContract = {
 describe('resolveMetric', () => {
   it('returns ok for an instance that matches the contract', () => {
     const result = resolveMetric({
-      instances,
+      engine,
       id: 'absoluteTime',
       contract: aoiVectorContract,
     })
@@ -44,22 +47,22 @@ describe('resolveMetric', () => {
   })
 
   it('rejects when id is null', () => {
-    const result = resolveMetric({ instances, id: null, contract: aoiVectorContract })
+    const result = resolveMetric({ engine, id: null, contract: aoiVectorContract })
     expect(result.ok).toBe(false)
   })
 
   it('rejects when id is not in the library', () => {
     const result = resolveMetric({
-      instances,
+      engine,
       id: 'no-such-instance',
       contract: aoiVectorContract,
     })
     expect(result.ok).toBe(false)
   })
 
-  it('rejects when instances is undefined', () => {
+  it('rejects when the engine has no metric library', () => {
     const result = resolveMetric({
-      instances: undefined,
+      engine: { metadata: null, capabilities: ALL_CAPS },
       id: 'absoluteTime',
       contract: aoiVectorContract,
     })
@@ -68,7 +71,7 @@ describe('resolveMetric', () => {
 
   it('rejects a non-windowed instance under a windowing-required contract', () => {
     const result = resolveMetric({
-      instances,
+      engine,
       id: 'absoluteTime',
       contract: windowedAoiVectorContract,
     })
@@ -79,7 +82,7 @@ describe('resolveMetric', () => {
     // 'absoluteTime-aoi-windowed-500' is a windowed instance; the bar contract
     // (aoi-vector + windowing: 'forbidden') must reject it.
     const result = resolveMetric({
-      instances,
+      engine,
       id: 'absoluteTime-aoi-windowed-500',
       contract: aoiVectorContract,
     })
@@ -89,7 +92,7 @@ describe('resolveMetric', () => {
   it('accepts a windowed instance under a windowing-required contract and materialises `window`', () => {
     findStarter('absoluteTime-aoi-windowed-500') // sanity check existence
     const result = resolveMetric({
-      instances,
+      engine,
       id: 'absoluteTime-aoi-windowed-500',
       contract: windowedAoiVectorContract,
     })

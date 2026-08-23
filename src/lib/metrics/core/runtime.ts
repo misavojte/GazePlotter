@@ -7,6 +7,13 @@ import {
   categoryGroupNames,
   resolveScanIndex,
 } from './categoryScan'
+import {
+  eventCacheToken,
+  eventGroupNames,
+  occurrenceOverlapsRange,
+  resolveEventScan,
+  type EventScanStream,
+} from './eventScan'
 import { resolveParams } from './params'
 import { getRecipe } from './defineMetric'
 import {
@@ -29,7 +36,8 @@ import type { MetricInstance } from '../instances'
  * Naming convention in this module:
  * - `run*`     — public entry points; may answer from the result cache.
  * - `compute*` — pure computation, always executes; never touches the cache.
- * - `scan*`    — one pass over a participant's fixation segments.
+ * - `scan*`    — one pass over a participant's scan source (fixation
+ *                segments or event occurrences).
  * - `cache*`   — result-cache access (see `_resultCache`).
  */
 export interface Scope {
@@ -137,10 +145,26 @@ export interface ProjectedResult {
 }
 
 /**
+ * The scan source's canonical axis names for the name-picking leaves:
+ * `categoryGroups` (workspace-global) for category-vector recipes, the
+ * scope stimulus's `eventGroups` for event-vector ones — the reason every
+ * caller carries a `stimulusId` — undefined for every other shape.
+ */
+function axisNamesFor(
+  recipe: MetricRecipe<any, any>,
+  engine: DataEngine,
+  stimulusId: number,
+): readonly string[] | undefined {
+  if (recipe.rawShape === 'category-vector') return categoryGroupNames(engine)
+  if (recipe.rawShape === 'event-vector') return eventGroupNames(engine, stimulusId)
+  return undefined
+}
+
+/**
  * Apply a LEAF projection to one finalize output and wrap it — the single
- * declaration of which `ApplyContext` a recipe gets (`categoryNames` exactly
- * when its raw shape is `category-vector`) and how applied values become a
- * result. Shared by `runProjected`, `queryBatch`, and `queryGroup`.
+ * declaration of which `ApplyContext` a recipe gets (see `axisNamesFor`) and
+ * how applied values become a result. Shared by `runProjected`,
+ * `queryBatch`, and `queryGroup`.
  *
  * The windowed drivers do NOT use this: they re-point one reused
  * `ApplyContext` per window instead of constructing one per call.
@@ -149,6 +173,7 @@ export function projectLeaf(
   recipe: MetricRecipe<any, any>,
   projection: Projection,
   engine: DataEngine,
+  stimulusId: number,
   aoiNames: readonly string[],
   rawValues: readonly number[],
   slots: AoiSlotInfo,
@@ -156,9 +181,7 @@ export function projectLeaf(
   const applied = applyProjection(projection, {
     aoiNames,
     rawValues,
-    ...(recipe.rawShape === 'category-vector'
-      ? { categoryNames: categoryGroupNames(engine) }
-      : {}),
+    axisNames: axisNamesFor(recipe, engine, stimulusId),
   })
   return {
     shape: projectionOutputShape(projection),
@@ -183,7 +206,7 @@ export function runProjected(instance: MetricInstance, scope: Scope): ProjectedR
 
   if (projection.kind !== 'windowed') {
     const raw = runSingleWindow(recipe, instance, scope, scope.timeStart ?? 0, scope.timeEnd ?? 0)
-    return projectLeaf(recipe, projection, scope.engine, getAoiNames(scope), raw, slots)
+    return projectLeaf(recipe, projection, scope.engine, scope.stimulusId, getAoiNames(scope), raw, slots)
   }
 
   return runWindowed(recipe, instance, scope, projection, slots)
@@ -237,8 +260,10 @@ function runWindowed(
   const result = freezeProjectedResult(
     recipe.windowUnit === 'fixations'
       ? computeFixationWindowed(recipe, instance, scope, projection, slots)
-      : computeTimeWindowedFused(recipe, scope, projection, slots) ??
-          computeTimeWindowed(recipe, instance, scope, projection, slots)
+      : recipe.scanSource === 'events'
+        ? computeTimeWindowedEvents(recipe, instance, scope, projection, slots)
+        : computeTimeWindowedFused(recipe, scope, projection, slots) ??
+            computeTimeWindowed(recipe, instance, scope, projection, slots)
   )
   map?.set(key, result)
   return result
@@ -295,7 +320,8 @@ function computeTimeWindowedFused(
   const accumulation = recipe.accumulation
   // Also keeps category-scanning recipes out — they are 'stateful' by
   // registration invariant, so the fixation-index iteration and per-AOI-slot
-  // assembly below stay valid without a scan-source branch.
+  // assembly below stay valid without a scan-source branch. Event recipes are
+  // routed to their own driver before this one and are stateful besides.
   if (!accumulation || accumulation === 'stateful') return null
 
   const { window, inner } = projection
@@ -491,7 +517,7 @@ function computeTimeWindowed(
     params,
     slots,
     scopeDurationMs: windowSize,
-    categorySlotCount: scan.categorySlotCount,
+    axisSlotCount: scan.categorySlotCount,
     summaryStatistic: projectionSummaryStatistic(instance.projection),
   }
   const init = recipe.init
@@ -519,9 +545,7 @@ function computeTimeWindowed(
   const projCtx = {
     aoiNames,
     rawValues: EMPTY_NUMBER_ARRAY as readonly number[],
-    ...(recipe.rawShape === 'category-vector'
-      ? { categoryNames: categoryGroupNames(scope.engine) }
-      : {}),
+    axisNames: axisNamesFor(recipe, scope.engine, scope.stimulusId),
   }
 
   const finalizeWindow = (w: number): void => {
@@ -549,32 +573,13 @@ function computeTimeWindowed(
   const segBuf = reader.segmentBufferRaw
   const aoiPool = reader.aoiPoolRaw
   const resolvedSlots: number[] = []
-
-  // Reused across every (fixation, window) dispatch: onFixation reads these
-  // synchronously and never retains them, the same invariant that lets
-  // `resolvedSlots` be shared. Under heavy window overlap this is the
-  // difference between millions of short-lived objects and none.
-  const frame: WindowFrame = {
-    windowStart: 0,
-    windowEnd: 0,
-    start: 0,
-    end: 0,
-    duration: 0,
-  }
-  const fixEvent: FixationEvent = {
-    start: 0,
-    duration: 0,
-    frame,
-    slots: resolvedSlots,
-    index: 0,
-    categorySlot: -1,
-  }
+  const { frame, fixEvent } = makeScanCursor(resolvedSlots)
 
   for (let k = sStart; k < sEnd; k++) {
     const i = scanIdx[k]
     const base = i * SEGMENT_STRIDE
     // Null on every fixation scan — one predictable branch (see scanAccumulator).
-    if (scanCatSlots !== null) fixEvent.categorySlot = scanCatSlots[k]
+    if (scanCatSlots !== null) fixEvent.axisSlot = scanCatSlots[k]
     const start = segBuf[base + SegmentField.START_TIME]
     const end = segBuf[base + SegmentField.END_TIME]
     // Scanned segments are time-ordered by start; once past the scope none can overlap.
@@ -650,6 +655,67 @@ function computeTimeWindowed(
   }
 
   return timeseriesResult(isVector, slots, timeline, values, vectors, refMissing)
+}
+
+/**
+ * Windowed driver for event recipes: a per-window rescan of the once-resolved
+ * occurrence stream. Streams are orders of magnitude sparser than fixation
+ * streams, so W bounded walks ARE the oracle semantics at negligible cost —
+ * port a fan-out sweep only if profiling ever demands it. The inner leaf is
+ * scalar-producing by validation (identity-event-vector is never windowed).
+ */
+function computeTimeWindowedEvents(
+  recipe: MetricRecipe<any, any>,
+  instance: MetricInstance,
+  scope: Scope,
+  projection: WindowedProjection,
+  slots: AoiSlotInfo,
+): ProjectedResult {
+  const { window, inner } = projection
+  const tStart = scope.timeStart ?? 0
+  const tEnd = scope.timeEnd ?? 0
+  if (tEnd <= tStart) return emptyTimeseries(false, slots)
+  if (!recipe.init || !recipe.onFixation || !recipe.finalize) return emptyTimeseries(false, slots)
+
+  const windowSize = window.windowSize
+  const step = window.stepSize > 0 ? window.stepSize : windowSize
+  const timeline = buildTimeline(tStart, tEnd, windowSize, step)
+  const W = timeline.length
+  if (W === 0) return emptyTimeseries(false, slots)
+
+  const params = resolveParams(recipe.params, instance.params)
+  const stream = resolveEventScan(scope.engine, scope.stimulusId, scope.participantId)
+  // Every window of a run shares one extent (see InitCtx.scopeDurationMs).
+  const ctx = {
+    params,
+    slots,
+    scopeDurationMs: windowSize,
+    axisSlotCount: stream.slotCount,
+    summaryStatistic: projectionSummaryStatistic(instance.projection),
+  }
+  const ownWindowOnly = recipe.windowMembership === 'own'
+  const init = recipe.init
+  const finalize = recipe.finalize
+  // No AOI axis on an event scan; the shared empty array is never written.
+  const { frame, fixEvent } = makeScanCursor(EMPTY_NUMBER_ARRAY)
+  const projCtx = {
+    aoiNames: getAoiNames(scope),
+    rawValues: EMPTY_NUMBER_ARRAY as readonly number[],
+    axisNames: axisNamesFor(recipe, scope.engine, scope.stimulusId),
+  }
+
+  const values = new Array<number>(W)
+  let refMissing = false
+  for (let w = 0; w < W; w++) {
+    const wStart = timeline[w]
+    const acc = init(ctx)
+    scanEventRange(recipe, stream, acc, ctx, frame, fixEvent, wStart, wStart + windowSize, ownWindowOnly)
+    projCtx.rawValues = finalize(acc, slots, ctx)
+    const out = applyProjection(inner, projCtx)
+    if (out.refMissing) refMissing = true
+    values[w] = out.values[0] ?? Number.NaN
+  }
+  return timeseriesResult(false, slots, timeline, values, [], refMissing)
 }
 
 function computeFixationWindowed(
@@ -817,6 +883,23 @@ export function runWindowedGroup(
 // ─── Internals ────────────────────────────────────────────────────────────────
 
 /**
+ * THE reused-per-scan frame + event pair. `onFixation` reads them
+ * synchronously and never retains them — the invariant that lets one pair
+ * (and one shared `slots` array) serve millions of items with zero
+ * allocation; a fresh pair per item dominated the scan in profiling.
+ * Setup-only: called once per scan, never per item.
+ */
+export function makeScanCursor(
+  slots: ReadonlyArray<number>,
+): { frame: WindowFrame; fixEvent: FixationEvent } {
+  const frame: WindowFrame = { windowStart: 0, windowEnd: 0, start: 0, end: 0, duration: 0 }
+  return {
+    frame,
+    fixEvent: { start: 0, duration: 0, frame, slots, index: 0, axisSlot: -1 },
+  }
+}
+
+/**
  * The accumulator plus the very `InitCtx` the scan ran with. Carrying the ctx
  * OBJECT means `finalize` receives exactly what `init`/`onFixation` saw, and a
  * new InitCtx field is declared once in dsl.ts and filled once here rather
@@ -854,6 +937,10 @@ export function scanAccumulator(
 ): ScanOutput<any> | null {
   // Group-shape recipes never reach here — filtered upstream.
   if (!recipe.init || !recipe.onFixation) return null
+  // Event recipes iterate the occurrence stream, never segment buffers.
+  if (recipe.scanSource === 'events') {
+    return scanEventAccumulator(recipe, instance, scope, timeStart, timeEnd)
+  }
   const ownWindowOnly = recipe.windowMembership === 'own'
   const slots = buildAoiSlots(scope.engine, scope.stimulusId, scope.aoiSelectionId)
   if (!slots) return null
@@ -876,32 +963,14 @@ export function scanAccumulator(
     params,
     slots,
     scopeDurationMs,
-    categorySlotCount: scan.categorySlotCount,
+    axisSlotCount: scan.categorySlotCount,
     summaryStatistic: projectionSummaryStatistic(instance.projection),
   }
   const acc = recipe.init(ctx)
   const segBuf = reader.segmentBufferRaw
   const aoiPool = reader.aoiPoolRaw
   const resolvedSlots: number[] = []
-
-  // Reused across every fixation, same invariant as resolvedSlots and the
-  // windowed driver. A fresh frame + event per fixation is millions of
-  // short-lived objects on a huge dataset, and dominated the scan in profiling.
-  const frame: WindowFrame = {
-    windowStart: 0,
-    windowEnd: 0,
-    start: 0,
-    end: 0,
-    duration: 0,
-  }
-  const fixEvent: FixationEvent = {
-    start: 0,
-    duration: 0,
-    frame,
-    slots: resolvedSlots,
-    index: 0,
-    categorySlot: -1,
-  }
+  const { frame, fixEvent } = makeScanCursor(resolvedSlots)
   let index = 0
 
   for (let k = sStart; k < sEnd; k++) {
@@ -909,7 +978,7 @@ export function scanAccumulator(
     const base = i * SEGMENT_STRIDE
     // `scanIdx` is pre-resolved by construction, so no filter here; the null
     // check is one predictable branch, dwarfed by the decode block below.
-    if (scanCatSlots !== null) fixEvent.categorySlot = scanCatSlots[k]
+    if (scanCatSlots !== null) fixEvent.axisSlot = scanCatSlots[k]
     const start = segBuf[base + SegmentField.START_TIME]
     const end = segBuf[base + SegmentField.END_TIME]
     if (timeEnd > 0 && start >= timeEnd) break
@@ -944,6 +1013,87 @@ export function scanAccumulator(
   return { acc, ctx }
 }
 
+/**
+ * Event-recipe counterpart of `scanAccumulator`: iterates the merged
+ * occurrence stream instead of segment buffers, under the same `ScanOutput`
+ * contract, so `runSingleWindow`/`runRaw`/`runIndividualsAllSlots` and the
+ * caches flow through unchanged. `ctx.slots` still carries the AOI layout —
+ * the InitCtx shape is one contract — but no event recipe reads it.
+ */
+function scanEventAccumulator(
+  recipe: MetricRecipe<any, any>,
+  instance: MetricInstance,
+  scope: Scope,
+  timeStart: number,
+  timeEnd: number,
+): ScanOutput<any> | null {
+  if (!recipe.init || !recipe.onFixation) return null
+  const slots = buildAoiSlots(scope.engine, scope.stimulusId, scope.aoiSelectionId)
+  if (!slots) return null
+  const params = resolveParams(recipe.params, instance.params)
+  const stream = resolveEventScan(scope.engine, scope.stimulusId, scope.participantId)
+  // See InitCtx.scopeDurationMs — the GAZE recording extent, so shares stay
+  // comparable with the fixation metrics' denominators.
+  const scopeDurationMs =
+    timeEnd > 0
+      ? timeEnd - timeStart
+      : slots.reader.getParticipantEndTime(scope.stimulusId, scope.participantId)
+  const ctx = {
+    params,
+    slots,
+    scopeDurationMs,
+    axisSlotCount: stream.slotCount,
+    summaryStatistic: projectionSummaryStatistic(instance.projection),
+  }
+  const acc = recipe.init(ctx)
+  // No AOI axis on an event scan; the shared empty array is never written.
+  const { frame, fixEvent } = makeScanCursor(EMPTY_NUMBER_ARRAY)
+  scanEventRange(
+    recipe, stream, acc, ctx, frame, fixEvent,
+    timeStart, timeEnd, recipe.windowMembership === 'own',
+  )
+  return { acc, ctx }
+}
+
+/**
+ * THE bounded pass of an occurrence stream into `acc`, shared by the
+ * unwindowed scan and the per-window driver so the two cannot drift.
+ * Scope membership is `occurrenceOverlapsRange` (half-open, instants land in
+ * exactly one window of a tiling); contribution and 'own' membership reuse
+ * the segment scans' `fillWindowFrame` rules verbatim.
+ */
+function scanEventRange(
+  recipe: MetricRecipe<any, any>,
+  stream: EventScanStream,
+  acc: any,
+  ctx: InitCtx<Record<string, unknown>>,
+  frame: WindowFrame,
+  fixEvent: FixationEvent,
+  timeStart: number,
+  timeEnd: number,
+  ownWindowOnly: boolean,
+): void {
+  const hi = timeEnd > 0 ? timeEnd : Number.POSITIVE_INFINITY
+  const onFixation = recipe.onFixation!
+  let index = 0
+  for (let k = 0; k < stream.count; k++) {
+    const start = stream.starts[k]
+    // Sorted by start; once past the scope none can overlap.
+    if (start >= hi) break
+    const duration = stream.durations[k]
+    const end = start + duration
+    if (!occurrenceOverlapsRange(start, end, timeStart, hi)) continue
+    const midInScope = fillWindowFrame(frame, start, end, timeStart, timeEnd)
+    if (ownWindowOnly && !midInScope) continue
+    fixEvent.axisSlot = stream.slots[k]
+    fixEvent.start = start
+    fixEvent.duration = duration
+    fixEvent.index = index
+    onFixation(acc, fixEvent, ctx)
+    index++
+  }
+}
+
 function getAoiNames(scope: Scope): string[] {
   try {
     return getAois(scope.engine, scope.stimulusId, scope.aoiSelectionId).map(
@@ -965,7 +1115,7 @@ function rawCacheKey(engine: DataEngine, instance: MetricInstance, stimulusId: n
   // finalize output, so it keys its own entry; 'mean' shares with
   // identity-vector raws, since both ARE the mean vector.
   const st = projectionSummaryStatistic(instance.projection)
-  return `r|${categoryCacheToken(engine, instance.baseId)}o${sig.order}|${instance.baseId}|${paramsKey(instance.params)}${st === 'mean' ? '' : `|st:${st}`}|${stimulusId}|${participantId}|${tStart}|${tEnd}`
+  return `r|${categoryCacheToken(engine, instance.baseId)}${eventCacheToken(engine, instance.baseId, stimulusId)}o${sig.order}|${instance.baseId}|${paramsKey(instance.params)}${st === 'mean' ? '' : `|st:${st}`}|${stimulusId}|${participantId}|${tStart}|${tEnd}`
 }
 
 function windowedCacheKey(instance: MetricInstance, scope: Scope, projection: WindowedProjection): string {
@@ -975,7 +1125,7 @@ function windowedCacheKey(instance: MetricInstance, scope: Scope, projection: Wi
   // thing, free to drift from the one the projection layer exports.
   const proj = projectionCacheKey(projection)
   const sig = slotSignatures(scope.engine, scope.stimulusId, scope.aoiSelectionId)
-  return `w|${categoryCacheToken(scope.engine, instance.baseId)}o${sig.order}|n${sig.names}|${proj}|${instance.baseId}|${paramsKey(instance.params)}|${scope.stimulusId}|${scope.participantId}|${scope.timeStart ?? 0}|${scope.timeEnd ?? 0}`
+  return `w|${categoryCacheToken(scope.engine, instance.baseId)}${eventCacheToken(scope.engine, instance.baseId, scope.stimulusId)}o${sig.order}|n${sig.names}|${proj}|${instance.baseId}|${paramsKey(instance.params)}|${scope.stimulusId}|${scope.participantId}|${scope.timeStart ?? 0}|${scope.timeEnd ?? 0}`
 }
 
 function paramsKey(params: Record<string, unknown> | undefined): string {

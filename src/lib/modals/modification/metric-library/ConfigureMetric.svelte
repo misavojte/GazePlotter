@@ -26,6 +26,7 @@
   import type { AoiReducer } from '$lib/metrics/core/numeric'
   import { recipeSupports } from '$lib/metrics/core/validation'
   import { categoryGroupNames } from '$lib/metrics/core/categoryScan'
+  import { eventGroupNamesUnion } from '$lib/metrics/core/eventScan'
   import { metricLeafKindsInContract, contractReductions, type PlotMetricContract } from '$lib/metrics/filters'
   import type { Metric } from '$lib/metrics/core/dsl'
   import type { GroupReduction } from '$lib/metrics/core/measurement'
@@ -34,7 +35,7 @@
   import { getAois } from '$lib/data/engine'
   import type { CreateInstanceHandler } from '$lib/plots/shared/metricInstanceHandlers'
 
-  interface Props {
+  export interface Props {
     contract: PlotMetricContract
     selectedMetricId?: string // Present in Create Mode
     editMetricId?: string // Present in Edit Mode
@@ -155,6 +156,7 @@
       case 'identity-scalar':                    return { kind }
       case 'identity-aoi-vector':                return { kind }
       case 'identity-category-vector':           return { kind }
+      case 'identity-event-vector':              return { kind }
       case 'identity-aoi-pair-matrix':           return { kind }
       case 'identity-participant-pair-matrix':   return { kind }
       case 'pick-aoi':         return {
@@ -165,6 +167,11 @@
       case 'pick-category':    return {
         kind,
         categoryName: categoryNameOptions()[0]?.value ?? '',
+        ...summaryFieldFor(kind),
+      }
+      case 'pick-event':       return {
+        kind,
+        eventName: eventNameOptions()[0]?.value ?? '',
         ...summaryFieldFor(kind),
       }
       case 'pick-any-fixation': return { kind, ...summaryFieldFor(kind) }
@@ -357,20 +364,36 @@
     }
   }
 
+  function updateLeafEventName(name: string) {
+    if (leafDraft.kind === 'pick-event') {
+      leafDraft = { ...leafDraft, eventName: name }
+    }
+  }
+
   function updateLeafStatistic(statistic: SummaryStatistic) {
     if (isSummaryLeaf(leafDraft)) {
       leafDraft = { ...leafDraft, statistic }
     }
   }
 
-  // Eye-movement-type options for the pick-category leaf — the canonical
-  // displayed-name axis, plus the current value when it names a type absent
-  // from the loaded dataset (so editing an instance never drops its type).
-  function categoryNameOptions(current = ''): SelectOption[] {
-    const names = categoryGroupNames(engine)
+  // THE keep-current rule for every name dropdown: the known names, plus the
+  // current value when it names an entity absent from the loaded dataset, so
+  // editing an instance never drops its ref.
+  function keepCurrentOptions(names: string[], current: string): SelectOption[] {
     const withCurrent =
       current && !names.includes(current) ? [current, ...names] : names
     return withCurrent.map(n => ({ label: n, value: n }))
+  }
+
+  // pick-category: the canonical displayed-name axis.
+  function categoryNameOptions(current = ''): SelectOption[] {
+    return keepCurrentOptions(categoryGroupNames(engine), current)
+  }
+
+  // pick-event: the workspace-wide union of displayed channel names
+  // (channels are per-stimulus, instances are global).
+  function eventNameOptions(current = ''): SelectOption[] {
+    return keepCurrentOptions(eventGroupNamesUnion(engine), current)
   }
 
   // The two matrix-cell endpoints are one control rendered twice (see the
@@ -387,12 +410,9 @@
       side === 'fromAoi' ? { ...leafDraft, fromAoi: ref } : { ...leafDraft, toAoi: ref }
   }
 
-  // AOI dropdown options — the known AOIs, plus the current value when it names an
-  // AOI not in any loaded stimulus (so editing an instance never drops its AOI).
+  // pick-aoi and the matrix refs: the AOIs of every loaded stimulus.
   function aoiOptions(current: string): SelectOption[] {
-    const names =
-      current && !aoiNameUnion.includes(current) ? [current, ...aoiNameUnion] : aoiNameUnion
-    return names.map(n => ({ label: n, value: n }))
+    return keepCurrentOptions(aoiNameUnion, current)
   }
 </script>
 
@@ -479,6 +499,18 @@
               placeholder="Choose a type"
               emptyMessage="No eye-movement types in the loaded data"
               onchange={(e) => updateLeafCategoryName(detail(e))}
+            />
+          {/if}
+
+          {#if leafDraft.kind === 'pick-event'}
+            <Select
+              compact
+              label="Event channel"
+              options={eventNameOptions(leafDraft.eventName)}
+              value={leafDraft.eventName}
+              placeholder="Choose a channel"
+              emptyMessage="No event data loaded"
+              onchange={(e) => updateLeafEventName(detail(e))}
             />
           {/if}
 

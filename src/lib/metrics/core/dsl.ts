@@ -7,6 +7,7 @@ export type OutputShape =
   | 'scalar'
   | 'aoi-vector'
   | 'category-vector'
+  | 'event-vector'
   | 'aoi-pair-matrix'
   | 'participant-pair-matrix'
   | 'scalar-timeseries'
@@ -132,11 +133,11 @@ export interface FixationEvent {
   slots: ReadonlyArray<number>
   index: number
   /**
-   * The segment's eye-movement-type slot in `categoryGroups` order. Filled
-   * ONLY for `scanSource: 'categories'` recipes; `-1` elsewhere, since the
-   * fixation index carries no type dimension.
+   * The item's slot on the scan source's canonical axis: `categoryGroups` for
+   * `scanSource: 'categories'`, `eventGroups(stimulus)` for `'events'`. `-1`
+   * on fixation-index scans, which carry no such dimension.
    */
-  categorySlot: number
+  axisSlot: number
 }
 
 export interface InitCtx<P> {
@@ -150,10 +151,10 @@ export interface InitCtx<P> {
    * the per-scan ctx stays shared). `0` with no segments → finalize to NaN.
    */
   scopeDurationMs: number
-  /** Length of the eye-movement-type axis for `scanSource: 'categories'`
-   *  recipes, whose finalize returns a vector of exactly this length. `0` on
-   *  fixation-index scans. */
-  categorySlotCount: number
+  /** Length of the scan source's canonical axis — `categoryGroups` for
+   *  `'categories'`, `eventGroups(stimulus)` for `'events'` — whose finalize
+   *  returns a vector of exactly this length. `0` on fixation-index scans. */
+  axisSlotCount: number
   /**
    * How a {@link MetricRecipe.sampleSummary} recipe collapses each slot's
    * sample in `finalize`. Set by the instance's SUMMARY projection, and always
@@ -235,10 +236,13 @@ export interface MetricRecipe<P, A> {
    * WHICH windows a fixation belongs to. The driver enforces it once, so no
    * recipe writes a membership `if`.
    *
-   *   - `'all'` (default) — every window the fixation overlaps. Right whenever the
+   *   - `'all'` (default) — every window the item overlaps. Right whenever the
    *     contribution is divisible (`frame.duration` clips it, so per-window sums
-   *     still equal the total), and for any question of the form "did this happen
-   *     in this interval" or "how big were the events around here".
+   *     still equal the total), for any question of the form "did this happen
+   *     in this interval" or "how big were the events around here", and for
+   *     PRESENCE counts of items that persist (event occurrences active in a
+   *     window count in each window they span — a concurrency reading whose
+   *     per-window values deliberately do not tile to a total).
    *   - `'own'` — only the window holding the fixation's midpoint. For sums of
    *     INDIVISIBLE events (a count), where it is what makes per-window values add
    *     up to the unwindowed total OVER NON-OVERLAPPING windows (a sliding window
@@ -285,14 +289,19 @@ export interface MetricRecipe<P, A> {
    *
    * - `'fixationIndex'` (default) — the prebuilt category-0 index; the scan
    *   never reads segment categories.
-   * - `'categories'` — EVERY segment, with `fix.categorySlot` set. The type is
+   * - `'categories'` — EVERY segment, with `fix.axisSlot` set. The type is
    *   a DIMENSION the metric ranges over, never a parameter: one type is
    *   extracted downstream by the `pick-category` PROJECTION, as aoi-vector
    *   recipes pair with `pick-aoi`. Registration enforces `rawShape:
    *   'category-vector'` and `accumulation: 'stateful'` — the fused driver's
    *   per-AOI-slot assembly assumes fixation scans.
+   * - `'events'` — the stimulus's event occurrence stream, merged across
+   *   channels and sorted by onset, with `fix.axisSlot` set on the
+   *   `eventGroups` axis. One channel is extracted downstream by the
+   *   `pick-event` PROJECTION. Registration enforces `rawShape:
+   *   'event-vector'` and `accumulation: 'stateful'`.
    */
-  scanSource?: 'fixationIndex' | 'categories'
+  scanSource?: 'fixationIndex' | 'categories' | 'events'
   /** Defaults to false. True opens `pick-any-fixation` for the metric. */
   providesAnyFixation?: boolean
   /** Opt in to `aggregate-aoi` by naming each extreme, e.g.

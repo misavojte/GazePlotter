@@ -13,7 +13,7 @@
  * table changes under an unchanged reader.
  */
 import { describe, it, expect } from 'vitest'
-import { makeTestEngine } from './helpers/testEngine'
+import { ALL_CAPS, makeTestEngine } from './helpers/testEngine'
 import {
   getMetric,
   metricIsCreatableInContract,
@@ -26,7 +26,7 @@ import {
 } from '../src/lib/metrics'
 import { getRecipe } from '../src/lib/metrics/core/defineMetric'
 import { recipeSupports } from '../src/lib/metrics/core/validation'
-
+import type { DataEngine } from '../src/lib/data/engine/dataEngine.svelte'
 const STIM = 1
 
 const CATEGORIES = [
@@ -83,14 +83,14 @@ function windowedPickInst(id: string, baseId: string, categoryName: string): Met
   }
 }
 
-function vectorValues(engine: unknown, inst: MetricInstance, scope: Partial<Scope> = {}): number[] {
-  const r = query(inst, { engine: engine as any, stimulusId: STIM, participantId: 0, ...scope })
+function vectorValues(engine: DataEngine, inst: MetricInstance, scope: Partial<Scope> = {}): number[] {
+  const r = query(inst, { engine: engine, stimulusId: STIM, participantId: 0, ...scope })
   if (r.shape !== 'category-vector') throw new Error(`unexpected shape ${r.shape}`)
   return r.values
 }
 
-function scalarValue(engine: unknown, inst: MetricInstance, scope: Partial<Scope> = {}): number {
-  const r = query(inst, { engine: engine as any, stimulusId: STIM, participantId: 0, ...scope })
+function scalarValue(engine: DataEngine, inst: MetricInstance, scope: Partial<Scope> = {}): number {
+  const r = query(inst, { engine: engine, stimulusId: STIM, participantId: 0, ...scope })
   if (r.shape !== 'scalar') throw new Error(`unexpected shape ${r.shape}`)
   return r.value
 }
@@ -100,7 +100,7 @@ describe('category-vector eye-movement metrics (scanSource: categories)', () => 
     const engine = createEngine()
     const fc = query(
       { id: 'fc', baseId: 'fixationCount', params: {}, label: '', projection: { kind: 'identity-aoi-vector' } },
-      { engine: engine as any, stimulusId: STIM, participantId: 0 },
+      { engine: engine, stimulusId: STIM, participantId: 0 },
     )
     if (fc.shape !== 'aoi-vector') throw new Error('unexpected shape')
     const anyFixationTotal = fc.values[fc.slots.anyFixationSlot]
@@ -147,7 +147,7 @@ describe('category-vector eye-movement metrics (scanSource: categories)', () => 
         window: { windowSize: 200, stepSize: 200 },
         inner: { kind: 'pick-category', categoryName: 'Fixation', statistic: 'max' },
       },
-    }, { engine: engine as any, stimulusId: STIM, participantId: 0, timeStart: 0, timeEnd: 400 })
+    }, { engine: engine, stimulusId: STIM, participantId: 0, timeStart: 0, timeEnd: 400 })
     if (wmax.shape !== 'scalar-timeseries') throw new Error('unexpected shape')
     expect(wmax.values).toEqual([100, 80])
     // Declaration gate, mirroring aggregate-aoi: a statistic is valid only
@@ -164,7 +164,7 @@ describe('category-vector eye-movement metrics (scanSource: categories)', () => 
     const engine = createEngine()
     const perSlot = queryIndividualsAllSlots(
       vectorInst('d', 'movementDuration'),
-      { engine: engine as any, stimulusId: STIM, participantId: 0 }
+      { engine: engine, stimulusId: STIM, participantId: 0 }
     )
     // Per-event durations on the canonical axis: fixations, saccades, blink.
     expect(perSlot).toEqual([[100, 70, 80, 60], [30, 40], [20]])
@@ -200,7 +200,7 @@ describe('category-vector eye-movement metrics (scanSource: categories)', () => 
     ).toEqual([78.125, 15.625, 6.25])
     // Windowed pick-category: each window's share is of the WINDOW size.
     const windowed = query(windowedPickInst('ws', 'movementTimeShare', 'Saccade'), {
-      engine: engine as any, stimulusId: STIM, participantId: 0, timeStart: 0, timeEnd: 400,
+      engine: engine, stimulusId: STIM, participantId: 0, timeStart: 0, timeEnd: 400,
     })
     if (windowed.shape !== 'scalar-timeseries') throw new Error('unexpected shape')
     expect(windowed.values).toEqual([0, 30, 0, 40])
@@ -209,7 +209,7 @@ describe('category-vector eye-movement metrics (scanSource: categories)', () => 
   it('windowed pick-category counts compose to the unwindowed total', () => {
     const engine = createEngine()
     const windowed = query(windowedPickInst('wc', 'movementCount', 'Saccade'), {
-      engine: engine as any, stimulusId: STIM, participantId: 0, timeStart: 0, timeEnd: 400,
+      engine: engine, stimulusId: STIM, participantId: 0, timeStart: 0, timeEnd: 400,
     })
     if (windowed.shape !== 'scalar-timeseries') throw new Error('unexpected shape')
     expect(windowed.values).toEqual([0, 1, 0, 1])
@@ -238,9 +238,9 @@ describe('category-vector eye-movement metrics (scanSource: categories)', () => 
       pickInst('mt', 'movementTime', 'Saccade'),
     ]
 
-    const batch = queryBatch(instances(), { engine: e1 as any, stimulusId: STIM, participantId: 0 })
+    const batch = queryBatch(instances(), { engine: e1, stimulusId: STIM, participantId: 0 })
     for (const inst of instances()) {
-      const single = query(inst, { engine: e2 as any, stimulusId: STIM, participantId: 0 })
+      const single = query(inst, { engine: e2, stimulusId: STIM, participantId: 0 })
       expect(batch.get(inst.id), inst.baseId).toEqual(single)
     }
   })
@@ -252,7 +252,7 @@ describe('category-vector eye-movement metrics (scanSource: categories)', () => 
     const engine = createEngine()
     expect(vectorValues(engine, vectorInst('c', 'movementCount'))).toEqual([4, 2, 1])
 
-    engine.metadata.categories.data[1] = ['Saccade', 'Blink', '#111111']
+    engine.metadata!.categories.data[1] = ['Saccade', 'Blink', '#111111']
     expect(vectorValues(engine, vectorInst('c', 'movementCount'))).toEqual([4, 3])
   })
 
@@ -279,7 +279,7 @@ describe('category-vector eye-movement metrics (scanSource: categories)', () => 
     expect(v[2]).toBeNaN() // Blink is on the axis but absent for the participant
     const ttff = query(
       { id: 't', baseId: 'timeToFirstFixation', params: {}, label: '', projection: { kind: 'pick-any-fixation' } },
-      { engine: engine as any, stimulusId: STIM, participantId: 0 },
+      { engine: engine, stimulusId: STIM, participantId: 0 },
     )
     if (ttff.shape !== 'scalar') throw new Error('unexpected shape')
     expect(v[0]).toBe(ttff.value)
@@ -350,14 +350,14 @@ describe('category-vector eye-movement metrics (scanSource: categories)', () => 
         outputShape: 'scalar',
         windowing: 'required',
         crossParticipant: 'per-participant',
-      })
+      }, ALL_CAPS)
     ).toBe(false)
     expect(
       metricIsCreatableInContract(getMetric('movementLatency')!, {
         outputShape: 'category-vector',
         windowing: 'forbidden',
         crossParticipant: 'distribution',
-      })
+      }, ALL_CAPS)
     ).toBe(true)
   })
 
@@ -373,10 +373,10 @@ describe('category-vector eye-movement metrics (scanSource: categories)', () => 
       crossParticipant: 'per-participant',
     } as const satisfies PlotMetricContract
 
-    expect(metricIsCreatableInContract(getMetric('movementCount')!, vectorContract)).toBe(true)
-    expect(metricIsCreatableInContract(getMetric('fixationCount')!, vectorContract)).toBe(false)
+    expect(metricIsCreatableInContract(getMetric('movementCount')!, vectorContract, ALL_CAPS)).toBe(true)
+    expect(metricIsCreatableInContract(getMetric('fixationCount')!, vectorContract, ALL_CAPS)).toBe(false)
     // Metric Matrix / Correlation / Timeline consume one type via pick-category.
-    expect(metricIsCreatableInContract(getMetric('movementTimeShare')!, scalarContract)).toBe(true)
+    expect(metricIsCreatableInContract(getMetric('movementTimeShare')!, scalarContract, ALL_CAPS)).toBe(true)
   })
 })
 

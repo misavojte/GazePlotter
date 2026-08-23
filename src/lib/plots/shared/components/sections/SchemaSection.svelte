@@ -38,9 +38,8 @@
 
   const { engine, workspace, modalState } = getGazePlotterSession()
   const source = $derived(createCommandSourcePlotPattern(item, 'pane'))
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the renderer
-  // is deliberately untyped over the concrete settings shape; schema fields are
-  // validated against the plot's defaults at registration instead.
+  // The renderer is deliberately untyped over the concrete settings shape;
+  // schema fields are validated against the plot's defaults at registration.
   const bulk = createBulkContext<any>(() => item)
 
   const ctx: SectionFieldCtx = {

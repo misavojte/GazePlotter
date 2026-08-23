@@ -11,7 +11,7 @@
     strokeCrosshairPanel,
     type PlotCursorPort,
   } from '$lib/plots/shared/plotCursor.svelte'
-  import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
+  import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/textMeasure'
   import { SCANPATH_COLORS, SCANPATH_LAYOUT } from '../const'
   import type { ScanpathData } from '../types'
   import type { WarningPlaceholder } from '../core/view'
@@ -136,7 +136,6 @@
     // so "the pointer is in here" is the whole publishable fact. The payload is a
     // STABLE `true`, so the harness sees no hover change and schedules no repaint.
     hitTest: (): FrameHit<boolean> => ({
-      tooltipId: 'scanpath-cursor',
       content: [],
       anchorX: 0,
       anchorY: 0,

@@ -603,6 +603,34 @@ export function strokeCrosshairGuides(
   ctx.restore()
 }
 
+/**
+ * Strokes `count` parallel axis-aligned lines as ONE path — one stroke
+ * composite instead of one per line. The caller sets strokeStyle/lineWidth and
+ * aligns positions (alignToPixelCenter) in `positionAt`.
+ */
+export function strokeParallelLines(
+  ctx: CanvasRenderingContext2D,
+  horizontal: boolean,
+  count: number,
+  positionAt: (i: number) => number,
+  from: number,
+  to: number
+): void {
+  if (count <= 0) return
+  ctx.beginPath()
+  for (let i = 0; i < count; i++) {
+    const p = positionAt(i)
+    if (horizontal) {
+      ctx.moveTo(from, p)
+      ctx.lineTo(to, p)
+    } else {
+      ctx.moveTo(p, from)
+      ctx.lineTo(p, to)
+    }
+  }
+  ctx.stroke()
+}
+
 export interface HighlightRect {
   x: number
   y: number
@@ -621,174 +649,75 @@ let _segmentsScratch: number[] = []
  */
 export function getOuterCrosshairSegments(rects: readonly HighlightRect[]): readonly number[] {
   _segmentsScratch.length = 0
-  if (rects.length === 0) return _segmentsScratch
-
-  const n = rects.length
-
-  for (let i = 0; i < n; i++) {
-    const r = rects[i]
-    const along = r.along ?? 'both'
-    const x1 = r.x
-    const x2 = r.x + r.width
-    const y1 = r.y
-    const y2 = r.y + r.height
-
-    const cx1 = alignToPixelCenter(x1)
-    const cx2 = alignToPixelCenter(x2)
-    const cy1 = alignToPixelCenter(y1)
-    const cy2 = alignToPixelCenter(y2)
-
-    // Horizontal edges (Top & Bottom) for along === 'x' or 'both'
+  for (let i = 0; i < rects.length; i++) {
+    const along = rects[i].along ?? 'both'
     if (along === 'x' || along === 'both') {
-      // Top Edge (y = y1, x in [x1, x2])
-      {
-        const covered: Array<{ min: number; max: number }> = []
-        for (let j = 0; j < n; j++) {
-          if (i === j) continue
-          const o = rects[j]
-          const oAlong = o.along ?? 'both'
-          const ox1 = o.x
-          const ox2 = o.x + o.width
-          const oy1 = o.y
-          const oy2 = o.y + o.height
-
-          if (y1 > oy1 && y1 < oy2) {
-            covered.push({ min: ox1, max: ox2 })
-          } else if (y1 === oy2 && (oAlong === 'x' || oAlong === 'both')) {
-            covered.push({ min: ox1, max: ox2 })
-          } else if (y1 === oy1 && (oAlong === 'x' || oAlong === 'both') && j < i) {
-            covered.push({ min: ox1, max: ox2 })
-          }
-        }
-        subtractIntervalsAndPushHorizontal(x1, x2, cy1, covered)
-      }
-
-      // Bottom Edge (y = y2, x in [x1, x2])
-      {
-        const covered: Array<{ min: number; max: number }> = []
-        for (let j = 0; j < n; j++) {
-          if (i === j) continue
-          const o = rects[j]
-          const oAlong = o.along ?? 'both'
-          const ox1 = o.x
-          const ox2 = o.x + o.width
-          const oy1 = o.y
-          const oy2 = o.y + o.height
-
-          if (y2 > oy1 && y2 < oy2) {
-            covered.push({ min: ox1, max: ox2 })
-          } else if (y2 === oy1 && (oAlong === 'x' || oAlong === 'both')) {
-            covered.push({ min: ox1, max: ox2 })
-          } else if (y2 === oy2 && (oAlong === 'x' || oAlong === 'both') && j < i) {
-            covered.push({ min: ox1, max: ox2 })
-          }
-        }
-        subtractIntervalsAndPushHorizontal(x1, x2, cy2, covered)
-      }
+      pushOuterEdge(rects, i, true, true)
+      pushOuterEdge(rects, i, true, false)
     }
-
-    // Vertical edges (Left & Right) for along === 'y' or 'both'
     if (along === 'y' || along === 'both') {
-      // Left Edge (x = x1, y in [y1, y2])
-      {
-        const covered: Array<{ min: number; max: number }> = []
-        for (let j = 0; j < n; j++) {
-          if (i === j) continue
-          const o = rects[j]
-          const oAlong = o.along ?? 'both'
-          const ox1 = o.x
-          const ox2 = o.x + o.width
-          const oy1 = o.y
-          const oy2 = o.y + o.height
-
-          if (x1 > ox1 && x1 < ox2) {
-            covered.push({ min: oy1, max: oy2 })
-          } else if (x1 === ox2 && (oAlong === 'y' || oAlong === 'both')) {
-            covered.push({ min: oy1, max: oy2 })
-          } else if (x1 === ox1 && (oAlong === 'y' || oAlong === 'both') && j < i) {
-            covered.push({ min: oy1, max: oy2 })
-          }
-        }
-        subtractIntervalsAndPushVertical(y1, y2, cx1, covered)
-      }
-
-      // Right Edge (x = x2, y in [y1, y2])
-      {
-        const covered: Array<{ min: number; max: number }> = []
-        for (let j = 0; j < n; j++) {
-          if (i === j) continue
-          const o = rects[j]
-          const oAlong = o.along ?? 'both'
-          const ox1 = o.x
-          const ox2 = o.x + o.width
-          const oy1 = o.y
-          const oy2 = o.y + o.height
-
-          if (x2 > ox1 && x2 < ox2) {
-            covered.push({ min: oy1, max: oy2 })
-          } else if (x2 === ox1 && (oAlong === 'y' || oAlong === 'both')) {
-            covered.push({ min: oy1, max: oy2 })
-          } else if (x2 === ox2 && (oAlong === 'y' || oAlong === 'both') && j < i) {
-            covered.push({ min: oy1, max: oy2 })
-          }
-        }
-        subtractIntervalsAndPushVertical(y1, y2, cx2, covered)
-      }
+      pushOuterEdge(rects, i, false, true)
+      pushOuterEdge(rects, i, false, false)
     }
   }
-
   return _segmentsScratch
 }
 
-function subtractIntervalsAndPushHorizontal(
-  start: number,
-  end: number,
-  cy: number,
-  covered: readonly { min: number; max: number }[]
+/**
+ * One edge of one rect: collect the spans other rects cover on it, then push
+ * what remains. A rect strictly crossing the edge always covers it; on a
+ * coincident edge the OPPOSITE edge (their union is seamless there) covers
+ * outright while the SAME edge dedups by index, so exactly one owner draws it.
+ * `horizontal` picks the edge axis; `isNear` is top/left vs bottom/right.
+ */
+function pushOuterEdge(
+  rects: readonly HighlightRect[],
+  i: number,
+  horizontal: boolean,
+  isNear: boolean
 ): void {
-  if (covered.length === 0) {
-    if (end > start) _segmentsScratch.push(start, cy, end, cy)
-    return
-  }
+  const r = rects[i]
+  const fixed = horizontal
+    ? isNear ? r.y : r.y + r.height
+    : isNear ? r.x : r.x + r.width
+  const spanMin = horizontal ? r.x : r.y
+  const spanMax = horizontal ? r.x + r.width : r.y + r.height
 
-  let remaining = [{ min: start, max: end }]
-  for (let cIdx = 0; cIdx < covered.length; cIdx++) {
-    const c = covered[cIdx]
-    const next: Array<{ min: number; max: number }> = []
-    for (let rIdx = 0; rIdx < remaining.length; rIdx++) {
-      const r = remaining[rIdx]
-      if (c.max <= r.min || c.min >= r.max) {
-        next.push(r)
-      } else {
-        if (c.min > r.min) next.push({ min: r.min, max: c.min })
-        if (c.max < r.max) next.push({ min: c.max, max: r.max })
-      }
+  const covered: Array<{ min: number; max: number }> = []
+  for (let j = 0; j < rects.length; j++) {
+    if (j === i) continue
+    const o = rects[j]
+    const oAlong = o.along ?? 'both'
+    const oNear = horizontal ? o.y : o.x
+    const oFar = horizontal ? o.y + o.height : o.x + o.width
+    const alongMatches =
+      oAlong === 'both' || oAlong === (horizontal ? 'x' : 'y')
+    const sameEdge = isNear ? oNear : oFar
+    const oppositeEdge = isNear ? oFar : oNear
+    if (
+      (fixed > oNear && fixed < oFar) ||
+      (fixed === oppositeEdge && alongMatches) ||
+      (fixed === sameEdge && alongMatches && j < i)
+    ) {
+      covered.push(
+        horizontal
+          ? { min: o.x, max: o.x + o.width }
+          : { min: o.y, max: o.y + o.height }
+      )
     }
-    remaining = next
-    if (remaining.length === 0) break
   }
-
-  for (let k = 0; k < remaining.length; k++) {
-    const seg = remaining[k]
-    if (seg.max > seg.min) {
-      _segmentsScratch.push(seg.min, cy, seg.max, cy)
-    }
-  }
+  subtractIntervalsAndPush(spanMin, spanMax, alignToPixelCenter(fixed), horizontal, covered)
 }
 
-function subtractIntervalsAndPushVertical(
+function subtractIntervalsAndPush(
   start: number,
   end: number,
-  cx: number,
+  cross: number,
+  horizontal: boolean,
   covered: readonly { min: number; max: number }[]
 ): void {
-  if (covered.length === 0) {
-    if (end > start) _segmentsScratch.push(cx, start, cx, end)
-    return
-  }
-
   let remaining = [{ min: start, max: end }]
-  for (let cIdx = 0; cIdx < covered.length; cIdx++) {
+  for (let cIdx = 0; cIdx < covered.length && remaining.length > 0; cIdx++) {
     const c = covered[cIdx]
     const next: Array<{ min: number; max: number }> = []
     for (let rIdx = 0; rIdx < remaining.length; rIdx++) {
@@ -801,13 +730,12 @@ function subtractIntervalsAndPushVertical(
       }
     }
     remaining = next
-    if (remaining.length === 0) break
   }
-
   for (let k = 0; k < remaining.length; k++) {
     const seg = remaining[k]
     if (seg.max > seg.min) {
-      _segmentsScratch.push(cx, seg.min, cx, seg.max)
+      if (horizontal) _segmentsScratch.push(seg.min, cross, seg.max, cross)
+      else _segmentsScratch.push(cross, seg.min, cross, seg.max)
     }
   }
 }
@@ -959,4 +887,54 @@ export function strokeCrispRect(
   // Using bitwise alignment on all edges for a perfectly sharp box
   ctx.strokeRect((x | 0) + 0.5, (y | 0) + 0.5, width | 0, height | 0)
   ctx.restore()
+}
+
+// ============================================================================
+// SCRATCH LAYERS
+// ============================================================================
+
+/**
+ * Device-pixel cap for offscreen scratch layers (~256 MB at 4 bytes/px). The
+ * main canvas of a very large plot is already near browser canvas limits;
+ * mirroring it would double an already-huge buffer, and `new OffscreenCanvas`
+ * can throw. Above the cap callers skip the layer and render without it.
+ */
+export const MAX_SCRATCH_PX = 64 * 1024 * 1024
+
+export interface ScratchLayer {
+  canvas: OffscreenCanvas | HTMLCanvasElement
+  ctx: OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D
+}
+
+/**
+ * Allocate an offscreen scratch canvas with its 2d context. Returns null when
+ * the size is unsafe, the environment has no canvas (node tests), or the
+ * allocation throws; callers treat null as "skip the layer".
+ */
+export function createScratchLayer(
+  width: number,
+  height: number
+): ScratchLayer | null {
+  if (
+    width <= 0 ||
+    height <= 0 ||
+    width > 16384 ||
+    height > 16384 ||
+    width * height > MAX_SCRATCH_PX
+  ) {
+    return null
+  }
+  try {
+    const canvas =
+      typeof OffscreenCanvas !== 'undefined'
+        ? new OffscreenCanvas(width, height)
+        : typeof document !== 'undefined'
+          ? Object.assign(document.createElement('canvas'), { width, height })
+          : null
+    if (!canvas) return null
+    const ctx = canvas.getContext('2d') as ScratchLayer['ctx'] | null
+    return ctx ? { canvas, ctx } : null
+  } catch {
+    return null
+  }
 }

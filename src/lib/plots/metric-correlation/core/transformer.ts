@@ -1,4 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import type { DataCapabilities } from '$lib/data/types'
 import { getParticipantsIds } from '$lib/data/engine'
 import {
   getMetric,
@@ -42,7 +43,8 @@ export function getMetricCorrelationData(
 
   const { metrics, instances } = resolveMetrics(
     settings.metricInstanceIds,
-    meta.metricInstances
+    meta.metricInstances,
+    engine.capabilities
   )
   if (metrics.length < 2) return emptyResult(settings, true)
   if (participantIds.length === 0) return emptyResult(settings)
@@ -91,7 +93,8 @@ export function getMetricCorrelationData(
 
 function resolveMetrics(
   enabledIds: readonly string[],
-  workspaceInstances: readonly MetricInstance[] | undefined
+  workspaceInstances: readonly MetricInstance[] | undefined,
+  capabilities: DataCapabilities
 ): { metrics: MetricDescriptor[]; instances: MetricInstance[] } {
   const library: readonly MetricInstance[] = workspaceInstances ?? []
   const enabledSet = new Set(enabledIds)
@@ -107,7 +110,7 @@ function resolveMetrics(
     // an instance invalidated after save — e.g. an aggregate-aoi extreme its
     // metric no longer names — must not silently compute here while being
     // hidden everywhere else.
-    if (!instanceMatchesContract(inst, METRIC_CORRELATION_CONTRACT)) continue
+    if (!instanceMatchesContract(inst, METRIC_CORRELATION_CONTRACT, capabilities)) continue
     // Correlation rows/cols must self-distinguish: name + derived qualifiers (so
     // two variants of one base metric don't collide). Unit is shown on the
     // diagonal, not here — hence `unit: false`.

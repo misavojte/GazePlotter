@@ -1,5 +1,6 @@
 <script>
   import '../app.css'
+  import DesignTokens from '$lib/DesignTokens.svelte'
   import { Footer, Header } from './components'
 
   /** @type {{children?: import('svelte').Snippet}} */
@@ -47,6 +48,10 @@
 <svelte:head>
   {@html structuredDataScript}
 </svelte:head>
+
+<!-- Site chrome (header, footer, docs) uses the tokens on pages without a
+     mounted <GazePlotter>, so the layout renders them too. -->
+<DesignTokens />
 
 <Header />
 {@render children?.()}

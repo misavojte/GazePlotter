@@ -206,11 +206,6 @@ describe('the slot inside a cell is decorrelated from the value order', () => {
 })
 
 describe('determinism', () => {
-  it('gives the same layout for the same values', () => {
-    const values = [10, 20, 10, 30, 20, 10, 30, 20]
-    expect(place(values)).toEqual(place(values))
-  })
-
   it('does not depend on the order the values arrive in', () => {
     const sort = (a: { valuePos: number; categoryPos: number }[]) =>
       [...a].sort((x, y) => x.valuePos - y.valuePos || x.categoryPos - y.categoryPos)

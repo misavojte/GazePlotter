@@ -15,6 +15,7 @@
  */
 
 import { PlotSyncRegistry } from '$lib/plots/shared/PlotSyncRegistry.svelte'
+import { sessionScoped } from '$lib/session/context'
 
 interface SyncEntry {
   plotType: string
@@ -24,7 +25,7 @@ interface SyncEntry {
   dataMax: number
 }
 
-class DistributionValueAxisSync extends PlotSyncRegistry<SyncEntry> {
+export class DistributionValueAxisSync extends PlotSyncRegistry<SyncEntry> {
   /** Largest dataMax across all plots sharing (plotType, metric, w, h). */
   getSyncedMax(
     plotType: string,
@@ -42,4 +43,7 @@ class DistributionValueAxisSync extends PlotSyncRegistry<SyncEntry> {
   }
 }
 
-export const distributionValueAxisSync = new DistributionValueAxisSync()
+/** This session's registry; resolve at component init. */
+export const distributionValueAxisSync = sessionScoped(
+  () => new DistributionValueAxisSync()
+)

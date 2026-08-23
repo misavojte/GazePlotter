@@ -1,5 +1,5 @@
 import type { ToastFillingType } from './types'
-import { generateUniqueId } from '$lib/shared/utils/idUtils'
+import { generateUniqueId } from '$lib/shared/uniqueId'
 
 const MAX_VISIBLE_TOASTS = 5
 const MAX_MESSAGE_LENGTH = 280
@@ -63,40 +63,28 @@ export class ToastState {
     this.current = this.current.filter(t => t.id !== id)
   }
 
+  private show(
+    type: ToastFillingType['type'],
+    message: string,
+    duration: number
+  ): void {
+    this.add({ id: generateUniqueId(), message, type, duration })
+  }
+
   addError(message: string): void {
-    this.add({
-      id: generateUniqueId(),
-      message,
-      type: 'error',
-      duration: 8000,
-    })
+    this.show('error', message, 8000)
   }
 
   addSuccess(message: string): void {
-    this.add({
-      id: generateUniqueId(),
-      message,
-      type: 'success',
-      duration: 4000,
-    })
+    this.show('success', message, 4000)
   }
 
   addWarning(message: string): void {
-    this.add({
-      id: generateUniqueId(),
-      message,
-      type: 'warning',
-      duration: 12000,
-    })
+    this.show('warning', message, 12000)
   }
 
   addInfo(message: string): void {
-    this.add({
-      id: generateUniqueId(),
-      message,
-      type: 'info',
-      duration: 8000,
-    })
+    this.show('info', message, 8000)
   }
 
   clear(): void {

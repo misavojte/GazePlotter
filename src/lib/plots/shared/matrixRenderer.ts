@@ -2,11 +2,14 @@ import { getContrastTextColor } from '$lib/color'
 import {
   truncateTextToPixelWidth,
   SYSTEM_SANS_SERIF_STACK,
-} from '$lib/shared/utils/textUtils'
+} from '$lib/shared/textMeasure'
+import { axisTitleLineHeight } from './axisUtils'
+import { FONT_PRIMARY } from './const'
 import {
   alignToPixelCenter,
   markCrosshairStrips,
   strokeCrosshairGuides,
+  strokeParallelLines,
   type HighlightRect,
 } from '$lib/plots/shared/canvasUtils'
 import { UI_COLORS } from '$lib/color'
@@ -21,8 +24,6 @@ export type MatrixRenderConfig = {
   /** Flat row-major values (rowCount × colCount). */
   matrix: Float64Array | number[]
   maxLabelLength: number
-  xAxisTitle: string
-  yAxisTitle: string
   formatCellValue: (value: number) => string
   getCellColor: (value: number) => string
   showCellValue?: (value: number) => boolean
@@ -37,8 +38,8 @@ export type MatrixRenderConfig = {
 }
 
 function setUpFont(ctx: CanvasRenderingContext2D) {
-  ctx.font = `12px ${SYSTEM_SANS_SERIF_STACK}`
-  ctx.fillStyle = UI_COLORS.TEXT_PRIMARY
+  ctx.font = `${FONT_PRIMARY.SIZE}px ${FONT_PRIMARY.FAMILY}`
+  ctx.fillStyle = FONT_PRIMARY.COLOR
 }
 
 function drawMatrixGrid(
@@ -50,21 +51,16 @@ function drawMatrixGrid(
   const { xOffset, yOffset, cellSize, gridWidth, gridHeight, rowCount, colCount } =
     config.layout
 
-  for (let col = 0; col <= colCount; col++) {
-    const x = alignToPixelCenter(xOffset + col * cellSize)
-    ctx.beginPath()
-    ctx.moveTo(x, yOffset)
-    ctx.lineTo(x, yOffset + gridHeight)
-    ctx.stroke()
-  }
-
-  for (let row = 0; row <= rowCount; row++) {
-    const y = alignToPixelCenter(yOffset + row * cellSize)
-    ctx.beginPath()
-    ctx.moveTo(xOffset, y)
-    ctx.lineTo(xOffset + gridWidth, y)
-    ctx.stroke()
-  }
+  strokeParallelLines(
+    ctx, false, colCount + 1,
+    col => alignToPixelCenter(xOffset + col * cellSize),
+    yOffset, yOffset + gridHeight
+  )
+  strokeParallelLines(
+    ctx, true, rowCount + 1,
+    row => alignToPixelCenter(yOffset + row * cellSize),
+    xOffset, xOffset + gridWidth
+  )
 }
 
 // Reused scratch of per-cell fill colours. drawMatrixCells fills it and
@@ -142,12 +138,23 @@ function drawMatrixAxisLabels(
     xAxisLabelHeight,
     yAxisLabelWidth,
     axisTitleGap,
+    xTitleLines,
+    yTitleLines,
   } = layout
+  // Titles arrive pre-wrapped from the layout, which reserved exactly their
+  // height; the anchor line sits nearest the labels, extra lines stack outward.
+  const lineHeight = axisTitleLineHeight(layout.fontSize)
 
   ctx.textAlign = 'center'
   ctx.textBaseline = 'bottom'
   const xTitleY = yOffset - xAxisLabelHeight - axisTitleGap
-  ctx.fillText(config.xAxisTitle, xOffset + gridWidth * 0.5, xTitleY)
+  for (let i = 0; i < xTitleLines.length; i++) {
+    ctx.fillText(
+      xTitleLines[i],
+      xOffset + gridWidth * 0.5,
+      xTitleY - (xTitleLines.length - 1 - i) * lineHeight
+    )
+  }
 
   ctx.save()
   const yTitleX = xOffset - yAxisLabelWidth - axisTitleGap
@@ -156,7 +163,11 @@ function drawMatrixAxisLabels(
   ctx.rotate(-Math.PI / 2)
   ctx.textAlign = 'center'
   ctx.textBaseline = 'bottom'
-  ctx.fillText(config.yAxisTitle, 0, 0)
+  // After the −90° rotation, local −y points away from the grid, so each extra
+  // wrapped line sits further into the reserved gutter.
+  for (let i = 0; i < yTitleLines.length; i++) {
+    ctx.fillText(yTitleLines[i], 0, -i * lineHeight)
+  }
   ctx.restore()
 }
 

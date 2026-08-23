@@ -11,6 +11,7 @@ import type {
   AllPlotSettings,
   GridItemLayoutUpdate,
   GridItemSnapshot,
+  PlotType,
 } from '$lib/workspace'
 
 /**
@@ -170,7 +171,7 @@ export interface UpdateLayoutCommand extends BaseCommandInterface {
 // Grid item management commands
 export interface AddGridItemCommand extends BaseCommandInterface {
   type: 'addGridItem'
-  vizType: string
+  vizType: PlotType
   options?: GridItemSnapshot
   itemId: number // Required itemId for command reversal
 }

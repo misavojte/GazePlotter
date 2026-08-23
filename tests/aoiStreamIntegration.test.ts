@@ -5,6 +5,12 @@ import { createDefaultMetricInstances } from '../src/lib/metrics/instances'
 
 const WINDOWED_TIME_INSTANCE_ID = 'absoluteTime-aoi-windowed-500'
 
+// The transformer tolerates PARTIAL settings (stale keys from old workspaces
+// resolve to defaults); Partial<> keeps key typos compile-checked while
+// allowing the omissions these cases are about.
+type StreamSettings = Parameters<typeof getAoiStreamPlotData>[1]
+const partialSettings = (s: Partial<StreamSettings>) => s as StreamSettings
+
 function createMockEngine(segments: number[][][][]) {
   return makeTestEngine(segments, {
     aoiData: [
@@ -38,12 +44,12 @@ describe('AOI Stream Plot Transformer (Integration)', () => {
     ])
 
     const result = getAoiStreamPlotData(
-      engine as any,
-      {
+      engine,
+      partialSettings({
         stimulusId,
         groupId,
         metricInstanceIds: [WINDOWED_TIME_INSTANCE_ID],
-      } as any
+      })
     )
 
     // Outside (No AOI) should be present since hideNoAoi is undefined (defaults to false)
@@ -64,12 +70,12 @@ describe('AOI Stream Plot Transformer (Integration)', () => {
     ])
 
     const result = getAoiStreamPlotData(
-      engine as any,
-      {
+      engine,
+      partialSettings({
         stimulusId,
         groupId,
         metricInstanceIds: [WINDOWED_TIME_INSTANCE_ID],
-      } as any
+      })
     )
 
     // Windowed absolute dwell is in ms; the tooltip shows native values in this
@@ -90,13 +96,13 @@ describe('AOI Stream Plot Transformer (Integration)', () => {
     ])
 
     const result = getAoiStreamPlotData(
-      engine as any,
-      {
+      engine,
+      partialSettings({
         stimulusId,
         groupId,
         metricInstanceIds: [WINDOWED_TIME_INSTANCE_ID],
         hideNoAoi: true,
-      } as any
+      })
     )
 
     // Only AOI A and AOI B should be in the series list
@@ -118,13 +124,13 @@ describe('AOI Stream Plot Transformer (Integration)', () => {
     ])
 
     const result = getAoiStreamPlotData(
-      engine as any,
-      {
+      engine,
+      partialSettings({
         stimulusId,
         groupId,
         metricInstanceIds: [WINDOWED_TIME_INSTANCE_ID],
         hideNoAoi: true,
-      } as any
+      })
     )
 
     // Check that maximums are calculated using only AOI A and AOI B values (50 ms)

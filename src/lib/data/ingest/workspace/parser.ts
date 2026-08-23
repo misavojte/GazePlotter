@@ -1,19 +1,10 @@
-import type { DataType, JsonImportNewFormat } from '$lib/data/types'
+import type { JsonImportNewFormat } from '$lib/data/types'
 import type { FileMetadataType } from '../types'
 import type { GridItemSnapshot } from '$lib/workspace/grid/types'
-import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace/grid/const'
 import { runMigrations } from './migrations'
 import { processAndValidateData, validateBasicStructure } from './validator'
 
 
-
-/**
- * Type for the result of processing a JSON file
- */
-export type JsonProcessingResult = {
-  data: DataType
-  gridItems?: GridItemSnapshot[]
-}
 
 /**
  * Processes a JSON file and returns both the data and grid items if available.
@@ -36,7 +27,9 @@ export function processJsonFileWithGrid(
   return {
     version: modernData.version as JsonImportNewFormat['version'],
     data: processAndValidateData(modernData.data),
-    gridItems: (modernData.gridItems as GridItemSnapshot[] | undefined) ?? DEFAULT_GRID_STATE_DATA,
+    // Absent gridItems stay absent: the ingest apply resolves the session's
+    // default layout, so the fallback has exactly one owner.
+    gridItems: modernData.gridItems as GridItemSnapshot[] | undefined,
     fileMetadata: modernData.fileMetadata as FileMetadataType | null | undefined,
   }
 }

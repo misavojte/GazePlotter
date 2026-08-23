@@ -20,32 +20,6 @@ export interface SurveyTask {
 }
 
 /**
- * Survey state interface defining the complete survey state
- * @interface SurveyState
- */
-export interface SurveyState {
-  /** Array of survey tasks in sequential order - cannot be changed once set */
-  readonly tasks: readonly SurveyTask[];
-  /** Index of the currently active/highlighted task */
-  currentActiveTaskIndex: number;
-  /** Whether the survey has been completed */
-  isCompleted: boolean;
-}
-
-/**
- * Survey actions interface defining available survey operations
- * @interface SurveyActions
- */
-export interface SurveyActions {
-  /** Set the survey tasks array (can only be called once) */
-  setTasks: (tasks: SurveyTask[]) => void;
-  /** Move to the next task (called externally when task is completed) */
-  nextTask: () => void;
-  /** Skip the current task (only works if the task is skippable) */
-  skipTask: () => void;
-}
-
-/**
  * UEQS (User Experience Questionnaire Short) results interface
  * @interface UEQSResults
  */

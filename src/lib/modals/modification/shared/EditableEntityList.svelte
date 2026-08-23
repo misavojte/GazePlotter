@@ -27,12 +27,16 @@
   import GripVertical from 'lucide-svelte/icons/grip-vertical'
   import SlidersHorizontal from 'lucide-svelte/icons/sliders-horizontal'
   import Replace from 'lucide-svelte/icons/replace'
-  import { tooltipAction } from '$lib/tooltip'
+  import { useTooltipAction } from '$lib/tooltip'
+
+  const tooltipAction = useTooltipAction()
   import {
-    contextMenuAction,
+    useContextMenuAction,
     createMenuComponentItem,
     type MenuItem,
   } from '$lib/context-menu'
+
+  const contextMenuAction = useContextMenuAction()
   import { createListReorder, type ListReorderConfig } from './listReorder.action'
   import type { MergeCard } from './groupedEntityEditor.svelte'
   import BulkActionsFlyout, {
@@ -333,7 +337,9 @@
   })
 </script>
 
-<div class="section-title-row">
+<!-- data-selection-keep: pointerdowns here must not end the editing episode
+     (selectionSession.onOutsideDown). -->
+<div class="section-title-row" data-selection-keep>
   <span class="section-title">{title}</span>
   <div class="title-actions">
     {@render titleExtra?.()}
@@ -377,6 +383,7 @@
 {:else}
   <div
     class="entity-grid"
+    data-selection-keep
     bind:this={gridEl}
     style:--grid-columns={gridTemplate}
   >

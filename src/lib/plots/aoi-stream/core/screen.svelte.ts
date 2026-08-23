@@ -50,8 +50,11 @@ export const aoiStreamScreen: PlotScreenFactory<AoiStreamPlotSettings> = ctx => 
     return max
   })
 
+  const timelineSync = aoiStreamTimelineSync()
+  const ridgelineSync = aoiStreamRidgelineSync()
+
   usePlotSync(
-    aoiStreamTimelineSync,
+    timelineSync,
     () => ctx.item.id,
     () => {
       if (!isFullyAuto || ownDataMax <= 0) return null
@@ -71,7 +74,7 @@ export const aoiStreamScreen: PlotScreenFactory<AoiStreamPlotSettings> = ctx => 
   }
 
   usePlotSync(
-    aoiStreamRidgelineSync,
+    ridgelineSync,
     () => ctx.item.id,
     () => {
       const view = ctx.view()
@@ -106,7 +109,7 @@ export const aoiStreamScreen: PlotScreenFactory<AoiStreamPlotSettings> = ctx => 
     settings: () => {
       const s = ctx.item.settings
       if (!isFullyAuto) return s
-      const syncedMax = aoiStreamTimelineSync.getSyncedMax(ctx.item.w)
+      const syncedMax = timelineSync.getSyncedMax(ctx.item.w)
       if (syncedMax <= ownDataMax) return s
       return { ...s, timelineEnd: syncedMax }
     },
@@ -114,7 +117,7 @@ export const aoiStreamScreen: PlotScreenFactory<AoiStreamPlotSettings> = ctx => 
       const mTop = ownMTopOf(view)
       let syncedMTopOverride: number | null = null
       if (mTop !== null) {
-        const synced = aoiStreamRidgelineSync.getSyncedMTop(
+        const synced = ridgelineSync.getSyncedMTop(
           ctx.item.h,
           scaleOf(),
           resultOf(view).series.length

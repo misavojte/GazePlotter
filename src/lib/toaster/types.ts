@@ -8,19 +8,13 @@ interface ToastLink {
   label: string
 }
 
-/**
- * Filling for Toaster messages
- * @id {number} - id of message for deletion
- * @title {string} - title of message
- * @message {string} - message to show
- * @type {'success' | 'error' | 'warning' | 'info'} - type of message
- * @duration {number | null} - duration of message in ms, null for infinite
- * @link {ToastLink} - optional call-to-action link shown under the message
- */
 export interface ToastFillingType {
+  /** Identity for removal. */
   id: number
   message: string
   type: 'success' | 'error' | 'warning' | 'info'
+  /** Auto-dismiss delay in ms; null keeps the toast until closed manually. */
   duration: number | null
+  /** Optional call-to-action link shown under the message. */
   link?: ToastLink
 }

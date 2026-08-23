@@ -88,7 +88,6 @@ export function getTransitionView(
           ? 'No AOI data available'
           : null,
       fitSteps: ['Merge some AOIs in Plot Settings > Areas of Interest'],
-      tooltipId: 'transition-matrix-tooltip',
       tooltipWidth: 150,
       getCellTooltip: (row, col) => {
         const value = matrix[row * aoiLabels.length + col] ?? 0

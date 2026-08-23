@@ -5,6 +5,12 @@ import { createDefaultMetricInstances } from '../src/lib/metrics/instances'
 
 const ABSOLUTE_TIME_INSTANCE_ID = 'absoluteTime'
 
+// The transformer tolerates PARTIAL settings (stale keys from old workspaces
+// resolve to defaults); Partial<> keeps key typos compile-checked while
+// allowing the omissions these cases are about.
+type DataSettings = Parameters<typeof getAoiComparisonData>[1]
+const partialSettings = (s: Partial<DataSettings>) => s as DataSettings
+
 function createMockEngine(segments: number[][][][]) {
   return makeTestEngine(segments, {
     aoiData: [
@@ -38,7 +44,7 @@ describe('Bar Plot Transformer (Integration)', () => {
     ])
 
     const result = getAoiComparisonData(
-      engine as any,
+      engine,
       {
         stimulusId,
         groupId,
@@ -46,7 +52,8 @@ describe('Bar Plot Transformer (Integration)', () => {
         orderBy: 'aoi',
         orderDirection: 'asc',
         scaleRange: [0, 0],
-      } as any
+        statisticalOverlay: 'none',
+      }
     )
 
     expect(result.data).toHaveLength(3)
@@ -69,7 +76,7 @@ describe('Bar Plot Transformer (Integration)', () => {
     ])
 
     const result = getAoiComparisonData(
-      engine as any,
+      engine,
       {
         stimulusId,
         groupId,
@@ -77,7 +84,8 @@ describe('Bar Plot Transformer (Integration)', () => {
         orderBy: 'value',
         orderDirection: 'desc',
         scaleRange: [0, 0],
-      } as any
+        statisticalOverlay: 'none',
+      }
     )
 
     expect(result.data[0].label).toBe('AOI B')
@@ -88,12 +96,12 @@ describe('Bar Plot Transformer (Integration)', () => {
     const engine = createMockEngine([[[[0, 450, 0, 0]]]])
 
     const result = getAoiComparisonData(
-      engine as any,
-      {
+      engine,
+      partialSettings({
         stimulusId,
         groupId,
         metricInstanceIds: [ABSOLUTE_TIME_INSTANCE_ID],
-      } as any
+      })
     )
 
     expect(result.timeline.maxValue).toBeGreaterThanOrEqual(450)
@@ -103,13 +111,13 @@ describe('Bar Plot Transformer (Integration)', () => {
     const engine = createMockEngine([[[[0, 100, 0, 0]]]])
 
     const result = getAoiComparisonData(
-      engine as any,
-      {
+      engine,
+      partialSettings({
         stimulusId,
         groupId,
         metricInstanceIds: [ABSOLUTE_TIME_INSTANCE_ID],
         scaleRange: [0, 1000],
-      } as any
+      })
     )
 
     expect(result.timeline.maxValue).toBe(1000)
@@ -117,15 +125,15 @@ describe('Bar Plot Transformer (Integration)', () => {
 
   it('handles lack of participants', () => {
     const engine = createMockEngine([[]])
-    engine.metadata.participants.data = []
-    engine.metadata.participants.orderVector = []
+    engine.metadata!.participants.data = []
+    engine.metadata!.participants.orderVector = []
 
     const result = getAoiComparisonData(
-      engine as any,
-      {
+      engine,
+      partialSettings({
         stimulusId,
         groupId: -1,
-      } as any
+      })
     )
 
     expect(result.data).toEqual([])
@@ -142,7 +150,7 @@ describe('Bar Plot Transformer (Integration)', () => {
     ])
 
     const result = getAoiComparisonData(
-      engine as any,
+      engine,
       {
         stimulusId,
         groupId,
@@ -150,7 +158,8 @@ describe('Bar Plot Transformer (Integration)', () => {
         orderBy: 'aoi',
         orderDirection: 'asc',
         scaleRange: [0, 0],
-      } as any
+        statisticalOverlay: 'none',
+      }
     )
 
     expect(result.noMetric).toBe(true)
@@ -169,7 +178,7 @@ describe('Bar Plot Transformer (Integration)', () => {
     ])
 
     const result = getAoiComparisonData(
-      engine as any,
+      engine,
       {
         stimulusId,
         groupId,
@@ -177,8 +186,9 @@ describe('Bar Plot Transformer (Integration)', () => {
         orderBy: 'aoi',
         orderDirection: 'asc',
         scaleRange: [0, 0],
+        statisticalOverlay: 'none',
         hideNoAoi: true,
-      } as any
+      }
     )
 
     expect(result.data).toHaveLength(2)
@@ -201,7 +211,7 @@ describe('Bar Plot Transformer (Integration)', () => {
     ])
 
     const result = getAoiComparisonData(
-      engine as any,
+      engine,
       {
         stimulusId,
         groupId,
@@ -209,8 +219,9 @@ describe('Bar Plot Transformer (Integration)', () => {
         orderBy: 'aoi',
         orderDirection: 'asc',
         scaleRange: [0, 0],
+        statisticalOverlay: 'none',
         hideNoAoi: true,
-      } as any
+      }
     )
 
     // Max AOI value is 100 (Outside has 500 but should be excluded from scale dataMax calculation)

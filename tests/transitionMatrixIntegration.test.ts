@@ -38,7 +38,7 @@ describe('Transition Matrix Plot Transformer (Integration)', () => {
     ])
 
     const result = getTransitionMatrixData(
-      engine as any,
+      engine,
       stimulusId,
       groupId,
       TRANSITION_COUNT_INSTANCE_ID
@@ -66,7 +66,7 @@ describe('Transition Matrix Plot Transformer (Integration)', () => {
     ])
 
     const result = getTransitionMatrixData(
-      engine as any,
+      engine,
       stimulusId,
       groupId,
       TRANSITION_COUNT_INSTANCE_ID,

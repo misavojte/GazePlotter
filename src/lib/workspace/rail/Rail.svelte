@@ -3,24 +3,19 @@
   import { onMount } from 'svelte'
   import { fly } from 'svelte/transition'
   import { cubicInOut } from 'svelte/easing'
-  import type { GridItemSnapshot } from '$lib/workspace'
+  import type { GridItemSnapshot, PlotType } from '$lib/workspace'
   import { responsive } from '../responsive.svelte'
   import { stickyBanner } from '../stickyBanner.svelte'
-  import {
-    createRailItems,
-    createEditPlotRailItem,
-    type RailVisualization,
-  } from './config'
+  import { createRailItems, createEditPlotRailItem } from './config'
   import { plotRegistry } from '$lib/plots/registry'
+  import { generateUniqueId } from '$lib/shared/uniqueId'
   import RailItem from './RailItem.svelte'
   import RailZoomSlider from './RailZoomSlider.svelte'
   import X from 'lucide-svelte/icons/x'
 
   interface Props {
-    visualizations?: RailVisualization[]
     initialLayoutState?: GridItemSnapshot[] | null
     zoom?: number
-    onAddVisualization?: (vizType: string) => void
     element?: HTMLElement | null
   }
 
@@ -38,14 +33,11 @@
   const toolbarTop = $derived(stickyBanner.height - 24)
 
   let {
-    visualizations = [],
     initialLayoutState = null,
     zoom = $bindable(1),
-    onAddVisualization,
     element = $bindable(null),
   }: Props = $props()
-  const { errorService, ingest, engine, workspace, grid } =
-    getGazePlotterSession()
+  const { ingest, engine, workspace, grid } = getGazePlotterSession()
 
   const isMobile = $derived(responsive.isMobile)
 
@@ -58,12 +50,27 @@
   const canUndo = $derived(workspace.canUndo)
   const canRedo = $derived(workspace.canRedo)
 
-  const filteredVisualizations = $derived(
-    visualizations.filter(v => {
-      const config = plotRegistry[v.id as keyof typeof plotRegistry]
-      return engine.hasCapabilities(config?.requireCapabilities)
-    })
+  // Plots the current dataset can feed, grouped for the Add Visualization menu.
+  const visualizations = $derived(
+    (Object.keys(plotRegistry) as PlotType[])
+      .filter(id => engine.hasCapabilities(plotRegistry[id].requireCapabilities))
+      .map(id => ({
+        id,
+        label: plotRegistry[id].name,
+        group: plotRegistry[id].group,
+      }))
   )
+
+  // Adding selects the new plot; on desktop that also opens its pane.
+  function handleAddVisualization(vizType: PlotType) {
+    const newId = generateUniqueId()
+    if (workspace.addGridItem(vizType, 'rail', newId)) {
+      grid.selectOnly(newId)
+      if (!responsive.isMobile) {
+        grid.openPane(newId)
+      }
+    }
+  }
 
   const undoLabel: string | null = $derived(workspace.lastUndoLabel)
   const redoLabel: string | null = $derived(workspace.lastRedoLabel)
@@ -87,7 +94,7 @@
   }
 
   function handleDeselect() {
-    grid.setSelectedItem(null)
+    grid.clearSelection()
   }
 
   const workspaceRailItems = $derived.by(() =>
@@ -98,14 +105,11 @@
       canRedo,
       isProcessing,
       isValidData,
-      visualizations: filteredVisualizations,
+      visualizations,
       onUndo: handleUndo,
       onRedo: handleRedo,
       onResetLayout: handleResetLayout,
-      onAddVisualization: id =>
-        onAddVisualization
-          ? onAddVisualization(id)
-          : workspace.addGridItem(id, 'toolbar'),
+      onAddVisualization: handleAddVisualization,
     })
   )
 

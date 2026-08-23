@@ -20,85 +20,30 @@ describe('CSV Segmented FromTo Deserializer - Single data', () => {
   const csvRows = csvMockDataOne.split('\n')
   const header = csvRows[0].split(',')
   const delim = ','
-  test('Constructor', () => {
-    const sut = new CsvSegmentedFromToRowParser(header, delim)
-    expect(sut).toBeDefined()
-    expect(sut.cAoi).toBe(4)
-    expect(sut.cParticipant).toBe(2)
-    expect(sut.cStimulus).toBe(3)
-    expect(sut.cFrom).toBe(0)
-    expect(sut.cTo).toBe(1)
-  })
 
-  test('Process first row', () => {
-    const sut = new CsvSegmentedFromToRowParser(header, delim)
-    const { outputs, processRow } = createAdapterHarness(sut)
-    processRow(csvRows[1])
-    const result = outputs[0]
-    expect(result).toBeDefined()
-    expect(result.aoi).toEqual(['Region_1'])
-    expect(result.categoryId).toEqual(0)
-    expect(result.end).toEqual(1)
-    expect(result.participant).toEqual('Participant_1')
-    expect(result.stimulus).toEqual('Map_A')
-    expect(result.start).toEqual(0)
-  })
-
-  test('Process second row', () => {
-    const sut = new CsvSegmentedFromToRowParser(header, delim)
-    const { outputs, processRow } = createAdapterHarness(sut)
-    processRow(csvRows[2])
-    const result = outputs[0]
-    expect(result).toBeDefined()
-    expect(result.aoi).toEqual(['Region_1'])
-    expect(result.categoryId).toEqual(0)
-    expect(result.end).toEqual(2)
-    expect(result.participant).toEqual('Participant_1')
-    expect(result.stimulus).toEqual('Map_A')
-    expect(result.start).toEqual(1)
-  })
-
-  test('Process third row', () => {
-    const sut = new CsvSegmentedFromToRowParser(header, delim)
-    const { outputs, processRow } = createAdapterHarness(sut)
-    processRow(csvRows[3])
-    const result = outputs[0]
-    expect(result).toBeDefined()
-    expect(result.aoi).toEqual(['Region_1'])
-    expect(result.categoryId).toEqual(0)
-    expect(result.end).toEqual(5)
-    expect(result.participant).toEqual('Participant_2')
-    expect(result.stimulus).toEqual('Map_B')
-    expect(result.start).toEqual(0)
-  })
-
-  test('Process fourth row', () => {
-    const sut = new CsvSegmentedFromToRowParser(header, delim)
-    const { outputs, processRow } = createAdapterHarness(sut)
-    processRow(csvRows[4])
-    const result = outputs[0]
-    expect(result).toBeDefined()
-    expect(result.aoi).toEqual(['Region_1'])
-    expect(result.categoryId).toEqual(0)
-    expect(result.end).toEqual(6)
-    expect(result.participant).toEqual('Participant_2')
-    expect(result.stimulus).toEqual('Map_A')
-    expect(result.start).toEqual(5)
-  })
-
-  test('Process fifth row (multiple AOIs)', () => {
-    const sut = new CsvSegmentedFromToRowParser(header, delim)
-    const { outputs, processRow } = createAdapterHarness(sut)
-    processRow(csvRows[5])
-    const result = outputs[0]
-    expect(result).toBeDefined()
-    expect(result.aoi).toEqual(['Region_1', 'Region_2'])
-    expect(result.categoryId).toEqual(0)
-    expect(result.end).toEqual(7)
-    expect(result.participant).toEqual('Participant_2')
-    expect(result.stimulus).toEqual('Map_A')
-    expect(result.start).toEqual(6)
-  })
+  test.each([
+    // [rowIndex, aoi, start, end, participant, stimulus]
+    [1, ['Region_1'], 0, 1, 'Participant_1', 'Map_A'],
+    [2, ['Region_1'], 1, 2, 'Participant_1', 'Map_A'],
+    [3, ['Region_1'], 0, 5, 'Participant_2', 'Map_B'],
+    [4, ['Region_1'], 5, 6, 'Participant_2', 'Map_A'],
+    [5, ['Region_1', 'Region_2'], 6, 7, 'Participant_2', 'Map_A'],
+  ])(
+    'Process row %i as one segment',
+    (rowIndex, aoi, start, end, participant, stimulus) => {
+      const sut = new CsvSegmentedFromToRowParser(header, delim)
+      const { outputs, processRow } = createAdapterHarness(sut)
+      processRow(csvRows[rowIndex])
+      expect(outputs[0]).toEqual({
+        aoi,
+        categoryId: 0,
+        start,
+        end,
+        participant,
+        stimulus,
+      })
+    }
+  )
 
   test('Finalize', () => {
     const sut = new CsvSegmentedFromToRowParser(header, delim)

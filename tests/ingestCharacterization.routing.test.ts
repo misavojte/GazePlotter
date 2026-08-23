@@ -8,8 +8,9 @@
  *     to the worker; the first-file-wins JSON rule became the explicit
  *     workspace-precedence policy inside IngestJob (pinned at the worker
  *     protocol level in ingestCharacterization.protocol.test.ts),
- *   - event-only uploads (any format, CSV included) fail fast: event files
- *     annotate eye-tracking data and have no standalone visualisation,
+ *   - event-only CSV uploads build a standalone event-only dataset on the
+ *     main thread (never via the worker); event-only XML/JSON uploads fail
+ *     fast, since those map onto existing stimuli via the mapping modal,
  *   - a worker 'done' IngestResult envelope becomes a version-4 ParsedData
  *     envelope.
  *
@@ -19,14 +20,11 @@
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { IngestService } from '$lib/data/ingest/service.svelte'
-
-type PostedMessage = { type: string; data?: unknown }
-
-function createFileList(files: unknown[]): FileList {
-  return Object.assign(files, {
-    item: (index: number) => files[index] ?? null,
-  }) as unknown as FileList
-}
+import {
+  createFileList,
+  createIngestDeps,
+  stubWorkerGlobals,
+} from './helpers/ingestServiceHarness'
 
 /** Minimal File stand-in covering every member the service touches. */
 function fakeFile(name: string, content: string) {
@@ -67,50 +65,10 @@ class FakeFileReader {
 }
 
 function loadHarness() {
-  const posted: PostedMessage[] = []
-  const workerInstances: FakeWorker[] = []
-
-  class FakeWorker {
-    onmessage: ((event: { data: unknown }) => void) | null = null
-    onerror: ((event: unknown) => void) | null = null
-    onmessageerror: ((event: unknown) => void) | null = null
-    postMessage = vi.fn((message: PostedMessage) => {
-      posted.push(message)
-    })
-    terminate = vi.fn()
-
-    constructor(_url: URL, _options: { type: string }) {
-      workerInstances.push(this)
-    }
-  }
-
-  vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
+  const { posted, workerInstances } = stubWorkerGlobals()
   vi.stubGlobal('FileReader', FakeFileReader as unknown as typeof FileReader)
-  vi.stubGlobal('navigator', { userAgent: 'vitest' })
 
-  const report = vi.fn((input: { userMessage: string; cause: unknown }) => ({
-    id: 1,
-    createdAt: '2026-06-10T00:00:00.000Z',
-    origin: 'ingest',
-    severity: 'fatal-load',
-    userMessage: input.userMessage,
-    debugMessage:
-      input.cause instanceof Error ? input.cause.message : String(input.cause),
-    stack: undefined,
-  }))
-
-  const deps = {
-    engine: { loadDataset: vi.fn(), metadata: null },
-    errorService: { clearAll: vi.fn(), clearFatalLoad: vi.fn(), report },
-    grid: { reset: vi.fn(), clearSelection: vi.fn() },
-    modalState: { open: vi.fn(), close: vi.fn() },
-    toastState: {
-      addInfo: vi.fn(),
-      addSuccess: vi.fn(),
-      addWarning: vi.fn(),
-    },
-    resetWorkspaceHistory: vi.fn(),
-  }
+  const { deps, report } = createIngestDeps()
 
   return {
     service: new IngestService(deps as never),
@@ -193,28 +151,39 @@ describe('IngestService routing', () => {
     expect(report).toHaveBeenCalledWith(
       expect.objectContaining({
         userMessage:
-          'Only event files were uploaded. Event files annotate eye-tracking data and must be uploaded together with it.',
+          'Only XML/JSON event files were uploaded. These annotate eye-tracking data and must be uploaded together with it. Standalone event uploads need CSV event files.',
       })
     )
     expect(service.status).toBe('error')
   })
 
-  it('event-only CSV upload fails fast (no standalone event-only dataset)', async () => {
-    const { service, report, deps, posted } = loadHarness()
+  it('event-only CSV upload builds a standalone event-only dataset on the main thread', async () => {
+    const { service, deps, posted } = loadHarness()
     const csv = fakeFile('events.csv', eventCsv)
 
     const result = await service.loadFiles(createFileList([csv]))
 
-    expect(result).toBe(false)
+    expect(result).toBe(true)
     expect(posted).toEqual([]) // never went near the worker
-    expect(deps.engine.loadDataset).not.toHaveBeenCalled() // no dataset built
-    expect(report).toHaveBeenCalledWith(
-      expect.objectContaining({
-        userMessage:
-          'Only event files were uploaded. Event files annotate eye-tracking data and must be uploaded together with it.',
-      })
-    )
-    expect(service.status).toBe('error')
+    expect(deps.engine.loadDataset).toHaveBeenCalledTimes(1)
+    const data = deps.engine.loadDataset.mock.calls[0][0]
+    // Gaze analysis hides off `segmented: false`; events carry the dataset.
+    expect(data.capabilities).toEqual({
+      segmented: false,
+      spatial: false,
+      event: true,
+    })
+    expect(data.stimuli.data).toEqual([['Stim1']])
+    expect(data.participants.data).toEqual([['P1'], ['P2']])
+    expect(data.eventData.data[0].map((d: string[]) => d[0])).toEqual(['Blink'])
+    // Starter metric library seeded on the main thread, like handleDone.
+    expect(data.metricInstances.length).toBeGreaterThan(0)
+    // The default grid is the one plot event-only data can feed.
+    expect(deps.grid.reset).toHaveBeenCalledWith([
+      expect.objectContaining({ type: 'eventComparison' }),
+    ])
+    expect(deps.toastState.addSuccess).toHaveBeenCalled()
+    expect(service.status).toBe('ready')
   })
 
   it("a worker 'done' message becomes a version-4 success envelope", async () => {

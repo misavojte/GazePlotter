@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Select } from '$lib/shared/components'
-  import Radio from '$lib/shared/components/Radio.svelte'
+  import InputRadio from '$lib/shared/components/InputRadio.svelte'
   import { ModalButtons, Step, StepList, HelpText } from '$lib/modals'
   import { getStimuliOptions } from '$lib/plots/shared'
   import { getGazePlotterSession } from '$lib/session'
@@ -82,7 +82,7 @@
       done={true}
       last
     >
-      <Radio
+      <InputRadio
         ariaLabel="Scanpath string form"
         options={STRING_FORM_OPTIONS}
         bind:value={stringForm}

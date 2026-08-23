@@ -17,20 +17,24 @@
  * value affects strip rendering only, never the transform.
  */
 import { PlotSyncRegistry } from '$lib/plots/shared/PlotSyncRegistry.svelte'
+import { sessionScoped } from '$lib/session/context'
 
 interface TimelineEntry {
   w: number
   dataMax: number
 }
 
-class AoiStreamTimelineSync extends PlotSyncRegistry<TimelineEntry> {
+export class AoiStreamTimelineSync extends PlotSyncRegistry<TimelineEntry> {
   /** Largest data max across participating plots of the same width. */
   getSyncedMax(w: number): number {
     return this.maxWhere(e => e.w === w)
   }
 }
 
-export const aoiStreamTimelineSync = new AoiStreamTimelineSync()
+/** This session's registry; resolve at component init. */
+export const aoiStreamTimelineSync = sessionScoped(
+  () => new AoiStreamTimelineSync()
+)
 
 interface RidgelineEntry {
   h: number
@@ -40,7 +44,7 @@ interface RidgelineEntry {
   dataMax: number
 }
 
-class AoiStreamRidgelineSync extends PlotSyncRegistry<RidgelineEntry> {
+export class AoiStreamRidgelineSync extends PlotSyncRegistry<RidgelineEntry> {
   /** Most constraining mTop across ridgelines sharing (h, scale, seriesCount). */
   getSyncedMTop(h: number, scale: number, seriesCount: number): number {
     return this.maxWhere(
@@ -52,4 +56,7 @@ class AoiStreamRidgelineSync extends PlotSyncRegistry<RidgelineEntry> {
   }
 }
 
-export const aoiStreamRidgelineSync = new AoiStreamRidgelineSync()
+/** This session's registry; resolve at component init. */
+export const aoiStreamRidgelineSync = sessionScoped(
+  () => new AoiStreamRidgelineSync()
+)

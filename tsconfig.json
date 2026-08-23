@@ -9,6 +9,8 @@
 		"skipLibCheck": true,
 		"sourceMap": true,
 		"strict": true,
+		"noImplicitOverride": true,
+		"noImplicitReturns": true,
 		"allowArbitraryExtensions": true,
 		"module": "ESNext",
 		"moduleResolution": "bundler",

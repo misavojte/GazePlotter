@@ -3,6 +3,7 @@
     usePlot,
     categoryTicks,
     canvasBlockSelect,
+    createScratchLayer,
     packRgb,
     drawMatrixCrosshair,
     drawMatrixParticipantStrips,
@@ -145,7 +146,6 @@
   // track-only hit with STABLE identity keeps the cursor published and repaints
   // nothing. `row: -1` marks it, so the local crosshair skips it.
   const MASKED_HIT: FrameHit<{ row: number; col: number }> = {
-    tooltipId: 'recurrence-tooltip',
     content: [],
     anchorX: 0,
     anchorY: 0,
@@ -222,7 +222,6 @@
       }
       const cellSize = frame.width / N
       return {
-        tooltipId: 'recurrence-tooltip',
         content,
         anchorX: frame.x + (cell.col + 1) * cellSize,
         anchorY: frame.y + (N - 1 - cell.row) * cellSize + cellSize / 2,
@@ -391,22 +390,13 @@
 
     if (stale) {
       if (!texU32 || texRes !== res) {
-        if (typeof OffscreenCanvas !== 'undefined') {
-          texCanvas = new OffscreenCanvas(res, res)
-        } else if (typeof document !== 'undefined') {
-          texCanvas = Object.assign(document.createElement('canvas'), {
-            width: res,
-            height: res,
-          })
-        } else {
-          return // canvas-less environment (tests)
-        }
-        texCtx = texCanvas.getContext('2d') as
-          | OffscreenCanvasRenderingContext2D
-          | CanvasRenderingContext2D
-          | null
-        texImg = texCtx ? texCtx.createImageData(res, res) : null
-        texU32 = texImg ? new Uint32Array(texImg.data.buffer) : null
+        // null = unsafe size or canvas-less environment (tests): skip the texture
+        const layer = createScratchLayer(res, res)
+        if (!layer) return
+        texCanvas = layer.canvas
+        texCtx = layer.ctx
+        texImg = texCtx.createImageData(res, res)
+        texU32 = new Uint32Array(texImg.data.buffer)
         texAlpha = new Uint8Array(res * res)
         texRes = res
       }

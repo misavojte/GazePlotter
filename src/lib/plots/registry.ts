@@ -16,6 +16,7 @@ import { evolvingMetricsDefinition } from './evolving-metrics'
 import { metricCorrelationDefinition } from './metric-correlation'
 import { metricMatrixDefinition } from './metric-matrix'
 import { eyeMovementComparisonDefinition } from './eye-movement-comparison'
+import { eventComparisonDefinition } from './event-comparison'
 
 export const plotRegistry = {
   scarf: scarfPlotDefinition,
@@ -29,6 +30,7 @@ export const plotRegistry = {
   metricCorrelation: metricCorrelationDefinition,
   metricMatrix: metricMatrixDefinition,
   eyeMovementComparison: eyeMovementComparisonDefinition,
+  eventComparison: eventComparisonDefinition,
 } as const
 
 /**

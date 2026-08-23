@@ -7,13 +7,13 @@ import { createRootCommand } from './utils'
 import { getCommandLabel } from './labels'
 import { UndoRedoStateStore } from './undoRedoState.svelte'
 import type { WorkspaceCommand, WorkspaceCommandChain } from './types'
-import { generateUniqueId } from '$lib/shared/utils/idUtils'
+import { generateUniqueId } from '$lib/shared/uniqueId'
 // From the owning module, not the `$lib/workspace` barrel, which also
 // re-exports this file's own consumers.
 import type {
   AllPlotSettings,
-  GridItemMap,
   GridItemSnapshot,
+  PlotType,
 } from '../grid/types'
 
 function isWorkspaceHistoryError(error: unknown): boolean {
@@ -156,10 +156,10 @@ export class WorkspaceCommandBus {
     })
   }
 
-  addGridItem(vizType: string, source: string, itemId?: number): boolean {
+  addGridItem(vizType: PlotType, source: string, itemId?: number): boolean {
     return this.apply({
       type: 'addGridItem',
-      vizType: vizType as keyof GridItemMap,
+      vizType,
       source,
       itemId: itemId ?? generateUniqueId(),
     })
@@ -170,11 +170,7 @@ export class WorkspaceCommandBus {
     settings: Partial<AllPlotSettings>,
     source: string
   ): boolean {
-    return this.apply({
-      type: 'updateSettings',
-      updates: [{ itemId, settings }],
-      source,
-    })
+    return this.updateItemsSettings([itemId], settings, source)
   }
 
   /**

@@ -5,37 +5,28 @@
  */
 export function sanitizeFileName(name: string): string {
   const cleaned = name
-    // eslint-disable-next-line no-control-regex
     .replace(/[/\\:*?"<>|\u0000-\u001f]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
   return cleaned.length > 0 ? cleaned : 'untitled'
 }
 
-/**
- * Trigger a browser download of a blob or string content.
- */
-export function triggerDownload(
+/** The `saveFile` embedding option. `fileName` arrives with the extension
+ *  applied; `extension` is separate for save-dialog filters. */
+export type SaveFile = (
   content: string | Blob,
   fileName: string,
   extension: string
-): void {
+) => void
+
+/**
+ * Web default for `saveFile`: an anchor + blob browser download.
+ */
+export const triggerDownload: SaveFile = (content, fileName, extension) => {
   const finalFileName = fileName.endsWith(extension)
     ? fileName
     : fileName + extension
 
-  // If content is already a blob URL string, just use it
-  if (typeof content === 'string' && content.startsWith('blob:')) {
-    const link = document.createElement('a')
-    link.href = content
-    link.download = finalFileName
-    document.body.appendChild(link)
-    link.click()
-    link.remove()
-    return
-  }
-
-  // Create a blob from string or use existing blob
   const blob =
     typeof content === 'string'
       ? new Blob([content], { type: 'text/plain' })

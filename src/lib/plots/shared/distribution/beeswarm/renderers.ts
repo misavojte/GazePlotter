@@ -2,7 +2,7 @@ import {
   type AdaptiveTimeline,
   getTimelinePositionRatio,
 } from '$lib/plots/shared'
-import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
+import { alignToPixelCenter, strokeParallelLines } from '$lib/plots/shared/canvasUtils'
 import type { CategoryDistribution, StatisticalOverlayType } from '../types'
 
 // --- Layout types (this figure's resolved geometry) ---
@@ -260,23 +260,17 @@ export function drawCategoryDelimiters(
   ctx.strokeStyle = DELIMITER_COLOR
   ctx.lineWidth = 1
 
-  for (let i = 0; i < layout.items.length - 1; i++) {
-    const current = layout.items[i]
-    const next = layout.items[i + 1]
-    const boundary = (current.categoryCenter + current.categoryWidth / 2 +
-      next.categoryCenter - next.categoryWidth / 2) / 2
-    const pos = alignToPixelCenter(boundary)
-
-    ctx.beginPath()
-    if (isVertical) {
-      ctx.moveTo(pos, layout.plotTop)
-      ctx.lineTo(pos, layout.plotTop + layout.plotHeight)
-    } else {
-      ctx.moveTo(layout.plotLeft, pos)
-      ctx.lineTo(layout.plotLeft + layout.plotWidth, pos)
-    }
-    ctx.stroke()
-  }
+  strokeParallelLines(
+    ctx, !isVertical, layout.items.length - 1,
+    i => {
+      const current = layout.items[i]
+      const next = layout.items[i + 1]
+      return alignToPixelCenter((current.categoryCenter + current.categoryWidth / 2 +
+        next.categoryCenter - next.categoryWidth / 2) / 2)
+    },
+    isVertical ? layout.plotTop : layout.plotLeft,
+    isVertical ? layout.plotTop + layout.plotHeight : layout.plotLeft + layout.plotWidth
+  )
 }
 
 // --- Proportional bars (primary layer for proportion metrics) ---

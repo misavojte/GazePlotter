@@ -100,21 +100,9 @@ describe('timeRangeQualifier', () => {
 })
 
 describe('composed plot labels (the unified grammar)', () => {
-  it('transition-matrix colorbar: quantity / unit · No-AOI excluded · time range', () => {
-    const primary = formatQuantity('Transition probability', '%')
-    expect(withQualifiers(primary, true && 'No-AOI excluded', timeRangeQualifier(100, 5000)))
-      .toBe('Transition probability / % · No-AOI excluded · t ∈ [100, 5000] ms')
-  })
-  it('bar value axis: instance / unit · statistic (no time range when unbounded)', () => {
-    const primary = formatInstanceLabel(buildInstance('Fixation count', 'fixationCount'))
-    expect(withQualifiers(primary, 'mean ± 95% CI', timeRangeQualifier(0, 0)))
-      .toBe('Fixation count / count · mean ± 95% CI')
-  })
-  it('time-series x-axis: bare time quantity · window (the only "/" is the unit)', () => {
-    // The window/step pair is comma-separated; "/" appears once, as the ms unit.
-    expect(withQualifiers('Elapsed time / ms', '500 ms window, 100 ms step'))
-      .toBe('Elapsed time / ms · 500 ms window, 100 ms step')
-  })
+  // Colorbar, bar-axis, and window compositions are pinned through the real
+  // buildMetricLabel entry point in metricInstanceLabel.test.ts. Kept here:
+  // the order-index composition, which no buildMetricLabel path produces.
   it('scarf ordinal x-axis: order-index range qualifier', () => {
     expect(withQualifiers('Order index', rangeQualifier('i', 5, 20)))
       .toBe('Order index · i ∈ [5, 20]')

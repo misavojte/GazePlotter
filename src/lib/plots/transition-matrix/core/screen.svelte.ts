@@ -12,8 +12,10 @@ import type { TransitionMatrixPlotSettings } from '../types'
 export const transitionMatrixScreen: PlotScreenFactory<
   TransitionMatrixPlotSettings
 > = ctx => {
+  const colorSync = transitionMatrixColorSync()
+
   usePlotSync(
-    transitionMatrixColorSync,
+    colorSync,
     () => ctx.item.id,
     () => {
       const meta = (ctx.view()?.meta ?? null) as TransitionViewMeta | null
@@ -32,7 +34,7 @@ export const transitionMatrixScreen: PlotScreenFactory<
     props: view => {
       const meta = view.meta as TransitionViewMeta
       if (!meta.isDefaultColorRange) return {}
-      const syncedMax = transitionMatrixColorSync.getSyncedMax(
+      const syncedMax = colorSync.getSyncedMax(
         meta.syncGroupKey,
         meta.colorScaleKey,
         ctx.item.w,

@@ -1,14 +1,33 @@
-import { getContext, hasContext, setContext } from 'svelte'
 import { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import { ExportService } from '$lib/data/export'
+import { ExportService, triggerDownload, type SaveFile } from '$lib/data/export'
 import { ErrorService } from '$lib/errors'
-import { IngestService } from '$lib/data/ingest'
+import {
+  IngestService,
+  openFilesViaBrowser,
+  type OpenFiles,
+} from '$lib/data/ingest'
 import { ModalState } from '$lib/modals/modalState.svelte'
 import { ToastState } from '$lib/toaster/toastState.svelte'
 import { GridState } from '$lib/workspace/grid/gridState.svelte'
 import { WorkspaceCommandBus } from '$lib/workspace/commands/bus'
+import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace/grid/const'
+import type { GridItemSnapshot } from '$lib/workspace/grid/types'
+import type { GazePlotterColors } from '$lib/DesignTokens.svelte'
 
-const GAZEPLOTTER_SESSION_CONTEXT = Symbol.for('gazeplotter-session')
+export type { SaveFile, OpenFiles, GazePlotterColors }
+
+/** The host embedding contract: one optional field per host need, every
+ *  default preserves the web behavior. See PLANDESKTOP.md. */
+export type GazePlotterOptions = {
+  /** Layout for datasets that carry none (fresh parses, empty workspace). */
+  defaultLayout?: GridItemSnapshot[]
+  /** Delivers one export file. Default: anchor + blob browser download. */
+  saveFile?: SaveFile
+  /** What the upload affordances open. Default: browser file picker. */
+  openFiles?: OpenFiles
+  /** Palette overrides; applied reactively, unlike the other fields. */
+  colors?: GazePlotterColors
+}
 
 export type GazePlotterSession = {
   engine: DataEngine
@@ -21,7 +40,9 @@ export type GazePlotterSession = {
   toastState: ToastState
 }
 
-export function createGazePlotterSession(): GazePlotterSession {
+export function createGazePlotterSession(
+  options: GazePlotterOptions = {}
+): GazePlotterSession {
   const engine = new DataEngine()
   const grid = new GridState()
   const modalState = new ModalState()
@@ -40,6 +61,8 @@ export function createGazePlotterSession(): GazePlotterSession {
     modalState,
     toastState,
     resetWorkspaceHistory: () => workspace.clearHistory(),
+    defaultLayout: options.defaultLayout ?? DEFAULT_GRID_STATE_DATA,
+    openFiles: options.openFiles ?? openFilesViaBrowser,
   })
 
   return {
@@ -51,6 +74,7 @@ export function createGazePlotterSession(): GazePlotterSession {
       grid,
       ingest,
       toastState,
+      saveFile: options.saveFile ?? triggerDownload,
     }),
     ingest,
     grid,
@@ -58,26 +82,5 @@ export function createGazePlotterSession(): GazePlotterSession {
     modalState,
     toastState,
   }
-}
-
-export function setGazePlotterSessionContext(
-  session: GazePlotterSession
-): GazePlotterSession {
-  setContext(GAZEPLOTTER_SESSION_CONTEXT, session)
-  return session
-}
-
-export function getGazePlotterSession(): GazePlotterSession {
-  try {
-    if (hasContext(GAZEPLOTTER_SESSION_CONTEXT)) {
-      return getContext<GazePlotterSession>(GAZEPLOTTER_SESSION_CONTEXT)
-    }
-  } catch {
-    // Context access is only available during component initialization.
-  }
-
-  throw new Error(
-    'GazePlotter session is not available. Access it from within a GazePlotter tree or pass dependencies explicitly.'
-  )
 }
 

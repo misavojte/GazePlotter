@@ -22,11 +22,11 @@ defineMetric({
   params: [] as const,
   scanSource: 'categories',
   accumulation: 'stateful',
-  init: ({ categorySlotCount }) => new Float64Array(categorySlotCount),
-  onFixation: (acc, { frame, categorySlot }) => {
+  init: ({ axisSlotCount }) => new Float64Array(axisSlotCount),
+  onFixation: (acc, { frame, axisSlot }) => {
     // In-window overlap so windowed shares compose against the window size.
-    if (categorySlot < 0) return
-    acc[categorySlot] += frame.duration
+    if (axisSlot < 0) return
+    acc[axisSlot] += frame.duration
   },
   finalize: (acc, _slots, { scopeDurationMs }) => percentShare(acc, scopeDurationMs),
 })

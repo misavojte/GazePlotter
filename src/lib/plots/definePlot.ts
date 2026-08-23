@@ -39,7 +39,6 @@ export type PlotItemContract<TType extends string, TSettings> = {
  * container and the export modal both render from it, so they can never drift.
  */
 export type PlotView = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   component: Component<any>
   props: Record<string, unknown>
   /**

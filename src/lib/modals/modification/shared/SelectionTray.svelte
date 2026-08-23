@@ -13,8 +13,12 @@
    *    a transient set exists opens a menu: Edit / Add n / Remove n.
    */
   import Plus from 'lucide-svelte/icons/plus'
-  import { contextMenuAction, type MenuItem } from '$lib/context-menu'
-  import { tooltipAction } from '$lib/tooltip'
+  import { useContextMenuAction, type MenuItem } from '$lib/context-menu'
+
+  const contextMenuAction = useContextMenuAction()
+  import { useTooltipAction } from '$lib/tooltip'
+
+  const tooltipAction = useTooltipAction()
   import type { SelectionSessionApi } from './selectionSession.svelte'
 
   interface Chip {
@@ -103,7 +107,9 @@
   onpointerdowncapture={session.onOutsideDown}
 />
 
-<div class="tray">
+<!-- data-selection-keep: pointerdowns here must not end the editing episode
+     (selectionSession.onOutsideDown). -->
+<div class="tray" data-selection-keep>
   <div class="panel">
   <div class="status">
     {#if activeChip}

@@ -4,6 +4,7 @@ import type {
   RemoveGridItemCommand,
   UpdateLayoutCommand,
 } from '$lib/workspace/commands'
+import { createCommandSourcePlotPattern } from '$lib/workspace/commands/utils'
 import type { GridConfig } from './types'
 
 // Narrowed by COMMAND, not by method name: `apply` accepts the whole union, so
@@ -38,7 +39,7 @@ function findGridItem(
 }
 
 export function getGridItemCommandSource(item: GridItemIdentity): string {
-  return `${item.type}.${item.id}.workspace`
+  return createCommandSourcePlotPattern(item, 'workspace')
 }
 
 export function getGridItemMinimumSize(

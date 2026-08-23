@@ -20,7 +20,7 @@
     type EntitySelection,
   } from '$lib/data/types'
 
-  interface Props {
+  export interface Props {
     source: string
   }
 

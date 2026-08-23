@@ -101,54 +101,41 @@
   </div>
 </div>
 
-{#if minPicker.isOpen}
-  <div
-    use:minPicker.portal
-    class="color-popup"
-    style:top="{minPicker.position.top}px"
-    style:left="{minPicker.position.left}px"
-    bind:this={minPicker.popupElement}
-    in:fade={{ duration: 100 }}
-  >
-    <ColorPicker value={colorMin} oninput={handleMinChange} />
-  </div>
-{/if}
-
-{#if middlePicker.isOpen}
-  <div
-    use:middlePicker.portal
-    class="color-popup"
-    style:top="{middlePicker.position.top}px"
-    style:left="{middlePicker.position.left}px"
-    bind:this={middlePicker.popupElement}
-    in:fade={{ duration: 100 }}
-  >
-    <ColorPicker value={colorMiddle} oninput={handleMiddleChange} />
-    <button
-      type="button"
-      class="auto-btn"
-      onclick={() => {
-        middleColorManuallySet = false
-        colorMiddle = interpolateColor(colorMin, colorMax, 0.5)
-      }}
+{#snippet popup(
+  picker: ColorPickerState,
+  value: string,
+  onchange: (color: string) => void,
+  isMiddle = false
+)}
+  {#if picker.isOpen}
+    <div
+      use:picker.portal
+      class="color-popup"
+      style:top="{picker.position.top}px"
+      style:left="{picker.position.left}px"
+      bind:this={picker.popupElement}
+      in:fade={{ duration: 100 }}
     >
-      Auto-calculate
-    </button>
-  </div>
-{/if}
+      <ColorPicker {value} oninput={onchange} />
+      {#if isMiddle}
+        <button
+          type="button"
+          class="auto-btn"
+          onclick={() => {
+            middleColorManuallySet = false
+            colorMiddle = interpolateColor(colorMin, colorMax, 0.5)
+          }}
+        >
+          Auto-calculate
+        </button>
+      {/if}
+    </div>
+  {/if}
+{/snippet}
 
-{#if maxPicker.isOpen}
-  <div
-    use:maxPicker.portal
-    class="color-popup"
-    style:top="{maxPicker.position.top}px"
-    style:left="{maxPicker.position.left}px"
-    bind:this={maxPicker.popupElement}
-    in:fade={{ duration: 100 }}
-  >
-    <ColorPicker value={colorMax} oninput={handleMaxChange} />
-  </div>
-{/if}
+{@render popup(minPicker, colorMin, handleMinChange)}
+{@render popup(middlePicker, colorMiddle, handleMiddleChange, true)}
+{@render popup(maxPicker, colorMax, handleMaxChange)}
 
 <style>
   .preview-container {

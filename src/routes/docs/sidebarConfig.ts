@@ -173,6 +173,12 @@ export const SIDEBAR: readonly SidebarItem[] = [
         seoTitle: 'Eye-movement Type Metrics & Saccadic Latency',
         description: 'Measure fixations, saccades, and blinks as first-class types: counts, time budgets, segment durations, and time to first saccade (saccadic latency).'
       },
+      {
+        name: 'Event Metrics',
+        href: '/docs/metrics/events',
+        seoTitle: 'Event Channel Metrics for Eye Tracking',
+        description: 'Measure uploaded event channels: occurrence counts, active time, time share, occurrence durations, and time to first event, per channel and participant.'
+      },
     ],
   },
   {
@@ -201,6 +207,12 @@ export const SIDEBAR: readonly SidebarItem[] = [
         href: '/docs/visualizations/eye-movement-comparison',
         seoTitle: 'Compare Fixations, Saccades & Blinks',
         description: 'Compare eye-movement types side by side: per-type counts, time budgets, segment durations, and saccadic latency, with distribution overlays across participants.'
+      },
+      {
+        name: 'Event Comparison',
+        href: '/docs/visualizations/event-comparison',
+        seoTitle: 'Compare Event Channels Across Participants',
+        description: 'Compare event channels side by side: occurrence counts, active time, time shares, durations, and onset latencies, with distribution overlays across participants.'
       },
       {
         name: 'Transition Matrix',
@@ -326,6 +338,12 @@ export const SIDEBAR: readonly SidebarItem[] = [
         name: 'Download GazePlotter',
         href: '/docs/advanced/download-gazeplotter',
         description: 'Install GazePlotter locally as a Progressive Web App (PWA) on Windows, macOS, Linux, or mobile for secure, offline analysis.'
+      },
+      {
+        name: 'Embedding GazePlotter',
+        href: '/docs/advanced/embedding',
+        seoTitle: 'Embed Eye-Tracking Plots in Your App',
+        description: 'Embed the GazePlotter workspace as a Svelte component in your own application: Tauri or Electron desktop shells, web apps, or eye-tracking software. Covers data loading, save and open hooks, layout, and theming.'
       },
     ],
   },

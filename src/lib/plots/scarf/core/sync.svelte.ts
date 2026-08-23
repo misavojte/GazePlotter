@@ -17,6 +17,7 @@
  */
 
 import { PlotSyncRegistry } from '$lib/plots/shared/PlotSyncRegistry.svelte'
+import { sessionScoped } from '$lib/session/context'
 
 export type ScarfSyncTimelineMode = 'absolute' | 'ordinal'
 
@@ -26,11 +27,12 @@ interface SyncEntry {
   dataMax: number
 }
 
-class ScarfTimelineSync extends PlotSyncRegistry<SyncEntry> {
+export class ScarfTimelineSync extends PlotSyncRegistry<SyncEntry> {
   /** Largest dataMax across all plots sharing (timeline, w). */
   getSyncedMax(timeline: ScarfSyncTimelineMode, w: number): number {
     return this.maxWhere(e => e.timeline === timeline && e.w === w)
   }
 }
 
-export const scarfTimelineSync = new ScarfTimelineSync()
+/** This session's registry; resolve at component init. */
+export const scarfTimelineSync = sessionScoped(() => new ScarfTimelineSync())

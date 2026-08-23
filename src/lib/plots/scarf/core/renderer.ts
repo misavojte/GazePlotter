@@ -6,7 +6,11 @@ import {
   calculateTickStep,
   drawParticipantIndexAxis,
 } from '$lib/plots/shared'
-import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
+import {
+  alignToPixelCenter,
+  createScratchLayer,
+  strokeParallelLines,
+} from '$lib/plots/shared/canvasUtils'
 import { desaturateToWhite, convertToHex, hexToRgb } from '$lib/color'
 import {
   OVERLAY_EVENT_STRIDE,
@@ -31,9 +35,9 @@ export interface ScarfLayoutContext {
   /**
    * The data rect in absolute canvas px, floored. `plotLeft`/`plotWidth` come
    * straight from the harness frame (the left label gutter and right margin are
-   * declared as frame padding). `plotTop` and `participantBarsHeight` are
-   * scarf-owned: the rect is quantized to whole participant rows and centred in
-   * the band the frame resolved, so it is shorter than `frame.height`.
+   * declared as frame padding). Vertically the frame is capped to the row stack
+   * and centred by the resolver; `plotTop` is its top edge and
+   * `participantBarsHeight` the fractional stack the cap was ceiled from.
    */
   plotLeft: number
   plotWidth: number
@@ -116,28 +120,24 @@ export function drawScarfGrid(
 
   if (layout.isCompact) {
     const step = calculateTickStep(data.participants.length)
-    for (let i = 0; i < data.participants.length; i += step) {
-      const y = alignToPixelCenter(
-        i * layout.heightOfBarWrap + layout.heightOfBarWrap / 2 + layout.plotTop
-      )
-      ctx.beginPath()
-      ctx.moveTo(leftX + 0.5, y)
-      ctx.lineTo(leftX - 4.5, y)
-      ctx.stroke()
-    }
+    strokeParallelLines(
+      ctx, true, Math.ceil(data.participants.length / step),
+      i => alignToPixelCenter(
+        i * step * layout.heightOfBarWrap + layout.heightOfBarWrap / 2 + layout.plotTop
+      ),
+      leftX + 0.5, leftX - 4.5
+    )
   } else {
     // Dividers between participant rows (all modes). In combined mode the gaze
     // and the event band are separated by the whitespace seam gap, so gray is
     // used only here, to divide participants.
     ctx.strokeStyle = GRIDLINE_SECONDARY.COLOR
     ctx.lineWidth = GRIDLINE_SECONDARY.WIDTH
-    for (let i = 0; i <= data.participants.length; i++) {
-      const y = alignToPixelCenter(i * layout.heightOfBarWrap + layout.plotTop)
-      ctx.beginPath()
-      ctx.moveTo(leftX + 0.5, y)
-      ctx.lineTo(rightX + 0.5, y)
-      ctx.stroke()
-    }
+    strokeParallelLines(
+      ctx, true, data.participants.length + 1,
+      i => alignToPixelCenter(i * layout.heightOfBarWrap + layout.plotTop),
+      leftX + 0.5, rightX + 0.5
+    )
   }
 }
 
@@ -228,7 +228,7 @@ let _offImg: ImageData | null = null
 
 /** A >=1px gaze rect deferred to the exact (pass-3) draw, collected during the
  *  fused single pass so wide rects still land ON TOP of the composite blit. */
-interface FusedWideRect {
+export interface FusedWideRect {
   x0px: number
   wPx: number
   pIdx: number
@@ -386,7 +386,8 @@ export function compositeGazeBinaryAcc(
         // buildResolvedSlices (same getSegmentAoisUniqueDirect + aoiOrderMap
         // walk this loop used to run per frame — an empty range is the no-AOI
         // fallback). KEEP IN SYNC with drawHighlightMarkersFromBinary +
-        // ScarfPlotFigure.findSegmentAtRowAndTime, which still resolve inline.
+        // core/hitTest.ts findGazeSegmentAt (hover), which still resolve
+        // inline; tests/scarfHoverRenderParity.test.ts pins hover vs composite.
         const slot = resolvedSlotBase[pIndex] + localId
         const s0 = resolvedSliceStart[slot]
         const resolved = resolvedSliceStart[slot + 1] - s0
@@ -568,21 +569,12 @@ function blitCompositeLayer(
   // the reuse check stable so the offscreen isn't reallocated every frame.
   const offH = Math.ceil(rows * pitch) + 2
   if (!_offCanvas || _offCanvas.width !== pWidth || _offCanvas.height !== offH) {
-    if (typeof OffscreenCanvas !== 'undefined') {
-      _offCanvas = new OffscreenCanvas(pWidth, offH)
-    } else if (typeof document !== 'undefined') {
-      _offCanvas = Object.assign(document.createElement('canvas'), {
-        width: pWidth,
-        height: offH,
-      })
-    } else {
-      return // canvas-less environment (tests): nothing to render
-    }
-    _offCtx = _offCanvas.getContext('2d') as
-      | OffscreenCanvasRenderingContext2D
-      | CanvasRenderingContext2D
-      | null
-    _offImg = _offCtx ? _offCtx.createImageData(pWidth, offH) : null
+    // null = unsafe size or canvas-less environment (tests): skip the band
+    const layer = createScratchLayer(pWidth, offH)
+    if (!layer) return
+    _offCanvas = layer.canvas
+    _offCtx = layer.ctx
+    _offImg = _offCtx.createImageData(pWidth, offH)
   }
   if (!_offCtx || !_offImg) return
 

@@ -1,13 +1,15 @@
-import { clearOwnedContextMenu, isOwnedContextMenuState } from './behavior'
 import type { Action } from 'svelte/action'
-import { contextMenuState, updateContextMenu } from './contextMenuState.svelte'
+import {
+  useContextMenu,
+  type ContextMenuState,
+} from './contextMenuState.svelte'
 import {
   getMenuSize,
 } from './layout'
 import {
   computePlacement,
   adjustForViewport,
-  findScrollableParents,
+  attachOutsideDismiss,
   computeZIndex,
 } from '$lib/shared/placement'
 import type { Position, Alignment } from '$lib/shared/placement'
@@ -41,9 +43,16 @@ const resolveInternalState = (
   disabled: options.disabled ?? previous?.disabled ?? false,
 })
 
-export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
-  node,
-  opts = {}
+/** Session-bound action; resolve at init, use as `use:contextMenuAction`. */
+export function useContextMenuAction(): Action<HTMLElement, ContextMenuOptions> {
+  const menu = useContextMenu()
+  return (node, opts) => contextMenuAction(menu, node, opts)
+}
+
+const contextMenuAction = (
+  menu: ContextMenuState,
+  node: HTMLElement,
+  opts: ContextMenuOptions = {}
 ) => {
   let options = { ...opts }
   let state = resolveInternalState(node, null, options)
@@ -51,89 +60,42 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
   const ownerId = Symbol('context-menu-owner')
 
   let ownsMenu = false
-  let hasGlobalListeners = false
-  let lastMouseDownInside = false
-  let scrollableParents: (Window | HTMLElement)[] = []
-  let scrollListeners: Array<{
-    target: Window | HTMLElement
-    handler: (e: Event) => void
-  }> = []
-
-  const onScroll = (e: Event) => {
-    const target = e.target as HTMLElement | null
-    if (!target) return
-
-    // Allow scrolling within the menu itself
-    if (target.closest?.(MENU_SELECTOR)) {
-      return
-    }
-    close()
-  }
-
-  const onPointerDown = (e: PointerEvent) => {
-    const target = e.target as HTMLElement | null
-    if (!target) {
-      lastMouseDownInside = false
-      close()
-      return
-    }
-
-    const insideMenu = target.closest?.(MENU_SELECTOR)
-    const insideAnchor =
-      state.anchor && (state.anchor === target || state.anchor.contains(target))
-
-    const shouldIgnore = target.closest?.('[data-context-menu-ignore]')
-
-    lastMouseDownInside = Boolean(insideMenu || insideAnchor || shouldIgnore)
-
-    // Proactively close on pointerdown if strictly outside.
-    // This is more robust than mousedown/click as it works even if
-    // subsequent events are blocked or modified (e.g. by grid panning).
-    if (!lastMouseDownInside) {
-      close()
-    }
-  }
+  let detachDismiss: (() => void) | null = null
 
   const attachGlobalListeners = () => {
-    if (hasGlobalListeners) return
-    scrollableParents = findScrollableParents(state.anchor)
-    for (const parent of scrollableParents) {
-      const handler = onScroll
-      scrollListeners.push({ target: parent, handler })
-      parent.addEventListener('scroll', handler, true)
-    }
-    document.addEventListener('pointerdown', onPointerDown, true)
-    hasGlobalListeners = true
+    if (detachDismiss) return
+    detachDismiss = attachOutsideDismiss({
+      isInside: target =>
+        Boolean(
+          target.closest?.(MENU_SELECTOR) ||
+            (state.anchor &&
+              (state.anchor === target || state.anchor.contains(target))) ||
+            target.closest?.('[data-context-menu-ignore]')
+        ),
+      onDismiss: close,
+      // Scrolling anywhere but within the menu itself closes it.
+      scroll: {
+        anchor: state.anchor,
+        keepWithin: target => Boolean(target.closest?.(MENU_SELECTOR)),
+      },
+    })
   }
 
   const detachGlobalListeners = () => {
-    if (!hasGlobalListeners) return
-    for (const { target, handler } of scrollListeners) {
-      target.removeEventListener('scroll', handler, true)
-    }
-    scrollListeners = []
-    document.removeEventListener('pointerdown', onPointerDown, true)
-    hasGlobalListeners = false
+    detachDismiss?.()
+    detachDismiss = null
   }
 
   const finalizeClosure = () => {
     if (!ownsMenu) return
     ownsMenu = false
-    // Remove the visual active marker from the anchor when menu closes
-    try {
-      if (state.anchor && state.anchor.classList) {
-        state.anchor.classList.remove('context-menu-anchor-active')
-      }
-    } catch (e) {
-      // defensive: ignore if node removed
-    }
     detachGlobalListeners()
     options.onClose?.()
   }
 
   const close = () => {
     if (!ownsMenu) return
-    clearOwnedContextMenu(ownerId)
+    menu.clearOwned(ownerId)
   }
 
   const openAt = () => {
@@ -164,8 +126,7 @@ export const contextMenuAction: Action<HTMLElement, ContextMenuOptions> = (
       { width: window.innerWidth, height: window.innerHeight }
     )
 
-    updateContextMenu({
-      visible: true,
+    menu.update({
       items: options.items,
       content: options.content,
       x: adjustedPlacement.left,

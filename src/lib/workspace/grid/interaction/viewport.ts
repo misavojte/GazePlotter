@@ -95,48 +95,39 @@ export class GridViewportController {
     this.#element = null
   }
 
+  // Accelerate toward the direction's target speed, tapering near the
+  // top/left origin so the scroll eases to a stop; decay toward 0 when idle.
+  #nextSpeed(direction: -1 | 0 | 1, speed: number, scrollPos: number): number {
+    const maxSpeed = 8
+    const acceleration = 0.08
+    const deceleration = 0.15
+    if (direction === 0) {
+      return Math.abs(speed) > 0.05 ? speed * (1 - deceleration) : 0
+    }
+    let effectiveMaxSpeed = maxSpeed
+    if (direction < 0 && scrollPos < 150) {
+      effectiveMaxSpeed = maxSpeed * (scrollPos / 150)
+    }
+    return speed + (direction * effectiveMaxSpeed - speed) * acceleration
+  }
+
   #step(): void {
     if (!this.#canAccessViewport()) {
       this.stopAutoScroll()
       return
     }
 
-    const maxSpeed = 8
-    const acceleration = 0.08
-    const deceleration = 0.15
     const direction = this.#autoScrollDirection
-
-    if (direction.x !== 0) {
-      const currentX = this.#getScrollX()
-      let effectiveMaxSpeed = maxSpeed
-      if (direction.x < 0 && currentX < 150) {
-        effectiveMaxSpeed = maxSpeed * (currentX / 150)
-      }
-      const targetSpeed = direction.x * effectiveMaxSpeed
-      this.#currentSpeedX =
-        this.#currentSpeedX + (targetSpeed - this.#currentSpeedX) * acceleration
-    } else {
-      this.#currentSpeedX =
-        Math.abs(this.#currentSpeedX) > 0.05
-          ? this.#currentSpeedX * (1 - deceleration)
-          : 0
-    }
-
-    if (direction.y !== 0) {
-      const currentY = this.#getScrollY()
-      let effectiveMaxSpeed = maxSpeed
-      if (direction.y < 0 && currentY < 150) {
-        effectiveMaxSpeed = maxSpeed * (currentY / 150)
-      }
-      const targetSpeed = direction.y * effectiveMaxSpeed
-      this.#currentSpeedY =
-        this.#currentSpeedY + (targetSpeed - this.#currentSpeedY) * acceleration
-    } else {
-      this.#currentSpeedY =
-        Math.abs(this.#currentSpeedY) > 0.05
-          ? this.#currentSpeedY * (1 - deceleration)
-          : 0
-    }
+    this.#currentSpeedX = this.#nextSpeed(
+      direction.x,
+      this.#currentSpeedX,
+      this.#getScrollX()
+    )
+    this.#currentSpeedY = this.#nextSpeed(
+      direction.y,
+      this.#currentSpeedY,
+      this.#getScrollY()
+    )
 
     if (Math.abs(this.#currentSpeedX) > 0.05) {
       this.#setScrollX(this.#getScrollX() + this.#currentSpeedX)

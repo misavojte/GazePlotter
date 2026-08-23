@@ -38,6 +38,7 @@
   import {
     instanceMatchesContract,
     metricLibraryModal,
+    datasetCanFeed,
     instanceReadout,
     formatProjectionReadout,
     getMetric,
@@ -46,7 +47,7 @@
   } from '$lib/metrics'
   import { multiSelectMetricHandlers } from '$lib/plots/shared/metricInstanceHandlers'
 
-  interface Props {
+  export interface Props {
     /** Prefill: preselect this participant group's members. */
     groupId?: number
     stimulusId?: number
@@ -90,7 +91,7 @@
         return new Set<string>(metricInstanceIds)
       }
       const initialChecked = allInstances.filter(inst =>
-        instanceMatchesContract(inst, METRIC_EXPORT_CONTRACT_LONG) &&
+        instanceMatchesContract(inst, METRIC_EXPORT_CONTRACT_LONG, engine.capabilities) &&
         inst.projection.kind !== 'windowed'
       )
       return new Set<string>(initialChecked.map(m => m.id))
@@ -104,7 +105,7 @@
   const activeSelectedMetrics = $derived(
     Array.from(selectedMetrics).filter(id => {
       const inst = instancesById.get(id)
-      return inst && instanceMatchesContract(inst, activeContract)
+      return inst && instanceMatchesContract(inst, activeContract, engine.capabilities)
     })
   )
 
@@ -131,7 +132,7 @@
       next === 'long' ? METRIC_EXPORT_CONTRACT_LONG : METRIC_EXPORT_CONTRACT_WIDE
     const pruned = Array.from(selectedMetrics).filter(id => {
       const inst = instancesById.get(id)
-      return inst && instanceMatchesContract(inst, nextContract)
+      return inst && instanceMatchesContract(inst, nextContract, engine.capabilities)
     })
     const dropped = selectedMetrics.size - pruned.length
     prunedNotice =
@@ -143,9 +144,18 @@
     }
   }
 
+  // Instances the dataset can feed at all; capability-missing ones (e.g. event
+  // metrics without event data) are hidden, not shown disabled — the same rule
+  // as every picker, and the disabled `reason` strings stay format-specific.
+  const capableInstances = $derived(
+    (engine.metadata?.metricInstances ?? []).filter(inst =>
+      datasetCanFeed(inst, engine.capabilities)
+    )
+  )
+
   const metricsItems = $derived(
     mapSelectableItems(
-      (engine.metadata?.metricInstances ?? []).map(inst => {
+      capableInstances.map(inst => {
         const label = inst.label || defaultInstanceLabel(inst.baseId)
         const readoutChips = instanceReadout(inst, { includeReduction: false })
         const projReadout = formatProjectionReadout(inst)
@@ -154,7 +164,7 @@
         if (m?.meta.unit) readoutChips.push(m.meta.unit)
 
         const sublabel = readoutChips.join(' · ')
-        const matches = instanceMatchesContract(inst, activeContract)
+        const matches = instanceMatchesContract(inst, activeContract, engine.capabilities)
 
         let reason = ''
         if (!matches) {
@@ -183,7 +193,7 @@
 
   // ── Collapsed-header selection summaries (the at-a-glance readouts) ────────
   const metricsSummary = $derived.by(() => {
-    const total = (engine.metadata?.metricInstances ?? []).length
+    const total = capableInstances.length
     const count = activeSelectedMetrics.length
     const single =
       count === 1 ? instancesById.get(activeSelectedMetrics[0])?.label : undefined

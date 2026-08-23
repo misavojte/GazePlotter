@@ -1,6 +1,6 @@
 <script lang="ts">
   import InputText from '$lib/shared/components/InputText.svelte'
-  import Radio from '$lib/shared/components/Radio.svelte'
+  import InputRadio from '$lib/shared/components/InputRadio.svelte'
   import { ModalButtons } from '$lib/modals'
   import { getGazePlotterSession } from '$lib/session'
   import type { TobiiParsingConfig } from '$lib/data/ingest/formats/lib/rows/tobiiParsingConfig'
@@ -47,7 +47,7 @@
     Choose how to determine stimuli from your Tobii Pro Lab data:
   </p>
 
-  <Radio
+  <InputRadio
     ariaLabel="Stimulus parsing method"
     options={STIMULUS_OPTIONS}
     bind:value={selectedOption}

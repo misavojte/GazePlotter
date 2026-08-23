@@ -33,7 +33,7 @@ export class VarjoRowParser extends RowParser {
     this.setupColumns([this.cTime, this.cActorLabel])
   }
 
-  protected deserializeFromBytes(_rawRowRef: Uint8Array): void {
+  protected override deserializeFromBytes(_rawRowRef: Uint8Array): void {
     const timeBytes = this.getBytes(this.pTime)
     const actorLabelBytes = this.getBytes(this.pActorLabel)
     if (!timeBytes.length) return

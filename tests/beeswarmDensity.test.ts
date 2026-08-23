@@ -10,6 +10,7 @@ import {
 } from '../src/lib/plots/shared/distribution/beeswarm/renderers'
 import { createAdaptiveTimeline } from '../src/lib/plots/shared'
 import type { CategoryDistribution } from '../src/lib/plots/shared/distribution/types'
+import { canvasRecorder } from './helpers/canvasRecorder'
 
 /**
  * The density pass behind the swarm's width. Cells are one dot wide, counts are
@@ -165,18 +166,7 @@ describe('marks outside the axis are omitted, not pinned to the border', () => {
       individualValues: [400, 450, 500],
       stats,
     } as unknown as CategoryDistribution
-    const strokes: { lw: number }[] = []
-    let lineWidth = 1
-    const ctx = {
-      get lineWidth() { return lineWidth },
-      set lineWidth(v: number) { lineWidth = v },
-      strokeStyle: '',
-      beginPath() {},
-      moveTo() {},
-      lineTo() {},
-      rect() {},
-      stroke() { strokes.push({ lw: lineWidth }) },
-    } as unknown as CanvasRenderingContext2D
+    const { ctx, strokes } = canvasRecorder()
     drawStatisticalOverlay(ctx, layout, overlay)
     return strokes
   }

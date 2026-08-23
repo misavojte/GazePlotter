@@ -88,7 +88,7 @@
           {#if duration}
             <span class="progress-fill" style="animation-duration: {duration}ms"></span>
           {/if}
-          <X size={12} />
+          <span class="close-icon"><X size={12} /></span>
         </button>
       </div>
     </div>
@@ -190,9 +190,12 @@
     background-color: color-mix(in srgb, var(--c-white) 5%, transparent);
   }
 
-  button.close-btn :global(svg) {
+  /* Owned wrapper keeps the icon above the progress fill without a
+     :global() reach into the icon component's svg. */
+  .close-icon {
     position: relative;
     z-index: 2;
+    display: flex;
   }
 
   .progress-fill {

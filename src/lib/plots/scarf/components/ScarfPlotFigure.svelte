@@ -11,7 +11,7 @@
     drawLegendGroupTitles,
     hitTestLegend,
     niceTimelineTicks,
-    SCARF_LEGEND_CONFIG,
+    LEGEND_CONFIG,
     usePlot,
     canvasBlockSelect,
     type BlockedRegion,
@@ -30,15 +30,14 @@
     resolveFrameLayout,
   } from '$lib/plots/shared'
   import {
-    cursorRows,
+    cursorGuides,
     drawTimeGuides,
     timeAtX,
-    timeGuideXs,
     type PlotCursorPort,
   } from '$lib/plots/shared/plotCursor.svelte'
-  import { SCARF_LAYOUT } from '../const'
-  import { FIXATION_CATEGORY_ID } from '$lib/data/types'
-  import { SEGMENT_STRIDE, SegmentField } from '$lib/data/binary/schema'
+  import { OVERLAY_EVENT_STRIDE, SCARF_LAYOUT } from '../const'
+  import { buildScarfEventTooltipContent } from '../core/tooltip'
+  import { findGazeSegmentAt } from '../core/hitTest'
   import {
     calculateIsCompactMode,
     calculateLegendStructuralHeight,
@@ -116,12 +115,13 @@
 
   const xAxisTicks = $derived(niceTimelineTicks(data.timeline))
 
-  const guttersFor = (leftLabelWidth: number): FrameGutters =>
+  const guttersFor = (leftLabelWidth: number, maxHeight?: number): FrameGutters =>
     scarfFrameGutters({
       tickLabels: xAxisTicks.labels ?? [],
       axisTitle: xAxisLabel,
       leftLabelWidth,
       legendSpace,
+      maxHeight,
     })
 
   // ── The row band: the ONE height the scarf's layout reads ──
@@ -132,7 +132,9 @@
   // inset pinned at its cap: independent of compact mode, and the narrowest plot
   // the scarf can have, so the title wraps to its tallest and the band is never
   // taller than the frame the figure ends up drawing in.
-  // LOAD-BEARING: reading frame.height here cycles the derived graph.
+  // LOAD-BEARING: reading frame.height here cycles the derived graph; so would
+  // passing the row-stack cap (it derives from the layout this band feeds), so
+  // the probe is always uncapped: the full band the rows may grow into.
   const rowBandHeight = $derived.by(() => {
     const { rect } = resolveFrameLayout(guttersFor(SCARF_LAYOUT.LEFT_LABEL_MAX_WIDTH), {
       left: 0,
@@ -189,11 +191,20 @@
     fit: (): PlotPlaceholderContent | null => placeholderMessage,
     // Same declaration the row band probes, with the real label column: so
     // `frame.x`/`frame.width` ARE the scarf's plot columns, and the resolver owns
-    // the x-axis gutter and the legend block. Only the vertical placement stays
-    // scarf-owned (see `plotTop`).
+    // the x-axis gutter and the legend block. The row stack caps the frame
+    // height: when the rows stop growing (MAX_BAR_SCALE) the resolver cuts the
+    // frame to them and centres it, so the border and x-axis hug the rows
+    // instead of stretching over empty band.
     // (Return type annotated: the declaration reads values that derive from the
     // handle's own geometry, so inferring it would chase `plot` through itself.)
-    gutters: (): FrameGutters => guttersFor(LEFT_LABEL_WIDTH),
+    gutters: (): FrameGutters =>
+      guttersFor(
+        LEFT_LABEL_WIDTH,
+        // Ceiled so the border never lands inside the last fractional row.
+        data.participants.length > 0
+          ? Math.ceil(participantBarsHeight)
+          : undefined
+      ),
     axes: () => ({
       bottom: { title: xAxisLabel, ticks: xAxisTicks },
     }),
@@ -202,7 +213,7 @@
     drawOverlay: drawScarfOverlay,
     legend: {
       geometry: () => (data.stylingAndLegend ? legendGeometry : null),
-      config: SCARF_LEGEND_CONFIG,
+      config: LEGEND_CONFIG,
       highlights: () => highlights,
     },
     hitTest: plotHitTest,
@@ -222,7 +233,7 @@
       ),
     // Return type annotated, same cycle as `gutters`. The rows KEY, not the array:
     // moving within one row must not repaint every sibling.
-    overlayDeps: (): string => `${cursorXsKey}:${cursorRowsKey}`,
+    overlayDeps: (): string => `${cursorGuide.xsKey}:${cursorGuide.rowsKey}`,
     blockedRegions: (): BlockedRegion[] => blockedRegions,
     pointer: {
       onDown: handlePointerDown,
@@ -237,7 +248,8 @@
   )
 
   // ── Vertical placement ──
-  // Top-anchored at frame.y matching standard row/heatmap visualizations.
+  // The frame is already capped to the row stack and centred by the resolver
+  // (see `gutters`), so the rows simply start at its top edge.
   const plotTop = $derived(plot.frame.y)
   const legendTop = $derived(plot.frame.legendY + PLOT_LEGEND_GAP)
 
@@ -247,16 +259,17 @@
     }
     return computeGroupedLegendGeometry(
       legendGroups,
-      SCARF_LEGEND_CONFIG,
+      LEGEND_CONFIG,
       margin,
       legendTop,
       width
     )
   })
 
-  // The rows, not the frame's full band — the frame includes centring slack the
-  // marks never fill. One source for the blocked region, the time guide and the PLOT CURSOR
-  // mark, so a guide can never hang below the last row.
+  // The rows, not the frame: the frame is the stack's whole-pixel cap (and,
+  // under the min-scale floor, can be shorter), so the fractional row stack
+  // stays the truth. One source for the blocked region, the time guide and the
+  // PLOT CURSOR mark, so a guide can never hang below the last row.
   const rowBand = $derived({
     x: plot.frame.x,
     y: plotTop,
@@ -269,14 +282,12 @@
     { x: rowBand.x, y: rowBand.y, w: rowBand.width, h: rowBand.height },
   ])
 
-  const cursorXs = $derived(
-    timeGuideXs(rowBand, data.timeline, plotCursor?.times ?? [])
-  )
-  const cursorXsKey = $derived(cursorXs.join(','))
-  const cursorRowIndices = $derived(
-    cursorRows(participantIds, plotCursor?.participants ?? [])
-  )
-  const cursorRowsKey = $derived(cursorRowIndices.join(','))
+  const cursorGuide = cursorGuides({
+    cursor: () => plotCursor,
+    band: () => rowBand,
+    timeline: () => data.timeline,
+    rowIds: () => participantIds,
+  })
 
   const identifierSystem = $derived.by(() => {
     if (!data.stylingAndLegend)
@@ -389,8 +400,8 @@
       highlightMask: highlightMaskByIndex,
     })
 
-    drawLegendGroupTitles(ctx, legendGeometry, SCARF_LEGEND_CONFIG)
-    drawLegend(ctx, legendGeometry, SCARF_LEGEND_CONFIG, highlights)
+    drawLegendGroupTitles(ctx, legendGeometry, LEGEND_CONFIG)
+    drawLegend(ctx, legendGeometry, LEGEND_CONFIG, highlights)
   }
 
   // Overlay layer: the PLOT CURSOR's marks plus the local CROSSHAIR, drawn on top
@@ -398,9 +409,9 @@
   // renderScarf. Both channels come first — they must survive the local-hover
   // early return.
   function drawScarfOverlay(ctx: CanvasRenderingContext2D) {
-    drawTimeGuides(ctx, rowBand, cursorXs)
+    drawTimeGuides(ctx, rowBand, cursorGuide.xs)
     const rects: HighlightRect[] = []
-    for (const row of cursorRowIndices) {
+    for (const row of cursorGuide.rows) {
       rects.push({
         x: rowBand.x,
         y: rowY(row),
@@ -434,12 +445,11 @@
 
   function isMouseOverLegendItem(mouseX: number, mouseY: number): LegendItemGeometry | null {
     if (!data.stylingAndLegend || !legendGeometry.items.length) return null
-    return hitTestLegend(legendGeometry, SCARF_LEGEND_CONFIG, mouseX, mouseY)
+    return hitTestLegend(legendGeometry, LEGEND_CONFIG, mouseX, mouseY)
   }
 
-  // The rows, not the frame's band: the harness gate (the frame rect) also covers
-  // the centring slack above and below them, and the pointer handlers aren't
-  // gated at all.
+  // The rows, not the frame's band: the fractional row stack is the truth (the
+  // frame is its whole-pixel cap), and the pointer handlers aren't gated at all.
   function inPlotArea(mx: number, my: number): boolean {
     return (
       mx >= plot.frame.x &&
@@ -457,11 +467,29 @@
     const row = Math.floor((my - plotTop) / rowHeight)
     if (row < 0 || row >= data.participants.length) return null
 
+    // The event band hangs below the AOI seam; a pointer inside it asks about
+    // the strip there, not the gaze segment sharing its x.
+    const ev = findEventStripAt(row, mx, my, frame)
+    if (ev) {
+      return {
+        content: buildScarfEventTooltipContent(
+          data.participants[row]?.label ?? '',
+          ev.name,
+          ev.start,
+          ev.end,
+          ev.isPoint
+        ),
+        anchorX: ev.anchorX,
+        anchorY: row * rowHeight + rowHeight + plotTop,
+        tooltipWidth: SCARF_LAYOUT.TOOLTIP_WIDTH,
+        data: { row, x: mx },
+      }
+    }
+
     const seg = findSegmentAtRowAndTime(row, mx, frame)
     if (!seg) {
       // Track-only hit: crosshair follows the mouse, no tooltip.
       return {
-        tooltipId: 'scarf-segment-tooltip',
         content: [],
         anchorX: mx,
         anchorY: my,
@@ -470,7 +498,6 @@
     }
 
     return {
-      tooltipId: 'scarf-segment-tooltip',
       content: getTooltipContent(seg.participantId as number, seg.orderId),
       anchorX: frame.x + (seg.x + seg.width) * frame.width,
       anchorY: seg.y * rowHeight + rowHeight + plotTop,
@@ -496,104 +523,85 @@
     if (p.dragged) onDragEnd()
   }
 
-  function findSegmentAtRowAndTime(rowIndex: number, mouseX: number, frame: PlotFrame) {
+  /**
+   * Hit-test the event band of one row against the SAME geometry
+   * paintEventStrips draws: lanes hang below the seam, intervals are
+   * min-width clamped, points are min-width diamonds — so everything visible
+   * is hoverable. Times un-normalize through the row's projection, giving
+   * back the clipped-to-view span the strip covers.
+   */
+  function findEventStripAt(rowIndex: number, mouseX: number, mouseY: number, frame: PlotFrame) {
+    const buckets = visualEventBuckets
+    const gs = data.gazeSource
+    if (!data.isOverlay || !gs || buckets.length === 0 || layout.eventLaneHeight <= 0) return null
+    const yIn = mouseY - (plotTop + rowIndex * layout.heightOfBarWrap)
+    const bandTop = layout.eventBandTop
+    if (yIn < bandTop || yIn >= bandTop + layout.eventZoneHeight) return null
+    const lane = Math.floor((yIn - bandTop) / layout.eventLaneHeight)
+
+    const pLeft = frame.x
+    const pWidth = frame.width
+    const pRight = pLeft + pWidth
+    const minInterval = SCARF_LAYOUT.MIN_INTERVAL_PX
+    const hw = SCARF_LAYOUT.MIN_POINT_PX / 2
+    const clipMin = gs.projClipMin[rowIndex]
+    const clipRange = gs.projClipMax[rowIndex] - clipMin || 1
     const { indexToId } = identifierSystem
-    const scale = layout.scaleFactor
-    const floorLeft = frame.x
-    const floorWidth = frame.width
 
-    // Scan the row's binary segments directly (no rect buckets), resolving
-    // AOI/category inline. Segments in a row are time-disjoint, so at most one
-    // contains mouseX; a multi-AOI fixation's topmost sub-rect wins.
-    if (data.gazeSource) {
-      const gs = data.gazeSource
-      if (rowIndex < 0 || rowIndex >= gs.participantIds.length) return null
-      const HNF = SCARF_LAYOUT.HEIGHT_NON_FIXATION_DEFAULT
-      const HBAR = SCARF_LAYOUT.HEIGHT_BAR_DEFAULT
-      const SAR = SCARF_LAYOUT.SPACE_ABOVE_RECT_DEFAULT
-      const segBuf = gs.reader.segmentBufferRaw
-      const clipMin = gs.projClipMin[rowIndex]
-      const clipMax = gs.projClipMax[rowIndex]
-      const pScale = gs.projScale[rowIndex]
-      const pid = gs.participantIds[rowIndex]
-      const { startIndex, endIndex } = gs.reader.getSegmentRange(gs.stimulusId, pid)
-
-      // `thin` mirrors the renderer's explicit flag (see gazeRectVPlacement):
-      // a 5-visible-AOI fixation slice's height equals HNF, so the value alone
-      // cannot discriminate.
-      const build = (styleIdx: number, thin: boolean, hOrig: number, internalYDefault: number, orderId: number, xN: number, wN: number) => {
-        let rectH = hOrig
-        let internalY = internalYDefault
-        if (scale !== 1) {
-          if (thin) {
-            rectH = layout.nonFixationHeight
-            internalY = layout.spaceAboveRect + (layout.heightOfBar - layout.nonFixationHeight) / 2
-          } else {
-            rectH = hOrig * scale
-            internalY = layout.spaceAboveRect + (internalYDefault - SAR) * scale
-          }
-        }
-        return {
-          x: xN,
-          y: rowIndex,
-          width: wN,
-          height: rectH,
-          internalY,
-          identifier: indexToId.get(styleIdx) ?? '',
-          participantId: data.participants[rowIndex]?.id ?? rowIndex,
-          segmentId: orderId,
-          orderId,
-        }
-      }
-
-      let hit: ReturnType<typeof build> | null = null
-      for (let i = startIndex; i < endIndex; i++) {
-        const localId = i - startIndex
-        const segBase = i * SEGMENT_STRIDE
-        const categoryId = segBuf[segBase + SegmentField.CATEGORY_ID] | 0
-        let start = gs.isOrdinal ? localId : segBuf[segBase + SegmentField.START_TIME]
-        let end = gs.isOrdinal ? localId + 1 : segBuf[segBase + SegmentField.END_TIME]
-        if (end <= clipMin) continue
-        // Time-ordered per participant: nothing later can intersect the clip.
-        if (start >= clipMax) break
-        start = Math.max(clipMin, start)
-        end = Math.min(clipMax, end)
-        const xN = (start - clipMin) * pScale
-        const wN = (end - start) * pScale
-        const pxX = floorLeft + xN * floorWidth
-        const pxW = wN * floorWidth
-        if (mouseX < pxX || mouseX > pxX + pxW) continue
-
-        if (categoryId !== FIXATION_CATEGORY_ID) {
-          const sIdx =
-            categoryId >= 0 && categoryId < gs.categoryStyleIdxMap.length
-              ? gs.categoryStyleIdxMap[categoryId]
-              : -1
-          if (sIdx === -1) continue
-          hit = build(sIdx, true, HNF, SAR + (HBAR - HNF) * 0.5, localId, xN, wN)
+    for (let styleIdx = 0; styleIdx < buckets.length; styleIdx++) {
+      const buffer = buckets[styleIdx]
+      const count = buffer.length / OVERLAY_EVENT_STRIDE
+      for (let i = 0; i < count; i++) {
+        const idx = i * OVERLAY_EVENT_STRIDE
+        if ((buffer[idx + 1] | 0) !== rowIndex) continue
+        if ((buffer[idx + 3] | 0) !== lane) continue
+        const xNorm = buffer[idx]
+        const wNorm = buffer[idx + 2]
+        const isPoint = (buffer[idx + 4] | 0) === 1
+        const x = pLeft + xNorm * pWidth
+        let anchorX: number
+        if (isPoint) {
+          const cx = Math.min(pRight - hw, Math.max(pLeft + hw, x))
+          if (mouseX < cx - hw || mouseX > cx + hw) continue
+          anchorX = cx + hw
         } else {
-          // The transformer's precomputed VISIBLE slices (buildResolvedSlices)
-          // — the same data the composite and highlight painters read, so
-          // hover identity always matches the rendered bands.
-          const slot = gs.resolvedSlotBase[rowIndex] + localId
-          const s0 = gs.resolvedSliceStart[slot]
-          const resolved = gs.resolvedSliceStart[slot + 1] - s0
-
-          if (resolved === 0) {
-            if (gs.noAoiStyleIdx < 0) continue
-            hit = build(gs.noAoiStyleIdx, false, HBAR, SAR, localId, xN, wN)
-          } else {
-            const h = HBAR / resolved
-            for (let j = 0; j < resolved; j++) {
-              hit = build(gs.resolvedSliceStyles[s0 + j], false, h, SAR + j * h, localId, xN, wN) // topmost = last
-            }
-          }
+          let w = wNorm * pWidth
+          if (w < minInterval) w = minInterval
+          if (x + w > pRight) w = pRight - x
+          if (w <= 0 || mouseX < x || mouseX > x + w) continue
+          anchorX = x + w
+        }
+        const identifier = indexToId.get(styleIdx) ?? ''
+        const start = clipMin + xNorm * clipRange
+        return {
+          name:
+            data.stylingAndLegend?.event.find(e => e.identifier === identifier)
+              ?.name ?? '',
+          start,
+          end: start + wNorm * clipRange,
+          isPoint,
+          anchorX,
         }
       }
-      return hit
     }
-
     return null
+  }
+
+  // The tooltip reads only position + identity; style/geometry resolution
+  // lives in core/hitTest.ts so the parity test can pin it against the
+  // composite's walk.
+  function findSegmentAtRowAndTime(rowIndex: number, mouseX: number, frame: PlotFrame) {
+    if (!data.gazeSource) return null
+    const xNorm = (mouseX - frame.x) / frame.width
+    const hit = findGazeSegmentAt(data.gazeSource, rowIndex, xNorm)
+    if (!hit) return null
+    return {
+      x: hit.x,
+      y: rowIndex,
+      width: hit.width,
+      participantId: data.participants[rowIndex]?.id ?? rowIndex,
+      orderId: hit.orderId,
+    }
   }
 
 </script>

@@ -6,6 +6,7 @@ import {
   type PlotMetricContract,
   type WindowSpec,
 } from '$lib/metrics'
+import type { DataCapabilities } from '$lib/data/types'
 import type { SectionFieldCtx } from '$lib/plots/definePlot'
 
 /**
@@ -29,6 +30,15 @@ export function pickedInstanceIsProportion(ctx: SectionFieldCtx): boolean {
 }
 
 /**
+ * The slice of the engine metric resolution reads — structural, so callers
+ * pass the real DataEngine while tests pass a plain literal.
+ */
+export interface MetricResolutionEngine {
+  metadata?: { metricInstances?: readonly MetricInstance[] } | null
+  capabilities: DataCapabilities
+}
+
+/**
  * The plot's PICKED metric instance, resolved WITHOUT contract validation —
  * deliberately distinct from {@link resolveMetric}. A view needs the instance
  * to name its axis/legend even when the instance fails the contract, so the
@@ -37,7 +47,7 @@ export function pickedInstanceIsProportion(ctx: SectionFieldCtx): boolean {
  * path; the transformer already gates the DATA on the contract.
  */
 export function resolvePickedInstance(
-  engine: { metadata?: { metricInstances?: readonly MetricInstance[] } | null },
+  engine: MetricResolutionEngine,
   ids: readonly string[] | undefined
 ): MetricInstance | undefined {
   return resolveInstance(engine.metadata?.metricInstances ?? [], ids?.[0] ?? null)
@@ -67,13 +77,17 @@ export type ResolvedMetric<C extends PlotMetricContract> = {
 } | { ok: false }
 
 export function resolveMetric<C extends PlotMetricContract>(args: {
-  instances: readonly MetricInstance[] | undefined
+  engine: MetricResolutionEngine
   id: string | null
   contract: C
 }): ResolvedMetric<C> {
-  const instance = resolveInstance(args.instances ?? [], args.id)
+  const instance = resolveInstance(
+    args.engine.metadata?.metricInstances ?? [],
+    args.id
+  )
   if (!instance) return { ok: false }
-  if (!instanceMatchesContract(instance, args.contract)) return { ok: false }
+  if (!instanceMatchesContract(instance, args.contract, args.engine.capabilities))
+    return { ok: false }
   const window =
     instance.projection.kind === 'windowed' ? instance.projection.window : undefined
   return { ok: true, instance, window } as ResolvedMetric<C>

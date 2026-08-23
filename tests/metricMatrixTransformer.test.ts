@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { makeTestEngine } from './helpers/testEngine'
+import { makeTestEngine, type TestEngineOptions } from './helpers/testEngine'
 import { getMetricMatrixData } from '../src/lib/plots/metric-matrix/core/transformer'
 import type {
   MetricMatrixData,
@@ -25,7 +25,7 @@ function makeMetricMatrixEngine(opts: {
   segments: StimulusSegments[]
   aoiNamesPerStimulus?: string[][]
   participants?: string[][]
-  participantsSelections?: unknown[]
+  participantsSelections?: TestEngineOptions['participantsSelections']
   stimuli?: string[][]
   stimuliOrderVector?: number[]
   extraInstances?: MetricInstance[]

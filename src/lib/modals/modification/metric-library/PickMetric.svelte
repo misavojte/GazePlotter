@@ -12,20 +12,22 @@
   import MetricPickCard from './MetricPickCard.svelte'
   import { configureMetricModal } from './definition-steps'
 
-  interface Props {
+  export interface Props {
     contract: PlotMetricContract
     oncreateInstance?: CreateInstanceHandler
   }
 
   let { contract, oncreateInstance }: Props = $props()
 
-  const { modalState } = getGazePlotterSession()
+  const { engine, modalState } = getGazePlotterSession()
 
   const METRICS = listMetrics()
   // Category registry (ordered) is the single source for section order + labels.
   const CATEGORIES = listCategories()
 
-  const addable = $derived(METRICS.filter(m => metricIsCreatableInContract(m, contract)))
+  const addable = $derived(
+    METRICS.filter(m => metricIsCreatableInContract(m, contract, engine.capabilities))
+  )
 
   // Search appears once the list is long enough to warrant it.
   const SEARCHABLE_FROM = 8

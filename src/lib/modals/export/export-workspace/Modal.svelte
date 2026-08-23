@@ -1,5 +1,8 @@
 <script lang="ts">
+  import type { Component } from 'svelte'
   import { Section } from '$lib/modals'
+  import type { ModalDefinition } from '$lib/modals/defineModal'
+  import type { DataCapabilityRequirements } from '$lib/data/types'
   import { getGazePlotterSession } from '$lib/session'
   import { exportSegmentedDataModal } from '../export-segmented-data/definition'
   import { exportEventDataModal } from '../export-event-data/definition'
@@ -10,17 +13,28 @@
   const { engine, exportService, grid, modalState } = getGazePlotterSession()
   let fileName = $state('GazePlotter-Export')
 
-  const researchExportOptions = [
+  // Each option follows the data it exports, in the plot definitions'
+  // `requireCapabilities` vocabulary: no events → no event export, no gaze
+  // segments (event-only dataset) → no segment-derived exports.
+  type ExportOption = {
+    definition: ModalDefinition<Component<any>, any>
+    title: string
+    subtitle: string
+    requireCapabilities?: DataCapabilityRequirements
+  }
+
+  const researchExportOptions: ExportOption[] = [
     {
       definition: exportSegmentedDataModal,
       title: 'Segmented Data (CSV)',
       subtitle: 'Per-segment eye-tracking data with timing and AOI information',
+      requireCapabilities: ['segmented'],
     },
     {
       definition: exportEventDataModal,
       title: 'Event Data (CSV)',
       subtitle: 'Event occurrences with timing per participant and stimulus',
-      requiresEvents: true,
+      requireCapabilities: ['event'],
     },
     {
       definition: exportMetricDataModal,
@@ -32,12 +46,13 @@
       definition: exportScangraphModal,
       title: 'ScanGraph Format',
       subtitle: 'Scanpath data for similarity analysis and visualization',
+      requireCapabilities: ['segmented'],
     },
   ]
 
   const visibleExportOptions = $derived(
-    researchExportOptions.filter(
-      option => !option.requiresEvents || engine.capabilities.event
+    researchExportOptions.filter(option =>
+      engine.hasCapabilities(option.requireCapabilities)
     )
   )
 

@@ -2,7 +2,7 @@
 
 The Event Library controls the display names, colors, order, merging, and selections of event channels. Channels are defined per stimulus; selections are keyed by displayed name, so they are portable across stimuli.
 
-For how to upload event data, see [Event Data](/docs/upload-data/events/).
+For how to upload event data, see [Event Data](/docs/upload-data/events/). Channels are also measurable: see [Event Metrics](/docs/metrics/events/) and the [Event Comparison](/docs/visualizations/event-comparison/) plot. Channels merged under one displayed name are measured as one.
 
 ## Opening the library
 

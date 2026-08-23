@@ -1,8 +1,9 @@
 /**
  * The filter between a plot's `PlotMetricContract` and the metric library:
  * does this instance match, could this recipe instantiate into it, which
- * instances apply.
+ * instances apply — always against what the DATASET can feed it.
  */
+import type { DataCapabilities } from '$lib/data/types'
 import type { Metric, MetricMeta, OutputShape } from './core/dsl'
 import type { MetricInstance } from './instances'
 import { getRecipe } from './core/defineMetric'
@@ -79,6 +80,8 @@ function representativeLeaf(meta: MetricMeta, kind: LeafKind): LeafProjection {
       return { kind, aoiRef: { by: 'name', name: '' } }
     case 'pick-category':
       return { kind, categoryName: '' }
+    case 'pick-event':
+      return { kind, eventName: '' }
     case 'matrix-cell':
       return { kind, fromAoi: { by: 'name', name: '' }, toAoi: { by: 'name', name: '' } }
     case 'aggregate-aoi':
@@ -111,9 +114,34 @@ export function metricLeafKindsInContract(m: Metric, c: PlotMetricContract): Lea
   })
 }
 
+/**
+ * The dataset capability a metric consumes: event-vector recipes scan event
+ * occurrence buffers, every other shape scans gaze segments (shape ⟺ scan
+ * source is a registration invariant, so rawShape is the whole truth).
+ * Without its capability a metric is hidden EVERYWHERE — library, pickers,
+ * plots, exports — the same picker/compute parity the correlation gate pins.
+ */
+export function metricRequiredCapability(
+  rawShape: OutputShape,
+): keyof DataCapabilities {
+  return rawShape === 'event-vector' ? 'event' : 'segmented'
+}
+
+/** The capability half of {@link instanceMatchesContract} alone — for lists
+ *  that still SHOW contract-mismatched rows (disabled, with a reason) but
+ *  never capability-missing ones, e.g. the metric-export picker. */
+export function datasetCanFeed(
+  inst: MetricInstance,
+  caps: DataCapabilities,
+): boolean {
+  const recipe = getRecipe(inst.baseId)
+  return !!recipe && caps[metricRequiredCapability(recipe.rawShape)]
+}
+
 export function instanceMatchesContract(
   inst: MetricInstance,
   c: PlotMetricContract,
+  caps: DataCapabilities,
 ): boolean {
   const p = inst.projection
   const allowed = contractLeafKinds(c)
@@ -124,6 +152,7 @@ export function instanceMatchesContract(
     if (c.windowing === 'required') return false
     if (!allowed.includes(p.kind)) return false
   }
+  if (!datasetCanFeed(inst, caps)) return false
   const recipe = getRecipe(inst.baseId)
   return !!recipe && recipeSupports(recipe, p) === true
 }
@@ -131,7 +160,9 @@ export function instanceMatchesContract(
 export function metricIsCreatableInContract(
   m: Metric,
   c: PlotMetricContract,
+  caps: DataCapabilities,
 ): boolean {
+  if (!caps[metricRequiredCapability(m.meta.rawShape)]) return false
   if (c.windowing === 'required' && m.meta.supportsWindowing === false) return false
   return contractLeafKinds(c).some(leaf =>
     PROJECTION_LEAVES[leaf].rawShapes.includes(m.meta.rawShape),

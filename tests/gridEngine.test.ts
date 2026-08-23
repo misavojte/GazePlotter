@@ -155,15 +155,12 @@ describe('gridEngine', () => {
     // planner must terminate rather than loop forever.
     positions[0] = { id: 1, x: 0, y: 0, w: 3, h: 3 }
 
-    const start = Date.now()
+    // An actual infinite loop fails via vitest's test timeout.
     const commands = resolveItemPositionCollisions(
       1,
       positions,
       4
     )
-    const elapsed = Date.now() - start
-
-    expect(elapsed).toBeLessThan(1000)
     // Applying the plan must not leave the priority overlapped. (Items
     // far from the priority may remain overlapped with each other in
     // this deliberately impossible layout — we just require the cascade

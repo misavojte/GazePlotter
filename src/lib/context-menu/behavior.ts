@@ -1,6 +1,5 @@
-import { updateContextMenu } from './contextMenuState.svelte'
 import {
-  type ContextMenuState,
+  type OpenContextMenu,
   type MenuInteractiveItem,
   type MenuItem,
   isMenuDivider,
@@ -9,15 +8,9 @@ import {
 
 export function isOwnedContextMenuState(
   ownerId: symbol,
-  value: ContextMenuState | null
-): value is ContextMenuState {
+  value: OpenContextMenu | null
+): value is OpenContextMenu {
   return Boolean(value && value.ownerId === ownerId)
-}
-
-export function clearOwnedContextMenu(ownerId: symbol): void {
-  updateContextMenu(current =>
-    isOwnedContextMenuState(ownerId, current) ? null : current
-  )
 }
 
 export function highlightMenuItem(
@@ -37,8 +30,4 @@ export function highlightMenuItem(
 
 export function shouldCloseMenuOnAction(item: MenuInteractiveItem): boolean {
   return !isMenuFlyoutItem(item) && item.closeOnAction !== false
-}
-
-export function isMenuActionActivationKey(key: string): boolean {
-  return key === 'Enter' || key === ' '
 }

@@ -1,11 +1,11 @@
 /**
  * Registry smoke for the eye-movement comparison plot. Lives in its own file
- * so the plots barrel (and with it registry.ts) initializes FIRST, the same
- * order production uses — a test that imports a plot subpath before the
- * barrel would freeze a partially-initialized registry entry instead.
+ * so registry.ts initializes FIRST, the same order production uses; a test
+ * that imports a plot subpath before the registry would freeze a
+ * partially-initialized registry entry instead.
  */
 import { describe, it, expect } from 'vitest'
-import { plotRegistry } from '../src/lib/plots'
+import { plotRegistry } from '../src/lib/plots/registry'
 
 describe('eye-movement comparison registration', () => {
   it('is registered with valid defaults', () => {

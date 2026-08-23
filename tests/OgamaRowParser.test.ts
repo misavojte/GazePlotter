@@ -20,66 +20,36 @@ describe('OGAMA Deserializer - Single data', () => {
   const ogamaRows = ogamaMockDataOne.split('\n')
   const header = ogamaRows[0].split(',')
   const delim = ','
-  test('Constructor', () => {
-    const sut = new OgamaRowParser(header, 'SimilarityXXX.txt', delim)
-    expect(sut).toBeDefined()
-    expect(sut.cParticipant).toBe(0)
-    expect(sut.cSegments).toBe(1)
+  const seg = (participant: string, letter: string, index: number) => ({
+    aoi: [letter],
+    categoryId: 0,
+    start: index,
+    end: index + 1,
+    participant,
+    stimulus: 'SimilarityXXX',
   })
 
-  test('Process first row - Segment 1', () => {
+  test('Process first row - one segment per scanpath letter', () => {
     const sut = new OgamaRowParser(header, 'SimilarityXXX.txt', delim)
     const { outputs, processRow } = createAdapterHarness(sut)
     processRow(ogamaRows[1])
-    expect(outputs).toBeDefined()
-    expect(outputs.length).toBe(4)
-    expect(outputs[0].aoi).toEqual(['A'])
-    expect(outputs[0].categoryId).toEqual(0)
-    expect(outputs[0].end).toEqual(1)
-    expect(outputs[0].participant).toEqual('Participant_1')
-    expect(outputs[0].stimulus).toEqual('SimilarityXXX')
-    expect(outputs[0].start).toEqual(0)
+    expect(outputs).toEqual([
+      seg('Participant_1', 'A', 0),
+      seg('Participant_1', 'B', 1),
+      seg('Participant_1', 'C', 2),
+      seg('Participant_1', 'D', 3),
+    ])
   })
 
-  test('Process first row - Segment 2', () => {
-    const sut = new OgamaRowParser(header, 'SimilarityXXX.txt', delim)
-    const { outputs, processRow } = createAdapterHarness(sut)
-    processRow(ogamaRows[1])
-    expect(outputs).toBeDefined()
-    expect(outputs.length).toBe(4)
-    expect(outputs[1].aoi).toEqual(['B'])
-    expect(outputs[1].categoryId).toEqual(0)
-    expect(outputs[1].end).toEqual(2)
-    expect(outputs[1].participant).toEqual('Participant_1')
-    expect(outputs[1].stimulus).toEqual('SimilarityXXX')
-    expect(outputs[1].start).toEqual(1)
-  })
-
-  test('Process second row - Segment 1', () => {
+  test('Process second row - one segment per scanpath letter', () => {
     const sut = new OgamaRowParser(header, 'SimilarityXXX.txt', delim)
     const { outputs, processRow } = createAdapterHarness(sut)
     processRow(ogamaRows[2])
-    expect(outputs).toBeDefined()
-    expect(outputs.length).toBe(4)
-    expect(outputs[0].aoi).toEqual(['D'])
-    expect(outputs[0].categoryId).toEqual(0)
-    expect(outputs[0].end).toEqual(1)
-    expect(outputs[0].participant).toEqual('Participant_2')
-    expect(outputs[0].stimulus).toEqual('SimilarityXXX')
-    expect(outputs[0].start).toEqual(0)
-  })
-
-  test('Process second row - Segment 2', () => {
-    const sut = new OgamaRowParser(header, 'SimilarityXXX.txt', delim)
-    const { outputs, processRow } = createAdapterHarness(sut)
-    processRow(ogamaRows[2])
-    expect(outputs).toBeDefined()
-    expect(outputs.length).toBe(4)
-    expect(outputs[1].aoi).toEqual(['B'])
-    expect(outputs[1].categoryId).toEqual(0)
-    expect(outputs[1].end).toEqual(2)
-    expect(outputs[1].participant).toEqual('Participant_2')
-    expect(outputs[1].stimulus).toEqual('SimilarityXXX')
-    expect(outputs[1].start).toEqual(1)
+    expect(outputs).toEqual([
+      seg('Participant_2', 'D', 0),
+      seg('Participant_2', 'B', 1),
+      seg('Participant_2', 'C', 2),
+      seg('Participant_2', 'A', 3),
+    ])
   })
 })

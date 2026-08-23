@@ -7,7 +7,7 @@
   } from '$lib/plots/registry'
   import PlotContainer from '$lib/plots/shared/components/PlotContainer.svelte'
   import { getGazePlotterSession } from '$lib/session'
-  import { generateUniqueId } from '$lib/shared/utils/idUtils'
+  import { generateUniqueId } from '$lib/shared/uniqueId'
   import type { AllGridTypes } from '$lib/workspace'
   import type { GridConfig } from './types'
   import {
@@ -22,7 +22,9 @@
   } from './interaction'
   import { responsive } from '../responsive.svelte'
   import { generateSelectionPath } from './selectionPath'
-  import { contextMenuState } from '$lib/context-menu'
+  import { useContextMenu } from '$lib/context-menu'
+
+  const contextMenuState = useContextMenu()
   import { isTextEntryTarget } from '../keys'
 
   const { engine, errorService, workspace, grid, modalState } =
@@ -100,7 +102,7 @@
         duplicateId: newId,
       })
     ) {
-      grid.setSelectedItem(newId)
+      grid.selectOnly(newId)
       if (!responsive.isMobile) {
         grid.openPane(newId)
       }
@@ -142,7 +144,7 @@
 
 <div
   class="grid-container"
-  class:pointer-events-none={interaction.isInteracting}
+  class:is-interacting={interaction.isInteracting}
   class:is-panning={interaction.isPanning}
   style="width: {gridWidth}px; height: {gridHeight}px;"
   role="application"
@@ -168,8 +170,6 @@
           minH={item.min?.h || gridConfig.minHeight}
           cellSize={gridConfig.cellSize}
           gap={gridConfig.gap}
-          resizable={true}
-          draggable={true}
           {interaction}
           title={plotLabel}
           subtitle={plotSubtitle}
@@ -226,6 +226,10 @@
 
 
 <style>
+  .grid-container.is-interacting {
+    pointer-events: none;
+  }
+
   .grid-container.is-panning {
     cursor: grabbing;
   }

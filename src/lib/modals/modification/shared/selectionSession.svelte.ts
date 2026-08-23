@@ -1,4 +1,4 @@
-import { contextMenuState } from '$lib/context-menu'
+import { useContextMenu } from '$lib/context-menu'
 import type { BaseInterpretedDataType } from '$lib/data/types'
 import type { MergeCard } from './groupedEntityEditor.svelte'
 
@@ -53,6 +53,7 @@ export interface SelectionSessionConfig<TSel extends SelectionLike> {
 export function createSelectionSession<TSel extends SelectionLike>(
   cfg: SelectionSessionConfig<TSel>
 ) {
+  const contextMenuState = useContextMenu()
   let selections = $state(cfg.initial)
   let editingId = $state<number | null>(null)
   let hoveredId = $state<number | null>(null)
@@ -296,20 +297,18 @@ export function createSelectionSession<TSel extends SelectionLike>(
 
   // Clicking anywhere in the modal outside the list and the tray ends the
   // selection-editing episode — the natural dismiss alongside Esc and the
-  // active chip. Portaled overlays (menus, color popup) never count.
+  // active chip. The session's own regions declare themselves with
+  // data-selection-keep (EditableEntityList, SelectionTray), so no other
+  // component's class names are load-bearing here; the dialog gate rides the
+  // ARIA role, which also excludes portaled overlays (menus, color popup
+  // mount on document.body, outside the dialog).
   const onOutsideDown = (e: PointerEvent) => {
     if (editingId === null) return
     if (contextMenuState.current) return
     const t = e.target as HTMLElement | null
     if (!t?.closest) return
-    if (
-      t.closest(
-        '.entity-grid, .section-title-row, .tray, .color-popup, .context-menu'
-      )
-    ) {
-      return
-    }
-    if (t.closest('.modal')) done()
+    if (t.closest('[data-selection-keep]')) return
+    if (t.closest('[role="dialog"]')) done()
   }
 
   return {

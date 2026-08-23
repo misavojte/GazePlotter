@@ -38,7 +38,6 @@ export interface DefineTransitionMetricSpec<P> {
   searchTags: readonly string[]
   /** Recipe-specific knobs after the built-in `mode`, like
    *  `transitionProbability`'s `step`. */
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   extraParams?: readonly ParamDef<any>[]
   /** For a recipe needing a companion matrix — `transitionDwellMean` keeps
    *  both count and dwell sum. */

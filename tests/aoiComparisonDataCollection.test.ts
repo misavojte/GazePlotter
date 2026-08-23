@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { makeTestEngine } from './helpers/testEngine'
+import { makeTestEngine, makeScope } from './helpers/testEngine'
+import type { DataEngine } from '../src/lib/data/engine/dataEngine.svelte'
 import { query, queryIndividualsAllSlots, type MetricInstance, type Scope } from '../src/lib/metrics'
 
 // Stimulus 1 has 2 AOIs (raw IDs 1 and 2)
@@ -16,9 +17,8 @@ function inst(baseId: string): MetricInstance {
   return { id: 't1', baseId, params: {}, label: '', projection: { kind: 'identity-aoi-vector' } }
 }
 
-function scope(engine: any, participantId: number, tStart = 0, tEnd = 0): Scope {
-  return { engine, stimulusId: STIM, participantId, timeStart: tStart, timeEnd: tEnd }
-}
+const scope = (engine: DataEngine, participantId: number, tStart = 0, tEnd = 0): Scope =>
+  makeScope(engine, { participantId, timeStart: tStart, timeEnd: tEnd })
 
 function values(result: ReturnType<typeof query>): number[] {
   if (result.shape === 'aoi-vector') return result.values

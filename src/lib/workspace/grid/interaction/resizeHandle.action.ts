@@ -1,4 +1,4 @@
-import { throttleByRaf } from '$lib/shared/utils/throttle'
+import { throttleByRaf } from '$lib/shared/throttle'
 import { createPointerSession } from './pointerSession'
 import type { GridInteractionController } from './controller.svelte'
 import type {

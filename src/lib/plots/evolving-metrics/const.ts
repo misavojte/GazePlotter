@@ -1,23 +1,7 @@
-import {
-  FONT_PRIMARY,
-  GRIDLINE_SECONDARY,
-  GRIDLINE_PRIMARY,
-} from '$lib/plots/shared/const'
 import { withQualifiers } from '$lib/plots/shared/labels'
 
 export const MARGIN = {
   RIGHT: 10,
-}
-
-export const AXIS_CONFIG = {
-  tickLength: 5,
-  fontSize: FONT_PRIMARY.SIZE,
-  fontFamily: FONT_PRIMARY.FAMILY,
-  color: FONT_PRIMARY.COLOR,
-  gridColor: GRIDLINE_SECONDARY.COLOR,
-  baselineColor: GRIDLINE_PRIMARY.COLOR,
-  tickLabelOffset: 10,
-  labelOffset: 24,
 }
 
 // Time is the main axis here, so the binning window trails as a mid-dot

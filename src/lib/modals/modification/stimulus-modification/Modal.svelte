@@ -3,7 +3,7 @@
     STIMULUS_MERGE_AXIS,
   } from '../shared/MergeAxisModal.svelte'
 
-  interface Props {
+  export interface Props {
     source: string
   }
 

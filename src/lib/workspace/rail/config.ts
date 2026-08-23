@@ -1,9 +1,10 @@
 import { SquarePlus, Undo2, Redo2, RotateCcw, Settings2 } from 'lucide-svelte'
-import type { LucideIconComponent } from '$lib/shared/types'
+import type { LucideIconComponent } from '$lib/shared/icon'
 import { PLOT_GROUPS, type PlotGroup } from '$lib/plots/groups'
+import type { PlotType } from '$lib/workspace/grid/types'
 
 export interface RailVisualization {
-  id: string
+  id: PlotType
   label: string
   group: PlotGroup
 }
@@ -36,7 +37,7 @@ interface CreateRailItemsOptions {
   onUndo: () => void
   onRedo: () => void
   onResetLayout: () => void
-  onAddVisualization: (id: string) => void
+  onAddVisualization: (id: PlotType) => void
 }
 
 type RailItemId =

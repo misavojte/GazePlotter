@@ -40,7 +40,7 @@ export function getMetricMatrixData(
   if (!meta) return { ...emptyData(), empty: 'no-rows' }
 
   const resolved = resolveMetric({
-    instances: meta.metricInstances,
+    engine,
     id: settings.metricInstanceIds?.[0] ?? null,
     contract: METRIC_MATRIX_CONTRACT,
   })

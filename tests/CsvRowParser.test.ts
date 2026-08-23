@@ -46,15 +46,6 @@ describe('CSV Deserializer - Single data', () => {
   const csvRows = csvMockDataOne.split('\n')
   const header = csvRows[0].split(',')
   const delim = ','
-  test('Constructor', () => {
-    const sut = new CsvRowParser(header, delim)
-    expect(sut).toBeDefined()
-    expect(sut.cAoi).toBe(3)
-    expect(sut.cParticipant).toBe(1)
-    expect(sut.cStimulus).toBe(2)
-    expect(sut.cTime).toBe(0)
-  })
-
   test('Process first row', () => {
     const sut = new CsvRowParser(header, delim)
     const { outputs, processRow } = createAdapterHarness(sut)

@@ -5,7 +5,7 @@
   import type { SelectOption } from '$lib/shared/components'
   import type { EventFileMapping } from './definition'
 
-  interface Props {
+  export interface Props {
     fileNames: string[]
     stimuliOptions: SelectOption[]
     participantOptions: SelectOption[]

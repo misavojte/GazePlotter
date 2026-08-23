@@ -5,8 +5,8 @@ import { resolveParams } from './params'
 import { projectionSummaryStatistic } from './projection'
 import { getRecipe } from './defineMetric'
 import { fillWindowFrame } from './dsl'
-import { cacheGetRaw, cacheSetRaw, runSingleWindow } from './runtime'
-import type { FixationEvent, InitCtx, MetricRecipe, WindowFrame } from './dsl'
+import { cacheGetRaw, cacheSetRaw, makeScanCursor, runSingleWindow } from './runtime'
+import type { InitCtx, MetricRecipe } from './dsl'
 import type { MetricInstance } from '../instances'
 
 /**
@@ -49,10 +49,11 @@ export function scanBatch(
     if (inst.projection.kind === 'windowed') continue
     const recipe = getRecipe(inst.baseId)
     if (!recipe) continue
-    // Category-vector recipes iterate every segment, not the fixation index,
-    // so they can't join this pass. Each computes via the single path against
-    // the same raw cache, so batch==single holds by construction.
-    if (recipe.scanSource === 'categories') {
+    // Category-vector recipes iterate every segment and event-vector ones the
+    // occurrence stream, not the fixation index, so they can't join this pass.
+    // Each computes via the single path against the same raw cache, so
+    // batch==single holds by construction.
+    if (recipe.scanSource === 'categories' || recipe.scanSource === 'events') {
       results.set(
         inst.id,
         runSingleWindow(recipe, inst, { engine, stimulusId, participantId, aoiSelectionId }, timeStart, timeEnd),
@@ -69,16 +70,17 @@ export function scanBatch(
       continue
     }
     const params = resolveParams(recipe.params, inst.params)
-    // categorySlotCount 0: those recipes were delegated above, so nothing here
-    // indexes a per-type vector. The summary statistic, though, is NOT constant
-    // across the batch — the aoi-vector duration metrics summarize samples too,
-    // and a `pick-aoi · median` instance must collapse by median here exactly
-    // as on the single path, or it poisons the statistic-keyed raw cache.
+    // axisSlotCount 0: axis-scanning recipes were delegated above, so nothing
+    // here indexes a per-type or per-channel vector. The summary statistic,
+    // though, is NOT constant across the batch — the aoi-vector duration
+    // metrics summarize samples too, and a `pick-aoi · median` instance must
+    // collapse by median here exactly as on the single path, or it poisons
+    // the statistic-keyed raw cache.
     const ctx = {
       params,
       slots,
       scopeDurationMs,
-      categorySlotCount: 0,
+      axisSlotCount: 0,
       summaryStatistic: projectionSummaryStatistic(inst.projection),
     }
     active.push({
@@ -96,23 +98,7 @@ export function scanBatch(
   const segBuf = reader.segmentBufferRaw
   const aoiPool = reader.aoiPoolRaw
   const resolvedSlots: number[] = []
-  // Reused across every fixation — same zero-alloc contract as
-  // scanAccumulator: onFixation reads synchronously and retains nothing.
-  const frame: WindowFrame = {
-    windowStart: 0,
-    windowEnd: 0,
-    start: 0,
-    end: 0,
-    duration: 0,
-  }
-  const fixEvent: FixationEvent = {
-    start: 0,
-    duration: 0,
-    frame,
-    slots: resolvedSlots,
-    index: 0,
-    categorySlot: -1,
-  }
+  const { frame, fixEvent } = makeScanCursor(resolvedSlots)
   let index = 0
 
   for (let k = fStart; k < fEnd; k++) {

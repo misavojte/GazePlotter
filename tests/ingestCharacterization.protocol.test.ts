@@ -22,32 +22,12 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { testMobileTsvData } from './TobiiRowParser.test.data'
-
-type Posted = { message: any; options?: { transfer?: unknown[] } }
-
-let posted: Posted[]
-let workerSelf: {
-  postMessage: (message: unknown, options?: { transfer?: unknown[] }) => void
-  onmessage: ((event: { data: unknown }) => Promise<void>) | null
-}
-
-async function bootWorker() {
-  posted = []
-  // Inherit from globalThis so transitive deps that environment-sniff via
-  // `self` (jszip → setimmediate) still find node's scheduling primitives.
-  workerSelf = Object.assign(Object.create(globalThis), {
-    postMessage: (message: unknown, options?: { transfer?: unknown[] }) => {
-      posted.push({ message, options })
-    },
-    onmessage: null,
-  })
-  vi.stubGlobal('self', workerSelf)
-  vi.resetModules()
-  await import('$lib/data/ingest/worker')
-}
-
-const send = (type: string, data?: unknown) =>
-  workerSelf.onmessage!({ data: { type, data } })
+import {
+  bootWorker,
+  posted,
+  resetWorkerGlobals,
+  send,
+} from './helpers/ingestServiceHarness'
 
 const toBuffer = (s: string) => new TextEncoder().encode(s).buffer
 
@@ -58,10 +38,7 @@ const csvContent = `Time,Participant,Stimulus,AOI
 
 describe('worker protocol', () => {
   beforeEach(bootWorker)
-  afterEach(() => {
-    vi.unstubAllGlobals()
-    vi.resetModules()
-  })
+  afterEach(resetWorkerGlobals)
 
   it("csv buffer: emits progress then 'done' with an IngestResult envelope, transferring binary buffers", async () => {
     await send('file-names', ['data.csv'])

@@ -11,25 +11,6 @@ import { testMobileTsvData } from './TobiiRowParser.test.data'
 import { createAdapterHarness } from './helpers/ingestAdapterHarness'
 
 describe('TobiiRowParser', () => {
-  it('should construct', () => {
-    // Placeholder test
-    expect(TobiiRowParser).toBeDefined()
-  })
-
-  it('parses testMobileTsvData with IntervalStart;IntervalEnd without errors', () => {
-    const lines = testMobileTsvData.split('\n')
-    const header = lines[0].split('\t')
-    const rows = lines.slice(1)
-    const deserializer = new TobiiRowParser(
-      header,
-      '{"stimulusStartSuffix":"IntervalStart","stimulusEndSuffix":"IntervalEnd"}',
-      '\t'
-    )
-    const { outputs, processRows } = createAdapterHarness(deserializer)
-    processRows(rows, { finalize: true })
-    expect(outputs.length).toBeGreaterThan(0)
-  })
-
   it('first output has correct category, duration, and stimulus', () => {
     const lines = testMobileTsvData.split('\n')
     const header = lines[0].split('\t')

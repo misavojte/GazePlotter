@@ -1,14 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import type { DataType } from '../src/lib/data/types'
 import { jsonSegmentsToBinary } from '../src/lib/data/binary'
+import { makeDataType } from './helpers/dataTypeFixtures'
 import {
   generateMetadataForBatchCsv,
   generateUnifiedCsv,
 } from '../src/lib/data/export/mappers/segments'
 
+// Takes PREBUILT binary segments (the spatial cases build them directly), so
+// the override wins over makeDataType's nested-array wrap.
 function createData(segments: DataType['segments']): DataType {
-  return {
-    isOrdinalOnly: false,
+  return makeDataType([[]], {
     capabilities: {
       segmented: segments.segmentBuffer.length / 6 > 0,
       spatial: segments.hasSpatialData,
@@ -22,27 +24,13 @@ function createData(segments: DataType['segments']): DataType {
       data: [['Participant A', 'Participant A']],
       orderVector: [0],
     },
-    participantsSelections: [],
     metricInstances: [],
-    categories: {
-      data: [['Fixation', 'Fixation', '#000000']],
-      orderVector: [0],
-    },
-    noAoiTreatment: {
-      displayedName: 'No AOI',
-      color: '#cbd5e1',
-    },
     aois: {
       data: [[['AOI 1', 'AOI 1', '#ff0000']]],
       orderVector: [[0]],
     },
     segments,
-    eventData: {
-      data: [[]],
-      orderVector: [],
-      events: [[]],
-    },
-  }
+  })
 }
 
 describe('segmented export participant filter', () => {

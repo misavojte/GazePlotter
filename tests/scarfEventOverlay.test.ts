@@ -1,7 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createReaderFromJson } from '../src/lib/data/binary/converters'
-import { AoiGroupReader } from '../src/lib/data/binary/reader.aoiGroup'
-import { EventBufferReader, jsonEventsToBinary } from '../src/lib/data/binary/reader.event'
+import { makeTestEngine } from './helpers/testEngine'
 import { FIXATION_CATEGORY_ID } from '../src/lib/data/binary/schema'
 import { getScarfData } from '../src/lib/plots/scarf/core/view'
 import { OVERLAY_EVENT_STRIDE } from '../src/lib/plots/scarf/const'
@@ -18,38 +16,15 @@ const STIM = 1
 /** events[stimulus][channel][participant] = flat [start, duration, ...]. */
 function buildEngine(events: number[][][][], channels: string[]) {
   // One participant, one long fixation so the full-extent window is [0, 400].
-  const reader = createReaderFromJson([[], [[[0, 400, FIXATION_CATEGORY_ID, 1]]]])
-  const eventReader = new EventBufferReader(jsonEventsToBinary(events))
-  const aoiData: (string[] | null)[] = [null, ['AOI 1', 'AOI 1', '#e41a1c']]
-  const eventChannels = channels.map(name => [name, name, '#3366cc'])
-
-  const metadata = {
-    isOrdinalOnly: false,
-    capabilities: { segmented: true, spatial: false, event: true },
-    aois: { data: [[], aoiData], orderVector: [[], [1]] },
-    categories: { data: [['Fixation', 'Fixation', '#000']], orderVector: [] },
-    participants: { data: [['P0', 'P0']], orderVector: [] },
-    participantsSelections: [],
-    stimuli: { data: [['S0', 'S0'], ['S1', 'S1']], orderVector: [] },
-    eventData: {
-      data: [[], eventChannels],
-      orderVector: [[], channels.map((_, i) => i)],
-    },
-    noAoiTreatment: { displayedName: 'Outside', color: 'gray' },
-    metricInstances: [],
-  }
-  const agr = new AoiGroupReader(reader)
-  agr.updateMap(metadata as never)
-
-  return {
-    metadata,
-    capabilities: { segmented: true, spatial: false, event: true },
-    eventsPerStimulus: [false, true],
-    getReader: () => reader,
-    getAoiGroupReader: () => agr,
-    getEventReader: () => eventReader,
-    getAoiMapping: (s: number, r: number) => agr.getAoiMapping(s, r),
-  } as never
+  return makeTestEngine([[], [[[0, 400, FIXATION_CATEGORY_ID, 1]]]], {
+    aoiData: [[], [null, ['AOI 1', 'AOI 1', '#e41a1c']]],
+    aoiOrderVector: [[], [1]],
+    categories: [['Fixation', 'Fixation', '#000']],
+    eventData: [[], channels.map(name => [name, name, '#3366cc'])],
+    eventOrderVector: [[], channels.map((_, i) => i)],
+    events,
+    aoiMapping: 'group',
+  })
 }
 
 const SETTINGS: ScarfPlotSettings = {

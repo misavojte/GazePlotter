@@ -1,6 +1,5 @@
 <script lang="ts">
-  import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/utils/textUtils'
-  import { distanceToSegment } from '$lib/shared/utils/mathUtils'
+  import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/textMeasure'
   import { UI_COLORS } from '$lib/color'
   import {
     drawPlotArea,
@@ -25,7 +24,7 @@
   } from '$lib/plots/shared/plotCursor.svelte'
   import { SCANGRAPH_LAYOUT } from '../const'
   import type { ScangraphData } from '../types'
-  import { computeForceLayout, type LayoutResult, type NodePosition } from '../core/forceLayout'
+  import { computeForceLayout, distanceToSegment, type LayoutResult, type NodePosition } from '../core/forceLayout'
 
   const HIGHLIGHT_COLOR = '#e53e3e'
   const HIGHLIGHT_FILL = '#fbbf24'
@@ -554,7 +553,6 @@
    * schedules no repaint.
    */
   const EMPTY_HIT: FrameHit<ScangraphHover> = {
-    tooltipId: 'scangraph-tooltip',
     content: [],
     anchorX: 0,
     anchorY: 0,
@@ -572,7 +570,6 @@
         for (let i = 1; i < connectionItems.length; i++) content.push(connectionItems[i])
       }
       return {
-        tooltipId: 'scangraph-tooltip',
         content,
         anchorX: node.x + 10,
         anchorY: node.y,
@@ -591,7 +588,6 @@
     const s = layoutResult.nodes[link.source]
     const t = layoutResult.nodes[link.target]
     return {
-      tooltipId: 'scangraph-tooltip',
       content: [
         { key: 'Participants', value: `${clipLabel(s.label)} ↔ ${clipLabel(t.label)}` },
         { key: 'Similarity', value: link.value.toFixed(3) },

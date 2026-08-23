@@ -11,7 +11,12 @@
  * where a single fixation lands in several overlapping windows.
  */
 import { describe, it, expect } from 'vitest'
-import { makeTestEngine } from './helpers/testEngine'
+import {
+  makeTestEngine,
+  makeSingleParticipantEngine,
+  makeScope,
+} from './helpers/testEngine'
+import type { DataEngine } from '../src/lib/data/engine/dataEngine.svelte'
 import { query, type MetricInstance, type Scope } from '../src/lib/metrics'
 import type { LeafProjection } from '../src/lib/metrics/core/projection'
 
@@ -19,13 +24,8 @@ const STIM = 1
 const PID = 0
 
 // Slot layout (2 AOIs): 0=AOI1, 1=AOI2, 2=noAoi, 3=anyFixation
-function createEngine(segmentsForPid: number[][]) {
-  return makeTestEngine([[], [segmentsForPid]])
-}
-
-function scope(engine: any, timeStart: number, timeEnd: number): Scope {
-  return { engine, stimulusId: STIM, participantId: PID, timeStart, timeEnd }
-}
+const scope = (engine: DataEngine, timeStart: number, timeEnd: number): Scope =>
+  makeScope(engine, { timeStart, timeEnd })
 
 function windowedInst(
   baseId: string,
@@ -102,7 +102,7 @@ describe('runTimeWindowed fan-out == per-window oracle (sliding windows)', () =>
 
   for (const c of cases) {
     it(`${c.name}`, () => {
-      const engine = createEngine(FIX)
+      const engine = makeSingleParticipantEngine(FIX)
       const result = query(windowedInst(c.baseId, c.inner, WIN, STEP), scope(engine, T0, T1))
       const oracle = oracleTimeline(engine, c.baseId, c.inner, c.vector, T0, T1, WIN, STEP)
 
@@ -131,7 +131,7 @@ describe('runTimeWindowed fan-out == per-window oracle (sliding windows)', () =>
   }
 
   it('non-overlapping epoch (step === size) also matches the oracle', () => {
-    const engine = createEngine(FIX)
+    const engine = makeSingleParticipantEngine(FIX)
     const result = query(windowedInst('absoluteTime', { kind: 'identity-aoi-vector' }, 150, 150), scope(engine, 0, 600))
     const oracle = oracleTimeline(engine, 'absoluteTime', { kind: 'identity-aoi-vector' }, true, 0, 600, 150, 150)
     if (result.shape !== 'aoi-vector-timeseries') throw new Error('shape')
@@ -147,7 +147,7 @@ describe('runTimeWindowed fan-out == per-window oracle (sliding windows)', () =>
     // A single fixation [100, 500] on AOI1; 200 ms windows, 100 ms step over
     // [0, 600]. Each window's AOI1 dwell must equal the in-window overlap, and
     // must match the independent per-window oracle exactly.
-    const engine = createEngine([[100, 500, 0, 1]])
+    const engine = makeSingleParticipantEngine([[100, 500, 0, 1]])
     const result = query(windowedInst('absoluteTime', { kind: 'identity-aoi-vector' }, 200, 100), scope(engine, 0, 600))
     const oracle = oracleTimeline(engine, 'absoluteTime', { kind: 'identity-aoi-vector' }, true, 0, 600, 200, 100)
     if (result.shape !== 'aoi-vector-timeseries') throw new Error('shape')

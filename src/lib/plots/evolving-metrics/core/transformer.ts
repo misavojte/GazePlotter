@@ -84,7 +84,7 @@ export function getEvolvingMetricsData(
   if (!meta) return emptyEvolvingMetricsResult()
 
   const resolved = resolveMetric({
-    instances: meta.metricInstances,
+    engine,
     id: settings.metricInstanceIds?.[0] ?? null,
     contract: CONTRACT,
   })

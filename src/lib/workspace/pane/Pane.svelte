@@ -14,7 +14,9 @@
   import { PANE_TRANSITION, slideFlex } from './transition'
   import { responsive } from '../responsive.svelte'
   import { stickyBanner } from '../stickyBanner.svelte'
-  import { contextMenuState } from '$lib/context-menu'
+  import { useContextMenu } from '$lib/context-menu'
+
+  const contextMenuState = useContextMenu()
 
   // Shared open states for every PaneSection inside this Pane.
   // Opening or closing one section does not affect other sections.
@@ -67,17 +69,14 @@
     isBulk ? 'Bulk plot settings' : `${title} settings`
   )
 
-  // Desktop: closing the pane also deselects (setSelectedItem(null)/
-  // clearSelection() clears paneOpenId transitively). Mobile: keep the plot
-  // selected so the FAB returns and the user can still drag — closePane()
-  // only closes the sheet.
+  // Desktop: closing the pane also deselects (clearSelection() clears
+  // paneOpenId transitively). Mobile: keep the plot selected so the FAB
+  // returns and the user can still drag; closePane() only closes the sheet.
   function close() {
-    if (isBulk) {
-      grid.clearSelection()
-    } else if (responsive.isMobile) {
+    if (responsive.isMobile && !isBulk) {
       grid.closePane()
     } else {
-      grid.setSelectedItem(null)
+      grid.clearSelection()
     }
   }
 

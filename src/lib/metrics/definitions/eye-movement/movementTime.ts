@@ -16,11 +16,11 @@ defineMetric({
   // Divisible time, clipped per window; see absoluteTime.
   windowMembership: 'all',
   accumulation: 'stateful',
-  init: ({ categorySlotCount }) => new Float64Array(categorySlotCount),
-  onFixation: (acc, { frame, categorySlot }) => {
+  init: ({ axisSlotCount }) => new Float64Array(axisSlotCount),
+  onFixation: (acc, { frame, axisSlot }) => {
     // In-window overlap so windowed sums compose; see absoluteTime.
-    if (categorySlot < 0) return
-    acc[categorySlot] += frame.duration
+    if (axisSlot < 0) return
+    acc[axisSlot] += frame.duration
   },
   finalize: acc => Array.from(acc),
 })

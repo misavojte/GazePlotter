@@ -1,10 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte'
-  import { triggerDownload } from '$lib/data/export'
   import ModalButtons from '$lib/modals/shared/components/ModalButtons.svelte'
   import { getGazePlotterSession } from '$lib/session'
-  import { formatFileSize } from '$lib/shared/utils/fileUtils'
-  import { formatDuration } from '$lib/shared/utils/timeUtils'
+  import { formatFileSize } from '$lib/shared/format'
+  import { formatDuration } from '$lib/shared/format'
   import { Card } from '$lib/shared/components'
   import MetadataExclusionsSection from './components/MetadataExclusionsSection.svelte'
   import MetadataFileList from './components/MetadataFileList.svelte'
@@ -23,7 +22,8 @@
     sumFileSizes,
   } from './helpers'
 
-  const { errorService, ingest, engine, modalState } = getGazePlotterSession()
+  const { errorService, ingest, engine, modalState, exportService } =
+    getGazePlotterSession()
   const fileMetadata = $derived(ingest.metadata ?? null)
   const currentFileInput = $derived(ingest.input)
   const recentErrors = $derived(errorService.recent)
@@ -78,45 +78,30 @@
   }
 
   function exportMetadata(): void {
-    try {
-      const exportDate = new Date()
-      const csvContent = buildMetadataCsvReport(
-        {
-          overview: dataOverview,
-          memoryInfo,
-          currentFileInput,
-          isSameAsSource,
-          fileMetadata,
-          hasValidData: engine.hasValidData,
-          recentErrors,
-          dataExclusions,
-          merges: engine.metadata?.merges ?? [],
-          generatedAt: exportDate.toISOString(),
-        },
-        {
-          formatDate: formatMetadataDate,
-          formatDuration,
-          formatFileSize,
-        }
-      )
-
-      triggerDownload(
-        new Blob([csvContent], { type: 'text/csv' }),
-        buildMetadataExportFileName(exportDate),
-        '.csv'
-      )
-    } catch (error) {
-      errorService.report({
-        origin: 'export',
-        severity: 'recoverable',
-        userMessage: 'Could not export metadata report.',
-        cause: error,
-        context: {
-          hasSourceMetadata: fileMetadata !== null,
-          recentErrorCount: recentErrors.length,
-        },
-      })
-    }
+    const exportDate = new Date()
+    void exportService.exportMetadataReport({
+      fileName: buildMetadataExportFileName(exportDate),
+      buildContent: () =>
+        buildMetadataCsvReport(
+          {
+            overview: dataOverview,
+            memoryInfo,
+            currentFileInput,
+            isSameAsSource,
+            fileMetadata,
+            hasValidData: engine.hasValidData,
+            recentErrors,
+            dataExclusions,
+            merges: engine.metadata?.merges ?? [],
+            generatedAt: exportDate.toISOString(),
+          },
+          {
+            formatDate: formatMetadataDate,
+            formatDuration,
+            formatFileSize,
+          }
+        ),
+    })
   }
 </script>
 

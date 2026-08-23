@@ -9,6 +9,7 @@
  */
 
 import { PlotSyncRegistry } from '$lib/plots/shared/PlotSyncRegistry.svelte'
+import { sessionScoped } from '$lib/session/context'
 
 interface SyncEntry {
   /** Composite key identifying matrices that are comparable (metric + display + step). */
@@ -20,7 +21,7 @@ interface SyncEntry {
   dataMax: number
 }
 
-class TransitionMatrixColorSync extends PlotSyncRegistry<SyncEntry> {
+export class TransitionMatrixColorSync extends PlotSyncRegistry<SyncEntry> {
   /** Largest dataMax across plots sharing (groupKey, colorScaleKey, w, h). */
   getSyncedMax(
     groupKey: string,
@@ -38,7 +39,10 @@ class TransitionMatrixColorSync extends PlotSyncRegistry<SyncEntry> {
   }
 }
 
-export const transitionMatrixColorSync = new TransitionMatrixColorSync()
+/** This session's registry; resolve at component init. */
+export const transitionMatrixColorSync = sessionScoped(
+  () => new TransitionMatrixColorSync()
+)
 
 /** Turn a color-scale array into a stable key for sync comparison. */
 export function colorScaleToKey(colorScale: string[]): string {

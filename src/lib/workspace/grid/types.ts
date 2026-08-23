@@ -47,21 +47,11 @@ export type PlotSettingsMap = {
 
 export type AllPlotSettings = PlotSettingsMap[keyof PlotSettingsMap]
 
-/**
- * Generic plot item shape used across the workspace.
- */
-export type PlotItem<
-  TType extends PlotType,
-  TSettings extends AllPlotSettings,
-> = PlotItemContract<TType, TSettings>
-
 export type GridItemMap = {
-  [K in PlotType]: PlotItem<K, PlotSettingsMap[K]>
+  [K in PlotType]: PlotItemContract<K, PlotSettingsMap[K]>
 }
 
 export type AllGridTypes = GridItemMap[keyof GridItemMap]
-
-export type GridType = GridItemBase
 
 export type GridItemLayoutUpdate = Partial<
   Pick<GridItemBase, 'x' | 'y' | 'w' | 'h' | 'min' | 'redrawTimestamp'>
@@ -72,5 +62,3 @@ export type GridItemSnapshot<K extends PlotType = PlotType> =
     type: K
     settings?: Partial<PlotSettingsMap[K]>
   }
-
-export type VisualizationConfig<K extends PlotType> = PlotDefinitions[K]

@@ -20,7 +20,7 @@ import { FONT_PRIMARY } from './const'
 import {
   truncateTextToPixelWidth,
   estimateTextWidth,
-} from '$lib/shared/utils/textUtils'
+} from '$lib/shared/textMeasure'
 import { alignToPixelCenter } from '$lib/plots/shared/canvasUtils'
 import { desaturateToWhite } from '$lib/color'
 
@@ -116,27 +116,8 @@ export interface LegendGeometry {
 // DEFAULT CONFIGS
 // ============================================================================
 
-/** Default configuration matching existing scarf plot legend */
-export const SCARF_LEGEND_CONFIG: LegendConfig = {
-  itemHeight: 15,
-  iconWidth: 20,
-  textPadding: 8,
-  itemSpacing: 15,
-  rowPadding: 8,
-  titleHeight: 18,
-  groupSpacing: 10,
-  groupTitleSpacing: 2,
-  fontFamily: FONT_PRIMARY.FAMILY,
-  fontSize: FONT_PRIMARY.SIZE,
-  fontColor: FONT_PRIMARY.COLOR,
-  topPadding: 0,
-  lineDash: [2, 2] as const,
-  nonFixationHeight: 4,
-  titleGutterGap: 16,
-}
-
-/** Default configuration matching existing stream plot legend */
-export const STREAM_LEGEND_CONFIG: LegendConfig = {
+/** Shared legend configuration (scarf and aoi-stream draw the same key) */
+export const LEGEND_CONFIG: LegendConfig = {
   itemHeight: 15,
   iconWidth: 20,
   textPadding: 8,
@@ -218,6 +199,108 @@ export function calculateFlatLegendHeight(
   return rows > 0 ? topPadding + rows * itemHeight + (rows - 1) * rowPadding : 0
 }
 
+/** Widest label across items, for the uniform column width */
+function maxLegendTextWidth(
+  items: readonly LegendItem[],
+  config: LegendConfig
+): number {
+  return items.reduce(
+    (max, item) =>
+      Math.max(
+        max,
+        estimateTextWidth(item.name, config.fontSize, config.fontFamily)
+      ),
+    0
+  )
+}
+
+/** Fixed column width shared by every item (capped for readability) */
+function uniformLegendColumnWidth(
+  maxTextWidth: number,
+  config: LegendConfig
+): number {
+  return Math.min(config.iconWidth + config.textPadding + maxTextWidth, 250)
+}
+
+interface LegendBlock {
+  items: LegendItemGeometry[]
+  firstRowY: number
+  firstRowHeight: number
+  /** Y after the block, including the trailing rowPadding */
+  endY: number
+}
+
+/**
+ * Lay out one column-first grid of items: the three-pass core shared by the
+ * flat and grouped legends. Row height is max(icon, text) per row.
+ */
+function layoutLegendBlock(
+  items: readonly LegendItem[],
+  config: LegendConfig,
+  startX: number,
+  startY: number,
+  columnWidth: number,
+  itemsPerRow: number,
+  groupTitle?: string
+): LegendBlock {
+  const { itemHeight, itemSpacing, rowPadding, fontSize, nonFixationHeight } =
+    config
+  const rows = Math.ceil(items.length / itemsPerRow)
+
+  // Pass 1: per-row heights (column-first filling: item i sits in row i % rows)
+  const rowHeights = new Float32Array(rows).fill(0)
+  const iconHeights = new Float32Array(items.length)
+  for (let i = 0; i < items.length; i++) {
+    let iconH = fontSize
+    if (items[i].type === 'fixation') {
+      iconH = itemHeight
+    } else if (items[i].type === 'nonFixation') {
+      iconH = nonFixationHeight
+    }
+    iconHeights[i] = iconH
+    const effectiveH = Math.max(iconH, fontSize)
+    const row = i % rows
+    if (effectiveH > rowHeights[row]) {
+      rowHeights[row] = effectiveH
+    }
+  }
+
+  // Pass 2: row Y positions
+  const rowYPositions = new Float32Array(rows)
+  let currentY = startY
+  for (let r = 0; r < rows; r++) {
+    rowYPositions[r] = currentY
+    currentY += rowHeights[r] + rowPadding
+  }
+
+  // Pass 3: place items into left-aligned fixed-width columns
+  const placed: LegendItemGeometry[] = new Array(items.length)
+  for (let i = 0; i < items.length; i++) {
+    const item = items[i]
+    const col = Math.floor(i / rows)
+    const row = i % rows
+    placed[i] = {
+      identifier: item.identifier,
+      name: item.name,
+      color: item.color,
+      height: iconHeights[i],
+      x: startX + col * (columnWidth + itemSpacing),
+      y: rowYPositions[row],
+      width: columnWidth,
+      type: item.type,
+      groupTitle,
+      rowHeight: rowHeights[row],
+    }
+  }
+
+  return {
+    items: placed,
+    firstRowY: rows > 0 ? rowYPositions[0] : startY,
+    firstRowHeight: rows > 0 ? rowHeights[0] : 0,
+    endY: currentY,
+  }
+}
+
 /**
  * Compute geometry for a flat (ungrouped) list of items.
  * This is optimized for AoiStreamPlot which has a simple list.
@@ -235,104 +318,25 @@ export function computeFlatLegendGeometry(
   availableWidth: number,
   itemsPerRowOverride?: number
 ): LegendGeometry {
-  const {
-    itemHeight,
-    iconWidth,
-    textPadding,
-    itemSpacing,
-    rowPadding,
-    topPadding,
-    fontSize,
-    fontFamily,
-  } = config
-
-  // 1. Calculate max width needed by any item to ensure consistent column widths
-  const maxTextWidth = items.reduce(
-    (max, item) => Math.max(max, estimateTextWidth(item.name, fontSize, fontFamily)),
-    0
-  )
-
-  const uniformColumnWidth = Math.min(
-    iconWidth + textPadding + maxTextWidth,
-    250 // Cap width for readability
-  )
-
-  // 2. Determine items per row using the actual column width
-  // We pass maxTextWidth as 'avgTextWidth' to ensure conservative fitting
+  const maxTextWidth = maxLegendTextWidth(items, config)
   const effectiveItemsPerRow =
     itemsPerRowOverride ??
     getLegendItemsPerRow(availableWidth, config, maxTextWidth, items.length)
 
-  const geometryItems: LegendItemGeometry[] = new Array(items.length)
-  const legendY = startY + topPadding
-  const totalRows = Math.ceil(items.length / effectiveItemsPerRow)
-
-  // 3. Calculate dynamic row heights (Layout Pass 1)
-  const rowHeights = new Float32Array(totalRows).fill(0)
-  const itemIconHeights = new Float32Array(items.length)
-
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i]
-    // Determine icon height based on type
-    let iconH = fontSize // Default fallback
-    if (item.type === 'fixation') {
-      iconH = itemHeight
-    } else if (item.type === 'nonFixation') {
-      iconH = config.nonFixationHeight
-    }
-
-    itemIconHeights[i] = iconH
-
-    // Row height is max of icon and text height
-    // Using fontSize as proxy for text height
-    const effectiveH = Math.max(iconH, fontSize)
-
-    // Determine row index (column-first filling)
-    const row = i % totalRows
-    if (effectiveH > rowHeights[row]) {
-      rowHeights[row] = effectiveH
-    }
-  }
-
-  // 4. Calculate Row Y positions (Layout Pass 2)
-  const rowYPositions = new Float32Array(totalRows)
-  let currentY = legendY
-  for (let r = 0; r < totalRows; r++) {
-    rowYPositions[r] = currentY
-    currentY += rowHeights[r] + rowPadding
-  }
-
-  // 5. Place items (Layout Pass 3)
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i]
-
-    // Calculate column and row for column-first ordering
-    const col = Math.floor(i / totalRows)
-    const row = i % totalRows
-
-    // Left-aligned fixed-width columns
-    const x = startX + col * (uniformColumnWidth + itemSpacing)
-    const y = rowYPositions[row]
-
-    geometryItems[i] = {
-      identifier: item.identifier,
-      name: item.name,
-      color: item.color,
-      height: itemIconHeights[i],
-      x,
-      y,
-      width: uniformColumnWidth,
-      type: item.type,
-      rowHeight: rowHeights[row],
-    }
-  }
-
-  const totalHeight = currentY - startY - (totalRows > 0 ? rowPadding : 0)
+  const block = layoutLegendBlock(
+    items,
+    config,
+    startX,
+    startY + config.topPadding,
+    uniformLegendColumnWidth(maxTextWidth, config),
+    effectiveItemsPerRow
+  )
 
   return {
-    items: geometryItems,
+    items: block.items,
     groupTitles: [],
-    totalHeight,
+    totalHeight:
+      block.endY - startY - (items.length > 0 ? config.rowPadding : 0),
     itemsPerRow: effectiveItemsPerRow,
   }
 }
@@ -355,37 +359,22 @@ export function computeGroupedLegendGeometry(
   itemsPerRowOverride?: number
 ): LegendGeometry {
   const {
-    itemHeight,
-    itemSpacing,
     rowPadding,
     titleHeight,
     groupSpacing,
     groupTitleSpacing,
-    iconWidth,
-    textPadding,
     titleGutterGap,
     fontSize,
     fontFamily,
   } = config
 
   // 1. Uniform item-column width = widest item label across ALL groups, so every
-  //    column lines up into one regular grid (capped for readability).
+  //    column lines up into one regular grid.
   const maxTextWidth = groups.reduce(
-    (max, g) =>
-      Math.max(
-        max,
-        g.items.reduce(
-          (m, item) => Math.max(m, estimateTextWidth(item.name, fontSize, fontFamily)),
-          0
-        )
-      ),
+    (max, g) => Math.max(max, maxLegendTextWidth(g.items, config)),
     0
   )
-
-  const uniformColumnWidth = Math.min(
-    iconWidth + textPadding + maxTextWidth,
-    250 // Cap width
-  )
+  const uniformColumnWidth = uniformLegendColumnWidth(maxTextWidth, config)
 
   // 2. Inline title gutter: group titles share a fixed-width left column (aligned in
   //    one vertical strip) and the item grid begins to their right, reclaiming the
@@ -456,91 +445,36 @@ export function computeGroupedLegendGeometry(
       ? currentY
       : currentY + titleHeight + groupTitleSpacing
 
-    // Calculate Rows
-    const groupRows = Math.ceil(group.items.length / effectiveItemsPerRow)
+    const block = layoutLegendBlock(
+      group.items,
+      config,
+      itemsStartX,
+      itemsStartY,
+      uniformColumnWidth,
+      effectiveItemsPerRow,
+      group.title
+    )
 
-    // Dynamic row heights (Layout Pass 1)
-    const rowHeights = new Float32Array(groupRows).fill(0)
-    // Store icon heights to avoid re-calculating in placement pass
-    const groupItemIconHeights = new Float32Array(group.items.length)
+    // Inline titles are vertically centered on the first item row (drawn with
+    // baseline 'top'); stacked titles take their own line at the band top.
+    groupTitles.push({
+      title: group.title,
+      x: startX,
+      y: useInline
+        ? block.firstRowY + (block.firstRowHeight - fontSize) / 2
+        : currentY,
+    })
 
-    for (let i = 0; i < group.items.length; i++) {
-      const item = group.items[i]
-
-      // Determine icon height
-      let iconH = fontSize // Default
-      if (item.type === 'fixation') {
-        iconH = itemHeight
-      } else if (item.type === 'nonFixation') {
-        iconH = config.nonFixationHeight
-      }
-      groupItemIconHeights[i] = iconH
-
-      // Row height = max(icon, text)
-      const effectiveH = Math.max(iconH, fontSize)
-
-      const row = i % groupRows
-      if (effectiveH > rowHeights[row]) {
-        rowHeights[row] = effectiveH
-      }
-    }
-
-    // Row Y positions (Layout Pass 2)
-    const rowYPositions = new Float32Array(groupRows)
-    let groupY = itemsStartY
-    for (let r = 0; r < groupRows; r++) {
-      rowYPositions[r] = groupY
-      groupY += rowHeights[r] + rowPadding
-    }
-
-    // Group title geometry
-    if (useInline) {
-      // Vertically center the title on the first item row (drawn with baseline 'top').
-      groupTitles.push({
-        title: group.title,
-        x: startX,
-        y: rowYPositions[0] + (rowHeights[0] - fontSize) / 2,
-      })
-    } else {
-      groupTitles.push({
-        title: group.title,
-        x: startX,
-        y: currentY,
-      })
-    }
-
-    // Place items (Layout Pass 3)
-    for (let i = 0; i < group.items.length; i++) {
-      const item = group.items[i]
-
-      const col = Math.floor(i / groupRows)
-      const row = i % groupRows
-
-      const x = itemsStartX + col * (uniformColumnWidth + itemSpacing)
-      const y = rowYPositions[row]
-
-      geometryItems.push({
-        identifier: item.identifier,
-        name: item.name,
-        color: item.color,
-        height: groupItemIconHeights[i],
-        x,
-        y,
-        width: uniformColumnWidth,
-        type: item.type,
-        groupTitle: group.title,
-        rowHeight: rowHeights[row],
-      })
-    }
-
-    // Update currentY to account for this group
-    currentY = groupY
+    geometryItems.push(...block.items)
+    currentY = block.endY
   }
 
   return {
     items: geometryItems,
     groupTitles,
-    totalHeight: currentY - startY - (groups.length > 0 ? rowPadding : 0),
+    // Trim the trailing rowPadding only when something was rendered; all-empty
+    // groups must report 0, not a negative height.
+    totalHeight: currentY - startY - (groupTitles.length > 0 ? rowPadding : 0),
     itemsPerRow: effectiveItemsPerRow,
   }
 }

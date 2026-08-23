@@ -6,7 +6,10 @@ import {
   SegmentField,
 } from '../src/lib/data/binary/schema'
 import { getScarfData } from '../src/lib/plots/scarf/core/view'
-import { compositeGazeBinaryAcc } from '../src/lib/plots/scarf/core/renderer'
+import {
+  compositeGazeBinaryAcc,
+  type FusedWideRect,
+} from '../src/lib/plots/scarf/core/renderer'
 import { SCARF_LAYOUT } from '../src/lib/plots/scarf/const'
 import type { ScarfPlotSettings } from '../src/lib/plots/scarf/types'
 
@@ -353,15 +356,7 @@ describe('wide-rect thin flag', () => {
     const styleCount =
       data.stylingAndLegend.aoi.length + data.stylingAndLegend.category.length
     const acc = new Float32Array(1 * pWidth * 4)
-    const wide: Array<{
-      x0px: number
-      wPx: number
-      pIdx: number
-      hOrig: number
-      internalY: number
-      styleIdx: number
-      thin: boolean
-    }> = []
+    const wide: FusedWideRect[] = []
     compositeGazeBinaryAcc(
       acc, new Float32Array(1 * pWidth * 4), data.gazeSource,
       new Float32Array(styleCount * 3),

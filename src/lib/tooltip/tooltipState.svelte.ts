@@ -1,4 +1,5 @@
-import { estimateTextWidth } from '$lib/shared/utils/textUtils'
+import { sessionScoped } from '$lib/session/context'
+import { estimateTextWidth } from '$lib/shared/textMeasure'
 import {
   TOOLTIP_JUMP_THRESHOLD,
   TOOLTIP_DEBOUNCE_DELAY,
@@ -6,30 +7,18 @@ import {
 } from './const'
 
 export interface TooltipStateType {
-  id: string
-  visible: boolean
   content: Array<{ key: string; value: string }>
   x: number
   y: number
   width?: number
 }
 
-let _state = $state<TooltipStateType | null>(null)
+/** Stored tooltip: the payload plus the identity `update` assigns. The id
+    drives the keyed render (slide between same-id positions, fade across
+    different ids); it is owned here and nowhere else. */
+export type CurrentTooltip = TooltipStateType & { id: string }
 
-/**
- * Global accessor for the tooltip state.
- */
-export const tooltipState = {
-  get current() {
-    return _state
-  },
-  set current(value: TooltipStateType | null) {
-    _state = value
-  },
-}
-
-// Debounce timer reference
-let debounceTimer: ReturnType<typeof setTimeout> | null = null
+const newTooltipId = () => Math.random().toString(36).substring(2, 9)
 
 /**
  * Estimates the width of the tooltip based on its content.
@@ -49,43 +38,43 @@ export const estimateTooltipWidth = (
   )
 }
 
-/**
- * Update the tooltip with debounce to prevent flickering
- * @param value The tooltip data or null to hide
- * @param delay Debounce delay in ms
- */
-export const updateTooltip = (
-  value: TooltipStateType | null,
-  delay: number = TOOLTIP_DEBOUNCE_DELAY
-) => {
-  if (debounceTimer !== null) {
-    clearTimeout(debounceTimer)
-  }
+/** Per-session tooltip (`useTooltip`); the debounce timer lives with it. */
+export class TooltipState {
+  current = $state<CurrentTooltip | null>(null)
+  private timer: ReturnType<typeof setTimeout> | null = null
 
-  if (value) {
-    // Only conserve identity (ID) if the jump distance is small
-    // This allows smooth slides for nearby elements and fade out/in for jumps.
-    if (_state && _state.visible) {
-      const dx = value.x - _state.x
-      const dy = value.y - _state.y
-      const distance = Math.sqrt(dx * dx + dy * dy)
+  /** Update with debounce to prevent flickering; `null` hides. */
+  update(
+    value: TooltipStateType | null,
+    delay: number = TOOLTIP_DEBOUNCE_DELAY
+  ): void {
+    if (this.timer !== null) clearTimeout(this.timer)
 
-      if (distance >= TOOLTIP_JUMP_THRESHOLD) {
-        // Force a new ID to trigger fade out/in instead of slide
-        value.id = Math.random().toString(36).substring(2, 9)
-      } else {
-        // Conserve ID for smooth slide
-        value.id = _state.id
+    let next: CurrentTooltip | null = null
+    if (value) {
+      // Conserve identity only for small jumps: smooth slides for nearby
+      // elements, fade out/in for far ones.
+      let id = newTooltipId()
+      if (this.current) {
+        const dx = value.x - this.current.x
+        const dy = value.y - this.current.y
+        if (Math.sqrt(dx * dx + dy * dy) < TOOLTIP_JUMP_THRESHOLD) {
+          id = this.current.id
+        }
+      }
+      next = {
+        ...value,
+        id,
+        width: value.width ?? estimateTooltipWidth(value.content),
       }
     }
 
-    if (!value.width) {
-      value.width = estimateTooltipWidth(value.content)
-    }
+    this.timer = setTimeout(() => {
+      this.current = next
+      this.timer = null
+    }, delay)
   }
-
-  debounceTimer = setTimeout(() => {
-    _state = value
-    debounceTimer = null
-  }, delay)
 }
+
+/** This session's tooltip; resolve at component init. */
+export const useTooltip = sessionScoped(() => new TooltipState())

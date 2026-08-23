@@ -1,5 +1,5 @@
 import type { Component } from 'svelte'
-import type { LucideIconComponent } from '$lib/shared/types'
+import type { LucideIconComponent } from '$lib/shared/icon'
 import type { Position, Alignment } from '$lib/shared/placement/types'
 
 export type SlideFrom = 'top' | 'left'
@@ -93,9 +93,7 @@ export interface ContextMenuOptions {
  * the single rendered menu instance so that an anchor can recognise whether it
  * currently "owns" the menu.
  */
-export interface ContextMenuState {
-  /** Whether the menu should be visible. */
-  visible: boolean
+export interface OpenContextMenu {
   /** The menu entries rendered for actionable items. */
   items?: MenuItem[]
   /** Optional custom markup content. */

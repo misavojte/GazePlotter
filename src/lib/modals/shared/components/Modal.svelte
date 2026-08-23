@@ -1,10 +1,13 @@
 <script lang="ts">
   import { onMount, tick } from 'svelte'
+  import { GAZEPLOTTER_VERSION } from '$lib/version'
   import ArrowLeft from 'lucide-svelte/icons/arrow-left'
   import Button from '$lib/shared/components/Button.svelte'
   import type { ModalStackEntry } from '$lib/modals/modalState.svelte'
   import { getGazePlotterSession } from '$lib/session'
-  import { contextMenuState } from '$lib/context-menu'
+  import { useContextMenu } from '$lib/context-menu'
+
+  const contextMenuState = useContextMenu()
 
   const { errorService, modalState } = getGazePlotterSession()
 
@@ -290,7 +293,7 @@
             {:else if isActive && showVersionMessage}
               <div class="footer-content">
                 <span
-                  >GazePlotter {__APP_VERSION__} by Vojtechovska & Popelka,
+                  >GazePlotter {GAZEPLOTTER_VERSION} by Vojtechovska & Popelka,
                   2025</span
                 >
               </div>

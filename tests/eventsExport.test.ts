@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { DataType } from '../src/lib/data/types'
-import { jsonSegmentsToBinary } from '../src/lib/data/binary'
+import { makeDataType } from './helpers/dataTypeFixtures'
 import { INTERVAL_CHANNEL_MARKER } from '../src/lib/data/engine/eventIntervals'
 import {
   generateEventUnifiedCsv,
@@ -19,8 +19,7 @@ import {
  * Two participants, one stimulus.
  */
 function createEventData(): DataType {
-  return {
-    isOrdinalOnly: false,
+  return makeDataType([[[], []]], {
     capabilities: { segmented: false, spatial: false, event: true },
     stimuli: { data: [['S1', 'StimulusOne']], orderVector: [0] },
     participants: {
@@ -30,12 +29,8 @@ function createEventData(): DataType {
       ],
       orderVector: [0, 1],
     },
-    participantsSelections: [],
     metricInstances: [],
-    categories: { data: [['Fixation', 'Fixation', '#000000']], orderVector: [0] },
-    noAoiTreatment: { displayedName: 'No AOI', color: '#cbd5e1' },
     aois: { data: [[]], orderVector: [[]] },
-    segments: jsonSegmentsToBinary([[[], []]]),
     eventData: {
       data: [
         [
@@ -55,7 +50,7 @@ function createEventData(): DataType {
         ],
       ],
     },
-  }
+  })
 }
 
 describe('event export — displayed naming', () => {
