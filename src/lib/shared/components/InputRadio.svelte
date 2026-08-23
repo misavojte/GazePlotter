@@ -1,6 +1,4 @@
 <script lang="ts">
-  import { generateUniqueId } from '$lib/shared/uniqueId'
-
   interface Props {
     options: { value: string; label: string }[]
     legend?: string
@@ -25,7 +23,7 @@
     onchange,
   }: Props = $props()
 
-  const uniqueID: number = generateUniqueId()
+  const uniqueID = crypto.randomUUID()
   const hasLegend = $derived(legend.trim().length > 0)
   const isRow = $derived(direction === 'row')
 
@@ -36,7 +34,7 @@
 <div
   role="radiogroup"
   class="group-container"
-  class:compact={compact}
+  class:compact
   aria-labelledby={hasLegend ? `label-${uniqueID}` : undefined}
   aria-label={hasLegend ? undefined : ariaLabel}
   id={`group-${uniqueID}`}
