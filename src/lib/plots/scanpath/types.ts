@@ -8,6 +8,10 @@ export type ScanpathPlotSettings = {
   colorMode: 'time' | 'solid'
   /** Gradient stops for the time-extent coloring (shared colorScale field). */
   colorScale: string[]
+  /** Trailing playback window in recording ms: while playing, only fixations
+      that began within the last N ms stay on screen. 0 keeps everything since
+      the start (the default). */
+  playbackWindow: number
 }
 
 export interface ScanpathFixation {

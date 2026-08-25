@@ -40,6 +40,14 @@ export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSetting
         },
         { kind: 'boolean', key: 'showFixationOrder', label: 'Show fixation order line' },
         { kind: 'boolean', key: 'showNumbers', label: 'Show fixation numbers' },
+        {
+          kind: 'number',
+          key: 'playbackWindow',
+          label: 'Playback window (ms, 0 shows all)',
+          min: 0,
+          step: 500,
+          default: 0,
+        },
       ],
     },
   ],
@@ -55,6 +63,7 @@ export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSetting
     // in, so no migration is needed.
     colorMode: 'time',
     colorScale: [...PRESET_PALETTES.VIRIDIS.colors],
+    playbackWindow: 0,
   }),
   size: { min: { w: 12, h: 10 }, w: 16 },
   requireCapabilities: [['segmented', 'spatial']],

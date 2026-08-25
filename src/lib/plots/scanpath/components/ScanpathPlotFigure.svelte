@@ -34,6 +34,9 @@
     colorMode?: 'time' | 'solid'
     /** Gradient stops for the time-extent coloring (2 or 3 hex colors). */
     colorScale?: string[]
+    /** Trailing playback window (recording ms): while playing, only fixations
+        that began within the last N ms stay on screen. 0 = keep all. */
+    playbackWindow?: number
     unavailableMessage?: string | WarningPlaceholder | null
     /** The one participant this panel is about. */
     participantId?: number
@@ -54,6 +57,7 @@
     showNumbers = true,
     colorMode = 'time',
     colorScale = undefined,
+    playbackWindow = 0,
     width = 400,
     height = 400,
     margin = 0,
@@ -196,6 +200,19 @@
   /** Fixations after this recording time are hidden (Infinity = show all —
       the static/parked state, which reads as "playback finished"). */
   const timeCutoff = $derived(playTime !== null ? playTime : Infinity)
+
+  /** Fixations whose onset predates this are hidden too: the trailing
+      playback window's left edge (-Infinity = keep everything). Only applies
+      mid-playback; the parked full view ignores the window. */
+  const timeFloor = $derived(
+    playbackWindow > 0 && timeCutoff !== Infinity
+      ? timeCutoff - playbackWindow
+      : -Infinity
+  )
+
+  function isVisible(f: ScanpathFixation): boolean {
+    return f.start <= timeCutoff && f.start >= timeFloor
+  }
 
   // Frame size mirror for the equal-aspect domain below. Written in an effect
   // (not read directly in `scale`) so the derived never touches `plot` during
@@ -352,6 +369,7 @@
     for (let i = 0; i < data.fixations.length; i++) {
       const f = data.fixations[i]
       if (f.start > timeCutoff) break // hidden by time-sync playback
+      if (!isVisible(f)) continue // scrolled out of the trailing window
       const dx = x - projectX(f.x, frame)
       const dy = y - projectY(f.y, frame)
       const dist = Math.hypot(dx, dy)
@@ -368,7 +386,7 @@
     width: () => width,
     height: () => (hasPlayBar ? Math.max(60, height - PLAY_BAR_HEIGHT) : height),
     margin: () => margin,
-    deps: () => [data, showFixationOrder, showNumbers, colorMode, gradientStops, unavailableMessage, media, mediaElement, playTick, timeCutoff],
+    deps: () => [data, showFixationOrder, showNumbers, colorMode, gradientStops, playbackWindow, unavailableMessage, media, mediaElement, playTick, timeCutoff],
     placeholder: () => unavailableMessage,
     gutters: () => {
       if (unavailableMessage) return {}
@@ -450,25 +468,25 @@
       : [...PRESET_PALETTES.VIRIDIS.colors]
   )
 
-  /** Onset normalized over the rendered fixations' time extent (0 = first,
-      1 = last). Fixations are chronological, so first/last bound the span. */
-  function timePosition(f: ScanpathFixation): number {
-    if (!data || data.fixations.length < 2) return 0
-    const t0 = data.fixations[0].start
-    const t1 = data.fixations[data.fixations.length - 1].start
-    return t1 > t0 ? (f.start - t0) / (t1 - t0) : 0
+  /** Gradient domain: the onset span of the fixations on screen RIGHT NOW.
+      Statically that's the full recording; during playback it rescales to the
+      visible (possibly windowed) set, so the shown fixations always spread
+      across the whole gradient instead of pinching into one end. */
+  function gradientDomain(visible: ScanpathFixation[]): [number, number] {
+    if (visible.length < 2) return [0, 1]
+    return [visible[0].start, visible[visible.length - 1].start]
   }
 
-  function fillFor(f: ScanpathFixation): string {
-    return colorMode === 'solid'
-      ? SCANPATH_COLORS.fixationFill
-      : getColorForValue(timePosition(f), 0, 1, gradientStops)
+  function fillFor(f: ScanpathFixation, t0: number, t1: number): string {
+    if (colorMode === 'solid') return SCANPATH_COLORS.fixationFill
+    const pos = t1 > t0 ? (f.start - t0) / (t1 - t0) : 0
+    return getColorForValue(pos, 0, 1, gradientStops)
   }
 
-  function strokeFor(f: ScanpathFixation): string {
+  function strokeFor(f: ScanpathFixation, t0: number, t1: number): string {
     return colorMode === 'solid'
       ? SCANPATH_COLORS.fixationStroke
-      : interpolateColor(fillFor(f), '#000000', 0.35)
+      : interpolateColor(fillFor(f, t0, t1), '#000000', 0.35)
   }
 
   /** Density damping: past the threshold, marker radii shrink with √ of the
@@ -500,11 +518,12 @@
   }
 
   /** The fixations on screen right now: all of them, or (during time-sync
-      playback) the chronological prefix whose onset has passed. */
+      playback) those whose onset has passed and still sits inside the
+      trailing window. */
   function visibleFixations(): ScanpathFixation[] {
     if (!data) return []
     if (timeCutoff === Infinity) return data.fixations
-    return data.fixations.filter(f => f.start <= timeCutoff)
+    return data.fixations.filter(isVisible)
   }
 
   function drawScanpath(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
@@ -553,6 +572,7 @@
 
     // Fixation circles: slightly translucent fill (overlaps stay readable)
     // inside a thin white halo + the conventional darker stroke.
+    const [t0, t1] = gradientDomain(fixations)
     ctx.save()
     for (const f of fixations) {
       const cx = projectX(f.x, frame)
@@ -561,10 +581,10 @@
       ctx.beginPath()
       ctx.arc(cx, cy, r, 0, Math.PI * 2)
       ctx.globalAlpha = L.fixationFillAlpha
-      ctx.fillStyle = fillFor(f)
+      ctx.fillStyle = fillFor(f, t0, t1)
       ctx.fill()
       ctx.globalAlpha = 1
-      ctx.strokeStyle = strokeFor(f)
+      ctx.strokeStyle = strokeFor(f, t0, t1)
       ctx.lineWidth = L.circleStrokeWidth
       ctx.stroke()
     }
