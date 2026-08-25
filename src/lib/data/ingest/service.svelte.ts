@@ -662,7 +662,7 @@ export class IngestService {
       if (eyeFiles.length === 0 && eventFiles.length === 0) {
         if (!this.deps.engine.hasValidData) {
           this.deps.toastState.addWarning(
-            'Reference images/videos attach to stimuli — upload eye-tracking data first, or include it in the same upload.'
+            'Reference images/videos attach to stimuli. Upload eye-tracking data first, or include it in the same upload.'
           )
           this.explicitStatus = 'ready'
           return false

@@ -42,7 +42,8 @@
 <div class="content">
   <p class="description">
     These files don't match any stimulus by name. Pick the stimulus each one
-    belongs to (it becomes that stimulus's reference — the scanpath background):
+    belongs to. The file becomes that stimulus's reference, drawn as the
+    scanpath background:
   </p>
 
   <div class="file-list">

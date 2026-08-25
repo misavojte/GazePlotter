@@ -110,18 +110,26 @@
 
   <Section title="Position in gaze coordinates">
     <p class="hint">
-      The rectangle of the gaze coordinate space this media covers. A fixation
-      at gaze (x, y) lands on the image when the image spans that point —
-      adjust when recording coordinates don't match the image pixels.
+      Where the media sits in your recording's coordinate system. By default
+      gaze coordinates are assumed to equal image pixels. Change these when
+      the stimulus was offset on screen or recorded at a different scale.
     </p>
-    <div class="coords">
-      <InputNumber label="X" min={COORD_MIN} bind:value={x} />
-      <InputNumber label="Y" min={COORD_MIN} bind:value={y} />
-      <InputNumber label="Width" min={1} bind:value={width} />
-      <InputNumber label="Height" min={1} bind:value={height} />
-      <div class="reset">
-        <Button size="sm" onclick={resetToImageSize}>Reset to image size</Button>
+    <div class="coord-group">
+      <span class="coord-label">Top-left corner of the media</span>
+      <div class="coord-fields">
+        <InputNumber label="Left (gaze X)" min={COORD_MIN} bind:value={x} />
+        <InputNumber label="Top (gaze Y)" min={COORD_MIN} bind:value={y} />
       </div>
+    </div>
+    <div class="coord-group">
+      <span class="coord-label">Size of the media, in gaze units</span>
+      <div class="coord-fields">
+        <InputNumber label="Width" min={1} bind:value={width} />
+        <InputNumber label="Height" min={1} bind:value={height} />
+      </div>
+    </div>
+    <div class="reset">
+      <Button size="sm" onclick={resetToImageSize}>Reset to image size</Button>
     </div>
   </Section>
 
@@ -136,7 +144,7 @@
   <Section>
     <p class="hint">
       No reference media on this stimulus. Add an image or video through
-      Upload data — files named after the stimulus attach automatically.
+      Upload data. Files named after the stimulus attach automatically.
     </p>
   </Section>
   <ModalButtons
@@ -184,14 +192,24 @@
     color: var(--c-darkgrey, #555);
   }
 
-  .coords {
+  .coord-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+  }
+
+  .coord-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--c-darkgrey, #555);
+  }
+
+  .coord-fields {
     display: flex;
     gap: 0.75rem;
-    align-items: flex-end;
-    flex-wrap: wrap;
   }
 
   .reset {
-    padding-bottom: 2px;
+    padding-top: 0.25rem;
   }
 </style>
