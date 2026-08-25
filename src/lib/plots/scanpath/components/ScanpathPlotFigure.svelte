@@ -37,6 +37,8 @@
     /** Trailing playback window (recording ms): while playing, only fixations
         that began within the last N ms stay on screen. 0 = keep all. */
     playbackWindow?: number
+    /** Playback clock rate relative to recording time (1 = real time). */
+    playbackSpeed?: number
     unavailableMessage?: string | WarningPlaceholder | null
     /** The one participant this panel is about. */
     participantId?: number
@@ -58,6 +60,7 @@
     colorMode = 'time',
     colorScale = undefined,
     playbackWindow = 0,
+    playbackSpeed = 1,
     width = 400,
     height = 400,
     margin = 0,
@@ -111,7 +114,10 @@
     if (el) {
       playTime = el.currentTime * 1000
     } else if (isPlaying && playTime !== null) {
-      playTime = Math.min(playTime + (now - lastFrameAt), playDurationMs)
+      playTime = Math.min(
+        playTime + (now - lastFrameAt) * playbackSpeed,
+        playDurationMs
+      )
       if (playTime >= playDurationMs) stopPlayback(true)
     }
     lastFrameAt = now
@@ -172,6 +178,12 @@
     const s = Math.floor(seconds % 60)
     return `${m}:${String(s).padStart(2, '0')}`
   }
+
+  // The video is the clock when present, so the speed setting maps directly
+  // onto its playbackRate (mid-playback changes apply immediately).
+  $effect(() => {
+    if (videoElement) videoElement.playbackRate = playbackSpeed
+  })
 
   $effect(() => {
     const el = videoElement
@@ -468,12 +480,23 @@
       : [...PRESET_PALETTES.VIRIDIS.colors]
   )
 
-  /** Gradient domain: the onset span of the fixations on screen RIGHT NOW.
-      Statically that's the full recording; during playback it rescales to the
-      visible (possibly windowed) set, so the shown fixations always spread
-      across the whole gradient instead of pinching into one end. */
+  /** Gradient domain: the onset span colors are read against RIGHT NOW.
+      Parked, that's the full recording (the visible set's onset span).
+      During playback the domain is CLOCK-driven — newest end at the
+      playhead, oldest end at the trailing window's edge (or the first
+      onset) — so a fixation enters at the newest color and continuously
+      ages as time passes. Recoloring is smooth by construction, never a
+      discrete step when a fixation appears or scrolls out (the same
+      principle as the dwell-driven radius inflation). */
   function gradientDomain(visible: ScanpathFixation[]): [number, number] {
-    if (visible.length < 2) return [0, 1]
+    if (timeCutoff !== Infinity && data && data.fixations.length > 0) {
+      const t0 = Math.max(data.fixations[0].start, timeFloor)
+      return [t0, Math.max(timeCutoff, t0 + 1)]
+    }
+    // A lone fixation reads as the gradient's start, parked and playing
+    // alike (an unbounded [0, 1] domain would clamp it to the END color).
+    if (visible.length === 1) return [visible[0].start, visible[0].start + 1]
+    if (visible.length === 0) return [0, 1]
     return [visible[0].start, visible[visible.length - 1].start]
   }
 
@@ -672,8 +695,6 @@
     width: 100%;
     box-sizing: border-box;
     padding: 0 10px;
-    border-radius: 999px;
-    background: var(--c-darkwhite);
   }
 
   .pill-toggle {

@@ -61,6 +61,7 @@ export function getScanpathView(
       colorMode: settings.colorMode ?? 'time',
       colorScale: settings.colorScale,
       playbackWindow: settings.playbackWindow ?? 0,
+      playbackSpeed: settings.playbackSpeed ?? 1,
       unavailableMessage: null,
       // Only on the drawable branch: a parked placeholder draws no overlay.
       participantId: settings.participantId,

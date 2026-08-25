@@ -12,6 +12,9 @@ export type ScanpathPlotSettings = {
       that began within the last N ms stay on screen. 0 keeps everything since
       the start (the default). */
   playbackWindow: number
+  /** Playback clock rate relative to recording time (1 = real time). Drives
+      the rAF clock and the video's playbackRate. */
+  playbackSpeed: number
 }
 
 export interface ScanpathFixation {

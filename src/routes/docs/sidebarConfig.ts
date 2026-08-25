@@ -123,7 +123,7 @@ export const SIDEBAR: readonly SidebarItem[] = [
       {
         name: 'Stimuli Library',
         href: '/docs/workspace/stimuli-library',
-        description: 'Manage stimulus display records. Rename stimulus labels individually or in bulk using regex patterns, and reorder or sort the active stimulus sequence.'
+        description: 'Manage stimulus display records. Rename stimulus labels individually or in bulk using regex patterns, reorder or sort the active stimulus sequence, and attach reference images or videos.'
       },
     ],
   },
@@ -236,7 +236,7 @@ export const SIDEBAR: readonly SidebarItem[] = [
         name: 'Scanpath',
         href: '/docs/visualizations/scanpath',
         seoTitle: 'Scanpath Plot: Fixations & Saccades',
-        description: 'Plot 2D spatial scanpaths on coordinate axes. Visualizes fixation coordinates, chronological sequence, durations (via circle radius), and saccade paths.'
+        description: 'Plot 2D spatial scanpaths on coordinate axes. Visualizes fixation coordinates, chronological sequence, durations (via circle radius), and saccade paths, with animated playback over reference imagery or video.'
       },
       {
         name: 'Scanpath Similarity',
