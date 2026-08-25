@@ -4,9 +4,9 @@ import type JSZip from 'jszip'
  * Orchestrates JSZip to create a downloadable ZIP blob from multiple internal files.
  */
 export class Archiver {
-  private files: Array<{ name: string; content: string | Blob }> = []
+  private files: Array<{ name: string; content: string | Blob | ArrayBuffer }> = []
 
-  addFile(fileName: string, content: string | Blob): void {
+  addFile(fileName: string, content: string | Blob | ArrayBuffer): void {
     this.files.push({ name: fileName, content })
   }
 

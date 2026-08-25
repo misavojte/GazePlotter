@@ -145,15 +145,41 @@ export function buildScanGraph(
 }
 
 /**
- * Builds the entire workspace state as JSON.
+ * Builds the entire workspace state. Without stimulus media this is the
+ * plain JSON of always — byte-compatible with older exports. With media it
+ * becomes a `.gazeplotter.zip` archive: the same `workspace.json` plus one
+ * `media/<stimulusId>.<ext>` entry per medium, added as Blobs (JSZip streams
+ * them — the bytes are never base64'd or copied into a JS string).
  */
-export function buildWorkspace(
+export async function buildWorkspace(
   data: DataType,
   layoutState: AllGridTypes[],
   metadata: FileMetadataType | null
-): ExportPayload {
-  return {
-    content: generateWorkspaceJson(data, layoutState, metadata),
-    extension: '.json',
+): Promise<ExportPayload> {
+  const json = generateWorkspaceJson(data, layoutState, metadata)
+
+  const mediaIds = Object.keys(data.stimuliMedia ?? {}).map(Number)
+  if (mediaIds.length === 0) {
+    return { content: json, extension: '.json' }
   }
+
+  const { stimulusMediaStore, mediaFileExtension } = await import(
+    '$lib/data/media/mediaStore.svelte'
+  )
+  const archiver = new Archiver()
+  archiver.addFile('workspace.json', json)
+  for (const id of mediaIds) {
+    const media = data.stimuliMedia![id]
+    const blob = stimulusMediaStore.getBlob(id)
+    // Metadata ⇔ blob is an engine invariant; a missing blob here would mean
+    // a bug upstream — skip the entry rather than export a broken archive.
+    if (!blob) continue
+    // ArrayBuffer, not Blob: JSZip buffers blob content in memory anyway and
+    // rejects Blobs outright in non-browser hosts.
+    archiver.addFile(
+      `media/${id}.${mediaFileExtension(media)}`,
+      await blob.arrayBuffer()
+    )
+  }
+  return { content: await archiver.generateBlob(), extension: '.gazeplotter.zip' }
 }

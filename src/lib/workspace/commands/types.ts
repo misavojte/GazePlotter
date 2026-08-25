@@ -5,6 +5,7 @@ import type {
   EntitySelection,
   NameSelection,
   MergeLogEntry,
+  StimulusMedia,
 } from '$lib/data/types'
 import type { MetricInstance } from '$lib/metrics'
 import type {
@@ -79,6 +80,17 @@ export type UpdateSelectionsCommand = BaseCommandInterface & {
   )
 
 export type SelectionsAxis = UpdateSelectionsCommand['axis']
+
+// Set or remove ONE stimulus's reference medium (image or video). `media`
+// null = remove. The Blob rides in the command (a Blob is a cheap reference,
+// not a byte copy), so the inverse — a snapshot of the previous media +
+// blob — restores set/replace/remove exactly on undo.
+export interface UpdateStimulusMediaCommand extends BaseCommandInterface {
+  type: 'updateStimulusMedia'
+  stimulusId: number
+  media: StimulusMedia | null
+  blob?: Blob | null
+}
 
 export interface UpdateNoAoiTreatmentCommand extends BaseCommandInterface {
   type: 'updateNoAoiTreatment'
@@ -198,6 +210,7 @@ export type WorkspaceCommand =
   | UpdateEventDataCommand
   | UpdateEventChannelsCommand
   | UpdateSelectionsCommand
+  | UpdateStimulusMediaCommand
   | UpdateNoAoiTreatmentCommand
   | MergeEntitiesCommand
   | UnmergeEntitiesCommand

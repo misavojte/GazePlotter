@@ -150,7 +150,7 @@ describe('IngestService', () => {
 
     function makeService(errorService: any) {
       return new IngestService({
-        engine: { loadDataset: vi.fn() },
+        engine: { loadDataset: vi.fn(), setStimulusMediaBlobs: vi.fn(() => 0) },
         errorService,
         grid: { reset: vi.fn(), clearSelection: vi.fn() },
         modalState: { open: vi.fn(), close: vi.fn() },

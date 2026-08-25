@@ -7,6 +7,7 @@ import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { createChildCommand } from './utils'
 import { mergeParticipants as computeParticipantMerge } from '$lib/data/merge/mergeParticipants'
 import { mergeStimuli as computeStimulusMerge } from '$lib/data/merge/mergeStimuli'
+import { stimulusMediaStore } from '$lib/data/media/mediaStore.svelte'
 import { resolvePlotDefinition } from '$lib/plots/registry'
 import { GridState } from '$lib/workspace/grid'
 import {
@@ -283,6 +284,11 @@ export function createWorkspaceCommandRegistry(
 
     noop: () => {},
 
+    updateStimulusMedia: command => {
+      engine.setStimulusMedia(command.stimulusId, command.media, command.blob)
+      gridStore.triggerRedraw()
+    },
+
     updateNoAoiTreatment: command => {
       engine.setNoAoiTreatment(command.noAoiTreatment)
       gridStore.triggerRedraw()
@@ -493,6 +499,22 @@ export function createWorkspaceCommandRegistry(
     reconcileMerges: (_cmd, meta) => withMeta({ type: 'noop' }, meta),
 
     noop: (_cmd, meta) => withMeta({ type: 'noop' }, meta),
+
+    // Reverse = snapshot of the stimulus's current media + blob (blob-by-
+    // reference — no byte copy), or a remove when none is set.
+    updateStimulusMedia: (cmd, meta) => {
+      const dataMeta = requireMetadata()
+      const current = dataMeta.stimuliMedia?.[cmd.stimulusId] ?? null
+      return withMeta(
+        {
+          type: 'updateStimulusMedia',
+          stimulusId: cmd.stimulusId,
+          media: current,
+          blob: current ? stimulusMediaStore.getBlob(cmd.stimulusId) : null,
+        },
+        meta
+      )
+    },
 
     updateMetricInstances: (_cmd, meta) => {
       const dataMeta = requireMetadata()

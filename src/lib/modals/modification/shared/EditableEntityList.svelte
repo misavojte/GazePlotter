@@ -6,8 +6,12 @@
     label: string
     width: string
     align?: 'center'
-    type: 'handle' | 'readonly' | 'text' | 'color'
+    /** 'action' renders a per-row icon button (leader rows only) firing the
+        `grouped.onRowAction` callback. */
+    type: 'handle' | 'readonly' | 'text' | 'color' | 'action'
     key?: string
+    /** Icon for 'action' columns. */
+    icon?: 'image'
     /** Explanatory tooltip on the column header (dotted-underlined). */
     tooltip?: string
   }
@@ -27,6 +31,7 @@
   import GripVertical from 'lucide-svelte/icons/grip-vertical'
   import SlidersHorizontal from 'lucide-svelte/icons/sliders-horizontal'
   import Replace from 'lucide-svelte/icons/replace'
+  import ImageIcon from 'lucide-svelte/icons/image'
   import { useTooltipAction } from '$lib/tooltip'
 
   const tooltipAction = useTooltipAction()
@@ -60,6 +65,10 @@
       group: MergeCard<BaseInterpretedDataType>,
       color: string
     ) => void
+    /** Only for entity lists with an 'action' column (leader rows). */
+    onRowAction?: (item: BaseInterpretedDataType) => void
+    /** Highlights the 'action' icon (e.g. "this stimulus HAS media"). */
+    rowActionActive?: (item: BaseInterpretedDataType) => boolean
   }
 
   interface GroupNotice {
@@ -491,6 +500,19 @@
                     />
                   </div>
                 {:else if col.type === 'color' && !isLeader}
+                  <div></div>
+                {:else if col.type === 'action' && isLeader}
+                  <div class="col-center">
+                    <button
+                      class="tool-button"
+                      class:active={grouped.rowActionActive?.(member) ?? false}
+                      aria-label={`${col.label} for ${member.displayedName || member.originalName}`}
+                      onclick={() => grouped.onRowAction?.(member)}
+                    >
+                      <ImageIcon size={'1em'} />
+                    </button>
+                  </div>
+                {:else if col.type === 'action' && !isLeader}
                   <div></div>
                 {/if}
               {/each}

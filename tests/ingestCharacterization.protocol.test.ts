@@ -173,7 +173,10 @@ describe('worker protocol', () => {
     expect(fail).toBeDefined()
     expect(fail!.message.data).toBeInstanceOf(Error)
     expect((fail!.message.data as Error).message).not.toBe('Unknown file type')
-  })
+    // The workspace read lazily imports the migration chain (and through it
+    // the metric library) inside the test — transform time alone can exceed
+    // the default 5s budget on a cold cache.
+  }, 20000)
 
   it(".zip file names route to the Pupil Cloud format (file-name claim) and bad zips 'fail'", async () => {
     await send('file-names', ['recording.zip'])

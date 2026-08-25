@@ -40,6 +40,7 @@ import { csvSegmentedFromToFormat } from './csvSegmentedFromTo'
 import { csvSegmentedDurationFormat } from './csvSegmentedDuration'
 import { pupilCloudZipFormat } from './pupilCloudZip'
 import { workspaceJsonFormat } from './workspaceJson'
+import { workspaceZipFormat } from './workspaceZip'
 import { csvEventFormat } from './csvEvent'
 import { legacyEventsFormat } from './legacyEvents'
 
@@ -60,6 +61,7 @@ export const ARCHIVE_FORMATS: readonly ArchiveFormatDefinition[] = [
 
 export const WORKSPACE_FORMATS: readonly WorkspaceFormatDefinition[] = [
   workspaceJsonFormat,
+  workspaceZipFormat,
 ]
 
 /**

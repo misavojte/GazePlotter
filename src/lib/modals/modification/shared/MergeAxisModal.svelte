@@ -15,6 +15,8 @@
   import type { MergeAxisMessages } from './mergeAxisEditor.svelte'
   import type { SelectionLike } from './selectionSession.svelte'
   import type { TableColumn } from './EditableEntityList.svelte'
+  import type { ModalState } from '$lib/modals/modalState.svelte'
+  import { stimulusMediaModal } from '../stimulus-media/definition'
 
   /**
    * Everything axis-specific about one MERGE-axis modal (participants,
@@ -46,6 +48,17 @@
     /** Plural entity noun for the tray verbs and tooltips. */
     noun: string
     columns: TableColumn[]
+    /** Optional per-row icon button (leader rows), e.g. the stimulus axis'
+        reference-media column. `onclick` typically PUSHES a detail modal so
+        this modal (and its unsaved edits) stays alive underneath. */
+    rowAction?: {
+      column: TableColumn
+      onclick: (
+        item: BaseInterpretedDataType,
+        ctx: { engine: DataEngine; modalState: ModalState; source: string }
+      ) => void
+      isActive: (item: BaseInterpretedDataType, engine: DataEngine) => boolean
+    }
   }
 
   export const PARTICIPANT_MERGE_AXIS: MergeAxisModalConfig<
@@ -120,6 +133,26 @@
     title: 'Stimuli',
     emptyMessage: 'No stimuli found',
     noun: 'stimuli',
+    rowAction: {
+      column: {
+        label: 'Media',
+        width: '44px',
+        align: 'center',
+        type: 'action',
+        icon: 'image',
+        tooltip:
+          'Reference image/video drawn behind gaze data (scanpath background). Add media via Upload data; click to view, position, or remove it.',
+      },
+      onclick: (item, { modalState, source }) => {
+        void modalState.push(stimulusMediaModal, {
+          stimulusId: item.id,
+          stimulusName: item.displayedName || item.originalName,
+          source,
+        })
+      },
+      isActive: (item, engine) =>
+        engine.metadata?.stimuliMedia?.[item.id] !== undefined,
+    },
     columns: [
       { label: 'Move', width: '28px', type: 'handle' },
       {
@@ -236,7 +269,7 @@
     groups={editor.groups}
     title={config.title}
     emptyMessage={config.emptyMessage}
-    columns={config.columns}
+    columns={cfg.rowAction ? [...cfg.columns, cfg.rowAction.column] : cfg.columns}
     sortColumns={SORT_COLUMNS}
     onSort={editor.sort}
     onReorder={session.handleReorder}
@@ -245,7 +278,17 @@
     selection={session.listSelection}
     previewIds={session.previewIds}
     groupNotice={merge.notice}
-    grouped={{ onNameInput: editor.handleNameInput }}
+    grouped={{
+      onNameInput: editor.handleNameInput,
+      ...(cfg.rowAction
+        ? {
+            onRowAction: (item: BaseInterpretedDataType) =>
+              cfg.rowAction!.onclick(item, { engine, modalState, source }),
+            rowActionActive: (item: BaseInterpretedDataType) =>
+              cfg.rowAction!.isActive(item, engine),
+          }
+        : {}),
+    }}
   />
 
   <SelectionTray {session} {chips} noun={config.noun} />

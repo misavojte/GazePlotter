@@ -7,6 +7,7 @@ import {
   mergeStimuli as applyStimulusMerge,
   unmergeStimuli as applyStimulusUnmerge,
 } from '../merge/mergeStimuli'
+import { stimulusMediaStore } from '../media/mediaStore.svelte'
 import type {
   NameSelection,
   DataCapabilityRequirements,
@@ -19,6 +20,7 @@ import type {
   MetricInstance,
   ParticipantsSelection,
   EntitySelection,
+  StimulusMedia,
 } from '../types'
 
 export class DataEngine {
@@ -134,6 +136,61 @@ export class DataEngine {
       if (id >= 0 && id < meta[table].data.length) meta[table].data[id] = data
     }
     meta[table].orderVector = newOrder
+  }
+
+  /**
+   * Set or remove one stimulus's reference medium. Metadata rides in
+   * `metadata.stimuliMedia`; the bytes go to the non-reactive
+   * {@link stimulusMediaStore}. The record is deleted when it empties, so a
+   * media-less workspace exports without the field (and as plain JSON).
+   */
+  setStimulusMedia(
+    stimulusId: number,
+    media: StimulusMedia | null,
+    blob?: Blob | null
+  ) {
+    const meta = this.metadata
+    if (!meta) return
+    if (media && blob) {
+      if (!meta.stimuliMedia) meta.stimuliMedia = {}
+      meta.stimuliMedia[stimulusId] = media
+      stimulusMediaStore.setBlob(stimulusId, blob)
+    } else {
+      if (meta.stimuliMedia) {
+        delete meta.stimuliMedia[stimulusId]
+        if (Object.keys(meta.stimuliMedia).length === 0)
+          delete meta.stimuliMedia
+      }
+      stimulusMediaStore.remove(stimulusId)
+    }
+  }
+
+  /**
+   * Reset the media byte store for a freshly loaded dataset: clear, seed the
+   * given blobs, and drop any `stimuliMedia` entry whose bytes are missing
+   * (invariant: metadata entry ⇔ stored blob). Called by the ingest apply —
+   * NOT by {@link loadDataset}, which merge/unmerge also run through and
+   * which must keep the blobs (they are keyed by tombstoned, stable ids).
+   * Returns how many entries were dropped, for the caller's warning toast.
+   */
+  setStimulusMediaBlobs(blobs: Record<number, Blob> | undefined): number {
+    stimulusMediaStore.clear()
+    const meta = this.metadata
+    const media = meta?.stimuliMedia
+    if (!meta || !media) return 0
+    let dropped = 0
+    for (const key of Object.keys(media)) {
+      const id = Number(key)
+      const blob = blobs?.[id]
+      if (blob) {
+        stimulusMediaStore.setBlob(id, blob)
+      } else {
+        delete media[id]
+        dropped++
+      }
+    }
+    if (Object.keys(media).length === 0) delete meta.stimuliMedia
+    return dropped
   }
 
   setNoAoiTreatment(treatment: { displayedName: string; color: string }) {

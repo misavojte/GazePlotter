@@ -25,9 +25,11 @@ export type MockEngine = DataEngine & {
 type GridStoreMock = Partial<GridState> & Pick<GridState, 'items'>
 type Mutable<T> = T extends readonly (infer U)[]
   ? Mutable<U>[]
-  : T extends object
-    ? { -readonly [K in keyof T]: Mutable<T[K]> }
-    : T
+  : T extends Blob // mapping a Blob would strip its method signatures
+    ? T
+    : T extends object
+      ? { -readonly [K in keyof T]: Mutable<T[K]> }
+      : T
 
 export function createMockMetadata(
   overrides: Partial<MockMetadata> = {}

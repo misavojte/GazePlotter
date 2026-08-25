@@ -1,4 +1,7 @@
-import { eventFileMappingModal } from '$lib/modals/import/definitions'
+import {
+  eventFileMappingModal,
+  mediaAssignmentModal,
+} from '$lib/modals/import/definitions'
 import {
   processAoiVisibilityFromText,
   buildEventChannelsFromParsed,
@@ -19,6 +22,11 @@ import { probeFromText } from './kernel/source'
 import { getStimuliOptions, getParticipantOptions } from '$lib/plots/shared'
 import { getStimulusHighestEndTime } from '$lib/data/engine'
 import { isArchiveFileName } from './formats/routing'
+import {
+  buildStimulusMediaFromFile,
+  matchMediaFilesToStimuli,
+  mediaKindOf,
+} from '$lib/data/media/mediaUpload'
 import { INGEST_PROMPTS } from './prompts'
 import type { IngestResult } from './kernel/result'
 import { EVENT_ONLY_GRID_STATE_DATA } from '$lib/workspace'
@@ -138,21 +146,34 @@ type ClaimedEventFile = {
 }
 
 /**
- * Partitions uploaded files into eye-tracking sources (for the worker job)
- * and event files (claimed by ENRICHMENT_FORMATS, consumed post-load).
+ * Partitions uploaded files into eye-tracking sources (for the worker job),
+ * event files (claimed by ENRICHMENT_FORMATS, consumed post-load), and
+ * stimulus reference media (images/videos, matched to stimuli by file name
+ * post-load — the same claim-now-consume-later pattern as event files).
  * Detection is registry-driven — the same ordered contract as gaze
  * formats. One routing policy lives here, not in a format: a LONE .json
  * upload is never an event file (workspace first-file-wins precedence).
  */
 async function partitionUploadFiles(
   files: File[]
-): Promise<{ eyeFiles: File[]; eventFiles: ClaimedEventFile[] }> {
+): Promise<{
+  eyeFiles: File[]
+  eventFiles: ClaimedEventFile[]
+  mediaFiles: File[]
+}> {
   const eyeFiles: File[] = []
   const eventFiles: ClaimedEventFile[] = []
+  const mediaFiles: File[] = []
   for (const file of files) {
     const ext = file.name.split('.').pop()?.toLowerCase()
     if (ext === 'json' && files.length === 1) {
       eyeFiles.push(file)
+      continue
+    }
+    // Media is claimed by mime/extension BEFORE the text probe — the content
+    // is binary and no data format could ever claim it.
+    if (mediaKindOf(file) !== null) {
+      mediaFiles.push(file)
       continue
     }
     try {
@@ -168,7 +189,7 @@ async function partitionUploadFiles(
     }
     eyeFiles.push(file)
   }
-  return { eyeFiles, eventFiles }
+  return { eyeFiles, eventFiles, mediaFiles }
 }
 
 class IngestWorkerClient {
@@ -406,6 +427,7 @@ class IngestWorkerClient {
       data: result.data,
       gridItems: result.gridItems,
       fileMetadata: result.fileMetadata,
+      mediaBlobs: result.mediaBlobs,
       current: {
         fileNames: this.fileNames,
         fileSizes: this.fileSizes,
@@ -631,7 +653,27 @@ export class IngestService {
 
     try {
       const allFiles = Array.from(files)
-      const { eyeFiles, eventFiles } = await partitionUploadFiles(allFiles)
+      const { eyeFiles, eventFiles, mediaFiles } =
+        await partitionUploadFiles(allFiles)
+
+      // Media-only upload: attach to the ALREADY-LOADED dataset (stimuli must
+      // exist to match against) — never a dataset replacement, so the grid,
+      // history, and metadata all stay put.
+      if (eyeFiles.length === 0 && eventFiles.length === 0) {
+        if (!this.deps.engine.hasValidData) {
+          this.deps.toastState.addWarning(
+            'Reference images/videos attach to stimuli — upload eye-tracking data first, or include it in the same upload.'
+          )
+          this.explicitStatus = 'ready'
+          return false
+        }
+        // Ready BEFORE the attach: it may open the assignment modal, which
+        // must not sit under the loading overlay.
+        this.explicitStatus = 'ready'
+        this.progressPercent = 100
+        await this.attachMediaFiles(mediaFiles)
+        return true
+      }
 
       if (eyeFiles.length === 0 && eventFiles.length > 0) {
         // CSV event files carry their own stimulus/participant names, so they
@@ -639,7 +681,9 @@ export class IngestService {
         // native plot; gaze analysis hides off `segmented: false`). XML/JSON
         // event files map onto EXISTING stimuli via a modal, so those still
         // require eye-tracking data.
-        return await this.processStandaloneEventFiles(eventFiles)
+        const loaded = await this.processStandaloneEventFiles(eventFiles)
+        if (loaded) await this.attachMediaFiles(mediaFiles)
+        return loaded
       }
 
       // The parse is now committed, so the selection into the grid it replaces
@@ -670,6 +714,9 @@ export class IngestService {
                 })
               }
             }
+
+            // Pass 3: reference media, matched against the loaded stimuli.
+            await this.attachMediaFiles(mediaFiles)
 
             resolve(true)
           },
@@ -717,6 +764,7 @@ export class IngestService {
     this.metadata = null
     this.input = null
     this.deps.engine.loadDataset(createEmptyDataset())
+    this.deps.engine.setStimulusMediaBlobs(undefined)
     this.deps.grid.reset(this.deps.defaultLayout)
     this.deps.resetWorkspaceHistory()
     this.explicitStatus = 'ready'
@@ -732,6 +780,16 @@ export class IngestService {
     // merge log; re-derive the merged working view here. No-op (same object)
     // when nothing was merged, so fresh imports are unaffected.
     this.deps.engine.loadDataset(foldMerges(parsedData.data))
+    // Media bytes ride outside the dataset: seed the store and strip any
+    // metadata entry whose archive bytes were missing/corrupt.
+    const droppedMedia = this.deps.engine.setStimulusMediaBlobs(
+      parsedData.mediaBlobs
+    )
+    if (droppedMedia > 0) {
+      this.deps.toastState.addWarning(
+        `${droppedMedia} stimulus reference ${droppedMedia > 1 ? 'media were' : 'medium was'} missing from the workspace file and skipped.`
+      )
+    }
     this.deps.grid.reset(parsedData.gridItems ?? this.deps.defaultLayout)
     this.deps.resetWorkspaceHistory()
     this.explicitStatus = 'ready'
@@ -754,8 +812,77 @@ export class IngestService {
       parseDate: failureMetadata.parseDate,
     }
     this.deps.engine.loadDataset(createEmptyDataset())
+    this.deps.engine.setStimulusMediaBlobs(undefined)
     this.deps.resetWorkspaceHistory()
     this.explicitStatus = 'error'
+  }
+
+  /**
+   * Attach uploaded reference media (images/videos) to stimuli: first by file
+   * name (base name vs original/displayed stimulus name, case-insensitive),
+   * then a mapping modal for whatever didn't match — the same interactive
+   * fallback as the legacy event-file import. Runs post-load outside the
+   * command bus (an upload is not an undoable edit). Undecodable files warn;
+   * they never fail the upload.
+   */
+  private async attachMediaFiles(mediaFiles: File[]): Promise<void> {
+    const meta = this.deps.engine.metadata
+    if (!meta || mediaFiles.length === 0) return
+
+    const { matches, unmatched } = matchMediaFilesToStimuli(
+      mediaFiles,
+      meta.stimuli.data
+    )
+
+    // Unmatched files go to the assignment modal (skip stays available;
+    // cancelling the modal skips them all).
+    if (unmatched.length > 0) {
+      const assignments = await this.deps.modalState.open(
+        mediaAssignmentModal,
+        {
+          fileNames: unmatched.map(f => f.name),
+          stimuliOptions: getStimuliOptions(this.deps.engine),
+        }
+      )
+      if (assignments) {
+        for (let i = 0; i < unmatched.length; i++) {
+          const a = assignments[i]
+          if (a && !a.skip) matches.set(a.stimulusId, unmatched[i])
+        }
+      } else {
+        this.deps.toastState.addInfo(
+          'Media assignment was cancelled. The unassigned files were skipped.'
+        )
+      }
+    }
+
+    const failed: string[] = []
+    let attached = 0
+    for (const [stimulusId, file] of matches) {
+      try {
+        const media = await buildStimulusMediaFromFile(file)
+        this.deps.engine.setStimulusMedia(stimulusId, media, file)
+        attached++
+      } catch {
+        failed.push(file.name)
+      }
+    }
+
+    if (attached > 0) {
+      // Outside the command bus, so plots need the epoch bump (same reason as
+      // the event import above).
+      this.deps.grid.triggerRedraw()
+      this.deps.toastState.addSuccess(
+        `${attached} reference ${attached > 1 ? 'media' : 'medium'} attached to stimuli`
+      )
+    }
+    if (failed.length > 0) {
+      this.deps.toastState.addWarning(
+        `${failed.length} media file${failed.length > 1 ? 's' : ''} could not be decoded (${failed
+          .slice(0, 3)
+          .join(', ')}${failed.length > 3 ? '…' : ''}).`
+      )
+    }
   }
 
   /**

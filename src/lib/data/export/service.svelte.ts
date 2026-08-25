@@ -145,12 +145,12 @@ export class ExportService {
   }
 
   async exportWorkspace(options: WorkspaceExportOptions): Promise<boolean> {
-    return this.runExport(() => {
+    return this.runExport(async () => {
       // Original-on-disk (PLANMERGE §4): persist the pristine pre-merge data +
       // the merge log, not the folded working view. `unfoldMerges` is a no-op
       // when nothing is merged. The merged view is re-derived on load.
       this.deliver(
-        buildWorkspace(
+        await buildWorkspace(
           unfoldMerges(this.getExportData()),
           this.deps.grid.items,
           this.deps.ingest.metadata

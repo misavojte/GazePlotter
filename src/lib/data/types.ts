@@ -40,6 +40,31 @@ export const DEFAULT_NO_AOI_TREATMENT: NoAoiTreatmentType = {
   color: DEFAULT_NO_AOI_COLOR,
 }
 
+/**
+ * One optional reference medium per stimulus — an image OR a video. This is
+ * metadata only; the bytes live as a Blob in the non-reactive
+ * `stimulusMediaStore` (never base64 — recordings can be GBs) and persist as
+ * a `media/<stimulusId>.<ext>` entry of the `.gazeplotter.zip` workspace
+ * archive. Invariant: a `stimuliMedia[id]` entry exists iff the store holds
+ * its blob.
+ */
+export interface StimulusMedia {
+  kind: 'image' | 'video'
+  mimeType: string
+  /** Original upload name, for the UI readout and the zip entry extension. */
+  fileName: string
+  /** Intrinsic pixel size — defines the gaze coordinate space plots map onto. */
+  naturalWidth: number
+  naturalHeight: number
+  /**
+   * The rectangle in GAZE coordinates the media covers — user-editable so
+   * gaze data plots over the image correctly when recording coordinates
+   * don't align with image pixels. Absent = the media's own pixel space
+   * (0, 0, naturalWidth, naturalHeight).
+   */
+  region?: { x: number; y: number; width: number; height: number }
+}
+
 export interface SegmentInterpretedDataType {
   id: number
   start: number
@@ -341,6 +366,12 @@ export interface DataType {
    * merged. The durable record of prior state + the inverse for un-merge.
    */
   merges?: MergeLogEntry[]
+  /**
+   * Per-stimulus reference media, keyed by stable stimulus id (ids are
+   * tombstoned, never reindexed — see {@link MergeMember}). Absent when no
+   * stimulus has media. Metadata only; see {@link StimulusMedia}.
+   */
+  stimuliMedia?: Record<number, StimulusMedia>
 }
 
 /**
@@ -422,6 +453,7 @@ export interface RawIngestPayload {
   spatialData?: unknown
   dataExclusions?: DatasetExclusionNotice[]
   merges?: MergeLogEntry[]
+  stimuliMedia?: Record<number, StimulusMedia>
 }
 
 export interface MigratedJsonFormat {
@@ -436,6 +468,9 @@ export type ParsedData = JsonImportNewFormat & {
   /** True for freshly parsed datasets (not restored workspaces) —
       gates post-upload notices like the imported-events toast. */
   freshDataset?: boolean
+  /** Stimulus reference media bytes from a workspace archive, keyed by
+      stimulus id (see {@link StimulusMedia}). */
+  mediaBlobs?: Record<number, Blob>
 }
 
 // Binary relational memory model

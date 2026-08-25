@@ -13,6 +13,9 @@
   } from '$lib/plots/shared/plotCursor.svelte'
   import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/textMeasure'
   import { SCANPATH_COLORS, SCANPATH_LAYOUT } from '../const'
+  import { stimulusMediaStore } from '$lib/data/media/mediaStore.svelte'
+  import { mediaRegionOf } from '$lib/data/media/mediaUpload'
+  import type { StimulusMedia } from '$lib/data/types'
   import type { ScanpathData } from '../types'
   import type { WarningPlaceholder } from '../core/view'
 
@@ -23,6 +26,13 @@
     unavailableMessage?: string | WarningPlaceholder | null
     /** The one participant this panel is about. */
     participantId?: number
+    /** The stimulus's reference medium, drawn as the plot background. Its
+        intrinsic pixel size replaces the fixation bbox as the coordinate
+        domain — gaze coordinates are stimulus pixels, so fixations land
+        exactly on the image. */
+    media?: StimulusMedia | null
+    /** Key of `media`'s bytes in the stimulusMediaStore. */
+    mediaStimulusId?: number
     /** Shared PLOT CURSOR (screen-only; export renders without one). */
     plotCursor?: PlotCursorPort | null
   }
@@ -36,8 +46,18 @@
     margin = 0,
     unavailableMessage = null,
     participantId,
+    media = null,
+    mediaStimulusId,
     plotCursor = null,
   }: Props = $props()
+
+  /** The decoded background element, or null while it loads. Depends on the
+      store version so the canvas repaints when decoding finishes. */
+  const mediaElement = $derived.by(() => {
+    void stimulusMediaStore.version
+    if (!media || mediaStimulusId === undefined) return null
+    return stimulusMediaStore.getReadyElement(mediaStimulusId, media)
+  })
 
   /** The cursor either means this whole panel or nothing: one participant, one plot. */
   const cursorIsMine = $derived(
@@ -87,6 +107,22 @@
         yTicks: { positions: [], labels: [] },
       }
     }
+    if (media) {
+      // Media present: the domain IS the gaze rectangle the media covers
+      // (its own pixel space unless the user remapped it), unpadded, so
+      // fixations align exactly with the image.
+      const r = mediaRegionOf(media)
+      return {
+        dataMinX: r.x,
+        dataMaxX: r.x + r.width,
+        dataMinY: r.y,
+        dataMaxY: r.y + r.height,
+        dataW: r.width,
+        dataH: r.height,
+        xTicks: buildTicks(r.x, r.x + r.width, L.tickCount),
+        yTicks: buildTicks(r.y, r.y + r.height, L.tickCount),
+      }
+    }
     const { minX, maxX, minY, maxY } = data.bbox
     const rawW = maxX - minX
     const rawH = maxY - minY
@@ -112,7 +148,7 @@
     width: () => width,
     height: () => height,
     margin: () => margin,
-    deps: () => [data, showFixationOrder, showNumbers, unavailableMessage],
+    deps: () => [data, showFixationOrder, showNumbers, unavailableMessage, media, mediaElement],
     placeholder: () => unavailableMessage,
     gutters: () => {
       if (unavailableMessage) return {}
@@ -175,6 +211,16 @@
 
   function drawScanpath(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
     if (!data) return
+    // Reference medium (image or a video's first frame), under everything.
+    // Stretch-to-frame: the fixations go through the same linear projection,
+    // so alignment is exact even when the frame's aspect ratio differs.
+    if (mediaElement) {
+      ctx.save()
+      ctx.globalAlpha = 0.9
+      ctx.drawImage(mediaElement, frame.x, frame.y, frame.width, frame.height)
+      ctx.restore()
+    }
+
     // Polyline (under the circles).
     if (showFixationOrder && data.fixations.length > 1) {
       ctx.save()

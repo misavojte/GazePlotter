@@ -54,6 +54,11 @@ const WORKSPACE_COMMAND_LABELS: Record<
     default: 'Event channels updated',
   },
 
+  updateStimulusMedia: {
+    action: 'reference media update',
+    default: 'Stimulus reference media updated',
+  },
+
   updateNoAoiTreatment: {
     action: 'No AOI treatment update',
     default: 'No AOI treatment updated',

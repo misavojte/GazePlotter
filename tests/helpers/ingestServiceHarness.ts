@@ -63,7 +63,11 @@ export function createIngestDeps() {
   )
 
   const deps = {
-    engine: { loadDataset: vi.fn(), metadata: null },
+    engine: {
+      loadDataset: vi.fn(),
+      setStimulusMediaBlobs: vi.fn(() => 0),
+      metadata: null,
+    },
     errorService: { clearAll: vi.fn(), clearFatalLoad: vi.fn(), report },
     grid: { reset: vi.fn(), clearSelection: vi.fn() },
     modalState: { open: vi.fn(), close: vi.fn() },
