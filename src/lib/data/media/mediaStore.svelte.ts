@@ -77,19 +77,24 @@ class StimulusMediaStore {
     } else {
       const el = document.createElement('video')
       el.muted = true
+      el.playsInline = true
       el.preload = 'auto'
       const entry = { url, el, ready: false }
       this.elements.set(stimulusId, entry)
+      const markReady = () => {
+        if (entry.ready) return
+        entry.ready = true
+        this.version++
+      }
+      // The readiness gate is what prevents a black background: the element
+      // is only handed out once a frame is decoded. 'seeked' after an
+      // explicit off-zero seek guarantees a paintable frame everywhere;
+      // 'canplaythrough' is the fallback for browsers that decode the first
+      // frame without honoring the tiny seek.
+      el.addEventListener('seeked', markReady, { once: true })
+      el.addEventListener('canplaythrough', markReady, { once: true })
       el.addEventListener(
-        'seeked',
-        () => {
-          entry.ready = true
-          this.version++
-        },
-        { once: true }
-      )
-      el.addEventListener(
-        'loadeddata',
+        'loadedmetadata',
         () => {
           // Seek off 0 by an epsilon — some browsers only paint a drawable
           // frame after an actual seek.

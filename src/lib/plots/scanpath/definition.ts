@@ -1,8 +1,14 @@
 import { deriveScanpathView } from './core/view'
 import { plotCursorScreen } from '$lib/plots/shared/plotCursor.svelte'
-import { definePlot } from '$lib/plots/definePlot'
+import { definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
 import { stimulusParticipantSubtitle } from '$lib/plots/shared'
+import { PRESET_PALETTES } from '$lib/color/palettes'
 import type { ScanpathPlotSettings } from './types'
+
+const colorModeIs = (mode: string) => (ctx: SectionFieldCtx) => {
+  const v = ctx.common(s => s.colorMode ?? 'time')
+  return !v.mixed && v.value === mode
+}
 
 export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSettings>({
   type: 'scanpath',
@@ -12,21 +18,29 @@ export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSetting
     'stimulus',
     'participant',
     {
-      key: 'scanpath:display',
-      title: 'Display',
+      key: 'scanpath:visualisation',
+      title: 'Visualisation',
       fields: [
+        {
+          kind: 'enum',
+          key: 'colorMode',
+          group: 'Fixation color',
+          options: [
+            { label: 'Time gradient', value: 'time' },
+            { label: 'Solid', value: 'solid' },
+          ],
+          summary: true,
+        },
+        {
+          kind: 'colorScale',
+          key: 'colorScale',
+          defaultMin: PRESET_PALETTES.VIRIDIS.colors[0],
+          defaultMax: PRESET_PALETTES.VIRIDIS.colors[2],
+          showWhen: colorModeIs('time'),
+        },
         { kind: 'boolean', key: 'showFixationOrder', label: 'Show fixation order line' },
         { kind: 'boolean', key: 'showNumbers', label: 'Show fixation numbers' },
       ],
-      summary: ctx => {
-        const order = ctx.common(s => s.showFixationOrder)
-        const numbers = ctx.common(s => s.showNumbers)
-        if (order.mixed || numbers.mixed) return 'Mixed'
-        const parts: string[] = []
-        if (order.value) parts.push('Order line')
-        if (numbers.value) parts.push('Numbers')
-        return parts.length === 0 ? 'None' : parts.join(', ')
-      },
     },
   ],
   view: { deriveView: deriveScanpathView },
@@ -37,6 +51,10 @@ export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSetting
     participantId: 0,
     showFixationOrder: true,
     showNumbers: true,
+    // Old workspaces lack these keys; the item factory merges the defaults
+    // in, so no migration is needed.
+    colorMode: 'time',
+    colorScale: [...PRESET_PALETTES.VIRIDIS.colors],
   }),
   size: { min: { w: 12, h: 10 }, w: 16 },
   requireCapabilities: [['segmented', 'spatial']],

@@ -42,11 +42,13 @@ export function getScanpathData(
     if (!spatial) continue
     if (!Number.isFinite(spatial.x) || !Number.isFinite(spatial.y)) continue
 
-    const duration = reader.getSegmentEnd(i) - reader.getSegmentStart(i)
+    const start = reader.getSegmentStart(i)
+    const duration = reader.getSegmentEnd(i) - start
     fixations.push({
       rank: fixations.length + 1,
       x: spatial.x,
       y: spatial.y,
+      start,
       duration,
     })
   }
