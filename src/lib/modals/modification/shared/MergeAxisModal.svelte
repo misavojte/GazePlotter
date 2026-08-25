@@ -58,6 +58,7 @@
         ctx: { engine: DataEngine; modalState: ModalState; source: string }
       ) => void
       isActive: (item: BaseInterpretedDataType, engine: DataEngine) => boolean
+      tooltip: (item: BaseInterpretedDataType, engine: DataEngine) => string
     }
   }
 
@@ -141,7 +142,7 @@
         type: 'action',
         icon: 'image',
         tooltip:
-          'Reference image/video drawn behind gaze data (scanpath background). Add media via Upload data; click to view, position, or remove it.',
+          'Reference image/video drawn behind gaze data (scanpath background). Filled = attached; click to add, position, or remove it.',
       },
       onclick: (item, { modalState, source }) => {
         void modalState.push(stimulusMediaModal, {
@@ -152,6 +153,12 @@
       },
       isActive: (item, engine) =>
         engine.metadata?.stimuliMedia?.[item.id] !== undefined,
+      tooltip: (item, engine) => {
+        const media = engine.metadata?.stimuliMedia?.[item.id]
+        return media
+          ? `${media.fileName}. Click to view, position, or remove.`
+          : 'No reference media. Click to add an image or video.'
+      },
     },
     columns: [
       { label: 'Move', width: '28px', type: 'handle' },
@@ -286,6 +293,8 @@
               cfg.rowAction!.onclick(item, { engine, modalState, source }),
             rowActionActive: (item: BaseInterpretedDataType) =>
               cfg.rowAction!.isActive(item, engine),
+            rowActionTooltip: (item: BaseInterpretedDataType) =>
+              cfg.rowAction!.tooltip(item, engine),
           }
         : {}),
     }}

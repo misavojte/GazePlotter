@@ -4,7 +4,12 @@
   import { getGazePlotterSession } from '$lib/session'
   import { formatFileSize } from '$lib/shared/format'
   import { stimulusMediaStore } from '$lib/data/media/mediaStore.svelte'
-  import { mediaRegionOf } from '$lib/data/media/mediaUpload'
+  import {
+    buildStimulusMediaFromFile,
+    MEDIA_FILE_ACCEPT,
+    mediaRegionOf,
+  } from '$lib/data/media/mediaUpload'
+  import type { StimulusMedia } from '$lib/data/types'
 
   export interface Props {
     stimulusId: number
@@ -16,11 +21,39 @@
   let { stimulusId, stimulusName, source }: Props = $props()
   const { engine, workspace, modalState, toastState } = getGazePlotterSession()
 
-  const media = $derived(engine.metadata?.stimuliMedia?.[stimulusId] ?? null)
-  const blob = $derived.by(() => {
+  const saved = $derived(engine.metadata?.stimuliMedia?.[stimulusId] ?? null)
+  const savedBlob = $derived.by(() => {
     void stimulusMediaStore.version
     return stimulusMediaStore.getBlob(stimulusId)
   })
+
+  // A picked-but-not-applied file from the manual picker: it wins over the
+  // saved media until Apply commits it (Cancel just discards it).
+  let draft = $state<{ media: StimulusMedia; blob: Blob } | null>(null)
+  const media = $derived(draft?.media ?? saved)
+  const blob = $derived(draft?.blob ?? savedBlob)
+
+  let fileInput: HTMLInputElement | null = null
+
+  async function onFilePicked(event: Event) {
+    const input = event.target as HTMLInputElement
+    const file = input.files?.[0]
+    input.value = ''
+    if (!file) return
+    try {
+      const picked = await buildStimulusMediaFromFile(file)
+      draft = { media: picked, blob: file }
+      // New pixel space: re-seed the mapping to the file's natural size.
+      x = 0
+      y = 0
+      width = picked.naturalWidth
+      height = picked.naturalHeight
+    } catch {
+      toastState.addWarning(
+        `Can't attach ${file.name}: not a readable image or video.`
+      )
+    }
+  }
 
   // Component-local preview URL (separate from the canvas element cache):
   // created per blob, revoked on change/teardown.
@@ -35,7 +68,7 @@
 
   // Coordinate draft, seeded from the current mapping once per open.
   // svelte-ignore state_referenced_locally
-  const initial = media ? mediaRegionOf(media) : { x: 0, y: 0, width: 0, height: 0 }
+  const initial = saved ? mediaRegionOf(saved) : { x: 0, y: 0, width: 0, height: 0 }
   let x = $state<number | undefined>(initial.x)
   let y = $state<number | undefined>(initial.y)
   let width = $state<number | undefined>(initial.width)
@@ -87,65 +120,91 @@
   }
 </script>
 
+<input
+  bind:this={fileInput}
+  type="file"
+  accept={MEDIA_FILE_ACCEPT}
+  class="file-input"
+  onchange={onFilePicked}
+/>
+
 {#if media}
   <Section title={stimulusName}>
-    <div class="preview">
-      {#if previewUrl}
-        {#if media.kind === 'image'}
-          <img src={previewUrl} alt={media.fileName} />
-        {:else}
-          <!-- svelte-ignore a11y_media_has_caption -->
-          <video src={previewUrl} controls muted></video>
+    <div class="stack">
+      <div class="preview">
+        {#if previewUrl}
+          {#if media.kind === 'image'}
+            <img src={previewUrl} alt={media.fileName} />
+          {:else}
+            <!-- svelte-ignore a11y_media_has_caption -->
+            <video src={previewUrl} controls muted></video>
+          {/if}
         {/if}
-      {/if}
-    </div>
-    <div class="meta">
-      <span class="file-name" title={media.fileName}>{media.fileName}</span>
-      <span>
-        {media.kind} · {media.naturalWidth}×{media.naturalHeight}{#if blob}
-          · {formatFileSize(blob.size)}{/if}
-      </span>
+      </div>
+      <div class="meta">
+        <span class="file-name" title={media.fileName}>{media.fileName}</span>
+        <span>
+          {media.kind} · {media.naturalWidth}×{media.naturalHeight}{#if blob}
+            · {formatFileSize(blob.size)}{/if}
+        </span>
+        <div class="replace">
+          <Button size="sm" onclick={() => fileInput?.click()}>Replace…</Button>
+        </div>
+      </div>
     </div>
   </Section>
 
   <Section title="Position in gaze coordinates">
-    <p class="hint">
-      Where the media sits in your recording's coordinate system. By default
-      gaze coordinates are assumed to equal image pixels. Change these when
-      the stimulus was offset on screen or recorded at a different scale.
-    </p>
-    <div class="coord-group">
-      <span class="coord-label">Top-left corner of the media</span>
-      <div class="coord-fields">
-        <InputNumber label="Left (gaze X)" min={COORD_MIN} bind:value={x} />
-        <InputNumber label="Top (gaze Y)" min={COORD_MIN} bind:value={y} />
+    <div class="stack">
+      <p class="hint">
+        Where the media sits in your recording's coordinate system. By default
+        gaze coordinates are assumed to equal image pixels. Change these when
+        the stimulus was offset on screen or recorded at a different scale.
+      </p>
+      <div class="coord-group">
+        <span class="coord-label">Top-left corner of the media</span>
+        <div class="coord-fields">
+          <InputNumber label="Left (gaze X)" min={COORD_MIN} bind:value={x} />
+          <InputNumber label="Top (gaze Y)" min={COORD_MIN} bind:value={y} />
+        </div>
       </div>
-    </div>
-    <div class="coord-group">
-      <span class="coord-label">Size of the media, in gaze units</span>
-      <div class="coord-fields">
-        <InputNumber label="Width" min={1} bind:value={width} />
-        <InputNumber label="Height" min={1} bind:value={height} />
+      <div class="coord-group">
+        <span class="coord-label">Size of the media, in gaze units</span>
+        <div class="coord-fields">
+          <InputNumber label="Width" min={1} bind:value={width} />
+          <InputNumber label="Height" min={1} bind:value={height} />
+        </div>
       </div>
-    </div>
-    <div class="reset">
-      <Button size="sm" onclick={resetToImageSize}>Reset to image size</Button>
+      <div>
+        <Button size="sm" onclick={resetToImageSize}>Reset to image size</Button>
+      </div>
     </div>
   </Section>
 
   <ModalButtons
     buttons={[
       { label: 'Apply', onclick: onApply, variant: 'primary' },
-      { label: 'Remove media', onclick: onRemove },
+      ...(saved ? [{ label: 'Remove media', onclick: onRemove }] : []),
       { label: 'Cancel', onclick: () => modalState.close() },
     ]}
   />
 {:else}
-  <Section>
-    <p class="hint">
-      No reference media on this stimulus. Add an image or video through
-      Upload data. Files named after the stimulus attach automatically.
-    </p>
+  <Section title={stimulusName}>
+    <div class="stack">
+      <p class="hint">
+        No reference media on this stimulus yet. Attach an image or video and
+        plots draw it behind the gaze data (the scanpath background).
+      </p>
+      <div>
+        <Button variant="primary" onclick={() => fileInput?.click()}>
+          Choose image or video…
+        </Button>
+      </div>
+      <p class="hint">
+        Media files added through Upload data attach automatically when named
+        after the stimulus.
+      </p>
+    </div>
   </Section>
   <ModalButtons
     buttons={[{ label: 'Close', onclick: () => modalState.close() }]}
@@ -172,9 +231,17 @@
   .meta {
     display: flex;
     gap: 0.75rem;
-    align-items: baseline;
+    align-items: center;
     font-size: 12px;
     color: var(--c-darkgrey, #555);
+  }
+
+  .replace {
+    margin-left: auto;
+  }
+
+  .file-input {
+    display: none;
   }
 
   .file-name {
@@ -192,10 +259,18 @@
     color: var(--c-darkgrey, #555);
   }
 
+  /* Section children carry no margins of their own; the stack is what puts
+     air between the preview, hints, field groups, and buttons. */
+  .stack {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
   .coord-group {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
+    gap: 0.5rem;
   }
 
   .coord-label {
@@ -209,7 +284,4 @@
     gap: 0.75rem;
   }
 
-  .reset {
-    padding-top: 0.25rem;
-  }
 </style>

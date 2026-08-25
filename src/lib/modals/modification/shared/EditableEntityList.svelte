@@ -67,8 +67,10 @@
     ) => void
     /** Only for entity lists with an 'action' column (leader rows). */
     onRowAction?: (item: BaseInterpretedDataType) => void
-    /** Highlights the 'action' icon (e.g. "this stimulus HAS media"). */
+    /** Fills the 'action' button (e.g. "this stimulus HAS media"). */
     rowActionActive?: (item: BaseInterpretedDataType) => boolean
+    /** Hover explanation of the 'action' button per row. */
+    rowActionTooltip?: (item: BaseInterpretedDataType) => string
   }
 
   interface GroupNotice {
@@ -502,11 +504,15 @@
                 {:else if col.type === 'color' && !isLeader}
                   <div></div>
                 {:else if col.type === 'action' && isLeader}
-                  <div class="col-center">
+                  <div class="col-action">
                     <button
-                      class="tool-button"
-                      class:active={grouped.rowActionActive?.(member) ?? false}
+                      class="row-action"
+                      class:set={grouped.rowActionActive?.(member) ?? false}
                       aria-label={`${col.label} for ${member.displayedName || member.originalName}`}
+                      use:tooltipAction={{
+                        content: grouped.rowActionTooltip?.(member) ?? '',
+                        disabled: !grouped.rowActionTooltip,
+                      }}
                       onclick={() => grouped.onRowAction?.(member)}
                     >
                       <ImageIcon size={'1em'} />
@@ -791,5 +797,50 @@
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  /* ── Per-row action button (e.g. stimulus reference media) ─────────────── */
+
+  /* The cell overrides the row's align-items: center so the button shares
+     the row's control height (the name input beside it). */
+  .col-action {
+    align-self: stretch;
+    display: flex;
+    justify-content: center;
+  }
+
+  /* The tool-button vocabulary, sized to the row. State = fill: outline is
+     "no media", the primary-button brand fill is "media attached" — so the
+     brand-outline hover can't be mistaken for the set state. */
+  .row-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    background: none;
+    border: 1px solid var(--c-midgrey);
+    border-radius: var(--rounded-md);
+    color: var(--c-darkgrey);
+    cursor: pointer;
+    transition:
+      color var(--transition-fast) ease,
+      border-color var(--transition-fast) ease,
+      background-color var(--transition-fast) ease;
+  }
+
+  .row-action:hover {
+    color: var(--c-brand);
+    border-color: var(--c-brand);
+  }
+
+  .row-action.set,
+  .row-action.set:hover {
+    background-color: var(--c-brand);
+    border-color: var(--c-brand);
+    color: var(--c-white);
+  }
+
+  .row-action.set:hover {
+    background-color: var(--c-brand-dark);
   }
 </style>
