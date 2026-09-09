@@ -2,10 +2,12 @@ import { deriveScarfView } from './core/view'
 import { scarfScreen } from './core/screen.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
+// Called at definition time: import the module, not the barrel, which the
+// registry -> shared sections -> registry cycle leaves half-initialised.
+import { reconcileStimulusScopedHighlights } from '$lib/plots/shared/highlightReconcile'
 import type { ScarfPlotSettings } from './types'
-import { SCARF_IDENTIFIERS, isAoiLayerHighlight } from './const'
-import { getAois } from '$lib/data/engine'
-import type { WorkspaceCommand } from '$lib/workspace/commands'
+import { SCARF_IDENTIFIERS, isStimulusScopedHighlight } from './const'
+import { getAois, getEventChannels } from '$lib/data/engine'
 
 export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
   type: 'scarf',
@@ -67,47 +69,16 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
   }),
   size: { min: { w: 14, h: 10 }, w: 20 },
   requireCapabilities: [['segmented']],
-  onCommand: (command, item, engine, dispatch): void => {
-    const settings = item.settings as ScarfPlotSettings
-    const highlights = settings.highlights ?? []
-    if (highlights.length === 0) return
-
-    // Case 1: stimulus switch on this item — clear all AOI highlights
-    if (
-      command.type === 'updateSettings' &&
-      command.updates.some(
-        u => u.itemId === item.id && 'stimulusId' in u.settings
-      )
-    ) {
-      const kept = highlights.filter(h => !isAoiLayerHighlight(h))
-      if (kept.length < highlights.length) {
-        dispatch({
-          type: 'updateSettings',
-          updates: [{ itemId: item.id, settings: { highlights: kept } }],
-          source: 'plot.onCommand',
-        })
-      }
-      return
-    }
-
-    // Case 2: AOI grouping changed (could be propagated to this stimulus)
-    if (command.type === 'updateAois') {
-      const stimulusId = settings.stimulusId
-      const currentAois = getAois(engine, stimulusId)
-      const validAoiIds = new Set(
-        currentAois.map(a => `${SCARF_IDENTIFIERS.AOI}${a.id}`)
-      )
-      const kept = highlights.filter(
-        h => !isAoiLayerHighlight(h) || validAoiIds.has(h)
-      )
-      if (kept.length < highlights.length) {
-        dispatch({
-          type: 'updateSettings',
-          updates: [{ itemId: item.id, settings: { highlights: kept } }],
-          source: 'plot.onCommand',
-        })
-      }
-      return
-    }
-  },
+  // Legend identifiers are prefix + id (see SCARF_IDENTIFIERS); the AOI and
+  // event ids are per stimulus, categories are global.
+  onCommand: reconcileStimulusScopedHighlights<ScarfPlotSettings>(
+    isStimulusScopedHighlight,
+    (engine, s) => [
+      ...getAois(engine, s.stimulusId).map(a => `${SCARF_IDENTIFIERS.AOI}${a.id}`),
+      `${SCARF_IDENTIFIERS.AOI}${SCARF_IDENTIFIERS.NOT_DEFINED}`,
+      ...getEventChannels(engine, s.stimulusId).map(
+        ch => `${SCARF_IDENTIFIERS.EVENT}${ch.id}`
+      ),
+    ]
+  ),
 })

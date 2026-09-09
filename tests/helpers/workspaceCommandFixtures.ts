@@ -13,6 +13,7 @@ import type { AllGridTypes, GridItemMap } from '$lib/workspace'
 import { createGridItem } from '$lib/workspace/grid/itemFactory'
 import type { ScarfPlotSettings } from '$lib/plots/scarf/types'
 import type { AoiComparisonSettings } from '$lib/plots/aoi-comparison/types'
+import type { AoiStreamPlotSettings } from '$lib/plots/aoi-stream/types'
 
 export type MockMetadata = Omit<DataType, 'segments' | 'participantsSelections'> & {
   participantsSelections: ParticipantsSelection[]
@@ -220,6 +221,28 @@ export function createAoiComparisonGridItem(
     ...itemOverrides,
     settings: { stimulusId: 1, ...settings },
   }) as GridItemMap['aoiComparison']
+  item.redrawTimestamp = redrawTimestamp ?? 1
+  return item
+}
+
+/** See {@link createScarfGridItem}. */
+export function createAoiStreamGridItem(
+  overrides: Partial<Omit<GridItemMap['aoiStreamPlot'], 'settings'>> & {
+    settings?: Partial<AoiStreamPlotSettings>
+  } = {}
+): GridItemMap['aoiStreamPlot'] {
+  const { settings, redrawTimestamp, ...itemOverrides } = overrides
+  const item = createGridItem('aoiStreamPlot', {
+    type: 'aoiStreamPlot',
+    id: 3,
+    x: 0,
+    y: 8,
+    w: 6,
+    h: 8,
+    min: { w: 4, h: 4 },
+    ...itemOverrides,
+    settings: { stimulusId: 1, ...settings },
+  }) as GridItemMap['aoiStreamPlot']
   item.redrawTimestamp = redrawTimestamp ?? 1
   return item
 }

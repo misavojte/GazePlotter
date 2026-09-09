@@ -2,6 +2,10 @@ import { deriveAoiStreamView } from './core/view'
 import { aoiStreamScreen } from './core/screen.svelte'
 import { definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
+// Called at definition time: import the module, not the barrel, which the
+// registry -> shared sections -> registry cycle leaves half-initialised.
+import { reconcileStimulusScopedHighlights } from '$lib/plots/shared/highlightReconcile'
+import { getAois } from '$lib/data/engine'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import { RIDGELINE_SCALE } from './const'
 import type { AoiStreamPlotSettings } from './types'
@@ -79,6 +83,11 @@ export const aoiStreamPlotDefinition = definePlot<
     hideNoAoi: false,
   }),
   requireCapabilities: ['segmented'],
+  // Highlights are bare AOI ids — every one is stimulus-scoped.
+  onCommand: reconcileStimulusScopedHighlights<AoiStreamPlotSettings>(
+    () => true,
+    (engine, s) => getAois(engine, s.stimulusId).map(a => String(a.id))
+  ),
   consumesMetrics: {
     outputShape: 'aoi-vector',
     windowing: 'required',
