@@ -294,28 +294,31 @@ describe('Workspace Command Reversal', () => {
         label: 'updateAois',
         command: createChainedCommand({
           type: 'updateAois',
-          aois: [],
-          stimulusId: 1,
-          applyTo: 'this_stimulus',
+          updates: [{ stimulusId: 1, aois: [] }],
         }),
+        // The inverse carries the (empty = identity) order vector verbatim.
         expected: createChainedCommand({
           type: 'updateAois',
-          aois: [
+          updates: [
             {
-              id: 0,
-              originalName: 'AOI1',
-              displayedName: 'AOI 1',
-              color: '#FF0000',
-            },
-            {
-              id: 1,
-              originalName: 'AOI2',
-              displayedName: 'AOI 2',
-              color: '#00FF00',
+              stimulusId: 1,
+              aois: [
+                {
+                  id: 0,
+                  originalName: 'AOI1',
+                  displayedName: 'AOI 1',
+                  color: '#FF0000',
+                },
+                {
+                  id: 1,
+                  originalName: 'AOI2',
+                  displayedName: 'AOI 2',
+                  color: '#00FF00',
+                },
+              ],
+              orderVector: [],
             },
           ],
-          stimulusId: 1,
-          applyTo: 'this_stimulus',
         }),
       },
       {
@@ -426,17 +429,106 @@ describe('Workspace Command Reversal', () => {
         reverseCommand(
           createChainedCommand({
             type: 'updateAois',
-            aois: [],
-            stimulusId: 999,
-            applyTo: 'this_stimulus',
+            updates: [{ stimulusId: 999, aois: [] }],
           })
         )
       ).toEqual(
         createChainedCommand({
           type: 'updateAois',
-          aois: [],
-          stimulusId: 999,
-          applyTo: 'this_stimulus',
+          updates: [{ stimulusId: 999, aois: [], orderVector: [] }],
+        })
+      )
+    })
+
+    // The all-stimuli scope sends one entry per stimulus; the inverse must
+    // snapshot EVERY listed stimulus in its own display order (undo restores a
+    // custom order), skip id-gap null rows (never resurrected as ghost AOIs),
+    // and carry each order vector verbatim.
+    it('snapshots every listed stimulus in display order, skipping null rows', () => {
+      setMockEngineMetadata(
+        mockEngine,
+        createMockMetadata({
+          aois: {
+            data: [
+              [
+                ['X', 'X', '#111111'],
+                ['Y', 'Y', '#222222'],
+              ],
+              [null, ['P', 'P', '#333333'], ['Q', 'Q', '#444444']],
+            ] as unknown as string[][][],
+            orderVector: [[1, 0], []],
+          },
+        })
+      )
+      expect(
+        reverseCommand(
+          createChainedCommand({
+            type: 'updateAois',
+            updates: [
+              { stimulusId: 0, aois: [] },
+              { stimulusId: 1, aois: [] },
+            ],
+          })
+        )
+      ).toEqual(
+        createChainedCommand({
+          type: 'updateAois',
+          updates: [
+            {
+              stimulusId: 0,
+              aois: [
+                { id: 1, originalName: 'Y', displayedName: 'Y', color: '#222222' },
+                { id: 0, originalName: 'X', displayedName: 'X', color: '#111111' },
+              ],
+              orderVector: [1, 0],
+            },
+            {
+              stimulusId: 1,
+              aois: [
+                { id: 1, originalName: 'P', displayedName: 'P', color: '#333333' },
+                { id: 2, originalName: 'Q', displayedName: 'Q', color: '#444444' },
+              ],
+              orderVector: [],
+            },
+          ],
+        })
+      )
+    })
+
+    it('follows a stale (shorter) order vector rather than appending orphans', () => {
+      setMockEngineMetadata(
+        mockEngine,
+        createMockMetadata({
+          aois: {
+            data: [
+              [
+                ['X', 'X', '#111111'],
+                ['Y', 'Y', '#222222'],
+              ],
+            ],
+            orderVector: [[1]],
+          },
+        })
+      )
+      expect(
+        reverseCommand(
+          createChainedCommand({
+            type: 'updateAois',
+            updates: [{ stimulusId: 0, aois: [] }],
+          })
+        )
+      ).toEqual(
+        createChainedCommand({
+          type: 'updateAois',
+          updates: [
+            {
+              stimulusId: 0,
+              aois: [
+                { id: 1, originalName: 'Y', displayedName: 'Y', color: '#222222' },
+              ],
+              orderVector: [1],
+            },
+          ],
         })
       )
     })
@@ -595,10 +687,31 @@ describe('Undo round-trip through the command bus', () => {
       label: 'updateAois',
       command: () => ({
         type: 'updateAois',
-        stimulusId: 0,
-        applyTo: 'this_stimulus',
-        aois: [
-          { id: 0, originalName: 'A', displayedName: 'A renamed', color: '#00ff00' },
+        updates: [
+          {
+            stimulusId: 0,
+            aois: [
+              { id: 0, originalName: 'A', displayedName: 'A renamed', color: '#00ff00' },
+            ],
+          },
+        ],
+        source,
+      }),
+    },
+    {
+      // The all-stimuli scope: one command, several stimuli, ONE undo step.
+      label: 'updateAois (two stimuli)',
+      command: () => ({
+        type: 'updateAois',
+        updates: [
+          {
+            stimulusId: 0,
+            aois: [{ id: 0, originalName: 'A', displayedName: 'A', color: '#00ff00' }],
+          },
+          {
+            stimulusId: 1,
+            aois: [{ id: 0, originalName: 'A', displayedName: 'A', color: '#0000ff' }],
+          },
         ],
         source,
       }),
@@ -792,6 +905,63 @@ describe('Undo round-trip through the command bus', () => {
 
     expect(ws.undo()).toBe(true)
     expect(snapshot()).toEqual(before)
+    expect(report).not.toHaveBeenCalled()
+  })
+})
+
+// ============================================================================
+// 5. Many stimuli in one command (the AOI modal's "All stimuli" scope)
+// ============================================================================
+// The reported bug: on a large dataset a bulk recolor used to be one root
+// command PER stimulus, so a single Undo reverted one stimulus and, past the
+// undo cap (50 chains), the oldest stimuli could never be reverted at all.
+describe('updateAois over many stimuli', () => {
+  const N = 60 // deliberately above MAX_UNDO_STACK_SIZE
+  const colorOf = (i: number) =>
+    `#${(0x100000 + i * 7919).toString(16).slice(-6).padStart(6, '0')}`
+  const makeManyStimuli = () =>
+    makeDataType(
+      Array.from({ length: N }, () => [[[0, 100, 0, 0]]]),
+      {
+        aois: {
+          data: Array.from({ length: N }, (_, i) => [['A', 'A', colorOf(i)]]),
+          orderVector: Array.from({ length: N }, () => [0]),
+        },
+      }
+    )
+
+  it('recolors every stimulus in one command that is ONE undo step restoring all', () => {
+    const engine = new DataEngine()
+    engine.loadDataset(makeManyStimuli())
+    const grid = new GridState({ getAvailableColumns: () => 24 })
+    grid.items = [createScarfGridItem()]
+    const report = vi.fn<ErrorService['report']>()
+    const ws = new WorkspaceCommandBus({
+      engine,
+      errorService: { report },
+      grid,
+      toastState: { addSuccess: vi.fn() },
+    })
+    const snapshot = () =>
+      JSON.parse(JSON.stringify(normalizeSegments(engine.toDataType()!)))
+    const before = snapshot()
+
+    const updates = Array.from({ length: N }, (_, stimulusId) => ({
+      stimulusId,
+      aois: [{ id: 0, originalName: 'A', displayedName: 'A', color: '#00ff00' }],
+    }))
+    expect(ws.apply({ type: 'updateAois', updates, source: 'test.many' })).toBe(true)
+
+    for (let s = 0; s < N; s++) {
+      expect(engine.metadata!.aois.data[s][0][2]).toBe('#00ff00')
+    }
+    expect(ws.history.undoStack.length).toBe(1)
+
+    expect(ws.undo()).toBe(true)
+    expect(snapshot()).toEqual(before)
+    for (let s = 0; s < N; s++) {
+      expect(engine.metadata!.aois.data[s][0][2]).toBe(colorOf(s))
+    }
     expect(report).not.toHaveBeenCalled()
   })
 })

@@ -32,11 +32,27 @@ interface BaseCommandInterface {
 }
 
 // Data change commands
+
+/**
+ * One stimulus's AOI dictionary update. `aois` is the stimulus's FULL list in
+ * display order; `orderVector` (carried by inverse commands so undo is
+ * byte-exact, e.g. an empty identity vector) is written verbatim, otherwise
+ * the order is derived from `aois`.
+ */
+export interface AoiStimulusUpdate {
+  stimulusId: number
+  aois: ExtendedInterpretedDataType[]
+  orderVector?: number[]
+}
+
+/**
+ * AOI dictionary edits for a SET of stimuli, applied atomically as one undo
+ * step. A single-stimulus edit is a set of one; the AOI modal's "All stimuli"
+ * scope is a set of many (one per changed stimulus) — same command, same path.
+ */
 export interface UpdateAoisCommand extends BaseCommandInterface {
   type: 'updateAois'
-  aois: ExtendedInterpretedDataType[]
-  stimulusId: number
-  applyTo: 'this_stimulus' | 'all_by_original_name' | 'all_by_displayed_name'
+  updates: AoiStimulusUpdate[]
 }
 
 // Rename + reorder one entity axis. Stimuli and participants are the same

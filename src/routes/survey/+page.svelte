@@ -438,43 +438,20 @@
       duplicateCondition.set(true)
     }
 
-    // Check for AOI customization - detect when at least two AOIs have the same displayed name
-    // This can come from any plot type that supports AOI customization
-    if (
-      command.type === 'updateAois' &&
-      command.aois &&
-      command.aois.length > 0
-    ) {
-      // Count occurrences of each displayed name
-      const nameCounts = new Map<string, number>()
-
-      command.aois.forEach(aoi => {
-        const displayedName = (aoi.displayedName || '').trim()
-        if (displayedName !== '') {
-          nameCounts.set(
-            displayedName,
-            (nameCounts.get(displayedName) || 0) + 1
-          )
-        }
+    // Check for AOI customization - detect when, within ONE stimulus, the two
+    // target AOIs share a displayed name (i.e. were merged). The command carries
+    // one entry per stimulus; the same displayed name across two stimuli is
+    // not a merge, so the check runs per entry.
+    if (command.type === 'updateAois') {
+      const merged = command.updates.some(({ aois }) => {
+        const aoi1 = aois.find(aoi => aoi.originalName === 'T2-DataPAQ-OsayY')
+        const aoi2 = aois.find(aoi => aoi.originalName === 'T2-DataPAQ-OsaX')
+        // Normalize names by trimming; both must be non-empty and equal.
+        const name1 = (aoi1?.displayedName || '').trim()
+        const name2 = (aoi2?.displayedName || '').trim()
+        return !!aoi1 && !!aoi2 && name1 !== '' && name2 !== '' && name1 === name2
       })
-
-      // Check whether the aois with original names "T2-DataPAQ-OsayY" and "T2-DataPAQ-OsaX" are grouped
-      // i.e. having the same displayed name (trimmed and normalized)
-      const aoi1 = command.aois.find(
-        aoi => aoi.originalName === 'T2-DataPAQ-OsayY'
-      )
-      const aoi2 = command.aois.find(
-        aoi => aoi.originalName === 'T2-DataPAQ-OsaX'
-      )
-
-      // Normalize names by trimming and handling empty strings
-      const name1 = (aoi1?.displayedName || '').trim()
-      const name2 = (aoi2?.displayedName || '').trim()
-
-      // Both names must be non-empty and equal for grouping
-      if (aoi1 && aoi2 && name1 !== '' && name2 !== '' && name1 === name2) {
-        aoiCustomizationCondition.set(true)
-      }
+      if (merged) aoiCustomizationCondition.set(true)
     }
 
     // Check for Transition Matrix aggregation change to '1-step probability'

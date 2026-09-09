@@ -11,14 +11,12 @@ import { stimulusMediaStore } from '$lib/data/media/mediaStore.svelte'
 import { resolvePlotDefinition } from '$lib/plots/registry'
 import { GridState } from '$lib/workspace/grid'
 import {
-  updateMultipleAoi,
   updateMultipleParticipants,
   updateMultipleStimuli,
   updateCategories,
   getDefaultCategoryColor,
   getDefaultColor,
   getDefaultEventChannelColor,
-  interpretRow,
   interpretBaseRows,
   interpretOrdered,
 } from '$lib/data/engine'
@@ -30,7 +28,6 @@ import type {
 } from '$lib/workspace'
 import type {
   EntitySelection,
-  ExtendedInterpretedDataType,
   NameSelection,
   ParticipantsSelection,
 } from '$lib/data/types'
@@ -196,8 +193,7 @@ export function createWorkspaceCommandRegistry(
 
   const handlers: CommandHandlers = {
     updateAois: command => {
-      const { aois, stimulusId, applyTo } = command
-      updateMultipleAoi(engine, aois, stimulusId, applyTo)
+      engine.updateAoisBatch(command.updates)
       gridStore.triggerRedraw()
     },
 
@@ -381,19 +377,27 @@ export function createWorkspaceCommandRegistry(
   }
 
   const reverseHandlers: ReverseHandlers = {
+    // One entry per stimulus the forward touches: its CURRENT rows in display
+    // order (id-gap null rows skipped, never resurrected as ghost AOIs) plus
+    // the order vector verbatim, so undo restores a custom order and stays
+    // byte-exact even for an empty (identity) vector.
     updateAois: (cmd, meta) => {
       const dataMeta = requireMetadata()
-      const stimulusId = cmd.stimulusId
-      const currentAois = dataMeta.aois.data[stimulusId] || []
-      const affectedAois: ExtendedInterpretedDataType[] = currentAois.map(
-        (aoiRow, aoiIndex) => interpretRow(aoiRow, aoiIndex, getDefaultColor)
-      )
       return withMeta(
         {
           type: 'updateAois',
-          aois: affectedAois,
-          stimulusId,
-          applyTo: cmd.applyTo,
+          updates: cmd.updates.map(({ stimulusId }) => {
+            const order = dataMeta.aois.orderVector?.[stimulusId] ?? []
+            return {
+              stimulusId,
+              aois: interpretOrdered(
+                dataMeta.aois.data[stimulusId] ?? [],
+                order,
+                getDefaultColor
+              ),
+              orderVector: [...order],
+            }
+          }),
         },
         meta
       )

@@ -139,6 +139,13 @@ export function setMockEngineMetadata(
     writable: true,
     configurable: true,
   })
+  // The `updateAois` handler writes straight into the engine batch; a spy
+  // lets registry tests assert the payload without a real DataEngine.
+  Object.defineProperty(engine, 'updateAoisBatch', {
+    value: vi.fn(),
+    writable: true,
+    configurable: true,
+  })
   // Mirror the production mutator the `updateMetricInstances` handler calls.
   Object.defineProperty(engine, 'setMetricInstances', {
     value: (instances: MetricInstance[]) => {

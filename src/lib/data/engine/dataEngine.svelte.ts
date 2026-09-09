@@ -92,14 +92,24 @@ export class DataEngine {
     this._aoiGroupReader.updateMap(meta)
   }
 
+  /**
+   * Replace AOI rows (by id) for each listed stimulus and commit its display
+   * order: `orderVector` verbatim when given (inverse commands carry the exact
+   * prior vector, including an empty identity one), else the `aois` order.
+   * Rows not listed are left untouched.
+   */
   updateAoisBatch(
-    updates: { stimulusId: number; aois: ExtendedInterpretedDataType[] }[]
+    updates: {
+      stimulusId: number
+      aois: ExtendedInterpretedDataType[]
+      orderVector?: number[]
+    }[]
   ) {
     const meta = this.metadata
     if (!meta) return
 
     for (let i = 0; i < updates.length; i++) {
-      const { stimulusId, aois } = updates[i]
+      const { stimulusId, aois, orderVector } = updates[i]
       if (stimulusId < 0 || stimulusId >= meta.aois.data.length) continue
 
       const stimulusData = meta.aois.data[stimulusId]
@@ -113,7 +123,9 @@ export class DataEngine {
       if (!meta.aois.orderVector) meta.aois.orderVector = []
       while (meta.aois.orderVector.length <= stimulusId)
         meta.aois.orderVector.push([])
-      meta.aois.orderVector[stimulusId] = aois.map(a => a.id)
+      meta.aois.orderVector[stimulusId] = orderVector
+        ? [...orderVector]
+        : aois.map(a => a.id)
     }
 
     // updateMap is the single decision point: it rebuilds groupPool, diffs

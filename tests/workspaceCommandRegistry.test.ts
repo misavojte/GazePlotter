@@ -10,7 +10,6 @@ import { createCommandHandler } from '$lib/workspace/commands/handler'
 import { UndoRedoStateStore } from '$lib/workspace/commands/undoRedoState.svelte'
 
 const engineMocks = vi.hoisted(() => ({
-  updateMultipleAoi: vi.fn(),
   updateMultipleParticipants: vi.fn(),
   updateMultipleStimuli: vi.fn(),
   getAois: vi.fn(),
@@ -150,6 +149,35 @@ describe('workspaceCommandRegistry', () => {
     expect(dispatch).not.toHaveBeenCalled()
   })
 
+  it('applies every stimulus of an updateAois set in ONE engine batch and one redraw', () => {
+    const gridStore = createMockGridStore([])
+    const engine = createMockEngine()
+    const updates = [
+      {
+        stimulusId: 0,
+        aois: [{ id: 0, originalName: 'A', displayedName: 'A', color: '#00ff00' }],
+      },
+      {
+        stimulusId: 1,
+        aois: [
+          { id: 0, originalName: 'AOI 0', displayedName: 'AOI 0', color: '#00ff00' },
+          { id: 1, originalName: 'AOI 1', displayedName: 'AOI 1', color: '#00ff00' },
+        ],
+      },
+    ]
+    createWorkspaceCommandRegistry(gridStore, engine).execute(
+      createChainedCommand(
+        { type: 'updateAois', updates },
+        { source: 'aoi.modal', chainId: 7 }
+      ),
+      { isUndoRedoOperation: false, dispatch: vi.fn() }
+    )
+
+    expect(engine.updateAoisBatch).toHaveBeenCalledTimes(1)
+    expect(engine.updateAoisBatch).toHaveBeenCalledWith(updates)
+    expect(gridStore.triggerRedraw).toHaveBeenCalledTimes(1)
+  })
+
   it('clears stale AOI highlights when grouping changes on active stimulus', () => {
     const gridStore = createMockGridStore([
       createScarfGridItem({
@@ -164,16 +192,19 @@ describe('workspaceCommandRegistry', () => {
     const dispatch = vi.fn()
     const command = createChainedCommand({
       type: 'updateAois',
-      aois: [
+      updates: [
         {
-          id: 0,
-          originalName: 'AOI 0',
-          displayedName: 'AOI 1', // causes grouping/merge under ID 1
-          color: '#ff0000',
+          stimulusId: 1,
+          aois: [
+            {
+              id: 0,
+              originalName: 'AOI 0',
+              displayedName: 'AOI 1', // causes grouping/merge under ID 1
+              color: '#ff0000',
+            },
+          ],
         },
       ],
-      stimulusId: 1,
-      applyTo: 'this_stimulus',
     }, {
       source: 'scarf.11.modal',
       chainId: 42,
@@ -217,16 +248,19 @@ describe('workspaceCommandRegistry', () => {
     const dispatch = vi.fn()
     const command = createChainedCommand({
       type: 'updateAois',
-      aois: [
+      updates: [
         {
-          id: 0,
-          originalName: 'AOI 0',
-          displayedName: 'Renamed AOI 0', // cosmetic rename
-          color: '#ff0000',
+          stimulusId: 1,
+          aois: [
+            {
+              id: 0,
+              originalName: 'AOI 0',
+              displayedName: 'Renamed AOI 0', // cosmetic rename
+              color: '#ff0000',
+            },
+          ],
         },
       ],
-      stimulusId: 1,
-      applyTo: 'this_stimulus',
     }, {
       source: 'scarf.11.modal',
       chainId: 42,
@@ -269,9 +303,7 @@ describe('workspaceCommandRegistry', () => {
     registry.execute(
       createChainedCommand({
         type: 'updateAois',
-        aois: [],
-        stimulusId: 1,
-        applyTo: 'this_stimulus',
+        updates: [{ stimulusId: 1, aois: [] }],
       }, {
         source: 'undo.scarf.11.modal',
         chainId: 43,
@@ -286,9 +318,7 @@ describe('workspaceCommandRegistry', () => {
     registry.execute(
       createChainedCommand({
         type: 'updateAois',
-        aois: [],
-        stimulusId: 1,
-        applyTo: 'this_stimulus',
+        updates: [{ stimulusId: 1, aois: [] }],
       }, {
         source: 'scarf.11.modal',
         chainId: 44,

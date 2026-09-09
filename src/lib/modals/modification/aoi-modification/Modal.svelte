@@ -26,6 +26,12 @@
     stagedDomainNames,
   } from '../shared/nameKeyedSelection'
   import { referencedSelectionIds } from '../shared/selectionAdapters'
+  import {
+    allStimuliRenamePairs,
+    buildAllStimuliUnion,
+    planAllStimuliUpdates,
+    resolveAllStimuliEdits,
+  } from './allStimuli'
 
   export interface Props {
     selectedStimulus?: string
@@ -39,6 +45,9 @@
   if (!meta) throw new Error('Data engine metadata not available')
 
   // ── Scope: ONE compact select in the list header — a stimulus, or all ─────
+  // Visible stimuli only (a merge tombstones its members); captured once and
+  // shared by the union, the save plan, and the staged-name domain.
+  const stimuli = getStimuli(engine)
   const stimuliOptions = getStimuliOptions(engine)
   const scopeOptions = [
     { value: 'all', label: 'All stimuli' },
@@ -53,7 +62,9 @@
   )
   const scopeStimulusId = () => {
     const id = parseInt(scope)
-    return Number.isNaN(id) ? 0 : id
+    // Not a stimulus (the all scope): the first VISIBLE stimulus, not id 0,
+    // which may be tombstoned by a merge or absent.
+    return Number.isNaN(id) ? parseInt(stimuliOptions[0]?.value ?? '0') : id
   }
 
   // ── Per-stimulus editor (order, rename-to-merge, color) ───────────────────
@@ -70,49 +81,23 @@
 
   // ── All-stimuli editor: one synthetic row per ORIGINAL name ───────────────
   // Same grouped machinery as the per-stimulus list (rename-to-merge preview,
-  // color, sort) over the cross-stimulus union. Untouched rows keep their
-  // per-stimulus values on save; an edited one is mass-applied.
-  type AllInit = { displayedName: string; color: string }
-  type AllRow = ExtendedInterpretedDataType & { stimuliLabel?: string }
-  const allInit = new Map<string, AllInit>()
-  const allUnion: AllRow[] = []
-  {
-    const counts = new Map<string, number>()
-    const varies = new Set<string>()
-    for (const s of getStimuli(engine)) {
-      const seen = new Set<string>()
-      for (const a of getAllAois(engine, s.id)) {
-        const init = allInit.get(a.originalName)
-        if (!init) {
-          allInit.set(a.originalName, {
-            displayedName: a.displayedName,
-            color: a.color,
-          })
-          allUnion.push({
-            id: allUnion.length,
-            originalName: a.originalName,
-            displayedName: a.displayedName,
-            color: a.color,
-          })
-        } else if (a.displayedName !== init.displayedName || a.color !== init.color) {
-          varies.add(a.originalName)
-        }
-        if (!seen.has(a.originalName)) {
-          seen.add(a.originalName)
-          counts.set(a.originalName, (counts.get(a.originalName) ?? 0) + 1)
-        }
-      }
-    }
-    const totalStimuli = getStimuli(engine).length
-    for (const row of allUnion) {
-      const n = counts.get(row.originalName) ?? 0
-      row.stimuliLabel = `${n}/${totalStimuli}${varies.has(row.originalName) ? '*' : ''}`
-    }
-  }
-  const allOpenById = new Map(allUnion.map(r => [r.id, r.displayedName]))
+  // color, sort) over the cross-stimulus union; the per-field semantics (an
+  // edited name or color is applied to every stimulus with that original
+  // name, untouched fields keep their per-stimulus values) live in
+  // allStimuli.ts. Rebuilt from the engine on every switch into the scope so
+  // a pushed step cannot leave the union stale.
+  const perStimulus = () =>
+    stimuli.map(s => ({ stimulusId: s.id, aois: getAllAois(engine, s.id) }))
+  let all = buildAllStimuliUnion(perStimulus())
+  let allOpenById = new Map(all.rows.map(r => [r.id, r.displayedName]))
   const allEditor = createGroupedEntityEditor({
-    getItems: () => allUnion,
+    getItems: () => all.rows,
   })
+  // Which fields the user edited, by original name — the ONE predicate behind
+  // the live rename map and staged-name domain (Apply recomputes it fresh).
+  const allEdits = $derived(
+    resolveAllStimuliEdits(allEditor.getCleanedItems(), all.init, allEditor.touched)
+  )
 
   const activeEditor = $derived(scope === 'all' ? allEditor : stimulusEditor)
 
@@ -153,7 +138,7 @@
       key: 'stimuliLabel',
       align: 'center' as const,
       tooltip:
-        'In how many of the stimuli this original AOI appears. * = its name or color currently differs between stimuli; editing the row unifies them.',
+        'In how many of the stimuli this original AOI appears. * = its name or color currently differs between stimuli; a name or color you edit (even to the value shown) is applied to all of them, a field you leave alone keeps its per-stimulus values.',
     },
   ]
   const SORT_COLUMNS = [
@@ -183,9 +168,16 @@
   const openNameOf = (id: number) =>
     (scope === 'all' ? allOpenById : stimOpenNames).get(id)
   const renameMap = $derived(
-    buildRenameMap(
-      activeEditor.items.map(i => [openNameOf(i.id), i.displayedName] as const)
-    )
+    scope === 'all'
+      ? // Every per-stimulus displayed name of an edited original maps to the
+        // new name, so selections follow the unification; identity pairs keep
+        // still-live names from being captured (see allStimuliRenamePairs).
+        buildRenameMap(allStimuliRenamePairs(all, allEdits))
+      : buildRenameMap(
+          stimulusEditor.items.map(
+            i => [openNameOf(i.id), i.displayedName] as const
+          )
+        )
   )
   const session = createSelectionSession<NameSelection>({
     initial: cloneNameSelections(getAoiSelections(engine)),
@@ -204,32 +196,22 @@
   const selectionsSnapshot = canonicalNameSelections(getAoiSelections(engine))
 
   // Which displayed names will exist post-apply (see stagedDomainNames); the
-  // "all" scope stages by ORIGINAL name, so it resolves each AOI through the
-  // union editor's row instead of a per-stimulus staged list.
+  // "all" scope stages by ORIGINAL name, so each AOI resolves through the
+  // union's edited fields instead of a per-stimulus staged list.
   const domainNames = $derived.by(() => {
     if (scope !== 'all') {
       return stagedDomainNames(
-        getStimuli(engine),
+        stimuli,
         scopeStimulusId(),
         stimulusEditor.items,
         id => getAllAois(engine, id)
       )
     }
     const set = new Set<string>()
-    const add = (n: string) => {
-      const t = (n || '').trim()
-      if (t) set.add(t)
-    }
-    const staged = new Map(allEditor.items.map(i => [i.originalName, i] as const))
-    for (const s of getStimuli(engine)) {
-      for (const a of getAllAois(engine, s.id)) {
-        const st = staged.get(a.originalName)
-        const init = allInit.get(a.originalName)
-        if (st && init && st.displayedName.trim() !== init.displayedName.trim()) {
-          add(st.displayedName)
-        } else {
-          add(a.displayedName)
-        }
+    for (const { aois } of perStimulus()) {
+      for (const a of aois) {
+        const t = (allEdits.get(a.originalName)?.displayedName ?? a.displayedName).trim()
+        if (t) set.add(t)
       }
     }
     return set
@@ -249,6 +231,8 @@
     if (next === scope) return
     session.clearTransient()
     if (next === 'all') {
+      all = buildAllStimuliUnion(perStimulus())
+      allOpenById = new Map(all.rows.map(r => [r.id, r.displayedName]))
       allEditor.refresh()
     } else {
       const id = parseInt(next)
@@ -275,71 +259,23 @@
     }
     return workspace.apply({
       type: 'updateAois',
-      aois: cleaned,
-      stimulusId,
-      applyTo: 'this_stimulus',
+      updates: [{ stimulusId, aois: cleaned }],
       source,
     })
   }
 
   function saveAllScope(): boolean {
-    // Only rows the user actually changed vs. their first-seen values are
-    // mass-applied; untouched (possibly divergent) rows keep their own
-    // per-stimulus values. One updateAois per CHANGED stimulus (N undo steps).
+    // ONE command carrying every changed stimulus: a single undo step, one
+    // toast, and no half-applied dataset if anything refuses. The per-field
+    // rules (edited fields unify, untouched fields keep per-stimulus values,
+    // order reconciliation only when the rows were rearranged) are
+    // allStimuli.ts's; edits are recomputed here rather than read from the
+    // derived so a same-value color re-pick is never missed.
     const cleaned = allEditor.getCleanedItems()
-    const edits = new Map<string, { displayedName: string; color: string }>()
-    for (const i of cleaned) {
-      const init = allInit.get(i.originalName)
-      if (!init) continue
-      if (i.displayedName !== init.displayedName.trim() || i.color !== init.color) {
-        edits.set(i.originalName, { displayedName: i.displayedName, color: i.color })
-      }
-    }
-    // Order reconciliation is opt-in by gesture: only when the union rows
-    // were actually rearranged (drag or sort) does every stimulus adopt the
-    // shared order — an untouched Apply must not rewrite per-stimulus orders.
-    // (Synthetic union ids are 0..n in first-seen order, so any deviation
-    // from the identity sequence means the user reordered.)
-    const orderChanged = cleaned.some((it, idx) => it.id !== idx)
-    const rank = new Map(cleaned.map((it, idx) => [it.originalName, idx]))
-    if (edits.size === 0 && !orderChanged) return true
-    for (const s of getStimuli(engine)) {
-      const raw = getAllAois(engine, s.id)
-      let changed = false
-      let items = raw.map(a => {
-        const e = edits.get(a.originalName)
-        if (e && (e.displayedName !== a.displayedName || e.color !== a.color)) {
-          changed = true
-          return { id: a.id, originalName: a.originalName, ...e }
-        }
-        return {
-          id: a.id,
-          originalName: a.originalName,
-          displayedName: a.displayedName,
-          color: a.color,
-        }
-      })
-      if (orderChanged) {
-        // Stable sort: duplicates of a name keep their in-stimulus order.
-        const sorted = [...items].sort(
-          (a, b) =>
-            (rank.get(a.originalName) ?? 0) - (rank.get(b.originalName) ?? 0)
-        )
-        if (sorted.some((it, i) => it.id !== items[i].id)) changed = true
-        items = sorted
-      }
-      const applied =
-        !changed ||
-        workspace.apply({
-          type: 'updateAois',
-          aois: items,
-          stimulusId: s.id,
-          applyTo: 'this_stimulus',
-          source,
-        })
-      if (!applied) return false
-    }
-    return true
+    const edits = resolveAllStimuliEdits(cleaned, all.init, allEditor.touched)
+    const updates = planAllStimuliUpdates(perStimulus(), cleaned, edits)
+    if (updates.length === 0) return true
+    return workspace.apply({ type: 'updateAois', updates, source })
   }
 
   const handleSubmit = () => {
@@ -411,7 +347,7 @@
           class="scope-select"
           use:tooltipAction={{
             content:
-              'What the list edits: one stimulus, or every stimulus at once (cross-stimulus edits apply to AOIs sharing the original name). Switching discards unapplied list edits.',
+              'What the list edits: one stimulus, or every stimulus at once (a name or color you edit applies to every stimulus with that original name; fields you leave alone keep their per-stimulus values). Switching discards unapplied list edits.',
             position: 'bottom',
           }}
         >
