@@ -2,6 +2,14 @@ name: CI
 
 # Every branch push runs the full gate (check + test + build + package smoke);
 # main additionally deploys to GitHub Pages, and only after the gate is green.
+#
+# Installs resolve fresh (no lockfile), so the tree must resolve cleanly from
+# ranges alone. package.json `overrides` pin every vitest and vite edge to our
+# own ranges: transitive optional peers declare `vitest: *` / `vite: *`
+# (@vitejs/devtools-*), and once a newer major exists on the registry those
+# resolve to it, creating a phantom second copy that npm 10 crashes on
+# ("Cannot read properties of null (reading 'edgesOut')"). Bump the overrides
+# together with the devDependency ranges.
 on:
   push:
   workflow_dispatch:

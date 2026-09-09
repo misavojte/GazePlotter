@@ -60,6 +60,10 @@
     "vite": "^8.0.0",
     "vitest": "^4.1.5"
   },
+  "overrides": {
+    "vitest": "^4.1.5",
+    "vite": "^8.0.0"
+  },
   "svelte": "./dist/index.js",
   "types": "./dist/index.d.ts",
   "type": "module",
