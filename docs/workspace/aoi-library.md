@@ -12,7 +12,7 @@ The AOI Library controls the display names, colors, order, merging, and selectio
 The dropdown in the list header switches what the list shows and what **Apply** affects:
 
 - **A stimulus** — Edit that stimulus's AOIs, including their order (drag the grip handle).
-- **All stimuli** — One row per original AOI name across the whole dataset. Editing a name or color applies to every stimulus containing that original name; untouched rows keep their per-stimulus values. Rearranging the rows (drag or sort) sets one shared order that **every stimulus adopts on Apply** — leave the order untouched and per-stimulus orders stay as they are. The **Stimuli** column shows in how many stimuli the AOI appears (`2/3`), with `*` flagging values that currently differ between stimuli.
+- **All stimuli** — One row per original AOI name across the whole dataset. A **Displayed name** or **Color** you edit applies to every stimulus containing that original name, including stimuli where the value currently differs; a field you leave alone keeps its per-stimulus values. Editing a field to the value it already shows counts as an edit, which is how you unify a divergent AOI to that value. Rearranging the rows (drag or sort) sets one shared order that **every stimulus adopts on Apply** — leave the order untouched and per-stimulus orders stay as they are. The **Stimuli** column shows in how many stimuli the AOI appears (`2/3`), with `*` flagging a name or color that currently differs between stimuli. **Apply** saves the whole scope as a single undo step.
 
 ## Editing AOIs
 
