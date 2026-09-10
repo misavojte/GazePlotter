@@ -38,14 +38,20 @@ Configure the quantitative metric calculated inside each time bin.
 - **Edit metric library…**: Opens the Metric Library modal where you can customize bin sizes (window size and step size) or define **custom windowed metrics**.
 
 ### Visualisation
-Configure the visual layout and alignment.
-- **Select view**: Choose how the time-binned data is visually arrayed:
+Configure the visual layout. The view decides which further controls the section shows; they are listed under the view that reveals them.
+- **Select view**: How the time-binned data is arrayed.
   - *Stream*: A centered, flowing river-like visualization. Highlights the shifting volume of attention across AOIs without pinning data to a flat baseline, making broad temporal trends easily visible.
-  - *Distribution*: A stacked area chart using a flat zero-baseline. Tracking the exact proportion or total occupancy of specific AOIs over time is easier.
-  - *Ridgeline*: Overlapping density curves for each AOI, resembling a mountain range. Excellent for comparing peak attention times across AOIs independently.
-  - *Heatmap*: A grid-based visualization where rows represent AOIs and color intensity represents the proportion of attention during each bin.
-- **Ridge scale** (visible only when *Ridgeline* is selected): Controls the vertical overlap (scale factor) between adjacent AOI density "mountains" (from 1 to 10).
-- **Color scale picker** (visible only when *Heatmap* is selected): Select the minimum, middle, and maximum colors for the heatmap intensity gradient.
+  - *Distribution*: A stacked area chart on a flat zero baseline, for reading the exact proportion or total occupancy of specific AOIs over time.
+  - *Ridgeline*: Overlapping density curves per AOI, resembling a mountain range, for comparing peak attention times across AOIs independently.
+    - **Ridge scale**: Vertical overlap (scale factor) between adjacent AOI curves, 1 to 10.
+  - *Heatmap*: One row per AOI; color intensity encodes the metric value in each bin.
+    - **Color scale**: Value range of the intensity gradient.
+      - *Min*: Value mapped to the first gradient color.
+      - *Max (0 = Auto)*: Value mapped to the last gradient color, or 0 to track the data maximum.
+    - **Color scale picker**: Minimum, middle, and maximum colors of the gradient.
+    - **Out of bounds**: Fills for bins outside the range above; each also appears as an end cap on the color bar legend. Bins are colored only, never printed, so there are no text-label toggles.
+      - *Below min*: Fill for a bin below Min (default gray). A bin with no data at all is always transparent, regardless of this setting.
+      - *Above max*: Fill for a bin above Max (default gray). Inert while Max is 0/Auto; its legend cap is hidden then too.
 - **Hide data**: Check *No AOI data* to hide participants who have zero registered fixations/events across all AOIs.
 
 ### Time range [ms]
@@ -69,4 +75,4 @@ Use AOI Timeline to:
 - **Analyze attention shifts**: Observe when participants collectively move their gaze from one AOI to another.
 - **Identify peak engagement**: Pinpoint the exact moments when specific features receive maximum visual attention.
 - **Compare group synchrony**: Assess whether different participant groups exhibit distinct or synchronized gaze behaviors over time.
-- **Evaluate temporal distribution**: Gauge whether an AOI receives sustained attention or quick, concentrated bursts.
+- **Evaluate temporal distribution**: Gauge whether an AOI receives sustained attention or quick, concentrated bursts.

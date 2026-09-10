@@ -43,10 +43,10 @@ Configure cell scaling, colors, and outlier rendering.
 - **Color scale**: Customizes cell shading mapping.
   - *Min*: Set value mapped to the minimum color intensity.
   - *Max (0 = Auto)*: Set value mapped to the maximum color intensity or leave at 0 for automatic maximum scaling.
-- **Color Scale Picker**: Interactive color picker to select the start, middle, and end colors for the matrix gradient.
-- **Out of bounds**: Custom color settings for values that fall outside the defined scale range:
+- **Color scale picker**: Interactive color picker to select the start, middle, and end colors for the matrix gradient.
+- **Out of bounds**: Custom color settings for values that fall outside the range set above. Each color also appears as an end cap on the color bar legend.
   - *Below min*: Choose color (default is gray) and toggle *Show text* labels for cell values below minimum.
-  - *Above max*: Choose color (default is red/gray) and toggle *Show text* labels for cell values above maximum.
+  - *Above max*: Choose color (default is gray) and toggle *Show text* labels for cell values above maximum. Inert while Max is left at 0/Auto, and its legend cap is hidden then too.
 - **Hide data**: Check *No AOI data* to hide participants who have zero registered fixations/events across all AOIs.
 
 ### Time range [ms]
@@ -76,4 +76,4 @@ Use the Transition Matrix to:
 - **Row patterns**: Where gaze typically goes FROM each AOI (row category).
 - **Column patterns**: Where gaze typically comes TO each AOI (column category).
 - **Diagonal values**: Transitions within the same AOI (re-fixations/dwell consistency).
-- **Empty cells**: Transitions that rarely or never occur.
+- **Empty cells**: Transitions that rarely or never occur.

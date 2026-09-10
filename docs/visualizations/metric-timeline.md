@@ -34,11 +34,11 @@ Configure the windowed scalar metric to track.
 - **Edit metric library…**: Opens the Metric Library modal where you can customize window parameters (window size and step size, e.g. 1000ms window with 100ms step) or define **custom windowed scalar metrics**.
 
 ### Visualisation
-Configure the visual presentation format:
+Configure the visual presentation. The view decides which further controls appear; they are listed under the view that reveals them.
 - **Select view**:
   - *Heatmap*: Renders a grid where rows represent participants (or participant averages) and columns represent time bins. Cell color represents the metric value.
+    - **Color scale picker**: Minimum, middle, and maximum colors of the heatmap intensity gradient.
   - *Overlay*: Renders a line graph where the horizontal axis is time and the vertical axis is the metric value, overlaying participant or group trend lines.
-- **Color scale picker** (visible only in *Heatmap* presentation): Select the minimum, middle, and maximum colors for the heatmap intensity gradient.
 
 ### Time range [ms]
 Filter the temporal range.
@@ -60,4 +60,4 @@ Located at the bottom of the Pane:
 Use Metric Timeline to:
 - **Track cognitive processing load**: An increase in average fixation duration over a timeline segment can indicate areas of high visual complexity or cognitive load.
 - **Observe search trends**: Track when participants are scanning rapidly (low fixation duration, high count) vs. processing deeply (high fixation duration).
-- **Compare group responses**: Overlay trend lines for custom groups to see if different demographics exhibit distinct temporal patterns during stimulus presentation.
+- **Compare group responses**: Overlay trend lines for custom groups to see if different demographics exhibit distinct temporal patterns during stimulus presentation.

@@ -23,6 +23,15 @@ Real top-level pillars: `setup/`, `upload-data/`, `metrics/`, `visualizations/`,
 - Internal links use absolute `/docs/...` paths.
 - Document format constraints precisely against the parser. Format parsers live in `src/lib/data/ingest/formats/` (e.g. `csvSegmentedDuration.ts`, `tobii.ts`); if the docs state required headers or segmentation rules, the parser must enforce them. Headers vary by format (e.g. the time-series custom CSV uses `Time, Participant, Stimulus, AOI` per `docs/upload-data/custom-csv.md`), so do not state one header set as universal.
 
+## Parameter structure
+
+Pane parameters are documented as a tree that mirrors the pane's dependency structure, never as a flat list with visibility qualifiers:
+
+- One `###` per pane section, one bold bullet per control, in pane order; a control's option values are italic sub-bullets.
+- A control shown only for one option value of another control (a `showWhen` in the definition) is nested UNDER that option value's bullet. Never write "(visible only when *X* is selected)": the nesting says it. One sentence at the top of the section may state that the mode picks the controls.
+- One clause per control: what it does, with units, range, default, and the auto sentinel ("0 = Auto") inline. Don't repeat what the parent bullet already established.
+- Verify the tree against the plot's `paneSections` in `src/lib/plots/<plot>/definition.ts` (field order, `group` captions, `showWhen`) before writing it.
+
 ## DONTs
 
 - No fuzzy UI descriptions and no conversational fluff; use clinical, senior-level technical writing.

@@ -33,13 +33,13 @@ Select which participant's fixation sequence to analyze. The recurrence plot ope
 - **Edit participants…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename or reorder participants.
 
 ### Method
-Configure the criteria and rules used to decide whether two fixations are recurrent.
-- **Recurrence method**: Choose the rule that determines when two fixations are counted as recurrent:
-  - *Fixed distance*: Two fixations i and j are recurrent if their Euclidean distance on the stimulus plane is ≤ the specified radius.
-  - *Fixed grid*: The stimulus plane is partitioned into a uniform grid. Two fixations are recurrent if they fall within the same grid cell.
+Configure the criteria used to decide whether two fixations are recurrent. The method decides which further control appears; it is listed under the method that reveals it.
+- **Recurrence method**: Rule that determines when two fixations count as recurrent.
+  - *Fixed distance*: Two fixations i and j are recurrent if their Euclidean distance on the stimulus plane is ≤ the radius.
+    - **Radius [px]**: Maximum screen-space distance between two fixation centroids for them to count as recurrent.
+  - *Fixed grid*: The stimulus plane is partitioned into a uniform grid; two fixations are recurrent if they fall within the same cell.
+    - **Cells per axis**: Number of grid divisions along each axis (10 creates a 10×10 grid).
   - *AOI*: Two fixations are recurrent if they share at least one Area of Interest. Fixations not assigned to any AOI are never recurrent with any other fixation under this criterion.
-- **Radius [px]** (visible only in *Fixed distance* mode): Maximum screen-space distance (in pixels) between two fixation centroids for them to be counted as recurrent.
-- **Cells per axis** (visible only in *Fixed grid* mode): Number of grid divisions along each axis (e.g. 10 creates a 10×10 grid).
 - **Duration weighting**: When checked, each recurrent dot's radius and opacity scale with the combined duration of the two fixations (t_i + t_j). Larger, more opaque dots indicate pairs of longer-duration fixations.
 - **Min line length**: Minimum run length (in consecutive recurrent cells) required for a line structure to be recognized in highlight mode (from 2 to 20).
 
@@ -83,4 +83,4 @@ Located at the bottom of the Pane:
 | **Recurrences spread far from the diagonal** | Long-range recurrence — the participant returned to the same regions after long intervals. |
 | **Visible block structure** | Distinct fixation phases, each confined to a different spatial region. Block boundaries mark transitions between phases. |
 
-> **Axis convention reminder**: All directional descriptions above assume GazePlotter's convention: Fixation i on the y-axis increasing upward, Fixation j on the x-axis increasing rightward. The main diagonal runs bottom-left to top-right.
+> **Axis convention reminder**: All directional descriptions above assume GazePlotter's convention: Fixation i on the y-axis increasing upward, Fixation j on the x-axis increasing rightward. The main diagonal runs bottom-left to top-right.

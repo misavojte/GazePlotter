@@ -35,18 +35,21 @@ Select the sequence alignment algorithm from the Metric Library.
 - **Edit metric library…**: Opens the Metric Library, where you can adjust algorithm parameters or save your own variants.
 
 ### Visualisation
-Configure the rendering layout and thresholding options:
+Configure the rendering layout and thresholding. The view decides which further controls appear; they are listed under the view that reveals them.
 - **Select view**:
   - *Matrix*: Renders a square heatmap matrix where rows and columns represent participants, and cell color intensity corresponds to their similarity score.
-  - *ScanGraph*: Renders a network graph (node-link diagram) where nodes represent participants, and lines (edges) connect participant pairs whose similarity score is above the defined threshold.
-- **Similarity threshold (0–1)** (visible only in *ScanGraph* view): The minimum similarity *p* required to draw an edge between two participant nodes (e.g. 0.50). Pairs with similarity below this threshold will not be connected.
-- **Edges (% of possible pairs)** (visible only in *ScanGraph* view): The same threshold seen from the other side: it always displays the share of participant pairs connected at the current *p*, so the two controls move together. Entering a percentage finds the *p* that draws at most that share of edges (ties round down, as in the ScanGraph article), and the field then shows the share actually achieved. The article's advised graph draws 5% of the possible edges.
-- **Min clique members** (visible only in *ScanGraph* view): The smallest clique the picker offers (default 2 = all cliques). Raising it hides the many small pairs a near-threshold graph produces, keeping the list focused on substantial groups.
-- **Highlight clique** (visible only in *ScanGraph* view): A clique is a group of participants that are **all pairwise similar** at the chosen threshold (the ScanGraph article's "groups of similar participants"). This dropdown lists every such group with at least the chosen number of members, largest first. Each option's secondary line reports the clique's internal agreement: the weakest pairwise similarity (`p ≥ …`, every member pair agrees at least this much) and the mean (`x̄`), followed by its members. Selecting one emphasizes its members and the edges **between** them while the rest of the graph recedes; edges leaving the clique stay plain, and members get first claim on label space. Nodes highlighted by clicking stay at full strength on top. On very dense graphs the clique list becomes unavailable and only *None* is offered; raise the threshold to bring it back.
-- **Color scale** (visible only in *Matrix* view):
-  - *Min*: Set value mapped to the minimum similarity color (default 0.0).
-  - *Max (0 = Auto)*: Set value mapped to the maximum similarity color (default 1.0).
-- **Color Scale Picker** (visible only in *Matrix* view): Choose the start, middle, and end colors for the similarity heatmap gradient.
+    - **Color scale**: Value range of the similarity gradient.
+      - *Min*: Value mapped to the first gradient color (default 0).
+      - *Max (0 = Auto)*: Value mapped to the last gradient color, or 0 to track the data maximum.
+    - **Color scale picker**: Start, middle, and end colors of the gradient.
+    - **Out of bounds**: Fills for cells outside the range above; each also appears as an end cap on the color bar legend.
+      - *Below min*: Color (default gray) and a *Show text* toggle for cell values below Min.
+      - *Above max*: Color (default gray) and a *Show text* toggle for cell values above Max. Inert while Max is 0/Auto; its legend cap is hidden then too.
+  - *ScanGraph*: Renders a network graph (node-link diagram) where nodes represent participants, and lines (edges) connect participant pairs whose similarity score is above the threshold.
+    - **Similarity threshold (0–1)**: The minimum similarity *p* required to draw an edge between two participant nodes (e.g. 0.50). Pairs below it are not connected.
+    - **Edges (% of possible pairs)**: The same threshold seen from the other side: it always displays the share of participant pairs connected at the current *p*, so the two controls move together. Entering a percentage finds the *p* that draws at most that share of edges (ties round down, as in the ScanGraph article), and the field then shows the share actually achieved. The article's advised graph draws 5% of the possible edges.
+    - **Min clique members**: The smallest clique the picker offers (default 2 = all cliques). Raising it hides the many small pairs a near-threshold graph produces, keeping the list focused on substantial groups.
+    - **Highlight clique**: A clique is a group of participants that are **all pairwise similar** at the chosen threshold (the ScanGraph article's "groups of similar participants"). This dropdown lists every such group with at least the chosen number of members, largest first. Each option's secondary line reports the clique's internal agreement: the weakest pairwise similarity (`p ≥ …`, every member pair agrees at least this much) and the mean (`x̄`), followed by its members. Selecting one emphasizes its members and the edges **between** them while the rest of the graph recedes; edges leaving the clique stay plain, and members get first claim on label space. Nodes highlighted by clicking stay at full strength on top. On very dense graphs the clique list becomes unavailable and only *None* is offered; raise the threshold to bring it back.
 
 ### Time range [ms]
 Limit the analysis to fixations that begin within this time range.
@@ -76,4 +79,4 @@ The ScanGraph view implements the scanpath comparison method introduced in:
 
 > Doležalová, J., & Popelka, S. (2016). ScanGraph: A novel scanpath comparison method using visualisation of graph cliques. *Journal of Eye Movement Research*, 9(4). [https://doi.org/10.16910/jemr.9.4.5](https://doi.org/10.16910/jemr.9.4.5)
 
-The authors' original web tool is available at [eyetracking.upol.cz/scangraph](http://eyetracking.upol.cz/scangraph); GazePlotter can [export scanpath strings](/docs/export/scangraph/) in the format it accepts.
+The authors' original web tool is available at [eyetracking.upol.cz/scangraph](http://eyetracking.upol.cz/scangraph); GazePlotter can [export scanpath strings](/docs/export/scangraph/) in the format it accepts.
