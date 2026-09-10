@@ -12,6 +12,7 @@ import { definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
+import { OUT_OF_BOUNDS_DEFAULTS, outOfBoundsFields } from '$lib/plots/shared/outOfBounds'
 import type { ScanpathSimilaritySettings } from './types'
 
 // View-gated sub-controls hide while `view` diverges across a bulk selection.
@@ -156,6 +157,7 @@ export const scanpathSimilarityDefinition = definePlot<
         {
           kind: 'stimulusColorRange',
           key: 'stimuliColorValueRanges',
+          group: 'Color scale',
           inputMax: 1,
           step: 0.01,
           showWhen: viewIs('matrix'),
@@ -163,10 +165,12 @@ export const scanpathSimilarityDefinition = definePlot<
         {
           kind: 'colorScale',
           key: 'colorScale',
+          group: 'Color scale',
           defaultMin: PRESET_PALETTES.BLUE.colors[0],
           defaultMax: PRESET_PALETTES.BLUE.colors[2],
           showWhen: viewIs('matrix'),
         },
+        ...outOfBoundsFields({ showWhen: viewIs('matrix') }),
       ],
     },
     'timelineRange',
@@ -186,6 +190,7 @@ export const scanpathSimilarityDefinition = definePlot<
     selectedClique: 'none',
     colorScale: [...PRESET_PALETTES.BLUE.colors],
     stimuliColorValueRanges: [],
+    ...OUT_OF_BOUNDS_DEFAULTS,
   }),
   requireCapabilities: ['segmented'],
   consumesMetrics: {

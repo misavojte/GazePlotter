@@ -5,6 +5,7 @@ import type {
   MetricMatrixData,
   MetricMatrixPlotSettings,
 } from '../src/lib/plots/metric-matrix/types'
+import { OUT_OF_BOUNDS_DEFAULTS } from '../src/lib/plots/shared/outOfBounds'
 import {
   createDefaultMetricInstances,
   createMetricInstance,
@@ -70,6 +71,7 @@ function settings(
     metricInstanceIds: ['fixationCount-any'],
     colorScale: ['#f7fbff', '#08306b'],
     scaleRange: [0, 0],
+    ...OUT_OF_BOUNDS_DEFAULTS,
     ...over,
   }
 }

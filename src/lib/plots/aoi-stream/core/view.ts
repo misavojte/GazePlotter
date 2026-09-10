@@ -65,6 +65,9 @@ export function deriveAoiStreamView(
       highlights: settings.highlights ?? [],
       ridgelineScale: settings.ridgelineScale,
       colorScale: settings.colorScale,
+      colorValueRange: settings.stimuliColorValueRanges?.[settings.stimulusId] ?? [0, 0],
+      belowMinColor: settings.belowMinColor,
+      aboveMaxColor: settings.aboveMaxColor,
     },
   }
 }

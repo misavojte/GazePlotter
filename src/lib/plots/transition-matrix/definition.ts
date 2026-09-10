@@ -1,8 +1,9 @@
 import { deriveTransitionMatrixView } from './core/view'
 import { transitionMatrixScreen } from './core/screen.svelte'
 import { definePlot } from '$lib/plots/definePlot'
-import { INACTIVE_COLOR, PRESET_PALETTES } from '$lib/color/palettes'
+import { PRESET_PALETTES } from '$lib/color/palettes'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
+import { OUT_OF_BOUNDS_DEFAULTS, outOfBoundsFields } from '$lib/plots/shared/outOfBounds'
 import type { TransitionMatrixPlotSettings } from './types'
 
 export const transitionMatrixDefinition = definePlot<
@@ -32,34 +33,7 @@ export const transitionMatrixDefinition = definePlot<
           defaultMin: '#f7fbff',
           defaultMax: '#08306b',
         },
-        {
-          kind: 'color',
-          key: 'belowMinColor',
-          label: 'Below min',
-          group: 'Out of bounds',
-          pair: true,
-        },
-        {
-          kind: 'boolean',
-          key: 'showBelowMinLabels',
-          label: 'Show text',
-          group: 'Out of bounds',
-          pair: true,
-        },
-        {
-          kind: 'color',
-          key: 'aboveMaxColor',
-          label: 'Above max',
-          group: 'Out of bounds',
-          pair: true,
-        },
-        {
-          kind: 'boolean',
-          key: 'showAboveMaxLabels',
-          label: 'Show text',
-          group: 'Out of bounds',
-          pair: true,
-        },
+        ...outOfBoundsFields(),
       ],
       summary: () => 'Matrix',
     },
@@ -74,10 +48,7 @@ export const transitionMatrixDefinition = definePlot<
     groupId: params.groupId ?? -1,
     stimuliColorValueRanges: [],
     metricInstanceIds: ['transitionCount-fix'],
-    belowMinColor: INACTIVE_COLOR,
-    aboveMaxColor: INACTIVE_COLOR,
-    showBelowMinLabels: false,
-    showAboveMaxLabels: false,
+    ...OUT_OF_BOUNDS_DEFAULTS,
     colorScale: [...PRESET_PALETTES.BLUE.colors],
     hideNoAoi: false,
   }),

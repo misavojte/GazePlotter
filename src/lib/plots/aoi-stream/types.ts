@@ -1,6 +1,7 @@
 import type { AdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
+import type { OutOfBoundsColors } from '$lib/plots/shared/outOfBounds'
 
-export type AoiStreamPlotSettings = {
+export type AoiStreamPlotSettings = OutOfBoundsColors & {
   stimulusId: number
   groupId: number
   /** Per-plot AOI SELECTION id; unset/0 = all AOIs. */
@@ -16,6 +17,10 @@ export type AoiStreamPlotSettings = {
   absoluteStimuliLimits: [number, number][]
   alignment?: 'stream' | 'distribution' | 'ridgeline' | 'heatmap'
   colorScale?: string[]
+  /** Per-stimulus color value ranges [min, max] for the heatmap gradient;
+   *  `max === 0` means auto (data max). Like the out-of-bounds fills, inert
+   *  outside `alignment: 'heatmap'`. */
+  stimuliColorValueRanges: [number, number][]
   ridgelineScale?: number
   timelineStart?: number
   timelineEnd?: number

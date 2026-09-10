@@ -5,6 +5,7 @@ import { stimulusGroupSubtitle } from '$lib/plots/shared'
 // Called at definition time: import the module, not the barrel, which the
 // registry -> shared sections -> registry cycle leaves half-initialised.
 import { reconcileStimulusScopedHighlights } from '$lib/plots/shared/highlightReconcile'
+import { OUT_OF_BOUNDS_COLORS, outOfBoundsFields } from '$lib/plots/shared/outOfBounds'
 import { getAois } from '$lib/data/engine'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import { RIDGELINE_SCALE } from './const'
@@ -55,12 +56,21 @@ export const aoiStreamPlotDefinition = definePlot<
           showWhen: alignmentIs('ridgeline'),
         },
         {
+          kind: 'stimulusColorRange',
+          key: 'stimuliColorValueRanges',
+          group: 'Color scale',
+          showWhen: alignmentIs('heatmap'),
+        },
+        {
           kind: 'colorScale',
           key: 'colorScale',
+          group: 'Color scale',
           defaultMin: PRESET_PALETTES.HEAT.colors[0],
           defaultMax: PRESET_PALETTES.HEAT.colors[2],
           showWhen: alignmentIs('heatmap'),
         },
+        // No "Show text" toggles: heatmap bins are colored only, never printed.
+        ...outOfBoundsFields({ labels: false, showWhen: alignmentIs('heatmap') }),
       ],
     },
     'timelineRange',
@@ -78,6 +88,8 @@ export const aoiStreamPlotDefinition = definePlot<
     groupId: params.groupId ?? -1,
     metricInstanceIds: ['absoluteTime-aoi-windowed-500'],
     absoluteStimuliLimits: [],
+    stimuliColorValueRanges: [],
+    ...OUT_OF_BOUNDS_COLORS,
     timelineStart: 0,
     timelineEnd: 0,
     hideNoAoi: false,

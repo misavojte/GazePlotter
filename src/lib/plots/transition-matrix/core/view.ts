@@ -52,8 +52,6 @@ export function getTransitionView(
   const effectiveColorScale = settings.colorScale ?? []
   const currentStimulusColorRange: [number, number] =
     settings.stimuliColorValueRanges?.[settings.stimulusId] ?? [0, 0]
-  const belowMinColor = settings.belowMinColor ?? TRANSITION_MATRIX_DEFAULTS.inactiveColor
-
   let ownDataMax = 0
   for (let i = 0; i < matrix.length; i++) if (matrix[i] > ownDataMax) ownDataMax = matrix[i]
   ownDataMax = Math.ceil(ownDataMax)
@@ -67,13 +65,13 @@ export function getTransitionView(
       colorScale: effectiveColorScale,
       colorValueRange: currentStimulusColorRange,
       autoMaxDecimals: 0,
-      belowMinColor,
-      aboveMaxColor: settings.aboveMaxColor ?? TRANSITION_MATRIX_DEFAULTS.inactiveColor,
+      belowMinColor: settings.belowMinColor,
+      aboveMaxColor: settings.aboveMaxColor,
       // Non-finite marks an undefined cell (e.g. transitionProbability with no
       // outgoing transitions) — render out-of-bounds, distinct from a real zero.
-      nonFiniteColor: belowMinColor,
-      showBelowMinLabels: settings.showBelowMinLabels ?? false,
-      showAboveMaxLabels: settings.showAboveMaxLabels ?? false,
+      nonFiniteColor: settings.belowMinColor,
+      showBelowMinLabels: settings.showBelowMinLabels,
+      showAboveMaxLabels: settings.showAboveMaxLabels,
       hasLastRowSentinel: true,
       formatCellValue,
       legendTitle: getLegendTitle(

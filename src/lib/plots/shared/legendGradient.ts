@@ -46,6 +46,10 @@ export interface GradientLegendConfig {
   title: string
   /** Optional color for values below minimum (e.g. for "no data" or "zero") */
   belowMinColor?: string | null
+  /** Optional color for values above the range maximum. Its cap is drawn only
+   *  while `valueRange[1]` is explicit (non-zero): at auto nothing can exceed
+   *  the data max, so there is nothing to cap. */
+  aboveMaxColor?: string | null
   /**
    * Pin the bar to a stable max length (no grid-proportional `* 0.8`
    * shortening). For plots whose grid width varies with the data (the metric
@@ -54,6 +58,13 @@ export interface GradientLegendConfig {
    * figure width in that case so the fixed bar centers under the whole plot.
    */
   fixedWidth?: boolean
+}
+
+export interface LegendRect {
+  x: number
+  y: number
+  width: number
+  height: number
 }
 
 export interface GradientLegendGeometry {
@@ -66,18 +77,20 @@ export interface GradientLegendGeometry {
   // Paint inputs carried from the config so drawing needs only the geometry.
   colorScale: string[]
   belowMinColor?: string | null
+  aboveMaxColor?: string | null
 
   // Layout components. `title.lines` is the (1–2) wrapped title lines, drawn
   // stacked from `title.y`.
   title?: { lines: string[]; x: number; y: number }
-  gradientRect: { x: number; y: number; width: number; height: number }
+  gradientRect: LegendRect
   labels?: {
     min?: { text: string; x: number; y: number }
     max?: { text: string; x: number; y: number }
   }
 
-  // Optional below-min segment rect
-  belowMinRect?: { x: number; y: number; width: number; height: number }
+  // Optional out-of-bounds end caps flanking the gradient bar
+  belowMinRect?: LegendRect
+  aboveMaxRect?: LegendRect
 }
 
 // ============================================================================
@@ -89,6 +102,9 @@ const GRADIENT_LEGEND_TITLE_GAP = 3
 
 /** Height of the gradient colour bar itself. */
 const GRADIENT_LEGEND_BAR_HEIGHT = 12
+
+/** Width of an out-of-bounds end cap flanking the gradient bar. */
+const GRADIENT_LEGEND_CAP_WIDTH = 15
 
 /** Gap between the bottom of the gradient bar and the value labels. */
 const GRADIENT_LEGEND_LABEL_GAP = 10
@@ -169,22 +185,30 @@ export function computeGradientLegendGeometry(
 
   const isMinimalist = availableHeight < GRADIENT_LEGEND_MINIMALIST_THRESHOLD
 
-  // Layout Width
+  // Layout Width. Out-of-bounds caps flank the bar; the above-max cap exists
+  // only under an explicit maximum (auto IS the data max, nothing exceeds it).
   const hasBelowMin = !!config.belowMinColor
-  const belowMinWidth = 15
-  // `fixedWidth` keeps the bar at MAX_WIDTH (clamped only so it can't exceed the
-  // space) — no `* 0.8` grid-proportional shortening; otherwise the bar tracks
-  // the grid width as before.
-  const barSpace = config.fixedWidth
-    ? Math.min(MAX_WIDTH, availableWidth)
+  const hasAboveMax = !!config.aboveMaxColor && valueRange[1] !== 0
+  const capsWidth =
+    (hasBelowMin ? GRADIENT_LEGEND_CAP_WIDTH : 0) +
+    (hasAboveMax ? GRADIENT_LEGEND_CAP_WIDTH : 0)
+  // `fixedWidth` keeps the bar at MAX_WIDTH (clamped only so bar + caps can't
+  // exceed the space) — no `* 0.8` grid-proportional shortening; otherwise the
+  // bar tracks the grid width as before.
+  const barWidth = config.fixedWidth
+    ? Math.min(MAX_WIDTH, Math.max(0, availableWidth - capsWidth))
     : Math.min(MAX_WIDTH, availableWidth * 0.8)
-  const totalBarWidth = hasBelowMin ? belowMinWidth + barSpace : barSpace
-
-  const legendWidth = hasBelowMin ? totalBarWidth - belowMinWidth : totalBarWidth
+  const totalBarWidth = barWidth + capsWidth
 
   const legendX = x + ((availableWidth - totalBarWidth) >> 1)
-  const belowMinX = legendX
-  const gradientX = hasBelowMin ? belowMinX + belowMinWidth : legendX
+  const gradientX = hasBelowMin ? legendX + GRADIENT_LEGEND_CAP_WIDTH : legendX
+  const aboveMaxX = gradientX + barWidth
+  const capRect = (cx: number, cy: number, height: number): LegendRect => ({
+    x: cx,
+    y: cy,
+    width: GRADIENT_LEGEND_CAP_WIDTH,
+    height,
+  })
 
   if (isMinimalist) {
     // Minimalist: gradient bar only, no title — there is no vertical room for
@@ -199,20 +223,15 @@ export function computeGradientLegendGeometry(
       y,
       colorScale: config.colorScale,
       belowMinColor: config.belowMinColor,
+      aboveMaxColor: config.aboveMaxColor,
       gradientRect: {
         x: gradientX,
         y: barY,
-        width: legendWidth,
+        width: barWidth,
         height: MINIMALIST_HEIGHT,
       },
-      belowMinRect: hasBelowMin
-        ? {
-            x: belowMinX,
-            y: barY,
-            width: belowMinWidth,
-            height: MINIMALIST_HEIGHT,
-          }
-        : undefined,
+      belowMinRect: hasBelowMin ? capRect(legendX, barY, MINIMALIST_HEIGHT) : undefined,
+      aboveMaxRect: hasAboveMax ? capRect(aboveMaxX, barY, MINIMALIST_HEIGHT) : undefined,
     }
   }
 
@@ -265,7 +284,7 @@ export function computeGradientLegendGeometry(
           },
           max: {
             text: formatLegendValue(effectiveMaxValue),
-            x: gradientX + legendWidth,
+            x: gradientX + barWidth,
             y: valuesY,
           },
         }
@@ -279,21 +298,16 @@ export function computeGradientLegendGeometry(
     y: startY,
     colorScale: config.colorScale,
     belowMinColor: config.belowMinColor,
+    aboveMaxColor: config.aboveMaxColor,
     title: titleObj,
     gradientRect: {
       x: gradientX,
       y: gradientY,
-      width: legendWidth,
+      width: barWidth,
       height: BAR_HEIGHT,
     },
-    belowMinRect: hasBelowMin
-      ? {
-          x: belowMinX,
-          y: gradientY,
-          width: belowMinWidth,
-          height: BAR_HEIGHT,
-        }
-      : undefined,
+    belowMinRect: hasBelowMin ? capRect(legendX, gradientY, BAR_HEIGHT) : undefined,
+    aboveMaxRect: hasAboveMax ? capRect(aboveMaxX, gradientY, BAR_HEIGHT) : undefined,
     labels: labelsObj,
   }
 }
@@ -302,6 +316,18 @@ export function computeGradientLegendGeometry(
 // DRAWING
 // ============================================================================
 
+/** One out-of-bounds end cap: a solid fill with the same crisp border as the bar. */
+function fillCapRect(ctx: CanvasRenderingContext2D, rect: LegendRect, color: string): void {
+  // Quantize to integers so the fill matches the strokeCrispRect border exactly.
+  const x = rect.x | 0
+  const y = rect.y | 0
+  const w = rect.width | 0
+  const h = rect.height | 0
+  ctx.fillStyle = color
+  ctx.fillRect(x, y, w, h)
+  strokeCrispRect(ctx, x, y, w, h, GRIDLINE_PRIMARY.COLOR, 1)
+}
+
 /**
  * Draw the gradient legend based on computed geometry.
  */
@@ -309,7 +335,7 @@ export function drawGradientLegend(
   ctx: CanvasRenderingContext2D,
   geometry: GradientLegendGeometry
 ): void {
-  const { title, gradientRect, belowMinRect, labels, colorScale } = geometry
+  const { title, gradientRect, belowMinRect, aboveMaxRect, labels, colorScale } = geometry
   const { FAMILY: fontFamily, COLOR: fontColor } = LEGEND_FONT
 
   // 1. Draw Title (1–2 wrapped lines, stacked from title.y)
@@ -351,17 +377,9 @@ export function drawGradientLegend(
   // strokeCrispRect handles the +0.5 offset internally using (val | 0)
   strokeCrispRect(ctx, gx, gy, gw, gh, GRIDLINE_PRIMARY.COLOR, 1)
 
-  // 2b. Draw "Below Min" Segment
-  if (belowMinRect && geometry.belowMinColor) {
-    const bx = belowMinRect.x | 0
-    const by = belowMinRect.y | 0
-    const bw = belowMinRect.width | 0
-    const bh = belowMinRect.height | 0
-
-    ctx.fillStyle = geometry.belowMinColor
-    ctx.fillRect(bx, by, bw, bh)
-    strokeCrispRect(ctx, bx, by, bw, bh, GRIDLINE_PRIMARY.COLOR, 1)
-  }
+  // 2b. Out-of-bounds end caps
+  if (belowMinRect && geometry.belowMinColor) fillCapRect(ctx, belowMinRect, geometry.belowMinColor)
+  if (aboveMaxRect && geometry.aboveMaxColor) fillCapRect(ctx, aboveMaxRect, geometry.aboveMaxColor)
 
   // 3. Draw Layout Labels (Min/Max)
   if (labels) {

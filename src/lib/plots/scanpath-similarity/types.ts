@@ -1,6 +1,8 @@
+import type { OutOfBoundsSettings } from '$lib/plots/shared/outOfBounds'
+
 export type ScanpathSimilarityView = 'matrix' | 'scangraph'
 
-export type ScanpathSimilaritySettings = {
+export type ScanpathSimilaritySettings = OutOfBoundsSettings & {
   stimulusId: number
   groupId: number
   /** Per-plot AOI SELECTION id; unset/0 = all AOIs. */

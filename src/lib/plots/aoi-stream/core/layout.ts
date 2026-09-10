@@ -9,6 +9,7 @@ import { calculateIdealStripHeight } from './ridgeline'
 import { desaturateToWhite, samplePalette } from '$lib/color'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import { ceilToNiceStep } from '$lib/plots/shared/timelineUtils'
+import type { OutOfBoundsColors } from '$lib/plots/shared/outOfBounds'
 import { computeNiceYAxis } from './axis'
 
 export interface RenderBuckets {
@@ -65,7 +66,7 @@ function ensureRenderBuckets(
   return renderBuckets
 }
 
-export interface StreamCoordsParams {
+export interface StreamCoordsParams extends OutOfBoundsColors {
   data: AoiStreamPlotResult
   alignment: 'stream' | 'distribution' | 'ridgeline' | 'heatmap'
   floorLeft: number
@@ -77,6 +78,9 @@ export interface StreamCoordsParams {
   highlightMaskById: Map<number, boolean> | null
   ridgelineScale?: number
   colorScale?: string[]
+  /** Heatmap gradient `[min, max]`; `max === 0` means auto (data max), see
+   *  {@link resolveHeatRange}. Like the out-of-bounds fills, heatmap-only. */
+  colorValueRange: [number, number]
 }
 
 export interface StreamPaintInfo {
@@ -119,7 +123,7 @@ export function computeAoiStreamYAxis(
   alignment: StreamCoordsParams['alignment']
 ): AoiStreamYAxis {
   const maxTotalForAxis = Math.max(1, data.maxTotal)
-  const maxCellForHeat = Math.max(data.maxValue, Number.EPSILON)
+  const maxCellForRidge = Math.max(data.maxValue, Number.EPSILON)
 
   if (alignment === 'stream') {
     const { axisHalfRange, ticks } = computeNiceYAxis(maxTotalForAxis / 2)
@@ -133,10 +137,24 @@ export function computeAoiStreamYAxis(
     return { yAxisMin: 0, yAxisMax: axisMax, axisHalfRange: 50, axisTicks }
   }
   if (alignment === 'ridgeline') {
-    return { yAxisMin: 0, yAxisMax: 100, axisHalfRange: 50, axisTicks: [0, maxCellForHeat] }
+    return { yAxisMin: 0, yAxisMax: 100, axisHalfRange: 50, axisTicks: [0, maxCellForRidge] }
   }
   // heatmap: no left value axis (AOI row labels instead)
   return { yAxisMin: 0, yAxisMax: 100, axisHalfRange: 50, axisTicks: [0] }
+}
+
+/**
+ * The heatmap gradient's value range: the pane's `[min, max]` with a max of 0
+ * (auto) replaced by the data max (1 when there is no data, so an empty plot
+ * still shows a sane colorbar). The ONE resolver for the cells and the
+ * colorbar, so the two can never disagree.
+ */
+export function resolveHeatRange(
+  colorValueRange: [number, number],
+  maxValue: number
+): [number, number] {
+  const [min, max] = colorValueRange
+  return [min, max > 0 ? max : maxValue > 0 ? maxValue : 1]
 }
 
 /**
@@ -159,6 +177,9 @@ export function transformStreamDataToCoordinates(
     highlightMaskById,
     ridgelineScale,
     colorScale,
+    colorValueRange,
+    belowMinColor,
+    aboveMaxColor,
   } = params
 
   const {
@@ -171,10 +192,11 @@ export function transformStreamDataToCoordinates(
   const renderBinCount = dataBinCount + 2
   // Values arrive in the metric's native unit (ms / count / %). The y-axis
   // range is driven directly by the data; no per-participant percent conversion
-  // happens here. `maxValue` is the largest single-cell value (drives the
-  // heatmap gradient + ridgeline scale); the stacked-sum range lives in
+  // happens here. `maxValue` is the largest single-cell value (the ridgeline
+  // scale, and the heatmap's auto max); the stacked-sum range lives in
   // `computeAoiStreamYAxis`.
-  const maxCellForHeat = Math.max(maxValue, Number.EPSILON)
+  const [heatMin, heatMax] = resolveHeatRange(colorValueRange, maxValue)
+  const heatSpan = heatMax - heatMin
   // Each data bin represents a window of length `windowSize`, offset from
   // the previous window by `stepSize`. Total time covered by all windows is
   // (binCount - 1) × step + window — equals `binCount × window` when
@@ -362,12 +384,22 @@ export function transformStreamDataToCoordinates(
               bucket.topY[i] = sBottom
             } else {
               const raw = source.values[i - 1]
-              const val = Math.max(0, Math.min(maxCellForHeat, raw))
-              if (val <= 0) {
-                // NODATA: let the plot-area gray background show through.
+              if (raw <= 0) {
+                // NODATA: let the plot-area gray background show through,
+                // regardless of any explicit range floor.
                 bucket.heatmapColors[i] = 'transparent'
+              } else if (raw < heatMin) {
+                bucket.heatmapColors[i] = belowMinColor
+              } else if (raw > heatMax) {
+                // Reachable only under an explicit max: auto IS the data max.
+                bucket.heatmapColors[i] = aboveMaxColor
               } else {
-                bucket.heatmapColors[i] = samplePalette(palette, val / maxCellForHeat)
+                // Normalised from the range floor, like the matrix figure's
+                // getColorForValue, so Min really is the gradient's first stop.
+                bucket.heatmapColors[i] = samplePalette(
+                  palette,
+                  heatSpan > 0 ? (raw - heatMin) / heatSpan : 0
+                )
               }
               bucket.topY[i] = sTop
             }
@@ -375,9 +407,11 @@ export function transformStreamDataToCoordinates(
           }
         } else {
           // Ridgeline: pixels per native-unit value, computed so that the
-          // overall max value occupies CONTENT_FILL of the strip height.
+          // overall max value occupies CONTENT_FILL of the strip height. Pure
+          // data max: the heatmap range has no meaning here.
           const localScaleY =
-            (ridgelineReferenceHeight * RIDGELINE_CONTENT_FILL) / maxCellForHeat
+            (ridgelineReferenceHeight * RIDGELINE_CONTENT_FILL) /
+            Math.max(maxValue, Number.EPSILON)
           for (let i = 0; i < renderBinCount; i++) {
             const val =
               i === 0 || i === renderBinCount - 1

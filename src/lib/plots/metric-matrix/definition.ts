@@ -2,6 +2,7 @@ import { deriveMetricMatrixView } from './core/view'
 import { plotCursorScreen } from '$lib/plots/shared/plotCursor.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import { PRESET_PALETTES } from '$lib/color/palettes'
+import { OUT_OF_BOUNDS_DEFAULTS, outOfBoundsFields } from '$lib/plots/shared/outOfBounds'
 import {
   METRIC_MATRIX_CONTRACT,
   METRIC_MATRIX_DEFAULTS,
@@ -35,14 +36,16 @@ export const metricMatrixDefinition = definePlot<
         {
           kind: 'scaleRange',
           key: 'scaleRange',
-          legend: 'Scale range',
+          group: 'Color scale',
         },
         {
           kind: 'colorScale',
           key: 'colorScale',
+          group: 'Color scale',
           defaultMin: PRESET_PALETTES.BLUE.colors[0],
           defaultMax: PRESET_PALETTES.BLUE.colors[2],
         },
+        ...outOfBoundsFields(),
       ],
       summary: () => 'Matrix',
     },
@@ -58,6 +61,7 @@ export const metricMatrixDefinition = definePlot<
     // be materialised (the scaleRange field carries no self-default) or
     // registration throws for the whole registry.
     scaleRange: [0, 0],
+    ...OUT_OF_BOUNDS_DEFAULTS,
   }),
   requireCapabilities: ['segmented'],
   consumesMetrics: METRIC_MATRIX_CONTRACT,
