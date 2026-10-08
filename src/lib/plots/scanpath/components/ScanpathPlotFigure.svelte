@@ -575,10 +575,23 @@
     const from = formatOnset(t0)
     const to = formatOnset(fixations.length === 1 ? t0 : t1)
     const captionW = ctx.measureText(caption).width
-    const fromW = ctx.measureText(from).width
-    const toW = ctx.measureText(to).width
-    const keyW = fromW + GAP + BAR_W + GAP + toW
+    // Fixed label slots, sized for the latest time this plot can ever show, so
+    // nothing moves as labels grow (9.9 s -> 10.0 s) during playback. Each
+    // digit is costed at the font's widest digit, as proportional digits
+    // would otherwise still let the text overflow its slot.
+    const lastStart = data.fixations[data.fixations.length - 1].start
+    const longest = formatOnset(Math.max(lastStart, playDurationMs))
+    const digitW = Math.max(
+      ...'0123456789'.split('').map(d => ctx.measureText(d).width)
+    )
+    const digits = longest.replace(/\D/g, '').length
+    const slotW = Math.ceil(
+      ctx.measureText(longest.replace(/\d/g, '')).width + digits * digitW
+    )
+    const keyW = slotW + GAP + BAR_W + GAP + slotW
     // Clear the centred axis title with room to spare; drop the caption first.
+    // Slot-based, so the decision holds for the whole run instead of flipping
+    // mid-playback.
     const titleRight = frame.x + frame.width / 2 + ctx.measureText('X').width / 2 + 12
     const withCaption = frame.right - (captionW + GAP * 2 + keyW) >= titleRight
     if (!withCaption && frame.right - keyW < titleRight) {
@@ -588,15 +601,18 @@
     const top = frame.bottom + frame.bottomTitleOffset
     const midY = top + AXIS_CONFIG.fontSize / 2
     ctx.textBaseline = 'middle'
-    ctx.textAlign = 'left'
     ctx.fillStyle = AXIS_CONFIG.color
     let x = frame.right - keyW - (withCaption ? captionW + GAP * 2 : 0)
     if (withCaption) {
+      ctx.textAlign = 'left'
       ctx.fillText(caption, x, midY)
       x += captionW + GAP * 2
     }
-    ctx.fillText(from, x, midY)
-    x += fromW + GAP
+    // Both labels hug the bar: the start label right-aligned in its slot, the
+    // end label left-aligned in its own.
+    ctx.textAlign = 'right'
+    ctx.fillText(from, x + slotW, midY)
+    x += slotW + GAP
     const barX = Math.round(x)
     const barY = Math.round(midY - BAR_H / 2)
     const gradient = ctx.createLinearGradient(barX, 0, barX + BAR_W, 0)
@@ -606,6 +622,7 @@
     ctx.fillStyle = gradient
     ctx.fillRect(barX, barY, BAR_W, BAR_H)
     strokeCrispRect(ctx, barX, barY, BAR_W, BAR_H, GRIDLINE_PRIMARY.COLOR, 1)
+    ctx.textAlign = 'left'
     ctx.fillStyle = AXIS_CONFIG.color
     ctx.fillText(to, barX + BAR_W + GAP, midY)
     ctx.restore()
