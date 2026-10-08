@@ -38,9 +38,11 @@ A control bar below the plot animates the scanpath over recording time: fixation
 
 With **Time gradient** coloring, the gradient continuously rescales to the shown time span during playback: a fixation enters at the newest end of the scale and smoothly ages toward the oldest end as time passes.
 
+A compact key at the bottom right of the plot, on the X axis title row, maps the gradient to time: **Onset**, the earliest onset in seconds, the gradient, and the latest. It follows the shown span, so during playback its labels track the playhead and the trailing window. Figure exports include it. On a plot too narrow to fit it beside the axis title, the key is omitted.
+
 ## Interpretation
 
 Use the Scanpath plot to:
 - **Analyze spatial trajectory**: See exactly where a participant looked and trace the path they took through the stimulus.
 - **Observe duration density**: Identify regions of sustained visual processing based on larger fixation circles.
-- **Verify stimulus alignment**: With reference media attached, check whether fixations land on the expected regions of the image or video, and correct offsets via the media's position mapping.
+- **Verify stimulus alignment**: With reference media attached, check whether fixations land on the expected regions of the image or video, and correct offsets via the media's position mapping.

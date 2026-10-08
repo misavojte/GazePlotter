@@ -15,6 +15,9 @@
   import Pause from 'lucide-svelte/icons/pause'
   import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/textMeasure'
   import { calculateNiceStepSize } from '$lib/plots/shared/timelineUtils'
+  import { AXIS_CONFIG } from '$lib/plots/shared/axisUtils'
+  import { strokeCrispRect } from '$lib/plots/shared/canvasUtils'
+  import { GRIDLINE_PRIMARY } from '$lib/plots/shared/const'
   import { SCANPATH_COLORS, SCANPATH_LAYOUT } from '../const'
   import { getColorForValue, interpolateColor } from '$lib/color'
   import { PRESET_PALETTES } from '$lib/color/palettes'
@@ -417,6 +420,7 @@
     // Marks may slightly overflow the plot area (edge fixations); the axis
     // frame is drawn on top afterwards, matching the pre-frame behaviour.
     clipData: false,
+    drawAboveAxes: drawTimeLegend,
     drawOverlay: drawScanpathOverlay,
     // Fixation markers carry a tooltip; anywhere else in the panel is a
     // track-only hit (empty content = no tooltip) that still publishes the
@@ -547,6 +551,64 @@
     if (!data) return []
     if (timeCutoff === Infinity) return data.fixations
     return data.fixations.filter(isVisible)
+  }
+
+  /** Seconds with one decimal: fixation onsets are sub-second apart. */
+  const formatOnset = (ms: number) => `${(ms / 1000).toFixed(1)} s`
+
+  /** Time-gradient key: `Onset 0.0 s [gradient] 4.2 s`, right-aligned on the
+      X-axis title row, whose single centred "X" leaves that space free, so the
+      key costs no plot height and still lands in exports. The labels are the
+      live gradient domain, so during playback they track the playhead and the
+      trailing window. Skipped when the plot is too narrow to clear the title. */
+  function drawTimeLegend(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+    if (colorMode !== 'time' || !data || unavailableMessage) return
+    const fixations = visibleFixations()
+    if (fixations.length === 0) return
+    const [t0, t1] = gradientDomain(fixations)
+    const BAR_W = 56
+    const BAR_H = 8
+    const GAP = 5
+    ctx.save()
+    ctx.font = `${AXIS_CONFIG.fontSize}px ${AXIS_CONFIG.fontFamily}`
+    const caption = 'Onset'
+    const from = formatOnset(t0)
+    const to = formatOnset(fixations.length === 1 ? t0 : t1)
+    const captionW = ctx.measureText(caption).width
+    const fromW = ctx.measureText(from).width
+    const toW = ctx.measureText(to).width
+    const keyW = fromW + GAP + BAR_W + GAP + toW
+    // Clear the centred axis title with room to spare; drop the caption first.
+    const titleRight = frame.x + frame.width / 2 + ctx.measureText('X').width / 2 + 12
+    const withCaption = frame.right - (captionW + GAP * 2 + keyW) >= titleRight
+    if (!withCaption && frame.right - keyW < titleRight) {
+      ctx.restore()
+      return
+    }
+    const top = frame.bottom + frame.bottomTitleOffset
+    const midY = top + AXIS_CONFIG.fontSize / 2
+    ctx.textBaseline = 'middle'
+    ctx.textAlign = 'left'
+    ctx.fillStyle = AXIS_CONFIG.color
+    let x = frame.right - keyW - (withCaption ? captionW + GAP * 2 : 0)
+    if (withCaption) {
+      ctx.fillText(caption, x, midY)
+      x += captionW + GAP * 2
+    }
+    ctx.fillText(from, x, midY)
+    x += fromW + GAP
+    const barX = Math.round(x)
+    const barY = Math.round(midY - BAR_H / 2)
+    const gradient = ctx.createLinearGradient(barX, 0, barX + BAR_W, 0)
+    gradientStops.forEach((c, i) =>
+      gradient.addColorStop(i / (gradientStops.length - 1), c)
+    )
+    ctx.fillStyle = gradient
+    ctx.fillRect(barX, barY, BAR_W, BAR_H)
+    strokeCrispRect(ctx, barX, barY, BAR_W, BAR_H, GRIDLINE_PRIMARY.COLOR, 1)
+    ctx.fillStyle = AXIS_CONFIG.color
+    ctx.fillText(to, barX + BAR_W + GAP, midY)
+    ctx.restore()
   }
 
   function drawScanpath(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
