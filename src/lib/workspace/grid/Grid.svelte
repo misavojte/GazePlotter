@@ -31,6 +31,8 @@
   const { engine, errorService, workspace, grid, modalState } =
     getGazePlotterSession()
 
+  let gridEl = $state<HTMLDivElement>()
+
   // Mac's main "delete" key emits Backspace, so we handle both.
   // Capture on `document`, like selectionSession's Esc unwinding: the modal and
   // the context menu bubble on `window` and clear the state this guard reads,
@@ -48,6 +50,9 @@
       const selectedIds = grid.selectedItemIds
       if (selectedIds.length === 0) return
       if (event.key === 'Delete' || event.key === 'Backspace') {
+        // Only from the page or the grid: a focused pane or rail control owns the key.
+        const target = event.target as Node | null
+        if (target !== document.body && !gridEl?.contains(target)) return
         event.preventDefault()
         // Snapshot first: removeItem mutates the selection set as it goes.
         commitGridItemsRemoval(workspace, gridItems, [...selectedIds])
@@ -142,6 +147,7 @@
 </script>
 
 <div
+  bind:this={gridEl}
   class="grid-container"
   class:is-interacting={interaction.isInteracting}
   class:is-panning={interaction.isPanning}
