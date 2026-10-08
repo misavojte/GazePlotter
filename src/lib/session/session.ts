@@ -61,6 +61,7 @@ export function createGazePlotterSession(
     modalState,
     toastState,
     resetWorkspaceHistory: () => workspace.clearHistory(),
+    applyCommand: command => workspace.apply(command),
     defaultLayout: options.defaultLayout ?? DEFAULT_GRID_STATE_DATA,
     openFiles: options.openFiles ?? openFilesViaBrowser,
   })

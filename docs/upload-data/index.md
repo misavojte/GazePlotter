@@ -32,7 +32,7 @@ Include event files (`.xml`, or `.json` alongside other files) in the same selec
 
 ### Reference media files
 
-Include image or video files in the same selection to attach them to stimuli as reference media, drawn behind gaze data in the [Scanpath](/docs/visualizations/scanpath/) plot. A file whose name (without extension) matches a stimulus name attaches automatically; unmatched files prompt for manual assignment. Media can also be uploaded on their own once eye-tracking data is loaded, or attached per stimulus in the [Stimuli Library](/docs/workspace/stimuli-library/#reference-media).
+Include image or video files in the same selection to attach them to stimuli as reference media, drawn behind gaze data in the [Scanpath](/docs/visualizations/scanpath/) plot. A file attaches automatically when its name matches a stimulus's original or displayed name, ignoring case. The name may match with or without its extension, so `scene.png` attaches to a stimulus named `scene`, `scene.png`, or `scene.jpg`. Each stimulus takes one file: when several files match the same stimulus, the first attaches and the rest join the unmatched files, which prompt for manual assignment. Media can also be uploaded on their own once eye-tracking data is loaded. Such an upload is one undoable step: if it replaces media a stimulus already had, the confirmation names that stimulus and **Undo** restores the previous file. Media can also be attached per stimulus in the [Stimuli Library](/docs/workspace/stimuli-library/#reference-media).
 
 ## Starting over
 

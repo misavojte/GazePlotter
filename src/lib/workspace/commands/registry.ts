@@ -281,7 +281,9 @@ export function createWorkspaceCommandRegistry(
     noop: () => {},
 
     updateStimulusMedia: command => {
-      engine.setStimulusMedia(command.stimulusId, command.media, command.blob)
+      for (const u of command.updates) {
+        engine.setStimulusMedia(u.stimulusId, u.media, u.blob)
+      }
       gridStore.triggerRedraw()
     },
 
@@ -504,17 +506,21 @@ export function createWorkspaceCommandRegistry(
 
     noop: (_cmd, meta) => withMeta({ type: 'noop' }, meta),
 
-    // Reverse = snapshot of the stimulus's current media + blob (blob-by-
+    // Reverse = snapshot of each stimulus's current media + blob (blob-by-
     // reference — no byte copy), or a remove when none is set.
     updateStimulusMedia: (cmd, meta) => {
       const dataMeta = requireMetadata()
-      const current = dataMeta.stimuliMedia?.[cmd.stimulusId] ?? null
       return withMeta(
         {
           type: 'updateStimulusMedia',
-          stimulusId: cmd.stimulusId,
-          media: current,
-          blob: current ? stimulusMediaStore.getBlob(cmd.stimulusId) : null,
+          updates: cmd.updates.map(({ stimulusId }) => {
+            const current = dataMeta.stimuliMedia?.[stimulusId] ?? null
+            return {
+              stimulusId,
+              media: current,
+              blob: current ? stimulusMediaStore.getBlob(stimulusId) : null,
+            }
+          }),
         },
         meta
       )

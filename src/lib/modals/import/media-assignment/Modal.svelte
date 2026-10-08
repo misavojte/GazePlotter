@@ -41,9 +41,10 @@
 
 <div class="content">
   <p class="description">
-    These files don't match any stimulus by name. Pick the stimulus each one
-    belongs to. The file becomes that stimulus's reference, drawn as the
-    scanpath background:
+    These files could not be attached by name. Either no stimulus has a
+    matching name, or another file in this upload already matched the same
+    stimulus. Pick the stimulus each one belongs to. The file becomes that
+    stimulus's reference, drawn as the scanpath background.
   </p>
 
   <div class="file-list">

@@ -8,6 +8,8 @@ import type {
   WorkspaceCommandChain,
 } from '../src/lib/workspace/commands'
 import { GridState } from '../src/lib/workspace/grid'
+import type { StimulusMedia } from '../src/lib/data/types'
+import { stimulusMediaStore } from '../src/lib/data/media/mediaStore.svelte'
 import { makeDataType, normalizeSegments } from './helpers/dataTypeFixtures'
 import {
   createAoiComparisonGridItem,
@@ -963,5 +965,61 @@ describe('updateAois over many stimuli', () => {
       expect(engine.metadata!.aois.data[s][0][2]).toBe(colorOf(s))
     }
     expect(report).not.toHaveBeenCalled()
+  })
+})
+
+describe('updateStimulusMedia over several stimuli', () => {
+  const media = (fileName: string): StimulusMedia => ({
+    kind: 'image',
+    mimeType: 'image/png',
+    fileName,
+    naturalWidth: 100,
+    naturalHeight: 50,
+  })
+  const blob = () => new Blob([new Uint8Array([1])], { type: 'image/png' })
+
+  it('attaches and replaces in ONE undo step that restores each previous medium', () => {
+    const engine = new DataEngine()
+    engine.loadDataset(makeDataType([[[[0, 100, 0, 0]]], [[[0, 100, 0, 0]]]]))
+    const grid = new GridState({ getAvailableColumns: () => 24 })
+    grid.items = [createScarfGridItem()]
+    const report = vi.fn<ErrorService['report']>()
+    const addSuccess = vi.fn()
+    const ws = new WorkspaceCommandBus({
+      engine,
+      errorService: { report },
+      grid,
+      toastState: { addSuccess },
+    })
+    try {
+      // Stimulus 0 already has media (as if attached earlier); 1 has none.
+      const oldBlob = blob()
+      engine.setStimulusMedia(0, media('old.png'), oldBlob)
+
+      expect(
+        ws.apply({
+          type: 'updateStimulusMedia',
+          updates: [
+            { stimulusId: 0, media: media('new0.png'), blob: blob() },
+            { stimulusId: 1, media: media('new1.png'), blob: blob() },
+          ],
+          source: 'ingest.mediaUpload',
+        })
+      ).toBe(true)
+      expect(engine.metadata!.stimuliMedia![0].fileName).toBe('new0.png')
+      expect(engine.metadata!.stimuliMedia![1].fileName).toBe('new1.png')
+      expect(ws.history.undoStack.length).toBe(1)
+      // The upload pipeline toasts its own outcome; the bus stays quiet.
+      expect(addSuccess).not.toHaveBeenCalled()
+
+      expect(ws.undo()).toBe(true)
+      expect(engine.metadata!.stimuliMedia![0].fileName).toBe('old.png')
+      expect(stimulusMediaStore.getBlob(0)).toBe(oldBlob)
+      expect(engine.metadata!.stimuliMedia![1]).toBeUndefined()
+      expect(stimulusMediaStore.getBlob(1)).toBeNull()
+      expect(report).not.toHaveBeenCalled()
+    } finally {
+      stimulusMediaStore.clear()
+    }
   })
 })

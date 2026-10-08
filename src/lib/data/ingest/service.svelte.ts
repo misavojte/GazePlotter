@@ -20,7 +20,11 @@ import type { EnrichmentFormatDefinition } from './kernel/format'
 import type { EventContribution } from './kernel/sink'
 import { probeFromText } from './kernel/source'
 import { getStimuliOptions, getParticipantOptions } from '$lib/plots/shared'
-import { getStimulusHighestEndTime } from '$lib/data/engine'
+import {
+  getStimulus,
+  getStimuli,
+  getStimulusHighestEndTime,
+} from '$lib/data/engine'
 import { isArchiveFileName } from './formats/routing'
 import {
   buildStimulusMediaFromFile,
@@ -49,6 +53,10 @@ import type { ToastState } from '$lib/toaster/toastState.svelte'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { GridState } from '$lib/workspace/grid/gridState.svelte'
 import type { GridItemSnapshot } from '$lib/workspace/grid/types'
+import type {
+  StimulusMediaUpdate,
+  WorkspaceCommand,
+} from '$lib/workspace/commands'
 
 export type IngestStatus = 'loading' | 'ready' | 'error'
 
@@ -65,6 +73,9 @@ type IngestDependencies = {
   modalState: ModalState
   toastState: ToastState
   resetWorkspaceHistory: () => void
+  /** The session's command bus, for uploads that edit an already-loaded
+   *  workspace and must therefore be undoable (media-only uploads). */
+  applyCommand: (command: WorkspaceCommand) => boolean
   /** Session-resolved embedding options (see PLANDESKTOP.md). */
   defaultLayout: GridItemSnapshot[]
   openFiles: OpenFiles
@@ -671,7 +682,7 @@ export class IngestService {
         // must not sit under the loading overlay.
         this.explicitStatus = 'ready'
         this.progressPercent = 100
-        await this.attachMediaFiles(mediaFiles)
+        await this.attachMediaFiles(mediaFiles, { undoable: true })
         return true
       }
 
@@ -819,19 +830,25 @@ export class IngestService {
 
   /**
    * Attach uploaded reference media (images/videos) to stimuli: first by file
-   * name (base name vs original/displayed stimulus name, case-insensitive),
-   * then a mapping modal for whatever didn't match — the same interactive
-   * fallback as the legacy event-file import. Runs post-load outside the
-   * command bus (an upload is not an undoable edit). Undecodable files warn;
-   * they never fail the upload.
+   * name (see matchMediaFilesToStimuli), then a mapping modal for whatever
+   * didn't match — the same interactive fallback as the legacy event-file
+   * import. Undecodable files warn; they never fail the upload.
+   *
+   * `undoable`: a media-only upload edits the workspace the user already has,
+   * so it goes through the command bus as ONE undo step (and replacing a
+   * stimulus's media is recoverable). Media riding along with a data load is
+   * part of that load, whose history starts fresh, so it is set directly.
    */
-  private async attachMediaFiles(mediaFiles: File[]): Promise<void> {
+  private async attachMediaFiles(
+    mediaFiles: File[],
+    { undoable = false }: { undoable?: boolean } = {}
+  ): Promise<void> {
     const meta = this.deps.engine.metadata
     if (!meta || mediaFiles.length === 0) return
 
     const { matches, unmatched } = matchMediaFilesToStimuli(
       mediaFiles,
-      meta.stimuli.data
+      getStimuli(this.deps.engine)
     )
 
     // Unmatched files go to the assignment modal (skip stays available;
@@ -857,24 +874,49 @@ export class IngestService {
     }
 
     const failed: string[] = []
-    let attached = 0
+    const updates: StimulusMediaUpdate[] = []
     for (const [stimulusId, file] of matches) {
       try {
         const media = await buildStimulusMediaFromFile(file)
-        this.deps.engine.setStimulusMedia(stimulusId, media, file)
-        attached++
+        updates.push({ stimulusId, media, blob: file })
       } catch {
         failed.push(file.name)
       }
     }
 
-    if (attached > 0) {
-      // Outside the command bus, so plots need the epoch bump (same reason as
-      // the event import above).
-      this.deps.grid.triggerRedraw()
-      this.deps.toastState.addSuccess(
-        `${attached} reference ${attached > 1 ? 'media' : 'medium'} attached to stimuli`
-      )
+    if (updates.length > 0) {
+      // Read before applying: afterwards every target has media.
+      const replaced = updates
+        .filter(u => meta.stimuliMedia?.[u.stimulusId] !== undefined)
+        .map(u => getStimulus(this.deps.engine, u.stimulusId).displayedName)
+      if (undoable) {
+        if (
+          !this.deps.applyCommand({
+            type: 'updateStimulusMedia',
+            updates,
+            source: 'ingest.mediaUpload',
+          })
+        ) {
+          return
+        }
+      } else {
+        for (const u of updates) {
+          this.deps.engine.setStimulusMedia(u.stimulusId, u.media, u.blob)
+        }
+        // Outside the command bus, so plots need the epoch bump (same reason
+        // as the event import above).
+        this.deps.grid.triggerRedraw()
+      }
+      const n = updates.length
+      const attachedMsg = `Attached ${n} image or video file${n > 1 ? 's' : ''} to stimuli.`
+      if (replaced.length > 0) {
+        const names = replaced.slice(0, 3).join(', ') + (replaced.length > 3 ? '…' : '')
+        this.deps.toastState.addSuccess(
+          `${attachedMsg} Replaced the previous media on ${names}.${undoable ? ' Undo restores it.' : ''}`
+        )
+      } else {
+        this.deps.toastState.addSuccess(attachedMsg)
+      }
     }
     if (failed.length > 0) {
       this.deps.toastState.addWarning(

@@ -97,15 +97,20 @@ export type UpdateSelectionsCommand = BaseCommandInterface & {
 
 export type SelectionsAxis = UpdateSelectionsCommand['axis']
 
-// Set or remove ONE stimulus's reference medium (image or video). `media`
-// null = remove. The Blob rides in the command (a Blob is a cheap reference,
-// not a byte copy), so the inverse — a snapshot of the previous media +
-// blob — restores set/replace/remove exactly on undo.
-export interface UpdateStimulusMediaCommand extends BaseCommandInterface {
-  type: 'updateStimulusMedia'
+// Set or remove stimulus reference media (image or video), one entry per
+// stimulus; `media` null = remove. Several entries (a multi-file upload) are
+// ONE undo step. The Blob rides in the command (a Blob is a cheap reference,
+// not a byte copy), so the inverse — a snapshot of each stimulus's previous
+// media + blob — restores set/replace/remove exactly on undo.
+export interface StimulusMediaUpdate {
   stimulusId: number
   media: StimulusMedia | null
   blob?: Blob | null
+}
+
+export interface UpdateStimulusMediaCommand extends BaseCommandInterface {
+  type: 'updateStimulusMedia'
+  updates: StimulusMediaUpdate[]
 }
 
 export interface UpdateNoAoiTreatmentCommand extends BaseCommandInterface {

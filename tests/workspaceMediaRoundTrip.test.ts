@@ -89,24 +89,64 @@ describe('workspace media round trip', () => {
     }
   })
 
-  it('matches uploaded media to stimuli by base name, case-insensitive', () => {
+  describe('matching uploaded media to stimuli', () => {
     const fakeFile = (name: string, type = 'image/png') =>
       new File([new Uint8Array([1])], name, { type })
-    const stimuli = [
-      ['Map_A', 'City map'],
-      ['Map_B', 'Map_B'],
-    ]
-    const { matches, unmatched } = matchMediaFilesToStimuli(
-      [
-        fakeFile('map_a.png'), // original name, case-insensitive
-        fakeFile('City Map.mp4', 'video/mp4'), // displayed name — later file wins the slot
-        fakeFile('unrelated.png'),
-      ],
-      stimuli
-    )
-    expect(matches.get(0)?.name).toBe('City Map.mp4')
-    expect(matches.size).toBe(1)
-    expect(unmatched.map(f => f.name)).toEqual(['unrelated.png'])
+    const stim = (id: number, originalName: string, displayedName = originalName) => ({
+      id,
+      originalName,
+      displayedName,
+    })
+
+    it('matches by base name against original or displayed name, case-insensitive', () => {
+      const { matches, unmatched } = matchMediaFilesToStimuli(
+        [fakeFile('map_a.png'), fakeFile('City Map 2.mp4', 'video/mp4'), fakeFile('unrelated.png')],
+        [stim(0, 'Map_A', 'City map'), stim(1, 'Map_B', 'City Map 2')]
+      )
+      expect(matches.get(0)?.name).toBe('map_a.png')
+      expect(matches.get(1)?.name).toBe('City Map 2.mp4')
+      expect(unmatched.map(f => f.name)).toEqual(['unrelated.png'])
+    })
+
+    it('matches stimuli named after their file, extension included or swapped', () => {
+      const { matches, unmatched } = matchMediaFilesToStimuli(
+        [fakeFile('scene.jpg', 'image/jpeg'), fakeFile('poster.png'), fakeFile('Trial 1.5.png')],
+        [stim(0, 'scene.jpg'), stim(1, 'poster.jpg'), stim(2, 'Trial 1.5')]
+      )
+      expect(matches.get(0)?.name).toBe('scene.jpg')
+      expect(matches.get(1)?.name).toBe('poster.png')
+      expect(matches.get(2)?.name).toBe('Trial 1.5.png')
+      expect(unmatched).toEqual([])
+    })
+
+    it('prefers an exact name over an extension-stripped one', () => {
+      // `intro.png` names stimulus 1 exactly; stimulus 0 only matches once
+      // its own extension is stripped.
+      const { matches } = matchMediaFilesToStimuli(
+        [fakeFile('intro.png')],
+        [stim(0, 'intro.jpg'), stim(1, 'intro.png')]
+      )
+      expect(matches.get(1)?.name).toBe('intro.png')
+      expect(matches.size).toBe(1)
+    })
+
+    it('keeps the first file per stimulus and hands later claimants to the picker', () => {
+      const { matches, unmatched } = matchMediaFilesToStimuli(
+        [fakeFile('map_a.png'), fakeFile('City Map.mp4', 'video/mp4')],
+        [stim(0, 'Map_A', 'City map')]
+      )
+      expect(matches.get(0)?.name).toBe('map_a.png')
+      expect(unmatched.map(f => f.name)).toEqual(['City Map.mp4'])
+    })
+
+    it('only matches the stimuli it is given (callers pass the visible ones)', () => {
+      const { matches, unmatched } = matchMediaFilesToStimuli(
+        [fakeFile('merged_member.png')],
+        [stim(0, 'Survivor')]
+      )
+      expect(matches.size).toBe(0)
+      expect(unmatched.map(f => f.name)).toEqual(['merged_member.png'])
+    })
   })
 
   it('classifies media files by mime with extension fallback', () => {

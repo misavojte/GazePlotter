@@ -100,9 +100,13 @@
     const { region: _prev, ...rest } = media
     workspace.apply({
       type: 'updateStimulusMedia',
-      stimulusId,
-      media: isNatural ? rest : { ...rest, region: { x, y, width, height } },
-      blob,
+      updates: [
+        {
+          stimulusId,
+          media: isNatural ? rest : { ...rest, region: { x, y, width, height } },
+          blob,
+        },
+      ],
       source,
     })
     modalState.close()
@@ -111,9 +115,7 @@
   function onRemove() {
     workspace.apply({
       type: 'updateStimulusMedia',
-      stimulusId,
-      media: null,
-      blob: null,
+      updates: [{ stimulusId, media: null, blob: null }],
       source,
     })
     modalState.close()
