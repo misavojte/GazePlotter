@@ -12,7 +12,6 @@
     type GazePlotterOptions,
   } from '$lib/session'
 
-  import type { GridItemSnapshot } from '$lib/workspace'
   import type { WorkspaceCommandChain } from '$lib/workspace/commands'
   import type { DataLoader } from '$lib/data/ingest'
 
@@ -39,7 +38,6 @@
   const session = setGazePlotterSessionContext(createGazePlotterSession(options))
   const { errorService, ingest } = session
 
-  let initialGridItemsSnapshot = $state<GridItemSnapshot[] | null>(null)
   let activeAbort: AbortController | null = null
   let loadGeneration = 0
 
@@ -75,13 +73,6 @@
     } else {
       await ingest.loadFiles(files)
     }
-    if (generation !== loadGeneration || signal.aborted) return
-    if (errorService.fatalLoad) return
-
-    // Deep, proxy-free copy
-    initialGridItemsSnapshot = $state.snapshot(
-      session.grid.items
-    ) as GridItemSnapshot[]
   }
 
   function startLoad(): void {
@@ -111,10 +102,7 @@
 <DesignTokens colors={options?.colors} />
 
 <div id="GP-gazeplotter">
-  <Workspace
-    {onWorkspaceCommandChain}
-    initialLayoutState={initialGridItemsSnapshot}
-  />
+  <Workspace {onWorkspaceCommandChain} />
 
   <Modal />
   <Toaster />

@@ -10,7 +10,6 @@ import { ModalState } from '$lib/modals/modalState.svelte'
 import { ToastState } from '$lib/toaster/toastState.svelte'
 import { GridState } from '$lib/workspace/grid/gridState.svelte'
 import { WorkspaceCommandBus } from '$lib/workspace/commands/bus'
-import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace/grid/const'
 import type { GridItemSnapshot } from '$lib/workspace/grid/types'
 import type { GazePlotterColors } from '$lib/DesignTokens.svelte'
 
@@ -19,7 +18,7 @@ export type { SaveFile, OpenFiles, GazePlotterColors }
 /** The host embedding contract: one optional field per host need, every
  *  default preserves the web behavior. See PLANDESKTOP.md. */
 export type GazePlotterOptions = {
-  /** Layout for datasets that carry none (fresh parses, empty workspace). */
+  /** Layout for gaze datasets that carry none. Default: chosen by the data. */
   defaultLayout?: GridItemSnapshot[]
   /** Delivers one export file. Default: anchor + blob browser download. */
   saveFile?: SaveFile
@@ -62,7 +61,7 @@ export function createGazePlotterSession(
     toastState,
     resetWorkspaceHistory: () => workspace.clearHistory(),
     applyCommand: command => workspace.apply(command),
-    defaultLayout: options.defaultLayout ?? DEFAULT_GRID_STATE_DATA,
+    defaultLayout: options.defaultLayout,
     openFiles: options.openFiles ?? openFilesViaBrowser,
   })
 

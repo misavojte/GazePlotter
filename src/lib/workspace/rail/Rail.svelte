@@ -3,7 +3,7 @@
   import { onMount } from 'svelte'
   import { fly } from 'svelte/transition'
   import { cubicInOut } from 'svelte/easing'
-  import type { GridItemSnapshot, PlotType } from '$lib/workspace'
+  import type { PlotType } from '$lib/workspace'
   import { responsive } from '../responsive.svelte'
   import { stickyBanner } from '../stickyBanner.svelte'
   import { createRailItems, createEditPlotRailItem } from './config'
@@ -14,7 +14,6 @@
   import X from 'lucide-svelte/icons/x'
 
   interface Props {
-    initialLayoutState?: GridItemSnapshot[] | null
     zoom?: number
     element?: HTMLElement | null
   }
@@ -33,7 +32,6 @@
   const toolbarTop = $derived(stickyBanner.height - 24)
 
   let {
-    initialLayoutState = null,
     zoom = $bindable(1),
     element = $bindable(null),
   }: Props = $props()
@@ -84,7 +82,7 @@
   }
 
   const handleResetLayout = () => {
-    workspace.resetLayoutGuarded(initialLayoutState, 'WorkspaceToolbar')
+    workspace.resetLayoutGuarded(ingest.loadedLayout, 'WorkspaceToolbar')
   }
 
   function handleEditPlot() {

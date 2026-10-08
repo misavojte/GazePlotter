@@ -23,14 +23,12 @@
   import { FileDropTarget } from './fileDrop.svelte'
   import { isTextEntryTarget, resolveWorkspaceShortcut } from './keys'
   import type { WorkspaceCommandChain } from './commands'
-  import type { GridItemSnapshot } from './'
 
   interface Props {
     onWorkspaceCommandChain: (command: WorkspaceCommandChain) => void
-    initialLayoutState?: GridItemSnapshot[] | null
   }
 
-  const { onWorkspaceCommandChain, initialLayoutState = null }: Props = $props()
+  const { onWorkspaceCommandChain }: Props = $props()
   const { ingest, grid, workspace, modalState } = getGazePlotterSession()
 
   // Single upload owner: the drag-drop handler below and the click entry
@@ -202,7 +200,7 @@
     {#if !responsive.isMobile}
       <!-- Desktop: Rail is a flex item on the left edge of the -->
       <!-- workspace-body row, next to the scrolling container. -->
-      <Rail {initialLayoutState} bind:zoom={zoom.value} />
+      <Rail bind:zoom={zoom.value} />
     {/if}
 
     <!-- svelte-ignore a11y_no_static_element_interactions -->
@@ -229,7 +227,7 @@
              centred at inset 0, and there are no plots here to preserve. -->
         {@render dropHint()}
       {:else if grid.isEmpty && !isLoading}
-        <IndicatorEmpty {initialLayoutState} onUpload={triggerUpload} />
+        <IndicatorEmpty onUpload={triggerUpload} />
       {:else if isLoading}
         <IndicatorLoading />
       {:else}
@@ -283,7 +281,6 @@
     <!-- past the workspace on the page, the wrapper's bottom edge -->
     <!-- enters the viewport and the rail scrolls away with it. -->
     <Rail
-      {initialLayoutState}
       bind:zoom={zoom.value}
       bind:element={mobileRailElement}
     />

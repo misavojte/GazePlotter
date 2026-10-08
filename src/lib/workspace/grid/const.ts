@@ -1,5 +1,6 @@
 import type { GridItemSnapshot } from './types'
 import type { GridConfig } from './types'
+import type { DataCapabilities } from '$lib/data/types'
 
 /**
  * Initial layout of visualizations used when no custom state is provided.
@@ -19,6 +20,29 @@ export const DEFAULT_GRID_STATE_DATA: GridItemSnapshot[] = [
 export const EVENT_ONLY_GRID_STATE_DATA: GridItemSnapshot[] = [
   { type: 'eventComparison', x: 0, y: 0, w: 20, h: 12 },
 ]
+
+// Spatial data opens with the scanpath on top, the full-width scarf below.
+const SPATIAL_GRID_STATE_DATA: GridItemSnapshot[] = [
+  { type: 'scanpath', x: 0, y: 0, w: 20, h: 12 },
+  { type: 'transitionMatrix', x: 20, y: 0, w: 12, h: 12 },
+  { type: 'scarf', x: 0, y: 12, w: 32 },
+  { type: 'aoiComparison', x: 0, y: 24, w: 12, h: 12 },
+  { type: 'aoiStreamPlot', x: 12, y: 24, w: 12, h: 12 },
+]
+
+/**
+ * The layout a dataset opens with when it carries none, chosen by what the
+ * data contains. A host layout replaces the gaze layouts; event-only data
+ * always gets the one plot it can feed.
+ */
+export function defaultLayoutFor(
+  caps: DataCapabilities,
+  hostLayout?: GridItemSnapshot[]
+): GridItemSnapshot[] {
+  if (!caps.segmented && caps.event) return EVENT_ONLY_GRID_STATE_DATA
+  if (hostLayout) return hostLayout
+  return caps.spatial ? SPATIAL_GRID_STATE_DATA : DEFAULT_GRID_STATE_DATA
+}
 
 // Default grid configuration
 export const DEFAULT_GRID_CONFIG: GridConfig = {

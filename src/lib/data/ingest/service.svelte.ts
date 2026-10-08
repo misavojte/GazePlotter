@@ -33,7 +33,7 @@ import {
 } from '$lib/data/media/mediaUpload'
 import { INGEST_PROMPTS } from './prompts'
 import type { IngestResult } from './kernel/result'
-import { EVENT_ONLY_GRID_STATE_DATA } from '$lib/workspace'
+import { defaultLayoutFor } from '$lib/workspace'
 import { GAZEPLOTTER_VERSION } from '$lib/version'
 import type { OpenFiles } from './openFiles'
 import type { ErrorService } from '$lib/errors'
@@ -77,7 +77,7 @@ type IngestDependencies = {
    *  workspace and must therefore be undoable (media-only uploads). */
   applyCommand: (command: WorkspaceCommand) => boolean
   /** Session-resolved embedding options (see PLANDESKTOP.md). */
-  defaultLayout: GridItemSnapshot[]
+  defaultLayout?: GridItemSnapshot[]
   openFiles: OpenFiles
 }
 
@@ -621,6 +621,8 @@ export class IngestService {
   metadata = $state<FileMetadataType | null>(null)
   input = $state<FileInputType | null>(null)
   progressPercent = $state(0)
+  /** The layout the visible dataset opened with: what Reset Layout returns to. */
+  loadedLayout = $state<GridItemSnapshot[] | null>(null)
 
   /** True while a worker parse is running — uploads are one at a time. */
   private uploadInFlight = false
@@ -763,6 +765,11 @@ export class IngestService {
     }
   }
 
+  private openLayout(layout: GridItemSnapshot[]): void {
+    this.loadedLayout = layout
+    this.deps.grid.reset(layout)
+  }
+
   /**
    * Reset the workspace to an empty, ready state — no dataset, no grid,
    * no error, no in-flight loading. Used when a {@link DataLoader} resolves
@@ -774,9 +781,10 @@ export class IngestService {
     this.progressPercent = 0
     this.metadata = null
     this.input = null
-    this.deps.engine.loadDataset(createEmptyDataset())
+    const empty = createEmptyDataset()
+    this.deps.engine.loadDataset(empty)
     this.deps.engine.setStimulusMediaBlobs(undefined)
-    this.deps.grid.reset(this.deps.defaultLayout)
+    this.openLayout(defaultLayoutFor(empty.capabilities, this.deps.defaultLayout))
     this.deps.resetWorkspaceHistory()
     this.explicitStatus = 'ready'
   }
@@ -801,7 +809,10 @@ export class IngestService {
         `${droppedMedia} stimulus reference ${droppedMedia > 1 ? 'media were' : 'medium was'} missing from the workspace file and skipped.`
       )
     }
-    this.deps.grid.reset(parsedData.gridItems ?? this.deps.defaultLayout)
+    this.openLayout(
+      parsedData.gridItems ??
+        defaultLayoutFor(parsedData.data.capabilities, this.deps.defaultLayout)
+    )
     this.deps.resetWorkspaceHistory()
     this.explicitStatus = 'ready'
   }
@@ -815,6 +826,7 @@ export class IngestService {
    */
   applyFailure(failureMetadata: FileMetadataFailureType): void {
     this.progressPercent = 0
+    this.loadedLayout = null
     this.deps.grid.reset([])
     this.metadata = failureMetadata
     this.input = {
@@ -1002,7 +1014,6 @@ export class IngestService {
     this.applyParsedData({
       version: 4,
       data: built.data,
-      gridItems: EVENT_ONLY_GRID_STATE_DATA,
       fileMetadata: null,
       current: {
         fileNames: csvFiles.map(f => f.name),

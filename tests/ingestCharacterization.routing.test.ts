@@ -196,7 +196,10 @@ describe('IngestService routing', () => {
       expect(posted.some(m => m.type === 'stream')).toBe(true)
     })
 
-    const sentinelData = { sentinel: true }
+    const sentinelData = {
+      sentinel: true,
+      capabilities: { segmented: true, spatial: false, event: false },
+    }
     const classified = {
       type: 'csv',
       rowDelimiter: '\n',

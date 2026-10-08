@@ -82,9 +82,12 @@ Every field is optional; every default is the plain web behavior.
 />
 ```
 
-- `defaultLayout: GridItemSnapshot[]`: layout used when loaded data carries
-  none (fresh parses, empty workspace). Workspace files keep their saved
-  layout; omitted snapshot fields get per-plot defaults.
+- `defaultLayout: GridItemSnapshot[]`: layout used when loaded gaze data
+  carries none (fresh parses, empty workspace). Without it, the layout is
+  chosen by the data: spatial data opens with a Scanpath on top. Event-only
+  data always opens with Event Comparison, and workspace files keep their
+  saved layout. Reset Layout returns to whichever layout the data opened
+  with. Omitted snapshot fields get per-plot defaults.
 - `saveFile: (content, fileName, extension) => void`: delivers one export
   file. Default: browser download. `fileName` arrives with the extension
   applied; `extension` is separate for native save-dialog filters.

@@ -2,15 +2,13 @@
   import Button from '$lib/shared/components/Button.svelte'
   import { getGazePlotterSession } from '$lib/session'
   import { metadataInfoModal } from '$lib/modals/definitions'
-  import type { GridItemSnapshot } from '$lib/workspace'
   import IndicatorCard from './IndicatorCard.svelte'
 
   interface Props {
-    initialLayoutState?: GridItemSnapshot[] | null
     onUpload: () => void
   }
 
-  const { initialLayoutState = null, onUpload }: Props = $props()
+  const { onUpload }: Props = $props()
   const { engine, errorService, ingest, modalState, workspace } =
     getGazePlotterSession()
 
@@ -33,7 +31,7 @@
   }
 
   const handleResetLayout = () => {
-    workspace.resetLayoutGuarded(initialLayoutState, 'IndicatorEmpty')
+    workspace.resetLayoutGuarded(ingest.loadedLayout, 'IndicatorEmpty')
   }
 </script>
 
