@@ -2,16 +2,19 @@ import type { WorkspaceCommandBus } from '$lib/workspace/commands/bus'
 import type { AllGridTypes } from '$lib/workspace'
 import type {
   RemoveGridItemCommand,
+  RemoveGridItemsCommand,
   UpdateLayoutCommand,
 } from '$lib/workspace/commands'
 import { createCommandSourcePlotPattern } from '$lib/workspace/commands/utils'
 import type { GridConfig } from './types'
 
 // Narrowed by COMMAND, not by method name: `apply` accepts the whole union, so
-// naming the two members here is what still stops this layer reaching for the
+// naming the members here is what still stops this layer reaching for the
 // rest of it. A full WorkspaceCommandBus satisfies this.
 type WorkspaceGridCommands = Pick<WorkspaceCommandBus, 'duplicateGridItem'> & {
-  apply: (command: UpdateLayoutCommand | RemoveGridItemCommand) => boolean
+  apply: (
+    command: UpdateLayoutCommand | RemoveGridItemCommand | RemoveGridItemsCommand
+  ) => boolean
 }
 
 type GridItemIdentity = Pick<AllGridTypes, 'id' | 'type'>
@@ -119,6 +122,23 @@ export function commitGridItemRemoval(
     type: 'removeGridItem',
     itemId: item.id,
     source: getGridItemCommandSource(item),
+  })
+}
+
+// A multi-selection removes (and undoes) in one step; one item keeps the single command.
+export function commitGridItemsRemoval(
+  workspace: WorkspaceGridCommands,
+  items: AllGridTypes[],
+  ids: number[]
+): boolean {
+  const live = ids.filter(id => findGridItem(items, id))
+  if (live.length <= 1) {
+    return live.length === 1 && commitGridItemRemoval(workspace, items, { id: live[0] })
+  }
+  return workspace.apply({
+    type: 'removeGridItems',
+    itemIds: live,
+    source: getGridItemCommandSource(findGridItem(items, live[0])!),
   })
 }
 

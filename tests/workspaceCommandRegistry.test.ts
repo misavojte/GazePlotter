@@ -546,4 +546,45 @@ describe('workspaceCommandRegistry', () => {
 
     expect(items.map(i => i.settings.stimulusId)).toEqual([0, 3])
   })
+
+  it('removing several plots is one undo step that restores them all', () => {
+    const items = [
+      createScarfGridItem({ id: 11 }),
+      createScarfGridItem({ id: 12 }),
+      createScarfGridItem({ id: 13 }),
+    ]
+    const gridStore = createMockGridStore(items)
+    gridStore.removeItem = vi.fn(id => {
+      const idx = items.findIndex(i => i.id === id)
+      if (idx >= 0) items.splice(idx, 1)
+    })
+    gridStore.addItem = vi.fn((_type, options) => {
+      items.push(createScarfGridItem({ id: options.id }))
+      return options.id
+    })
+
+    const history = new UndoRedoStateStore()
+    const handleCommand = createCommandHandler(
+      gridStore,
+      createMockEngine(),
+      history,
+      () => {},
+      () => {},
+      () => {}
+    )
+
+    handleCommand(
+      createChainedCommand(
+        { type: 'removeGridItems' as const, itemIds: [11, 12] },
+        { source: 'scarf.11.workspace', chainId: 7, isRootCommand: true }
+      )
+    )
+    expect(items.map(i => i.id)).toEqual([13])
+
+    const undoCommands = history.undo()
+    for (const cmd of undoCommands ?? []) handleCommand(cmd)
+    history.endUndoRedo()
+    expect(items.map(i => i.id).sort()).toEqual([11, 12, 13])
+    expect(history.undo()).toBeNull()
+  })
 })

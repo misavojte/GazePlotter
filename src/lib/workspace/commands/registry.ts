@@ -361,6 +361,18 @@ export function createWorkspaceCommandRegistry(
       gridStore.removeItem(command.itemId)
     },
 
+    removeGridItems: (command, context) => {
+      if (context.isUndoRedoOperation) return
+      for (const itemId of command.itemIds) {
+        context.dispatch(
+          createChildCommand(
+            { type: 'removeGridItem', itemId, source: command.source },
+            command.chainId
+          )
+        )
+      }
+    },
+
     duplicateGridItem: (command, context) => {
       const currentItem = requireItem(
         command.itemId,
@@ -598,6 +610,8 @@ export function createWorkspaceCommandRegistry(
 
     addGridItem: (cmd, meta) =>
       withMeta({ type: 'removeGridItem', itemId: cmd.itemId }, meta),
+
+    removeGridItems: (_cmd, meta) => withMeta({ type: 'noop' }, meta),
 
     removeGridItem: (cmd, meta) => {
       const removedItem = requireItem(

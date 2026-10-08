@@ -98,6 +98,11 @@ const WORKSPACE_COMMAND_LABELS: Record<
     default: 'Removed plot from workspace',
   },
 
+  removeGridItems: {
+    action: 'plots removal',
+    default: 'Removed plots from workspace',
+  },
+
   duplicateGridItem: {
     action: 'plot duplication',
     default: 'Duplicated plot to the nearest empty space in the workspace',

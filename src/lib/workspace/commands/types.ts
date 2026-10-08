@@ -214,6 +214,13 @@ export interface RemoveGridItemCommand extends BaseCommandInterface {
   itemId: number
 }
 
+// Removes a multi-selection as ONE undo step: the root dispatches one
+// removeGridItem child per item, whose reverses restore them (like reconcileMerges).
+export interface RemoveGridItemsCommand extends BaseCommandInterface {
+  type: 'removeGridItems'
+  itemIds: number[]
+}
+
 export interface DuplicateGridItemCommand extends BaseCommandInterface {
   type: 'duplicateGridItem'
   itemId: number
@@ -243,6 +250,7 @@ export type WorkspaceCommand =
   | UpdateLayoutCommand
   | AddGridItemCommand
   | RemoveGridItemCommand
+  | RemoveGridItemsCommand
   | DuplicateGridItemCommand
   | SetLayoutStateCommand
 

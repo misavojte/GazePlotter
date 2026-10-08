@@ -14,6 +14,7 @@
     commitGridItemDuplication,
     commitGridItemGroupMove,
     commitGridItemRemoval,
+    commitGridItemsRemoval,
     commitGridItemResize,
   } from './itemCommands'
   import {
@@ -48,10 +49,8 @@
       if (selectedIds.length === 0) return
       if (event.key === 'Delete' || event.key === 'Backspace') {
         event.preventDefault()
-        // Snapshot first — removeItem mutates the selection set as it goes.
-        for (const id of [...selectedIds]) {
-          commitGridItemRemoval(workspace, gridItems, { id })
-        }
+        // Snapshot first: removeItem mutates the selection set as it goes.
+        commitGridItemsRemoval(workspace, gridItems, [...selectedIds])
         return
       }
       if (event.key === 'Escape') {
