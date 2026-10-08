@@ -10,7 +10,6 @@ import {
   createPlotCursorPort,
   cursorRows,
   drawTimeGuides,
-  strokeCrosshairPanel,
   timeAtX,
   timeGuideX,
   timeGuideXs,
@@ -335,24 +334,6 @@ describe('mark parity', () => {
     expect(dashes).toEqual([CROSSHAIR_DASH])
     expect(ctx.strokeStyle).toBe(CROSSHAIR_COLOR)
     expect(ctx.fillStyle).toBe(CROSSHAIR_COLOR)
-  })
-
-  it('insets a whole-panel outline so it cannot repaint the axis frame', () => {
-    // scanpath / recurrence: the panel IS one participant. `drawPlotArea` strokes
-    // exactly the frame and the overlay runs after the chrome, so the inset is
-    // load-bearing — and owned by the helper, not recomputed per figure.
-    const frame = { x: 40, y: 20, width: 200, height: 100 }
-    const { points, dashes, ctx } = recorder()
-    strokeCrosshairPanel(ctx, frame)
-    const xs = points.filter((_, i) => i % 2 === 0)
-    const ys = points.filter((_, i) => i % 2 === 1)
-    // Strictly inside the frame on all four sides, so the chrome border survives.
-    expect(Math.min(...xs)).toBeGreaterThan(frame.x)
-    expect(Math.max(...xs)).toBeLessThan(frame.x + frame.width)
-    expect(Math.min(...ys)).toBeGreaterThan(frame.y)
-    expect(Math.max(...ys)).toBeLessThan(frame.y + frame.height)
-    expect(dashes).toEqual([CROSSHAIR_DASH])
-    expect(ctx.strokeStyle).toBe(CROSSHAIR_COLOR)
   })
 
   it('marks every strip the cursor set occupies, on either axis', () => {

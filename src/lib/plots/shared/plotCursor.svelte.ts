@@ -36,8 +36,9 @@
  * MARK PARITY: nothing in a mark encodes WHO designated the thing, so a plot's own
  * CROSSHAIR and this cursor draw the IDENTICAL mark and only their EXTENT differs.
  * One per shape: `markCrosshairStrip` (row/column), `markCrosshairNode` (a graph
- * node, a SPLOM dot), `strokeCrosshairPanel` (a plot that IS one participant),
- * `drawTimeGuide` (the time channel).
+ * node, a SPLOM dot), `drawTimeGuide` (the time channel). A plot that IS one
+ * participant (scanpath) has no smaller part to mark, so it only publishes: a
+ * whole-panel outline lit from elsewhere read as a stray focus border.
  */
 import { onDestroy } from 'svelte'
 import { sessionScoped } from '$lib/session/context'
@@ -45,7 +46,6 @@ import type { PlotScreenFactory } from '$lib/plots/definePlot'
 import {
   alignToPixelCenter,
   strokeCrosshairGuides,
-  strokeCrosshairRect,
 } from './canvasUtils'
 
 type PlotCursor = {
@@ -237,18 +237,6 @@ export function drawTimeGuides(
   ctx.clip()
   strokeCrosshairGuides(ctx, segments)
   ctx.restore()
-}
-
-/**
- * Whole-panel cursor mark, for a plot that IS one participant (scanpath,
- * recurrence). Inset 2px: `drawPlotArea` strokes exactly the frame and the
- * overlay runs after it, so a flush outline would repaint the axis border.
- */
-export function strokeCrosshairPanel(
-  ctx: CanvasRenderingContext2D,
-  band: TimeGuideBand
-): void {
-  strokeCrosshairRect(ctx, band.x + 2, band.y + 2, band.width - 4, band.height - 4)
 }
 
 /**

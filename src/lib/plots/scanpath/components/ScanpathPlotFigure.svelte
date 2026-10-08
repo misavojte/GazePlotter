@@ -7,10 +7,7 @@
     type PlotFrame,
     type PlotAreaTicks,
   } from '$lib/plots/shared'
-  import {
-    strokeCrosshairPanel,
-    type PlotCursorPort,
-  } from '$lib/plots/shared/plotCursor.svelte'
+  import type { PlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
   import Play from 'lucide-svelte/icons/play'
   import Pause from 'lucide-svelte/icons/pause'
   import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/textMeasure'
@@ -52,7 +49,11 @@
     media?: StimulusMedia | null
     /** Key of `media`'s bytes in the stimulusMediaStore. */
     mediaStimulusId?: number
-    /** Shared PLOT CURSOR (screen-only; export renders without one). */
+    /** Shared PLOT CURSOR, publish-only: hovering this panel marks its
+        participant in other plots, but the panel never draws the cursor
+        itself. A whole-panel outline lit by a hover elsewhere (often another
+        stimulus, or a duplicate of this very scanpath) read as a stray focus
+        border rather than as "this person". */
     plotCursor?: PlotCursorPort | null
   }
 
@@ -239,15 +240,8 @@
     frameH = plot.frame.height
   })
 
-  /** The cursor either means this whole panel or nothing: one participant, one plot. */
-  const cursorIsMine = $derived(
-    participantId !== undefined &&
-      (plotCursor?.participants ?? []).includes(participantId)
-  )
-
-  /** The PLOT CURSOR plus the hovered fixation's highlight ring. */
+  /** The hovered fixation's highlight ring. */
   function drawScanpathOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
-    if (cursorIsMine) strokeCrosshairPanel(ctx, frame)
     const hovered = plot.hover.data?.fixationIndex
     if (hovered == null || !data) return
     const f = data.fixations[hovered]
@@ -453,7 +447,6 @@
         hit && participantId !== undefined ? { participants: () => [participantId] } : null
       ),
     overlayDeps: () => {
-      void cursorIsMine
       void plot.hover.data?.fixationIndex
       return null
     },
