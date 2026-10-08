@@ -66,7 +66,7 @@
 
   // State
   let paramDraft = $state<Record<string, unknown>>({})
-  let labelOverride = $state('')
+  let labelDraft = $state('')
   let leafDraft = $state<LeafProjection>({ kind: 'identity-scalar' })
   let windowDraft = $state<WindowSpec | null>(null)
   let currentBaseId = $state<string>('')
@@ -121,8 +121,7 @@
         seedProjection(inst.projection)
         editShape = PROJECTION_LEAVES[leafDraft.kind].outputShape
         reductionDraft = inst.reduction ?? metric?.meta.defaultReduction ?? 'mean'
-        const autoLabel = defaultInstanceLabel(inst.baseId)
-        labelOverride = inst.label !== autoLabel ? inst.label : ''
+        labelDraft = inst.label
       }
     } else if (mode === 'create' && selectedMetricId) {
       currentBaseId = selectedMetricId
@@ -132,7 +131,7 @@
         paramDraft =
           initialParams ??
           (resolveParams(metric.meta.params, undefined) as Record<string, unknown>)
-        labelOverride = initialLabel ?? ''
+        labelDraft = initialLabel ?? defaultInstanceLabel(selectedMetricId)
 
         if (initialProjection) {
           seedProjection(initialProjection)
@@ -237,7 +236,7 @@
     return {
       projection: buildProjection(leafDraft, windowDraft),
       params: { ...paramDraft },
-      label: labelOverride.trim() || defaultInstanceLabel(currentBaseId),
+      label: labelDraft.trim() || defaultInstanceLabel(currentBaseId),
       reduction: chosenRed !== metricDefault ? chosenRed : undefined,
       chosenRed,
       metricDefault,
@@ -289,11 +288,6 @@
           { label: 'Cancel', onclick: handleCancel, variant: 'secondary' as const },
         ],
   )
-
-  function liveLabel(baseId: string): string {
-    const override = labelOverride.trim()
-    return override.length > 0 ? override : defaultInstanceLabel(baseId)
-  }
 
   function paramSelectOptions(p: ParamDef<unknown>): SelectOption[] {
     return (p.options ?? []).map(o => ({ label: o.label, value: o.value as string }))
@@ -693,8 +687,8 @@
           compact
           showLabel={false}
           ariaLabel="Metric label"
-          bind:value={labelOverride}
-          placeholder={liveLabel(currentBaseId)}
+          bind:value={labelDraft}
+          placeholder={defaultInstanceLabel(currentBaseId)}
         />
       </section>
 
