@@ -1,5 +1,3 @@
-import { Console } from 'node:console'
-
 /**
  * The built-in `node` environment (Node globals, no DOM) with modules
  * compiled by Vite's CLIENT environment instead of SSR. GazePlotter runs in
@@ -9,20 +7,19 @@ import { Console } from 'node:console'
  * Referenced from vite.config.ts (`test.environment`).
  *
  * Self-contained on purpose: Vitest loads this file through Vite's module
- * runner, which rewrites a bare `vitest/runtime` import to a cache-busted
+ * runner, which rewrites a bare `vitest/*` import to a cache-busted
  * `runtime.js?v=<hash>` URL that Node cannot resolve, so the worker never
- * starts. `setup` mirrors the built-in node environment's (the default forks
- * pool needs nothing else; `setupVM` exists only for the vm pools).
+ * starts. The JSDoc type import below is erased and never reaches the runner.
+ * `setup` has nothing to do: the default forks pool runs tests in Node's own
+ * global, which already carries every Node global (the built-in env's only
+ * extra, `console.Console`, included). `setupVM` exists only for vm pools.
+ *
+ * @type {import('vitest/environments').Environment}
  */
 export default {
   name: 'node-client',
   viteEnvironment: 'client',
-  async setup(global) {
-    global.console.Console = Console
-    return {
-      teardown(global) {
-        delete global.console.Console
-      },
-    }
+  setup() {
+    return { teardown() {} }
   },
 }
