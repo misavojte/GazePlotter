@@ -115,6 +115,26 @@ export interface FrameAxes {
 }
 
 /** Resolved plot geometry handed to drawData / drawOverlay / hitTest. */
+/** The hover dedup key of "pointer over nothing"; equal to no figure's key. */
+const NO_HIT = Symbol('no hit')
+
+/**
+ * Whether a hover move should fire the figure's `onHover` side effect: only
+ * when the dedup key changes. "No hit" has its own key, because a figure's
+ * key may itself be null (scanpath's bare-panel hover is `fixationIndex:
+ * null`); sharing it would dedup the LEAVE away, and `onHover(null)` would
+ * never retract the plot cursor from the other plots.
+ */
+export function hoverKeyChanged<THit>(
+  prev: THit | null,
+  next: THit | null,
+  hoverKey?: (data: THit) => unknown
+): boolean {
+  const keyOf = (d: THit | null) =>
+    d === null ? NO_HIT : hoverKey ? hoverKey(d) : d
+  return !Object.is(keyOf(prev), keyOf(next))
+}
+
 export interface PlotFrame {
   /** Data rectangle in absolute canvas px — floored, export-margin aware. */
   x: number
@@ -803,8 +823,6 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   // repaint policy (no custom `onHoverChange`) repaints while the payload
   // changes — hits are fresh objects, so effectively per-move while hovering —
   // and only when the figure actually has an overlay to repaint.
-  const hoverKeyOf = (d: THit | null) =>
-    d === null ? null : options.hoverKey ? options.hoverKey(d) : d
 
   function applyHover(
     hit: FrameHit<THit> | null,
@@ -812,7 +830,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     y: number | null
   ): boolean {
     const next = hit?.data ?? null
-    const keyChanged = !Object.is(hoverKeyOf(next), hoverKeyOf(hoverData))
+    const keyChanged = hoverKeyChanged(hoverData, next, options.hoverKey)
     const changed = options.onHoverChange
       ? options.onHoverChange(hit, x, y)
       : options.drawOverlay
