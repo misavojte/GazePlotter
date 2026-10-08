@@ -28,7 +28,7 @@
   import { categoryGroupNames } from '$lib/metrics/core/categoryScan'
   import { eventGroupNamesUnion } from '$lib/metrics/core/eventScan'
   import { metricLeafKindsInContract, contractReductions, type PlotMetricContract } from '$lib/metrics/filters'
-  import type { Metric } from '$lib/metrics/core/dsl'
+  import type { Metric, OutputShape } from '$lib/metrics/core/dsl'
   import type { GroupReduction } from '$lib/metrics/core/measurement'
   import type { ParamDef, SummaryStatistic } from '$lib/metrics/core/params'
   import { resolveParams, SUMMARY_STATISTIC_OPTIONS } from '$lib/metrics/core/params'
@@ -71,6 +71,9 @@
   let windowDraft = $state<WindowSpec | null>(null)
   let currentBaseId = $state<string>('')
   let metric = $state<Metric | undefined>(undefined)
+  // Edit keeps the instance's output shape and windowing: plots accept metrics
+  // by shape, so reshaping in place would strand them. Reshaping is "Save as new".
+  let editShape = $state<OutputShape | null>(null)
   // The cross-participant reduction for this instance. Initialised from the
   // instance override (edit) / duplication seed (create), else the metric's
   // default. Only persisted when it differs from the default. The OPTIONS are a
@@ -116,6 +119,7 @@
         metric = getMetric(inst.baseId)
         paramDraft = { ...inst.params }
         seedProjection(inst.projection)
+        editShape = PROJECTION_LEAVES[leafDraft.kind].outputShape
         reductionDraft = inst.reduction ?? metric?.meta.defaultReduction ?? 'mean'
         const autoLabel = defaultInstanceLabel(inst.baseId)
         labelOverride = inst.label !== autoLabel ? inst.label : ''
@@ -195,7 +199,9 @@
   // the single shared predicate (metrics layer), so the tabs here, the pickers,
   // and the library banner can never disagree on what a metric can become.
   function availableLeavesFor(m: Metric): LeafKind[] {
-    return metricLeafKindsInContract(m, contract)
+    return metricLeafKindsInContract(m, contract).filter(
+      kind => !editShape || PROJECTION_LEAVES[kind].outputShape === editShape,
+    )
   }
 
   function canBeWindowed(m: Metric, leaf: LeafProjection): boolean {
@@ -262,7 +268,7 @@
     if (!metric) return
     const { projection, params, label, reduction } = draftValues()
     modalState.closeToRoot()
-    oncreateInstance?.(currentBaseId, params, label, projection, undefined, reduction)
+    oncreateInstance?.(currentBaseId, params, label, projection, undefined, reduction, editMetricId)
   }
 
   // The Enter-key / primary action for the current mode.
@@ -420,7 +426,7 @@
   {#if metric}
     {@const leaves = availableLeavesFor(metric)}
     {@const windowable = canBeWindowed(metric, leafDraft)}
-    {@const windowingLocked = contract.windowing === 'required'}
+    {@const windowingLocked = contract.windowing === 'required' || mode === 'edit'}
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <form
       class="form-inner"
@@ -627,8 +633,8 @@
           {@render shapeConfig()}
 
           {#if windowable}
-            <!-- When windowing is required there's no choice, so the toggle is
-                 omitted; the window/step controls below carry the configuration. -->
+            <!-- When windowing is required, or fixed by an edit, there's no choice,
+                 so the toggle is omitted; window/step below carry the configuration. -->
             {#if !windowingLocked}
               <Select
                 compact

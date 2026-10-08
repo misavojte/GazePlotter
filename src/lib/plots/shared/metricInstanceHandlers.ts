@@ -15,6 +15,7 @@ export type CreateInstanceHandler = (
   projection: Projection,
   replacingId?: string,
   reduction?: GroupReduction,
+  forkOf?: string,
 ) => void
 
 interface BaseHandlers {
@@ -53,10 +54,20 @@ function renamed(
   return next
 }
 
+// A new instance never shares a label: "Dwell time" -> "Dwell time (2)".
+function uniqueLabel(instances: MetricInstance[], label: string): string {
+  const taken = new Set(instances.map(i => i.label))
+  if (!taken.has(label)) return label
+  const base = label.replace(/ \(\d+\)$/, '')
+  let n = 2
+  while (taken.has(`${base} (${n})`)) n++
+  return `${base} (${n})`
+}
+
 function baseHandlers(
   engine: DataEngine,
   workspace: WorkspaceCommandBus,
-  onCreated: (newId: string, replacingId?: string) => void,
+  onCreated: (newId: string, forkOf?: string) => void,
   onDeleted: (id: string) => void,
 ): BaseHandlers {
   return {
@@ -70,20 +81,30 @@ function baseHandlers(
         })
       }
     },
-    oncreateInstance: (baseId, params, label, projection, replacingId, reduction) => {
-      const inst = createMetricInstance({ baseId, params, projection, label, reduction })
-      if (!inst) return
+    // Replacing keeps the id and the list position, so every plot pointing at
+    // the instance follows the edit.
+    // A fork ("Save as new") swaps in for its original on this plot only.
+    oncreateInstance: (baseId, params, label, projection, replacingId, reduction, forkOf) => {
       const current = currentInstances(engine)
+      const inst = createMetricInstance({
+        baseId,
+        params,
+        projection,
+        label: replacingId != null ? label : uniqueLabel(current, label),
+        reduction,
+        id: replacingId,
+      })
+      if (!inst) return
       const next =
         replacingId != null
-          ? [...current.filter(i => i.id !== replacingId), inst]
+          ? current.map(i => (i.id === replacingId ? inst : i))
           : [...current, inst]
       workspace.apply({
         type: 'updateMetricInstances',
         instances: next,
         source: 'metricLibrary.create',
       })
-      onCreated(inst.id, replacingId)
+      if (replacingId == null) onCreated(inst.id, forkOf)
     },
     ondeleteInstance: id => {
       workspace.apply({
@@ -126,13 +147,13 @@ export function multiSelectMetricHandlers(
     ...baseHandlers(
       engine,
       workspace,
-      (newId, replacingId) => {
+      (newId, forkOf) => {
         const current = getSelected()
-        if (replacingId != null) {
-          setSelected(current.map(id => (id === replacingId ? newId : id)))
-        } else {
-          setSelected([...current, newId])
-        }
+        setSelected(
+          forkOf != null && current.includes(forkOf)
+            ? current.map(id => (id === forkOf ? newId : id))
+            : [...current, newId],
+        )
       },
       id => setSelected(getSelected().filter(x => x !== id)),
     ),
