@@ -24,6 +24,7 @@ class StimulusMediaStore {
       url: string
       el: HTMLImageElement | HTMLVideoElement
       ready: boolean
+      failed: boolean
     }
   >()
 
@@ -49,6 +50,12 @@ class StimulusMediaStore {
     this.version++
   }
 
+  /** True once the browser has refused to decode a stimulus's media (e.g. an
+   *  unsupported video codec); read alongside `version`. */
+  failed(stimulusId: number): boolean {
+    return this.elements.get(stimulusId)?.failed ?? false
+  }
+
   /**
    * The drawable element for a stimulus, or null while it is still decoding
    * (the `version` bump on ready triggers the re-read). Videos are parked on
@@ -67,10 +74,15 @@ class StimulusMediaStore {
     const url = URL.createObjectURL(blob)
     if (media.kind === 'image') {
       const el = new Image()
-      const entry = { url, el, ready: false }
+      const entry = { url, el, ready: false, failed: false }
       this.elements.set(stimulusId, entry)
       el.onload = () => {
         entry.ready = true
+        this.version++
+      }
+      el.onerror = () => {
+        if (this.elements.get(stimulusId) !== entry) return // evicted: src cleared
+        entry.failed = true
         this.version++
       }
       el.src = url
@@ -79,8 +91,17 @@ class StimulusMediaStore {
       el.muted = true
       el.playsInline = true
       el.preload = 'auto'
-      const entry = { url, el, ready: false }
+      const entry = { url, el, ready: false, failed: false }
       this.elements.set(stimulusId, entry)
+      el.addEventListener(
+        'error',
+        () => {
+          if (this.elements.get(stimulusId) !== entry) return // evicted: src cleared
+          entry.failed = true
+          this.version++
+        },
+        { once: true }
+      )
       const markReady = () => {
         if (entry.ready) return
         entry.ready = true

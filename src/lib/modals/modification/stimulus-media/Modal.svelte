@@ -54,14 +54,23 @@
     try {
       const picked = await buildStimulusMediaFromFile(file)
       draft = { media: picked, blob: file }
-      // New pixel space: re-seed the mapping to the file's natural size. The
-      // old undo steps belong to the old file, so they go too.
+      // A replacement keeps the aligned placement (same left, top, width; height
+      // from the new aspect); a first attach seeds the file's natural size.
+      // The old undo steps belong to the old file, so they go.
       history = []
-      setRegion({ x: 0, y: 0, width: picked.naturalWidth, height: picked.naturalHeight })
+      if (region) {
+        const kept = {
+          ...region,
+          height: (region.width * picked.naturalHeight) / picked.naturalWidth,
+        }
+        setRegion(snapRect(kept, snapStepForSize(Math.max(kept.width, kept.height))))
+      } else {
+        setRegion({ x: 0, y: 0, width: picked.naturalWidth, height: picked.naturalHeight })
+      }
       alignCanvas?.fit()
     } catch {
       toastState.addWarning(
-        `Can't attach ${file.name}: not a readable image or video.`
+        `Can't attach ${file.name}: this browser can't decode it. MP4 (H.264) and WebM videos play everywhere.`
       )
     }
   }

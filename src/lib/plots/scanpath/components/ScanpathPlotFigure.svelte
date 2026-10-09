@@ -8,6 +8,7 @@
     type PlotAreaTicks,
   } from '$lib/plots/shared'
   import type { PlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
+  import { untrack } from 'svelte'
   import Play from 'lucide-svelte/icons/play'
   import Pause from 'lucide-svelte/icons/pause'
   import { SYSTEM_SANS_SERIF_SMALL_STACK } from '$lib/shared/textMeasure'
@@ -83,6 +84,14 @@
     if (!media || mediaStimulusId === undefined) return null
     return stimulusMediaStore.getReadyElement(mediaStimulusId, media)
   })
+  /** The browser can't decode the medium: playback falls back to the
+      fixation clock and the bar says why the background is missing. */
+  const mediaFailed = $derived.by(() => {
+    void stimulusMediaStore.version
+    return media !== null && mediaStimulusId !== undefined
+      ? stimulusMediaStore.failed(mediaStimulusId)
+      : false
+  })
 
   // ── Time-sync playback (always on): a bottom
   // bar with play/pause, a seek bar, and the time readout. Fixations appear
@@ -147,7 +156,7 @@
     const el = videoElement
     if (isPlaying) {
       if (el) el.pause()
-      stopPlayback()
+      else stopPlayback()
       return
     }
     // Restart from the beginning when parked on "show all" or at the end.
@@ -157,9 +166,9 @@
       if (el) el.currentTime = 0
     }
     if (el) {
-      void el.play().then(() => {
-        isPlaying = true
-        startTicking()
+      // The element's 'play' event starts the ticking (see the video effect).
+      el.play().catch(() => {
+        if (el.paused) stopPlayback()
       })
     } else {
       isPlaying = true
@@ -197,12 +206,26 @@
     const onDuration = () => {
       videoDurationMs = Number.isFinite(el.duration) ? el.duration * 1000 : 0
     }
-    // Repaint the paused frame after a scrub lands on its decoded frame.
-    const onSeeked = () => playTick++
+    // The element is shared by every plot of this stimulus, so it is one
+    // clock: play, pause and seeks from any of them drive all of them.
+    const onPlay = () => {
+      if (playTime === null) playTime = el.currentTime * 1000
+      isPlaying = true
+      startTicking()
+    }
+    const onPause = () => stopPlayback()
+    const onSeeked = () => {
+      if (playTime !== null) playTime = el.currentTime * 1000
+      playTick++
+    }
+    el.addEventListener('play', onPlay)
+    el.addEventListener('pause', onPause)
     el.addEventListener('ended', onEnded)
     el.addEventListener('durationchange', onDuration)
     el.addEventListener('seeked', onSeeked)
     return () => {
+      el.removeEventListener('play', onPlay)
+      el.removeEventListener('pause', onPause)
       el.removeEventListener('ended', onEnded)
       el.removeEventListener('durationchange', onDuration)
       el.removeEventListener('seeked', onSeeked)
@@ -215,6 +238,25 @@
 
   /** Fixations after this recording time are hidden (Infinity = show all —
       the static/parked state, which reads as "playback finished"). */
+  // Another recording parks on the full picture rather than carry the old
+  // clock over. A participant switch under a video keeps following it: the
+  // video is the stimulus's clock, shared with its other plots.
+  let shown: { participant?: number; stimulus?: number } | null = null
+  $effect(() => {
+    const next = { participant: participantId, stimulus: mediaStimulusId }
+    untrack(() => {
+      const switched =
+        shown !== null &&
+        (next.stimulus !== shown.stimulus ||
+          (next.participant !== shown.participant && !videoElement))
+      if (switched) stopPlayback(true)
+    })
+    shown = next
+  })
+  // Removing the plot mid-run stops the fixation clock (the video effect
+  // handles its own element).
+  $effect(() => () => cancelAnimationFrame(rafId))
+
   const timeCutoff = $derived(playTime !== null ? playTime : Infinity)
 
   /** Fixations whose onset predates this are hidden too: the trailing
@@ -716,7 +758,7 @@
   {#if hasPlayBar}
     <!-- Disabled only while a set video is still decoding; a plain image or
          no media plays off the fixations' recording-time extent directly. -->
-    {@const barDisabled = playDurationMs <= 0 || (media?.kind === 'video' && !videoElement)}
+    {@const barDisabled = playDurationMs <= 0 || (media?.kind === 'video' && !videoElement && !mediaFailed)}
     {@const shownTime = playTime ?? playDurationMs}
     <div class="video-pill" style:height={`${PLAY_BAR_HEIGHT}px`}>
       <button
@@ -743,6 +785,11 @@
         aria-label="Playback position"
         style:--seek-progress={`${playDurationMs > 0 ? (shownTime / playDurationMs) * 100 : 0}%`}
       />
+      {#if mediaFailed}
+        <span class="pill-note" title="Reattach it as MP4 (H.264) or WebM in the Stimuli library.">
+          {media?.kind === 'video' ? 'Video' : 'Image'} can't be decoded in this browser
+        </span>
+      {/if}
       <span class="pill-time">
         {formatTime(shownTime)} / {formatTime(playDurationMs)}
       </span>
@@ -837,6 +884,16 @@
   .pill-seek:disabled {
     cursor: default;
     opacity: 0.4;
+  }
+
+  .pill-note {
+    flex: 0 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: var(--text-xs);
+    color: var(--c-darkgrey);
   }
 
   .pill-time {

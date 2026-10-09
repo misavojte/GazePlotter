@@ -45,12 +45,14 @@ export async function readMediaDimensions(
       return { width: img.naturalWidth, height: img.naturalHeight }
     }
     const video = document.createElement('video')
-    video.preload = 'metadata'
+    // Wait for a decoded frame, not just metadata: a codec the browser can't
+    // play (e.g. HEVC .mov) has readable headers but fails here.
+    video.preload = 'auto'
     video.muted = true
     const dims = await new Promise<{ width: number; height: number }>(
       (resolve, reject) => {
         video.addEventListener(
-          'loadedmetadata',
+          'loadeddata',
           () => resolve({ width: video.videoWidth, height: video.videoHeight }),
           { once: true }
         )

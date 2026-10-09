@@ -63,23 +63,33 @@
   // The drawable media element, created per src. Videos park on their first
   // frame, as in the scanpath plot.
   let mediaEl = $state.raw<HTMLImageElement | HTMLVideoElement | null>(null)
+  /** The browser refused to decode the media (e.g. an unsupported codec). */
+  let mediaFailed = $state(false)
   $effect(() => {
     mediaEl = null
+    mediaFailed = false
     if (!src) return
     let alive = true
     const ready = (el: HTMLImageElement | HTMLVideoElement) => () => {
       if (alive) mediaEl = el
     }
+    const failed = () => {
+      if (alive) mediaFailed = true
+    }
     if (kind === 'image') {
       const el = new Image()
       el.onload = ready(el)
+      el.onerror = failed
       el.src = src
     } else {
       const el = document.createElement('video')
       el.muted = true
       el.playsInline = true
       el.preload = 'auto'
+      el.addEventListener('error', failed, { once: true })
+      // 'canplaythrough' covers browsers that paint without honoring the tiny seek.
       el.addEventListener('seeked', ready(el), { once: true })
+      el.addEventListener('canplaythrough', ready(el), { once: true })
       el.addEventListener('loadedmetadata', () => (el.currentTime = 0.001), {
         once: true,
       })
@@ -256,6 +266,19 @@
       } else {
         ctx.fillStyle = '#e2e8f0' // --c-grey
         ctx.fillRect(r.x, r.y, r.w, r.h)
+        if (mediaFailed) {
+          ctx.save()
+          ctx.font = `11px ${SYSTEM_SANS_SERIF_SMALL_STACK}`
+          ctx.fillStyle = UI_COLORS.TEXT_SECONDARY
+          ctx.textAlign = 'center'
+          ctx.textBaseline = 'middle'
+          ctx.fillText(
+            "This browser can't decode this file",
+            r.x + r.w / 2,
+            r.y + r.h / 2
+          )
+          ctx.restore()
+        }
       }
     }
 
