@@ -146,6 +146,9 @@
   }
 
   function handleWindowScroll(event: Event) {
+    // An element inside the modal already consumed this wheel (e.g. the media
+    // alignment canvas zooming on Ctrl + wheel): don't scroll the body too.
+    if (event.defaultPrevented) return
     if (activeBodyElement && activeModal) {
       // Allow nested scrollable elements to handle their own scrolling
       const path = event.composedPath()

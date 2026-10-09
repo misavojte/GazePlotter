@@ -1,6 +1,6 @@
 <script lang="ts">
   import { Section, ModalButtons } from '$lib/modals'
-  import { InputNumber, Button } from '$lib/shared/components'
+  import { InputNumber, Button, Select } from '$lib/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { formatFileSize } from '$lib/shared/format'
   import { stimulusMediaStore } from '$lib/data/media/mediaStore.svelte'
@@ -9,7 +9,18 @@
     MEDIA_FILE_ACCEPT,
     mediaRegionOf,
   } from '$lib/data/media/mediaUpload'
+  import {
+    collectFixationPoints,
+    coverBounds,
+    pointsBounds,
+    snapRect,
+    snapStepForSize,
+    type Rect,
+  } from '$lib/data/media/mediaAlignment'
+  import { getAllParticipants } from '$lib/data/engine'
   import type { StimulusMedia } from '$lib/data/types'
+  import AlignmentCanvas from './AlignmentCanvas.svelte'
+  import { isTextEntryTarget } from '$lib/workspace/keys'
 
   export interface Props {
     stimulusId: number
@@ -43,11 +54,11 @@
     try {
       const picked = await buildStimulusMediaFromFile(file)
       draft = { media: picked, blob: file }
-      // New pixel space: re-seed the mapping to the file's natural size.
-      x = 0
-      y = 0
-      width = picked.naturalWidth
-      height = picked.naturalHeight
+      // New pixel space: re-seed the mapping to the file's natural size. The
+      // old undo steps belong to the old file, so they go too.
+      history = []
+      setRegion({ x: 0, y: 0, width: picked.naturalWidth, height: picked.naturalHeight })
+      alignCanvas?.fit()
     } catch {
       toastState.addWarning(
         `Can't attach ${file.name}: not a readable image or video.`
@@ -76,25 +87,120 @@
 
   const COORD_MIN = -1_000_000
 
-  function resetToImageSize() {
+  /** The saved position when the modal opened, drawn on the canvas for reference. */
+  // svelte-ignore state_referenced_locally
+  const original: Rect | null = saved ? { ...initial } : null
+
+  /** The typed values as a rect, or null while one is missing or not positive. */
+  const region = $derived<Rect | null>(
+    x !== undefined &&
+      y !== undefined &&
+      width !== undefined &&
+      width > 0 &&
+      height !== undefined &&
+      height > 0
+      ? { x, y, width, height }
+      : null
+  )
+
+  function setRegion(r: Rect) {
+    x = r.x
+    y = r.y
+    width = r.width
+    height = r.height
+  }
+
+  // Fixations to align against: every participant's, or one participant's.
+  const ALL_PARTICIPANTS = 'all'
+  let fixationsFrom = $state(ALL_PARTICIPANTS)
+  const participantOptions = $derived([
+    { label: 'All participants', value: ALL_PARTICIPANTS },
+    ...getAllParticipants(engine).map(p => ({
+      label: p.displayedName,
+      value: String(p.id),
+    })),
+  ])
+  const points = $derived.by(() => {
+    void engine.metadata
+    const reader = engine.getReader()
+    if (!reader) return new Float64Array(0)
+    const ids =
+      fixationsFrom === ALL_PARTICIPANTS
+        ? getAllParticipants(engine).map(p => p.id)
+        : [Number(fixationsFrom)]
+    return collectFixationPoints(reader, stimulusId, ids)
+  })
+  const hasPoints = $derived(points.length > 0)
+
+  // Undo within the modal: one step per drag, per button, and per burst of
+  // arrow-key nudges. Cancel still discards everything.
+  const NUDGE_BURST_MS = 800
+  let history = $state.raw<Rect[]>([])
+  let lastNudgeAt = 0
+
+  function snapshot(kind: 'drag' | 'nudge' | 'button') {
+    if (!region) return
+    const now = performance.now()
+    const sameBurst = kind === 'nudge' && now - lastNudgeAt < NUDGE_BURST_MS
+    lastNudgeAt = kind === 'nudge' ? now : 0
+    if (sameBurst) return
+    history = [...history.slice(-49), region]
+  }
+
+  function undo() {
+    const previous = history.at(-1)
+    if (!previous) return
+    history = history.slice(0, -1)
+    setRegion(previous)
+  }
+
+  // The workspace's own undo is off while a modal is open, so Ctrl+Z here
+  // only ever means "undo the last alignment edit".
+  function onWindowKeydown(e: KeyboardEvent) {
+    if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.code !== 'KeyZ') return
+    if (isTextEntryTarget(e)) return
+    e.preventDefault()
+    undo()
+  }
+
+  let alignCanvas = $state<ReturnType<typeof AlignmentCanvas> | null>(null)
+
+  function resetToMediaSize() {
     if (!media) return
-    x = 0
-    y = 0
-    width = media.naturalWidth
-    height = media.naturalHeight
+    snapshot('button')
+    setRegion({ x: 0, y: 0, width: media.naturalWidth, height: media.naturalHeight })
+    alignCanvas?.fit()
+  }
+
+  function fitToFixations() {
+    const bounds = pointsBounds(points)
+    if (!media || !bounds) return
+    snapshot('button')
+    const r = coverBounds(bounds, media.naturalWidth / media.naturalHeight)
+    setRegion(snapRect(r, snapStepForSize(Math.max(r.width, r.height))))
+    alignCanvas?.fit()
   }
 
   function onApply() {
     if (!media || !blob) return
-    if (
-      x === undefined ||
-      y === undefined ||
-      !(width !== undefined && width > 0) ||
-      !(height !== undefined && height > 0)
-    ) {
+    if (!region) {
       toastState.addWarning('Width and height must be positive numbers.')
       return
     }
+    const before = saved ? mediaRegionOf(saved) : null
+    const unchanged =
+      !draft &&
+      before !== null &&
+      before.x === region.x &&
+      before.y === region.y &&
+      before.width === region.width &&
+      before.height === region.height
+    // Nothing changed: close without an empty undo step.
+    if (unchanged) {
+      modalState.close()
+      return
+    }
+    const { x, y, width, height } = region
     const isNatural =
       x === 0 && y === 0 && width === media.naturalWidth && height === media.naturalHeight
     const { region: _prev, ...rest } = media
@@ -122,6 +228,8 @@
   }
 </script>
 
+<svelte:window onkeydown={onWindowKeydown} />
+
 <input
   bind:this={fileInput}
   type="file"
@@ -131,55 +239,81 @@
 />
 
 {#if media}
-  <Section title={stimulusName}>
-    <div class="stack">
-      <div class="preview">
-        {#if previewUrl}
-          {#if media.kind === 'image'}
-            <img src={previewUrl} alt={media.fileName} />
-          {:else}
-            <!-- svelte-ignore a11y_media_has_caption -->
-            <video src={previewUrl} controls muted></video>
-          {/if}
-        {/if}
-      </div>
-      <div class="meta">
-        <span class="file-name" title={media.fileName}>{media.fileName}</span>
-        <span>
-          {media.kind} · {media.naturalWidth}×{media.naturalHeight}{#if blob}
-            · {formatFileSize(blob.size)}{/if}
-        </span>
-        <div class="replace">
-          <Button size="sm" onclick={() => fileInput?.click()}>Replace…</Button>
-        </div>
+  <Section>
+    <div class="meta">
+      <span class="stimulus-name" title={stimulusName}>{stimulusName}</span>
+      <span class="file-name" title={media.fileName}>{media.fileName}</span>
+      <span>
+        {media.kind} · {media.naturalWidth}×{media.naturalHeight}{#if blob}
+          · {formatFileSize(blob.size)}{/if}
+      </span>
+      <div class="replace">
+        <Button size="sm" onclick={() => fileInput?.click()}>Replace…</Button>
       </div>
     </div>
   </Section>
 
-  <Section title="Position in gaze coordinates">
+  <Section title="Alignment">
     <div class="stack">
-      <p class="hint">
-        Where the media sits in your recording's coordinate system. By default
-        gaze coordinates are assumed to equal image pixels. Change these when
-        the stimulus was offset on screen or recorded at a different scale.
-      </p>
-      <div class="coord-group">
-        <span class="coord-label">Top-left corner of the media</span>
-        <div class="coord-fields">
-          <InputNumber label="Left (gaze X)" min={COORD_MIN} bind:value={x} />
-          <InputNumber label="Top (gaze Y)" min={COORD_MIN} bind:value={y} />
+      {#if hasPoints}
+        <p class="hint" id="media-align-hint">
+          Drag the media until the fixations sit on its content. Drag a corner
+          to resize, with Shift to change proportions. Typed values are stored
+          exactly as entered.
+        </p>
+        <div class="controls">
+          <div class="fixations-from">
+            <Select
+              label="Fixations from"
+              options={participantOptions}
+              value={fixationsFrom}
+              onchange={e => (fixationsFrom = e.detail as string)}
+            />
+          </div>
+          <Button size="sm" isDisabled={history.length === 0} onclick={undo}>Undo</Button>
+          <Button size="sm" onclick={fitToFixations}>Fit to fixations</Button>
+          <Button size="sm" onclick={resetToMediaSize}>Reset to media size</Button>
+        </div>
+      {:else}
+        <p class="hint" id="media-align-hint">
+          This stimulus has no fixations with coordinates, so there is nothing
+          to align the media against. Enter its position below if you know it.
+        </p>
+      {/if}
+      <div class="canvas-block">
+        <AlignmentCanvas
+          bind:this={alignCanvas}
+          kind={media.kind}
+          src={previewUrl}
+          {points}
+          {region}
+          {original}
+          onchange={setRegion}
+          onbegin={snapshot}
+          describedBy="media-align-hint"
+        />
+      </div>
+      <div class="coord-row">
+        <div class="coord-group">
+          <span class="coord-label">Top-left corner, in gaze units</span>
+          <div class="coord-fields">
+            <InputNumber label="Left (gaze X)" min={COORD_MIN} step="any" bind:value={x} />
+            <InputNumber label="Top (gaze Y)" min={COORD_MIN} step="any" bind:value={y} />
+          </div>
+        </div>
+        <div class="coord-group">
+          <span class="coord-label">Size, in gaze units</span>
+          <div class="coord-fields">
+            <InputNumber label="Width" min={0} step="any" bind:value={width} />
+            <InputNumber label="Height" min={0} step="any" bind:value={height} />
+          </div>
         </div>
       </div>
-      <div class="coord-group">
-        <span class="coord-label">Size of the media, in gaze units</span>
-        <div class="coord-fields">
-          <InputNumber label="Width" min={1} bind:value={width} />
-          <InputNumber label="Height" min={1} bind:value={height} />
+      {#if !hasPoints}
+        <div>
+          <Button size="sm" onclick={resetToMediaSize}>Reset to media size</Button>
         </div>
-      </div>
-      <div>
-        <Button size="sm" onclick={resetToImageSize}>Reset to image size</Button>
-      </div>
+      {/if}
     </div>
   </Section>
 
@@ -214,20 +348,16 @@
 {/if}
 
 <style>
-  .preview {
+  .controls {
     display: flex;
-    justify-content: center;
-    background: var(--c-darkwhite);
-    border: 1px solid var(--c-border);
-    border-radius: var(--rounded);
-    overflow: hidden;
+    gap: 0.5rem;
+    align-items: flex-end;
+    flex-wrap: wrap;
   }
 
-  .preview img,
-  .preview video {
-    max-width: 100%;
-    max-height: 320px;
-    object-fit: contain;
+  .fixations-from {
+    flex: 1 1 12rem;
+    min-width: 0;
   }
 
   .meta {
@@ -244,6 +374,16 @@
 
   .file-input {
     display: none;
+  }
+
+  .stimulus-name {
+    max-width: 14rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--c-text);
   }
 
   .file-name {
@@ -284,6 +424,22 @@
   .coord-fields {
     display: flex;
     gap: 0.75rem;
+  }
+
+  /* The canvas sets the modal's width: wide enough for precise work, never
+     wider than the viewport allows. */
+  .canvas-block {
+    display: flex;
+    flex-direction: column;
+    gap: 0.375rem;
+    width: min(860px, calc(100vw - 10rem));
+    max-width: 100%;
+  }
+
+  .coord-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem 1.5rem;
   }
 
 </style>
