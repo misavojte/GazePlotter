@@ -428,6 +428,8 @@
     margin: 0 auto;
     line-height: 1.6;
     color: var(--c-black);
+    /* Segoe UI Variable has no italic face: let *emphasis* slant here. */
+    font-synthesis-style: auto;
   }
 
   /* Typography & Elements */
