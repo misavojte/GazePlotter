@@ -519,7 +519,6 @@
     margin: 2rem 0;
     padding: 1.5rem;
     border-radius: 12px;
-    font-style: italic;
     color: var(--c-black);
   }
 

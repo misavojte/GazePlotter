@@ -20,10 +20,10 @@
 
   const cardTitle = $derived(
     fatalLoadError
-      ? 'Data Load Failed'
+      ? 'Data load failed'
       : canResetLayout
-        ? 'Workspace Empty'
-        : 'No Data Loaded'
+        ? 'Workspace empty'
+        : 'No data loaded'
   )
 
   const openErrorReport = () => {
@@ -50,9 +50,9 @@
     </p>
     <div class="actions">
       {#if fatalLoadError && canOpenErrorReport}
-        <Button onclick={openErrorReport}>Open Report</Button>
+        <Button onclick={openErrorReport}>Open report</Button>
       {:else if canResetLayout}
-        <Button onclick={handleResetLayout}>Reset Layout</Button>
+        <Button onclick={handleResetLayout}>Reset layout</Button>
       {/if}
       <Button onclick={onUpload}>Import workspace or data</Button>
     </div>

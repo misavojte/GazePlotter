@@ -32,6 +32,8 @@
     name="description"
     content="GazePlotter with the ETVIS dataset preloaded: free, open-source scarf plots, transition matrices and AOI metrics in the browser. No registration, no data sent to a server."
   />
+  <!-- The homepage with another dataset: search should rank the homepage. -->
+  <link rel="canonical" href="https://gazeplotter.com/" />
 </svelte:head>
 
 <main>
