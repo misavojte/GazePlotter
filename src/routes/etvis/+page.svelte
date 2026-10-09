@@ -28,6 +28,10 @@
   <title
     >GazePlotter | Free eye-tracking data visualisation via scarf plots</title
   >
+  <meta
+    name="description"
+    content="GazePlotter with the ETVIS dataset preloaded: free, open-source scarf plots, transition matrices and AOI metrics in the browser. No registration, no data sent to a server."
+  />
 </svelte:head>
 
 <main>
