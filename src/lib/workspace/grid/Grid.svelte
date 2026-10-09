@@ -241,7 +241,7 @@
     {/each}
   {/if}
 
-  {#if grid.selectedItemIds.length > 1 && !interaction.isInteracting && selectionPath}
+  {#if grid.selectedItemIds.length > 1 && !interaction.isTransforming && selectionPath}
     <svg class="group-selection-svg" aria-hidden="true">
       <path d={selectionPath} class="group-selection-path" />
     </svg>
