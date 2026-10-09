@@ -2,8 +2,6 @@
 
 AOI transition metrics describe the dynamics of eye movement, mapping how visual attention shifts from one Area of Interest (AOI) to another. In GazePlotter, these metrics are formulated as a 2D matrix representing transitions from a source AOI (row) to a target AOI (column).
 
----
-
 ## Output Shape and Projections Translation
 
 All transition metrics naturally output an `aoi-pair-matrix` (an N×N grid, where N is the number of active AOIs). However, using GazePlotter's projection algebra, you can translate this raw matrix into vectors or scalars, making transition metrics consumable by almost any visualization in the workspace.
@@ -22,8 +20,6 @@ You can reduce the N×N matrix into a single numerical value:
 - **Matrix Aggregate (`matrix-aggregate`)**: Reduces the entire grid using a reducer (`sum`, `mean`, `max`, or `min`), optionally excluding diagonal self-transitions.
 
 > **Visualizer Compatibility**: Projecting a transition matrix into a scalar allows you to select it in the [Metric Correlation](/docs/visualizations/metric-correlation) plot (non-windowed) or the [Metric Timeline](/docs/visualizations/metric-timeline) plot (windowed).
-
----
 
 ## Metric Recipes
 
@@ -59,8 +55,6 @@ The percentage share of all transitions occurring between specific AOI pairs, no
 - **Raw Shape**: `aoi-pair-matrix`
 - **Unit**: `%`
 - **Measurement class**: Intensive (normalized). Each cell is a per-participant share, averaged across participants; summing shares across participants or cells is not meaningful.
-
----
 
 ## Parameters
 
