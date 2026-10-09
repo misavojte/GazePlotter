@@ -1,4 +1,4 @@
-import { SquarePlus, Undo2, Redo2, Settings2 } from 'lucide-svelte'
+import { Grid2x2Plus, Undo2, Redo2, Settings2 } from 'lucide-svelte'
 import type { LucideIconComponent } from '$lib/shared/icon'
 import { PLOT_GROUPS, type PlotGroup } from '$lib/plots/groups'
 import type { PlotType } from '$lib/workspace/grid/types'
@@ -49,7 +49,7 @@ type ControlId =
 const controlIcons = {
   undo: Undo2,
   redo: Redo2,
-  'add-visualization': SquarePlus,
+  'add-visualization': Grid2x2Plus,
   'edit-plot': Settings2,
 } satisfies Record<ControlId, LucideIconComponent>
 
