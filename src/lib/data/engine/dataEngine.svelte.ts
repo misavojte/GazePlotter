@@ -183,14 +183,14 @@ export class DataEngine {
    * (invariant: metadata entry ⇔ stored blob). Called by the ingest apply —
    * NOT by {@link loadDataset}, which merge/unmerge also run through and
    * which must keep the blobs (they are keyed by tombstoned, stable ids).
-   * Returns how many entries were dropped, for the caller's warning toast.
+   * Returns the ids of the dropped entries, for the caller's warning toast.
    */
-  setStimulusMediaBlobs(blobs: Record<number, Blob> | undefined): number {
+  setStimulusMediaBlobs(blobs: Record<number, Blob> | undefined): number[] {
     stimulusMediaStore.clear()
     const meta = this.metadata
     const media = meta?.stimuliMedia
-    if (!meta || !media) return 0
-    let dropped = 0
+    if (!meta || !media) return []
+    const dropped: number[] = []
     for (const key of Object.keys(media)) {
       const id = Number(key)
       const blob = blobs?.[id]
@@ -198,7 +198,7 @@ export class DataEngine {
         stimulusMediaStore.setBlob(id, blob)
       } else {
         delete media[id]
-        dropped++
+        dropped.push(id)
       }
     }
     if (Object.keys(media).length === 0) delete meta.stimuliMedia

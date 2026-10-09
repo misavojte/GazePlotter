@@ -45,12 +45,15 @@
   const blob = $derived(draft?.blob ?? savedBlob)
 
   let fileInput: HTMLInputElement | null = null
+  /** A picked file is being decoded (a large image or video takes a moment). */
+  let reading = $state(false)
 
   async function onFilePicked(event: Event) {
     const input = event.target as HTMLInputElement
     const file = input.files?.[0]
     input.value = ''
     if (!file) return
+    reading = true
     try {
       const picked = await buildStimulusMediaFromFile(file)
       draft = { media: picked, blob: file }
@@ -72,6 +75,8 @@
       toastState.addWarning(
         `Can't attach ${file.name}: this browser can't decode it. MP4 (H.264) and WebM videos play everywhere.`
       )
+    } finally {
+      reading = false
     }
   }
 
@@ -191,11 +196,7 @@
   }
 
   function onApply() {
-    if (!media || !blob) return
-    if (!region) {
-      toastState.addWarning('Width and height must be positive numbers.')
-      return
-    }
+    if (!media || !blob || !region) return
     const before = saved ? mediaRegionOf(saved) : null
     const unchanged =
       !draft &&
@@ -257,7 +258,9 @@
           · {formatFileSize(blob.size)}{/if}
       </span>
       <div class="replace">
-        <Button size="sm" onclick={() => fileInput?.click()}>Replace…</Button>
+        <Button size="sm" isDisabled={reading} onclick={() => fileInput?.click()}>
+          {reading ? 'Reading file…' : 'Replace…'}
+        </Button>
       </div>
     </div>
   </Section>
@@ -328,7 +331,7 @@
 
   <ModalButtons
     buttons={[
-      { label: 'Apply', onclick: onApply, variant: 'primary' },
+      { label: 'Apply', onclick: onApply, variant: 'primary', isDisabled: !region || reading },
       ...(saved ? [{ label: 'Remove media', onclick: onRemove }] : []),
       { label: 'Cancel', onclick: () => modalState.close() },
     ]}
@@ -341,8 +344,8 @@
         plots draw it behind the gaze data (the scanpath background).
       </p>
       <div>
-        <Button variant="primary" onclick={() => fileInput?.click()}>
-          Choose image or video…
+        <Button variant="primary" isDisabled={reading} onclick={() => fileInput?.click()}>
+          {reading ? 'Reading file…' : 'Choose image or video…'}
         </Button>
       </div>
       <p class="hint">

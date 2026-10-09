@@ -804,9 +804,14 @@ export class IngestService {
     const droppedMedia = this.deps.engine.setStimulusMediaBlobs(
       parsedData.mediaBlobs
     )
-    if (droppedMedia > 0) {
+    if (droppedMedia.length > 0) {
+      const names = droppedMedia
+        .slice(0, 3)
+        .map(id => getStimulus(this.deps.engine, id).displayedName)
+        .join(', ')
+      const more = droppedMedia.length > 3 ? ` and ${droppedMedia.length - 3} more` : ''
       this.deps.toastState.addWarning(
-        `${droppedMedia} stimulus reference ${droppedMedia > 1 ? 'media were' : 'medium was'} missing from the workspace file and skipped.`
+        `Reference media for ${names}${more} was missing from the workspace file. Reattach it in the Stimuli library.`
       )
     }
     this.openLayout(
