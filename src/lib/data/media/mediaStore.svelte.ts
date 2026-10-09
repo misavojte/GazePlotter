@@ -13,7 +13,7 @@ import type { StimulusMedia } from '../types'
  * repaint signal — it bumps when an element finishes decoding and on every
  * set/remove/clear, so canvases that draw media depend on it.
  */
-class StimulusMediaStore {
+export class StimulusMediaStore {
   /** Bumps on decode-ready and on set/remove/clear — the canvas repaint dep. */
   version = $state(0)
 
@@ -29,6 +29,8 @@ class StimulusMediaStore {
   >()
 
   setBlob(stimulusId: number, blob: Blob): void {
+    // Same bytes (an alignment edit or its undo): keep the decoded element.
+    if (this.blobs.get(stimulusId) === blob) return
     this.evictElement(stimulusId)
     this.blobs.set(stimulusId, blob)
     this.version++
@@ -137,14 +139,3 @@ class StimulusMediaStore {
   }
 }
 
-export const stimulusMediaStore = new StimulusMediaStore()
-
-/** Media file extension for zip entry names — from the upload name, falling
- *  back to the mime subtype. */
-export function mediaFileExtension(media: StimulusMedia): string {
-  const dot = media.fileName.lastIndexOf('.')
-  if (dot > 0 && dot < media.fileName.length - 1) {
-    return media.fileName.slice(dot + 1).toLowerCase()
-  }
-  return media.mimeType.split('/')[1] ?? 'bin'
-}

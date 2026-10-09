@@ -64,7 +64,11 @@
   const { errorService, ingest } = session
   const camera = new WorkspaceCamera()
   const actions = createWorkspaceActions(session, camera)
-  onDestroy(() => camera.destroy())
+  onDestroy(() => {
+    camera.destroy()
+    // Releases the media blobs and their object URLs (recordings can be GBs).
+    session.engine.media.clear()
+  })
 
   let activeAbort: AbortController | null = null
   let loadGeneration = 0

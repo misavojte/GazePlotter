@@ -1,5 +1,6 @@
 import type { WorkspaceFormatDefinition } from '../kernel/format'
 import type { StimulusMedia } from '$lib/data/types'
+import { readBlobZip, readZipEntry } from '$lib/data/zip/blobZip'
 
 /**
  * A saved GazePlotter workspace archive (`.gazeplotter.zip`) — produced when
@@ -19,36 +20,41 @@ export const workspaceZipFormat: WorkspaceFormatDefinition = {
   displayName: 'GazePlotter workspace archive',
   matchesFileName: name => name.toLowerCase().endsWith('.gazeplotter.zip'),
 
-  async read(bytes) {
-    const JSZipLib = (await import('jszip')).default
-    const zip = await JSZipLib.loadAsync(bytes)
-    const wsEntry = zip.file('workspace.json')
+  async read(file) {
+    const entries = await readBlobZip(file)
+    const wsEntry = entries.get('workspace.json')
     if (!wsEntry) {
       throw new Error(
         'Not a GazePlotter workspace archive: workspace.json entry is missing'
       )
     }
 
-    // Same lazy import as workspaceJson.ts — the migration chain pulls in the
+    // Same lazy import as workspaceJson.ts: the migration chain pulls in the
     // metric library, which must stay out of the worker's startup chunk.
     const { processJsonFileWithGrid } = await import('../workspace/parser')
-    const result = processJsonFileWithGrid(await wsEntry.async('string'))
+    const result = processJsonFileWithGrid(
+      await (await readZipEntry(file, wsEntry)).text()
+    )
 
+    // Stored media entries come back as slices of the archive: no copy.
     const stimuliMedia = result.data.stimuliMedia as
       | Record<number, StimulusMedia>
       | undefined
     const mediaBlobs: Record<number, Blob> = {}
     if (stimuliMedia) {
       for (const key of Object.keys(stimuliMedia)) {
-        const entry = zip.file(new RegExp(`^media/${key}\\.[^/]+$`))[0]
+        const entry = [...entries.values()].find(e =>
+          e.name.startsWith(`media/${key}.`)
+        )
         if (!entry) continue
         try {
-          const buffer = await entry.async('arraybuffer')
-          mediaBlobs[Number(key)] = new Blob([buffer], {
-            type: stimuliMedia[Number(key)].mimeType,
-          })
+          mediaBlobs[Number(key)] = await readZipEntry(
+            file,
+            entry,
+            stimuliMedia[Number(key)].mimeType
+          )
         } catch {
-          // Corrupt entry → this stimulus simply loses its media on apply.
+          // Corrupt entry: this stimulus simply loses its media on apply.
         }
       }
     }

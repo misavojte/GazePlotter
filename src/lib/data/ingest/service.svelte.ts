@@ -256,8 +256,9 @@ class IngestWorkerClient {
       return
     }
 
-    // Archive formats need fully-materialized buffers (JSZip can't stream);
-    // everything else — including workspace JSON — streams to the worker.
+    // Archives go over whole (a cloned File is a reference, not a copy) so
+    // readers can slice them; everything else, workspace JSON included,
+    // streams to the worker.
     if (isArchiveFileName(fileArray[0].name)) {
       void this.processZipFiles(fileArray)
     } else if (this.isStreamTransferable()) {
@@ -367,14 +368,13 @@ class IngestWorkerClient {
       const file = files[index]
 
       try {
-        const buffer = await file.arrayBuffer()
         const zipName = this.fileNames[index]
         if (
           !this.postWorkerMessage(
-            { type: 'zip-buffer', data: { buffer, zipName } },
-            [buffer],
+            { type: 'zip-file', data: { file, zipName } },
+            [],
             {
-              stage: 'dispatch-zip-buffer',
+              stage: 'dispatch-zip-file',
               fileIndex: index,
               fileName: file.name,
               zipName,
@@ -385,7 +385,7 @@ class IngestWorkerClient {
         }
       } catch (error) {
         this.handleError(error, {
-          stage: 'read-zip-buffer',
+          stage: 'read-zip-file',
           fileIndex: index,
           fileName: file.name,
         })

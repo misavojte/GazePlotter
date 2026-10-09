@@ -4,7 +4,7 @@ import { makeDataType } from './helpers/dataTypeFixtures'
 import { buildWorkspace } from '../src/lib/data/export/controller'
 import { workspaceZipFormat } from '../src/lib/data/ingest/formats/workspaceZip'
 import { workspaceJsonFormat } from '../src/lib/data/ingest/formats/workspaceJson'
-import { stimulusMediaStore } from '../src/lib/data/media/mediaStore.svelte'
+import { StimulusMediaStore } from '../src/lib/data/media/mediaStore.svelte'
 import {
   matchMediaFilesToStimuli,
   mediaKindOf,
@@ -35,9 +35,15 @@ function createData(withMedia: boolean): DataType {
 
 const ingestCtx = { prompt: async () => '', reportBytes: () => {} }
 
+function storeWith(blob: Blob | null): StimulusMediaStore {
+  const store = new StimulusMediaStore()
+  if (blob) store.setBlob(0, blob)
+  return store
+}
+
 describe('workspace media round trip', () => {
   it('exports plain JSON when no stimulus has media', async () => {
-    const payload = await buildWorkspace(createData(false), [], null)
+    const payload = await buildWorkspace(createData(false), [], null, storeWith(null))
     expect(payload.extension).toBe('.json')
     expect(typeof payload.content).toBe('string')
     expect((payload.content as string).includes('stimuliMedia')).toBe(false)
@@ -45,48 +51,47 @@ describe('workspace media round trip', () => {
 
   it('exports a .gazeplotter.zip with media and re-imports it losslessly', async () => {
     const bytes = new Uint8Array([137, 80, 78, 71, 1, 2, 3, 4])
-    stimulusMediaStore.setBlob(0, new Blob([bytes], { type: MEDIA.mimeType }))
-    try {
-      const payload = await buildWorkspace(createData(true), [], null)
-      expect(payload.extension).toBe('.gazeplotter.zip')
-      expect(payload.content).toBeInstanceOf(Blob)
+    const payload = await buildWorkspace(
+      createData(true),
+      [],
+      null,
+      storeWith(new Blob([bytes], { type: MEDIA.mimeType }))
+    )
+    expect(payload.extension).toBe('.gazeplotter.zip')
+    expect(payload.content).toBeInstanceOf(Blob)
+    expect(payload.skippedMedia).toEqual([])
 
-      const zipBytes = new Uint8Array(
-        await (payload.content as Blob).arrayBuffer()
-      )
-      const result = await workspaceZipFormat.read(zipBytes, ingestCtx)
-      if (result.kind !== 'workspace') throw new Error('expected workspace')
+    const result = await workspaceZipFormat.read(payload.content as Blob, ingestCtx)
+    if (result.kind !== 'workspace') throw new Error('expected workspace')
 
-      expect(result.data.stimuliMedia).toEqual({ 0: MEDIA })
-      const blob = result.mediaBlobs?.[0]
-      expect(blob).toBeInstanceOf(Blob)
-      expect(new Uint8Array(await blob!.arrayBuffer())).toEqual(bytes)
-      expect(blob!.type).toBe(MEDIA.mimeType)
-    } finally {
-      stimulusMediaStore.clear()
+    expect(result.data.stimuliMedia).toEqual({ 0: MEDIA })
+    const blob = result.mediaBlobs?.[0]
+    expect(blob).toBeInstanceOf(Blob)
+    expect(new Uint8Array(await blob!.arrayBuffer())).toEqual(bytes)
+    expect(blob!.type).toBe(MEDIA.mimeType)
+  })
+
+  it('leaves out an unreadable medium and reports its stimulus', async () => {
+    const unreadable = new Blob([new Uint8Array([1])], { type: 'image/png' })
+    unreadable.stream = () => {
+      throw new DOMException('moved', 'NotReadableError')
     }
+    const payload = await buildWorkspace(createData(true), [], null, storeWith(unreadable))
+    expect(payload.skippedMedia).toEqual([0])
+
+    const result = await workspaceZipFormat.read(payload.content as Blob, ingestCtx)
+    if (result.kind !== 'workspace') throw new Error('expected workspace')
+    expect(result.mediaBlobs).toEqual({})
   })
 
   it('tolerates a missing media entry (drops only that blob)', async () => {
-    stimulusMediaStore.setBlob(0, new Blob([new Uint8Array([1])], { type: 'image/png' }))
-    try {
-      const payload = await buildWorkspace(createData(true), [], null)
-      const JSZipLib = (await import('jszip')).default
-      const zip = await JSZipLib.loadAsync(await (payload.content as Blob).arrayBuffer())
-      zip.remove('media/0.png')
-      const stripped = new Uint8Array(
-        await zip.generateAsync({ type: 'arraybuffer' })
-      )
-
-      const result = await workspaceZipFormat.read(stripped, ingestCtx)
-      if (result.kind !== 'workspace') throw new Error('expected workspace')
-      // Metadata still present at parse time; the ingest apply reconciles it
-      // against the (empty) blob map and warns.
-      expect(result.mediaBlobs).toEqual({})
-      expect(result.data.stimuliMedia).toEqual({ 0: MEDIA })
-    } finally {
-      stimulusMediaStore.clear()
-    }
+    const payload = await buildWorkspace(createData(true), [], null, storeWith(null))
+    const result = await workspaceZipFormat.read(payload.content as Blob, ingestCtx)
+    if (result.kind !== 'workspace') throw new Error('expected workspace')
+    // Metadata still present at parse time; the ingest apply reconciles it
+    // against the (empty) blob map and warns.
+    expect(result.mediaBlobs).toEqual({})
+    expect(result.data.stimuliMedia).toEqual({ 0: MEDIA })
   })
 
   describe('matching uploaded media to stimuli', () => {

@@ -105,7 +105,7 @@ export interface WorkspaceFormatDefinition {
   displayName: string
   matchesFileName(fileName: string): boolean
   /** A workspace file is the whole result — no sink involved. */
-  read(bytes: Uint8Array, ctx: IngestContext): Promise<IngestResult>
+  read(file: Blob, ctx: IngestContext): Promise<IngestResult>
 }
 
 /**

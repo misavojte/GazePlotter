@@ -5,7 +5,7 @@
  * job, real registry, real writer — nothing mocked) through its postMessage
  * protocol and pins:
  *   - the inbound message types it accepts ('file-names', 'buffer', 'stream',
- *     'zip-buffer', 'prompt-response'),
+ *     'zip-file', 'prompt-response'),
  *   - the outbound sequence (progress* → done) and payload shape
  *     ('done' carries an IngestResult envelope),
  *   - binary buffers are TRANSFERRED (not copied) on 'done',
@@ -180,8 +180,8 @@ describe('worker protocol', () => {
 
   it(".zip file names route to the Pupil Cloud format (file-name claim) and bad zips 'fail'", async () => {
     await send('file-names', ['recording.zip'])
-    await send('zip-buffer', {
-      buffer: toBuffer('this is not a zip archive'),
+    await send('zip-file', {
+      file: new Blob([toBuffer('this is not a zip archive')]),
       zipName: 'recording.zip',
     })
 

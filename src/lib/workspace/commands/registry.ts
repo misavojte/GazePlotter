@@ -7,7 +7,6 @@ import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { createChildCommand } from './utils'
 import { mergeParticipants as computeParticipantMerge } from '$lib/data/merge/mergeParticipants'
 import { mergeStimuli as computeStimulusMerge } from '$lib/data/merge/mergeStimuli'
-import { stimulusMediaStore } from '$lib/data/media/mediaStore.svelte'
 import { resolvePlotDefinition } from '$lib/plots/registry'
 import { GridState } from '$lib/workspace/grid'
 import {
@@ -562,7 +561,7 @@ export function createWorkspaceCommandRegistry(
             return {
               stimulusId,
               media: current,
-              blob: current ? stimulusMediaStore.getBlob(stimulusId) : null,
+              blob: current ? engine.media.getBlob(stimulusId) : null,
             }
           }),
         },

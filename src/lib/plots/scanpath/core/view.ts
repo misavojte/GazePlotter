@@ -67,6 +67,7 @@ export function getScanpathView(
       participantId: settings.participantId,
       media,
       mediaStimulusId: settings.stimulusId,
+      mediaStore: engine.media,
     },
   }
 }

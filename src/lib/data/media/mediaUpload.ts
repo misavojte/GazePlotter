@@ -161,3 +161,13 @@ export function matchMediaFilesToStimuli(
   }
   return { matches, unmatched }
 }
+
+/** Media file extension for zip entry names: from the upload name, falling
+ *  back to the mime subtype. */
+export function mediaFileExtension(media: StimulusMedia): string {
+  const dot = media.fileName.lastIndexOf('.')
+  if (dot > 0 && dot < media.fileName.length - 1) {
+    return media.fileName.slice(dot + 1).toLowerCase()
+  }
+  return media.mimeType.split('/')[1] ?? 'bin'
+}

@@ -15,6 +15,7 @@ import {
 } from './controller'
 import type { CsvFormatOptions } from './encoders/csv'
 import { unfoldMerges } from '$lib/data/merge/applyMerges'
+import { getStimulus } from '$lib/data/engine'
 import type { ExportNaming } from './types'
 import {
   type MetricDataExportOptions,
@@ -28,7 +29,7 @@ type ExportServiceDeps = {
   errorService: Pick<ErrorService, 'report'>
   grid: GridState
   ingest: IngestService
-  toastState: Pick<ToastState, 'addSuccess'>
+  toastState: Pick<ToastState, 'addSuccess' | 'addWarning'>
   /** Session-resolved `saveFile` embedding option (web: anchor download). */
   saveFile: SaveFile
 }
@@ -149,14 +150,21 @@ export class ExportService {
       // Original-on-disk (PLANMERGE §4): persist the pristine pre-merge data +
       // the merge log, not the folded working view. `unfoldMerges` is a no-op
       // when nothing is merged. The merged view is re-derived on load.
-      this.deliver(
-        await buildWorkspace(
-          unfoldMerges(this.getExportData()),
-          this.deps.grid.items,
-          this.deps.ingest.metadata
-        ),
-        this.resolveFileName(options.fileName)
+      const { skippedMedia, ...payload } = await buildWorkspace(
+        unfoldMerges(this.getExportData()),
+        this.deps.grid.items,
+        this.deps.ingest.metadata,
+        this.deps.engine.media
       )
+      this.deliver(payload, this.resolveFileName(options.fileName))
+      if (skippedMedia.length > 0) {
+        const names = skippedMedia
+          .map(id => getStimulus(this.deps.engine, id).displayedName)
+          .join(', ')
+        this.deps.toastState.addWarning(
+          `Reference media for ${names} could not be read (its file may have moved) and was left out of the export.`
+        )
+      }
     }, 'Workspace exported successfully', {
       exportType: 'workspace',
       fileName: options.fileName,

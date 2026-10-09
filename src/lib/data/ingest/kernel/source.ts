@@ -20,6 +20,9 @@ export interface IngestSource {
   readonly name: string
   /** One-shot sequential byte stream. May be consumed exactly once. */
   readonly stream: ReadableStream<Uint8Array>
+  /** The whole file, when it arrived as one (archives): readers can slice
+      it instead of draining the stream into memory. */
+  readonly blob?: Blob
 }
 
 export function streamSource(
@@ -27,6 +30,16 @@ export function streamSource(
   stream: ReadableStream<Uint8Array>
 ): IngestSource {
   return { name, stream }
+}
+
+/** A file handed over whole (a structured clone of a File is a reference). */
+export function blobSource(name: string, blob: Blob): IngestSource {
+  return { name, stream: blob.stream(), blob }
+}
+
+/** The source as a Blob: its own when it has one, else drained. */
+export async function sourceBlob(source: IngestSource): Promise<Blob> {
+  return source.blob ?? new Blob([(await drainSource(source)) as Uint8Array<ArrayBuffer>])
 }
 
 /** Wraps a fully-materialized buffer as a chunked stream source. */

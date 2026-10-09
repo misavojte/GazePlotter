@@ -5,7 +5,6 @@
   import type { DataCapabilityRequirements } from '$lib/data/types'
   import { getGazePlotterSession } from '$lib/session'
   import { formatFileSize } from '$lib/shared/format'
-  import { stimulusMediaStore } from '$lib/data/media/mediaStore.svelte'
   import { exportSegmentedDataModal } from '../export-segmented-data/definition'
   import { exportEventDataModal } from '../export-event-data/definition'
   import { exportScangraphModal } from '../export-scangraph/definition'
@@ -17,10 +16,10 @@
 
   // Reference media turns the export into a zip carrying every file.
   const mediaBytes = $derived.by(() => {
-    void stimulusMediaStore.version
+    void engine.media.version
     const ids = Object.keys(engine.metadata?.stimuliMedia ?? {}).map(Number)
     let bytes = 0
-    for (const id of ids) bytes += stimulusMediaStore.getBlob(id)?.size ?? 0
+    for (const id of ids) bytes += engine.media.getBlob(id)?.size ?? 0
     return { count: ids.length, bytes }
   })
 

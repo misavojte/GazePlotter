@@ -9,7 +9,7 @@ import type { IngestContext } from './context'
 import type { IngestResult } from './result'
 import { DatasetBuilder } from './sink'
 import type { IngestSource, SourceProbe } from './source'
-import { drainSource, openSource, probeFromBytes } from './source'
+import { drainSource, openSource, probeFromBytes, sourceBlob } from './source'
 import type { ParseSettings } from '../types'
 
 /**
@@ -84,7 +84,7 @@ export class IngestJob {
       f.matchesFileName(sources[0].name)
     )
     if (workspaceDef) {
-      return await workspaceDef.read(await drainSource(sources[0]), this.ctx)
+      return await workspaceDef.read(await sourceBlob(sources[0]), this.ctx)
     }
 
     const sink = new DatasetBuilder()

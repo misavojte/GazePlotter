@@ -3,7 +3,6 @@
   import { InputNumber, Button, Select } from '$lib/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { formatFileSize } from '$lib/shared/format'
-  import { stimulusMediaStore } from '$lib/data/media/mediaStore.svelte'
   import {
     buildStimulusMediaFromFile,
     MEDIA_FILE_ACCEPT,
@@ -34,8 +33,8 @@
 
   const saved = $derived(engine.metadata?.stimuliMedia?.[stimulusId] ?? null)
   const savedBlob = $derived.by(() => {
-    void stimulusMediaStore.version
-    return stimulusMediaStore.getBlob(stimulusId)
+    void engine.media.version
+    return engine.media.getBlob(stimulusId)
   })
 
   // A picked-but-not-applied file from the manual picker: it wins over the

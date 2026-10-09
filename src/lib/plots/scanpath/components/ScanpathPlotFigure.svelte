@@ -19,7 +19,7 @@
   import { SCANPATH_COLORS, SCANPATH_LAYOUT } from '../const'
   import { getColorForValue, interpolateColor } from '$lib/color'
   import { PRESET_PALETTES } from '$lib/color/palettes'
-  import { stimulusMediaStore } from '$lib/data/media/mediaStore.svelte'
+  import type { StimulusMediaStore } from '$lib/data/media/mediaStore.svelte'
   import { mediaRegionOf } from '$lib/data/media/mediaUpload'
   import type { StimulusMedia } from '$lib/data/types'
   import type { ScanpathData, ScanpathFixation } from '../types'
@@ -48,8 +48,10 @@
         domain — gaze coordinates are stimulus pixels, so fixations land
         exactly on the image. */
     media?: StimulusMedia | null
-    /** Key of `media`'s bytes in the stimulusMediaStore. */
+    /** Key of `media`'s bytes in `mediaStore`. */
     mediaStimulusId?: number
+    /** The session's media byte store. */
+    mediaStore?: StimulusMediaStore | null
     /** Shared PLOT CURSOR, publish-only: hovering this panel marks its
         participant in other plots, but the panel never draws the cursor
         itself. A whole-panel outline lit by a hover elsewhere (often another
@@ -73,6 +75,7 @@
     participantId,
     media = null,
     mediaStimulusId,
+    mediaStore = null,
     plotCursor = null,
   }: Props = $props()
 
@@ -80,17 +83,16 @@
       store version so the canvas repaints when decoding finishes (videos are
       parked on their first frame, so no black background flashes). */
   const mediaElement = $derived.by(() => {
-    void stimulusMediaStore.version
-    if (!media || mediaStimulusId === undefined) return null
-    return stimulusMediaStore.getReadyElement(mediaStimulusId, media)
+    if (!mediaStore || !media || mediaStimulusId === undefined) return null
+    void mediaStore.version
+    return mediaStore.getReadyElement(mediaStimulusId, media)
   })
   /** The browser can't decode the medium: playback falls back to the
       fixation clock and the bar says why the background is missing. */
   const mediaFailed = $derived.by(() => {
-    void stimulusMediaStore.version
-    return media !== null && mediaStimulusId !== undefined
-      ? stimulusMediaStore.failed(mediaStimulusId)
-      : false
+    if (!mediaStore || !media || mediaStimulusId === undefined) return false
+    void mediaStore.version
+    return mediaStore.failed(mediaStimulusId)
   })
 
   // ── Time-sync playback (always on): a bottom

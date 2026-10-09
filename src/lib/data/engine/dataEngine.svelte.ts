@@ -7,7 +7,7 @@ import {
   mergeStimuli as applyStimulusMerge,
   unmergeStimuli as applyStimulusUnmerge,
 } from '../merge/mergeStimuli'
-import { stimulusMediaStore } from '../media/mediaStore.svelte'
+import { StimulusMediaStore } from '../media/mediaStore.svelte'
 import type {
   NameSelection,
   DataCapabilityRequirements,
@@ -35,6 +35,10 @@ export class DataEngine {
 
   // --- Public Reactive State ---
   metadata = $state<EngineMetadata | null>(null)
+
+  /** Reference media bytes, per session: two instances on a page never share
+      blobs, and unmounting releases them. */
+  readonly media = new StimulusMediaStore()
 
   /**
    * Bumps on every change to the binary event occurrence buffers (load,
@@ -153,7 +157,7 @@ export class DataEngine {
   /**
    * Set or remove one stimulus's reference medium. Metadata rides in
    * `metadata.stimuliMedia`; the bytes go to the non-reactive
-   * {@link stimulusMediaStore}. The record is deleted when it empties, so a
+   * {@link media}. The record is deleted when it empties, so a
    * media-less workspace exports without the field (and as plain JSON).
    */
   setStimulusMedia(
@@ -166,14 +170,14 @@ export class DataEngine {
     if (media && blob) {
       if (!meta.stimuliMedia) meta.stimuliMedia = {}
       meta.stimuliMedia[stimulusId] = media
-      stimulusMediaStore.setBlob(stimulusId, blob)
+      this.media.setBlob(stimulusId, blob)
     } else {
       if (meta.stimuliMedia) {
         delete meta.stimuliMedia[stimulusId]
         if (Object.keys(meta.stimuliMedia).length === 0)
           delete meta.stimuliMedia
       }
-      stimulusMediaStore.remove(stimulusId)
+      this.media.remove(stimulusId)
     }
   }
 
@@ -186,7 +190,7 @@ export class DataEngine {
    * Returns the ids of the dropped entries, for the caller's warning toast.
    */
   setStimulusMediaBlobs(blobs: Record<number, Blob> | undefined): number[] {
-    stimulusMediaStore.clear()
+    this.media.clear()
     const meta = this.metadata
     const media = meta?.stimuliMedia
     if (!meta || !media) return []
@@ -195,7 +199,7 @@ export class DataEngine {
       const id = Number(key)
       const blob = blobs?.[id]
       if (blob) {
-        stimulusMediaStore.setBlob(id, blob)
+        this.media.setBlob(id, blob)
       } else {
         delete media[id]
         dropped.push(id)

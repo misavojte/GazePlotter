@@ -1,7 +1,7 @@
 import { IngestJob } from './kernel/job'
 import type { IngestContext } from './kernel/context'
 import type { IngestResult } from './kernel/result'
-import { bufferSource, streamSource } from './kernel/source'
+import { blobSource, bufferSource, streamSource } from './kernel/source'
 import { FORMAT_REGISTRY } from './formats/registry'
 
 /**
@@ -10,7 +10,7 @@ import { FORMAT_REGISTRY } from './formats/registry'
  * `IngestJob`, and the job's callbacks into outbound messages.
  *
  * Inbound:  'file-names' | 'test-stream' | 'stream' | 'buffer' |
- *           'zip-buffer' | 'prompt-response'
+ *           'zip-file' | 'prompt-response'
  * Outbound: 'progress' { processedBytes }
  *           'prompt'   { promptId, payload }
  *           'done'     { result: IngestResult }  (binary buffers transferred)
@@ -156,17 +156,12 @@ async function processEvent(e: MessageEvent): Promise<void> {
         )
         return
       }
-      case 'zip-buffer': {
-        const { buffer, zipName } = data as {
-          buffer: ArrayBuffer
-          zipName: string
-        }
+      case 'zip-file': {
+        const { file, zipName } = data as { file: Blob; zipName: string }
         if (job === null) throw new Error('Ingest job is not initialized')
-        // Advance the name cursor — zip buffers arrive in fileNames order too.
+        // Advance the name cursor: zip files arrive in fileNames order too.
         nextSourceName()
-        handleJobResult(
-          await job.add(bufferSource(zipName, new Uint8Array(buffer)))
-        )
+        handleJobResult(await job.add(blobSource(zipName, file)))
         return
       }
       case 'prompt-response': {

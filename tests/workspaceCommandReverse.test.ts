@@ -9,7 +9,6 @@ import type {
 } from '../src/lib/workspace/commands'
 import { GridState } from '../src/lib/workspace/grid'
 import type { StimulusMedia } from '../src/lib/data/types'
-import { stimulusMediaStore } from '../src/lib/data/media/mediaStore.svelte'
 import { makeDataType, normalizeSegments } from './helpers/dataTypeFixtures'
 import {
   createAoiComparisonGridItem,
@@ -1014,12 +1013,12 @@ describe('updateStimulusMedia over several stimuli', () => {
 
       expect(ws.undo()).toBe(true)
       expect(engine.metadata!.stimuliMedia![0].fileName).toBe('old.png')
-      expect(stimulusMediaStore.getBlob(0)).toBe(oldBlob)
+      expect(engine.media.getBlob(0)).toBe(oldBlob)
       expect(engine.metadata!.stimuliMedia![1]).toBeUndefined()
-      expect(stimulusMediaStore.getBlob(1)).toBeNull()
+      expect(engine.media.getBlob(1)).toBeNull()
       expect(report).not.toHaveBeenCalled()
     } finally {
-      stimulusMediaStore.clear()
+      engine.media.clear()
     }
   })
 })
