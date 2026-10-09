@@ -14,7 +14,7 @@
 </script>
 
 <button type="button" class="header-action" {title} {disabled} {onclick}>
-  <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
+  <span class="icon"><Icon size={16} strokeWidth={1.75} aria-hidden="true" /></span>
   <span class="label">{label}</span>
 </button>
 
@@ -29,10 +29,11 @@
     border: none;
     border-radius: var(--rounded-md);
     background: transparent;
-    color: var(--c-darkgrey);
+    color: var(--c-text);
     font: inherit;
     font-size: 13px;
     font-weight: 500;
+    letter-spacing: -0.005em;
     cursor: pointer;
     transition:
       background-color var(--transition-fast) ease,
@@ -42,6 +43,27 @@
   .header-action:hover:not(:disabled),
   .header-action:focus-visible {
     background-color: var(--c-lightgrey);
+    color: var(--c-black);
+  }
+
+  .header-action:focus-visible {
+    outline: 2px solid var(--c-info);
+    outline-offset: -2px;
+  }
+
+  .header-action:active:not(:disabled) {
+    background-color: var(--c-grey);
+  }
+
+  /* Muted glyph, ink label: the word carries the action, the icon the cue. */
+  .icon {
+    display: flex;
+    color: var(--c-darkgrey);
+    transition: color var(--transition-fast) ease;
+  }
+
+  .header-action:hover:not(:disabled) .icon,
+  .header-action:focus-visible .icon {
     color: var(--c-black);
   }
 

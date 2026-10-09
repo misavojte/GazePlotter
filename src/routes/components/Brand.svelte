@@ -17,7 +17,7 @@
 
 <div class="lockup">
   <a class="brand" href="/" aria-label="GazePlotter app">
-    <img src="/logos/gazeplotter.svg" width="20" height="20" alt="" />
+    <img src="/logos/gazeplotter.svg" width="22" height="22" alt="" />
     <svelte:element this={heading ? 'h1' : 'span'} class="brand-name"
       >GazePlotter</svelte:element
     >
@@ -26,61 +26,91 @@
     class="version"
     href={changelogHref}
     title="See what changed in version {version}"
-    aria-label="Version {version}, see what changed">{version}</a
+    aria-label="Version {version}, see what changed"
+    ><span class="version-text">v{version}</span></a
   >
 </div>
 
 <style>
-  /* Name and version share one baseline, the way a title and its edition
-     are set in print. Each line box is the full bar height, so the
-     baseline also lands at the optical center. */
+  /* Mark, name and version badge on one optical center line. */
   .lockup {
     display: flex;
-    align-items: baseline;
-    gap: 2px;
+    align-items: center;
+    gap: 6px;
   }
 
   .brand {
     display: inline-flex;
-    align-items: baseline;
-    gap: 8px;
+    align-items: center;
+    gap: 9px;
     height: 32px;
-    padding: 0 4px;
+    /* Header 8px + 1px puts the 22px mark's center at x=20, the axis of the
+       40px workspace rail's icons below it. */
+    padding: 0 4px 0 1px;
+    border-radius: var(--rounded-md);
     color: var(--c-black);
     text-decoration: none;
   }
 
   .brand img {
-    align-self: center;
+    display: block;
+    flex: none;
   }
 
-  .brand:hover,
-  .brand:focus-visible {
-    opacity: 0.8;
+  .brand:hover .brand-name {
+    color: var(--c-text);
   }
 
+  .brand:focus-visible,
+  .version:focus-visible {
+    outline: 2px solid var(--c-info);
+    outline-offset: 2px;
+  }
+
+  /* Tight tracking and a semibold-plus weight: a wordmark, not a label. */
   .brand-name {
     margin: 0;
+    font-family: var(--font-display);
     font-size: 15px;
-    font-weight: 700;
-    line-height: 32px;
-  }
-
-  .version {
-    padding: 0 2px;
-    border-radius: var(--rounded);
-    color: color-mix(in srgb, var(--c-darkgrey) 80%, var(--c-midgrey));
-    font-size: 11.5px;
-    font-weight: 500;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.01em;
-    line-height: 32px;
-    text-decoration: none;
+    font-weight: 650;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    /* Trim the box to the cap height, so centering centers the letters, not
+       the font's lopsided ascent and descent (Segoe UI sits ~1px low). */
+    text-box: trim-both cap alphabetic;
     transition: color var(--transition-fast) ease;
   }
 
-  .version:hover,
-  .version:focus-visible {
+  /* The edition as a quiet badge: present, never competing with the name. */
+  .version {
+    display: inline-flex;
+    align-items: center;
+    height: 16px;
+    padding: 0 5px;
+    border: 1px solid var(--c-border);
+    border-radius: 999px;
+    background-color: var(--c-darkwhite);
+    color: var(--c-darkgrey);
+    font-family: var(--font-small);
+    font-size: var(--text-3xs);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+    line-height: 1;
+    text-decoration: none;
+    transition:
+      color var(--transition-fast) ease,
+      border-color var(--transition-fast) ease,
+      background-color var(--transition-fast) ease;
+  }
+
+  .version-text {
+    text-box: trim-both cap alphabetic;
+  }
+
+  .version:hover {
+    border-color: color-mix(in srgb, var(--c-black) 18%, transparent);
+    background-color: var(--c-white);
     color: var(--c-text);
   }
 
