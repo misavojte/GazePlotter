@@ -487,9 +487,10 @@
   :global(.prose-wrapper img) {
     max-width: 100%;
     height: auto;
+    border: 1px solid var(--c-border);
     border-radius: 12px;
     margin: 2rem 0;
-    box-shadow: var(--shadow-lg);
+    box-shadow: var(--shadow-sm);
   }
 
   :global(.prose-wrapper a) {
@@ -517,7 +518,7 @@
     background-color: var(--c-darkwhite);
     margin: 2rem 0;
     padding: 1.5rem;
-    border-radius: 8px;
+    border-radius: 12px;
     font-style: italic;
     color: var(--c-black);
   }
