@@ -14,7 +14,7 @@
   const version = __APP_VERSION__
   const changelogHref = `/docs/changelog#${version.replace(/\./g, '')}`
   const released = new Intl.DateTimeFormat('en-US', {
-    month: 'long',
+    month: 'short',
     year: 'numeric',
   }).format(new Date(__BUILD_DATE__))
 </script>
