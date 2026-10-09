@@ -21,6 +21,9 @@ type PanSurfaceActionParams = {
 // starts a drag-pan here (two-finger pan and pinch are the frame's own).
 const touchAction = 'pan-x pan-y'
 
+// Middle button drags pan from anywhere, plots included, like a design canvas.
+const MIDDLE_BUTTON = 1
+
 
 export function panSurfaceAction(
   node: HTMLElement,
@@ -45,8 +48,10 @@ export function panSurfaceAction(
       enabled: params.enabled,
       shouldStart: (event: PointerEvent) =>
         event.pointerType !== 'touch' &&
-        (params.shouldStart?.(event) ?? true),
+        (event.button === MIDDLE_BUTTON ||
+          (params.shouldStart?.(event) ?? true)),
       touchAction,
+      mouseButtons: [0, MIDDLE_BUTTON],
       preventDefaultOnStart: true,
       onStart(point: InteractionPoint) {
         setPanCursor('grabbing')
@@ -69,6 +74,12 @@ export function panSurfaceAction(
     }
   }
 
+  // Blocks the browser's middle-click autoscroll, which would fight the pan.
+  const onMouseDown = (event: MouseEvent) => {
+    if (params.enabled && event.button === MIDDLE_BUTTON) event.preventDefault()
+  }
+  node.addEventListener('mousedown', onMouseDown)
+
   const session = createPointerSession(node, createSessionOptions())
 
   return {
@@ -78,6 +89,7 @@ export function panSurfaceAction(
     },
     destroy() {
       setPanCursor('')
+      node.removeEventListener('mousedown', onMouseDown)
       session.destroy()
     },
   }

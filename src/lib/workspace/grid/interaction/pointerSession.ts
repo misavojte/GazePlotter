@@ -16,6 +16,8 @@ type PointerSessionOptions = {
    * scrolls the page and only two-finger gestures belong to the canvas.
    */
   touchAction?: string
+  /** Mouse buttons that may start the session. Defaults to primary only. */
+  mouseButtons?: readonly number[]
 }
 
 function getPoint(event: PointerEvent): InteractionPoint {
@@ -106,7 +108,11 @@ export function createPointerSession(
 
   function handlePointerDown(event: PointerEvent): void {
     if (!options.enabled || !event.isPrimary) return
-    if (event.pointerType === 'mouse' && event.button !== 0) return
+    if (
+      event.pointerType === 'mouse' &&
+      !(options.mouseButtons ?? [0]).includes(event.button)
+    )
+      return
     if (options.shouldStart && !options.shouldStart(event)) return
 
     maybePreventStart(event)
