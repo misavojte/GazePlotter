@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import GridItem from './GridItem.svelte'
   import Button from '$lib/shared/components/Button.svelte'
   import {
@@ -74,6 +75,8 @@
 
   interface Props {
     gridItems: AllGridTypes[]
+    /** The plots land one after another (after a load), not all at once. */
+    entrance?: boolean
     gridConfig: GridConfig
     gridHeight: number
     gridWidth: number
@@ -83,12 +86,33 @@
 
   const {
     gridItems,
+    entrance = false,
     gridConfig,
     gridHeight,
     gridWidth,
     gridIsEmpty,
     interaction,
   }: Props = $props()
+
+  // Entrance delays in reading order, fixed at mount: the camera pulls back
+  // first, then the plots land within ENTRANCE_SPREAD_MS whatever their count.
+  // Plots added later are not in the map and keep their own fade.
+  const ENTRANCE_START_MS = 350
+  const ENTRANCE_STEP_MS = 40
+  const ENTRANCE_SPREAD_MS = 400
+  const entranceDelays = untrack(() => {
+    const delays = new Map<number, number>()
+    if (!entrance) return delays
+    const order = [...gridItems].sort((a, b) => a.y - b.y || a.x - b.x)
+    const step =
+      order.length > 1
+        ? Math.min(ENTRANCE_STEP_MS, ENTRANCE_SPREAD_MS / (order.length - 1))
+        : 0
+    order.forEach((item, rank) =>
+      delays.set(item.id, ENTRANCE_START_MS + rank * step)
+    )
+    return delays
+  })
 
   const selectionPath = $derived(
     generateSelectionPath(grid.selectedItems, gridConfig, 6, 26)
@@ -175,6 +199,7 @@
           minH={item.min?.h || gridConfig.minHeight}
           cellSize={gridConfig.cellSize}
           gap={gridConfig.gap}
+          enterDelay={entranceDelays.get(item.id)}
           {interaction}
           title={plotLabel}
           subtitle={plotSubtitle}

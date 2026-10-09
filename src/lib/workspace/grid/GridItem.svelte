@@ -30,6 +30,8 @@
     minH?: number
     cellSize: { width: number; height: number }
     gap: number
+    /** Set: the plot lands after this many ms (the entrance after a load). */
+    enterDelay?: number
     title?: string
     subtitle?: PlotSubtitleParts
     body: Snippet
@@ -50,6 +52,7 @@
     minH = 1,
     cellSize,
     gap,
+    enterDelay,
     title = '',
     subtitle,
     body,
@@ -198,8 +201,10 @@
   role="figure"
 >
   <div 
-    class="grid-item-scaler" 
+    class="grid-item-scaler"
     class:is-pressed={isPressed && !interaction.isPanning}
+    class:entering={enterDelay !== undefined}
+    style:--enter-delay={enterDelay === undefined ? undefined : `${enterDelay}ms`}
     onpointerdowncapture={onPointerDown}
     onpointerupcapture={onPointerUp}
     onpointercancelcapture={onPointerUp}
@@ -324,6 +329,26 @@
     transform-origin: center center;
     transition: transform var(--transition-fast) cubic-bezier(0.175, 0.885, 0.32, 1.275);
     will-change: transform;
+  }
+
+  /* `backwards` hides the plot through its delay and leaves nothing behind
+     once it has landed, so press feedback and stacking are untouched. */
+  .grid-item-scaler.entering {
+    animation: land 450ms cubic-bezier(0.22, 1, 0.36, 1) var(--enter-delay)
+      backwards;
+  }
+
+  @keyframes land {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .grid-item-scaler.entering {
+      animation: none;
+    }
   }
 
   .grid-item-scaler.is-pressed {

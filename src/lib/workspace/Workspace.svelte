@@ -130,10 +130,23 @@
     camera.setContentBounds(() => contentBounds)
   })
 
+  // Armed by the loading card, so only the grid a load hands over makes an
+  // entrance; one that appears from the empty state just opens.
+  let entrance = $state(false)
+  $effect(() => {
+    if (isLoading) entrance = true
+    else if (grid.isEmpty) entrance = false
+  })
+
   // A freshly shown grid (first load, a new dataset, a restored workspace)
   // opens showing the whole layout, as far as it stays readable.
   $effect(() => {
-    if (gridSurface) untrack(() => camera.open())
+    if (!gridSurface) return
+    untrack(() => {
+      if (entrance) camera.enter()
+      else camera.open()
+      entrance = false
+    })
   })
 
   $effect(() => {
@@ -348,6 +361,7 @@
             {gridHeight}
             {gridWidth}
             gridIsEmpty={grid.isEmpty}
+            {entrance}
           />
         </div>
         {#if wheelHintVisible}

@@ -39,6 +39,9 @@ const VISIBLE_MARGIN = 120
 /** Duration of animated camera moves (zoom steps, reset, fit, reveal). */
 const ANIMATION_MS = 200
 
+/** Duration of the pull-back from 1:1 that a loaded layout opens with. */
+const ENTRANCE_MS = 700
+
 /** Clamp a value to the valid zoom range. */
 export function clampZoom(value: number): number {
   return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, value))
@@ -57,6 +60,8 @@ export type GridBounds = {
 type CameraState = { x: number; y: number; zoom: number }
 
 const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3)
+const easeInOutCubic = (t: number) =>
+  t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2
 
 function prefersReducedMotion(): boolean {
   return (
@@ -116,6 +121,39 @@ export class WorkspaceCamera {
    */
   open(): void {
     this.#stop()
+    const to = this.#openState()
+    this.#x = to.x
+    this.#y = to.y
+    this.#zoom = to.zoom
+  }
+
+  /**
+   * The same view as open(), reached by pulling back from 1:1 around the
+   * layout's centre: the entrance after a load.
+   */
+  enter(): void {
+    this.#stop()
+    const to = this.#openState()
+    const bounds = this.#contentBounds()
+    const size = this.#frameSize()
+    if (!bounds || !size || to.zoom >= ZOOM_MAX) {
+      this.#x = to.x
+      this.#y = to.y
+      this.#zoom = to.zoom
+      return
+    }
+    const anchor = {
+      x: Math.min(size.width, to.x + ((bounds.left + bounds.right) / 2) * to.zoom),
+      y: Math.min(size.height, to.y + ((bounds.top + bounds.bottom) / 2) * to.zoom),
+    }
+    const from = this.#zoomedAround(to, ZOOM_MAX, anchor)
+    this.#x = from.x
+    this.#y = from.y
+    this.#zoom = from.zoom
+    this.#animateTo(to, ENTRANCE_MS, easeInOutCubic)
+  }
+
+  #openState(): CameraState {
     const bounds = this.#contentBounds()
     const size = this.#frameSize()
     let zoom = ZOOM_MAX
@@ -129,9 +167,11 @@ export class WorkspaceCamera {
       zoom = Math.min(ZOOM_MAX, Math.max(OPEN_ZOOM_MIN, fit))
       centring = Math.max(0, (roomW - width * zoom) / 2)
     }
-    this.#zoom = zoom
-    this.#x = FRAME_INSET.left + centring - (bounds?.left ?? 0) * zoom
-    this.#y = FRAME_INSET.top - (bounds?.top ?? 0) * zoom
+    return {
+      zoom,
+      x: FRAME_INSET.left + centring - (bounds?.left ?? 0) * zoom,
+      y: FRAME_INSET.top - (bounds?.top ?? 0) * zoom,
+    }
   }
 
   /** Put the grid origin at (x, y) in frame px, within the soft wall. */
@@ -323,7 +363,11 @@ export class WorkspaceCamera {
     this.#zoom = next.zoom
   }
 
-  #animateTo(state: CameraState): void {
+  #animateTo(
+    state: CameraState,
+    ms = ANIMATION_MS,
+    ease = easeOutCubic
+  ): void {
     const to = this.#clamped(state)
     const from = this.#state()
     this.#stop()
@@ -335,8 +379,8 @@ export class WorkspaceCamera {
     this.#target = to
     const start = globalThis.performance?.now() ?? Date.now()
     const frame = (now: number) => {
-      const t = Math.min(1, (now - start) / ANIMATION_MS)
-      const k = easeOutCubic(t)
+      const t = Math.min(1, (now - start) / ms)
+      const k = ease(t)
       this.#x = from.x + (to.x - from.x) * k
       this.#y = from.y + (to.y - from.y) * k
       this.#zoom = from.zoom + (to.zoom - from.zoom) * k

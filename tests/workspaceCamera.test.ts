@@ -95,6 +95,40 @@ describe('WorkspaceCamera', () => {
     expect(small.zoom).toBe(ZOOM_MAX)
   })
 
+  it('enters by pulling back from full scale onto the open view', () => {
+    const bounds = { left: 0, top: 0, right: 1400, bottom: 500 }
+    const opened = camera(bounds)
+    opened.open()
+
+    let pending: FrameRequestCallback | null = null
+    vi.stubGlobal('requestAnimationFrame', (cb: FrameRequestCallback) => {
+      pending = cb
+      return 1
+    })
+    vi.spyOn(performance, 'now').mockReturnValue(0)
+    try {
+      const cam = camera(bounds)
+      cam.enter()
+      // Starts at 1:1 with the layout's centre where the open view puts it.
+      expect(cam.zoom).toBe(ZOOM_MAX)
+      const centre = (c: WorkspaceCamera) => c.x + 700 * c.zoom
+      expect(centre(cam)).toBeCloseTo(centre(opened))
+      pending!(10_000)
+      expect(cam.zoom).toBeCloseTo(opened.zoom)
+      expect(cam.x).toBeCloseTo(opened.x)
+      expect(cam.y).toBeCloseTo(opened.y)
+    } finally {
+      vi.unstubAllGlobals()
+    }
+  })
+
+  it('enters without motion when the open view is already full scale', () => {
+    const cam = camera({ left: 0, top: 0, right: 200, bottom: 100 })
+    cam.enter()
+    expect(cam.zoom).toBe(ZOOM_MAX)
+    expect(cam.y).toBeCloseTo(FRAME_INSET.top)
+  })
+
   it('steps zoom around the middle of the frame', () => {
     const cam = camera()
     const before = gridAt(cam, 400, 300)
