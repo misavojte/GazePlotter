@@ -148,8 +148,8 @@ export function buildScanGraph(
  * Builds the entire workspace state. Without stimulus media this is the
  * plain JSON of always — byte-compatible with older exports. With media it
  * becomes a `.gazeplotter.zip` archive: the same `workspace.json` plus one
- * `media/<stimulusId>.<ext>` entry per medium, added as Blobs (JSZip streams
- * them — the bytes are never base64'd or copied into a JS string).
+ * `media/<stimulusId>.<ext>` entry per medium (each read whole into memory
+ * while zipping, never base64'd).
  */
 export async function buildWorkspace(
   data: DataType,

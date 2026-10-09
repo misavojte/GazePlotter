@@ -4,6 +4,8 @@
   import type { ModalDefinition } from '$lib/modals/defineModal'
   import type { DataCapabilityRequirements } from '$lib/data/types'
   import { getGazePlotterSession } from '$lib/session'
+  import { formatFileSize } from '$lib/shared/format'
+  import { stimulusMediaStore } from '$lib/data/media/mediaStore.svelte'
   import { exportSegmentedDataModal } from '../export-segmented-data/definition'
   import { exportEventDataModal } from '../export-event-data/definition'
   import { exportScangraphModal } from '../export-scangraph/definition'
@@ -12,6 +14,15 @@
 
   const { engine, exportService, grid, modalState } = getGazePlotterSession()
   let fileName = $state('GazePlotter-Export')
+
+  // Reference media turns the export into a zip carrying every file.
+  const mediaBytes = $derived.by(() => {
+    void stimulusMediaStore.version
+    const ids = Object.keys(engine.metadata?.stimuliMedia ?? {}).map(Number)
+    let bytes = 0
+    for (const id of ids) bytes += stimulusMediaStore.getBlob(id)?.size ?? 0
+    return { count: ids.length, bytes }
+  })
 
   // Each option follows the data it exports, in the plot definitions'
   // `requireCapabilities` vocabulary: no events → no event export, no gaze
@@ -71,8 +82,14 @@
   <Section title="Export Workspace">
     <div class="content">
       <p class="workspace-description">
-        Preserves all data, layout, and settings in a compact JSON file. Perfect
-        for sharing dashboards.
+        {#if mediaBytes.count > 0}
+          Preserves all data, layout, and settings, plus {mediaBytes.count}
+          reference media {mediaBytes.count === 1 ? 'file' : 'files'}
+          ({formatFileSize(mediaBytes.bytes)}), in one .gazeplotter.zip file.
+        {:else}
+          Preserves all data, layout, and settings in a compact JSON file. Perfect
+          for sharing dashboards.
+        {/if}
       </p>
       <div class="workspace-export">
         <div class="export-inline">
