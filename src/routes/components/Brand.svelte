@@ -1,8 +1,8 @@
 <script lang="ts">
   /**
    * The GazePlotter mark and name, linking home, followed by the running
-   * version, linking to its changelog entry. One markup for the app and the
-   * docs bar, so both read as the same product.
+   * version and its release month, linking to its changelog entry. One
+   * markup for the app and the docs bar, so both read as the same product.
    */
   interface Props {
     /** The app page has no other heading, so its brand is the h1. */
@@ -13,6 +13,10 @@
 
   const version = __APP_VERSION__
   const changelogHref = `/docs/changelog#${version.replace(/\./g, '')}`
+  const released = new Intl.DateTimeFormat('en-US', {
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(__BUILD_DATE__))
 </script>
 
 <div class="lockup">
@@ -26,13 +30,12 @@
     class="version"
     href={changelogHref}
     title="See what changed in version {version}"
-    aria-label="Version {version}, see what changed"
-    ><span class="version-text">v{version}</span></a
+    ><span class="version-text">v{version}, {released}</span></a
   >
 </div>
 
 <style>
-  /* Mark, name and version badge on one optical center line. */
+  /* Mark, name and edition on one optical center line. */
   .lockup {
     display: flex;
     align-items: center;
@@ -81,27 +84,16 @@
     text-box: trim-both cap alphabetic;
   }
 
-  /* The edition as a quiet badge: present, never competing with the name. */
+  /* The edition as quiet trailing text: present, never competing with the name. */
   .version {
-    display: inline-flex;
-    align-items: center;
-    height: 16px;
-    padding: 0 5px;
-    border: 1px solid var(--c-border);
-    border-radius: 999px;
-    background-color: var(--c-darkwhite);
+    margin-left: 2px;
+    border-radius: var(--rounded);
     color: var(--c-darkgrey);
-    font-family: var(--font-small);
-    font-size: var(--text-3xs);
-    font-weight: 600;
+    font-size: var(--text-2xs);
     font-variant-numeric: tabular-nums;
-    letter-spacing: 0.02em;
     line-height: 1;
     text-decoration: none;
-    transition:
-      color var(--transition-fast) ease,
-      border-color var(--transition-fast) ease,
-      background-color var(--transition-fast) ease;
+    transition: color var(--transition-fast) ease;
   }
 
   .version-text {
@@ -109,8 +101,6 @@
   }
 
   .version:hover {
-    border-color: color-mix(in srgb, var(--c-black) 18%, transparent);
-    background-color: var(--c-white);
     color: var(--c-black);
   }
 
