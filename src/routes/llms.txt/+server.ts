@@ -7,6 +7,7 @@ export async function GET() {
 
   let md = `# GazePlotter Documentation\n\n`
   md += `> Free, open-source, serverless web app for client-side eye-tracking analysis. Data is processed locally in the browser with absolute privacy (no server uploads). No registration or subscriptions required.\n\n`
+  md += `Peer-reviewed. Cite as: Vojtechovska, M., Popelka, S. GazePlotter: An open-source solution for the automatic generation of scarf plots from eye-tracking data. Behav Res 58, 85 (2026). https://doi.org/10.3758/s13428-026-02959-5\n\n`
 
   for (const item of SIDEBAR) {
     if ('links' in item) {

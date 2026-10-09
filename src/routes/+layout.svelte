@@ -23,25 +23,41 @@
     description:
       'GazePlotter is a versatile open-source application compatible with major eye-tracking software like Tobii, SMI, GazePoint, Pupil Labs, Varjo, and custom CSV files. It specializes in generating interactive scarf plots, scanpaths, transition matrices, and eye-tracking metrics for comprehensive analysis.',
     url: 'https://gazeplotter.com/',
-    author: {
-      '@type': 'Person',
-      name: 'Michaela Vojtechovska',
-      url: 'https://vojtechovska.com/',
-      affiliation: {
-        '@type': 'EducationalOrganization',
-        name: 'Palacky University Olomouc',
+    author: [
+      {
+        '@type': 'Person',
+        name: 'Michaela Vojtechovska',
+        url: 'https://vojtechovska.com/',
+        affiliation: { '@id': '#upol' },
       },
+      {
+        '@type': 'Person',
+        name: 'Stanislav Popelka',
+        url: 'https://www.geoinformatics.upol.cz/lide/stanislav-popelka/?lang=en',
+        affiliation: { '@id': '#upol' },
+      },
+    ],
+    sourceOrganization: {
+      '@type': 'EducationalOrganization',
+      '@id': '#upol',
+      name: 'Palacký University Olomouc',
+      url: 'https://www.upol.cz/en/',
     },
-    applicationCategory: 'Research & Development',
+    // The peer-reviewed article describing the tool.
+    citation: {
+      '@type': 'ScholarlyArticle',
+      name: 'GazePlotter: An open-source solution for the automatic generation of scarf plots from eye-tracking data',
+      sameAs: 'https://doi.org/10.3758/s13428-026-02959-5',
+      datePublished: '2026',
+      isPartOf: { '@type': 'Periodical', name: 'Behavior Research Methods' },
+    },
+    applicationCategory: 'ScientificApplication',
     downloadUrl: 'https://github.com/misavojte/GazePlotter',
     operatingSystem: 'Cross-platform',
     softwareVersion: __APP_VERSION__,
     isAccessibleForFree: true,
-    sourceOrganization: {
-      '@type': 'Organization',
-      name: 'GitHub',
-      url: 'https://github.com',
-    },
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'EUR' },
+    license: 'https://www.gnu.org/licenses/gpl-3.0.html',
     codeRepository: 'https://github.com/misavojte/GazePlotter',
   }
 
