@@ -77,27 +77,28 @@
 
 <style>
   .content {
-    margin-bottom: 1.5rem;
+    margin-bottom: 24px;
   }
 
   .description {
-    margin-bottom: 1rem;
+    margin-bottom: 16px;
     color: var(--c-text);
-    font-size: 0.9rem;
-    line-height: 1.4;
+    font-size: var(--text-lg);
+    line-height: var(--leading-normal);
+    text-wrap: pretty;
   }
 
   .file-list {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
+    gap: 12px;
   }
 
   .file-row {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    padding: 0.75rem 1rem;
+    gap: 8px;
+    padding: 12px 16px;
     background: var(--c-darkwhite);
     border: 1px solid var(--c-border);
     border-radius: var(--rounded);
@@ -109,7 +110,7 @@
   }
 
   .file-name {
-    font-size: 0.85rem;
+    font-size: var(--text-lg);
     font-weight: 500;
     color: var(--c-text);
     overflow: hidden;

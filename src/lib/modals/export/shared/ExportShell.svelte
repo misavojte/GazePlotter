@@ -30,9 +30,11 @@
   }
 
   .purpose-description {
-    margin: 0 0 1rem 0;
+    margin: 0 0 16px 0;
     color: var(--c-text);
-    font-size: 0.95rem;
-    line-height: 1.4;
+    font-size: var(--text-xl);
+    letter-spacing: -0.01em;
+    line-height: var(--leading-normal);
+    text-wrap: pretty;
   }
 </style>

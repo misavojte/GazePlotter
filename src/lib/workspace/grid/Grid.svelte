@@ -272,7 +272,7 @@
     flex-direction: column;
     justify-content: center;
     align-items: flex-start;
-    gap: 0.5rem;
+    gap: 8px;
     padding: 0;
   }
 
@@ -280,12 +280,12 @@
   .plot-error-detail {
     margin: 0;
     color: var(--c-text);
-    line-height: 1.45;
-    font-size: 0.9rem;
+    line-height: var(--leading-normal);
+    font-size: var(--text-lg);
   }
 
   .plot-error-detail {
-    color: var(--c-midgrey);
+    color: var(--c-darkgrey);
     overflow-wrap: anywhere;
   }
 </style>

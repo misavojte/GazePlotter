@@ -19,8 +19,9 @@
 <style>
   .help-text {
     margin: 0;
-    font-size: 0.85rem;
-    line-height: 1.4;
+    font-size: var(--text-lg);
+    line-height: var(--leading-normal);
+    text-wrap: pretty;
   }
 
   .help-text.muted {

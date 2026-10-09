@@ -118,10 +118,10 @@
     align-items: center;
     justify-content: center;
     gap: 8px;
-    padding: 0.5rem;
+    padding: 8px;
     border: 1px solid var(--c-border);
     border-radius: var(--rounded-md);
-    font-size: 14px;
+    font-size: var(--text-lg);
     height: 34px;
     cursor: pointer;
     background-color: white;
@@ -130,7 +130,8 @@
 
   .color-preview.compact {
     height: 24px;
-    font-size: 10px;
+    font-size: var(--text-2xs);
+    font-family: var(--font-small);
     padding: 0 4px;
     border-radius: var(--rounded);
   }
@@ -141,7 +142,7 @@
 
   .color-value {
     font-family: monospace;
-    font-size: 13px;
+    font-size: var(--text-md);
     font-weight: 500;
     text-align: center;
     flex-grow: 1;
@@ -153,7 +154,7 @@
 
   .mixed-label {
     font-family: inherit;
-    font-size: 11px;
+    font-size: var(--text-xs);
     color: var(--c-darkgrey);
   }
 

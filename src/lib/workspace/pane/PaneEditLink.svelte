@@ -24,7 +24,8 @@
     height: 26px;
     padding: 0 6px;
     color: var(--c-black);
-    font-size: 12px;
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
     font-weight: 500;
     line-height: 1;
     white-space: nowrap;

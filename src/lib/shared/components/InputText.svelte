@@ -58,11 +58,14 @@
 </InputScaffold>
 
 <style>
+  /* The regular field: same box as InputNumber and the Select trigger. */
   input {
-    padding: 0.5rem;
-    border: 1px solid var(--c-border);
+    height: 34px;
+    padding: 4px 8px;
+    border: 1px solid var(--c-midgrey);
     border-radius: var(--rounded-md);
-    font-size: 14px;
+    font-size: var(--text-md);
+    color: var(--c-black);
     width: 170px;
     box-sizing: border-box;
     margin: 0;
@@ -80,7 +83,8 @@
     padding: 3px 6px;
     border-color: var(--c-midgrey);
     border-radius: var(--rounded);
-    font-size: 11px;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
     font-weight: 400;
     color: var(--c-black);
     outline: none;

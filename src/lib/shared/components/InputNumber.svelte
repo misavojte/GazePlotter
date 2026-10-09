@@ -102,7 +102,7 @@
     padding: 0.25em 0.5em;
     border: 1px solid var(--c-midgrey);
     border-radius: var(--rounded-md);
-    font-size: 13px;
+    font-size: var(--text-md);
     font-weight: 400;
     color: var(--c-black);
     width: 170px;
@@ -121,7 +121,8 @@
     height: 26px;
     padding: 3px 6px;
     border-radius: var(--rounded);
-    font-size: 11px;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
     outline: none;
     transition: border-color var(--transition-normal);
   }

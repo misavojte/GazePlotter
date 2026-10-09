@@ -436,10 +436,11 @@
 
   .grid-item-title {
     margin: 0;
-    font-size: 15px;
+    font-size: var(--text-xl);
+    letter-spacing: -0.01em;
     font-weight: 600;
     color: var(--c-black);
-    line-height: 1.2;
+    line-height: var(--leading-tight);
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -467,7 +468,8 @@
   }
 
   .grid-item-subtitle-label {
-    font-size: 8px;
+    font-size: var(--text-3xs);
+    font-family: var(--font-small);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -476,10 +478,11 @@
   }
 
   .grid-item-subtitle-value {
-    font-size: 11px;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
     font-weight: 500;
     color: var(--c-darkgrey);
-    line-height: 1.2;
+    line-height: var(--leading-tight);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -594,7 +597,8 @@
     color: var(--c-white);
     border: none;
     border-radius: 3px;
-    font-size: 11px;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
     font-weight: 500;
     line-height: 1;
     cursor: pointer;

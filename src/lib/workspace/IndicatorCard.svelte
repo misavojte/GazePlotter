@@ -55,9 +55,10 @@
 
   .indicator-title {
     margin: 2px 0 2px 4px;
-    font-size: 13px;
+    font-size: var(--text-md);
     font-weight: 600;
     color: var(--c-black);
+    text-wrap: balance;
   }
 
   .indicator-body {
@@ -67,7 +68,7 @@
 
   @media (max-width: 600px) {
     .indicator-card {
-      margin: 0 1rem;
+      margin: 0 16px;
     }
   }
 </style>

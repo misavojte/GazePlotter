@@ -37,9 +37,10 @@
     flex: 1;
     min-width: 0;
     color: var(--c-text);
-    font-size: 15px;
+    font-size: var(--text-xl);
+    letter-spacing: -0.01em;
     font-weight: 600;
-    line-height: 1.2;
+    line-height: var(--leading-tight);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

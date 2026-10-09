@@ -10,7 +10,7 @@
   import type { PlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
   import Play from 'lucide-svelte/icons/play'
   import Pause from 'lucide-svelte/icons/pause'
-  import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/textMeasure'
+  import { SYSTEM_SANS_SERIF_SMALL_STACK } from '$lib/shared/textMeasure'
   import { calculateNiceStepSize } from '$lib/plots/shared/timelineUtils'
   import { AXIS_CONFIG } from '$lib/plots/shared/axisUtils'
   import { strokeCrispRect } from '$lib/plots/shared/canvasUtils'
@@ -688,7 +688,7 @@
     // Number labels (above the circles), white-haloed for imagery.
     if (showNumbers) {
       ctx.save()
-      ctx.font = `${L.numberFontSize}px ${SYSTEM_SANS_SERIF_STACK}`
+      ctx.font = `${L.numberFontSize}px ${SYSTEM_SANS_SERIF_SMALL_STACK}`
       ctx.textAlign = 'left'
       ctx.textBaseline = 'middle'
       ctx.strokeStyle = SCANPATH_COLORS.halo
@@ -763,7 +763,7 @@
   .video-pill {
     display: flex;
     align-items: center;
-    gap: 0.6rem;
+    gap: 10px;
     width: 100%;
     box-sizing: border-box;
     padding: 0 10px;
@@ -841,7 +841,8 @@
 
   .pill-time {
     flex: none;
-    font-size: 11px;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
     font-variant-numeric: tabular-nums;
     color: var(--c-text);
     white-space: nowrap;

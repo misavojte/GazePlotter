@@ -65,16 +65,16 @@
   }
 
   p {
-    margin: 0 0 1.5rem 0;
+    margin: 0 0 24px 0;
     color: var(--c-text);
-    line-height: 1.5;
-    font-size: 14px;
+    line-height: var(--leading-relaxed);
+    font-size: var(--text-lg);
   }
 
   .actions {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 8px;
     align-items: flex-start;
   }
 </style>

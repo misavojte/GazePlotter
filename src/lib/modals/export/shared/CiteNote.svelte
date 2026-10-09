@@ -33,9 +33,9 @@
   .cite-note {
     display: flex;
     align-items: center;
-    gap: 1rem;
-    margin-top: 1rem;
-    padding: 0.75rem 1rem;
+    gap: 16px;
+    margin-top: 16px;
+    padding: 12px 16px;
     border-radius: var(--rounded-md);
     background-color: var(--c-darkwhite);
     border: 1px solid var(--c-border);
@@ -48,15 +48,16 @@
 
   .cite-title {
     margin: 0 0 2px;
-    font-size: 0.85rem;
+    font-size: var(--text-lg);
     font-weight: 600;
     color: var(--c-text);
+    text-wrap: balance;
   }
 
   .cite-reference {
     margin: 0;
-    font-size: 0.8rem;
-    line-height: 1.4;
+    font-size: var(--text-md);
+    line-height: var(--leading-normal);
     color: var(--c-darkgrey);
     overflow-wrap: anywhere;
     user-select: text;

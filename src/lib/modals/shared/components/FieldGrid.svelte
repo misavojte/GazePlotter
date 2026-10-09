@@ -18,6 +18,6 @@
   .field-grid {
     display: grid;
     grid-template-columns: 1fr;
-    gap: 0.75rem;
+    gap: 12px;
   }
 </style>

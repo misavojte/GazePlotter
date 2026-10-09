@@ -350,22 +350,23 @@
 <style>
   .controls {
     display: flex;
-    gap: 0.5rem;
+    gap: 8px;
     align-items: flex-end;
     flex-wrap: wrap;
   }
 
   .fixations-from {
-    flex: 1 1 12rem;
+    flex: 1 1 192px;
     min-width: 0;
   }
 
   .meta {
     display: flex;
-    gap: 0.75rem;
+    gap: 12px;
     align-items: center;
-    font-size: 12px;
-    color: var(--c-darkgrey, #555);
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
+    color: var(--c-darkgrey);
   }
 
   .replace {
@@ -377,28 +378,29 @@
   }
 
   .stimulus-name {
-    max-width: 14rem;
+    max-width: 224px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 14px;
+    font-size: var(--text-lg);
     font-weight: 600;
     color: var(--c-text);
   }
 
   .file-name {
-    max-width: 18rem;
+    max-width: 288px;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    font-size: 13px;
+    font-size: var(--text-md);
     color: var(--c-text);
   }
 
   .hint {
     margin: 0;
-    font-size: 13px;
-    color: var(--c-darkgrey, #555);
+    font-size: var(--text-md);
+    color: var(--c-darkgrey);
+    text-wrap: pretty;
   }
 
   /* Section children carry no margins of their own; the stack is what puts
@@ -406,24 +408,25 @@
   .stack {
     display: flex;
     flex-direction: column;
-    gap: 1rem;
+    gap: 16px;
   }
 
   .coord-group {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 8px;
   }
 
   .coord-label {
-    font-size: 12px;
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
     font-weight: 600;
-    color: var(--c-darkgrey, #555);
+    color: var(--c-darkgrey);
   }
 
   .coord-fields {
     display: flex;
-    gap: 0.75rem;
+    gap: 12px;
   }
 
   /* The canvas sets the modal's width: wide enough for precise work, never
@@ -431,15 +434,15 @@
   .canvas-block {
     display: flex;
     flex-direction: column;
-    gap: 0.375rem;
-    width: min(860px, calc(100vw - 10rem));
+    gap: 6px;
+    width: min(860px, calc(100vw - 160px));
     max-width: 100%;
   }
 
   .coord-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.75rem 1.5rem;
+    gap: 12px 24px;
   }
 
 </style>

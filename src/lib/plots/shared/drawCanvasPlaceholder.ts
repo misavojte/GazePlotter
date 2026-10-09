@@ -1,3 +1,5 @@
+import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/textMeasure'
+
 /**
  * Standardized "empty state" copy. Each plot's figure paints this onto its
  * own canvas when the contracted metric resolution failed, so exports include
@@ -122,14 +124,14 @@ export function drawCanvasPlaceholder(
 
   // Draw exclamation mark inside warning triangle
   ctx.fillStyle = '#ffffff'
-  ctx.font = 'bold 18px system-ui, -apple-system, sans-serif'
+  ctx.font = `bold 18px ${SYSTEM_SANS_SERIF_STACK}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   ctx.fillText('!', iconCenterX, iconCenterY + triHeight * 0.12)
 
   // Draw text
   ctx.fillStyle = palette.text
-  ctx.font = '13px system-ui, -apple-system, sans-serif'
+  ctx.font = `13px ${SYSTEM_SANS_SERIF_STACK}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'top'
 

@@ -12,7 +12,7 @@
 
 {#if memoryInfo.available}
   <MetadataSection title="RAM Usage">
-    <Card padding="sm" gap="0.5rem">
+    <Card padding="sm" gap="8px">
       <InfoRow label="Current JS Heap Size (used):" value={formatFileSize(memoryInfo.used)} />
       <InfoRow label="Total JS Heap Size (allocated):" value={formatFileSize(memoryInfo.total)} />
       <InfoRow label="JS Heap Size Limit (max available):" value={formatFileSize(memoryInfo.limit)} />

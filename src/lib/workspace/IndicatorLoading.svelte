@@ -19,9 +19,9 @@
   .content-inner {
     display: flex;
     align-items: flex-start;
-    gap: 1rem;
-    margin-top: 0.5rem;
-    margin-bottom: 0.5rem;
+    gap: 16px;
+    margin-top: 8px;
+    margin-bottom: 8px;
   }
 
   .spinner {
@@ -47,7 +47,7 @@
   p {
     margin: 0;
     color: var(--c-text);
-    line-height: 1.5;
-    font-size: 14px;
+    line-height: var(--leading-relaxed);
+    font-size: var(--text-lg);
   }
 </style>

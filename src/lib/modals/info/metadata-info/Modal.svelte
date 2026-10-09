@@ -112,7 +112,7 @@
 
   {#if currentFileInput !== null && !isSameAsSource}
     <MetadataSection title="Current parsing">
-      <Card padding="sm" gap="0.5rem">
+      <Card padding="sm" gap="8px">
         <InfoRow label="Files being processed:" value={currentFileInput.fileNames.length} />
         <MetadataFileList
           fileNames={currentFileInput.fileNames}
@@ -120,7 +120,7 @@
         />
       </Card>
 
-      <Card padding="sm" gap="0.5rem">
+      <Card padding="sm" gap="8px">
         <InfoRow
           label="Total file size:"
           value={formatFileSize(sumFileSizes(currentFileInput.fileSizes))}
@@ -144,7 +144,7 @@
         {/if}
       </Card>
     {:else if fileMetadata.status === 'failure'}
-      <Card padding="sm" gap="0.5rem" class="failure-details">
+      <Card padding="sm" gap="8px" class="failure-details">
         <InfoRow label="Error message:" value={fileMetadata.userMessage} variant="error" />
         {#if fileMetadata.debugMessage !== fileMetadata.userMessage}
           <InfoRow label="Debug message:" value={fileMetadata.debugMessage} />
@@ -155,7 +155,7 @@
         {/if}
       </Card>
 
-      <Card padding="sm" gap="0.5rem">
+      <Card padding="sm" gap="8px">
         <InfoRow label="Files attempted:" value={fileMetadata.fileNames.length} />
         <MetadataFileList
           fileNames={fileMetadata.fileNames}
@@ -163,7 +163,7 @@
         />
       </Card>
 
-      <Card padding="sm" gap="0.5rem">
+      <Card padding="sm" gap="8px">
         <InfoRow label="Total file size:" value={formatFileSize(totalFileSize)} />
         {#if fileMetadata.attemptedParseDuration !== undefined}
           <InfoRow
@@ -174,12 +174,12 @@
         <InfoRow label="Failure date:" value={formatMetadataDate(fileMetadata.parseDate)} />
       </Card>
 
-      <Card padding="sm" gap="0.5rem">
+      <Card padding="sm" gap="8px">
         <InfoRow label="GazePlotter version:" value={fileMetadata.gazePlotterVersion} />
         <InfoRow label="Client:" value={fileMetadata.clientUserAgent} variant="mono" />
       </Card>
     {:else}
-      <Card padding="sm" gap="0.5rem">
+      <Card padding="sm" gap="8px">
         <InfoRow label="Files processed:" value={fileMetadata.fileNames.length} />
         <MetadataFileList
           fileNames={fileMetadata.fileNames}
@@ -187,18 +187,18 @@
         />
       </Card>
 
-      <Card padding="sm" gap="0.5rem">
+      <Card padding="sm" gap="8px">
         <InfoRow label="Total file size:" value={formatFileSize(totalFileSize)} />
         <InfoRow label="Parse duration:" value={formatDuration(fileMetadata.parseDuration)} />
         <InfoRow label="Parse date:" value={formatMetadataDate(fileMetadata.parseDate)} />
       </Card>
 
-      <Card padding="sm" gap="0.5rem">
+      <Card padding="sm" gap="8px">
         <InfoRow label="GazePlotter version:" value={fileMetadata.gazePlotterVersion} />
         <InfoRow label="Client:" value={fileMetadata.clientUserAgent} variant="mono" />
       </Card>
 
-      <Card padding="sm" gap="0.5rem">
+      <Card padding="sm" gap="8px">
         <InfoRow label="Parse settings:" />
         <div class="settings-container">
           <InfoRow label="Type:" value={fileMetadata.parseSettings.type} />
@@ -271,16 +271,16 @@
   /* .info-group styles moved to Card.svelte */
 
   .settings-container {
-    margin-left: 1rem;
-    margin-top: 0.5rem;
+    margin-left: 16px;
+    margin-top: 8px;
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 8px;
   }
 
   .delimiter-row {
     display: flex;
-    gap: 1rem;
+    gap: 16px;
     flex-wrap: wrap;
   }
 
@@ -291,7 +291,7 @@
 
   .delimiter-value {
     font-family: 'Courier New', monospace;
-    font-size: 0.85rem;
+    font-size: var(--text-lg);
   }
 
   :global(.card.failure-details) {

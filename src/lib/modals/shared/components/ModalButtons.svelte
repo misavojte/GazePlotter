@@ -30,8 +30,8 @@
 <style>
   .modal-buttons {
     display: flex;
-    gap: 0.25rem;
+    gap: 4px;
     align-items: center;
-    margin-top: 2rem;
+    margin-top: 32px;
   }
 </style>

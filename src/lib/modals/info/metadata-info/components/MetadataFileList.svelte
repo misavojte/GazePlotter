@@ -20,26 +20,26 @@
 
 <style>
   .file-list {
-    margin-left: 1rem;
+    margin-left: 16px;
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 4px;
   }
 
   .file-item {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
-    font-size: 0.9rem;
+    gap: 8px;
+    font-size: var(--text-lg);
   }
 
   .file-name {
-    color: #374151;
+    color: var(--c-text);
     font-weight: 500;
   }
 
   .file-size {
-    color: #6b7280;
-    font-size: 0.85rem;
+    color: var(--c-darkgrey);
+    font-size: var(--text-lg);
   }
 </style>

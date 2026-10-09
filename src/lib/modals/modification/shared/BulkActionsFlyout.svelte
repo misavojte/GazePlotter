@@ -116,9 +116,10 @@
   }
 
   .status {
-    font-size: 12px;
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
     color: var(--c-darkgrey);
-    line-height: 1.3;
+    line-height: var(--leading-normal);
   }
 
   .status.error {

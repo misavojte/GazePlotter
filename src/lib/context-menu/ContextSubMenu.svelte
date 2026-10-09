@@ -136,7 +136,7 @@
     background: none;
     border: none;
     padding: 6px 12px;
-    font-size: 13px;
+    font-size: var(--text-md);
     color: var(--c-text);
     cursor: pointer;
     text-align: left;

@@ -143,13 +143,14 @@
   }
 
   .control-label {
-    font-size: 13px;
+    font-size: var(--text-md);
     font-weight: 500;
     white-space: nowrap;
   }
 
   .control-text {
-    font-size: 11px;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
     font-weight: 600;
     font-variant-numeric: tabular-nums;
   }

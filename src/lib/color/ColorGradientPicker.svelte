@@ -207,7 +207,7 @@
   .auto-btn {
     width: 100%;
     margin-top: 8px;
-    font-size: 11px;
+    font-size: var(--text-xs);
     font-weight: 500;
     padding: 4px;
     cursor: pointer;

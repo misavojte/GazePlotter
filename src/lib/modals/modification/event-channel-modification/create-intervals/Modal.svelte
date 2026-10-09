@@ -427,10 +427,11 @@
 
 <style>
   .description {
-    margin: 0 0 0.75rem 0;
+    margin: 0 0 12px 0;
     color: var(--c-text);
-    font-size: 0.9rem;
-    line-height: 1.4;
+    font-size: var(--text-lg);
+    line-height: var(--leading-normal);
+    text-wrap: pretty;
   }
 
 
@@ -444,8 +445,8 @@
     display: grid;
     grid-template-columns: minmax(120px, 1fr) auto 24px;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.35rem 0.6rem;
+    gap: 8px;
+    padding: 6px 10px;
   }
 
   .created-row + .created-row {
@@ -453,14 +454,15 @@
   }
 
   .created-name {
-    font-size: 12.5px;
+    font-size: var(--text-md);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .created-count {
-    font-size: 12px;
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
     color: var(--c-darkgrey);
     white-space: nowrap;
   }
@@ -470,13 +472,13 @@
   .inputs-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 0.75rem;
+    gap: 12px;
   }
 
   .suffix-inputs-grid {
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 140px));
-    gap: 0.75rem;
+    gap: 12px;
   }
 
   .manual-inputs-grid {
@@ -486,12 +488,13 @@
   .action-row {
     display: flex;
     justify-content: flex-start;
-    margin-top: 0.25rem;
+    margin-top: 4px;
   }
 
   .one-sided {
-    margin: 0.4rem 0 0 0;
-    font-size: 12px;
+    margin: 6px 0 0 0;
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
     color: var(--c-warning);
   }
 
@@ -500,15 +503,15 @@
     border-radius: var(--rounded-md);
     max-height: 300px;
     overflow-y: auto;
-    margin-bottom: 0.75rem;
+    margin-bottom: 12px;
   }
 
   .pair-row {
     display: grid;
     grid-template-columns: 24px minmax(120px, 1fr) minmax(0, 1.4fr) auto auto 24px;
     align-items: center;
-    gap: 0.5rem;
-    padding: 0.35rem 0.6rem;
+    gap: 8px;
+    padding: 6px 10px;
     min-height: 40px;
   }
 
@@ -521,11 +524,12 @@
     top: 0;
     z-index: 1;
     background: var(--c-lightgrey);
-    font-size: 12px;
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
     font-weight: 600;
     color: var(--c-darkgrey);
     min-height: 0;
-    padding: 0.4rem 0.6rem;
+    padding: 6px 10px;
   }
 
   .pair-row.excluded {
@@ -537,7 +541,7 @@
   }
 
   .from-to {
-    font-size: 12.5px;
+    font-size: var(--text-md);
     color: var(--c-text);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -545,13 +549,15 @@
   }
 
   .counts {
-    font-size: 12px;
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
     color: var(--c-darkgrey);
     white-space: nowrap;
   }
 
   .status {
-    font-size: 12px;
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
     white-space: nowrap;
   }
 
@@ -582,12 +588,13 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
-    padding-bottom: 0.25rem;
+    padding-bottom: 4px;
   }
 
   .detail-line {
-    font-size: 12px;
-    line-height: 1.35;
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
+    line-height: var(--leading-normal);
     color: var(--c-error);
   }
 
@@ -595,8 +602,8 @@
     border: 1px solid var(--c-border);
     background: var(--c-lightgrey);
     border-radius: var(--rounded);
-    padding: 0.35rem 1.4rem;
-    font-size: 12.5px;
+    padding: 6px 22px;
+    font-size: var(--text-md);
     font-weight: 600;
     cursor: pointer;
     transition: all var(--transition-normal) ease;
@@ -616,35 +623,37 @@
     flex-wrap: wrap;
     align-items: flex-end;
     justify-content: space-between;
-    gap: 0.75rem;
-    margin-bottom: 1.25rem;
+    gap: 12px;
+    margin-bottom: 20px;
   }
 
 
 
   .suffix-tip {
-    margin: 0.35rem 0 0 0;
-    font-size: 11.5px;
+    margin: 6px 0 0 0;
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
     color: var(--c-darkgrey);
-    line-height: 1.3;
+    line-height: var(--leading-normal);
   }
 
   .one-sided-section {
-    margin-top: 0.4rem;
+    margin-top: 6px;
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
+    gap: 6px;
   }
 
   .quick-pairs {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
+    gap: 8px;
     flex-wrap: wrap;
   }
 
   .quick-pair-label {
-    font-size: 11.5px;
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
     font-weight: 500;
     color: var(--c-darkgrey);
   }
@@ -654,8 +663,9 @@
     border: 1px dashed var(--c-warning);
     color: var(--c-warning);
     border-radius: var(--rounded-md);
-    padding: 0.15rem 0.4rem;
-    font-size: 11px;
+    padding: 2px 6px;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
     font-weight: 600;
     cursor: pointer;
     transition: all var(--transition-fast) ease-in-out;
@@ -669,8 +679,8 @@
 
   .empty-message {
     color: var(--c-darkgrey);
-    font-size: 0.9rem;
+    font-size: var(--text-lg);
     text-align: center;
-    margin: 1rem 0;
+    margin: 16px 0;
   }
 </style>

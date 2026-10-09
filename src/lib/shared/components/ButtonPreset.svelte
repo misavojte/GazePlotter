@@ -18,8 +18,8 @@
     background: none;
     border: 1px solid var(--c-midgrey);
     border-radius: var(--rounded);
-    padding: 0.25rem 0.5rem;
-    font-size: 0.8rem;
+    padding: 4px 8px;
+    font-size: var(--text-md);
     cursor: pointer;
     transition: all var(--transition-normal) ease;
     color: var(--c-black);

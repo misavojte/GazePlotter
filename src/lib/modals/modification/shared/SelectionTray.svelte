@@ -281,7 +281,7 @@
 
 <style>
   /* The floating bubble IS the whole chrome now — no bar behind it. It
-     sticks 8px above the modal's visible bottom (the body has 1.25rem
+     sticks 8px above the modal's visible bottom (the body has 20px
      bottom padding, hence the -12px offset) and the opaque tinted surface
      lets cards scroll cleanly behind the surrounding gaps. */
   .tray {
@@ -315,12 +315,15 @@
     flex-wrap: wrap; /* verbs never overflow the bubble on narrow widths */
     gap: 6px;
     width: 100%;
-    font-size: 12px;
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
   }
 
   .idle-hint {
-    font-size: 12px;
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
     color: var(--c-darkgrey);
+    text-wrap: pretty;
   }
 
   .bubble-kicker {
@@ -331,7 +334,8 @@
   /* Bracketed and visually distinct from the name it counts. */
   .bubble-count {
     color: var(--c-darkgrey);
-    font-size: 11px;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
     font-variant-numeric: tabular-nums;
     white-space: nowrap;
   }
@@ -339,7 +343,8 @@
   .bubble-count.strong {
     color: var(--c-info);
     font-weight: 600;
-    font-size: 12px; /* a status label, not a bracketed count */
+    font-size: var(--text-sm);
+    font-family: var(--font-small); /* a status label, not a bracketed count */
   }
 
   .bubble-hint {
@@ -384,7 +389,8 @@
     border: none;
     background: none;
     color: var(--c-info);
-    font-size: 12px;
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
     font-weight: 500;
     height: 22px;
     padding: 0 6px;
@@ -418,7 +424,8 @@
   }
 
   .tray-label {
-    font-size: 12px;
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
     color: var(--c-darkgrey);
     margin-right: 2px;
   }
@@ -434,7 +441,8 @@
     border-radius: var(--rounded-md);
     background: var(--c-white);
     color: var(--c-text);
-    font-size: 12px;
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
     cursor: pointer;
     max-width: 260px;
     transition:
@@ -462,7 +470,8 @@
 
   .chip-count {
     color: var(--c-darkgrey);
-    font-size: 11px;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
     font-variant-numeric: tabular-nums;
   }
 

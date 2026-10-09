@@ -1,5 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte'
+  import { SYSTEM_SANS_SERIF_SMALL_STACK } from '$lib/shared/textMeasure'
   import { SCANPATH_COLORS } from '$lib/plots/scanpath/const'
   import { UI_COLORS } from '$lib/color/palettes'
   import {
@@ -272,7 +273,7 @@
       ctx.strokeStyle = UI_COLORS.TEXT_SECONDARY
       ctx.strokeRect(Math.round(o.x) + 0.5, Math.round(o.y) + 0.5, Math.round(o.w), Math.round(o.h))
       ctx.setLineDash([])
-      ctx.font = '11px system-ui, sans-serif'
+      ctx.font = `11px ${SYSTEM_SANS_SERIF_SMALL_STACK}`
       ctx.textBaseline = 'top'
       const label = 'Starting position'
       const lw = ctx.measureText(label).width
@@ -304,7 +305,7 @@
     ctx.restore()
 
     // Rulers: tick labels in gaze units along the top and left edges.
-    ctx.font = '10px system-ui, sans-serif'
+    ctx.font = `10px ${SYSTEM_SANS_SERIF_SMALL_STACK}`
     ctx.fillStyle = UI_COLORS.TEXT_SECONDARY
     ctx.textBaseline = 'alphabetic'
     ctx.textAlign = 'center'
@@ -502,9 +503,10 @@
   .readout {
     display: flex;
     justify-content: space-between;
-    gap: 0.75rem;
-    font-size: 12px;
+    gap: 12px;
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
     font-variant-numeric: tabular-nums;
-    color: var(--c-darkgrey, #555);
+    color: var(--c-darkgrey);
   }
 </style>

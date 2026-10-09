@@ -423,8 +423,8 @@
   }
 
   .noaoi-label {
-    font-size: 14px;
-    color: var(--c-midgrey);
+    font-size: var(--text-lg);
+    color: var(--c-darkgrey);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

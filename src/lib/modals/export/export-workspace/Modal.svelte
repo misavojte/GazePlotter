@@ -135,7 +135,7 @@
   .content {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 8px;
     max-width: 500px;
     width: 100%;
   }
@@ -162,8 +162,8 @@
   .export-input {
     flex: 1;
     border: none;
-    padding: 0.6rem 0.75rem;
-    font-size: 0.9rem;
+    padding: 10px 12px;
+    font-size: var(--text-lg);
     background: transparent;
     outline: none;
     color: var(--c-text);
@@ -178,8 +178,8 @@
     border: none;
     background: var(--c-brand);
     color: var(--c-white);
-    padding: 0.6rem 1rem;
-    font-size: 0.9rem;
+    padding: 10px 16px;
+    font-size: var(--text-lg);
     font-weight: 500;
     cursor: pointer;
     transition: background-color var(--transition-normal) ease;
@@ -196,10 +196,11 @@
   }
 
   .workspace-description {
-    margin: 0 0 1rem 0;
+    margin: 0 0 16px 0;
     color: var(--c-text);
-    font-size: 0.9rem;
-    line-height: 1.4;
+    font-size: var(--text-lg);
+    line-height: var(--leading-normal);
+    text-wrap: pretty;
   }
 
 
@@ -207,13 +208,13 @@
   .export-options {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 8px;
   }
 
   .export-option-card {
     display: flex;
     align-items: center;
-    padding: 0.75rem 1rem;
+    padding: 12px 16px;
     background: var(--c-darkwhite);
     border: 1px solid var(--c-border);
     border-radius: var(--rounded);
@@ -246,17 +247,19 @@
   }
 
   .export-option-title {
-    margin: 0 0 0.25rem 0;
-    font-size: 0.9rem;
+    margin: 0 0 4px 0;
+    font-size: var(--text-lg);
     font-weight: 500;
     color: var(--c-text);
-    line-height: 1.3;
+    line-height: var(--leading-tight);
+    text-wrap: balance;
   }
 
   .export-option-subtitle {
     margin: 0;
-    font-size: 0.85rem;
+    font-size: var(--text-lg);
     color: var(--c-darkgrey);
-    line-height: 1.4;
+    line-height: var(--leading-normal);
+    text-wrap: pretty;
   }
 </style>

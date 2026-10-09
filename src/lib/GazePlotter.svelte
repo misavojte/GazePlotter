@@ -148,9 +148,15 @@
 
 <style>
   #GP-gazeplotter {
-    font-family: inherit;
+    font-family: var(--font-sans);
     font-size: 16px;
-    line-height: 1.5;
+    line-height: var(--leading-relaxed);
     color: var(--c-black);
+    /* Equal-width digits: counts, times and percentages line up. */
+    font-variant-numeric: tabular-nums;
+    /* Real faces only, never a browser-faked bold or italic. */
+    font-synthesis: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 </style>

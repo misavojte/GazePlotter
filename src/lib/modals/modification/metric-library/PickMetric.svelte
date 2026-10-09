@@ -105,7 +105,7 @@
   .pick-metric-container {
     display: flex;
     flex-direction: column;
-    width: min(560px, calc(100vw - 4rem));
+    width: min(560px, calc(100vw - 64px));
     gap: 16px;
   }
 
@@ -116,8 +116,9 @@
   }
 
   .cat-title {
-    font-size: 11px;
-    font-weight: 700;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--c-darkgrey);
@@ -130,7 +131,8 @@
   }
 
   .empty {
-    font-size: 12px;
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
     color: var(--c-darkgrey);
     text-align: center;
     padding: 12px 0;

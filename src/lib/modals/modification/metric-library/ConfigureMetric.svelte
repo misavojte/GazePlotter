@@ -702,7 +702,7 @@
   .configure-metric-container {
     display: flex;
     flex-direction: column;
-    width: min(560px, calc(100vw - 4rem));
+    width: min(560px, calc(100vw - 64px));
     gap: 12px;
   }
 
@@ -721,20 +721,23 @@
     border-top: 1px solid var(--c-grey);
   }
   .cfg-title {
-    font-size: 11px;
-    font-weight: 700;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--c-darkgrey);
   }
-  .cfg-meta { font-size: 12px; color: var(--c-darkgrey); }
+  .cfg-meta { font-size: var(--text-sm); font-family: var(--font-small); color: var(--c-darkgrey); }
 
   .metric-description {
-    font-size: 11px;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
     color: var(--c-darkgrey);
-    line-height: 1.5;
+    line-height: var(--leading-relaxed);
     margin: 0;
     padding-bottom: 2px;
+    text-wrap: pretty;
   }
 
 
@@ -764,8 +767,8 @@
   }
 
   .so-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
-  .so-name { font-size: 12.5px; font-weight: 600; color: var(--c-text); }
-  .so-hint { font-size: 11px; color: var(--c-darkgrey); line-height: 1.35; }
+  .so-name { font-size: var(--text-md); font-weight: 600; color: var(--c-text); }
+  .so-hint { font-size: var(--text-xs); font-family: var(--font-small); color: var(--c-darkgrey); line-height: var(--leading-normal); text-wrap: pretty; }
   .so-check { display: flex; flex-shrink: 0; color: var(--c-brand); }
 
   /* Window + Step sit side by side. */

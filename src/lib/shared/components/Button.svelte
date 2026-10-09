@@ -49,18 +49,31 @@
 {/if}
 
 <style>
+  /* Same heights and corners as the fields: md is the 34px modal control,
+     sm the 26px compact one. min-height, so a long label can still wrap. */
   button,
   a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
     border: 1px solid transparent;
-    padding: 0.75em 1.5em;
-    border-radius: var(--rounded-lg);
+    border-radius: var(--rounded-md);
     text-align: center;
     text-decoration: none;
-    display: inline-block;
-    font-size: 14px;
+    line-height: var(--leading-tight);
     cursor: pointer;
     font-weight: 600;
-    transition: all var(--transition-normal) ease;
+    transition:
+      background-color var(--transition-fast) ease,
+      border-color var(--transition-fast) ease,
+      color var(--transition-fast) ease;
+  }
+
+  button:focus-visible,
+  a:focus-visible {
+    outline: 2px solid var(--c-info);
+    outline-offset: 2px;
   }
 
   /* Disabled state - applies to all variants */
@@ -93,11 +106,15 @@
 
   /* Sizes */
   .sm {
-    padding: 0.5em 1em;
-    font-size: 12px;
+    min-height: 26px;
+    padding: 4px 10px;
+    border-radius: var(--rounded);
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
   }
   .md {
-    padding: 0.75em 1.5em;
-    font-size: 14px;
+    min-height: 34px;
+    padding: 6px 14px;
+    font-size: var(--text-md);
   }
 </style>

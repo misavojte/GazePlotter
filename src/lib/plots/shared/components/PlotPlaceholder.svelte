@@ -50,7 +50,7 @@
 
   .text {
     color: var(--c-darkgrey);
-    font-size: 14px;
+    font-size: var(--text-lg);
     font-weight: 400;
     letter-spacing: 0.02em;
   }

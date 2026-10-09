@@ -316,7 +316,7 @@
     background: transparent;
     text-align: center;
     font-family: monospace;
-    font-size: 13px;
+    font-size: var(--text-md);
     font-weight: 500;
     color: inherit;
     outline: none;

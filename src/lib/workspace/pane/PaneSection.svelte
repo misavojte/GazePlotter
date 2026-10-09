@@ -110,7 +110,7 @@ import { getContext, untrack } from 'svelte'
     gap: var(--spacing-xs);
     padding: 12px 16px 10px;
     color: var(--c-text);
-    font-size: 13px;
+    font-size: var(--text-md);
     font-weight: 600;
     text-align: left;
     background: none;
@@ -153,7 +153,8 @@ import { getContext, untrack } from 'svelte'
   .summary {
     margin-left: auto;
     color: var(--c-darkgrey);
-    font-size: 12px;
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
     font-weight: 400;
     line-height: 1;
     margin-top: 1px;

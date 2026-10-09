@@ -166,7 +166,7 @@
   .field-container {
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 4px;
     width: 100%;
   }
 
@@ -189,9 +189,9 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 1rem;
-    padding: 0.35rem 0.5rem 0.35rem 0.75rem;
-    min-height: 2.2rem;
+    gap: 16px;
+    padding: 6px 8px 6px 12px;
+    min-height: 35px;
     border-bottom: 1px solid var(--c-border);
     background-color: var(--c-lightgrey);
   }
@@ -199,33 +199,35 @@
   .group-title {
     display: flex;
     align-items: baseline;
-    gap: 0.4rem;
-    font-weight: 500;
+    gap: 6px;
     margin: 0;
     flex: 1;
     min-width: 0;
     color: var(--c-text);
-    font-size: 0.825rem;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
+    font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.06em;
   }
 
   .group-count {
     font-weight: 400;
-    font-size: 0.75rem;
-    color: var(--c-midgrey);
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
+    color: var(--c-darkgrey);
     letter-spacing: 0;
   }
 
   .group-controls {
     display: flex;
-    gap: 0.25rem;
+    gap: 4px;
     flex-wrap: wrap;
     justify-content: flex-end;
   }
 
   .search-row {
-    padding: 0.5rem 0.75rem;
+    padding: 8px 12px;
     border-bottom: 1px solid var(--c-border);
     background-color: var(--c-white);
   }
@@ -233,8 +235,8 @@
   .presets-row {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.25rem;
-    padding: 0.5rem 0.75rem;
+    gap: 4px;
+    padding: 8px 12px;
     border-bottom: 1px solid var(--c-border);
     background-color: var(--c-white);
   }
@@ -246,28 +248,29 @@
   .items-list {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
-    padding: 0.75rem;
+    gap: 6px;
+    padding: 12px;
   }
 
   .empty-state {
-    padding: 1.5rem 1rem;
+    padding: 24px 16px;
     text-align: center;
-    color: var(--c-midgrey);
+    color: var(--c-darkgrey);
     font-style: italic;
-    font-size: 0.85rem;
+    font-size: var(--text-lg);
   }
 
   .error-message {
     display: flex;
     align-items: flex-start;
-    gap: 0.35rem;
+    gap: 6px;
     color: var(--c-brand);
-    font-size: 0.775rem;
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
     font-weight: 500;
-    margin-top: 0.15rem;
-    margin-left: 0.1rem;
-    line-height: 1.3;
+    margin-top: 2px;
+    margin-left: 2px;
+    line-height: var(--leading-normal);
   }
 
   .error-icon {
@@ -281,13 +284,13 @@
     .group-header {
       flex-direction: column;
       align-items: stretch;
-      gap: 0.5rem;
-      padding: 0.75rem;
+      gap: 8px;
+      padding: 12px;
     }
 
     .group-controls {
       justify-content: stretch;
-      gap: 0.5rem;
+      gap: 8px;
     }
   }
 </style>

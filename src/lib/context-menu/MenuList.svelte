@@ -155,7 +155,7 @@
     background: none;
     border: none;
     padding: 6px 12px;
-    font-size: 13px;
+    font-size: var(--text-md);
     color: var(--c-text);
     cursor: pointer;
     text-align: left;
@@ -245,16 +245,17 @@
   }
 
   .item-label {
-    line-height: 1.3;
+    line-height: var(--leading-tight);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   .item-detail {
-    font-size: 10px;
+    font-size: var(--text-2xs);
+    font-family: var(--font-small);
     color: var(--c-darkgrey);
-    line-height: 1.2;
+    line-height: var(--leading-tight);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

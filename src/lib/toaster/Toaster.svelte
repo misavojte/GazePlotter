@@ -114,7 +114,7 @@
     color: var(--c-white);
     margin-top: 8px;
     width: 280px;
-    font-size: 14px;
+    font-size: var(--text-lg);
     padding: 12px 16px;
     border: 1px solid var(--c-border);
     backdrop-filter: blur(8px);
@@ -156,7 +156,7 @@
   }
 
   .toast-message {
-    line-height: 1.4;
+    line-height: var(--leading-normal);
     word-break: break-word;
     color: var(--c-white);
   }

@@ -38,15 +38,18 @@
   }
 
   .pick-card-title {
-    font-size: 13px;
+    font-size: var(--text-md);
     font-weight: 500;
     color: var(--c-text);
+    text-wrap: balance;
   }
 
   .pick-card-desc {
-    font-size: 11px;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
     color: var(--c-darkgrey);
     margin: 0;
-    line-height: 1.4;
+    line-height: var(--leading-normal);
+    text-wrap: pretty;
   }
 </style>
