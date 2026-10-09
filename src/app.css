@@ -18,6 +18,8 @@ body {
   display: flex;
   flex-flow: column;
   min-height: 100vh;
+  /* The visible height on phones, never taller: no scroll past the app. */
+  min-height: 100dvh;
   overflow-x: hidden;
 }
 body > div {
