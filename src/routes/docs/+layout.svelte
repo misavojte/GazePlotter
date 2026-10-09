@@ -513,11 +513,11 @@
   }
 
   :global(.prose-wrapper blockquote) {
-    border-left: 3px solid var(--c-midgrey);
+    border: 1px solid var(--c-border);
     background-color: var(--c-darkwhite);
     margin: 2rem 0;
     padding: 1.5rem;
-    border-radius: 0 8px 8px 0;
+    border-radius: 8px;
     font-style: italic;
     color: var(--c-black);
   }
