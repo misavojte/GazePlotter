@@ -871,6 +871,9 @@ export class IngestService {
         {
           fileNames: unmatched.map(f => f.name),
           stimuliOptions: getStimuliOptions(this.deps.engine),
+          nameMatched: Object.fromEntries(
+            [...matches].map(([id, file]) => [String(id), file.name])
+          ),
         }
       )
       if (assignments) {
