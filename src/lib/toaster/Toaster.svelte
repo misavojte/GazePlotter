@@ -99,8 +99,8 @@
   .toaster {
     position: fixed;
     /* A host with chrome along the bottom edge lifts toasts above it. */
-    bottom: var(--gp-toaster-bottom, 16px);
-    right: 16px;
+    bottom: var(--gp-toaster-bottom, 8px);
+    right: 8px;
     z-index: 9999;
     width: 280px;
     pointer-events: none;

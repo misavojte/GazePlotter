@@ -110,9 +110,9 @@ pan, Ctrl/Cmd + scroll or pinch to zoom, two fingers on touch screens. It is
 one screen tall by default; set the CSS variable `--gp-workspace-height` on
 any ancestor to size it. Give it a length (`100vh`, `calc(100vh - 60px)`,
 `640px`): a percentage resolves against the component's own root, which has
-no height. Notifications sit 16px above the bottom of the window; when your
+no height. Notifications sit 8px above the bottom of the window; when your
 page has a bar along the bottom edge, set `--gp-toaster-bottom` (for example
-`calc(24px + 16px)`) to lift them above it.
+`calc(24px + 8px)`) to lift them above it.
 
 - `gestures`: what the plain mouse wheel does over the workspace.
   `'cooperative'` (default) leaves it to the page, as an embedded map does,
