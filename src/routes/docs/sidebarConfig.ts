@@ -25,13 +25,7 @@ export const SIDEBAR: readonly SidebarItem[] = [
     name: 'Getting Started',
     href: '/docs',
     seoTitle: 'Free Eye-Tracking Visualization Tool',
-    description: 'Step-by-step introduction to GazePlotter. Learn to upload data files, manage participant groups, and configure eye-movement plots.'
-  },
-  {
-    name: 'About & Citation',
-    href: '/docs/about',
-    seoTitle: 'About GazePlotter & How to Cite',
-    description: 'How to cite GazePlotter (APA and BibTeX), who develops it, how to report bugs, and where to find the open-source code.'
+    description: 'Start with GazePlotter: load eye-tracking data, build plots and metrics, and export. Plus how to cite it (APA and BibTeX), privacy, and how to report bugs.'
   },
   {
     name: 'Changelog',

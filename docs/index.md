@@ -1,86 +1,97 @@
-# Welcome to GazePlotter Guide & Docs
+# GazePlotter Guide
 
-GazePlotter is a free online tool for eye-tracking data analysis and visualization, supporting exports from Tobii Pro Lab, SMI BeGaze, Gazepoint, Pupil Labs (Pupil Cloud), Varjo, OGAMA, and custom CSV files. Built with a commitment to open science, GazePlotter transforms complex gaze data into intuitive, interactive visualizations without requiring registration, subscriptions, or server uploads.
+GazePlotter is a free, open-source tool for eye-tracking visualization and analysis, developed at Palacký University Olomouc and described in a [peer-reviewed article](#how-to-cite). It runs entirely in your browser: no installation, no registration, and your data never leaves your device.
 
-Whether you're a researcher analyzing attention patterns, a student learning about eye-tracking methodology, or a professional presenting gaze data insights, GazePlotter provides tools that work entirely in your browser without installing any other software.
+## Start here
 
-## Analysis Suite
+1. **[Load your data](/docs/upload-data/)** exported from your eye tracker, or try the built-in demo first.
+2. **[Set up the workspace](/docs/workspace/)**: arrange plots, rename AOIs, and build participant selections to compare.
+3. **[Choose visualizations](/docs/visualizations/)** that answer your research question.
+4. **[Calculate metrics](/docs/metrics/)** per AOI, participant, or stimulus.
+5. **[Export](/docs/export/)** figures, metric tables for R, SPSS, or Python, and the workspace to continue later.
 
-### Multiple Visualization Types
+## What you can analyze
 
-- **[Scarf Plot](/docs/visualizations/scarf-plot)** - Interactive timeline visualizations showing gaze sequences and events over time.
-- **[AOI Comparison](/docs/visualizations/aoi-comparison)** - Statistical analysis bar charts with metrics like dwell time, fixation count, and time to first fixation.
-- **[Transition Matrix](/docs/visualizations/transition-matrix)** - Heat map visualizations of gaze movement patterns between Areas of Interest.
-- **[AOI Timeline](/docs/visualizations/aoi-timeline)** - Flowing river, stacked distribution, ridgeline, or heatmap binned visualizations over time.
-- **[Recurrence Plot](/docs/visualizations/recurrence-plot)** - N×N matrix revealing temporal self-similarity in a single participant's fixation sequence.
-- **[Scanpath](/docs/visualizations/scanpath)** - 2D spatial trajectory overlay plot showing fixation locations, index order, and sequence overlays on the stimulus.
-- **[Scanpath Similarity](/docs/visualizations/scanpath-similarity)** - Pairwise comparison matrix of sequence alignments with graph-based ScanGraph network thresholding.
-- **[Metric Timeline](/docs/visualizations/metric-timeline)** - Rolling temporal binned heatmap matrices or line trend overlays tracing scalar metrics.
-- **[Metric Correlation](/docs/visualizations/metric-correlation)** - Multi-select correlation heatmaps and Scatter Plot Matrices (SPLOM) with Pearson/Spearman algorithms.
+### Supported data
 
-### Metrics Library
+- [Tobii Pro Lab](/docs/upload-data/tobii-pro-lab/)
+- [SMI BeGaze](/docs/upload-data/smi-begaze/)
+- [Gazepoint](/docs/upload-data/gazepoint/)
+- [Pupil Labs Pupil Cloud](/docs/upload-data/pupil-cloud/)
+- [Varjo](/docs/upload-data/varjo/)
+- [OGAMA](/docs/upload-data/ogama/)
+- [Custom CSV](/docs/upload-data/custom-csv/) from any other eye tracker
+- [Event files](/docs/upload-data/events/) to add key presses or stimulus changes
 
-- **[Metrics Library Overview](/docs/metrics)** - Central DSL engine for configuring, parameterizing, and projecting eye-tracking metrics.
-- **[Dwell Time & Fixation Durations](/docs/metrics/durations)** - Duration-based calculations like dwell time (absolute and relative) and average/first/visit durations.
-- **[Fixation Counts & Latency](/docs/metrics/counts-latency)** - Gaze frequency metrics (fixations, visits) and Time to First Fixation (TTFF) latency.
-- **[AOI Transitions & Markov Metrics](/docs/metrics/transitions)** - Shift counts, k-step Markov probabilities, and cell/row/col projections.
-- **[Recurrence Quantification Analysis (RQA)](/docs/metrics/rqa)** - Non-linear recurrences, laminarity, and determinism metrics.
-- **[Scanpath Similarity Metrics](/docs/metrics/scanpath-similarity)** - Sequence alignment similarity calculations (Levenshtein, Needleman-Wunsch).
-- **[Eye-movement Type Metrics](/docs/metrics/eye-movement)** - Per-type counts, time budgets, segment durations, and time to first saccade (saccadic latency).
+### Visualizations
 
-### Workspace Management
+- [Scarf plot](/docs/visualizations/scarf-plot/): AOI sequences over time, one row per participant
+- [Scanpath](/docs/visualizations/scanpath/): fixations and saccades over the stimulus image or video
+- [Transition matrix](/docs/visualizations/transition-matrix/): how often gaze moves between AOIs
+- [AOI timeline](/docs/visualizations/aoi-timeline/): how attention shifts between AOIs over time
+- [Recurrence plot](/docs/visualizations/recurrence-plot/): where a scanpath returns to itself
+- [Scanpath similarity](/docs/visualizations/scanpath-similarity/): which participants looked in a similar order
+- [AOI comparison](/docs/visualizations/aoi-comparison/): bar charts of any metric across AOIs
+- [Metric correlation](/docs/visualizations/metric-correlation/): correlation heatmaps and scatter plot matrices
+- [All visualizations](/docs/visualizations/), including metric timelines and eye-movement and event comparisons
 
-- **[Workspace Operations](/docs/workspace)** - Add, duplicate, move, and resize plots with drag-and-drop functionality.
-- **[Participant Selections](/docs/workspace/participant-library/#participant-selections)** - Comparative analysis between named participant selections.
-- **[AOI Library](/docs/workspace/aoi-library)** - Full control over colors, names, and visual properties.
+### Metrics
 
-### Universal Data Compatibility
+- [Dwell time and fixation durations](/docs/metrics/durations/)
+- [Fixation counts and time to first fixation (TTFF)](/docs/metrics/counts-latency/)
+- [AOI transitions and Markov probabilities](/docs/metrics/transitions/)
+- [Recurrence quantification analysis (RQA)](/docs/metrics/rqa/)
+- [Scanpath similarity](/docs/metrics/scanpath-similarity/): Levenshtein distance and Needleman-Wunsch alignment
+- [Fixations, saccades, and blinks](/docs/metrics/eye-movement/)
+- [Event metrics](/docs/metrics/events/): key presses, stimulus changes, and other logged events
 
-GazePlotter supports data from all major eye-tracking platforms:
+## Fully private
 
-- **[Tobii Pro Lab](/docs/upload-data/tobii-pro-lab/)** - Full feature support with dynamic AOI visibility
-- **[SMI BeGaze](/docs/upload-data/smi-begaze/)** - Complete compatibility including overlapping AOI handling
-- **[OGAMA](/docs/upload-data/ogama/)** - Sequence analysis support
-- **[GazePoint](/docs/upload-data/gazepoint/)** - Direct data import
-- **[Varjo](/docs/upload-data/varjo/)** - VR/AR eye-tracking data
-- **[Pupil Cloud](/docs/upload-data/pupil-cloud/)** - Multi-surface support with AOI mapping
-- **[Custom CSV](/docs/upload-data/custom-csv/)** - Flexible format for any eye-tracker
+Your files open in your browser and are never sent to a server. Everything, from parsing to every plot and metric, is computed on your own device, so GazePlotter is safe to use with participant data. Because the [source code](https://github.com/misavojte/GazePlotter) is open, anyone can verify this.
 
-### Data Export
+You can also [install GazePlotter as an app](/docs/advanced/download-gazeplotter/) and work offline.
 
-- **[Export Options](/docs/export/)** - Save and share workspaces, export data, and integrate with ScanGraph
+## How to cite
 
-## Privacy & Accessibility
-
-- **Complete Privacy** - All processing happens locally in your browser; no data ever leaves your device
-- **No Registration** - Start analyzing immediately without accounts or sign-ups
-- **Progressive Web App** - [Install as desktop app](/docs/advanced/download-gazeplotter/) or use directly in browser
-- **Cross-Platform** - Works on Windows, Mac, Linux, and mobile devices
-- **Offline Capable** - Continue working without internet connection
-
-## Getting Started
-
-Ready to visualize your eye-tracking data? Choose your path:
-
-- **New to GazePlotter?** Start by [uploading your data](/docs/upload-data) to configure your first visualization.
-- **Ready to analyze?** Explore [Workspace & Setup overview](/docs/workspace) to learn about workspace setup and custom participant groups.
-- **Want to calculate metrics?** Learn how to customize calculations using the [Metrics Library](/docs/metrics) to define durations, counts, transitions, and sequence alignments.
-- **Ready to visualize?** Review our full list of [Eye-tracking Visualizations](/docs/visualizations) to configure plot options.
-- **Need to export?** Check out [export options](/docs/export) for workspaces, segmented data, events, or metric tables.
-- **Want to edit your data?** Use [Segmented Data workflows](/docs/advanced/segmented-data-workflows) to crop segments or split stimuli.
-
-## Open Source & Community
-
-GazePlotter is open-source software licensed under GNU GPL v3, ensuring it remains free and transparent forever.
-
-**Contribute & Support:**
-
-- [Code Repository](https://github.com/misavojte/GazePlotter) - Report bugs, request features, or contribute code
-- [npm Package](https://www.npmjs.com/package/gazeplotter) - Integrate GazePlotter into your own Svelte projects
-
-**Academic Use:**
-If you use GazePlotter in your research, please cite our work to support continued development and help other researchers discover this tool:
+GazePlotter is described in a peer-reviewed article in *Behavior Research Methods*. If it helps your research, please cite it. Citations help the project continue and help other researchers find it.
 
 > Vojtechovska, M., Popelka, S. GazePlotter: An open-source solution for the automatic generation of scarf plots from eye-tracking data. *Behav Res* **58**, 85 (2026). [https://doi.org/10.3758/s13428-026-02959-5](https://doi.org/10.3758/s13428-026-02959-5)
 
-BibTeX, the people behind GazePlotter and how to report bugs: see [About & Citation](/docs/about/).
+```bibtex
+@article{vojtechovska2026gazeplotter,
+  author  = {Vojtechovska, Michaela and Popelka, Stanislav},
+  title   = {GazePlotter: An open-source solution for the automatic generation of scarf plots from eye-tracking data},
+  journal = {Behavior Research Methods},
+  volume  = {58},
+  pages   = {85},
+  year    = {2026},
+  doi     = {10.3758/s13428-026-02959-5}
+}
+```
+
+## Report a problem
+
+Found a bug, or missing a feature? Let us know.
+
+- **With a GitHub account:** open an issue on [GitHub Issues](https://github.com/misavojte/GazePlotter/issues). Reports there are public, so others with the same problem can find them.
+- **Without one:** email [mail@vojtechovska.com](mailto:mail@vojtechovska.com). Describe what you did, what you expected, and which eye tracker the data came from. Please do not attach participant data unless asked.
+
+## Who makes GazePlotter
+
+GazePlotter is developed by [Michaela Vojtechovska](https://vojtechovska.com) and [Stanislav Popelka](https://www.geoinformatics.upol.cz/lide/stanislav-popelka/?lang=en) at the [Eye-tracking Laboratory](https://eyetracking.upol.cz) of the Department of Geoinformatics, Palacký University Olomouc.
+
+It started in 2022 as Michaela's master's project and was vastly expanded during the PhD that followed, under Stanislav's supervision. Today it supports the department's own eye-tracking research as well as commercial eye-tracking applications, so it will keep being maintained and expanded. The tool is and will remain free.
+
+Its publication and conference presentations were supported by the Czech Science Foundation (GAČR) project *Identification of barriers in the process of communication of spatial socio-demographic information* (23-06187S).
+
+Want to collaborate, need a feature for your study, or teach with GazePlotter? Write to [mail@vojtechovska.com](mailto:mail@vojtechovska.com). We don't track who uses GazePlotter, so we are always glad to hear where it helped.
+
+![Michaela presenting GazePlotter at the Cognition and Artificial Life conference.](/images/gazeplotter_presentation.png)
+
+## Open source
+
+GazePlotter is licensed under [GNU GPL v3](https://github.com/misavojte/GazePlotter/blob/main/LICENSE).
+
+- [Source code on GitHub](https://github.com/misavojte/GazePlotter)
+- [npm package](https://www.npmjs.com/package/gazeplotter) for [embedding GazePlotter](/docs/advanced/embedding/) in your own application
+- [Changelog](/docs/changelog/)
