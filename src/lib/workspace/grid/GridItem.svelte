@@ -364,6 +364,7 @@
     display: flex;
     flex-direction: column;
     position: relative;
+    box-shadow: var(--shadow-sm);
     transition: box-shadow var(--transition-fast) ease;
 
     /* Affordance ring sits ON TOP of the frame's existing 1px border.
