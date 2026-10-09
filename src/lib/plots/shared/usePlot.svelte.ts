@@ -204,6 +204,8 @@ export interface FramePointerHandlers {
   onUp?: (p: FramePointer & { dragged: boolean }) => void
   /** Fires after movement passes `dragThreshold` (default 5px) while pressed. */
   onDrag?: (d: FrameDrag) => void
+  /** Where a press's drag belongs to the plot; elsewhere the workspace pans. */
+  ownsDragAt?: (x: number, y: number) => boolean
   dragThreshold?: number
 }
 
@@ -974,6 +976,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
       // window, multi-button press) must not orphan a window-listener pair.
       teardownDrag()
       const start = scaled(e)
+      const owned = pointer.ownsDragAt?.(start.x, start.y) ?? true
       let started = false
       let lastX = start.x
       let lastY = start.y
@@ -986,7 +989,8 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
         const totalDy = p.y - start.y
         const dx = p.x - lastX
         const dy = p.y - lastY
-        if (!started && Math.hypot(totalDx, totalDy) >= threshold) started = true
+        if (!started && owned && Math.hypot(totalDx, totalDy) >= threshold)
+          started = true
         if (started) {
           pointer.onDrag?.({
             x: p.x,
@@ -1018,6 +1022,13 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
       node.addEventListener('mouseleave', rawMouseLeave)
     }
     if (pointer && browser) node.addEventListener('mousedown', onDown)
+    // Workspace pan yields where the plot owns the drag. Set on pointerdown,
+    // before the press bubbles to the pan surface.
+    const claimDrag = (e: PointerEvent) => {
+      const p = scaled(e)
+      node.toggleAttribute('data-owns-drag', pointer?.ownsDragAt?.(p.x, p.y) ?? true)
+    }
+    if (pointer?.onDrag) node.addEventListener('pointerdown', claimDrag)
 
     return {
       update() {
@@ -1034,6 +1045,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
           }
         }
         if (pointer && browser) node.removeEventListener('mousedown', onDown)
+        if (pointer?.onDrag) node.removeEventListener('pointerdown', claimDrag)
         teardownDrag()
         // Like the plot cursor: a plot removed under the pointer gets no
         // `mouseleave`, so it retracts itself.

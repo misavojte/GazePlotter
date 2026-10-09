@@ -199,7 +199,7 @@
 >
   <div 
     class="grid-item-scaler" 
-    class:is-pressed={isPressed}
+    class:is-pressed={isPressed && !interaction.isPanning}
     onpointerdowncapture={onPointerDown}
     onpointerupcapture={onPointerUp}
     onpointercancelcapture={onPointerUp}

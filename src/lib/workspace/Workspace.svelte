@@ -63,17 +63,20 @@
     grid.clearSelection()
   }
 
-  // Drag-to-pan starts from anywhere in the frame's empty space, inside or
-  // outside the grid's own box. Bail when the gesture begins
-  // on a grid item (it owns its own move/select gesture) or on an
-  // interactive overlay control (e.g. the off-screen SelectionIndicator
-  // arrow), so those keep their own pointer semantics.
+  // Drag-to-pan starts from empty space and from unselected plots, whose drag
+  // is otherwise unused (a selected plot's drag moves it). Controls and
+  // canvases that declare their own drag keep their pointer semantics.
   function shouldStartPan(event: PointerEvent): boolean {
     const target = event.target as HTMLElement | null
     if (!target) return false
     return !target.closest(
-      '.grid-item, button, a, input, select, textarea, [role="button"]'
+      '.grid-item.selected, [data-owns-drag], button, a, input, select, textarea, [role="button"]'
     )
+  }
+
+  // On a plot the pan waits for a drag, so a click still selects it.
+  function deferPan(event: PointerEvent): boolean {
+    return (event.target as HTMLElement | null)?.closest('.grid-item') != null
   }
 
   const gridConfig = DEFAULT_GRID_CONFIG
@@ -318,6 +321,7 @@
         interaction,
         workspaceContainer,
         shouldStart: shouldStartPan,
+        deferStart: deferPan,
       }}
     >
       {#if fileDrop.isActive && (grid.isEmpty || isLoading)}

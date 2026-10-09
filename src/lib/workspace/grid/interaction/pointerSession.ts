@@ -18,6 +18,11 @@ type PointerSessionOptions = {
   touchAction?: string
   /** Mouse buttons that may start the session. Defaults to primary only. */
   mouseButtons?: readonly number[]
+  /**
+   * Arm instead of start: the session begins only once the press travels past
+   * the click threshold, so a plain click keeps its own target and default.
+   */
+  deferStart?: (event: PointerEvent) => boolean
 }
 
 function getPoint(event: PointerEvent): InteractionPoint {
@@ -69,6 +74,7 @@ export function createPointerSession(
   let activePointerId: number | null = null
   let isTracking = false
   let downPoint: InteractionPoint | null = null
+  let armed = false
   const initialTouchAction = node.style.touchAction
 
   function beginTracking(): void {
@@ -115,16 +121,26 @@ export function createPointerSession(
       return
     if (options.shouldStart && !options.shouldStart(event)) return
 
-    maybePreventStart(event)
     activePointerId = event.pointerId
     downPoint = getPoint(event)
     beginTracking()
+    if (options.deferStart?.(event)) {
+      armed = true
+      return
+    }
+    maybePreventStart(event)
     node.setPointerCapture?.(event.pointerId)
     options.onStart(getPoint(event), event)
   }
 
   function handlePointerMove(event: PointerEvent): void {
     if (!isTracking || activePointerId !== event.pointerId) return
+    if (armed) {
+      if (!downPoint || !wasDrag(getPoint(event))) return
+      armed = false
+      node.setPointerCapture?.(event.pointerId)
+      options.onStart(downPoint, event)
+    }
     if (options.preventDefaultOnMove) event.preventDefault()
     options.onMove(getPoint(event), event)
   }
@@ -138,8 +154,16 @@ export function createPointerSession(
     )
   }
 
+  function disarm(): void {
+    armed = false
+    activePointerId = null
+    downPoint = null
+    endTracking()
+  }
+
   function handlePointerUp(event: PointerEvent): void {
     if (!isTracking || activePointerId !== event.pointerId) return
+    if (armed) return disarm()
     node.releasePointerCapture?.(event.pointerId)
     activePointerId = null
     const upPoint = getPoint(event)
@@ -151,6 +175,7 @@ export function createPointerSession(
 
   function handlePointerCancel(event: PointerEvent): void {
     if (!isTracking || activePointerId !== event.pointerId) return
+    if (armed) return disarm()
     node.releasePointerCapture?.(event.pointerId)
     activePointerId = null
     downPoint = null

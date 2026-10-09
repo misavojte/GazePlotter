@@ -15,6 +15,8 @@ type PanSurfaceActionParams = {
    * grid items and interactive overlays that own their own pointer gestures.
    */
   shouldStart?: (event: PointerEvent) => boolean
+  /** Presses that pan only once they become a drag (a click stays a click). */
+  deferStart?: (event: PointerEvent) => boolean
 }
 
 // Cooperative gestures: a single finger scrolls the page, so touch never
@@ -33,6 +35,9 @@ export function panSurfaceAction(
 
   const setPanCursor = (cursor: string) => {
     document.body.style.cursor = cursor
+    // A deferred pan never prevented the press, so text selection would follow it.
+    document.body.style.userSelect = cursor ? 'none' : ''
+    if (cursor) window.getSelection?.()?.removeAllRanges()
     node.style.cursor = cursor
     if (params.workspaceContainer) {
       params.workspaceContainer.style.cursor = cursor
@@ -50,6 +55,8 @@ export function panSurfaceAction(
         event.pointerType !== 'touch' &&
         (event.button === MIDDLE_BUTTON ||
           (params.shouldStart?.(event) ?? true)),
+      deferStart: (event: PointerEvent) =>
+        event.button !== MIDDLE_BUTTON && (params.deferStart?.(event) ?? false),
       touchAction,
       mouseButtons: [0, MIDDLE_BUTTON],
       preventDefaultOnStart: true,
