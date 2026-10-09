@@ -3,6 +3,10 @@ import type { DataType, StimulusMedia } from '../src/lib/data/types'
 import { makeDataType } from './helpers/dataTypeFixtures'
 import { buildWorkspace } from '../src/lib/data/export/controller'
 import { workspaceZipFormat } from '../src/lib/data/ingest/formats/workspaceZip'
+import { FORMAT_REGISTRY } from '../src/lib/data/ingest/formats/registry'
+import { IngestJob } from '../src/lib/data/ingest/kernel/job'
+import { blobSource } from '../src/lib/data/ingest/kernel/source'
+import { writeBlobZip } from '../src/lib/data/zip/blobZip'
 import { workspaceJsonFormat } from '../src/lib/data/ingest/formats/workspaceJson'
 import { StimulusMediaStore } from '../src/lib/data/media/mediaStore.svelte'
 import {
@@ -93,6 +97,27 @@ describe('workspace media round trip', () => {
     expect(result.mediaBlobs).toEqual({})
     expect(result.data.stimuliMedia).toEqual({ 0: MEDIA })
   })
+
+  it('opens a renamed archive by its content, and leaves other zips to the archive formats', async () => {
+    const payload = await buildWorkspace(
+      createData(true),
+      [],
+      null,
+      storeWith(new Blob([new Uint8Array([1, 2])], { type: MEDIA.mimeType }))
+    )
+    const archive = payload.content as Blob
+    expect(await workspaceZipFormat.matchesContent!(archive)).toBe(true)
+    const { blob: other } = await writeBlobZip([{ name: 'sections.csv', content: 'a,b' }])
+    expect(await workspaceZipFormat.matchesContent!(other)).toBe(false)
+    expect(await workspaceZipFormat.matchesContent!(new Blob(['not a zip']))).toBe(false)
+
+    const name = 'study.gazeplotter (1).zip'
+    const job = new IngestJob([name], FORMAT_REGISTRY, ingestCtx)
+    const result = await job.add(blobSource(name, archive))
+    expect(result?.kind).toBe('workspace')
+    if (result?.kind !== 'workspace') throw new Error('expected workspace')
+    expect(result.mediaBlobs?.[0]).toBeInstanceOf(Blob)
+  }, 20000)
 
   describe('matching uploaded media to stimuli', () => {
     const fakeFile = (name: string, type = 'image/png') =>

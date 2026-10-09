@@ -3,22 +3,32 @@ import type { StimulusMedia } from '$lib/data/types'
 import { readBlobZip, readZipEntry } from '$lib/data/zip/blobZip'
 
 /**
- * A saved GazePlotter workspace archive (`.gazeplotter.zip`) — produced when
+ * A saved GazePlotter workspace archive (`.gazeplotter.zip`), produced when
  * the workspace carries stimulus reference media. Contains the exact
  * `workspace.json` a plain export would produce plus one
  * `media/<stimulusId>.<ext>` entry per medium (see `buildWorkspace` in
  * `export/controller.ts`).
  *
- * Matched by the full `.gazeplotter.zip` suffix so plain `.zip` uploads keep
- * going to the archive formats (Pupil Cloud). A media entry that is missing
- * or unreadable drops only that stimulus's media (the ingest apply strips
- * blob-less metadata and warns) — never the whole workspace.
+ * Matched by the `.gazeplotter.zip` suffix, or by a `workspace.json` entry
+ * in any other `.zip` (Pupil Cloud exports have none, so they still go to the
+ * archive formats). A media entry that is missing or unreadable drops only
+ * that stimulus's media (the ingest apply strips blob-less metadata and
+ * warns), never the whole workspace.
  */
 export const workspaceZipFormat: WorkspaceFormatDefinition = {
   kind: 'workspace',
   id: 'workspace-zip',
   displayName: 'GazePlotter workspace archive',
   matchesFileName: name => name.toLowerCase().endsWith('.gazeplotter.zip'),
+  // A renamed copy (`study.gazeplotter (1).zip`, `study.zip`) is still ours
+  // when it carries workspace.json.
+  async matchesContent(file) {
+    try {
+      return (await readBlobZip(file)).has('workspace.json')
+    } catch {
+      return false
+    }
+  },
 
   async read(file) {
     const entries = await readBlobZip(file)

@@ -80,9 +80,18 @@ export class IngestJob {
     const sources = this.pending
 
     // 1. Workspace precedence (first source only).
-    const workspaceDef = this.formats.workspace.find(f =>
+    let workspaceDef = this.formats.workspace.find(f =>
       f.matchesFileName(sources[0].name)
     )
+    const firstBlob = sources[0].blob
+    if (!workspaceDef && firstBlob) {
+      for (const f of this.formats.workspace) {
+        if (await f.matchesContent?.(firstBlob)) {
+          workspaceDef = f
+          break
+        }
+      }
+    }
     if (workspaceDef) {
       return await workspaceDef.read(await sourceBlob(sources[0]), this.ctx)
     }

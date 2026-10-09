@@ -104,6 +104,9 @@ export interface WorkspaceFormatDefinition {
   id: string
   displayName: string
   matchesFileName(fileName: string): boolean
+  /** Claims a file whose name doesn't match (e.g. a browser-renamed copy) by
+      its content. Only whole-file sources (archives) are offered. */
+  matchesContent?(file: Blob): Promise<boolean>
   /** A workspace file is the whole result — no sink involved. */
   read(file: Blob, ctx: IngestContext): Promise<IngestResult>
 }
