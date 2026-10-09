@@ -201,6 +201,16 @@ export interface UpdateLayoutCommand extends BaseCommandInterface {
   updates: { itemId: number; layout: GridItemLayoutUpdate }[]
 }
 
+// Shifts every grid item by the same number of cells. Dispatched as a child of
+// a move or resize that left a plot above or left of the grid origin, so
+// stored coordinates never go negative; the view scrolls by the same amount
+// (on undo and redo too), so nothing appears to move.
+export interface TranslateLayoutCommand extends BaseCommandInterface {
+  type: 'translateLayout'
+  dx: number
+  dy: number
+}
+
 // Grid item management commands
 export interface AddGridItemCommand extends BaseCommandInterface {
   type: 'addGridItem'
@@ -248,6 +258,7 @@ export type WorkspaceCommand =
   | UpdateMetricInstancesCommand
   | UpdateSettingsCommand // includes position and size updates
   | UpdateLayoutCommand
+  | TranslateLayoutCommand
   | AddGridItemCommand
   | RemoveGridItemCommand
   | RemoveGridItemsCommand

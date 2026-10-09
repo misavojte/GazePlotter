@@ -1,63 +1,60 @@
-import { SquarePlus, Undo2, Redo2, RotateCcw, Settings2 } from 'lucide-svelte'
+import { SquarePlus, Undo2, Redo2, Settings2 } from 'lucide-svelte'
 import type { LucideIconComponent } from '$lib/shared/icon'
 import { PLOT_GROUPS, type PlotGroup } from '$lib/plots/groups'
 import type { PlotType } from '$lib/workspace/grid/types'
 
-export interface RailVisualization {
+export interface ControlVisualization {
   id: PlotType
   label: string
   group: PlotGroup
 }
 
-interface RailActionConfig {
+export interface ControlAction {
   label: string
   run?: () => void
   /** When present, this action is a submenu parent: it carries no `run`, and
    *  its children render as a nested menu. The add-visualization menu uses this
    *  to group plots under their taxonomy bucket. */
-  children?: RailActionConfig[]
+  children?: ControlAction[]
 }
 
-export interface RailItemConfig {
-  id: RailItemId
+export interface ControlConfig {
+  id: ControlId
   label: string
   icon: LucideIconComponent
-  actions: RailActionConfig[]
+  actions: ControlAction[]
   disabled: boolean
 }
 
-interface CreateRailItemsOptions {
+interface CreateToolControlsOptions {
   undoLabel: string | null
   redoLabel: string | null
   canUndo: boolean
   canRedo: boolean
   isProcessing: boolean
   isValidData: boolean
-  visualizations: RailVisualization[]
+  visualizations: ControlVisualization[]
   onUndo: () => void
   onRedo: () => void
-  onResetLayout: () => void
   onAddVisualization: (id: PlotType) => void
 }
 
-type RailItemId =
+type ControlId =
   | 'undo'
   | 'redo'
-  | 'reset-layout'
   | 'add-visualization'
   | 'edit-plot'
 
-const railIcons = {
+const controlIcons = {
   undo: Undo2,
   redo: Redo2,
-  'reset-layout': RotateCcw,
   'add-visualization': SquarePlus,
   'edit-plot': Settings2,
-} satisfies Record<RailItemId, LucideIconComponent>
+} satisfies Record<ControlId, LucideIconComponent>
 
-export function createRailItems(
-  options: CreateRailItemsOptions
-): RailItemConfig[] {
+export function createToolControls(
+  options: CreateToolControlsOptions
+): ControlConfig[] {
   const undoLabel = options.undoLabel ?? 'Nothing to undo'
   const redoLabel = options.redoLabel ?? 'Nothing to redo'
 
@@ -65,7 +62,7 @@ export function createRailItems(
     {
       id: 'undo',
       label: undoLabel,
-      icon: railIcons.undo,
+      icon: controlIcons.undo,
       actions: [{ label: undoLabel, run: options.onUndo }],
       // Processing gates every workspace action alike: the load replaces the
       // grid and its history, so there is nothing to undo into.
@@ -74,26 +71,14 @@ export function createRailItems(
     {
       id: 'redo',
       label: redoLabel,
-      icon: railIcons.redo,
+      icon: controlIcons.redo,
       actions: [{ label: redoLabel, run: options.onRedo }],
       disabled: options.isProcessing || !options.canRedo,
     },
     {
-      id: 'reset-layout',
-      label: 'Reset Layout',
-      icon: railIcons['reset-layout'],
-      actions: [
-        {
-          label: 'Reset Layout',
-          run: options.onResetLayout,
-        },
-      ],
-      disabled: options.isProcessing || !options.isValidData,
-    },
-    {
       id: 'add-visualization',
       label: 'Add Visualization',
-      icon: railIcons['add-visualization'],
+      icon: controlIcons['add-visualization'],
       // One submenu parent per non-empty taxonomy group, in PLOT_GROUPS order.
       // Capability filtering happens upstream, so an unavailable group simply
       // contributes no items and drops out here.
@@ -115,17 +100,16 @@ export function createRailItems(
   ]
 }
 
-// Mobile-only: when a plot is selected but the settings sheet isn't
-// open yet, the rail swaps its contents to a single Edit action that
-// opens the sheet. Desktop never enters this state (selection opens
-// the pane atomically there).
-export function createEditPlotRailItem(
+// Mobile-only: when a plot is selected but the settings sheet isn't open
+// yet, a floating Edit control opens it. Desktop never enters this state
+// (selection opens the pane atomically there).
+export function createEditPlotControl(
   onEdit: () => void
-): RailItemConfig {
+): ControlConfig {
   return {
     id: 'edit-plot',
     label: 'Edit plot settings',
-    icon: railIcons['edit-plot'],
+    icon: controlIcons['edit-plot'],
     actions: [{ label: 'Edit plot settings', run: onEdit }],
     disabled: false,
   }

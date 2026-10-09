@@ -10,6 +10,12 @@ type PointerSessionOptions = {
   preventDefaultOnStart?: boolean
   preventDefaultOnMove?: boolean
   stopPropagationOnStart?: boolean
+  /**
+   * `touch-action` while enabled. Defaults to 'none' (the session owns every
+   * touch). The workspace frame passes 'pan-x pan-y' so one finger still
+   * scrolls the page and only two-finger gestures belong to the canvas.
+   */
+  touchAction?: string
 }
 
 function getPoint(event: PointerEvent): InteractionPoint {
@@ -149,7 +155,7 @@ export function createPointerSession(
 
   function bindStartListeners(): void {
     if (!options.enabled) return
-    node.style.touchAction = 'none'
+    node.style.touchAction = options.touchAction ?? 'none'
     node.addEventListener('pointerdown', handlePointerDown)
   }
 

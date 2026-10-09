@@ -17,6 +17,11 @@ type PanSurfaceActionParams = {
   shouldStart?: (event: PointerEvent) => boolean
 }
 
+// Cooperative gestures: a single finger scrolls the page, so touch never
+// starts a drag-pan here (two-finger pan and pinch are the frame's own).
+const touchAction = 'pan-x pan-y'
+
+
 export function panSurfaceAction(
   node: HTMLElement,
   initialParams: PanSurfaceActionParams
@@ -38,7 +43,10 @@ export function panSurfaceAction(
   function createSessionOptions() {
     return {
       enabled: params.enabled,
-      shouldStart: params.shouldStart,
+      shouldStart: (event: PointerEvent) =>
+        event.pointerType !== 'touch' &&
+        (params.shouldStart?.(event) ?? true),
+      touchAction,
       preventDefaultOnStart: true,
       onStart(point: InteractionPoint) {
         setPanCursor('grabbing')

@@ -24,11 +24,20 @@ export type WorkspaceShortcut =
   | 'zoom-in'
   | 'zoom-out'
   | 'zoom-reset'
+  | 'zoom-fit'
 
-/** The Ctrl/Cmd chord this event is, or null when it is not one of ours. */
+/** The shortcut this event is (a Ctrl/Cmd chord, or Shift+1), or null. */
 export function resolveWorkspaceShortcut(
   event: KeyboardEvent
 ): WorkspaceShortcut | null {
+  // Shift+1 zooms to fit, as in Figma and Miro: the one bare-key shortcut.
+  if (
+    event.shiftKey &&
+    event.code === 'Digit1' &&
+    !(event.ctrlKey || event.metaKey || event.altKey)
+  ) {
+    return 'zoom-fit'
+  }
   if (!(event.ctrlKey || event.metaKey)) return null
   // `code` for the letters so the chord survives a non-QWERTY layout; `key` for
   // the zoom glyphs, where +/= share one physical key.

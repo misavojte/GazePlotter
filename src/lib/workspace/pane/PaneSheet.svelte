@@ -75,7 +75,7 @@
     display: flex;
     flex-direction: column;
     box-sizing: border-box;
-    background-color: var(--c-lightgrey);
+    background-color: var(--c-white);
     border-top: 1px solid var(--c-border);
     border-top-left-radius: var(--rounded-lg);
     border-top-right-radius: var(--rounded-lg);

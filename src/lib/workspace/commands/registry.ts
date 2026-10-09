@@ -333,6 +333,29 @@ export function createWorkspaceCommandRegistry(
       }
 
       if (command.isRootCommand && !context.isUndoRedoOperation) {
+        // A plot dropped above or left of the origin: shift the whole layout
+        // back to non-negative cells first, so collision resolution (and
+        // everything stored) only ever sees the grid it expects.
+        let minX = 0
+        let minY = 0
+        for (const item of gridStore.items) {
+          minX = Math.min(minX, item.x)
+          minY = Math.min(minY, item.y)
+        }
+        if (minX < 0 || minY < 0) {
+          context.dispatch(
+            createChildCommand(
+              {
+                type: 'translateLayout',
+                dx: -minX,
+                dy: -minY,
+                source: command.source,
+              },
+              command.chainId
+            )
+          )
+        }
+
         // All moved items are priority (fixed) for collision resolution, so
         // a group move pushes only non-members aside — members keep their
         // relative layout.
@@ -382,6 +405,15 @@ export function createWorkspaceCommandRegistry(
       const createdId = gridStore.duplicateItem(currentItem, command.duplicateId)
       if (command.isRootCommand && !context.isUndoRedoOperation) {
         emitCollisionResolutionChildren(createdId, command.chainId, context)
+      }
+    },
+
+    translateLayout: command => {
+      for (const item of gridStore.items) {
+        gridStore.updateLayout(item.id, {
+          x: item.x + command.dx,
+          y: item.y + command.dy,
+        })
       }
     },
 
@@ -607,6 +639,9 @@ export function createWorkspaceCommandRegistry(
         meta
       )
     },
+
+    translateLayout: (cmd, meta) =>
+      withMeta({ type: 'translateLayout', dx: -cmd.dx, dy: -cmd.dy }, meta),
 
     addGridItem: (cmd, meta) =>
       withMeta({ type: 'removeGridItem', itemId: cmd.itemId }, meta),

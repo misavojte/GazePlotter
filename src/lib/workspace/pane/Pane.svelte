@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onMount, setContext } from 'svelte'
+  import { setContext } from 'svelte'
   import { getGazePlotterSession } from '$lib/session'
   import { plotRegistry, getPlotDisplayName } from '$lib/plots/registry'
   import { exportFiguresModal } from '$lib/modals/definitions'
@@ -13,7 +13,6 @@
   import { PANE_ACCORDION_KEY, type PaneAccordion } from './accordion'
   import { PANE_TRANSITION, slideFlex } from './transition'
   import { responsive } from '../responsive.svelte'
-  import { stickyBanner } from '../stickyBanner.svelte'
   import { useContextMenu } from '$lib/context-menu'
 
   const contextMenuState = useContextMenu()
@@ -79,16 +78,6 @@
       grid.clearSelection()
     }
   }
-
-  // Same viewport anchoring as the rail, so the pane's content stays in view
-  // when the page is scrolled down. Unlike the rail (which offsets -24px for
-  // its icon-only layout), the pane sticks flush with the viewport top so the
-  // title isn't clipped.
-  const contentTop = $derived(stickyBanner.height)
-
-  onMount(() => {
-    stickyBanner.measure()
-  })
 
   // Escape closes whichever surface is open (desktop pane, bulk pane, or
   // mobile sheet). Keyed on paneItem/isBulk so the listener detaches when
@@ -163,10 +152,7 @@
       easing: PANE_TRANSITION.easing,
     }}
   >
-    <div
-      class="pane-content"
-      style="top: {contentTop}px; max-height: calc(100vh - {contentTop}px);"
-    >
+    <div class="pane-content">
       {@render desktopBody()}
     </div>
   </aside>
@@ -176,17 +162,17 @@
   .pane {
     flex: 0 0 400px;
     align-self: stretch;
-    background-color: var(--c-lightgrey);
+    background-color: var(--c-white);
     z-index: 2;
     box-sizing: border-box;
     border-left: 1px solid var(--c-border);
-    border-top: 1px solid var(--c-border);
     transition: background-color var(--transition-slow) ease;
   }
 
+  /* The workspace is one screen tall on desktop, so the pane fills its
+     height and scrolls its own body; no sticky positioning needed. */
   .pane-content {
-    position: sticky;
-    top: unset; /* set inline from stickyBanner.height */
+    height: 100%;
     display: flex;
     flex-direction: column;
     box-sizing: border-box;

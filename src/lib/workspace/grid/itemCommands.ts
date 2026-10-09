@@ -99,8 +99,9 @@ export function commitGridItemResize(
       {
         itemId: item.id,
         layout: {
-          x: Math.max(0, commit.x),
-          y: Math.max(0, commit.y),
+          // Negative is fine: the layout command shifts everything back.
+          x: commit.x,
+          y: commit.y,
           w: Math.max(min.w, commit.w),
           h: Math.max(min.h, commit.h),
         },

@@ -87,6 +87,8 @@ const WORKSPACE_COMMAND_LABELS: Record<
 
   updateLayout: { action: 'layout update', default: 'Layout updated' },
 
+  translateLayout: { action: 'layout update', default: 'Layout updated' },
+
   // Grid item management commands
   addGridItem: {
     action: 'plot addition',

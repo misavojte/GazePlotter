@@ -1,38 +1,54 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte'
+  import { onDestroy, untrack } from 'svelte'
+  import { fade } from 'svelte/transition'
   import { IndicatorEmpty, IndicatorLoading } from './'
   import Grid from './grid/Grid.svelte'
   import { getGazePlotterSession } from '$lib/session'
-  import Rail from './rail/Rail.svelte'
-  import Ribbon from './ribbon/Ribbon.svelte'
+  import WorkspaceControls from './controls/WorkspaceControls.svelte'
+  import { responsive } from './responsive.svelte'
   import { Pane } from './pane'
   import SelectionIndicator from './SelectionIndicator.svelte'
-  import { responsive } from './responsive.svelte'
+  import { stickyBanner } from './stickyBanner.svelte'
 
   import {
     MIN_WORKSPACE_HEIGHT,
     DEFAULT_GRID_CONFIG,
     calculateGridHeight,
     calculateGridWidth,
+    gridToPixelDimensions,
+    gridToPixelPosition,
   } from './grid'
   import {
     GridInteractionController,
     panSurfaceAction,
   } from './grid/interaction'
-  import { WorkspaceZoom, wheelZoomAction } from './zoom.svelte'
+  import type { WorkspaceCamera, GridBounds } from './camera.svelte'
+  import { cameraTouchAction, cameraWheelAction } from './cameraGestures'
   import { FileDropTarget } from './fileDrop.svelte'
   import { isTextEntryTarget, resolveWorkspaceShortcut } from './keys'
   import type { WorkspaceCommandChain } from './commands'
 
   interface Props {
     onWorkspaceCommandChain: (command: WorkspaceCommandChain) => void
+    /** The view onto the grid; owned by GazePlotter so hosts can drive it. */
+    camera: WorkspaceCamera
+    /** How the wheel behaves over the workspace (see GazePlotter). */
+    gestures?: 'cooperative' | 'canvas'
+    /** Show the built-in floating controls (see GazePlotter). */
+    controls?: boolean
   }
 
-  const { onWorkspaceCommandChain }: Props = $props()
+  const {
+    onWorkspaceCommandChain,
+    camera,
+    gestures = 'cooperative',
+    controls = true,
+  }: Props = $props()
   const { ingest, grid, workspace, modalState } = getGazePlotterSession()
 
   // Single upload owner: the drag-drop handler below and the click entry
-  // points (ribbon item, empty-state button) all feed ingest.
+  // points (the host's import trigger, the empty-state button) all feed
+  // ingest.
   const triggerUpload = () => ingest.openAndLoadFiles()
 
   function handleWorkspaceBackgroundClick(event: MouseEvent): void {
@@ -47,9 +63,8 @@
     grid.clearSelection()
   }
 
-  // Drag-to-pan starts from anywhere in the scroll container's empty
-  // space — including the 35px padding band and any blank area past the
-  // grid content, not just the content box. Bail when the gesture begins
+  // Drag-to-pan starts from anywhere in the frame's empty space, inside or
+  // outside the grid's own box. Bail when the gesture begins
   // on a grid item (it owns its own move/select gesture) or on an
   // interactive overlay control (e.g. the off-screen SelectionIndicator
   // arrow), so those keep their own pointer semantics.
@@ -72,31 +87,36 @@
   const isLoading = $derived(ingest.isLoading)
 
   let workspaceContainer: HTMLElement | null = $state(null)
-  let mobileRailElement: HTMLElement | null = $state(null)
-  const zoom = new WorkspaceZoom()
+  let gridSurface: HTMLElement | null = $state(null)
   const fileDrop = new FileDropTarget()
   const interaction = new GridInteractionController()
   const positionsWithPreview = $derived.by(() =>
     interaction.getPositionsWithPreview(grid.positions)
   )
-  const gridHeight = $derived.by(() => {
-    const baseHeight = calculateGridHeight(
-      positionsWithPreview,
-      grid.isEmpty,
-      isLoading,
-      gridConfig
-    )
+  const gridHeight = $derived(
+    calculateGridHeight(positionsWithPreview, grid.isEmpty, isLoading, gridConfig)
+  )
+  const gridWidth = $derived(
+    calculateGridWidth(positionsWithPreview, gridConfig)
+  )
 
-    return interaction.workspaceHeightHint === null
-      ? baseHeight
-      : Math.max(baseHeight, interaction.workspaceHeightHint)
-  })
-  const gridWidth = $derived.by(() => {
-    const baseWidth = calculateGridWidth(positionsWithPreview, gridConfig)
-
-    return interaction.workspaceWidthHint === null
-      ? baseWidth
-      : Math.max(baseWidth, interaction.workspaceWidthHint)
+  // The layout's extent in grid px (live previews included, so a dragged
+  // plot can pull the view with it): the camera's soft wall and "fit" use it.
+  const contentBounds = $derived.by((): GridBounds | null => {
+    if (positionsWithPreview.length === 0) return null
+    let left = Infinity
+    let top = Infinity
+    let right = -Infinity
+    let bottom = -Infinity
+    for (const item of positionsWithPreview) {
+      const pos = gridToPixelPosition(item.x, item.y, gridConfig)
+      const size = gridToPixelDimensions(item.w, item.h, gridConfig)
+      left = Math.min(left, pos.left)
+      top = Math.min(top, pos.top)
+      right = Math.max(right, pos.left + size.width)
+      bottom = Math.max(bottom, pos.top + size.height)
+    }
+    return { left, top, right, bottom }
   })
 
   // ---------------------------------------------------
@@ -104,9 +124,13 @@
   // ---------------------------------------------------
 
   $effect(() => {
-    if (workspaceContainer) {
-      workspaceContainer.scrollLeft = 0
-    }
+    camera.setContentBounds(() => contentBounds)
+  })
+
+  // A freshly shown grid (first load, a new dataset, a restored workspace)
+  // opens showing the whole layout, as far as it stays readable.
+  $effect(() => {
+    if (gridSurface) untrack(() => camera.open())
   })
 
   $effect(() => {
@@ -114,11 +138,15 @@
   })
 
   $effect(() => {
-    interaction.setZoom(zoom.value)
+    interaction.setZoom(camera.zoom)
   })
 
   $effect(() => {
-    zoom.setViewport(workspaceContainer)
+    camera.setFrame(workspaceContainer)
+    interaction.setCamera(camera)
+    return () => {
+      interaction.setCamera(null)
+    }
   })
 
   $effect(() => {
@@ -129,8 +157,44 @@
     }
   })
 
+  // A layout shift (a plot dropped past the origin, or its undo) moves every
+  // plot inside the grid; move the camera the other way so none moves on
+  // screen. Same flush as the layout change, so no frame shows the jump.
+  function followLayoutShift(command: WorkspaceCommandChain): void {
+    if (command.type !== 'translateLayout') return
+    camera.followShift(
+      command.dx * (gridConfig.cellSize.width + gridConfig.gap),
+      command.dy * (gridConfig.cellSize.height + gridConfig.gap)
+    )
+  }
+
+  const isFrameTarget = (target: Node) =>
+    !!workspaceContainer?.contains(target)
+
+  // Cooperative gestures: a plain wheel scrolls the page, so say how to zoom
+  // instead, as an embedded map does.
+  const zoomModifier =
+    typeof navigator !== 'undefined' &&
+    /Mac|iP(hone|ad)/.test(navigator.userAgent)
+      ? '⌘'
+      : 'Ctrl'
+  let wheelHintVisible = $state(false)
+  let wheelHintTimer: ReturnType<typeof setTimeout> | undefined
+  function showWheelHint(event: WheelEvent): void {
+    if (grid.isEmpty || isLoading) return
+    if (!workspaceContainer?.contains(event.target as Node)) return
+    // Sideways wheels (Shift+wheel, horizontal swipes) are not page scrolls.
+    if (Math.abs(event.deltaY) < Math.abs(event.deltaX)) return
+    wheelHintVisible = true
+    clearTimeout(wheelHintTimer)
+    wheelHintTimer = setTimeout(() => (wheelHintVisible = false), 1200)
+  }
+
   $effect(() => {
-    workspace.setCommandListener(onWorkspaceCommandChain)
+    workspace.setCommandListener(command => {
+      followLayoutShift(command)
+      onWorkspaceCommandChain(command)
+    })
 
     return () => {
       workspace.setCommandListener(() => {})
@@ -139,6 +203,7 @@
 
   onDestroy(() => {
     interaction.destroy()
+    clearTimeout(wheelHintTimer)
   })
 
   // ---------------------------------------------------
@@ -155,6 +220,14 @@
     const shortcut = resolveWorkspaceShortcut(event)
     if (shortcut === null) return
 
+    if (shortcut === 'zoom-fit') {
+      // A bare key, unlike the chords below: a field or a modal keeps it.
+      if (!canEditHistory || isTextEntryTarget(event)) return
+      event.preventDefault()
+      camera.fit()
+      return
+    }
+
     if (shortcut === 'undo' || shortcut === 'redo') {
       if (!canEditHistory || isTextEntryTarget(event)) return
       event.preventDefault()
@@ -164,9 +237,9 @@
     }
 
     event.preventDefault()
-    if (shortcut === 'zoom-in') zoom.in()
-    else if (shortcut === 'zoom-out') zoom.out()
-    else zoom.reset()
+    if (shortcut === 'zoom-in') camera.in()
+    else if (shortcut === 'zoom-out') camera.out()
+    else camera.reset()
   }
 
   $effect(() => {
@@ -181,7 +254,9 @@
     if (files) await ingest.loadFiles(files)
   }
 
-  const styleProps = `--min-workspace-height: ${MIN_WORKSPACE_HEIGHT}px; --grid-container-min-height: ${MIN_WORKSPACE_HEIGHT - 100}px;`
+  const styleProps = $derived(
+    `--min-workspace-height: ${MIN_WORKSPACE_HEIGHT}px; --sticky-banner-height: ${stickyBanner.height}px;`
+  )
 </script>
 
 {#snippet dropHint()}
@@ -193,16 +268,21 @@
   </div>
 {/snippet}
 
-<div class="workspace-wrapper" style={styleProps} use:wheelZoomAction={zoom}>
-  <Ribbon onUpload={triggerUpload} />
-
-  <div class="workspace-body" class:mobile={responsive.isMobile}>
-    {#if !responsive.isMobile}
-      <!-- Desktop: Rail is a flex item on the left edge of the -->
-      <!-- workspace-body row, next to the scrolling container. -->
-      <Rail bind:zoom={zoom.value} />
+<div
+  class="workspace-wrapper"
+  style={styleProps}
+  use:cameraWheelAction={{
+    camera,
+    // Canvas-first: a plain wheel over the frame pans (never over the pane,
+    // which scrolls its own settings). Cooperative: the page keeps it.
+    panTarget: gestures === 'canvas' ? isFrameTarget : null,
+    onPlainWheel: showWheelHint,
+  }}
+>
+  <div class="workspace-body">
+    {#if controls && !responsive.isMobile}
+      <WorkspaceControls {camera} />
     {/if}
-
     <!-- svelte-ignore a11y_no_static_element_interactions -->
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
@@ -215,6 +295,7 @@
       ondragleave={fileDrop.leave}
       ondrop={handleDrop}
       onclick={handleWorkspaceBackgroundClick}
+      use:cameraTouchAction={camera}
       use:panSurfaceAction={{
         enabled: !grid.isEmpty && !isLoading,
         interaction,
@@ -235,33 +316,31 @@
              Outside .zoom-surface: a transformed ancestor would become the
              containing block for its `position: fixed`. -->
         <SelectionIndicator
-          {workspaceContainer}
-          zoom={zoom.value}
+          frame={workspaceContainer}
+          {camera}
           {gridConfig}
-          bottomOcclusionElement={mobileRailElement}
         />
         <div
-          class="zoom-viewport"
-          style="width: {gridWidth * zoom.value}px; height: {gridHeight *
-            zoom.value}px;"
+          class="grid-surface"
+          bind:this={gridSurface}
+          style="transform: translate({camera.x}px, {camera.y}px) scale({camera.zoom}); width: {gridWidth}px; height: {gridHeight}px;"
         >
-          <div
-            class="zoom-surface"
-            style="transform: scale({zoom.value}); width: {gridWidth}px; height: {gridHeight}px;"
-          >
-            <Grid
-              gridItems={grid.items}
-              {gridConfig}
-              {interaction}
-              {gridHeight}
-              {gridWidth}
-              gridIsEmpty={grid.isEmpty}
-            />
-          </div>
+          <Grid
+            gridItems={grid.items}
+            {gridConfig}
+            {interaction}
+            {gridHeight}
+            {gridWidth}
+            gridIsEmpty={grid.isEmpty}
+          />
         </div>
+        {#if wheelHintVisible}
+          <div class="wheel-hint" transition:fade={{ duration: 150 }}>
+            Hold {zoomModifier} and scroll to zoom. Drag empty space to move around.
+          </div>
+        {/if}
         <!-- Overlays the plots, never replaces them: dragging a file across
-             the way must not unmount every canvas and lose the scroll
-             position. -->
+             the way must not unmount every canvas and lose the view. -->
         {#if fileDrop.isActive}
           {@render dropHint()}
         {/if}
@@ -271,19 +350,8 @@
     <Pane />
   </div>
 
-  {#if responsive.isMobile}
-    <!-- Mobile: Rail lives as the LAST child of .workspace-wrapper -->
-    <!-- (not .workspace-body) so its sticky containing block is the -->
-    <!-- full-height wrapper. The wrapper extends below the viewport -->
-    <!-- as long as the user is scrolled within the workspace, which -->
-    <!-- gives `position: sticky; bottom: 0` on the rail the range it -->
-    <!-- needs to pin to the viewport bottom. When the user scrolls -->
-    <!-- past the workspace on the page, the wrapper's bottom edge -->
-    <!-- enters the viewport and the rail scrolls away with it. -->
-    <Rail
-      bind:zoom={zoom.value}
-      bind:element={mobileRailElement}
-    />
+  {#if controls && responsive.isMobile}
+    <WorkspaceControls {camera} />
   {/if}
 </div>
 
@@ -293,9 +361,14 @@
     display: flex;
     flex-direction: column;
     min-height: var(--min-workspace-height);
-    background-color: var(--c-lightgrey);
-    border-top: 1px solid var(--c-border);
-    border-bottom: 1px solid var(--c-border);
+    /* One screen tall (below the host's sticky banner, if any): the frame the
+       camera looks through. Hosts embedding GazePlotter can set their own
+       height with --gp-workspace-height. */
+    height: var(
+      --gp-workspace-height,
+      calc(100dvh - var(--sticky-banner-height, 0px))
+    );
+    background-color: var(--c-white);
   }
 
   .workspace-body {
@@ -303,17 +376,7 @@
     display: flex;
     flex: 1 1 auto;
     min-height: 0;
-    /* Intentionally `overflow: visible` — Rail's `.rail-content` and
-       Pane's `.pane-content` both use `position: sticky` against the
-       page's viewport scroll to stay in view. Adding overflow:hidden
-       here would create a new scroll container and break the sticky
-       behaviour. Clipping of the collapse animations is done locally
-       on .rail (when .is-hidden) and on .pane (when closed) instead. */
   }
-
-  /* Mobile: workspace-body keeps flex-row; the Rail mounts outside
-     workspace-body (as a sibling) directly inside .workspace-wrapper
-     so its sticky containing block is the full-height wrapper. */
 
   .workspace-container {
     box-sizing: border-box;
@@ -321,41 +384,46 @@
     flex: 1 1 auto;
     min-width: 0;
     z-index: 1;
-    overflow-x: auto;
-    overflow-y: auto;
-    min-height: var(--min-workspace-height);
-    padding: 35px;
+    /* The frame never scrolls: the camera moves the grid inside it. */
+    overflow: hidden;
     cursor: grab;
-    background-color: var(--c-darkwhite);
-    border-radius: 0 0 0 0; /* 20px 0 0 0 is an alternative*/
-    border-left: 1px solid var(--c-border);
-    border-top: 1px solid var(--c-border);
+    background-color: var(--c-white);
   }
 
-  .zoom-viewport {
-    position: relative;
-  }
-
-  .zoom-surface {
+  .grid-surface {
     position: absolute;
     top: 0;
     left: 0;
     transform-origin: top left;
+    will-change: transform;
+  }
+
+  .wheel-hint {
+    position: absolute;
+    left: 50%;
+    bottom: 24px;
+    transform: translateX(-50%);
+    z-index: 20;
+    padding: 8px 14px;
+    border-radius: var(--rounded-md);
+    background-color: color-mix(in srgb, var(--c-text) 85%, transparent);
+    color: var(--c-darkwhite);
+    font-size: 13px;
+    white-space: nowrap;
+    pointer-events: none;
   }
 
   /* ---- drag-and-drop indicator ---- */
 
-  /* On the container itself: a scroll container paints background and outline
-     on its visible box, so the cue survives any scroll position. */
+  /* On the frame itself, so the cue holds wherever the camera is. */
   .workspace-container.is-drop-target {
-    background-color: color-mix(in srgb, var(--c-info) 5%, var(--c-darkwhite));
+    background-color: color-mix(in srgb, var(--c-info) 5%, var(--c-white));
     outline: 2px dashed var(--c-info);
     outline-offset: -12px;
   }
 
-  /* Carded so it reads over plots, and inert so the container keeps the drop
-     and its enter/leave counter. In content space, so it scrolls with the
-     grid: the frame above is the cue that always holds. */
+  /* Carded so it reads over plots, and inert so the frame keeps the drop
+     and its enter/leave counter. */
   .drop-indicator {
     position: absolute;
     inset: 0;

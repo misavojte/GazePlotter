@@ -39,7 +39,7 @@ describe('gridInteractionModel', () => {
     })
   })
 
-  it('moves every member of a group by the same clamped delta', () => {
+  it('moves every member of a group by one shared delta, past the origin too', () => {
     const session = startMoveSession(
       [
         { id: 1, x: 2, y: 1, w: 3, h: 3 },
@@ -49,8 +49,8 @@ describe('gridInteractionModel', () => {
       { x: 0, y: 0 }
     )
 
-    // Drag far up-left: raw delta would push id 1 negative, so the shared
-    // delta clamps to keep the group's relative layout intact.
+    // Drag 100px up-left (2 cells): id 1 goes above the origin. No clamp
+    // there; the commit shifts the layout back (translateLayout).
     const updated = updateMoveSession(
       session,
       { x: 0, y: 0 },
@@ -59,8 +59,8 @@ describe('gridInteractionModel', () => {
     )
 
     expect(updated.members.map(m => m.preview)).toEqual([
-      { id: 1, x: 0, y: 0, w: 3, h: 3 },
-      { id: 2, x: 4, y: 3, w: 3, h: 3 },
+      { id: 1, x: 0, y: -1, w: 3, h: 3 },
+      { id: 2, x: 4, y: 2, w: 3, h: 3 },
     ])
   })
 

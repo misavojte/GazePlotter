@@ -98,8 +98,8 @@
 <style>
   .toaster {
     position: fixed;
-    bottom: 20px;
-    right: 20px;
+    bottom: 16px;
+    right: 16px;
     z-index: 9999;
     width: 280px;
     pointer-events: none;
@@ -112,7 +112,7 @@
     border-radius: var(--rounded-md);
     box-shadow: var(--shadow-lg);
     color: var(--c-white);
-    margin-bottom: 10px;
+    margin-top: 8px;
     width: 280px;
     font-size: 14px;
     padding: 12px 16px;
