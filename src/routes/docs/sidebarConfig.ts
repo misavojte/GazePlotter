@@ -98,7 +98,7 @@ export const SIDEBAR: readonly SidebarItem[] = [
         name: 'Workspace Canvas',
         breadcrumbName: 'Workspace',
         href: '/docs/workspace',
-        description: 'Interface layout guide. Learn to manage the visualization canvas, top ribbon, left rail, right settings pane, and configure customization libraries.'
+        description: 'Interface layout guide. Learn to manage the header, left rail, visualization canvas, right settings pane, and configure customization libraries.'
       },
       {
         name: 'AOI Library',

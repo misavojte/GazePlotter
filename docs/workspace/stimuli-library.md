@@ -19,8 +19,21 @@ Each stimulus is a row showing its original name, an editable **Displayed name**
 Each stimulus can carry one reference image or video, drawn behind gaze data as the [Scanpath](/docs/visualizations/scanpath/) background. The **Media** button at the end of a row shows the state: an outlined button means no media, a filled button means media is attached. Click it to open the **Reference Media** dialog.
 
 - **No media yet**: Click **Choose image or video…** to attach a file. Media files included in an Upload data selection attach automatically when named after a stimulus; unmatched files prompt for manual assignment.
-- **Media attached**: The dialog shows a preview, the file details, and a **Replace…** button. **Remove media** detaches the file.
-- **Position in gaze coordinates**: By default, gaze coordinates are assumed to equal media pixels. When the stimulus was offset on screen or recorded at a different scale, set the media's top-left corner (**Left (gaze X)**, **Top (gaze Y)**) and its size (**Width**, **Height**) in gaze units. **Reset to image size** restores the default mapping.
+- **Media attached**: The dialog shows the file details and a **Replace…** button. A replacement keeps the current position and width; its height follows the new file's proportions. **Remove media** detaches the file.
+- **Position in gaze coordinates**: By default, gaze coordinates are assumed to equal media pixels. When the stimulus was offset on screen or recorded at a different scale, set the media's top-left corner (**Left (gaze X)**, **Top (gaze Y)**) and its size (**Width**, **Height**) in gaze units. **Reset to media size** restores the default mapping.
+
+### Aligning media on fixations
+
+When the stimulus has fixations, the **Alignment** section draws them over the media, so you can line the two up by eye:
+
+- **Move**: Drag the media, or use the arrow keys (hold Shift for 10x steps).
+- **Resize**: Drag a corner. The proportions stay fixed; hold Shift to change them.
+- **Fixations from**: Align against all participants, or one participant's fixations.
+- **Fit to fixations**: Places the media, at its own proportions, so it just covers the fixations. A starting point when the media is far off, for example gaze in normalized units.
+- **Undo**: Steps back one drag, button, or burst of arrow-key nudges (also Ctrl+Z).
+- **View**: Ctrl (or Cmd) + scroll zooms, Ctrl (or Cmd) + drag or dragging empty space pans, and double-click fits the view.
+
+Once the media moves, a dashed outline marks where it started. **Cancel** discards every change.
 
 Attached media is saved with the workspace: exporting a workspace that contains media produces a `.gazeplotter.zip` archive instead of a plain `.json` file.
 
