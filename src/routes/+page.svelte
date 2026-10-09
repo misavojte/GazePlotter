@@ -11,7 +11,7 @@
   import { Header, HeaderAction, StatusBar } from './components'
   import { announceVersionOnce } from './versionNotice'
 
-  const demoDataPath = `${base}/data/demo.json?v=2`
+  const demoDataPath = `${base}/data/demo.json?v=3`
 
   // Read `?dataUrl=` once at mount. Switching sources mid-session needs a
   // page reload — matches GazePlotter's "load is one-shot" contract.
