@@ -34,7 +34,7 @@ Select the sequence alignment algorithm from the Metric Library.
   - *Needleman-Wunsch similarity (collapsed)*: Collapses consecutive same-AOI fixations before global alignment.
 - **Edit metric library…**: Opens the Metric Library, where you can adjust algorithm parameters or save your own variants.
 
-### Visualisation
+### Visualization
 Configure the rendering layout and thresholding. The view decides which further controls appear; they are listed under the view that reveals them.
 - **Select view**:
   - *Matrix*: Renders a square heatmap matrix where rows and columns represent participants, and cell color intensity corresponds to their similarity score.

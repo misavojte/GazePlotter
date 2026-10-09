@@ -48,7 +48,7 @@ Configure the quantitative metric displayed on the value axis.
   - *Time to first eye movement* (`movementLatency`): Elapsed time from the start of the stimulus timeline to the first segment of each type (ms). Read at the Saccade slot this is saccadic latency.
 - **Edit metric library…**: Opens the Metric Library modal where you can customize parameters or define new **custom metrics** on the type axis.
 
-### Visualisation
+### Visualization
 Configure the layout and rendering of the distributions.
 - **Statistical overlay**: Render a statistical summary over the individual values:
   - *None*: Shows only the mean bars and the individual values.

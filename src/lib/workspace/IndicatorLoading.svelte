@@ -9,7 +9,7 @@
   <div class="content-inner">
     <div class="spinner"></div>
     <div class="text-content">
-      <p>Please wait while we prepare your visualisations.</p>
+      <p>Please wait while we prepare your visualizations.</p>
       <p>Processing data: {ingest.progressPercent}%</p>
     </div>
   </div>

@@ -20,7 +20,7 @@ Select the stimulus whose gaze data to plot. If the stimulus has reference media
 Select the individual participant whose gaze trajectory you want to visualize. The Scanpath plot displays one participant's scanpath at a time.
 - **Edit participants…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename or reorder participants.
 
-### Visualisation
+### Visualization
 - **Fixation color**: **Time gradient** samples each fixation's fill from a color scale by its onset within the shown time span; **Solid** uses one fixed color. With **Time gradient**, the color scale picker below sets the gradient stops.
 - **Show fixation order line**: Check to render connecting line segments (saccades) between sequential fixations.
 - **Show fixation numbers**: Check to print sequence indices (e.g. 1, 2, 3...) next to each fixation circle to show the progression order.

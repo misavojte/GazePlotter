@@ -41,7 +41,7 @@ Configure the quantitative metric displayed on the value axis.
   - *First fixation duration* (`firstFixationDuration`): Mean length of the first fixation (see [Durations](/docs/metrics/durations)).
 - **Edit metric library…**: Opens the Metric Library modal where you can customize parameters or define entirely new **custom metrics** to calculate across the AOIs.
 
-### Visualisation
+### Visualization
 Configure the visual layout and rendering options for the bar chart.
 - **Statistical overlay**: Render statistical summaries over the raw data bars:
   - *None*: Shows only the mean bars.

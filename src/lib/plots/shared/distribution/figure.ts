@@ -27,7 +27,7 @@ export interface DistributionDisclosures {
  * disclosure strings differ.
  *
  * One mark today (`./beeswarm`). When a second rendering lands — histogram rows
- * with a shared count scale — the plot's `visualisation` setting is read HERE
+ * with a shared count scale — the plot's `visualization` setting is read HERE
  * and nowhere else: this stays the only file that names a figure component.
  */
 export function deriveDistributionFigure(

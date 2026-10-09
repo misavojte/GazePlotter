@@ -18,8 +18,8 @@ export const transitionMatrixDefinition = definePlot<
     'group',
     'metric',
     {
-      key: 'transitionMatrix:visualisation',
-      title: 'Visualisation',
+      key: 'transitionMatrix:visualization',
+      title: 'Visualization',
       fields: [
         {
           kind: 'stimulusColorRange',

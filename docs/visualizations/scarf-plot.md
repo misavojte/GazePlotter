@@ -21,7 +21,7 @@ Filter the eye-tracking data by a participant selection.
 - **Participant selection**: A dropdown containing *All*, *Non-empty*, and saved participant selections.
 - **Edit participants & selections…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
 
-### Visualisation
+### Visualization
 Configure the timeline representation mode.
 - **Timeline mode**: Choose how the sequence is arrayed along the horizontal axis:
   - *Absolute*: Displays fixations and events plotted in their exact chronological timing (in milliseconds).

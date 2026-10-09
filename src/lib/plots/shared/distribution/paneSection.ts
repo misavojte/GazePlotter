@@ -12,7 +12,7 @@ import {
 } from './labels'
 
 /**
- * THE "Visualisation" pane section for every plot that draws a distribution —
+ * THE "Visualization" pane section for every plot that draws a distribution —
  * one declaration, so the controls, their order, and the collapsed-header
  * summary cannot drift between the AOI Comparison and the Eye-movement
  * Comparison. The plot supplies only its section key and the name of its own
@@ -23,15 +23,15 @@ import {
  * rule reads off the metric's declared class (never a list of recipe ids), and
  * the summary follows it — `Horizontal (Bars)` instead of an overlay label.
  */
-export function distributionVisualisationSection(args: {
-  /** Namespaced section key — `'<plotType>:visualisation'`. */
+export function distributionVisualizationSection(args: {
+  /** Namespaced section key — `'<plotType>:visualization'`. */
   key: string
   /** This plot's category-order option, e.g. `{ label: 'AOI order', value: 'aoi' }`. */
   categoryOrder: SectionFieldOption
 }): SchemaPaneSectionEntry {
   return {
     key: args.key,
-    title: 'Visualisation',
+    title: 'Visualization',
     fields: [
       {
         kind: 'enum',
@@ -60,11 +60,11 @@ export function distributionVisualisationSection(args: {
       },
       { kind: 'scaleRange', key: 'scaleRange', legend: 'Scale range' },
     ],
-    summary: distributionVisualisationSummary,
+    summary: distributionVisualizationSummary,
   }
 }
 
-function distributionVisualisationSummary(ctx: SectionFieldCtx): string {
+function distributionVisualizationSummary(ctx: SectionFieldCtx): string {
   const orientation = ctx.common(s => s.orientation)
   const overlay = ctx.common(s => s.statisticalOverlay)
   const o = orientation.mixed

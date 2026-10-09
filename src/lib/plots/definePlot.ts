@@ -360,7 +360,7 @@ export type SchemaPaneSectionEntry = {
  * inline Svelte.
  * The key is the section's stable identity: shared sections use the canonical
  * bare key; plot-specific schema sections use a namespaced key
- * (`scarf:visualisation`) so they never count as common across types. The
+ * (`scarf:visualization`) so they never count as common across types. The
  * multi-select Pane derives which sections to show purely by intersecting
  * these keys across the selection.
  */

@@ -30,8 +30,8 @@ export const metricMatrixDefinition = definePlot<
     'stimuli',
     'metric',
     {
-      key: 'metricMatrix:visualisation',
-      title: 'Visualisation',
+      key: 'metricMatrix:visualization',
+      title: 'Visualization',
       fields: [
         {
           kind: 'scaleRange',

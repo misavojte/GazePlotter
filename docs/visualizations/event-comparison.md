@@ -50,7 +50,7 @@ Configure the quantitative metric displayed on the value axis.
   - *Time to first event* (`eventLatency`): Elapsed time from the start of the stimulus timeline to the first occurrence on each channel (ms).
 - **Edit metric library…**: Opens the Metric Library modal where you can customize parameters or define new **custom metrics** on the event axis.
 
-### Visualisation
+### Visualization
 Configure the layout and rendering of the distributions.
 - **Statistical overlay**: Render a statistical summary over the individual values:
   - *None*: Shows only the mean bars and the individual values.

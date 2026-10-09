@@ -23,8 +23,8 @@ export const metricCorrelationDefinition = definePlot<
     // metrics, so the section title is plural.
     { key: 'metric', props: { title: 'Metrics' } },
     {
-      key: 'metricCorrelation:visualisation',
-      title: 'Visualisation',
+      key: 'metricCorrelation:visualization',
+      title: 'Visualization',
       fields: [
         {
           kind: 'enum',

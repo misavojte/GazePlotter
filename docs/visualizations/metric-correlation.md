@@ -42,7 +42,7 @@ Select which metrics to correlate.
   - *RQA Laminarity* (`rqaLam`): Proportion of recurrence points forming vertical lines (see [RQA Metrics](/docs/metrics/rqa)).
 - **Edit metric library…**: Opens the Metric Library modal where you can customize parameters or define custom aggregate metrics.
 
-### Visualisation
+### Visualization
 Configure the visual display format.
 - **Select view**:
   - *Heatmap matrix*: Renders a square correlation matrix grid where rows and columns represent the selected metrics. Cell color intensity represents the correlation coefficient (ranging from -1.0 to +1.0).

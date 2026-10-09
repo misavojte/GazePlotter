@@ -43,7 +43,7 @@ Configure the criteria used to decide whether two fixations are recurrent. The m
 - **Duration weighting**: When checked, each recurrent dot's radius and opacity scale with the combined duration of the two fixations (t_i + t_j). Larger, more opaque dots indicate pairs of longer-duration fixations.
 - **Min line length**: Minimum run length (in consecutive recurrent cells) required for a line structure to be recognized in highlight mode (from 2 to 20).
 
-### Visualisation
+### Visualization
 Configure highlights and masking options.
 - **Highlight**: Emphasizes recurrent points that form qualifying line structures. Non-highlighted points are dimmed:
   - *None*: No highlighting. All recurrent points rendered at full opacity.

@@ -497,7 +497,7 @@
 
 <svelte:head>
   <title
-    >GazePlotter | Free eye-tracking data visualisation via scarf plots</title
+    >GazePlotter | Free eye-tracking data visualization via scarf plots</title
   >
   <meta name="robots" content="noindex, nofollow" />
 </svelte:head>
@@ -506,7 +506,7 @@
   <section class="main-section intro">
     <div class="title-container">
       <h1 class="title-heading red">GazePlotter</h1>
-      <h2 class="title-heading">Free eye-tracking data&nbsp;visualisation</h2>
+      <h2 class="title-heading">Free eye-tracking data&nbsp;visualization</h2>
     </div>
     <p class="intro-text">
       Transform eye gaze data from eye trackers to interactive scarf plots.

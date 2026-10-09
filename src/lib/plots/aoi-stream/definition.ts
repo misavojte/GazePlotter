@@ -30,8 +30,8 @@ export const aoiStreamPlotDefinition = definePlot<
     'group',
     'metric',
     {
-      key: 'aoiStreamPlot:visualisation',
-      title: 'Visualisation',
+      key: 'aoiStreamPlot:visualization',
+      title: 'Visualization',
       fields: [
         {
           kind: 'enum',

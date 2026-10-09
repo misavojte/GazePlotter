@@ -42,7 +42,7 @@
         {fatalLoadError.userMessage} You can inspect the report or upload different
         data.
       {:else if canResetLayout}
-        Data is available in memory, but no visualisations are displayed.
+        Data is available in memory, but no visualizations are displayed.
         You can reset the layout or upload new data.
       {:else}
         Upload new data to start working with the workspace.

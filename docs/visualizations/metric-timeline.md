@@ -33,7 +33,7 @@ Configure the windowed scalar metric to track.
   - *Fixation count* (`fixationCount-any-windowed`): Tracks the frequency of fixations per window (see [Counts & Latency](/docs/metrics/counts-latency)).
 - **Edit metric library…**: Opens the Metric Library modal where you can customize window parameters (window size and step size, e.g. 1000ms window with 100ms step) or define **custom windowed scalar metrics**.
 
-### Visualisation
+### Visualization
 Configure the visual presentation. The view decides which further controls appear; they are listed under the view that reveals them.
 - **Select view**:
   - *Heatmap*: Renders a grid where rows represent participants (or participant averages) and columns represent time bins. Cell color represents the metric value.

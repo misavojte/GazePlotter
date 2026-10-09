@@ -26,7 +26,7 @@
 
 <svelte:head>
   <title
-    >GazePlotter | Free eye-tracking data visualisation via scarf plots</title
+    >GazePlotter | Free eye-tracking data visualization via scarf plots</title
   >
   <meta
     name="description"

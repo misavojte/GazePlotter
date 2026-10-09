@@ -1,6 +1,6 @@
 import { definePlot } from '$lib/plots/definePlot'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
-import { distributionVisualisationSection } from '$lib/plots/shared/distribution/paneSection'
+import { distributionVisualizationSection } from '$lib/plots/shared/distribution/paneSection'
 import { distributionValueAxisScreen } from '$lib/plots/shared/distribution/screen.svelte'
 import { AOI_COMPARISON_CONTRACT } from './core/transformer'
 import { deriveAoiComparisonView } from './core/view'
@@ -24,8 +24,8 @@ export const aoiComparisonDefinition = definePlot<
     'stimulus',
     'group',
     'metric',
-    distributionVisualisationSection({
-      key: 'aoiComparison:visualisation',
+    distributionVisualizationSection({
+      key: 'aoiComparison:visualization',
       categoryOrder: { label: 'AOI order', value: 'aoi' },
     }),
     'timelineRange',

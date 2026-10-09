@@ -1,6 +1,6 @@
 import { definePlot } from '$lib/plots/definePlot'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
-import { distributionVisualisationSection } from '$lib/plots/shared/distribution/paneSection'
+import { distributionVisualizationSection } from '$lib/plots/shared/distribution/paneSection'
 import { EVENT_COMPARISON_CONTRACT } from './core/transformer'
 import { deriveEventComparisonView } from './core/view'
 import type { EventComparisonSettings } from './types'
@@ -34,8 +34,8 @@ export const eventComparisonDefinition = definePlot<
     'stimulus',
     'group',
     'metric',
-    distributionVisualisationSection({
-      key: 'eventComparison:visualisation',
+    distributionVisualizationSection({
+      key: 'eventComparison:visualization',
       categoryOrder: { label: 'Channel order', value: 'channel' },
     }),
     'timelineRange',

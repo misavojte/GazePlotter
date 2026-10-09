@@ -37,7 +37,7 @@ Configure the quantitative metric calculated inside each time bin.
   - *Visit count per AOI* (`visitCount-aoi-windowed-500`): Number of visits registered in each AOI per bin (see [Counts & Latency](/docs/metrics/counts-latency)).
 - **Edit metric library…**: Opens the Metric Library modal where you can customize bin sizes (window size and step size) or define **custom windowed metrics**.
 
-### Visualisation
+### Visualization
 Configure the visual layout. The view decides which further controls the section shows; they are listed under the view that reveals them.
 - **Select view**: How the time-binned data is arrayed.
   - *Stream*: A centered, flowing river-like visualization. Highlights the shifting volume of attention across AOIs without pinning data to a flat baseline, making broad temporal trends easily visible.

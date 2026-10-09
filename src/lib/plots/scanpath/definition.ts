@@ -18,8 +18,8 @@ export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSetting
     'stimulus',
     'participant',
     {
-      key: 'scanpath:visualisation',
-      title: 'Visualisation',
+      key: 'scanpath:visualization',
+      title: 'Visualization',
       fields: [
         {
           kind: 'enum',

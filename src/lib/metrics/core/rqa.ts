@@ -1,7 +1,7 @@
 /**
  * Recurrence Quantification Analysis (RQA) primitives.
  *
- * Everything needed to compute RQA scalars and visualise recurrence plots:
+ * Everything needed to compute RQA scalars and visualize recurrence plots:
  *   • scalar metrics from a binary recurrence matrix;
  *   • scalar metrics directly from a categorical fixation sequence;
  *   • line masks for highlighting diagonal / horizontal / vertical runs.

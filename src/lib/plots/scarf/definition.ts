@@ -17,8 +17,8 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
     'stimulus',
     'group',
     {
-      key: 'scarf:visualisation',
-      title: 'Visualisation',
+      key: 'scarf:visualization',
+      title: 'Visualization',
       fields: [
         {
           kind: 'enum',

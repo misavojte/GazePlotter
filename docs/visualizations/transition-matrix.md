@@ -38,7 +38,7 @@ Configure the quantitative transition metric displayed in the matrix cells.
   - *Mean dwell duration (visit)* (`transitionDwellMean-visit`): Average total duration of consecutive fixations in the "FROM" AOI before transitioning (see [Transitions](/docs/metrics/transitions)).
 - **Edit metric library…**: Opens the Metric Library modal where you can customize transition calculation parameters or define **custom transition/matrix metrics**.
 
-### Visualisation
+### Visualization
 Configure cell scaling, colors, and outlier rendering.
 - **Color scale**: Customizes cell shading mapping.
   - *Min*: Set value mapped to the minimum color intensity.

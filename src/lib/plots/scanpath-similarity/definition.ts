@@ -92,8 +92,8 @@ export const scanpathSimilarityDefinition = definePlot<
     'group',
     'metric',
     {
-      key: 'scanpathSimilarity:visualisation',
-      title: 'Visualisation',
+      key: 'scanpathSimilarity:visualization',
+      title: 'Visualization',
       fields: [
         {
           kind: 'enum',

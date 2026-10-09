@@ -46,7 +46,7 @@ Configure the scalar metric that fills the cells.
 - **Select metric**: A dropdown of all metric instances in the library that satisfy the whole-recording `scalar` contract. The default is *Fixation duration* - an intensive (per-recording normalised) metric, so values stay comparable across stimuli of different lengths. Extensive metrics such as total counts or total durations work too, but read longer stimuli as uniformly higher from duration alone.
 - **Edit metric library…**: Opens the Metric Library modal to change the metric's parameters, summary statistic (mean, median, max, min), or define custom scalar metrics.
 
-### Visualisation
+### Visualization
 Configure the color mapping:
 - **Color scale**: Explicit bounds for the color mapping. A fixed range keeps several matrices comparable side by side.
   - *Min*: Set value mapped to the minimum color intensity.
