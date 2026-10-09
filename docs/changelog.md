@@ -11,7 +11,6 @@
 * **AOI Editing**: Editing AOIs across all stimuli applies only the fields you changed, as one undo step.
 * **Plots**: [Metric Matrix](/docs/visualizations/metric-matrix), [Scanpath Similarity](/docs/visualizations/scanpath-similarity), and AOI Timeline fill out-of-bounds values distinctly. Highlights follow a stimulus switch, and linked hovering retracts cleanly.
 * **Metrics**: Editing a metric changes it in place and keeps its output shape; new metrics get a prefilled label.
-* **Export**: [Figure Export](/docs/export/figures) can copy the citation for GazePlotter.
 * **Site**: The app is now the front page, with a shared header showing the version (linked to this changelog), a status bar with privacy, citation, and links, a refreshed visual style, and richer link previews.
 
 ### 1.9.4

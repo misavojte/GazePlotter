@@ -33,7 +33,6 @@
   } from '../shared/helpers'
   import ExportShell from '../shared/ExportShell.svelte'
   import ExportProgressBar from '../shared/ExportProgressBar.svelte'
-  import CiteNote from '../shared/CiteNote.svelte'
   import FigureRenderHost from './FigureRenderHost.svelte'
   import FigurePreview from './FigurePreview.svelte'
   import type { PlotExportProps } from './types'
@@ -388,8 +387,6 @@
         }
       : null}
   />
-
-  <CiteNote />
 
   <ModalButtons buttons={exportButtons} />
 </ExportShell>
