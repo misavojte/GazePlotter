@@ -490,7 +490,6 @@
     border: 1px solid var(--c-border);
     border-radius: 12px;
     margin: 2rem 0;
-    box-shadow: var(--shadow-sm);
   }
 
   :global(.prose-wrapper a) {

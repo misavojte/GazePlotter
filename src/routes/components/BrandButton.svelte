@@ -37,7 +37,7 @@
       0 0 0 1px var(--c-brand-dark),
       0 1px 2px color-mix(in srgb, var(--c-brand-dark) 45%, transparent);
     color: var(--c-white);
-    font-size: 13px;
+    font-size: var(--text-md);
     font-weight: 600;
     letter-spacing: -0.005em;
     line-height: 1;

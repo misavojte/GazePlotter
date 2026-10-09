@@ -31,7 +31,7 @@
     background: transparent;
     color: var(--c-black);
     font: inherit;
-    font-size: 13px;
+    font-size: var(--text-md);
     font-weight: 500;
     letter-spacing: -0.005em;
     cursor: pointer;
