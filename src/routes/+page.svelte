@@ -8,7 +8,7 @@
   import Upload from 'lucide-svelte/icons/upload'
   import Download from 'lucide-svelte/icons/download'
   import FileText from 'lucide-svelte/icons/file-text'
-  import { Header, HeaderAction } from './components'
+  import { Header, HeaderAction, StatusBar } from './components'
   import { announceVersionOnce } from './versionNotice'
 
   const demoDataPath = `${base}/data/demo.json?v=2`
@@ -48,7 +48,7 @@
 </svelte:head>
 
 <!-- The homepage is the app: the compact site bar over one canvas filling
-     the rest of the screen. GazePlotter is just the field; the bar drives it
+     the rest of the screen, closed by the credit strip. GazePlotter is just the field; the bar drives it
      through getActions(). With nothing around it to scroll, the wheel pans. -->
 <Header>
   {#snippet actions()}
@@ -78,13 +78,17 @@
 <main class="app">
   <GazePlotter {load} bind:this={gazePlotterRef} gestures="canvas" />
 </main>
+<StatusBar />
 
 <style>
   /* Everything under the bar. A length, not 100%: the component's root has
      no height of its own for a percentage to resolve against. */
   .app {
-    height: calc(100dvh - var(--site-header-height));
+    --app-height: calc(
+      100dvh - var(--site-header-height) - var(--site-statusbar-height)
+    );
+    height: var(--app-height);
     overflow: hidden;
-    --gp-workspace-height: calc(100dvh - var(--site-header-height));
+    --gp-workspace-height: var(--app-height);
   }
 </style>
