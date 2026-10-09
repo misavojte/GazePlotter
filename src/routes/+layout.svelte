@@ -68,6 +68,16 @@
 
 <svelte:head>
   {@html structuredDataScript}
+  <!-- Link preview shared by every page; pages add their own title, url and description. -->
+  <meta property="og:site_name" content="GazePlotter" />
+  <meta property="og:image" content="https://gazeplotter.com/images/og-gazeplotter.jpg" />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
+  <meta
+    property="og:image:alt"
+    content="The GazePlotter workspace with a scarf plot, transition matrix, AOI comparison and AOI timeline."
+  />
+  <meta name="twitter:card" content="summary_large_image" />
 </svelte:head>
 
 <!-- Site chrome (header, footer, docs) uses the tokens on pages without a

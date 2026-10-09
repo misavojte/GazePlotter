@@ -2,6 +2,8 @@
 
 GazePlotter is a free, open-source tool for eye-tracking visualization and analysis, developed at Palacký University Olomouc and described in a [peer-reviewed article](#how-to-cite). It runs entirely in your browser: no installation, no registration, and your data never leaves your device.
 
+![The GazePlotter workspace with the demo data: a scarf plot, transition matrix, AOI comparison and AOI timeline.](/images/gazeplotter_workspace.jpg)
+
 ## Start here
 
 1. **[Load your data](/docs/upload-data/)** exported from your eye tracker, or try the built-in demo first.

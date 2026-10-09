@@ -45,6 +45,16 @@
     content="Free, open-source eye-tracking visualization in the browser: scarf plots, scanpaths, transition matrices and AOI metrics from Tobii, SMI, GazePoint, Varjo and Pupil Labs data. No registration, no data sent to a server."
   />
   <link rel="canonical" href="https://gazeplotter.com/" />
+  <meta property="og:type" content="website" />
+  <meta property="og:url" content="https://gazeplotter.com/" />
+  <meta
+    property="og:title"
+    content="GazePlotter | Free Eye-Tracking Visualization"
+  />
+  <meta
+    property="og:description"
+    content="Scarf plots, scanpaths, transition matrices and AOI metrics from Tobii, SMI, GazePoint, Varjo and Pupil Labs data. Free, open source, runs in your browser."
+  />
 </svelte:head>
 
 <!-- The homepage is the app: the compact site bar over one canvas filling
