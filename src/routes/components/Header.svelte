@@ -1,5 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte'
+  import type { Action } from 'svelte/action'
+  import type { TooltipActionOptions } from '$lib/tooltip/tooltip.action'
   import { page } from '$app/state'
   import Brand from './Brand.svelte'
   import BrandButton from './BrandButton.svelte'
@@ -13,15 +15,17 @@
   interface Props {
     /** Page actions, placed before the red button (the app passes its own). */
     actions?: Snippet
+    /** The app's tooltip, for the brand's version link (the app passes it). */
+    tooltip?: Action<HTMLElement, TooltipActionOptions>
   }
 
-  let { actions }: Props = $props()
+  let { actions, tooltip }: Props = $props()
 
   const isApp = $derived(page.url.pathname === '/')
 </script>
 
 <header>
-  <Brand heading={isApp} />
+  <Brand heading={isApp} {tooltip} />
   <span class="spacer"></span>
   {#if actions}
     <nav class="actions" aria-label="Workspace">

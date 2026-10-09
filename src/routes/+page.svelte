@@ -8,6 +8,7 @@
   import Upload from 'lucide-svelte/icons/upload'
   import Download from 'lucide-svelte/icons/download'
   import FileText from 'lucide-svelte/icons/file-text'
+  import { hostTooltipAction } from '$lib/tooltip'
   import { Header, HeaderAction, StatusBar } from './components'
   import { announceVersionOnce } from './versionNotice'
 
@@ -28,6 +29,7 @@
     getActions: () => WorkspaceActions
   }>()
   const workspaceActions = $derived(gazePlotterRef?.getActions())
+  const tooltip = hostTooltipAction(() => gazePlotterRef?.getSession())
 
   onMount(() => {
     const session = gazePlotterRef?.getSession()
@@ -60,25 +62,28 @@
 <!-- The homepage is the app: the compact site bar over one canvas filling
      the rest of the screen, closed by the credit strip. GazePlotter is just the field; the bar drives it
      through getActions(). With nothing around it to scroll, the wheel pans. -->
-<Header>
+<Header {tooltip}>
   {#snippet actions()}
     <HeaderAction
       label="Import"
-      title="Load eye-tracking data or a saved workspace (Tobii, SMI, Gazepoint and more)"
+      hint="Load eye-tracking data or a saved workspace (Tobii, SMI, Gazepoint and more)"
+      {tooltip}
       icon={Upload}
       disabled={!workspaceActions?.canImport}
       onclick={() => workspaceActions?.openImport()}
     />
     <HeaderAction
       label="Export"
-      title="Save the workspace, figures or data"
+      hint="Save the workspace, figures or data"
+      {tooltip}
       icon={Download}
       disabled={!workspaceActions?.canExport}
       onclick={() => workspaceActions?.openExport()}
     />
     <HeaderAction
       label="Metadata"
-      title="Source, parsing and dataset details"
+      hint="Source, parsing and dataset details"
+      {tooltip}
       icon={FileText}
       disabled={!workspaceActions?.canShowMetadata}
       onclick={() => workspaceActions?.openMetadata()}

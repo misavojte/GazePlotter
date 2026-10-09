@@ -27,12 +27,14 @@ export function getGazePlotterSession(): GazePlotterSession {
 }
 
 /** One instance per session: `const useX = sessionScoped(() => new X())`,
- *  resolved at component init. Module-level `$state` is pinned away.
+ *  resolved at component init, or from an explicit session outside the tree.
+ *  Module-level `$state` is pinned away.
  *  State that services are constructed with stays a session field. */
-export function sessionScoped<T>(create: () => T): () => T {
+export function sessionScoped<T>(
+  create: () => T
+): (session?: GazePlotterSession) => T {
   const bySession = new WeakMap<GazePlotterSession, T>()
-  return () => {
-    const session = getGazePlotterSession()
+  return (session = getGazePlotterSession()) => {
     let value = bySession.get(session)
     if (value === undefined) {
       value = create()

@@ -1,19 +1,30 @@
 <script lang="ts">
+  import type { Action } from 'svelte/action'
   import type { LucideIconComponent } from '$lib/shared/icon'
+  import type { TooltipActionOptions } from '$lib/tooltip/tooltip.action'
 
   interface Props {
     label: string
-    /** Longer explanation, shown as the native tooltip. */
-    title?: string
+    /** Longer explanation, shown in the app's tooltip. */
+    hint: string
+    /** The app's tooltip, reached through the page's session. */
+    tooltip: Action<HTMLElement, TooltipActionOptions>
     icon: LucideIconComponent
     disabled?: boolean
     onclick: () => void
   }
 
-  let { label, title, icon: Icon, disabled = false, onclick }: Props = $props()
+  let { label, hint, tooltip, icon: Icon, disabled = false, onclick }: Props =
+    $props()
 </script>
 
-<button type="button" class="header-action" {title} {disabled} {onclick}>
+<button
+  type="button"
+  class="header-action"
+  {disabled}
+  {onclick}
+  use:tooltip={{ content: hint, position: 'bottom' }}
+>
   <span class="icon"><Icon size={16} strokeWidth={1.75} aria-hidden="true" /></span>
   <span class="label">{label}</span>
 </button>
