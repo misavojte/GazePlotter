@@ -364,8 +364,6 @@
     display: flex;
     flex-direction: column;
     position: relative;
-    box-shadow: var(--shadow-sm);
-    transition: box-shadow var(--transition-fast) ease;
 
     /* Affordance ring sits ON TOP of the frame's existing 1px border.
        Hover and selected share the 2px width so the visual "weight"
@@ -429,7 +427,7 @@
     box-sizing: border-box;
     background: var(--c-lightgrey);
     overflow: hidden;
-    border-radius: var(--rounded-lg) var(--rounded-lg) 0 0;
+    border-radius: calc(var(--rounded-lg) - 1px) calc(var(--rounded-lg) - 1px) 0 0;
     user-select: none;
     -webkit-user-select: none;
     transition: background-color var(--transition-fast) ease;
@@ -499,7 +497,8 @@
     padding: var(--grid-item-body-padding);
     flex-grow: 1;
     overflow: auto;
-    border-radius: var(--rounded-lg);
+    /* Concentric with the frame: its radius minus the 1px border. */
+    border-radius: calc(var(--rounded-lg) - 1px);
     background-color: var(--c-white);
     transition: background-color var(--transition-fast) ease;
   }
