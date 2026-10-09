@@ -48,3 +48,23 @@ export function resolveWorkspaceShortcut(
   if (event.key === '0') return 'zoom-reset'
   return null
 }
+
+const IS_MAC =
+  typeof navigator !== 'undefined' && /Mac|iP(hone|ad)/.test(navigator.userAgent)
+
+/** The platform's chord modifier, as its users see it written. */
+export const MODIFIER_LABEL = IS_MAC ? '⌘' : 'Ctrl'
+
+const SHORTCUT_LABELS: Record<WorkspaceShortcut, [mac: string, other: string]> = {
+  undo: ['⌘Z', 'Ctrl+Z'],
+  redo: ['⇧⌘Z', 'Ctrl+Y'],
+  'zoom-in': ['⌘+', 'Ctrl+Plus'],
+  'zoom-out': ['⌘-', 'Ctrl+Minus'],
+  'zoom-reset': ['⌘0', 'Ctrl+0'],
+  'zoom-fit': ['⇧1', 'Shift+1'],
+}
+
+/** A control label with its shortcut, in one notation per platform. */
+export function withShortcut(label: string, shortcut: WorkspaceShortcut): string {
+  return `${label} (${SHORTCUT_LABELS[shortcut][IS_MAC ? 0 : 1]})`
+}

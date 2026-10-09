@@ -12,6 +12,7 @@
   import { ZOOM_MAX, ZOOM_MIN } from '../camera.svelte'
   import { createEditPlotControl, createToolControls } from './config'
   import ControlButton from './ControlButton.svelte'
+  import { withShortcut } from '../keys'
 
   /**
    * The workspace rail: a narrow white column docked on the left of the
@@ -137,7 +138,7 @@
 
     <div class="group zoom">
       <ControlButton
-        label="Zoom to fit (Shift+1)"
+        label={withShortcut('Zoom to fit', 'zoom-fit')}
         icon={Scan}
         actions={[{ label: 'Zoom to fit', run: () => camera.fit() }]}
         disabled={inactive}
@@ -145,21 +146,21 @@
       />
       <span class="divider" aria-hidden="true"></span>
       <ControlButton
-        label="Zoom in (Ctrl +)"
+        label={withShortcut('Zoom in', 'zoom-in')}
         icon={Plus}
         actions={[{ label: 'Zoom in', run: () => camera.in() }]}
         disabled={inactive || camera.zoom >= ZOOM_MAX}
         {side}
       />
       <ControlButton
-        label="Reset to 100% (Ctrl 0)"
+        label={withShortcut('Reset to 100%', 'zoom-reset')}
         text={zoomPercent}
         actions={[{ label: 'Reset zoom', run: () => camera.reset() }]}
         disabled={inactive || camera.zoom >= ZOOM_MAX}
         {side}
       />
       <ControlButton
-        label="Zoom out (Ctrl −)"
+        label={withShortcut('Zoom out', 'zoom-out')}
         icon={Minus}
         actions={[{ label: 'Zoom out', run: () => camera.out() }]}
         disabled={inactive || camera.zoom <= ZOOM_MIN}

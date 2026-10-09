@@ -2,6 +2,7 @@ import { SquarePlus, Undo2, Redo2, Settings2 } from 'lucide-svelte'
 import type { LucideIconComponent } from '$lib/shared/icon'
 import { PLOT_GROUPS, type PlotGroup } from '$lib/plots/groups'
 import type { PlotType } from '$lib/workspace/grid/types'
+import { withShortcut } from '$lib/workspace/keys'
 
 export interface ControlVisualization {
   id: PlotType
@@ -61,7 +62,7 @@ export function createToolControls(
   return [
     {
       id: 'undo',
-      label: undoLabel,
+      label: options.canUndo ? withShortcut(undoLabel, 'undo') : undoLabel,
       icon: controlIcons.undo,
       actions: [{ label: undoLabel, run: options.onUndo }],
       // Processing gates every workspace action alike: the load replaces the
@@ -70,7 +71,7 @@ export function createToolControls(
     },
     {
       id: 'redo',
-      label: redoLabel,
+      label: options.canRedo ? withShortcut(redoLabel, 'redo') : redoLabel,
       icon: controlIcons.redo,
       actions: [{ label: redoLabel, run: options.onRedo }],
       disabled: options.isProcessing || !options.canRedo,

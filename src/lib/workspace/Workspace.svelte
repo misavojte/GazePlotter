@@ -25,7 +25,7 @@
   import type { WorkspaceCamera, GridBounds } from './camera.svelte'
   import { cameraTouchAction, cameraWheelAction } from './cameraGestures'
   import { FileDropTarget } from './fileDrop.svelte'
-  import { isTextEntryTarget, resolveWorkspaceShortcut } from './keys'
+  import { isTextEntryTarget, MODIFIER_LABEL, resolveWorkspaceShortcut } from './keys'
   import type { WorkspaceCommandChain } from './commands'
 
   interface Props {
@@ -176,11 +176,6 @@
 
   // Cooperative gestures: a plain wheel scrolls the page, so say how to zoom
   // instead, as an embedded map does.
-  const zoomModifier =
-    typeof navigator !== 'undefined' &&
-    /Mac|iP(hone|ad)/.test(navigator.userAgent)
-      ? '⌘'
-      : 'Ctrl'
   let wheelHintVisible = $state(false)
   let wheelHintTimer: ReturnType<typeof setTimeout> | undefined
   function showWheelHint(event: WheelEvent): void {
@@ -357,7 +352,7 @@
         </div>
         {#if wheelHintVisible}
           <div class="wheel-hint" transition:fade={{ duration: 150 }}>
-            Hold {zoomModifier} and scroll to zoom. Drag empty space to move around.
+            Hold {MODIFIER_LABEL} and scroll to zoom. Drag empty space to move around.
           </div>
         {/if}
         <!-- Overlays the plots, never replaces them: dragging a file across
