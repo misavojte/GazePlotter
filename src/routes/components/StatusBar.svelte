@@ -6,23 +6,21 @@
       <path d="M7 11V7a5 5 0 0 1 10 0v4" fill="none" stroke="currentColor" stroke-width="2.5" />
       <rect x="3" y="10" width="18" height="12" rx="2.5" fill="currentColor" />
     </svg>
-    <span class="clip full">Fully private. Your files open in your browser and are never sent to a server.</span>
-    <span class="short">Fully private. Runs locally.</span>
+    <span class="clip privacy-full">Fully private. Your files open in your browser and are never sent to a server.</span>
+    <span class="clip privacy-mid">Fully private. Your files never leave your browser.</span>
+    <span class="privacy-short">Fully private. Runs locally.</span>
   </p>
   <p class="links">
     <span>
-      Peer-reviewed. Cite:
+      <span class="cite-lead">Peer-reviewed.</span> Cite:
       <a href="https://doi.org/10.3758/s13428-026-02959-5" target="_blank"
         >Vojtechovska &amp; Popelka (2026)</a
       >
     </span>
-    <a href="https://github.com/misavojte/GazePlotter" target="_blank"
+    <a class="oss" href="https://github.com/misavojte/GazePlotter" target="_blank"
       >Free &amp; open source</a
     >
-    <a
-      href="/docs/#report-a-problem"
-      >Report a problem</a
-    >
+    <a class="report" href="/docs/#report-a-problem">Report a problem</a>
   </p>
 </footer>
 
@@ -77,18 +75,53 @@
     text-decoration-color: currentColor;
   }
 
-  .short {
+  /* Narrowing gives up one piece at a time, least needed first; privacy,
+     the claim that answers a fear, stays to the last. */
+  .privacy-mid,
+  .privacy-short {
     display: none;
   }
 
-  /* Phones keep only the privacy claim, the one that answers a fear. */
-  @media (max-width: 640px) {
-    .links,
-    .full {
+  @media (max-width: 1080px) {
+    .privacy-full {
       display: none;
     }
 
-    .short {
+    .privacy-mid {
+      display: inline;
+    }
+  }
+
+  @media (max-width: 900px) {
+    .cite-lead {
+      display: none;
+    }
+  }
+
+  @media (max-width: 820px) {
+    .oss {
+      display: none;
+    }
+  }
+
+  @media (max-width: 700px) {
+    .report {
+      display: none;
+    }
+  }
+
+  @media (max-width: 560px) {
+    .links {
+      display: none;
+    }
+  }
+
+  @media (max-width: 380px) {
+    .privacy-mid {
+      display: none;
+    }
+
+    .privacy-short {
       display: inline;
     }
   }

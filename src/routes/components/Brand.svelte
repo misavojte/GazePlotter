@@ -1,4 +1,7 @@
 <script lang="ts">
+  import type { Action } from 'svelte/action'
+  import type { TooltipActionOptions } from '$lib/tooltip/tooltip.action'
+
   /**
    * The GazePlotter mark and name, linking home, followed by the running
    * version and its release month, linking to its changelog entry. One
@@ -7,12 +10,20 @@
   interface Props {
     /** The app page has no other heading, so its brand is the h1. */
     heading?: boolean
+    /** The app's tooltip; without it (the docs) the version keeps a native one. */
+    tooltip?: Action<HTMLElement, TooltipActionOptions>
   }
 
-  let { heading = false }: Props = $props()
+  let { heading = false, tooltip }: Props = $props()
+
+  const versionTooltip: Action<HTMLElement, TooltipActionOptions> = (
+    node,
+    options
+  ) => tooltip?.(node, options)
 
   const version = __APP_VERSION__
   const changelogHref = `/docs/changelog#${version.replace(/\./g, '')}`
+  const versionHint = `See what changed in version ${version}`
   const released = new Intl.DateTimeFormat('en-US', {
     month: 'short',
     year: 'numeric',
@@ -29,7 +40,8 @@
   <a
     class="version"
     href={changelogHref}
-    title="See what changed in version {version}"
+    title={tooltip ? undefined : versionHint}
+    use:versionTooltip={{ content: versionHint, position: 'bottom' }}
     ><span class="version-text">v{version}, {released}</span></a
   >
 </div>
@@ -104,17 +116,8 @@
     color: var(--c-black);
   }
 
-  /* Narrow screens keep the mark; the name stays for screen readers. */
+  /* Narrow screens keep the mark and name, dropping the edition. */
   @media (max-width: 640px) {
-    .brand-name {
-      position: absolute;
-      width: 1px;
-      height: 1px;
-      overflow: hidden;
-      clip: rect(0 0 0 0);
-      white-space: nowrap;
-    }
-
     .version {
       display: none;
     }
