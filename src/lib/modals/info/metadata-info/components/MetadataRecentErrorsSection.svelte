@@ -35,7 +35,7 @@
     flex-direction: column;
     gap: 12px;
     padding-bottom: 12px;
-    border-bottom: 1px solid #e5e7eb;
+    border-bottom: 1px solid var(--c-border);
   }
 
   .recent-error:last-child {

@@ -384,7 +384,7 @@
     white-space: nowrap;
     font-size: var(--text-lg);
     font-weight: 600;
-    color: var(--c-text);
+    color: var(--c-black);
   }
 
   .file-name {
@@ -393,7 +393,7 @@
     text-overflow: ellipsis;
     white-space: nowrap;
     font-size: var(--text-md);
-    color: var(--c-text);
+    color: var(--c-black);
   }
 
   .hint {

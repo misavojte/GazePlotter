@@ -84,7 +84,7 @@
   }
 
   .stimulus-name {
-    color: var(--c-text);
+    color: var(--c-black);
     font-weight: 500;
   }
 

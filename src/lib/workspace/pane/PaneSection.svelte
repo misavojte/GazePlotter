@@ -109,7 +109,7 @@ import { getContext, untrack } from 'svelte'
     align-items: center;
     gap: var(--spacing-xs);
     padding: 12px 16px 10px;
-    color: var(--c-text);
+    color: var(--c-black);
     font-size: var(--text-md);
     font-weight: 600;
     text-align: left;
@@ -117,12 +117,9 @@ import { getContext, untrack } from 'svelte'
     border: none;
     width: 100%;
     cursor: pointer;
-    transition: color var(--transition-fast);
   }
 
-  .heading:hover,
   .heading:focus-visible {
-    color: var(--c-black);
     outline: none;
   }
 

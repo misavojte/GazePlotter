@@ -29,7 +29,7 @@
     border: none;
     border-radius: var(--rounded-md);
     background: transparent;
-    color: var(--c-text);
+    color: var(--c-black);
     font: inherit;
     font-size: 13px;
     font-weight: 500;

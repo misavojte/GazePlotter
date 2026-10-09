@@ -718,7 +718,7 @@
   .cfg-section:not(:first-child) {
     margin-top: 18px;
     padding-top: 18px;
-    border-top: 1px solid var(--c-grey);
+    border-top: 1px solid var(--c-border);
   }
   .cfg-title {
     font-size: var(--text-xs);
@@ -767,7 +767,7 @@
   }
 
   .so-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
-  .so-name { font-size: var(--text-md); font-weight: 600; color: var(--c-text); }
+  .so-name { font-size: var(--text-md); font-weight: 600; color: var(--c-black); }
   .so-hint { font-size: var(--text-xs); font-family: var(--font-small); color: var(--c-darkgrey); line-height: var(--leading-normal); text-wrap: pretty; }
   .so-check { display: flex; flex-shrink: 0; color: var(--c-brand); }
 

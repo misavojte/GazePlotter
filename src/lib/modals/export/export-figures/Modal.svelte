@@ -427,7 +427,7 @@
   .preview-pager-label {
     font-size: var(--text-lg);
     font-weight: 500;
-    color: var(--c-text);
+    color: var(--c-black);
     text-align: center;
     min-width: 0;
     overflow: hidden;

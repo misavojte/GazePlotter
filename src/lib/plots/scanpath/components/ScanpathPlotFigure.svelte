@@ -779,7 +779,7 @@
     padding: 0;
     border: none;
     background: transparent;
-    color: var(--c-text);
+    color: var(--c-black);
     cursor: pointer;
     transition: color var(--transition-fast) ease;
   }
@@ -844,7 +844,7 @@
     font-size: var(--text-xs);
     font-family: var(--font-small);
     font-variant-numeric: tabular-nums;
-    color: var(--c-text);
+    color: var(--c-black);
     white-space: nowrap;
   }
 </style>

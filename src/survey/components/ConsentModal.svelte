@@ -253,7 +253,7 @@
 
   .session-instruction {
     font-size: 0.75rem;
-    color: var(--c-text);
+    color: var(--c-black);
     display: block;
     margin-top: 0.5rem;
   }

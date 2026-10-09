@@ -50,6 +50,7 @@
     border-radius: var(--rounded-md);
     color: var(--c-black);
     text-decoration: none;
+    transition: opacity var(--transition-fast) ease;
   }
 
   .brand img {
@@ -57,8 +58,8 @@
     flex: none;
   }
 
-  .brand:hover .brand-name {
-    color: var(--c-text);
+  .brand:hover {
+    opacity: 0.75;
   }
 
   .brand:focus-visible,
@@ -78,7 +79,6 @@
     /* Trim the box to the cap height, so centering centers the letters, not
        the font's lopsided ascent and descent (Segoe UI sits ~1px low). */
     text-box: trim-both cap alphabetic;
-    transition: color var(--transition-fast) ease;
   }
 
   /* The edition as a quiet badge: present, never competing with the name. */
@@ -111,7 +111,7 @@
   .version:hover {
     border-color: color-mix(in srgb, var(--c-black) 18%, transparent);
     background-color: var(--c-white);
-    color: var(--c-text);
+    color: var(--c-black);
   }
 
   /* Narrow screens keep the mark; the name stays for screen readers. */

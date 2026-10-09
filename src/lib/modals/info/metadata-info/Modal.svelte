@@ -295,7 +295,7 @@
   }
 
   :global(.card.failure-details) {
-    background: #fff5f5;
-    border: 1px solid #fca5a5;
+    background: color-mix(in srgb, var(--c-error) 5%, var(--c-white));
+    border: 1px solid color-mix(in srgb, var(--c-error) 35%, var(--c-white));
   }
 </style>

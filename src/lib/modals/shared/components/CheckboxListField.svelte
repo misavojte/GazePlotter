@@ -203,7 +203,7 @@
     margin: 0;
     flex: 1;
     min-width: 0;
-    color: var(--c-text);
+    color: var(--c-black);
     font-size: var(--text-xs);
     font-family: var(--font-small);
     font-weight: 600;

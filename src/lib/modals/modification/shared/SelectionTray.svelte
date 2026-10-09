@@ -368,7 +368,7 @@
     background: transparent;
     font: inherit;
     font-weight: 600;
-    color: var(--c-text);
+    color: var(--c-black);
     padding: 0;
     outline: none;
     min-width: 4ch;
@@ -440,7 +440,7 @@
     border: 1px solid var(--c-midgrey);
     border-radius: var(--rounded-md);
     background: var(--c-white);
-    color: var(--c-text);
+    color: var(--c-black);
     font-size: var(--text-sm);
     font-family: var(--font-small);
     cursor: pointer;

@@ -491,7 +491,7 @@
   .grid-item-subtitle-divider {
     width: 1px;
     align-self: stretch;
-    background-color: var(--c-grey);
+    background-color: var(--c-border);
   }
 
   .grid-item-body {
@@ -606,7 +606,7 @@
     transition: background var(--transition-fast) ease, color var(--transition-fast) ease;
   }
   .action-toolbar-button:hover {
-    background: rgba(255, 255, 255, 0.18);
+    background: color-mix(in srgb, var(--c-white) 18%, transparent);
   }
 
   /* Tactile "press" feedback */

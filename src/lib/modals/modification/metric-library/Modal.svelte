@@ -253,7 +253,7 @@
   }
   .card-name {
     font-size: var(--text-md);
-    color: var(--c-text);
+    color: var(--c-black);
     line-height: var(--leading-tight);
     white-space: nowrap;
     overflow: hidden;
@@ -282,7 +282,7 @@
     flex-shrink: 0;
     transition: color var(--transition-fast), background var(--transition-fast);
   }
-  .icon-btn:hover { background: var(--c-lightgrey); color: var(--c-text); }
+  .icon-btn:hover { background: var(--c-lightgrey); color: var(--c-black); }
 
   .add-metric-button {
     display: flex;

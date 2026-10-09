@@ -316,7 +316,7 @@
     z-index: 1000;
     width: 100%;
     height: 100%;
-    background-color: rgba(0, 0, 0, 0.5);
+    background-color: color-mix(in srgb, var(--c-black) 50%, transparent);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
   }
@@ -434,7 +434,7 @@
   .modal-error-copy,
   .modal-error-detail {
     margin: 0;
-    color: var(--c-text);
+    color: var(--c-black);
     line-height: var(--leading-normal);
     font-size: var(--text-xl);
     letter-spacing: -0.01em;

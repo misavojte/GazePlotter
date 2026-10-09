@@ -11,7 +11,6 @@
       | 'grey'
       | 'midgrey'
       | 'darkgrey'
-      | 'text'
       | 'black'
       | 'error'
       | 'success'
@@ -56,21 +55,25 @@
   :global(:root) {
     --c-brand: #cd1404;
     --c-brand-dark: #a20d03;
+    /* Neutrals, one job each: surface, subtle surface, fill (hover,
+       secondary buttons), pressed fill, strong line (field borders, icons,
+       disabled), muted text, ink. Hairlines use --c-border below. */
     --c-white: #ffffff;
     --c-darkwhite: #f8fafc;
     --c-lightgrey: #f1f5f9;
     --c-grey: #e2e8f0;
     --c-midgrey: #cbd5e1;
     --c-darkgrey: #64748b; /* Slate 500 */
-    --c-text: #1e293b; /* Slate 800 */
-    --c-black: #0f172a; /* Slate 900 */
+    --c-black: #1e293b; /* Slate 800: the one ink for all text */
     /* Border: translucent ink for a delicate, premium feel */
     --c-border: color-mix(in srgb, var(--c-black) 10%, transparent);
 
-    --c-error: #ff4d4f;
-    --c-success: #22c55e;
-    --c-warning: #faad14;
-    --c-info: #1890ff;
+    /* Status hues dark enough to be text on white (WCAG AA), from the same
+       Tailwind family as the slate greys. Tints derive via color-mix. */
+    --c-error: #dc2626;
+    --c-success: #15803d;
+    --c-warning: #b45309;
+    --c-info: #2563eb;
 
     /* System UI font; Segoe UI Variable is Windows 11's sharper small-size
        cut. KEEP IN SYNC with SYSTEM_SANS_SERIF_STACK (canvas text). */

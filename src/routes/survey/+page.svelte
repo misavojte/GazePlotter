@@ -653,10 +653,10 @@
     margin: 24px auto 0;
     padding: 14px 16px 16px;
     max-width: 500px;
-    background: #e8f2ff;
-    border: 1px solid #7cb0ff;
+    background: color-mix(in srgb, var(--c-info) 8%, var(--c-white));
+    border: 1px solid color-mix(in srgb, var(--c-info) 45%, var(--c-white));
     border-radius: 10px;
-    color: #0b3d91;
+    color: color-mix(in srgb, var(--c-info) 60%, var(--c-black));
     text-align: center;
     display: flex;
     flex-direction: column;
@@ -678,24 +678,24 @@
     margin: 0;
     font-size: 0.75rem;
     line-height: 1.4;
-    color: rgba(11, 61, 145, 0.8);
+    color: color-mix(in srgb, var(--c-info) 60%, var(--c-black));
   }
 
   .previous-consent-banner__link {
-    color: #0d63e0;
+    color: var(--c-info);
     text-decoration: underline;
     transition: color var(--transition-normal) ease-in-out;
   }
 
   .previous-consent-banner__link:hover,
   .previous-consent-banner__link:focus {
-    color: #0a4fae;
+    color: color-mix(in srgb, var(--c-info) 80%, var(--c-black));
   }
 
   .previous-consent-banner__dismiss {
     align-self: center;
     padding: 6px 14px;
-    background: #0d63e0;
+    background: var(--c-info);
     color: white;
     border: none;
     border-radius: 999px;
@@ -706,7 +706,7 @@
 
   .previous-consent-banner__dismiss:hover,
   .previous-consent-banner__dismiss:focus {
-    background: #0a4fae;
+    background: color-mix(in srgb, var(--c-info) 80%, var(--c-black));
   }
 
   main {
@@ -740,7 +740,7 @@
 
   p {
     line-height: 1.5;
-    color: #3c3c43bf;
+    color: var(--c-darkgrey);
   }
 
   /* .box styles moved to Card.svelte */

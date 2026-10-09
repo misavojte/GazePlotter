@@ -102,7 +102,7 @@
     border-radius: 50%;
     border: 1px solid var(--c-border);
     background-color: var(--c-lightgrey);
-    color: var(--c-text);
+    color: var(--c-black);
     font-size: var(--text-md);
     font-weight: 600;
     transition:
@@ -160,7 +160,7 @@
     font-size: var(--text-xl);
     letter-spacing: -0.01em;
     font-weight: 600;
-    color: var(--c-text);
+    color: var(--c-black);
     text-wrap: balance;
   }
 

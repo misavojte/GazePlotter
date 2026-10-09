@@ -428,7 +428,7 @@
 <style>
   .description {
     margin: 0 0 12px 0;
-    color: var(--c-text);
+    color: var(--c-black);
     font-size: var(--text-lg);
     line-height: var(--leading-normal);
     text-wrap: pretty;
@@ -450,7 +450,7 @@
   }
 
   .created-row + .created-row {
-    border-top: 1px solid var(--c-grey);
+    border-top: 1px solid var(--c-border);
   }
 
   .created-name {
@@ -516,7 +516,7 @@
   }
 
   .pair-row + .pair-row {
-    border-top: 1px solid var(--c-grey);
+    border-top: 1px solid var(--c-border);
   }
 
   .pair-row.header {
@@ -542,7 +542,7 @@
 
   .from-to {
     font-size: var(--text-md);
-    color: var(--c-text);
+    color: var(--c-black);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

@@ -82,7 +82,7 @@
 
   .description {
     margin-bottom: 16px;
-    color: var(--c-text);
+    color: var(--c-black);
     font-size: var(--text-lg);
     line-height: var(--leading-normal);
     text-wrap: pretty;
@@ -112,7 +112,7 @@
   .file-name {
     font-size: var(--text-lg);
     font-weight: 500;
-    color: var(--c-text);
+    color: var(--c-black);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

@@ -57,23 +57,23 @@
 <style>
   .summary {
     margin: 0;
-    color: #92400e;
+    color: var(--c-warning);
   }
 
   .exclusion {
-    border-top: 1px solid #e5e7eb;
+    border-top: 1px solid var(--c-border);
     padding-top: 6px;
   }
 
   .participant {
     font-weight: 500;
-    color: #1f2937;
+    color: var(--c-black);
   }
 
   .issues {
     margin: 4px 0 0;
     padding-left: 18px;
-    color: #991b1b;
+    color: var(--c-error);
     font-size: var(--text-lg);
   }
 

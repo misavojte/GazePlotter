@@ -406,7 +406,7 @@
     z-index: 20;
     padding: 8px 14px;
     border-radius: var(--rounded-md);
-    background-color: color-mix(in srgb, var(--c-text) 85%, transparent);
+    background-color: color-mix(in srgb, var(--c-black) 85%, transparent);
     color: var(--c-darkwhite);
     font-size: var(--text-md);
     white-space: nowrap;
@@ -452,7 +452,7 @@
     margin: 0;
     font-size: var(--text-md);
     font-weight: 600;
-    color: var(--c-text);
+    color: var(--c-black);
     text-wrap: balance;
   }
 

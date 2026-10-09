@@ -43,12 +43,12 @@
 
   .label {
     font-weight: 500;
-    color: var(--c-text);
+    color: var(--c-black);
     min-width: fit-content;
   }
 
   .value {
-    color: #1f2937;
+    color: var(--c-black);
     text-align: right;
     word-break: break-word;
   }
@@ -61,7 +61,7 @@
   }
 
   .error-message {
-    color: #991b1b;
+    color: var(--c-error);
     font-weight: 500;
     text-align: right;
   }
@@ -74,12 +74,12 @@
   .error-stack {
     margin-top: 8px;
     padding: 12px;
-    background: #fafafa;
-    border: 1px solid #e5e5e5;
+    background: var(--c-darkwhite);
+    border: 1px solid var(--c-border);
     border-radius: 4px;
     font-family: 'Courier New', monospace;
     font-size: var(--text-sm);
-    color: #4b5563;
+    color: var(--c-darkgrey);
     overflow-x: auto;
     max-width: 100%;
     white-space: pre-wrap;
@@ -89,7 +89,7 @@
 
   .exclusion .label {
     font-weight: 600;
-    color: var(--c-text);
+    color: var(--c-black);
   }
 
   .exclusion .value {

@@ -66,7 +66,7 @@
 
   p {
     margin: 0 0 24px 0;
-    color: var(--c-text);
+    color: var(--c-black);
     line-height: var(--leading-relaxed);
     font-size: var(--text-lg);
   }

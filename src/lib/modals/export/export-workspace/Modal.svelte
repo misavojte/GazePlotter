@@ -166,7 +166,7 @@
     font-size: var(--text-lg);
     background: transparent;
     outline: none;
-    color: var(--c-text);
+    color: var(--c-black);
   }
 
   .export-input::placeholder {
@@ -197,7 +197,7 @@
 
   .workspace-description {
     margin: 0 0 16px 0;
-    color: var(--c-text);
+    color: var(--c-black);
     font-size: var(--text-lg);
     line-height: var(--leading-normal);
     text-wrap: pretty;
@@ -250,7 +250,7 @@
     margin: 0 0 4px 0;
     font-size: var(--text-lg);
     font-weight: 500;
-    color: var(--c-text);
+    color: var(--c-black);
     line-height: var(--leading-tight);
     text-wrap: balance;
   }

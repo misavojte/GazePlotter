@@ -85,7 +85,7 @@
 
   .description {
     margin-bottom: 16px;
-    color: var(--c-text);
+    color: var(--c-black);
     font-size: var(--text-lg);
     line-height: var(--leading-normal);
     text-wrap: pretty;

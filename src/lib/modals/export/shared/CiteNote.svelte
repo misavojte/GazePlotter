@@ -50,7 +50,7 @@
     margin: 0 0 2px;
     font-size: var(--text-lg);
     font-weight: 600;
-    color: var(--c-text);
+    color: var(--c-black);
     text-wrap: balance;
   }
 

@@ -40,7 +40,7 @@
   .pick-card-title {
     font-size: var(--text-md);
     font-weight: 500;
-    color: var(--c-text);
+    color: var(--c-black);
     text-wrap: balance;
   }
 

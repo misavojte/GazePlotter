@@ -147,7 +147,7 @@
 
   li.divider {
     height: 1px;
-    background: var(--c-grey);
+    background: var(--c-border);
     margin: 4px 0;
   }
 
@@ -156,7 +156,7 @@
     border: none;
     padding: 6px 12px;
     font-size: var(--text-md);
-    color: var(--c-text);
+    color: var(--c-black);
     cursor: pointer;
     text-align: left;
     display: flex;

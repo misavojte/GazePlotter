@@ -36,7 +36,7 @@
   .title {
     flex: 1;
     min-width: 0;
-    color: var(--c-text);
+    color: var(--c-black);
     font-size: var(--text-xl);
     letter-spacing: -0.01em;
     font-weight: 600;

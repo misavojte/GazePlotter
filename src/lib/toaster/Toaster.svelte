@@ -126,23 +126,24 @@
     box-sizing: border-box;
   }
 
+  /* Status tokens are AA-dark already, so white text sits on them as is. */
   .toast-success {
-    background-color: color-mix(in srgb, var(--c-success) 85%, var(--c-black));
+    background-color: var(--c-success);
     border-color: color-mix(in srgb, var(--c-success) 40%, transparent);
   }
 
   .toast-error {
-    background-color: color-mix(in srgb, var(--c-error) 85%, var(--c-black));
+    background-color: var(--c-error);
     border-color: color-mix(in srgb, var(--c-error) 40%, transparent);
   }
 
   .toast-warning {
-    background-color: color-mix(in srgb, var(--c-warning) 80%, var(--c-black));
+    background-color: var(--c-warning);
     border-color: color-mix(in srgb, var(--c-warning) 40%, transparent);
   }
 
   .toast-info {
-    background-color: color-mix(in srgb, var(--c-info) 85%, var(--c-black));
+    background-color: var(--c-info);
     border-color: color-mix(in srgb, var(--c-info) 40%, transparent);
   }
 

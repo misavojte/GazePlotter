@@ -31,7 +31,7 @@
 
   .purpose-description {
     margin: 0 0 16px 0;
-    color: var(--c-text);
+    color: var(--c-black);
     font-size: var(--text-xl);
     letter-spacing: -0.01em;
     line-height: var(--leading-normal);

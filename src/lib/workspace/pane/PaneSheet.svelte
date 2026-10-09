@@ -51,7 +51,7 @@
 </aside>
 
 <style>
-  /* Dim the area above the sheet. Derived from --c-black (#0f172a) at
+  /* Dim the area above the sheet. Derived from --c-black at
      ~28% opacity — matches the muted, chrome-free visual language by
      avoiding pure black. */
   .sheet-backdrop {

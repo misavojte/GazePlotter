@@ -81,7 +81,7 @@
   a:disabled {
     background-color: var(--c-lightgrey) !important;
     color: var(--c-midgrey) !important;
-    border: 1px solid var(--c-grey) !important;
+    border: 1px solid var(--c-border) !important;
     opacity: 0.6 !important;
     cursor: not-allowed;
   }

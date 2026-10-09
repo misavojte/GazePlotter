@@ -355,7 +355,7 @@
     font-size: var(--text-xs);
     font-family: var(--font-small);
     line-height: var(--leading-normal);
-    color: #4b5563;
+    color: var(--c-darkgrey);
     text-wrap: pretty;
   }
 </style>

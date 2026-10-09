@@ -279,7 +279,7 @@
   .plot-error-copy,
   .plot-error-detail {
     margin: 0;
-    color: var(--c-text);
+    color: var(--c-black);
     line-height: var(--leading-normal);
     font-size: var(--text-lg);
   }

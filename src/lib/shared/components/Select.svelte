@@ -220,7 +220,7 @@
   }
 
   .trigger:disabled {
-    border-color: var(--c-grey);
+    border-color: var(--c-border);
     background-color: var(--c-lightgrey);
     color: var(--c-darkgrey);
     cursor: not-allowed;

@@ -673,8 +673,8 @@
   }
 
   .group-notice.warn {
-    background-color: color-mix(in srgb, var(--c-danger, #b91c1c) 8%, var(--c-white));
-    color: var(--c-danger, #b91c1c);
+    background-color: color-mix(in srgb, var(--c-error) 8%, var(--c-white));
+    color: var(--c-error);
   }
 
   .notice-text {

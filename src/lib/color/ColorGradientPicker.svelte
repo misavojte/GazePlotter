@@ -214,7 +214,7 @@
     background: var(--c-lightgrey);
     border: 1px solid var(--c-midgrey);
     border-radius: var(--rounded);
-    color: var(--c-text);
+    color: var(--c-black);
 
     &:hover {
       background: var(--c-grey);
