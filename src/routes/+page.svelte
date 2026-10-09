@@ -100,5 +100,6 @@
     height: var(--app-height);
     overflow: hidden;
     --gp-workspace-height: var(--app-height);
+    --gp-toaster-bottom: calc(var(--site-statusbar-height) + 16px);
   }
 </style>
