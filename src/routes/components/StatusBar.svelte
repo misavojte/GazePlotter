@@ -13,7 +13,7 @@
     <span>
       Peer-reviewed. Cite:
       <a href="https://doi.org/10.3758/s13428-026-02959-5" target="_blank"
-        >Vojtěchovská &amp; Popelka (2026)</a
+        >Vojtechovska &amp; Popelka (2026)</a
       >
     </span>
     <a href="https://github.com/misavojte/GazePlotter" target="_blank"

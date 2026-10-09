@@ -140,9 +140,7 @@
        x axis. We animate both `width` AND `flex-basis` — the built-in
        `slide` only animates width, which is silently ignored by a flex
        item whose container sets `flex: 0 0 <size>` (the fixed basis
-       wins over width in the flex algorithm, so nothing visually moves).
-       Duration/easing match Rail.svelte's slide-out so the two motions
-       read as one sweep. -->
+       wins over width in the flex algorithm, so nothing visually moves). -->
   <aside
     class="pane"
     aria-label={desktopAriaLabel}

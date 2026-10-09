@@ -18,7 +18,7 @@ export const ZOOM_MIN = 0.25
 /** Maximum zoom level (full scale; plots render at 1:1). */
 export const ZOOM_MAX = 1
 
-/** Increment per slider step and per keyboard step. */
+/** Increment per zoom button and keyboard step. */
 export const ZOOM_STEP = 0.05
 
 /** Sensitivity multiplier for Ctrl+wheel zoom. Smaller = finer control. */
@@ -90,7 +90,7 @@ export class WorkspaceCamera {
   }
 
   /**
-   * Direct manipulation (the rail slider's `bind:`): immediate, around the
+   * Direct write (host API): immediate, around the
    * middle of the frame. Every write is clamped.
    */
   set zoom(next: number) {

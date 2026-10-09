@@ -7,8 +7,8 @@
   /** @type {{children?: import('svelte').Snippet}} */
   let { children } = $props()
 
-  // The homepage is the app itself: one canvas with its chrome floating
-  // over it as islands, so no docked header or footer.
+  // The homepage is the app itself: it docks its own header and status bar,
+  // so the site header and footer are skipped.
   const isApp = $derived(page.url.pathname === '/')
 
   // SoftwareApplication structured data (schema.org). `softwareVersion` is

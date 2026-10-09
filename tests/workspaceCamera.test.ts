@@ -107,7 +107,7 @@ describe('WorkspaceCamera', () => {
     expect(after.y).toBeCloseTo(before.y)
   })
 
-  it('clamps every zoom write, including the rail slider binding', () => {
+  it('clamps every zoom write, including direct writes', () => {
     const cam = camera()
     cam.zoom = 99
     expect(cam.zoom).toBe(ZOOM_MAX)

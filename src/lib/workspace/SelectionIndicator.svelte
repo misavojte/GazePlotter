@@ -10,15 +10,12 @@
     frame: HTMLElement | null
     camera: WorkspaceCamera
     gridConfig: GridConfig
-    // Element occluding the viewport bottom (mobile rail); null when none.
-    bottomOcclusionElement?: HTMLElement | null
   }
 
   const {
     frame,
     camera,
     gridConfig,
-    bottomOcclusionElement = null,
   }: Props = $props()
   const { grid } = getGazePlotterSession()
 
@@ -76,12 +73,10 @@
     const itemCy = (itemTop + itemBottom) / 2
 
     // Visible region: the frame clipped to the window.
-    const bottomInset =
-      bottomOcclusionElement?.getBoundingClientRect().height ?? 0
     const pageLeft = Math.max(0, frameLeft)
     const pageTop = Math.max(0, frameTop)
     const pageRight = Math.min(windowW, frameLeft + frameW)
-    const pageBottom = Math.min(windowH - bottomInset, frameTop + frameH)
+    const pageBottom = Math.min(windowH, frameTop + frameH)
     const pageW = pageRight - pageLeft
     const pageH = pageBottom - pageTop
     if (pageW <= 0 || pageH <= 0) return null
