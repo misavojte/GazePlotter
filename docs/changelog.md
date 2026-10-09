@@ -2,6 +2,18 @@
 
 ## 1.9.x
 
+### 1.9.5
+
+* *Released on October 9, 2026*
+* **Reference Media**: Each stimulus can carry a reference image or video, drawn behind the [Scanpath](/docs/visualizations/scanpath). Media is matched to stimuli by name when uploaded, uploads are undoable, and media can be dragged into alignment with the fixations. See [Reference media](/docs/workspace/stimuli-library#reference-media).
+* **Scanpath Playback**: The [Scanpath](/docs/visualizations/scanpath#playback) plays back over time, with a trailing window and adjustable speed (kept in sync with a video background). The time gradient rescales to the shown span, and a compact key maps it to time.
+* **Workspace**: The canvas pans and zooms like a camera, also with a middle-button drag. The initial layout follows the loaded data, and Reset returns to it. Deleting several plots is one undo step, and Backspace in the pane no longer deletes the plot.
+* **AOI Editing**: Editing AOIs across all stimuli applies only the fields you changed, as one undo step.
+* **Plots**: [Metric Matrix](/docs/visualizations/metric-matrix), [Scanpath Similarity](/docs/visualizations/scanpath-similarity), and AOI Timeline fill out-of-bounds values distinctly. Highlights follow a stimulus switch, and linked hovering retracts cleanly.
+* **Metrics**: Editing a metric changes it in place and keeps its output shape; new metrics get a prefilled label.
+* **Export**: [Figure Export](/docs/export/figures) can copy the citation for GazePlotter.
+* **Site**: The app is now the front page, with a shared header showing the version (linked to this changelog), a status bar with privacy, citation, and links, a refreshed visual style, and richer link previews.
+
 ### 1.9.4
 
 * *Released on August 23, 2026*
