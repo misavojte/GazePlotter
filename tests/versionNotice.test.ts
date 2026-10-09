@@ -22,8 +22,20 @@ describe('announceVersionOnce', () => {
     vi.unstubAllGlobals()
   })
 
-  it('shows the toast once and records the build version', () => {
+  it('records a first visit silently', () => {
     const storage = fakeStorage()
+    vi.stubGlobal('localStorage', storage)
+    const toastState = new ToastState()
+
+    announceVersionOnce(toastState)
+
+    expect(toastState.current).toHaveLength(0)
+    expect(storage.getItem('gazePlotter:announcedVersion')).toBe(__APP_VERSION__)
+  })
+
+  it('announces a new version to a returning user and records it', () => {
+    const storage = fakeStorage()
+    storage.setItem('gazePlotter:announcedVersion', '0.0.0-old')
     vi.stubGlobal('localStorage', storage)
     const toastState = new ToastState()
 
@@ -49,18 +61,6 @@ describe('announceVersionOnce', () => {
     expect(toastState.current).toHaveLength(0)
   })
 
-  it('re-announces when a different version was previously seen', () => {
-    const storage = fakeStorage()
-    storage.setItem('gazePlotter:announcedVersion', '0.0.0-old')
-    vi.stubGlobal('localStorage', storage)
-    const toastState = new ToastState()
-
-    announceVersionOnce(toastState)
-
-    expect(toastState.current).toHaveLength(1)
-    expect(storage.getItem('gazePlotter:announcedVersion')).toBe(__APP_VERSION__)
-  })
-
   it('skips silently when storage reads throw (e.g. blocked storage)', () => {
     vi.stubGlobal(
       'localStorage',
@@ -80,6 +80,7 @@ describe('announceVersionOnce', () => {
     vi.stubGlobal(
       'localStorage',
       fakeStorage({
+        getItem: () => '0.0.0-old',
         setItem: () => {
           throw new Error('quota exceeded')
         },

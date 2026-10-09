@@ -7,6 +7,7 @@ import {
   mergeStimuli as applyStimulusMerge,
   unmergeStimuli as applyStimulusUnmerge,
 } from '../merge/mergeStimuli'
+import { StimulusMediaStore } from '../media/mediaStore.svelte'
 import type {
   NameSelection,
   DataCapabilityRequirements,
@@ -19,6 +20,7 @@ import type {
   MetricInstance,
   ParticipantsSelection,
   EntitySelection,
+  StimulusMedia,
 } from '../types'
 
 export class DataEngine {
@@ -33,6 +35,10 @@ export class DataEngine {
 
   // --- Public Reactive State ---
   metadata = $state<EngineMetadata | null>(null)
+
+  /** Reference media bytes, per session: two instances on a page never share
+      blobs, and unmounting releases them. */
+  readonly media = new StimulusMediaStore()
 
   /**
    * Bumps on every change to the binary event occurrence buffers (load,
@@ -90,14 +96,24 @@ export class DataEngine {
     this._aoiGroupReader.updateMap(meta)
   }
 
+  /**
+   * Replace AOI rows (by id) for each listed stimulus and commit its display
+   * order: `orderVector` verbatim when given (inverse commands carry the exact
+   * prior vector, including an empty identity one), else the `aois` order.
+   * Rows not listed are left untouched.
+   */
   updateAoisBatch(
-    updates: { stimulusId: number; aois: ExtendedInterpretedDataType[] }[]
+    updates: {
+      stimulusId: number
+      aois: ExtendedInterpretedDataType[]
+      orderVector?: number[]
+    }[]
   ) {
     const meta = this.metadata
     if (!meta) return
 
     for (let i = 0; i < updates.length; i++) {
-      const { stimulusId, aois } = updates[i]
+      const { stimulusId, aois, orderVector } = updates[i]
       if (stimulusId < 0 || stimulusId >= meta.aois.data.length) continue
 
       const stimulusData = meta.aois.data[stimulusId]
@@ -111,7 +127,9 @@ export class DataEngine {
       if (!meta.aois.orderVector) meta.aois.orderVector = []
       while (meta.aois.orderVector.length <= stimulusId)
         meta.aois.orderVector.push([])
-      meta.aois.orderVector[stimulusId] = aois.map(a => a.id)
+      meta.aois.orderVector[stimulusId] = orderVector
+        ? [...orderVector]
+        : aois.map(a => a.id)
     }
 
     // updateMap is the single decision point: it rebuilds groupPool, diffs
@@ -134,6 +152,61 @@ export class DataEngine {
       if (id >= 0 && id < meta[table].data.length) meta[table].data[id] = data
     }
     meta[table].orderVector = newOrder
+  }
+
+  /**
+   * Set or remove one stimulus's reference medium. Metadata rides in
+   * `metadata.stimuliMedia`; the bytes go to the non-reactive
+   * {@link media}. The record is deleted when it empties, so a
+   * media-less workspace exports without the field (and as plain JSON).
+   */
+  setStimulusMedia(
+    stimulusId: number,
+    media: StimulusMedia | null,
+    blob?: Blob | null
+  ) {
+    const meta = this.metadata
+    if (!meta) return
+    if (media && blob) {
+      if (!meta.stimuliMedia) meta.stimuliMedia = {}
+      meta.stimuliMedia[stimulusId] = media
+      this.media.setBlob(stimulusId, blob)
+    } else {
+      if (meta.stimuliMedia) {
+        delete meta.stimuliMedia[stimulusId]
+        if (Object.keys(meta.stimuliMedia).length === 0)
+          delete meta.stimuliMedia
+      }
+      this.media.remove(stimulusId)
+    }
+  }
+
+  /**
+   * Reset the media byte store for a freshly loaded dataset: clear, seed the
+   * given blobs, and drop any `stimuliMedia` entry whose bytes are missing
+   * (invariant: metadata entry ⇔ stored blob). Called by the ingest apply —
+   * NOT by {@link loadDataset}, which merge/unmerge also run through and
+   * which must keep the blobs (they are keyed by tombstoned, stable ids).
+   * Returns the ids of the dropped entries, for the caller's warning toast.
+   */
+  setStimulusMediaBlobs(blobs: Record<number, Blob> | undefined): number[] {
+    this.media.clear()
+    const meta = this.metadata
+    const media = meta?.stimuliMedia
+    if (!meta || !media) return []
+    const dropped: number[] = []
+    for (const key of Object.keys(media)) {
+      const id = Number(key)
+      const blob = blobs?.[id]
+      if (blob) {
+        this.media.setBlob(id, blob)
+      } else {
+        delete media[id]
+        dropped.push(id)
+      }
+    }
+    if (Object.keys(media).length === 0) delete meta.stimuliMedia
+    return dropped
   }
 
   setNoAoiTreatment(treatment: { displayedName: string; color: string }) {

@@ -207,14 +207,14 @@
   .auto-btn {
     width: 100%;
     margin-top: 8px;
-    font-size: 11px;
+    font-size: var(--text-xs);
     font-weight: 500;
     padding: 4px;
     cursor: pointer;
     background: var(--c-lightgrey);
     border: 1px solid var(--c-midgrey);
     border-radius: var(--rounded);
-    color: var(--c-text);
+    color: var(--c-black);
 
     &:hover {
       background: var(--c-grey);

@@ -792,7 +792,7 @@ export function markCrosshairStrip(
 
 /**
  * Dashed 1px crosshair rectangle — the closed-outline form, for a region that is
- * not a strip (a whole panel; see `strokeCrosshairPanel`).
+ * not a strip.
  */
 export function strokeCrosshairRect(
   ctx: CanvasRenderingContext2D,

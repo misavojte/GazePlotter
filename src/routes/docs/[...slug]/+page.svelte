@@ -52,7 +52,7 @@
     gap: 1rem;
     margin-top: 4rem;
     padding-top: 2rem;
-    border-top: 1px solid var(--c-grey);
+    border-top: 1px solid var(--c-border);
   }
 
   .prev-next-link {
@@ -60,7 +60,7 @@
     flex-direction: column;
     gap: 0.25rem;
     padding: 1rem 1.25rem;
-    border: 1px solid var(--c-grey);
+    border: 1px solid var(--c-border);
     border-radius: 10px;
     text-decoration: none;
     transition: all var(--transition-normal) ease;
@@ -77,8 +77,8 @@
   }
 
   .prev-next-link:hover {
-    border-color: var(--c-brand);
-    background-color: color-mix(in srgb, var(--c-brand) 4%, var(--c-white));
+    border-color: color-mix(in srgb, var(--c-black) 22%, transparent);
+    background-color: var(--c-darkwhite);
   }
 
   .prev-next-label {
@@ -90,7 +90,7 @@
   .prev-next-title {
     font-size: 0.9375rem;
     font-weight: 600;
-    color: var(--c-text);
+    color: var(--c-black);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

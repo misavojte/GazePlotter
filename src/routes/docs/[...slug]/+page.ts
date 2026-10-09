@@ -4,6 +4,7 @@ import { getDoc } from '../docs'
 import type { PageLoad } from './$types'
 
 const REDIRECTS: Record<string, string> = {
+  'about': '/docs',
   'export/aggregated-data': '/docs/export/metric-data',
   'export/scanpath-similarity': '/docs/export/metric-data',
   'basic': '/docs/workspace',

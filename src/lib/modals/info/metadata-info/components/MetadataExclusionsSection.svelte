@@ -24,7 +24,7 @@
 
 {#if exclusions.length > 0}
   <MetadataSection title="Excluded data (malformed interval markers)">
-    <Card padding="sm" gap="0.5rem">
+    <Card padding="sm" gap="8px">
       <p class="summary">
         {exclusions.length} participant-stimulus group{exclusions.length > 1
           ? 's were'
@@ -34,7 +34,7 @@
     </Card>
 
     {#each byStimulus as [stimulus, notices] (stimulus)}
-      <Card padding="sm" gap="0.5rem">
+      <Card padding="sm" gap="8px">
         <InfoRow label={stimulus} value={`${notices.length} excluded`} variant="exclusion" />
         {#each notices as notice (notice.participant)}
           <div class="exclusion">
@@ -57,27 +57,27 @@
 <style>
   .summary {
     margin: 0;
-    color: #92400e;
+    color: var(--c-warning);
   }
 
   .exclusion {
-    border-top: 1px solid #e5e7eb;
-    padding-top: 0.4rem;
+    border-top: 1px solid var(--c-border);
+    padding-top: 6px;
   }
 
   .participant {
     font-weight: 500;
-    color: #1f2937;
+    color: var(--c-black);
   }
 
   .issues {
-    margin: 0.25rem 0 0;
-    padding-left: 1.1rem;
-    color: #991b1b;
-    font-size: 0.85rem;
+    margin: 4px 0 0;
+    padding-left: 18px;
+    color: var(--c-error);
+    font-size: var(--text-lg);
   }
 
   .time {
-    color: #6b7280;
+    color: var(--c-darkgrey);
   }
 </style>

@@ -88,7 +88,7 @@
 
 <style>
   .preview-frame {
-    padding: 1rem;
+    padding: 16px;
     border: 1px solid var(--c-border);
     border-radius: var(--rounded-md);
     background-color: var(--c-darkwhite);
@@ -113,16 +113,16 @@
   }
 
   .preview-message {
-    margin: 2rem 0;
-    color: var(--c-midgrey);
-    font-size: 0.85rem;
+    margin: 32px 0;
+    color: var(--c-darkgrey);
+    font-size: var(--text-lg);
     font-style: italic;
     text-align: center;
   }
 
   .caption {
-    margin: 0.35rem 0 0 0;
-    font-size: 0.8rem;
+    margin: 6px 0 0 0;
+    font-size: var(--text-md);
     color: var(--c-darkgrey);
     text-align: center;
   }

@@ -6,9 +6,10 @@ const STORAGE_KEY = 'gazePlotter:announcedVersion'
 /**
  * Announce a new app version once per browser, per release.
  *
- * The first time a build version is seen, this shows a single info toast that
- * links to the guide; the version is then recorded in localStorage so returning
- * users are not nagged on every visit. The key is the build-time
+ * When a returning user first sees a new build version, this shows a single
+ * info toast that links to the changelog; the version is then recorded in
+ * localStorage so they are not nagged on every visit. A first visit records
+ * the version silently: there is no earlier version to compare against. The key is the build-time
  * `__APP_VERSION__`, so the notice reappears automatically after the next
  * release without any code change.
  *
@@ -27,7 +28,7 @@ export function announceVersionOnce(toastState: Pick<ToastState, 'add'>): void {
   }
   if (seen === __APP_VERSION__) return
 
-  toastState.add({
+  if (seen !== null) toastState.add({
     id: generateUniqueId(),
     message: `GazePlotter ${__APP_VERSION__} is here.`,
     type: 'info',

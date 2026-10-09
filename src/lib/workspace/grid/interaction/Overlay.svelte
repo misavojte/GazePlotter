@@ -38,7 +38,7 @@
     z-index: 50;
     pointer-events: none;
     opacity: 0.55;
-    border: 2px dashed var(--c-text);
+    border: 2px dashed var(--c-black);
     border-radius: var(--rounded-lg);
     background: var(--c-lightgrey);
     box-sizing: border-box;

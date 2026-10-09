@@ -1,6 +1,7 @@
 import type { ExtendedInterpretedDataType } from '$lib/data/types'
+import type { OutOfBoundsSettings } from '$lib/plots/shared/outOfBounds'
 
-export type TransitionMatrixPlotSettings = {
+export type TransitionMatrixPlotSettings = OutOfBoundsSettings & {
   stimulusId: number
   groupId: number
   /** Per-plot AOI SELECTION id; unset/0 = all AOIs. */
@@ -16,10 +17,6 @@ export type TransitionMatrixPlotSettings = {
   timelineStart?: number
   timelineEnd?: number
   stimuliColorValueRanges: [number, number][]
-  belowMinColor: string
-  aboveMaxColor: string
-  showBelowMinLabels: boolean
-  showAboveMaxLabels: boolean
   colorScale: string[]
   hideNoAoi?: boolean
 }

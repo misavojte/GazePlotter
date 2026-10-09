@@ -6,8 +6,12 @@
     label: string
     width: string
     align?: 'center'
-    type: 'handle' | 'readonly' | 'text' | 'color'
+    /** 'action' renders a per-row icon button (leader rows only) firing the
+        `grouped.onRowAction` callback. */
+    type: 'handle' | 'readonly' | 'text' | 'color' | 'action'
     key?: string
+    /** Icon for 'action' columns. */
+    icon?: 'image'
     /** Explanatory tooltip on the column header (dotted-underlined). */
     tooltip?: string
   }
@@ -27,6 +31,7 @@
   import GripVertical from 'lucide-svelte/icons/grip-vertical'
   import SlidersHorizontal from 'lucide-svelte/icons/sliders-horizontal'
   import Replace from 'lucide-svelte/icons/replace'
+  import ImageIcon from 'lucide-svelte/icons/image'
   import { useTooltipAction } from '$lib/tooltip'
 
   const tooltipAction = useTooltipAction()
@@ -60,6 +65,12 @@
       group: MergeCard<BaseInterpretedDataType>,
       color: string
     ) => void
+    /** Only for entity lists with an 'action' column (leader rows). */
+    onRowAction?: (item: BaseInterpretedDataType) => void
+    /** Fills the 'action' button (e.g. "this stimulus HAS media"). */
+    rowActionActive?: (item: BaseInterpretedDataType) => boolean
+    /** Hover explanation of the 'action' button per row. */
+    rowActionTooltip?: (item: BaseInterpretedDataType) => string
   }
 
   interface GroupNotice {
@@ -492,6 +503,23 @@
                   </div>
                 {:else if col.type === 'color' && !isLeader}
                   <div></div>
+                {:else if col.type === 'action' && isLeader}
+                  <div class="col-action">
+                    <button
+                      class="row-action"
+                      class:set={grouped.rowActionActive?.(member) ?? false}
+                      aria-label={`${col.label} for ${member.displayedName || member.originalName}`}
+                      use:tooltipAction={{
+                        content: grouped.rowActionTooltip?.(member) ?? '',
+                        disabled: !grouped.rowActionTooltip,
+                      }}
+                      onclick={() => grouped.onRowAction?.(member)}
+                    >
+                      <ImageIcon size={'1em'} />
+                    </button>
+                  </div>
+                {:else if col.type === 'action' && !isLeader}
+                  <div></div>
                 {/if}
               {/each}
             </div>
@@ -525,11 +553,12 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    margin-bottom: 0.5rem;
+    margin-bottom: 8px;
   }
 
   .section-title {
     font-weight: 600;
+    text-wrap: balance;
   }
 
   .title-actions {
@@ -577,10 +606,11 @@
     display: grid;
     gap: 8px;
     padding: 0 12px;
-    font-size: 10px;
-    color: var(--c-midgrey);
+    font-size: var(--text-2xs);
+    font-family: var(--font-small);
+    color: var(--c-darkgrey);
     text-transform: uppercase;
-    letter-spacing: 0.03em;
+    letter-spacing: 0.06em;
   }
 
   .column-labels span:first-child {
@@ -633,7 +663,8 @@
     gap: 8px;
     padding: 8px 12px;
     border-top: 1px solid var(--c-border);
-    font-size: 12px;
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
   }
 
   .group-notice.info {
@@ -642,12 +673,12 @@
   }
 
   .group-notice.warn {
-    background-color: color-mix(in srgb, var(--c-danger, #b91c1c) 8%, var(--c-white));
-    color: var(--c-danger, #b91c1c);
+    background-color: color-mix(in srgb, var(--c-error) 8%, var(--c-white));
+    color: var(--c-error);
   }
 
   .notice-text {
-    line-height: 1.3;
+    line-height: var(--leading-normal);
   }
 
   .notice-action {
@@ -657,7 +688,8 @@
     border-radius: var(--rounded-md);
     background: none;
     color: inherit;
-    font-size: 12px;
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
     cursor: pointer;
     white-space: nowrap;
   }
@@ -755,8 +787,8 @@
   }
 
   .col-readonly {
-    font-size: 14px;
-    color: var(--c-midgrey);
+    font-size: var(--text-lg);
+    color: var(--c-darkgrey);
     line-height: 1;
     white-space: nowrap;
     overflow: hidden;
@@ -769,5 +801,50 @@
     display: flex;
     align-items: center;
     justify-content: center;
+  }
+
+  /* ── Per-row action button (e.g. stimulus reference media) ─────────────── */
+
+  /* The cell overrides the row's align-items: center so the button shares
+     the row's control height (the name input beside it). */
+  .col-action {
+    align-self: stretch;
+    display: flex;
+    justify-content: center;
+  }
+
+  /* The tool-button vocabulary, sized to the row. State = fill: outline is
+     "no media", the primary-button brand fill is "media attached" — so the
+     brand-outline hover can't be mistaken for the set state. */
+  .row-action {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    background: none;
+    border: 1px solid var(--c-midgrey);
+    border-radius: var(--rounded-md);
+    color: var(--c-darkgrey);
+    cursor: pointer;
+    transition:
+      color var(--transition-fast) ease,
+      border-color var(--transition-fast) ease,
+      background-color var(--transition-fast) ease;
+  }
+
+  .row-action:hover {
+    color: var(--c-brand);
+    border-color: var(--c-brand);
+  }
+
+  .row-action.set,
+  .row-action.set:hover {
+    background-color: var(--c-brand);
+    border-color: var(--c-brand);
+    color: var(--c-white);
+  }
+
+  .row-action.set:hover {
+    background-color: var(--c-brand-dark);
   }
 </style>

@@ -61,7 +61,7 @@
     margin: 0 0 40px;
     font-weight: bold;
     line-height: 1.15;
-    color: var(--c-text);
+    color: var(--c-black);
   }
 
   .actions {

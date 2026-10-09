@@ -94,6 +94,10 @@ function getScanpathSimilarityView(
       yAxisTitle: 'Participant',
       colorScale: settings.colorScale ?? [],
       colorValueRange: settings.stimuliColorValueRanges?.[settings.stimulusId] ?? [0, 0],
+      belowMinColor: settings.belowMinColor,
+      aboveMaxColor: settings.aboveMaxColor,
+      showBelowMinLabels: settings.showBelowMinLabels,
+      showAboveMaxLabels: settings.showAboveMaxLabels,
       formatCellValue: (v: number) => v.toFixed(2),
       // Similarity is a dimensionless [0,1] score — no unit, exactly like the
       // (dimensionless) correlation coefficient. The 0/1 bounds are shown by the

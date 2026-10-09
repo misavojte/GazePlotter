@@ -4,8 +4,6 @@ Eye-movement type metrics quantify the recording along its second axis: not wher
 
 A dataset carries only the types its source actually recorded. Fixation-only exports (for example GazePoint or plain CSV fixation lists) have no Saccade type at all; saccade-based readings then report no value rather than an approximation.
 
----
-
 ## Output Shape and Projections Translation
 
 All eye-movement metrics output a `category-vector` (an array of values mapping to each eye-movement type present in the dataset).
@@ -21,8 +19,6 @@ You can reduce the vector into a single numerical value:
 - **Pick type (`pick-category`)**: Extracts the value of a single type by its displayed name (e.g. time spent in Saccade segments). For metrics built on a per-event sample (Eye-movement Duration), the pick also carries the summary statistic (mean, median, max, min).
 
 > **Visualizer Compatibility**: Projecting to a scalar allows you to select the metric in the [Metric Correlation](/docs/visualizations/metric-correlation) and [Metric Matrix](/docs/visualizations/metric-matrix) plots (non-windowed) or the [Metric Timeline](/docs/visualizations/metric-timeline) plot (windowed, timeseries). Note that `movementLatency` forbids windowing and is incompatible with the Metric Timeline.
-
----
 
 ## Metric Recipes
 

@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/textMeasure'
+  import { SYSTEM_SANS_SERIF_SMALL_STACK } from '$lib/shared/textMeasure'
   import { UI_COLORS } from '$lib/color'
   import {
     drawPlotArea,
@@ -463,7 +463,7 @@
     // strength, the rest recede with their nodes while a clique is active.
     const priority = new Set<number>([...cliqueSet, ...highlightSet])
     const fontSize = Math.max(8, Math.min(11, Math.round(r * 1.6)))
-    ctx.font = `${fontSize}px ${SYSTEM_SANS_SERIF_STACK}`
+    ctx.font = `${fontSize}px ${SYSTEM_SANS_SERIF_SMALL_STACK}`
     ctx.fillStyle = UI_COLORS.TEXT_PRIMARY
     ctx.textAlign = 'left'
     ctx.textBaseline = 'top'

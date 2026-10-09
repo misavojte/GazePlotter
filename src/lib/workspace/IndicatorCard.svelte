@@ -46,28 +46,36 @@
     flex-direction: column;
   }
 
+  /* Header and body as a plot's frame draws them (GridItem). */
   .indicator-header {
     display: flex;
     align-items: center;
-    padding: 8px 16px;
+    padding: 10px 25px;
+    min-height: 47px;
+    box-sizing: border-box;
     background: var(--c-lightgrey);
   }
 
   .indicator-title {
-    margin: 2px 0 2px 4px;
-    font-size: 13px;
+    margin: 0;
+    font-size: var(--text-xl);
+    letter-spacing: -0.01em;
     font-weight: 600;
     color: var(--c-black);
+    line-height: var(--leading-tight);
+    text-wrap: balance;
   }
 
   .indicator-body {
-    padding: 20px;
+    padding: 25px;
+    /* Concentric with the card: its radius minus the 1px border. */
+    border-radius: calc(var(--rounded-lg) - 1px);
     background-color: var(--c-white);
   }
 
   @media (max-width: 600px) {
     .indicator-card {
-      margin: 0 1rem;
+      margin: 0 16px;
     }
   }
 </style>

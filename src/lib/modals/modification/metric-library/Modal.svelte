@@ -191,11 +191,12 @@
     display: flex;
     flex-direction: column;
     gap: 0;
-    width: min(560px, calc(100vw - 4rem));
+    width: min(560px, calc(100vw - 64px));
   }
 
   .empty {
-    font-size: 12px;
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
     color: var(--c-darkgrey);
     padding: 10px 0;
     margin: 0;
@@ -251,17 +252,18 @@
     min-width: 0;
   }
   .card-name {
-    font-size: 13px;
-    color: var(--c-text);
-    line-height: 1.3;
+    font-size: var(--text-md);
+    color: var(--c-black);
+    line-height: var(--leading-tight);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
   .card-detail {
-    font-size: 11px;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
     color: var(--c-darkgrey);
-    line-height: 1.3;
+    line-height: var(--leading-tight);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -280,7 +282,7 @@
     flex-shrink: 0;
     transition: color var(--transition-fast), background var(--transition-fast);
   }
-  .icon-btn:hover { background: var(--c-lightgrey); color: var(--c-text); }
+  .icon-btn:hover { background: var(--c-lightgrey); color: var(--c-black); }
 
   .add-metric-button {
     display: flex;
@@ -293,7 +295,7 @@
     border-radius: var(--rounded-md);
     background: none;
     color: var(--c-darkgrey);
-    font-size: 0.9rem;
+    font-size: var(--text-lg);
     cursor: pointer;
     transition: all var(--transition-normal) ease;
   }

@@ -61,8 +61,8 @@ export const recurrencePlotDefinition = definePlot<
       ],
     },
     {
-      key: 'recurrencePlot:visualisation',
-      title: 'Visualisation',
+      key: 'recurrencePlot:visualization',
+      title: 'Visualization',
       fields: [
         {
           kind: 'enum',

@@ -28,7 +28,7 @@
   import { categoryGroupNames } from '$lib/metrics/core/categoryScan'
   import { eventGroupNamesUnion } from '$lib/metrics/core/eventScan'
   import { metricLeafKindsInContract, contractReductions, type PlotMetricContract } from '$lib/metrics/filters'
-  import type { Metric } from '$lib/metrics/core/dsl'
+  import type { Metric, OutputShape } from '$lib/metrics/core/dsl'
   import type { GroupReduction } from '$lib/metrics/core/measurement'
   import type { ParamDef, SummaryStatistic } from '$lib/metrics/core/params'
   import { resolveParams, SUMMARY_STATISTIC_OPTIONS } from '$lib/metrics/core/params'
@@ -66,11 +66,14 @@
 
   // State
   let paramDraft = $state<Record<string, unknown>>({})
-  let labelOverride = $state('')
+  let labelDraft = $state('')
   let leafDraft = $state<LeafProjection>({ kind: 'identity-scalar' })
   let windowDraft = $state<WindowSpec | null>(null)
   let currentBaseId = $state<string>('')
   let metric = $state<Metric | undefined>(undefined)
+  // Edit keeps the instance's output shape and windowing: plots accept metrics
+  // by shape, so reshaping in place would strand them. Reshaping is "Save as new".
+  let editShape = $state<OutputShape | null>(null)
   // The cross-participant reduction for this instance. Initialised from the
   // instance override (edit) / duplication seed (create), else the metric's
   // default. Only persisted when it differs from the default. The OPTIONS are a
@@ -116,9 +119,9 @@
         metric = getMetric(inst.baseId)
         paramDraft = { ...inst.params }
         seedProjection(inst.projection)
+        editShape = PROJECTION_LEAVES[leafDraft.kind].outputShape
         reductionDraft = inst.reduction ?? metric?.meta.defaultReduction ?? 'mean'
-        const autoLabel = defaultInstanceLabel(inst.baseId)
-        labelOverride = inst.label !== autoLabel ? inst.label : ''
+        labelDraft = inst.label
       }
     } else if (mode === 'create' && selectedMetricId) {
       currentBaseId = selectedMetricId
@@ -128,7 +131,7 @@
         paramDraft =
           initialParams ??
           (resolveParams(metric.meta.params, undefined) as Record<string, unknown>)
-        labelOverride = initialLabel ?? ''
+        labelDraft = initialLabel ?? defaultInstanceLabel(selectedMetricId)
 
         if (initialProjection) {
           seedProjection(initialProjection)
@@ -195,7 +198,9 @@
   // the single shared predicate (metrics layer), so the tabs here, the pickers,
   // and the library banner can never disagree on what a metric can become.
   function availableLeavesFor(m: Metric): LeafKind[] {
-    return metricLeafKindsInContract(m, contract)
+    return metricLeafKindsInContract(m, contract).filter(
+      kind => !editShape || PROJECTION_LEAVES[kind].outputShape === editShape,
+    )
   }
 
   function canBeWindowed(m: Metric, leaf: LeafProjection): boolean {
@@ -231,7 +236,7 @@
     return {
       projection: buildProjection(leafDraft, windowDraft),
       params: { ...paramDraft },
-      label: labelOverride.trim() || defaultInstanceLabel(currentBaseId),
+      label: labelDraft.trim() || defaultInstanceLabel(currentBaseId),
       reduction: chosenRed !== metricDefault ? chosenRed : undefined,
       chosenRed,
       metricDefault,
@@ -262,7 +267,7 @@
     if (!metric) return
     const { projection, params, label, reduction } = draftValues()
     modalState.closeToRoot()
-    oncreateInstance?.(currentBaseId, params, label, projection, undefined, reduction)
+    oncreateInstance?.(currentBaseId, params, label, projection, undefined, reduction, editMetricId)
   }
 
   // The Enter-key / primary action for the current mode.
@@ -283,11 +288,6 @@
           { label: 'Cancel', onclick: handleCancel, variant: 'secondary' as const },
         ],
   )
-
-  function liveLabel(baseId: string): string {
-    const override = labelOverride.trim()
-    return override.length > 0 ? override : defaultInstanceLabel(baseId)
-  }
 
   function paramSelectOptions(p: ParamDef<unknown>): SelectOption[] {
     return (p.options ?? []).map(o => ({ label: o.label, value: o.value as string }))
@@ -420,7 +420,7 @@
   {#if metric}
     {@const leaves = availableLeavesFor(metric)}
     {@const windowable = canBeWindowed(metric, leafDraft)}
-    {@const windowingLocked = contract.windowing === 'required'}
+    {@const windowingLocked = contract.windowing === 'required' || mode === 'edit'}
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <form
       class="form-inner"
@@ -627,8 +627,8 @@
           {@render shapeConfig()}
 
           {#if windowable}
-            <!-- When windowing is required there's no choice, so the toggle is
-                 omitted; the window/step controls below carry the configuration. -->
+            <!-- When windowing is required, or fixed by an edit, there's no choice,
+                 so the toggle is omitted; window/step below carry the configuration. -->
             {#if !windowingLocked}
               <Select
                 compact
@@ -687,8 +687,8 @@
           compact
           showLabel={false}
           ariaLabel="Metric label"
-          bind:value={labelOverride}
-          placeholder={liveLabel(currentBaseId)}
+          bind:value={labelDraft}
+          placeholder={defaultInstanceLabel(currentBaseId)}
         />
       </section>
 
@@ -702,7 +702,7 @@
   .configure-metric-container {
     display: flex;
     flex-direction: column;
-    width: min(560px, calc(100vw - 4rem));
+    width: min(560px, calc(100vw - 64px));
     gap: 12px;
   }
 
@@ -718,23 +718,26 @@
   .cfg-section:not(:first-child) {
     margin-top: 18px;
     padding-top: 18px;
-    border-top: 1px solid var(--c-grey);
+    border-top: 1px solid var(--c-border);
   }
   .cfg-title {
-    font-size: 11px;
-    font-weight: 700;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
+    font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--c-darkgrey);
   }
-  .cfg-meta { font-size: 12px; color: var(--c-darkgrey); }
+  .cfg-meta { font-size: var(--text-sm); font-family: var(--font-small); color: var(--c-darkgrey); }
 
   .metric-description {
-    font-size: 11px;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
     color: var(--c-darkgrey);
-    line-height: 1.5;
+    line-height: var(--leading-relaxed);
     margin: 0;
     padding-bottom: 2px;
+    text-wrap: pretty;
   }
 
 
@@ -764,8 +767,8 @@
   }
 
   .so-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
-  .so-name { font-size: 12.5px; font-weight: 600; color: var(--c-text); }
-  .so-hint { font-size: 11px; color: var(--c-darkgrey); line-height: 1.35; }
+  .so-name { font-size: var(--text-md); font-weight: 600; color: var(--c-black); }
+  .so-hint { font-size: var(--text-xs); font-family: var(--font-small); color: var(--c-darkgrey); line-height: var(--leading-normal); text-wrap: pretty; }
   .so-check { display: flex; flex-shrink: 0; color: var(--c-brand); }
 
   /* Window + Step sit side by side. */

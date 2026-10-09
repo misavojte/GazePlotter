@@ -2,8 +2,6 @@
 
 Recurrence Quantification Analysis (RQA) is a non-linear analysis method used to study the dynamical characteristics of scanpaths. By plotting a participant's fixation sequence against itself, GazePlotter identifies recurring visual patterns, periodic revisitations, and dwelling behaviors.
 
----
-
 ## The Recurrence Plot Foundation
 
 RQA metrics are computed from an underlying **Recurrence Plot**, which is a binary matrix `R` where:
@@ -26,8 +24,6 @@ You can pass the scalar value through directly to analyze the participant's recu
 > **Visualizer Compatibility**: Passing the raw scalar through allows you to select RQA metrics in the [Metric Correlation](/docs/visualizations/metric-correlation) plot (non-windowed, aggregate) or the [Metric Timeline](/docs/visualizations/metric-timeline) plot (windowed, timeseries). RQA metrics cannot be projected to vectors or matrices, so they are not selectable in plots like AOI Comparison or Transition Matrix.
 
 **Measurement class**: All three RQA metrics are intensive (normalized rates in 0–100%). Each describes one participant's whole scanpath, so across participants they are averaged; a cohort total is not meaningful.
-
----
 
 ## Metric Recipes
 
@@ -57,8 +53,6 @@ The percentage of recurrence points that form vertical line segments (with a min
 - **Windowing**: Supported (fixation-windowed).
 - **Scientific Meaning**: Indicates the presence of laminar states, where the gaze remains trapped in a specific region or alternates rapidly between overlapping areas. High laminarity points to detailed local inspection or visual dwelling.
 
----
-
 ## Parameters
 
 All RQA metrics share a common parameter:
@@ -66,8 +60,6 @@ All RQA metrics share a common parameter:
 - **Include Off-AOI Fixations (`include_no_aoi`)**: 
   - `false` (default): Off-AOI fixations (those not falling inside any defined AOI) are skipped entirely. The sequence contains only AOI visits.
   - `true`: Off-AOI fixations participate in the sequence, represented by the `noAoiSlot` sentinel. This allows the system to analyze recurrences that occur outside structured boundaries.
-
----
 
 ## Ordinal Windowing (`windowUnit: 'fixations'`)
 

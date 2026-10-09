@@ -73,14 +73,14 @@
   .step {
     display: grid;
     grid-template-columns: auto 1fr;
-    column-gap: 0.85rem;
+    column-gap: 14px;
   }
 
   .step-rail {
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding-top: 0.55rem;
+    padding-top: 9px;
   }
 
   /* Vertical guide connecting the badges of consecutive steps. */
@@ -88,7 +88,7 @@
     content: '';
     flex: 1;
     width: 1px;
-    margin: 0.35rem 0;
+    margin: 6px 0;
     background-color: var(--c-border);
   }
 
@@ -96,14 +96,14 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 1.65rem;
-    height: 1.65rem;
+    width: 26px;
+    height: 26px;
     flex-shrink: 0;
     border-radius: 50%;
     border: 1px solid var(--c-border);
     background-color: var(--c-lightgrey);
-    color: var(--c-text);
-    font-size: 0.8rem;
+    color: var(--c-black);
+    font-size: var(--text-md);
     font-weight: 600;
     transition:
       background-color var(--transition-normal),
@@ -119,7 +119,7 @@
 
   .step-main {
     min-width: 0;
-    padding-bottom: 0.75rem;
+    padding-bottom: 12px;
   }
 
   .step.last .step-main {
@@ -130,9 +130,9 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.75rem;
+    gap: 12px;
     width: 100%;
-    padding: 0.55rem 0.75rem;
+    padding: 9px 12px;
     border: 1px solid var(--c-border);
     border-radius: var(--rounded-md);
     background-color: var(--c-white);
@@ -152,18 +152,20 @@
   .step-heading {
     display: flex;
     flex-direction: column;
-    gap: 0.1rem;
+    gap: 2px;
     min-width: 0;
   }
 
   .step-title {
-    font-size: 0.95rem;
+    font-size: var(--text-xl);
+    letter-spacing: -0.01em;
     font-weight: 600;
-    color: var(--c-text);
+    color: var(--c-black);
+    text-wrap: balance;
   }
 
   .step-summary {
-    font-size: 0.8rem;
+    font-size: var(--text-md);
     color: var(--c-darkgrey);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -187,14 +189,15 @@
   .step-body {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    padding: 0.75rem 0.25rem 0.25rem 0.25rem;
+    gap: 8px;
+    padding: 12px 4px 4px 4px;
   }
 
   .step-description {
     margin: 0;
     color: var(--c-darkgrey);
-    font-size: 0.85rem;
-    line-height: 1.4;
+    font-size: var(--text-lg);
+    line-height: var(--leading-normal);
+    text-wrap: pretty;
   }
 </style>

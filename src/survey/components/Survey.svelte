@@ -303,7 +303,7 @@
 
   .empty {
     text-align: center;
-    color: var(--c-text);
+    color: var(--c-black);
     padding: 2rem;
   }
 
@@ -324,7 +324,7 @@
     text-align: center;
     margin-bottom: 2rem;
     font-size: 0.85rem;
-    color: var(--c-text);
+    color: var(--c-black);
     font-style: italic;
     max-width: 500px;
   }
@@ -373,7 +373,7 @@
 
   .task.completed .task-text {
     text-decoration: line-through;
-    color: var(--c-text);
+    color: var(--c-black);
   }
 
   .task-text {
@@ -493,7 +493,7 @@
   }
 
   .char-count {
-    color: var(--c-text);
+    color: var(--c-black);
     font-size: 0.75rem;
     flex-shrink: 0;
   }
@@ -506,7 +506,7 @@
   .skip-button {
     padding: 0.6rem 1.25rem;
     background: var(--c-lightgrey);
-    color: var(--c-text);
+    color: var(--c-black);
     border: 1px solid var(--c-darkgrey);
     border-radius: var(--rounded);
     font-weight: 500;

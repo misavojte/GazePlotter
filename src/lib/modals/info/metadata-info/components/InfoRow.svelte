@@ -38,30 +38,30 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
-    gap: 1rem;
+    gap: 16px;
   }
 
   .label {
     font-weight: 500;
-    color: #374151;
+    color: var(--c-black);
     min-width: fit-content;
   }
 
   .value {
-    color: #1f2937;
+    color: var(--c-black);
     text-align: right;
     word-break: break-word;
   }
 
   .mono {
     font-family: monospace;
-    font-size: 0.85rem;
+    font-size: var(--text-lg);
     max-width: 300px;
     word-break: break-all;
   }
 
   .error-message {
-    color: #991b1b;
+    color: var(--c-error);
     font-weight: 500;
     text-align: right;
   }
@@ -72,14 +72,14 @@
   }
 
   .error-stack {
-    margin-top: 0.5rem;
-    padding: 0.75rem;
-    background: #fafafa;
-    border: 1px solid #e5e5e5;
-    border-radius: 0.25rem;
+    margin-top: 8px;
+    padding: 12px;
+    background: var(--c-darkwhite);
+    border: 1px solid var(--c-border);
+    border-radius: 4px;
     font-family: 'Courier New', monospace;
-    font-size: 0.75rem;
-    color: #4b5563;
+    font-size: var(--text-sm);
+    color: var(--c-darkgrey);
     overflow-x: auto;
     max-width: 100%;
     white-space: pre-wrap;
@@ -89,11 +89,11 @@
 
   .exclusion .label {
     font-weight: 600;
-    color: #374151;
+    color: var(--c-black);
   }
 
   .exclusion .value {
-    color: #6b7280;
-    font-size: 0.85rem;
+    color: var(--c-darkgrey);
+    font-size: var(--text-lg);
   }
 </style>

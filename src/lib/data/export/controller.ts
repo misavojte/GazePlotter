@@ -11,6 +11,9 @@ import {
   generateEventBatchCsv,
 } from './mappers/events'
 import { Archiver } from './encoders/zip'
+import { writeBlobZip, type ZipWriteEntry } from '$lib/data/zip/blobZip'
+import { mediaFileExtension } from '$lib/data/media/mediaUpload'
+import type { StimulusMediaStore } from '$lib/data/media/mediaStore.svelte'
 import { generateScanGraph } from './mappers/scangraph'
 import { generateWorkspaceJson } from './mappers/workspace'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
@@ -145,15 +148,43 @@ export function buildScanGraph(
 }
 
 /**
- * Builds the entire workspace state as JSON.
+ * Builds the entire workspace state. Without stimulus media this is the
+ * plain JSON of always, byte-compatible with older exports. With media it
+ * becomes a `.gazeplotter.zip` archive: the same `workspace.json` plus one
+ * stored `media/<stimulusId>.<ext>` entry per medium, referenced rather than
+ * copied into memory. `skippedMedia` lists the stimuli whose bytes could not
+ * be read (e.g. the source file was moved).
  */
-export function buildWorkspace(
+export async function buildWorkspace(
   data: DataType,
   layoutState: AllGridTypes[],
-  metadata: FileMetadataType | null
-): ExportPayload {
+  metadata: FileMetadataType | null,
+  media: Pick<StimulusMediaStore, 'getBlob'>
+): Promise<ExportPayload & { skippedMedia: number[] }> {
+  const json = generateWorkspaceJson(data, layoutState, metadata)
+
+  const mediaIds = Object.keys(data.stimuliMedia ?? {}).map(Number)
+  if (mediaIds.length === 0) {
+    return { content: json, extension: '.json', skippedMedia: [] }
+  }
+
+  const entries: ZipWriteEntry[] = [
+    { name: 'workspace.json', content: json, compress: true },
+  ]
+  const idByEntry = new Map<string, number>()
+  for (const id of mediaIds) {
+    const blob = media.getBlob(id)
+    // Metadata ⇔ blob is an engine invariant; a missing blob here would mean
+    // a bug upstream: skip the entry rather than export a broken archive.
+    if (!blob) continue
+    const name = `media/${id}.${mediaFileExtension(data.stimuliMedia![id])}`
+    idByEntry.set(name, id)
+    entries.push({ name, content: blob })
+  }
+  const { blob, skipped } = await writeBlobZip(entries)
   return {
-    content: generateWorkspaceJson(data, layoutState, metadata),
-    extension: '.json',
+    content: blob,
+    extension: '.gazeplotter.zip',
+    skippedMedia: skipped.map(name => idByEntry.get(name)!),
   }
 }

@@ -10,7 +10,7 @@
 </script>
 
 <MetadataSection title="Data overview">
-  <Card padding="sm" gap="0.5rem">
+  <Card padding="sm" gap="8px">
     <InfoRow label="Number of stimuli:" value={overview.numberOfStimuli} />
     <InfoRow label="Number of participants:" value={overview.numberOfParticipants} />
     <InfoRow label="Total number of AOIs:" value={overview.aoiCounts.total} />
@@ -34,7 +34,7 @@
   </Card>
 
   {#if overview.aoiCounts.perStimulus.length > 0}
-    <Card padding="sm" gap="0.5rem">
+    <Card padding="sm" gap="8px">
       <InfoRow label="AOIs per stimulus:" />
       <div class="aoi-list">
         {#each overview.aoiCounts.perStimulus as stimulus}
@@ -50,7 +50,7 @@
   {/if}
 
   {#if overview.eventCounts.distinctChannels > 0}
-    <Card padding="sm" gap="0.5rem">
+    <Card padding="sm" gap="8px">
       <InfoRow label="Events per stimulus:" />
       <div class="aoi-list">
         {#each overview.eventCounts.perStimulus as stimulus}
@@ -69,27 +69,27 @@
 
 <style>
   .aoi-list {
-    margin-left: 1rem;
+    margin-left: 16px;
     display: flex;
     flex-direction: column;
-    gap: 0.25rem;
+    gap: 4px;
   }
 
   .aoi-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    gap: 0.5rem;
-    font-size: 0.9rem;
+    gap: 8px;
+    font-size: var(--text-lg);
   }
 
   .stimulus-name {
-    color: #374151;
+    color: var(--c-black);
     font-weight: 500;
   }
 
   .aoi-count {
-    color: #6b7280;
-    font-size: 0.85rem;
+    color: var(--c-darkgrey);
+    font-size: var(--text-lg);
   }
 </style>

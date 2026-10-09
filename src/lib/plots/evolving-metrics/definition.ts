@@ -17,8 +17,8 @@ export const evolvingMetricsDefinition = definePlot<
     'group',
     'metric',
     {
-      key: 'evolvingMetrics:visualisation',
-      title: 'Visualisation',
+      key: 'evolvingMetrics:visualization',
+      title: 'Visualization',
       fields: [
         {
           kind: 'enum',

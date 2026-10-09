@@ -25,4 +25,8 @@ export type IngestResult =
       data: DataType
       gridItems?: GridItemSnapshot[]
       fileMetadata?: FileMetadataType | null
+      /** Stimulus reference media bytes from a `.gazeplotter.zip` archive,
+          keyed by stimulus id. Blobs structured-clone by reference across the
+          worker boundary — no byte copy. */
+      mediaBlobs?: Record<number, Blob>
     }

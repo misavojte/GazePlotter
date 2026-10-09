@@ -118,7 +118,8 @@ function dissolveGroup(
     them grouped); any other rename touches just the one item. In-place
     mutation so `groups` re-derives (and regroups) reactively. `skipIds` rows
     never rename — without it, a locked row folded into a card (someone typed
-    the reserved name) would be renamed through the leader fan-out. */
+    the reserved name) would be renamed through the leader fan-out. Returns
+    the ids written (the editor's touched-field bookkeeping). */
 function renameItemIn(
   items: BaseInterpretedDataType[],
   item: BaseInterpretedDataType,
@@ -126,37 +127,52 @@ function renameItemIn(
   isLeader: boolean,
   group: MergeCard<BaseInterpretedDataType>,
   skipIds?: ReadonlySet<number>
-) {
+): number[] {
+  const written: number[] = []
   if (isLeader && group.members.length > 1) {
     const memberIds = new Set(group.members.map(m => m.id))
     for (const i of items) {
-      if (memberIds.has(i.id) && !skipIds?.has(i.id)) i.displayedName = newName
+      if (memberIds.has(i.id) && !skipIds?.has(i.id)) {
+        i.displayedName = newName
+        written.push(i.id)
+      }
     }
   } else {
     const target = items.find(i => i.id === item.id)
-    if (target) target.displayedName = newName
+    if (target) {
+      target.displayedName = newName
+      written.push(target.id)
+    }
   }
+  return written
 }
 
 /** Bulk find/replace over every member's displayed name. In-place mutation,
     as above; an invalid pattern is a silent no-op. `skipIds` rows keep their
-    name (locked identity anchors). */
+    name (locked identity anchors). Returns the ids whose name actually
+    changed — a pattern that misses a row must not count as editing it. */
 function renameAllIn(
   items: BaseInterpretedDataType[],
   pattern: string,
   replacement: string,
   skipIds?: ReadonlySet<number>
-) {
+): number[] {
   let regex: RegExp
   try {
     regex = new RegExp(pattern, 'g')
   } catch {
-    return
+    return []
   }
+  const changed: number[] = []
   for (const item of items) {
     if (skipIds?.has(item.id)) continue
-    item.displayedName = (item.displayedName || '').replace(regex, replacement)
+    const next = (item.displayedName || '').replace(regex, replacement)
+    if (next !== item.displayedName) {
+      item.displayedName = next
+      changed.push(item.id)
+    }
   }
+  return changed
 }
 
 export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
@@ -170,6 +186,14 @@ export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
   let openName = new Map(opened.map(r => [r.id, r.displayedName]))
 
   const groups = $derived(buildGroups(items))
+
+  // Which rows the user EDITED, per field, since open/refresh — by id, so
+  // sort/reorder (array replacement, same objects) stay neutral. Distinct from
+  // "value differs from open": re-picking the shown color IS an edit, which is
+  // how the AOI modal's all-stimuli scope unifies divergent per-stimulus values
+  // to the value on screen. Plain Sets: written inside the same handler as the
+  // item mutation and read at Apply, so they need no reactivity of their own.
+  const touched = { name: new Set<number>(), color: new Set<number>() }
 
   /** Non-locked member ids of a group that collides with a name-locked row
       (empty = fine). A lock sharing its card with anything else means someone
@@ -186,9 +210,11 @@ export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
   )
 
   /** Dissolve an invalid group (locked members never renamed, so reverting
-      them is a no-op — the shared dissolve covers everyone). */
+      them is a no-op — the shared dissolve covers everyone). Reverting to the
+      open name un-edits those rows. */
   function acknowledge(group: MergeCard<BaseInterpretedDataType>) {
     dissolveGroup(items, group, openName)
+    for (const m of group.members) touched.name.delete(m.id)
   }
 
   /** Re-pull from the engine, discarding unapplied edits — for when a pushed
@@ -199,6 +225,8 @@ export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
     const pulled = deepCopy(config.getItems(stimulusId))
     items = pulled
     openName = new Map(pulled.map(r => [r.id, r.displayedName]))
+    touched.name.clear()
+    touched.color.clear()
   }
 
   function handleColorInput(
@@ -215,7 +243,12 @@ export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
     // Replacing `items = items.map(...)` here caused O(N²) re-derivation
     // and full-table re-renders per color-picker input event.
     const memberIds = new Set(group.members.map(m => m.id))
-    for (const i of items) if (memberIds.has(i.id)) i.color = newColor
+    for (const i of items) {
+      if (memberIds.has(i.id)) {
+        i.color = newColor
+        touched.color.add(i.id)
+      }
+    }
   }
 
   function handleNameInput(
@@ -229,7 +262,9 @@ export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
     // ALSO threaded into the leader fan-out: when a locked row sits as a
     // MEMBER of an invalid card, renaming the card's leader must not carry it.
     if (lockedNameIds.has(item.id)) return
-    renameItemIn(items, item, newName, isLeader, group, lockedNameIds)
+    for (const id of renameItemIn(items, item, newName, isLeader, group, lockedNameIds)) {
+      touched.name.add(id)
+    }
   }
 
   function sort(column: string, direction: 'asc' | 'desc') {
@@ -237,7 +272,9 @@ export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
   }
 
   function renameAll(pattern: string, replacement: string) {
-    renameAllIn(items, pattern, replacement, lockedNameIds)
+    for (const id of renameAllIn(items, pattern, replacement, lockedNameIds)) {
+      touched.name.add(id)
+    }
   }
 
   function reorderGroups(
@@ -266,6 +303,10 @@ export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
     },
     get hasInvalidGroup() {
       return hasInvalidGroup
+    },
+    /** Rows edited per field since open/refresh (see `touched` above). */
+    get touched(): { name: ReadonlySet<number>; color: ReadonlySet<number> } {
+      return touched
     },
     lockedNameIds,
     conflictsFor,

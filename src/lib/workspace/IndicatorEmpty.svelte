@@ -2,15 +2,13 @@
   import Button from '$lib/shared/components/Button.svelte'
   import { getGazePlotterSession } from '$lib/session'
   import { metadataInfoModal } from '$lib/modals/definitions'
-  import type { GridItemSnapshot } from '$lib/workspace'
   import IndicatorCard from './IndicatorCard.svelte'
 
   interface Props {
-    initialLayoutState?: GridItemSnapshot[] | null
     onUpload: () => void
   }
 
-  const { initialLayoutState = null, onUpload }: Props = $props()
+  const { onUpload }: Props = $props()
   const { engine, errorService, ingest, modalState, workspace } =
     getGazePlotterSession()
 
@@ -22,10 +20,10 @@
 
   const cardTitle = $derived(
     fatalLoadError
-      ? 'Data Load Failed'
+      ? 'Data load failed'
       : canResetLayout
-        ? 'Workspace Empty'
-        : 'No Data Loaded'
+        ? 'Workspace empty'
+        : 'No data loaded'
   )
 
   const openErrorReport = () => {
@@ -33,7 +31,7 @@
   }
 
   const handleResetLayout = () => {
-    workspace.resetLayoutGuarded(initialLayoutState, 'IndicatorEmpty')
+    workspace.resetLayoutGuarded(ingest.loadedLayout, 'IndicatorEmpty')
   }
 </script>
 
@@ -44,7 +42,7 @@
         {fatalLoadError.userMessage} You can inspect the report or upload different
         data.
       {:else if canResetLayout}
-        Data is available in memory, but no visualisations are displayed.
+        Data is available in memory, but no visualizations are displayed.
         You can reset the layout or upload new data.
       {:else}
         Upload new data to start working with the workspace.
@@ -52,9 +50,9 @@
     </p>
     <div class="actions">
       {#if fatalLoadError && canOpenErrorReport}
-        <Button onclick={openErrorReport}>Open Report</Button>
+        <Button onclick={openErrorReport}>Open report</Button>
       {:else if canResetLayout}
-        <Button onclick={handleResetLayout}>Reset Layout</Button>
+        <Button onclick={handleResetLayout}>Reset layout</Button>
       {/if}
       <Button onclick={onUpload}>Import workspace or data</Button>
     </div>
@@ -67,16 +65,16 @@
   }
 
   p {
-    margin: 0 0 1.5rem 0;
-    color: var(--c-text);
-    line-height: 1.5;
-    font-size: 14px;
+    margin: 0 0 24px 0;
+    color: var(--c-black);
+    line-height: var(--leading-relaxed);
+    font-size: var(--text-lg);
   }
 
   .actions {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 8px;
     align-items: flex-start;
   }
 </style>

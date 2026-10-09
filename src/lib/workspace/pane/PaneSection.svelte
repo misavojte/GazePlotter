@@ -87,9 +87,8 @@ import { getContext, untrack } from 'svelte'
     position: relative;
   }
 
-  /* Top divider — same visual language as the rail: 1px tall, inset by
-     the section's horizontal padding on both sides so it lines up with
-     the heading/body content instead of running edge-to-edge. */
+  /* Top divider: a hairline inset by the section's horizontal padding so
+     it lines up with the heading and body content. */
   .pane-section::before {
     content: '';
     position: absolute;
@@ -97,7 +96,7 @@ import { getContext, untrack } from 'svelte'
     left: 16px;
     right: 16px;
     height: 1px;
-    background-color: var(--c-grey);
+    background-color: var(--c-border);
   }
 
   /* Skip on the first section so it sits flush under the pane header. */
@@ -109,23 +108,18 @@ import { getContext, untrack } from 'svelte'
     display: flex;
     align-items: center;
     gap: var(--spacing-xs);
-    padding: 10px 16px 8px;
-    color: var(--c-darkgrey);
-    font-size: 10px;
+    padding: 12px 16px 10px;
+    color: var(--c-black);
+    font-size: var(--text-md);
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
     text-align: left;
     background: none;
     border: none;
     width: 100%;
     cursor: pointer;
-    transition: color var(--transition-fast);
   }
 
-  .heading:hover,
   .heading:focus-visible {
-    color: var(--c-black);
     outline: none;
   }
 
@@ -156,10 +150,9 @@ import { getContext, untrack } from 'svelte'
   .summary {
     margin-left: auto;
     color: var(--c-darkgrey);
-    font-size: 11px;
-    font-weight: 500;
-    text-transform: none;
-    letter-spacing: 0;
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
+    font-weight: 400;
     line-height: 1;
     margin-top: 1px;
     overflow: hidden;

@@ -1,20 +1,38 @@
 import type { InteractionPoint, ScrollOffset } from './model'
 
-type AutoScrollDirection = {
+type AutoPanDirection = {
   x: -1 | 0 | 1
   y: -1 | 0 | 1
 }
 
+/** The camera as the interaction layer sees it: an offset it can move. */
+export type InteractionCamera = {
+  readonly x: number
+  readonly y: number
+  panTo(x: number, y: number): void
+}
+
+/**
+ * The workspace frame and its camera, as the drag/resize/pan gestures need
+ * them. The frame never scrolls: "scroll offset" here is the camera offset
+ * negated (content moves left as the view moves right), which keeps the
+ * gesture model's pointer + scroll arithmetic unchanged.
+ */
 export class GridViewportController {
   #element: HTMLElement | null = null
-  #autoScrollDirection: AutoScrollDirection = { x: 0, y: 0 }
-  #autoScrollRafId: number | null = null
-  #currentSpeedX = 0
-  #currentSpeedY = 0
-  #onAfterScroll: (() => void) | null = null
+  #camera: InteractionCamera | null = null
+  #direction: AutoPanDirection = { x: 0, y: 0 }
+  #rafId: number | null = null
+  #speedX = 0
+  #speedY = 0
+  #onAfterPan: (() => void) | null = null
 
   setElement(element: HTMLElement | null): void {
     this.#element = element
+  }
+
+  setCamera(camera: InteractionCamera | null): void {
+    this.#camera = camera
   }
 
   getElement(): HTMLElement | null {
@@ -22,157 +40,117 @@ export class GridViewportController {
   }
 
   getScrollOffset(): ScrollOffset {
+    return { x: -(this.#camera?.x ?? 0), y: -(this.#camera?.y ?? 0) }
+  }
+
+  scrollTo(offset: ScrollOffset): void {
+    this.#camera?.panTo(-offset.x, -offset.y)
+  }
+
+  /**
+   * The part of the screen the workspace shows through: the frame's box
+   * clipped to the window. Edge auto-pan measures against this.
+   */
+  getVisibleBounds(): {
+    left: number
+    top: number
+    right: number
+    bottom: number
+  } {
+    const windowW = typeof window !== 'undefined' ? window.innerWidth : 0
+    const windowH = typeof window !== 'undefined' ? window.innerHeight : 0
+    const rect = this.#element?.getBoundingClientRect()
+    if (!rect) return { left: 0, top: 0, right: windowW, bottom: windowH }
     return {
-      x: this.#getScrollX(),
-      y: this.#getScrollY(),
+      left: Math.max(0, rect.left),
+      top: Math.max(0, rect.top),
+      right: Math.min(windowW, rect.right),
+      bottom: Math.min(windowH, rect.bottom),
     }
   }
 
-  panBy(deltaX: number, deltaY: number): void {
-    this.#setScrollX(this.#getScrollX() - deltaX * 0.6)
-    this.#setScrollY(this.#getScrollY() - deltaY * 0.6)
-  }
+  /** Pan the camera while a dragged plot is held near a frame edge. */
+  updateAutoScroll(pointer: InteractionPoint, onAfterPan?: () => void): void {
+    if (typeof window === 'undefined' || !this.#camera) return
 
-  updateAutoScroll(
-    pointer: InteractionPoint,
-    onAfterScroll?: () => void
-  ): void {
-    if (!this.#canAccessViewport()) return
+    this.#onAfterPan = onAfterPan ?? null
 
-    this.#onAfterScroll = onAfterScroll ?? null
+    const edge = 25
+    const bounds = this.getVisibleBounds()
+    const x: -1 | 0 | 1 =
+      pointer.x >= bounds.right - edge
+        ? 1
+        : pointer.x <= bounds.left + edge
+          ? -1
+          : 0
+    const y: -1 | 0 | 1 =
+      pointer.y >= bounds.bottom - edge
+        ? 1
+        : pointer.y <= bounds.top + edge
+          ? -1
+          : 0
 
-    const edgeThreshold = 25
-    const viewportBounds = {
-      left: 0,
-      top: 0,
-      right: window.innerWidth,
-      bottom: window.innerHeight,
-    }
+    this.#direction = { x, y }
 
-    let nextDirectionX: -1 | 0 | 1 = 0
-    let nextDirectionY: -1 | 0 | 1 = 0
-
-    if (pointer.x >= viewportBounds.right - edgeThreshold) {
-      nextDirectionX = 1
-    } else if (pointer.x <= edgeThreshold && this.#getScrollX() > 0) {
-      nextDirectionX = -1
-    }
-
-    if (pointer.y >= viewportBounds.bottom - edgeThreshold) {
-      nextDirectionY = 1
-    } else if (pointer.y <= edgeThreshold && this.#getScrollY() > 0) {
-      nextDirectionY = -1
-    }
-
-    this.#autoScrollDirection = {
-      x: nextDirectionX,
-      y: nextDirectionY,
-    }
-
-    if (
-      (nextDirectionX !== 0 || nextDirectionY !== 0) &&
-      this.#autoScrollRafId === null
-    ) {
-      this.#currentSpeedX = nextDirectionX * 0.5
-      this.#currentSpeedY = nextDirectionY * 0.5
-      this.#autoScrollRafId = requestAnimationFrame(() => this.#step())
+    if ((x !== 0 || y !== 0) && this.#rafId === null) {
+      this.#speedX = x * 0.5
+      this.#speedY = y * 0.5
+      this.#rafId = requestAnimationFrame(() => this.#step())
     }
   }
 
   stopAutoScroll(): void {
-    if (this.#autoScrollRafId !== null) {
-      cancelAnimationFrame(this.#autoScrollRafId)
-    }
-    this.#autoScrollRafId = null
-    this.#autoScrollDirection = { x: 0, y: 0 }
-    this.#currentSpeedX = 0
-    this.#currentSpeedY = 0
-    this.#onAfterScroll = null
+    if (this.#rafId !== null) cancelAnimationFrame(this.#rafId)
+    this.#rafId = null
+    this.#direction = { x: 0, y: 0 }
+    this.#speedX = 0
+    this.#speedY = 0
+    this.#onAfterPan = null
   }
 
   destroy(): void {
     this.stopAutoScroll()
     this.#element = null
+    this.#camera = null
   }
 
-  // Accelerate toward the direction's target speed, tapering near the
-  // top/left origin so the scroll eases to a stop; decay toward 0 when idle.
-  #nextSpeed(direction: -1 | 0 | 1, speed: number, scrollPos: number): number {
+  // Accelerate toward the direction's top speed; decay toward 0 when idle.
+  #nextSpeed(direction: -1 | 0 | 1, speed: number): number {
     const maxSpeed = 8
     const acceleration = 0.08
     const deceleration = 0.15
     if (direction === 0) {
       return Math.abs(speed) > 0.05 ? speed * (1 - deceleration) : 0
     }
-    let effectiveMaxSpeed = maxSpeed
-    if (direction < 0 && scrollPos < 150) {
-      effectiveMaxSpeed = maxSpeed * (scrollPos / 150)
-    }
-    return speed + (direction * effectiveMaxSpeed - speed) * acceleration
+    return speed + (direction * maxSpeed - speed) * acceleration
   }
 
   #step(): void {
-    if (!this.#canAccessViewport()) {
+    const camera = this.#camera
+    if (!camera) {
       this.stopAutoScroll()
       return
     }
 
-    const direction = this.#autoScrollDirection
-    this.#currentSpeedX = this.#nextSpeed(
-      direction.x,
-      this.#currentSpeedX,
-      this.#getScrollX()
-    )
-    this.#currentSpeedY = this.#nextSpeed(
-      direction.y,
-      this.#currentSpeedY,
-      this.#getScrollY()
-    )
+    this.#speedX = this.#nextSpeed(this.#direction.x, this.#speedX)
+    this.#speedY = this.#nextSpeed(this.#direction.y, this.#speedY)
 
-    if (Math.abs(this.#currentSpeedX) > 0.05) {
-      this.#setScrollX(this.#getScrollX() + this.#currentSpeedX)
+    if (Math.abs(this.#speedX) > 0.05 || Math.abs(this.#speedY) > 0.05) {
+      camera.panTo(camera.x - this.#speedX, camera.y - this.#speedY)
     }
 
-    if (Math.abs(this.#currentSpeedY) > 0.05) {
-      this.#setScrollY(this.#getScrollY() + this.#currentSpeedY)
-    }
-
-    this.#onAfterScroll?.()
+    this.#onAfterPan?.()
 
     if (
-      Math.abs(this.#currentSpeedX) < 0.05 &&
-      Math.abs(this.#currentSpeedY) < 0.05 &&
-      direction.x === 0 &&
-      direction.y === 0
+      Math.abs(this.#speedX) < 0.05 &&
+      Math.abs(this.#speedY) < 0.05 &&
+      this.#direction.x === 0 &&
+      this.#direction.y === 0
     ) {
       this.stopAutoScroll()
       return
     }
 
-    this.#autoScrollRafId = requestAnimationFrame(() => this.#step())
-  }
-
-  #canAccessViewport(): boolean {
-    return typeof window !== 'undefined'
-  }
-
-  #getScrollX(): number {
-    return this.#element?.scrollLeft ?? 0
-  }
-
-  #setScrollX(value: number): void {
-    if (this.#element) {
-      this.#element.scrollLeft = value
-    }
-  }
-
-  #getScrollY(): number {
-    return typeof window !== 'undefined' ? window.scrollY : 0
-  }
-
-  #setScrollY(value: number): void {
-    if (typeof window !== 'undefined') {
-      window.scrollTo(0, value)
-    }
+    this.#rafId = requestAnimationFrame(() => this.#step())
   }
 }

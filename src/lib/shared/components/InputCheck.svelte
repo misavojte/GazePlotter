@@ -85,8 +85,8 @@
     display: flex;
     align-items: flex-start;
     cursor: pointer;
-    gap: 0.5rem;
-    padding: 0.25rem 0;
+    gap: 8px;
+    padding: 4px 0;
   }
 
   label.disabled {
@@ -117,7 +117,7 @@
     display: inline-flex;
     width: var(--check-size);
     height: var(--check-size);
-    margin-top: 0.05rem;
+    margin-top: 1px;
     flex-shrink: 0;
   }
 
@@ -222,29 +222,30 @@
   .label-content {
     display: flex;
     flex-direction: column;
-    gap: 0.15rem;
+    gap: 2px;
     flex: 1;
   }
 
   .main-label {
     font-weight: 500;
     color: var(--c-black);
-    line-height: 1.4;
+    line-height: var(--leading-normal);
   }
 
   label.compact .main-label {
-    font-size: 11px;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
     color: var(--c-darkgrey);
     font-weight: 400;
-    line-height: 1.2;
+    line-height: var(--leading-tight);
     letter-spacing: 0.01em;
   }
 
   .sub-label {
-    font-size: 0.8rem;
+    font-size: var(--text-md);
     color: var(--c-darkgrey);
-    line-height: 1.3;
-    margin-top: 0.1rem;
+    line-height: var(--leading-normal);
+    margin-top: 2px;
   }
 
   label.compact .label-content {
@@ -253,7 +254,8 @@
 
   label.compact .sub-label {
     margin-top: 0;
-    font-size: 10px;
-    line-height: 1.2;
+    font-size: var(--text-2xs);
+    font-family: var(--font-small);
+    line-height: var(--leading-tight);
   }
 </style>

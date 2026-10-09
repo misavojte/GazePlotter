@@ -22,8 +22,8 @@
   .modal-section {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
-    margin-bottom: 1.25rem;
+    gap: 8px;
+    margin-bottom: 20px;
   }
 
   .section-header {

@@ -23,6 +23,18 @@ export function isAoiLayerHighlight(identifier: string): boolean {
   )
 }
 
+/**
+ * Whether a highlight identifier names a stimulus-scoped entity — AOI slices,
+ * the No-AOI band and event channels all carry per-stimulus ids. Only the
+ * eye-movement categories ('ac') are global.
+ */
+export function isStimulusScopedHighlight(identifier: string): boolean {
+  return (
+    isAoiLayerHighlight(identifier) ||
+    identifier.startsWith(SCARF_IDENTIFIERS.EVENT)
+  )
+}
+
 export const SCARF_LAYOUT = {
   // --- Basic Dimensions ---
   HEIGHT_BAR_DEFAULT: 15,

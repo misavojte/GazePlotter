@@ -28,8 +28,8 @@
   .export-progress {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
-    margin-top: 1rem;
+    gap: 6px;
+    margin-top: 16px;
   }
 
   .progress-track {
@@ -47,7 +47,7 @@
   }
 
   .progress-text {
-    font-size: 0.8rem;
+    font-size: var(--text-md);
     color: var(--c-darkgrey);
   }
 </style>

@@ -5,6 +5,7 @@ import type {
   EntitySelection,
   NameSelection,
   MergeLogEntry,
+  StimulusMedia,
 } from '$lib/data/types'
 import type { MetricInstance } from '$lib/metrics'
 import type {
@@ -31,11 +32,27 @@ interface BaseCommandInterface {
 }
 
 // Data change commands
+
+/**
+ * One stimulus's AOI dictionary update. `aois` is the stimulus's FULL list in
+ * display order; `orderVector` (carried by inverse commands so undo is
+ * byte-exact, e.g. an empty identity vector) is written verbatim, otherwise
+ * the order is derived from `aois`.
+ */
+export interface AoiStimulusUpdate {
+  stimulusId: number
+  aois: ExtendedInterpretedDataType[]
+  orderVector?: number[]
+}
+
+/**
+ * AOI dictionary edits for a SET of stimuli, applied atomically as one undo
+ * step. A single-stimulus edit is a set of one; the AOI modal's "All stimuli"
+ * scope is a set of many (one per changed stimulus) — same command, same path.
+ */
 export interface UpdateAoisCommand extends BaseCommandInterface {
   type: 'updateAois'
-  aois: ExtendedInterpretedDataType[]
-  stimulusId: number
-  applyTo: 'this_stimulus' | 'all_by_original_name' | 'all_by_displayed_name'
+  updates: AoiStimulusUpdate[]
 }
 
 // Rename + reorder one entity axis. Stimuli and participants are the same
@@ -79,6 +96,22 @@ export type UpdateSelectionsCommand = BaseCommandInterface & {
   )
 
 export type SelectionsAxis = UpdateSelectionsCommand['axis']
+
+// Set or remove stimulus reference media (image or video), one entry per
+// stimulus; `media` null = remove. Several entries (a multi-file upload) are
+// ONE undo step. The Blob rides in the command (a Blob is a cheap reference,
+// not a byte copy), so the inverse — a snapshot of each stimulus's previous
+// media + blob — restores set/replace/remove exactly on undo.
+export interface StimulusMediaUpdate {
+  stimulusId: number
+  media: StimulusMedia | null
+  blob?: Blob | null
+}
+
+export interface UpdateStimulusMediaCommand extends BaseCommandInterface {
+  type: 'updateStimulusMedia'
+  updates: StimulusMediaUpdate[]
+}
 
 export interface UpdateNoAoiTreatmentCommand extends BaseCommandInterface {
   type: 'updateNoAoiTreatment'
@@ -168,6 +201,16 @@ export interface UpdateLayoutCommand extends BaseCommandInterface {
   updates: { itemId: number; layout: GridItemLayoutUpdate }[]
 }
 
+// Shifts every grid item by the same number of cells. Dispatched as a child of
+// a move or resize that left a plot above or left of the grid origin, so
+// stored coordinates never go negative; the view scrolls by the same amount
+// (on undo and redo too), so nothing appears to move.
+export interface TranslateLayoutCommand extends BaseCommandInterface {
+  type: 'translateLayout'
+  dx: number
+  dy: number
+}
+
 // Grid item management commands
 export interface AddGridItemCommand extends BaseCommandInterface {
   type: 'addGridItem'
@@ -179,6 +222,13 @@ export interface AddGridItemCommand extends BaseCommandInterface {
 export interface RemoveGridItemCommand extends BaseCommandInterface {
   type: 'removeGridItem'
   itemId: number
+}
+
+// Removes a multi-selection as ONE undo step: the root dispatches one
+// removeGridItem child per item, whose reverses restore them (like reconcileMerges).
+export interface RemoveGridItemsCommand extends BaseCommandInterface {
+  type: 'removeGridItems'
+  itemIds: number[]
 }
 
 export interface DuplicateGridItemCommand extends BaseCommandInterface {
@@ -198,6 +248,7 @@ export type WorkspaceCommand =
   | UpdateEventDataCommand
   | UpdateEventChannelsCommand
   | UpdateSelectionsCommand
+  | UpdateStimulusMediaCommand
   | UpdateNoAoiTreatmentCommand
   | MergeEntitiesCommand
   | UnmergeEntitiesCommand
@@ -207,8 +258,10 @@ export type WorkspaceCommand =
   | UpdateMetricInstancesCommand
   | UpdateSettingsCommand // includes position and size updates
   | UpdateLayoutCommand
+  | TranslateLayoutCommand
   | AddGridItemCommand
   | RemoveGridItemCommand
+  | RemoveGridItemsCommand
   | DuplicateGridItemCommand
   | SetLayoutStateCommand
 

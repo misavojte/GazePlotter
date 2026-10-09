@@ -245,6 +245,8 @@
       availableHeight:
         height - layout.matrixBottom - MATRIX_LEGEND_GAP - margin,
       colorScale,
+      belowMinColor,
+      aboveMaxColor,
       valueRange: colorValueRange,
       effectiveMaxValue,
       title: legendTitle,

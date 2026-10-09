@@ -1,13 +1,5 @@
 import type { GridConfig } from '../types'
 import {
-  WORKSPACE_BOTTOM_PADDING,
-  WORKSPACE_RIGHT_PADDING,
-} from '../const'
-import {
-  calculateBottomEdgePosition,
-  calculateRightEdgePosition,
-} from '../sizing'
-import {
   createIdleSession,
   isTransformSession,
   mergePreviewPosition,
@@ -22,17 +14,13 @@ import {
   type InteractionPoint,
   type ResizeDirection,
 } from './model'
-import { GridViewportController } from './viewport'
+import { GridViewportController, type InteractionCamera } from './viewport'
 
 export class GridInteractionController {
   #session = $state<GridInteractionSession>(createIdleSession())
   #viewport = new GridViewportController()
   #config = $state<GridConfig | null>(null)
   #zoom = $state(1)
-  #workspaceGrowthHint = $state<{ width: number | null; height: number | null }>({
-    width: null,
-    height: null,
-  })
 
   setGridConfig(config: GridConfig): void {
     this.#config = config
@@ -44,6 +32,10 @@ export class GridInteractionController {
 
   setViewportElement(element: HTMLElement | null): void {
     this.#viewport.setElement(element)
+  }
+
+  setCamera(camera: InteractionCamera | null): void {
+    this.#viewport.setCamera(camera)
   }
 
   get mode(): 'idle' | 'panning' | 'moving' | 'resizing' {
@@ -83,14 +75,6 @@ export class GridInteractionController {
     return []
   }
 
-  get workspaceWidthHint(): number | null {
-    return this.#workspaceGrowthHint.width
-  }
-
-  get workspaceHeightHint(): number | null {
-    return this.#workspaceGrowthHint.height
-  }
-
   isGhostedItem(itemId: number): boolean {
     return this.isTransforming && this.activeItemIds.includes(itemId)
   }
@@ -103,7 +87,6 @@ export class GridInteractionController {
       point,
       this.#viewport.getScrollOffset()
     )
-    this.#syncWorkspaceGrowthHint(point)
   }
 
   updateMove(point: InteractionPoint): void {
@@ -116,7 +99,6 @@ export class GridInteractionController {
       this.#zoom
     )
     this.#viewport.updateAutoScroll(point, () => this.#refreshTransformSession())
-    this.#syncWorkspaceGrowthHint(point)
   }
 
   finishMove(): GridInteractionRect[] | null {
@@ -141,7 +123,6 @@ export class GridInteractionController {
       this.#viewport.getScrollOffset(),
       direction
     )
-    this.#syncWorkspaceGrowthHint(point)
   }
 
   updateResize(point: InteractionPoint): void {
@@ -154,7 +135,6 @@ export class GridInteractionController {
       this.#zoom
     )
     this.#viewport.updateAutoScroll(point, () => this.#refreshTransformSession())
-    this.#syncWorkspaceGrowthHint(point)
   }
 
   finishResize(): GridInteractionRect | null {
@@ -166,32 +146,29 @@ export class GridInteractionController {
 
   beginPan(point: InteractionPoint): void {
     this.#viewport.stopAutoScroll()
-    this.#workspaceGrowthHint = { width: null, height: null }
     this.#session = startPanSession(point, this.#viewport.getScrollOffset())
   }
 
   updatePan(point: InteractionPoint): void {
     if (this.#session.kind !== 'panning') return
 
-    const prevPoint = this.#session.pointerCurrent
-    // Divide by zoom so 1 px of pointer movement produces 1 px of scroll
-    // in the *unscaled* coordinate space (consistent pan speed at any zoom).
-    this.#viewport.panBy(
-      (point.x - prevPoint.x) / this.#zoom,
-      (point.y - prevPoint.y) / this.#zoom
-    )
+    // Measured from where the drag began, not summed per move, so the grabbed
+    // point stays under the cursor (the offset is in screen px at any zoom).
+    const { pointerStart, scrollStart } = this.#session
+    this.#viewport.scrollTo({
+      x: scrollStart.x - (point.x - pointerStart.x),
+      y: scrollStart.y - (point.y - pointerStart.y),
+    })
     this.#session = updatePanSession(this.#session, point)
   }
 
   endPan(): void {
     if (this.#session.kind !== 'panning') return
-    this.#workspaceGrowthHint = { width: null, height: null }
     this.#session = createIdleSession()
   }
 
   cancel(): void {
     this.#viewport.stopAutoScroll()
-    this.#workspaceGrowthHint = { width: null, height: null }
     this.#session = createIdleSession()
   }
 
@@ -217,7 +194,6 @@ export class GridInteractionController {
         this.#config,
         this.#zoom
       )
-      this.#syncWorkspaceGrowthHint(this.#session.pointerCurrent)
       return
     }
 
@@ -229,70 +205,6 @@ export class GridInteractionController {
         this.#config,
         this.#zoom
       )
-      this.#syncWorkspaceGrowthHint(this.#session.pointerCurrent)
-    }
-  }
-
-  #syncWorkspaceGrowthHint(point: InteractionPoint): void {
-    if (!this.#config) {
-      this.#workspaceGrowthHint = { width: null, height: null }
-      return
-    }
-    if (!isTransformSession(this.#session)) {
-      this.#workspaceGrowthHint = { width: null, height: null }
-      return
-    }
-
-    if (typeof window === 'undefined') {
-      this.#workspaceGrowthHint = { width: null, height: null }
-      return
-    }
-
-    const edgeThreshold = 25
-    const expandByCells = 5
-    // Use the furthest edge across all moving previews (a group move can grow
-    // the workspace from whichever member reaches the viewport edge).
-    const previews = this.previewRects
-    if (previews.length === 0) {
-      this.#workspaceGrowthHint = { width: null, height: null }
-      return
-    }
-    const cellWidth = this.#config.cellSize.width + this.#config.gap
-    const cellHeight = this.#config.cellSize.height + this.#config.gap
-    const maxRightEdge = Math.max(
-      ...previews.map(p =>
-        calculateRightEdgePosition(p.x, p.w, this.#config!)
-      )
-    )
-    const maxBottomEdge = Math.max(
-      ...previews.map(p =>
-        calculateBottomEdgePosition(p.y, p.h, this.#config!)
-      )
-    )
-    const nextWidthCandidate =
-      point.x >= window.innerWidth - edgeThreshold
-        ? maxRightEdge + WORKSPACE_RIGHT_PADDING + expandByCells * cellWidth
-        : null
-    const nextHeightCandidate =
-      point.y >= window.innerHeight - edgeThreshold
-        ? maxBottomEdge + WORKSPACE_BOTTOM_PADDING + expandByCells * cellHeight
-        : null
-
-    this.#workspaceGrowthHint = {
-      // Keep the largest expanded size for the whole interaction session.
-      // Shrinking mid-drag causes scroll clamping, which feeds back into
-      // delta calculations and makes previews jump.
-      width:
-        nextWidthCandidate === null
-          ? this.#workspaceGrowthHint.width
-          : Math.max(this.#workspaceGrowthHint.width ?? 0, nextWidthCandidate),
-      height:
-        nextHeightCandidate === null
-          ? this.#workspaceGrowthHint.height
-          : Math.max(
-              this.#workspaceGrowthHint.height ?? 0,
-              nextHeightCandidate
-            ),
     }
   }
 }

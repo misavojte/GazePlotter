@@ -238,6 +238,9 @@
     pointer: {
       onDown: handlePointerDown,
       onDrag: handlePointerDrag,
+      // A relative timeline has nothing to drag (the screen ignores the step).
+      ownsDragAt: (x: number, y: number) =>
+        settings.timeline !== 'relative' && inPlotArea(x, y),
       onUp: handlePointerUp,
       dragThreshold: 5,
     },
@@ -513,7 +516,6 @@
   }
 
   function handlePointerDrag(d: FrameDrag) {
-    if (!inPlotArea(d.startX, d.startY)) return
     if (Math.abs(d.dx) > 0.5) {
       onDragStepX(d.dx, width)
     }

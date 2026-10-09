@@ -19,6 +19,9 @@ export default defineConfig({
   },
   test: {
     include: ['tests/**/*.{test,spec}.{js,ts}'],
+    // Node globals, but modules compiled for the CLIENT (the code the app
+    // runs) instead of SSR — see tests/env/nodeClient.js.
+    environment: './tests/env/nodeClient.js',
   },
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),

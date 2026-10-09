@@ -1,0 +1,141 @@
+import type { StimulusMedia } from '../types'
+
+/**
+ * Non-reactive byte store for per-stimulus reference media (see
+ * {@link StimulusMedia}). The engine's `metadata.stimuliMedia` holds the
+ * light metadata inside runes; the Blobs stay out here — the same split as
+ * the binary segment buffers — because a 50-minute recording can be GBs and
+ * must never be copied into reactive state or base64.
+ *
+ * Rendering goes through {@link getReadyElement}: a lazily created
+ * `<img>`/`<video>` fed by an object URL (browsers stream `<video>` from blob
+ * URLs without decoding the file into JS memory). `version` is the reactive
+ * repaint signal — it bumps when an element finishes decoding and on every
+ * set/remove/clear, so canvases that draw media depend on it.
+ */
+export class StimulusMediaStore {
+  /** Bumps on decode-ready and on set/remove/clear — the canvas repaint dep. */
+  version = $state(0)
+
+  private blobs = new Map<number, Blob>()
+  private elements = new Map<
+    number,
+    {
+      url: string
+      el: HTMLImageElement | HTMLVideoElement
+      ready: boolean
+      failed: boolean
+    }
+  >()
+
+  setBlob(stimulusId: number, blob: Blob): void {
+    // Same bytes (an alignment edit or its undo): keep the decoded element.
+    if (this.blobs.get(stimulusId) === blob) return
+    this.evictElement(stimulusId)
+    this.blobs.set(stimulusId, blob)
+    this.version++
+  }
+
+  getBlob(stimulusId: number): Blob | null {
+    return this.blobs.get(stimulusId) ?? null
+  }
+
+  remove(stimulusId: number): void {
+    this.evictElement(stimulusId)
+    this.blobs.delete(stimulusId)
+    this.version++
+  }
+
+  clear(): void {
+    for (const id of [...this.elements.keys()]) this.evictElement(id)
+    this.blobs.clear()
+    this.version++
+  }
+
+  /** True once the browser has refused to decode a stimulus's media (e.g. an
+   *  unsupported video codec); read alongside `version`. */
+  failed(stimulusId: number): boolean {
+    return this.elements.get(stimulusId)?.failed ?? false
+  }
+
+  /**
+   * The drawable element for a stimulus, or null while it is still decoding
+   * (the `version` bump on ready triggers the re-read). Videos are parked on
+   * their first frame — a paused poster, not a player.
+   */
+  getReadyElement(
+    stimulusId: number,
+    media: StimulusMedia
+  ): HTMLImageElement | HTMLVideoElement | null {
+    const cached = this.elements.get(stimulusId)
+    if (cached) return cached.ready ? cached.el : null
+
+    const blob = this.blobs.get(stimulusId)
+    if (!blob || typeof document === 'undefined') return null
+
+    const url = URL.createObjectURL(blob)
+    if (media.kind === 'image') {
+      const el = new Image()
+      const entry = { url, el, ready: false, failed: false }
+      this.elements.set(stimulusId, entry)
+      el.onload = () => {
+        entry.ready = true
+        this.version++
+      }
+      el.onerror = () => {
+        if (this.elements.get(stimulusId) !== entry) return // evicted: src cleared
+        entry.failed = true
+        this.version++
+      }
+      el.src = url
+    } else {
+      const el = document.createElement('video')
+      el.muted = true
+      el.playsInline = true
+      el.preload = 'auto'
+      const entry = { url, el, ready: false, failed: false }
+      this.elements.set(stimulusId, entry)
+      el.addEventListener(
+        'error',
+        () => {
+          if (this.elements.get(stimulusId) !== entry) return // evicted: src cleared
+          entry.failed = true
+          this.version++
+        },
+        { once: true }
+      )
+      const markReady = () => {
+        if (entry.ready) return
+        entry.ready = true
+        this.version++
+      }
+      // The readiness gate is what prevents a black background: the element
+      // is only handed out once a frame is decoded. 'seeked' after an
+      // explicit off-zero seek guarantees a paintable frame everywhere;
+      // 'canplaythrough' is the fallback for browsers that decode the first
+      // frame without honoring the tiny seek.
+      el.addEventListener('seeked', markReady, { once: true })
+      el.addEventListener('canplaythrough', markReady, { once: true })
+      el.addEventListener(
+        'loadedmetadata',
+        () => {
+          // Seek off 0 by an epsilon — some browsers only paint a drawable
+          // frame after an actual seek.
+          el.currentTime = 0.001
+        },
+        { once: true }
+      )
+      el.src = url
+    }
+    return null
+  }
+
+  private evictElement(stimulusId: number): void {
+    const entry = this.elements.get(stimulusId)
+    if (!entry) return
+    entry.el.src = ''
+    URL.revokeObjectURL(entry.url)
+    this.elements.delete(stimulusId)
+  }
+}
+

@@ -72,7 +72,7 @@
   .group-container {
     --radio-size: 14px;
     --radio-dot-size: 8px;
-    --label-padding-left: 1.5rem;
+    --label-padding-left: 24px;
     position: relative;
     display: flex;
     flex-direction: column;
@@ -120,10 +120,11 @@
   }
 
   .group-container.compact .legend {
-    font-size: 11px;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
     font-weight: 400;
     color: var(--c-darkgrey);
-    line-height: 1.2;
+    line-height: var(--leading-tight);
     letter-spacing: 0.01em;
     margin-bottom: 2px;
   }
@@ -134,7 +135,7 @@
     display: inline-block;
     padding-left: var(--label-padding-left);
     cursor: pointer;
-    line-height: 1.25;
+    line-height: var(--leading-tight);
   }
 
   .sr-only {
@@ -153,10 +154,11 @@
     width: 100%;
     box-sizing: border-box;
     padding-left: 20px;
-    font-size: 11px;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
     font-weight: 400;
     color: var(--c-darkgrey);
-    line-height: 1.2;
+    line-height: var(--leading-tight);
     letter-spacing: 0.01em;
     white-space: nowrap;
   }

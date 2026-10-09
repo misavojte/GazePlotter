@@ -404,12 +404,12 @@
     display: flex;
     flex-wrap: wrap;
     align-items: center;
-    gap: 0.5rem;
-    margin: 0.5rem 0;
+    gap: 8px;
+    margin: 8px 0;
   }
 
   .presets-label {
-    font-size: 0.8rem;
+    font-size: var(--text-md);
     color: var(--c-darkgrey);
   }
 
@@ -417,14 +417,14 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 0.75rem;
-    margin-bottom: 0.5rem;
+    gap: 12px;
+    margin-bottom: 8px;
   }
 
   .preview-pager-label {
-    font-size: 0.85rem;
+    font-size: var(--text-lg);
     font-weight: 500;
-    color: var(--c-text);
+    color: var(--c-black);
     text-align: center;
     min-width: 0;
     overflow: hidden;
@@ -448,7 +448,8 @@
     border: 1px solid var(--c-midgrey);
     border-radius: var(--rounded-md);
     color: var(--c-black);
-    font-size: 15px;
+    font-size: var(--text-xl);
+    letter-spacing: -0.01em;
     cursor: pointer;
     transition:
       background-color var(--transition-fast) ease,

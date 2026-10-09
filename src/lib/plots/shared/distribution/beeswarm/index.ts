@@ -4,7 +4,7 @@
  * boxplot) drawn on top, degenerating to a single proportional bar for rate
  * metrics that have no distribution to swarm.
  *
- * One figure among the distribution renderings the visualisation switch
+ * One figure among the distribution renderings the visualization switch
  * offers, so this level IS named by its mark — picking a figure here is
  * exactly picking a mark. The measure layer it consumes (the data contract,
  * the statistics, the sort/scale policy, the pane vocabulary) is entity- and

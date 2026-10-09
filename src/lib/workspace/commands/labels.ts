@@ -54,6 +54,11 @@ const WORKSPACE_COMMAND_LABELS: Record<
     default: 'Event channels updated',
   },
 
+  updateStimulusMedia: {
+    action: 'reference media update',
+    default: 'Stimulus reference media updated',
+  },
+
   updateNoAoiTreatment: {
     action: 'No AOI treatment update',
     default: 'No AOI treatment updated',
@@ -82,6 +87,8 @@ const WORKSPACE_COMMAND_LABELS: Record<
 
   updateLayout: { action: 'layout update', default: 'Layout updated' },
 
+  translateLayout: { action: 'layout update', default: 'Layout updated' },
+
   // Grid item management commands
   addGridItem: {
     action: 'plot addition',
@@ -91,6 +98,11 @@ const WORKSPACE_COMMAND_LABELS: Record<
   removeGridItem: {
     action: 'plot removal',
     default: 'Removed plot from workspace',
+  },
+
+  removeGridItems: {
+    action: 'plots removal',
+    default: 'Removed plots from workspace',
   },
 
   duplicateGridItem: {

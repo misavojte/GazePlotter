@@ -438,43 +438,20 @@
       duplicateCondition.set(true)
     }
 
-    // Check for AOI customization - detect when at least two AOIs have the same displayed name
-    // This can come from any plot type that supports AOI customization
-    if (
-      command.type === 'updateAois' &&
-      command.aois &&
-      command.aois.length > 0
-    ) {
-      // Count occurrences of each displayed name
-      const nameCounts = new Map<string, number>()
-
-      command.aois.forEach(aoi => {
-        const displayedName = (aoi.displayedName || '').trim()
-        if (displayedName !== '') {
-          nameCounts.set(
-            displayedName,
-            (nameCounts.get(displayedName) || 0) + 1
-          )
-        }
+    // Check for AOI customization - detect when, within ONE stimulus, the two
+    // target AOIs share a displayed name (i.e. were merged). The command carries
+    // one entry per stimulus; the same displayed name across two stimuli is
+    // not a merge, so the check runs per entry.
+    if (command.type === 'updateAois') {
+      const merged = command.updates.some(({ aois }) => {
+        const aoi1 = aois.find(aoi => aoi.originalName === 'T2-DataPAQ-OsayY')
+        const aoi2 = aois.find(aoi => aoi.originalName === 'T2-DataPAQ-OsaX')
+        // Normalize names by trimming; both must be non-empty and equal.
+        const name1 = (aoi1?.displayedName || '').trim()
+        const name2 = (aoi2?.displayedName || '').trim()
+        return !!aoi1 && !!aoi2 && name1 !== '' && name2 !== '' && name1 === name2
       })
-
-      // Check whether the aois with original names "T2-DataPAQ-OsayY" and "T2-DataPAQ-OsaX" are grouped
-      // i.e. having the same displayed name (trimmed and normalized)
-      const aoi1 = command.aois.find(
-        aoi => aoi.originalName === 'T2-DataPAQ-OsayY'
-      )
-      const aoi2 = command.aois.find(
-        aoi => aoi.originalName === 'T2-DataPAQ-OsaX'
-      )
-
-      // Normalize names by trimming and handling empty strings
-      const name1 = (aoi1?.displayedName || '').trim()
-      const name2 = (aoi2?.displayedName || '').trim()
-
-      // Both names must be non-empty and equal for grouping
-      if (aoi1 && aoi2 && name1 !== '' && name2 !== '' && name1 === name2) {
-        aoiCustomizationCondition.set(true)
-      }
+      if (merged) aoiCustomizationCondition.set(true)
     }
 
     // Check for Transition Matrix aggregation change to '1-step probability'
@@ -520,7 +497,7 @@
 
 <svelte:head>
   <title
-    >GazePlotter | Free eye-tracking data visualisation via scarf plots</title
+    >GazePlotter | Free eye-tracking data visualization via scarf plots</title
   >
   <meta name="robots" content="noindex, nofollow" />
 </svelte:head>
@@ -529,7 +506,7 @@
   <section class="main-section intro">
     <div class="title-container">
       <h1 class="title-heading red">GazePlotter</h1>
-      <h2 class="title-heading">Free eye-tracking data&nbsp;visualisation</h2>
+      <h2 class="title-heading">Free eye-tracking data&nbsp;visualization</h2>
     </div>
     <p class="intro-text">
       Transform eye gaze data from eye trackers to interactive scarf plots.
@@ -676,10 +653,10 @@
     margin: 24px auto 0;
     padding: 14px 16px 16px;
     max-width: 500px;
-    background: #e8f2ff;
-    border: 1px solid #7cb0ff;
+    background: color-mix(in srgb, var(--c-info) 8%, var(--c-white));
+    border: 1px solid color-mix(in srgb, var(--c-info) 45%, var(--c-white));
     border-radius: 10px;
-    color: #0b3d91;
+    color: color-mix(in srgb, var(--c-info) 60%, var(--c-black));
     text-align: center;
     display: flex;
     flex-direction: column;
@@ -701,24 +678,24 @@
     margin: 0;
     font-size: 0.75rem;
     line-height: 1.4;
-    color: rgba(11, 61, 145, 0.8);
+    color: color-mix(in srgb, var(--c-info) 60%, var(--c-black));
   }
 
   .previous-consent-banner__link {
-    color: #0d63e0;
+    color: var(--c-info);
     text-decoration: underline;
     transition: color var(--transition-normal) ease-in-out;
   }
 
   .previous-consent-banner__link:hover,
   .previous-consent-banner__link:focus {
-    color: #0a4fae;
+    color: color-mix(in srgb, var(--c-info) 80%, var(--c-black));
   }
 
   .previous-consent-banner__dismiss {
     align-self: center;
     padding: 6px 14px;
-    background: #0d63e0;
+    background: var(--c-info);
     color: white;
     border: none;
     border-radius: 999px;
@@ -729,7 +706,7 @@
 
   .previous-consent-banner__dismiss:hover,
   .previous-consent-banner__dismiss:focus {
-    background: #0a4fae;
+    background: color-mix(in srgb, var(--c-info) 80%, var(--c-black));
   }
 
   main {
@@ -763,7 +740,7 @@
 
   p {
     line-height: 1.5;
-    color: #3c3c43bf;
+    color: var(--c-darkgrey);
   }
 
   /* .box styles moved to Card.svelte */

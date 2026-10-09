@@ -67,6 +67,7 @@
     drawCatmullRom,
     transformStreamDataToCoordinates,
     computeAoiStreamYAxis,
+    resolveHeatRange,
     type RenderBuckets,
   } from '../core'
   import type { AoiStreamPlotResult } from '../types'
@@ -79,6 +80,11 @@
     syncedMTopOverride?: number | null
     ridgelineScale?: number
     colorScale?: string[]
+    /** Heatmap gradient `[min, max]`; `max === 0` means auto (data max). */
+    colorValueRange: [number, number]
+    /** Out-of-bounds fills for heatmap bins (`OutOfBoundsColors`). */
+    belowMinColor: string
+    aboveMaxColor: string
     /** Shared PLOT CURSOR (screen-only; export renders without one). */
     plotCursor?: PlotCursorPort | null
   }
@@ -94,6 +100,9 @@
     syncedMTopOverride = null,
     ridgelineScale,
     colorScale,
+    colorValueRange,
+    belowMinColor,
+    aboveMaxColor,
     plotCursor = null,
   }: Props = $props()
 
@@ -196,7 +205,17 @@
     width: () => width,
     height: () => height,
     margin: () => margin,
-    deps: () => [data, alignment, ridgelineScale, syncedMTopOverride, colorScale, highlights],
+    deps: () => [
+      data,
+      alignment,
+      ridgelineScale,
+      syncedMTopOverride,
+      colorScale,
+      colorValueRange,
+      belowMinColor,
+      aboveMaxColor,
+      highlights,
+    ],
     placeholder: () => (data.noMetric ? METRIC_MISSING_MESSAGE : null),
     fit: frame => {
       const n = data.series.length
@@ -275,12 +294,17 @@
 
   const gradientLegendGeometry = $derived.by(() => {
     if (alignment !== 'heatmap') return null
+    // Same resolver as the cells (core/layout.ts), so the colorbar's end labels
+    // are exactly the gradient's first and last stop. The legend itself hides
+    // the above-max cap while the max is auto.
+    const [, heatMax] = resolveHeatRange(colorValueRange, data.maxValue)
     return bottomGradientLegendGeometry(plot, margin, legendHeight, {
       colorScale: effectiveColorScale,
-      valueRange: [0, Math.max(1, data.maxValue)],
-      effectiveMaxValue: Math.max(1, data.maxValue),
+      valueRange: colorValueRange,
+      effectiveMaxValue: heatMax,
       title: data.yAxisLabel,
-      belowMinColor: INACTIVE_COLOR,
+      belowMinColor,
+      aboveMaxColor,
     })
   })
 
@@ -308,6 +332,9 @@
           highlightMaskById,
           ridgelineScale,
           colorScale: effectiveColorScale,
+          colorValueRange,
+          belowMinColor,
+          aboveMaxColor,
         },
         renderBuckets
       )

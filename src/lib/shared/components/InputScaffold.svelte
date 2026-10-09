@@ -70,14 +70,16 @@
   }
 
   label {
-    font-size: 12px;
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
     color: var(--c-darkgrey);
     font-weight: 400;
-    line-height: 1.2;
+    line-height: var(--leading-tight);
     letter-spacing: 0.01em;
   }
 
   label.compact-label {
-    font-size: 11px;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
   }
 </style>

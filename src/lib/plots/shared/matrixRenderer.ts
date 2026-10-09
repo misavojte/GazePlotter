@@ -1,7 +1,7 @@
 import { getContrastTextColor } from '$lib/color'
 import {
   truncateTextToPixelWidth,
-  SYSTEM_SANS_SERIF_STACK,
+  SYSTEM_SANS_SERIF_SMALL_STACK,
 } from '$lib/shared/textMeasure'
 import { axisTitleLineHeight } from './axisUtils'
 import { FONT_PRIMARY } from './const'
@@ -104,7 +104,7 @@ function drawMatrixCellsText(
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   const { xOffset, yOffset, cellSize, cellValueFontSize, rowCount, colCount } = layout
-  ctx.font = `${cellValueFontSize}px ${SYSTEM_SANS_SERIF_STACK}`
+  ctx.font = `${cellValueFontSize}px ${SYSTEM_SANS_SERIF_SMALL_STACK}`
   const showCellValue = config.showCellValue ?? (() => true)
   // Reuse the fill colours computed in drawMatrixCells (run just before this).
   const colors = _cellColors
@@ -223,7 +223,7 @@ function drawMatrixRowLabels(
           rowLabels[row],
           config.maxLabelLength,
           labelFontSize,
-          SYSTEM_SANS_SERIF_STACK,
+          SYSTEM_SANS_SERIF_SMALL_STACK,
           '...'
         )
 
@@ -272,7 +272,7 @@ function drawMatrixColumnLabels(
           colLabels[col],
           config.maxLabelLength,
           labelFontSize,
-          SYSTEM_SANS_SERIF_STACK,
+          SYSTEM_SANS_SERIF_SMALL_STACK,
           '...'
         )
 
@@ -298,7 +298,7 @@ export function renderMatrixContent(
   }
   setUpFont(ctx)
   drawMatrixAxisLabels(ctx, config)
-  ctx.font = `${config.layout.fontSize}px ${SYSTEM_SANS_SERIF_STACK}`
+  ctx.font = `${config.layout.fontSize}px ${SYSTEM_SANS_SERIF_SMALL_STACK}`
   drawMatrixRowLabels(ctx, config, config.layout.fontSize)
   drawMatrixColumnLabels(ctx, config, config.layout.fontSize)
   if (!config.drawCells) drawMatrixCellsText(ctx, config)

@@ -30,6 +30,8 @@
     minH?: number
     cellSize: { width: number; height: number }
     gap: number
+    /** Set: the plot lands after this many ms (the entrance after a load). */
+    enterDelay?: number
     title?: string
     subtitle?: PlotSubtitleParts
     body: Snippet
@@ -50,6 +52,7 @@
     minH = 1,
     cellSize,
     gap,
+    enterDelay,
     title = '',
     subtitle,
     body,
@@ -198,8 +201,10 @@
   role="figure"
 >
   <div 
-    class="grid-item-scaler" 
-    class:is-pressed={isPressed}
+    class="grid-item-scaler"
+    class:is-pressed={isPressed && !interaction.isPanning}
+    class:entering={enterDelay !== undefined}
+    style:--enter-delay={enterDelay === undefined ? undefined : `${enterDelay}ms`}
     onpointerdowncapture={onPointerDown}
     onpointerupcapture={onPointerUp}
     onpointercancelcapture={onPointerUp}
@@ -326,6 +331,26 @@
     will-change: transform;
   }
 
+  /* `backwards` hides the plot through its delay and leaves nothing behind
+     once it has landed, so press feedback and stacking are untouched. */
+  .grid-item-scaler.entering {
+    animation: land 450ms cubic-bezier(0.22, 1, 0.36, 1) var(--enter-delay)
+      backwards;
+  }
+
+  @keyframes land {
+    from {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .grid-item-scaler.entering {
+      animation: none;
+    }
+  }
+
   .grid-item-scaler.is-pressed {
     transform: scale(var(--press-scale-x, 0.99), var(--press-scale-y, 0.99));
   }
@@ -364,7 +389,6 @@
     display: flex;
     flex-direction: column;
     position: relative;
-    transition: box-shadow var(--transition-fast) ease;
 
     /* Affordance ring sits ON TOP of the frame's existing 1px border.
        Hover and selected share the 2px width so the visual "weight"
@@ -428,7 +452,7 @@
     box-sizing: border-box;
     background: var(--c-lightgrey);
     overflow: hidden;
-    border-radius: var(--rounded-lg) var(--rounded-lg) 0 0;
+    border-radius: calc(var(--rounded-lg) - 1px) calc(var(--rounded-lg) - 1px) 0 0;
     user-select: none;
     -webkit-user-select: none;
     transition: background-color var(--transition-fast) ease;
@@ -436,10 +460,11 @@
 
   .grid-item-title {
     margin: 0;
-    font-size: 15px;
+    font-size: var(--text-xl);
+    letter-spacing: -0.01em;
     font-weight: 600;
     color: var(--c-black);
-    line-height: 1.2;
+    line-height: var(--leading-tight);
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -467,7 +492,8 @@
   }
 
   .grid-item-subtitle-label {
-    font-size: 8px;
+    font-size: var(--text-3xs);
+    font-family: var(--font-small);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.06em;
@@ -476,10 +502,11 @@
   }
 
   .grid-item-subtitle-value {
-    font-size: 11px;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
     font-weight: 500;
     color: var(--c-darkgrey);
-    line-height: 1.2;
+    line-height: var(--leading-tight);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -488,14 +515,15 @@
   .grid-item-subtitle-divider {
     width: 1px;
     align-self: stretch;
-    background-color: var(--c-grey);
+    background-color: var(--c-border);
   }
 
   .grid-item-body {
     padding: var(--grid-item-body-padding);
     flex-grow: 1;
     overflow: auto;
-    border-radius: var(--rounded-lg);
+    /* Concentric with the frame: its radius minus the 1px border. */
+    border-radius: calc(var(--rounded-lg) - 1px);
     background-color: var(--c-white);
     transition: background-color var(--transition-fast) ease;
   }
@@ -594,7 +622,8 @@
     color: var(--c-white);
     border: none;
     border-radius: 3px;
-    font-size: 11px;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
     font-weight: 500;
     line-height: 1;
     cursor: pointer;
@@ -602,7 +631,7 @@
     transition: background var(--transition-fast) ease, color var(--transition-fast) ease;
   }
   .action-toolbar-button:hover {
-    background: rgba(255, 255, 255, 0.18);
+    background: color-mix(in srgb, var(--c-white) 18%, transparent);
   }
 
   /* Tactile "press" feedback */

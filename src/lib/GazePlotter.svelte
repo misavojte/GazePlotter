@@ -5,15 +5,19 @@
   import Workspace from '$lib/workspace/Workspace.svelte'
   import { Tooltip } from '$lib/tooltip'
   import { ContextMenu } from '$lib/context-menu'
-  import { onMount } from 'svelte'
+  import { onDestroy, onMount } from 'svelte'
   import {
     createGazePlotterSession,
     setGazePlotterSessionContext,
     type GazePlotterOptions,
   } from '$lib/session'
 
-  import type { GridItemSnapshot } from '$lib/workspace'
   import type { WorkspaceCommandChain } from '$lib/workspace/commands'
+  import { WorkspaceCamera } from '$lib/workspace/camera.svelte'
+  import {
+    createWorkspaceActions,
+    type WorkspaceActions,
+  } from '$lib/workspace/actions.svelte'
   import type { DataLoader } from '$lib/data/ingest'
 
   interface Props {
@@ -31,15 +35,41 @@
     /** Read once on mount; see {@link GazePlotterOptions}. */
     options?: GazePlotterOptions
     onWorkspaceCommandChain?: (command: WorkspaceCommandChain) => void
+    /**
+     * How the mouse wheel behaves over the workspace.
+     * - `'cooperative'` (default, for a workspace embedded in a scrolling
+     *   page): the wheel scrolls the page; Ctrl/Cmd+wheel zooms.
+     * - `'canvas'` (for a host that gives GazePlotter the whole screen): the
+     *   wheel pans the workspace; Ctrl/Cmd+wheel zooms.
+     */
+    gestures?: 'cooperative' | 'canvas'
+    /**
+     * Show the built-in floating controls on the workspace (add plot,
+     * undo/redo, reset layout, zoom). Turn off to drive everything from your
+     * own UI through `getActions()`.
+     */
+    controls?: boolean
   }
 
-  const { load, options, onWorkspaceCommandChain = () => {} }: Props = $props()
+  const {
+    load,
+    options,
+    onWorkspaceCommandChain = () => {},
+    gestures = 'cooperative',
+    controls = true,
+  }: Props = $props()
 
   // svelte-ignore state_referenced_locally -- read once by design (see prop doc)
   const session = setGazePlotterSessionContext(createGazePlotterSession(options))
   const { errorService, ingest } = session
+  const camera = new WorkspaceCamera()
+  const actions = createWorkspaceActions(session, camera)
+  onDestroy(() => {
+    camera.destroy()
+    // Releases the media blobs and their object URLs (recordings can be GBs).
+    session.engine.media.clear()
+  })
 
-  let initialGridItemsSnapshot = $state<GridItemSnapshot[] | null>(null)
   let activeAbort: AbortController | null = null
   let loadGeneration = 0
 
@@ -75,13 +105,6 @@
     } else {
       await ingest.loadFiles(files)
     }
-    if (generation !== loadGeneration || signal.aborted) return
-    if (errorService.fatalLoad) return
-
-    // Deep, proxy-free copy
-    initialGridItemsSnapshot = $state.snapshot(
-      session.grid.items
-    ) as GridItemSnapshot[]
   }
 
   function startLoad(): void {
@@ -106,15 +129,20 @@
   export function getSession() {
     return session
   }
+
+  /**
+   * Import, export, metadata, history and zoom, for the host's own buttons:
+   * GazePlotter renders no top bar. See {@link WorkspaceActions}.
+   */
+  export function getActions(): WorkspaceActions {
+    return actions
+  }
 </script>
 
 <DesignTokens colors={options?.colors} />
 
 <div id="GP-gazeplotter">
-  <Workspace
-    {onWorkspaceCommandChain}
-    initialLayoutState={initialGridItemsSnapshot}
-  />
+  <Workspace {onWorkspaceCommandChain} {camera} {gestures} {controls} />
 
   <Modal />
   <Toaster />
@@ -124,9 +152,15 @@
 
 <style>
   #GP-gazeplotter {
-    font-family: inherit;
+    font-family: var(--font-sans);
     font-size: 16px;
-    line-height: 1.5;
+    line-height: var(--leading-relaxed);
     color: var(--c-black);
+    /* Equal-width digits: counts, times and percentages line up. */
+    font-variant-numeric: tabular-nums;
+    /* Real faces only, never a browser-faked bold or italic. */
+    font-synthesis: none;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
   }
 </style>

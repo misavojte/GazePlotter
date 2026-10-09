@@ -1,4 +1,7 @@
-import { eventFileMappingModal } from '$lib/modals/import/definitions'
+import {
+  eventFileMappingModal,
+  mediaAssignmentModal,
+} from '$lib/modals/import/definitions'
 import {
   processAoiVisibilityFromText,
   buildEventChannelsFromParsed,
@@ -17,11 +20,20 @@ import type { EnrichmentFormatDefinition } from './kernel/format'
 import type { EventContribution } from './kernel/sink'
 import { probeFromText } from './kernel/source'
 import { getStimuliOptions, getParticipantOptions } from '$lib/plots/shared'
-import { getStimulusHighestEndTime } from '$lib/data/engine'
+import {
+  getStimulus,
+  getStimuli,
+  getStimulusHighestEndTime,
+} from '$lib/data/engine'
 import { isArchiveFileName } from './formats/routing'
+import {
+  buildStimulusMediaFromFile,
+  matchMediaFilesToStimuli,
+  mediaKindOf,
+} from '$lib/data/media/mediaUpload'
 import { INGEST_PROMPTS } from './prompts'
 import type { IngestResult } from './kernel/result'
-import { EVENT_ONLY_GRID_STATE_DATA } from '$lib/workspace'
+import { defaultLayoutFor } from '$lib/workspace'
 import { GAZEPLOTTER_VERSION } from '$lib/version'
 import type { OpenFiles } from './openFiles'
 import type { ErrorService } from '$lib/errors'
@@ -41,6 +53,10 @@ import type { ToastState } from '$lib/toaster/toastState.svelte'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { GridState } from '$lib/workspace/grid/gridState.svelte'
 import type { GridItemSnapshot } from '$lib/workspace/grid/types'
+import type {
+  StimulusMediaUpdate,
+  WorkspaceCommand,
+} from '$lib/workspace/commands'
 
 export type IngestStatus = 'loading' | 'ready' | 'error'
 
@@ -57,8 +73,11 @@ type IngestDependencies = {
   modalState: ModalState
   toastState: ToastState
   resetWorkspaceHistory: () => void
+  /** The session's command bus, for uploads that edit an already-loaded
+   *  workspace and must therefore be undoable (media-only uploads). */
+  applyCommand: (command: WorkspaceCommand) => boolean
   /** Session-resolved embedding options (see PLANDESKTOP.md). */
-  defaultLayout: GridItemSnapshot[]
+  defaultLayout?: GridItemSnapshot[]
   openFiles: OpenFiles
 }
 
@@ -138,21 +157,34 @@ type ClaimedEventFile = {
 }
 
 /**
- * Partitions uploaded files into eye-tracking sources (for the worker job)
- * and event files (claimed by ENRICHMENT_FORMATS, consumed post-load).
+ * Partitions uploaded files into eye-tracking sources (for the worker job),
+ * event files (claimed by ENRICHMENT_FORMATS, consumed post-load), and
+ * stimulus reference media (images/videos, matched to stimuli by file name
+ * post-load — the same claim-now-consume-later pattern as event files).
  * Detection is registry-driven — the same ordered contract as gaze
  * formats. One routing policy lives here, not in a format: a LONE .json
  * upload is never an event file (workspace first-file-wins precedence).
  */
 async function partitionUploadFiles(
   files: File[]
-): Promise<{ eyeFiles: File[]; eventFiles: ClaimedEventFile[] }> {
+): Promise<{
+  eyeFiles: File[]
+  eventFiles: ClaimedEventFile[]
+  mediaFiles: File[]
+}> {
   const eyeFiles: File[] = []
   const eventFiles: ClaimedEventFile[] = []
+  const mediaFiles: File[] = []
   for (const file of files) {
     const ext = file.name.split('.').pop()?.toLowerCase()
     if (ext === 'json' && files.length === 1) {
       eyeFiles.push(file)
+      continue
+    }
+    // Media is claimed by mime/extension BEFORE the text probe — the content
+    // is binary and no data format could ever claim it.
+    if (mediaKindOf(file) !== null) {
+      mediaFiles.push(file)
       continue
     }
     try {
@@ -168,7 +200,7 @@ async function partitionUploadFiles(
     }
     eyeFiles.push(file)
   }
-  return { eyeFiles, eventFiles }
+  return { eyeFiles, eventFiles, mediaFiles }
 }
 
 class IngestWorkerClient {
@@ -224,8 +256,9 @@ class IngestWorkerClient {
       return
     }
 
-    // Archive formats need fully-materialized buffers (JSZip can't stream);
-    // everything else — including workspace JSON — streams to the worker.
+    // Archives go over whole (a cloned File is a reference, not a copy) so
+    // readers can slice them; everything else, workspace JSON included,
+    // streams to the worker.
     if (isArchiveFileName(fileArray[0].name)) {
       void this.processZipFiles(fileArray)
     } else if (this.isStreamTransferable()) {
@@ -335,14 +368,13 @@ class IngestWorkerClient {
       const file = files[index]
 
       try {
-        const buffer = await file.arrayBuffer()
         const zipName = this.fileNames[index]
         if (
           !this.postWorkerMessage(
-            { type: 'zip-buffer', data: { buffer, zipName } },
-            [buffer],
+            { type: 'zip-file', data: { file, zipName } },
+            [],
             {
-              stage: 'dispatch-zip-buffer',
+              stage: 'dispatch-zip-file',
               fileIndex: index,
               fileName: file.name,
               zipName,
@@ -353,7 +385,7 @@ class IngestWorkerClient {
         }
       } catch (error) {
         this.handleError(error, {
-          stage: 'read-zip-buffer',
+          stage: 'read-zip-file',
           fileIndex: index,
           fileName: file.name,
         })
@@ -406,6 +438,7 @@ class IngestWorkerClient {
       data: result.data,
       gridItems: result.gridItems,
       fileMetadata: result.fileMetadata,
+      mediaBlobs: result.mediaBlobs,
       current: {
         fileNames: this.fileNames,
         fileSizes: this.fileSizes,
@@ -588,6 +621,8 @@ export class IngestService {
   metadata = $state<FileMetadataType | null>(null)
   input = $state<FileInputType | null>(null)
   progressPercent = $state(0)
+  /** The layout the visible dataset opened with: what Reset Layout returns to. */
+  loadedLayout = $state<GridItemSnapshot[] | null>(null)
 
   /** True while a worker parse is running — uploads are one at a time. */
   private uploadInFlight = false
@@ -631,7 +666,27 @@ export class IngestService {
 
     try {
       const allFiles = Array.from(files)
-      const { eyeFiles, eventFiles } = await partitionUploadFiles(allFiles)
+      const { eyeFiles, eventFiles, mediaFiles } =
+        await partitionUploadFiles(allFiles)
+
+      // Media-only upload: attach to the ALREADY-LOADED dataset (stimuli must
+      // exist to match against) — never a dataset replacement, so the grid,
+      // history, and metadata all stay put.
+      if (eyeFiles.length === 0 && eventFiles.length === 0) {
+        if (!this.deps.engine.hasValidData) {
+          this.deps.toastState.addWarning(
+            'Reference images/videos attach to stimuli. Upload eye-tracking data first, or include it in the same upload.'
+          )
+          this.explicitStatus = 'ready'
+          return false
+        }
+        // Ready BEFORE the attach: it may open the assignment modal, which
+        // must not sit under the loading overlay.
+        this.explicitStatus = 'ready'
+        this.progressPercent = 100
+        await this.attachMediaFiles(mediaFiles, { undoable: true })
+        return true
+      }
 
       if (eyeFiles.length === 0 && eventFiles.length > 0) {
         // CSV event files carry their own stimulus/participant names, so they
@@ -639,7 +694,9 @@ export class IngestService {
         // native plot; gaze analysis hides off `segmented: false`). XML/JSON
         // event files map onto EXISTING stimuli via a modal, so those still
         // require eye-tracking data.
-        return await this.processStandaloneEventFiles(eventFiles)
+        const loaded = await this.processStandaloneEventFiles(eventFiles)
+        if (loaded) await this.attachMediaFiles(mediaFiles)
+        return loaded
       }
 
       // The parse is now committed, so the selection into the grid it replaces
@@ -670,6 +727,9 @@ export class IngestService {
                 })
               }
             }
+
+            // Pass 3: reference media, matched against the loaded stimuli.
+            await this.attachMediaFiles(mediaFiles)
 
             resolve(true)
           },
@@ -705,6 +765,11 @@ export class IngestService {
     }
   }
 
+  private openLayout(layout: GridItemSnapshot[]): void {
+    this.loadedLayout = layout
+    this.deps.grid.reset(layout)
+  }
+
   /**
    * Reset the workspace to an empty, ready state — no dataset, no grid,
    * no error, no in-flight loading. Used when a {@link DataLoader} resolves
@@ -716,8 +781,10 @@ export class IngestService {
     this.progressPercent = 0
     this.metadata = null
     this.input = null
-    this.deps.engine.loadDataset(createEmptyDataset())
-    this.deps.grid.reset(this.deps.defaultLayout)
+    const empty = createEmptyDataset()
+    this.deps.engine.loadDataset(empty)
+    this.deps.engine.setStimulusMediaBlobs(undefined)
+    this.openLayout(defaultLayoutFor(empty.capabilities, this.deps.defaultLayout))
     this.deps.resetWorkspaceHistory()
     this.explicitStatus = 'ready'
   }
@@ -732,7 +799,25 @@ export class IngestService {
     // merge log; re-derive the merged working view here. No-op (same object)
     // when nothing was merged, so fresh imports are unaffected.
     this.deps.engine.loadDataset(foldMerges(parsedData.data))
-    this.deps.grid.reset(parsedData.gridItems ?? this.deps.defaultLayout)
+    // Media bytes ride outside the dataset: seed the store and strip any
+    // metadata entry whose archive bytes were missing/corrupt.
+    const droppedMedia = this.deps.engine.setStimulusMediaBlobs(
+      parsedData.mediaBlobs
+    )
+    if (droppedMedia.length > 0) {
+      const names = droppedMedia
+        .slice(0, 3)
+        .map(id => getStimulus(this.deps.engine, id).displayedName)
+        .join(', ')
+      const more = droppedMedia.length > 3 ? ` and ${droppedMedia.length - 3} more` : ''
+      this.deps.toastState.addWarning(
+        `Reference media for ${names}${more} was missing from the workspace file. Reattach it in the Stimuli library.`
+      )
+    }
+    this.openLayout(
+      parsedData.gridItems ??
+        defaultLayoutFor(parsedData.data.capabilities, this.deps.defaultLayout)
+    )
     this.deps.resetWorkspaceHistory()
     this.explicitStatus = 'ready'
   }
@@ -746,6 +831,7 @@ export class IngestService {
    */
   applyFailure(failureMetadata: FileMetadataFailureType): void {
     this.progressPercent = 0
+    this.loadedLayout = null
     this.deps.grid.reset([])
     this.metadata = failureMetadata
     this.input = {
@@ -754,8 +840,111 @@ export class IngestService {
       parseDate: failureMetadata.parseDate,
     }
     this.deps.engine.loadDataset(createEmptyDataset())
+    this.deps.engine.setStimulusMediaBlobs(undefined)
     this.deps.resetWorkspaceHistory()
     this.explicitStatus = 'error'
+  }
+
+  /**
+   * Attach uploaded reference media (images/videos) to stimuli: first by file
+   * name (see matchMediaFilesToStimuli), then a mapping modal for whatever
+   * didn't match — the same interactive fallback as the legacy event-file
+   * import. Undecodable files warn; they never fail the upload.
+   *
+   * `undoable`: a media-only upload edits the workspace the user already has,
+   * so it goes through the command bus as ONE undo step (and replacing a
+   * stimulus's media is recoverable). Media riding along with a data load is
+   * part of that load, whose history starts fresh, so it is set directly.
+   */
+  private async attachMediaFiles(
+    mediaFiles: File[],
+    { undoable = false }: { undoable?: boolean } = {}
+  ): Promise<void> {
+    const meta = this.deps.engine.metadata
+    if (!meta || mediaFiles.length === 0) return
+
+    const { matches, unmatched } = matchMediaFilesToStimuli(
+      mediaFiles,
+      getStimuli(this.deps.engine)
+    )
+
+    // Unmatched files go to the assignment modal (skip stays available;
+    // cancelling the modal skips them all).
+    if (unmatched.length > 0) {
+      const assignments = await this.deps.modalState.open(
+        mediaAssignmentModal,
+        {
+          fileNames: unmatched.map(f => f.name),
+          stimuliOptions: getStimuliOptions(this.deps.engine),
+          nameMatched: Object.fromEntries(
+            [...matches].map(([id, file]) => [String(id), file.name])
+          ),
+        }
+      )
+      if (assignments) {
+        for (let i = 0; i < unmatched.length; i++) {
+          const a = assignments[i]
+          if (a && !a.skip) matches.set(a.stimulusId, unmatched[i])
+        }
+      } else {
+        this.deps.toastState.addInfo(
+          'Media assignment was cancelled. The unassigned files were skipped.'
+        )
+      }
+    }
+
+    const failed: string[] = []
+    const updates: StimulusMediaUpdate[] = []
+    for (const [stimulusId, file] of matches) {
+      try {
+        const media = await buildStimulusMediaFromFile(file)
+        updates.push({ stimulusId, media, blob: file })
+      } catch {
+        failed.push(file.name)
+      }
+    }
+
+    if (updates.length > 0) {
+      // Read before applying: afterwards every target has media.
+      const replaced = updates
+        .filter(u => meta.stimuliMedia?.[u.stimulusId] !== undefined)
+        .map(u => getStimulus(this.deps.engine, u.stimulusId).displayedName)
+      if (undoable) {
+        if (
+          !this.deps.applyCommand({
+            type: 'updateStimulusMedia',
+            updates,
+            source: 'ingest.mediaUpload',
+          })
+        ) {
+          return
+        }
+      } else {
+        for (const u of updates) {
+          this.deps.engine.setStimulusMedia(u.stimulusId, u.media, u.blob)
+        }
+        // Outside the command bus, so plots need the epoch bump (same reason
+        // as the event import above).
+        this.deps.grid.triggerRedraw()
+      }
+      const n = updates.length
+      const attachedMsg = `Attached ${n} image or video file${n > 1 ? 's' : ''} to stimuli.`
+      if (replaced.length > 0) {
+        const names = replaced.slice(0, 3).join(', ') + (replaced.length > 3 ? '…' : '')
+        this.deps.toastState.addSuccess(
+          `${attachedMsg} Replaced the previous media on ${names}.${undoable ? ' Undo restores it.' : ''}`
+        )
+      } else {
+        this.deps.toastState.addSuccess(attachedMsg)
+      }
+    }
+    if (failed.length > 0) {
+      this.deps.toastState.addWarning(
+        `${failed.length} media file${failed.length > 1 ? 's' : ''} could not be decoded (${failed
+          .slice(0, 3)
+          .join(', ')}${failed.length > 3 ? '…' : ''}).`
+      )
+    }
   }
 
   /**
@@ -833,7 +1022,6 @@ export class IngestService {
     this.applyParsedData({
       version: 4,
       data: built.data,
-      gridItems: EVENT_ONLY_GRID_STATE_DATA,
       fileMetadata: null,
       current: {
         fileNames: csvFiles.map(f => f.name),

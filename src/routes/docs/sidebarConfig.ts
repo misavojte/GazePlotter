@@ -25,7 +25,7 @@ export const SIDEBAR: readonly SidebarItem[] = [
     name: 'Getting Started',
     href: '/docs',
     seoTitle: 'Free Eye-Tracking Visualization Tool',
-    description: 'Step-by-step introduction to GazePlotter. Learn to upload data files, manage participant groups, and configure eye-movement plots.'
+    description: 'Start with GazePlotter: load eye-tracking data, build plots and metrics, and export. Plus how to cite it (APA and BibTeX), privacy, and how to report bugs.'
   },
   {
     name: 'Changelog',
@@ -98,7 +98,7 @@ export const SIDEBAR: readonly SidebarItem[] = [
         name: 'Workspace Canvas',
         breadcrumbName: 'Workspace',
         href: '/docs/workspace',
-        description: 'Interface layout guide. Learn to manage the visualization canvas, top ribbon, left rail, right settings pane, and configure customization libraries.'
+        description: 'Interface layout guide. Learn to manage the header, left rail, visualization canvas, right settings pane, and configure customization libraries.'
       },
       {
         name: 'AOI Library',
@@ -123,7 +123,7 @@ export const SIDEBAR: readonly SidebarItem[] = [
       {
         name: 'Stimuli Library',
         href: '/docs/workspace/stimuli-library',
-        description: 'Manage stimulus display records. Rename stimulus labels individually or in bulk using regex patterns, and reorder or sort the active stimulus sequence.'
+        description: 'Manage stimulus display records. Rename stimulus labels individually or in bulk using regex patterns, reorder or sort the active stimulus sequence, and attach reference images or videos.'
       },
     ],
   },
@@ -236,7 +236,7 @@ export const SIDEBAR: readonly SidebarItem[] = [
         name: 'Scanpath',
         href: '/docs/visualizations/scanpath',
         seoTitle: 'Scanpath Plot: Fixations & Saccades',
-        description: 'Plot 2D spatial scanpaths on coordinate axes. Visualizes fixation coordinates, chronological sequence, durations (via circle radius), and saccade paths.'
+        description: 'Plot 2D spatial scanpaths on coordinate axes. Visualizes fixation coordinates, chronological sequence, durations (via circle radius), and saccade paths, with animated playback over reference imagery or video.'
       },
       {
         name: 'Scanpath Similarity',

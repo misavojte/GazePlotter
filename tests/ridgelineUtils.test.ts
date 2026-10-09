@@ -251,7 +251,9 @@ describe('AOI Timeline sync registries (push-based, replaces grid scanning)', ()
     expect(timelineSync.getSyncedMax(6)).toBe(100)
     timelineSync.clearEntry(1)
     timelineSync.clearEntry(3)
-  })
+    // First dynamic import of the aoi-stream module graph — transform time
+    // alone can exceed the default 5s budget on a cold cache.
+  }, 20000)
 
   it('ridgeline: syncs mTop only across (h, scale, seriesCount) matches', async () => {
     const { AoiStreamRidgelineSync } = await import(

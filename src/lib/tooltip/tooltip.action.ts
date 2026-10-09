@@ -11,6 +11,7 @@ import {
   adjustForViewport,
 } from '$lib/shared/placement'
 import type { Position, Alignment, Dimensions } from '$lib/shared/placement'
+import type { GazePlotterSession } from '$lib/session/session'
 
 export interface TooltipActionOptions {
   content: string | { key: string; value: string }[]
@@ -48,11 +49,23 @@ const estimateTooltipHeight = (
 /** Session-bound action; resolve at init, use as `use:tooltipAction`. */
 export function useTooltipAction(): Action<HTMLElement, TooltipActionOptions> {
   const tooltip = useTooltip()
-  return (node, options) => tooltipAction(tooltip, node, options)
+  return (node, options) => tooltipAction(() => tooltip, node, options)
+}
+
+/** The same tooltip for host chrome outside the GazePlotter tree, resolved
+ *  through the session on each hover (it may not exist yet at mount). */
+export function hostTooltipAction(
+  getSession: () => GazePlotterSession | undefined
+): Action<HTMLElement, TooltipActionOptions> {
+  const resolve = () => {
+    const session = getSession()
+    return session ? useTooltip(session) : undefined
+  }
+  return (node, options) => tooltipAction(resolve, node, options)
 }
 
 const tooltipAction = (
-  tooltip: TooltipState,
+  tooltip: () => TooltipState | undefined,
   node: HTMLElement,
   options: TooltipActionOptions
 ) => {
@@ -93,7 +106,7 @@ const tooltipAction = (
       width: window.innerWidth,
       height: window.innerHeight,
     })
-    tooltip.update({
+    tooltip()?.update({
       content: state.content,
       x: left,
       y: top,
@@ -103,12 +116,12 @@ const tooltipAction = (
 
   const hide = () => {
     isHovering = false
-    tooltip.update(null)
+    tooltip()?.update(null)
   }
 
   const hideImmediate = () => {
     isHovering = false
-    tooltip.update(null, 0)
+    tooltip()?.update(null, 0)
   }
 
   const refresh = () => {

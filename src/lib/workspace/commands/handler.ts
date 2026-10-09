@@ -60,6 +60,10 @@ export function createCommandHandler(
       return command.source.endsWith('.modal')
     }
 
+    // The upload pipeline toasts its own, more specific outcome (how many
+    // files attached, which stimuli had media replaced).
+    if (command.source.startsWith('ingest.')) return false
+
     return true
   }
 

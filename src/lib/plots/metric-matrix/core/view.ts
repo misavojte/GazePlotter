@@ -66,6 +66,10 @@ export function deriveMetricMatrixView(
       // NA buckets (state !== null) store NaN — never the scale minimum: a
       // missing recording must not read as a low value.
       nonFiniteColor: INACTIVE_COLOR,
+      belowMinColor: settings.belowMinColor,
+      aboveMaxColor: settings.aboveMaxColor,
+      showBelowMinLabels: settings.showBelowMinLabels,
+      showAboveMaxLabels: settings.showAboveMaxLabels,
       legendTitle: placeholder ? null : getMetricMatrixLegendTitle(instance),
       // The grid width varies with the stimulus count; pin the gradient legend
       // to one fixed length centered under the figure (no dynamic shortening).

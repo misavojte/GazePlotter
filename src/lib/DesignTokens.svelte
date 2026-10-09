@@ -11,7 +11,6 @@
       | 'grey'
       | 'midgrey'
       | 'darkgrey'
-      | 'text'
       | 'black'
       | 'error'
       | 'success'
@@ -56,21 +55,54 @@
   :global(:root) {
     --c-brand: #cd1404;
     --c-brand-dark: #a20d03;
+    /* Neutrals, one job each: surface, subtle surface, fill (hover,
+       secondary buttons), pressed fill, strong line (field borders, icons,
+       disabled), muted text, ink. Hairlines use --c-border below. */
     --c-white: #ffffff;
     --c-darkwhite: #f8fafc;
     --c-lightgrey: #f1f5f9;
     --c-grey: #e2e8f0;
     --c-midgrey: #cbd5e1;
     --c-darkgrey: #64748b; /* Slate 500 */
-    --c-text: #1e293b; /* Slate 800 */
-    --c-black: #0f172a; /* Slate 900 */
+    --c-black: #1e293b; /* Slate 800: the one ink for all text */
     /* Border: translucent ink for a delicate, premium feel */
     --c-border: color-mix(in srgb, var(--c-black) 10%, transparent);
 
-    --c-error: #ff4d4f;
-    --c-success: #22c55e;
-    --c-warning: #faad14;
-    --c-info: #1890ff;
+    /* Status hues dark enough to be text on white (WCAG AA), from the same
+       Tailwind family as the slate greys. Tints derive via color-mix. */
+    --c-error: #dc2626;
+    --c-success: #15803d;
+    --c-warning: #b45309;
+    --c-info: #2563eb;
+
+    /* System UI font; Segoe UI Variable is Windows 11's sharper small-size
+       cut. KEEP IN SYNC with SYSTEM_SANS_SERIF_STACK (canvas text). */
+    --font-sans: -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Text',
+      'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+
+    /* Windows 11 optical cuts: Small is drawn for 12px and under, Display
+       for large or brand text. Elsewhere both resolve to the system font. */
+    --font-small: -apple-system, BlinkMacSystemFont, 'Segoe UI Variable Small',
+      'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    --font-display: -apple-system, BlinkMacSystemFont,
+      'Segoe UI Variable Display', 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
+      sans-serif;
+
+    /* Type scale: every UI size is one of these steps, in px so a host
+       page's root font size never rescales the app. */
+    --text-3xs: 8px; /* plot header captions, version badge */
+    --text-2xs: 10px; /* badges, micro counts */
+    --text-xs: 11px; /* captions, uppercase section labels */
+    --text-sm: 12px; /* secondary text, hints */
+    --text-md: 13px; /* default UI text, controls */
+    --text-lg: 14px; /* modal body, prominent text */
+    --text-xl: 15px; /* plot, pane and section titles */
+
+    /* Line heights: tight for one-line labels and titles, normal for text
+       that wraps, relaxed for help paragraphs. */
+    --leading-tight: 1.2;
+    --leading-normal: 1.4;
+    --leading-relaxed: 1.5;
 
     --rounded: 4px;
     --rounded-md: 8px;
@@ -83,12 +115,12 @@
     --transition-slow: 300ms;
 
     /* Spacing Tokens */
-    --spacing-xxs: 0.25rem; /* 4px */
-    --spacing-xs: 0.5rem; /* 8px */
-    --spacing-sm: 0.75rem; /* 12px */
-    --spacing-md: 1rem; /* 16px */
-    --spacing-lg: 1.5rem; /* 24px */
-    --spacing-xl: 2rem; /* 32px */
+    --spacing-xxs: 4px;
+    --spacing-xs: 8px;
+    --spacing-sm: 12px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
 
     /* Elevation Tokens (ink-based shadows) */
     --shadow-sm: 0 1px 2px 0 color-mix(in srgb, var(--c-black) 5%, transparent);

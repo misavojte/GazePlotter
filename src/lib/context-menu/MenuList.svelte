@@ -147,7 +147,7 @@
 
   li.divider {
     height: 1px;
-    background: var(--c-grey);
+    background: var(--c-border);
     margin: 4px 0;
   }
 
@@ -155,8 +155,8 @@
     background: none;
     border: none;
     padding: 6px 12px;
-    font-size: 13px;
-    color: var(--c-text);
+    font-size: var(--text-md);
+    color: var(--c-black);
     cursor: pointer;
     text-align: left;
     display: flex;
@@ -245,16 +245,17 @@
   }
 
   .item-label {
-    line-height: 1.3;
+    line-height: var(--leading-tight);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
   .item-detail {
-    font-size: 10px;
+    font-size: var(--text-2xs);
+    font-family: var(--font-small);
     color: var(--c-darkgrey);
-    line-height: 1.2;
+    line-height: var(--leading-tight);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;

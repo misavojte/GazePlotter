@@ -1,3 +1,5 @@
+import type { OutOfBoundsSettings } from '$lib/plots/shared/outOfBounds'
+
 /**
  * Metric Matrix settings. Rows = participants (one group), columns = every
  * stimulus, cell = one scalar `MetricInstance` value for that
@@ -5,7 +7,7 @@
  * all stimuli, so the group-only subtitle and the absence of a 'stimulus'
  * pane section follow from this shape.
  */
-export type MetricMatrixPlotSettings = {
+export type MetricMatrixPlotSettings = OutOfBoundsSettings & {
   groupId: number
   /** Per-plot stimulus SELECTION id; unset/0 = all stimuli. */
   stimulusSelectionId?: number

@@ -3,6 +3,18 @@ export type ScanpathPlotSettings = {
   participantId: number
   showFixationOrder: boolean
   showNumbers: boolean
+  /** Fixation marker coloring: a gradient over the recording's time extent
+      (default) or one solid color. */
+  colorMode: 'time' | 'solid'
+  /** Gradient stops for the time-extent coloring (shared colorScale field). */
+  colorScale: string[]
+  /** Trailing playback window in recording ms: while playing, only fixations
+      that began within the last N ms stay on screen. 0 keeps everything since
+      the start (the default). */
+  playbackWindow: number
+  /** Playback clock rate relative to recording time (1 = real time). Drives
+      the rAF clock and the video's playbackRate. */
+  playbackSpeed: number
 }
 
 export interface ScanpathFixation {
@@ -10,6 +22,8 @@ export interface ScanpathFixation {
   rank: number
   x: number
   y: number
+  /** Onset in recording time (ms) — for the hover tooltip. */
+  start: number
   /** Fixation duration in the workspace's native time units (ms). */
   duration: number
 }

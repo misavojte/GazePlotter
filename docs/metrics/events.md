@@ -6,8 +6,6 @@ Event channels are defined per stimulus, unlike eye-movement types. Every event 
 
 Event metrics appear in the Metric Library whenever the library is open, but they only produce values on datasets that carry event data.
 
----
-
 ## Output Shape and Projections Translation
 
 All event metrics output an `event-vector` (an array of values mapping to each event channel of the stimulus).
@@ -24,8 +22,6 @@ You can reduce the vector into a single numerical value:
 
 > **Visualizer Compatibility**: Projecting to a scalar allows you to select the metric in the [Metric Correlation](/docs/visualizations/metric-correlation/) and [Metric Matrix](/docs/visualizations/metric-matrix/) plots (non-windowed) or the [Metric Timeline](/docs/visualizations/metric-timeline/) plot (windowed, timeseries). Note that `eventLatency` forbids windowing and is incompatible with the Metric Timeline.
 
----
-
 ## Shared Semantics
 
 Three properties of event data shape every recipe below:
@@ -33,8 +29,6 @@ Three properties of event data shape every recipe below:
 - **Instant markers** (duration 0) are real occurrences. They count in Event Count and Time to First Event, contribute a genuine 0 ms sample to Event Duration, and add nothing to Event Time or Event Time Share.
 - **Overlap is honest, not merged.** Occurrences on one channel may overlap (channels merged under one displayed name concatenate their occurrence lists). Each occurrence counts in full, so a channel's total time can exceed the range and its time share can exceed 100. An occurrence can also outlast the gaze recording, with the same effect on an unbounded share.
 - **Absence semantics.** A participant with no occurrences on a channel reads 0 for counts and times and no value (NaN) for durations and latency. A stimulus without event channels has an empty axis, and a `pick-event` reading there reports no value.
-
----
 
 ## Metric Recipes
 

@@ -80,17 +80,18 @@
 
 <style>
   .content {
-    margin-bottom: 2rem;
+    margin-bottom: 32px;
   }
 
   .description {
-    margin-bottom: 1rem;
-    color: var(--c-text);
-    font-size: 0.9rem;
-    line-height: 1.4;
+    margin-bottom: 16px;
+    color: var(--c-black);
+    font-size: var(--text-lg);
+    line-height: var(--leading-normal);
+    text-wrap: pretty;
   }
 
   .custom-input {
-    margin-top: 0.75rem;
+    margin-top: 12px;
   }
 </style>

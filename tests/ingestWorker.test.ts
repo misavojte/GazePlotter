@@ -35,7 +35,7 @@ describe('ingest worker ZIP handling', () => {
     const buffer = await zip.generateAsync({ type: 'arraybuffer' })
 
     await send('file-names', ['broken.zip'])
-    await send('zip-buffer', { buffer, zipName: 'broken.zip' })
+    await send('zip-file', { file: new Blob([buffer]), zipName: 'broken.zip' })
 
     expect(failMessage()).toBe('Missing sections.csv in ZIP')
     expect(posted.some(p => p.message.type === 'done')).toBe(false)
@@ -55,7 +55,7 @@ describe('ingest worker ZIP handling', () => {
     const buffer = await zip.generateAsync({ type: 'arraybuffer' })
 
     await send('file-names', ['empty.zip'])
-    await send('zip-buffer', { buffer, zipName: 'empty.zip' })
+    await send('zip-file', { file: new Blob([buffer]), zipName: 'empty.zip' })
 
     expect(failMessage()).toBe(
       'Parsing unsuccessful: No stimuli found. Please check your data file.'

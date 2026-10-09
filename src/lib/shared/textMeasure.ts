@@ -34,10 +34,16 @@ const widthCache = new Map<string, number>()
 /**
  * The CSS font stack used by browsers to render the default system sans-serif font.
  * This ensures the canvas measurement uses the *same font* as the DOM
- * (e.g., San Francisco on Mac, Segoe UI on Windows).
+ * (e.g., San Francisco on Mac, Segoe UI Variable on Windows 11). KEEP IN SYNC
+ * with `--font-sans` in DesignTokens.svelte.
  */
 export const SYSTEM_SANS_SERIF_STACK =
-  '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+  '-apple-system, BlinkMacSystemFont, "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+
+/** The same stack with Windows 11's cut drawn for 12px and under, for plot
+ *  text; KEEP IN SYNC with `--font-small`. */
+export const SYSTEM_SANS_SERIF_SMALL_STACK =
+  '-apple-system, BlinkMacSystemFont, "Segoe UI Variable Small", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
 
 /**
  * Estimates the width of a text string in pixels based on its content and font size,

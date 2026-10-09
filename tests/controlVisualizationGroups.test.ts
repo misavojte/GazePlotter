@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { createRailItems, type RailVisualization } from '$lib/workspace/rail/config'
+import { createToolControls, type ControlVisualization } from '$lib/workspace/controls/config'
 import { PLOT_GROUPS } from '$lib/plots/groups'
 import { plotRegistry } from '$lib/plots/registry'
 import type { PlotType } from '$lib/workspace/grid/types'
 
-const allVisualizations = (): RailVisualization[] =>
+const allVisualizations = (): ControlVisualization[] =>
   (Object.keys(plotRegistry) as PlotType[]).map(id => ({
     id,
     label: plotRegistry[id].name,
@@ -20,14 +20,13 @@ const baseOptions = {
   isValidData: true,
   onUndo: () => {},
   onRedo: () => {},
-  onResetLayout: () => {},
 }
 
 function addVisualizationActions(
-  visualizations: RailVisualization[],
+  visualizations: ControlVisualization[],
   onAddVisualization: (id: string) => void = () => {}
 ) {
-  const items = createRailItems({
+  const items = createToolControls({
     ...baseOptions,
     visualizations,
     onAddVisualization,

@@ -10,7 +10,10 @@ export function createFileList(files: unknown[]): FileList {
   }) as unknown as FileList
 }
 
-/** Stubs Worker + navigator; logs every postMessage and registers instances. */
+/** Stubs Worker + navigator + self; logs every postMessage and registers
+    instances. `self` is needed because modules compile for the CLIENT (see
+    tests/env/nodeClient.js): Vite rewrites `new Worker(new URL(..., import.meta.url))`
+    to resolve the script against `self.location`, which node lacks. */
 export function stubWorkerGlobals(
   onPostMessage?: (message: PostedMessage) => void
 ) {
@@ -34,6 +37,10 @@ export function stubWorkerGlobals(
 
   vi.stubGlobal('Worker', FakeWorker as unknown as typeof Worker)
   vi.stubGlobal('navigator', { userAgent: 'vitest' })
+  vi.stubGlobal(
+    'self',
+    Object.assign(Object.create(globalThis), { location: 'http://localhost/' })
+  )
 
   return { posted, workerInstances }
 }
@@ -63,7 +70,11 @@ export function createIngestDeps() {
   )
 
   const deps = {
-    engine: { loadDataset: vi.fn(), metadata: null },
+    engine: {
+      loadDataset: vi.fn(),
+      setStimulusMediaBlobs: vi.fn(() => []),
+      metadata: null,
+    },
     errorService: { clearAll: vi.fn(), clearFatalLoad: vi.fn(), report },
     grid: { reset: vi.fn(), clearSelection: vi.fn() },
     modalState: { open: vi.fn(), close: vi.fn() },
@@ -73,6 +84,7 @@ export function createIngestDeps() {
       addWarning: vi.fn(),
     },
     resetWorkspaceHistory: vi.fn(),
+    applyCommand: vi.fn(() => true),
     defaultLayout: [{ type: 'scarf', x: 0, y: 0 }],
     openFiles: vi.fn(async () => []),
   }

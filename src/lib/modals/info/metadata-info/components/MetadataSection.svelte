@@ -18,6 +18,6 @@
   .content {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 8px;
   }
 </style>

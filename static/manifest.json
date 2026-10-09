@@ -1,10 +1,10 @@
 {
-  "name": "GazePlotter Sequence Charts",
+  "name": "GazePlotter",
   "short_name": "GazePlotter",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",
-  "theme_color": "#cd1404",
+  "theme_color": "#ffffff",
   "orientation": "landscape",
   "icons": [
     {

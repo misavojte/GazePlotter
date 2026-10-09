@@ -15,7 +15,17 @@ type PanSurfaceActionParams = {
    * grid items and interactive overlays that own their own pointer gestures.
    */
   shouldStart?: (event: PointerEvent) => boolean
+  /** Presses that pan only once they become a drag (a click stays a click). */
+  deferStart?: (event: PointerEvent) => boolean
 }
+
+// Cooperative gestures: a single finger scrolls the page, so touch never
+// starts a drag-pan here (two-finger pan and pinch are the frame's own).
+const touchAction = 'pan-x pan-y'
+
+// Middle button drags pan from anywhere, plots included, like a design canvas.
+const MIDDLE_BUTTON = 1
+
 
 export function panSurfaceAction(
   node: HTMLElement,
@@ -25,6 +35,9 @@ export function panSurfaceAction(
 
   const setPanCursor = (cursor: string) => {
     document.body.style.cursor = cursor
+    // A deferred pan never prevented the press, so text selection would follow it.
+    document.body.style.userSelect = cursor ? 'none' : ''
+    if (cursor) window.getSelection?.()?.removeAllRanges()
     node.style.cursor = cursor
     if (params.workspaceContainer) {
       params.workspaceContainer.style.cursor = cursor
@@ -38,7 +51,14 @@ export function panSurfaceAction(
   function createSessionOptions() {
     return {
       enabled: params.enabled,
-      shouldStart: params.shouldStart,
+      shouldStart: (event: PointerEvent) =>
+        event.pointerType !== 'touch' &&
+        (event.button === MIDDLE_BUTTON ||
+          (params.shouldStart?.(event) ?? true)),
+      deferStart: (event: PointerEvent) =>
+        event.button !== MIDDLE_BUTTON && (params.deferStart?.(event) ?? false),
+      touchAction,
+      mouseButtons: [0, MIDDLE_BUTTON],
       preventDefaultOnStart: true,
       onStart(point: InteractionPoint) {
         setPanCursor('grabbing')
@@ -61,6 +81,12 @@ export function panSurfaceAction(
     }
   }
 
+  // Blocks the browser's middle-click autoscroll, which would fight the pan.
+  const onMouseDown = (event: MouseEvent) => {
+    if (params.enabled && event.button === MIDDLE_BUTTON) event.preventDefault()
+  }
+  node.addEventListener('mousedown', onMouseDown)
+
   const session = createPointerSession(node, createSessionOptions())
 
   return {
@@ -70,6 +96,7 @@ export function panSurfaceAction(
     },
     destroy() {
       setPanCursor('')
+      node.removeEventListener('mousedown', onMouseDown)
       session.destroy()
     },
   }

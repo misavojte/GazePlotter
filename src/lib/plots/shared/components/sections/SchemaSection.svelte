@@ -335,10 +335,11 @@
   }
 
   .sub-group .legend {
-    font-size: 11px;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
     font-weight: 400;
     color: var(--c-darkgrey);
-    line-height: 1.2;
+    line-height: var(--leading-tight);
     letter-spacing: 0.01em;
   }
 
@@ -351,8 +352,10 @@
 
   .info-description {
     margin: 0;
-    font-size: 11px;
-    line-height: 1.4;
-    color: #4b5563;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
+    line-height: var(--leading-normal);
+    color: var(--c-darkgrey);
+    text-wrap: pretty;
   }
 </style>

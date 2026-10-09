@@ -4,6 +4,7 @@
   import type { ModalDefinition } from '$lib/modals/defineModal'
   import type { DataCapabilityRequirements } from '$lib/data/types'
   import { getGazePlotterSession } from '$lib/session'
+  import { formatFileSize } from '$lib/shared/format'
   import { exportSegmentedDataModal } from '../export-segmented-data/definition'
   import { exportEventDataModal } from '../export-event-data/definition'
   import { exportScangraphModal } from '../export-scangraph/definition'
@@ -12,6 +13,15 @@
 
   const { engine, exportService, grid, modalState } = getGazePlotterSession()
   let fileName = $state('GazePlotter-Export')
+
+  // Reference media turns the export into a zip carrying every file.
+  const mediaBytes = $derived.by(() => {
+    void engine.media.version
+    const ids = Object.keys(engine.metadata?.stimuliMedia ?? {}).map(Number)
+    let bytes = 0
+    for (const id of ids) bytes += engine.media.getBlob(id)?.size ?? 0
+    return { count: ids.length, bytes }
+  })
 
   // Each option follows the data it exports, in the plot definitions'
   // `requireCapabilities` vocabulary: no events → no event export, no gaze
@@ -71,8 +81,14 @@
   <Section title="Export Workspace">
     <div class="content">
       <p class="workspace-description">
-        Preserves all data, layout, and settings in a compact JSON file. Perfect
-        for sharing dashboards.
+        {#if mediaBytes.count > 0}
+          Preserves all data, layout, and settings, plus {mediaBytes.count}
+          reference media {mediaBytes.count === 1 ? 'file' : 'files'}
+          ({formatFileSize(mediaBytes.bytes)}), in one .gazeplotter.zip file.
+        {:else}
+          Preserves all data, layout, and settings in a compact JSON file. Perfect
+          for sharing dashboards.
+        {/if}
       </p>
       <div class="workspace-export">
         <div class="export-inline">
@@ -135,7 +151,7 @@
   .content {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 8px;
     max-width: 500px;
     width: 100%;
   }
@@ -162,11 +178,11 @@
   .export-input {
     flex: 1;
     border: none;
-    padding: 0.6rem 0.75rem;
-    font-size: 0.9rem;
+    padding: 10px 12px;
+    font-size: var(--text-lg);
     background: transparent;
     outline: none;
-    color: var(--c-text);
+    color: var(--c-black);
   }
 
   .export-input::placeholder {
@@ -178,8 +194,8 @@
     border: none;
     background: var(--c-brand);
     color: var(--c-white);
-    padding: 0.6rem 1rem;
-    font-size: 0.9rem;
+    padding: 10px 16px;
+    font-size: var(--text-lg);
     font-weight: 500;
     cursor: pointer;
     transition: background-color var(--transition-normal) ease;
@@ -196,10 +212,11 @@
   }
 
   .workspace-description {
-    margin: 0 0 1rem 0;
-    color: var(--c-text);
-    font-size: 0.9rem;
-    line-height: 1.4;
+    margin: 0 0 16px 0;
+    color: var(--c-black);
+    font-size: var(--text-lg);
+    line-height: var(--leading-normal);
+    text-wrap: pretty;
   }
 
 
@@ -207,13 +224,13 @@
   .export-options {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 8px;
   }
 
   .export-option-card {
     display: flex;
     align-items: center;
-    padding: 0.75rem 1rem;
+    padding: 12px 16px;
     background: var(--c-darkwhite);
     border: 1px solid var(--c-border);
     border-radius: var(--rounded);
@@ -246,17 +263,19 @@
   }
 
   .export-option-title {
-    margin: 0 0 0.25rem 0;
-    font-size: 0.9rem;
+    margin: 0 0 4px 0;
+    font-size: var(--text-lg);
     font-weight: 500;
-    color: var(--c-text);
-    line-height: 1.3;
+    color: var(--c-black);
+    line-height: var(--leading-tight);
+    text-wrap: balance;
   }
 
   .export-option-subtitle {
     margin: 0;
-    font-size: 0.85rem;
+    font-size: var(--text-lg);
     color: var(--c-darkgrey);
-    line-height: 1.4;
+    line-height: var(--leading-normal);
+    text-wrap: pretty;
   }
 </style>

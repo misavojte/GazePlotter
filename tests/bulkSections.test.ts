@@ -54,7 +54,7 @@ describe('commonSectionKeys (cross-type bulk section intersection)', () => {
     const scarf = [
       'stimulus',
       'group',
-      'scarf:visualisation',
+      'scarf:visualization',
       'timelineRange',
       'aoi',
       'eyeMovement',
@@ -64,7 +64,7 @@ describe('commonSectionKeys (cross-type bulk section intersection)', () => {
       'stimulus',
       'group',
       'metric',
-      'aoiComparison:visualisation',
+      'aoiComparison:visualization',
       'timelineRange',
       'aoi',
     ]
@@ -87,7 +87,7 @@ describe('commonSectionKeys (cross-type bulk section intersection)', () => {
       'stimulus',
       'participant',
       'recurrencePlot:method',
-      'recurrencePlot:visualisation',
+      'recurrencePlot:visualization',
       'timelineRange',
       'aoi',
     ]
@@ -105,7 +105,7 @@ describe('commonSectionKeys (cross-type bulk section intersection)', () => {
       'stimulus',
       'group',
       'metric',
-      'aoiComparison:visualisation',
+      'aoiComparison:visualization',
       'timelineRange',
       'aoi',
     ]

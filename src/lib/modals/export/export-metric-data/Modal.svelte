@@ -479,15 +479,15 @@
   .format-row {
     display: flex;
     flex-direction: column;
-    gap: 0.35rem;
-    margin-bottom: 0.75rem;
+    gap: 6px;
+    margin-bottom: 12px;
   }
 
   .checkbox-row {
-    margin: 0.5rem 0;
+    margin: 8px 0;
   }
 
   .pre-export-warning {
-    margin-top: 0.75rem;
+    margin-top: 12px;
   }
 </style>

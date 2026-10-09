@@ -42,7 +42,7 @@
   .spinner {
     width: 24px;
     height: 24px;
-    border: 2px solid var(--c-grey);
+    border: 2px solid var(--c-border);
     border-radius: 50%;
     border-top-color: var(--c-midgrey);
     animation: spin 1.2s ease-in-out infinite;
@@ -50,7 +50,7 @@
 
   .text {
     color: var(--c-darkgrey);
-    font-size: 14px;
+    font-size: var(--text-lg);
     font-weight: 400;
     letter-spacing: 0.02em;
   }

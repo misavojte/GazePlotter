@@ -50,14 +50,24 @@ export function getScanpathView(
       },
     }
   }
+  // The stimulus's reference medium (image/video), drawn as the plot
+  // background; its intrinsic pixel size becomes the coordinate domain.
+  const media = engine.metadata?.stimuliMedia?.[settings.stimulusId] ?? null
   return {
     props: {
       data: result.data,
       showFixationOrder: settings.showFixationOrder,
       showNumbers: settings.showNumbers,
+      colorMode: settings.colorMode ?? 'time',
+      colorScale: settings.colorScale,
+      playbackWindow: settings.playbackWindow ?? 0,
+      playbackSpeed: settings.playbackSpeed ?? 1,
       unavailableMessage: null,
       // Only on the drawable branch: a parked placeholder draws no overlay.
       participantId: settings.participantId,
+      media,
+      mediaStimulusId: settings.stimulusId,
+      mediaStore: engine.media,
     },
   }
 }

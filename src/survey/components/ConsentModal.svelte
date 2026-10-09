@@ -36,9 +36,9 @@
 
 <div class="consent-content">
   <p>
-    GazePlotter is an eye-tracking data visualisation tool that works with data
+    GazePlotter is an eye-tracking data visualization tool that works with data
     from various eye trackers (Tobii, SMI, GazePoint, PupilLabs, etc.) and
-    creates visualisations such as scarf plots (sequences of fixations in time
+    creates visualizations such as scarf plots (sequences of fixations in time
     coloured by <em>Areas of Interest (AOIs)</em> for each participant). You will
     work with pre-loaded eye-tracking data from one of our studies and complete several
     small tasks in the GazePlotter interface, followed by a short questionnaire on
@@ -253,7 +253,7 @@
 
   .session-instruction {
     font-size: 0.75rem;
-    color: var(--c-text);
+    color: var(--c-black);
     display: block;
     margin-top: 0.5rem;
   }

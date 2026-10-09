@@ -64,7 +64,8 @@
 <style>
   aside {
     position: fixed;
-    font-size: 11px;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
     background: var(--c-darkgrey); /* Modern Slate palette */
     color: var(--c-white);
     border-radius: var(--rounded-md);

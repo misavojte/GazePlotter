@@ -175,7 +175,7 @@
       const n = data.participants.length
       if (n === 0 || frame.height / n >= MIN_HEATMAP_ROW_HEIGHT) return null
       return cannotFitPlaceholder('height', [
-        'Switch to Overlay mode in Plot Settings > Visualisation',
+        'Switch to Overlay mode in Plot Settings > Visualization',
       ])
     },
     // Declarative measured gutters: the resolver measures the left/bottom edge

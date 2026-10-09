@@ -1,6 +1,6 @@
 import { definePlot } from '$lib/plots/definePlot'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
-import { distributionVisualisationSection } from '$lib/plots/shared/distribution/paneSection'
+import { distributionVisualizationSection } from '$lib/plots/shared/distribution/paneSection'
 import { EYE_MOVEMENT_COMPARISON_CONTRACT } from './core/transformer'
 import { deriveEyeMovementComparisonView } from './core/view'
 import type { EyeMovementComparisonSettings } from './types'
@@ -30,8 +30,8 @@ export const eyeMovementComparisonDefinition = definePlot<
     'stimulus',
     'group',
     'metric',
-    distributionVisualisationSection({
-      key: 'eyeMovementComparison:visualisation',
+    distributionVisualizationSection({
+      key: 'eyeMovementComparison:visualization',
       categoryOrder: { label: 'Type order', value: 'type' },
     }),
     'timelineRange',

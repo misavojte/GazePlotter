@@ -177,8 +177,8 @@ export function calculateTickStep(count: number): number {
 }
 
 /**
- * Distance (px) from the plot's left edge to the rotated participant-index
- * title's baseline. It clears the index tick labels drawn at
+ * Distance (px) from the plot's left edge to the centre of the rotated
+ * two-line participant-index title. It clears the index tick labels drawn at
  * {@link INDEX_AXIS_TICK_GAP} plus their own width.
  */
 const INDEX_AXIS_TITLE_OFFSET = 40
@@ -186,15 +186,16 @@ const INDEX_AXIS_TITLE_OFFSET = 40
 const INDEX_AXIS_TICK_GAP = 8
 
 /**
- * Left gutter (px) that {@link drawParticipantIndexAxis} needs — the rotated
- * title's baseline plus the half-block its two lines straddle. Derived from what
+ * Left gutter (px) that {@link drawParticipantIndexAxis} needs: the title's
+ * centre plus its outer line, which sits half a line out and is itself half a
+ * line tall (a half-line gutter cropped "Participants"). Derived from what
  * the draw actually uses, so a figure reserving room for that axis never has to
  * guess a width (scarf's compact label column, evolving-metrics' compact
  * heatmap).
  */
 export const participantIndexAxisWidth = (
   fontSize: number = FONT_PRIMARY.SIZE
-): number => INDEX_AXIS_TITLE_OFFSET + Math.ceil(axisTitleLineHeight(fontSize) / 2)
+): number => INDEX_AXIS_TITLE_OFFSET + axisTitleLineHeight(fontSize)
 
 /**
  * Rotated participant-index Y axis for compact participant-row plots (scarf,

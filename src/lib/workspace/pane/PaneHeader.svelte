@@ -20,24 +20,27 @@
 </div>
 
 <style>
+  /* Same type and hairline as the site header and the control cards, so
+     the pane reads as part of one app. */
   .pane-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 8px;
-    padding: 10px 16px 8px;
+    min-height: 48px;
+    padding: 0 8px 0 16px;
     background: transparent;
+    border-bottom: 1px solid var(--c-border);
   }
 
   .title {
     flex: 1;
     min-width: 0;
-    color: var(--c-darkgrey);
-    font-size: 10px;
+    color: var(--c-black);
+    font-size: var(--text-xl);
+    letter-spacing: -0.01em;
     font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    line-height: 1;
+    line-height: var(--leading-tight);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -48,17 +51,21 @@
     border: none;
     cursor: pointer;
     color: var(--c-darkgrey);
-    padding: 2px;
-    border-radius: var(--rounded);
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    border-radius: var(--rounded-md);
     display: flex;
     align-items: center;
     justify-content: center;
     line-height: 0;
     flex-shrink: 0;
+    transition: background-color var(--transition-fast) ease;
 
-    &:hover {
+    &:hover,
+    &:focus-visible {
       background: var(--c-lightgrey);
-      color: var(--c-text);
+      color: var(--c-black);
     }
   }
 </style>

@@ -4,8 +4,6 @@ The **Metrics Library** is GazePlotter's central engine for configuring, calcula
 
 This architecture allows you to instantiate, parameterize, and project quantitative eye-tracking metrics globally, making the same underlying data available to any compatible visualization or data export pipeline.
 
----
-
 ## Core Architecture
 
 Every metric instance in GazePlotter is constructed from three distinct configuration layers:
@@ -13,8 +11,6 @@ Every metric instance in GazePlotter is constructed from three distinct configur
 1. **Base Recipe**: The core mathematical calculation performed on raw fixation data (e.g., summing fixation durations, counting transitions, or aligning scanpaths).
 2. **Parameters**: Recipe-specific inputs that tune the calculation (e.g., transition mode, Markov step counts, or string alignment thresholds).
 3. **Data Projection**: Rules that reshape the raw outputs of a recipe into structures compatible with specific visualizations, including time-based windowing and binning.
-
----
 
 ## Output Shapes and Projections
 
@@ -55,7 +51,6 @@ Projections act as a transformation tree, using **Leaf Projections** to reshape 
 
 > **Where the summary statistic lives**: For metrics built on a per-event sample (fixation duration, visit duration, eye-movement duration, event duration), the mean/median/max/min choice belongs to the projection that produces a **summary** — `pick-aoi`, `pick-any-fixation`, `pick-category` and `pick-event` each carry it, and it appears as a **Summary** control next to that projection's own settings. A vector projection carries no such choice: one value per AOI (or per eye-movement type) is always the mean of that slot's sample. If you need a median per AOI, project to **One AOI**; if you need the whole distribution, use AOI Comparison, whose beeswarm and overlay show it directly.
 
-
 ## Windowing and Binning Rules
 
 A projection can also wrap a leaf projection in a temporal or ordinal window to compute time-series data. The window is defined by:
@@ -76,8 +71,6 @@ GazePlotter projects fixations onto moving time windows with two independent sig
    - `'own'`: only the window holding the fixation's midpoint. Use it when counting things that cannot be split (`fixationCount`, `visitCount`, `movementCount`), so the per-window numbers still add up to the total when the windows do not overlap. A window that owns nothing reports 0, not missing data. Event Count deliberately uses `'all'` instead: it counts the occurrences ACTIVE in each window, a concurrency reading whose per-window values do not tile to a total.
    Metrics reporting additive totals must state their rule explicitly, and a contradictory choice is rejected when the metric is registered. An average must never use `'own'`: it would report no data for a window a fixation plainly covers.
 
----
-
 ## Aggregating Across Participants
 
 When a plot summarizes a whole group, it must combine each participant's value into a single result. Whether a given combination is meaningful is decided by the metric's **measurement class** — a scientific property of the quantity itself, not a setting you have to reason about:
@@ -88,8 +81,6 @@ When a plot summarizes a whole group, it must combine each participant's value i
 - **Group-level** — a quantity defined by a *pair* of participants (scanpath similarity). There is no per-participant value to combine; the comparison matrix is itself the across-participant result.
 
 The measurement class determines which options a plot exposes. In a plot that reduces the group to one value per cell (AOI Timeline, Transition Matrix), an additive metric lets you pick a per-participant mean or a cohort total, while a normalized metric simply averages. You never have to choose an unsound combination — only the meaningful options are offered.
-
----
 
 ## Customizing the Metric Library
 

@@ -173,13 +173,7 @@
   .select-wrapper {
     position: relative;
     width: 170px;
-    font-family:
-      system-ui,
-      -apple-system,
-      BlinkMacSystemFont,
-      'Segoe UI',
-      Roboto,
-      sans-serif;
+    font-family: var(--font-sans);
     --gp-field-bg: var(--c-white);
     user-select: none;
   }
@@ -210,7 +204,7 @@
     height: 34px;
     padding: 0.25em 0.5em;
     padding-right: 22px;
-    font-size: 13px;
+    font-size: var(--text-md);
     color: var(--c-black);
     cursor: pointer;
     display: flex;
@@ -219,14 +213,14 @@
     position: relative;
     transition: all var(--transition-normal) ease;
     font-weight: 400;
-    line-height: 1.5rem;
+    line-height: 24px;
     letter-spacing: 0.00938em;
     width: 100%;
     box-sizing: border-box;
   }
 
   .trigger:disabled {
-    border-color: var(--c-grey);
+    border-color: var(--c-border);
     background-color: var(--c-lightgrey);
     color: var(--c-darkgrey);
     cursor: not-allowed;
@@ -271,7 +265,8 @@
        content inset so pane rows read as one system and text columns align. */
     height: 26px;
     border-radius: var(--rounded);
-    font-size: 12px;
+    font-size: var(--text-sm);
+    font-family: var(--font-small);
     padding-left: 6px;
     padding-right: 22px;
   }
@@ -307,8 +302,9 @@
 
   .sub-label {
     color: var(--c-darkgrey);
-    font-size: 11px;
-    line-height: 1.2;
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
+    line-height: var(--leading-tight);
     letter-spacing: 0.01em;
     white-space: nowrap;
     overflow: hidden;

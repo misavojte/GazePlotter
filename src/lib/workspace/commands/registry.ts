@@ -10,14 +10,12 @@ import { mergeStimuli as computeStimulusMerge } from '$lib/data/merge/mergeStimu
 import { resolvePlotDefinition } from '$lib/plots/registry'
 import { GridState } from '$lib/workspace/grid'
 import {
-  updateMultipleAoi,
   updateMultipleParticipants,
   updateMultipleStimuli,
   updateCategories,
   getDefaultCategoryColor,
   getDefaultColor,
   getDefaultEventChannelColor,
-  interpretRow,
   interpretBaseRows,
   interpretOrdered,
 } from '$lib/data/engine'
@@ -29,7 +27,6 @@ import type {
 } from '$lib/workspace'
 import type {
   EntitySelection,
-  ExtendedInterpretedDataType,
   NameSelection,
   ParticipantsSelection,
 } from '$lib/data/types'
@@ -195,8 +192,7 @@ export function createWorkspaceCommandRegistry(
 
   const handlers: CommandHandlers = {
     updateAois: command => {
-      const { aois, stimulusId, applyTo } = command
-      updateMultipleAoi(engine, aois, stimulusId, applyTo)
+      engine.updateAoisBatch(command.updates)
       gridStore.triggerRedraw()
     },
 
@@ -283,6 +279,13 @@ export function createWorkspaceCommandRegistry(
 
     noop: () => {},
 
+    updateStimulusMedia: command => {
+      for (const u of command.updates) {
+        engine.setStimulusMedia(u.stimulusId, u.media, u.blob)
+      }
+      gridStore.triggerRedraw()
+    },
+
     updateNoAoiTreatment: command => {
       engine.setNoAoiTreatment(command.noAoiTreatment)
       gridStore.triggerRedraw()
@@ -329,6 +332,29 @@ export function createWorkspaceCommandRegistry(
       }
 
       if (command.isRootCommand && !context.isUndoRedoOperation) {
+        // A plot dropped above or left of the origin: shift the whole layout
+        // back to non-negative cells first, so collision resolution (and
+        // everything stored) only ever sees the grid it expects.
+        let minX = 0
+        let minY = 0
+        for (const item of gridStore.items) {
+          minX = Math.min(minX, item.x)
+          minY = Math.min(minY, item.y)
+        }
+        if (minX < 0 || minY < 0) {
+          context.dispatch(
+            createChildCommand(
+              {
+                type: 'translateLayout',
+                dx: -minX,
+                dy: -minY,
+                source: command.source,
+              },
+              command.chainId
+            )
+          )
+        }
+
         // All moved items are priority (fixed) for collision resolution, so
         // a group move pushes only non-members aside — members keep their
         // relative layout.
@@ -357,6 +383,18 @@ export function createWorkspaceCommandRegistry(
       gridStore.removeItem(command.itemId)
     },
 
+    removeGridItems: (command, context) => {
+      if (context.isUndoRedoOperation) return
+      for (const itemId of command.itemIds) {
+        context.dispatch(
+          createChildCommand(
+            { type: 'removeGridItem', itemId, source: command.source },
+            command.chainId
+          )
+        )
+      }
+    },
+
     duplicateGridItem: (command, context) => {
       const currentItem = requireItem(
         command.itemId,
@@ -369,25 +407,42 @@ export function createWorkspaceCommandRegistry(
       }
     },
 
+    translateLayout: command => {
+      for (const item of gridStore.items) {
+        gridStore.updateLayout(item.id, {
+          x: item.x + command.dx,
+          y: item.y + command.dy,
+        })
+      }
+    },
+
     setLayoutState: command => {
       gridStore.reset(command.layoutState)
     },
   }
 
   const reverseHandlers: ReverseHandlers = {
+    // One entry per stimulus the forward touches: its CURRENT rows in display
+    // order (id-gap null rows skipped, never resurrected as ghost AOIs) plus
+    // the order vector verbatim, so undo restores a custom order and stays
+    // byte-exact even for an empty (identity) vector.
     updateAois: (cmd, meta) => {
       const dataMeta = requireMetadata()
-      const stimulusId = cmd.stimulusId
-      const currentAois = dataMeta.aois.data[stimulusId] || []
-      const affectedAois: ExtendedInterpretedDataType[] = currentAois.map(
-        (aoiRow, aoiIndex) => interpretRow(aoiRow, aoiIndex, getDefaultColor)
-      )
       return withMeta(
         {
           type: 'updateAois',
-          aois: affectedAois,
-          stimulusId,
-          applyTo: cmd.applyTo,
+          updates: cmd.updates.map(({ stimulusId }) => {
+            const order = dataMeta.aois.orderVector?.[stimulusId] ?? []
+            return {
+              stimulusId,
+              aois: interpretOrdered(
+                dataMeta.aois.data[stimulusId] ?? [],
+                order,
+                getDefaultColor
+              ),
+              orderVector: [...order],
+            }
+          }),
         },
         meta
       )
@@ -494,6 +549,26 @@ export function createWorkspaceCommandRegistry(
 
     noop: (_cmd, meta) => withMeta({ type: 'noop' }, meta),
 
+    // Reverse = snapshot of each stimulus's current media + blob (blob-by-
+    // reference — no byte copy), or a remove when none is set.
+    updateStimulusMedia: (cmd, meta) => {
+      const dataMeta = requireMetadata()
+      return withMeta(
+        {
+          type: 'updateStimulusMedia',
+          updates: cmd.updates.map(({ stimulusId }) => {
+            const current = dataMeta.stimuliMedia?.[stimulusId] ?? null
+            return {
+              stimulusId,
+              media: current,
+              blob: current ? engine.media.getBlob(stimulusId) : null,
+            }
+          }),
+        },
+        meta
+      )
+    },
+
     updateMetricInstances: (_cmd, meta) => {
       const dataMeta = requireMetadata()
       const currentInstances = dataMeta.metricInstances ?? []
@@ -564,8 +639,13 @@ export function createWorkspaceCommandRegistry(
       )
     },
 
+    translateLayout: (cmd, meta) =>
+      withMeta({ type: 'translateLayout', dx: -cmd.dx, dy: -cmd.dy }, meta),
+
     addGridItem: (cmd, meta) =>
       withMeta({ type: 'removeGridItem', itemId: cmd.itemId }, meta),
+
+    removeGridItems: (_cmd, meta) => withMeta({ type: 'noop' }, meta),
 
     removeGridItem: (cmd, meta) => {
       const removedItem = requireItem(

@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import GridItem from './GridItem.svelte'
   import Button from '$lib/shared/components/Button.svelte'
   import {
@@ -14,6 +15,7 @@
     commitGridItemDuplication,
     commitGridItemGroupMove,
     commitGridItemRemoval,
+    commitGridItemsRemoval,
     commitGridItemResize,
   } from './itemCommands'
   import {
@@ -29,6 +31,8 @@
 
   const { engine, errorService, workspace, grid, modalState } =
     getGazePlotterSession()
+
+  let gridEl = $state<HTMLDivElement>()
 
   // Mac's main "delete" key emits Backspace, so we handle both.
   // Capture on `document`, like selectionSession's Esc unwinding: the modal and
@@ -47,11 +51,12 @@
       const selectedIds = grid.selectedItemIds
       if (selectedIds.length === 0) return
       if (event.key === 'Delete' || event.key === 'Backspace') {
+        // Only from the page or the grid: a focused pane or rail control owns the key.
+        const target = event.target as Node | null
+        if (target !== document.body && !gridEl?.contains(target)) return
         event.preventDefault()
-        // Snapshot first — removeItem mutates the selection set as it goes.
-        for (const id of [...selectedIds]) {
-          commitGridItemRemoval(workspace, gridItems, { id })
-        }
+        // Snapshot first: removeItem mutates the selection set as it goes.
+        commitGridItemsRemoval(workspace, gridItems, [...selectedIds])
         return
       }
       if (event.key === 'Escape') {
@@ -70,6 +75,8 @@
 
   interface Props {
     gridItems: AllGridTypes[]
+    /** The plots land one after another (after a load), not all at once. */
+    entrance?: boolean
     gridConfig: GridConfig
     gridHeight: number
     gridWidth: number
@@ -79,12 +86,33 @@
 
   const {
     gridItems,
+    entrance = false,
     gridConfig,
     gridHeight,
     gridWidth,
     gridIsEmpty,
     interaction,
   }: Props = $props()
+
+  // Entrance delays in reading order, fixed at mount: the camera pulls back
+  // first, then the plots land within ENTRANCE_SPREAD_MS whatever their count.
+  // Plots added later are not in the map and keep their own fade.
+  const ENTRANCE_START_MS = 350
+  const ENTRANCE_STEP_MS = 40
+  const ENTRANCE_SPREAD_MS = 400
+  const entranceDelays = untrack(() => {
+    const delays = new Map<number, number>()
+    if (!entrance) return delays
+    const order = [...gridItems].sort((a, b) => a.y - b.y || a.x - b.x)
+    const step =
+      order.length > 1
+        ? Math.min(ENTRANCE_STEP_MS, ENTRANCE_SPREAD_MS / (order.length - 1))
+        : 0
+    order.forEach((item, rank) =>
+      delays.set(item.id, ENTRANCE_START_MS + rank * step)
+    )
+    return delays
+  })
 
   const selectionPath = $derived(
     generateSelectionPath(grid.selectedItems, gridConfig, 6, 26)
@@ -143,6 +171,7 @@
 </script>
 
 <div
+  bind:this={gridEl}
   class="grid-container"
   class:is-interacting={interaction.isInteracting}
   class:is-panning={interaction.isPanning}
@@ -170,6 +199,7 @@
           minH={item.min?.h || gridConfig.minHeight}
           cellSize={gridConfig.cellSize}
           gap={gridConfig.gap}
+          enterDelay={entranceDelays.get(item.id)}
           {interaction}
           title={plotLabel}
           subtitle={plotSubtitle}
@@ -211,7 +241,7 @@
     {/each}
   {/if}
 
-  {#if grid.selectedItemIds.length > 1 && !interaction.isInteracting && selectionPath}
+  {#if grid.selectedItemIds.length > 1 && !interaction.isTransforming && selectionPath}
     <svg class="group-selection-svg" aria-hidden="true">
       <path d={selectionPath} class="group-selection-path" />
     </svg>
@@ -267,20 +297,20 @@
     flex-direction: column;
     justify-content: center;
     align-items: flex-start;
-    gap: 0.5rem;
+    gap: 8px;
     padding: 0;
   }
 
   .plot-error-copy,
   .plot-error-detail {
     margin: 0;
-    color: var(--c-text);
-    line-height: 1.45;
-    font-size: 0.9rem;
+    color: var(--c-black);
+    line-height: var(--leading-normal);
+    font-size: var(--text-lg);
   }
 
   .plot-error-detail {
-    color: var(--c-midgrey);
+    color: var(--c-darkgrey);
     overflow-wrap: anywhere;
   }
 </style>

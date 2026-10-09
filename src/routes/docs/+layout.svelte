@@ -145,8 +145,9 @@
     <div class="sidebar-bg"></div>
 
     <!-- Content Layer with Offset -->
-    <!-- This sticks at top: -64px. It has a 64px spacer. 
-         As the page scrolls 64px, this layer moves up 64px and then sticks.
+    <!-- This sticks at top: minus one header height, with a spacer of that
+         height. As the page scrolls past the header, this layer moves up with
+         it and then sticks.
          This makes the content fill the header gap seamlessly. -->
     <div class="sidebar-content-wrapper">
       <div class="sidebar-spacer"></div>
@@ -238,7 +239,7 @@
     display: flex;
     flex: 1;
     background-color: var(--c-darkwhite);
-    min-height: calc(100vh - 64px);
+    min-height: calc(100vh - var(--site-header-height));
     z-index: 10;
   }
 
@@ -247,12 +248,12 @@
     width: 280px;
     position: sticky;
     top: 0;
-    min-height: calc(100vh + 64px);
+    min-height: calc(100vh + var(--site-header-height));
     display: flex;
     flex-direction: column;
     z-index: 20;
     flex-shrink: 0;
-    margin-top: -64px; /* Pull into header space */
+    margin-top: calc(-1 * var(--site-header-height)); /* Pull into header space */
   }
 
   /* Background */
@@ -260,22 +261,22 @@
     position: absolute;
     inset: 0;
     background-color: var(--c-white);
-    border-right: 1px solid var(--c-grey);
+    border-right: 1px solid var(--c-border);
     z-index: -1;
   }
 
   /* Content Layer */
   .sidebar-content-wrapper {
     position: sticky;
-    top: -64px; /* Sticks after moving up 64px */
-    height: calc(100vh + 64px);
+    top: calc(-1 * var(--site-header-height)); /* Sticks after moving up one header height */
+    height: calc(100vh + var(--site-header-height));
     display: flex;
     flex-direction: column;
     z-index: 5;
   }
 
   .sidebar-spacer {
-    height: 64px;
+    height: var(--site-header-height);
     flex-shrink: 0;
   }
 
@@ -363,8 +364,8 @@
   }
 
   .nav-link:hover {
-    color: var(--c-brand);
-    background-color: color-mix(in srgb, var(--c-brand) 8%, var(--c-white));
+    color: var(--c-black);
+    background-color: var(--c-lightgrey);
   }
 
   .nav-link.active {
@@ -401,7 +402,7 @@
   }
 
   .breadcrumbs a:hover {
-    color: var(--c-text);
+    color: var(--c-black);
   }
 
   .breadcrumb-sep {
@@ -426,7 +427,9 @@
     max-width: 800px;
     margin: 0 auto;
     line-height: 1.6;
-    color: var(--c-text);
+    color: var(--c-black);
+    /* Segoe UI Variable has no italic face: let *emphasis* slant here. */
+    font-synthesis-style: auto;
   }
 
   /* Typography & Elements */
@@ -441,17 +444,17 @@
   :global(.prose-wrapper h2) {
     font-size: 1.5rem;
     font-weight: 700;
-    color: var(--c-text);
+    color: var(--c-black);
     margin-top: 2.5rem;
     margin-bottom: 1rem;
-    border-bottom: 1px solid var(--c-lightgrey);
+    border-bottom: 1px solid var(--c-border);
     padding-bottom: 0.5rem;
   }
 
   :global(.prose-wrapper h3) {
     font-size: 1.25rem;
     font-weight: 600;
-    color: var(--c-text);
+    color: var(--c-black);
     margin-top: 2rem;
     margin-bottom: 0.75rem;
   }
@@ -477,7 +480,7 @@
 
   :global(.prose-wrapper ul li::before) {
     content: '•';
-    color: var(--c-brand);
+    color: var(--c-midgrey);
     position: absolute;
     left: 0;
     font-weight: bold;
@@ -486,13 +489,13 @@
   :global(.prose-wrapper img) {
     max-width: 100%;
     height: auto;
+    border: 1px solid var(--c-border);
     border-radius: 12px;
     margin: 2rem 0;
-    box-shadow: var(--shadow-lg);
   }
 
   :global(.prose-wrapper a) {
-    color: var(--c-brand);
+    color: var(--c-brand-dark);
     font-weight: 500;
     text-decoration: underline;
     text-underline-offset: 4px;
@@ -512,13 +515,12 @@
   }
 
   :global(.prose-wrapper blockquote) {
-    border-left: 4px solid var(--c-brand);
-    background-color: color-mix(in srgb, var(--c-brand) 4%, var(--c-white));
+    border: 1px solid var(--c-border);
+    background-color: var(--c-darkwhite);
     margin: 2rem 0;
     padding: 1.5rem;
-    border-radius: 0 8px 8px 0;
-    font-style: italic;
-    color: var(--c-text);
+    border-radius: 12px;
+    color: var(--c-black);
   }
 
   :global(.prose-wrapper table) {
@@ -532,14 +534,14 @@
     text-align: left;
     background: var(--c-darkwhite);
     padding: 0.75rem 1rem;
-    border-bottom: 2px solid var(--c-grey);
+    border-bottom: 1px solid var(--c-border);
     color: var(--c-darkgrey);
     font-weight: 600;
   }
 
   :global(.prose-wrapper td) {
     padding: 0.75rem 1rem;
-    border-bottom: 1px solid var(--c-lightgrey);
+    border-bottom: 1px solid var(--c-border);
   }
 
   :global(.prose-wrapper tr:last-child td) {
@@ -582,7 +584,7 @@
       gap: 0.75rem;
       padding: 0.75rem 1.25rem;
       background: var(--c-white);
-      border-bottom: 1px solid var(--c-grey);
+      border-bottom: 1px solid var(--c-border);
       position: relative;
       z-index: 50;
     }
@@ -593,10 +595,10 @@
       justify-content: center;
       width: 36px;
       height: 36px;
-      border: 1px solid var(--c-grey);
+      border: 1px solid var(--c-border);
       border-radius: 8px;
       background: var(--c-darkwhite);
-      color: var(--c-text);
+      color: var(--c-black);
       cursor: pointer;
     }
 

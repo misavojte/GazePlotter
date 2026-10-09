@@ -14,7 +14,7 @@
 
 {#if errors.length > 0}
   <MetadataSection title="Recent Errors">
-    <Card padding="sm" gap="0.75rem">
+    <Card padding="sm" gap="12px">
       {#each newestFirstErrors as error (error.id)}
         <div class="recent-error">
           <InfoRow label={`[${error.origin}] ${error.severity}`} value={formatMetadataDate(error.createdAt)} />
@@ -33,9 +33,9 @@
   .recent-error {
     display: flex;
     flex-direction: column;
-    gap: 0.75rem;
-    padding-bottom: 0.75rem;
-    border-bottom: 1px solid #e5e7eb;
+    gap: 12px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--c-border);
   }
 
   .recent-error:last-child {

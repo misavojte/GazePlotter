@@ -1,9 +1,7 @@
 import { cubicInOut } from 'svelte/easing'
 import type { TransitionConfig } from 'svelte/transition'
 
-// Shared timing for the Rail ⇄ Pane handoff. Both surfaces run the same
-// duration + easing so their slide-out and slide-in read as one
-// coordinated sweep rather than two independent transitions.
+// Shared timing for the Pane's desktop slide and its phone sheet.
 export const PANE_TRANSITION = {
   duration: 320,
   easing: cubicInOut,
@@ -22,10 +20,10 @@ interface SlideFlexParams {
 // Why flex-basis: the built-in slide only animates `width` / `height`,
 // which silently does nothing for flex items sized with a fixed
 // `flex: 0 0 <n>px` — the fixed flex-basis wins over the inline width
-// and the element never visually grows or shrinks. Rail and Pane both
-// use fixed flex-basis, so we interpolate flex-basis alongside width.
+// and the element never visually grows or shrinks. The Pane uses a fixed
+// flex-basis, so we interpolate flex-basis alongside width.
 //
-// Why `overflow: clip`: Rail and Pane host a `position: sticky` content
+// Why `overflow: clip`: the Pane hosts a `position: sticky` content
 // column anchored to page scroll. `overflow: hidden` (which the built-in
 // slide applies) would rebind the sticky element to the animating
 // container — which is not a scroll container — making it behave like

@@ -183,13 +183,11 @@ export function updateMoveSession(
     zoom
   )
 
-  // Clamp the shared delta so no member crosses the grid origin — this keeps
-  // the group's relative layout intact when dragged toward the top-left
-  // (and reduces to `Math.max(0, origin + delta)` for a single member).
-  const minOriginX = Math.min(...session.members.map(m => m.origin.x))
-  const minOriginY = Math.min(...session.members.map(m => m.origin.y))
-  const dx = Math.max(delta.x, -minOriginX)
-  const dy = Math.max(delta.y, -minOriginY)
+  // No clamp at the origin: a preview may sit above or left of it, and the
+  // commit shifts the whole layout back to non-negative cells
+  // (`translateLayout`). One shared delta keeps a group's relative layout.
+  const dx = delta.x
+  const dy = delta.y
 
   return {
     ...session,
@@ -234,10 +232,9 @@ export function updateResizeSession(
   // When the anchor edge is on the right (signX === -1), shrinking w
   // means the left edge slides right by the reduction amount. Mirror
   // for the top edge.
-  const newX =
-    signX === -1 ? Math.max(0, origin.x + (origin.w - newW)) : origin.x
-  const newY =
-    signY === -1 ? Math.max(0, origin.y + (origin.h - newH)) : origin.y
+  // May go negative, like a move; the commit normalises it.
+  const newX = signX === -1 ? origin.x + (origin.w - newW) : origin.x
+  const newY = signY === -1 ? origin.y + (origin.h - newH) : origin.y
 
   return {
     ...session,

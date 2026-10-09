@@ -98,8 +98,9 @@
 <style>
   .toaster {
     position: fixed;
-    bottom: 20px;
-    right: 20px;
+    /* A host with chrome along the bottom edge lifts toasts above it. */
+    bottom: var(--gp-toaster-bottom, 8px);
+    right: 8px;
     z-index: 9999;
     width: 280px;
     pointer-events: none;
@@ -112,9 +113,9 @@
     border-radius: var(--rounded-md);
     box-shadow: var(--shadow-lg);
     color: var(--c-white);
-    margin-bottom: 10px;
+    margin-top: 8px;
     width: 280px;
-    font-size: 14px;
+    font-size: var(--text-lg);
     padding: 12px 16px;
     border: 1px solid var(--c-border);
     backdrop-filter: blur(8px);
@@ -126,23 +127,24 @@
     box-sizing: border-box;
   }
 
+  /* Status tokens are AA-dark already, so white text sits on them as is. */
   .toast-success {
-    background-color: color-mix(in srgb, var(--c-success) 85%, var(--c-black));
+    background-color: var(--c-success);
     border-color: color-mix(in srgb, var(--c-success) 40%, transparent);
   }
 
   .toast-error {
-    background-color: color-mix(in srgb, var(--c-error) 85%, var(--c-black));
+    background-color: var(--c-error);
     border-color: color-mix(in srgb, var(--c-error) 40%, transparent);
   }
 
   .toast-warning {
-    background-color: color-mix(in srgb, var(--c-warning) 80%, var(--c-black));
+    background-color: var(--c-warning);
     border-color: color-mix(in srgb, var(--c-warning) 40%, transparent);
   }
 
   .toast-info {
-    background-color: color-mix(in srgb, var(--c-info) 85%, var(--c-black));
+    background-color: var(--c-info);
     border-color: color-mix(in srgb, var(--c-info) 40%, transparent);
   }
 
@@ -156,7 +158,7 @@
   }
 
   .toast-message {
-    line-height: 1.4;
+    line-height: var(--leading-normal);
     word-break: break-word;
     color: var(--c-white);
   }

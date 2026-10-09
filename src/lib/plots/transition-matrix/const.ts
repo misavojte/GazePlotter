@@ -1,9 +1,7 @@
-import { INACTIVE_COLOR } from '$lib/color'
 import { buildMetricLabel, timeRangeQualifier } from '$lib/plots/shared'
 import type { MetricInstance } from '$lib/metrics'
 
 export const TRANSITION_MATRIX_DEFAULTS = {
-  inactiveColor: INACTIVE_COLOR,
   xLabel: 'To AOI',
   yLabel: 'From AOI',
 } as const
