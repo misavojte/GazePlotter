@@ -1,9 +1,13 @@
 # Embedding GazePlotter
 
-GazePlotter is also a Svelte component library. The whole workspace (canvas,
-rail, settings pane, modals) ships as one `<GazePlotter>` component for use
-in your own application: Tauri or Electron shells, web apps, other
-eye-tracking software.
+GazePlotter is also a Svelte component library. The workspace (the plot
+canvas with its rail of controls, the settings pane and the dialogs) ships
+as one `<GazePlotter>` component for use in your own application: Tauri or
+Electron shells, web apps, other eye-tracking software.
+
+The component is only the workspace. It has no top bar: Import, Export and
+Metadata are actions you put behind your own buttons (see
+[Your own controls](#your-own-controls)).
 
 The component is self-contained: it injects its own design tokens into the
 document head and needs no server.
@@ -86,8 +90,7 @@ Every field is optional; every default is the plain web behavior.
   carries none (fresh parses, empty workspace). Without it, the layout is
   chosen by the data: spatial data opens with a Scanpath on top. Event-only
   data always opens with Event Comparison, and workspace files keep their
-  saved layout. Reset Layout returns to whichever layout the data opened
-  with. Omitted snapshot fields get per-plot defaults.
+  saved layout. Omitted snapshot fields get per-plot defaults.
 - `saveFile: (content, fileName, extension) => void`: delivers one export
   file. Default: browser download. `fileName` arrives with the extension
   applied; `extension` is separate for native save-dialog filters.
@@ -100,6 +103,59 @@ Every field is optional; every default is the plain web behavior.
 The web defaults are exported for wrapping instead of replacing:
 `triggerDownload`, `openFilesViaBrowser`, `INGEST_FILE_ACCEPT`.
 
+## Size and gestures
+
+The workspace is a fixed frame you navigate like a map: drag empty space to
+pan, Ctrl/Cmd + scroll or pinch to zoom, two fingers on touch screens. It is
+one screen tall by default; set the CSS variable `--gp-workspace-height` on
+any ancestor to size it. Give it a length (`100vh`, `calc(100vh - 60px)`,
+`640px`): a percentage resolves against the component's own root, which has
+no height.
+
+- `gestures`: what the plain mouse wheel does over the workspace.
+  `'cooperative'` (default) leaves it to the page, as an embedded map does,
+  and shows a short "Ctrl + scroll to zoom" hint; use it when the workspace
+  sits inside a scrolling page. `'canvas'` makes the wheel pan the workspace;
+  use it when GazePlotter fills the screen.
+- `controls`: `false` hides the built-in rail (add plot, undo/redo, zoom),
+  for hosts that provide their own.
+
+```svelte
+<div style="--gp-workspace-height: 100vh">
+  <GazePlotter {load} gestures="canvas" />
+</div>
+```
+
+## Your own controls
+
+`getActions()` on the bound instance returns everything a toolbar needs,
+with reactive flags for whether each action may run right now:
+
+```svelte
+<script>
+  import { GazePlotter } from 'gazeplotter'
+  let plotter = $state()
+  const actions = $derived(plotter?.getActions())
+</script>
+
+<nav>
+  <button disabled={!actions?.canImport} onclick={() => actions?.openImport()}>
+    Import
+  </button>
+  <button disabled={!actions?.canExport} onclick={() => actions?.openExport()}>
+    Export
+  </button>
+  <button onclick={() => actions?.openMetadata()}>Metadata</button>
+</nav>
+<GazePlotter bind:this={plotter} {load} />
+```
+
+- `openImport()`, `openExport()`, `openMetadata()`: the file picker (same
+  pipeline as drag-and-drop), the export dialog, the dataset details.
+- `undo()`, `redo()`, `zoomIn()`, `zoomOut()`, `resetZoom()`, `zoomToFit()`.
+- `canImport`, `canExport`, `canShowMetadata`, `canUndo`, `canRedo`, `zoom`:
+  read them in markup or `$derived` and they stay current.
+
 ## Instance and session
 
 ```svelte
@@ -111,6 +167,7 @@ The web defaults are exported for wrapping instead of replacing:
 ```
 
 - `plotter.resetLayout()`: re-runs `load`.
+- `plotter.getActions()`: see [Your own controls](#your-own-controls).
 - `plotter.getSession()`: the session object. Useful entries:
   `ingest.loadFiles(files)` (same pipeline as drag-and-drop),
   `ingest.openAndLoadFiles()` (what the upload button calls),

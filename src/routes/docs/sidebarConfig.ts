@@ -28,6 +28,12 @@ export const SIDEBAR: readonly SidebarItem[] = [
     description: 'Step-by-step introduction to GazePlotter. Learn to upload data files, manage participant groups, and configure eye-movement plots.'
   },
   {
+    name: 'About & Citation',
+    href: '/docs/about',
+    seoTitle: 'About GazePlotter & How to Cite',
+    description: 'How to cite GazePlotter (APA and BibTeX), who develops it, how to report bugs, and where to find the open-source code.'
+  },
+  {
     name: 'Changelog',
     href: '/docs/changelog',
     seoTitle: 'Changelog & Version Updates',

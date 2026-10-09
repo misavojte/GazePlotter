@@ -2,9 +2,14 @@
   import '../app.css'
   import DesignTokens from '$lib/DesignTokens.svelte'
   import { Footer, Header } from './components'
+  import { page } from '$app/state'
 
   /** @type {{children?: import('svelte').Snippet}} */
   let { children } = $props()
+
+  // The homepage is the app itself: one canvas with its chrome floating
+  // over it as islands, so no docked header or footer.
+  const isApp = $derived(page.url.pathname === '/')
 
   // SoftwareApplication structured data (schema.org). `softwareVersion` is
   // sourced from the build-time `__APP_VERSION__` (package.json) so it never
@@ -53,6 +58,10 @@
      mounted <GazePlotter>, so the layout renders them too. -->
 <DesignTokens />
 
-<Header />
-{@render children?.()}
-<Footer />
+{#if isApp}
+  {@render children?.()}
+{:else}
+  <Header />
+  {@render children?.()}
+  <Footer />
+{/if}

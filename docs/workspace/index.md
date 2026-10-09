@@ -4,31 +4,41 @@ The GazePlotter Workspace is your central analysis dashboard. It operates as an 
 
 ## Workspace Layout & Interface Terms
 
-The workspace is divided into four main functional zones:
+The app has four parts: the header above, the rail on the left, the canvas, and the pane on the right.
 
 ```
 +------------------------------------------------------------------------+
-|                                 RIBBON                                 |
+|  GazePlotter              Import   Export   Metadata   [Guide & about] |
 +------------------------------------------------------------------------+
-|     |                                                      |           |
-|  R  |                           CANVAS                     |     P     |
-|  A  |                        (Plot Grid)                   |     A     |
-|  I  |                                                      |     N     |
-|  L  |                                                      |     E     |
-|     |                                                      |           |
+|     |                                                    |             |
+|  R  |                                                    |             |
+|  A  |                      CANVAS                        |    PANE     |
+|  I  |                    (plot grid)                     |             |
+|  L  |                                                    |             |
+|     |                                                    |             |
 +------------------------------------------------------------------------+
 ```
 
-### Ribbon
-Located along the **top edge** of the workspace. It houses the global operations for your active analysis:
-- **Import** — Click to upload [eye-tracking files](/docs/upload-data/) and [event files](/docs/upload-data/events/), or restore saved [workspace configurations](/docs/export/workspace/).
-- **Export** — Save your [workspace configurations](/docs/export/workspace/), [high-resolution figures](/docs/export/figures/), letter-coded [gaze sequences](/docs/export/segmented-data/), or calculated [metric tables](/docs/export/metric-data/).
-- **Metadata** — Inspect [source and parsing details](/docs/advanced/source-metadata/) for your datasets to troubleshoot format compatibility.
+### Header
+Along the **top edge** of the app:
+- **Import**: upload [eye-tracking files](/docs/upload-data/) and [event files](/docs/upload-data/events/), or restore saved [workspace configurations](/docs/export/workspace/). You can also drop files anywhere on the canvas.
+- **Export**: save your [workspace configurations](/docs/export/workspace/), [high-resolution figures](/docs/export/figures/), letter-coded [gaze sequences](/docs/export/segmented-data/), or calculated [metric tables](/docs/export/metric-data/).
+- **Metadata**: inspect [source and parsing details](/docs/advanced/source-metadata/) for your datasets to troubleshoot format compatibility.
+- **Guide & about**: opens this guide.
 
 ### Rail
-Located on the **left side** of the screen (on desktop) or at the **sticky bottom** (on mobile). 
-- **Add Visualizations** — Click the **Add Visualization** button (`+` icon) to open a menu of [plot categories](/docs/visualizations/). Selecting a plot type from this menu adds it to the first free space on the grid.
-- **Canvas Operations** — Access buttons for **Undo** (revert the last action), **Redo** (re-apply undone actions), and **Reset Layout** (re-tile all plots into a clean grid).
+A narrow column on the **left side** of the canvas (a strip along the bottom on phones):
+- **Add Visualization** (`+` icon) opens a menu of [plot categories](/docs/visualizations/); the new plot lands in the first free space.
+- **Undo** and **Redo**.
+- **Zoom to fit** shows every plot at once. Below it, **Zoom in**, the current zoom level (click it to return to 100%), and **Zoom out**.
+- On a phone, selecting a plot swaps the strip to **Edit plot settings** and **Deselect**.
+
+### Moving around the canvas
+The canvas works like a map:
+- **Pan**: drag empty space, or scroll with the mouse wheel or touchpad (hold `Shift` to scroll sideways). On a touch screen, drag with two fingers.
+- **Zoom**: `Ctrl` / `Cmd` + scroll, pinch on a touchpad or touch screen, or `Ctrl` / `Cmd` + `+` / `-`. `Ctrl` / `Cmd` + `0` returns to 100%.
+- **Zoom to fit**: `Shift` + `1`, or the button in the rail.
+- You can always pan a little past your plots, but never so far that they all leave the screen. If a selected plot is out of view, an arrow at the edge of the canvas points to it; click the arrow to bring the plot back.
 
 ### Canvas
 The central area of the screen where plots are arranged.
@@ -46,7 +56,7 @@ A collapsible panel located on the **right side** of the screen.
 To perform any manipulation (moving, resizing, duplicating, or removing), you must select the target plot card first by clicking it. Clicking empty canvas space deselects it.
 
 ### Moving a plot
-With the plot selected, the whole card is a drag target — click and drag anywhere on the card frame to move it. Plots snap to a 40×40 pixel grid, and the canvas expands when you drag toward an edge. With several plots selected, drag any one to move them all together.
+With the plot selected, the whole card is a drag target: click and drag anywhere on the card frame to move it. Plots snap to a 40×40 pixel grid. Hold a plot near the edge of the canvas and the view moves along, so you can place it anywhere, including above or to the left of all other plots. With several plots selected, drag any one to move them all together.
 
 ### Resizing a plot
 Drag any of the four corner handles on a selected plot. The card snaps to the grid as it resizes.

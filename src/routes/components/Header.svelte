@@ -1,185 +1,80 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte'
   import { page } from '$app/state'
+  import Brand from './Brand.svelte'
+  import BrandButton from './BrandButton.svelte'
 
-  let isGuide = $derived(page.url.pathname.startsWith('/docs'))
-  let isApp = $derived(page.url.pathname === '/')
+  /**
+   * The one compact top bar, shared by the app and the docs: the brand on
+   * the left; on the right, the page's own actions (the app's Import /
+   * Export / Metadata) and the red button that crosses to the other half of
+   * the site.
+   */
+  interface Props {
+    /** Page actions, placed before the red button (the app passes its own). */
+    actions?: Snippet
+  }
+
+  let { actions }: Props = $props()
+
+  const isApp = $derived(page.url.pathname === '/')
 </script>
 
-<header class="border-b">
-  <div>
-    <a id="go-home" href="/">
-      <img
-        id="logo"
-        width="23"
-        height="23"
-        src="/logos/gazeplotter.svg"
-        alt="Logo"
-      />
-      <span id="sitetitle">GazePlotter</span>
-    </a>
-    <nav>
-      <a href="/" class="nav-item" class:active={isApp}>App</a>
-      <a href="/docs" class="nav-item" class:active={isGuide}>Guide</a>
-      <a
-        href="https://github.com/misavojte/GazePlotter"
-        target="_blank"
-        class="gh-link"
-        rel="nofollow"
-        aria-label="GitHub"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="19"
-          height="19"
-          fill="currentColor"
-          viewBox="0 0 16 16"
-        >
-          <path
-            d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"
-          />
-        </svg>
-      </a>
+<header>
+  <Brand heading={isApp} />
+  <span class="spacer"></span>
+  {#if actions}
+    <nav class="actions" aria-label="Workspace">
+      {@render actions()}
     </nav>
-  </div>
+    <span class="divider" aria-hidden="true"></span>
+  {/if}
+  {#if isApp}
+    <BrandButton href="/docs" label="Guide & about" shortLabel="Guide" />
+  {:else}
+    <BrandButton href="/" label="Go to app" shortLabel="App" />
+  {/if}
 </header>
 
 <style>
   header {
+    box-sizing: border-box;
     display: flex;
     align-items: center;
+    gap: 8px;
+    height: var(--site-header-height);
+    padding: 0 8px;
     background-color: var(--c-white);
-    color: var(--c-black);
+    border-bottom: 1px solid var(--c-border);
     position: relative;
     z-index: 100;
   }
 
-  .border-b {
-    border-bottom: var(--c-border) 1px solid;
+  .spacer {
+    flex: 1;
   }
 
-  header > div {
-    width: 100%;
-    margin: auto;
-    padding: 30px;
-    padding-block: 0 !important;
-    height: 60px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    flex-wrap: wrap;
-    font-size: 14px;
-    box-sizing: border-box;
+  .divider {
+    width: 1px;
+    height: 20px;
+    margin: 0 4px;
+    background-color: var(--c-border);
   }
 
-  #go-home {
-    text-decoration: none;
+  .actions {
     display: flex;
     align-items: center;
-    color: inherit;
+    gap: 2px;
   }
 
-  #go-home:hover,
-  #go-home:focus {
-    opacity: 0.8;
-  }
-
-  #logo {
-    margin-right: 10px;
-  }
-
-  #sitetitle {
-    font-weight: bold;
-    font-size: 17px;
-  }
-
-  nav {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .nav-item {
-    padding: 6px 14px;
-    font-size: 0.875rem;
-    font-weight: 500;
-    color: var(--c-darkgrey);
-    text-decoration: none;
-    border-radius: var(--rounded-md);
-    transition: all var(--transition-normal) ease;
-  }
-
-  .nav-item:hover {
-    color: var(--c-text);
-    background-color: var(--c-lightgrey);
-  }
-
-  .nav-item.active {
-    color: var(--c-brand);
-    background-color: color-mix(in srgb, var(--c-brand) 8%, var(--c-white));
-    font-weight: 600;
-  }
-
-  .gh-link {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-left: 8px;
-    padding-left: 12px;
-    border-left: 1px solid var(--c-grey);
-    color: var(--c-black);
-    text-decoration: none;
-    transition: color var(--transition-normal) ease;
-  }
-
-  .gh-link:hover {
-    color: var(--c-brand);
-  }
-
-  @media only screen and (max-width: 1000px) {
-    header > div {
-      padding-inline: 24px;
+  @media (max-width: 640px) {
+    header {
+      gap: 4px;
+      padding: 0 8px;
     }
-  }
 
-  @media only screen and (max-width: 740px) {
-    header > div {
-      padding-inline: 22px;
-    }
-  }
-
-  @media only screen and (max-width: 665px) {
-    header > div {
-      padding-inline: 20px;
-    }
-  }
-
-  @media only screen and (max-width: 540px) {
-    header > div {
-      padding-inline: 18px;
-    }
-  }
-
-  @media only screen and (max-width: 420px) {
-    header > div {
-      padding-inline: 15px;
-    }
-    nav {
-      gap: 2px;
-    }
-    .nav-item {
-      padding: 6px 10px;
-      font-size: 0.8125rem;
-    }
-    .gh-link {
-      margin-left: 4px;
-      padding-left: 8px;
-    }
-  }
-
-  @media only screen and (max-width: 380px) {
-    header > div {
-      padding-inline: 12px;
+    .divider {
+      margin: 0 2px;
     }
   }
 </style>

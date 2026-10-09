@@ -145,8 +145,9 @@
     <div class="sidebar-bg"></div>
 
     <!-- Content Layer with Offset -->
-    <!-- This sticks at top: -64px. It has a 64px spacer. 
-         As the page scrolls 64px, this layer moves up 64px and then sticks.
+    <!-- This sticks at top: minus one header height, with a spacer of that
+         height. As the page scrolls past the header, this layer moves up with
+         it and then sticks.
          This makes the content fill the header gap seamlessly. -->
     <div class="sidebar-content-wrapper">
       <div class="sidebar-spacer"></div>
@@ -238,7 +239,7 @@
     display: flex;
     flex: 1;
     background-color: var(--c-darkwhite);
-    min-height: calc(100vh - 64px);
+    min-height: calc(100vh - var(--site-header-height));
     z-index: 10;
   }
 
@@ -247,12 +248,12 @@
     width: 280px;
     position: sticky;
     top: 0;
-    min-height: calc(100vh + 64px);
+    min-height: calc(100vh + var(--site-header-height));
     display: flex;
     flex-direction: column;
     z-index: 20;
     flex-shrink: 0;
-    margin-top: -64px; /* Pull into header space */
+    margin-top: calc(-1 * var(--site-header-height)); /* Pull into header space */
   }
 
   /* Background */
@@ -267,15 +268,15 @@
   /* Content Layer */
   .sidebar-content-wrapper {
     position: sticky;
-    top: -64px; /* Sticks after moving up 64px */
-    height: calc(100vh + 64px);
+    top: calc(-1 * var(--site-header-height)); /* Sticks after moving up one header height */
+    height: calc(100vh + var(--site-header-height));
     display: flex;
     flex-direction: column;
     z-index: 5;
   }
 
   .sidebar-spacer {
-    height: 64px;
+    height: var(--site-header-height);
     flex-shrink: 0;
   }
 

@@ -1,2 +1,5 @@
 export { default as Header } from './Header.svelte'
 export { default as Footer } from './Footer.svelte'
+export { default as HeaderAction } from './HeaderAction.svelte'
+export { default as Brand } from './Brand.svelte'
+export { default as BrandButton } from './BrandButton.svelte'

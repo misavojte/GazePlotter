@@ -15,13 +15,13 @@ Because the data is embedded, file size scales with your dataset.
 
 ## Exporting
 
-1. Click **Export** in the workspace Ribbon.
+1. Click **Export** in the header.
 2. In the **Export Workspace** section, enter a **File name**.
 3. Click **Export Workspace** to download the `.json` file.
 
 ## Importing
 
-1. Click **Import** in the workspace Ribbon.
+1. Click **Import** in the header.
 2. Select a workspace `.json` file. A single `.json` file is always loaded as a workspace.
 
 Importing replaces the current workspace with the saved plots, settings, and layout.

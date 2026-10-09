@@ -79,4 +79,8 @@ GazePlotter is open-source software licensed under GNU GPL v3, ensuring it remai
 - [npm Package](https://www.npmjs.com/package/gazeplotter) - Integrate GazePlotter into your own Svelte projects
 
 **Academic Use:**
-If you use GazePlotter in your research, please consider citing our work to support continued development and help other researchers discover this tool.
+If you use GazePlotter in your research, please cite our work to support continued development and help other researchers discover this tool:
+
+> Vojtechovska, M., Popelka, S. GazePlotter: An open-source solution for the automatic generation of scarf plots from eye-tracking data. *Behav Res* **58**, 85 (2026). [https://doi.org/10.3758/s13428-026-02959-5](https://doi.org/10.3758/s13428-026-02959-5)
+
+BibTeX, the people behind GazePlotter and how to report bugs: see [About & Citation](/docs/about/).
