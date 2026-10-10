@@ -8,7 +8,7 @@ The app has four parts: the header above, the rail on the left, the canvas, and 
 
 ```
 +------------------------------------------------------------------------+
-|  GazePlotter              Import   Export   Metadata   [Guide & about] |
+|  GazePlotter              Import   Export   Metadata   [Read guide]    |
 +------------------------------------------------------------------------+
 |     |                                                    |             |
 |  R  |                                                    |             |
@@ -24,7 +24,7 @@ Along the **top edge** of the app:
 - **Import**: upload [eye-tracking files](/docs/upload-data/) and [event files](/docs/upload-data/events/), or restore saved [workspace configurations](/docs/export/workspace/). You can also drop files anywhere on the canvas.
 - **Export**: save your [workspace configurations](/docs/export/workspace/), [high-resolution figures](/docs/export/figures/), letter-coded [gaze sequences](/docs/export/segmented-data/), or calculated [metric tables](/docs/export/metric-data/).
 - **Metadata**: inspect [source and parsing details](/docs/advanced/source-metadata/) for your datasets to troubleshoot format compatibility.
-- **Guide & about**: opens this guide.
+- **Read guide**: opens this guide.
 
 ### Rail
 A narrow column on the **left side** of the canvas (a strip along the bottom on phones):
