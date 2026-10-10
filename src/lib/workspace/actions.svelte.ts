@@ -3,6 +3,7 @@ import {
   exportWorkspaceModal,
   metadataInfoModal,
 } from '$lib/modals/definitions'
+import type { SaveIndicator } from '$lib/data/export'
 import type { WorkspaceCamera } from './camera.svelte'
 
 /**
@@ -19,13 +20,22 @@ export interface WorkspaceActions {
   readonly canShowMetadata: boolean
   readonly canUndo: boolean
   readonly canRedo: boolean
+  /** Edits a close or a new upload would lose (see WorkspaceFile). */
+  readonly hasUnsavedWork: boolean
+  /** For a marker on the host's export control; null while export is off. */
+  readonly saveIndicator: SaveIndicator | null
   /** Current zoom level (0.25 to 1). */
   readonly zoom: number
 
   /** Pick files and load them (same pipeline as drag-and-drop). */
   openImport(): void
-  /** The export dialog (workspace, figures, data). */
+  /** The export dialog (workspace file, figures, data). */
   openExport(): void
+  /** Writes the workspace file (the first time, asks where). Where the
+   *  browser can only download, opens the export dialog instead. */
+  save(): void
+  /** Like save, always asking for a new file. */
+  saveAs(): void
   /** Source, parsing and dataset details. */
   openMetadata(): void
   undo(): void
@@ -42,7 +52,7 @@ export function createWorkspaceActions(
   session: GazePlotterSession,
   camera: WorkspaceCamera
 ): WorkspaceActions {
-  const { ingest, modalState, errorService, workspace } = session
+  const { ingest, modalState, errorService, workspace, workspaceFile } = session
   const idle = () => !ingest.isLoading
 
   return {
@@ -61,6 +71,12 @@ export function createWorkspaceActions(
     get canRedo() {
       return idle() && workspace.canRedo
     },
+    get hasUnsavedWork() {
+      return workspaceFile.hasUnsavedWork
+    },
+    get saveIndicator() {
+      return this.canExport ? workspaceFile.indicator : null
+    },
     get zoom() {
       return camera.zoom
     },
@@ -70,6 +86,16 @@ export function createWorkspaceActions(
     },
     openExport() {
       if (this.canExport) modalState.open(exportWorkspaceModal, {})
+    },
+    save() {
+      if (!this.canExport) return
+      if (workspaceFile.canChooseFile) void workspaceFile.save()
+      else this.openExport()
+    },
+    saveAs() {
+      if (!this.canExport) return
+      if (workspaceFile.canChooseFile) void workspaceFile.saveAs()
+      else this.openExport()
     },
     openMetadata() {
       if (idle()) modalState.open(metadataInfoModal, {})

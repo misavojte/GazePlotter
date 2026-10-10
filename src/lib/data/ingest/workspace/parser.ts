@@ -3,6 +3,7 @@ import type { FileMetadataType } from '../types'
 import type { GridItemSnapshot } from '$lib/workspace/grid/types'
 import { runMigrations } from './migrations'
 import { processAndValidateData, validateBasicStructure } from './validator'
+import { isStoredSegments } from '$lib/data/binary/storedSegments'
 
 
 
@@ -16,7 +17,15 @@ import { processAndValidateData, validateBasicStructure } from './validator'
 export function processJsonFileWithGrid(
   fileContent: string
 ): JsonImportNewFormat {
-  const rawParsed = JSON.parse(fileContent)
+  return processWorkspaceObject(JSON.parse(fileContent))
+}
+
+/** {@link processJsonFileWithGrid} for an already-parsed workspace (the
+ *  `.gazeplotter` reader reattaches stored segments first). */
+export function processWorkspaceObject(rawParsed: unknown): JsonImportNewFormat {
+  if (isStoredSegments((rawParsed as any)?.data?.segments)) {
+    throw new Error('This workspace keeps its data in a .gazeplotter file. Open that file instead.')
+  }
 
   // 1. Pure data transformation isolates legacy support from modern logic
   const modernData = runMigrations(rawParsed)

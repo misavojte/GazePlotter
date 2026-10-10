@@ -1,27 +1,36 @@
 <script lang="ts">
   import type { Component } from 'svelte'
-  import { Section } from '$lib/modals'
+  import FileIcon from 'lucide-svelte/icons/file'
+  import FileCheck from 'lucide-svelte/icons/file-check'
+  import FilePen from 'lucide-svelte/icons/file-pen'
+  import { HelpText, Section } from '$lib/modals'
   import type { ModalDefinition } from '$lib/modals/defineModal'
   import type { DataCapabilityRequirements } from '$lib/data/types'
   import { getGazePlotterSession } from '$lib/session'
-  import { formatFileSize } from '$lib/shared/format'
+  import { shortcutLabel } from '$lib/workspace/keys'
   import { exportSegmentedDataModal } from '../export-segmented-data/definition'
   import { exportEventDataModal } from '../export-event-data/definition'
   import { exportScangraphModal } from '../export-scangraph/definition'
   import { exportMetricDataModal } from '../export-metric-data/definition'
   import { exportFiguresModal } from '../export-figures/definition'
 
-  const { engine, exportService, grid, modalState } = getGazePlotterSession()
-  let fileName = $state('GazePlotter-Export')
+  const { engine, grid, modalState, workspaceFile } =
+    getGazePlotterSession()
+  // svelte-ignore state_referenced_locally -- the name a download starts from
+  let fileName = $state(workspaceFile.suggestedName)
 
-  // Reference media turns the export into a zip carrying every file.
-  const mediaBytes = $derived.by(() => {
-    void engine.media.version
-    const ids = Object.keys(engine.metadata?.stimuliMedia ?? {}).map(Number)
-    let bytes = 0
-    for (const id of ids) bytes += engine.media.getBlob(id)?.size ?? 0
-    return { count: ids.length, bytes }
-  })
+  const saveKey = shortcutLabel('save')
+  const timeFormat = new Intl.DateTimeFormat(undefined, { timeStyle: 'short' })
+
+  // One state, shown once: the icon carries its colour, the line below the
+  // name its words.
+  const saveState = $derived(workspaceFile.indicator)
+  const savedAt = $derived(
+    workspaceFile.savedAt ? timeFormat.format(workspaceFile.savedAt) : ''
+  )
+  const StateIcon = $derived(
+    saveState === 'saved' ? FileCheck : saveState === 'unsaved' ? FilePen : FileIcon
+  )
 
   // Each option follows the data it exports, in the plot definitions'
   // `requireCapabilities` vocabulary: no events → no event export, no gaze
@@ -66,10 +75,6 @@
     )
   )
 
-  const handleSubmit = async () => {
-    await exportService.exportWorkspace({ fileName })
-  }
-
   const openExportModal = (
     definition: typeof researchExportOptions[number]['definition']
   ) => {
@@ -78,35 +83,84 @@
 </script>
 
 <div class="container">
-  <Section title="Export Workspace">
+  <Section title="Workspace">
     <div class="content">
-      <p class="workspace-description">
-        {#if mediaBytes.count > 0}
-          Preserves all data, layout, and settings, plus {mediaBytes.count}
-          reference media {mediaBytes.count === 1 ? 'file' : 'files'}
-          ({formatFileSize(mediaBytes.bytes)}), in one .gazeplotter.zip file.
-        {:else}
-          Preserves all data, layout, and settings in a compact JSON file. Perfect
-          for sharing dashboards.
-        {/if}
-      </p>
-      <div class="workspace-export">
-        <div class="export-inline">
-          <input
-            type="text"
-            bind:value={fileName}
-            placeholder="File name"
-            class="export-input"
-          />
-          <button onclick={handleSubmit} class="export-button">
-            Export Workspace
-          </button>
+      <div class="file-card">
+        <div class="file-head">
+          <span class="file-icon {saveState}">
+            <StateIcon size={18} strokeWidth={1.75} aria-hidden="true" />
+          </span>
+          <div class="file-text">
+            <span class="file-name">
+              {workspaceFile.target?.name ??
+                (workspaceFile.canChooseFile ? 'Not saved to a file yet' : 'Workspace file')}
+            </span>
+            <span class="file-hint">
+              {#if workspaceFile.saving}
+                Saving…
+              {:else if !workspaceFile.canChooseFile}
+                {#if saveState === 'saved'}
+                  Downloaded at {savedAt}.
+                {:else if saveState === 'unsaved'}
+                  Changed since your download at {savedAt}.
+                {:else}
+                  Data, layout and settings in one .gazeplotter file.
+                {/if}
+              {:else if !workspaceFile.target}
+                Choose where to save once; {saveKey} then saves into that file.
+              {:else if saveState === 'unsaved'}
+                Unsaved changes. {saveKey} saves them into this file.
+              {:else}
+                All changes saved at {savedAt}.
+              {/if}
+            </span>
+          </div>
         </div>
+
+        {#if workspaceFile.canChooseFile}
+          <div class="file-actions">
+            <button
+              class="primary"
+              disabled={workspaceFile.saving}
+              onclick={() => workspaceFile.save()}
+            >
+              Save
+            </button>
+            <button
+              class="secondary"
+              disabled={workspaceFile.saving}
+              onclick={() => workspaceFile.saveAs()}
+            >
+              Save as…
+            </button>
+          </div>
+        {:else}
+          <div class="download-row">
+            <input
+              type="text"
+              bind:value={fileName}
+              placeholder="File name"
+              aria-label="File name"
+            />
+            <span class="extension">.gazeplotter</span>
+            <button
+              class="primary"
+              disabled={workspaceFile.saving}
+              onclick={() => workspaceFile.download(fileName)}
+            >
+              Download
+            </button>
+          </div>
+          <HelpText>
+            This browser cannot overwrite files, so each download is a new copy
+            in your Downloads folder.
+          </HelpText>
+        {/if}
       </div>
     </div>
   </Section>
 
-  <Section title="Other options">
+  <Section title="Figures and data">
     <div class="content">
       <div class="export-options">
         {#if grid.items.length > 0}
@@ -146,8 +200,6 @@
     flex-direction: column;
   }
 
-
-
   .content {
     display: flex;
     flex-direction: column;
@@ -156,71 +208,169 @@
     width: 100%;
   }
 
-  .workspace-export {
+  /* --- Workspace file card --- */
+  .file-card {
     display: flex;
     flex-direction: column;
-  }
-
-  .export-inline {
-    display: flex;
-    border: 1px solid var(--c-border);
-    border-radius: var(--rounded);
-    overflow: hidden;
+    gap: 14px;
+    padding: 14px 16px;
     background: var(--c-white);
-    transition: border-color var(--transition-normal) ease;
+    border: 1px solid var(--c-border);
+    border-radius: var(--rounded-md);
+    box-shadow: var(--shadow-sm);
   }
 
-  .export-inline:focus-within {
-    border-color: var(--c-brand);
-    box-shadow: 0 0 0 1px color-mix(in srgb, var(--c-brand) 30%, transparent);
+  .file-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
   }
 
-  .export-input {
-    flex: 1;
-    border: none;
-    padding: 10px 12px;
-    font-size: var(--text-lg);
-    background: transparent;
-    outline: none;
-    color: var(--c-black);
-  }
-
-  .export-input::placeholder {
+  .file-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 36px;
+    height: 36px;
+    border-radius: var(--rounded);
+    background: var(--c-lightgrey);
     color: var(--c-darkgrey);
-    opacity: 0.6;
+    transition:
+      background-color var(--transition-normal) ease,
+      color var(--transition-normal) ease;
   }
 
-  .export-button {
-    border: none;
-    background: var(--c-brand);
-    color: var(--c-white);
-    padding: 10px 16px;
+  .file-icon.unsaved {
+    background: color-mix(in srgb, var(--c-warning) 12%, transparent);
+    color: var(--c-warning);
+  }
+
+  .file-icon.saved {
+    background: color-mix(in srgb, var(--c-success) 12%, transparent);
+    color: var(--c-success);
+  }
+
+  .file-text {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .file-name {
+    overflow: hidden;
+    color: var(--c-black);
     font-size: var(--text-lg);
-    font-weight: 500;
-    cursor: pointer;
-    transition: background-color var(--transition-normal) ease;
+    font-weight: 600;
+    line-height: var(--leading-tight);
+    text-overflow: ellipsis;
     white-space: nowrap;
   }
 
-  .export-button:hover {
-    background: var(--c-brand-dark);
-  }
-
-  .export-button:focus {
-    outline: none;
-    background: var(--c-brand-dark);
-  }
-
-  .workspace-description {
-    margin: 0 0 16px 0;
-    color: var(--c-black);
-    font-size: var(--text-lg);
+  .file-hint {
+    color: var(--c-darkgrey);
+    font-size: var(--text-md);
     line-height: var(--leading-normal);
     text-wrap: pretty;
   }
 
+  .file-actions {
+    display: flex;
+    gap: 8px;
+  }
 
+  .primary,
+  .secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 14px;
+    border-radius: var(--rounded);
+    font-size: var(--text-lg);
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition:
+      background-color var(--transition-normal) ease,
+      border-color var(--transition-normal) ease;
+  }
 
+  .primary {
+    border: 1px solid var(--c-brand);
+    background: var(--c-brand);
+    color: var(--c-white);
+  }
+
+  .primary:hover:not(:disabled),
+  .primary:focus-visible {
+    background: var(--c-brand-dark);
+    border-color: var(--c-brand-dark);
+  }
+
+  .secondary {
+    border: 1px solid var(--c-border);
+    background: var(--c-white);
+    color: var(--c-black);
+  }
+
+  .secondary:hover:not(:disabled),
+  .secondary:focus-visible {
+    border-color: var(--c-midgrey);
+    background: var(--c-darkwhite);
+  }
+
+  .primary:focus-visible,
+  .secondary:focus-visible {
+    outline: 2px solid var(--c-info);
+    outline-offset: 1px;
+  }
+
+  .primary:disabled,
+  .secondary:disabled {
+    opacity: 0.6;
+    cursor: default;
+  }
+
+  .download-row {
+    display: flex;
+    align-items: stretch;
+    overflow: hidden;
+    border: 1px solid var(--c-border);
+    border-radius: var(--rounded);
+    background: var(--c-white);
+    transition: border-color var(--transition-normal) ease;
+  }
+
+  .download-row:focus-within {
+    border-color: var(--c-brand);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--c-brand) 30%, transparent);
+  }
+
+  .download-row input {
+    flex: 1;
+    min-width: 0;
+    padding: 8px 12px;
+    border: none;
+    background: transparent;
+    color: var(--c-black);
+    font-size: var(--text-lg);
+    outline: none;
+  }
+
+  .download-row .extension {
+    align-self: center;
+    padding-right: 12px;
+    color: var(--c-darkgrey);
+    font-size: var(--text-lg);
+  }
+
+  .download-row .primary {
+    border-radius: 0;
+  }
+
+  /* --- Figures and data --- */
   .export-options {
     display: flex;
     flex-direction: column;

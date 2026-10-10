@@ -11,11 +11,23 @@
     tooltip: Action<HTMLElement, TooltipActionOptions>
     icon: LucideIconComponent
     disabled?: boolean
+    /** A status dot notched into the icon's corner. */
+    badge?: 'unsaved' | 'saved' | 'new' | null
+    /** What the dot means, for screen readers. */
+    badgeLabel?: string
     onclick: () => void
   }
 
-  let { label, hint, tooltip, icon: Icon, disabled = false, onclick }: Props =
-    $props()
+  let {
+    label,
+    hint,
+    tooltip,
+    icon: Icon,
+    disabled = false,
+    badge = null,
+    badgeLabel = '',
+    onclick,
+  }: Props = $props()
 </script>
 
 <button
@@ -25,8 +37,16 @@
   {onclick}
   use:tooltip={{ content: hint, position: 'bottom' }}
 >
-  <span class="icon"><Icon size={16} strokeWidth={1.75} aria-hidden="true" /></span>
+  <span class="icon-wrap">
+    <span class="icon" class:notched={badge !== null}>
+      <Icon size={16} strokeWidth={1.75} aria-hidden="true" />
+    </span>
+    {#key badge}
+      {#if badge}<span class="badge {badge}" aria-hidden="true"></span>{/if}
+    {/key}
+  </span>
   <span class="label">{label}</span>
+  {#if badge && badgeLabel}<span class="visually-hidden">{badgeLabel}</span>{/if}
 </button>
 
 <style>
@@ -71,6 +91,62 @@
     display: flex;
     color: var(--c-darkgrey);
     transition: color var(--transition-fast) ease;
+  }
+
+  .icon-wrap {
+    position: relative;
+    display: flex;
+  }
+
+  /* The dot sits in a notch cut out of the glyph, with a gap around it, so it
+     reads on any background (hover included). */
+  .icon.notched {
+    mask: radial-gradient(circle at calc(100% - 1.5px) 1.5px, transparent 4.5px, #000 5px);
+  }
+
+  .badge {
+    position: absolute;
+    top: -1.5px;
+    right: -1.5px;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    animation: badge-pop 320ms cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+
+  /* Each change of state pops the new dot into the notch. */
+  @keyframes badge-pop {
+    from {
+      transform: scale(0.2);
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .badge {
+      animation: none;
+    }
+  }
+
+  .badge.new {
+    background: var(--c-midgrey);
+  }
+
+  .badge.unsaved {
+    background: var(--c-warning);
+  }
+
+  .badge.saved {
+    background: var(--c-success);
+  }
+
+  .visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
 
   .header-action:hover:not(:disabled) .icon,

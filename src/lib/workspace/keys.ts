@@ -25,6 +25,8 @@ export type WorkspaceShortcut =
   | 'zoom-out'
   | 'zoom-reset'
   | 'zoom-fit'
+  | 'save'
+  | 'save-as'
 
 /** The shortcut this event is (a Ctrl/Cmd chord, or Shift+1), or null. */
 export function resolveWorkspaceShortcut(
@@ -43,6 +45,7 @@ export function resolveWorkspaceShortcut(
   // the zoom glyphs, where +/= share one physical key.
   if (event.code === 'KeyZ') return event.shiftKey ? 'redo' : 'undo'
   if (event.code === 'KeyY' && !event.shiftKey) return 'redo'
+  if (event.code === 'KeyS') return event.shiftKey ? 'save-as' : 'save'
   if (event.key === '+' || event.key === '=') return 'zoom-in'
   if (event.key === '-') return 'zoom-out'
   if (event.key === '0') return 'zoom-reset'
@@ -62,9 +65,16 @@ const SHORTCUT_LABELS: Record<WorkspaceShortcut, [mac: string, other: string]> =
   'zoom-out': ['⌘-', 'Ctrl+Minus'],
   'zoom-reset': ['⌘0', 'Ctrl+0'],
   'zoom-fit': ['⇧1', 'Shift+1'],
+  save: ['⌘S', 'Ctrl+S'],
+  'save-as': ['⇧⌘S', 'Ctrl+Shift+S'],
+}
+
+/** A shortcut as this platform writes it (`Ctrl+S`, `⌘S`). */
+export function shortcutLabel(shortcut: WorkspaceShortcut): string {
+  return SHORTCUT_LABELS[shortcut][IS_MAC ? 0 : 1]
 }
 
 /** A control label with its shortcut, in one notation per platform. */
 export function withShortcut(label: string, shortcut: WorkspaceShortcut): string {
-  return `${label} (${SHORTCUT_LABELS[shortcut][IS_MAC ? 0 : 1]})`
+  return `${label} (${shortcutLabel(shortcut)})`
 }

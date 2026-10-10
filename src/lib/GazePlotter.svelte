@@ -19,6 +19,7 @@
     type WorkspaceActions,
   } from '$lib/workspace/actions.svelte'
   import type { DataLoader } from '$lib/data/ingest'
+  import { resolveWorkspaceShortcut } from '$lib/workspace/keys'
 
   interface Props {
     /**
@@ -61,9 +62,25 @@
 
   // svelte-ignore state_referenced_locally -- read once by design (see prop doc)
   const session = setGazePlotterSessionContext(createGazePlotterSession(options))
-  const { errorService, ingest } = session
+  const { errorService, ingest, modalState } = session
   const camera = new WorkspaceCamera()
   const actions = createWorkspaceActions(session, camera)
+
+  // Ctrl+S is always ours (never the browser's "Save page"); it runs when no
+  // dialog is in front, text fields included.
+  function handleSaveKey(event: KeyboardEvent): void {
+    const shortcut = resolveWorkspaceShortcut(event)
+    if (shortcut !== 'save' && shortcut !== 'save-as') return
+    event.preventDefault()
+    if (modalState.activeModal) return
+    if (shortcut === 'save') actions.save()
+    else actions.saveAs()
+  }
+
+  $effect(() => {
+    document.addEventListener('keydown', handleSaveKey)
+    return () => document.removeEventListener('keydown', handleSaveKey)
+  })
   onDestroy(() => {
     camera.destroy()
     // Releases the media blobs and their object URLs (recordings can be GBs).
@@ -103,7 +120,7 @@
     if (files.length === 0) {
       ingest.applyEmpty()
     } else {
-      await ingest.loadFiles(files)
+      await ingest.loadFiles(files, { fromHost: true })
     }
   }
 

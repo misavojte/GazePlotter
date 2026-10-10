@@ -19,6 +19,81 @@ export type SaveFile = (
   extension: string
 ) => void
 
+/** A file the user chose to save the workspace into; written many times. */
+export type SaveTarget = {
+  readonly name: string
+  /** Replaces the file's contents (atomically where the platform can). */
+  write(content: Blob): Promise<void>
+  /** The file as it is now, to re-read lazily referenced bytes and detect
+   *  changes made elsewhere; null where the platform cannot read it back. */
+  read(): Promise<File | null>
+}
+
+/** The `pickSaveTarget` embedding option: a save-as dialog. Null = cancelled. */
+export type PickSaveTarget = (
+  suggestedName: string,
+  extension: string
+) => Promise<SaveTarget | null>
+
+type FileHandle = {
+  name: string
+  getFile(): Promise<File>
+  createWritable(): Promise<{
+    write(data: Blob): Promise<void>
+    close(): Promise<void>
+    abort(): Promise<void>
+  }>
+}
+type ShowSaveFilePicker = (options: {
+  suggestedName: string
+  types: { description: string; accept: Record<string, string[]> }[]
+}) => Promise<FileHandle>
+
+/**
+ * Web default for `pickSaveTarget` where the browser can write to a chosen
+ * file (File System Access API, Chromium); null elsewhere (download only).
+ */
+export function browserPickSaveTarget(): PickSaveTarget | null {
+  const picker =
+    typeof window === 'undefined'
+      ? undefined
+      : (window as unknown as { showSaveFilePicker?: ShowSaveFilePicker })
+          .showSaveFilePicker
+  if (!picker) return null
+  return async (suggestedName, extension) => {
+    let handle: FileHandle
+    try {
+      handle = await picker.call(window, {
+        suggestedName: suggestedName + extension,
+        types: [
+          {
+            description: 'GazePlotter workspace',
+            accept: { 'application/x-gazeplotter': [extension] },
+          },
+        ],
+      })
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'AbortError') return null
+      throw error
+    }
+    return {
+      name: handle.name,
+      async write(content) {
+        // Writes go to a swap file that replaces the original on close.
+        const writable = await handle.createWritable()
+        try {
+          await writable.write(content)
+        } catch (error) {
+          await writable.abort()
+          throw error
+        }
+        await writable.close()
+      },
+      read: () => handle.getFile(),
+    }
+  }
+}
+
 /**
  * Web default for `saveFile`: an anchor + blob browser download.
  */

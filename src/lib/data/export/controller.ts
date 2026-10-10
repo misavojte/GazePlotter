@@ -16,9 +16,13 @@ import { mediaFileExtension } from '$lib/data/media/mediaUpload'
 import type { StimulusMediaStore } from '$lib/data/media/mediaStore.svelte'
 import { generateScanGraph } from './mappers/scangraph'
 import { generateWorkspaceJson } from './mappers/workspace'
+import { segmentEntries } from '$lib/data/binary/storedSegments'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { AllGridTypes } from '$lib/workspace'
 import type { FileMetadataType } from '$lib/data/ingest/types'
+
+/** The native workspace file extension. */
+export const WORKSPACE_EXTENSION = '.gazeplotter'
 
 /** What a build produces. Delivery is the ExportService's job, through the
  *  session's `saveFile` embedding option. */
@@ -148,31 +152,27 @@ export function buildScanGraph(
 }
 
 /**
- * Builds the entire workspace state. Without stimulus media this is the
- * plain JSON of always, byte-compatible with older exports. With media it
- * becomes a `.gazeplotter.zip` archive: the same `workspace.json` plus one
- * stored `media/<stimulusId>.<ext>` entry per medium, referenced rather than
- * copied into memory. `skippedMedia` lists the stimuli whose bytes could not
- * be read (e.g. the source file was moved).
+ * The workspace as one `.gazeplotter` file: a zip of a compact
+ * `workspace.json`, the segment buffers as raw entries, and one stored
+ * `media/<stimulusId>.<ext>` entry per medium (referenced, not copied into
+ * memory). `skippedMedia` lists the stimuli whose bytes could not be read.
  */
 export async function buildWorkspace(
   data: DataType,
   layoutState: AllGridTypes[],
   metadata: FileMetadataType | null,
   media: Pick<StimulusMediaStore, 'getBlob'>
-): Promise<ExportPayload & { skippedMedia: number[] }> {
-  const json = generateWorkspaceJson(data, layoutState, metadata)
-
-  const mediaIds = Object.keys(data.stimuliMedia ?? {}).map(Number)
-  if (mediaIds.length === 0) {
-    return { content: json, extension: '.json', skippedMedia: [] }
-  }
-
+): Promise<{ content: Blob; extension: string; skippedMedia: number[] }> {
   const entries: ZipWriteEntry[] = [
-    { name: 'workspace.json', content: json, compress: true },
+    {
+      name: 'workspace.json',
+      content: generateWorkspaceJson(data, layoutState, metadata, { storedSegments: true }),
+      compress: true,
+    },
+    ...segmentEntries(data.segments),
   ]
   const idByEntry = new Map<string, number>()
-  for (const id of mediaIds) {
+  for (const id of Object.keys(data.stimuliMedia ?? {}).map(Number)) {
     const blob = media.getBlob(id)
     // Metadata ⇔ blob is an engine invariant; a missing blob here would mean
     // a bug upstream: skip the entry rather than export a broken archive.
@@ -184,7 +184,7 @@ export async function buildWorkspace(
   const { blob, skipped } = await writeBlobZip(entries)
   return {
     content: blob,
-    extension: '.gazeplotter.zip',
+    extension: WORKSPACE_EXTENSION,
     skippedMedia: skipped.map(name => idByEntry.get(name)!),
   }
 }

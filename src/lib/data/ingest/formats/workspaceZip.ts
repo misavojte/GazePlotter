@@ -1,15 +1,14 @@
 import type { WorkspaceFormatDefinition } from '../kernel/format'
 import type { StimulusMedia } from '$lib/data/types'
 import { readBlobZip, readZipEntry } from '$lib/data/zip/blobZip'
+import { isStoredSegments, readSegmentEntries } from '$lib/data/binary/storedSegments'
 
 /**
- * A saved GazePlotter workspace archive (`.gazeplotter.zip`), produced when
- * the workspace carries stimulus reference media. Contains the exact
- * `workspace.json` a plain export would produce plus one
- * `media/<stimulusId>.<ext>` entry per medium (see `buildWorkspace` in
- * `export/controller.ts`).
+ * A saved GazePlotter workspace: `.gazeplotter` (workspace.json, segment
+ * buffers as entries, media; see `buildWorkspace` in `export/controller.ts`)
+ * or the older `.gazeplotter.zip` (plain workspace.json plus media).
  *
- * Matched by the `.gazeplotter.zip` suffix, or by a `workspace.json` entry
+ * Matched by either suffix, or by a `workspace.json` entry
  * in any other `.zip` (Pupil Cloud exports have none, so they still go to the
  * archive formats). A media entry that is missing or unreadable drops only
  * that stimulus's media (the ingest apply strips blob-less metadata and
@@ -19,7 +18,7 @@ export const workspaceZipFormat: WorkspaceFormatDefinition = {
   kind: 'workspace',
   id: 'workspace-zip',
   displayName: 'GazePlotter workspace archive',
-  matchesFileName: name => name.toLowerCase().endsWith('.gazeplotter.zip'),
+  matchesFileName: name => /\.gazeplotter(\.zip)?$/i.test(name),
   // A renamed copy (`study.gazeplotter (1).zip`, `study.zip`) is still ours
   // when it carries workspace.json.
   async matchesContent(file) {
@@ -41,10 +40,16 @@ export const workspaceZipFormat: WorkspaceFormatDefinition = {
 
     // Same lazy import as workspaceJson.ts: the migration chain pulls in the
     // metric library, which must stay out of the worker's startup chunk.
-    const { processJsonFileWithGrid } = await import('../workspace/parser')
-    const result = processJsonFileWithGrid(
-      await (await readZipEntry(file, wsEntry)).text()
-    )
+    const { processWorkspaceObject } = await import('../workspace/parser')
+    const raw = JSON.parse(await (await readZipEntry(file, wsEntry)).text())
+    // `.gazeplotter`: segment buffers are entries of their own.
+    if (isStoredSegments(raw?.data?.segments)) {
+      raw.data.segments = await readSegmentEntries(raw.data.segments, async name => {
+        const entry = entries.get(name)
+        return entry ? (await readZipEntry(file, entry)).arrayBuffer() : null
+      })
+    }
+    const result = processWorkspaceObject(raw)
 
     // Stored media entries come back as slices of the archive: no copy.
     const stimuliMedia = result.data.stimuliMedia as

@@ -29,13 +29,9 @@ type ExportServiceDeps = {
   errorService: Pick<ErrorService, 'report'>
   grid: GridState
   ingest: IngestService
-  toastState: Pick<ToastState, 'addSuccess' | 'addWarning'>
+  toastState: Pick<ToastState, 'addSuccess'>
   /** Session-resolved `saveFile` embedding option (web: anchor download). */
   saveFile: SaveFile
-}
-
-export type WorkspaceExportOptions = {
-  fileName: string
 }
 
 export type SegmentedExportOptions = {
@@ -145,30 +141,28 @@ export class ExportService {
     }
   }
 
-  async exportWorkspace(options: WorkspaceExportOptions): Promise<boolean> {
-    return this.runExport(async () => {
-      // Original-on-disk (PLANMERGE §4): persist the pristine pre-merge data +
-      // the merge log, not the folded working view. `unfoldMerges` is a no-op
-      // when nothing is merged. The merged view is re-derived on load.
-      const { skippedMedia, ...payload } = await buildWorkspace(
-        unfoldMerges(this.getExportData()),
-        this.deps.grid.items,
-        this.deps.ingest.metadata,
-        this.deps.engine.media
+  /** The workspace as one `.gazeplotter` file (see WorkspaceFile for saving).
+   *  Throws when a medium's bytes cannot be read: a file missing them is no
+   *  save. */
+  async buildWorkspaceFile(): Promise<Blob> {
+    // Original-on-disk (PLANMERGE §4): persist the pristine pre-merge data +
+    // the merge log, not the folded working view. `unfoldMerges` is a no-op
+    // when nothing is merged. The merged view is re-derived on load.
+    const { content, skippedMedia } = await buildWorkspace(
+      unfoldMerges(this.getExportData()),
+      this.deps.grid.items,
+      this.deps.ingest.metadata,
+      this.deps.engine.media
+    )
+    if (skippedMedia.length > 0) {
+      const names = skippedMedia
+        .map(id => getStimulus(this.deps.engine, id).displayedName)
+        .join(', ')
+      throw new Error(
+        `Reference media for ${names} could not be read (its file may have moved). Reattach it in the Stimuli library, then save again.`
       )
-      this.deliver(payload, this.resolveFileName(options.fileName))
-      if (skippedMedia.length > 0) {
-        const names = skippedMedia
-          .map(id => getStimulus(this.deps.engine, id).displayedName)
-          .join(', ')
-        this.deps.toastState.addWarning(
-          `Reference media for ${names} could not be read (its file may have moved) and was left out of the export.`
-        )
-      }
-    }, 'Workspace exported successfully', {
-      exportType: 'workspace',
-      fileName: options.fileName,
-    })
+    }
+    return content
   }
 
   /** Shared shell of the two tabular exports. */
