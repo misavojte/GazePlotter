@@ -54,7 +54,7 @@ export class CsvRowParser extends RowParser {
     ])
   }
 
-  protected override deserializeFromBytes(_rawRowRef: Uint8Array): void {
+  protected override deserializeFromBytes(): void {
     const time = this.getNumber(this.pTime)
     if (!Number.isFinite(time)) return
 
