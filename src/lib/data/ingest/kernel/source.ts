@@ -15,6 +15,8 @@ import type { TextEncoding } from '$lib/data/ingest/utils/byteUtils'
 
 const MAX_HEADER_BYTES = 256 * 1024
 const BUFFER_CHUNK_BYTES = 1024 * 1024
+const BLOB_SLICE_BYTES = 8 * 1024 * 1024
+const BLOB_READS_IN_FLIGHT = 4
 
 export interface IngestSource {
   readonly name: string
@@ -34,7 +36,39 @@ export function streamSource(
 
 /** A file handed over whole (a structured clone of a File is a reference). */
 export function blobSource(name: string, blob: Blob): IngestSource {
-  return { name, stream: blob.stream(), blob }
+  return { name, stream: blobSliceStream(blob), blob }
+}
+
+/**
+ * Reads a blob in large slices with BLOB_READS_IN_FLIGHT reads queued ahead
+ * of the consumer: in the browser the parse outruns a single read (4 x 8 MB
+ * reaches Chrome's read ceiling; more did not help).
+ */
+function blobSliceStream(blob: Blob): ReadableStream<Uint8Array> {
+  let offset = 0
+  const queue: Promise<ArrayBuffer>[] = []
+  const fill = (): void => {
+    while (queue.length < BLOB_READS_IN_FLIGHT && offset < blob.size) {
+      queue.push(blob.slice(offset, offset + BLOB_SLICE_BYTES).arrayBuffer())
+      offset += BLOB_SLICE_BYTES
+    }
+  }
+  fill()
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      const current = queue.shift()
+      if (current === undefined) {
+        controller.close()
+        return
+      }
+      fill()
+      controller.enqueue(new Uint8Array(await current))
+    },
+    cancel() {
+      queue.length = 0
+      offset = blob.size
+    },
+  }, { highWaterMark: 0 })
 }
 
 /** The source as a Blob: its own when it has one, else drained. */

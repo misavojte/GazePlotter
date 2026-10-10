@@ -25,7 +25,6 @@ import {
   getStimuli,
   getStimulusHighestEndTime,
 } from '$lib/data/engine'
-import { isArchiveFileName } from './formats/routing'
 import {
   buildStimulusMediaFromFile,
   matchMediaFilesToStimuli,
@@ -256,39 +255,20 @@ class IngestWorkerClient {
       return
     }
 
-    // Archives go over whole (a cloned File is a reference, not a copy) so
-    // readers can slice them; everything else, workspace JSON included,
-    // streams to the worker.
-    if (isArchiveFileName(fileArray[0].name)) {
-      void this.processZipFiles(fileArray)
-    } else if (this.isStreamTransferable()) {
-      this.processDataAsStream(fileArray)
-    } else {
-      void this.processDataAsArrayBuffer(fileArray)
-    }
-  }
-
-  private static isStreamTransferableCached: boolean | null = null
-
-  private isStreamTransferable(): boolean {
-    if (IngestWorkerClient.isStreamTransferableCached !== null) {
-      return IngestWorkerClient.isStreamTransferableCached
-    }
-
-    const stream = new ReadableStream({
-      start(controller) {
-        controller.enqueue(new Uint8Array([]))
-        controller.close()
-      },
-    })
-
-    try {
-      this.worker.postMessage({ type: 'test-stream', data: stream }, [stream])
-      IngestWorkerClient.isStreamTransferableCached = true
-      return true
-    } catch {
-      IngestWorkerClient.isStreamTransferableCached = false
-      return false
+    // Every file goes over whole: a cloned File is a reference, not a copy,
+    // and the worker reads it in large slices itself. (Transferring
+    // file.stream() relayed every chunk through this thread.)
+    for (let index = 0; index < fileArray.length; index++) {
+      const file = fileArray[index]
+      if (
+        !this.postWorkerMessage({ type: 'file', data: file }, [], {
+          stage: 'dispatch-file',
+          fileIndex: index,
+          fileName: file.name,
+        })
+      ) {
+        return
+      }
     }
   }
 
@@ -319,78 +299,6 @@ class IngestWorkerClient {
         ...(extraContext ?? {}),
       })
       return false
-    }
-  }
-
-  private processDataAsStream(files: File[]): void {
-    for (let index = 0; index < files.length; index++) {
-      const stream = files[index].stream()
-      if (
-        !this.postWorkerMessage({ type: 'stream', data: stream }, [stream], {
-          stage: 'dispatch-stream',
-          fileIndex: index,
-          fileName: files[index].name,
-        })
-      ) {
-        return
-      }
-    }
-  }
-
-  private async processDataAsArrayBuffer(files: File[]): Promise<void> {
-    for (let index = 0; index < files.length; index++) {
-      const file = files[index]
-
-      try {
-        const buffer = await file.arrayBuffer()
-        if (
-          !this.postWorkerMessage({ type: 'buffer', data: buffer }, [buffer], {
-            stage: 'dispatch-buffer',
-            fileIndex: index,
-            fileName: file.name,
-          })
-        ) {
-          return
-        }
-      } catch (error) {
-        this.handleError(error, {
-          stage: 'read-array-buffer',
-          fileIndex: index,
-          fileName: file.name,
-        })
-        return
-      }
-    }
-  }
-
-  private async processZipFiles(files: File[]): Promise<void> {
-    for (let index = 0; index < files.length; index++) {
-      const file = files[index]
-
-      try {
-        const zipName = this.fileNames[index]
-        if (
-          !this.postWorkerMessage(
-            { type: 'zip-file', data: { file, zipName } },
-            [],
-            {
-              stage: 'dispatch-zip-file',
-              fileIndex: index,
-              fileName: file.name,
-              zipName,
-            }
-          )
-        ) {
-          return
-        }
-      } catch (error) {
-        this.handleError(error, {
-          stage: 'read-zip-file',
-          fileIndex: index,
-          fileName: file.name,
-        })
-        return
-      }
     }
   }
 
