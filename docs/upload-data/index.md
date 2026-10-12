@@ -24,7 +24,7 @@ The workspace supports the following file types:
 
 ### Workspace import
 
-You can also select a GazePlotter workspace file to restore a saved session, which is useful for sharing analyses. A single `.json` file is always treated as a workspace import; workspaces saved with stimulus reference media are `.gazeplotter.zip` archives and import the same way.
+You can also select a GazePlotter workspace file to restore a saved session, which is useful for sharing analyses. Workspaces are `.gazeplotter` files (see [Workspace Export](/docs/export/workspace/)). Files saved by earlier versions open the same way: a single `.json` file is always treated as a workspace import, and `.gazeplotter.zip` archives carry stimulus reference media.
 
 ### Event files
 
