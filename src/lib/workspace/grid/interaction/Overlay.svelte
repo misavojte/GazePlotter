@@ -1,12 +1,12 @@
 <script lang="ts">
   import { gridToPixelDimensions, gridToPixelPosition } from '../pixels'
   import type { GridConfig } from '../types'
-  import type { GridInteractionRect } from './model'
+  import type { GridInteractionMode, GridInteractionRect } from './model'
 
   interface Props {
     previews: GridInteractionRect[]
     gridConfig: GridConfig
-    mode: 'moving' | 'resizing' | 'idle' | 'panning'
+    mode: GridInteractionMode
   }
 
   const { previews, gridConfig, mode }: Props = $props()

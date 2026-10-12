@@ -20,7 +20,10 @@
   } from './grid'
   import {
     GridInteractionController,
+    itemIdsTouchedByMarquee,
+    marqueeSelectAction,
     panSurfaceAction,
+    type MarqueeBounds,
   } from './grid/interaction'
   import type { WorkspaceCamera, GridBounds } from './camera.svelte'
   import { cameraTouchAction, cameraWheelAction } from './cameraGestures'
@@ -60,7 +63,25 @@
     const target = event.target as HTMLElement | null
     if (!target) return
     if (target.closest('.grid-item')) return
+    // A held modifier is selection work, never dismissal: a press that stops
+    // short of the drag threshold must not wipe the selection the rectangle
+    // was about to add to.
+    if (event.shiftKey || event.ctrlKey || event.metaKey) return
     grid.clearSelection()
+  }
+
+  // Hold Shift or Ctrl/Cmd and drag the desk to draw a selection rectangle.
+  // The modifiers mean on a region what they already mean on a plot click:
+  // add to the selection. Plots keep the drag they have (an unselected one
+  // pans, a selected one moves), so only the bare desk reads the modifier.
+  function isMarqueeStart(event: PointerEvent): boolean {
+    if (event.pointerType === 'touch') return false
+    if (!(event.shiftKey || event.ctrlKey || event.metaKey)) return false
+    const target = event.target as HTMLElement | null
+    if (!target) return false
+    return !target.closest(
+      '.grid-item, [data-owns-drag], button, a, input, select, textarea, [role="button"]'
+    )
   }
 
   // Drag-to-pan starts from empty space and from unselected plots, whose drag
@@ -69,9 +90,20 @@
   function shouldStartPan(event: PointerEvent): boolean {
     const target = event.target as HTMLElement | null
     if (!target) return false
+    if (isMarqueeStart(event)) return false
     return !target.closest(
       '.grid-item.selected, [data-owns-drag], button, a, input, select, textarea, [role="button"]'
     )
+  }
+
+  // What the rectangle adds to: the selection as it stood when the drag began.
+  let marqueeBase: number[] = []
+
+  function applyMarquee(bounds: MarqueeBounds): void {
+    grid.setSelection([
+      ...marqueeBase,
+      ...itemIdsTouchedByMarquee(grid.positions, bounds, gridConfig),
+    ])
   }
 
   // One finger pans from the same places, minus the mouse-only carve-out: a
@@ -99,6 +131,7 @@
   // "No grid on screen": ingest owns this state, and it is read straight from
   // there. A mirror on GridState would lag it by a flush for no other reader.
   const isLoading = $derived(ingest.isLoading)
+  const hasGrid = $derived(!grid.isEmpty && !isLoading)
 
   let workspaceContainer: HTMLElement | null = $state(null)
   let gridSurface: HTMLElement | null = $state(null)
@@ -343,11 +376,18 @@
       onclick={handleWorkspaceBackgroundClick}
       use:cameraTouchAction={{ camera, panTarget: touchPanTarget }}
       use:panSurfaceAction={{
-        enabled: !grid.isEmpty && !isLoading,
+        enabled: hasGrid,
         interaction,
         workspaceContainer,
         shouldStart: shouldStartPan,
         deferStart: deferPan,
+      }}
+      use:marqueeSelectAction={{
+        enabled: hasGrid,
+        interaction,
+        shouldStart: isMarqueeStart,
+        onStart: () => (marqueeBase = [...grid.selectedItemIds]),
+        onChange: applyMarquee,
       }}
     >
       {#if fileDrop.isActive && (grid.isEmpty || isLoading)}

@@ -252,6 +252,17 @@
     {gridConfig}
     mode={interaction.mode}
   />
+
+  {#if interaction.marqueeBounds}
+    {@const bounds = interaction.marqueeBounds}
+    <div
+      class="marquee"
+      style:transform="translate({bounds.left}px, {bounds.top}px)"
+      style:width="{bounds.right - bounds.left}px"
+      style:height="{bounds.bottom - bounds.top}px"
+      aria-hidden="true"
+    ></div>
+  {/if}
 </div>
 
 
@@ -266,6 +277,20 @@
 
   .grid-container {
     position: relative;
+  }
+
+  /* The selection rectangle being dragged across the desk. Grid-space, like
+     every other overlay here: it is anchored to the plots it is drawn
+     around, not to the screen. */
+  .marquee {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 50;
+    pointer-events: none;
+    box-sizing: border-box;
+    border: 1px solid var(--c-info);
+    background: color-mix(in srgb, var(--c-info) 8%, transparent);
   }
 
   /* Contour outline and fill around a multi-selection. Sits above unselected
