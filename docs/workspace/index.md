@@ -35,7 +35,7 @@ A narrow column on the **left side** of the canvas (a strip along the bottom on 
 
 ### Moving around the canvas
 The canvas works like a map:
-- **Pan**: drag empty space, drag with the middle mouse button (also over plots), or scroll with the mouse wheel or touchpad (hold `Shift` to scroll sideways). On a touch screen, drag with two fingers.
+- **Pan**: drag empty space, drag with the middle mouse button (also over plots), or scroll with the mouse wheel or touchpad (hold `Shift` to scroll sideways). On a touch screen, drag with one finger or two; a finger on a selected plot moves the plot instead.
 - **Zoom**: `Ctrl` / `Cmd` + scroll, pinch on a touchpad or touch screen, or `Ctrl` / `Cmd` + `+` / `-`. `Ctrl` / `Cmd` + `0` returns to 100%.
 - **Zoom to fit**: `Shift` + `1`, or the button in the rail.
 - You can always pan a little past your plots, but never so far that they all leave the screen. If the selection is out of view, an arrow at the edge of the canvas points to it; click the arrow to bring it back. With several plots selected, the arrow points at the group and brings the whole of it back.
@@ -50,6 +50,7 @@ A collapsible panel located on the **right side** of the screen.
 - **Pane Activation**: Opens automatically when you select any plot card on the canvas.
 - **Collapsible Settings**: Customize parameters (e.g. *Stimulus*, *Participant selection*, *Participant*, *Time Range*, *Areas of Interest*, *Events*, *Eye-movement Types*, *Metric*). See [Visualization Configuration Pane](/docs/visualizations/#visualization-configuration-pane) for details.
 - **Batch Editing**: Modify settings for multiple selected plots simultaneously (mixed plot types only expose shared options).
+- **On a phone**: the pane rises as a sheet along the bottom edge. Pull it down by the handle above its title, or tap the canvas behind it, to close it.
 
 ## Plot Manipulation
 
