@@ -1,24 +1,26 @@
 <script lang="ts">
   import Copy from 'lucide-svelte/icons/copy'
   import X from 'lucide-svelte/icons/x'
+  import { useTooltipAction } from '$lib/tooltip'
 
   /**
-   * The actions a selection carries: Duplicate and Remove, worded the same
-   * whether the selection is one plot or a group. It is the selection's own
-   * chrome, so it wears the selection's colour and corner radius rather than
-   * the rail's paper-and-border look.
+   * The actions a selection carries: Duplicate and Remove, naming the same
+   * verbs whether the selection is one plot or a group. It is the selection's
+   * own chrome, so it wears the selection's colour and corner radius.
    *
    * It positions itself against the nearest positioned ancestor, so a host
    * puts that anchor on its outline's top-left corner.
    */
   interface Props {
-    /** What the verbs act on, for screen readers: "plot", "3 plots". */
+    /** What the verbs act on: "plot", "3 plots". */
     scope: string
     onDuplicate: () => void
     onRemove: () => void
   }
 
   const { scope, onDuplicate, onRemove }: Props = $props()
+
+  const tooltipAction = useTooltipAction()
 </script>
 
 <div class="action-chip" data-block-select>
@@ -27,71 +29,73 @@
     class="action"
     onclick={onDuplicate}
     aria-label="Duplicate {scope}"
+    use:tooltipAction={{ content: 'Duplicate', position: 'top' }}
   >
-    <Copy size={12} strokeWidth={1.75} aria-hidden="true" />
-    <span>Duplicate</span>
+    <Copy size={16} strokeWidth={1.75} aria-hidden="true" />
   </button>
   <button
     type="button"
     class="action"
     onclick={onRemove}
     aria-label="Remove {scope}"
+    use:tooltipAction={{ content: 'Remove', position: 'top' }}
   >
-    <X size={12} strokeWidth={1.75} aria-hidden="true" />
-    <span>Remove</span>
+    <X size={16} strokeWidth={1.75} aria-hidden="true" />
   </button>
 </div>
 
 <style>
   /* Rides just above the selection outline, left edges on one line, in the
-     outline's own colour and corner radius: at this height --rounded-lg
-     renders as a pill, so the chip and the outline round alike. */
+     outline's own colour and the plot's own corner radius. Two --action-size
+     squares wide and one tall, so --rounded-lg is exactly half the height:
+     the ends come out as true semicircles, not a clamped guess at one. The
+     glyphs are the rail's: same size, same stroke, same ink on their fill. The
+     clip is what lets a hovered half fill the pill right out to its edge. */
   .action-chip {
+    --action-size: 40px;
     position: absolute;
     left: 0;
     bottom: calc(100% + var(--spacing-xxs));
     display: inline-flex;
     align-items: stretch;
-    gap: 2px;
-    padding: 2px;
     background: var(--c-info);
     border: none;
     border-radius: var(--rounded-lg);
+    overflow: hidden;
     z-index: 6;
     white-space: nowrap;
   }
 
+  /* A square each, squared off so the clip above gives them their ends. The
+     icon is the only thing inside, centred by the box and nothing else: no
+     padding, no margin, no line box to sit on. */
   .action {
     display: inline-flex;
     align-items: center;
-    gap: var(--spacing-xxs);
-    padding: 3px 9px;
+    justify-content: center;
+    width: var(--action-size);
+    height: var(--action-size);
+    margin: 0;
+    padding: 0;
     background: transparent;
     color: var(--c-white);
     border: none;
-    border-radius: var(--rounded-lg);
-    font-size: var(--text-xs);
-    font-family: var(--font-small);
-    font-weight: 500;
-    line-height: 1;
+    border-radius: 0;
     cursor: pointer;
-    white-space: nowrap;
     transition: background-color var(--transition-fast) ease;
   }
 
   .action:hover {
-    background-color: color-mix(in srgb, var(--c-white) 18%, transparent);
+    background-color: color-mix(in srgb, var(--c-white) 20%, transparent);
   }
 
-  /* On the selection's own blue, the ring is white: the same shape the
-     button already has, so focus fills it in rather than boxing it. */
   .action:focus-visible {
-    background-color: color-mix(in srgb, var(--c-white) 18%, transparent);
-    outline: 1px solid var(--c-white);
-    outline-offset: -1px;
+    background-color: color-mix(in srgb, var(--c-white) 20%, transparent);
+    outline: 2px solid var(--c-white);
+    outline-offset: -5px;
   }
 
   .action:active {
-    background-color: color-mix(in srgb, var(--c-white) 30%, transparent);
+    background-color: color-mix(in srgb, var(--c-white) 32%, transparent);
   }
 </style>

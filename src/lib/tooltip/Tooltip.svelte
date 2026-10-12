@@ -66,6 +66,9 @@
     position: fixed;
     font-size: var(--text-xs);
     font-family: var(--font-small);
+    /* Stated, not inherited: the tooltip is portalled out of the app's own
+       tree, and the size its placement assumed must be the size it renders. */
+    line-height: var(--leading-normal);
     background: var(--c-darkgrey); /* Modern Slate palette */
     color: var(--c-white);
     border-radius: var(--rounded-md);

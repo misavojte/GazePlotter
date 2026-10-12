@@ -61,7 +61,7 @@ With the plot selected, the whole card is a drag target: click and drag anywhere
 ### Resizing a plot
 Drag any of the four corner handles on a selected plot. The card snaps to the grid as it resizes.
 
-A selected plot carries a small chip that floats just above its outline's top-left corner, holding **Duplicate** and **Remove**.
+A selected plot carries a small chip that floats just above its outline's top-left corner, holding two buttons: **Duplicate** and **Remove**. Hover either one for its name.
 
 ### Duplicating a plot
 Click **Duplicate** in the chip. The copy keeps every setting: participant selection, stimulus, axis bounds, colors.

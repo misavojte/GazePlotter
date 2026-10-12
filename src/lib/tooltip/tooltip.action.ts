@@ -5,7 +5,10 @@ import {
 } from './tooltipState.svelte'
 import { TOOLTIP_DEFAULT_OFFSET, WIDTH_ESTIMATION } from './const'
 import type { Action } from 'svelte/action'
-import { estimateTextWidth } from '$lib/shared/textMeasure'
+import {
+  estimateTextWidth,
+  SYSTEM_SANS_SERIF_SMALL_STACK,
+} from '$lib/shared/textMeasure'
 import {
   computePlacement,
   adjustForViewport,
@@ -34,13 +37,19 @@ const estimateTooltipHeight = (
   content: Array<{ key: string; value: string }>,
   width: number
 ): number => {
-  // Each row ≈ lineHeight(~14px) + padding(10px vertical total across item).
-  const ROW_HEIGHT = 14
-  const BASE_PADDING = 10
+  // One row is 11px over --leading-normal (15.4px), and the box adds 5px of
+  // padding and a 1px border top and bottom. Rounded up, since a short
+  // estimate is what lets the box cover its own trigger.
+  const ROW_HEIGHT = 16
+  const BASE_PADDING = 12
   const usable = Math.max(width - WIDTH_ESTIMATION.PADDING, 20)
   let lines = 0
   for (const item of content) {
-    const textWidth = estimateTextWidth(item.value, WIDTH_ESTIMATION.FONT_SIZE)
+    const textWidth = estimateTextWidth(
+      item.value,
+      WIDTH_ESTIMATION.FONT_SIZE,
+      SYSTEM_SANS_SERIF_SMALL_STACK
+    )
     lines += Math.max(1, Math.ceil(textWidth / usable))
   }
   return lines * ROW_HEIGHT + BASE_PADDING

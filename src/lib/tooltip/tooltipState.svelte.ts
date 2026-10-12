@@ -1,5 +1,8 @@
 import { sessionScoped } from '$lib/session/context'
-import { estimateTextWidth } from '$lib/shared/textMeasure'
+import {
+  estimateTextWidth,
+  SYSTEM_SANS_SERIF_SMALL_STACK,
+} from '$lib/shared/textMeasure'
 import {
   TOOLTIP_JUMP_THRESHOLD,
   TOOLTIP_DEBOUNCE_DELAY,
@@ -33,8 +36,15 @@ export const estimateTooltipWidth = (
   )
   return Math.min(
     WIDTH_ESTIMATION.MAX_WIDTH,
-    estimateTextWidth(longestValue, WIDTH_ESTIMATION.FONT_SIZE) +
-      WIDTH_ESTIMATION.PADDING
+    // The cut the tooltip actually renders in, rounded up: a fraction of a
+    // pixel short is a wrapped line.
+    Math.ceil(
+      estimateTextWidth(
+        longestValue,
+        WIDTH_ESTIMATION.FONT_SIZE,
+        SYSTEM_SANS_SERIF_SMALL_STACK
+      )
+    ) + WIDTH_ESTIMATION.PADDING
   )
 }
 

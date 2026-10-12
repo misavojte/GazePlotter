@@ -18,5 +18,8 @@ export const WIDTH_ESTIMATION = {
   /** Wide enough for a short explanatory sentence on ~2 lines. */
   MAX_WIDTH: 220,
   FONT_SIZE: 11,
-  PADDING: 14,
+  /** What the box takes from the text across: 7px padding and a 1px border
+   *  on each side. Reserving too little wraps a label the placement counted
+   *  as one line, and the box then grows down over what it explains. */
+  PADDING: 16,
 }
