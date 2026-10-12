@@ -21,6 +21,10 @@
   const { scope, onDuplicate, onRemove }: Props = $props()
 
   const tooltipAction = useTooltipAction()
+
+  /** Closer than the default 10: the tooltip names one glyph of small chrome,
+   *  so it should sit with the chip rather than float over the plot above. */
+  const TOOLTIP_OFFSET = 5
 </script>
 
 <div class="action-chip" data-block-select>
@@ -29,7 +33,7 @@
     class="action"
     onclick={onDuplicate}
     aria-label="Duplicate {scope}"
-    use:tooltipAction={{ content: 'Duplicate', position: 'top' }}
+    use:tooltipAction={{ content: 'Duplicate', position: 'top', offset: TOOLTIP_OFFSET }}
   >
     <Copy size={16} strokeWidth={1.75} aria-hidden="true" />
   </button>
@@ -38,7 +42,7 @@
     class="action"
     onclick={onRemove}
     aria-label="Remove {scope}"
-    use:tooltipAction={{ content: 'Remove', position: 'top' }}
+    use:tooltipAction={{ content: 'Remove', position: 'top', offset: TOOLTIP_OFFSET }}
   >
     <X size={16} strokeWidth={1.75} aria-hidden="true" />
   </button>
@@ -67,9 +71,10 @@
   }
 
   /* A square each, squared off so the clip above gives them their ends. The
-     icon is the only thing inside, centred by the box and nothing else: no
-     padding, no margin, no line box to sit on. */
+     glyph is the only thing inside, carrying no box of its own: no margin, no
+     line box to sit on, and no padding beyond the optical shift below. */
   .action {
+    box-sizing: border-box;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -83,6 +88,18 @@
     border-radius: 0;
     cursor: pointer;
     transition: background-color var(--transition-fast) ease;
+  }
+
+  /* Optically centred rather than geometrically: the pill rounds each outer
+     end away, which reads as air on that side and pushes the pair apart. The
+     padding is a correction, not spacing, and moves each glyph half its width
+     toward the middle. */
+  .action:first-child {
+    padding-left: 4px;
+  }
+
+  .action:last-child {
+    padding-right: 4px;
   }
 
   .action:hover {
