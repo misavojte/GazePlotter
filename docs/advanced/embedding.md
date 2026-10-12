@@ -106,7 +106,8 @@ The web defaults are exported for wrapping instead of replacing:
 ## Size and gestures
 
 The workspace is a fixed frame you navigate like a map: drag empty space to
-pan, Ctrl/Cmd + scroll or pinch to zoom, two fingers on touch screens. It is
+pan, Ctrl/Cmd + scroll or pinch to zoom, two fingers on touch screens (one
+finger as well when `gestures` is `'canvas'`). It is
 one screen tall by default; set the CSS variable `--gp-workspace-height` on
 any ancestor to size it. Give it a length (`100vh`, `calc(100vh - 60px)`,
 `640px`): a percentage resolves against the component's own root, which has
@@ -114,11 +115,11 @@ no height. Notifications sit 8px above the bottom of the window; when your
 page has a bar along the bottom edge, set `--gp-toaster-bottom` (for example
 `calc(24px + 8px)`) to lift them above it.
 
-- `gestures`: what the plain mouse wheel does over the workspace.
-  `'cooperative'` (default) leaves it to the page, as an embedded map does,
-  and shows a short "Ctrl + scroll to zoom" hint; use it when the workspace
-  sits inside a scrolling page. `'canvas'` makes the wheel pan the workspace;
-  use it when GazePlotter fills the screen.
+- `gestures`: what the plain mouse wheel and a single finger do over the
+  workspace. `'cooperative'` (default) leaves both to the page, as an embedded
+  map does, and shows a short "Ctrl + scroll to zoom" hint; use it when the
+  workspace sits inside a scrolling page. `'canvas'` makes the wheel and one
+  finger pan the workspace; use it when GazePlotter fills the screen.
 - `controls`: `false` hides the built-in rail (add plot, undo/redo, zoom),
   for hosts that provide their own.
 

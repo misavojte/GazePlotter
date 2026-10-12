@@ -32,7 +32,7 @@
     onWorkspaceCommandChain: (command: WorkspaceCommandChain) => void
     /** The view onto the grid; owned by GazePlotter so hosts can drive it. */
     camera: WorkspaceCamera
-    /** How the wheel behaves over the workspace (see GazePlotter). */
+    /** How the wheel and one finger behave (see GazePlotter). */
     gestures?: 'cooperative' | 'canvas'
     /** Show the built-in floating controls (see GazePlotter). */
     controls?: boolean
@@ -71,6 +71,17 @@
     if (!target) return false
     return !target.closest(
       '.grid-item.selected, [data-owns-drag], button, a, input, select, textarea, [role="button"]'
+    )
+  }
+
+  // One finger pans from the same places, minus the mouse-only carve-out: a
+  // plot that claims the drag claims it for the mouse (brushing a time
+  // window), so honouring it on touch would make the plot a dead zone.
+  function canTouchPan(target: Node): boolean {
+    const element = target instanceof Element ? target : null
+    if (!element) return false
+    return !element.closest(
+      '.grid-item.selected, button, a, input, select, textarea, [role="button"]'
     )
   }
 
@@ -186,6 +197,12 @@
 
   const isFrameTarget = (target: Node) =>
     !!workspaceContainer?.contains(target)
+
+  // Canvas-first: one finger pans the canvas, the way it moves a map. With
+  // nothing loaded there is nothing to pan.
+  const touchPanTarget = $derived(
+    gestures === 'canvas' && !grid.isEmpty && !isLoading ? canTouchPan : null
+  )
 
   // Cooperative gestures: a plain wheel scrolls the page, so say how to zoom
   // instead, as an embedded map does.
@@ -324,7 +341,7 @@
       ondragleave={fileDrop.leave}
       ondrop={handleDrop}
       onclick={handleWorkspaceBackgroundClick}
-      use:cameraTouchAction={camera}
+      use:cameraTouchAction={{ camera, panTarget: touchPanTarget }}
       use:panSurfaceAction={{
         enabled: !grid.isEmpty && !isLoading,
         interaction,

@@ -6,10 +6,11 @@
  * "Zoom to fit" always brings the whole layout back.
  *
  * By default gestures are cooperative, as in an embedded map: the page
- * around the workspace keeps the plain mouse wheel, so the camera answers
- * Ctrl/Cmd+wheel and pinch (zoom), drags on empty space (pan) and two-finger
- * touch (pan and zoom). A host that gives GazePlotter the whole screen can
- * switch to canvas-first, where the plain wheel pans as well (`wheelPan`).
+ * around the workspace keeps the plain mouse wheel and a single finger, so
+ * the camera answers Ctrl/Cmd+wheel and pinch (zoom), drags on empty space
+ * (pan) and two-finger touch (pan and zoom). A host that gives GazePlotter
+ * the whole screen can switch to canvas-first, where the plain wheel pans as
+ * well (`wheelPan`) and so does one finger.
  */
 
 /** Minimum zoom level (most zoomed out). */

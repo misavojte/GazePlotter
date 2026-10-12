@@ -8,7 +8,9 @@ import {
   ZOOM_STEP,
   clampZoom,
   type GridBounds,
+  type Point,
 } from '$lib/workspace/camera.svelte'
+import { cameraTouchAction } from '$lib/workspace/cameraGestures'
 
 /** An 800×600 frame whose padding box starts at client (100, 50). */
 function frame() {
@@ -247,5 +249,113 @@ describe('WorkspaceCamera', () => {
     const x = cam.x
     cam.pinch({ x: 520, y: 350 }, { x: 20, y: 0 }, 1)
     expect(cam.x).toBeCloseTo(x + 20)
+  })
+})
+
+/** A node that hands back the touch listeners the action installs. */
+function touchSurface(cam: WorkspaceCamera, onePanFinger = false) {
+  const listeners = new Map<string, (event: TouchEvent) => void>()
+  const node = {
+    addEventListener: (type: string, fn: (event: TouchEvent) => void) =>
+      listeners.set(type, fn),
+    removeEventListener: (type: string) => listeners.delete(type),
+  } as unknown as HTMLElement
+  cameraTouchAction(node, {
+    camera: cam,
+    panTarget: onePanFinger ? () => true : null,
+  })
+  const fire = (type: string, ...fingers: Point[]) => {
+    listeners.get(type)?.({
+      touches: fingers.map(f => ({ clientX: f.x, clientY: f.y })),
+      preventDefault: () => {},
+    } as unknown as TouchEvent)
+  }
+  return {
+    start: (...fingers: Point[]) => fire('touchstart', ...fingers),
+    move: (...fingers: Point[]) => fire('touchmove', ...fingers),
+    /** The fingers still down after one lifts. */
+    end: (...fingers: Point[]) => fire('touchend', ...fingers),
+  }
+}
+
+describe('cameraTouchAction', () => {
+  it('pans through the wobble of a two-finger drag without zooming', () => {
+    const cam = camera()
+    const x = cam.x
+    const touch = touchSurface(cam)
+
+    touch.start({ x: 400, y: 300 }, { x: 600, y: 300 })
+    // The midpoint travels 45px right while the fingers hold their spread.
+    touch.move({ x: 445, y: 300 }, { x: 645, y: 300 })
+    // And 5px back as they drift 5% closer: still a drag, not a pinch.
+    touch.move({ x: 445, y: 300 }, { x: 635, y: 300 })
+
+    expect(cam.zoom).toBe(ZOOM_MAX)
+    expect(cam.x).toBeCloseTo(x + 40)
+  })
+
+  it('pans with one finger in canvas-first mode, once it leaves the tap', () => {
+    const cam = camera()
+    const x = cam.x
+    const touch = touchSurface(cam, true)
+
+    touch.start({ x: 400, y: 300 })
+    // Inside the tap slack: a press that wobbles is still a tap.
+    touch.move({ x: 404, y: 300 })
+    expect(cam.x).toBe(x)
+
+    touch.move({ x: 440, y: 320 })
+
+    expect(cam.x).toBeCloseTo(x + 40)
+    expect(cam.y).toBeCloseTo(FRAME_INSET.top + 20)
+    expect(cam.zoom).toBe(ZOOM_MAX)
+  })
+
+  it('leaves one finger to the page when the host keeps the gesture', () => {
+    const cam = camera()
+    const x = cam.x
+    const touch = touchSurface(cam)
+
+    touch.start({ x: 400, y: 300 })
+    touch.move({ x: 500, y: 400 })
+
+    expect(cam.x).toBe(x)
+  })
+
+  it('goes on panning with the finger a pinch leaves behind', () => {
+    const cam = camera()
+    const touch = touchSurface(cam, true)
+
+    touch.start({ x: 400, y: 300 }, { x: 600, y: 300 })
+    touch.move({ x: 440, y: 300 }, { x: 640, y: 300 })
+    const x = cam.x
+
+    // One finger lifts: the other keeps the pan going from where it is, with
+    // no second tap slack to cross.
+    touch.end({ x: 440, y: 300 })
+    touch.move({ x: 450, y: 300 })
+
+    expect(cam.x).toBeCloseTo(x + 10)
+  })
+
+  it('zooms once the fingers clearly close, without jumping as it engages', () => {
+    const cam = camera()
+    const touch = touchSurface(cam)
+
+    touch.start({ x: 400, y: 300 }, { x: 600, y: 300 })
+    touch.move({ x: 445, y: 300 }, { x: 645, y: 300 })
+    touch.move({ x: 445, y: 300 }, { x: 635, y: 300 })
+    // 20% closer: the pinch engages, but this frame still only pans.
+    touch.move({ x: 460, y: 300 }, { x: 620, y: 300 })
+    expect(cam.zoom).toBe(ZOOM_MAX)
+
+    // Client midpoint (540, 300) is frame (440, 250).
+    const before = gridAt(cam, 440, 250)
+    touch.move({ x: 480, y: 300 }, { x: 600, y: 300 })
+
+    expect(cam.zoom).toBeCloseTo(0.75)
+    const after = gridAt(cam, 440, 250)
+    expect(after.x).toBeCloseTo(before.x)
+    expect(after.y).toBeCloseTo(before.y)
   })
 })

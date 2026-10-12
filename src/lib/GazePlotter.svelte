@@ -37,11 +37,12 @@
     options?: GazePlotterOptions
     onWorkspaceCommandChain?: (command: WorkspaceCommandChain) => void
     /**
-     * How the mouse wheel behaves over the workspace.
+     * How the wheel and one finger behave over the workspace.
      * - `'cooperative'` (default, for a workspace embedded in a scrolling
-     *   page): the wheel scrolls the page; Ctrl/Cmd+wheel zooms.
+     *   page): the wheel scrolls the page and one finger scrolls it too;
+     *   Ctrl/Cmd+wheel zooms and two fingers pan and pinch.
      * - `'canvas'` (for a host that gives GazePlotter the whole screen): the
-     *   wheel pans the workspace; Ctrl/Cmd+wheel zooms.
+     *   wheel and one finger pan the workspace; Ctrl/Cmd+wheel zooms.
      */
     gestures?: 'cooperative' | 'canvas'
     /**

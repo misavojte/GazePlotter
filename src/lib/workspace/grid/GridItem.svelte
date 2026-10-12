@@ -123,6 +123,8 @@
     }
   }
 
+  // The press look. A finger that slides off is panning the canvas, not
+  // pressing the plot, so a touchmove releases it too.
   let isPressed = $state(false)
 
   function onPointerDown(e: PointerEvent) {
@@ -209,6 +211,7 @@
     onpointerupcapture={onPointerUp}
     onpointercancelcapture={onPointerUp}
     onpointerleavecapture={onPointerUp}
+    ontouchmovecapture={onPointerUp}
   >
     {#if isSoleSelection}
     <!-- Solid blue square tucked behind the plot frame at the top-right.
