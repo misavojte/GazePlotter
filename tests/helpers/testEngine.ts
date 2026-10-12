@@ -10,6 +10,7 @@
  * default is the identity mapping most metric tests used.
  */
 import { createReaderFromJson } from '../../src/lib/data/binary/converters'
+import { createDefaultMetricInstances } from '../../src/lib/metrics/instances'
 import { AoiGroupReader } from '../../src/lib/data/binary/reader.aoiGroup'
 import { EventBufferReader } from '../../src/lib/data/binary/reader.event'
 import type { DataEngine } from '../../src/lib/data/engine/dataEngine.svelte'
@@ -216,4 +217,25 @@ export function makeTestEngine(
   }
 
   return engine as unknown as DataEngine
+}
+
+/**
+ * The fixture the plot-transformer integration tests share: two AOIs over one
+ * participant and one stimulus, with the library's default metrics.
+ */
+export function makeTwoAoiEngine(segments: number[][][][]): DataEngine {
+  return makeTestEngine(segments, {
+    aoiData: [
+      [
+        ['AOI A', 'AOI A', 'red'],
+        ['AOI B', 'AOI B', 'blue'],
+      ],
+    ],
+    aoiOrderVector: [[]],
+    participants: [['P101', 'Participant 101']],
+    participantsOrderVector: [0],
+    stimuli: [['Stimulus 1', 'Stimulus 1']],
+    stimuliOrderVector: [0],
+    metricInstances: createDefaultMetricInstances(),
+  })
 }

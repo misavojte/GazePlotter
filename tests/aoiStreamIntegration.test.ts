@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { makeTestEngine } from './helpers/testEngine'
+import { makeTwoAoiEngine } from './helpers/testEngine'
 import { getAoiStreamPlotData } from '../src/lib/plots/aoi-stream/core/transformer'
-import { createDefaultMetricInstances } from '../src/lib/metrics/instances'
 
 const WINDOWED_TIME_INSTANCE_ID = 'absoluteTime-aoi-windowed-500'
 
@@ -11,29 +10,12 @@ const WINDOWED_TIME_INSTANCE_ID = 'absoluteTime-aoi-windowed-500'
 type StreamSettings = Parameters<typeof getAoiStreamPlotData>[1]
 const partialSettings = (s: Partial<StreamSettings>) => s as StreamSettings
 
-function createMockEngine(segments: number[][][][]) {
-  return makeTestEngine(segments, {
-    aoiData: [
-      [
-        ['AOI A', 'AOI A', 'red'],
-        ['AOI B', 'AOI B', 'blue'],
-      ],
-    ],
-    aoiOrderVector: [[]],
-    participants: [['P101', 'Participant 101']],
-    participantsOrderVector: [0],
-    stimuli: [['Stimulus 1', 'Stimulus 1']],
-    stimuliOrderVector: [0],
-    metricInstances: createDefaultMetricInstances(),
-  })
-}
-
 describe('AOI Stream Plot Transformer (Integration)', () => {
   const stimulusId = 0
   const groupId = -1
 
   it('transforms raw segments into time series binned occupancy', () => {
-    const engine = createMockEngine([
+    const engine = makeTwoAoiEngine([
       [
         [
           [0, 100, 0, 0], // AOI A
@@ -60,7 +42,7 @@ describe('AOI Stream Plot Transformer (Integration)', () => {
   })
 
   it('exposes the metric native unit so the bin tooltip can show real values (not a fabricated %)', () => {
-    const engine = createMockEngine([
+    const engine = makeTwoAoiEngine([
       [
         [
           [0, 100, 0, 0],
@@ -85,7 +67,7 @@ describe('AOI Stream Plot Transformer (Integration)', () => {
   })
 
   it('correctly filters out Outside (No AOI) when hideNoAoi is true', () => {
-    const engine = createMockEngine([
+    const engine = makeTwoAoiEngine([
       [
         [
           [0, 100, 0, 0],
@@ -113,7 +95,7 @@ describe('AOI Stream Plot Transformer (Integration)', () => {
   })
 
   it('excludes Outside (No AOI) from maxValue and maxTotal calculations when hideNoAoi is true', () => {
-    const engine = createMockEngine([
+    const engine = makeTwoAoiEngine([
       [
         [
           [0, 50, 0, 0], // AOI A (50 ms)
