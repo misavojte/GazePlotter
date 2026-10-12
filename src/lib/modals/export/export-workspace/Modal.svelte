@@ -7,6 +7,7 @@
   import { Button } from '$lib/shared/components'
   import type { ModalDefinition } from '$lib/modals/defineModal'
   import type { DataCapabilityRequirements } from '$lib/data/types'
+  import { WORKSPACE_EXTENSION } from '$lib/data/export'
   import { getGazePlotterSession } from '$lib/session'
   import { shortcutLabel } from '$lib/workspace/keys'
   import { exportSegmentedDataModal } from '../export-segmented-data/definition'
@@ -145,7 +146,7 @@
               placeholder="File name"
               aria-label="File name"
             />
-            <span class="extension">.gazeplotter</span>
+            <span class="extension">{WORKSPACE_EXTENSION}</span>
             <Button
               variant="primary"
               flush
