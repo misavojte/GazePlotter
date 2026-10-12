@@ -1,4 +1,4 @@
-import { PLOT_AXIS_TITLE_GAP, PLOT_TICK_LABEL_GAP } from '../shared/const'
+import { PLOT_AXIS_TITLE_GAP } from '../shared/const'
 
 /**
  * Layout costants. Margins are not declared here — they are *measured* per

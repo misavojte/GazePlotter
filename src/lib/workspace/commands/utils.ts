@@ -1,5 +1,4 @@
 import type { WorkspaceCommand, WorkspaceCommandChain } from './types'
-import type { GridItemBase, PlotType } from '$lib/workspace'
 
 /**
  * Generates a unique chain ID for command chaining.

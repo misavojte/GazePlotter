@@ -1,11 +1,7 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotSubtitleParts } from '$lib/plots/definePlot'
 import { buildMetricLabel, getParticipantsSelectionOptions } from '$lib/plots/shared'
-import {
-  getMetric,
-  type MetricInstance,
-  type PlotMetricContract,
-} from '$lib/metrics'
+import { type MetricInstance, type PlotMetricContract } from '$lib/metrics'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import type { MetricMatrixPlotSettings } from './types'
 

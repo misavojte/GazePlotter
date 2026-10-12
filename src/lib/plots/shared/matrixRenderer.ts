@@ -8,7 +8,6 @@ import { FONT_PRIMARY } from './const'
 import {
   alignToPixelCenter,
   markCrosshairStrips,
-  strokeCrosshairGuides,
   strokeParallelLines,
   type HighlightRect,
 } from '$lib/plots/shared/canvasUtils'
