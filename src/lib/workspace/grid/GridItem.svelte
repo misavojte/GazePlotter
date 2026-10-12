@@ -217,19 +217,6 @@
     onpointerleavecapture={onPointerUp}
     ontouchmovecapture={onPointerUp}
   >
-    {#if isSoleSelection && isSettled}
-    <!-- Solid blue square tucked behind the plot frame at the top-right.
-         The frame has a rounded top-right corner, which normally lets the
-         workspace background bleed through the 8×8 arc cutout — breaking
-         the visual continuity between the selection rail (above the frame)
-         and the selection outline (around the frame). This square sits in
-         front of the workspace background and behind the frame, so the
-         rounded cutout renders as solid c-info instead of page chrome,
-         "squaring off" the corner visually while the frame itself stays
-         rounded. aria-hidden: pure decoration. -->
-    <div class="selection-corner-fill" aria-hidden="true"></div>
-  {/if}
-
   <!-- svelte-ignore a11y_click_events_have_key_events -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div
@@ -283,17 +270,15 @@
   {/if}
 
   {#if isSoleSelection && isSettled}
-    <!-- The chip hangs from this anchor at the frame's top-left, sibling of
-         the frame so it isn't clipped by overflow:hidden. The
-         selection-corner-fill above paints the frame's rounded top-left
-         cutout, so the chip reads as an integral extension of the selection.
+    <!-- The chip hangs from this anchor on the selection outline's top-left
+         corner, sibling of the frame so it isn't clipped by overflow:hidden.
          No Move button: the whole frame is already a drag target when
          selected (`cursor: move` signals it), so a dedicated Move button
          duplicates the affordance and mixes drag-to-act with the
          click-to-act verbs next to it. -->
     <div class="chip-anchor">
       <ActionChip
-        scope="item"
+        scope="plot"
         onDuplicate={() => onduplicate({ id })}
         onRemove={() => onremove({ id })}
       />
@@ -564,32 +549,12 @@
     cursor: nwse-resize;
   }
 
-  /* Where the action chip hangs: the selection outline's top-left corner
-     (y = -1px), on the outline itself. */
+  /* Where the action chip hangs: the selection outline's top-left corner.
+     The chip floats above it and aligns its left edge with this one. */
   .chip-anchor {
     position: absolute;
     top: -1px;
     left: -1px;
-  }
-
-  /* Corner fill: sits behind the plot frame and in front of the
-     workspace background at the top-left. Its purpose is to paint the
-     ~8×8 px area the frame's rounded top-left corner cuts out, so the
-     chip's bottom-left joins the selection outline in a continuous
-     blue L-shape instead of being interrupted by a crescent of
-     workspace background. z-index: -1 keeps it below the frame (which
-     is at default z-index 0 inside the grid-item stacking context)
-     while still staying within the grid-item's z-index 1 context so
-     it doesn't escape the workspace layer. */
-  .selection-corner-fill {
-    position: absolute;
-    top: -1px;
-    left: -1px;
-    width: calc(var(--rounded-lg) + 2px);
-    height: calc(var(--rounded-lg) + 2px);
-    background: var(--c-info);
-    z-index: -1;
-    pointer-events: none;
   }
 
   /* Tactile "press" feedback */

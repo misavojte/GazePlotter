@@ -61,13 +61,15 @@ With the plot selected, the whole card is a drag target: click and drag anywhere
 ### Resizing a plot
 Drag any of the four corner handles on a selected plot. The card snaps to the grid as it resizes.
 
-### Duplicating a plot
-Click **Duplicate** in the action chip at the plot's top-left corner. The copy keeps every setting: participant selection, stimulus, axis bounds, colors.
+A selected plot carries a small chip that floats above its top-left corner, holding two buttons: duplicate and remove. Hover either one for its label.
 
-With several plots selected, the chip sits on the group's outline instead and duplicates all of them at once. The copies become the new selection, and one **Undo** takes them all back.
+### Duplicating a plot
+Click the duplicate button in the chip. The copy keeps every setting: participant selection, stimulus, axis bounds, colors.
+
+With several plots selected, the chip moves to the group's outline and duplicates all of them at once. The copies become the new selection, and one **Undo** takes them all back.
 
 ### Removing a plot
-Click **Remove** in the action chip at the plot's top-left corner, or press `Delete`. With several plots selected, the chip on the group's outline removes all of them in one step.
+Click the remove button in the chip, or press `Delete`. With several plots selected, the chip on the group's outline removes all of them in one step.
 
 ## Customization Libraries
 

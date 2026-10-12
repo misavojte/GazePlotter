@@ -130,17 +130,15 @@
     )
   )
 
-  // Where the group's chip hangs: on the contour's top edge, starting where
-  // its rounded corner ends, so the chip's bottom sits flush on the stroke.
-  const groupChipAnchor = $derived.by(() => {
-    const corner = selectionPathCorner(
+  // Where the group's chip hangs: the contour's top-left corner, so the chip
+  // floats above the outline with their left edges on one line.
+  const groupChipAnchor = $derived(
+    selectionPathCorner(
       grid.selectedItems,
       gridConfig,
       SELECTION_CONTOUR_MARGIN
     )
-    if (!corner) return null
-    return { left: corner.x + SELECTION_CONTOUR_RADIUS, top: corner.y }
-  })
+  )
 
   // The group's verbs show when the group's outline does, and never while a
   // selection rectangle is still gathering plots (see GridItem's isSettled).
@@ -300,8 +298,8 @@
   {#if showsGroupActions && groupChipAnchor}
     <div
       class="group-chip-anchor"
-      style:left="{groupChipAnchor.left}px"
-      style:top="{groupChipAnchor.top}px"
+      style:left="{groupChipAnchor.x}px"
+      style:top="{groupChipAnchor.y}px"
     >
       <ActionChip
         scope={groupScope}
