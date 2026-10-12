@@ -38,7 +38,7 @@ The canvas works like a map:
 - **Pan**: drag empty space, drag with the middle mouse button (also over plots), or scroll with the mouse wheel or touchpad (hold `Shift` to scroll sideways). On a touch screen, drag with two fingers.
 - **Zoom**: `Ctrl` / `Cmd` + scroll, pinch on a touchpad or touch screen, or `Ctrl` / `Cmd` + `+` / `-`. `Ctrl` / `Cmd` + `0` returns to 100%.
 - **Zoom to fit**: `Shift` + `1`, or the button in the rail.
-- You can always pan a little past your plots, but never so far that they all leave the screen. If a selected plot is out of view, an arrow at the edge of the canvas points to it; click the arrow to bring the plot back.
+- You can always pan a little past your plots, but never so far that they all leave the screen. If the selection is out of view, an arrow at the edge of the canvas points to it; click the arrow to bring it back. With several plots selected, the arrow points at the group and brings the whole of it back.
 
 ### Canvas
 The central area of the screen where plots are arranged.

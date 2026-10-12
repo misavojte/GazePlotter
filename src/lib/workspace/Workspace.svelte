@@ -15,8 +15,7 @@
     DEFAULT_GRID_CONFIG,
     calculateGridHeight,
     calculateGridWidth,
-    gridToPixelDimensions,
-    gridToPixelPosition,
+    gridBoundsOf,
   } from './grid'
   import {
     GridInteractionController,
@@ -152,22 +151,9 @@
 
   // The layout's extent in grid px (live previews included, so a dragged
   // plot can pull the view with it): the camera's soft wall and "fit" use it.
-  const contentBounds = $derived.by((): GridBounds | null => {
-    if (positionsWithPreview.length === 0) return null
-    let left = Infinity
-    let top = Infinity
-    let right = -Infinity
-    let bottom = -Infinity
-    for (const item of positionsWithPreview) {
-      const pos = gridToPixelPosition(item.x, item.y, gridConfig)
-      const size = gridToPixelDimensions(item.w, item.h, gridConfig)
-      left = Math.min(left, pos.left)
-      top = Math.min(top, pos.top)
-      right = Math.max(right, pos.left + size.width)
-      bottom = Math.max(bottom, pos.top + size.height)
-    }
-    return { left, top, right, bottom }
-  })
+  const contentBounds = $derived<GridBounds | null>(
+    gridBoundsOf(positionsWithPreview, gridConfig)
+  )
 
   // ---------------------------------------------------
   // Initialization Logic

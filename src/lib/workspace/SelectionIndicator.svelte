@@ -1,7 +1,7 @@
 <script lang="ts">
   import { fade } from 'svelte/transition'
   import { getGazePlotterSession } from '$lib/session'
-  import { gridToPixelDimensions, gridToPixelPosition } from './grid/pixels'
+  import { gridBoundsOf } from './grid/pixels'
   import type { GridConfig } from './grid/types'
   import type { WorkspaceCamera } from './camera.svelte'
 
@@ -58,17 +58,17 @@
   })
 
   const indicator = $derived.by(() => {
-    const item = grid.selectedItem
-    if (!item || !frame || frameW === 0 || frameH === 0) return null
+    // The selection as one shape, however many plots it holds: the same box
+    // the group outline draws around them.
+    const bounds = gridBoundsOf(grid.selectedItems, gridConfig)
+    if (!bounds || !frame || frameW === 0 || frameH === 0) return null
 
-    // Item bounds on screen: frame origin + camera offset + scaled grid px.
+    // Those bounds on screen: frame origin + camera offset + scaled grid px.
     const zoom = camera.zoom
-    const pos = gridToPixelPosition(item.x, item.y, gridConfig)
-    const size = gridToPixelDimensions(item.w, item.h, gridConfig)
-    const itemLeft = frameLeft + camera.x + pos.left * zoom
-    const itemTop = frameTop + camera.y + pos.top * zoom
-    const itemRight = itemLeft + size.width * zoom
-    const itemBottom = itemTop + size.height * zoom
+    const itemLeft = frameLeft + camera.x + bounds.left * zoom
+    const itemTop = frameTop + camera.y + bounds.top * zoom
+    const itemRight = frameLeft + camera.x + bounds.right * zoom
+    const itemBottom = frameTop + camera.y + bounds.bottom * zoom
     const itemCx = (itemLeft + itemRight) / 2
     const itemCy = (itemTop + itemBottom) / 2
 
@@ -106,12 +106,7 @@
       pageX: vpCx + dx * t,
       pageY: vpCy + dy * t,
       angle: (Math.atan2(dy, dx) * 180) / Math.PI + 90,
-      rect: {
-        left: pos.left,
-        top: pos.top,
-        right: pos.left + size.width,
-        bottom: pos.top + size.height,
-      },
+      rect: bounds,
     }
   })
 
@@ -133,7 +128,9 @@
     class="indicator"
     style="left: {indicator.pageX}px; top: {indicator.pageY}px; transform: translate(-50%, -50%) rotate({indicator.angle}deg);"
     onclick={revealSelection}
-    aria-label="Show selected plot"
+    aria-label={grid.selectedCount > 1
+      ? 'Show selected plots'
+      : 'Show selected plot'}
     transition:fade={{ duration: 120 }}
   >
     <svg viewBox="0 0 16 16" aria-hidden="true">
