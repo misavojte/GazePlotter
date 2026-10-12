@@ -72,6 +72,10 @@
     grid.clearSelection()
   }
 
+  // Chrome with a pointer meaning of its own: never the start of a canvas
+  // drag. What each gesture adds in front of it is where they differ.
+  const CONTROLS = 'button, a, input, select, textarea, [role="button"]'
+
   // Hold Shift or Ctrl/Cmd and drag the desk to draw a selection rectangle.
   // The modifiers mean on a region what they already mean on a plot click:
   // add to the selection. Plots keep the drag they have (an unselected one
@@ -81,9 +85,7 @@
     if (!(event.shiftKey || event.ctrlKey || event.metaKey)) return false
     const target = event.target as HTMLElement | null
     if (!target) return false
-    return !target.closest(
-      '.grid-item, [data-owns-drag], button, a, input, select, textarea, [role="button"]'
-    )
+    return !target.closest(`.grid-item, [data-owns-drag], ${CONTROLS}`)
   }
 
   // Drag-to-pan starts from empty space and from unselected plots, whose drag
@@ -93,9 +95,7 @@
     const target = event.target as HTMLElement | null
     if (!target) return false
     if (isMarqueeStart(event)) return false
-    return !target.closest(
-      '.grid-item.selected, [data-owns-drag], button, a, input, select, textarea, [role="button"]'
-    )
+    return !target.closest(`.grid-item.selected, [data-owns-drag], ${CONTROLS}`)
   }
 
   // What the rectangle adds to: the selection as it stood when the drag began.
@@ -114,9 +114,7 @@
   function canTouchPan(target: Node): boolean {
     const element = target instanceof Element ? target : null
     if (!element) return false
-    return !element.closest(
-      '.grid-item.selected, button, a, input, select, textarea, [role="button"]'
-    )
+    return !element.closest(`.grid-item.selected, ${CONTROLS}`)
   }
 
   // On a plot the pan waits for a drag, so a click still selects it.
