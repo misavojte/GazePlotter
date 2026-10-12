@@ -13,20 +13,37 @@ export type StoredSegments = {
   hasSpatialData: boolean
 }
 
-const SEGMENT_ARRAYS = [
-  'segmentBuffer',
-  'indexTable',
-  'aoiPool',
-  'spatialBuffer',
-  'fixationIndex',
-  'fixationIndexTable',
-] as const satisfies readonly (keyof BinarySegmentBuffers)[]
+/** Every typed array in the schema, with the view it comes back as. The type
+ *  is what keeps the two ends together: a buffer added to the schema fails to
+ *  compile until it is listed here, and it is then written and read alike. */
+type SegmentArrays = {
+  [
+    K in keyof BinarySegmentBuffers as BinarySegmentBuffers[K] extends
+      ArrayBufferView | undefined
+      ? K
+      : never
+  ]-?: new (buffer: ArrayBuffer) => NonNullable<BinarySegmentBuffers[K]>
+}
+
+const SEGMENT_ARRAYS: SegmentArrays = {
+  segmentBuffer: Float32Array,
+  indexTable: Uint32Array,
+  aoiPool: Uint16Array,
+  spatialBuffer: Float32Array,
+  fixationIndex: Uint32Array,
+  fixationIndexTable: Uint32Array,
+}
+
+// The table is the key list for both ends.
+type SegmentArrayKey = keyof typeof SEGMENT_ARRAYS
+
+const segmentArrayKeys = Object.keys(SEGMENT_ARRAYS) as SegmentArrayKey[]
 
 export function isStoredSegments(value: unknown): value is StoredSegments {
   return (value as StoredSegments | undefined)?.stored === 'entries'
 }
 
-const segmentEntryName = (key: (typeof SEGMENT_ARRAYS)[number]) => `segments/${key}`
+const segmentEntryName = (key: SegmentArrayKey) => `segments/${key}`
 
 function assertLittleEndian(): void {
   if (new Uint8Array(new Uint16Array([1]).buffer)[0] !== 1) {
@@ -37,12 +54,14 @@ function assertLittleEndian(): void {
 // One set of entries per buffer set: saves of an unchanged dataset reuse them.
 const entryCache = new WeakMap<BinarySegmentBuffers, ZipWriteEntry[]>()
 
-export function segmentEntries(segments: BinarySegmentBuffers): ZipWriteEntry[] {
+export function segmentEntries(
+  segments: BinarySegmentBuffers
+): ZipWriteEntry[] {
   assertLittleEndian()
   let entries = entryCache.get(segments)
   if (!entries) {
     entries = []
-    for (const key of SEGMENT_ARRAYS) {
+    for (const key of segmentArrayKeys) {
       const array = segments[key]
       if (!array) continue
       const content = new Blob([array as ArrayBufferView<ArrayBuffer>])
@@ -59,23 +78,21 @@ export async function readSegmentEntries(
   read: (name: string) => Promise<ArrayBuffer | null>
 ): Promise<BinarySegmentBuffers> {
   assertLittleEndian()
-  const view = async <T>(key: (typeof SEGMENT_ARRAYS)[number], make: (b: ArrayBuffer) => T) => {
+  const views: Partial<BinarySegmentBuffers> = {}
+  for (const key of segmentArrayKeys) {
     const bytes = await read(segmentEntryName(key))
-    return bytes ? make(bytes) : undefined
+    // Computed key: the table types the view, the loop only carries it.
+    if (bytes) Object.assign(views, { [key]: new SEGMENT_ARRAYS[key](bytes) })
   }
-  const segmentBuffer = await view('segmentBuffer', b => new Float32Array(b))
-  const indexTable = await view('indexTable', b => new Uint32Array(b))
-  const aoiPool = await view('aoiPool', b => new Uint16Array(b))
+  const { segmentBuffer, indexTable, aoiPool } = views
   if (!segmentBuffer || !indexTable || !aoiPool) {
     throw new Error('Invalid workspace file: segment entries are missing')
   }
   return {
+    ...views,
     segmentBuffer,
     indexTable,
     aoiPool,
-    spatialBuffer: await view('spatialBuffer', b => new Float32Array(b)),
-    fixationIndex: await view('fixationIndex', b => new Uint32Array(b)),
-    fixationIndexTable: await view('fixationIndexTable', b => new Uint32Array(b)),
     hasSpatialData: marker.hasSpatialData,
     maxParticipants: marker.maxParticipants,
     stimuliCount: marker.stimuliCount,
