@@ -125,4 +125,13 @@
       display: inline;
     }
   }
+
+  /* Phones have no room to spare: the strip goes and the canvas takes its
+     row (app.css zeroes --site-statusbar-height at the same width). The
+     privacy claim stays one tap away in the docs. */
+  @media (max-width: 768px) {
+    .status-bar {
+      display: none;
+    }
+  }
 </style>

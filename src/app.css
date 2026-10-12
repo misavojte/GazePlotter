@@ -10,6 +10,14 @@ body {
   /* The credit strip closing the app canvas at the bottom. */
   --site-statusbar-height: 24px;
 }
+
+/* Phones give the strip's row to the canvas; StatusBar hides itself at the
+   same width. */
+@media (max-width: 768px) {
+  :root {
+    --site-statusbar-height: 0px;
+  }
+}
 body {
   font-family: var(--font-sans);
   font-synthesis: none;
