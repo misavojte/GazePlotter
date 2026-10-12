@@ -150,12 +150,9 @@ describe('marquee selection', () => {
     origin: { x: number; y: number },
     current: { x: number; y: number }
   ) {
-    const session = updateMarqueeSession(
-      startMarqueeSession(origin, { x: 0, y: 0 }),
-      current,
-      { x: 0, y: 0 }
+    return marqueeBoundsOf(
+      updateMarqueeSession(startMarqueeSession(origin), current)
     )
-    return marqueeBoundsOf(session)
   }
 
   it('spans the same rectangle whichever way it was dragged', () => {

@@ -1,4 +1,8 @@
-import { gridToPixelDimensions, gridToPixelPosition } from '../pixels'
+import {
+  gridToPixelDimensions,
+  gridToPixelPosition,
+  type PixelBounds,
+} from '../pixels'
 import type { GridConfig, GridItemPosition } from '../types'
 
 export type InteractionPoint = {
@@ -11,13 +15,8 @@ export type ScrollOffset = {
   y: number
 }
 
-export type GridInteractionRect = {
-  id: number
-  x: number
-  y: number
-  w: number
-  h: number
-}
+/** What the interaction layer moves and resizes: one item's placement. */
+export type GridInteractionRect = GridItemPosition
 
 export type IdleSession = {
   kind: 'idle'
@@ -63,24 +62,17 @@ export type ResizeSession = TransformSessionBase & {
   direction: ResizeDirection
 }
 
-export type MarqueeBounds = {
-  left: number
-  top: number
-  right: number
-  bottom: number
-}
+export type MarqueeBounds = PixelBounds
 
 /**
- * A selection rectangle dragged across the desk. The anchor is kept in GRID
- * space, so the rectangle stays over the plots it was drawn around whatever
- * the camera does mid-drag; the client point rides along only so a later
- * re-derivation has one.
+ * A selection rectangle dragged across the desk. Both corners are kept in
+ * GRID space, so the rectangle stays over the plots it was drawn around
+ * whatever the camera does mid-drag.
  */
 export type MarqueeSession = {
   kind: 'selecting'
   originGrid: InteractionPoint
   currentGrid: InteractionPoint
-  pointerCurrent: InteractionPoint
 }
 
 export type GridInteractionSession =
@@ -157,27 +149,16 @@ export function startResizeSession(
 }
 
 export function startMarqueeSession(
-  gridPoint: InteractionPoint,
-  point: InteractionPoint
+  gridPoint: InteractionPoint
 ): MarqueeSession {
-  return {
-    kind: 'selecting',
-    originGrid: gridPoint,
-    currentGrid: gridPoint,
-    pointerCurrent: point,
-  }
+  return { kind: 'selecting', originGrid: gridPoint, currentGrid: gridPoint }
 }
 
 export function updateMarqueeSession(
   session: MarqueeSession,
-  gridPoint: InteractionPoint,
-  point: InteractionPoint
+  gridPoint: InteractionPoint
 ): MarqueeSession {
-  return {
-    ...session,
-    currentGrid: gridPoint,
-    pointerCurrent: point,
-  }
+  return { ...session, currentGrid: gridPoint }
 }
 
 /** The rectangle the two corners span, in grid px, however it was dragged. */

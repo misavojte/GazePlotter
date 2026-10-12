@@ -158,16 +158,14 @@ export class GridInteractionController {
 
   beginMarquee(point: InteractionPoint): void {
     this.#viewport.stopAutoScroll()
-    const gridPoint = this.#toGridPoint(point)
-    this.#session = startMarqueeSession(gridPoint, point)
+    this.#session = startMarqueeSession(this.#toGridPoint(point))
   }
 
   updateMarquee(point: InteractionPoint): void {
     if (this.#session.kind !== 'selecting') return
     this.#session = updateMarqueeSession(
       this.#session,
-      this.#toGridPoint(point),
-      point
+      this.#toGridPoint(point)
     )
   }
 
@@ -209,7 +207,7 @@ export class GridInteractionController {
     this.#viewport.destroy()
   }
 
-  getPositionsWithPreview<T extends { id: number; x: number; y: number; w: number; h: number }>(
+  getPositionsWithPreview<T extends GridInteractionRect>(
     positions: T[]
   ): T[] {
     return mergePreviewPosition(positions, this.previewRects) as T[]
