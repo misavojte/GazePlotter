@@ -1,9 +1,12 @@
 import type { GridConfig } from './types'
 
+/** All the grid-to-pixel maths reads: the cell geometry, nothing else. */
+export type PixelConfig = Pick<GridConfig, 'cellSize' | 'gap'>
+
 export function gridToPixelPosition(
   x: number,
   y: number,
-  gridConfig: GridConfig
+  gridConfig: PixelConfig
 ): { left: number; top: number } {
   return {
     left: x * (gridConfig.cellSize.width + gridConfig.gap),
@@ -17,7 +20,7 @@ export function gridToPixelPosition(
  */
 export function gridBoundsOf(
   items: { x: number; y: number; w: number; h: number }[],
-  gridConfig: GridConfig
+  gridConfig: PixelConfig
 ): { left: number; top: number; right: number; bottom: number } | null {
   if (items.length === 0) return null
 
@@ -39,7 +42,7 @@ export function gridBoundsOf(
 export function gridToPixelDimensions(
   w: number,
   h: number,
-  gridConfig: GridConfig
+  gridConfig: PixelConfig
 ): { width: number; height: number } {
   return {
     width: w * (gridConfig.cellSize.width + gridConfig.gap) - gridConfig.gap,
