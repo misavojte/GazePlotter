@@ -294,12 +294,18 @@ export class GridState {
     })
   }
 
-  duplicateItem(item: AllGridTypes, duplicateId?: number) {
+  duplicateItem(
+    item: AllGridTypes,
+    duplicateId?: number,
+    position?: { x: number; y: number }
+  ) {
     const duplicate = duplicateGridItem(item, duplicateId)
+    // A requested cell that is taken falls back to a found one, so a caller
+    // placing a whole group never has to re-check what it already reserved.
     const placement = this.resolvePlacement(
       duplicate,
       this.createPositionsSnapshot(),
-      undefined,
+      position,
       item
     )
     duplicate.x = placement.x

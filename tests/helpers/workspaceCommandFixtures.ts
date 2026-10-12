@@ -11,6 +11,11 @@ import type { MetricInstance } from '$lib/metrics'
 import type { GridState } from '$lib/workspace/grid'
 import type { AllGridTypes, GridItemMap } from '$lib/workspace'
 import { createGridItem } from '$lib/workspace/grid/itemFactory'
+import { findOptimalPosition } from '$lib/workspace/grid/engine'
+import {
+  DEFAULT_GRID_CONFIG,
+  calculateViewportGridColumns,
+} from '$lib/workspace/grid'
 import type { ScarfPlotSettings } from '$lib/plots/scarf/types'
 import type { AoiComparisonSettings } from '$lib/plots/aoi-comparison/types'
 import type { AoiStreamPlotSettings } from '$lib/plots/aoi-stream/types'
@@ -169,6 +174,24 @@ export function createMockGridStore(
     removeItem: vi.fn(),
     duplicateItem: vi.fn(),
     addItem: vi.fn(),
+    // The real engine over the fixture's own items: handlers that place
+    // something (a duplicated group takes one free area for the lot) are then
+    // answered the way production answers them.
+    findOptimalPosition: vi.fn((w: number, h: number, referenceItem?) =>
+      findOptimalPosition(
+        w,
+        h,
+        items.map(item => ({
+          id: item.id,
+          x: item.x,
+          y: item.y,
+          w: item.w,
+          h: item.h,
+        })),
+        calculateViewportGridColumns(DEFAULT_GRID_CONFIG),
+        referenceItem
+      )
+    ),
     resolveItemPositionCollisions: vi.fn(() => []),
   }
 

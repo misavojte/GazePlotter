@@ -235,11 +235,16 @@ export interface DuplicateGridItemCommand extends BaseCommandInterface {
   type: 'duplicateGridItem'
   itemId: number
   duplicateId: number
+  /** Where the copy lands, when the caller has already found it a place (a
+   *  group duplication places the whole group). Left out: the grid finds one
+   *  next to the original, as a lone duplication does. */
+  position?: { x: number; y: number }
 }
 
 // Duplicates a multi-selection as ONE undo step, like removeGridItems: the
 // root dispatches one duplicateGridItem child per item, each carrying the id
-// its copy gets, so a redo recreates the same copies.
+// its copy gets and the cell it lands in, so a redo recreates the same copies
+// in the same arrangement.
 export interface DuplicateGridItemsCommand extends BaseCommandInterface {
   type: 'duplicateGridItems'
   itemIds: number[]
