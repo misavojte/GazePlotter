@@ -4,6 +4,7 @@
   import FileCheck from 'lucide-svelte/icons/file-check'
   import FilePen from 'lucide-svelte/icons/file-pen'
   import { HelpText, Section } from '$lib/modals'
+  import { Button } from '$lib/shared/components'
   import type { ModalDefinition } from '$lib/modals/defineModal'
   import type { DataCapabilityRequirements } from '$lib/data/types'
   import { getGazePlotterSession } from '$lib/session'
@@ -14,8 +15,7 @@
   import { exportMetricDataModal } from '../export-metric-data/definition'
   import { exportFiguresModal } from '../export-figures/definition'
 
-  const { engine, grid, modalState, workspaceFile } =
-    getGazePlotterSession()
+  const { engine, grid, modalState, workspaceFile } = getGazePlotterSession()
   // svelte-ignore state_referenced_locally -- the name a download starts from
   let fileName = $state(workspaceFile.suggestedName)
 
@@ -29,7 +29,11 @@
     workspaceFile.savedAt ? timeFormat.format(workspaceFile.savedAt) : ''
   )
   const StateIcon = $derived(
-    saveState === 'saved' ? FileCheck : saveState === 'unsaved' ? FilePen : FileIcon
+    saveState === 'saved'
+      ? FileCheck
+      : saveState === 'unsaved'
+        ? FilePen
+        : FileIcon
   )
 
   // Each option follows the data it exports, in the plot definitions'
@@ -76,7 +80,7 @@
   )
 
   const openExportModal = (
-    definition: typeof researchExportOptions[number]['definition']
+    definition: (typeof researchExportOptions)[number]['definition']
   ) => {
     modalState.push(definition, {})
   }
@@ -93,7 +97,9 @@
           <div class="file-text">
             <span class="file-name">
               {workspaceFile.target?.name ??
-                (workspaceFile.canChooseFile ? 'Not saved to a file yet' : 'Workspace file')}
+                (workspaceFile.canChooseFile
+                  ? 'Not saved to a file yet'
+                  : 'Workspace file')}
             </span>
             <span class="file-hint">
               {#if workspaceFile.saving}
@@ -119,20 +125,19 @@
 
         {#if workspaceFile.canChooseFile}
           <div class="file-actions">
-            <button
-              class="primary"
-              disabled={workspaceFile.saving}
+            <Button
+              variant="primary"
+              isDisabled={workspaceFile.saving}
               onclick={() => workspaceFile.save()}
             >
               Save
-            </button>
-            <button
-              class="secondary"
-              disabled={workspaceFile.saving}
+            </Button>
+            <Button
+              isDisabled={workspaceFile.saving}
               onclick={() => workspaceFile.saveAs()}
             >
               Save as…
-            </button>
+            </Button>
           </div>
         {:else}
           <div class="download-row">
@@ -143,13 +148,14 @@
               aria-label="File name"
             />
             <span class="extension">.gazeplotter</span>
-            <button
-              class="primary"
-              disabled={workspaceFile.saving}
+            <Button
+              variant="primary"
+              flush
+              isDisabled={workspaceFile.saving}
               onclick={() => workspaceFile.download(fileName)}
             >
               Download
-            </button>
+            </Button>
           </div>
           <HelpText>
             This browser cannot overwrite files, so each download is a new copy
@@ -281,58 +287,6 @@
     gap: 8px;
   }
 
-  .primary,
-  .secondary {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 14px;
-    border-radius: var(--rounded);
-    font-size: var(--text-lg);
-    font-weight: 500;
-    cursor: pointer;
-    white-space: nowrap;
-    transition:
-      background-color var(--transition-normal) ease,
-      border-color var(--transition-normal) ease;
-  }
-
-  .primary {
-    border: 1px solid var(--c-brand);
-    background: var(--c-brand);
-    color: var(--c-white);
-  }
-
-  .primary:hover:not(:disabled),
-  .primary:focus-visible {
-    background: var(--c-brand-dark);
-    border-color: var(--c-brand-dark);
-  }
-
-  .secondary {
-    border: 1px solid var(--c-border);
-    background: var(--c-white);
-    color: var(--c-black);
-  }
-
-  .secondary:hover:not(:disabled),
-  .secondary:focus-visible {
-    border-color: var(--c-midgrey);
-    background: var(--c-darkwhite);
-  }
-
-  .primary:focus-visible,
-  .secondary:focus-visible {
-    outline: 2px solid var(--c-info);
-    outline-offset: 1px;
-  }
-
-  .primary:disabled,
-  .secondary:disabled {
-    opacity: 0.6;
-    cursor: default;
-  }
-
   .download-row {
     display: flex;
     align-items: stretch;
@@ -364,10 +318,6 @@
     padding-right: 12px;
     color: var(--c-darkgrey);
     font-size: var(--text-lg);
-  }
-
-  .download-row .primary {
-    border-radius: 0;
   }
 
   /* --- Figures and data --- */

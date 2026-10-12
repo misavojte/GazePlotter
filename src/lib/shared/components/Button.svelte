@@ -6,6 +6,8 @@
     onclick?: (event: MouseEvent) => void
     size?: 'sm' | 'md'
     variant?: 'primary' | 'secondary'
+    /** Squared off: the button is joined to the field beside it. */
+    flush?: boolean
     href?: string
     noopener?: boolean
     type?: 'button' | 'submit' | 'link'
@@ -18,6 +20,7 @@
     onclick,
     size = 'md',
     variant = 'secondary',
+    flush = false,
     href,
     noopener = false,
     type = 'button',
@@ -29,7 +32,7 @@
 
 {#if isLink}
   <a
-    class={[size, variant].join(' ')}
+    class={[size, variant, flush && 'flush']}
     {href}
     {target}
     rel={noopener ? 'noopener' : undefined}
@@ -39,7 +42,7 @@
   </a>
 {:else}
   <button
-    class={[size, variant].join(' ')}
+    class={[size, variant, flush && 'flush']}
     disabled={isDisabled}
     {onclick}
     type={type === 'link' ? 'button' : type}
@@ -116,5 +119,10 @@
     min-height: 34px;
     padding: 6px 14px;
     font-size: var(--text-md);
+  }
+
+  /* After the sizes: the joined edge wins over the size's own corners. */
+  .flush {
+    border-radius: 0;
   }
 </style>
