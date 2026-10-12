@@ -1,4 +1,5 @@
 import { throttleByRaf } from '$lib/shared/throttle'
+import { createDragCursor } from './dragCursor'
 import { createPointerSession } from './pointerSession'
 import type { GridInteractionController } from './controller.svelte'
 import type { InteractionPoint, MarqueeBounds } from './model'
@@ -24,14 +25,7 @@ export function marqueeSelectAction(
 ) {
   let params = initialParams
 
-  const setMarqueeCursor = (cursor: string) => {
-    document.body.style.cursor = cursor
-    // The press never prevented its default, so a text selection may have
-    // started under it; drop it and hold it off for the rest of the drag.
-    document.body.style.userSelect = cursor ? 'none' : ''
-    if (cursor) window.getSelection?.()?.removeAllRanges()
-    node.style.cursor = cursor
-  }
+  const setMarqueeCursor = createDragCursor(node)
 
   const publish = () => {
     const bounds = params.interaction.marqueeBounds
