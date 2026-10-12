@@ -237,6 +237,15 @@ export interface DuplicateGridItemCommand extends BaseCommandInterface {
   duplicateId: number
 }
 
+// Duplicates a multi-selection as ONE undo step, like removeGridItems: the
+// root dispatches one duplicateGridItem child per item, each carrying the id
+// its copy gets, so a redo recreates the same copies.
+export interface DuplicateGridItemsCommand extends BaseCommandInterface {
+  type: 'duplicateGridItems'
+  itemIds: number[]
+  duplicateIds: number[]
+}
+
 export interface SetLayoutStateCommand extends BaseCommandInterface {
   type: 'setLayoutState'
   layoutState: GridItemSnapshot[]
@@ -263,6 +272,7 @@ export type WorkspaceCommand =
   | RemoveGridItemCommand
   | RemoveGridItemsCommand
   | DuplicateGridItemCommand
+  | DuplicateGridItemsCommand
   | SetLayoutStateCommand
 
 /**

@@ -64,8 +64,10 @@ Drag any of the four corner handles on a selected plot. The card snaps to the gr
 ### Duplicating a plot
 Click **Duplicate** in the action chip at the plot's top-left corner. The copy keeps every setting: participant selection, stimulus, axis bounds, colors.
 
+With several plots selected, the chip sits on the group's outline instead and duplicates all of them at once. The copies become the new selection, and one **Undo** takes them all back.
+
 ### Removing a plot
-Click **Remove** in the action chip at the plot's top-left corner.
+Click **Remove** in the action chip at the plot's top-left corner, or press `Delete`. With several plots selected, the chip on the group's outline removes all of them in one step.
 
 ## Customization Libraries
 

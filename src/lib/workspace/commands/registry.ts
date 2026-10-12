@@ -407,6 +407,23 @@ export function createWorkspaceCommandRegistry(
       }
     },
 
+    duplicateGridItems: (command, context) => {
+      if (context.isUndoRedoOperation) return
+      command.itemIds.forEach((itemId, index) => {
+        context.dispatch(
+          createChildCommand(
+            {
+              type: 'duplicateGridItem',
+              itemId,
+              duplicateId: command.duplicateIds[index],
+              source: command.source,
+            },
+            command.chainId
+          )
+        )
+      })
+    },
+
     translateLayout: command => {
       for (const item of gridStore.items) {
         gridStore.updateLayout(item.id, {
@@ -671,6 +688,8 @@ export function createWorkspaceCommandRegistry(
       }
       return withMeta({ type: 'removeGridItem', itemId: cmd.duplicateId }, meta)
     },
+
+    duplicateGridItems: (_cmd, meta) => withMeta({ type: 'noop' }, meta),
 
     setLayoutState: (_cmd, meta) =>
       withMeta(

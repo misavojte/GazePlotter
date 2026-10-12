@@ -7,8 +7,7 @@
     resizeHandleAction,
     type GridInteractionController,
   } from './interaction'
-  import Copy from 'lucide-svelte/icons/copy'
-  import X from 'lucide-svelte/icons/x'
+  import ActionChip from './ActionChip.svelte'
   import { getGazePlotterSession } from '$lib/session'
   import type { PlotSubtitleParts } from '$lib/plots/definePlot'
   import { responsive } from '../responsive.svelte'
@@ -17,7 +16,6 @@
 
   type GridRect = { id: number; x: number; y: number; w: number; h: number }
   type IdOnly = { id: number }
-  type DuplicateRequest = { id: number; clientX: number; clientY: number }
   type GridEvent<T> = (payload: T) => void
 
   interface Props {
@@ -39,7 +37,7 @@
     onmove: GridEvent<GridRect[]>
     onresize: GridEvent<GridRect>
     onremove: GridEvent<IdOnly>
-    onduplicate: GridEvent<DuplicateRequest>
+    onduplicate: GridEvent<IdOnly>
   }
 
   let {
@@ -74,9 +72,15 @@
   const isGhosted = $derived(interaction.isGhostedItem(id))
   // Visual selection: every selected item shows the outline.
   const isSelected = $derived(grid.selectedItemIds.includes(id))
-  // Sole selection: this is the only selected item. Resize handles and the
-  // duplicate/remove toolbar are sole-only (they're inherently single-item).
+  // Sole selection: this is the only selected item. The resize handles are
+  // sole-only (they are inherently single-item), and so is this chip: a
+  // multi-selection gets one chip of its own, on the group's outline.
   const isSoleSelection = $derived(grid.selectedItemId === id)
+  // A selection rectangle is still being dragged: the chip and the handles
+  // would churn as it grows over one plot after another, and the grid takes
+  // no pointer events mid-drag anyway. The outlines alone follow it.
+  const isSettled = $derived(interaction.mode !== 'selecting')
+
   // Group member: selected as part of a multi-selection. Members get a
   // subtler dashed outline (the solid group box bounds them) and drag the
   // whole group.
@@ -213,7 +217,7 @@
     onpointerleavecapture={onPointerUp}
     ontouchmovecapture={onPointerUp}
   >
-    {#if isSoleSelection}
+    {#if isSoleSelection && isSettled}
     <!-- Solid blue square tucked behind the plot frame at the top-right.
          The frame has a rounded top-right corner, which normally lets the
          workspace background bleed through the 8×8 arc cutout — breaking
@@ -257,7 +261,7 @@
     </div>
   </div>
 
-  {#if isSoleSelection}
+  {#if isSoleSelection && isSettled}
     <!-- Corner resize affordances. Placed outside the .grid-item-frame
          (which has overflow:hidden) so their half-outside-half-inside
          positioning isn't clipped. All four corners are wired to the
@@ -278,37 +282,21 @@
     {@render cornerHandle('bottom-right', resizeParams.br)}
   {/if}
 
-  {#if isSoleSelection}
-    <!-- Compact action chip anchored at the top-left, sitting on the
-         selection outline's top edge. Pill-shaped with both top corners
-         rounded; sibling of the frame so it isn't clipped by
-         overflow:hidden. The selection-corner-fill above paints the
-         frame's rounded top-left cutout so the chip reads as an
-         integral extension of the selection. -->
-    <!-- No Move button here: the whole frame is already a drag target
-         when selected (`cursor: move` signals it), so a dedicated
-         Move button duplicates the affordance and mixes drag-to-act
-         with the click-to-act Duplicate/Remove buttons next to it. -->
-    <div class="action-toolbar" data-block-select>
-      <button
-        type="button"
-        class="action-toolbar-button"
-        onclick={e =>
-          onduplicate({ id, clientX: e.clientX, clientY: e.clientY })}
-        aria-label="Duplicate item"
-      >
-        <Copy size={12} strokeWidth={1.75} aria-hidden="true" />
-        <span>Duplicate</span>
-      </button>
-      <button
-        type="button"
-        class="action-toolbar-button"
-        onclick={() => onremove({ id })}
-        aria-label="Remove item"
-      >
-        <X size={12} strokeWidth={1.75} aria-hidden="true" />
-        <span>Remove</span>
-      </button>
+  {#if isSoleSelection && isSettled}
+    <!-- The chip hangs from this anchor at the frame's top-left, sibling of
+         the frame so it isn't clipped by overflow:hidden. The
+         selection-corner-fill above paints the frame's rounded top-left
+         cutout, so the chip reads as an integral extension of the selection.
+         No Move button: the whole frame is already a drag target when
+         selected (`cursor: move` signals it), so a dedicated Move button
+         duplicates the affordance and mixes drag-to-act with the
+         click-to-act verbs next to it. -->
+    <div class="chip-anchor">
+      <ActionChip
+        scope="item"
+        onDuplicate={() => onduplicate({ id })}
+        onRemove={() => onremove({ id })}
+      />
     </div>
   {/if}
   </div>
@@ -576,24 +564,12 @@
     cursor: nwse-resize;
   }
 
-  /* Compact action chip anchored at the top-left, sitting on the
-     selection outline's top edge (y = -1px). Pill-shaped with both top
-     corners rounded at 6px; content-width so it doesn't stretch across
-     the frame. */
-  .action-toolbar {
+  /* Where the action chip hangs: the selection outline's top-left corner
+     (y = -1px), on the outline itself. */
+  .chip-anchor {
     position: absolute;
     top: -1px;
     left: -1px;
-    transform: translateY(-100%);
-    display: inline-flex;
-    align-items: stretch;
-    gap: 0;
-    padding: 2px 4px;
-    background: var(--c-info);
-    border: none;
-    border-radius: var(--rounded-md) var(--rounded-md) 0 0;
-    z-index: 6;
-    white-space: nowrap;
   }
 
   /* Corner fill: sits behind the plot frame and in front of the
@@ -614,27 +590,6 @@
     background: var(--c-info);
     z-index: -1;
     pointer-events: none;
-  }
-
-  .action-toolbar-button {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--spacing-xxs);
-    padding: 4px 8px;
-    background: transparent;
-    color: var(--c-white);
-    border: none;
-    border-radius: 3px;
-    font-size: var(--text-xs);
-    font-family: var(--font-small);
-    font-weight: 500;
-    line-height: 1;
-    cursor: pointer;
-    white-space: nowrap;
-    transition: background var(--transition-fast) ease, color var(--transition-fast) ease;
-  }
-  .action-toolbar-button:hover {
-    background: color-mix(in srgb, var(--c-white) 18%, transparent);
   }
 
   /* Tactile "press" feedback */

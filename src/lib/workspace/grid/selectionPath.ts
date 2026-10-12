@@ -126,6 +126,32 @@ function getCornerPoints(A: Point, B: Point, C: Point, radius: number): { p1: Po
 }
 
 /**
+ * The contour's top-left corner, in grid px: the topmost item's own corner
+ * (leftmost among those that share that top), expanded by the same margin the
+ * path uses. The bounding box's corner is not it, since on an L-shaped
+ * selection that point lies outside the contour.
+ */
+export function selectionPathCorner(
+  items: ItemRect[],
+  config: GridConfig,
+  margin = 6
+): Point | null {
+  const cellW = config.cellSize.width;
+  const cellH = config.cellSize.height;
+  const gap = config.gap;
+
+  let corner: Point | null = null;
+  for (const item of items) {
+    const x = item.x * (cellW + gap) - margin;
+    const y = item.y * (cellH + gap) - margin;
+    if (!corner || y < corner.y || (y === corner.y && x < corner.x)) {
+      corner = { x, y };
+    }
+  }
+  return corner;
+}
+
+/**
  * Generates an SVG path wrapping the selected grid items with rounded corners.
  */
 export function generateSelectionPath(

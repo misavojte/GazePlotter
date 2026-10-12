@@ -5,6 +5,7 @@ import {
   commitGridItemGroupMove,
   commitGridItemRemoval,
   commitGridItemResize,
+  commitGridItemsDuplication,
   getGridItemCommandSource,
   getGridItemMinimumSize,
 } from '$lib/workspace/grid/itemCommands'
@@ -23,6 +24,7 @@ function createWorkspacePort() {
     // bus, not merely which forwarding method was picked.
     apply: vi.fn(() => true),
     duplicateGridItem: vi.fn(() => true),
+    duplicateGridItems: vi.fn(() => true),
   }
 }
 
@@ -116,6 +118,44 @@ describe('gridItemCommands', () => {
       updates: [{ itemId: 21, layout: { x: 1, y: 1 } }],
       source: 'aoiComparison.21.workspace',
     })
+  })
+
+  it('duplicates a multi-selection as one command, carrying the copy ids', () => {
+    const workspace = createWorkspacePort()
+    const a = createGridItem('aoiComparison', { type: 'aoiComparison', id: 21 })
+    const b = createGridItem('aoiComparison', { type: 'aoiComparison', id: 22 })
+
+    expect(
+      commitGridItemsDuplication(workspace, [a, b], [
+        { id: 21, duplicateId: 101 },
+        { id: 22, duplicateId: 102 },
+        { id: 999, duplicateId: 103 },
+      ])
+    ).toBe(true)
+    expect(workspace.duplicateGridItems).toHaveBeenCalledWith(
+      [21, 22],
+      'aoiComparison.21.workspace',
+      { duplicateIds: [101, 102] }
+    )
+    expect(workspace.duplicateGridItem).not.toHaveBeenCalled()
+  })
+
+  it('duplicates a lone survivor through the single command', () => {
+    const workspace = createWorkspacePort()
+    const a = createGridItem('aoiComparison', { type: 'aoiComparison', id: 21 })
+
+    expect(
+      commitGridItemsDuplication(workspace, [a], [
+        { id: 21, duplicateId: 101 },
+        { id: 999, duplicateId: 102 },
+      ])
+    ).toBe(true)
+    expect(workspace.duplicateGridItem).toHaveBeenCalledWith(
+      21,
+      'aoiComparison.21.workspace',
+      { duplicateId: 101 }
+    )
+    expect(workspace.duplicateGridItems).not.toHaveBeenCalled()
   })
 
   it('returns false when the target item is missing', () => {

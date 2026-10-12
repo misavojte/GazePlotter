@@ -62,7 +62,10 @@
     // still inside `.grid-item`, so we no-op.
     const target = event.target as HTMLElement | null
     if (!target) return
-    if (target.closest('.grid-item')) return
+    // Chrome that carries its own click semantics keeps them: a plot frame,
+    // and anything marked `data-block-select`, the group's action chip
+    // included (it is a sibling of the plots, not a child of one).
+    if (target.closest('.grid-item, [data-block-select]')) return
     // A held modifier is selection work, never dismissal: a press that stops
     // short of the drag threshold must not wipe the selection the rectangle
     // was about to add to.
