@@ -6,7 +6,7 @@ import type {
   UpdateLayoutCommand,
 } from '$lib/workspace/commands'
 import { createCommandSourcePlotPattern } from '$lib/workspace/commands/utils'
-import type { GridConfig } from './types'
+import type { GridConfig, GridItemPosition } from './types'
 
 // Narrowed by COMMAND, not by method name: `apply` accepts the whole union, so
 // naming the members here is what still stops this layer reaching for the
@@ -24,13 +24,7 @@ type GridItemIdentity = Pick<AllGridTypes, 'id' | 'type'>
 type GridItemMinimum = Pick<AllGridTypes, 'min'>
 
 export type GridMoveCommit = { id: number; x: number; y: number }
-export type GridResizeCommit = {
-  id: number
-  x: number
-  y: number
-  w: number
-  h: number
-}
+export type GridResizeCommit = GridItemPosition
 export type GridIdentityCommit = { id: number }
 export type GridDuplicationCommit = {
   id: number

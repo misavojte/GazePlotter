@@ -12,6 +12,7 @@
  * the whole screen can switch to canvas-first, where the plain wheel pans as
  * well (`wheelPan`) and so does one finger.
  */
+import type { PixelBounds } from './grid/pixels'
 
 /** Minimum zoom level (most zoomed out). */
 export const ZOOM_MIN = 0.25
@@ -51,12 +52,7 @@ export function clampZoom(value: number): number {
 export type Point = { x: number; y: number }
 
 /** A rectangle in grid space (unscaled px from the grid origin). */
-export type GridBounds = {
-  left: number
-  top: number
-  right: number
-  bottom: number
-}
+export type GridBounds = PixelBounds
 
 type CameraState = { x: number; y: number; zoom: number }
 

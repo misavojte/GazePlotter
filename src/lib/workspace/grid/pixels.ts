@@ -3,6 +3,14 @@ import type { GridConfig } from './types'
 /** All the grid-to-pixel maths reads: the cell geometry, nothing else. */
 export type PixelConfig = Pick<GridConfig, 'cellSize' | 'gap'>
 
+/** A box in grid px: the camera's content, a selection, a marquee. */
+export type PixelBounds = {
+  left: number
+  top: number
+  right: number
+  bottom: number
+}
+
 export function gridToPixelPosition(
   x: number,
   y: number,
@@ -21,7 +29,7 @@ export function gridToPixelPosition(
 export function gridBoundsOf(
   items: { x: number; y: number; w: number; h: number }[],
   gridConfig: PixelConfig
-): { left: number; top: number; right: number; bottom: number } | null {
+): PixelBounds | null {
   if (items.length === 0) return null
 
   let left = Infinity

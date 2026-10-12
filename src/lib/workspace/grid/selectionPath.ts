@@ -1,18 +1,12 @@
 import {
   gridToPixelDimensions,
   gridToPixelPosition,
+  type PixelBounds,
   type PixelConfig,
 } from './pixels'
 import type { GridItemPosition } from './types'
 
 type ItemRect = Omit<GridItemPosition, 'id'>
-
-interface Rect {
-  left: number
-  top: number
-  right: number
-  bottom: number
-}
 
 interface Point {
   x: number
@@ -163,7 +157,7 @@ export function generateSelectionPath(
   if (items.length === 0) return ''
 
   // 1. Calculate expanded pixel rectangles
-  const rects: Rect[] = items.map(item => {
+  const rects: PixelBounds[] = items.map(item => {
     const { left, top } = gridToPixelPosition(item.x, item.y, config)
     const { width, height } = gridToPixelDimensions(item.w, item.h, config)
     return {
