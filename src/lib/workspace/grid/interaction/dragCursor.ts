@@ -1,22 +1,23 @@
 /**
- * The cursor a canvas drag wears, on the body and on the surface itself.
- * A deferred drag never prevented its press, so a text selection may have
- * started under it: dropping it here is what keeps the drag clean.
+ * The cursor a canvas drag wears, and the text selection it must not leave
+ * behind: a deferred drag never prevented its press, so a selection may have
+ * started under it.
  *
- * `also` names a second element to carry the cursor (the pan reaches the
- * scroll container as well); it is read on each call, since the host may
- * bind it later.
+ * The body always carries the cursor. Extra targets carry it as well, for
+ * surfaces whose own CSS cursor would otherwise win; a function is read on
+ * each call, since the host may bind its element later. A caller that passes
+ * none keeps whatever cursor its CSS already states (the grid item's `move`).
  */
 export function createDragCursor(
-  node: HTMLElement,
-  also?: () => HTMLElement | null | undefined
+  ...targets: (HTMLElement | (() => HTMLElement | null | undefined))[]
 ): (cursor: string) => void {
   return cursor => {
     document.body.style.cursor = cursor
     document.body.style.userSelect = cursor ? 'none' : ''
     if (cursor) window.getSelection?.()?.removeAllRanges()
-    node.style.cursor = cursor
-    const second = also?.()
-    if (second) second.style.cursor = cursor
+    for (const target of targets) {
+      const element = typeof target === 'function' ? target() : target
+      if (element) element.style.cursor = cursor
+    }
   }
 }

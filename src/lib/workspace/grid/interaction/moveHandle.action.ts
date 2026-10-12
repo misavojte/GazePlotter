@@ -1,4 +1,5 @@
 import { throttleByRaf } from '$lib/shared/throttle'
+import { createDragCursor } from './dragCursor'
 import { createPointerSession } from './pointerSession'
 import type { GridInteractionController } from './controller.svelte'
 import type { GridInteractionRect, InteractionPoint } from './model'
@@ -23,77 +24,55 @@ export type MoveHandleActionParams = {
   shouldStart?: (event: PointerEvent) => boolean
 }
 
-// How far the pointer must travel before we commit to a move. Under this
-// threshold we treat the gesture as a click and never touch the
-// interaction controller — avoiding both the transient "ghosted" flicker
-// and a no-op onCommit that would pollute undo history.
-const DRAG_START_THRESHOLD_PX = 3
-
 export function moveHandleAction(
   node: HTMLElement,
   initialParams: MoveHandleActionParams
 ) {
   let params = initialParams
-  let pendingDownPoint: InteractionPoint | null = null
-  let moveActive = false
+  let moving = false
+
+  // Body only: the frame's own `cursor: move` stays on while it is dragged.
+  const setMoveCursor = createDragCursor()
 
   const move = throttleByRaf((point: InteractionPoint) => {
     params.interaction.updateMove(point)
   })
 
-  function ensureStarted(point: InteractionPoint): boolean {
-    if (moveActive) return true
-    if (!pendingDownPoint) return false
-    const dx = point.x - pendingDownPoint.x
-    const dy = point.y - pendingDownPoint.y
-    if (
-      dx * dx + dy * dy <
-      DRAG_START_THRESHOLD_PX * DRAG_START_THRESHOLD_PX
-    ) {
-      return false
-    }
-    document.body.style.cursor = 'grabbing'
-    params.interaction.beginMove(params.items, pendingDownPoint)
-    moveActive = true
-    return true
-  }
-
   function buildOptions() {
     return {
       enabled: params.enabled,
       shouldStart: params.shouldStart,
-      preventDefaultOnStart: true,
+      // Arm, don't start: under the session's drag threshold the press is a
+      // click that selects, and no move session is opened to undo. The
+      // session hands the ORIGINAL press point to onStart, so the grab keeps
+      // its offset, and it calls neither onEnd nor onCancel for a press that
+      // never travelled.
+      deferStart: () => true,
       preventDefaultOnMove: true,
-      stopPropagationOnStart: true,
       onStart(point: InteractionPoint) {
-        pendingDownPoint = point
-        moveActive = false
+        moving = true
+        setMoveCursor('grabbing')
+        params.interaction.beginMove(params.items, point)
       },
       onMove(point: InteractionPoint) {
-        if (!ensureStarted(point)) return
         move(point)
       },
       onEnd(point: InteractionPoint | null) {
-        const started = moveActive
-        pendingDownPoint = null
-        if (!started) return
         if (point) {
           params.interaction.updateMove(point)
         }
+        // After a cancel the session is idle and this returns null.
         const commit = params.interaction.finishMove()
-        document.body.style.cursor = ''
-        moveActive = false
+        moving = false
+        setMoveCursor('')
         if (commit) {
           params.onCommit(commit)
         }
       },
       onCancel() {
-        const started = moveActive
-        pendingDownPoint = null
-        if (!started) return
-        document.body.style.cursor = ''
+        moving = false
+        setMoveCursor('')
         params.interaction.cancel()
-        moveActive = false
       },
     }
   }
@@ -106,8 +85,8 @@ export function moveHandleAction(
       session.update(buildOptions())
     },
     destroy() {
-      if (moveActive) {
-        document.body.style.cursor = ''
+      if (moving) {
+        setMoveCursor('')
       }
       session.destroy()
     },
