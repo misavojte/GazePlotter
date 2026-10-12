@@ -12,7 +12,7 @@ import {
 } from './mappers/events'
 import { Archiver } from './encoders/zip'
 import { writeBlobZip, type ZipWriteEntry } from '$lib/data/zip/blobZip'
-import { mediaFileExtension } from '$lib/data/media/mediaUpload'
+import { mediaEntryName } from '$lib/data/media/mediaEntries'
 import type { StimulusMediaStore } from '$lib/data/media/mediaStore.svelte'
 import { generateScanGraph } from './mappers/scangraph'
 import { generateWorkspaceJson } from './mappers/workspace'
@@ -177,7 +177,7 @@ export async function buildWorkspace(
     // Metadata ⇔ blob is an engine invariant; a missing blob here would mean
     // a bug upstream: skip the entry rather than export a broken archive.
     if (!blob) continue
-    const name = `media/${id}.${mediaFileExtension(data.stimuliMedia![id])}`
+    const name = mediaEntryName(id, data.stimuliMedia![id])
     idByEntry.set(name, id)
     entries.push({ name, content: blob })
   }

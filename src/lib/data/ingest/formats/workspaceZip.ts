@@ -1,6 +1,7 @@
 import type { WorkspaceFormatDefinition } from '../kernel/format'
 import type { StimulusMedia } from '$lib/data/types'
 import { readBlobZip, readZipEntry } from '$lib/data/zip/blobZip'
+import { readMediaEntries } from '$lib/data/media/mediaEntries'
 import { isStoredSegments, readSegmentEntries } from '$lib/data/binary/storedSegments'
 
 /**
@@ -55,24 +56,9 @@ export const workspaceZipFormat: WorkspaceFormatDefinition = {
     const stimuliMedia = result.data.stimuliMedia as
       | Record<number, StimulusMedia>
       | undefined
-    const mediaBlobs: Record<number, Blob> = {}
-    if (stimuliMedia) {
-      for (const key of Object.keys(stimuliMedia)) {
-        const entry = [...entries.values()].find(e =>
-          e.name.startsWith(`media/${key}.`)
-        )
-        if (!entry) continue
-        try {
-          mediaBlobs[Number(key)] = await readZipEntry(
-            file,
-            entry,
-            stimuliMedia[Number(key)].mimeType
-          )
-        } catch {
-          // Corrupt entry: this stimulus simply loses its media on apply.
-        }
-      }
-    }
+    const mediaBlobs = stimuliMedia
+      ? await readMediaEntries(file, entries.values(), stimuliMedia)
+      : {}
 
     return {
       kind: 'workspace',

@@ -7,7 +7,8 @@ import {
   type PickSaveTarget,
   type SaveFile,
 } from '$lib/data/export'
-import { readBlobZip, readZipEntry } from '$lib/data/zip/blobZip'
+import { readMediaEntries } from '$lib/data/media/mediaEntries'
+import { readBlobZip } from '$lib/data/zip/blobZip'
 import { ErrorService } from '$lib/errors'
 import {
   IngestService,
@@ -98,10 +99,10 @@ export function createGazePlotterSession(
     ingest,
     // Media reads lazily from the file it came from; after a save, from the new one.
     rebindMedia: async written => {
-      const entries = [...(await readBlobZip(written)).values()]
-      for (const [id, meta] of Object.entries(engine.metadata?.stimuliMedia ?? {})) {
-        const entry = entries.find(e => e.name.startsWith(`media/${id}.`))
-        if (entry) engine.media.rebindBlob(Number(id), await readZipEntry(written, entry, meta.mimeType))
+      const entries = (await readBlobZip(written)).values()
+      const blobs = await readMediaEntries(written, entries, engine.metadata?.stimuliMedia ?? {})
+      for (const [id, blob] of Object.entries(blobs)) {
+        engine.media.rebindBlob(Number(id), blob)
       }
     },
     pickSaveTarget:
