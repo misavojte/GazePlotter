@@ -2,6 +2,14 @@
 
 ## 1.10.x
 
+### 1.10.1
+
+* *Released on October 14, 2026*
+* **Workspace Files**: The workspace is now saved as one `.gazeplotter` file with **Ctrl+S** (**⌘S** on macOS): data, layout, plot settings, and reference media together. Later saves write straight into that file, **Ctrl+Shift+S** moves to a new one, and a dot on the **Export** button tracks unsaved changes. Firefox and Safari download a copy instead. Older workspace files open as before. See [Workspace Export](/docs/export/workspace/).
+* **Faster Upload**: Rows and columns are now scanned in one pass, and files are read in slices as they parse. An 8.4 GB Tobii export with 704 columns loads in about 12 seconds instead of 37, near the time the browser needs just to read it, and UTF-16 files about twice as fast. The parsed data is unchanged.
+* **Selecting Several Plots**: Hold `Cmd` / `Ctrl` / `Shift` and drag across empty canvas to draw a selection rectangle over the plots. The action chip moves to the selection's outline: **Duplicate** copies the whole group in the arrangement it is in, **Remove** deletes it, each as one undo step. The off-screen arrow now points at the whole selection. See [Plot Manipulation](/docs/workspace/#plot-manipulation).
+* **Touch**: One finger now pans the canvas, the way it moves a map, and a two-finger drag stays a pan until the fingers really spread. The settings sheet closes by swiping it down.
+
 ### 1.10.0
 
 * *Released on October 9, 2026*
