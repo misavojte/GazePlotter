@@ -36,6 +36,22 @@
         : FileIcon
   )
 
+  // Every state the line below the file name can report, in one place.
+  const fileHint = $derived.by(() => {
+    if (workspaceFile.saving) return 'Saving…'
+    if (!workspaceFile.canChooseFile) {
+      if (saveState === 'saved') return `Downloaded at ${savedAt}.`
+      if (saveState === 'unsaved')
+        return `Changed since your download at ${savedAt}.`
+      return 'Data, layout and settings in one .gazeplotter file.'
+    }
+    if (!workspaceFile.target)
+      return `Choose where to save once; ${saveKey} then saves into that file.`
+    if (saveState === 'unsaved')
+      return `Unsaved changes. ${saveKey} saves them into this file.`
+    return `All changes saved at ${savedAt}.`
+  })
+
   // Each option follows the data it exports, in the plot definitions'
   // `requireCapabilities` vocabulary: no events → no event export, no gaze
   // segments (event-only dataset) → no segment-derived exports.
@@ -101,25 +117,7 @@
                   ? 'Not saved to a file yet'
                   : 'Workspace file')}
             </span>
-            <span class="file-hint">
-              {#if workspaceFile.saving}
-                Saving…
-              {:else if !workspaceFile.canChooseFile}
-                {#if saveState === 'saved'}
-                  Downloaded at {savedAt}.
-                {:else if saveState === 'unsaved'}
-                  Changed since your download at {savedAt}.
-                {:else}
-                  Data, layout and settings in one .gazeplotter file.
-                {/if}
-              {:else if !workspaceFile.target}
-                Choose where to save once; {saveKey} then saves into that file.
-              {:else if saveState === 'unsaved'}
-                Unsaved changes. {saveKey} saves them into this file.
-              {:else}
-                All changes saved at {savedAt}.
-              {/if}
-            </span>
+            <span class="file-hint">{fileHint}</span>
           </div>
         </div>
 
