@@ -1,27 +1,24 @@
 <script lang="ts">
   import Copy from 'lucide-svelte/icons/copy'
   import X from 'lucide-svelte/icons/x'
-  import { useTooltipAction } from '$lib/tooltip'
 
   /**
    * The actions a selection carries: Duplicate and Remove, worded the same
-   * whether the selection is one plot or a group. Built like the workspace
-   * rail (white surface, icon buttons, the label in a tooltip), since it is
-   * the same kind of thing: a small cluster of canvas controls.
+   * whether the selection is one plot or a group. It is the selection's own
+   * chrome, so it wears the selection's colour and corner radius rather than
+   * the rail's paper-and-border look.
    *
    * It positions itself against the nearest positioned ancestor, so a host
-   * puts that anchor on its outline's corner and the chip floats above it.
+   * puts that anchor on its outline's top-left corner.
    */
   interface Props {
-    /** What the verbs act on: "plot", "3 plots". */
+    /** What the verbs act on, for screen readers: "plot", "3 plots". */
     scope: string
     onDuplicate: () => void
     onRemove: () => void
   }
 
   const { scope, onDuplicate, onRemove }: Props = $props()
-
-  const tooltipAction = useTooltipAction()
 </script>
 
 <div class="action-chip" data-block-select>
@@ -30,77 +27,71 @@
     class="action"
     onclick={onDuplicate}
     aria-label="Duplicate {scope}"
-    use:tooltipAction={{ content: `Duplicate ${scope}`, position: 'top' }}
   >
-    <Copy size={15} strokeWidth={1.75} aria-hidden="true" />
+    <Copy size={12} strokeWidth={1.75} aria-hidden="true" />
+    <span>Duplicate</span>
   </button>
   <button
     type="button"
-    class="action danger"
+    class="action"
     onclick={onRemove}
     aria-label="Remove {scope}"
-    use:tooltipAction={{ content: `Remove ${scope}`, position: 'top' }}
   >
-    <X size={15} strokeWidth={1.75} aria-hidden="true" />
+    <X size={12} strokeWidth={1.75} aria-hidden="true" />
+    <span>Remove</span>
   </button>
 </div>
 
 <style>
-  /* Floats just above the selection outline, its left edge on the outline's.
-     A pill of paper rather than a painted bar: the blue outline is the
-     selection, this is only the handful of things to do with it. */
+  /* Rides just above the selection outline, left edges on one line, in the
+     outline's own colour and corner radius: at this height --rounded-lg
+     renders as a pill, so the chip and the outline round alike. */
   .action-chip {
     position: absolute;
     left: 0;
     bottom: calc(100% + var(--spacing-xxs));
     display: inline-flex;
-    align-items: center;
+    align-items: stretch;
     gap: 2px;
-    padding: 3px;
-    background: var(--c-white);
-    border: 1px solid var(--c-border);
-    border-radius: 999px;
-    box-shadow: var(--shadow-md);
+    padding: 2px;
+    background: var(--c-info);
+    border: none;
+    border-radius: var(--rounded-lg);
     z-index: 6;
     white-space: nowrap;
   }
 
-  /* The rail's button, rounded to the pill it sits in. */
   .action {
-    display: flex;
+    display: inline-flex;
     align-items: center;
-    justify-content: center;
-    width: 26px;
-    height: 26px;
-    padding: 0;
-    border: none;
-    border-radius: 50%;
+    gap: var(--spacing-xxs);
+    padding: 3px 9px;
     background: transparent;
-    color: var(--c-darkgrey);
+    color: var(--c-white);
+    border: none;
+    border-radius: var(--rounded-lg);
+    font-size: var(--text-xs);
+    font-family: var(--font-small);
+    font-weight: 500;
+    line-height: 1;
     cursor: pointer;
-    transition:
-      background-color var(--transition-fast) ease,
-      color var(--transition-fast) ease;
+    white-space: nowrap;
+    transition: background-color var(--transition-fast) ease;
   }
 
-  .action:hover,
+  .action:hover {
+    background-color: color-mix(in srgb, var(--c-white) 18%, transparent);
+  }
+
+  /* On the selection's own blue, the ring is white: the same shape the
+     button already has, so focus fills it in rather than boxing it. */
   .action:focus-visible {
-    background-color: var(--c-lightgrey);
-    color: var(--c-black);
-  }
-
-  .action.danger:hover,
-  .action.danger:focus-visible {
-    background-color: color-mix(in srgb, var(--c-error) 10%, transparent);
-    color: var(--c-error);
-  }
-
-  .action:focus-visible {
-    outline: 2px solid var(--c-info);
-    outline-offset: -2px;
+    background-color: color-mix(in srgb, var(--c-white) 18%, transparent);
+    outline: 1px solid var(--c-white);
+    outline-offset: -1px;
   }
 
   .action:active {
-    background-color: var(--c-midgrey);
+    background-color: color-mix(in srgb, var(--c-white) 30%, transparent);
   }
 </style>
