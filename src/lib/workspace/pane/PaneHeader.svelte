@@ -3,20 +3,23 @@
 
   interface Props {
     title: string
-    onClose: () => void
+    /** No handler, no button: the phone sheet is dismissed by the swipe. */
+    onClose?: () => void
   }
 
   const { title, onClose }: Props = $props()
 </script>
 
-<div class="pane-header">
+<div class="pane-header" class:centered={!onClose}>
   <!-- Title is rendered in the same typographic style as a PaneSection
        heading (10px uppercase, 600, darkgrey) so it reads as the root
        section of the settings stack rather than a heavier display title. -->
   <span class="title">{title} settings</span>
-  <button type="button" class="close" onclick={onClose} aria-label="Close pane">
-    <X size={16} />
-  </button>
+  {#if onClose}
+    <button type="button" class="close" onclick={onClose} aria-label="Close pane">
+      <X size={16} />
+    </button>
+  {/if}
 </div>
 
 <style>
@@ -31,6 +34,16 @@
     padding: 0 8px 0 16px;
     background: transparent;
     border-bottom: 1px solid var(--c-border);
+  }
+
+  /* Nothing on either side to balance against: the title takes the middle,
+     as a sheet's does. */
+  .centered {
+    padding-inline: 16px;
+  }
+
+  .centered .title {
+    text-align: center;
   }
 
   .title {

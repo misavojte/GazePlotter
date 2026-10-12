@@ -13,38 +13,95 @@
 
   const { title, onClose, children }: Props = $props()
 
-  // Sheet enters after the FAB has finished its 180ms exit animation.
-  // Sheet exits at t=0 (closing the sheet is the first motion; the
-  // returning FAB waits for the sheet to clear via its own intro delay).
-  const SHEET_ENTER_DELAY = 180
   const FLY_DISTANCE = 800
+
+  /** A pull this far down closes the sheet on release. */
+  const DISMISS_PX = 96
+  /** Or a flick: this fast (px per ms), however short the pull. */
+  const DISMISS_VELOCITY = 0.5
+  /** How long the released sheet takes to settle back or finish leaving. */
+  const SETTLE_MS = 200
+
+  // How far the finger has pulled the sheet down. Dragging is the grab
+  // strip's own gesture, so the body underneath keeps scrolling.
+  let pull = $state(0)
+  let dragging = $state(false)
+  // The pull carried the sheet out: it has already left under its own
+  // settle, so the unmount must not fly it a second time.
+  let dismissed = $state(false)
+  let height = $state(0)
+  let origin: { y: number; at: number } | null = null
+
+  function grab(event: TouchEvent) {
+    if (event.touches.length !== 1 || dismissed) return
+    origin = { y: event.touches[0].clientY, at: event.timeStamp }
+    dragging = true
+  }
+
+  // No preventDefault: Svelte binds touchmove passively, and the strip's
+  // `touch-action: none` is what keeps the gesture off the page.
+  function drag(event: TouchEvent) {
+    if (!origin) return
+    pull = Math.max(0, event.touches[0].clientY - origin.y)
+  }
+
+  function release(event: TouchEvent) {
+    if (!origin) return
+    const elapsed = Math.max(1, event.timeStamp - origin.at)
+    const flicked = pull / elapsed > DISMISS_VELOCITY
+    origin = null
+    dragging = false
+    if (pull > DISMISS_PX || (flicked && pull > 16)) {
+      dismissed = true
+      pull = height || FLY_DISTANCE
+      setTimeout(onClose, SETTLE_MS)
+      return
+    }
+    pull = 0
+  }
 </script>
 
 <!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   class="sheet-backdrop"
+  class:settling={!dragging}
+  style="opacity: {height ? Math.max(0, 1 - pull / height) : 1};"
   onclick={onClose}
   transition:fade={{ duration: 200, easing: cubicInOut }}
 ></div>
 
 <aside
   class="sheet"
+  class:settling={!dragging}
   aria-label={`${title} settings`}
+  style="transform: translateY({pull}px);"
+  bind:clientHeight={height}
   in:fly={{
     y: FLY_DISTANCE,
     duration: PANE_TRANSITION.duration,
-    delay: SHEET_ENTER_DELAY,
     easing: cubicInOut,
   }}
   out:fly={{
     y: FLY_DISTANCE,
-    duration: PANE_TRANSITION.duration,
+    duration: dismissed ? 0 : PANE_TRANSITION.duration,
     easing: cubicInOut,
   }}
 >
-  <div class="handle" aria-hidden="true"></div>
-  <PaneHeader {title} {onClose} />
+  <!-- The grab strip: handle and title. Swiping it down closes the sheet,
+       the way every phone sheet closes. A touch gesture with no pointer or
+       keyboard equivalent to declare: the backdrop and Escape close it. -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
+  <div
+    class="grab"
+    ontouchstart={grab}
+    ontouchmove={drag}
+    ontouchend={release}
+    ontouchcancel={release}
+  >
+    <div class="handle" aria-hidden="true"></div>
+    <PaneHeader {title} />
+  </div>
   <div class="body">
     {@render children()}
   </div>
@@ -84,17 +141,30 @@
     padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
-  /* Drag-affordance pill. 32x4 centered near the top edge. Not an
-     interactive drag handle in this pass — purely a conventional
-     "this is a sheet you can dismiss" signal. Uses --c-midgrey so it
-     reads as a subtle indicator, not a button. */
+  /* Only once the finger is off: under it the sheet and the dimming track
+     the touch. Matches SETTLE_MS. */
+  .settling {
+    transition:
+      transform var(--transition-normal) ease-out,
+      opacity var(--transition-normal) ease-out;
+  }
+
+  /* The sheet follows the finger from here, so the touch is ours and not
+     the page's. */
+  .grab {
+    flex-shrink: 0;
+    touch-action: none;
+  }
+
+  /* Drag-affordance pill. 32x4 centered near the top edge, and the thing
+     you pull the sheet down by. Uses --c-midgrey so it reads as a subtle
+     indicator, not a button. */
   .handle {
     width: 32px;
     height: 4px;
     border-radius: var(--rounded);
     background: var(--c-midgrey);
     margin: 8px auto 0;
-    flex-shrink: 0;
   }
 
   .body {
