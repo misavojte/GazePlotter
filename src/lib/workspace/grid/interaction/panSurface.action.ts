@@ -1,4 +1,5 @@
 import { throttleByRaf } from '$lib/shared/throttle'
+import { createDragCursor } from './dragCursor'
 import { createPointerSession } from './pointerSession'
 import type { GridInteractionController } from './controller.svelte'
 import type { InteractionPoint } from './model'
@@ -33,16 +34,7 @@ export function panSurfaceAction(
 ) {
   let params = initialParams
 
-  const setPanCursor = (cursor: string) => {
-    document.body.style.cursor = cursor
-    // A deferred pan never prevented the press, so text selection would follow it.
-    document.body.style.userSelect = cursor ? 'none' : ''
-    if (cursor) window.getSelection?.()?.removeAllRanges()
-    node.style.cursor = cursor
-    if (params.workspaceContainer) {
-      params.workspaceContainer.style.cursor = cursor
-    }
-  }
+  const setPanCursor = createDragCursor(node, () => params.workspaceContainer)
 
   const move = throttleByRaf((point: InteractionPoint) => {
     params.interaction.updatePan(point)

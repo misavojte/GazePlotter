@@ -5,6 +5,7 @@ import {
   calculateViewportGridColumns,
 } from '$lib/workspace/grid'
 import {
+  gridBoundsOf,
   gridToPixelDimensions,
   gridToPixelPosition,
 } from '$lib/workspace/grid'
@@ -40,6 +41,42 @@ describe('gridSizing', () => {
     expect(gridToPixelDimensions(3, 2, gridConfig)).toEqual({
       width: 140,
       height: 90,
+    })
+  })
+})
+
+describe('gridBoundsOf', () => {
+  it('has no box without items', () => {
+    expect(gridBoundsOf([], gridConfig)).toBeNull()
+  })
+
+  it('spans every item it is given, whatever their order', () => {
+    const items = [
+      { x: 4, y: 0, w: 2, h: 2 },
+      { x: 0, y: 3, w: 1, h: 1 },
+    ]
+
+    expect(gridBoundsOf(items, gridConfig)).toEqual({
+      left: gridToPixelPosition(0, 3, gridConfig).left,
+      top: gridToPixelPosition(4, 0, gridConfig).top,
+      right:
+        gridToPixelPosition(4, 0, gridConfig).left +
+        gridToPixelDimensions(2, 2, gridConfig).width,
+      bottom:
+        gridToPixelPosition(0, 3, gridConfig).top +
+        gridToPixelDimensions(1, 1, gridConfig).height,
+    })
+  })
+
+  it("is the plot's own box for a set of one", () => {
+    const position = gridToPixelPosition(2, 3, gridConfig)
+    const size = gridToPixelDimensions(3, 2, gridConfig)
+
+    expect(gridBoundsOf([{ x: 2, y: 3, w: 3, h: 2 }], gridConfig)).toEqual({
+      left: position.left,
+      top: position.top,
+      right: position.left + size.width,
+      bottom: position.top + size.height,
     })
   })
 })

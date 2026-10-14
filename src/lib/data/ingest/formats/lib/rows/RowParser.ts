@@ -1,21 +1,14 @@
 import type { EventContribution } from '../../../kernel/sink'
 import type { DatasetExclusionIssue } from '$lib/data/types'
 import { FIXATION_SEED_NAME } from '$lib/data/binary'
-import {
-  encodeString,
-  type TextEncoding,
-} from '$lib/data/ingest/utils/byteUtils'
+import type { TextEncoding } from '$lib/data/ingest/utils/byteUtils'
+import { RowScanFeed, rowEndOf, type RowEnd, type RowScanLayout } from './rowScan'
 
 /**
- * Single-character delimiter only.
- * Fast, single-pass scan of row bytes.
- *
- * Notes:
- * - No split().
- * - No indexOf() in the hot path.
- * - Only slices for columns you actually keep.
- * - Early-exits after maxNeededCol is closed.
- * - Zero-fills missing AOI tail to prevent carry-over.
+ * Base of every row format's parser. Subclasses declare the columns they read
+ * (setupColumns / setupAoiColumns) and interpret one row at a time in
+ * deserializeFromBytes, reading cells with getBytes / getNumber / cellEquals.
+ * Rows and cells come from the one-pass scanner in ./rowScan.ts.
  */
 export abstract class RowParser {
   /**
@@ -76,43 +69,37 @@ export abstract class RowParser {
     | null = null
   protected readonly delim: string
   protected readonly encoding: TextEncoding
-  private readonly encodingKind: 0 | 1 | 2
-  private readonly delimBytes: Uint8Array
-  private readonly delimBytesLen: number
 
   private currRowBytes: Uint8Array = new Uint8Array(0)
-  private currRangeStart: Uint32Array = new Uint32Array(0)
-  private currRangeEnd: Uint32Array = new Uint32Array(0)
-  private currRangeStamp: Uint32Array = new Uint32Array(0)
-  private rowId = 0
+  // Cell p of the current row is currRowBytes[ranges[o], ranges[o + 1]) with
+  // o = rangeBase + rangeOffset[p]: `ranges` is the row-scan feed's record
+  // buffer, so scanned rows are read in place; an absent cell is (0, 0).
+  private ranges: Int32Array = new Int32Array(0)
+  private rangeOffset: Int32Array = new Int32Array(0)
+  private rangeBase = 0
 
-  // Binary Double Buffer: AOI data (0 or 1)
-  protected currAoi: Uint8Array = new Uint8Array(0)
-  protected prevAoi: Uint8Array = new Uint8Array(0)
-  private tempAoi: Uint8Array = new Uint8Array(0)
+  // AOI-block column indices (0-based within the block) whose cell is "1"
+  // on the current row: aoiHits[aoiHitStart, aoiHitStart + aoiHitLen).
+  protected aoiHits: Int32Array = new Int32Array(0)
+  protected aoiHitStart = 0
+  protected aoiHitLen = 0
 
   // Mappings
   protected columnMap: number[] = []
   protected aoiStart = 0
   protected aoiCount = 0
 
-  private binaryRowParser: ((rawRow: Uint8Array) => void) | null = null
-
-  private minNeededCol = 0
-  private maxNeededCol = -1
+  /** Single-row feed behind processRowBytes; rebuilt when columns change. */
+  private rowFeed: RowScanFeed | null = null
 
   constructor(columnDelimiter: string = ',', encoding: TextEncoding = 'utf-8') {
-    if (columnDelimiter.length !== 1) {
+    if (columnDelimiter.length !== 1 || '\n\r1'.includes(columnDelimiter)) {
       throw new Error(
-        `RowParser expects a single-character delimiter, got "${columnDelimiter}".`
+        `RowParser expects a single-character delimiter other than a row end or "1", got "${columnDelimiter}".`
       )
     }
     this.delim = columnDelimiter
     this.encoding = encoding
-    this.encodingKind =
-      encoding === 'utf-16le' ? 1 : encoding === 'utf-16be' ? 2 : 0
-    this.delimBytes = encodeString(columnDelimiter, encoding)
-    this.delimBytesLen = this.delimBytes.length
   }
 
   abstract finalize(): void
@@ -121,17 +108,36 @@ export abstract class RowParser {
   protected static readonly EMPTY_BYTES = new Uint8Array(0)
 
   protected getBytes(index: number): Uint8Array {
-    if (this.currRangeStamp[index] !== this.rowId) return RowParser.EMPTY_BYTES
-    const start = this.currRangeStart[index]
-    const end = this.currRangeEnd[index]
+    const o = this.rangeBase + this.rangeOffset[index]
+    const start = this.ranges[o]
+    const end = this.ranges[o + 1]
     if (end <= start) return RowParser.EMPTY_BYTES
     return this.currRowBytes.subarray(start, end)
   }
 
+  /** Byte length of a cell (0 when absent); no allocation. */
+  protected cellLength(index: number): number {
+    const o = this.rangeBase + this.rangeOffset[index]
+    const len = this.ranges[o + 1] - this.ranges[o]
+    return len > 0 ? len : 0
+  }
+
+  /** bytesEqual(getBytes(index), bytes) without slicing (null = empty). */
+  protected cellEquals(index: number, bytes: Uint8Array | null): boolean {
+    const o = this.rangeBase + this.rangeOffset[index]
+    const start = this.ranges[o]
+    const len = Math.max(0, this.ranges[o + 1] - start)
+    if (bytes === null) return len === 0
+    if (len !== bytes.length) return false
+    const row = this.currRowBytes
+    for (let i = 0; i < len; i++) if (row[start + i] !== bytes[i]) return false
+    return true
+  }
+
   protected getNumber(index: number): number {
-    if (this.currRangeStamp[index] !== this.rowId) return Number.NaN
-    const start = this.currRangeStart[index]
-    const end = this.currRangeEnd[index]
+    const o = this.rangeBase + this.rangeOffset[index]
+    const start = this.ranges[o]
+    const end = this.ranges[o + 1]
     if (end <= start) return Number.NaN
     return this.parseNumberFromBytes(this.currRowBytes, start, end)
   }
@@ -166,52 +172,72 @@ export abstract class RowParser {
   private localCategoryIds: Map<string, number> | null = null
 
   protected setupColumns(indices: number[]): void {
-    const count = indices.length
     this.columnMap = indices
-    this.currRangeStart = new Uint32Array(count)
-    this.currRangeEnd = new Uint32Array(count)
-    this.currRangeStamp = new Uint32Array(count)
-    this.rebuildTargets()
+    this.rowFeed = null
   }
 
   protected setupAoiColumns(startIndex: number, count: number): void {
     this.aoiStart = startIndex
     this.aoiCount = count
-    this.currAoi = new Uint8Array(count)
-    this.prevAoi = new Uint8Array(count)
-    this.tempAoi = new Uint8Array(count)
-    this.rebuildTargets()
+    this.rowFeed = null
   }
 
-  private rebuildTargets(): void {
-    let min = Number.POSITIVE_INFINITY
-    let max = -1
-
-    for (let i = 0; i < this.columnMap.length; i++) {
-      const raw = this.columnMap[i]
-      if (raw < 0) continue
-      if (raw < min) min = raw
-      if (raw > max) max = raw
-    }
-
-    if (this.aoiCount > 0) {
-      min = Math.min(min, this.aoiStart)
-      max = Math.max(max, this.aoiStart + this.aoiCount - 1)
-    }
-
-    if (min === Number.POSITIVE_INFINITY) {
-      min = 0
-      max = -1
-    }
-
-    this.minNeededCol = min
-    this.maxNeededCol = max
-
-    this.compileBinaryRowParser()
-  }
-
+  /** Parses one row given without its row delimiter (tests, single rows). */
   processRowBytes(rawRow: Uint8Array): void {
-    this.processRowBinary(rawRow)
+    this.rowFeed ??= this.openFeed('none')
+    this.rowFeed.scanRow(rawRow)
+  }
+
+  /** The feed for a file's data rows (rows + columns in one pass). */
+  openRowScanFeed(rowDelimiter: string): RowScanFeed {
+    return this.openFeed(rowEndOf(rowDelimiter))
+  }
+
+  /** A feed over this parser's columns; points getBytes at its record slots. */
+  private openFeed(rowEnd: RowEnd): RowScanFeed {
+    // Needed columns get a slot each, absent ones an always-zero slot, the
+    // rest the scanner's scratch slot. Column 0 is scanned even if unread.
+    let max = 0
+    for (const raw of this.columnMap) if (raw > max) max = raw
+    if (this.aoiCount > 0) max = Math.max(max, this.aoiStart + this.aoiCount - 1)
+    const colSlot = new Int32Array(max + 1).fill(-1)
+    let slotCount = 0
+    for (const raw of this.columnMap) {
+      if (raw >= 0 && colSlot[raw] === -1) colSlot[raw] = slotCount++
+    }
+    this.rangeOffset = Int32Array.from(this.columnMap, raw => 4 + 2 * (raw >= 0 ? colSlot[raw] : slotCount))
+    for (let c = 0; c <= max; c++) if (colSlot[c] === -1) colSlot[c] = slotCount + 1
+    const layout: RowScanLayout = {
+      delimiter: this.delim,
+      encoding: this.encoding,
+      rowEnd,
+      aoiStart: this.aoiStart,
+      aoiEnd: this.aoiStart + this.aoiCount,
+      maxNeededCol: max,
+      colSlot,
+      slotCount: slotCount + 1,
+    }
+    const feed: RowScanFeed = new RowScanFeed(layout, (input, count) => this.processScannedRows(input, count, feed))
+    return feed
+  }
+
+  /** Scanned batch: point the range reads at each row record in turn. */
+  private processScannedRows(
+    input: Uint8Array,
+    count: number,
+    feed: RowScanFeed
+  ): void {
+    const rec = feed.rec
+    const stride = feed.stride
+    this.currRowBytes = input
+    this.ranges = rec
+    this.aoiHits = feed.hits
+    for (let r = 0, base = 0; r < count; r++, base += stride) {
+      this.rangeBase = base
+      this.aoiHitStart = rec[base + 2]
+      this.aoiHitLen = rec[base + 3]
+      this.deserializeFromBytes()
+    }
   }
 
   getIndex(header: string[], name: string): number {
@@ -231,169 +257,10 @@ export abstract class RowParser {
     return -1
   }
 
-  protected deserializeFromBytes(_rawRowRef: Uint8Array): void {
+  protected deserializeFromBytes(): void {
     throw new Error(
       `Binary deserialization not implemented for ${this.constructor.name}.`
     )
-  }
-
-  private processRowBinary(rawRow: Uint8Array): void {
-    if (this.binaryRowParser) {
-      this.binaryRowParser(rawRow)
-      return
-    }
-    // Buffer swap (AOI)
-    {
-      const prevAoiTemp = this.prevAoi
-      this.prevAoi = this.currAoi
-      this.currAoi = this.tempAoi
-      this.tempAoi = prevAoiTemp
-    }
-
-    this.rowId++
-    this.currRowBytes = rawRow
-    this.deserializeFromBytes(rawRow)
-  }
-
-  private compileBinaryRowParser(): void {
-    if (this.maxNeededCol < this.minNeededCol) {
-      const parserSource = `
-        return function(rawRow) {
-          { const prevAoiTemp = this.prevAoi; this.prevAoi = this.currAoi; this.currAoi = this.tempAoi; this.tempAoi = prevAoiTemp; }
-          this.rowId++;
-          this.currRowBytes = rawRow;
-          this.deserializeFromBytes(rawRow);
-        };
-      `
-      this.binaryRowParser = new Function(parserSource)().bind(this)
-      return
-    }
-
-    const mapping = new Map<number, { packed: number[] }>()
-    for (let packed = 0; packed < this.columnMap.length; packed++) {
-      const raw = this.columnMap[packed]
-      if (raw < 0) continue
-      let entry = mapping.get(raw)
-      if (!entry) {
-        entry = { packed: [] }
-        mapping.set(raw, entry)
-      }
-      entry.packed.push(packed)
-    }
-
-    const cases: string[] = []
-    const encodingKind = this.encodingKind
-    const entries = Array.from(mapping.entries()).sort((a, b) => a[0] - b[0])
-    for (const [raw, entry] of entries) {
-      const body: string[] = []
-      for (let i = 0; i < entry.packed.length; i++) {
-        const packed = entry.packed[i]
-        body.push(
-          `currRangeStart[${packed}] = start; currRangeEnd[${packed}] = end; currRangeStamp[${packed}] = rowId;`
-        )
-      }
-      cases.push(`case ${raw}: { ${body.join(' ')} break; }`)
-    }
-
-    const switchBlock = cases.length
-      ? `switch (col) { ${cases.join(' ')} }`
-      : ''
-
-    const delimBytes = Array.from(this.delimBytes)
-    const delimLen = this.delimBytesLen
-    const delimByte = delimLen === 1 ? delimBytes[0] : 0
-
-    const aoiSetter =
-      this.aoiCount > 0
-        ? encodingKind === 1
-          ? `if (col >= aoiStart && col < aoiStart + aoiCount) { const idx = col - aoiStart; currAoi[idx] = end === start + 2 && bytes[start] === 49 && bytes[start + 1] === 0 ? 1 : 0; }`
-          : encodingKind === 2
-            ? `if (col >= aoiStart && col < aoiStart + aoiCount) { const idx = col - aoiStart; currAoi[idx] = end === start + 2 && bytes[start] === 0 && bytes[start + 1] === 49 ? 1 : 0; }`
-            : `if (col >= aoiStart && col < aoiStart + aoiCount) { const idx = col - aoiStart; currAoi[idx] = end === start + 1 && bytes[start] === 49 ? 1 : 0; }`
-        : ''
-
-    const parserSource = `
-      return function(rawRow) {
-        { const prevAoiTemp = this.prevAoi; this.prevAoi = this.currAoi; this.currAoi = this.tempAoi; this.tempAoi = prevAoiTemp; }
-        this.rowId++;
-        const rowId = this.rowId;
-        this.currRowBytes = rawRow;
-
-        const bytes = rawRow;
-        const n = bytes.length;
-        const currRangeStart = this.currRangeStart;
-        const currRangeEnd = this.currRangeEnd;
-        const currRangeStamp = this.currRangeStamp;
-        const currAoi = this.currAoi;
-        const aoiStart = ${this.aoiStart};
-        const aoiCount = ${this.aoiCount};
-        const maxNeededCol = ${this.maxNeededCol};
-
-        let col = 0;
-        let start = 0;
-
-        if (${delimLen} === 1) {
-          const d = ${delimByte};
-          for (let i = 0; i < n; i++) {
-            if (bytes[i] !== d) continue;
-            const end = i;
-            ${aoiSetter}
-            ${switchBlock}
-            if (col >= maxNeededCol) {
-              if (aoiCount > 0) {
-                const lastSeenAoi = col >= aoiStart ? col - aoiStart : -1;
-                const firstMissing = Math.max(0, lastSeenAoi + 1);
-                if (firstMissing < aoiCount) currAoi.fill(0, firstMissing);
-              }
-              this.deserializeFromBytes(rawRow);
-              return;
-            }
-            start = i + 1;
-            col++;
-          }
-        } else {
-          const d0 = ${delimBytes[0] ?? 0};
-          const d1 = ${delimBytes[1] ?? 0};
-          const d2 = ${delimBytes[2] ?? 0};
-          const d3 = ${delimBytes[3] ?? 0};
-          for (let i = 0; i <= n - ${delimLen}; i++) {
-            let match = true;
-            if (${delimLen} > 0 && bytes[i] !== d0) match = false;
-            if (match && ${delimLen} > 1 && bytes[i + 1] !== d1) match = false;
-            if (match && ${delimLen} > 2 && bytes[i + 2] !== d2) match = false;
-            if (match && ${delimLen} > 3 && bytes[i + 3] !== d3) match = false;
-            if (!match) continue;
-            const end = i;
-            ${aoiSetter}
-            ${switchBlock}
-            if (col >= maxNeededCol) {
-              if (aoiCount > 0) {
-                const lastSeenAoi = col >= aoiStart ? col - aoiStart : -1;
-                const firstMissing = Math.max(0, lastSeenAoi + 1);
-                if (firstMissing < aoiCount) currAoi.fill(0, firstMissing);
-              }
-              this.deserializeFromBytes(rawRow);
-              return;
-            }
-            i += ${delimLen} - 1;
-            start = i + 1;
-            col++;
-          }
-        }
-
-        const end = n;
-        ${aoiSetter}
-        ${switchBlock}
-        if (aoiCount > 0) {
-          const lastSeenAoi = col >= aoiStart ? col - aoiStart : -1;
-          const firstMissing = Math.max(0, lastSeenAoi + 1);
-          if (firstMissing < aoiCount) currAoi.fill(0, firstMissing);
-        }
-        this.deserializeFromBytes(rawRow);
-      };
-    `
-
-    this.binaryRowParser = new Function(parserSource)().bind(this)
   }
 
   private parseNumberFromBytes(

@@ -15,15 +15,17 @@
     commitGridItemDuplication,
     commitGridItemGroupMove,
     commitGridItemRemoval,
+    commitGridItemsDuplication,
     commitGridItemsRemoval,
     commitGridItemResize,
   } from './itemCommands'
+  import ActionChip from './ActionChip.svelte'
   import {
     GridInteractionOverlay,
     type GridInteractionController,
   } from './interaction'
   import { responsive } from '../responsive.svelte'
-  import { generateSelectionPath } from './selectionPath'
+  import { generateSelectionPath, selectionPathCorner } from './selectionPath'
   import { useContextMenu } from '$lib/context-menu'
 
   const contextMenuState = useContextMenu()
@@ -114,9 +116,53 @@
     return delays
   })
 
+  // The contour drawn around a multi-selection: how far outside the plots it
+  // runs, and how round its corners are. The chip hangs off the same numbers.
+  const SELECTION_CONTOUR_MARGIN = 6
+  const SELECTION_CONTOUR_RADIUS = 26
+
   const selectionPath = $derived(
-    generateSelectionPath(grid.selectedItems, gridConfig, 6, 26)
+    generateSelectionPath(
+      grid.selectedItems,
+      gridConfig,
+      SELECTION_CONTOUR_MARGIN,
+      SELECTION_CONTOUR_RADIUS
+    )
   )
+
+  // Where the group's chip hangs: the contour's top-left corner, so the chip
+  // floats above the outline with their left edges on one line.
+  const groupChipAnchor = $derived(
+    selectionPathCorner(
+      grid.selectedItems,
+      gridConfig,
+      SELECTION_CONTOUR_MARGIN
+    )
+  )
+
+  // The group's verbs show when the group's outline does, and never while a
+  // selection rectangle is still gathering plots (see GridItem's isSettled).
+  const showsGroupActions = $derived(
+    grid.selectedCount > 1 &&
+      !interaction.isTransforming &&
+      interaction.mode !== 'selecting'
+  )
+
+  // The whole selection duplicates in one step, and the copies become the
+  // selection, exactly as a single duplication hands over to its copy.
+  function handleGroupDuplicate(): void {
+    const commits = grid.selectedItems.map(item => ({
+      id: item.id,
+      duplicateId: generateUniqueId(),
+    }))
+    if (commitGridItemsDuplication(workspace, gridItems, commits)) {
+      grid.setSelection(commits.map(commit => commit.duplicateId))
+    }
+  }
+
+  function handleGroupRemove(): void {
+    commitGridItemsRemoval(workspace, gridItems, [...grid.selectedItemIds])
+  }
 
   // Duplicate commits immediately. The store's findOptimalPosition
   // places the copy adjacent-right of the source (falling back to
@@ -247,11 +293,36 @@
     </svg>
   {/if}
 
+  {#if showsGroupActions && groupChipAnchor}
+    <div
+      class="group-chip-anchor"
+      style:left="{groupChipAnchor.x}px"
+      style:top="{groupChipAnchor.y}px"
+    >
+      <ActionChip
+        scope="{grid.selectedCount} plots"
+        onDuplicate={handleGroupDuplicate}
+        onRemove={handleGroupRemove}
+      />
+    </div>
+  {/if}
+
   <GridInteractionOverlay
     previews={interaction.previewRects}
     {gridConfig}
     mode={interaction.mode}
   />
+
+  {#if interaction.marqueeBounds}
+    {@const bounds = interaction.marqueeBounds}
+    <div
+      class="marquee"
+      style:transform="translate({bounds.left}px, {bounds.top}px)"
+      style:width="{bounds.right - bounds.left}px"
+      style:height="{bounds.bottom - bounds.top}px"
+      aria-hidden="true"
+    ></div>
+  {/if}
 </div>
 
 
@@ -266,6 +337,26 @@
 
   .grid-container {
     position: relative;
+  }
+
+  /* Where the group's action chip hangs, on the contour's top edge. */
+  .group-chip-anchor {
+    position: absolute;
+    z-index: 7;
+  }
+
+  /* The selection rectangle being dragged across the desk. Grid-space, like
+     every other overlay here: it is anchored to the plots it is drawn
+     around, not to the screen. */
+  .marquee {
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 50;
+    pointer-events: none;
+    box-sizing: border-box;
+    border: 1px solid var(--c-info);
+    background: color-mix(in srgb, var(--c-info) 8%, transparent);
   }
 
   /* Contour outline and fill around a multi-selection. Sits above unselected

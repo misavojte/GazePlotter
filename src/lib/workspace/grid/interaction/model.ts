@@ -1,3 +1,8 @@
+import {
+  gridToPixelDimensions,
+  gridToPixelPosition,
+  type PixelBounds,
+} from '../pixels'
 import type { GridConfig, GridItemPosition } from '../types'
 
 export type InteractionPoint = {
@@ -10,13 +15,8 @@ export type ScrollOffset = {
   y: number
 }
 
-export type GridInteractionRect = {
-  id: number
-  x: number
-  y: number
-  w: number
-  h: number
-}
+/** What the interaction layer moves and resizes: one item's placement. */
+export type GridInteractionRect = GridItemPosition
 
 export type IdleSession = {
   kind: 'idle'
@@ -62,11 +62,27 @@ export type ResizeSession = TransformSessionBase & {
   direction: ResizeDirection
 }
 
+export type MarqueeBounds = PixelBounds
+
+/**
+ * A selection rectangle dragged across the desk. Both corners are kept in
+ * GRID space, so the rectangle stays over the plots it was drawn around
+ * whatever the camera does mid-drag.
+ */
+export type MarqueeSession = {
+  kind: 'selecting'
+  originGrid: InteractionPoint
+  currentGrid: InteractionPoint
+}
+
 export type GridInteractionSession =
   | IdleSession
   | PanSession
   | MoveSession
   | ResizeSession
+  | MarqueeSession
+
+export type GridInteractionMode = GridInteractionSession['kind']
 
 export function createIdleSession(): IdleSession {
   return { kind: 'idle' }
@@ -130,6 +146,54 @@ export function startResizeSession(
     min,
     direction,
   }
+}
+
+export function startMarqueeSession(
+  gridPoint: InteractionPoint
+): MarqueeSession {
+  return { kind: 'selecting', originGrid: gridPoint, currentGrid: gridPoint }
+}
+
+export function updateMarqueeSession(
+  session: MarqueeSession,
+  gridPoint: InteractionPoint
+): MarqueeSession {
+  return { ...session, currentGrid: gridPoint }
+}
+
+/** The rectangle the two corners span, in grid px, however it was dragged. */
+export function marqueeBoundsOf(session: MarqueeSession): MarqueeBounds {
+  const { originGrid, currentGrid } = session
+  return {
+    left: Math.min(originGrid.x, currentGrid.x),
+    top: Math.min(originGrid.y, currentGrid.y),
+    right: Math.max(originGrid.x, currentGrid.x),
+    bottom: Math.max(originGrid.y, currentGrid.y),
+  }
+}
+
+/** Items the rectangle touches: any overlap counts, as on a design canvas. */
+export function itemIdsTouchedByMarquee(
+  positions: GridItemPosition[],
+  bounds: MarqueeBounds,
+  config: GridConfig
+): number[] {
+  return positions
+    .filter(position => {
+      const { left, top } = gridToPixelPosition(position.x, position.y, config)
+      const { width, height } = gridToPixelDimensions(
+        position.w,
+        position.h,
+        config
+      )
+      return (
+        left < bounds.right &&
+        left + width > bounds.left &&
+        top < bounds.bottom &&
+        top + height > bounds.top
+      )
+    })
+    .map(position => position.id)
 }
 
 export function isTransformSession(

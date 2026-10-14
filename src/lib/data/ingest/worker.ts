@@ -1,7 +1,7 @@
 import { IngestJob } from './kernel/job'
 import type { IngestContext } from './kernel/context'
 import type { IngestResult } from './kernel/result'
-import { blobSource, bufferSource, streamSource } from './kernel/source'
+import { blobSource, bufferSource } from './kernel/source'
 import { FORMAT_REGISTRY } from './formats/registry'
 
 /**
@@ -9,8 +9,7 @@ import { FORMAT_REGISTRY } from './formats/registry'
  * Translates inbound file messages into `IngestSource`s for one
  * `IngestJob`, and the job's callbacks into outbound messages.
  *
- * Inbound:  'file-names' | 'test-stream' | 'stream' | 'buffer' |
- *           'zip-file' | 'prompt-response'
+ * Inbound:  'file-names' | 'file' | 'buffer' | 'prompt-response'
  * Outbound: 'progress' { processedBytes }
  *           'prompt'   { promptId, payload }
  *           'done'     { result: IngestResult }  (binary buffers transferred)
@@ -30,12 +29,6 @@ const isStringArray = (data: unknown): data is string[] => {
   if (!Array.isArray(data)) return false
   if (data.length === 0) return false
   return typeof data[0] === 'string'
-}
-
-const isReadableStream = (data: unknown): data is ReadableStream => {
-  if (typeof data !== 'object') return false
-  if (data === null) return false
-  return typeof (data as ReadableStream).getReader === 'function'
 }
 
 const postProgressMessage = (force = false): void => {
@@ -136,15 +129,10 @@ async function processEvent(e: MessageEvent): Promise<void> {
         job = new IngestJob(fileNames, FORMAT_REGISTRY, ctx)
         return
       }
-      case 'test-stream':
-        if (!isReadableStream(data))
-          throw new Error('Stream is not ReadableStream')
-        return
-      case 'stream': {
-        if (!isReadableStream(data))
-          throw new Error('Stream is not ReadableStream')
+      case 'file': {
+        if (!(data instanceof Blob)) throw new Error('File is not a Blob')
         if (job === null) throw new Error('Ingest job is not initialized')
-        handleJobResult(await job.add(streamSource(nextSourceName(), data)))
+        handleJobResult(await job.add(blobSource(nextSourceName(), data)))
         return
       }
       case 'buffer': {
@@ -154,14 +142,6 @@ async function processEvent(e: MessageEvent): Promise<void> {
             bufferSource(nextSourceName(), new Uint8Array(data as ArrayBuffer))
           )
         )
-        return
-      }
-      case 'zip-file': {
-        const { file, zipName } = data as { file: Blob; zipName: string }
-        if (job === null) throw new Error('Ingest job is not initialized')
-        // Advance the name cursor: zip files arrive in fileNames order too.
-        nextSourceName()
-        handleJobResult(await job.add(blobSource(zipName, file)))
         return
       }
       case 'prompt-response': {

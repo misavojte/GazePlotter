@@ -35,7 +35,7 @@ When the stimulus has fixations, the **Alignment** section draws them over the m
 
 Once the media moves, a dashed outline marks where it started. **Cancel** discards every change.
 
-Attached media is saved with the workspace: exporting a workspace that contains media produces a `.gazeplotter.zip` archive instead of a plain `.json` file.
+Attached media is saved with the workspace, inside its [`.gazeplotter` file](/docs/export/workspace/).
 
 ## Pattern renaming
 

@@ -2,16 +2,21 @@ import type { GridConfig } from '../types'
 import {
   createIdleSession,
   isTransformSession,
+  marqueeBoundsOf,
   mergePreviewPosition,
+  startMarqueeSession,
   startMoveSession,
   startPanSession,
   startResizeSession,
+  updateMarqueeSession,
   updateMoveSession,
   updatePanSession,
   updateResizeSession,
+  type GridInteractionMode,
   type GridInteractionRect,
   type GridInteractionSession,
   type InteractionPoint,
+  type MarqueeBounds,
   type ResizeDirection,
 } from './model'
 import { GridViewportController, type InteractionCamera } from './viewport'
@@ -38,7 +43,7 @@ export class GridInteractionController {
     this.#viewport.setCamera(camera)
   }
 
-  get mode(): 'idle' | 'panning' | 'moving' | 'resizing' {
+  get mode(): GridInteractionMode {
     return this.#session.kind
   }
 
@@ -52,6 +57,13 @@ export class GridInteractionController {
 
   get isPanning(): boolean {
     return this.#session.kind === 'panning'
+  }
+
+  /** The selection rectangle being dragged, in grid px, or null. */
+  get marqueeBounds(): MarqueeBounds | null {
+    return this.#session.kind === 'selecting'
+      ? marqueeBoundsOf(this.#session)
+      : null
   }
 
   get activeItemIds(): number[] {
@@ -144,6 +156,24 @@ export class GridInteractionController {
     return preview
   }
 
+  beginMarquee(point: InteractionPoint): void {
+    this.#viewport.stopAutoScroll()
+    this.#session = startMarqueeSession(this.#toGridPoint(point))
+  }
+
+  updateMarquee(point: InteractionPoint): void {
+    if (this.#session.kind !== 'selecting') return
+    this.#session = updateMarqueeSession(
+      this.#session,
+      this.#toGridPoint(point)
+    )
+  }
+
+  finishMarquee(): void {
+    if (this.#session.kind !== 'selecting') return
+    this.cancel()
+  }
+
   beginPan(point: InteractionPoint): void {
     this.#viewport.stopAutoScroll()
     this.#session = startPanSession(point, this.#viewport.getScrollOffset())
@@ -177,10 +207,19 @@ export class GridInteractionController {
     this.#viewport.destroy()
   }
 
-  getPositionsWithPreview<T extends { id: number; x: number; y: number; w: number; h: number }>(
+  getPositionsWithPreview<T extends GridInteractionRect>(
     positions: T[]
   ): T[] {
     return mergePreviewPosition(positions, this.previewRects) as T[]
+  }
+
+  /** Client px to grid px: the frame's own origin, the camera, the zoom. */
+  #toGridPoint(point: InteractionPoint): InteractionPoint {
+    const origin = this.#viewport.getContentOrigin()
+    return {
+      x: (point.x - origin.x) / this.#zoom,
+      y: (point.y - origin.y) / this.#zoom,
+    }
   }
 
   #refreshTransformSession(): void {

@@ -11,6 +11,7 @@
   import { hostTooltipAction } from '$lib/tooltip'
   import { Header, HeaderAction, StatusBar } from './components'
   import { announceVersionOnce } from './versionNotice'
+  import { withShortcut } from '$lib/workspace/keys'
 
   const demoDataPath = `${base}/data/demo.json?v=3`
 
@@ -30,6 +31,21 @@
   }>()
   const workspaceActions = $derived(gazePlotterRef?.getActions())
   const tooltip = hostTooltipAction(() => gazePlotterRef?.getSession())
+  const saveStatus = {
+    unsaved: 'Unsaved changes',
+    saved: 'All changes saved',
+    new: 'Not saved to a file yet',
+  }
+  const saveIndicator = $derived(workspaceActions?.saveIndicator ?? null)
+  const exportHint = $derived(
+    `${withShortcut('Save the workspace', 'save')}, or export figures and data` +
+      (saveIndicator ? `. ${saveStatus[saveIndicator]}` : '')
+  )
+
+  // The browser's own prompt, only when closing would lose edits.
+  function handleBeforeUnload(event: BeforeUnloadEvent): void {
+    if (workspaceActions?.hasUnsavedWork) event.preventDefault()
+  }
 
   onMount(() => {
     const session = gazePlotterRef?.getSession()
@@ -62,6 +78,8 @@
 <!-- The homepage is the app: the compact site bar over one canvas filling
      the rest of the screen, closed by the credit strip. GazePlotter is just the field; the bar drives it
      through getActions(). With nothing around it to scroll, the wheel pans. -->
+<svelte:window onbeforeunload={handleBeforeUnload} />
+
 <Header {tooltip}>
   {#snippet actions()}
     <HeaderAction
@@ -74,9 +92,11 @@
     />
     <HeaderAction
       label="Export"
-      hint="Save the workspace, figures or data"
+      hint={exportHint}
       {tooltip}
       icon={Download}
+      badge={saveIndicator}
+      badgeLabel={saveIndicator ? saveStatus[saveIndicator] : ''}
       disabled={!workspaceActions?.canExport}
       onclick={() => workspaceActions?.openExport()}
     />

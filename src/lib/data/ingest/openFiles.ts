@@ -4,7 +4,7 @@ export type OpenFiles = () => Promise<File[]>
 
 /** Extensions ingest can classify; mirrors the format routing. Images/videos
  *  are stimulus reference media, matched to stimuli by file name post-load. */
-export const INGEST_FILE_ACCEPT = '.csv,.txt,.tsv,.json,.zip,.xml,image/*,video/*'
+export const INGEST_FILE_ACCEPT = '.gazeplotter,.csv,.txt,.tsv,.json,.zip,.xml,image/*,video/*'
 
 /** Web default for `openFiles`: a one-shot browser file picker. */
 export const openFilesViaBrowser: OpenFiles = () =>

@@ -110,6 +110,11 @@ const WORKSPACE_COMMAND_LABELS: Record<
     default: 'Duplicated plot to the nearest empty space in the workspace',
   },
 
+  duplicateGridItems: {
+    action: 'plots duplication',
+    default: 'Duplicated plots to the nearest empty space in the workspace',
+  },
+
   setLayoutState: {
     action: 'layout reset',
     default: 'Workspace layout returned to the initial state',

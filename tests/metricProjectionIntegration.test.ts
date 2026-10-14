@@ -7,7 +7,6 @@
 import { describe, it, expect } from 'vitest'
 import {
   ALL_CAPS,
-  makeTestEngine,
   makeSingleParticipantEngine,
   makeScope,
 } from './helpers/testEngine'
@@ -18,7 +17,6 @@ import {
   getMetric,
   type MetricInstance,
   type PlotMetricContract,
-  type Scope,
 } from '../src/lib/metrics'
 
 const STIM = 1

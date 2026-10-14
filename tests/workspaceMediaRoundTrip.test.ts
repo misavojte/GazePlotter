@@ -7,6 +7,7 @@ import { FORMAT_REGISTRY } from '../src/lib/data/ingest/formats/registry'
 import { IngestJob } from '../src/lib/data/ingest/kernel/job'
 import { blobSource } from '../src/lib/data/ingest/kernel/source'
 import { writeBlobZip } from '../src/lib/data/zip/blobZip'
+import { generateWorkspaceJson } from '../src/lib/data/export/mappers/workspace'
 import { workspaceJsonFormat } from '../src/lib/data/ingest/formats/workspaceJson'
 import { StimulusMediaStore } from '../src/lib/data/media/mediaStore.svelte'
 import {
@@ -14,9 +15,9 @@ import {
   mediaKindOf,
 } from '../src/lib/data/media/mediaUpload'
 
-// Round trip of per-stimulus reference media through the workspace container:
-// no media → the plain-JSON export of always; media → a .gazeplotter.zip with
-// workspace.json + media/<id>.<ext> entries, restored to metadata + Blobs.
+// Round trip through the native `.gazeplotter` file: workspace.json, the
+// segment buffers as entries, and media/<id>.<ext> entries, restored to
+// metadata + Blobs. Older `.gazeplotter.zip` files (plain JSON + media) open.
 
 const MEDIA: StimulusMedia = {
   // Custom gaze-space mapping included so the round trip covers `region`.
@@ -46,14 +47,33 @@ function storeWith(blob: Blob | null): StimulusMediaStore {
 }
 
 describe('workspace media round trip', () => {
-  it('exports plain JSON when no stimulus has media', async () => {
-    const payload = await buildWorkspace(createData(false), [], null, storeWith(null))
-    expect(payload.extension).toBe('.json')
-    expect(typeof payload.content).toBe('string')
-    expect((payload.content as string).includes('stimuliMedia')).toBe(false)
+  it('saves a .gazeplotter without media and reopens its segments exactly', async () => {
+    const data = createData(false)
+    const payload = await buildWorkspace(data, [], null, storeWith(null))
+    expect(payload.extension).toBe('.gazeplotter')
+    const result = await workspaceZipFormat.read(payload.content, ingestCtx)
+    if (result.kind !== 'workspace') throw new Error('expected workspace')
+    expect(result.data.stimuliMedia).toBeUndefined()
+    expect(Array.from(result.data.segments.segmentBuffer)).toEqual(Array.from(data.segments.segmentBuffer))
+    expect(Array.from(result.data.segments.indexTable)).toEqual(Array.from(data.segments.indexTable))
+    expect(Array.from(result.data.segments.aoiPool)).toEqual(Array.from(data.segments.aoiPool))
   })
 
-  it('exports a .gazeplotter.zip with media and re-imports it losslessly', async () => {
+  it('still opens an older .gazeplotter.zip (plain workspace.json + media)', async () => {
+    const bytes = new Uint8Array([137, 80, 78, 71])
+    const { blob } = await writeBlobZip([
+      { name: 'workspace.json', content: generateWorkspaceJson(createData(true), [], null), compress: true },
+      { name: 'media/0.png', content: new Blob([bytes], { type: MEDIA.mimeType }) },
+    ])
+    const name = 'study.gazeplotter.zip'
+    const job = new IngestJob([name], FORMAT_REGISTRY, ingestCtx)
+    const result = await job.add(blobSource(name, blob))
+    if (result?.kind !== 'workspace') throw new Error('expected workspace')
+    expect(result.data.stimuliMedia).toEqual({ 0: MEDIA })
+    expect(new Uint8Array(await result.mediaBlobs![0].arrayBuffer())).toEqual(bytes)
+  }, 20000)
+
+  it('saves a .gazeplotter with media and re-imports it losslessly', async () => {
     const bytes = new Uint8Array([137, 80, 78, 71, 1, 2, 3, 4])
     const payload = await buildWorkspace(
       createData(true),
@@ -61,11 +81,11 @@ describe('workspace media round trip', () => {
       null,
       storeWith(new Blob([bytes], { type: MEDIA.mimeType }))
     )
-    expect(payload.extension).toBe('.gazeplotter.zip')
+    expect(payload.extension).toBe('.gazeplotter')
     expect(payload.content).toBeInstanceOf(Blob)
     expect(payload.skippedMedia).toEqual([])
 
-    const result = await workspaceZipFormat.read(payload.content as Blob, ingestCtx)
+    const result = await workspaceZipFormat.read(payload.content, ingestCtx)
     if (result.kind !== 'workspace') throw new Error('expected workspace')
 
     expect(result.data.stimuliMedia).toEqual({ 0: MEDIA })
@@ -83,14 +103,14 @@ describe('workspace media round trip', () => {
     const payload = await buildWorkspace(createData(true), [], null, storeWith(unreadable))
     expect(payload.skippedMedia).toEqual([0])
 
-    const result = await workspaceZipFormat.read(payload.content as Blob, ingestCtx)
+    const result = await workspaceZipFormat.read(payload.content, ingestCtx)
     if (result.kind !== 'workspace') throw new Error('expected workspace')
     expect(result.mediaBlobs).toEqual({})
   })
 
   it('tolerates a missing media entry (drops only that blob)', async () => {
     const payload = await buildWorkspace(createData(true), [], null, storeWith(null))
-    const result = await workspaceZipFormat.read(payload.content as Blob, ingestCtx)
+    const result = await workspaceZipFormat.read(payload.content, ingestCtx)
     if (result.kind !== 'workspace') throw new Error('expected workspace')
     // Metadata still present at parse time; the ingest apply reconciles it
     // against the (empty) blob map and warns.
@@ -105,7 +125,7 @@ describe('workspace media round trip', () => {
       null,
       storeWith(new Blob([new Uint8Array([1, 2])], { type: MEDIA.mimeType }))
     )
-    const archive = payload.content as Blob
+    const archive = payload.content
     expect(await workspaceZipFormat.matchesContent!(archive)).toBe(true)
     const { blob: other } = await writeBlobZip([{ name: 'sections.csv', content: 'a,b' }])
     expect(await workspaceZipFormat.matchesContent!(other)).toBe(false)

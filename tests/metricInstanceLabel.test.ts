@@ -6,7 +6,6 @@ import {
   instanceReadout,
   reductionQualifier,
   resolveReduction,
-  getMetric,
   type MetricInstance,
 } from '../src/lib/metrics'
 import { buildMetricLabel } from '../src/lib/plots/shared/labels'

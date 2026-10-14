@@ -6,12 +6,15 @@ import type {
   UpdateLayoutCommand,
 } from '$lib/workspace/commands'
 import { createCommandSourcePlotPattern } from '$lib/workspace/commands/utils'
-import type { GridConfig } from './types'
+import type { GridConfig, GridItemPosition } from './types'
 
 // Narrowed by COMMAND, not by method name: `apply` accepts the whole union, so
 // naming the members here is what still stops this layer reaching for the
 // rest of it. A full WorkspaceCommandBus satisfies this.
-type WorkspaceGridCommands = Pick<WorkspaceCommandBus, 'duplicateGridItem'> & {
+type WorkspaceGridCommands = Pick<
+  WorkspaceCommandBus,
+  'duplicateGridItem' | 'duplicateGridItems'
+> & {
   apply: (
     command: UpdateLayoutCommand | RemoveGridItemCommand | RemoveGridItemsCommand
   ) => boolean
@@ -21,13 +24,7 @@ type GridItemIdentity = Pick<AllGridTypes, 'id' | 'type'>
 type GridItemMinimum = Pick<AllGridTypes, 'min'>
 
 export type GridMoveCommit = { id: number; x: number; y: number }
-export type GridResizeCommit = {
-  id: number
-  x: number
-  y: number
-  w: number
-  h: number
-}
+export type GridResizeCommit = GridItemPosition
 export type GridIdentityCommit = { id: number }
 export type GridDuplicationCommit = {
   id: number
@@ -141,6 +138,26 @@ export function commitGridItemsRemoval(
     itemIds: live,
     source: getGridItemCommandSource(findGridItem(items, live[0])!),
   })
+}
+
+// A multi-selection duplicates (and undoes) in one step; one item keeps the
+// single command. The caller brings the copies' ids so it can select them.
+export function commitGridItemsDuplication(
+  workspace: WorkspaceGridCommands,
+  items: AllGridTypes[],
+  commits: Required<GridDuplicationCommit>[]
+): boolean {
+  const live = commits.filter(commit => findGridItem(items, commit.id))
+  if (live.length <= 1) {
+    return (
+      live.length === 1 && commitGridItemDuplication(workspace, items, live[0])
+    )
+  }
+  return workspace.duplicateGridItems(
+    live.map(commit => commit.id),
+    getGridItemCommandSource(findGridItem(items, live[0].id)!),
+    { duplicateIds: live.map(commit => commit.duplicateId) }
+  )
 }
 
 export function commitGridItemDuplication(

@@ -68,9 +68,18 @@ describe('resolveWorkspaceShortcut', () => {
     )
   })
 
-  it('claims nothing for an unrelated Ctrl chord (Ctrl+S stays the browser’s)', () => {
+  it('claims Ctrl+S as save and Ctrl+Shift+S as save as', () => {
     expect(
       resolveWorkspaceShortcut(key({ code: 'KeyS', key: 's', ctrlKey: true }))
+    ).toBe('save')
+    expect(
+      resolveWorkspaceShortcut(key({ code: 'KeyS', key: 'S', ctrlKey: true, shiftKey: true }))
+    ).toBe('save-as')
+  })
+
+  it('claims nothing for an unrelated Ctrl chord', () => {
+    expect(
+      resolveWorkspaceShortcut(key({ code: 'KeyP', key: 'p', ctrlKey: true }))
     ).toBeNull()
   })
 })

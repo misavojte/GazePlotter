@@ -297,6 +297,7 @@ export class TobiiRowParser extends RowParser {
 
   /* ── Sampling interval learning ─────────────────────────────────── */
   private readonly sampleIntervals = new BigIntNumberMap(256)
+  private learnedSampleKey: bigint | null = null
 
   /* ── Stimulus helpers ───────────────────────────────────────────── */
   private readonly stimulusUpdater: () => void
@@ -671,80 +672,76 @@ export class TobiiRowParser extends RowParser {
   }
 
   /* ── Public API ─────────────────────────────────────────────────── */
-  protected override deserializeFromBytes(_rawRowRef: Uint8Array): void {
+  protected override deserializeFromBytes(): void {
     this.stimulusUpdater()
 
-    let categoryBytes: Uint8Array
-    let eyeMovementTypeIndexBytes: Uint8Array
+    // Cells are compared in place and only sliced when a new segment needs
+    // them: most rows continue the open segment (or are non-gaze sensors).
+    if (
+      this.hasSensorColumn &&
+      !this.cellEquals(this.pSensor, this.eyeTrackerSensorBytes)
+    ) {
+      return
+    }
+
+    let categoryCol: number
+    let eyeMovementTypeIndexCol: number
     if (this.mappedColumnsAllowed) {
       const active = this.activeStimulusPackedCols
-      // Shared empty: exports without per-stimulus `Mapped …` columns hit
-      // this branch on EVERY data row — never allocate here.
-      categoryBytes = active
-        ? this.getBytes(active.pCategory)
-        : TobiiRowParser.EMPTY_BYTES
-      if (!categoryBytes.length) categoryBytes = this.getBytes(this.pCategory)
-      if (!categoryBytes.length && this.cCategoryUnmapped !== -1) {
-        categoryBytes = this.getBytes(this.pCategoryUnmapped)
+      categoryCol =
+        active && this.cellLength(active.pCategory)
+          ? active.pCategory
+          : this.pCategory
+      if (!this.cellLength(categoryCol) && this.cCategoryUnmapped !== -1) {
+        categoryCol = this.pCategoryUnmapped
       }
     } else {
       // Media mode: ignore mapped columns; per-stimulus mappings are tied to
       // interval names, not media files, so they can't carry valid data here.
-      categoryBytes =
-        this.cCategoryUnmapped !== -1
-          ? this.getBytes(this.pCategoryUnmapped)
-          : this.getBytes(this.pCategory)
+      categoryCol =
+        this.cCategoryUnmapped !== -1 ? this.pCategoryUnmapped : this.pCategory
     }
-    if (!categoryBytes.length) return
-
-    if (this.hasSensorColumn) {
-      const sensorBytes = this.getBytes(this.pSensor)
-      if (!bytesEqual(sensorBytes, this.eyeTrackerSensorBytes)) return
-    }
+    if (!this.cellLength(categoryCol)) return
 
     const currentTimestampNum = this.getRecordingTimestampMicros()
     if (!Number.isFinite(currentTimestampNum)) return
 
-    const recordingBytes = this.getBytes(this.pRecording)
-    const participantBytes = this.getBytes(this.pParticipant)
     if (this.mappedColumnsAllowed) {
       const active = this.activeStimulusPackedCols
-      eyeMovementTypeIndexBytes = active
-        ? this.getBytes(active.pCategoryIndex)
-        : TobiiRowParser.EMPTY_BYTES
-      if (!eyeMovementTypeIndexBytes.length) {
-        eyeMovementTypeIndexBytes = this.getBytes(this.pEyeMovementTypeIndex)
-      }
+      eyeMovementTypeIndexCol =
+        active && this.cellLength(active.pCategoryIndex)
+          ? active.pCategoryIndex
+          : this.pEyeMovementTypeIndex
       if (
-        !eyeMovementTypeIndexBytes.length &&
+        !this.cellLength(eyeMovementTypeIndexCol) &&
         this.cEyeMovementTypeIndexUnmapped !== -1
       ) {
-        eyeMovementTypeIndexBytes = this.getBytes(
-          this.pEyeMovementTypeIndexUnmapped
-        )
+        eyeMovementTypeIndexCol = this.pEyeMovementTypeIndexUnmapped
       }
     } else {
-      eyeMovementTypeIndexBytes =
+      eyeMovementTypeIndexCol =
         this.cEyeMovementTypeIndexUnmapped !== -1
-          ? this.getBytes(this.pEyeMovementTypeIndexUnmapped)
-          : this.getBytes(this.pEyeMovementTypeIndex)
+          ? this.pEyeMovementTypeIndexUnmapped
+          : this.pEyeMovementTypeIndex
     }
 
-    const recordingChanged = !bytesEqual(
-      recordingBytes,
+    const recordingChanged = !this.cellEquals(
+      this.pRecording,
       this.lastRecordingBytes
     )
-    const participantChanged = !bytesEqual(
-      participantBytes,
+    const participantChanged = !this.cellEquals(
+      this.pParticipant,
       this.lastParticipantBytes
     )
 
     if (recordingChanged) {
+      const recordingBytes = this.getBytes(this.pRecording)
       this.lastRecordingBytes = recordingBytes.length ? recordingBytes : null
       this.lastRecordingKey = this.makeKey(recordingBytes)
     }
 
     if (participantChanged) {
+      const participantBytes = this.getBytes(this.pParticipant)
       this.lastParticipantBytes = participantBytes.length
         ? participantBytes
         : null
@@ -773,8 +770,8 @@ export class TobiiRowParser extends RowParser {
     if (
       this.mEyeMovementTypeIndexBytes &&
       this.mCategoryBytes &&
-      bytesEqual(eyeMovementTypeIndexBytes, this.mEyeMovementTypeIndexBytes) &&
-      bytesEqual(categoryBytes, this.mCategoryBytes)
+      this.cellEquals(eyeMovementTypeIndexCol, this.mEyeMovementTypeIndexBytes) &&
+      this.cellEquals(categoryCol, this.mCategoryBytes)
     ) {
       const stimLen = this.cachedStimulusStackKeys.length
       const lastStimulusKey =
@@ -801,12 +798,12 @@ export class TobiiRowParser extends RowParser {
 
     this.deserializeNewSegment(
       currentTimestampNum,
-      recordingBytes,
+      this.getBytes(this.pRecording),
       recordingKey,
-      participantBytes,
+      this.getBytes(this.pParticipant),
       participantKey,
-      eyeMovementTypeIndexBytes,
-      categoryBytes
+      this.getBytes(eyeMovementTypeIndexCol),
+      this.getBytes(categoryCol)
     )
 
     this.lastEyeTrackerTimestamp = currentTimestampNum
@@ -1033,7 +1030,12 @@ export class TobiiRowParser extends RowParser {
 
   /* ── Sample interval learning ───────────────────────────────────── */
   private updateSampleInterval(currentTs: number, sampleKey: bigint): void {
-    if (this.sampleIntervals.has(sampleKey)) return
+    // Learned intervals are never overwritten; skip the per-row hash lookup.
+    if (sampleKey === this.learnedSampleKey) return
+    if (this.sampleIntervals.has(sampleKey)) {
+      this.learnedSampleKey = sampleKey
+      return
+    }
     if (this.lastEyeTrackerTimestamp === null) return
     if (this.lastEyeTrackerSampleKey !== sampleKey) return
 
@@ -1045,17 +1047,15 @@ export class TobiiRowParser extends RowParser {
 
   /* ── AOI aggregation (INLINED OPTIMIZATION) ────────────────── */
   private trackAoiHitsInline(): void {
-    if (this.aoiCount === 0) return
+    const hits = this.aoiHits
     const names = this.aoiNames
-    for (let j = 0; j < this.aoiCount; j++) {
-      if (this.currAoi[j] === 1) {
-        const nameBytes = names[j]
-        if (!nameBytes || !nameBytes.length) continue
-        if (this.aoiHitFlags[j] === 0) {
-          this.aoiHitFlags[j] = 1
-          this.aoiHitCount++
-        }
-      }
+    const flags = this.aoiHitFlags
+    const end = this.aoiHitStart + this.aoiHitLen
+    for (let k = this.aoiHitStart; k < end; k++) {
+      const j = hits[k]
+      if (flags[j] === 1 || !names[j].length) continue
+      flags[j] = 1
+      this.aoiHitCount++
     }
   }
 
@@ -1219,6 +1219,11 @@ export class TobiiRowParser extends RowParser {
     // Mapped fixation/category columns are keyed by interval names (e.g. `01-walk`),
     // which don't correspond to media file names — keep the standard fallback path.
     return (): void => {
+      // Same bytes as the cached single stimulus: same key, nothing to do.
+      const cached = this.cachedStimulusStackBytes
+      if (cached.length === 1 && this.cellEquals(this.pStimulus, cached[0])) {
+        return
+      }
       const stimBytes = this.getBytes(this.pStimulus)
       if (stimBytes.length) {
         const key = this.makeKey(stimBytes)

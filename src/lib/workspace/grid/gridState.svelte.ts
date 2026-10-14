@@ -190,23 +190,37 @@ export class GridState {
     if (this.items.some(i => i.id === id)) this.selectedItemIds = [id]
   }
 
-  /** Add/remove this item from the selection (Cmd/Ctrl-click). */
-  toggleInSelection(id: number) {
-    if (!this.items.some(i => i.id === id)) return
+  /**
+   * Replace the selection with exactly these items, in the order given and
+   * without repeats (the marquee hands over its base plus what it touched).
+   *
+   * Close the pane when the selection empties, and keep an ALREADY-OPEN
+   * single pane (or currently visible bulk pane) in sync when collapsing from
+   * a multi-selection. Never OPEN a pane that wasn't open: building a
+   * selection, by modifier-click or by rectangle, is not click-to-edit (see
+   * GridItem.onFrameClick).
+   */
+  setSelection(ids: number[]) {
+    const next = [...new Set(ids)].filter(id =>
+      this.items.some(i => i.id === id)
+    )
     const wasPaneVisible = this.paneOpenId !== null || this.selectedItemIds.length > 1
-    const next = this.selectedItemIds.includes(id)
-      ? this.selectedItemIds.filter(x => x !== id)
-      : [...this.selectedItemIds, id]
     this.selectedItemIds = next
-    // Close the pane when the selection empties, and keep an ALREADY-OPEN
-    // single pane (or currently visible bulk pane) in sync when collapsing from a multi-selection.
-    // Never OPEN a pane that wasn't open: additive (Cmd/Ctrl/Shift) clicks build a
-    // selection without triggering click-to-edit (see GridItem.onFrameClick).
     if (next.length === 0) {
       this.paneOpenId = null
     } else if (next.length === 1 && wasPaneVisible) {
       this.paneOpenId = next[0]
     }
+  }
+
+  /** Add/remove this item from the selection (Cmd/Ctrl-click). */
+  toggleInSelection(id: number) {
+    if (!this.items.some(i => i.id === id)) return
+    this.setSelection(
+      this.selectedItemIds.includes(id)
+        ? this.selectedItemIds.filter(x => x !== id)
+        : [...this.selectedItemIds, id]
+    )
   }
 
   clearSelection() {
@@ -280,12 +294,18 @@ export class GridState {
     })
   }
 
-  duplicateItem(item: AllGridTypes, duplicateId?: number) {
+  duplicateItem(
+    item: AllGridTypes,
+    duplicateId?: number,
+    position?: { x: number; y: number }
+  ) {
     const duplicate = duplicateGridItem(item, duplicateId)
+    // A requested cell that is taken falls back to a found one, so a caller
+    // placing a whole group never has to re-check what it already reserved.
     const placement = this.resolvePlacement(
       duplicate,
       this.createPositionsSnapshot(),
-      undefined,
+      position,
       item
     )
     duplicate.x = placement.x

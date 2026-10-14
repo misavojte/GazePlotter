@@ -1,4 +1,4 @@
-import { SIDEBAR, type SidebarSection, type SidebarLink, type SidebarItem } from './sidebarConfig'
+import { SIDEBAR, type SidebarLink, type SidebarItem } from './sidebarConfig'
 
 export interface DocNavigationData {
   sections: readonly SidebarItem[]

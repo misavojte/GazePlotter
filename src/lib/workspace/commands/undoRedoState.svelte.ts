@@ -31,10 +31,22 @@ export class UndoRedoStateStore {
   redoStack = $state.raw<CommandChainEntry[]>([])
   pendingChain = $state.raw<CommandChainEntry | null>(null)
   isProcessingUndoRedo = $state<boolean>(false)
+  // Newest chain dropped by the stack cap: the history's floor once trimmed.
+  private trimmedBase = $state<number | null>(null)
+  private savedHead = $state<number | null>(null)
 
   // --- Derived Calculations (Runes) ---
   canUndo = $derived(this.undoStack.length > 0)
   canRedo = $derived(this.redoStack.length > 0)
+
+  /** Identity of the current history position (chain ids are unique). */
+  head = $derived(
+    this.pendingChain?.chainId ??
+      this.undoStack.at(-1)?.chainId ??
+      this.trimmedBase
+  )
+  /** The workspace differs from the last saved (or loaded) position. */
+  isDirty = $derived(this.head !== this.savedHead)
 
   /** The root command of the chain the next undo/redo would replay (labels). */
   lastUndoCommand = $derived(
@@ -89,7 +101,9 @@ export class UndoRedoStateStore {
 
       // Trim undo stack if it exceeds the maximum size
       if (this.undoStack.length >= MAX_UNDO_STACK_SIZE) {
-        this.undoStack = this.undoStack.slice(-MAX_UNDO_STACK_SIZE + 1) // Keep space for the new command
+        const drop = this.undoStack.length - MAX_UNDO_STACK_SIZE + 1 // space for the new command
+        this.trimmedBase = this.undoStack[drop - 1].chainId
+        this.undoStack = this.undoStack.slice(drop)
       }
 
       // Start new pending chain with this root command
@@ -202,8 +216,13 @@ export class UndoRedoStateStore {
     this.isProcessingUndoRedo = false
   }
 
+  /** The current position is what was just saved. */
+  markSaved(head: number | null): void {
+    this.savedHead = head
+  }
+
   /**
-   * Clears all undo/redo history.
+   * Clears all undo/redo history; the cleared state counts as saved.
    * Useful when loading a new file or resetting the workspace.
    */
   clear(): void {
@@ -211,6 +230,8 @@ export class UndoRedoStateStore {
     this.redoStack = []
     this.pendingChain = null
     this.isProcessingUndoRedo = false
+    this.trimmedBase = null
+    this.savedHead = null
   }
 }
 

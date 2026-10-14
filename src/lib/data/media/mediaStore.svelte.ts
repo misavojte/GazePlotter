@@ -36,6 +36,17 @@ export class StimulusMediaStore {
     this.version++
   }
 
+  /** Same bytes from a new source (the file a save just wrote). A decoded
+   *  image keeps its pixels; a video streams from its source, so it reloads. */
+  rebindBlob(stimulusId: number, blob: Blob): void {
+    if (!this.blobs.has(stimulusId)) return
+    if (this.elements.get(stimulusId)?.el.tagName === 'VIDEO') {
+      this.setBlob(stimulusId, blob)
+      return
+    }
+    this.blobs.set(stimulusId, blob)
+  }
+
   getBlob(stimulusId: number): Blob | null {
     return this.blobs.get(stimulusId) ?? null
   }

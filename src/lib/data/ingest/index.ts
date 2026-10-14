@@ -1,7 +1,6 @@
 export * from './service.svelte'
 export * from './kernel'
 export * from './formats/registry'
-export * from './formats/routing'
 export * from './prompts'
 export * from './types'
 export * from './loaders'

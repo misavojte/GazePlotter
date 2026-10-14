@@ -7,7 +7,7 @@ import type { DatasetSink } from '../../../kernel/sink'
 import type { SourceProbe } from '../../../kernel/source'
 import type { ParseSettings } from '../../../types'
 import { RowParser } from './RowParser'
-import { RowSplitter } from './RowSplitter'
+import { LeadingRows, type RowScanFeed } from './rowScan'
 
 /**
  * Everything a row format gets to construct its `RowParser` for one file.
@@ -64,55 +64,61 @@ async function readRows(
   ctx: IngestContext
 ): Promise<void> {
   const { opened, settings, userInput } = input
-  const splitter = new RowSplitter(settings)
   const decoder = new TextDecoder(settings.encoding)
-  const headerRowId = settings.headerRowId
-
+  const leading = new LeadingRows(settings.encoding, settings.rowDelimiter)
   let rowIndex = 0
-  // Holder object: the parser is assigned inside the closure below, which
-  // defeats TS control-flow narrowing on a plain `let`.
-  const state: { parser: RowParser | null } = { parser: null }
+  // Holder object: assigned inside the closure below, which defeats TS
+  // control-flow narrowing on a plain `let`.
+  const state: { parser: RowParser | null; feed: RowScanFeed | null } = {
+    parser: null,
+    feed: null,
+  }
 
-  const onRow = (rawRow: Uint8Array): void => {
-    if (rowIndex < headerRowId) {
-      rowIndex++
+  const createParser = (headerBytes: Uint8Array): RowParser => {
+    const headerText = decoder.decode(headerBytes).replace(/^\uFEFF/, '')
+    const header = headerText.split(settings.columnDelimiter)
+    const created = spec.createRowParser({
+      header,
+      headerBytes,
+      fileName: opened.name,
+      settings,
+      userInput,
+    })
+    // Bind once; the per-row call stays monomorphic (see DatasetSink).
+    created.onSegment = sink.addSegmentBytes
+    created.internCategory = sink.internCategory
+    created.onEvent = event => sink.addEvent(event)
+    created.onWarning = message => sink.addWarning(message)
+    created.onBeginProvisionalGroup = (stimulus, participant) =>
+      sink.beginProvisionalGroup(stimulus, participant)
+    created.onCommitProvisionalGroup = handle =>
+      sink.commitProvisionalGroup(handle)
+    created.onDropProvisionalGroup = handle => sink.dropProvisionalGroup(handle)
+    created.onRecordExclusion = (stimulus, participant, issues) =>
+      sink.recordExclusion(stimulus, participant, issues)
+    return created
+  }
+
+  // Leading rows (skipped rows, then the header) are split one at a time;
+  // once the parser exists its feed takes every remaining byte.
+  const processChunk = (chunk: Uint8Array, fin: boolean): void => {
+    if (state.feed) {
+      state.feed.push(chunk)
       return
     }
-
-    if (rowIndex === headerRowId) {
-      const headerText = decoder.decode(rawRow).replace(/^\uFEFF/, '')
-      const header = headerText.split(settings.columnDelimiter)
-      const parser = spec.createRowParser({
-        header,
-        headerBytes: rawRow,
-        fileName: opened.name,
-        settings,
-        userInput,
-      })
-      // Bind once; the per-row call stays monomorphic (see DatasetSink).
-      parser.onSegment = sink.addSegmentBytes
-      parser.internCategory = sink.internCategory
-      parser.onEvent = event => sink.addEvent(event)
-      parser.onWarning = message => sink.addWarning(message)
-      parser.onBeginProvisionalGroup = (stimulus, participant) =>
-        sink.beginProvisionalGroup(stimulus, participant)
-      parser.onCommitProvisionalGroup = handle =>
-        sink.commitProvisionalGroup(handle)
-      parser.onDropProvisionalGroup = handle => sink.dropProvisionalGroup(handle)
-      parser.onRecordExclusion = (stimulus, participant, issues) =>
-        sink.recordExclusion(stimulus, participant, issues)
-      state.parser = parser
-      rowIndex++
-      return
+    leading.push(chunk)
+    while (!state.feed) {
+      const row = leading.next(fin)
+      if (row === null) return
+      if (rowIndex++ < settings.headerRowId) continue
+      state.parser = createParser(row)
+      state.feed = state.parser.openRowScanFeed(settings.rowDelimiter)
+      state.feed.push(leading.rest())
     }
-
-    if (state.parser === null) throw new Error('Row parser is undefined')
-    rowIndex++
-    state.parser.processRowBytes(rawRow)
   }
 
   // The first chunk was consumed for detection; process it first.
-  splitter.processChunk(opened.firstChunk, onRow)
+  processChunk(opened.firstChunk, false)
   ctx.reportBytes(opened.firstChunk.byteLength)
 
   if (!opened.firstDone) {
@@ -120,11 +126,13 @@ async function readRows(
       const { value, done } = await opened.reader.read()
       if (done) break
       const chunk = value ?? new Uint8Array()
-      splitter.processChunk(chunk, onRow)
+      processChunk(chunk, false)
       ctx.reportBytes(chunk.byteLength)
     }
   }
 
-  splitter.releaseTo(onRow)
+  // A header without a row end after it is still the header.
+  if (!state.feed) processChunk(new Uint8Array(0), true)
+  state.feed?.finish()
   state.parser?.finalize()
 }

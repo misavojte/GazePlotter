@@ -30,55 +30,10 @@ describe('IngestService', () => {
     vi.unstubAllGlobals()
   })
 
-  it('reports detached array-buffer read failures through the ingest error pipeline', async () => {
-    const { service, deps, report, workerInstances } = await loadHarness(
-      message => {
-        if (message.type === 'test-stream') {
-          throw new Error('Stream transfer is not supported in this environment')
-        }
-      }
-    )
-
-    const file = {
-      name: 'broken.csv',
-      size: 12,
-      stream: vi.fn(() => new ReadableStream()),
-      arrayBuffer: vi.fn().mockRejectedValue(new Error('arrayBuffer failed')),
-    }
-
-    const resultPromise = service.loadFiles(createFileList([file]))
-
-    await vi.waitFor(() => {
-      expect(report).toHaveBeenCalledTimes(1)
-    }, { timeout: 25000 })
-
-    const result = await resultPromise
-
-    expect(result).toBe(false)
-    expect(report).toHaveBeenCalledWith(
-      expect.objectContaining({
-        origin: 'ingest',
-        severity: 'fatal-load',
-        userMessage: 'Could not process the file: arrayBuffer failed',
-        context: expect.objectContaining({
-          fileNames: ['broken.csv'],
-          fileSizes: [12],
-          stage: 'read-array-buffer',
-          fileIndex: 0,
-          fileName: 'broken.csv',
-        }),
-      })
-    )
-    expect(service.status).toBe('error')
-    expect(deps.grid.reset).toHaveBeenCalledWith([])
-    expect(deps.resetWorkspaceHistory).toHaveBeenCalledTimes(1)
-    expect(workerInstances[0]?.terminate).toHaveBeenCalledTimes(1)
-  }, 30000)
-
-  it('reports worker postMessage dispatch failures during stream transfer', async () => {
-    const dispatchError = new Error('stream dispatch failed')
+  it('reports worker postMessage dispatch failures during file dispatch', async () => {
+    const dispatchError = new Error('file dispatch failed')
     const { service, report, workerInstances } = await loadHarness(message => {
-      if (message.type === 'stream') {
+      if (message.type === 'file') {
         throw dispatchError
       }
     })
@@ -103,21 +58,24 @@ describe('IngestService', () => {
       expect.objectContaining({
         origin: 'ingest',
         severity: 'fatal-load',
-        userMessage: 'Could not process the file: stream dispatch failed',
+        userMessage: 'Could not process the file: file dispatch failed',
         cause: dispatchError,
         context: expect.objectContaining({
           fileNames: ['dispatch.csv'],
           fileSizes: [24],
-          workerMessageType: 'stream',
-          stage: 'dispatch-stream',
+          workerMessageType: 'file',
+          stage: 'dispatch-file',
           fileIndex: 0,
           fileName: 'dispatch.csv',
         }),
       })
     )
+    // The worker reads the file; the main thread never touches its bytes.
     expect(file.arrayBuffer).not.toHaveBeenCalled()
+    expect(file.stream).not.toHaveBeenCalled()
     expect(workerInstances[0]?.terminate).toHaveBeenCalledTimes(1)
-  })
+    // First test in the file: pays the cold service-module import.
+  }, 30000)
 
   it('applyEmpty resets state to ready and clears all errors', async () => {
     const { service, deps } = await loadHarness(() => {})
@@ -218,8 +176,8 @@ describe('IngestService', () => {
     harness = await loadHarness(message => {
       clearedBeforeWorkerSaw ??=
         harness.deps.grid.clearSelection.mock.calls.length > 0
-      if (message.type === 'test-stream') {
-        throw new Error('Stream transfer is not supported in this environment')
+      if (message.type === 'file') {
+        throw new Error('file dispatch failed')
       }
     })
 
@@ -238,8 +196,8 @@ describe('IngestService', () => {
 
   it('loadFiles accepts a plain File[] (not just FileList)', async () => {
     const { service, report, workerInstances } = await loadHarness(message => {
-      if (message.type === 'test-stream') {
-        throw new Error('Stream transfer is not supported in this environment')
+      if (message.type === 'file') {
+        throw new Error('file dispatch failed')
       }
     })
 

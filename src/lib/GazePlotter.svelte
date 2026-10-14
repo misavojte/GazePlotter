@@ -19,6 +19,7 @@
     type WorkspaceActions,
   } from '$lib/workspace/actions.svelte'
   import type { DataLoader } from '$lib/data/ingest'
+  import { resolveWorkspaceShortcut } from '$lib/workspace/keys'
 
   interface Props {
     /**
@@ -36,11 +37,12 @@
     options?: GazePlotterOptions
     onWorkspaceCommandChain?: (command: WorkspaceCommandChain) => void
     /**
-     * How the mouse wheel behaves over the workspace.
+     * How the wheel and one finger behave over the workspace.
      * - `'cooperative'` (default, for a workspace embedded in a scrolling
-     *   page): the wheel scrolls the page; Ctrl/Cmd+wheel zooms.
+     *   page): the wheel scrolls the page and one finger scrolls it too;
+     *   Ctrl/Cmd+wheel zooms and two fingers pan and pinch.
      * - `'canvas'` (for a host that gives GazePlotter the whole screen): the
-     *   wheel pans the workspace; Ctrl/Cmd+wheel zooms.
+     *   wheel and one finger pan the workspace; Ctrl/Cmd+wheel zooms.
      */
     gestures?: 'cooperative' | 'canvas'
     /**
@@ -61,9 +63,25 @@
 
   // svelte-ignore state_referenced_locally -- read once by design (see prop doc)
   const session = setGazePlotterSessionContext(createGazePlotterSession(options))
-  const { errorService, ingest } = session
+  const { errorService, ingest, modalState } = session
   const camera = new WorkspaceCamera()
   const actions = createWorkspaceActions(session, camera)
+
+  // Ctrl+S is always ours (never the browser's "Save page"); it runs when no
+  // dialog is in front, text fields included.
+  function handleSaveKey(event: KeyboardEvent): void {
+    const shortcut = resolveWorkspaceShortcut(event)
+    if (shortcut !== 'save' && shortcut !== 'save-as') return
+    event.preventDefault()
+    if (modalState.activeModal) return
+    if (shortcut === 'save') actions.save()
+    else actions.saveAs()
+  }
+
+  $effect(() => {
+    document.addEventListener('keydown', handleSaveKey)
+    return () => document.removeEventListener('keydown', handleSaveKey)
+  })
   onDestroy(() => {
     camera.destroy()
     // Releases the media blobs and their object URLs (recordings can be GBs).
@@ -103,7 +121,7 @@
     if (files.length === 0) {
       ingest.applyEmpty()
     } else {
-      await ingest.loadFiles(files)
+      await ingest.loadFiles(files, { fromHost: true })
     }
   }
 

@@ -12,7 +12,6 @@
  */
 import { describe, it, expect } from 'vitest'
 import {
-  makeTestEngine,
   makeSingleParticipantEngine,
   makeMultiParticipantEngine,
   makeScope,
@@ -21,7 +20,6 @@ import {
   query,
   queryGroup,
   type MetricInstance,
-  type Scope,
   type GroupScope,
 } from '../src/lib/metrics'
 

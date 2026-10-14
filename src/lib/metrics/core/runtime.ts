@@ -18,7 +18,6 @@ import { resolveParams } from './params'
 import { getRecipe } from './defineMetric'
 import {
   applyProjection,
-  leafOf,
   PROJECTION_LEAVES,
   projectionCacheKey,
   projectionOutputShape,

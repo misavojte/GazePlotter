@@ -1,7 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { makeTestEngine } from './helpers/testEngine'
+import { makeTwoAoiEngine } from './helpers/testEngine'
 import { getAoiComparisonData } from '../src/lib/plots/aoi-comparison/core/transformer'
-import { createDefaultMetricInstances } from '../src/lib/metrics/instances'
 
 const ABSOLUTE_TIME_INSTANCE_ID = 'absoluteTime'
 
@@ -11,29 +10,12 @@ const ABSOLUTE_TIME_INSTANCE_ID = 'absoluteTime'
 type DataSettings = Parameters<typeof getAoiComparisonData>[1]
 const partialSettings = (s: Partial<DataSettings>) => s as DataSettings
 
-function createMockEngine(segments: number[][][][]) {
-  return makeTestEngine(segments, {
-    aoiData: [
-      [
-        ['AOI A', 'AOI A', 'red'],
-        ['AOI B', 'AOI B', 'blue'],
-      ],
-    ],
-    aoiOrderVector: [[]],
-    participants: [['P101', 'Participant 101']],
-    participantsOrderVector: [0],
-    stimuli: [['Stimulus 1', 'Stimulus 1']],
-    stimuliOrderVector: [0],
-    metricInstances: createDefaultMetricInstances(),
-  })
-}
-
 describe('Bar Plot Transformer (Integration)', () => {
   const stimulusId = 0
   const groupId = -1
 
   it('transforms raw segments into labeled and sorted bar data', () => {
-    const engine = createMockEngine([
+    const engine = makeTwoAoiEngine([
       [
         [
           [0, 100, 0, 0],
@@ -66,7 +48,7 @@ describe('Bar Plot Transformer (Integration)', () => {
   })
 
   it('applies sorting by value descending', () => {
-    const engine = createMockEngine([
+    const engine = makeTwoAoiEngine([
       [
         [
           [0, 100, 0, 0],
@@ -93,7 +75,7 @@ describe('Bar Plot Transformer (Integration)', () => {
   })
 
   it('generates a nice timeline based on data max value', () => {
-    const engine = createMockEngine([[[[0, 450, 0, 0]]]])
+    const engine = makeTwoAoiEngine([[[[0, 450, 0, 0]]]])
 
     const result = getAoiComparisonData(
       engine,
@@ -108,7 +90,7 @@ describe('Bar Plot Transformer (Integration)', () => {
   })
 
   it('handles custom scale range', () => {
-    const engine = createMockEngine([[[[0, 100, 0, 0]]]])
+    const engine = makeTwoAoiEngine([[[[0, 100, 0, 0]]]])
 
     const result = getAoiComparisonData(
       engine,
@@ -124,7 +106,7 @@ describe('Bar Plot Transformer (Integration)', () => {
   })
 
   it('handles lack of participants', () => {
-    const engine = createMockEngine([[]])
+    const engine = makeTwoAoiEngine([[]])
     engine.metadata!.participants.data = []
     engine.metadata!.participants.orderVector = []
 
@@ -140,7 +122,7 @@ describe('Bar Plot Transformer (Integration)', () => {
   })
 
   it('flags noMetric when metricInstanceIds[0] references a deleted instance', () => {
-    const engine = createMockEngine([
+    const engine = makeTwoAoiEngine([
       [
         [
           [0, 100, 0, 0],
@@ -167,7 +149,7 @@ describe('Bar Plot Transformer (Integration)', () => {
   })
 
   it('correctly filters out Outside (No AOI) when hideNoAoi is true', () => {
-    const engine = createMockEngine([
+    const engine = makeTwoAoiEngine([
       [
         [
           [0, 100, 0, 0],
@@ -200,7 +182,7 @@ describe('Bar Plot Transformer (Integration)', () => {
   })
 
   it('excludes Outside (No AOI) from dataMax calculation when hideNoAoi is true', () => {
-    const engine = createMockEngine([
+    const engine = makeTwoAoiEngine([
       [
         [
           [0, 100, 0, 0], // AOI A (100 ms)

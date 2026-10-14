@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest';
-import { generateSelectionPath } from '$lib/workspace/grid/selectionPath';
+import {
+  generateSelectionPath,
+  selectionPathCorner,
+} from '$lib/workspace/grid/selectionPath';
 
 describe('generateSelectionPath', () => {
   const config = {
@@ -82,5 +85,43 @@ describe('generateSelectionPath', () => {
     // Check that it contains concave/interior corner outline transitions correctly
     // The concave corner is around (104, 104) where they join.
     expect(path).toBeTruthy();
+  });
+});
+
+describe('selectionPathCorner', () => {
+  const config = {
+    cellSize: { width: 100, height: 100 },
+    gap: 10
+  };
+
+  it('has no corner without a selection', () => {
+    expect(selectionPathCorner([], config)).toBeNull();
+  });
+
+  it('takes the topmost item, leftmost among those sharing that top', () => {
+    const items = [
+      { x: 3, y: 0, w: 1, h: 1 },
+      { x: 1, y: 0, w: 1, h: 1 },
+      { x: 0, y: 2, w: 1, h: 1 }
+    ];
+
+    expect(selectionPathCorner(items, config, 6)).toEqual({
+      x: 1 * 110 - 6,
+      y: 0 - 6
+    });
+  });
+
+  it('stays on the contour rather than on the bounding box', () => {
+    // An L: the leftmost plot starts lower, so the bounding box's top-left
+    // corner (x of the lower plot, y of the upper one) is outside the shape.
+    const items = [
+      { x: 0, y: 5, w: 1, h: 1 },
+      { x: 4, y: 0, w: 1, h: 1 }
+    ];
+
+    expect(selectionPathCorner(items, config, 6)).toEqual({
+      x: 4 * 110 - 6,
+      y: 0 - 6
+    });
   });
 });

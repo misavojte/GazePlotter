@@ -121,7 +121,7 @@ describe('IngestService routing', () => {
     const resultPromise = service.loadFiles(createFileList([json, csv]))
 
     await vi.waitFor(() => {
-      expect(posted.filter(m => m.type === 'stream').length).toBe(2)
+      expect(posted.filter(m => m.type === 'file').length).toBe(2)
     })
     const fileNames = posted.find(m => m.type === 'file-names')
     expect(fileNames?.data).toEqual(['workspace.json', 'data.csv'])
@@ -193,7 +193,7 @@ describe('IngestService routing', () => {
     const resultPromise = service.loadFiles(createFileList([csv]))
 
     await vi.waitFor(() => {
-      expect(posted.some(m => m.type === 'stream')).toBe(true)
+      expect(posted.some(m => m.type === 'file')).toBe(true)
     })
 
     const sentinelData = {

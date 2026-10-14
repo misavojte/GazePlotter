@@ -229,6 +229,28 @@ export class WorkspaceCommandBus {
     })
   }
 
+  /**
+   * Duplicates several items as ONE atomic command (single undo step). The
+   * copies' ids come in with the command, so the caller can select them and a
+   * redo recreates the same ones. A single duplication is `duplicateGridItem`
+   * (a set of one) and keeps its own command.
+   */
+  duplicateGridItems(
+    itemIds: number[],
+    source: string,
+    options: { duplicateIds?: number[] } = {}
+  ): boolean {
+    if (itemIds.length === 0) return true
+    return this.apply({
+      type: 'duplicateGridItems',
+      itemIds,
+      duplicateIds: itemIds.map(
+        (_, index) => options.duplicateIds?.[index] ?? generateUniqueId()
+      ),
+      source,
+    })
+  }
+
   clearHistory(): void {
     this.history.clear()
   }

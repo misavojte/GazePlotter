@@ -81,13 +81,26 @@ AOI-visibility XML/JSON) need the mapping modal and stay in
    `tests/ingestRegistry.test.ts`.
 2. **Type ids are append-only.** `parseSettings.type` values are persisted
    inside saved workspace JSON. Never rename or reuse one.
-3. **No allocation per row.** Hot loops (RowSplitter, RowParsers, the
+3. **No allocation per row.** Hot loops (the row scanner, RowParsers, the
    segment writer's byte dictionaries) work on `Uint8Array` subarrays and
    bound function refs; kernel indirection happens per file and per chunk
    only. Benchmark budget: ±5% vs `tests/ingestBenchmark.baseline.md`.
 4. **Prompts are sequential.** The job reads sources one at a time, so at
    most one `IngestContext.prompt` is pending — prompt implementations may
    rely on it. Cancel resolves with the prompt's declared `cancelValue`.
+5. **One row spine.** `lib/rows/rowScan.ts` splits rows and scans columns
+   in one pass for every row format, encoding (UTF-8, UTF-16LE/BE; UTF-16
+   in code units) and row ending (LF, CRLF, CR), including the header rows
+   (`LeadingRows`) and `RowParser.processRowBytes`. A scanner is generated
+   per layout; AOI blocks skip runs of tabs by word. Pinned against a naive
+   reference (`tests/helpers/referenceRowScan.ts`) in `tests/rowScan.test.ts`,
+   which also requires every encoding / row ending of a file to import to
+   the same dataset. A WASM SIMD kernel was measured and dropped: large
+   files are bound by browser file reading either way.
+6. **The worker reads files itself.** The main thread posts each `File`
+   (a reference, not a copy); `blobSource` reads 8 MB slices with four reads
+   in flight. Never transfer `file.stream()` instead: Chrome relays every
+   64 KB chunk through the main thread (measured 3x slower on 8.4 GB).
 
 ## Policy: mixed uploads
 

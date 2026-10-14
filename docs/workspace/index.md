@@ -8,7 +8,7 @@ The app has four parts: the header above, the rail on the left, the canvas, and 
 
 ```
 +------------------------------------------------------------------------+
-|  GazePlotter              Import   Export   Metadata   [Guide & about] |
+|  GazePlotter              Import   Export   Metadata   [Read guide]    |
 +------------------------------------------------------------------------+
 |     |                                                    |             |
 |  R  |                                                    |             |
@@ -24,7 +24,7 @@ Along the **top edge** of the app:
 - **Import**: upload [eye-tracking files](/docs/upload-data/) and [event files](/docs/upload-data/events/), or restore saved [workspace configurations](/docs/export/workspace/). You can also drop files anywhere on the canvas.
 - **Export**: save your [workspace configurations](/docs/export/workspace/), [high-resolution figures](/docs/export/figures/), letter-coded [gaze sequences](/docs/export/segmented-data/), or calculated [metric tables](/docs/export/metric-data/).
 - **Metadata**: inspect [source and parsing details](/docs/advanced/source-metadata/) for your datasets to troubleshoot format compatibility.
-- **Guide & about**: opens this guide.
+- **Read guide**: opens this guide.
 
 ### Rail
 A narrow column on the **left side** of the canvas (a strip along the bottom on phones):
@@ -35,14 +35,14 @@ A narrow column on the **left side** of the canvas (a strip along the bottom on 
 
 ### Moving around the canvas
 The canvas works like a map:
-- **Pan**: drag empty space, drag with the middle mouse button (also over plots), or scroll with the mouse wheel or touchpad (hold `Shift` to scroll sideways). On a touch screen, drag with two fingers.
+- **Pan**: drag empty space, drag with the middle mouse button (also over plots), or scroll with the mouse wheel or touchpad (hold `Shift` to scroll sideways). On a touch screen, drag with one finger or two; a finger on a selected plot moves the plot instead.
 - **Zoom**: `Ctrl` / `Cmd` + scroll, pinch on a touchpad or touch screen, or `Ctrl` / `Cmd` + `+` / `-`. `Ctrl` / `Cmd` + `0` returns to 100%.
 - **Zoom to fit**: `Shift` + `1`, or the button in the rail.
-- You can always pan a little past your plots, but never so far that they all leave the screen. If a selected plot is out of view, an arrow at the edge of the canvas points to it; click the arrow to bring the plot back.
+- You can always pan a little past your plots, but never so far that they all leave the screen. If the selection is out of view, an arrow at the edge of the canvas points to it; click the arrow to bring it back. With several plots selected, the arrow points at the group and brings the whole of it back.
 
 ### Canvas
 The central area of the screen where plots are arranged.
-- **Selection**: Click any card to select it (or hold `Cmd` / `Ctrl` / `Shift` to select multiple). Selection opens the Pane and reveals card controls.
+- **Selection**: Click any card to select it (or hold `Cmd` / `Ctrl` / `Shift` to select multiple). Holding the same keys and dragging across empty canvas draws a selection rectangle: every plot it touches joins the selection. Selection opens the Pane and reveals card controls.
 - **Canvas Operations**: Drag, resize, duplicate, or delete cards to arrange your grid. For details, see [Plot Manipulation](#plot-manipulation).
 
 ### Pane
@@ -50,6 +50,7 @@ A collapsible panel located on the **right side** of the screen.
 - **Pane Activation**: Opens automatically when you select any plot card on the canvas.
 - **Collapsible Settings**: Customize parameters (e.g. *Stimulus*, *Participant selection*, *Participant*, *Time Range*, *Areas of Interest*, *Events*, *Eye-movement Types*, *Metric*). See [Visualization Configuration Pane](/docs/visualizations/#visualization-configuration-pane) for details.
 - **Batch Editing**: Modify settings for multiple selected plots simultaneously (mixed plot types only expose shared options).
+- **On a phone**: the pane rises as a sheet along the bottom edge. Pull it down by the handle above its title, or tap the canvas behind it, to close it.
 
 ## Plot Manipulation
 
@@ -61,11 +62,15 @@ With the plot selected, the whole card is a drag target: click and drag anywhere
 ### Resizing a plot
 Drag any of the four corner handles on a selected plot. The card snaps to the grid as it resizes.
 
+A selected plot carries a small chip that floats just above its outline's top-left corner, holding two buttons: **Duplicate** and **Remove**. Hover either one for its name.
+
 ### Duplicating a plot
-Click **Duplicate** in the action chip at the plot's top-left corner. The copy keeps every setting: participant selection, stimulus, axis bounds, colors.
+Click **Duplicate** in the chip. The copy keeps every setting: participant selection, stimulus, axis bounds, colors.
+
+With several plots selected, the chip moves to the group's outline and duplicates all of them at once, keeping the arrangement they are in: the copies land together, in the same shape, in the first free space that fits them. They become the new selection, and one **Undo** takes them all back.
 
 ### Removing a plot
-Click **Remove** in the action chip at the plot's top-left corner.
+Click **Remove** in the chip, or press `Delete`. With several plots selected, the chip on the group's outline removes all of them in one step.
 
 ## Customization Libraries
 

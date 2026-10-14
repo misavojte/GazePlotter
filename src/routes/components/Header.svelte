@@ -34,9 +34,9 @@
     <span class="divider" aria-hidden="true"></span>
   {/if}
   {#if isApp}
-    <BrandButton href="/docs" label="Guide & about" shortLabel="Guide" />
+    <BrandButton href="/docs" label="Read guide" shortLabel="Guide" />
   {:else}
-    <BrandButton href="/" label="Go to app" shortLabel="App" />
+    <BrandButton href="/" label="Launch app" shortLabel="App" />
   {/if}
 </header>
 

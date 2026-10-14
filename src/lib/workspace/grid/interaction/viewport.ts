@@ -48,6 +48,20 @@ export class GridViewportController {
   }
 
   /**
+   * Where grid px (0, 0) sits on screen: the frame's padding box, moved by
+   * the camera. A pointer reaches grid space through this origin and the zoom.
+   */
+  getContentOrigin(): InteractionPoint {
+    const element = this.#element
+    const rect = element?.getBoundingClientRect()
+    const camera = this.#camera
+    return {
+      x: (rect?.left ?? 0) + (element?.clientLeft ?? 0) + (camera?.x ?? 0),
+      y: (rect?.top ?? 0) + (element?.clientTop ?? 0) + (camera?.y ?? 0),
+    }
+  }
+
+  /**
    * The part of the screen the workspace shows through: the frame's box
    * clipped to the window. Edge auto-pan measures against this.
    */

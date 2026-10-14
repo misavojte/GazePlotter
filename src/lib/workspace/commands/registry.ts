@@ -401,10 +401,55 @@ export function createWorkspaceCommandRegistry(
         `Grid item ${command.itemId} not found`
       )
 
-      const createdId = gridStore.duplicateItem(currentItem, command.duplicateId)
+      const createdId = gridStore.duplicateItem(
+        currentItem,
+        command.duplicateId,
+        command.position
+      )
       if (command.isRootCommand && !context.isUndoRedoOperation) {
         emitCollisionResolutionChildren(createdId, command.chainId, context)
       }
+    },
+
+    duplicateGridItems: (command, context) => {
+      if (context.isUndoRedoOperation) return
+      const items = command.itemIds.map(itemId =>
+        requireItem(itemId, `Grid item ${itemId} not found`)
+      )
+
+      // The group keeps the shape it has at this moment: one free area the
+      // size of its bounding box, then every copy at its own offset inside
+      // it. Placing each copy on its own would scatter the arrangement the
+      // selection was made of.
+      const left = Math.min(...items.map(item => item.x))
+      const top = Math.min(...items.map(item => item.y))
+      const width = Math.max(...items.map(item => item.x + item.w)) - left
+      const height = Math.max(...items.map(item => item.y + item.h)) - top
+      const origin = gridStore.findOptimalPosition(width, height, {
+        id: -1,
+        x: left,
+        y: top,
+        w: width,
+        h: height,
+      })
+
+      items.forEach((item, index) => {
+        context.dispatch(
+          createChildCommand(
+            {
+              type: 'duplicateGridItem',
+              itemId: item.id,
+              duplicateId: command.duplicateIds[index],
+              position: {
+                x: origin.x + (item.x - left),
+                y: origin.y + (item.y - top),
+              },
+              source: command.source,
+            },
+            command.chainId
+          )
+        )
+      })
     },
 
     translateLayout: command => {
@@ -671,6 +716,8 @@ export function createWorkspaceCommandRegistry(
       }
       return withMeta({ type: 'removeGridItem', itemId: cmd.duplicateId }, meta)
     },
+
+    duplicateGridItems: (_cmd, meta) => withMeta({ type: 'noop' }, meta),
 
     setLayoutState: (_cmd, meta) =>
       withMeta(

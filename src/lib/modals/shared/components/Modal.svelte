@@ -295,9 +295,14 @@
               </div>
             {:else if isActive && showVersionMessage}
               <div class="footer-content">
+                <!-- Absolute: this component ships in the library, where the
+                     site's /docs route need not exist. -->
                 <span
-                  >GazePlotter {GAZEPLOTTER_VERSION} by Vojtechovska & Popelka,
-                  2025</span
+                  >GazePlotter {GAZEPLOTTER_VERSION} by <a
+                    href="https://gazeplotter.com/docs/#how-to-cite"
+                    target="_blank"
+                    rel="noopener">Vojtechovska &amp; Popelka</a
+                  >, 2026</span
                 >
               </div>
             {/if}
@@ -358,6 +363,28 @@
     .modal {
       max-width: calc(100vw - 96px);
       max-height: calc(100vh - 96px);
+    }
+  }
+
+  /* Phones: the 420px floor overflows and the card wastes the little room. */
+  @media (max-width: 599px) {
+    .modal {
+      top: 0;
+      left: 0;
+      transform: none;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      min-width: 0;
+      max-width: none;
+      max-height: none;
+      border: none;
+      border-radius: 0;
+    }
+
+    .modal .body {
+      max-height: none;
+      padding: 16px;
     }
   }
 
@@ -466,6 +493,20 @@
     display: flex;
     align-items: center;
     gap: 8px;
+  }
+
+  /* The credit strip's link idiom: plain underline, ink on hover. */
+  .footer-content a {
+    color: inherit;
+    text-decoration: underline;
+    text-decoration-color: var(--c-midgrey);
+    text-underline-offset: 2px;
+    transition: color var(--transition-fast) ease;
+  }
+
+  .footer-content a:hover {
+    color: var(--c-black);
+    text-decoration-color: currentColor;
   }
 
   .scroll-indicator {

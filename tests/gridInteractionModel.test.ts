@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import type { GridConfig } from '$lib/workspace/grid'
 import {
+  itemIdsTouchedByMarquee,
+  marqueeBoundsOf,
   mergePreviewPosition,
+  startMarqueeSession,
   startMoveSession,
   startResizeSession,
+  updateMarqueeSession,
   updateMoveSession,
   updateResizeSession,
 } from '$lib/workspace/grid/interaction/model'
@@ -131,5 +135,51 @@ describe('gridInteractionModel', () => {
       { id: 1, x: 0, y: 0, w: 3, h: 3 },
       { id: 2, x: 8, y: 1, w: 2, h: 2 },
     ])
+  })
+})
+
+describe('marquee selection', () => {
+  // Cell pitch 50: item 1 covers 0..140 px both ways, item 2 sits at 200..290
+  // across and 0..90 down, so 140..200 is the gap between them.
+  const positions = [
+    { id: 1, x: 0, y: 0, w: 3, h: 3 },
+    { id: 2, x: 4, y: 0, w: 2, h: 2 },
+  ]
+
+  function boundsFrom(
+    origin: { x: number; y: number },
+    current: { x: number; y: number }
+  ) {
+    return marqueeBoundsOf(
+      updateMarqueeSession(startMarqueeSession(origin), current)
+    )
+  }
+
+  it('spans the same rectangle whichever way it was dragged', () => {
+    const downRight = boundsFrom({ x: 10, y: 20 }, { x: 110, y: 220 })
+    const upLeft = boundsFrom({ x: 110, y: 220 }, { x: 10, y: 20 })
+
+    expect(downRight).toEqual({ left: 10, top: 20, right: 110, bottom: 220 })
+    expect(upLeft).toEqual(downRight)
+  })
+
+  it('takes every item the rectangle overlaps, however little', () => {
+    const bounds = boundsFrom({ x: 130, y: 130 }, { x: 210, y: 10 })
+
+    expect(itemIdsTouchedByMarquee(positions, bounds, gridConfig)).toEqual([
+      1, 2,
+    ])
+  })
+
+  it('takes nothing when the rectangle stays in the gap', () => {
+    const bounds = boundsFrom({ x: 150, y: 10 }, { x: 190, y: 120 })
+
+    expect(itemIdsTouchedByMarquee(positions, bounds, gridConfig)).toEqual([])
+  })
+
+  it('does not take an item the rectangle only meets along an edge', () => {
+    const bounds = boundsFrom({ x: 140, y: 0 }, { x: 160, y: 120 })
+
+    expect(itemIdsTouchedByMarquee(positions, bounds, gridConfig)).toEqual([])
   })
 })

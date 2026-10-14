@@ -40,6 +40,10 @@ export function cameraWheelAction(node: HTMLElement, initial: WheelParams) {
   }
 }
 
+function pointOf(touch: Touch): Point {
+  return { x: touch.clientX, y: touch.clientY }
+}
+
 function midpoint(touches: TouchList): Point {
   return {
     x: (touches[0].clientX + touches[1].clientX) / 2,
@@ -54,53 +58,131 @@ function spread(touches: TouchList): number {
   )
 }
 
+function travelled(from: Point, to: Point): boolean {
+  return Math.hypot(to.x - from.x, to.y - from.y) > TAP_SLACK_PX
+}
+
 /**
- * Two-finger pan and pinch on touch screens. One finger is left to the page
- * (the frame's `touch-action: pan-x pan-y`), so the workspace never traps
- * page scrolling, as with an embedded map.
+ * Two fingers must spread or close by this much before the gesture zooms.
+ * No real two-finger drag holds an even spread, so without the slack every
+ * pan drifts in and out of zoom.
  */
-export function cameraTouchAction(node: HTMLElement, initial: WorkspaceCamera) {
-  let camera = initial
-  let last: { mid: Point; spread: number } | null = null
+const PINCH_SLACK = 1.15
+
+/** A one-finger press travels this far before it pans instead of tapping. */
+const TAP_SLACK_PX = 8
+
+type TouchParams = {
+  camera: WorkspaceCamera
+  /**
+   * Canvas-first mode: which targets one finger pans from. Null keeps the
+   * cooperative mode, where one finger always belongs to the page.
+   */
+  panTarget?: ((target: Node) => boolean) | null
+}
+
+type Gesture = {
+  /** The finger, or the midpoint of two. */
+  point: Point
+  fingers: number
+  /** Two fingers: how far apart they are, and where they landed. */
+  spread: number
+  origin: number
+  zooming: boolean
+  /** One finger: where it landed, until the press becomes a pan. */
+  down: Point | null
+}
+
+/**
+ * Touch gestures over the camera: two fingers pan and pinch, and in
+ * canvas-first mode one finger pans as well. Cooperative mode leaves one
+ * finger to the page (the frame's `touch-action: pan-x pan-y`), so an
+ * embedded workspace never traps page scrolling, as an embedded map does.
+ */
+export function cameraTouchAction(node: HTMLElement, initial: TouchParams) {
+  let params = initial
+  let gesture: Gesture | null = null
 
   const onStart = (event: TouchEvent) => {
-    last =
-      event.touches.length === 2
-        ? { mid: midpoint(event.touches), spread: spread(event.touches) }
-        : null
+    const touches = event.touches
+    if (touches.length === 2) {
+      const distance = spread(touches)
+      gesture = {
+        fingers: 2,
+        point: midpoint(touches),
+        spread: distance,
+        origin: distance,
+        zooming: false,
+        down: null,
+      }
+      return
+    }
+    if (touches.length === 1 && params.panTarget?.(touches[0].target as Node)) {
+      const point = pointOf(touches[0])
+      gesture = {
+        fingers: 1,
+        point,
+        spread: 0,
+        origin: 0,
+        zooming: false,
+        // A pinch that lost a finger goes on panning with the one left; a
+        // fresh press waits out the tap slack.
+        down: gesture ? null : point,
+      }
+      return
+    }
+    gesture = null
   }
 
   const onMove = (event: TouchEvent) => {
-    if (event.touches.length !== 2 || !last) return
+    const touches = event.touches
+    if (!gesture || touches.length !== gesture.fingers) return
+
+    if (gesture.fingers === 1) {
+      const point = pointOf(touches[0])
+      if (gesture.down && !travelled(gesture.down, point)) return
+      // Past the slack the finger is panning, not tapping: the page must not
+      // scroll with it, and no click may follow it onto the plot underneath.
+      event.preventDefault()
+      gesture.down = null
+      params.camera.panBy(point.x - gesture.point.x, point.y - gesture.point.y)
+      gesture.point = point
+      return
+    }
+
     event.preventDefault()
-    const mid = midpoint(event.touches)
-    const distance = spread(event.touches)
-    camera.pinch(
-      mid,
-      { x: mid.x - last.mid.x, y: mid.y - last.mid.y },
-      last.spread > 0 ? distance / last.spread : 1
+    const point = midpoint(touches)
+    const distance = spread(touches)
+    const drift = gesture.origin > 0 ? distance / gesture.origin : 1
+    const zooming =
+      gesture.zooming || drift > PINCH_SLACK || drift < 1 / PINCH_SLACK
+    // The frame the pinch engages on still only pans: scale is read from the
+    // previous frame, so crossing the slack never jumps the view.
+    const scale =
+      gesture.zooming && gesture.spread > 0 ? distance / gesture.spread : 1
+    params.camera.pinch(
+      point,
+      { x: point.x - gesture.point.x, y: point.y - gesture.point.y },
+      scale
     )
-    last = { mid, spread: distance }
+    gesture = { ...gesture, point, spread: distance, zooming }
   }
 
-  const onEnd = (event: TouchEvent) => {
-    onStart(event)
-  }
-
+  // A lifted finger restarts the gesture from the fingers still down.
   node.addEventListener('touchstart', onStart, { passive: true })
   node.addEventListener('touchmove', onMove, { passive: false })
-  node.addEventListener('touchend', onEnd, { passive: true })
-  node.addEventListener('touchcancel', onEnd, { passive: true })
+  node.addEventListener('touchend', onStart, { passive: true })
+  node.addEventListener('touchcancel', onStart, { passive: true })
 
   return {
-    update(next: WorkspaceCamera) {
-      camera = next
+    update(next: TouchParams) {
+      params = next
     },
     destroy() {
       node.removeEventListener('touchstart', onStart)
       node.removeEventListener('touchmove', onMove)
-      node.removeEventListener('touchend', onEnd)
-      node.removeEventListener('touchcancel', onEnd)
+      node.removeEventListener('touchend', onStart)
+      node.removeEventListener('touchcancel', onStart)
     },
   }
 }

@@ -6,7 +6,7 @@ GazePlotter provides six export options for different eye-tracking analysis use 
 
 ### [Workspace Export](/docs/export/workspace/) (Primary)
 
-Export your complete workspace configuration as a JSON file. This is the **preferred export method** for saving and sharing GazePlotter work. Preserves all visualization settings, layouts, and customizations for later import.
+Save your complete workspace as one `.gazeplotter` file with **Ctrl+S** (**⌘S** on macOS). This is the **preferred way** to save and share GazePlotter work: it keeps the data, all visualization settings, layouts, customizations, and reference media.
 
 ### [Figure Export](/docs/export/figures/)
 
@@ -31,5 +31,5 @@ Export fixation sequences for scanpath analysis in the ScanGraph tool. Converts 
 ## Export Access
 
 1. Click **Export** in the header.
-2. Use the **Export Workspace** section, or pick a card under **Other options**.
+2. Save from the **Workspace** section, or pick a card under **Figures and data**.
 3. Configure the options and download the file.

@@ -1,33 +1,15 @@
 import { describe, it, expect } from 'vitest'
-import { makeTestEngine } from './helpers/testEngine'
+import { makeTwoAoiEngine } from './helpers/testEngine'
 import { getTransitionMatrixData } from '../src/lib/plots/transition-matrix/core/transformer'
-import { createDefaultMetricInstances } from '../src/lib/metrics/instances'
 
 const TRANSITION_COUNT_INSTANCE_ID = 'transitionCount-fix'
-
-function createMockEngine(segments: number[][][][]) {
-  return makeTestEngine(segments, {
-    aoiData: [
-      [
-        ['AOI A', 'AOI A', 'red'],
-        ['AOI B', 'AOI B', 'blue'],
-      ],
-    ],
-    aoiOrderVector: [[]],
-    participants: [['P101', 'Participant 101']],
-    participantsOrderVector: [0],
-    stimuli: [['Stimulus 1', 'Stimulus 1']],
-    stimuliOrderVector: [0],
-    metricInstances: createDefaultMetricInstances(),
-  })
-}
 
 describe('Transition Matrix Plot Transformer (Integration)', () => {
   const stimulusId = 0
   const groupId = -1
 
   it('transforms raw segments into a transition matrix with Outside', () => {
-    const engine = createMockEngine([
+    const engine = makeTwoAoiEngine([
       [
         [
           [0, 100, 0, 0], // AOI A (0)
@@ -55,7 +37,7 @@ describe('Transition Matrix Plot Transformer (Integration)', () => {
   })
 
   it('correctly filters out Outside (No AOI) when hideNoAoi is true', () => {
-    const engine = createMockEngine([
+    const engine = makeTwoAoiEngine([
       [
         [
           [0, 100, 0, 0], // AOI A (0)

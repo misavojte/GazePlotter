@@ -129,6 +129,34 @@ describe('GridState selection set', () => {
     expect(grid.paneOpenId).toBe(1)
   })
 
+  it('setSelection takes the set as given, without repeats or dead ids', () => {
+    const grid = gridWithItems()
+
+    grid.setSelection([2, 1, 2, 99])
+    expect(grid.selectedItemIds).toEqual([2, 1])
+  })
+
+  it('setSelection never opens a pane, and closes one when it empties', () => {
+    const grid = gridWithItems()
+
+    grid.setSelection([1, 2])
+    expect(grid.paneOpenId).toBeNull()
+
+    grid.openPane(1)
+    grid.setSelection([])
+    expect(grid.paneOpenId).toBeNull()
+  })
+
+  it('setSelection down to a lone item syncs a visible pane to it', () => {
+    const grid = gridWithItems()
+    grid.selectOnly(1)
+    grid.openPane(1)
+
+    grid.setSelection([3])
+    expect(grid.selectedItemIds).toEqual([3])
+    expect(grid.paneOpenId).toBe(3)
+  })
+
   it('reassigns the selection array (no in-place mutation)', () => {
     const grid = gridWithItems()
     grid.selectOnly(1)

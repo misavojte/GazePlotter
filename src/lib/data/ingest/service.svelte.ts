@@ -25,7 +25,6 @@ import {
   getStimuli,
   getStimulusHighestEndTime,
 } from '$lib/data/engine'
-import { isArchiveFileName } from './formats/routing'
 import {
   buildStimulusMediaFromFile,
   matchMediaFilesToStimuli,
@@ -79,6 +78,8 @@ type IngestDependencies = {
   /** Session-resolved embedding options (see PLANDESKTOP.md). */
   defaultLayout?: GridItemSnapshot[]
   openFiles: OpenFiles
+  /** Asked before a user upload replaces the dataset; false keeps it. */
+  confirmReplace?: () => boolean
 }
 
 /** Fresh empty dataset per load. The engine takes ownership of what it loads
@@ -177,7 +178,7 @@ async function partitionUploadFiles(
   const mediaFiles: File[] = []
   for (const file of files) {
     const ext = file.name.split('.').pop()?.toLowerCase()
-    if (ext === 'json' && files.length === 1) {
+    if (ext === 'gazeplotter' || (ext === 'json' && files.length === 1)) {
       eyeFiles.push(file)
       continue
     }
@@ -256,39 +257,20 @@ class IngestWorkerClient {
       return
     }
 
-    // Archives go over whole (a cloned File is a reference, not a copy) so
-    // readers can slice them; everything else, workspace JSON included,
-    // streams to the worker.
-    if (isArchiveFileName(fileArray[0].name)) {
-      void this.processZipFiles(fileArray)
-    } else if (this.isStreamTransferable()) {
-      this.processDataAsStream(fileArray)
-    } else {
-      void this.processDataAsArrayBuffer(fileArray)
-    }
-  }
-
-  private static isStreamTransferableCached: boolean | null = null
-
-  private isStreamTransferable(): boolean {
-    if (IngestWorkerClient.isStreamTransferableCached !== null) {
-      return IngestWorkerClient.isStreamTransferableCached
-    }
-
-    const stream = new ReadableStream({
-      start(controller) {
-        controller.enqueue(new Uint8Array([]))
-        controller.close()
-      },
-    })
-
-    try {
-      this.worker.postMessage({ type: 'test-stream', data: stream }, [stream])
-      IngestWorkerClient.isStreamTransferableCached = true
-      return true
-    } catch {
-      IngestWorkerClient.isStreamTransferableCached = false
-      return false
+    // Every file goes over whole: a cloned File is a reference, not a copy,
+    // and the worker reads it in large slices itself. (Transferring
+    // file.stream() relayed every chunk through this thread.)
+    for (let index = 0; index < fileArray.length; index++) {
+      const file = fileArray[index]
+      if (
+        !this.postWorkerMessage({ type: 'file', data: file }, [], {
+          stage: 'dispatch-file',
+          fileIndex: index,
+          fileName: file.name,
+        })
+      ) {
+        return
+      }
     }
   }
 
@@ -319,78 +301,6 @@ class IngestWorkerClient {
         ...(extraContext ?? {}),
       })
       return false
-    }
-  }
-
-  private processDataAsStream(files: File[]): void {
-    for (let index = 0; index < files.length; index++) {
-      const stream = files[index].stream()
-      if (
-        !this.postWorkerMessage({ type: 'stream', data: stream }, [stream], {
-          stage: 'dispatch-stream',
-          fileIndex: index,
-          fileName: files[index].name,
-        })
-      ) {
-        return
-      }
-    }
-  }
-
-  private async processDataAsArrayBuffer(files: File[]): Promise<void> {
-    for (let index = 0; index < files.length; index++) {
-      const file = files[index]
-
-      try {
-        const buffer = await file.arrayBuffer()
-        if (
-          !this.postWorkerMessage({ type: 'buffer', data: buffer }, [buffer], {
-            stage: 'dispatch-buffer',
-            fileIndex: index,
-            fileName: file.name,
-          })
-        ) {
-          return
-        }
-      } catch (error) {
-        this.handleError(error, {
-          stage: 'read-array-buffer',
-          fileIndex: index,
-          fileName: file.name,
-        })
-        return
-      }
-    }
-  }
-
-  private async processZipFiles(files: File[]): Promise<void> {
-    for (let index = 0; index < files.length; index++) {
-      const file = files[index]
-
-      try {
-        const zipName = this.fileNames[index]
-        if (
-          !this.postWorkerMessage(
-            { type: 'zip-file', data: { file, zipName } },
-            [],
-            {
-              stage: 'dispatch-zip-file',
-              fileIndex: index,
-              fileName: file.name,
-              zipName,
-            }
-          )
-        ) {
-          return
-        }
-      } catch (error) {
-        this.handleError(error, {
-          stage: 'read-zip-file',
-          fileIndex: index,
-          fileName: file.name,
-        })
-        return
-      }
     }
   }
 
@@ -624,8 +534,13 @@ export class IngestService {
   /** The layout the visible dataset opened with: what Reset Layout returns to. */
   loadedLayout = $state<GridItemSnapshot[] | null>(null)
 
+  /** The visible dataset came from the user (an upload), not the host's
+   *  initial load (a demo, a shared link). */
+  isUserDataset = $state(false)
+
   /** True while a worker parse is running — uploads are one at a time. */
   private uploadInFlight = false
+  private nextLoadFromUser = true
 
   // Any `errorService.fatalLoad` — regardless of `origin` — implies the dataset
   // is unusable, so ingest reflects 'error' without each fatal-load reporter
@@ -645,8 +560,14 @@ export class IngestService {
     return files.length > 0 ? this.loadFiles(files) : false
   }
 
-  async loadFiles(files: FileList | readonly File[]): Promise<boolean> {
+  /** `fromHost`: the host's own load (initial data), never a user upload. */
+  async loadFiles(
+    files: FileList | readonly File[],
+    { fromHost = false }: { fromHost?: boolean } = {}
+  ): Promise<boolean> {
     if (files.length === 0) return false
+    const replacesDataset = Array.from(files).some(file => mediaKindOf(file) === null)
+    if (!fromHost && replacesDataset && this.deps.confirmReplace?.() === false) return false
 
     // One upload at a time: a second drop while a parse is running would
     // spawn a competing worker racing to commit into the same session.
@@ -659,6 +580,7 @@ export class IngestService {
       return false
     }
     this.uploadInFlight = true
+    this.nextLoadFromUser = !fromHost
 
     this.deps.errorService.clearAll()
     this.explicitStatus = 'loading'
@@ -785,6 +707,7 @@ export class IngestService {
     this.deps.engine.loadDataset(empty)
     this.deps.engine.setStimulusMediaBlobs(undefined)
     this.openLayout(defaultLayoutFor(empty.capabilities, this.deps.defaultLayout))
+    this.isUserDataset = false
     this.deps.resetWorkspaceHistory()
     this.explicitStatus = 'ready'
   }
@@ -818,6 +741,7 @@ export class IngestService {
       parsedData.gridItems ??
         defaultLayoutFor(parsedData.data.capabilities, this.deps.defaultLayout)
     )
+    this.isUserDataset = this.nextLoadFromUser
     this.deps.resetWorkspaceHistory()
     this.explicitStatus = 'ready'
   }
@@ -841,6 +765,7 @@ export class IngestService {
     }
     this.deps.engine.loadDataset(createEmptyDataset())
     this.deps.engine.setStimulusMediaBlobs(undefined)
+    this.isUserDataset = false
     this.deps.resetWorkspaceHistory()
     this.explicitStatus = 'error'
   }

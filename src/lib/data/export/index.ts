@@ -13,5 +13,6 @@ export * from './mappers/metrics'
 
 export * from './controller'
 export * from './service.svelte'
+export * from './workspaceFile.svelte'
 
 export * from './types'

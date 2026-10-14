@@ -15,12 +15,14 @@
     DEFAULT_GRID_CONFIG,
     calculateGridHeight,
     calculateGridWidth,
-    gridToPixelDimensions,
-    gridToPixelPosition,
+    gridBoundsOf,
   } from './grid'
   import {
     GridInteractionController,
+    itemIdsTouchedByMarquee,
+    marqueeSelectAction,
     panSurfaceAction,
+    type MarqueeBounds,
   } from './grid/interaction'
   import type { WorkspaceCamera, GridBounds } from './camera.svelte'
   import { cameraTouchAction, cameraWheelAction } from './cameraGestures'
@@ -32,7 +34,7 @@
     onWorkspaceCommandChain: (command: WorkspaceCommandChain) => void
     /** The view onto the grid; owned by GazePlotter so hosts can drive it. */
     camera: WorkspaceCamera
-    /** How the wheel behaves over the workspace (see GazePlotter). */
+    /** How the wheel and one finger behave (see GazePlotter). */
     gestures?: 'cooperative' | 'canvas'
     /** Show the built-in floating controls (see GazePlotter). */
     controls?: boolean
@@ -59,8 +61,31 @@
     // still inside `.grid-item`, so we no-op.
     const target = event.target as HTMLElement | null
     if (!target) return
-    if (target.closest('.grid-item')) return
+    // Chrome that carries its own click semantics keeps them: a plot frame,
+    // and anything marked `data-block-select`, the group's action chip
+    // included (it is a sibling of the plots, not a child of one).
+    if (target.closest('.grid-item, [data-block-select]')) return
+    // A held modifier is selection work, never dismissal: a press that stops
+    // short of the drag threshold must not wipe the selection the rectangle
+    // was about to add to.
+    if (event.shiftKey || event.ctrlKey || event.metaKey) return
     grid.clearSelection()
+  }
+
+  // Chrome with a pointer meaning of its own: never the start of a canvas
+  // drag. What each gesture adds in front of it is where they differ.
+  const CONTROLS = 'button, a, input, select, textarea, [role="button"]'
+
+  // Hold Shift or Ctrl/Cmd and drag the desk to draw a selection rectangle.
+  // The modifiers mean on a region what they already mean on a plot click:
+  // add to the selection. Plots keep the drag they have (an unselected one
+  // pans, a selected one moves), so only the bare desk reads the modifier.
+  function isMarqueeStart(event: PointerEvent): boolean {
+    if (event.pointerType === 'touch') return false
+    if (!(event.shiftKey || event.ctrlKey || event.metaKey)) return false
+    const target = event.target as HTMLElement | null
+    if (!target) return false
+    return !target.closest(`.grid-item, [data-owns-drag], ${CONTROLS}`)
   }
 
   // Drag-to-pan starts from empty space and from unselected plots, whose drag
@@ -69,9 +94,27 @@
   function shouldStartPan(event: PointerEvent): boolean {
     const target = event.target as HTMLElement | null
     if (!target) return false
-    return !target.closest(
-      '.grid-item.selected, [data-owns-drag], button, a, input, select, textarea, [role="button"]'
-    )
+    if (isMarqueeStart(event)) return false
+    return !target.closest(`.grid-item.selected, [data-owns-drag], ${CONTROLS}`)
+  }
+
+  // What the rectangle adds to: the selection as it stood when the drag began.
+  let marqueeBase: number[] = []
+
+  function applyMarquee(bounds: MarqueeBounds): void {
+    grid.setSelection([
+      ...marqueeBase,
+      ...itemIdsTouchedByMarquee(grid.positions, bounds, gridConfig),
+    ])
+  }
+
+  // One finger pans from the same places, minus the mouse-only carve-out: a
+  // plot that claims the drag claims it for the mouse (brushing a time
+  // window), so honouring it on touch would make the plot a dead zone.
+  function canTouchPan(target: Node): boolean {
+    const element = target instanceof Element ? target : null
+    if (!element) return false
+    return !element.closest(`.grid-item.selected, ${CONTROLS}`)
   }
 
   // On a plot the pan waits for a drag, so a click still selects it.
@@ -88,6 +131,7 @@
   // "No grid on screen": ingest owns this state, and it is read straight from
   // there. A mirror on GridState would lag it by a flush for no other reader.
   const isLoading = $derived(ingest.isLoading)
+  const hasGrid = $derived(!grid.isEmpty && !isLoading)
 
   let workspaceContainer: HTMLElement | null = $state(null)
   let gridSurface: HTMLElement | null = $state(null)
@@ -105,22 +149,9 @@
 
   // The layout's extent in grid px (live previews included, so a dragged
   // plot can pull the view with it): the camera's soft wall and "fit" use it.
-  const contentBounds = $derived.by((): GridBounds | null => {
-    if (positionsWithPreview.length === 0) return null
-    let left = Infinity
-    let top = Infinity
-    let right = -Infinity
-    let bottom = -Infinity
-    for (const item of positionsWithPreview) {
-      const pos = gridToPixelPosition(item.x, item.y, gridConfig)
-      const size = gridToPixelDimensions(item.w, item.h, gridConfig)
-      left = Math.min(left, pos.left)
-      top = Math.min(top, pos.top)
-      right = Math.max(right, pos.left + size.width)
-      bottom = Math.max(bottom, pos.top + size.height)
-    }
-    return { left, top, right, bottom }
-  })
+  const contentBounds = $derived<GridBounds | null>(
+    gridBoundsOf(positionsWithPreview, gridConfig)
+  )
 
   // ---------------------------------------------------
   // Initialization Logic
@@ -187,6 +218,12 @@
   const isFrameTarget = (target: Node) =>
     !!workspaceContainer?.contains(target)
 
+  // Canvas-first: one finger pans the canvas, the way it moves a map. With
+  // nothing loaded there is nothing to pan.
+  const touchPanTarget = $derived(
+    gestures === 'canvas' && hasGrid ? canTouchPan : null
+  )
+
   // Cooperative gestures: a plain wheel scrolls the page, so say how to zoom
   // instead, as an embedded map does.
   let wheelHintVisible = $state(false)
@@ -229,7 +266,8 @@
 
   function handleGlobalKeydown(event: KeyboardEvent): void {
     const shortcut = resolveWorkspaceShortcut(event)
-    if (shortcut === null) return
+    // Saving is the session's (GazePlotter.svelte), not the view's.
+    if (shortcut === null || shortcut === 'save' || shortcut === 'save-as') return
 
     if (shortcut === 'zoom-fit') {
       // A bare key, unlike the chords below: a field or a modal keeps it.
@@ -323,13 +361,20 @@
       ondragleave={fileDrop.leave}
       ondrop={handleDrop}
       onclick={handleWorkspaceBackgroundClick}
-      use:cameraTouchAction={camera}
+      use:cameraTouchAction={{ camera, panTarget: touchPanTarget }}
       use:panSurfaceAction={{
-        enabled: !grid.isEmpty && !isLoading,
+        enabled: hasGrid,
         interaction,
         workspaceContainer,
         shouldStart: shouldStartPan,
         deferStart: deferPan,
+      }}
+      use:marqueeSelectAction={{
+        enabled: hasGrid,
+        interaction,
+        shouldStart: isMarqueeStart,
+        onStart: () => (marqueeBase = [...grid.selectedItemIds]),
+        onChange: applyMarquee,
       }}
     >
       {#if fileDrop.isActive && (grid.isEmpty || isLoading)}

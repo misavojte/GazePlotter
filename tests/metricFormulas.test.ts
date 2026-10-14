@@ -18,7 +18,6 @@ import {
   queryGroup,
   queryIndividualsAllSlots,
   type MetricInstance,
-  type Scope,
   type GroupScope,
 } from '../src/lib/metrics'
 import { reduceNumeric } from '../src/lib/metrics/core/numeric'

@@ -47,3 +47,11 @@ Workloads are defined in `tests/ingestPipeline.bench.ts`:
 - **tobii**: the real `TobiiRowParser.test.data` body repeated ×200,
   interval-based media parsing (keyed-JSON stimulus suffixes), AOI-hit
   columns.
+
+One-pass row scan (2026-10-10, Windows 11, vitest 4.1.10): rows and columns
+are scanned in one pass by `formats/lib/rows/rowScan.ts` for every encoding
+and row end; the worker reads posted Files in 8 MB slices, 4 in flight.
+Paired bench: tobii mean 15.28 -> 9.18 ms; csv 86.45 -> 85.78 ms
+(writer-bound). In Chrome, the 8.4 GB / 704-column Tobii export went from
+~37 s to ~12 s (reading alone takes ~11.4 s); UTF-16 imports ~2x faster.
+Every sample format kept a byte-identical dataset.

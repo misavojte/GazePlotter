@@ -21,7 +21,8 @@ export class ByteDictionary {
       }
     }
     const id = this.items.length
-    this.items.push(value)
+    // Copy: `value` is a view into a read chunk (up to 8 MB) it would pin.
+    this.items.push(value.slice())
     if (existing) existing.push(id)
     else this.hashMap.set(hash, [id])
     return id

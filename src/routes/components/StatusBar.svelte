@@ -1,4 +1,5 @@
-<!-- What the homepage shows nowhere else: privacy, credibility, where to report. -->
+<!-- The docs landing page in one line: privacy, who makes it, how to cite,
+     open source, where to report. Each link lands on its docs section. -->
 <footer class="status-bar">
   <p class="privacy">
     <!-- Solid body, stroked shackle: lucide's lock only comes outlined. -->
@@ -11,11 +12,12 @@
     <span class="privacy-short">Fully private. Runs locally.</span>
   </p>
   <p class="links">
-    <span>
+    <span class="affiliation"
+      >Made at <a href="/docs/#who-makes-gazeplotter">Palacký University Olomouc</a></span
+    >
+    <span class="cite">
       <span class="cite-lead">Peer-reviewed.</span> Cite:
-      <a href="https://doi.org/10.3758/s13428-026-02959-5" target="_blank"
-        >Vojtechovska &amp; Popelka (2026)</a
-      >
+      <a href="/docs/#how-to-cite">Vojtechovska &amp; Popelka (2026)</a>
     </span>
     <a class="oss" href="https://github.com/misavojte/GazePlotter" target="_blank"
       >Free &amp; open source</a
@@ -36,7 +38,10 @@
     padding: 0 8px;
     background-color: var(--c-white);
     border-top: 1px solid var(--c-border);
-    font-size: var(--text-2xs);
+    /* A caption under the canvas: the caption step, not the badge step, in
+       the optical cut drawn for it. */
+    font-family: var(--font-small);
+    font-size: var(--text-xs);
     color: var(--c-darkgrey);
   }
 
@@ -58,8 +63,15 @@
     text-overflow: ellipsis;
   }
 
+  /* Hairlines between the pieces, the header's divider idiom. */
   .links {
-    gap: 16px;
+    gap: 0;
+  }
+
+  .links > * + * {
+    margin-left: 12px;
+    padding-left: 12px;
+    border-left: 1px solid var(--c-border);
   }
 
   a {
@@ -75,6 +87,12 @@
     text-decoration-color: currentColor;
   }
 
+  a:focus-visible {
+    outline: 2px solid var(--c-info);
+    outline-offset: 2px;
+    border-radius: var(--rounded);
+  }
+
   /* Narrowing gives up one piece at a time, least needed first; privacy,
      the claim that answers a fear, stays to the last. */
   .privacy-mid,
@@ -82,7 +100,7 @@
     display: none;
   }
 
-  @media (max-width: 1080px) {
+  @media (max-width: 1240px) {
     .privacy-full {
       display: none;
     }
@@ -92,9 +110,22 @@
     }
   }
 
-  @media (max-width: 900px) {
+  @media (max-width: 1040px) {
     .cite-lead {
       display: none;
+    }
+  }
+
+  @media (max-width: 940px) {
+    .affiliation {
+      display: none;
+    }
+
+    /* Now first in the row: no hairline before it. */
+    .cite {
+      margin-left: 0;
+      padding-left: 0;
+      border-left: none;
     }
   }
 
@@ -123,6 +154,15 @@
 
     .privacy-short {
       display: inline;
+    }
+  }
+
+  /* Phones have no room to spare: the strip goes and the canvas takes its
+     row (app.css zeroes --site-statusbar-height at the same width). The
+     privacy claim stays one tap away in the docs. */
+  @media (max-width: 768px) {
+    .status-bar {
+      display: none;
     }
   }
 </style>
