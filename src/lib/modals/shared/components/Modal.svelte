@@ -361,6 +361,28 @@
     }
   }
 
+  /* Phones: the 420px floor overflows and the card wastes the little room. */
+  @media (max-width: 599px) {
+    .modal {
+      top: 0;
+      left: 0;
+      transform: none;
+      width: 100%;
+      height: 100vh;
+      height: 100dvh;
+      min-width: 0;
+      max-width: none;
+      max-height: none;
+      border: none;
+      border-radius: 0;
+    }
+
+    .modal .body {
+      max-height: none;
+      padding: 16px;
+    }
+  }
+
   button {
     border: none;
     background-color: transparent;
