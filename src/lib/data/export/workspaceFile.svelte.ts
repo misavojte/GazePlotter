@@ -87,30 +87,25 @@ export class WorkspaceFile {
     return this.saveTo(true)
   }
 
-  /** Downloads a copy (platforms without a writable file). */
-  async download(fileName: string): Promise<boolean> {
-    if (this.saving) return false
-    const name = fileName.trim() || this.suggestedName
-    const head = this.deps.history.head
-    this.saving = true
-    try {
+  /** Downloads a copy (platforms without a writable file): a target that is
+   *  written but never read back. */
+  download(fileName: string): Promise<boolean> {
+    const name = (fileName.trim() || this.suggestedName) + WORKSPACE_EXTENSION
+    return this.write({
+      name,
       // Octet-stream: Safari renames or unpacks zip-typed downloads.
-      const content = new Blob([await this.deps.build()], { type: 'application/octet-stream' })
-      this.deps.saveFile(content, name + WORKSPACE_EXTENSION, WORKSPACE_EXTENSION)
-      this.deps.history.markSaved(head)
-      this.savedAt = new Date()
-      this.deps.toastState.addSuccess(`Downloaded ${name}${WORKSPACE_EXTENSION}`)
-      return true
-    } catch (error) {
-      this.report(error)
-      return false
-    } finally {
-      this.saving = false
-    }
+      write: async content =>
+        this.deps.saveFile(new Blob([content], { type: 'application/octet-stream' }), name, WORKSPACE_EXTENSION),
+      read: async () => null,
+    })
+  }
+
+  private get busy(): boolean {
+    return this.saving || this.deps.ingest.isLoading
   }
 
   private async saveTo(choose: boolean): Promise<boolean> {
-    if (this.saving || this.deps.ingest.isLoading) return false
+    if (this.busy) return false
     let target = this.target
     if (choose || !target) {
       if (!this.deps.pickSaveTarget) return false
@@ -123,6 +118,12 @@ export class WorkspaceFile {
       }
       if (!target) return false
     }
+    return this.write(target)
+  }
+
+  /** Builds and writes; the target then becomes the file Save writes. */
+  private async write(target: SaveTarget): Promise<boolean> {
+    if (this.busy) return false
     const known = target === this.target
     const generation = this.generation
     const head = this.deps.history.head
@@ -147,7 +148,7 @@ export class WorkspaceFile {
       this.target = target
       this.deps.history.markSaved(head)
       this.savedAt = new Date()
-      this.deps.toastState.addSuccess(`Saved ${target.name}`)
+      this.deps.toastState.addSuccess(`${this.canChooseFile ? 'Saved' : 'Downloaded'} ${target.name}`)
       return true
     } catch (error) {
       if (known && error instanceof DOMException && error.name === 'NotAllowedError') {

@@ -47,17 +47,15 @@
     line-height: 1;
     text-decoration: none;
     white-space: nowrap;
-    cursor: pointer;
     user-select: none;
     flex-shrink: 0;
     transition:
       transform var(--transition-fast) ease,
       background-color var(--transition-fast) ease,
-      background-image var(--transition-fast) ease,
       box-shadow var(--transition-fast) ease;
   }
 
-  /* Grounded hover: stays stationary on the baseline, deepens cleanly */
+  /* Hover deepens in place; the press below is what moves. */
   .brand-button:hover {
     background-color: var(--c-brand-dark);
     box-shadow:
@@ -71,7 +69,7 @@
     outline-offset: 2px;
   }
 
-  /* Active / Click: subtle 1px tactile depression with recessed inset shadow */
+  /* Pressed: down 1px, lit edge gone, recessed. */
   .brand-button:active {
     transform: translateY(1px);
     background-color: var(--c-brand-dark);
@@ -89,7 +87,6 @@
     display: none;
   }
 
-  /* Narrow screens: compact text that never crowds the header */
   @media (max-width: 640px) {
     .brand-button {
       min-width: auto;

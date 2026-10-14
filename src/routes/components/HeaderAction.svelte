@@ -35,6 +35,7 @@
   class="header-action"
   {disabled}
   {onclick}
+  aria-label={badge && badgeLabel ? `${label}, ${badgeLabel}` : undefined}
   use:tooltip={{ content: hint, position: 'bottom' }}
 >
   <span class="icon-wrap">
@@ -46,7 +47,6 @@
     {/key}
   </span>
   <span class="label">{label}</span>
-  {#if badge && badgeLabel}<span class="visually-hidden">{badgeLabel}</span>{/if}
 </button>
 
 <style>
@@ -138,15 +138,6 @@
 
   .badge.saved {
     background: var(--c-success);
-  }
-
-  .visually-hidden {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip: rect(0 0 0 0);
-    white-space: nowrap;
   }
 
   .header-action:hover:not(:disabled) .icon,

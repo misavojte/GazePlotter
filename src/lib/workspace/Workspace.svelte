@@ -221,7 +221,7 @@
   // Canvas-first: one finger pans the canvas, the way it moves a map. With
   // nothing loaded there is nothing to pan.
   const touchPanTarget = $derived(
-    gestures === 'canvas' && !grid.isEmpty && !isLoading ? canTouchPan : null
+    gestures === 'canvas' && hasGrid ? canTouchPan : null
   )
 
   // Cooperative gestures: a plain wheel scrolls the page, so say how to zoom

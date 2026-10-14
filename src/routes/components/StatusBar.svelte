@@ -19,12 +19,10 @@
       <span class="cite-lead">Peer-reviewed.</span> Cite:
       <a href="/docs/#how-to-cite">Vojtechovska &amp; Popelka (2026)</a>
     </span>
-    <span class="oss"
-      ><a href="https://github.com/misavojte/GazePlotter" target="_blank"
-        >Free &amp; open source</a
-      ></span
+    <a class="oss" href="https://github.com/misavojte/GazePlotter" target="_blank"
+      >Free &amp; open source</a
     >
-    <span class="report"><a href="/docs/#report-a-problem">Report a problem</a></span>
+    <a class="report" href="/docs/#report-a-problem">Report a problem</a>
   </p>
 </footer>
 

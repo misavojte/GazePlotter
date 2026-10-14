@@ -148,8 +148,6 @@
       interaction.mode !== 'selecting'
   )
 
-  const groupScope = $derived(`${grid.selectedCount} plots`)
-
   // The whole selection duplicates in one step, and the copies become the
   // selection, exactly as a single duplication hands over to its copy.
   function handleGroupDuplicate(): void {
@@ -302,7 +300,7 @@
       style:top="{groupChipAnchor.y}px"
     >
       <ActionChip
-        scope={groupScope}
+        scope="{grid.selectedCount} plots"
         onDuplicate={handleGroupDuplicate}
         onRemove={handleGroupRemove}
       />

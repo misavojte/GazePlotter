@@ -35,19 +35,11 @@ export type PickSaveTarget = (
   extension: string
 ) => Promise<SaveTarget | null>
 
-type FileHandle = {
-  name: string
-  getFile(): Promise<File>
-  createWritable(): Promise<{
-    write(data: Blob): Promise<void>
-    close(): Promise<void>
-    abort(): Promise<void>
-  }>
-}
+// Not in lib.dom yet; the handle it returns is.
 type ShowSaveFilePicker = (options: {
   suggestedName: string
   types: { description: string; accept: Record<string, string[]> }[]
-}) => Promise<FileHandle>
+}) => Promise<FileSystemFileHandle>
 
 /**
  * Web default for `pickSaveTarget` where the browser can write to a chosen
@@ -61,7 +53,7 @@ export function browserPickSaveTarget(): PickSaveTarget | null {
           .showSaveFilePicker
   if (!picker) return null
   return async (suggestedName, extension) => {
-    let handle: FileHandle
+    let handle: FileSystemFileHandle
     try {
       handle = await picker.call(window, {
         suggestedName: suggestedName + extension,

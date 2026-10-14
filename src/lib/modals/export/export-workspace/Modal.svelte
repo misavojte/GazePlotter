@@ -95,12 +95,6 @@
       engine.hasCapabilities(option.requireCapabilities)
     )
   )
-
-  const openExportModal = (
-    definition: (typeof researchExportOptions)[number]['definition']
-  ) => {
-    modalState.push(definition, {})
-  }
 </script>
 
 <div class="container">
@@ -186,7 +180,7 @@
         {#each visibleExportOptions as option (option.title)}
           <button
             class="export-option-card"
-            onclick={() => openExportModal(option.definition)}
+            onclick={() => modalState.push(option.definition, {})}
           >
             <div class="export-option-content">
               <h4 class="export-option-title">{option.title}</h4>

@@ -4,12 +4,9 @@
   import { useTooltipAction } from '$lib/tooltip'
 
   /**
-   * The actions a selection carries: Duplicate and Remove, naming the same
-   * verbs whether the selection is one plot or a group. It is the selection's
-   * own chrome, so it wears the selection's colour and corner radius.
-   *
-   * It positions itself against the nearest positioned ancestor, so a host
-   * puts that anchor on its outline's top-left corner.
+   * Duplicate and Remove for a selection of one plot or many, in the
+   * selection's own colour. Positioned against the nearest positioned
+   * ancestor: the host puts that anchor on its outline's top-left corner.
    */
   interface Props {
     /** What the verbs act on: "plot", "3 plots". */
@@ -22,8 +19,7 @@
 
   const tooltipAction = useTooltipAction()
 
-  /** Closer than the default 10: the tooltip names one glyph of small chrome,
-   *  so it should sit with the chip rather than float over the plot above. */
+  /** Closer than the default: the tooltip sits with the chip, not over the plot above. */
   const TOOLTIP_OFFSET = 5
 </script>
 
@@ -49,12 +45,9 @@
 </div>
 
 <style>
-  /* Rides just above the selection outline, left edges on one line, in the
-     outline's own colour and the plot's own corner radius. Two --action-size
-     squares wide and one tall, so --rounded-lg is exactly half the height:
-     the ends come out as true semicircles, not a clamped guess at one. The
-     glyphs are the rail's: same size, same stroke, same ink on their fill. The
-     clip is what lets a hovered half fill the pill right out to its edge. */
+  /* Just above the outline, left edges aligned. Two squares wide, one tall:
+     --rounded-lg is half the height, so the ends are true semicircles. The
+     clip lets a hovered half fill the pill out to its edge. */
   .action-chip {
     --action-size: 40px;
     position: absolute;
@@ -70,9 +63,7 @@
     white-space: nowrap;
   }
 
-  /* A square each, squared off so the clip above gives them their ends. The
-     glyph is the only thing inside, carrying no box of its own: no margin, no
-     line box to sit on, and no padding beyond the optical shift below. */
+  /* A square each; the clip above gives them their ends. */
   .action {
     box-sizing: border-box;
     display: inline-flex;
@@ -90,10 +81,8 @@
     transition: background-color var(--transition-fast) ease;
   }
 
-  /* Optically centred rather than geometrically: the pill rounds each outer
-     end away, which reads as air on that side and pushes the pair apart. The
-     padding is a correction, not spacing, and moves each glyph half its width
-     toward the middle. */
+  /* Optical centring: the rounded outer ends read as air, so each glyph
+     shifts toward the middle. */
   .action:first-child {
     padding-left: 4px;
   }

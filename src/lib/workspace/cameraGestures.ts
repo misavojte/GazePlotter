@@ -168,14 +168,11 @@ export function cameraTouchAction(node: HTMLElement, initial: TouchParams) {
     gesture = { ...gesture, point, spread: distance, zooming }
   }
 
-  const onEnd = (event: TouchEvent) => {
-    onStart(event)
-  }
-
+  // A lifted finger restarts the gesture from the fingers still down.
   node.addEventListener('touchstart', onStart, { passive: true })
   node.addEventListener('touchmove', onMove, { passive: false })
-  node.addEventListener('touchend', onEnd, { passive: true })
-  node.addEventListener('touchcancel', onEnd, { passive: true })
+  node.addEventListener('touchend', onStart, { passive: true })
+  node.addEventListener('touchcancel', onStart, { passive: true })
 
   return {
     update(next: TouchParams) {
@@ -184,8 +181,8 @@ export function cameraTouchAction(node: HTMLElement, initial: TouchParams) {
     destroy() {
       node.removeEventListener('touchstart', onStart)
       node.removeEventListener('touchmove', onMove)
-      node.removeEventListener('touchend', onEnd)
-      node.removeEventListener('touchcancel', onEnd)
+      node.removeEventListener('touchend', onStart)
+      node.removeEventListener('touchcancel', onStart)
     },
   }
 }

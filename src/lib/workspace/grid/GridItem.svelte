@@ -270,12 +270,8 @@
   {/if}
 
   {#if isSoleSelection && isSettled}
-    <!-- The chip hangs from this anchor on the selection outline's top-left
-         corner, sibling of the frame so it isn't clipped by overflow:hidden.
-         No Move button: the whole frame is already a drag target when
-         selected (`cursor: move` signals it), so a dedicated Move button
-         duplicates the affordance and mixes drag-to-act with the
-         click-to-act verbs next to it. -->
+    <!-- Sibling of the frame so overflow:hidden never clips the chip. No Move
+         verb: the selected frame is already the drag target (`cursor: move`). -->
     <div class="chip-anchor">
       <ActionChip
         scope="plot"
