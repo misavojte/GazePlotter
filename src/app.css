@@ -8,7 +8,7 @@ body {
      this one value. */
   --site-header-height: 48px;
   /* The credit strip closing the app canvas at the bottom. */
-  --site-statusbar-height: 24px;
+  --site-statusbar-height: 26px;
 }
 
 /* Phones give the strip's row to the canvas; StatusBar hides itself at the
