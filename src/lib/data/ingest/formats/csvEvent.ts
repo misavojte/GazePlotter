@@ -14,9 +14,9 @@
  */
 
 import type { EnrichmentFormatDefinition } from '../kernel/format'
-import { mergeEvents, type EventContribution } from '../kernel/sink'
+import { blankDataset, mergeEvents, type EventContribution } from '../kernel/sink'
 import type { DataType } from '$lib/data/types'
-import { DEFAULT_NO_AOI_TREATMENT, seededEventsSelection } from '$lib/data/types'
+import { seededEventsSelection } from '$lib/data/types'
 import { csvDelimiterOfHeader } from './lib/rows/csvDelimiter'
 
 const REQUIRED_COLUMNS = [
@@ -281,10 +281,12 @@ export function buildDataTypeFromCsvEvents(contributions: EventContribution[]): 
   const stimuliCount = stimulusNames.length
   const participantCount = participantNames.length
 
+  // `capabilities.event` is flipped by mergeEvents below. No gaze categories
+  // on the axis, so no seeded category selection (SegmentWriter skips it for
+  // fixation-only sources for the same reason).
+  const blank = blankDataset()
   const data: DataType = {
-    isOrdinalOnly: false,
-    // `event` is flipped by mergeEvents below.
-    capabilities: { segmented: false, spatial: false, event: false },
+    ...blank,
     // Single-element `[name]` rows: the shape SegmentWriter ships for fresh
     // datasets (displayed name falls back to the original).
     stimuli: {
@@ -295,24 +297,14 @@ export function buildDataTypeFromCsvEvents(contributions: EventContribution[]): 
       data: participantNames.map(name => [name]),
       orderVector: participantNames.map((_, i) => i),
     },
-    participantsSelections: [],
-    stimuliSelections: [],
-    // No gaze categories on the axis at all, so no seeded category selection
-    // (SegmentWriter skips it for fixation-only sources for the same reason).
-    categoriesSelections: [],
     eventsSelections: [seededEventsSelection(1)],
-    metricInstances: [],
-    categories: { data: [], orderVector: [] },
-    noAoiTreatment: DEFAULT_NO_AOI_TREATMENT,
     aois: {
       data: Array.from({ length: stimuliCount }, () => []),
       orderVector: Array.from({ length: stimuliCount }, () => []),
     },
     segments: {
-      segmentBuffer: new Float32Array(0),
+      ...blank.segments,
       indexTable: new Uint32Array(stimuliCount * participantCount * 2),
-      aoiPool: new Uint16Array(0),
-      hasSpatialData: false,
       maxParticipants: participantCount,
       stimuliCount,
     },

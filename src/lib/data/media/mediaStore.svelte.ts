@@ -85,41 +85,27 @@ export class StimulusMediaStore {
     if (!blob || typeof document === 'undefined') return null
 
     const url = URL.createObjectURL(blob)
-    if (media.kind === 'image') {
-      const el = new Image()
-      const entry = { url, el, ready: false, failed: false }
-      this.elements.set(stimulusId, entry)
-      el.onload = () => {
-        entry.ready = true
-        this.version++
-      }
-      el.onerror = () => {
-        if (this.elements.get(stimulusId) !== entry) return // evicted: src cleared
-        entry.failed = true
-        this.version++
-      }
-      el.src = url
+    const el =
+      media.kind === 'image' ? new Image() : document.createElement('video')
+    const entry = { url, el, ready: false, failed: false }
+    this.elements.set(stimulusId, entry)
+    const markReady = () => {
+      if (entry.ready) return
+      entry.ready = true
+      this.version++
+    }
+    const markFailed = () => {
+      if (this.elements.get(stimulusId) !== entry) return // evicted: src cleared
+      entry.failed = true
+      this.version++
+    }
+    el.addEventListener('error', markFailed, { once: true })
+    if (el instanceof HTMLImageElement) {
+      el.addEventListener('load', markReady, { once: true })
     } else {
-      const el = document.createElement('video')
       el.muted = true
       el.playsInline = true
       el.preload = 'auto'
-      const entry = { url, el, ready: false, failed: false }
-      this.elements.set(stimulusId, entry)
-      el.addEventListener(
-        'error',
-        () => {
-          if (this.elements.get(stimulusId) !== entry) return // evicted: src cleared
-          entry.failed = true
-          this.version++
-        },
-        { once: true }
-      )
-      const markReady = () => {
-        if (entry.ready) return
-        entry.ready = true
-        this.version++
-      }
       // The readiness gate is what prevents a black background: the element
       // is only handed out once a frame is decoded. 'seeked' after an
       // explicit off-zero seek guarantees a paintable frame everywhere;
@@ -136,8 +122,8 @@ export class StimulusMediaStore {
         },
         { once: true }
       )
-      el.src = url
     }
+    el.src = url
     return null
   }
 

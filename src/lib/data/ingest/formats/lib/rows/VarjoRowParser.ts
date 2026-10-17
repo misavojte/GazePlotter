@@ -2,11 +2,8 @@ import { RowParser } from './RowParser'
 import { bytesEqual, encodeString } from '$lib/data/ingest/utils/byteUtils'
 
 export class VarjoRowParser extends RowParser {
-  cTime: number
-  cActorLabel: number // ActorLabel stands for AOI
-
   private readonly pTime = 0
-  private readonly pActorLabel = 1
+  private readonly pActorLabel = 1 // ActorLabel stands for AOI
 
   mTimeStart = 0
   mTimeLast = 0
@@ -24,13 +21,12 @@ export class VarjoRowParser extends RowParser {
     encoding: 'utf-8' | 'utf-16le' | 'utf-16be' = 'utf-8'
   ) {
     super(columnDelimiter, encoding)
-    this.cTime = this.getIndex(header, 'Time')
-    this.cActorLabel = this.getIndex(header, 'Actor Label')
+    const required = this.requireColumns(header, ['Time', 'Actor Label'])
     this.mParticipant = fileName.split('.')[0]
     this.participantBytes = encodeString(this.mParticipant, this.encoding)
     this.stimulusBytes = encodeString('VarjoScene', this.encoding)
 
-    this.setupColumns([this.cTime, this.cActorLabel])
+    this.setupColumns(required)
   }
 
   protected override deserializeFromBytes(): void {
@@ -50,7 +46,7 @@ export class VarjoRowParser extends RowParser {
     this.mTimeLast = timeNumber
   }
 
-  finalize(): void {
+  override finalize(): void {
     const baseTime = this.mTimeBase
     if (baseTime === null) return
     if (!this.mActorLabelBytes || !this.mActorLabelBytes.length) return

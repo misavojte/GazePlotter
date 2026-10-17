@@ -22,13 +22,6 @@ export const workspaceJsonFormat: WorkspaceFormatDefinition = {
     // their starter seeding happens on the main thread, see
     // IngestService.handleDone).
     const { processJsonFileWithGrid } = await import('../workspace/parser')
-    const result = processJsonFileWithGrid(await file.text())
-    return {
-      kind: 'workspace',
-      version: result.version,
-      data: result.data,
-      gridItems: result.gridItems,
-      fileMetadata: result.fileMetadata,
-    }
+    return { kind: 'workspace', ...processJsonFileWithGrid(await file.text()) }
   },
 }

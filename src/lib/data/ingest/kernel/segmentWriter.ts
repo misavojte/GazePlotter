@@ -569,34 +569,16 @@ export class SegmentWriter {
       return 0
     }
 
-    // Create naturally sorted order vectors (names were decoded at intern time)
+    // Naturally sorted order vectors (names were decoded at intern time)
+    const naturalOrder = (names: string[]): number[] =>
+      Array.from({ length: names.length }, (_, i) => i).sort((a, b) =>
+        naturalSort(names[a], names[b])
+      )
     const stimuliNames = this.stimuliNames
     const participantNames = this.participantNames
-
-    const stimuliOrderVector: number[] = Array.from(
-      { length: stimuliNames.length },
-      (_, i) => i
-    )
-    stimuliOrderVector.sort((a, b) =>
-      naturalSort(stimuliNames[a], stimuliNames[b])
-    )
-
-    const participantsOrderVector: number[] = Array.from(
-      { length: participantNames.length },
-      (_, i) => i
-    )
-    participantsOrderVector.sort((a, b) =>
-      naturalSort(participantNames[a], participantNames[b])
-    )
-
-    const aoisOrderVectors = prunedAoiNamesPerStimulus.map(names => {
-      const indices: number[] = Array.from(
-        { length: names.length },
-        (_, i) => i
-      )
-      indices.sort((a, b) => naturalSort(names[a], names[b]))
-      return indices
-    })
+    const stimuliOrderVector = naturalOrder(stimuliNames)
+    const participantsOrderVector = naturalOrder(participantNames)
+    const aoisOrderVectors = prunedAoiNamesPerStimulus.map(naturalOrder)
 
     const categoriesData = this.buildCategoriesData()
 

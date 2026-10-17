@@ -6,19 +6,13 @@ import {
   type CsvFormatOptions,
   type DecimalSeparator,
   resolveCsvFormatOptions,
-  generateCsvString,
   formatNumberForCsv,
 } from '../encoders/csv'
-import { groupByParticipantAndStimulus } from './utils'
+import { batchCsvs, unifiedCsv } from './utils'
 
 const BATCH_HEADER = ['timestamp', 'duration', 'eyemovementtype', 'AOI']
 
 const BATCH_HEADER_WITH_SPATIAL = [...BATCH_HEADER, 'x', 'y']
-
-// The unified export merely prepends the grouping columns to a batch row.
-const SEGMENT_HEADER = ['stimulus', 'participant', ...BATCH_HEADER]
-
-const SEGMENT_HEADER_WITH_SPATIAL = [...SEGMENT_HEADER, 'x', 'y']
 
 type SegmentCsvRow = {
   stimulus: string
@@ -155,8 +149,7 @@ function convertDataStructure(
 
 /**
  * The BATCH_HEADER-aligned cells of one segment row (plus x/y when spatial
- * columns are exported). The unified export prepends [stimulus, participant],
- * mirroring the SEGMENT_HEADER/BATCH_HEADER relationship above.
+ * columns are exported). The unified export prepends [stimulus, participant].
  */
 function segmentCells(
   item: SegmentCsvRow,
@@ -199,15 +192,10 @@ export function generateUnifiedCsv(
   )
   const includeSpatialColumns = data.capabilities.spatial
 
-  const rows = csvPreData.map(item => [
-    item.stimulus,
-    item.participant,
-    ...segmentCells(item, decimalSeparator, includeSpatialColumns),
-  ])
-
-  return generateCsvString(
-    includeSpatialColumns ? SEGMENT_HEADER_WITH_SPATIAL : SEGMENT_HEADER,
-    rows,
+  return unifiedCsv(
+    csvPreData,
+    includeSpatialColumns ? BATCH_HEADER_WITH_SPATIAL : BATCH_HEADER,
+    item => segmentCells(item, decimalSeparator, includeSpatialColumns),
     options
   )
 }
@@ -234,18 +222,10 @@ export function generateMetadataForBatchCsv(
   )
   const includeSpatialColumns = data.capabilities.spatial
 
-  return groupByParticipantAndStimulus(csvPreData, (combinedData, stimulus, participant) => {
-    const rows = combinedData.map(item =>
-      segmentCells(item, decimalSeparator, includeSpatialColumns)
-    )
-
-    return {
-      fileName: `${stimulus}_${participant}`,
-      content: generateCsvString(
-        includeSpatialColumns ? BATCH_HEADER_WITH_SPATIAL : BATCH_HEADER,
-        rows,
-        options
-      ),
-    }
-  })
+  return batchCsvs(
+    csvPreData,
+    includeSpatialColumns ? BATCH_HEADER_WITH_SPATIAL : BATCH_HEADER,
+    item => segmentCells(item, decimalSeparator, includeSpatialColumns),
+    options
+  )
 }

@@ -33,24 +33,6 @@ import {
  * // SMI Base,Anna,298.2,120,0,Map
  */
 export class CsvSegmentedDurationRowParser extends RowParser {
-  /** Column index for timestamp field */
-  cTimestamp: number
-
-  /** Column index for duration field */
-  cDuration: number
-
-  /** Column index for participant field */
-  cParticipant: number
-
-  /** Column index for stimulus field */
-  cStimulus: number
-
-  /** Column index for AOI (Area of Interest) field */
-  cAoi: number
-
-  /** Column index for eye movement type field */
-  cEyeMovementType: number
-
   /** Optional spatial X coordinate column index */
   cX: number
 
@@ -104,14 +86,15 @@ export class CsvSegmentedDurationRowParser extends RowParser {
     // Trim whitespace from header values to handle potential BOM or whitespace issues
     const trimmedHeader = header.map(h => h.trim())
 
-    // Extract column indices from the header row using the inherited getIndex method
-    // getIndex will throw an error if any required column is missing
-    this.cTimestamp = this.getIndex(trimmedHeader, 'timestamp')
-    this.cDuration = this.getIndex(trimmedHeader, 'duration')
-    this.cAoi = this.getIndex(trimmedHeader, 'AOI')
-    this.cParticipant = this.getIndex(trimmedHeader, 'participant')
-    this.cStimulus = this.getIndex(trimmedHeader, 'stimulus')
-    this.cEyeMovementType = this.getIndex(trimmedHeader, 'eyemovementtype')
+    // requireColumns throws if any required column is missing
+    const required = this.requireColumns(trimmedHeader, [
+      'timestamp',
+      'duration',
+      'AOI',
+      'participant',
+      'stimulus',
+      'eyemovementtype',
+    ])
     this.cX = this.findOptionalColumn(trimmedHeader, 'x')
     this.cY = this.findOptionalColumn(trimmedHeader, 'y')
     this.pipeDelimiterBytes = encodeString('|', encoding)
@@ -120,16 +103,7 @@ export class CsvSegmentedDurationRowParser extends RowParser {
     this.fixationNameBytes = encodeString('Fixation', encoding)
     this.saccadeNameBytes = encodeString('Saccade', encoding)
 
-    this.setupColumns([
-      this.cTimestamp,
-      this.cDuration,
-      this.cAoi,
-      this.cParticipant,
-      this.cStimulus,
-      this.cEyeMovementType,
-      this.cX,
-      this.cY,
-    ])
+    this.setupColumns([...required, this.cX, this.cY])
   }
 
   /**
@@ -215,19 +189,6 @@ export class CsvSegmentedDurationRowParser extends RowParser {
       aoi,
       spatial
     )
-  }
-
-  /**
-   * Finalizes parsing.
-   *
-   * Since this parser processes each row as a complete segment without maintaining
-   * state across rows, there is nothing to finalize. This method exists to satisfy the
-   * RowParser interface contract.
-   *
-   * @returns {null} Always returns null as no finalization is needed
-   */
-  finalize(): void {
-    return
   }
 
   /**

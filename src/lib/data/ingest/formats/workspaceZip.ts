@@ -60,13 +60,6 @@ export const workspaceZipFormat: WorkspaceFormatDefinition = {
       ? await readMediaEntries(file, entries.values(), stimuliMedia)
       : {}
 
-    return {
-      kind: 'workspace',
-      version: result.version,
-      data: result.data,
-      gridItems: result.gridItems,
-      fileMetadata: result.fileMetadata,
-      mediaBlobs,
-    }
+    return { kind: 'workspace', ...result, mediaBlobs }
   },
 }

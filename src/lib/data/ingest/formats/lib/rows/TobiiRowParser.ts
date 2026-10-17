@@ -498,9 +498,9 @@ export class TobiiRowParser extends RowParser {
 
     this.setupColumns(baseColumns)
 
-    const aoiInfo = headerBytes
-      ? this.constructAoiInfoFromBytes(headerBytes)
-      : this.constructAoiInfo(header)
+    const aoiInfo = this.constructAoiInfoFromBytes(
+      headerBytes ?? encodeString(header.join(this.delim), this.encoding)
+    )
     if (aoiInfo) {
       this.aoiNames.push(...aoiInfo.names)
       this.setupAoiColumns(aoiInfo.start, aoiInfo.names.length)
@@ -804,7 +804,7 @@ export class TobiiRowParser extends RowParser {
     return
   }
 
-  finalize(): void {
+  override finalize(): void {
     this.finalizeSegments()
     this.flushEvents()
     // After finalizeSegments so the last open interval's segment is gated too,
@@ -1063,10 +1063,6 @@ export class TobiiRowParser extends RowParser {
 
   /* ── Segment creation helpers ───────────────────────── */
   private createSegmentsForIntervals(): void {
-    if (this.mRecordingStart === null || this.mRecordingLast === null) return
-    const startNum = this.mRecordingStart
-    const endNum = this.mRecordingLast
-
     // Use the stack snapshot taken when this segment began. Falls back to the
     // current stack when no snapshot was captured (e.g. finalize() with active
     // intervals).
@@ -1078,95 +1074,42 @@ export class TobiiRowParser extends RowParser {
       : this.cachedStimulusStackKeys
 
     for (let i = 0; i < stimuliBytes.length; i++) {
-      const stimulusBytes = stimuliBytes[i]
-      const stimulusKey = stimuliKeys[i]
-      if (this.mParticipantKey === null) continue
-      const key = this.makeCompositeKey32x64(stimulusKey, this.mParticipantKey)
-      const baseTime = this.stimuliBaseTimes.get(key) ?? startNum
-      const start = (startNum - baseTime) * TIME_MODIFIER
-      const end = (endNum - baseTime) * TIME_MODIFIER
-      if (!this.mParticipantBytes) continue
-      const spatial: { x: number; y: number } | null =
-        this.mSegmentSpatialX !== null && this.mSegmentSpatialY !== null
-          ? { x: this.mSegmentSpatialX, y: this.mSegmentSpatialY }
-          : null
-      // Reuse the composite key already computed for baseTime above.
-      this.gateGroup(key, stimulusBytes, this.mParticipantBytes)
-      this.onSegment?.(
-        start,
-        end,
-        this.mCategoryId,
-        stimulusBytes,
-        this.mParticipantBytes,
-        this.mAoi,
-        spatial
-      )
+      this.emitSegment(stimuliBytes[i], stimuliKeys[i])
     }
-    return
   }
 
   private createSegmentForSingleStimulus(): void {
+    if (!this.mStimulusBytes) return
+    // In interval mode an interval can close before its last segment is flushed,
+    // routing it here; gate it too so a malformed group's tail can't slip through
+    // ungated. No-op in media/base mode (gatingEnabled is false there).
+    this.emitSegment(this.mStimulusBytes, this.mStimulusKey)
+  }
+
+  /** Emit the open segment under one stimulus, timed from its group's base. */
+  private emitSegment(stimulusBytes: Uint8Array, stimulusKey: number): void {
     if (this.mRecordingStart === null || this.mRecordingLast === null) return
-    if (!this.mStimulusBytes || !this.mParticipantBytes) return
-    if (this.mParticipantKey === null) return
-    const key = this.makeCompositeKey32x64(
-      this.mStimulusKey,
-      this.mParticipantKey
-    )
+    if (!this.mParticipantBytes || this.mParticipantKey === null) return
+    const key = this.makeCompositeKey32x64(stimulusKey, this.mParticipantKey)
     const baseTime = this.stimuliBaseTimes.get(key) ?? this.mRecordingStart
-    const start = (this.mRecordingStart - baseTime) * TIME_MODIFIER
-    const end = (this.mRecordingLast - baseTime) * TIME_MODIFIER
     const spatial: { x: number; y: number } | null =
       this.mSegmentSpatialX !== null && this.mSegmentSpatialY !== null
         ? { x: this.mSegmentSpatialX, y: this.mSegmentSpatialY }
         : null
-    // In interval mode an interval can close before its last segment is flushed,
-    // routing it here; gate it too so a malformed group's tail can't slip through
-    // ungated. No-op in media/base mode (gatingEnabled is false there).
-    this.gateGroup(key, this.mStimulusBytes, this.mParticipantBytes)
+    // Reuse the composite key already computed for baseTime above.
+    this.gateGroup(key, stimulusBytes, this.mParticipantBytes)
     this.onSegment?.(
-      start,
-      end,
+      (this.mRecordingStart - baseTime) * TIME_MODIFIER,
+      (this.mRecordingLast - baseTime) * TIME_MODIFIER,
       this.mCategoryId,
-      this.mStimulusBytes,
+      stimulusBytes,
       this.mParticipantBytes,
       this.mAoi,
       spatial
     )
-    return
   }
 
   /* ── Utility: stimuli & AOI mapping ─────────────────── */
-  private constructAoiInfo(
-    header: string[]
-  ): { start: number; end: number; names: Uint8Array[] } | null {
-    let startIndex = -1
-    let endIndex = -1
-
-    for (let i = 0; i < header.length; i++) {
-      if (header[i].startsWith(AOI_HIT_PREFIX)) {
-        if (startIndex === -1) startIndex = i
-        endIndex = i
-      }
-    }
-
-    if (startIndex === -1) return null
-
-    const aoiNames: Uint8Array[] = []
-    for (let i = startIndex; i <= endIndex; i++) {
-      const h = header[i]
-      if (h.startsWith(AOI_HIT_PREFIX)) {
-        const fullName = h.substring(AOI_HIT_PREFIX.length, h.length - 1)
-        const name = fullName.substring(fullName.lastIndexOf(' - ') + 3)
-        aoiNames.push(encodeString(name, this.encoding))
-      } else {
-        aoiNames.push(new Uint8Array(0))
-      }
-    }
-
-    return { start: startIndex, end: endIndex, names: aoiNames }
-  }
-
   private constructAoiInfoFromBytes(
     headerBytes: Uint8Array
   ): { start: number; end: number; names: Uint8Array[] } | null {

@@ -1,16 +1,5 @@
 import { type DataType } from '$lib/data/types'
-import { type CsvFormatOptions } from './encoders/csv'
-import { type ExportNaming } from './types'
 import { reportProgress, type ExportProgress } from './progress'
-import {
-  generateUnifiedCsv,
-  generateMetadataForBatchCsv,
-} from './mappers/segments'
-import {
-  generateEventUnifiedCsv,
-  generateEventBatchCsv,
-} from './mappers/events'
-import { Archiver } from './encoders/zip'
 import { writeBlobZip, type ZipWriteEntry } from '$lib/data/zip/blobZip'
 import { mediaEntryName } from '$lib/data/media/mediaEntries'
 import type { StimulusMediaStore } from '$lib/data/media/mediaStore.svelte'
@@ -29,30 +18,6 @@ export const WORKSPACE_EXTENSION = '.gazeplotter'
 export type ExportPayload = { content: string | Blob; extension: string }
 
 /**
- * Builds a unified CSV of all gaze segments.
- */
-export async function buildUnifiedCsv(
-  data: DataType,
-  stimulusIds?: Set<string>,
-  participantIds?: Set<string>,
-  filterCategoryIds?: Set<number> | boolean,
-  options?: CsvFormatOptions,
-  naming: ExportNaming = 'displayed',
-  onProgress?: ExportProgress
-): Promise<ExportPayload> {
-  await reportProgress(onProgress, 0, 100, 'Preparing data...')
-  const csv = generateUnifiedCsv(
-    data,
-    stimulusIds,
-    participantIds,
-    filterCategoryIds,
-    options,
-    naming
-  )
-  return { content: csv, extension: '.csv' }
-}
-
-/**
  * Helper to package a batch of generated CSVs into a zip file with progress yielding.
  */
 async function archiveBatch(
@@ -60,80 +25,40 @@ async function archiveBatch(
   zipFileName: string,
   onProgress?: ExportProgress
 ): Promise<Blob> {
-  const archiver = new Archiver()
+  const entries: ZipWriteEntry[] = []
   const total = batch.length
   let count = 0
 
   for (const item of batch) {
     count++
     await reportProgress(onProgress, count, total, `Packaging ${item.fileName}`)
-    archiver.addFile(`${item.fileName}_${zipFileName}.csv`, item.content)
+    entries.push({ name: `${item.fileName}_${zipFileName}.csv`, content: item.content })
   }
 
   await reportProgress(onProgress, total, total, 'Generating ZIP archive...')
 
-  return archiver.generateBlob()
+  return (await writeBlobZip(entries)).blob
 }
 
 /**
- * Builds a ZIP of individual per-participant/stimulus CSVs. `fileName` names
- * the zip entries, not the delivered file.
+ * Builds a tabular export: one unified CSV, or a ZIP of per-participant/stimulus
+ * CSVs. `fileName` names the zip entries, not the delivered file; `kind`
+ * prefixes the progress wording.
  */
-export async function buildBatchZip(
-  data: DataType,
+export async function buildTabularExport(
+  exportType: 'csv' | 'individual-csv',
   fileName: string,
-  stimulusIds?: Set<string>,
-  participantIds?: Set<string>,
-  filterCategoryIds?: Set<number> | boolean,
-  options?: CsvFormatOptions,
-  naming: ExportNaming = 'displayed',
+  kind: '' | 'event ',
+  unified: () => string,
+  batch: () => Array<{ fileName: string; content: string }>,
   onProgress?: ExportProgress
 ): Promise<ExportPayload> {
-  await reportProgress(onProgress, 0, 100, 'Generating individual CSV files...')
-  const batch = generateMetadataForBatchCsv(
-    data,
-    stimulusIds,
-    participantIds,
-    filterCategoryIds,
-    options,
-    naming
-  )
-  const blob = await archiveBatch(batch, fileName, onProgress)
-  return { content: blob, extension: '.zip' }
-}
-
-/**
- * Builds a unified CSV of all event occurrences.
- */
-export async function buildEventUnifiedCsv(
-  data: DataType,
-  stimulusIds?: Set<string>,
-  participantIds?: Set<string>,
-  options?: CsvFormatOptions,
-  naming: ExportNaming = 'displayed',
-  onProgress?: ExportProgress
-): Promise<ExportPayload> {
-  await reportProgress(onProgress, 0, 100, 'Preparing event data...')
-  const csv = generateEventUnifiedCsv(data, stimulusIds, participantIds, options, naming)
-  return { content: csv, extension: '.csv' }
-}
-
-/**
- * Builds a ZIP of per-participant/stimulus event CSVs. `fileName` names the
- * zip entries, not the delivered file.
- */
-export async function buildEventBatchZip(
-  data: DataType,
-  fileName: string,
-  stimulusIds?: Set<string>,
-  participantIds?: Set<string>,
-  options?: CsvFormatOptions,
-  naming: ExportNaming = 'displayed',
-  onProgress?: ExportProgress
-): Promise<ExportPayload> {
-  await reportProgress(onProgress, 0, 100, 'Generating individual event CSV files...')
-  const batch = generateEventBatchCsv(data, stimulusIds, participantIds, options, naming)
-  const blob = await archiveBatch(batch, fileName, onProgress)
+  if (exportType === 'csv') {
+    await reportProgress(onProgress, 0, 100, `Preparing ${kind}data...`)
+    return { content: unified(), extension: '.csv' }
+  }
+  await reportProgress(onProgress, 0, 100, `Generating individual ${kind}CSV files...`)
+  const blob = await archiveBatch(batch(), fileName, onProgress)
   return { content: blob, extension: '.zip' }
 }
 

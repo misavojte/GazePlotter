@@ -44,8 +44,6 @@ class ProbeParser extends RowParser {
     )
     this.rows.push(cells.join('|') + ' H=' + hits.join(','))
   }
-
-  finalize(): void {}
 }
 
 /** The probe line the reference predicts for one row. */

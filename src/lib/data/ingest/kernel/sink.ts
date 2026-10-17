@@ -1,4 +1,5 @@
 import type { DataType, DatasetExclusionIssue, DatasetExclusionNotice } from '$lib/data/types'
+import { DEFAULT_NO_AOI_TREATMENT } from '$lib/data/types'
 import type { ParseSettings, SegmentRow } from '../types'
 import { SegmentWriter } from './segmentWriter'
 
@@ -273,4 +274,31 @@ export function mergeEvents(
     warnings.push(`${count} event(s) referenced unknown participant '${name}'`)
   }
   return warnings
+}
+
+/** A dataset with no stimuli, participants or segments; fresh objects per call. */
+export function blankDataset(): DataType {
+  return {
+    isOrdinalOnly: false,
+    capabilities: { segmented: false, spatial: false, event: false },
+    stimuli: { data: [], orderVector: [] },
+    participants: { data: [], orderVector: [] },
+    participantsSelections: [],
+    stimuliSelections: [],
+    categoriesSelections: [],
+    eventsSelections: [],
+    metricInstances: [],
+    categories: { data: [], orderVector: [] },
+    noAoiTreatment: { ...DEFAULT_NO_AOI_TREATMENT },
+    aois: { data: [], orderVector: [] },
+    segments: {
+      segmentBuffer: new Float32Array(0),
+      indexTable: new Uint32Array(0),
+      aoiPool: new Uint16Array(0),
+      hasSpatialData: false,
+      maxParticipants: 0,
+      stimuliCount: 0,
+    },
+    eventData: { data: [], orderVector: [], events: [] },
+  }
 }

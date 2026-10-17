@@ -2,13 +2,6 @@ import { RowParser } from './RowParser'
 import { bytesEqual, encodeString } from '$lib/data/ingest/utils/byteUtils'
 
 export class BeGazeRowParser extends RowParser {
-  cStart: number
-  cEnd: number
-  cStimulus: number
-  cParticipant: number
-  cCategory: number
-  cAoi: number
-
   private readonly pStart = 0
   private readonly pEnd = 1
   private readonly pStimulus = 2
@@ -31,21 +24,17 @@ export class BeGazeRowParser extends RowParser {
     this.dashBytes = encodeString('-', this.encoding)
     this.whiteSpaceBytes = encodeString('White Space', this.encoding)
     this.saccadeNameBytes = encodeString('Saccade', this.encoding)
-    this.cStart = this.getIndex(header, 'Event Start Trial Time [ms]')
-    this.cEnd = this.getIndex(header, 'Event End Trial Time [ms]')
-    this.cStimulus = this.getIndex(header, 'Stimulus')
-    this.cParticipant = this.getIndex(header, 'Participant')
-    this.cCategory = this.getIndex(header, 'Category')
-    this.cAoi = this.getIndex(header, 'AOI Name')
 
-    this.setupColumns([
-      this.cStart,
-      this.cEnd,
-      this.cStimulus,
-      this.cParticipant,
-      this.cCategory,
-      this.cAoi,
-    ])
+    this.setupColumns(
+      this.requireColumns(header, [
+        'Event Start Trial Time [ms]',
+        'Event End Trial Time [ms]',
+        'Stimulus',
+        'Participant',
+        'Category',
+        'AOI Name',
+      ])
+    )
   }
 
   protected override deserializeFromBytes(): void {
@@ -84,9 +73,5 @@ export class BeGazeRowParser extends RowParser {
       participantBytes,
       aoi
     )
-  }
-
-  finalize(): void {
-    return
   }
 }

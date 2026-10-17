@@ -289,16 +289,18 @@ export async function generateMetricExport(
   const refMissingMap = new Map<string, boolean>()
   const dataRows: string[][] = []
 
+  const relationalInstances = selectedInstances.filter(
+    inst => projectionOutputShape(inst.projection) === 'participant-pair-matrix'
+  )
+  const perParticipantInstances = selectedInstances.filter(
+    inst => projectionOutputShape(inst.projection) !== 'participant-pair-matrix'
+  )
+  let count = 0
+  const total = options.stimulusIds.length * options.participantIds.length
+
   if (options.format === 'long') {
     const cols = longFormatMetricColumns(selectedInstances)
     const { header } = cols
-
-    const relationalInstances = selectedInstances.filter(
-      inst => projectionOutputShape(inst.projection) === 'participant-pair-matrix'
-    )
-    const plainAndWindowedInstances = selectedInstances.filter(
-      inst => projectionOutputShape(inst.projection) !== 'participant-pair-matrix'
-    )
 
     // One row builder for every shape: the fixed key columns, then only the
     // coordinate columns this export reserves, then the metric/unit/value tail.
@@ -325,9 +327,6 @@ export async function generateMetricExport(
       row.push(label, unit, formatNumberForCsv(cell.value, decimalSeparator))
       dataRows.push(row)
     }
-
-    let count = 0
-    const total = options.stimulusIds.length * options.participantIds.length
 
     for (const stimulusId of options.stimulusIds) {
       const stimulusName = getStimulus(engine, stimulusId).displayedName
@@ -356,8 +355,8 @@ export async function generateMetricExport(
           timeEnd: Math.min(effectiveTimeEnd, participantEnd),
         }
 
-        const batchResult = queryBatch(plainAndWindowedInstances, scope)
-        for (const inst of plainAndWindowedInstances) {
+        const batchResult = queryBatch(perParticipantInstances, scope)
+        for (const inst of perParticipantInstances) {
           const result = batchResult.get(inst.id)
           if (!result) continue
           if (result.provenance.refMissing) refMissingMap.set(inst.id, true)
@@ -523,16 +522,6 @@ export async function generateMetricExport(
       wideHeader.push(colIdToHeader.get(col.id)!)
     }
 
-    const relationalWideInstances = selectedInstances.filter(
-      inst => projectionOutputShape(inst.projection) === 'participant-pair-matrix'
-    )
-    const perParticipantWideInstances = selectedInstances.filter(
-      inst => projectionOutputShape(inst.projection) !== 'participant-pair-matrix'
-    )
-
-    let count = 0
-    const total = options.stimulusIds.length * options.participantIds.length
-
     for (const stimulusId of options.stimulusIds) {
       const stimulus = getStimulus(engine, stimulusId)
       const stimulusName = stimulus.displayedName
@@ -546,7 +535,7 @@ export async function generateMetricExport(
         string,
         { matrix: number[]; size: number; indexByPid: Map<number, number> }
       >()
-      if (relationalWideInstances.length > 0) {
+      if (relationalInstances.length > 0) {
         const groupScope: GroupScope = {
           engine,
           stimulusId,
@@ -554,7 +543,7 @@ export async function generateMetricExport(
           timeStart,
           timeEnd: effectiveTimeEnd,
         }
-        for (const inst of relationalWideInstances) {
+        for (const inst of relationalInstances) {
           const result = queryGroup(inst, groupScope)
           if (result.shape !== 'participant-pair-matrix') continue
           if (result.provenance.refMissing) refMissingMap.set(inst.id, true)
@@ -586,9 +575,9 @@ export async function generateMetricExport(
         // Scatter each per-participant result's cells into their column by id.
         // A union column with no matching cell this stimulus (AOI absent here)
         // stays empty. Wide forbids windowing, so no result carries a window.
-        const batchResult = queryBatch(perParticipantWideInstances, scope)
+        const batchResult = queryBatch(perParticipantInstances, scope)
         const cellByCol = new Map<string, number>()
-        for (const inst of perParticipantWideInstances) {
+        for (const inst of perParticipantInstances) {
           const result = batchResult.get(inst.id)
           if (!result) continue
           if (result.provenance.refMissing) refMissingMap.set(inst.id, true)
