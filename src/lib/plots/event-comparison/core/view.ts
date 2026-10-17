@@ -1,6 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotView } from '$lib/plots/definePlot'
-import { resolvePickedInstance } from '$lib/plots/shared'
 import {
   deriveDistributionFigure,
   type DistributionDisclosures,
@@ -25,10 +24,5 @@ export function deriveEventComparisonView(
   engine: DataEngine,
   settings: EventComparisonSettings
 ): PlotView {
-  return deriveDistributionFigure(
-    getEventComparisonData(engine, settings),
-    resolvePickedInstance(engine, settings.metricInstanceIds),
-    settings,
-    EVENT_DISCLOSURES
-  )
+  return deriveDistributionFigure(engine, getEventComparisonData(engine, settings), settings, EVENT_DISCLOSURES)
 }

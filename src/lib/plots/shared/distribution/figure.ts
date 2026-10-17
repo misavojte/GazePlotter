@@ -1,5 +1,5 @@
-import type { MetricInstance } from '$lib/metrics'
 import type { PlotView } from '$lib/plots/definePlot'
+import { resolvePickedInstance, type MetricResolutionEngine } from '$lib/plots/shared/metricResolver'
 import {
   BeeswarmFigure,
   buildBeeswarmFigureProps,
@@ -31,11 +31,12 @@ export interface DistributionDisclosures {
  * and nowhere else: this stays the only file that names a figure component.
  */
 export function deriveDistributionFigure(
+  engine: MetricResolutionEngine,
   result: DistributionResult,
-  instance: MetricInstance | null | undefined,
-  settings: BeeswarmFigureSettings,
+  settings: BeeswarmFigureSettings & { metricInstanceIds: readonly string[] },
   disclosures: DistributionDisclosures
 ): PlotView {
+  const instance = resolvePickedInstance(engine, settings.metricInstanceIds)
   return {
     component: BeeswarmFigure,
     props: buildBeeswarmFigureProps(

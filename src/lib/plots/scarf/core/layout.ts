@@ -12,6 +12,7 @@ import {
 } from '$lib/plots/shared'
 import { calculateTextMetrics } from '$lib/shared/textMeasure'
 import { SCARF_LAYOUT } from '../const'
+import type { ScarfStyling } from '../types'
 
 /**
  * The scarf's frame declaration: the left label column and the right margin as
@@ -305,48 +306,19 @@ export function getXAxisLabel(
   return withQualifiers(quantity, timeRangeQualifier(timelineStart, timelineEnd))
 }
 /**
- * Creates a unified identifier mapping system for Scarf Plots.
+ * Creates a unified identifier mapping system for Scarf Plots, indexed in
+ * style order (AOIs, categories, events); empty without styling.
  */
-export function getScarfIdentifierSystem(
-  aoiIdentifiers: string[],
-  categoryIdentifiers: string[],
-  eventIdentifiers: string[]
-) {
+export function getScarfIdentifierSystem(styling?: ScarfStyling) {
   const idToIndex = new Map<string, number>()
   const indexToId = new Map<number, string>()
-  const idToType = new Map<string, 'aoi' | 'category' | 'event'>()
-
+  const items = styling ? [...styling.aoi, ...styling.category, ...styling.event] : []
   let idx = 0
-
-  for (const id of aoiIdentifiers) {
-    indexToId.set(idx, id)
-    idToIndex.set(id, idx++)
-    idToType.set(id, 'aoi')
+  for (const { identifier } of items) {
+    indexToId.set(idx, identifier)
+    idToIndex.set(identifier, idx++)
   }
-
-  for (const id of categoryIdentifiers) {
-    indexToId.set(idx, id)
-    idToIndex.set(id, idx++)
-    idToType.set(id, 'category')
-  }
-
-  for (const id of eventIdentifiers) {
-    indexToId.set(idx, id)
-    idToIndex.set(id, idx++)
-    idToType.set(id, 'event')
-  }
-
-  return {
-    idToIndex,
-    indexToId,
-    idToType,
-    totalIdentifiers: idx,
-    counts: {
-      aoi: aoiIdentifiers.length,
-      category: categoryIdentifiers.length,
-      event: eventIdentifiers.length,
-    },
-  }
+  return { idToIndex, indexToId, totalIdentifiers: idx }
 }
 
 /**

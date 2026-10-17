@@ -193,6 +193,14 @@ export type SectionFieldCtx = {
   update: (patch: Record<string, unknown>) => void
 }
 
+/** `showWhen` gate: every edited plot reads `value` through `read`. */
+export const commonIs =
+  (read: (settings: any, ctx: SectionFieldCtx) => unknown, value: unknown) =>
+  (ctx: SectionFieldCtx) => {
+    const c = ctx.common(s => read(s, ctx))
+    return !c.mixed && c.value === value
+  }
+
 /** An edit-link rendered under a field's control (e.g. "Edit stimulus library"). */
 export type SectionFieldAction = {
   label: string

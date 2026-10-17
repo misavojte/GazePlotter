@@ -8,12 +8,15 @@ import type { StatisticalOverlayType } from './types'
  * labels cannot drift between them. The section that arranges these controls is
  * `distributionVisualizationSection`.
  */
-export const OVERLAY_OPTIONS = [
-  { label: 'None', value: 'none' },
-  { label: 'Mean ± 95% CI', value: 'meanCi95' },
-  { label: 'Mean ± SD', value: 'meanSd' },
-  { label: 'Boxplot', value: 'boxplot' },
-]
+const OVERLAYS = [
+  // value, pane option, pane-summary abbreviation, the statistic as a mid-dot qualifier (never brackets)
+  { value: 'none', label: 'None', summary: 'No overlay', statistic: null },
+  { value: 'meanCi95', label: 'Mean ± 95% CI', summary: 'M ± 95% CI', statistic: 'mean ± 95% CI' },
+  { value: 'meanSd', label: 'Mean ± SD', summary: 'M ± SD', statistic: 'mean ± SD' },
+  { value: 'boxplot', label: 'Boxplot', summary: 'Boxplot', statistic: 'median, IQR' },
+] as const
+const overlayRow = (overlay: string) => OVERLAYS.find(o => o.value === overlay)
+export const OVERLAY_OPTIONS = OVERLAYS.map(({ label, value }) => ({ label, value }))
 export const ORIENTATION_OPTIONS = [
   { label: 'Horizontal', value: 'horizontal' },
   { label: 'Vertical', value: 'vertical' },
@@ -23,32 +26,9 @@ export const DIRECTION_OPTIONS = [
   { label: 'DESC', value: 'desc' },
 ]
 
-/** The overlay's pane-summary abbreviation, shared like the options above. */
-export function overlaySummaryLabel(overlay: string): string {
-  return overlay === 'none'
-    ? 'No overlay'
-    : overlay === 'meanCi95'
-      ? 'M ± 95% CI'
-      : overlay === 'meanSd'
-        ? 'M ± SD'
-        : 'Boxplot'
-}
-
-/** The statistic an overlay summarises, as a mid-dot qualifier (never brackets). */
-export function statisticQualifier(
-  overlay: StatisticalOverlayType
-): string | null {
-  switch (overlay) {
-    case 'meanSd':
-      return 'mean ± SD'
-    case 'meanCi95':
-      return 'mean ± 95% CI'
-    case 'boxplot':
-      return 'median, IQR'
-    default:
-      return null
-  }
-}
+export const overlaySummaryLabel = (overlay: string): string => overlayRow(overlay)?.summary ?? 'Boxplot'
+export const statisticQualifier = (overlay: StatisticalOverlayType): string | null =>
+  overlayRow(overlay)?.statistic ?? null
 
 /**
  * Value-axis label for a distribution figure, in the shared label grammar:

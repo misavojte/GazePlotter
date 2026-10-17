@@ -5,10 +5,7 @@ import {
   type GroupScope,
   type PlotMetricContract,
 } from '$lib/metrics'
-import {
-  asAoiPairMatrix,
-  resolveMetric,
-} from '$lib/plots/shared'
+import { asShape, resolveMetric } from '$lib/plots/shared'
 import type { TransitionMatrixData } from '../types'
 
 const CONTRACT = { outputShape: 'aoi-pair-matrix', windowing: 'forbidden', crossParticipant: 'reduce' } as const satisfies PlotMetricContract
@@ -57,7 +54,7 @@ export function getTransitionMatrixData(
     timeEnd,
     aoiSelectionId,
   }
-  const result = asAoiPairMatrix(queryGroup(resolved.instance, scope))
+  const result = asShape(queryGroup(resolved.instance, scope), 'aoi-pair-matrix')
   let rawMatrix = result ? Float64Array.from(result.matrix) : new Float64Array(0)
 
   if (hideNoAoi && rawMatrix.length > 0) {

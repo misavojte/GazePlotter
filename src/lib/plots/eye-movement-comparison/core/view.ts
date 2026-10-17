@@ -1,6 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotView } from '$lib/plots/definePlot'
-import { resolvePickedInstance } from '$lib/plots/shared'
 import {
   deriveDistributionFigure,
   type DistributionDisclosures,
@@ -25,10 +24,5 @@ export function deriveEyeMovementComparisonView(
   engine: DataEngine,
   settings: EyeMovementComparisonSettings
 ): PlotView {
-  return deriveDistributionFigure(
-    getEyeMovementComparisonData(engine, settings),
-    resolvePickedInstance(engine, settings.metricInstanceIds),
-    settings,
-    TYPE_DISCLOSURES
-  )
+  return deriveDistributionFigure(engine, getEyeMovementComparisonData(engine, settings), settings, TYPE_DISCLOSURES)
 }

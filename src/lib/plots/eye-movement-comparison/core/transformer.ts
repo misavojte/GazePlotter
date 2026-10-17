@@ -4,6 +4,7 @@ import { categoryGroups, type PlotMetricContract } from '$lib/metrics'
 import {
   collectDistribution,
   distributionParticipants,
+  entitySlots,
   type DistributionAxis,
   type DistributionResult,
 } from '$lib/plots/shared/distribution'
@@ -75,11 +76,7 @@ function typeAxis(
   )
 
   return {
-    slots: kept.map(type => ({
-      slot: type.slot,
-      label: type.displayedName,
-      color: type.color,
-    })),
+    slots: entitySlots(kept),
     ...distributionParticipants(engine, settings),
   }
 }

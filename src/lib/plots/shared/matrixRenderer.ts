@@ -180,24 +180,19 @@ function shouldSkipLabel(
   return false
 }
 
-function getCompactLabel(
-  index: number,
-  count: number,
-  layout: MatrixLayout,
-  hasLastRowSentinel: boolean
-): string {
-  if (hasLastRowSentinel && index === count - 1) return 'Ø'
-  return layout.isUltraCompactMode ? index.toString() : (index + 1).toString()
+/** Compact: the index (Ø for the sentinel last entry); else the label truncated to its budget. */
+function axisLabelText(config: MatrixRenderConfig, labels: readonly string[], i: number): string {
+  const { layout } = config
+  if (!layout.isCompactMode) {
+    return truncateTextToPixelWidth(labels[i], config.maxLabelLength, layout.fontSize, SYSTEM_SANS_SERIF_SMALL_STACK, '...')
+  }
+  if (config.hasLastRowSentinel && i === labels.length - 1) return 'Ø'
+  return layout.isUltraCompactMode ? i.toString() : (i + 1).toString()
 }
 
-function drawMatrixRowLabels(
-  ctx: CanvasRenderingContext2D,
-  config: MatrixRenderConfig,
-  labelFontSize: number
-) {
+function drawMatrixRowLabels(ctx: CanvasRenderingContext2D, config: MatrixRenderConfig) {
   const { layout, rowLabels } = config
   if (!layout.showAxisLabels) return
-  const hasLastRowSentinel = config.hasLastRowSentinel ?? false
 
   ctx.textAlign = 'end'
   ctx.textBaseline = 'middle'
@@ -216,28 +211,13 @@ function drawMatrixRowLabels(
       ctx.stroke()
     }
 
-    const labelText = layout.isCompactMode
-      ? getCompactLabel(row, rowLabels.length, layout, hasLastRowSentinel)
-      : truncateTextToPixelWidth(
-          rowLabels[row],
-          config.maxLabelLength,
-          labelFontSize,
-          SYSTEM_SANS_SERIF_SMALL_STACK,
-          '...'
-        )
-
-    ctx.fillText(labelText, x, y)
+    ctx.fillText(axisLabelText(config, rowLabels, row), x, y)
   }
 }
 
-function drawMatrixColumnLabels(
-  ctx: CanvasRenderingContext2D,
-  config: MatrixRenderConfig,
-  labelFontSize: number
-) {
+function drawMatrixColumnLabels(ctx: CanvasRenderingContext2D, config: MatrixRenderConfig) {
   const { layout, colLabels } = config
   if (!layout.showAxisLabels) return
-  const hasLastRowSentinel = config.hasLastRowSentinel ?? false
 
   ctx.textAlign = 'left'
   ctx.textBaseline = 'middle'
@@ -265,17 +245,7 @@ function drawMatrixColumnLabels(
       ctx.textBaseline = 'bottom'
     }
 
-    const labelText = layout.isCompactMode
-      ? getCompactLabel(col, colLabels.length, layout, hasLastRowSentinel)
-      : truncateTextToPixelWidth(
-          colLabels[col],
-          config.maxLabelLength,
-          labelFontSize,
-          SYSTEM_SANS_SERIF_SMALL_STACK,
-          '...'
-        )
-
-    ctx.fillText(labelText, 0, 0)
+    ctx.fillText(axisLabelText(config, colLabels, col), 0, 0)
     ctx.restore()
   }
 }
@@ -298,8 +268,8 @@ export function renderMatrixContent(
   setUpFont(ctx)
   drawMatrixAxisLabels(ctx, config)
   ctx.font = `${config.layout.fontSize}px ${SYSTEM_SANS_SERIF_SMALL_STACK}`
-  drawMatrixRowLabels(ctx, config, config.layout.fontSize)
-  drawMatrixColumnLabels(ctx, config, config.layout.fontSize)
+  drawMatrixRowLabels(ctx, config)
+  drawMatrixColumnLabels(ctx, config)
   if (!config.drawCells) drawMatrixCellsText(ctx, config)
 }
 

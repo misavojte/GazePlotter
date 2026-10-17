@@ -1,6 +1,6 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotView, PlotViewContext } from '$lib/plots/definePlot'
-import { getParticipants, getParticipantEndTime } from '$lib/data/engine'
+import { getGroupMaxEndTime } from '$lib/data/engine'
 import { resolveColumnBudget } from '$lib/plots/shared/displayBudget'
 import { calculatePlotWidthPx } from '$lib/plots/shared/plotSizeUtility'
 import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid/const'
@@ -23,10 +23,7 @@ function computeEvolvingData(
   const timelineMax =
     (settings.timelineEnd ?? 0) > 0
       ? settings.timelineEnd!
-      : getParticipants(engine, settings.groupId, settings.stimulusId).reduce(
-          (max, p) => Math.max(max, getParticipantEndTime(engine, settings.stimulusId, p.id)),
-          0
-        )
+      : getGroupMaxEndTime(engine, settings.groupId, settings.stimulusId)
   const plotWidthPx =
     ctx && ctx.itemWidth > 0
       ? calculatePlotWidthPx(ctx.itemWidth, DEFAULT_GRID_CONFIG)

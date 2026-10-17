@@ -178,6 +178,15 @@ export interface FrameHit<THit = unknown> {
   data?: THit
 }
 
+/** A track-only hit: hover state and cursor, no tooltip. */
+export const trackOnlyHit = <THit>(data?: THit, cursor?: string): FrameHit<THit> => ({
+  content: [],
+  anchorX: 0,
+  anchorY: 0,
+  cursor,
+  data,
+})
+
 export interface FramePointer {
   x: number
   y: number

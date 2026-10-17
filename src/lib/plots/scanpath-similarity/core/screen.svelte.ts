@@ -1,8 +1,6 @@
-import { untrack } from 'svelte'
 import type { PlotScreenFactory } from '$lib/plots/definePlot'
-import { toggleInArray } from '$lib/plots/shared'
+import { toggleSettingEntry } from '$lib/plots/shared'
 import { plotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
-import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 import type { ScanpathSimilaritySettings } from '../types'
 
 /**
@@ -17,10 +15,6 @@ import type { ScanpathSimilaritySettings } from '../types'
 export const scanpathSimilarityScreen: PlotScreenFactory<
   ScanpathSimilaritySettings
 > = ctx => {
-  const source = untrack(() =>
-    createCommandSourcePlotPattern(ctx.item, 'plot')
-  )
-
   // No time axis here, so no time scope.
   const plotCursor = plotCursorPort(ctx.item.id)
 
@@ -28,17 +22,7 @@ export const scanpathSimilarityScreen: PlotScreenFactory<
     const ids = (ctx.view()?.props as { participantIds?: number[] } | undefined)
       ?.participantIds
     const pid = ids?.[nodeIndex]
-    if (pid === undefined) return
-    ctx.workspace.updateItemSettings(
-      ctx.item.id,
-      {
-        highlightedParticipants: toggleInArray(
-          ctx.item.settings.highlightedParticipants ?? [],
-          pid
-        ),
-      },
-      source
-    )
+    if (pid !== undefined) toggleSettingEntry(ctx, 'highlightedParticipants', pid)
   }
 
   return {

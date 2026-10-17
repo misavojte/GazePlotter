@@ -1,4 +1,5 @@
 import type {
+  DefaultPlotParams,
   SchemaPaneSectionEntry,
   SectionFieldCtx,
   SectionFieldOption,
@@ -10,6 +11,18 @@ import {
   OVERLAY_OPTIONS,
   overlaySummaryLabel,
 } from './labels'
+
+/** The default settings every distribution plot shares; fresh per call (scaleRange is mutable). */
+export const distributionDefaults = (params: DefaultPlotParams) => ({
+  stimulusId: params.stimulusId ?? 0,
+  groupId: params.groupId ?? -1,
+  orientation: 'horizontal' as const,
+  orderDirection: 'asc' as const,
+  scaleRange: [0, 0] as [number, number],
+  statisticalOverlay: 'meanCi95' as const,
+  timelineStart: 0,
+  timelineEnd: 0,
+})
 
 /**
  * THE "Visualization" pane section for every plot that draws a distribution —

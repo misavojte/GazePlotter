@@ -1,6 +1,6 @@
 import { deriveEvolvingMetricsView } from './core/view'
 import { evolvingMetricsScreen } from './core/screen.svelte'
-import { definePlot } from '$lib/plots/definePlot'
+import { commonIs, definePlot } from '$lib/plots/definePlot'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import type { EvolvingMetricsSettings } from './types'
@@ -35,10 +35,7 @@ export const evolvingMetricsDefinition = definePlot<
           key: 'colorScale',
           defaultMin: PRESET_PALETTES.HEAT.colors[0],
           defaultMax: PRESET_PALETTES.HEAT.colors[2],
-          showWhen: ctx => {
-            const p = ctx.common(s => s.presentation ?? 'heatmap')
-            return !p.mixed && p.value === 'heatmap'
-          },
+          showWhen: commonIs(s => s.presentation ?? 'heatmap', 'heatmap'),
         },
       ],
     },

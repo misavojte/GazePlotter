@@ -5,7 +5,7 @@ import {
   createMockEngine,
   createMockGridStore,
 } from './helpers/workspaceCommandFixtures'
-import { groupCategoriesByDisplayedName } from '$lib/plots/scarf/core/transformer'
+import { groupByDisplayedName } from '$lib/data/engine/utils/grouping'
 
 const engineMocks = vi.hoisted(() => ({
   updateCategories: vi.fn(),
@@ -136,7 +136,7 @@ describe('category grouping', () => {
       { id: 2, originalName: 'Blink', displayedName: 'Saccadic Movement', color: '#00ff00' },
       { id: 3, originalName: 'EyesNotFound', displayedName: 'EyesNotFound', color: '#0000ff' },
     ]
-    const grouped = groupCategoriesByDisplayedName(categories)
+    const grouped = groupByDisplayedName(categories)
     expect(grouped.length).toBe(2)
     expect(grouped[0].displayedName).toBe('Saccadic Movement')
     expect(grouped[0].memberIds).toEqual([1, 2])

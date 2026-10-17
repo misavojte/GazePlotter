@@ -1,6 +1,6 @@
 import type { ComponentProps } from 'svelte'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import { MatrixPlotFigure, resolvePickedInstance, type CanvasExportProps } from '$lib/plots/shared'
+import { formatCompact, MatrixPlotFigure, resolvePickedInstance, type CanvasExportProps } from '$lib/plots/shared'
 import type { PlotView } from '$lib/plots/definePlot'
 import { METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
 import { getTransitionMatrixData } from './transformer'
@@ -8,33 +8,24 @@ import { colorScaleToKey } from './sync.svelte'
 import { getLegendTitle, TRANSITION_MATRIX_DEFAULTS } from '../const'
 import type { TransitionMatrixPlotSettings } from '../types'
 
-export type TransitionFigureProps = Omit<
-  ComponentProps<typeof MatrixPlotFigure>,
-  keyof CanvasExportProps
->
-
-export interface TransitionView {
-  props: TransitionFigureProps
-  /** Unsynced data maximum — the on-screen container uses it for color sync. */
+/** Screen-coordination surface carried on the view for the screen recipe. */
+export type TransitionViewMeta = {
+  /** Unsynced data maximum: the on-screen container uses it for color sync. */
   ownDataMax: number
   syncGroupKey: string
   colorScaleKey: string
   isDefaultColorRange: boolean
-  currentStimulusColorRange: [number, number]
 }
 
-const formatCellValue = (v: number) =>
-  Number.isInteger(v) ? v.toString() : v.toFixed(1)
-
 /**
- * Single source of truth for "what a transition matrix draws". `props.colorValueRange`
- * is the UNSYNCED per-stimulus range; the on-screen container may swap in a
- * synced range (export never syncs).
+ * Single source of truth for "what a transition matrix draws", screen and export.
+ * `props.colorValueRange` is the UNSYNCED per-stimulus range; the on-screen
+ * container may swap in a synced range (export never syncs).
  */
-export function getTransitionView(
+export function deriveTransitionMatrixView(
   engine: DataEngine,
   settings: TransitionMatrixPlotSettings
-): TransitionView {
+): PlotView {
   const transitionData = getTransitionMatrixData(
     engine,
     settings.stimulusId,
@@ -57,6 +48,7 @@ export function getTransitionView(
   ownDataMax = Math.ceil(ownDataMax)
 
   return {
+    component: MatrixPlotFigure,
     props: {
       matrix,
       labels: aoiLabels,
@@ -73,7 +65,7 @@ export function getTransitionView(
       showBelowMinLabels: settings.showBelowMinLabels,
       showAboveMaxLabels: settings.showAboveMaxLabels,
       hasLastRowSentinel: true,
-      formatCellValue,
+      formatCellValue: formatCompact,
       legendTitle: getLegendTitle(
         resolvedInstance,
         settings.hideNoAoi ?? false,
@@ -95,28 +87,13 @@ export function getTransitionView(
           { key: 'Value', value: Number.isFinite(value) ? value.toString() : '—' },
         ]
       },
-    },
-    ownDataMax,
-    syncGroupKey: String(resolvedInstance?.id ?? 'none'),
-    colorScaleKey: colorScaleToKey(effectiveColorScale),
-    isDefaultColorRange:
-      currentStimulusColorRange[0] === 0 && currentStimulusColorRange[1] === 0,
-    currentStimulusColorRange,
-  }
-}
-
-/** Screen-coordination surface carried on the view for the screen recipe. */
-export type TransitionViewMeta = Omit<TransitionView, 'props'>
-
-/** The `definePlot` view entry — the single derivation for screen and export. */
-export function deriveTransitionMatrixView(
-  engine: DataEngine,
-  settings: TransitionMatrixPlotSettings
-): PlotView {
-  const { props, ...meta } = getTransitionView(engine, settings)
-  return {
-    component: MatrixPlotFigure,
-    props: props as Record<string, unknown>,
-    meta: meta satisfies TransitionViewMeta,
+    } satisfies Omit<ComponentProps<typeof MatrixPlotFigure>, keyof CanvasExportProps>,
+    meta: {
+      ownDataMax,
+      syncGroupKey: String(resolvedInstance?.id ?? 'none'),
+      colorScaleKey: colorScaleToKey(effectiveColorScale),
+      isDefaultColorRange:
+        currentStimulusColorRange[0] === 0 && currentStimulusColorRange[1] === 0,
+    } satisfies TransitionViewMeta,
   }
 }

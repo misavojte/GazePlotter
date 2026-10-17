@@ -8,7 +8,7 @@ import {
   type MetricInstance,
   type Scope,
 } from '$lib/metrics'
-import { asScalar, buildMetricLabel } from '$lib/plots/shared'
+import { asShape, buildMetricLabel } from '$lib/plots/shared'
 import type {
   CorrelationCell,
   CorrelationPoint,
@@ -67,7 +67,7 @@ export function getMetricCorrelationData(
     const results = queryBatch(instances, pScope)
     for (let mIdx = 0; mIdx < metrics.length; mIdx++) {
       const result = results.get(instances[mIdx].id)
-      const scalar = result ? asScalar(result) : null
+      const scalar = result ? asShape(result, 'scalar') : null
       vectors[mIdx].values[p] = scalar?.value ?? Number.NaN
     }
   }

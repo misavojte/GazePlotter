@@ -13,7 +13,7 @@ import {
   getParticipantOrderVector,
   getStimuli,
 } from './entitySelectors'
-import { getNumberOfSegments } from './segmentSelectors'
+import { getNumberOfSegments, getParticipantEndTime } from './segmentSelectors'
 
 export const getParticipantsSelections = (
   engine: DataEngine,
@@ -163,6 +163,20 @@ export const getParticipantsIds = (
   if (!selection) return order
   const memberSet = new Set(selection.participantsIds)
   return order.filter(id => memberSet.has(id))
+}
+
+/** Latest end time on a stimulus across a participants SELECTION's members. */
+export const getGroupMaxEndTime = (
+  engine: DataEngine,
+  selectionId: number,
+  stimulusId: number
+): number => {
+  let max = 0
+  for (const id of getParticipantsIds(engine, selectionId, stimulusId)) {
+    const t = getParticipantEndTime(engine, stimulusId, id)
+    if (t > max) max = t
+  }
+  return max
 }
 
 /** {@link getParticipantsIds}, resolved to the participant rows. */

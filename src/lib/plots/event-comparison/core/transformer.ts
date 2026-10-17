@@ -4,6 +4,7 @@ import { eventGroups, type PlotMetricContract } from '$lib/metrics'
 import {
   collectDistribution,
   distributionParticipants,
+  entitySlots,
   type DistributionAxis,
   type DistributionResult,
 } from '$lib/plots/shared/distribution'
@@ -74,11 +75,7 @@ function channelAxis(
   const kept = names ? axis.filter(g => names.has(g.displayedName)) : axis
 
   return {
-    slots: kept.map(channel => ({
-      slot: channel.slot,
-      label: channel.displayedName,
-      color: channel.color,
-    })),
+    slots: entitySlots(kept),
     ...distributionParticipants(engine, settings),
   }
 }

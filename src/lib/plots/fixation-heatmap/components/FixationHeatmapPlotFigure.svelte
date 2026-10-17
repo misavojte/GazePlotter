@@ -2,7 +2,8 @@
   import {
     usePlot,
     canvasBlockSelect,
-    createScratchLayer,
+    pixelLayer,
+    trackOnlyHit,
     strokeCrosshairRing,
     bottomGradientLegendGeometry,
     drawGradientLegend,
@@ -13,7 +14,7 @@
     type CanvasExportProps,
     type FrameHit,
     type PlotFrame,
-    type ScratchLayer,
+    type PixelLayer,
   } from '$lib/plots/shared'
   import type { PlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
   import type { PlotPlaceholderContent } from '$lib/plots/shared/drawCanvasPlaceholder'
@@ -149,21 +150,15 @@
 
   // ── Cached heat texture: one pixel per grid cell, rebuilt only when the data
   // or its colouring changes; resizes just re-blit it (the recurrence pattern).
-  let tex: ScratchLayer | null = null
-  let texImage: ImageData | null = null
+  let tex: PixelLayer | null = null
   let texKey: { data: FixationHeatmapData; lut: Uint32Array; top: number } | null = null
 
-  function heatTexture(d: FixationHeatmapData): ScratchLayer | null {
+  function heatTexture(d: FixationHeatmapData): PixelLayer | null {
     if (texKey && texKey.data === d && texKey.lut === lut && texKey.top === scaleTop && tex) return tex
-    const { cols, rows } = d.grid
-    if (!tex || tex.canvas.width !== cols || tex.canvas.height !== rows) {
-      tex = createScratchLayer(cols, rows)
-      if (!tex) return null
-      texImage = tex.ctx.createImageData(cols, rows)
-    }
-    if (!texImage) return null
-    paintHeat(d.values, scaleTop, lut, new Uint32Array(texImage.data.buffer))
-    tex.ctx.putImageData(texImage, 0, 0)
+    tex = pixelLayer(tex, d.grid.cols, d.grid.rows)
+    if (!tex) return null
+    paintHeat(d.values, scaleTop, lut, tex.pixels)
+    tex.ctx.putImageData(tex.image, 0, 0)
     texKey = { data: d, lut, top: scaleTop }
     return tex
   }
@@ -395,8 +390,7 @@
     hitTest: (x, y, frame): FrameHit<HeatmapHit> | null => {
       if (!data) return null
       const cell = cellAt(x, y, frame)
-      const none = { content: [], anchorX: 0, anchorY: 0, data: { cell } }
-      if (cell < 0 || !(data.values[cell] > 0)) return none
+      if (cell < 0 || !(data.values[cell] > 0)) return trackOnlyHit({ cell })
       const c = cellCentre(cell, frame)
       return {
         content: cellInfo(data, cell).rows,

@@ -1,6 +1,6 @@
 import { definePlot } from '$lib/plots/definePlot'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
-import { distributionVisualizationSection } from '$lib/plots/shared/distribution/paneSection'
+import { distributionDefaults, distributionVisualizationSection } from '$lib/plots/shared/distribution/paneSection'
 import { EYE_MOVEMENT_COMPARISON_CONTRACT } from './core/transformer'
 import { deriveEyeMovementComparisonView } from './core/view'
 import type { EyeMovementComparisonSettings } from './types'
@@ -40,16 +40,9 @@ export const eyeMovementComparisonDefinition = definePlot<
   view: { deriveView: deriveEyeMovementComparisonView },
   getSubtitle: stimulusGroupSubtitle,
   getDefaultSettings: (params = {}) => ({
-    stimulusId: params.stimulusId ?? 0,
-    groupId: params.groupId ?? -1,
+    ...distributionDefaults(params),
     metricInstanceIds: ['movementDuration'],
-    orientation: 'horizontal',
     orderBy: 'type',
-    orderDirection: 'asc',
-    scaleRange: [0, 0],
-    statisticalOverlay: 'meanCi95',
-    timelineStart: 0,
-    timelineEnd: 0,
   }),
   requireCapabilities: ['segmented'],
   consumesMetrics: EYE_MOVEMENT_COMPARISON_CONTRACT,

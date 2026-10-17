@@ -1,12 +1,8 @@
 import type { PlotScreenFactory, PlotView } from '$lib/plots/definePlot'
 import { usePlotSync } from '$lib/plots/shared/PlotSyncRegistry.svelte'
-import {
-  getParticipants,
-  getParticipantEndTime,
-} from '$lib/data/engine'
-import { toggleInArray } from '$lib/plots/shared'
+import { getGroupMaxEndTime } from '$lib/data/engine'
+import { toggleSettingEntry } from '$lib/plots/shared'
 import { plotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
-import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 import { computeMTop } from './ridgeline'
 import {
   aoiStreamTimelineSync,
@@ -42,12 +38,7 @@ export const aoiStreamScreen: PlotScreenFactory<AoiStreamPlotSettings> = ctx => 
     void ctx.item.redrawTimestamp
     if (!isFullyAuto) return 0
     const s = ctx.item.settings
-    let max = 0
-    for (const p of getParticipants(ctx.engine, s.groupId, s.stimulusId)) {
-      const v = getParticipantEndTime(ctx.engine, s.stimulusId, p.id)
-      if (v > max) max = v
-    }
-    return max
+    return getGroupMaxEndTime(ctx.engine, s.groupId, s.stimulusId)
   })
 
   const timelineSync = aoiStreamTimelineSync()
@@ -90,18 +81,8 @@ export const aoiStreamScreen: PlotScreenFactory<AoiStreamPlotSettings> = ctx => 
     }
   )
 
-  const handleLegendClick = (aoiId: number) => {
-    ctx.workspace.updateItemSettings(
-      ctx.item.id,
-      {
-        highlights: toggleInArray(
-          ctx.item.settings.highlights ?? [],
-          aoiId.toString()
-        ),
-      },
-      createCommandSourcePlotPattern(ctx.item, 'plot')
-    )
-  }
+  const handleLegendClick = (aoiId: number) =>
+    toggleSettingEntry(ctx, 'highlights', aoiId.toString())
 
   return {
     // Screen settings: the synced timeline max merged in. Export derives from

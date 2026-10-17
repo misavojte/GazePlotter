@@ -1,14 +1,10 @@
-import {
-  getAois,
-  getParticipantsIds,
-  getParticipantEndTime,
-} from '$lib/data/engine'
+import { getAois, getGroupMaxEndTime, getParticipantsIds } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
 import { buildMetricLabel } from '$lib/plots/shared/labels'
 import { resolveDisplayStride, DEFAULT_MAX_COLUMNS } from '$lib/plots/shared/displayBudget'
 import {
-  asAoiVectorTimeseries,
+  asShape,
   resolveMetric,
 } from '$lib/plots/shared'
 import {
@@ -101,13 +97,8 @@ export function getAoiStreamPlotData(
   const participantIds = getParticipantsIds(engine, groupId, stimulusId)
   if (participantIds.length === 0) return emptyAoiStreamResult()
 
-  let maxTime = 0
-  for (let i = 0; i < participantIds.length; i++) {
-    const t = getParticipantEndTime(engine, stimulusId, participantIds[i])
-    if (t > maxTime) maxTime = t
-  }
   const timelineMin = settings.timelineMin ?? 0
-  const timelineMax = settings.timelineMax ?? maxTime
+  const timelineMax = settings.timelineMax ?? getGroupMaxEndTime(engine, groupId, stimulusId)
   const timeStart = timelineMin
   const timeEnd = Math.max(timelineMin + windowSize, timelineMax)
 
@@ -152,7 +143,7 @@ export function getAoiStreamPlotData(
             inner: (instance.projection as WindowedProjection).inner,
           },
         }
-  const result = asAoiVectorTimeseries(queryGroup(effInstance, groupScope))
+  const result = asShape(queryGroup(effInstance, groupScope), 'aoi-vector-timeseries')
   if (!result) return emptyAoiStreamResult(true)
 
   // Reshape the library's per-window aoi-vectors into per-AOI time series.

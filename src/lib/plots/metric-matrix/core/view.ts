@@ -1,6 +1,6 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotView } from '$lib/plots/definePlot'
-import { MatrixPlotFigure } from '$lib/plots/shared'
+import { formatCompact, MatrixPlotFigure } from '$lib/plots/shared'
 import { METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
 import { resolvePickedInstance } from '$lib/plots/shared'
 import { INACTIVE_COLOR } from '$lib/color/palettes'
@@ -15,10 +15,6 @@ const STATE_LABEL: Record<Exclude<CellState, null>, string> = {
   'aoi-not-present': 'AOI not defined on this stimulus',
   'not-computable': 'Present with fixations, value not computable',
 }
-
-/** Legend value formatting: integers bare, else one decimal. */
-const formatCellValue = (v: number): string =>
-  Number.isInteger(v) ? String(v) : v.toFixed(1)
 
 /**
  * Single source of truth for "what a metric matrix draws" — a `MatrixPlotFigure`
@@ -80,7 +76,7 @@ export function deriveMetricMatrixView(
         'Or extend the plot',
       ],
       tooltipWidth: 240,
-      formatCellValue,
+      formatCellValue: formatCompact,
       getCellTooltip: (row: number, col: number) => buildTooltip(data, row, col),
     },
   }
@@ -97,7 +93,7 @@ function buildTooltip(
     { key: 'Participant', value: data.rows[row]?.label ?? '' },
     { key: 'Stimulus', value: data.cols[col]?.label ?? '' },
     st === null
-      ? { key: 'Value', value: formatValueWithUnit(data.values[i], data.unit) }
+      ? { key: 'Value', value: formatCompact(data.values[i], data.unit) }
       : { key: 'Status', value: STATE_LABEL[st] },
   ]
   // Sample size behind the value: how many fixations the metric collapsed. The
@@ -106,9 +102,4 @@ function buildTooltip(
   const n = data.fixations[i]
   if (n >= 0) rows.push({ key: 'Fixations', value: String(n) })
   return rows
-}
-
-function formatValueWithUnit(v: number, unit: string): string {
-  const num = formatCellValue(v)
-  return unit ? `${num} ${unit}` : num
 }

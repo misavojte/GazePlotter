@@ -1,6 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotView } from '$lib/plots/definePlot'
-import { resolvePickedInstance } from '$lib/plots/shared'
 import {
   deriveDistributionFigure,
   type DistributionDisclosures,
@@ -29,10 +28,5 @@ export function deriveAoiComparisonView(
   engine: DataEngine,
   settings: AoiComparisonSettings
 ): PlotView {
-  return deriveDistributionFigure(
-    getAoiComparisonData(engine, settings),
-    resolvePickedInstance(engine, settings.metricInstanceIds),
-    settings,
-    AOI_DISCLOSURES
-  )
+  return deriveDistributionFigure(engine, getAoiComparisonData(engine, settings), settings, AOI_DISCLOSURES)
 }

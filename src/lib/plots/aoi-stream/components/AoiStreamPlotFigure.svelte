@@ -18,7 +18,6 @@
     timeAtX,
     type PlotCursorPort,
   } from '$lib/plots/shared/plotCursor.svelte'
-  import { estimateTextWidth } from '$lib/shared/textMeasure'
   import { desaturateToWhite, INACTIVE_COLOR } from '$lib/color'
   import { PRESET_PALETTES } from '$lib/color/palettes'
 
@@ -149,19 +148,7 @@
 
   const legendHeight: number = $derived.by(() => {
     if (alignment === 'heatmap') return getGradientLegendRequiredHeight(AXIS_CONFIG.fontSize)
-    if (legendItems.length === 0) return 0
-    let maxTextWidth = 0
-    const { fontSize, fontFamily } = LEGEND_CONFIG
-    for (const item of legendItems) {
-      const w = estimateTextWidth(item.name, fontSize, fontFamily)
-      if (w > maxTextWidth) maxTextWidth = w
-    }
-    return calculateFlatLegendHeight(
-      legendItems.length,
-      Math.max(0, plot.plotAreaWidth),
-      LEGEND_CONFIG,
-      maxTextWidth
-    )
+    return calculateFlatLegendHeight(legendItems, Math.max(0, plot.plotAreaWidth), LEGEND_CONFIG)
   })
 
   // ── Axis chrome: tick-label strings fed to the measured gutter ──
@@ -654,7 +641,6 @@
       anchorX: mx,
       anchorY: my,
       offset: { x: 15, y: 15 },
-      cursor: 'crosshair',
       data: { kind: 'bin', binIndex, x: mx },
     }
   }

@@ -1,15 +1,14 @@
 import {
-  FONT_PRIMARY,
   GRIDLINE_PRIMARY,
   GRIDLINE_SECONDARY,
-  ROW_LABEL_GAP,
   calculateTickStep,
-  drawParticipantIndexAxis,
+  drawParticipantRowAxis,
 } from '$lib/plots/shared'
 import {
   alignToPixelCenter,
-  createScratchLayer,
+  pixelLayer,
   strokeParallelLines,
+  type PixelLayer,
 } from '$lib/plots/shared/canvasUtils'
 import { desaturateToWhite, convertToHex, hexToRgb } from '$lib/color'
 import {
@@ -70,29 +69,14 @@ export function drawScarfLabels(
   layout: ScarfLayoutContext
 ) {
   const { participants } = data
-  const len = participants.length
-  const leftX = layout.plotLeft
-
-  ctx.font = `${FONT_PRIMARY.SIZE}px ${FONT_PRIMARY.FAMILY}`
-  ctx.textAlign = 'center'
-  ctx.textBaseline = 'middle'
-  ctx.fillStyle = FONT_PRIMARY.COLOR
-
-  if (layout.isCompact) {
-    drawParticipantIndexAxis(
-      ctx, len, leftX, layout.plotTop, layout.heightOfBarWrap
-    )
-  } else {
-    ctx.textAlign = 'end'
-    const xPos = leftX - ROW_LABEL_GAP
-    for (let i = 0; i < len; i++) {
-      ctx.fillText(
-        participants[i].label,
-        xPos,
-        i * layout.heightOfBarWrap + layout.heightOfBarWrap / 2 + layout.plotTop
-      )
-    }
-  }
+  drawParticipantRowAxis(
+    ctx,
+    participants.length,
+    layout.isCompact ? null : participants.map(p => p.label),
+    layout.plotLeft,
+    layout.plotTop,
+    layout.heightOfBarWrap
+  )
 }
 
 /**
@@ -220,9 +204,7 @@ let _accThin = new Float32Array(0)
 
 // Reused offscreen canvas + buffer for the ImageData emit path (see
 // `blitCompositeLayer`). Allocated lazily — only dense renders take that path.
-let _offCanvas: OffscreenCanvas | HTMLCanvasElement | null = null
-let _offCtx: OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D | null = null
-let _offImg: ImageData | null = null
+let _off: PixelLayer | null = null
 
 // ── Gaze composite (single pass from the binary segment store) ─────────────
 
@@ -568,20 +550,13 @@ function blitCompositeLayer(
   // `top` folded in below, and an integer (vs fractional `rows * pitch`) keeps
   // the reuse check stable so the offscreen isn't reallocated every frame.
   const offH = Math.ceil(rows * pitch) + 2
-  if (!_offCanvas || _offCanvas.width !== pWidth || _offCanvas.height !== offH) {
-    // null = unsafe size or canvas-less environment (tests): skip the band
-    const layer = createScratchLayer(pWidth, offH)
-    if (!layer) return
-    _offCanvas = layer.canvas
-    _offCtx = layer.ctx
-    _offImg = _offCtx.createImageData(pWidth, offH)
-  }
-  if (!_offCtx || !_offImg) return
-
-  const data = _offImg.data
-  data.fill(0)
+  // null = unsafe size or canvas-less environment (tests): skip the band
+  const off = pixelLayer(_off, pWidth, offH)
+  if (!off) return
+  _off = off
+  off.image.data.fill(0)
   // Little-endian RGBA packing (every current target platform is LE).
-  const u32 = new Uint32Array(data.buffer)
+  const u32 = off.pixels
   // Snap each row's bar band to whole logical pixels at BOTH edges (height =
   // bottom − top), so the composite can never overhang the bar into the seam the
   // way a floored top with a rounded height could. The fractional part of `top`
@@ -627,10 +602,10 @@ function blitCompositeLayer(
       }
     }
   }
-  _offCtx.putImageData(_offImg, 0, 0)
+  off.ctx.putImageData(off.image, 0, 0)
   const prevSmoothing = ctx.imageSmoothingEnabled
   ctx.imageSmoothingEnabled = false
-  ctx.drawImage(_offCanvas as CanvasImageSource, pLeft, topInt)
+  ctx.drawImage(off.canvas as CanvasImageSource, pLeft, topInt)
   ctx.imageSmoothingEnabled = prevSmoothing
 }
 

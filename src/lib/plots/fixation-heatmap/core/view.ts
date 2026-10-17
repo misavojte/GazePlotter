@@ -2,6 +2,7 @@ import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotView } from '$lib/plots/definePlot'
 import { ALL_SELECTION_LABEL } from '$lib/data/types'
 import { getParticipantsSelectionOptions } from '$lib/plots/shared/selectOptionsGetters'
+import { optionLabel } from '$lib/plots/shared/subtitles'
 import { formatQuantity, timeRangeQualifier, withQualifiers } from '$lib/plots/shared/labels'
 import type { PlotPlaceholderContent } from '$lib/plots/shared/drawCanvasPlaceholder'
 import FixationHeatmapPlotFigure from '../components/FixationHeatmapPlotFigure.svelte'
@@ -80,9 +81,7 @@ export function heatmapSummary(
 ): string {
   const s = data.summary
   const selection =
-    getParticipantsSelectionOptions(engine, true, settings.stimulusId).find(
-      o => o.value === String(settings.groupId)
-    )?.label ?? ALL_SELECTION_LABEL
+    optionLabel(getParticipantsSelectionOptions(engine, true, settings.stimulusId), settings.groupId) ?? ALL_SELECTION_LABEL
   const unit = heatmapUnit(settings)
   const amount = (v: number) => `${formatAmount(v)}${unit ? ` ${unit}` : ''}`
   const clauses = [

@@ -1,6 +1,6 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { resolveAoiSelectionVisibleIds } from '$lib/data/engine'
-import type { RecurrenceData, RecurrenceMethod, FixationRecord } from '../types'
+import type { RecurrenceData, RecurrenceMethod, RecurrencePlotSettings, FixationRecord } from '../types'
 import { FIXATION_CATEGORY_ID } from '$lib/data/binary'
 
 /**
@@ -105,31 +105,28 @@ export function fixationMidpoint(data: RecurrenceData, index: number): number {
   return (data.fixationStarts[index] + data.fixationEnds[index]) / 2
 }
 
+/** The stored method, coerced to 'aoi' when the dataset has no spatial data. */
+export const effectiveMethod = (settings: Record<string, unknown>, engine: DataEngine) =>
+  engine.capabilities.spatial ? (settings.recurrenceMethod as RecurrenceMethod) : 'aoi'
+
 /**
  * Build the NxN recurrence matrix (plus optional duration weighting and
  * per-fixation AOI colors) for a participant's fixation sequence.
  */
 export function collectRecurrenceData(
   engine: DataEngine,
-  stimulusId: number,
-  participantId: number,
-  method: RecurrenceMethod,
-  radius: number,
-  gridSize: number,
-  showDuration: boolean,
-  minLineLength: number,
-  timeStart: number = 0,
-  timeEnd: number = 0,
-  aoiSelectionId?: number,
+  settings: RecurrencePlotSettings
 ): RecurrenceData | null {
+  const { stimulusId, radius, gridSize, showDuration } = settings
+  const method = engine.getReader()?.hasSpatialData ? effectiveMethod(settings, engine) : 'aoi'
   const fixations = collectFixations(
     engine,
     stimulusId,
-    participantId,
+    settings.participantId,
     method !== 'aoi',
-    timeStart,
-    timeEnd,
-    aoiSelectionId,
+    settings.timelineStart ?? 0,
+    settings.timelineEnd ?? 0,
+    settings.aoiSelectionId,
   )
   if (!fixations || fixations.length < 2) return null
 

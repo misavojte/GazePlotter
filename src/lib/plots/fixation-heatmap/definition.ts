@@ -1,7 +1,7 @@
 import { deriveFixationHeatmapView, formatGaze, heatmapUnit } from './core/view'
 import { autoRadiusFor } from './core/transformer'
 import { plotCursorScreen } from '$lib/plots/shared/plotCursor.svelte'
-import { definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
+import { commonIs, definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import type { FixationHeatmapPlotSettings } from './types'
@@ -121,12 +121,7 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
             { label: 'None', value: 'none', detail: 'Heat only, within the image outline' },
           ],
           // Every edited plot must show an image, or the control would be dead on some.
-          showWhen: ctx => {
-            const image = ctx.common(
-              s => ctx.engine.metadata?.stimuliMedia?.[(s.stimulusId as number) ?? 0]?.kind === 'image'
-            )
-            return !image.mixed && image.value
-          },
+          showWhen: commonIs((s, ctx) => ctx.engine.metadata?.stimuliMedia?.[s.stimulusId ?? 0]?.kind === 'image', true),
         },
         { kind: 'boolean', key: 'showFixations', label: 'Show fixations' },
       ],

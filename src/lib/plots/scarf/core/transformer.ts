@@ -108,6 +108,43 @@ class Float32GrowBuffer {
 }
 
 /**
+ * The range settings of the active mode (ordinal, else absolute; callers handle
+ * 'relative' first): its start/end keys, the guarded bounds, the stimulus limits.
+ */
+export function scarfRange(settings: ScarfPlotSettings, stimulusId = settings.stimulusId) {
+  const ordinal = settings.timeline === 'ordinal'
+  const startKey = ordinal ? 'ordinalStart' : 'timelineStart'
+  const endKey = ordinal ? 'ordinalEnd' : 'timelineEnd'
+  const guard = (v: number | undefined) => (typeof v === 'number' && !isNaN(v) ? v : 0)
+  const limits = ordinal ? settings.ordinalStimuliLimits : settings.absoluteStimuliLimits
+  return {
+    ordinal,
+    startKey,
+    endKey,
+    start: guard(settings[startKey]),
+    end: guard(settings[endKey]),
+    limits: limits?.[stimulusId],
+  } as const
+}
+
+/** Largest per-participant extent: segment count (ordinal) or end time. */
+export function scarfDataMax(
+  engine: DataEngine,
+  stimulusId: number,
+  participantIds: number[],
+  ordinal: boolean
+): number {
+  let max = 0
+  for (const pid of participantIds) {
+    const v = ordinal
+      ? getNumberOfSegments(engine, stimulusId, pid)
+      : getParticipantEndTime(engine, stimulusId, pid)
+    if (v > max) max = v
+  }
+  return max
+}
+
+/**
  * Calculates the timeline range for the plot based on settings and participant data
  */
 function calculateTimelineRange(
@@ -119,75 +156,24 @@ function calculateTimelineRange(
   if (settings.timeline === 'relative') {
     return { minValue: 0, maxValue: 100 }
   }
+  const { ordinal, start, end, limits } = scarfRange(settings, stimulusId)
+  const dataMax = () => scarfDataMax(engine, stimulusId, participantIds, ordinal)
 
-  // Helper to calculate data max for fallback
-  const getDataMax = (isOrdinalMode: boolean) => {
-    let max = 0
-    for (const pid of participantIds) {
-      if (isOrdinalMode) {
-        max = Math.max(max, getNumberOfSegments(engine, stimulusId, pid))
-      } else {
-        max = Math.max(max, getParticipantEndTime(engine, stimulusId, pid))
-      }
-    }
-    return max
+  // 1. Global start/end settings first; a set end is trusted even if it clips data.
+  if (start > 0 || end > 0) {
+    return { minValue: start, maxValue: Math.max(start + 1, end > 0 ? end : dataMax()) }
   }
 
-  // 1. Try global settings first (new standard)
-  if (settings.timeline === 'absolute') {
-    const sStart = settings.timelineStart
-    const sEnd = settings.timelineEnd
-    const startVal = typeof sStart === 'number' && !isNaN(sStart) ? sStart : 0
-    const endVal = typeof sEnd === 'number' && !isNaN(sEnd) ? sEnd : 0
-
-    const hasStart = startVal > 0
-    const hasEnd = endVal > 0
-
-    if (hasStart || hasEnd) {
-      const min = startVal
-      const max = hasEnd ? endVal : getDataMax(false)
-
-      // If user only provided start, ensure max is at least start + margin
-      // If user provided end, we trust it (even if it clips data)
-      return { minValue: min, maxValue: Math.max(min + 1, max) }
-    }
-  } else if (settings.timeline === 'ordinal') {
-    const sStart = settings.ordinalStart
-    const sEnd = settings.ordinalEnd
-    const startVal = typeof sStart === 'number' && !isNaN(sStart) ? sStart : 0
-    const endVal = typeof sEnd === 'number' && !isNaN(sEnd) ? sEnd : 0
-
-    const hasStart = startVal > 0
-    const hasEnd = endVal > 0
-
-    if (hasStart || hasEnd) {
-      const min = startVal
-      const max = hasEnd ? endVal : getDataMax(true)
-
-      return { minValue: min, maxValue: Math.max(min + 1, max) }
-    }
-  }
-
-  // 2. Try stimulus-specific overrides from settings (legacy / specific override)
-  const limits = (
-    settings.timeline === 'absolute'
-      ? settings.absoluteStimuliLimits
-      : settings.ordinalStimuliLimits
-  )?.[stimulusId]
-
-  // Check if limits are defined and maxValue > 0.
-  // If maxValue is 0, we treat it as 'auto' and fallback to data-driven range (e.g. after reset).
+  // 2. Stimulus-specific limits; a 0 max means 'auto' (data-driven, e.g. after reset).
   if (Array.isArray(limits) && limits.length === 2 && limits[1] > 0) {
     return { minValue: Math.max(0, limits[0]), maxValue: limits[1] }
   }
 
   // 3. Fallback to data-driven range
-  const isOrdinal = settings.timeline === 'ordinal'
-  const maxValue = getDataMax(isOrdinal) // Reuse helper
-
+  const maxValue = dataMax()
   return {
     minValue: 0,
-    maxValue: maxValue > 0 ? maxValue : isOrdinal ? 10 : 1000,
+    maxValue: maxValue > 0 ? maxValue : ordinal ? 10 : 1000,
   }
 }
 
@@ -220,19 +206,12 @@ function createScarfPlotAxis(
   }
 }
 
-/**
- * Creates styling information for scarf plot segments.
- * Data-only: no sizing properties (heights computed in presentation layer).
- */
-type GroupedCategory = ExtendedInterpretedDataType & {
-  memberIds: number[]
-}
-
-export function groupCategoriesByDisplayedName(
-  categories: ExtendedInterpretedDataType[]
-): GroupedCategory[] {
-  return groupByDisplayedName(categories)
-}
+/** One style item per entity, identified as `prefix + id`. */
+const styleItems = (
+  prefix: string,
+  items: readonly ExtendedInterpretedDataType[]
+): ScarfStyleItem[] =>
+  items.map(i => ({ identifier: `${prefix}${i.id}`, name: i.displayedName, color: i.color }))
 
 /**
  * Creates styling information for scarf plot segments.
@@ -244,18 +223,10 @@ function createStylingAndLegend(
   eventChannelData: readonly ExtendedInterpretedDataType[] = [],
   // Pre-grouped non-fixation categories (grouped ONCE by the caller and reused for
   // the style-index map), so this O(n^2) grouping + filter runs a single time.
-  groupedCategories: readonly GroupedCategory[] = [],
+  groupedCategories: readonly ExtendedInterpretedDataType[] = [],
   hideNoAoi = false
 ): ScarfStyling {
-  const aoi: ScarfStyleItem[] = []
-  for (let i = 0; i < aoiData.length; i++) {
-    const a = aoiData[i]
-    aoi.push({
-      identifier: `${SCARF_IDENTIFIERS.AOI}${a.id}`,
-      name: a.displayedName,
-      color: a.color,
-    })
-  }
+  const aoi = styleItems(SCARF_IDENTIFIERS.AOI, aoiData)
   if (!hideNoAoi) {
     aoi.push({
       identifier: `${SCARF_IDENTIFIERS.AOI}${SCARF_IDENTIFIERS.NOT_DEFINED}`,
@@ -263,42 +234,11 @@ function createStylingAndLegend(
       color: noAoiTreatment.color,
     })
   }
-
-  const category: ScarfStyleItem[] = []
-  for (let i = 0; i < groupedCategories.length; i++) {
-    const g = groupedCategories[i]
-    category.push({
-      identifier: `${SCARF_IDENTIFIERS.CATEGORY}${g.id}`,
-      name: g.displayedName,
-      color: g.color,
-    })
+  return {
+    aoi,
+    category: styleItems(SCARF_IDENTIFIERS.CATEGORY, groupedCategories),
+    event: styleItems(SCARF_IDENTIFIERS.EVENT, eventChannelData),
   }
-
-  const event: ScarfStyleItem[] = []
-  for (let i = 0; i < eventChannelData.length; i++) {
-    const ch = eventChannelData[i]
-    event.push({
-      identifier: `${SCARF_IDENTIFIERS.EVENT}${ch.id}`,
-      name: ch.displayedName,
-      color: ch.color,
-    })
-  }
-
-  return { aoi, category, event }
-}
-
-type GroupedEventChannel = ExtendedInterpretedDataType & {
-  memberIds: number[]
-}
-
-/**
- * Groups channels by trimmed displayed name while preserving first occurrence order.
- * Channels with empty displayed names stay as standalone entries.
- */
-export function groupEventChannelsByDisplayedName(
-  eventChannels: ExtendedInterpretedDataType[]
-): GroupedEventChannel[] {
-  return groupByDisplayedName(eventChannels)
 }
 
 /**
@@ -426,8 +366,7 @@ export function transformDataToScarfPlot(
   const visibleEventChannels = stimulusHasEvents
     ? getSelectedEventChannels(engine, stimulusId, settings.eventSelectionId)
     : []
-  const groupedEventChannels =
-    groupEventChannelsByDisplayedName(visibleEventChannels)
+  const groupedEventChannels = groupByDisplayedName(visibleEventChannels)
   const showEventStripMarkers =
     showEventOverlay && groupedEventChannels.length > 0
   const categoryData = getAllCategories(engine)
@@ -438,9 +377,7 @@ export function transformDataToScarfPlot(
   // only, so narrowed-away members resolve to -1 and the paint loop skips them.
   const { kept: groupedCategories } = applyCategorySelection(
     engine,
-    groupCategoriesByDisplayedName(
-      categoryData.filter(c => c.id !== FIXATION_CATEGORY_ID)
-    ),
+    groupByDisplayedName(categoryData.filter(c => c.id !== FIXATION_CATEGORY_ID)),
     settings.categorySelectionId
   )
   // Fixation-layer gate: the SELECTION covers the fixation baseline too, so a
@@ -856,28 +793,14 @@ export function transformDataToScarfPlot(
 export function mapDataToLegendGroups(
   groups: ScarfLegendGroup[]
 ): LegendGroup[] {
-  const getItemPresentation = (styleType: string) => {
-    switch (styleType) {
-      case 'fixation':
-        return { type: 'fixation' as const }
-      case 'nonFixation':
-        return { type: 'nonFixation' as const }
-      default:
-        return { type: 'fixation' as const }
-    }
-  }
-
   return groups.map(group => ({
     title: group.title,
-    items: group.items.map(item => {
-      const presentation = getItemPresentation(item.styleType)
-      return {
-        identifier: item.identifier,
-        name: item.name,
-        color: item.color,
-        type: presentation.type,
-      }
-    }),
+    items: group.items.map(({ identifier, name, color, styleType }) => ({
+      identifier,
+      name,
+      color,
+      type: styleType,
+    })),
   }))
 }
 
