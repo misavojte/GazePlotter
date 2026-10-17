@@ -4,7 +4,7 @@ import { buildAoiSlots } from './aoiSlots'
 import { resolveParams } from './params'
 import { projectionSummaryStatistic } from './projection'
 import { getRecipe } from './defineMetric'
-import { fillWindowFrame } from './dsl'
+import { fillWindowFrame, scopeDurationOf } from './dsl'
 import { cacheGetRaw, cacheSetRaw, makeScanCursor, runSingleWindow } from './runtime'
 import type { InitCtx, MetricRecipe } from './dsl'
 import type { MetricInstance } from '../instances'
@@ -28,10 +28,11 @@ export function scanBatch(
   const slots = buildAoiSlots(engine, stimulusId, aoiSelectionId)
   if (!slots) return new Map()
   // One scan, one extent, shared by every instance's ctx.
-  const scopeDurationMs =
-    timeEnd > 0
-      ? timeEnd - timeStart
-      : slots.reader.getParticipantEndTime(stimulusId, participantId)
+  const scopeDurationMs = scopeDurationOf(
+    timeStart,
+    timeEnd,
+    slots.reader.getParticipantEndTime(stimulusId, participantId)
+  )
 
   type ActiveInstance = {
     inst: MetricInstance

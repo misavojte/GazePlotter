@@ -26,7 +26,7 @@ import {
   type WindowedProjection,
 } from './projection'
 import type { ExtendedInterpretedDataType } from '$lib/data/types'
-import { fillWindowFrame } from './dsl'
+import { fillWindowFrame, scopeDurationOf } from './dsl'
 import type { AoiSlotInfo, FixationEvent, GroupScope, InitCtx, MetricRecipe, OutputShape, WindowFrame } from './dsl'
 import type { GroupReduction } from './measurement'
 import type { MetricInstance } from '../instances'
@@ -954,10 +954,11 @@ export function scanAccumulator(
   )
   const { idx: scanIdx, start: sStart, end: sEnd, catSlots: scanCatSlots } = scan
   // See InitCtx.scopeDurationMs.
-  const scopeDurationMs =
-    timeEnd > 0
-      ? timeEnd - timeStart
-      : reader.getParticipantEndTime(scope.stimulusId, scope.participantId)
+  const scopeDurationMs = scopeDurationOf(
+    timeStart,
+    timeEnd,
+    reader.getParticipantEndTime(scope.stimulusId, scope.participantId)
+  )
   const ctx = {
     params,
     slots,
@@ -1033,10 +1034,11 @@ function scanEventAccumulator(
   const stream = resolveEventScan(scope.engine, scope.stimulusId, scope.participantId)
   // See InitCtx.scopeDurationMs — the GAZE recording extent, so shares stay
   // comparable with the fixation metrics' denominators.
-  const scopeDurationMs =
-    timeEnd > 0
-      ? timeEnd - timeStart
-      : slots.reader.getParticipantEndTime(scope.stimulusId, scope.participantId)
+  const scopeDurationMs = scopeDurationOf(
+    timeStart,
+    timeEnd,
+    slots.reader.getParticipantEndTime(scope.stimulusId, scope.participantId)
+  )
   const ctx = {
     params,
     slots,
