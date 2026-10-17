@@ -5,14 +5,13 @@
     type CanvasExportProps,
     type FrameHit,
     type PlotFrame,
-    type PlotAreaTicks,
   } from '$lib/plots/shared'
   import type { PlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
   import { untrack } from 'svelte'
   import Play from 'lucide-svelte/icons/play'
   import Pause from 'lucide-svelte/icons/pause'
   import { SYSTEM_SANS_SERIF_SMALL_STACK } from '$lib/shared/textMeasure'
-  import { calculateNiceStepSize } from '$lib/plots/shared/timelineUtils'
+  import { linearTicks } from '$lib/plots/shared/ticks'
   import { AXIS_CONFIG } from '$lib/plots/shared/axisUtils'
   import { strokeCrispRect } from '$lib/plots/shared/canvasUtils'
   import { GRIDLINE_PRIMARY } from '$lib/plots/shared/const'
@@ -310,35 +309,6 @@
 
   const L = SCANPATH_LAYOUT
 
-  function formatTick(v: number): string {
-    if (!Number.isFinite(v)) return ''
-    const abs = Math.abs(v)
-    if (abs >= 1000) return Math.round(v).toString()
-    if (abs >= 10) return v.toFixed(0)
-    return v.toFixed(2)
-  }
-
-  /** Nice round-number ticks (1/2/2.5/5 × 10^n steps, like the timeline
-      plots): multiples of the step that fall inside [min, max]. */
-  function buildTicks(min: number, max: number, count: number): PlotAreaTicks {
-    if (!(max > min)) return { positions: [0.5], labels: [formatTick(min)] }
-    const range = max - min
-    const step = calculateNiceStepSize(range, count)
-    const positions: number[] = []
-    const labels: string[] = []
-    for (
-      let v = Math.ceil(min / step) * step;
-      v <= max + step * 1e-4;
-      v += step
-    ) {
-      // Snap floating-point drift (0.30000000000000004) back to the grid.
-      const value = Math.abs(v) < step * 1e-6 ? 0 : v
-      positions.push((value - min) / range)
-      labels.push(formatTick(value))
-    }
-    return { positions, labels }
-  }
-
   /** Padded data bounding box + its tick scales. */
   const scale = $derived.by(() => {
     if (!data) {
@@ -378,8 +348,8 @@
         dataMaxY: minY + h,
         dataW: w,
         dataH: h,
-        xTicks: buildTicks(minX, minX + w, L.tickCount),
-        yTicks: buildTicks(minY, minY + h, L.tickCount),
+        xTicks: linearTicks(minX, minX + w, L.tickCount),
+        yTicks: linearTicks(minY, minY + h, L.tickCount),
       }
     }
     const { minX, maxX, minY, maxY } = data.bbox
@@ -398,8 +368,8 @@
       dataMaxY,
       dataW: dataMaxX - dataMinX,
       dataH: dataMaxY - dataMinY,
-      xTicks: buildTicks(dataMinX, dataMaxX, L.tickCount),
-      yTicks: buildTicks(dataMinY, dataMaxY, L.tickCount),
+      xTicks: linearTicks(dataMinX, dataMaxX, L.tickCount),
+      yTicks: linearTicks(dataMinY, dataMaxY, L.tickCount),
     }
   })
 

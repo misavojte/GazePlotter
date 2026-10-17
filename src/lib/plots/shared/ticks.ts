@@ -7,6 +7,7 @@
  */
 import type { PlotAreaTicks } from './plotArea'
 import type { AdaptiveTimeline } from './timelineUtils'
+import { calculateNiceStepSize } from './timelineUtils'
 import { niceTimelineTicks } from './plotArea'
 
 export interface ValueAxisTickOptions {
@@ -65,6 +66,34 @@ export function categoryTicks(
     const centred = (i + 0.5) / count
     positions.push(options.invert ? 1 - centred : centred)
     labels.push(format(i))
+  }
+  return { positions, labels }
+}
+
+function formatLinearTick(v: number): string {
+  if (!Number.isFinite(v)) return ''
+  const abs = Math.abs(v)
+  if (abs >= 1000) return Math.round(v).toString()
+  if (abs >= 10) return v.toFixed(0)
+  return v.toFixed(2)
+}
+
+/**
+ * Nice round-number ticks (1/2/2.5/5 x 10^n steps, like the timeline plots)
+ * over a linear [min, max] axis, e.g. gaze coordinates: the multiples of the
+ * step that fall inside the range. Unlike the timeline, min may be negative.
+ */
+export function linearTicks(min: number, max: number, count: number): PlotAreaTicks {
+  if (!(max > min)) return { positions: [0.5], labels: [formatLinearTick(min)] }
+  const range = max - min
+  const step = calculateNiceStepSize(range, count)
+  const positions: number[] = []
+  const labels: string[] = []
+  for (let v = Math.ceil(min / step) * step; v <= max + step * 1e-4; v += step) {
+    // Snap floating-point drift (0.30000000000000004) back to the grid.
+    const value = Math.abs(v) < step * 1e-6 ? 0 : v
+    positions.push((value - min) / range)
+    labels.push(formatLinearTick(value))
   }
   return { positions, labels }
 }
