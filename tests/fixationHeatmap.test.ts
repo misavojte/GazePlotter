@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
-import { ALL_CAPS, makeTestEngine } from './helpers/testEngine'
-import { query, type MetricInstance } from '../src/lib/metrics'
+import { ALL_CAPS, makeTestEngine, testInstance } from './helpers/testEngine'
+import { query } from '../src/lib/metrics'
 import {
   SIGMA_PER_RADIUS,
   blurGaussian,
@@ -189,13 +189,7 @@ describe('getFixationHeatmapData', () => {
   const engine = () => engineOf([[], [P0, P1]])
 
   it('reconciles its mass with the metric library: clipped dwell and midpoint count', () => {
-    const inst = (baseId: string): MetricInstance => ({
-      id: baseId,
-      baseId,
-      params: {},
-      label: '',
-      projection: { kind: 'identity-aoi-vector' },
-    })
+    const inst = (baseId: string) => testInstance(baseId, { kind: 'identity-aoi-vector' }, { id: baseId })
     const anyFixation = (baseId: string, timeStart: number, timeEnd: number) => {
       const r = query(inst(baseId), { engine: engine(), stimulusId: 1, participantId: 0, timeStart, timeEnd })
       return (r as { values: number[] }).values.at(-1)!

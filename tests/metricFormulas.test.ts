@@ -12,6 +12,8 @@ import {
   makeSingleParticipantEngine,
   makeMultiParticipantEngine,
   makeScope,
+  testInstance,
+  aoiTable,
 } from './helpers/testEngine'
 import {
   query,
@@ -25,6 +27,23 @@ import { reduceNumeric } from '../src/lib/metrics/core/numeric'
 const STIM = 1
 const PID = 0
 
+// The RQA sequence [1,1,2,1,1]: AOI1, AOI1, AOI2, AOI1, AOI1 (slots [0,0,1,0,0]).
+const RQA_SEQUENCE = [
+  [0, 100, 0, 1],
+  [100, 200, 0, 1],
+  [200, 300, 0, 2],
+  [300, 400, 0, 1],
+  [400, 500, 0, 1],
+]
+
+// AOI1, AOI2, AOI1, AOI2: 3 transitions (AOI1 to AOI2 twice, AOI2 to AOI1 once).
+const ABAB_SEQUENCE = [
+  [0, 100, 0, 1],
+  [100, 200, 0, 2],
+  [200, 300, 0, 1],
+  [300, 400, 0, 2],
+]
+
 // Slot layout (2 AOIs): 0=AOI1, 1=AOI2, 2=noAoi, 3=anyFixation
 
 /**
@@ -33,14 +52,9 @@ const PID = 0
  * raw ids 1..n, matching the convention of `createEngine` above.
  */
 function createWideEngine(n: number, segmentsForPid: number[][]) {
-  const aoiData: (string[] | null)[] = [null]
-  const order: number[] = []
-  for (let i = 1; i <= n; i++) {
-    aoiData.push([`AOI ${i}`, `AOI ${i}`, '#000000'])
-    order.push(i)
-  }
+  const { data, order } = aoiTable(Array.from({ length: n }, (_, i) => `AOI ${i + 1}`))
   return makeTestEngine([[], [segmentsForPid]], {
-    aoiData: [[], aoiData],
+    aoiData: [[], data],
     aoiOrderVector: [[], order],
   })
 }
@@ -48,14 +62,11 @@ function createWideEngine(n: number, segmentsForPid: number[][]) {
 function inst(baseId: string, params: Record<string, unknown> = {}): MetricInstance {
   // Tests focus on raw formulas — use aoi-vector identity as a safe default;
   // absoluteTime/etc. are aoi-vector and transition metrics explicitly override.
-  return {
-    id: 't1', baseId, params, label: '',
-    projection: baseId.startsWith('transition')
-      ? { kind: 'identity-aoi-pair-matrix' }
-      : baseId.startsWith('rqa')
-        ? { kind: 'identity-scalar' }
-        : { kind: 'identity-aoi-vector' },
-  }
+  return testInstance(baseId, baseId.startsWith('transition')
+    ? { kind: 'identity-aoi-pair-matrix' }
+    : baseId.startsWith('rqa')
+      ? { kind: 'identity-scalar' }
+      : { kind: 'identity-aoi-vector' }, { params })
 }
 
 function values(result: ReturnType<typeof query>): number[] {
@@ -190,10 +201,7 @@ function pickAoiInst(
   slot: number,
   statistic?: 'mean' | 'median' | 'max' | 'min',
 ): MetricInstance {
-  return {
-    id: 't1', baseId, params: {}, label: '',
-    projection: { kind: 'pick-aoi', aoiRef: { by: 'slot', slot }, ...(statistic ? { statistic } : {}) },
-  }
+  return testInstance(baseId, { kind: 'pick-aoi', aoiRef: { by: 'slot', slot }, ...(statistic ? { statistic } : {}) })
 }
 
 describe('fixationDuration — summary statistic on the pick (mean/median/max/min)', () => {
@@ -220,10 +228,8 @@ describe('fixationDuration — summary statistic on the pick (mean/median/max/mi
     expect(values(query(inst('fixationDuration'), makeScope(engine)))[0]).toBe(300)
   })
   it('pick-any-fixation carries the statistic too (whole-stimulus summary)', () => {
-    const anyPick = (statistic?: 'median' | 'max'): MetricInstance => ({
-      id: 't1', baseId: 'fixationDuration', params: {}, label: '',
-      projection: { kind: 'pick-any-fixation', ...(statistic ? { statistic } : {}) },
-    })
+    const anyPick = (statistic?: 'median' | 'max') =>
+      testInstance('fixationDuration', { kind: 'pick-any-fixation', ...(statistic ? { statistic } : {}) })
     expect(scalar(query(anyPick(), makeScope(engine)))).toBe(300)
     expect(scalar(query(anyPick('median'), makeScope(engine)))).toBe(200)
     expect(scalar(query(anyPick('max'), makeScope(engine)))).toBe(600)
@@ -410,13 +416,7 @@ describe('rqaRec — REC% = 100 × 2R / (N(N−1))', () => {
     // Upper-triangle recurrent pairs (i<j, seq[i]==seq[j]):
     //   (0,1), (0,3), (0,4), (1,3), (1,4), (3,4) → R = 6, N = 5
     //   REC = 100 × 12 / 20 = 60%
-    const engine = makeSingleParticipantEngine([
-      [0, 100, 0, 1],
-      [100, 200, 0, 1],
-      [200, 300, 0, 2],
-      [300, 400, 0, 1],
-      [400, 500, 0, 1],
-    ])
+    const engine = makeSingleParticipantEngine(RQA_SEQUENCE)
     expect(scalar(query(inst('rqaRec'), makeScope(engine)))).toBeCloseTo(60, 6)
   })
 
@@ -443,13 +443,7 @@ describe('rqaDet — DET% = 100 × (points on diagonals ≥ L) / R', () => {
     //   k=4: [1] → length 1.
     // DL = 2
     // DET = 100 × 2 / 6 = 33.333…
-    const engine = makeSingleParticipantEngine([
-      [0, 100, 0, 1],
-      [100, 200, 0, 1],
-      [200, 300, 0, 2],
-      [300, 400, 0, 1],
-      [400, 500, 0, 1],
-    ])
+    const engine = makeSingleParticipantEngine(RQA_SEQUENCE)
     expect(scalar(query(inst('rqaDet'), makeScope(engine)))).toBeCloseTo(100 / 3, 6)
   })
 })
@@ -469,13 +463,7 @@ describe('rqaLam — LAM% = 100 × (HL + VL) / (2R); for symmetric matrix equals
     //   VL = 4
     // LAM = 100 × (4 + 4) / (2 × 6) = 66.666…
     // Equivalently VL/R = 4/6 = 66.67% — confirms the symmetric identity.
-    const engine = makeSingleParticipantEngine([
-      [0, 100, 0, 1],
-      [100, 200, 0, 1],
-      [200, 300, 0, 2],
-      [300, 400, 0, 1],
-      [400, 500, 0, 1],
-    ])
+    const engine = makeSingleParticipantEngine(RQA_SEQUENCE)
     expect(scalar(query(inst('rqaLam'), makeScope(engine)))).toBeCloseTo(200 / 3, 6)
   })
 })
@@ -642,14 +630,10 @@ describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => 
     const numGroups = 65
     const groupSize = 2
     const totalRaw = numGroups * groupSize // 130
-    const aoiData: (string[] | null)[] = [null]
-    const order: number[] = []
-    for (let i = 1; i <= totalRaw; i++) {
-      const groupIdx = Math.floor((i - 1) / groupSize) // 0..64
-      const name = `Group ${groupIdx + 1}`
-      aoiData.push([name, name, '#000000'])
-      order.push(i)
-    }
+    // Raw id i (1-based) is in group floor((i - 1) / groupSize), 0..64.
+    const { data: aoiData, order } = aoiTable(
+      Array.from({ length: totalRaw }, (_, j) => `Group ${Math.floor(j / groupSize) + 1}`)
+    )
     const segs: number[][] = []
     for (let i = 1; i <= totalRaw; i++) {
       segs.push([(i - 1) * 100, i * 100, 0, i])
@@ -1077,12 +1061,7 @@ describe('transitionRelativeFrequency — per-cell share of participant total, i
     //   AOI1→AOI2 twice, AOI2→AOI1 once. total = 3.
     //   matrix[0,1] = 2/3 × 100 = 66.67
     //   matrix[1,0] = 1/3 × 100 = 33.33
-    const engine = makeSingleParticipantEngine([
-      [0, 100, 0, 1],
-      [100, 200, 0, 2],
-      [200, 300, 0, 1],
-      [300, 400, 0, 2],
-    ])
+    const engine = makeSingleParticipantEngine(ABAB_SEQUENCE)
     const result = values(query(inst('transitionRelativeFrequency', { mode: 'fixation' }), makeScope(engine)))
     expect(result[0 * 3 + 1]).toBeCloseTo(66.6666, 3)
     expect(result[1 * 3 + 0]).toBeCloseTo(33.3333, 3)
@@ -1108,12 +1087,7 @@ describe('transitionProbability — row-normalised Markov transition matrix, in 
     // Same sequence: AOI1, AOI2, AOI1, AOI2 → 3 transitions.
     //   Row 0 (from AOI1, 2 out-transitions, both to AOI2): matrix[0,1] = 100%.
     //   Row 1 (from AOI2, 1 out-transition, to AOI1):        matrix[1,0] = 100%.
-    const engine = makeSingleParticipantEngine([
-      [0, 100, 0, 1],
-      [100, 200, 0, 2],
-      [200, 300, 0, 1],
-      [300, 400, 0, 2],
-    ])
+    const engine = makeSingleParticipantEngine(ABAB_SEQUENCE)
     const result = values(query(inst('transitionProbability', { mode: 'fixation', step: 1 }), makeScope(engine)))
     expect(result[0 * 3 + 1]).toBe(100)
     expect(result[1 * 3 + 0]).toBe(100)
@@ -1125,12 +1099,7 @@ describe('transitionProbability — row-normalised Markov transition matrix, in 
     // P² = [[1, 0, 0], [0, 1, 0], [0, 0, 0]].  (×100 for percent output)
     //   From AOI1 after 2 transitions → back at AOI1 with 100%.
     //   From AOI2 after 2 transitions → back at AOI2 with 100%.
-    const engine = makeSingleParticipantEngine([
-      [0, 100, 0, 1],
-      [100, 200, 0, 2],
-      [200, 300, 0, 1],
-      [300, 400, 0, 2],
-    ])
+    const engine = makeSingleParticipantEngine(ABAB_SEQUENCE)
     const result = values(query(inst('transitionProbability', { mode: 'fixation', step: 2 }), makeScope(engine)))
     expect(result[0 * 3 + 0]).toBe(100)
     expect(result[1 * 3 + 1]).toBe(100)
@@ -1255,10 +1224,8 @@ describe('sampleSummary: the vector equals its own individuals, collapsed', () =
   const AOI_SLOTS = 2
   const ANY_FIXATION_SLOT = 3
 
-  const anyPick = (baseId: string, statistic: typeof STATS[number]): MetricInstance => ({
-    id: 't1', baseId, params: {}, label: '',
-    projection: { kind: 'pick-any-fixation', statistic },
-  })
+  const anyPick = (baseId: string, statistic: typeof STATS[number]) =>
+    testInstance(baseId, { kind: 'pick-any-fixation', statistic })
 
   const expectSame = (actual: number, expected: number, why: string) => {
     if (Number.isNaN(expected)) expect(Number.isNaN(actual), why).toBe(true)

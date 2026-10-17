@@ -13,6 +13,18 @@ const partialSettings = (s: Partial<DataSettings>) => s as DataSettings
 describe('Bar Plot Transformer (Integration)', () => {
   const stimulusId = 0
   const groupId = -1
+  // The full settings of the non-partial cases; each passes only what it is about.
+  const run = (engine: ReturnType<typeof makeTwoAoiEngine>, over: Partial<DataSettings> = {}) =>
+    getAoiComparisonData(engine, {
+      stimulusId,
+      groupId,
+      metricInstanceIds: [ABSOLUTE_TIME_INSTANCE_ID],
+      orderBy: 'aoi',
+      orderDirection: 'asc',
+      scaleRange: [0, 0],
+      statisticalOverlay: 'none',
+      ...over,
+    })
 
   it('transforms raw segments into labeled and sorted bar data', () => {
     const engine = makeTwoAoiEngine([
@@ -25,18 +37,7 @@ describe('Bar Plot Transformer (Integration)', () => {
       ],
     ])
 
-    const result = getAoiComparisonData(
-      engine,
-      {
-        stimulusId,
-        groupId,
-        metricInstanceIds: [ABSOLUTE_TIME_INSTANCE_ID],
-        orderBy: 'aoi',
-        orderDirection: 'asc',
-        scaleRange: [0, 0],
-        statisticalOverlay: 'none',
-      }
-    )
+    const result = run(engine)
 
     expect(result.data).toHaveLength(3)
     expect(result.data[0].label).toBe('AOI A')
@@ -57,18 +58,7 @@ describe('Bar Plot Transformer (Integration)', () => {
       ],
     ])
 
-    const result = getAoiComparisonData(
-      engine,
-      {
-        stimulusId,
-        groupId,
-        metricInstanceIds: [ABSOLUTE_TIME_INSTANCE_ID],
-        orderBy: 'value',
-        orderDirection: 'desc',
-        scaleRange: [0, 0],
-        statisticalOverlay: 'none',
-      }
-    )
+    const result = run(engine, { orderBy: 'value', orderDirection: 'desc' })
 
     expect(result.data[0].label).toBe('AOI B')
     expect(result.data[1].label).toBe('AOI A')
@@ -131,18 +121,7 @@ describe('Bar Plot Transformer (Integration)', () => {
       ],
     ])
 
-    const result = getAoiComparisonData(
-      engine,
-      {
-        stimulusId,
-        groupId,
-        metricInstanceIds: ['nonexistent-id'], // does not exist in the library
-        orderBy: 'aoi',
-        orderDirection: 'asc',
-        scaleRange: [0, 0],
-        statisticalOverlay: 'none',
-      }
-    )
+    const result = run(engine, { metricInstanceIds: ['nonexistent-id'] }) // does not exist in the library
 
     expect(result.noMetric).toBe(true)
     expect(result.data).toEqual([])
@@ -159,19 +138,7 @@ describe('Bar Plot Transformer (Integration)', () => {
       ],
     ])
 
-    const result = getAoiComparisonData(
-      engine,
-      {
-        stimulusId,
-        groupId,
-        metricInstanceIds: [ABSOLUTE_TIME_INSTANCE_ID],
-        orderBy: 'aoi',
-        orderDirection: 'asc',
-        scaleRange: [0, 0],
-        statisticalOverlay: 'none',
-        hideNoAoi: true,
-      }
-    )
+    const result = run(engine, { hideNoAoi: true })
 
     expect(result.data).toHaveLength(2)
     expect(result.data[0].label).toBe('AOI A')
@@ -192,19 +159,7 @@ describe('Bar Plot Transformer (Integration)', () => {
       ],
     ])
 
-    const result = getAoiComparisonData(
-      engine,
-      {
-        stimulusId,
-        groupId,
-        metricInstanceIds: [ABSOLUTE_TIME_INSTANCE_ID],
-        orderBy: 'aoi',
-        orderDirection: 'asc',
-        scaleRange: [0, 0],
-        statisticalOverlay: 'none',
-        hideNoAoi: true,
-      }
-    )
+    const result = run(engine, { hideNoAoi: true })
 
     // Max AOI value is 100 (Outside has 500 but should be excluded from scale dataMax calculation)
     expect(result.dataMax).toBe(100)

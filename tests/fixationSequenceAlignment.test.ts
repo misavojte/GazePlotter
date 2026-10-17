@@ -21,7 +21,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { makeTestEngine } from './helpers/testEngine'
+import { makeTestEngine, testInstance } from './helpers/testEngine'
 import { extractFixationSequence, type MetricInstance } from '../src/lib/metrics'
 import { getRecipe } from '../src/lib/metrics/core/defineMetric'
 import { scanAccumulator } from '../src/lib/metrics/core/runtime'
@@ -51,13 +51,7 @@ function makeEngine(perParticipantSegments: number[][][]) {
 }
 
 function inst(baseId: string, params: Record<string, unknown>): MetricInstance {
-  return {
-    id: 't1',
-    baseId,
-    params,
-    label: '',
-    projection: { kind: 'identity-scalar' },
-  }
+  return testInstance(baseId, { kind: 'identity-scalar' }, { params })
 }
 
 /**

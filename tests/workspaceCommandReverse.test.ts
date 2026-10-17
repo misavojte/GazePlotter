@@ -32,10 +32,7 @@ describe('Workspace Command Reversal', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockEngine = createMockEngine()
-    mockGridStore = createMockGridStore([
-      createScarfGridItem(),
-      createAoiComparisonGridItem(),
-    ])
+    mockGridStore = createMockGridStore()
     reverseCommand = createWorkspaceCommandRegistry(
       mockGridStore,
       mockEngine
@@ -46,6 +43,19 @@ describe('Workspace Command Reversal', () => {
   // 1. General Behavior & Error Cases
   // ============================================================================
   describe('General registry behavior', () => {
+    // Reverses through a registry with an error spy: null, and ONE reverse-phase
+    // report whose command matches `commandMatch`.
+    const expectReverseReportsError = (command: WorkspaceCommandChain, commandMatch: object) => {
+      const onRegistryError = vi.fn()
+      const result = createWorkspaceCommandRegistry(mockGridStore, mockEngine, onRegistryError).reverse(command)
+      expect(result).toBeNull()
+      expect(onRegistryError).toHaveBeenCalledTimes(1)
+      expect(onRegistryError).toHaveBeenCalledWith(
+        expect.any(Error),
+        expect.objectContaining({ phase: 'reverse', command: expect.objectContaining(commandMatch) })
+      )
+    }
+
     it('returns null for unknown command types', () => {
       const unknownCommand = {
         type: 'unknownCommand',
@@ -58,42 +68,11 @@ describe('Workspace Command Reversal', () => {
     })
 
     it('reports updateSettings reversal failures through the registry error callback', () => {
-      const onRegistryError = vi.fn()
-      const reverseWithErrorHandler = createWorkspaceCommandRegistry(
-        mockGridStore,
-        mockEngine,
-        onRegistryError
-      ).reverse
-
-      const result = reverseWithErrorHandler(
-        createChainedCommand({
-          type: 'updateSettings',
-          updates: [{ itemId: 999, settings: { timeline: 'relative' } }],
-        })
-      )
-
-      expect(result).toBeNull()
-      expect(onRegistryError).toHaveBeenCalledTimes(1)
-      expect(onRegistryError).toHaveBeenCalledWith(
-        expect.any(Error),
-        expect.objectContaining({
-          phase: 'reverse',
-          command: expect.objectContaining({
-            type: 'updateSettings',
-            updates: [{ itemId: 999, settings: { timeline: 'relative' } }],
-          }),
-        })
-      )
+      const update = { type: 'updateSettings', updates: [{ itemId: 999, settings: { timeline: 'relative' } }] } as const
+      expectReverseReportsError(createChainedCommand(update), structuredClone(update))
     })
 
     it('reports unexpected metadata access failures and still returns null', () => {
-      const onRegistryError = vi.fn()
-      const reverseWithErrorHandler = createWorkspaceCommandRegistry(
-        mockGridStore,
-        mockEngine,
-        onRegistryError
-      ).reverse
-
       Object.defineProperty(mockEngine, 'metadata', {
         get: () => {
           throw new Error('Data store error')
@@ -101,24 +80,9 @@ describe('Workspace Command Reversal', () => {
         configurable: true,
       })
 
-      const result = reverseWithErrorHandler(
-        createChainedCommand({
-          type: 'updateEntities',
-          axis: 'participant',
-          items: [],
-        })
-      )
-
-      expect(result).toBeNull()
-      expect(onRegistryError).toHaveBeenCalledTimes(1)
-      expect(onRegistryError).toHaveBeenCalledWith(
-        expect.any(Error),
-        expect.objectContaining({
-          phase: 'reverse',
-          command: expect.objectContaining({
-            type: 'updateEntities',
-          }),
-        })
+      expectReverseReportsError(
+        createChainedCommand({ type: 'updateEntities', axis: 'participant', items: [] }),
+        { type: 'updateEntities' }
       )
     })
 
@@ -537,46 +501,20 @@ describe('Workspace Command Reversal', () => {
     it.each([
       {
         label: 'participants',
-        command: createChainedCommand({
-          type: 'updateEntities',
-          axis: 'participant',
-          items: [],
-        }),
-        expected: createChainedCommand({
-          type: 'updateEntities',
-          axis: 'participant',
-          items: [],
-        }),
+        command: createChainedCommand({ type: 'updateEntities', axis: 'participant', items: [] }),
       },
       {
         label: 'stimuli',
-        command: createChainedCommand({
-          type: 'updateEntities',
-          axis: 'stimulus',
-          items: [],
-        }),
-        expected: createChainedCommand({
-          type: 'updateEntities',
-          axis: 'stimulus',
-          items: [],
-        }),
+        command: createChainedCommand({ type: 'updateEntities', axis: 'stimulus', items: [] }),
       },
       {
         label: 'participant selections',
-        command: createChainedCommand({
-          type: 'updateSelections',
-          axis: 'participant',
-          selections: [],
-        }),
-        expected: createChainedCommand({
-          type: 'updateSelections',
-          axis: 'participant',
-          selections: [],
-        }),
+        command: createChainedCommand({ type: 'updateSelections', axis: 'participant', selections: [] }),
       },
-    ])('returns an empty list for $label when metadata is empty', ({ command, expected }) => {
+    ])('returns an empty list for $label when metadata is empty', ({ command }) => {
       setMockEngineMetadata(mockEngine, createEmptyMockMetadata())
-      expect(reverseCommand(command)).toEqual(expected)
+      // The inverse of an empty update is that same empty update.
+      expect(reverseCommand(command)).toEqual(command)
     })
 
     it.each([null, undefined] as const)(

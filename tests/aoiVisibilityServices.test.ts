@@ -23,7 +23,8 @@ test('Input Tobii JSON validation - False inputs', () => {
   expect(isTobiiJson({ Aois: { 0: { KeyFrames: {} } } })).toBe(false)
 })
 
-const validTobiiJson = {
+// One AOI with keyframes at 0, 1 and 5 s, IsActive alternating from `firstActive`.
+const tobiiJson = (firstActive: boolean) => ({
   Tags: [],
   Media: {
     MediaType: 0,
@@ -41,63 +42,16 @@ const validTobiiJson = {
       Name: 'a',
       Tags: [],
       KeyFrames: {
-        0: {
-          IsActive: false,
-          Seconds: 0,
-          Vertices: [],
-        },
-        1: {
-          IsActive: true,
-          Seconds: 1,
-          Vertices: [],
-        },
-        2: {
-          IsActive: false,
-          Seconds: 5,
-          Vertices: [],
-        },
+        0: { IsActive: firstActive, Seconds: 0, Vertices: [] },
+        1: { IsActive: !firstActive, Seconds: 1, Vertices: [] },
+        2: { IsActive: firstActive, Seconds: 5, Vertices: [] },
       },
     },
   },
-}
+})
 
-const seeminglyValidTobiiJson = {
-  Tags: [],
-  Media: {
-    MediaType: 0,
-    Height: 0,
-    Width: 0,
-    MediaCount: 0,
-    DurationMicroseconds: 0,
-  },
-  Version: 0,
-  Aois: {
-    0: {
-      Red: 0,
-      Green: 0,
-      Blue: 0,
-      Name: 'a',
-      Tags: [],
-      KeyFrames: {
-        0: {
-          IsActive: true,
-          Seconds: 0,
-          Vertices: [],
-        },
-        1: {
-          IsActive: false,
-          Seconds: 1,
-          Vertices: [],
-        },
-        2: {
-          IsActive: true,
-          Seconds: 5,
-          Vertices: [],
-        },
-      },
-    },
-  },
-}
+const validTobiiJson = tobiiJson(false)
+const seeminglyValidTobiiJson = tobiiJson(true)
 
 test('Input Tobii JSON validation - True inputs', () => {
   expect(isTobiiJson(validTobiiJson)).toBe(true)

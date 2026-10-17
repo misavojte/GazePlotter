@@ -15,7 +15,7 @@
  * the scanner's per-instance delegation.
  */
 import { describe, it, expect } from 'vitest'
-import { ALL_CAPS, makeTestEngine, type TestEngineOptions } from './helpers/testEngine'
+import { ALL_CAPS, makeTestEngine, testInstance, type TestEngineOptions } from './helpers/testEngine'
 import {
   getMetric,
   instanceMatchesContract,
@@ -88,17 +88,11 @@ function summaryPickInst(id: string, baseId: string, eventName: string, statisti
 }
 
 function windowedPickInst(id: string, baseId: string, eventName: string): MetricInstance {
-  return {
-    id,
-    baseId,
-    params: {},
-    label: '',
-    projection: {
-      kind: 'windowed',
-      window: { windowSize: 100, stepSize: 100 },
-      inner: { kind: 'pick-event', eventName },
-    },
-  }
+  return testInstance(baseId, {
+    kind: 'windowed',
+    window: { windowSize: 100, stepSize: 100 },
+    inner: { kind: 'pick-event', eventName },
+  }, { id })
 }
 
 function vectorValues(engine: DataEngine, inst: MetricInstance, scope: Partial<Scope> = {}): number[] {
@@ -405,10 +399,7 @@ describe('event-vector metrics (scanSource: events)', () => {
       windowing: 'forbidden',
       crossParticipant: 'distribution',
     } as const satisfies PlotMetricContract
-    const eventStarter: MetricInstance = {
-      id: 'eventCount', baseId: 'eventCount', params: {}, label: '',
-      projection: { kind: 'identity-event-vector' },
-    }
+    const eventStarter = testInstance('eventCount', { kind: 'identity-event-vector' }, { id: 'eventCount' })
     expect(instanceMatchesContract(eventStarter, vectorContract, eventOnly)).toBe(true)
     expect(instanceMatchesContract(eventStarter, vectorContract, noEvents)).toBe(false)
   })

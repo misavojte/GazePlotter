@@ -15,6 +15,8 @@ import {
   makeTestEngine,
   makeSingleParticipantEngine,
   makeScope,
+  testInstance,
+  aoiTable,
 } from './helpers/testEngine'
 import type { DataEngine } from '../src/lib/data/engine/dataEngine.svelte'
 import { query, type MetricInstance, type Scope } from '../src/lib/metrics'
@@ -33,13 +35,7 @@ function windowedInst(
   windowSize: number,
   stepSize: number
 ): MetricInstance {
-  return {
-    id: 'w',
-    baseId,
-    params: {},
-    label: '',
-    projection: { kind: 'windowed', window: { windowSize, stepSize }, inner },
-  }
+  return testInstance(baseId, { kind: 'windowed', window: { windowSize, stepSize }, inner }, { id: 'w' })
 }
 
 function leafInst(baseId: string, inner: LeafProjection): MetricInstance {
@@ -163,14 +159,9 @@ describe('fused windowed driver — wide stimuli (120 AOIs, array slot-set path)
   const N_AOIS = 120
 
   function createWideEngine(segmentsForPid: number[][]) {
-    const aoiRows: (string[] | null)[] = [null]
-    const order: number[] = []
-    for (let i = 1; i <= N_AOIS; i++) {
-      aoiRows.push([`AOI ${i}`, `AOI ${i}`, 'red'])
-      order.push(i)
-    }
+    const { data, order } = aoiTable(Array.from({ length: N_AOIS }, (_, i) => `AOI ${i + 1}`), 'red')
     return makeTestEngine([[], [segmentsForPid]], {
-      aoiData: [[], aoiRows],
+      aoiData: [[], data],
       aoiOrderVector: [[], order],
     })
   }

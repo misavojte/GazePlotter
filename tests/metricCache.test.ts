@@ -10,7 +10,7 @@
  * rename is answered entirely from cache (the motivating large-dataset stall).
  */
 import { describe, it, expect, vi } from 'vitest'
-import { makeTestEngine } from './helpers/testEngine'
+import { makeTestEngine, testInstance } from './helpers/testEngine'
 import {
   query,
   queryBatch,
@@ -46,13 +46,7 @@ function createEngine(perParticipant: number[][][] = DEFAULT_SEGMENTS) {
 }
 
 function vectorInst(id: string, baseId: string): MetricInstance {
-  return {
-    id,
-    baseId,
-    params: {},
-    label: '',
-    projection: { kind: 'identity-aoi-vector' },
-  }
+  return testInstance(baseId, { kind: 'identity-aoi-vector' }, { id })
 }
 
 /** An AOI pick carrying a summary `statistic` (the summary-projection channel). */
@@ -61,27 +55,15 @@ function pickInst(
   baseId: string,
   statistic: 'mean' | 'median' | 'max' | 'min',
 ): MetricInstance {
-  return {
-    id,
-    baseId,
-    params: {},
-    label: '',
-    projection: { kind: 'pick-aoi', aoiRef: { by: 'slot', slot: 0 }, statistic },
-  }
+  return testInstance(baseId, { kind: 'pick-aoi', aoiRef: { by: 'slot', slot: 0 }, statistic }, { id })
 }
 
 function windowedInst(id: string, baseId: string): MetricInstance {
-  return {
-    id,
-    baseId,
-    params: {},
-    label: '',
-    projection: {
-      kind: 'windowed',
-      window: { windowSize: 100, stepSize: 100 },
-      inner: { kind: 'identity-aoi-vector' },
-    },
-  }
+  return testInstance(baseId, {
+    kind: 'windowed',
+    window: { windowSize: 100, stepSize: 100 },
+    inner: { kind: 'identity-aoi-vector' },
+  }, { id })
 }
 
 describe('metric cache', () => {

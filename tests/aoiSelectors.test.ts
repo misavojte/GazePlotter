@@ -15,7 +15,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { makeGroupedAoiEngine } from './helpers/testEngine'
+import { makeGroupedAoiEngine, testInstance } from './helpers/testEngine'
 import { getAois } from '../src/lib/data/engine/selectors/aoiSelectors'
 import { query } from '../src/lib/metrics'
 
@@ -98,10 +98,7 @@ describe('getAois — memoization', () => {
       mappingCalls++
       return originalMapping(s, r)
     }
-    const instance = {
-      id: 't1', baseId: 'fixationCount', params: {}, label: '',
-      projection: { kind: 'identity-aoi-vector' as const },
-    }
+    const instance = testInstance('fixationCount', { kind: 'identity-aoi-vector' })
     const scope = { engine, stimulusId: STIM, participantId: 0, timeStart: 0, timeEnd: 0 }
 
     query(instance, scope)
@@ -133,10 +130,7 @@ describe('getAois — memoization', () => {
       return originalGetRange(s, p)
     }
 
-    const instance = {
-      id: 't1', baseId: 'fixationCount', params: {}, label: '',
-      projection: { kind: 'identity-aoi-vector' as const },
-    }
+    const instance = testInstance('fixationCount', { kind: 'identity-aoi-vector' })
     const scope = { engine, stimulusId: STIM, participantId: 0, timeStart: 0, timeEnd: 0 }
 
     query(instance, scope)

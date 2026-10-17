@@ -13,6 +13,12 @@ const partialSettings = (s: Partial<StreamSettings>) => s as StreamSettings
 describe('AOI Stream Plot Transformer (Integration)', () => {
   const stimulusId = 0
   const groupId = -1
+  // The settings every case shares; each passes only what it is about.
+  const run = (engine: ReturnType<typeof makeTwoAoiEngine>, over: Partial<StreamSettings> = {}) =>
+    getAoiStreamPlotData(
+      engine,
+      partialSettings({ stimulusId, groupId, metricInstanceIds: [WINDOWED_TIME_INSTANCE_ID], ...over })
+    )
 
   it('transforms raw segments into time series binned occupancy', () => {
     const engine = makeTwoAoiEngine([
@@ -25,14 +31,7 @@ describe('AOI Stream Plot Transformer (Integration)', () => {
       ],
     ])
 
-    const result = getAoiStreamPlotData(
-      engine,
-      partialSettings({
-        stimulusId,
-        groupId,
-        metricInstanceIds: [WINDOWED_TIME_INSTANCE_ID],
-      })
-    )
+    const result = run(engine)
 
     // Outside (No AOI) should be present since hideNoAoi is undefined (defaults to false)
     expect(result.series).toHaveLength(3)
@@ -51,14 +50,7 @@ describe('AOI Stream Plot Transformer (Integration)', () => {
       ],
     ])
 
-    const result = getAoiStreamPlotData(
-      engine,
-      partialSettings({
-        stimulusId,
-        groupId,
-        metricInstanceIds: [WINDOWED_TIME_INSTANCE_ID],
-      })
-    )
+    const result = run(engine)
 
     // Windowed absolute dwell is in ms; the tooltip shows native values in this
     // unit, matching the axis — never `(value / participants) * 100 + "%"`.
@@ -77,15 +69,7 @@ describe('AOI Stream Plot Transformer (Integration)', () => {
       ],
     ])
 
-    const result = getAoiStreamPlotData(
-      engine,
-      partialSettings({
-        stimulusId,
-        groupId,
-        metricInstanceIds: [WINDOWED_TIME_INSTANCE_ID],
-        hideNoAoi: true,
-      })
-    )
+    const result = run(engine, { hideNoAoi: true })
 
     // Only AOI A and AOI B should be in the series list
     expect(result.series).toHaveLength(2)
@@ -105,15 +89,7 @@ describe('AOI Stream Plot Transformer (Integration)', () => {
       ],
     ])
 
-    const result = getAoiStreamPlotData(
-      engine,
-      partialSettings({
-        stimulusId,
-        groupId,
-        metricInstanceIds: [WINDOWED_TIME_INSTANCE_ID],
-        hideNoAoi: true,
-      })
-    )
+    const result = run(engine, { hideNoAoi: true })
 
     // Check that maximums are calculated using only AOI A and AOI B values (50 ms)
     expect(result.maxValue).toBeLessThanOrEqual(50)

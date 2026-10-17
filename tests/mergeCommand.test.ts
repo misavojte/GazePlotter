@@ -51,6 +51,16 @@ const makeService = (engine: DataEngine) =>
     toastState: { addSuccess: vi.fn() },
   })
 
+// Merge entity 1 into representative 0 on `axis`.
+const mergeCmd = (axis: 'participant' | 'stimulus') =>
+  createChainedCommand({
+    type: 'mergeEntities',
+    axis,
+    representativeId: 0,
+    memberIds: [1],
+    at: 7,
+  }) as WorkspaceCommandChain
+
 const withName = (
   rows: BaseInterpretedDataType[],
   id: number,
@@ -73,13 +83,7 @@ describe('mergeEntities commands (through a real DataEngine)', () => {
     })
 
     it("reverse precomputes the exact un-merge before execute", () => {
-      const cmd = createChainedCommand({
-        type: 'mergeEntities',
-        axis: 'participant',
-        representativeId: 0,
-        memberIds: [1],
-        at: 7,
-      }) as WorkspaceCommandChain
+      const cmd = mergeCmd('participant')
 
       const reverse = registry.reverse(cmd)
       expect(reverse?.type).toBe('unmergeEntities')
@@ -87,13 +91,7 @@ describe('mergeEntities commands (through a real DataEngine)', () => {
     })
 
     it('forward merges; undo restores; redo re-applies (symmetric)', () => {
-      const forward = createChainedCommand({
-        type: 'mergeEntities',
-        axis: 'participant',
-        representativeId: 0,
-        memberIds: [1],
-        at: 7,
-      }) as WorkspaceCommandChain
+      const forward = mergeCmd('participant')
 
       const beforeSegments = nested(engine)
 
@@ -128,13 +126,7 @@ describe('mergeEntities commands (through a real DataEngine)', () => {
     })
 
     it('reverse precomputes the exact un-merge (stimulus axis) before execute', () => {
-      const cmd = createChainedCommand({
-        type: 'mergeEntities',
-        axis: 'stimulus',
-        representativeId: 0,
-        memberIds: [1],
-        at: 7,
-      }) as WorkspaceCommandChain
+      const cmd = mergeCmd('stimulus')
 
       const reverse = registry.reverse(cmd)
       expect(reverse?.type).toBe('unmergeEntities')
@@ -142,13 +134,7 @@ describe('mergeEntities commands (through a real DataEngine)', () => {
     })
 
     it('forward merges stimuli; undo restores; redo re-applies (symmetric)', () => {
-      const forward = createChainedCommand({
-        type: 'mergeEntities',
-        axis: 'stimulus',
-        representativeId: 0,
-        memberIds: [1],
-        at: 7,
-      }) as WorkspaceCommandChain
+      const forward = mergeCmd('stimulus')
 
       const beforeSegments = nested(engine)
 
