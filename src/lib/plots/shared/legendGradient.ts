@@ -361,13 +361,13 @@ export function drawGradientLegend(
 
   const gradient = ctx.createLinearGradient(gx, 0, gx + gw, 0)
 
-  if (colorScale.length === 3) {
-    gradient.addColorStop(0, colorScale[0])
-    gradient.addColorStop(0.5, colorScale[1])
-    gradient.addColorStop(1, colorScale[2])
+  // Evenly spaced stops: the 2/3-stop palettes, or a sampled ramp (any length).
+  if (colorScale.length >= 2) {
+    const last = colorScale.length - 1
+    for (let i = 0; i <= last; i++) gradient.addColorStop(i / last, colorScale[i])
   } else {
     gradient.addColorStop(0, colorScale[0] || COLOR_FALLBACKS.WHITE)
-    gradient.addColorStop(1, colorScale[1] || COLOR_FALLBACKS.BLACK)
+    gradient.addColorStop(1, COLOR_FALLBACKS.BLACK)
   }
 
   ctx.fillStyle = gradient
