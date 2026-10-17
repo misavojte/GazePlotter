@@ -504,7 +504,6 @@ function computeTimeWindowed(
   // accumulator like visitDuration's × tens of thousands of windows).
   // Every window of a run shares one extent, so scopeDurationMs is a per-scan
   // constant and the one-shared-ctx contract holds.
-  const params = resolveParams(recipe.params, instance.params)
   const scan = resolveScanIndex(
     recipe,
     scope.engine,
@@ -512,13 +511,7 @@ function computeTimeWindowed(
     scope.stimulusId,
     scope.participantId,
   )
-  const ctx = {
-    params,
-    slots,
-    scopeDurationMs: windowSize,
-    axisSlotCount: scan.categorySlotCount,
-    summaryStatistic: projectionSummaryStatistic(instance.projection),
-  }
+  const ctx = scanCtx(recipe, instance, slots, windowSize, scan.categorySlotCount)
   const init = recipe.init
   const onFixation = recipe.onFixation
   const finalize = recipe.finalize
@@ -682,16 +675,9 @@ function computeTimeWindowedEvents(
   const W = timeline.length
   if (W === 0) return emptyTimeseries(false, slots)
 
-  const params = resolveParams(recipe.params, instance.params)
   const stream = resolveEventScan(scope.engine, scope.stimulusId, scope.participantId)
   // Every window of a run shares one extent (see InitCtx.scopeDurationMs).
-  const ctx = {
-    params,
-    slots,
-    scopeDurationMs: windowSize,
-    axisSlotCount: stream.slotCount,
-    summaryStatistic: projectionSummaryStatistic(instance.projection),
-  }
+  const ctx = scanCtx(recipe, instance, slots, windowSize, stream.slotCount)
   const ownWindowOnly = recipe.windowMembership === 'own'
   const init = recipe.init
   const finalize = recipe.finalize
@@ -909,6 +895,23 @@ interface ScanOutput<A> {
   ctx: InitCtx<Record<string, unknown>>
 }
 
+/** THE InitCtx literal every scan (and scanBatch) builds. */
+export function scanCtx(
+  recipe: MetricRecipe<any, any>,
+  instance: MetricInstance,
+  slots: AoiSlotInfo,
+  scopeDurationMs: number,
+  axisSlotCount: number,
+): InitCtx<Record<string, unknown>> {
+  return {
+    params: resolveParams(recipe.params, instance.params),
+    slots,
+    scopeDurationMs,
+    axisSlotCount,
+    summaryStatistic: projectionSummaryStatistic(instance.projection),
+  }
+}
+
 /** Exported for scanBatch, where category-scanning recipes compute per instance. */
 export function runSingleWindow(
   recipe: MetricRecipe<any, any>,
@@ -936,15 +939,29 @@ export function scanAccumulator(
 ): ScanOutput<any> | null {
   // Group-shape recipes never reach here — filtered upstream.
   if (!recipe.init || !recipe.onFixation) return null
-  // Event recipes iterate the occurrence stream, never segment buffers.
-  if (recipe.scanSource === 'events') {
-    return scanEventAccumulator(recipe, instance, scope, timeStart, timeEnd)
-  }
   const ownWindowOnly = recipe.windowMembership === 'own'
   const slots = buildAoiSlots(scope.engine, scope.stimulusId, scope.aoiSelectionId)
   if (!slots) return null
-  const params = resolveParams(recipe.params, instance.params)
   const { reader, rawToSlot } = slots
+  // See InitCtx.scopeDurationMs. The GAZE recording extent for event recipes
+  // too, so shares stay comparable with the fixation metrics' denominators.
+  const scopeDurationMs = scopeDurationOf(
+    timeStart,
+    timeEnd,
+    reader.getParticipantEndTime(scope.stimulusId, scope.participantId)
+  )
+  // Event recipes iterate the occurrence stream, never segment buffers. Same
+  // ScanOutput contract, so callers and caches flow through unchanged;
+  // `ctx.slots` still carries the AOI layout, though no event recipe reads it.
+  if (recipe.scanSource === 'events') {
+    const stream = resolveEventScan(scope.engine, scope.stimulusId, scope.participantId)
+    const ctx = scanCtx(recipe, instance, slots, scopeDurationMs, stream.slotCount)
+    const acc = recipe.init(ctx)
+    // No AOI axis on an event scan; the shared empty array is never written.
+    const { frame, fixEvent } = makeScanCursor(EMPTY_NUMBER_ARRAY)
+    scanEventRange(recipe, stream, acc, ctx, frame, fixEvent, timeStart, timeEnd, ownWindowOnly)
+    return { acc, ctx }
+  }
   const scan = resolveScanIndex(
     recipe,
     scope.engine,
@@ -953,19 +970,7 @@ export function scanAccumulator(
     scope.participantId,
   )
   const { idx: scanIdx, start: sStart, end: sEnd, catSlots: scanCatSlots } = scan
-  // See InitCtx.scopeDurationMs.
-  const scopeDurationMs = scopeDurationOf(
-    timeStart,
-    timeEnd,
-    reader.getParticipantEndTime(scope.stimulusId, scope.participantId)
-  )
-  const ctx = {
-    params,
-    slots,
-    scopeDurationMs,
-    axisSlotCount: scan.categorySlotCount,
-    summaryStatistic: projectionSummaryStatistic(instance.projection),
-  }
+  const ctx = scanCtx(recipe, instance, slots, scopeDurationMs, scan.categorySlotCount)
   const acc = recipe.init(ctx)
   const segBuf = reader.segmentBufferRaw
   const aoiPool = reader.aoiPoolRaw
@@ -1010,49 +1015,6 @@ export function scanAccumulator(
     recipe.onFixation(acc, fixEvent, ctx)
     index++
   }
-  return { acc, ctx }
-}
-
-/**
- * Event-recipe counterpart of `scanAccumulator`: iterates the merged
- * occurrence stream instead of segment buffers, under the same `ScanOutput`
- * contract, so `runSingleWindow`/`runRaw`/`runIndividualsAllSlots` and the
- * caches flow through unchanged. `ctx.slots` still carries the AOI layout —
- * the InitCtx shape is one contract — but no event recipe reads it.
- */
-function scanEventAccumulator(
-  recipe: MetricRecipe<any, any>,
-  instance: MetricInstance,
-  scope: Scope,
-  timeStart: number,
-  timeEnd: number,
-): ScanOutput<any> | null {
-  if (!recipe.init || !recipe.onFixation) return null
-  const slots = buildAoiSlots(scope.engine, scope.stimulusId, scope.aoiSelectionId)
-  if (!slots) return null
-  const params = resolveParams(recipe.params, instance.params)
-  const stream = resolveEventScan(scope.engine, scope.stimulusId, scope.participantId)
-  // See InitCtx.scopeDurationMs — the GAZE recording extent, so shares stay
-  // comparable with the fixation metrics' denominators.
-  const scopeDurationMs = scopeDurationOf(
-    timeStart,
-    timeEnd,
-    slots.reader.getParticipantEndTime(scope.stimulusId, scope.participantId)
-  )
-  const ctx = {
-    params,
-    slots,
-    scopeDurationMs,
-    axisSlotCount: stream.slotCount,
-    summaryStatistic: projectionSummaryStatistic(instance.projection),
-  }
-  const acc = recipe.init(ctx)
-  // No AOI axis on an event scan; the shared empty array is never written.
-  const { frame, fixEvent } = makeScanCursor(EMPTY_NUMBER_ARRAY)
-  scanEventRange(
-    recipe, stream, acc, ctx, frame, fixEvent,
-    timeStart, timeEnd, recipe.windowMembership === 'own',
-  )
   return { acc, ctx }
 }
 

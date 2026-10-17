@@ -144,14 +144,9 @@ export function instanceMatchesContract(
   caps: DataCapabilities,
 ): boolean {
   const p = inst.projection
-  const allowed = contractLeafKinds(c)
-  if (p.kind === 'windowed') {
-    if (c.windowing === 'forbidden') return false
-    if (!allowed.includes(p.inner.kind)) return false
-  } else {
-    if (c.windowing === 'required') return false
-    if (!allowed.includes(p.kind)) return false
-  }
+  const windowed = p.kind === 'windowed'
+  if (c.windowing === (windowed ? 'forbidden' : 'required')) return false
+  if (!contractLeafKinds(c).includes(windowed ? p.inner.kind : p.kind)) return false
   if (!datasetCanFeed(inst, caps)) return false
   const recipe = getRecipe(inst.baseId)
   return !!recipe && recipeSupports(recipe, p) === true

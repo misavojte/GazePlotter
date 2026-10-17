@@ -23,6 +23,13 @@ export interface StartingMetricSpec {
   reduction?: GroupReduction
 }
 
+// A function, never a shared object: each starter owns its projection.
+const aoiWindowed500 = (): Projection => ({
+  kind: 'windowed',
+  window: { windowSize: 500, stepSize: 500 },
+  inner: { kind: 'identity-aoi-vector' },
+})
+
 /** Order is presentation-only; the ids are the identity. */
 export const STARTING_METRICS: readonly StartingMetricSpec[] = [
   // ── identity starters ────────────────────────────────────────────────
@@ -95,11 +102,7 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
     // stragglers reads as full height and hides the drop-off. Sum tapers
     // honestly. relativeTime (below) stays the per-participant share.
     reduction: 'sum',
-    projection: {
-      kind: 'windowed',
-      window: { windowSize: 500, stepSize: 500 },
-      inner: { kind: 'identity-aoi-vector' },
-    },
+    projection: aoiWindowed500(),
   },
   {
     id: 'fixationCount-aoi-windowed-500',
@@ -107,21 +110,13 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
     label: 'Fixation count per AOI',
     // Cohort total per window (same dropout reasoning as the time starter).
     reduction: 'sum',
-    projection: {
-      kind: 'windowed',
-      window: { windowSize: 500, stepSize: 500 },
-      inner: { kind: 'identity-aoi-vector' },
-    },
+    projection: aoiWindowed500(),
   },
   {
     id: 'relativeTime-aoi-windowed-500',
     baseId: 'relativeTime',
     label: 'Relative time on AOI',
-    projection: {
-      kind: 'windowed',
-      window: { windowSize: 500, stepSize: 500 },
-      inner: { kind: 'identity-aoi-vector' },
-    },
+    projection: aoiWindowed500(),
   },
   {
     id: 'visitCount-aoi-windowed-500',
@@ -129,11 +124,7 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
     label: 'Visit count per AOI',
     // Cohort total per window (same dropout reasoning as the time starter).
     reduction: 'sum',
-    projection: {
-      kind: 'windowed',
-      window: { windowSize: 500, stepSize: 500 },
-      inner: { kind: 'identity-aoi-vector' },
-    },
+    projection: aoiWindowed500(),
   },
 
   // ── any-fixation starters ────────────────────────────────────────────
