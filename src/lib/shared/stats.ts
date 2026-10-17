@@ -7,7 +7,7 @@
  * @param p Percentile in [0, 1] (e.g. 0.25 for Q1)
  */
 export function percentileSorted(
-  sorted: readonly number[],
+  sorted: ArrayLike<number>,
   p: number
 ): number {
   if (sorted.length === 1) return sorted[0]
