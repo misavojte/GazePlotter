@@ -8,26 +8,17 @@
    */
 
   interface Props {
-    /** Callback when survey is completed */
-    onComplete?: (results: UEQSResults) => void
     /** Optional CSS class for custom styling */
     class?: string
     /** Optional initial values to pre-populate the survey */
     initialValues?: UEQSResults | null
-    /** Callback when completion status changes */
-    onCompletionChange?: (
-      isComplete: boolean,
-      results: UEQSResults | null
-    ) => void
     /** Callback when survey value changes (for parent state management) */
     onValueChange?: (results: UEQSResults | null, isComplete: boolean) => void
   }
 
   let {
-    onComplete,
     class: className = '',
     initialValues = null,
-    onCompletionChange,
     onValueChange,
   }: Props = $props()
 
@@ -74,17 +65,9 @@
     )
     const resultsData = results as unknown as UEQSResults
 
-    if (onCompletionChange) {
-      onCompletionChange(allCompleted, resultsData)
-    }
-
     if (onValueChange) {
       // Always pass current results, even when incomplete, so parent can save partial progress
       onValueChange(resultsData, allCompleted)
-    }
-
-    if (onComplete && allCompleted) {
-      onComplete(resultsData)
     }
   })
 

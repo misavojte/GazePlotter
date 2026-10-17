@@ -9,8 +9,6 @@
     instructions?: string;
     /** Placeholder text for the textarea */
     placeholder?: string;
-    /** Callback when user submits feedback */
-    onComplete?: (feedback: string) => void;
     /** Optional CSS class for custom styling */
     class?: string;
     /** Optional initial value to pre-populate feedback */
@@ -23,7 +21,6 @@
     title = 'Please provide your feedback',
     instructions = 'Share your thoughts below',
     placeholder = 'Write your feedback here...',
-    onComplete,
     class: className = '',
     initialValue = null,
     onValueChange
@@ -40,10 +37,6 @@
 
     if (onValueChange) {
       onValueChange(feedbackText, complete);
-    }
-
-    if (onComplete && complete) {
-      onComplete(feedbackText);
     }
   });
 </script>

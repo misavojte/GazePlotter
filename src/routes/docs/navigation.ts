@@ -6,10 +6,6 @@ export interface DocBreadcrumb {
 }
 
 export function normalizeDocPath(path: string): string {
-  if (path === '/') {
-    return path
-  }
-
   const normalizedPath = path.replace(/\/+$/, '')
   return normalizedPath || '/'
 }

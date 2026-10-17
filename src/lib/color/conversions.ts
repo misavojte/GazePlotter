@@ -40,49 +40,6 @@ export function rgbToHex(r: number, g: number, b: number): string {
 }
 
 /**
- * Parses RGB string to components
- */
-function parseRgb(
-  rgb: string
-): { r: number; g: number; b: number; a: number } | null {
-  const rgbRegex = /rgb\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)/
-  const match = rgb.match(rgbRegex)
-
-  if (match) {
-    return {
-      r: parseInt(match[1], 10),
-      g: parseInt(match[2], 10),
-      b: parseInt(match[3], 10),
-      a: 1,
-    }
-  }
-
-  return null
-}
-
-/**
- * Parses RGBA string to components
- */
-function parseRgba(
-  rgba: string
-): { r: number; g: number; b: number; a: number } | null {
-  const rgbaRegex =
-    /rgba\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*([01]|0?\.\d+)\s*\)/
-  const match = rgba.match(rgbaRegex)
-
-  if (match) {
-    return {
-      r: parseInt(match[1], 10),
-      g: parseInt(match[2], 10),
-      b: parseInt(match[3], 10),
-      a: parseFloat(match[4]),
-    }
-  }
-
-  return null
-}
-
-/**
  * Converts any valid color string to hex
  */
 export function convertToHex(color: string, defaultValue = '#000000'): string {
@@ -96,19 +53,13 @@ export function convertToHex(color: string, defaultValue = '#000000'): string {
       }
       return '#' + hex
     }
-    case 'rgb': {
-      const rgb = parseRgb(color)
-      if (rgb) {
-        return rgbToHex(rgb.r, rgb.g, rgb.b)
-      }
-      break
-    }
+    case 'rgb':
     case 'rgba': {
-      const rgba = parseRgba(color)
-      if (rgba) {
-        return rgbToHex(rgba.r, rgba.g, rgba.b)
-      }
-      break
+      // detectColorFormat already validated the form; alpha is dropped
+      const [, r, g, b] = color.match(
+        /rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/
+      )!
+      return rgbToHex(+r, +g, +b)
     }
   }
 

@@ -61,30 +61,9 @@
 <div class="color-gradient-picker">
   <div class="preview-container">
     <div class="gradient-bar" style:background={gradientStyle}>
-      <button
-        type="button"
-        class="color-dot min"
-        style:background-color={colorMin}
-        onclick={() => minPicker.toggle()}
-        bind:this={minPicker.triggerElement}
-        aria-label="Min color"
-      ></button>
-      <button
-        type="button"
-        class="color-dot middle"
-        style:background-color={colorMiddle}
-        onclick={() => middlePicker.toggle()}
-        bind:this={middlePicker.triggerElement}
-        aria-label="Middle color"
-      ></button>
-      <button
-        type="button"
-        class="color-dot max"
-        style:background-color={colorMax}
-        onclick={() => maxPicker.toggle()}
-        bind:this={maxPicker.triggerElement}
-        aria-label="Max color"
-      ></button>
+      {@render dot(minPicker, colorMin, 'Min')}
+      {@render dot(middlePicker, colorMiddle, 'Middle')}
+      {@render dot(maxPicker, colorMax, 'Max')}
     </div>
   </div>
 
@@ -100,6 +79,17 @@
     {/each}
   </div>
 </div>
+
+{#snippet dot(picker: ColorPickerState, color: string, name: string)}
+  <button
+    type="button"
+    class="color-dot {name.toLowerCase()}"
+    style:background-color={color}
+    onclick={() => picker.toggle()}
+    bind:this={picker.triggerElement}
+    aria-label="{name} color"
+  ></button>
+{/snippet}
 
 {#snippet popup(
   picker: ColorPickerState,

@@ -78,23 +78,15 @@
     ) {
       const completedTask = surveyStore.tasks[previousTaskIndex]
 
-      if (
-        completedTask &&
-        hasInformedConsent &&
-        endpointService.isServiceInitialized()
-      ) {
-        endpointService
-          .storeSurveyData({
-            type: 'task_fulfilled',
-            timestamp: Date.now(),
-            data: {
-              taskIndex: previousTaskIndex,
-              taskText: completedTask.text,
-            },
-          })
-          .catch(
-            reportSurveyError('A survey task completion could not be logged.')
-          )
+      if (completedTask) {
+        logSurvey(
+          'task_fulfilled',
+          () => ({
+            taskIndex: previousTaskIndex,
+            taskText: completedTask.text,
+          }),
+          'A survey task completion could not be logged.'
+        )
       }
     }
 
@@ -126,6 +118,23 @@
     })
   }
 
+  // Fire-and-forget, consent-gated; data is a thunk so nothing is built unless logged.
+  const logSurvey = (
+    type: string,
+    data: () => Record<string, any>,
+    failMessage: string
+  ) => {
+    if (
+      browser &&
+      hasInformedConsent &&
+      endpointService.isServiceInitialized()
+    ) {
+      endpointService
+        .storeSurveyData({ type, timestamp: Date.now(), data: data() })
+        .catch(reportSurveyError(failMessage))
+    }
+  }
+
   onMount(() => {
     if (!browser) {
       return
@@ -143,39 +152,23 @@
     }
   })
 
-  /**
-   * Helper function to create onSkip callback for logging task skips
-   * @param taskIndex - The index of the task being skipped
-   * @param taskText - The text of the task being skipped
-   * @returns Callback function that logs the skip and sets the skip flag
-   */
-  function createSkipHandler(
-    taskIndex: number,
-    taskText: string
-  ): (taskIndex: number, reason: string) => void {
-    return (_, reason: string) => {
+  // Task auto-completed by its condition; a skip logs skipText.
+  const autoTask = (
+    text: string,
+    condition: ReturnType<typeof createCondition>,
+    skipText = text
+  ): SurveyTask => ({
+    text,
+    condition,
+    onSkip: (taskIndex, reason) => {
       wasLastActionSkip = true
-
-      // Log task skip event (fire-and-forget, non-blocking)
-      if (
-        browser &&
-        hasInformedConsent &&
-        endpointService.isServiceInitialized()
-      ) {
-        endpointService
-          .storeSurveyData({
-            type: 'task_skipped',
-            timestamp: Date.now(),
-            data: {
-              taskIndex,
-              taskText,
-              skipReason: reason,
-            },
-          })
-          .catch(reportSurveyError('A survey task skip could not be logged.'))
-      }
-    }
-  }
+      logSurvey(
+        'task_skipped',
+        () => ({ taskIndex, taskText: skipText, skipReason: reason }),
+        'A survey task skip could not be logged.'
+      )
+    },
+  })
 
   const dismissPreviousConsentBanner = (): void => {
     showPreviousConsentBanner = false
@@ -195,25 +188,17 @@
 
         if (!didConsent) return
 
-        // Log informed consent event with URL data (fire-and-forget, non-blocking)
-        if (browser && endpointService.isServiceInitialized()) {
-          endpointService
-            .storeSurveyData({
-              type: 'informedConsentCollected',
-              timestamp: Date.now(),
-              data: {
-                pageUrl: window.location.href,
-                clientInfo: navigator.userAgent,
-                windowDimensions: window.innerWidth + 'x' + window.innerHeight,
-              },
-            })
-            .catch(
-              reportSurveyError('Your consent confirmation could not be logged.')
-            )
-        }
-
-        // Set consent flag to enable data collection
+        // Set consent flag to enable data collection (first, so the consent log passes the gate)
         hasInformedConsent = true
+        logSurvey(
+          'informedConsentCollected',
+          () => ({
+            pageUrl: window.location.href,
+            clientInfo: navigator.userAgent,
+            windowDimensions: window.innerWidth + 'x' + window.innerHeight,
+          }),
+          'Your consent confirmation could not be logged.'
+        )
 
         // Persist the consent session identifier for future visits and hide the banner for this session
         try {
@@ -238,74 +223,46 @@
       condition: consentCondition,
       skippable: false,
     },
-    {
-      text: 'Scroll to workspace below. On Scarf Plot, set stimulus to Task 2',
-      condition: stimulusCondition, // Auto-completes when stimulus is set to Task 2
-      onSkip: createSkipHandler(1, 'On scarf plot, set stimulus to Task 2'),
-    },
-    {
-      text: "On Scarf Plot, set group to 'Analytics'",
-      condition: groupCondition, // Auto-completes when group is set to Group 1
-      onSkip: createSkipHandler(2, "Set group to 'Analytics'"),
-    },
-    {
-      text: 'On Scarf Plot, set timeline to relative',
-      condition: timelineCondition, // Auto-completes when timeline is set to relative
-      onSkip: createSkipHandler(3, 'Set timeline to relative'),
-    },
-    {
-      text: 'Duplicate Scarf Plot',
-      condition: duplicateCondition, // Auto-completes when plot is duplicated
-      onSkip: createSkipHandler(4, 'Duplicate Scarf Plot'),
-    },
-    {
-      text: "On the duplicated Scarf Plot, set group to 'Holistics'",
-      condition: group2Condition, // Auto-completes when group is set to Group 2
-      onSkip: createSkipHandler(
-        5,
-        "On the duplicated Scarf Plot, set group to 'Holistics'"
-      ),
-    },
-    {
-      text: "Find 'AOI Customization' and group XAxis and YAxis (in stimulus Task 2) by giving them the same name",
-      condition: aoiCustomizationCondition, // Auto-completes when AOIs are grouped
-      onSkip: createSkipHandler(
-        6,
-        "Find 'AOI Customization' and group XAxis and YAxis (in stimulus Task 2) by giving them the same name"
-      ),
-    },
-    {
-      text: 'Pan to Transition Matrix and set its stimulus to Task 2',
-      condition: transitionMatrixStimulusCondition, // Auto-completes when stimulus is set to Task 2
-      onSkip: createSkipHandler(
-        7,
-        'Pan to Transition Matrix and set its stimulus to Task 2'
-      ),
-    },
-    {
-      text: "On Transition Matrix, change aggregation metric to '1-step probability'",
-      condition: transitionMatrixCondition, // Auto-completes when aggregation is changed
-      onSkip: createSkipHandler(
-        8,
-        "On Transition Matrix, change aggregation metric to '1-step probability'"
-      ),
-    },
-    {
-      text: 'Pan to AOI Comparison and set its stimulus to Task 2',
-      condition: aoiComparisonStimulusCondition, // Auto-completes when stimulus is set to Task 2
-      onSkip: createSkipHandler(
-        9,
-        'Pan to AOI Comparison and set its stimulus to Task 2'
-      ),
-    },
-    {
-      text: "On AOI Comparison, set aggregation method to 'Visit count'",
-      condition: aoiComparisonCondition, // Auto-completes when aggregation is changed
-      onSkip: createSkipHandler(
-        10,
-        "On AOI Comparison, set aggregation method to 'Visit count'"
-      ),
-    },
+    autoTask(
+      'Scroll to workspace below. On Scarf Plot, set stimulus to Task 2',
+      stimulusCondition,
+      'On scarf plot, set stimulus to Task 2'
+    ),
+    autoTask(
+      "On Scarf Plot, set group to 'Analytics'",
+      groupCondition,
+      "Set group to 'Analytics'"
+    ),
+    autoTask(
+      'On Scarf Plot, set timeline to relative',
+      timelineCondition,
+      'Set timeline to relative'
+    ),
+    autoTask('Duplicate Scarf Plot', duplicateCondition),
+    autoTask(
+      "On the duplicated Scarf Plot, set group to 'Holistics'",
+      group2Condition
+    ),
+    autoTask(
+      "Find 'AOI Customization' and group XAxis and YAxis (in stimulus Task 2) by giving them the same name",
+      aoiCustomizationCondition
+    ),
+    autoTask(
+      'Pan to Transition Matrix and set its stimulus to Task 2',
+      transitionMatrixStimulusCondition
+    ),
+    autoTask(
+      "On Transition Matrix, change aggregation metric to '1-step probability'",
+      transitionMatrixCondition
+    ),
+    autoTask(
+      'Pan to AOI Comparison and set its stimulus to Task 2',
+      aoiComparisonStimulusCondition
+    ),
+    autoTask(
+      "On AOI Comparison, set aggregation method to 'Visit count'",
+      aoiComparisonCondition
+    ),
     {
       text: 'Feel free to explore the UI as long as you wish',
       buttonText: 'I now want to answer questions and end survey',
@@ -320,26 +277,15 @@
 
         const surveyResults = results as SurveyModalResult
 
-        // Log survey completion to the endpoint service (fire-and-forget, non-blocking)
-        if (
-          browser &&
-          hasInformedConsent &&
-          endpointService.isServiceInitialized()
-        ) {
-          endpointService
-            .storeSurveyData({
-              type: 'survey_completion',
-              timestamp: Date.now(),
-              data: {
-                ueqsResults: surveyResults.ueqs,
-                eyeTrackingResults: surveyResults.eyeTracking,
-                feedback: surveyResults.feedback,
-              },
-            })
-            .catch(
-              reportSurveyError('Your survey answers could not be logged.')
-            )
-        }
+        logSurvey(
+          'survey_completion',
+          () => ({
+            ueqsResults: surveyResults.ueqs,
+            eyeTrackingResults: surveyResults.eyeTracking,
+            feedback: surveyResults.feedback,
+          }),
+          'Your survey answers could not be logged.'
+        )
 
         explorationCondition.set(true) // Manually trigger condition
       },
@@ -369,24 +315,24 @@
     )
   }
 
+  // [plot type, settings predicate, condition]; fired in table order
+  type SettingsRule = [
+    string,
+    (settings: Partial<AllPlotSettings>) => boolean,
+    ReturnType<typeof createCondition>,
+  ]
+  // Task 2 is stimulusId 1
+  const isTask2 = (s: Partial<AllPlotSettings>) =>
+    'stimulusId' in s && s.stimulusId === 1
+
   const handleWorkspaceCommand = (command: WorkspaceCommandChain) => {
-    // Log the workspace command to the endpoint service (fire-and-forget, non-blocking)
     // Deep clone the command to prevent race conditions where the command data might be
     // mutated before async logging completes (especially on Windows Chrome where timing can differ)
-    if (hasInformedConsent && endpointService.isServiceInitialized()) {
-      // Create a deep clone to ensure we capture the command state at this exact moment
-      const commandSnapshot = structuredClone(command)
-
-      endpointService
-        .storeSurveyData({
-          type: 'workspace_command',
-          timestamp: Date.now(),
-          data: { command: commandSnapshot },
-        })
-        .catch(
-          reportSurveyError('A survey interaction could not be logged.')
-        )
-    }
+    logSurvey(
+      'workspace_command',
+      () => ({ command: structuredClone(command) }),
+      'A survey interaction could not be logged.'
+    )
 
     // Prevent any conditions from being set until informed consent is given
     if (!hasInformedConsent) {
@@ -395,43 +341,28 @@
 
     // A settings change targets a SET of items (`updates`); a single edit is
     // a list of one. A condition fires when ANY targeted item matches.
-    const settingsUpdateMatches = (
-      predicate: (settings: Partial<AllPlotSettings>) => boolean
-    ): boolean =>
-      command.type === 'updateSettings' &&
-      command.updates.some(u => predicate(u.settings))
-
-    // Check for stimulus change to Task 2 (stimulusId === 1) from scarf plot
-    if (
-      settingsUpdateMatches(s => 'stimulusId' in s && s.stimulusId === 1) &&
-      isCommandFromPlotType(command.source, 'scarf')
-    ) {
-      stimulusCondition.set(true)
+    const fire = (rules: SettingsRule[]) => {
+      for (const [plotType, predicate, condition] of rules) {
+        if (
+          command.type === 'updateSettings' &&
+          command.updates.some(u => predicate(u.settings)) &&
+          isCommandFromPlotType(command.source, plotType)
+        ) {
+          condition.set(true)
+        }
+      }
     }
 
-    // Check for timeline change to relative from scarf plot
-    if (
-      settingsUpdateMatches(s => 'timeline' in s && s.timeline === 'relative') &&
-      isCommandFromPlotType(command.source, 'scarf')
-    ) {
-      timelineCondition.set(true)
-    }
-
-    // Check for group change to Analytics (groupId === 1) from scarf plot
-    if (
-      settingsUpdateMatches(s => 'groupId' in s && s.groupId === 1) &&
-      isCommandFromPlotType(command.source, 'scarf')
-    ) {
-      groupCondition.set(true)
-    }
-
-    // Check for group change to Holistics (groupId === 2) from scarf plot
-    if (
-      settingsUpdateMatches(s => 'groupId' in s && s.groupId === 2) &&
-      isCommandFromPlotType(command.source, 'scarf')
-    ) {
-      group2Condition.set(true)
-    }
+    fire([
+      ['scarf', isTask2, stimulusCondition],
+      [
+        'scarf',
+        s => 'timeline' in s && s.timeline === 'relative',
+        timelineCondition,
+      ],
+      ['scarf', s => 'groupId' in s && s.groupId === 1, groupCondition], // Analytics
+      ['scarf', s => 'groupId' in s && s.groupId === 2, group2Condition], // Holistics
+    ])
 
     // Check for plot duplication (works from any plot type)
     if (command.type === 'duplicateGridItem') {
@@ -454,44 +385,23 @@
       if (merged) aoiCustomizationCondition.set(true)
     }
 
-    // Check for Transition Matrix aggregation change to '1-step probability'
-    if (
-      settingsUpdateMatches(
-        s => 'aggregationMethod' in s && s.aggregationMethod === 'probability'
-      ) &&
-      isCommandFromPlotType(command.source, 'transitionMatrix')
-    ) {
-      transitionMatrixCondition.set(true)
-    }
-
-    // Check for AOI Metrics aggregation change to 'Visit count'
-    if (
-      settingsUpdateMatches(
+    fire([
+      [
+        'transitionMatrix',
+        s => 'aggregationMethod' in s && s.aggregationMethod === 'probability',
+        transitionMatrixCondition,
+      ],
+      [
+        'aoiComparison',
         s =>
           'metricInstanceIds' in s &&
           Array.isArray(s.metricInstanceIds) &&
-          s.metricInstanceIds[0] === 'visitCount'
-      ) &&
-      isCommandFromPlotType(command.source, 'aoiComparison')
-    ) {
-      aoiComparisonCondition.set(true)
-    }
-
-    // Check for Transition Matrix stimulus change to Task 2
-    if (
-      settingsUpdateMatches(s => 'stimulusId' in s && s.stimulusId === 1) &&
-      isCommandFromPlotType(command.source, 'transitionMatrix')
-    ) {
-      transitionMatrixStimulusCondition.set(true)
-    }
-
-    // Check for AOI Metrics stimulus change to Task 2
-    if (
-      settingsUpdateMatches(s => 'stimulusId' in s && s.stimulusId === 1) &&
-      isCommandFromPlotType(command.source, 'aoiComparison')
-    ) {
-      aoiComparisonStimulusCondition.set(true)
-    }
+          s.metricInstanceIds[0] === 'visitCount',
+        aoiComparisonCondition,
+      ],
+      ['transitionMatrix', isTask2, transitionMatrixStimulusCondition],
+      ['aoiComparison', isTask2, aoiComparisonStimulusCondition],
+    ])
   }
 </script>
 
