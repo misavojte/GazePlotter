@@ -32,6 +32,12 @@ export const PRESET_PALETTES = {
     name: 'Heat',
     colors: ['#ffffff', '#fd8d3c', '#7f0000'],
   },
+  /** Lightness falls one way (L* 94, 70, 40) and the top stays visible on white:
+      the fixation heatmap's overlay default. */
+  YL_OR_RD: {
+    name: 'Yellow to Red',
+    colors: ['#ffeda0', '#fd8d3c', '#bd0026'],
+  },
   BLUE: {
     name: 'Blue',
     colors: ['#f7fbff', '#4292c6', '#08306b'],
