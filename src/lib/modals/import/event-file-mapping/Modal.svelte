@@ -68,10 +68,6 @@
     })
     modalState.finish(mapping)
   }
-
-  const handleCancel = () => {
-    modalState.close()
-  }
 </script>
 
 <div class="content">
@@ -100,19 +96,7 @@
   </div>
 </div>
 
-<ModalButtons
-  buttons={[
-    {
-      label: 'Apply',
-      onclick: handleSubmit,
-      variant: 'primary',
-    },
-    {
-      label: 'Cancel',
-      onclick: handleCancel,
-    },
-  ]}
-/>
+<ModalButtons onApply={handleSubmit} />
 
 <style>
   .content {

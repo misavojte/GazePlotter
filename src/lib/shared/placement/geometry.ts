@@ -132,3 +132,15 @@ export const adjustForViewport = (
 
   return { left, top, isFlippedX, isFlippedY }
 }
+
+/** Anchor-relative placement, clamped into the current window. */
+export const placeInViewport = (
+  anchor: DOMRect,
+  floatingSize: Dimensions,
+  o: { position: Position; offset: number; hAlign: Alignment; vAlign: Alignment }
+): PlacementResult =>
+  adjustForViewport(
+    computePlacement(anchor, floatingSize, o.position, o.offset, o.hAlign, o.vAlign),
+    floatingSize,
+    { width: window.innerWidth, height: window.innerHeight }
+  )

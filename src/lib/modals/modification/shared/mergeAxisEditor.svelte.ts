@@ -3,7 +3,7 @@ import type { BaseInterpretedDataType } from '$lib/data/types'
 import { detectMergeOverlap } from '$lib/data/merge/detectOverlap'
 import { planDisplayedNameMerges } from '$lib/data/merge/planMerges'
 import {
-  createBaseGroupEditor,
+  createGroupedEntityEditor,
   type MergeCard,
 } from './groupedEntityEditor.svelte'
 
@@ -40,7 +40,8 @@ export function createMergeAxisEditor(
     activeEntries.flatMap(e => e.members.map(m => m.id))
   )
 
-  const editor = createBaseGroupEditor(initialItems, {
+  const editor = createGroupedEntityEditor({
+    getItems: () => initialItems,
     detectConflicts: ids => {
       const reader = engine.getReader()
       if (!reader) return []

@@ -49,17 +49,8 @@ export class UndoRedoStateStore {
   isDirty = $derived(this.head !== this.savedHead)
 
   /** The root command of the chain the next undo/redo would replay (labels). */
-  lastUndoCommand = $derived(
-    this.undoStack.length > 0
-      ? this.undoStack[this.undoStack.length - 1].commands[0].original
-      : null
-  )
-
-  lastRedoCommand = $derived(
-    this.redoStack.length > 0
-      ? this.redoStack[this.redoStack.length - 1].commands[0].original
-      : null
-  )
+  lastUndoCommand = $derived(this.undoStack.at(-1)?.commands[0].original ?? null)
+  lastRedoCommand = $derived(this.redoStack.at(-1)?.commands[0].original ?? null)
 
   // --- Public API Methods ---
 
@@ -158,28 +149,9 @@ export class UndoRedoStateStore {
   undo(): WorkspaceCommandChain[] | null {
     // Finalize any pending chain first
     this.finalizeChain()
-
-    // Check if there's anything to undo
-    if (this.undoStack.length === 0) {
-      return null
-    }
-
-    // Pop the most recent command chain from undo stack
-    const commandChain = this.undoStack[this.undoStack.length - 1]
-    this.undoStack = this.undoStack.slice(0, -1)
-
-    // Mark that we're processing an undo/redo
-    this.isProcessingUndoRedo = true
-
-    // Move the chain to redo stack so we can redo it later
-    this.redoStack = [...this.redoStack, commandChain]
-
-    // Return reverse commands in reverse order (last child first, root last)
-    // This ensures children are undone before the root
-    return commandChain.commands
-      .slice()
-      .reverse()
-      .map(pair => pair.reverse)
+    // Last child first, root last, so children are undone before the root.
+    const chain = this.transfer('undoStack')
+    return chain ? chain.commands.slice().reverse().map(pair => pair.reverse) : null
   }
 
   /**
@@ -189,23 +161,19 @@ export class UndoRedoStateStore {
    * @returns Array of original commands to execute, or null if redo is not possible
    */
   redo(): WorkspaceCommandChain[] | null {
-    // Check if there's anything to redo
-    if (this.redoStack.length === 0) {
-      return null
-    }
+    // Root first, children after.
+    return this.transfer('redoStack')?.commands.map(pair => pair.original) ?? null
+  }
 
-    // Pop the most recent command chain from redo stack
-    const commandChain = this.redoStack[this.redoStack.length - 1]
-    this.redoStack = this.redoStack.slice(0, -1)
-
-    // Mark that we're processing an undo/redo
+  /** Pops the newest chain off `from` onto the other stack, entering undo/redo. */
+  private transfer(from: 'undoStack' | 'redoStack'): CommandChainEntry | null {
+    const chain = this[from].at(-1)
+    if (!chain) return null
+    this[from] = this[from].slice(0, -1)
     this.isProcessingUndoRedo = true
-
-    // Move the chain back to undo stack
-    this.undoStack = [...this.undoStack, commandChain]
-
-    // Return original commands in forward order (root first, children after)
-    return commandChain.commands.map(pair => pair.original)
+    const to = from === 'undoStack' ? 'redoStack' : 'undoStack'
+    this[to] = [...this[to], chain]
+    return chain
   }
 
   /**

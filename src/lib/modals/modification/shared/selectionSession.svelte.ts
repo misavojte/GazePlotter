@@ -122,12 +122,6 @@ export function createSelectionSession<TSel extends SelectionLike>(
   }
 
   // ── Toggling: one gesture, two meanings ────────────────────────────────────
-  const toggleTransient = (group: Group) => {
-    const next = new Set(transientIds)
-    if (next.has(group.id)) next.delete(group.id)
-    else next.add(group.id)
-    transientIds = next
-  }
   const setTransientMany = (groups: Group[], on: boolean) => {
     const next = new Set(transientIds)
     for (const g of groups) {
@@ -136,6 +130,8 @@ export function createSelectionSession<TSel extends SelectionLike>(
     }
     transientIds = next
   }
+  const toggleTransient = (group: Group) =>
+    setTransientMany([group], !transientIds.has(group.id))
   const toggleBound = (group: Group) => {
     const sel = editingSelection
     if (!sel) return
@@ -234,21 +230,13 @@ export function createSelectionSession<TSel extends SelectionLike>(
   // Fold the transient selection into an existing SELECTION (chip menu).
   // The transient survives — assigning one working set to several selections
   // in a row is a real workflow — so the toast is the confirmation.
-  const addSelectedTo = (id: number) => {
+  const foldSelected = (id: number, on: boolean) => {
     const sel = selections.find(s => s.id === id)
     if (!sel) return
-    const adding = selectedGroups.filter(g => !cfg.isMember(sel, g))
-    if (adding.length === 0) return
-    updateSelection(id, cfg.withMembers(sel, adding, true))
-    cfg.notify(`Added ${adding.length} to "${sel.name}".`)
-  }
-  const removeSelectedFrom = (id: number) => {
-    const sel = selections.find(s => s.id === id)
-    if (!sel) return
-    const removing = selectedGroups.filter(g => cfg.isMember(sel, g))
-    if (removing.length === 0) return
-    updateSelection(id, cfg.withMembers(sel, removing, false))
-    cfg.notify(`Removed ${removing.length} from "${sel.name}".`)
+    const moving = selectedGroups.filter(g => cfg.isMember(sel, g) !== on)
+    if (moving.length === 0) return
+    updateSelection(id, cfg.withMembers(sel, moving, on))
+    cfg.notify(`${on ? 'Added' : 'Removed'} ${moving.length} ${on ? 'to' : 'from'} "${sel.name}".`)
   }
   /** Chip-menu verb availability against the transient selection. */
   const foldFlags = (sel: TSel) => ({
@@ -367,8 +355,7 @@ export function createSelectionSession<TSel extends SelectionLike>(
     removeSelection,
     done,
     newOrSave,
-    addSelectedTo,
-    removeSelectedFrom,
+    foldSelected,
     handleReorder,
     onEscCapture,
     onOutsideDown,
@@ -402,8 +389,7 @@ export interface SelectionSessionApi {
   removeSelection(id: number): void
   done(): void
   newOrSave(): void
-  addSelectedTo(id: number): void
-  removeSelectedFrom(id: number): void
+  foldSelected(id: number, on: boolean): void
   setHovered(id: number | null): void
   onEscCapture(e: KeyboardEvent): void
   onOutsideDown(e: PointerEvent): void

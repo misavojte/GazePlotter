@@ -153,7 +153,9 @@
     border-color: var(--c-midgrey);
   }
 
-  .check:checked {
+  /* Indeterminate = "Mixed" across a multi-selection: filled box with a dash. */
+  .check:checked,
+  .check:indeterminate {
     background: var(--c-brand);
     border-color: var(--c-brand);
   }
@@ -167,36 +169,7 @@
     outline-offset: 2px;
   }
 
-  .check-icon {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    width: var(--check-icon-size);
-    height: var(--check-icon-size);
-    pointer-events: none;
-    opacity: 0;
-    transform: translate(-50%, -50%);
-  }
-
-  .check-icon path {
-    fill: none;
-    stroke: var(--c-white);
-    stroke-width: var(--check-stroke);
-    stroke-linecap: round;
-    stroke-linejoin: round;
-    vector-effect: non-scaling-stroke;
-  }
-
-  .check:checked + .check-icon {
-    opacity: 1;
-  }
-
-  /* Indeterminate = "Mixed" across a multi-selection: filled box with a dash. */
-  .check:indeterminate {
-    background: var(--c-brand);
-    border-color: var(--c-brand);
-  }
-
+  .check-icon,
   .dash-icon {
     position: absolute;
     top: 50%;
@@ -208,6 +181,7 @@
     transform: translate(-50%, -50%);
   }
 
+  .check-icon path,
   .dash-icon path {
     fill: none;
     stroke: var(--c-white);
@@ -215,6 +189,12 @@
     stroke-linecap: round;
   }
 
+  .check-icon path {
+    stroke-linejoin: round;
+    vector-effect: non-scaling-stroke;
+  }
+
+  .check:checked + .check-icon,
   .check:indeterminate ~ .dash-icon {
     opacity: 1;
   }

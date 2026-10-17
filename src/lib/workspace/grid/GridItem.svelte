@@ -267,9 +267,7 @@
     {@render cornerHandle('top-right', resizeParams.tr)}
     {@render cornerHandle('bottom-left', resizeParams.bl)}
     {@render cornerHandle('bottom-right', resizeParams.br)}
-  {/if}
 
-  {#if isSoleSelection && isSettled}
     <!-- Sibling of the frame so overflow:hidden never clips the chip. No Move
          verb: the selected frame is already the drag target (`cursor: move`). -->
     <div class="chip-anchor">

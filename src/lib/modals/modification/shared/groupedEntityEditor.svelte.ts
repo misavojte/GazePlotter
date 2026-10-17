@@ -19,8 +19,8 @@ export interface MergeCard<
   members: T[]
 }
 
-export interface GroupedEntityEditorConfig {
-  getItems: (stimulusId: number) => ExtendedInterpretedDataType[]
+export interface GroupedEntityEditorConfig<T extends BaseInterpretedDataType> {
+  getItems: (stimulusId: number) => T[]
   /** Stimulus the editor opens on — only for per-stimulus axes. Default 0. */
   initialStimulusId?: number
   /**
@@ -29,16 +29,20 @@ export interface GroupedEntityEditorConfig {
    * and a card where a locked row shares its displayed name with anything
    * else is an INVALID group — surfaced via `conflictsFor` /
    * `hasInvalidGroup` and dissolved with `acknowledge`, the same live-reject
-   * shape `createBaseGroupEditor` uses for impossible participant merges.
-   * Color and reorder stay free. Exposed back as `editor.lockedNameIds` so
-   * the list and selection session read ONE source.
+   * shape `detectConflicts` uses for impossible merges. Color and reorder
+   * stay free. Exposed back as `editor.lockedNameIds` so the list and
+   * selection session read ONE source.
    */
   lockedNameIds?: ReadonlySet<number>
+  /**
+   * MERGE axes (stimuli, participants): for a would-be merge group, the
+   * conflicting counterpart ids. Non-empty means the recordings overlap and
+   * CANNOT merge, so the group is invalid; replaces the locked-name rule.
+   */
+  detectConflicts?: (groupIds: number[]) => number[]
 }
 
-function deepCopy(
-  items: ExtendedInterpretedDataType[]
-): ExtendedInterpretedDataType[] {
+function deepCopy<T extends BaseInterpretedDataType>(items: T[]): T[] {
   // Spread keeps caller-attached display-only keys (e.g. the AOI modal's
   // all-stimuli `stimuliLabel`) alongside the canonical four fields.
   return items.map(item => ({ ...item }))
@@ -175,7 +179,9 @@ function renameAllIn(
   return changed
 }
 
-export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
+export function createGroupedEntityEditor<
+  T extends BaseInterpretedDataType = ExtendedInterpretedDataType,
+>(config: GroupedEntityEditorConfig<T>) {
   const initialStimulusId = config.initialStimulusId ?? 0
   const lockedNameIds = config.lockedNameIds ?? new Set<number>()
   const opened = deepCopy(config.getItems(initialStimulusId))
@@ -195,19 +201,20 @@ export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
   // item mutation and read at Apply, so they need no reactivity of their own.
   const touched = { name: new Set<number>(), color: new Set<number>() }
 
-  /** Non-locked member ids of a group that collides with a name-locked row
-      (empty = fine). A lock sharing its card with anything else means someone
-      typed or bulk-renamed into the reserved name — the group can't apply. */
+  /** Conflicting ids of a group (empty = fine): `detectConflicts` when set,
+      else the non-locked members of a card that collides with a name-locked
+      row (someone typed or bulk-renamed into the reserved name). */
   function conflictsFor(group: MergeCard<BaseInterpretedDataType>): number[] {
     if (group.members.length < 2) return EMPTY_CONFLICTS
+    if (config.detectConflicts) {
+      return config.detectConflicts(group.members.map(m => m.id))
+    }
     if (!group.members.some(m => lockedNameIds.has(m.id))) return EMPTY_CONFLICTS
     return group.members.filter(m => !lockedNameIds.has(m.id)).map(m => m.id)
   }
 
-  /** True while any on-screen group collides with a lock (blocks Apply). */
-  const hasInvalidGroup = $derived(
-    lockedNameIds.size > 0 && groups.some(g => conflictsFor(g).length > 0)
-  )
+  /** True while any on-screen group is invalid (blocks Apply). */
+  const hasInvalidGroup = $derived(groups.some(g => conflictsFor(g).length > 0))
 
   /** Dissolve an invalid group (locked members never renamed, so reverting
       them is a no-op — the shared dissolve covers everyone). Reverting to the
@@ -245,7 +252,7 @@ export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
     const memberIds = new Set(group.members.map(m => m.id))
     for (const i of items) {
       if (memberIds.has(i.id)) {
-        i.color = newColor
+        ;(i as T & ExtendedInterpretedDataType).color = newColor
         touched.color.add(i.id)
       }
     }
@@ -285,13 +292,14 @@ export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
     items = reorderWithSet(items, fromIndex, toIndex, withIds ?? new Set())
   }
 
-  function getCleanedItems(): ExtendedInterpretedDataType[] {
-    return items.map(item => ({
-      id: item.id,
-      originalName: item.originalName,
-      displayedName: (item.displayedName || '').trim(),
-      color: item.color,
-    }))
+  /** Trimmed copy of the canonical fields (plus color where the axis has one). */
+  function getCleanedItems(): T[] {
+    return items.map(item => {
+      const { id, originalName } = item
+      const displayedName = (item.displayedName || '').trim()
+      const out = { id, originalName, displayedName }
+      return ('color' in item ? { ...out, color: item.color } : out) as T
+    })
   }
 
   return {
@@ -318,107 +326,5 @@ export function createGroupedEntityEditor(config: GroupedEntityEditorConfig) {
     renameAll,
     reorderGroups,
     getCleanedItems,
-  }
-}
-
-export interface BaseGroupEditorConfig {
-  /**
-   * For a would-be merge group (entity ids sharing a displayed name), return
-   * the conflicting counterpart ids — non-empty means the group's recordings
-   * overlap and CANNOT be merged. Used to reject an invalid rename live.
-   */
-  detectConflicts?: (groupIds: number[]) => number[]
-}
-
-/**
- * Lighter grouped editor for the color-less Base entities (stimuli,
- * participants): live grouping by displayed name — renaming two to the same
- * name groups them on the fly, like the AOI editor, minus color/stimulus.
- *
- * Merges must be disjoint, so the rename is validated LIVE: if giving an entity
- * a name that already exists would form a group whose recordings overlap (can't
- * merge), the rename is rejected on the spot — the displayed name snaps back and
- * `error` explains why. So the list only ever shows groups that can actually
- * merge; on Apply the modal turns each multi-member group into a merge command.
- */
-export function createBaseGroupEditor(
-  initial: BaseInterpretedDataType[],
-  config: BaseGroupEditorConfig = {}
-) {
-  const copy = (rows: BaseInterpretedDataType[]): BaseInterpretedDataType[] =>
-    rows.map(r => ({ id: r.id, originalName: r.originalName, displayedName: r.displayedName }))
-
-  let items = $state(copy(initial))
-  // The displayed name each entity had when the modal opened — the "former
-  // shape" that acknowledging an impossible merge reverts to.
-  const openName = new Map(initial.map(r => [r.id, r.displayedName]))
-  const groups = $derived(buildGroups(items))
-
-  /** Conflicting counterpart ids for a group (empty = mergeable). */
-  function conflictsFor(group: MergeCard<BaseInterpretedDataType>): number[] {
-    if (group.members.length < 2 || !config.detectConflicts) return EMPTY_CONFLICTS
-    return config.detectConflicts(group.members.map(m => m.id))
-  }
-
-  /** True while any on-screen group can't actually merge (blocks Apply). */
-  const hasInvalidGroup = $derived(
-    groups.some(g => conflictsFor(g).length > 0)
-  )
-
-  function handleNameInput(
-    item: BaseInterpretedDataType,
-    newName: string,
-    isLeader: boolean,
-    group: MergeCard<BaseInterpretedDataType>
-  ) {
-    renameItemIn(items, item, newName, isLeader, group)
-  }
-
-  /** Dissolve a group (used to undo an impossible merge). */
-  function acknowledge(group: MergeCard<BaseInterpretedDataType>) {
-    dissolveGroup(items, group, openName)
-  }
-
-  function sort(column: string, direction: 'asc' | 'desc') {
-    items = sortItems(items, column, direction)
-  }
-
-  function renameAll(pattern: string, replacement: string) {
-    renameAllIn(items, pattern, replacement)
-    // Any group a bulk rename forms is validated the same way as a manual one:
-    // an impossible merge shows its notice + Undo, and blocks Apply.
-  }
-
-  function reorderGroups(
-    fromIndex: number,
-    toIndex: number,
-    withIds?: ReadonlySet<number>
-  ) {
-    items = reorderWithSet(items, fromIndex, toIndex, withIds ?? new Set())
-  }
-
-  /** Trimmed, id-keyed copy for committing the rename. */
-  function getItems(): BaseInterpretedDataType[] {
-    return items.map(i => ({
-      id: i.id,
-      originalName: i.originalName,
-      displayedName: (i.displayedName || '').trim(),
-    }))
-  }
-
-  return {
-    get groups() {
-      return groups
-    },
-    get hasInvalidGroup() {
-      return hasInvalidGroup
-    },
-    conflictsFor,
-    handleNameInput,
-    acknowledge,
-    sort,
-    renameAll,
-    reorderGroups,
-    getItems,
   }
 }

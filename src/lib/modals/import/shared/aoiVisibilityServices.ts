@@ -69,22 +69,15 @@ const processSmiKeyFrames = (
   for (let i = 0; i < keyFrames.length; i++) {
     const frame = keyFrames[i]
     const visibility = frame.querySelector('Visible')?.innerHTML
-    if (visibility === undefined) continue
-    if (visibility === 'true' && !isAoiCurrentlyVisible) {
+    if (visibility !== 'true' && visibility !== 'false') continue
+    const visible = visibility === 'true'
+    if (visible !== isAoiCurrentlyVisible) {
       const timestampNode = frame.querySelector('Timestamp')
       if (timestampNode === null) continue
-      const timestamp = Number(timestampNode.innerHTML) / 1000 // ms
-      visibilityArr.push(timestamp)
-      isAoiCurrentlyVisible = true
+      visibilityArr.push(Number(timestampNode.innerHTML) / 1000) // ms
+      isAoiCurrentlyVisible = visible
     }
-    if (visibility === 'false' && isAoiCurrentlyVisible) {
-      const timestampNode = frame.querySelector('Timestamp')
-      if (timestampNode === null) continue
-      const timestamp = Number(timestampNode.innerHTML) / 1000 // ms
-      visibilityArr.push(timestamp)
-      isAoiCurrentlyVisible = false
-    }
-    if (visibility === 'true' && i === keyFrames.length - 1) {
+    if (visible && i === keyFrames.length - 1) {
       visibilityArr.push(highestEndTime)
       isAoiCurrentlyVisible = false
     }
@@ -215,15 +208,10 @@ export const processTobiiKeyFrames = (
   let isAoiCurrentlyVisible = false
   for (const keyFrameId in keyFrames) {
     const keyFrame = keyFrames[keyFrameId]
-    const isActive = keyFrame.IsActive
-    const seconds = keyFrame.Seconds
-    if (isActive && !isAoiCurrentlyVisible) {
-      visibilityArr.push(seconds * 1000) // ms
-      isAoiCurrentlyVisible = true
-    }
-    if (!isActive && isAoiCurrentlyVisible) {
-      visibilityArr.push(seconds * 1000) // ms
-      isAoiCurrentlyVisible = false
+    const isActive = !!keyFrame.IsActive
+    if (isActive !== isAoiCurrentlyVisible) {
+      visibilityArr.push(keyFrame.Seconds * 1000) // ms
+      isAoiCurrentlyVisible = isActive
     }
   }
   if (visibilityArr.length % 2 !== 0) {

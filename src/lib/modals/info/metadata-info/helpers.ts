@@ -247,6 +247,14 @@ export function buildMetadataCsvReport(
   formatters: MetadataCsvFormatters
 ): string {
   const lines: string[] = []
+  const pushFileTable = (
+    title: string,
+    files: { fileNames: readonly string[]; fileSizes: readonly number[] }
+  ) => {
+    lines.push(`Section,${title}`, 'File Name,File Size (bytes)')
+    files.fileNames.forEach((name, i) => lines.push(`${name},${files.fileSizes[i]}`))
+    lines.push('')
+  }
   lines.push('GazePlotter Metadata Export')
   lines.push(`Generated,${input.generatedAt}`)
   lines.push('')
@@ -317,14 +325,7 @@ export function buildMetadataCsvReport(
     )
     lines.push('')
 
-    lines.push('Section,Current Parsing Files')
-    lines.push('File Name,File Size (bytes)')
-    for (let i = 0; i < input.currentFileInput.fileNames.length; i += 1) {
-      lines.push(
-        `${input.currentFileInput.fileNames[i]},${input.currentFileInput.fileSizes[i]}`
-      )
-    }
-    lines.push('')
+    pushFileTable('Current Parsing Files', input.currentFileInput)
   }
 
   const sourceTotalFileSize =
@@ -368,14 +369,7 @@ export function buildMetadataCsvReport(
     lines.push(`Client,${csvCell(input.fileMetadata.clientUserAgent)}`)
     lines.push('')
 
-    lines.push('Section,Attempted Files')
-    lines.push('File Name,File Size (bytes)')
-    for (let i = 0; i < input.fileMetadata.fileNames.length; i += 1) {
-      lines.push(
-        `${input.fileMetadata.fileNames[i]},${input.fileMetadata.fileSizes[i]}`
-      )
-    }
-    lines.push('')
+    pushFileTable('Attempted Files', input.fileMetadata)
 
     if (input.fileMetadata.stack) {
       lines.push('Section,Error Stack Trace')
@@ -400,14 +394,7 @@ export function buildMetadataCsvReport(
     lines.push(`Client,${csvCell(input.fileMetadata.clientUserAgent)}`)
     lines.push('')
 
-    lines.push('Section,Source Parsing Files')
-    lines.push('File Name,File Size (bytes)')
-    for (let i = 0; i < input.fileMetadata.fileNames.length; i += 1) {
-      lines.push(
-        `${input.fileMetadata.fileNames[i]},${input.fileMetadata.fileSizes[i]}`
-      )
-    }
-    lines.push('')
+    pushFileTable('Source Parsing Files', input.fileMetadata)
 
     lines.push('Section,Parse Settings')
     lines.push('Setting,Value')

@@ -219,11 +219,6 @@
   )
   const editor = merge.editor
 
-  const SORT_COLUMNS = [
-    { label: 'Original name', column: 'originalName' },
-    { label: 'Displayed name', column: 'displayedName' },
-  ]
-
   // ── Id-keyed selections for this axis ──────────────────────────────────────
   const sel = idKeyedSelection<K, TSel>(cfg.field)
 
@@ -245,7 +240,7 @@
 
   // ── Save ──────────────────────────────────────────────────────────────────
   const onApply = () => {
-    const items = editor.getItems()
+    const items = editor.getCleanedItems()
 
     if (merge.itemsChanged(items)) {
       const reconciled = workspace.apply({
@@ -277,7 +272,6 @@
     title={config.title}
     emptyMessage={config.emptyMessage}
     columns={cfg.rowAction ? [...cfg.columns, cfg.rowAction.column] : cfg.columns}
-    sortColumns={SORT_COLUMNS}
     onSort={editor.sort}
     onReorder={session.handleReorder}
     onRename={editor.renameAll}
@@ -303,14 +297,4 @@
   <SelectionTray {session} {chips} noun={config.noun} />
 </Section>
 
-<ModalButtons
-  buttons={[
-    {
-      label: 'Apply',
-      onclick: onApply,
-      variant: 'primary',
-      isDisabled: editor.hasInvalidGroup,
-    },
-    { label: 'Cancel', onclick: () => modalState.close() },
-  ]}
-/>
+<ModalButtons {onApply} applyDisabled={editor.hasInvalidGroup} />

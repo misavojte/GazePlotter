@@ -141,10 +141,6 @@
         'In how many of the stimuli this original AOI appears. * = its name or color currently differs between stimuli; a name or color you edit (even to the value shown) is applied to all of them, a field you leave alone keeps its per-stimulus values.',
     },
   ]
-  const SORT_COLUMNS = [
-    { label: 'Original name', column: 'originalName' },
-    { label: 'Displayed name', column: 'displayedName' },
-  ]
   const activeColumns = $derived(scope === 'all' ? ALL_COLUMNS : STIM_COLUMNS)
   const footerTemplate = $derived(activeColumns.map(c => c.width).join(' '))
 
@@ -330,7 +326,6 @@
         ? 'No AOIs in this dataset'
         : 'No AOIs found in stimulus'}
       columns={activeColumns}
-      sortColumns={SORT_COLUMNS}
       onSort={activeEditor.sort}
       onReorder={session.handleReorder}
       onRename={activeEditor.renameAll}
@@ -400,12 +395,7 @@
   <SelectionTray {session} {chips} noun="AOIs" />
 </Section>
 
-<ModalButtons
-  buttons={[
-    { label: 'Apply', onclick: handleSubmit, variant: 'primary' },
-    { label: 'Cancel', onclick: () => modalState.close() },
-  ]}
-/>
+<ModalButtons onApply={handleSubmit} />
 
 <style>
   .scope-select {

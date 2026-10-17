@@ -1,17 +1,15 @@
 <script lang="ts">
   import { Select } from '$lib/shared/components'
   import InputRadio from '$lib/shared/components/InputRadio.svelte'
-  import { ModalButtons, Step, StepList, HelpText } from '$lib/modals'
+  import { Step, StepList, HelpText } from '$lib/modals'
   import { getStimuliOptions } from '$lib/plots/shared'
   import { getGazePlotterSession } from '$lib/session'
-  import { createExportButtons, withExportBusy } from '../shared/helpers'
   import ExportShell from '../shared/ExportShell.svelte'
 
-  const { engine, exportService, modalState } = getGazePlotterSession()
+  const { engine, exportService } = getGazePlotterSession()
   const fileName = 'GazePlotter-ScanGraph'
   let stimulusId = $state('0')
   let stringForm = $state('original')
-  let isExporting = $state(false)
 
   const stimulusOptions = getStimuliOptions(engine)
 
@@ -28,31 +26,18 @@
     stringForm === 'collapsed' ? 'Collapsed' : 'Original'
   )
 
-  const handleExport = async () => {
-    await withExportBusy(
-      val => (isExporting = val),
-      () =>
-        exportService.exportScangraph({
-          fileName,
-          stimulusId: parseInt(stimulusId, 10),
-          collapsed: stringForm === 'collapsed',
-        })
-    )
-  }
-
-  const exportButtons = $derived(
-    createExportButtons({
-      canExport: true,
-      exportLabel: 'Export ScanGraph',
-      isExporting,
-      onCancel: () => modalState.close(),
-      onExport: handleExport,
+  const handleExport = () =>
+    exportService.exportScangraph({
+      fileName,
+      stimulusId: parseInt(stimulusId, 10),
+      collapsed: stringForm === 'collapsed',
     })
-  )
 </script>
 
 <ExportShell
   intro="Export scanpath data for similarity analysis and visualization. Compatible with the eyetracking.upol.cz/scangraph tool."
+  exportLabel="Export ScanGraph"
+  onExport={handleExport}
 >
   <StepList>
     <Step
@@ -94,6 +79,4 @@
       </HelpText>
     </Step>
   </StepList>
-
-  <ModalButtons buttons={exportButtons} />
 </ExportShell>

@@ -7,8 +7,7 @@ import {
   getMenuSize,
 } from './layout'
 import {
-  computePlacement,
-  adjustForViewport,
+  placeInViewport,
   attachOutsideDismiss,
   computeZIndex,
 } from '$lib/shared/placement'
@@ -111,26 +110,13 @@ const contextMenuAction = (
       options.width !== undefined
         ? { ...baseSize, width: options.width }
         : baseSize
-    const initialPlacement = computePlacement(
-      rect,
-      menuSize,
-      state.position,
-      state.offset,
-      state.hAlign,
-      state.vAlign
-    )
-
-    const adjustedPlacement = adjustForViewport(
-      { x: initialPlacement.x, y: initialPlacement.y },
-      menuSize,
-      { width: window.innerWidth, height: window.innerHeight }
-    )
+    const { left, top } = placeInViewport(rect, menuSize, state)
 
     menu.update({
       items: options.items,
       content: options.content,
-      x: adjustedPlacement.left,
-      y: adjustedPlacement.top,
+      x: left,
+      y: top,
       slideFrom: state.slideFrom,
       selectionMode: options.selectionMode,
       width: options.width,

@@ -89,11 +89,6 @@
     },
   ]
 
-  const SORT_COLUMNS = [
-    { label: 'Original name', column: 'originalName' },
-    { label: 'Displayed name', column: 'displayedName' },
-  ]
-
   const handleSubmit = () => {
     if (editor.hasInvalidGroup) return
     // hidden = [] retires visibility for good (selections replace it).
@@ -127,7 +122,6 @@
     title="Eye-movement Types"
     emptyMessage="No eye-movement categories found"
     columns={COLUMNS}
-    sortColumns={SORT_COLUMNS}
     onSort={editor.sort}
     onReorder={session.handleReorder}
     onRename={editor.renameAll}
@@ -144,15 +138,5 @@
 
   <SelectionTray {session} {chips} noun="types" />
 
-  <ModalButtons
-    buttons={[
-      {
-        label: 'Apply',
-        onclick: handleSubmit,
-        variant: 'primary',
-        isDisabled: editor.hasInvalidGroup,
-      },
-      { label: 'Cancel', onclick: () => modalState.close() },
-    ]}
-  />
+  <ModalButtons onApply={handleSubmit} applyDisabled={editor.hasInvalidGroup} />
 </Section>
