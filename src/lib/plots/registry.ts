@@ -11,6 +11,7 @@ import { scarfPlotDefinition } from './scarf'
 import { transitionMatrixDefinition } from './transition-matrix'
 import { scanpathSimilarityDefinition } from './scanpath-similarity'
 import { scanpathPlotDefinition } from './scanpath'
+import { fixationHeatmapDefinition } from './fixation-heatmap'
 import { recurrencePlotDefinition } from './recurrence'
 import { evolvingMetricsDefinition } from './evolving-metrics'
 import { metricCorrelationDefinition } from './metric-correlation'
@@ -25,6 +26,7 @@ export const plotRegistry = {
   aoiStreamPlot: aoiStreamPlotDefinition,
   scanpathSimilarity: scanpathSimilarityDefinition,
   scanpath: scanpathPlotDefinition,
+  fixationHeatmap: fixationHeatmapDefinition,
   recurrencePlot: recurrencePlotDefinition,
   evolvingMetrics: evolvingMetricsDefinition,
   metricCorrelation: metricCorrelationDefinition,
