@@ -263,7 +263,8 @@ export type SectionField = SectionFieldPresentation & (
       label: string | ((ctx: SectionFieldCtx) => string)
       min?: number
       max?: number
-      step?: number
+      /** Spinner step; function form for a step that follows the data's units. */
+      step?: number | ((ctx: SectionFieldCtx) => number)
       /** Display fallback AND the value an emptied input commits; when absent,
        *  an emptied input recommits the current value. */
       default?: number
