@@ -58,6 +58,8 @@ export type TestEngineOptions = {
    *  guarded path (e.g. scanpathEncoding returns '' instead of throwing).
    *  'group': real AoiGroupReader-backed mapping + getAoiGroupReader(). */
   aoiMapping?: 'identity' | 'group'
+  /** Per-segment [x, y] (or null) parallel to `segments`; turns the reader's spatial store on. */
+  spatial?: (number[] | null)[][][]
 }
 
 /**
@@ -136,7 +138,7 @@ export function makeTestEngine(
   segments: number[][][][],
   options: TestEngineOptions = {}
 ): DataEngine {
-  const reader = createReaderFromJson(segments)
+  const reader = createReaderFromJson(segments, options.spatial)
   const eventReader = new EventBufferReader()
   eventReader.load(options.events ?? [])
 
