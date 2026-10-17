@@ -132,6 +132,93 @@ describe('TobiiRowParser — multi-stimulus mapped columns', () => {
     }
   })
 
+  it('keeps one coordinate frame per stimulus: no Fixation point or foreign mapped fallback', () => {
+    const STEP = 5_000
+    let ts = 1_000_000
+    const rows: string[] = []
+    const interval = (stim: string, fixation: (ts: number) => string) => {
+      rows.push(rowFor({ ts, sensor: '', event: `${stim} IntervalStart` }))
+      ts += STEP
+      for (let k = 0; k < 3; k++) {
+        rows.push(fixation(ts))
+        ts += STEP
+      }
+      rows.push(rowFor({ ts, sensor: '', event: `${stim} IntervalEnd` }))
+      ts += 50_000
+    }
+    // 01-walk has its own mapped columns, left empty: the fixation is off the
+    // snapshot, so it has no coordinate (never the generic Fixation point).
+    interval('01-walk', t =>
+      rowFor({ ts: t, sensor: 'Eye Tracker', stim: '01-walk', cat: 'Fixation' })
+    )
+    // 05-free has no mapped columns: another snapshot's value must not leak in.
+    interval('05-free', t =>
+      tobiiRow(
+        {
+          ts: t,
+          cells: {
+            Sensor: 'Eye Tracker',
+            'Eye movement type': 'Fixation',
+            'Eye movement type index': '2',
+            'Fixation point X': '500',
+            'Fixation point Y': '500',
+            'Mapped fixation X [02-walk]': '999',
+            'Mapped fixation Y [02-walk]': '999',
+          },
+        },
+        HEADER
+      )
+    )
+
+    const { outputs } = runTobiiParser(
+      rows,
+      '{"stimulusStartSuffix":"IntervalStart","stimulusEndSuffix":"IntervalEnd"}',
+      HEADER
+    )
+    const walk = outputs.filter(o => o.stimulus === '01-walk')
+    const free = outputs.filter(o => o.stimulus === '05-free')
+    expect(walk.length).toBeGreaterThan(0)
+    expect(free.length).toBeGreaterThan(0)
+    for (const o of walk) expect(o.spatial).toBeNull()
+    for (const o of free) expect(o.spatial).toEqual({ x: 500, y: 500 })
+  })
+
+  it('finds an unsuffixed legacy mapped pair wherever it sits in the header', () => {
+    const header = [...HEADER, 'Mapped fixation X', 'Mapped fixation Y']
+    const STEP = 5_000
+    let ts = 1_000_000
+    const rows: string[] = [tobiiRow({ ts, event: '05-free IntervalStart', cells: {} }, header)]
+    for (let k = 0; k < 3; k++) {
+      ts += STEP
+      rows.push(
+        tobiiRow(
+          {
+            ts,
+            cells: {
+              Sensor: 'Eye Tracker',
+              'Eye movement type': 'Fixation',
+              'Eye movement type index': '3',
+              'Fixation point X': '500',
+              'Fixation point Y': '500',
+              'Mapped fixation X': '321',
+              'Mapped fixation Y': '654',
+            },
+          },
+          header
+        )
+      )
+    }
+    rows.push(tobiiRow({ ts: ts + STEP, event: '05-free IntervalEnd', cells: {} }, header))
+    const { outputs } = runTobiiParser(
+      rows,
+      '{"stimulusStartSuffix":"IntervalStart","stimulusEndSuffix":"IntervalEnd"}',
+      header
+    )
+    const free = outputs.filter(o => o.stimulus === '05-free')
+    expect(free.length).toBeGreaterThan(0)
+    for (const o of free) expect(o.spatial).toEqual({ x: 321, y: 654 })
+  })
+
   it('media-name parsing reads only unmapped Eye movement type / Fixation point', () => {
     function row(opts: {
       ts: number

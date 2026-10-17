@@ -30,6 +30,8 @@ type StimulusPackedCols = {
   pCategoryIndex: number
   pMappedFixationX: number
   pMappedFixationY: number
+  /** Both mapped fixation columns exist for this stimulus: its coordinate frame. */
+  hasMappedFixation: boolean
 }
 
 /** Stimulus context captured for an event row (names already decoded). */
@@ -216,13 +218,16 @@ export class TobiiRowParser extends RowParser {
   private readonly cEventValue: number
   private readonly cEyeMovementTypeIndex: number
   private readonly cSensor: number
-  /* ── Spatial coordinate columns with fallback ─────────────────────
+  /* ── Spatial coordinate columns, one frame per stimulus ───────────
    * Priority: Mapped fixation [stimulus-specific] → Fixation point [generic].
    * Tobii data already maps fixations per stimulus/participant/segment boundary,
    * so no per-row aggregation needed; first non-NaN coordinate pair is captured.
    */
+  /** The unsuffixed `Mapped fixation X/Y` pair of a legacy single-stimulus
+   *  export, wherever it sits; bracketed columns belong to one snapshot each. */
   private readonly cMappedFixationX: number | null
   private readonly cMappedFixationY: number | null
+  private readonly hasLegacyMappedFixation: boolean
   private readonly cFixationX: number
   private readonly cFixationY: number
   // Multiplier that converts the file's `Recording timestamp` into microseconds.
@@ -422,8 +427,11 @@ export class TobiiRowParser extends RowParser {
     this.cSensor = header.indexOf('Sensor')
 
     /* Initialize spatial column indices with fallback support */
-    this.cMappedFixationX = this.findColumnByPrefix(header, 'Mapped fixation X')
-    this.cMappedFixationY = this.findColumnByPrefix(header, 'Mapped fixation Y')
+    const legacyX = header.indexOf('Mapped fixation X')
+    const legacyY = header.indexOf('Mapped fixation Y')
+    this.hasLegacyMappedFixation = legacyX !== -1 && legacyY !== -1
+    this.cMappedFixationX = this.hasLegacyMappedFixation ? legacyX : null
+    this.cMappedFixationY = this.hasLegacyMappedFixation ? legacyY : null
     this.cFixationX = this.findColumnByNameOrUnit(header, 'Fixation point X')
     this.cFixationY = this.findColumnByNameOrUnit(header, 'Fixation point Y')
 
@@ -477,6 +485,7 @@ export class TobiiRowParser extends RowParser {
         pCategoryIndex: baseColumns.length + 1,
         pMappedFixationX: baseColumns.length + 2,
         pMappedFixationY: baseColumns.length + 3,
+        hasMappedFixation: mappedFixXByStim.has(stimName) && mappedFixYByStim.has(stimName),
       }
       baseColumns.push(
         mappedCategoryByStim.get(stimName) ?? -1,
@@ -615,45 +624,29 @@ export class TobiiRowParser extends RowParser {
 
   /* ── Spatial coordinate extraction ──────────────────────────────── */
   /**
-   * Extract spatial coordinates with priority fallback.
-   * Priority: Mapped fixation X/Y (stimulus-specific) → Fixation point X/Y (generic).
-   * Returns { x, y } | null if valid pair found.
+   * The row's coordinate in ONE frame per stimulus: the stimulus's own
+   * `Mapped fixation X/Y [stimulus]` when it has them, else an unsuffixed
+   * legacy `Mapped fixation X/Y`, else `Fixation point X/Y` (also the only
+   * path in media mode). An empty mapped cell is a fixation off the snapshot,
+   * so it yields null instead of a point from another frame.
    */
   private getSpatialCoordinates(): { x: number; y: number } | null {
-    let x: number
-    let y: number
-
     if (this.mappedColumnsAllowed) {
-      // Try the active stimulus's mapped fixation columns first
       const active = this.activeStimulusPackedCols
-      if (active) {
-        x = this.getNumber(active.pMappedFixationX)
-        y = this.getNumber(active.pMappedFixationY)
-        if (Number.isFinite(x) && Number.isFinite(y)) {
-          return { x, y }
-        }
+      if (active?.hasMappedFixation) {
+        return this.finitePair(active.pMappedFixationX, active.pMappedFixationY)
       }
-
-      // Fallback to first-mapped fixation columns (legacy single-stimulus path)
-      if (this.cMappedFixationX !== null && this.cMappedFixationY !== null) {
-        x = this.getNumber(this.pMappedFixationX)
-        y = this.getNumber(this.pMappedFixationY)
-        if (Number.isFinite(x) && Number.isFinite(y)) {
-          return { x, y }
-        }
+      if (this.hasLegacyMappedFixation) {
+        return this.finitePair(this.pMappedFixationX, this.pMappedFixationY)
       }
     }
+    return this.finitePair(this.pFixationX, this.pFixationY)
+  }
 
-    // Fallback to standard fixation point coordinates (also the only path in
-    // media mode, where mapped fixations don't apply to media-named stimuli)
-    x = this.getNumber(this.pFixationX)
-    y = this.getNumber(this.pFixationY)
-    if (Number.isFinite(x) && Number.isFinite(y)) {
-      return { x, y }
-    }
-
-    // No valid coordinate pair found
-    return null
+  private finitePair(pX: number, pY: number): { x: number; y: number } | null {
+    const x = this.getNumber(pX)
+    const y = this.getNumber(pY)
+    return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null
   }
 
   /**

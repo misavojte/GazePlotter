@@ -39,13 +39,13 @@ After parsing, GazePlotter asks how to split the recording into stimuli:
 
 ### Spatial coordinates
 
-If coordinate columns are present, each fixation segment stores one coordinate, chosen in this order:
+If coordinate columns are present, each fixation segment stores one coordinate, in one coordinate frame per stimulus:
 
-1. `Mapped fixation X` + `Mapped fixation Y` (preferred)
-2. `Fixation point X` + `Fixation point Y` (fallback)
-3. None, if neither complete pair is available
+1. A stimulus with its own `Mapped fixation X [stimulus]` + `Mapped fixation Y [stimulus]` columns uses only those. An empty cell is a fixation that was not mapped onto the snapshot, so it gets no coordinate (it is never filled from `Fixation point`, which is in another frame).
+2. A file with unsuffixed `Mapped fixation X` + `Mapped fixation Y` columns (a single-stimulus export) uses those the same way.
+3. Otherwise, `Fixation point X` + `Fixation point Y`.
 
-Both X and Y must be present; the first valid pair in a segment is used.
+Both X and Y must be present; the first valid pair in a segment is used. Workspaces saved before GazePlotter 1.10.2 keep the coordinates they were parsed with until the data is uploaded again.
 
 ## Event data
 
