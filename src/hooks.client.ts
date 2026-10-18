@@ -6,7 +6,7 @@ const MISSING_MODULE = /dynamically imported module|Importing a module script fa
 // A chunk that never arrived (crawlers skip fetches) must not replace the page with Error 500.
 export const handleError: HandleClientError = ({ error, event }) => {
   if (!(error instanceof TypeError) || !MISSING_MODULE.test(error.message)) return
-  // Navigation: load the target as a full page. Startup: keep the prerendered page.
-  if (event.url.href !== location.href) location.assign(event.url)
+  // Startup: keep the prerendered page. Navigations and hover preloads stay SvelteKit's.
+  if (event.url.href !== location.href) return
   return new Promise<never>(() => {})
 }

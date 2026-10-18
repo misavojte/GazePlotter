@@ -35,12 +35,13 @@ describe('handleError on a missing chunk', () => {
     expect(assign).not.toHaveBeenCalled()
   })
 
-  it('loads the navigation target as a full page', () => {
+  it('leaves navigations and hover preloads to SvelteKit', () => {
     const assign = stubLocation()
 
-    run(new TypeError(`Failed to fetch dynamically imported module: ${CHUNK}`), `${HOME}docs/`)
-
-    expect(assign).toHaveBeenCalledWith(new URL(`${HOME}docs/`))
+    expect(
+      run(new TypeError(`Failed to fetch dynamically imported module: ${CHUNK}`), `${HOME}docs/`)
+    ).toBeUndefined()
+    expect(assign).not.toHaveBeenCalled()
   })
 
   it('leaves every other error to the error page', () => {
