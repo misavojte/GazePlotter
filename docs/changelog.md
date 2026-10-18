@@ -4,7 +4,8 @@
 
 ### 1.10.2
 
-* **Fixation Heatmap**: A new plot that pools a participant selection's fixations on one stimulus into a smoothed map over the reference image, by fixation duration or count, as each participant's share or averaged over participants. The legend and a data summary line state the measure, N, time range, kernel, and scale, so exported figures document themselves, and hovering shows who makes up a hot spot. A table maps Tobii Pro Lab's heat map types onto its settings. See [Fixation Heatmap](/docs/visualizations/fixation-heatmap).
+* *Released on October 18, 2026*
+* **Fixation Heatmap**: A new plot that pools a participant selection's fixations on one stimulus into a smoothed map over the reference image, by fixation duration or count, as a share or a mean per participant. The legend and a data summary line state the measure, N, time range, kernel, and scale, so exported figures document themselves, and hovering shows who makes up a hot spot. A table maps Tobii Pro Lab's heat map types onto its settings. See [Fixation Heatmap](/docs/visualizations/fixation-heatmap).
 * **Time Range**: A range with only a **Start** now clips fixations that straddle it and counts them by their midpoint, as a range with an **End** always did, and shares are taken of the range rather than of the whole recording. Metric values computed with a Start-only range change accordingly.
 * **Tobii Pro Lab**: Fixations that were not mapped onto a stimulus's snapshot no longer take `Fixation point` coordinates, or another snapshot's, from a different coordinate frame. Workspaces saved earlier keep their coordinates until the data is uploaded again. See [Spatial coordinates](/docs/upload-data/tobii-pro-lab#spatial-coordinates).
 * **Color Scales**: Added the *Yellow to Red* preset.
