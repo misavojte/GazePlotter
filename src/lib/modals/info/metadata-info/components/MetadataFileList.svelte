@@ -3,10 +3,12 @@
   import { Card } from '$lib/shared/components'
   import InfoRow from './InfoRow.svelte'
 
-  const { label, files } = $props<{
+  interface Props {
     label: string
     files: { fileNames: string[]; fileSizes: number[] }
-  }>()
+  }
+
+  const { label, files }: Props = $props()
 </script>
 
 <Card padding="sm" gap="8px">

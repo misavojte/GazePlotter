@@ -5,9 +5,11 @@
   import MetadataSection from './MetadataSection.svelte'
   import InfoRow from './InfoRow.svelte'
 
-  const { exclusions } = $props<{
+  interface Props {
     exclusions: DatasetExclusionNotice[]
-  }>()
+  }
+
+  const { exclusions }: Props = $props()
 
   // Group by stimulus so the report reads like the source: one interval, the
   // participants it was dropped for, and what was wrong.

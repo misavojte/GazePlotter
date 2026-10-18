@@ -4,9 +4,11 @@
   import { Card } from '$lib/shared/components'
   import type { MetadataOverview } from '../helpers'
 
-  const { overview } = $props<{
+  interface Props {
     overview: MetadataOverview
-  }>()
+  }
+
+  const { overview }: Props = $props()
 </script>
 
 <MetadataSection title="Data overview">

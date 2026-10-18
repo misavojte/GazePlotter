@@ -5,9 +5,11 @@
   import InfoRow from './InfoRow.svelte'
   import { formatMemoryUtilization, type MetadataMemoryInfo } from '../helpers'
 
-  const { memoryInfo } = $props<{
+  interface Props {
     memoryInfo: MetadataMemoryInfo
-  }>()
+  }
+
+  const { memoryInfo }: Props = $props()
 </script>
 
 {#if memoryInfo.available}
