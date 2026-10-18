@@ -18,22 +18,16 @@ import {
 import { SCANPATH_SIMILARITY_DEFAULTS } from '../const'
 import type { ScanpathSimilaritySettings } from '../types'
 
-interface ScanpathSimilarityView extends PlotView {
-  /** Whether the on-screen container should show the figure (vs a placeholder). */
-  hasData: boolean
-}
-
 /**
  * Single source of truth for "what a scanpath-similarity plot draws" — picks the
- * matrix or scangraph figure by `settings.view`. `onNodeClick` is screen-only
- * (the export passes none). The scangraph `threshold` is included here so screen
- * and export style links identically (export previously fell back to the default).
+ * matrix or scangraph figure by `settings.view`. The scangraph `threshold` is
+ * included here so screen and export style links identically (export previously
+ * fell back to the default).
  */
-function getScanpathSimilarityView(
+export function deriveScanpathSimilarityView(
   engine: DataEngine,
-  settings: ScanpathSimilaritySettings,
-  opts: { onNodeClick?: (nodeIndex: number) => void } = {}
-): ScanpathSimilarityView {
+  settings: ScanpathSimilaritySettings
+): PlotView {
   const similarityData = similarityDataFor(engine, settings)
   const noMetric = similarityData.noMetric ?? false
   const hasData = similarityData.size > 0 || noMetric
@@ -72,7 +66,6 @@ function getScanpathSimilarityView(
         cliqueMembers: clique?.nodeIndices ?? [],
         // Node index -> participant id, for the PLOT CURSOR's ring.
         participantIds: similarityData.participantIds,
-        onNodeClick: opts.onNodeClick,
       },
       hasData,
     }
@@ -128,12 +121,4 @@ function getScanpathSimilarityView(
     },
     hasData,
   }
-}
-
-export function deriveScanpathSimilarityView(
-  engine: DataEngine,
-  settings: ScanpathSimilaritySettings
-): PlotView {
-  const v = getScanpathSimilarityView(engine, settings)
-  return { component: v.component, props: v.props, hasData: v.hasData }
 }

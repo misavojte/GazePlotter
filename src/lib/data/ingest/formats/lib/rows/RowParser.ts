@@ -102,7 +102,8 @@ export abstract class RowParser {
     this.encoding = encoding
   }
 
-  abstract finalize(): void
+  /** Flush state buffered across rows; a no-op for row-at-a-time parsers. */
+  finalize(): void {}
 
   /** Shared empty result — getBytes is on the per-row path; no allocation. */
   protected static readonly EMPTY_BYTES = new Uint8Array(0)
@@ -248,6 +249,11 @@ export abstract class RowParser {
       )
     }
     return index
+  }
+
+  /** getIndex per name, in order: setupColumns' list for required columns. */
+  protected requireColumns(header: string[], names: string[]): number[] {
+    return names.map(name => this.getIndex(header, name))
   }
 
   protected findOptionalColumn(header: string[], target: string): number {

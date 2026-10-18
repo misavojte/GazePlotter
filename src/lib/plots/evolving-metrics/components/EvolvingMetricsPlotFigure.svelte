@@ -1,20 +1,22 @@
 <script lang="ts">
   import {
     alignToPixelCenter,
-    createScratchLayer,
     CROSSHAIR_COLOR,
     CROSSHAIR_DASH,
     fillCrosshairBand,
     markCrosshairStrips,
+    pixelLayer,
+    rowStrips,
     strokeCrosshairGuides,
     strokeParallelLines,
-    type HighlightRect,
+    type PixelLayer,
   } from '$lib/plots/shared/canvasUtils'
   import {
     usePlot,
     canvasBlockSelect,
     participantIndexAxisWidth,
     PLOT_EDGE_PAD_TOP,
+    trackOnlyHit,
     type CanvasExportProps,
     type PlotFrame,
     type FrameHit,
@@ -30,7 +32,7 @@
   import { samplePalette } from '$lib/color'
   import { INACTIVE_COLOR, PRESET_PALETTES } from '$lib/color/palettes'
 
-  import { AREA_DIVIDER, FONT_PRIMARY, PLOT_LEGEND_GAP } from '$lib/plots/shared/const'
+  import { AREA_DIVIDER, PLOT_LEGEND_GAP } from '$lib/plots/shared/const'
   import {
     bottomGradientLegendGeometry,
     drawGradientLegend,
@@ -38,7 +40,7 @@
   } from '$lib/plots/shared/legendGradient'
   import {
     AXIS_CONFIG,
-    drawParticipantIndexAxis,
+    drawParticipantRowAxis,
     drawXAxisLabel,
     drawYAxisMainLabel,
     getXAxisHeight,
@@ -70,13 +72,7 @@
   // Reused, non-reactive buffers for the overlay individual-line density render
   // (see renderOverlayLines). Kept per-instance; reallocated only when the
   // plot-area pixel size changes.
-  let densCounts: Int32Array | null = null
-  let densStamp: Int32Array | null = null
-  let densCanvas: OffscreenCanvas | HTMLCanvasElement | null = null
-  let densCtx: OffscreenCanvasRenderingContext2D | CanvasRenderingContext2D | null = null
-  let densImg: ImageData | null = null
-  let densW = 0
-  let densH = 0
+  let dens: { layer: PixelLayer; counts: Int32Array; stamp: Int32Array } | null = null
 
   interface Props extends CanvasExportProps {
     data: EvolvingMetricsResult
@@ -388,23 +384,10 @@
     ctx.beginPath()
     ctx.rect(frame.x, frame.y, frame.width, frame.height)
     ctx.clip()
-    const cursorRowRects: HighlightRect[] = []
-    for (const row of cursorGuide.rows) {
-      if (rowHeight === null) {
-        drawStepLine(ctx, row, frame, true)
-      } else {
-        cursorRowRects.push({
-          x: frame.x,
-          y: frame.y + row * rowHeight,
-          width: frame.width,
-          height: rowHeight,
-          alpha: 0.15,
-          along: 'x',
-        })
-      }
-    }
-    if (cursorRowRects.length > 0) {
-      markCrosshairStrips(ctx, cursorRowRects)
+    if (rowHeight === null) {
+      for (const row of cursorGuide.rows) drawStepLine(ctx, row, frame, true)
+    } else {
+      markCrosshairStrips(ctx, rowStrips(cursorGuide.rows, frame, rowHeight, 0.15))
     }
     drawHoveredWindowChrome(ctx, frame, rowHeight)
     if (rowHeight === null && hoveredParticipantIndex !== null) {
@@ -564,19 +547,9 @@
     const rowHeight = frame.height / participantCount
 
     ctx.save()
-    ctx.font = `${AXIS_CONFIG.fontSize}px ${FONT_PRIMARY.FAMILY}`
-    ctx.fillStyle = AXIS_CONFIG.color
-    ctx.textBaseline = 'middle'
-
-    if (isCompact) {
-      drawParticipantIndexAxis(ctx, participantCount, frame.x, frame.y, rowHeight, AXIS_CONFIG)
-    } else {
-      ctx.textAlign = 'right'
-      // Pre-truncated to the same budget the gutter reserved (single source).
-      for (let p = 0; p < participantCount; p++) {
-        ctx.fillText(participantLabels[p], frame.x - 10, frame.y + p * rowHeight + rowHeight / 2)
-      }
-    }
+    // Labels pre-truncated to the same budget the gutter reserved (single source).
+    const labels = isCompact ? null : participantLabels
+    drawParticipantRowAxis(ctx, participantCount, labels, frame.x, frame.y, rowHeight)
     ctx.restore()
 
     const xTicks = xAxisTicks
@@ -665,42 +638,30 @@
     if (W <= 0 || H <= 0 || participantCount === 0) return
     const cellCount = W * H
 
-    if (!densCounts || densW !== W || densH !== H) {
-      // null = unsafe size or canvas-less environment (tests): skip the overlay
-      const layer = createScratchLayer(W, H)
-      if (!layer) return
-      densCanvas = layer.canvas
-      densCtx = layer.ctx
-      densImg = densCtx.createImageData(W, H)
-      densCounts = new Int32Array(cellCount)
-      densStamp = new Int32Array(cellCount)
-      densW = W
-      densH = H
+    // null = unsafe size or canvas-less environment (tests): skip the overlay
+    const layer = pixelLayer(dens?.layer ?? null, W, H)
+    if (!layer) return
+    if (layer !== dens?.layer) {
+      dens = { layer, counts: new Int32Array(cellCount), stamp: new Int32Array(cellCount) }
     }
-    if (!densCtx || !densImg || !densCounts || !densStamp) return
+    const { counts, stamp } = dens
 
     const timelineMin = data.timeline.minValue
     const duration = Math.max(1, data.timeline.maxValue - timelineMin)
     const maxCount = rasterizeOverlayDensity(
       data.participants,
       { width: W, height: H, timelineMin, duration, axisMax: yAxisMax },
-      densCounts,
-      densStamp
+      counts,
+      stamp
     )
     if (maxCount === 0) return
 
     const alpha = Math.max(0.04, Math.min(0.5, 2 / Math.sqrt(participantCount)))
-    packOverlayDensity(
-      densCounts,
-      maxCount,
-      alpha,
-      OVERLAY_INDIVIDUAL_RGB,
-      new Uint32Array(densImg.data.buffer)
-    )
-    densCtx.putImageData(densImg, 0, 0)
+    packOverlayDensity(counts, maxCount, alpha, OVERLAY_INDIVIDUAL_RGB, layer.pixels)
+    layer.ctx.putImageData(layer.image, 0, 0)
     const prevSmoothing = ctx.imageSmoothingEnabled
     ctx.imageSmoothingEnabled = false
-    ctx.drawImage(densCanvas as CanvasImageSource, frame.x, frame.y)
+    ctx.drawImage(layer.canvas as CanvasImageSource, frame.x, frame.y)
     ctx.imageSmoothingEnabled = prevSmoothing
   }
 
@@ -788,15 +749,8 @@
     }
 
     if (participantIdx === null) {
-      // Overlay with no window under the cursor — track the ms line, no tooltip.
-      return {
-        content: [],
-        anchorX: mx,
-        anchorY: my,
-        delay: 0,
-        cursor: 'default',
-        data: { t, x: mx, participantIdx: null },
-      }
+      // Overlay with no window under the cursor: track the ms line, no tooltip.
+      return trackOnlyHit({ t, x: mx, participantIdx: null }, 'default')
     }
 
     const participant = data.participants[participantIdx]
@@ -818,7 +772,6 @@
       anchorX: mx,
       anchorY: my,
       offset: { x: 15, y: 15 },
-      cursor: 'crosshair',
       data: { t, x: mx, participantIdx },
     }
   }

@@ -113,19 +113,18 @@
      otherwise the single plot's full settings. One shell, one transition —
      only the content branches on cardinality. -->
 {#snippet desktopBody()}
-  {#if isBulk}
-    <PaneHeader title={bulkTitle} onClose={close} />
+  <!-- Keyed: a single/bulk switch remounts the body, resetting its scroll. -->
+  {#key isBulk}
+    <PaneHeader title={isBulk ? bulkTitle : title} onClose={close} />
     <div class="body">
-      <BulkPaneSettings items={grid.selectedItems} />
+      {#if isBulk}
+        <BulkPaneSettings items={grid.selectedItems} />
+      {:else if paneItem}
+        <PaneSectionList sections={paneSections} item={paneItem} />
+      {/if}
       {@render exportSection()}
     </div>
-  {:else if paneItem && paneSections.length}
-    <PaneHeader {title} onClose={close} />
-    <div class="body">
-      <PaneSectionList sections={paneSections} item={paneItem} />
-      {@render exportSection()}
-    </div>
-  {/if}
+  {/key}
 {/snippet}
 
 {#if responsive.isMobile}

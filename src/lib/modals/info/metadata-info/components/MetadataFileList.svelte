@@ -1,22 +1,29 @@
 <script lang="ts">
   import { formatFileSize } from '$lib/shared/format'
+  import { Card } from '$lib/shared/components'
+  import InfoRow from './InfoRow.svelte'
 
-  const { fileNames, fileSizes } = $props<{
-    fileNames: string[]
-    fileSizes: number[]
-  }>()
+  interface Props {
+    label: string
+    files: { fileNames: string[]; fileSizes: number[] }
+  }
+
+  const { label, files }: Props = $props()
 </script>
 
-<div class="file-list">
-  {#each fileNames as fileName, index}
-    <div class="file-item">
-      <span class="file-name">{fileName}</span>
-      {#if fileSizes[index] !== undefined}
-        <span class="file-size">({formatFileSize(fileSizes[index])})</span>
-      {/if}
-    </div>
-  {/each}
-</div>
+<Card padding="sm" gap="8px">
+  <InfoRow {label} value={files.fileNames.length} />
+  <div class="file-list">
+    {#each files.fileNames as fileName, index}
+      <div class="file-item">
+        <span class="file-name">{fileName}</span>
+        {#if files.fileSizes[index] !== undefined}
+          <span class="file-size">({formatFileSize(files.fileSizes[index])})</span>
+        {/if}
+      </div>
+    {/each}
+  </div>
+</Card>
 
 <style>
   .file-list {

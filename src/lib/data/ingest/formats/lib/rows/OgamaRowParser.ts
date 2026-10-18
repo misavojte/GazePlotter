@@ -3,8 +3,6 @@ import { encodeString } from '$lib/data/ingest/utils/byteUtils'
 
 export class OgamaRowParser extends RowParser {
   stimulusName: string
-  cParticipant: number
-  cSegments: number
 
   private readonly stimulusBytes: Uint8Array
   private readonly hashBytes: Uint8Array
@@ -24,14 +22,10 @@ export class OgamaRowParser extends RowParser {
     this.stimulusName = fileName.split('.')[0]
     this.stimulusBytes = encodeString(this.stimulusName, this.encoding)
     this.hashBytes = encodeString('#', this.encoding)
-    this.cParticipant = this.getIndex(header, 'Sequence Similarity')
-    this.cSegments = this.getIndex(header, 'Scanpath string')
 
-    this.setupColumns([this.cParticipant, this.cSegments])
-  }
-
-  finalize(): void {
-    return
+    this.setupColumns(
+      this.requireColumns(header, ['Sequence Similarity', 'Scanpath string'])
+    )
   }
 
   protected override deserializeFromBytes(): void {

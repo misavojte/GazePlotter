@@ -1,14 +1,9 @@
 import { deriveScanpathView } from './core/view'
 import { plotCursorScreen } from '$lib/plots/shared/plotCursor.svelte'
-import { definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
+import { commonIs, definePlot } from '$lib/plots/definePlot'
 import { stimulusParticipantSubtitle } from '$lib/plots/shared'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import type { ScanpathPlotSettings } from './types'
-
-const colorModeIs = (mode: string) => (ctx: SectionFieldCtx) => {
-  const v = ctx.common(s => s.colorMode ?? 'time')
-  return !v.mixed && v.value === mode
-}
 
 export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSettings>({
   type: 'scanpath',
@@ -36,7 +31,7 @@ export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSetting
           key: 'colorScale',
           defaultMin: PRESET_PALETTES.VIRIDIS.colors[0],
           defaultMax: PRESET_PALETTES.VIRIDIS.colors[2],
-          showWhen: colorModeIs('time'),
+          showWhen: commonIs(s => s.colorMode ?? 'time', 'time'),
         },
         { kind: 'boolean', key: 'showFixationOrder', label: 'Show fixation order line' },
         { kind: 'boolean', key: 'showNumbers', label: 'Show fixation numbers' },

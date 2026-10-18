@@ -5,6 +5,7 @@ import {
   deduplicateMetricLabels,
   METRIC_EXPORT_CONTRACT_LONG,
   METRIC_EXPORT_CONTRACT_WIDE,
+  type MetricDataExportOptions,
 } from '../src/lib/data/export/mappers/metrics'
 import { instanceMatchesContract, type MetricInstance } from '../src/lib/metrics'
 import type { DataType } from '../src/lib/data/types'
@@ -124,6 +125,18 @@ function loadedEngine(data: DataType = createTestData()): DataEngine {
   return engine
 }
 
+// The suite's export defaults; each case passes only what it is about.
+const exportWith = (engine: DataEngine, over: Partial<MetricDataExportOptions>) =>
+  generateMetricExport(engine, {
+    fileName: 'test-export',
+    participantIds: [0, 1],
+    stimulusIds: [0],
+    metricInstanceIds: [],
+    format: 'long',
+    includeCodebook: false,
+    ...over,
+  })
+
 describe('Metric Data Export Mapping', () => {
   it('verifies export contract matching rules', () => {
     const engine = loadedEngine()
@@ -148,14 +161,8 @@ describe('Metric Data Export Mapping', () => {
   it('exports long format with plain instances, omitting window/relational headers', async () => {
     const engine = loadedEngine()
 
-    const res = await generateMetricExport(engine, {
-      fileName: 'test-export',
-      participantIds: [0, 1],
-      stimulusIds: [0], // S1 only
-      metricInstanceIds: ['absoluteTime-inst'],
-      format: 'long',
-      includeCodebook: false,
-    })
+    // S1 only (the default stimulusIds)
+    const res = await exportWith(engine, { metricInstanceIds: ['absoluteTime-inst'] })
 
     const lines = res.dataContent.split('\n')
     const header = lines[0]
@@ -173,14 +180,7 @@ describe('Metric Data Export Mapping', () => {
   it('exports long format with windowed instances, adding Window_Start and Window_End columns', async () => {
     const engine = loadedEngine()
 
-    const res = await generateMetricExport(engine, {
-      fileName: 'test-export',
-      participantIds: [0, 1],
-      stimulusIds: [0],
-      metricInstanceIds: ['absoluteTime-windowed-inst'],
-      format: 'long',
-      includeCodebook: false,
-    })
+    const res = await exportWith(engine, { metricInstanceIds: ['absoluteTime-windowed-inst'] })
 
     const lines = res.dataContent.split('\n')
     const header = lines[0]
@@ -193,14 +193,7 @@ describe('Metric Data Export Mapping', () => {
   it('exports long format with relational instance, adding Participant_B column', async () => {
     const engine = loadedEngine()
 
-    const res = await generateMetricExport(engine, {
-      fileName: 'test-export',
-      participantIds: [0, 1],
-      stimulusIds: [0],
-      metricInstanceIds: ['participantPairSimilarity-inst'],
-      format: 'long',
-      includeCodebook: false,
-    })
+    const res = await exportWith(engine, { metricInstanceIds: ['participantPairSimilarity-inst'] })
 
     const lines = res.dataContent.split('\n')
     const header = lines[0]
@@ -213,14 +206,8 @@ describe('Metric Data Export Mapping', () => {
   it('exports wide format with case-per-row, sanitizing and de-duplicating column names', async () => {
     const engine = loadedEngine()
 
-    const res = await generateMetricExport(engine, {
-      fileName: 'test-export',
-      participantIds: [0, 1],
-      stimulusIds: [0, 1], // Both S1 and S2
-      metricInstanceIds: ['absoluteTime-inst'],
-      format: 'wide',
-      includeCodebook: false,
-    })
+    // Both S1 and S2
+    const res = await exportWith(engine, { stimulusIds: [0, 1], metricInstanceIds: ['absoluteTime-inst'], format: 'wide' })
 
     const lines = res.dataContent.split('\n')
     const header = lines[0].split(',')
@@ -251,14 +238,7 @@ describe('Metric Data Export Mapping', () => {
   it('verifies never-fixated AOIs in TTFF export as empty cells (never -1)', async () => {
     const engine = loadedEngine()
 
-    const res = await generateMetricExport(engine, {
-      fileName: 'test-export',
-      participantIds: [0, 1],
-      stimulusIds: [0],
-      metricInstanceIds: ['timeToFirstFixation-inst'],
-      format: 'long',
-      includeCodebook: false,
-    })
+    const res = await exportWith(engine, { metricInstanceIds: ['timeToFirstFixation-inst'] })
 
     const lines = res.dataContent.split('\n')
     expect(lines).toContain('1,ParticipantTwo,StimulusOne,CTA,Time To First Fixation,ms,')
@@ -268,12 +248,9 @@ describe('Metric Data Export Mapping', () => {
   it('generates a descriptive sidecar codebook CSV', async () => {
     const engine = loadedEngine()
 
-    const res = await generateMetricExport(engine, {
-      fileName: 'test-export',
-      participantIds: [0, 1],
+    const res = await exportWith(engine, {
       stimulusIds: [0, 1],
       metricInstanceIds: ['absoluteTime-inst', 'absoluteTime-windowed-inst'],
-      format: 'long',
       includeCodebook: true,
     })
 
@@ -292,17 +269,9 @@ describe('Metric Data Export Mapping', () => {
   it('verifies CSV escaping and options like delimiter/decimal comma', async () => {
     const engine = loadedEngine()
 
-    const res = await generateMetricExport(engine, {
-      fileName: 'test-export',
-      participantIds: [0, 1],
-      stimulusIds: [0],
+    const res = await exportWith(engine, {
       metricInstanceIds: ['absoluteTime-inst'],
-      format: 'long',
-      csvOptions: {
-        delimiter: ';',
-        decimalSeparator: ',',
-      },
-      includeCodebook: false,
+      csvOptions: { delimiter: ';', decimalSeparator: ',' },
     })
 
     const lines = res.dataContent.split('\n')
@@ -313,14 +282,7 @@ describe('Metric Data Export Mapping', () => {
   it('clamps windowed timelines to each participant own recording end (ragged, no fabricated rows)', async () => {
     const engine = loadedEngine()
 
-    const res = await generateMetricExport(engine, {
-      fileName: 'test-export',
-      participantIds: [0, 1],
-      stimulusIds: [0],
-      metricInstanceIds: ['absoluteTime-windowed-inst'],
-      format: 'long',
-      includeCodebook: false,
-    })
+    const res = await exportWith(engine, { metricInstanceIds: ['absoluteTime-windowed-inst'] })
 
     const lines = res.dataContent.split('\n')
     // P1 recorded to 2000 ms → windows [0,1000) and [1000,2000)
@@ -334,29 +296,15 @@ describe('Metric Data Export Mapping', () => {
   it('rejects contract-incompatible instances at the mapper, not only in the modal UI', async () => {
     const engine = loadedEngine()
 
-    const base = {
-      fileName: 'test-export',
-      participantIds: [0, 1],
-      stimulusIds: [0],
-      format: 'wide' as const,
-      includeCodebook: false,
-    }
     await expect(
-      generateMetricExport(engine, { ...base, metricInstanceIds: ['absoluteTime-windowed-inst'] })
+      exportWith(engine, { format: 'wide', metricInstanceIds: ['absoluteTime-windowed-inst'] })
     ).rejects.toThrow(/Not exportable in wide format: Time on AOI Windowed/)
   })
 
   it('exports a relational metric in wide format as the full matrix grid', async () => {
     const engine = loadedEngine()
 
-    const res = await generateMetricExport(engine, {
-      fileName: 'test-export',
-      participantIds: [0, 1],
-      stimulusIds: [0],
-      metricInstanceIds: ['participantPairSimilarity-inst'],
-      format: 'wide',
-      includeCodebook: false,
-    })
+    const res = await exportWith(engine, { metricInstanceIds: ['participantPairSimilarity-inst'], format: 'wide' })
 
     const lines = res.dataContent.split('\n')
     const header = lines[0].split(',')
@@ -379,26 +327,12 @@ describe('Metric Data Export Mapping', () => {
   it('exports exactly the selected participants, in both formats', async () => {
     const engine = loadedEngine()
 
-    const long = await generateMetricExport(engine, {
-      fileName: 'test-export',
-      participantIds: [1],
-      stimulusIds: [0],
-      metricInstanceIds: ['absoluteTime-inst'],
-      format: 'long',
-      includeCodebook: false,
-    })
+    const long = await exportWith(engine, { participantIds: [1], metricInstanceIds: ['absoluteTime-inst'] })
     const longLines = long.dataContent.split('\n')
     expect(longLines.some(l => l.startsWith('1,ParticipantTwo,'))).toBe(true)
     expect(longLines.some(l => l.startsWith('0,ParticipantOne,'))).toBe(false)
 
-    const wide = await generateMetricExport(engine, {
-      fileName: 'test-export',
-      participantIds: [1],
-      stimulusIds: [0],
-      metricInstanceIds: ['participantPairSimilarity-inst'],
-      format: 'wide',
-      includeCodebook: false,
-    })
+    const wide = await exportWith(engine, { participantIds: [1], metricInstanceIds: ['participantPairSimilarity-inst'], format: 'wide' })
     const wideHeader = wide.dataContent.split('\n')[0].split(',')
     // Relational columns cover only the selected participants
     expect(wideHeader).toContain('Levenshtein_similarity_ParticipantTwo')
@@ -408,22 +342,15 @@ describe('Metric Data Export Mapping', () => {
   it('rejects a non-finite or inverted time range', async () => {
     const engine = loadedEngine()
 
-    const base = {
-      fileName: 'test-export',
-      participantIds: [0, 1],
-      stimulusIds: [0],
-      metricInstanceIds: ['absoluteTime-inst'],
-      format: 'long' as const,
-      includeCodebook: false,
-    }
+    const base = { metricInstanceIds: ['absoluteTime-inst'] }
     await expect(
-      generateMetricExport(engine, { ...base, timeStart: Number.NaN })
+      exportWith(engine, { ...base, timeStart: Number.NaN })
     ).rejects.toThrow(/Time range/)
     await expect(
-      generateMetricExport(engine, { ...base, timeStart: -5 })
+      exportWith(engine, { ...base, timeStart: -5 })
     ).rejects.toThrow(/Time range/)
     await expect(
-      generateMetricExport(engine, { ...base, timeStart: 1000, timeEnd: 500 })
+      exportWith(engine, { ...base, timeStart: 1000, timeEnd: 500 })
     ).rejects.toThrow(/Time end/)
   })
 
@@ -447,14 +374,7 @@ describe('Metric Data Export Mapping', () => {
     data.aois.data[0][1] = ['Nav', 'No_AOI', 'red']
     const engine = loadedEngine(data)
 
-    const res = await generateMetricExport(engine, {
-      fileName: 'test-export',
-      participantIds: [0, 1],
-      stimulusIds: [0],
-      metricInstanceIds: ['absoluteTime-inst'],
-      format: 'wide',
-      includeCodebook: false,
-    })
+    const res = await exportWith(engine, { metricInstanceIds: ['absoluteTime-inst'], format: 'wide' })
 
     const lines = res.dataContent.split('\n')
     const header = lines[0].split(',')

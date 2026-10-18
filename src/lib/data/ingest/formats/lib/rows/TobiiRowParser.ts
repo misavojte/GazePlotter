@@ -30,6 +30,8 @@ type StimulusPackedCols = {
   pCategoryIndex: number
   pMappedFixationX: number
   pMappedFixationY: number
+  /** Both mapped fixation columns exist for this stimulus: its coordinate frame. */
+  hasMappedFixation: boolean
 }
 
 /** Stimulus context captured for an event row (names already decoded). */
@@ -216,13 +218,16 @@ export class TobiiRowParser extends RowParser {
   private readonly cEventValue: number
   private readonly cEyeMovementTypeIndex: number
   private readonly cSensor: number
-  /* ── Spatial coordinate columns with fallback ─────────────────────
+  /* ── Spatial coordinate columns, one frame per stimulus ───────────
    * Priority: Mapped fixation [stimulus-specific] → Fixation point [generic].
    * Tobii data already maps fixations per stimulus/participant/segment boundary,
    * so no per-row aggregation needed; first non-NaN coordinate pair is captured.
    */
+  /** The unsuffixed `Mapped fixation X/Y` pair of a legacy single-stimulus
+   *  export, wherever it sits; bracketed columns belong to one snapshot each. */
   private readonly cMappedFixationX: number | null
   private readonly cMappedFixationY: number | null
+  private readonly hasLegacyMappedFixation: boolean
   private readonly cFixationX: number
   private readonly cFixationY: number
   // Multiplier that converts the file's `Recording timestamp` into microseconds.
@@ -422,8 +427,11 @@ export class TobiiRowParser extends RowParser {
     this.cSensor = header.indexOf('Sensor')
 
     /* Initialize spatial column indices with fallback support */
-    this.cMappedFixationX = this.findColumnByPrefix(header, 'Mapped fixation X')
-    this.cMappedFixationY = this.findColumnByPrefix(header, 'Mapped fixation Y')
+    const legacyX = header.indexOf('Mapped fixation X')
+    const legacyY = header.indexOf('Mapped fixation Y')
+    this.hasLegacyMappedFixation = legacyX !== -1 && legacyY !== -1
+    this.cMappedFixationX = this.hasLegacyMappedFixation ? legacyX : null
+    this.cMappedFixationY = this.hasLegacyMappedFixation ? legacyY : null
     this.cFixationX = this.findColumnByNameOrUnit(header, 'Fixation point X')
     this.cFixationY = this.findColumnByNameOrUnit(header, 'Fixation point Y')
 
@@ -477,6 +485,7 @@ export class TobiiRowParser extends RowParser {
         pCategoryIndex: baseColumns.length + 1,
         pMappedFixationX: baseColumns.length + 2,
         pMappedFixationY: baseColumns.length + 3,
+        hasMappedFixation: mappedFixXByStim.has(stimName) && mappedFixYByStim.has(stimName),
       }
       baseColumns.push(
         mappedCategoryByStim.get(stimName) ?? -1,
@@ -489,9 +498,9 @@ export class TobiiRowParser extends RowParser {
 
     this.setupColumns(baseColumns)
 
-    const aoiInfo = headerBytes
-      ? this.constructAoiInfoFromBytes(headerBytes)
-      : this.constructAoiInfo(header)
+    const aoiInfo = this.constructAoiInfoFromBytes(
+      headerBytes ?? encodeString(header.join(this.delim), this.encoding)
+    )
     if (aoiInfo) {
       this.aoiNames.push(...aoiInfo.names)
       this.setupAoiColumns(aoiInfo.start, aoiInfo.names.length)
@@ -615,45 +624,29 @@ export class TobiiRowParser extends RowParser {
 
   /* ── Spatial coordinate extraction ──────────────────────────────── */
   /**
-   * Extract spatial coordinates with priority fallback.
-   * Priority: Mapped fixation X/Y (stimulus-specific) → Fixation point X/Y (generic).
-   * Returns { x, y } | null if valid pair found.
+   * The row's coordinate in ONE frame per stimulus: the stimulus's own
+   * `Mapped fixation X/Y [stimulus]` when it has them, else an unsuffixed
+   * legacy `Mapped fixation X/Y`, else `Fixation point X/Y` (also the only
+   * path in media mode). An empty mapped cell is a fixation off the snapshot,
+   * so it yields null instead of a point from another frame.
    */
   private getSpatialCoordinates(): { x: number; y: number } | null {
-    let x: number
-    let y: number
-
     if (this.mappedColumnsAllowed) {
-      // Try the active stimulus's mapped fixation columns first
       const active = this.activeStimulusPackedCols
-      if (active) {
-        x = this.getNumber(active.pMappedFixationX)
-        y = this.getNumber(active.pMappedFixationY)
-        if (Number.isFinite(x) && Number.isFinite(y)) {
-          return { x, y }
-        }
+      if (active?.hasMappedFixation) {
+        return this.finitePair(active.pMappedFixationX, active.pMappedFixationY)
       }
-
-      // Fallback to first-mapped fixation columns (legacy single-stimulus path)
-      if (this.cMappedFixationX !== null && this.cMappedFixationY !== null) {
-        x = this.getNumber(this.pMappedFixationX)
-        y = this.getNumber(this.pMappedFixationY)
-        if (Number.isFinite(x) && Number.isFinite(y)) {
-          return { x, y }
-        }
+      if (this.hasLegacyMappedFixation) {
+        return this.finitePair(this.pMappedFixationX, this.pMappedFixationY)
       }
     }
+    return this.finitePair(this.pFixationX, this.pFixationY)
+  }
 
-    // Fallback to standard fixation point coordinates (also the only path in
-    // media mode, where mapped fixations don't apply to media-named stimuli)
-    x = this.getNumber(this.pFixationX)
-    y = this.getNumber(this.pFixationY)
-    if (Number.isFinite(x) && Number.isFinite(y)) {
-      return { x, y }
-    }
-
-    // No valid coordinate pair found
-    return null
+  private finitePair(pX: number, pY: number): { x: number; y: number } | null {
+    const x = this.getNumber(pX)
+    const y = this.getNumber(pY)
+    return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null
   }
 
   /**
@@ -811,7 +804,7 @@ export class TobiiRowParser extends RowParser {
     return
   }
 
-  finalize(): void {
+  override finalize(): void {
     this.finalizeSegments()
     this.flushEvents()
     // After finalizeSegments so the last open interval's segment is gated too,
@@ -1070,10 +1063,6 @@ export class TobiiRowParser extends RowParser {
 
   /* ── Segment creation helpers ───────────────────────── */
   private createSegmentsForIntervals(): void {
-    if (this.mRecordingStart === null || this.mRecordingLast === null) return
-    const startNum = this.mRecordingStart
-    const endNum = this.mRecordingLast
-
     // Use the stack snapshot taken when this segment began. Falls back to the
     // current stack when no snapshot was captured (e.g. finalize() with active
     // intervals).
@@ -1085,95 +1074,42 @@ export class TobiiRowParser extends RowParser {
       : this.cachedStimulusStackKeys
 
     for (let i = 0; i < stimuliBytes.length; i++) {
-      const stimulusBytes = stimuliBytes[i]
-      const stimulusKey = stimuliKeys[i]
-      if (this.mParticipantKey === null) continue
-      const key = this.makeCompositeKey32x64(stimulusKey, this.mParticipantKey)
-      const baseTime = this.stimuliBaseTimes.get(key) ?? startNum
-      const start = (startNum - baseTime) * TIME_MODIFIER
-      const end = (endNum - baseTime) * TIME_MODIFIER
-      if (!this.mParticipantBytes) continue
-      const spatial: { x: number; y: number } | null =
-        this.mSegmentSpatialX !== null && this.mSegmentSpatialY !== null
-          ? { x: this.mSegmentSpatialX, y: this.mSegmentSpatialY }
-          : null
-      // Reuse the composite key already computed for baseTime above.
-      this.gateGroup(key, stimulusBytes, this.mParticipantBytes)
-      this.onSegment?.(
-        start,
-        end,
-        this.mCategoryId,
-        stimulusBytes,
-        this.mParticipantBytes,
-        this.mAoi,
-        spatial
-      )
+      this.emitSegment(stimuliBytes[i], stimuliKeys[i])
     }
-    return
   }
 
   private createSegmentForSingleStimulus(): void {
+    if (!this.mStimulusBytes) return
+    // In interval mode an interval can close before its last segment is flushed,
+    // routing it here; gate it too so a malformed group's tail can't slip through
+    // ungated. No-op in media/base mode (gatingEnabled is false there).
+    this.emitSegment(this.mStimulusBytes, this.mStimulusKey)
+  }
+
+  /** Emit the open segment under one stimulus, timed from its group's base. */
+  private emitSegment(stimulusBytes: Uint8Array, stimulusKey: number): void {
     if (this.mRecordingStart === null || this.mRecordingLast === null) return
-    if (!this.mStimulusBytes || !this.mParticipantBytes) return
-    if (this.mParticipantKey === null) return
-    const key = this.makeCompositeKey32x64(
-      this.mStimulusKey,
-      this.mParticipantKey
-    )
+    if (!this.mParticipantBytes || this.mParticipantKey === null) return
+    const key = this.makeCompositeKey32x64(stimulusKey, this.mParticipantKey)
     const baseTime = this.stimuliBaseTimes.get(key) ?? this.mRecordingStart
-    const start = (this.mRecordingStart - baseTime) * TIME_MODIFIER
-    const end = (this.mRecordingLast - baseTime) * TIME_MODIFIER
     const spatial: { x: number; y: number } | null =
       this.mSegmentSpatialX !== null && this.mSegmentSpatialY !== null
         ? { x: this.mSegmentSpatialX, y: this.mSegmentSpatialY }
         : null
-    // In interval mode an interval can close before its last segment is flushed,
-    // routing it here; gate it too so a malformed group's tail can't slip through
-    // ungated. No-op in media/base mode (gatingEnabled is false there).
-    this.gateGroup(key, this.mStimulusBytes, this.mParticipantBytes)
+    // Reuse the composite key already computed for baseTime above.
+    this.gateGroup(key, stimulusBytes, this.mParticipantBytes)
     this.onSegment?.(
-      start,
-      end,
+      (this.mRecordingStart - baseTime) * TIME_MODIFIER,
+      (this.mRecordingLast - baseTime) * TIME_MODIFIER,
       this.mCategoryId,
-      this.mStimulusBytes,
+      stimulusBytes,
       this.mParticipantBytes,
       this.mAoi,
       spatial
     )
-    return
   }
 
   /* ── Utility: stimuli & AOI mapping ─────────────────── */
-  private constructAoiInfo(
-    header: string[]
-  ): { start: number; end: number; names: Uint8Array[] } | null {
-    let startIndex = -1
-    let endIndex = -1
-
-    for (let i = 0; i < header.length; i++) {
-      if (header[i].startsWith(AOI_HIT_PREFIX)) {
-        if (startIndex === -1) startIndex = i
-        endIndex = i
-      }
-    }
-
-    if (startIndex === -1) return null
-
-    const aoiNames: Uint8Array[] = []
-    for (let i = startIndex; i <= endIndex; i++) {
-      const h = header[i]
-      if (h.startsWith(AOI_HIT_PREFIX)) {
-        const fullName = h.substring(AOI_HIT_PREFIX.length, h.length - 1)
-        const name = fullName.substring(fullName.lastIndexOf(' - ') + 3)
-        aoiNames.push(encodeString(name, this.encoding))
-      } else {
-        aoiNames.push(new Uint8Array(0))
-      }
-    }
-
-    return { start: startIndex, end: endIndex, names: aoiNames }
-  }
-
   private constructAoiInfoFromBytes(
     headerBytes: Uint8Array
   ): { start: number; end: number; names: Uint8Array[] } | null {

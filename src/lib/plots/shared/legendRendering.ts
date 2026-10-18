@@ -183,19 +183,18 @@ function getLegendItemsPerRow(
  * Use this for layout calculations before actual rendering.
  */
 export function calculateFlatLegendHeight(
-  itemCount: number,
+  items: readonly LegendItem[],
   availableWidth: number,
-  config: LegendConfig,
-  avgTextWidth: number = 90
+  config: LegendConfig
 ): number {
   const { itemHeight, rowPadding, topPadding } = config
   const itemsPerRow = getLegendItemsPerRow(
     availableWidth,
     config,
-    avgTextWidth,
-    itemCount
+    maxLegendTextWidth(items, config),
+    items.length
   )
-  const rows = Math.ceil(itemCount / itemsPerRow)
+  const rows = Math.ceil(items.length / itemsPerRow)
   return rows > 0 ? topPadding + rows * itemHeight + (rows - 1) * rowPadding : 0
 }
 

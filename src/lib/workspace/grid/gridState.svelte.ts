@@ -172,17 +172,9 @@ export class GridState {
   }
 
   removeItem(id: number) {
-    const wasPaneVisible = this.paneOpenId !== null || this.selectedItemIds.length > 1
     this.items = this.items.filter(i => i.id !== id)
-    const next = this.selectedItemIds.filter(x => x !== id)
-    this.selectedItemIds = next
-    if (next.length === 0) {
-      this.paneOpenId = null
-    } else if (next.length === 1 && wasPaneVisible) {
-      this.paneOpenId = next[0]
-    } else if (this.paneOpenId === id) {
-      this.paneOpenId = null
-    }
+    this.setSelection(this.selectedItemIds.filter(x => x !== id))
+    if (this.paneOpenId === id) this.paneOpenId = null
   }
 
   /** Replace the selection with exactly this item (plain click, add/duplicate). */

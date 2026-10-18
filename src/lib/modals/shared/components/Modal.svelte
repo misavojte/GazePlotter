@@ -5,6 +5,7 @@
   import Button from '$lib/shared/components/Button.svelte'
   import type { ModalStackEntry } from '$lib/modals/modalState.svelte'
   import { getGazePlotterSession } from '$lib/session'
+  import { getDebugMessage } from '$lib/errors'
   import { useContextMenu } from '$lib/context-menu'
 
   const contextMenuState = useContextMenu()
@@ -43,18 +44,6 @@
     }
 
     return null
-  }
-
-  function getModalErrorMessage(error: unknown): string {
-    if (error instanceof Error && error.message.trim().length > 0) {
-      return error.message
-    }
-
-    if (typeof error === 'string' && error.trim().length > 0) {
-      return error
-    }
-
-    return 'Unknown dialog error'
   }
 
   function reportModalRenderError(
@@ -194,19 +183,11 @@
       passive: true,
     })
 
-    if (modalStack.length > 0) {
-      unlockBodyScroll = lockBodyScroll()
-      window.addEventListener('wheel', handleWindowScroll, { passive: false })
-    }
-
     return () => {
       window.removeEventListener('keydown', handleKeydown)
       document.removeEventListener('fullscreenchange', handleFullscreenChange)
       window.removeEventListener('wheel', handleWindowScroll)
-
-      if (unlockBodyScroll) {
-        unlockBodyScroll()
-      }
+      unlockBodyScroll?.()
     }
   })
 
@@ -275,7 +256,7 @@
                     This dialog could not be displayed. You can retry it or
                     close the window.
                   </p>
-                  <p class="modal-error-detail">{getModalErrorMessage(error)}</p>
+                  <p class="modal-error-detail">{getDebugMessage(error, 'Unknown dialog error')}</p>
                   <Button
                     onclick={() => reset()}
                     size="sm"

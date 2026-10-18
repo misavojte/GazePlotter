@@ -347,24 +347,12 @@ function setupDpiChangeListeners(
   }
 }
 
-function normalizeCanvasDimensions(
-  dimensions: CanvasDimensions
-): CanvasDimensions {
-  return {
-    width: Number.isFinite(dimensions.width)
-      ? Math.max(1, dimensions.width)
-      : 1,
-    height: Number.isFinite(dimensions.height)
-      ? Math.max(1, dimensions.height)
-      : 1,
-  }
-}
-
+// resizeCanvas clamps non-finite / sub-1 sizes itself.
 function resizeStateToDimensions(
   state: CanvasState,
   getDimensions: () => CanvasDimensions
 ): CanvasState {
-  const { width, height } = normalizeCanvasDimensions(getDimensions())
+  const { width, height } = getDimensions()
   return resizeCanvas(state, width, height)
 }
 
@@ -639,6 +627,22 @@ export interface HighlightRect {
   alpha?: number
   along?: 'x' | 'y' | 'both'
 }
+
+/** One full-band strip per row (rows `pitch` apart from `band.y`), for markCrosshairStrips. */
+export const rowStrips = (
+  rows: readonly number[],
+  band: { x: number; y: number; width: number },
+  pitch: number,
+  alpha: number
+): HighlightRect[] =>
+  rows.map(row => ({
+    x: band.x,
+    y: band.y + row * pitch,
+    width: band.width,
+    height: pitch,
+    alpha,
+    along: 'x',
+  }))
 
 let _segmentsScratch: number[] = []
 
@@ -937,4 +941,23 @@ export function createScratchLayer(
   } catch {
     return null
   }
+}
+
+/** A scratch layer with its ImageData and a packed-RGBA view of the pixels. */
+export interface PixelLayer extends ScratchLayer {
+  image: ImageData
+  pixels: Uint32Array
+}
+
+/** `prev` while it has this size, else a fresh pixel layer (null as for createScratchLayer). */
+export function pixelLayer(
+  prev: PixelLayer | null,
+  width: number,
+  height: number
+): PixelLayer | null {
+  if (prev && prev.canvas.width === width && prev.canvas.height === height) return prev
+  const layer = createScratchLayer(width, height)
+  if (!layer) return null
+  const image = layer.ctx.createImageData(width, height)
+  return { ...layer, image, pixels: new Uint32Array(image.data.buffer) }
 }

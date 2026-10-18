@@ -2,20 +2,19 @@
   import {
     usePlot,
     canvasBlockSelect,
+    trackOnlyHit,
     type CanvasExportProps,
     type FrameHit,
     type PlotFrame,
-    type PlotAreaTicks,
   } from '$lib/plots/shared'
   import type { PlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
   import { untrack } from 'svelte'
   import Play from 'lucide-svelte/icons/play'
   import Pause from 'lucide-svelte/icons/pause'
   import { SYSTEM_SANS_SERIF_SMALL_STACK } from '$lib/shared/textMeasure'
-  import { calculateNiceStepSize } from '$lib/plots/shared/timelineUtils'
+  import { linearTicks } from '$lib/plots/shared/ticks'
   import { AXIS_CONFIG } from '$lib/plots/shared/axisUtils'
-  import { strokeCrispRect } from '$lib/plots/shared/canvasUtils'
-  import { GRIDLINE_PRIMARY } from '$lib/plots/shared/const'
+  import { drawGradientBar } from '$lib/plots/shared/legendGradient'
   import { SCANPATH_COLORS, SCANPATH_LAYOUT } from '../const'
   import { getColorForValue, interpolateColor } from '$lib/color'
   import { PRESET_PALETTES } from '$lib/color/palettes'
@@ -24,7 +23,7 @@
   import type { StimulusMedia } from '$lib/data/types'
   import type { ScanpathData, ScanpathFixation } from '../types'
   import { buildScanpathTooltipContent } from '../core/tooltip'
-  import type { WarningPlaceholder } from '../core/view'
+  import type { PlotPlaceholderContent } from '$lib/plots/shared/drawCanvasPlaceholder'
 
   interface Props extends CanvasExportProps {
     data: ScanpathData | null
@@ -40,7 +39,7 @@
     playbackWindow?: number
     /** Playback clock rate relative to recording time (1 = real time). */
     playbackSpeed?: number
-    unavailableMessage?: string | WarningPlaceholder | null
+    unavailableMessage?: PlotPlaceholderContent | null
     /** The one participant this panel is about. */
     participantId?: number
     /** The stimulus's reference medium, drawn as the plot background. Its
@@ -310,35 +309,6 @@
 
   const L = SCANPATH_LAYOUT
 
-  function formatTick(v: number): string {
-    if (!Number.isFinite(v)) return ''
-    const abs = Math.abs(v)
-    if (abs >= 1000) return Math.round(v).toString()
-    if (abs >= 10) return v.toFixed(0)
-    return v.toFixed(2)
-  }
-
-  /** Nice round-number ticks (1/2/2.5/5 × 10^n steps, like the timeline
-      plots): multiples of the step that fall inside [min, max]. */
-  function buildTicks(min: number, max: number, count: number): PlotAreaTicks {
-    if (!(max > min)) return { positions: [0.5], labels: [formatTick(min)] }
-    const range = max - min
-    const step = calculateNiceStepSize(range, count)
-    const positions: number[] = []
-    const labels: string[] = []
-    for (
-      let v = Math.ceil(min / step) * step;
-      v <= max + step * 1e-4;
-      v += step
-    ) {
-      // Snap floating-point drift (0.30000000000000004) back to the grid.
-      const value = Math.abs(v) < step * 1e-6 ? 0 : v
-      positions.push((value - min) / range)
-      labels.push(formatTick(value))
-    }
-    return { positions, labels }
-  }
-
   /** Padded data bounding box + its tick scales. */
   const scale = $derived.by(() => {
     if (!data) {
@@ -378,8 +348,8 @@
         dataMaxY: minY + h,
         dataW: w,
         dataH: h,
-        xTicks: buildTicks(minX, minX + w, L.tickCount),
-        yTicks: buildTicks(minY, minY + h, L.tickCount),
+        xTicks: linearTicks(minX, minX + w, L.tickCount),
+        yTicks: linearTicks(minY, minY + h, L.tickCount),
       }
     }
     const { minX, maxX, minY, maxY } = data.bbox
@@ -398,8 +368,8 @@
       dataMaxY,
       dataW: dataMaxX - dataMinX,
       dataH: dataMaxY - dataMinY,
-      xTicks: buildTicks(dataMinX, dataMaxX, L.tickCount),
-      yTicks: buildTicks(dataMinY, dataMaxY, L.tickCount),
+      xTicks: linearTicks(dataMinX, dataMaxX, L.tickCount),
+      yTicks: linearTicks(dataMinY, dataMaxY, L.tickCount),
     }
   })
 
@@ -465,16 +435,9 @@
     // shared plot cursor — this panel IS one participant.
     hitTest: (x, y, frame): FrameHit<ScanpathHit> => {
       const index = hitFixation(x, y, frame)
-      if (index === null) {
-        // No cursor override: the harness default 'crosshair' over the data
-        // rect, same as the scarf and the other canvas plots.
-        return {
-          content: [],
-          anchorX: 0,
-          anchorY: 0,
-          data: { fixationIndex: null },
-        }
-      }
+      // No cursor override: the harness default 'crosshair' over the data
+      // rect, same as the scarf and the other canvas plots.
+      if (index === null) return trackOnlyHit({ fixationIndex: null })
       const f = data!.fixations[index]
       return {
         content: buildScanpathTooltipContent(f),
@@ -652,13 +615,7 @@
     x += slotW + GAP
     const barX = Math.round(x)
     const barY = Math.round(midY - BAR_H / 2)
-    const gradient = ctx.createLinearGradient(barX, 0, barX + BAR_W, 0)
-    gradientStops.forEach((c, i) =>
-      gradient.addColorStop(i / (gradientStops.length - 1), c)
-    )
-    ctx.fillStyle = gradient
-    ctx.fillRect(barX, barY, BAR_W, BAR_H)
-    strokeCrispRect(ctx, barX, barY, BAR_W, BAR_H, GRIDLINE_PRIMARY.COLOR, 1)
+    drawGradientBar(ctx, { x: barX, y: barY, width: BAR_W, height: BAR_H }, gradientStops)
     ctx.textAlign = 'left'
     ctx.fillStyle = AXIS_CONFIG.color
     ctx.fillText(to, barX + BAR_W + GAP, midY)

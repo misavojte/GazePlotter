@@ -1,28 +1,22 @@
 <script lang="ts">
   import { Select } from '$lib/shared/components'
-  import { ModalButtons, Step, StepList, HelpText, FieldGrid } from '$lib/modals'
+  import { Step, StepList, HelpText, FieldGrid } from '$lib/modals'
   import type { DecimalSeparator, ExportNaming } from '$lib/data/export'
   import { getGazePlotterSession } from '$lib/session'
   import {
-    createExportButtons,
     CSV_DECIMAL_SEPARATOR_OPTIONS,
     CSV_DELIMITER_OPTIONS,
     EXPORT_NAMING_OPTIONS,
     EXPORT_TYPE_OPTIONS,
     exportTypeNamingSummary,
-    withExportBusy,
   } from '../shared/helpers'
   import ExportShell from '../shared/ExportShell.svelte'
-  import ExportProgressBar from '../shared/ExportProgressBar.svelte'
-  import StimuliSelect from '../shared/StimuliSelect.svelte'
-  import ParticipantsSelect from '../shared/ParticipantsSelect.svelte'
-  import { defaultStimulusSelection, stimuliSelectionSummary } from '../shared/stimuli'
-  import {
-    defaultParticipantSelection,
-    participantsSelectionSummary,
-  } from '../shared/participants'
+  import StimuliStep from '../shared/StimuliStep.svelte'
+  import ParticipantsStep from '../shared/ParticipantsStep.svelte'
+  import { defaultStimulusSelection } from '../shared/stimuli'
+  import { defaultParticipantSelection } from '../shared/participants'
 
-  const { engine, exportService, modalState } = getGazePlotterSession()
+  const { engine, exportService } = getGazePlotterSession()
 
   const fileName = 'GazePlotter-EventData'
   let exportType = $state('csv')
@@ -31,86 +25,40 @@
   let decimalSeparator = $state<DecimalSeparator>('.')
   let selectedStimuliIds = $state(defaultStimulusSelection(engine))
   let selectedParticipantIds = $state(defaultParticipantSelection(engine))
-  let isExporting = $state(false)
-
-  const stepStimuliDone = $derived(selectedStimuliIds.size > 0)
-  const stepParticipantsDone = $derived(selectedParticipantIds.size > 0)
 
   const canExport = $derived(
-    stepStimuliDone && stepParticipantsDone
-  )
-  const stimuliSummary = $derived(
-    stimuliSelectionSummary(engine, selectedStimuliIds)
-  )
-  const participantsSummary = $derived(
-    participantsSelectionSummary(engine, selectedParticipantIds)
+    selectedStimuliIds.size > 0 && selectedParticipantIds.size > 0
   )
   const fileSummary = $derived(
     exportTypeNamingSummary(exportType, naming).join(' · ')
   )
 
-  const handleExport = async () => {
-    if (!canExport) return
-
-    await withExportBusy(
-      val => (isExporting = val),
-      () =>
-        exportService.exportEventData({
-          fileName,
-          exportType: exportType as 'csv' | 'individual-csv',
-          stimulusIds: selectedStimuliIds,
-          participantIds: selectedParticipantIds,
-          naming,
-          csvOptions: {
-            delimiter,
-            decimalSeparator,
-          },
-        })
-    )
-  }
-
-  const exportButtons = $derived(
-    createExportButtons({
-      canExport,
-      exportLabel: 'Export Data',
-      isExporting,
-      onCancel: () => modalState.close(),
-      onExport: handleExport,
+  const handleExport = () =>
+    exportService.exportEventData({
+      fileName,
+      exportType: exportType as 'csv' | 'individual-csv',
+      stimulusIds: selectedStimuliIds,
+      participantIds: selectedParticipantIds,
+      naming,
+      csvOptions: {
+        delimiter,
+        decimalSeparator,
+      },
     })
-  )
 </script>
 
 <ExportShell
   intro="Export event occurrences with their timing per participant and stimulus."
+  {canExport}
+  onExport={handleExport}
 >
   <StepList>
-    <Step
+    <StimuliStep
       n={1}
-      title="Choose stimuli"
       description="Each selected stimulus contributes its event occurrences to the export."
-      summary={stimuliSummary}
-      done={stepStimuliDone}
-    >
-      <StimuliSelect
-        selected={selectedStimuliIds}
-        onchange={next => (selectedStimuliIds = next)}
-        hasError={!stepStimuliDone}
-      />
-    </Step>
-
-    <Step
-      n={2}
-      title="Choose participants"
-      description="Selection chips toggle a whole participant selection at once; individual checkmarks refine the result."
-      summary={participantsSummary}
-      done={stepParticipantsDone}
-    >
-      <ParticipantsSelect
-        selected={selectedParticipantIds}
-        onchange={next => (selectedParticipantIds = next)}
-        hasError={!stepParticipantsDone}
-      />
-    </Step>
+      bind:selected={selectedStimuliIds}
+    />
+    <ParticipantsStep n={2} bind:selected={selectedParticipantIds} />
 
     <Step
       n={3}
@@ -157,8 +105,4 @@
       </HelpText>
     </Step>
   </StepList>
-
-  <ExportProgressBar progress={exportService.progress} />
-
-  <ModalButtons buttons={exportButtons} />
 </ExportShell>

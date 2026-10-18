@@ -22,7 +22,7 @@
     sumFileSizes,
   } from './helpers'
 
-  const { errorService, ingest, engine, modalState, exportService } =
+  const { errorService, ingest, engine, exportService } =
     getGazePlotterSession()
   const fileMetadata = $derived(ingest.metadata ?? null)
   const currentFileInput = $derived(ingest.input)
@@ -112,13 +112,7 @@
 
   {#if currentFileInput !== null && !isSameAsSource}
     <MetadataSection title="Current parsing">
-      <Card padding="sm" gap="8px">
-        <InfoRow label="Files being processed:" value={currentFileInput.fileNames.length} />
-        <MetadataFileList
-          fileNames={currentFileInput.fileNames}
-          fileSizes={currentFileInput.fileSizes}
-        />
-      </Card>
+      <MetadataFileList label="Files being processed:" files={currentFileInput} />
 
       <Card padding="sm" gap="8px">
         <InfoRow
@@ -155,13 +149,7 @@
         {/if}
       </Card>
 
-      <Card padding="sm" gap="8px">
-        <InfoRow label="Files attempted:" value={fileMetadata.fileNames.length} />
-        <MetadataFileList
-          fileNames={fileMetadata.fileNames}
-          fileSizes={fileMetadata.fileSizes}
-        />
-      </Card>
+      <MetadataFileList label="Files attempted:" files={fileMetadata} />
 
       <Card padding="sm" gap="8px">
         <InfoRow label="Total file size:" value={formatFileSize(totalFileSize)} />
@@ -179,13 +167,7 @@
         <InfoRow label="Client:" value={fileMetadata.clientUserAgent} variant="mono" />
       </Card>
     {:else}
-      <Card padding="sm" gap="8px">
-        <InfoRow label="Files processed:" value={fileMetadata.fileNames.length} />
-        <MetadataFileList
-          fileNames={fileMetadata.fileNames}
-          fileSizes={fileMetadata.fileSizes}
-        />
-      </Card>
+      <MetadataFileList label="Files processed:" files={fileMetadata} />
 
       <Card padding="sm" gap="8px">
         <InfoRow label="Total file size:" value={formatFileSize(totalFileSize)} />
@@ -243,22 +225,7 @@
   <MetadataRecentErrorsSection errors={recentErrors} />
   <MetadataMemorySection {memoryInfo} />
 
-  <ModalButtons
-    buttons={[
-      {
-        label: 'Export Metadata',
-        onclick: exportMetadata,
-        variant: 'primary' as const,
-      },
-      {
-        label: 'Cancel',
-        onclick: () => {
-          modalState.close()
-        },
-        isDisabled: false,
-      },
-    ]}
-  />
+  <ModalButtons onApply={exportMetadata} applyLabel="Export Metadata" />
 </div>
 
 <style>

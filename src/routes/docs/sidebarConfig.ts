@@ -239,6 +239,12 @@ export const SIDEBAR: readonly SidebarItem[] = [
         description: 'Plot 2D spatial scanpaths on coordinate axes. Visualizes fixation coordinates, chronological sequence, durations (via circle radius), and saccade paths, with animated playback over reference imagery or video.'
       },
       {
+        name: 'Fixation Heatmap',
+        href: '/docs/visualizations/fixation-heatmap',
+        seoTitle: 'Fixation Heatmap for Eye Tracking',
+        description: 'Pool the fixations of a participant selection into a Gaussian heat map over the stimulus image, by fixation duration or count, shared per participant or averaged, with a self-documenting legend and Tobii Pro Lab settings mapping.'
+      },
+      {
         name: 'Scanpath Similarity',
         href: '/docs/visualizations/scanpath-similarity',
         seoTitle: 'Scanpath Similarity Matrix & Network',

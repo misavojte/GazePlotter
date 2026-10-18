@@ -19,6 +19,7 @@ import {
   makeSingleParticipantEngine,
   makeMultiParticipantEngine,
   makeScope,
+  testInstance,
 } from './helpers/testEngine'
 import type { DataEngine } from '../src/lib/data/engine/dataEngine.svelte'
 import {
@@ -42,15 +43,11 @@ function windowedAoiVectorInst(
   stepSize = 100,
   reduction?: MetricInstance['reduction'],
 ): MetricInstance {
-  return {
-    id: 't1', baseId, params: {}, label: '',
-    projection: {
-      kind: 'windowed',
-      window: { windowSize, stepSize },
-      inner: { kind: 'identity-aoi-vector' },
-    },
-    ...(reduction ? { reduction } : {}),
-  }
+  return testInstance(baseId, {
+    kind: 'windowed',
+    window: { windowSize, stepSize },
+    inner: { kind: 'identity-aoi-vector' },
+  }, reduction ? { reduction } : {})
 }
 
 const scope = (engine: DataEngine, timeStart = 0, timeEnd = 0): Scope =>
@@ -506,15 +503,12 @@ describe('queryGroup: windowed × aoi-vector cross-participant aggregation', () 
     }
     const identity = { kind: 'identity-aoi-vector' as const }
     for (const projection of [windowed, identity]) {
-      const inst: MetricInstance = {
-        id: 'x', baseId: 'relativeTime', params: {}, label: '', projection, reduction: 'sum',
-      }
+      const inst = testInstance('relativeTime', projection, { id: 'x', reduction: 'sum' })
       expect(resolveReduction(inst)).toBe('mean')
     }
     // A sound override (absoluteTime is extensive) is honoured verbatim.
-    expect(resolveReduction({
-      id: 'y', baseId: 'absoluteTime', params: {}, label: '',
-      projection: { kind: 'identity-aoi-vector' }, reduction: 'sum',
-    })).toBe('sum')
+    expect(resolveReduction(
+      testInstance('absoluteTime', { kind: 'identity-aoi-vector' }, { id: 'y', reduction: 'sum' })
+    )).toBe('sum')
   })
 })

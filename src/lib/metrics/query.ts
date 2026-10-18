@@ -7,6 +7,7 @@ import {
   runIndividualsAllSlots,
   runRaw,
   runWindowedGroup,
+  type ProjectedResult,
   type Scope,
 } from './core/runtime'
 import { scanBatch } from './core/scanner'
@@ -14,7 +15,7 @@ import { buildAoiSlots } from './core/aoiSlots'
 import { reduceFinite } from './core/aggregation'
 import type { GroupReduction } from './core/measurement'
 import type { Projection } from './core/projection'
-import type { AoiSlotInfo, GroupScope, OutputShape } from './core/dsl'
+import type { AoiSlotInfo, GroupScope } from './core/dsl'
 import { getAois } from '$lib/data/engine'
 import { resolveReduction, type MetricInstance } from './instances'
 
@@ -112,11 +113,6 @@ export function queryGroup(instance: MetricInstance, group: GroupScope): MetricR
     if (!recipe.scanGroup) return emptyResult(instance, 'participant-pair-matrix', recipe.unit)
     const params = resolveParams(recipe.params, instance.params)
     const groupResult = recipe.scanGroup(group, params)
-    const provenance: MetricProvenance = {
-      baseId: instance.baseId,
-      params: instance.params,
-      projection: instance.projection,
-    }
     return {
       shape: 'participant-pair-matrix',
       metricId: recipe.id,
@@ -124,7 +120,7 @@ export function queryGroup(instance: MetricInstance, group: GroupScope): MetricR
       matrix: groupResult.matrix,
       size: groupResult.participantIds.length,
       participantIds: groupResult.participantIds,
-      provenance,
+      provenance: provenanceOf(instance),
     }
   }
   // Resolved in ONE place, shared with the label, so what is computed always
@@ -243,21 +239,9 @@ function wrapProjectedResult(
   metricId: string,
   unit: string,
   instance: MetricInstance,
-  projected: {
-    shape: OutputShape
-    values: number[]
-    vectors?: number[][]
-    slots: AoiSlotInfo
-    refMissing: boolean
-    timeline?: number[]
-  },
+  projected: ProjectedResult,
 ): MetricResult {
-  const provenance: MetricProvenance = {
-    baseId: instance.baseId,
-    params: instance.params,
-    projection: instance.projection,
-    refMissing: projected.refMissing || undefined,
-  }
+  const provenance = provenanceOf(instance, projected.refMissing)
   const { values, shape, slots } = projected
   if (shape === 'scalar') {
     const v = values[0] ?? Number.NaN
@@ -266,10 +250,7 @@ function wrapProjectedResult(
   if (shape === 'aoi-vector') {
     return { shape, metricId, unit, values, slots, provenance }
   }
-  if (shape === 'category-vector') {
-    return { shape, metricId, unit, values, provenance }
-  }
-  if (shape === 'event-vector') {
+  if (shape === 'category-vector' || shape === 'event-vector') {
     return { shape, metricId, unit, values, provenance }
   }
   if (shape === 'scalar-timeseries') {
@@ -288,23 +269,26 @@ function wrapProjectedResult(
   return { shape: 'aoi-pair-matrix', metricId, unit, matrix: values, size, provenance }
 }
 
+function provenanceOf(instance: MetricInstance, refMissing?: boolean): MetricProvenance {
+  return {
+    baseId: instance.baseId,
+    params: instance.params,
+    projection: instance.projection,
+    refMissing: refMissing || undefined,
+  }
+}
+
 /** Provenance always describes the real instance: there is no synthesized
  *  fallback, so an empty result stays as citable as a populated one. */
 function emptyResult(
   instance: MetricInstance,
-  shape: 'scalar' | 'aoi-vector' | 'aoi-pair-matrix' | 'participant-pair-matrix',
+  shape: 'scalar' | 'participant-pair-matrix',
   unit: string,
 ): MetricResult {
   const metricId = instance.baseId
-  const provenance: MetricProvenance = {
-    baseId: instance.baseId,
-    params: instance.params,
-    projection: instance.projection,
-  }
+  const provenance = provenanceOf(instance)
   if (shape === 'scalar') return { shape: 'scalar', metricId, unit, value: Number.NaN, isFinite: false, provenance }
-  if (shape === 'aoi-vector') return { shape: 'aoi-vector', metricId, unit, values: [], slots: { totalSlots: 0, noAoiSlot: 0, anyFixationSlot: 0 }, provenance }
-  if (shape === 'participant-pair-matrix') return { shape: 'participant-pair-matrix', metricId, unit, matrix: [], size: 0, participantIds: [], provenance }
-  return { shape: 'aoi-pair-matrix', metricId, unit, matrix: [], size: 0, provenance }
+  return { shape: 'participant-pair-matrix', metricId, unit, matrix: [], size: 0, participantIds: [], provenance }
 }
 
 /** rows × slots → one value per slot. Only the iteration lives here; the

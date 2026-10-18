@@ -10,7 +10,8 @@
  * default is the identity mapping most metric tests used.
  */
 import { createReaderFromJson } from '../../src/lib/data/binary/converters'
-import { createDefaultMetricInstances } from '../../src/lib/metrics/instances'
+import { createDefaultMetricInstances, type MetricInstance } from '../../src/lib/metrics/instances'
+import type { Projection } from '../../src/lib/metrics/core/projection'
 import { AoiGroupReader } from '../../src/lib/data/binary/reader.aoiGroup'
 import { EventBufferReader } from '../../src/lib/data/binary/reader.event'
 import type { DataEngine } from '../../src/lib/data/engine/dataEngine.svelte'
@@ -58,6 +59,8 @@ export type TestEngineOptions = {
    *  guarded path (e.g. scanpathEncoding returns '' instead of throwing).
    *  'group': real AoiGroupReader-backed mapping + getAoiGroupReader(). */
   aoiMapping?: 'identity' | 'group'
+  /** Per-segment [x, y] (or null) parallel to `segments`; turns the reader's spatial store on. */
+  spatial?: (number[] | null)[][][]
 }
 
 /**
@@ -101,6 +104,26 @@ export function makeScope(engine: DataEngine, over: Partial<Scope> = {}): Scope 
   return { engine, stimulusId: 1, participantId: 0, timeStart: 0, timeEnd: 0, ...over }
 }
 
+/** A bare instance literal (not createMetricInstance); override what the pin is about. */
+export function testInstance(
+  baseId: string,
+  projection: Projection,
+  over: Partial<MetricInstance> = {}
+): MetricInstance {
+  return { id: 't1', baseId, params: {}, label: '', projection, ...over }
+}
+
+/** One stimulus's AOI rows in the `[null, ...rows]` convention (raw id i = names[i - 1]) plus its order. */
+export function aoiTable(
+  names: string[],
+  color = '#000000'
+): { data: (string[] | null)[]; order: number[] } {
+  return {
+    data: [null, ...names.map(n => [n, n, color])],
+    order: names.map((_, i) => i + 1),
+  }
+}
+
 /**
  * Production-realistic single-stimulus engine (STIM = 1): builds the
  * `[null, ...rows]` convention (raw id i == data[1][i]) from `aoiNames` and
@@ -115,14 +138,9 @@ export function makeGroupedAoiEngine(
   aoiNames: string[],
   segmentsForPid: number[][]
 ): DataEngine {
-  const aoiData: (string[] | null)[] = [null]
-  const order: number[] = []
-  for (let i = 0; i < aoiNames.length; i++) {
-    aoiData.push([aoiNames[i], aoiNames[i], '#000000'])
-    order.push(i + 1)
-  }
+  const { data, order } = aoiTable(aoiNames)
   return makeTestEngine([[], [segmentsForPid]], {
-    aoiData: [[], aoiData],
+    aoiData: [[], data],
     aoiOrderVector: [[], order],
     aoiMapping: 'group',
   })
@@ -136,7 +154,7 @@ export function makeTestEngine(
   segments: number[][][][],
   options: TestEngineOptions = {}
 ): DataEngine {
-  const reader = createReaderFromJson(segments)
+  const reader = createReaderFromJson(segments, options.spatial)
   const eventReader = new EventBufferReader()
   eventReader.load(options.events ?? [])
 

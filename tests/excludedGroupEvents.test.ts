@@ -11,27 +11,33 @@ const settings: ParseSettings = {
   headerRowId: 0,
 }
 
+// A (S1,P1) segment so the dataset has a stimulus + participant, plus an
+// event timed against the SAME group.
+function seededBuilder(): DatasetBuilder {
+  const builder = new DatasetBuilder()
+  builder.beginFile(settings)
+  builder.addSegment({
+    start: '0',
+    end: '100',
+    stimulus: 'S1',
+    participant: 'P1',
+    category: 'Fixation',
+    aoi: null,
+  })
+  builder.addEvent({
+    stimulus: 'S1',
+    participant: 'P1',
+    channel: 'marker',
+    start: 10,
+    duration: 0,
+  })
+  return builder
+}
+
 describe('DatasetBuilder — excluded-group event accounting', () => {
   it('counts and warns when events are dropped with an excluded interval group', () => {
-    const builder = new DatasetBuilder()
-    builder.beginFile(settings)
-    // A (S1,P1) segment so the dataset has a stimulus + participant, plus an
-    // event timed against the SAME group — which is then excluded.
-    builder.addSegment({
-      start: '0',
-      end: '100',
-      stimulus: 'S1',
-      participant: 'P1',
-      category: 'Fixation',
-      aoi: null,
-    })
-    builder.addEvent({
-      stimulus: 'S1',
-      participant: 'P1',
-      channel: 'marker',
-      start: 10,
-      duration: 0,
-    })
+    const builder = seededBuilder()
+    // The event's group is then excluded.
     builder.recordExclusion('S1', 'P1', [{ kind: 'double-start', timeSeconds: 0 }])
 
     builder.buildFinalData()
@@ -46,23 +52,7 @@ describe('DatasetBuilder — excluded-group event accounting', () => {
   })
 
   it('does not warn when no events fall in an excluded group', () => {
-    const builder = new DatasetBuilder()
-    builder.beginFile(settings)
-    builder.addSegment({
-      start: '0',
-      end: '100',
-      stimulus: 'S1',
-      participant: 'P1',
-      category: 'Fixation',
-      aoi: null,
-    })
-    builder.addEvent({
-      stimulus: 'S1',
-      participant: 'P1',
-      channel: 'marker',
-      start: 10,
-      duration: 0,
-    })
+    const builder = seededBuilder()
 
     builder.buildFinalData()
 

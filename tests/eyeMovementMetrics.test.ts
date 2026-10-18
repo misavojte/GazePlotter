@@ -13,7 +13,7 @@
  * table changes under an unchanged reader.
  */
 import { describe, it, expect } from 'vitest'
-import { ALL_CAPS, makeTestEngine } from './helpers/testEngine'
+import { ALL_CAPS, makeTestEngine, testInstance } from './helpers/testEngine'
 import {
   getMetric,
   metricIsCreatableInContract,
@@ -70,17 +70,11 @@ function summaryPickInst(id: string, baseId: string, categoryName: string, stati
 }
 
 function windowedPickInst(id: string, baseId: string, categoryName: string): MetricInstance {
-  return {
-    id,
-    baseId,
-    params: {},
-    label: '',
-    projection: {
-      kind: 'windowed',
-      window: { windowSize: 100, stepSize: 100 },
-      inner: { kind: 'pick-category', categoryName },
-    },
-  }
+  return testInstance(baseId, {
+    kind: 'windowed',
+    window: { windowSize: 100, stepSize: 100 },
+    inner: { kind: 'pick-category', categoryName },
+  }, { id })
 }
 
 function vectorValues(engine: DataEngine, inst: MetricInstance, scope: Partial<Scope> = {}): number[] {
@@ -140,14 +134,11 @@ describe('category-vector eye-movement metrics (scanSource: categories)', () => 
     // No statistic → mean, identical to the vector's slot (and its raw cache).
     expect(scalarValue(engine, pickInst('m4', 'movementDuration', 'Saccade'))).toBe(35)
     // Per-window collapse: [0,200) fixations [100, 70], [200,400) [80, 60].
-    const wmax = query({
-      id: 'wm', baseId: 'movementDuration', params: {}, label: '',
-      projection: {
-        kind: 'windowed',
-        window: { windowSize: 200, stepSize: 200 },
-        inner: { kind: 'pick-category', categoryName: 'Fixation', statistic: 'max' },
-      },
-    }, { engine: engine, stimulusId: STIM, participantId: 0, timeStart: 0, timeEnd: 400 })
+    const wmax = query(testInstance('movementDuration', {
+      kind: 'windowed',
+      window: { windowSize: 200, stepSize: 200 },
+      inner: { kind: 'pick-category', categoryName: 'Fixation', statistic: 'max' },
+    }, { id: 'wm' }), { engine: engine, stimulusId: STIM, participantId: 0, timeStart: 0, timeEnd: 400 })
     if (wmax.shape !== 'scalar-timeseries') throw new Error('unexpected shape')
     expect(wmax.values).toEqual([100, 80])
     // Declaration gate, mirroring aggregate-aoi: a statistic is valid only

@@ -58,6 +58,16 @@ const MIGRATED_SELECTION_NAME = 'Migrated visibility'
 /** 1.9.2's built-in "None" picker option, retired in favour of seeded rows. */
 const RETIRED_NONE_SELECTION_ID = -1
 
+/** Map each grid item that has an object `settings`; others pass through. */
+function mapItemSettings(data: any, fn: (item: any, s: any) => any): void {
+  if (!Array.isArray(data.gridItems)) return
+  data.gridItems = data.gridItems.map((item: any) => {
+    if (!item || typeof item !== 'object') return item
+    const s = item.settings
+    return s && typeof s === 'object' ? fn(item, s) : item
+  })
+}
+
 /** Next free selection id: 1 + the highest id already present (0 when empty). */
 function nextSelectionId(selections: { id: number }[]): number {
   return selections.reduce((m, sel) => Math.max(m, Number(sel?.id) || 0), 0) + 1
@@ -88,17 +98,22 @@ function findOrSeed<T extends { id: number; name: string }>(
  * reachable. Adopts a same-named row rather than duplicating it: 1.9.2 users
  * were told to hand-build exactly these.
  */
-function seedLayerOffSelections(payload: any): void {
-  findOrSeed(
-    selectionRows(payload, 'categoriesSelections'),
-    seededCategoriesSelection(0).name,
-    seededCategoriesSelection
-  )
-  findOrSeed(
-    selectionRows(payload, 'eventsSelections'),
-    seededEventsSelection(0).name,
-    seededEventsSelection
-  )
+function seedLayerOffSelections(payload: any): {
+  categoryId: number
+  eventId: number
+} {
+  return {
+    categoryId: findOrSeed(
+      selectionRows(payload, 'categoriesSelections'),
+      seededCategoriesSelection(0).name,
+      seededCategoriesSelection
+    ),
+    eventId: findOrSeed(
+      selectionRows(payload, 'eventsSelections'),
+      seededEventsSelection(0).name,
+      seededEventsSelection
+    ),
+  }
 }
 
 /**
@@ -119,16 +134,7 @@ function sweepRetiredSentinel(payload: any, gridItems: any[]): void {
     gridItems.some(i => i?.settings?.hideEvents === true)
   if (!holds('categorySelectionId') && !needsEvents) return
 
-  const categoryId = findOrSeed(
-    selectionRows(payload, 'categoriesSelections'),
-    seededCategoriesSelection(0).name,
-    seededCategoriesSelection
-  )
-  const eventId = findOrSeed(
-    selectionRows(payload, 'eventsSelections'),
-    seededEventsSelection(0).name,
-    seededEventsSelection
-  )
+  const { categoryId, eventId } = seedLayerOffSelections(payload)
   for (const item of gridItems) {
     const s = item?.settings
     if (!s || typeof s !== 'object') continue
@@ -640,32 +646,26 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
       }
     }
 
-    if (Array.isArray(data.gridItems)) {
-      data.gridItems = data.gridItems.map((item: any) => {
-        if (!item || typeof item.type !== 'string') return item
-        const s = item.settings
-        if (!s || typeof s !== 'object') return item
+    mapItemSettings(data, (item, s) => {
+      // Raw ON-DISK type, deliberately not the current 'aoiComparison' key:
+      // this versioned step runs BEFORE the legacy-type rewrite below, so the
+      // only value it can ever see for this plot is the old 'barPlot'.
+      if (item.type === 'barPlot') {
+        const baseId =
+          typeof s.aggregationMethod === 'string' ? s.aggregationMethod : 'absoluteTime'
+        const metricInstanceId = BAR_BASEID_TO_SLUG[baseId] ?? 'absoluteTime'
+        const { aggregationMethod: _drop, ...rest } = s
+        return { ...item, settings: { ...rest, metricInstanceId } }
+      }
 
-        // Raw ON-DISK type, deliberately not the current 'aoiComparison' key:
-        // this versioned step runs BEFORE the legacy-type rewrite below, so the
-        // only value it can ever see for this plot is the old 'barPlot'.
-        if (item.type === 'barPlot') {
-          const baseId =
-            typeof s.aggregationMethod === 'string' ? s.aggregationMethod : 'absoluteTime'
-          const metricInstanceId = BAR_BASEID_TO_SLUG[baseId] ?? 'absoluteTime'
-          const { aggregationMethod: _drop, ...rest } = s
-          return { ...item, settings: { ...rest, metricInstanceId } }
-        }
+      if (item.type === 'transitionMatrix') {
+        const metricInstanceId = mapTransitionAggregation(s.aggregationMethod)
+        const { aggregationMethod: _drop, ...rest } = s
+        return { ...item, settings: { ...rest, metricInstanceId } }
+      }
 
-        if (item.type === 'transitionMatrix') {
-          const metricInstanceId = mapTransitionAggregation(s.aggregationMethod)
-          const { aggregationMethod: _drop, ...rest } = s
-          return { ...item, settings: { ...rest, metricInstanceId } }
-        }
-
-        return item
-      })
-    }
+      return item
+    })
 
     // 4. Migrate aoi-stream gridItems' `binSize → metricInstanceId`. Each
     //    distinct `binSize` maps to a deterministic slug. Slug collision is
@@ -714,20 +714,16 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
       return slug
     }
 
-    if (Array.isArray(data.gridItems)) {
-      data.gridItems = data.gridItems.map((item: any) => {
-        if (!item || item.type !== 'aoiStreamPlot') return item
-        const s = item.settings
-        if (!s || typeof s !== 'object') return item
-        if (Array.isArray(s.metricInstanceIds)) return item // already migrated
-        if (typeof s.metricInstanceId === 'string') return item // first-pass binSize migration done; field-name pass below picks it up
-        const binSize =
-          typeof s.binSize === 'number' && s.binSize > 0 ? s.binSize : 500
-        const metricInstanceId = ensureWindowedAoiInstance(binSize)
-        const { binSize: _drop, ...rest } = s
-        return { ...item, settings: { ...rest, metricInstanceId } }
-      })
-    }
+    mapItemSettings(data, (item, s) => {
+      if (item.type !== 'aoiStreamPlot') return item
+      if (Array.isArray(s.metricInstanceIds)) return item // already migrated
+      if (typeof s.metricInstanceId === 'string') return item // first-pass binSize migration done; field-name pass below picks it up
+      const binSize =
+        typeof s.binSize === 'number' && s.binSize > 0 ? s.binSize : 500
+      const metricInstanceId = ensureWindowedAoiInstance(binSize)
+      const { binSize: _drop, ...rest } = s
+      return { ...item, settings: { ...rest, metricInstanceId } }
+    })
 
     // 5. Normalize all metric-reference settings fields to `metricInstanceIds: string[]`.
     // Per the 1.9.0 plan ("collapse equivalent variants"): three legacy field names
@@ -735,36 +731,31 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
     // canonical array shape. Singleton plots store length-0 (none) or length-1
     // arrays; multi-select plots (metric-correlation) store N. Idempotent — if
     // `metricInstanceIds` already exists, the pass is a no-op.
-    if (Array.isArray(data.gridItems)) {
-      data.gridItems = data.gridItems.map((item: any) => {
-        if (!item || typeof item !== 'object') return item
-        const s = item.settings
-        if (!s || typeof s !== 'object') return item
-        if (Array.isArray(s.metricInstanceIds)) return item // already on the new shape
+    mapItemSettings(data, (item, s) => {
+      if (Array.isArray(s.metricInstanceIds)) return item // already on the new shape
 
-        let nextIds: string[] | null = null
-        let dropKey: 'metricInstanceId' | 'selectedMetricId' | 'enabledMetricIds' | null = null
-        if (typeof s.metricInstanceId === 'string') {
-          nextIds = [s.metricInstanceId]
-          dropKey = 'metricInstanceId'
-        } else if (s.metricInstanceId === null) {
-          nextIds = []
-          dropKey = 'metricInstanceId'
-        } else if (typeof s.selectedMetricId === 'string') {
-          nextIds = [s.selectedMetricId]
-          dropKey = 'selectedMetricId'
-        } else if (s.selectedMetricId === null) {
-          nextIds = []
-          dropKey = 'selectedMetricId'
-        } else if (Array.isArray(s.enabledMetricIds)) {
-          nextIds = s.enabledMetricIds.filter((id: unknown): id is string => typeof id === 'string')
-          dropKey = 'enabledMetricIds'
-        }
-        if (nextIds === null || dropKey === null) return item
-        const { [dropKey]: _drop, ...rest } = s
-        return { ...item, settings: { ...rest, metricInstanceIds: nextIds } }
-      })
-    }
+      let nextIds: string[] | null = null
+      let dropKey: 'metricInstanceId' | 'selectedMetricId' | 'enabledMetricIds' | null = null
+      if (typeof s.metricInstanceId === 'string') {
+        nextIds = [s.metricInstanceId]
+        dropKey = 'metricInstanceId'
+      } else if (s.metricInstanceId === null) {
+        nextIds = []
+        dropKey = 'metricInstanceId'
+      } else if (typeof s.selectedMetricId === 'string') {
+        nextIds = [s.selectedMetricId]
+        dropKey = 'selectedMetricId'
+      } else if (s.selectedMetricId === null) {
+        nextIds = []
+        dropKey = 'selectedMetricId'
+      } else if (Array.isArray(s.enabledMetricIds)) {
+        nextIds = s.enabledMetricIds.filter((id: unknown): id is string => typeof id === 'string')
+        dropKey = 'enabledMetricIds'
+      }
+      if (nextIds === null || dropKey === null) return item
+      const { [dropKey]: _drop, ...rest } = s
+      return { ...item, settings: { ...rest, metricInstanceIds: nextIds } }
+    })
 
     // `payload.metricInstances` already references the seeded `metricInstances`
     // array (mutated in place by the aoi-stream pass above), so no reassignment
@@ -788,18 +779,14 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
   // care which plot holds it. Idempotent — an already-renamed file has no
   // `barPlottingType` left to move, and an explicit `orientation` always wins.
   if (version === 5) {
-    if (Array.isArray(data.gridItems)) {
-      data.gridItems = data.gridItems.map((item: any) => {
-        if (!item || typeof item !== 'object') return item
-        const s = item.settings
-        if (!s || typeof s !== 'object' || !('barPlottingType' in s)) return item
-        const { barPlottingType, ...rest } = s
-        return {
-          ...item,
-          settings: { ...rest, orientation: rest.orientation ?? barPlottingType },
-        }
-      })
-    }
+    mapItemSettings(data, (item, s) => {
+      if (!('barPlottingType' in s)) return item
+      const { barPlottingType, ...rest } = s
+      return {
+        ...item,
+        settings: { ...rest, orientation: rest.orientation ?? barPlottingType },
+      }
+    })
     // The bump's other half: every migrated workspace gains the layer-off rows.
     if (data?.data) seedLayerOffSelections(data.data)
     data = { ...data, version: CURRENT_SCHEMA_VERSION }

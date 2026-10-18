@@ -1,11 +1,30 @@
+import { type CsvFormatOptions, generateCsvString } from '../encoders/csv'
+
 interface GroupedCsvPreItem {
   participant: string
   stimulus: string
 }
 
-export function groupByParticipantAndStimulus<T extends GroupedCsvPreItem>(
+/** The unified export merely prepends the grouping columns to a batch row. */
+export function unifiedCsv<T extends GroupedCsvPreItem>(
   data: T[],
-  buildFile: (combinedData: T[], stimulus: string, participant: string) => { fileName: string; content: string }
+  batchHeader: string[],
+  cells: (item: T) => string[],
+  options?: CsvFormatOptions
+): string {
+  return generateCsvString(
+    ['stimulus', 'participant', ...batchHeader],
+    data.map(item => [item.stimulus, item.participant, ...cells(item)]),
+    options
+  )
+}
+
+/** One `<stimulus>_<participant>` CSV per participant/stimulus pair with rows. */
+export function batchCsvs<T extends GroupedCsvPreItem>(
+  data: T[],
+  header: string[],
+  cells: (item: T) => string[],
+  options?: CsvFormatOptions
 ): Array<{ fileName: string; content: string }> {
   const results: Array<{ fileName: string; content: string }> = []
 
@@ -20,7 +39,10 @@ export function groupByParticipantAndStimulus<T extends GroupedCsvPreItem>(
 
       if (combinedData.length === 0) continue
 
-      results.push(buildFile(combinedData, stimulus, participant))
+      results.push({
+        fileName: `${stimulus}_${participant}`,
+        content: generateCsvString(header, combinedData.map(cells), options),
+      })
     }
   }
 

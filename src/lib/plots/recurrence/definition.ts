@@ -1,19 +1,12 @@
 import { deriveRecurrenceView } from './core/view'
+import { effectiveMethod } from './core/collector'
 import { plotCursorScreen } from '$lib/plots/shared/plotCursor.svelte'
-import { definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
+import { commonIs, definePlot } from '$lib/plots/definePlot'
 import { stimulusParticipantSubtitle } from '$lib/plots/shared'
 import { RECURRENCE_HIGHLIGHTS, RECURRENCE_MASKINGS, RECURRENCE_METHODS } from './const'
 import type { RecurrencePlotSettings } from './types'
 
-// Effective method couples the stored method with the engine capability: a
-// dataset without spatial data always uses 'aoi', whatever is stored.
-const effectiveMethod = (settings: Record<string, unknown>, engine: { capabilities: { spatial: boolean } }) =>
-  engine.capabilities.spatial ? (settings.recurrenceMethod as string) : 'aoi'
-
-const methodIs = (mode: string) => (ctx: SectionFieldCtx) => {
-  const m = ctx.common(s => effectiveMethod(s, ctx.engine))
-  return !m.mixed && m.value === mode
-}
+const methodIs = (mode: string) => commonIs((s, ctx) => effectiveMethod(s, ctx.engine), mode)
 
 export const recurrencePlotDefinition = definePlot<
   'recurrencePlot',

@@ -9,8 +9,6 @@
     instructions?: string;
     /** Array of option labels */
     options: string[];
-    /** Callback when an option is selected */
-    onComplete?: (selectedOption: string) => void;
     /** Optional CSS class for custom styling */
     class?: string;
     /** Optional initial value to pre-populate selection */
@@ -23,7 +21,6 @@
     title = 'Please select an option',
     instructions = 'Choose the option that best applies',
     options,
-    onComplete,
     class: className = '',
     initialValue = null,
     onValueChange
@@ -38,10 +35,6 @@
 
     if (onValueChange) {
       onValueChange(selectedOption, complete);
-    }
-
-    if (onComplete && selectedOption) {
-      onComplete(selectedOption);
     }
   });
 

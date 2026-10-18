@@ -1,6 +1,8 @@
 import { RowParser } from './RowParser'
 import { bytesEqual, encodeString } from '$lib/data/ingest/utils/byteUtils'
 
+type InvalidRun = { start: number; end: number; stimulusBytes: Uint8Array | null }
+
 /**
  * GazePointRowParser streams raw GazePoint CSV rows into
  * structured fixation and blink events.
@@ -61,11 +63,7 @@ export class GazePointRowParser extends RowParser {
   private readonly invalidNameBytes: Uint8Array
   // Open run of consecutive FPOGV=0 (lost-track) samples, flushed as one
   // "Invalid" segment when tracking resumes (mirrors blinkBuffer).
-  private invalidBuffer: {
-    start: number
-    end: number
-    stimulusBytes: Uint8Array | null
-  } | null = null
+  private invalidBuffer: InvalidRun | null = null
 
   // Packed columns (strings)
   private readonly pTime = 0
@@ -155,21 +153,8 @@ export class GazePointRowParser extends RowParser {
       }
       return
     }
-    if (this.invalidBuffer) {
-      // Tracking resumed — flush the accumulated invalid run as its own segment.
-      const sb = this.invalidBuffer.stimulusBytes
-      if (sb) {
-        this.onSegment?.(
-          this.invalidBuffer.start,
-          this.invalidBuffer.end,
-          this.resolveCategoryId(this.invalidNameBytes),
-          sb,
-          this.participantBytes,
-          null
-        )
-      }
-      this.invalidBuffer = null
-    }
+    // Tracking resumed: flush the accumulated invalid run as its own segment.
+    if (this.invalidBuffer) this.flushInvalid(this.invalidBuffer)
 
     // 1) Blink detection
     if (blinkId > 0) {
@@ -187,17 +172,8 @@ export class GazePointRowParser extends RowParser {
         this.blinkTerminated = true
         return
       }
-      const stimBytes = this.currentFix.stimulusBytes
-      if (stimBytes) {
-        this.onSegment?.(
-          this.blinkBuffer.start,
-          this.blinkBuffer.end,
-          this.resolveCategoryId(this.blinkNameBytes),
-          stimBytes,
-          this.participantBytes,
-          null
-        )
-      }
+      const { start, end } = this.blinkBuffer
+      this.emitNamed(start, end, this.blinkNameBytes, this.currentFix.stimulusBytes)
       this.blinkBuffer = null
       this.blinkTerminated = false
       return
@@ -259,37 +235,14 @@ export class GazePointRowParser extends RowParser {
     }
   }
 
-  finalize(): void {
+  override finalize(): void {
     // Flush a trailing lost-track run (recording ended while tracking was lost).
-    if (this.invalidBuffer) {
-      const sb = this.invalidBuffer.stimulusBytes
-      if (sb) {
-        this.onSegment?.(
-          this.invalidBuffer.start,
-          this.invalidBuffer.end,
-          this.resolveCategoryId(this.invalidNameBytes),
-          sb,
-          this.participantBytes,
-          null
-        )
-      }
-      this.invalidBuffer = null
-    }
+    if (this.invalidBuffer) this.flushInvalid(this.invalidBuffer)
     if (this.blinkBuffer && this.blinkTerminated) {
-      const buf = this.blinkBuffer
+      const { start, end } = this.blinkBuffer
       this.blinkBuffer = null
       this.blinkTerminated = false
-      const stimBytes = this.currentFix.stimulusBytes
-      if (stimBytes) {
-        this.onSegment?.(
-          buf.start,
-          buf.end,
-          this.resolveCategoryId(this.blinkNameBytes),
-          stimBytes,
-          this.participantBytes,
-          null
-        )
-      }
+      this.emitNamed(start, end, this.blinkNameBytes, this.currentFix.stimulusBytes)
       return
     }
     if (this.state === 'Fixation') {
@@ -299,14 +252,31 @@ export class GazePointRowParser extends RowParser {
   }
 
   private emitFixation(): void {
-    const stimBytes = this.currentFix.stimulusBytes
-    if (!stimBytes) return
-    const aoi = this.currentFix.aoiBytes ? [this.currentFix.aoiBytes] : null
+    const { start, end, stimulusBytes, aoiBytes } = this.currentFix
+    const aoi = aoiBytes ? [aoiBytes] : null
+    this.emitNamed(start, end, this.fixationNameBytes, stimulusBytes, aoi)
+  }
+
+  /** Emit a lost-track run as one "Invalid" segment and close it. */
+  private flushInvalid(run: InvalidRun): void {
+    this.emitNamed(run.start, run.end, this.invalidNameBytes, run.stimulusBytes)
+    this.invalidBuffer = null
+  }
+
+  /** One segment of a named category, dropped without a stimulus. */
+  private emitNamed(
+    start: number,
+    end: number,
+    nameBytes: Uint8Array,
+    stimulusBytes: Uint8Array | null,
+    aoi: Uint8Array[] | null = null
+  ): void {
+    if (!stimulusBytes) return
     this.onSegment?.(
-      this.currentFix.start,
-      this.currentFix.end,
-      this.resolveCategoryId(this.fixationNameBytes),
-      stimBytes,
+      start,
+      end,
+      this.resolveCategoryId(nameBytes),
+      stimulusBytes,
       this.participantBytes,
       aoi
     )

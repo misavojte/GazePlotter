@@ -8,7 +8,7 @@ import {
   getNumberOfFixations,
 } from '$lib/data/engine'
 import { getMetric, query } from '$lib/metrics'
-import { asScalar, resolveMetric } from '$lib/plots/shared'
+import { asShape, resolveMetric } from '$lib/plots/shared'
 import { METRIC_MATRIX_CONTRACT } from '../const'
 import type {
   CellState,
@@ -108,14 +108,15 @@ export function getMetricMatrixData(
       } else if ((fixations[i] = getNumberOfFixations(engine, sid, pid)) === 0) {
         st = 'no-fixations' // recording present, zero fixations → capture failure
       } else {
-        const res = asScalar(
+        const res = asShape(
           query(instance, {
             engine,
             stimulusId: sid,
             participantId: pid,
             timeStart: 0,
             timeEnd: 0,
-          })
+          }),
+          'scalar'
         )
         if (res?.provenance.refMissing) {
           st = 'aoi-not-present' // benign: the instance's AOI ref isn't on this stimulus

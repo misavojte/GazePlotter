@@ -6,11 +6,6 @@ import { splitAoiColumn, encodeString } from '$lib/data/ingest/utils/byteUtils'
  * That means it has information about the start and end of each segment.
  */
 export class CsvSegmentedFromToRowParser extends RowParser {
-  cFrom: number
-  cTo: number
-  cParticipant: number
-  cStimulus: number
-  cAoi: number
   cX: number
   cY: number
 
@@ -30,24 +25,18 @@ export class CsvSegmentedFromToRowParser extends RowParser {
     encoding: 'utf-8' | 'utf-16le' | 'utf-16be' = 'utf-8'
   ) {
     super(columnDelimiter, encoding)
-    this.cFrom = this.getIndex(header, 'From')
-    this.cTo = this.getIndex(header, 'To')
-    this.cAoi = this.getIndex(header, 'AOI')
-    this.cParticipant = this.getIndex(header, 'Participant')
-    this.cStimulus = this.getIndex(header, 'Stimulus')
+    const required = this.requireColumns(header, [
+      'From',
+      'To',
+      'AOI',
+      'Participant',
+      'Stimulus',
+    ])
     this.cX = this.findOptionalColumn(header, 'x')
     this.cY = this.findOptionalColumn(header, 'y')
     this.pipeDelimiterBytes = encodeString('|', encoding)
 
-    this.setupColumns([
-      this.cFrom,
-      this.cTo,
-      this.cAoi,
-      this.cParticipant,
-      this.cStimulus,
-      this.cX,
-      this.cY,
-    ])
+    this.setupColumns([...required, this.cX, this.cY])
   }
 
   /**
@@ -84,12 +73,4 @@ export class CsvSegmentedFromToRowParser extends RowParser {
 
     this.onSegment?.(from, to, 0, stimulusBytes, participantBytes, aoi, spatial)
   }
-
-  /**
-   * @returns null because this parser does not need to finalize anything
-   */
-  finalize(): void {
-    return
-  }
-
 }

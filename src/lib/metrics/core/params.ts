@@ -18,35 +18,25 @@ export interface ParamDef<T> {
   toLabel?: (value: T) => string | null | undefined
 }
 
-export const integerParam = <ID extends string>(
-  id: ID,
-  label: string,
-  defaultValue: number,
-  opts: Partial<
-    Omit<ParamDef<number>, 'id' | 'label' | 'type' | 'default'>
-  > = {}
-): ParamDef<number> & { id: ID } => ({
-  id,
-  label,
-  type: 'integer',
-  default: defaultValue,
-  ...opts,
-})
+const numericParam =
+  (type: 'integer' | 'number') =>
+  <ID extends string>(
+    id: ID,
+    label: string,
+    defaultValue: number,
+    opts: Partial<
+      Omit<ParamDef<number>, 'id' | 'label' | 'type' | 'default'>
+    > = {}
+  ): ParamDef<number> & { id: ID } => ({
+    id,
+    label,
+    type,
+    default: defaultValue,
+    ...opts,
+  })
 
-export const numberParam = <ID extends string>(
-  id: ID,
-  label: string,
-  defaultValue: number,
-  opts: Partial<
-    Omit<ParamDef<number>, 'id' | 'label' | 'type' | 'default'>
-  > = {}
-): ParamDef<number> & { id: ID } => ({
-  id,
-  label,
-  type: 'number',
-  default: defaultValue,
-  ...opts,
-})
+export const integerParam = numericParam('integer')
+export const numberParam = numericParam('number')
 
 export const boolParam = <ID extends string>(
   id: ID,

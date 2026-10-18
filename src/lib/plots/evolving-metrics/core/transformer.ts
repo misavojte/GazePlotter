@@ -24,7 +24,7 @@ import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
 import { buildMetricLabel } from '$lib/plots/shared/labels'
 import { resolveDisplayStride, DEFAULT_MAX_COLUMNS } from '$lib/plots/shared/displayBudget'
 import {
-  asScalarTimeseries,
+  asShape,
   resolveMetric,
 } from '$lib/plots/shared'
 import {
@@ -178,7 +178,7 @@ export function getEvolvingMetricsData(
       timeEnd: Math.min(timelineMax, participantEnds[p]),
       aoiSelectionId: settings.aoiSelectionId,
     }
-    const result = asScalarTimeseries(query(effInstance, scope))
+    const result = asShape(query(effInstance, scope), 'scalar-timeseries')
     if (!result || !result.timeline) {
       participants[p] = { id: pid, label, windows: [] }
       continue

@@ -11,13 +11,14 @@ import {
   parseCsvEventText,
   resolveContributionsForEngine,
   mergeIntoStimulusMap,
+  type StimulusMap,
 } from './formats/csvEvent'
 import {
   detectEnrichmentFormat,
 } from './formats/registry'
 import { foldMerges } from '$lib/data/merge/applyMerges'
 import type { EnrichmentFormatDefinition } from './kernel/format'
-import type { EventContribution } from './kernel/sink'
+import { blankDataset, type EventContribution } from './kernel/sink'
 import { probeFromText } from './kernel/source'
 import { getStimuliOptions, getParticipantOptions } from '$lib/plots/shared'
 import {
@@ -87,41 +88,9 @@ type IngestDependencies = {
  *  singleton would leak edits from one empty session into the next. */
 function createEmptyDataset(): DataType {
   return {
-    isOrdinalOnly: false,
-    capabilities: {
-      segmented: false,
-      spatial: false,
-      event: false,
-    },
-    stimuli: { data: [], orderVector: [] },
-    participants: { data: [], orderVector: [] },
-    participantsSelections: [],
-    stimuliSelections: [],
-    categoriesSelections: [],
-    eventsSelections: [],
+    ...blankDataset(),
     metricInstances: createDefaultMetricInstances(),
-    categories: { data: [], orderVector: [] },
-    noAoiTreatment: {
-      color: '#cbd5e1',
-      displayedName: 'No AOI',
-    },
-    aois: {
-      data: [],
-      orderVector: [],
-    },
-    segments: {
-      segmentBuffer: new Float32Array(0),
-      indexTable: new Uint32Array(0),
-      aoiPool: new Uint16Array(0),
-      hasSpatialData: false,
-      maxParticipants: 0,
-      stimuliCount: 0,
-    },
-    eventData: {
-      data: [],
-      orderVector: [],
-      events: [],
-    },
+    noAoiTreatment: { color: '#cbd5e1', displayedName: 'No AOI' },
   }
 }
 
@@ -250,7 +219,6 @@ class IngestWorkerClient {
     if (
       !this.postWorkerMessage(
         { type: 'file-names', data: this.fileNames },
-        [],
         { stage: 'initialize-worker' }
       )
     ) {
@@ -263,7 +231,7 @@ class IngestWorkerClient {
     for (let index = 0; index < fileArray.length; index++) {
       const file = fileArray[index]
       if (
-        !this.postWorkerMessage({ type: 'file', data: file }, [], {
+        !this.postWorkerMessage({ type: 'file', data: file }, {
           stage: 'dispatch-file',
           fileIndex: index,
           fileName: file.name,
@@ -283,17 +251,12 @@ class IngestWorkerClient {
 
   private postWorkerMessage(
     message: { type: string; data: unknown },
-    transfer: Transferable[] = [],
     extraContext?: Record<string, unknown>
   ): boolean {
     if (this.isSettled) return false
 
     try {
-      if (transfer.length > 0) {
-        this.worker.postMessage(message, transfer)
-      } else {
-        this.worker.postMessage(message)
-      }
+      this.worker.postMessage(message)
       return true
     } catch (error) {
       this.handleError(error, {
@@ -331,29 +294,14 @@ class IngestWorkerClient {
   private handleWorkspaceDone(
     result: Extract<IngestResult, { kind: 'workspace' }>
   ): void {
-    // Settle before any user feedback — a cancelled upload whose 'done'
-    // message was already queued must not toast success.
-    if (!this.markSettled()) return
-    this.onProgress(100)
-    const timeString = formatDuration(
-      Date.now() - this.parsingAnchorTime + this.parsingSumTime
-    )
-    const formattedFileInfo = formatFileInfo(this.fileNames, this.fileSizes)
-    this.ui.toastState.addSuccess(
-      `${formattedFileInfo} workspace loaded successfully in ${timeString}`
-    )
-
+    if (this.settleWithSuccess('workspace loaded') === null) return
     this.onData({
       version: result.version as ParsedData['version'],
       data: result.data,
       gridItems: result.gridItems,
       fileMetadata: result.fileMetadata,
       mediaBlobs: result.mediaBlobs,
-      current: {
-        fileNames: this.fileNames,
-        fileSizes: this.fileSizes,
-        parseDate: new Date().toISOString(),
-      },
+      current: this.currentFiles(),
     })
   }
 
@@ -364,10 +312,8 @@ class IngestWorkerClient {
     data: DataType
     classified: ParseSettings
   }): void {
-    // Settle before any user feedback — see handleWorkspaceDone.
-    if (!this.markSettled()) return
-    const parseDuration =
-      Date.now() - this.parsingAnchorTime + this.parsingSumTime
+    const parseDuration = this.settleWithSuccess('parsed')
+    if (parseDuration === null) return
     const fileMetadata: FileMetadataSuccessType = {
       status: 'success',
       fileNames: this.fileNames,
@@ -378,24 +324,31 @@ class IngestWorkerClient {
       gazePlotterVersion: GAZEPLOTTER_VERSION,
       clientUserAgent: navigator.userAgent,
     }
-    const timeString = formatDuration(parseDuration)
-    const formattedFileInfo = formatFileInfo(this.fileNames, this.fileSizes)
-    this.onProgress(100)
-    this.ui.toastState.addSuccess(
-      `${formattedFileInfo} parsed successfully in ${timeString}`
-    )
-
     this.onData({
       data,
       fileMetadata,
       version: 4,
-      current: {
-        fileNames: this.fileNames,
-        fileSizes: this.fileSizes,
-        parseDate: new Date().toISOString(),
-      },
+      current: this.currentFiles(),
       freshDataset: true,
     } as ParsedData)
+  }
+
+  /** Settle, then report success; null when already settled (a cancelled
+   *  upload whose 'done' message was already queued must not toast success). */
+  private settleWithSuccess(outcome: string): number | null {
+    if (!this.markSettled()) return null
+    const duration = Date.now() - this.parsingAnchorTime + this.parsingSumTime
+    const fileInfo = formatFileInfo(this.fileNames, this.fileSizes)
+    this.onProgress(100)
+    this.ui.toastState.addSuccess(
+      `${fileInfo} ${outcome} successfully in ${formatDuration(duration)}`
+    )
+    return duration
+  }
+
+  private currentFiles(): ParsedData['current'] {
+    const { fileNames, fileSizes } = this
+    return { fileNames, fileSizes, parseDate: new Date().toISOString() }
   }
 
   private handleMessage(event: MessageEvent): void {
@@ -499,7 +452,6 @@ class IngestWorkerClient {
         // pop whatever unrelated modal happens to be active.
         this.postWorkerMessage(
           { type: 'prompt-response', data: userInput },
-          [],
           { stage: 'dispatch-prompt-response', promptId }
         )
       })
@@ -985,10 +937,7 @@ export class IngestService {
     }
 
     // Unified stimulus map for merging both sources
-    const stimulusMap = new Map<
-      number,
-      Map<string, { def: string[]; perParticipant: number[][] }>
-    >()
+    const stimulusMap: StimulusMap = new Map()
 
     // --- Process legacy (XML/JSON) event files via mapping modal ---
     if (legacyFiles.length > 0) {
@@ -1031,9 +980,6 @@ export class IngestService {
             })
           }
 
-          if (!stimulusMap.has(stimulusId)) {
-            stimulusMap.set(stimulusId, new Map())
-          }
           mergeIntoStimulusMap(stimulusMap, new Map([[stimulusId, legacyMap]]))
         }
       }

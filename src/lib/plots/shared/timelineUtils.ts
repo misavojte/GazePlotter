@@ -134,6 +134,13 @@ export function getIntermediateTicks(
   return timeline.ticks.length > 2 ? timeline.ticks.slice(1, -1) : []
 }
 
+const tick = (value: number, position: number, isNice: boolean): TimelineTick => ({
+  label: formatTimelineLabel(value),
+  value,
+  position,
+  isNice,
+})
+
 /**
  * Core logic to generate ticks for a given range and step size
  */
@@ -147,20 +154,7 @@ function generateTimelineTicks(
 
   // Safety check to prevent infinite loops if step invalid
   if (step <= 0 || !Number.isFinite(step)) {
-    return [
-      {
-        label: formatTimelineLabel(min),
-        value: min,
-        position: 0,
-        isNice: true,
-      },
-      {
-        label: formatTimelineLabel(max),
-        value: max,
-        position: 1,
-        isNice: true,
-      },
-    ]
+    return [tick(min, 0, true), tick(max, 1, true)]
   }
 
   // Find a nice starting point (multiple of step)
@@ -179,12 +173,7 @@ function generateTimelineTicks(
   const MAX_ITERATIONS = 1000 // Safety break
 
   while (currentValue <= max + step * 0.0001) {
-    ticks.push({
-      label: formatTimelineLabel(currentValue),
-      value: currentValue,
-      position: (currentValue - min) / range,
-      isNice: true,
-    })
+    ticks.push(tick(currentValue, (currentValue - min) / range, true))
 
     currentValue += step
     iterations++
@@ -199,22 +188,12 @@ function generateTimelineTicks(
 
   // Ensure there's a tick at the max value if not already there
   if (ticks.length === 0 || ticks[ticks.length - 1].value < max) {
-    ticks.push({
-      label: formatTimelineLabel(max),
-      value: max,
-      position: 1,
-      isNice: false,
-    })
+    ticks.push(tick(max, 1, false))
   }
 
   // Ensure there is a tick at the min value if not already there
   if (ticks.length === 0 || ticks[0].value > min) {
-    ticks.unshift({
-      label: formatTimelineLabel(min),
-      value: min,
-      position: 0,
-      isNice: false,
-    })
+    ticks.unshift(tick(min, 0, false))
   }
 
   return ticks
@@ -242,14 +221,7 @@ export function createAdaptiveTimeline(
     return {
       minValue: min,
       maxValue: max,
-      ticks: [
-        {
-          label: formatTimelineLabel(min),
-          value: min,
-          position: 0,
-          isNice: true,
-        },
-      ],
+      ticks: [tick(min, 0, true)],
     }
   }
 

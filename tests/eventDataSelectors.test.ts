@@ -11,24 +11,11 @@ import {
   getEventChannelSummary,
 } from '$lib/data/engine/selectors/eventDataSelectors'
 import { INTERVAL_CHANNEL_MARKER } from '$lib/data/engine/eventIntervals'
-import { EventBufferReader } from '$lib/data/binary'
-import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import { makeTestEngine } from './helpers/testEngine'
 
-function engineWith(eventData: {
-  data: string[][][]
-  events: number[][][][]
-}): DataEngine {
-  // The occurrence buffers live in the engine's binary reader, not metadata;
-  // mirror that split so the selectors read them the production way.
-  const reader = new EventBufferReader()
-  reader.load(eventData.events)
-  return {
-    metadata: {
-      eventData: { data: eventData.data },
-    },
-    getEventReader: () => reader,
-  } as unknown as DataEngine
-}
+// Occurrences go to the engine's binary reader, as in production.
+const engineWith = ({ data, events }: { data: string[][][]; events: number[][][][] }) =>
+  makeTestEngine([], { eventData: data, events })
 
 const twoStimuli = () =>
   engineWith({

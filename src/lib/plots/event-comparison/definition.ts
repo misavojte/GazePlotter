@@ -1,6 +1,6 @@
 import { definePlot } from '$lib/plots/definePlot'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
-import { distributionVisualizationSection } from '$lib/plots/shared/distribution/paneSection'
+import { distributionDefaults, distributionVisualizationSection } from '$lib/plots/shared/distribution/paneSection'
 import { EVENT_COMPARISON_CONTRACT } from './core/transformer'
 import { deriveEventComparisonView } from './core/view'
 import type { EventComparisonSettings } from './types'
@@ -44,16 +44,9 @@ export const eventComparisonDefinition = definePlot<
   view: { deriveView: deriveEventComparisonView },
   getSubtitle: stimulusGroupSubtitle,
   getDefaultSettings: (params = {}) => ({
-    stimulusId: params.stimulusId ?? 0,
-    groupId: params.groupId ?? -1,
+    ...distributionDefaults(params),
     metricInstanceIds: ['eventDuration'],
-    orientation: 'horizontal',
     orderBy: 'channel',
-    orderDirection: 'asc',
-    scaleRange: [0, 0],
-    statisticalOverlay: 'meanCi95',
-    timelineStart: 0,
-    timelineEnd: 0,
   }),
   requireCapabilities: ['event'],
   consumesMetrics: EVENT_COMPARISON_CONTRACT,

@@ -83,18 +83,10 @@
     oneSided.filter(name => name.endsWith(endSuffix))
   )
 
-  const addManualPairFromOneSided = (start: string, end: string) => {
+  const pushManualRow = (name: string, startName: string, endName: string) => {
     rows = [
       ...rows,
-      {
-        draft: {
-          name: defaultManualName(start, end),
-          startName: start,
-          endName: end,
-        },
-        origin: 'manual',
-        checked: true,
-      },
+      { draft: { name, startName, endName }, origin: 'manual', checked: true },
     ]
   }
   const previews = $derived(
@@ -103,9 +95,8 @@
       rows.map(row => row.draft)
     )
   )
-  const includedCount = $derived(
+  const includedRows = $derived(
     rows.filter((row, i) => row.checked && rowIncludable(previews[i], policy))
-      .length
   )
 
   const regenerateProposals = () => {
@@ -124,18 +115,11 @@
 
   const addManualPair = () => {
     if (!canAddManual) return
-    rows = [
-      ...rows,
-      {
-        draft: {
-          name: manualName.trim() || defaultManualName(manualStart, manualEnd),
-          startName: manualStart,
-          endName: manualEnd,
-        },
-        origin: 'manual',
-        checked: true,
-      },
-    ]
+    pushManualRow(
+      manualName.trim() || defaultManualName(manualStart, manualEnd),
+      manualStart,
+      manualEnd
+    )
     manualStart = ''
     manualEnd = ''
     manualName = ''
@@ -169,9 +153,7 @@
   }
 
   const handleCreate = () => {
-    const drafts = rows
-      .filter((row, i) => row.checked && rowIncludable(previews[i], policy))
-      .map(row => row.draft)
+    const drafts = includedRows.map(row => row.draft)
     if (drafts.length === 0) return
     const updates = buildEventDataWithIntervalChannels(engine, drafts)
     // One plain `updateEventData` command per affected stimulus — the
@@ -247,7 +229,7 @@
                 {#each oneSidedEnds as end}
                   <button
                     class="quick-pair-button"
-                    onclick={() => addManualPairFromOneSided(start, end)}
+                    onclick={() => pushManualRow(defaultManualName(start, end), start, end)}
                   >
                     {start} → {end}
                   </button>
@@ -416,10 +398,10 @@
     ? [{ label: 'Back', onclick: handleBack }]
     : [
         {
-          label: `Create ${includedCount} interval${includedCount === 1 ? '' : 's'}`,
+          label: `Create ${includedRows.length} interval${includedRows.length === 1 ? '' : 's'}`,
           onclick: handleCreate,
           variant: 'primary',
-          isDisabled: includedCount === 0,
+          isDisabled: includedRows.length === 0,
         },
         { label: 'Back', onclick: handleBack },
       ]}

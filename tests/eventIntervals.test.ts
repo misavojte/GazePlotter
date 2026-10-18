@@ -17,34 +17,22 @@ import {
   proposePairsBySuffix,
 } from '$lib/data/engine/eventIntervals'
 import type { IntervalDraftPreview } from '$lib/data/engine/eventIntervals'
-import { EventBufferReader } from '$lib/data/binary'
-import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import { makeTestEngine } from './helpers/testEngine'
 import {
   defaultManualName,
   reconcileDraftRows,
   rowIncludable,
 } from '$lib/modals/modification/event-channel-modification/create-intervals/drafts'
 
-function engineWith(eventData: {
-  data: string[][][]
-  events: number[][][][]
-  orderVector?: number[][]
-}): DataEngine {
-  // Occurrence buffers live in the engine's binary reader, not metadata.
-  const reader = new EventBufferReader()
-  reader.load(eventData.events)
-  return {
-    metadata: {
-      eventData: {
-        data: eventData.data,
-        orderVector: eventData.orderVector,
-      },
-      stimuli: { data: eventData.data.map((_, i) => [`S${i}`]) },
-      participants: { data: [['P0'], ['P1']] },
-    },
-    getEventReader: () => reader,
-  } as unknown as DataEngine
-}
+// Occurrence buffers live in the engine's binary reader, not metadata.
+const engineWith = (eventData: { data: string[][][]; events: number[][][][]; orderVector?: number[][] }) =>
+  makeTestEngine([], {
+    eventData: eventData.data,
+    events: eventData.events,
+    eventOrderVector: eventData.orderVector,
+    stimuli: eventData.data.map((_, i) => [`S${i}`]),
+    participants: [['P0'], ['P1']],
+  })
 
 describe('pairIntervalTimes — strict alternation', () => {
   test('pairs a single clean interval', () => {

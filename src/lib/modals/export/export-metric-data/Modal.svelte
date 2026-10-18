@@ -2,7 +2,6 @@
   import { untrack } from 'svelte'
   import { Select, InputText, InputCheck } from '$lib/shared/components'
   import {
-    ModalButtons,
     CheckboxListField,
     Step,
     StepList,
@@ -17,23 +16,19 @@
     longFormatMetricColumns,
   } from '$lib/data/export/mappers/metrics'
   import {
-    createExportButtons,
     CSV_DECIMAL_SEPARATOR_OPTIONS,
     CSV_DELIMITER_OPTIONS,
     listSummary,
     mapSelectableItems,
     toggleSetValue,
-    withExportBusy,
   } from '../shared/helpers'
   import ExportShell from '../shared/ExportShell.svelte'
-  import ExportProgressBar from '../shared/ExportProgressBar.svelte'
-  import StimuliSelect from '../shared/StimuliSelect.svelte'
-  import ParticipantsSelect from '../shared/ParticipantsSelect.svelte'
-  import { defaultStimulusSelection, stimuliSelectionSummary } from '../shared/stimuli'
+  import StimuliStep from '../shared/StimuliStep.svelte'
+  import ParticipantsStep from '../shared/ParticipantsStep.svelte'
+  import { defaultStimulusSelection } from '../shared/stimuli'
   import {
     defaultParticipantSelection,
     orderedSelectedParticipantIds,
-    participantsSelectionSummary,
   } from '../shared/participants'
   import {
     instanceMatchesContract,
@@ -64,7 +59,6 @@
   let includeCodebook = $state(true)
   let timeStartStr = $state('')
   let timeEndStr = $state('')
-  let isExporting = $state(false)
 
   // Prefill props are read once by design (untrack): they seed the selection,
   // they don't bind it.
@@ -200,14 +194,6 @@
     return listSummary(count, total, single)
   })
 
-  const stimuliSummary = $derived(
-    stimuliSelectionSummary(engine, selectedStimuliIds)
-  )
-
-  const participantsSummary = $derived(
-    participantsSelectionSummary(engine, selectedParticipantIds)
-  )
-
   const fileSummary = $derived.by(() => {
     const parts = [
       format === 'long' ? 'Long (tidy)' : 'Wide',
@@ -275,37 +261,31 @@
 
   // ── Step completion: the badge turns into a check when its step is valid ───
   const stepMetricsDone = $derived(activeSelectedMetrics.length > 0)
-  const stepStimuliDone = $derived(selectedStimuliIds.size > 0)
-  const stepParticipantsDone = $derived(selectedParticipantIds.size > 0)
   const stepFileDone = $derived(timeRangeError === null)
 
   const canExport = $derived(
-    stepMetricsDone && stepStimuliDone && stepParticipantsDone && stepFileDone
+    stepMetricsDone &&
+      selectedStimuliIds.size > 0 &&
+      selectedParticipantIds.size > 0 &&
+      stepFileDone
   )
 
-  const handleExport = async () => {
-    if (!canExport) return
-
-    await withExportBusy(
-      val => (isExporting = val),
-      () =>
-        exportService.exportMetricData({
-          fileName,
-          // Engine order, not click order, so rows are stable across exports.
-          participantIds: orderedSelectedParticipantIds(engine, selectedParticipantIds),
-          stimulusIds: Array.from(selectedStimuliIds).map(id => parseInt(id)),
-          metricInstanceIds: activeSelectedMetrics,
-          format,
-          csvOptions: {
-            delimiter,
-            decimalSeparator,
-          },
-          includeCodebook,
-          timeStart,
-          timeEnd,
-        })
-    )
-  }
+  const handleExport = () =>
+    exportService.exportMetricData({
+      fileName,
+      // Engine order, not click order, so rows are stable across exports.
+      participantIds: orderedSelectedParticipantIds(engine, selectedParticipantIds),
+      stimulusIds: Array.from(selectedStimuliIds).map(id => parseInt(id)),
+      metricInstanceIds: activeSelectedMetrics,
+      format,
+      csvOptions: {
+        delimiter,
+        decimalSeparator,
+      },
+      includeCodebook,
+      timeStart,
+      timeEnd,
+    })
 
   const handleEditLibrary = () => {
     const handlers = multiSelectMetricHandlers(
@@ -321,20 +301,12 @@
       ...handlers,
     })
   }
-
-  const exportButtons = $derived(
-    createExportButtons({
-      canExport,
-      exportLabel: 'Export Data',
-      isExporting,
-      onCancel: () => modalState.close(),
-      onExport: handleExport,
-    })
-  )
 </script>
 
 <ExportShell
   intro="Export eye-tracking metrics from the library, computed per participant and stimulus."
+  {canExport}
+  onExport={handleExport}
 >
   <StepList>
     <Step
@@ -359,33 +331,12 @@
       />
     </Step>
 
-    <Step
+    <StimuliStep
       n={2}
-      title="Choose stimuli"
       description="Each selected stimulus contributes its own rows to the file."
-      summary={stimuliSummary}
-      done={stepStimuliDone}
-    >
-      <StimuliSelect
-        selected={selectedStimuliIds}
-        onchange={next => (selectedStimuliIds = next)}
-        hasError={!stepStimuliDone}
-      />
-    </Step>
-
-    <Step
-      n={3}
-      title="Choose participants"
-      description="Selection chips toggle a whole participant selection at once; individual checkmarks refine the result."
-      summary={participantsSummary}
-      done={stepParticipantsDone}
-    >
-      <ParticipantsSelect
-        selected={selectedParticipantIds}
-        onchange={next => (selectedParticipantIds = next)}
-        hasError={!stepParticipantsDone}
-      />
-    </Step>
+      bind:selected={selectedStimuliIds}
+    />
+    <ParticipantsStep n={3} bind:selected={selectedParticipantIds} />
 
     <Step
       n={4}
@@ -451,10 +402,6 @@
       </HelpText>
     </div>
   {/if}
-
-  <ExportProgressBar progress={exportService.progress} />
-
-  <ModalButtons buttons={exportButtons} />
 </ExportShell>
 
 <style>

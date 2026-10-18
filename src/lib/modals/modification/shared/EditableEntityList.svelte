@@ -48,10 +48,10 @@
     type BulkActionsFlyoutProps,
   } from './BulkActionsFlyout.svelte'
 
-  interface SortColumn {
-    label: string
-    column: string
-  }
+  const SORT_COLUMNS = [
+    { label: 'Original name', column: 'originalName' },
+    { label: 'Displayed name', column: 'displayedName' },
+  ]
 
   interface GroupedCallbacks {
     onNameInput: (
@@ -84,7 +84,6 @@
     title: string
     emptyMessage: string
     columns: TableColumn[]
-    sortColumns: SortColumn[]
     grouped: GroupedCallbacks
     /** Per multi-member group: an inline notice/action row under its members
         (e.g. "these will merge" / "can't merge, undo rename"). */
@@ -135,7 +134,6 @@
     title,
     emptyMessage,
     columns,
-    sortColumns,
     grouped,
     groupNotice,
     lockedNameIds,
@@ -329,7 +327,7 @@
   ])
 
   const sortMenuItems = $derived.by((): MenuItem[] =>
-    sortColumns.flatMap(col => [
+    SORT_COLUMNS.flatMap(col => [
       { label: `${col.label} A–Z`, onAction: () => onSort(col.column, 'asc') },
       { label: `${col.label} Z–A`, onAction: () => onSort(col.column, 'desc') },
     ])

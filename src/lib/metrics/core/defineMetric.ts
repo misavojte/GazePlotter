@@ -100,40 +100,27 @@ function assertShapeLifecycleInvariant(r: MetricRecipe<any, any>): void {
         `see MetricRecipe.accumulation`,
     )
   }
-  // The eye-movement-type axis is a SHAPE, never a parameter, so scanning
-  // categories and declaring 'category-vector' are inseparable. And the fused
-  // driver's per-AOI-slot assembly assumes fixation scans, so these stay
-  // 'stateful' — on the trio path.
-  if (r.scanSource === 'categories' && r.rawShape !== 'category-vector') {
-    throw new Error(
-      `[metrics] recipe "${r.id}" scans categories and must declare rawShape: 'category-vector'`,
-    )
-  }
-  if (r.rawShape === 'category-vector' && r.scanSource !== 'categories') {
-    throw new Error(
-      `[metrics] recipe "${r.id}" declares rawShape 'category-vector' and must scan with scanSource: 'categories'`,
-    )
-  }
-  if (r.scanSource === 'categories' && r.accumulation !== 'stateful') {
-    throw new Error(
-      `[metrics] recipe "${r.id}" scans categories and must declare accumulation: 'stateful'`,
-    )
-  }
-  // The event axis is a SHAPE too; same inseparability, same stateful rule.
-  if (r.scanSource === 'events' && r.rawShape !== 'event-vector') {
-    throw new Error(
-      `[metrics] recipe "${r.id}" scans events and must declare rawShape: 'event-vector'`,
-    )
-  }
-  if (r.rawShape === 'event-vector' && r.scanSource !== 'events') {
-    throw new Error(
-      `[metrics] recipe "${r.id}" declares rawShape 'event-vector' and must scan with scanSource: 'events'`,
-    )
-  }
-  if (r.scanSource === 'events' && r.accumulation !== 'stateful') {
-    throw new Error(
-      `[metrics] recipe "${r.id}" scans events and must declare accumulation: 'stateful'`,
-    )
+  // The eye-movement-type and event axes are SHAPES, never parameters, so
+  // scanning a source and declaring its vector shape are inseparable. And the
+  // fused driver's per-AOI-slot assembly assumes fixation scans, so these stay
+  // 'stateful', on the trio path.
+  const axisSources = [['categories', 'category-vector'], ['events', 'event-vector']] as const
+  for (const [source, shape] of axisSources) {
+    if (r.scanSource === source && r.rawShape !== shape) {
+      throw new Error(
+        `[metrics] recipe "${r.id}" scans ${source} and must declare rawShape: '${shape}'`,
+      )
+    }
+    if (r.rawShape === shape && r.scanSource !== source) {
+      throw new Error(
+        `[metrics] recipe "${r.id}" declares rawShape '${shape}' and must scan with scanSource: '${source}'`,
+      )
+    }
+    if (r.scanSource === source && r.accumulation !== 'stateful') {
+      throw new Error(
+        `[metrics] recipe "${r.id}" scans ${source} and must declare accumulation: 'stateful'`,
+      )
+    }
   }
   // MEMBERSHIP. Additivity is the only thing that depends on this rule, so the
   // `extensive` class must say it out loud rather than inherit a default — a count

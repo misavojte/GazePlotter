@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import {
   computeGradientLegendGeometry,
+  drawGradientLegend,
   type GradientLegendConfig,
 } from '../src/lib/plots/shared/legendGradient'
 
@@ -87,5 +88,34 @@ describe('gradient legend out-of-bounds caps', () => {
       text: '7',
       x: g.gradientRect.x + g.gradientRect.width,
     })
+  })
+})
+
+/** Color stops the legend bar's gradient receives. */
+function barStops(colorScale: string[]): [number, string][] {
+  const stops: [number, string][] = []
+  const noop = () => {}
+  const ctx = {
+    createLinearGradient: () => ({ addColorStop: (o: number, c: string) => stops.push([o, c]) }),
+    fillRect: noop, strokeRect: noop, beginPath: noop, moveTo: noop, lineTo: noop,
+    stroke: noop, fillText: noop, save: noop, restore: noop,
+  } as unknown as CanvasRenderingContext2D
+  drawGradientLegend(ctx, computeGradientLegendGeometry({ ...MINIMAL, colorScale }))
+  return stops
+}
+
+describe('gradient legend bar stops', () => {
+  it('keeps the 2- and 3-stop palettes as they were', () => {
+    expect(barStops(['#000000', '#ffffff'])).toEqual([[0, '#000000'], [1, '#ffffff']])
+    expect(barStops(['#000000', '#888888', '#ffffff'])).toEqual([
+      [0, '#000000'],
+      [0.5, '#888888'],
+      [1, '#ffffff'],
+    ])
+  })
+
+  it('spaces a sampled ramp of any length evenly', () => {
+    const ramp = ['#000000', '#333333', '#666666', '#999999', '#cccccc']
+    expect(barStops(ramp).map(s => s[0])).toEqual([0, 0.25, 0.5, 0.75, 1])
   })
 })

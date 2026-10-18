@@ -55,11 +55,7 @@ export class ModalState {
   }
 
   close(): void {
-    const activeModal = this.activeModal
-    if (!activeModal) return
-
-    this.stack = this.stack.slice(0, -1)
-    activeModal.resolve(null)
+    this.finish(null)
   }
 
   closeToRoot(): void {

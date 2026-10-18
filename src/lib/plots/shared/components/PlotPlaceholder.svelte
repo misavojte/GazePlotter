@@ -1,15 +1,17 @@
 <script lang="ts">
+  interface Props {
+    width: number
+    height: number
+    message?: string
+    loading?: boolean
+  }
+
   let {
     width,
     height,
     message = 'Loading visualization...',
     loading = true,
-  } = $props<{
-    width: number
-    height: number
-    message?: string
-    loading?: boolean
-  }>()
+  }: Props = $props()
 </script>
 
 <div

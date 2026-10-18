@@ -9,13 +9,13 @@ import {
   ALL_CAPS,
   makeSingleParticipantEngine,
   makeScope,
+  testInstance,
 } from './helpers/testEngine'
 import {
   query,
   instanceMatchesContract,
   metricLeafKindsInContract,
   getMetric,
-  type MetricInstance,
   type PlotMetricContract,
 } from '../src/lib/metrics'
 
@@ -46,10 +46,7 @@ const SEGMENTS = [
 describe('projection via query()', () => {
   it('aoi-vector identity returns raw per-AOI values', () => {
     const engine = createEngine(SEGMENTS)
-    const instance: MetricInstance = {
-      id: 't1', baseId: 'absoluteTime', params: {}, label: '',
-      projection: { kind: 'identity-aoi-vector' },
-    }
+    const instance = testInstance('absoluteTime', { kind: 'identity-aoi-vector' })
     const r = query(instance, makeScope(engine))
     expect(r.shape).toBe('aoi-vector')
     if (r.shape !== 'aoi-vector') return
@@ -59,10 +56,7 @@ describe('projection via query()', () => {
 
   it('pick-aoi by name reshapes to scalar', () => {
     const engine = createEngine(SEGMENTS)
-    const instance: MetricInstance = {
-      id: 't1', baseId: 'absoluteTime', params: {}, label: '',
-      projection: { kind: 'pick-aoi', aoiRef: { by: 'name', name: 'CTA' } },
-    }
+    const instance = testInstance('absoluteTime', { kind: 'pick-aoi', aoiRef: { by: 'name', name: 'CTA' } })
     const r = query(instance, makeScope(engine))
     expect(r.shape).toBe('scalar')
     if (r.shape !== 'scalar') return
@@ -73,10 +67,7 @@ describe('projection via query()', () => {
 
   it('pick-aoi missing name sets refMissing in provenance', () => {
     const engine = createEngine(SEGMENTS)
-    const instance: MetricInstance = {
-      id: 't1', baseId: 'absoluteTime', params: {}, label: '',
-      projection: { kind: 'pick-aoi', aoiRef: { by: 'name', name: 'DoesNotExist' } },
-    }
+    const instance = testInstance('absoluteTime', { kind: 'pick-aoi', aoiRef: { by: 'name', name: 'DoesNotExist' } })
     const r = query(instance, makeScope(engine))
     expect(r.shape).toBe('scalar')
     if (r.shape !== 'scalar') return
@@ -86,10 +77,7 @@ describe('projection via query()', () => {
 
   it('aggregate-aoi mean excludes noAoi & anyFixation slots', () => {
     const engine = createEngine(SEGMENTS)
-    const instance: MetricInstance = {
-      id: 't1', baseId: 'absoluteTime', params: {}, label: '',
-      projection: { kind: 'aggregate-aoi', reducer: 'mean' },
-    }
+    const instance = testInstance('absoluteTime', { kind: 'aggregate-aoi', reducer: 'mean' })
     const r = query(instance, makeScope(engine))
     expect(r.shape).toBe('scalar')
     if (r.shape !== 'scalar') return
@@ -97,24 +85,19 @@ describe('projection via query()', () => {
   })
 
   it('invalid saved instance drops from contract (matrix-aggregate on probability)', () => {
-    const invalid: MetricInstance = {
-      id: 't1', baseId: 'transitionProbability', params: { mode: 'fixation', step: 1 }, label: '',
-      projection: { kind: 'matrix-aggregate', reducer: 'mean' },
-    }
+    const invalid = testInstance('transitionProbability', { kind: 'matrix-aggregate', reducer: 'mean' }, {
+      params: { mode: 'fixation', step: 1 },
+    })
     expect(instanceMatchesContract(invalid, GLOBAL_SCALAR_CONTRACT, ALL_CAPS)).toBe(false)
   })
 
   it('aggregate-aoi stays in contract only where the metric names the extreme', () => {
     const proj = { kind: 'aggregate-aoi', reducer: 'max' } as const
-    const named: MetricInstance = {
-      id: 't1', baseId: 'absoluteTime', params: {}, label: '', projection: proj,
-    }
+    const named = testInstance('absoluteTime', proj)
     // fixationDuration names no extreme (its Summary `statistic` would
     // double-reduce) — a saved instance drops instead of computing something
     // with no defined reading.
-    const unnamed: MetricInstance = {
-      id: 't2', baseId: 'fixationDuration', params: { statistic: 'mean' }, label: '', projection: proj,
-    }
+    const unnamed = testInstance('fixationDuration', proj, { id: 't2', params: { statistic: 'mean' } })
     expect(instanceMatchesContract(named, GLOBAL_SCALAR_CONTRACT, ALL_CAPS)).toBe(true)
     expect(instanceMatchesContract(unnamed, GLOBAL_SCALAR_CONTRACT, ALL_CAPS)).toBe(false)
   })
@@ -136,23 +119,17 @@ describe('projection via query()', () => {
   })
 
   it('valid saved instance stays in contract (matrix-cell on probability)', () => {
-    const valid: MetricInstance = {
-      id: 't2', baseId: 'transitionProbability', params: { mode: 'fixation', step: 1 }, label: '',
-      projection: {
-        kind: 'matrix-cell',
-        fromAoi: { by: 'name', name: 'Nav' },
-        toAoi:   { by: 'name', name: 'CTA' },
-      },
-    }
+    const valid = testInstance('transitionProbability', {
+      kind: 'matrix-cell',
+      fromAoi: { by: 'name', name: 'Nav' },
+      toAoi:   { by: 'name', name: 'CTA' },
+    }, { id: 't2', params: { mode: 'fixation', step: 1 } })
     expect(instanceMatchesContract(valid, GLOBAL_SCALAR_CONTRACT, ALL_CAPS)).toBe(true)
   })
 
   it('transition matrix + matrix-diagonal → aoi-vector', () => {
     const engine = createEngine(SEGMENTS)
-    const instance: MetricInstance = {
-      id: 't1', baseId: 'transitionCount', params: { mode: 'fixation' }, label: '',
-      projection: { kind: 'matrix-diagonal' },
-    }
+    const instance = testInstance('transitionCount', { kind: 'matrix-diagonal' }, { params: { mode: 'fixation' } })
     const r = query(instance, makeScope(engine))
     expect(r.shape).toBe('aoi-vector')
   })

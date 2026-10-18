@@ -196,3 +196,9 @@ export function buildMetricLabel(
 export function timeRangeQualifier(start = 0, end = 0): string | null {
   return rangeQualifier('t', start, end, 'ms')
 }
+
+/** Integers bare, else one decimal; a `unit` trails after a space. */
+export function formatCompact(v: number, unit = ''): string {
+  const num = Number.isInteger(v) ? String(v) : v.toFixed(1)
+  return unit ? `${num} ${unit}` : num
+}

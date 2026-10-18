@@ -1,6 +1,6 @@
 import { deriveAoiStreamView } from './core/view'
 import { aoiStreamScreen } from './core/screen.svelte'
-import { definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
+import { commonIs, definePlot } from '$lib/plots/definePlot'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
 // Called at definition time: import the module, not the barrel, which the
 // registry -> shared sections -> registry cycle leaves half-initialised.
@@ -13,10 +13,7 @@ import type { AoiStreamPlotSettings } from './types'
 
 // Mode-gated sub-controls hide while `alignment` diverges across a bulk
 // selection — one plot's mode-specific options are meaningless for a mixed set.
-const alignmentIs = (mode: string) => (ctx: SectionFieldCtx) => {
-  const a = ctx.common(s => s.alignment ?? 'stream')
-  return !a.mixed && a.value === mode
-}
+const alignmentIs = (mode: string) => commonIs(s => s.alignment ?? 'stream', mode)
 
 export const aoiStreamPlotDefinition = definePlot<
   'aoiStreamPlot',

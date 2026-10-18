@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { groupByDisplayedName } from '$lib/data/engine/utils/grouping'
-import { createBaseGroupEditor } from '../src/lib/modals/modification/shared/groupedEntityEditor.svelte'
+import { createGroupedEntityEditor } from '../src/lib/modals/modification/shared/groupedEntityEditor.svelte'
 import type {
   BaseInterpretedDataType,
   ExtendedInterpretedDataType,
@@ -135,7 +135,7 @@ describe('groupByDisplayedName', () => {
     })
   })
 
-  describe('createBaseGroupEditor live merge model', () => {
+  describe('createGroupedEntityEditor live merge model', () => {
     const seed = (): BaseInterpretedDataType[] => [
       { id: 0, originalName: 'S0', displayedName: 'A' },
       { id: 1, originalName: 'S1', displayedName: 'B' },
@@ -148,7 +148,7 @@ describe('groupByDisplayedName', () => {
     })
 
     it('forms a clean, mergeable group with no conflict', () => {
-      const ed = createBaseGroupEditor(seed(), { detectConflicts: () => [] })
+      const ed = createGroupedEntityEditor({ getItems: seed, detectConflicts: () => [] })
       ed.handleNameInput(renamed(1), 'A', false, { id: 1, members: [renamed(1)] })
       expect(ed.groups.some(g => g.members.length > 1)).toBe(true)
       expect(ed.hasInvalidGroup).toBe(false)
@@ -157,20 +157,20 @@ describe('groupByDisplayedName', () => {
     })
 
     it('keeps the typed name but flags an overlapping group (blocks Apply)', () => {
-      const ed = createBaseGroupEditor(seed(), { detectConflicts: () => [5] })
+      const ed = createGroupedEntityEditor({ getItems: seed, detectConflicts: () => [5] })
       ed.handleNameInput(renamed(1), 'A', false, { id: 1, members: [renamed(1)] })
-      expect(ed.getItems().find(i => i.id === 1)?.displayedName).toBe('A')
+      expect(ed.getCleanedItems().find(i => i.id === 1)?.displayedName).toBe('A')
       const group = ed.groups.find(g => g.members.length > 1)!
       expect(ed.conflictsFor(group)).toEqual([5])
       expect(ed.hasInvalidGroup).toBe(true)
     })
 
     it('acknowledge returns the group to its former names and clears the block', () => {
-      const ed = createBaseGroupEditor(seed(), { detectConflicts: () => [5] })
+      const ed = createGroupedEntityEditor({ getItems: seed, detectConflicts: () => [5] })
       ed.handleNameInput(renamed(1), 'A', false, { id: 1, members: [renamed(1)] })
       const group = ed.groups.find(g => g.members.length > 1)!
       ed.acknowledge(group)
-      expect(ed.getItems().map(i => i.displayedName)).toEqual(['A', 'B'])
+      expect(ed.getCleanedItems().map(i => i.displayedName)).toEqual(['A', 'B'])
       expect(ed.hasInvalidGroup).toBe(false)
     })
   })

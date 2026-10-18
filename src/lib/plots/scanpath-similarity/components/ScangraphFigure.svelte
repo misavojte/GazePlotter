@@ -5,6 +5,7 @@
     drawPlotArea,
     usePlot,
     canvasBlockSelect,
+    trackOnlyHit,
     type CanvasExportProps,
     type PlotFrame,
     type FrameHit,
@@ -552,12 +553,7 @@
    * graph space designates no participant. Module-stable identity, so hovering it
    * schedules no repaint.
    */
-  const EMPTY_HIT: FrameHit<ScangraphHover> = {
-    content: [],
-    anchorX: 0,
-    anchorY: 0,
-    cursor: 'crosshair',
-  }
+  const EMPTY_HIT = trackOnlyHit<ScangraphHover>()
 
   function computeHit(mx: number, my: number): FrameHit<ScangraphHover> | null {
     // Nodes win: an endpoint is a participant, not the pair it happens to sit on.
@@ -575,8 +571,6 @@
         anchorY: node.y,
         offset: { x: 10, y: 0 },
         tooltipWidth: 160,
-        // Crosshair, like every other plot's data area; the node stays clickable.
-        cursor: 'crosshair',
         data: { kind: 'node', node },
       }
     }
@@ -596,7 +590,6 @@
       anchorY: (s.y + t.y) / 2,
       offset: { x: 10, y: 0 },
       tooltipWidth: 160,
-      cursor: 'crosshair',
       data: { kind: 'edge', source: link.source, target: link.target, value: link.value },
     }
   }

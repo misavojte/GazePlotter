@@ -5,9 +5,11 @@
   import InfoRow from './InfoRow.svelte'
   import { formatMetadataDate } from '../helpers'
 
-  const { errors } = $props<{
+  interface Props {
     errors: ErrorRecord[]
-  }>()
+  }
+
+  const { errors }: Props = $props()
 
   const newestFirstErrors = $derived([...errors].reverse())
 </script>

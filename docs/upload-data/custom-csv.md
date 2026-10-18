@@ -7,7 +7,7 @@ GazePlotter reads three custom CSV layouts. Use them to import data from non-sta
 - **Headers** are case-sensitive and must match exactly (except optional `X`/`Y`, which are case-insensitive).
 - **Column delimiter** is auto-detected: `,` or `;`. Row breaks may be `\n`, `\r\n`, or `\r`.
 - **AOI column** can hold multiple AOIs per row, separated by a pipe: `Header|Menu`.
-- **Optional `X`/`Y` columns** add a spatial coordinate. Both must be numeric on a row, or that row contributes no coordinate. The first valid pair in a segment is used.
+- **Optional `X`/`Y` columns** add a spatial coordinate. Both must be numeric on a row, or that row contributes no coordinate. The first valid pair in a segment is used. In the time-series layout a segment is an AOI run, so its point is the run's first sample, not a fixation centroid: for the [Scanpath](/docs/visualizations/scanpath/) and [Fixation Heatmap](/docs/visualizations/fixation-heatmap/), use a segmented layout with one row per fixation.
 
 ## Format 1: Time series
 

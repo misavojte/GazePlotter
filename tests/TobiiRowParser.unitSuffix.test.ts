@@ -84,6 +84,13 @@ function runAdapter(header: string[], rows: string[]) {
   return outputs
 }
 
+/** Bare-fixation rows (100, 200) with these timestamps in a `Recording timestamp [unit]` column. */
+function runTimestampsIn(unit: string, timestamps: number[]) {
+  const header = buildHeader({ ts: `Recording timestamp [${unit}]`, fx: FORMS.bare.fx, fy: FORMS.bare.fy })
+  const baseRow = buildRows(header)[0].split('\t')
+  return runAdapter(header, timestamps.map(ts => [String(ts), ...baseRow.slice(1)].join('\t')))
+}
+
 describe('TobiiRowParser — unit-suffixed header tolerance', () => {
   it('all bare names → emits segments with correct spatial coords', () => {
     const header = buildHeader(FORMS.bare)
@@ -124,22 +131,7 @@ describe('TobiiRowParser — unit-suffixed header tolerance', () => {
   })
 
   it('[μs] timestamp produces correct millisecond durations', () => {
-    const header = buildHeader({
-      ts: 'Recording timestamp [μs]',
-      fx: FORMS.bare.fx,
-      fy: FORMS.bare.fy,
-    })
-    const idxFx = header.indexOf('Fixation point X')
-    const idxFy = header.indexOf('Fixation point Y')
-    const baseRow = buildRows(header)[0].split('\t')
-    const rows = [1_000_000, 1_005_000, 1_010_000, 1_015_000].map(ts => {
-      const cells = [...baseRow]
-      cells[0] = String(ts)
-      cells[idxFx] = '100'
-      cells[idxFy] = '200'
-      return cells.join('\t')
-    })
-    const outputs = runAdapter(header, rows)
+    const outputs = runTimestampsIn('μs', [1_000_000, 1_005_000, 1_010_000, 1_015_000])
     expect(outputs.length).toBe(1)
     expect(outputs[0].start).toBe(0)
     // 4 rows at 5000µs apart → sampInt=5000 → end = (15000 + 2500) * 0.001
@@ -147,23 +139,8 @@ describe('TobiiRowParser — unit-suffixed header tolerance', () => {
   })
 
   it('[ms] timestamp is scaled to µs and produces the same durations as [μs]', () => {
-    const header = buildHeader({
-      ts: 'Recording timestamp [ms]',
-      fx: FORMS.bare.fx,
-      fy: FORMS.bare.fy,
-    })
-    const idxFx = header.indexOf('Fixation point X')
-    const idxFy = header.indexOf('Fixation point Y')
-    const baseRow = buildRows(header)[0].split('\t')
     // Same semantic durations as the µs test above, expressed in ms.
-    const rows = [1000, 1005, 1010, 1015].map(ts => {
-      const cells = [...baseRow]
-      cells[0] = String(ts)
-      cells[idxFx] = '100'
-      cells[idxFy] = '200'
-      return cells.join('\t')
-    })
-    const outputs = runAdapter(header, rows)
+    const outputs = runTimestampsIn('ms', [1000, 1005, 1010, 1015])
     expect(outputs.length).toBe(1)
     expect(outputs[0].start).toBe(0)
     expect(outputs[0].end).toBeCloseTo(17.5, 6)

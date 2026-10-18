@@ -3,7 +3,6 @@ import type {
   ExportFileType,
   ExportNaming,
 } from '$lib/data/export'
-import { yieldToPaint } from '$lib/data/export/progress'
 import { PLOT_BASE_CHROME_HEIGHT } from '$lib/plots/shared/const'
 import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/plotSizeUtility'
 import type { GridConfig } from '$lib/workspace/grid'
@@ -15,14 +14,6 @@ type SelectableOption<T extends string = string> = {
   disabled?: boolean
   /** Shown next to the sublabel when the item is disabled — says WHY. */
   reason?: string
-}
-
-type ExportButtonConfig = {
-  canExport: boolean
-  exportLabel: string
-  isExporting: boolean
-  onCancel: () => void
-  onExport: () => void
 }
 
 export const DEFAULT_CANVAS_EXPORT_MARGIN = 20
@@ -148,46 +139,4 @@ export function mapSelectableItems<T extends string>(
     disabled,
     reason,
   }))
-}
-
-export function createExportButtons({
-  canExport,
-  exportLabel,
-  isExporting,
-  onCancel,
-  onExport,
-}: ExportButtonConfig) {
-  const buttons = [
-    {
-      label: isExporting ? 'Exporting...' : exportLabel,
-      onclick: onExport,
-      isDisabled: !canExport || isExporting,
-      variant: 'primary' as const,
-    },
-    {
-      label: 'Cancel',
-      onclick: onCancel,
-      isDisabled: false,
-    },
-  ]
-
-  return buttons
-}
-
-/**
- * Run an export function with the modal's busy flag raised (and a UI tick for
- * the "Exporting..." state to paint first). Named to stay clear of the export
- * service's private `runExport`, which has a different contract.
- */
-export async function withExportBusy(
-  setExporting: (exporting: boolean) => void,
-  exportFn: () => Promise<unknown>
-): Promise<void> {
-  setExporting(true)
-  try {
-    await yieldToPaint()
-    await exportFn()
-  } finally {
-    setExporting(false)
-  }
 }

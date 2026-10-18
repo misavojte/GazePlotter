@@ -9,10 +9,8 @@
    * and renders "Ordinal range [indices]" instead.
    */
   import { InputNumber } from '$lib/shared/components'
-  import { PaneSection, getPaneEditItems } from '$lib/workspace/pane'
-  import { getGazePlotterSession } from '$lib/session'
-  import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
-  import { computeCommonValue } from './sections/common'
+  import { PaneSection } from '$lib/workspace/pane'
+  import { createBulkContext } from './sections/common'
   import type { PlotItemContract } from '../../definePlot'
 
   interface Props {
@@ -27,21 +25,10 @@
 
   let { item, ordinalMode }: Props = $props()
 
-  const { workspace } = getGazePlotterSession()
   const settings = $derived(item.settings)
-  const source = $derived(createCommandSourcePlotPattern(item, 'pane'))
-
   // Edits target this item, or every selected item in a bulk (multi-select)
   // pane. Same command either way (single = set of one).
-  const editItems = getPaneEditItems()
-  function update(patch: Partial<TSettings>): void {
-    const targets = editItems ? editItems() : [item]
-    workspace.updateItemsSettings(
-      targets.map(t => t.id),
-      patch,
-      source
-    )
-  }
+  const bulk = createBulkContext<TSettings>(() => item)
 
   // Stable per-plot ids to keep label associations correct when multiple
   // panes mount simultaneously (e.g. side-by-side tab views).
@@ -54,16 +41,15 @@
   // set, or "Mixed" when the selected plots disagree (any edit then makes them
   // agree). Ordinal mode is only used in a same-type scarf context, where the
   // representative's ordinal bounds are shown.
-  const targets = $derived(editItems ? editItems() : [item])
   const commonStart = $derived(
     ordinal && ordinalMode
       ? { value: settings[ordinalMode.startKey] as number | undefined, mixed: false }
-      : computeCommonValue(targets.map(t => t.settings.timelineStart))
+      : bulk.common(s => s.timelineStart)
   )
   const commonEnd = $derived(
     ordinal && ordinalMode
       ? { value: settings[ordinalMode.endKey] as number | undefined, mixed: false }
-      : computeCommonValue(targets.map(t => t.settings.timelineEnd))
+      : bulk.common(s => s.timelineEnd)
   )
   const effectiveStart = $derived(commonStart.mixed ? undefined : commonStart.value)
   const effectiveEnd = $derived(commonEnd.mixed ? undefined : commonEnd.value)
@@ -80,17 +66,17 @@
 
   function handleStartChange(v: number | undefined) {
     if (ordinal && ordinalMode) {
-      update({ [ordinalMode.startKey]: v } as Partial<TSettings>)
+      bulk.update({ [ordinalMode.startKey]: v } as Partial<TSettings>)
     } else {
-      update({ timelineStart: v } as Partial<TSettings>)
+      bulk.update({ timelineStart: v } as Partial<TSettings>)
     }
   }
 
   function handleEndChange(v: number | undefined) {
     if (ordinal && ordinalMode) {
-      update({ [ordinalMode.endKey]: v } as Partial<TSettings>)
+      bulk.update({ [ordinalMode.endKey]: v } as Partial<TSettings>)
     } else {
-      update({ timelineEnd: v } as Partial<TSettings>)
+      bulk.update({ timelineEnd: v } as Partial<TSettings>)
     }
   }
 </script>

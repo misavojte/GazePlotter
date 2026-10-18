@@ -1,9 +1,6 @@
 import { describe, expect, test } from 'vitest'
-import {
-  assignOverlayLanes,
-  groupEventChannelsByDisplayedName,
-  type OverlayEvent,
-} from '$lib/plots/scarf'
+import { assignOverlayLanes, type OverlayEvent } from '$lib/plots/scarf'
+import { groupByDisplayedName } from '$lib/data/engine/utils/grouping'
 
 describe('assignOverlayLanes (combined-mode greedy packing)', () => {
   test('empty input', () => {
@@ -92,7 +89,7 @@ describe('assignOverlayLanes (combined-mode greedy packing)', () => {
 })
 
 test('Event channels are grouped by displayed name for overlay rendering', () => {
-  const grouped = groupEventChannelsByDisplayedName([
+  const grouped = groupByDisplayedName([
     { id: 10, originalName: 'Hit_A', displayedName: 'Hit', color: '#ff0000' },
     { id: 11, originalName: 'Miss', displayedName: '', color: '#00ff00' },
     { id: 12, originalName: 'Hit_B', displayedName: 'Hit', color: '#0000ff' },

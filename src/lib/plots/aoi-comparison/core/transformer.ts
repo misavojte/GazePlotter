@@ -4,9 +4,9 @@ import type { PlotMetricContract } from '$lib/metrics'
 import {
   collectDistribution,
   distributionParticipants,
+  entitySlots,
   type DistributionAxis,
   type DistributionResult,
-  type DistributionSlot,
 } from '$lib/plots/shared/distribution'
 import type { AoiComparisonSettings } from '../types'
 
@@ -69,11 +69,7 @@ function aoiAxis(
   noAoiTreatment: { displayedName: string; color: string }
 ): DistributionAxis {
   const aois = getAois(engine, settings.stimulusId, settings.aoiSelectionId)
-  const slots: DistributionSlot[] = aois.map((aoi, slot) => ({
-    slot,
-    label: aoi.displayedName,
-    color: aoi.color,
-  }))
+  const slots = entitySlots(aois.map((aoi, slot) => ({ ...aoi, slot })))
   if (!(settings.hideNoAoi ?? false)) {
     slots.push({
       slot: aois.length,

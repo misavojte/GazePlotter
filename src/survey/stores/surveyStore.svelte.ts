@@ -60,25 +60,10 @@ class SurveyStore {
    * Skip the current task if it is skippable
    */
   skipTask(): void {
-    if (this.#tasks.length === 0 || this.#isCompleted) {
+    if (this.#tasks[this.#currentActiveTaskIndex]?.skippable === false) {
       return
     }
-
-    const currentTask = this.#tasks[this.#currentActiveTaskIndex]
-    const isSkippable = currentTask?.skippable !== false
-
-    if (!isSkippable) {
-      return
-    }
-
-    const nextIndex = this.#currentActiveTaskIndex + 1
-    const isLastTask = nextIndex >= this.#tasks.length
-
-    if (isLastTask) {
-      this.#isCompleted = true
-    } else {
-      this.#currentActiveTaskIndex = nextIndex
-    }
+    this.nextTask()
   }
 }
 

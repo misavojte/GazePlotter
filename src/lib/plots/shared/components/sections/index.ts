@@ -3,6 +3,8 @@ import type {
   PaneSection,
   SchemaPaneSectionEntry,
   SectionFieldAction,
+  SectionFieldCtx,
+  SectionFieldOption,
 } from '$lib/plots/definePlot'
 import type { ModalDefinition } from '$lib/modals/defineModal'
 import { getStimuliOptions, getParticipantOptions, getParticipantsSelectionOptions } from '$lib/plots/shared'
@@ -40,6 +42,22 @@ const modalAction = (
   },
 })
 
+const editParticipants = modalAction('Edit participants & selections', participantModificationModal)
+
+/** A single-id section: the numeric `<key>Id` picker with its library edit link. */
+const idSection = (
+  key: string,
+  title: string,
+  options: (ctx: SectionFieldCtx) => readonly SectionFieldOption[],
+  action: SectionFieldAction,
+  { label, defaultOpen }: { label?: string; defaultOpen?: boolean } = {}
+): SchemaPaneSectionEntry => ({
+  key,
+  title,
+  defaultOpen,
+  fields: [{ kind: 'enum', key: `${key}Id`, valueKind: 'number', label, options, actions: [action] }],
+})
+
 /**
  * Bind one entity axis's config onto the generic `EntitySelectionSection`:
  * plain partial application of the component function — `config` fixed here,
@@ -64,53 +82,23 @@ const entitySection =
  * mode — inexpressible under the pane layout cap's static field keys).
  */
 export const SHARED_SECTIONS: Record<string, SharedPaneSection> = {
-  stimulus: {
-    key: 'stimulus',
-    title: 'Stimulus',
-    defaultOpen: true,
-    fields: [
-      {
-        kind: 'enum',
-        key: 'stimulusId',
-        valueKind: 'number',
-        options: ctx => getStimuliOptions(ctx.engine),
-        actions: [modalAction('Edit stimuli & selections', stimulusModificationModal)],
-      },
-    ],
-  },
-  participant: {
-    key: 'participant',
-    title: 'Participant',
-    fields: [
-      {
-        kind: 'enum',
-        key: 'participantId',
-        valueKind: 'number',
-        options: ctx => getParticipantOptions(ctx.engine),
-        actions: [modalAction('Edit participants & selections', participantModificationModal)],
-      },
-    ],
-  },
-  group: {
-    key: 'group',
-    title: 'Participants',
-    fields: [
-      {
-        kind: 'enum',
-        key: 'groupId',
-        valueKind: 'number',
-        label: 'Participant selection',
-        // Group options depend on a stimulus, but group ids are
-        // stimulus-independent, so the representative's stimulus is safe even
-        // across mixed stimuli.
-        options: ctx =>
-          getParticipantsSelectionOptions(ctx.engine, true, (ctx.settings.stimulusId as number) ?? 0),
-        actions: [
-          modalAction('Edit participants & selections', participantModificationModal),
-        ],
-      },
-    ],
-  },
+  stimulus: idSection(
+    'stimulus',
+    'Stimulus',
+    ctx => getStimuliOptions(ctx.engine),
+    modalAction('Edit stimuli & selections', stimulusModificationModal),
+    { defaultOpen: true }
+  ),
+  participant: idSection('participant', 'Participant', ctx => getParticipantOptions(ctx.engine), editParticipants),
+  // Group options depend on a stimulus, but group ids are stimulus-independent,
+  // so the representative's stimulus is safe even across mixed stimuli.
+  group: idSection(
+    'group',
+    'Participants',
+    ctx => getParticipantsSelectionOptions(ctx.engine, true, (ctx.settings.stimulusId as number) ?? 0),
+    editParticipants,
+    { label: 'Participant selection' }
+  ),
   // ONE section shape per entity axis: the per-plot SELECTION picker + the
   // single edit link into that entity's modal (names, colors, merges,
   // selections — one surface). All four are `EntitySelectionSection` with

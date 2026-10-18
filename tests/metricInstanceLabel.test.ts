@@ -9,6 +9,7 @@ import {
   type MetricInstance,
 } from '../src/lib/metrics'
 import { buildMetricLabel } from '../src/lib/plots/shared/labels'
+import { testInstance } from './helpers/testEngine'
 import {
   paramToLabel,
   enumParam,
@@ -88,10 +89,7 @@ describe('formatParamReadout (full — same in selector and on plots)', () => {
   })
   it('stays purely params — the reduction is composed separately', () => {
     // formatParamReadout never carries the reduction; that keeps it composable.
-    const summed: MetricInstance = {
-      id: 'i', baseId: 'absoluteTime', params: {}, label: '',
-      projection: { kind: 'identity-aoi-vector' }, reduction: 'sum',
-    }
+    const summed = testInstance('absoluteTime', { kind: 'identity-aoi-vector' }, { id: 'i', reduction: 'sum' })
     expect(formatParamReadout(summed)).toEqual([])
   })
 })
@@ -133,17 +131,13 @@ describe('resolveReduction (request === result; unsound clamps to default)', () 
 
 describe('instanceReadout (params + reduction — the one selector/figure source)', () => {
   it('combines params and the reduction chip (mean suppressed)', () => {
-    const inst1: MetricInstance = {
-      id: 'i', baseId: 'transitionProbability', params: { mode: 'visit', step: 2 },
-      label: '', projection: { kind: 'identity-aoi-pair-matrix' },
-    }
+    const inst1 = testInstance('transitionProbability', { kind: 'identity-aoi-pair-matrix' }, {
+      id: 'i', params: { mode: 'visit', step: 2 },
+    })
     expect(instanceReadout(inst1)).toEqual(['Visit changes', 'Step 2'])
   })
   it('includeReduction:false drops the chip (bar plot discloses via overlay)', () => {
-    const inst1: MetricInstance = {
-      id: 'i', baseId: 'absoluteTime', params: {}, label: '',
-      projection: { kind: 'identity-aoi-vector' }, reduction: 'sum',
-    }
+    const inst1 = testInstance('absoluteTime', { kind: 'identity-aoi-vector' }, { id: 'i', reduction: 'sum' })
     expect(instanceReadout(inst1)).toEqual(['summed'])
     expect(instanceReadout(inst1, { includeReduction: false })).toEqual([])
   })
@@ -155,14 +149,11 @@ describe('summary statistic disclosure', () => {
   /** A summary leaf on a sample-summarizing metric — the only place a
    *  statistic can now live for fixation/visit/movement duration. */
   function pick(baseId: string, statistic?: string): MetricInstance {
-    return {
-      id: 'i', baseId, params: {}, label: '',
-      projection: {
-        kind: 'pick-aoi',
-        aoiRef: { by: 'name', name: 'Logo' },
-        ...(statistic ? { statistic: statistic as 'median' } : {}),
-      },
-    }
+    return testInstance(baseId, {
+      kind: 'pick-aoi',
+      aoiRef: { by: 'name', name: 'Logo' },
+      ...(statistic ? { statistic: statistic as 'median' } : {}),
+    }, { id: 'i' })
   }
 
   it('is disclosed via instanceReadout (mean shown too), NOT inside the leaf label', () => {
@@ -228,10 +219,7 @@ describe('buildMetricLabel (unified plot/colorbar label)', () => {
   it('discloses only a cohort sum — summed override vs the bare default mean', () => {
     // A summed instance reads `· summed`; the default-mean instance is bare (mean
     // is the conventional default and needs no disclosure).
-    const summed: MetricInstance = {
-      id: 'i', baseId: 'absoluteTime', params: {}, label: '',
-      projection: { kind: 'identity-aoi-vector' }, reduction: 'sum',
-    }
+    const summed = testInstance('absoluteTime', { kind: 'identity-aoi-vector' }, { id: 'i', reduction: 'sum' })
     expect(buildMetricLabel(summed))
       .toBe('Absolute dwell time / ms · summed')
 
@@ -243,17 +231,11 @@ describe('buildMetricLabel (unified plot/colorbar label)', () => {
   it('aggregate-aoi prints the metric-named meaning of the extreme, not the operator', () => {
     // The phrase the recipe declared in `aoiAggregate` is the disclosed
     // qualifier — the same words that gated the projection in the configure UI.
-    const peak: MetricInstance = {
-      id: 'i', baseId: 'absoluteTime', params: {}, label: '',
-      projection: { kind: 'aggregate-aoi', reducer: 'max' },
-    }
+    const peak = testInstance('absoluteTime', { kind: 'aggregate-aoi', reducer: 'max' }, { id: 'i' })
     expect(buildMetricLabel(peak, { projection: 'full' }))
       .toBe('Absolute dwell time / ms · most-dwelled AOI')
 
-    const firstHit: MetricInstance = {
-      id: 'i', baseId: 'timeToFirstFixation', params: {}, label: '',
-      projection: { kind: 'aggregate-aoi', reducer: 'min' },
-    }
+    const firstHit = testInstance('timeToFirstFixation', { kind: 'aggregate-aoi', reducer: 'min' }, { id: 'i' })
     expect(buildMetricLabel(firstHit, { projection: 'full' }))
       .toBe('Time to first fixation / ms · first-reached AOI')
   })
@@ -262,14 +244,11 @@ describe('buildMetricLabel (unified plot/colorbar label)', () => {
 // ─── projection: 'leaf' vs 'full' (time-axis plots) ──────────────────────────
 
 describe('projection readout: the slice and the window are separable', () => {
-  const windowedPick = (aoi: string): MetricInstance => ({
-    id: 'i', baseId: 'fixationDuration', params: {}, label: '',
-    projection: {
-      kind: 'windowed',
-      window: { windowSize: 1000, stepSize: 100 },
-      inner: { kind: 'pick-aoi', aoiRef: { by: 'name', name: aoi }, statistic: 'mean' },
-    },
-  })
+  const windowedPick = (aoi: string) => testInstance('fixationDuration', {
+    kind: 'windowed',
+    window: { windowSize: 1000, stepSize: 100 },
+    inner: { kind: 'pick-aoi', aoiRef: { by: 'name', name: aoi }, statistic: 'mean' },
+  }, { id: 'i' })
 
   it("'full' states both; 'leaf' drops only the window", () => {
     expect(buildMetricLabel(windowedPick('Logo'), { projection: 'full' }))
@@ -289,23 +268,17 @@ describe('projection readout: the slice and the window are separable', () => {
   })
 
   it("'leaf' is a no-op on an unwindowed projection", () => {
-    const flat: MetricInstance = {
-      id: 'i', baseId: 'absoluteTime', params: {}, label: '',
-      projection: { kind: 'pick-aoi', aoiRef: { by: 'name', name: 'Logo' } },
-    }
+    const flat = testInstance('absoluteTime', { kind: 'pick-aoi', aoiRef: { by: 'name', name: 'Logo' } }, { id: 'i' })
     expect(buildMetricLabel(flat, { projection: 'leaf' }))
       .toBe(buildMetricLabel(flat, { projection: 'full' }))
   })
 
   it('an identity leaf names no slice, so a vector time-axis plot stays clean', () => {
-    const stream: MetricInstance = {
-      id: 'i', baseId: 'absoluteTime', params: {}, label: '',
-      projection: {
-        kind: 'windowed',
-        window: { windowSize: 500, stepSize: 500 },
-        inner: { kind: 'identity-aoi-vector' },
-      },
-    }
+    const stream = testInstance('absoluteTime', {
+      kind: 'windowed',
+      window: { windowSize: 500, stepSize: 500 },
+      inner: { kind: 'identity-aoi-vector' },
+    }, { id: 'i' })
     expect(buildMetricLabel(stream, { projection: 'leaf' })).toBe('Absolute dwell time / ms')
   })
 })

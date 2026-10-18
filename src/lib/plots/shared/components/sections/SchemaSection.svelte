@@ -203,7 +203,7 @@
           mixed={state.mixed}
           min={f.min}
           max={f.max}
-          step={f.step}
+          step={typeof f.step === 'function' ? f.step(ctx) : f.step}
           onValueChange={v => commitNumber(f, v)}
           onBlur={f.read
             ? () => (readNumberEpoch[f.key] = (readNumberEpoch[f.key] ?? 0) + 1)

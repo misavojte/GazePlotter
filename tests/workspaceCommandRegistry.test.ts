@@ -9,6 +9,8 @@ import {
 } from './helpers/workspaceCommandFixtures'
 import { createCommandHandler } from '$lib/workspace/commands/handler'
 import { UndoRedoStateStore } from '$lib/workspace/commands/undoRedoState.svelte'
+import type { WorkspaceCommandChain } from '$lib/workspace/commands'
+import type { GridState } from '$lib/workspace/grid'
 
 const engineMocks = vi.hoisted(() => ({
   updateMultipleParticipants: vi.fn(),
@@ -23,6 +25,35 @@ vi.mock('$lib/data/engine', async importOriginal => ({
   ...(await importOriginal<object>()),
   ...engineMocks,
 }))
+
+/** The highlight-cleanup command the registry dispatches for one item. */
+const highlightCleanup = (itemId: number, highlights: string[], chainId = 42) => ({
+  type: 'updateSettings',
+  updates: [{ itemId, settings: { highlights } }],
+  source: 'plot.onCommand',
+  chainId,
+  isRootCommand: false,
+})
+
+/** One non-undo execution through a fresh registry; returns the dispatch spy. */
+function executeOnce(gridStore: GridState, command: WorkspaceCommandChain, engine = createMockEngine()) {
+  const dispatch = vi.fn()
+  createWorkspaceCommandRegistry(gridStore, engine).execute(command, { isUndoRedoOperation: false, dispatch })
+  return dispatch
+}
+
+/** A real handler with undo history; `undo` replays one step and returns its commands. */
+function withHistory(gridStore: GridState) {
+  const history = new UndoRedoStateStore()
+  const handleCommand = createCommandHandler(gridStore, createMockEngine(), history, () => {}, () => {}, () => {})
+  const undo = () => {
+    const undoCommands = history.undo()
+    for (const cmd of undoCommands ?? []) handleCommand(cmd)
+    history.endUndoRedo()
+    return undoCommands
+  }
+  return { history, handleCommand, undo }
+}
 
 describe('workspaceCommandRegistry', () => {
   beforeEach(() => {
@@ -55,7 +86,6 @@ describe('workspaceCommandRegistry', () => {
         },
       }),
     ])
-    const dispatch = vi.fn()
     const command = createChainedCommand({
       type: 'updateSettings',
       updates: [{ itemId: 11, settings: { stimulusId: 2 } }], // switched stimulus
@@ -64,19 +94,10 @@ describe('workspaceCommandRegistry', () => {
       chainId: 42,
     })
 
-    createWorkspaceCommandRegistry(gridStore, createMockEngine()).execute(command, {
-      isUndoRedoOperation: false,
-      dispatch,
-    })
+    const dispatch = executeOnce(gridStore, command)
 
-    expect(dispatch).toHaveBeenCalledWith({
-      type: 'updateSettings',
-      // AOI and event-channel ids are per stimulus; categories are global.
-      updates: [{ itemId: 11, settings: { highlights: ['ac7'] } }],
-      source: 'plot.onCommand',
-      chainId: 42,
-      isRootCommand: false,
-    })
+    // AOI and event-channel ids are per stimulus; categories are global.
+    expect(dispatch).toHaveBeenCalledWith(highlightCleanup(11, ['ac7']))
   })
 
   it('applies a multi-item (bulk) updateSettings to every item and reconciles each scarf', () => {
@@ -90,7 +111,6 @@ describe('workspaceCommandRegistry', () => {
         settings: { stimulusId: 1, highlights: ['a1', 'e2'] },
       }),
     ])
-    const dispatch = vi.fn()
     const command = createChainedCommand({
       type: 'updateSettings',
       updates: [
@@ -102,10 +122,7 @@ describe('workspaceCommandRegistry', () => {
       chainId: 7,
     })
 
-    createWorkspaceCommandRegistry(gridStore, createMockEngine()).execute(command, {
-      isUndoRedoOperation: false,
-      dispatch,
-    })
+    const dispatch = executeOnce(gridStore, command)
 
     // Every targeted item is updated by the single command.
     expect(gridStore.updateSettings).toHaveBeenCalledWith(11, { stimulusId: 2 })
@@ -113,20 +130,8 @@ describe('workspaceCommandRegistry', () => {
 
     // Each scarf's stale AOI highlights are cleared for its own id, sharing
     // the command's chain (so the whole bulk is one atomic undo step).
-    expect(dispatch).toHaveBeenCalledWith({
-      type: 'updateSettings',
-      updates: [{ itemId: 11, settings: { highlights: ['ac7'] } }],
-      source: 'plot.onCommand',
-      chainId: 7,
-      isRootCommand: false,
-    })
-    expect(dispatch).toHaveBeenCalledWith({
-      type: 'updateSettings',
-      updates: [{ itemId: 12, settings: { highlights: [] } }],
-      source: 'plot.onCommand',
-      chainId: 7,
-      isRootCommand: false,
-    })
+    expect(dispatch).toHaveBeenCalledWith(highlightCleanup(11, ['ac7'], 7))
+    expect(dispatch).toHaveBeenCalledWith(highlightCleanup(12, [], 7))
   })
 
   it('does not dispatch highlight cleanup on stimulus switch if no highlights are cleared', () => {
@@ -140,7 +145,6 @@ describe('workspaceCommandRegistry', () => {
         },
       }),
     ])
-    const dispatch = vi.fn()
     const command = createChainedCommand({
       type: 'updateSettings',
       updates: [{ itemId: 11, settings: { stimulusId: 2 } }],
@@ -149,10 +153,7 @@ describe('workspaceCommandRegistry', () => {
       chainId: 42,
     })
 
-    createWorkspaceCommandRegistry(gridStore, createMockEngine()).execute(command, {
-      isUndoRedoOperation: false,
-      dispatch,
-    })
+    const dispatch = executeOnce(gridStore, command)
 
     expect(dispatch).not.toHaveBeenCalled()
   })
@@ -164,7 +165,6 @@ describe('workspaceCommandRegistry', () => {
         settings: { stimulusId: 1, highlights: ['0', '1'] },
       }),
     ])
-    const dispatch = vi.fn()
     const command = createChainedCommand({
       type: 'updateSettings',
       updates: [{ itemId: 21, settings: { stimulusId: 2 } }],
@@ -173,18 +173,9 @@ describe('workspaceCommandRegistry', () => {
       chainId: 42,
     })
 
-    createWorkspaceCommandRegistry(gridStore, createMockEngine()).execute(command, {
-      isUndoRedoOperation: false,
-      dispatch,
-    })
+    const dispatch = executeOnce(gridStore, command)
 
-    expect(dispatch).toHaveBeenCalledWith({
-      type: 'updateSettings',
-      updates: [{ itemId: 21, settings: { highlights: [] } }],
-      source: 'plot.onCommand',
-      chainId: 42,
-      isRootCommand: false,
-    })
+    expect(dispatch).toHaveBeenCalledWith(highlightCleanup(21, []))
   })
 
   it('prunes AOI Timeline highlights of AOIs merged away by an updateAois', () => {
@@ -194,31 +185,24 @@ describe('workspaceCommandRegistry', () => {
         settings: { stimulusId: 1, highlights: ['0', '1'] },
       }),
     ])
-    const dispatch = vi.fn()
     engineMocks.getAois.mockImplementation((engine, stimulusId) =>
       stimulusId === 1
         ? [{ id: 1, originalName: 'AOI 1', displayedName: 'AOI 1', color: '#00ff00' }]
         : []
     )
 
-    createWorkspaceCommandRegistry(gridStore, createMockEngine()).execute(
+    const dispatch = executeOnce(
+      gridStore,
       createChainedCommand({
         type: 'updateAois',
         updates: [{ stimulusId: 1, aois: [] }],
       }, {
         source: 'aoiStreamPlot.21.modal',
         chainId: 42,
-      }),
-      { isUndoRedoOperation: false, dispatch }
+      })
     )
 
-    expect(dispatch).toHaveBeenCalledWith({
-      type: 'updateSettings',
-      updates: [{ itemId: 21, settings: { highlights: ['1'] } }],
-      source: 'plot.onCommand',
-      chainId: 42,
-      isRootCommand: false,
-    })
+    expect(dispatch).toHaveBeenCalledWith(highlightCleanup(21, ['1']))
   })
 
   it('prunes Scarf event highlights no channel backs after an event-channel edit', () => {
@@ -228,11 +212,11 @@ describe('workspaceCommandRegistry', () => {
         settings: { stimulusId: 1, highlights: ['a0', 'e2', 'e9', 'ac7'] },
       }),
     ])
-    const dispatch = vi.fn()
     const engine = createMockEngine()
     Object.assign(engine, { updateEventChannelsBatch: vi.fn() })
 
-    createWorkspaceCommandRegistry(gridStore, engine).execute(
+    const dispatch = executeOnce(
+      gridStore,
       createChainedCommand({
         type: 'updateEventChannels',
         stimulusId: 1,
@@ -241,16 +225,10 @@ describe('workspaceCommandRegistry', () => {
         source: 'scarf.11.modal',
         chainId: 42,
       }),
-      { isUndoRedoOperation: false, dispatch }
+      engine
     )
 
-    expect(dispatch).toHaveBeenCalledWith({
-      type: 'updateSettings',
-      updates: [{ itemId: 11, settings: { highlights: ['a0', 'e2', 'ac7'] } }],
-      source: 'plot.onCommand',
-      chainId: 42,
-      isRootCommand: false,
-    })
+    expect(dispatch).toHaveBeenCalledWith(highlightCleanup(11, ['a0', 'e2', 'ac7']))
   })
 
   it('applies every stimulus of an updateAois set in ONE engine batch and one redraw', () => {
@@ -269,12 +247,13 @@ describe('workspaceCommandRegistry', () => {
         ],
       },
     ]
-    createWorkspaceCommandRegistry(gridStore, engine).execute(
+    executeOnce(
+      gridStore,
       createChainedCommand(
         { type: 'updateAois', updates },
         { source: 'aoi.modal', chainId: 7 }
       ),
-      { isUndoRedoOperation: false, dispatch: vi.fn() }
+      engine
     )
 
     expect(engine.updateAoisBatch).toHaveBeenCalledTimes(1)
@@ -293,7 +272,6 @@ describe('workspaceCommandRegistry', () => {
         },
       }),
     ])
-    const dispatch = vi.fn()
     const command = createChainedCommand({
       type: 'updateAois',
       updates: [
@@ -324,18 +302,10 @@ describe('workspaceCommandRegistry', () => {
       return []
     })
 
-    createWorkspaceCommandRegistry(gridStore, createMockEngine()).execute(command, {
-      isUndoRedoOperation: false,
-      dispatch,
-    })
+    const dispatch = executeOnce(gridStore, command)
 
-    expect(dispatch).toHaveBeenCalledWith({
-      type: 'updateSettings',
-      updates: [{ itemId: 11, settings: { highlights: ['a1', 'ac7'] } }], // a0 is removed
-      source: 'plot.onCommand',
-      chainId: 42,
-      isRootCommand: false,
-    })
+    // a0 is removed
+    expect(dispatch).toHaveBeenCalledWith(highlightCleanup(11, ['a1', 'ac7']))
   })
 
   it('does NOT clear AOI highlights on cosmetic rename (no grouping change)', () => {
@@ -349,7 +319,6 @@ describe('workspaceCommandRegistry', () => {
         },
       }),
     ])
-    const dispatch = vi.fn()
     const command = createChainedCommand({
       type: 'updateAois',
       updates: [
@@ -381,10 +350,7 @@ describe('workspaceCommandRegistry', () => {
       return []
     })
 
-    createWorkspaceCommandRegistry(gridStore, createMockEngine()).execute(command, {
-      isUndoRedoOperation: false,
-      dispatch,
-    })
+    const dispatch = executeOnce(gridStore, command)
 
     expect(dispatch).not.toHaveBeenCalled()
   })
@@ -456,17 +422,7 @@ describe('workspaceCommandRegistry', () => {
       }
     })
 
-    const engine = createMockEngine()
-    const history = new UndoRedoStateStore()
-    
-    const handleCommand = createCommandHandler(
-      gridStore,
-      engine,
-      history,
-      () => {},
-      () => {},
-      () => {}
-    )
+    const { handleCommand, undo } = withHistory(gridStore)
 
     // Initial switch stimulus command
     const command = createChainedCommand({
@@ -485,15 +441,7 @@ describe('workspaceCommandRegistry', () => {
     expect(items[0].settings.highlights).toEqual(['ac7'])
 
     // Execute undo
-    const undoCommands = history.undo()
-    expect(undoCommands).not.toBeNull()
-    
-    if (undoCommands) {
-      for (const cmd of undoCommands) {
-        handleCommand(cmd)
-      }
-    }
-    history.endUndoRedo()
+    expect(undo()).not.toBeNull()
 
     // Restored back to stimulus 1 and highlights ['a0', 'ac7']
     expect(items[0].settings.stimulusId).toBe(1)
@@ -511,15 +459,7 @@ describe('workspaceCommandRegistry', () => {
       if (item) item.settings = { ...item.settings, ...settings }
     })
 
-    const history = new UndoRedoStateStore()
-    const handleCommand = createCommandHandler(
-      gridStore,
-      createMockEngine(),
-      history,
-      () => {},
-      () => {},
-      () => {}
-    )
+    const { handleCommand, undo } = withHistory(gridStore)
 
     // Bulk: apply the same stimulus to both items (which start with different
     // stimuli) as a single root command.
@@ -539,10 +479,7 @@ describe('workspaceCommandRegistry', () => {
     expect(items.map(i => i.settings.stimulusId)).toEqual([5, 5])
 
     // A single undo reverts the whole bulk, restoring each item's own prior value.
-    const undoCommands = history.undo()
-    expect(undoCommands).not.toBeNull()
-    for (const cmd of undoCommands ?? []) handleCommand(cmd)
-    history.endUndoRedo()
+    expect(undo()).not.toBeNull()
 
     expect(items.map(i => i.settings.stimulusId)).toEqual([0, 3])
   })
@@ -562,15 +499,7 @@ describe('workspaceCommandRegistry', () => {
       if (idx >= 0) items.splice(idx, 1)
     })
 
-    const history = new UndoRedoStateStore()
-    const handleCommand = createCommandHandler(
-      gridStore,
-      createMockEngine(),
-      history,
-      () => {},
-      () => {},
-      () => {}
-    )
+    const { history, handleCommand, undo } = withHistory(gridStore)
 
     handleCommand(
       createChainedCommand(
@@ -584,9 +513,7 @@ describe('workspaceCommandRegistry', () => {
     )
     expect(items.map(i => i.id)).toEqual([11, 12, 101, 102])
 
-    const undoCommands = history.undo()
-    for (const cmd of undoCommands ?? []) handleCommand(cmd)
-    history.endUndoRedo()
+    undo()
     expect(items.map(i => i.id)).toEqual([11, 12])
     expect(history.undo()).toBeNull()
   })
@@ -611,15 +538,7 @@ describe('workspaceCommandRegistry', () => {
       return copy.id
     })
 
-    const history = new UndoRedoStateStore()
-    const handleCommand = createCommandHandler(
-      gridStore,
-      createMockEngine(),
-      history,
-      () => {},
-      () => {},
-      () => {}
-    )
+    const { handleCommand } = withHistory(gridStore)
 
     handleCommand(
       createChainedCommand(
@@ -658,15 +577,7 @@ describe('workspaceCommandRegistry', () => {
       return options.id
     })
 
-    const history = new UndoRedoStateStore()
-    const handleCommand = createCommandHandler(
-      gridStore,
-      createMockEngine(),
-      history,
-      () => {},
-      () => {},
-      () => {}
-    )
+    const { history, handleCommand, undo } = withHistory(gridStore)
 
     handleCommand(
       createChainedCommand(
@@ -676,9 +587,7 @@ describe('workspaceCommandRegistry', () => {
     )
     expect(items.map(i => i.id)).toEqual([13])
 
-    const undoCommands = history.undo()
-    for (const cmd of undoCommands ?? []) handleCommand(cmd)
-    history.endUndoRedo()
+    undo()
     expect(items.map(i => i.id).sort()).toEqual([11, 12, 13])
     expect(history.undo()).toBeNull()
   })

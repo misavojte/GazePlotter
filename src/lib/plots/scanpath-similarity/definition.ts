@@ -8,7 +8,7 @@ import {
   thresholdForEdgeShare,
 } from './core/transformer'
 import { SCANPATH_SIMILARITY_DEFAULTS } from './const'
-import { definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
+import { commonIs, definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import { stimulusGroupSubtitle } from '$lib/plots/shared'
@@ -16,10 +16,7 @@ import { OUT_OF_BOUNDS_DEFAULTS, outOfBoundsFields } from '$lib/plots/shared/out
 import type { ScanpathSimilaritySettings } from './types'
 
 // View-gated sub-controls hide while `view` diverges across a bulk selection.
-const viewIs = (mode: string) => (ctx: SectionFieldCtx) => {
-  const v = ctx.common(s => s.view ?? 'matrix')
-  return !v.mixed && v.value === mode
-}
+const viewIs = (mode: string) => commonIs(s => s.view ?? 'matrix', mode)
 
 // The p threshold and the edge share are one state seen from two sides: the
 // share control DISPLAYS the share the current p achieves.

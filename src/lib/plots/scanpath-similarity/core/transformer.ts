@@ -7,7 +7,7 @@ import {
   type PlotMetricContract,
 } from '$lib/metrics'
 import {
-  asParticipantPairMatrix,
+  asShape,
   resolveMetric,
 } from '$lib/plots/shared'
 import { maximalCliques } from './cliques'
@@ -19,6 +19,10 @@ import type {
 } from '../types'
 
 const CONTRACT = { outputShape: 'participant-pair-matrix', windowing: 'forbidden', crossParticipant: 'group-axis' } as const satisfies PlotMetricContract
+
+/** A fresh empty result. */
+const empty = (extra?: { noMetric: true }): ScanpathSimilarityData =>
+  ({ labels: [], participantIds: [], matrix: new Float64Array(0), size: 0, ...extra })
 
 /**
  * Resolve the configured metric instance and run `queryGroup` to obtain the
@@ -34,24 +38,17 @@ export function getScanpathSimilarityData(
   timeEnd: number = 0,
   aoiSelectionId?: number,
 ): ScanpathSimilarityData {
-  const meta = engine.metadata
-  if (!meta) {
-    return { labels: [], participantIds: [], matrix: new Float64Array(0), size: 0 }
-  }
+  if (!engine.metadata) return empty()
 
   const resolved = resolveMetric({
     engine,
     id: metricInstanceId,
     contract: CONTRACT,
   })
-  if (!resolved.ok) {
-    return { labels: [], participantIds: [], matrix: new Float64Array(0), size: 0, noMetric: true }
-  }
+  if (!resolved.ok) return empty({ noMetric: true })
 
   const participantIds = getParticipantsIds(engine, groupId, stimulusId)
-  if (participantIds.length === 0) {
-    return { labels: [], participantIds: [], matrix: new Float64Array(0), size: 0 }
-  }
+  if (participantIds.length === 0) return empty()
 
   const scope: GroupScope = {
     engine,
@@ -61,10 +58,8 @@ export function getScanpathSimilarityData(
     timeEnd,
     aoiSelectionId,
   }
-  const result = asParticipantPairMatrix(queryGroup(resolved.instance, scope))
-  if (!result) {
-    return { labels: [], participantIds: [], matrix: new Float64Array(0), size: 0, noMetric: true }
-  }
+  const result = asShape(queryGroup(resolved.instance, scope), 'participant-pair-matrix')
+  if (!result) return empty({ noMetric: true })
 
   const labels = labelsFor(engine, result.participantIds)
   return {

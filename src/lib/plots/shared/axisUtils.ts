@@ -1,4 +1,4 @@
-import { GRIDLINE_PRIMARY, GRIDLINE_SECONDARY, FONT_PRIMARY, PLOT_AXIS_TITLE_GAP, PLOT_TICK_LABEL_GAP } from './const'
+import { GRIDLINE_PRIMARY, GRIDLINE_SECONDARY, FONT_PRIMARY, PLOT_AXIS_TITLE_GAP, PLOT_TICK_LABEL_GAP, ROW_LABEL_GAP } from './const'
 import {
   estimateTextWidth,
   truncateTextToPixelWidth,
@@ -236,6 +236,26 @@ export function drawParticipantIndexAxis(
     ctx.fillText(String(lastIdx), tickX, plotTop + lastIdx * rowPitch + rowPitch / 2)
   }
   ctx.restore()
+}
+
+/** Compact index axis without `labels`, else labels right-aligned ROW_LABEL_GAP left
+ *  of the plot. Leaves the axis font, fill and baseline set (no save/restore). */
+export function drawParticipantRowAxis(
+  ctx: CanvasRenderingContext2D,
+  count: number,
+  labels: readonly string[] | null,
+  plotLeft: number,
+  plotTop: number,
+  rowPitch: number
+): void {
+  ctx.font = `${AXIS_CONFIG.fontSize}px ${AXIS_CONFIG.fontFamily}`
+  ctx.fillStyle = AXIS_CONFIG.color
+  ctx.textBaseline = 'middle'
+  if (!labels) return drawParticipantIndexAxis(ctx, count, plotLeft, plotTop, rowPitch)
+  ctx.textAlign = 'right'
+  for (let i = 0; i < labels.length; i++) {
+    ctx.fillText(labels[i], plotLeft - ROW_LABEL_GAP, plotTop + i * rowPitch + rowPitch / 2)
+  }
 }
 
 /**

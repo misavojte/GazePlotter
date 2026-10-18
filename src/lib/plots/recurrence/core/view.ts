@@ -3,52 +3,27 @@ import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { CanvasExportProps } from '$lib/plots/shared'
 import type { PlotView } from '$lib/plots/definePlot'
 import RecurrencePlotFigure from '../components/RecurrencePlotFigure.svelte'
-import { getRecurrenceData } from './transformer'
+import { collectRecurrenceData } from './collector'
 import { buildHighlightMask } from './highlightMask'
 import type { RecurrencePlotSettings } from '../types'
-
-type RecurrenceFigureProps = Omit<
-  ComponentProps<typeof RecurrencePlotFigure>,
-  keyof CanvasExportProps
->
-
-/**
- * Single source of truth for "what a recurrence plot draws". Applies the
- * no-spatial-data fallback (`recurrenceMethod: 'aoi'`) so screen and export
- * agree — previously the export path skipped this fallback.
- */
-function getRecurrenceView(
-  engine: DataEngine,
-  settings: RecurrencePlotSettings
-): { props: RecurrenceFigureProps } {
-  const effectiveSettings = engine.capabilities.spatial
-    ? settings
-    : { ...settings, recurrenceMethod: 'aoi' as const }
-  const data = getRecurrenceData(engine, effectiveSettings)
-  const highlightMask = data
-    ? buildHighlightMask(
-        data.matrix,
-        data.fixationCount,
-        effectiveSettings.highlight,
-        effectiveSettings.masking,
-        effectiveSettings.minLineLength
-      )
-    : null
-  return {
-    props: {
-      data,
-      highlight: effectiveSettings.highlight,
-      masking: effectiveSettings.masking,
-      highlightMask,
-      participantId: effectiveSettings.participantId,
-    },
-  }
-}
 
 export function deriveRecurrenceView(
   engine: DataEngine,
   settings: RecurrencePlotSettings
 ): PlotView {
-  const v = getRecurrenceView(engine, settings)
-  return { component: RecurrencePlotFigure, props: v.props as Record<string, unknown> }
+  const { highlight, masking, minLineLength } = settings
+  const data = collectRecurrenceData(engine, settings)
+  const highlightMask = data
+    ? buildHighlightMask(data.matrix, data.fixationCount, highlight, masking, minLineLength)
+    : null
+  return {
+    component: RecurrencePlotFigure,
+    props: {
+      data,
+      highlight,
+      masking,
+      highlightMask,
+      participantId: settings.participantId,
+    } satisfies Omit<ComponentProps<typeof RecurrencePlotFigure>, keyof CanvasExportProps>,
+  }
 }

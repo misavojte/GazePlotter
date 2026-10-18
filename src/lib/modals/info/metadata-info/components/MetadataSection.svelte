@@ -2,10 +2,12 @@
   import type { Snippet } from 'svelte'
   import { Section } from '$lib/modals'
 
-  const { title, children } = $props<{
+  interface Props {
     title: string
     children: Snippet
-  }>()
+  }
+
+  const { title, children }: Props = $props()
 </script>
 
 <Section {title}>

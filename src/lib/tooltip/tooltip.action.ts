@@ -9,10 +9,7 @@ import {
   estimateTextWidth,
   SYSTEM_SANS_SERIF_SMALL_STACK,
 } from '$lib/shared/textMeasure'
-import {
-  computePlacement,
-  adjustForViewport,
-} from '$lib/shared/placement'
+import { placeInViewport } from '$lib/shared/placement'
 import type { Position, Alignment, Dimensions } from '$lib/shared/placement'
 import type { GazePlotterSession } from '$lib/session/session'
 
@@ -103,18 +100,7 @@ const tooltipAction = (
       width: state.width,
       height: estimateTooltipHeight(state.content, state.width),
     }
-    const preferred = computePlacement(
-      rect,
-      floatingSize,
-      state.position,
-      state.offset,
-      state.hAlign,
-      state.vAlign
-    )
-    const { left, top } = adjustForViewport(preferred, floatingSize, {
-      width: window.innerWidth,
-      height: window.innerHeight,
-    })
+    const { left, top } = placeInViewport(rect, floatingSize, state)
     tooltip()?.update({
       content: state.content,
       x: left,

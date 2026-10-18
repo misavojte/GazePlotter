@@ -58,16 +58,8 @@ describe('CSV Deserializer - Single data', () => {
 
   test('Process first segment', () => {
     const sut = new CsvRowParser(header, delim)
-    const { outputs, processRow } = createAdapterHarness(sut)
-    const row1 = csvRows[1]
-    const row2 = csvRows[2]
-    const row3 = csvRows[3]
-    const row4 = csvRows[4]
-
-    processRow(row1)
-    processRow(row2)
-    processRow(row3)
-    processRow(row4)
+    const { outputs, processRows } = createAdapterHarness(sut)
+    processRows(csvRows.slice(1, 5))
 
     const result = outputs[0]
     expect(result).toEqual({
@@ -82,19 +74,8 @@ describe('CSV Deserializer - Single data', () => {
 
   test('Process second segment', () => {
     const sut = new CsvRowParser(header, delim)
-    const { outputs, processRow } = createAdapterHarness(sut)
-
-    const row1 = csvRows[1]
-    const row2 = csvRows[2]
-    const row3 = csvRows[3]
-    const row4 = csvRows[4]
-    const row5 = csvRows[5]
-
-    processRow(row1)
-    processRow(row2)
-    processRow(row3)
-    processRow(row4)
-    processRow(row5)
+    const { outputs, processRows } = createAdapterHarness(sut)
+    processRows(csvRows.slice(1, 6))
 
     const result = outputs[1]
     expect(result).toEqual({
@@ -111,16 +92,8 @@ describe('CSV Deserializer - Single data', () => {
 
   test('Sample 2 - baseTime between segments', () => {
     const sut = new CsvRowParser(header, delim)
-    const { outputs, processRow } = createAdapterHarness(sut)
-    const csvRows2 = csvMockDataTwo.split('\n')
-    const row1 = csvRows2[1]
-    const row2 = csvRows2[2]
-    const row3 = csvRows2[3]
-    const row4 = csvRows2[4]
-    processRow(row1)
-    processRow(row2)
-    processRow(row3)
-    processRow(row4)
+    const { outputs, processRows } = createAdapterHarness(sut)
+    processRows(csvMockDataTwo.split('\n').slice(1, 5))
     const result = outputs[1]
     expect(result).toEqual({
       aoi: ['Region_4'],
@@ -134,18 +107,8 @@ describe('CSV Deserializer - Single data', () => {
 
   test('Sample 2 - no duplicity segments with 0,0', () => {
     const sut = new CsvRowParser(header, delim)
-    const { outputs, processRow } = createAdapterHarness(sut)
-    const csvRows2 = csvMockDataTwo.split('\n')
-    const row1 = csvRows2[1]
-    const row2 = csvRows2[2]
-    const row3 = csvRows2[3]
-    const row4 = csvRows2[4]
-    const row5 = csvRows2[5]
-    processRow(row1)
-    processRow(row2)
-    processRow(row3)
-    processRow(row4)
-    processRow(row5)
+    const { outputs, processRows } = createAdapterHarness(sut)
+    processRows(csvMockDataTwo.split('\n').slice(1, 6))
     expect(outputs).toHaveLength(2)
   })
 })

@@ -7,10 +7,6 @@ import {
 
 // BEWARE! If only one timestamp for whole segment, start and end are the same!
 export class CsvRowParser extends RowParser {
-  cTime: number
-  cParticipant: number
-  cStimulus: number
-  cAoi: number
   cX: number
   cY: number
 
@@ -36,22 +32,17 @@ export class CsvRowParser extends RowParser {
     encoding: 'utf-8' | 'utf-16le' | 'utf-16be' = 'utf-8'
   ) {
     super(columnDelimiter, encoding)
-    this.cTime = this.getIndex(header, 'Time')
-    this.cAoi = this.getIndex(header, 'AOI')
-    this.cParticipant = this.getIndex(header, 'Participant')
-    this.cStimulus = this.getIndex(header, 'Stimulus')
+    const required = this.requireColumns(header, [
+      'Time',
+      'AOI',
+      'Participant',
+      'Stimulus',
+    ])
     this.cX = this.findOptionalColumn(header, 'x')
     this.cY = this.findOptionalColumn(header, 'y')
     this.pipeDelimiterBytes = encodeString('|', encoding)
 
-    this.setupColumns([
-      this.cTime,
-      this.cAoi,
-      this.cParticipant,
-      this.cStimulus,
-      this.cX,
-      this.cY,
-    ])
+    this.setupColumns([...required, this.cX, this.cY])
   }
 
   protected override deserializeFromBytes(): void {
@@ -96,7 +87,7 @@ export class CsvRowParser extends RowParser {
     this.mTimeLast = time
   }
 
-  finalize(): void {
+  override finalize(): void {
     const baseTime = this.mTimeBase
     if (baseTime === null) return
     if (!this.mParticipantBytes || !this.mStimulusBytes) return

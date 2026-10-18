@@ -46,3 +46,5 @@ Use the Scanpath plot to:
 - **Analyze spatial trajectory**: See exactly where a participant looked and trace the path they took through the stimulus.
 - **Observe duration density**: Identify regions of sustained visual processing based on larger fixation circles.
 - **Verify stimulus alignment**: With reference media attached, check whether fixations land on the expected regions of the image or video, and correct offsets via the media's position mapping.
+
+> **Custom CSV time series**: That layout splits rows by AOI changes, so each plotted "fixation" is an AOI run located at its first sample. For a true scanpath, upload a segmented layout with one row per fixation. See [Custom CSV](/docs/upload-data/custom-csv/).

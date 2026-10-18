@@ -103,11 +103,13 @@ export function fillWindowFrame(
   timeStart: number,
   timeEnd: number,
 ): boolean {
-  const bounded = timeEnd > 0
+  // A Start-only range (`timeEnd` 0 = open end) is bounded too: it clips and
+  // gates like any window, it just has no upper edge.
+  const bounded = timeStart > 0 || timeEnd > 0
   const windowStart = bounded ? timeStart : 0
-  const windowEnd = bounded ? timeEnd : Number.POSITIVE_INFINITY
+  const windowEnd = timeEnd > 0 ? timeEnd : Number.POSITIVE_INFINITY
   const frameStart = Math.max(start, windowStart)
-  const frameEnd = bounded ? Math.min(end, windowEnd) : end
+  const frameEnd = Math.min(end, windowEnd)
   out.windowStart = windowStart
   out.windowEnd = windowEnd
   out.start = frameStart
@@ -117,6 +119,11 @@ export function fillWindowFrame(
   // FACT (is the midpoint inside?); the POLICY is the recipe's `windowMembership`,
   // applied by the caller — one fact per fixation, N recipes may judge it differently.
   return bounded ? (start + end) / 2 >= windowStart && (start + end) / 2 < windowEnd : true
+}
+
+/** `InitCtx.scopeDurationMs` of a scan range; `recordingEnd` closes an open end. */
+export function scopeDurationOf(timeStart: number, timeEnd: number, recordingEnd: number): number {
+  return Math.max(0, (timeEnd > 0 ? timeEnd : recordingEnd) - timeStart)
 }
 
 /**
@@ -146,7 +153,8 @@ export interface InitCtx<P> {
   /**
    * The scan's effective extent in ms — the denominator for
    * share-of-recording metrics, which a per-segment scan cannot see. Bounded
-   * scope: `timeEnd - timeStart`. Unbounded: the participant's recording
+   * scope: `timeEnd - timeStart`; Start-only: recording end minus `timeStart`
+   * (see {@link scopeDurationOf}). Unbounded: the participant's recording
    * length. Windowed: the window size (shared by every window of one run, so
    * the per-scan ctx stays shared). `0` with no segments → finalize to NaN.
    */

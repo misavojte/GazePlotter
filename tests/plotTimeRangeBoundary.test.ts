@@ -20,7 +20,7 @@
  */
 
 import { describe, it, expect } from 'vitest'
-import { makeTestEngine } from './helpers/testEngine'
+import { makeTestEngine, testInstance } from './helpers/testEngine'
 import {
   queryGroup,
   type GroupScope,
@@ -45,13 +45,7 @@ function makeEngine(perParticipantSegments: number[][][]) {
 }
 
 function inst(baseId: string, params: Record<string, unknown> = {}): MetricInstance {
-  return {
-    id: 't1',
-    baseId,
-    params,
-    label: '',
-    projection: { kind: 'identity-aoi-pair-matrix' },
-  }
+  return testInstance(baseId, { kind: 'identity-aoi-pair-matrix' }, { params })
 }
 
 // ───────────────────────── recurrence: collectFixations ─────────────────────

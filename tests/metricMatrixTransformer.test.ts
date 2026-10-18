@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { makeTestEngine, type TestEngineOptions } from './helpers/testEngine'
+import { aoiTable, makeTestEngine, type TestEngineOptions } from './helpers/testEngine'
 import { getMetricMatrixData } from '../src/lib/plots/metric-matrix/core/transformer'
 import type {
   MetricMatrixData,
@@ -35,13 +35,7 @@ function makeMetricMatrixEngine(opts: {
   const aoiData: (string[] | null)[][] = []
   const aoiOrderVector: number[][] = []
   for (let s = 0; s < Math.max(stimulusCount, 1); s++) {
-    const names = opts.aoiNamesPerStimulus?.[s] ?? ['AOI 1']
-    const data: (string[] | null)[] = [null]
-    const order: number[] = []
-    names.forEach((n, i) => {
-      data.push([n, n, '#000000'])
-      order.push(i + 1)
-    })
+    const { data, order } = aoiTable(opts.aoiNamesPerStimulus?.[s] ?? ['AOI 1'])
     aoiData.push(data)
     aoiOrderVector.push(order)
   }

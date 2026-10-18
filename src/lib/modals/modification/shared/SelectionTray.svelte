@@ -70,12 +70,12 @@
     {
       label: `Add ${session.selectedCount} selected`,
       disabled: !chip.addable,
-      onAction: () => session.addSelectedTo(chip.id),
+      onAction: () => session.foldSelected(chip.id, true),
     },
     {
       label: `Remove ${session.selectedCount} selected`,
       disabled: !chip.removable,
-      onAction: () => session.removeSelectedFrom(chip.id),
+      onAction: () => session.foldSelected(chip.id, false),
     },
   ]
 

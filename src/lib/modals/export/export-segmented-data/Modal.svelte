@@ -2,7 +2,6 @@
   import { Select } from '$lib/shared/components'
   import {
     CheckboxListField,
-    ModalButtons,
     Step,
     StepList,
     HelpText,
@@ -12,27 +11,21 @@
   import { getGazePlotterSession } from '$lib/session'
   import { getAllCategories } from '$lib/data/engine'
   import {
-    createExportButtons,
     CSV_DECIMAL_SEPARATOR_OPTIONS,
     CSV_DELIMITER_OPTIONS,
     EXPORT_NAMING_OPTIONS,
     EXPORT_TYPE_OPTIONS,
     exportTypeNamingSummary,
-    withExportBusy,
     listSummary,
     toggleSetValue,
   } from '../shared/helpers'
   import ExportShell from '../shared/ExportShell.svelte'
-  import ExportProgressBar from '../shared/ExportProgressBar.svelte'
-  import StimuliSelect from '../shared/StimuliSelect.svelte'
-  import ParticipantsSelect from '../shared/ParticipantsSelect.svelte'
-  import { defaultStimulusSelection, stimuliSelectionSummary } from '../shared/stimuli'
-  import {
-    defaultParticipantSelection,
-    participantsSelectionSummary,
-  } from '../shared/participants'
+  import StimuliStep from '../shared/StimuliStep.svelte'
+  import ParticipantsStep from '../shared/ParticipantsStep.svelte'
+  import { defaultStimulusSelection } from '../shared/stimuli'
+  import { defaultParticipantSelection } from '../shared/participants'
 
-  const { engine, exportService, modalState } = getGazePlotterSession()
+  const { engine, exportService } = getGazePlotterSession()
   const fileName = 'GazePlotter-SegmentedData'
   let exportType = $state('csv')
   let delimiter = $state(',')
@@ -44,21 +37,13 @@
   const allCategories = getAllCategories(engine)
   let selectedCategoryIds = $state<Set<number>>(new Set(allCategories.map(c => c.id)))
 
-  let isExporting = $state(false)
-
   const hasSpatialData = $derived(engine.capabilities.spatial)
 
-  const stepStimuliDone = $derived(selectedStimuliIds.size > 0)
-  const stepParticipantsDone = $derived(selectedParticipantIds.size > 0)
   const stepCategoriesDone = $derived(selectedCategoryIds.size > 0)
-  const canExport = $derived(stepStimuliDone && stepParticipantsDone && stepCategoriesDone)
+  const canExport = $derived(
+    selectedStimuliIds.size > 0 && selectedParticipantIds.size > 0 && stepCategoriesDone
+  )
 
-  const stimuliSummary = $derived(
-    stimuliSelectionSummary(engine, selectedStimuliIds)
-  )
-  const participantsSummary = $derived(
-    participantsSelectionSummary(engine, selectedParticipantIds)
-  )
   const categoriesSummary = $derived(
     listSummary(
       selectedCategoryIds.size,
@@ -83,69 +68,33 @@
     selectedCategoryIds = toggleSetValue(selectedCategoryIds, parseInt(key, 10), checked)
   }
 
-  const handleExport = async () => {
-    if (!canExport) return
-
-    await withExportBusy(
-      val => (isExporting = val),
-      () =>
-        exportService.exportSegmentedData({
-          fileName,
-          exportType: exportType as 'csv' | 'individual-csv',
-          stimulusIds: selectedStimuliIds,
-          participantIds: selectedParticipantIds,
-          filterCategoryIds: selectedCategoryIds,
-          naming,
-          csvOptions: {
-            delimiter,
-            decimalSeparator,
-          },
-        })
-    )
-  }
-
-  const exportButtons = $derived(
-    createExportButtons({
-      canExport,
-      exportLabel: 'Export Data',
-      isExporting,
-      onCancel: () => modalState.close(),
-      onExport: handleExport,
+  const handleExport = () =>
+    exportService.exportSegmentedData({
+      fileName,
+      exportType: exportType as 'csv' | 'individual-csv',
+      stimulusIds: selectedStimuliIds,
+      participantIds: selectedParticipantIds,
+      filterCategoryIds: selectedCategoryIds,
+      naming,
+      csvOptions: {
+        delimiter,
+        decimalSeparator,
+      },
     })
-  )
 </script>
 
 <ExportShell
   intro="Export eye-tracking segments with timing, movement classifications, and AOI information."
+  {canExport}
+  onExport={handleExport}
 >
   <StepList>
-    <Step
+    <StimuliStep
       n={1}
-      title="Choose stimuli"
       description="Each selected stimulus contributes its segments to the export."
-      summary={stimuliSummary}
-      done={stepStimuliDone}
-    >
-      <StimuliSelect
-        selected={selectedStimuliIds}
-        onchange={next => (selectedStimuliIds = next)}
-        hasError={!stepStimuliDone}
-      />
-    </Step>
-
-    <Step
-      n={2}
-      title="Choose participants"
-      description="Selection chips toggle a whole participant selection at once; individual checkmarks refine the result."
-      summary={participantsSummary}
-      done={stepParticipantsDone}
-    >
-      <ParticipantsSelect
-        selected={selectedParticipantIds}
-        onchange={next => (selectedParticipantIds = next)}
-        hasError={!stepParticipantsDone}
-      />
-    </Step>
+      bind:selected={selectedStimuliIds}
+    />
+    <ParticipantsStep n={2} bind:selected={selectedParticipantIds} />
 
     <Step
       n={3}
@@ -215,8 +164,4 @@
       </HelpText>
     </Step>
   </StepList>
-
-  <ExportProgressBar progress={exportService.progress} />
-
-  <ModalButtons buttons={exportButtons} />
 </ExportShell>

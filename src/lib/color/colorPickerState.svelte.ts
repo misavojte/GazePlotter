@@ -1,9 +1,5 @@
 import { tick } from 'svelte'
-import {
-  computePlacement,
-  adjustForViewport,
-  attachOutsideDismiss,
-} from '$lib/shared/placement'
+import { placeInViewport, attachOutsideDismiss } from '$lib/shared/placement'
 
 /**
  * Manages the state and positioning logic for a color picker popup.
@@ -44,17 +40,11 @@ export class ColorPickerState {
     const popupHeight = this.popupElement?.offsetHeight ?? 0
     const floatingSize = { width: popupWidth, height: popupHeight }
 
-    const preferred = computePlacement(
-      triggerRect,
-      floatingSize,
-      'bottom',
-      5,
-      'start',
-      'start'
-    )
-    const { left, top } = adjustForViewport(preferred, floatingSize, {
-      width: window.innerWidth,
-      height: window.innerHeight,
+    const { left, top } = placeInViewport(triggerRect, floatingSize, {
+      position: 'bottom',
+      offset: 5,
+      hAlign: 'start',
+      vAlign: 'start',
     })
 
     this.position = { top, left }

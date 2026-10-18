@@ -8,6 +8,7 @@
   } from '$lib/plots/registry'
   import PlotContainer from '$lib/plots/shared/components/PlotContainer.svelte'
   import { getGazePlotterSession } from '$lib/session'
+  import { getDebugMessage } from '$lib/errors'
   import { generateUniqueId } from '$lib/shared/uniqueId'
   import type { AllGridTypes } from '$lib/workspace'
   import type { GridConfig } from './types'
@@ -183,20 +184,6 @@
     }
   }
 
-  function getPlotErrorMessage(error: unknown): string {
-    if (error instanceof Error && error.message.trim().length > 0) {
-      return error.message
-    }
-
-    if (typeof error === 'string' && error.trim().length > 0) {
-      return error
-    }
-
-    return 'Unknown rendering error'
-  }
-
-
-
   function reportPlotRenderError(
     item: AllGridTypes,
     plotName: string,
@@ -269,7 +256,7 @@
                       is still available.
                     </p>
                     <p class="plot-error-detail">
-                      {getPlotErrorMessage(error)}
+                      {getDebugMessage(error, 'Unknown rendering error')}
                     </p>
                     <Button
                       size="sm"

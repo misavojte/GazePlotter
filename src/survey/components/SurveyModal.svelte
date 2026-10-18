@@ -174,17 +174,6 @@
           <div class:hidden={currentStep !== 'ueqs'}>
             <UEQSSurvey
               initialValues={surveyState.ueqsResults}
-              onComplete={results => {
-                surveyState.ueqsResults = results
-                surveyState.ueqsComplete = true
-              }}
-              onCompletionChange={(complete, results) => {
-                surveyState.ueqsComplete = complete
-                // Always save results to preserve partial progress
-                if (results) {
-                  surveyState.ueqsResults = results
-                }
-              }}
               onValueChange={(results, complete) => {
                 surveyState.ueqsComplete = complete
                 // Always save results, even when incomplete, to preserve partial progress
@@ -198,18 +187,9 @@
           <div class:hidden={currentStep !== 'eye-tracking'}>
             <SingleChoiceQuestion
               instructions="How long have you worked with eye-tracking?"
-              options={[
-                EyeTrackingExperience.LESS_THAN_6_MONTHS,
-                EyeTrackingExperience.SIX_TO_TWELVE_MONTHS,
-                EyeTrackingExperience.ONE_TO_TWO_YEARS,
-                EyeTrackingExperience.THREE_TO_FIVE_YEARS,
-                EyeTrackingExperience.MORE_THAN_5_YEARS,
-              ]}
+              options={Object.values(EyeTrackingExperience)}
               initialValue={surveyState.eyeTrackingResults?.experience}
-              onComplete={value => {
-                surveyState.eyeTrackingValue = value
-              }}
-              onValueChange={(value, complete) => {
+              onValueChange={value => {
                 surveyState.eyeTrackingValue = value
               }}
             />
@@ -220,10 +200,7 @@
               instructions="(i) One thing you liked, (ii) one thing you disliked, and (iii) any other comment. Write as much or as little as you wish."
               placeholder="Share your thoughts here..."
               initialValue={surveyState.feedbackText}
-              onComplete={value => {
-                surveyState.feedbackValue = value
-              }}
-              onValueChange={(value, complete) => {
+              onValueChange={value => {
                 surveyState.feedbackValue = value
               }}
             />

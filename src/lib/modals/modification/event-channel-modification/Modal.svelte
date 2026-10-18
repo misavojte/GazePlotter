@@ -131,11 +131,6 @@
     { label: 'Color', width: '40px', type: 'color' as const, align: 'center' as const },
   ]
 
-  const SORT_COLUMNS = [
-    { label: 'Original name', column: 'originalName' },
-    { label: 'Displayed name', column: 'displayedName' },
-  ]
-
   const handleApply = () => {
     // Selections commit through the SAME map the session displayed — resolve
     // BEFORE the channel command rebuilds the open-name baseline. No pruning.
@@ -172,7 +167,6 @@
       title="Event channels"
       emptyMessage="No event channels found in stimulus"
       columns={COLUMNS}
-      sortColumns={SORT_COLUMNS}
       onSort={editor.sort}
       onReorder={session.handleReorder}
       onRename={editor.renameAll}

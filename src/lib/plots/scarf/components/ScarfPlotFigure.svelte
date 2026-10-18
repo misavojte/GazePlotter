@@ -2,8 +2,8 @@
   import {
     alignToPixelCenter,
     markCrosshairStrips,
+    rowStrips,
     strokeCrosshairGuides,
-    type HighlightRect,
   } from '$lib/plots/shared/canvasUtils'
   import {
     computeGroupedLegendGeometry,
@@ -28,6 +28,7 @@
     PLOT_LEGEND_GAP,
     cannotFitPlaceholder,
     resolveFrameLayout,
+    trackOnlyHit,
   } from '$lib/plots/shared'
   import {
     cursorGuides,
@@ -61,7 +62,7 @@
     drawScarfLabels,
     type ScarfLayoutContext,
   } from '../core/renderer'
-  import type { ScarfData, ScarfPlotSettings } from '../types'
+  import type { ScarfData, ScarfPlotSettings, ScarfStyleItem } from '../types'
 
   // `width`/`height` are the standard total-canvas sizing props (CanvasExportProps),
   // matching every other figure — the on-screen grid cell or the export dimensions.
@@ -292,35 +293,24 @@
     rowIds: () => participantIds,
   })
 
-  const identifierSystem = $derived.by(() => {
-    if (!data.stylingAndLegend)
-      return { idToIndex: new Map(), indexToId: new Map(), idToType: new Map(), totalIdentifiers: 0 }
-    return getScarfIdentifierSystem(
-      data.stylingAndLegend.aoi.map(i => i.identifier),
-      data.stylingAndLegend.category.map(i => i.identifier),
-      data.stylingAndLegend.event.map(i => i.identifier)
-    )
-  })
+  const styling = $derived(data.stylingAndLegend)
+  const identifierSystem = $derived(getScarfIdentifierSystem(styling))
 
-  const rectStyleMap = $derived.by(() => {
-    const map = new Map()
-    if (!data.stylingAndLegend) return map
-    for (const style of [...data.stylingAndLegend.aoi, ...data.stylingAndLegend.category]) {
-      const baseStyle = { fill: style.color }
-      map.set(style.identifier, { normal: baseStyle, dimmed: { ...baseStyle, opacity: 0.15 } })
+  // One normal + dimmed (0.15 opacity) style per identifier.
+  function styleMap<S extends object>(items: ScarfStyleItem[], base: (color: string) => S) {
+    const map = new Map<string, { normal: S; dimmed: S & { opacity: number } }>()
+    for (const { identifier, color } of items) {
+      const normal = base(color)
+      map.set(identifier, { normal, dimmed: { ...normal, opacity: 0.15 } })
     }
     return map
-  })
-
-  const eventStyleMap = $derived.by(() => {
-    const map = new Map()
-    if (!data.stylingAndLegend) return map
-    for (const style of data.stylingAndLegend.event) {
-      const baseStyle = { fill: style.color, stroke: style.color, strokeWidth: 1 }
-      map.set(style.identifier, { normal: baseStyle, dimmed: { ...baseStyle, opacity: 0.15 } })
-    }
-    return map
-  })
+  }
+  const rectStyleMap = $derived(
+    styleMap(styling ? [...styling.aoi, ...styling.category] : [], color => ({ fill: color }))
+  )
+  const eventStyleMap = $derived(
+    styleMap(styling?.event ?? [], color => ({ fill: color, stroke: color, strokeWidth: 1 }))
+  )
 
   const highlightMaskByIndex = $derived(calculateHighlightMask(highlights, identifierSystem))
 
@@ -413,38 +403,14 @@
   // early return.
   function drawScarfOverlay(ctx: CanvasRenderingContext2D) {
     drawTimeGuides(ctx, rowBand, cursorGuide.xs)
-    const rects: HighlightRect[] = []
-    for (const row of cursorGuide.rows) {
-      rects.push({
-        x: rowBand.x,
-        y: rowY(row),
-        width: rowBand.width,
-        height: layout.heightOfBarWrap,
-        alpha: 0.2,
-        along: 'x',
-      })
-    }
     const hover = plot.hover.data
-    if (hover) {
-      rects.push({
-        x: rowBand.x,
-        y: rowY(hover.row),
-        width: rowBand.width,
-        height: layout.heightOfBarWrap,
-        alpha: 0.2,
-        along: 'x',
-      })
-    }
-    if (rects.length > 0) {
-      markCrosshairStrips(ctx, rects)
-    }
+    const rows = hover ? [...cursorGuide.rows, hover.row] : cursorGuide.rows
+    markCrosshairStrips(ctx, rowStrips(rows, rowBand, layout.heightOfBarWrap, 0.2))
     if (hover) {
       const x = alignToPixelCenter(hover.x)
       strokeCrosshairGuides(ctx, [x, rowBand.y, x, rowBand.y + rowBand.height])
     }
   }
-
-  const rowY = (row: number) => rowBand.y + row * layout.heightOfBarWrap
 
   function isMouseOverLegendItem(mouseX: number, mouseY: number): LegendItemGeometry | null {
     if (!data.stylingAndLegend || !legendGeometry.items.length) return null
@@ -490,15 +456,8 @@
     }
 
     const seg = findSegmentAtRowAndTime(row, mx, frame)
-    if (!seg) {
-      // Track-only hit: crosshair follows the mouse, no tooltip.
-      return {
-        content: [],
-        anchorX: mx,
-        anchorY: my,
-        data: { row, x: mx },
-      }
-    }
+    // Track-only hit: crosshair follows the mouse, no tooltip.
+    if (!seg) return trackOnlyHit({ row, x: mx })
 
     return {
       content: getTooltipContent(seg.participantId as number, seg.orderId),

@@ -5,7 +5,7 @@
  * Designed to be plot-agnostic.
  */
 
-import { strokeCrispRect } from '$lib/plots/shared/canvasUtils'
+import { strokeCrispRect, strokeParallelLines } from '$lib/plots/shared/canvasUtils'
 
 // ============================================================================
 // TYPES
@@ -316,16 +316,30 @@ export function computeGradientLegendGeometry(
 // DRAWING
 // ============================================================================
 
-/** One out-of-bounds end cap: a solid fill with the same crisp border as the bar. */
-function fillCapRect(ctx: CanvasRenderingContext2D, rect: LegendRect, color: string): void {
+/** The bar or an out-of-bounds end cap: a fill with the crisp legend border. */
+function fillCapRect(ctx: CanvasRenderingContext2D, rect: LegendRect, fill: string | CanvasGradient): void {
   // Quantize to integers so the fill matches the strokeCrispRect border exactly.
   const x = rect.x | 0
   const y = rect.y | 0
   const w = rect.width | 0
   const h = rect.height | 0
-  ctx.fillStyle = color
+  ctx.fillStyle = fill
   ctx.fillRect(x, y, w, h)
   strokeCrispRect(ctx, x, y, w, h, GRIDLINE_PRIMARY.COLOR, 1)
+}
+
+/** A bordered left-to-right gradient bar; evenly spaced stops (one colour: it to black). */
+export function drawGradientBar(ctx: CanvasRenderingContext2D, rect: LegendRect, colors: readonly string[]): void {
+  const x = rect.x | 0
+  const gradient = ctx.createLinearGradient(x, 0, x + (rect.width | 0), 0)
+  if (colors.length >= 2) {
+    const last = colors.length - 1
+    for (let i = 0; i <= last; i++) gradient.addColorStop(i / last, colors[i])
+  } else {
+    gradient.addColorStop(0, colors[0] || COLOR_FALLBACKS.WHITE)
+    gradient.addColorStop(1, COLOR_FALLBACKS.BLACK)
+  }
+  fillCapRect(ctx, rect, gradient)
 }
 
 /**
@@ -351,31 +365,8 @@ export function drawGradientLegend(
     }
   }
 
-  // 2. Draw Gradient Bar
-  // Quantize coordinates to integers to avoid subpixel rendering artifacts
-  // and ensure the fill perfectly matches the strokeCrispRect behavior.
-  const gx = gradientRect.x | 0
-  const gy = gradientRect.y | 0
-  const gw = gradientRect.width | 0
-  const gh = gradientRect.height | 0
-
-  const gradient = ctx.createLinearGradient(gx, 0, gx + gw, 0)
-
-  if (colorScale.length === 3) {
-    gradient.addColorStop(0, colorScale[0])
-    gradient.addColorStop(0.5, colorScale[1])
-    gradient.addColorStop(1, colorScale[2])
-  } else {
-    gradient.addColorStop(0, colorScale[0] || COLOR_FALLBACKS.WHITE)
-    gradient.addColorStop(1, colorScale[1] || COLOR_FALLBACKS.BLACK)
-  }
-
-  ctx.fillStyle = gradient
-  ctx.fillRect(gx, gy, gw, gh)
-
-  // Border
-  // strokeCrispRect handles the +0.5 offset internally using (val | 0)
-  strokeCrispRect(ctx, gx, gy, gw, gh, GRIDLINE_PRIMARY.COLOR, 1)
+  // 2. Draw Gradient Bar (the 2/3-stop palettes, or a sampled ramp of any length)
+  drawGradientBar(ctx, gradientRect, colorScale)
 
   // 2b. Out-of-bounds end caps
   if (belowMinRect && geometry.belowMinColor) fillCapRect(ctx, belowMinRect, geometry.belowMinColor)
@@ -395,26 +386,12 @@ export function drawGradientLegend(
       ctx.fillText(labels.max.text, labels.max.x, labels.max.y)
     }
 
-    // 4. Draw down-ticks at interval edges
-    const tickLen = 5
+    // 4. Draw down-ticks at both ends of the gradient bar
     const tickY1 = (gradientRect.y + gradientRect.height) | 0
-    const tickY2 = tickY1 + tickLen
+    const edges = [gradientRect.x | 0, (gradientRect.x + gradientRect.width) | 0]
     ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
     ctx.lineWidth = 1
-
-    // Always draw tick at the start of the gradient bar
-    const startX = gradientRect.x | 0
-    ctx.beginPath()
-    ctx.moveTo(startX + 0.5, tickY1)
-    ctx.lineTo(startX + 0.5, tickY2)
-    ctx.stroke()
-
-    // Draw tick at the end of the gradient bar
-    const endX = (gradientRect.x + gradientRect.width) | 0
-    ctx.beginPath()
-    ctx.moveTo(endX + 0.5, tickY1)
-    ctx.lineTo(endX + 0.5, tickY2)
-    ctx.stroke()
+    strokeParallelLines(ctx, false, 2, i => edges[i] + 0.5, tickY1, tickY1 + 5)
   }
 }
 

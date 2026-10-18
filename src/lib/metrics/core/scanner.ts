@@ -1,11 +1,9 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { SEGMENT_STRIDE, SegmentField } from '$lib/data/binary'
 import { buildAoiSlots } from './aoiSlots'
-import { resolveParams } from './params'
-import { projectionSummaryStatistic } from './projection'
 import { getRecipe } from './defineMetric'
-import { fillWindowFrame } from './dsl'
-import { cacheGetRaw, cacheSetRaw, makeScanCursor, runSingleWindow } from './runtime'
+import { fillWindowFrame, scopeDurationOf } from './dsl'
+import { cacheGetRaw, cacheSetRaw, makeScanCursor, runSingleWindow, scanCtx } from './runtime'
 import type { InitCtx, MetricRecipe } from './dsl'
 import type { MetricInstance } from '../instances'
 
@@ -28,10 +26,11 @@ export function scanBatch(
   const slots = buildAoiSlots(engine, stimulusId, aoiSelectionId)
   if (!slots) return new Map()
   // One scan, one extent, shared by every instance's ctx.
-  const scopeDurationMs =
-    timeEnd > 0
-      ? timeEnd - timeStart
-      : slots.reader.getParticipantEndTime(stimulusId, participantId)
+  const scopeDurationMs = scopeDurationOf(
+    timeStart,
+    timeEnd,
+    slots.reader.getParticipantEndTime(stimulusId, participantId)
+  )
 
   type ActiveInstance = {
     inst: MetricInstance
@@ -69,20 +68,13 @@ export function scanBatch(
       results.set(inst.id, cached)
       continue
     }
-    const params = resolveParams(recipe.params, inst.params)
     // axisSlotCount 0: axis-scanning recipes were delegated above, so nothing
     // here indexes a per-type or per-channel vector. The summary statistic,
     // though, is NOT constant across the batch — the aoi-vector duration
     // metrics summarize samples too, and a `pick-aoi · median` instance must
     // collapse by median here exactly as on the single path, or it poisons
     // the statistic-keyed raw cache.
-    const ctx = {
-      params,
-      slots,
-      scopeDurationMs,
-      axisSlotCount: 0,
-      summaryStatistic: projectionSummaryStatistic(inst.projection),
-    }
+    const ctx = scanCtx(recipe, inst, slots, scopeDurationMs, 0)
     active.push({
       inst, onFixation, finalize, acc: init(ctx), ctx,
       ownWindowOnly: recipe.windowMembership === 'own',

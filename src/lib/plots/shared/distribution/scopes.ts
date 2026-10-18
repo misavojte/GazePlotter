@@ -1,6 +1,6 @@
 import { getParticipant, getParticipantsIds } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import type { DistributionAxis } from './types'
+import type { DistributionAxis, DistributionSlot } from './types'
 
 /**
  * The participant dimension every comparison axis shares: one Scope and one
@@ -40,3 +40,7 @@ export function distributionParticipants(
     ),
   }
 }
+
+/** One slot per entity, labelled with its displayed name. */
+export const entitySlots = (entities: readonly { slot: number; displayedName: string; color: string }[]): DistributionSlot[] =>
+  entities.map(e => ({ slot: e.slot, label: e.displayedName, color: e.color }))

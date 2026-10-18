@@ -13,16 +13,19 @@
   const CONSENT_WITHDRAW_EMAIL = 'mail@vojtechovska.com'
   const DECLINE_REDIRECT_URL = 'https://www.eyetracking.upol.cz'
 
-  let over18 = $state(false)
-  let readInfo = $state(false)
-  let agreeToParticipate = $state(false)
+  const CONSENT_ITEMS = [
+    'I confirm I am 18 years or older.',
+    'I have read and understood this information.',
+    'I agree to participate in the study.',
+  ]
+  let checked = $state(CONSENT_ITEMS.map(() => false))
 
   /**
    * Handles user consent and resolves the modal.
    * Only proceeds if all three checkboxes are checked
    */
   const handleConsent = () => {
-    if (!over18 || !readInfo || !agreeToParticipate) return
+    if (checked.includes(false)) return
     modalState.finish(true)
   }
 
@@ -187,39 +190,23 @@
     >
   </p>
 
-  <div class="mt-2">
-    <InputCheck
-      label="I confirm I am 18 years or older."
-      checked={over18}
-      onchange={event => {
-        over18 = event.detail
-      }}
-    />
-  </div>
-  <div class="mt-1">
-    <InputCheck
-      label="I have read and understood this information."
-      checked={readInfo}
-      onchange={event => {
-        readInfo = event.detail
-      }}
-    />
-  </div>
-  <div class="mt-1">
-    <InputCheck
-      label="I agree to participate in the study."
-      checked={agreeToParticipate}
-      onchange={event => {
-        agreeToParticipate = event.detail
-      }}
-    />
-  </div>
+  {#each CONSENT_ITEMS as label, i}
+    <div class:mt-2={i === 0} class:mt-1={i > 0}>
+      <InputCheck
+        {label}
+        checked={checked[i]}
+        onchange={event => {
+          checked[i] = event.detail
+        }}
+      />
+    </div>
+  {/each}
 
   <div class="button-container">
     <Button
       variant="primary"
       onclick={handleConsent}
-      isDisabled={!over18 || !readInfo || !agreeToParticipate}
+      isDisabled={checked.includes(false)}
     >
       Start the study
     </Button>

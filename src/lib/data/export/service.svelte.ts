@@ -5,15 +5,15 @@ import type { GridState } from '$lib/workspace/grid/gridState.svelte'
 import type { IngestService } from '$lib/data/ingest'
 import type { ToastState } from '$lib/toaster/toastState.svelte'
 import {
-  buildBatchZip,
-  buildEventBatchZip,
-  buildEventUnifiedCsv,
   buildScanGraph,
-  buildUnifiedCsv,
+  buildTabularExport,
   buildWorkspace,
   type ExportPayload,
 } from './controller'
+import { generateMetadataForBatchCsv, generateUnifiedCsv } from './mappers/segments'
+import { generateEventBatchCsv, generateEventUnifiedCsv } from './mappers/events'
 import type { CsvFormatOptions } from './encoders/csv'
+import { writeBlobZip } from '$lib/data/zip/blobZip'
 import { unfoldMerges } from '$lib/data/merge/applyMerges'
 import { getStimulus } from '$lib/data/engine'
 import type { ExportNaming } from './types'
@@ -172,11 +172,12 @@ export class ExportService {
       'fileName' | 'exportType' | 'stimulusIds' | 'participantIds' | 'naming'
     >,
     context: Record<string, unknown>,
-    build: (
+    kind: '' | 'event ',
+    unified: (data: DataType, naming: ExportNaming) => string,
+    batch: (
       data: DataType,
-      fileName: string,
       naming: ExportNaming
-    ) => Promise<ExportPayload>
+    ) => Array<{ fileName: string; content: string }>
   ): Promise<boolean> {
     return this.runExport(
       async () => {
@@ -188,10 +189,16 @@ export class ExportService {
         }
         const data = this.getExportData()
         const fileName = this.resolveFileName(options.fileName)
-        this.deliver(
-          await build(data, fileName, options.naming ?? 'displayed'),
-          fileName
+        const naming = options.naming ?? 'displayed'
+        const payload = await buildTabularExport(
+          options.exportType,
+          fileName,
+          kind,
+          () => unified(data, naming),
+          () => batch(data, naming),
+          this.track
         )
+        this.deliver(payload, fileName)
       },
       options.exportType === 'csv'
         ? 'Single CSV file exported successfully'
@@ -201,6 +208,8 @@ export class ExportService {
   }
 
   async exportSegmentedData(options: SegmentedExportOptions): Promise<boolean> {
+    const { stimulusIds, participantIds, filterCategoryIds, csvOptions } = options
+    const args = [stimulusIds, participantIds, filterCategoryIds, csvOptions] as const
     return this.exportCsvOrZip(
       options,
       {
@@ -213,31 +222,14 @@ export class ExportService {
           : undefined,
         naming: options.naming ?? 'displayed',
       },
-      (data, fileName, naming) =>
-        options.exportType === 'csv'
-          ? buildUnifiedCsv(
-              data,
-              options.stimulusIds,
-              options.participantIds,
-              options.filterCategoryIds,
-              options.csvOptions,
-              naming,
-              this.track
-            )
-          : buildBatchZip(
-              data,
-              fileName,
-              options.stimulusIds,
-              options.participantIds,
-              options.filterCategoryIds,
-              options.csvOptions,
-              naming,
-              this.track
-            )
+      '',
+      (data, naming) => generateUnifiedCsv(data, ...args, naming),
+      (data, naming) => generateMetadataForBatchCsv(data, ...args, naming)
     )
   }
 
   async exportEventData(options: EventExportOptions): Promise<boolean> {
+    const args = [options.stimulusIds, options.participantIds, options.csvOptions] as const
     return this.exportCsvOrZip(
       options,
       {
@@ -247,25 +239,9 @@ export class ExportService {
         participantCount: options.participantIds.size,
         naming: options.naming ?? 'displayed',
       },
-      (data, fileName, naming) =>
-        options.exportType === 'csv'
-          ? buildEventUnifiedCsv(
-              data,
-              options.stimulusIds,
-              options.participantIds,
-              options.csvOptions,
-              naming,
-              this.track
-            )
-          : buildEventBatchZip(
-              data,
-              fileName,
-              options.stimulusIds,
-              options.participantIds,
-              options.csvOptions,
-              naming,
-              this.track
-            )
+      'event ',
+      (data, naming) => generateEventUnifiedCsv(data, ...args, naming),
+      (data, naming) => generateEventBatchCsv(data, ...args, naming)
     )
   }
 
@@ -304,13 +280,8 @@ export class ExportService {
           return
         }
 
-        const { Archiver } = await import('./encoders/zip')
-        const archiver = new Archiver()
-        for (const file of options.files) {
-          archiver.addFile(file.name, file.content)
-        }
-        const zipBlob = await archiver.generateBlob()
-        this.deliver({ content: zipBlob, extension: '.zip' }, fileName)
+        const { blob } = await writeBlobZip(options.files)
+        this.deliver({ content: blob, extension: '.zip' }, fileName)
       },
       () => {
         const count = options.files.length
@@ -370,12 +341,11 @@ export class ExportService {
       exportedRows = result.rows
 
       if (options.includeCodebook && result.codebookContent !== null) {
-        const { Archiver } = await import('./encoders/zip')
-        const archiver = new Archiver()
-        archiver.addFile(`${fileName}.csv`, result.dataContent)
-        archiver.addFile(`${fileName}-codebook.csv`, result.codebookContent)
-        const zipBlob = await archiver.generateBlob()
-        this.deliver({ content: zipBlob, extension: '.zip' }, fileName)
+        const { blob } = await writeBlobZip([
+          { name: `${fileName}.csv`, content: result.dataContent },
+          { name: `${fileName}-codebook.csv`, content: result.codebookContent },
+        ])
+        this.deliver({ content: blob, extension: '.zip' }, fileName)
       } else {
         this.deliver({ content: result.dataContent, extension: '.csv' }, fileName)
       }

@@ -16,7 +16,7 @@ Each stimulus is a row showing its original name, an editable **Displayed name**
 
 ## Reference media
 
-Each stimulus can carry one reference image or video, drawn behind gaze data as the [Scanpath](/docs/visualizations/scanpath/) background. The **Media** button at the end of a row shows the state: an outlined button means no media, a filled button means media is attached. Click it to open the **Reference Media** dialog.
+Each stimulus can carry one reference image or video, drawn behind gaze data as the [Scanpath](/docs/visualizations/scanpath/) background. The [Fixation Heatmap](/docs/visualizations/fixation-heatmap/) draws an image under its map; a video only sets its frame. The **Media** button at the end of a row shows the state: an outlined button means no media, a filled button means media is attached. Click it to open the **Reference Media** dialog.
 
 - **No media yet**: Click **Choose image or video…** to attach a file. Media files included in an Upload data selection attach automatically when named after a stimulus; unmatched files prompt for manual assignment.
 - **Media attached**: The dialog shows the file details and a **Replace…** button. A replacement keeps the current position and width; its height follows the new file's proportions. **Remove media** detaches the file.

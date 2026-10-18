@@ -4,7 +4,6 @@
   import ChevronRight from 'lucide-svelte/icons/chevron-right'
   import { InputNumber, Select, ButtonPreset } from '$lib/shared/components'
   import {
-    ModalButtons,
     CheckboxListField,
     Step,
     StepList,
@@ -22,17 +21,14 @@
     type ExportFileType,
   } from '$lib/data/export'
   import {
-    createExportButtons,
     listSummary,
     mapSelectableItems,
     toggleSetValue,
-    withExportBusy,
     DEFAULT_CANVAS_EXPORT_MARGIN,
     DPI_PRESET_OPTIONS,
     IMAGE_TYPE_OPTIONS,
   } from '../shared/helpers'
   import ExportShell from '../shared/ExportShell.svelte'
-  import ExportProgressBar from '../shared/ExportProgressBar.svelte'
   import FigureRenderHost from './FigureRenderHost.svelte'
   import FigurePreview from './FigurePreview.svelte'
   import type { PlotExportProps } from './types'
@@ -51,8 +47,7 @@
   }
 
   let { itemIds }: Props = $props()
-  const { engine, exportService, errorService, grid, modalState } =
-    getGazePlotterSession()
+  const { engine, exportService, errorService, grid } = getGazePlotterSession()
 
   // Reading order (top-to-bottom, left-to-right) — the order figures are
   // numbered in the archive.
@@ -77,7 +72,6 @@
   let fileType = $state<ExportFileType>('.png')
   let dpi = $state(300)
   let margin = $state(DEFAULT_CANVAS_EXPORT_MARGIN)
-  let isExporting = $state(false)
 
   function subtitleValues(item: AllGridTypes): string[] {
     const parts = getPlotSubtitle(item, engine) ?? []
@@ -184,25 +178,14 @@
     })
   }
 
-  // Exporting off implies no in-flight progress or render job.
-  const setExporting = (exporting: boolean) => {
-    isExporting = exporting
-    if (!exporting) {
-      exportProgress = null
-      renderJob = null
-    }
-  }
-
   const handleExport = async () => {
-    if (!canExport || isExporting) return
-
     const items = selectedItemsInOrder
     const fileName = exportFileName
     const mimeType = getMimeType(fileType)
     const quality = getQuality(fileType)
     const files: Array<{ name: string; content: Blob }> = []
 
-    await withExportBusy(setExporting, async () => {
+    try {
       for (let i = 0; i < items.length; i++) {
         if (cancelled) return
         const item = items[i]
@@ -259,22 +242,26 @@
         files,
         requestedCount: items.length,
       })
-    })
+    } finally {
+      // Exporting off implies no in-flight progress or render job.
+      exportProgress = null
+      renderJob = null
+    }
   }
-
-  const exportButtons = $derived(
-    createExportButtons({
-      canExport,
-      exportLabel: `Export ${selectedItemsInOrder.length === 1 ? 'Figure' : `${selectedItemsInOrder.length} Figures`}`,
-      isExporting,
-      onCancel: () => modalState.close(),
-      onExport: handleExport,
-    })
-  )
 </script>
 
 <ExportShell
   intro="Export workspace figures as publication-ready images. A single figure downloads directly; several bundle into a ZIP archive."
+  {canExport}
+  exportLabel={`Export ${selectedItemsInOrder.length === 1 ? 'Figure' : `${selectedItemsInOrder.length} Figures`}`}
+  onExport={handleExport}
+  progress={exportProgress
+    ? {
+        position: exportProgress.position,
+        total: exportProgress.total,
+        name: `Rendering figure ${exportProgress.name}`,
+      }
+    : null}
 >
   <StepList>
     <Step
@@ -377,18 +364,6 @@
       {/if}
     </Step>
   </StepList>
-
-  <ExportProgressBar
-    progress={exportProgress
-      ? {
-          position: exportProgress.position,
-          total: exportProgress.total,
-          name: `Rendering figure ${exportProgress.name}`,
-        }
-      : null}
-  />
-
-  <ModalButtons buttons={exportButtons} />
 </ExportShell>
 
 {#if renderJob}

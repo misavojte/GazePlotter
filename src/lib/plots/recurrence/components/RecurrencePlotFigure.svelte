@@ -3,13 +3,16 @@
     usePlot,
     categoryTicks,
     canvasBlockSelect,
-    createScratchLayer,
+    pixelLayer,
+    trackOnlyHit,
     packRgb,
     drawMatrixCrosshair,
     drawMatrixParticipantStrips,
+    matrixCellAt,
     type CanvasExportProps,
     type PlotFrame,
     type FrameHit,
+    type PixelLayer,
   } from '$lib/plots/shared'
   import type { PlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
   import { hexToRgb, convertToHex } from '$lib/color'
@@ -96,13 +99,7 @@
   // Cached recurrence texture: rebuilt only when the data/appearance change
   // (see the invalidation guard in drawTexture), then scale-blitted on resize
   // so a drag never re-scans the matrix. Mirrors the evolving-metrics blit.
-  let texCanvas: OffscreenCanvas | HTMLCanvasElement | null = null
-  let texCtx:
-    | OffscreenCanvasRenderingContext2D
-    | CanvasRenderingContext2D
-    | null = null
-  let texImg: ImageData | null = null
-  let texU32: Uint32Array | null = null
+  let tex: PixelLayer | null = null
   let texAlpha: Uint8Array | null = null
   let texRes = 0
   let texData: RecurrenceData | null = null
@@ -145,13 +142,10 @@
   // A masked cell has no datum, but the panel is still this participant: a
   // track-only hit with STABLE identity keeps the cursor published and repaints
   // nothing. `row: -1` marks it, so the local crosshair skips it.
-  const MASKED_HIT: FrameHit<{ row: number; col: number }> = {
-    content: [],
-    anchorX: 0,
-    anchorY: 0,
-    cursor: 'default',
-    data: { row: -1, col: -1 },
-  }
+  const MASKED_HIT = trackOnlyHit({ row: -1, col: -1 }, 'default')
+
+  // The square frame as matrix geometry (display space, top-left origin).
+  const geomOf = (f: PlotFrame) => ({ xOffset: f.x, yOffset: f.y, cellSize: f.width / N, gridWidth: f.width, gridHeight: f.width })
 
   const plot = usePlot<{ row: number; col: number }>({
     width: () => width,
@@ -200,8 +194,9 @@
     overlayDeps: (): string => cursorFixationsKey,
     hitTest: (x, y, frame) => {
       if (!data || N < 2) return null
-      const cell = cellAt(x, y, frame)
-      if (!cell) return null
+      const display = matrixCellAt(geomOf(frame), x, y, N, N)
+      if (!display) return null
+      const cell = { row: N - 1 - display.row, col: display.col } // rows are bottom-origin
       const maskDiagonal = masking === 'diagonal' || masking === 'diagonalLower'
       const maskLower = masking === 'diagonalLower'
       if ((maskLower && cell.col >= cell.row) || (maskDiagonal && cell.col === cell.row))
@@ -231,19 +226,6 @@
       }
     },
   })
-
-  /** Map an absolute canvas position to a recurrence cell, or null if outside. */
-  function cellAt(
-    x: number,
-    y: number,
-    frame: PlotFrame
-  ): { row: number; col: number } | null {
-    const cellSize = frame.width / N
-    const col = Math.floor((x - frame.x) / cellSize)
-    const row = N - 1 - Math.floor((y - frame.y) / cellSize)
-    if (row < 0 || row >= N || col < 0 || col >= N) return null
-    return { row, col }
-  }
 
   function getHighlightColor(): string {
     switch (highlight) {
@@ -386,21 +368,17 @@
       texMasking !== masking ||
       texMask !== activeMask ||
       texRes !== res ||
-      !texCanvas
+      !tex
 
     if (stale) {
-      if (!texU32 || texRes !== res) {
-        // null = unsafe size or canvas-less environment (tests): skip the texture
-        const layer = createScratchLayer(res, res)
-        if (!layer) return
-        texCanvas = layer.canvas
-        texCtx = layer.ctx
-        texImg = texCtx.createImageData(res, res)
-        texU32 = new Uint32Array(texImg.data.buffer)
+      // null = unsafe size or canvas-less environment (tests): skip the texture
+      const layer = pixelLayer(tex, res, res)
+      if (!layer) return
+      if (layer !== tex || !texAlpha) {
         texAlpha = new Uint8Array(res * res)
         texRes = res
       }
-      if (!texCtx || !texImg || !texU32 || !texAlpha) return
+      tex = layer
 
       const { rgb: colRgb, hasAoi } = columnColors
       rasterizeRecurrenceTexture(
@@ -418,21 +396,21 @@
           maskDiagonal: masking === 'diagonal' || masking === 'diagonalLower',
           maskLower: masking === 'diagonalLower',
         },
-        texU32,
+        tex.pixels,
         texAlpha
       )
-      texCtx.putImageData(texImg, 0, 0)
+      tex.ctx.putImageData(tex.image, 0, 0)
       texData = data
       texHighlight = highlight
       texMasking = masking
       texMask = activeMask
     }
-    if (!texCanvas) return
+    if (!tex) return
 
     const prevSmoothing = ctx.imageSmoothingEnabled
     ctx.imageSmoothingEnabled = texRes > frame.width // smooth on downscale only
     ctx.drawImage(
-      texCanvas as CanvasImageSource,
+      tex.canvas as CanvasImageSource,
       0,
       0,
       texRes,
@@ -446,13 +424,7 @@
   }
 
   function drawRecurrenceOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
-    const geom = {
-      xOffset: frame.x,
-      yOffset: frame.y,
-      cellSize: frame.width / N,
-      gridWidth: frame.width,
-      gridHeight: frame.width,
-    }
+    const geom = geomOf(frame)
     // The cursor's instant, as the fixation it lands in: its row and column are
     // every other fixation that recurred with it. Same strip mark as any matrix,
     // and bottom-origin rows convert to display space exactly as below.
