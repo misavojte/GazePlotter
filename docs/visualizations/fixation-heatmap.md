@@ -84,7 +84,7 @@ For participant j with located fixations i in the time range, each fixation adds
 W_j is participant j's total weight over located fixations in the time range, inside or outside the media; fixations without coordinates are in neither W_j nor the map. N counts the selected participants with W_j > 0.
 
 - **Kernel**: K is a Gaussian with σ = R / 3, shifted to reach exactly zero at R, and 1 at its center. A lone 300 ms fixation of one participant therefore peaks at 300 ms. K is the product of two one-dimensional kernels, so it is zero beyond R along each axis; past R on the diagonal it holds under 1 %.
-- **Width**: The kernel's full width at half maximum (FWHM) is 0.785 R. Tobii Pro Lab's kernel has an FWHM of about R, so the same radius looks about 22 % tighter here.
+- **Width**: The kernel's full width at half maximum (FWHM) is about 0.78 R. Tobii Pro Lab's kernel has an FWHM of about R, so the same radius looks about 22 % tighter here.
 - **Grid**: Values are computed on a grid of R / 16 cells, placed identically for every participant selection and time range of a stimulus, so maps of one stimulus line up cell by cell. A grid holds at most about 4.2 million cells; a very small R on a very large stimulus would need more, so its cells grow, and when they exceed R / 12 the data summary warns that peaks read low.
 - **Within R** in the tooltip is a disc of radius R; it ignores the kernel's corner tails beyond R, which are under 1 %.
 
@@ -121,7 +121,7 @@ The legends then read *max fixed*, and exported figures keep the shared scale. W
 | Absolute duration | *Fixation duration*, *Mean per participant*: the same shape. |
 | Relative count, Relative duration | The same shape as the absolute map: Pro Lab divides by the total in the Time of interest, which rescales without reshaping. |
 | (none) | *Share per participant*: each participant divided by their own total fixation duration or count. Older Tobii Studio versions divided by viewing time instead. |
-| Radius (100 px) | **Radius**: the kernel's reach; σ = R / 3, FWHM 0.785 R (about R in Pro Lab). |
+| Radius (100 px) | **Radius**: the kernel's reach; σ = R / 3, FWHM about 0.78 R (about R in Pro Lab). |
 | Scale max value | **Scale max** |
 | Opacity (80 %) | **Opacity [%]** (70) |
 | Color: green, yellow, red | **Color scale**: the *Green to Red* preset gives the Pro Lab look, but its light middle makes it diverging rather than sequential, and it is not color-blind safe. |
