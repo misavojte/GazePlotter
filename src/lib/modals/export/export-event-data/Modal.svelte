@@ -100,8 +100,8 @@
       </HelpText>
       <HelpText>
         Naming: "Displayed" uses your renamed event names, merges channels
-        grouped under the same name, hides hidden channels, and includes
-        derived interval channels (the on-screen result). "Raw" uses the
+        grouped under the same name, and includes derived interval channels
+        (the on-screen result). "Raw" uses the
         original imported channel names with no grouping and excludes derived
         interval channels.
       </HelpText>

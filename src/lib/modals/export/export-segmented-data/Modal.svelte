@@ -158,11 +158,11 @@
         </HelpText>
       {/if}
       <HelpText>
-        Naming: "Displayed" uses your renamed movement-type and AOI names,
-        merges AOIs grouped under the same name, and excludes hidden AOIs (the
-        on-screen result). "Raw" uses the original imported names with no
-        grouping and lists every AOI a segment references, including hidden
-        ones. The AOI column contains semicolon-separated area names.
+        Naming: "Displayed" uses your renamed movement-type and AOI names and
+        merges AOIs grouped under the same name (the on-screen result). "Raw"
+        uses the original imported names with no grouping and lists every AOI
+        a segment references. The AOI column contains semicolon-separated area
+        names.
       </HelpText>
     </Step>
   </StepList>
