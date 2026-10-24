@@ -77,6 +77,15 @@ describe('resolveWorkspaceShortcut', () => {
     ).toBe('save-as')
   })
 
+  it('claims Ctrl+D as duplicate, not Ctrl+Shift+D', () => {
+    expect(
+      resolveWorkspaceShortcut(key({ code: 'KeyD', key: 'd', ctrlKey: true }))
+    ).toBe('duplicate')
+    expect(
+      resolveWorkspaceShortcut(key({ code: 'KeyD', key: 'D', ctrlKey: true, shiftKey: true }))
+    ).toBeNull()
+  })
+
   it('claims nothing for an unrelated Ctrl chord', () => {
     expect(
       resolveWorkspaceShortcut(key({ code: 'KeyP', key: 'p', ctrlKey: true }))

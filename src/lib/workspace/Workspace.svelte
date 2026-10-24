@@ -266,8 +266,14 @@
 
   function handleGlobalKeydown(event: KeyboardEvent): void {
     const shortcut = resolveWorkspaceShortcut(event)
-    // Saving is the session's (GazePlotter.svelte), not the view's.
-    if (shortcut === null || shortcut === 'save' || shortcut === 'save-as') return
+    // Saving is the session's (GazePlotter.svelte), duplicating the grid's.
+    if (
+      shortcut === null ||
+      shortcut === 'save' ||
+      shortcut === 'save-as' ||
+      shortcut === 'duplicate'
+    )
+      return
 
     if (shortcut === 'zoom-fit') {
       // A bare key, unlike the chords below: a field or a modal keeps it.

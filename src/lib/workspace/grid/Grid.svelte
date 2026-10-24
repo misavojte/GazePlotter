@@ -30,7 +30,7 @@
   import { useContextMenu } from '$lib/context-menu'
 
   const contextMenuState = useContextMenu()
-  import { isTextEntryTarget } from '../keys'
+  import { isTextEntryTarget, resolveWorkspaceShortcut } from '../keys'
 
   const { engine, errorService, workspace, grid, modalState } =
     getGazePlotterSession()
@@ -43,7 +43,8 @@
   // so phase must decide who reads first, never registration order.
   $effect(() => {
     function onKeydown(event: KeyboardEvent) {
-      if (event.metaKey || event.ctrlKey || event.altKey) return
+      const duplicate = resolveWorkspaceShortcut(event) === 'duplicate'
+      if (!duplicate && (event.metaKey || event.ctrlKey || event.altKey)) return
       if (isTextEntryTarget(event)) return
       // A surface in front owns the key: one Escape dismisses one surface, and
       // Delete never removes a plot the user cannot see.
@@ -53,11 +54,16 @@
       // Delete/Escape working for a multi-selection.
       const selectedIds = grid.selectedItemIds
       if (selectedIds.length === 0) return
-      if (event.key === 'Delete' || event.key === 'Backspace') {
+      if (duplicate || event.key === 'Delete' || event.key === 'Backspace') {
         // Only from the page or the grid: a focused pane or rail control owns the key.
         const target = event.target as Node | null
         if (target !== document.body && !gridEl?.contains(target)) return
         event.preventDefault()
+        if (duplicate) {
+          if (selectedIds.length === 1) handleDuplicate({ id: selectedIds[0] })
+          else handleGroupDuplicate()
+          return
+        }
         // Snapshot first: removeItem mutates the selection set as it goes.
         commitGridItemsRemoval(workspace, gridItems, [...selectedIds])
         return
