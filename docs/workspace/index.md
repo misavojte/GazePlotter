@@ -42,7 +42,7 @@ The canvas works like a map:
 
 ### Canvas
 The central area of the screen where plots are arranged.
-- **Selection**: Click any card to select it (or hold `Cmd` / `Ctrl` / `Shift` to select multiple). Holding the same keys and dragging across empty canvas draws a selection rectangle: every plot it touches joins the selection. Selection opens the Pane and reveals card controls.
+- **Selection**: Click any card to select it (or hold `Cmd` / `Ctrl` / `Shift` to select multiple). Holding the same keys and dragging across empty canvas draws a selection rectangle: every plot it touches joins the selection. `Ctrl` + `A` (`Cmd` + `A` on Mac) selects every plot. Selection opens the Pane and reveals card controls.
 - **Canvas Operations**: Drag, resize, duplicate, or delete cards to arrange your grid. For details, see [Plot Manipulation](#plot-manipulation).
 
 ### Pane

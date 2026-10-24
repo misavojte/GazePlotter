@@ -92,6 +92,12 @@ describe('resolveWorkspaceShortcut', () => {
     ).toBe('open')
   })
 
+  it('claims Ctrl+A as select all', () => {
+    expect(
+      resolveWorkspaceShortcut(key({ code: 'KeyA', key: 'a', ctrlKey: true }))
+    ).toBe('select-all')
+  })
+
   it('claims nothing for an unrelated Ctrl chord', () => {
     expect(
       resolveWorkspaceShortcut(key({ code: 'KeyP', key: 'p', ctrlKey: true }))

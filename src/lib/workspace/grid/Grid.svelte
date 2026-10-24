@@ -43,21 +43,31 @@
   // so phase must decide who reads first, never registration order.
   $effect(() => {
     function onKeydown(event: KeyboardEvent) {
-      const duplicate = resolveWorkspaceShortcut(event) === 'duplicate'
-      if (!duplicate && (event.metaKey || event.ctrlKey || event.altKey)) return
+      const shortcut = resolveWorkspaceShortcut(event)
+      const duplicate = shortcut === 'duplicate'
+      const selectAll = shortcut === 'select-all'
+      const chord = event.metaKey || event.ctrlKey || event.altKey
+      if (chord && !duplicate && !selectAll) return
       if (isTextEntryTarget(event)) return
       // A surface in front owns the key: one Escape dismisses one surface, and
       // Delete never removes a plot the user cannot see.
       if (modalState.activeModal || contextMenuState.current) return
+      // Only from the page or the grid: a focused pane or rail control owns the key.
+      const target = event.target as Node | null
+      const fromPageOrGrid = target === document.body || !!gridEl?.contains(target)
+      if (selectAll) {
+        if (!fromPageOrGrid) return
+        event.preventDefault()
+        grid.setSelection(gridItems.map(item => item.id))
+        return
+      }
       // Operate on the whole selection (single = a set of one). Reading the
       // set directly — not the single-only `selectedItemId` getter — keeps
       // Delete/Escape working for a multi-selection.
       const selectedIds = grid.selectedItemIds
       if (selectedIds.length === 0) return
       if (duplicate || event.key === 'Delete' || event.key === 'Backspace') {
-        // Only from the page or the grid: a focused pane or rail control owns the key.
-        const target = event.target as Node | null
-        if (target !== document.body && !gridEl?.contains(target)) return
+        if (!fromPageOrGrid) return
         event.preventDefault()
         if (duplicate) {
           if (selectedIds.length === 1) handleDuplicate({ id: selectedIds[0] })
