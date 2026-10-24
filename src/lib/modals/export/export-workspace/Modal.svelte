@@ -81,7 +81,7 @@
       definition: exportMetricDataModal,
       title: 'Metric Data (CSV)',
       subtitle:
-        'Any metric from the library, long or wide format, including similarity matrices',
+        'Library metrics per participant, per AOI, and as AOI or similarity matrices, in long or wide format',
     },
     {
       definition: exportScangraphModal,
