@@ -25,8 +25,8 @@ export const evolvingMetricsDefinition = definePlot<
           kind: 'enum',
           key: 'presentation',
           options: [
-            { label: 'Heatmap', value: 'heatmap' },
-            { label: 'Overlay', value: 'overlay' },
+            { label: 'Heatmap', value: 'heatmap', detail: 'Rows of participants, colored by value' },
+            { label: 'Overlay', value: 'overlay', detail: 'One line per participant over time' },
           ],
           default: 'heatmap',
           summary: true,
