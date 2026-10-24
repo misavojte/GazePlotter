@@ -1,7 +1,7 @@
 import type { SelectionsAxis, WorkspaceCommand } from './types'
 import { shortcutLabel } from '../keys'
 
-/** Removal and reset have no confirmation, so their toasts name the way back. */
+/** Removal has no confirmation, so its toast names the way back. */
 const UNDO_HINT = `(${shortcutLabel('undo')} to undo)`
 
 /**
@@ -125,7 +125,7 @@ const WORKSPACE_COMMAND_LABELS: Record<
 
   setLayoutState: {
     action: 'layout reset',
-    default: `Workspace layout returned to the initial state ${UNDO_HINT}`,
+    default: 'Workspace layout returned to the initial state',
   },
 }
 
