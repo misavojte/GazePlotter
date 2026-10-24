@@ -228,7 +228,9 @@
       const columns = ['Participant_ID', 'Participant', 'Stimulus']
       const instNames: string[] = []
       for (const inst of selectedInstancesInOrder) {
-        const label = previewLabels.get(inst.id) ?? inst.label
+        // Whitespace becomes '_' as in the exporter's header names
+        // (KEEP IN SYNC with sanitizeColumnName in mappers/metrics.ts).
+        const label = (previewLabels.get(inst.id) ?? inst.label).replace(/\s+/g, '_')
         const shape = projectionOutputShape(inst.projection)
         if (shape === 'scalar') {
           instNames.push(label)

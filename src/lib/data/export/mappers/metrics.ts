@@ -500,6 +500,7 @@ export async function exportMetrics(
       }
     }
 
+    // KEEP IN SYNC with the wide-format preview in export-metric-data/Modal.svelte.
     function sanitizeColumnName(name: string): string {
       return name.replace(/\s+/g, '_')
     }
