@@ -125,9 +125,17 @@ const WORKSPACE_COMMAND_LABELS: Record<
  * Gets the appropriate label for a workspace command based on its type (and,
  * for `updateSelections`, its axis) and history state.
  */
+const HISTORY_PREFIX = {
+  undo: 'Undo',
+  redo: 'Redo',
+  undone: 'Undone:',
+  redone: 'Redone:',
+} as const
+
+/** `undo`/`redo` name the control; `undone`/`redone` report it in a toast. */
 export function getCommandLabel(
   command: WorkspaceCommand,
-  history?: 'undo' | 'redo'
+  history?: keyof typeof HISTORY_PREFIX
 ): string | null {
   const labels =
     command.type === 'updateSelections'
@@ -136,5 +144,5 @@ export function getCommandLabel(
 
   if (!history) return labels.default
   if (!labels.action) return ''
-  return `${history === 'undo' ? 'Undo' : 'Redo'} ${labels.action}`
+  return `${HISTORY_PREFIX[history]} ${labels.action}`
 }

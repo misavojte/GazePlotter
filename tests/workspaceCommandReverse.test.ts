@@ -955,6 +955,10 @@ describe('updateStimulusMedia over several stimuli', () => {
       expect(engine.metadata!.stimuliMedia![1]).toBeUndefined()
       expect(engine.media.getBlob(1)).toBeNull()
       expect(report).not.toHaveBeenCalled()
+      // A replay says what it reverted: nothing on the canvas may show it.
+      expect(addSuccess).toHaveBeenLastCalledWith('Undone: reference media update')
+      expect(ws.redo()).toBe(true)
+      expect(addSuccess).toHaveBeenLastCalledWith('Redone: reference media update')
     } finally {
       engine.media.clear()
     }

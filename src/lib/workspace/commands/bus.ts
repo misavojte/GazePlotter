@@ -41,10 +41,12 @@ export class WorkspaceCommandBus {
   private readonly handleCommand: (command: WorkspaceCommandChain) => void
   private readonly errorService: Pick<ErrorService, 'report'>
   private readonly grid: GridState
+  private readonly toastState: CommandBusDeps['toastState']
 
   constructor(deps: CommandBusDeps) {
     this.errorService = deps.errorService
     this.grid = deps.grid
+    this.toastState = deps.toastState
     this.handleCommand = createCommandHandler(
       deps.grid,
       deps.engine,
@@ -122,12 +124,21 @@ export class WorkspaceCommandBus {
     }
   }
 
+  // A replay can change nothing on screen (an AOI rename), so it says what it reverted.
   undo(): boolean {
-    return this.replay(this.history.undo())
+    const command = this.history.lastUndoCommand
+    const replayed = this.replay(this.history.undo())
+    const label = command && getCommandLabel(command, 'undone')
+    if (replayed && label) this.toastState.addSuccess(label)
+    return replayed
   }
 
   redo(): boolean {
-    return this.replay(this.history.redo())
+    const command = this.history.lastRedoCommand
+    const replayed = this.replay(this.history.redo())
+    const label = command && getCommandLabel(command, 'redone')
+    if (replayed && label) this.toastState.addSuccess(label)
+    return replayed
   }
 
   /** Reset guarded by the precondition its callers cannot express in a command. */
