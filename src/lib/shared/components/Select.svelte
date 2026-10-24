@@ -146,6 +146,7 @@
 <InputScaffold {label} id={triggerId} compact={compact} showLabel={!!label}>
   <div bind:this={wrapperEl} class="select-wrapper" class:compact={compact} use:contextMenuAction={menuConfig}>
     <button
+      type="button"
       id={triggerId}
       class="trigger"
       class:compact={compact}
