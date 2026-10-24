@@ -124,7 +124,7 @@
 
     <div class="group-content">
       {#if items.length === 0}
-        <div class="empty-state">No items available</div>
+        <div class="empty-state">No {title.toLowerCase()} available</div>
       {:else if shownItems.length === 0}
         <div class="empty-state">No matches</div>
       {:else}
