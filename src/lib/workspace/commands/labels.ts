@@ -1,4 +1,8 @@
 import type { SelectionsAxis, WorkspaceCommand } from './types'
+import { shortcutLabel } from '../keys'
+
+/** Removal has no confirmation, so its toast names the way back. */
+const UNDO_HINT = `(${shortcutLabel('undo')} to undo)`
 
 /**
  * Command Label Registry
@@ -97,12 +101,12 @@ const WORKSPACE_COMMAND_LABELS: Record<
 
   removeGridItem: {
     action: 'plot removal',
-    default: 'Removed plot from workspace',
+    default: `Removed plot from workspace ${UNDO_HINT}`,
   },
 
   removeGridItems: {
     action: 'plots removal',
-    default: 'Removed plots from workspace',
+    default: `Removed plots from workspace ${UNDO_HINT}`,
   },
 
   duplicateGridItem: {
