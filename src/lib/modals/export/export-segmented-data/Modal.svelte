@@ -23,6 +23,12 @@
   import StimuliStep from '../shared/StimuliStep.svelte'
   import ParticipantsStep from '../shared/ParticipantsStep.svelte'
   import SelectionStep from '../shared/SelectionStep.svelte'
+  import {
+    aoiChecklistItems,
+    aoiChecklistPresets,
+    defaultAoiSelection,
+    tickedAoiNames,
+  } from '../shared/aois'
   import { defaultStimulusSelection } from '../shared/stimuli'
   import { defaultParticipantSelection } from '../shared/participants'
 
@@ -31,9 +37,11 @@
     stimulusId?: number
     groupId?: number
     participantId?: number
+    /** Prefill: a plot's AOI selection ticks its AOIs. */
+    aoiSelectionId?: number
   }
 
-  let { stimulusId, groupId, participantId }: Props = $props()
+  let { stimulusId, groupId, participantId, aoiSelectionId }: Props = $props()
   const { engine, exportService, workspaceFile } = getGazePlotterSession()
   // Named after the dataset, as the workspace and analysis exports are.
   const fileName = `${workspaceFile.suggestedName}-SegmentedData`
@@ -66,10 +74,18 @@
 
   const hasSpatialData = $derived(engine.capabilities.spatial)
 
+  // Unticked AOIs leave the AOI column, as an AOI selection does in a plot.
+  const aoiItems = aoiChecklistItems(engine)
+  const aoiPresets = aoiChecklistPresets(engine, aoiItems)
+  let selectedAois = $state(
+    untrack(() => defaultAoiSelection(engine, aoiItems, aoiSelectionId))
+  )
+
   const canExport = $derived(
     selectedStimuliIds.size > 0 &&
       selectedParticipantIds.size > 0 &&
-      selectedCategoryIds.size > 0
+      selectedCategoryIds.size > 0 &&
+      (aoiItems.length === 0 || selectedAois.size > 0)
   )
   const fileSummary = $derived(
     [
@@ -86,6 +102,7 @@
       stimulusIds: selectedStimuliIds,
       participantIds: selectedParticipantIds,
       filterCategoryIds: new Set(Array.from(selectedCategoryIds, Number)),
+      keepAoiNames: tickedAoiNames(aoiItems, selectedAois),
       naming,
       csvOptions: {
         delimiter,
@@ -120,8 +137,21 @@
       bind:selected={selectedCategoryIds}
     />
 
+    {#if aoiItems.length > 0}
+      <SelectionStep
+        n={4}
+        title="Choose AOIs"
+        listTitle="AOIs"
+        noun="AOI"
+        description="Every segment stays in the file; unticked AOIs are left out of its AOI column, so a segment only on them reads as no AOI."
+        items={aoiItems}
+        presets={aoiPresets}
+        bind:selected={selectedAois}
+      />
+    {/if}
+
     <Step
-      n={4}
+      n={aoiItems.length > 0 ? 5 : 4}
       title="Configure the file"
       description="The file layout and CSV conventions."
       summary={fileSummary}

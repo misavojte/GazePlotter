@@ -51,7 +51,7 @@ Narrows which event channels this plot overlays. Event channels render as an ove
 ### Export
 Located at the bottom of the Pane:
 - **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the scarf plot as a PNG or JPG.
-- **Download segments**: Opens the [Segmented Data](/docs/export/segmented-data/) export preset to this plot's stimulus and participant selection, over whole recordings.
+- **Download segments**: Opens the [Segmented Data](/docs/export/segmented-data/) export preset to this plot's stimulus, participant selection and AOI selection, over whole recordings.
 
 ## Interactivity
 

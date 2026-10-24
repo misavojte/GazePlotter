@@ -41,6 +41,8 @@ export type SegmentedExportOptions = {
   stimulusIds: Set<string>
   participantIds: Set<string>
   filterCategoryIds?: Set<number>
+  /** Displayed AOI names the AOI column keeps; unset = every AOI. */
+  keepAoiNames?: Set<string>
   csvOptions?: CsvFormatOptions
   naming?: ExportNaming
 }
@@ -212,8 +214,8 @@ export class ExportService {
   }
 
   async exportSegmentedData(options: SegmentedExportOptions): Promise<boolean> {
-    const { stimulusIds, participantIds, filterCategoryIds, csvOptions } = options
-    const args = [stimulusIds, participantIds, filterCategoryIds, csvOptions] as const
+    const { stimulusIds, participantIds, filterCategoryIds, keepAoiNames, csvOptions } = options
+    const args = [stimulusIds, participantIds, filterCategoryIds, keepAoiNames, csvOptions] as const
     return this.exportCsvOrZip(
       options,
       {

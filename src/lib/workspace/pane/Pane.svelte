@@ -87,12 +87,19 @@
     if (scope.stimulusId !== undefined && engine.hasCapabilities(['segmented'])) {
       return {
         label: 'Download segments',
-        title: "Segment CSV, preset to this plot's stimulus and participants (whole recordings)",
+        title: `Segment CSV, preset to this plot's ${[
+          'stimulus',
+          'participants',
+          scope.aoiSelectionId && 'AOI selection',
+        ]
+          .filter(Boolean)
+          .join(', ')} (whole recordings)`,
         open: () =>
           modalState.open(exportSegmentedDataModal, {
             stimulusId: scope.stimulusId,
             groupId,
             participantId: scope.participantId,
+            aoiSelectionId: scope.aoiSelectionId,
           }),
       }
     }
