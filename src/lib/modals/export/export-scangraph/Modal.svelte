@@ -74,8 +74,9 @@
         bind:value={stringForm}
       />
       <HelpText>
-        Original strings keep one letter per fixation, so dwell duration
-        weighs into the comparison. Collapsed strings fold consecutive
+        Original strings keep one letter per fixation, so the number of
+        fixations in an AOI weighs into the comparison (durations are not
+        used). Collapsed strings fold consecutive
         fixations in the same AOI, comparing the order of visited AOIs only.
       </HelpText>
     </Step>
