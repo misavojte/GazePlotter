@@ -5,6 +5,9 @@ import type { WorkspaceCommandChain } from './types'
  */
 const MAX_UNDO_STACK_SIZE = 50
 
+/** Edits to the same settings closer together than this are one undo step. */
+const COALESCE_WINDOW_MS = 1000
+
 function createWorkspaceHistoryError(message: string): Error {
   const error = new Error(message)
   error.name = 'WorkspaceHistoryError'
@@ -22,6 +25,16 @@ interface CommandChainEntry {
   }>
 }
 
+/** Items and setting keys of a lone updateSettings chain; null if it has more. */
+function settingsSignature(chain: CommandChainEntry): string | null {
+  if (chain.commands.length !== 1) return null
+  const command = chain.commands[0].original
+  if (command.type !== 'updateSettings') return null
+  return command.updates
+    .map(({ itemId, settings }) => `${itemId}:${Object.keys(settings).sort()}`)
+    .join('|')
+}
+
 export class UndoRedoStateStore {
   // --- Core Reactive State ---
   // `$state.raw`: the stacks are only ever reassigned immutably, and chain
@@ -34,6 +47,8 @@ export class UndoRedoStateStore {
   // Newest chain dropped by the stack cap: the history's floor once trimmed.
   private trimmedBase = $state<number | null>(null)
   private savedHead = $state<number | null>(null)
+  // The top chain while it may still absorb the next keystroke's edit.
+  private openEdit: { signature: string; at: number } | null = null
 
   // --- Derived Calculations (Runes) ---
   canUndo = $derived(this.undoStack.length > 0)
@@ -88,6 +103,7 @@ export class UndoRedoStateStore {
       // If there's a pending chain, finalize it first
       if (this.pendingChain) {
         this.undoStack = [...this.undoStack, this.pendingChain]
+        this.openEdit = null
       }
 
       // Trim undo stack if it exceeds the maximum size
@@ -134,10 +150,32 @@ export class UndoRedoStateStore {
    * Should be called after a root command and all its children have been executed.
    */
   finalizeChain(): void {
-    if (!this.pendingChain) return
-
-    this.undoStack = [...this.undoStack, this.pendingChain]
+    const chain = this.pendingChain
+    if (!chain) return
     this.pendingChain = null
+
+    // Typing "5000" is one edit, not four: a quick follow-up to the same
+    // settings keeps the first reverse and the newest original.
+    const signature = settingsSignature(chain)
+    const now = Date.now()
+    const top = this.undoStack.at(-1)
+    if (
+      top &&
+      signature !== null &&
+      this.openEdit?.signature === signature &&
+      now - this.openEdit.at < COALESCE_WINDOW_MS
+    ) {
+      const merged: CommandChainEntry = {
+        chainId: chain.chainId,
+        commands: [
+          { original: chain.commands[0].original, reverse: top.commands[0].reverse },
+        ],
+      }
+      this.undoStack = [...this.undoStack.slice(0, -1), merged]
+    } else {
+      this.undoStack = [...this.undoStack, chain]
+    }
+    this.openEdit = signature === null ? null : { signature, at: now }
   }
 
   /**
@@ -169,6 +207,7 @@ export class UndoRedoStateStore {
   private transfer(from: 'undoStack' | 'redoStack'): CommandChainEntry | null {
     const chain = this[from].at(-1)
     if (!chain) return null
+    this.openEdit = null
     this[from] = this[from].slice(0, -1)
     this.isProcessingUndoRedo = true
     const to = from === 'undoStack' ? 'redoStack' : 'undoStack'
@@ -186,6 +225,8 @@ export class UndoRedoStateStore {
 
   /** The current position is what was just saved. */
   markSaved(head: number | null): void {
+    // Undo must still be able to land on the saved state.
+    this.openEdit = null
     this.savedHead = head
   }
 
@@ -200,6 +241,7 @@ export class UndoRedoStateStore {
     this.isProcessingUndoRedo = false
     this.trimmedBase = null
     this.savedHead = null
+    this.openEdit = null
   }
 }
 
