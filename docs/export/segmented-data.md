@@ -18,7 +18,7 @@ Segmented Data Export writes raw, row-level gaze segments as CSV — for spreads
 
 - **Choose stimuli** — Select which stimuli to include in the exported data.
 - **Choose participants** — Select which participants to include; the group chips above the list select or deselect an entire participant group at once.
-- **Choose eye-movement types** — Select which eye-movement categories (e.g., fixations, saccades, unclassified) to include in the file. By default, all categories are selected.
+- **Choose eye-movement types**: Select which eye-movement categories (e.g., fixations, saccades, unclassified) to include in the file. By default, all categories are selected. Your [eye-movement type selections](/docs/workspace/eye-movement-type-library/) appear as chips above the list, such as the ready-made *Just fixations*: a chip ticks all of its types, or unticks them when they are all ticked, and individual checkmarks refine the result.
 - **Configure the file** — Choose the export layout and format conventions:
   - **Export Type** — **Single CSV File**, or **Individual CSV Files (Zipped)** (one file per participant and stimulus, without the `stimulus` and `participant` columns).
   - **Delimiter** (`,` or `;`), **Decimal Separator** (`.` or `,`). Each CSV export starts from the delimiter and decimal separator of your last CSV export in this tab, and the collapsed step names them when they are not comma and dot.

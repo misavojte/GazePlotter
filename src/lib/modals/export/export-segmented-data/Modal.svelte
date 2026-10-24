@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte'
-  import { Select } from '$lib/shared/components'
+  import { ButtonPreset, Select } from '$lib/shared/components'
   import {
     CheckboxListField,
     Step,
@@ -10,7 +10,7 @@
   } from '$lib/modals'
   import type { DecimalSeparator, ExportNaming } from '$lib/data/export'
   import { getGazePlotterSession } from '$lib/session'
-  import { getAllCategories } from '$lib/data/engine'
+  import { getAllCategories, getCategoriesSelections } from '$lib/data/engine'
   import {
     CSV_DECIMAL_SEPARATOR_OPTIONS,
     CSV_DELIMITER_OPTIONS,
@@ -65,13 +65,34 @@
     selectedStimuliIds.size > 0 && selectedParticipantIds.size > 0 && stepCategoriesDone
   )
 
-  const categoriesSummary = $derived(
-    listSummary(
-      selectedCategoryIds.size,
+  // Eye-movement type selections as one-click presets, like the participant
+  // chips: a chip adds its types, or removes them when all are already ticked.
+  const categoryPresets = getCategoriesSelections(engine).filter(s => s.memberIds.length > 0)
+  const presetActive = (memberIds: readonly number[]) =>
+    memberIds.every(id => selectedCategoryIds.has(id))
+  function togglePreset(memberIds: readonly number[]) {
+    const next = new Set(selectedCategoryIds)
+    const remove = presetActive(memberIds)
+    for (const id of memberIds) {
+      if (remove) next.delete(id)
+      else next.add(id)
+    }
+    selectedCategoryIds = next
+  }
+
+  const categoriesSummary = $derived.by(() => {
+    const count = selectedCategoryIds.size
+    // Ticks that exactly equal a selection read as that selection.
+    const exact = categoryPresets.find(
+      p => p.memberIds.length === count && presetActive(p.memberIds)
+    )
+    if (exact && count < allCategories.length) return `${exact.name} (${count})`
+    return listSummary(
+      count,
       allCategories.length,
       allCategories.find(c => selectedCategoryIds.has(c.id))?.displayedName
     )
-  )
+  })
   const fileSummary = $derived(
     [
       ...exportTypeNamingSummary(exportType, naming),
@@ -109,6 +130,16 @@
   }
 </script>
 
+{#snippet categoryChips()}
+  {#each categoryPresets as preset (preset.id)}
+    <ButtonPreset
+      label={preset.name}
+      isActive={presetActive(preset.memberIds)}
+      onclick={() => togglePreset(preset.memberIds)}
+    />
+  {/each}
+{/snippet}
+
 <ExportShell
   intro="Export eye-tracking segments with timing, movement classifications, and AOI information."
   {canExport}
@@ -126,7 +157,9 @@
     <Step
       n={3}
       title="Choose eye-movement types"
-      description="Select which eye-movement categories to include in the exported file."
+      description={categoryPresets.length > 0
+        ? 'Selection chips toggle a whole eye-movement type selection at once; individual checkmarks refine the result.'
+        : 'Select which eye-movement categories to include in the exported file.'}
       summary={categoriesSummary}
       done={stepCategoriesDone}
     >
@@ -136,6 +169,7 @@
         onItemChange={handleCategoryChange}
         hasError={!stepCategoriesDone}
         errorMessage="Select at least one eye-movement type to export"
+        presets={categoryPresets.length > 0 ? categoryChips : undefined}
       />
     </Step>
 
