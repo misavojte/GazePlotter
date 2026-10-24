@@ -7,8 +7,10 @@
   import { getGazePlotterSession } from '$lib/session'
   import { getDebugMessage } from '$lib/errors'
   import { useContextMenu } from '$lib/context-menu'
+  import { useTooltipAction } from '$lib/tooltip'
 
   const contextMenuState = useContextMenu()
+  const tooltipAction = useTooltipAction()
 
   const { errorService, modalState } = getGazePlotterSession()
 
@@ -242,7 +244,11 @@
               {/if}
               <h3 id={`modal-title-${entry.id}`}>{entry.definition.title}</h3>
             </div>
-            <button onclick={handleClose} aria-label="Close modal">
+            <button
+              onclick={handleClose}
+              aria-label="Close modal"
+              use:tooltipAction={{ content: 'Close (Esc)', position: 'bottom' }}
+            >
               <span aria-hidden="true">&times;</span>
             </button>
           </div>
