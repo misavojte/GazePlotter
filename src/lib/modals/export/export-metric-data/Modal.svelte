@@ -167,7 +167,7 @@
           reason =
             inst.projection.kind === 'windowed'
               ? 'Time series, available in the long format'
-              : 'Not exportable in this format'
+              : 'Not exportable as CSV in either format'
         }
 
         return {
