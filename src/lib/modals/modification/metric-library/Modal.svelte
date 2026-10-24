@@ -143,8 +143,8 @@
               <GripVertical size={14} />
             </div>
             <div class="card-body">
-              <span class="card-name">{inst.label}</span>
-              {#if detail}<span class="card-detail">{detail}</span>{/if}
+              <span class="card-name" title={inst.label}>{inst.label}</span>
+              {#if detail}<span class="card-detail" title={detail}>{detail}</span>{/if}
             </div>
             <button
               class="icon-btn"
