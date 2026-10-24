@@ -41,7 +41,8 @@
     projectionOutputShape,
     defaultInstanceLabel,
   } from '$lib/metrics'
-  import { metricLibraryModal } from '../../definitions'
+  import { aoiModificationModal, metricLibraryModal } from '../../definitions'
+  import InputRadio from '$lib/shared/components/InputRadio.svelte'
   import { getAoiSelections } from '$lib/data/engine'
   import { ALL_SELECTION_LABEL } from '$lib/data/types'
   import { multiSelectMetricHandlers } from '$lib/plots/shared/metricInstanceHandlers'
@@ -80,18 +81,18 @@
   let timeEndStr = $state(untrack(() => presetTime(presetEnd)))
 
   // Computed as a plot computes it: AOIs outside the selection count as No AOI.
-  const aoiSelections = getAoiSelections(engine)
-  const aoiSelectionOptions = [
-    { value: '0', label: ALL_SELECTION_LABEL },
+  // Live, so selections built in the AOI library show up on return.
+  const aoiSelections = $derived(getAoiSelections(engine))
+  const aoiSelectionOptions = $derived([
+    { value: '0', label: `${ALL_SELECTION_LABEL} AOIs` },
     ...aoiSelections.map(s => ({ value: String(s.id), label: s.name })),
-  ]
-  let aoiSelection = $state(
-    untrack(() =>
-      aoiSelections.some(s => s.id === presetAoiSelection)
-        ? String(presetAoiSelection)
-        : '0'
-    )
+  ])
+  let aoiSelection = $state(untrack(() => String(presetAoiSelection ?? 0)))
+  // A selection deleted meanwhile (or a stale preset) falls back to all AOIs.
+  const activeAoiSelection = $derived(
+    aoiSelections.find(s => String(s.id) === aoiSelection) ?? null
   )
+  const aoiSummary = $derived(activeAoiSelection?.name ?? `${ALL_SELECTION_LABEL} AOIs`)
 
   // Prefill props are read once by design (untrack): they seed the selection,
   // they don't bind it.
@@ -234,10 +235,6 @@
       ...csvConventionsSummary(delimiter, decimalSeparator),
     ]
     if (timeStartStr.trim() !== '' || timeEndStr.trim() !== '') parts.push('cropped time range')
-    if (aoiSelection !== '0') {
-      const name = aoiSelectionOptions.find(o => o.value === aoiSelection)?.label
-      parts.push(`AOI selection ${name}`)
-    }
     return parts.join(' · ')
   })
 
@@ -330,7 +327,14 @@
       includeCodebook,
       timeStart,
       timeEnd,
-      aoiSelectionId: Number(aoiSelection),
+      aoiSelectionId: activeAoiSelection?.id,
+    })
+  }
+
+  const handleEditAois = () => {
+    modalState.push(aoiModificationModal, {
+      source: 'exportMetricData.modal',
+      selectedStimulus: Array.from(selectedStimuliIds)[0],
     })
   }
 
@@ -386,8 +390,26 @@
     />
     <ParticipantsStep n={3} bind:selected={selectedParticipantIds} />
 
+    <Step n={4} title="Choose AOIs" summary={aoiSummary} done={true}>
+      <HelpText>
+        Metrics are computed on the chosen AOIs exactly as in a plot using the
+        same selection: only its AOIs get rows or columns, and fixations on the
+        other AOIs count as No_AOI. Build selections in the
+        <button type="button" class="inline-link" onclick={handleEditAois}>AOI library</button>.
+      </HelpText>
+      <InputRadio
+        ariaLabel="AOI selection"
+        options={aoiSelectionOptions}
+        value={activeAoiSelection ? aoiSelection : '0'}
+        onchange={e => (aoiSelection = e.detail)}
+      />
+      {#if activeAoiSelection}
+        <HelpText>Includes {activeAoiSelection.names.join(', ')}.</HelpText>
+      {/if}
+    </Step>
+
     <Step
-      n={4}
+      n={5}
       title="Configure the file"
       description="The layout and CSV conventions of the exported file. An empty time range covers each participant's full recording."
       summary={fileSummary}
@@ -427,22 +449,9 @@
           bind:value={timeEndStr}
           placeholder="Empty = full recording"
         />
-        {#if aoiSelections.length > 0}
-          <Select
-            label="AOI selection"
-            options={aoiSelectionOptions}
-            bind:value={aoiSelection}
-          />
-        {/if}
       </FieldGrid>
       {#if timeRangeError}
         <HelpText tone="error">{timeRangeError}</HelpText>
-      {/if}
-      {#if aoiSelection !== '0'}
-        <HelpText>
-          AOI columns and rows list only the selection's AOIs; fixations on the
-          other AOIs count as No_AOI, as in a plot using this selection.
-        </HelpText>
       {/if}
       <div class="checkbox-row">
         <InputCheck
