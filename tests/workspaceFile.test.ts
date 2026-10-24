@@ -4,10 +4,11 @@ import { WorkspaceFile } from '$lib/session/workspaceFile.svelte'
 import type { SaveTarget } from '$lib/session/download'
 
 let nextChainId = 1
+// Each edit moves its own plot: quick moves of the same plot merge into one step.
 function edit(history: UndoRedoStateStore): void {
   const command: WorkspaceCommandChain = {
     type: 'updateLayout',
-    updates: [{ itemId: 1, layout: { x: 1 } }],
+    updates: [{ itemId: nextChainId, layout: { x: 1 } }],
     source: 'workspace',
     chainId: nextChainId++,
     isRootCommand: true,
