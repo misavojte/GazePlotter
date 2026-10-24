@@ -9,6 +9,7 @@
   import { useContextMenu } from '$lib/context-menu'
   import { useTooltipAction } from '$lib/tooltip'
   import { isTextEntryTarget } from '$lib/workspace/keys'
+  import { hasOpenFloating } from '$lib/shared/placement'
 
   const contextMenuState = useContextMenu()
   const tooltipAction = useTooltipAction()
@@ -196,13 +197,23 @@
   // What had focus before the first dialog opened; it gets it back on close.
   let returnFocus: HTMLElement | null = null
 
+  // A press on the backdrop that dismisses a dropdown or popup dismisses only
+  // that, like Escape. Window capture runs before the popup's own document
+  // capture listener closes it, so this still sees it open.
+  let pressDismissedFloating = false
+  const notePress = () => {
+    pressDismissedFloating = hasOpenFloating()
+  }
+
   onMount(() => {
+    window.addEventListener('pointerdown', notePress, { capture: true, passive: true })
     window.addEventListener('keydown', handleKeydown, { passive: true })
     document.addEventListener('fullscreenchange', handleFullscreenChange, {
       passive: true,
     })
 
     return () => {
+      window.removeEventListener('pointerdown', notePress, { capture: true })
       window.removeEventListener('keydown', handleKeydown)
       document.removeEventListener('fullscreenchange', handleFullscreenChange)
       window.removeEventListener('wheel', handleWindowScroll)
@@ -236,7 +247,7 @@
     class="modal-overlay"
     role="presentation"
     onpointerdown={e => {
-      if (e.target === e.currentTarget && !isFullscreen) {
+      if (e.target === e.currentTarget && !isFullscreen && !pressDismissedFloating) {
         handleClose()
       }
     }}
