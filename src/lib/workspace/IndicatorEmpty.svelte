@@ -13,6 +13,13 @@
     getGazePlotterSession()
 
   const canResetLayout = $derived(engine.hasValidData)
+  // Emptied by removing the last plots: the likely wish is to have them back.
+  const undoRemoval = $derived.by(() => {
+    const type = workspace.history.lastUndoCommand?.type
+    return type === 'removeGridItem' || type === 'removeGridItems'
+      ? workspace.lastUndoLabel
+      : null
+  })
   const fatalLoadError = $derived(errorService.fatalLoad)
   // Parser messages often lack a final period; the next sentence follows it.
   const fatalSentence = $derived.by(() => {
@@ -63,6 +70,11 @@
       {#if fatalLoadError && canOpenErrorReport}
         <Button onclick={openErrorReport}>Open report</Button>
       {:else if canResetLayout}
+        {#if undoRemoval}
+          <Button variant="primary" onclick={() => workspace.undo()}>
+            {undoRemoval}
+          </Button>
+        {/if}
         <Button onclick={handleResetLayout}>Reset layout</Button>
       {/if}
       <!-- The lone first step is the primary one. -->
