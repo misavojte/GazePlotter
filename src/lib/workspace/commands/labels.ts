@@ -35,12 +35,18 @@ const SELECTIONS_LABELS: Record<SelectionsAxis, CommandLabels> = {
   aoi: selectionsLabels('AOI', 'AOI'),
 }
 
+/** The participants and stimuli dialogs apply through one command, named per axis. */
+const RECONCILE_LABELS: Record<'stimulus' | 'participant', CommandLabels> = {
+  participant: { action: 'participants update', default: 'Participants updated' },
+  stimulus: { action: 'stimuli update', default: 'Stimuli updated' },
+}
+
 /**
  * Registry mapping workspace command types to their human-readable labels.
- * `updateSelections` labels are per-axis (SELECTIONS_LABELS above).
+ * `updateSelections` and `reconcileMerges` labels are per-axis (above).
  */
 const WORKSPACE_COMMAND_LABELS: Record<
-  Exclude<WorkspaceCommand['type'], 'updateSelections'>,
+  Exclude<WorkspaceCommand['type'], 'updateSelections' | 'reconcileMerges'>,
   CommandLabels
 > = {
   // Data change commands
@@ -71,8 +77,6 @@ const WORKSPACE_COMMAND_LABELS: Record<
   mergeEntities: { action: 'merge', default: 'Merged' },
 
   unmergeEntities: { action: 'un-merge', default: 'Un-merged' },
-
-  reconcileMerges: { action: 'changes', default: 'Changes applied' },
 
   noop: { action: '', default: '' },
 
@@ -144,7 +148,9 @@ export function getCommandLabel(
   const labels =
     command.type === 'updateSelections'
       ? SELECTIONS_LABELS[command.axis]
-      : WORKSPACE_COMMAND_LABELS[command.type]
+      : command.type === 'reconcileMerges'
+        ? RECONCILE_LABELS[command.axis]
+        : WORKSPACE_COMMAND_LABELS[command.type]
 
   if (!history) return labels.default
   if (!labels.action) return ''
