@@ -115,7 +115,7 @@ export function deriveScanpathSimilarityView(
           { key: 'Row', value: labels[row] },
           { key: 'Column', value: labels[col] },
           // NaN = both scanpaths empty: no data to compare, not a score.
-          { key: valueLabel, value: Number.isFinite(v) ? v.toFixed(3) : '—' },
+          { key: valueLabel, value: Number.isFinite(v) ? v.toFixed(3) : 'No data: both scanpaths empty' },
         ]
       },
     },
