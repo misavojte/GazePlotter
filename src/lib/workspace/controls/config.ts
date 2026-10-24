@@ -81,7 +81,8 @@ export function createToolControls(
     },
     {
       id: 'add-visualization',
-      label: 'Add Visualization',
+      // Like "Nothing to undo": a disabled control says why.
+      label: options.isValidData ? 'Add Visualization' : 'Add Visualization (load data first)',
       icon: controlIcons['add-visualization'],
       // One submenu parent per non-empty taxonomy group, in PLOT_GROUPS order.
       // Capability filtering happens upstream, so an unavailable group simply
