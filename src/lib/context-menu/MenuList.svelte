@@ -110,8 +110,8 @@
           {/if}
           {#if it.detail}
             <span class="item-body">
-              <span class="item-label">{it.label}</span>
-              <span class="item-detail">{it.detail}</span>
+              <span class="item-label" title={it.label}>{it.label}</span>
+              <span class="item-detail" title={it.detail}>{it.detail}</span>
             </span>
           {:else}
             {it.label}
