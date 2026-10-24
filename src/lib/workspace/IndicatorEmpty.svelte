@@ -52,6 +52,13 @@
         Drop eye-tracking files anywhere here, or import them to start.
       {/if}
     </p>
+    {#if !fatalLoadError && !canResetLayout}
+      <!-- Answers "will my export work?" before the first try. -->
+      <p class="formats">
+        Tobii Pro Lab, SMI BeGaze, Gazepoint, Varjo, Pupil Cloud, OGAMA, custom
+        CSV, or a saved .gazeplotter workspace.
+      </p>
+    {/if}
     <div class="actions">
       {#if fatalLoadError && canOpenErrorReport}
         <Button onclick={openErrorReport}>Open report</Button>
@@ -79,6 +86,13 @@
     color: var(--c-black);
     line-height: var(--leading-relaxed);
     font-size: var(--text-lg);
+  }
+
+  /* Pulls up under the message: a footnote to it, not a paragraph of its own. */
+  .formats {
+    margin-top: -16px;
+    color: var(--c-darkgrey);
+    font-size: var(--text-sm);
   }
 
   .actions {
