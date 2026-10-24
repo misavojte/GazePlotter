@@ -75,7 +75,10 @@ export function deriveTransitionMatrixView(
       placeholder: noMetric
         ? METRIC_MISSING_MESSAGE
         : aoiLabels.length === 0
-          ? 'No AOI data available'
+          ? {
+              message: 'No AOIs for this stimulus and AOI selection.',
+              steps: ['Pick another Stimulus or a selection in Areas of Interest'],
+            }
           : null,
       fitSteps: ['Merge some AOIs in Plot Settings > Areas of Interest'],
       tooltipWidth: 150,

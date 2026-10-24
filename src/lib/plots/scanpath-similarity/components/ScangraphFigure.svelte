@@ -82,7 +82,10 @@
       noMetric
         ? METRIC_MISSING_MESSAGE
         : (data?.nodes.length ?? 0) === 0
-          ? 'No graph data available'
+          ? {
+              message: 'No participants in this selection have data on this stimulus.',
+              steps: ['Pick another Stimulus or a selection in Participants'],
+            }
           : null,
     fit: frame => {
       const n = data?.nodes.length ?? 0
