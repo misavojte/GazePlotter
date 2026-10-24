@@ -174,10 +174,19 @@
     void tick().then(() => {
       if (activeModalId !== (activeModal?.id ?? null)) return
       updateActiveBodyElement()
+      // Focus moves into the active dialog, unless it already took it itself.
+      const dialog = document.querySelector(
+        '.modal-stack-entry.is-active .modal'
+      ) as HTMLElement | null
+      if (dialog && !dialog.contains(document.activeElement)) {
+        dialog.focus({ preventScroll: true })
+      }
     })
   })
 
   let unlockBodyScroll: (() => void) | null = null
+  // What had focus before the first dialog opened; it gets it back on close.
+  let returnFocus: HTMLElement | null = null
 
   onMount(() => {
     window.addEventListener('keydown', handleKeydown, { passive: true })
@@ -195,6 +204,7 @@
 
   $effect(() => {
     if (modalStack.length > 0 && !unlockBodyScroll) {
+      returnFocus = document.activeElement as HTMLElement | null
       unlockBodyScroll = lockBodyScroll()
       window.addEventListener('wheel', handleWindowScroll, { passive: false })
       return
@@ -207,6 +217,8 @@
       showScrollIndicator = false
       showVersionMessage = false
       window.removeEventListener('wheel', handleWindowScroll)
+      if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true })
+      returnFocus = null
     }
   })
 </script>
@@ -227,6 +239,7 @@
         <div
           class="modal"
           role="dialog"
+          tabindex="-1"
           aria-modal={isActive}
           aria-hidden={!isActive}
           aria-labelledby={`modal-title-${entry.id}`}
@@ -319,6 +332,11 @@
     &.is-active {
       display: block;
     }
+  }
+
+  /* Focus lands on the dialog itself only as a starting point for Tab. */
+  .modal:focus {
+    outline: none;
   }
 
   .modal {
