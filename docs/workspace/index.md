@@ -70,7 +70,7 @@ Click **Duplicate** in the chip, or press `Ctrl+D` (`Cmd+D` on Mac). The copy ke
 With several plots selected, the chip moves to the group's outline and duplicates all of them at once, keeping the arrangement they are in: the copies land together, in the same shape, in the first free space that fits them. They become the new selection, and one **Undo** takes them all back.
 
 ### Removing a plot
-Click **Remove** in the chip, or press `Delete`. With several plots selected, the chip on the group's outline removes all of them in one step.
+Click **Remove** in the chip, or press `Delete` (`Backspace` on Mac). With several plots selected, the chip on the group's outline removes all of them in one step.
 
 ## Keyboard shortcuts
 
