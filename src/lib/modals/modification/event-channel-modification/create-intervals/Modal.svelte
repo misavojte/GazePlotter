@@ -187,6 +187,15 @@
     if (mutated) modalState.finish(true)
     else modalState.close()
   }
+
+  // Enter in a section's text field runs that section's button, when enabled.
+  const enterRuns =
+    (action: () => void, enabled: () => boolean) => (event: KeyboardEvent) => {
+      if (event.key !== 'Enter' || event.isComposing || !enabled()) return
+      if (!(event.target instanceof HTMLInputElement)) return
+      event.preventDefault()
+      action()
+    }
 </script>
 
 <Section>
@@ -200,7 +209,11 @@
     </p>
 
     <Section title="A. Detect pairs by name suffix">
-      <div class="suffix-inputs-grid">
+      <!-- svelte-ignore a11y_no_static_element_interactions -- delegates its fields' Enter -->
+      <div
+        class="suffix-inputs-grid"
+        onkeydown={enterRuns(regenerateProposals, () => !!startSuffix && !!endSuffix)}
+      >
         <InputText
           bind:value={startSuffix}
           label="Start suffix"
@@ -251,7 +264,11 @@
     </Section>
 
     <Section title="B. Add pair manually">
-      <div class="inputs-grid manual-inputs-grid">
+      <!-- svelte-ignore a11y_no_static_element_interactions -- delegates its fields' Enter -->
+      <div
+        class="inputs-grid manual-inputs-grid"
+        onkeydown={enterRuns(addManualPair, () => canAddManual)}
+      >
         <Select
           compact
           label="Start event"
