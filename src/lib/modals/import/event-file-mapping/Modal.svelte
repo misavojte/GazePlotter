@@ -96,7 +96,7 @@
   </div>
 </div>
 
-<ModalButtons onApply={handleSubmit} />
+<ModalButtons onApply={handleSubmit} applyLabel="Load events" />
 
 <style>
   .content {

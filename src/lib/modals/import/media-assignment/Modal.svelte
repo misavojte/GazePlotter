@@ -68,7 +68,7 @@
   </div>
 </div>
 
-<ModalButtons onApply={handleSubmit} />
+<ModalButtons onApply={handleSubmit} applyLabel="Attach media" />
 
 <style>
   .content {
