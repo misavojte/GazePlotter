@@ -236,7 +236,7 @@
             {/if}
             <div class="grid-item-subtitle-part">
               <span class="grid-item-subtitle-label">{part.label}</span>
-              <span class="grid-item-subtitle-value">{part.value}</span>
+              <span class="grid-item-subtitle-value" title={part.value}>{part.value}</span>
             </div>
           {/each}
         </div>
