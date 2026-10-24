@@ -27,6 +27,8 @@
     items: readonly { value: string; label: string; sublabel?: string }[]
     presets?: readonly SelectionPreset[]
     selected: Set<string>
+    /** Appended to the collapsed summary ("No_AOI left out"). */
+    summaryNote?: string
     /** Extra guidance rendered above the checklist. */
     children?: Snippet
   }
@@ -40,6 +42,7 @@
     items,
     presets = [],
     selected = $bindable(),
+    summaryNote,
     children,
   }: Props = $props()
 
@@ -64,7 +67,9 @@
   {n}
   {title}
   description={presets.length > 0 ? [description, chipsText].filter(Boolean).join(' ') : description}
-  summary={presetSelectionSummary(items, presets, selected)}
+  summary={[presetSelectionSummary(items, presets, selected), summaryNote]
+    .filter(Boolean)
+    .join(' · ')}
   {done}
 >
   {@render children?.()}

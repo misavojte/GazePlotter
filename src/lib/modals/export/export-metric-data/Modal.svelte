@@ -61,6 +61,8 @@
     timeEnd?: number
     /** Prefill: a plot's AOI selection; 0 or unset = all AOIs. */
     aoiSelectionId?: number
+    /** Prefill: a plot's Hide No AOI toggle. */
+    hideNoAoi?: boolean
   }
 
   let {
@@ -70,6 +72,7 @@
     timeStart: presetStart,
     timeEnd: presetEnd,
     aoiSelectionId: presetAoiSelection,
+    hideNoAoi: presetHideNoAoi,
   }: Props = $props()
   const { exportService, modalState, engine, workspace, workspaceFile } =
     getGazePlotterSession()
@@ -98,6 +101,7 @@
   let selectedAois = $state(
     untrack(() => defaultAoiSelection(engine, aoiChecklistItems(engine), presetAoiSelection))
   )
+  let includeNoAoi = $state(untrack(() => !presetHideNoAoi))
   let selectedParticipantIds = $state(
     untrack(() => defaultParticipantSelection(engine, groupId))
   )
@@ -328,6 +332,7 @@
       timeStart,
       timeEnd,
       aoiNames: tickedAoiNames(aoiItems, selectedAois),
+      hideNoAoi: aoiItems.length > 0 && !includeNoAoi,
     })
   }
 
@@ -399,6 +404,7 @@
         items={aoiItems}
         presets={aoiPresets}
         bind:selected={selectedAois}
+        summaryNote={includeNoAoi ? undefined : 'No_AOI left out'}
       >
         <HelpText>
           Metrics are computed on the ticked AOIs exactly as in a plot whose AOI
@@ -406,6 +412,13 @@
           the other AOIs count as No_AOI. Saved selections come from the
           <button type="button" class="inline-link" onclick={handleEditAois}>AOI library</button>.
         </HelpText>
+        <div class="checkbox-row">
+          <InputCheck
+            label="Include No AOI data"
+            sublabel="The No_AOI rows and columns: fixations outside the ticked AOIs. Leaving them out changes no other value, as a plot's Hide No AOI data toggle does."
+            bind:checked={includeNoAoi}
+          />
+        </div>
       </SelectionStep>
     {/if}
 

@@ -65,6 +65,9 @@ export type MetricDataExportOptions = {
   /** Displayed names of the AOIs to compute on, as a plot's AOI selection
    *  does: fixations on the other AOIs count as No AOI. Unset = all AOIs. */
   aoiNames?: ReadonlySet<string>
+  /** Leave out the No_AOI rows and columns, as a plot's Hide No AOI toggle
+   *  does; no other value changes. */
+  hideNoAoi?: boolean
   includeCodebook?: boolean
 }
 
@@ -270,6 +273,9 @@ export async function exportMetrics(
   const includeCodebook = !!options.includeCodebook
   // Passed where a plot passes its selection id; getAois resolves either.
   const aoiSelectionId = options.aoiNames
+  const hideNoAoi = !!options.hideNoAoi
+  const keepCell = (cell: ExportCell) =>
+    !hideNoAoi || ![cell.aoi, cell.fromAoi, cell.toAoi].some(ref => ref?.kind === 'noAoi')
 
   const selectedInstances = options.metricInstanceIds
     .map(id => engine.metadata?.metricInstances.find(i => i.id === id))
@@ -369,7 +375,9 @@ export async function exportMetrics(
 
           const label = resolvedLabels.get(inst.id) ?? inst.label
           for (const cell of resultCells(result, windowSizeOf(inst), aoiNames)) {
-            pushRow(participantId, participantName, stimulusName, label, result.unit, cell)
+            if (keepCell(cell)) {
+              pushRow(participantId, participantName, stimulusName, label, result.unit, cell)
+            }
           }
         }
       }
@@ -471,7 +479,7 @@ export async function exportMetrics(
       } else if (shape === 'aoi-vector') {
         const refs: SlotRef[] = [
           ...unionAoiNames.map(name => ({ kind: 'name', name }) as const),
-          { kind: 'noAoi' },
+          ...(hideNoAoi ? [] : [{ kind: 'noAoi' } as const]),
           { kind: 'anyFixation' },
         ]
         for (const aoi of refs) {
@@ -486,7 +494,7 @@ export async function exportMetrics(
       } else if (shape === 'aoi-pair-matrix') {
         const refs: SlotRef[] = [
           ...unionAoiNames.map(name => ({ kind: 'name', name }) as const),
-          { kind: 'noAoi' },
+          ...(hideNoAoi ? [] : [{ kind: 'noAoi' } as const]),
         ]
         for (const fromAoi of refs) {
           for (const toAoi of refs) {
@@ -651,7 +659,9 @@ export async function exportMetrics(
       const participantNames = options.participantIds
         .map(id => getParticipant(engine, id).displayedName)
         .join(', ')
-      const aoisUsed = options.aoiNames ? Array.from(options.aoiNames).join('; ') : 'All'
+      const aoisUsed =
+        (options.aoiNames ? Array.from(options.aoiNames).join('; ') : 'All') +
+        (hideNoAoi ? ' (No_AOI left out)' : '')
       const stimuliNames = options.stimulusIds
         .map(id => getStimulus(engine, id).displayedName)
         .join(', ')

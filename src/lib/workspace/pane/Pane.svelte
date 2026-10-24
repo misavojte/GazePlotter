@@ -50,6 +50,7 @@
     timelineStart?: number
     timelineEnd?: number
     aoiSelectionId?: number
+    hideNoAoi?: boolean
   }
 
   // The data behind one plot, one click away (still editable before
@@ -70,6 +71,7 @@
           'participants',
           (scope.timelineStart || scope.timelineEnd) && 'time crop',
           scope.aoiSelectionId && 'AOI selection',
+          scope.hideNoAoi && 'hidden No AOI',
         ]
           .filter(Boolean)
           .join(', ')}`,
@@ -81,6 +83,7 @@
             timeStart: scope.timelineStart,
             timeEnd: scope.timelineEnd,
             aoiSelectionId: scope.aoiSelectionId,
+            hideNoAoi: scope.hideNoAoi,
           }),
       }
     }

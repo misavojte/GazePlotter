@@ -277,6 +277,35 @@ describe('Metric Data Export Mapping', () => {
     expect(header).not.toContain('CTA')
   })
 
+  it('leaves out No_AOI rows and columns as a plot hiding No AOI does, values unchanged', async () => {
+    const engine = loadedEngine()
+    const res = await exportWith(engine, {
+      metricInstanceIds: ['absoluteTime-inst'],
+      aoiNames: new Set(['Nav']),
+      hideNoAoi: true,
+      includeCodebook: true,
+    })
+    expect(res.dataContent.split('\n')).toEqual([
+      'Participant_ID,Participant,Stimulus,AOI,Metric,Unit,Value',
+      '0,ParticipantOne,StimulusOne,Nav,Absolute Dwell Time,ms,1000',
+      '0,ParticipantOne,StimulusOne,Any_Fixation,Absolute Dwell Time,ms,2000',
+      '1,ParticipantTwo,StimulusOne,Nav,Absolute Dwell Time,ms,500',
+      '1,ParticipantTwo,StimulusOne,Any_Fixation,Absolute Dwell Time,ms,1500',
+    ])
+    expect(res.codebookContent).toContain(',full,Nav (No_AOI left out),')
+
+    const wide = await exportWith(engine, {
+      metricInstanceIds: ['absoluteTime-inst'],
+      format: 'wide',
+      hideNoAoi: true,
+    })
+    const [header, p1] = wide.dataContent.split('\n')
+    expect(header).toBe(
+      'Participant_ID,Participant,Stimulus,Absolute_Dwell_Time_Nav,Absolute_Dwell_Time_CTA,Absolute_Dwell_Time_Any_Fixation'
+    )
+    expect(p1).toBe('0,ParticipantOne,StimulusOne,1000,1000,2000')
+  })
+
   it('generates a descriptive sidecar codebook CSV', async () => {
     const engine = loadedEngine()
 
