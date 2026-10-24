@@ -1,7 +1,7 @@
 <script lang="ts">
   import InputText from '$lib/shared/components/InputText.svelte'
   import InputRadio from '$lib/shared/components/InputRadio.svelte'
-  import { ModalButtons } from '$lib/modals'
+  import { HelpText, ModalButtons } from '$lib/modals'
   import { getGazePlotterSession } from '$lib/session'
   import type { TobiiParsingConfig } from '$lib/data/ingest/formats/lib/rows/tobiiParsingConfig'
   import { serializeTobiiConfig } from '$lib/data/ingest/formats/lib/rows/tobiiParsingConfig'
@@ -17,6 +17,14 @@
 
   let selectedOption: string = $state('')
   let customMarkers: string = $state('_start;_end')
+  // Exactly a start and an end marker, or the end would parse as undefined.
+  const markersValid = $derived(
+    selectedOption !== 'custom' ||
+      customMarkers
+        .split(';')
+        .map(part => part.trim())
+        .every((part, i, parts) => parts.length === 2 && part.length > 0)
+  )
 
   /**
    * Handles form submission by resolving the promise with the serialized
@@ -56,11 +64,18 @@
         label="Markers (start;end)"
         placeholder="_start;_end"
       />
+      {#if !markersValid}
+        <HelpText tone="error">Use start;end, for example _start;_end</HelpText>
+      {/if}
     </div>
   {/if}
 </div>
 
-<ModalButtons onApply={handleSubmit} applyLabel="Load data" />
+<ModalButtons
+  onApply={handleSubmit}
+  applyLabel="Load data"
+  applyDisabled={!markersValid}
+/>
 
 <style>
   .content {
