@@ -8,8 +8,9 @@ import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/textMeasure'
  * METRIC_MISSING_MULTI_MESSAGE because "select a metric" is misleading when
  * the user actually needs ≥ 2.
  */
-export const METRIC_MISSING_MESSAGE = 'Select a metric'
-export const METRIC_MISSING_MULTI_MESSAGE = 'Select at least two metrics'
+export const METRIC_MISSING_MESSAGE = 'Select a metric in Plot Settings > Metric'
+export const METRIC_MISSING_MULTI_MESSAGE =
+  'Select at least two metrics in Plot Settings > Metrics'
 const PLOT_CANNOT_FIT_HEIGHT_MESSAGE = 'The plot cannot fit the current height. Either:'
 const PLOT_CANNOT_FIT_WIDTH_MESSAGE = 'The plot cannot fit the current width. Either:'
 const PLOT_CANNOT_FIT_SIZE_MESSAGE = 'The plot cannot fit the current size. Either:'
