@@ -14,6 +14,11 @@
 
   const canResetLayout = $derived(engine.hasValidData)
   const fatalLoadError = $derived(errorService.fatalLoad)
+  // Parser messages often lack a final period; the next sentence follows it.
+  const fatalSentence = $derived.by(() => {
+    const text = fatalLoadError?.userMessage.trim() ?? ''
+    return /[.!?]$/.test(text) ? text : `${text}.`
+  })
   const canOpenErrorReport = $derived(
     fatalLoadError !== null || ingest.metadata !== null
   )
@@ -39,8 +44,7 @@
   <div class="content-inner">
     <p>
       {#if fatalLoadError}
-        {fatalLoadError.userMessage} You can inspect the report or upload different
-        data.
+        {fatalSentence} You can inspect the report or upload different data.
       {:else if canResetLayout}
         Data is loaded, but no plots are shown. Add one with Add
         Visualization, reset the layout, or upload new data.
