@@ -25,7 +25,7 @@ Filter the eye-tracking data by a participant selection.
 Configure the timeline representation mode.
 - **Timeline mode**: Choose how the sequence is arrayed along the horizontal axis:
   - *Absolute*: Displays fixations and events plotted in their exact chronological timing (in milliseconds).
-  - *Relative*: Scales and displays sequences proportional to the participant with the longest dwell time for cross-participant comparability.
+  - *Relative*: Stretches each participant's own session to 0 to 100%, so sequences of different lengths line up for comparison.
   - *Ordinal*: Displays strict sequential order indices of individual fixations, saccades, and other events, discarding exact durations.
 
 ### Time range [ms] / Ordinal range [indices]
