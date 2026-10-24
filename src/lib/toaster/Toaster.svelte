@@ -115,7 +115,7 @@
         <button
           type="button"
           class="close-btn"
-          aria-label="Close"
+          aria-label="Dismiss notification"
           onclick={() => handleManualClose(id)}
         >
           {#if duration}
