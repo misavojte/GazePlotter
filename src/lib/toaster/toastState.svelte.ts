@@ -1,4 +1,4 @@
-import type { ToastFillingType } from './types'
+import type { ToastAction, ToastFillingType } from './types'
 import { generateUniqueId } from '$lib/shared/uniqueId'
 
 const MAX_VISIBLE_TOASTS = 5
@@ -73,17 +73,18 @@ export class ToastState {
   private show(
     type: ToastFillingType['type'],
     message: string,
-    duration: number
+    duration: number,
+    action?: ToastAction
   ): void {
-    this.add({ id: generateUniqueId(), message, type, duration })
+    this.add({ id: generateUniqueId(), message, type, duration, action })
   }
 
   addError(message: string): void {
     this.show('error', message, 8000)
   }
 
-  addSuccess(message: string): void {
-    this.show('success', message, 4000)
+  addSuccess(message: string, action?: ToastAction): void {
+    this.show('success', message, 4000, action)
   }
 
   addWarning(message: string): void {

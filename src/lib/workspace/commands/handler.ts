@@ -26,7 +26,7 @@ export function createCommandHandler(
   gridStore: GridState,
   engine: DataEngine,
   history: UndoRedoStateStore,
-  onSuccess: (message: string) => void,
+  onSuccess: (message: string, command: WorkspaceCommandChain) => void,
   onWorkspaceCommandChain: (command: WorkspaceCommandChain) => void,
   onRegistryError?: (
     error: unknown,
@@ -102,7 +102,7 @@ export function createCommandHandler(
 
       if (shouldShowSuccessToast(command, isUndoRedoOperation)) {
         const message = getCommandLabel(command)
-        if (message) onSuccess(message)
+        if (message) onSuccess(message, command)
       }
 
       // Notify listeners about the command

@@ -8,6 +8,14 @@ interface ToastLink {
   label: string
 }
 
+/** An in-app verb under a toast message ("Undo"); shown only while
+ *  `isAvailable` holds, so it never acts on a state it no longer describes. */
+export interface ToastAction {
+  label: string
+  onAction: () => void
+  isAvailable?: () => boolean
+}
+
 export interface ToastFillingType {
   /** Identity for removal. */
   id: number
@@ -17,4 +25,5 @@ export interface ToastFillingType {
   duration: number | null
   /** Optional call-to-action link shown under the message. */
   link?: ToastLink
+  action?: ToastAction
 }

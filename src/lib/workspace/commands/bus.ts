@@ -51,7 +51,7 @@ export class WorkspaceCommandBus {
       deps.grid,
       deps.engine,
       this.history,
-      message => deps.toastState.addSuccess(message),
+      (message, command) => this.toastSuccess(message, command),
       command => this.onCommandApplied(command),
       (error, context) => {
         this.errorService.report({
@@ -70,6 +70,23 @@ export class WorkspaceCommandBus {
         })
       }
     )
+  }
+
+  // A removal toast carries its own Undo, live only while that removal is
+  // still the newest step, so the button can never revert a later change.
+  private toastSuccess(message: string, command: WorkspaceCommandChain): void {
+    if (command.type !== 'removeGridItem' && command.type !== 'removeGridItems') {
+      this.toastState.addSuccess(message)
+      return
+    }
+    const isNewest = () => this.history.head === command.chainId
+    this.toastState.addSuccess(message, {
+      label: 'Undo',
+      onAction: () => {
+        if (isNewest()) this.undo()
+      },
+      isAvailable: isNewest,
+    })
   }
 
   setCommandListener(listener: (command: WorkspaceCommandChain) => void): void {

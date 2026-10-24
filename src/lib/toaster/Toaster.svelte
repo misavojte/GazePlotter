@@ -83,7 +83,7 @@
 </script>
 
 <div class="toaster" role="status" aria-live="polite">
-  {#each toastState.current as { id, type, message, link, duration } (id)}
+  {#each toastState.current as { id, type, message, link, action, duration } (id)}
     <div
       class="toast toast-{type}"
       role="presentation"
@@ -107,6 +107,18 @@
           >
             {link.label}
           </a>
+        {/if}
+        {#if action && (action.isAvailable?.() ?? true)}
+          <button
+            type="button"
+            class="toast-action"
+            onclick={() => {
+              action.onAction()
+              handleManualClose(id)
+            }}
+          >
+            {action.label}
+          </button>
         {/if}
       </div>
 
@@ -257,6 +269,26 @@
     to {
       height: 100%;
     }
+  }
+
+  /* A verb, not a destination: underlined like the link, without its arrow. */
+  .toast-action {
+    align-self: flex-start;
+    margin-top: 6px;
+    padding: 0;
+    border: none;
+    background: none;
+    color: var(--c-white);
+    font: inherit;
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    cursor: pointer;
+  }
+
+  .toast-action:focus-visible {
+    outline: 2px solid var(--c-white);
+    outline-offset: 2px;
   }
 
   .toast-link {
