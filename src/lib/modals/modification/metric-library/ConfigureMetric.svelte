@@ -643,7 +643,7 @@
             {/if}
 
             {#if windowDraft}
-              {@const unit = metric.meta.windowUnit === 'fixations' ? 'fix' : 'ms'}
+              {@const unit = metric.meta.windowUnit === 'fixations' ? 'fixations' : 'ms'}
               <div class="two-col">
                 <InputNumber
                   id="modal-window-{metric.meta.id}"
