@@ -57,7 +57,7 @@ A collapsible panel located on the **right side** of the screen.
 To perform any manipulation (moving, resizing, duplicating, or removing), you must select the target plot card first by clicking it. Clicking empty canvas space deselects it.
 
 ### Moving a plot
-With the plot selected, the whole card is a drag target: click and drag anywhere on the card frame to move it. Plots snap to a 40×40 pixel grid. Hold a plot near the edge of the canvas and the view moves along, so you can place it anywhere, including above or to the left of all other plots. With several plots selected, drag any one to move them all together.
+With the plot selected, the whole card is a drag target: click and drag anywhere on the card frame to move it. Plots snap to a 40×40 pixel grid. Hold a plot near the edge of the canvas and the view moves along, so you can place it anywhere, including above or to the left of all other plots. With several plots selected, drag any one to move them all together. The arrow keys move the selection one grid cell at a time.
 
 ### Resizing a plot
 Drag any of the four corner handles on a selected plot. The card snaps to the grid as it resizes.

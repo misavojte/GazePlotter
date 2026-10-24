@@ -37,6 +37,14 @@
 
   let gridEl = $state<HTMLDivElement>()
 
+  // One grid cell per press: the keyboard's way to move what a drag moves.
+  const ARROW_STEPS: Record<string, [dx: number, dy: number]> = {
+    ArrowLeft: [-1, 0],
+    ArrowRight: [1, 0],
+    ArrowUp: [0, -1],
+    ArrowDown: [0, 1],
+  }
+
   // Mac's main "delete" key emits Backspace, so we handle both.
   // Capture on `document`, like selectionSession's Esc unwinding: the modal and
   // the context menu bubble on `window` and clear the state this guard reads,
@@ -66,6 +74,18 @@
       // Delete/Escape working for a multi-selection.
       const selectedIds = grid.selectedItemIds
       if (selectedIds.length === 0) return
+      const step = ARROW_STEPS[event.key]
+      if (step) {
+        if (!fromPageOrGrid) return
+        event.preventDefault()
+        const [dx, dy] = step
+        commitGridItemGroupMove(
+          workspace,
+          gridItems,
+          grid.selectedItems.map(item => ({ id: item.id, x: item.x + dx, y: item.y + dy }))
+        )
+        return
+      }
       if (duplicate || event.key === 'Delete' || event.key === 'Backspace') {
         if (!fromPageOrGrid) return
         event.preventDefault()
