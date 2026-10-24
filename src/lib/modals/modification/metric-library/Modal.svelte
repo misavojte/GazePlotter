@@ -150,7 +150,7 @@
               class="icon-btn"
               onclick={() => openEditModal(inst)}
               title="Edit"
-              aria-label="Edit"
+              aria-label="Edit {inst.label}"
             >
               <Pencil size={13} />
             </button>
@@ -158,7 +158,7 @@
               class="icon-btn"
               onclick={() => duplicateInstance(inst)}
               title="Duplicate"
-              aria-label="Duplicate"
+              aria-label="Duplicate {inst.label}"
             >
               <Copy size={13} />
             </button>
@@ -166,7 +166,7 @@
               class="icon-btn"
               onclick={() => ondeleteInstance?.(inst.id)}
               title="Delete"
-              aria-label="Delete"
+              aria-label="Delete {inst.label}"
             >
               <X size={13} />
             </button>
