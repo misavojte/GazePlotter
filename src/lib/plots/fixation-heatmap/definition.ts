@@ -1,8 +1,8 @@
-import { deriveFixationHeatmapView, formatGaze, heatmapUnit } from './core/view'
+import { deriveFixationHeatmapView, heatmapUnit } from './core/view'
 import { autoRadiusFor } from './core/transformer'
 import { plotCursorScreen } from '$lib/plots/shared/plotCursor.svelte'
 import { commonIs, definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
-import { stimulusGroupSubtitle } from '$lib/plots/shared'
+import { formatGaze, stimulusGroupSubtitle } from '$lib/plots/shared'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import type { FixationHeatmapPlotSettings } from './types'
 

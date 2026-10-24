@@ -3,7 +3,7 @@ import type { PlotView } from '$lib/plots/definePlot'
 import { ALL_SELECTION_LABEL } from '$lib/data/types'
 import { getParticipantsSelectionOptions } from '$lib/plots/shared/selectOptionsGetters'
 import { optionLabel } from '$lib/plots/shared/subtitles'
-import { formatQuantity, timeRangeQualifier, withQualifiers } from '$lib/plots/shared/labels'
+import { formatGaze, formatQuantity, timeRangeQualifier, withQualifiers } from '$lib/plots/shared/labels'
 import type { PlotPlaceholderContent } from '$lib/plots/shared/drawCanvasPlaceholder'
 import FixationHeatmapPlotFigure from '../components/FixationHeatmapPlotFigure.svelte'
 import { SIGMA_PER_RADIUS } from './density'
@@ -42,9 +42,6 @@ export function heatmapUnit(settings: Pick<FixationHeatmapPlotSettings, 'accumul
   if (settings.normalization === 'share') return '%'
   return settings.accumulate === 'duration' ? 'ms' : ''
 }
-
-/** Gaze units: whole numbers at pixel scale, three significant digits for normalized data. */
-export const formatGaze = (v: number) => (Math.abs(v) >= 10 ? String(Math.round(v)) : String(Number(v.toPrecision(3))))
 
 const formatCount = (n: number) => n.toLocaleString('en-US')
 

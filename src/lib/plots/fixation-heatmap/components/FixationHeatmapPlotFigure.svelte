@@ -28,7 +28,8 @@
   import type { StimulusMedia } from '$lib/data/types'
   import { bucketFixations, cellCentreOf, fixationsWithin, type FixationBuckets } from '../core/density'
   import { heatLut, legendRamp, paintHeat } from '../core/heatImage'
-  import { formatAmount, formatGaze } from '../core/view'
+  import { formatAmount } from '../core/view'
+  import { formatGaze } from '$lib/plots/shared/labels'
   import { FIXATION_HEATMAP_COLORS as C, FIXATION_HEATMAP_LAYOUT as L } from '../const'
   import type {
     FixationHeatmapAccumulate,

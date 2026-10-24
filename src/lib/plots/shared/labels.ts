@@ -197,6 +197,9 @@ export function timeRangeQualifier(start = 0, end = 0): string | null {
   return rangeQualifier('t', start, end, 'ms')
 }
 
+/** Gaze units: whole numbers at pixel scale, three significant digits for normalized data. */
+export const formatGaze = (v: number) => (Math.abs(v) >= 10 ? String(Math.round(v)) : String(Number(v.toPrecision(3))))
+
 /** Integers bare, else one decimal; a `unit` trails after a space. */
 export function formatCompact(v: number, unit = ''): string {
   const num = Number.isInteger(v) ? String(v) : v.toFixed(1)
