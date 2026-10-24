@@ -42,8 +42,8 @@
         {fatalLoadError.userMessage} You can inspect the report or upload different
         data.
       {:else if canResetLayout}
-        Data is available in memory, but no visualizations are displayed.
-        You can reset the layout or upload new data.
+        Data is loaded, but no plots are shown. Add one with Add
+        Visualization, reset the layout, or upload new data.
       {:else}
         Drop eye-tracking files anywhere here, or import them to start.
       {/if}
