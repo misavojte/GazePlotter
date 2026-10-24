@@ -5,7 +5,7 @@ import type { WorkspaceCommandChain } from './types'
  */
 const MAX_UNDO_STACK_SIZE = 50
 
-/** Edits to the same settings closer together than this are one undo step. */
+/** Edits to the same settings or layout closer together than this are one undo step. */
 const COALESCE_WINDOW_MS = 1000
 
 function createWorkspaceHistoryError(message: string): Error {
@@ -25,14 +25,22 @@ interface CommandChainEntry {
   }>
 }
 
-/** Items and setting keys of a lone updateSettings chain; null if it has more. */
-function settingsSignature(chain: CommandChainEntry): string | null {
+/** Type, items and keys of a lone settings or layout edit; null for anything else. */
+function editSignature(chain: CommandChainEntry): string | null {
   if (chain.commands.length !== 1) return null
   const command = chain.commands[0].original
-  if (command.type !== 'updateSettings') return null
-  return command.updates
-    .map(({ itemId, settings }) => `${itemId}:${Object.keys(settings).sort()}`)
-    .join('|')
+  if (command.type === 'updateSettings') {
+    return `settings ${command.updates
+      .map(({ itemId, settings }) => `${itemId}:${Object.keys(settings).sort()}`)
+      .join('|')}`
+  }
+  // Arrow-key nudges: a quick run of them is one move.
+  if (command.type === 'updateLayout') {
+    return `layout ${command.updates
+      .map(({ itemId, layout }) => `${itemId}:${Object.keys(layout).sort()}`)
+      .join('|')}`
+  }
+  return null
 }
 
 export class UndoRedoStateStore {
@@ -155,8 +163,8 @@ export class UndoRedoStateStore {
     this.pendingChain = null
 
     // Typing "5000" is one edit, not four: a quick follow-up to the same
-    // settings keeps the first reverse and the newest original.
-    const signature = settingsSignature(chain)
+    // settings (or layout) keeps the first reverse and the newest original.
+    const signature = editSignature(chain)
     const now = Date.now()
     const top = this.undoStack.at(-1)
     if (
