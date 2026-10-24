@@ -180,6 +180,8 @@ export class ExportService {
       naming: ExportNaming
     ) => Array<{ fileName: string; content: string }>
   ): Promise<boolean> {
+    // The toast names what was delivered: the user picks it up in Downloads.
+    let delivered = ''
     return this.runExport(
       async () => {
         if (options.stimulusIds.size === 0) {
@@ -200,10 +202,9 @@ export class ExportService {
           this.track
         )
         this.deliver(payload, fileName)
+        delivered = fileName.endsWith(payload.extension) ? fileName : fileName + payload.extension
       },
-      options.exportType === 'csv'
-        ? 'Single CSV file exported successfully'
-        : 'Individual CSV files exported and zipped successfully',
+      () => `Exported ${delivered}`,
       context
     )
   }
@@ -247,13 +248,15 @@ export class ExportService {
   }
 
   async exportScangraph(options: ScangraphExportOptions): Promise<boolean> {
+    let delivered = ''
     return this.runExport(
-      () =>
-        this.deliver(
-          buildScanGraph(this.deps.engine, options.stimulusId, options.collapsed),
-          this.resolveFileName(options.fileName)
-        ),
-      'ScanGraph file exported successfully',
+      () => {
+        const fileName = this.resolveFileName(options.fileName)
+        const payload = buildScanGraph(this.deps.engine, options.stimulusId, options.collapsed)
+        this.deliver(payload, fileName)
+        delivered = fileName.endsWith(payload.extension) ? fileName : fileName + payload.extension
+      },
+      () => `Exported ${delivered}`,
       {
         exportType: 'scangraph',
         fileName: options.fileName,
