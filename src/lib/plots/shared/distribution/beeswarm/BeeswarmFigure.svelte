@@ -382,7 +382,8 @@
 
     const content: FrameHit['content'] = [
       { key: itemTooltipKey, value: dataItem.label },
-      { key: 'Value', value: fmt(mouseValue) },
+      // The axis value under the pointer, not a data point.
+      { key: 'At pointer', value: fmt(mouseValue) },
     ]
 
     // Dot radius is computed once in `geom` (stable between full renders), not
