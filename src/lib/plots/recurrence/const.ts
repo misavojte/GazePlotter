@@ -7,10 +7,11 @@ import type {
 export const RECURRENCE_METHODS: {
   value: RecurrenceMethod
   label: string
+  detail: string
 }[] = [
-  { value: 'fixedDistance', label: 'Fixed distance' },
-  { value: 'fixedGrid', label: 'Fixed grid' },
-  { value: 'aoi', label: 'AOI' },
+  { value: 'fixedDistance', label: 'Fixed distance', detail: 'Recurrent within a radius' },
+  { value: 'fixedGrid', label: 'Fixed grid', detail: 'Recurrent in the same grid cell' },
+  { value: 'aoi', label: 'AOI', detail: 'Recurrent on a shared AOI' },
 ]
 
 export const RECURRENCE_HIGHLIGHTS: {
@@ -26,10 +27,11 @@ export const RECURRENCE_HIGHLIGHTS: {
 export const RECURRENCE_MASKINGS: {
   value: RecurrenceMasking
   label: string
+  detail: string
 }[] = [
-  { value: 'none', label: 'None' },
-  { value: 'diagonal', label: 'Diagonal' },
-  { value: 'diagonalLower', label: 'Diagonal + lower' },
+  { value: 'none', label: 'None', detail: 'Every cell drawn' },
+  { value: 'diagonal', label: 'Diagonal', detail: 'Main diagonal grayed out' },
+  { value: 'diagonalLower', label: 'Diagonal + lower', detail: 'Only the upper triangle drawn' },
 ]
 
 export const RECURRENCE_LAYOUT = {
