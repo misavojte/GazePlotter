@@ -57,6 +57,19 @@
     return `${unsaved}${session.workspaceFile.suggestedName} | GazePlotter`
   })
 
+  // Once the bundled demo is on screen, say so and how to swap in real data:
+  // nothing else marks these plots as sample data.
+  let demoAnnounced = false
+  $effect(() => {
+    const session = gazePlotterRef?.getSession()
+    if (dataUrl || demoAnnounced || !session) return
+    if (session.ingest.status !== 'ready' || session.ingest.isUserDataset) return
+    demoAnnounced = true
+    session.toastState.addInfo(
+      `You're looking at demo data. Drop your own files anywhere, or ${withShortcut('use Import', 'open')}, to replace it.`
+    )
+  })
+
   // The browser's own prompt, only when closing would lose edits.
   function handleBeforeUnload(event: BeforeUnloadEvent): void {
     if (workspaceActions?.hasUnsavedWork) event.preventDefault()
