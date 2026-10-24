@@ -245,7 +245,7 @@
           onclick={regenerateProposals}
           disabled={!startSuffix || !endSuffix}
         >
-          Add
+          Add matching pairs
         </button>
       </div>
     </Section>
@@ -281,7 +281,7 @@
           disabled={!canAddManual}
           onclick={addManualPair}
         >
-          Add
+          Add pair
         </button>
       </div>
     </Section>
