@@ -70,12 +70,14 @@
 
   // Ctrl+S is always ours (never the browser's "Save page"); it runs when no
   // dialog is in front, text fields included.
+  // Ctrl+O likewise: the browser's "Open file" would show the CSV as a page.
   function handleSaveKey(event: KeyboardEvent): void {
     const shortcut = resolveWorkspaceShortcut(event)
-    if (shortcut !== 'save' && shortcut !== 'save-as') return
+    if (shortcut !== 'save' && shortcut !== 'save-as' && shortcut !== 'open') return
     event.preventDefault()
     if (modalState.activeModal) return
-    if (shortcut === 'save') actions.save()
+    if (shortcut === 'open') actions.openImport()
+    else if (shortcut === 'save') actions.save()
     else actions.saveAs()
   }
 

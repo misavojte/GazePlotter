@@ -87,7 +87,7 @@
   {#snippet actions()}
     <HeaderAction
       label="Import"
-      hint="Load eye-tracking data or a saved workspace (Tobii, SMI, Gazepoint and more)"
+      hint={`${withShortcut('Load eye-tracking data or a saved workspace', 'open')}: Tobii, SMI, Gazepoint and more`}
       {tooltip}
       icon={Upload}
       disabled={!workspaceActions?.canImport}

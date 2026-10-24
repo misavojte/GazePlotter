@@ -266,11 +266,12 @@
 
   function handleGlobalKeydown(event: KeyboardEvent): void {
     const shortcut = resolveWorkspaceShortcut(event)
-    // Saving is the session's (GazePlotter.svelte), duplicating the grid's.
+    // Saving and opening are the session's (GazePlotter.svelte), duplicating the grid's.
     if (
       shortcut === null ||
       shortcut === 'save' ||
       shortcut === 'save-as' ||
+      shortcut === 'open' ||
       shortcut === 'duplicate'
     )
       return

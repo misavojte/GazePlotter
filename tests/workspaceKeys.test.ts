@@ -86,6 +86,12 @@ describe('resolveWorkspaceShortcut', () => {
     ).toBeNull()
   })
 
+  it('claims Ctrl+O as open', () => {
+    expect(
+      resolveWorkspaceShortcut(key({ code: 'KeyO', key: 'o', ctrlKey: true }))
+    ).toBe('open')
+  })
+
   it('claims nothing for an unrelated Ctrl chord', () => {
     expect(
       resolveWorkspaceShortcut(key({ code: 'KeyP', key: 'p', ctrlKey: true }))

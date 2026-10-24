@@ -28,6 +28,7 @@ export type WorkspaceShortcut =
   | 'save'
   | 'save-as'
   | 'duplicate'
+  | 'open'
 
 /** The shortcut this event is (a Ctrl/Cmd chord, or Shift+1), or null. */
 export function resolveWorkspaceShortcut(
@@ -48,6 +49,7 @@ export function resolveWorkspaceShortcut(
   if (event.code === 'KeyY' && !event.shiftKey) return 'redo'
   if (event.code === 'KeyS') return event.shiftKey ? 'save-as' : 'save'
   if (event.code === 'KeyD' && !event.shiftKey) return 'duplicate'
+  if (event.code === 'KeyO' && !event.shiftKey) return 'open'
   if (event.key === '+' || event.key === '=') return 'zoom-in'
   if (event.key === '-') return 'zoom-out'
   if (event.key === '0') return 'zoom-reset'
@@ -73,6 +75,7 @@ const SHORTCUT_LABELS: Record<WorkspaceShortcut, [mac: string, other: string]> =
   save: ['⌘S', 'Ctrl+S'],
   'save-as': ['⇧⌘S', 'Ctrl+Shift+S'],
   duplicate: ['⌘D', 'Ctrl+D'],
+  open: ['⌘O', 'Ctrl+O'],
 }
 
 /** A shortcut as this platform writes it (`Ctrl+S`, `⌘S`). */
