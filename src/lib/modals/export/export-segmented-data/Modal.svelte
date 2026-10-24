@@ -16,7 +16,9 @@
     CSV_DELIMITER_OPTIONS,
     EXPORT_NAMING_OPTIONS,
     EXPORT_TYPE_OPTIONS,
+    csvConventionsSummary,
     exportTypeNamingSummary,
+    lastCsvConventions,
     listSummary,
     toggleSetValue,
   } from '../shared/helpers'
@@ -38,8 +40,8 @@
   // Named after the dataset, as the workspace and analysis exports are.
   const fileName = `${workspaceFile.suggestedName}-SegmentedData`
   let exportType = $state('csv')
-  let delimiter = $state(',')
-  let decimalSeparator = $state<DecimalSeparator>('.')
+  let delimiter = $state(lastCsvConventions.delimiter)
+  let decimalSeparator = $state<DecimalSeparator>(lastCsvConventions.decimalSeparator)
   let naming = $state<ExportNaming>('displayed')
   // Prefill props seed the selection once; they don't bind it.
   let selectedStimuliIds = $state(
@@ -71,7 +73,10 @@
     )
   )
   const fileSummary = $derived(
-    exportTypeNamingSummary(exportType, naming).join(' · ')
+    [
+      ...exportTypeNamingSummary(exportType, naming),
+      ...csvConventionsSummary(delimiter, decimalSeparator),
+    ].join(' · ')
   )
 
   const categoryItems = $derived(
@@ -87,8 +92,9 @@
     selectedCategoryIds = toggleSetValue(selectedCategoryIds, parseInt(key, 10), checked)
   }
 
-  const handleExport = () =>
-    exportService.exportSegmentedData({
+  const handleExport = () => {
+    Object.assign(lastCsvConventions, { delimiter, decimalSeparator })
+    return exportService.exportSegmentedData({
       fileName,
       exportType: exportType as 'csv' | 'individual-csv',
       stimulusIds: selectedStimuliIds,
@@ -100,6 +106,7 @@
         decimalSeparator,
       },
     })
+  }
 </script>
 
 <ExportShell

@@ -36,6 +36,25 @@ export const CSV_DECIMAL_SEPARATOR_OPTIONS: Array<{
   { value: ',', label: 'Comma (,)' },
 ]
 
+/** This tab's last CSV conventions, reused by the next CSV export of any kind
+ *  (set when an export starts; the default until then). */
+export const lastCsvConventions: {
+  delimiter: string
+  decimalSeparator: DecimalSeparator
+} = { delimiter: ',', decimalSeparator: '.' }
+
+/** File-step summary parts for conventions other than comma and dot, so a
+ *  reused semicolon is visible before the step is opened. */
+export function csvConventionsSummary(
+  delimiter: string,
+  decimalSeparator: DecimalSeparator
+): string[] {
+  return [
+    ...(delimiter === ';' ? ['semicolon-separated'] : []),
+    ...(decimalSeparator === ',' ? ['decimal comma'] : []),
+  ]
+}
+
 export const EXPORT_NAMING_OPTIONS: Array<{
   value: ExportNaming
   label: string

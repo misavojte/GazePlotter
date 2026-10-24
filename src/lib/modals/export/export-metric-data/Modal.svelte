@@ -18,6 +18,8 @@
   import {
     CSV_DECIMAL_SEPARATOR_OPTIONS,
     CSV_DELIMITER_OPTIONS,
+    csvConventionsSummary,
+    lastCsvConventions,
     listSummary,
     mapSelectableItems,
     toggleSetValue,
@@ -65,8 +67,8 @@
   let format = $state<'long' | 'wide'>('long')
   // Named after the dataset, as the workspace and analysis exports are.
   const fileName = `${workspaceFile.suggestedName}-MetricData`
-  let delimiter = $state(',')
-  let decimalSeparator = $state<'.' | ','>('.')
+  let delimiter = $state(lastCsvConventions.delimiter)
+  let decimalSeparator = $state<'.' | ','>(lastCsvConventions.decimalSeparator)
   let includeCodebook = $state(true)
   const presetTime = (ms: number | undefined) => (ms ? String(ms) : '')
   let timeStartStr = $state(untrack(() => presetTime(presetStart)))
@@ -210,6 +212,7 @@
     const parts = [
       format === 'long' ? 'Long (tidy)' : 'Wide',
       includeCodebook ? 'CSV + codebook' : 'CSV',
+      ...csvConventionsSummary(delimiter, decimalSeparator),
     ]
     if (timeStartStr.trim() !== '' || timeEndStr.trim() !== '') parts.push('cropped time range')
     return parts.join(' · ')
@@ -288,8 +291,9 @@
       stepFileDone
   )
 
-  const handleExport = () =>
-    exportService.exportMetricData({
+  const handleExport = () => {
+    Object.assign(lastCsvConventions, { delimiter, decimalSeparator })
+    return exportService.exportMetricData({
       fileName,
       // Engine order, not click order, so rows are stable across exports.
       participantIds: orderedSelectedParticipantIds(engine, selectedParticipantIds),
@@ -304,6 +308,7 @@
       timeStart,
       timeEnd,
     })
+  }
 
   const handleEditLibrary = () => {
     const handlers = multiSelectMetricHandlers(
