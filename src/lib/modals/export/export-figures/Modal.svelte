@@ -34,6 +34,7 @@
   import type { PlotExportProps } from './types'
   import { deriveItemView, itemExportProps } from './view'
   import { buildFigureEntryName } from './naming'
+  import { sanitizeFileName } from '$lib/data/export'
 
   /**
    * The single figure exporter: one cardinality-agnostic dialog for one plot,
@@ -112,13 +113,19 @@
   const stepOutputDone = $derived(dpiValid && marginValid)
   const canExport = $derived(stepFiguresDone && stepOutputDone)
 
-  // A single figure downloads as a bare image named after its plot; several
-  // bundle into a ZIP.
-  const exportFileName = $derived(
-    selectedItemsInOrder.length === 1
-      ? `GazePlotter-${getPlotDisplayName(selectedItemsInOrder[0].type).replace(/\s+/g, '')}`
-      : 'GazePlotter-Figures'
-  )
+  // A single figure downloads as a bare image named after its plot and, like
+  // a ZIP entry, its subtitle, so per-stimulus downloads never collide;
+  // several bundle into a ZIP.
+  const exportFileName = $derived.by(() => {
+    if (selectedItemsInOrder.length !== 1) return 'GazePlotter-Figures'
+    const only = selectedItemsInOrder[0]
+    const base = `GazePlotter-${getPlotDisplayName(only.type).replace(/\s+/g, '')}`
+    const qualifier = subtitleValues(only)
+      .map(value => value.trim())
+      .filter(value => value.length > 0)
+      .join(', ')
+    return sanitizeFileName(qualifier ? `${base} - ${qualifier}` : base)
+  })
 
   // ── Preview paging ──────────────────────────────────────────────────────────
   let previewIndex = $state(0)
