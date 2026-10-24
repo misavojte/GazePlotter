@@ -351,9 +351,9 @@
     if (!stats || stats.count <= 0) return
     content.push(
       { key: 'Stats', value: `n = ${stats.count}` },
-      { key: '', value: `x̄ = ${fmt(stats.mean)}` },
-      { key: '', value: `x̃ = ${fmt(stats.median)}` },
-      { key: '', value: `σ = ${fmt(stats.sd)}` },
+      { key: '', value: `Mean = ${fmt(stats.mean)}` },
+      { key: '', value: `Median = ${fmt(stats.median)}` },
+      { key: '', value: `SD = ${fmt(stats.sd)}` },
       { key: '', value: `95% CI = ±${fmt(stats.sem * 1.96)}` }
     )
   }
