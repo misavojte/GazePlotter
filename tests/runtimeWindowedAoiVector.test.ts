@@ -54,6 +54,15 @@ const scope = (engine: DataEngine, timeStart = 0, timeEnd = 0): Scope =>
   makeScope(engine, { timeStart, timeEnd })
 
 describe('runTimeWindowed × identity-aoi-vector → aoi-vector-timeseries', () => {
+  it('a zero window and step yields no windows instead of looping forever', () => {
+    const engine = makeSingleParticipantEngine([[0, 100, 0, 1]])
+    const result = query(windowedAoiVectorInst('absoluteTime', 0, 0), scope(engine, 0, 300))
+    expect(result.shape).toBe('aoi-vector-timeseries')
+    if (result.shape !== 'aoi-vector-timeseries') return
+    expect(result.timeline).toEqual([])
+    expect(result.vectors).toEqual([])
+  })
+
   it('per-window aoi-vectors — fixations cleanly inside their windows', () => {
     // F1 [0,100] AOI1, F2 [100,200] AOI2, F3 [200,300] AOI1
     // windows: [0,100), [100,200), [200,300)

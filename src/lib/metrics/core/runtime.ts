@@ -276,6 +276,8 @@ function runWindowed(
  */
 function buildTimeline(tStart: number, tEnd: number, windowSize: number, step: number): number[] {
   const timeline: number[] = []
+  // A non-positive window or step never advances: no windows, not a hang.
+  if (!(windowSize > 0) || !(step > 0)) return timeline
   for (let wStart = tStart; wStart + windowSize <= tEnd; wStart += step) timeline.push(wStart)
   return timeline
 }
