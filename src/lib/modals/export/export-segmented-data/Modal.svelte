@@ -1,8 +1,7 @@
 <script lang="ts">
   import { untrack } from 'svelte'
-  import { ButtonPreset, Select } from '$lib/shared/components'
+  import { Select } from '$lib/shared/components'
   import {
-    CheckboxListField,
     Step,
     StepList,
     HelpText,
@@ -19,12 +18,11 @@
     csvConventionsSummary,
     exportTypeNamingSummary,
     lastCsvConventions,
-    listSummary,
-    toggleSetValue,
   } from '../shared/helpers'
   import ExportShell from '../shared/ExportShell.svelte'
   import StimuliStep from '../shared/StimuliStep.svelte'
   import ParticipantsStep from '../shared/ParticipantsStep.svelte'
+  import SelectionStep from '../shared/SelectionStep.svelte'
   import { defaultStimulusSelection } from '../shared/stimuli'
   import { defaultParticipantSelection } from '../shared/participants'
 
@@ -55,63 +53,30 @@
     )
   )
   
-  const allCategories = getAllCategories(engine)
-  let selectedCategoryIds = $state<Set<number>>(new Set(allCategories.map(c => c.id)))
+  // Eye-movement types by id, ticked as strings like every checklist step.
+  const categoryItems = getAllCategories(engine).map(c => ({
+    value: c.id.toString(),
+    label: c.displayedName,
+    sublabel: c.originalName !== c.displayedName ? `Original: ${c.originalName}` : undefined,
+  }))
+  const categoryPresets = getCategoriesSelections(engine)
+    .filter(s => s.memberIds.length > 0)
+    .map(s => ({ id: s.id, name: s.name, members: s.memberIds.map(id => id.toString()) }))
+  let selectedCategoryIds = $state(new Set(categoryItems.map(item => item.value)))
 
   const hasSpatialData = $derived(engine.capabilities.spatial)
 
-  const stepCategoriesDone = $derived(selectedCategoryIds.size > 0)
   const canExport = $derived(
-    selectedStimuliIds.size > 0 && selectedParticipantIds.size > 0 && stepCategoriesDone
+    selectedStimuliIds.size > 0 &&
+      selectedParticipantIds.size > 0 &&
+      selectedCategoryIds.size > 0
   )
-
-  // Eye-movement type selections as one-click presets, like the participant
-  // chips: a chip adds its types, or removes them when all are already ticked.
-  const categoryPresets = getCategoriesSelections(engine).filter(s => s.memberIds.length > 0)
-  const presetActive = (memberIds: readonly number[]) =>
-    memberIds.every(id => selectedCategoryIds.has(id))
-  function togglePreset(memberIds: readonly number[]) {
-    const next = new Set(selectedCategoryIds)
-    const remove = presetActive(memberIds)
-    for (const id of memberIds) {
-      if (remove) next.delete(id)
-      else next.add(id)
-    }
-    selectedCategoryIds = next
-  }
-
-  const categoriesSummary = $derived.by(() => {
-    const count = selectedCategoryIds.size
-    // Ticks that exactly equal a selection read as that selection.
-    const exact = categoryPresets.find(
-      p => p.memberIds.length === count && presetActive(p.memberIds)
-    )
-    if (exact && count < allCategories.length) return `${exact.name} (${count})`
-    return listSummary(
-      count,
-      allCategories.length,
-      allCategories.find(c => selectedCategoryIds.has(c.id))?.displayedName
-    )
-  })
   const fileSummary = $derived(
     [
       ...exportTypeNamingSummary(exportType, naming),
       ...csvConventionsSummary(delimiter, decimalSeparator),
     ].join(' · ')
   )
-
-  const categoryItems = $derived(
-    allCategories.map(c => ({
-      key: c.id.toString(),
-      label: c.displayedName,
-      sublabel: c.originalName !== c.displayedName ? `Original: ${c.originalName}` : undefined,
-      checked: selectedCategoryIds.has(c.id),
-    }))
-  )
-
-  function handleCategoryChange(key: string, checked: boolean) {
-    selectedCategoryIds = toggleSetValue(selectedCategoryIds, parseInt(key, 10), checked)
-  }
 
   const handleExport = () => {
     Object.assign(lastCsvConventions, { delimiter, decimalSeparator })
@@ -120,7 +85,7 @@
       exportType: exportType as 'csv' | 'individual-csv',
       stimulusIds: selectedStimuliIds,
       participantIds: selectedParticipantIds,
-      filterCategoryIds: selectedCategoryIds,
+      filterCategoryIds: new Set(Array.from(selectedCategoryIds, Number)),
       naming,
       csvOptions: {
         delimiter,
@@ -129,16 +94,6 @@
     })
   }
 </script>
-
-{#snippet categoryChips()}
-  {#each categoryPresets as preset (preset.id)}
-    <ButtonPreset
-      label={preset.name}
-      isActive={presetActive(preset.memberIds)}
-      onclick={() => togglePreset(preset.memberIds)}
-    />
-  {/each}
-{/snippet}
 
 <ExportShell
   intro="Export eye-tracking segments with timing, movement classifications, and AOI information."
@@ -154,24 +109,16 @@
     />
     <ParticipantsStep n={2} bind:selected={selectedParticipantIds} />
 
-    <Step
+    <SelectionStep
       n={3}
       title="Choose eye-movement types"
-      description={categoryPresets.length > 0
-        ? 'Selection chips toggle a whole eye-movement type selection at once; individual checkmarks refine the result.'
-        : 'Select which eye-movement categories to include in the exported file.'}
-      summary={categoriesSummary}
-      done={stepCategoriesDone}
-    >
-      <CheckboxListField
-        title="Eye-movement types"
-        items={categoryItems}
-        onItemChange={handleCategoryChange}
-        hasError={!stepCategoriesDone}
-        errorMessage="Select at least one eye-movement type to export"
-        presets={categoryPresets.length > 0 ? categoryChips : undefined}
-      />
-    </Step>
+      listTitle="Eye-movement types"
+      noun="eye-movement type"
+      description="Only segments of the ticked types go into the file."
+      items={categoryItems}
+      presets={categoryPresets}
+      bind:selected={selectedCategoryIds}
+    />
 
     <Step
       n={4}
