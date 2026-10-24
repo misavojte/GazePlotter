@@ -14,6 +14,7 @@
     createSelectMenuItems,
     getSelectLabel,
     isSelectionEmpty,
+    steppedSelectOption,
     type SelectOption,
   } from './select'
 
@@ -109,6 +110,19 @@
     }
   }
 
+  // Up/Down on the closed trigger steps the value, as a native select does.
+  function handleTriggerKeydown(event: KeyboardEvent) {
+    if (multiple || isOpen || disabled) return
+    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+    const direction = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0
+    if (direction === 0) return
+    event.preventDefault()
+    const next = steppedSelectOption(options, String(currentSelection), direction)
+    if (!next) return
+    handleSelectionChange(next.value)
+    next.onAction?.(next.value)
+  }
+
   const optionItems = $derived(
     createSelectMenuItems(options, currentSelection, handleSelectionChange)
   )
@@ -156,6 +170,7 @@
       aria-label={ariaLabel}
       aria-expanded={isOpen}
       aria-haspopup="listbox"
+      onkeydown={handleTriggerKeydown}
     >
       <span class="trigger-content">
         <span class="label" class:placeholder={showPlaceholder} title={triggerLabel}>{triggerLabel}</span>

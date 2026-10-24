@@ -19,6 +19,7 @@ import {
 import {
   createSelectMenuItems,
   getSelectLabel,
+  steppedSelectOption,
   type SelectOption,
 } from '../src/lib/shared/components/select'
 
@@ -119,5 +120,26 @@ describe('select and context-menu primitives', () => {
 
     contextMenuState.clearOwned(ownerId)
     expect(contextMenuState.current).toBeNull()
+  })
+})
+
+describe('steppedSelectOption', () => {
+  const options = [
+    { label: 'A', value: 'a' },
+    { label: 'B', value: 'b', disabled: true },
+    { label: 'C', value: 'c' },
+    { label: 'D', value: 'd', children: [] },
+  ]
+
+  it('steps to the neighbouring enabled option without wrapping', () => {
+    expect(steppedSelectOption(options, 'a', 1)?.value).toBe('c')
+    expect(steppedSelectOption(options, 'c', -1)?.value).toBe('a')
+    expect(steppedSelectOption(options, 'c', 1)).toBeNull()
+    expect(steppedSelectOption(options, 'a', -1)).toBeNull()
+  })
+
+  it('enters from either end when nothing matches (Mixed)', () => {
+    expect(steppedSelectOption(options, '', 1)?.value).toBe('a')
+    expect(steppedSelectOption(options, '', -1)?.value).toBe('c')
   })
 })

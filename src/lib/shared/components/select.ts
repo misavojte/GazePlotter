@@ -53,6 +53,24 @@ export function createSelectMenuItems(
 }
 
 /**
+ * The option Up/Down on a closed single select moves to, as a native select
+ * does: the neighbour among plain enabled options, no wrap. From no match
+ * (Mixed, placeholder) Down starts at the first and Up at the last.
+ */
+export function steppedSelectOption(
+  optionList: readonly SelectOption[],
+  selection: string,
+  direction: 1 | -1
+): SelectOption | null {
+  const steppable = optionList.filter(
+    o => !o.disabled && !('children' in o) && !('component' in o && o.component)
+  )
+  const index = steppable.findIndex(o => o.value === selection)
+  if (index === -1) return steppable.at(direction === 1 ? 0 : -1) ?? null
+  return steppable[index + direction] ?? null
+}
+
+/**
  * Compute the trigger label for either single- or multi-select state.
  * - Single: matched option's label, else `placeholder`, else first option label.
  * - Multi: "Label A, Label B" for ≤2 selected, "{N} selected" for 3+, else placeholder.
