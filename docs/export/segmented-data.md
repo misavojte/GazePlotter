@@ -31,4 +31,4 @@ The modal guides you through collapsible steps, one open at a time; every collap
 1. Click **Export** in the header.
 2. Under **Figures and data**, click the **Segmented Data (CSV)** card.
 3. Choose the **Stimuli**, **Participants**, and **Eye-movement types**, then configure the file options above.
-4. Click **Export Data**.
+4. Click **Export Segments**.

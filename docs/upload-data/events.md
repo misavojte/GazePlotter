@@ -50,7 +50,7 @@ For each event file, select:
 
 > **Note**: When any file is set to **All participants**, individual participant options are hidden for other files targeting the same stimulus.
 
-Click **Apply** to process the mapping. The event channels are immediately added to the scarf plot for the assigned stimulus.
+Click **Load events** to process the mapping. The event channels are immediately added to the scarf plot for the assigned stimulus.
 
 ## Custom CSV event format
 
