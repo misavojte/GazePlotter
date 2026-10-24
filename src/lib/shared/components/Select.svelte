@@ -158,7 +158,7 @@
       aria-haspopup="listbox"
     >
       <span class="trigger-content">
-        <span class="label" class:placeholder={showPlaceholder}>{triggerLabel}</span>
+        <span class="label" class:placeholder={showPlaceholder} title={triggerLabel}>{triggerLabel}</span>
         <div class="svg-wrap" class:open={isOpen}>
           <ChevronDown strokeWidth={1} />
         </div>
