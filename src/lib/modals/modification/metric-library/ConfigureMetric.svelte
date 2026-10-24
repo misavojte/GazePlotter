@@ -452,7 +452,7 @@
             {:else if param.type === 'integer' || param.type === 'number'}
               <InputNumber
                 id={`modal-param-${metric.meta.id}-${param.id}`}
-                label={param.label}
+                label={param.unit ? `${param.label} (${param.unit})` : param.label}
                 value={Number(paramDraft[param.id] ?? param.default)}
                 min={param.min}
                 max={param.max}
