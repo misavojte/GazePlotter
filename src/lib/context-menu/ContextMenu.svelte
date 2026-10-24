@@ -12,10 +12,21 @@
 
   let container: HTMLUListElement | null = $state(null)
 
+  // What had focus when the menu opened: Escape from inside hands focus back.
+  let opener: HTMLElement | null = null
+  $effect(() => {
+    if (!contextMenuState.current) opener = null
+    else opener ??= document.activeElement as HTMLElement | null
+  })
+
   // Escape, arrows and type-ahead. Enter/Space need no handling: menu
   // items are native buttons, which activate on those keys by themselves.
   const onKeydown = (ev: KeyboardEvent) => {
-    if (ev.key === 'Escape') onClose()
+    if (ev.key === 'Escape') {
+      const back = container?.contains(document.activeElement) ? opener : null
+      onClose()
+      if (back?.isConnected) back.focus({ preventScroll: true })
+    }
     if (ev.key === 'ArrowDown' && container) {
       ev.preventDefault()
       focusNext(1)
