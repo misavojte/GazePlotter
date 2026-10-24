@@ -31,7 +31,7 @@ The settings that decide the numbers on the map. The collapsed section header re
 - **Normalization**: How participants are combined.
   - *Share per participant*: Each participant's map is divided by that participant's own total and the maps are averaged, in %. Every participant weighs the same, however long they looked (default).
   - *Mean per participant*: The maps are averaged in the accumulated unit (ms or fixations per participant). Participants who looked longer weigh more.
-- **Radius (0 = Auto: …)**: The kernel radius R in gaze-coordinate units (pixels for Tobii Pro Lab data); the kernel's σ is R / 3. 0 = Auto: 5 % of the longer side of the central 98 % of all fixations in the dataset, shown in the label. One auto radius applies to every stimulus and participant selection of the dataset.
+- **Radius R (0 = Auto: …)**: The kernel radius R in gaze-coordinate units (pixels for Tobii Pro Lab data); the kernel's σ is R / 3. 0 = Auto: 5 % of the longer side of the central 98 % of all fixations in the dataset, shown in the label. One auto radius applies to every stimulus and participant selection of the dataset.
 
 ### Visualization
 - **Color scale**: How map values become colors.

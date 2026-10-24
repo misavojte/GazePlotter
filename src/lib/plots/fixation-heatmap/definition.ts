@@ -65,7 +65,8 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
           key: 'radius',
           label: ctx => {
             const auto = autoRadiusFor(ctx.engine, (ctx.settings.stimulusId as number) ?? 0)
-            return auto === null ? 'Radius (0 = Auto)' : `Radius (0 = Auto: ${formatGaze(auto)})`
+            // "R" names the radius the figure summary and tooltip report.
+            return auto === null ? 'Radius R (0 = Auto)' : `Radius R (0 = Auto: ${formatGaze(auto)})`
           },
           min: 0,
           // A tenth of the auto radius's magnitude: 1 for pixel data, 0.001 for normalized.
