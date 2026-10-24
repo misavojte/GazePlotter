@@ -181,7 +181,7 @@
   {#if addableMetrics.length > 0}
     <button class="add-metric-button" onclick={openAddModal} style:margin-top="16px">
       <Plus size={14} />
-      <span>Add new metric</span>
+      <span>Add metric</span>
     </button>
   {/if}
 </div>
