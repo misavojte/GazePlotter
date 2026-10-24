@@ -9,7 +9,7 @@ For how to upload event data, see [Event Data](/docs/upload-data/events/). Chann
 1. Select a Scarf Plot to open its [Pane](/docs/visualizations/#visualization-configuration-pane).
 2. In the **Events** section, click **Edit events & selections**.
 
-Pick the stimulus to edit from the **For stimulus** dropdown.
+Pick the stimulus to edit from the dropdown in the list header. Switching stimulus discards unapplied list edits, so apply them first.
 
 ## Editing channels
 
