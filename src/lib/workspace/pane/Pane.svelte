@@ -41,19 +41,26 @@
   }
 
   // The numbers behind a metric plot: the CSV export, preset to its metrics,
-  // stimulus and participant group (still editable before downloading).
+  // stimulus, participant group and time crop (still editable before downloading).
   const plotMetricIds = $derived.by(() => {
     const settings = paneItem?.settings as { metricInstanceIds?: string[] }
     return isBulk ? [] : (settings?.metricInstanceIds ?? [])
   })
 
   function openDataExport() {
-    const settings = paneItem?.settings as { stimulusId?: number; groupId?: number }
+    const settings = paneItem?.settings as {
+      stimulusId?: number
+      groupId?: number
+      timelineStart?: number
+      timelineEnd?: number
+    }
     modalState.open(exportMetricDataModal, {
       metricInstanceIds: plotMetricIds,
       stimulusId: settings?.stimulusId,
       // "Non-empty" depends on one stimulus; the export lists everyone instead.
       groupId: settings?.groupId === -2 ? undefined : settings?.groupId,
+      timeStart: settings?.timelineStart,
+      timeEnd: settings?.timelineEnd,
     })
   }
 

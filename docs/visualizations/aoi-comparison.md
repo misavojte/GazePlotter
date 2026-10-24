@@ -67,7 +67,7 @@ Filters which Areas of Interest (AOIs) are rendered in the bar chart.
 ### Export
 Located at the bottom of the Pane:
 - **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the bar plot as a PNG or JPG.
-- **Download data**: Opens the [Metric Data](/docs/export/metric-data/) export preset to this plot's metrics, stimulus and participant selection.
+- **Download data**: Opens the [Metric Data](/docs/export/metric-data/) export preset to this plot's metrics, stimulus, participant selection and time range.
 - **Export Data**: To export raw statistical values as CSV, see [Metric Data Export](/docs/export/metric-data/).
 
 ## Interpretation

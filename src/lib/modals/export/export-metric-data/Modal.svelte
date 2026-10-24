@@ -47,9 +47,18 @@
     groupId?: number
     stimulusId?: number
     metricInstanceIds?: string[]
+    /** Prefill: a plot's crop, in ms; 0 or unset = open-ended. */
+    timeStart?: number
+    timeEnd?: number
   }
 
-  let { groupId, stimulusId, metricInstanceIds }: Props = $props()
+  let {
+    groupId,
+    stimulusId,
+    metricInstanceIds,
+    timeStart: presetStart,
+    timeEnd: presetEnd,
+  }: Props = $props()
   const { exportService, modalState, engine, workspace, workspaceFile } =
     getGazePlotterSession()
 
@@ -59,8 +68,9 @@
   let delimiter = $state(',')
   let decimalSeparator = $state<'.' | ','>('.')
   let includeCodebook = $state(true)
-  let timeStartStr = $state('')
-  let timeEndStr = $state('')
+  const presetTime = (ms: number | undefined) => (ms ? String(ms) : '')
+  let timeStartStr = $state(untrack(() => presetTime(presetStart)))
+  let timeEndStr = $state(untrack(() => presetTime(presetEnd)))
 
   // Prefill props are read once by design (untrack): they seed the selection,
   // they don't bind it.
