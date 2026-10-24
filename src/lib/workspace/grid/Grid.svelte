@@ -78,8 +78,9 @@
       // Delete/Escape working for a multi-selection.
       const selectedIds = grid.selectedItemIds
       if (selectedIds.length === 0) return
+      // Also from the pane: no control there claims Alt+Up/Down, and the
+      // step is most wanted right after editing the plot's settings.
       if (stimulusStep) {
-        if (!fromPageOrGrid) return
         event.preventDefault()
         stepStimulus(stimulusStep)
         return
