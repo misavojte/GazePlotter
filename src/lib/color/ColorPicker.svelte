@@ -193,6 +193,7 @@
       min="0"
       max="360"
       class="hue-slider"
+      aria-label="Hue"
       value={hue}
       oninput={handleHueChange}
     />
@@ -203,6 +204,7 @@
     <input
       type="text"
       class="color-text-input"
+      aria-label="Hex color"
       value={inputValue}
       oninput={handleTextInput}
       style:color={contrastTextColor}
