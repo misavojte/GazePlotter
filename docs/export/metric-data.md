@@ -36,6 +36,8 @@ Best suited for case-per-row analysis in traditional software like IBM SPSS. Emi
 - AOI-pair-matrix metrics → `<Label>_<From>_to_<To>` column per cell.
 - Participant-pair metrics (e.g. scanpath similarity) → `<Label>_<Participant>` column per participant in the group. Each row holds participant A's line of the similarity matrix, so the wide file IS the full matrix grid, diagonal included.
 
+Spaces in names become underscores (e.g. `Absolute_dwell_time_Face`), and a header that would repeat gets a `_2`, `_3` suffix.
+
 > **Temporal Exclusion**: Wide format excludes windowed metrics, as mixed-grain wide tables are statistically unsound. Export time series in the long format instead.
 
 #### Example CSV Output
