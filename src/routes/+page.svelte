@@ -8,6 +8,7 @@
     type WorkspaceActions,
   } from '$lib'
   import { base } from '$app/paths'
+  import { beforeNavigate } from '$app/navigation'
   import { browser } from '$app/environment'
   import { onMount } from 'svelte'
   import Upload from 'lucide-svelte/icons/upload'
@@ -60,6 +61,15 @@
   function handleBeforeUnload(event: BeforeUnloadEvent): void {
     if (workspaceActions?.hasUnsavedWork) event.preventDefault()
   }
+
+  // A link to the guide stays in the page and unmounts the workspace, which
+  // beforeunload never sees: ask the same question here.
+  beforeNavigate(navigation => {
+    if (navigation.willUnload || !workspaceActions?.hasUnsavedWork) return
+    if (!window.confirm('You have unsaved changes. Leave the app and discard them?')) {
+      navigation.cancel()
+    }
+  })
 
   onMount(() => {
     const session = gazePlotterRef?.getSession()
