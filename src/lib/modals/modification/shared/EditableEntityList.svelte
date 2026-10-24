@@ -227,6 +227,28 @@
       ?.scrollIntoView({ block: 'nearest' })
   })
 
+  // Enter in a name field moves to the next one (Shift+Enter: the previous),
+  // so a list of names is typed through like a spreadsheet column; Enter in
+  // the last field leaves it.
+  function handleNameEnter(event: KeyboardEvent) {
+    if (event.key !== 'Enter' || event.isComposing || !gridEl) return
+    const field = event.target
+    if (!(field instanceof HTMLInputElement) || field.type !== 'text') return
+    const fields = Array.from(
+      gridEl.querySelectorAll<HTMLInputElement>('input[type="text"]:not(:disabled)')
+    )
+    const index = fields.indexOf(field)
+    if (index === -1) return
+    event.preventDefault()
+    const next = fields[index + (event.shiftKey ? -1 : 1)]
+    if (!next) {
+      field.blur()
+      return
+    }
+    next.focus()
+    next.select()
+  }
+
   // Regroup animation. Renaming a row into (or out of) a group is a
   // destroy-here / create-there in the DOM, so instead of trying to fly the row
   // across containers (which clips and overlaps), we orchestrate it in place:
@@ -390,11 +412,13 @@
 {#if groups.length === 0}
   <Empty message={emptyMessage} />
 {:else}
+  <!-- svelte-ignore a11y_no_static_element_interactions -- delegates its name fields' Enter -->
   <div
     class="entity-grid"
     data-selection-keep
     bind:this={gridEl}
     style:--grid-columns={gridTemplate}
+    onkeydown={handleNameEnter}
   >
     <div class="column-labels" style:grid-template-columns={gridTemplate}>
       {#each columns as col}
