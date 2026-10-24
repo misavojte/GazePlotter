@@ -54,10 +54,10 @@ Missing values (for example, a participant who never fixated on an AOI when comp
 
 ## Sidecar Codebook
 
-Checking the **Include metric codebook** option downloads the export as a ZIP archive containing three files:
-1. `GazePlotter-MetricData.csv` — The dataset itself.
-2. `GazePlotter-MetricData-codebook.csv` — A sidecar table detailing the operational parameters and provenance of every exported column.
-3. `GazePlotter-MetricData.analysis.json`: the workspace's [Analysis](/docs/advanced/headless/#the-analysis): the renames, merges, selections, and metric definitions behind the table, which the command line replays on other recordings.
+Checking the **Include metric codebook** option downloads the export as a ZIP archive containing three files, named after the loaded data file (`data` below; `GazePlotter` when there is none):
+1. `data-MetricData.csv` — The dataset itself.
+2. `data-MetricData-codebook.csv` — A sidecar table detailing the operational parameters and provenance of every exported column.
+3. `data-MetricData.analysis.json`: the workspace's [Analysis](/docs/advanced/headless/#the-analysis): the renames, merges, selections, and metric definitions behind the table, which the command line replays on other recordings.
 
 The codebook contains the following columns:
 

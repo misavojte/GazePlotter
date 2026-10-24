@@ -25,8 +25,9 @@
   import { defaultStimulusSelection } from '../shared/stimuli'
   import { defaultParticipantSelection } from '../shared/participants'
 
-  const { engine, exportService } = getGazePlotterSession()
-  const fileName = 'GazePlotter-SegmentedData'
+  const { engine, exportService, workspaceFile } = getGazePlotterSession()
+  // Named after the dataset, as the workspace and analysis exports are.
+  const fileName = `${workspaceFile.suggestedName}-SegmentedData`
   let exportType = $state('csv')
   let delimiter = $state(',')
   let decimalSeparator = $state<DecimalSeparator>('.')

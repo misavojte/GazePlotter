@@ -50,10 +50,12 @@
   }
 
   let { groupId, stimulusId, metricInstanceIds }: Props = $props()
-  const { exportService, modalState, engine, workspace } = getGazePlotterSession()
+  const { exportService, modalState, engine, workspace, workspaceFile } =
+    getGazePlotterSession()
 
   let format = $state<'long' | 'wide'>('long')
-  const fileName = 'GazePlotter-MetricData'
+  // Named after the dataset, as the workspace and analysis exports are.
+  const fileName = `${workspaceFile.suggestedName}-MetricData`
   let delimiter = $state(',')
   let decimalSeparator = $state<'.' | ','>('.')
   let includeCodebook = $state(true)

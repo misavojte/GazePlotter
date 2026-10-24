@@ -6,8 +6,9 @@
   import { getGazePlotterSession } from '$lib/session'
   import ExportShell from '../shared/ExportShell.svelte'
 
-  const { engine, exportService } = getGazePlotterSession()
-  const fileName = 'GazePlotter-ScanGraph'
+  const { engine, exportService, workspaceFile } = getGazePlotterSession()
+  // Named after the dataset, as the workspace and analysis exports are.
+  const fileName = `${workspaceFile.suggestedName}-ScanGraph`
   let stimulusId = $state('0')
   let stringForm = $state('original')
 
