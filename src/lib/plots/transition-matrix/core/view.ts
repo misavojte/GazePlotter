@@ -89,7 +89,7 @@ export function deriveTransitionMatrixView(
         return [
           { key: 'From', value: aoiLabels[row] },
           { key: 'To', value: aoiLabels[col] },
-          { key: 'Value', value: Number.isFinite(value) ? shown : '—' },
+          { key: 'Value', value: Number.isFinite(value) ? shown : 'Undefined, not zero' },
         ]
       },
     } satisfies Omit<ComponentProps<typeof MatrixPlotFigure>, keyof CanvasExportProps>,
