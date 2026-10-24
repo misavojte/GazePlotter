@@ -2,7 +2,7 @@
   import InputText from '$lib/shared/components/InputText.svelte'
   import InputRadio from '$lib/shared/components/InputRadio.svelte'
   import Select from '$lib/shared/components/Select.svelte'
-  import { Section, ModalButtons } from '$lib/modals'
+  import { HelpText, Section, ModalButtons } from '$lib/modals'
   import { getGazePlotterSession } from '$lib/session'
   import type { IntervalDraftPreview } from '$lib/data/engine'
   import {
@@ -275,6 +275,9 @@
           fill={true}
         />
       </div>
+      {#if manualStart !== '' && manualStart === manualEnd}
+        <HelpText tone="error">Start and end must be different events.</HelpText>
+      {/if}
       <div class="action-row">
         <button
           class="add-button"
