@@ -45,6 +45,17 @@
       (saveIndicator ? `. ${saveStatus[saveIndicator]}` : '')
   )
 
+  // The user's own dataset names the tab, marked while it has unsaved work;
+  // the demo and the server render keep the site title.
+  const SITE_TITLE =
+    'GazePlotter | Free Eye-Tracking Visualization: Scarf Plots, Scanpaths, AOI Metrics'
+  const pageTitle = $derived.by(() => {
+    const session = gazePlotterRef?.getSession()
+    if (!session?.ingest.isUserDataset) return SITE_TITLE
+    const unsaved = workspaceActions?.hasUnsavedWork ? '• ' : ''
+    return `${unsaved}${session.workspaceFile.suggestedName} | GazePlotter`
+  })
+
   // The browser's own prompt, only when closing would lose edits.
   function handleBeforeUnload(event: BeforeUnloadEvent): void {
     if (workspaceActions?.hasUnsavedWork) event.preventDefault()
@@ -57,10 +68,7 @@
 </script>
 
 <svelte:head>
-  <title
-    >GazePlotter | Free Eye-Tracking Visualization: Scarf Plots, Scanpaths, AOI
-    Metrics</title
-  >
+  <title>{pageTitle}</title>
   <meta
     name="description"
     content="Free, open-source eye-tracking visualization in the browser: scarf plots, scanpaths, transition matrices and AOI metrics from Tobii, SMI, GazePoint, Varjo and Pupil Labs data. No registration, no data sent to a server."
