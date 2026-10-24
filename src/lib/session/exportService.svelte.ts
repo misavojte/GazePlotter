@@ -50,6 +50,8 @@ export type EventExportOptions = {
   exportType: 'csv' | 'individual-csv'
   stimulusIds: Set<string>
   participantIds: Set<string>
+  /** Displayed channel names to keep; unset = every channel. */
+  channelNames?: Set<string>
   csvOptions?: CsvFormatOptions
   naming?: ExportNaming
 }
@@ -231,7 +233,12 @@ export class ExportService {
   }
 
   async exportEventData(options: EventExportOptions): Promise<boolean> {
-    const args = [options.stimulusIds, options.participantIds, options.csvOptions] as const
+    const args = [
+      options.stimulusIds,
+      options.participantIds,
+      options.channelNames,
+      options.csvOptions,
+    ] as const
     return this.exportCsvOrZip(
       options,
       {

@@ -15,6 +15,9 @@
   import ExportShell from '../shared/ExportShell.svelte'
   import StimuliStep from '../shared/StimuliStep.svelte'
   import ParticipantsStep from '../shared/ParticipantsStep.svelte'
+  import SelectionStep from '../shared/SelectionStep.svelte'
+  import { getStimuliOptions } from '$lib/plots/shared'
+  import { getEventChannels, getEventsSelections } from '$lib/data/engine'
   import { defaultStimulusSelection } from '../shared/stimuli'
   import { defaultParticipantSelection } from '../shared/participants'
 
@@ -29,8 +32,31 @@
   let selectedStimuliIds = $state(defaultStimulusSelection(engine))
   let selectedParticipantIds = $state(defaultParticipantSelection(engine))
 
+  // Channels by displayed name across the visible stimuli, in first-seen
+  // order: the same displayed name is the same channel everywhere.
+  const channelItems = (() => {
+    const names = new Set<string>()
+    for (const { value } of getStimuliOptions(engine)) {
+      for (const channel of getEventChannels(engine, Number(value))) {
+        names.add(channel.displayedName)
+      }
+    }
+    return Array.from(names, name => ({ value: name, label: name }))
+  })()
+  // Event selections hold displayed names; a chip covers the ones present here.
+  const channelPresets = getEventsSelections(engine)
+    .map(s => ({
+      id: s.id,
+      name: s.name,
+      members: s.names.filter(name => channelItems.some(item => item.value === name)),
+    }))
+    .filter(preset => preset.members.length > 0)
+  let selectedChannels = $state(new Set(channelItems.map(item => item.value)))
+
   const canExport = $derived(
-    selectedStimuliIds.size > 0 && selectedParticipantIds.size > 0
+    selectedStimuliIds.size > 0 &&
+      selectedParticipantIds.size > 0 &&
+      selectedChannels.size > 0
   )
   const fileSummary = $derived(
     [
@@ -46,6 +72,9 @@
       exportType: exportType as 'csv' | 'individual-csv',
       stimulusIds: selectedStimuliIds,
       participantIds: selectedParticipantIds,
+      // Every channel ticked = no filter, byte-identical to the export before.
+      channelNames:
+        selectedChannels.size === channelItems.length ? undefined : selectedChannels,
       naming,
       csvOptions: {
         delimiter,
@@ -68,9 +97,19 @@
       bind:selected={selectedStimuliIds}
     />
     <ParticipantsStep n={2} bind:selected={selectedParticipantIds} />
+    <SelectionStep
+      n={3}
+      title="Choose event channels"
+      listTitle="Event channels"
+      noun="event channel"
+      description="Only occurrences of the ticked channels go into the file."
+      items={channelItems}
+      presets={channelPresets}
+      bind:selected={selectedChannels}
+    />
 
     <Step
-      n={3}
+      n={4}
       title="Configure the file"
       description="The file layout and CSV conventions."
       summary={fileSummary}

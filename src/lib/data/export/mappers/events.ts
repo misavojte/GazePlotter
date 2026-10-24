@@ -43,31 +43,40 @@ type ResolvedEventChannel = { name: string; memberIds: number[] }
  * - 'raw': every imported channel in storage order, including hidden ones,
  *   labelled by original name, never grouped. Derived interval channels are
  *   excluded (they are a display-time derivation, not imported data).
+ *
+ * `channelNames` keeps only channels with those DISPLAYED names, in both
+ * modes: the same displayed name is the same channel everywhere.
  */
 function resolveEventChannels(
   data: DataType,
   stimulusIndex: number,
-  displayed: boolean
+  displayed: boolean,
+  channelNames?: ReadonlySet<string>
 ): ResolvedEventChannel[] {
   const defs = data.eventData.data[stimulusIndex]
   if (!defs || defs.length === 0) return []
 
-  if (!displayed) {
-    const channels: ResolvedEventChannel[] = []
-    for (let id = 0; id < defs.length; id++) {
-      const def = defs[id]
-      if (!def) continue
-      if (def[3] === INTERVAL_CHANNEL_MARKER) continue
-      channels.push({ name: def[0] ?? '', memberIds: [id] })
-    }
-    return channels
-  }
-
-  const channels = interpretOrdered(
+  const interpreted = interpretOrdered(
     defs,
     data.eventData.orderVector?.[stimulusIndex] ?? [],
     getDefaultEventChannelColor
   )
+  const channels = channelNames
+    ? interpreted.filter(ch => channelNames.has(ch.displayedName))
+    : interpreted
+
+  if (!displayed) {
+    const kept = new Set(channels.map(ch => ch.id))
+    const raw: ResolvedEventChannel[] = []
+    for (let id = 0; id < defs.length; id++) {
+      const def = defs[id]
+      if (!def) continue
+      if (def[3] === INTERVAL_CHANNEL_MARKER) continue
+      if (channelNames && !kept.has(id)) continue
+      raw.push({ name: def[0] ?? '', memberIds: [id] })
+    }
+    return raw
+  }
 
   // Label by the resolved displayed name exactly as the scarf legend and the
   // AOI/category exporters do (interpretRow's shared rule): an explicitly
@@ -87,6 +96,7 @@ function convertEventData(
   data: DataType,
   stimulusIds?: Set<string>,
   participantIds?: Set<string>,
+  channelNames?: ReadonlySet<string>,
   naming: ExportNaming = 'displayed'
 ): EventCsvRow[] {
   const result: EventCsvRow[] = []
@@ -105,7 +115,7 @@ function convertEventData(
     const stimulusId = stimulusIndex.toString() // id is index
     if (stimulusIds && !stimulusIds.has(stimulusId)) continue
 
-    const channels = resolveEventChannels(data, stimulusIndex, displayed)
+    const channels = resolveEventChannels(data, stimulusIndex, displayed, channelNames)
     if (channels.length === 0) continue
 
     const stimulusName = displayed
@@ -184,11 +194,12 @@ export function generateEventUnifiedCsv(
   data: DataType,
   stimulusIds?: Set<string>,
   participantIds?: Set<string>,
+  channelNames?: ReadonlySet<string>,
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed'
 ): string {
   const { decimalSeparator } = resolveCsvFormatOptions(options)
-  const csvPreData = convertEventData(data, stimulusIds, participantIds, naming)
+  const csvPreData = convertEventData(data, stimulusIds, participantIds, channelNames, naming)
   const cells = (item: EventCsvRow) => eventCells(item, decimalSeparator)
   return unifiedCsv(csvPreData, EVENT_BATCH_HEADER, cells, options)
 }
@@ -201,11 +212,12 @@ export function generateEventBatchCsv(
   data: DataType,
   stimulusIds?: Set<string>,
   participantIds?: Set<string>,
+  channelNames?: ReadonlySet<string>,
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed'
 ): Array<{ fileName: string; content: string }> {
   const { decimalSeparator } = resolveCsvFormatOptions(options)
-  const csvPreData = convertEventData(data, stimulusIds, participantIds, naming)
+  const csvPreData = convertEventData(data, stimulusIds, participantIds, channelNames, naming)
   const cells = (item: EventCsvRow) => eventCells(item, decimalSeparator)
   return batchCsvs(csvPreData, EVENT_BATCH_HEADER, cells, options)
 }
