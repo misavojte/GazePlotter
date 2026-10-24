@@ -45,7 +45,7 @@
         Data is available in memory, but no visualizations are displayed.
         You can reset the layout or upload new data.
       {:else}
-        Upload new data to start working with the workspace.
+        Drop eye-tracking files anywhere here, or import them to start.
       {/if}
     </p>
     <div class="actions">
