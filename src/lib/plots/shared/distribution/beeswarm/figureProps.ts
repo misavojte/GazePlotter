@@ -1,6 +1,6 @@
 import type { ComponentProps } from 'svelte'
 import type { CanvasExportProps } from '$lib/plots/shared'
-import type { MetricInstance } from '$lib/metrics'
+import { getMetric, type MetricInstance } from '$lib/metrics'
 import BeeswarmFigure from './BeeswarmFigure.svelte'
 import { getDistributionAxisLabel } from '../labels'
 import type { DistributionResult, StatisticalOverlayType } from '../types'
@@ -52,6 +52,7 @@ export function buildBeeswarmFigureProps(
     statisticalOverlay: settings.statisticalOverlay,
     noMetric: result.noMetric ?? false,
     proportion: result.proportion ?? false,
+    unit: resolvedInstance ? (getMetric(resolvedInstance.baseId)?.meta.unit ?? '') : '',
     ...extras,
   }
 }
