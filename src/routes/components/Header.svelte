@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte'
   import type { Action } from 'svelte/action'
-  import type { TooltipActionOptions } from '$lib/tooltip/tooltip.action'
+  import type { TooltipActionOptions } from '$lib'
   import { page } from '$app/state'
   import Brand from './Brand.svelte'
   import BrandButton from './BrandButton.svelte'

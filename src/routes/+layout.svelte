@@ -1,5 +1,6 @@
 <script>
   import '../app.css'
+  // Deep path: the `$lib` barrel would pull the whole app into every docs page.
   import DesignTokens from '$lib/DesignTokens.svelte'
   import { Footer, Header } from './components'
   import { page } from '$app/state'

@@ -1,5 +1,11 @@
 <script lang="ts">
-  import { GazePlotter, fromUrl } from '$lib'
+  import {
+    GazePlotter,
+    fromUrl,
+    type AllPlotSettings,
+    type GazePlotterSession,
+    type WorkspaceCommandChain,
+  } from '$lib'
   import { base } from '$app/paths'
   import { browser } from '$app/environment'
   import {
@@ -13,9 +19,6 @@
     type SurveyModalResult,
   } from '$survey'
   import type { SurveyTask, SurveyModalState } from '$survey/types'
-  import type { WorkspaceCommandChain } from '$lib/workspace/commands'
-  import type { AllPlotSettings } from '$lib/workspace'
-  import type { GazePlotterSession } from '$lib/session'
   import { onMount } from 'svelte'
 
   const endpointConfig: EndpointConfig = {

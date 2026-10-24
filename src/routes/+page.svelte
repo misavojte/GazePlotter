@@ -1,17 +1,20 @@
 <script lang="ts">
-  import { GazePlotter, fromUrl } from '$lib'
+  import {
+    GazePlotter,
+    fromUrl,
+    hostTooltipAction,
+    withShortcut,
+    type GazePlotterSession,
+    type WorkspaceActions,
+  } from '$lib'
   import { base } from '$app/paths'
   import { browser } from '$app/environment'
   import { onMount } from 'svelte'
-  import type { GazePlotterSession } from '$lib/session'
-  import type { WorkspaceActions } from '$lib/workspace/actions.svelte'
   import Upload from 'lucide-svelte/icons/upload'
   import Download from 'lucide-svelte/icons/download'
   import FileText from 'lucide-svelte/icons/file-text'
-  import { hostTooltipAction } from '$lib/tooltip'
   import { Header, HeaderAction, StatusBar } from './components'
   import { announceVersionOnce } from './versionNotice'
-  import { withShortcut } from '$lib/workspace/keys'
 
   const demoDataPath = `${base}/data/demo.json?v=3`
 

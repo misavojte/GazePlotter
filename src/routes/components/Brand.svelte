@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Action } from 'svelte/action'
-  import type { TooltipActionOptions } from '$lib/tooltip/tooltip.action'
+  import type { TooltipActionOptions } from '$lib'
 
   /**
    * The GazePlotter mark and name, linking home, followed by the running

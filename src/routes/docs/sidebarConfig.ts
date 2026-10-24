@@ -351,6 +351,12 @@ export const SIDEBAR: readonly SidebarItem[] = [
         seoTitle: 'Embed Eye-Tracking Plots in Your App',
         description: 'Embed the GazePlotter workspace as a Svelte component in your own application: Tauri or Electron desktop shells, web apps, or eye-tracking software. Covers data loading, save and open hooks, layout, and theming.'
       },
+      {
+        name: 'Headless GazePlotter',
+        href: '/docs/advanced/headless',
+        seoTitle: 'Eye-Tracking Metrics from the Command Line',
+        description: 'Compute eye-tracking metrics without the app: the gazeplotter command line replays a saved Analysis (renames, merges, selections, metrics) on new recordings, for R, Python, and AI pipelines.'
+      },
     ],
   },
 ]
