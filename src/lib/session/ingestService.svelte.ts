@@ -572,7 +572,7 @@ export class IngestService {
       this.deps.errorService.report({
         origin: 'ingest',
         severity: 'fatal-load',
-        userMessage: 'Unable to set up file processing service',
+        userMessage: 'Could not start file processing. Reload the page and try again.',
         cause: error,
         context: {
           fileCount: files.length,
