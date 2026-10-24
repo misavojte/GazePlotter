@@ -140,6 +140,10 @@
               bind:value={fileName}
               placeholder="File name"
               aria-label="File name"
+              onkeydown={event => {
+                if (event.key !== 'Enter' || event.isComposing) return
+                if (!workspaceFile.saving) workspaceFile.download(fileName)
+              }}
             />
             <span class="extension">{WORKSPACE_EXTENSION}</span>
             <Button
