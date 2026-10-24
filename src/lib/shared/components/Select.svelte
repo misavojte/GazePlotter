@@ -121,8 +121,9 @@
     option.onAction?.(option.value)
   }
 
-  // On the closed trigger, Up/Down steps the value and typing jumps to an
-  // option, as a native select does. A typed key nothing matches passes on.
+  // On the closed trigger, Up/Down steps the value, Home/End jump to the ends
+  // and typing jumps to an option, as a native select does. A typed key
+  // nothing matches passes on.
   function handleTriggerKeydown(event: KeyboardEvent) {
     if (multiple || isOpen || disabled) return
     if (event.altKey || event.ctrlKey || event.metaKey) return
@@ -132,6 +133,13 @@
       event.preventDefault()
       const next = steppedSelectOption(options, String(currentSelection), direction)
       if (next) pick(next)
+      return
+    }
+    if (event.key === 'Home' || event.key === 'End') {
+      event.preventDefault()
+      // From no current option, the stepper enters at the first or the last.
+      const end = steppedSelectOption(options, '', event.key === 'Home' ? 1 : -1)
+      if (end && end.value !== currentSelection) pick(end)
       return
     }
     if (event.key.length !== 1 || event.key === ' ') return
