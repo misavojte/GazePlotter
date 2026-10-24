@@ -15,6 +15,7 @@
     getSelectLabel,
     isSelectionEmpty,
     steppedSelectOption,
+    typedSelectOption,
     type SelectOption,
   } from './select'
 
@@ -110,17 +111,37 @@
     }
   }
 
-  // Up/Down on the closed trigger steps the value, as a native select does.
+  // Keys typed within TYPE_AHEAD_MS spell one prefix, as in the open menu.
+  const TYPE_AHEAD_MS = 600
+  let typed = ''
+  let typedAt = 0
+
+  function pick(option: SelectOption) {
+    handleSelectionChange(option.value)
+    option.onAction?.(option.value)
+  }
+
+  // On the closed trigger, Up/Down steps the value and typing jumps to an
+  // option, as a native select does. A typed key nothing matches passes on.
   function handleTriggerKeydown(event: KeyboardEvent) {
     if (multiple || isOpen || disabled) return
-    if (event.altKey || event.ctrlKey || event.metaKey || event.shiftKey) return
+    if (event.altKey || event.ctrlKey || event.metaKey) return
     const direction = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0
-    if (direction === 0) return
+    if (direction !== 0) {
+      if (event.shiftKey) return
+      event.preventDefault()
+      const next = steppedSelectOption(options, String(currentSelection), direction)
+      if (next) pick(next)
+      return
+    }
+    if (event.key.length !== 1 || event.key === ' ') return
+    const now = Date.now()
+    typed = (now - typedAt < TYPE_AHEAD_MS ? typed : '') + event.key.toLowerCase()
+    typedAt = now
+    const match = typedSelectOption(options, String(currentSelection), typed)
+    if (!match) return
     event.preventDefault()
-    const next = steppedSelectOption(options, String(currentSelection), direction)
-    if (!next) return
-    handleSelectionChange(next.value)
-    next.onAction?.(next.value)
+    if (match.value !== currentSelection) pick(match)
   }
 
   const optionItems = $derived(

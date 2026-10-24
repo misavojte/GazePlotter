@@ -57,17 +57,37 @@ export function createSelectMenuItems(
  * does: the neighbour among plain enabled options, no wrap. From no match
  * (Mixed, placeholder) Down starts at the first and Up at the last.
  */
+const pickable = (optionList: readonly SelectOption[]) =>
+  optionList.filter(
+    o => !o.disabled && !('children' in o) && !('component' in o && o.component)
+  )
+
 export function steppedSelectOption(
   optionList: readonly SelectOption[],
   selection: string,
   direction: 1 | -1
 ): SelectOption | null {
-  const steppable = optionList.filter(
-    o => !o.disabled && !('children' in o) && !('component' in o && o.component)
-  )
+  const steppable = pickable(optionList)
   const index = steppable.findIndex(o => o.value === selection)
   if (index === -1) return steppable.at(direction === 1 ? 0 : -1) ?? null
   return steppable[index + direction] ?? null
+}
+
+/**
+ * The option typing on a closed single select picks, as in the open menu: the
+ * first whose label starts with the typed prefix, searching after the current
+ * option for a fresh single letter (so repeating "p" cycles the P options).
+ */
+export function typedSelectOption(
+  optionList: readonly SelectOption[],
+  selection: string,
+  typed: string
+): SelectOption | null {
+  const options = pickable(optionList)
+  const index = options.findIndex(o => o.value === selection)
+  const from = typed.length === 1 ? index + 1 : Math.max(index, 0)
+  const ordered = [...options.slice(from), ...options.slice(0, from)]
+  return ordered.find(o => o.label.toLowerCase().startsWith(typed)) ?? null
 }
 
 /**
