@@ -72,6 +72,24 @@ With several plots selected, the chip moves to the group's outline and duplicate
 ### Removing a plot
 Click **Remove** in the chip, or press `Delete`. With several plots selected, the chip on the group's outline removes all of them in one step.
 
+## Keyboard shortcuts
+
+On a Mac, use `Cmd` wherever the table says `Ctrl` (`Delete` is `Backspace`). Shortcuts that act on plots work when no dialog is open and you are not typing in a field.
+
+| Shortcut | Action |
+| --- | --- |
+| `Ctrl` + `O` | Import data or a workspace |
+| `Ctrl` + `S` | Save the workspace (`Ctrl` + `Shift` + `S`: save as) |
+| `Ctrl` + `Z` / `Ctrl` + `Y` | Undo / redo |
+| `Ctrl` + `A` | Select every plot |
+| `Ctrl` + `D` | Duplicate the selected plots |
+| `Delete` | Remove the selected plots |
+| Arrow keys | Move the selected plots one grid cell |
+| `Esc` | Close the dialog or pane, or clear the selection |
+| `Shift` + `1` | Zoom to fit |
+| `Ctrl` + `+` / `-` / `0` | Zoom in / out / back to 100% |
+| Letters in an open menu | Jump to the item that starts with them |
+
 ## Customization Libraries
 
 GazePlotter includes dedicated libraries to customize and configure how your data is grouped, colored, named, and calculated:
