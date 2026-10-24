@@ -770,7 +770,8 @@
     transition: border-color var(--transition-fast), background var(--transition-fast);
   }
   .shape-option:hover { border-color: var(--c-darkgrey); }
-  .shape-option:focus-visible { border-color: var(--c-brand); }
+  /* A ring, not the border: the selected card already has a brand border. */
+  .shape-option:focus-visible { outline: 2px solid var(--c-brand); outline-offset: 2px; }
   .shape-option.selected {
     border-color: var(--c-brand);
     background: color-mix(in srgb, var(--c-brand) 4%, var(--c-white));

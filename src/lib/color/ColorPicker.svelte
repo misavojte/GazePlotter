@@ -261,6 +261,11 @@
     margin-bottom: 6px;
   }
 
+  .hue-slider:focus-visible {
+    outline: 2px solid var(--c-brand);
+    outline-offset: 2px;
+  }
+
   .hue-slider {
     width: 100%;
     height: 12px;

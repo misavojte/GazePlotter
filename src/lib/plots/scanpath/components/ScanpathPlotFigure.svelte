@@ -800,6 +800,11 @@
 
   /* Minimal seek bar: a thin rail with the played part filled solid and the
      unplayed remainder a bare grey line. No native track chrome, no borders. */
+  .pill-seek:focus-visible {
+    outline: 2px solid var(--c-brand);
+    outline-offset: 4px;
+  }
+
   .pill-seek {
     flex: 1;
     min-width: 0;
