@@ -86,7 +86,7 @@ export class WorkspaceCommandBus {
         severity: 'recoverable',
         userMessage: isWorkspaceHistoryError(error)
           ? 'Undo/redo history could not be recorded for this change.'
-          : 'Error applying changes. See console for details.',
+          : 'Error applying changes. Open Metadata for the details under Recent Errors.',
         cause: error,
         // Identity only — the full command can carry megabytes of payload
         // (event buffers) that the error ring would retain for the session.
