@@ -7,7 +7,7 @@ import {
   type WorkspaceCommandRegistryErrorContext,
 } from './registry'
 import { UndoRedoStateStore } from './undoRedoState.svelte'
-import { getCommandLabel } from './labels'
+import { getSuccessLabel } from './labels'
 
 /**
  * Creates a command handler for workspace changes with integrated undo/redo support.
@@ -70,6 +70,7 @@ export function createCommandHandler(
   function handleCommand(command: WorkspaceCommandChain): void {
     try {
       const isUndoRedoOperation = isHistoryCommand(command.source)
+      let reverseCommand: ReturnType<typeof commandRegistry.reverse> = null
 
       if (!isUndoRedoOperation) {
         // Create reverse command BEFORE executing (to capture current state)
@@ -77,7 +78,7 @@ export function createCommandHandler(
         // No inverse -> no execution: refusing the mutation outright is
         // simpler and safer than applying a change that could never be
         // undone. The registry already reported the underlying cause.
-        const reverseCommand = commandRegistry.reverse(command)
+        reverseCommand = commandRegistry.reverse(command)
         if (!reverseCommand) {
           throw new Error(
             `Command '${command.type}' was rejected because its undo state could not be captured.`
@@ -101,7 +102,7 @@ export function createCommandHandler(
       }
 
       if (shouldShowSuccessToast(command, isUndoRedoOperation)) {
-        const message = getCommandLabel(command)
+        const message = getSuccessLabel(command, reverseCommand)
         if (message) onSuccess(message, command)
       }
 

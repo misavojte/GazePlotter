@@ -1,5 +1,6 @@
 import type { SelectionsAxis, WorkspaceCommand } from './types'
 import { shortcutLabel } from '../keys'
+import { defaultInstanceLabel, type MetricInstance } from '$lib/metrics'
 
 /** Removal has no confirmation, so its toast names the way back. */
 const UNDO_HINT = `(${shortcutLabel('undo')} to undo)`
@@ -170,4 +171,44 @@ export function getCommandLabel(
   if (!history) return labels.default
   if (!labels.action) return ''
   return `${HISTORY_PREFIX[history]} ${labels.action}`
+}
+
+const metricName = (instance: MetricInstance) =>
+  `"${instance.label || defaultInstanceLabel(instance.baseId)}"`
+
+/** One added, removed or edited metric, by name; null for anything broader. */
+function describeMetricLibraryChange(
+  before: readonly MetricInstance[],
+  after: readonly MetricInstance[]
+): string | null {
+  const beforeById = new Map(before.map(instance => [instance.id, instance]))
+  const afterIds = new Set(after.map(instance => instance.id))
+  const added = after.filter(instance => !beforeById.has(instance.id))
+  const removed = before.filter(instance => !afterIds.has(instance.id))
+  const edited = after.filter(instance => {
+    const previous = beforeById.get(instance.id)
+    return previous !== undefined && JSON.stringify(previous) !== JSON.stringify(instance)
+  })
+  if (added.length + removed.length + edited.length !== 1) return null
+  if (added.length) return `Added metric ${metricName(added[0])}`
+  if (removed.length) return `Removed metric ${metricName(removed[0])}`
+  return `Updated metric ${metricName(edited[0])}`
+}
+
+/**
+ * The success toast for a command just applied. `reverse` holds the state it
+ * replaced, so a metric library change can say which metric it touched.
+ */
+export function getSuccessLabel(
+  command: WorkspaceCommand,
+  reverse: WorkspaceCommand | null
+): string | null {
+  if (
+    command.type === 'updateMetricInstances' &&
+    reverse?.type === 'updateMetricInstances'
+  ) {
+    const change = describeMetricLibraryChange(reverse.instances, command.instances)
+    if (change) return change
+  }
+  return getCommandLabel(command)
 }

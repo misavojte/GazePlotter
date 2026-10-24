@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { getCommandLabel } from '$lib/workspace/commands/labels'
+import { getCommandLabel, getSuccessLabel } from '$lib/workspace/commands/labels'
+import type { MetricInstance } from '$lib/metrics'
 
 describe('getCommandLabel', () => {
   it('names a stimulus-only settings edit, and nothing broader', () => {
@@ -17,5 +18,30 @@ describe('getCommandLabel', () => {
     expect(getCommandLabel(settings({ groupId: 1 }), 'redone')).toBe(
       'Redone: plot update'
     )
+  })
+})
+
+describe('getSuccessLabel', () => {
+  const metric = (id: string, label: string, extra = {}) =>
+    ({ id, baseId: 'fixationCount', label, ...extra }) as unknown as MetricInstance
+  const library = (instances: MetricInstance[]) => ({
+    type: 'updateMetricInstances' as const,
+    instances,
+    source: 'metricLibrary.modal',
+  })
+  const a = metric('a', 'Fixations')
+  const b = metric('b', 'Dwell')
+
+  it('names the one metric a library change added, removed or edited', () => {
+    expect(getSuccessLabel(library([a, b]), library([a]))).toBe('Added metric "Dwell"')
+    expect(getSuccessLabel(library([a]), library([a, b]))).toBe('Removed metric "Dwell"')
+    expect(
+      getSuccessLabel(library([a, metric('b', 'Dwell', { params: { x: 1 } })]), library([a, b]))
+    ).toBe('Updated metric "Dwell"')
+  })
+
+  it('falls back to the generic label for broader changes', () => {
+    expect(getSuccessLabel(library([]), library([a, b]))).toBe('Metric library updated')
+    expect(getSuccessLabel(library([a]), null)).toBe('Metric library updated')
   })
 })
