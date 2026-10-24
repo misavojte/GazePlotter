@@ -65,7 +65,7 @@ Drag any of the four corner handles on a selected plot. The card snaps to the gr
 A selected plot carries a small chip that floats just above its outline's top-left corner, holding two buttons: **Duplicate** and **Remove**. Hover either one for its name and shortcut.
 
 ### Duplicating a plot
-Click **Duplicate** in the chip, or press `Ctrl+D` (`Cmd+D` on Mac). The copy keeps every setting: participant selection, stimulus, axis bounds, colors.
+Click **Duplicate** in the chip, or press `Ctrl+D` (`Cmd+D` on Mac). The copy keeps every setting: participant selection, stimulus, axis bounds, colors. The copy is selected, so `Alt+Down` (`Option+Down` on Mac) right after puts it on the next stimulus: two keys for a side-by-side comparison.
 
 With several plots selected, the chip moves to the group's outline and duplicates all of them at once, keeping the arrangement they are in: the copies land together, in the same shape, in the first free space that fits them. They become the new selection, and one **Undo** takes them all back.
 
