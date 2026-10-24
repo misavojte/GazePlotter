@@ -34,7 +34,7 @@
   const contextMenuState = useContextMenu()
   import { isTextEntryTarget, resolveWorkspaceShortcut } from '../keys'
 
-  const { engine, errorService, workspace, grid, modalState } =
+  const { engine, errorService, workspace, grid, modalState, toastState } =
     getGazePlotterSession()
 
   let gridEl = $state<HTMLDivElement>()
@@ -201,7 +201,12 @@
   function stepStimulus(direction: 1 | -1): void {
     const items = grid.selectedItems
     const order = getStimuliOptions(engine).map(option => Number(option.value))
-    if (order.length < 2 || items.length === 0) return
+    if (items.length === 0) return
+    // A shortcut that cannot act says why, instead of nothing.
+    if (order.length < 2) {
+      toastState.addInfo('This dataset has one stimulus, so there is no other to show.')
+      return
+    }
     workspace.updateEachItemSettings(
       items.map(item => item.id),
       settings => {
