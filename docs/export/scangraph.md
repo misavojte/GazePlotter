@@ -14,7 +14,7 @@ ScanGraph Export writes fixation sequences as letter-coded strings in a `.txt` f
 ## Exporting
 
 1. Click **Export** in the header.
-2. Under **Other options**, click the **ScanGraph Format** card.
+2. Under **Figures and data**, click the **ScanGraph Format** card.
 3. Select the **Stimulus**.
 4. Choose the **string form**: *Original* keeps one letter per fixation (dwell duration weighs in); *Collapsed* folds consecutive fixations in the same AOI (order only).
 5. Click **Export ScanGraph**.

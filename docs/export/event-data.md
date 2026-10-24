@@ -27,6 +27,6 @@ The **Event Data (CSV)** export writes every event occurrence with its timing, p
 The modal guides you through collapsible steps, one open at a time; every collapsed step shows a one-line summary of its selection.
 
 1. Click **Export** in the header.
-2. Under **Other options**, click the **Event Data (CSV)** card.
+2. Under **Figures and data**, click the **Event Data (CSV)** card.
 3. Choose the **Stimuli** and **Participants**, then configure the file options above.
 4. Click **Export Data**.
