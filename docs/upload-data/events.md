@@ -42,13 +42,13 @@ The **Map Event Files** modal assigns each detected event file to a stimulus and
 
 For each event file, select:
 
-- **Stimulus** — The stimulus the event file belongs to.
-- **Participant** — One of:
-  - **Ignore** (default) — Skip this file entirely.
-  - **To all** — Apply the event data to every participant.
-  - A specific participant name — Apply only to that participant.
+- **Stimulus**: the stimulus the event file belongs to.
+- **Participant**: one of:
+  - **Skip this file** (default): the file is not imported.
+  - **All participants**: apply the event data to every participant.
+  - A specific participant name: apply only to that participant.
 
-> **Note**: When any file is set to **To all**, individual participant options are hidden for other files targeting the same stimulus.
+> **Note**: When any file is set to **All participants**, individual participant options are hidden for other files targeting the same stimulus.
 
 Click **Apply** to process the mapping. The event channels are immediately added to the scarf plot for the assigned stimulus.
 

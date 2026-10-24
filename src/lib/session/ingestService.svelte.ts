@@ -941,7 +941,9 @@ export class IngestService {
     const mergedUpdates = eventUpdatesOf(stimulusMap)
 
     if (mergedUpdates.length === 0) {
-      this.deps.toastState.addInfo('All event files were set to Ignore.')
+      this.deps.toastState.addInfo(
+        'No event data was added: every file was skipped or had no matching rows.'
+      )
       return
     }
 

@@ -27,23 +27,23 @@
   )
   let participantSelections = $state<string[]>(fileNames.map(() => IGNORE))
 
-  // When any file is set to "To all", hide individual participant options
+  // When any file is set to "All participants", hide individual participant options
   let hasToAll = $derived(participantSelections.some(s => s === ALL))
 
   let visibleParticipantOptions = $derived<SelectOption[]>(
     hasToAll
       ? [
-          { label: 'Ignore', value: IGNORE },
-          { label: 'To all', value: ALL },
+          { label: 'Skip this file', value: IGNORE },
+          { label: 'All participants', value: ALL },
         ]
       : [
-          { label: 'Ignore', value: IGNORE },
-          { label: 'To all', value: ALL },
+          { label: 'Skip this file', value: IGNORE },
+          { label: 'All participants', value: ALL },
           ...participantOptions,
         ]
   )
 
-  // When switching to "To all" mode, reset individual selections to "Ignore"
+  // When switching to "All participants" mode, reset individual selections to "Skip this file"
   $effect(() => {
     if (hasToAll) {
       for (let i = 0; i < participantSelections.length; i++) {
