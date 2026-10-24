@@ -8,6 +8,7 @@
   import { getDebugMessage } from '$lib/errors'
   import { useContextMenu } from '$lib/context-menu'
   import { useTooltipAction } from '$lib/tooltip'
+  import { isTextEntryTarget } from '$lib/workspace/keys'
 
   const contextMenuState = useContextMenu()
   const tooltipAction = useTooltipAction()
@@ -26,6 +27,13 @@
     // contextMenuAction); closing the whole modal would discard staged work.
     if (contextMenuState.current) return
     if (event.key === 'Escape' && activeModal) {
+      // A focused field is the nearer layer: the first Escape returns focus
+      // to the dialog, the next one closes it (and its staged work).
+      const dialog = (event.target as HTMLElement | null)?.closest?.('.modal')
+      if (isTextEntryTarget(event) && dialog instanceof HTMLElement) {
+        dialog.focus({ preventScroll: true })
+        return
+      }
       handleClose()
     }
   }
