@@ -33,11 +33,17 @@ export function deriveMetricMatrixView(
   const placeholder = data.noMetric
     ? METRIC_MISSING_MESSAGE
     : data.empty === 'no-cols'
-      ? 'No stimuli available'
+      ? { message: 'No stimuli available.', steps: ['Pick another selection in Stimuli'] }
       : data.empty === 'no-rows'
-        ? 'No participants in this selection'
+        ? {
+            message: 'No participants in this selection.',
+            steps: ['Pick another selection in Participants'],
+          }
         : data.empty === 'all-na'
-          ? 'No usable data for this metric'
+          ? {
+              message: 'No usable data for this metric.',
+              steps: ['Pick another metric in Plot Settings > Metric'],
+            }
           : null
 
   const instance = resolvePickedInstance(engine, settings.metricInstanceIds)
