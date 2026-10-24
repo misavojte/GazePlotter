@@ -58,6 +58,9 @@ const IS_MAC =
 /** The platform's chord modifier, as its users see it written. */
 export const MODIFIER_LABEL = IS_MAC ? '⌘' : 'Ctrl'
 
+/** The key that removes selected plots, as its users see it written. */
+export const DELETE_KEY_LABEL = IS_MAC ? '⌫' : 'Delete'
+
 const SHORTCUT_LABELS: Record<WorkspaceShortcut, [mac: string, other: string]> = {
   undo: ['⌘Z', 'Ctrl+Z'],
   redo: ['⇧⌘Z', 'Ctrl+Y'],

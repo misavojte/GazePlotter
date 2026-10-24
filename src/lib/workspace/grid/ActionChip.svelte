@@ -2,6 +2,7 @@
   import Copy from 'lucide-svelte/icons/copy'
   import X from 'lucide-svelte/icons/x'
   import { useTooltipAction } from '$lib/tooltip'
+  import { DELETE_KEY_LABEL } from '../keys'
 
   /**
    * Duplicate and Remove for a selection of one plot or many, in the
@@ -38,7 +39,7 @@
     class="action"
     onclick={onRemove}
     aria-label="Remove {scope}"
-    use:tooltipAction={{ content: 'Remove', position: 'top', offset: TOOLTIP_OFFSET }}
+    use:tooltipAction={{ content: `Remove (${DELETE_KEY_LABEL})`, position: 'top', offset: TOOLTIP_OFFSET }}
   >
     <X size={16} strokeWidth={1.75} aria-hidden="true" />
   </button>
