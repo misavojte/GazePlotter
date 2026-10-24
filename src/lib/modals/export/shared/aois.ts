@@ -8,10 +8,14 @@ import { getAois, getAoiSelections } from '$lib/data/engine'
 import { getStimuliOptions } from '$lib/plots/shared'
 import type { SelectionPreset } from './presets'
 
-/** Displayed AOI names in first-seen order across the visible stimuli. */
-export function aoiChecklistItems(engine: DataEngine): { value: string; label: string }[] {
+/** Displayed AOI names in first-seen order across the visible stimuli, or only the given ones. */
+export function aoiChecklistItems(
+  engine: DataEngine,
+  stimulusIds?: ReadonlySet<string>
+): { value: string; label: string }[] {
   const names = new Set<string>()
   for (const { value } of getStimuliOptions(engine)) {
+    if (stimulusIds && !stimulusIds.has(value)) continue
     for (const aoi of getAois(engine, Number(value))) names.add(aoi.displayedName)
   }
   return Array.from(names, name => ({ value: name, label: name }))
@@ -39,10 +43,11 @@ export function defaultAoiSelection(
   return new Set(selection ? all.filter(name => selection.names.includes(name)) : all)
 }
 
-/** The narrowing to send: none when every AOI is ticked. */
+/** The narrowing to send: the ticked listed AOIs, none when every listed AOI is ticked. */
 export function tickedAoiNames(
   items: readonly { value: string }[],
   selected: ReadonlySet<string>
 ): Set<string> | undefined {
-  return items.every(item => selected.has(item.value)) ? undefined : new Set(selected)
+  const ticked = items.filter(item => selected.has(item.value)).map(item => item.value)
+  return ticked.length === items.length ? undefined : new Set(ticked)
 }

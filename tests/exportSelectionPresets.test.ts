@@ -33,4 +33,13 @@ describe('selection chips over an export checklist', () => {
       presetSelectionSummary(items, [justFixations], new Set(['fix', 'sac', 'blink']))
     ).toBe('All (3)')
   })
+
+  it('ignores ticks on items the list does not show', () => {
+    expect(presetSelectionSummary(items, [justFixations], new Set(['fix', 'gone']))).toBe(
+      'Just fixations (1)'
+    )
+    expect(
+      presetSelectionSummary(items, [], new Set(['fix', 'sac', 'blink', 'gone']))
+    ).toBe('All (3)')
+  })
 })

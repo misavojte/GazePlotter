@@ -43,7 +43,8 @@ export function presetSelectionSummary(
   presets: readonly SelectionPreset[],
   selected: ReadonlySet<string>
 ): string {
-  const count = selected.size
+  // Ticks on items not listed (kept while a narrower list shows) don't count.
+  const count = items.filter(item => selected.has(item.value)).length
   if (count > 0 && count < items.length) {
     const exact = presets.find(
       p => p.members.length === count && isPresetSelected(p.members, selected)

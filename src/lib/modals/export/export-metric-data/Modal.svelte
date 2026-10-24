@@ -84,18 +84,19 @@
   let timeStartStr = $state(untrack(() => presetTime(presetStart)))
   let timeEndStr = $state(untrack(() => presetTime(presetEnd)))
 
-  // Computed as a plot computes it: unticked AOIs count as No AOI. Live, so
-  // AOIs and selections edited in the AOI library show up on return.
-  const aoiItems = $derived(aoiChecklistItems(engine))
-  const aoiPresets = $derived(aoiChecklistPresets(engine, aoiItems))
-  let selectedAois = $state(
-    untrack(() => defaultAoiSelection(engine, aoiItems, presetAoiSelection))
-  )
-
   // Prefill props are read once by design (untrack): they seed the selection,
   // they don't bind it.
   let selectedStimuliIds = $state(
     untrack(() => defaultStimulusSelection(engine, stimulusId))
+  )
+
+  // Computed as a plot computes it: unticked AOIs count as No AOI. Lists the
+  // chosen stimuli's AOIs; live, so AOI library edits show up on return.
+  // Ticks span every AOI, so unticking a stimulus doesn't lose them.
+  const aoiItems = $derived(aoiChecklistItems(engine, selectedStimuliIds))
+  const aoiPresets = $derived(aoiChecklistPresets(engine, aoiItems))
+  let selectedAois = $state(
+    untrack(() => defaultAoiSelection(engine, aoiChecklistItems(engine), presetAoiSelection))
   )
   let selectedParticipantIds = $state(
     untrack(() => defaultParticipantSelection(engine, groupId))
@@ -306,7 +307,7 @@
     stepMetricsDone &&
       selectedStimuliIds.size > 0 &&
       selectedParticipantIds.size > 0 &&
-      (aoiItems.length === 0 || selectedAois.size > 0) &&
+      (aoiItems.length === 0 || aoiItems.some(item => selectedAois.has(item.value))) &&
       stepFileDone
   )
 

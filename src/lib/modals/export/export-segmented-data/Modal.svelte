@@ -75,17 +75,18 @@
   const hasSpatialData = $derived(engine.capabilities.spatial)
 
   // Unticked AOIs leave the AOI column, as an AOI selection does in a plot.
-  const aoiItems = aoiChecklistItems(engine)
-  const aoiPresets = aoiChecklistPresets(engine, aoiItems)
+  // Lists the chosen stimuli's AOIs; ticks span every AOI.
+  const aoiItems = $derived(aoiChecklistItems(engine, selectedStimuliIds))
+  const aoiPresets = $derived(aoiChecklistPresets(engine, aoiItems))
   let selectedAois = $state(
-    untrack(() => defaultAoiSelection(engine, aoiItems, aoiSelectionId))
+    untrack(() => defaultAoiSelection(engine, aoiChecklistItems(engine), aoiSelectionId))
   )
 
   const canExport = $derived(
     selectedStimuliIds.size > 0 &&
       selectedParticipantIds.size > 0 &&
       selectedCategoryIds.size > 0 &&
-      (aoiItems.length === 0 || selectedAois.size > 0)
+      (aoiItems.length === 0 || aoiItems.some(item => selectedAois.has(item.value)))
   )
   const fileSummary = $derived(
     [

@@ -11,6 +11,7 @@ import {
 import { instanceMatchesContract, type MetricInstance } from '../src/lib/metrics'
 import type { DataType } from '../src/lib/data/types'
 import { makeDataType } from './helpers/dataTypeFixtures'
+import { aoiChecklistItems, tickedAoiNames } from '../src/lib/modals/export/shared/aois'
 
 function createTestData(): DataType {
   // Segment rows are [startTime, endTime, categoryId, ...aoiIds], nested as
@@ -440,5 +441,18 @@ describe('ticked AOI names', () => {
     expect(lines).toContain('0,ParticipantOne,StimulusOne,CTA,Absolute Dwell Time,ms,1000')
     expect(lines).toContain('0,ParticipantOne,StimulusOne,No_AOI,Absolute Dwell Time,ms,1000')
     expect(lines.some(line => line.includes(',Nav,'))).toBe(false)
+  })
+})
+
+describe('export AOI checklist', () => {
+  it("lists only the chosen stimuli's AOIs and sends only listed ticks", () => {
+    const engine = loadedEngine()
+    const names = (items: { value: string }[]) => items.map(item => item.value)
+    expect(names(aoiChecklistItems(engine))).toEqual(['Nav', 'CTA', 'Logo'])
+    const s1 = aoiChecklistItems(engine, new Set(['0']))
+    expect(names(s1)).toEqual(['Nav', 'CTA'])
+    // A tick on an AOI the chosen stimuli lack neither narrows nor leaks.
+    expect(tickedAoiNames(s1, new Set(['Nav', 'CTA', 'Logo']))).toBeUndefined()
+    expect([...tickedAoiNames(s1, new Set(['Nav', 'Logo']))!]).toEqual(['Nav'])
   })
 })

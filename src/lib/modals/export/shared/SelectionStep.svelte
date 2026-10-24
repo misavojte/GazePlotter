@@ -43,7 +43,7 @@
     children,
   }: Props = $props()
 
-  const done = $derived(selected.size > 0)
+  const done = $derived(items.some(item => selected.has(item.value)))
   const chipsText = $derived(
     `Selection chips toggle a whole ${noun} selection at once; individual checkmarks refine the result.`
   )
