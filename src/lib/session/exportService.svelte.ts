@@ -311,13 +311,14 @@ export class ExportService {
   }
 
   async exportAnalysis(fileName: string): Promise<boolean> {
+    let delivered = ''
     return this.runExport(
-      () =>
-        this.deliver(
-          { content: this.analysisJson(), extension: '.json' },
-          this.resolveFileName(fileName)
-        ),
-      'Analysis exported successfully',
+      () => {
+        const name = this.resolveFileName(fileName)
+        this.deliver({ content: this.analysisJson(), extension: '.json' }, name)
+        delivered = name.endsWith('.json') ? name : `${name}.json`
+      },
+      () => `Exported ${delivered}`,
       { exportType: 'analysis', fileName }
     )
   }
@@ -327,13 +328,14 @@ export class ExportService {
     fileName: string
     buildContent: () => string
   }): Promise<boolean> {
+    let delivered = ''
     return this.runExport(
-      () =>
-        this.deliver(
-          { content: options.buildContent(), extension: '.csv' },
-          this.resolveFileName(options.fileName)
-        ),
-      'Metadata report exported successfully',
+      () => {
+        const name = this.resolveFileName(options.fileName)
+        this.deliver({ content: options.buildContent(), extension: '.csv' }, name)
+        delivered = name.endsWith('.csv') ? name : `${name}.csv`
+      },
+      () => `Exported ${delivered}`,
       { exportType: 'metadata-report', fileName: options.fileName }
     )
   }
