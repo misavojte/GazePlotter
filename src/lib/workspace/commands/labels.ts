@@ -41,6 +41,19 @@ const RECONCILE_LABELS: Record<'stimulus' | 'participant', CommandLabels> = {
   stimulus: { action: 'stimuli update', default: 'Stimuli updated' },
 }
 
+/** A settings edit that only switched stimuli (Alt+Up/Down, the Stimulus picker). */
+const STIMULUS_CHANGE_LABELS: CommandLabels = {
+  action: 'stimulus change',
+  default: 'Stimulus changed',
+}
+
+const isStimulusSwitch = (command: WorkspaceCommand): boolean =>
+  command.type === 'updateSettings' &&
+  command.updates.every(({ settings }) => {
+    const keys = Object.keys(settings)
+    return keys.length === 1 && keys[0] === 'stimulusId'
+  })
+
 /**
  * Registry mapping workspace command types to their human-readable labels.
  * `updateSelections` and `reconcileMerges` labels are per-axis (above).
@@ -150,7 +163,9 @@ export function getCommandLabel(
       ? SELECTIONS_LABELS[command.axis]
       : command.type === 'reconcileMerges'
         ? RECONCILE_LABELS[command.axis]
-        : WORKSPACE_COMMAND_LABELS[command.type]
+        : isStimulusSwitch(command)
+          ? STIMULUS_CHANGE_LABELS
+          : WORKSPACE_COMMAND_LABELS[command.type]
 
   if (!history) return labels.default
   if (!labels.action) return ''
