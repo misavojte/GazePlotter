@@ -12,7 +12,7 @@
 
   let container: HTMLUListElement | null = $state(null)
 
-  // Escape and arrow navigation only. Enter/Space need no handling: menu
+  // Escape, arrows and type-ahead. Enter/Space need no handling: menu
   // items are native buttons, which activate on those keys by themselves.
   const onKeydown = (ev: KeyboardEvent) => {
     if (ev.key === 'Escape') onClose()
@@ -24,13 +24,44 @@
       ev.preventDefault()
       focusNext(-1)
     }
+    const target = ev.target as HTMLElement | null
+    const inField = !!target && (/^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.isContentEditable === true)
+    const printable = ev.key.length === 1 && ev.key !== ' ' && !inField
+    if (printable && container && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
+      focusTyped(ev.key)
+    }
   }
+
+  // Type-ahead: keys typed within TYPE_AHEAD_MS of each other spell one
+  // prefix ("P4"), and the first item it starts goes into focus.
+  const TYPE_AHEAD_MS = 600
+  let typed = ''
+  let typedAt = 0
+
+  const focusTyped = (key: string) => {
+    const now = Date.now()
+    typed = (now - typedAt < TYPE_AHEAD_MS ? typed : '') + key.toLowerCase()
+    typedAt = now
+    const buttons = menuButtons()
+    const idx = buttons.findIndex(b => b === document.activeElement)
+    // A fresh letter moves past the current item; a longer prefix may stay.
+    const from = typed.length === 1 ? idx + 1 : Math.max(idx, 0)
+    const ordered = [...buttons.slice(from), ...buttons.slice(0, from)]
+    ordered
+      .find(b => b.textContent?.trim().toLowerCase().startsWith(typed))
+      ?.focus()
+  }
+
+  const menuButtons = (): HTMLButtonElement[] =>
+    container
+      ? (Array.from(
+          container.querySelectorAll('button[role="menuitem"]:not(:disabled)')
+        ) as HTMLButtonElement[])
+      : []
 
   const focusNext = (delta: number) => {
     if (!container) return
-    const buttons = Array.from(
-      container.querySelectorAll('button[role="menuitem"]:not(:disabled)')
-    ) as HTMLButtonElement[]
+    const buttons = menuButtons()
     if (buttons.length === 0) return
     const idx = buttons.findIndex(
       b => b === (document.activeElement as HTMLButtonElement)
