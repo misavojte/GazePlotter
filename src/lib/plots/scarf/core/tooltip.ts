@@ -32,9 +32,9 @@ export const buildScarfTooltipContent = (
   }
   content.push(
     { key: 'Order index', value: segmentId.toString() },
-    { key: 'Start', value: segment.start.toFixed(1) },
-    { key: 'End', value: segment.end.toFixed(1) },
-    { key: 'Duration', value: (segment.end - segment.start).toFixed(1) }
+    { key: 'Start', value: `${segment.start.toFixed(1)} ms` },
+    { key: 'End', value: `${segment.end.toFixed(1)} ms` },
+    { key: 'Duration', value: `${(segment.end - segment.start).toFixed(1)} ms` }
   )
   return content
 }
@@ -57,12 +57,12 @@ export const buildScarfEventTooltipContent = (
     { key: 'Event', value: eventName },
   ]
   if (isPoint) {
-    content.push({ key: 'Time', value: start.toFixed(1) })
+    content.push({ key: 'Time', value: `${start.toFixed(1)} ms` })
   } else {
     content.push(
-      { key: 'Start', value: start.toFixed(1) },
-      { key: 'End', value: end.toFixed(1) },
-      { key: 'Duration', value: (end - start).toFixed(1) }
+      { key: 'Start', value: `${start.toFixed(1)} ms` },
+      { key: 'End', value: `${end.toFixed(1)} ms` },
+      { key: 'Duration', value: `${(end - start).toFixed(1)} ms` }
     )
   }
   return content
