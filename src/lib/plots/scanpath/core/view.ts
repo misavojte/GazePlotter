@@ -14,8 +14,14 @@ const PLACEHOLDERS: Record<ScanpathUnavailableReason, PlotPlaceholderContent> = 
     message: 'Missing spatial coordinate data:',
     steps: ['Upload a dataset containing spatial information'],
   },
-  'no-fixations': 'No fixations recorded for this participant on this stimulus.',
-  'no-spatial-coords': 'No spatial coordinates recorded for this participant on this stimulus.',
+  'no-fixations': {
+    message: 'No fixations recorded for this participant on this stimulus.',
+    steps: ['Pick another Participant or Stimulus'],
+  },
+  'no-spatial-coords': {
+    message: 'No spatial coordinates recorded for this participant on this stimulus.',
+    steps: ['Pick another Participant or Stimulus'],
+  },
 }
 
 /** Single source of truth for "what a scanpath draws" from (engine, settings). */

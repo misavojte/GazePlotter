@@ -27,7 +27,10 @@ const PLACEHOLDERS: Record<FixationHeatmapUnavailableReason, PlotPlaceholderCont
     message: 'No fixations in the selected time range.',
     steps: ['Widen or clear the Time range'],
   },
-  'no-coordinates': 'No fixation coordinates for this participant selection in the time range.',
+  'no-coordinates': {
+    message: 'No fixation coordinates for this participant selection in the time range.',
+    steps: ['Pick another selection in Participants'],
+  },
   'none-on-media': {
     message: 'No fixations fall on the stimulus media.',
     steps: ['Check the media position in Edit stimuli & selections'],
