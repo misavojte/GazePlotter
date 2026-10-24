@@ -4,6 +4,8 @@ import { generateUniqueId } from '$lib/shared/uniqueId'
 const MAX_VISIBLE_TOASTS = 5
 const MAX_MESSAGE_LENGTH = 280
 const TOAST_DEDUP_WINDOW_MS = 2000
+// About 200 words a minute: a long toast stays until it can be read.
+const READING_MS_PER_CHAR = 60
 
 function normalizeToastMessage(message: string): string {
   const singleLine = message.replace(/\s+/g, ' ').trim()
@@ -30,9 +32,14 @@ export class ToastState {
   private readonly recentToastTimes = new Map<string, number>()
 
   add(toast: ToastFillingType): void {
+    const message = normalizeToastMessage(toast.message)
     const normalizedToast = {
       ...toast,
-      message: normalizeToastMessage(toast.message),
+      message,
+      duration:
+        toast.duration === null
+          ? null
+          : Math.max(toast.duration, message.length * READING_MS_PER_CHAR),
     }
 
     if (normalizedToast.message.length === 0) return
