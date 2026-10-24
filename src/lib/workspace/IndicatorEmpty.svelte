@@ -13,6 +13,8 @@
     getGazePlotterSession()
 
   const canResetLayout = $derived(engine.hasValidData)
+  // A layout saved with no plots has nothing to return to.
+  const hasLayoutToRestore = $derived((ingest.loadedLayout?.length ?? 0) > 0)
   // Emptied by removing the last plots: the likely wish is to have them back.
   const undoRemoval = $derived.by(() => {
     const type = workspace.history.lastUndoCommand?.type
@@ -54,7 +56,8 @@
         {fatalSentence} You can inspect the report or upload different data.
       {:else if canResetLayout}
         Data is loaded, but no plots are shown. Add one with Add
-        Visualization, reset the layout, or upload new data.
+        Visualization{hasLayoutToRestore ? ', reset the layout,' : ''} or upload
+        new data.
       {:else}
         Drop eye-tracking files anywhere here, or import them to start.
       {/if}
@@ -75,7 +78,9 @@
             {undoRemoval}
           </Button>
         {/if}
-        <Button onclick={handleResetLayout}>Reset layout</Button>
+        {#if hasLayoutToRestore}
+          <Button onclick={handleResetLayout}>Reset layout</Button>
+        {/if}
       {/if}
       <!-- The lone first step is the primary one. -->
       <Button
