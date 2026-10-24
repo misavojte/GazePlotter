@@ -568,6 +568,13 @@
         content.push({ key: 'Connections', value: connectionItems[0].value })
         for (let i = 1; i < connectionItems.length; i++) content.push(connectionItems[i])
       }
+      // The click is otherwise undiscoverable: say what it will do.
+      if (onNodeClick) {
+        content.push({
+          key: '',
+          value: highlightSet.has(node.id) ? 'Click to remove highlight' : 'Click to highlight',
+        })
+      }
       return {
         content,
         anchorX: node.x + 10,
