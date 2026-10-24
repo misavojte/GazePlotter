@@ -113,7 +113,7 @@ read first as one group, then stream files sequentially in upload order
 Enrichment sources are claimed during the main-thread partition (a lone
 .json upload is never claimed — workspace precedence) and processed after
 the dataset exists; fresh datasets that gained event channels surface a
-non-blocking toast pointing at Event customization — no import-time
+non-blocking toast pointing at Events & selections — no import-time
 prompt, since events are additive and curated later.
 
 ## Hosts

@@ -85,6 +85,6 @@ A file selection containing only Custom CSV event files loads as an event-only d
 
 ## After uploading
 
-Event channels appear as colored lines in the scarf plot beneath each participant's gaze row. To modify event channel names, colors, ordering, or visibility, use **Event customization** from the scarf plot menu. See [Event Library](/docs/workspace/event-library/) for details.
+Event channels appear as colored lines in the scarf plot beneath each participant's gaze row. To modify event channel names, colors, ordering, or visibility, use **Edit events & selections** in the scarf plot settings. See [Event Library](/docs/workspace/event-library/) for details.
 
 > **Note**: When multiple event files target the same stimulus, channels with the same name are merged — their event buffers are concatenated per participant rather than overwritten.
