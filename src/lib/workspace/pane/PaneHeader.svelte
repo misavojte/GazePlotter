@@ -23,7 +23,7 @@
       type="button"
       class="close"
       onclick={onClose}
-      aria-label="Close pane"
+      aria-label="Close settings"
       use:tooltipAction={{ content: 'Close (Esc)', position: 'bottom' }}
     >
       <X size={16} />
