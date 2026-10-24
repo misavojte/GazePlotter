@@ -72,7 +72,9 @@ export function parseCsvEventText(text: string): {
 
   for (const col of REQUIRED_COLUMNS) {
     if (idx[col] === -1) {
-      warnings.push(`Missing required column: ${col}`)
+      // Names are case-sensitive; what WAS found makes a near-miss obvious.
+      const found = headers.slice(0, 8).join(', ') + (headers.length > 8 ? ', ...' : '')
+      warnings.push(`Missing required column: ${col} (found: ${found})`)
       return { contributions, warnings }
     }
   }
