@@ -31,12 +31,12 @@ Clicking the Eye-movement Comparison plot card in the workspace selects the plot
 
 ### Stimulus
 Choose the stimulus to analyze. Eye-movement types are dataset-wide, but the segments measured are those recorded on this stimulus.
-- **Edit stimuli & selections…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
+- **Edit stimuli & selections**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
 
 ### Participants
 Filter the eye-tracking data by group or individual participant.
 - **Participant selection**: A dropdown containing *All*, *Non-empty*, and saved participant selections.
-- **Edit participants & selections…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
+- **Edit participants & selections**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
 
 ### Metric
 Configure the quantitative metric displayed on the value axis.
@@ -46,7 +46,7 @@ Configure the quantitative metric displayed on the value axis.
   - *Eye-movement duration* (`movementDuration`): Length of the individual segments of each type (ms). This is the default.
   - *Eye-movement count* (`movementCount`): Number of segments of each type.
   - *Time to first eye movement* (`movementLatency`): Elapsed time from the start of the stimulus timeline to the first segment of each type (ms). Read at the Saccade slot this is saccadic latency.
-- **Edit metric library…**: Opens the Metric Library modal where you can customize parameters or define new **custom metrics** on the type axis.
+- **Edit metric library**: Opens the Metric Library modal where you can customize parameters or define new **custom metrics** on the type axis.
 
 ### Visualization
 Configure the layout and rendering of the distributions.
@@ -72,11 +72,11 @@ Note that *Time to first eye movement* does not re-zero its clock to the range s
 ### Eye-movement Types
 Filters which eye-movement types are drawn.
 - **Eye-movement type selection**: A dropdown containing *All* and the saved eye-movement type selections, including the shipped *Just fixations*.
-- **Edit eye-movement types & selections…**: Opens the [Eye-movement Type Library](/docs/workspace/eye-movement-type-library/) to rename, recolor, merge, and build selections.
+- **Edit eye-movement types & selections**: Opens the [Eye-movement Type Library](/docs/workspace/eye-movement-type-library/) to rename, recolor, merge, and build selections.
 
 ### Export
 Located at the bottom of the Pane:
-- **Download plot…**: Opens the [Figure Export](/docs/export/figures/) dialog to save the plot as a PNG or JPG.
+- **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the plot as a PNG or JPG.
 - **Export Data**: To export the computed values as CSV, see [Metric Data Export](/docs/export/metric-data/).
 
 ## Interpretation

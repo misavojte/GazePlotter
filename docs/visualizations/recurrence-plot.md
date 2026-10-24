@@ -26,11 +26,11 @@ Clicking the Recurrence Plot card in the workspace selects the plot and opens it
 
 ### Stimulus
 Choose the stimulus to analyze. Only fixations recorded for that stimulus are included.
-- **Edit stimuli & selections…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
+- **Edit stimuli & selections**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
 
 ### Participant
 Select which participant's fixation sequence to analyze. The recurrence plot operates on a single participant at a time. The fixation index order follows the temporal order of recorded fixations for the selected stimulus.
-- **Edit participants…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename or reorder participants.
+- **Edit participants & selections**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename or reorder participants.
 
 ### Method
 Configure the criteria used to decide whether two fixations are recurrent. The method decides which further control appears; it is listed under the method that reveals it.
@@ -65,11 +65,11 @@ Filter the temporal range of fixations.
 ### Areas of Interest
 Filters which Areas of Interest (AOIs) are active when using the *AOI* recurrence method.
 - **AOI selection**: A dropdown containing *All* and saved AOI selections; AOIs outside the picked selection count as no-AOI in this plot.
-- **Edit AOIs & selections…**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
+- **Edit AOIs & selections**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
 
 ### Export
 Located at the bottom of the Pane:
-- **Download plot…**: Opens the [Figure Export](/docs/export/figures/) dialog to save the recurrence plot as a PNG or JPG.
+- **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the recurrence plot as a PNG or JPG.
 
 ## Interpretation
 

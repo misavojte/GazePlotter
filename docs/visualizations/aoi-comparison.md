@@ -21,12 +21,12 @@ Clicking the AOI Comparison plot card in the workspace selects the plot and open
 
 ### Stimulus
 Choose the stimulus to analyze. Each stimulus contains its own set of Areas of Interest (AOIs) which will be displayed as bars in the chart.
-- **Edit stimuli & selections…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
+- **Edit stimuli & selections**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
 
 ### Participants
 Filter the eye-tracking data by group or individual participant.
 - **Participant selection**: A dropdown containing *All*, *Non-empty*, and saved participant selections.
-- **Edit participants & selections…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
+- **Edit participants & selections**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
 
 ### Metric
 Configure the quantitative metric displayed on the value axis.
@@ -39,7 +39,7 @@ Configure the quantitative metric displayed on the value axis.
   - *Average fixation duration* (`fixationDuration`): Mean length of individual fixations (see [Durations](/docs/metrics/durations)).
   - *Time to first fixation* (`timeToFirstFixation`): Average latency until initial entry (see [Counts & Latency](/docs/metrics/counts-latency)).
   - *First fixation duration* (`firstFixationDuration`): Mean length of the first fixation (see [Durations](/docs/metrics/durations)).
-- **Edit metric library…**: Opens the Metric Library modal where you can customize parameters or define entirely new **custom metrics** to calculate across the AOIs.
+- **Edit metric library**: Opens the Metric Library modal where you can customize parameters or define entirely new **custom metrics** to calculate across the AOIs.
 
 ### Visualization
 Configure the visual layout and rendering options for the bar chart.
@@ -62,11 +62,11 @@ Filter the temporal range from which fixations and saccades are fetched.
 Filters which Areas of Interest (AOIs) are rendered in the bar chart.
 - **AOI selection**: A dropdown containing *All* and saved AOI selections; AOIs outside the picked selection count as no-AOI in this plot.
 - **Hide No AOI data**: Drops the No-AOI slot from the chart, so only the named AOIs are compared.
-- **Edit AOIs & selections…**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
+- **Edit AOIs & selections**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
 
 ### Export
 Located at the bottom of the Pane:
-- **Download plot…**: Opens the [Figure Export](/docs/export/figures/) dialog to save the bar plot as a PNG or JPG.
+- **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the bar plot as a PNG or JPG.
 - **Export Data**: To export raw statistical values as CSV, see [Metric Data Export](/docs/export/metric-data/).
 
 ## Interpretation

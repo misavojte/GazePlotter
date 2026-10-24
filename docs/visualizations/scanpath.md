@@ -14,11 +14,11 @@ Clicking the Scanpath plot card in the workspace selects the plot and opens its 
 
 ### Stimulus
 Select the stimulus whose gaze data to plot. If the stimulus has reference media attached, it is drawn as the plot background.
-- **Edit stimuli & selections…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to rename stimuli, build stimulus selections, and attach reference media.
+- **Edit stimuli & selections**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to rename stimuli, build stimulus selections, and attach reference media.
 
 ### Participant
 Select the individual participant whose gaze trajectory you want to visualize. The Scanpath plot displays one participant's scanpath at a time.
-- **Edit participants…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename or reorder participants.
+- **Edit participants & selections**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename or reorder participants.
 
 ### Visualization
 - **Fixation color**: **Time gradient** samples each fixation's fill from a color scale by its onset within the shown time span; **Solid** uses one fixed color. With **Time gradient**, the color scale picker below sets the gradient stops.
@@ -30,7 +30,7 @@ Select the individual participant whose gaze trajectory you want to visualize. T
 
 ### Export
 Located at the bottom of the Pane:
-- **Download plot…**: Opens the [Figure Export](/docs/export/figures/) dialog to save the 2D scanpath plot as a PNG or JPG. Exports always render the full (parked) scanpath, not a playback frame.
+- **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the 2D scanpath plot as a PNG or JPG. Exports always render the full (parked) scanpath, not a playback frame.
 
 ## Playback
 

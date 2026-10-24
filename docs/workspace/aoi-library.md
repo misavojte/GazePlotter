@@ -5,7 +5,7 @@ The AOI Library controls the display names, colors, order, merging, and selectio
 ## Opening the library
 
 1. Select a plot to open its [Pane](/docs/visualizations/#visualization-configuration-pane).
-2. In the **Areas of Interest** section, click **Edit AOIs & selections…**.
+2. In the **Areas of Interest** section, click **Edit AOIs & selections**.
 
 ## Choosing the scope
 

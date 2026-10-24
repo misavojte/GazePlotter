@@ -14,12 +14,12 @@ Clicking the Scarf Plot card in the workspace selects the plot and opens its con
 
 ### Stimulus
 Choose the stimulus to analyze. Each stimulus contains its own set of Areas of Interest (AOIs) which will be displayed in the scarf plot.
-- **Edit stimuli & selections…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files.
+- **Edit stimuli & selections**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files.
 
 ### Participants
 Filter the eye-tracking data by a participant selection.
 - **Participant selection**: A dropdown containing *All*, *Non-empty*, and saved participant selections.
-- **Edit participants & selections…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
+- **Edit participants & selections**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
 
 ### Visualization
 Configure the timeline representation mode.
@@ -36,21 +36,21 @@ Defines temporal or index boundaries. GazePlotter automatically matches this sec
 ### Areas of Interest
 Narrows which AOIs this plot ranges over.
 - **AOI selection**: A dropdown containing *All* and saved AOI selections; AOIs outside the picked selection count as no-AOI in this plot.
-- **Edit AOIs & selections…**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
+- **Edit AOIs & selections**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
 
 ### Eye-movement Types
 Narrows which eye-movement types this plot draws — Fixation included: a selection without it hides the fixation layer (the full-height AOI bands).
 - **Eye-movement type selection**: A dropdown containing *All* and the saved eye-movement type selections. The library ships *Just fixations*, which keeps the fixation layer and drops every other type; a selection with no members draws no gaze at all, leaving an events-only timeline.
-- **Edit eye-movement types & selections…**: Opens the [Eye-movement Type Library](/docs/workspace/eye-movement-type-library/) to customize classification categories and selections.
+- **Edit eye-movement types & selections**: Opens the [Eye-movement Type Library](/docs/workspace/eye-movement-type-library/) to customize classification categories and selections.
 
 ### Events
 Narrows which event channels this plot overlays. Event channels render as an overlay — time-coded colored strips below each participant's gaze baseline — in *Absolute* and *Relative* modes whenever the stimulus has event data.
 - **Event selection**: A dropdown containing *All* and the saved event selections (matched by displayed channel name, portable across stimuli). The library ships *No events*, which holds no channels, so picking it hides the event overlay.
-- **Edit events & selections…**: Opens the [Event Library](/docs/workspace/event-library/) to customize event names, colors, ordering, and selections.
+- **Edit events & selections**: Opens the [Event Library](/docs/workspace/event-library/) to customize event names, colors, ordering, and selections.
 
 ### Export
 Located at the bottom of the Pane:
-- **Download plot…**: Opens the [Figure Export](/docs/export/figures/) dialog to save the scarf plot as a PNG or JPG.
+- **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the scarf plot as a PNG or JPG.
 - **Export Data**: To export raw fixation sequences, timing, and AOI mapping data as CSV, see [Segmented Data Export](/docs/export/segmented-data/).
 
 ## Interactivity

@@ -33,12 +33,12 @@ Clicking the Event Comparison plot card in the workspace selects the plot and op
 
 ### Stimulus
 Choose the stimulus to analyze. Event channels are defined per stimulus, so this also picks the channel axis.
-- **Edit stimuli & selections…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
+- **Edit stimuli & selections**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
 
 ### Participants
 Filter the eye-tracking data by group or individual participant.
 - **Participant selection**: A dropdown containing *All*, *Non-empty*, and saved participant selections.
-- **Edit participants & selections…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
+- **Edit participants & selections**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
 
 ### Metric
 Configure the quantitative metric displayed on the value axis.
@@ -48,7 +48,7 @@ Configure the quantitative metric displayed on the value axis.
   - *Event duration* (`eventDuration`): Length of the individual occurrences on each channel (ms). This is the default.
   - *Event count* (`eventCount`): Number of occurrences active on each channel within the analyzed range, instant markers included.
   - *Time to first event* (`eventLatency`): Elapsed time from the start of the stimulus timeline to the first occurrence on each channel (ms).
-- **Edit metric library…**: Opens the Metric Library modal where you can customize parameters or define new **custom metrics** on the event axis.
+- **Edit metric library**: Opens the Metric Library modal where you can customize parameters or define new **custom metrics** on the event axis.
 
 ### Visualization
 Configure the layout and rendering of the distributions.
@@ -74,11 +74,11 @@ Note that *Time to first event* does not re-zero its clock to the range start: t
 ### Events
 Filters which event channels are drawn.
 - **Event selection**: A dropdown containing *All* and the saved event selections, including the shipped *No events*.
-- **Edit events & selections…**: Opens the [Event Library](/docs/workspace/event-library/) to rename, recolor, merge, derive interval channels, and build selections.
+- **Edit events & selections**: Opens the [Event Library](/docs/workspace/event-library/) to rename, recolor, merge, derive interval channels, and build selections.
 
 ### Export
 Located at the bottom of the Pane:
-- **Download plot…**: Opens the [Figure Export](/docs/export/figures/) dialog to save the plot as a PNG or JPG.
+- **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the plot as a PNG or JPG.
 - **Export Data**: To export the raw event occurrences as CSV, see [Event Data Export](/docs/export/event-data/).
 
 ## Interpretation

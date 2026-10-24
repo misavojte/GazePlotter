@@ -84,7 +84,7 @@ The measurement class determines which options a plot exposes. In a plot that re
 
 ## Customizing the Metric Library
 
-To manage the Metric Library, click **Edit metric library…** in any collapsible Pane or the data export panel.
+To manage the Metric Library, click **Edit metric library** in any collapsible Pane or the data export panel.
 
 ### Editing Metric Instances
 1. **Select or Duplicate**: Select an existing metric in the left sidebar, or click **Duplicate** to use it as a template for a new custom metric.

@@ -19,19 +19,19 @@ Clicking the Metric Timeline plot card in the workspace selects the plot and ope
 
 ### Stimulus
 Choose the stimulus to analyze. Gaze data will be filtered and binned along this stimulus's recorded timeline.
-- **Edit stimuli & selections…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
+- **Edit stimuli & selections**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
 
 ### Participants
 Filter the analysis by participant group.
 - **Participant selection**: A dropdown containing *All*, *Non-empty*, and saved participant selections.
-- **Edit participants & selections…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
+- **Edit participants & selections**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
 
 ### Metric
 Configure the windowed scalar metric to track.
 - **Select metric**: A dropdown of all metric instances in the library that satisfy the windowed `scalar` contract:
   - *Average fixation duration* (`avgFixationDuration-any-windowed`): Computes the mean duration of fixations landing within each moving window (see [Durations](/docs/metrics/durations)).
   - *Fixation count* (`fixationCount-any-windowed`): Tracks the frequency of fixations per window (see [Counts & Latency](/docs/metrics/counts-latency)).
-- **Edit metric library…**: Opens the Metric Library modal where you can customize window parameters (window size and step size, e.g. 1000ms window with 100ms step) or define **custom windowed scalar metrics**.
+- **Edit metric library**: Opens the Metric Library modal where you can customize window parameters (window size and step size, e.g. 1000ms window with 100ms step) or define **custom windowed scalar metrics**.
 
 ### Visualization
 Configure the visual presentation. The view decides which further controls appear; they are listed under the view that reveals them.
@@ -48,11 +48,11 @@ Filter the temporal range.
 ### Areas of Interest
 Filters which Areas of Interest (AOIs) are active for the metric calculation. If AOIs are selected, the metric is computed only using fixations that land within those active AOIs.
 - **AOI selection**: A dropdown containing *All* and saved AOI selections; AOIs outside the picked selection count as no-AOI in this plot.
-- **Edit AOIs & selections…**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
+- **Edit AOIs & selections**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
 
 ### Export
 Located at the bottom of the Pane:
-- **Download plot…**: Opens the [Figure Export](/docs/export/figures/) dialog to save the timeline plot as a PNG or JPG.
+- **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the timeline plot as a PNG or JPG.
 - **Export Data**: To export the windowed values per participant as CSV, see [Metric Data Export](/docs/export/metric-data/).
 
 ## Interpretation

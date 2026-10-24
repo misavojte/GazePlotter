@@ -5,7 +5,7 @@ The Participant Library renames, reorders, and merges participants, and manages 
 ## Opening the library
 
 1. Select a plot to open its [Pane](/docs/visualizations/#visualization-configuration-pane).
-2. In the **Participant** or **Participants** section, click **Edit participants & selections…**.
+2. In the **Participant** or **Participants** section, click **Edit participants & selections**.
 
 ## Editing participants
 
