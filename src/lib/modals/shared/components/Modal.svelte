@@ -238,6 +238,7 @@
                   class="back-btn"
                   onclick={handleClose}
                   aria-label="Go back"
+                  use:tooltipAction={{ content: 'Back (Esc)', position: 'bottom' }}
                 >
                   <ArrowLeft size={16} />
                 </button>
