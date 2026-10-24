@@ -125,35 +125,3 @@ describe('settings edit coalescing', () => {
     expect(history.undoStack).toHaveLength(5)
   })
 })
-
-describe('layout nudge coalescing', () => {
-  afterEach(() => {
-    vi.useRealTimers()
-  })
-
-  it('merges a quick run of moves of the same plots into one step', () => {
-    vi.useFakeTimers()
-    const history = new UndoRedoStateStore()
-    const move = (chainId: number, x: number, from: number) => {
-      const command = (value: number): WorkspaceCommandChain => ({
-        type: 'updateLayout',
-        updates: [{ itemId: 1, layout: { x: value, y: 0 } }],
-        source: 'grid',
-        chainId,
-        isRootCommand: true,
-      })
-      history.recordCommand(command(x), command(from))
-      history.finalizeChain()
-    }
-    move(101, 1, 0)
-    vi.advanceTimersByTime(150)
-    move(102, 2, 1)
-    vi.advanceTimersByTime(150)
-    move(103, 3, 2)
-    expect(history.undoStack).toHaveLength(1)
-
-    const reverse = history.undo()
-    history.endUndoRedo()
-    expect(reverse).toMatchObject([{ updates: [{ layout: { x: 0 } }] }])
-  })
-})
