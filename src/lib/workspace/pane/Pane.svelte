@@ -115,7 +115,7 @@
 {#snippet desktopBody()}
   <!-- Keyed: a single/bulk switch remounts the body, resetting its scroll. -->
   {#key isBulk}
-    <PaneHeader title={isBulk ? bulkTitle : title} onClose={close} />
+    <PaneHeader title={isBulk ? bulkTitle : `${title} settings`} onClose={close} />
     <div class="body">
       {#if isBulk}
         <BulkPaneSettings items={grid.selectedItems} />
