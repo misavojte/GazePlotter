@@ -86,7 +86,7 @@ On a Mac, use `Cmd` wherever the table says `Ctrl` (`Delete` is `Backspace`). Sh
 | `Delete` | Remove the selected plots |
 | Arrow keys | Move the selected plots one grid cell |
 | `Alt` + `Up` / `Down` | Show the previous / next stimulus in the selected plots (`Option` on Mac) |
-| `Esc` | Close the dialog or pane, or clear the selection |
+| `Esc` | Close the dialog or pane, or clear the selection (in a pane field, the first `Esc` leaves the field) |
 | `Shift` + `1` | Zoom to fit |
 | `Ctrl` + `+` / `-` / `0` | Zoom in / out / back to 100% |
 | Letters in an open menu | Jump to the item that starts with them |

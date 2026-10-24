@@ -18,6 +18,7 @@
   import { PANE_ACCORDION_KEY, type PaneAccordion } from './accordion'
   import { PANE_TRANSITION, slideFlex } from './transition'
   import { responsive } from '../responsive.svelte'
+  import { isTextEntryTarget } from '../keys'
   import { useContextMenu } from '$lib/context-menu'
 
   const contextMenuState = useContextMenu()
@@ -150,6 +151,12 @@
       if (modalState.activeModal || contextMenuState.current) return
       if (e.key === 'Escape') {
         e.preventDefault()
+        // A focused field is the nearer layer: the first Escape leaves it
+        // (its value is already applied), the next one closes the pane.
+        if (isTextEntryTarget(e)) {
+          ;(e.target as HTMLElement).blur()
+          return
+        }
         close()
       }
     }
