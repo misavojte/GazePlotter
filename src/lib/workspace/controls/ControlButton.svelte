@@ -39,7 +39,7 @@
     if (action.children && action.children.length > 0) {
       return { label: action.label, children: action.children.map(toMenuItem) }
     }
-    return { label: action.label, onAction: action.run }
+    return { label: action.label, detail: action.detail, onAction: action.run }
   }
 
   const menuItems = $derived.by((): MenuItem[] => actions.map(toMenuItem))

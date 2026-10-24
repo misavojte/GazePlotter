@@ -15,6 +15,7 @@ function scaleUnit(ctx: SectionFieldCtx): string | null {
 export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationHeatmapPlotSettings>({
   type: 'fixationHeatmap',
   name: 'Fixation Heatmap',
+  tagline: 'Pooled fixations on the stimulus',
   group: 'gaze-behavior',
   paneSections: [
     'stimulus',

@@ -7,11 +7,14 @@ import { withShortcut } from '$lib/workspace/keys'
 export interface ControlVisualization {
   id: PlotType
   label: string
+  detail?: string
   group: PlotGroup
 }
 
 export interface ControlAction {
   label: string
+  /** Muted second line in the menu. */
+  detail?: string
   run?: () => void
   /** When present, this action is a submenu parent: it carries no `run`, and
    *  its children render as a nested menu. The add-visualization menu uses this
@@ -91,6 +94,7 @@ export function createToolControls(
             label: group.label,
             children: items.map(visualization => ({
               label: visualization.label,
+              detail: visualization.detail,
               run: () => options.onAddVisualization(visualization.id),
             })),
           },

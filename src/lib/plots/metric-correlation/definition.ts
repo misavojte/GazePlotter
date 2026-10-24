@@ -15,6 +15,7 @@ export const metricCorrelationDefinition = definePlot<
 >({
   type: 'metricCorrelation',
   name: 'Metric Correlation',
+  tagline: 'Correlations between metrics',
   group: 'per-participant',
   paneSections: [
     'stimulus',

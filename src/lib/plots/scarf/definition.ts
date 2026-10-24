@@ -12,6 +12,7 @@ import { getAois, getEventChannels } from '$lib/data/engine'
 export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
   type: 'scarf',
   name: 'Scarf Plot',
+  tagline: 'AOI sequence of each participant',
   group: 'gaze-behavior',
   paneSections: [
     'stimulus',

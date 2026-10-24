@@ -37,6 +37,7 @@
       .map(id => ({
         id,
         label: plotRegistry[id].name,
+        detail: plotRegistry[id].tagline,
         group: plotRegistry[id].group,
       }))
   )

@@ -21,6 +21,7 @@ export const aoiStreamPlotDefinition = definePlot<
 >({
   type: 'aoiStreamPlot',
   name: 'AOI Timeline',
+  tagline: 'AOI metric over time bins',
   group: 'per-aoi',
   paneSections: [
     'stimulus',

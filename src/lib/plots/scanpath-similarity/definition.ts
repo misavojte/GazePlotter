@@ -83,6 +83,7 @@ export const scanpathSimilarityDefinition = definePlot<
 >({
   type: 'scanpathSimilarity',
   name: 'Scanpath Similarity',
+  tagline: 'Pairwise scanpath similarity',
   group: 'inter-participant',
   paneSections: [
     'stimulus',
