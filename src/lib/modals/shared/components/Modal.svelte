@@ -260,7 +260,7 @@
             </div>
             <button
               onclick={handleClose}
-              aria-label="Close modal"
+              aria-label="Close dialog"
               use:tooltipAction={{ content: 'Close (Esc)', position: 'bottom' }}
             >
               <span aria-hidden="true">&times;</span>
