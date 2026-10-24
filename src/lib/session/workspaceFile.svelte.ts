@@ -162,11 +162,13 @@ export class WorkspaceFile {
   }
 
   private report(error: unknown): void {
-    const detail = error instanceof Error ? error.message : 'unexpected error'
+    const detail = (error instanceof Error ? error.message : 'unexpected error').replace(/\.$/, '')
+    // The way out when the work is still unsaved.
+    const next = this.canChooseFile ? 'Try Save as… to pick another location.' : 'Try again from Export.'
     this.deps.errorService.report({
       origin: 'export',
       severity: 'recoverable',
-      userMessage: `Could not save: ${detail}`,
+      userMessage: `Could not save: ${detail}. ${next}`,
       cause: error,
       context: { exportType: 'workspace' },
     })
