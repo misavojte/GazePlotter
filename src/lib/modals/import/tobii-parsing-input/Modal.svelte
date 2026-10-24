@@ -60,7 +60,7 @@
   {/if}
 </div>
 
-<ModalButtons onApply={handleSubmit} />
+<ModalButtons onApply={handleSubmit} applyLabel="Load data" />
 
 <style>
   .content {
