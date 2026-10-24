@@ -155,7 +155,13 @@
     // No fit guard: the recurrence matrix is rendered as a texture (drawRaster)
     // at any density, so hundreds of fixations stay legible as a pattern. The
     // only placeholder is the genuine "no data" case.
-    placeholder: () => (N < 2 ? 'Not enough fixations' : null),
+    placeholder: () =>
+      N < 2
+        ? {
+            message: 'Fewer than 2 fixations to compare.',
+            steps: ['Pick another Participant or Stimulus'],
+          }
+        : null,
     gutters: () => {
       if (N < 2) return {}
       return {
