@@ -11,6 +11,16 @@
     <div class="text-content">
       <p>Please wait while we prepare your visualizations.</p>
       <p>Processing data: {ingest.progressPercent}%</p>
+      <div
+        class="progress-track"
+        role="progressbar"
+        aria-label="Processing data"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow={ingest.progressPercent}
+      >
+        <div class="progress-fill" style:width="{ingest.progressPercent}%"></div>
+      </div>
     </div>
   </div>
 </IndicatorCard>
@@ -42,6 +52,22 @@
 
   .text-content {
     flex: 1;
+  }
+
+  /* The export dialog's bar, so progress reads the same everywhere. */
+  .progress-track {
+    height: 4px;
+    margin-top: 8px;
+    border-radius: 2px;
+    background-color: var(--c-lightgrey);
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    border-radius: 2px;
+    background-color: var(--c-brand);
+    transition: width var(--transition-normal) ease;
   }
 
   p {
