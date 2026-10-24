@@ -91,6 +91,16 @@ function createEmptyDataset(): DataType {
   }
 }
 
+/** "24 participants, 3 stimuli": the first sanity check on a load. Empty
+ *  when the dataset carries no such tables. */
+function formatEntityCounts(data: DataType): string {
+  const participants = data.participants?.data?.length
+  const stimuli = data.stimuli?.data?.length
+  if (participants === undefined || stimuli === undefined) return ''
+  const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
+  return `${plural(participants, 'participant', 'participants')}, ${plural(stimuli, 'stimulus', 'stimuli')}`
+}
+
 /**
  * Formats file information for display in success messages.
  */
@@ -251,7 +261,7 @@ class IngestWorkerClient {
     data: DataType
     classified: ParseSettings
   }): void {
-    const parseDuration = this.settleWithSuccess('parsed')
+    const parseDuration = this.settleWithSuccess('parsed', formatEntityCounts(data))
     if (parseDuration === null) return
     const fileMetadata: FileMetadataSuccessType = {
       status: 'success',
@@ -274,13 +284,13 @@ class IngestWorkerClient {
 
   /** Settle, then report success; null when already settled (a cancelled
    *  upload whose 'done' message was already queued must not toast success). */
-  private settleWithSuccess(outcome: string): number | null {
+  private settleWithSuccess(outcome: string, counts = ''): number | null {
     if (!this.markSettled()) return null
     const duration = Date.now() - this.parsingAnchorTime + this.parsingSumTime
     const fileInfo = formatFileInfo(this.fileNames, this.fileSizes)
     this.onProgress(100)
     this.ui.toastState.addSuccess(
-      `${fileInfo} ${outcome} successfully in ${formatDuration(duration)}`
+      `${fileInfo} ${outcome} successfully in ${formatDuration(duration)}${counts ? `: ${counts}` : ''}`
     )
     return duration
   }
@@ -849,11 +859,12 @@ export class IngestService {
       },
       freshDataset: true,
     })
+    const counts = formatEntityCounts(built.data)
     this.deps.toastState.addSuccess(
       `Event data loaded: ${formatFileInfo(
         csvFiles.map(f => f.name),
         csvFiles.map(f => f.size)
-      )}`
+      )}${counts ? `: ${counts}` : ''}`
     )
     return true
   }
