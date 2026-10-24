@@ -58,7 +58,13 @@
       {:else if canResetLayout}
         <Button onclick={handleResetLayout}>Reset layout</Button>
       {/if}
-      <Button onclick={onUpload}>Import workspace or data</Button>
+      <!-- The lone first step is the primary one. -->
+      <Button
+        variant={!fatalLoadError && !canResetLayout ? 'primary' : 'secondary'}
+        onclick={onUpload}
+      >
+        Import workspace or data
+      </Button>
     </div>
   </div>
 </IndicatorCard>
