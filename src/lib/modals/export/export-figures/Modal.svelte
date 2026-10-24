@@ -1,3 +1,12 @@
+<script lang="ts" module>
+  import type { ExportFileType } from '$lib/plots/shared/figureExport'
+
+  // The last export's output step, for this tab: a journal's 600 DPI JPG is
+  // typed once, not on every export. The step summary shows what is reused.
+  let lastOutput: { fileType: ExportFileType; dpi: number; margin: number } | null =
+    null
+</script>
+
 <script lang="ts">
   import { onDestroy, untrack } from 'svelte'
   import ChevronLeft from 'lucide-svelte/icons/chevron-left'
@@ -18,7 +27,6 @@
     canvasToBlobWithWhiteBackground,
     getMimeType,
     getQuality,
-    type ExportFileType,
   } from '$lib/plots/shared/figureExport'
   import {
     listSummary,
@@ -70,9 +78,9 @@
     })
   )
 
-  let fileType = $state<ExportFileType>('.png')
-  let dpi = $state(300)
-  let margin = $state(DEFAULT_CANVAS_EXPORT_MARGIN)
+  let fileType = $state<ExportFileType>(lastOutput?.fileType ?? '.png')
+  let dpi = $state(lastOutput?.dpi ?? 300)
+  let margin = $state(lastOutput?.margin ?? DEFAULT_CANVAS_EXPORT_MARGIN)
 
   function subtitleValues(item: AllGridTypes): string[] {
     const parts = getPlotSubtitle(item, engine) ?? []
@@ -191,6 +199,7 @@
     const mimeType = getMimeType(fileType)
     const quality = getQuality(fileType)
     const files: Array<{ name: string; content: Blob }> = []
+    lastOutput = { fileType, dpi, margin }
 
     try {
       for (let i = 0; i < items.length; i++) {
