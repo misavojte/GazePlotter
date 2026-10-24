@@ -69,14 +69,23 @@
 
 <div class="pick-metric-container">
   {#if searchable}
-    <InputText
-      label="Search metrics"
-      showLabel={false}
-      ariaLabel="Search metrics"
-      placeholder="Search metrics"
-      bind:value={query}
-      fill
-    />
+    <!-- A form so Enter opens the one metric the search leaves. -->
+    <form
+      onsubmit={e => {
+        e.preventDefault()
+        const only = groups.flatMap(g => g.metrics)
+        if (only.length === 1) selectMetric(only[0].meta.id)
+      }}
+    >
+      <InputText
+        label="Search metrics"
+        showLabel={false}
+        ariaLabel="Search metrics"
+        placeholder="Search metrics"
+        bind:value={query}
+        fill
+      />
+    </form>
   {/if}
 
   {#if groups.length === 0}
