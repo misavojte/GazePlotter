@@ -226,12 +226,12 @@
         label: 'Create intervals…',
         onclick: () => {
           // Re-pull only when the step actually created intervals (it
-          // resolves `true`) — a plain Back must not discard the user's
-          // unapplied edits.
+          // resolves `true`); the new channels join the list and the
+          // unapplied renames and colors stay.
           modalState
             .push(createEventIntervalsModal, { source })
             .then(created => {
-              if (created) editor.refresh()
+              if (created) editor.refreshKeepingEdits()
             })
         },
       },

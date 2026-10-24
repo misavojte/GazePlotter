@@ -99,3 +99,24 @@ describe('groupedEntityEditor touched fields', () => {
     expect(ed.touched.name.has(1)).toBe(false)
   })
 })
+
+describe('groupedEntityEditor refreshKeepingEdits', () => {
+  it('adds new rows and keeps staged names and colors on the rows that remain', () => {
+    let rows = seed()
+    const ed = createGroupedEntityEditor({ getItems: () => rows.map(r => ({ ...r })) })
+    const a = ed.groups.find(g => g.members[0].id === 0)!
+    ed.handleNameInput(a.members[0], 'Renamed', true, a)
+    const b = ed.groups.find(g => g.members[0].id === 1)!
+    ed.handleColorInput(b, '#abcdef')
+
+    rows = [...seed(), row(4, 'New')]
+    ed.refreshKeepingEdits()
+
+    const byId = new Map(ed.items.map(item => [item.id, item]))
+    expect(byId.get(0)?.displayedName).toBe('Renamed')
+    expect(byId.get(1)?.color).toBe('#abcdef')
+    expect(byId.get(4)?.displayedName).toBe('New')
+    expect([...ed.touched.name]).toEqual([0])
+    expect([...ed.touched.color]).toEqual([1])
+  })
+})
