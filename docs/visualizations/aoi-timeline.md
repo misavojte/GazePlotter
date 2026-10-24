@@ -52,7 +52,7 @@ Configure the visual layout. The view decides which further controls the section
     - **Out of bounds**: Fills for bins outside the range above; each also appears as an end cap on the color bar legend. Bins are colored only, never printed, so there are no text-label toggles.
       - *Below min*: Fill for a bin below Min (default gray). A bin with no data at all is always transparent, regardless of this setting.
       - *Above max*: Fill for a bin above Max (default gray). Inert while Max is 0/Auto; its legend cap is hidden then too.
-- **Hide data**: Check *No AOI data* to hide participants who have zero registered fixations/events across all AOIs.
+- **Hide No AOI data**: Drops the No AOI band (time outside every AOI), so only the named AOIs are shown.
 
 ### Time range [ms]
 Filter the temporal range from which data is fetched.

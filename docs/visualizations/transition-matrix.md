@@ -47,7 +47,7 @@ Configure cell scaling, colors, and outlier rendering.
 - **Out of bounds**: Custom color settings for values that fall outside the range set above. Each color also appears as an end cap on the color bar legend.
   - *Below min*: Choose color (default is gray) and toggle *Show text* labels for cell values below minimum.
   - *Above max*: Choose color (default is gray) and toggle *Show text* labels for cell values above maximum. Inert while Max is left at 0/Auto, and its legend cap is hidden then too.
-- **Hide data**: Check *No AOI data* to hide participants who have zero registered fixations/events across all AOIs.
+- **Hide No AOI data**: Drops the No AOI row and column, so only transitions between named AOIs are shown.
 
 ### Time range [ms]
 Filter the temporal range from which transitions are calculated.
