@@ -82,7 +82,7 @@
   }
 </script>
 
-<div class="toaster">
+<div class="toaster" role="status" aria-live="polite">
   {#each toastState.current as { id, type, message, link, duration } (id)}
     <div
       class="toast toast-{type}"
