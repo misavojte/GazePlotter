@@ -10,7 +10,7 @@ Segmented Data Export writes raw, row-level gaze segments as CSV — for spreads
 | `participant` | Participant name |
 | `timestamp` | Segment start time |
 | `duration` | Segment duration |
-| `eyemovementtype` | `0` = fixation, otherwise saccade |
+| `eyemovementtype` | Eye-movement type name (e.g. Fixation, Saccade), displayed or raw per **Naming** |
 | `AOI` | AOI name(s); multiple are `;`-separated |
 | `x`, `y` | Segment coordinate, when spatial data is available |
 
@@ -20,7 +20,7 @@ Segmented Data Export writes raw, row-level gaze segments as CSV — for spreads
 - **Choose participants** — Select which participants to include; the group chips above the list select or deselect an entire participant group at once.
 - **Choose eye-movement types** — Select which eye-movement categories (e.g., fixations, saccades, unclassified) to include in the file. By default, all categories are selected.
 - **Configure the file** — Choose the export layout and format conventions:
-  - **Export Type** — **Single CSV File**, or **Individual CSV Files (Zipped)** (one file per participant).
+  - **Export Type** — **Single CSV File**, or **Individual CSV Files (Zipped)** (one file per participant and stimulus, without the `stimulus` and `participant` columns).
   - **Delimiter** (`,` or `;`), **Decimal Separator** (`.` or `,`).
   - **Naming** — **Displayed** (grouped, renamed) or **Raw** (original imported).
 
