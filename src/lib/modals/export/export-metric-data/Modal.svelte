@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte'
-  import { Select, InputText, InputCheck } from '$lib/shared/components'
+  import { ButtonPreset, Select, InputText, InputCheck } from '$lib/shared/components'
   import {
     CheckboxListField,
     Step,
@@ -42,7 +42,6 @@
     defaultInstanceLabel,
   } from '$lib/metrics'
   import { aoiModificationModal, metricLibraryModal } from '../../definitions'
-  import InputRadio from '$lib/shared/components/InputRadio.svelte'
   import { getAoiSelections } from '$lib/data/engine'
   import { ALL_SELECTION_LABEL } from '$lib/data/types'
   import { multiSelectMetricHandlers } from '$lib/plots/shared/metricInstanceHandlers'
@@ -392,17 +391,20 @@
 
     <Step n={4} title="Choose AOIs" summary={aoiSummary} done={true}>
       <HelpText>
-        Metrics are computed on the chosen AOIs exactly as in a plot using the
-        same selection: only its AOIs get rows or columns, and fixations on the
+        One selection at a time: metrics are computed on it exactly as in a plot
+        using it, so only its AOIs get rows or columns and fixations on the
         other AOIs count as No_AOI. Build selections in the
         <button type="button" class="inline-link" onclick={handleEditAois}>AOI library</button>.
       </HelpText>
-      <InputRadio
-        ariaLabel="AOI selection"
-        options={aoiSelectionOptions}
-        value={activeAoiSelection ? aoiSelection : '0'}
-        onchange={e => (aoiSelection = e.detail)}
-      />
+      <div class="aoi-presets" role="group" aria-label="AOI selection">
+        {#each aoiSelectionOptions as option (option.value)}
+          <ButtonPreset
+            label={option.label}
+            isActive={(activeAoiSelection ? aoiSelection : '0') === option.value}
+            onclick={() => (aoiSelection = option.value)}
+          />
+        {/each}
+      </div>
       {#if activeAoiSelection}
         <HelpText>Includes {activeAoiSelection.names.join(', ')}.</HelpText>
       {/if}
@@ -475,6 +477,13 @@
 </ExportShell>
 
 <style>
+  .aoi-presets {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin: 8px 0;
+  }
+
   .inline-link {
     display: inline;
     background: none;
