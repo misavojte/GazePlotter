@@ -16,7 +16,7 @@ The **Event Data (CSV)** export writes every event occurrence with its timing, p
 
 ## Options
 
-- **Export Type** — **Single CSV File**, or **Individual CSV Files (Zipped)** (one file per participant and stimulus).
+- **Export Type** — **Single CSV File**, or **Individual CSV Files (Zipped)** (one file per participant and stimulus, without the `stimulus` and `participant` columns).
 - **Delimiter** (`,` or `;`), **Decimal Separator** (`.` or `,`).
 - **Stimuli** — Select which stimuli to include.
 - **Participants** — Select which participants to include; the selection chips above the list select or deselect an entire [participant selection](/docs/workspace/participant-library/#participant-selections) at once.
