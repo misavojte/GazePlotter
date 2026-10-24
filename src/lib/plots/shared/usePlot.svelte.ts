@@ -555,7 +555,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
       errorService.report({
         origin: 'plot',
         severity: 'recoverable',
-        userMessage: 'A plot failed to render.',
+        userMessage: 'A plot failed to render. Changing its settings retries it.',
         cause: error,
       })
   } catch {
