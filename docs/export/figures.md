@@ -30,7 +30,7 @@ The third step shows each selected figure exactly as it will export, scaled to f
 
 ## Download Contents
 
-A single selected figure downloads as a bare image file named after its plot (e.g. `GazePlotter-ScarfPlot.png`). With several figures, a `GazePlotter-Figures.zip` archive downloads in which each figure is one image, named by its workspace position, plot type, and subtitle, for example:
+A single selected figure downloads as a bare image file named after its plot and subtitle (e.g. `GazePlotter-ScarfPlot - SMI Base, All Participants.png`). With several figures, a `GazePlotter-Figures.zip` archive downloads in which each figure is one image, named by its workspace position, plot type, and subtitle, for example:
 
 ```
 01 Scarf Plot - SMI Base, All Participants.png
