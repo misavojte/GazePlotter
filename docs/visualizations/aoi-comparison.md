@@ -50,7 +50,7 @@ Configure the visual layout and rendering options for the bar chart.
   - *Boxplot*: Overlays a standard box-and-whisker plot mapping the quartile distribution.
 - **Orientation**: Select *Horizontal* (default) or *Vertical* bar layout.
 - **Order by**: Sort bars by *Value* or by *AOI order*.
-- **Direction**: Sort bars ascending (*ASC*) or descending (*DESC*).
+- **Direction**: Sort bars *Ascending* or *Descending*.
 - **Scale range**: Explicitly set the value axis minimum and maximum (*0 = Auto*).
 
 ### Time range [ms]

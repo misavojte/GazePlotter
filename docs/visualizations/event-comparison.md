@@ -59,7 +59,7 @@ Configure the layout and rendering of the distributions.
   - *Boxplot*: Overlays a standard box-and-whisker plot mapping the quartile distribution.
 - **Orientation**: Select *Horizontal* (default) or *Vertical* layout.
 - **Order by**: Sort slots by *Value* or by *Channel order* (the library's order).
-- **Direction**: Sort ascending (*ASC*) or descending (*DESC*).
+- **Direction**: Sort *Ascending* or *Descending*.
 - **Scale range**: Explicitly set the value axis minimum and maximum (*0 = Auto*).
 
 What a single dot is depends on the metric. Metrics measured per occurrence, such as *Event duration*, plot every occurrence as its own dot, so a channel's spread is the spread of its occurrence lengths. The rest plot one dot per participant. Either way the bar is the mean of the drawn values, and the value axis label states the statistic the overlay summarizes.
