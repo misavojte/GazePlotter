@@ -5,6 +5,7 @@
   import {
     exportFiguresModal,
     exportMetricDataModal,
+    exportSegmentedDataModal,
   } from '$lib/modals/definitions'
   import PaneHeader from './PaneHeader.svelte'
   import PaneSection from './PaneSection.svelte'
@@ -26,7 +27,7 @@
   const accordion = $state<PaneAccordion>({ openStates: {} })
   setContext(PANE_ACCORDION_KEY, accordion)
 
-  const { grid, modalState } = getGazePlotterSession()
+  const { engine, grid, modalState } = getGazePlotterSession()
 
   // One exporter, two doors: the single-plot pane preseeds its own item, the
   // bulk pane preseeds the selection. Same modal either way.
@@ -40,29 +41,50 @@
     modalState.open(exportFiguresModal, { itemIds: ids })
   }
 
-  // The numbers behind a metric plot: the CSV export, preset to its metrics,
-  // stimulus, participant group and time crop (still editable before downloading).
-  const plotMetricIds = $derived.by(() => {
-    const settings = paneItem?.settings as { metricInstanceIds?: string[] }
-    return isBulk ? [] : (settings?.metricInstanceIds ?? [])
-  })
-
-  function openDataExport() {
-    const settings = paneItem?.settings as {
-      stimulusId?: number
-      groupId?: number
-      timelineStart?: number
-      timelineEnd?: number
-    }
-    modalState.open(exportMetricDataModal, {
-      metricInstanceIds: plotMetricIds,
-      stimulusId: settings?.stimulusId,
-      // "Non-empty" depends on one stimulus; the export lists everyone instead.
-      groupId: settings?.groupId === -2 ? undefined : settings?.groupId,
-      timeStart: settings?.timelineStart,
-      timeEnd: settings?.timelineEnd,
-    })
+  type PlotScope = {
+    metricInstanceIds?: string[]
+    stimulusId?: number
+    groupId?: number
+    participantId?: number
+    timelineStart?: number
+    timelineEnd?: number
   }
+
+  // The data behind one plot, one click away (still editable before
+  // downloading): a metric plot opens the metric CSV preset to its metrics,
+  // stimulus, group and time crop; a gaze plot opens the segment CSV preset to
+  // its stimulus and participants.
+  const dataExport = $derived.by(() => {
+    if (isBulk || !paneItem) return null
+    const scope = paneItem.settings as PlotScope
+    // "Non-empty" depends on one stimulus; the exports list everyone instead.
+    const groupId = scope.groupId === -2 ? undefined : scope.groupId
+    if (scope.metricInstanceIds?.length) {
+      return {
+        label: 'Download data',
+        open: () =>
+          modalState.open(exportMetricDataModal, {
+            metricInstanceIds: scope.metricInstanceIds,
+            stimulusId: scope.stimulusId,
+            groupId,
+            timeStart: scope.timelineStart,
+            timeEnd: scope.timelineEnd,
+          }),
+      }
+    }
+    if (scope.stimulusId !== undefined && engine.hasCapabilities(['segmented'])) {
+      return {
+        label: 'Download segments',
+        open: () =>
+          modalState.open(exportSegmentedDataModal, {
+            stimulusId: scope.stimulusId,
+            groupId,
+            participantId: scope.participantId,
+          }),
+      }
+    }
+    return null
+  })
 
   // Pane/sheet visibility is driven by paneOpenId (explicitly opened by a
   // click on desktop or by the mobile FAB). Selection alone no longer
@@ -135,8 +157,8 @@
       <PaneEditLink onclick={openExport}>
         {isBulk ? 'Download plots' : 'Download plot'}
       </PaneEditLink>
-      {#if plotMetricIds.length > 0}
-        <PaneEditLink onclick={openDataExport}>Download data</PaneEditLink>
+      {#if dataExport}
+        <PaneEditLink onclick={dataExport.open}>{dataExport.label}</PaneEditLink>
       {/if}
     </PaneEditRow>
   </PaneSection>

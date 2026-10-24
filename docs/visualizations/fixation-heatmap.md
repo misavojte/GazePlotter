@@ -53,6 +53,7 @@ Limit the fixations the map is built from (Tobii Pro Lab's Time of interest).
 ### Export
 Located at the bottom of the Pane:
 - **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the heatmap as a PNG or JPG, with its legend and data summary.
+- **Download segments**: Opens the [Segmented Data](/docs/export/segmented-data/) export preset to this plot's stimulus and participant selection, over whole recordings.
 
 ## Reading the Figure
 

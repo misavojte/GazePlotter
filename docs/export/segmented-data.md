@@ -32,3 +32,5 @@ The modal guides you through collapsible steps, one open at a time; every collap
 2. Under **Figures and data**, click the **Segmented Data (CSV)** card.
 3. Choose the **Stimuli**, **Participants**, and **Eye-movement types**, then configure the file options above.
 4. Click **Export Segments**.
+
+**Download segments** in the pane of a Scarf Plot, Fixation Heatmap, Scanpath or Recurrence Plot opens the same dialog preset to that plot's stimulus and participants. The file holds whole recordings: a plot's time range or AOI selection is not applied.

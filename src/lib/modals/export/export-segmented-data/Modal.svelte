@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import { Select } from '$lib/shared/components'
   import {
     CheckboxListField,
@@ -25,6 +26,14 @@
   import { defaultStimulusSelection } from '../shared/stimuli'
   import { defaultParticipantSelection } from '../shared/participants'
 
+  export interface Props {
+    /** Prefill: one stimulus, and a group's members or one participant. */
+    stimulusId?: number
+    groupId?: number
+    participantId?: number
+  }
+
+  let { stimulusId, groupId, participantId }: Props = $props()
   const { engine, exportService, workspaceFile } = getGazePlotterSession()
   // Named after the dataset, as the workspace and analysis exports are.
   const fileName = `${workspaceFile.suggestedName}-SegmentedData`
@@ -32,8 +41,17 @@
   let delimiter = $state(',')
   let decimalSeparator = $state<DecimalSeparator>('.')
   let naming = $state<ExportNaming>('displayed')
-  let selectedStimuliIds = $state(defaultStimulusSelection(engine))
-  let selectedParticipantIds = $state(defaultParticipantSelection(engine))
+  // Prefill props seed the selection once; they don't bind it.
+  let selectedStimuliIds = $state(
+    untrack(() => defaultStimulusSelection(engine, stimulusId))
+  )
+  let selectedParticipantIds = $state(
+    untrack(() =>
+      participantId != null
+        ? new Set([participantId.toString()])
+        : defaultParticipantSelection(engine, groupId)
+    )
+  )
   
   const allCategories = getAllCategories(engine)
   let selectedCategoryIds = $state<Set<number>>(new Set(allCategories.map(c => c.id)))

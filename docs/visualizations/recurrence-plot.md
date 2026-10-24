@@ -70,6 +70,7 @@ Filters which Areas of Interest (AOIs) are active when using the *AOI* recurrenc
 ### Export
 Located at the bottom of the Pane:
 - **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the recurrence plot as a PNG or JPG.
+- **Download segments**: Opens the [Segmented Data](/docs/export/segmented-data/) export preset to this plot's stimulus and participant, over whole recordings.
 
 ## Interpretation
 
