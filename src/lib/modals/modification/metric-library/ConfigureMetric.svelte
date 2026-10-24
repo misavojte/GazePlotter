@@ -2,7 +2,7 @@
   import { onMount } from 'svelte'
   import { InputNumber, InputText, Select } from '$lib/shared/components'
   import type { SelectOption } from '$lib/shared/components'
-  import { ModalButtons } from '$lib/modals'
+  import { HelpText, ModalButtons } from '$lib/modals'
   import { getGazePlotterSession } from '$lib/session'
   import { getMetric, getRecipe } from '$lib/metrics/core/defineMetric'
   import {
@@ -421,6 +421,11 @@
     {@const leaves = availableLeavesFor(metric)}
     {@const windowable = canBeWindowed(metric, leafDraft)}
     {@const windowingLocked = contract.windowing === 'required' || mode === 'edit'}
+    <!-- An edit hides choices it locks; say so only when one is actually hidden. -->
+    {@const editLocks =
+      mode === 'edit' &&
+      (metricLeafKindsInContract(metric, contract).length > leaves.length ||
+        (windowable && contract.windowing !== 'required'))}
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <form
       class="form-inner"
@@ -431,6 +436,12 @@
         <div class="cfg-title">Metric Information</div>
         <p class="metric-description">{metric.meta.description}</p>
         <div class="cfg-meta">Unit: <strong>{metric.meta.unit || 'none'}</strong></div>
+        {#if editLocks}
+          <HelpText>
+            Editing keeps what this metric produces and whether it runs over
+            time; add it again as a new metric to change those.
+          </HelpText>
+        {/if}
       </section>
 
       <!-- The metric's own parameters (e.g. which statistic, a radius). Omitted
