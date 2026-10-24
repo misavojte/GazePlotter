@@ -60,7 +60,6 @@ Configure the color mapping:
 Located at the bottom of the Pane:
 - **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the matrix as a PNG or JPG.
 - **Download data**: Opens the [Metric Data](/docs/export/metric-data/) export preset to this plot's metrics and participant selection, across all stimuli.
-- **Export Data**: To export the per-recording metric values as CSV, see [Metric Data Export](/docs/export/metric-data/).
 
 ## Interpretation
 
