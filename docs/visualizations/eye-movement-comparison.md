@@ -77,6 +77,7 @@ Filters which eye-movement types are drawn.
 ### Export
 Located at the bottom of the Pane:
 - **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the plot as a PNG or JPG.
+- **Download data**: Opens the [Metric Data](/docs/export/metric-data/) export preset to this plot's metrics, stimulus and participant selection.
 - **Export Data**: To export the computed values as CSV, see [Metric Data Export](/docs/export/metric-data/).
 
 ## Interpretation

@@ -62,6 +62,7 @@ Filters which Areas of Interest (AOIs) are rendered as rows and columns in the m
 ### Export
 Located at the bottom of the Pane:
 - **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the transition matrix as a PNG or JPG.
+- **Download data**: Opens the [Metric Data](/docs/export/metric-data/) export preset to this plot's metrics, stimulus and participant selection.
 - **Export Data**: To export transition values per participant as CSV, see [Metric Data Export](/docs/export/metric-data/).
 
 ## Interpretation

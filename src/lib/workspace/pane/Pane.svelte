@@ -2,10 +2,14 @@
   import { setContext } from 'svelte'
   import { getGazePlotterSession } from '$lib/session'
   import { plotRegistry, getPlotDisplayName } from '$lib/plots/registry'
-  import { exportFiguresModal } from '$lib/modals/definitions'
+  import {
+    exportFiguresModal,
+    exportMetricDataModal,
+  } from '$lib/modals/definitions'
   import PaneHeader from './PaneHeader.svelte'
   import PaneSection from './PaneSection.svelte'
   import PaneEditLink from './PaneEditLink.svelte'
+  import PaneEditRow from './PaneEditRow.svelte'
   import PaneSheet from './PaneSheet.svelte'
   import PaneSectionList from './PaneSectionList.svelte'
   import BulkPaneSettings from './BulkPaneSettings.svelte'
@@ -34,6 +38,23 @@
         : []
     if (ids.length === 0) return
     modalState.open(exportFiguresModal, { itemIds: ids })
+  }
+
+  // The numbers behind a metric plot: the CSV export, preset to its metrics,
+  // stimulus and participant group (still editable before downloading).
+  const plotMetricIds = $derived.by(() => {
+    const settings = paneItem?.settings as { metricInstanceIds?: string[] }
+    return isBulk ? [] : (settings?.metricInstanceIds ?? [])
+  })
+
+  function openDataExport() {
+    const settings = paneItem?.settings as { stimulusId?: number; groupId?: number }
+    modalState.open(exportMetricDataModal, {
+      metricInstanceIds: plotMetricIds,
+      stimulusId: settings?.stimulusId,
+      // "Non-empty" depends on one stimulus; the export lists everyone instead.
+      groupId: settings?.groupId === -2 ? undefined : settings?.groupId,
+    })
   }
 
   // Pane/sheet visibility is driven by paneOpenId (explicitly opened by a
@@ -103,9 +124,14 @@
 
 {#snippet exportSection()}
   <PaneSection title="Export">
-    <PaneEditLink onclick={openExport}>
-      {isBulk ? 'Download plots' : 'Download plot'}
-    </PaneEditLink>
+    <PaneEditRow>
+      <PaneEditLink onclick={openExport}>
+        {isBulk ? 'Download plots' : 'Download plot'}
+      </PaneEditLink>
+      {#if plotMetricIds.length > 0}
+        <PaneEditLink onclick={openDataExport}>Download data</PaneEditLink>
+      {/if}
+    </PaneEditRow>
   </PaneSection>
 {/snippet}
 
