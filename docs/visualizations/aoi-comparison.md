@@ -31,12 +31,12 @@ Filter the eye-tracking data by group or individual participant.
 ### Metric
 Configure the quantitative metric displayed on the value axis.
 - **Select metric**: A dropdown of all metric instances in the library that satisfy the `aoi-vector` shape contract. Standard metrics include:
-  - *Time on AOI* (`absoluteTime`): Total duration spent looking within the boundary (see [Durations](/docs/metrics/durations)).
-  - *Relative time on AOI* (`relativeTime`): Proportion of total time spent in each AOI (see [Durations](/docs/metrics/durations)).
-  - *Visit count per AOI* (`visitCount`): Number of distinct entries into the boundary (see [Counts & Latency](/docs/metrics/counts-latency)).
+  - *Absolute dwell time* (`absoluteTime`): Total duration spent looking within the boundary (see [Durations](/docs/metrics/durations)).
+  - *Relative dwell time* (`relativeTime`): Proportion of total time spent in each AOI (see [Durations](/docs/metrics/durations)).
+  - *Visit count* (`visitCount`): Number of distinct entries into the boundary (see [Counts & Latency](/docs/metrics/counts-latency)).
   - *Visit duration* (`visitDuration`): Average duration of visits (consecutive fixations) (see [Durations](/docs/metrics/durations)).
-  - *Fixation count per AOI* (`fixationCount`): Number of fixations within the boundary (see [Counts & Latency](/docs/metrics/counts-latency)).
-  - *Average fixation duration* (`fixationDuration`): Mean length of individual fixations (see [Durations](/docs/metrics/durations)).
+  - *Fixation count* (`fixationCount`): Number of fixations within the boundary (see [Counts & Latency](/docs/metrics/counts-latency)).
+  - *Fixation duration* (`fixationDuration`): Mean length of individual fixations (see [Durations](/docs/metrics/durations)).
   - *Time to first fixation* (`timeToFirstFixation`): Average latency until initial entry (see [Counts & Latency](/docs/metrics/counts-latency)).
   - *First fixation duration* (`firstFixationDuration`): Mean length of the first fixation (see [Durations](/docs/metrics/durations)).
 - **Edit metric library**: Opens the Metric Library modal where you can customize parameters or define entirely new **custom metrics** to calculate across the AOIs.
