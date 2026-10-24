@@ -1,6 +1,7 @@
 <script lang="ts">
   import { fade } from 'svelte/transition'
   import { getGazePlotterSession } from '$lib/session'
+  import { useTooltipAction } from '$lib/tooltip'
   import { gridBoundsOf } from './grid/pixels'
   import type { GridConfig } from './grid/types'
   import type { WorkspaceCamera } from './camera.svelte'
@@ -18,6 +19,7 @@
     gridConfig,
   }: Props = $props()
   const { grid } = getGazePlotterSession()
+  const tooltipAction = useTooltipAction()
 
   const MARGIN = 20
 
@@ -110,6 +112,10 @@
     }
   })
 
+  const revealLabel = $derived(
+    grid.selectedCount > 1 ? 'Show selected plots' : 'Show selected plot'
+  )
+
   function revealSelection(e: MouseEvent) {
     e.stopPropagation()
     const ind = indicator
@@ -128,9 +134,8 @@
     class="indicator"
     style="left: {indicator.pageX}px; top: {indicator.pageY}px; transform: translate(-50%, -50%) rotate({indicator.angle}deg);"
     onclick={revealSelection}
-    aria-label={grid.selectedCount > 1
-      ? 'Show selected plots'
-      : 'Show selected plot'}
+    aria-label={revealLabel}
+    use:tooltipAction={{ content: revealLabel }}
     transition:fade={{ duration: 120 }}
   >
     <svg viewBox="0 0 16 16" aria-hidden="true">
