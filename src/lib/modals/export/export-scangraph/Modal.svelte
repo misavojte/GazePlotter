@@ -9,10 +9,10 @@
   const { engine, exportService, workspaceFile } = getGazePlotterSession()
   // Named after the dataset, as the workspace and analysis exports are.
   const fileName = `${workspaceFile.suggestedName}-ScanGraph`
-  let stimulusId = $state('0')
-  let stringForm = $state('original')
-
   const stimulusOptions = getStimuliOptions(engine)
+  // The first VISIBLE stimulus, not id 0, which a merge may have folded away.
+  let stimulusId = $state(stimulusOptions[0]?.value ?? '0')
+  let stringForm = $state('original')
 
   const STRING_FORM_OPTIONS = [
     { value: 'original', label: 'Original (one letter per fixation)' },
