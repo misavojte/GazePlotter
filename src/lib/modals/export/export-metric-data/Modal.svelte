@@ -381,12 +381,12 @@
         <InputText
           label="Time Start (ms)"
           bind:value={timeStartStr}
-          placeholder="Default full recording (0)"
+          placeholder="Empty = full recording"
         />
         <InputText
           label="Time End (ms)"
           bind:value={timeEndStr}
-          placeholder="Default full recording (0)"
+          placeholder="Empty = full recording"
         />
       </FieldGrid>
       {#if timeRangeError}
