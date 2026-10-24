@@ -41,13 +41,18 @@
       }))
   )
 
-  // Added while one plot is selected, a plot opens on that plot's stimulus.
+  // Added while one plot is selected, a plot opens on that plot's stimulus
+  // and participant selection (selection ids are stimulus-independent).
   function inheritedSettings(vizType: PlotType) {
-    const source = grid.selectedItem?.settings as { stimulusId?: unknown } | undefined
-    const stimulusId = source?.stimulusId
-    if (typeof stimulusId !== 'number') return undefined
+    const source = grid.selectedItem?.settings as Record<string, unknown> | undefined
+    if (!source) return undefined
     const defaults = plotRegistry[vizType].getDefaultSettings()
-    return 'stimulusId' in defaults ? { stimulusId } : undefined
+    const settings: Record<string, number> = {}
+    for (const key of ['stimulusId', 'groupId']) {
+      const value = source[key]
+      if (typeof value === 'number' && key in defaults) settings[key] = value
+    }
+    return Object.keys(settings).length > 0 ? settings : undefined
   }
 
   // Adding selects the new plot; on desktop that also opens its pane.
