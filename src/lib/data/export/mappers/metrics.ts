@@ -5,7 +5,6 @@ import {
   getParticipantEndTime,
   getStimulus,
   getAois,
-  getAoiSelections,
   getStimulusHighestEndTime,
 } from '$lib/data/engine'
 import {
@@ -63,9 +62,9 @@ export type MetricDataExportOptions = {
   csvOptions?: CsvFormatOptions
   timeStart?: number
   timeEnd?: number
-  /** A per-plot AOI selection, computed as the plot computes it: AOIs outside
-   *  it count as No AOI. Unset or 0 = all AOIs. */
-  aoiSelectionId?: number
+  /** Displayed names of the AOIs to compute on, as a plot's AOI selection
+   *  does: fixations on the other AOIs count as No AOI. Unset = all AOIs. */
+  aoiNames?: ReadonlySet<string>
   includeCodebook?: boolean
 }
 
@@ -269,7 +268,8 @@ export async function exportMetrics(
     throw new Error('Time end must be greater than time start')
   }
   const includeCodebook = !!options.includeCodebook
-  const aoiSelectionId = options.aoiSelectionId || undefined
+  // Passed where a plot passes its selection id; getAois resolves either.
+  const aoiSelectionId = options.aoiNames
 
   const selectedInstances = options.metricInstanceIds
     .map(id => engine.metadata?.metricInstances.find(i => i.id === id))
@@ -642,7 +642,7 @@ export async function exportMetrics(
         'Window',
         'Output_Shape',
         'Time_Range',
-        'AOI_Selection',
+        'AOIs',
         'Participants',
         'Stimuli',
         'AOI_Missing',
@@ -651,9 +651,7 @@ export async function exportMetrics(
       const participantNames = options.participantIds
         .map(id => getParticipant(engine, id).displayedName)
         .join(', ')
-      const aoiSelectionName = aoiSelectionId
-        ? (getAoiSelections(engine).find(s => s.id === aoiSelectionId)?.name ?? 'All')
-        : 'All'
+      const aoisUsed = options.aoiNames ? Array.from(options.aoiNames).join('; ') : 'All'
       const stimuliNames = options.stimulusIds
         .map(id => getStimulus(engine, id).displayedName)
         .join(', ')
@@ -688,7 +686,7 @@ export async function exportMetrics(
           windowStr,
           projectionOutputShape(inst.projection),
           timeRangeStr,
-          aoiSelectionName,
+          aoisUsed,
           participantNames,
           stimuliNames,
           isRefMissing.toString(),

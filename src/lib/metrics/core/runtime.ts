@@ -1,3 +1,4 @@
+import type { AoiNarrowing } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { type BinaryBufferReader, SEGMENT_STRIDE, SegmentField } from '$lib/data/binary'
 import { getAois, getParticipantEndTime } from '$lib/data/engine'
@@ -51,7 +52,7 @@ export interface Scope {
    * its numbers. Out-of-selection AOI fixations resolve to no-AOI
    * (compute-honest). `undefined` → all AOIs.
    */
-  aoiSelectionId?: number
+  aoiSelectionId?: AoiNarrowing
 }
 
 /**
@@ -103,7 +104,7 @@ const _signatureCache = new WeakMap<
 function slotSignatures(
   engine: DataEngine,
   stimulusId: number,
-  aoiSelectionId?: number
+  aoiSelectionId?: AoiNarrowing
 ): SlotSignatures {
   let aois: readonly ExtendedInterpretedDataType[]
   try {
@@ -1071,7 +1072,7 @@ function getAoiNames(scope: Scope): string[] {
 
 // ─── Cache (per-reader bucket, keyed on baseId+params+scope+time range) ──────
 
-function rawCacheKey(engine: DataEngine, instance: MetricInstance, stimulusId: number, participantId: number, tStart: number, tEnd: number, aoiSelectionId?: number): string {
+function rawCacheKey(engine: DataEngine, instance: MetricInstance, stimulusId: number, participantId: number, tStart: number, tEnd: number, aoiSelectionId?: AoiNarrowing): string {
   // The ORDER signature comes from the selection-narrowed getAois, so it
   // already discriminates selections (and two resolving to the same visible
   // set share, which is correct). No separate selection token.
@@ -1103,11 +1104,11 @@ function paramsKey(params: Record<string, unknown> | undefined): string {
  * Raw (unprojected) finalize output — consulted by `runSingleWindow` and the
  * batch scanner so both single and batch paths share one entry per instance.
  */
-export function cacheGetRaw(engine: DataEngine, instance: MetricInstance, stimulusId: number, participantId: number, tStart: number, tEnd: number, aoiSelectionId?: number): number[] | undefined {
+export function cacheGetRaw(engine: DataEngine, instance: MetricInstance, stimulusId: number, participantId: number, tStart: number, tEnd: number, aoiSelectionId?: AoiNarrowing): number[] | undefined {
   return cacheMapFor(engine)?.get(rawCacheKey(engine, instance, stimulusId, participantId, tStart, tEnd, aoiSelectionId)) as number[] | undefined
 }
 
-export function cacheSetRaw(engine: DataEngine, instance: MetricInstance, stimulusId: number, participantId: number, tStart: number, tEnd: number, value: number[], aoiSelectionId?: number): void {
+export function cacheSetRaw(engine: DataEngine, instance: MetricInstance, stimulusId: number, participantId: number, tStart: number, tEnd: number, value: number[], aoiSelectionId?: AoiNarrowing): void {
   cacheMapFor(engine)?.set(rawCacheKey(engine, instance, stimulusId, participantId, tStart, tEnd, aoiSelectionId), value)
 }
 

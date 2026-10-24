@@ -1,6 +1,6 @@
 <script lang="ts">
   import { untrack } from 'svelte'
-  import { ButtonPreset, Select, InputText, InputCheck } from '$lib/shared/components'
+  import { Select, InputText, InputCheck } from '$lib/shared/components'
   import {
     CheckboxListField,
     Step,
@@ -42,8 +42,13 @@
     defaultInstanceLabel,
   } from '$lib/metrics'
   import { aoiModificationModal, metricLibraryModal } from '../../definitions'
-  import { getAoiSelections } from '$lib/data/engine'
-  import { ALL_SELECTION_LABEL } from '$lib/data/types'
+  import SelectionStep from '../shared/SelectionStep.svelte'
+  import {
+    aoiChecklistItems,
+    aoiChecklistPresets,
+    defaultAoiSelection,
+    tickedAoiNames,
+  } from '../shared/aois'
   import { multiSelectMetricHandlers } from '$lib/plots/shared/metricInstanceHandlers'
 
   export interface Props {
@@ -79,19 +84,13 @@
   let timeStartStr = $state(untrack(() => presetTime(presetStart)))
   let timeEndStr = $state(untrack(() => presetTime(presetEnd)))
 
-  // Computed as a plot computes it: AOIs outside the selection count as No AOI.
-  // Live, so selections built in the AOI library show up on return.
-  const aoiSelections = $derived(getAoiSelections(engine))
-  const aoiSelectionOptions = $derived([
-    { value: '0', label: `${ALL_SELECTION_LABEL} AOIs` },
-    ...aoiSelections.map(s => ({ value: String(s.id), label: s.name })),
-  ])
-  let aoiSelection = $state(untrack(() => String(presetAoiSelection ?? 0)))
-  // A selection deleted meanwhile (or a stale preset) falls back to all AOIs.
-  const activeAoiSelection = $derived(
-    aoiSelections.find(s => String(s.id) === aoiSelection) ?? null
+  // Computed as a plot computes it: unticked AOIs count as No AOI. Live, so
+  // AOIs and selections edited in the AOI library show up on return.
+  const aoiItems = $derived(aoiChecklistItems(engine))
+  const aoiPresets = $derived(aoiChecklistPresets(engine, aoiItems))
+  let selectedAois = $state(
+    untrack(() => defaultAoiSelection(engine, aoiItems, presetAoiSelection))
   )
-  const aoiSummary = $derived(activeAoiSelection?.name ?? `${ALL_SELECTION_LABEL} AOIs`)
 
   // Prefill props are read once by design (untrack): they seed the selection,
   // they don't bind it.
@@ -307,6 +306,7 @@
     stepMetricsDone &&
       selectedStimuliIds.size > 0 &&
       selectedParticipantIds.size > 0 &&
+      (aoiItems.length === 0 || selectedAois.size > 0) &&
       stepFileDone
   )
 
@@ -326,7 +326,7 @@
       includeCodebook,
       timeStart,
       timeEnd,
-      aoiSelectionId: activeAoiSelection?.id,
+      aoiNames: tickedAoiNames(aoiItems, selectedAois),
     })
   }
 
@@ -389,29 +389,27 @@
     />
     <ParticipantsStep n={3} bind:selected={selectedParticipantIds} />
 
-    <Step n={4} title="Choose AOIs" summary={aoiSummary} done={true}>
-      <HelpText>
-        One selection at a time: metrics are computed on it exactly as in a plot
-        using it, so only its AOIs get rows or columns and fixations on the
-        other AOIs count as No_AOI. Build selections in the
-        <button type="button" class="inline-link" onclick={handleEditAois}>AOI library</button>.
-      </HelpText>
-      <div class="aoi-presets" role="group" aria-label="AOI selection">
-        {#each aoiSelectionOptions as option (option.value)}
-          <ButtonPreset
-            label={option.label}
-            isActive={(activeAoiSelection ? aoiSelection : '0') === option.value}
-            onclick={() => (aoiSelection = option.value)}
-          />
-        {/each}
-      </div>
-      {#if activeAoiSelection}
-        <HelpText>Includes {activeAoiSelection.names.join(', ')}.</HelpText>
-      {/if}
-    </Step>
+    {#if aoiItems.length > 0}
+      <SelectionStep
+        n={4}
+        title="Choose AOIs"
+        listTitle="AOIs"
+        noun="AOI"
+        items={aoiItems}
+        presets={aoiPresets}
+        bind:selected={selectedAois}
+      >
+        <HelpText>
+          Metrics are computed on the ticked AOIs exactly as in a plot whose AOI
+          selection holds them: only they get rows or columns, and fixations on
+          the other AOIs count as No_AOI. Saved selections come from the
+          <button type="button" class="inline-link" onclick={handleEditAois}>AOI library</button>.
+        </HelpText>
+      </SelectionStep>
+    {/if}
 
     <Step
-      n={5}
+      n={aoiItems.length > 0 ? 5 : 4}
       title="Configure the file"
       description="The layout and CSV conventions of the exported file. An empty time range covers each participant's full recording."
       summary={fileSummary}
@@ -477,13 +475,6 @@
 </ExportShell>
 
 <style>
-  .aoi-presets {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 4px;
-    margin: 8px 0;
-  }
-
   .inline-link {
     display: inline;
     background: none;

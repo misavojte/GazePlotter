@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { DataEngine } from '../src/lib/data/engine/dataEngine.svelte'
+import { getAois } from '../src/lib/data/engine'
 import {
   exportMetrics,
   deduplicateMetricLabels,
@@ -246,14 +247,14 @@ describe('Metric Data Export Mapping', () => {
     expect(lines).not.toContain('1,ParticipantTwo,StimulusOne,CTA,Time To First Fixation,ms,-1')
   })
 
-  it('computes an AOI selection as a plot does: other AOIs count as No AOI', async () => {
+  it('computes ticked AOIs as a plot selection does: other AOIs count as No AOI', async () => {
     const engine = loadedEngine()
     const res = await exportWith(engine, {
       metricInstanceIds: ['absoluteTime-inst'],
-      aoiSelectionId: 1,
+      aoiNames: new Set(['Nav']),
       includeCodebook: true,
     })
-    // CTA is outside "Nav only": no row of its own, its 1000 ms joins No_AOI.
+    // CTA is not ticked: no row of its own, its 1000 ms joins No_AOI.
     expect(res.dataContent.split('\n')).toEqual([
       'Participant_ID,Participant,Stimulus,AOI,Metric,Unit,Value',
       '0,ParticipantOne,StimulusOne,Nav,Absolute Dwell Time,ms,1000',
@@ -263,12 +264,12 @@ describe('Metric Data Export Mapping', () => {
       '1,ParticipantTwo,StimulusOne,No_AOI,Absolute Dwell Time,ms,1000',
       '1,ParticipantTwo,StimulusOne,Any_Fixation,Absolute Dwell Time,ms,1500',
     ])
-    expect(res.codebookContent).toContain(',full,Nav only,')
+    expect(res.codebookContent).toContain(',full,Nav,')
 
     const wide = await exportWith(engine, {
       metricInstanceIds: ['absoluteTime-inst'],
       format: 'wide',
-      aoiSelectionId: 1,
+      aoiNames: new Set(['Nav']),
     })
     const header = wide.dataContent.split('\n')[0]
     expect(header).toContain('Absolute_Dwell_Time_Nav')
@@ -288,7 +289,7 @@ describe('Metric Data Export Mapping', () => {
     const cbLines = res.codebookContent!.split('\n')
     const cbHeader = cbLines[0]
     expect(cbHeader).toBe(
-      'Metric,Metric_ID,Base_Metric,Base_Id,Unit,Measurement_Class,Parameters,Projection,Window,Output_Shape,Time_Range,AOI_Selection,Participants,Stimuli,AOI_Missing'
+      'Metric,Metric_ID,Base_Metric,Base_Id,Unit,Measurement_Class,Parameters,Projection,Window,Output_Shape,Time_Range,AOIs,Participants,Stimuli,AOI_Missing'
     )
 
     expect(cbLines).toContain(
@@ -419,5 +420,25 @@ describe('Metric Data Export Mapping', () => {
     const p1Row = lines.find(l => l.startsWith('0,ParticipantOne,StimulusOne'))!.split(',')
     expect(p1Row[realIdx]).toBe('1000')
     expect(p1Row[syntheticIdx]).toBe('0')
+  })
+})
+
+describe('ticked AOI names', () => {
+  it('resolve to the same AOI list as a saved selection holding them', () => {
+    const engine = loadedEngine()
+    const bySelection = getAois(engine, 0, 1)
+    expect(getAois(engine, 0, new Set(['Nav']))).toBe(bySelection)
+    expect(bySelection.map(aoi => aoi.displayedName)).toEqual(['Nav'])
+  })
+
+  it('work without any saved selection holding them', async () => {
+    const res = await exportWith(loadedEngine(), {
+      metricInstanceIds: ['absoluteTime-inst'],
+      aoiNames: new Set(['CTA']),
+    })
+    const lines = res.dataContent.split('\n')
+    expect(lines).toContain('0,ParticipantOne,StimulusOne,CTA,Absolute Dwell Time,ms,1000')
+    expect(lines).toContain('0,ParticipantOne,StimulusOne,No_AOI,Absolute Dwell Time,ms,1000')
+    expect(lines.some(line => line.includes(',Nav,'))).toBe(false)
   })
 })

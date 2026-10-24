@@ -1,3 +1,4 @@
+import type { AoiNarrowing } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { SEGMENT_STRIDE, SegmentField } from '$lib/data/binary'
 import { buildAoiSlots } from './aoiSlots'
@@ -21,7 +22,7 @@ export function scanBatch(
   timeEnd: number = 0,
   /** Same reduced slot layout + raw cache key as the single-participant path,
    *  so batch==single holds under a selection. */
-  aoiSelectionId?: number,
+  aoiSelectionId?: AoiNarrowing,
 ): Map<string, number[]> {
   const slots = buildAoiSlots(engine, stimulusId, aoiSelectionId)
   if (!slots) return new Map()

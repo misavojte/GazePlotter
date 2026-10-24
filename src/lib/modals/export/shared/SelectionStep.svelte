@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte'
   import { ButtonPreset } from '$lib/shared/components'
   import { CheckboxListField, Step } from '$lib/modals'
   import { mapSelectableItems, toggleSetValue } from './helpers'
@@ -26,6 +27,8 @@
     items: readonly { value: string; label: string; sublabel?: string }[]
     presets?: readonly SelectionPreset[]
     selected: Set<string>
+    /** Extra guidance rendered above the checklist. */
+    children?: Snippet
   }
 
   let {
@@ -37,6 +40,7 @@
     items,
     presets = [],
     selected = $bindable(),
+    children,
   }: Props = $props()
 
   const done = $derived(selected.size > 0)
@@ -63,6 +67,7 @@
   summary={presetSelectionSummary(items, presets, selected)}
   {done}
 >
+  {@render children?.()}
   <CheckboxListField
     title={listTitle}
     items={checklist}
