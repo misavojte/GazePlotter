@@ -27,7 +27,12 @@
   import type { WorkspaceCamera, GridBounds } from './camera.svelte'
   import { cameraTouchAction, cameraWheelAction } from './cameraGestures'
   import { FileDropTarget } from './fileDrop.svelte'
-  import { isTextEntryTarget, MODIFIER_LABEL, resolveWorkspaceShortcut } from './keys'
+  import {
+    isTextEntryTarget,
+    MODIFIER_LABEL,
+    resolveWorkspaceShortcut,
+    shortcutLabel,
+  } from './keys'
   import type { WorkspaceCommandChain } from './commands'
 
   interface Props {
@@ -419,7 +424,8 @@
         </div>
         {#if wheelHintVisible}
           <div class="wheel-hint" transition:fade={{ duration: 150 }}>
-            Hold {MODIFIER_LABEL} and scroll to zoom. Drag empty space to move around.
+            Hold {MODIFIER_LABEL} and scroll to zoom, or press {shortcutLabel('zoom-fit')} to
+            fit all plots. Drag empty space to move around.
           </div>
         {/if}
         <!-- Overlays the plots, never replaces them: dragging a file across
@@ -513,7 +519,11 @@
     background-color: color-mix(in srgb, var(--c-black) 85%, transparent);
     color: var(--c-darkwhite);
     font-size: var(--text-md);
-    white-space: nowrap;
+    /* One line where it fits, wrapped (never clipped) on a narrow canvas. */
+    width: max-content;
+    max-width: calc(100% - 32px);
+    box-sizing: border-box;
+    text-align: center;
     pointer-events: none;
   }
 
