@@ -802,8 +802,11 @@ export class IngestService {
     }
 
     if (legacyFiles.length > 0) {
+      const names =
+        legacyFiles.slice(0, 3).map(f => f.name).join(', ') +
+        (legacyFiles.length > 3 ? ', ...' : '')
       this.deps.toastState.addWarning(
-        `${legacyFiles.length} XML/JSON event file${legacyFiles.length > 1 ? 's' : ''} ignored (they map onto existing eye-tracking data)`
+        `${legacyFiles.length} XML/JSON event file${legacyFiles.length > 1 ? 's' : ''} ignored (${names}): they annotate eye-tracking data, so upload them together with it.`
       )
     }
 
