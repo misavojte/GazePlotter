@@ -30,16 +30,16 @@ Filter the analysis to a specific participant group. The correlation is computed
 ### Metrics
 Select which metrics to correlate.
 - **Select metrics**: A multi-select dropdown to choose two or more metric instances from the library. Standard aggregate metrics include:
-  - *Time on stimulus* (`absoluteTime-any`): Total viewing time (see [Durations](/docs/metrics/durations)).
+  - *Absolute dwell time* (`absoluteTime-any`): Total viewing time (see [Durations](/docs/metrics/durations)).
   - *Visit count* (`visitCount-any`): Total visits (see [Counts & Latency](/docs/metrics/counts-latency)).
   - *Visit duration* (`visitDuration-any`): Mean visit length (see [Durations](/docs/metrics/durations)).
   - *Fixation count* (`fixationCount-any`): Total fixations (see [Counts & Latency](/docs/metrics/counts-latency)).
-  - *Average fixation duration* (`fixationDuration-any`): Mean fixation length (see [Durations](/docs/metrics/durations)).
+  - *Fixation duration* (`fixationDuration-any`): Mean fixation length (see [Durations](/docs/metrics/durations)).
   - *Time to first fixation* (`timeToFirstFixation-any`): Initial latency (see [Counts & Latency](/docs/metrics/counts-latency)).
   - *First fixation duration* (`firstFixationDuration-any`): Latency of first fixation (see [Durations](/docs/metrics/durations)).
-  - *RQA Recurrence* (`rqaRec`): Recurrence Rate from recurrence analysis (see [RQA Metrics](/docs/metrics/rqa)).
-  - *RQA Determinism* (`rqaDet`): Proportion of recurrence points forming diagonal lines (see [RQA Metrics](/docs/metrics/rqa)).
-  - *RQA Laminarity* (`rqaLam`): Proportion of recurrence points forming vertical lines (see [RQA Metrics](/docs/metrics/rqa)).
+  - *Recurrence rate* (`rqaRec`): Recurrence Rate from recurrence analysis (see [RQA Metrics](/docs/metrics/rqa)).
+  - *Determinism* (`rqaDet`): Proportion of recurrence points forming diagonal lines (see [RQA Metrics](/docs/metrics/rqa)).
+  - *Laminarity* (`rqaLam`): Proportion of recurrence points forming vertical lines (see [RQA Metrics](/docs/metrics/rqa)).
 - **Edit metric library**: Opens the Metric Library modal where you can customize parameters or define custom aggregate metrics.
 
 ### Visualization

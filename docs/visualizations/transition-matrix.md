@@ -31,11 +31,11 @@ Filter the eye-tracking data by a participant selection.
 ### Metric
 Configure the quantitative transition metric displayed in the matrix cells.
 - **Select metric**: A dropdown of all metric instances in the library that satisfy the `aoi-pair-matrix` shape contract. Standard metrics include:
-  - *Transition count (fixation)* (`transitionCount-fix`): Raw number of transitions between AOI pairs based on individual fixations (see [Transitions](/docs/metrics/transitions)).
-  - *Transition count (visit)* (`transitionCount-visit`): Raw transitions based on distinct visits (consecutive fixations) (see [Transitions](/docs/metrics/transitions)).
-  - *1-step probability* (`transitionProbability-fix`): Conditional probability of transitioning TO an AOI given you are coming FROM a specific AOI (see [Transitions](/docs/metrics/transitions)).
-  - *Mean dwell duration (fixation)* (`transitionDwellMean-fix`): Average fixation duration in the "FROM" AOI before a transition (see [Transitions](/docs/metrics/transitions)).
-  - *Mean dwell duration (visit)* (`transitionDwellMean-visit`): Average total duration of consecutive fixations in the "FROM" AOI before transitioning (see [Transitions](/docs/metrics/transitions)).
+  - *Transitions*, fixation-based (`transitionCount-fix`): Raw number of transitions between AOI pairs based on individual fixations (see [Transitions](/docs/metrics/transitions)).
+  - *Transitions*, visit-based (`transitionCount-visit`): Raw transitions based on distinct visits (consecutive fixations) (see [Transitions](/docs/metrics/transitions)).
+  - *Transition probability* (`transitionProbability-fix`): Conditional probability of transitioning TO an AOI given you are coming FROM a specific AOI (see [Transitions](/docs/metrics/transitions)).
+  - *Mean transition dwell time*, fixation-based (`transitionDwellMean-fix`): Average fixation duration in the "FROM" AOI before a transition (see [Transitions](/docs/metrics/transitions)).
+  - *Mean transition dwell time*, visit-based (`transitionDwellMean-visit`): Average total duration of consecutive fixations in the "FROM" AOI before transitioning (see [Transitions](/docs/metrics/transitions)).
 - **Edit metric library**: Opens the Metric Library modal where you can customize transition calculation parameters or define **custom transition/matrix metrics**.
 
 ### Visualization
