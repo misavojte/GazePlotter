@@ -334,7 +334,7 @@
 
     const extraSteps: string[] = []
     if (hasEvents) {
-      extraSteps.push('Set Plot Settings > Events to None')
+      extraSteps.push('Pick "No events" in Plot Settings > Events')
     }
     if (hasNonFixations) {
       extraSteps.push(
