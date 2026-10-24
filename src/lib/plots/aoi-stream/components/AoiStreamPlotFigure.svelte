@@ -633,7 +633,7 @@
     if (aoiValues.length > 4) {
       const remaining = aoiValues.slice(4)
       const otherSum = remaining.reduce((sum, aoi) => sum + aoi.value, 0)
-      content.push({ key: `other ${remaining.length} areas`, value: fmt(otherSum) })
+      content.push({ key: `Other ${remaining.length} AOIs`, value: fmt(otherSum) })
     }
 
     return {
