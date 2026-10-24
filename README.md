@@ -3,24 +3,25 @@
 
 # GazePlotter
 
-Browser-based, open-source tool for interactive AOI-based visualization and analysis of eye-tracking data. No installation, no registration, no data uploaded to a server — all processing runs entirely client-side.
+Browser-based, open-source tool for interactive AOI-based visualization and analysis of eye-tracking data. No installation, no registration, no data uploaded to a server: all processing runs entirely client-side.
 
 **Please [cite the GazePlotter paper](https://doi.org/10.3758/s13428-026-02959-5) ([BibTeX](#bibtex)) if you use the tool in research.**
 
-- **[GazePlotter app](https://gazeplotter.com)** — use it now in your browser
-- **[Documentation](https://gazeplotter.com/docs)** — guides for upload, plotting, and export
-- **[npm package](https://www.npmjs.com/package/gazeplotter)** — embed in your Svelte project
+- **[GazePlotter app](https://gazeplotter.com)**: use it now in your browser
+- **[Documentation](https://gazeplotter.com/docs)**: guides for upload, plotting, metrics, and export
+- **[npm package](https://www.npmjs.com/package/gazeplotter)**: embed in your Svelte project, or run the engine from scripts
 
 ## Features
 
 - **Scarf plots** (sequence charts) rendering fixations, saccades, and AOI-coded segments across multiple participants and stimuli, with absolute, relative, and ordinal timeline modes
 - **AOI transition matrices** showing gaze transition probabilities between areas of interest
-- **Bar plots** of AOI-based metrics — dwell time, fixation count, visit count, time to first fixation, first fixation duration, hit ratio, and more
+- **Bar plots** of AOI-based metrics: dwell time, fixation count, visit count, time to first fixation, first fixation duration, hit ratio, and more
 - **Time-binned AOI occupancy** charts for temporal distribution of gaze across areas of interest
 - **Dynamic AOI visibility layers** to handle time-varying areas of interest
 - **Drag-and-drop dashboard** with resizable, repositionable plot panels
-- **Client-side processing** — all data stays in the browser; nothing is uploaded to a server
+- **Client-side processing**: all data stays in the browser; nothing is uploaded to a server
 - **CSV export** of computed eye-tracking metrics for further statistical analysis
+- **Command line** to replay a saved Analysis on new recordings headlessly, in R, Python, or AI pipelines
 - **PNG / JPG export** of all visualizations
 
 ## Supported eye-tracking software
@@ -33,10 +34,10 @@ GazePlotter parses raw data exports from the following eye-tracking platforms:
 | SMI BeGaze | SensoMotoric Instruments |
 | Pupil Cloud | Pupil Labs |
 | GazePoint Analysis | GazePoint |
-| OGAMA | — |
+| OGAMA | |
 | Varjo XR | Varjo |
 
-## Use as Svelte component
+## Use as a Svelte component
 
 ```bash
 npm install gazeplotter
@@ -50,7 +51,18 @@ npm install gazeplotter
 <GazePlotter />
 ```
 
-Requires Svelte 5.
+Requires Svelte 5 and a Vite build. See [Embedding GazePlotter](https://gazeplotter.com/docs/advanced/embedding).
+
+## Use from scripts and pipelines
+
+Configure a study once in the app, export its Analysis, and replay it on every new recording. Requires Node 20 or later.
+
+```bash
+npx gazeplotter inspect  recordings/*.tsv
+npx gazeplotter metrics  recordings/*.tsv --analysis study.analysis.json --out metrics.csv
+```
+
+Same code as the app, so the table equals the app's metric export. See [Headless GazePlotter](https://gazeplotter.com/docs/advanced/headless).
 
 ## Developing
 
@@ -59,12 +71,12 @@ npm install
 npm run dev
 ```
 
-Everything inside `src/lib` is the published GazePlotter library; `src/routes` is the web app and documentation site deployed at gazeplotter.com.
+Everything inside `src/lib` is the published GazePlotter library; `src/routes` is the web app and documentation site deployed at gazeplotter.com. The engine behind the command line is `src/lib/data` and `src/lib/metrics` (no UI, pinned by `tests/engineBoundary.test.ts`); the command line itself is `src/cli`.
 
 ### Build
 
 ```bash
-npm run package    # build the library
+npm run package    # build the library and the CLI
 npm run build      # build the web app
 ```
 
@@ -92,3 +104,7 @@ Vojtechovska, M. & Popelka, S. (2026). GazePlotter: An open-source solution for 
     doi       = {10.3758/s13428-026-02959-5}
 }
 ```
+
+## License
+
+[GPL-3.0](LICENSE).
