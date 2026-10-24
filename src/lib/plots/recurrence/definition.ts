@@ -37,7 +37,7 @@ export const recurrencePlotDefinition = definePlot<
         {
           kind: 'number',
           key: 'radius',
-          label: 'Radius [px]',
+          label: 'Radius [gaze units]',
           min: 1,
           max: 500,
           showWhen: methodIs('fixedDistance'),

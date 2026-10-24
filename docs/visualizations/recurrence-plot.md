@@ -36,7 +36,7 @@ Select which participant's fixation sequence to analyze. The recurrence plot ope
 Configure the criteria used to decide whether two fixations are recurrent. The method decides which further control appears; it is listed under the method that reveals it.
 - **Recurrence method**: Rule that determines when two fixations count as recurrent.
   - *Fixed distance*: Two fixations i and j are recurrent if their Euclidean distance on the stimulus plane is ≤ the radius.
-    - **Radius [px]**: Maximum screen-space distance between two fixation centroids for them to count as recurrent.
+    - **Radius [gaze units]**: Maximum distance between two fixation centroids, in the data's gaze coordinates (pixels for most trackers), for them to count as recurrent.
   - *Fixed grid*: The stimulus plane is partitioned into a uniform grid; two fixations are recurrent if they fall within the same cell.
     - **Cells per axis**: Number of grid divisions along each axis (10 creates a 10×10 grid).
   - *AOI*: Two fixations are recurrent if they share at least one Area of Interest. Fixations not assigned to any AOI are never recurrent with any other fixation under this criterion.
