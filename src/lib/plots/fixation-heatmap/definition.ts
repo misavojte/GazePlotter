@@ -116,7 +116,7 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
           key: 'background',
           label: 'Background',
           options: [
-            { label: 'Image', value: 'image' },
+            { label: 'Image', value: 'image', detail: 'Image in full color' },
             { label: 'Grayscale image', value: 'grayscale', detail: 'Image without color, so heat colors stand out' },
             { label: 'Dimmed grayscale image', value: 'dimmed', detail: 'Grayscale image faded toward white' },
             { label: 'None', value: 'none', detail: 'Heat only, within the image outline' },
