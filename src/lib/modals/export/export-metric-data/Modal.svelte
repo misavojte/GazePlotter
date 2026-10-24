@@ -306,6 +306,7 @@
 <ExportShell
   intro="Export eye-tracking metrics from the library, computed per participant and stimulus."
   {canExport}
+  exportLabel="Export Metrics"
   onExport={handleExport}
 >
   <StepList>

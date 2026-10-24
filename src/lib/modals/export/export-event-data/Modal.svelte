@@ -50,6 +50,7 @@
 <ExportShell
   intro="Export event occurrences with their timing per participant and stimulus."
   {canExport}
+  exportLabel="Export Events"
   onExport={handleExport}
 >
   <StepList>

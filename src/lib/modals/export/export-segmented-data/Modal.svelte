@@ -86,6 +86,7 @@
 <ExportShell
   intro="Export eye-tracking segments with timing, movement classifications, and AOI information."
   {canExport}
+  exportLabel="Export Segments"
   onExport={handleExport}
 >
   <StepList>
