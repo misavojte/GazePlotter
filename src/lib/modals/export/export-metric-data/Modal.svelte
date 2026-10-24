@@ -252,8 +252,12 @@
   const timeRangeError = $derived.by(() => {
     const invalid = (v: number | undefined) =>
       v !== undefined && (!Number.isFinite(v) || v < 0)
-    if (invalid(timeStart) || invalid(timeEnd)) {
-      return 'Time range must be a non-negative number of milliseconds'
+    // Name the field and echo what was typed: a unit slip ("5s") is the usual cause.
+    if (invalid(timeStart)) {
+      return `Time Start "${timeStartStr.trim()}" is not a non-negative number of milliseconds`
+    }
+    if (invalid(timeEnd)) {
+      return `Time End "${timeEndStr.trim()}" is not a non-negative number of milliseconds`
     }
     if (timeEnd !== undefined && timeEnd <= (timeStart ?? 0)) {
       return 'Time end must be greater than time start'
