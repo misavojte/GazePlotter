@@ -85,6 +85,7 @@ On a Mac, use `Cmd` wherever the table says `Ctrl` (`Delete` is `Backspace`). Sh
 | `Ctrl` + `D` | Duplicate the selected plots |
 | `Delete` | Remove the selected plots |
 | Arrow keys | Move the selected plots one grid cell |
+| `Alt` + `Up` / `Down` | Show the previous / next stimulus in the selected plots (`Option` on Mac) |
 | `Esc` | Close the dialog or pane, or clear the selection |
 | `Shift` + `1` | Zoom to fit |
 | `Ctrl` + `+` / `-` / `0` | Zoom in / out / back to 100% |

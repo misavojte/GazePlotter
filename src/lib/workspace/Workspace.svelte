@@ -278,7 +278,9 @@
       shortcut === 'save-as' ||
       shortcut === 'open' ||
       shortcut === 'duplicate' ||
-      shortcut === 'select-all'
+      shortcut === 'select-all' ||
+      shortcut === 'previous-stimulus' ||
+      shortcut === 'next-stimulus'
     )
       return
 

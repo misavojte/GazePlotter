@@ -30,8 +30,10 @@ export type WorkspaceShortcut =
   | 'duplicate'
   | 'open'
   | 'select-all'
+  | 'previous-stimulus'
+  | 'next-stimulus'
 
-/** The shortcut this event is (a Ctrl/Cmd chord, or Shift+1), or null. */
+/** The shortcut this event is (a Ctrl/Cmd chord, Alt+Up/Down, or Shift+1), or null. */
 export function resolveWorkspaceShortcut(
   event: KeyboardEvent
 ): WorkspaceShortcut | null {
@@ -42,6 +44,12 @@ export function resolveWorkspaceShortcut(
     !(event.ctrlKey || event.metaKey || event.altKey)
   ) {
     return 'zoom-fit'
+  }
+  // Alt+Up/Down steps through the stimuli, like the next row of a list.
+  if (event.altKey && !(event.ctrlKey || event.metaKey || event.shiftKey)) {
+    if (event.key === 'ArrowUp') return 'previous-stimulus'
+    if (event.key === 'ArrowDown') return 'next-stimulus'
+    return null
   }
   if (!(event.ctrlKey || event.metaKey)) return null
   // `code` for the letters so the chord survives a non-QWERTY layout; `key` for
@@ -79,6 +87,8 @@ const SHORTCUT_LABELS: Record<WorkspaceShortcut, [mac: string, other: string]> =
   duplicate: ['⌘D', 'Ctrl+D'],
   open: ['⌘O', 'Ctrl+O'],
   'select-all': ['⌘A', 'Ctrl+A'],
+  'previous-stimulus': ['⌥↑', 'Alt+Up'],
+  'next-stimulus': ['⌥↓', 'Alt+Down'],
 }
 
 /** A shortcut as this platform writes it (`Ctrl+S`, `⌘S`). */

@@ -10,6 +10,7 @@ function key(init: {
   ctrlKey?: boolean
   metaKey?: boolean
   shiftKey?: boolean
+  altKey?: boolean
   target?: unknown
 }): KeyboardEvent {
   return {
@@ -18,6 +19,7 @@ function key(init: {
     ctrlKey: init.ctrlKey ?? false,
     metaKey: init.metaKey ?? false,
     shiftKey: init.shiftKey ?? false,
+    altKey: init.altKey ?? false,
     target: init.target ?? null,
   } as unknown as KeyboardEvent
 }
@@ -96,6 +98,22 @@ describe('resolveWorkspaceShortcut', () => {
     expect(
       resolveWorkspaceShortcut(key({ code: 'KeyA', key: 'a', ctrlKey: true }))
     ).toBe('select-all')
+  })
+
+  it('claims Alt+Up/Down as stepping the stimulus, and no other Alt arrow', () => {
+    expect(
+      resolveWorkspaceShortcut(key({ key: 'ArrowUp', altKey: true }))
+    ).toBe('previous-stimulus')
+    expect(
+      resolveWorkspaceShortcut(key({ key: 'ArrowDown', altKey: true }))
+    ).toBe('next-stimulus')
+    expect(
+      resolveWorkspaceShortcut(key({ key: 'ArrowLeft', altKey: true }))
+    ).toBeNull()
+    expect(
+      resolveWorkspaceShortcut(key({ key: 'ArrowDown', altKey: true, shiftKey: true }))
+    ).toBeNull()
+    expect(resolveWorkspaceShortcut(key({ key: 'ArrowDown' }))).toBeNull()
   })
 
   it('claims nothing for an unrelated Ctrl chord', () => {

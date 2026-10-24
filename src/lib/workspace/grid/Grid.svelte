@@ -10,6 +10,7 @@
   import { getGazePlotterSession } from '$lib/session'
   import { getDebugMessage } from '$lib/errors'
   import { generateUniqueId } from '$lib/shared/uniqueId'
+  import { getStimuliOptions } from '$lib/plots/shared'
   import type { AllGridTypes } from '..'
   import type { GridConfig } from './types'
   import {
@@ -19,6 +20,7 @@
     commitGridItemsDuplication,
     commitGridItemsRemoval,
     commitGridItemResize,
+    getGridItemCommandSource,
   } from './itemCommands'
   import ActionChip from './ActionChip.svelte'
   import {
@@ -54,8 +56,10 @@
       const shortcut = resolveWorkspaceShortcut(event)
       const duplicate = shortcut === 'duplicate'
       const selectAll = shortcut === 'select-all'
+      const stimulusStep =
+        shortcut === 'next-stimulus' ? 1 : shortcut === 'previous-stimulus' ? -1 : 0
       const chord = event.metaKey || event.ctrlKey || event.altKey
-      if (chord && !duplicate && !selectAll) return
+      if (chord && !duplicate && !selectAll && !stimulusStep) return
       if (isTextEntryTarget(event)) return
       // A surface in front owns the key: one Escape dismisses one surface, and
       // Delete never removes a plot the user cannot see.
@@ -74,6 +78,12 @@
       // Delete/Escape working for a multi-selection.
       const selectedIds = grid.selectedItemIds
       if (selectedIds.length === 0) return
+      if (stimulusStep) {
+        if (!fromPageOrGrid) return
+        event.preventDefault()
+        stepStimulus(stimulusStep)
+        return
+      }
       const step = ARROW_STEPS[event.key]
       if (step) {
         if (!fromPageOrGrid) return
@@ -184,6 +194,25 @@
       !interaction.isTransforming &&
       interaction.mode !== 'selecting'
   )
+
+  // Each selected plot moves to its own next stimulus in the picker's order,
+  // wrapping at the ends; plots without a stimulus (Metric Matrix) stay put.
+  function stepStimulus(direction: 1 | -1): void {
+    const items = grid.selectedItems
+    const order = getStimuliOptions(engine).map(option => Number(option.value))
+    if (order.length < 2 || items.length === 0) return
+    workspace.updateEachItemSettings(
+      items.map(item => item.id),
+      settings => {
+        const current = (settings as { stimulusId?: number }).stimulusId
+        if (current === undefined) return null
+        const index = order.indexOf(current)
+        const next = (index + direction + order.length) % order.length
+        return { stimulusId: order[index === -1 ? 0 : next] }
+      },
+      getGridItemCommandSource(items[0])
+    )
+  }
 
   // The whole selection duplicates in one step, and the copies become the
   // selection, exactly as a single duplication hands over to its copy.
