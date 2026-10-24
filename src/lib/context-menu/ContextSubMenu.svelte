@@ -174,9 +174,15 @@
     color: var(--c-black);
   }
 
-  button:hover {
+  button:hover:not(:disabled) {
     background: var(--c-lightgrey);
     color: var(--c-black);
+  }
+
+  /* A disabled row (a taken option, an empty-state note) reads as unavailable. */
+  button:disabled {
+    color: var(--c-darkgrey);
+    cursor: default;
   }
 
   button.selected {
