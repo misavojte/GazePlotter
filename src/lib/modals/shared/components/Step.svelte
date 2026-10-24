@@ -52,7 +52,7 @@
     <button type="button" class="step-header" aria-expanded={open} onclick={() => steps.toggle(n)}>
       <span class="step-heading">
         <span class="step-title">{title}</span>
-        <span class="step-summary" class:invalid={!done}>{summary}</span>
+        <span class="step-summary" class:invalid={!done} title={summary}>{summary}</span>
       </span>
       <span class="step-chevron" class:open>
         <ChevronDown size={16} />

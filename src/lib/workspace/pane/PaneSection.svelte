@@ -65,7 +65,7 @@ import { getContext, untrack } from 'svelte'
         <ChevronDown size={14} strokeWidth={1.5} />
       </span>
       <span class="label">{title}</span>
-      {#if summary}<span class="summary">{summary}</span>{/if}
+      {#if summary}<span class="summary" title={summary}>{summary}</span>{/if}
     </button>
   {/if}
 
