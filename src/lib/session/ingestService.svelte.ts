@@ -632,7 +632,7 @@ export class IngestService {
         .join(', ')
       const more = droppedMedia.length > 3 ? ` and ${droppedMedia.length - 3} more` : ''
       this.deps.toastState.addWarning(
-        `Reference media for ${names}${more} was missing from the workspace file. Reattach it in the Stimuli library.`
+        `Reference media for ${names}${more} was missing from the workspace file. Reattach it in Edit stimuli & selections.`
       )
     }
     // The file carries the layout as plain items; the migrations validated

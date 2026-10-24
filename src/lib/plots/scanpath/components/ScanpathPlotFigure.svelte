@@ -743,7 +743,7 @@
         style:--seek-progress={`${playDurationMs > 0 ? (shownTime / playDurationMs) * 100 : 0}%`}
       />
       {#if mediaFailed}
-        <span class="pill-note" title="Reattach it as MP4 (H.264) or WebM in the Stimuli library.">
+        <span class="pill-note" title="Reattach it as MP4 (H.264) or WebM in Edit stimuli &amp; selections.">
           {media?.kind === 'video' ? 'Video' : 'Image'} can't be decoded in this browser
         </span>
       {/if}

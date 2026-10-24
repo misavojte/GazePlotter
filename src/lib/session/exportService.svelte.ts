@@ -160,7 +160,7 @@ export class ExportService {
         .map(id => getStimulus(this.deps.engine, id).displayedName)
         .join(', ')
       throw new Error(
-        `Reference media for ${names} could not be read (its file may have moved). Reattach it in the Stimuli library, then save again.`
+        `Reference media for ${names} could not be read (its file may have moved). Reattach it in Edit stimuli & selections, then save again.`
       )
     }
     return content
