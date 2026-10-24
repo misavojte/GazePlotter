@@ -611,4 +611,5 @@
   use:plot.plotAction
   use:canvasBlockSelect={{ regions: plot.blockedRegions }}
   onclick={handleClick}
+  aria-label="ScanGraph visualization"
 ></canvas>

@@ -711,6 +711,7 @@
   <canvas
     use:plot.plotAction
     use:canvasBlockSelect={{ regions: plot.blockedRegions }}
+    aria-label="Scanpath visualization"
   ></canvas>
   {#if hasPlayBar}
     <!-- Disabled only while a set video is still decoding; a plain image or

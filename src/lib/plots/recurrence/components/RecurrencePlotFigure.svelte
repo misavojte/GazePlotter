@@ -455,4 +455,5 @@
 <canvas
   use:plot.plotAction
   use:canvasBlockSelect={{ regions: plot.blockedRegions }}
+  aria-label="Recurrence Plot visualization"
 ></canvas>
