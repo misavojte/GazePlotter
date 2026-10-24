@@ -51,7 +51,7 @@
     gestures = 'cooperative',
     controls = true,
   }: Props = $props()
-  const { ingest, grid, workspace, modalState } = getGazePlotterSession()
+  const { engine, ingest, grid, workspace, modalState } = getGazePlotterSession()
 
   // Single upload owner: the drag-drop handler below and the click entry
   // points (the host's import trigger, the empty-state button) all feed
@@ -341,7 +341,12 @@
   <div class="drop-indicator">
     <div class="drop-copy">
       <p class="drop-title">Drop files to load</p>
-      <p class="drop-hint">Supported formats are detected and parsed automatically</p>
+      <!-- Over loaded data, say what a drop does to it before it happens. -->
+      <p class="drop-hint">
+        {engine.hasValidData
+          ? 'Data files replace the current dataset; images and videos attach to its stimuli'
+          : 'Supported formats are detected and parsed automatically'}
+      </p>
     </div>
   </div>
 {/snippet}
