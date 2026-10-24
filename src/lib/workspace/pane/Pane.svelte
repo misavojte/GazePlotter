@@ -62,6 +62,14 @@
     if (scope.metricInstanceIds?.length) {
       return {
         label: 'Download data',
+        title: `Metric CSV, preset to this plot's ${[
+          'metrics',
+          scope.stimulusId !== undefined && 'stimulus',
+          'participants',
+          (scope.timelineStart || scope.timelineEnd) && 'time crop',
+        ]
+          .filter(Boolean)
+          .join(', ')}`,
         open: () =>
           modalState.open(exportMetricDataModal, {
             metricInstanceIds: scope.metricInstanceIds,
@@ -75,6 +83,7 @@
     if (scope.stimulusId !== undefined && engine.hasCapabilities(['segmented'])) {
       return {
         label: 'Download segments',
+        title: "Segment CSV, preset to this plot's stimulus and participants (whole recordings)",
         open: () =>
           modalState.open(exportSegmentedDataModal, {
             stimulusId: scope.stimulusId,
@@ -158,7 +167,9 @@
         {isBulk ? 'Download plots' : 'Download plot'}
       </PaneEditLink>
       {#if dataExport}
-        <PaneEditLink onclick={dataExport.open}>{dataExport.label}</PaneEditLink>
+        <PaneEditLink onclick={dataExport.open} title={dataExport.title}>
+          {dataExport.label}
+        </PaneEditLink>
       {/if}
     </PaneEditRow>
   </PaneSection>
