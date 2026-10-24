@@ -3,24 +3,46 @@
   import IndicatorCard from './IndicatorCard.svelte'
 
   const { ingest } = getGazePlotterSession()
+
+  // One indicator for the whole load: a spinning arc while nothing is
+  // measurable yet (startup, hydration), then a ring that fills with progress.
+  const RADIUS = 17
+  const CIRCUMFERENCE = 2 * Math.PI * RADIUS
+  const percent = $derived(ingest.progressPercent)
+  const indeterminate = $derived(percent <= 0)
+  const dashOffset = $derived(CIRCUMFERENCE * (1 - percent / 100))
 </script>
 
 <IndicatorCard title="Processing data">
   <div class="content-inner">
-    <div class="spinner"></div>
+    <div
+      class="ring"
+      class:indeterminate
+      role="progressbar"
+      aria-label="Processing data"
+      aria-valuemin="0"
+      aria-valuemax="100"
+      aria-valuenow={indeterminate ? undefined : percent}
+    >
+      <svg viewBox="0 0 40 40" aria-hidden="true">
+        <circle class="track" cx="20" cy="20" r={RADIUS} />
+        <circle
+          class="arc"
+          cx="20"
+          cy="20"
+          r={RADIUS}
+          stroke-dasharray={indeterminate
+            ? `${CIRCUMFERENCE * 0.25} ${CIRCUMFERENCE}`
+            : CIRCUMFERENCE}
+          stroke-dashoffset={indeterminate ? 0 : dashOffset}
+        />
+      </svg>
+      {#if !indeterminate}
+        <span class="percent" aria-hidden="true">{percent}%</span>
+      {/if}
+    </div>
     <div class="text-content">
       <p>Please wait while we prepare your visualizations.</p>
-      <p>Processing data: {ingest.progressPercent}%</p>
-      <div
-        class="progress-track"
-        role="progressbar"
-        aria-label="Processing data"
-        aria-valuemin="0"
-        aria-valuemax="100"
-        aria-valuenow={ingest.progressPercent}
-      >
-        <div class="progress-fill" style:width="{ingest.progressPercent}%"></div>
-      </div>
     </div>
   </div>
 </IndicatorCard>
@@ -28,46 +50,75 @@
 <style>
   .content-inner {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     gap: 16px;
     margin-top: 8px;
     margin-bottom: 8px;
   }
 
-  .spinner {
-    width: 32px;
-    height: 32px;
-    border: 3px solid var(--c-lightgrey);
-    border-top-color: var(--c-brand);
-    border-radius: 50%;
-    animation: spin 1.2s linear infinite;
+  .ring {
+    position: relative;
+    width: 44px;
+    height: 44px;
     flex-shrink: 0;
   }
 
+  svg {
+    width: 100%;
+    height: 100%;
+    /* The arc starts at 12 o'clock. */
+    transform: rotate(-90deg);
+  }
+
+  circle {
+    fill: none;
+    stroke-width: 3;
+  }
+
+  .track {
+    stroke: var(--c-lightgrey);
+  }
+
+  .arc {
+    stroke: var(--c-brand);
+    stroke-linecap: round;
+    transition: stroke-dashoffset var(--transition-normal) ease;
+  }
+
+  .indeterminate svg {
+    animation: spin 1s linear infinite;
+  }
+
   @keyframes spin {
-    to {
-      transform: rotate(360deg);
+    from {
+      transform: rotate(-90deg);
     }
+    to {
+      transform: rotate(270deg);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .indeterminate svg {
+      animation-duration: 3s;
+    }
+  }
+
+  .percent {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--text-2xs);
+    font-family: var(--font-small);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    color: var(--c-black);
   }
 
   .text-content {
     flex: 1;
-  }
-
-  /* The export dialog's bar, so progress reads the same everywhere. */
-  .progress-track {
-    height: 4px;
-    margin-top: 8px;
-    border-radius: 2px;
-    background-color: var(--c-lightgrey);
-    overflow: hidden;
-  }
-
-  .progress-fill {
-    height: 100%;
-    border-radius: 2px;
-    background-color: var(--c-brand);
-    transition: width var(--transition-normal) ease;
   }
 
   p {
