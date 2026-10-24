@@ -574,6 +574,8 @@
         anchorY: node.y,
         offset: { x: 10, y: 0 },
         tooltipWidth: 160,
+        // A click toggles the node's highlight: show that it is clickable.
+        cursor: onNodeClick ? 'pointer' : undefined,
         data: { kind: 'node', node },
       }
     }
