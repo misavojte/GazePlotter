@@ -10,7 +10,7 @@
   import { getGazePlotterSession } from '$lib/session'
   import { getDebugMessage } from '$lib/errors'
   import { generateUniqueId } from '$lib/shared/uniqueId'
-  import type { AllGridTypes } from '$lib/workspace'
+  import type { AllGridTypes } from '..'
   import type { GridConfig } from './types'
   import {
     commitGridItemDuplication,

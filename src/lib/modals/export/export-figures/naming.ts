@@ -1,4 +1,5 @@
-import { sanitizeFileName, type ExportFileType } from '$lib/data/export'
+import { sanitizeFileName } from '$lib/data/export'
+import type { ExportFileType } from '$lib/plots/shared/figureExport'
 
 /**
  * Zip entry name for one figure of a batch: `03 AOI Comparison - SMI Base.png`.

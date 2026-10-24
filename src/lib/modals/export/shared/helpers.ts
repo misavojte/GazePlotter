@@ -1,8 +1,8 @@
 import type {
   DecimalSeparator,
-  ExportFileType,
   ExportNaming,
 } from '$lib/data/export'
+import type { ExportFileType } from '$lib/plots/shared/figureExport'
 import { PLOT_BASE_CHROME_HEIGHT } from '$lib/plots/shared/const'
 import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/plotSizeUtility'
 import type { GridConfig } from '$lib/workspace/grid'

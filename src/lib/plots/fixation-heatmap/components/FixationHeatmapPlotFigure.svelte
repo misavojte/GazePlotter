@@ -23,8 +23,8 @@
   import { wrapTextToWidth } from '$lib/shared/textMeasure'
   import { PRESET_PALETTES } from '$lib/color/palettes'
   import { fitView, type Rect, type View } from '$lib/data/media/mediaAlignment'
-  import { mediaRegionOf } from '$lib/data/media/mediaUpload'
-  import type { StimulusMediaStore } from '$lib/data/media/mediaStore.svelte'
+  import { mediaRegionOf } from '$lib/data/media/stimulusMedia'
+  import { useMediaElements } from '../../shared/mediaElements.svelte'
   import type { StimulusMedia } from '$lib/data/types'
   import { bucketFixations, cellCentreOf, fixationsWithin, type FixationBuckets } from '../core/density'
   import { heatLut, legendRamp, paintHeat } from '../core/heatImage'
@@ -57,7 +57,6 @@
     /** The stimulus's reference image, drawn under the heat (videos are never passed). */
     media?: StimulusMedia | null
     mediaStimulusId?: number
-    mediaStore?: StimulusMediaStore | null
     /** Shared PLOT CURSOR, publish-only: the participants with fixations within R. */
     plotCursor?: PlotCursorPort | null
   }
@@ -80,14 +79,14 @@
     unavailableMessage = null,
     media = null,
     mediaStimulusId,
-    mediaStore = null,
     plotCursor = null,
   }: Props = $props()
 
+  const mediaElements = useMediaElements()
   const mediaElement = $derived.by(() => {
-    if (!mediaStore || !media || mediaStimulusId === undefined) return null
-    void mediaStore.version
-    return mediaStore.getReadyElement(mediaStimulusId, media)
+    if (!media || mediaStimulusId === undefined) return null
+    void mediaElements.version
+    return mediaElements.getReadyElement(mediaStimulusId, media)
   })
 
   const stops = $derived(

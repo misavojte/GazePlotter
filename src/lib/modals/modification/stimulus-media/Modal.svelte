@@ -3,11 +3,8 @@
   import { InputNumber, Button, Select } from '$lib/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { formatFileSize } from '$lib/shared/format'
-  import {
-    buildStimulusMediaFromFile,
-    MEDIA_FILE_ACCEPT,
-    mediaRegionOf,
-  } from '$lib/data/media/mediaUpload'
+  import { buildStimulusMediaFromFile, MEDIA_FILE_ACCEPT } from '$lib/session/mediaUpload'
+  import { mediaRegionOf } from '$lib/data/media/stimulusMedia'
   import {
     collectFixationPoints,
     coverBounds,

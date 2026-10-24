@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { ToastState } from '$lib/toaster'
+import { ToastState } from '$lib'
 import { announceVersionOnce } from '../src/routes/versionNotice'
 
 function fakeStorage(overrides: Partial<Storage> = {}): Storage {

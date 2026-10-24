@@ -5,7 +5,7 @@
   import { setPaneEditItems } from './paneEditItems'
   import { commonSectionKeys } from './bulkSections'
   import { paneSectionKey, type PaneSectionEntry } from '$lib/plots/definePlot'
-  import type { AllGridTypes } from '$lib/workspace'
+  import type { AllGridTypes } from '..'
 
   interface Props {
     /** The currently selected grid items (2+ when this renders). */

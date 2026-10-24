@@ -71,7 +71,3 @@ export {
   contractDistributionStats,
 } from './filters'
 export type { PlotMetricContract } from './filters'
-
-// ─── UI ────────────────────────────────────────────────────────────────────
-export { default as MetricSelect } from './components/MetricSelect.svelte'
-export { metricLibraryModal } from '$lib/modals/definitions'

@@ -18,8 +18,8 @@
   import { SCANPATH_COLORS, SCANPATH_LAYOUT } from '../const'
   import { getColorForValue, interpolateColor } from '$lib/color'
   import { PRESET_PALETTES } from '$lib/color/palettes'
-  import type { StimulusMediaStore } from '$lib/data/media/mediaStore.svelte'
-  import { mediaRegionOf } from '$lib/data/media/mediaUpload'
+  import { useMediaElements } from '../../shared/mediaElements.svelte'
+  import { mediaRegionOf } from '$lib/data/media/stimulusMedia'
   import type { StimulusMedia } from '$lib/data/types'
   import type { ScanpathData, ScanpathFixation } from '../types'
   import { buildScanpathTooltipContent } from '../core/tooltip'
@@ -47,10 +47,8 @@
         domain — gaze coordinates are stimulus pixels, so fixations land
         exactly on the image. */
     media?: StimulusMedia | null
-    /** Key of `media`'s bytes in `mediaStore`. */
+    /** Key of `media`'s bytes in the session's media store. */
     mediaStimulusId?: number
-    /** The session's media byte store. */
-    mediaStore?: StimulusMediaStore | null
     /** Shared PLOT CURSOR, publish-only: hovering this panel marks its
         participant in other plots, but the panel never draws the cursor
         itself. A whole-panel outline lit by a hover elsewhere (often another
@@ -74,24 +72,24 @@
     participantId,
     media = null,
     mediaStimulusId,
-    mediaStore = null,
     plotCursor = null,
   }: Props = $props()
 
+  const mediaElements = useMediaElements()
   /** The decoded background element, or null while it loads. Depends on the
-      store version so the canvas repaints when decoding finishes (videos are
+      cache version so the canvas repaints when decoding finishes (videos are
       parked on their first frame, so no black background flashes). */
   const mediaElement = $derived.by(() => {
-    if (!mediaStore || !media || mediaStimulusId === undefined) return null
-    void mediaStore.version
-    return mediaStore.getReadyElement(mediaStimulusId, media)
+    if (!media || mediaStimulusId === undefined) return null
+    void mediaElements.version
+    return mediaElements.getReadyElement(mediaStimulusId, media)
   })
   /** The browser can't decode the medium: playback falls back to the
       fixation clock and the bar says why the background is missing. */
   const mediaFailed = $derived.by(() => {
-    if (!mediaStore || !media || mediaStimulusId === undefined) return false
-    void mediaStore.version
-    return mediaStore.failed(mediaStimulusId)
+    if (!media || mediaStimulusId === undefined) return false
+    void mediaElements.version
+    return mediaElements.failed(mediaStimulusId)
   })
 
   // ── Time-sync playback (always on): a bottom

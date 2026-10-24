@@ -46,7 +46,6 @@ export function deriveScanpathView(
       // background; its intrinsic pixel size becomes the coordinate domain.
       media: engine.metadata?.stimuliMedia?.[settings.stimulusId] ?? null,
       mediaStimulusId: settings.stimulusId,
-      mediaStore: engine.media,
     } satisfies ScanpathFigureProps,
   }
 }

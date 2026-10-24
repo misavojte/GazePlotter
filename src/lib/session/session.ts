@@ -1,20 +1,12 @@
 import { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import {
-  ExportService,
-  WorkspaceFile,
-  browserPickSaveTarget,
-  triggerDownload,
-  type PickSaveTarget,
-  type SaveFile,
-} from '$lib/data/export'
 import { readMediaEntries } from '$lib/data/media/mediaEntries'
 import { readBlobZip } from '$lib/data/zip/blobZip'
 import { ErrorService } from '$lib/errors'
-import {
-  IngestService,
-  openFilesViaBrowser,
-  type OpenFiles,
-} from '$lib/data/ingest'
+import { browserPickSaveTarget, triggerDownload, type PickSaveTarget, type SaveFile } from './download'
+import { ExportService } from './exportService.svelte'
+import { IngestService } from './ingestService.svelte'
+import { openFilesViaBrowser, type OpenFiles } from './openFiles'
+import { WorkspaceFile } from './workspaceFile.svelte'
 import { ModalState } from '$lib/modals/modalState.svelte'
 import { ToastState } from '$lib/toaster/toastState.svelte'
 import { GridState } from '$lib/workspace/grid/gridState.svelte'
@@ -100,9 +92,10 @@ export function createGazePlotterSession(
     // Media reads lazily from the file it came from; after a save, from the new one.
     rebindMedia: async written => {
       const entries = (await readBlobZip(written)).values()
-      const blobs = await readMediaEntries(written, entries, engine.metadata?.stimuliMedia ?? {})
+      const media = engine.metadata?.stimuliMedia ?? {}
+      const blobs = await readMediaEntries(written, entries, media)
       for (const [id, blob] of Object.entries(blobs)) {
-        engine.media.rebindBlob(Number(id), blob)
+        engine.media.rebindBlob(Number(id), blob, media[Number(id)].kind)
       }
     },
     pickSaveTarget:

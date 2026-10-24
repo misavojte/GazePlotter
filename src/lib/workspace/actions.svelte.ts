@@ -3,7 +3,7 @@ import {
   exportWorkspaceModal,
   metadataInfoModal,
 } from '$lib/modals/definitions'
-import type { SaveIndicator } from '$lib/data/export'
+import type { SaveIndicator } from '$lib/session/workspaceFile.svelte'
 import type { WorkspaceCamera } from './camera.svelte'
 
 /**

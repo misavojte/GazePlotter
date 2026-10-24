@@ -1,11 +1,19 @@
 import type { StimulusMedia } from '$lib/data/types'
 import { readZipEntry, type ZipEntry } from '$lib/data/zip/blobZip'
-import { mediaFileExtension } from './mediaUpload'
 
 /** Where a stimulus' reference media sits inside a `.gazeplotter` file: ONE
  *  place names these entries, for the save, the open and the re-bind. */
 export function mediaEntryName(id: number, media: StimulusMedia): string {
   return `media/${id}.${mediaFileExtension(media)}`
+}
+
+/** From the upload name, falling back to the mime subtype. */
+function mediaFileExtension(media: StimulusMedia): string {
+  const dot = media.fileName.lastIndexOf('.')
+  if (dot > 0 && dot < media.fileName.length - 1) {
+    return media.fileName.slice(dot + 1).toLowerCase()
+  }
+  return media.mimeType.split('/')[1] ?? 'bin'
 }
 
 /** The media blobs an archive holds, by stimulus id. Entries are slices of

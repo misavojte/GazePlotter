@@ -1,19 +1,16 @@
 import type { StimulusMedia } from '../types'
 
 /**
- * Shared upload-side helpers for stimulus reference media: the "Upload data"
- * pipeline (files claimed at partition, matched to stimuli by file name and
- * applied post-load — the event-file pattern) and the stimulus modal's manual
- * picker both build their `StimulusMedia` through here.
+ * Reference media as data: what counts as media, the gaze rectangle a medium
+ * covers, and how uploaded files match stimuli by name. Decoding the files is
+ * the host's job (`session/mediaUpload`).
  */
 
 const MEDIA_EXTENSIONS = new Set([
   'png', 'jpg', 'jpeg', 'webp', 'bmp', 'gif', 'avif',
   'mp4', 'webm', 'mov', 'mkv', 'avi', 'm4v', 'ogv',
 ])
-
-/** Picker/drop affordances advertise these next to the data formats. */
-export const MEDIA_FILE_ACCEPT = 'image/*,video/*'
+const VIDEO_EXTENSIONS = new Set(['mp4', 'webm', 'mov', 'mkv', 'avi', 'm4v', 'ogv'])
 
 export function mediaKindOf(file: File): StimulusMedia['kind'] | null {
   // Mime can be absent (drag-drop from some sources, test doubles).
@@ -22,72 +19,9 @@ export function mediaKindOf(file: File): StimulusMedia['kind'] | null {
   if (mime.startsWith('video/')) return 'video'
   if (!mime) {
     const ext = file.name.split('.').pop()?.toLowerCase() ?? ''
-    if (MEDIA_EXTENSIONS.has(ext)) {
-      return ['mp4', 'webm', 'mov', 'mkv', 'avi', 'm4v', 'ogv'].includes(ext)
-        ? 'video'
-        : 'image'
-    }
+    if (MEDIA_EXTENSIONS.has(ext)) return VIDEO_EXTENSIONS.has(ext) ? 'video' : 'image'
   }
   return null
-}
-
-/** Intrinsic pixel size — the gaze coordinate space. Main thread only. */
-export async function readMediaDimensions(
-  file: File,
-  kind: StimulusMedia['kind']
-): Promise<{ width: number; height: number }> {
-  const url = URL.createObjectURL(file)
-  try {
-    if (kind === 'image') {
-      const img = new Image()
-      img.src = url
-      await img.decode()
-      return { width: img.naturalWidth, height: img.naturalHeight }
-    }
-    const video = document.createElement('video')
-    // Wait for a decoded frame, not just metadata: a codec the browser can't
-    // play (e.g. HEVC .mov) has readable headers but fails here.
-    video.preload = 'auto'
-    video.muted = true
-    const dims = await new Promise<{ width: number; height: number }>(
-      (resolve, reject) => {
-        video.addEventListener(
-          'loadeddata',
-          () => resolve({ width: video.videoWidth, height: video.videoHeight }),
-          { once: true }
-        )
-        video.addEventListener(
-          'error',
-          () => reject(new Error('Video could not be decoded')),
-          { once: true }
-        )
-        video.src = url
-      }
-    )
-    video.src = ''
-    return dims
-  } finally {
-    URL.revokeObjectURL(url)
-  }
-}
-
-/** Build the metadata record for one upload; throws when undecodable. */
-export async function buildStimulusMediaFromFile(
-  file: File
-): Promise<StimulusMedia> {
-  const kind = mediaKindOf(file)
-  if (!kind) throw new Error('Not an image or video file')
-  const { width, height } = await readMediaDimensions(file, kind)
-  if (!(width > 0) || !(height > 0)) {
-    throw new Error('The file has no readable pixel dimensions')
-  }
-  return {
-    kind,
-    mimeType: file.type || (kind === 'video' ? 'video/mp4' : 'image/png'),
-    fileName: file.name,
-    naturalWidth: width,
-    naturalHeight: height,
-  }
 }
 
 /** The gaze-coordinate rectangle a medium covers (see StimulusMedia.region). */
@@ -160,14 +94,4 @@ export function matchMediaFilesToStimuli(
     else matches.set(id, file)
   }
   return { matches, unmatched }
-}
-
-/** Media file extension for zip entry names: from the upload name, falling
- *  back to the mime subtype. */
-export function mediaFileExtension(media: StimulusMedia): string {
-  const dot = media.fileName.lastIndexOf('.')
-  if (dot > 0 && dot < media.fileName.length - 1) {
-    return media.fileName.slice(dot + 1).toLowerCase()
-  }
-  return media.mimeType.split('/')[1] ?? 'bin'
 }

@@ -134,7 +134,6 @@ export function deriveFixationHeatmapView(
       unavailableMessage: null,
       media: image,
       mediaStimulusId: settings.stimulusId,
-      mediaStore: engine.media,
     },
   }
 }

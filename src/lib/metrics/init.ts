@@ -8,4 +8,5 @@
  * at module scope. No edit here.
  */
 import './categories'
-void import.meta.glob('./definitions/**/*.ts', { eager: true })
+// `.ts` in source, `.js` in the published package (never its `.d.ts`).
+void import.meta.glob(['./definitions/**/*.{ts,js}', '!./definitions/**/*.d.ts'], { eager: true })

@@ -16,7 +16,8 @@
   import { exportMetricDataModal } from '../export-metric-data/definition'
   import { exportFiguresModal } from '../export-figures/definition'
 
-  const { engine, grid, modalState, workspaceFile } = getGazePlotterSession()
+  const { engine, exportService, grid, modalState, workspaceFile } =
+    getGazePlotterSession()
   // svelte-ignore state_referenced_locally -- the name a download starts from
   let fileName = $state(workspaceFile.suggestedName)
 
@@ -188,6 +189,20 @@
             </div>
           </button>
         {/each}
+
+        <button
+          class="export-option-card"
+          onclick={() =>
+            exportService.exportAnalysis(`${workspaceFile.suggestedName}.analysis`)}
+        >
+          <div class="export-option-content">
+            <h4 class="export-option-title">Analysis (JSON)</h4>
+            <p class="export-option-subtitle">
+              Renames, merges, selections and metrics by name, for the command
+              line to replay on other recordings
+            </p>
+          </div>
+        </button>
       </div>
     </div>
   </Section>

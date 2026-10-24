@@ -31,13 +31,13 @@ export function getGazePlotterSession(): GazePlotterSession {
  *  Module-level `$state` is pinned away.
  *  State that services are constructed with stays a session field. */
 export function sessionScoped<T>(
-  create: () => T
+  create: (session: GazePlotterSession) => T
 ): (session?: GazePlotterSession) => T {
   const bySession = new WeakMap<GazePlotterSession, T>()
   return (session = getGazePlotterSession()) => {
     let value = bySession.get(session)
     if (value === undefined) {
-      value = create()
+      value = create(session)
       bySession.set(session, value)
     }
     return value

@@ -1,4 +1,4 @@
-import type { DataLoader } from './types'
+import type { DataLoader } from '$lib/data/ingest/types'
 
 /**
  * Build a {@link DataLoader} that fetches a single file from a URL and feeds

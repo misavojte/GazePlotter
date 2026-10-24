@@ -1,3 +1,5 @@
+// The engine's worker entry, bundled by the consumer's Vite (`?worker`).
+import IngestWorker from '$lib/data/ingest/worker?worker'
 import {
   eventFileMappingModal,
   mediaAssignmentModal,
@@ -6,33 +8,28 @@ import {
   processAoiVisibilityFromText,
   buildEventChannelsFromParsed,
 } from '$lib/modals/import/shared/aoiVisibilityServices'
+import { mergeIntoStimulusMap, type StimulusMap } from '$lib/data/ingest/formats/csvEvent'
 import {
-  buildDataTypeFromCsvEvents,
-  parseCsvEventText,
-  resolveContributionsForEngine,
-  mergeIntoStimulusMap,
-  type StimulusMap,
-} from './formats/csvEvent'
-import {
-  detectEnrichmentFormat,
-} from './formats/registry'
+  csvEventContributions,
+  eventOnlyDataset,
+  eventUpdatesOf,
+  partitionUploadFiles,
+  resolveCsvEvents,
+  seedStarterMetrics,
+  type ClaimedEventFile,
+} from '$lib/data/ingest/ingest'
 import { foldMerges } from '$lib/data/merge/applyMerges'
-import type { EnrichmentFormatDefinition } from './kernel/format'
-import { blankDataset, type EventContribution } from './kernel/sink'
-import { probeFromText } from './kernel/source'
+import { blankDataset } from '$lib/data/ingest/kernel/sink'
 import { getStimuliOptions, getParticipantOptions } from '$lib/plots/shared'
 import {
   getStimulus,
   getStimuli,
   getStimulusHighestEndTime,
 } from '$lib/data/engine'
-import {
-  buildStimulusMediaFromFile,
-  matchMediaFilesToStimuli,
-  mediaKindOf,
-} from '$lib/data/media/mediaUpload'
-import { INGEST_PROMPTS } from './prompts'
-import type { IngestResult } from './kernel/result'
+import { matchMediaFilesToStimuli, mediaKindOf } from '$lib/data/media/stimulusMedia'
+import { buildStimulusMediaFromFile } from './mediaUpload'
+import { INGEST_PROMPTS } from './ingestPrompts'
+import type { IngestResult } from '$lib/data/ingest/kernel/result'
 import { defaultLayoutFor } from '$lib/workspace'
 import { GAZEPLOTTER_VERSION } from '$lib/version'
 import type { OpenFiles } from './openFiles'
@@ -47,7 +44,7 @@ import type {
   FileMetadataFailureType,
   FileMetadataSuccessType,
   FileMetadataType,
-} from './types'
+} from '$lib/data/ingest/types'
 import type { ModalState } from '$lib/modals/modalState.svelte'
 import type { ToastState } from '$lib/toaster/toastState.svelte'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
@@ -120,59 +117,6 @@ function formatFileInfo(fileNames: string[], fileSizes: number[]): string {
   return fileInfo
 }
 
-/** An upload file claimed by an enrichment format during partition. */
-type ClaimedEventFile = {
-  file: File
-  format: EnrichmentFormatDefinition
-}
-
-/**
- * Partitions uploaded files into eye-tracking sources (for the worker job),
- * event files (claimed by ENRICHMENT_FORMATS, consumed post-load), and
- * stimulus reference media (images/videos, matched to stimuli by file name
- * post-load — the same claim-now-consume-later pattern as event files).
- * Detection is registry-driven — the same ordered contract as gaze
- * formats. One routing policy lives here, not in a format: a LONE .json
- * upload is never an event file (workspace first-file-wins precedence).
- */
-async function partitionUploadFiles(
-  files: File[]
-): Promise<{
-  eyeFiles: File[]
-  eventFiles: ClaimedEventFile[]
-  mediaFiles: File[]
-}> {
-  const eyeFiles: File[] = []
-  const eventFiles: ClaimedEventFile[] = []
-  const mediaFiles: File[] = []
-  for (const file of files) {
-    const ext = file.name.split('.').pop()?.toLowerCase()
-    if (ext === 'gazeplotter' || (ext === 'json' && files.length === 1)) {
-      eyeFiles.push(file)
-      continue
-    }
-    // Media is claimed by mime/extension BEFORE the text probe — the content
-    // is binary and no data format could ever claim it.
-    if (mediaKindOf(file) !== null) {
-      mediaFiles.push(file)
-      continue
-    }
-    try {
-      const slice = await file.slice(0, 256 * 1024).text()
-      const probe = probeFromText(slice, { fileName: file.name })
-      const format = detectEnrichmentFormat(probe)
-      if (format) {
-        eventFiles.push({ file, format })
-        continue
-      }
-    } catch {
-      // Unreadable probe → let the worker job report the real error.
-    }
-    eyeFiles.push(file)
-  }
-  return { eyeFiles, eventFiles, mediaFiles }
-}
-
 class IngestWorkerClient {
   private worker: Worker
   private parsingSumTime = 0
@@ -188,10 +132,7 @@ class IngestWorkerClient {
     private readonly onProgress: (progressPercent: number) => void,
     private readonly ui: IngestUiServices
   ) {
-    this.worker = new Worker(
-      new URL('$lib/data/ingest/worker.ts', import.meta.url),
-      { type: 'module' }
-    )
+    this.worker = new IngestWorker()
     this.worker.onmessage = this.handleMessage.bind(this)
     this.worker.onmessageerror = () =>
       this.handleError(
@@ -283,11 +224,9 @@ class IngestWorkerClient {
         `${excluded.length} participant-stimulus group${excluded.length > 1 ? 's were' : ' was'} excluded for malformed interval markers. Open Metadata for the full report.`
       )
     }
-    // Fresh datasets are seeded with the starter metric library HERE, on the
-    // main thread — the worker's segment writer emits an empty list so it never
-    // bundles the metric registry. Workspace results never pass through this
-    // branch; they carry their own (user-curated) instances.
-    result.data.metricInstances = createDefaultMetricInstances()
+    // Seeded HERE, on the main thread: the worker's segment writer emits an
+    // empty list so it never bundles the metric registry.
+    seedStarterMetrics(result.data)
     this.handleData({ data: result.data, classified: result.settings })
   }
 
@@ -479,6 +418,9 @@ class IngestWorkerClient {
 }
 
 export class IngestService {
+  // Declared first: the derived fields below read it, and native class
+  // fields initialize in declaration order.
+  private readonly deps: IngestDependencies
   private explicitStatus = $state<IngestStatus>('loading')
   metadata = $state<FileMetadataType | null>(null)
   input = $state<FileInputType | null>(null)
@@ -499,12 +441,16 @@ export class IngestService {
   // having to mark ingest separately. Today all `fatal-load` reports come from
   // bootstrap/ingest; a future caller reporting one from another origin
   // (plot/export/…) will also flip ingest into error state via this derivation.
-  status = $derived<IngestStatus>(
-    this.deps.errorService.fatalLoad ? 'error' : this.explicitStatus
-  )
-  isLoading = $derived(this.status === 'loading')
+  get status(): IngestStatus {
+    return this.deps.errorService.fatalLoad ? 'error' : this.explicitStatus
+  }
+  get isLoading(): boolean {
+    return this.status === 'loading'
+  }
 
-  constructor(private readonly deps: IngestDependencies) {}
+  constructor(deps: IngestDependencies) {
+    this.deps = deps
+  }
 
   /** Open the host's file source and load the pick; `[]` means cancelled. */
   async openAndLoadFiles(): Promise<boolean> {
@@ -689,8 +635,10 @@ export class IngestService {
         `Reference media for ${names}${more} was missing from the workspace file. Reattach it in the Stimuli library.`
       )
     }
+    // The file carries the layout as plain items; the migrations validated
+    // their types against this registry, so the UI narrows them here.
     this.openLayout(
-      parsedData.gridItems ??
+      (parsedData.gridItems as GridItemSnapshot[] | undefined) ??
         defaultLayoutFor(parsedData.data.capabilities, this.deps.defaultLayout)
     )
     this.isUserDataset = this.nextLoadFromUser
@@ -859,14 +807,9 @@ export class IngestService {
       )
     }
 
-    const contributions: EventContribution[] = []
-    const warnings: string[] = []
-    for (const file of csvFiles) {
-      const text = await file.text()
-      const parsed = parseCsvEventText(text)
-      warnings.push(...parsed.warnings.map(w => `${file.name}: ${w}`))
-      contributions.push(...parsed.contributions)
-    }
+    const events = await csvEventContributions(csvFiles)
+    const warnings = events.warnings
+    const contributions = events.byFile.flatMap(f => f.contributions)
 
     if (contributions.length === 0) {
       this.deps.errorService.report({
@@ -881,17 +824,13 @@ export class IngestService {
       return false
     }
 
-    const built = buildDataTypeFromCsvEvents(contributions)
+    const built = eventOnlyDataset(contributions)
     warnings.push(...built.warnings)
     if (warnings.length > 0) {
       this.deps.toastState.addWarning(
         `Event CSV: ${warnings.length} warning${warnings.length > 1 ? 's' : ''} (${warnings.slice(0, 3).join('; ')}${warnings.length > 3 ? '...' : ''})`
       )
     }
-
-    // Same main-thread seam as handleDone: fresh datasets get their starter
-    // metric library here, never in the builder (worker-bundling invariant).
-    built.data.metricInstances = createDefaultMetricInstances()
 
     // The load is now committed, so the selection into the grid it replaces
     // dies here (parity with the eye-tracking path above).
@@ -986,24 +925,11 @@ export class IngestService {
     }
 
     // --- Process CSV event files (no modal needed) ---
-    const csvWarnings: string[] = []
-    for (const file of csvFiles) {
-      const text = await file.text()
-      const { contributions, warnings: parseWarnings } =
-        parseCsvEventText(text)
-      csvWarnings.push(...parseWarnings.map(w => `${file.name}: ${w}`))
-
-      const { stimulusMap: csvMap, warnings: resolveWarnings } =
-        resolveContributionsForEngine(
-          contributions,
-          meta.stimuli.data,
-          meta.participants.data,
-          participantCount,
-          meta.aois.data
-        )
-      csvWarnings.push(...resolveWarnings.map(w => `${file.name}: ${w}`))
-      mergeIntoStimulusMap(stimulusMap, csvMap)
-    }
+    const events = await csvEventContributions(csvFiles)
+    const csvWarnings = [
+      ...events.warnings,
+      ...resolveCsvEvents(engine, events.byFile, stimulusMap).warnings,
+    ]
 
     if (csvWarnings.length > 0) {
       this.deps.toastState.addWarning(
@@ -1012,21 +938,7 @@ export class IngestService {
     }
 
     // --- Build merged updates and apply ---
-    const mergedUpdates: {
-      stimulusId: number
-      channelDefs: string[][]
-      eventBuffers: number[][][]
-    }[] = []
-
-    for (const [stimulusId, channelMap] of stimulusMap) {
-      const channelDefs: string[][] = []
-      const eventBuffers: number[][][] = []
-      for (const { def, perParticipant } of channelMap.values()) {
-        channelDefs.push(def)
-        eventBuffers.push(perParticipant)
-      }
-      mergedUpdates.push({ stimulusId, channelDefs, eventBuffers })
-    }
+    const mergedUpdates = eventUpdatesOf(stimulusMap)
 
     if (mergedUpdates.length === 0) {
       this.deps.toastState.addInfo('All event files were set to Ignore.')

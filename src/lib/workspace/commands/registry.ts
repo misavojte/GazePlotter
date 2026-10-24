@@ -24,7 +24,7 @@ import type {
   AllPlotSettings,
   GridItemLayoutUpdate,
   GridItemSnapshot,
-} from '$lib/workspace'
+} from '..'
 import type {
   EntitySelection,
   NameSelection,

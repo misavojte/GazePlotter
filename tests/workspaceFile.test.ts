@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { UndoRedoStateStore, type WorkspaceCommandChain } from '$lib/workspace/commands'
-import { WorkspaceFile } from '$lib/data/export/workspaceFile.svelte'
-import type { SaveTarget } from '$lib/data/export/download'
+import { WorkspaceFile } from '$lib/session/workspaceFile.svelte'
+import type { SaveTarget } from '$lib/session/download'
 
 let nextChainId = 1
 function edit(history: UndoRedoStateStore): void {

@@ -19,6 +19,7 @@
     type WorkspaceActions,
   } from '$lib/workspace/actions.svelte'
   import type { DataLoader } from '$lib/data/ingest'
+  import { useMediaElements } from '$lib/plots/shared/mediaElements.svelte'
   import { resolveWorkspaceShortcut } from '$lib/workspace/keys'
 
   interface Props {
@@ -84,7 +85,8 @@
   })
   onDestroy(() => {
     camera.destroy()
-    // Releases the media blobs and their object URLs (recordings can be GBs).
+    // Releases the decoded media elements and the blobs (recordings can be GBs).
+    useMediaElements(session).clear()
     session.engine.media.clear()
   })
 

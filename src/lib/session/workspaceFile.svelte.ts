@@ -1,7 +1,7 @@
 import type { ErrorService } from '$lib/errors'
 import type { ToastState } from '$lib/toaster/toastState.svelte'
 import type { PickSaveTarget, SaveFile, SaveTarget } from './download'
-import { WORKSPACE_EXTENSION } from './controller'
+import { WORKSPACE_EXTENSION } from '$lib/data/export/controller'
 
 export type SaveIndicator = 'unsaved' | 'saved' | 'new'
 

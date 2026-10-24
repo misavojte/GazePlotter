@@ -239,7 +239,7 @@ export function longFormatMetricColumns(
   return { header, needWindow, needAoi, needMatrix, needParticipantB }
 }
 
-export async function generateMetricExport(
+export async function exportMetrics(
   engine: DataEngine,
   options: MetricDataExportOptions,
   onProgress?: ExportProgress
@@ -613,8 +613,10 @@ export async function generateMetricExport(
   function buildResponse(dataContent: string) {
     let codebookContent: string | null = null
     if (includeCodebook) {
+      // Metric_ID joins a table row to its instance in the Analysis JSON.
       const codebookHeader = [
         'Metric',
+        'Metric_ID',
         'Base_Metric',
         'Base_Id',
         'Unit',
@@ -654,6 +656,7 @@ export async function generateMetricExport(
 
         cbRows.push([
           deDupLabel,
+          inst.id,
           metric?.meta.label ?? '',
           inst.baseId,
           metric?.meta.unit ?? '',

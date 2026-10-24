@@ -5,7 +5,7 @@ import type {
   GridItemLayoutUpdate,
   GridItemSnapshot,
   PlotSettingsMap,
-} from '$lib/workspace'
+} from '..'
 import { DEFAULT_GRID_CONFIG } from './const'
 import type { GridConfig, GridItemPosition } from './types'
 import * as GridEngine from './engine'

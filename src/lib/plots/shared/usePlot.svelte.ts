@@ -18,7 +18,7 @@ import {
   EXPORT_SOURCE_CONTEXT,
   type ExportSourceRegistrar,
   registerCanvasExportSource,
-} from '$lib/data/export'
+} from './figureExport'
 import { useTooltip } from '$lib/tooltip'
 import { drawPlotArea, type PlotAreaTicks } from './plotArea'
 import {

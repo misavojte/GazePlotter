@@ -6,7 +6,7 @@
   import { getGazePlotterSession } from '$lib/session'
   import { plotRegistry } from '$lib/plots/registry'
   import { generateUniqueId } from '$lib/shared/uniqueId'
-  import type { PlotType } from '$lib/workspace'
+  import type { PlotType } from '..'
   import { responsive } from '../responsive.svelte'
   import type { WorkspaceCamera } from '../camera.svelte'
   import { ZOOM_MAX, ZOOM_MIN } from '../camera.svelte'

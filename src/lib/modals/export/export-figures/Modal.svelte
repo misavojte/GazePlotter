@@ -19,7 +19,7 @@
     getMimeType,
     getQuality,
     type ExportFileType,
-  } from '$lib/data/export'
+  } from '$lib/plots/shared/figureExport'
   import {
     listSummary,
     mapSelectableItems,

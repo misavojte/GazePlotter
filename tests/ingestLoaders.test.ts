@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { fromUrl } from '$lib/data/ingest/loaders'
+import { fromUrl } from '$lib/session/loaders'
 
 function okResponse(body: string, contentType = 'application/json'): Response {
   return new Response(body, {

@@ -6,7 +6,7 @@
 export interface IngestContext {
   /**
    * Ask the user for input via a registered prompt (see
-   * `src/lib/data/ingest/prompts.ts` for the main-thread prompt registry).
+   * `src/lib/session/ingestPrompts.ts` for the main-thread prompt registry).
    * Resolves with the user's value, or the prompt's cancel fallback.
    *
    * INVARIANT: the job processes sources sequentially, so at most one

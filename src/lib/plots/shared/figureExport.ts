@@ -1,3 +1,10 @@
+/**
+ * Figure export: plots register their canvas as an export source under this
+ * context key, and the export dialog renders the registered sources to
+ * image files.
+ */
+export const EXPORT_SOURCE_CONTEXT = Symbol('gazeplotter.exportSource')
+
 export type ExportFileType = '.png' | '.jpg'
 
 type CanvasExportSource = {

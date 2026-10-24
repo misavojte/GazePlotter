@@ -2,27 +2,28 @@ import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { DataType } from '$lib/data/types'
 import type { ErrorService } from '$lib/errors'
 import type { GridState } from '$lib/workspace/grid/gridState.svelte'
-import type { IngestService } from '$lib/data/ingest'
+import type { IngestService } from './ingestService.svelte'
 import type { ToastState } from '$lib/toaster/toastState.svelte'
 import {
   buildScanGraph,
   buildTabularExport,
   buildWorkspace,
   type ExportPayload,
-} from './controller'
-import { generateMetadataForBatchCsv, generateUnifiedCsv } from './mappers/segments'
-import { generateEventBatchCsv, generateEventUnifiedCsv } from './mappers/events'
-import type { CsvFormatOptions } from './encoders/csv'
+} from '$lib/data/export/controller'
+import { generateMetadataForBatchCsv, generateUnifiedCsv } from '$lib/data/export/mappers/segments'
+import { generateEventBatchCsv, generateEventUnifiedCsv } from '$lib/data/export/mappers/events'
+import type { CsvFormatOptions } from '$lib/data/export/encoders/csv'
 import { writeBlobZip } from '$lib/data/zip/blobZip'
 import { unfoldMerges } from '$lib/data/merge/applyMerges'
 import { getStimulus } from '$lib/data/engine'
-import type { ExportNaming } from './types'
+import type { ExportNaming } from '$lib/data/export/types'
 import {
   type MetricDataExportOptions,
-  generateMetricExport,
-} from './mappers/metrics'
+  exportMetrics,
+} from '$lib/data/export/mappers/metrics'
 import type { SaveFile } from './download'
-import type { ExportProgress } from './progress'
+import type { ExportProgress } from '$lib/data/export/progress'
+import { exportAnalysis } from '$lib/data/analysis'
 
 type ExportServiceDeps = {
   engine: DataEngine
@@ -298,6 +299,26 @@ export class ExportService {
     )
   }
 
+  /** The workspace's Analysis (renames, merges, selections, metrics) as the
+   *  JSON that `gazeplotter metrics --analysis` replays onto new recordings. */
+  private analysisJson(): string {
+    const data = this.deps.engine.toDataType()
+    if (!data) throw new Error('No data to describe')
+    return JSON.stringify(exportAnalysis(data), null, 2)
+  }
+
+  async exportAnalysis(fileName: string): Promise<boolean> {
+    return this.runExport(
+      () =>
+        this.deliver(
+          { content: this.analysisJson(), extension: '.json' },
+          this.resolveFileName(fileName)
+        ),
+      'Analysis exported successfully',
+      { exportType: 'analysis', fileName }
+    )
+  }
+
   /** `buildContent` runs inside the shell so its failures report normally. */
   async exportMetadataReport(options: {
     fileName: string
@@ -330,7 +351,7 @@ export class ExportService {
       }
 
       const fileName = this.resolveFileName(options.fileName)
-      const result = await generateMetricExport(
+      const result = await exportMetrics(
         this.deps.engine,
         {
           ...options,
@@ -341,9 +362,12 @@ export class ExportService {
       exportedRows = result.rows
 
       if (options.includeCodebook && result.codebookContent !== null) {
+        // The codebook documents the table; the Analysis replays it (CLI),
+        // so the two travel together.
         const { blob } = await writeBlobZip([
           { name: `${fileName}.csv`, content: result.dataContent },
           { name: `${fileName}-codebook.csv`, content: result.codebookContent },
+          { name: `${fileName}.analysis.json`, content: this.analysisJson() },
         ])
         this.deliver({ content: blob, extension: '.zip' }, fileName)
       } else {

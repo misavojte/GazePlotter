@@ -32,7 +32,6 @@
   } from '../shared/participants'
   import {
     instanceMatchesContract,
-    metricLibraryModal,
     datasetCanFeed,
     instanceReadout,
     formatProjectionReadout,
@@ -40,6 +39,7 @@
     projectionOutputShape,
     defaultInstanceLabel,
   } from '$lib/metrics'
+  import { metricLibraryModal } from '../../definitions'
   import { multiSelectMetricHandlers } from '$lib/plots/shared/metricInstanceHandlers'
 
   export interface Props {

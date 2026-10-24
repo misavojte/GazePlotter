@@ -4,7 +4,7 @@
     EXPORT_SOURCE_CONTEXT,
     type ExportSource,
     type ExportSourceRegistrar,
-  } from '$lib/data/export'
+  } from '$lib/plots/shared/figureExport'
   import type { PlotView } from '$lib/plots/definePlot'
   import type { PlotExportProps } from './types'
 

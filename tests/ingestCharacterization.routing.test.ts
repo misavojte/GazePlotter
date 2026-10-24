@@ -19,7 +19,7 @@
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { IngestService } from '$lib/data/ingest/service.svelte'
+import { IngestService } from '$lib/session/ingestService.svelte'
 import {
   createFileList,
   createIngestDeps,

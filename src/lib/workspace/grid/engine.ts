@@ -1,5 +1,5 @@
 import type { GridItemPosition } from './types'
-import type { GridItemLayoutUpdate } from '$lib/workspace'
+import type { GridItemLayoutUpdate } from '..'
 
 export function rectanglesOverlap(
   x1: number,

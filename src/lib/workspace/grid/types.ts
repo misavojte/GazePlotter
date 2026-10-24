@@ -1,5 +1,6 @@
 import type { PlotDefinition, PlotItemContract } from '$lib/plots/definePlot'
 import type { plotRegistry } from '$lib/plots/registry'
+import type { WorkspaceLayoutItem } from '$lib/data/types'
 
 export type GridConfig = {
   cellSize: { width: number; height: number }
@@ -17,17 +18,10 @@ export type GridItemPosition = {
 }
 
 /**
- * Shared layout fields for every grid item in the workspace.
+ * Shared layout fields for every grid item in the workspace, as the
+ * workspace file declares them.
  */
-export interface GridItemBase {
-  id: number
-  x: number
-  y: number
-  w: number
-  h: number
-  min: { w: number; h: number }
-  redrawTimestamp: number
-}
+export type GridItemBase = Required<Omit<WorkspaceLayoutItem, 'type' | 'settings'>>
 
 type PlotDefinitions = typeof plotRegistry
 

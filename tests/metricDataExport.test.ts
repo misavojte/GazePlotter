@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { DataEngine } from '../src/lib/data/engine/dataEngine.svelte'
 import {
-  generateMetricExport,
+  exportMetrics,
   deduplicateMetricLabels,
   METRIC_EXPORT_CONTRACT_LONG,
   METRIC_EXPORT_CONTRACT_WIDE,
@@ -127,7 +127,7 @@ function loadedEngine(data: DataType = createTestData()): DataEngine {
 
 // The suite's export defaults; each case passes only what it is about.
 const exportWith = (engine: DataEngine, over: Partial<MetricDataExportOptions>) =>
-  generateMetricExport(engine, {
+  exportMetrics(engine, {
     fileName: 'test-export',
     participantIds: [0, 1],
     stimulusIds: [0],
@@ -258,11 +258,11 @@ describe('Metric Data Export Mapping', () => {
     const cbLines = res.codebookContent!.split('\n')
     const cbHeader = cbLines[0]
     expect(cbHeader).toBe(
-      'Metric,Base_Metric,Base_Id,Unit,Measurement_Class,Parameters,Projection,Window,Output_Shape,Time_Range,Participants,Stimuli,AOI_Missing'
+      'Metric,Metric_ID,Base_Metric,Base_Id,Unit,Measurement_Class,Parameters,Projection,Window,Output_Shape,Time_Range,Participants,Stimuli,AOI_Missing'
     )
 
     expect(cbLines).toContain(
-      'Absolute Dwell Time,Absolute dwell time,absoluteTime,ms,extensive,,,,aoi-vector,full,"ParticipantOne, ParticipantTwo","StimulusOne, StimulusTwo",false'
+      'Absolute Dwell Time,absoluteTime-inst,Absolute dwell time,absoluteTime,ms,extensive,,,,aoi-vector,full,"ParticipantOne, ParticipantTwo","StimulusOne, StimulusTwo",false'
     )
   })
 
