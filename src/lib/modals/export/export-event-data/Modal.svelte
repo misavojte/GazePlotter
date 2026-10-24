@@ -94,7 +94,9 @@
       </FieldGrid>
       <HelpText>
         CSV columns: stimulus, participant, eventName, start, duration. Times
-        are in milliseconds; a duration of 0 marks an instant event. A
+        are in milliseconds; a duration of 0 marks an instant event.
+        Individual files leave out stimulus and participant; each is named
+        &lt;stimulus&gt;_&lt;participant&gt;. A
         single-file export can be re-imported as an event file alongside its
         eye-tracking data.
       </HelpText>

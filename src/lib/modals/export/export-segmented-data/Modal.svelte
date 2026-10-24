@@ -149,12 +149,15 @@
           CSV columns: stimulus, participant, timestamp, duration,
           eyemovementtype, AOI, x, y. Spatial coordinates are exported per
           segment; segments without coordinates keep empty x/y fields.
+          Individual files leave out stimulus and participant; each is named
+          &lt;stimulus&gt;_&lt;participant&gt;.
         </HelpText>
       {:else}
         <HelpText>
           CSV columns: stimulus, participant, timestamp, duration,
           eyemovementtype, AOI. Load spatially annotated data to unlock x/y
-          coordinate export for each segment.
+          coordinate export for each segment. Individual files leave out
+          stimulus and participant; each is named &lt;stimulus&gt;_&lt;participant&gt;.
         </HelpText>
       {/if}
       <HelpText>
