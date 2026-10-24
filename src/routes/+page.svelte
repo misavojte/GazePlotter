@@ -70,6 +70,16 @@
     )
   })
 
+  // "?" opens the shortcut list in a new tab, so the workspace stays as it is.
+  function handleHelpKey(event: KeyboardEvent): void {
+    if (event.key !== '?' || event.ctrlKey || event.metaKey || event.altKey) return
+    if (gazePlotterRef?.getSession().modalState.activeModal) return
+    const target = event.target as HTMLElement | null
+    if (target && (/^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.isContentEditable)) return
+    event.preventDefault()
+    window.open(`${base}/docs/workspace/#keyboard-shortcuts`, '_blank', 'noopener')
+  }
+
   // The browser's own prompt, only when closing would lose edits.
   function handleBeforeUnload(event: BeforeUnloadEvent): void {
     if (workspaceActions?.hasUnsavedWork) event.preventDefault()
@@ -112,7 +122,7 @@
 <!-- The homepage is the app: the compact site bar over one canvas filling
      the rest of the screen, closed by the credit strip. GazePlotter is just the field; the bar drives it
      through getActions(). With nothing around it to scroll, the wheel pans. -->
-<svelte:window onbeforeunload={handleBeforeUnload} />
+<svelte:window onbeforeunload={handleBeforeUnload} onkeydown={handleHelpKey} />
 
 <Header {tooltip}>
   {#snippet actions()}

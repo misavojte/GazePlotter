@@ -34,7 +34,12 @@
     <span class="divider" aria-hidden="true"></span>
   {/if}
   {#if isApp}
-    <BrandButton href="/docs" label="Read guide" shortLabel="Guide" />
+    <BrandButton
+      href="/docs"
+      label="Read guide"
+      shortLabel="Guide"
+      hint="Read the guide (press ? for keyboard shortcuts)"
+    />
   {:else}
     <BrandButton href="/" label="Launch app" shortLabel="App" />
   {/if}

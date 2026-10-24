@@ -89,6 +89,7 @@ On a Mac, use `Cmd` wherever the table says `Ctrl` (`Delete` is `Backspace`). Sh
 | `Shift` + `1` | Zoom to fit |
 | `Ctrl` + `+` / `-` / `0` | Zoom in / out / back to 100% |
 | Letters in an open menu | Jump to the item that starts with them |
+| `?` | Open this shortcut list in a new tab |
 
 ## Customization Libraries
 

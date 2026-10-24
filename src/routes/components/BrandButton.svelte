@@ -8,12 +8,14 @@
     label: string
     /** Label on narrow screens. */
     shortLabel: string
+    /** Native hover hint. */
+    hint?: string
   }
 
-  let { href, label, shortLabel }: Props = $props()
+  let { href, label, shortLabel, hint }: Props = $props()
 </script>
 
-<a class="brand-button" {href}>
+<a class="brand-button" {href} title={hint}>
   <span class="long">{label}</span>
   <span class="short">{shortLabel}</span>
 </a>
