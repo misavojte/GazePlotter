@@ -49,12 +49,13 @@
     participantId?: number
     timelineStart?: number
     timelineEnd?: number
+    aoiSelectionId?: number
   }
 
   // The data behind one plot, one click away (still editable before
   // downloading): a metric plot opens the metric CSV preset to its metrics,
-  // stimulus, group and time crop; a gaze plot opens the segment CSV preset to
-  // its stimulus and participants.
+  // stimulus, group, time crop and AOI selection; a gaze plot opens the segment
+  // CSV preset to its stimulus and participants.
   const dataExport = $derived.by(() => {
     if (isBulk || !paneItem) return null
     const scope = paneItem.settings as PlotScope
@@ -68,6 +69,7 @@
           scope.stimulusId !== undefined && 'stimulus',
           'participants',
           (scope.timelineStart || scope.timelineEnd) && 'time crop',
+          scope.aoiSelectionId && 'AOI selection',
         ]
           .filter(Boolean)
           .join(', ')}`,
@@ -78,6 +80,7 @@
             groupId,
             timeStart: scope.timelineStart,
             timeEnd: scope.timelineEnd,
+            aoiSelectionId: scope.aoiSelectionId,
           }),
       }
     }

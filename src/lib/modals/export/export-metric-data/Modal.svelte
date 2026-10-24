@@ -42,6 +42,8 @@
     defaultInstanceLabel,
   } from '$lib/metrics'
   import { metricLibraryModal } from '../../definitions'
+  import { getAoiSelections } from '$lib/data/engine'
+  import { ALL_SELECTION_LABEL } from '$lib/data/types'
   import { multiSelectMetricHandlers } from '$lib/plots/shared/metricInstanceHandlers'
 
   export interface Props {
@@ -52,6 +54,8 @@
     /** Prefill: a plot's crop, in ms; 0 or unset = open-ended. */
     timeStart?: number
     timeEnd?: number
+    /** Prefill: a plot's AOI selection; 0 or unset = all AOIs. */
+    aoiSelectionId?: number
   }
 
   let {
@@ -60,6 +64,7 @@
     metricInstanceIds,
     timeStart: presetStart,
     timeEnd: presetEnd,
+    aoiSelectionId: presetAoiSelection,
   }: Props = $props()
   const { exportService, modalState, engine, workspace, workspaceFile } =
     getGazePlotterSession()
@@ -73,6 +78,20 @@
   const presetTime = (ms: number | undefined) => (ms ? String(ms) : '')
   let timeStartStr = $state(untrack(() => presetTime(presetStart)))
   let timeEndStr = $state(untrack(() => presetTime(presetEnd)))
+
+  // Computed as a plot computes it: AOIs outside the selection count as No AOI.
+  const aoiSelections = getAoiSelections(engine)
+  const aoiSelectionOptions = [
+    { value: '0', label: ALL_SELECTION_LABEL },
+    ...aoiSelections.map(s => ({ value: String(s.id), label: s.name })),
+  ]
+  let aoiSelection = $state(
+    untrack(() =>
+      aoiSelections.some(s => s.id === presetAoiSelection)
+        ? String(presetAoiSelection)
+        : '0'
+    )
+  )
 
   // Prefill props are read once by design (untrack): they seed the selection,
   // they don't bind it.
@@ -215,6 +234,10 @@
       ...csvConventionsSummary(delimiter, decimalSeparator),
     ]
     if (timeStartStr.trim() !== '' || timeEndStr.trim() !== '') parts.push('cropped time range')
+    if (aoiSelection !== '0') {
+      const name = aoiSelectionOptions.find(o => o.value === aoiSelection)?.label
+      parts.push(`AOI selection ${name}`)
+    }
     return parts.join(' · ')
   })
 
@@ -307,6 +330,7 @@
       includeCodebook,
       timeStart,
       timeEnd,
+      aoiSelectionId: Number(aoiSelection),
     })
   }
 
@@ -403,9 +427,22 @@
           bind:value={timeEndStr}
           placeholder="Empty = full recording"
         />
+        {#if aoiSelections.length > 0}
+          <Select
+            label="AOI selection"
+            options={aoiSelectionOptions}
+            bind:value={aoiSelection}
+          />
+        {/if}
       </FieldGrid>
       {#if timeRangeError}
         <HelpText tone="error">{timeRangeError}</HelpText>
+      {/if}
+      {#if aoiSelection !== '0'}
+        <HelpText>
+          AOI columns and rows list only the selection's AOIs; fixations on the
+          other AOIs count as No_AOI, as in a plot using this selection.
+        </HelpText>
       {/if}
       <div class="checkbox-row">
         <InputCheck

@@ -5,6 +5,7 @@ import {
   getParticipantEndTime,
   getStimulus,
   getAois,
+  getAoiSelections,
   getStimulusHighestEndTime,
 } from '$lib/data/engine'
 import {
@@ -62,6 +63,9 @@ export type MetricDataExportOptions = {
   csvOptions?: CsvFormatOptions
   timeStart?: number
   timeEnd?: number
+  /** A per-plot AOI selection, computed as the plot computes it: AOIs outside
+   *  it count as No AOI. Unset or 0 = all AOIs. */
+  aoiSelectionId?: number
   includeCodebook?: boolean
 }
 
@@ -265,6 +269,7 @@ export async function exportMetrics(
     throw new Error('Time end must be greater than time start')
   }
   const includeCodebook = !!options.includeCodebook
+  const aoiSelectionId = options.aoiSelectionId || undefined
 
   const selectedInstances = options.metricInstanceIds
     .map(id => engine.metadata?.metricInstances.find(i => i.id === id))
@@ -331,7 +336,7 @@ export async function exportMetrics(
     for (const stimulusId of options.stimulusIds) {
       const stimulusName = getStimulus(engine, stimulusId).displayedName
       const participantIds = options.participantIds
-      const aoiNames = getAois(engine, stimulusId).map(a => a.displayedName)
+      const aoiNames = getAois(engine, stimulusId, aoiSelectionId).map(a => a.displayedName)
       const effectiveTimeEnd = timeEnd > 0 ? timeEnd : getStimulusHighestEndTime(engine, stimulusId)
 
       // Per-participant metrics: each result flattens to cells via resultCells.
@@ -353,6 +358,7 @@ export async function exportMetrics(
           participantId,
           timeStart,
           timeEnd: Math.min(effectiveTimeEnd, participantEnd),
+          aoiSelectionId,
         }
 
         const batchResult = queryBatch(perParticipantInstances, scope)
@@ -371,7 +377,14 @@ export async function exportMetrics(
       // Relational metrics are group-level: the upper triangle of the
       // participant×participant matrix, one row per unordered pair.
       if (relationalInstances.length > 0) {
-        const groupScope: GroupScope = { engine, stimulusId, participantIds, timeStart, timeEnd: effectiveTimeEnd }
+        const groupScope: GroupScope = {
+          engine,
+          stimulusId,
+          participantIds,
+          timeStart,
+          timeEnd: effectiveTimeEnd,
+          aoiSelectionId,
+        }
         for (const inst of relationalInstances) {
           const result = queryGroup(inst, groupScope)
           if (result.shape !== 'participant-pair-matrix') continue
@@ -434,7 +447,7 @@ export async function exportMetrics(
     {
       const seen = new Set<string>()
       for (const stimulusId of options.stimulusIds) {
-        for (const aoi of getAois(engine, stimulusId)) {
+        for (const aoi of getAois(engine, stimulusId, aoiSelectionId)) {
           if (!seen.has(aoi.displayedName)) {
             seen.add(aoi.displayedName)
             unionAoiNames.push(aoi.displayedName)
@@ -527,7 +540,7 @@ export async function exportMetrics(
       const stimulus = getStimulus(engine, stimulusId)
       const stimulusName = stimulus.displayedName
       const participantIds = options.participantIds
-      const aoiNames = getAois(engine, stimulusId).map(a => a.displayedName)
+      const aoiNames = getAois(engine, stimulusId, aoiSelectionId).map(a => a.displayedName)
       const effectiveTimeEnd = timeEnd > 0 ? timeEnd : getStimulusHighestEndTime(engine, stimulusId)
 
       // Relational results are group-level: computed ONCE per stimulus, then
@@ -543,6 +556,7 @@ export async function exportMetrics(
           participantIds,
           timeStart,
           timeEnd: effectiveTimeEnd,
+          aoiSelectionId,
         }
         for (const inst of relationalInstances) {
           const result = queryGroup(inst, groupScope)
@@ -571,6 +585,7 @@ export async function exportMetrics(
           participantId,
           timeStart,
           timeEnd: Math.min(effectiveTimeEnd, participantEnd),
+          aoiSelectionId,
         }
 
         // Scatter each per-participant result's cells into their column by id.
@@ -627,6 +642,7 @@ export async function exportMetrics(
         'Window',
         'Output_Shape',
         'Time_Range',
+        'AOI_Selection',
         'Participants',
         'Stimuli',
         'AOI_Missing',
@@ -635,6 +651,9 @@ export async function exportMetrics(
       const participantNames = options.participantIds
         .map(id => getParticipant(engine, id).displayedName)
         .join(', ')
+      const aoiSelectionName = aoiSelectionId
+        ? (getAoiSelections(engine).find(s => s.id === aoiSelectionId)?.name ?? 'All')
+        : 'All'
       const stimuliNames = options.stimulusIds
         .map(id => getStimulus(engine, id).displayedName)
         .join(', ')
@@ -669,6 +688,7 @@ export async function exportMetrics(
           windowStr,
           projectionOutputShape(inst.projection),
           timeRangeStr,
+          aoiSelectionName,
           participantNames,
           stimuliNames,
           isRefMissing.toString(),

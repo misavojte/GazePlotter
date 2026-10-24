@@ -76,6 +76,7 @@ The codebook contains the following columns:
 | `Window` | Windowing parameters (e.g. `1000 ms window, 100 ms step`) |
 | `Output_Shape` | Reshaped dimension classification |
 | `Time_Range` | Range restriction (e.g. `t ∈ [500, 2000] ms` or `full`) |
+| `AOI_Selection` | The AOI selection the values were computed with (`All` when none) |
 | `Participants` | List of participants included |
 | `Stimuli` | List of stimuli included |
 | `AOI_Missing` | Displays `true` if any stimulus lacked the AOI referenced by a projection |
@@ -84,10 +85,10 @@ The codebook contains the following columns:
 
 The modal guides you through four collapsible steps, one open at a time. Every collapsed step shows a one-line summary of its current selection, and its badge turns into a check when the step is complete.
 
-1. Open the **Export** menu in the header and select **Metric Data (CSV)**. Or click **Download data** in a metric plot's pane: the steps then start preset to that plot's metrics, stimulus, participant selection and time range.
+1. Open the **Export** menu in the header and select **Metric Data (CSV)**. Or click **Download data** in a metric plot's pane: the steps then start preset to that plot's metrics, stimulus, participant selection, time range and AOI selection.
 2. **Choose metrics**: check the metrics to include. On longer lists a search bar appears; **Select Found** and **Deselect Found** apply the current matches to the selection in one click.
 3. **Choose stimuli** and **Choose participants**: check items the same way. The selection chips above the participant list select or deselect an entire [participant selection](/docs/workspace/participant-library/#participant-selections) at once; individual checkmarks refine the result.
-4. **Configure the file**: choose the **Format** (**Long (tidy)** or **Wide**), and the **Delimiter** and **Decimal Separator** according to your regional system settings. Each CSV export starts from the delimiter and decimal separator of your last CSV export in this tab, and the collapsed step names them when they are not comma and dot. Optional: enter **Time Start (ms)** and **Time End (ms)** boundary limits to crop the evaluation window (leave them empty for the full recording). The step ends with a preview of the exact columns the file will contain. Switching to **Wide** deselects time-series metrics and says so.
+4. **Configure the file**: choose the **Format** (**Long (tidy)** or **Wide**), and the **Delimiter** and **Decimal Separator** according to your regional system settings. Each CSV export starts from the delimiter and decimal separator of your last CSV export in this tab, and the collapsed step names them when they are not comma and dot. Optional: enter **Time Start (ms)** and **Time End (ms)** boundary limits to crop the evaluation window (leave them empty for the full recording). The step ends with a preview of the exact columns the file will contain. Switching to **Wide** deselects time-series metrics and says so. When the workspace has [AOI selections](/docs/workspace/aoi-library/), an **AOI selection** field computes the metrics exactly as a plot using that selection does: only its AOIs get rows or columns, and fixations on the other AOIs count as `No_AOI`. A plot's **Hide No AOI data** toggle only affects its display, so the `No_AOI` rows stay in the file.
 5. Click **Export Metrics**.
 
 > **Sliding Windows**: Sliding-window metrics evaluate dense overlaps and can generate very large files. Opt-in to windowed metrics explicitly when exporting.

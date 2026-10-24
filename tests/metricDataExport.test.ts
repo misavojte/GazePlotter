@@ -114,6 +114,7 @@ function createTestData(): DataType {
         [1, 2],
         [1],
       ],
+      selections: [{ id: 1, name: 'Nav only', names: ['Nav'] }],
     },
   })
 }
@@ -245,6 +246,35 @@ describe('Metric Data Export Mapping', () => {
     expect(lines).not.toContain('1,ParticipantTwo,StimulusOne,CTA,Time To First Fixation,ms,-1')
   })
 
+  it('computes an AOI selection as a plot does: other AOIs count as No AOI', async () => {
+    const engine = loadedEngine()
+    const res = await exportWith(engine, {
+      metricInstanceIds: ['absoluteTime-inst'],
+      aoiSelectionId: 1,
+      includeCodebook: true,
+    })
+    // CTA is outside "Nav only": no row of its own, its 1000 ms joins No_AOI.
+    expect(res.dataContent.split('\n')).toEqual([
+      'Participant_ID,Participant,Stimulus,AOI,Metric,Unit,Value',
+      '0,ParticipantOne,StimulusOne,Nav,Absolute Dwell Time,ms,1000',
+      '0,ParticipantOne,StimulusOne,No_AOI,Absolute Dwell Time,ms,1000',
+      '0,ParticipantOne,StimulusOne,Any_Fixation,Absolute Dwell Time,ms,2000',
+      '1,ParticipantTwo,StimulusOne,Nav,Absolute Dwell Time,ms,500',
+      '1,ParticipantTwo,StimulusOne,No_AOI,Absolute Dwell Time,ms,1000',
+      '1,ParticipantTwo,StimulusOne,Any_Fixation,Absolute Dwell Time,ms,1500',
+    ])
+    expect(res.codebookContent).toContain(',full,Nav only,')
+
+    const wide = await exportWith(engine, {
+      metricInstanceIds: ['absoluteTime-inst'],
+      format: 'wide',
+      aoiSelectionId: 1,
+    })
+    const header = wide.dataContent.split('\n')[0]
+    expect(header).toContain('Absolute_Dwell_Time_Nav')
+    expect(header).not.toContain('CTA')
+  })
+
   it('generates a descriptive sidecar codebook CSV', async () => {
     const engine = loadedEngine()
 
@@ -258,11 +288,11 @@ describe('Metric Data Export Mapping', () => {
     const cbLines = res.codebookContent!.split('\n')
     const cbHeader = cbLines[0]
     expect(cbHeader).toBe(
-      'Metric,Metric_ID,Base_Metric,Base_Id,Unit,Measurement_Class,Parameters,Projection,Window,Output_Shape,Time_Range,Participants,Stimuli,AOI_Missing'
+      'Metric,Metric_ID,Base_Metric,Base_Id,Unit,Measurement_Class,Parameters,Projection,Window,Output_Shape,Time_Range,AOI_Selection,Participants,Stimuli,AOI_Missing'
     )
 
     expect(cbLines).toContain(
-      'Absolute Dwell Time,absoluteTime-inst,Absolute dwell time,absoluteTime,ms,extensive,,,,aoi-vector,full,"ParticipantOne, ParticipantTwo","StimulusOne, StimulusTwo",false'
+      'Absolute Dwell Time,absoluteTime-inst,Absolute dwell time,absoluteTime,ms,extensive,,,,aoi-vector,full,All,"ParticipantOne, ParticipantTwo","StimulusOne, StimulusTwo",false'
     )
   })
 
