@@ -119,8 +119,10 @@ import { getContext, untrack } from 'svelte'
     cursor: pointer;
   }
 
+  /* Keyboard focus only, the rail's ring. */
   .heading:focus-visible {
-    outline: none;
+    outline: 2px solid var(--c-info);
+    outline-offset: -2px;
   }
 
   .icon {
