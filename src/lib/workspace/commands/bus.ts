@@ -156,12 +156,18 @@ export class WorkspaceCommandBus {
     })
   }
 
-  addGridItem(vizType: PlotType, source: string, itemId?: number): boolean {
+  addGridItem(
+    vizType: PlotType,
+    source: string,
+    itemId?: number,
+    settings?: GridItemSnapshot['settings']
+  ): boolean {
     return this.apply({
       type: 'addGridItem',
       vizType,
       source,
       itemId: itemId ?? generateUniqueId(),
+      options: settings ? { type: vizType, settings } : undefined,
     })
   }
 

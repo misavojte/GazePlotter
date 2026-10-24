@@ -28,7 +28,7 @@ Along the **top edge** of the app:
 
 ### Rail
 A narrow column on the **left side** of the canvas (a strip along the bottom on phones):
-- **Add Visualization** (`+` icon) opens a menu of [plot categories](/docs/visualizations/); the new plot lands in the first free space.
+- **Add Visualization** (`+` icon) opens a menu of [plot categories](/docs/visualizations/); the new plot lands in the first free space. With one plot selected, the new plot opens on the same stimulus.
 - **Undo** and **Redo**.
 - **Zoom to fit** shows every plot at once. Below it, **Zoom in**, the current zoom level (click it to return to 100%), and **Zoom out**.
 - On a phone, selecting a plot swaps the strip to **Edit plot settings** and **Deselect**.

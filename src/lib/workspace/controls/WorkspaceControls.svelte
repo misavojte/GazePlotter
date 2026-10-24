@@ -41,10 +41,20 @@
       }))
   )
 
+  // Added while one plot is selected, a plot opens on that plot's stimulus.
+  function inheritedSettings(vizType: PlotType) {
+    const source = grid.selectedItem?.settings as { stimulusId?: unknown } | undefined
+    const stimulusId = source?.stimulusId
+    if (typeof stimulusId !== 'number') return undefined
+    const defaults = plotRegistry[vizType].getDefaultSettings()
+    return 'stimulusId' in defaults ? { stimulusId } : undefined
+  }
+
   // Adding selects the new plot; on desktop that also opens its pane.
   function handleAddVisualization(vizType: PlotType) {
     const newId = generateUniqueId()
-    if (workspace.addGridItem(vizType, 'controls', newId)) {
+    const settings = inheritedSettings(vizType)
+    if (workspace.addGridItem(vizType, 'controls', newId, settings)) {
       grid.selectOnly(newId)
       if (!responsive.isMobile) grid.openPane(newId)
     }
