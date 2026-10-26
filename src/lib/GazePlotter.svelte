@@ -5,7 +5,7 @@
   import Workspace from '$lib/workspace/Workspace.svelte'
   import { Tooltip } from '$lib/tooltip'
   import { ContextMenu } from '$lib/context-menu'
-  import { onDestroy, onMount } from 'svelte'
+  import { onDestroy, onMount, untrack } from 'svelte'
   import {
     createGazePlotterSession,
     setGazePlotterSessionContext,
@@ -85,10 +85,17 @@
     document.addEventListener('keydown', handleSaveKey)
     return () => document.removeEventListener('keydown', handleSaveKey)
   })
+  // Media the store dropped (removed, or a new dataset) frees its elements now,
+  // not when a media plot next draws.
+  const mediaElements = useMediaElements(session)
+  $effect(() => {
+    void session.engine.media.version
+    untrack(() => mediaElements.sweep())
+  })
   onDestroy(() => {
     camera.destroy()
     // Releases the decoded media elements and the blobs (recordings can be GBs).
-    useMediaElements(session).clear()
+    mediaElements.clear()
     session.engine.media.clear()
   })
 

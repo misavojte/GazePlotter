@@ -49,12 +49,7 @@ export class MediaElementCache {
     stimulusId: number,
     media: StimulusMedia
   ): HTMLImageElement | HTMLVideoElement | null {
-    // Every store change repaints every media-drawing figure through here,
-    // so this sweep is where bytes the store released get their elements
-    // and object URLs released too (recordings can be GBs).
-    for (const [id, entry] of this.elements) {
-      if (entry.stamp !== this.store.stamp(id)) this.evict(id)
-    }
+    this.sweep()
     const stamp = this.store.stamp(stimulusId)
     const cached = this.elements.get(stimulusId)
     if (cached) return cached.ready ? cached.el : null
@@ -103,6 +98,13 @@ export class MediaElementCache {
     }
     el.src = url
     return null
+  }
+
+  /** Releases the elements and object URLs of bytes the store replaced or dropped (recordings can be GBs). */
+  sweep(): void {
+    for (const [id, entry] of this.elements) {
+      if (entry.stamp !== this.store.stamp(id)) this.evict(id)
+    }
   }
 
   /** Releases every element and object URL (recordings can be GBs). */
