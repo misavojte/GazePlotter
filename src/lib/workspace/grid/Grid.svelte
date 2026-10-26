@@ -345,7 +345,9 @@
         icon: Download,
         onAction: () => modalState.open(exportFiguresModal, { itemIds: ids }),
       },
-      ...(data ? [{ label: data.label, icon: Table, onAction: data.open }] : []),
+      ...(data
+        ? [{ label: data.label, detail: data.summary, icon: Table, onAction: data.open }]
+        : []),
       divider,
       {
         label: `Remove ${noun}`,

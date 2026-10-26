@@ -13,7 +13,13 @@ type PlotScope = {
   hideNoAoi?: boolean
 }
 
-export type PlotDataExport = { label: string; title: string; open: () => void }
+export type PlotDataExport = {
+  label: string
+  /** The file it leads to, in a few words ("Metric CSV, preset to this plot"). */
+  summary: string
+  title: string
+  open: () => void
+}
 
 /**
  * The data behind one plot (still editable before downloading): a metric plot
@@ -32,6 +38,7 @@ export function plotDataExport(
   if (scope.metricInstanceIds?.length) {
     return {
       label: 'Download data',
+      summary: 'Metric CSV, preset to this plot',
       title: `Metric CSV, preset to this plot's ${[
         'metrics',
         scope.stimulusId !== undefined && 'stimulus',
@@ -57,6 +64,7 @@ export function plotDataExport(
   if (scope.stimulusId !== undefined && engine.hasCapabilities(['segmented'])) {
     return {
       label: 'Download segments',
+      summary: 'Segment CSV, preset to this plot',
       title: `Segment CSV, preset to this plot's ${[
         'stimulus',
         'participants',
