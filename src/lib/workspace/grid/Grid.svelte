@@ -218,8 +218,7 @@
 
   // Each selected plot moves to its own next stimulus in the picker's order,
   // wrapping at the ends; plots without a stimulus (Metric Matrix) stay put.
-  function stepStimulus(direction: 1 | -1): void {
-    const items = grid.selectedItems
+  function stepStimulus(direction: 1 | -1, items = grid.selectedItems): void {
     const order = getStimuliOptions(engine).map(option => Number(option.value))
     if (items.length === 0) return
     // A shortcut that cannot act says why, instead of nothing.
@@ -275,7 +274,8 @@
     }
   }
 
-  // Right-click on a plot: its verbs at the pointer. A member of a
+  // Right-click on a plot: its verbs at the pointer, without changing the
+  // selection (on desktop a selection opens the pane). A member of a
   // multi-selection acts for the whole selection, as its drag does.
   function isGroupMember(id: number): boolean {
     return grid.selectedCount > 1 && grid.selectedItemIds.includes(id)
@@ -285,6 +285,7 @@
     const group = isGroupMember(id)
     const ids = group ? [...grid.selectedItemIds] : [id]
     const noun = group ? `${ids.length} plots` : 'plot'
+    const targets = () => gridItems.filter(i => ids.includes(i.id))
     const item = group ? undefined : gridItems.find(i => i.id === id)
     const data = item && plotDataExport(item.settings, engine, modalState)
     const steps =
@@ -295,12 +296,20 @@
     return [
       ...(group
         ? []
-        : [{ label: 'Settings', icon: SlidersHorizontal, onAction: () => grid.openPane(id) }]),
+        : [
+            {
+              label: 'Settings',
+              icon: SlidersHorizontal,
+              onAction: () => {
+                grid.selectOnly(id)
+                grid.openPane(id)
+              },
+            },
+          ]),
       {
         label: `Zoom to ${noun}`,
         icon: Scan,
-        onAction: () =>
-          camera.fit(gridBoundsOf(gridItems.filter(i => ids.includes(i.id)), gridConfig)),
+        onAction: () => camera.fit(gridBoundsOf(targets(), gridConfig)),
       },
       divider,
       {
@@ -313,12 +322,12 @@
             {
               label: withShortcut('Next stimulus', 'next-stimulus'),
               icon: ArrowDown,
-              onAction: () => stepStimulus(1),
+              onAction: () => stepStimulus(1, targets()),
             },
             {
               label: withShortcut('Previous stimulus', 'previous-stimulus'),
               icon: ArrowUp,
-              onAction: () => stepStimulus(-1),
+              onAction: () => stepStimulus(-1, targets()),
             },
           ]
         : []),
@@ -336,13 +345,6 @@
         onAction: () => commitGridItemsRemoval(workspace, gridItems, ids),
       },
     ]
-  }
-
-  // The menu's target becomes the selection, and an open pane follows it.
-  function selectForMenu(id: number): void {
-    if (isGroupMember(id)) return
-    grid.selectOnly(id)
-    if (grid.paneOpenId !== null) grid.openPane(id)
   }
 
   function reportPlotRenderError(
@@ -403,7 +405,6 @@
           onremove={event => commitGridItemRemoval(workspace, gridItems, event)}
           onduplicate={handleDuplicate}
           menuItems={plotMenuItems(item.id)}
-          onmenuopen={() => selectForMenu(item.id)}
         >
           {#snippet body()}
             <div class="grid-item-content">

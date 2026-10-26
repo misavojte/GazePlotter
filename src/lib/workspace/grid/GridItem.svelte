@@ -42,7 +42,6 @@
     onduplicate: GridEvent<IdOnly>
     /** The right-click menu's items; it opens at the pointer. */
     menuItems?: MenuItem[]
-    onmenuopen?: () => void
   }
 
   let {
@@ -65,7 +64,6 @@
     onremove,
     onduplicate,
     menuItems,
-    onmenuopen,
   }: Props = $props()
 
   const item = $derived({ id, x, y, w, h })
@@ -216,7 +214,6 @@
     trigger: 'pointer',
     items: menuItems,
     disabled: !menuItems || responsive.isMobile,
-    onOpen: onmenuopen,
   }}
 >
   <div 
