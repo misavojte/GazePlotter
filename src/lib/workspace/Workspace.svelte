@@ -334,6 +334,7 @@
       shortcut === 'save-as' ||
       shortcut === 'open' ||
       shortcut === 'duplicate' ||
+      shortcut === 'copy-image' ||
       shortcut === 'select-all' ||
       shortcut === 'previous-stimulus' ||
       shortcut === 'next-stimulus'

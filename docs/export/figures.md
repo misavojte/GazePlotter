@@ -10,7 +10,7 @@ The same dialog opens from three places; they differ only in which figures are p
 - **Download plot** in a plot's pane: preselects that plot.
 - **Download plots** in the bulk pane (several plots selected): preselects the selection.
 
-To paste one figure straight into slides or a document, right-click the plot and choose **Copy plot** instead: it puts the figure on the clipboard as a PNG at twice screen resolution with the default 20 px margin, no dialog.
+To paste one figure straight into slides or a document, select the plot and press `Ctrl+C` (`Cmd+C` on Mac), or right-click it and choose **Copy as image**: it puts the figure on the clipboard as a PNG at twice screen resolution with the default 20 px margin, no dialog.
 
 ## Choose Figures
 

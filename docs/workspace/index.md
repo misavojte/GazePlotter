@@ -64,7 +64,7 @@ Drag any of the four corner handles on a selected plot. The card snaps to the gr
 
 A selected plot carries a small chip that floats just above its outline's top-left corner, holding two buttons: **Duplicate** and **Remove**. Hover either one for its name and shortcut.
 
-Right-click a plot for its verbs at the pointer, grouped: **Settings** and **Zoom to plot** (fits it to the view, at most 100%); **Duplicate**, **Next stimulus** and **Previous stimulus**; **Copy plot** (the figure as an image, ready to paste into slides or a document), **Download plot** and the pane's **Download data** or **Download segments** when the plot has one; and **Remove**. When the plot is the selection, each item shows its shortcut at the right. Right-clicking leaves the selection as it is (**Settings** selects the plot, and is left out while its pane is open); on a plot that belongs to a multi-selection, the items act on the whole selection (there is no **Copy plot**, since the clipboard holds one image).
+Right-click a plot for its verbs at the pointer, grouped: **Settings** and **Zoom to plot** (fits it to the view, at most 100%); **Duplicate**, **Next stimulus** and **Previous stimulus**; **Copy as image** (puts the figure on the clipboard, ready to paste into slides or a document; `Ctrl+C`), **Download plot** and the pane's **Download data** or **Download segments** when the plot has one; and **Remove**. When the plot is the selection, each item shows its shortcut at the right. Right-clicking leaves the selection as it is (**Settings** selects the plot, and is left out while its pane is open); on a plot that belongs to a multi-selection, the items act on the whole selection (there is no **Copy as image**, since the clipboard holds one image).
 
 ### Duplicating a plot
 Click **Duplicate** in the chip, or press `Ctrl+D` (`Cmd+D` on Mac). The copy keeps every setting: participant selection, stimulus, axis bounds, colors. The copy is selected, so `Alt+Down` (`Option+Down` on Mac) right after puts it on the next stimulus: two keys for a side-by-side comparison.
@@ -85,6 +85,7 @@ On a Mac, use `Cmd` wherever the table says `Ctrl` (`Delete` is `Backspace`). Sh
 | `Ctrl` + `Z` / `Ctrl` + `Y` | Undo / redo |
 | `Ctrl` + `A` | Select every plot |
 | `Ctrl` + `D` | Duplicate the selected plots |
+| `Ctrl` + `C` | Copy the selected plot to the clipboard as an image (when no text is selected) |
 | `Delete` | Remove the selected plots |
 | Arrow keys | Move the selected plots one grid cell |
 | `Alt` + `Up` / `Down` | Show the previous / next stimulus in the selected plots (`Option` on Mac) |

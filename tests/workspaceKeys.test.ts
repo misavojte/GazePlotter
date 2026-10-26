@@ -94,6 +94,15 @@ describe('resolveWorkspaceShortcut', () => {
     ).toBe('open')
   })
 
+  it('claims Ctrl+C as copying the plot as an image', () => {
+    expect(
+      resolveWorkspaceShortcut(key({ code: 'KeyC', key: 'c', ctrlKey: true }))
+    ).toBe('copy-image')
+    expect(
+      resolveWorkspaceShortcut(key({ code: 'KeyC', key: 'C', ctrlKey: true, shiftKey: true }))
+    ).toBeNull()
+  })
+
   it('claims Ctrl+A as select all', () => {
     expect(
       resolveWorkspaceShortcut(key({ code: 'KeyA', key: 'a', ctrlKey: true }))

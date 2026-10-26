@@ -28,6 +28,7 @@ export type WorkspaceShortcut =
   | 'save'
   | 'save-as'
   | 'duplicate'
+  | 'copy-image'
   | 'open'
   | 'select-all'
   | 'previous-stimulus'
@@ -58,6 +59,7 @@ export function resolveWorkspaceShortcut(
   if (event.code === 'KeyY' && !event.shiftKey) return 'redo'
   if (event.code === 'KeyS') return event.shiftKey ? 'save-as' : 'save'
   if (event.code === 'KeyD' && !event.shiftKey) return 'duplicate'
+  if (event.code === 'KeyC' && !event.shiftKey) return 'copy-image'
   if (event.code === 'KeyO' && !event.shiftKey) return 'open'
   if (event.code === 'KeyA' && !event.shiftKey) return 'select-all'
   if (event.key === '+' || event.key === '=') return 'zoom-in'
@@ -85,6 +87,7 @@ const SHORTCUT_LABELS: Record<WorkspaceShortcut, [mac: string, other: string]> =
   save: ['⌘S', 'Ctrl+S'],
   'save-as': ['⇧⌘S', 'Ctrl+Shift+S'],
   duplicate: ['⌘D', 'Ctrl+D'],
+  'copy-image': ['⌘C', 'Ctrl+C'],
   open: ['⌘O', 'Ctrl+O'],
   'select-all': ['⌘A', 'Ctrl+A'],
   'previous-stimulus': ['⌥↑', 'Alt+Up'],

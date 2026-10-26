@@ -86,11 +86,12 @@
     function onKeydown(event: KeyboardEvent) {
       const shortcut = resolveWorkspaceShortcut(event)
       const duplicate = shortcut === 'duplicate'
+      const copyImage = shortcut === 'copy-image'
       const selectAll = shortcut === 'select-all'
       const stimulusStep =
         shortcut === 'next-stimulus' ? 1 : shortcut === 'previous-stimulus' ? -1 : 0
       const chord = event.metaKey || event.ctrlKey || event.altKey
-      if (chord && !duplicate && !selectAll && !stimulusStep) return
+      if (chord && !duplicate && !copyImage && !selectAll && !stimulusStep) return
       if (isTextEntryTarget(event)) return
       // A surface in front owns the key: one Escape dismisses one surface, and
       // Delete never removes a plot the user cannot see.
@@ -114,6 +115,15 @@
       if (stimulusStep) {
         event.preventDefault()
         stepStimulus(stimulusStep)
+        return
+      }
+      if (copyImage) {
+        // Selected text on the page keeps the browser's own copy.
+        if (!fromPageOrGrid || !canCopyImages()) return
+        if (!(window.getSelection()?.isCollapsed ?? true)) return
+        event.preventDefault()
+        if (selectedIds.length === 1) copyPlot(grid.selectedItems[0])
+        else toastState.addInfo('Select one plot to copy it as an image')
         return
       }
       const step = ARROW_STEPS[event.key]
@@ -287,7 +297,7 @@
     }
   }
 
-  // Copy plot: the figure export's off-screen render at twice screen
+  // Copy as image: the figure export's off-screen render at twice screen
   // resolution, onto the clipboard.
   const COPY_DPI = 192
   let copyJob = $state.raw<{
@@ -312,7 +322,7 @@
       }
     })
     copyCanvasToClipboard(canvas).then(
-      () => toastState.addSuccess(`${name} copied to the clipboard`),
+      () => toastState.addSuccess(`${name} copied as an image, ready to paste`),
       error =>
         errorService.report({
           origin: 'export',
@@ -392,7 +402,15 @@
       divider,
       // The clipboard holds one image, so a group has no Copy item.
       ...(item && canCopyImages()
-        ? [{ label: 'Copy plot', icon: ClipboardCopy, onAction: () => copyPlot(item) }]
+        ? [
+            {
+              label: 'Copy as image',
+              detail: 'To the clipboard',
+              shortcut: hint(shortcutLabel('copy-image')),
+              icon: ClipboardCopy,
+              onAction: () => copyPlot(item),
+            },
+          ]
         : []),
       {
         label: `Download ${noun}`,
