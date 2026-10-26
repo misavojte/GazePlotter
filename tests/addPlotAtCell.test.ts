@@ -22,10 +22,18 @@ describe('adding a plot at a cell', () => {
     expect(added()).toMatchObject({ x: 60, y: 40 })
   })
 
-  it('falls back to the usual free spot when the cell is taken', () => {
+  it('takes the nearest free spot when the cell is taken', () => {
     const s = session()
-    s.workspace.addGridItem('scarf', 'controls', 7, undefined, { x: 0, y: 0 })
+    const first = s.grid.items[0]
+    s.workspace.addGridItem('scarf', 'controls', 7, undefined, { x: 2, y: 1 })
     const added = s.grid.items.find(item => item.id === 7)!
-    expect(added.x !== 0 || added.y !== 0).toBe(true)
+    // Right of or below the plot it would overlap, whichever is closer.
+    const candidates = [
+      { x: first.x + first.w, y: 1 },
+      { x: 2, y: first.y + first.h },
+    ]
+    const distance = (p: { x: number; y: number }) => (p.x - 2) ** 2 + (p.y - 1) ** 2
+    const nearest = candidates.sort((a, b) => distance(a) - distance(b))[0]
+    expect({ x: added.x, y: added.y }).toEqual(nearest)
   })
 })

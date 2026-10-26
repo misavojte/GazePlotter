@@ -30,6 +30,30 @@ export function isAreaAvailable(
   )
 }
 
+/** The free spot for a w×h item closest to (x, y), within `radius` cells of it; null when none. */
+export function findNearestPosition(
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  positions: GridItemPosition[],
+  radius = 24
+): { x: number; y: number } | null {
+  let best: { x: number; y: number } | null = null
+  let bestDistance = Infinity
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      const distance = dx * dx + dy * dy
+      if (distance >= bestDistance) continue
+      if (isAreaAvailable(x + dx, y + dy, w, h, positions)) {
+        best = { x: x + dx, y: y + dy }
+        bestDistance = distance
+      }
+    }
+  }
+  return best
+}
+
 function findCollisions(
   x: number,
   y: number,

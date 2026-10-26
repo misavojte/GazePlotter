@@ -159,11 +159,14 @@ export class GridState {
     options: GridItemSnapshot<K> = { type }
   ) {
     const newItem = createGridItem(type, options)
-    const placement = this.resolvePlacement(
-      newItem,
-      this.createPositionsSnapshot(),
-      options
-    )
+    const positions = this.createPositionsSnapshot()
+    // A requested cell that is taken yields to the nearest free one, so a
+    // plot added at a click lands by it, not in a far first free space.
+    const placement =
+      (options.x !== undefined &&
+        options.y !== undefined &&
+        GridEngine.findNearestPosition(options.x, options.y, newItem.w, newItem.h, positions)) ||
+      this.resolvePlacement(newItem, positions, options)
     newItem.x = placement.x
     newItem.y = placement.y
 
