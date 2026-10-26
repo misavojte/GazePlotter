@@ -20,6 +20,7 @@ import {
   registerCanvasExportSource,
 } from './figureExport'
 import { useTooltip } from '$lib/tooltip'
+import { useContextMenu } from '$lib/context-menu'
 import { drawPlotArea, type PlotAreaTicks } from './plotArea'
 import {
   drawXAxisLabel,
@@ -647,6 +648,8 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   // would erase a sibling's.
   const tooltip = useTooltip()
   let tooltipShown = false
+  // An open right-click menu covers the plot, so hover tooltips wait for it to close.
+  const contextMenu = useContextMenu()
 
   function showTooltip(
     content: Array<{ key: string; value: string }>,
@@ -656,6 +659,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     tooltipWidth?: number,
     delay?: number
   ) {
+    if (contextMenu.current) return
     const screenPos = getTooltipPosition(canvasState, logicalX, logicalY, offset)
     tooltip.update(
       { content, x: screenPos.x, y: screenPos.y, width: tooltipWidth },
@@ -936,6 +940,10 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     mouseY = null
     onHover(null, null, false)
   }
+
+  $effect(() => {
+    if (contextMenu.current && tooltipShown) hideTooltip(0)
+  })
 
   // ---- reactive redraw triggers ----
   $effect(() => {
