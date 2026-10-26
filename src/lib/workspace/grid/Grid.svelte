@@ -29,7 +29,7 @@
   } from './interaction'
   import { responsive } from '../responsive.svelte'
   import { generateSelectionPath, selectionPathCorner } from './selectionPath'
-  import { useContextMenu, type MenuItem } from '$lib/context-menu'
+  import { useContextMenu, useContextMenuAction, type MenuItem } from '$lib/context-menu'
   import { exportFiguresModal } from '$lib/modals/definitions'
   import Copy from 'lucide-svelte/icons/copy'
   import Download from 'lucide-svelte/icons/download'
@@ -44,6 +44,7 @@
   import { plotDataExport } from '../pane/dataExport'
 
   const contextMenuState = useContextMenu()
+  const contextMenuAction = useContextMenuAction()
   import {
     DELETE_KEY_LABEL,
     isTextEntryTarget,
@@ -447,6 +448,10 @@
       class="group-chip-anchor"
       style:left="{groupChipAnchor.x}px"
       style:top="{groupChipAnchor.y}px"
+      use:contextMenuAction={{
+        trigger: 'pointer',
+        items: plotMenuItems(grid.selectedItemIds[0]),
+      }}
     >
       <ActionChip
         scope="{grid.selectedCount} plots"
