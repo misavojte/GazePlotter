@@ -304,7 +304,7 @@
       },
       divider,
       {
-        label: withShortcut('Duplicate', 'duplicate'),
+        label: withShortcut(`Duplicate ${noun}`, 'duplicate'),
         icon: Copy,
         onAction: () => (group ? handleGroupDuplicate() : handleDuplicate({ id })),
       },
