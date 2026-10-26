@@ -116,6 +116,9 @@
           {:else}
             {it.label}
           {/if}
+          {#if it.shortcut}
+            <span class="item-shortcut">{it.shortcut}</span>
+          {/if}
         </button>
         {#if it.secondaryAction}
           {@const SecIcon = it.secondaryAction.icon}
@@ -255,6 +258,14 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .item-shortcut {
+    margin-left: auto;
+    padding-left: 12px;
+    font-size: var(--text-2xs);
+    color: var(--c-darkgrey);
+    white-space: nowrap;
   }
 
   .item-detail {

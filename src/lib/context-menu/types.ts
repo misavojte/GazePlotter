@@ -10,6 +10,8 @@ interface MenuDisplayItem {
   icon?: LucideIconComponent
   /** Secondary line rendered below the label in muted style. */
   detail?: string
+  /** Keyboard shortcut, shown muted at the row's end ("Ctrl+D"). */
+  shortcut?: string
   isHighlighted?: boolean
   disabled?: boolean
   closeOnAction?: boolean

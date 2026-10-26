@@ -49,7 +49,7 @@
     DELETE_KEY_LABEL,
     isTextEntryTarget,
     resolveWorkspaceShortcut,
-    withShortcut,
+    shortcutLabel,
   } from '../keys'
 
   const { engine, errorService, workspace, grid, modalState, toastState } =
@@ -313,19 +313,22 @@
       },
       divider,
       {
-        label: withShortcut(`Duplicate ${noun}`, 'duplicate'),
+        label: `Duplicate ${noun}`,
+        shortcut: shortcutLabel('duplicate'),
         icon: Copy,
         onAction: () => (group ? handleGroupDuplicate() : handleDuplicate({ id })),
       },
       ...(steps
         ? [
             {
-              label: withShortcut('Next stimulus', 'next-stimulus'),
+              label: 'Next stimulus',
+              shortcut: shortcutLabel('next-stimulus'),
               icon: ArrowDown,
               onAction: () => stepStimulus(1, targets()),
             },
             {
-              label: withShortcut('Previous stimulus', 'previous-stimulus'),
+              label: 'Previous stimulus',
+              shortcut: shortcutLabel('previous-stimulus'),
               icon: ArrowUp,
               onAction: () => stepStimulus(-1, targets()),
             },
@@ -340,7 +343,8 @@
       ...(data ? [{ label: data.label, icon: Table, onAction: data.open }] : []),
       divider,
       {
-        label: `Remove ${noun} (${DELETE_KEY_LABEL})`,
+        label: `Remove ${noun}`,
+        shortcut: DELETE_KEY_LABEL,
         icon: X,
         onAction: () => commitGridItemsRemoval(workspace, gridItems, ids),
       },

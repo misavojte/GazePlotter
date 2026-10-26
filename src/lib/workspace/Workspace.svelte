@@ -39,7 +39,6 @@
     MODIFIER_LABEL,
     resolveWorkspaceShortcut,
     shortcutLabel,
-    withShortcut,
   } from './keys'
   import type { WorkspaceCommandChain } from './commands'
 
@@ -176,10 +175,16 @@
       ? [
           { isDivider: true as const },
           {
-            label: withShortcut('Select all plots', 'select-all'),
+            label: 'Select all plots',
+            shortcut: shortcutLabel('select-all'),
             onAction: () => grid.setSelection(grid.items.map(item => item.id)),
           },
-          { label: withShortcut('Zoom to fit', 'zoom-fit'), icon: Scan, onAction: () => camera.fit() },
+          {
+            label: 'Zoom to fit',
+            shortcut: shortcutLabel('zoom-fit'),
+            icon: Scan,
+            onAction: () => camera.fit(),
+          },
           {
             label: 'Download all plots',
             icon: Download,
