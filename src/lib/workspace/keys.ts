@@ -52,7 +52,8 @@ export function resolveWorkspaceShortcut(
     if (event.key === 'ArrowDown') return 'next-stimulus'
     return null
   }
-  if (!(event.ctrlKey || event.metaKey)) return null
+  // AltGr arrives as Ctrl+Alt on Windows: it types a letter (ó, ś), never a chord.
+  if (!(event.ctrlKey || event.metaKey) || event.altKey) return null
   // `code` for the letters so the chord survives a non-QWERTY layout; `key` for
   // the zoom glyphs, where +/= share one physical key.
   if (event.code === 'KeyZ') return event.shiftKey ? 'redo' : 'undo'

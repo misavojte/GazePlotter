@@ -31,6 +31,11 @@ describe('resolveWorkspaceShortcut', () => {
     expect(resolveWorkspaceShortcut(key({ key: '-' }))).toBeNull()
   })
 
+  it('claims nothing with AltGr (Ctrl+Alt on Windows), so typing ó or ś stays text', () => {
+    expect(resolveWorkspaceShortcut(key({ code: 'KeyO', ctrlKey: true, altKey: true }))).toBeNull()
+    expect(resolveWorkspaceShortcut(key({ code: 'KeyS', ctrlKey: true, altKey: true }))).toBeNull()
+  })
+
   it('maps the history chords, with Shift+Z as redo', () => {
     expect(resolveWorkspaceShortcut(key({ code: 'KeyZ', ctrlKey: true }))).toBe(
       'undo'
