@@ -58,9 +58,9 @@
   function chipMenu(preset: SelectionPreset): MenuItem[] {
     const members = new Set(preset.members)
     return [
-      { label: 'Select only this selection', onAction: () => (selected = new Set(members)) },
+      { label: 'Select only these', onAction: () => (selected = new Set(members)) },
       {
-        label: 'Select all but this selection',
+        label: 'Select all but these',
         onAction: () =>
           (selected = new Set(items.map(item => item.value).filter(key => !members.has(key)))),
       },
