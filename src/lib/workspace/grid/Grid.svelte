@@ -294,7 +294,8 @@
     const divider = { isDivider: true as const }
     // Grouped: view, change, export, remove.
     return [
-      ...(group
+      // A pane already showing this plot needs no Settings item.
+      ...(group || grid.paneOpenId === id
         ? []
         : [
             {
