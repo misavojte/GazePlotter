@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { responsive } from './responsive.svelte'
   import Button from '$lib/shared/components/Button.svelte'
   import { getGazePlotterSession } from '$lib/session'
   import { metadataInfoModal } from '$lib/modals/definitions'
@@ -56,7 +57,7 @@
         {fatalSentence} You can inspect the report or upload different data.
       {:else if canResetLayout}
         Data is loaded, but no plots are shown. Add one with Add
-        Visualization{hasLayoutToRestore ? ', reset the layout,' : ''} or upload
+        Visualization{responsive.isMobile ? '' : ' or by right-clicking here'}{hasLayoutToRestore ? ', reset the layout,' : ''} or upload
         new data.
       {:else}
         Drop eye-tracking files anywhere here, or import them to start.
