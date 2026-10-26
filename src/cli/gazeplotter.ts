@@ -34,7 +34,7 @@ Usage:
   gazeplotter metrics  <files...> [options]   The metrics table, as CSV
   gazeplotter catalog                         Every base metric in the library, as JSON
 
-Files are eye-tracker exports, CSV event files, or one .gazeplotter workspace.
+Files are eye-tracker exports, CSV event files, or .gazeplotter workspaces (several combine into one).
 
 Options for metrics (inspect takes --analysis and --prompt too):
   --analysis <file>       Analysis JSON, or a workspace whose Analysis replays first

@@ -92,8 +92,9 @@ npx gazeplotter@1.10.3 catalog
 | `catalog` | Every base metric in the library: id, unit, shape, parameters, description |
 
 Files are eye-tracker exports in any [supported format](/docs/upload-data/),
-CSV event files, or one `.gazeplotter` workspace. A saved workspace opens
-with its merges applied, as in the app.
+CSV event files, or `.gazeplotter` workspaces; several workspaces
+[combine into one](/docs/export/workspace#combining-workspaces). A saved
+workspace opens with its merges applied, as in the app.
 
 A metric in the table is a configured instance: a base metric from the
 library (`catalog` lists them, with their parameters), its parameter values,

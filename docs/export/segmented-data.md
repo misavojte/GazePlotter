@@ -21,9 +21,9 @@ Segmented Data Export writes raw, row-level gaze segments as CSV — for spreads
 - **Choose eye-movement types**: Select which eye-movement categories (e.g., fixations, saccades, unclassified) to include in the file. By default, all categories are selected. Your [eye-movement type selections](/docs/workspace/eye-movement-type-library/) appear as chips above the list, such as the ready-made *Just fixations*: a chip ticks all of its types, or unticks them when they are all ticked, and individual checkmarks refine the result.
 - **Choose AOIs**: tick the AOIs the `AOI` column may name (all by default; the list shows only the AOIs of the chosen stimuli), with your [AOI selections](/docs/workspace/aoi-library/) as chips like the participant chips. Every segment stays in the file; unticked AOIs are only left out of the column, so a segment on them alone reads as no AOI, as in a plot using that selection. With **Raw** naming, every original AOI behind a ticked displayed name is kept.
 - **Configure the file** — Choose the export layout and format conventions:
-  - **Export Type** — **Single CSV File**, or **Individual CSV Files (Zipped)** (one file per participant and stimulus, without the `stimulus` and `participant` columns).
+  - **Export Type**: **Single CSV File**, or **Individual CSV Files (Zipped)** (one file per participant and stimulus, without the `stimulus` and `participant` columns).
   - **Delimiter** (`,` or `;`), **Decimal Separator** (`.` or `,`). Each CSV export starts from the delimiter and decimal separator of your last CSV export, remembered in this browser, and the collapsed step names them when they are not comma and dot.
-  - **Naming** — **Displayed** (grouped, renamed) or **Raw** (original imported).
+  - **Naming**: **Displayed** (grouped, renamed) or **Raw** (original imported).
 
 ## Exporting
 
