@@ -3,6 +3,7 @@
   import { ButtonPreset } from '$lib/shared/components'
   import { CheckboxListField, Step } from '$lib/modals'
   import { mapSelectableItems, toggleSetValue } from './helpers'
+  import { useContextMenuAction, type MenuItem } from '$lib/context-menu'
   import {
     isPresetSelected,
     presetSelectionSummary,
@@ -51,15 +52,31 @@
     `Selection chips toggle a whole ${noun} selection at once; individual checkmarks refine the result.`
   )
   const checklist = $derived(mapSelectableItems(items, selected))
+
+  const contextMenuAction = useContextMenuAction()
+  // Right-click on a chip: its members alone, or every item but them.
+  function chipMenu(preset: SelectionPreset): MenuItem[] {
+    const members = new Set(preset.members)
+    return [
+      { label: 'Select only this selection', onAction: () => (selected = new Set(members)) },
+      {
+        label: 'Select all but this selection',
+        onAction: () =>
+          (selected = new Set(items.map(item => item.value).filter(key => !members.has(key)))),
+      },
+    ]
+  }
 </script>
 
 {#snippet chips()}
   {#each presets as preset (preset.id)}
-    <ButtonPreset
-      label={preset.name}
-      isActive={isPresetSelected(preset.members, selected)}
-      onclick={() => (selected = togglePreset(preset.members, selected))}
-    />
+    <span class="chip" use:contextMenuAction={{ trigger: 'pointer', items: chipMenu(preset) }}>
+      <ButtonPreset
+        label={preset.name}
+        isActive={isPresetSelected(preset.members, selected)}
+        onclick={() => (selected = togglePreset(preset.members, selected))}
+      />
+    </span>
   {/each}
 {/snippet}
 
@@ -82,3 +99,10 @@
     presets={presets.length > 0 ? chips : undefined}
   />
 </Step>
+
+<style>
+  /* Layout-neutral: only carries the chip's right-click menu. */
+  .chip {
+    display: contents;
+  }
+</style>
