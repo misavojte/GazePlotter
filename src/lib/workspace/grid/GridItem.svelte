@@ -132,6 +132,10 @@
     }
   }
 
+  // While its right-click menu is open the plot keeps the hover ring, so the
+  // menu's target stays visible once the pointer moves into the menu.
+  let isMenuTarget = $state(false)
+
   // The press look. A finger that slides off is panning the canvas, not
   // pressing the plot, so a touchmove releases it too.
   let isPressed = $state(false)
@@ -214,6 +218,8 @@
     trigger: 'pointer',
     items: menuItems,
     disabled: !menuItems || responsive.isMobile,
+    onOpen: () => (isMenuTarget = true),
+    onClose: () => (isMenuTarget = false),
   }}
 >
   <div 
@@ -233,6 +239,7 @@
     class="grid-item-frame"
     class:selected={isSelected}
     class:group-member={isGroupMember}
+    class:menu-target={isMenuTarget}
     onclick={onFrameClick}
     use:moveHandleAction={frameMoveActionParams}
   >
@@ -399,7 +406,8 @@
             [data-block-select]
           ):hover
       )
-    ) {
+    ),
+  .grid-item-frame.menu-target:not(.selected) {
     outline-color: color-mix(in srgb, var(--c-info) 25%, var(--c-grey));
   }
 
