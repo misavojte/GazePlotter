@@ -6,7 +6,7 @@
     type MenuItem,
     useContextMenu,
   } from '$lib/context-menu'
-  import type { ControlAction } from './config'
+  import { toMenuItem, type ControlAction } from './config'
 
   const tooltipAction = useTooltipAction()
   const contextMenuAction = useContextMenuAction()
@@ -34,13 +34,6 @@
     showLabel = false,
     text,
   }: Props = $props()
-
-  function toMenuItem(action: ControlAction): MenuItem {
-    if (action.children && action.children.length > 0) {
-      return { label: action.label, children: action.children.map(toMenuItem) }
-    }
-    return { label: action.label, detail: action.detail, onAction: action.run }
-  }
 
   const menuItems = $derived.by((): MenuItem[] => actions.map(toMenuItem))
 

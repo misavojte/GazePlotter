@@ -188,14 +188,16 @@ export class WorkspaceCommandBus {
     vizType: PlotType,
     source: string,
     itemId?: number,
-    settings?: GridItemSnapshot['settings']
+    settings?: GridItemSnapshot['settings'],
+    /** Preferred cell; used when the plot fits there, else the usual free spot. */
+    at?: { x: number; y: number }
   ): boolean {
     return this.apply({
       type: 'addGridItem',
       vizType,
       source,
       itemId: itemId ?? generateUniqueId(),
-      options: settings ? { type: vizType, settings } : undefined,
+      options: settings || at ? { type: vizType, settings, ...at } : undefined,
     })
   }
 

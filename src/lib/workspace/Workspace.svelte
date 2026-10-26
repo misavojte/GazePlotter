@@ -9,6 +9,11 @@
   import { Pane } from './pane'
   import SelectionIndicator from './SelectionIndicator.svelte'
   import { stickyBanner } from './stickyBanner.svelte'
+  import Grid2x2Plus from 'lucide-svelte/icons/grid-2x2-plus'
+  import Scan from 'lucide-svelte/icons/scan'
+  import { useContextMenuAction, type MenuItem } from '$lib/context-menu'
+  import { addablePlots, addPlot } from './controls/addPlot'
+  import { addVisualizationActions, toMenuItem } from './controls/config'
 
   import {
     MIN_WORKSPACE_HEIGHT,
@@ -32,6 +37,7 @@
     MODIFIER_LABEL,
     resolveWorkspaceShortcut,
     shortcutLabel,
+    withShortcut,
   } from './keys'
   import type { WorkspaceCommandChain } from './commands'
 
@@ -51,7 +57,9 @@
     gestures = 'cooperative',
     controls = true,
   }: Props = $props()
-  const { engine, ingest, grid, workspace, modalState } = getGazePlotterSession()
+  const session = getGazePlotterSession()
+  const { engine, ingest, grid, workspace, modalState } = session
+  const contextMenuAction = useContextMenuAction()
 
   // Single upload owner: the drag-drop handler below and the click entry
   // points (the host's import trigger, the empty-state button) all feed
@@ -140,6 +148,39 @@
 
   let workspaceContainer: HTMLElement | null = $state(null)
   let gridSurface: HTMLElement | null = $state(null)
+
+  // Right-click on empty canvas: add a plot where the click was, or act on
+  // all plots. The cell is read in the capture phase, before the menu opens.
+  let menuCell: { x: number; y: number } | undefined
+  function noteMenuCell(event: MouseEvent): void {
+    menuCell = undefined
+    if (!gridSurface) return
+    const rect = gridSurface.getBoundingClientRect()
+    const toCell = (px: number, cell: number) =>
+      Math.floor(px / camera.zoom / (cell + gridConfig.gap))
+    const x = toCell(event.clientX - rect.left, gridConfig.cellSize.width)
+    const y = toCell(event.clientY - rect.top, gridConfig.cellSize.height)
+    if (x >= 0 && y >= 0) menuCell = { x, y }
+  }
+  const canvasMenuItems = $derived.by((): MenuItem[] => [
+    {
+      label: hasGrid ? 'Add visualization here' : 'Add visualization',
+      icon: Grid2x2Plus,
+      children: addVisualizationActions(addablePlots(engine), vizType =>
+        addPlot(session, vizType, menuCell)
+      ).map(toMenuItem),
+    },
+    ...(hasGrid
+      ? [
+          { isDivider: true as const },
+          {
+            label: withShortcut('Select all plots', 'select-all'),
+            onAction: () => grid.setSelection(grid.items.map(item => item.id)),
+          },
+          { label: withShortcut('Zoom to fit', 'zoom-fit'), icon: Scan, onAction: () => camera.fit() },
+        ]
+      : []),
+  ])
   const fileDrop = new FileDropTarget()
   const interaction = new GridInteractionController()
   const positionsWithPreview = $derived.by(() =>
@@ -381,6 +422,12 @@
       ondragleave={fileDrop.leave}
       ondrop={handleDrop}
       onclick={handleWorkspaceBackgroundClick}
+      oncontextmenucapture={noteMenuCell}
+      use:contextMenuAction={{
+        trigger: 'pointer',
+        items: canvasMenuItems,
+        disabled: isLoading || !engine.hasValidData || responsive.isMobile,
+      }}
       use:cameraTouchAction={{ camera, panTarget: touchPanTarget }}
       use:panSurfaceAction={{
         enabled: hasGrid,
