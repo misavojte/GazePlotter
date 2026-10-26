@@ -36,6 +36,9 @@
       "svelte": "./dist/index.js"
     }
   },
+  "engines": {
+    "node": ">=20"
+  },
   "bin": {
     "gazeplotter": "./dist/cli.js"
   },
