@@ -11,6 +11,8 @@
   import { stickyBanner } from './stickyBanner.svelte'
   import Grid2x2Plus from 'lucide-svelte/icons/grid-2x2-plus'
   import Scan from 'lucide-svelte/icons/scan'
+  import Download from 'lucide-svelte/icons/download'
+  import { exportFiguresModal } from '$lib/modals/definitions'
   import { useContextMenuAction, type MenuItem } from '$lib/context-menu'
   import { addablePlots, addPlot } from './controls/addPlot'
   import { addVisualizationActions, toMenuItem } from './controls/config'
@@ -178,6 +180,12 @@
             onAction: () => grid.setSelection(grid.items.map(item => item.id)),
           },
           { label: withShortcut('Zoom to fit', 'zoom-fit'), icon: Scan, onAction: () => camera.fit() },
+          {
+            label: 'Download all plots',
+            icon: Download,
+            onAction: () =>
+              modalState.open(exportFiguresModal, { itemIds: grid.items.map(item => item.id) }),
+          },
         ]
       : []),
   ])
