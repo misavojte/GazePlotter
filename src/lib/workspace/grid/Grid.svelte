@@ -292,6 +292,10 @@
       getStimuliOptions(engine).length > 1 &&
       gridItems.some(i => ids.includes(i.id) && 'stimulusId' in i.settings)
     const divider = { isDivider: true as const }
+    // Shortcuts act on the selection, so they are hinted only when the
+    // menu's target is the selection.
+    const isSelection = group || grid.selectedItemId === id
+    const hint = (label: string) => (isSelection ? label : undefined)
     // Grouped: view, change, export, remove.
     return [
       // A pane already showing this plot needs no Settings item.
@@ -315,7 +319,7 @@
       divider,
       {
         label: `Duplicate ${noun}`,
-        shortcut: shortcutLabel('duplicate'),
+        shortcut: hint(shortcutLabel('duplicate')),
         icon: Copy,
         onAction: () => (group ? handleGroupDuplicate() : handleDuplicate({ id })),
       },
@@ -323,13 +327,13 @@
         ? [
             {
               label: 'Next stimulus',
-              shortcut: shortcutLabel('next-stimulus'),
+              shortcut: hint(shortcutLabel('next-stimulus')),
               icon: ArrowDown,
               onAction: () => stepStimulus(1, targets()),
             },
             {
               label: 'Previous stimulus',
-              shortcut: shortcutLabel('previous-stimulus'),
+              shortcut: hint(shortcutLabel('previous-stimulus')),
               icon: ArrowUp,
               onAction: () => stepStimulus(-1, targets()),
             },
@@ -345,7 +349,7 @@
       divider,
       {
         label: `Remove ${noun}`,
-        shortcut: DELETE_KEY_LABEL,
+        shortcut: hint(DELETE_KEY_LABEL),
         icon: X,
         onAction: () => commitGridItemsRemoval(workspace, gridItems, ids),
       },
