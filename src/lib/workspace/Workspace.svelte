@@ -474,6 +474,7 @@
             {gridWidth}
             gridIsEmpty={grid.isEmpty}
             {entrance}
+            {camera}
           />
         </div>
         {#if wheelHintVisible}

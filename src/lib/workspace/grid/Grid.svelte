@@ -38,6 +38,9 @@
   import Table from 'lucide-svelte/icons/table'
   import ArrowDown from 'lucide-svelte/icons/arrow-down'
   import ArrowUp from 'lucide-svelte/icons/arrow-up'
+  import Scan from 'lucide-svelte/icons/scan'
+  import { gridBoundsOf } from './pixels'
+  import type { WorkspaceCamera } from '../camera.svelte'
   import { plotDataExport } from '../pane/dataExport'
 
   const contextMenuState = useContextMenu()
@@ -146,6 +149,7 @@
     gridWidth: number
     gridIsEmpty: boolean
     interaction: GridInteractionController
+    camera: WorkspaceCamera
   }
 
   const {
@@ -156,6 +160,7 @@
     gridWidth,
     gridIsEmpty,
     interaction,
+    camera,
   }: Props = $props()
 
   // Entrance delays in reading order, fixed at mount: the camera pulls back
@@ -313,6 +318,12 @@
         onAction: () => modalState.open(exportFiguresModal, { itemIds: ids }),
       },
       ...(data ? [{ label: data.label, icon: Table, onAction: data.open }] : []),
+      {
+        label: `Zoom to ${noun}`,
+        icon: Scan,
+        onAction: () =>
+          camera.fit(gridBoundsOf(gridItems.filter(i => ids.includes(i.id)), gridConfig)),
+      },
       { isDivider: true },
       {
         label: `Remove ${noun} (${DELETE_KEY_LABEL})`,
