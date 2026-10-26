@@ -96,7 +96,14 @@
       {@const Icon = item.icon}
       <Icon size={'1em'} strokeWidth={1} />
     {/if}
-    <span class="label">{item.label}</span>
+    {#if item.detail}
+      <span class="label body">
+        <span>{item.label}</span>
+        <span class="detail">{item.detail}</span>
+      </span>
+    {:else}
+      <span class="label">{item.label}</span>
+    {/if}
     <svg
       class="arrow"
       width="14"
@@ -160,6 +167,21 @@
     display: flex;
     align-items: center;
     gap: 8px;
+  }
+
+  /* With a detail line, as in MenuList: label over a muted second line. */
+  .label.body {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    min-width: 0;
+  }
+
+  .detail {
+    font-size: var(--text-2xs);
+    font-family: var(--font-small);
+    color: var(--c-darkgrey);
+    line-height: var(--leading-tight);
   }
 
   .arrow {

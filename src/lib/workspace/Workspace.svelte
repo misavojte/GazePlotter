@@ -166,6 +166,8 @@
   const canvasMenuItems = $derived.by((): MenuItem[] => [
     {
       label: hasGrid ? 'Add visualization here' : 'Add visualization',
+      // addPlot inherits from a sole selected plot; say so before the click.
+      detail: grid.selectedItem ? "With the selected plot's stimulus and participants" : undefined,
       icon: Grid2x2Plus,
       children: addVisualizationActions(addablePlots(engine), vizType =>
         addPlot(session, vizType, menuCell)
