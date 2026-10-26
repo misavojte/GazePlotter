@@ -35,6 +35,8 @@
   import Download from 'lucide-svelte/icons/download'
   import SlidersHorizontal from 'lucide-svelte/icons/sliders-horizontal'
   import X from 'lucide-svelte/icons/x'
+  import Table from 'lucide-svelte/icons/table'
+  import { plotDataExport } from '../pane/dataExport'
 
   const contextMenuState = useContextMenu()
   import {
@@ -275,6 +277,8 @@
     const group = isGroupMember(id)
     const ids = group ? [...grid.selectedItemIds] : [id]
     const noun = group ? `${ids.length} plots` : 'plot'
+    const item = group ? undefined : gridItems.find(i => i.id === id)
+    const data = item && plotDataExport(item.settings, engine, modalState)
     return [
       ...(group
         ? []
@@ -289,6 +293,7 @@
         icon: Download,
         onAction: () => modalState.open(exportFiguresModal, { itemIds: ids }),
       },
+      ...(data ? [{ label: data.label, icon: Table, onAction: data.open }] : []),
       { isDivider: true },
       {
         label: `Remove ${noun} (${DELETE_KEY_LABEL})`,
