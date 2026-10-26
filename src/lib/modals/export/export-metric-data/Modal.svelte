@@ -483,7 +483,7 @@
       <div class="checkbox-row">
         <InputCheck
           label="Include metric codebook"
-          sublabel="Creates a ZIP with the data CSV, a codebook CSV describing each column, and the Analysis JSON that replays the export."
+          sublabel="Creates a ZIP with the data CSV, a codebook CSV describing each column, and the Analysis JSON with the workspace's renames, merges, selections, and metrics."
           bind:checked={includeCodebook}
         />
       </div>
