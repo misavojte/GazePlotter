@@ -29,10 +29,20 @@
   } from './interaction'
   import { responsive } from '../responsive.svelte'
   import { generateSelectionPath, selectionPathCorner } from './selectionPath'
-  import { useContextMenu } from '$lib/context-menu'
+  import { useContextMenu, type MenuItem } from '$lib/context-menu'
+  import { exportFiguresModal } from '$lib/modals/definitions'
+  import Copy from 'lucide-svelte/icons/copy'
+  import Download from 'lucide-svelte/icons/download'
+  import SlidersHorizontal from 'lucide-svelte/icons/sliders-horizontal'
+  import X from 'lucide-svelte/icons/x'
 
   const contextMenuState = useContextMenu()
-  import { isTextEntryTarget, resolveWorkspaceShortcut } from '../keys'
+  import {
+    DELETE_KEY_LABEL,
+    isTextEntryTarget,
+    resolveWorkspaceShortcut,
+    withShortcut,
+  } from '../keys'
 
   const { engine, errorService, workspace, grid, modalState, toastState } =
     getGazePlotterSession()
@@ -255,6 +265,46 @@
     }
   }
 
+  // Right-click on a plot: its verbs at the pointer. A member of a
+  // multi-selection acts for the whole selection, as its drag does.
+  function isGroupMember(id: number): boolean {
+    return grid.selectedCount > 1 && grid.selectedItemIds.includes(id)
+  }
+
+  function plotMenuItems(id: number): MenuItem[] {
+    const group = isGroupMember(id)
+    const ids = group ? [...grid.selectedItemIds] : [id]
+    const noun = group ? `${ids.length} plots` : 'plot'
+    return [
+      ...(group
+        ? []
+        : [{ label: 'Settings', icon: SlidersHorizontal, onAction: () => grid.openPane(id) }]),
+      {
+        label: withShortcut('Duplicate', 'duplicate'),
+        icon: Copy,
+        onAction: () => (group ? handleGroupDuplicate() : handleDuplicate({ id })),
+      },
+      {
+        label: `Download ${noun}`,
+        icon: Download,
+        onAction: () => modalState.open(exportFiguresModal, { itemIds: ids }),
+      },
+      { isDivider: true },
+      {
+        label: `Remove ${noun} (${DELETE_KEY_LABEL})`,
+        icon: X,
+        onAction: () => commitGridItemsRemoval(workspace, gridItems, ids),
+      },
+    ]
+  }
+
+  // The menu's target becomes the selection, and an open pane follows it.
+  function selectForMenu(id: number): void {
+    if (isGroupMember(id)) return
+    grid.selectOnly(id)
+    if (grid.paneOpenId !== null) grid.openPane(id)
+  }
+
   function reportPlotRenderError(
     item: AllGridTypes,
     plotName: string,
@@ -312,6 +362,8 @@
             commitGridItemResize(workspace, gridItems, gridConfig, event)}
           onremove={event => commitGridItemRemoval(workspace, gridItems, event)}
           onduplicate={handleDuplicate}
+          menuItems={plotMenuItems(item.id)}
+          onmenuopen={() => selectForMenu(item.id)}
         >
           {#snippet body()}
             <div class="grid-item-content">

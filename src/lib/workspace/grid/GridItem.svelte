@@ -11,8 +11,10 @@
   import { getGazePlotterSession } from '$lib/session'
   import type { PlotSubtitleParts } from '$lib/plots/definePlot'
   import { responsive } from '../responsive.svelte'
+  import { useContextMenuAction, type MenuItem } from '$lib/context-menu'
 
   const { grid } = getGazePlotterSession()
+  const contextMenuAction = useContextMenuAction()
 
   type GridRect = { id: number; x: number; y: number; w: number; h: number }
   type IdOnly = { id: number }
@@ -38,6 +40,9 @@
     onresize: GridEvent<GridRect>
     onremove: GridEvent<IdOnly>
     onduplicate: GridEvent<IdOnly>
+    /** The right-click menu's items; it opens at the pointer. */
+    menuItems?: MenuItem[]
+    onmenuopen?: () => void
   }
 
   let {
@@ -59,6 +64,8 @@
     onresize,
     onremove,
     onduplicate,
+    menuItems,
+    onmenuopen,
   }: Props = $props()
 
   const item = $derived({ id, x, y, w, h })
@@ -225,6 +232,12 @@
     class:group-member={isGroupMember}
     onclick={onFrameClick}
     use:moveHandleAction={frameMoveActionParams}
+    use:contextMenuAction={{
+      trigger: 'pointer',
+      items: menuItems,
+      disabled: !menuItems || responsive.isMobile,
+      onOpen: onmenuopen,
+    }}
   >
     <div class="grid-item-header">
       <h3 class="grid-item-title">{title}</h3>
