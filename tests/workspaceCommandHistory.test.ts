@@ -124,6 +124,22 @@ describe('settings edit coalescing', () => {
     edit(history, { radius: 80 }, { radius: 60 }, 2)
     expect(history.undoStack).toHaveLength(5)
   })
+
+  it('drops no old step when a full history merges a quick edit', () => {
+    vi.useFakeTimers()
+    const history = new UndoRedoStateStore()
+    for (let i = 0; i < 50; i++) {
+      edit(history, { radius: i + 1 }, { radius: i })
+      vi.advanceTimersByTime(1500)
+    }
+    const oldest = history.undoStack[0].chainId
+    edit(history, { radius: 100 }, { radius: 50 })
+    vi.advanceTimersByTime(200)
+    edit(history, { radius: 101 }, { radius: 100 })
+
+    expect(history.undoStack).toHaveLength(50)
+    expect(history.undoStack[0].chainId).toBe(oldest + 1)
+  })
 })
 
 describe('layout nudge coalescing', () => {

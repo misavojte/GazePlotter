@@ -110,15 +110,8 @@ export class UndoRedoStateStore {
     if (original.isRootCommand) {
       // If there's a pending chain, finalize it first
       if (this.pendingChain) {
-        this.undoStack = [...this.undoStack, this.pendingChain]
+        this.push(this.pendingChain)
         this.openEdit = null
-      }
-
-      // Trim undo stack if it exceeds the maximum size
-      if (this.undoStack.length >= MAX_UNDO_STACK_SIZE) {
-        const drop = this.undoStack.length - MAX_UNDO_STACK_SIZE + 1 // space for the new command
-        this.trimmedBase = this.undoStack[drop - 1].chainId
-        this.undoStack = this.undoStack.slice(drop)
       }
 
       // Start new pending chain with this root command
@@ -181,9 +174,17 @@ export class UndoRedoStateStore {
       }
       this.undoStack = [...this.undoStack.slice(0, -1), merged]
     } else {
-      this.undoStack = [...this.undoStack, chain]
+      this.push(chain)
     }
     this.openEdit = signature === null ? null : { signature, at: now }
+  }
+
+  /** Adds a chain, dropping the oldest past the cap (a coalesced edit adds none, so drops none). */
+  private push(chain: CommandChainEntry): void {
+    const stack = [...this.undoStack, chain]
+    const drop = stack.length - MAX_UNDO_STACK_SIZE
+    if (drop > 0) this.trimmedBase = stack[drop - 1].chainId
+    this.undoStack = drop > 0 ? stack.slice(drop) : stack
   }
 
   /**
