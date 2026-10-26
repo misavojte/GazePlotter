@@ -19,6 +19,7 @@ export const aoiComparisonDefinition = definePlot<
 >({
   type: 'aoiComparison',
   name: 'AOI Comparison',
+  tagline: 'A metric per AOI across participants',
   group: 'per-aoi',
   paneSections: [
     'stimulus',

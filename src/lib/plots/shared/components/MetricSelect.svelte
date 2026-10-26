@@ -106,6 +106,6 @@
   {placeholder}
   {mixed}
   multiple={!isSingleSelect}
-  emptyMessage="No metrics yet."
+  emptyMessage="No metrics fit this plot"
   onchange={handleChange}
 />

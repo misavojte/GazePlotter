@@ -29,6 +29,7 @@ export const eventComparisonDefinition = definePlot<
 >({
   type: 'eventComparison',
   name: 'Event Comparison',
+  tagline: 'A metric per event channel',
   group: 'per-event',
   paneSections: [
     'stimulus',

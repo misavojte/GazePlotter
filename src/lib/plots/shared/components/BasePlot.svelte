@@ -3,7 +3,7 @@
   import { fade } from 'svelte/transition'
 
   import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid'
-  import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared'
+  import { calculatePlotDimensionsWithHeader } from '..'
   import PlotPlaceholder from './PlotPlaceholder.svelte'
   import { PLOT_BASE_CHROME_HEIGHT } from '$lib/plots/shared/const'
 

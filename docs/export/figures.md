@@ -6,20 +6,22 @@ The figure export renders workspace plots as publication-ready PNG or JPG images
 
 The same dialog opens from three places; they differ only in which figures are preselected.
 
-- **Export** in the header, then **Figures (PNG, JPG)** under **Other options**: preselects all plots, or the current workspace selection if one exists. The card appears only when the workspace contains at least one plot.
-- **Download plot…** in a plot's pane: preselects that plot.
-- **Download plots…** in the bulk pane (several plots selected): preselects the selection.
+- **Export** in the header, then **Figures (PNG, JPG)** under **Figures and data**: preselects all plots, or the current workspace selection if one exists. The card appears only when the workspace contains at least one plot.
+- **Download plot** in a plot's pane: preselects that plot.
+- **Download plots** in the bulk pane (several plots selected): preselects the selection.
+
+To paste one figure straight into slides or a document, select the plot and press `Ctrl+C` (`Cmd+C` on Mac), or right-click it and choose **Copy as image**: it puts the figure on the clipboard as a PNG at twice screen resolution with the default 20 px margin, no dialog.
 
 ## Choose Figures
 
 The first step lists every plot in the workspace in reading order (top to bottom, left to right). Each entry shows the plot type and its subtitle (stimulus, participant group) to distinguish same-type plots.
 
-- **Select All** / **Deselect All** toggle the whole list; long lists gain a search field.
+- **Select All** / **Deselect All** toggle the whole list; long lists gain a search field. Right-click an item for **Select only this** or **Select all but this**.
 
 ## Configure the Output
 
 - **Image format**: PNG (lossless, recommended) or JPG.
-- **Resolution [DPI]**: free entry from 72 DPI, with presets for 96 (screen), 150, 300 (print), and 600 DPI. The default is 300 DPI.
+- **Resolution [DPI]**: free entry from 72 DPI, with presets for 96 (screen), 150, 300 (print), and 600 DPI. The default is 300 DPI; after an export, the dialog reopens with that export's format, margin and resolution, remembered in this browser.
 - **Margin [px]**: uniform white margin carved out of each figure, applied to all figures. The default is 20 px.
 
 Each figure is exported at its current workspace size and aspect ratio; the resolution setting scales the output pixel density (96 DPI equals on-screen size). To change a figure's exported size or proportions, resize the plot in the workspace.
@@ -30,7 +32,7 @@ The third step shows each selected figure exactly as it will export, scaled to f
 
 ## Download Contents
 
-A single selected figure downloads as a bare image file named after its plot (e.g. `GazePlotter-ScarfPlot.png`). With several figures, a `GazePlotter-Figures.zip` archive downloads in which each figure is one image, named by its workspace position, plot type, and subtitle, for example:
+A single selected figure downloads as a bare image file named after its plot and subtitle (e.g. `GazePlotter-ScarfPlot - SMI Base, All Participants.png`). With several figures, a `GazePlotter-Figures.zip` archive downloads in which each figure is one image, named by its workspace position, plot type, and subtitle, for example:
 
 ```
 01 Scarf Plot - SMI Base, All Participants.png

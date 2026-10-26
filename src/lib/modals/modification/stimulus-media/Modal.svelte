@@ -1,13 +1,10 @@
 <script lang="ts">
-  import { Section, ModalButtons } from '$lib/modals'
+  import { Section, ModalButtons, HelpText } from '$lib/modals'
   import { InputNumber, Button, Select } from '$lib/shared/components'
   import { getGazePlotterSession } from '$lib/session'
   import { formatFileSize } from '$lib/shared/format'
-  import {
-    buildStimulusMediaFromFile,
-    MEDIA_FILE_ACCEPT,
-    mediaRegionOf,
-  } from '$lib/data/media/mediaUpload'
+  import { buildStimulusMediaFromFile, MEDIA_FILE_ACCEPT } from '$lib/session/mediaUpload'
+  import { mediaRegionOf } from '$lib/data/media/stimulusMedia'
   import {
     collectFixationPoints,
     coverBounds,
@@ -320,6 +317,11 @@
           </div>
         </div>
       </div>
+      {#if !region}
+        <HelpText tone="error">
+          Fill in all four values; width and height must be greater than 0.
+        </HelpText>
+      {/if}
       {#if !hasPoints}
         <div>
           <Button size="sm" onclick={resetToMediaSize}>Reset to media size</Button>

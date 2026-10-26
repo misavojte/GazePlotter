@@ -750,7 +750,7 @@
 
     if (participantIdx === null) {
       // Overlay with no window under the cursor: track the ms line, no tooltip.
-      return trackOnlyHit({ t, x: mx, participantIdx: null }, 'default')
+      return trackOnlyHit({ t, x: mx, participantIdx: null })
     }
 
     const participant = data.participants[participantIdx]

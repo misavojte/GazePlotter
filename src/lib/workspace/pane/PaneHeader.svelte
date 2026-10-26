@@ -1,5 +1,6 @@
 <script lang="ts">
   import X from 'lucide-svelte/icons/x'
+  import { useTooltipAction } from '$lib/tooltip'
 
   interface Props {
     title: string
@@ -8,15 +9,23 @@
   }
 
   const { title, onClose }: Props = $props()
+
+  const tooltipAction = useTooltipAction()
 </script>
 
 <div class="pane-header" class:centered={!onClose}>
   <!-- Title is rendered in the same typographic style as a PaneSection
        heading (10px uppercase, 600, darkgrey) so it reads as the root
        section of the settings stack rather than a heavier display title. -->
-  <span class="title">{title} settings</span>
+  <span class="title">{title}</span>
   {#if onClose}
-    <button type="button" class="close" onclick={onClose} aria-label="Close pane">
+    <button
+      type="button"
+      class="close"
+      onclick={onClose}
+      aria-label="Close settings"
+      use:tooltipAction={{ content: 'Close (Esc)', position: 'bottom' }}
+    >
       <X size={16} />
     </button>
   {/if}

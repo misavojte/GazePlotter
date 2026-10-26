@@ -10,6 +10,7 @@ function key(init: {
   ctrlKey?: boolean
   metaKey?: boolean
   shiftKey?: boolean
+  altKey?: boolean
   target?: unknown
 }): KeyboardEvent {
   return {
@@ -18,6 +19,7 @@ function key(init: {
     ctrlKey: init.ctrlKey ?? false,
     metaKey: init.metaKey ?? false,
     shiftKey: init.shiftKey ?? false,
+    altKey: init.altKey ?? false,
     target: init.target ?? null,
   } as unknown as KeyboardEvent
 }
@@ -27,6 +29,11 @@ describe('resolveWorkspaceShortcut', () => {
     expect(resolveWorkspaceShortcut(key({ code: 'KeyZ' }))).toBeNull()
     expect(resolveWorkspaceShortcut(key({ key: '0' }))).toBeNull()
     expect(resolveWorkspaceShortcut(key({ key: '-' }))).toBeNull()
+  })
+
+  it('claims nothing with AltGr (Ctrl+Alt on Windows), so typing ó or ś stays text', () => {
+    expect(resolveWorkspaceShortcut(key({ code: 'KeyO', ctrlKey: true, altKey: true }))).toBeNull()
+    expect(resolveWorkspaceShortcut(key({ code: 'KeyS', ctrlKey: true, altKey: true }))).toBeNull()
   })
 
   it('maps the history chords, with Shift+Z as redo', () => {
@@ -75,6 +82,52 @@ describe('resolveWorkspaceShortcut', () => {
     expect(
       resolveWorkspaceShortcut(key({ code: 'KeyS', key: 'S', ctrlKey: true, shiftKey: true }))
     ).toBe('save-as')
+  })
+
+  it('claims Ctrl+D as duplicate, not Ctrl+Shift+D', () => {
+    expect(
+      resolveWorkspaceShortcut(key({ code: 'KeyD', key: 'd', ctrlKey: true }))
+    ).toBe('duplicate')
+    expect(
+      resolveWorkspaceShortcut(key({ code: 'KeyD', key: 'D', ctrlKey: true, shiftKey: true }))
+    ).toBeNull()
+  })
+
+  it('claims Ctrl+O as open', () => {
+    expect(
+      resolveWorkspaceShortcut(key({ code: 'KeyO', key: 'o', ctrlKey: true }))
+    ).toBe('open')
+  })
+
+  it('claims Ctrl+C as copying the plot as an image', () => {
+    expect(
+      resolveWorkspaceShortcut(key({ code: 'KeyC', key: 'c', ctrlKey: true }))
+    ).toBe('copy-image')
+    expect(
+      resolveWorkspaceShortcut(key({ code: 'KeyC', key: 'C', ctrlKey: true, shiftKey: true }))
+    ).toBeNull()
+  })
+
+  it('claims Ctrl+A as select all', () => {
+    expect(
+      resolveWorkspaceShortcut(key({ code: 'KeyA', key: 'a', ctrlKey: true }))
+    ).toBe('select-all')
+  })
+
+  it('claims Alt+Up/Down as stepping the stimulus, and no other Alt arrow', () => {
+    expect(
+      resolveWorkspaceShortcut(key({ key: 'ArrowUp', altKey: true }))
+    ).toBe('previous-stimulus')
+    expect(
+      resolveWorkspaceShortcut(key({ key: 'ArrowDown', altKey: true }))
+    ).toBe('next-stimulus')
+    expect(
+      resolveWorkspaceShortcut(key({ key: 'ArrowLeft', altKey: true }))
+    ).toBeNull()
+    expect(
+      resolveWorkspaceShortcut(key({ key: 'ArrowDown', altKey: true, shiftKey: true }))
+    ).toBeNull()
+    expect(resolveWorkspaceShortcut(key({ key: 'ArrowDown' }))).toBeNull()
   })
 
   it('claims nothing for an unrelated Ctrl chord', () => {

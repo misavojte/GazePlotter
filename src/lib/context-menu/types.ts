@@ -10,6 +10,8 @@ interface MenuDisplayItem {
   icon?: LucideIconComponent
   /** Secondary line rendered below the label in muted style. */
   detail?: string
+  /** Keyboard shortcut, shown muted at the row's end ("Ctrl+D"). */
+  shortcut?: string
   isHighlighted?: boolean
   disabled?: boolean
   closeOnAction?: boolean
@@ -80,6 +82,10 @@ export interface ContextMenuOptions {
   /** Override the menu width in px. Default falls back to MENU_WIDTH.
    *  Width sourcing (e.g. matching a trigger) is the consumer's responsibility. */
   width?: number
+  /** 'pointer': only a right-click opens the menu, at the pointer, and plain
+   *  clicks pass through to the element. Default 'anchor': click or
+   *  right-click opens it against the element. */
+  trigger?: 'anchor' | 'pointer'
   disabled?: boolean
   onOpen?: () => void
   onClose?: () => void

@@ -2,7 +2,7 @@
   import { onMount } from 'svelte'
   import { InputNumber, InputText, Select } from '$lib/shared/components'
   import type { SelectOption } from '$lib/shared/components'
-  import { ModalButtons } from '$lib/modals'
+  import { HelpText, ModalButtons } from '$lib/modals'
   import { getGazePlotterSession } from '$lib/session'
   import { getMetric, getRecipe } from '$lib/metrics/core/defineMetric'
   import {
@@ -421,6 +421,11 @@
     {@const leaves = availableLeavesFor(metric)}
     {@const windowable = canBeWindowed(metric, leafDraft)}
     {@const windowingLocked = contract.windowing === 'required' || mode === 'edit'}
+    <!-- An edit hides choices it locks; say so only when one is actually hidden. -->
+    {@const editLocks =
+      mode === 'edit' &&
+      (metricLeafKindsInContract(metric, contract).length > leaves.length ||
+        (windowable && contract.windowing !== 'required'))}
     <!-- svelte-ignore a11y_no_noninteractive_element_interactions -->
     <form
       class="form-inner"
@@ -431,6 +436,12 @@
         <div class="cfg-title">Metric Information</div>
         <p class="metric-description">{metric.meta.description}</p>
         <div class="cfg-meta">Unit: <strong>{metric.meta.unit || 'none'}</strong></div>
+        {#if editLocks}
+          <HelpText>
+            Editing keeps what this metric produces and whether it runs over
+            time; add it again as a new metric to change those.
+          </HelpText>
+        {/if}
       </section>
 
       <!-- The metric's own parameters (e.g. which statistic, a radius). Omitted
@@ -452,7 +463,7 @@
             {:else if param.type === 'integer' || param.type === 'number'}
               <InputNumber
                 id={`modal-param-${metric.meta.id}-${param.id}`}
-                label={param.label}
+                label={param.unit ? `${param.label} (${param.unit})` : param.label}
                 value={Number(paramDraft[param.id] ?? param.default)}
                 min={param.min}
                 max={param.max}
@@ -643,7 +654,7 @@
             {/if}
 
             {#if windowDraft}
-              {@const unit = metric.meta.windowUnit === 'fixations' ? 'fix' : 'ms'}
+              {@const unit = metric.meta.windowUnit === 'fixations' ? 'fixations' : 'ms'}
               <div class="two-col">
                 <InputNumber
                   id="modal-window-{metric.meta.id}"
@@ -759,7 +770,8 @@
     transition: border-color var(--transition-fast), background var(--transition-fast);
   }
   .shape-option:hover { border-color: var(--c-darkgrey); }
-  .shape-option:focus-visible { border-color: var(--c-brand); }
+  /* A ring, not the border: the selected card already has a brand border. */
+  .shape-option:focus-visible { outline: 2px solid var(--c-brand); outline-offset: 2px; }
   .shape-option.selected {
     border-color: var(--c-brand);
     background: color-mix(in srgb, var(--c-brand) 4%, var(--c-white));

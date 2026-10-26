@@ -21,6 +21,7 @@ export const aoiStreamPlotDefinition = definePlot<
 >({
   type: 'aoiStreamPlot',
   name: 'AOI Timeline',
+  tagline: 'AOI metric over time bins',
   group: 'per-aoi',
   paneSections: [
     'stimulus',
@@ -34,10 +35,10 @@ export const aoiStreamPlotDefinition = definePlot<
           kind: 'enum',
           key: 'alignment',
           options: [
-            { label: 'Stream', value: 'stream' },
-            { label: 'Distribution', value: 'distribution' },
-            { label: 'Ridgeline', value: 'ridgeline' },
-            { label: 'Heatmap', value: 'heatmap' },
+            { label: 'Stream', value: 'stream', detail: 'Stacked around a centered baseline' },
+            { label: 'Distribution', value: 'distribution', detail: 'Stacked on a zero baseline' },
+            { label: 'Ridgeline', value: 'ridgeline', detail: 'One curve per AOI, offset' },
+            { label: 'Heatmap', value: 'heatmap', detail: 'One row per AOI, colored by value' },
           ],
           default: 'stream',
           summary: true,

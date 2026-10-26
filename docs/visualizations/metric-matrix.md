@@ -34,17 +34,17 @@ Clicking the Metric Matrix plot card in the workspace selects the plot and opens
 ### Participants
 Choose which participants form the rows.
 - **Participant selection**: A dropdown containing *All*, *Non-empty*, and saved participant selections. Rows are the selection's participants that have a recording on at least one shown stimulus, in the selection's order.
-- **Edit participants & selections…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
+- **Edit participants & selections**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
 
 ### Stimuli
 Choose which stimuli form the columns. Unlike single-stimulus plots, the Metric Matrix spans stimuli - there is no single stimulus picker.
 - **Stimulus selection**: A dropdown containing *All* and saved stimulus selections; the columns are the picked selection's members in display order.
-- **Edit stimuli & selections…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimuli and build stimulus selections.
+- **Edit stimuli & selections**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimuli and build stimulus selections.
 
 ### Metric
 Configure the scalar metric that fills the cells.
 - **Select metric**: A dropdown of all metric instances in the library that satisfy the whole-recording `scalar` contract. The default is *Fixation duration* - an intensive (per-recording normalised) metric, so values stay comparable across stimuli of different lengths. Extensive metrics such as total counts or total durations work too, but read longer stimuli as uniformly higher from duration alone.
-- **Edit metric library…**: Opens the Metric Library modal to change the metric's parameters, summary statistic (mean, median, max, min), or define custom scalar metrics.
+- **Edit metric library**: Opens the Metric Library modal to change the metric's parameters, summary statistic (mean, median, max, min), or define custom scalar metrics.
 
 ### Visualization
 Configure the color mapping:
@@ -58,8 +58,8 @@ Configure the color mapping:
 
 ### Export
 Located at the bottom of the Pane:
-- **Download plot…**: Opens the [Figure Export](/docs/export/figures/) dialog to save the matrix as a PNG or JPG.
-- **Export Data**: To export the per-recording metric values as CSV, see [Metric Data Export](/docs/export/metric-data/).
+- **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the matrix as a PNG or JPG.
+- **Download data**: Opens the [Metric Data](/docs/export/metric-data/) export preset to this plot's metrics and participant selection, across all stimuli.
 
 ## Interpretation
 

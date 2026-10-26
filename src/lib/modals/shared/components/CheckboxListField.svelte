@@ -1,6 +1,9 @@
 <script lang="ts">
   import type { Snippet } from 'svelte'
   import { ButtonPreset, InputCheck, InputText } from '$lib/shared/components'
+  import { useContextMenuAction, type MenuItem } from '$lib/context-menu'
+
+  const contextMenuAction = useContextMenuAction()
 
   interface CheckboxItem {
     label: string
@@ -73,6 +76,22 @@
     })
   }
 
+  // Right-click on a row: tick it alone, or everything else. Over the whole
+  // list, not only the search matches.
+  function setAllBut(key: string, others: boolean) {
+    items.forEach(item => {
+      const checked = item.key === key ? !others : others
+      if (!item.disabled && item.checked !== checked) onItemChange(item.key, checked)
+    })
+  }
+
+  function rowMenu(item: CheckboxItem): MenuItem[] {
+    return [
+      { label: 'Select only this', onAction: () => setAllBut(item.key, false) },
+      { label: 'Select all but this', onAction: () => setAllBut(item.key, true) },
+    ]
+  }
+
   /** A disabled item's sublabel carries the reason it cannot be selected. */
   function itemSublabel(item: CheckboxItem): string | undefined {
     if (!item.disabled || !item.reason) return item.sublabel
@@ -124,19 +143,28 @@
 
     <div class="group-content">
       {#if items.length === 0}
-        <div class="empty-state">No items available</div>
+        <div class="empty-state">No {title.toLowerCase()} available</div>
       {:else if shownItems.length === 0}
         <div class="empty-state">No matches</div>
       {:else}
         <div class="items-list">
           {#each shownItems as item (item.key)}
-            <InputCheck
-              label={item.label}
-              sublabel={itemSublabel(item)}
-              checked={item.checked}
-              disabled={item.disabled}
-              onchange={e => onItemChange(item.key, e.detail)}
-            />
+            <div
+              class="item-row"
+              use:contextMenuAction={{
+                trigger: 'pointer',
+                items: rowMenu(item),
+                disabled: item.disabled,
+              }}
+            >
+              <InputCheck
+                label={item.label}
+                sublabel={itemSublabel(item)}
+                checked={item.checked}
+                disabled={item.disabled}
+                onchange={e => onItemChange(item.key, e.detail)}
+              />
+            </div>
           {/each}
         </div>
       {/if}
@@ -163,6 +191,11 @@
 </div>
 
 <style>
+  /* Layout-neutral: only carries the row's right-click menu. */
+  .item-row {
+    display: contents;
+  }
+
   .field-container {
     display: flex;
     flex-direction: column;

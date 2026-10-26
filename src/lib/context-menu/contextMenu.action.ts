@@ -60,6 +60,7 @@ const contextMenuAction = (
 
   let ownsMenu = false
   let detachDismiss: (() => void) | null = null
+  const atPointer = () => options.trigger === 'pointer'
 
   const attachGlobalListeners = () => {
     if (detachDismiss) return
@@ -67,7 +68,8 @@ const contextMenuAction = (
       isInside: target =>
         Boolean(
           target.closest?.(MENU_SELECTOR) ||
-            (state.anchor &&
+            (!atPointer() &&
+              state.anchor &&
               (state.anchor === target || state.anchor.contains(target))) ||
             target.closest?.('[data-context-menu-ignore]')
         ),
@@ -97,13 +99,12 @@ const contextMenuAction = (
     menu.clearOwned(ownerId)
   }
 
-  const openAt = () => {
+  const openAt = (rect: DOMRect = state.anchor.getBoundingClientRect()) => {
     if (state.disabled) return
 
     ownsMenu = true
     const computedZIndex = computeZIndex(state.anchor)
 
-    const rect = state.anchor.getBoundingClientRect()
     const hasContent = Boolean(options.content)
     const baseSize = getMenuSize(options.items, hasContent)
     const menuSize =
@@ -130,7 +131,7 @@ const contextMenuAction = (
   }
 
   const onTriggerClick = (e: MouseEvent) => {
-    if (state.disabled) return
+    if (state.disabled || atPointer()) return
     e.preventDefault()
     e.stopPropagation()
 
@@ -145,6 +146,12 @@ const contextMenuAction = (
   const onContextMenu = (e: MouseEvent) => {
     if (state.disabled) return
     e.preventDefault()
+    if (atPointer()) {
+      // Each right-click reopens the menu where it happened.
+      e.stopPropagation()
+      openAt(new DOMRect(e.clientX, e.clientY, 0, 0))
+      return
+    }
     onTriggerClick(e)
   }
 

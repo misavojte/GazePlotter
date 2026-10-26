@@ -1,5 +1,4 @@
 import type { FileInputType, FileMetadataType } from './ingest/types'
-import type { GridItemSnapshot } from '$lib/workspace/grid/types'
 import type { BinarySegmentBuffers } from './binary'
 import { FIXATION_CATEGORY_ID, FIXATION_SEED_NAME } from './binary'
 import type { MetricInstance } from '$lib/metrics/instances'
@@ -87,7 +86,7 @@ export interface EventDataUpdate {
   orderVector?: number[]
 }
 
-interface AttributeDataType {
+export interface AttributeDataType {
   /** Nested array mapping: [itemIndex][fieldIndex] where fieldIndex: 0=originalName, 1=displayedName, 2=color (optional) */
   data: string[][]
   orderVector: number[]
@@ -170,7 +169,7 @@ export const seededEventsSelection = (id: number): NameSelection => ({
  * Mirrors AoiDataType structure: per-stimulus channel definitions,
  * ordering, grouping (by displayedName), and per-channel event buffers.
  */
-interface EventDataType {
+export interface EventDataType {
   /**
    * Per-stimulus channel definitions.
    * [stimulusId][channelId][fieldIndex]
@@ -193,7 +192,7 @@ interface EventDataType {
   events: number[][][][]
 }
 
-interface AoiDataType {
+export interface AoiDataType {
   /** Nested array mapping: [stimulusIndex][aoiIndex][fieldIndex] where fieldIndex: 0=originalName, 1=displayedName, 2=color (optional) */
   data: string[][][]
   orderVector: number[][]
@@ -418,10 +417,26 @@ export type JsonImportOldFormat = Omit<DataType, 'segments'> & {
  */
 export const CURRENT_SCHEMA_VERSION = 6
 
+/**
+ * One plot in a saved layout, as the workspace file holds it. The UI narrows
+ * `type` and `settings` to its plot registry; the engine only carries them.
+ */
+export interface WorkspaceLayoutItem {
+  id?: number
+  x?: number
+  y?: number
+  w?: number
+  h?: number
+  min?: { w: number; h: number }
+  redrawTimestamp?: number
+  type: string
+  settings?: object
+}
+
 export interface JsonImportNewFormat {
   version: 2 | 3 | 4 | 5 | 6
   data: DataType
-  gridItems?: GridItemSnapshot[]
+  gridItems?: WorkspaceLayoutItem[]
   fileMetadata?: FileMetadataType | null
 }
 

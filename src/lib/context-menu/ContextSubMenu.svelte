@@ -96,7 +96,14 @@
       {@const Icon = item.icon}
       <Icon size={'1em'} strokeWidth={1} />
     {/if}
-    <span class="label">{item.label}</span>
+    {#if item.detail}
+      <span class="label body">
+        <span>{item.label}</span>
+        <span class="detail">{item.detail}</span>
+      </span>
+    {:else}
+      <span class="label">{item.label}</span>
+    {/if}
     <svg
       class="arrow"
       width="14"
@@ -162,6 +169,21 @@
     gap: 8px;
   }
 
+  /* With a detail line, as in MenuList: label over a muted second line. */
+  .label.body {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    min-width: 0;
+  }
+
+  .detail {
+    font-size: var(--text-2xs);
+    font-family: var(--font-small);
+    color: var(--c-darkgrey);
+    line-height: var(--leading-tight);
+  }
+
   .arrow {
     width: 14px;
     height: 14px;
@@ -174,9 +196,15 @@
     color: var(--c-black);
   }
 
-  button:hover {
+  button:hover:not(:disabled) {
     background: var(--c-lightgrey);
     color: var(--c-black);
+  }
+
+  /* A disabled row (a taken option, an empty-state note) reads as unavailable. */
+  button:disabled {
+    color: var(--c-darkgrey);
+    cursor: default;
   }
 
   button.selected {

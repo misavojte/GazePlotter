@@ -1,5 +1,6 @@
 <script lang="ts">
   import { page } from '$app/stores'
+  // Deep path: the `$lib` barrel would pull the whole app into the error page.
   import { Button } from '$lib/shared/components'
   import AppWindow from 'lucide-svelte/icons/app-window'
   import BookOpen from 'lucide-svelte/icons/book-open'

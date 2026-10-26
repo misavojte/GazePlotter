@@ -33,8 +33,11 @@
     background: var(--c-white);
     box-shadow: var(--shadow);
   }
+  /* A ring, so keyboard focus differs from the hover border. */
   .pick-card:focus-visible {
     border-color: var(--c-brand);
+    outline: 2px solid var(--c-brand);
+    outline-offset: 2px;
   }
 
   .pick-card-title {

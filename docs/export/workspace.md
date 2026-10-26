@@ -57,3 +57,7 @@ Undoing back to the last save counts as saved again.
 Opening replaces the current workspace with the saved data, plots, settings, and layout.
 
 Workspaces saved by earlier versions open as before: a single `.json` file, or a `.gazeplotter.zip` archive with media.
+
+### Combining workspaces
+
+Select or drop several workspace files at once to open them as one, for example two data collections of one study. Recordings match by their original name. The earliest collection keeps its plots and names; a later participant named like an earlier one is numbered, for example *Participant 1 (2)*. If both are the same person and have data on different stimuli, give them the same name in the [Participant Library](/docs/workspace/participant-library/#merging-participants) to merge them into one.

@@ -35,12 +35,17 @@ type SegmentCsvRow = {
  * - 'raw': the eye movement type and AOIs use their original imported names, and
  *   every AOI the segment references is listed individually (no grouping, hidden
  *   AOIs included).
+ *
+ * `keepAoiNames` narrows the AOI column to AOIs with those DISPLAYED names, in
+ * both modes, as an AOI selection does: every segment stays, and one left with
+ * no kept AOI reads as no AOI.
  */
 function convertDataStructure(
   data: DataType,
   stimulusIds?: Set<string>,
   participantIds?: Set<string>,
   filterCategoryIds?: Set<number> | boolean,
+  keepAoiNames?: ReadonlySet<string>,
   naming: ExportNaming = 'displayed'
 ): SegmentCsvRow[] {
   const result: SegmentCsvRow[] = []
@@ -102,24 +107,19 @@ function convertDataStructure(
             stimulusIndex,
             aoiBuffer
           )
-          aoiNames =
-            aoiCount > 0
-              ? Array.from(
-                  { length: aoiCount },
-                  (_, index) =>
-                    getAoiRaw(stimulusIndex, aoiBuffer[index], data)
-                      .displayedName
-                )
-              : null
+          const names = Array.from(
+            { length: aoiCount },
+            (_, index) =>
+              getAoiRaw(stimulusIndex, aoiBuffer[index], data).displayedName
+          ).filter(name => !keepAoiNames || keepAoiNames.has(name))
+          aoiNames = names.length > 0 ? names : null
         } else {
-          const rawAois = reader.getRawAois(segmentIndex)
-          aoiNames =
-            rawAois.length > 0
-              ? Array.from(
-                  rawAois,
-                  id => getAoiRaw(stimulusIndex, id, data).originalName
-                )
-              : null
+          const names = Array.from(reader.getRawAois(segmentIndex), id =>
+            getAoiRaw(stimulusIndex, id, data)
+          )
+            .filter(aoi => !keepAoiNames || keepAoiNames.has(aoi.displayedName))
+            .map(aoi => aoi.originalName)
+          aoiNames = names.length > 0 ? names : null
         }
 
         const spatial = reader.getSegmentSpatial(segmentIndex)
@@ -179,6 +179,7 @@ export function generateUnifiedCsv(
   stimulusIds?: Set<string>,
   participantIds?: Set<string>,
   filterCategoryIds?: Set<number> | boolean,
+  keepAoiNames?: ReadonlySet<string>,
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed'
 ): string {
@@ -188,6 +189,7 @@ export function generateUnifiedCsv(
     stimulusIds,
     participantIds,
     filterCategoryIds,
+    keepAoiNames,
     naming
   )
   const includeSpatialColumns = data.capabilities.spatial
@@ -209,6 +211,7 @@ export function generateMetadataForBatchCsv(
   stimulusIds?: Set<string>,
   participantIds?: Set<string>,
   filterCategoryIds?: Set<number> | boolean,
+  keepAoiNames?: ReadonlySet<string>,
   options?: CsvFormatOptions,
   naming: ExportNaming = 'displayed'
 ): Array<{ fileName: string; content: string }> {
@@ -218,6 +221,7 @@ export function generateMetadataForBatchCsv(
     stimulusIds,
     participantIds,
     filterCategoryIds,
+    keepAoiNames,
     naming
   )
   const includeSpatialColumns = data.capabilities.spatial

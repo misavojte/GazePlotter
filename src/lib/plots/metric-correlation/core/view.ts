@@ -9,6 +9,7 @@ import {
 import { METRIC_MISSING_MULTI_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
 import { getMetricCorrelationData } from './transformer'
 import { createSplomCellRenderer, createSplomCursorRing } from './splom'
+import { MIN_CORRELATION_SAMPLES } from '../const'
 import type { MetricCorrelationResult, MetricCorrelationSettings } from '../types'
 
 const HEATMAP_COLOR_SCALE = ['#2166ac', '#ffffff', '#ca0020']
@@ -64,8 +65,17 @@ export function deriveMetricCorrelationView(
       return [
         { key: 'Row', value: labels[row] },
         { key: 'Col', value: labels[col] },
-        { key: methodLabel, value: cell.r === null ? '—' : cell.r.toFixed(4) },
-        { key: 'n', value: String(cell.n) },
+        {
+          key: methodLabel,
+          // r is undefined for two reasons with different remedies.
+          value:
+            cell.r !== null
+              ? cell.r.toFixed(4)
+              : cell.n < MIN_CORRELATION_SAMPLES
+                ? `Too few pairs (n < ${MIN_CORRELATION_SAMPLES})`
+                : 'Undefined: a metric is constant',
+        },
+        { key: 'Pairs (n)', value: String(cell.n) },
       ]
     },
   }

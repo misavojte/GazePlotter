@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { DataEngine } from '../src/lib/data/engine/dataEngine.svelte'
+import { getAois } from '../src/lib/data/engine'
 import {
-  generateMetricExport,
+  exportMetrics,
   deduplicateMetricLabels,
   METRIC_EXPORT_CONTRACT_LONG,
   METRIC_EXPORT_CONTRACT_WIDE,
@@ -10,6 +11,7 @@ import {
 import { instanceMatchesContract, type MetricInstance } from '../src/lib/metrics'
 import type { DataType } from '../src/lib/data/types'
 import { makeDataType } from './helpers/dataTypeFixtures'
+import { aoiChecklistItems, tickedAoiNames } from '../src/lib/modals/export/shared/aois'
 
 function createTestData(): DataType {
   // Segment rows are [startTime, endTime, categoryId, ...aoiIds], nested as
@@ -114,6 +116,7 @@ function createTestData(): DataType {
         [1, 2],
         [1],
       ],
+      selections: [{ id: 1, name: 'Nav only', names: ['Nav'] }],
     },
   })
 }
@@ -127,7 +130,7 @@ function loadedEngine(data: DataType = createTestData()): DataEngine {
 
 // The suite's export defaults; each case passes only what it is about.
 const exportWith = (engine: DataEngine, over: Partial<MetricDataExportOptions>) =>
-  generateMetricExport(engine, {
+  exportMetrics(engine, {
     fileName: 'test-export',
     participantIds: [0, 1],
     stimulusIds: [0],
@@ -245,6 +248,64 @@ describe('Metric Data Export Mapping', () => {
     expect(lines).not.toContain('1,ParticipantTwo,StimulusOne,CTA,Time To First Fixation,ms,-1')
   })
 
+  it('computes ticked AOIs as a plot selection does: other AOIs count as No AOI', async () => {
+    const engine = loadedEngine()
+    const res = await exportWith(engine, {
+      metricInstanceIds: ['absoluteTime-inst'],
+      aoiNames: new Set(['Nav']),
+      includeCodebook: true,
+    })
+    // CTA is not ticked: no row of its own, its 1000 ms joins No_AOI.
+    expect(res.dataContent.split('\n')).toEqual([
+      'Participant_ID,Participant,Stimulus,AOI,Metric,Unit,Value',
+      '0,ParticipantOne,StimulusOne,Nav,Absolute Dwell Time,ms,1000',
+      '0,ParticipantOne,StimulusOne,No_AOI,Absolute Dwell Time,ms,1000',
+      '0,ParticipantOne,StimulusOne,Any_Fixation,Absolute Dwell Time,ms,2000',
+      '1,ParticipantTwo,StimulusOne,Nav,Absolute Dwell Time,ms,500',
+      '1,ParticipantTwo,StimulusOne,No_AOI,Absolute Dwell Time,ms,1000',
+      '1,ParticipantTwo,StimulusOne,Any_Fixation,Absolute Dwell Time,ms,1500',
+    ])
+    expect(res.codebookContent).toContain(',full,Nav,')
+
+    const wide = await exportWith(engine, {
+      metricInstanceIds: ['absoluteTime-inst'],
+      format: 'wide',
+      aoiNames: new Set(['Nav']),
+    })
+    const header = wide.dataContent.split('\n')[0]
+    expect(header).toContain('Absolute_Dwell_Time_Nav')
+    expect(header).not.toContain('CTA')
+  })
+
+  it('leaves out No_AOI rows and columns as a plot hiding No AOI does, values unchanged', async () => {
+    const engine = loadedEngine()
+    const res = await exportWith(engine, {
+      metricInstanceIds: ['absoluteTime-inst'],
+      aoiNames: new Set(['Nav']),
+      hideNoAoi: true,
+      includeCodebook: true,
+    })
+    expect(res.dataContent.split('\n')).toEqual([
+      'Participant_ID,Participant,Stimulus,AOI,Metric,Unit,Value',
+      '0,ParticipantOne,StimulusOne,Nav,Absolute Dwell Time,ms,1000',
+      '0,ParticipantOne,StimulusOne,Any_Fixation,Absolute Dwell Time,ms,2000',
+      '1,ParticipantTwo,StimulusOne,Nav,Absolute Dwell Time,ms,500',
+      '1,ParticipantTwo,StimulusOne,Any_Fixation,Absolute Dwell Time,ms,1500',
+    ])
+    expect(res.codebookContent).toContain(',full,Nav (No_AOI left out),')
+
+    const wide = await exportWith(engine, {
+      metricInstanceIds: ['absoluteTime-inst'],
+      format: 'wide',
+      hideNoAoi: true,
+    })
+    const [header, p1] = wide.dataContent.split('\n')
+    expect(header).toBe(
+      'Participant_ID,Participant,Stimulus,Absolute_Dwell_Time_Nav,Absolute_Dwell_Time_CTA,Absolute_Dwell_Time_Any_Fixation'
+    )
+    expect(p1).toBe('0,ParticipantOne,StimulusOne,1000,1000,2000')
+  })
+
   it('generates a descriptive sidecar codebook CSV', async () => {
     const engine = loadedEngine()
 
@@ -258,11 +319,11 @@ describe('Metric Data Export Mapping', () => {
     const cbLines = res.codebookContent!.split('\n')
     const cbHeader = cbLines[0]
     expect(cbHeader).toBe(
-      'Metric,Base_Metric,Base_Id,Unit,Measurement_Class,Parameters,Projection,Window,Output_Shape,Time_Range,Participants,Stimuli,AOI_Missing'
+      'Metric,Metric_ID,Base_Metric,Base_Id,Unit,Measurement_Class,Parameters,Projection,Window,Output_Shape,Time_Range,AOIs,Participants,Stimuli,AOI_Missing'
     )
 
     expect(cbLines).toContain(
-      'Absolute Dwell Time,Absolute dwell time,absoluteTime,ms,extensive,,,,aoi-vector,full,"ParticipantOne, ParticipantTwo","StimulusOne, StimulusTwo",false'
+      'Absolute Dwell Time,absoluteTime-inst,Absolute dwell time,absoluteTime,ms,extensive,,,,aoi-vector,full,All,"ParticipantOne, ParticipantTwo","StimulusOne, StimulusTwo",false'
     )
   })
 
@@ -389,5 +450,38 @@ describe('Metric Data Export Mapping', () => {
     const p1Row = lines.find(l => l.startsWith('0,ParticipantOne,StimulusOne'))!.split(',')
     expect(p1Row[realIdx]).toBe('1000')
     expect(p1Row[syntheticIdx]).toBe('0')
+  })
+})
+
+describe('ticked AOI names', () => {
+  it('resolve to the same AOI list as a saved selection holding them', () => {
+    const engine = loadedEngine()
+    const bySelection = getAois(engine, 0, 1)
+    expect(getAois(engine, 0, new Set(['Nav']))).toBe(bySelection)
+    expect(bySelection.map(aoi => aoi.displayedName)).toEqual(['Nav'])
+  })
+
+  it('work without any saved selection holding them', async () => {
+    const res = await exportWith(loadedEngine(), {
+      metricInstanceIds: ['absoluteTime-inst'],
+      aoiNames: new Set(['CTA']),
+    })
+    const lines = res.dataContent.split('\n')
+    expect(lines).toContain('0,ParticipantOne,StimulusOne,CTA,Absolute Dwell Time,ms,1000')
+    expect(lines).toContain('0,ParticipantOne,StimulusOne,No_AOI,Absolute Dwell Time,ms,1000')
+    expect(lines.some(line => line.includes(',Nav,'))).toBe(false)
+  })
+})
+
+describe('export AOI checklist', () => {
+  it("lists only the chosen stimuli's AOIs and sends only listed ticks", () => {
+    const engine = loadedEngine()
+    const names = (items: { value: string }[]) => items.map(item => item.value)
+    expect(names(aoiChecklistItems(engine))).toEqual(['Nav', 'CTA', 'Logo'])
+    const s1 = aoiChecklistItems(engine, new Set(['0']))
+    expect(names(s1)).toEqual(['Nav', 'CTA'])
+    // A tick on an AOI the chosen stimuli lack neither narrows nor leaks.
+    expect(tickedAoiNames(s1, new Set(['Nav', 'CTA', 'Logo']))).toBeUndefined()
+    expect([...tickedAoiNames(s1, new Set(['Nav', 'Logo']))!]).toEqual(['Nav'])
   })
 })

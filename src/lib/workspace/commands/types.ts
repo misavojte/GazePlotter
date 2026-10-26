@@ -13,7 +13,7 @@ import type {
   GridItemLayoutUpdate,
   GridItemSnapshot,
   PlotType,
-} from '$lib/workspace'
+} from '..'
 
 /**
  * Workspace Command System

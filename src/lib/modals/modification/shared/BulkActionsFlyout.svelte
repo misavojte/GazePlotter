@@ -54,6 +54,12 @@
 
   const matchedCount = $derived(matched?.length ?? 0)
   const canApply = $derived(matched !== null && hasPattern && matchedCount > 0)
+
+  function replace() {
+    if (!canApply) return
+    onRename(pattern, replacement)
+    close()
+  }
 </script>
 
 <div class="flyout">
@@ -82,7 +88,14 @@
     {/if}
   </div>
 
-  <div class="row">
+  <!-- A form so Enter in "Replace with" replaces; the presets above stay outside it. -->
+  <form
+    class="row"
+    onsubmit={e => {
+      e.preventDefault()
+      replace()
+    }}
+  >
     <div class="grow">
       <InputText
         label="Replace with"
@@ -91,15 +104,10 @@
         oninput={e => { replacement = e.detail }}
       />
     </div>
-    <Button
-      size="sm"
-      variant="primary"
-      isDisabled={!canApply}
-      onclick={() => { onRename(pattern, replacement); close() }}
-    >
+    <Button size="sm" variant="primary" type="submit" isDisabled={!canApply}>
       Replace
     </Button>
-  </div>
+  </form>
 </div>
 
 <style>

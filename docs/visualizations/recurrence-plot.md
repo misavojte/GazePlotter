@@ -26,17 +26,17 @@ Clicking the Recurrence Plot card in the workspace selects the plot and opens it
 
 ### Stimulus
 Choose the stimulus to analyze. Only fixations recorded for that stimulus are included.
-- **Edit stimuli & selections…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
+- **Edit stimuli & selections**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
 
 ### Participant
 Select which participant's fixation sequence to analyze. The recurrence plot operates on a single participant at a time. The fixation index order follows the temporal order of recorded fixations for the selected stimulus.
-- **Edit participants…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename or reorder participants.
+- **Edit participants & selections**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename or reorder participants.
 
 ### Method
 Configure the criteria used to decide whether two fixations are recurrent. The method decides which further control appears; it is listed under the method that reveals it.
 - **Recurrence method**: Rule that determines when two fixations count as recurrent.
   - *Fixed distance*: Two fixations i and j are recurrent if their Euclidean distance on the stimulus plane is ≤ the radius.
-    - **Radius [px]**: Maximum screen-space distance between two fixation centroids for them to count as recurrent.
+    - **Radius [gaze units]**: Maximum distance between two fixation centroids, in the data's gaze coordinates (pixels for most trackers), for them to count as recurrent.
   - *Fixed grid*: The stimulus plane is partitioned into a uniform grid; two fixations are recurrent if they fall within the same cell.
     - **Cells per axis**: Number of grid divisions along each axis (10 creates a 10×10 grid).
   - *AOI*: Two fixations are recurrent if they share at least one Area of Interest. Fixations not assigned to any AOI are never recurrent with any other fixation under this criterion.
@@ -65,11 +65,12 @@ Filter the temporal range of fixations.
 ### Areas of Interest
 Filters which Areas of Interest (AOIs) are active when using the *AOI* recurrence method.
 - **AOI selection**: A dropdown containing *All* and saved AOI selections; AOIs outside the picked selection count as no-AOI in this plot.
-- **Edit AOIs & selections…**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
+- **Edit AOIs & selections**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
 
 ### Export
 Located at the bottom of the Pane:
-- **Download plot…**: Opens the [Figure Export](/docs/export/figures/) dialog to save the recurrence plot as a PNG or JPG.
+- **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the recurrence plot as a PNG or JPG.
+- **Download segments**: Opens the [Segmented Data](/docs/export/segmented-data/) export preset to this plot's stimulus, participant and AOI selection, over whole recordings.
 
 ## Interpretation
 

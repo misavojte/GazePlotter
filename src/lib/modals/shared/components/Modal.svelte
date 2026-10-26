@@ -7,8 +7,12 @@
   import { getGazePlotterSession } from '$lib/session'
   import { getDebugMessage } from '$lib/errors'
   import { useContextMenu } from '$lib/context-menu'
+  import { useTooltipAction } from '$lib/tooltip'
+  import { isTextEntryTarget } from '$lib/workspace/keys'
+  import { hasOpenFloating } from '$lib/shared/placement'
 
   const contextMenuState = useContextMenu()
+  const tooltipAction = useTooltipAction()
 
   const { errorService, modalState } = getGazePlotterSession()
 
@@ -24,6 +28,13 @@
     // contextMenuAction); closing the whole modal would discard staged work.
     if (contextMenuState.current) return
     if (event.key === 'Escape' && activeModal) {
+      // A focused field is the nearer layer: the first Escape returns focus
+      // to the dialog, the next one closes it (and its staged work).
+      const dialog = (event.target as HTMLElement | null)?.closest?.('.modal')
+      if (isTextEntryTarget(event) && dialog instanceof HTMLElement) {
+        dialog.focus({ preventScroll: true })
+        return
+      }
       handleClose()
     }
   }
@@ -172,18 +183,37 @@
     void tick().then(() => {
       if (activeModalId !== (activeModal?.id ?? null)) return
       updateActiveBodyElement()
+      // Focus moves into the active dialog, unless it already took it itself.
+      const dialog = document.querySelector(
+        '.modal-stack-entry.is-active .modal'
+      ) as HTMLElement | null
+      if (dialog && !dialog.contains(document.activeElement)) {
+        dialog.focus({ preventScroll: true })
+      }
     })
   })
 
   let unlockBodyScroll: (() => void) | null = null
+  // What had focus before the first dialog opened; it gets it back on close.
+  let returnFocus: HTMLElement | null = null
+
+  // A press on the backdrop that dismisses a dropdown or popup dismisses only
+  // that, like Escape. Window capture runs before the popup's own document
+  // capture listener closes it, so this still sees it open.
+  let pressDismissedFloating = false
+  const notePress = () => {
+    pressDismissedFloating = hasOpenFloating()
+  }
 
   onMount(() => {
+    window.addEventListener('pointerdown', notePress, { capture: true, passive: true })
     window.addEventListener('keydown', handleKeydown, { passive: true })
     document.addEventListener('fullscreenchange', handleFullscreenChange, {
       passive: true,
     })
 
     return () => {
+      window.removeEventListener('pointerdown', notePress, { capture: true })
       window.removeEventListener('keydown', handleKeydown)
       document.removeEventListener('fullscreenchange', handleFullscreenChange)
       window.removeEventListener('wheel', handleWindowScroll)
@@ -193,6 +223,7 @@
 
   $effect(() => {
     if (modalStack.length > 0 && !unlockBodyScroll) {
+      returnFocus = document.activeElement as HTMLElement | null
       unlockBodyScroll = lockBodyScroll()
       window.addEventListener('wheel', handleWindowScroll, { passive: false })
       return
@@ -205,6 +236,8 @@
       showScrollIndicator = false
       showVersionMessage = false
       window.removeEventListener('wheel', handleWindowScroll)
+      if (returnFocus?.isConnected) returnFocus.focus({ preventScroll: true })
+      returnFocus = null
     }
   })
 </script>
@@ -214,7 +247,7 @@
     class="modal-overlay"
     role="presentation"
     onpointerdown={e => {
-      if (e.target === e.currentTarget && !isFullscreen) {
+      if (e.target === e.currentTarget && !isFullscreen && !pressDismissedFloating) {
         handleClose()
       }
     }}
@@ -225,6 +258,7 @@
         <div
           class="modal"
           role="dialog"
+          tabindex="-1"
           aria-modal={isActive}
           aria-hidden={!isActive}
           aria-labelledby={`modal-title-${entry.id}`}
@@ -236,13 +270,18 @@
                   class="back-btn"
                   onclick={handleClose}
                   aria-label="Go back"
+                  use:tooltipAction={{ content: 'Back (Esc)', position: 'bottom' }}
                 >
                   <ArrowLeft size={16} />
                 </button>
               {/if}
               <h3 id={`modal-title-${entry.id}`}>{entry.definition.title}</h3>
             </div>
-            <button onclick={handleClose} aria-label="Close modal">
+            <button
+              onclick={handleClose}
+              aria-label="Close dialog"
+              use:tooltipAction={{ content: 'Close (Esc)', position: 'bottom' }}
+            >
               <span aria-hidden="true">&times;</span>
             </button>
           </div>
@@ -312,6 +351,11 @@
     &.is-active {
       display: block;
     }
+  }
+
+  /* Focus lands on the dialog itself only as a starting point for Tab. */
+  .modal:focus {
+    outline: none;
   }
 
   .modal {

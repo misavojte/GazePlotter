@@ -1,6 +1,9 @@
 <script lang="ts">
   import { getColorForValue } from '$lib/color'
-  import { cannotFitPlaceholder } from '../drawCanvasPlaceholder'
+  import {
+    cannotFitPlaceholder,
+    type PlotPlaceholderContent,
+  } from '../drawCanvasPlaceholder'
   import {
     MATRIX_LAYOUT,
     MATRIX_LEGEND_GAP,
@@ -87,7 +90,7 @@
      */
     legendFixedWidth?: boolean
     /** Data-level placeholder message; null renders the matrix. */
-    placeholder?: string | null
+    placeholder?: PlotPlaceholderContent | null
     /** Fix-it steps for the too-small fit guard. */
     fitSteps?: string[]
     minLegibleCellSize?: number
@@ -366,4 +369,5 @@
 <canvas
   use:plot.plotAction
   use:canvasBlockSelect={{ regions: plot.blockedRegions }}
+  aria-label="Matrix visualization"
 ></canvas>

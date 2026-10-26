@@ -8,6 +8,13 @@ import type { DataEngine } from '../dataEngine.svelte'
 import { getAoiRaw } from '../utils/interpreters'
 
 /**
+ * What narrows a stimulus's AOIs to a reduced alphabet: a saved selection's id
+ * (plots), or a set of displayed names (an export's individually ticked AOIs).
+ * Resolved only by `getAois`; everything downstream keys on the resolved list.
+ */
+export type AoiNarrowing = number | ReadonlySet<string>
+
+/**
  * Displayed-AOI list cache.
  *
  * Keyed by the underlying `BinaryBufferReader`: a fresh reader on every
@@ -98,12 +105,35 @@ export const getAoiSelections = (engine: DataEngine): NameSelection[] =>
 export const resolveAoiSelectionVisibleIds = (
   engine: DataEngine,
   stimulusId: number,
-  aoiSelectionId: number | undefined
+  aoiSelectionId: AoiNarrowing | undefined
 ): Set<number> | null => {
   const base = getAois(engine, stimulusId)
   const narrowed = getAois(engine, stimulusId, aoiSelectionId)
   if (narrowed === base) return null
   return new Set(narrowed.map(a => a.id))
+}
+
+/**
+ * The base list kept to `names` (displayed). Covering every visible AOI → the
+ * base itself (byte-identical, shared). Otherwise cached under a token of the
+ * KEPT logical ids: it self-invalidates when names change, and two narrowings
+ * resolving to the SAME visible set (a selection, a ticked set) share one
+ * array, so one buildAoiSlots + slot-signature entry and one metric cache.
+ */
+function narrowByNames(
+  base: readonly ExtendedInterpretedDataType[],
+  baseKey: string,
+  reader: ReturnType<DataEngine['getReader']>,
+  names: ReadonlySet<string>
+): readonly ExtendedInterpretedDataType[] {
+  const filtered = base.filter(a => names.has(a.displayedName))
+  if (filtered.length === base.length) return base
+  const selKey = `${baseKey}|s${filtered.map(a => a.id).join('.')}`
+  const shared = reader ? _aoisCache.get(reader)?.get(selKey) : undefined
+  if (shared) return shared
+  const resolved = Object.freeze(filtered) as readonly ExtendedInterpretedDataType[]
+  if (reader) cachePut(reader, selKey, resolved)
+  return resolved
 }
 
 export const getAllAois = (
@@ -126,8 +156,9 @@ export const getAois = (
    * displayed name) — the reduced alphabet a compute-honest plot ranges over.
    * Unset / 0 / unknown / selection-covers-everything → the shared base list
    * BY REFERENCE (byte-identical to before this parameter existed).
+   * A set of displayed names narrows the same way, without a saved selection.
    */
-  aoiSelectionId?: number
+  aoiSelectionId?: AoiNarrowing
 ): readonly ExtendedInterpretedDataType[] => {
   const meta = engine.metadata
   if (!meta) throw new Error('Data engine metadata not available')
@@ -154,8 +185,13 @@ export const getAois = (
     if (reader) cachePut(reader, baseKey, base)
   }
 
+  // An export's ticked names: the same narrowing as a selection with them.
+  if (aoiSelectionId instanceof Set) {
+    return narrowByNames(base, baseKey, reader, aoiSelectionId)
+  }
+
   // No per-plot selection → the base list, by reference.
-  if (aoiSelectionId == null || aoiSelectionId <= 0) return base
+  if (typeof aoiSelectionId !== 'number' || aoiSelectionId <= 0) return base
   const selections = meta.aois.selections
   if (!selections || selections.length === 0) return base
 
@@ -170,26 +206,7 @@ export const getAois = (
     // Unknown selection id → base (self-healing, byte-identical to unset).
     resolved = base
   } else {
-    const names = new Set(selection.names)
-    const filtered = base.filter(a => names.has(a.displayedName))
-    if (filtered.length === base.length) {
-      // Selection covers every currently-visible AOI → base (byte-identical, shared).
-      resolved = base
-    } else {
-      // Cache the narrowed list under a token of the KEPT logical ids: it
-      // self-invalidates when the selection definition or AOI names change, and two
-      // selections resolving to the SAME visible set share one array (and thus one
-      // buildAoiSlots + slot-signature entry — equal selections share the metric cache).
-      const token = filtered.map(a => a.id).join('.')
-      const selKey = `${baseKey}|s${token}`
-      const shared = reader ? _aoisCache.get(reader)?.get(selKey) : undefined
-      if (shared) {
-        resolved = shared
-      } else {
-        resolved = Object.freeze(filtered) as readonly ExtendedInterpretedDataType[]
-        if (reader) cachePut(reader, selKey, resolved)
-      }
-    }
+    resolved = narrowByNames(base, baseKey, reader, new Set(selection.names))
   }
 
   if (!byBase) {

@@ -13,7 +13,7 @@ import { StimulusMediaStore } from '../src/lib/data/media/mediaStore.svelte'
 import {
   matchMediaFilesToStimuli,
   mediaKindOf,
-} from '../src/lib/data/media/mediaUpload'
+} from '$lib/data/media/stimulusMedia'
 
 // Round trip through the native `.gazeplotter` file: workspace.json, the
 // segment buffers as entries, and media/<id>.<ext> entries, restored to

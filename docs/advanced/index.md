@@ -12,3 +12,4 @@ You can also download GazePlotter as a PWA and run it locally on your computer. 
 - [Build & dev GazePlotter Docs from source code](/docs/advanced/docs-dev-build/)
 - [Segmented Data workflows](/docs/advanced/segmented-data-workflows/)
 - [Embedding GazePlotter](/docs/advanced/embedding/)
+- [Headless GazePlotter](/docs/advanced/headless/) - The analysis engine on the command line and in your own code

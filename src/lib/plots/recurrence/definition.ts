@@ -14,6 +14,7 @@ export const recurrencePlotDefinition = definePlot<
 >({
   type: 'recurrencePlot',
   name: 'Recurrence Plot',
+  tagline: 'Revisits in one fixation sequence',
   group: 'gaze-behavior',
   paneSections: [
     'stimulus',
@@ -36,7 +37,7 @@ export const recurrencePlotDefinition = definePlot<
         {
           kind: 'number',
           key: 'radius',
-          label: 'Radius [px]',
+          label: 'Radius [gaze units]',
           min: 1,
           max: 500,
           showWhen: methodIs('fixedDistance'),

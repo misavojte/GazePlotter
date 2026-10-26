@@ -21,22 +21,22 @@ Clicking the Transition Matrix plot card in the workspace selects the plot and o
 
 ### Stimulus
 Choose the stimulus to analyze. Each stimulus contains its own set of Areas of Interest (AOIs) which form the rows and columns of the matrix.
-- **Edit stimuli & selections…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
+- **Edit stimuli & selections**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
 
 ### Participants
 Filter the eye-tracking data by a participant selection.
 - **Participant selection**: A dropdown containing *All*, *Non-empty*, and saved participant selections.
-- **Edit participants & selections…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
+- **Edit participants & selections**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
 
 ### Metric
 Configure the quantitative transition metric displayed in the matrix cells.
 - **Select metric**: A dropdown of all metric instances in the library that satisfy the `aoi-pair-matrix` shape contract. Standard metrics include:
-  - *Transition count (fixation)* (`transitionCount-fix`): Raw number of transitions between AOI pairs based on individual fixations (see [Transitions](/docs/metrics/transitions)).
-  - *Transition count (visit)* (`transitionCount-visit`): Raw transitions based on distinct visits (consecutive fixations) (see [Transitions](/docs/metrics/transitions)).
-  - *1-step probability* (`transitionProbability-fix`): Conditional probability of transitioning TO an AOI given you are coming FROM a specific AOI (see [Transitions](/docs/metrics/transitions)).
-  - *Mean dwell duration (fixation)* (`transitionDwellMean-fix`): Average fixation duration in the "FROM" AOI before a transition (see [Transitions](/docs/metrics/transitions)).
-  - *Mean dwell duration (visit)* (`transitionDwellMean-visit`): Average total duration of consecutive fixations in the "FROM" AOI before transitioning (see [Transitions](/docs/metrics/transitions)).
-- **Edit metric library…**: Opens the Metric Library modal where you can customize transition calculation parameters or define **custom transition/matrix metrics**.
+  - *Transitions*, fixation-based (`transitionCount-fix`): Raw number of transitions between AOI pairs based on individual fixations (see [Transitions](/docs/metrics/transitions)).
+  - *Transitions*, visit-based (`transitionCount-visit`): Raw transitions based on distinct visits (consecutive fixations) (see [Transitions](/docs/metrics/transitions)).
+  - *Transition probability* (`transitionProbability-fix`): Conditional probability of transitioning TO an AOI given you are coming FROM a specific AOI (see [Transitions](/docs/metrics/transitions)).
+  - *Mean transition dwell time*, fixation-based (`transitionDwellMean-fix`): Average fixation duration in the "FROM" AOI before a transition (see [Transitions](/docs/metrics/transitions)).
+  - *Mean transition dwell time*, visit-based (`transitionDwellMean-visit`): Average total duration of consecutive fixations in the "FROM" AOI before transitioning (see [Transitions](/docs/metrics/transitions)).
+- **Edit metric library**: Opens the Metric Library modal where you can customize transition calculation parameters or define **custom transition/matrix metrics**.
 
 ### Visualization
 Configure cell scaling, colors, and outlier rendering.
@@ -47,7 +47,7 @@ Configure cell scaling, colors, and outlier rendering.
 - **Out of bounds**: Custom color settings for values that fall outside the range set above. Each color also appears as an end cap on the color bar legend.
   - *Below min*: Choose color (default is gray) and toggle *Show text* labels for cell values below minimum.
   - *Above max*: Choose color (default is gray) and toggle *Show text* labels for cell values above maximum. Inert while Max is left at 0/Auto, and its legend cap is hidden then too.
-- **Hide data**: Check *No AOI data* to hide participants who have zero registered fixations/events across all AOIs.
+- **Hide No AOI data**: Drops the No AOI row and column, so only transitions between named AOIs are shown.
 
 ### Time range [ms]
 Filter the temporal range from which transitions are calculated.
@@ -57,12 +57,12 @@ Filter the temporal range from which transitions are calculated.
 ### Areas of Interest
 Filters which Areas of Interest (AOIs) are rendered as rows and columns in the matrix.
 - **AOI selection**: A dropdown containing *All* and saved AOI selections; AOIs outside the picked selection count as no-AOI in this plot.
-- **Edit AOIs & selections…**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
+- **Edit AOIs & selections**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
 
 ### Export
 Located at the bottom of the Pane:
-- **Download plot…**: Opens the [Figure Export](/docs/export/figures/) dialog to save the transition matrix as a PNG or JPG.
-- **Export Data**: To export transition values per participant as CSV, see [Metric Data Export](/docs/export/metric-data/).
+- **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the transition matrix as a PNG or JPG.
+- **Download data**: Opens the [Metric Data](/docs/export/metric-data/) export preset to this plot's metrics, stimulus, participant selection, time range and AOI selection.
 
 ## Interpretation
 

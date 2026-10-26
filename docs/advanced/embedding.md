@@ -17,7 +17,8 @@ document head and needs no server.
 - Svelte 5 and a Vite-based build.
 - `worker: { format: 'es' }` in your Vite config (parsing runs in a module
   web worker).
-- Peer dependencies: `jszip`, `lucide-svelte`.
+- Peer dependency: `svelte`. `jszip` and the icon library install with the
+  package.
 
 ## License
 

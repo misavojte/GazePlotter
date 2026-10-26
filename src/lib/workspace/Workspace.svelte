@@ -9,6 +9,13 @@
   import { Pane } from './pane'
   import SelectionIndicator from './SelectionIndicator.svelte'
   import { stickyBanner } from './stickyBanner.svelte'
+  import Grid2x2Plus from 'lucide-svelte/icons/grid-2x2-plus'
+  import Scan from 'lucide-svelte/icons/scan'
+  import Download from 'lucide-svelte/icons/download'
+  import { exportFiguresModal } from '$lib/modals/definitions'
+  import { useContextMenuAction, type MenuItem } from '$lib/context-menu'
+  import { addablePlots, addPlot } from './controls/addPlot'
+  import { addVisualizationActions, toMenuItem } from './controls/config'
 
   import {
     MIN_WORKSPACE_HEIGHT,
@@ -27,7 +34,12 @@
   import type { WorkspaceCamera, GridBounds } from './camera.svelte'
   import { cameraTouchAction, cameraWheelAction } from './cameraGestures'
   import { FileDropTarget } from './fileDrop.svelte'
-  import { isTextEntryTarget, MODIFIER_LABEL, resolveWorkspaceShortcut } from './keys'
+  import {
+    isTextEntryTarget,
+    MODIFIER_LABEL,
+    resolveWorkspaceShortcut,
+    shortcutLabel,
+  } from './keys'
   import type { WorkspaceCommandChain } from './commands'
 
   interface Props {
@@ -46,7 +58,9 @@
     gestures = 'cooperative',
     controls = true,
   }: Props = $props()
-  const { ingest, grid, workspace, modalState } = getGazePlotterSession()
+  const session = getGazePlotterSession()
+  const { engine, ingest, grid, workspace, modalState } = session
+  const contextMenuAction = useContextMenuAction()
 
   // Single upload owner: the drag-drop handler below and the click entry
   // points (the host's import trigger, the empty-state button) all feed
@@ -135,6 +149,53 @@
 
   let workspaceContainer: HTMLElement | null = $state(null)
   let gridSurface: HTMLElement | null = $state(null)
+
+  // Right-click on empty canvas: add a plot where the click was, or act on
+  // all plots. The cell is read in the capture phase, before the menu opens.
+  let menuCell: { x: number; y: number } | undefined
+  function noteMenuCell(event: MouseEvent): void {
+    menuCell = undefined
+    if (!gridSurface) return
+    const rect = gridSurface.getBoundingClientRect()
+    const toCell = (px: number, cell: number) =>
+      Math.floor(px / camera.zoom / (cell + gridConfig.gap))
+    const x = toCell(event.clientX - rect.left, gridConfig.cellSize.width)
+    const y = toCell(event.clientY - rect.top, gridConfig.cellSize.height)
+    if (x >= 0 && y >= 0) menuCell = { x, y }
+  }
+  const canvasMenuItems = $derived.by((): MenuItem[] => [
+    {
+      label: hasGrid ? 'Add visualization here' : 'Add visualization',
+      // addPlot inherits from a sole selected plot; say so before the click.
+      detail: grid.selectedItem ? "With the selected plot's stimulus and participants" : undefined,
+      icon: Grid2x2Plus,
+      children: addVisualizationActions(addablePlots(engine), vizType =>
+        addPlot(session, vizType, menuCell)
+      ).map(toMenuItem),
+    },
+    ...(hasGrid
+      ? [
+          { isDivider: true as const },
+          {
+            label: 'Select all plots',
+            shortcut: shortcutLabel('select-all'),
+            onAction: () => grid.setSelection(grid.items.map(item => item.id)),
+          },
+          {
+            label: 'Zoom to fit',
+            shortcut: shortcutLabel('zoom-fit'),
+            icon: Scan,
+            onAction: () => camera.fit(),
+          },
+          {
+            label: 'Download all plots',
+            icon: Download,
+            onAction: () =>
+              modalState.open(exportFiguresModal, { itemIds: grid.items.map(item => item.id) }),
+          },
+        ]
+      : []),
+  ])
   const fileDrop = new FileDropTarget()
   const interaction = new GridInteractionController()
   const positionsWithPreview = $derived.by(() =>
@@ -266,8 +327,19 @@
 
   function handleGlobalKeydown(event: KeyboardEvent): void {
     const shortcut = resolveWorkspaceShortcut(event)
-    // Saving is the session's (GazePlotter.svelte), not the view's.
-    if (shortcut === null || shortcut === 'save' || shortcut === 'save-as') return
+    // Saving and opening are the session's (GazePlotter.svelte), selection the grid's.
+    if (
+      shortcut === null ||
+      shortcut === 'save' ||
+      shortcut === 'save-as' ||
+      shortcut === 'open' ||
+      shortcut === 'duplicate' ||
+      shortcut === 'copy-image' ||
+      shortcut === 'select-all' ||
+      shortcut === 'previous-stimulus' ||
+      shortcut === 'next-stimulus'
+    )
+      return
 
     if (shortcut === 'zoom-fit') {
       // A bare key, unlike the chords below: a field or a modal keeps it.
@@ -328,7 +400,12 @@
   <div class="drop-indicator">
     <div class="drop-copy">
       <p class="drop-title">Drop files to load</p>
-      <p class="drop-hint">Supported formats are detected and parsed automatically</p>
+      <!-- Over loaded data, say what a drop does to it before it happens. -->
+      <p class="drop-hint">
+        {engine.hasValidData
+          ? 'Data files replace the current dataset; images and videos attach to its stimuli'
+          : 'Supported formats are detected and parsed automatically'}
+      </p>
     </div>
   </div>
 {/snippet}
@@ -361,6 +438,12 @@
       ondragleave={fileDrop.leave}
       ondrop={handleDrop}
       onclick={handleWorkspaceBackgroundClick}
+      oncontextmenucapture={noteMenuCell}
+      use:contextMenuAction={{
+        trigger: 'pointer',
+        items: canvasMenuItems,
+        disabled: isLoading || !engine.hasValidData || responsive.isMobile,
+      }}
       use:cameraTouchAction={{ camera, panTarget: touchPanTarget }}
       use:panSurfaceAction={{
         enabled: hasGrid,
@@ -407,11 +490,13 @@
             {gridWidth}
             gridIsEmpty={grid.isEmpty}
             {entrance}
+            {camera}
           />
         </div>
         {#if wheelHintVisible}
           <div class="wheel-hint" transition:fade={{ duration: 150 }}>
-            Hold {MODIFIER_LABEL} and scroll to zoom. Drag empty space to move around.
+            Hold {MODIFIER_LABEL} and scroll to zoom, or press {shortcutLabel('zoom-fit')} to
+            fit all plots. Drag empty space to move around.
           </div>
         {/if}
         <!-- Overlays the plots, never replaces them: dragging a file across
@@ -505,7 +590,11 @@
     background-color: color-mix(in srgb, var(--c-black) 85%, transparent);
     color: var(--c-darkwhite);
     font-size: var(--text-md);
-    white-space: nowrap;
+    /* One line where it fits, wrapped (never clipped) on a narrow canvas. */
+    width: max-content;
+    max-width: calc(100% - 32px);
+    box-sizing: border-box;
+    text-align: center;
     pointer-events: none;
   }
 

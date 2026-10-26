@@ -33,6 +33,7 @@
         ...o,
         label: nameMatched[o.value] ? `${o.label} (replaces ${nameMatched[o.value]})` : o.label,
         disabled: taken.has(o.value),
+        detail: taken.has(o.value) ? 'Already chosen for another file' : o.detail,
       })),
     ]
   }
@@ -68,7 +69,7 @@
   </div>
 </div>
 
-<ModalButtons onApply={handleSubmit} />
+<ModalButtons onApply={handleSubmit} applyLabel="Attach media" />
 
 <style>
   .content {

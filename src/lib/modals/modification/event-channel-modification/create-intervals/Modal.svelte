@@ -2,7 +2,7 @@
   import InputText from '$lib/shared/components/InputText.svelte'
   import InputRadio from '$lib/shared/components/InputRadio.svelte'
   import Select from '$lib/shared/components/Select.svelte'
-  import { Section, ModalButtons } from '$lib/modals'
+  import { HelpText, Section, ModalButtons } from '$lib/modals'
   import { getGazePlotterSession } from '$lib/session'
   import type { IntervalDraftPreview } from '$lib/data/engine'
   import {
@@ -187,6 +187,15 @@
     if (mutated) modalState.finish(true)
     else modalState.close()
   }
+
+  // Enter in a section's text field runs that section's button, when enabled.
+  const enterRuns =
+    (action: () => void, enabled: () => boolean) => (event: KeyboardEvent) => {
+      if (event.key !== 'Enter' || event.isComposing || !enabled()) return
+      if (!(event.target instanceof HTMLInputElement)) return
+      event.preventDefault()
+      action()
+    }
 </script>
 
 <Section>
@@ -200,7 +209,11 @@
     </p>
 
     <Section title="A. Detect pairs by name suffix">
-      <div class="suffix-inputs-grid">
+      <!-- svelte-ignore a11y_no_static_element_interactions -- delegates its fields' Enter -->
+      <div
+        class="suffix-inputs-grid"
+        onkeydown={enterRuns(regenerateProposals, () => !!startSuffix && !!endSuffix)}
+      >
         <InputText
           bind:value={startSuffix}
           label="Start suffix"
@@ -245,13 +258,17 @@
           onclick={regenerateProposals}
           disabled={!startSuffix || !endSuffix}
         >
-          Add
+          Add matching pairs
         </button>
       </div>
     </Section>
 
     <Section title="B. Add pair manually">
-      <div class="inputs-grid manual-inputs-grid">
+      <!-- svelte-ignore a11y_no_static_element_interactions -- delegates its fields' Enter -->
+      <div
+        class="inputs-grid manual-inputs-grid"
+        onkeydown={enterRuns(addManualPair, () => canAddManual)}
+      >
         <Select
           compact
           label="Start event"
@@ -275,13 +292,16 @@
           fill={true}
         />
       </div>
+      {#if manualStart !== '' && manualStart === manualEnd}
+        <HelpText tone="error">Start and end must be different events.</HelpText>
+      {/if}
       <div class="action-row">
         <button
           class="add-button"
           disabled={!canAddManual}
           onclick={addManualPair}
         >
-          Add
+          Add pair
         </button>
       </div>
     </Section>

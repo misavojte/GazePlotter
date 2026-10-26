@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { responsive } from './responsive.svelte'
   import Button from '$lib/shared/components/Button.svelte'
   import { getGazePlotterSession } from '$lib/session'
   import { metadataInfoModal } from '$lib/modals/definitions'
@@ -13,7 +14,21 @@
     getGazePlotterSession()
 
   const canResetLayout = $derived(engine.hasValidData)
+  // A layout saved with no plots has nothing to return to.
+  const hasLayoutToRestore = $derived((ingest.loadedLayout?.length ?? 0) > 0)
+  // Emptied by removing the last plots: the likely wish is to have them back.
+  const undoRemoval = $derived.by(() => {
+    const type = workspace.history.lastUndoCommand?.type
+    return type === 'removeGridItem' || type === 'removeGridItems'
+      ? workspace.lastUndoLabel
+      : null
+  })
   const fatalLoadError = $derived(errorService.fatalLoad)
+  // Parser messages often lack a final period; the next sentence follows it.
+  const fatalSentence = $derived.by(() => {
+    const text = fatalLoadError?.userMessage.trim() ?? ''
+    return /[.!?]$/.test(text) ? text : `${text}.`
+  })
   const canOpenErrorReport = $derived(
     fatalLoadError !== null || ingest.metadata !== null
   )
@@ -39,22 +54,42 @@
   <div class="content-inner">
     <p>
       {#if fatalLoadError}
-        {fatalLoadError.userMessage} You can inspect the report or upload different
-        data.
+        {fatalSentence} You can inspect the report or upload different data.
       {:else if canResetLayout}
-        Data is available in memory, but no visualizations are displayed.
-        You can reset the layout or upload new data.
+        Data is loaded, but no plots are shown. Add one with Add
+        Visualization{responsive.isMobile ? '' : ' or by right-clicking here'}{hasLayoutToRestore ? ', reset the layout,' : ''} or upload
+        new data.
       {:else}
-        Upload new data to start working with the workspace.
+        Drop eye-tracking files anywhere here, or import them to start.
       {/if}
     </p>
+    {#if !fatalLoadError && !canResetLayout}
+      <!-- Answers "will my export work?" before the first try. -->
+      <p class="formats">
+        Tobii Pro Lab, SMI BeGaze, Gazepoint, Varjo, Pupil Cloud, OGAMA, custom
+        CSV, or a saved .gazeplotter workspace.
+      </p>
+    {/if}
     <div class="actions">
       {#if fatalLoadError && canOpenErrorReport}
         <Button onclick={openErrorReport}>Open report</Button>
       {:else if canResetLayout}
-        <Button onclick={handleResetLayout}>Reset layout</Button>
+        {#if undoRemoval}
+          <Button variant="primary" onclick={() => workspace.undo()}>
+            {undoRemoval}
+          </Button>
+        {/if}
+        {#if hasLayoutToRestore}
+          <Button onclick={handleResetLayout}>Reset layout</Button>
+        {/if}
       {/if}
-      <Button onclick={onUpload}>Import workspace or data</Button>
+      <!-- The lone first step is the primary one. -->
+      <Button
+        variant={!fatalLoadError && !canResetLayout ? 'primary' : 'secondary'}
+        onclick={onUpload}
+      >
+        Import workspace or data
+      </Button>
     </div>
   </div>
 </IndicatorCard>
@@ -69,6 +104,13 @@
     color: var(--c-black);
     line-height: var(--leading-relaxed);
     font-size: var(--text-lg);
+  }
+
+  /* Pulls up under the message: a footnote to it, not a paragraph of its own. */
+  .formats {
+    margin-top: -16px;
+    color: var(--c-darkgrey);
+    font-size: var(--text-sm);
   }
 
   .actions {

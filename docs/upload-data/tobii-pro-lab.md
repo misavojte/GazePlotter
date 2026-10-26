@@ -37,6 +37,8 @@ After parsing, GazePlotter asks how to split the recording into stimuli:
 - **Web Stimulus Events** — Treat each visited URL as its own stimulus.
 - **Custom Markers** — Define your own start/end marker strings (e.g. `_start;_end`).
 
+Pick one and click **Load data**. Custom markers must be exactly a start and an end marker separated by `;`.
+
 ### Spatial coordinates
 
 If coordinate columns are present, each fixation segment stores one coordinate, in one coordinate frame per stimulus:

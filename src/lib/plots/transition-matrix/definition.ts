@@ -12,6 +12,7 @@ export const transitionMatrixDefinition = definePlot<
 >({
   type: 'transitionMatrix',
   name: 'Transition Matrix',
+  tagline: 'Gaze transitions between AOIs',
   group: 'inter-aoi',
   paneSections: [
     'stimulus',

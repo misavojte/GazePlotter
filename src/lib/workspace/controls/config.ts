@@ -1,5 +1,6 @@
 import { Grid2x2Plus, Undo2, Redo2, Settings2 } from 'lucide-svelte'
 import type { LucideIconComponent } from '$lib/shared/icon'
+import type { MenuItem } from '$lib/context-menu'
 import { PLOT_GROUPS, type PlotGroup } from '$lib/plots/groups'
 import type { PlotType } from '$lib/workspace/grid/types'
 import { withShortcut } from '$lib/workspace/keys'
@@ -7,11 +8,14 @@ import { withShortcut } from '$lib/workspace/keys'
 export interface ControlVisualization {
   id: PlotType
   label: string
+  detail?: string
   group: PlotGroup
 }
 
 export interface ControlAction {
   label: string
+  /** Muted second line in the menu. */
+  detail?: string
   run?: () => void
   /** When present, this action is a submenu parent: it carries no `run`, and
    *  its children render as a nested menu. The add-visualization menu uses this
@@ -34,6 +38,8 @@ interface CreateToolControlsOptions {
   canRedo: boolean
   isProcessing: boolean
   isValidData: boolean
+  /** One plot is selected: a new plot takes its stimulus and participants. */
+  inheritsSelection?: boolean
   visualizations: ControlVisualization[]
   onUndo: () => void
   onRedo: () => void
@@ -78,27 +84,49 @@ export function createToolControls(
     },
     {
       id: 'add-visualization',
-      label: 'Add Visualization',
+      // Like "Nothing to undo": a disabled control says why.
+      label: !options.isValidData
+        ? 'Add Visualization (load data first)'
+        : options.inheritsSelection
+          ? "Add Visualization (with the selected plot's stimulus and participants)"
+          : 'Add Visualization',
       icon: controlIcons['add-visualization'],
-      // One submenu parent per non-empty taxonomy group, in PLOT_GROUPS order.
-      // Capability filtering happens upstream, so an unavailable group simply
-      // contributes no items and drops out here.
-      actions: PLOT_GROUPS.flatMap(group => {
-        const items = options.visualizations.filter(v => v.group === group.key)
-        if (items.length === 0) return []
-        return [
-          {
-            label: group.label,
-            children: items.map(visualization => ({
-              label: visualization.label,
-              run: () => options.onAddVisualization(visualization.id),
-            })),
-          },
-        ]
-      }),
+      actions: addVisualizationActions(options.visualizations, options.onAddVisualization),
       disabled: options.isProcessing || !options.isValidData,
     },
   ]
+}
+
+/**
+ * One submenu parent per non-empty taxonomy group, in PLOT_GROUPS order.
+ * Capability filtering happens upstream, so an unavailable group simply
+ * contributes no items and drops out here.
+ */
+export function addVisualizationActions(
+  visualizations: ControlVisualization[],
+  onAdd: (id: PlotType) => void
+): ControlAction[] {
+  return PLOT_GROUPS.flatMap(group => {
+    const items = visualizations.filter(v => v.group === group.key)
+    if (items.length === 0) return []
+    return [
+      {
+        label: group.label,
+        children: items.map(visualization => ({
+          label: visualization.label,
+          detail: visualization.detail,
+          run: () => onAdd(visualization.id),
+        })),
+      },
+    ]
+  })
+}
+
+export function toMenuItem(action: ControlAction): MenuItem {
+  if (action.children && action.children.length > 0) {
+    return { label: action.label, children: action.children.map(toMenuItem) }
+  }
+  return { label: action.label, detail: action.detail, onAction: action.run }
 }
 
 // Mobile-only: when a plot is selected but the settings sheet isn't open

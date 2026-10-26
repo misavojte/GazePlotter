@@ -89,15 +89,18 @@
     },
   ]
 
+  // As in the AOI modal: an untouched list must not push an undo step.
+  const itemsSignature = (items: { id: number; displayedName: string; color?: string }[]) =>
+    JSON.stringify(items.map(i => [i.id, i.displayedName, i.color]))
+
   const handleSubmit = () => {
     if (editor.hasInvalidGroup) return
-    // hidden = [] retires visibility for good (selections replace it).
-    const applied = workspace.apply({
-      type: 'updateCategories',
-      categories: editor.getCleanedItems(),
-      source,
-    })
-    if (!applied) return
+    const categories = editor.getCleanedItems()
+    if (itemsSignature(categories) !== itemsSignature(getAllCategories(engine))) {
+      // hidden = [] retires visibility for good (selections replace it).
+      const applied = workspace.apply({ type: 'updateCategories', categories, source })
+      if (!applied) return
+    }
 
     const committed = sel.commit(session.selections, editor.groups)
     if (

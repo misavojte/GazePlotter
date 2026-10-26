@@ -41,8 +41,36 @@ describe('segment export naming', () => {
       undefined,
       false,
       undefined,
+      undefined,
       'raw'
     ).split('\n')
     expect(lines[1]).toBe('S1,P1,0,100,Fixation,Left;Right;Top')
+  })
+})
+
+describe('segment export AOI narrowing', () => {
+  it('keeps the row and lists only the kept AOIs, by displayed name', () => {
+    const lines = generateUnifiedCsv(createData(), undefined, undefined, false, new Set(['Top Area']))
+      .split('\n')
+    expect(lines[1]).toBe('StimulusOne,ParticipantOne,0,100,Gaze,Top Area')
+  })
+
+  it('raw naming keeps every original AOI behind a kept displayed name', () => {
+    const lines = generateUnifiedCsv(
+      createData(),
+      undefined,
+      undefined,
+      false,
+      new Set(['Region']),
+      undefined,
+      'raw'
+    ).split('\n')
+    expect(lines[1]).toBe('S1,P1,0,100,Fixation,Left;Right')
+  })
+
+  it('a segment with no kept AOI stays, with an empty AOI cell', () => {
+    const lines = generateUnifiedCsv(createData(), undefined, undefined, false, new Set(['Elsewhere']))
+      .split('\n')
+    expect(lines[1]).toBe('StimulusOne,ParticipantOne,0,100,Gaze,')
   })
 })

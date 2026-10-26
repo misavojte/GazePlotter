@@ -8,6 +8,7 @@
   import X from 'lucide-svelte/icons/x'
   import Plus from 'lucide-svelte/icons/plus'
   import { createListReorder } from '../shared/listReorder.action'
+  import { useContextMenuAction, type MenuItem } from '$lib/context-menu'
   import { getGazePlotterSession } from '$lib/session'
   import { listMetrics } from '$lib/metrics/core/defineMetric'
   import {
@@ -41,6 +42,17 @@
   }: Props = $props()
 
   const { engine, workspace, modalState } = getGazePlotterSession()
+  const contextMenuAction = useContextMenuAction()
+
+  // Right-click on a card: the row's three buttons, at the pointer.
+  function cardMenu(inst: MetricInstance): MenuItem[] {
+    return [
+      { label: 'Edit', icon: Pencil, onAction: () => openEditModal(inst) },
+      { label: 'Duplicate', icon: Copy, onAction: () => duplicateInstance(inst) },
+      { isDivider: true },
+      { label: 'Delete', icon: X, onAction: () => ondeleteInstance?.(inst.id) },
+    ]
+  }
 
   // The metrics this plot can consume, in library order. Each row's own label and
   // detail line carry what it measures and how it's projected — the list is a flat
@@ -137,20 +149,21 @@
           class="metric-card"
           class:dragging={dragItemId === inst.id}
           animate:flip={{ duration: dragItemId === inst.id ? 0 : 150, easing: cubicOut }}
+          use:contextMenuAction={{ trigger: 'pointer', items: cardMenu(inst) }}
         >
           <div class="card-row">
             <div class="drag-handle" use:dragHandle={inst.id}>
               <GripVertical size={14} />
             </div>
             <div class="card-body">
-              <span class="card-name">{inst.label}</span>
-              {#if detail}<span class="card-detail">{detail}</span>{/if}
+              <span class="card-name" title={inst.label}>{inst.label}</span>
+              {#if detail}<span class="card-detail" title={detail}>{detail}</span>{/if}
             </div>
             <button
               class="icon-btn"
               onclick={() => openEditModal(inst)}
               title="Edit"
-              aria-label="Edit"
+              aria-label="Edit {inst.label}"
             >
               <Pencil size={13} />
             </button>
@@ -158,7 +171,7 @@
               class="icon-btn"
               onclick={() => duplicateInstance(inst)}
               title="Duplicate"
-              aria-label="Duplicate"
+              aria-label="Duplicate {inst.label}"
             >
               <Copy size={13} />
             </button>
@@ -166,7 +179,7 @@
               class="icon-btn"
               onclick={() => ondeleteInstance?.(inst.id)}
               title="Delete"
-              aria-label="Delete"
+              aria-label="Delete {inst.label}"
             >
               <X size={13} />
             </button>
@@ -181,7 +194,7 @@
   {#if addableMetrics.length > 0}
     <button class="add-metric-button" onclick={openAddModal} style:margin-top="16px">
       <Plus size={14} />
-      <span>Add new metric</span>
+      <span>Add metric</span>
     </button>
   {/if}
 </div>

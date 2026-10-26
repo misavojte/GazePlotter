@@ -21,9 +21,10 @@ export const METRIC_CORRELATION_CONTRACT = {
 export const METRIC_CORRELATION_METHODS: {
   value: CorrelationMethod
   label: string
+  detail: string
 }[] = [
-  { value: 'spearman', label: 'Spearman' },
-  { value: 'pearson', label: 'Pearson' },
+  { value: 'spearman', label: 'Spearman', detail: 'Rank-based (ρ), robust to outliers' },
+  { value: 'pearson', label: 'Pearson', detail: 'Linear (r), sensitive to outliers' },
 ]
 
 export const METRIC_CORRELATION_VIEWS: {

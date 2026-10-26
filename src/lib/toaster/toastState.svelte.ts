@@ -1,9 +1,11 @@
-import type { ToastFillingType } from './types'
+import type { ToastAction, ToastFillingType } from './types'
 import { generateUniqueId } from '$lib/shared/uniqueId'
 
 const MAX_VISIBLE_TOASTS = 5
 const MAX_MESSAGE_LENGTH = 280
 const TOAST_DEDUP_WINDOW_MS = 2000
+// About 200 words a minute: a long toast stays until it can be read.
+const READING_MS_PER_CHAR = 60
 
 function normalizeToastMessage(message: string): string {
   const singleLine = message.replace(/\s+/g, ' ').trim()
@@ -30,9 +32,14 @@ export class ToastState {
   private readonly recentToastTimes = new Map<string, number>()
 
   add(toast: ToastFillingType): void {
+    const message = normalizeToastMessage(toast.message)
     const normalizedToast = {
       ...toast,
-      message: normalizeToastMessage(toast.message),
+      message,
+      duration:
+        toast.duration === null
+          ? null
+          : Math.max(toast.duration, message.length * READING_MS_PER_CHAR),
     }
 
     if (normalizedToast.message.length === 0) return
@@ -66,17 +73,18 @@ export class ToastState {
   private show(
     type: ToastFillingType['type'],
     message: string,
-    duration: number
+    duration: number,
+    action?: ToastAction
   ): void {
-    this.add({ id: generateUniqueId(), message, type, duration })
+    this.add({ id: generateUniqueId(), message, type, duration, action })
   }
 
   addError(message: string): void {
     this.show('error', message, 8000)
   }
 
-  addSuccess(message: string): void {
-    this.show('success', message, 4000)
+  addSuccess(message: string, action?: ToastAction): void {
+    this.show('success', message, 4000, action)
   }
 
   addWarning(message: string): void {

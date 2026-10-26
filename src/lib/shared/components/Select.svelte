@@ -14,6 +14,8 @@
     createSelectMenuItems,
     getSelectLabel,
     isSelectionEmpty,
+    steppedSelectOption,
+    typedSelectOption,
     type SelectOption,
   } from './select'
 
@@ -109,6 +111,47 @@
     }
   }
 
+  // Keys typed within TYPE_AHEAD_MS spell one prefix, as in the open menu.
+  const TYPE_AHEAD_MS = 600
+  let typed = ''
+  let typedAt = 0
+
+  function pick(option: SelectOption) {
+    handleSelectionChange(option.value)
+    option.onAction?.(option.value)
+  }
+
+  // On the closed trigger, Up/Down steps the value, Home/End jump to the ends
+  // and typing jumps to an option, as a native select does. A typed key
+  // nothing matches passes on.
+  function handleTriggerKeydown(event: KeyboardEvent) {
+    if (multiple || isOpen || disabled) return
+    if (event.altKey || event.ctrlKey || event.metaKey) return
+    const direction = event.key === 'ArrowDown' ? 1 : event.key === 'ArrowUp' ? -1 : 0
+    if (direction !== 0) {
+      if (event.shiftKey) return
+      event.preventDefault()
+      const next = steppedSelectOption(options, String(currentSelection), direction)
+      if (next) pick(next)
+      return
+    }
+    if (event.key === 'Home' || event.key === 'End') {
+      event.preventDefault()
+      // From no current option, the stepper enters at the first or the last.
+      const end = steppedSelectOption(options, '', event.key === 'Home' ? 1 : -1)
+      if (end && end.value !== currentSelection) pick(end)
+      return
+    }
+    if (event.key.length !== 1 || event.key === ' ') return
+    const now = Date.now()
+    typed = (now - typedAt < TYPE_AHEAD_MS ? typed : '') + event.key.toLowerCase()
+    typedAt = now
+    const match = typedSelectOption(options, String(currentSelection), typed)
+    if (!match) return
+    event.preventDefault()
+    if (match.value !== currentSelection) pick(match)
+  }
+
   const optionItems = $derived(
     createSelectMenuItems(options, currentSelection, handleSelectionChange)
   )
@@ -146,6 +189,7 @@
 <InputScaffold {label} id={triggerId} compact={compact} showLabel={!!label}>
   <div bind:this={wrapperEl} class="select-wrapper" class:compact={compact} use:contextMenuAction={menuConfig}>
     <button
+      type="button"
       id={triggerId}
       class="trigger"
       class:compact={compact}
@@ -155,9 +199,10 @@
       aria-label={ariaLabel}
       aria-expanded={isOpen}
       aria-haspopup="listbox"
+      onkeydown={handleTriggerKeydown}
     >
       <span class="trigger-content">
-        <span class="label" class:placeholder={showPlaceholder}>{triggerLabel}</span>
+        <span class="label" class:placeholder={showPlaceholder} title={triggerLabel}>{triggerLabel}</span>
         <div class="svg-wrap" class:open={isOpen}>
           <ChevronDown strokeWidth={1} />
         </div>

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { createGazePlotterSession } from '$lib/session'
 import { cssColorVar } from '$lib/DesignTokens.svelte'
-import { ExportService } from '$lib/data/export'
+import { ExportService } from '$lib/session/exportService.svelte'
 import { DEFAULT_GRID_STATE_DATA } from '$lib/workspace'
 import type { GridItemSnapshot } from '$lib/workspace'
 

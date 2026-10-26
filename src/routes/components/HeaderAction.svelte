@@ -1,7 +1,6 @@
 <script lang="ts">
   import type { Action } from 'svelte/action'
-  import type { LucideIconComponent } from '$lib/shared/icon'
-  import type { TooltipActionOptions } from '$lib/tooltip/tooltip.action'
+  import type { LucideIconComponent, TooltipActionOptions } from '$lib'
 
   interface Props {
     label: string

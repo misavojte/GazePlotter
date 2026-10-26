@@ -1,3 +1,10 @@
+/**
+ * Figure export: plots register their canvas as an export source under this
+ * context key, and the export dialog renders the registered sources to
+ * image files.
+ */
+export const EXPORT_SOURCE_CONTEXT = Symbol('gazeplotter.exportSource')
+
 export type ExportFileType = '.png' | '.jpg'
 
 type CanvasExportSource = {
@@ -59,5 +66,28 @@ export async function canvasToBlobWithWhiteBackground(
 
   if (!blob) throw new Error('Failed to create image blob')
   return blob
+}
+
+/** Whether this browser can put an image on the clipboard. */
+export function canCopyImages(): boolean {
+  return (
+    typeof ClipboardItem !== 'undefined' &&
+    typeof navigator !== 'undefined' &&
+    typeof navigator.clipboard?.write === 'function'
+  )
+}
+
+/**
+ * Puts a figure on the clipboard as a PNG on white. The write starts at once
+ * with the image still pending, so the browser counts the click as its gesture.
+ */
+export function copyCanvasToClipboard(
+  canvas: Promise<HTMLCanvasElement | null>
+): Promise<void> {
+  const png = canvas.then(source => {
+    if (!source) throw new Error('The figure has nothing to draw')
+    return canvasToBlobWithWhiteBackground(source, 'image/png')
+  })
+  return navigator.clipboard.write([new ClipboardItem({ 'image/png': png })])
 }
 

@@ -25,7 +25,7 @@ export const FIXATION_SEED_NAME = 'Fixation' as const // Category ID reserved fo
  * A segment's participant-local id is derivable (`i - range.startIndex`), so
  * it is not stored.
  */
-export const enum SegmentField {
+export enum SegmentField {
   START_TIME = 0,
   END_TIME = 1,
   CATEGORY_ID = 2,

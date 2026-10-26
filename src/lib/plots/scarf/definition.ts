@@ -12,6 +12,7 @@ import { getAois, getEventChannels } from '$lib/data/engine'
 export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
   type: 'scarf',
   name: 'Scarf Plot',
+  tagline: 'AOI sequence of each participant',
   group: 'gaze-behavior',
   paneSections: [
     'stimulus',
@@ -25,9 +26,13 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
           key: 'timeline',
           group: 'Timeline mode',
           options: [
-            { label: 'Absolute', value: 'absolute' },
-            { label: 'Relative', value: 'relative' },
-            { label: 'Ordinal', value: 'ordinal' },
+            { label: 'Absolute', value: 'absolute', detail: 'Elapsed time in ms' },
+            {
+              label: 'Relative',
+              value: 'relative',
+              detail: "Each participant's session stretched to 100%",
+            },
+            { label: 'Ordinal', value: 'ordinal', detail: 'Segment order; durations ignored' },
           ],
           summary: true,
         },

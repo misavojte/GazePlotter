@@ -28,7 +28,7 @@ Along the **top edge** of the app:
 
 ### Rail
 A narrow column on the **left side** of the canvas (a strip along the bottom on phones):
-- **Add Visualization** (`+` icon) opens a menu of [plot categories](/docs/visualizations/); the new plot lands in the first free space.
+- **Add Visualization** (`+` icon) opens a menu of [plot categories](/docs/visualizations/), each plot with a one-line description; the new plot lands in the first free space. With one plot selected, the new plot opens on the same stimulus and participant selection. Right-click empty canvas for the same menu as **Add visualization here**: the plot lands where you clicked, or at the nearest free spot when something is in the way. With one plot selected, the item says the new plot takes that plot's stimulus and participants. That menu also offers **Select all plots**, **Zoom to fit** and **Download all plots** (the figure export with every plot ticked).
 - **Undo** and **Redo**.
 - **Zoom to fit** shows every plot at once. Below it, **Zoom in**, the current zoom level (click it to return to 100%), and **Zoom out**.
 - On a phone, selecting a plot swaps the strip to **Edit plot settings** and **Deselect**.
@@ -42,7 +42,7 @@ The canvas works like a map:
 
 ### Canvas
 The central area of the screen where plots are arranged.
-- **Selection**: Click any card to select it (or hold `Cmd` / `Ctrl` / `Shift` to select multiple). Holding the same keys and dragging across empty canvas draws a selection rectangle: every plot it touches joins the selection. Selection opens the Pane and reveals card controls.
+- **Selection**: Click any card to select it (or hold `Cmd` / `Ctrl` / `Shift` to select multiple). Holding the same keys and dragging across empty canvas draws a selection rectangle: every plot it touches joins the selection. `Ctrl` + `A` (`Cmd` + `A` on Mac) selects every plot. Selection opens the Pane and reveals card controls.
 - **Canvas Operations**: Drag, resize, duplicate, or delete cards to arrange your grid. For details, see [Plot Manipulation](#plot-manipulation).
 
 ### Pane
@@ -57,20 +57,46 @@ A collapsible panel located on the **right side** of the screen.
 To perform any manipulation (moving, resizing, duplicating, or removing), you must select the target plot card first by clicking it. Clicking empty canvas space deselects it.
 
 ### Moving a plot
-With the plot selected, the whole card is a drag target: click and drag anywhere on the card frame to move it. Plots snap to a 40×40 pixel grid. Hold a plot near the edge of the canvas and the view moves along, so you can place it anywhere, including above or to the left of all other plots. With several plots selected, drag any one to move them all together.
+With the plot selected, the whole card is a drag target: click and drag anywhere on the card frame to move it. Plots snap to a 40×40 pixel grid. Hold a plot near the edge of the canvas and the view moves along, so you can place it anywhere, including above or to the left of all other plots. With several plots selected, drag any one to move them all together. The arrow keys move the selection one grid cell at a time.
 
 ### Resizing a plot
 Drag any of the four corner handles on a selected plot. The card snaps to the grid as it resizes.
 
-A selected plot carries a small chip that floats just above its outline's top-left corner, holding two buttons: **Duplicate** and **Remove**. Hover either one for its name.
+A selected plot carries a small chip that floats just above its outline's top-left corner, holding two buttons: **Duplicate** and **Remove**. Hover either one for its name and shortcut.
+
+Right-click a plot for its verbs at the pointer, grouped: **Settings** and **Zoom to plot** (fits it to the view, at most 100%); **Duplicate**, **Next stimulus** and **Previous stimulus**; **Copy as image** (puts the figure on the clipboard, ready to paste into slides or a document; `Ctrl+C`), **Download plot** and the pane's **Download data** or **Download segments** when the plot has one; and **Remove**. When the plot is the selection, each item shows its shortcut at the right. Right-clicking leaves the selection as it is (**Settings** selects the plot, and is left out while its pane is open); on a plot that belongs to a multi-selection, the items act on the whole selection (there is no **Copy as image**, since the clipboard holds one image).
 
 ### Duplicating a plot
-Click **Duplicate** in the chip. The copy keeps every setting: participant selection, stimulus, axis bounds, colors.
+Click **Duplicate** in the chip, or press `Ctrl+D` (`Cmd+D` on Mac). The copy keeps every setting: participant selection, stimulus, axis bounds, colors. The copy is selected, so `Alt+Down` (`Option+Down` on Mac) right after puts it on the next stimulus: two keys for a side-by-side comparison.
 
 With several plots selected, the chip moves to the group's outline and duplicates all of them at once, keeping the arrangement they are in: the copies land together, in the same shape, in the first free space that fits them. They become the new selection, and one **Undo** takes them all back.
 
 ### Removing a plot
-Click **Remove** in the chip, or press `Delete`. With several plots selected, the chip on the group's outline removes all of them in one step.
+Click **Remove** in the chip, or press `Delete` (`Backspace` on Mac). With several plots selected, the chip on the group's outline removes all of them in one step.
+
+## Keyboard shortcuts
+
+On a Mac, use `Cmd` wherever the table says `Ctrl` (`Delete` is `Backspace`). Shortcuts that act on plots work when no dialog is open and you are not typing in a field.
+
+| Shortcut | Action |
+| --- | --- |
+| `Ctrl` + `O` | Import data or a workspace |
+| `Ctrl` + `S` | Save the workspace (`Ctrl` + `Shift` + `S`: save as) |
+| `Ctrl` + `Z` / `Ctrl` + `Y` | Undo / redo |
+| `Ctrl` + `A` | Select every plot |
+| `Ctrl` + `D` | Duplicate the selected plots |
+| `Ctrl` + `C` | Copy the selected plot to the clipboard as an image (when no text is selected) |
+| `Delete` | Remove the selected plots |
+| Arrow keys | Move the selected plots one grid cell |
+| `Alt` + `Up` / `Down` | Show the previous / next stimulus in the selected plots (`Option` on Mac) |
+| `Esc` | Close the dialog or pane, or clear the selection (in a text or number field, the first `Esc` only leaves the field) |
+| `Shift` + `1` | Zoom to fit |
+| `Ctrl` + `+` / `-` / `0` | Zoom in / out / back to 100% |
+| Letters in an open menu | Jump to the item that starts with them |
+| `Enter` / `Shift` + `Enter` in a library's name field | Move to the next / previous name, for renaming a list in one pass |
+| `Up` / `Down`, `Home` / `End` or letters on a focused dropdown | Pick the previous / next, the first / last, or the first option that starts with the letters, without opening it |
+| Right-click | A plot: its verbs; empty canvas: add a plot there; a dialog list item or selection chip: select only it, or all but it |
+| `?` | Open this shortcut list in a new tab |
 
 ## Customization Libraries
 

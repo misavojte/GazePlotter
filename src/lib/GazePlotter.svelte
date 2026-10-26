@@ -5,7 +5,7 @@
   import Workspace from '$lib/workspace/Workspace.svelte'
   import { Tooltip } from '$lib/tooltip'
   import { ContextMenu } from '$lib/context-menu'
-  import { onDestroy, onMount } from 'svelte'
+  import { onDestroy, onMount, untrack } from 'svelte'
   import {
     createGazePlotterSession,
     setGazePlotterSessionContext,
@@ -19,6 +19,7 @@
     type WorkspaceActions,
   } from '$lib/workspace/actions.svelte'
   import type { DataLoader } from '$lib/data/ingest'
+  import { useMediaElements } from '$lib/plots/shared/mediaElements.svelte'
   import { resolveWorkspaceShortcut } from '$lib/workspace/keys'
 
   interface Props {
@@ -69,12 +70,14 @@
 
   // Ctrl+S is always ours (never the browser's "Save page"); it runs when no
   // dialog is in front, text fields included.
+  // Ctrl+O likewise: the browser's "Open file" would show the CSV as a page.
   function handleSaveKey(event: KeyboardEvent): void {
     const shortcut = resolveWorkspaceShortcut(event)
-    if (shortcut !== 'save' && shortcut !== 'save-as') return
+    if (shortcut !== 'save' && shortcut !== 'save-as' && shortcut !== 'open') return
     event.preventDefault()
     if (modalState.activeModal) return
-    if (shortcut === 'save') actions.save()
+    if (shortcut === 'open') actions.openImport()
+    else if (shortcut === 'save') actions.save()
     else actions.saveAs()
   }
 
@@ -82,9 +85,17 @@
     document.addEventListener('keydown', handleSaveKey)
     return () => document.removeEventListener('keydown', handleSaveKey)
   })
+  // Media the store dropped (removed, or a new dataset) frees its elements now,
+  // not when a media plot next draws.
+  const mediaElements = useMediaElements(session)
+  $effect(() => {
+    void session.engine.media.version
+    untrack(() => mediaElements.sweep())
+  })
   onDestroy(() => {
     camera.destroy()
-    // Releases the media blobs and their object URLs (recordings can be GBs).
+    // Releases the decoded media elements and the blobs (recordings can be GBs).
+    mediaElements.clear()
     session.engine.media.clear()
   })
 

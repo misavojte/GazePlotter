@@ -131,19 +131,26 @@
     { label: 'Color', width: '40px', type: 'color' as const, align: 'center' as const },
   ]
 
+  // As in the AOI modal: an untouched list must not push an undo step.
+  const itemsSignature = (items: { id: number; displayedName: string; color?: string }[]) =>
+    JSON.stringify(items.map(i => [i.id, i.displayedName, i.color]))
+
   const handleApply = () => {
     // Selections commit through the SAME map the session displayed — resolve
     // BEFORE the channel command rebuilds the open-name baseline. No pruning.
     const committed = commitNameSelections(renameMap, session.selections)
 
-    // hidden = [] retires visibility for good (selections replace it).
-    const applied = workspace.apply({
-      type: 'updateEventChannels',
-      channels: editor.getCleanedItems(),
-      stimulusId: stimulusId(),
-      source,
-    })
-    if (!applied) return
+    const channels = editor.getCleanedItems()
+    if (itemsSignature(channels) !== itemsSignature(getEventChannels(engine, stimulusId()))) {
+      // hidden = [] retires visibility for good (selections replace it).
+      const applied = workspace.apply({
+        type: 'updateEventChannels',
+        channels,
+        stimulusId: stimulusId(),
+        source,
+      })
+      if (!applied) return
+    }
     if (
       canonicalNameSelections(committed) !==
       canonicalNameSelections(getEventsSelections(engine))
@@ -219,12 +226,12 @@
         label: 'Create intervals…',
         onclick: () => {
           // Re-pull only when the step actually created intervals (it
-          // resolves `true`) — a plain Back must not discard the user's
-          // unapplied edits.
+          // resolves `true`); the new channels join the list and the
+          // unapplied renames and colors stay.
           modalState
             .push(createEventIntervalsModal, { source })
             .then(created => {
-              if (created) editor.refresh()
+              if (created) editor.refreshKeepingEdits()
             })
         },
       },

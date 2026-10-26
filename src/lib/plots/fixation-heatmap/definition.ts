@@ -1,8 +1,8 @@
-import { deriveFixationHeatmapView, formatGaze, heatmapUnit } from './core/view'
+import { deriveFixationHeatmapView, heatmapUnit } from './core/view'
 import { autoRadiusFor } from './core/transformer'
 import { plotCursorScreen } from '$lib/plots/shared/plotCursor.svelte'
 import { commonIs, definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
-import { stimulusGroupSubtitle } from '$lib/plots/shared'
+import { formatGaze, stimulusGroupSubtitle } from '$lib/plots/shared'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import type { FixationHeatmapPlotSettings } from './types'
 
@@ -15,6 +15,7 @@ function scaleUnit(ctx: SectionFieldCtx): string | null {
 export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationHeatmapPlotSettings>({
   type: 'fixationHeatmap',
   name: 'Fixation Heatmap',
+  tagline: 'Pooled fixations on the stimulus',
   group: 'gaze-behavior',
   paneSections: [
     'stimulus',
@@ -64,7 +65,8 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
           key: 'radius',
           label: ctx => {
             const auto = autoRadiusFor(ctx.engine, (ctx.settings.stimulusId as number) ?? 0)
-            return auto === null ? 'Radius (0 = Auto)' : `Radius (0 = Auto: ${formatGaze(auto)})`
+            // "R" names the radius the figure summary and tooltip report.
+            return auto === null ? 'Radius R (0 = Auto)' : `Radius R (0 = Auto: ${formatGaze(auto)})`
           },
           min: 0,
           // A tenth of the auto radius's magnitude: 1 for pixel data, 0.001 for normalized.
@@ -115,7 +117,7 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
           key: 'background',
           label: 'Background',
           options: [
-            { label: 'Image', value: 'image' },
+            { label: 'Image', value: 'image', detail: 'Image in full color' },
             { label: 'Grayscale image', value: 'grayscale', detail: 'Image without color, so heat colors stand out' },
             { label: 'Dimmed grayscale image', value: 'dimmed', detail: 'Grayscale image faded toward white' },
             { label: 'None', value: 'none', detail: 'Heat only, within the image outline' },

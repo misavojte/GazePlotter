@@ -68,6 +68,8 @@
     statisticalOverlay?: StatisticalOverlayType
     noMetric?: boolean
     proportion?: boolean
+    /** The metric's unit, trailing every value in the tooltip; '' for none. */
+    unit?: string
     /**
      * The per-plot disclosure strings: what a category slot IS (tooltip's first
      * row key), how to make the figure fit, and how a screen reader names it.
@@ -91,6 +93,7 @@
     margin = 0,
     noMetric = false,
     proportion = false,
+    unit = '',
     itemTooltipKey = 'Category',
     cannotFitHints = [],
     ariaLabel = 'Beeswarm plot',
@@ -327,7 +330,8 @@
   // --- Hover / tooltip ---
 
   function fmt(v: number): string {
-    return v % 1 === 0 ? v.toString() : v.toFixed(2)
+    const num = v % 1 === 0 ? v.toString() : v.toFixed(2)
+    return unit ? `${num} ${unit}` : num
   }
 
   function findNearbyParticipants(
@@ -351,9 +355,9 @@
     if (!stats || stats.count <= 0) return
     content.push(
       { key: 'Stats', value: `n = ${stats.count}` },
-      { key: '', value: `x̄ = ${fmt(stats.mean)}` },
-      { key: '', value: `x̃ = ${fmt(stats.median)}` },
-      { key: '', value: `σ = ${fmt(stats.sd)}` },
+      { key: '', value: `Mean = ${fmt(stats.mean)}` },
+      { key: '', value: `Median = ${fmt(stats.median)}` },
+      { key: '', value: `SD = ${fmt(stats.sd)}` },
       { key: '', value: `95% CI = ±${fmt(stats.sem * 1.96)}` }
     )
   }
@@ -382,7 +386,8 @@
 
     const content: FrameHit['content'] = [
       { key: itemTooltipKey, value: dataItem.label },
-      { key: 'Value', value: fmt(mouseValue) },
+      // The axis value under the pointer, not a data point.
+      { key: 'At pointer', value: fmt(mouseValue) },
     ]
 
     // Dot radius is computed once in `geom` (stable between full renders), not

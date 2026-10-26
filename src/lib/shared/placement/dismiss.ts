@@ -43,6 +43,12 @@ export type OutsideDismissOptions = {
   }
 }
 
+// Floating UI currently listening for an outside press.
+let openFloating = 0
+
+/** True while a menu or popup is open; read it before its dismissal runs. */
+export const hasOpenFloating = (): boolean => openFloating > 0
+
 /**
  * The one owner of outside-pointer dismissal for floating UI (context menu,
  * color popup). Capture-phase pointerdown: capture beats handlers that stop
@@ -71,6 +77,7 @@ export const attachOutsideDismiss = (
     : []
 
   document.addEventListener('pointerdown', onPointerDown, true)
+  openFloating++
   for (const parent of scrollTargets) {
     parent.addEventListener('scroll', onScroll, true)
   }
@@ -79,6 +86,7 @@ export const attachOutsideDismiss = (
   return () => {
     if (detached) return
     detached = true
+    openFloating--
     document.removeEventListener('pointerdown', onPointerDown, true)
     for (const parent of scrollTargets) {
       parent.removeEventListener('scroll', onScroll, true)

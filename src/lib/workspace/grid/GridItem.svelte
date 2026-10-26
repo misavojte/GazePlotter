@@ -11,8 +11,10 @@
   import { getGazePlotterSession } from '$lib/session'
   import type { PlotSubtitleParts } from '$lib/plots/definePlot'
   import { responsive } from '../responsive.svelte'
+  import { useContextMenuAction, type MenuItem } from '$lib/context-menu'
 
   const { grid } = getGazePlotterSession()
+  const contextMenuAction = useContextMenuAction()
 
   type GridRect = { id: number; x: number; y: number; w: number; h: number }
   type IdOnly = { id: number }
@@ -38,6 +40,8 @@
     onresize: GridEvent<GridRect>
     onremove: GridEvent<IdOnly>
     onduplicate: GridEvent<IdOnly>
+    /** The right-click menu's items; it opens at the pointer. */
+    menuItems?: MenuItem[]
   }
 
   let {
@@ -59,6 +63,7 @@
     onresize,
     onremove,
     onduplicate,
+    menuItems,
   }: Props = $props()
 
   const item = $derived({ id, x, y, w, h })
@@ -126,6 +131,10 @@
       grid.openPane(id)
     }
   }
+
+  // While its right-click menu is open the plot keeps the hover ring, so the
+  // menu's target stays visible once the pointer moves into the menu.
+  let isMenuTarget = $state(false)
 
   // The press look. A finger that slides off is panning the canvas, not
   // pressing the plot, so a touchmove releases it too.
@@ -205,6 +214,13 @@
   style={itemStyle}
   transition:fade={{ duration: 150 }}
   role="figure"
+  use:contextMenuAction={{
+    trigger: 'pointer',
+    items: menuItems,
+    disabled: !menuItems || responsive.isMobile,
+    onOpen: () => (isMenuTarget = true),
+    onClose: () => (isMenuTarget = false),
+  }}
 >
   <div 
     class="grid-item-scaler"
@@ -223,6 +239,7 @@
     class="grid-item-frame"
     class:selected={isSelected}
     class:group-member={isGroupMember}
+    class:menu-target={isMenuTarget}
     onclick={onFrameClick}
     use:moveHandleAction={frameMoveActionParams}
   >
@@ -236,7 +253,7 @@
             {/if}
             <div class="grid-item-subtitle-part">
               <span class="grid-item-subtitle-label">{part.label}</span>
-              <span class="grid-item-subtitle-value">{part.value}</span>
+              <span class="grid-item-subtitle-value" title={part.value}>{part.value}</span>
             </div>
           {/each}
         </div>
@@ -389,7 +406,8 @@
             [data-block-select]
           ):hover
       )
-    ) {
+    ),
+  .grid-item-frame.menu-target:not(.selected) {
     outline-color: color-mix(in srgb, var(--c-info) 25%, var(--c-grey));
   }
 

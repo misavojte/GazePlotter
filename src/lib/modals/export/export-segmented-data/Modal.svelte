@@ -1,7 +1,7 @@
 <script lang="ts">
+  import { untrack } from 'svelte'
   import { Select } from '$lib/shared/components'
   import {
-    CheckboxListField,
     Step,
     StepList,
     HelpText,
@@ -9,83 +9,115 @@
   } from '$lib/modals'
   import type { DecimalSeparator, ExportNaming } from '$lib/data/export'
   import { getGazePlotterSession } from '$lib/session'
-  import { getAllCategories } from '$lib/data/engine'
+  import { getAllCategories, getCategoriesSelections } from '$lib/data/engine'
   import {
     CSV_DECIMAL_SEPARATOR_OPTIONS,
     CSV_DELIMITER_OPTIONS,
     EXPORT_NAMING_OPTIONS,
     EXPORT_TYPE_OPTIONS,
+    csvConventionsSummary,
     exportTypeNamingSummary,
-    listSummary,
-    toggleSetValue,
   } from '../shared/helpers'
+  import { readExportMemory, rememberExport } from '../shared/exportMemory'
   import ExportShell from '../shared/ExportShell.svelte'
   import StimuliStep from '../shared/StimuliStep.svelte'
   import ParticipantsStep from '../shared/ParticipantsStep.svelte'
+  import SelectionStep from '../shared/SelectionStep.svelte'
+  import {
+    aoiChecklistItems,
+    aoiChecklistPresets,
+    defaultAoiSelection,
+    tickedAoiNames,
+  } from '../shared/aois'
   import { defaultStimulusSelection } from '../shared/stimuli'
   import { defaultParticipantSelection } from '../shared/participants'
 
-  const { engine, exportService } = getGazePlotterSession()
-  const fileName = 'GazePlotter-SegmentedData'
+  export interface Props {
+    /** Prefill: one stimulus, and a group's members or one participant. */
+    stimulusId?: number
+    groupId?: number
+    participantId?: number
+    /** Prefill: a plot's AOI selection ticks its AOIs. */
+    aoiSelectionId?: number
+  }
+
+  let { stimulusId, groupId, participantId, aoiSelectionId }: Props = $props()
+  const { engine, exportService, workspaceFile } = getGazePlotterSession()
+  // Named after the dataset, as the workspace and analysis exports are.
+  const fileName = `${workspaceFile.suggestedName}-SegmentedData`
   let exportType = $state('csv')
-  let delimiter = $state(',')
-  let decimalSeparator = $state<DecimalSeparator>('.')
+  const remembered = readExportMemory()
+  let delimiter = $state(remembered.delimiter)
+  let decimalSeparator = $state<DecimalSeparator>(remembered.decimalSeparator)
   let naming = $state<ExportNaming>('displayed')
-  let selectedStimuliIds = $state(defaultStimulusSelection(engine))
-  let selectedParticipantIds = $state(defaultParticipantSelection(engine))
+  // Prefill props seed the selection once; they don't bind it.
+  let selectedStimuliIds = $state(
+    untrack(() => defaultStimulusSelection(engine, stimulusId))
+  )
+  let selectedParticipantIds = $state(
+    untrack(() =>
+      participantId != null
+        ? new Set([participantId.toString()])
+        : defaultParticipantSelection(engine, groupId)
+    )
+  )
   
-  const allCategories = getAllCategories(engine)
-  let selectedCategoryIds = $state<Set<number>>(new Set(allCategories.map(c => c.id)))
+  // Eye-movement types by id, ticked as strings like every checklist step.
+  const categoryItems = getAllCategories(engine).map(c => ({
+    value: c.id.toString(),
+    label: c.displayedName,
+    sublabel: c.originalName !== c.displayedName ? `Original: ${c.originalName}` : undefined,
+  }))
+  const categoryPresets = getCategoriesSelections(engine)
+    .filter(s => s.memberIds.length > 0)
+    .map(s => ({ id: s.id, name: s.name, members: s.memberIds.map(id => id.toString()) }))
+  let selectedCategoryIds = $state(new Set(categoryItems.map(item => item.value)))
 
   const hasSpatialData = $derived(engine.capabilities.spatial)
 
-  const stepCategoriesDone = $derived(selectedCategoryIds.size > 0)
-  const canExport = $derived(
-    selectedStimuliIds.size > 0 && selectedParticipantIds.size > 0 && stepCategoriesDone
+  // Unticked AOIs leave the AOI column, as an AOI selection does in a plot.
+  // Lists the chosen stimuli's AOIs; ticks span every AOI.
+  const aoiItems = $derived(aoiChecklistItems(engine, selectedStimuliIds))
+  const aoiPresets = $derived(aoiChecklistPresets(engine, aoiItems))
+  let selectedAois = $state(
+    untrack(() => defaultAoiSelection(engine, aoiChecklistItems(engine), aoiSelectionId))
   )
 
-  const categoriesSummary = $derived(
-    listSummary(
-      selectedCategoryIds.size,
-      allCategories.length,
-      allCategories.find(c => selectedCategoryIds.has(c.id))?.displayedName
-    )
+  const canExport = $derived(
+    selectedStimuliIds.size > 0 &&
+      selectedParticipantIds.size > 0 &&
+      selectedCategoryIds.size > 0 &&
+      (aoiItems.length === 0 || aoiItems.some(item => selectedAois.has(item.value)))
   )
   const fileSummary = $derived(
-    exportTypeNamingSummary(exportType, naming).join(' · ')
+    [
+      ...exportTypeNamingSummary(exportType, naming),
+      ...csvConventionsSummary(delimiter, decimalSeparator),
+    ].join(' · ')
   )
 
-  const categoryItems = $derived(
-    allCategories.map(c => ({
-      key: c.id.toString(),
-      label: c.displayedName,
-      sublabel: c.originalName !== c.displayedName ? `Original: ${c.originalName}` : undefined,
-      checked: selectedCategoryIds.has(c.id),
-    }))
-  )
-
-  function handleCategoryChange(key: string, checked: boolean) {
-    selectedCategoryIds = toggleSetValue(selectedCategoryIds, parseInt(key, 10), checked)
-  }
-
-  const handleExport = () =>
-    exportService.exportSegmentedData({
+  const handleExport = () => {
+    rememberExport({ delimiter, decimalSeparator })
+    return exportService.exportSegmentedData({
       fileName,
       exportType: exportType as 'csv' | 'individual-csv',
       stimulusIds: selectedStimuliIds,
       participantIds: selectedParticipantIds,
-      filterCategoryIds: selectedCategoryIds,
+      filterCategoryIds: new Set(Array.from(selectedCategoryIds, Number)),
+      keepAoiNames: tickedAoiNames(aoiItems, selectedAois),
       naming,
       csvOptions: {
         delimiter,
         decimalSeparator,
       },
     })
+  }
 </script>
 
 <ExportShell
   intro="Export eye-tracking segments with timing, movement classifications, and AOI information."
   {canExport}
+  exportLabel="Export Segments"
   onExport={handleExport}
 >
   <StepList>
@@ -96,24 +128,32 @@
     />
     <ParticipantsStep n={2} bind:selected={selectedParticipantIds} />
 
-    <Step
+    <SelectionStep
       n={3}
       title="Choose eye-movement types"
-      description="Select which eye-movement categories to include in the exported file."
-      summary={categoriesSummary}
-      done={stepCategoriesDone}
-    >
-      <CheckboxListField
-        title="Eye-movement types"
-        items={categoryItems}
-        onItemChange={handleCategoryChange}
-        hasError={!stepCategoriesDone}
-        errorMessage="Select at least one eye-movement type to export"
+      listTitle="Eye-movement types"
+      noun="eye-movement type"
+      description="Only segments of the ticked types go into the file."
+      items={categoryItems}
+      presets={categoryPresets}
+      bind:selected={selectedCategoryIds}
+    />
+
+    {#if aoiItems.length > 0}
+      <SelectionStep
+        n={4}
+        title="Choose AOIs"
+        listTitle="AOIs"
+        noun="AOI"
+        description="Every segment stays in the file; unticked AOIs are left out of its AOI column, so a segment only on them reads as no AOI."
+        items={aoiItems}
+        presets={aoiPresets}
+        bind:selected={selectedAois}
       />
-    </Step>
+    {/if}
 
     <Step
-      n={4}
+      n={aoiItems.length > 0 ? 5 : 4}
       title="Configure the file"
       description="The file layout and CSV conventions."
       summary={fileSummary}
@@ -147,20 +187,23 @@
           CSV columns: stimulus, participant, timestamp, duration,
           eyemovementtype, AOI, x, y. Spatial coordinates are exported per
           segment; segments without coordinates keep empty x/y fields.
+          Individual files leave out stimulus and participant; each is named
+          &lt;stimulus&gt;_&lt;participant&gt;.
         </HelpText>
       {:else}
         <HelpText>
           CSV columns: stimulus, participant, timestamp, duration,
           eyemovementtype, AOI. Load spatially annotated data to unlock x/y
-          coordinate export for each segment.
+          coordinate export for each segment. Individual files leave out
+          stimulus and participant; each is named &lt;stimulus&gt;_&lt;participant&gt;.
         </HelpText>
       {/if}
       <HelpText>
-        Naming: "Displayed" uses your renamed movement-type and AOI names,
-        merges AOIs grouped under the same name, and excludes hidden AOIs (the
-        on-screen result). "Raw" uses the original imported names with no
-        grouping and lists every AOI a segment references, including hidden
-        ones. The AOI column contains semicolon-separated area names.
+        Naming: "Displayed" uses your renamed movement-type and AOI names and
+        merges AOIs grouped under the same name (the on-screen result). "Raw"
+        uses the original imported names with no grouping and lists every AOI
+        a segment references. The AOI column contains semicolon-separated area
+        names.
       </HelpText>
     </Step>
   </StepList>

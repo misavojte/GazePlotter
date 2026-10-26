@@ -75,16 +75,21 @@ export function deriveTransitionMatrixView(
       placeholder: noMetric
         ? METRIC_MISSING_MESSAGE
         : aoiLabels.length === 0
-          ? 'No AOI data available'
+          ? {
+              message: 'No AOIs for this stimulus and AOI selection.',
+              steps: ['Pick another Stimulus or a selection in Areas of Interest'],
+            }
           : null,
       fitSteps: ['Merge some AOIs in Plot Settings > Areas of Interest'],
       tooltipWidth: 150,
       getCellTooltip: (row, col) => {
         const value = matrix[row * aoiLabels.length + col] ?? 0
+        // Six significant digits: no float noise, and a tiny probability never reads 0.
+        const shown = Number.isInteger(value) ? String(value) : String(Number(value.toPrecision(6)))
         return [
           { key: 'From', value: aoiLabels[row] },
           { key: 'To', value: aoiLabels[col] },
-          { key: 'Value', value: Number.isFinite(value) ? value.toString() : '—' },
+          { key: 'Value', value: Number.isFinite(value) ? shown : 'Undefined, not zero' },
         ]
       },
     } satisfies Omit<ComponentProps<typeof MatrixPlotFigure>, keyof CanvasExportProps>,

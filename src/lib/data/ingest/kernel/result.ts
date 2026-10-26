@@ -1,5 +1,5 @@
 import type { DataType } from '$lib/data/types'
-import type { GridItemSnapshot } from '$lib/workspace/grid/types'
+import type { WorkspaceLayoutItem } from '$lib/data/types'
 import type { FileMetadataType, ParseSettings } from '../types'
 
 /**
@@ -23,10 +23,12 @@ export type IngestResult =
       kind: 'workspace'
       version: number
       data: DataType
-      gridItems?: GridItemSnapshot[]
+      gridItems?: WorkspaceLayoutItem[]
       fileMetadata?: FileMetadataType | null
       /** Stimulus reference media bytes from a `.gazeplotter.zip` archive,
           keyed by stimulus id. Blobs structured-clone by reference across the
           worker boundary — no byte copy. */
       mediaBlobs?: Record<number, Blob>
+      /** Non-fatal issues from combining several workspaces, for toasts. */
+      warnings?: string[]
     }

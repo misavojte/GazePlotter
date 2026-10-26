@@ -1,8 +1,8 @@
 import type {
   DecimalSeparator,
-  ExportFileType,
   ExportNaming,
 } from '$lib/data/export'
+import type { ExportFileType } from '$lib/plots/shared/figureExport'
 import { PLOT_BASE_CHROME_HEIGHT } from '$lib/plots/shared/const'
 import { calculatePlotDimensionsWithHeader } from '$lib/plots/shared/plotSizeUtility'
 import type { GridConfig } from '$lib/workspace/grid'
@@ -35,6 +35,18 @@ export const CSV_DECIMAL_SEPARATOR_OPTIONS: Array<{
   { value: '.', label: 'Dot (.)' },
   { value: ',', label: 'Comma (,)' },
 ]
+
+/** File-step summary parts for conventions other than comma and dot, so a
+ *  reused semicolon is visible before the step is opened. */
+export function csvConventionsSummary(
+  delimiter: string,
+  decimalSeparator: DecimalSeparator
+): string[] {
+  return [
+    ...(delimiter === ';' ? ['semicolon-separated'] : []),
+    ...(decimalSeparator === ',' ? ['decimal comma'] : []),
+  ]
+}
 
 export const EXPORT_NAMING_OPTIONS: Array<{
   value: ExportNaming

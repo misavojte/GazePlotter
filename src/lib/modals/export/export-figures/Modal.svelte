@@ -18,13 +18,11 @@
     canvasToBlobWithWhiteBackground,
     getMimeType,
     getQuality,
-    type ExportFileType,
-  } from '$lib/data/export'
+  } from '$lib/plots/shared/figureExport'
   import {
     listSummary,
     mapSelectableItems,
     toggleSetValue,
-    DEFAULT_CANVAS_EXPORT_MARGIN,
     DPI_PRESET_OPTIONS,
     IMAGE_TYPE_OPTIONS,
   } from '../shared/helpers'
@@ -34,6 +32,9 @@
   import type { PlotExportProps } from './types'
   import { deriveItemView, itemExportProps } from './view'
   import { buildFigureEntryName } from './naming'
+  import { sanitizeFileName } from '$lib/data/export'
+  import type { ExportFileType } from '$lib/plots/shared/figureExport'
+  import { readExportMemory, rememberExport } from '../shared/exportMemory'
 
   /**
    * The single figure exporter: one cardinality-agnostic dialog for one plot,
@@ -69,9 +70,12 @@
     })
   )
 
-  let fileType = $state<ExportFileType>('.png')
-  let dpi = $state(300)
-  let margin = $state(DEFAULT_CANVAS_EXPORT_MARGIN)
+  // The last export's output step: a journal's 600 DPI JPG is typed once, not
+  // on every export. The step summary shows what is reused.
+  const remembered = readExportMemory()
+  let fileType = $state<ExportFileType>(remembered.figureFileType)
+  let dpi = $state(remembered.figureDpi)
+  let margin = $state(remembered.figureMargin)
 
   function subtitleValues(item: AllGridTypes): string[] {
     const parts = getPlotSubtitle(item, engine) ?? []
@@ -112,13 +116,19 @@
   const stepOutputDone = $derived(dpiValid && marginValid)
   const canExport = $derived(stepFiguresDone && stepOutputDone)
 
-  // A single figure downloads as a bare image named after its plot; several
-  // bundle into a ZIP.
-  const exportFileName = $derived(
-    selectedItemsInOrder.length === 1
-      ? `GazePlotter-${getPlotDisplayName(selectedItemsInOrder[0].type).replace(/\s+/g, '')}`
-      : 'GazePlotter-Figures'
-  )
+  // A single figure downloads as a bare image named after its plot and, like
+  // a ZIP entry, its subtitle, so per-stimulus downloads never collide;
+  // several bundle into a ZIP.
+  const exportFileName = $derived.by(() => {
+    if (selectedItemsInOrder.length !== 1) return 'GazePlotter-Figures'
+    const only = selectedItemsInOrder[0]
+    const base = `GazePlotter-${getPlotDisplayName(only.type).replace(/\s+/g, '')}`
+    const qualifier = subtitleValues(only)
+      .map(value => value.trim())
+      .filter(value => value.length > 0)
+      .join(', ')
+    return sanitizeFileName(qualifier ? `${base} - ${qualifier}` : base)
+  })
 
   // ── Preview paging ──────────────────────────────────────────────────────────
   let previewIndex = $state(0)
@@ -184,6 +194,7 @@
     const mimeType = getMimeType(fileType)
     const quality = getQuality(fileType)
     const files: Array<{ name: string; content: Blob }> = []
+    rememberExport({ figureFileType: fileType, figureDpi: dpi, figureMargin: margin })
 
     try {
       for (let i = 0; i < items.length; i++) {

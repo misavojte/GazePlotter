@@ -8,7 +8,7 @@ On loading the workspace, you will see a demo data visualization. The demo data 
 
 ## Import button
 
-Click **Import** in the workspace to upload your own files. GazePlotter detects the file type automatically and builds the visualizations.
+Click **Import** in the workspace (or press `Ctrl+O`, `Cmd+O` on Mac), or drop the files anywhere on the canvas, to upload your own files. GazePlotter detects the file type automatically and builds the visualizations.
 
 ### Supported file types
 

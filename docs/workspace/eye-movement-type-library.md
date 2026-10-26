@@ -7,7 +7,7 @@ For how to choose categories during data export, see [Segmented Data Export](/do
 ## Opening the library
 
 1. Select any plot to open its [Pane](/docs/visualizations/#visualization-configuration-pane).
-2. In the **Eye-movement Types** section, click **Edit eye-movement types & selections…**.
+2. In the **Eye-movement Types** section, click **Edit eye-movement types & selections**.
 
 ## Editing categories
 

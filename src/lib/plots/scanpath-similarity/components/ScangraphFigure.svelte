@@ -82,7 +82,10 @@
       noMetric
         ? METRIC_MISSING_MESSAGE
         : (data?.nodes.length ?? 0) === 0
-          ? 'No graph data available'
+          ? {
+              message: 'No participants in this selection have data on this stimulus.',
+              steps: ['Pick another Stimulus or a selection in Participants'],
+            }
           : null,
     fit: frame => {
       const n = data?.nodes.length ?? 0
@@ -565,12 +568,21 @@
         content.push({ key: 'Connections', value: connectionItems[0].value })
         for (let i = 1; i < connectionItems.length; i++) content.push(connectionItems[i])
       }
+      // The click is otherwise undiscoverable: say what it will do.
+      if (onNodeClick) {
+        content.push({
+          key: '',
+          value: highlightSet.has(node.id) ? 'Click to remove highlight' : 'Click to highlight',
+        })
+      }
       return {
         content,
         anchorX: node.x + 10,
         anchorY: node.y,
         offset: { x: 10, y: 0 },
         tooltipWidth: 160,
+        // A click toggles the node's highlight: show that it is clickable.
+        cursor: onNodeClick ? 'pointer' : undefined,
         data: { kind: 'node', node },
       }
     }
@@ -606,4 +618,5 @@
   use:plot.plotAction
   use:canvasBlockSelect={{ regions: plot.blockedRegions }}
   onclick={handleClick}
+  aria-label="ScanGraph visualization"
 ></canvas>

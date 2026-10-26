@@ -17,11 +17,11 @@ Clicking the Fixation Heatmap plot card in the workspace selects the plot and op
 
 ### Stimulus
 Select the stimulus whose fixations to map. With a reference image attached, the image is drawn under the map and the heat is clipped to it.
-- **Edit stimuli & selections…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to rename stimuli, build stimulus selections, and attach or align reference media.
+- **Edit stimuli & selections**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to rename stimuli, build stimulus selections, and attach or align reference media.
 
 ### Participants
 - **Participant selection**: The participants whose fixations are pooled: *All*, *Non-empty*, or a saved [participant selection](/docs/workspace/participant-library/#participant-selections). Participants recorded on the stimulus without a located fixation in the time range are left out of the average (N) and counted in the data summary.
-- **Edit participants & selections…**: Opens the [Participant Library](/docs/workspace/participant-library/).
+- **Edit participants & selections**: Opens the [Participant Library](/docs/workspace/participant-library/).
 
 ### Method
 The settings that decide the numbers on the map. The collapsed section header reads them back, for example *Duration, share, R auto*.
@@ -31,7 +31,7 @@ The settings that decide the numbers on the map. The collapsed section header re
 - **Normalization**: How participants are combined.
   - *Share per participant*: Each participant's map is divided by that participant's own total and the maps are averaged, in %. Every participant weighs the same, however long they looked (default).
   - *Mean per participant*: The maps are averaged in the accumulated unit (ms or fixations per participant). Participants who looked longer weigh more.
-- **Radius (0 = Auto: …)**: The kernel radius R in gaze-coordinate units (pixels for Tobii Pro Lab data); the kernel's σ is R / 3. 0 = Auto: 5 % of the longer side of the central 98 % of all fixations in the dataset, shown in the label. One auto radius applies to every stimulus and participant selection of the dataset.
+- **Radius R (0 = Auto: …)**: The kernel radius R in gaze-coordinate units (pixels for Tobii Pro Lab data); the kernel's σ is R / 3. 0 = Auto: 5 % of the longer side of the central 98 % of all fixations in the dataset, shown in the label. One auto radius applies to every stimulus and participant selection of the dataset.
 
 ### Visualization
 - **Color scale**: How map values become colors.
@@ -52,7 +52,8 @@ Limit the fixations the map is built from (Tobii Pro Lab's Time of interest).
 
 ### Export
 Located at the bottom of the Pane:
-- **Download plot…**: Opens the [Figure Export](/docs/export/figures/) dialog to save the heatmap as a PNG or JPG, with its legend and data summary.
+- **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the heatmap as a PNG or JPG, with its legend and data summary.
+- **Download segments**: Opens the [Segmented Data](/docs/export/segmented-data/) export preset to this plot's stimulus and participant selection, over whole recordings.
 
 ## Reading the Figure
 

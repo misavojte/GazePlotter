@@ -41,15 +41,17 @@ export class WorkspaceCommandBus {
   private readonly handleCommand: (command: WorkspaceCommandChain) => void
   private readonly errorService: Pick<ErrorService, 'report'>
   private readonly grid: GridState
+  private readonly toastState: CommandBusDeps['toastState']
 
   constructor(deps: CommandBusDeps) {
     this.errorService = deps.errorService
     this.grid = deps.grid
+    this.toastState = deps.toastState
     this.handleCommand = createCommandHandler(
       deps.grid,
       deps.engine,
       this.history,
-      message => deps.toastState.addSuccess(message),
+      (message, command) => this.toastSuccess(message, command),
       command => this.onCommandApplied(command),
       (error, context) => {
         this.errorService.report({
@@ -70,6 +72,23 @@ export class WorkspaceCommandBus {
     )
   }
 
+  // A removal toast carries its own Undo, live only while that removal is
+  // still the newest step, so the button can never revert a later change.
+  private toastSuccess(message: string, command: WorkspaceCommandChain): void {
+    if (command.type !== 'removeGridItem' && command.type !== 'removeGridItems') {
+      this.toastState.addSuccess(message)
+      return
+    }
+    const isNewest = () => this.history.head === command.chainId
+    this.toastState.addSuccess(message, {
+      label: 'Undo',
+      onAction: () => {
+        if (isNewest()) this.undo()
+      },
+      isAvailable: isNewest,
+    })
+  }
+
   setCommandListener(listener: (command: WorkspaceCommandChain) => void): void {
     this.onCommandApplied = listener
   }
@@ -84,7 +103,7 @@ export class WorkspaceCommandBus {
         severity: 'recoverable',
         userMessage: isWorkspaceHistoryError(error)
           ? 'Undo/redo history could not be recorded for this change.'
-          : 'Error applying changes. See console for details.',
+          : 'Error applying changes. Open Metadata for the details under Recent Errors.',
         cause: error,
         // Identity only — the full command can carry megabytes of payload
         // (event buffers) that the error ring would retain for the session.
@@ -122,12 +141,21 @@ export class WorkspaceCommandBus {
     }
   }
 
+  // A replay can change nothing on screen (an AOI rename), so it says what it reverted.
   undo(): boolean {
-    return this.replay(this.history.undo())
+    const command = this.history.lastUndoCommand
+    const replayed = this.replay(this.history.undo())
+    const label = command && getCommandLabel(command, 'undone')
+    if (replayed && label) this.toastState.addSuccess(label)
+    return replayed
   }
 
   redo(): boolean {
-    return this.replay(this.history.redo())
+    const command = this.history.lastRedoCommand
+    const replayed = this.replay(this.history.redo())
+    const label = command && getCommandLabel(command, 'redone')
+    if (replayed && label) this.toastState.addSuccess(label)
+    return replayed
   }
 
   /** Reset guarded by the precondition its callers cannot express in a command. */
@@ -156,12 +184,20 @@ export class WorkspaceCommandBus {
     })
   }
 
-  addGridItem(vizType: PlotType, source: string, itemId?: number): boolean {
+  addGridItem(
+    vizType: PlotType,
+    source: string,
+    itemId?: number,
+    settings?: GridItemSnapshot['settings'],
+    /** Preferred cell; used when the plot fits there, else the usual free spot. */
+    at?: { x: number; y: number }
+  ): boolean {
     return this.apply({
       type: 'addGridItem',
       vizType,
       source,
       itemId: itemId ?? generateUniqueId(),
+      options: settings || at ? { type: vizType, settings, ...at } : undefined,
     })
   }
 

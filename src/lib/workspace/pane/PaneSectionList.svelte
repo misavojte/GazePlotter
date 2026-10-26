@@ -4,7 +4,7 @@
     type PaneSectionEntry,
     type SchemaPaneSectionEntry,
   } from '$lib/plots/definePlot'
-  import type { AllGridTypes } from '$lib/workspace'
+  import type { AllGridTypes } from '..'
   import SchemaSection from '$lib/plots/shared/components/sections/SchemaSection.svelte'
   import {
     SHARED_SECTIONS,

@@ -8,48 +8,87 @@
     CSV_DELIMITER_OPTIONS,
     EXPORT_NAMING_OPTIONS,
     EXPORT_TYPE_OPTIONS,
+    csvConventionsSummary,
     exportTypeNamingSummary,
   } from '../shared/helpers'
+  import { readExportMemory, rememberExport } from '../shared/exportMemory'
   import ExportShell from '../shared/ExportShell.svelte'
   import StimuliStep from '../shared/StimuliStep.svelte'
   import ParticipantsStep from '../shared/ParticipantsStep.svelte'
+  import SelectionStep from '../shared/SelectionStep.svelte'
+  import { getStimuliOptions } from '$lib/plots/shared'
+  import { getEventChannels, getEventsSelections } from '$lib/data/engine'
   import { defaultStimulusSelection } from '../shared/stimuli'
   import { defaultParticipantSelection } from '../shared/participants'
 
-  const { engine, exportService } = getGazePlotterSession()
+  const { engine, exportService, workspaceFile } = getGazePlotterSession()
 
-  const fileName = 'GazePlotter-EventData'
+  // Named after the dataset, as the workspace and analysis exports are.
+  const fileName = `${workspaceFile.suggestedName}-EventData`
   let exportType = $state('csv')
   let naming = $state<ExportNaming>('displayed')
-  let delimiter = $state(',')
-  let decimalSeparator = $state<DecimalSeparator>('.')
+  const remembered = readExportMemory()
+  let delimiter = $state(remembered.delimiter)
+  let decimalSeparator = $state<DecimalSeparator>(remembered.decimalSeparator)
   let selectedStimuliIds = $state(defaultStimulusSelection(engine))
   let selectedParticipantIds = $state(defaultParticipantSelection(engine))
 
+  // Channels by displayed name across the visible stimuli, in first-seen
+  // order: the same displayed name is the same channel everywhere.
+  const channelItems = (() => {
+    const names = new Set<string>()
+    for (const { value } of getStimuliOptions(engine)) {
+      for (const channel of getEventChannels(engine, Number(value))) {
+        names.add(channel.displayedName)
+      }
+    }
+    return Array.from(names, name => ({ value: name, label: name }))
+  })()
+  // Event selections hold displayed names; a chip covers the ones present here.
+  const channelPresets = getEventsSelections(engine)
+    .map(s => ({
+      id: s.id,
+      name: s.name,
+      members: s.names.filter(name => channelItems.some(item => item.value === name)),
+    }))
+    .filter(preset => preset.members.length > 0)
+  let selectedChannels = $state(new Set(channelItems.map(item => item.value)))
+
   const canExport = $derived(
-    selectedStimuliIds.size > 0 && selectedParticipantIds.size > 0
+    selectedStimuliIds.size > 0 &&
+      selectedParticipantIds.size > 0 &&
+      selectedChannels.size > 0
   )
   const fileSummary = $derived(
-    exportTypeNamingSummary(exportType, naming).join(' · ')
+    [
+      ...exportTypeNamingSummary(exportType, naming),
+      ...csvConventionsSummary(delimiter, decimalSeparator),
+    ].join(' · ')
   )
 
-  const handleExport = () =>
-    exportService.exportEventData({
+  const handleExport = () => {
+    rememberExport({ delimiter, decimalSeparator })
+    return exportService.exportEventData({
       fileName,
       exportType: exportType as 'csv' | 'individual-csv',
       stimulusIds: selectedStimuliIds,
       participantIds: selectedParticipantIds,
+      // Every channel ticked = no filter, byte-identical to the export before.
+      channelNames:
+        selectedChannels.size === channelItems.length ? undefined : selectedChannels,
       naming,
       csvOptions: {
         delimiter,
         decimalSeparator,
       },
     })
+  }
 </script>
 
 <ExportShell
   intro="Export event occurrences with their timing per participant and stimulus."
   {canExport}
+  exportLabel="Export Events"
   onExport={handleExport}
 >
   <StepList>
@@ -59,9 +98,19 @@
       bind:selected={selectedStimuliIds}
     />
     <ParticipantsStep n={2} bind:selected={selectedParticipantIds} />
+    <SelectionStep
+      n={3}
+      title="Choose event channels"
+      listTitle="Event channels"
+      noun="event channel"
+      description="Only occurrences of the ticked channels go into the file."
+      items={channelItems}
+      presets={channelPresets}
+      bind:selected={selectedChannels}
+    />
 
     <Step
-      n={3}
+      n={4}
       title="Configure the file"
       description="The file layout and CSV conventions."
       summary={fileSummary}
@@ -92,14 +141,16 @@
       </FieldGrid>
       <HelpText>
         CSV columns: stimulus, participant, eventName, start, duration. Times
-        are in milliseconds; a duration of 0 marks an instant event. A
+        are in milliseconds; a duration of 0 marks an instant event.
+        Individual files leave out stimulus and participant; each is named
+        &lt;stimulus&gt;_&lt;participant&gt;. A
         single-file export can be re-imported as an event file alongside its
         eye-tracking data.
       </HelpText>
       <HelpText>
         Naming: "Displayed" uses your renamed event names, merges channels
-        grouped under the same name, hides hidden channels, and includes
-        derived interval channels (the on-screen result). "Raw" uses the
+        grouped under the same name, and includes derived interval channels
+        (the on-screen result). "Raw" uses the
         original imported channel names with no grouping and excludes derived
         interval channels.
       </HelpText>

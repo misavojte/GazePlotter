@@ -1,5 +1,4 @@
-import type { ToastState } from '$lib/toaster/toastState.svelte'
-import { generateUniqueId } from '$lib/shared/uniqueId'
+import { generateUniqueId, type ToastState } from '$lib'
 
 const STORAGE_KEY = 'gazePlotter:announcedVersion'
 

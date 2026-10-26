@@ -212,6 +212,21 @@ describe('WorkspaceCamera', () => {
     expect(small.zoom).toBe(ZOOM_MAX)
   })
 
+  it('fits given bounds instead of the layout (Zoom to plot)', () => {
+    const cam = camera({ left: 0, top: 0, right: 5000, bottom: 5000 })
+    const plot = { left: 1000, top: 2000, right: 1400, bottom: 2300 }
+
+    cam.fit(plot)
+
+    // A plot smaller than the frame lands at full scale, centred.
+    const { left, right, top, bottom } = FRAME_INSET
+    const roomW = 800 - left - right
+    const roomH = 600 - top - bottom
+    expect(cam.zoom).toBe(ZOOM_MAX)
+    expect(cam.x).toBeCloseTo(left + (roomW - 400 * ZOOM_MAX) / 2 - 1000 * ZOOM_MAX)
+    expect(cam.y).toBeCloseTo(top + (roomH - 300 * ZOOM_MAX) / 2 - 2000 * ZOOM_MAX)
+  })
+
   it('follows a layout shift so nothing moves on screen', () => {
     const cam = camera()
     cam.zoom = 0.5

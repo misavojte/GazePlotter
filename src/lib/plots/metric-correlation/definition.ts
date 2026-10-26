@@ -15,6 +15,7 @@ export const metricCorrelationDefinition = definePlot<
 >({
   type: 'metricCorrelation',
   name: 'Metric Correlation',
+  tagline: 'Correlations between metrics',
   group: 'per-participant',
   paneSections: [
     'stimulus',
@@ -36,7 +37,7 @@ export const metricCorrelationDefinition = definePlot<
       // Short names in the collapsed header (the option labels are long).
       summary: ctx => {
         const view = ctx.common(s => s.view)
-        return view.mixed ? 'Mixed' : view.value === 'heatmap' ? 'Heatmap' : 'Splom'
+        return view.mixed ? 'Mixed' : view.value === 'heatmap' ? 'Heatmap' : 'SPLOM'
       },
     },
     {

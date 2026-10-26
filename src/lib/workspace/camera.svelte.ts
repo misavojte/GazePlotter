@@ -212,9 +212,8 @@ export class WorkspaceCamera {
     this.#stepTo(ZOOM_MAX)
   }
 
-  /** Zoom and pan so the whole layout fits the frame (never above 1:1). */
-  fit(): void {
-    const bounds = this.#contentBounds()
+  /** Zoom and pan so the whole layout, or `bounds`, fits the frame (never above 1:1). */
+  fit(bounds: GridBounds | null = this.#contentBounds()): void {
     const size = this.#frameSize()
     if (!bounds || !size) return
     const width = Math.max(1, bounds.right - bounds.left)

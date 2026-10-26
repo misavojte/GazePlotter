@@ -20,27 +20,27 @@ Clicking the Metric Correlation plot card in the workspace selects the plot and 
 
 ### Stimulus
 Choose the stimulus for which metrics are aggregated.
-- **Edit stimuli & selections…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
+- **Edit stimuli & selections**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
 
 ### Participants
 Filter the analysis to a specific participant group. The correlation is computed using the values of individual participants within this group.
 - **Participant selection**: A dropdown containing *All*, *Non-empty*, and saved participant selections.
-- **Edit participants & selections…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
+- **Edit participants & selections**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
 
 ### Metrics
 Select which metrics to correlate.
 - **Select metrics**: A multi-select dropdown to choose two or more metric instances from the library. Standard aggregate metrics include:
-  - *Time on stimulus* (`absoluteTime-any`): Total viewing time (see [Durations](/docs/metrics/durations)).
+  - *Absolute dwell time* (`absoluteTime-any`): Total viewing time (see [Durations](/docs/metrics/durations)).
   - *Visit count* (`visitCount-any`): Total visits (see [Counts & Latency](/docs/metrics/counts-latency)).
   - *Visit duration* (`visitDuration-any`): Mean visit length (see [Durations](/docs/metrics/durations)).
   - *Fixation count* (`fixationCount-any`): Total fixations (see [Counts & Latency](/docs/metrics/counts-latency)).
-  - *Average fixation duration* (`fixationDuration-any`): Mean fixation length (see [Durations](/docs/metrics/durations)).
+  - *Fixation duration* (`fixationDuration-any`): Mean fixation length (see [Durations](/docs/metrics/durations)).
   - *Time to first fixation* (`timeToFirstFixation-any`): Initial latency (see [Counts & Latency](/docs/metrics/counts-latency)).
   - *First fixation duration* (`firstFixationDuration-any`): Latency of first fixation (see [Durations](/docs/metrics/durations)).
-  - *RQA Recurrence* (`rqaRec`): Recurrence Rate from recurrence analysis (see [RQA Metrics](/docs/metrics/rqa)).
-  - *RQA Determinism* (`rqaDet`): Proportion of recurrence points forming diagonal lines (see [RQA Metrics](/docs/metrics/rqa)).
-  - *RQA Laminarity* (`rqaLam`): Proportion of recurrence points forming vertical lines (see [RQA Metrics](/docs/metrics/rqa)).
-- **Edit metric library…**: Opens the Metric Library modal where you can customize parameters or define custom aggregate metrics.
+  - *Recurrence rate* (`rqaRec`): Recurrence Rate from recurrence analysis (see [RQA Metrics](/docs/metrics/rqa)).
+  - *Determinism* (`rqaDet`): Proportion of recurrence points forming diagonal lines (see [RQA Metrics](/docs/metrics/rqa)).
+  - *Laminarity* (`rqaLam`): Proportion of recurrence points forming vertical lines (see [RQA Metrics](/docs/metrics/rqa)).
+- **Edit metric library**: Opens the Metric Library modal where you can customize parameters or define custom aggregate metrics.
 
 ### Visualization
 Configure the visual display format.
@@ -61,12 +61,12 @@ Filter the temporal range.
 ### Areas of Interest
 Filters which Areas of Interest (AOIs) are active for the metric calculations. If AOIs are selected, only fixations landing within those boundaries are included in the scalar metric calculations.
 - **AOI selection**: A dropdown containing *All* and saved AOI selections; AOIs outside the picked selection count as no-AOI in this plot.
-- **Edit AOIs & selections…**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
+- **Edit AOIs & selections**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
 
 ### Export
 Located at the bottom of the Pane:
-- **Download plot…**: Opens the [Figure Export](/docs/export/figures/) dialog to save the correlation plot as a PNG or JPG.
-- **Export Data**: To export raw metric correlation values as CSV, see [Metric Data Export](/docs/export/metric-data/).
+- **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the correlation plot as a PNG or JPG.
+- **Download data**: Opens the [Metric Data](/docs/export/metric-data/) export preset to this plot's metrics, stimulus, participant selection, time range and AOI selection.
 
 ## Interpretation
 

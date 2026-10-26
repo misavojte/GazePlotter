@@ -25,6 +25,7 @@ export const eyeMovementComparisonDefinition = definePlot<
 >({
   type: 'eyeMovementComparison',
   name: 'Eye-movement Comparison',
+  tagline: 'A metric per eye-movement type',
   group: 'gaze-behavior',
   paneSections: [
     'stimulus',

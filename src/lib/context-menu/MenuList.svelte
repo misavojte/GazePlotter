@@ -110,11 +110,14 @@
           {/if}
           {#if it.detail}
             <span class="item-body">
-              <span class="item-label">{it.label}</span>
-              <span class="item-detail">{it.detail}</span>
+              <span class="item-label" title={it.label}>{it.label}</span>
+              <span class="item-detail" title={it.detail}>{it.detail}</span>
             </span>
           {:else}
             {it.label}
+          {/if}
+          {#if it.shortcut}
+            <span class="item-shortcut">{it.shortcut}</span>
           {/if}
         </button>
         {#if it.secondaryAction}
@@ -173,9 +176,15 @@
     outline-offset: -2px;
   }
 
-  button:hover {
+  button:hover:not(:disabled) {
     background: var(--c-lightgrey);
     color: var(--c-black);
+  }
+
+  /* A disabled row (a taken option, an empty-state note) reads as unavailable. */
+  button:disabled {
+    color: var(--c-darkgrey);
+    cursor: default;
   }
 
   button.selected {
@@ -239,7 +248,7 @@
   .item-body {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
     min-width: 0;
     flex: 1;
   }
@@ -249,6 +258,14 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .item-shortcut {
+    margin-left: auto;
+    padding-left: 12px;
+    font-size: var(--text-2xs);
+    color: var(--c-darkgrey);
+    white-space: nowrap;
   }
 
   .item-detail {

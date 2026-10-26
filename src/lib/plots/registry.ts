@@ -103,8 +103,7 @@ export function ensureSettingsSchemasValid(): void {
   }
 }
 
-export { LEGACY_VISUALIZATION_TYPES } from './legacyTypes'
-import { LEGACY_VISUALIZATION_TYPES } from './legacyTypes'
+import { LEGACY_VISUALIZATION_TYPES } from '$lib/data/ingest/workspace/legacyPlotTypes'
 
 type VisualizationType = keyof typeof plotRegistry
 type LegacyVisualizationType = keyof typeof LEGACY_VISUALIZATION_TYPES

@@ -22,8 +22,8 @@ export const ORIENTATION_OPTIONS = [
   { label: 'Vertical', value: 'vertical' },
 ]
 export const DIRECTION_OPTIONS = [
-  { label: 'ASC', value: 'asc' },
-  { label: 'DESC', value: 'desc' },
+  { label: 'Ascending', value: 'asc' },
+  { label: 'Descending', value: 'desc' },
 ]
 
 export const overlaySummaryLabel = (overlay: string): string => overlayRow(overlay)?.summary ?? 'Boxplot'

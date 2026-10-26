@@ -46,7 +46,7 @@ enforces it. The replacement for all of them: a **format** detects, and its
    UI all derive from the registry.
 
 If the format needs user input mid-parse, declare a `promptId` and register
-the modal in `prompts.ts` (main thread); the worker protocol never changes.
+the modal in `src/lib/session/ingestPrompts.ts` (main thread); the worker protocol never changes.
 
 **Companion files** (a vendor exporting `data.csv` + `meta.json` that only
 make sense together): write a `detect` that recognizes _both_ shapes and
@@ -71,7 +71,7 @@ after the dataset exists — their names resolve against dictionaries that
 segments produce. Two consumption modes: `'contributions'` formats are
 pure text→`EventContribution[]` parses; `'interactive'` formats (legacy
 AOI-visibility XML/JSON) need the mapping modal and stay in
-`service.svelte.ts`. The worker job never sees enrichment sources.
+`src/lib/session/ingestService.svelte.ts`. The worker job never sees enrichment sources.
 
 ## Invariants
 
@@ -104,24 +104,28 @@ AOI-visibility XML/JSON) need the mapping modal and stay in
 
 ## Policy: mixed uploads
 
-If the FIRST file of an upload is a workspace file, it is the entire result
-and every other file is ignored — the historical "first-file-wins" JSON
-rule, kept deliberately as an explicit rule (characterized in
-`tests/ingestCharacterization.routing.test.ts`). Otherwise archive files are
+If the FIRST file of an upload is a workspace file, every file must be one
+and they combine into one workspace (`workspace/combine.ts`: entities match
+by original name, the first file's layout and names win, a cell held by two
+files is refused); a non-workspace file alongside is an error (characterized
+in `tests/ingestCharacterization.protocol.test.ts`). Otherwise archive files are
 read first as one group, then stream files sequentially in upload order
 (dictionary ids are assigned first-seen, so order is observable).
 Enrichment sources are claimed during the main-thread partition (a lone
 .json upload is never claimed — workspace precedence) and processed after
 the dataset exists; fresh datasets that gained event channels surface a
-non-blocking toast pointing at Event customization — no import-time
+non-blocking toast pointing at Events & selections; no import-time
 prompt, since events are additive and curated later.
 
 ## Hosts
 
-The kernel never imports the worker, the DOM, or Svelte. `worker.ts` is a
-thin message bridge that wires `IngestContext` to `postMessage`;
-characterization tests run the same `IngestJob` in-process. The main-thread
-side lives in `service.svelte.ts` (send sources, apply the Result,
-post-load event enrichment of an already-loaded dataset — the one flow that
-stays on the main thread because it needs the live engine and an
-interactive mapping modal).
+The kernel never imports the worker, the DOM, or Svelte. `ingest.ts` holds
+the steps around a Job that every host shares (partition uploads, seed the
+starter metrics, apply CSV event files) and `ingest()`, the whole upload in
+process for the command line. `worker.ts` is a thin
+message bridge that wires `IngestContext` to `postMessage`; characterization
+tests run the same `IngestJob` in-process. The app's main-thread side lives
+outside the engine, in `src/lib/session/ingestService.svelte.ts` (send
+sources to the worker, apply the Result, the interactive mapping modal for
+legacy event files, media attachment); its prompt modals are registered in
+`src/lib/session/ingestPrompts.ts`.

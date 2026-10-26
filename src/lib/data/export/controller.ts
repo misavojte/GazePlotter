@@ -7,11 +7,24 @@ import { generateScanGraph } from './mappers/scangraph'
 import { generateWorkspaceJson } from './mappers/workspace'
 import { segmentEntries } from '$lib/data/binary/storedSegments'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import type { AllGridTypes } from '$lib/workspace'
+import type { WorkspaceLayoutItem } from '$lib/data/types'
 import type { FileMetadataType } from '$lib/data/ingest/types'
 
 /** The native workspace file extension. */
 export const WORKSPACE_EXTENSION = '.gazeplotter'
+
+/**
+ * Make a user- or plot-derived string safe as a file name (download or zip
+ * entry): strips path separators, reserved characters, and control characters,
+ * then collapses whitespace.
+ */
+export function sanitizeFileName(name: string): string {
+  const cleaned = name
+    .replace(/[/\\:*?"<>|\u0000-\u001f]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+  return cleaned.length > 0 ? cleaned : 'untitled'
+}
 
 /** What a build produces. Delivery is the ExportService's job, through the
  *  session's `saveFile` embedding option. */
@@ -84,7 +97,7 @@ export function buildScanGraph(
  */
 export async function buildWorkspace(
   data: DataType,
-  layoutState: AllGridTypes[],
+  layoutState: WorkspaceLayoutItem[],
   metadata: FileMetadataType | null,
   media: Pick<StimulusMediaStore, 'getBlob'>
 ): Promise<{ content: Blob; extension: string; skippedMedia: number[] }> {

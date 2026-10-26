@@ -1,4 +1,4 @@
-import { LEGACY_VISUALIZATION_TYPES } from '$lib/plots/legacyTypes'
+import { LEGACY_VISUALIZATION_TYPES } from './legacyPlotTypes'
 import {
   carrySummaryStatistic,
   createDefaultMetricInstances,

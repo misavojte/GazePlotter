@@ -13,7 +13,7 @@ async function loadHarness(
 
   const { workerInstances } = stubWorkerGlobals(workerPostMessage)
 
-  const { IngestService } = await import('$lib/data/ingest/service.svelte')
+  const { IngestService } = await import('$lib/session/ingestService.svelte')
   const { deps, report } = createIngestDeps()
 
   return {
@@ -97,7 +97,7 @@ describe('IngestService', () => {
     vi.resetModules()
     stubWorkerGlobals()
 
-    const { IngestService } = await import('$lib/data/ingest/service.svelte')
+    const { IngestService } = await import('$lib/session/ingestService.svelte')
     const { ErrorService } = await import('$lib/errors')
 
     const toastState = {

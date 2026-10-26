@@ -1,4 +1,3 @@
-import type { ErrorRecord } from '$lib/errors'
 
 /**
  * Settings used to parse one uploaded file. Produced by format detection,
@@ -62,11 +61,11 @@ export interface FileMetadataSuccessType extends FileInputType {
 
 export interface FileMetadataFailureType extends FileInputType {
   status: 'failure'
-  errorId: ErrorRecord['id']
-  errorCreatedAt: ErrorRecord['createdAt']
-  userMessage: ErrorRecord['userMessage']
-  debugMessage: ErrorRecord['debugMessage']
-  stack?: ErrorRecord['stack']
+  errorId: number
+  errorCreatedAt: string
+  userMessage: string
+  debugMessage: string
+  stack?: string
   attemptedParseDuration?: number // seconds - if we have partial timing
   gazePlotterVersion: string
   clientUserAgent: string

@@ -955,8 +955,43 @@ describe('updateStimulusMedia over several stimuli', () => {
       expect(engine.metadata!.stimuliMedia![1]).toBeUndefined()
       expect(engine.media.getBlob(1)).toBeNull()
       expect(report).not.toHaveBeenCalled()
+      // A replay says what it reverted: nothing on the canvas may show it.
+      expect(addSuccess).toHaveBeenLastCalledWith('Undone: reference media update')
+      expect(ws.redo()).toBe(true)
+      expect(addSuccess).toHaveBeenLastCalledWith('Redone: reference media update')
     } finally {
       engine.media.clear()
     }
+  })
+})
+
+describe('removal toast Undo', () => {
+  it('undoes the removal, and goes stale once a later step exists', () => {
+    const engine = new DataEngine()
+    engine.loadDataset(makeDataType([[[[0, 100, 0, 0]]]]))
+    const grid = new GridState({ getAvailableColumns: () => 24 })
+    grid.items = [createScarfGridItem({ id: 1 }), createScarfGridItem({ id: 2, x: 30 })]
+    const addSuccess = vi.fn()
+    const ws = new WorkspaceCommandBus({
+      engine,
+      errorService: { report: vi.fn<ErrorService['report']>() },
+      grid,
+      toastState: { addSuccess },
+    })
+
+    ws.apply({ type: 'removeGridItem', itemId: 1, source: 'workspace' })
+    const action = addSuccess.mock.calls.at(-1)?.[1]
+    expect(action?.label).toBe('Undo')
+    expect(action?.isAvailable()).toBe(true)
+    action?.onAction()
+    expect(grid.items.map(item => item.id).sort()).toEqual([1, 2])
+
+    ws.apply({ type: 'removeGridItem', itemId: 2, source: 'workspace' })
+    const stale = addSuccess.mock.calls.at(-1)?.[1]
+    ws.apply({ type: 'removeGridItem', itemId: 1, source: 'workspace' })
+    expect(stale?.isAvailable()).toBe(false)
+    stale?.onAction()
+    // The stale button did nothing: item 2 stays removed with item 1.
+    expect(grid.items).toHaveLength(0)
   })
 })

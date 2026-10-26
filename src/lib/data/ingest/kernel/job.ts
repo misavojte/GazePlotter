@@ -44,9 +44,9 @@ export function detectStreamFormat(
  * order); when the last one is in, the job runs and produces the result.
  *
  * Routing rules (all characterized in tests):
- *  1. WORKSPACE PRECEDENCE — if the FIRST source is a workspace file, it is
- *     the entire result and every other source is ignored (the historical
- *     "first-file-wins" JSON rule, kept as an explicit policy).
+ *  1. WORKSPACE PRECEDENCE — if the FIRST source is a workspace file, every
+ *     source must be one: they combine into one result (see
+ *     `workspace/combine.ts`), and anything else in the upload is an error.
  *  2. Archive sources (matched by file name) are read first, as one group,
  *     by their format.
  *  3. Remaining sources are content-detected and read sequentially in
@@ -79,21 +79,22 @@ export class IngestJob {
   private async run(): Promise<IngestResult> {
     const sources = this.pending
 
-    // 1. Workspace precedence (first source only).
-    let workspaceDef = this.formats.workspace.find(f =>
-      f.matchesFileName(sources[0].name)
-    )
-    const firstBlob = sources[0].blob
-    if (!workspaceDef && firstBlob) {
-      for (const f of this.formats.workspace) {
-        if (await f.matchesContent?.(firstBlob)) {
-          workspaceDef = f
-          break
-        }
+    // 1. Workspace precedence (the first source decides).
+    if (await this.workspaceFormatOf(sources[0])) {
+      const defs = []
+      for (const source of sources) {
+        const def = await this.workspaceFormatOf(source)
+        if (!def) throw new Error(`${source.name} is not a GazePlotter workspace. Workspaces combine only with other workspaces.`)
+        defs.push(def)
       }
-    }
-    if (workspaceDef) {
-      return await workspaceDef.read(await sourceBlob(sources[0]), this.ctx)
+      const read = []
+      for (const [i, source] of sources.entries()) {
+        read.push({ name: source.name, workspace: await defs[i].read(await sourceBlob(source), this.ctx) })
+      }
+      if (read.length === 1) return read[0].workspace
+      // Lazy like the workspace reads: only a multi-workspace upload needs it.
+      const { combineWorkspaces } = await import('../workspace/combine')
+      return combineWorkspaces(read)
     }
 
     const sink = new DatasetBuilder()
@@ -153,5 +154,15 @@ export class IngestJob {
       settings: lastSettings,
       ...(sink.warnings.length > 0 ? { warnings: [...sink.warnings] } : {}),
     }
+  }
+
+  /** The workspace format claiming a source: by file name, else by content. */
+  private async workspaceFormatOf(source: IngestSource): Promise<WorkspaceFormatDefinition | undefined> {
+    const byName = this.formats.workspace.find(f => f.matchesFileName(source.name))
+    if (byName || !source.blob) return byName
+    for (const f of this.formats.workspace) {
+      if (await f.matchesContent?.(source.blob)) return f
+    }
+    return undefined
   }
 }

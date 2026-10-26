@@ -1,17 +1,21 @@
 <script lang="ts">
-  import { GazePlotter, fromUrl } from '$lib'
+  import {
+    GazePlotter,
+    fromUrl,
+    hostTooltipAction,
+    withShortcut,
+    type GazePlotterSession,
+    type WorkspaceActions,
+  } from '$lib'
   import { base } from '$app/paths'
+  import { beforeNavigate } from '$app/navigation'
   import { browser } from '$app/environment'
   import { onMount } from 'svelte'
-  import type { GazePlotterSession } from '$lib/session'
-  import type { WorkspaceActions } from '$lib/workspace/actions.svelte'
   import Upload from 'lucide-svelte/icons/upload'
   import Download from 'lucide-svelte/icons/download'
   import FileText from 'lucide-svelte/icons/file-text'
-  import { hostTooltipAction } from '$lib/tooltip'
   import { Header, HeaderAction, StatusBar } from './components'
   import { announceVersionOnce } from './versionNotice'
-  import { withShortcut } from '$lib/workspace/keys'
 
   const demoDataPath = `${base}/data/demo.json?v=3`
 
@@ -42,10 +46,53 @@
       (saveIndicator ? `. ${saveStatus[saveIndicator]}` : '')
   )
 
+  // The user's own dataset names the tab, marked while it has unsaved work;
+  // the demo and the server render keep the site title.
+  const SITE_TITLE =
+    'GazePlotter | Free Eye-Tracking Visualization: Scarf Plots, Scanpaths, AOI Metrics'
+  const pageTitle = $derived.by(() => {
+    const session = gazePlotterRef?.getSession()
+    if (!session?.ingest.isUserDataset) return SITE_TITLE
+    const unsaved = workspaceActions?.hasUnsavedWork ? '• ' : ''
+    return `${unsaved}${session.workspaceFile.suggestedName} | GazePlotter`
+  })
+
+  // Once the bundled demo is on screen, say so and how to swap in real data:
+  // nothing else marks these plots as sample data.
+  let demoAnnounced = false
+  $effect(() => {
+    const session = gazePlotterRef?.getSession()
+    if (dataUrl || demoAnnounced || !session) return
+    if (session.ingest.status !== 'ready' || session.ingest.isUserDataset) return
+    demoAnnounced = true
+    session.toastState.addInfo(
+      `You're looking at demo data. Drop your own files anywhere, or ${withShortcut('use Import', 'open')}, to replace it.`
+    )
+  })
+
+  // "?" opens the shortcut list in a new tab, so the workspace stays as it is.
+  function handleHelpKey(event: KeyboardEvent): void {
+    if (event.key !== '?' || event.ctrlKey || event.metaKey || event.altKey) return
+    if (gazePlotterRef?.getSession().modalState.activeModal) return
+    const target = event.target as HTMLElement | null
+    if (target && (/^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.isContentEditable)) return
+    event.preventDefault()
+    window.open(`${base}/docs/workspace/#keyboard-shortcuts`, '_blank', 'noopener')
+  }
+
   // The browser's own prompt, only when closing would lose edits.
   function handleBeforeUnload(event: BeforeUnloadEvent): void {
     if (workspaceActions?.hasUnsavedWork) event.preventDefault()
   }
+
+  // A link to the guide stays in the page and unmounts the workspace, which
+  // beforeunload never sees: ask the same question here.
+  beforeNavigate(navigation => {
+    if (navigation.willUnload || !workspaceActions?.hasUnsavedWork) return
+    if (!window.confirm('You have unsaved changes. Leave the app and discard them?')) {
+      navigation.cancel()
+    }
+  })
 
   onMount(() => {
     const session = gazePlotterRef?.getSession()
@@ -54,10 +101,7 @@
 </script>
 
 <svelte:head>
-  <title
-    >GazePlotter | Free Eye-Tracking Visualization: Scarf Plots, Scanpaths, AOI
-    Metrics</title
-  >
+  <title>{pageTitle}</title>
   <meta
     name="description"
     content="Free, open-source eye-tracking visualization in the browser: scarf plots, scanpaths, transition matrices and AOI metrics from Tobii, SMI, GazePoint, Varjo and Pupil Labs data. No registration, no data sent to a server."
@@ -78,13 +122,13 @@
 <!-- The homepage is the app: the compact site bar over one canvas filling
      the rest of the screen, closed by the credit strip. GazePlotter is just the field; the bar drives it
      through getActions(). With nothing around it to scroll, the wheel pans. -->
-<svelte:window onbeforeunload={handleBeforeUnload} />
+<svelte:window onbeforeunload={handleBeforeUnload} onkeydown={handleHelpKey} />
 
 <Header {tooltip}>
   {#snippet actions()}
     <HeaderAction
       label="Import"
-      hint="Load eye-tracking data or a saved workspace (Tobii, SMI, Gazepoint and more)"
+      hint={`${withShortcut('Load eye-tracking data or a saved workspace', 'open')}: Tobii, SMI, Gazepoint and more`}
       {tooltip}
       icon={Upload}
       disabled={!workspaceActions?.canImport}

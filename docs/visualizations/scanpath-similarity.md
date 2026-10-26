@@ -18,12 +18,12 @@ Clicking the Scanpath Similarity plot card in the workspace selects the plot and
 
 ### Stimulus
 Choose the stimulus to analyze. GazePlotter will compile the letter-coded scanpath sequences for participants based on this stimulus.
-- **Edit stimuli & selections…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
+- **Edit stimuli & selections**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
 
 ### Participants
 Filter the analysis to a specific participant group.
 - **Participant selection**: A dropdown containing *All*, *Non-empty*, and saved participant selections.
-- **Edit participants & selections…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
+- **Edit participants & selections**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
 
 ### Metric
 Select the sequence alignment algorithm from the Metric Library.
@@ -32,7 +32,7 @@ Select the sequence alignment algorithm from the Metric Library.
   - *Levenshtein similarity (collapsed)*: Collapses consecutive fixations within the same AOI into a single letter before comparing, focusing on the order of visited AOIs rather than dwell duration.
   - *Needleman-Wunsch similarity*: A global sequence alignment method scored exactly as in the ScanGraph article, so thresholds are comparable with the original tool.
   - *Needleman-Wunsch similarity (collapsed)*: Collapses consecutive same-AOI fixations before global alignment.
-- **Edit metric library…**: Opens the Metric Library, where you can adjust algorithm parameters or save your own variants.
+- **Edit metric library**: Opens the Metric Library, where you can adjust algorithm parameters or save your own variants.
 
 ### Visualization
 Configure the rendering layout and thresholding. The view decides which further controls appear; they are listed under the view that reveals them.
@@ -59,12 +59,12 @@ Limit the analysis to fixations that begin within this time range.
 ### Areas of Interest
 Filters which Areas of Interest (AOIs) get their own letter in the scanpath strings. Fixations outside every active AOI are encoded as `#` (no AOI), exactly as in the exported ScanGraph strings.
 - **AOI selection**: A dropdown containing *All* and saved AOI selections; AOIs outside the picked selection count as no-AOI in this plot.
-- **Edit AOIs & selections…**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
+- **Edit AOIs & selections**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
 
 ### Export
 Located at the bottom of the Pane:
-- **Download plot…**: Opens the [Figure Export](/docs/export/figures/) dialog to save the similarity visualization as a PNG or JPG.
-- **Export Data**: To export the similarity values as CSV, see [Metric Data Export](/docs/export/metric-data/).
+- **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the similarity visualization as a PNG or JPG.
+- **Download data**: Opens the [Metric Data](/docs/export/metric-data/) export preset to this plot's metrics, stimulus, participant selection, time range and AOI selection.
 
 ## Interpretation
 

@@ -21,12 +21,12 @@ Clicking the AOI Timeline plot card in the workspace selects the plot and opens 
 
 ### Stimulus
 Choose the stimulus to analyze. Each stimulus contains its own set of Areas of Interest (AOIs) which will be displayed in the occupancy plot.
-- **Edit stimuli & selections…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
+- **Edit stimuli & selections**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
 
 ### Participants
 Filter the eye-tracking data by a participant selection.
 - **Participant selection**: A dropdown containing *All*, *Non-empty*, and saved participant selections.
-- **Edit participants & selections…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
+- **Edit participants & selections**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
 
 ### Metric
 Configure the quantitative metric calculated inside each time bin.
@@ -35,7 +35,7 @@ Configure the quantitative metric calculated inside each time bin.
   - *Relative time on AOI* (`relativeTime-aoi-windowed-500`): Proportion of time spent in each AOI relative to the bin size (see [Durations](/docs/metrics/durations)).
   - *Fixation count per AOI* (`fixationCount-aoi-windowed-500`): Number of fixations registered in each AOI per bin (see [Counts & Latency](/docs/metrics/counts-latency)).
   - *Visit count per AOI* (`visitCount-aoi-windowed-500`): Number of visits registered in each AOI per bin (see [Counts & Latency](/docs/metrics/counts-latency)).
-- **Edit metric library…**: Opens the Metric Library modal where you can customize bin sizes (window size and step size) or define **custom windowed metrics**.
+- **Edit metric library**: Opens the Metric Library modal where you can customize bin sizes (window size and step size) or define **custom windowed metrics**.
 
 ### Visualization
 Configure the visual layout. The view decides which further controls the section shows; they are listed under the view that reveals them.
@@ -52,7 +52,7 @@ Configure the visual layout. The view decides which further controls the section
     - **Out of bounds**: Fills for bins outside the range above; each also appears as an end cap on the color bar legend. Bins are colored only, never printed, so there are no text-label toggles.
       - *Below min*: Fill for a bin below Min (default gray). A bin with no data at all is always transparent, regardless of this setting.
       - *Above max*: Fill for a bin above Max (default gray). Inert while Max is 0/Auto; its legend cap is hidden then too.
-- **Hide data**: Check *No AOI data* to hide participants who have zero registered fixations/events across all AOIs.
+- **Hide No AOI data**: Drops the No AOI band (time outside every AOI), so only the named AOIs are shown.
 
 ### Time range [ms]
 Filter the temporal range from which data is fetched.
@@ -62,12 +62,12 @@ Filter the temporal range from which data is fetched.
 ### Areas of Interest
 Filters which Areas of Interest (AOIs) are rendered.
 - **AOI selection**: A dropdown containing *All* and saved AOI selections; AOIs outside the picked selection count as no-AOI in this plot.
-- **Edit AOIs & selections…**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
+- **Edit AOIs & selections**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
 
 ### Export
 Located at the bottom of the Pane:
-- **Download plot…**: Opens the [Figure Export](/docs/export/figures/) dialog to save the timeline plot as a PNG or JPG.
-- **Export Data**: To export the windowed per-AOI values per participant as CSV, see [Metric Data Export](/docs/export/metric-data/).
+- **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the timeline plot as a PNG or JPG.
+- **Download data**: Opens the [Metric Data](/docs/export/metric-data/) export preset to this plot's metrics, stimulus, participant selection, time range, AOI selection and **Hide No AOI data** setting.
 
 ## Interpretation
 

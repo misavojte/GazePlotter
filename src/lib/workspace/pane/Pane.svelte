@@ -3,9 +3,11 @@
   import { getGazePlotterSession } from '$lib/session'
   import { plotRegistry, getPlotDisplayName } from '$lib/plots/registry'
   import { exportFiguresModal } from '$lib/modals/definitions'
+  import { plotDataExport } from './dataExport'
   import PaneHeader from './PaneHeader.svelte'
   import PaneSection from './PaneSection.svelte'
   import PaneEditLink from './PaneEditLink.svelte'
+  import PaneEditRow from './PaneEditRow.svelte'
   import PaneSheet from './PaneSheet.svelte'
   import PaneSectionList from './PaneSectionList.svelte'
   import BulkPaneSettings from './BulkPaneSettings.svelte'
@@ -13,6 +15,7 @@
   import { PANE_ACCORDION_KEY, type PaneAccordion } from './accordion'
   import { PANE_TRANSITION, slideFlex } from './transition'
   import { responsive } from '../responsive.svelte'
+  import { isTextEntryTarget } from '../keys'
   import { useContextMenu } from '$lib/context-menu'
 
   const contextMenuState = useContextMenu()
@@ -22,7 +25,7 @@
   const accordion = $state<PaneAccordion>({ openStates: {} })
   setContext(PANE_ACCORDION_KEY, accordion)
 
-  const { grid, modalState } = getGazePlotterSession()
+  const { engine, grid, modalState } = getGazePlotterSession()
 
   // One exporter, two doors: the single-plot pane preseeds its own item, the
   // bulk pane preseeds the selection. Same modal either way.
@@ -35,6 +38,11 @@
     if (ids.length === 0) return
     modalState.open(exportFiguresModal, { itemIds: ids })
   }
+
+  // The data behind the plot, one click away (also in its right-click menu).
+  const dataExport = $derived.by(() =>
+    isBulk || !paneItem ? null : plotDataExport(paneItem.settings, engine, modalState)
+  )
 
   // Pane/sheet visibility is driven by paneOpenId (explicitly opened by a
   // click on desktop or by the mobile FAB). Selection alone no longer
@@ -91,6 +99,12 @@
       if (modalState.activeModal || contextMenuState.current) return
       if (e.key === 'Escape') {
         e.preventDefault()
+        // A focused field is the nearer layer: the first Escape leaves it
+        // (its value is already applied), the next one closes the pane.
+        if (isTextEntryTarget(e)) {
+          ;(e.target as HTMLElement).blur()
+          return
+        }
         close()
       }
     }
@@ -103,9 +117,16 @@
 
 {#snippet exportSection()}
   <PaneSection title="Export">
-    <PaneEditLink onclick={openExport}>
-      {isBulk ? 'Download plots' : 'Download plot'}
-    </PaneEditLink>
+    <PaneEditRow>
+      <PaneEditLink onclick={openExport}>
+        {isBulk ? 'Download plots' : 'Download plot'}
+      </PaneEditLink>
+      {#if dataExport}
+        <PaneEditLink onclick={dataExport.open} title={dataExport.title}>
+          {dataExport.label}
+        </PaneEditLink>
+      {/if}
+    </PaneEditRow>
   </PaneSection>
 {/snippet}
 
@@ -115,7 +136,7 @@
 {#snippet desktopBody()}
   <!-- Keyed: a single/bulk switch remounts the body, resetting its scroll. -->
   {#key isBulk}
-    <PaneHeader title={isBulk ? bulkTitle : title} onClose={close} />
+    <PaneHeader title={isBulk ? bulkTitle : `${title} settings`} onClose={close} />
     <div class="body">
       {#if isBulk}
         <BulkPaneSettings items={grid.selectedItems} />

@@ -8,6 +8,7 @@ import type { ScanpathPlotSettings } from './types'
 export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSettings>({
   type: 'scanpath',
   name: 'Scanpath',
+  tagline: 'Fixation path of one participant',
   group: 'gaze-behavior',
   paneSections: [
     'stimulus',

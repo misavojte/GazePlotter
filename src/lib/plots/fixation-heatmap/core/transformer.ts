@@ -5,7 +5,7 @@ import {
   SegmentField,
   type BinaryBufferReader,
 } from '$lib/data/binary'
-import { mediaRegionOf } from '$lib/data/media/mediaUpload'
+import { mediaRegionOf } from '$lib/data/media/stimulusMedia'
 import type { Rect } from '$lib/data/media/mediaAlignment'
 import type { StimulusMedia } from '$lib/data/types'
 import { fillWindowFrame, type WindowFrame } from '$lib/metrics/core/dsl'

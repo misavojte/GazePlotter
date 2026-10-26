@@ -1,5 +1,5 @@
 import type { WorkspaceCommandBus } from '$lib/workspace/commands/bus'
-import type { AllGridTypes } from '$lib/workspace'
+import type { AllGridTypes } from '..'
 import type {
   RemoveGridItemCommand,
   RemoveGridItemsCommand,

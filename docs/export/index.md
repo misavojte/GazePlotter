@@ -1,6 +1,6 @@
 # Export
 
-GazePlotter provides six export options for different eye-tracking analysis use cases. Access them through the **Export** button in the header.
+GazePlotter provides seven export options for different eye-tracking analysis use cases. Access them through the **Export** button in the header.
 
 ## Export Types
 
@@ -27,6 +27,10 @@ Export statistical eye-tracking metrics in long (tidy) or wide CSV formats for a
 ### [ScanGraph Export](/docs/export/scangraph/)
 
 Export fixation sequences for scanpath analysis in the ScanGraph tool. Converts gaze data to letter-coded sequences.
+
+### [Analysis Export](/docs/advanced/headless/#the-analysis)
+
+Export the workspace's Analysis as JSON: the renames, merges, selections, and metric definitions, by name. The [command line](/docs/advanced/headless/) replays it on other recordings of the same study.
 
 ## Export Access
 

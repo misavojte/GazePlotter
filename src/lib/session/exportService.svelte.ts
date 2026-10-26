@@ -2,27 +2,28 @@ import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { DataType } from '$lib/data/types'
 import type { ErrorService } from '$lib/errors'
 import type { GridState } from '$lib/workspace/grid/gridState.svelte'
-import type { IngestService } from '$lib/data/ingest'
+import type { IngestService } from './ingestService.svelte'
 import type { ToastState } from '$lib/toaster/toastState.svelte'
 import {
   buildScanGraph,
   buildTabularExport,
   buildWorkspace,
   type ExportPayload,
-} from './controller'
-import { generateMetadataForBatchCsv, generateUnifiedCsv } from './mappers/segments'
-import { generateEventBatchCsv, generateEventUnifiedCsv } from './mappers/events'
-import type { CsvFormatOptions } from './encoders/csv'
+} from '$lib/data/export/controller'
+import { generateMetadataForBatchCsv, generateUnifiedCsv } from '$lib/data/export/mappers/segments'
+import { generateEventBatchCsv, generateEventUnifiedCsv } from '$lib/data/export/mappers/events'
+import type { CsvFormatOptions } from '$lib/data/export/encoders/csv'
 import { writeBlobZip } from '$lib/data/zip/blobZip'
 import { unfoldMerges } from '$lib/data/merge/applyMerges'
 import { getStimulus } from '$lib/data/engine'
-import type { ExportNaming } from './types'
+import type { ExportNaming } from '$lib/data/export/types'
 import {
   type MetricDataExportOptions,
-  generateMetricExport,
-} from './mappers/metrics'
+  exportMetrics,
+} from '$lib/data/export/mappers/metrics'
 import type { SaveFile } from './download'
-import type { ExportProgress } from './progress'
+import type { ExportProgress } from '$lib/data/export/progress'
+import { exportAnalysis } from '$lib/data/analysis'
 
 type ExportServiceDeps = {
   engine: DataEngine
@@ -40,6 +41,8 @@ export type SegmentedExportOptions = {
   stimulusIds: Set<string>
   participantIds: Set<string>
   filterCategoryIds?: Set<number>
+  /** Displayed AOI names the AOI column keeps; unset = every AOI. */
+  keepAoiNames?: Set<string>
   csvOptions?: CsvFormatOptions
   naming?: ExportNaming
 }
@@ -49,6 +52,8 @@ export type EventExportOptions = {
   exportType: 'csv' | 'individual-csv'
   stimulusIds: Set<string>
   participantIds: Set<string>
+  /** Displayed channel names to keep; unset = every channel. */
+  channelNames?: Set<string>
   csvOptions?: CsvFormatOptions
   naming?: ExportNaming
 }
@@ -159,7 +164,7 @@ export class ExportService {
         .map(id => getStimulus(this.deps.engine, id).displayedName)
         .join(', ')
       throw new Error(
-        `Reference media for ${names} could not be read (its file may have moved). Reattach it in the Stimuli library, then save again.`
+        `Reference media for ${names} could not be read (its file may have moved). Reattach it in Edit stimuli & selections, then save again.`
       )
     }
     return content
@@ -179,6 +184,8 @@ export class ExportService {
       naming: ExportNaming
     ) => Array<{ fileName: string; content: string }>
   ): Promise<boolean> {
+    // The toast names what was delivered: the user picks it up in Downloads.
+    let delivered = ''
     return this.runExport(
       async () => {
         if (options.stimulusIds.size === 0) {
@@ -199,17 +206,16 @@ export class ExportService {
           this.track
         )
         this.deliver(payload, fileName)
+        delivered = fileName.endsWith(payload.extension) ? fileName : fileName + payload.extension
       },
-      options.exportType === 'csv'
-        ? 'Single CSV file exported successfully'
-        : 'Individual CSV files exported and zipped successfully',
+      () => `Exported ${delivered}`,
       context
     )
   }
 
   async exportSegmentedData(options: SegmentedExportOptions): Promise<boolean> {
-    const { stimulusIds, participantIds, filterCategoryIds, csvOptions } = options
-    const args = [stimulusIds, participantIds, filterCategoryIds, csvOptions] as const
+    const { stimulusIds, participantIds, filterCategoryIds, keepAoiNames, csvOptions } = options
+    const args = [stimulusIds, participantIds, filterCategoryIds, keepAoiNames, csvOptions] as const
     return this.exportCsvOrZip(
       options,
       {
@@ -229,7 +235,12 @@ export class ExportService {
   }
 
   async exportEventData(options: EventExportOptions): Promise<boolean> {
-    const args = [options.stimulusIds, options.participantIds, options.csvOptions] as const
+    const args = [
+      options.stimulusIds,
+      options.participantIds,
+      options.channelNames,
+      options.csvOptions,
+    ] as const
     return this.exportCsvOrZip(
       options,
       {
@@ -246,13 +257,15 @@ export class ExportService {
   }
 
   async exportScangraph(options: ScangraphExportOptions): Promise<boolean> {
+    let delivered = ''
     return this.runExport(
-      () =>
-        this.deliver(
-          buildScanGraph(this.deps.engine, options.stimulusId, options.collapsed),
-          this.resolveFileName(options.fileName)
-        ),
-      'ScanGraph file exported successfully',
+      () => {
+        const fileName = this.resolveFileName(options.fileName)
+        const payload = buildScanGraph(this.deps.engine, options.stimulusId, options.collapsed)
+        this.deliver(payload, fileName)
+        delivered = fileName.endsWith(payload.extension) ? fileName : fileName + payload.extension
+      },
+      () => `Exported ${delivered}`,
       {
         exportType: 'scangraph',
         fileName: options.fileName,
@@ -298,18 +311,40 @@ export class ExportService {
     )
   }
 
+  /** The workspace's Analysis (renames, merges, selections, metrics) as the
+   *  JSON that `gazeplotter metrics --analysis` replays onto new recordings. */
+  private analysisJson(): string {
+    const data = this.deps.engine.toDataType()
+    if (!data) throw new Error('No data to describe')
+    return JSON.stringify(exportAnalysis(data), null, 2)
+  }
+
+  async exportAnalysis(fileName: string): Promise<boolean> {
+    let delivered = ''
+    return this.runExport(
+      () => {
+        const name = this.resolveFileName(fileName)
+        this.deliver({ content: this.analysisJson(), extension: '.json' }, name)
+        delivered = name.endsWith('.json') ? name : `${name}.json`
+      },
+      () => `Exported ${delivered}`,
+      { exportType: 'analysis', fileName }
+    )
+  }
+
   /** `buildContent` runs inside the shell so its failures report normally. */
   async exportMetadataReport(options: {
     fileName: string
     buildContent: () => string
   }): Promise<boolean> {
+    let delivered = ''
     return this.runExport(
-      () =>
-        this.deliver(
-          { content: options.buildContent(), extension: '.csv' },
-          this.resolveFileName(options.fileName)
-        ),
-      'Metadata report exported successfully',
+      () => {
+        const name = this.resolveFileName(options.fileName)
+        this.deliver({ content: options.buildContent(), extension: '.csv' }, name)
+        delivered = name.endsWith('.csv') ? name : `${name}.csv`
+      },
+      () => `Exported ${delivered}`,
       { exportType: 'metadata-report', fileName: options.fileName }
     )
   }
@@ -330,7 +365,7 @@ export class ExportService {
       }
 
       const fileName = this.resolveFileName(options.fileName)
-      const result = await generateMetricExport(
+      const result = await exportMetrics(
         this.deps.engine,
         {
           ...options,
@@ -341,9 +376,12 @@ export class ExportService {
       exportedRows = result.rows
 
       if (options.includeCodebook && result.codebookContent !== null) {
+        // The codebook documents the table; the Analysis replays it (CLI),
+        // so the two travel together.
         const { blob } = await writeBlobZip([
           { name: `${fileName}.csv`, content: result.dataContent },
           { name: `${fileName}-codebook.csv`, content: result.codebookContent },
+          { name: `${fileName}.analysis.json`, content: this.analysisJson() },
         ])
         this.deliver({ content: blob, extension: '.zip' }, fileName)
       } else {

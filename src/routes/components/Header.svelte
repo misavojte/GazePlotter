@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Snippet } from 'svelte'
   import type { Action } from 'svelte/action'
-  import type { TooltipActionOptions } from '$lib/tooltip/tooltip.action'
+  import type { TooltipActionOptions } from '$lib'
   import { page } from '$app/state'
   import Brand from './Brand.svelte'
   import BrandButton from './BrandButton.svelte'
@@ -34,7 +34,12 @@
     <span class="divider" aria-hidden="true"></span>
   {/if}
   {#if isApp}
-    <BrandButton href="/docs" label="Read guide" shortLabel="Guide" />
+    <BrandButton
+      href="/docs"
+      label="Read guide"
+      shortLabel="Guide"
+      hint="Read the guide (press ? for keyboard shortcuts)"
+    />
   {:else}
     <BrandButton href="/" label="Launch app" shortLabel="App" />
   {/if}

@@ -103,7 +103,10 @@ export function deriveScanpathSimilarityView(
       placeholder: noMetric
         ? METRIC_MISSING_MESSAGE
         : labels.length === 0
-          ? 'No participant data available'
+          ? {
+              message: 'No participants in this selection have data on this stimulus.',
+              steps: ['Pick another Stimulus or a selection in Participants'],
+            }
           : null,
       fitSteps: [
         'Reduce the number of participants in Plot Settings > Participants',
@@ -115,7 +118,7 @@ export function deriveScanpathSimilarityView(
           { key: 'Row', value: labels[row] },
           { key: 'Column', value: labels[col] },
           // NaN = both scanpaths empty: no data to compare, not a score.
-          { key: valueLabel, value: Number.isFinite(v) ? v.toFixed(3) : '—' },
+          { key: valueLabel, value: Number.isFinite(v) ? v.toFixed(3) : 'No data: both scanpaths empty' },
         ]
       },
     },

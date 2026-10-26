@@ -1,3 +1,4 @@
+import type { AoiNarrowing } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { buildAoiSlots } from './aoiSlots'
 import { FIXATION_CATEGORY_ID } from '$lib/data/binary'
@@ -35,7 +36,7 @@ export function extractFixationSequence(
   participantId: number,
   options?: {
     includeNoAoi?: boolean
-    aoiSelectionId?: number
+    aoiSelectionId?: AoiNarrowing
     /** Same half-open clip `scanAccumulator` applies; `timeEnd` 0 = unbounded. */
     timeStart?: number
     timeEnd?: number

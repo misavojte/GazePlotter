@@ -11,6 +11,7 @@ export const evolvingMetricsDefinition = definePlot<
 >({
   type: 'evolvingMetrics',
   name: 'Metric Timeline',
+  tagline: 'A metric over moving time windows',
   group: 'per-participant',
   paneSections: [
     'stimulus',
@@ -24,8 +25,8 @@ export const evolvingMetricsDefinition = definePlot<
           kind: 'enum',
           key: 'presentation',
           options: [
-            { label: 'Heatmap', value: 'heatmap' },
-            { label: 'Overlay', value: 'overlay' },
+            { label: 'Heatmap', value: 'heatmap', detail: 'Rows of participants, colored by value' },
+            { label: 'Overlay', value: 'overlay', detail: 'One line per participant over time' },
           ],
           default: 'heatmap',
           summary: true,

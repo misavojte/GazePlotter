@@ -19,7 +19,7 @@
  */
 
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { IngestService } from '$lib/data/ingest/service.svelte'
+import { IngestService } from '$lib/session/ingestService.svelte'
 import {
   createFileList,
   createIngestDeps,
@@ -182,7 +182,10 @@ describe('IngestService routing', () => {
     expect(deps.grid.reset).toHaveBeenCalledWith([
       expect.objectContaining({ type: 'eventComparison' }),
     ])
-    expect(deps.toastState.addSuccess).toHaveBeenCalled()
+    // The counts are the first check that every participant arrived.
+    expect(deps.toastState.addSuccess).toHaveBeenCalledWith(
+      expect.stringMatching(/: 2 participants, 1 stimulus$/)
+    )
     expect(service.status).toBe('ready')
   })
 

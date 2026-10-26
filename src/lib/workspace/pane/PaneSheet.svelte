@@ -100,7 +100,7 @@
     ontouchcancel={release}
   >
     <div class="handle" aria-hidden="true"></div>
-    <PaneHeader {title} />
+    <PaneHeader title={`${title} settings`} />
   </div>
   <div class="body">
     {@render children()}

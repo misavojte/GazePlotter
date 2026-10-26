@@ -5,7 +5,7 @@ The Participant Library renames, reorders, and merges participants, and manages 
 ## Opening the library
 
 1. Select a plot to open its [Pane](/docs/visualizations/#visualization-configuration-pane).
-2. In the **Participant** or **Participants** section, click **Edit participants & selections…**.
+2. In the **Participant** or **Participants** section, click **Edit participants & selections**.
 
 ## Editing participants
 
@@ -16,7 +16,7 @@ Each participant is a row with its original name and an editable **Displayed nam
 
 ## Selecting rows
 
-Click a row to select it (a dashed outline appears); Shift-click selects a range. The tray at the bottom offers **Merge**, **Select all / Deselect all**, and **Save as selection**; dragging any selected row's handle moves the whole selected block. Esc clears the selection.
+Click a row to select it (a dashed outline appears); Shift-click selects a range. The tray at the bottom offers **Merge**, **Select all / Clear**, and **Save as selection**; dragging any selected row's handle moves the whole selected block. Esc clears the selection.
 
 ## Merging participants
 

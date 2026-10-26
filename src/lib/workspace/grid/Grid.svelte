@@ -10,7 +10,8 @@
   import { getGazePlotterSession } from '$lib/session'
   import { getDebugMessage } from '$lib/errors'
   import { generateUniqueId } from '$lib/shared/uniqueId'
-  import type { AllGridTypes } from '$lib/workspace'
+  import { getStimuliOptions } from '$lib/plots/shared'
+  import type { AllGridTypes } from '..'
   import type { GridConfig } from './types'
   import {
     commitGridItemDuplication,
@@ -19,6 +20,7 @@
     commitGridItemsDuplication,
     commitGridItemsRemoval,
     commitGridItemResize,
+    getGridItemCommandSource,
   } from './itemCommands'
   import ActionChip from './ActionChip.svelte'
   import {
@@ -27,15 +29,54 @@
   } from './interaction'
   import { responsive } from '../responsive.svelte'
   import { generateSelectionPath, selectionPathCorner } from './selectionPath'
-  import { useContextMenu } from '$lib/context-menu'
+  import { useContextMenu, useContextMenuAction, type MenuItem } from '$lib/context-menu'
+  import { exportFiguresModal } from '$lib/modals/definitions'
+  import Copy from 'lucide-svelte/icons/copy'
+  import Download from 'lucide-svelte/icons/download'
+  import SlidersHorizontal from 'lucide-svelte/icons/sliders-horizontal'
+  import X from 'lucide-svelte/icons/x'
+  import Table from 'lucide-svelte/icons/table'
+  import ArrowDown from 'lucide-svelte/icons/arrow-down'
+  import ArrowUp from 'lucide-svelte/icons/arrow-up'
+  import Scan from 'lucide-svelte/icons/scan'
+  import { gridBoundsOf } from './pixels'
+  import type { WorkspaceCamera } from '../camera.svelte'
+  import { plotDataExport } from '../pane/dataExport'
+  import ClipboardCopy from 'lucide-svelte/icons/clipboard-copy'
+  import type { PlotView } from '$lib/plots/definePlot'
+  import {
+    canCopyImages,
+    copyCanvasToClipboard,
+  } from '$lib/plots/shared/figureExport'
+  import FigureRenderHost from '$lib/modals/export/export-figures/FigureRenderHost.svelte'
+  import type { PlotExportProps } from '$lib/modals/export/export-figures/types'
+  import {
+    deriveItemView,
+    itemExportProps,
+  } from '$lib/modals/export/export-figures/view'
+  import { DEFAULT_CANVAS_EXPORT_MARGIN } from '$lib/modals/export/shared/helpers'
 
   const contextMenuState = useContextMenu()
-  import { isTextEntryTarget } from '../keys'
+  const contextMenuAction = useContextMenuAction()
+  import {
+    DELETE_KEY_LABEL,
+    isTextEntryTarget,
+    resolveWorkspaceShortcut,
+    shortcutLabel,
+  } from '../keys'
 
-  const { engine, errorService, workspace, grid, modalState } =
+  const { engine, errorService, workspace, grid, modalState, toastState } =
     getGazePlotterSession()
 
   let gridEl = $state<HTMLDivElement>()
+
+  // One grid cell per press: the keyboard's way to move what a drag moves.
+  const ARROW_STEPS: Record<string, [dx: number, dy: number]> = {
+    ArrowLeft: [-1, 0],
+    ArrowRight: [1, 0],
+    ArrowUp: [0, -1],
+    ArrowDown: [0, 1],
+  }
 
   // Mac's main "delete" key emits Backspace, so we handle both.
   // Capture on `document`, like selectionSession's Esc unwinding: the modal and
@@ -43,21 +84,68 @@
   // so phase must decide who reads first, never registration order.
   $effect(() => {
     function onKeydown(event: KeyboardEvent) {
-      if (event.metaKey || event.ctrlKey || event.altKey) return
+      const shortcut = resolveWorkspaceShortcut(event)
+      const duplicate = shortcut === 'duplicate'
+      const copyImage = shortcut === 'copy-image'
+      const selectAll = shortcut === 'select-all'
+      const stimulusStep =
+        shortcut === 'next-stimulus' ? 1 : shortcut === 'previous-stimulus' ? -1 : 0
+      const chord = event.metaKey || event.ctrlKey || event.altKey
+      if (chord && !duplicate && !copyImage && !selectAll && !stimulusStep) return
       if (isTextEntryTarget(event)) return
       // A surface in front owns the key: one Escape dismisses one surface, and
       // Delete never removes a plot the user cannot see.
       if (modalState.activeModal || contextMenuState.current) return
+      // Only from the page or the grid: a focused pane or rail control owns the key.
+      const target = event.target as Node | null
+      const fromPageOrGrid = target === document.body || !!gridEl?.contains(target)
+      if (selectAll) {
+        if (!fromPageOrGrid) return
+        event.preventDefault()
+        grid.setSelection(gridItems.map(item => item.id))
+        return
+      }
       // Operate on the whole selection (single = a set of one). Reading the
       // set directly — not the single-only `selectedItemId` getter — keeps
       // Delete/Escape working for a multi-selection.
       const selectedIds = grid.selectedItemIds
       if (selectedIds.length === 0) return
-      if (event.key === 'Delete' || event.key === 'Backspace') {
-        // Only from the page or the grid: a focused pane or rail control owns the key.
-        const target = event.target as Node | null
-        if (target !== document.body && !gridEl?.contains(target)) return
+      // Also from the pane: no control there claims Alt+Up/Down, and the
+      // step is most wanted right after editing the plot's settings.
+      if (stimulusStep) {
         event.preventDefault()
+        stepStimulus(stimulusStep)
+        return
+      }
+      if (copyImage) {
+        // Selected text on the page keeps the browser's own copy.
+        if (!fromPageOrGrid || !canCopyImages()) return
+        if (!(window.getSelection()?.isCollapsed ?? true)) return
+        event.preventDefault()
+        if (selectedIds.length === 1) copyPlot(grid.selectedItems[0])
+        else toastState.addInfo('Select one plot to copy it as an image')
+        return
+      }
+      const step = ARROW_STEPS[event.key]
+      if (step) {
+        if (!fromPageOrGrid) return
+        event.preventDefault()
+        const [dx, dy] = step
+        commitGridItemGroupMove(
+          workspace,
+          gridItems,
+          grid.selectedItems.map(item => ({ id: item.id, x: item.x + dx, y: item.y + dy }))
+        )
+        return
+      }
+      if (duplicate || event.key === 'Delete' || event.key === 'Backspace') {
+        if (!fromPageOrGrid) return
+        event.preventDefault()
+        if (duplicate) {
+          if (selectedIds.length === 1) handleDuplicate({ id: selectedIds[0] })
+          else handleGroupDuplicate()
+          return
+        }
         // Snapshot first: removeItem mutates the selection set as it goes.
         commitGridItemsRemoval(workspace, gridItems, [...selectedIds])
         return
@@ -85,6 +173,7 @@
     gridWidth: number
     gridIsEmpty: boolean
     interaction: GridInteractionController
+    camera: WorkspaceCamera
   }
 
   const {
@@ -95,6 +184,7 @@
     gridWidth,
     gridIsEmpty,
     interaction,
+    camera,
   }: Props = $props()
 
   // Entrance delays in reading order, fixed at mount: the camera pulls back
@@ -149,6 +239,29 @@
       interaction.mode !== 'selecting'
   )
 
+  // Each selected plot moves to its own next stimulus in the picker's order,
+  // wrapping at the ends; plots without a stimulus (Metric Matrix) stay put.
+  function stepStimulus(direction: 1 | -1, items = grid.selectedItems): void {
+    const order = getStimuliOptions(engine).map(option => Number(option.value))
+    if (items.length === 0) return
+    // A shortcut that cannot act says why, instead of nothing.
+    if (order.length < 2) {
+      toastState.addInfo('This dataset has one stimulus, so there is no other to show.')
+      return
+    }
+    workspace.updateEachItemSettings(
+      items.map(item => item.id),
+      settings => {
+        const current = (settings as { stimulusId?: number }).stimulusId
+        if (current === undefined) return null
+        const index = order.indexOf(current)
+        const next = (index + direction + order.length) % order.length
+        return { stimulusId: order[index === -1 ? 0 : next] }
+      },
+      getGridItemCommandSource(items[0])
+    )
+  }
+
   // The whole selection duplicates in one step, and the copies become the
   // selection, exactly as a single duplication hands over to its copy.
   function handleGroupDuplicate(): void {
@@ -182,6 +295,139 @@
         grid.openPane(newId)
       }
     }
+  }
+
+  // Copy as image: the figure export's off-screen render at twice screen
+  // resolution, onto the clipboard.
+  const COPY_DPI = 192
+  let copyJob = $state.raw<{
+    view: PlotView
+    exportProps: PlotExportProps
+    resolve: (canvas: HTMLCanvasElement | null) => void
+  } | null>(null)
+
+  function copyPlot(item: AllGridTypes): void {
+    if (copyJob) return
+    const name = getPlotDisplayName(item.type)
+    const view = deriveItemView(engine, item)
+    const canvas = new Promise<HTMLCanvasElement | null>(resolve => {
+      if (!view) return resolve(null)
+      copyJob = {
+        view,
+        exportProps: itemExportProps(item, grid, COPY_DPI, DEFAULT_CANVAS_EXPORT_MARGIN),
+        resolve: result => {
+          copyJob = null
+          resolve(result)
+        },
+      }
+    })
+    copyCanvasToClipboard(canvas).then(
+      () => toastState.addSuccess(`${name} copied as an image, ready to paste`),
+      error =>
+        errorService.report({
+          origin: 'export',
+          severity: 'recoverable',
+          userMessage: `Could not copy ${name} to the clipboard.`,
+          cause: error,
+          context: { itemId: item.id, plotType: item.type },
+        })
+    )
+  }
+
+  // Right-click on a plot: its verbs at the pointer, without changing the
+  // selection (on desktop a selection opens the pane). A member of a
+  // multi-selection acts for the whole selection, as its drag does.
+  function isGroupMember(id: number): boolean {
+    return grid.selectedCount > 1 && grid.selectedItemIds.includes(id)
+  }
+
+  function plotMenuItems(id: number): MenuItem[] {
+    const group = isGroupMember(id)
+    const ids = group ? [...grid.selectedItemIds] : [id]
+    const noun = group ? `${ids.length} plots` : 'plot'
+    const targets = () => gridItems.filter(i => ids.includes(i.id))
+    const item = group ? undefined : gridItems.find(i => i.id === id)
+    const data = item && plotDataExport(item.settings, engine, modalState)
+    const steps =
+      getStimuliOptions(engine).length > 1 &&
+      gridItems.some(i => ids.includes(i.id) && 'stimulusId' in i.settings)
+    const divider = { isDivider: true as const }
+    // Shortcuts act on the selection, so they are hinted only when the
+    // menu's target is the selection.
+    const isSelection = group || grid.selectedItemId === id
+    const hint = (label: string) => (isSelection ? label : undefined)
+    // Grouped: view, change, export, remove.
+    return [
+      // A pane already showing this plot needs no Settings item.
+      ...(group || grid.paneOpenId === id
+        ? []
+        : [
+            {
+              label: 'Settings',
+              icon: SlidersHorizontal,
+              onAction: () => {
+                grid.selectOnly(id)
+                grid.openPane(id)
+              },
+            },
+          ]),
+      {
+        label: `Zoom to ${noun}`,
+        icon: Scan,
+        onAction: () => camera.fit(gridBoundsOf(targets(), gridConfig)),
+      },
+      divider,
+      {
+        label: `Duplicate ${noun}`,
+        shortcut: hint(shortcutLabel('duplicate')),
+        icon: Copy,
+        onAction: () => (group ? handleGroupDuplicate() : handleDuplicate({ id })),
+      },
+      ...(steps
+        ? [
+            {
+              label: 'Next stimulus',
+              shortcut: hint(shortcutLabel('next-stimulus')),
+              icon: ArrowDown,
+              onAction: () => stepStimulus(1, targets()),
+            },
+            {
+              label: 'Previous stimulus',
+              shortcut: hint(shortcutLabel('previous-stimulus')),
+              icon: ArrowUp,
+              onAction: () => stepStimulus(-1, targets()),
+            },
+          ]
+        : []),
+      divider,
+      // The clipboard holds one image, so a group has no Copy item.
+      ...(item && canCopyImages()
+        ? [
+            {
+              label: 'Copy as image',
+              detail: 'To the clipboard',
+              shortcut: hint(shortcutLabel('copy-image')),
+              icon: ClipboardCopy,
+              onAction: () => copyPlot(item),
+            },
+          ]
+        : []),
+      {
+        label: `Download ${noun}`,
+        icon: Download,
+        onAction: () => modalState.open(exportFiguresModal, { itemIds: ids }),
+      },
+      ...(data
+        ? [{ label: data.label, detail: data.summary, icon: Table, onAction: data.open }]
+        : []),
+      divider,
+      {
+        label: `Remove ${noun}`,
+        shortcut: hint(DELETE_KEY_LABEL),
+        icon: X,
+        onAction: () => commitGridItemsRemoval(workspace, gridItems, ids),
+      },
+    ]
   }
 
   function reportPlotRenderError(
@@ -241,6 +487,7 @@
             commitGridItemResize(workspace, gridItems, gridConfig, event)}
           onremove={event => commitGridItemRemoval(workspace, gridItems, event)}
           onduplicate={handleDuplicate}
+          menuItems={plotMenuItems(item.id)}
         >
           {#snippet body()}
             <div class="grid-item-content">
@@ -285,6 +532,10 @@
       class="group-chip-anchor"
       style:left="{groupChipAnchor.x}px"
       style:top="{groupChipAnchor.y}px"
+      use:contextMenuAction={{
+        trigger: 'pointer',
+        items: plotMenuItems(grid.selectedItemIds[0]),
+      }}
     >
       <ActionChip
         scope="{grid.selectedCount} plots"
@@ -311,6 +562,14 @@
     ></div>
   {/if}
 </div>
+
+{#if copyJob}
+  <FigureRenderHost
+    view={copyJob.view}
+    exportProps={copyJob.exportProps}
+    onResult={copyJob.resolve}
+  />
+{/if}
 
 
 <style>

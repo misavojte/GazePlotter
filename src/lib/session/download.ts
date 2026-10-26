@@ -1,16 +1,3 @@
-/**
- * Make a user- or plot-derived string safe as a file name (download or zip
- * entry): strips path separators, reserved characters, and control characters,
- * then collapses whitespace.
- */
-export function sanitizeFileName(name: string): string {
-  const cleaned = name
-    .replace(/[/\\:*?"<>|\u0000-\u001f]/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-  return cleaned.length > 0 ? cleaned : 'untitled'
-}
-
 /** The `saveFile` embedding option. `fileName` arrives with the extension
  *  applied; `extension` is separate for save-dialog filters. */
 export type SaveFile = (

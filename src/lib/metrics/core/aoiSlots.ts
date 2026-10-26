@@ -1,3 +1,4 @@
+import type { AoiNarrowing } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { getAois } from '$lib/data/engine'
 import type { ExtendedInterpretedDataType } from '$lib/data/types'
@@ -39,7 +40,7 @@ const _slotsCache = new WeakMap<
 export function buildAoiSlots(
   engine: DataEngine,
   stimulusId: number,
-  aoiSelectionId?: number
+  aoiSelectionId?: AoiNarrowing
 ): ResolvedAoiSlots | null {
   const reader = engine.getReader()
   if (!reader) return null

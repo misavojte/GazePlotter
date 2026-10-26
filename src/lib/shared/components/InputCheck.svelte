@@ -149,7 +149,7 @@
       transform var(--transition-fast) ease;
   }
 
-  .check:hover {
+  .check:hover:not(:disabled) {
     border-color: var(--c-midgrey);
   }
 

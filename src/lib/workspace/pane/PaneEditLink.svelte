@@ -4,12 +4,14 @@
   interface Props {
     onclick: () => void
     children: Snippet
+    /** Hover text: what the link opens, when the label alone can't say. */
+    title?: string
   }
 
-  const { onclick, children }: Props = $props()
+  const { onclick, children, title }: Props = $props()
 </script>
 
-<button type="button" class="pane-edit-link" {onclick}>
+<button type="button" class="pane-edit-link" {onclick} {title}>
   {@render children()}
 </button>
 

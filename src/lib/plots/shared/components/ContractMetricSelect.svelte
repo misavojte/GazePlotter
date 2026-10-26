@@ -1,8 +1,6 @@
 <script lang="ts">
-  import {
-    MetricSelect,
-    type PlotMetricContract,
-  } from '$lib/metrics'
+  import MetricSelect from './MetricSelect.svelte'
+  import type { PlotMetricContract } from '$lib/metrics'
   import {
     multiSelectMetricHandlers,
     singleSelectMetricHandlers,

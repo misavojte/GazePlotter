@@ -1,3 +1,4 @@
+import type { AoiNarrowing } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { ParamDef, SummaryStatistic } from './params'
 import type { Projection } from './projection'
@@ -36,7 +37,7 @@ export interface GroupScope {
   timeEnd?: number
   /** Copied into each per-participant child scope, so a grouped view honors the
    *  same reduced AOI alphabet as a single-participant one. */
-  aoiSelectionId?: number
+  aoiSelectionId?: AoiNarrowing
 }
 
 /**

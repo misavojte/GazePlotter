@@ -27,8 +27,14 @@ export type WorkspaceShortcut =
   | 'zoom-fit'
   | 'save'
   | 'save-as'
+  | 'duplicate'
+  | 'copy-image'
+  | 'open'
+  | 'select-all'
+  | 'previous-stimulus'
+  | 'next-stimulus'
 
-/** The shortcut this event is (a Ctrl/Cmd chord, or Shift+1), or null. */
+/** The shortcut this event is (a Ctrl/Cmd chord, Alt+Up/Down, or Shift+1), or null. */
 export function resolveWorkspaceShortcut(
   event: KeyboardEvent
 ): WorkspaceShortcut | null {
@@ -40,12 +46,23 @@ export function resolveWorkspaceShortcut(
   ) {
     return 'zoom-fit'
   }
-  if (!(event.ctrlKey || event.metaKey)) return null
+  // Alt+Up/Down steps through the stimuli, like the next row of a list.
+  if (event.altKey && !(event.ctrlKey || event.metaKey || event.shiftKey)) {
+    if (event.key === 'ArrowUp') return 'previous-stimulus'
+    if (event.key === 'ArrowDown') return 'next-stimulus'
+    return null
+  }
+  // AltGr arrives as Ctrl+Alt on Windows: it types a letter (ó, ś), never a chord.
+  if (!(event.ctrlKey || event.metaKey) || event.altKey) return null
   // `code` for the letters so the chord survives a non-QWERTY layout; `key` for
   // the zoom glyphs, where +/= share one physical key.
   if (event.code === 'KeyZ') return event.shiftKey ? 'redo' : 'undo'
   if (event.code === 'KeyY' && !event.shiftKey) return 'redo'
   if (event.code === 'KeyS') return event.shiftKey ? 'save-as' : 'save'
+  if (event.code === 'KeyD' && !event.shiftKey) return 'duplicate'
+  if (event.code === 'KeyC' && !event.shiftKey) return 'copy-image'
+  if (event.code === 'KeyO' && !event.shiftKey) return 'open'
+  if (event.code === 'KeyA' && !event.shiftKey) return 'select-all'
   if (event.key === '+' || event.key === '=') return 'zoom-in'
   if (event.key === '-') return 'zoom-out'
   if (event.key === '0') return 'zoom-reset'
@@ -58,6 +75,9 @@ const IS_MAC =
 /** The platform's chord modifier, as its users see it written. */
 export const MODIFIER_LABEL = IS_MAC ? '⌘' : 'Ctrl'
 
+/** The key that removes selected plots, as its users see it written. */
+export const DELETE_KEY_LABEL = IS_MAC ? '⌫' : 'Delete'
+
 const SHORTCUT_LABELS: Record<WorkspaceShortcut, [mac: string, other: string]> = {
   undo: ['⌘Z', 'Ctrl+Z'],
   redo: ['⇧⌘Z', 'Ctrl+Y'],
@@ -67,6 +87,12 @@ const SHORTCUT_LABELS: Record<WorkspaceShortcut, [mac: string, other: string]> =
   'zoom-fit': ['⇧1', 'Shift+1'],
   save: ['⌘S', 'Ctrl+S'],
   'save-as': ['⇧⌘S', 'Ctrl+Shift+S'],
+  duplicate: ['⌘D', 'Ctrl+D'],
+  'copy-image': ['⌘C', 'Ctrl+C'],
+  open: ['⌘O', 'Ctrl+O'],
+  'select-all': ['⌘A', 'Ctrl+A'],
+  'previous-stimulus': ['⌥↑', 'Alt+Up'],
+  'next-stimulus': ['⌥↓', 'Alt+Down'],
 }
 
 /** A shortcut as this platform writes it (`Ctrl+S`, `⌘S`). */

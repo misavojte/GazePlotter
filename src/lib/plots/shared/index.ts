@@ -3,7 +3,7 @@
  *
  * This module contains shared components, classes, types, and utilities
  * that are used across different plot types.
- * The entire module is exported through the main '$lib/plots' index.
+ * The entire module is exported through the main '..' index.
  */
 
 // Export shared components

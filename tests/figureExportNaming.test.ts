@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { sanitizeFileName } from '../src/lib/data/export/download'
+import { sanitizeFileName } from '$lib/data/export/controller'
 import { buildFigureEntryName } from '../src/lib/modals/export/export-figures/naming'
 
 describe('sanitizeFileName', () => {

@@ -12,6 +12,15 @@ describe('ToastState', () => {
     vi.restoreAllMocks()
   })
 
+  it('keeps a long toast up long enough to read, never shorter than its type', () => {
+    const toastState = new ToastState()
+
+    toastState.addSuccess('Saved')
+    toastState.addSuccess('x'.repeat(120))
+
+    expect(toastState.current.map(toast => toast.duration)).toEqual([4000, 7200])
+  })
+
   it('dedupes identical toasts within the dedupe window', () => {
     const toastState = new ToastState()
 

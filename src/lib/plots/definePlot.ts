@@ -390,6 +390,8 @@ export type PlotDefinition<
 > = {
   type: TType
   name: string
+  /** One line under the name in the add-visualization menu; read nowhere else. */
+  tagline: string
   /**
    * Taxonomy bucket: the plot's unit of analysis. Read in exactly one place,
    * the add-visualization menu, which groups plots by this field (group =

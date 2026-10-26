@@ -236,6 +236,29 @@ export function createGroupedEntityEditor<
     touched.color.clear()
   }
 
+  /** Re-pull like `refresh`, then put the edited names and colors back on
+      the rows that still exist: for a step that only ADDED rows (Create
+      intervals), so new rows appear without losing staged edits. Order is
+      re-pulled. */
+  function refreshKeepingEdits() {
+    const staged = new Map(items.map(item => [item.id, { ...item }]))
+    const names = new Set(touched.name)
+    const colors = new Set(touched.color)
+    refresh()
+    for (const item of items) {
+      const was = staged.get(item.id)
+      if (!was) continue
+      if (names.has(item.id)) {
+        item.displayedName = was.displayedName
+        touched.name.add(item.id)
+      }
+      if (colors.has(item.id) && 'color' in was) {
+        ;(item as T & ExtendedInterpretedDataType).color = was.color as string
+        touched.color.add(item.id)
+      }
+    }
+  }
+
   function handleColorInput(
     group: MergeCard<BaseInterpretedDataType>,
     newColor: string
@@ -320,6 +343,7 @@ export function createGroupedEntityEditor<
     conflictsFor,
     acknowledge,
     refresh,
+    refreshKeepingEdits,
     handleColorInput,
     handleNameInput,
     sort,

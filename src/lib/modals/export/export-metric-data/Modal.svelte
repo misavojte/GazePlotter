@@ -18,11 +18,13 @@
   import {
     CSV_DECIMAL_SEPARATOR_OPTIONS,
     CSV_DELIMITER_OPTIONS,
+    csvConventionsSummary,
     listSummary,
     mapSelectableItems,
     toggleSetValue,
   } from '../shared/helpers'
   import ExportShell from '../shared/ExportShell.svelte'
+  import { readExportMemory, rememberExport } from '../shared/exportMemory'
   import StimuliStep from '../shared/StimuliStep.svelte'
   import ParticipantsStep from '../shared/ParticipantsStep.svelte'
   import { defaultStimulusSelection } from '../shared/stimuli'
@@ -32,7 +34,6 @@
   } from '../shared/participants'
   import {
     instanceMatchesContract,
-    metricLibraryModal,
     datasetCanFeed,
     instanceReadout,
     formatProjectionReadout,
@@ -40,6 +41,14 @@
     projectionOutputShape,
     defaultInstanceLabel,
   } from '$lib/metrics'
+  import { aoiModificationModal, metricLibraryModal } from '../../definitions'
+  import SelectionStep from '../shared/SelectionStep.svelte'
+  import {
+    aoiChecklistItems,
+    aoiChecklistPresets,
+    defaultAoiSelection,
+    tickedAoiNames,
+  } from '../shared/aois'
   import { multiSelectMetricHandlers } from '$lib/plots/shared/metricInstanceHandlers'
 
   export interface Props {
@@ -47,24 +56,65 @@
     groupId?: number
     stimulusId?: number
     metricInstanceIds?: string[]
+    /** Prefill: a plot's crop, in ms; 0 or unset = open-ended. */
+    timeStart?: number
+    timeEnd?: number
+    /** Prefill: a plot's AOI selection; 0 or unset = all AOIs. */
+    aoiSelectionId?: number
+    /** Prefill: a plot's Hide No AOI toggle. */
+    hideNoAoi?: boolean
   }
 
-  let { groupId, stimulusId, metricInstanceIds }: Props = $props()
-  const { exportService, modalState, engine, workspace } = getGazePlotterSession()
+  let {
+    groupId,
+    stimulusId,
+    metricInstanceIds,
+    timeStart: presetStart,
+    timeEnd: presetEnd,
+    aoiSelectionId: presetAoiSelection,
+    hideNoAoi: presetHideNoAoi,
+  }: Props = $props()
+  const { exportService, modalState, engine, workspace, workspaceFile } =
+    getGazePlotterSession()
 
-  let format = $state<'long' | 'wide'>('long')
-  const fileName = 'GazePlotter-MetricData'
-  let delimiter = $state(',')
-  let decimalSeparator = $state<'.' | ','>('.')
-  let includeCodebook = $state(true)
-  let timeStartStr = $state('')
-  let timeEndStr = $state('')
+  const remembered = readExportMemory()
+  // The last export's format, unless a plot's metrics need the long one: the
+  // file then still holds everything the plot shows.
+  let format = $state<'long' | 'wide'>(
+    untrack(() =>
+      remembered.metricFormat === 'wide' &&
+      (metricInstanceIds ?? []).every(id => {
+        const inst = engine.metadata?.metricInstances.find(m => m.id === id)
+        return !!inst && instanceMatchesContract(inst, METRIC_EXPORT_CONTRACT_WIDE, engine.capabilities)
+      })
+        ? 'wide'
+        : 'long'
+    )
+  )
+  // Named after the dataset, as the workspace and analysis exports are.
+  const fileName = `${workspaceFile.suggestedName}-MetricData`
+  let delimiter = $state(remembered.delimiter)
+  let decimalSeparator = $state<'.' | ','>(remembered.decimalSeparator)
+  let includeCodebook = $state(remembered.includeCodebook)
+  const presetTime = (ms: number | undefined) => (ms ? String(ms) : '')
+  let timeStartStr = $state(untrack(() => presetTime(presetStart)))
+  let timeEndStr = $state(untrack(() => presetTime(presetEnd)))
 
   // Prefill props are read once by design (untrack): they seed the selection,
   // they don't bind it.
   let selectedStimuliIds = $state(
     untrack(() => defaultStimulusSelection(engine, stimulusId))
   )
+
+  // Computed as a plot computes it: unticked AOIs count as No AOI. Lists the
+  // chosen stimuli's AOIs; live, so AOI library edits show up on return.
+  // Ticks span every AOI, so unticking a stimulus doesn't lose them.
+  const aoiItems = $derived(aoiChecklistItems(engine, selectedStimuliIds))
+  const aoiPresets = $derived(aoiChecklistPresets(engine, aoiItems))
+  let selectedAois = $state(
+    untrack(() => defaultAoiSelection(engine, aoiChecklistItems(engine), presetAoiSelection))
+  )
+  let includeNoAoi = $state(untrack(() => !presetHideNoAoi))
   let selectedParticipantIds = $state(
     untrack(() => defaultParticipantSelection(engine, groupId))
   )
@@ -85,7 +135,7 @@
         return new Set<string>(metricInstanceIds)
       }
       const initialChecked = allInstances.filter(inst =>
-        instanceMatchesContract(inst, METRIC_EXPORT_CONTRACT_LONG, engine.capabilities) &&
+        instanceMatchesContract(inst, activeContract, engine.capabilities) &&
         inst.projection.kind !== 'windowed'
       )
       return new Set<string>(initialChecked.map(m => m.id))
@@ -165,7 +215,7 @@
           reason =
             inst.projection.kind === 'windowed'
               ? 'Time series, available in the long format'
-              : 'Not exportable in this format'
+              : 'Not exportable as CSV in either format'
         }
 
         return {
@@ -198,6 +248,7 @@
     const parts = [
       format === 'long' ? 'Long (tidy)' : 'Wide',
       includeCodebook ? 'CSV + codebook' : 'CSV',
+      ...csvConventionsSummary(delimiter, decimalSeparator),
     ]
     if (timeStartStr.trim() !== '' || timeEndStr.trim() !== '') parts.push('cropped time range')
     return parts.join(' · ')
@@ -226,7 +277,9 @@
       const columns = ['Participant_ID', 'Participant', 'Stimulus']
       const instNames: string[] = []
       for (const inst of selectedInstancesInOrder) {
-        const label = previewLabels.get(inst.id) ?? inst.label
+        // Whitespace becomes '_' as in the exporter's header names
+        // (KEEP IN SYNC with sanitizeColumnName in mappers/metrics.ts).
+        const label = (previewLabels.get(inst.id) ?? inst.label).replace(/\s+/g, '_')
         const shape = projectionOutputShape(inst.projection)
         if (shape === 'scalar') {
           instNames.push(label)
@@ -250,8 +303,12 @@
   const timeRangeError = $derived.by(() => {
     const invalid = (v: number | undefined) =>
       v !== undefined && (!Number.isFinite(v) || v < 0)
-    if (invalid(timeStart) || invalid(timeEnd)) {
-      return 'Time range must be a non-negative number of milliseconds'
+    // Name the field and echo what was typed: a unit slip ("5s") is the usual cause.
+    if (invalid(timeStart)) {
+      return `Time Start "${timeStartStr.trim()}" is not a non-negative number of milliseconds`
+    }
+    if (invalid(timeEnd)) {
+      return `Time End "${timeEndStr.trim()}" is not a non-negative number of milliseconds`
     }
     if (timeEnd !== undefined && timeEnd <= (timeStart ?? 0)) {
       return 'Time end must be greater than time start'
@@ -267,11 +324,13 @@
     stepMetricsDone &&
       selectedStimuliIds.size > 0 &&
       selectedParticipantIds.size > 0 &&
+      (aoiItems.length === 0 || aoiItems.some(item => selectedAois.has(item.value))) &&
       stepFileDone
   )
 
-  const handleExport = () =>
-    exportService.exportMetricData({
+  const handleExport = () => {
+    rememberExport({ delimiter, decimalSeparator, metricFormat: format, includeCodebook })
+    return exportService.exportMetricData({
       fileName,
       // Engine order, not click order, so rows are stable across exports.
       participantIds: orderedSelectedParticipantIds(engine, selectedParticipantIds),
@@ -285,7 +344,17 @@
       includeCodebook,
       timeStart,
       timeEnd,
+      aoiNames: tickedAoiNames(aoiItems, selectedAois),
+      hideNoAoi: aoiItems.length > 0 && !includeNoAoi,
     })
+  }
+
+  const handleEditAois = () => {
+    modalState.push(aoiModificationModal, {
+      source: 'exportMetricData.modal',
+      selectedStimulus: Array.from(selectedStimuliIds)[0],
+    })
+  }
 
   const handleEditLibrary = () => {
     const handlers = multiSelectMetricHandlers(
@@ -306,6 +375,7 @@
 <ExportShell
   intro="Export eye-tracking metrics from the library, computed per participant and stimulus."
   {canExport}
+  exportLabel="Export Metrics"
   onExport={handleExport}
 >
   <StepList>
@@ -338,8 +408,35 @@
     />
     <ParticipantsStep n={3} bind:selected={selectedParticipantIds} />
 
+    {#if aoiItems.length > 0}
+      <SelectionStep
+        n={4}
+        title="Choose AOIs"
+        listTitle="AOIs"
+        noun="AOI"
+        items={aoiItems}
+        presets={aoiPresets}
+        bind:selected={selectedAois}
+        summaryNote={includeNoAoi ? undefined : 'No_AOI left out'}
+      >
+        <HelpText>
+          Metrics are computed on the ticked AOIs exactly as in a plot whose AOI
+          selection holds them: only they get rows or columns, and fixations on
+          the other AOIs count as No_AOI. Saved selections come from the
+          <button type="button" class="inline-link" onclick={handleEditAois}>AOI library</button>.
+        </HelpText>
+        <div class="checkbox-row">
+          <InputCheck
+            label="Include No AOI data"
+            sublabel="The No_AOI rows and columns: fixations outside the ticked AOIs. Leaving them out changes no other value, as a plot's Hide No AOI data toggle does."
+            bind:checked={includeNoAoi}
+          />
+        </div>
+      </SelectionStep>
+    {/if}
+
     <Step
-      n={4}
+      n={aoiItems.length > 0 ? 5 : 4}
       title="Configure the file"
       description="The layout and CSV conventions of the exported file. An empty time range covers each participant's full recording."
       summary={fileSummary}
@@ -372,12 +469,12 @@
         <InputText
           label="Time Start (ms)"
           bind:value={timeStartStr}
-          placeholder="Default full recording (0)"
+          placeholder="Empty = full recording"
         />
         <InputText
           label="Time End (ms)"
           bind:value={timeEndStr}
-          placeholder="Default full recording (0)"
+          placeholder="Empty = full recording"
         />
       </FieldGrid>
       {#if timeRangeError}
@@ -386,7 +483,7 @@
       <div class="checkbox-row">
         <InputCheck
           label="Include metric codebook"
-          sublabel="Creates a ZIP download containing the data CSV and a descriptive sidecar CSV."
+          sublabel="Creates a ZIP with the data CSV, a codebook CSV describing each column, and the Analysis JSON with the workspace's renames, merges, selections, and metrics."
           bind:checked={includeCodebook}
         />
       </div>

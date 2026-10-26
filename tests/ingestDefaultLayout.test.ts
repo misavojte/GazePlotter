@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { IngestService } from '$lib/data/ingest'
+import { IngestService } from '$lib/session/ingestService.svelte'
 import { createIngestDeps } from './helpers/ingestServiceHarness'
 import {
   DEFAULT_GRID_STATE_DATA,

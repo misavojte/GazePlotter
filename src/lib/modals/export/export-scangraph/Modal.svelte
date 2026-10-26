@@ -6,12 +6,13 @@
   import { getGazePlotterSession } from '$lib/session'
   import ExportShell from '../shared/ExportShell.svelte'
 
-  const { engine, exportService } = getGazePlotterSession()
-  const fileName = 'GazePlotter-ScanGraph'
-  let stimulusId = $state('0')
-  let stringForm = $state('original')
-
+  const { engine, exportService, workspaceFile } = getGazePlotterSession()
+  // Named after the dataset, as the workspace and analysis exports are.
+  const fileName = `${workspaceFile.suggestedName}-ScanGraph`
   const stimulusOptions = getStimuliOptions(engine)
+  // The first VISIBLE stimulus, not id 0, which a merge may have folded away.
+  let stimulusId = $state(stimulusOptions[0]?.value ?? '0')
+  let stringForm = $state('original')
 
   const STRING_FORM_OPTIONS = [
     { value: 'original', label: 'Original (one letter per fixation)' },
@@ -73,8 +74,9 @@
         bind:value={stringForm}
       />
       <HelpText>
-        Original strings keep one letter per fixation, so dwell duration
-        weighs into the comparison. Collapsed strings fold consecutive
+        Original strings keep one letter per fixation, so the number of
+        fixations in an AOI weighs into the comparison (durations are not
+        used). Collapsed strings fold consecutive
         fixations in the same AOI, comparing the order of visited AOIs only.
       </HelpText>
     </Step>

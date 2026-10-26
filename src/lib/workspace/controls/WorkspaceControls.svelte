@@ -4,9 +4,7 @@
   import Scan from 'lucide-svelte/icons/scan'
   import X from 'lucide-svelte/icons/x'
   import { getGazePlotterSession } from '$lib/session'
-  import { plotRegistry } from '$lib/plots/registry'
-  import { generateUniqueId } from '$lib/shared/uniqueId'
-  import type { PlotType } from '$lib/workspace'
+  import { addablePlots, addPlot } from './addPlot'
   import { responsive } from '../responsive.svelte'
   import type { WorkspaceCamera } from '../camera.svelte'
   import { ZOOM_MAX, ZOOM_MIN } from '../camera.svelte'
@@ -24,31 +22,14 @@
   }
 
   const { camera }: Props = $props()
-  const { ingest, engine, workspace, grid } = getGazePlotterSession()
+  const session = getGazePlotterSession()
+  const { ingest, engine, workspace, grid } = session
 
   const isProcessing = $derived(ingest.isLoading)
   const isValidData = $derived(engine.hasValidData)
   const inactive = $derived(isProcessing || !isValidData)
 
-  // Plots the current dataset can feed, grouped for the Add Visualization menu.
-  const visualizations = $derived(
-    (Object.keys(plotRegistry) as PlotType[])
-      .filter(id => engine.hasCapabilities(plotRegistry[id].requireCapabilities))
-      .map(id => ({
-        id,
-        label: plotRegistry[id].name,
-        group: plotRegistry[id].group,
-      }))
-  )
-
-  // Adding selects the new plot; on desktop that also opens its pane.
-  function handleAddVisualization(vizType: PlotType) {
-    const newId = generateUniqueId()
-    if (workspace.addGridItem(vizType, 'controls', newId)) {
-      grid.selectOnly(newId)
-      if (!responsive.isMobile) grid.openPane(newId)
-    }
-  }
+  const visualizations = $derived(addablePlots(engine))
 
   const tools = $derived.by(() => {
     const byId = Object.fromEntries(
@@ -59,10 +40,11 @@
         canRedo: workspace.canRedo,
         isProcessing,
         isValidData,
+        inheritsSelection: grid.selectedItem !== null,
         visualizations,
         onUndo: () => workspace.undo(),
         onRedo: () => workspace.redo(),
-        onAddVisualization: handleAddVisualization,
+        onAddVisualization: vizType => addPlot(session, vizType),
       }).map(control => [control.id, control])
     )
     return {

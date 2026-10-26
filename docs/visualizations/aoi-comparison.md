@@ -21,25 +21,25 @@ Clicking the AOI Comparison plot card in the workspace selects the plot and open
 
 ### Stimulus
 Choose the stimulus to analyze. Each stimulus contains its own set of Areas of Interest (AOIs) which will be displayed as bars in the chart.
-- **Edit stimuli & selections…**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
+- **Edit stimuli & selections**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
 
 ### Participants
 Filter the eye-tracking data by group or individual participant.
 - **Participant selection**: A dropdown containing *All*, *Non-empty*, and saved participant selections.
-- **Edit participants & selections…**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
+- **Edit participants & selections**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
 
 ### Metric
 Configure the quantitative metric displayed on the value axis.
 - **Select metric**: A dropdown of all metric instances in the library that satisfy the `aoi-vector` shape contract. Standard metrics include:
-  - *Time on AOI* (`absoluteTime`): Total duration spent looking within the boundary (see [Durations](/docs/metrics/durations)).
-  - *Relative time on AOI* (`relativeTime`): Proportion of total time spent in each AOI (see [Durations](/docs/metrics/durations)).
-  - *Visit count per AOI* (`visitCount`): Number of distinct entries into the boundary (see [Counts & Latency](/docs/metrics/counts-latency)).
+  - *Absolute dwell time* (`absoluteTime`): Total duration spent looking within the boundary (see [Durations](/docs/metrics/durations)).
+  - *Relative dwell time* (`relativeTime`): Proportion of total time spent in each AOI (see [Durations](/docs/metrics/durations)).
+  - *Visit count* (`visitCount`): Number of distinct entries into the boundary (see [Counts & Latency](/docs/metrics/counts-latency)).
   - *Visit duration* (`visitDuration`): Average duration of visits (consecutive fixations) (see [Durations](/docs/metrics/durations)).
-  - *Fixation count per AOI* (`fixationCount`): Number of fixations within the boundary (see [Counts & Latency](/docs/metrics/counts-latency)).
-  - *Average fixation duration* (`fixationDuration`): Mean length of individual fixations (see [Durations](/docs/metrics/durations)).
+  - *Fixation count* (`fixationCount`): Number of fixations within the boundary (see [Counts & Latency](/docs/metrics/counts-latency)).
+  - *Fixation duration* (`fixationDuration`): Mean length of individual fixations (see [Durations](/docs/metrics/durations)).
   - *Time to first fixation* (`timeToFirstFixation`): Average latency until initial entry (see [Counts & Latency](/docs/metrics/counts-latency)).
   - *First fixation duration* (`firstFixationDuration`): Mean length of the first fixation (see [Durations](/docs/metrics/durations)).
-- **Edit metric library…**: Opens the Metric Library modal where you can customize parameters or define entirely new **custom metrics** to calculate across the AOIs.
+- **Edit metric library**: Opens the Metric Library modal where you can customize parameters or define entirely new **custom metrics** to calculate across the AOIs.
 
 ### Visualization
 Configure the visual layout and rendering options for the bar chart.
@@ -50,7 +50,7 @@ Configure the visual layout and rendering options for the bar chart.
   - *Boxplot*: Overlays a standard box-and-whisker plot mapping the quartile distribution.
 - **Orientation**: Select *Horizontal* (default) or *Vertical* bar layout.
 - **Order by**: Sort bars by *Value* or by *AOI order*.
-- **Direction**: Sort bars ascending (*ASC*) or descending (*DESC*).
+- **Direction**: Sort bars *Ascending* or *Descending*.
 - **Scale range**: Explicitly set the value axis minimum and maximum (*0 = Auto*).
 
 ### Time range [ms]
@@ -62,12 +62,12 @@ Filter the temporal range from which fixations and saccades are fetched.
 Filters which Areas of Interest (AOIs) are rendered in the bar chart.
 - **AOI selection**: A dropdown containing *All* and saved AOI selections; AOIs outside the picked selection count as no-AOI in this plot.
 - **Hide No AOI data**: Drops the No-AOI slot from the chart, so only the named AOIs are compared.
-- **Edit AOIs & selections…**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
+- **Edit AOIs & selections**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
 
 ### Export
 Located at the bottom of the Pane:
-- **Download plot…**: Opens the [Figure Export](/docs/export/figures/) dialog to save the bar plot as a PNG or JPG.
-- **Export Data**: To export raw statistical values as CSV, see [Metric Data Export](/docs/export/metric-data/).
+- **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the bar plot as a PNG or JPG.
+- **Download data**: Opens the [Metric Data](/docs/export/metric-data/) export preset to this plot's metrics, stimulus, participant selection, time range, AOI selection and **Hide No AOI data** setting.
 
 ## Interpretation
 
