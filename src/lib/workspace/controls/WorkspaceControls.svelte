@@ -40,6 +40,7 @@
         canRedo: workspace.canRedo,
         isProcessing,
         isValidData,
+        inheritsSelection: grid.selectedItem !== null,
         visualizations,
         onUndo: () => workspace.undo(),
         onRedo: () => workspace.redo(),

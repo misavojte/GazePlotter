@@ -38,6 +38,8 @@ interface CreateToolControlsOptions {
   canRedo: boolean
   isProcessing: boolean
   isValidData: boolean
+  /** One plot is selected: a new plot takes its stimulus and participants. */
+  inheritsSelection?: boolean
   visualizations: ControlVisualization[]
   onUndo: () => void
   onRedo: () => void
@@ -83,7 +85,11 @@ export function createToolControls(
     {
       id: 'add-visualization',
       // Like "Nothing to undo": a disabled control says why.
-      label: options.isValidData ? 'Add Visualization' : 'Add Visualization (load data first)',
+      label: !options.isValidData
+        ? 'Add Visualization (load data first)'
+        : options.inheritsSelection
+          ? "Add Visualization (with the selected plot's stimulus and participants)"
+          : 'Add Visualization',
       icon: controlIcons['add-visualization'],
       actions: addVisualizationActions(options.visualizations, options.onAddVisualization),
       disabled: options.isProcessing || !options.isValidData,
