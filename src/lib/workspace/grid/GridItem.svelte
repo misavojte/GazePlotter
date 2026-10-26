@@ -212,6 +212,12 @@
   style={itemStyle}
   transition:fade={{ duration: 150 }}
   role="figure"
+  use:contextMenuAction={{
+    trigger: 'pointer',
+    items: menuItems,
+    disabled: !menuItems || responsive.isMobile,
+    onOpen: onmenuopen,
+  }}
 >
   <div 
     class="grid-item-scaler"
@@ -232,12 +238,6 @@
     class:group-member={isGroupMember}
     onclick={onFrameClick}
     use:moveHandleAction={frameMoveActionParams}
-    use:contextMenuAction={{
-      trigger: 'pointer',
-      items: menuItems,
-      disabled: !menuItems || responsive.isMobile,
-      onOpen: onmenuopen,
-    }}
   >
     <div class="grid-item-header">
       <h3 class="grid-item-title">{title}</h3>
