@@ -94,6 +94,7 @@ On a Mac, use `Cmd` wherever the table says `Ctrl` (`Delete` is `Backspace`). Sh
 | Letters in an open menu | Jump to the item that starts with them |
 | `Enter` / `Shift` + `Enter` in a library's name field | Move to the next / previous name, for renaming a list in one pass |
 | `Up` / `Down`, `Home` / `End` or letters on a focused dropdown | Pick the previous / next, the first / last, or the first option that starts with the letters, without opening it |
+| Right-click | A plot: its verbs; empty canvas: add a plot there; a dialog list item or selection chip: select only it, or all but it |
 | `?` | Open this shortcut list in a new tab |
 
 ## Customization Libraries
