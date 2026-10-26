@@ -14,7 +14,7 @@ The same dialog opens from three places; they differ only in which figures are p
 
 The first step lists every plot in the workspace in reading order (top to bottom, left to right). Each entry shows the plot type and its subtitle (stimulus, participant group) to distinguish same-type plots.
 
-- **Select All** / **Deselect All** toggle the whole list; long lists gain a search field.
+- **Select All** / **Deselect All** toggle the whole list; long lists gain a search field. Right-click an item for **Select only this** or **Select all but this**.
 
 ## Configure the Output
 
