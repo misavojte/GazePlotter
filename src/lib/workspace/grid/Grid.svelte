@@ -289,10 +289,19 @@
     const steps =
       getStimuliOptions(engine).length > 1 &&
       gridItems.some(i => ids.includes(i.id) && 'stimulusId' in i.settings)
+    const divider = { isDivider: true as const }
+    // Grouped: view, change, export, remove.
     return [
       ...(group
         ? []
         : [{ label: 'Settings', icon: SlidersHorizontal, onAction: () => grid.openPane(id) }]),
+      {
+        label: `Zoom to ${noun}`,
+        icon: Scan,
+        onAction: () =>
+          camera.fit(gridBoundsOf(gridItems.filter(i => ids.includes(i.id)), gridConfig)),
+      },
+      divider,
       {
         label: withShortcut('Duplicate', 'duplicate'),
         icon: Copy,
@@ -312,19 +321,14 @@
             },
           ]
         : []),
+      divider,
       {
         label: `Download ${noun}`,
         icon: Download,
         onAction: () => modalState.open(exportFiguresModal, { itemIds: ids }),
       },
       ...(data ? [{ label: data.label, icon: Table, onAction: data.open }] : []),
-      {
-        label: `Zoom to ${noun}`,
-        icon: Scan,
-        onAction: () =>
-          camera.fit(gridBoundsOf(gridItems.filter(i => ids.includes(i.id)), gridConfig)),
-      },
-      { isDivider: true },
+      divider,
       {
         label: `Remove ${noun} (${DELETE_KEY_LABEL})`,
         icon: X,

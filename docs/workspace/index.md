@@ -64,7 +64,7 @@ Drag any of the four corner handles on a selected plot. The card snaps to the gr
 
 A selected plot carries a small chip that floats just above its outline's top-left corner, holding two buttons: **Duplicate** and **Remove**. Hover either one for its name and shortcut.
 
-Right-click a plot for the same verbs at the pointer: **Settings**, **Duplicate**, **Next stimulus** and **Previous stimulus** (with their shortcuts), **Download plot**, the pane's **Download data** or **Download segments** when the plot has one, **Zoom to plot** (fits it to the view, at most 100%), and **Remove**. Right-clicking a plot that belongs to a multi-selection acts on the whole selection.
+Right-click a plot for its verbs at the pointer, grouped: **Settings** and **Zoom to plot** (fits it to the view, at most 100%); **Duplicate**, **Next stimulus** and **Previous stimulus** (with their shortcuts); **Download plot** and the pane's **Download data** or **Download segments** when the plot has one; and **Remove**. Right-clicking a plot that belongs to a multi-selection acts on the whole selection.
 
 ### Duplicating a plot
 Click **Duplicate** in the chip, or press `Ctrl+D` (`Cmd+D` on Mac). The copy keeps every setting: participant selection, stimulus, axis bounds, colors. The copy is selected, so `Alt+Down` (`Option+Down` on Mac) right after puts it on the next stimulus: two keys for a side-by-side comparison.
