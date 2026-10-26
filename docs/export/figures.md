@@ -21,7 +21,7 @@ The first step lists every plot in the workspace in reading order (top to bottom
 ## Configure the Output
 
 - **Image format**: PNG (lossless, recommended) or JPG.
-- **Resolution [DPI]**: free entry from 72 DPI, with presets for 96 (screen), 150, 300 (print), and 600 DPI. The default is 300 DPI; after an export, the dialog reopens with that export's format, margin and resolution until the page is reloaded.
+- **Resolution [DPI]**: free entry from 72 DPI, with presets for 96 (screen), 150, 300 (print), and 600 DPI. The default is 300 DPI; after an export, the dialog reopens with that export's format, margin and resolution, remembered in this browser.
 - **Margin [px]**: uniform white margin carved out of each figure, applied to all figures. The default is 20 px.
 
 Each figure is exported at its current workspace size and aspect ratio; the resolution setting scales the output pixel density (96 DPI equals on-screen size). To change a figure's exported size or proportions, resize the plot in the workspace.

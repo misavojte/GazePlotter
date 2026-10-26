@@ -17,7 +17,7 @@ The **Event Data (CSV)** export writes every event occurrence with its timing, p
 ## Options
 
 - **Export Type**: **Single CSV File**, or **Individual CSV Files (Zipped)** (one file per participant and stimulus, without the `stimulus` and `participant` columns).
-- **Delimiter** (`,` or `;`), **Decimal Separator** (`.` or `,`). Each CSV export starts from the delimiter and decimal separator of your last CSV export in this tab, and the collapsed step names them when they are not comma and dot.
+- **Delimiter** (`,` or `;`), **Decimal Separator** (`.` or `,`). Each CSV export starts from the delimiter and decimal separator of your last CSV export, remembered in this browser, and the collapsed step names them when they are not comma and dot.
 - **Stimuli**: Select which stimuli to include.
 - **Participants**: Select which participants to include; the selection chips above the list select or deselect an entire [participant selection](/docs/workspace/participant-library/#participant-selections) at once.
 - **Event channels**: Select which channels to include, by displayed name (all are ticked by default). Your [event selections](/docs/workspace/event-library/) appear as chips above the list and work like the participant chips. With **Raw** naming, every imported channel whose displayed name is ticked is kept, so channels merged under one name stay together.

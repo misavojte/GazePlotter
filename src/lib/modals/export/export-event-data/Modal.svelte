@@ -10,8 +10,8 @@
     EXPORT_TYPE_OPTIONS,
     csvConventionsSummary,
     exportTypeNamingSummary,
-    lastCsvConventions,
   } from '../shared/helpers'
+  import { readExportMemory, rememberExport } from '../shared/exportMemory'
   import ExportShell from '../shared/ExportShell.svelte'
   import StimuliStep from '../shared/StimuliStep.svelte'
   import ParticipantsStep from '../shared/ParticipantsStep.svelte'
@@ -27,8 +27,9 @@
   const fileName = `${workspaceFile.suggestedName}-EventData`
   let exportType = $state('csv')
   let naming = $state<ExportNaming>('displayed')
-  let delimiter = $state(lastCsvConventions.delimiter)
-  let decimalSeparator = $state<DecimalSeparator>(lastCsvConventions.decimalSeparator)
+  const remembered = readExportMemory()
+  let delimiter = $state(remembered.delimiter)
+  let decimalSeparator = $state<DecimalSeparator>(remembered.decimalSeparator)
   let selectedStimuliIds = $state(defaultStimulusSelection(engine))
   let selectedParticipantIds = $state(defaultParticipantSelection(engine))
 
@@ -66,7 +67,7 @@
   )
 
   const handleExport = () => {
-    Object.assign(lastCsvConventions, { delimiter, decimalSeparator })
+    rememberExport({ delimiter, decimalSeparator })
     return exportService.exportEventData({
       fileName,
       exportType: exportType as 'csv' | 'individual-csv',

@@ -1,12 +1,3 @@
-<script lang="ts" module>
-  import type { ExportFileType } from '$lib/plots/shared/figureExport'
-
-  // The last export's output step, for this tab: a journal's 600 DPI JPG is
-  // typed once, not on every export. The step summary shows what is reused.
-  let lastOutput: { fileType: ExportFileType; dpi: number; margin: number } | null =
-    null
-</script>
-
 <script lang="ts">
   import { onDestroy, untrack } from 'svelte'
   import ChevronLeft from 'lucide-svelte/icons/chevron-left'
@@ -32,7 +23,6 @@
     listSummary,
     mapSelectableItems,
     toggleSetValue,
-    DEFAULT_CANVAS_EXPORT_MARGIN,
     DPI_PRESET_OPTIONS,
     IMAGE_TYPE_OPTIONS,
   } from '../shared/helpers'
@@ -43,6 +33,8 @@
   import { deriveItemView, itemExportProps } from './view'
   import { buildFigureEntryName } from './naming'
   import { sanitizeFileName } from '$lib/data/export'
+  import type { ExportFileType } from '$lib/plots/shared/figureExport'
+  import { readExportMemory, rememberExport } from '../shared/exportMemory'
 
   /**
    * The single figure exporter: one cardinality-agnostic dialog for one plot,
@@ -78,9 +70,12 @@
     })
   )
 
-  let fileType = $state<ExportFileType>(lastOutput?.fileType ?? '.png')
-  let dpi = $state(lastOutput?.dpi ?? 300)
-  let margin = $state(lastOutput?.margin ?? DEFAULT_CANVAS_EXPORT_MARGIN)
+  // The last export's output step: a journal's 600 DPI JPG is typed once, not
+  // on every export. The step summary shows what is reused.
+  const remembered = readExportMemory()
+  let fileType = $state<ExportFileType>(remembered.figureFileType)
+  let dpi = $state(remembered.figureDpi)
+  let margin = $state(remembered.figureMargin)
 
   function subtitleValues(item: AllGridTypes): string[] {
     const parts = getPlotSubtitle(item, engine) ?? []
@@ -199,7 +194,7 @@
     const mimeType = getMimeType(fileType)
     const quality = getQuality(fileType)
     const files: Array<{ name: string; content: Blob }> = []
-    lastOutput = { fileType, dpi, margin }
+    rememberExport({ figureFileType: fileType, figureDpi: dpi, figureMargin: margin })
 
     try {
       for (let i = 0; i < items.length; i++) {

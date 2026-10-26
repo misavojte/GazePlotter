@@ -19,12 +19,12 @@
     CSV_DECIMAL_SEPARATOR_OPTIONS,
     CSV_DELIMITER_OPTIONS,
     csvConventionsSummary,
-    lastCsvConventions,
     listSummary,
     mapSelectableItems,
     toggleSetValue,
   } from '../shared/helpers'
   import ExportShell from '../shared/ExportShell.svelte'
+  import { readExportMemory, rememberExport } from '../shared/exportMemory'
   import StimuliStep from '../shared/StimuliStep.svelte'
   import ParticipantsStep from '../shared/ParticipantsStep.svelte'
   import { defaultStimulusSelection } from '../shared/stimuli'
@@ -77,12 +77,25 @@
   const { exportService, modalState, engine, workspace, workspaceFile } =
     getGazePlotterSession()
 
-  let format = $state<'long' | 'wide'>('long')
+  const remembered = readExportMemory()
+  // The last export's format, unless a plot's metrics need the long one: the
+  // file then still holds everything the plot shows.
+  let format = $state<'long' | 'wide'>(
+    untrack(() =>
+      remembered.metricFormat === 'wide' &&
+      (metricInstanceIds ?? []).every(id => {
+        const inst = engine.metadata?.metricInstances.find(m => m.id === id)
+        return !!inst && instanceMatchesContract(inst, METRIC_EXPORT_CONTRACT_WIDE, engine.capabilities)
+      })
+        ? 'wide'
+        : 'long'
+    )
+  )
   // Named after the dataset, as the workspace and analysis exports are.
   const fileName = `${workspaceFile.suggestedName}-MetricData`
-  let delimiter = $state(lastCsvConventions.delimiter)
-  let decimalSeparator = $state<'.' | ','>(lastCsvConventions.decimalSeparator)
-  let includeCodebook = $state(true)
+  let delimiter = $state(remembered.delimiter)
+  let decimalSeparator = $state<'.' | ','>(remembered.decimalSeparator)
+  let includeCodebook = $state(remembered.includeCodebook)
   const presetTime = (ms: number | undefined) => (ms ? String(ms) : '')
   let timeStartStr = $state(untrack(() => presetTime(presetStart)))
   let timeEndStr = $state(untrack(() => presetTime(presetEnd)))
@@ -122,7 +135,7 @@
         return new Set<string>(metricInstanceIds)
       }
       const initialChecked = allInstances.filter(inst =>
-        instanceMatchesContract(inst, METRIC_EXPORT_CONTRACT_LONG, engine.capabilities) &&
+        instanceMatchesContract(inst, activeContract, engine.capabilities) &&
         inst.projection.kind !== 'windowed'
       )
       return new Set<string>(initialChecked.map(m => m.id))
@@ -316,7 +329,7 @@
   )
 
   const handleExport = () => {
-    Object.assign(lastCsvConventions, { delimiter, decimalSeparator })
+    rememberExport({ delimiter, decimalSeparator, metricFormat: format, includeCodebook })
     return exportService.exportMetricData({
       fileName,
       // Engine order, not click order, so rows are stable across exports.

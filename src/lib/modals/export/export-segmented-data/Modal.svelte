@@ -17,8 +17,8 @@
     EXPORT_TYPE_OPTIONS,
     csvConventionsSummary,
     exportTypeNamingSummary,
-    lastCsvConventions,
   } from '../shared/helpers'
+  import { readExportMemory, rememberExport } from '../shared/exportMemory'
   import ExportShell from '../shared/ExportShell.svelte'
   import StimuliStep from '../shared/StimuliStep.svelte'
   import ParticipantsStep from '../shared/ParticipantsStep.svelte'
@@ -46,8 +46,9 @@
   // Named after the dataset, as the workspace and analysis exports are.
   const fileName = `${workspaceFile.suggestedName}-SegmentedData`
   let exportType = $state('csv')
-  let delimiter = $state(lastCsvConventions.delimiter)
-  let decimalSeparator = $state<DecimalSeparator>(lastCsvConventions.decimalSeparator)
+  const remembered = readExportMemory()
+  let delimiter = $state(remembered.delimiter)
+  let decimalSeparator = $state<DecimalSeparator>(remembered.decimalSeparator)
   let naming = $state<ExportNaming>('displayed')
   // Prefill props seed the selection once; they don't bind it.
   let selectedStimuliIds = $state(
@@ -96,7 +97,7 @@
   )
 
   const handleExport = () => {
-    Object.assign(lastCsvConventions, { delimiter, decimalSeparator })
+    rememberExport({ delimiter, decimalSeparator })
     return exportService.exportSegmentedData({
       fileName,
       exportType: exportType as 'csv' | 'individual-csv',

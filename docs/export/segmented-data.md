@@ -22,7 +22,7 @@ Segmented Data Export writes raw, row-level gaze segments as CSV — for spreads
 - **Choose AOIs**: tick the AOIs the `AOI` column may name (all by default; the list shows only the AOIs of the chosen stimuli), with your [AOI selections](/docs/workspace/aoi-library/) as chips like the participant chips. Every segment stays in the file; unticked AOIs are only left out of the column, so a segment on them alone reads as no AOI, as in a plot using that selection. With **Raw** naming, every original AOI behind a ticked displayed name is kept.
 - **Configure the file** — Choose the export layout and format conventions:
   - **Export Type** — **Single CSV File**, or **Individual CSV Files (Zipped)** (one file per participant and stimulus, without the `stimulus` and `participant` columns).
-  - **Delimiter** (`,` or `;`), **Decimal Separator** (`.` or `,`). Each CSV export starts from the delimiter and decimal separator of your last CSV export in this tab, and the collapsed step names them when they are not comma and dot.
+  - **Delimiter** (`,` or `;`), **Decimal Separator** (`.` or `,`). Each CSV export starts from the delimiter and decimal separator of your last CSV export, remembered in this browser, and the collapsed step names them when they are not comma and dot.
   - **Naming** — **Displayed** (grouped, renamed) or **Raw** (original imported).
 
 ## Exporting
