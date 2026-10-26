@@ -42,6 +42,19 @@
   import { gridBoundsOf } from './pixels'
   import type { WorkspaceCamera } from '../camera.svelte'
   import { plotDataExport } from '../pane/dataExport'
+  import ClipboardCopy from 'lucide-svelte/icons/clipboard-copy'
+  import type { PlotView } from '$lib/plots/definePlot'
+  import {
+    canCopyImages,
+    copyCanvasToClipboard,
+  } from '$lib/plots/shared/figureExport'
+  import FigureRenderHost from '$lib/modals/export/export-figures/FigureRenderHost.svelte'
+  import type { PlotExportProps } from '$lib/modals/export/export-figures/types'
+  import {
+    deriveItemView,
+    itemExportProps,
+  } from '$lib/modals/export/export-figures/view'
+  import { DEFAULT_CANVAS_EXPORT_MARGIN } from '$lib/modals/export/shared/helpers'
 
   const contextMenuState = useContextMenu()
   const contextMenuAction = useContextMenuAction()
@@ -274,6 +287,43 @@
     }
   }
 
+  // Copy plot: the figure export's off-screen render at twice screen
+  // resolution, onto the clipboard.
+  const COPY_DPI = 192
+  let copyJob = $state.raw<{
+    view: PlotView
+    exportProps: PlotExportProps
+    resolve: (canvas: HTMLCanvasElement | null) => void
+  } | null>(null)
+
+  function copyPlot(item: AllGridTypes): void {
+    if (copyJob) return
+    const name = getPlotDisplayName(item.type)
+    const view = deriveItemView(engine, item)
+    const canvas = new Promise<HTMLCanvasElement | null>(resolve => {
+      if (!view) return resolve(null)
+      copyJob = {
+        view,
+        exportProps: itemExportProps(item, grid, COPY_DPI, DEFAULT_CANVAS_EXPORT_MARGIN),
+        resolve: result => {
+          copyJob = null
+          resolve(result)
+        },
+      }
+    })
+    copyCanvasToClipboard(canvas).then(
+      () => toastState.addSuccess(`${name} copied to the clipboard`),
+      error =>
+        errorService.report({
+          origin: 'export',
+          severity: 'recoverable',
+          userMessage: `Could not copy ${name} to the clipboard.`,
+          cause: error,
+          context: { itemId: item.id, plotType: item.type },
+        })
+    )
+  }
+
   // Right-click on a plot: its verbs at the pointer, without changing the
   // selection (on desktop a selection opens the pane). A member of a
   // multi-selection acts for the whole selection, as its drag does.
@@ -340,6 +390,10 @@
           ]
         : []),
       divider,
+      // The clipboard holds one image, so a group has no Copy item.
+      ...(item && canCopyImages()
+        ? [{ label: 'Copy plot', icon: ClipboardCopy, onAction: () => copyPlot(item) }]
+        : []),
       {
         label: `Download ${noun}`,
         icon: Download,
@@ -490,6 +544,14 @@
     ></div>
   {/if}
 </div>
+
+{#if copyJob}
+  <FigureRenderHost
+    view={copyJob.view}
+    exportProps={copyJob.exportProps}
+    onResult={copyJob.resolve}
+  />
+{/if}
 
 
 <style>

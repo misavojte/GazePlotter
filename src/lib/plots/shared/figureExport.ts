@@ -68,3 +68,26 @@ export async function canvasToBlobWithWhiteBackground(
   return blob
 }
 
+/** Whether this browser can put an image on the clipboard. */
+export function canCopyImages(): boolean {
+  return (
+    typeof ClipboardItem !== 'undefined' &&
+    typeof navigator !== 'undefined' &&
+    typeof navigator.clipboard?.write === 'function'
+  )
+}
+
+/**
+ * Puts a figure on the clipboard as a PNG on white. The write starts at once
+ * with the image still pending, so the browser counts the click as its gesture.
+ */
+export function copyCanvasToClipboard(
+  canvas: Promise<HTMLCanvasElement | null>
+): Promise<void> {
+  const png = canvas.then(source => {
+    if (!source) throw new Error('The figure has nothing to draw')
+    return canvasToBlobWithWhiteBackground(source, 'image/png')
+  })
+  return navigator.clipboard.write([new ClipboardItem({ 'image/png': png })])
+}
+

@@ -10,6 +10,8 @@ The same dialog opens from three places; they differ only in which figures are p
 - **Download plot** in a plot's pane: preselects that plot.
 - **Download plots** in the bulk pane (several plots selected): preselects the selection.
 
+To paste one figure straight into slides or a document, right-click the plot and choose **Copy plot** instead: it puts the figure on the clipboard as a PNG at twice screen resolution with the default 20 px margin, no dialog.
+
 ## Choose Figures
 
 The first step lists every plot in the workspace in reading order (top to bottom, left to right). Each entry shows the plot type and its subtitle (stimulus, participant group) to distinguish same-type plots.
