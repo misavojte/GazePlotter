@@ -36,6 +36,8 @@
   import SlidersHorizontal from 'lucide-svelte/icons/sliders-horizontal'
   import X from 'lucide-svelte/icons/x'
   import Table from 'lucide-svelte/icons/table'
+  import ArrowDown from 'lucide-svelte/icons/arrow-down'
+  import ArrowUp from 'lucide-svelte/icons/arrow-up'
   import { plotDataExport } from '../pane/dataExport'
 
   const contextMenuState = useContextMenu()
@@ -279,6 +281,9 @@
     const noun = group ? `${ids.length} plots` : 'plot'
     const item = group ? undefined : gridItems.find(i => i.id === id)
     const data = item && plotDataExport(item.settings, engine, modalState)
+    const steps =
+      getStimuliOptions(engine).length > 1 &&
+      gridItems.some(i => ids.includes(i.id) && 'stimulusId' in i.settings)
     return [
       ...(group
         ? []
@@ -288,6 +293,20 @@
         icon: Copy,
         onAction: () => (group ? handleGroupDuplicate() : handleDuplicate({ id })),
       },
+      ...(steps
+        ? [
+            {
+              label: withShortcut('Next stimulus', 'next-stimulus'),
+              icon: ArrowDown,
+              onAction: () => stepStimulus(1),
+            },
+            {
+              label: withShortcut('Previous stimulus', 'previous-stimulus'),
+              icon: ArrowUp,
+              onAction: () => stepStimulus(-1),
+            },
+          ]
+        : []),
       {
         label: `Download ${noun}`,
         icon: Download,
