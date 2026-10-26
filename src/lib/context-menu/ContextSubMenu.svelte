@@ -173,7 +173,7 @@
   .label.body {
     flex-direction: column;
     align-items: flex-start;
-    gap: 2px;
+    gap: 1px;
     min-width: 0;
   }
 

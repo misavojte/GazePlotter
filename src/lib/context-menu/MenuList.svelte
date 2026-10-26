@@ -248,7 +248,7 @@
   .item-body {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 1px;
     min-width: 0;
     flex: 1;
   }
