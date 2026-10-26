@@ -5,8 +5,9 @@
 ### 1.10.3
 
 * *Released on October 26, 2026*
-* **Headless GazePlotter**: The `gazeplotter` command line (`npx gazeplotter`) inspects recordings, exports a workspace's Analysis, and computes the metrics table, in Node 20+. It is the code the app runs, so the table equals the app's metric export. `gazeplotter catalog` lists every base metric; `--participants` and `--stimuli` take names as well as saved selections; every table written with `--out` gets a run record beside it (inputs with checksums, Analysis checksum, entities, metrics, time range); the exit code is 2 when a name matched nothing or the table is empty. See [Headless GazePlotter](/docs/advanced/headless).
-* **Analysis**: One JSON file holds everything a workspace adds to raw recordings, by name: renames, merges, selections, the No AOI treatment, and the metric library. Export it from the **Export** dialog, find it beside the metric codebook, or let the command line write it beside every table. Replaying it on other recordings of the same study reports every name it cannot match and guesses none. The codebook gains a `Metric_ID` column that joins rows to the Analysis.
+* **Headless GazePlotter**: The `gazeplotter` command line computes the metrics table from recordings in Node 20+, with the same code the app runs, so it matches the app's export. See [Headless GazePlotter](/docs/advanced/headless).
+* **Analysis**: One JSON file holds everything a workspace adds to raw recordings (renames, merges, selections, metrics), to replay on other recordings of the same study. Export it from the **Export** dialog. See [The Analysis](/docs/advanced/headless#the-analysis).
+* **Combining Workspaces**: Opening several workspace files at once combines them into one, for example two data collections of one study. See [Combining workspaces](/docs/export/workspace#combining-workspaces).
 
 ### 1.10.2
 

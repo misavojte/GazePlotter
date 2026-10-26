@@ -244,6 +244,7 @@ class IngestWorkerClient {
     result: Extract<IngestResult, { kind: 'workspace' }>
   ): void {
     if (this.settleWithSuccess('workspace loaded') === null) return
+    for (const warning of result.warnings ?? []) this.ui.toastState.addWarning(warning)
     this.onData({
       version: result.version as ParsedData['version'],
       data: result.data,

@@ -33,7 +33,7 @@ export type ClaimedEventFile = { file: File; format: EnrichmentFormatDefinition 
  * stimulus reference media (images/videos, matched to stimuli by file name
  * after the load). Detection is registry-driven. One routing policy lives
  * here, not in a format: a LONE .json upload is never an event file
- * (workspace first-file-wins precedence).
+ * (workspace precedence).
  */
 export async function partitionUploadFiles(files: File[]): Promise<{
   eyeFiles: File[]
@@ -187,10 +187,8 @@ export async function ingest(files: File[], options: IngestOptions = {}): Promis
   let result: IngestResult | null = null
   for (const file of eyeFiles) result = await job.add(blobSource(file.name, file))
   if (!result) throw new Error('No files to ingest')
-  if (result.kind === 'dataset') {
-    seedStarterMetrics(result.data)
-    warnings.push(...(result.warnings ?? []))
-  }
+  if (result.kind === 'dataset') seedStarterMetrics(result.data)
+  warnings.push(...(result.warnings ?? []))
   for (const dropped of result.data.dataExclusions ?? []) {
     warnings.push(`${dropped.participant} on ${dropped.stimulus} excluded: malformed interval markers`)
   }

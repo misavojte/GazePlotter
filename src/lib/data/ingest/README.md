@@ -104,10 +104,11 @@ AOI-visibility XML/JSON) need the mapping modal and stay in
 
 ## Policy: mixed uploads
 
-If the FIRST file of an upload is a workspace file, it is the entire result
-and every other file is ignored — the historical "first-file-wins" JSON
-rule, kept deliberately as an explicit rule (characterized in
-`tests/ingestCharacterization.routing.test.ts`). Otherwise archive files are
+If the FIRST file of an upload is a workspace file, every file must be one
+and they combine into one workspace (`workspace/combine.ts`: entities match
+by original name, the first file's layout and names win, a cell held by two
+files is refused); a non-workspace file alongside is an error (characterized
+in `tests/ingestCharacterization.protocol.test.ts`). Otherwise archive files are
 read first as one group, then stream files sequentially in upload order
 (dictionary ids are assigned first-seen, so order is observable).
 Enrichment sources are claimed during the main-thread partition (a lone

@@ -157,11 +157,9 @@ describe('worker protocol', () => {
     expect((fail!.message.data as Error).message).toBe('Unknown file type')
   })
 
-  it('WORKSPACE PRECEDENCE: a leading .json claims the job; the other sources are never parsed', async () => {
-    // The historical first-file-wins JSON rule, now an explicit policy in
-    // IngestJob. '{}' is routed to the workspace format BY FILE NAME (it
-    // fails there as an invalid workspace) — content detection never runs,
-    // and the perfectly valid csv that follows is never parsed. If the
+  it('WORKSPACE PRECEDENCE: a leading .json claims the job; a non-workspace beside it fails', async () => {
+    // A leading workspace makes the upload a workspace combine, so the
+    // perfectly valid csv that follows is refused, never parsed. If the
     // precedence rule broke, this upload would either produce 'done' (csv
     // parsed) or fail with 'Unknown file type' (json content-detected).
     await send('file-names', ['workspace.json', 'data.csv'])
@@ -172,7 +170,7 @@ describe('worker protocol', () => {
     const fail = posted.find(p => p.message.type === 'fail')
     expect(fail).toBeDefined()
     expect(fail!.message.data).toBeInstanceOf(Error)
-    expect((fail!.message.data as Error).message).not.toBe('Unknown file type')
+    expect((fail!.message.data as Error).message).toMatch(/^data\.csv is not a GazePlotter workspace/)
     // The workspace read lazily imports the migration chain (and through it
     // the metric library) inside the test — transform time alone can exceed
     // the default 5s budget on a cold cache.

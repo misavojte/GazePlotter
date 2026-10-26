@@ -29,4 +29,6 @@ export type IngestResult =
           keyed by stimulus id. Blobs structured-clone by reference across the
           worker boundary — no byte copy. */
       mediaBlobs?: Record<number, Blob>
+      /** Non-fatal issues from combining several workspaces, for toasts. */
+      warnings?: string[]
     }
