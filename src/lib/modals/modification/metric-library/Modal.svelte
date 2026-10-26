@@ -8,6 +8,7 @@
   import X from 'lucide-svelte/icons/x'
   import Plus from 'lucide-svelte/icons/plus'
   import { createListReorder } from '../shared/listReorder.action'
+  import { useContextMenuAction, type MenuItem } from '$lib/context-menu'
   import { getGazePlotterSession } from '$lib/session'
   import { listMetrics } from '$lib/metrics/core/defineMetric'
   import {
@@ -41,6 +42,17 @@
   }: Props = $props()
 
   const { engine, workspace, modalState } = getGazePlotterSession()
+  const contextMenuAction = useContextMenuAction()
+
+  // Right-click on a card: the row's three buttons, at the pointer.
+  function cardMenu(inst: MetricInstance): MenuItem[] {
+    return [
+      { label: 'Edit', icon: Pencil, onAction: () => openEditModal(inst) },
+      { label: 'Duplicate', icon: Copy, onAction: () => duplicateInstance(inst) },
+      { isDivider: true },
+      { label: 'Delete', icon: X, onAction: () => ondeleteInstance?.(inst.id) },
+    ]
+  }
 
   // The metrics this plot can consume, in library order. Each row's own label and
   // detail line carry what it measures and how it's projected — the list is a flat
@@ -137,6 +149,7 @@
           class="metric-card"
           class:dragging={dragItemId === inst.id}
           animate:flip={{ duration: dragItemId === inst.id ? 0 : 150, easing: cubicOut }}
+          use:contextMenuAction={{ trigger: 'pointer', items: cardMenu(inst) }}
         >
           <div class="card-row">
             <div class="drag-handle" use:dragHandle={inst.id}>
