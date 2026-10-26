@@ -8,6 +8,7 @@
 * **Headless GazePlotter**: The `gazeplotter` command line computes the metrics table from recordings in Node 20+, with the same code the app runs, so it matches the app's export. See [Headless GazePlotter](/docs/advanced/headless).
 * **Analysis**: One JSON file holds everything a workspace adds to raw recordings (renames, merges, selections, metrics), to replay on other recordings of the same study. Export it from the **Export** dialog. See [The Analysis](/docs/advanced/headless#the-analysis).
 * **Combining Workspaces**: Opening several workspace files at once combines them into one, for example two data collections of one study. See [Combining workspaces](/docs/export/workspace#combining-workspaces).
+* **Usability Improvements**: Right-click menus on plots, the canvas, and library cards; keyboard shortcuts (press **?** for the list); Undo in plot removal toasts; exports that remember your choices and let you pick AOIs, eye-movement types, and event channels; new plots that follow the selected plot's stimulus and participants; clearer empty states, errors, and tooltips.
 
 ### 1.10.2
 
