@@ -73,10 +73,11 @@ describe('membership', () => {
     const clocks = new PlaybackClocks()
     clocks.clock(shared(1)).join(10, player(0, 4000))
     clocks.clock(shared(1)).join(11, player(0, 4000))
+    const c = clocks.clock(shared(1))
     clocks.leave(shared(1), 10)
-    expect(clocks.shared(1)).not.toBeNull()
+    expect(clocks.clock(shared(1))).toBe(c)
     clocks.leave(shared(1), 11)
-    expect(clocks.shared(1)).toBeNull()
+    expect(clocks.clock(shared(1))).not.toBe(c)
   })
 
   it('keeps private clocks out of the stimulus readers', () => {

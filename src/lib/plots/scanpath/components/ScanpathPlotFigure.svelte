@@ -38,16 +38,11 @@
     colorMode?: 'time' | 'solid'
     /** Gradient stops for the time-extent coloring (2 or 3 hex colors). */
     colorScale?: string[]
-    /** Marker fill in 'solid' mode. */
     solidColor?: string
-    /** Trail length (recording ms): during playback only fixations that
-        began within the last N ms stay on screen, fading with age. 0 = keep
-        all. */
+    /** Trail length in ms; 0 = all. */
     playbackWindow?: number
-    /** Playback rate relative to recording time (1 = real time). */
     playbackSpeed?: number
-    /** The time range the fixations were cut to (0 end = to the end); the
-        play span follows it. */
+    /** The time range the fixations were cut to; the play span follows it. */
     timelineStart?: number
     timelineEnd?: number
     unavailableMessage?: PlotPlaceholderContent | null
@@ -60,13 +55,11 @@
     media?: StimulusMedia | null
     /** Key of `media`'s bytes in the session's media store. */
     mediaStimulusId?: number
-    /** Shared PLOT CURSOR. Publishes this participant on any hover and the
-        hovered fixation's time; reads other plots' times and marks the
-        fixation active then. No whole-panel outline: lit by a hover
-        elsewhere it read as a stray focus border rather than "this person". */
+    /** Shared PLOT CURSOR: publishes this participant and the hovered
+        fixation's time; marks the fixation active at other plots' times. No
+        whole-panel outline: lit from elsewhere it read as a stray focus border. */
     plotCursor?: PlotCursorPort | null
-    /** Screen-only PLAYBACK CLOCK membership; export has none and draws the
-        full parked scanpath. */
+    /** Screen-only; export has no clock and draws every fixation. */
     playback?: ScanpathPlayback | null
   }
 
@@ -109,59 +102,38 @@
     return mediaElements.failed(mediaStimulusId)
   })
 
-  // ── Playback: this plot is a PLAYER on a playback clock (see
-  // playbackClock.svelte.ts), the stimulus's shared one unless the plot opted
-  // out. Fixations appear as recording time passes. A reference video is
-  // slaved to the clock. `playTime` null means "show everything": the parked
-  // state before the first play and after a reset, and what exports render.
+  // ── Playback: a PLAYER on a playback clock (playbackClock.svelte.ts).
+  // `playTime` null shows every fixation: before the first play, after a
+  // reset, and in exports.
   const videoElement = $derived(
     media?.kind === 'video' && mediaElement instanceof HTMLVideoElement
       ? mediaElement
       : null
   )
-  /** Recording ms at which the video's first frame shows. */
   const videoOffset = $derived(media?.startOffset ?? 0)
-  let videoDurationMs = $state(0)
-
-  $effect(() => {
-    const el = videoElement
-    if (!el) return
-    const read = () => {
-      videoDurationMs = Number.isFinite(el.duration) ? el.duration * 1000 : 0
-    }
-    read()
-    el.addEventListener('durationchange', read)
-    return () => el.removeEventListener('durationchange', read)
-  })
-
   const clock = $derived(playback?.clock ?? null)
   const playTime = $derived(clock?.time ?? null)
   const isPlaying = $derived(clock?.playing ?? false)
-  /** Repaint signal from the clock (ticks, decoded video seeks). */
-  const clockFrame = $derived(clock?.frame ?? 0)
 
   /** A trail length being dragged on the bar, before it is committed. */
   let windowDraft = $state<number | null>(null)
   const trail = $derived(windowDraft ?? playbackWindow)
 
-  /** This plot's play span: the time range, else 0 to the last fixation's
-      end (or the video's end, whichever is later). */
+  /** The time range, else 0 to the last fixation's or the video's end. A
+      ready video element already knows its duration. */
   const ownSpan = $derived.by(() => {
     if (!data || data.fixations.length === 0) return { start: 0, end: 0 }
     const last = data.fixations[data.fixations.length - 1]
-    const videoEnd = videoElement && videoDurationMs > 0 ? videoOffset + videoDurationMs : 0
-    const start = timelineStart > 0 ? timelineStart : 0
-    const end = timelineEnd > 0 ? timelineEnd : Math.max(last.start + last.duration, videoEnd)
-    return { start, end: Math.max(start, end) }
+    const videoEnd = videoElement ? videoOffset + (videoElement.duration || 0) * 1000 : 0
+    const end = timelineEnd || Math.max(last.start + last.duration, videoEnd)
+    return { start: timelineStart, end: Math.max(timelineStart, end) }
   })
 
-  /** The span the bar shows: the clock's (every player's union, so lockstep
-      plots share one rail), else this plot's own. */
-  const span = $derived(clock && clock.players.size > 0 ? clock.span : ownSpan)
+  /** The clock's span (all players' union, so lockstep plots share a rail). */
+  const span = $derived(clock?.span ?? ownSpan)
   const spanMs = $derived(span.end - span.start)
 
-  // Membership. The clock is written untracked: joining reads its span, and
-  // the effect must not re-run on the write it makes itself.
+  // Untracked writes: joining reads the clock's span, which must not re-run us.
   $effect(() => {
     const c = clock
     if (!c || !playback) return
@@ -177,18 +149,7 @@
     return () => untrack(() => c.bindVideo(playback.plotId, null, 0))
   })
 
-  function togglePlayback() {
-    clock?.toggle(playback?.plotId ?? null)
-  }
-
-  function resetPlayback() {
-    clock?.reset()
-  }
-
-  function onSeek(event: Event) {
-    const ms = Number((event.currentTarget as HTMLInputElement).value)
-    clock?.seek(ms, playback?.plotId ?? null)
-  }
+  const toggle = () => clock?.toggle(playback?.plotId ?? null)
 
   /** Tenths under a minute (trials are often 3 to 10 s), m:ss beyond. */
   function formatTime(ms: number): string {
@@ -202,9 +163,7 @@
 
   const timeCutoff = $derived(playTime !== null ? playTime : Infinity)
 
-  /** Fixations whose onset predates this are hidden too: the trail's left
-      edge (-Infinity = keep everything). Only applies mid-playback; the
-      parked full view ignores the trail. */
+  /** The trail's left edge; -Infinity keeps everything. */
   const timeFloor = $derived(
     trail > 0 && timeCutoff !== Infinity ? timeCutoff - trail : -Infinity
   )
@@ -213,38 +172,26 @@
     return f.start <= timeCutoff && f.start >= timeFloor
   }
 
-  /** Opacity factor by age inside the trail: a fixation fades as it nears
-      the trail's edge instead of vanishing at full strength (entry is just
-      as gradual: the marker inflates over its dwell). */
+  /** Fades a fixation as it nears the trail's edge, so it never vanishes
+      at full strength. */
   function ageAlpha(f: ScanpathFixation): number {
     if (timeFloor === -Infinity) return 1
     const age = (timeCutoff - f.start) / trail
     return 1 - 0.8 * Math.min(1, Math.max(0, age))
   }
 
-  /** Index of the last fixation starting at or before `t`, or -1. */
-  function lastStartedAt(t: number): number {
-    if (!data) return -1
-    const fx = data.fixations
-    let lo = 0
-    let hi = fx.length - 1
-    let found = -1
-    while (lo <= hi) {
-      const mid = (lo + hi) >> 1
-      if (fx[mid].start <= t) {
-        found = mid
-        lo = mid + 1
-      } else hi = mid - 1
-    }
-    return found
-  }
-
   /** The fixation in progress at `t`, or -1 (a saccade or a gap). */
   function activeAt(t: number): number {
-    const k = lastStartedAt(t)
-    if (k < 0 || !data) return -1
-    const f = data.fixations[k]
-    return t < f.start + f.duration ? k : -1
+    const fx = data?.fixations ?? []
+    let lo = 0
+    let hi = fx.length
+    while (lo < hi) {
+      const mid = (lo + hi) >> 1
+      if (fx[mid].start <= t) lo = mid + 1
+      else hi = mid
+    }
+    const f = fx[lo - 1]
+    return f && t < f.start + f.duration ? lo - 1 : -1
   }
 
   // Frame size mirror for the equal-aspect domain below. Written in an effect
@@ -257,9 +204,8 @@
     frameH = plot.frame.height
   })
 
-  /** Fixations active at the plot cursor's times (another plot's hover, and
-      the shared clock while it plays) and at a private clock's playing time,
-      among the ones on screen: all marked with the cursor's node mark. */
+  /** Visible fixations active at the cursor's times (another plot's hover,
+      a playing shared clock) or at our own playing time. */
   const cursorFixations = $derived.by(() => {
     const times = [...(plotCursor?.times ?? [])]
     if (isPlaying && playTime !== null) times.push(playTime)
@@ -367,10 +313,8 @@
     }
   })
 
-  /** The control bar gets its own row BELOW the canvas: the canvas gives up
-      the bar's height so the two never overlap. Screen only (export has no
-      clock, so the exported canvas keeps its full height). Not keyed on
-      async media readiness, so the height never jumps. */
+  /** The bar gets its own row below the canvas, on screen only. Not keyed
+      on async media readiness, so the height never jumps. */
   const PLAY_BAR_HEIGHT = 36
   const hasPlayBar = $derived(!unavailableMessage && data !== null && playback !== null)
 
@@ -400,8 +344,8 @@
     return best
   }
 
-  /** The hovered fixation's midpoint for the cursor's time channel (the
-      recurrence plot's convention); empty if the data changed under it. */
+  /** The hovered fixation's midpoint (the recurrence plot's convention);
+      empty if the data changed under it. */
   function fixationTimes(index: number): number[] {
     const f = data?.fixations[index]
     return f ? [f.start + f.duration / 2] : []
@@ -411,7 +355,7 @@
     width: () => width,
     height: () => (hasPlayBar ? Math.max(60, height - PLAY_BAR_HEIGHT) : height),
     margin: () => margin,
-    deps: () => [data, showFixationOrder, showNumbers, colorMode, gradientStops, solidColor, trail, unavailableMessage, media, mediaElement, clockFrame, timeCutoff],
+    deps: () => [data, showFixationOrder, showNumbers, colorMode, gradientStops, solidColor, trail, unavailableMessage, media, mediaElement, clock?.frame, timeCutoff],
     placeholder: () => unavailableMessage,
     gutters: () => {
       if (unavailableMessage) return {}
@@ -484,19 +428,15 @@
     return frame.y + ((y - scale.dataMinY) / scale.dataH) * frame.height
   }
 
-  // ── Time-extent coloring: each fixation's fill sampled from the settings'
-  // colorScale (the shared 2/3-stop gradient, same as the matrix plots) by
-  // its onset within the rendered fixations' onset span.
+  // ── Time-extent coloring: fill sampled from the colorScale by onset.
   const gradientStops = $derived(
     colorScale && colorScale.length >= 2
       ? colorScale
       : [...PRESET_PALETTES.VIRIDIS.colors]
   )
 
-  /** Gradient domain: the rendered fixations' onset span, FIXED through
-      playback. Color always means "when", so a fixation keeps its color for
-      the whole run and the key never moves; age inside the trail is shown by
-      opacity instead (see `ageAlpha`). */
+  /** The rendered onset span, fixed through playback: color always means
+      "when"; age in the trail is opacity (`ageAlpha`). */
   const gradientDomain = $derived.by((): [number, number] => {
     if (!data || data.fixations.length === 0) return [0, 1]
     const t0 = data.fixations[0].start
@@ -556,10 +496,8 @@
   const formatOnset = (ms: number) => `${(ms / 1000).toFixed(1)} s`
 
   /** Time-gradient key: `Onset 0.0 s [gradient] 4.2 s`, right-aligned on the
-      X-axis title row, whose single centred "X" leaves that space free, so the
-      key costs no plot height and still lands in exports. Fixed through
-      playback, like the colors it explains. Skipped when the plot is too
-      narrow to clear the title. */
+      X-axis title row, so it costs no plot height and lands in exports.
+      Skipped when the plot is too narrow to clear the title. */
   function drawTimeLegend(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
     if (colorMode !== 'time' || !data || unavailableMessage) return
     if (data.fixations.length === 0) return
@@ -605,8 +543,8 @@
     ctx.restore()
   }
 
-  /** The order line among the visible fixations: one path when nothing
-      fades, else per segment at the newer end's age. */
+  /** One path when nothing fades (joints never double the alpha), else
+      per segment at the newer end's age. */
   function drawOrderLine(
     ctx: CanvasRenderingContext2D,
     frame: PlotFrame,
@@ -646,9 +584,8 @@
     ctx.restore()
   }
 
-  /** Number labels, newest first, skipping any that would overlap one
-      already placed: dense recordings keep their latest numbers legible
-      instead of piling up. A spatial hash keeps it linear. */
+  /** Labels newest first, skipping any that would overlap a placed one
+      (checked on a coarse cell grid), so dense recordings stay legible. */
   function drawNumbers(
     ctx: CanvasRenderingContext2D,
     frame: PlotFrame,
@@ -662,43 +599,24 @@
     ctx.lineWidth = 2.5
     ctx.lineJoin = 'round'
     ctx.fillStyle = SCANPATH_COLORS.numberLabel
-    const CELL = 24
-    const h = L.numberFontSize + 2
-    const grid = new Map<number, { x: number; y: number; w: number }[]>()
-    const cellKey = (cx: number, cy: number) => cx * 100003 + cy
+    const CELL = 6
+    const h = L.numberFontSize / 2
+    const taken = new Set<number>()
     for (let i = fixations.length - 1; i >= 0; i--) {
       const f = fixations[i]
       const r = displayRadiusFor(f)
       const tx = projectX(f.x, frame) + r + L.numberOffset
       const ty = projectY(f.y, frame) - r * 0.4
       const label = String(f.rank)
-      const w = ctx.measureText(label).width + 2
-      const top = ty - h / 2
-      const c0 = Math.floor(tx / CELL)
-      const c1 = Math.floor((tx + w) / CELL)
-      const r0 = Math.floor(top / CELL)
-      const r1 = Math.floor((top + h) / CELL)
-      let blocked = false
-      for (let cx = c0; cx <= c1 && !blocked; cx++) {
-        for (let cy = r0; cy <= r1 && !blocked; cy++) {
-          for (const o of grid.get(cellKey(cx, cy)) ?? []) {
-            if (tx < o.x + o.w && o.x < tx + w && top < o.y + h && o.y < top + h) {
-              blocked = true
-              break
-            }
-          }
+      const right = tx + ctx.measureText(label).width
+      const cells: number[] = []
+      for (let cx = Math.floor(tx / CELL); cx <= right / CELL; cx++) {
+        for (let cy = Math.floor((ty - h) / CELL); cy <= (ty + h) / CELL; cy++) {
+          cells.push(cx * 100003 + cy)
         }
       }
-      if (blocked) continue
-      const rect = { x: tx, y: top, w }
-      for (let cx = c0; cx <= c1; cx++) {
-        for (let cy = r0; cy <= r1; cy++) {
-          const k = cellKey(cx, cy)
-          const list = grid.get(k)
-          if (list) list.push(rect)
-          else grid.set(k, [rect])
-        }
-      }
+      if (cells.some(c => taken.has(c))) continue
+      for (const c of cells) taken.add(c)
       ctx.globalAlpha = ageAlpha(f)
       ctx.strokeText(label, tx, ty)
       ctx.fillText(label, tx, ty)
@@ -731,8 +649,8 @@
     // readable across busy reference imagery.
     if (showFixationOrder) drawOrderLine(ctx, frame, fixations)
 
-    // Fixation circles: slightly translucent fill (overlaps stay readable)
-    // inside the conventional darker stroke; older trail members fade.
+    // Fixation circles: translucent fill inside the conventional darker
+    // stroke; older trail members fade.
     ctx.save()
     for (const f of fixations) {
       const cx = projectX(f.x, frame)
@@ -756,12 +674,10 @@
 
   // ── Play bar ──────────────────────────────────────────────────────────
 
-  /** Fraction of the rail for a recording time. */
   const railPos = (t: number) => (spanMs > 0 ? Math.min(1, Math.max(0, (t - span.start) / spanMs)) : 0)
 
-  /** The playhead the bar shows: the end while parked (everything shown). */
+  /** Parked shows the end: everything is on screen. */
   const shownTime = $derived(playTime ?? span.end)
-  /** The trail's left edge on the rail: everything left of it is hidden. */
   const trailFrom = $derived(
     playTime !== null && trail > 0 ? Math.max(span.start, playTime - trail) : span.start
   )
@@ -775,8 +691,7 @@
     return span.start + Math.min(1, Math.max(0, f)) * spanMs
   }
 
-  // Hovering the rail previews that moment in the other plots of the
-  // stimulus through the plot cursor's time channel.
+  // Hovering the rail marks that moment on the stimulus's other plots.
   function onRailHover(event: PointerEvent) {
     if (spanMs <= 0 || participantId === undefined) return
     const t = timeAtRail(event.clientX)
@@ -787,8 +702,8 @@
     plotCursor?.publish(null)
   }
 
-  // Dragging the trail's left edge sets the trail length; dropping it at the
-  // rail start means "All". Committed once, on release (one undo step).
+  // Dragging the trail's left edge sets its length (the rail start = All),
+  // committed once on release: one undo step.
   function onHandleDown(event: PointerEvent) {
     if (playTime === null) return
     event.preventDefault()
@@ -812,23 +727,6 @@
     windowDraft = null
   }
 
-  /** Arrows shorten or lengthen the trail by 250 ms (the left edge moves
-      with the arrow); Home sets All. Each press is one undo step. */
-  function onHandleKey(event: KeyboardEvent) {
-    const STEP = 250
-    let next: number | null = null
-    if (event.key === 'ArrowLeft' || event.key === 'ArrowDown') {
-      next = trail > 0 ? trail + STEP : null
-    } else if (event.key === 'ArrowRight' || event.key === 'ArrowUp') {
-      next = trail > 0 ? Math.max(100, trail - STEP) : Math.max(100, Math.round(spanMs / 4 / 10) * 10)
-    } else if (event.key === 'Home') {
-      next = 0
-    }
-    if (next === null) return
-    event.preventDefault()
-    if (next !== playbackWindow) playback?.commitWindow(next)
-  }
-
   // Space plays/pauses the scanpath under the pointer (or holding focus).
   let host = $state<HTMLDivElement | null>(null)
   let hovered = false
@@ -838,11 +736,9 @@
     if (!hasPlayBar || !clock || spanMs <= 0) return
     const focusInside = !!host && host.contains(document.activeElement)
     if (!hovered && !focusInside) return
-    const target = event.target as HTMLElement | null
-    const isOwnSeek = target instanceof HTMLInputElement && target.type === 'range' && !!host?.contains(target)
-    if (isTextEntryTarget(event) && !isOwnSeek) return
+    if (isTextEntryTarget(event) && (event.target as HTMLInputElement).type !== 'range') return
     event.preventDefault()
-    togglePlayback()
+    toggle()
   }
 </script>
 
@@ -870,7 +766,7 @@
       <button
         class="pill-toggle"
         aria-label={isPlaying ? 'Pause' : 'Play'}
-        onclick={togglePlayback}
+        onclick={toggle}
         disabled={barDisabled}
       >
         {#if isPlaying}
@@ -880,12 +776,11 @@
         {/if}
       </button>
       {#if playTime !== null}
-        <button class="pill-toggle" aria-label="Show all fixations" onclick={resetPlayback}>
+        <button class="pill-toggle" aria-label="Show all fixations" onclick={() => clock?.reset()}>
           <RotateCcw size={'1em'} />
         </button>
       {/if}
-      <!-- The seek bar's filled part is the trail: exactly the fixations on
-           screen. Its left edge is draggable to change the trail length. -->
+      <!-- The filled part is the trail: the fixations on screen. -->
       <div
         class="pill-rail"
         bind:this={railEl}
@@ -900,29 +795,25 @@
           max={span.end > span.start ? span.end : span.start + 1}
           step="10"
           value={shownTime}
-          oninput={onSeek}
+          oninput={e => clock?.seek(Number(e.currentTarget.value), playback?.plotId ?? null)}
           disabled={barDisabled}
           aria-label="Playback position"
           style:--trail-from={`${fromPct}%`}
           style:--seek-progress={`${nowPct}%`}
         />
         {#if playTime !== null && !barDisabled}
-          <!-- A button so the workspace never starts a pan from it. -->
+          <!-- A button so the workspace never pans from it. Pointer only: the
+               pane's Trail length field is the keyboard route. -->
           <button
             type="button"
             class="pill-trail-edge"
             style:left={`${fromPct}%`}
-            role="slider"
+            tabindex="-1"
             aria-label="Trail length"
-            aria-valuemin={0}
-            aria-valuemax={spanMs}
-            aria-valuenow={trail}
-            aria-valuetext={trail > 0 ? formatTime(trail) : 'All'}
             onpointerdown={onHandleDown}
             onpointermove={onHandleMove}
             onpointerup={onHandleUp}
             onpointercancel={onHandleUp}
-            onkeydown={onHandleKey}
           ></button>
         {/if}
       </div>
@@ -1060,11 +951,6 @@
     background: var(--c-brand);
     cursor: ew-resize;
     touch-action: none;
-  }
-
-  .pill-trail-edge:focus-visible {
-    outline: 2px solid var(--c-brand);
-    outline-offset: 2px;
   }
 
   .pill-note {

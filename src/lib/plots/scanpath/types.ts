@@ -10,26 +10,22 @@ export type ScanpathPlotSettings = {
   colorScale: string[]
   /** Marker fill in 'solid' mode. */
   solidColor: string
-  /** Trail length in recording ms: during playback only fixations that began
-      within the last N ms stay on screen, fading with age. 0 keeps everything
-      since the start (the default). */
+  /** Trail length in ms: during playback only fixations that began within
+      it stay on screen, fading with age. 0 = all. */
   playbackWindow: number
-  /** Playback rate relative to recording time (1 = real time). On a shared
-      clock the plot that started playback sets the rate. */
+  /** Relative to recording time. On a shared clock, the plot that started
+      playback sets it. */
   playbackSpeed: number
-  /** Play on the stimulus's shared clock (in lockstep with its other
-      scanpaths, playhead shown on its time-axis plots). Off = a private
-      clock. */
+  /** Play on the stimulus's shared clock; off = a private one. */
   syncPlayback: boolean
-  /** Recording-time range (ms); fixations overlapping it are drawn and the
-      play bar spans it. 0/absent end = to the end of the recording. */
+  /** Recording-time range (ms) of the fixations drawn; 0 end = to the end. */
   timelineStart?: number
   timelineEnd?: number
 }
 
 export interface ScanpathFixation {
-  /** 1-based chronological rank among the recording's located fixations
-      (a time range never renumbers them). */
+  /** 1-based rank among the recording's located fixations; a time range
+      never renumbers them. */
   rank: number
   x: number
   y: number

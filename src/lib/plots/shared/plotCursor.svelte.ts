@@ -78,8 +78,8 @@ type PlotCursorPosition = {
 export interface PlotCursorPort {
   /** Publish the pointer's position; `null` when it leaves. */
   publish: (at: PlotCursorPosition | null) => void
-  /** ANOTHER plot's instants when they are comparable here, plus the time of
-      the stimulus's PLAYBACK CLOCK while it plays; empty when neither. */
+  /** ANOTHER plot's instants when comparable here, plus a playing PLAYBACK
+      CLOCK's time; empty when neither. */
   readonly times: readonly number[]
   /** ANOTHER plot's participants under the pointer; empty when there are none. */
   readonly participants: readonly number[]
@@ -121,8 +121,7 @@ export function createPlotCursorPort(
       const mine = timeScope()
       if (mine === null) return NO_IDS
       const hovered = c?.times != null && c.times.scope() === mine ? c.times.at() : NO_IDS
-      // The playing clock rides the same channel, so every reader marks it with
-      // its usual time guide and nothing new to draw.
+      // The playing clock rides this channel, so readers draw their usual guide.
       const playing = clocks?.playingTime(mine) ?? null
       return playing === null ? hovered : [...hovered, playing]
     },
@@ -145,12 +144,7 @@ export function plotCursorPort(
   plotId: number,
   timeScope?: () => number | null
 ): PlotCursorPort {
-  const port = createPlotCursorPort(
-    usePlotCursor(),
-    plotId,
-    timeScope,
-    usePlaybackClocks()
-  )
+  const port = createPlotCursorPort(usePlotCursor(), plotId, timeScope, usePlaybackClocks())
   onDestroy(() => port.publish(null))
   return port
 }

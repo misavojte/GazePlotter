@@ -32,10 +32,8 @@ export function getScanpathData(
     settings.participantId
   )
 
-  const rangeStart = settings.timelineStart ?? 0
-  const rangeEnd = settings.timelineEnd ?? 0
+  const { timelineStart = 0, timelineEnd = 0 } = settings
   let anyFixation = false
-  let anyLocated = false
   let rank = 0
   const fixations: ScanpathFixation[] = []
 
@@ -47,26 +45,24 @@ export function getScanpathData(
     if (!spatial) continue
     if (!Number.isFinite(spatial.x) || !Number.isFinite(spatial.y)) continue
 
-    anyLocated = true
     rank++
     const start = reader.getSegmentStart(i)
     const end = reader.getSegmentEnd(i)
-    if (rangeEnd > 0 && start >= rangeEnd) break
-    if (end <= rangeStart) continue
-    const duration = end - start
+    if (timelineEnd > 0 && start >= timelineEnd) break
+    if (end <= timelineStart) continue
     fixations.push({
       rank,
       x: spatial.x,
       y: spatial.y,
       start,
-      duration,
+      duration: end - start,
     })
   }
 
   if (fixations.length === 0) {
     return {
       kind: 'unavailable',
-      reason: anyLocated
+      reason: rank > 0
         ? 'none-in-range'
         : anyFixation
           ? 'no-spatial-coords'

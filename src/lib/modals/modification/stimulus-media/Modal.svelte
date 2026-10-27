@@ -97,7 +97,6 @@
 
   const COORD_MIN = -1_000_000
 
-  // Video timing: the recording time at which the first frame shows.
   // svelte-ignore state_referenced_locally
   const initialOffset = saved?.startOffset ?? 0
   let startOffset = $state<number | undefined>(initialOffset)
@@ -342,11 +341,9 @@
   {#if media.kind === 'video'}
     <Section title="Timing">
       <div class="stack">
-        <p class="hint" id="media-timing-hint">
-          The recording time at which the video's first frame shows. Scanpath
-          playback and the playhead on the timeline plots use it to keep the
-          frames and the fixations together. Enter a negative value if the
-          video started before the recording.
+        <p class="hint">
+          The recording time of the video's first frame, so frames and
+          fixations play together. Negative if the video started first.
         </p>
         <div class="coord-fields">
           <InputNumber

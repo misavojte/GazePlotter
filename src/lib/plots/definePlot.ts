@@ -276,9 +276,8 @@ export type SectionField = SectionFieldPresentation & (
       /** Display fallback AND the value an emptied input commits; when absent,
        *  an emptied input recommits the current value. */
       default?: number
-      /** Placeholder shown INSTEAD of the value while it equals `default`
-       *  (e.g. "All" for a 0 that means unlimited), so no sentinel needs
-       *  explaining in the label. Emptying the input commits `default`. */
+      /** Placeholder shown instead of the value while it equals `default`
+       *  (e.g. "All" for 0); emptying the input commits `default`. */
       emptyLabel?: string
       /** Effective-value override replacing the plain `settings[key]` read —
        *  for controls whose displayed value is derived (e.g. the scangraph's

@@ -1,55 +1,41 @@
 /**
- * THE PLAYBACK CLOCK: one shared playhead per stimulus.
+ * THE PLAYBACK CLOCK: one playhead per stimulus.
  *
- * Scanpath plots are the PLAYERS: each joins the clock of its stimulus with
- * its own play span and trail length, and every player of that stimulus
- * shows the same moment (participants in lockstep). Time-axis plots of the
- * stimulus (scarf in absolute mode, AOI Timeline, Evolving Metrics) are
- * READERS through their plot cursor port (see `plotCursor.svelte.ts`): while
- * the clock plays, its time joins the port's time channel, so they draw it
- * with their usual time guide. They never move it: playback is not an
- * undoable command, so a click on a plot must not change it. The port's time
- * scope gates them exactly like the hover cursor.
+ * Scanpath plots are PLAYERS: each joins its stimulus's clock with its play
+ * span, so all of them show the same moment. Time-axis plots read the clock
+ * through their plot cursor port: while it plays, its time joins the port's
+ * time channel and they draw their usual time guide. They never move it, as
+ * playback is not an undoable command.
  *
- * Time is recording ms from the participant's first sample on the stimulus,
- * the same basis as the cursor's time channel. A reference video is slaved
- * to the clock: while the playhead is inside the video's span the video
- * plays and IS the clock (its frames and the fixations never drift); outside
- * it the clock runs on animation frames. `StimulusMedia.startOffset` maps
- * one onto the other.
+ * Time is recording ms, the cursor's basis. A reference video is slaved to
+ * the clock: inside its span it plays and leads (frames never drift from the
+ * fixations), outside it the clock runs on animation frames.
  *
- * A player may opt out of the shared clock: it then gets a private clock
- * nobody else reads. Private and shared clocks of one stimulus share its
- * single video element, so starting one pauses whichever other clock holds
- * the element.
+ * A player can opt out into a private clock nobody reads. Clocks of one
+ * stimulus share its video element, so starting one pauses the others.
  */
 import { SvelteMap } from 'svelte/reactivity'
 import { sessionScoped } from '$lib/session/context'
 
-export type PlaybackSpan = { start: number; end: number }
-
-type Player = {
-  span: PlaybackSpan
-  /** Playback rate relative to recording time (1 = real time). */
-  speed: number
-}
+type Player = { span: { start: number; end: number }; speed: number }
 
 type VideoBinding = { el: HTMLVideoElement; offset: number }
 
 export class PlaybackClock {
-  /** Playhead in recording ms; null = parked, every player shows all. */
+  /** Recording ms; null = parked, players show everything. */
   time = $state<number | null>(null)
   playing = $state(false)
-  /** Repaint signal: bumps on every tick and when a seeked video frame is decoded. */
+  /** Repaint signal: a seeked video frame was decoded. */
   frame = $state(0)
-  /** The player that last played or seeked: its speed is the clock's. */
+  /** The player that last played or seeked; its speed is the clock's. */
   driver = $state<number | null>(null)
   readonly players = new SvelteMap<number, Player>()
 
+  /** Per player; all bindings of one clock are the same element. */
   private videos = new Map<number, VideoBinding>()
   private raf = 0
   private lastAt = 0
-  /** The video refused to play (autoplay policy): don't retry every frame. */
+  /** play() was refused (autoplay policy): don't retry every frame. */
   private videoBlocked = false
   private readonly owner: PlaybackClocks
 
@@ -57,117 +43,32 @@ export class PlaybackClock {
     this.owner = owner
   }
 
-  /** The union of the players' spans (a player with nothing to play, such
-      as one showing a placeholder, adds nothing). */
-  get span(): PlaybackSpan {
+  /** Union of the players' spans; an empty span (a placeholder) adds nothing. */
+  get span(): { start: number; end: number } {
     let start = Infinity
     let end = -Infinity
-    for (const p of this.players.values()) {
-      if (!(p.span.end > p.span.start)) continue
-      if (p.span.start < start) start = p.span.start
-      if (p.span.end > end) end = p.span.end
+    for (const { span } of this.players.values()) {
+      if (!(span.end > span.start)) continue
+      start = Math.min(start, span.start)
+      end = Math.max(end, span.end)
     }
-    return Number.isFinite(start) && end > start ? { start, end } : { start: 0, end: 0 }
+    return end > start ? { start, end } : { start: 0, end: 0 }
   }
 
-  /** The driver's speed, else the first player's. */
   get speed(): number {
     const driven = this.driver !== null ? this.players.get(this.driver) : undefined
     return (driven ?? this.players.values().next().value)?.speed ?? 1
   }
 
-  /** The bound video, if any (every binding of one clock is the same element). */
   get video(): VideoBinding | null {
     return this.videos.values().next().value ?? null
-  }
-
-  bindVideo(plotId: number, el: HTMLVideoElement | null, offset: number): void {
-    const before = this.video?.el
-    if (el) this.videos.set(plotId, { el, offset })
-    else this.videos.delete(plotId)
-    const after = this.video?.el
-    if (before && before !== after) {
-      before.removeEventListener('seeked', this.onVideoSeeked)
-      // Only this clock's own run: another clock may be playing the element.
-      if (this.playing && !before.paused) before.pause()
-    }
-    if (after && after !== before) {
-      after.addEventListener('seeked', this.onVideoSeeked)
-      after.playbackRate = this.speed
-      // A paused playhead shows its frame on the new element too.
-      if (this.time !== null) this.parkVideo(this.time)
-    }
-  }
-
-  private onVideoSeeked = () => {
-    this.frame++
-  }
-
-  play(plotId: number | null = this.driver): void {
-    const { start, end } = this.span
-    if (end <= start) return
-    if (plotId !== null) this.driver = plotId
-    // From the top when parked or at the end.
-    if (this.time === null || this.time >= end - 1 || this.time < start) {
-      this.time = start
-    }
-    this.owner.claim(this)
-    this.playing = true
-    this.videoBlocked = false
-    this.lastAt = performance.now()
-    this.stopTicking()
-    this.raf = requestAnimationFrame(this.tick)
-    this.frame++
-  }
-
-  /** Only a running clock holds a frame request (none exists outside a browser). */
-  private stopTicking(): void {
-    if (this.raf) cancelAnimationFrame(this.raf)
-    this.raf = 0
-  }
-
-  pause(): void {
-    this.playing = false
-    this.stopTicking()
-    const v = this.video
-    if (v && !v.el.paused) v.el.pause()
-    this.frame++
-  }
-
-  toggle(plotId: number | null): void {
-    if (this.playing) this.pause()
-    else this.play(plotId)
-  }
-
-  /** Move the playhead (clamped to the span); keeps playing if it was. */
-  seek(time: number, plotId: number | null = null): void {
-    const { start, end } = this.span
-    const t = Math.min(Math.max(time, start), Math.max(start, end))
-    if (plotId !== null) this.driver = plotId
-    this.time = t
-    this.lastAt = performance.now()
-    const v = this.video
-    if (v) {
-      if (this.playing) this.syncVideo(v, t, true)
-      else this.parkVideo(t)
-    }
-    this.frame++
-  }
-
-  /** Stop and park on the full picture. */
-  reset(): void {
-    this.pause()
-    this.time = null
-    this.frame++
   }
 
   join(plotId: number, player: Player): void {
     this.players.set(plotId, player)
     // A shrunken span must not strand the playhead outside it.
-    if (this.time !== null) {
-      const { start, end } = this.span
-      if (this.time > end || this.time < start) this.seek(this.time)
-    }
+    const { start, end } = this.span
+    if (this.time !== null && (this.time < start || this.time > end)) this.seek(this.time)
   }
 
   leave(plotId: number): void {
@@ -177,127 +78,162 @@ export class PlaybackClock {
     if (this.players.size === 0) this.reset()
   }
 
-  dispose(): void {
-    this.reset()
-    for (const id of [...this.videos.keys()]) this.bindVideo(id, null, 0)
+  bindVideo(plotId: number, el: HTMLVideoElement | null, offset: number): void {
+    const before = this.video?.el
+    if (el) this.videos.set(plotId, { el, offset })
+    else this.videos.delete(plotId)
+    const after = this.video?.el
+    if (before === after) return
+    if (before) {
+      before.removeEventListener('seeked', this.onVideoSeeked)
+      // Only our own run: another clock may be playing the element.
+      if (this.playing) before.pause()
+    }
+    if (after) {
+      after.addEventListener('seeked', this.onVideoSeeked)
+      if (this.time !== null) this.parkVideo(this.time)
+    }
   }
 
-  private tick = (now: number) => {
-    if (!this.playing || this.time === null) return
-    const dt = now - this.lastAt
-    this.lastAt = now
-    const { end } = this.span
-    const v = this.video
-    if (v && v.el.playbackRate !== this.speed) v.el.playbackRate = this.speed
-    const videoRunning = v && !v.el.paused && !v.el.seeking && v.el.readyState >= 2
-    let t = videoRunning ? v.el.currentTime * 1000 + v.offset : this.time + dt * this.speed
-    // A video still decoding its first frame after the seek holds the clock.
-    if (v && !v.el.paused && !videoRunning) t = this.time
-    if (v) this.syncVideo(v, t, false)
-    if (t >= end) {
-      // Hold the last frame; the bar's reset returns to the full picture.
-      this.raf = 0
-      this.time = end
-      this.pause()
-      return
-    }
-    this.time = t
+  private onVideoSeeked = () => {
     this.frame++
+  }
+
+  play(plotId: number | null): void {
+    const { start, end } = this.span
+    if (end <= start) return
+    if (plotId !== null) this.driver = plotId
+    if (this.time === null || this.time >= end - 1) this.time = start
+    this.owner.claim(this)
+    this.playing = true
+    this.videoBlocked = false
+    this.lastAt = performance.now()
+    this.stopTicking()
     this.raf = requestAnimationFrame(this.tick)
   }
 
-  /** Inside the video's span the video plays (and leads); outside, it rests. */
+  pause(): void {
+    // Only our own run: another clock may be playing the element.
+    if (this.playing) this.video?.el.pause()
+    this.playing = false
+    this.stopTicking()
+  }
+
+  toggle(plotId: number | null): void {
+    if (this.playing) this.pause()
+    else this.play(plotId)
+  }
+
+  /** Clamped to the span; keeps playing if it was. */
+  seek(time: number, plotId: number | null = null): void {
+    const { start, end } = this.span
+    if (plotId !== null) this.driver = plotId
+    this.time = Math.min(Math.max(time, start), Math.max(start, end))
+    this.lastAt = performance.now()
+    const v = this.video
+    if (v && this.playing) this.syncVideo(v, this.time, true)
+    else if (v) this.parkVideo(this.time)
+  }
+
+  /** Stop and show everything again. */
+  reset(): void {
+    this.pause()
+    this.time = null
+  }
+
+  /** No frame request exists outside a browser, so only cancel a real one. */
+  private stopTicking(): void {
+    if (this.raf) cancelAnimationFrame(this.raf)
+    this.raf = 0
+  }
+
+  private tick = (now: number) => {
+    this.raf = 0
+    if (!this.playing || this.time === null) return
+    const dt = now - this.lastAt
+    this.lastAt = now
+    const v = this.video
+    let t = this.time + dt * this.speed
+    if (v) {
+      if (v.el.playbackRate !== this.speed) v.el.playbackRate = this.speed
+      // A playing video leads; one still seeking holds the clock.
+      if (!v.el.paused) {
+        const ready = !v.el.seeking && v.el.readyState >= 2
+        t = ready ? v.el.currentTime * 1000 + v.offset : this.time
+      }
+      this.syncVideo(v, t, false)
+    }
+    const { end } = this.span
+    // At the end, hold the last frame until the bar's reset.
+    this.time = Math.min(t, end)
+    if (t >= end) this.pause()
+    else this.raf = requestAnimationFrame(this.tick)
+  }
+
+  /** Inside the video's span the video plays; outside it rests. */
   private syncVideo(v: VideoBinding, t: number, force: boolean): void {
-    const durationMs = Number.isFinite(v.el.duration) ? v.el.duration * 1000 : 0
     const local = t - v.offset
-    const inside = local >= 0 && local < durationMs
-    if (!inside) {
-      if (!v.el.paused) v.el.pause()
+    if (!(local >= 0 && local < durationMs(v.el))) {
+      v.el.pause()
       if (force) this.parkVideo(t)
       return
     }
-    if (force || v.el.paused) {
-      if (force || Math.abs(v.el.currentTime * 1000 - local) > 50) {
-        v.el.currentTime = local / 1000
-      }
-      if (v.el.paused && !this.videoBlocked) {
-        v.el.playbackRate = this.speed
-        v.el.play().catch(() => {
-          this.videoBlocked = true
-        })
-      }
+    if (!force && !v.el.paused) return
+    if (force || Math.abs(v.el.currentTime * 1000 - local) > 50) v.el.currentTime = local / 1000
+    if (v.el.paused && !this.videoBlocked) {
+      v.el.playbackRate = this.speed
+      v.el.play().catch(() => (this.videoBlocked = true))
     }
   }
 
-  /** Show the frame for `t` on a paused element (edge frames outside its span). */
+  /** Show the frame for `t`, or the edge frame outside the video's span. */
   private parkVideo(t: number): void {
     const v = this.video
     if (!v) return
-    if (!v.el.paused) v.el.pause()
-    const durationMs = Number.isFinite(v.el.duration) ? v.el.duration * 1000 : 0
-    const local = Math.min(Math.max(t - v.offset, 0), Math.max(0, durationMs - 1))
+    v.el.pause()
+    const local = Math.min(Math.max(t - v.offset, 0), Math.max(0, durationMs(v.el) - 1))
     v.el.currentTime = Math.max(local / 1000, 0.001)
   }
 }
 
-/** Every clock of a session: one shared per stimulus, plus private ones. */
+const durationMs = (el: HTMLVideoElement) =>
+  Number.isFinite(el.duration) ? el.duration * 1000 : 0
+
+/** A session's clocks: one shared per stimulus, plus private ones. */
 export class PlaybackClocks {
   private clocks = new SvelteMap<string, PlaybackClock>()
 
-  static sharedKey(stimulusId: number): string {
-    return `stimulus:${stimulusId}`
-  }
+  static sharedKey = (stimulusId: number) => `stimulus:${stimulusId}`
+  static privateKey = (plotId: number) => `plot:${plotId}`
 
-  static privateKey(plotId: number): string {
-    return `plot:${plotId}`
-  }
-
-  /** The clock for `key`, created on first use. */
+  /** Created on first use. */
   clock(key: string): PlaybackClock {
     let c = this.clocks.get(key)
-    if (!c) {
-      c = new PlaybackClock(this)
-      this.clocks.set(key, c)
-    }
+    if (!c) this.clocks.set(key, (c = new PlaybackClock(this)))
     return c
   }
 
-  /** Drop a player; the clock goes with its last player. */
+  /** The clock goes with its last player. */
   leave(key: string, plotId: number): void {
     const c = this.clocks.get(key)
-    if (!c) return
-    c.leave(plotId)
-    if (c.players.size === 0) {
-      c.dispose()
-      this.clocks.delete(key)
-    }
+    c?.leave(plotId)
+    if (c?.players.size === 0) this.clocks.delete(key)
   }
 
-  /** The shared clock of a stimulus, only while a player has something to play. */
-  shared(stimulusId: number): PlaybackClock | null {
-    const c = this.clocks.get(PlaybackClocks.sharedKey(stimulusId))
-    if (!c) return null
-    const { start, end } = c.span
-    return end > start ? c : null
-  }
-
-  /** The shared clock's time while it PLAYS; null when paused, parked or absent. */
+  /** The stimulus's shared clock time while it plays, else null. */
   playingTime(stimulusId: number): number | null {
-    const c = this.shared(stimulusId)
-    return c?.playing && c.time !== null ? c.time : null
+    const c = this.clocks.get(PlaybackClocks.sharedKey(stimulusId))
+    return c?.playing ? c.time : null
   }
 
-  /** A clock starting playback pauses any other clock using the same video. */
+  /** Starting a clock pauses any other one on the same video. */
   claim(clock: PlaybackClock): void {
+    const el = clock.video?.el
+    if (!el) return
     for (const other of this.clocks.values()) {
-      if (other !== clock && other.playing && sharesVideo(other, clock)) other.pause()
+      if (other !== clock && other.playing && other.video?.el === el) other.pause()
     }
   }
-}
-
-function sharesVideo(a: PlaybackClock, b: PlaybackClock): boolean {
-  const el = a.video?.el
-  return !!el && el === b.video?.el
 }
 
 /** This session's clocks; resolve at component init. */

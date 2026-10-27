@@ -62,11 +62,7 @@ export interface StimulusMedia {
    * (0, 0, naturalWidth, naturalHeight).
    */
   region?: { x: number; y: number; width: number; height: number }
-  /**
-   * Videos only: the recording time (ms, the plots' time axis) at which the
-   * video's first frame shows. Absent = 0, the video starts with the
-   * recording. Negative when the video starts before it.
-   */
+  /** Videos only: recording time (ms) of the first frame; absent = 0. */
   startOffset?: number
 }
 
