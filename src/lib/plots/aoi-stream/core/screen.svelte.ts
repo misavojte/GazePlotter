@@ -1,6 +1,6 @@
 import type { PlotScreenFactory, PlotView } from '$lib/plots/definePlot'
 import { usePlotSync } from '$lib/plots/shared/PlotSyncRegistry.svelte'
-import { getGroupMaxEndTime } from '$lib/data/engine'
+import { getParticipantsMaxEndTime } from '$lib/data/engine'
 import { toggleSettingEntry } from '$lib/plots/shared'
 import { plotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
 import { computeMTop } from './ridgeline'
@@ -38,7 +38,7 @@ export const aoiStreamScreen: PlotScreenFactory<AoiStreamPlotSettings> = ctx => 
     void ctx.item.redrawTimestamp
     if (!isFullyAuto) return 0
     const s = ctx.item.settings
-    return getGroupMaxEndTime(ctx.engine, s.groupId, s.stimulusId)
+    return getParticipantsMaxEndTime(ctx.engine, s, s.stimulusId)
   })
 
   const timelineSync = aoiStreamTimelineSync()

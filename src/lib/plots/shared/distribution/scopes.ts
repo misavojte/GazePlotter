@@ -1,5 +1,6 @@
 import { getParticipant, getParticipantsIds } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import type { ParticipantScope } from '$lib/data/types'
 import type { DistributionAxis, DistributionSlot } from './types'
 
 /**
@@ -11,19 +12,14 @@ import type { DistributionAxis, DistributionSlot } from './types'
  */
 export function distributionParticipants(
   engine: DataEngine,
-  settings: {
+  settings: ParticipantScope & {
     stimulusId: number
-    groupId: number
     timelineStart?: number
     timelineEnd?: number
     aoiSelectionId?: number
   }
 ): Pick<DistributionAxis, 'scopes' | 'participantNames'> {
-  const participantIds = getParticipantsIds(
-    engine,
-    settings.groupId,
-    settings.stimulusId
-  )
+  const participantIds = getParticipantsIds(engine, settings, settings.stimulusId)
   const timeStart = settings.timelineStart ?? 0
   const timeEnd = settings.timelineEnd ?? 0
   return {

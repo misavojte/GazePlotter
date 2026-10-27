@@ -19,7 +19,6 @@ import type { ScarfPlotSettings } from '../src/lib/plots/scarf/types'
 
 const SETTINGS: ScarfPlotSettings = {
   stimulusId: 1,
-  groupId: -1,
   timeline: 'absolute',
   absoluteStimuliLimits: [],
   ordinalStimuliLimits: [],

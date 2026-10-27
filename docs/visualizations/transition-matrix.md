@@ -25,7 +25,7 @@ Choose the stimulus to analyze. Each stimulus contains its own set of Areas of I
 
 ### Participants
 Filter the eye-tracking data by a participant selection.
-- **Participant selection**: A dropdown containing *All*, *Non-empty*, and saved participant selections.
+- **Participant selection**: *All* or a saved participant selection. **Hide participants without data** leaves out those with no recording on the stimulus.
 - **Edit participants & selections**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
 
 ### Metric

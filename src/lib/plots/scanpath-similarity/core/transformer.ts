@@ -1,4 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import type { ParticipantScope } from '$lib/data/types'
 import { getParticipantsIds, getParticipant } from '$lib/data/engine'
 import {
   queryGroup,
@@ -32,7 +33,7 @@ const empty = (extra?: { noMetric: true }): ScanpathSimilarityData =>
 export function getScanpathSimilarityData(
   engine: DataEngine,
   stimulusId: number,
-  groupId: number,
+  participants: ParticipantScope,
   metricInstanceId: string | null,
   timeStart: number = 0,
   timeEnd: number = 0,
@@ -47,7 +48,7 @@ export function getScanpathSimilarityData(
   })
   if (!resolved.ok) return empty({ noMetric: true })
 
-  const participantIds = getParticipantsIds(engine, groupId, stimulusId)
+  const participantIds = getParticipantsIds(engine, participants, stimulusId)
   if (participantIds.length === 0) return empty()
 
   const scope: GroupScope = {
@@ -128,7 +129,7 @@ let _simMemo: {
 function settingsKey(settings: ScanpathSimilaritySettings): string {
   return [
     settings.stimulusId,
-    settings.groupId,
+    `${settings.participantSelectionId ?? 0}:${!!settings.hideEmptyParticipants}`,
     settings.metricInstanceIds[0] ?? '',
     settings.timelineStart ?? 0,
     settings.timelineEnd ?? 0,
@@ -147,7 +148,7 @@ export function similarityDataFor(
   const data = getScanpathSimilarityData(
     engine,
     settings.stimulusId,
-    settings.groupId,
+    settings,
     settings.metricInstanceIds[0] ?? null,
     settings.timelineStart ?? 0,
     settings.timelineEnd ?? 0,

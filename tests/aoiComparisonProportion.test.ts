@@ -30,7 +30,7 @@ function engineWith(perParticipant: number[][][]) {
 
 function bar(engine: DataEngine, instanceId: string) {
   return getAoiComparisonData(engine, {
-    stimulusId: 0, groupId: -1, metricInstanceIds: [instanceId],
+    stimulusId: 0, metricInstanceIds: [instanceId],
     orderBy: 'aoi', orderDirection: 'asc', scaleRange: [0, 0],
     statisticalOverlay: 'none',
   })
@@ -73,7 +73,7 @@ describe('bar plot — proportion metric (noticed rate)', () => {
   it('axis label drops the overlay suffix for a proportion metric (no "mean ± CI")', () => {
     const engine = engineWith([[[0, 100, 0, 0]], [[0, 100, 0, 1]]])
     const settings: AoiComparisonSettings = {
-      stimulusId: 0, groupId: -1, orientation: 'horizontal',
+      stimulusId: 0, orientation: 'horizontal',
       orderBy: 'aoi', orderDirection: 'asc',
       metricInstanceIds: ['fixated'], scaleRange: [0, 0],
       statisticalOverlay: 'meanCi95', // set, but must be ignored for a proportion
@@ -87,7 +87,7 @@ describe('bar plot — proportion metric (noticed rate)', () => {
   it('a duration metric keeps its overlay suffix in the axis label', () => {
     const engine = engineWith([[[0, 100, 0, 0]]])
     const settings: AoiComparisonSettings = {
-      stimulusId: 0, groupId: -1, orientation: 'horizontal',
+      stimulusId: 0, orientation: 'horizontal',
       orderBy: 'aoi', orderDirection: 'asc',
       metricInstanceIds: ['absoluteTime'], scaleRange: [0, 0],
       statisticalOverlay: 'meanCi95',

@@ -15,7 +15,7 @@ import {
 /** The default settings every distribution plot shares; fresh per call (scaleRange is mutable). */
 export const distributionDefaults = (params: DefaultPlotParams) => ({
   stimulusId: params.stimulusId ?? 0,
-  groupId: params.groupId ?? -1,
+  hideEmptyParticipants: false,
   orientation: 'horizontal' as const,
   orderDirection: 'asc' as const,
   scaleRange: [0, 0] as [number, number],

@@ -29,7 +29,6 @@ function buildEngine(events: number[][][][], channels: string[]) {
 
 const SETTINGS: ScarfPlotSettings = {
   stimulusId: STIM,
-  groupId: -1,
   timeline: 'absolute',
   absoluteStimuliLimits: [],
   ordinalStimuliLimits: [],

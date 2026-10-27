@@ -2,7 +2,6 @@ import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import {
   getStimuli,
   getAllParticipants,
-  getParticipantsSelections,
 } from '$lib/data/engine'
 
 /**
@@ -14,25 +13,6 @@ export function getStimuliOptions(engine: DataEngine) {
 
   return getStimuli(engine).map(s => ({
     label: s.displayedName,
-    value: s.id.toString(),
-  }))
-}
-
-/**
- * Get the participant selection options for a plot
- * @param {boolean} includeDefault - Whether to include the default selections
- * @param {number} stimulusId - The stimulus ID for context-sensitive selections
- * @returns {Array} The participant selection options
- */
-export function getParticipantsSelectionOptions(
-  engine: DataEngine,
-  includeDefault: boolean = true,
-  stimulusId: number = 0
-) {
-  if (!engine.metadata) return []
-
-  return getParticipantsSelections(engine, includeDefault, stimulusId).map(s => ({
-    label: s.name,
     value: s.id.toString(),
   }))
 }

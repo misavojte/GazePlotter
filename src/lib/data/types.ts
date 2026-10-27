@@ -145,12 +145,20 @@ export interface ParticipantsSelection {
   participantsIds: number[]
 }
 
+/** The participants axis of a plot's settings. */
+export type ParticipantScope = {
+  /** Per-plot participant SELECTION id; unset/0 = all participants. */
+  participantSelectionId?: number
+  /** Drop participants with no recording on the stimulus. */
+  hideEmptyParticipants?: boolean
+}
+
 /**
  * The two "layer off" narrowings are ORDINARY rows, not a sentinel id, so a
  * selection id either names a stored row or means "All" (unset / 0 / unknown).
  * Seeded once per workspace (ingest kernel for a fresh dataset, the v5 → v6
  * migration for an older file); after that they are user data, so renaming or
- * deleting one sticks. (Participants' -1/-2 are a different id space.)
+ * deleting one sticks.
  */
 export const seededCategoriesSelection = (id: number): EntitySelection => ({
   id,

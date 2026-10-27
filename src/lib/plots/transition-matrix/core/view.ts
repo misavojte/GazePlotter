@@ -29,7 +29,7 @@ export function deriveTransitionMatrixView(
   const transitionData = getTransitionMatrixData(
     engine,
     settings.stimulusId,
-    settings.groupId,
+    settings,
     settings.metricInstanceIds[0] ?? null,
     settings.timelineStart ?? 0,
     settings.timelineEnd ?? 0,

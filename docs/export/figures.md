@@ -14,7 +14,7 @@ To paste one figure straight into slides or a document, select the plot and pres
 
 ## Choose Figures
 
-The first step lists every plot in the workspace in reading order (top to bottom, left to right). Each entry shows the plot type and its subtitle (stimulus, participant group) to distinguish same-type plots.
+The first step lists every plot in the workspace in reading order (top to bottom, left to right). Each entry shows the plot type and its subtitle (stimulus, participant selection) to distinguish same-type plots.
 
 - **Select All** / **Deselect All** toggle the whole list; long lists gain a search field. Right-click an item for **Select only this** or **Select all but this**.
 

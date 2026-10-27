@@ -1,8 +1,8 @@
 import type { AdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
+import type { ParticipantScope } from '$lib/data/types'
 
-export type EvolvingMetricsSettings = {
+export type EvolvingMetricsSettings = ParticipantScope & {
   stimulusId: number
-  groupId: number
   /** Per-plot AOI SELECTION id; unset/0 = all AOIs. */
   aoiSelectionId?: number
   /**

@@ -5,7 +5,7 @@ import { exportMetricDataModal, exportSegmentedDataModal } from '$lib/modals/def
 type PlotScope = {
   metricInstanceIds?: string[]
   stimulusId?: number
-  groupId?: number
+  participantSelectionId?: number
   participantId?: number
   timelineStart?: number
   timelineEnd?: number
@@ -23,7 +23,7 @@ export type PlotDataExport = {
 
 /**
  * The data behind one plot (still editable before downloading): a metric plot
- * opens the metric CSV preset to its metrics, stimulus, group, time crop and
+ * opens the metric CSV preset to its metrics, stimulus, participants, time crop and
  * AOI selection; a gaze plot opens the segment CSV preset to its stimulus and
  * participants. Null when the plot has neither.
  */
@@ -33,8 +33,8 @@ export function plotDataExport(
   modalState: ModalState
 ): PlotDataExport | null {
   const scope = settings as PlotScope
-  // "Non-empty" depends on one stimulus; the exports list everyone instead.
-  const groupId = scope.groupId === -2 ? undefined : scope.groupId
+  // Exports preset the selection only: the empty-participant filter is per stimulus.
+  const { participantSelectionId } = scope
   if (scope.metricInstanceIds?.length) {
     return {
       label: 'Download data',
@@ -53,7 +53,7 @@ export function plotDataExport(
         modalState.open(exportMetricDataModal, {
           metricInstanceIds: scope.metricInstanceIds,
           stimulusId: scope.stimulusId,
-          groupId,
+          participantSelectionId,
           timeStart: scope.timelineStart,
           timeEnd: scope.timelineEnd,
           aoiSelectionId: scope.aoiSelectionId,
@@ -75,7 +75,7 @@ export function plotDataExport(
       open: () =>
         modalState.open(exportSegmentedDataModal, {
           stimulusId: scope.stimulusId,
-          groupId,
+          participantSelectionId,
           participantId: scope.participantId,
           aoiSelectionId: scope.aoiSelectionId,
         }),

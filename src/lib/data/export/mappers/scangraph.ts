@@ -26,7 +26,7 @@ export function generateScanGraph(
   const aois = meta.aois.data[stimulusId] ? getAois(engine, stimulusId) : []
   // The same "All" selector the similarity metric path uses: order-vector
   // driven, so merged-away participants don't export as ghost rows.
-  const participantIds = getParticipantsIds(engine, -1, stimulusId)
+  const participantIds = getParticipantsIds(engine, {}, stimulusId)
   const entries = collectAllScanpaths(
     engine,
     stimulusId,

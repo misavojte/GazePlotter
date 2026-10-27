@@ -60,7 +60,6 @@ function createEngine() {
 
 const base = {
   stimulusId: 0,
-  groupId: -1,
   metricInstanceIds: [INST_ID],
   timelineMin: 0,
   timelineMax: SPAN,

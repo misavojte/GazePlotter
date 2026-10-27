@@ -27,7 +27,7 @@ export const metricMatrixDefinition = definePlot<
   tagline: 'Metric per participant × stimulus',
   group: 'per-participant',
   paneSections: [
-    'group',
+    'participants',
     'stimuli',
     'metric',
     {
@@ -55,7 +55,7 @@ export const metricMatrixDefinition = definePlot<
   screen: plotCursorScreen(),
   getSubtitle: metricMatrixSubtitle,
   getDefaultSettings: (params = {}) => ({
-    groupId: params.groupId ?? -1,
+    hideEmptyParticipants: false,
     metricInstanceIds: [METRIC_MATRIX_DEFAULTS.defaultMetricId],
     colorScale: [...METRIC_MATRIX_DEFAULTS.colorScale],
     // `0 = Auto`; the scaleRange field writes an explicit [min, max] here. Must

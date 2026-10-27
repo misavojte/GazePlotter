@@ -1,8 +1,8 @@
 import type { StatisticalOverlayType } from '$lib/plots/shared/distribution'
+import type { ParticipantScope } from '$lib/data/types'
 
-export type EventComparisonSettings = {
+export type EventComparisonSettings = ParticipantScope & {
   stimulusId: number
-  groupId: number
   /** Per-plot event SELECTION id; unset/0 = all channels. */
   eventSelectionId?: number
   /**

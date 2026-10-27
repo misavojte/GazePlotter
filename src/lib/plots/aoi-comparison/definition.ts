@@ -1,5 +1,5 @@
 import { definePlot } from '$lib/plots/definePlot'
-import { stimulusGroupSubtitle } from '$lib/plots/shared'
+import { stimulusParticipantsSubtitle } from '$lib/plots/shared'
 import { distributionDefaults, distributionVisualizationSection } from '$lib/plots/shared/distribution/paneSection'
 import { distributionValueAxisScreen } from '$lib/plots/shared/distribution/screen.svelte'
 import { AOI_COMPARISON_CONTRACT } from './core/transformer'
@@ -23,7 +23,7 @@ export const aoiComparisonDefinition = definePlot<
   group: 'per-aoi',
   paneSections: [
     'stimulus',
-    'group',
+    'participants',
     'metric',
     distributionVisualizationSection({
       key: 'aoiComparison:visualization',
@@ -34,7 +34,7 @@ export const aoiComparisonDefinition = definePlot<
   ],
   view: { deriveView: deriveAoiComparisonView },
   screen: distributionValueAxisScreen(),
-  getSubtitle: stimulusGroupSubtitle,
+  getSubtitle: stimulusParticipantsSubtitle,
   getDefaultSettings: (params = {}) => ({
     ...distributionDefaults(params),
     orderBy: 'aoi',

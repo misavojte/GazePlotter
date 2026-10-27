@@ -194,7 +194,7 @@ export function getFixationHeatmapData(
   const media = engine.metadata?.stimuliMedia?.[stimulusId] ?? null
   const radiusIsAuto = !(settings.radius > 0)
   const radius = radiusIsAuto ? autoRadius(reader, media) : settings.radius
-  const ids = getParticipantsIds(engine, settings.groupId, stimulusId)
+  const ids = getParticipantsIds(engine, settings, stimulusId)
   const names = ids.map(id => getParticipant(engine, id).displayedName)
 
   // Everything the map depends on; view-only settings (colours, opacity, scale) are not in it.

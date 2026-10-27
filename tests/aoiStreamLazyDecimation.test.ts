@@ -43,7 +43,7 @@ function createEngine() {
   }) as any
 }
 
-const base = { stimulusId: 0, groupId: -1, metricInstanceIds: [INST_ID], timelineMin: 0, timelineMax: SPAN }
+const base = { stimulusId: 0, metricInstanceIds: [INST_ID], timelineMin: 0, timelineMax: SPAN }
 
 describe('aoi-stream lazy decimation', () => {
   it('caps binCount at maxColumns and draws real configured-step windows', () => {

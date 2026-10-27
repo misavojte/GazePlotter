@@ -11,7 +11,7 @@ import { SCANPATH_SIMILARITY_DEFAULTS } from './const'
 import { commonIs, definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { PRESET_PALETTES } from '$lib/color/palettes'
-import { stimulusGroupSubtitle } from '$lib/plots/shared'
+import { stimulusParticipantsSubtitle } from '$lib/plots/shared'
 import { OUT_OF_BOUNDS_DEFAULTS, outOfBoundsFields } from '$lib/plots/shared/outOfBounds'
 import type { ScanpathSimilaritySettings } from './types'
 
@@ -87,7 +87,7 @@ export const scanpathSimilarityDefinition = definePlot<
   group: 'inter-participant',
   paneSections: [
     'stimulus',
-    'group',
+    'participants',
     'metric',
     {
       key: 'scanpathSimilarity:visualization',
@@ -176,10 +176,10 @@ export const scanpathSimilarityDefinition = definePlot<
   ],
   view: { deriveView: deriveScanpathSimilarityView },
   screen: scanpathSimilarityScreen,
-  getSubtitle: stimulusGroupSubtitle,
+  getSubtitle: stimulusParticipantsSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
-    groupId: params.groupId ?? -1,
+    hideEmptyParticipants: false,
     metricInstanceIds: ['participantPairSimilarity-lev'],
     view: 'matrix',
     threshold: 0.5,

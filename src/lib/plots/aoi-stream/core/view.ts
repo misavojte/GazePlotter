@@ -1,6 +1,6 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotView, PlotViewContext } from '$lib/plots/definePlot'
-import { getGroupMaxEndTime } from '$lib/data/engine'
+import { getParticipantsMaxEndTime } from '$lib/data/engine'
 import { resolveColumnBudget } from '$lib/plots/shared/displayBudget'
 import { calculatePlotWidthPx } from '$lib/plots/shared/plotSizeUtility'
 import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid/const'
@@ -25,7 +25,7 @@ function resolveTimeline(
   if ((settings.timelineEnd ?? 0) > 0) return { min, max: settings.timelineEnd! }
   const absMax = limits?.[1] ?? 0
   if (absMax !== 0) return { min, max: absMax }
-  return { min, max: getGroupMaxEndTime(engine, settings.groupId, settings.stimulusId) }
+  return { min, max: getParticipantsMaxEndTime(engine, settings, settings.stimulusId) }
 }
 
 /** Shared data derivation; `ctx.itemWidth` drives the display budget. */

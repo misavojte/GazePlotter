@@ -1,10 +1,11 @@
+import type { ParticipantScope } from '$lib/data/types'
+
 export type MetricCorrelationView = 'heatmap' | 'splom'
 
 export type CorrelationMethod = 'pearson' | 'spearman'
 
-export type MetricCorrelationSettings = {
+export type MetricCorrelationSettings = ParticipantScope & {
   stimulusId: number
-  groupId: number
   /** Per-plot AOI SELECTION id; unset/0 = all AOIs. */
   aoiSelectionId?: number
   view: MetricCorrelationView
@@ -56,7 +57,7 @@ export interface MetricCorrelationResult {
   /** Row-major N×N cells (N = metrics.length). */
   cells: CorrelationCell[]
   correlationMethod: CorrelationMethod
-  /** Number of participants in the group (base N before NaN filtering). */
+  /** Number of participants in the selection (base N before NaN filtering). */
   sampleSize: number
   /** Participant ids parallel to vectors' rows — the PLOT CURSOR's key. */
   participantIds: readonly number[]

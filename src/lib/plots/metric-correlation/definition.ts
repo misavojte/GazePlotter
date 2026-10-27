@@ -1,7 +1,7 @@
 import { deriveMetricCorrelationView } from './core/view'
 import { plotCursorScreen } from '$lib/plots/shared/plotCursor.svelte'
 import { definePlot } from '$lib/plots/definePlot'
-import { stimulusGroupSubtitle } from '$lib/plots/shared'
+import { stimulusParticipantsSubtitle } from '$lib/plots/shared'
 import {
   METRIC_CORRELATION_CONTRACT,
   METRIC_CORRELATION_METHODS,
@@ -19,7 +19,7 @@ export const metricCorrelationDefinition = definePlot<
   group: 'per-participant',
   paneSections: [
     'stimulus',
-    'group',
+    'participants',
     // Entry-field override on the shared schema: this plot correlates 2+
     // metrics, so the section title is plural.
     { key: 'metric', props: { title: 'Metrics' } },
@@ -57,10 +57,10 @@ export const metricCorrelationDefinition = definePlot<
   ],
   view: { deriveView: deriveMetricCorrelationView },
   screen: plotCursorScreen(),
-  getSubtitle: stimulusGroupSubtitle,
+  getSubtitle: stimulusParticipantsSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
-    groupId: params.groupId ?? -1,
+    hideEmptyParticipants: false,
     view: 'heatmap',
     correlationMethod: 'spearman',
     metricInstanceIds: [

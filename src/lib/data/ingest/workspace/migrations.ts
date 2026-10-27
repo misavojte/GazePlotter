@@ -318,6 +318,26 @@ function migrateLegacyVisibility(payload: any, gridItems: unknown[]): void {
   }
 }
 
+/** Version-independent: `groupId` → `participantSelectionId` (absent = All), `-2` → `hideEmptyParticipants`.
+ *  Rows with id <= 0 (1.x demos hold 0, now All) are renumbered, plots following. */
+function migrateParticipantAxis(rows: any[], gridItems: any[]): void {
+  const inUse = [...rows, ...gridItems.map(i => ({ id: Number(i?.settings?.groupId) || 0 }))]
+  const renumbered = new Map<number, number>()
+  for (const row of rows.filter(r => Number(r?.id) <= 0)) {
+    const id = nextSelectionId(inUse)
+    renumbered.set(Number(row.id), id)
+    row.id = id
+  }
+  for (const s of gridItems.map(i => i?.settings)) {
+    if (!s || typeof s !== 'object' || !('groupId' in s)) continue
+    const groupId = Number(s.groupId)
+    const id = renumbered.get(groupId) ?? groupId
+    delete s.groupId
+    if (id > 0) s.participantSelectionId = id
+    s.hideEmptyParticipants ??= groupId === -2
+  }
+}
+
 /**
  * Collapse the legacy WindowSpec `mode` field into an explicit `stepSize`.
  * Epoch was always `stepSize === windowSize`; sliding without a stepSize
@@ -876,6 +896,10 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
     }
     delete selectionPayload.participantsGroups
   }
+
+  // After the rename above, so it sees the participant rows.
+  const participantRows = selectionPayload?.participantsSelections
+  migrateParticipantAxis(Array.isArray(participantRows) ? participantRows : [], Array.isArray(data.gridItems) ? data.gridItems : [])
 
   return data as MigratedJsonFormat
 }

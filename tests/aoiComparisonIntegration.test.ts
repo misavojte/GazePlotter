@@ -12,12 +12,10 @@ const partialSettings = (s: Partial<DataSettings>) => s as DataSettings
 
 describe('Bar Plot Transformer (Integration)', () => {
   const stimulusId = 0
-  const groupId = -1
   // The full settings of the non-partial cases; each passes only what it is about.
   const run = (engine: ReturnType<typeof makeTwoAoiEngine>, over: Partial<DataSettings> = {}) =>
     getAoiComparisonData(engine, {
       stimulusId,
-      groupId,
       metricInstanceIds: [ABSOLUTE_TIME_INSTANCE_ID],
       orderBy: 'aoi',
       orderDirection: 'asc',
@@ -71,7 +69,6 @@ describe('Bar Plot Transformer (Integration)', () => {
       engine,
       partialSettings({
         stimulusId,
-        groupId,
         metricInstanceIds: [ABSOLUTE_TIME_INSTANCE_ID],
       })
     )
@@ -86,7 +83,6 @@ describe('Bar Plot Transformer (Integration)', () => {
       engine,
       partialSettings({
         stimulusId,
-        groupId,
         metricInstanceIds: [ABSOLUTE_TIME_INSTANCE_ID],
         scaleRange: [0, 1000],
       })
@@ -104,7 +100,6 @@ describe('Bar Plot Transformer (Integration)', () => {
       engine,
       partialSettings({
         stimulusId,
-        groupId: -1,
       })
     )
 

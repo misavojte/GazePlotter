@@ -2,7 +2,7 @@ import { deriveFixationHeatmapView, heatmapUnit } from './core/view'
 import { autoRadiusFor } from './core/transformer'
 import { plotCursorScreen } from '$lib/plots/shared/plotCursor.svelte'
 import { commonIs, definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
-import { formatGaze, stimulusGroupSubtitle } from '$lib/plots/shared'
+import { formatGaze, stimulusParticipantsSubtitle } from '$lib/plots/shared'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import type { FixationHeatmapPlotSettings } from './types'
 
@@ -19,7 +19,7 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
   group: 'gaze-behavior',
   paneSections: [
     'stimulus',
-    'group',
+    'participants',
     {
       key: 'fixationHeatmap:method',
       title: 'Method',
@@ -132,7 +132,7 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
   ],
   view: { deriveView: deriveFixationHeatmapView },
   screen: plotCursorScreen(),
-  getSubtitle: stimulusGroupSubtitle,
+  getSubtitle: stimulusParticipantsSubtitle,
   // A Scale max is typed in the map's unit; when the unit changes it no longer
   // means anything (5000 ms as a count blanks the map), so it returns to Auto.
   onCommand: (command, item, _engine, dispatch): void => {
@@ -149,7 +149,7 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
   },
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
-    groupId: params.groupId ?? -1,
+    hideEmptyParticipants: false,
     accumulate: 'duration',
     normalization: 'share',
     radius: 0,

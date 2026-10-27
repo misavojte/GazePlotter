@@ -44,7 +44,6 @@ function engineOf(stimuli: Fix[][][], extra: Parameters<typeof makeTestEngine>[1
 
 const settings = (over: Partial<FixationHeatmapPlotSettings> = {}): FixationHeatmapPlotSettings => ({
   stimulusId: 1,
-  groupId: -1,
   accumulate: 'duration',
   normalization: 'share',
   radius: 30,
@@ -228,7 +227,7 @@ describe('getFixationHeatmapData', () => {
   it('frames the same domain and grid for every selection and time range', () => {
     const e = engineOf([[], [P0, P1]], { participantsSelections: [{ id: 5, name: 'Experts', participantsIds: [1] }] })
     const all = ok(getFixationHeatmapData(e, settings()))
-    const experts = ok(getFixationHeatmapData(e, settings({ groupId: 5 })))
+    const experts = ok(getFixationHeatmapData(e, settings({ participantSelectionId: 5 })))
     const late = ok(getFixationHeatmapData(e, settings({ timelineStart: 400 })))
     expect(experts.grid).toEqual(all.grid)
     expect(late.grid).toEqual(all.grid)

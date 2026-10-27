@@ -282,7 +282,7 @@ export function drawCategoryDelimiters(
  * transformer.
  *
  * Deliberately plain — NO error band. The per-slot value is a descriptive proportion
- * over the participant group (every bar shares the same n, so the bars are directly
+ * over the participant selection (every bar shares the same n, so the bars are directly
  * comparable), and a confidence interval would import a sampling + homogeneous-exposure
  * assumption the data model does not guarantee (a participant never exposed to an ad is
  * still counted as a 0). If noticed-rate is later computed conditional on exposure and a

@@ -1,5 +1,6 @@
 import { resolveEventSelectionNames } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import type { ParticipantScope } from '$lib/data/types'
 import { eventGroups, type PlotMetricContract } from '$lib/metrics'
 import {
   collectDistribution,
@@ -22,10 +23,9 @@ export const EVENT_COMPARISON_CONTRACT = {
   crossParticipant: 'distribution',
 } as const satisfies PlotMetricContract
 
-type EventComparisonDataSettings = Pick<
+type EventComparisonDataSettings = ParticipantScope & Pick<
   EventComparisonSettings,
   | 'stimulusId'
-  | 'groupId'
   | 'eventSelectionId'
   | 'metricInstanceIds'
   | 'orderBy'

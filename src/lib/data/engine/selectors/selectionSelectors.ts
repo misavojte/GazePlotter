@@ -1,45 +1,22 @@
 import {
-  ALL_SELECTION_LABEL,
   FIXATION_CATEGORY_ID,
   type EntitySelection,
   type NameSelection,
   type ParticipantsSelection,
+  type ParticipantScope,
   type BaseInterpretedDataType,
 } from '$lib/data/types'
 import type { DataEngine } from '../dataEngine.svelte'
 import type { GroupedByDisplayedName } from '../utils/grouping'
 import {
-  getParticipant,
   getParticipantOrderVector,
   getStimuli,
 } from './entitySelectors'
 import { getNumberOfSegments, getParticipantEndTime } from './segmentSelectors'
 
 export const getParticipantsSelections = (
-  engine: DataEngine,
-  isDefault = false,
-  stimulusId = 0
-): ParticipantsSelection[] => {
-  const meta = engine.metadata
-  if (!meta) throw new Error('Data engine metadata not available')
-
-  const defaultSelections: ParticipantsSelection[] = isDefault
-    ? [
-        {
-          id: -1,
-          name: ALL_SELECTION_LABEL,
-          participantsIds: getParticipantOrderVector(engine),
-        },
-        {
-          id: -2,
-          name: 'Non-empty',
-          participantsIds: getParticipantsIds(engine, -2, stimulusId),
-        },
-      ]
-    : []
-
-  return [...defaultSelections, ...meta.participantsSelections]
-}
+  engine: DataEngine
+): ParticipantsSelection[] => engine.metadata?.participantsSelections ?? []
 
 // Unknown id resolves to null and callers fall back to All participants —
 // same self-healing contract as AOI selections (resolveAoiSelectionVisibleIds):
@@ -131,61 +108,38 @@ export const getStimuliInSelection = (
   return all.filter(s => memberSet.has(s.id))
 }
 
-const getParticipantsSelection = (
-  engine: DataEngine,
-  selectionId: number
-): ParticipantsSelection | null =>
-  getParticipantsSelections(engine).find(s => s.id === selectionId) ?? null
-
 /**
- * Participant ids a plot ranges over under a participants SELECTION — the
- * single definition of the narrowing policy. `-1` = all, `-2` = non-empty for
- * the stimulus, otherwise the stored selection resolved through the order
- * vector: stored selections may hold merged-away (tombstoned) member ids for
- * unmerge-reversibility, and feeding those raw to plot transformers renders
- * ghost participants. Unknown ids self-heal to all participants.
- *
- * The two built-ins stay ids rather than seeded rows, unlike the layer-off
- * narrowings: `-2` is computed PER STIMULUS so no stored row can express it, and
- * resolving `-1` through the built-in list would run that computation on every
- * call, including this per-render fast path.
+ * Participant ids a plot ranges over under its participants axis: the single
+ * definition of the narrowing policy. Unset/0 or an unknown selection id means
+ * all participants (self-healing, like AOI selections). Stored selections may
+ * hold merged-away (tombstoned) member ids for unmerge-reversibility, so they
+ * resolve through the order vector; raw ids would render ghost participants.
+ * `hideEmptyParticipants` then drops those with no recording on the stimulus.
  */
 export const getParticipantsIds = (
   engine: DataEngine,
-  selectionId = -1,
+  scope: ParticipantScope = {},
   stimulusId = 0
 ): number[] => {
   const order = getParticipantOrderVector(engine)
-  if (selectionId === -2)
-    return order.filter(id => getNumberOfSegments(engine, stimulusId, id) > 0)
-  if (selectionId === -1) return order
-  const selection = getParticipantsSelection(engine, selectionId)
-  if (!selection) return order
-  const memberSet = new Set(selection.participantsIds)
-  return order.filter(id => memberSet.has(id))
-}
-
-/** Latest end time on a stimulus across a participants SELECTION's members. */
-export const getGroupMaxEndTime = (
-  engine: DataEngine,
-  selectionId: number,
-  stimulusId: number
-): number => {
-  let max = 0
-  for (const id of getParticipantsIds(engine, selectionId, stimulusId)) {
-    const t = getParticipantEndTime(engine, stimulusId, id)
-    if (t > max) max = t
-  }
-  return max
-}
-
-/** {@link getParticipantsIds}, resolved to the participant rows. */
-export const getParticipants = (
-  engine: DataEngine,
-  selectionId = -1,
-  stimulusId = 0
-): BaseInterpretedDataType[] =>
-  getParticipantsIds(engine, selectionId, stimulusId).map(id =>
-    getParticipant(engine, id)
+  const id = scope.participantSelectionId
+  const selection = id
+    ? getParticipantsSelections(engine).find(s => s.id === id)
+    : undefined
+  const memberSet = selection ? new Set(selection.participantsIds) : null
+  if (!memberSet && !scope.hideEmptyParticipants) return order
+  return order.filter(
+    pid =>
+      (!memberSet || memberSet.has(pid)) &&
+      (!scope.hideEmptyParticipants ||
+        getNumberOfSegments(engine, stimulusId, pid) > 0)
   )
+}
 
+/** Latest end time on a stimulus across the participants a plot ranges over. */
+export const getParticipantsMaxEndTime = (
+  engine: DataEngine,
+  scope: ParticipantScope,
+  stimulusId: number
+): number =>
+  Math.max(0, ...getParticipantsIds(engine, scope, stimulusId).map(id => getParticipantEndTime(engine, stimulusId, id)))

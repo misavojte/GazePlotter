@@ -6,10 +6,10 @@
  */
 
 import type { AdaptiveTimeline } from '$lib/plots/shared'
+import type { ParticipantScope } from '$lib/data/types'
 
-export type ScarfPlotSettings = {
+export type ScarfPlotSettings = ParticipantScope & {
   stimulusId: number
-  groupId: number
   /** Per-plot AOI SELECTION id; unset/0 = all AOIs. */
   aoiSelectionId?: number
   /** Per-plot eye-movement-type SELECTION id; unset/0 = all types. The fixation

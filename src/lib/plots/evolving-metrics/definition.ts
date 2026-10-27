@@ -1,7 +1,7 @@
 import { deriveEvolvingMetricsView } from './core/view'
 import { evolvingMetricsScreen } from './core/screen.svelte'
 import { commonIs, definePlot } from '$lib/plots/definePlot'
-import { stimulusGroupSubtitle } from '$lib/plots/shared'
+import { stimulusParticipantsSubtitle } from '$lib/plots/shared'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import type { EvolvingMetricsSettings } from './types'
 
@@ -15,7 +15,7 @@ export const evolvingMetricsDefinition = definePlot<
   group: 'per-participant',
   paneSections: [
     'stimulus',
-    'group',
+    'participants',
     'metric',
     {
       key: 'evolvingMetrics:visualization',
@@ -48,10 +48,10 @@ export const evolvingMetricsDefinition = definePlot<
     viewDependsOnWidth: true,
   },
   screen: evolvingMetricsScreen,
-  getSubtitle: stimulusGroupSubtitle,
+  getSubtitle: stimulusParticipantsSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
-    groupId: params.groupId ?? -1,
+    hideEmptyParticipants: false,
     metricInstanceIds: ['avgFixationDuration-any-windowed'],
     timelineStart: 0,
     timelineEnd: 0,

@@ -1,5 +1,5 @@
 import { definePlot } from '$lib/plots/definePlot'
-import { stimulusGroupSubtitle } from '$lib/plots/shared'
+import { stimulusParticipantsSubtitle } from '$lib/plots/shared'
 import { distributionDefaults, distributionVisualizationSection } from '$lib/plots/shared/distribution/paneSection'
 import { EVENT_COMPARISON_CONTRACT } from './core/transformer'
 import { deriveEventComparisonView } from './core/view'
@@ -33,7 +33,7 @@ export const eventComparisonDefinition = definePlot<
   group: 'per-event',
   paneSections: [
     'stimulus',
-    'group',
+    'participants',
     'metric',
     distributionVisualizationSection({
       key: 'eventComparison:visualization',
@@ -43,7 +43,7 @@ export const eventComparisonDefinition = definePlot<
     'event',
   ],
   view: { deriveView: deriveEventComparisonView },
-  getSubtitle: stimulusGroupSubtitle,
+  getSubtitle: stimulusParticipantsSubtitle,
   getDefaultSettings: (params = {}) => ({
     ...distributionDefaults(params),
     metricInstanceIds: ['eventDuration'],

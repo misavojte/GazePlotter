@@ -51,7 +51,7 @@ export const scarfScreen: PlotScreenFactory<ScarfPlotSettings> = ctx => {
     void ctx.item.redrawTimestamp
     const s = effectiveSettings
     if (s.timeline === 'relative') return 0
-    const ids = getParticipantsIds(ctx.engine, s.groupId, s.stimulusId)
+    const ids = getParticipantsIds(ctx.engine, s, s.stimulusId)
     return scarfDataMax(ctx.engine, s.stimulusId, ids, s.timeline === 'ordinal')
   })
 

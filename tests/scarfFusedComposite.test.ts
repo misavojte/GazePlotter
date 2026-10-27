@@ -82,7 +82,6 @@ function buildEngine() {
 
 const SETTINGS: ScarfPlotSettings = {
   stimulusId: 1,
-  groupId: -1,
   timeline: 'absolute',
   absoluteStimuliLimits: [],
   ordinalStimuliLimits: [],

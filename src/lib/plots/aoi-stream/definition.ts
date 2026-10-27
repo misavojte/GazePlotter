@@ -1,7 +1,7 @@
 import { deriveAoiStreamView } from './core/view'
 import { aoiStreamScreen } from './core/screen.svelte'
 import { commonIs, definePlot } from '$lib/plots/definePlot'
-import { stimulusGroupSubtitle } from '$lib/plots/shared'
+import { stimulusParticipantsSubtitle } from '$lib/plots/shared'
 // Called at definition time: import the module, not the barrel, which the
 // registry -> shared sections -> registry cycle leaves half-initialised.
 import { reconcileStimulusScopedHighlights } from '$lib/plots/shared/highlightReconcile'
@@ -25,7 +25,7 @@ export const aoiStreamPlotDefinition = definePlot<
   group: 'per-aoi',
   paneSections: [
     'stimulus',
-    'group',
+    'participants',
     'metric',
     {
       key: 'aoiStreamPlot:visualization',
@@ -80,10 +80,10 @@ export const aoiStreamPlotDefinition = definePlot<
     viewOnlySettings: ['highlights'],
   },
   screen: aoiStreamScreen,
-  getSubtitle: stimulusGroupSubtitle,
+  getSubtitle: stimulusParticipantsSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
-    groupId: params.groupId ?? -1,
+    hideEmptyParticipants: false,
     metricInstanceIds: ['absoluteTime-aoi-windowed-500'],
     absoluteStimuliLimits: [],
     stimuliColorValueRanges: [],

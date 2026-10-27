@@ -1,6 +1,6 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotView } from '$lib/plots/definePlot'
-import { fixationLayerVisible, getParticipants } from '$lib/data/engine'
+import { fixationLayerVisible, getParticipantsIds } from '$lib/data/engine'
 import ScarfPlotFigure from '../components/ScarfPlotFigure.svelte'
 import { transformDataToScarfPlot } from './transformer'
 import { isAoiLayerHighlight } from '../const'
@@ -44,13 +44,10 @@ export function getScarfData(
 ): ScarfData | null {
   const meta = engine.metadata
   if (!meta) return null
-  const participantIds = getParticipants(engine, settings.groupId, settings.stimulusId).map(
-    p => p.id
-  )
   return transformDataToScarfPlot(
     engine,
     settings.stimulusId,
-    participantIds,
+    getParticipantsIds(engine, settings, settings.stimulusId),
     settings,
     meta.noAoiTreatment
   )

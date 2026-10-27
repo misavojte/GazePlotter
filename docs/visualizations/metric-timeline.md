@@ -22,8 +22,8 @@ Choose the stimulus to analyze. Gaze data will be filtered and binned along this
 - **Edit stimuli & selections**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
 
 ### Participants
-Filter the analysis by participant group.
-- **Participant selection**: A dropdown containing *All*, *Non-empty*, and saved participant selections.
+Filter the analysis by participant selection.
+- **Participant selection**: *All* or a saved participant selection. **Hide participants without data** leaves out those with no recording on the stimulus.
 - **Edit participants & selections**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
 
 ### Metric

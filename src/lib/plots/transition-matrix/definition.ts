@@ -2,7 +2,7 @@ import { deriveTransitionMatrixView } from './core/view'
 import { transitionMatrixScreen } from './core/screen.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import { PRESET_PALETTES } from '$lib/color/palettes'
-import { stimulusGroupSubtitle } from '$lib/plots/shared'
+import { stimulusParticipantsSubtitle } from '$lib/plots/shared'
 import { OUT_OF_BOUNDS_DEFAULTS, outOfBoundsFields } from '$lib/plots/shared/outOfBounds'
 import type { TransitionMatrixPlotSettings } from './types'
 
@@ -16,7 +16,7 @@ export const transitionMatrixDefinition = definePlot<
   group: 'inter-aoi',
   paneSections: [
     'stimulus',
-    'group',
+    'participants',
     'metric',
     {
       key: 'transitionMatrix:visualization',
@@ -43,10 +43,10 @@ export const transitionMatrixDefinition = definePlot<
   ],
   view: { deriveView: deriveTransitionMatrixView },
   screen: transitionMatrixScreen,
-  getSubtitle: stimulusGroupSubtitle,
+  getSubtitle: stimulusParticipantsSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
-    groupId: params.groupId ?? -1,
+    hideEmptyParticipants: false,
     stimuliColorValueRanges: [],
     metricInstanceIds: ['transitionCount-fix'],
     ...OUT_OF_BOUNDS_DEFAULTS,

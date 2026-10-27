@@ -1,14 +1,14 @@
 import type { Rect } from '$lib/data/media/mediaAlignment'
 import type { GridGeometry } from './core/density'
+import type { ParticipantScope } from '$lib/data/types'
 
 export type FixationHeatmapAccumulate = 'duration' | 'count'
 export type FixationHeatmapNormalization = 'share' | 'mean'
 /** What lies under the heat when the stimulus has an image. */
 export type FixationHeatmapBackground = 'image' | 'grayscale' | 'dimmed' | 'none'
 
-export type FixationHeatmapPlotSettings = {
+export type FixationHeatmapPlotSettings = ParticipantScope & {
   stimulusId: number
-  groupId: number
   /** What a fixation adds: its (clipped) duration, or 1 when its midpoint is in range. */
   accumulate: FixationHeatmapAccumulate
   /** Share: each participant's weights over their own total, in %, then averaged.

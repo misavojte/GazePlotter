@@ -1,7 +1,7 @@
 import { deriveScarfView } from './core/view'
 import { scarfScreen } from './core/screen.svelte'
 import { definePlot } from '$lib/plots/definePlot'
-import { stimulusGroupSubtitle } from '$lib/plots/shared'
+import { stimulusParticipantsSubtitle } from '$lib/plots/shared'
 // Called at definition time: import the module, not the barrel, which the
 // registry -> shared sections -> registry cycle leaves half-initialised.
 import { reconcileStimulusScopedHighlights } from '$lib/plots/shared/highlightReconcile'
@@ -16,7 +16,7 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
   group: 'gaze-behavior',
   paneSections: [
     'stimulus',
-    'group',
+    'participants',
     {
       key: 'scarf:visualization',
       title: 'Visualization',
@@ -63,10 +63,10 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
     viewOnlySettings: ['highlights'],
   },
   screen: scarfScreen,
-  getSubtitle: stimulusGroupSubtitle,
+  getSubtitle: stimulusParticipantsSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
-    groupId: params.groupId ?? -1,
+    hideEmptyParticipants: false,
     timeline: 'absolute',
     absoluteStimuliLimits: [],
     ordinalStimuliLimits: [],

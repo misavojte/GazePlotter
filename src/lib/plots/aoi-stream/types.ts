@@ -1,9 +1,9 @@
 import type { AdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
 import type { OutOfBoundsColors } from '$lib/plots/shared/outOfBounds'
+import type { ParticipantScope } from '$lib/data/types'
 
-export type AoiStreamPlotSettings = OutOfBoundsColors & {
+export type AoiStreamPlotSettings = ParticipantScope & OutOfBoundsColors & {
   stimulusId: number
-  groupId: number
   /** Per-plot AOI SELECTION id; unset/0 = all AOIs. */
   aoiSelectionId?: number
   /**

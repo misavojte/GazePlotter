@@ -81,7 +81,7 @@ describe('workspaceCommandRegistry', () => {
         id: 11,
         settings: {
           stimulusId: 1,
-          groupId: 1,
+          participantSelectionId: 1,
           highlights: ['a0', 'a1', 'ac7', 'e2'],
         },
       }),
@@ -140,7 +140,7 @@ describe('workspaceCommandRegistry', () => {
         id: 11,
         settings: {
           stimulusId: 1,
-          groupId: 1,
+          participantSelectionId: 1,
           highlights: ['ac7'], // only global (category) highlights
         },
       }),
@@ -267,7 +267,7 @@ describe('workspaceCommandRegistry', () => {
         id: 11,
         settings: {
           stimulusId: 1,
-          groupId: 1,
+          participantSelectionId: 1,
           highlights: ['a0', 'a1', 'ac7'],
         },
       }),
@@ -314,7 +314,7 @@ describe('workspaceCommandRegistry', () => {
         id: 11,
         settings: {
           stimulusId: 1,
-          groupId: 1,
+          participantSelectionId: 1,
           highlights: ['a0', 'a1', 'ac7'],
         },
       }),
@@ -361,7 +361,7 @@ describe('workspaceCommandRegistry', () => {
         id: 11,
         settings: {
           stimulusId: 1,
-          groupId: 1,
+          participantSelectionId: 1,
           highlights: ['a0'],
         },
       }),
@@ -408,7 +408,7 @@ describe('workspaceCommandRegistry', () => {
       id: 11,
       settings: {
         stimulusId: 1,
-        groupId: 1,
+        participantSelectionId: 1,
         highlights: ['a0', 'ac7'],
       },
     })

@@ -61,7 +61,6 @@ function settings(
   over: Partial<MetricMatrixPlotSettings> = {}
 ): MetricMatrixPlotSettings {
   return {
-    groupId: -1,
     metricInstanceIds: ['fixationCount-any'],
     colorScale: ['#f7fbff', '#08306b'],
     scaleRange: [0, 0],
@@ -258,15 +257,15 @@ describe('Metric Matrix — metric-missing and empty states', () => {
     expect(data.rows).toEqual([])
   })
 
-  it('reports no-rows for a group with no participants', () => {
+  it('reports no-rows for a selection with no participants', () => {
     const engine = makeMetricMatrixEngine({
       segments: [
         [[[0, 100, 0, 1]], [[0, 100, 0, 1]]],
         [[[0, 100, 0, 1]], [[0, 100, 0, 1]]],
       ],
-      participantsSelections: [{ id: 0, name: 'Empty', participantsIds: [] }],
+      participantsSelections: [{ id: 1, name: 'Empty', participantsIds: [] }],
     })
-    const data = getMetricMatrixData(engine as never, settings({ groupId: 0 }))
+    const data = getMetricMatrixData(engine as never, settings({ participantSelectionId: 1 }))
     expect(data.empty).toBe('no-rows')
     expect(data.noMetric).toBeUndefined()
   })
@@ -299,10 +298,10 @@ describe('Metric Matrix — metric-missing and empty states', () => {
   })
 })
 
-// ─── 8. Group -1 vs -2 row axis ─────────────────────────────────────────────────
+// ─── 8. Empty-participant filter on the row axis ────────────────────────────────
 
-describe('Metric Matrix — group row axis (union over stimuli)', () => {
-  it('group -1 lists every participant; group -2 the union of non-empty across stimuli', () => {
+describe('Metric Matrix: participant row axis (union over stimuli)', () => {
+  it('All lists every participant; hideEmptyParticipants the union of non-empty across stimuli', () => {
     const engine = makeMetricMatrixEngine({
       segments: [
         // S0: p0 present, p1 absent, p2 absent
@@ -312,10 +311,10 @@ describe('Metric Matrix — group row axis (union over stimuli)', () => {
       ],
     })
 
-    const all = getMetricMatrixData(engine as never, settings({ groupId: -1 }))
+    const all = getMetricMatrixData(engine as never, settings())
     expect(all.rows.map(r => r.id)).toEqual([0, 1, 2])
 
-    const nonEmpty = getMetricMatrixData(engine as never, settings({ groupId: -2 }))
+    const nonEmpty = getMetricMatrixData(engine as never, settings({ hideEmptyParticipants: true }))
     // p2 is empty on every stimulus → excluded; p0 (from S0), p1 (from S1) kept.
     expect(nonEmpty.rows.map(r => r.id)).toEqual([0, 1])
     // Still a full grid with NA where the recording is absent.
@@ -325,7 +324,7 @@ describe('Metric Matrix — group row axis (union over stimuli)', () => {
     expect(cellAt(nonEmpty, 1, 1).state).toBeNull() // p1 on S1
   })
 
-  it('group -2 keeps natural participant order regardless of which stimulus a participant first appears on', () => {
+  it('hideEmptyParticipants keeps natural participant order regardless of which stimulus a participant first appears on', () => {
     // Regression guard: p0 is non-empty ONLY on the later stimulus, p1 ONLY on
     // the earlier one. A first-appearance-across-stimuli union would emit [p1, p0]
     // (reversed); rows must follow the natural order vector [p0, p1].
@@ -335,7 +334,7 @@ describe('Metric Matrix — group row axis (union over stimuli)', () => {
         [[[0, 100, 0, 1]], []], // S1: p0 present, p1 absent
       ],
     })
-    const data = getMetricMatrixData(engine as never, settings({ groupId: -2 }))
+    const data = getMetricMatrixData(engine as never, settings({ hideEmptyParticipants: true }))
     expect(data.rows.map(r => r.id)).toEqual([0, 1])
   })
 })

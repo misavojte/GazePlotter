@@ -20,7 +20,7 @@ Select the stimulus whose fixations to map. With a reference image attached, the
 - **Edit stimuli & selections**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to rename stimuli, build stimulus selections, and attach or align reference media.
 
 ### Participants
-- **Participant selection**: The participants whose fixations are pooled: *All*, *Non-empty*, or a saved [participant selection](/docs/workspace/participant-library/#participant-selections). Participants recorded on the stimulus without a located fixation in the time range are left out of the average (N) and counted in the data summary.
+- **Participant selection**: The participants whose fixations are pooled: *All* or a saved [participant selection](/docs/workspace/participant-library/#participant-selections); **Hide participants without data** leaves out those with no recording on the stimulus. Participants recorded on the stimulus without a located fixation in the time range are left out of the average (N) and counted in the data summary.
 - **Edit participants & selections**: Opens the [Participant Library](/docs/workspace/participant-library/).
 
 ### Method

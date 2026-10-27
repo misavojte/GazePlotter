@@ -1,5 +1,6 @@
 import { getAois } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import type { ParticipantScope } from '$lib/data/types'
 import type { PlotMetricContract } from '$lib/metrics'
 import {
   collectDistribution,
@@ -21,10 +22,9 @@ export const AOI_COMPARISON_CONTRACT = {
   crossParticipant: 'distribution',
 } as const satisfies PlotMetricContract
 
-type AoiComparisonDataSettings = Pick<
+type AoiComparisonDataSettings = ParticipantScope & Pick<
   AoiComparisonSettings,
   | 'stimulusId'
-  | 'groupId'
   | 'metricInstanceIds'
   | 'orderBy'
   | 'orderDirection'

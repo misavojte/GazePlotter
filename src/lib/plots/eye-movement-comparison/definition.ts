@@ -1,5 +1,5 @@
 import { definePlot } from '$lib/plots/definePlot'
-import { stimulusGroupSubtitle } from '$lib/plots/shared'
+import { stimulusParticipantsSubtitle } from '$lib/plots/shared'
 import { distributionDefaults, distributionVisualizationSection } from '$lib/plots/shared/distribution/paneSection'
 import { EYE_MOVEMENT_COMPARISON_CONTRACT } from './core/transformer'
 import { deriveEyeMovementComparisonView } from './core/view'
@@ -29,7 +29,7 @@ export const eyeMovementComparisonDefinition = definePlot<
   group: 'gaze-behavior',
   paneSections: [
     'stimulus',
-    'group',
+    'participants',
     'metric',
     distributionVisualizationSection({
       key: 'eyeMovementComparison:visualization',
@@ -39,7 +39,7 @@ export const eyeMovementComparisonDefinition = definePlot<
     'eyeMovement',
   ],
   view: { deriveView: deriveEyeMovementComparisonView },
-  getSubtitle: stimulusGroupSubtitle,
+  getSubtitle: stimulusParticipantsSubtitle,
   getDefaultSettings: (params = {}) => ({
     ...distributionDefaults(params),
     metricInstanceIds: ['movementDuration'],

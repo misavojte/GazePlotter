@@ -1,5 +1,6 @@
-import { getAois, getGroupMaxEndTime, getParticipantsIds } from '$lib/data/engine'
+import { getAois, getParticipantsMaxEndTime, getParticipantsIds } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import type { ParticipantScope } from '$lib/data/types'
 import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
 import { buildMetricLabel } from '$lib/plots/shared/labels'
 import { resolveDisplayStride, DEFAULT_MAX_COLUMNS } from '$lib/plots/shared/displayBudget'
@@ -15,8 +16,7 @@ import {
   type PlotMetricContract,
   type WindowedProjection,
 } from '$lib/metrics'
-import type { AoiStreamPlotResult, AoiStreamPlotSeries } from '../types'
-import type { AoiStreamPlotSettings } from '../types'
+import type { AoiStreamPlotResult, AoiStreamPlotSeries, AoiStreamPlotSettings } from '../types'
 import { COLOR_FALLBACKS } from '$lib/color'
 
 const CONTRACT = { outputShape: 'aoi-vector', windowing: 'required', crossParticipant: 'reduce' } as const satisfies PlotMetricContract
@@ -62,10 +62,11 @@ function emptyAoiStreamResult(noMetric = false): AoiStreamPlotResult {
  */
 export function getAoiStreamPlotData(
   engine: DataEngine,
-  settings: Pick<
-    AoiStreamPlotSettings,
-    'stimulusId' | 'groupId' | 'metricInstanceIds' | 'hideNoAoi' | 'aoiSelectionId'
-  > & {
+  settings: ParticipantScope &
+    Pick<
+      AoiStreamPlotSettings,
+      'stimulusId' | 'metricInstanceIds' | 'hideNoAoi' | 'aoiSelectionId'
+    > & {
     timelineMin?: number
     timelineMax?: number
     /**
@@ -93,12 +94,12 @@ export function getAoiStreamPlotData(
   if (!Number.isFinite(windowSize) || windowSize <= 0) return emptyAoiStreamResult(true)
   if (!Number.isFinite(stepSize) || stepSize <= 0) return emptyAoiStreamResult(true)
 
-  const { stimulusId, groupId } = settings
-  const participantIds = getParticipantsIds(engine, groupId, stimulusId)
+  const { stimulusId } = settings
+  const participantIds = getParticipantsIds(engine, settings, stimulusId)
   if (participantIds.length === 0) return emptyAoiStreamResult()
 
   const timelineMin = settings.timelineMin ?? 0
-  const timelineMax = settings.timelineMax ?? getGroupMaxEndTime(engine, groupId, stimulusId)
+  const timelineMax = settings.timelineMax ?? getParticipantsMaxEndTime(engine, settings, stimulusId)
   const timeStart = timelineMin
   const timeEnd = Math.max(timelineMin + windowSize, timelineMax)
 

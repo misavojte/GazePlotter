@@ -41,7 +41,7 @@ describe('computeCommonValue', () => {
 describe('commonSectionKeys (cross-type bulk section intersection)', () => {
   const shared = new Set([
     'stimulus',
-    'group',
+    'participants',
     'participant',
     'timelineRange',
     'aoi',
@@ -53,7 +53,7 @@ describe('commonSectionKeys (cross-type bulk section intersection)', () => {
     // scarf-like rep + a bar-like type
     const scarf = [
       'stimulus',
-      'group',
+      'participants',
       'scarf:visualization',
       'timelineRange',
       'aoi',
@@ -62,7 +62,7 @@ describe('commonSectionKeys (cross-type bulk section intersection)', () => {
     ]
     const bar = [
       'stimulus',
-      'group',
+      'participants',
       'metric',
       'aoiComparison:visualization',
       'timelineRange',
@@ -70,7 +70,7 @@ describe('commonSectionKeys (cross-type bulk section intersection)', () => {
     ]
     expect(commonSectionKeys(scarf, [scarf, bar], shared)).toEqual([
       'stimulus',
-      'group',
+      'participants',
       'timelineRange',
       'aoi',
     ])
@@ -103,7 +103,7 @@ describe('commonSectionKeys (cross-type bulk section intersection)', () => {
     const scanpath = ['stimulus', 'participant', 'scanpath:display', 'aoi']
     const bar = [
       'stimulus',
-      'group',
+      'participants',
       'metric',
       'aoiComparison:visualization',
       'timelineRange',
@@ -116,11 +116,11 @@ describe('commonSectionKeys (cross-type bulk section intersection)', () => {
   })
 
   it('metric is excluded cross-type (not a shared key) even if both types have it', () => {
-    const bar = ['stimulus', 'group', 'metric', 'timelineRange', 'aoi']
-    const tm = ['stimulus', 'group', 'metric', 'timelineRange', 'aoi']
+    const bar = ['stimulus', 'participants', 'metric', 'timelineRange', 'aoi']
+    const tm = ['stimulus', 'participants', 'metric', 'timelineRange', 'aoi']
     expect(commonSectionKeys(bar, [bar, tm], shared)).toEqual([
       'stimulus',
-      'group',
+      'participants',
       'timelineRange',
       'aoi',
     ])

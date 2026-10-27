@@ -1,6 +1,6 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotSubtitleParts } from '$lib/plots/definePlot'
-import { buildMetricLabel, getParticipantsSelectionOptions, optionLabel, subtitleParts } from '$lib/plots/shared'
+import { buildMetricLabel, participantScopeLabel, subtitleParts } from '$lib/plots/shared'
 import { type MetricInstance, type PlotMetricContract } from '$lib/metrics'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import type { MetricMatrixPlotSettings } from './types'
@@ -56,13 +56,12 @@ export function getMetricMatrixLegendTitle(
 }
 
 /**
- * Group-only grid-header subtitle. The metric matrix spans every stimulus, so
- * (unlike `stimulusGroupSubtitle`) it names only the participant group.
+ * Participants-only grid-header subtitle. The metric matrix spans every
+ * stimulus, so (unlike `stimulusParticipantsSubtitle`) it names only the participants.
  */
 export function metricMatrixSubtitle(params: {
   item: { settings: MetricMatrixPlotSettings }
   engine: DataEngine
 }): PlotSubtitleParts | undefined {
-  const options = getParticipantsSelectionOptions(params.engine, true, 0)
-  return subtitleParts(['Participants', optionLabel(options, params.item.settings.groupId)])
+  return subtitleParts(['Participants', participantScopeLabel(params.engine, params.item.settings)])
 }

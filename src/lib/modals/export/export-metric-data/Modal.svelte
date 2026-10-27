@@ -52,8 +52,8 @@
   import { multiSelectMetricHandlers } from '$lib/plots/shared/metricInstanceHandlers'
 
   export interface Props {
-    /** Prefill: preselect this participant group's members. */
-    groupId?: number
+    /** Prefill: preselect this participant selection's members. */
+    participantSelectionId?: number
     stimulusId?: number
     metricInstanceIds?: string[]
     /** Prefill: a plot's crop, in ms; 0 or unset = open-ended. */
@@ -66,7 +66,7 @@
   }
 
   let {
-    groupId,
+    participantSelectionId,
     stimulusId,
     metricInstanceIds,
     timeStart: presetStart,
@@ -116,7 +116,7 @@
   )
   let includeNoAoi = $state(untrack(() => !presetHideNoAoi))
   let selectedParticipantIds = $state(
-    untrack(() => defaultParticipantSelection(engine, groupId))
+    untrack(() => defaultParticipantSelection(engine, participantSelectionId))
   )
 
   const activeContract = $derived(

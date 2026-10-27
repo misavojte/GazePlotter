@@ -1,8 +1,8 @@
 <script lang="ts">
   import { getGazePlotterSession } from '$lib/session'
-  import { getParticipants } from '$lib/data/engine'
+  import { getAllParticipants } from '$lib/data/engine'
   import SelectionStep from './SelectionStep.svelte'
-  import { participantGroupPresets } from './participants'
+  import { participantSelectionPresets } from './participants'
 
   /** The participant step every export modal shares: SelectionStep fed with
    *  participants and their saved selections. */
@@ -15,13 +15,13 @@
   const { engine } = getGazePlotterSession()
 
   const items = $derived(
-    getParticipants(engine, -1).map(p => ({ value: p.id.toString(), label: p.displayedName }))
+    getAllParticipants(engine).map(p => ({ value: p.id.toString(), label: p.displayedName }))
   )
   const presets = $derived(
-    participantGroupPresets(engine).map(group => ({
-      id: group.id,
-      name: group.name,
-      members: group.participantsIds.map(id => id.toString()),
+    participantSelectionPresets(engine).map(sel => ({
+      id: sel.id,
+      name: sel.name,
+      members: sel.participantsIds.map(id => id.toString()),
     }))
   )
 </script>

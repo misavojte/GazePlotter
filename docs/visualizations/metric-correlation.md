@@ -23,8 +23,8 @@ Choose the stimulus for which metrics are aggregated.
 - **Edit stimuli & selections**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
 
 ### Participants
-Filter the analysis to a specific participant group. The correlation is computed using the values of individual participants within this group.
-- **Participant selection**: A dropdown containing *All*, *Non-empty*, and saved participant selections.
+Filter the analysis to a participant selection. The correlation uses the values of the individual participants in it.
+- **Participant selection**: *All* or a saved participant selection. **Hide participants without data** leaves out those with no recording on the stimulus.
 - **Edit participants & selections**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
 
 ### Metrics

@@ -25,7 +25,7 @@ Choose the stimulus to analyze. Each stimulus contains its own set of Areas of I
 
 ### Participants
 Filter the eye-tracking data by group or individual participant.
-- **Participant selection**: A dropdown containing *All*, *Non-empty*, and saved participant selections.
+- **Participant selection**: *All* or a saved participant selection. **Hide participants without data** leaves out those with no recording on the stimulus.
 - **Edit participants & selections**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
 
 ### Metric
@@ -74,5 +74,5 @@ Located at the bottom of the Pane:
 Use AOI Comparison to:
 - **Compare AOI performance**: Identify which areas attract most/least attention.
 - **Quantify differences**: Obtain precise measurements rather than visual estimates.
-- **Perform group comparisons**: Analyze how different participant groups behave comparative to each other.
+- **Compare participant selections**: Analyze how different participant selections behave relative to each other.
 - **Conduct statistical analysis**: Export exact computed metric values per participant for further processing.

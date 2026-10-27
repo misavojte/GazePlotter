@@ -200,7 +200,7 @@ export const SIDEBAR: readonly SidebarItem[] = [
         name: 'AOI Comparison',
         href: '/docs/visualizations/aoi-comparison',
         seoTitle: 'AOI Comparison: Eye-Tracking Bar Charts',
-        description: 'Generate comparative bar charts of dwell times, fixation counts, and latencies across Areas of Interest, filtered by custom participant groups.'
+        description: 'Generate comparative bar charts of dwell times, fixation counts, and latencies across Areas of Interest, filtered by participant selections.'
       },
       {
         name: 'Eye-movement Comparison',

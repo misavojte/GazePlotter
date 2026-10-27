@@ -9,7 +9,6 @@ import type { PlotGroup } from './groups'
 
 export type DefaultPlotParams = {
   stimulusId?: number
-  groupId?: number
 }
 
 /** Fallback grid sizing for plots that omit `size` (grid units). */
@@ -356,8 +355,8 @@ export type SchemaPaneSectionEntry = {
 /**
  * One entry in a plot's ordered pane — DATA ONLY, never a Svelte component:
  *
- *   - a canonical shared-section key as a plain string ('stimulus', 'group',
- *     'participant', 'metric', 'timelineRange', 'aoi', 'event',
+ *   - a canonical shared-section key as a plain string ('stimulus',
+ *     'participants', 'participant', 'metric', 'timelineRange', 'aoi', 'event',
  *     'eyeMovement');
  *   - `{ key, props }` to pass static overrides to that shared section — props
  *     for a component section (scarf's ordinal-mode wiring for
@@ -434,7 +433,7 @@ export type PlotDefinition<
   /**
    * Optional: builds the captioned label/value parts shown under the
    * plot's title in its grid-item header. Typically one entry per filter
-   * (e.g. stimulus, participant group). Return undefined or an empty
+   * (e.g. stimulus, participant selection). Return undefined or an empty
    * array to hide.
    */
   getSubtitle?: (params: {

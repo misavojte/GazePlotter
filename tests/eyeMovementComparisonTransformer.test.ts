@@ -67,7 +67,6 @@ function createEngine() {
 function makeSettings(over: Record<string, unknown> = {}) {
   return {
     stimulusId: STIM,
-    groupId: -1,
     metricInstanceIds: ['mc'],
     orderBy: 'type' as const,
     orderDirection: 'asc' as const,

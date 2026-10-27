@@ -33,7 +33,7 @@ Clicking the Metric Matrix plot card in the workspace selects the plot and opens
 
 ### Participants
 Choose which participants form the rows.
-- **Participant selection**: A dropdown containing *All*, *Non-empty*, and saved participant selections. Rows are the selection's participants that have a recording on at least one shown stimulus, in the selection's order.
+- **Participant selection**: *All* or a saved participant selection, one row per participant in participant order. **Hide participants without data** leaves out those with no recording on any shown stimulus.
 - **Edit participants & selections**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
 
 ### Stimuli

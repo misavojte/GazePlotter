@@ -1,8 +1,8 @@
 import type { StatisticalOverlayType } from '$lib/plots/shared/distribution'
+import type { ParticipantScope } from '$lib/data/types'
 
-export type EyeMovementComparisonSettings = {
+export type EyeMovementComparisonSettings = ParticipantScope & {
   stimulusId: number
-  groupId: number
   /** Per-plot eye-movement-type SELECTION id; unset/0 = all types. */
   categorySelectionId?: number
   /**
