@@ -2,7 +2,7 @@
   "name": "gazeplotter",
   "version": "1.10.4",
   "license": "GPL-3.0-only",
-  "description": "Gazeplotter is a Svelte application for visualizing eye-tracking data.",
+  "description": "Eye-tracking analysis for Tobii Pro Lab, SMI BeGaze, GazePoint, Pupil Cloud, Varjo and OGAMA exports: AOI dwell time, fixation metrics, scarf plots, scanpaths and heatmaps. Web app and CLI, data stays local.",
   "repository": {
     "type": "github",
     "url": "https://github.com/misavojte/GazePlotter"
@@ -14,10 +14,27 @@
   "homepage": "https://gazeplotter.com",
   "keywords": [
     "eye-tracking",
-    "eye gaze",
-    "svelte",
+    "eye tracking",
+    "gaze",
+    "fixation",
+    "saccade",
+    "aoi",
+    "area of interest",
+    "dwell time",
+    "scarf plot",
     "sequence chart",
-    "scarf plot"
+    "scanpath",
+    "heatmap",
+    "transition matrix",
+    "tobii",
+    "tobii pro lab",
+    "smi begaze",
+    "gazepoint",
+    "pupil labs",
+    "varjo",
+    "ogama",
+    "cli",
+    "svelte"
   ],
   "scripts": {
     "dev": "vite dev",
