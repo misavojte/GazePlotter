@@ -14,8 +14,8 @@ const gridConfig = {
 describe('getWorkspaceCanvasExportDimensions', () => {
   it('adds the default 20px margin around the workspace figure area', () => {
     // Grid px: 12 cells = 12 * 40 + 11 * 10 = 590 each way.
-    // Width: 590 - 50 body padding = 540, + 2 * 20 margin = 580.
-    // Height: 590 - 99 chrome (PLOT_BASE_CHROME_HEIGHT), + 40 margin = 531.
+    // Width: 590 - 40 body padding = 550, + 2 * 20 margin = 590.
+    // Height: 590 - 89 chrome (PLOT_BASE_CHROME_HEIGHT), + 40 margin = 541.
     expect(
       getWorkspaceCanvasExportDimensions(
         { w: 12, h: 12 },
@@ -23,14 +23,14 @@ describe('getWorkspaceCanvasExportDimensions', () => {
         DEFAULT_CANVAS_EXPORT_MARGIN
       )
     ).toEqual({
-      width: 580,
-      height: 531,
+      width: 590,
+      height: 541,
     })
   })
 
   it('keeps dimensions positive after margins for the smallest grid item sizes', () => {
-    // Width: 1 cell = 40 px - 50 padding goes negative, floored to 1, + 40 = 41.
-    // Height: 3 cells = 140 px - 99 chrome = 41, + 40 = 81.
+    // Width: 1 cell = 40 px - 40 padding goes negative, floored to 1, + 40 = 41.
+    // Height: 3 cells = 140 px - 89 chrome = 51, + 40 = 91.
     expect(
       getWorkspaceCanvasExportDimensions(
         { w: 1, h: 3 },
@@ -39,7 +39,7 @@ describe('getWorkspaceCanvasExportDimensions', () => {
       )
     ).toEqual({
       width: 41,
-      height: 81,
+      height: 91,
     })
   })
 })
