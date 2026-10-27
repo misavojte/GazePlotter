@@ -60,4 +60,4 @@ export const DEFAULT_WORKSPACE_WIDTH = 1000
 // Shared by GridItem visual padding and plot size calculations. Applied
 // on all four sides of `.grid-item-body`. Total horizontal padding
 // (subtracted from figure width) is this × 2; same for vertical.
-export const GRID_ITEM_BODY_PADDING = 25
+export const GRID_ITEM_BODY_PADDING = 20

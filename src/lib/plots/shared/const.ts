@@ -1,5 +1,6 @@
 import { SYSTEM_SANS_SERIF_SMALL_STACK } from '$lib/shared/textMeasure'
 import { UI_COLORS } from '$lib/color'
+import { GRID_ITEM_BODY_PADDING } from '$lib/workspace/grid/const'
 
 export const GRIDLINE_SECONDARY = {
   COLOR: UI_COLORS.GRID_SECONDARY,
@@ -34,12 +35,11 @@ export const LEGEND_FONT = {
  * Chrome height that has to be reclaimed from the grid-item's pixel
  * dimensions before sizing the figure. Composition:
  *   47 — grid-item header (`min-height: 47px` in GridItem.svelte)
- *   50 — `.grid-item-body` padding top + bottom
- *        (GRID_ITEM_BODY_PADDING = 25 on each side)
+ *   GRID_ITEM_BODY_PADDING × 2 — `.grid-item-body` padding top + bottom
  *    2 — `.grid-item-frame` border top + bottom (1px each; box-sizing
  *        is border-box so the border eats into the content area)
  */
-export const PLOT_BASE_CHROME_HEIGHT = 99
+export const PLOT_BASE_CHROME_HEIGHT = 47 + GRID_ITEM_BODY_PADDING * 2 + 2
 
 /**
  * Gap in px between the plot-area border and adjacent per-row / per-category

@@ -162,8 +162,7 @@
     transform: translate(${itemX}px, ${itemY}px);
     width: ${itemWidth}px;
     height: ${itemHeight}px;
-    --grid-item-body-padding: ${GRID_ITEM_BODY_PADDING}px;
-    --press-scale-x: ${pressScaleX};
+    --grid-item-body-padding: ${GRID_ITEM_BODY_PADDING}px;    --press-scale-x: ${pressScaleX};
     --press-scale-y: ${pressScaleY};
   `)
 
@@ -435,7 +434,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 10px 25px;
+    padding: 10px var(--grid-item-body-padding);
     min-height: 47px;
     box-sizing: border-box;
     background: var(--c-lightgrey);
