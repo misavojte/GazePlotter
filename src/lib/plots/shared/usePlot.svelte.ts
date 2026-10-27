@@ -97,8 +97,8 @@ export interface FrameGutters {
    *  so the whole plot centres as one (row plots whose row stack stops growing
    *  at its max scale). */
   maxHeight?: number
-  /** Force a centred square data rect (recurrence, square matrices). */
-  square?: boolean
+  /** Force a centred data rect of this width/height ratio (1 = square: recurrence; an image's ratio: heatmap). */
+  aspect?: number
 }
 
 /** Axis chrome declaration. The frame maps this onto `drawPlotArea` + titles. */
@@ -428,7 +428,7 @@ export interface ResolvedFrameLayout {
 /**
  * Pure gutter resolver — carves the data rect out of the content bounds by
  * measuring the declared tick labels + titles per edge, then reserving the
- * legend block and (optionally) centring a square. Exported for unit testing;
+ * legend block and (optionally) centring a rect of a fixed aspect. Exported for unit testing;
  * the reactive `$derived` inside `usePlot` is a thin wrapper over it.
  */
 export function resolveFrameLayout(
@@ -478,12 +478,13 @@ export function resolveFrameLayout(
     h = gutters.maxHeight
   }
 
-  if (gutters.square) {
-    const s = Math.min(w, h)
-    x0 += (w - s) / 2
-    y0 += (h - s) / 2
-    w = s
-    h = s
+  if (gutters.aspect) {
+    const aw = Math.min(w, h * gutters.aspect)
+    const ah = aw / gutters.aspect
+    x0 += (w - aw) / 2
+    y0 += (h - ah) / 2
+    w = aw
+    h = ah
   }
 
   const x = Math.floor(x0)

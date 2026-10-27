@@ -183,7 +183,7 @@
     gutters: () => {
       if (N < 2) return {}
       return {
-        square: true,
+        aspect: 1,
         // '1' reserves room for the origin label in both gutters.
         left: { tickLabels: [...(yTicks.labels ?? []), '1'], title: 'Fixation i' },
         bottom: { tickLabels: [...(xTicks.labels ?? []), '1'], title: 'Fixation j' },

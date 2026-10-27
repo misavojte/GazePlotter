@@ -86,7 +86,7 @@ describe('resolveFrameLayout', () => {
 
   it('centres a square data rect within the available area', () => {
     // wide bounds → square uses the smaller (height) and centres horizontally
-    const { rect } = resolveFrameLayout({ square: true }, bounds)
+    const { rect } = resolveFrameLayout({ aspect: 1 }, bounds)
     expect(rect.width).toBe(300)
     expect(rect.height).toBe(300)
     expect(rect.x).toBe(50) // (400 − 300) / 2
