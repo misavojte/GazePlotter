@@ -223,20 +223,14 @@ function drawVerticalEdge(
   // Labels — right-aligned on the left edge, left-aligned on the right edge.
   if (!labels) return
   ctx.textAlign = isLeft ? 'right' : 'left'
+  ctx.textBaseline = 'middle'
+  // A label whose tick sits near an edge is held inside it, never spilling past the border.
+  const half = FONT_PRIMARY.SIZE / 2
   for (let i = 0; i < len; i++) {
     const label = labels[i]
     if (!label) continue
     const y = alignToPixelCenter(floorTop + Math.round(positions[i] * floorHeight))
-
-    // Clamp baseline near the edges so text doesn't spill over the border.
-    if (Math.abs(y - alignToPixelCenter(floorTop)) < 1) {
-      ctx.textBaseline = 'top'
-    } else if (Math.abs(y - alignToPixelCenter(floorBottom)) < 1) {
-      ctx.textBaseline = 'bottom'
-    } else {
-      ctx.textBaseline = 'middle'
-    }
-    ctx.fillText(label, labelX, y)
+    ctx.fillText(label, labelX, Math.min(floorBottom - half, Math.max(floorTop + half, y)))
   }
 }
 
