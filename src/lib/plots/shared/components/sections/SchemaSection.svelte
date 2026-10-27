@@ -199,7 +199,11 @@
           id="{entry.key}-{f.key}"
           label={label ?? ''}
           compact
-          value={state.value as number}
+          value={f.emptyLabel !== undefined && state.value === f.default
+            ? undefined
+            : (state.value as number)}
+          placeholder={f.emptyLabel}
+          allowEmpty={f.emptyLabel !== undefined}
           mixed={state.mixed}
           min={f.min}
           max={f.max}

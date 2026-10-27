@@ -47,6 +47,7 @@ import {
   alignToPixelCenter,
   strokeCrosshairGuides,
 } from './canvasUtils'
+import { usePlaybackClocks, type PlaybackClocks } from './playbackClock.svelte'
 
 type PlotCursor = {
   plotId: number
@@ -77,7 +78,8 @@ type PlotCursorPosition = {
 export interface PlotCursorPort {
   /** Publish the pointer's position; `null` when it leaves. */
   publish: (at: PlotCursorPosition | null) => void
-  /** ANOTHER plot's instants when they are comparable here; empty when not. */
+  /** ANOTHER plot's instants when they are comparable here, plus the time of
+      the stimulus's PLAYBACK CLOCK while it plays; empty when neither. */
   readonly times: readonly number[]
   /** ANOTHER plot's participants under the pointer; empty when there are none. */
   readonly participants: readonly number[]
@@ -91,7 +93,8 @@ export interface PlotCursorPort {
 export function createPlotCursorPort(
   state: PlotCursorState,
   plotId: number,
-  timeScope: () => number | null = () => null
+  timeScope: () => number | null = () => null,
+  clocks: PlaybackClocks | null = null
 ): PlotCursorPort {
   // Self-exclusion: the publisher's own CROSSHAIR already marks the pointer, and
   // it is what stops a reader ever re-entering its own projection.
@@ -116,8 +119,12 @@ export function createPlotCursorPort(
     get times() {
       const c = others()
       const mine = timeScope()
-      if (c?.times == null || mine === null) return NO_IDS
-      return c.times.scope() === mine ? c.times.at() : NO_IDS
+      if (mine === null) return NO_IDS
+      const hovered = c?.times != null && c.times.scope() === mine ? c.times.at() : NO_IDS
+      // The playing clock rides the same channel, so every reader marks it with
+      // its usual time guide and nothing new to draw.
+      const playing = clocks?.playingTime(mine) ?? null
+      return playing === null ? hovered : [...hovered, playing]
     },
     get participants() {
       return others()?.participants?.() ?? NO_IDS
@@ -138,7 +145,12 @@ export function plotCursorPort(
   plotId: number,
   timeScope?: () => number | null
 ): PlotCursorPort {
-  const port = createPlotCursorPort(usePlotCursor(), plotId, timeScope)
+  const port = createPlotCursorPort(
+    usePlotCursor(),
+    plotId,
+    timeScope,
+    usePlaybackClocks()
+  )
   onDestroy(() => port.publish(null))
   return port
 }

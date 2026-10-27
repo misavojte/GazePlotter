@@ -1,8 +1,9 @@
 import { deriveScanpathView } from './core/view'
-import { plotCursorScreen } from '$lib/plots/shared/plotCursor.svelte'
+import { scanpathScreen } from './core/screen.svelte'
 import { commonIs, definePlot } from '$lib/plots/definePlot'
 import { stimulusParticipantSubtitle } from '$lib/plots/shared'
 import { PRESET_PALETTES } from '$lib/color/palettes'
+import { SCANPATH_COLORS } from './const'
 import type { ScanpathPlotSettings } from './types'
 
 export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSettings>({
@@ -30,9 +31,18 @@ export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSetting
         {
           kind: 'colorScale',
           key: 'colorScale',
+          group: 'Fixation color',
           defaultMin: PRESET_PALETTES.VIRIDIS.colors[0],
           defaultMax: PRESET_PALETTES.VIRIDIS.colors[2],
           showWhen: commonIs(s => s.colorMode ?? 'time', 'time'),
+        },
+        {
+          kind: 'color',
+          key: 'solidColor',
+          group: 'Fixation color',
+          label: 'Color',
+          default: SCANPATH_COLORS.fixationFill,
+          showWhen: commonIs(s => s.colorMode ?? 'time', 'solid'),
         },
         { kind: 'boolean', key: 'showFixationOrder', label: 'Show fixation order line' },
         { kind: 'boolean', key: 'showNumbers', label: 'Show fixation numbers' },
@@ -41,7 +51,8 @@ export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSetting
           key: 'playbackWindow',
           group: 'Playback',
           pair: true,
-          label: 'Window (ms, 0 shows all)',
+          label: 'Trail length (ms)',
+          emptyLabel: 'All',
           min: 0,
           step: 500,
           default: 0,
@@ -62,11 +73,19 @@ export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSetting
             { label: '2×', value: '2' },
           ],
         },
+        {
+          kind: 'boolean',
+          key: 'syncPlayback',
+          group: 'Playback',
+          label: 'Play with other plots of this stimulus',
+          default: true,
+        },
       ],
     },
+    'timelineRange',
   ],
   view: { deriveView: deriveScanpathView },
-  screen: plotCursorScreen(),
+  screen: scanpathScreen,
   getSubtitle: stimulusParticipantSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
@@ -77,8 +96,10 @@ export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSetting
     // in, so no migration is needed.
     colorMode: 'time',
     colorScale: [...PRESET_PALETTES.VIRIDIS.colors],
+    solidColor: SCANPATH_COLORS.fixationFill,
     playbackWindow: 0,
     playbackSpeed: 1,
+    syncPlayback: true,
   }),
   size: { min: { w: 12, h: 10 }, w: 16 },
   requireCapabilities: [['segmented', 'spatial']],

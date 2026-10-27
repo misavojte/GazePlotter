@@ -14,7 +14,8 @@ import { FIXATION_CATEGORY_ID } from '$lib/data/binary'
  * (see `$lib/data/binary`); saccades, blinks, and unclassified segments are
  * skipped. Each fixation contributes one point at its recorded spatial
  * coordinate; segments with missing spatial data are excluded from the
- * rendered set (and therefore from the 1..N rank as well).
+ * rendered set (and therefore from the 1..N rank as well). A time range keeps
+ * the fixations overlapping it, ranked as in the full recording.
  */
 export function getScanpathData(
   engine: DataEngine,
@@ -31,7 +32,11 @@ export function getScanpathData(
     settings.participantId
   )
 
+  const rangeStart = settings.timelineStart ?? 0
+  const rangeEnd = settings.timelineEnd ?? 0
   let anyFixation = false
+  let anyLocated = false
+  let rank = 0
   const fixations: ScanpathFixation[] = []
 
   for (let i = startIndex; i < endIndex; i++) {
@@ -42,10 +47,15 @@ export function getScanpathData(
     if (!spatial) continue
     if (!Number.isFinite(spatial.x) || !Number.isFinite(spatial.y)) continue
 
+    anyLocated = true
+    rank++
     const start = reader.getSegmentStart(i)
-    const duration = reader.getSegmentEnd(i) - start
+    const end = reader.getSegmentEnd(i)
+    if (rangeEnd > 0 && start >= rangeEnd) break
+    if (end <= rangeStart) continue
+    const duration = end - start
     fixations.push({
-      rank: fixations.length + 1,
+      rank,
       x: spatial.x,
       y: spatial.y,
       start,
@@ -56,7 +66,11 @@ export function getScanpathData(
   if (fixations.length === 0) {
     return {
       kind: 'unavailable',
-      reason: anyFixation ? 'no-spatial-coords' : 'no-fixations',
+      reason: anyLocated
+        ? 'none-in-range'
+        : anyFixation
+          ? 'no-spatial-coords'
+          : 'no-fixations',
     }
   }
 

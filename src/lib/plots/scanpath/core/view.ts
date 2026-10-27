@@ -22,6 +22,10 @@ const PLACEHOLDERS: Record<ScanpathUnavailableReason, PlotPlaceholderContent> = 
     message: 'No spatial coordinates recorded for this participant on this stimulus.',
     steps: ['Pick another Participant or Stimulus'],
   },
+  'none-in-range': {
+    message: 'No fixations in the selected time range.',
+    steps: ['Widen the Time range', 'Pick another Participant or Stimulus'],
+  },
 }
 
 /** Single source of truth for "what a scanpath draws" from (engine, settings). */
@@ -43,8 +47,11 @@ export function deriveScanpathView(
       showNumbers,
       colorMode: settings.colorMode ?? 'time',
       colorScale: settings.colorScale,
+      solidColor: settings.solidColor,
       playbackWindow: settings.playbackWindow ?? 0,
       playbackSpeed: settings.playbackSpeed ?? 1,
+      timelineStart: settings.timelineStart ?? 0,
+      timelineEnd: settings.timelineEnd ?? 0,
       unavailableMessage: null,
       // Only on the drawable branch: a parked placeholder draws no overlay.
       participantId: settings.participantId,
