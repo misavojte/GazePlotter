@@ -97,6 +97,12 @@
 
   const COORD_MIN = -1_000_000
 
+  // Video timing: the recording time at which the first frame shows.
+  // svelte-ignore state_referenced_locally
+  const initialOffset = saved?.startOffset ?? 0
+  let startOffset = $state<number | undefined>(initialOffset)
+  const offsetValue = $derived(startOffset ?? 0)
+
   /** The saved position when the modal opened, drawn on the canvas for reference. */
   // svelte-ignore state_referenced_locally
   const original: Rect | null = saved ? { ...initial } : null
@@ -197,6 +203,7 @@
     const unchanged =
       !draft &&
       before !== null &&
+      offsetValue === initialOffset &&
       before.x === region.x &&
       before.y === region.y &&
       before.width === region.width &&
@@ -209,13 +216,15 @@
     const { x, y, width, height } = region
     const isNatural =
       x === 0 && y === 0 && width === media.naturalWidth && height === media.naturalHeight
-    const { region: _prev, ...rest } = media
+    const { region: _prev, startOffset: _prevOffset, ...rest } = media
+    const timed =
+      media.kind === 'video' && offsetValue !== 0 ? { ...rest, startOffset: offsetValue } : rest
     workspace.apply({
       type: 'updateStimulusMedia',
       updates: [
         {
           stimulusId,
-          media: isNatural ? rest : { ...rest, region: { x, y, width, height } },
+          media: isNatural ? timed : { ...timed, region: { x, y, width, height } },
           blob,
         },
       ],
@@ -329,6 +338,27 @@
       {/if}
     </div>
   </Section>
+
+  {#if media.kind === 'video'}
+    <Section title="Timing">
+      <div class="stack">
+        <p class="hint" id="media-timing-hint">
+          The recording time at which the video's first frame shows. Scanpath
+          playback and the playhead on the timeline plots use it to keep the
+          frames and the fixations together. Enter a negative value if the
+          video started before the recording.
+        </p>
+        <div class="coord-fields">
+          <InputNumber
+            label="Video starts at (ms)"
+            min={COORD_MIN}
+            step="any"
+            bind:value={startOffset}
+          />
+        </div>
+      </div>
+    </Section>
+  {/if}
 
   <ModalButtons
     buttons={[
