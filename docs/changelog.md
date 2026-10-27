@@ -2,6 +2,11 @@
 
 ## 1.10.x
 
+### 1.10.4
+
+* *Unreleased*
+* **Scanpath**: Scanpaths of a stimulus play in sync, and timeline plots show the playback time. Adds a trail on the seek bar, a Time range, and a video start offset. See [Synchronized time](/docs/visualizations/scanpath#synchronized-time).
+
 ### 1.10.3
 
 * *Released on October 26, 2026*

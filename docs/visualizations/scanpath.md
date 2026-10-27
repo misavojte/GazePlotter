@@ -21,12 +21,16 @@ Select the individual participant whose gaze trajectory you want to visualize. T
 - **Edit participants & selections**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename or reorder participants.
 
 ### Visualization
-- **Fixation color**: **Time gradient** samples each fixation's fill from a color scale by its onset within the shown time span; **Solid** uses one fixed color. With **Time gradient**, the color scale picker below sets the gradient stops.
+- **Fixation color**: **Time gradient** samples each fixation's fill from a color scale by its onset within the shown fixations' time span; **Solid** uses one color, picked below. With **Time gradient**, the color scale picker below sets the gradient stops.
 - **Show fixation order line**: Check to render connecting line segments (saccades) between sequential fixations.
-- **Show fixation numbers**: Check to print sequence indices (e.g. 1, 2, 3...) next to each fixation circle to show the progression order.
+- **Show fixation numbers**: Check to print sequence indices (e.g. 1, 2, 3...) next to each fixation circle. Where labels would overlap, the later fixation keeps its number.
 - **Playback**:
-  - **Window (ms, 0 shows all)**: During playback, only fixations that began within the last N milliseconds stay on screen, so the scanpath scrolls as a trailing window. 0 keeps everything since the start.
-  - **Speed**: Playback rate relative to recording time, from 0.25x to 2x. With a video background this sets the video's playback rate, keeping frames and fixations in sync.
+  - **Trail length (ms)**: During playback, only fixations that began within the last N milliseconds stay on screen, fading as they age. Leave it empty (**All**) to keep everything since the start.
+  - **Speed**: Playback rate relative to recording time, from 0.25x to 2x. On a shared clock, the plot that started playback sets the rate.
+  - **Play with other plots of this stimulus**: On by default. Every scanpath of the stimulus plays on one shared clock, and its time-axis plots show the playback time. Uncheck to play this plot on its own.
+
+### Time Range
+- **Start** / **End (0 = Auto)**: Limits the scanpath to fixations overlapping this recording-time range, in ms. Fixation numbers stay those of the whole recording, and the play bar spans the range.
 
 ### Export
 Located at the bottom of the Pane:
@@ -35,11 +39,22 @@ Located at the bottom of the Pane:
 
 ## Playback
 
-A control bar below the plot animates the scanpath over recording time: fixations appear as their onset passes, and each circle inflates over its own dwell. With a video reference medium the video is the clock, so frames and fixations stay synchronized; otherwise an internal clock runs over the fixations' time extent. Use the seek bar to scrub, and the time readout to track the position. When a run completes, the plot parks back on the full static picture.
+A control bar below the plot animates the scanpath over recording time: fixations appear as their onset passes, and each circle inflates over its own dwell. With a video reference medium the video plays in step with the clock, so frames and fixations stay synchronized; set **Video starts at** in the media's settings when the video does not start with the recording.
 
-With **Time gradient** coloring, the gradient continuously rescales to the shown time span during playback: a fixation enters at the newest end of the scale and smoothly ages toward the oldest end as time passes.
+- **Play / Pause**: Also **Space** while the pointer is over the plot.
+- **Show all fixations**: Returns to the full static picture. A finished run holds its last frame until you press it.
+- **Seek bar**: The filled part is the trail, the fixations currently on screen. Drag its left edge to change the trail length; drop it at the start for **All**.
+- **Time readout**: Seconds with tenths under a minute, minutes and seconds beyond.
 
-A compact key at the bottom right of the plot, on the X axis title row, maps the gradient to time: **Onset**, the earliest onset in seconds, the gradient, and the latest. It follows the shown span, so during playback its labels track the playhead and the trailing window. Figure exports include it. On a plot too narrow to fit it beside the axis title, the key is omitted.
+### Synchronized time
+
+Scanpaths of a stimulus play on one shared clock, so scanpaths of different participants move in lockstep. While it plays, the [Scarf Plot](/docs/visualizations/scarf-plot) (Absolute timeline), [AOI Timeline](/docs/visualizations/aoi-timeline), and [Metric Timeline](/docs/visualizations/metric-timeline) of the same stimulus show the playback time with the same dashed line they use for hovering, and the scanpath marks the fixation in progress.
+
+Hovering works both ways without playback: hovering a fixation marks its time on those plots, and hovering them marks the fixation in progress at that time on the scanpath.
+
+With **Time gradient** coloring, the colors and the key stay fixed during playback: a fixation's color always means when it began, and opacity shows its age inside the trail.
+
+A compact key at the bottom right of the plot, on the X axis title row, maps the gradient to time: **Onset**, the earliest onset in seconds, the gradient, and the latest. Figure exports include it. On a plot too narrow to fit it beside the axis title, the key is omitted.
 
 ## Interpretation
 
