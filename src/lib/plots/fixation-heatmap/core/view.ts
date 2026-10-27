@@ -1,12 +1,8 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotView } from '$lib/plots/definePlot'
-import { ALL_SELECTION_LABEL } from '$lib/data/types'
-import { getParticipantsSelectionOptions } from '$lib/plots/shared/selectOptionsGetters'
-import { optionLabel } from '$lib/plots/shared/subtitles'
 import { formatGaze, formatQuantity, timeRangeQualifier, withQualifiers } from '$lib/plots/shared/labels'
 import type { PlotPlaceholderContent } from '$lib/plots/shared/drawCanvasPlaceholder'
 import FixationHeatmapPlotFigure from '../components/FixationHeatmapPlotFigure.svelte'
-import { SIGMA_PER_RADIUS } from './density'
 import { getFixationHeatmapData } from './transformer'
 import type {
   FixationHeatmapData,
@@ -44,6 +40,7 @@ export function heatmapUnit(settings: Pick<FixationHeatmapPlotSettings, 'accumul
 }
 
 const formatCount = (n: number) => n.toLocaleString('en-US')
+const fixations = (n: number) => `${formatCount(n)} fixation${n === 1 ? '' : 's'}`
 
 /** Map values and amounts: separators from 100 up, one decimal from 1, two significant digits below. */
 export const formatAmount = (v: number) =>
@@ -64,40 +61,27 @@ export function heatmapLegendTitle(settings: FixationHeatmapPlotSettings, data: 
   return withQualifiers(
     formatQuantity(share ? `${quantity} share` : quantity, heatmapUnit(settings)),
     settings.scaleMax > 0 ? 'max fixed' : 'max auto',
+    `R = ${formatGaze(data.radius)}${data.radiusIsAuto ? ' auto' : ''}`,
     `mean of ${n} participant${n === 1 ? '' : 's'}`,
     timeRangeQualifier(settings.timelineStart ?? 0, settings.timelineEnd ?? 0)
   )
 }
 
 /**
- * The figure's self-documenting line, never removed: the selection and the
- * kernel first, then the warnings an export must keep, the fixation count last.
+ * What the map leaves out, for the legend title's tooltip: the background it
+ * cannot draw, the resolution limit, and the fixations it could not place.
  */
-export function heatmapSummary(
-  engine: DataEngine,
-  settings: FixationHeatmapPlotSettings,
-  data: FixationHeatmapData,
-  isVideo: boolean
-): string {
+export function heatmapNotes(data: FixationHeatmapData, isVideo: boolean): string[] {
   const s = data.summary
-  const selection =
-    optionLabel(getParticipantsSelectionOptions(engine, true, settings.stimulusId), settings.groupId) ?? ALL_SELECTION_LABEL
-  const unit = heatmapUnit(settings)
-  const amount = (v: number) => `${formatAmount(v)}${unit ? ` ${unit}` : ''}`
-  const clauses = [
-    selection,
-    `R = ${formatGaze(data.radius)}${data.radiusIsAuto ? ' auto' : ''}`,
-    `σ = ${formatGaze(data.radius * SIGMA_PER_RADIUS)}`,
-    settings.scaleMax > 0 && data.max > settings.scaleMax && `peak ${amount(data.max)} > max ${amount(settings.scaleMax)}`,
-    isVideo && 'video background not drawn',
-    data.coarse && 'R below grid resolution · peaks read low',
-    s.outside > 0 && `${formatCount(s.outside)} outside ${data.clip ? 'media' : 'view'}`,
-    s.withoutCoordinates > 0 && `${formatCount(s.withoutCoordinates)} without coordinates`,
+  const notes = [
+    isVideo && 'Video background not drawn',
+    data.coarse && 'R below grid resolution, peaks read low',
+    s.outside > 0 && `${fixations(s.outside)} outside the ${data.clip ? 'media' : 'view'}`,
+    s.withoutCoordinates > 0 && `${fixations(s.withoutCoordinates)} without coordinates`,
     s.participantsWithout > 0 &&
       `${s.participantsWithout} of ${s.selected} participants without located fixations`,
-    `${formatCount(s.fixations)} fixation${s.fixations === 1 ? '' : 's'}`,
   ]
-  return clauses.filter((c): c is string => typeof c === 'string').join(' · ')
+  return notes.filter((n): n is string => typeof n === 'string')
 }
 
 /** Single source of truth for "what a fixation heatmap draws", screen and export alike. */
@@ -128,7 +112,7 @@ export function deriveFixationHeatmapView(
       showFixations: settings.showFixations,
       background: image ? settings.background : 'image',
       legendTitle: heatmapLegendTitle(settings, data),
-      summaryText: heatmapSummary(engine, settings, data, media?.kind === 'video'),
+      notes: heatmapNotes(data, media?.kind === 'video'),
       accumulate: settings.accumulate,
       normalization: settings.normalization,
       unavailableMessage: null,

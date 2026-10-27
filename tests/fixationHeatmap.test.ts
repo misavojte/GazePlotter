@@ -16,7 +16,7 @@ import { fadeIn, heatLut, legendRamp, paintHeat } from '../src/lib/plots/fixatio
 import {
   deriveFixationHeatmapView,
   heatmapLegendTitle,
-  heatmapSummary,
+  heatmapNotes,
   niceCeil,
 } from '../src/lib/plots/fixation-heatmap/core/view'
 import { fixationHeatmapDefinition } from '../src/lib/plots/fixation-heatmap/definition'
@@ -354,26 +354,23 @@ describe('heat image', () => {
 })
 
 describe('labels', () => {
-  it('titles the colour: quantity, scale mode, N, time range', () => {
+  it('titles the colour: quantity, scale mode, R, N, time range', () => {
     const data = ok(getFixationHeatmapData(engineOf([[], [P0, P1]]), settings({ timelineStart: 1000 })))
     expect(heatmapLegendTitle(settings({ timelineStart: 1000 }), data)).toBe(
-      'Fixation duration share / % · max auto · mean of 1 participant · t ≥ 1000 ms'
+      'Fixation duration share / % · max auto · R = 30 · mean of 1 participant · t ≥ 1000 ms'
     )
     const all = ok(getFixationHeatmapData(engineOf([[], [P0, P1]]), settings({ normalization: 'mean' })))
     expect(heatmapLegendTitle(settings({ normalization: 'mean', scaleMax: 5 }), all)).toBe(
-      'Fixation duration / ms · max fixed · mean of 2 participants'
+      'Fixation duration / ms · max fixed · R = 30 · mean of 2 participants'
     )
+    const auto = ok(getFixationHeatmapData(engineOf([[], [P0, P1]]), settings({ radius: 0 })))
+    expect(heatmapLegendTitle(settings({ radius: 0 }), auto)).toMatch(/ · R = [\d.]+ auto · /)
   })
 
-  it('summarises the selection and kernel first, warnings next, the count last', () => {
-    const e = engineOf([[], [P0, P1]])
-    const data = ok(getFixationHeatmapData(e, settings()))
-    expect(heatmapSummary(e, settings(), data, false)).toBe('All · R = 30 · σ = 10 · 1 without coordinates · 5 fixations')
-    expect(heatmapSummary(e, settings({ scaleMax: 1 }), data, true)).toMatch(
-      /^All · R = 30 · σ = 10 · peak [\d.,]+ % > max 1\.0 % · video background not drawn · 1 without coordinates · 5 fixations$/
-    )
-    const auto = ok(getFixationHeatmapData(e, settings({ radius: 0 })))
-    expect(heatmapSummary(e, settings({ radius: 0 }), auto, false)).toMatch(/^All · R = [\d.]+ auto · σ = [\d.]+ · /)
+  it('notes only what the map leaves out', () => {
+    const data = ok(getFixationHeatmapData(engineOf([[], [P0, P1]]), settings()))
+    expect(heatmapNotes(data, false)).toEqual(['1 fixation without coordinates'])
+    expect(heatmapNotes(data, true)).toEqual(['Video background not drawn', '1 fixation without coordinates'])
   })
 
   it('rounds the auto top up at the third significant digit', () => {

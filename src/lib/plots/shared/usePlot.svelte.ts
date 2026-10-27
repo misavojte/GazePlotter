@@ -295,6 +295,8 @@ export interface UsePlotOptions<THit = unknown> {
 
   // ---- interaction ----
   hitTest?: (x: number, y: number, frame: PlotFrame) => FrameHit<THit> | null
+  /** Hit-test for chrome OUTSIDE the data rect (a legend title's tooltip). */
+  hitTestChrome?: (x: number, y: number, frame: PlotFrame) => FrameHit<THit> | null
   /**
    * Dedup key for the `onHover` side effect: `onHover` fires only when the key
    * (compared with `Object.is`) changes. Defaults to the hit payload itself —
@@ -807,7 +809,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   }
 
   // ---- hover: legend-then-data hit-test → tooltip/cursor/redraw ----
-  const hasHitLogic = !!(options.hitTest || options.legend)
+  const hasHitLogic = !!(options.hitTest || options.hitTestChrome || options.legend)
 
   // Standard legend-band hit — identical for every plot with an interactive
   // legend: identifier tooltip with the Highlight/Dehighlight verb, pointer
@@ -875,7 +877,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
       let hit = legendBandHit(x, y)
       if (!hit) {
         const inRect = x >= r.x && x <= r.right && y >= r.y && y <= r.bottom
-        if (inRect) hit = options.hitTest?.(x, y, frame) ?? null
+        hit = (inRect ? options.hitTest : options.hitTestChrome)?.(x, y, frame) ?? null
       }
 
       const changed = applyHover(hit, x, y)

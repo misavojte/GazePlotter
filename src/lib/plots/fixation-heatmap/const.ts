@@ -7,10 +7,6 @@ export const FIXATION_HEATMAP_LAYOUT = {
   lutSize: 1024,
   /** Legend bar samples of the LUT, composited over white like the map. */
   legendStops: 32,
-  /** Gap between the colour legend and the data summary. */
-  summaryGapPx: 4,
-  /** The data summary wraps instead of ellipsising, up to this many lines. */
-  summaryMaxLines: 3,
   tooltipWidth: 220,
   /** Auto radius as a share of the longer side of the robust fixation extent. */
   autoRadiusShare: 0.05,
@@ -30,5 +26,4 @@ export const FIXATION_HEATMAP_COLORS = {
   /** White under and over the image: the underlay, the dimming veil, an undrawn image's fill. */
   paper: '#ffffff',
   dimAlpha: 0.5,
-  summaryText: '#666666',
 } as const

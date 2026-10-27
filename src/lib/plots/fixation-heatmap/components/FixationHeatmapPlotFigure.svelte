@@ -19,9 +19,9 @@
   } from '$lib/plots/shared'
   import type { PlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
   import type { PlotPlaceholderContent } from '$lib/plots/shared/drawCanvasPlaceholder'
-  import { AXIS_CONFIG } from '$lib/plots/shared/axisUtils'
+  import { AXIS_CONFIG, axisTitleLineHeight } from '$lib/plots/shared/axisUtils'
   import { linearTicks } from '$lib/plots/shared/ticks'
-  import { wrapTextToWidth } from '$lib/shared/textMeasure'
+  import { estimateTextWidth } from '$lib/shared/textMeasure'
   import { PRESET_PALETTES } from '$lib/color/palettes'
   import { fitView, type Rect, type View } from '$lib/data/media/mediaAlignment'
   import { mediaRegionOf } from '$lib/data/media/stimulusMedia'
@@ -52,7 +52,8 @@
     /** How the image is drawn; 'none' never reaches here (the view passes no image). */
     background?: FixationHeatmapBackground
     legendTitle?: string
-    summaryText?: string
+    /** What the map leaves out; shown on hovering the legend title. */
+    notes?: string[]
     accumulate?: FixationHeatmapAccumulate
     normalization?: FixationHeatmapNormalization
     unavailableMessage?: PlotPlaceholderContent | null
@@ -72,7 +73,7 @@
     showFixations = false,
     background = 'image',
     legendTitle = '',
-    summaryText = '',
+    notes = [],
     accumulate = 'duration',
     normalization = 'share',
     width = 400,
@@ -136,16 +137,9 @@
   const projY = (y: number, frame: PlotFrame) => frame.y + y * space!.view.scale + space!.view.offsetY
 
   const gradientHeight = getGradientLegendRequiredHeight(AXIS_CONFIG.fontSize)
-  const summaryLineHeight = Math.ceil(AXIS_CONFIG.fontSize * 1.25)
-  // Wrapped against the pre-gutter width: the legend's height must not depend on the frame it shapes.
-  const summaryLines: string[] = $derived.by(() =>
-    summaryText
-      ? wrapTextToWidth(summaryText, plot.plotAreaWidth, AXIS_CONFIG.fontSize, AXIS_CONFIG.fontFamily, L.summaryMaxLines)
-      : []
-  )
   const legendBlockHeight = $derived(
     data && !unavailableMessage
-      ? PLOT_LEGEND_GAP + gradientHeight + (summaryLines.length ? L.summaryGapPx + summaryLines.length * summaryLineHeight : 0)
+      ? PLOT_LEGEND_GAP + gradientHeight
       : 0
   )
 
@@ -246,9 +240,8 @@
     ctx.restore()
   }
 
-  function drawLegendAndSummary(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
-    if (!data || unavailableMessage) return
-    const geometry = bottomGradientLegendGeometry(plot, margin, gradientHeight, {
+  const legendGeometry = $derived.by(() =>
+    bottomGradientLegendGeometry(plot, margin, gradientHeight, {
       colorScale: ramp,
       // A non-zero range max is what turns on the above-max cap.
       valueRange: [0, fixedMax ? scaleTop : 0],
@@ -256,17 +249,23 @@
       title: legendTitle,
       aboveMaxColor: fixedMax ? ramp[ramp.length - 1] : null,
     })
-    drawGradientLegend(ctx, geometry)
-    if (summaryLines.length === 0) return
-    ctx.save()
-    ctx.font = `${AXIS_CONFIG.fontSize}px ${AXIS_CONFIG.fontFamily}`
-    ctx.fillStyle = C.summaryText
-    ctx.textAlign = 'center'
-    ctx.textBaseline = 'top'
-    const top = frame.legendY + PLOT_LEGEND_GAP + gradientHeight + L.summaryGapPx
-    const cx = margin + plot.plotAreaWidth / 2
-    summaryLines.forEach((line, i) => ctx.fillText(line, cx, top + i * summaryLineHeight))
-    ctx.restore()
+  )
+
+  function drawLegend(ctx: CanvasRenderingContext2D) {
+    if (!data || unavailableMessage) return
+    drawGradientLegend(ctx, legendGeometry)
+  }
+
+  /** The legend title's box, where hovering shows the notes. */
+  function overLegendTitle(x: number, y: number): boolean {
+    const t = legendGeometry.title
+    if (!t) return false
+    const lineHeight = axisTitleLineHeight(AXIS_CONFIG.fontSize)
+    let half = 0
+    for (const line of t.lines) {
+      half = Math.max(half, estimateTextWidth(line, AXIS_CONFIG.fontSize, AXIS_CONFIG.fontFamily) / 2)
+    }
+    return Math.abs(x - t.x) <= half && y >= t.y && y <= t.y + t.lines.length * lineHeight
   }
 
   // ── Hover: what lies within R of the hovered cell's centre.
@@ -374,7 +373,7 @@
     width: () => width,
     height: () => height,
     margin: () => margin,
-    deps: (): unknown[] => [data, lut, scaleTop, fixedMax, showFixations, background, legendTitle, summaryLines, media, mediaElement, unavailableMessage, space],
+    deps: (): unknown[] => [data, lut, scaleTop, fixedMax, showFixations, background, legendTitle, notes, media, mediaElement, unavailableMessage, space],
     placeholder: () => unavailableMessage,
     gutters: () => {
       if (!hasPlot || !space) return {}
@@ -386,7 +385,7 @@
       }
     },
     drawData: drawHeatmap,
-    drawAboveAxes: drawLegendAndSummary,
+    drawAboveAxes: drawLegend,
     drawOverlay: drawHeatmapOverlay,
     hitTest: (x, y, frame): FrameHit<HeatmapHit> | null => {
       if (!data) return null
@@ -399,6 +398,17 @@
         anchorY: c.y - data.radius * space!.view.scale,
         tooltipWidth: L.tooltipWidth,
         data: { cell },
+      }
+    },
+    hitTestChrome: (x, y): FrameHit<HeatmapHit> | null => {
+      if (!data || notes.length === 0 || !overLegendTitle(x, y)) return null
+      return {
+        content: notes.map(value => ({ key: 'Note', value })),
+        anchorX: x,
+        anchorY: legendGeometry.title!.y,
+        tooltipWidth: L.tooltipWidth,
+        cursor: 'help',
+        data: { cell: -1 },
       }
     },
     hoverKey: d => d.cell,
