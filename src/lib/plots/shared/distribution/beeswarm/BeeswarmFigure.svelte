@@ -1,7 +1,10 @@
 <script lang="ts">
   import {
     FONT_PRIMARY,
+    PLOT_BORDER_PX,
     ROW_LABEL_GAP,
+    TICK_LENGTH,
+    rowLabelColumn,
     type AdaptiveTimeline,
     getTimelinePositionRatio,
     usePlot,
@@ -14,7 +17,6 @@
     type FrameHit,
   } from '$lib/plots/shared'
   import {
-    calculateLabelOffset,
     truncateTextToPixelWidth,
     measureTextHeight,
   } from '$lib/shared/textMeasure'
@@ -39,8 +41,6 @@
     type BeeswarmLayout,
   } from './renderers'
 
-  const MARGIN_RIGHT = 20
-  const TICK_LENGTH = 5
   /**
    * How many dot-widths a row must be able to hold before the figure is willing to
    * draw it. Below this the band is barely thicker than the marks, every value
@@ -105,30 +105,27 @@
   const categoryLabelHeight = $derived.by(() => {
     let max = 0
     for (const d of data) {
-      const h = measureTextHeight(d.label, LABEL_FONT_SIZE)
+      const h = measureTextHeight(d.label, LABEL_FONT_SIZE, FONT_PRIMARY.FAMILY)
       if (h > max) max = h
     }
     return max
   })
   const CATEGORY_LABEL_OFFSET = $derived(CATEGORY_LABEL_GAP + Math.ceil(categoryLabelHeight / 2))
 
-  // Horizontal-bar category labels go in the LEFT gutter; cap their width so a
-  // long category label can't eat the plot. (Vertical reserves left via the value axis.)
-  const leftChrome = $derived(
-    Math.floor(
-      Math.min(
-        width * 0.4,
-        Math.min(150, calculateLabelOffset(data.map(d => d.label)) + ROW_LABEL_GAP)
-      )
-    )
+  // Horizontal-bar category labels go in the LEFT gutter, pre-truncated to a
+  // capped column so a long label can't eat the plot. (Vertical reserves left
+  // via the value axis.)
+  const rowColumn = $derived(
+    rowLabelColumn(data.map(d => d.label), Math.min(width * 0.4, 150))
   )
 
-  // A plain right margin. This used to reserve extra room for a value label at the
-  // end of each bar, sized from the digits of the largest value, but no such label
-  // is drawn anywhere in this figure: the only text it renders is the row label in
-  // the left gutter. The reservation therefore just took 10 to 25px of plot width
-  // away, more as the values grew more digits.
-  const rightChrome = $derived(MARGIN_RIGHT)
+  // Value-axis ends: a dot on the axis min/max overhangs the border by its radius;
+  // the opposite edge carries the mirrored tick marks.
+  const edgePad = $derived(
+    isVertical
+      ? { top: DOT_RADIUS, right: TICK_LENGTH + PLOT_BORDER_PX }
+      : { top: TICK_LENGTH, left: rowColumn.width, right: DOT_RADIUS + PLOT_BORDER_PX }
+  )
 
   const plot = usePlot<{ rowIndex: number; valuePx: number }>({
     width: () => width,
@@ -148,11 +145,11 @@
         ? {
             left: { tickLabels: niceTickLabels, title: axisLabel },
             bottom: { tickLabels: data.map(d => d.label) },
-            pad: { top: TICK_LENGTH, right: MARGIN_RIGHT },
+            pad: edgePad,
           }
         : {
             bottom: { tickLabels: niceTickLabels, title: axisLabel },
-            pad: { top: TICK_LENGTH, left: leftChrome, right: rightChrome },
+            pad: edgePad,
           },
     drawData: drawUnderlay,
     clipData: false, // data layers self-clip; category labels live in the gutter
@@ -282,15 +279,14 @@
     for (let i = 0; i < items.length; i++) {
       const item = items[i]
       if (isVertical) {
-        const text = truncateTextToPixelWidth(item.data.label, item.categoryWidth, LABEL_FONT_SIZE)
+        const text = truncateTextToPixelWidth(item.data.label, item.categoryWidth, LABEL_FONT_SIZE, FONT_PRIMARY.FAMILY, '…')
         ctx.fillText(
           text,
           alignToPixelCenter(item.categoryCenter),
           alignToPixelCenter(frame.bottom + CATEGORY_LABEL_OFFSET)
         )
       } else {
-        const text = truncateTextToPixelWidth(item.data.label, leftChrome, LABEL_FONT_SIZE)
-        ctx.fillText(text, frame.x - ROW_LABEL_GAP, alignToPixelCenter(item.categoryCenter))
+        ctx.fillText(rowColumn.labels[i], frame.x - ROW_LABEL_GAP, alignToPixelCenter(item.categoryCenter))
       }
     }
   }

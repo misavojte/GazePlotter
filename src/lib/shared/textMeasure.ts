@@ -133,28 +133,6 @@ export function calculateTextMetrics(
 }
 
 /**
- * Calculates the optimal offset for axis labels based on text content
- *
- * @param labels Array of label texts
- * @param fontSize Font size in pixels
- * @param baseOffset Minimum offset to maintain
- * @param pixelPerChar Additional pixels per character to add (for padding)
- * @returns Calculated offset in pixels
- */
-export function calculateLabelOffset(
-  labels: string[],
-  fontSize: number = 12,
-  baseOffset: number = 0
-): number {
-  if (!labels.length) return baseOffset
-
-  const { maxWidth } = calculateTextMetrics(labels, fontSize)
-
-  // Add some padding based on the maximum text width
-  return baseOffset + maxWidth
-}
-
-/**
  * Truncates text to fit within a specified pixel width, adding ellipsis if needed
  *
  * @param text The text string to truncate

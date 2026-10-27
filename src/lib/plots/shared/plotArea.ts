@@ -21,7 +21,8 @@ import {
 import { GRIDLINE_PRIMARY, FONT_PRIMARY } from './const'
 import type { AdaptiveTimeline } from './timelineUtils'
 
-const TICK_LENGTH = 5
+/** Tick-mark length (px) outward from the border; an edge with mirrored ticks reserves it. */
+export const TICK_LENGTH = 5
 const TICK_LABEL_GAP = 10 // gap from the edge baseline to the label
 
 export interface PlotAreaTicks {

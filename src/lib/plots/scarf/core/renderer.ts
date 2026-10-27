@@ -2,7 +2,6 @@ import {
   GRIDLINE_PRIMARY,
   GRIDLINE_SECONDARY,
   calculateTickStep,
-  drawParticipantRowAxis,
 } from '$lib/plots/shared'
 import {
   alignToPixelCenter,
@@ -58,25 +57,6 @@ export interface ScarfLayoutContext {
    * don't anti-alias ~0.5px past the bar — most visible on fractional-DPI
    * displays (e.g. Windows 125%/150%) where a tiny bar is only a few device px. */
   deviceScale: number
-}
-
-/**
- * Draws the participant labels on the left side of the plot.
- */
-export function drawScarfLabels(
-  ctx: CanvasRenderingContext2D,
-  data: ScarfData,
-  layout: ScarfLayoutContext
-) {
-  const { participants } = data
-  drawParticipantRowAxis(
-    ctx,
-    participants.length,
-    layout.isCompact ? null : participants.map(p => p.label),
-    layout.plotLeft,
-    layout.plotTop,
-    layout.heightOfBarWrap
-  )
 }
 
 /**

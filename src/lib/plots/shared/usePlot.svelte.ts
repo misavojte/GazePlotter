@@ -44,10 +44,9 @@ import {
   type LegendItemGeometry,
 } from './legendRendering'
 import { FONT_PRIMARY, PLOT_AXIS_TITLE_GAP, PLOT_TICK_LABEL_GAP } from './const'
-import { measureTextHeight, calculateLabelOffset } from '$lib/shared/textMeasure'
+import { measureTextHeight, calculateTextMetrics } from '$lib/shared/textMeasure'
 
 const browser = typeof document !== 'undefined'
-const FONT = FONT_PRIMARY.SIZE
 
 const RENDER_FAILED_PLACEHOLDER: PlotPlaceholderContent = {
   message: 'Plot failed to render',
@@ -366,7 +365,7 @@ interface EdgeMetrics {
 function maxLabelHeight(labels: string[]): number {
   let h = 0
   for (const l of labels) {
-    const m = measureTextHeight(l, FONT)
+    const m = measureTextHeight(l, FONT_PRIMARY.SIZE, FONT_PRIMARY.FAMILY)
     if (m > h) h = m
   }
   return h
@@ -390,12 +389,13 @@ function resolveHorizontalEdge(edge: FrameGutterEdge | undefined, wrapWidth: num
  *  `wrapHeight` is the plot height the rotated title wraps to. */
 function resolveVerticalEdge(edge: FrameGutterEdge | undefined, wrapHeight: number): EdgeMetrics {
   if (!edge) return { space: 0, titleOffset: 0 }
-  const tickW = edge.tickLabels?.length ? calculateLabelOffset(edge.tickLabels, FONT) : 0
+  const tickW = edge.tickLabels?.length ? calculateTextMetrics(edge.tickLabels, FONT_PRIMARY.SIZE, FONT_PRIMARY.FAMILY).maxWidth : 0
   const titleH = edge.title ? measureAxisTitleHeight(edge.title, wrapHeight) : 0
   const titleOffset = tickW ? getYAxisLabelOffset(tickW) : PLOT_AXIS_TITLE_GAP
+  // Same carve as the horizontal edge: the title gap only exists between two things.
   let space = 0
-  if (tickW) space += getYAxisLabelOffset(tickW)
-  if (titleH) space += titleH + PLOT_AXIS_TITLE_GAP
+  if (titleH) space = titleOffset + titleH
+  else if (tickW) space = PLOT_TICK_LABEL_GAP + tickW
   return { space, titleOffset }
 }
 

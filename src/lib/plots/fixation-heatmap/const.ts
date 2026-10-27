@@ -1,7 +1,4 @@
 export const FIXATION_HEATMAP_LAYOUT = {
-  topSafetyPx: 2,
-  rightSafetyPx: 4,
-  leftSafetyPx: 2,
   tickCount: 5,
   /** The low end fades in over this share of the scale (smoothstep), so blobs
       have soft edges and a lone fixation under a dominant hot spot stays visible. */

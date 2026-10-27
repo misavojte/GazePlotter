@@ -1,10 +1,9 @@
 import { getGradientLegendRequiredHeight } from './legendGradient'
 import { axisTitleLineHeight, calculateTickStep, wrapAxisTitle } from './axisUtils'
-import { estimateTextWidth } from '$lib/shared/textMeasure'
+import { FONT_PRIMARY, PLOT_AXIS_TITLE_GAP, PLOT_BORDER_PX, PLOT_TICK_LABEL_GAP } from './const'
+import { estimateTextWidth, truncateTextToPixelWidth } from '$lib/shared/textMeasure'
 
-const AXIS_TITLE_GAP = 12
-const SIN_45 = 0.7071
-const COMPACT_LABEL_SIZE = 25
+const SIN_45 = Math.SQRT1_2
 
 /**
  * Vertical gap between the bottom of the matrix grid and the top of the
@@ -27,15 +26,9 @@ export const MIN_LEGIBLE_CELL_SIZE = 8
 export const MIN_LEGIBLE_SPLOM_CELL_SIZE = 12
 
 export const MATRIX_LAYOUT = {
-  horizontalPadding: 50,
-  baseLabelOffset: 5,
-  topMargin: 0,
-  leftMargin: 30,
-  rightMargin: 10,
   minCellSize: 20,
   maxLabelLength: 85,
   COMPACT_THRESHOLD: 26,
-  THIN_THRESHOLD: 15,
   LABEL_FONT_SIZE: 12,
   CELL_VALUE_FONT_SIZE: 9,
 } as const
@@ -56,7 +49,9 @@ export type MatrixLayoutInput = {
   /** Axis titles; the layout wraps them (≤2 lines) and reserves their height. */
   xAxisTitle: string
   yAxisTitle: string
-  cellValueLabelLength: number
+  /** Formatted values spanning the cell text (the range ends); the widest
+   *  decides whether values fit in a cell. */
+  cellValueLabels: string[]
   layoutConfig: MatrixLayoutConfig
   margin?: number
 }
@@ -90,17 +85,27 @@ export type MatrixLayout = {
   cellValueFontSize: number
 }
 
+/** Width (px) of `text` in the matrix label font. */
+const labelWidth = (text: string, fontSize: number) =>
+  estimateTextWidth(text, fontSize, FONT_PRIMARY.FAMILY)
+
+/** A full (non-compact) axis label truncated to its budget: the ONE rule the
+ *  layout measures and the renderer draws. */
+export function truncatedAxisLabel(label: string, fontSize: number, maxLabelLength: number): string {
+  return truncateTextToPixelWidth(label, maxLabelLength, fontSize, FONT_PRIMARY.FAMILY, '...')
+}
+
+/** Widest label as drawn (truncated like the renderer truncates it). */
 function estimateMaxLabelWidth(
   labels: string[],
   fontSize: number,
   maxLabelLength: number
 ): number {
-  let maxPixelWidth = 0
-  for (let i = 0; i < labels.length; i++) {
-    const w = estimateTextWidth(labels[i], fontSize)
-    if (w > maxPixelWidth) maxPixelWidth = w
+  let max = 0
+  for (const label of labels) {
+    max = Math.max(max, labelWidth(truncatedAxisLabel(label, fontSize, maxLabelLength), fontSize))
   }
-  return Math.min(maxPixelWidth, maxLabelLength)
+  return max
 }
 
 /**
@@ -113,8 +118,19 @@ function compactThinFactor(
   fontSize: number,
   cellSize: number
 ): number {
-  const approxIndexWidth = estimateTextWidth(count.toString(), fontSize)
+  const approxIndexWidth = labelWidth(count.toString(), fontSize)
   return Math.max(1, Math.ceil((approxIndexWidth + 4) / cellSize))
+}
+
+/**
+ * What one label mode (full names or compact indices) occupies around the grid:
+ * the row-label column width, the column-label band height, and how far the
+ * LAST column's label reaches right of that column's centre.
+ */
+interface AxisLabelExtent {
+  rowWidth: number
+  colHeight: number
+  rightReach: number
 }
 
 export function computeMatrixLayout(input: MatrixLayoutInput): MatrixLayout {
@@ -125,14 +141,10 @@ export function computeMatrixLayout(input: MatrixLayoutInput): MatrixLayout {
     colLabels,
     xAxisTitle,
     yAxisTitle,
-    cellValueLabelLength: labelLen,
+    cellValueLabels,
     layoutConfig: cfg,
   } = input
   const margin = input.margin ?? 0
-  const marginTop = margin
-  const marginRight = margin
-  const marginBottom = margin
-  const marginLeft = margin
 
   const rowCount = rowLabels.length
   const colCount = colLabels.length
@@ -140,63 +152,70 @@ export function computeMatrixLayout(input: MatrixLayoutInput): MatrixLayout {
   const safeColCount = Math.max(1, colCount)
   const fontSize = cfg.LABEL_FONT_SIZE
 
-  // y-axis labels come from rows, x-axis (rotated) labels from columns.
-  const maxRowLabelWidth = estimateMaxLabelWidth(rowLabels, fontSize, cfg.maxLabelLength)
-  const maxColLabelWidth = estimateMaxLabelWidth(colLabels, fontSize, cfg.maxLabelLength)
-
-  const standardYAxisLabelWidth = maxRowLabelWidth
-  const standardXAxisHeight = maxColLabelWidth * SIN_45 + fontSize * SIN_45
-
-  const legendSpace = MATRIX_LEGEND_GAP + getGradientLegendRequiredHeight(fontSize) + marginBottom
-
-  // Axis space = outer margin + config margin + axis title + gap + labels + pad.
-  // Title space defaults to one wrapped line; the second pass below re-reserves
-  // the real (≤2-line) height once the grid extent to wrap to is known.
-  const titleLineHeight = axisTitleLineHeight(fontSize)
-  const ySpaceFor = (labelWidth: number, titleWidth = titleLineHeight) =>
-    marginLeft + cfg.leftMargin + titleWidth + AXIS_TITLE_GAP + labelWidth + 10
-  const xSpaceFor = (labelHeight: number, titleHeight = titleLineHeight) =>
-    marginTop + cfg.topMargin + titleHeight + AXIS_TITLE_GAP + labelHeight + 10
-
-  // One fit rule for every pass: carve the axis spaces + legend out, fit
-  // square cells to the shorter axis (never negative).
-  const cellFor = (ySpace: number, xSpace: number) => {
-    const availW = width - ySpace - marginRight - cfg.rightMargin
-    const availH = height - xSpace - legendSpace
-    return Math.max(0, Math.min(availW / safeColCount, availH / safeRowCount))
+  // Full names: rows right-aligned, columns rotated −45° from their centre (the
+  // band is the rotated extent; the last one leans past the grid's right edge).
+  const lastColLabel = colCount ? colLabels[colCount - 1] : ''
+  const standard: AxisLabelExtent = {
+    rowWidth: estimateMaxLabelWidth(rowLabels, fontSize, cfg.maxLabelLength),
+    colHeight: (estimateMaxLabelWidth(colLabels, fontSize, cfg.maxLabelLength) + fontSize) * SIN_45,
+    rightReach:
+      (labelWidth(truncatedAxisLabel(lastColLabel, fontSize, cfg.maxLabelLength), fontSize) + fontSize / 2) * SIN_45,
+  }
+  // Compact: index labels (the widest is the count; Ø marks a sentinel row),
+  // columns upright and centred.
+  const compact: AxisLabelExtent = {
+    rowWidth: Math.max(labelWidth(String(rowCount), fontSize), labelWidth('Ø', fontSize)),
+    colHeight: fontSize,
+    rightReach: labelWidth(String(colCount), fontSize) / 2,
   }
 
-  const standardYSpace = ySpaceFor(standardYAxisLabelWidth)
-  const standardXSpace = xSpaceFor(standardXAxisHeight)
+  const legendSpace = MATRIX_LEGEND_GAP + getGradientLegendRequiredHeight(fontSize) + margin
 
-  const cellStandard = cellFor(standardYSpace, standardXSpace)
+  // Axis space = outer margin + title + title gap + labels + label gap. Title
+  // space defaults to one line; the second pass below re-reserves the real
+  // (≤2-line) height once the grid extent to wrap to is known.
+  const titleLineHeight = axisTitleLineHeight(fontSize)
+  const ySpaceFor = (labelW: number, titleW = titleLineHeight) =>
+    margin + titleW + PLOT_AXIS_TITLE_GAP + labelW + PLOT_TICK_LABEL_GAP
+  const xSpaceFor = (labelH: number, titleH = titleLineHeight) =>
+    margin + titleH + PLOT_AXIS_TITLE_GAP + labelH + PLOT_TICK_LABEL_GAP
 
-  const needsCompact = cellStandard < cfg.COMPACT_THRESHOLD
+  // One fit rule for every pass: carve the axis spaces, the right reach and the
+  // legend out, fit square cells to the shorter axis (never negative). The right
+  // reach hangs from the last column's centre, so half a cell absorbs it: reserve
+  // it whole first, then refine by the cell that leaves. Cells only grow under
+  // the refinement, so the refined reservation still covers the label.
+  const fit = (labels: AxisLabelExtent, ySpace: number, xSpace: number) => {
+    const cellFor = (right: number) => {
+      const availW = width - ySpace - margin - right
+      const availH = height - xSpace - legendSpace
+      return Math.max(0, Math.min(availW / safeColCount, availH / safeRowCount))
+    }
+    const coarse = cellFor(Math.max(PLOT_BORDER_PX, labels.rightReach))
+    const right = Math.max(PLOT_BORDER_PX, labels.rightReach - coarse / 2)
+    return { cell: cellFor(right), right }
+  }
+  const fitWith = (labels: AxisLabelExtent) =>
+    fit(labels, ySpaceFor(labels.rowWidth), xSpaceFor(labels.colHeight))
 
-  const cellReal = cellFor(
-    needsCompact ? ySpaceFor(COMPACT_LABEL_SIZE) : standardYSpace,
-    needsCompact ? xSpaceFor(COMPACT_LABEL_SIZE) : standardXSpace
-  )
-
-  const isUltraCompactMode = cellReal < cfg.minCellSize
-  const isCompactMode = needsCompact || isUltraCompactMode
-
-  const yAxisLabelWidth = isCompactMode ? COMPACT_LABEL_SIZE : standardYAxisLabelWidth
-  const xAxisLabelHeight = isCompactMode ? COMPACT_LABEL_SIZE : standardXAxisHeight
+  const isCompactMode = fitWith(standard).cell < cfg.COMPACT_THRESHOLD
+  const labels = isCompactMode ? compact : standard
+  const cellPass1 = fitWith(labels).cell
+  const isUltraCompactMode = cellPass1 < cfg.minCellSize
 
   // Two-pass title reservation (resolveFrameLayout does the same): pass 1 sizes
   // the grid with single-line titles, the titles wrap to that extent, and pass 2
   // reserves their real (≤2-line) height. The wrapped lines are returned for
   // drawMatrixAxisLabels to draw verbatim, so reservation and draw can never
   // disagree on the line count.
-  const cellPass1 = cellFor(ySpaceFor(yAxisLabelWidth), xSpaceFor(xAxisLabelHeight))
   const xTitleLines = wrapAxisTitle(xAxisTitle, Math.max(0, cellPass1 * safeColCount), fontSize)
   const yTitleLines = wrapAxisTitle(yAxisTitle, Math.max(0, cellPass1 * safeRowCount), fontSize)
 
-  const yAxisSpace = ySpaceFor(yAxisLabelWidth, yTitleLines.length * titleLineHeight)
-  const xAxisSpace = xSpaceFor(xAxisLabelHeight, xTitleLines.length * titleLineHeight)
+  const yAxisSpace = ySpaceFor(labels.rowWidth, yTitleLines.length * titleLineHeight)
+  const xAxisSpace = xSpaceFor(labels.colHeight, xTitleLines.length * titleLineHeight)
+  const final = fit(labels, yAxisSpace, xAxisSpace)
 
-  const availableWidth = width - yAxisSpace - marginRight - cfg.rightMargin
+  const availableWidth = width - yAxisSpace - margin - final.right
 
   // Cells stay square: the shorter axis fits, the longer letterboxes.
   const cellSize =
@@ -204,8 +223,8 @@ export function computeMatrixLayout(input: MatrixLayoutInput): MatrixLayout {
       ? cfg.minCellSize
       : Math.floor(
           isUltraCompactMode
-            ? Math.max(1, cellFor(yAxisSpace, xAxisSpace))
-            : Math.max(cfg.minCellSize, cellFor(yAxisSpace, xAxisSpace))
+            ? Math.max(1, final.cell)
+            : Math.max(cfg.minCellSize, final.cell)
         )
 
   const gridWidth = cellSize * colCount
@@ -226,27 +245,21 @@ export function computeMatrixLayout(input: MatrixLayoutInput): MatrixLayout {
     if (cellSize < 5) showAxisLabels = false
   }
 
+  // Cell values show at the largest size whose widest formatted value fits the
+  // cell with `pad` to spare; never in ultra-compact.
+  const valueFits = (size: number, pad: number) => {
+    let widest = 0
+    for (const v of cellValueLabels) widest = Math.max(widest, labelWidth(v, size))
+    return cellSize >= widest + pad && cellSize >= size + pad - 2
+  }
   const defaultCellFontSize = cfg.CELL_VALUE_FONT_SIZE
   const reducedCellFontSize = defaultCellFontSize - 2
-
   let activeCellValueFontSize: number = defaultCellFontSize
   let showCellValues = false
-
-  const widthPass1 = labelLen * (defaultCellFontSize * 0.75)
-  if (
-    !isUltraCompactMode &&
-    cellSize >= widthPass1 + 6 &&
-    cellSize >= defaultCellFontSize + 4
-  ) {
-    showCellValues = true
-    activeCellValueFontSize = defaultCellFontSize
-  } else {
-    const widthPass2 = labelLen * (reducedCellFontSize * 0.75)
-    if (
-      !isUltraCompactMode &&
-      cellSize >= widthPass2 + 4 &&
-      cellSize >= reducedCellFontSize + 2
-    ) {
+  if (!isUltraCompactMode) {
+    if (valueFits(defaultCellFontSize, 6)) {
+      showCellValues = true
+    } else if (valueFits(reducedCellFontSize, 4)) {
       showCellValues = true
       activeCellValueFontSize = reducedCellFontSize
     }
@@ -254,9 +267,9 @@ export function computeMatrixLayout(input: MatrixLayoutInput): MatrixLayout {
 
   return {
     fontSize,
-    xAxisLabelHeight,
-    yAxisLabelWidth,
-    axisTitleGap: AXIS_TITLE_GAP,
+    xAxisLabelHeight: labels.colHeight,
+    yAxisLabelWidth: labels.rowWidth,
+    axisTitleGap: PLOT_AXIS_TITLE_GAP,
     xTitleLines,
     yTitleLines,
     xOffset,
@@ -271,7 +284,7 @@ export function computeMatrixLayout(input: MatrixLayoutInput): MatrixLayout {
     isUltraCompactMode,
     rowThinFactor,
     colThinFactor,
-    individualLabelMargin: 10,
+    individualLabelMargin: PLOT_TICK_LABEL_GAP,
     showCellValues,
     showAxisLabels,
     cellValueFontSize: activeCellValueFontSize,

@@ -1,4 +1,4 @@
-import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/textMeasure'
+import { SYSTEM_SANS_SERIF_STACK, wrapTextToWidth } from '$lib/shared/textMeasure'
 
 /**
  * Standardized "empty state" copy. Each plot's figure paints this onto its
@@ -14,6 +14,8 @@ export const METRIC_MISSING_MULTI_MESSAGE =
 const PLOT_CANNOT_FIT_HEIGHT_MESSAGE = 'The plot cannot fit the current height. Either:'
 const PLOT_CANNOT_FIT_WIDTH_MESSAGE = 'The plot cannot fit the current width. Either:'
 const PLOT_CANNOT_FIT_SIZE_MESSAGE = 'The plot cannot fit the current size. Either:'
+
+const PLACEHOLDER_FONT_SIZE = 13
 
 export type PlotPlaceholderContent =
   | string
@@ -93,8 +95,13 @@ export function drawCanvasPlaceholder(
     mainMessage = message
   }
 
-  const mainLines = mainMessage.split('\n')
-  const stepLines = actionableSteps.map(step => `• ${step}`)
+  // Wrapped to the card, clear of its rounded corners, so a narrow tile never cuts the copy.
+  const wrap = (line: string) => {
+    const lines = wrapTextToWidth(line, width - radius * 2, PLACEHOLDER_FONT_SIZE, SYSTEM_SANS_SERIF_STACK)
+    return lines.length ? lines : ['']
+  }
+  const mainLines = mainMessage.split('\n').flatMap(wrap)
+  const stepLines = actionableSteps.flatMap(step => wrap(`• ${step}`))
 
   const lineHeight = 18
   const mainTextHeight = mainLines.length * lineHeight
@@ -132,7 +139,7 @@ export function drawCanvasPlaceholder(
 
   // Draw text
   ctx.fillStyle = palette.text
-  ctx.font = `13px ${SYSTEM_SANS_SERIF_STACK}`
+  ctx.font = `${PLACEHOLDER_FONT_SIZE}px ${SYSTEM_SANS_SERIF_STACK}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'top'
 

@@ -26,6 +26,7 @@
     GRIDLINE_SECONDARY,
     GRIDLINE_PRIMARY,
     FONT_PRIMARY,
+    PLOT_BORDER_PX,
     PLOT_EDGE_PAD_TOP,
     PLOT_LEGEND_GAP,
   } from '$lib/plots/shared/const'
@@ -55,13 +56,14 @@
     niceTimelineTicks,
     bottomOriginYTicks,
     centeredYTicks,
+    TICK_LENGTH,
     type PlotAreaTicks,
   } from '$lib/plots/shared/plotArea'
   import {
     METRIC_MISSING_MESSAGE,
     cannotFitPlaceholder,
   } from '$lib/plots/shared/drawCanvasPlaceholder'
-  import { MARGIN as AOI_MARGIN, RIDGELINE_CONTENT_FILL } from '../const'
+  import { RIDGELINE_CONTENT_FILL } from '../const'
   import {
     drawCatmullRom,
     transformStreamDataToCoordinates,
@@ -115,7 +117,6 @@
   // the time label (e.g. "Elapsed time / ms · 500 ms window / 100 ms step"); no
   // time-range qualifier — the axis itself shows the range.
   const X_AXIS_LABEL = $derived(withQualifiers('Elapsed time / ms', data.windowLabel))
-  const MARGIN = AOI_MARGIN
   const MIN_SERIES_ROW_HEIGHT = 8
   const MIN_STREAM_HEIGHT = 40
 
@@ -133,8 +134,9 @@
     return mask
   })
 
+  // Stream/distribution mirror their value ticks on the right edge.
   const effectiveRightMargin = $derived(
-    alignment === 'ridgeline' || alignment === 'heatmap' ? MARGIN.RIGHT : MARGIN.RIGHT + 5
+    alignment === 'ridgeline' || alignment === 'heatmap' ? PLOT_BORDER_PX : PLOT_BORDER_PX + TICK_LENGTH
   )
 
   const legendItems: LegendItem[] = $derived(
@@ -479,12 +481,13 @@
     if (alignment === 'ridgeline') {
       const centerY = frame.y + frame.height / 2
       const referenceHeight = seriesPaint[0]?.referenceHeight ?? 0
-      let scaleHeight = referenceHeight * RIDGELINE_CONTENT_FILL
+      // Whole percents only: the left gutter reserves '100', the widest label.
+      const heightAt = (v: number) => (referenceHeight * RIDGELINE_CONTENT_FILL * v) / 100
       let scaleMaxValue = 100
-      while (scaleHeight > frame.height && scaleMaxValue > 1) {
-        scaleHeight /= 2
-        scaleMaxValue /= 2
+      while (heightAt(scaleMaxValue) > frame.height && scaleMaxValue > 1) {
+        scaleMaxValue = Math.max(1, Math.floor(scaleMaxValue / 2))
       }
+      const scaleHeight = heightAt(scaleMaxValue)
       const scaleTop = alignToPixelCenter(centerY - scaleHeight / 2)
       const scaleBottom = alignToPixelCenter(centerY + scaleHeight / 2)
       const scaleX = alignToPixelCenter(frame.x - 5)

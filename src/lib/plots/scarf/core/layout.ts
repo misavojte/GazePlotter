@@ -1,22 +1,21 @@
 import {
-  FONT_PRIMARY,
   computeGroupedLegendGeometry,
   participantIndexAxisWidth,
+  PLOT_BORDER_PX,
   PLOT_EDGE_PAD_TOP,
-  ROW_LABEL_GAP,
+  rowLabelColumn,
   LEGEND_CONFIG,
   withQualifiers,
   timeRangeQualifier,
   rangeQualifier,
   type FrameGutters,
 } from '$lib/plots/shared'
-import { calculateTextMetrics } from '$lib/shared/textMeasure'
 import { SCARF_LAYOUT } from '../const'
 import type { ScarfStyling } from '../types'
 
 /**
- * The scarf's frame declaration: the left label column and the right margin as
- * padding, the timeline ticks + title on the bottom edge, and the legend as a
+ * The scarf's frame declaration: the left label column and the border pixel as
+ * padding (drawPlotArea clamps the last tick label inside the border), the timeline ticks + title on the bottom edge, and the legend as a
  * reserved bottom block. So `frame.x`/`frame.width` come out as the plot columns
  * and the resolver owns all of the edge measuring.
  *
@@ -40,7 +39,7 @@ export function scarfFrameGutters(opts: {
     pad: {
       top: PLOT_EDGE_PAD_TOP,
       left: opts.leftLabelWidth,
-      right: SCARF_LAYOUT.RIGHT_MARGIN,
+      right: PLOT_BORDER_PX,
     },
     legendHeight: opts.legendSpace,
     maxHeight: opts.maxHeight,
@@ -71,26 +70,18 @@ export function calculateIsCompactMode(
 }
 
 /**
- * Computes the width of the left label area.
+ * The left label column: participant names truncated so the widest one plus
+ * the gap it is drawn at (ROW_LABEL_GAP) fits LEFT_LABEL_MAX_WIDTH, and the
+ * width that column needs. Compact rows carry the index axis instead of names,
+ * so the column is exactly what that axis draws into.
  */
-export function calculateLeftLabelWidth(
+export function scarfLabelColumn(
   isCompact: boolean,
-  participantLabels: string[]
-): number {
-  // Compact rows carry the index axis instead of names, so the column is exactly
-  // what that axis draws into.
-  if (isCompact) return participantIndexAxisWidth()
-  if (participantLabels.length === 0) return SCARF_LAYOUT.LEFT_LABEL_MAX_WIDTH
-
-  const { maxWidth: measuredMaxWidth } = calculateTextMetrics(
-    participantLabels,
-    FONT_PRIMARY.SIZE,
-    FONT_PRIMARY.FAMILY
-  )
-
-  // The widest name plus the gap it is drawn with (drawScarfLabels right-aligns
-  // at plotLeft − ROW_LABEL_GAP), capped so one long name cannot eat the plot.
-  return Math.min(SCARF_LAYOUT.LEFT_LABEL_MAX_WIDTH, measuredMaxWidth + ROW_LABEL_GAP)
+  participantLabels: readonly string[]
+): { labels: string[] | null; width: number } {
+  if (isCompact) return { labels: null, width: participantIndexAxisWidth(participantLabels.length) }
+  if (participantLabels.length === 0) return { labels: [], width: SCARF_LAYOUT.LEFT_LABEL_MAX_WIDTH }
+  return rowLabelColumn(participantLabels, SCARF_LAYOUT.LEFT_LABEL_MAX_WIDTH)
 }
 
 /**

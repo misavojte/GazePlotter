@@ -15,6 +15,7 @@
     usePlot,
     canvasBlockSelect,
     participantIndexAxisWidth,
+    PLOT_BORDER_PX,
     PLOT_EDGE_PAD_TOP,
     trackOnlyHit,
     type CanvasExportProps,
@@ -58,7 +59,6 @@
     cannotFitPlaceholder,
   } from '$lib/plots/shared/drawCanvasPlaceholder'
   import { createAdaptiveTimeline, formatTimelineLabel } from '$lib/plots/shared/timelineUtils'
-  import { MARGIN } from '../const'
   import { rasterizeOverlayDensity, packOverlayDensity } from '../core/overlayDensity'
   import type { EvolvingMetricsResult, EvolvingMetricsWindow } from '../types'
 
@@ -182,13 +182,13 @@
     gutters: () => {
       const pad: { top: number; right: number; left?: number } = {
         top: PLOT_EDGE_PAD_TOP,
-        right: MARGIN.RIGHT,
+        right: PLOT_BORDER_PX,
       }
       let left: { title?: string; tickLabels?: string[] } | undefined
       if (alignment === 'overlay') {
         left = { title: data.yAxisLabel, tickLabels: yTicks?.labels ?? [] }
       } else if (isCompact) {
-        pad.left = participantIndexAxisWidth()
+        pad.left = participantIndexAxisWidth(data.participants.length)
       } else {
         left = { tickLabels: participantLabels }
       }

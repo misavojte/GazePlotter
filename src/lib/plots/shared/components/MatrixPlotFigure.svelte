@@ -189,9 +189,7 @@
       colLabels: cols,
       xAxisTitle,
       yAxisTitle,
-      cellValueLabelLength:
-        formatCellValue(effectiveMaxValue).length +
-        (colorValueRange[0] < 0 ? 1 : 0),
+      cellValueLabels: [formatCellValue(colorValueRange[0]), formatCellValue(effectiveMaxValue)],
       layoutConfig: MATRIX_LAYOUT,
       margin,
     })

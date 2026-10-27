@@ -50,6 +50,9 @@ export function canvasRecorder() {
     closePath() {},
     clip() {},
     fillText() {},
+    measureText(text: string) {
+      return { width: text.length * 6 }
+    },
     setLineDash(d: number[]) {
       dashes.push(d)
     },

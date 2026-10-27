@@ -605,10 +605,14 @@
     for (let i = fixations.length - 1; i >= 0; i--) {
       const f = fixations[i]
       const r = displayRadiusFor(f)
-      const tx = projectX(f.x, frame) + r + L.numberOffset
-      const ty = projectY(f.y, frame) - r * 0.4
       const label = String(f.rank)
-      const right = tx + ctx.measureText(label).width
+      const w = ctx.measureText(label).width
+      // Right of the marker, flipped to its left where that would leave the plot;
+      // held inside it vertically, so an edge fixation's number is never cut.
+      const cx = projectX(f.x, frame)
+      const tx = cx + r + L.numberOffset + w > frame.right ? cx - r - L.numberOffset - w : cx + r + L.numberOffset
+      const ty = Math.min(frame.bottom - h, Math.max(frame.y + h, projectY(f.y, frame) - r * 0.4))
+      const right = tx + w
       const cells: number[] = []
       for (let cx = Math.floor(tx / CELL); cx <= right / CELL; cx++) {
         for (let cy = Math.floor((ty - h) / CELL); cy <= (ty + h) / CELL; cy++) {

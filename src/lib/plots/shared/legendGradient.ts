@@ -13,7 +13,7 @@ import { strokeCrispRect, strokeParallelLines } from '$lib/plots/shared/canvasUt
 
 import { GRIDLINE_PRIMARY, LEGEND_FONT, PLOT_LEGEND_GAP } from './const'
 import { COLOR_FALLBACKS } from '$lib/color'
-import { wrapTextToWidth } from '$lib/shared/textMeasure'
+import { estimateTextWidth, wrapTextToWidth } from '$lib/shared/textMeasure'
 
 /** Max wrapped lines for the colorbar title before it ellipsises (bounds the
  *  reserved legend height so the layout never has to grow unpredictably). */
@@ -112,6 +112,9 @@ const GRADIENT_LEGEND_LABEL_GAP = 10
 /** Minimum available height before the legend switches to minimalist mode. */
 const GRADIENT_LEGEND_MINIMALIST_THRESHOLD = 30
 
+/** Minimum available height for the min/max value labels under the bar. */
+const GRADIENT_LEGEND_LABELS_MIN_HEIGHT = 35
+
 /**
  * Compute the total vertical height the gradient legend needs in full mode
  * (title + bar + value labels).  The result is font-size–aware so the
@@ -195,12 +198,24 @@ export function computeGradientLegendGeometry(
   // `fixedWidth` keeps the bar at MAX_WIDTH (clamped only so bar + caps can't
   // exceed the space) — no `* 0.8` grid-proportional shortening; otherwise the
   // bar tracks the grid width as before.
-  const barWidth = config.fixedWidth
-    ? Math.min(MAX_WIDTH, Math.max(0, availableWidth - capsWidth))
-    : Math.min(MAX_WIDTH, availableWidth * 0.8)
+  // The value labels centre on the bar's ends: past whatever cap flanks an end,
+  // the rest of that half-label needs room inside the span or it leaves the canvas.
+  const minText = formatLegendValue(valueRange[0])
+  const maxText = formatLegendValue(effectiveMaxValue)
+  const hasLabels = !isMinimalist && availableHeight > GRADIENT_LEGEND_LABELS_MIN_HEIGHT
+  const overhang = (text: string, cap: number) =>
+    hasLabels ? Math.max(0, estimateTextWidth(text, LEGEND_FONT.SIZE, LEGEND_FONT.FAMILY) / 2 - cap) : 0
+  const overhangLeft = overhang(minText, hasBelowMin ? GRADIENT_LEGEND_CAP_WIDTH : 0)
+  const overhangRight = overhang(maxText, hasAboveMax ? GRADIENT_LEGEND_CAP_WIDTH : 0)
+  const maxBarWidth = Math.max(0, availableWidth - capsWidth - overhangLeft - overhangRight)
+  const barWidth = Math.min(
+    maxBarWidth,
+    config.fixedWidth ? MAX_WIDTH : Math.min(MAX_WIDTH, availableWidth * 0.8)
+  )
   const totalBarWidth = barWidth + capsWidth
 
-  const legendX = x + ((availableWidth - totalBarWidth) >> 1)
+  const legendX =
+    x + ((availableWidth - totalBarWidth - overhangLeft - overhangRight) >> 1) + overhangLeft
   const gradientX = hasBelowMin ? legendX + GRADIENT_LEGEND_CAP_WIDTH : legendX
   const aboveMaxX = gradientX + barWidth
   const capRect = (cx: number, cy: number, height: number): LegendRect => ({
@@ -275,15 +290,15 @@ export function computeGradientLegendGeometry(
 
   // Label text configuration
   const labelsObj =
-    availableHeight > 35
+    hasLabels
       ? {
           min: {
-            text: formatLegendValue(valueRange[0]),
+            text: minText,
             x: gradientX,
             y: valuesY,
           },
           max: {
-            text: formatLegendValue(effectiveMaxValue),
+            text: maxText,
             x: gradientX + barWidth,
             y: valuesY,
           },
@@ -374,7 +389,7 @@ export function drawGradientLegend(
 
   // 3. Draw Layout Labels (Min/Max)
   if (labels) {
-    ctx.font = `12px ${fontFamily}`
+    ctx.font = `${LEGEND_FONT.SIZE}px ${fontFamily}`
     ctx.fillStyle = fontColor
     ctx.textAlign = 'center'
     ctx.textBaseline = 'top'

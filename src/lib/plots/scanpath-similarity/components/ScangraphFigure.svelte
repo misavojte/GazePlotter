@@ -341,8 +341,8 @@
         if (
           rect.x < margin ||
           rect.y < margin ||
-          rect.x + rect.w > margin + width ||
-          rect.y + rect.h > margin + height
+          rect.x + rect.w > width - margin ||
+          rect.y + rect.h > height - margin
         ) {
           continue
         }

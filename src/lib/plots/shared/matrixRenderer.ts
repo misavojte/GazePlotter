@@ -1,8 +1,5 @@
 import { getContrastTextColor } from '$lib/color'
-import {
-  truncateTextToPixelWidth,
-  SYSTEM_SANS_SERIF_SMALL_STACK,
-} from '$lib/shared/textMeasure'
+import { SYSTEM_SANS_SERIF_SMALL_STACK } from '$lib/shared/textMeasure'
 import { axisTitleLineHeight } from './axisUtils'
 import { FONT_PRIMARY } from './const'
 import {
@@ -12,7 +9,7 @@ import {
   type HighlightRect,
 } from '$lib/plots/shared/canvasUtils'
 import { UI_COLORS } from '$lib/color'
-import type { MatrixLayout } from './matrixLayout'
+import { truncatedAxisLabel, type MatrixLayout } from './matrixLayout'
 
 export type MatrixRenderConfig = {
   layout: MatrixLayout
@@ -137,6 +134,7 @@ function drawMatrixAxisLabels(
     xAxisLabelHeight,
     yAxisLabelWidth,
     axisTitleGap,
+    individualLabelMargin,
     xTitleLines,
     yTitleLines,
   } = layout
@@ -146,7 +144,7 @@ function drawMatrixAxisLabels(
 
   ctx.textAlign = 'center'
   ctx.textBaseline = 'bottom'
-  const xTitleY = yOffset - xAxisLabelHeight - axisTitleGap
+  const xTitleY = yOffset - individualLabelMargin - xAxisLabelHeight - axisTitleGap
   for (let i = 0; i < xTitleLines.length; i++) {
     ctx.fillText(
       xTitleLines[i],
@@ -156,7 +154,7 @@ function drawMatrixAxisLabels(
   }
 
   ctx.save()
-  const yTitleX = xOffset - yAxisLabelWidth - axisTitleGap
+  const yTitleX = xOffset - individualLabelMargin - yAxisLabelWidth - axisTitleGap
   const yTitleY = yOffset + gridHeight * 0.5
   ctx.translate(yTitleX, yTitleY)
   ctx.rotate(-Math.PI / 2)
@@ -184,7 +182,7 @@ function shouldSkipLabel(
 function axisLabelText(config: MatrixRenderConfig, labels: readonly string[], i: number): string {
   const { layout } = config
   if (!layout.isCompactMode) {
-    return truncateTextToPixelWidth(labels[i], config.maxLabelLength, layout.fontSize, SYSTEM_SANS_SERIF_SMALL_STACK, '...')
+    return truncatedAxisLabel(labels[i], layout.fontSize, config.maxLabelLength)
   }
   if (config.hasLastRowSentinel && i === labels.length - 1) return 'Ø'
   return layout.isUltraCompactMode ? i.toString() : (i + 1).toString()

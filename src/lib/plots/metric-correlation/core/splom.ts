@@ -21,6 +21,31 @@ function rangeOf(values: number[]): { min: number; max: number } {
   return { min, max }
 }
 
+/** Smallest in-cell text size still legible; below it the cell shows no text. */
+const MIN_CELL_TEXT_SIZE = 7
+/** Horizontal room (px) kept clear inside a cell around its text. */
+const CELL_TEXT_INSET = 4
+
+/**
+ * Sets the largest font ≤ `size` at which `text` fits `maxWidth` (measured, so
+ * a long unit or a negative r never spills into the next cell); false when even
+ * MIN_CELL_TEXT_SIZE would not fit.
+ */
+function fitCellFont(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  weight: number,
+  size: number,
+  maxWidth: number
+): boolean {
+  ctx.font = `${weight} ${size}px ${SYSTEM_SANS_SERIF_STACK}`
+  const w = ctx.measureText(text).width
+  const fitted = w > maxWidth ? Math.floor((size * maxWidth) / w) : size
+  if (fitted < MIN_CELL_TEXT_SIZE) return false
+  if (fitted !== size) ctx.font = `${weight} ${fitted}px ${SYSTEM_SANS_SERIF_STACK}`
+  return true
+}
+
 function cellBackground(r: number | null): string {
   if (r === null) return '#fafafa'
   const clamped = Math.max(-1, Math.min(1, r))
@@ -121,15 +146,12 @@ export function createSplomCellRenderer(result: MetricCorrelationResult) {
         if (row === col) {
           ctx.fillStyle = '#f0f0f0'
           ctx.fillRect(x, y, cellSize, cellSize)
+          const text = result.metrics[row].unit || result.metrics[row].label
+          if (!fitCellFont(ctx, text, 500, scatterFontSize, cellSize - CELL_TEXT_INSET)) continue
           ctx.fillStyle = UI_COLORS.TEXT_PRIMARY
-          ctx.font = `500 ${scatterFontSize}px ${SYSTEM_SANS_SERIF_STACK}`
           ctx.textAlign = 'center'
           ctx.textBaseline = 'middle'
-          ctx.fillText(
-            result.metrics[row].unit || result.metrics[row].label,
-            x + cellSize / 2,
-            y + cellSize / 2
-          )
+          ctx.fillText(text, x + cellSize / 2, y + cellSize / 2)
           continue
         }
 
@@ -139,7 +161,7 @@ export function createSplomCellRenderer(result: MetricCorrelationResult) {
         if (row < col) {
           // Upper triangle: r value
           const label = cell.r === null ? '—' : cell.r.toFixed(2)
-          ctx.font = `600 ${rFontSize}px ${SYSTEM_SANS_SERIF_STACK}`
+          if (!fitCellFont(ctx, label, 600, rFontSize, cellSize - CELL_TEXT_INSET)) continue
           ctx.fillStyle = cell.r === null ? '#999' : rColor(cell.r)
           ctx.textAlign = 'center'
           ctx.textBaseline = 'middle'

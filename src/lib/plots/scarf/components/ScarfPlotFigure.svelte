@@ -27,6 +27,7 @@
     type PlotPlaceholderContent,
     PLOT_LEGEND_GAP,
     cannotFitPlaceholder,
+    drawParticipantRowAxis,
     resolveFrameLayout,
     trackOnlyHit,
   } from '$lib/plots/shared'
@@ -42,7 +43,7 @@
   import {
     calculateIsCompactMode,
     calculateLegendStructuralHeight,
-    calculateLeftLabelWidth,
+    scarfLabelColumn,
     calculateOverlayLayout,
     calculateOverlayMinRowPitch,
     calculatePlotLayout,
@@ -59,7 +60,6 @@
     drawScarfBands,
     drawScarfGrid,
     drawScarfHighlightMarkers,
-    drawScarfLabels,
     type ScarfLayoutContext,
   } from '../core/renderer'
   import type { ScarfData, ScarfPlotSettings, ScarfStyleItem } from '../types'
@@ -162,12 +162,13 @@
   })
   const isCompactMode = $derived(layout.isCompact)
 
-  const participantLabels = $derived.by(() =>
-    isCompactMode ? [] : data.participants.map(p => p.label)
+  // Names pre-truncated to the column the gutter reserves (single source).
+  const labelColumn = $derived(
+    scarfLabelColumn(isCompactMode, data.participants.map(p => p.label))
   )
   /** Row order for the PLOT CURSOR — rebuilt on a data change, not per frame. */
   const participantIds = $derived(data.participants.map(p => p.id))
-  const LEFT_LABEL_WIDTH = $derived(calculateLeftLabelWidth(isCompactMode, participantLabels))
+  const LEFT_LABEL_WIDTH = $derived(labelColumn.width)
 
   const participantBarsHeight = $derived(
     data.participants.length * layout.heightOfBarWrap
@@ -376,7 +377,7 @@
       deviceScale: plot.canvasState.pixelRatio ?? 1,
     }
 
-    drawScarfLabels(ctx, data, renderCtx)
+    drawParticipantRowAxis(ctx, data.participants.length, labelColumn.labels, frame.x, plotTop, layout.heightOfBarWrap)
     drawScarfGrid(ctx, data, renderCtx)
 
     drawScarfBands(

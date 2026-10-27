@@ -40,13 +40,6 @@ export const SCARF_LAYOUT = {
   HEIGHT_BAR_DEFAULT: 15,
   HEIGHT_NON_FIXATION_DEFAULT: 4,
   SPACE_ABOVE_RECT_DEFAULT: 5,
-  // Frame padding past the last timeline tick, declared as `gutters.pad.right`.
-  // Not a clipping reserve — drawPlotArea already clamps the last tick label
-  // inside the border — just breathing room at the end of the timeline. The top
-  // pad is the shared PLOT_EDGE_PAD_TOP; the x-axis and legend reservations that
-  // used to sit here now come from the resolver measuring those edges.
-  RIGHT_MARGIN: 8,
-
   // --- Tooltips ---
   TOOLTIP_WIDTH: 150,
 

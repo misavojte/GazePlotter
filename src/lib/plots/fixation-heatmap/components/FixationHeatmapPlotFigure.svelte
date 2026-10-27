@@ -8,6 +8,7 @@
     bottomGradientLegendGeometry,
     drawGradientLegend,
     getGradientLegendRequiredHeight,
+    PLOT_BORDER_PX,
     PLOT_LEGEND_GAP,
     GRIDLINE_PRIMARY,
     strokeCrispRect,
@@ -380,7 +381,7 @@
       return {
         left: { tickLabels: space.yTicks.labels, title: 'Y' },
         bottom: { tickLabels: space.xTicks.labels, title: 'X' },
-        pad: { top: L.topSafetyPx, right: L.rightSafetyPx, left: L.leftSafetyPx },
+        pad: { right: PLOT_BORDER_PX },
         legendHeight: legendBlockHeight,
       }
     },
