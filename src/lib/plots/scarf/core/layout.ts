@@ -313,7 +313,7 @@ export function getScarfIdentifierSystem(styling?: ScarfStyling) {
 }
 
 /**
- * Calculates the static legend height based only on data.
+ * The legend's height from its data and the width it lays out in.
  */
 export function calculateLegendStructuralHeight(
   groups: {

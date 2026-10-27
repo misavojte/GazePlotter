@@ -270,10 +270,9 @@ function createScarfLegendData(
   addGroup('Fixations', fixationsVisible ? styling.aoi : [], 'fixation')
   addGroup('Non-fixations', styling.category, 'nonFixation')
 
-  // Overlaid events render as solid colour strips, so the legend swatch is a
-  // rectangle keyed by event type.
+  // Overlaid events render as thin strips hanging under the bar; their swatch says so.
   if (showEvents) {
-    addGroup('Event Channels', styling.event, 'fixation')
+    addGroup('Event channels', styling.event, 'event')
   }
 
   return { groups }

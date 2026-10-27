@@ -36,6 +36,11 @@ export function isStimulusScopedHighlight(identifier: string): boolean {
 }
 
 export const SCARF_LAYOUT = {
+  // --- Legend ---
+  // One px tighter than PLOT_LEGEND_GAP: the legend's first title sits a hair closer to the axis,
+  // its items where they were (the title-to-items gap took that pixel).
+  LEGEND_GAP_DELTA: -1,
+
   // --- Basic Dimensions ---
   HEIGHT_BAR_DEFAULT: 15,
   HEIGHT_NON_FIXATION_DEFAULT: 4,

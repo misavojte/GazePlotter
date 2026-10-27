@@ -107,12 +107,15 @@
       settings.ordinalEnd
     )
   )
+  /** The legend lays out in the content width. */
+  const legendWidth = $derived(Math.max(0, width - 2 * margin))
   const legendHeight = $derived(
-    calculateLegendStructuralHeight(data.legendData?.groups ?? [], width)
+    calculateLegendStructuralHeight(data.legendData?.groups ?? [], legendWidth)
   )
   /** Legend block reserved at the bottom, gap folded in (the resolver abuts the
    *  block straight to the x-axis gutter). */
-  const legendSpace = $derived(legendHeight > 0 ? PLOT_LEGEND_GAP + legendHeight : 0)
+  const legendGap = PLOT_LEGEND_GAP + SCARF_LAYOUT.LEGEND_GAP_DELTA
+  const legendSpace = $derived(legendHeight > 0 ? legendGap + legendHeight : 0)
 
   const xAxisTicks = $derived(niceTimelineTicks(data.timeline))
 
@@ -256,19 +259,13 @@
   // The frame is already capped to the row stack and centred by the resolver
   // (see `gutters`), so the rows simply start at its top edge.
   const plotTop = $derived(plot.frame.y)
-  const legendTop = $derived(plot.frame.legendY + PLOT_LEGEND_GAP)
+  const legendTop = $derived(plot.frame.legendY + legendGap)
 
   const legendGeometry: LegendGeometry = $derived.by(() => {
     if (legendGroups.length === 0) {
       return { items: [], height: 0, groupTitles: [], totalHeight: 0, itemsPerRow: 3 }
     }
-    return computeGroupedLegendGeometry(
-      legendGroups,
-      LEGEND_CONFIG,
-      margin,
-      legendTop,
-      width
-    )
+    return computeGroupedLegendGeometry(legendGroups, LEGEND_CONFIG, margin, legendTop, legendWidth)
   })
 
   // The rows, not the frame: the frame is the stack's whole-pixel cap (and,

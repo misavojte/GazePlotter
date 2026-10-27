@@ -16,7 +16,7 @@
  *   )
  */
 
-import { FONT_PRIMARY } from './const'
+import { FONT_PRIMARY, GRIDLINE_PRIMARY } from './const'
 import {
   truncateTextToPixelWidth,
   estimateTextWidth,
@@ -37,8 +37,9 @@ export interface LegendItem {
   /** Color for the icon */
   color: string
 
-  /** Icon type: 'fixation' for filled rectangles, 'nonFixation' for thin rectangles */
-  type: 'fixation' | 'nonFixation'
+  /** Icon: 'fixation' a filled block, 'nonFixation' a centred thin bar, 'event' a thin bar on the block's
+      bottom edge (the Scarf hangs event strips under the bar) */
+  type: 'fixation' | 'nonFixation' | 'event'
 }
 
 /** A group of legend items with a title (for scarf-style grouped legends) */
@@ -79,8 +80,6 @@ export interface LegendConfig {
   lineDash: readonly [number, number]
   /** Height of non-fixation items */
   nonFixationHeight: number
-  /** Gap between the inline title gutter and the item grid (grouped legends) */
-  titleGutterGap: number
 }
 
 /** Pre-computed geometry for a single legend item */
@@ -92,7 +91,7 @@ export interface LegendItemGeometry {
   x: number
   y: number
   width: number
-  type: 'fixation' | 'nonFixation'
+  type: LegendItem['type']
   rowHeight: number
   groupTitle?: string
 }
@@ -118,33 +117,32 @@ export interface LegendGeometry {
 
 /** Shared legend configuration (scarf and aoi-stream draw the same key) */
 export const LEGEND_CONFIG: LegendConfig = {
-  itemHeight: 15,
+  // A swatch about the label's cap height reads as one unit with it: rows every 20 px.
+  itemHeight: 12,
   iconWidth: 20,
   textPadding: 8,
   itemSpacing: 15,
   rowPadding: 8,
-  titleHeight: 18,
-  groupSpacing: 10,
-  groupTitleSpacing: 2,
+  // Proximity ladder: a title sits closer to its first row (16 px, top to top) than rows
+  // to each other (20 px), and bands sit apart by twice the row gap (groupSpacing).
+  titleHeight: 13,
+  groupSpacing: 16,
+  groupTitleSpacing: 3,
   fontFamily: FONT_PRIMARY.FAMILY,
   fontSize: FONT_PRIMARY.SIZE,
   fontColor: FONT_PRIMARY.COLOR,
   topPadding: 0,
   lineDash: [2, 2] as const,
   nonFixationHeight: 4,
-  titleGutterGap: 16,
 }
 
 // ============================================================================
 // GEOMETRY COMPUTATION FUNCTIONS
 // ============================================================================
 
-/**
- * Max fraction of the legend width the inline title gutter may occupy before the
- * grouped legend falls back to the stacked (title-above) layout. Keeps the item
- * grid from being starved on narrow tiles.
- */
-const MAX_GUTTER_FRACTION = 0.45
+
+/** A column starting this close to a swatch or label line above reads as nearly aligned. */
+const ALMOST_ALIGNED_PX = 12
 
 /**
  * Calculate optimal items per row for visually pleasing layout.
@@ -218,86 +216,51 @@ function uniformLegendColumnWidth(
   maxTextWidth: number,
   config: LegendConfig
 ): number {
-  return Math.min(config.iconWidth + config.textPadding + maxTextWidth, 250)
+  return Math.ceil(Math.min(config.iconWidth + config.textPadding + maxTextWidth, 250))
 }
 
-interface LegendBlock {
-  items: LegendItemGeometry[]
-  firstRowY: number
-  firstRowHeight: number
-  /** Y after the block, including the trailing rowPadding */
-  endY: number
+/** Column lengths for `n` items in `columns` columns, column-major: differing by at most one, longer first. */
+function balancedColumnCounts(n: number, columns: number): number[] {
+  const base = Math.floor(n / columns)
+  const extra = n % columns
+  return Array.from({ length: columns }, (_, c) => base + (c < extra ? 1 : 0))
 }
 
 /**
- * Lay out one column-first grid of items: the three-pass core shared by the
- * flat and grouped legends. Row height is max(icon, text) per row.
+ * Place items column-major into the given columns: the core shared by the flat
+ * and grouped legends. Every row is max(icon, text) tall, so grids side by side
+ * share baselines. `endY` includes the trailing rowPadding.
  */
 function layoutLegendBlock(
   items: readonly LegendItem[],
   config: LegendConfig,
-  startX: number,
+  columns: readonly { x: number; width: number; count: number }[],
   startY: number,
-  columnWidth: number,
-  itemsPerRow: number,
   groupTitle?: string
-): LegendBlock {
-  const { itemHeight, itemSpacing, rowPadding, fontSize, nonFixationHeight } =
-    config
-  const rows = Math.ceil(items.length / itemsPerRow)
-
-  // Pass 1: per-row heights (column-first filling: item i sits in row i % rows)
-  const rowHeights = new Float32Array(rows).fill(0)
-  const iconHeights = new Float32Array(items.length)
-  for (let i = 0; i < items.length; i++) {
-    let iconH = fontSize
-    if (items[i].type === 'fixation') {
-      iconH = itemHeight
-    } else if (items[i].type === 'nonFixation') {
-      iconH = nonFixationHeight
-    }
-    iconHeights[i] = iconH
-    const effectiveH = Math.max(iconH, fontSize)
-    const row = i % rows
-    if (effectiveH > rowHeights[row]) {
-      rowHeights[row] = effectiveH
-    }
-  }
-
-  // Pass 2: row Y positions
-  const rowYPositions = new Float32Array(rows)
-  let currentY = startY
-  for (let r = 0; r < rows; r++) {
-    rowYPositions[r] = currentY
-    currentY += rowHeights[r] + rowPadding
-  }
-
-  // Pass 3: place items into left-aligned fixed-width columns
-  const placed: LegendItemGeometry[] = new Array(items.length)
-  for (let i = 0; i < items.length; i++) {
-    const item = items[i]
-    const col = Math.floor(i / rows)
-    const row = i % rows
-    placed[i] = {
-      identifier: item.identifier,
-      name: item.name,
-      color: item.color,
-      height: iconHeights[i],
-      x: startX + col * (columnWidth + itemSpacing),
-      y: rowYPositions[row],
-      width: columnWidth,
-      type: item.type,
-      groupTitle,
-      rowHeight: rowHeights[row],
+): { items: LegendItemGeometry[]; endY: number } {
+  const { itemHeight, rowPadding, fontSize, nonFixationHeight } = config
+  const rowHeight = Math.max(itemHeight, fontSize)
+  const placed: LegendItemGeometry[] = []
+  let i = 0
+  for (const column of columns) {
+    for (let row = 0; row < column.count; row++, i++) {
+      const item = items[i]
+      placed.push({
+        identifier: item.identifier,
+        name: item.name,
+        color: item.color,
+        height: item.type === 'fixation' ? itemHeight : nonFixationHeight,
+        x: column.x,
+        y: startY + row * (rowHeight + rowPadding),
+        width: column.width,
+        type: item.type,
+        groupTitle,
+        rowHeight,
+      })
     }
   }
-
-  return {
-    items: placed,
-    firstRowY: rows > 0 ? rowYPositions[0] : startY,
-    firstRowHeight: rows > 0 ? rowHeights[0] : 0,
-    endY: currentY,
-  }
+  const rows = Math.max(0, ...columns.map(c => c.count))
+  return { items: placed, endY: startY + rows * (rowHeight + rowPadding) }
 }
 
 /**
@@ -322,14 +285,14 @@ export function computeFlatLegendGeometry(
     itemsPerRowOverride ??
     getLegendItemsPerRow(availableWidth, config, maxTextWidth, items.length)
 
-  const block = layoutLegendBlock(
-    items,
-    config,
-    startX,
-    startY + config.topPadding,
-    uniformLegendColumnWidth(maxTextWidth, config),
-    effectiveItemsPerRow
-  )
+  const rows = Math.max(1, Math.ceil(items.length / effectiveItemsPerRow))
+  const width = uniformLegendColumnWidth(maxTextWidth, config)
+  const columns = balancedColumnCounts(items.length, Math.ceil(items.length / rows)).map((count, c) => ({
+    x: startX + c * (width + config.itemSpacing),
+    width,
+    count,
+  }))
+  const block = layoutLegendBlock(items, config, columns, startY + config.topPadding)
 
   return {
     items: block.items,
@@ -341,140 +304,233 @@ export function computeFlatLegendGeometry(
 }
 
 /**
- * Compute geometry for grouped legend items.
- * This is optimized for ScarfPlot which has multiple groups with titles.
+ * Compute geometry for grouped legend items (the Scarf's AOIs, categories and
+ * events), after the legend-design rules of Qin & Li (2014) and Vega's "each"
+ * grid alignment:
  *
- * Use with $derived.by() for memoization:
- *   const geometry = $derived.by(() =>
- *     computeGroupedLegendGeometry(groups, config, x, y, width)
- *   )
+ * - Each group is a block: its title above a column-major grid of balanced
+ *   columns (lengths differ by at most one, longer first), each column as wide
+ *   as its own widest label.
+ * - Blocks sit side by side in reading order, 2 * itemSpacing apart, filling
+ *   the band's rows; they wrap into bands, every split into consecutive bands
+ *   is tried and the lowest legend wins (ties: fewer bands, fuller early ones).
+ * - A band under another sits wholly on the column lines above (each column on
+ *   the next line, groups still a gap apart) or, when it cannot, packs at the
+ *   usual spacing: alignment is all or nothing, never partial.
+ * - A packed band ending less than a group gap short of the right edge widens
+ *   its group gaps evenly to end flush with it.
  */
 export function computeGroupedLegendGeometry(
   groups: readonly LegendGroup[],
   config: LegendConfig,
   startX: number,
   startY: number,
-  availableWidth: number,
-  itemsPerRowOverride?: number
+  availableWidth: number
 ): LegendGeometry {
-  const {
-    rowPadding,
-    titleHeight,
-    groupSpacing,
-    groupTitleSpacing,
-    titleGutterGap,
-    fontSize,
-    fontFamily,
-  } = config
+  const { itemHeight, rowPadding, titleHeight, groupSpacing, groupTitleSpacing, itemSpacing, fontSize, fontFamily } = config
+  const present = groups.filter(g => g.items.length > 0)
+  if (present.length === 0) return { items: [], groupTitles: [], totalHeight: 0, itemsPerRow: 0 }
 
-  // 1. Uniform item-column width = widest item label across ALL groups, so every
-  //    column lines up into one regular grid.
-  const maxTextWidth = groups.reduce(
-    (max, g) => Math.max(max, maxLegendTextWidth(g.items, config)),
-    0
-  )
-  const uniformColumnWidth = uniformLegendColumnWidth(maxTextWidth, config)
+  // Whole pixels throughout, so swatch edges stay crisp.
+  const x0 = Math.round(startX)
+  const y0 = Math.round(startY)
+  const limit = x0 + availableWidth
+  const titleBand = titleHeight + groupTitleSpacing
+  const rowStep = Math.max(itemHeight, fontSize) + rowPadding
+  const groupGap = 2 * itemSpacing
+  // A band may tighten its group gaps this far (still well over the column gap) rather than add a row.
+  const minGroupGap = Math.round(1.6 * itemSpacing)
+  // Titles render semi-bold: widen the regular-weight estimate a little.
+  const titleWidth = (g: LegendGroup) => Math.ceil(estimateTextWidth(g.title, fontSize, fontFamily) * 1.08)
 
-  // 2. Inline title gutter: group titles share a fixed-width left column (aligned in
-  //    one vertical strip) and the item grid begins to their right, reclaiming the
-  //    dedicated title lines of the stacked layout. Titles render at weight 600, so
-  //    widen the measured width slightly. Falls back to the stacked title-above layout
-  //    when the gutter would starve the item area on a narrow tile.
-  const maxTitleWidth = groups.reduce(
-    (max, g) =>
-      g.items.length === 0
-        ? max
-        : Math.max(max, estimateTextWidth(g.title, fontSize, fontFamily)),
-    0
-  )
-  const gutterWidth =
-    maxTitleWidth > 0 ? Math.ceil(maxTitleWidth * 1.08) + titleGutterGap : 0
-  const itemAreaWidth = availableWidth - gutterWidth
-  const useInline =
-    gutterWidth > 0 &&
-    itemAreaWidth >= uniformColumnWidth &&
-    gutterWidth <= availableWidth * MAX_GUTTER_FRACTION
+  type Column = { x: number; width: number; count: number }
+  type Block = { group: LegendGroup; columns: Column[]; x: number; end: number }
 
-  const itemsStartX = useInline ? startX + gutterWidth : startX
-  const layoutWidth = useInline ? itemAreaWidth : availableWidth
+  /** A group column-major in at most `rows` rows: balanced column lengths, each column its own width. */
+  const shapeOf = (group: LegendGroup, rows: number) => {
+    const counts = balancedColumnCounts(group.items.length, Math.ceil(group.items.length / rows))
+    let first = 0
+    const widths = counts.map(count =>
+      uniformLegendColumnWidth(maxLegendTextWidth(group.items.slice(first, (first += count)), config), config)
+    )
+    return { counts, widths }
+  }
+  const blockOf = (group: LegendGroup, columns: Column[]): Block => {
+    const last = columns[columns.length - 1]
+    return { group, columns, x: columns[0].x, end: Math.max(last.x + last.width, columns[0].x + titleWidth(group)) }
+  }
+  /** Blocks left to right, a group gap apart (they may overflow; `fitted` settles that). */
+  const packed = (band: readonly LegendGroup[], rows: number): Block[] => {
+    const blocks: Block[] = []
+    let x = x0
+    for (const group of band) {
+      const { counts, widths } = shapeOf(group, rows)
+      let cx = blocks.length ? x + groupGap : x0
+      const columns = counts.map((count, c) => {
+        const column = { x: cx, width: widths[c], count }
+        cx += widths[c] + itemSpacing
+        return column
+      })
+      const block = blockOf(group, columns)
+      blocks.push(block)
+      x = block.end
+    }
+    return blocks
+  }
+  /** Every column on the next column line above, each label clear of the following line and groups a gap apart; null when it cannot be. */
+  const onGrid = (band: readonly LegendGroup[], rows: number, lines: readonly number[]): Block[] | null => {
+    const blocks: Block[] = []
+    let next = 0
+    for (const group of band) {
+      const { counts, widths } = shapeOf(group, rows)
+      const from = blocks.length ? blocks[blocks.length - 1].end + groupGap : x0
+      while (next < lines.length && lines[next] < from) next++
+      if (lines[next] !== from && !blocks.length) return null
+      const columns: Column[] = []
+      for (const [c, count] of counts.entries()) {
+        const x = lines[next++]
+        if (x === undefined) return null
+        const following = lines[next]
+        if (c < counts.length - 1 && following !== undefined && following < x + widths[c] + itemSpacing) return null
+        columns.push({ x, width: widths[c], count })
+      }
+      blocks.push(blockOf(group, columns))
+    }
+    if (blocks[blocks.length - 1].end > limit) return null
+    // Proximity before alignment: no gap inside a group stretched past 1.5 column gaps, and
+    // none wider than a gap between groups, or the stretched group reads as two.
+    const inner = Math.max(0, ...blocks.flatMap(b => b.columns.slice(1).map((c, i) => c.x - b.columns[i].x - b.columns[i].width)))
+    if (inner > 1.5 * itemSpacing) return null
+    return blocks.every((b, i) => i === 0 || b.x - blocks[i - 1].end >= inner) ? blocks : null
+  }
+  const shifted = (block: Block, by: number): Block => ({
+    ...block,
+    x: block.x + by,
+    end: block.end + by,
+    columns: block.columns.map(c => ({ ...c, x: c.x + by })),
+  })
+  /**
+   * A packed band's group gaps flex evenly: they widen to end flush when the band
+   * falls short of the right edge by less than a group gap, and tighten down to
+   * minGroupGap rather than overflow. Null when even that does not fit.
+   */
+  const fitted = (blocks: Block[]): Block[] | null => {
+    const slack = limit - blocks[blocks.length - 1].end
+    if (slack >= groupGap || (slack >= 0 && blocks.length < 2)) return blocks
+    if (blocks.length < 2 || slack < -(groupGap - minGroupGap) * (blocks.length - 1)) return null
+    return blocks.map((block, i) => shifted(block, Math.round((slack * i) / (blocks.length - 1))))
+  }
+  /**
+   * In a packed band under another, every column start is checked, left to
+   * right, against the swatch and label lines above: within ALMOST_ALIGNED_PX
+   * left of a line it moves onto it, just right of one it moves clear of it.
+   * Gaps only grow, and later columns follow; null when the band then overflows.
+   */
+  const settledOn = (blocks: Block[], lines: readonly number[]): Block[] | null => {
+    const targets = [...new Set(lines.flatMap(l => [l, l + config.iconWidth + config.textPadding]))].sort((p, q) => p - q)
+    // Onto a line just ahead, back onto one just behind when allowed (`earliest`), else clear of it.
+    const settle = (x: number, earliest = x) => {
+      const ahead = targets.find(t => t >= x)
+      if (ahead !== undefined && ahead - x < ALMOST_ALIGNED_PX) return ahead
+      const behind = targets.filter(t => t < x).pop()
+      if (behind === undefined || x - behind >= ALMOST_ALIGNED_PX) return x
+      return behind >= earliest ? behind : behind + ALMOST_ALIGNED_PX
+    }
+    const out: Block[] = []
+    let end = x0
+    for (const [i, block] of blocks.entries()) {
+      const columns: Column[] = []
+      // A group keeps its gap to the (possibly moved) group before it, then settles; it may step
+      // back onto a line as long as its gap stays at least minGroupGap.
+      let x = i === 0 ? x0 : settle(block.x + end - blocks[i - 1].end, end + minGroupGap)
+      for (const [c, column] of block.columns.entries()) {
+        if (c > 0) x = settle(x)
+        columns.push({ ...column, x })
+        x += column.width + itemSpacing
+      }
+      const settled = blockOf(block.group, columns)
+      out.push(settled)
+      end = settled.end
+    }
+    return end <= limit ? out : null
+  }
+  const rowsOf = (blocks: Block[]) => Math.max(...blocks.flatMap(b => b.columns.map(c => c.count)))
 
-  // 3. Column count: most items that fit the width, then (inline only) balanced to
-  //    even out the rows of the largest group at that minimum row count — keeps the
-  //    grid regular without adding height. One global count so columns align across
-  //    groups.
-  const maxItemsInGroup = groups.reduce(
-    (max, g) => Math.max(max, g.items.length),
-    0
-  )
-  const maxFit = getLegendItemsPerRow(
-    layoutWidth,
-    config,
-    maxTextWidth,
-    maxItemsInGroup
-  )
-  let effectiveItemsPerRow: number
-  if (itemsPerRowOverride != null) {
-    effectiveItemsPerRow = itemsPerRowOverride
-  } else if (useInline && maxItemsInGroup > 0) {
-    const rows = Math.ceil(maxItemsInGroup / maxFit)
-    effectiveItemsPerRow = Math.max(1, Math.ceil(maxItemsInGroup / rows))
-  } else {
-    effectiveItemsPerRow = maxFit
+  /** Cells left empty in a band's rectangle: holes in short columns and the rows under shorter blocks. */
+  const emptyOf = (blocks: Block[]) =>
+    blocks.reduce((sum, b) => sum + b.columns.length * rowsOf(blocks) - b.group.items.length, 0)
+  /** `clean`: no column nearly meets a line above anywhere in the plan. */
+  type Plan = { height: number; empty: number; clean: boolean; bands: Block[][] }
+  /**
+   * A clean plan beats any other; then heights within a row gap of each other are
+   * a tie settled by fewer empty cells; then lower, then fewer bands.
+   */
+  const better = (a: Plan, b: Plan) => {
+    if (a.clean !== b.clean) return a.clean
+    if (Math.abs(a.height - b.height) > rowPadding) return a.height < b.height
+    if (a.empty !== b.empty) return a.empty < b.empty
+    if (a.height !== b.height) return a.height < b.height
+    return a.bands.length < b.bands.length
+  }
+  /** The best plan for the groups from `next` on, under the column lines `lines` of the bands above. */
+  const plan = (next: number, lines: readonly number[]): Plan | null => {
+    if (next === present.length) return { height: 0, empty: 0, clean: true, bands: [] }
+    let best: Plan | null = null
+    for (let k = present.length - next; k >= 1; k--) {
+      const band = present.slice(next, next + k)
+      const maxRows = Math.max(...band.map(g => g.items.length))
+      let chosen: Block[] | null = null
+      let clean = true
+      // All on the grid above, or packed (justified when nearly full) with every column exactly on
+      // a line above or clear of it. Only when no row count manages that does plain packing stand.
+      for (const strict of lines.length ? [true, false] : [false]) {
+        for (let rows = 1; rows <= maxRows && !chosen; rows++) {
+          const grid = lines.length ? onGrid(band, rows, lines) : null
+          const loose = grid ? null : fitted(packed(band, rows))
+          const blocks = grid ?? (loose && (strict ? settledOn(loose, lines) : loose))
+          if (blocks) chosen = blocks
+        }
+        if (chosen) break
+        clean = false
+      }
+      if (!chosen) continue
+      const below = [...new Set([...lines, ...chosen.flatMap(b => b.columns.map(c => c.x))])].sort((p, q) => p - q)
+      const rest = plan(next + k, below)
+      if (!rest) continue
+      const candidate = {
+        height: titleBand + rowsOf(chosen) * rowStep - rowPadding + (rest.bands.length ? groupSpacing + rest.height : 0),
+        empty: emptyOf(chosen) + rest.empty,
+        clean: clean && rest.clean,
+        bands: [chosen, ...rest.bands],
+      }
+      if (!best || better(candidate, best)) best = candidate
+    }
+    return best
   }
 
-  const geometryItems: LegendItemGeometry[] = []
+  // A first group too wide for even one column still lays out, clipped.
+  const head = present[0]
+  const bands = plan(0, [])?.bands ?? [
+    [blockOf(head, [{ x: x0, width: availableWidth, count: head.items.length }])],
+  ]
+
+  const items: LegendItemGeometry[] = []
   const groupTitles: LegendGroupTitleGeometry[] = []
-
-  let currentY = startY
-
-  for (let g = 0; g < groups.length; g++) {
-    const group = groups[g]
-
-    // Skip empty groups
-    if (group.items.length === 0) continue
-
-    // Add spacing before group (except the first rendered one)
-    if (groupTitles.length > 0) {
-      currentY += groupSpacing
+  let y = y0
+  for (const blocks of bands) {
+    const itemsY = y + titleBand
+    for (const b of blocks) {
+      groupTitles.push({ title: b.group.title, x: b.x, y })
+      items.push(...layoutLegendBlock(b.group.items, config, b.columns, itemsY, b.group.title).items)
     }
-
-    // Inline: items begin at the band top, the title is centered on the first row.
-    // Stacked: the title takes its own line and items begin below it.
-    const itemsStartY = useInline
-      ? currentY
-      : currentY + titleHeight + groupTitleSpacing
-
-    const block = layoutLegendBlock(
-      group.items,
-      config,
-      itemsStartX,
-      itemsStartY,
-      uniformColumnWidth,
-      effectiveItemsPerRow,
-      group.title
-    )
-
-    // Inline titles are vertically centered on the first item row (drawn with
-    // baseline 'top'); stacked titles take their own line at the band top.
-    groupTitles.push({
-      title: group.title,
-      x: startX,
-      y: useInline
-        ? block.firstRowY + (block.firstRowHeight - fontSize) / 2
-        : currentY,
-    })
-
-    geometryItems.push(...block.items)
-    currentY = block.endY
+    y = itemsY + rowsOf(blocks) * rowStep - rowPadding + groupSpacing
   }
 
   return {
-    items: geometryItems,
+    items,
     groupTitles,
-    // Trim the trailing rowPadding only when something was rendered; all-empty
-    // groups must report 0, not a negative height.
-    totalHeight: currentY - startY - (groupTitles.length > 0 ? rowPadding : 0),
-    itemsPerRow: effectiveItemsPerRow,
+    totalHeight: y - groupSpacing - y0,
+    itemsPerRow: bands[0][0].columns.length,
   }
 }
 
@@ -499,6 +555,7 @@ export function drawLegend(
 ): void {
   const {
     iconWidth,
+    itemHeight,
     textPadding,
     fontSize,
     fontFamily,
@@ -528,11 +585,19 @@ export function drawLegend(
       ? desaturateToWhite(item.color, 0.85)
       : item.color
     ctx.fillStyle = effectiveColor
-    // Center the icon vertically in the item row
-    const iconY = alignToPixelCenter(
-      item.y + (item.rowHeight - item.height) / 2
-    )
-    ctx.fillRect(item.x, iconY, iconWidth, item.height)
+    // Whole pixels: a filled swatch on a half pixel blurs its edges. Centred in the row.
+    const x = Math.round(item.x)
+    if (item.type === 'event') {
+      // The strip hangs under a hairline of the bar it belongs to, as in the Scarf.
+      const boxTop = Math.round(item.y + (item.rowHeight - itemHeight) / 2)
+      const barHeight = itemHeight - item.height - 1
+      ctx.strokeStyle = GRIDLINE_PRIMARY.COLOR
+      ctx.lineWidth = 1
+      ctx.strokeRect(x + 0.5, boxTop + 0.5, iconWidth - 1, barHeight - 1)
+      ctx.fillRect(x, boxTop + barHeight + 1, iconWidth, item.height)
+    } else {
+      ctx.fillRect(x, Math.round(item.y + (item.rowHeight - item.height) / 2), iconWidth, item.height)
+    }
   }
 
   // -------------------------------------------------------------------------
