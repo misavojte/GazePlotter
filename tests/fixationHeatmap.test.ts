@@ -405,3 +405,22 @@ describe('onCommand', () => {
     expect(run({ opacity: 50 }, 500)).not.toHaveBeenCalled()
   })
 })
+
+describe('color sync', () => {
+  const meta = (over: Partial<FixationHeatmapPlotSettings>) =>
+    deriveFixationHeatmapView(engineOf([[], [P0, P1]]), settings({ stimulusId: 1, ...over })).meta as
+      | { ownScaleTop: number; syncGroupKey: string }
+      | undefined
+
+  it('offers an auto scale for sync, keyed on what the colors measure', () => {
+    const auto = meta({})!
+    expect(auto.ownScaleTop).toBeGreaterThan(0)
+    expect(meta({ accumulate: 'count' })!.syncGroupKey).not.toBe(auto.syncGroupKey)
+    expect(meta({ radius: 99 })!.syncGroupKey).not.toBe(auto.syncGroupKey)
+    expect(meta({ opacity: 20 })!.syncGroupKey).toBe(auto.syncGroupKey)
+  })
+
+  it('leaves a set Scale max out of sync', () => {
+    expect(meta({ scaleMax: 5 })).toBeUndefined()
+  })
+})

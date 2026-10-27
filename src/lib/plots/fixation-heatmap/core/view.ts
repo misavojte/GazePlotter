@@ -82,6 +82,14 @@ export function heatmapNotes(data: FixationHeatmapData, isVideo: boolean): strin
   return notes.filter((n): n is string => typeof n === 'string')
 }
 
+/** Present only on an auto-scaled map: what the screen's color sync needs. */
+export interface FixationHeatmapViewMeta {
+  /** Unsynced auto scale top. */
+  ownScaleTop: number
+  /** Maps sharing it measure the same thing on the same colors. */
+  syncGroupKey: string
+}
+
 /** Single source of truth for "what a fixation heatmap draws", screen and export alike. */
 export function deriveFixationHeatmapView(
   engine: DataEngine,
@@ -99,13 +107,22 @@ export function deriveFixationHeatmapView(
   // Only an image is drawn: a video's shared element is the playback clock, so
   // its frame under a static map would move with any Scanpath of the stimulus.
   const image = media?.kind === 'image' && settings.background !== 'none' ? media : null
+  const autoTop = niceCeil(data.max)
+  const meta: FixationHeatmapViewMeta | undefined =
+    settings.scaleMax > 0
+      ? undefined
+      : {
+          ownScaleTop: autoTop,
+          syncGroupKey: [settings.accumulate, settings.normalization, data.radius, settings.colorScale.join('|')].join(';'),
+        }
   return {
     component: FixationHeatmapPlotFigure,
+    meta,
     props: {
       data,
       colorScale: settings.colorScale,
       opacity: Math.min(100, Math.max(0, settings.opacity)) / 100,
-      scaleTop: settings.scaleMax > 0 ? settings.scaleMax : niceCeil(data.max),
+      scaleTop: settings.scaleMax > 0 ? settings.scaleMax : autoTop,
       fixedMax: settings.scaleMax > 0,
       showFixations: settings.showFixations,
       background: image ? settings.background : 'image',

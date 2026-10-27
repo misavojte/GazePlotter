@@ -29,7 +29,7 @@ export class PlaybackClock {
   /** Repaint signal: a seeked video frame was decoded. */
   frame = $state(0)
   /** Parked at the players' rest time rather than moved there by a seek or play. */
-  atRest = $state(false)
+  private atRest = false
   /** The player that last played or seeked; its speed is the clock's. */
   driver = $state<number | null>(null)
   readonly players = new SvelteMap<number, Player>()

@@ -1,7 +1,7 @@
 import { deriveFixationHeatmapView, heatmapUnit } from './core/view'
 import { autoRadiusFor } from './core/transformer'
-import { plotCursorScreen } from '$lib/plots/shared/plotCursor.svelte'
-import { commonIs, definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
+import { fixationHeatmapScreen } from './core/screen.svelte'
+import { definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
 import { formatGaze, stimulusParticipantsSubtitle } from '$lib/plots/shared'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import { stimulusBackgroundField } from '$lib/plots/shared/stimulusBackground'
@@ -120,7 +120,7 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
     'timelineRange',
   ],
   view: { deriveView: deriveFixationHeatmapView },
-  screen: plotCursorScreen(),
+  screen: fixationHeatmapScreen,
   getSubtitle: stimulusParticipantsSubtitle,
   // A Scale max is typed in the map's unit; when the unit changes it no longer
   // means anything (5000 ms as a count blanks the map), so it returns to Auto.

@@ -1,10 +1,4 @@
-/**
- * Layout costants. Margins are not declared here — they are *measured* per
- * render from the actual tick-label strings and the current font (see
- * `ScanpathPlotFigure.svelte`'s `layout` derived). The constants below are
- * either visual primitives (gaps, paddings, radii) or font configuration that
- * the measurement step needs.
- */
+/** Layout constants: visual primitives only; the axis gutters are measured by usePlot. */
 export const SCANPATH_LAYOUT = {
   /** Trail length (ms) on a video when none is set: a moving frame needs a short window. */
   videoTrailMs: 2000,
