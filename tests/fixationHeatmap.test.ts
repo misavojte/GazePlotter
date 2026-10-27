@@ -238,7 +238,6 @@ describe('getFixationHeatmapData', () => {
     const e = engineOf([[[[0, 100, 0, 0], [100, 200, 1000, 500]]], [P0, P1]])
     const s0 = ok(getFixationHeatmapData(e, settings({ stimulusId: 0, radius: 0 })))
     const s1 = ok(getFixationHeatmapData(e, settings({ stimulusId: 1, radius: 0 })))
-    expect(s0.radiusIsAuto).toBe(true)
     expect(s0.radius).toBe(s1.radius)
     expect(s1.radius).toBe(autoRadius(e.getReader()!, null))
   })
@@ -353,17 +352,17 @@ describe('heat image', () => {
 })
 
 describe('labels', () => {
-  it('titles the colour: quantity, scale mode, R, N, time range', () => {
+  it('titles the colour: quantity, R, N, time range', () => {
     const data = ok(getFixationHeatmapData(engineOf([[], [P0, P1]]), settings({ timelineStart: 1000 })))
     expect(heatmapLegendTitle(settings({ timelineStart: 1000 }), data)).toBe(
-      'Fixation duration share / % · max auto · R = 30 · mean of 1 participant · t ≥ 1000 ms'
+      'Fixation duration share / % · R = 30 · N = 1 · t ≥ 1000 ms'
     )
     const all = ok(getFixationHeatmapData(engineOf([[], [P0, P1]]), settings({ normalization: 'mean' })))
     expect(heatmapLegendTitle(settings({ normalization: 'mean', scaleMax: 5 }), all)).toBe(
-      'Fixation duration / ms · max fixed · R = 30 · mean of 2 participants'
+      'Fixation duration / ms · R = 30 · N = 2'
     )
     const auto = ok(getFixationHeatmapData(engineOf([[], [P0, P1]]), settings({ radius: 0 })))
-    expect(heatmapLegendTitle(settings({ radius: 0 }), auto)).toMatch(/ · R = [\d.]+ auto · /)
+    expect(heatmapLegendTitle(settings({ radius: 0 }), auto)).toMatch(/ · R = [\d.]+ · N = 2$/)
   })
 
   it('notes only what the map leaves out', () => {

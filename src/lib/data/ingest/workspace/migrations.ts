@@ -813,6 +813,15 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
     version = CURRENT_SCHEMA_VERSION
   }
 
+  // Version-independent: Scanpath's `playbackWindow` became `trailLength`. Its stored 0 was
+  // the old default, not a choice, so only a set trail carries; the rest takes the medium's default.
+  mapItemSettings(data, (item, s) => {
+    if (!('playbackWindow' in s)) return item
+    const { playbackWindow, ...rest } = s
+    const carried = rest.trailLength ?? (playbackWindow > 0 ? playbackWindow : undefined)
+    return { ...item, settings: carried === undefined ? rest : { ...rest, trailLength: carried } }
+  })
+
   // Version-independent: the retired `-1` sentinel and `hideEvents` are legacy
   // VALUES, not a format step — in-branch builds stamped v6 while both were
   // still live. Runs after the passes above so a seeded row is already in place.

@@ -1,3 +1,5 @@
+import type { StimulusBackground } from '$lib/plots/shared/stimulusBackground'
+
 export type ScanpathPlotSettings = {
   stimulusId: number
   participantId: number
@@ -11,11 +13,13 @@ export type ScanpathPlotSettings = {
   /** Marker fill in 'solid' mode. */
   solidColor: string
   /** Trail length in ms: during playback only fixations that began within
-      it stay on screen, fading with age. 0 = all. */
-  playbackWindow: number
+      it stay on screen, fading with age. 0 = all; unset = 2 s on a video, all on an image. */
+  trailLength?: number
   /** Relative to recording time. On a shared clock, the plot that started
       playback sets it. */
   playbackSpeed: number
+  /** How the stimulus image or video frame is drawn under the path. */
+  background: StimulusBackground
   /** Play on the stimulus's shared clock; off = a private one. */
   syncPlayback: boolean
   /** Recording-time range (ms) of the fixations drawn; 0 end = to the end. */

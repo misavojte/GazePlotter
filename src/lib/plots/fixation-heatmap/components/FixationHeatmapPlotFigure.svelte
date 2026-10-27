@@ -10,8 +10,6 @@
     getGradientLegendRequiredHeight,
     PLOT_BORDER_PX,
     PLOT_LEGEND_GAP,
-    GRIDLINE_PRIMARY,
-    strokeCrispRect,
     type CanvasExportProps,
     type FrameHit,
     type PlotFrame,
@@ -20,11 +18,10 @@
   import type { PlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
   import type { PlotPlaceholderContent } from '$lib/plots/shared/drawCanvasPlaceholder'
   import { AXIS_CONFIG, axisTitleLineHeight } from '$lib/plots/shared/axisUtils'
-  import { linearTicks } from '$lib/plots/shared/ticks'
   import { estimateTextWidth } from '$lib/shared/textMeasure'
   import { PRESET_PALETTES } from '$lib/color/palettes'
-  import { fitView, type Rect, type View } from '$lib/data/media/mediaAlignment'
-  import { mediaRegionOf } from '$lib/data/media/stimulusMedia'
+  import type { Rect } from '$lib/data/media/mediaAlignment'
+  import { drawStimulusBackground, stimulusSpace, worldAspect, type StimulusBackground } from '$lib/plots/shared/stimulusBackground'
   import { useMediaElements } from '../../shared/mediaElements.svelte'
   import type { StimulusMedia } from '$lib/data/types'
   import { bucketFixations, cellCentreOf, fixationsWithin, type FixationBuckets } from '../core/density'
@@ -34,7 +31,6 @@
   import { FIXATION_HEATMAP_COLORS as C, FIXATION_HEATMAP_LAYOUT as L } from '../const'
   import type {
     FixationHeatmapAccumulate,
-    FixationHeatmapBackground,
     FixationHeatmapData,
     FixationHeatmapNormalization,
   } from '../types'
@@ -50,7 +46,7 @@
     fixedMax?: boolean
     showFixations?: boolean
     /** How the image is drawn; 'none' never reaches here (the view passes no image). */
-    background?: FixationHeatmapBackground
+    background?: StimulusBackground
     legendTitle?: string
     /** What the map leaves out; shown on hovering the legend title. */
     notes?: string[]
@@ -107,8 +103,6 @@
     frameH = plot.frame.height
   })
 
-  const NO_INSETS = { top: 0, right: 0, bottom: 0, left: 0 }
-
   /** Gaze rect framed by the plot: the media, or the fixation extent with its kernel margin. */
   const world = $derived.by((): Rect | null => {
     if (!data) return null
@@ -118,25 +112,13 @@
     return { x: e.x - r, y: e.y - r, width: e.width + 2 * r, height: e.height + 2 * r }
   })
 
-  /** Equal-aspect view (frame-relative) + ticks over the visible gaze range. */
-  const space = $derived.by(() => {
-    if (!world) return null
-    const view: View = fitView(world, Math.max(1, frameW), Math.max(1, frameH), NO_INSETS)
-    const minX = -view.offsetX / view.scale
-    const minY = -view.offsetY / view.scale
-    const maxX = minX + Math.max(1, frameW) / view.scale
-    const maxY = minY + Math.max(1, frameH) / view.scale
-    return {
-      view,
-      xTicks: linearTicks(minX, maxX, L.tickCount),
-      yTicks: linearTicks(minY, maxY, L.tickCount),
-    }
-  })
+  const space = $derived(world ? stimulusSpace(world, frameW, frameH, L.tickCount) : null)
 
   const projX = (x: number, frame: PlotFrame) => frame.x + x * space!.view.scale + space!.view.offsetX
   const projY = (y: number, frame: PlotFrame) => frame.y + y * space!.view.scale + space!.view.offsetY
 
-  const gradientHeight = getGradientLegendRequiredHeight(AXIS_CONFIG.fontSize)
+  // Sized to the title's real line count, so a one-line title leaves no blank line.
+  const gradientHeight = $derived(getGradientLegendRequiredHeight(AXIS_CONFIG.fontSize, legendTitle, width - 2 * margin))
   const legendBlockHeight = $derived(
     data && !unavailableMessage
       ? PLOT_LEGEND_GAP + gradientHeight
@@ -168,37 +150,9 @@
   function drawHeatmap(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
     if (!data || !space) return
     const s = space.view.scale
-    const imageDrawn = !!(media && mediaElement)
-    if (media && mediaElement) {
-      const r = mediaRegionOf(media)
-      const [mx, my, mw, mh] = [projX(r.x, frame), projY(r.y, frame), r.width * s, r.height * s]
-      const desaturated = background === 'grayscale' || background === 'dimmed'
-      if (desaturated) {
-        // Opaque underlay: 'saturation' would turn transparent image pixels grey.
-        ctx.fillStyle = C.paper
-        ctx.fillRect(mx, my, mw, mh)
-      }
-      ctx.drawImage(mediaElement, mx, my, mw, mh)
-      if (desaturated) {
-        // Zero saturation keeps the image's luminosity: grayscale without a filter or a copy.
-        ctx.save()
-        clipToRect(ctx, r, frame)
-        ctx.globalCompositeOperation = 'saturation'
-        ctx.fillStyle = C.desaturate
-        ctx.fillRect(mx, my, mw, mh)
-        if (background === 'dimmed') {
-          ctx.globalCompositeOperation = 'source-over'
-          ctx.globalAlpha = C.dimAlpha
-          ctx.fillStyle = C.paper
-          ctx.fillRect(mx, my, mw, mh)
-        }
-        ctx.restore()
-      }
-    } else if (data.clip) {
-      // No image under clipped heat (None, a video, or still decoding): white, as the legend assumes.
-      ctx.fillStyle = C.paper
-      ctx.fillRect(projX(data.clip.x, frame), projY(data.clip.y, frame), data.clip.width * s, data.clip.height * s)
-    }
+    // The clip is the media rect; without an image there (None, a video, still decoding) it is white, as the legend assumes.
+    const c = data.clip
+    if (c) drawStimulusBackground(ctx, mediaElement, projX(c.x, frame), projY(c.y, frame), c.width * s, c.height * s, background)
 
     const layer = heatTexture(data)
     if (layer) {
@@ -210,12 +164,6 @@
       // Texel edges on cell edges, so texel centres land on the cell centres the splat used.
       ctx.drawImage(layer.canvas, projX(g.x0, frame), projY(g.y0, frame), g.cols * g.cell * s, g.rows * g.cell * s)
       ctx.restore()
-    }
-
-    // The edge the heat is clipped to stays visible when no image shows it.
-    if (data.clip && !imageDrawn) {
-      const c = data.clip
-      strokeCrispRect(ctx, projX(c.x, frame), projY(c.y, frame), c.width * s, c.height * s, GRIDLINE_PRIMARY.COLOR, 1)
     }
 
     if (showFixations) drawFixationDots(ctx, frame, data)
@@ -382,6 +330,8 @@
         bottom: { tickLabels: space.xTicks.labels, title: 'X' },
         pad: { right: PLOT_BORDER_PX },
         legendHeight: legendBlockHeight,
+        // The data rect takes the world's shape, so the axes span exactly the image (or extent).
+        aspect: worldAspect(world!),
       }
     },
     drawData: drawHeatmap,
@@ -392,10 +342,12 @@
       const cell = cellAt(x, y, frame)
       if (cell < 0 || !(data.values[cell] > 0)) return trackOnlyHit({ cell })
       const c = cellCentre(cell, frame)
+      // The ring's bottom-right corner, as other plots anchor at their mark's.
+      const r = data.radius * space!.view.scale
       return {
         content: cellInfo(data, cell).rows,
-        anchorX: c.x,
-        anchorY: c.y - data.radius * space!.view.scale,
+        anchorX: c.x + r,
+        anchorY: c.y + r,
         tooltipWidth: L.tooltipWidth,
         data: { cell },
       }

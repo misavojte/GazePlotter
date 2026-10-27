@@ -53,16 +53,14 @@ export function niceCeil(v: number): number {
   return Number((Math.ceil(v / step - 1e-9) * step).toPrecision(12))
 }
 
-/** Colorbar title in the labels.ts grammar: what the colour means, short enough to fit two lines. */
+/** Colorbar title in the labels.ts grammar: the quantity, then R, N and t in math notation. */
 export function heatmapLegendTitle(settings: FixationHeatmapPlotSettings, data: FixationHeatmapData): string {
   const quantity = settings.accumulate === 'duration' ? 'Fixation duration' : 'Fixation count'
   const share = settings.normalization === 'share'
-  const n = data.participants.length
   return withQualifiers(
     formatQuantity(share ? `${quantity} share` : quantity, heatmapUnit(settings)),
-    settings.scaleMax > 0 ? 'max fixed' : 'max auto',
-    `R = ${formatGaze(data.radius)}${data.radiusIsAuto ? ' auto' : ''}`,
-    `mean of ${n} participant${n === 1 ? '' : 's'}`,
+    `R = ${formatGaze(data.radius)}`,
+    `N = ${data.participants.length}`,
     timeRangeQualifier(settings.timelineStart ?? 0, settings.timelineEnd ?? 0)
   )
 }

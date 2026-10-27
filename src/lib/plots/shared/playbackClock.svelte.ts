@@ -17,16 +17,19 @@
 import { SvelteMap } from 'svelte/reactivity'
 import { sessionScoped } from '$lib/session/context'
 
-type Player = { span: { start: number; end: number }; speed: number }
+/** `rest`: where the player parks the clock when idle (a video's first trail); absent = show all. */
+type Player = { span: { start: number; end: number }; speed: number; rest?: number | null }
 
 type VideoBinding = { el: HTMLVideoElement; offset: number }
 
 export class PlaybackClock {
-  /** Recording ms; null = parked, players show everything. */
+  /** Recording ms; null = parked without a rest time, players show everything. */
   time = $state<number | null>(null)
   playing = $state(false)
   /** Repaint signal: a seeked video frame was decoded. */
   frame = $state(0)
+  /** Parked at the players' rest time rather than moved there by a seek or play. */
+  atRest = $state(false)
   /** The player that last played or seeked; its speed is the clock's. */
   driver = $state<number | null>(null)
   readonly players = new SvelteMap<number, Player>()
@@ -60,12 +63,22 @@ export class PlaybackClock {
     return (driven ?? this.players.values().next().value)?.speed ?? 1
   }
 
+  /** The latest rest any player asks for, so every trail is full; null = none. */
+  get rest(): number | null {
+    let rest: number | null = null
+    for (const p of this.players.values()) {
+      if (p.rest != null && (rest === null || p.rest > rest)) rest = p.rest
+    }
+    return rest
+  }
+
   get video(): VideoBinding | null {
     return this.videos.values().next().value ?? null
   }
 
   join(plotId: number, player: Player): void {
     this.players.set(plotId, player)
+    if (!this.playing && (this.time === null || this.atRest)) return this.park()
     // A shrunken span must not strand the playhead outside it.
     const { start, end } = this.span
     if (this.time !== null && (this.time < start || this.time > end)) this.seek(this.time)
@@ -75,7 +88,7 @@ export class PlaybackClock {
     this.players.delete(plotId)
     this.bindVideo(plotId, null, 0)
     if (this.driver === plotId) this.driver = null
-    if (this.players.size === 0) this.reset()
+    if (this.players.size === 0 || this.atRest) this.reset()
   }
 
   bindVideo(plotId: number, el: HTMLVideoElement | null, offset: number): void {
@@ -95,15 +108,21 @@ export class PlaybackClock {
     }
   }
 
+  // A paused, unattached video can report 'seeked' before the frame is drawable,
+  // so repaint again once it is presented, and once more as a fallback.
   private onVideoSeeked = () => {
     this.frame++
+    const el = this.video?.el
+    if (el && 'requestVideoFrameCallback' in el) el.requestVideoFrameCallback(() => this.frame++)
+    setTimeout(() => this.frame++, SEEK_REPAINT_FALLBACK_MS)
   }
 
   play(plotId: number | null): void {
     const { start, end } = this.span
     if (end <= start) return
     if (plotId !== null) this.driver = plotId
-    if (this.time === null || this.time >= end - 1) this.time = start
+    if (this.time === null || this.atRest || this.time >= end - 1) this.time = start
+    this.atRest = false
     this.owner.claim(this)
     this.playing = true
     this.videoBlocked = false
@@ -128,6 +147,7 @@ export class PlaybackClock {
   seek(time: number, plotId: number | null = null): void {
     const { start, end } = this.span
     if (plotId !== null) this.driver = plotId
+    this.atRest = false
     this.time = Math.min(Math.max(time, start), Math.max(start, end))
     this.lastAt = performance.now()
     const v = this.video
@@ -135,10 +155,21 @@ export class PlaybackClock {
     else if (v) this.parkVideo(this.time)
   }
 
-  /** Stop and show everything again. */
+  /** Stop and park: at the rest time, else showing everything. */
   reset(): void {
     this.pause()
-    this.time = null
+    this.park()
+  }
+
+  private park(): void {
+    const rest = this.rest
+    if (rest === null) {
+      this.time = null
+      this.atRest = false
+      return
+    }
+    this.seek(rest)
+    this.atRest = true
   }
 
   /** No frame request exists outside a browser, so only cancel a real one. */
@@ -164,10 +195,11 @@ export class PlaybackClock {
       this.syncVideo(v, t, false)
     }
     const { end } = this.span
-    // At the end, hold the last frame until the bar's reset.
     this.time = Math.min(t, end)
-    if (t >= end) this.pause()
-    else this.raf = requestAnimationFrame(this.tick)
+    if (t < end) this.raf = requestAnimationFrame(this.tick)
+    // At the end, back to the rest time (a video's last frame is often a fade to black); else hold it.
+    else if (this.rest !== null) this.reset()
+    else this.pause()
   }
 
   /** Inside the video's span the video plays; outside it rests. */
@@ -195,6 +227,9 @@ export class PlaybackClock {
     v.el.currentTime = Math.max(local / 1000, 0.001)
   }
 }
+
+/** Late repaint after a seek, for browsers that present the frame without a frame callback. */
+const SEEK_REPAINT_FALLBACK_MS = 250
 
 const durationMs = (el: HTMLVideoElement) =>
   Number.isFinite(el.duration) ? el.duration * 1000 : 0

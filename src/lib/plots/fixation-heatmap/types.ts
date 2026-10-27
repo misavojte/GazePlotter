@@ -1,3 +1,4 @@
+import type { StimulusBackground } from '$lib/plots/shared/stimulusBackground'
 import type { Rect } from '$lib/data/media/mediaAlignment'
 import type { GridGeometry } from './core/density'
 import type { ParticipantScope } from '$lib/data/types'
@@ -5,8 +6,6 @@ import type { ParticipantScope } from '$lib/data/types'
 export type FixationHeatmapAccumulate = 'duration' | 'count'
 export type FixationHeatmapNormalization = 'share' | 'mean'
 /** What lies under the heat when the stimulus has an image. */
-export type FixationHeatmapBackground = 'image' | 'grayscale' | 'dimmed' | 'none'
-
 export type FixationHeatmapPlotSettings = ParticipantScope & {
   stimulusId: number
   /** What a fixation adds: its (clipped) duration, or 1 when its midpoint is in range. */
@@ -23,7 +22,7 @@ export type FixationHeatmapPlotSettings = ParticipantScope & {
   opacity: number
   showFixations: boolean
   /** The image as is, desaturated, desaturated and faded, or not drawn (Pro Lab's White). */
-  background: FixationHeatmapBackground
+  background: StimulusBackground
   timelineStart?: number
   timelineEnd?: number
 }
@@ -57,7 +56,6 @@ export interface FixationHeatmapData {
   /** Peak over the shown cells: inside the media rect with media, else all. */
   max: number
   radius: number
-  radiusIsAuto: boolean
   /** True when the grid cell is too coarse for R and peaks read low (a small R on a large extent). */
   coarse: boolean
   /** The gaze rectangle the view frames: the media region, or the fixations' extent. */

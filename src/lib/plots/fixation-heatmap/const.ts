@@ -21,9 +21,4 @@ export const FIXATION_HEATMAP_COLORS = {
   dot: '#1f1f1f',
   dotHalo: '#ffffff',
   dotAlpha: 0.7,
-  /** Grey whose zero saturation, composited with 'saturation', desaturates the image. */
-  desaturate: '#808080',
-  /** White under and over the image: the underlay, the dimming veil, an undrawn image's fill. */
-  paper: '#ffffff',
-  dimAlpha: 0.5,
 } as const

@@ -1,8 +1,9 @@
-import { deriveScanpathView } from './core/view'
+import { deriveScanpathView, scanpathTrail } from './core/view'
 import { scanpathScreen } from './core/screen.svelte'
 import { commonIs, definePlot } from '$lib/plots/definePlot'
 import { stimulusParticipantSubtitle } from '$lib/plots/shared'
 import { PRESET_PALETTES } from '$lib/color/palettes'
+import { stimulusBackgroundField } from '$lib/plots/shared/stimulusBackground'
 import { SCANPATH_COLORS } from './const'
 import type { ScanpathPlotSettings } from './types'
 
@@ -44,11 +45,12 @@ export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSetting
           default: SCANPATH_COLORS.fixationFill,
           showWhen: commonIs(s => s.colorMode ?? 'time', 'solid'),
         },
+        stimulusBackgroundField(['image', 'video']),
         { kind: 'boolean', key: 'showFixationOrder', label: 'Show fixation order line' },
         { kind: 'boolean', key: 'showNumbers', label: 'Show fixation numbers' },
         {
           kind: 'number',
-          key: 'playbackWindow',
+          key: 'trailLength',
           group: 'Playback',
           pair: true,
           label: 'Trail length (ms)',
@@ -56,6 +58,7 @@ export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSetting
           min: 0,
           step: 500,
           default: 0,
+          read: scanpathTrail,
         },
         {
           kind: 'enum',
@@ -97,7 +100,7 @@ export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSetting
     colorMode: 'time',
     colorScale: [...PRESET_PALETTES.VIRIDIS.colors],
     solidColor: SCANPATH_COLORS.fixationFill,
-    playbackWindow: 0,
+    background: 'image',
     playbackSpeed: 1,
     syncPlayback: true,
   }),

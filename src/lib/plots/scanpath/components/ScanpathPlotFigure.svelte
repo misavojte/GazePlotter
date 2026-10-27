@@ -3,6 +3,7 @@
     usePlot,
     canvasBlockSelect,
     trackOnlyHit,
+    PLOT_BORDER_PX,
     type CanvasExportProps,
     type FrameHit,
     type PlotFrame,
@@ -12,9 +13,7 @@
   import { untrack } from 'svelte'
   import Play from 'lucide-svelte/icons/play'
   import Pause from 'lucide-svelte/icons/pause'
-  import RotateCcw from 'lucide-svelte/icons/rotate-ccw'
   import { SYSTEM_SANS_SERIF_SMALL_STACK } from '$lib/shared/textMeasure'
-  import { linearTicks } from '$lib/plots/shared/ticks'
   import { AXIS_CONFIG } from '$lib/plots/shared/axisUtils'
   import { drawGradientBar } from '$lib/plots/shared/legendGradient'
   import { isTextEntryTarget } from '$lib/workspace/keys'
@@ -23,6 +22,8 @@
   import { PRESET_PALETTES } from '$lib/color/palettes'
   import { useMediaElements } from '../../shared/mediaElements.svelte'
   import { mediaRegionOf } from '$lib/data/media/stimulusMedia'
+  import type { Rect } from '$lib/data/media/mediaAlignment'
+  import { drawStimulusBackground, stimulusSpace, worldAspect, type StimulusBackground } from '$lib/plots/shared/stimulusBackground'
   import type { StimulusMedia } from '$lib/data/types'
   import type { ScanpathData, ScanpathFixation } from '../types'
   import type { ScanpathPlayback } from '../core/screen.svelte'
@@ -39,8 +40,9 @@
     /** Gradient stops for the time-extent coloring (2 or 3 hex colors). */
     colorScale?: string[]
     solidColor?: string
+    background?: StimulusBackground
     /** Trail length in ms; 0 = all. */
-    playbackWindow?: number
+    trailLength?: number
     playbackSpeed?: number
     /** The time range the fixations were cut to; the play span follows it. */
     timelineStart?: number
@@ -70,7 +72,8 @@
     colorMode = 'time',
     colorScale = undefined,
     solidColor = SCANPATH_COLORS.fixationFill,
-    playbackWindow = 0,
+    background = 'image',
+    trailLength = 0,
     playbackSpeed = 1,
     timelineStart = 0,
     timelineEnd = 0,
@@ -103,8 +106,8 @@
   })
 
   // ── Playback: a PLAYER on a playback clock (playbackClock.svelte.ts).
-  // `playTime` null shows every fixation: before the first play, after a
-  // reset, and in exports.
+  // `playTime` null shows every fixation: an image's idle state and exports.
+  // A video idles at its first full trail, so the frame and fixations agree.
   const videoElement = $derived(
     media?.kind === 'video' && mediaElement instanceof HTMLVideoElement
       ? mediaElement
@@ -117,7 +120,7 @@
 
   /** A trail length being dragged on the bar, before it is committed. */
   let windowDraft = $state<number | null>(null)
-  const trail = $derived(windowDraft ?? playbackWindow)
+  const trail = $derived(windowDraft ?? trailLength)
 
   /** The time range, else 0 to the last fixation's or the video's end. A
       ready video element already knows its duration. */
@@ -133,11 +136,18 @@
   const span = $derived(clock?.span ?? ownSpan)
   const spanMs = $derived(span.end - span.start)
 
+  /** A video's idle time: the end of its first trail (All: the end). */
+  const rest = $derived(
+    media?.kind === 'video' && ownSpan.end > ownSpan.start
+      ? Math.min(ownSpan.end, trailLength > 0 ? ownSpan.start + trailLength : ownSpan.end)
+      : null
+  )
+
   // Untracked writes: joining reads the clock's span, which must not re-run us.
   $effect(() => {
     const c = clock
     if (!c || !playback) return
-    const player = { span: ownSpan, speed: playbackSpeed }
+    const player = { span: ownSpan, speed: playbackSpeed, rest }
     untrack(() => c.join(playback.plotId, player))
   })
   $effect(() => {
@@ -249,69 +259,22 @@
 
   const L = SCANPATH_LAYOUT
 
-  /** Padded data bounding box + its tick scales. */
-  const scale = $derived.by(() => {
-    if (!data) {
-      return {
-        dataMinX: 0,
-        dataMaxX: 1,
-        dataMinY: 0,
-        dataMaxY: 1,
-        dataW: 1,
-        dataH: 1,
-        xTicks: { positions: [], labels: [] },
-        yTicks: { positions: [], labels: [] },
-      }
-    }
-    if (media) {
-      // Media present: the domain covers the gaze rectangle the media spans
-      // (its own pixel space unless the user remapped it), EXTENDED to the
-      // frame's aspect ratio with equal units-per-pixel on both axes. The
-      // image is drawn at its projected rectangle, so it never distorts, and
-      // fixations share the same linear projection, so alignment is exact.
-      const r = mediaRegionOf(media)
-      let minX = r.x
-      let minY = r.y
-      let w = r.width
-      let h = r.height
-      if (frameW > 0 && frameH > 0) {
-        const unitsPerPx = Math.max(r.width / frameW, r.height / frameH)
-        w = frameW * unitsPerPx
-        h = frameH * unitsPerPx
-        minX = r.x + (r.width - w) / 2
-        minY = r.y + (r.height - h) / 2
-      }
-      return {
-        dataMinX: minX,
-        dataMaxX: minX + w,
-        dataMinY: minY,
-        dataMaxY: minY + h,
-        dataW: w,
-        dataH: h,
-        xTicks: linearTicks(minX, minX + w, L.tickCount),
-        yTicks: linearTicks(minY, minY + h, L.tickCount),
-      }
-    }
+  /** Gaze rect the plot frames: the media, grown to any fixation off it, else the padded fixation extent. */
+  const world = $derived.by((): Rect | null => {
+    if (!data) return null
     const { minX, maxX, minY, maxY } = data.bbox
-    const rawW = maxX - minX
-    const rawH = maxY - minY
-    const padX = rawW > 0 ? rawW * L.bboxPadding : 0.5
-    const padY = rawH > 0 ? rawH * L.bboxPadding : 0.5
-    const dataMinX = minX - (rawW > 0 ? padX : 0.5)
-    const dataMaxX = maxX + (rawW > 0 ? padX : 0.5)
-    const dataMinY = minY - (rawH > 0 ? padY : 0.5)
-    const dataMaxY = maxY + (rawH > 0 ? padY : 0.5)
-    return {
-      dataMinX,
-      dataMaxX,
-      dataMinY,
-      dataMaxY,
-      dataW: dataMaxX - dataMinX,
-      dataH: dataMaxY - dataMinY,
-      xTicks: linearTicks(dataMinX, dataMaxX, L.tickCount),
-      yTicks: linearTicks(dataMinY, dataMaxY, L.tickCount),
+    if (media) {
+      const r = mediaRegionOf(media)
+      const x = Math.min(r.x, minX)
+      const y = Math.min(r.y, minY)
+      return { x, y, width: Math.max(r.x + r.width, maxX) - x, height: Math.max(r.y + r.height, maxY) - y }
     }
+    const padX = maxX > minX ? (maxX - minX) * L.bboxPadding : 0.5
+    const padY = maxY > minY ? (maxY - minY) * L.bboxPadding : 0.5
+    return { x: minX - padX, y: minY - padY, width: maxX - minX + 2 * padX, height: maxY - minY + 2 * padY }
   })
+
+  const space = $derived(world ? stimulusSpace(world, frameW, frameH, L.tickCount) : null)
 
   /** The bar gets its own row below the canvas, on screen only. Not keyed
       on async media readiness, so the height never jumps. */
@@ -355,19 +318,15 @@
     width: () => width,
     height: () => (hasPlayBar ? Math.max(60, height - PLAY_BAR_HEIGHT) : height),
     margin: () => margin,
-    deps: () => [data, showFixationOrder, showNumbers, colorMode, gradientStops, solidColor, trail, unavailableMessage, media, mediaElement, clock?.frame, timeCutoff],
+    deps: () => [data, showFixationOrder, showNumbers, colorMode, gradientStops, solidColor, background, trail, unavailableMessage, media, mediaElement, clock?.frame, timeCutoff, space],
     placeholder: () => unavailableMessage,
     gutters: () => {
-      if (unavailableMessage) return {}
+      if (unavailableMessage || !space) return {}
       return {
-        left: { tickLabels: scale.yTicks.labels, title: 'Y' },
-        bottom: { tickLabels: scale.xTicks.labels, title: 'X' },
-        pad: {
-          top: L.topSafetyPx,
-          right: L.rightSafetyPx,
-          bottom: L.bottomSafetyPx,
-          left: L.leftSafetyPx,
-        },
+        left: { tickLabels: space.yTicks.labels, title: 'Y' },
+        bottom: { tickLabels: space.xTicks.labels, title: 'X' },
+        pad: { right: PLOT_BORDER_PX },
+        aspect: worldAspect(world!),
       }
     },
     drawData: drawScanpath,
@@ -388,7 +347,7 @@
       return {
         content: buildScanpathTooltipContent(f),
         anchorX: projectX(f.x, frame),
-        anchorY: projectY(f.y, frame) - displayRadiusFor(f),
+        anchorY: projectY(f.y, frame) + displayRadiusFor(f),
         tooltipWidth: L.tooltipWidth,
         data: { fixationIndex: index },
       }
@@ -411,21 +370,21 @@
       return cursorFixations.join(',')
     },
     axes: () => {
-      if (unavailableMessage) return {}
+      if (unavailableMessage || !space) return {}
       return {
-        bottom: { ticks: scale.xTicks, title: 'X' },
-        left: { ticks: scale.yTicks, title: 'Y' },
+        bottom: { ticks: space.xTicks, title: 'X' },
+        left: { ticks: space.yTicks, title: 'Y' },
       }
     },
   })
 
   function projectX(x: number, frame: PlotFrame): number {
-    return frame.x + ((x - scale.dataMinX) / scale.dataW) * frame.width
+    return frame.x + x * space!.view.scale + space!.view.offsetX
   }
 
+  // Eye-tracker y already grows downward, as does canvas y: no flip.
   function projectY(y: number, frame: PlotFrame): number {
-    // Eye-tracker y already grows downward, as does canvas y — no flip.
-    return frame.y + ((y - scale.dataMinY) / scale.dataH) * frame.height
+    return frame.y + y * space!.view.scale + space!.view.offsetY
   }
 
   // ── Time-extent coloring: fill sampled from the colorScale by onset.
@@ -631,22 +590,11 @@
   function drawScanpath(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
     if (!data) return
     const fixations = visibleFixations()
-    // Reference medium (image or the video's current frame), under
-    // everything, at its PROJECTED gaze rectangle. The equal-aspect domain
-    // above makes that rectangle keep the media's ratio; the frame's leftover
-    // margins stay blank.
-    if (mediaElement && media) {
+    // The stimulus (image or the video's current frame) under everything, at its projected rect.
+    if (media) {
       const r = mediaRegionOf(media)
-      ctx.save()
-      ctx.globalAlpha = 0.9
-      ctx.drawImage(
-        mediaElement,
-        projectX(r.x, frame),
-        projectY(r.y, frame),
-        (r.width / scale.dataW) * frame.width,
-        (r.height / scale.dataH) * frame.height
-      )
-      ctx.restore()
+      const s = space!.view.scale
+      drawStimulusBackground(ctx, mediaElement, projectX(r.x, frame), projectY(r.y, frame), r.width * s, r.height * s, background)
     }
 
     // Order line (under the circles), on a white halo so the path stays
@@ -669,6 +617,12 @@
       ctx.globalAlpha = age
       ctx.strokeStyle = strokeFor(f)
       ctx.lineWidth = L.circleStrokeWidth
+      ctx.stroke()
+      // White halo just outside the outline, so a marker reads on any background.
+      ctx.beginPath()
+      ctx.arc(cx, cy, r + L.circleStrokeWidth / 2 + 1, 0, Math.PI * 2)
+      ctx.strokeStyle = SCANPATH_COLORS.halo
+      ctx.lineWidth = 2
       ctx.stroke()
     }
     ctx.restore()
@@ -727,7 +681,7 @@
   function onHandleUp() {
     const next = windowDraft
     if (next === null) return
-    if (next !== playbackWindow) playback?.commitWindow(next)
+    if (next !== trailLength) playback?.commitWindow(next)
     windowDraft = null
   }
 
@@ -779,11 +733,6 @@
           <Play size={'1em'} fill="currentColor" strokeWidth={0} />
         {/if}
       </button>
-      {#if playTime !== null}
-        <button class="pill-toggle" aria-label="Show all fixations" onclick={() => clock?.reset()}>
-          <RotateCcw size={'1em'} />
-        </button>
-      {/if}
       <!-- The filled part is the trail: the fixations on screen. -->
       <div
         class="pill-rail"

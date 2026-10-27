@@ -5,6 +5,7 @@ import type { PlotView } from '$lib/plots/definePlot'
 import type { PlotPlaceholderContent } from '$lib/plots/shared/drawCanvasPlaceholder'
 import ScanpathPlotFigure from '../components/ScanpathPlotFigure.svelte'
 import { getScanpathData } from './transformer'
+import { SCANPATH_LAYOUT } from '../const'
 import type { ScanpathPlotSettings, ScanpathUnavailableReason } from '../types'
 
 type ScanpathFigureProps = Omit<ComponentProps<typeof ScanpathPlotFigure>, keyof CanvasExportProps>
@@ -28,6 +29,13 @@ const PLACEHOLDERS: Record<ScanpathUnavailableReason, PlotPlaceholderContent> = 
   },
 }
 
+/** Trail length in ms: the set value, else a short one on a video and all on an image. */
+export function scanpathTrail(settings: Partial<ScanpathPlotSettings>, engine: DataEngine): number {
+  if (settings.trailLength !== undefined) return settings.trailLength
+  const media = engine.metadata?.stimuliMedia?.[settings.stimulusId ?? 0]
+  return media?.kind === 'video' ? SCANPATH_LAYOUT.videoTrailMs : 0
+}
+
 /** Single source of truth for "what a scanpath draws" from (engine, settings). */
 export function deriveScanpathView(
   engine: DataEngine,
@@ -48,7 +56,8 @@ export function deriveScanpathView(
       colorMode: settings.colorMode ?? 'time',
       colorScale: settings.colorScale,
       solidColor: settings.solidColor,
-      playbackWindow: settings.playbackWindow ?? 0,
+      background: settings.background ?? 'image',
+      trailLength: scanpathTrail(settings, engine),
       playbackSpeed: settings.playbackSpeed ?? 1,
       timelineStart: settings.timelineStart ?? 0,
       timelineEnd: settings.timelineEnd ?? 0,

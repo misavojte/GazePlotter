@@ -192,8 +192,7 @@ export function getFixationHeatmapData(
 
   const { stimulusId } = settings
   const media = engine.metadata?.stimuliMedia?.[stimulusId] ?? null
-  const radiusIsAuto = !(settings.radius > 0)
-  const radius = radiusIsAuto ? autoRadius(reader, media) : settings.radius
+  const radius = settings.radius > 0 ? settings.radius : autoRadius(reader, media)
   const ids = getParticipantsIds(engine, settings, stimulusId)
   const names = ids.map(id => getParticipant(engine, id).displayedName)
 
@@ -204,7 +203,6 @@ export function getFixationHeatmapData(
     settings.accumulate,
     settings.normalization,
     radius,
-    radiusIsAuto,
     settings.timelineStart ?? 0,
     settings.timelineEnd ?? 0,
     ids,
@@ -218,7 +216,7 @@ export function getFixationHeatmapData(
     maps.set(key, cached)
     return cached
   }
-  const result = computeHeatmap(reader, spatial, settings, media, radius, radiusIsAuto, ids, names)
+  const result = computeHeatmap(reader, spatial, settings, media, radius, ids, names)
   maps.set(key, result)
   if (maps.size > MAP_CACHE_SIZE) maps.delete(maps.keys().next().value!)
   return result
@@ -230,7 +228,6 @@ function computeHeatmap(
   settings: FixationHeatmapPlotSettings,
   media: StimulusMedia | null,
   radius: number,
-  radiusIsAuto: boolean,
   ids: number[],
   names: string[]
 ): FixationHeatmapTransformResult {
@@ -342,7 +339,6 @@ function computeHeatmap(
       values,
       max,
       radius,
-      radiusIsAuto,
       coarse: isCoarseGrid(grid, radius),
       extent,
       clip: media ? extent : null,

@@ -4,6 +4,7 @@ import { plotCursorScreen } from '$lib/plots/shared/plotCursor.svelte'
 import { commonIs, definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
 import { formatGaze, stimulusParticipantsSubtitle } from '$lib/plots/shared'
 import { PRESET_PALETTES } from '$lib/color/palettes'
+import { stimulusBackgroundField } from '$lib/plots/shared/stimulusBackground'
 import type { FixationHeatmapPlotSettings } from './types'
 
 /** The unit a Scale max is typed in, or null when the edited plots disagree. */
@@ -112,19 +113,7 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
           step: 5,
           default: 70,
         },
-        {
-          kind: 'enum',
-          key: 'background',
-          label: 'Background',
-          options: [
-            { label: 'Image', value: 'image', detail: 'Image in full color' },
-            { label: 'Grayscale image', value: 'grayscale', detail: 'Image without color, so heat colors stand out' },
-            { label: 'Dimmed grayscale image', value: 'dimmed', detail: 'Grayscale image faded toward white' },
-            { label: 'None', value: 'none', detail: 'Heat only, within the image outline' },
-          ],
-          // Every edited plot must show an image, or the control would be dead on some.
-          showWhen: commonIs((s, ctx) => ctx.engine.metadata?.stimuliMedia?.[s.stimulusId ?? 0]?.kind === 'image', true),
-        },
+        stimulusBackgroundField(['image']),
         { kind: 'boolean', key: 'showFixations', label: 'Show fixations' },
       ],
     },

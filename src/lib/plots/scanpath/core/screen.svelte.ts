@@ -56,7 +56,7 @@ export const scanpathScreen: PlotScreenFactory<ScanpathPlotSettings> = ctx => {
     commitWindow: ms =>
       ctx.workspace.updateItemSettings(
         plotId,
-        { playbackWindow: ms },
+        { trailLength: ms },
         createCommandSourcePlotPattern(ctx.item, 'plot')
       ),
   }

@@ -8,6 +8,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { PlaybackClocks } from '$lib/plots/shared/playbackClock.svelte'
 import { PlotCursorState, createPlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
 import { getScanpathData } from '$lib/plots/scanpath/core/transformer'
+import { scanpathTrail } from '$lib/plots/scanpath/core/view'
 import { FIXATION_CATEGORY_ID } from '$lib/data/binary'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { ScanpathPlotSettings } from '$lib/plots/scanpath/types'
@@ -65,6 +66,38 @@ describe('clock', () => {
     c.reset()
     expect(c.time).toBeNull()
     expect(c.playing).toBe(false)
+  })
+
+  it('rests at the latest rest time, plays from the start, and resets back to rest', () => {
+    const c = new PlaybackClocks().clock(shared(1))
+    c.join(10, { ...player(0, 8000), rest: 2000 })
+    expect([c.time, c.atRest]).toEqual([2000, true])
+    c.join(11, { ...player(0, 8000), rest: 3000 })
+    expect(c.time).toBe(3000)
+    c.play(10)
+    expect([c.time, c.atRest]).toEqual([0, false])
+    c.seek(5000)
+    c.join(10, { ...player(0, 8000), rest: 1000 })
+    expect(c.time).toBe(5000)
+    c.reset()
+    expect([c.time, c.atRest, c.playing]).toEqual([3000, true, false])
+    c.leave(11)
+    expect(c.time).toBe(1000)
+  })
+
+  it('returns to rest at the end, and holds the end without a rest time', () => {
+    const tickPast = (c: ReturnType<PlaybackClocks['clock']>) =>
+      (c as unknown as { tick: (now: number) => void }).tick(performance.now() + 10_000)
+    const video = new PlaybackClocks().clock(shared(1))
+    video.join(10, { ...player(0, 8000), rest: 2000 })
+    video.play(10)
+    tickPast(video)
+    expect([video.time, video.atRest, video.playing]).toEqual([2000, true, false])
+    const image = new PlaybackClocks().clock(shared(2))
+    image.join(10, player(0, 8000))
+    image.play(10)
+    tickPast(image)
+    expect([image.time, image.playing]).toEqual([8000, false])
   })
 })
 
@@ -158,5 +191,17 @@ describe('scanpath time range', () => {
   it('draws everything without a range', () => {
     const r = getScanpathData(engine, settings(0, 0))
     expect(r.kind === 'ok' && r.data.fixations.map(f => f.rank)).toEqual([1, 2, 3, 4])
+  })
+})
+
+describe('scanpath trail', () => {
+  const engineWith = (kind: 'image' | 'video') =>
+    ({ metadata: { stimuliMedia: { 0: { kind } } } }) as unknown as DataEngine
+
+  it('defaults to 2 s on a video and All on an image; a set value wins', () => {
+    expect(scanpathTrail({ stimulusId: 0 }, engineWith('video'))).toBe(2000)
+    expect(scanpathTrail({ stimulusId: 0 }, engineWith('image'))).toBe(0)
+    expect(scanpathTrail({ stimulusId: 0, trailLength: 0 }, engineWith('video'))).toBe(0)
+    expect(scanpathTrail({ stimulusId: 0, trailLength: 500 }, engineWith('image'))).toBe(500)
   })
 })

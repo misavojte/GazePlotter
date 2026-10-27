@@ -819,3 +819,21 @@ describe('V5 → V6: barPlottingType → orientation', () => {
     expect(s).toEqual({ stimulusId: 3, orderBy: 'aoi', hideNoAoi: false })
   })
 })
+
+describe('Scanpath playbackWindow → trailLength', () => {
+  const settingsOf = (settings: Record<string, unknown>) =>
+    runMigrations({
+      version: CURRENT_SCHEMA_VERSION,
+      data: { metricInstances: [] },
+      gridItems: [{ id: 's', type: 'scanpath', x: 0, y: 0, w: 8, h: 8, settings }],
+    }).gridItems[0].settings
+
+  it('carries a set trail and drops the old default 0, so the medium decides', () => {
+    expect(settingsOf({ stimulusId: 0, playbackWindow: 3000 })).toEqual({ stimulusId: 0, trailLength: 3000 })
+    expect(settingsOf({ stimulusId: 0, playbackWindow: 0 })).toEqual({ stimulusId: 0 })
+  })
+
+  it('keeps an explicit All under the new key', () => {
+    expect(settingsOf({ stimulusId: 0, trailLength: 0 })).toEqual({ stimulusId: 0, trailLength: 0 })
+  })
+})
