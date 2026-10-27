@@ -1,3 +1,5 @@
 export * from './collector'
 export * from './highlightMask'
 export * from './raster'
+export * from './lattice'
+export * from './tooltip'

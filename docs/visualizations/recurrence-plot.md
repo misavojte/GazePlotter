@@ -1,6 +1,6 @@
 # Recurrence Plot
 
-The Recurrence Plot (RP) in GazePlotter reveals temporal self-similarity in a single participant's fixation sequence. Each cell in the N×N matrix encodes whether two fixations (at indices i and j) landed in the same spatial region.
+The Recurrence Plot (RP) in GazePlotter reveals temporal self-similarity in a single participant's fixation sequence. Each fixation is a line across the plot, and a dot where the lines of fixations i and j cross means the two fixations landed in the same spatial region.
 
 > **Plot Operations**: For general canvas operations (moving, resizing, duplicating, or removing plots), see [Plot Manipulation](/docs/workspace/#plot-manipulation).
 
@@ -14,9 +14,13 @@ Interpretation of line structures in a recurrence plot is axis-convention-depend
 
 - **Y-axis (vertical) — Fixation i**, index increasing upward (fixation 1 at the bottom, fixation N at the top).
 - **X-axis (horizontal) — Fixation j**, index increasing rightward (fixation 1 at the left, fixation N at the right).
-- **Main diagonal** runs from **bottom-left to top-right** (i = j).
-- **Visual upper triangle** (above diagonal): cells where i &gt; j.
-- **Visual lower triangle** (below diagonal): cells where i &lt; j.
+- **Main diagonal** runs from **bottom-left to top-right** (i = j), drawn as a light guide line.
+- **Visual upper triangle** (above diagonal): points where i &gt; j.
+- **Visual lower triangle** (below diagonal): points where i &lt; j.
+
+Fixation 1 sits on the axes, so the bottom-left corner is the pair (1, 1), labeled once with **1**, and fixation N sits on the top and right edges. Ticks mark round fixation numbers on all four edges.
+
+Hovering a point shows the pair in a tooltip and marks fixation i's row and fixation j's column with dashed lines. When another plot points at a moment of this participant's recording, the fixation held at that moment is marked the same way, along both its row and its column.
 
 All directional terms in this document refer to this visual layout.
 
@@ -41,7 +45,7 @@ Configure the criteria used to decide whether two fixations are recurrent. The m
     - **Cells per axis**: Number of grid divisions along each axis (10 creates a 10×10 grid).
   - *AOI*: Two fixations are recurrent if they share at least one Area of Interest. Fixations not assigned to any AOI are never recurrent with any other fixation under this criterion.
 - **Duration weighting**: When checked, each recurrent dot's radius and opacity scale with the combined duration of the two fixations (t_i + t_j). Larger, more opaque dots indicate pairs of longer-duration fixations.
-- **Min line length**: Minimum run length (in consecutive recurrent cells) required for a line structure to be recognized in highlight mode (from 2 to 20).
+- **Min line length**: Minimum run length (in consecutive recurrent points) required for a line structure to be recognized in highlight mode (from 2 to 20).
 
 ### Visualization
 Configure highlights and masking options.
@@ -50,10 +54,10 @@ Configure highlights and masking options.
   - *Diagonal lines*: Highlights points belonging to diagonal line runs (parallel to the main diagonal) of length ≥ **Min line length**. Indicates periodic recurrence — the gaze returned to the same region after a consistent time lag.
   - *Horizontal lines*: Highlights horizontal line runs of length ≥ **Min line length**. In the visual lower triangle (i &lt; j, fixed row i): fixation i recurs with many consecutive later fixations, indicating a laminar state anchored at time i.
   - *Vertical lines*: Highlights vertical line runs of length ≥ **Min line length**. In the visual lower triangle (i &lt; j, fixed column j): many early fixations recur with fixation j, indicating a region revisited heavily before time j.
-- **Masking**: Controls which cells of the N×N matrix are rendered:
-  - *None*: All N×N cells rendered, including the main diagonal.
-  - *Diagonal*: Main diagonal cells (i = j) are rendered as solid gray squares. All off-diagonal recurrent cells are rendered as dots (Default).
-  - *Diagonal + lower*: The main diagonal and the entire visual lower triangle (i &lt; j) are rendered as a solid gray region. Only the visual upper triangle (i &gt; j) is plotted as recurrent dots.
+- **Masking**: Controls which recurrent points are drawn:
+  - *None*: All recurrent points drawn, including the main diagonal, where every fixation recurs with itself (Default).
+  - *Diagonal*: The main diagonal's points (i = j) are hidden; its guide line stays.
+  - *Diagonal + lower*: The main diagonal and the entire visual lower triangle (i &lt; j) are covered by a solid gray region. Only the visual upper triangle (i &gt; j) is plotted as recurrent dots.
 
 > **Symmetry note**: Because the recurrence matrix is symmetric (R[i,j] = R[j,i]), horizontal structures in the visual lower triangle are reflected as vertical structures in the visual upper triangle, and vice versa. The highlight is mirrored accordingly.
 

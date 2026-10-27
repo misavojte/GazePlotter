@@ -102,7 +102,7 @@ export const recurrencePlotDefinition = definePlot<
     showDuration: false,
     minLineLength: 2,
     highlight: 'none',
-    masking: 'diagonal',
+    masking: 'none',
   }),
   requireCapabilities: ['segmented'],
 })

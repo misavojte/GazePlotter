@@ -46,8 +46,7 @@ export interface CategoryTickOptions {
 }
 
 /**
- * Ticks centred on each of `count` equal categories/cells — the pattern used
- * by recurrence (per-fixation cells) and bar (per-AOI categories). Category
+ * Ticks centred on each of `count` equal categories/cells. Category
  * `i` sits at `(i + 0.5) / count`; only the labelled categories emit a tick so
  * `drawPlotArea` draws marks + labels solely where wanted.
  */
@@ -67,6 +66,35 @@ export function categoryTicks(
     positions.push(options.invert ? 1 - centred : centred)
     labels.push(format(i))
   }
+  return { positions, labels }
+}
+
+/**
+ * Nice ticks over a 1-based index axis whose ends ARE items 1 and `count`
+ * (item k at `(k - 1) / (count - 1)`), e.g. recurrence's fixation lattice.
+ * Item 1 always gets a tick, so the reader sees the axis starts at 1, then
+ * every multiple of a whole-number nice step; `count` itself is not forced,
+ * matching `linearTicks`. `labelFirst: false` keeps item 1's tick but drops its
+ * label, for two axes meeting at a shared origin that should read "1" once.
+ */
+export function indexTicks(
+  count: number,
+  tickCount: number,
+  options: { invert?: boolean; labelFirst?: boolean } = {}
+): PlotAreaTicks {
+  if (count < 2) return { positions: [0], labels: ['1'] }
+  const span = count - 1
+  // Indices are whole: a 0.5 step collapses to 1, a 2.5 step to 2.
+  const step = Math.max(1, Math.floor(calculateNiceStepSize(span, tickCount)))
+  const positions: number[] = []
+  const labels: string[] = []
+  const push = (v: number) => {
+    const p = (v - 1) / span
+    positions.push(options.invert ? 1 - p : p)
+    labels.push(v === 1 && options.labelFirst === false ? '' : String(v))
+  }
+  push(1)
+  for (let v = step; v <= count; v += step) if (v > 1) push(v)
   return { positions, labels }
 }
 

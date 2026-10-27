@@ -30,25 +30,23 @@ export const RECURRENCE_MASKINGS: {
   detail: string
 }[] = [
   { value: 'none', label: 'None', detail: 'Every cell drawn' },
-  { value: 'diagonal', label: 'Diagonal', detail: 'Main diagonal grayed out' },
+  { value: 'diagonal', label: 'Diagonal', detail: 'Main diagonal hidden' },
   { value: 'diagonalLower', label: 'Diagonal + lower', detail: 'Only the upper triangle drawn' },
 ]
 
 export const RECURRENCE_LAYOUT = {
-  leftMargin: 30,
-  rightMargin: 10,
-  topMargin: 0,
-  bottomMargin: 0,
-  axisTitleGap: 12,
-  labelFontSize: 12,
-  tickFontSize: 10,
-  tickLength: 4,
-  minCellSize: 2,
+  /** Tick count per axis (nice whole-number steps). */
+  tickCount: 5,
+  /** Upper bound on a recurrent dot's radius (px); below it the radius is a
+      share of the fixation spacing. */
+  maxDotRadius: 5,
+  /** Dot radius as a share of the spacing between neighbouring fixations. */
+  dotSpacingRatio: 0.45,
+  /** Top/right inset (px): fixation n sits ON the border, so its dot, the
+      mirrored ticks and the label at the axis end need room inside the canvas. */
+  edgePadPx: 7,
   dotColor: '#1a56db',
   diagonalColor: '#e5e7eb',
-  durationDotColor: '#3b82f6',
-  gridLineColor: '#e5e7eb',
-  gridBgColor: '#f9fafb',
   highlightDiagonal: '#e74c3c',
   highlightHorizontal: '#8e44ad',
   highlightVertical: '#0d9488',

@@ -1,22 +1,31 @@
 <script lang="ts">
   import {
     usePlot,
-    categoryTicks,
+    indexTicks,
     canvasBlockSelect,
     pixelLayer,
     trackOnlyHit,
     packRgb,
-    drawMatrixCrosshair,
-    drawMatrixParticipantStrips,
-    matrixCellAt,
+    alignToPixelCenter,
+    strokeCrosshairGuides,
+    GRIDLINE_SECONDARY,
+    FONT_PRIMARY,
+    PLOT_TICK_LABEL_GAP,
     type CanvasExportProps,
     type PlotFrame,
-    type FrameHit,
     type PixelLayer,
   } from '$lib/plots/shared'
   import type { PlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
   import { hexToRgb, convertToHex } from '$lib/color'
-  import { fixationAt, fixationMidpoint, rasterizeRecurrenceTexture } from '../core'
+  import {
+    buildRecurrenceTooltipContent,
+    fixationAt,
+    fixationMidpoint,
+    latticeOffset,
+    latticeStep,
+    nearestFixation,
+    rasterizeRecurrenceTexture,
+  } from '../core'
   import { RECURRENCE_LAYOUT } from '../const'
   import type {
     RecurrenceData,
@@ -83,9 +92,9 @@
   }
 
   const L = RECURRENCE_LAYOUT
-  // Below this cell size individual dots stop resolving; the matrix is drawn as
-  // a pixel-accurate texture instead (drawTexture) so its pattern still reads at
-  // thousands of fixations.
+  // Below this fixation spacing individual dots stop resolving; the matrix is
+  // drawn as a pixel-accurate texture instead (drawTexture) so its pattern still
+  // reads at thousands of fixations.
   const DOT_MODE_MIN = 5
   // The matrix can be N×N for N in the thousands, so it is rasterised ONCE per
   // data/appearance change into a capped-resolution texture, then scaled on
@@ -108,7 +117,11 @@
   let texMask: Uint8Array | null = null
 
   const N = $derived(data?.fixationCount ?? 0)
-  const tickStep = $derived(N <= 20 ? 1 : Math.ceil(N / 10))
+  // Fixation k sits ON its tick: 1 at the axis line, N on the opposite border.
+  // The axes share fixation 1 at the origin, so neither labels it: one "1" sits
+  // off the corner instead (drawOriginLabel).
+  const xTicks = $derived(indexTicks(N, L.tickCount, { labelFirst: false }))
+  const yTicks = $derived(indexTicks(N, L.tickCount, { invert: true, labelFirst: false }))
 
   const maxDuration = $derived.by(() => {
     if (!data?.durationMatrix) return 0
@@ -141,11 +154,16 @@
 
   // A masked cell has no datum, but the panel is still this participant: a
   // track-only hit with STABLE identity keeps the cursor published and repaints
-  // nothing. `row: -1` marks it, so the local crosshair skips it.
+  // nothing. `row: -1` marks it, so the local guide lines skip it.
   const MASKED_HIT = trackOnlyHit({ row: -1, col: -1 }, 'default')
 
-  // The square frame as matrix geometry (display space, top-left origin).
-  const geomOf = (f: PlotFrame) => ({ xOffset: f.x, yOffset: f.y, cellSize: f.width / N, gridWidth: f.width, gridHeight: f.width })
+  // The square frame as the fixation lattice. Fixation i counts upward (rows
+  // are bottom-origin), fixation j rightward.
+  const stepOf = (f: PlotFrame) => latticeStep(N, f.width)
+  const xOf = (f: PlotFrame, j: number) => f.x + latticeOffset(N, f.width, j)
+  const yOf = (f: PlotFrame, i: number) => f.y + f.width - latticeOffset(N, f.width, i)
+  const dotRadiusOf = (f: PlotFrame) => Math.min(L.maxDotRadius, stepOf(f) * L.dotSpacingRatio)
+  const isDense = (f: PlotFrame) => stepOf(f) < DOT_MODE_MIN
 
   const plot = usePlot<{ row: number; col: number }>({
     width: () => width,
@@ -166,25 +184,31 @@
       if (N < 2) return {}
       return {
         square: true,
-        left: { tickLabels: [String(N)], title: 'Fixation i' },
-        bottom: { tickLabels: [String(N)], title: 'Fixation j' },
+        // '1' reserves room for the origin label in both gutters.
+        left: { tickLabels: [...(yTicks.labels ?? []), '1'], title: 'Fixation i' },
+        bottom: { tickLabels: [...(xTicks.labels ?? []), '1'], title: 'Fixation j' },
+        pad: { top: L.edgePadPx, right: L.edgePadPx },
       }
     },
-    drawData: drawGrid,
+    drawData: drawMatrix,
     axes: () => {
       if (N < 2) return {}
+      // The opposite edges mirror the ticks without labels.
       return {
-        bottom: {
-          ticks: categoryTicks(N, { step: tickStep, edgesAlways: true }),
-          title: 'Fixation j',
-        },
-        left: {
-          ticks: categoryTicks(N, { step: tickStep, edgesAlways: true, invert: true }),
-          title: 'Fixation i',
-        },
+        bottom: { ticks: xTicks, title: 'Fixation j' },
+        left: { ticks: yTicks, title: 'Fixation i' },
+        top: { ticks: { positions: xTicks.positions } },
+        right: { ticks: { positions: yTicks.positions } },
       }
     },
+    // Edge fixations sit ON the axis lines, so their dots go above the border.
+    drawAboveAxes: (ctx, frame) => {
+      drawOriginLabel(ctx, frame)
+      drawDots(ctx, frame)
+    },
     drawOverlay: drawRecurrenceOverlay,
+    // One publish per fixation pair, not per pointer move.
+    hoverKey: cell => cell.row * N + cell.col,
     // This panel IS one participant, so a hover anywhere in it means that person.
     // A CELL additionally means two moments — "they looked here at t1 and again at
     // t2" — which is the datum the time plots can show and this one cannot.
@@ -200,35 +224,23 @@
     overlayDeps: (): string => cursorFixationsKey,
     hitTest: (x, y, frame) => {
       if (!data || N < 2) return null
-      const display = matrixCellAt(geomOf(frame), x, y, N, N)
-      if (!display) return null
-      const cell = { row: N - 1 - display.row, col: display.col } // rows are bottom-origin
+      // Snap to the nearest fixation pair (the harness hit-tests inside the rect).
+      const side = frame.width
+      const col = nearestFixation(N, side, x - frame.x, 0)
+      const row = nearestFixation(N, side, frame.y + side - y, 0)
+      if (col < 0 || row < 0) return null
       const maskDiagonal = masking === 'diagonal' || masking === 'diagonalLower'
       const maskLower = masking === 'diagonalLower'
-      if ((maskLower && cell.col >= cell.row) || (maskDiagonal && cell.col === cell.row))
-        return MASKED_HIT
+      if ((maskLower && col >= row) || (maskDiagonal && col === row)) return MASKED_HIT
 
-      const idx = cell.row * N + cell.col
-      const isRecurrent = !!data.matrix[idx]
-      const content: FrameHit['content'] = [
-        { key: 'Fixation j', value: (cell.col + 1).toString() },
-        { key: 'Fixation i', value: (cell.row + 1).toString() },
-        { key: 'Recurrent', value: isRecurrent ? 'Yes' : 'No' },
-      ]
-      if (isRecurrent && data.durationMatrix) {
-        content.push({
-          key: 'Duration sum',
-          value: `${data.durationMatrix[idx].toFixed(0)} ms`,
-        })
-      }
-      const cellSize = frame.width / N
       return {
-        content,
-        anchorX: frame.x + (cell.col + 1) * cellSize,
-        anchorY: frame.y + (N - 1 - cell.row) * cellSize + cellSize / 2,
-        offset: { x: 10, y: 0 },
+        content: buildRecurrenceTooltipContent(data, row, col),
+        // Below-right of the dot, the shared matrix figure's placement.
+        anchorX: xOf(frame, col) + dotRadiusOf(frame),
+        anchorY: yOf(frame, row) + dotRadiusOf(frame),
+        offset: { x: 10, y: 10 },
         tooltipWidth: 140,
-        data: cell,
+        data: { row, col },
       }
     },
   })
@@ -246,79 +258,75 @@
     }
   }
 
-  function drawGrid(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+  /**
+   * Under the axes: the line of identity as a guide, then the masking marks in
+   * the readable regime, or the whole matrix as a texture in the dense one. No
+   * cell grid: a fixation is a line through the lattice, not a cell.
+   */
+  function drawMatrix(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
     if (!data) return
-    const cellSize = frame.width / N
-
-    // Grid background (both render modes paint their marks over it).
-    ctx.fillStyle = L.gridBgColor
-    ctx.fillRect(frame.x, frame.y, frame.width, frame.width)
-
-    if (cellSize >= DOT_MODE_MIN) drawDots(ctx, frame, cellSize)
-    else drawTexture(ctx, frame)
-  }
-
-  /** Readable regime: circular dots with grid lines, duration-scaled radius. */
-  function drawDots(
-    ctx: CanvasRenderingContext2D,
-    frame: PlotFrame,
-    cellSize: number
-  ) {
-    if (!data) return
-    const gridSize = frame.width
-    const { x: xOffset, y: yOffset } = frame
-    const colToX = (col: number) => xOffset + col * cellSize
-    const rowToY = (row: number) => yOffset + (N - 1 - row) * cellSize
-
-    // Grid lines. Batched into one path (was 2·(N+1) separate stroke composites).
-    ctx.strokeStyle = L.gridLineColor
-    ctx.lineWidth = 0.5
+    const { x, y, width: side } = frame
+    ctx.strokeStyle = GRIDLINE_SECONDARY.COLOR
+    ctx.lineWidth = GRIDLINE_SECONDARY.WIDTH
     ctx.beginPath()
-    for (let i = 0; i <= N; i++) {
-      const x = xOffset + i * cellSize
-      ctx.moveTo(x, yOffset)
-      ctx.lineTo(x, yOffset + gridSize)
-      const y = yOffset + i * cellSize
-      ctx.moveTo(xOffset, y)
-      ctx.lineTo(xOffset + gridSize, y)
-    }
+    ctx.moveTo(x, y + side)
+    ctx.lineTo(x + side, y)
     ctx.stroke()
 
+    if (isDense(frame)) {
+      drawTexture(ctx, frame)
+      return
+    }
+    if (masking === 'diagonalLower') {
+      // The diagonal and the visual lower triangle (i < j) as one grey region.
+      ctx.fillStyle = L.diagonalColor
+      ctx.beginPath()
+      ctx.moveTo(x, y + side)
+      ctx.lineTo(x + side, y + side)
+      ctx.lineTo(x + side, y)
+      ctx.closePath()
+      ctx.fill()
+    }
+  }
+
+  /**
+   * The single "1" both axes share: in the left labels' column (right-aligned
+   * the tick-label gap left of the axis) and the bottom labels' row.
+   */
+  function drawOriginLabel(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+    if (N < 2) return
+    ctx.save()
+    ctx.font = `${FONT_PRIMARY.SIZE}px ${FONT_PRIMARY.FAMILY}`
+    ctx.fillStyle = FONT_PRIMARY.COLOR
+    ctx.textAlign = 'right'
+    ctx.textBaseline = 'hanging'
+    ctx.fillText('1', frame.x - PLOT_TICK_LABEL_GAP, frame.y + frame.width + PLOT_TICK_LABEL_GAP)
+    ctx.restore()
+  }
+
+  /** Readable regime: one dot per recurrent pair, duration-scaled radius. */
+  function drawDots(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+    if (!data || isDense(frame)) return
     const hasDuration = data.durationMatrix !== null && maxDuration > 0
-    const maxDotRadius = cellSize * 0.45
+    const maxDotRadius = dotRadiusOf(frame)
+    const plainRadius = Math.max(1.5, maxDotRadius * 0.75)
     const isHighlightActive = highlight !== 'none' && highlightMask !== null
     const accentColor = getHighlightColor()
     const maskDiagonal = masking === 'diagonal' || masking === 'diagonalLower'
     const maskLower = masking === 'diagonalLower'
 
-    // diagonalLower masks the entire upper triangle (i ≤ j). Paint it as ONE rect
-    // per row (cols i..N-1) instead of N²/2 individual cell fills, colour set once.
-    if (maskLower) {
-      ctx.fillStyle = L.diagonalColor
-      for (let i = 0; i < N; i++) {
-        ctx.fillRect(colToX(i), rowToY(i), (N - i) * cellSize, cellSize)
-      }
-    }
-
     // Guard against redundant fillStyle string re-assignment (a per-run cost).
     let lastFill = ''
     for (let i = 0; i < N; i++) {
       const rowOffset = i * N
-      // Skip the upper triangle already painted above when masking the lower half.
+      const cy = yOf(frame, i)
+      // Masking the lower half keeps only the visual upper triangle (j < i).
       const jEnd = maskLower ? i : N
       for (let j = 0; j < jEnd; j++) {
-        if (maskDiagonal && i === j) {
-          if (lastFill !== L.diagonalColor) {
-            ctx.fillStyle = L.diagonalColor
-            lastFill = L.diagonalColor
-          }
-          ctx.fillRect(colToX(j) + 1, rowToY(i) + 1, cellSize - 2, cellSize - 2)
-          continue
-        }
+        if (maskDiagonal && i === j) continue
         if (!data.matrix[rowOffset + j]) continue
 
-        const cx = colToX(j) + cellSize / 2
-        const cy = rowToY(i) + cellSize / 2
+        const cx = xOf(frame, j)
 
         let dotColor: string = L.dotColor
         let dotAlpha = 1
@@ -338,17 +346,16 @@
           ctx.fillStyle = dotColor
           lastFill = dotColor
         }
-        const halfCell = cellSize / 2
         if (hasDuration && data.durationMatrix) {
           const ratio = Math.max(0.15, data.durationMatrix[rowOffset + j] / maxDuration)
           ctx.globalAlpha = dotAlpha * (0.3 + 0.7 * ratio)
           ctx.beginPath()
-          ctx.arc(cx, cy, Math.min(halfCell, maxDotRadius * Math.sqrt(ratio)), 0, Math.PI * 2)
+          ctx.arc(cx, cy, Math.max(1, maxDotRadius * Math.sqrt(ratio)), 0, Math.PI * 2)
           ctx.fill()
         } else {
           ctx.globalAlpha = dotAlpha
           ctx.beginPath()
-          ctx.arc(cx, cy, Math.min(halfCell, Math.max(1.5, maxDotRadius * 0.6)), 0, Math.PI * 2)
+          ctx.arc(cx, cy, plainRadius, 0, Math.PI * 2)
           ctx.fill()
         }
         ctx.globalAlpha = 1
@@ -358,7 +365,9 @@
 
   /**
    * Dense regime: blit the cached recurrence texture, scaled to the (square)
-   * frame. The texture is rebuilt (a single matrix scan) only when the data or
+   * frame and widened half a fixation spacing past each edge, so every
+   * fixation's texels centre on its lattice line (the data clip trims the
+   * overhang). The texture is rebuilt (a single matrix scan) only when the data or
    * appearance changes — a resize just re-scales it, so dragging a huge matrix
    * costs one drawImage, not an N² rescan. Downscaling averages (smoothing on)
    * into a clean recurrence-density texture; upscaling stays crisp (nearest).
@@ -413,42 +422,52 @@
     }
     if (!tex) return
 
+    const step = stepOf(frame)
+    const side = frame.width + step // N spacings: N-1 inside plus half at each end
     const prevSmoothing = ctx.imageSmoothingEnabled
-    ctx.imageSmoothingEnabled = texRes > frame.width // smooth on downscale only
+    ctx.imageSmoothingEnabled = texRes > side // smooth on downscale only
     ctx.drawImage(
       tex.canvas as CanvasImageSource,
       0,
       0,
       texRes,
       texRes,
-      frame.x,
-      frame.y,
-      frame.width,
-      frame.width
+      frame.x - step / 2,
+      frame.y - step / 2,
+      side,
+      side
     )
     ctx.imageSmoothingEnabled = prevSmoothing
   }
 
+  /**
+   * A designated fixation is its line through the lattice, marked with the
+   * dashed guide the time plots use: the hovered pair's row i and column j, and
+   * the cursor's fixation as both its row and its column (every other fixation
+   * that recurred with it lies on them).
+   */
   function drawRecurrenceOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
-    const geom = geomOf(frame)
-    // The cursor's instant, as the fixation it lands in: its row and column are
-    // every other fixation that recurred with it. Same strip mark as any matrix,
-    // and bottom-origin rows convert to display space exactly as below.
-    if (cursorFixations.length > 0) {
-      drawMatrixParticipantStrips(ctx, geom, {
-        rows: cursorFixations.map(i => N - 1 - i),
-        cols: cursorFixations,
-      })
+    const side = frame.width
+    const segments: number[] = []
+    const rowLine = (i: number) => {
+      const y = alignToPixelCenter(yOf(frame, i))
+      segments.push(frame.x, y, frame.x + side, y)
     }
-    const hoveredCell = plot.hover.data
-    if (!hoveredCell) return
-    if (hoveredCell.row < 0) return // masked cell: cursor only, no local crosshair
-    // Recurrence rows are bottom-origin (fixation i counts upward), so convert
-    // to the shared helper's display space (top-left origin).
-    drawMatrixCrosshair(ctx, geom, {
-      row: N - 1 - hoveredCell.row,
-      col: hoveredCell.col,
-    })
+    const colLine = (j: number) => {
+      const x = alignToPixelCenter(xOf(frame, j))
+      segments.push(x, frame.y, x, frame.y + side)
+    }
+    for (const k of cursorFixations) {
+      rowLine(k)
+      colLine(k)
+    }
+    const hovered = plot.hover.data
+    // A masked point (row -1) publishes the cursor only, with no local lines.
+    if (hovered && hovered.row >= 0) {
+      rowLine(hovered.row)
+      colLine(hovered.col)
+    }
+    if (segments.length > 0) strokeCrosshairGuides(ctx, segments)
   }
 </script>
 

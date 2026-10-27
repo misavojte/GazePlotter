@@ -6,6 +6,7 @@
 
 * *Unreleased*
 * **Scanpath**: Scanpaths of a stimulus play in sync, and timeline plots show the playback time. Adds a trail on the seek bar, a Time range, and a video start offset. See [Synchronized time](/docs/visualizations/scanpath#synchronized-time).
+* **Recurrence Plot**: Each fixation is now a line rather than a cell, so a recurrence is a dot where two fixation lines cross, with fixation 1 on the axes. The cell grid is gone; the axes have whole-number ticks on all four edges and a diagonal guide line, and hovering marks the two fixations with dashed lines. New plots start without masking. See [Recurrence Plot](/docs/visualizations/recurrence-plot).
 
 ### 1.10.3
 
