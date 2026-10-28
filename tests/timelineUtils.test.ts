@@ -10,8 +10,15 @@ import {
 describe('timelineUtils', () => {
   describe('formatTimelineLabel', () => {
     it('should format large numbers without decimals', () => {
-      expect(formatTimelineLabel(1234.56)).toBe('1,235')
-      expect(formatTimelineLabel(1000)).toBe('1,000')
+      expect(formatTimelineLabel(1234.56)).toBe('1235')
+      expect(formatTimelineLabel(1000)).toBe('1000')
+    })
+
+    it('never groups thousands, at any size or sign', () => {
+      expect(formatTimelineLabel(20000)).toBe('20000')
+      expect(formatTimelineLabel(1234567)).toBe('1234567')
+      expect(formatTimelineLabel(-5000)).toBe('-5000')
+      expect(formatTimelineLabel(20086.52)).toBe('20087')
     })
 
     it('should format integers without decimals', () => {

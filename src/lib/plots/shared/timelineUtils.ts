@@ -28,17 +28,12 @@ export function formatTimelineLabel(value: number): string {
   // Handle zero explicitly
   if (value === 0) return '0'
 
-  // For absolute integers >= 1, use simple string conversion or toLocaleString for grouping
-  if (Number.isInteger(value)) {
-    return Math.abs(value) < 1000
-      ? value.toString()
-      : value.toLocaleString('en-US')
-  }
+  // Plain digits, never thousands separators: one number style across every
+  // plot, and no comma to misread as a decimal comma.
+  if (Number.isInteger(value)) return value.toString()
 
   // Large numbers with decimals
-  if (Math.abs(value) >= 1000) {
-    return value.toLocaleString('en-US', { maximumFractionDigits: 0 })
-  }
+  if (Math.abs(value) >= 1000) return Math.round(value).toString()
 
   // Small numbers: determine precision based on magnitude
   const magnitude = Math.floor(Math.log10(Math.abs(value)))
@@ -47,6 +42,7 @@ export function formatTimelineLabel(value: number): string {
   return value.toLocaleString('en-US', {
     maximumFractionDigits: digitsAfterDecimal,
     minimumFractionDigits: 0,
+    useGrouping: false,
   })
 }
 

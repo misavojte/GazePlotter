@@ -15,6 +15,7 @@ import { autoRadius, getFixationHeatmapData } from '../src/lib/plots/fixation-he
 import { fadeIn, heatLut, legendRamp, paintHeat } from '../src/lib/plots/fixation-heatmap/core/heatImage'
 import {
   deriveFixationHeatmapView,
+  formatAmount,
   heatmapLegendTitle,
   heatmapNotes,
   niceCeil,
@@ -369,6 +370,14 @@ describe('labels', () => {
     const data = ok(getFixationHeatmapData(engineOf([[], [P0, P1]]), settings()))
     expect(heatmapNotes(data, false)).toEqual(['1 fixation without coordinates'])
     expect(heatmapNotes(data, true)).toEqual(['Video background not drawn', '1 fixation without coordinates'])
+  })
+
+  it('formats amounts in plain digits, never grouping thousands', () => {
+    expect(formatAmount(12345.6)).toBe('12346')
+    expect(formatAmount(1380)).toBe('1380')
+    expect(formatAmount(-2500)).toBe('-2500')
+    expect(formatAmount(8.32)).toBe('8.3')
+    expect(formatAmount(0.0123)).toBe('0.012')
   })
 
   it('rounds the auto top up at the third significant digit', () => {

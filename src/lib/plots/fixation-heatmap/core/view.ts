@@ -39,12 +39,11 @@ export function heatmapUnit(settings: Pick<FixationHeatmapPlotSettings, 'accumul
   return settings.accumulate === 'duration' ? 'ms' : ''
 }
 
-const formatCount = (n: number) => n.toLocaleString('en-US')
-const fixations = (n: number) => `${formatCount(n)} fixation${n === 1 ? '' : 's'}`
+const fixations = (n: number) => `${n} fixation${n === 1 ? '' : 's'}`
 
-/** Map values and amounts: separators from 100 up, one decimal from 1, two significant digits below. */
+/** Map values and amounts: whole from 100 up, one decimal from 1, two significant digits below; plain digits, no separators. */
 export const formatAmount = (v: number) =>
-  Math.abs(v) >= 100 ? Math.round(v).toLocaleString('en-US') : Math.abs(v) >= 1 ? v.toFixed(1) : v.toPrecision(2)
+  Math.abs(v) >= 100 ? String(Math.round(v)) : Math.abs(v) >= 1 ? v.toFixed(1) : v.toPrecision(2)
 
 /** Auto scale top: the peak rounded up at the third significant digit, so the key reads cleanly. */
 export function niceCeil(v: number): number {
