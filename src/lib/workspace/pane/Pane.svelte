@@ -39,11 +39,6 @@
     modalState.open(exportFiguresModal, { itemIds: ids })
   }
 
-  // The data behind the plot, one click away (also in its right-click menu).
-  const dataExport = $derived.by(() =>
-    isBulk || !paneItem ? null : plotDataExport(paneItem.settings, engine, modalState)
-  )
-
   // Pane/sheet visibility is driven by paneOpenId (explicitly opened by a
   // click on desktop or by the mobile FAB). Selection alone no longer
   // implies the pane is open — that decoupling is what enables the
@@ -74,6 +69,13 @@
   const bulkTitle = $derived(`${grid.selectedCount} plots selected`)
   const desktopAriaLabel = $derived(
     isBulk ? 'Bulk plot settings' : `${title} settings`
+  )
+
+  // The data behind the plot, one click away (also in its right-click menu).
+  // Declared after paneItem/isBulk: SSR evaluates $derived eagerly, so a
+  // forward reference throws a TDZ ReferenceError on the server render.
+  const dataExport = $derived.by(() =>
+    isBulk || !paneItem ? null : plotDataExport(paneItem.settings, engine, modalState)
   )
 
   // Desktop: closing the pane also deselects (clearSelection() clears
