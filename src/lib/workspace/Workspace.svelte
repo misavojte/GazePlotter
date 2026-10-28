@@ -197,6 +197,8 @@
       : []),
   ])
   const fileDrop = new FileDropTarget()
+  // A running parse refuses a drop, so the hint promises nothing it would break.
+  const dropOffered = $derived(fileDrop.isActive && !ingest.reading)
   const interaction = new GridInteractionController()
   const positionsWithPreview = $derived.by(() =>
     interaction.getPositionsWithPreview(grid.positions)
@@ -429,7 +431,7 @@
     <!-- svelte-ignore a11y_click_events_have_key_events -->
     <div
       class="workspace-container"
-      class:is-drop-target={fileDrop.isActive}
+      class:is-drop-target={dropOffered}
       style={latticeStyle}
       bind:this={workspaceContainer}
       role="none"
@@ -460,7 +462,7 @@
         onChange: applyMarquee,
       }}
     >
-      {#if fileDrop.isActive && (grid.isEmpty || isLoading)}
+      {#if dropOffered && (grid.isEmpty || isLoading)}
         <!-- Replaces an indicator card rather than stacking on it: both are
              centred at inset 0, and there are no plots here to preserve. -->
         {@render dropHint()}
@@ -501,7 +503,7 @@
         {/if}
         <!-- Overlays the plots, never replaces them: dragging a file across
              the way must not unmount every canvas and lose the view. -->
-        {#if fileDrop.isActive}
+        {#if dropOffered}
           {@render dropHint()}
         {/if}
       {/if}

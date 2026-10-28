@@ -24,6 +24,8 @@
       : null
   })
   const fatalLoadError = $derived(errorService.fatalLoad)
+  // The host's loader failed (a dropped download): running it again may work.
+  const canRetry = $derived(fatalLoadError?.origin === 'bootstrap')
   // Parser messages often lack a final period; the next sentence follows it.
   const fatalSentence = $derived.by(() => {
     const text = fatalLoadError?.userMessage.trim() ?? ''
@@ -54,10 +56,10 @@
   <div class="content-inner">
     <p>
       {#if fatalLoadError}
-        {fatalSentence} You can inspect the report or upload different data.
+        {fatalSentence} You can inspect the report or import different data.
       {:else if canResetLayout}
         Data is loaded, but no plots are shown. Add one with Add
-        Visualization{responsive.isMobile ? '' : ' or by right-clicking here'}{hasLayoutToRestore ? ', reset the layout,' : ''} or upload
+        Visualization{responsive.isMobile ? '' : ' or by right-clicking here'}{hasLayoutToRestore ? ', reset the layout,' : ''} or import
         new data.
       {:else}
         Drop eye-tracking files anywhere here, or import them to start.
@@ -71,6 +73,11 @@
       </p>
     {/if}
     <div class="actions">
+      {#if canRetry}
+        <Button variant="primary" onclick={() => ingest.retryHostLoad()}>
+          Try again
+        </Button>
+      {/if}
       {#if fatalLoadError && canOpenErrorReport}
         <Button onclick={openErrorReport}>Open report</Button>
       {:else if canResetLayout}

@@ -86,7 +86,7 @@ describe('IngestService', () => {
     expect(service.isLoading).toBe(false)
     expect(service.metadata).toBeNull()
     expect(service.input).toBeNull()
-    expect(service.progressPercent).toBe(0)
+    expect(service.reading).toBeNull()
     expect(deps.errorService.clearAll).toHaveBeenCalledTimes(1)
     expect(deps.engine.loadDataset).toHaveBeenCalledTimes(1)
     expect(deps.grid.reset).toHaveBeenCalledTimes(1)
@@ -192,6 +192,121 @@ describe('IngestService', () => {
 
     expect(clearedBeforeWorkerSaw).toBe(true)
     expect(harness.deps.grid.clearSelection).toHaveBeenCalledTimes(1)
+  }, 15000)
+
+  it('a user upload during the host download supersedes it', async () => {
+    const { service, report, workerInstances } = await loadHarness(message => {
+      if (message.type === 'file') throw new Error('file dispatch failed')
+    })
+    service.applyEmpty()
+
+    // Ignores its signal and resolves late: the worst case for the race.
+    let hostSignal!: AbortSignal
+    let resolveHost!: (files: File[]) => void
+    const host = service.loadFromHost((signal, onProgress) => {
+      hostSignal = signal
+      onProgress({ loaded: 1, total: 10, waiting: null })
+      return new Promise(resolve => (resolveHost = resolve))
+    })
+    expect(service.isLoading).toBe(true)
+    expect(service.download).toEqual({ loaded: 1, total: 10, waiting: null })
+
+    const userFile = {
+      name: 'user.csv',
+      size: 4,
+      stream: vi.fn(() => new ReadableStream()),
+      arrayBuffer: vi.fn(),
+    } as unknown as File
+    await service.loadFiles([userFile])
+
+    expect(hostSignal.aborted).toBe(true)
+    expect(service.download).toBeNull()
+    resolveHost([{ name: 'demo.gazeplotter', size: 9 } as File])
+    await host
+    // Only the user's parse ever started; the demo never replaced it.
+    expect(workerInstances).toHaveLength(1)
+    expect(report).not.toHaveBeenCalledWith(
+      expect.objectContaining({ origin: 'bootstrap' })
+    )
+  }, 15000)
+
+  it('reports a failed host load and retries it with the same loader', async () => {
+    const { service, report } = await loadHarness(() => {})
+    const loader = vi
+      .fn()
+      .mockRejectedValueOnce(new Error('The download stopped at 3 MB of 70 MB.'))
+      .mockResolvedValueOnce([])
+
+    await service.loadFromHost(loader)
+    expect(report).toHaveBeenCalledWith(
+      expect.objectContaining({
+        origin: 'bootstrap',
+        severity: 'fatal-load',
+        userMessage: 'The download stopped at 3 MB of 70 MB.',
+      })
+    )
+    expect(service.download).toBeNull()
+
+    service.retryHostLoad()
+    await vi.waitFor(() => expect(service.status).toBe('ready'))
+    expect(loader).toHaveBeenCalledTimes(2)
+  })
+
+  it('reports a parse like a download: the upload, then the bytes the parser reads', async () => {
+    const { service, workerInstances } = await loadHarness(() => {})
+    const data = {
+      name: 'study.tsv',
+      size: 10,
+      stream: vi.fn(() => new ReadableStream()),
+      arrayBuffer: vi.fn(),
+    } as unknown as File
+    const image = { name: 'map.png', type: 'image/png', size: 90 } as unknown as File
+
+    const result = service.loadFiles([data, image])
+    const source = 'study.tsv and 1 more'
+    expect(service.reading).toEqual({ source, loaded: 0, total: 100, waiting: null })
+
+    // The image is attached, not parsed: the total narrows to the data file.
+    await vi.waitFor(() => expect(service.reading?.total).toBe(10))
+    const worker = workerInstances[0]
+    worker.onmessage?.({ data: { type: 'progress', processedBytes: 4 } })
+    expect(service.reading).toEqual({ source, loaded: 4, total: 10, waiting: null })
+    // Never past the total, whatever the parser counts.
+    worker.onmessage?.({ data: { type: 'progress', processedBytes: 40 } })
+    expect(service.reading?.loaded).toBe(10)
+
+    worker.onmessage?.({ data: { type: 'fail', data: new Error('bad row') } })
+    await result
+    expect(service.reading).toBeNull()
+  }, 15000)
+
+  it('refuses an upload during a parse before asking to replace anything', async () => {
+    const { service, deps } = await loadHarness(() => {})
+    const confirmReplace = vi.fn(() => true)
+    Object.assign(deps, { confirmReplace })
+    const file = (name: string) =>
+      ({ name, size: 3, stream: vi.fn(() => new ReadableStream()), arrayBuffer: vi.fn() }) as unknown as File
+
+    void service.loadFiles([file('first.csv')])
+    confirmReplace.mockClear()
+
+    expect(await service.loadFiles([file('second.csv')])).toBe(false)
+    expect(confirmReplace).not.toHaveBeenCalled()
+    expect(deps.toastState.addInfo).toHaveBeenCalledWith(
+      'Data is still loading. Try again when it has finished.'
+    )
+  }, 15000)
+
+  it('a media-only upload never passes through loading, so the plots stay up', async () => {
+    const { service, deps } = await loadHarness(() => {})
+    service.applyEmpty()
+    const image = { name: 'map.png', type: 'image/png', size: 9 } as unknown as File
+
+    const result = service.loadFiles([image])
+    expect(service.status).toBe('ready')
+    await result
+    expect(deps.grid.clearSelection).not.toHaveBeenCalled()
+    expect(service.status).toBe('ready')
   }, 15000)
 
   it('loadFiles accepts a plain File[] (not just FileList)', async () => {

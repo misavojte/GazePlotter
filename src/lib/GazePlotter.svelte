@@ -64,7 +64,7 @@
 
   // svelte-ignore state_referenced_locally -- read once by design (see prop doc)
   const session = setGazePlotterSessionContext(createGazePlotterSession(options))
-  const { errorService, ingest, modalState } = session
+  const { ingest, modalState } = session
   const camera = new WorkspaceCamera()
   const actions = createWorkspaceActions(session, camera)
 
@@ -99,60 +99,13 @@
     session.engine.media.clear()
   })
 
-  let activeAbort: AbortController | null = null
-  let loadGeneration = 0
-
-  async function runLoad(
-    loader: DataLoader,
-    signal: AbortSignal,
-    generation: number
-  ): Promise<void> {
-    errorService.clearFatalLoad()
-
-    let files: File[]
-    try {
-      files = await loader(signal)
-    } catch (cause) {
-      if (generation !== loadGeneration || signal.aborted) return
-      const message =
-        cause instanceof Error && cause.message
-          ? cause.message
-          : 'Could not load initial workspace data.'
-      errorService.report({
-        origin: 'bootstrap',
-        severity: 'fatal-load',
-        userMessage: message,
-        cause,
-      })
-      return
-    }
-
-    if (generation !== loadGeneration || signal.aborted) return
-
-    if (files.length === 0) {
-      ingest.applyEmpty()
-    } else {
-      await ingest.loadFiles(files, { fromHost: true })
-    }
-  }
-
-  function startLoad(): void {
-    activeAbort?.abort()
-    const controller = new AbortController()
-    activeAbort = controller
-    const generation = ++loadGeneration
-    void runLoad(load, controller.signal, generation)
-  }
-
   onMount(() => {
-    startLoad()
-    return () => {
-      activeAbort?.abort()
-    }
+    void ingest.loadFromHost(load)
+    return () => ingest.cancelHostLoad()
   })
 
   export function resetLayout() {
-    startLoad()
+    void ingest.loadFromHost(load)
   }
 
   export function getSession() {
