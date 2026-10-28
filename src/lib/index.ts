@@ -8,7 +8,7 @@ export type {
   GazePlotterColors,
 } from '$lib/session'
 export { fromUrl } from '$lib/session/loaders'
-export type { DataLoader } from '$lib/data/ingest/types'
+export type { DataLoader, LoadProgress } from '$lib/data/ingest/types'
 // Web defaults of the function options, exported so hosts can wrap rather
 // than replace them (e.g. try native, fall back to the browser picker).
 export { triggerDownload } from '$lib/session/download'

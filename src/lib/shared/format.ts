@@ -18,17 +18,36 @@ export function formatDecimal(
   return Math.round(value * factor) / factor
 }
 
+const SIZE_UNITS = ['Bytes', 'KB', 'MB', 'GB']
+
+/** The unit a size reads best in. */
+function sizeUnit(bytes: number): { divisor: number; label: string } {
+  const power = bytes >= 1 ? Math.floor(Math.log(bytes) / Math.log(1024)) : 0
+  const i = Math.min(power, SIZE_UNITS.length - 1)
+  return { divisor: 1024 ** i, label: SIZE_UNITS[i] }
+}
+
 /**
  * Formats file size in bytes to human-readable format
  */
 export function formatFileSize(bytes: number): string {
   if (bytes === 0) return '0 Bytes'
-  const k = 1024
-  const sizes = ['Bytes', 'KB', 'MB', 'GB']
-  const i = Math.floor(Math.log(bytes) / Math.log(k))
-  const formatted = (bytes / Math.pow(k, i)).toFixed(2)
-  // parseFloat is used here to trim trailing zeros (e.g., 1.00 -> 1)
-  return parseFloat(formatted) + ' ' + sizes[i]
+  const { divisor, label } = sizeUnit(bytes)
+  // parseFloat trims trailing zeros (1.00 -> 1)
+  return parseFloat((bytes / divisor).toFixed(2)) + ' ' + label
+}
+
+/**
+ * A size still counting up, with one fixed decimal so its digits keep their
+ * width: "1.2 MB", or against a total in the total's unit: "1.2 of 4.1 MB".
+ */
+export function formatSizeProgress(loaded: number, total: number | null): string {
+  const { divisor, label } = sizeUnit(total ?? loaded)
+  const digits = divisor === 1 ? 0 : 1
+  const part = (bytes: number) => (bytes / divisor).toFixed(digits)
+  return total === null
+    ? `${part(loaded)} ${label}`
+    : `${part(loaded)} of ${part(total)} ${label}`
 }
 
 /**

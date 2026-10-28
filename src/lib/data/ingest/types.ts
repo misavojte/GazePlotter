@@ -82,7 +82,8 @@ export type FileMetadataType = FileMetadataSuccessType | FileMetadataFailureType
  * detection, parsing, and error reporting are the library's concern.
  *
  * Called **once per `<GazePlotter>` mount**. To re-trigger, call
- * `resetLayout()` on the instance or remount via `{#key value}`.
+ * `resetLayout()` on the instance or remount via `{#key value}`. After a
+ * failed load, the "Data load failed" screen's Try again calls it again.
  *
  * Contract:
  * - **Files**: return one or more `File`s with meaningful names — the
@@ -92,9 +93,30 @@ export type FileMetadataType = FileMetadataSuccessType | FileMetadataFailureType
  *   surfaces it verbatim. Use `new Error(msg, { cause })` to preserve the
  *   underlying error in the metadata report.
  * - **Cancellation**: the `signal` aborts when the load is superseded
- *   (unmount or `resetLayout()`). Forward it to `fetch(..., { signal })`.
+ *   (unmount, `resetLayout()`, or the user importing their own data).
+ *   Forward it to `fetch(..., { signal })`.
  *   While `signal.aborted`, the library drops rejections silently; any
  *   rejection that surfaces *before* abort — including stray `AbortError`s
  *   from your own logic — is reported as a fatal-load error.
+ * - **Progress** (optional): call `onProgress` while downloading and the
+ *   loading screen shows the bytes. Loaders that never call it show a
+ *   spinner until their files arrive.
  */
-export type DataLoader = (signal: AbortSignal) => Promise<File[]>
+export type DataLoader = (
+  signal: AbortSignal,
+  onProgress: (progress: LoadProgress) => void
+) => Promise<File[]>
+
+/** A download or a parse, as the loading screen shows it. */
+export interface LoadProgress {
+  /** What is loading, as the screen names it: "data.csv from osf.io". */
+  source?: string
+  /** Bytes received or read so far. */
+  loaded: number
+  /** Null when the size is unknown. */
+  total: number | null
+  /** The size may still arrive, so a null total is not final yet. */
+  sizePending?: boolean
+  /** Between attempts: an attempt failed, or the browser is offline. */
+  waiting: 'retrying' | 'offline' | null
+}
