@@ -83,6 +83,11 @@ describe('rangeQualifier (math-interval notation, no "/")', () => {
   it('returns null when no bound is set', () => {
     expect(rangeQualifier('t', 0, 0, 'ms')).toBeNull()
   })
+  it('rounds fractional bounds to whole numbers in every form', () => {
+    expect(rangeQualifier('t', 0, 20086.5234375, 'ms')).toBe('t ≤ 20087 ms')
+    expect(rangeQualifier('t', 99.4, 0, 'ms')).toBe('t ≥ 99 ms')
+    expect(rangeQualifier('t', 99.6, 20086.4, 'ms')).toBe('t ∈ [100, 20086] ms')
+  })
 })
 
 describe('timeRangeQualifier', () => {

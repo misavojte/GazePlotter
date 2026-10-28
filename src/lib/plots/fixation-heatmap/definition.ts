@@ -52,7 +52,7 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
             {
               label: 'Share per participant',
               value: 'share',
-              detail: "Each participant's share of their own total, averaged [%]",
+              detail: "Each participant's share of their own total, averaged, in %",
             },
             {
               label: 'Mean per participant',
@@ -97,7 +97,7 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
           group: 'Color scale',
           label: ctx => {
             const unit = scaleUnit(ctx)
-            return unit ? `Scale max [${unit}] (0 = Auto)` : 'Scale max (0 = Auto)'
+            return unit ? `Scale max / ${unit} (0 = Auto)` : 'Scale max (0 = Auto)'
           },
           min: 0,
           step: ctx => (scaleUnit(ctx) === 'ms' ? 10 : 0.1),
@@ -107,7 +107,7 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
           kind: 'number',
           key: 'opacity',
           group: 'Color scale',
-          label: 'Opacity [%]',
+          label: 'Opacity / %',
           min: 0,
           max: 100,
           step: 5,

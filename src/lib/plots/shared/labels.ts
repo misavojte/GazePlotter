@@ -94,6 +94,7 @@ export function withQualifiers(
  * `"<symbol> ≥ a <unit>"`, `"<symbol> ≤ b <unit>"`, or `null` when no bound is
  * set. The trailing unit is plain (`"100 ms"`) — this is an interval
  * expression, not an IUPAC quantity/unit, so it does NOT use the `/` separator.
+ * Bounds print rounded to whole numbers.
  */
 export function rangeQualifier(
   symbol: string,
@@ -102,9 +103,12 @@ export function rangeQualifier(
   unit = ''
 ): string | null {
   const u = unit ? ` ${unit}` : ''
-  if (start > 0 && end > 0) return `${symbol} ∈ [${start}, ${end}]${u}`
-  if (start > 0) return `${symbol} ≥ ${start}${u}`
-  if (end > 0) return `${symbol} ≤ ${end}${u}`
+  // Whole numbers: a bound read off raw data (20086.5234375) is a label, not a readout.
+  const a = Math.round(start)
+  const b = Math.round(end)
+  if (start > 0 && end > 0) return `${symbol} ∈ [${a}, ${b}]${u}`
+  if (start > 0) return `${symbol} ≥ ${a}${u}`
+  if (end > 0) return `${symbol} ≤ ${b}${u}`
   return null
 }
 

@@ -62,10 +62,10 @@ Configure the layout and rendering of the distributions.
 
 What a single dot is depends on the metric. Metrics measured per event, such as *Eye-movement duration*, plot every segment as its own dot, so a type's spread is the spread of its segment lengths. The rest plot one dot per participant. Either way the bar is the mean of the drawn values, and the value axis label states the statistic the overlay summarizes.
 
-### Time range [ms]
+### Time range
 Filter the temporal range from which segments are fetched.
-- **Start**: Limit the minimum time boundary (ms).
-- **End (0 = Auto)**: Limit the maximum time boundary (ms) or leave at 0 for automatic duration matching.
+- **Start / ms**: Limit the minimum time boundary.
+- **End / ms (0 = Auto)**: Limit the maximum time boundary, or leave at 0 for automatic duration matching.
 
 Note that *Time to first eye movement* does not re-zero its clock to the range start: the first in-range segment of a type reports its true onset.
 

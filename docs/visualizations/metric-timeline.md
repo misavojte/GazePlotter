@@ -40,10 +40,10 @@ Configure the visual presentation. The view decides which further controls appea
     - **Color scale picker**: Minimum, middle, and maximum colors of the heatmap intensity gradient.
   - *Overlay*: Renders a line graph where the horizontal axis is time and the vertical axis is the metric value, overlaying participant or group trend lines.
 
-### Time range [ms]
+### Time range
 Filter the temporal range.
-- **Start**: Limit the minimum time boundary (ms).
-- **End (0 = Auto)**: Limit the maximum time boundary (ms) or leave at 0 for automatic duration matching.
+- **Start / ms**: Limit the minimum time boundary.
+- **End / ms (0 = Auto)**: Limit the maximum time boundary, or leave at 0 for automatic duration matching.
 
 ### Areas of Interest
 Filters which Areas of Interest (AOIs) are active for the metric calculation. If AOIs are selected, the metric is computed only using fixations that land within those active AOIs.

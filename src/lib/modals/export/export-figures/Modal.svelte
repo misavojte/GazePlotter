@@ -306,8 +306,8 @@
           options={IMAGE_TYPE_OPTIONS}
           bind:value={fileType}
         />
-        <InputNumber label="Margin [px]" bind:value={margin} min={0} />
-        <InputNumber label="Resolution [DPI]" bind:value={dpi} min={72} />
+        <InputNumber label="Margin / px" bind:value={margin} min={0} />
+        <InputNumber label="Resolution / DPI" bind:value={dpi} min={72} />
       </FieldGrid>
       <div class="dpi-presets">
         <span class="presets-label">DPI Presets:</span>

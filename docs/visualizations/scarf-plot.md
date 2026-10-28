@@ -28,10 +28,10 @@ Configure the timeline representation mode.
   - *Relative*: Stretches each participant's own session to 0 to 100%, so sequences of different lengths line up for comparison.
   - *Ordinal*: Displays strict sequential order indices of individual fixations, saccades, and other events, discarding exact durations.
 
-### Time range [ms] / Ordinal range [indices]
-Defines temporal or index boundaries. GazePlotter automatically matches this section to the active timeline mode:
-- **Time range [ms]** (in *Absolute* or *Relative* mode): Limit sequence start and end times (ms) (*0 = Auto*).
-- **Ordinal range [indices]** (in *Ordinal* mode): Limit sequence by start and end fixation indices (*0 = Auto*).
+### Time range / Ordinal range
+Defines temporal or index boundaries. The section follows the active timeline mode:
+- *Absolute* or *Relative*: **Time range**, with **Start / ms** and **End / ms (0 = Auto)** limiting sequence start and end times.
+- *Ordinal*: **Ordinal range**, with **Start** and **End (0 = Auto)** limiting sequence start and end fixation indices.
 
 ### Areas of Interest
 Narrows which AOIs this plot ranges over.
@@ -61,4 +61,4 @@ The scarf plot is highly interactive:
 
 ## Event Data Layer
 
-GazePlotter supports event data (e.g., dynamic AOI visibility intervals) displayed under the participant gaze sequence. In **Overlay** mode, time-coded events hang below a shared baseline as colored strips. Overlapping events stack into lanes, and a thin gray line divides participants. Event data is displayed only in **Absolute** and **Relative** time views.
+GazePlotter supports event data (e.g., dynamic AOI visibility intervals) displayed under the participant gaze sequence. In **Overlay** mode, time-coded events hang below a shared baseline as colored strips. Overlapping events stack into lanes, and a thin gray line divides participants. Event data is displayed only in **Absolute** and **Relative** time views.

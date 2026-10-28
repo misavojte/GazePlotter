@@ -36,8 +36,8 @@ The settings that decide the numbers on the map. The collapsed section header re
 ### Visualization
 - **Color scale**: How map values become colors.
   - **Color scale picker**: The gradient stops (default *Yellow to Red*).
-  - **Scale max [ms] (0 = Auto)**: The value that takes the top color, in the map's unit (the label shows *ms*, *fixations*, or *%*). 0 = Auto: this map's own peak, rounded up at the third significant digit. Values above an explicit maximum take the top color, shown as a cap at the end of the legend. Changing **Accumulate** or **Normalization** resets it to 0.
-  - **Opacity [%]**: Heat opacity, 0 to 100 (default 70). Values in the lowest 5 % of the scale fade in from transparent, so blobs have soft edges.
+  - **Scale max / ms (0 = Auto)**: The value that takes the top color, in the map's unit (the label shows *ms*, *fixations*, or *%*). 0 = Auto: this map's own peak, rounded up at the third significant digit. Values above an explicit maximum take the top color, shown as a cap at the end of the legend. Changing **Accumulate** or **Normalization** resets it to 0.
+  - **Opacity / %**: Heat opacity, 0 to 100 (default 70). Values in the lowest 5 % of the scale fade in from transparent, so blobs have soft edges.
 - **Show fixations**: Draws every mapped fixation as a small dark dot over the heat, exposing how many fixations, and which outliers, the map rests on.
 - **Background**: What lies under the heat. Offered when the stimulus has a reference image.
   - *Image*: The reference image as it is (default).
@@ -45,10 +45,10 @@ The settings that decide the numbers on the map. The collapsed section header re
   - *Dimmed grayscale image*: The grayscale image faded halfway toward white, for the strongest heat contrast.
   - *None*: Heat only, on white, inside a thin outline of the image's extent. The only setting where the legend matches the map pixel for pixel, which suits reading values off the color bar.
 
-### Time range [ms]
+### Time range
 Limit the fixations the map is built from (Tobii Pro Lab's Time of interest).
-- **Start**: Fixations before it are left out; one that straddles it is clipped (duration) or counted by its midpoint (count).
-- **End (0 = Auto)**: The upper bound, or 0 for the end of the recording.
+- **Start / ms**: Fixations before it are left out; one that straddles it is clipped (duration) or counted by its midpoint (count).
+- **End / ms (0 = Auto)**: The upper bound, or 0 for the end of the recording.
 
 ### Export
 Located at the bottom of the Pane:
@@ -124,9 +124,9 @@ The legends then read *max fixed*, and exported figures keep the shared scale. W
 | (none) | *Share per participant*: each participant divided by their own total fixation duration or count. Older Tobii Studio versions divided by viewing time instead. |
 | Radius (100 px) | **Radius**: the kernel's reach; σ = R / 3, FWHM about 0.78 R (about R in Pro Lab). |
 | Scale max value | **Scale max** |
-| Opacity (80 %) | **Opacity [%]** (70) |
+| Opacity (80 %) | **Opacity / %** (70) |
 | Color: green, yellow, red | **Color scale**: the *Green to Red* preset gives the Pro Lab look, but its light middle makes it diverging rather than sequential, and it is not color-blind safe. |
-| Time of interest | **Time range [ms]** |
+| Time of interest | **Time range** |
 | Background: Media / White | **Background**: *Image* / *None* (plus *Grayscale image* and *Dimmed grayscale image*); Black and Transparent are not offered. |
 | Gaze filter | Fixations as classified in the exported file. |
 

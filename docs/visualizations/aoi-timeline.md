@@ -54,10 +54,10 @@ Configure the visual layout. The view decides which further controls the section
       - *Above max*: Fill for a bin above Max (default gray). Inert while Max is 0/Auto; its legend cap is hidden then too.
 - **Hide No AOI data**: Drops the No AOI band (time outside every AOI), so only the named AOIs are shown.
 
-### Time range [ms]
+### Time range
 Filter the temporal range from which data is fetched.
-- **Start**: Limit the minimum time boundary (ms).
-- **End (0 = Auto)**: Limit the maximum time boundary (ms) or leave at 0 for automatic duration matching.
+- **Start / ms**: Limit the minimum time boundary.
+- **End / ms (0 = Auto)**: Limit the maximum time boundary, or leave at 0 for automatic duration matching.
 
 ### Areas of Interest
 Filters which Areas of Interest (AOIs) are rendered.

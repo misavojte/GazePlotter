@@ -80,4 +80,4 @@ Figure calls `usePlot(options)` once, applies `plot.plotAction` to its `<canvas>
 
 - All axis/legend/colorbar text via `shared/labels.ts` (`buildMetricLabel`). Grammar: `Quantity / unit · qualifier`. Never brackets/parens.
 - Placeholders paint ON CANVAS (`drawCanvasPlaceholder`), never separate DOM — exports must include them. Constants: `METRIC_MISSING_MESSAGE`, `METRIC_MISSING_MULTI_MESSAGE`, `cannotFitPlaceholder`.
-- Placeholder steps name REAL pane section titles: "Areas of Interest" (not "AOIs"), "Metrics", "Participant group", "Visualisation", "Time range".
+- Placeholder steps name REAL pane section titles: "Areas of Interest" (not "AOIs"), "Metrics", "Participant group", "Visualization", "Time range".

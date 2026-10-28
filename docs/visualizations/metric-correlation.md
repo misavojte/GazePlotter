@@ -53,10 +53,10 @@ Select the statistical algorithm used to calculate correlation coefficients:
 - **Pearson**: Measures the linear relationship between metrics. Best for normally distributed, continuous data.
 - **Spearman**: Measures monotonic relationships using ranks. Resilient to non-linear associations and outliers.
 
-### Time range [ms]
+### Time range
 Filter the temporal range.
-- **Start**: Limit the minimum time boundary (ms).
-- **End (0 = Auto)**: Limit the maximum time boundary (ms) or leave at 0 for automatic duration matching.
+- **Start / ms**: Limit the minimum time boundary.
+- **End / ms (0 = Auto)**: Limit the maximum time boundary, or leave at 0 for automatic duration matching.
 
 ### Areas of Interest
 Filters which Areas of Interest (AOIs) are active for the metric calculations. If AOIs are selected, only fixations landing within those boundaries are included in the scalar metric calculations.
@@ -74,4 +74,4 @@ Use Metric Correlation to:
 - **Discover behavioral trends**: For instance, a strong negative correlation between average fixation duration and visit count can reveal a scanning strategy of rapid, frequent visits vs. prolonged, deep inspections.
 - **Relate visual metrics to complexity**: Assess if repetitive gaze behaviors (RQA Recurrence Rate) correlate with longer average fixation durations, suggesting visual confusion or detailed visual processing.
 - **Identify outliers**: Scatter Plot Matrix (SPLOM) view plots individual participants as dots, helping identify anomalous participants who deviate from overall group trends.
-- **Compare cohort stats**: Select Spearman vs. Pearson correlation coefficients to assess the impact of extreme values or non-linearities on behavior trends.
+- **Compare cohort stats**: Select Spearman vs. Pearson correlation coefficients to assess the impact of extreme values or non-linearities on behavior trends.

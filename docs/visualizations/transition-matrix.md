@@ -49,10 +49,10 @@ Configure cell scaling, colors, and outlier rendering.
   - *Above max*: Choose color (default is gray) and toggle *Show text* labels for cell values above maximum. Inert while Max is left at 0/Auto, and its legend cap is hidden then too.
 - **Hide No AOI data**: Drops the No AOI row and column, so only transitions between named AOIs are shown.
 
-### Time range [ms]
+### Time range
 Filter the temporal range from which transitions are calculated.
-- **Start**: Limit the minimum time boundary (ms).
-- **End (0 = Auto)**: Limit the maximum time boundary (ms) or leave at 0 for automatic duration matching.
+- **Start / ms**: Limit the minimum time boundary.
+- **End / ms (0 = Auto)**: Limit the maximum time boundary, or leave at 0 for automatic duration matching.
 
 ### Areas of Interest
 Filters which Areas of Interest (AOIs) are rendered as rows and columns in the matrix.

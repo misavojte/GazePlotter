@@ -3,10 +3,10 @@
    * Shared "range" section used by every plot pane that has start/end bounds.
    *
    * By default it binds to `timelineStart` / `timelineEnd` and renders
-   * "Time range [ms]". A plot with an index-based mode passes `ordinalMode`
-   * (data from its pane entry's `props` — scarf): while the predicate holds
-   * on the representative settings, the section edits the given ordinal keys
-   * and renders "Ordinal range [indices]" instead.
+   * "Time range", its fields carrying the unit (`Start / ms`). A plot with an
+   * index-based mode passes `ordinalMode` (data from its pane entry's `props`
+   * — scarf): while the predicate holds on the representative settings, the
+   * section edits the given ordinal keys and renders "Ordinal range" instead.
    */
   import { InputNumber } from '$lib/shared/components'
   import { PaneSection } from '$lib/workspace/pane'
@@ -53,7 +53,9 @@
   )
   const effectiveStart = $derived(commonStart.mixed ? undefined : commonStart.value)
   const effectiveEnd = $derived(commonEnd.mixed ? undefined : commonEnd.value)
-  const effectiveTitle = $derived(ordinal ? 'Ordinal range [indices]' : 'Time range [ms]')
+  const effectiveTitle = $derived(ordinal ? 'Ordinal range' : 'Time range')
+  // Indices are unitless; times carry ms in the label grammar (`Quantity / unit`).
+  const unit = $derived(ordinal ? '' : ' / ms')
 
   const rangeSummary = $derived(
     commonStart.mixed || commonEnd.mixed
@@ -85,7 +87,7 @@
   <div class="inline-pair">
     <InputNumber
       id={startId}
-      label="Start"
+      label={`Start${unit}`}
       value={commonStart.value}
       mixed={commonStart.mixed}
       min={0}
@@ -95,7 +97,7 @@
     />
     <InputNumber
       id={endId}
-      label="End (0 = Auto)"
+      label={`End${unit} (0 = Auto)`}
       value={commonEnd.value}
       mixed={commonEnd.mixed}
       min={0}

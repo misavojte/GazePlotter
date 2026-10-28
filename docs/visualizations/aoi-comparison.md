@@ -53,10 +53,10 @@ Configure the visual layout and rendering options for the bar chart.
 - **Direction**: Sort bars *Ascending* or *Descending*.
 - **Scale range**: Explicitly set the value axis minimum and maximum (*0 = Auto*).
 
-### Time range [ms]
+### Time range
 Filter the temporal range from which fixations and saccades are fetched.
-- **Start**: Limit the minimum time boundary (ms).
-- **End (0 = Auto)**: Limit the maximum time boundary (ms) or leave at 0 for automatic duration matching.
+- **Start / ms**: Limit the minimum time boundary.
+- **End / ms (0 = Auto)**: Limit the maximum time boundary, or leave at 0 for automatic duration matching.
 
 ### Areas of Interest
 Filters which Areas of Interest (AOIs) are rendered in the bar chart.
@@ -75,4 +75,4 @@ Use AOI Comparison to:
 - **Compare AOI performance**: Identify which areas attract most/least attention.
 - **Quantify differences**: Obtain precise measurements rather than visual estimates.
 - **Compare participant selections**: Analyze how different participant selections behave relative to each other.
-- **Conduct statistical analysis**: Export exact computed metric values per participant for further processing.
+- **Conduct statistical analysis**: Export exact computed metric values per participant for further processing.

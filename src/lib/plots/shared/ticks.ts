@@ -98,12 +98,13 @@ export function indexTicks(
   return { positions, labels }
 }
 
-function formatLinearTick(v: number): string {
-  if (!Number.isFinite(v)) return ''
-  const abs = Math.abs(v)
-  if (abs >= 1000) return Math.round(v).toString()
-  if (abs >= 10) return v.toFixed(0)
-  return v.toFixed(2)
+/** Decimals a nice step needs to print exactly: 250 -> 0, 2.5 -> 1, 0.25 -> 2. */
+function stepDecimals(step: number): number {
+  let decimals = 0
+  while (decimals < 6 && Math.abs(Math.round(step * 10 ** decimals) - step * 10 ** decimals) > 1e-6) {
+    decimals++
+  }
+  return decimals
 }
 
 /**
@@ -112,16 +113,18 @@ function formatLinearTick(v: number): string {
  * step that fall inside the range. Unlike the timeline, min may be negative.
  */
 export function linearTicks(min: number, max: number, count: number): PlotAreaTicks {
-  if (!(max > min)) return { positions: [0.5], labels: [formatLinearTick(min)] }
+  if (!(max > min)) return { positions: [0.5], labels: [Number.isFinite(min) ? String(Number(min.toPrecision(3))) : ''] }
   const range = max - min
   const step = calculateNiceStepSize(range, count)
+  // One precision for the whole axis, from the step: never "0.00" beside "250".
+  const decimals = stepDecimals(step)
   const positions: number[] = []
   const labels: string[] = []
   for (let v = Math.ceil(min / step) * step; v <= max + step * 1e-4; v += step) {
     // Snap floating-point drift (0.30000000000000004) back to the grid.
     const value = Math.abs(v) < step * 1e-6 ? 0 : v
     positions.push((value - min) / range)
-    labels.push(formatLinearTick(value))
+    labels.push(value.toFixed(decimals))
   }
   return { positions, labels }
 }

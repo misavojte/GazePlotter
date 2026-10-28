@@ -14,10 +14,13 @@ export function subtitleParts(...facts: [string, string | undefined][]): PlotSub
   return parts.length === 0 ? undefined : parts
 }
 
-/** The participants a plot ranges over: its selection's name (unknown = All), plus the empty-participant filter. */
+/** The everyone-selection, spelled out: a bare "All" means nothing outside the pane. */
+const ALL_PARTICIPANTS_LABEL = `${ALL_SELECTION_LABEL} participants`
+
+/** The participants a plot ranges over: its selection's name (unknown = all participants), plus the empty-participant filter. */
 export function participantScopeLabel(engine: DataEngine, scope: ParticipantScope): string {
   const id = scope.participantSelectionId
-  const name = (id && getParticipantsSelections(engine).find(s => s.id === id)?.name) || ALL_SELECTION_LABEL
+  const name = (id && getParticipantsSelections(engine).find(s => s.id === id)?.name) || ALL_PARTICIPANTS_LABEL
   return scope.hideEmptyParticipants ? `${name}, non-empty` : name
 }
 

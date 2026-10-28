@@ -51,10 +51,10 @@ Configure the rendering layout and thresholding. The view decides which further 
     - **Min clique members**: The smallest clique the picker offers (default 2 = all cliques). Raising it hides the many small pairs a near-threshold graph produces, keeping the list focused on substantial groups.
     - **Highlight clique**: A clique is a group of participants that are **all pairwise similar** at the chosen threshold (the ScanGraph article's "groups of similar participants"). This dropdown lists every such group with at least the chosen number of members, largest first. Each option's secondary line reports the clique's internal agreement: the weakest pairwise similarity (`p ≥ …`, every member pair agrees at least this much) and the mean (`x̄`), followed by its members. Selecting one emphasizes its members and the edges **between** them while the rest of the graph recedes; edges leaving the clique stay plain, and members get first claim on label space. Nodes highlighted by clicking stay at full strength on top. On very dense graphs the clique list becomes unavailable and only *None* is offered; raise the threshold to bring it back.
 
-### Time range [ms]
+### Time range
 Limit the analysis to fixations that begin within this time range.
-- **Start**: Limit the minimum time boundary (ms).
-- **End (0 = Auto)**: Limit the maximum time boundary (ms) or leave at 0 for automatic duration matching.
+- **Start / ms**: Limit the minimum time boundary.
+- **End / ms (0 = Auto)**: Limit the maximum time boundary, or leave at 0 for automatic duration matching.
 
 ### Areas of Interest
 Filters which Areas of Interest (AOIs) get their own letter in the scanpath strings. Fixations outside every active AOI are encoded as `#` (no AOI), exactly as in the exported ScanGraph strings.
