@@ -385,17 +385,6 @@
   // text and hairlines across two pixels.
   const screenX = $derived(Math.round(camera.x))
   const screenY = $derived(Math.round(camera.y))
-
-  // Fine paper riding the camera: a line every fifth of a cell, aligned to
-  // the gap centres; fades out on zoom-out before it turns to mesh.
-  const latticeStyle = $derived.by(() => {
-    const pitch = ((gridConfig.cellSize.width + gridConfig.gap) / 5) * camera.zoom
-    const lead = (gridConfig.cellSize.width + gridConfig.gap / 2) * camera.zoom
-    const ink = Math.max(0, camera.zoom - 0.5) * 8
-    const x = screenX + Math.round(lead)
-    const y = screenY + Math.round(lead)
-    return `--lattice-pitch: ${pitch}px; --lattice-x: ${x}px; --lattice-y: ${y}px; --lattice-ink: ${ink.toFixed(1)}%;`
-  })
 </script>
 
 {#snippet dropHint()}
@@ -432,7 +421,6 @@
     <div
       class="workspace-container"
       class:is-drop-target={dropOffered}
-      style={latticeStyle}
       bind:this={workspaceContainer}
       role="none"
       ondragenter={fileDrop.enter}
@@ -549,27 +537,14 @@
     /* The frame never scrolls: the camera moves the grid inside it. */
     overflow: hidden;
     cursor: grab;
-    /* Tinted desk, so the white plot bodies lift off it like paper. */
-    background-color: var(--c-darkwhite);
-  }
-
-  /* Own layer so the vignette masks only the paper, never the plots. */
-  .workspace-container::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    --lattice-line: color-mix(in srgb, var(--c-black) var(--lattice-ink), transparent);
-    background-image:
-      linear-gradient(to right, var(--lattice-line) 1px, transparent 1px),
-      linear-gradient(to bottom, var(--lattice-line) 1px, transparent 1px);
-    background-size: var(--lattice-pitch) var(--lattice-pitch);
-    background-position: var(--lattice-x) var(--lattice-y);
-    /* Paper settles toward the edges, so the frame has no hard grid cut. */
-    mask-image: radial-gradient(
-      ellipse 85% 85% at 50% 45%,
-      #000 40%,
-      rgb(0 0 0 / 0.3) 100%
+    /* A desk halfway between white and the tint: the white plot bodies lift
+       off it, the tinted headers still read against it. It settles a breath
+       toward the full tint at the edges. */
+    background-color: color-mix(in srgb, var(--c-lightgrey) 50%, var(--c-white));
+    background-image: radial-gradient(
+      ellipse 120% 100% at 50% 35%,
+      color-mix(in srgb, var(--c-lightgrey) 50%, var(--c-white)) 55%,
+      color-mix(in srgb, var(--c-lightgrey) 85%, var(--c-white)) 100%
     );
   }
 
@@ -590,7 +565,7 @@
     padding: 8px 14px;
     border-radius: var(--rounded-md);
     background-color: color-mix(in srgb, var(--c-black) 85%, transparent);
-    color: var(--c-darkwhite);
+    color: var(--c-lightgrey);
     font-size: var(--text-md);
     /* One line where it fits, wrapped (never clipped) on a narrow canvas. */
     width: max-content;
@@ -604,7 +579,8 @@
 
   /* On the frame itself, so the cue holds wherever the camera is. */
   .workspace-container.is-drop-target {
-    background-color: color-mix(in srgb, var(--c-info) 5%, var(--c-darkwhite));
+    background-image: none;
+    background-color: color-mix(in srgb, var(--c-info) 5%, var(--c-lightgrey));
     outline: 2px dashed var(--c-info);
     outline-offset: -12px;
   }

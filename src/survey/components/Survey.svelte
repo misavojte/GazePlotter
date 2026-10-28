@@ -357,7 +357,7 @@
 
   .task.active {
     border-color: var(--c-brand);
-    background: var(--c-darkwhite);
+    background: var(--c-lightgrey);
     box-shadow: 0 0 0 3px rgba(205, 20, 4, 0.1);
     color: var(--c-brand-dark);
     transform: scale(1.02);

@@ -91,7 +91,7 @@
     padding: 16px;
     border: 1px solid var(--c-border);
     border-radius: var(--rounded-md);
-    background-color: var(--c-darkwhite);
+    background-color: var(--c-lightgrey);
     overflow: hidden;
   }
 

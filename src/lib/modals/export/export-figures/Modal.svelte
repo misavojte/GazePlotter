@@ -444,7 +444,7 @@
 
   .pager-btn:hover:not(:disabled) {
     color: var(--c-brand);
-    background: var(--c-darkwhite);
+    background: var(--c-lightgrey);
   }
 
   .pager-btn:disabled {

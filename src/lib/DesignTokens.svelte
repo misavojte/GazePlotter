@@ -6,7 +6,6 @@
       | 'brand'
       | 'brandDark'
       | 'white'
-      | 'darkwhite'
       | 'lightgrey'
       | 'grey'
       | 'midgrey'
@@ -55,11 +54,10 @@
   :global(:root) {
     --c-brand: #cd1404;
     --c-brand-dark: #a20d03;
-    /* Neutrals, one job each: surface, subtle surface, fill (hover,
+    /* Neutrals, one job each: surface, tint (subtle surfaces, hover,
        secondary buttons), pressed fill, strong line (field borders, icons,
        disabled), muted text, ink. Hairlines use --c-border below. */
     --c-white: #ffffff;
-    --c-darkwhite: #f8fafc;
     --c-lightgrey: #f1f5f9;
     --c-grey: #e2e8f0;
     --c-midgrey: #cbd5e1;

@@ -222,7 +222,7 @@
     border: 1px solid var(--c-border);
     border-radius: var(--rounded-md);
     box-shadow: var(--shadow-sm);
-    background: var(--c-darkwhite);
+    background: var(--c-lightgrey);
     overflow: hidden;
     transition: border-color var(--transition-fast), background var(--transition-fast);
 

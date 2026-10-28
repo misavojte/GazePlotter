@@ -670,7 +670,7 @@
     gap: 8px;
     align-items: center;
     padding: 8px 12px;
-    background-color: var(--c-darkwhite);
+    background-color: var(--c-lightgrey);
   }
 
   .entity-row.member {

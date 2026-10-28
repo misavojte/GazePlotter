@@ -186,6 +186,9 @@
     z-index: 2;
     box-sizing: border-box;
     border-left: 1px solid var(--c-border);
+    /* A sheet over the canvas: a soft shade falls on the plots it covers,
+       strong enough to read over busy figures. */
+    box-shadow: -8px 0 20px -6px color-mix(in srgb, var(--c-black) 14%, transparent);
     transition: background-color var(--transition-slow) ease;
   }
 

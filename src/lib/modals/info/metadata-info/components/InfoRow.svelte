@@ -74,7 +74,7 @@
   .error-stack {
     margin-top: 8px;
     padding: 12px;
-    background: var(--c-darkwhite);
+    background: var(--c-lightgrey);
     border: 1px solid var(--c-border);
     border-radius: 4px;
     font-family: 'Courier New', monospace;

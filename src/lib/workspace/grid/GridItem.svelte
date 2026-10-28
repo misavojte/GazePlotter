@@ -250,10 +250,7 @@
             {#if i > 0}
               <span class="grid-item-subtitle-divider" aria-hidden="true"></span>
             {/if}
-            <div class="grid-item-subtitle-part">
-              <span class="grid-item-subtitle-label">{part.label}</span>
-              <span class="grid-item-subtitle-value" title={part.value}>{part.value}</span>
-            </div>
+            <span class="grid-item-subtitle-value" title="{part.label}: {part.value}">{part.value}</span>
           {/each}
         </div>
       {/if}
@@ -370,6 +367,8 @@
     box-sizing: border-box;
     background-color: var(--c-lightgrey);
     border-radius: var(--rounded-lg);
+    /* Flat on the desk: plots are the content, so no shadow; the border and
+       the tinted header set them apart. */
     border: 1px solid var(--c-border);
     overflow: hidden;
     display: flex;
@@ -429,12 +428,14 @@
     outline-style: dashed;
   }
 
+  /* Title and subtitle share a baseline; the larger top padding centres
+     the title's line box in the 47px band. */
   .grid-item-header {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     justify-content: space-between;
     gap: 12px;
-    padding: 10px var(--grid-item-body-padding);
+    padding: 14px var(--grid-item-body-padding) 10px;
     min-height: 47px;
     box-sizing: border-box;
     background: var(--c-lightgrey);
@@ -458,50 +459,31 @@
     white-space: nowrap;
   }
 
-  /* Subtitle is a row of captioned parts divided by thin 1px separators
-     (same visual language as the ribbon / rail dividers elsewhere in
-     the workspace). Each part stacks a tiny uppercase label over a
-     slightly larger non-uppercase value. */
+  /* Subtitle: the scope values on one quiet line, divided by hairlines;
+     each part names itself in its tooltip. */
   .grid-item-subtitle {
     display: flex;
-    align-items: stretch;
+    align-items: center;
     gap: 10px;
     flex-shrink: 0;
     max-width: 60%;
     min-width: 0;
   }
 
-  .grid-item-subtitle-part {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-  }
-
-  .grid-item-subtitle-label {
-    font-size: var(--text-3xs);
-    font-family: var(--font-small);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--c-darkgrey);
-    line-height: 1;
-  }
-
   .grid-item-subtitle-value {
-    font-size: var(--text-xs);
-    font-family: var(--font-small);
-    font-weight: 500;
+    font-size: var(--text-sm);
     color: var(--c-darkgrey);
     line-height: var(--leading-tight);
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .grid-item-subtitle-divider {
+    flex-shrink: 0;
     width: 1px;
-    align-self: stretch;
+    height: 12px;
     background-color: var(--c-border);
   }
 

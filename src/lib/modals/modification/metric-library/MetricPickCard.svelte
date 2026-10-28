@@ -22,7 +22,7 @@
     padding: 12px;
     border: 1px solid var(--c-border);
     border-radius: var(--rounded-md);
-    background: var(--c-darkwhite);
+    background: var(--c-lightgrey);
     cursor: pointer;
     transition: all var(--transition-normal) ease;
     text-align: left;

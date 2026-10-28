@@ -220,7 +220,7 @@
 
   .scale-item.completed {
     border-color: var(--c-success);
-    background: var(--c-darkwhite);
+    background: var(--c-lightgrey);
     box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
   }
 

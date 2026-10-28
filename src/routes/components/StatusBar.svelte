@@ -74,12 +74,15 @@
     border-left: 1px solid var(--c-border);
   }
 
+  /* Quiet until reached for: the underline arrives with the hover. */
   a {
     color: inherit;
     text-decoration: underline;
-    text-decoration-color: var(--c-midgrey);
+    text-decoration-color: transparent;
     text-underline-offset: 2px;
-    transition: color var(--transition-fast) ease;
+    transition:
+      color var(--transition-fast) ease,
+      text-decoration-color var(--transition-fast) ease;
   }
 
   a:hover {

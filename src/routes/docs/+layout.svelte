@@ -221,7 +221,7 @@
   .docs-container {
     display: flex;
     flex: 1;
-    background-color: var(--c-darkwhite);
+    background-color: var(--c-lightgrey);
     min-height: calc(100vh - var(--site-header-height));
     z-index: 10;
   }
@@ -499,7 +499,7 @@
 
   :global(.prose-wrapper blockquote) {
     border: 1px solid var(--c-border);
-    background-color: var(--c-darkwhite);
+    background-color: var(--c-lightgrey);
     margin: 2rem 0;
     padding: 1.5rem;
     border-radius: 12px;
@@ -515,7 +515,7 @@
 
   :global(.prose-wrapper th) {
     text-align: left;
-    background: var(--c-darkwhite);
+    background: var(--c-lightgrey);
     padding: 0.75rem 1rem;
     border-bottom: 1px solid var(--c-border);
     color: var(--c-darkgrey);
@@ -533,7 +533,7 @@
 
   :global(.prose-wrapper pre) {
     background-color: var(--c-black);
-    color: var(--c-darkwhite);
+    color: var(--c-lightgrey);
     padding: 1.5rem;
     border-radius: 12px;
     margin: 2rem 0;
@@ -580,7 +580,7 @@
       height: 36px;
       border: 1px solid var(--c-border);
       border-radius: 8px;
-      background: var(--c-darkwhite);
+      background: var(--c-lightgrey);
       color: var(--c-black);
       cursor: pointer;
     }
