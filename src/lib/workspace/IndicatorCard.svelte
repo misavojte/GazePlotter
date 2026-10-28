@@ -1,5 +1,7 @@
 <script lang="ts">
   import { fade } from 'svelte/transition'
+  import { prefersReducedMotion } from 'svelte/motion'
+  import { cubicIn, cubicOut } from 'svelte/easing'
   import type { Snippet } from 'svelte'
 
   interface Props {
@@ -10,9 +12,16 @@
   let { title, children }: Props = $props()
 </script>
 
-<div class="workspace-indicator" transition:fade={{ duration: 400 }}>
+<!-- When one card replaces another, the old one is nearly gone before the
+     new one shows, so two states never read at once and nothing waits. -->
+<div
+  class="workspace-indicator"
+  in:fade={{ duration: prefersReducedMotion.current ? 0 : 300, easing: cubicIn }}
+  out:fade={{ duration: prefersReducedMotion.current ? 0 : 150, easing: cubicOut }}
+>
   <div class="indicator-card">
-    <div class="indicator-header">
+    <!-- Polite: a new phase ("Reading data") is announced, not just shown. -->
+    <div class="indicator-header" aria-live="polite">
       <h3 class="indicator-title">{title}</h3>
     </div>
     <div class="indicator-body">
