@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { sveltekit } from '@sveltejs/kit/vite'
 import { defineConfig } from 'vitest/config'
 import pkg from './package.json'
@@ -26,5 +28,12 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __BUILD_DATE__: JSON.stringify(new Date().toISOString()),
+    // Versions the demo URL by content, so a stored copy never goes stale.
+    __DEMO_HASH__: JSON.stringify(
+      createHash('sha256')
+        .update(readFileSync(new URL('./static/data/demo.gazeplotter', import.meta.url)))
+        .digest('hex')
+        .slice(0, 12)
+    ),
   },
 })

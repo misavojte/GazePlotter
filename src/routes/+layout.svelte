@@ -4,6 +4,7 @@
   import DesignTokens from '$lib/DesignTokens.svelte'
   import { Footer, Header } from './components'
   import { page } from '$app/state'
+  import { registerServiceWorker } from './serviceWorker'
 
   /** @type {{children?: import('svelte').Snippet}} */
   let { children } = $props()
@@ -11,6 +12,11 @@
   // The homepage is the app itself: it docks its own header and status bar,
   // so the site header and footer are skipped.
   const isApp = $derived(page.url.pathname === '/')
+
+  // The app registers it once its first data load settles (+page.svelte).
+  $effect(() => {
+    if (!isApp) registerServiceWorker()
+  })
 
   // SoftwareApplication structured data (schema.org). `softwareVersion` is
   // sourced from the build-time `__APP_VERSION__` (package.json) so it never

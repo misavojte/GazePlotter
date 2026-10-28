@@ -29,7 +29,15 @@ const config = {
     },
     prerender: {
       entries: ['*', '/sitemap.xml', '/llms.txt']
-    }
+    },
+    serviceWorker: {
+      // Registered after the page's first load (src/routes/serviceWorker.ts).
+      register: false,
+      // Precache the app shell only: every deploy re-downloads the precache for
+      // every returning visitor. Datasets are the page's (cachedLoader); docs
+      // and images are cached at runtime when visited.
+      files: file => !/^(data|docs|images)\/|\.DS_Store/.test(file),
+    },
   },
 }
 

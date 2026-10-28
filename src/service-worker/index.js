@@ -12,7 +12,7 @@
 /// <reference lib="esnext" />
 /// <reference lib="webworker" />
 
-import { build, files, version } from '$service-worker'
+import { base, build, files, version } from '$service-worker'
 
 const sw = /** @type {ServiceWorkerGlobalScope} */ (
   /** @type {unknown} */ (self)
@@ -33,10 +33,10 @@ sw.addEventListener('install', event => {
 })
 
 sw.addEventListener('activate', event => {
-  // Remove previous cached data from disk
+  // Remove previous versions only: the page keeps its own caches (datasets).
   async function deleteOldCaches() {
     for (const key of await caches.keys()) {
-      if (key !== CACHE) await caches.delete(key)
+      if (key.startsWith('cache-') && key !== CACHE) await caches.delete(key)
     }
   }
 
@@ -47,13 +47,12 @@ sw.addEventListener('fetch', event => {
   // ignore POST requests etc
   if (event.request.method !== 'GET') return
 
-  // Skip caching for chrome extension URLs - they can't be cached
+  // Cross-origin (shared datasets, extensions) and datasets go straight to the
+  // network: the page streams them with progress and resume, and stores the
+  // demo itself (src/routes/cachedLoader.ts). A copy here would double it.
   const url = new URL(event.request.url)
-  if (url.protocol === 'chrome-extension:') {
-    // Just fetch from network without caching
-    event.respondWith(fetch(event.request))
-    return
-  }
+  if (url.origin !== sw.location.origin) return
+  if (url.pathname.startsWith(`${base}/data/`)) return
 
   async function respond() {
     const cache = await caches.open(CACHE)
@@ -79,10 +78,7 @@ sw.addEventListener('fetch', event => {
       }
 
       if (response.status === 200) {
-        // Only cache if not a chrome-extension URL (double check)
-        if (!event.request.url.startsWith('chrome-extension:')) {
-          cache.put(event.request, response.clone())
-        }
+        cache.put(event.request, response.clone())
       }
 
       return response

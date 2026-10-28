@@ -16,18 +16,20 @@
   import FileText from 'lucide-svelte/icons/file-text'
   import { Header, HeaderAction, StatusBar } from './components'
   import { announceVersionOnce } from './versionNotice'
+  import { cachedLoader } from './cachedLoader'
+  import { registerServiceWorker } from './serviceWorker'
 
-  const demoDataPath = `${base}/data/demo.json?v=3`
+  // Versioned by content (vite.config.ts), so the stored copy never goes stale.
+  const demoUrl = `${base}/data/demo.gazeplotter?v=${__DEMO_HASH__}`
 
   // Read `?dataUrl=` once at mount. Switching sources mid-session needs a
   // page reload — matches GazePlotter's "load is one-shot" contract.
   const dataUrl = browser
     ? new URL(window.location.href).searchParams.get('dataUrl')
     : null
-  const load = fromUrl(
-    dataUrl ?? demoDataPath,
-    dataUrl ? 'data.json' : 'demo.json'
-  )
+  const load = dataUrl
+    ? fromUrl(dataUrl)
+    : cachedLoader(demoUrl, 'demo.gazeplotter')
 
   let gazePlotterRef = $state<{
     getSession: () => GazePlotterSession
@@ -68,6 +70,12 @@
     session.toastState.addInfo(
       `You're looking at demo data. Drop your own files anywhere, or ${withShortcut('use Import', 'open')}, to replace it.`
     )
+  })
+
+  // After the first load settles, so the precache never competes with it.
+  $effect(() => {
+    const status = gazePlotterRef?.getSession().ingest.status
+    if (status && status !== 'loading') registerServiceWorker()
   })
 
   // "?" opens the shortcut list in a new tab, so the workspace stays as it is.
@@ -155,7 +163,20 @@
   {/snippet}
 </Header>
 <main class="app">
-  <GazePlotter {load} bind:this={gazePlotterRef} gestures="canvas" />
+  <!-- Without JavaScript the loading card would spin forever; the guide works without it. -->
+  <noscript>
+    <p class="noscript">
+      GazePlotter runs in your browser and needs JavaScript to open the workspace. Turn
+      it on and reload, or <a href="{base}/docs/">read the guide</a>.
+    </p>
+  </noscript>
+  <!-- The demo toast already says it loaded; a shared link keeps the success toast. -->
+  <GazePlotter
+    {load}
+    options={{ quietInitialLoad: !dataUrl }}
+    bind:this={gazePlotterRef}
+    gestures="canvas"
+  />
 </main>
 <StatusBar />
 
@@ -170,5 +191,19 @@
     overflow: hidden;
     --gp-workspace-height: var(--app-height);
     --gp-toaster-bottom: calc(var(--site-statusbar-height) + 8px);
+  }
+
+  .noscript {
+    margin: 0;
+    padding: 12px 16px;
+    text-align: center;
+    background: var(--c-white);
+    border-bottom: 1px solid var(--c-border);
+    color: var(--c-black);
+  }
+
+  .noscript a {
+    color: inherit;
+    text-decoration: underline;
   }
 </style>
