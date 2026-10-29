@@ -481,7 +481,8 @@
       ctx.restore()
       return
     }
-    const top = frame.bottom + frame.bottomTitleOffset
+    // A 2px drop off the title row's top: air between the key and the tick labels above.
+    const top = frame.bottom + frame.bottomTitleOffset + 2
     const midY = top + AXIS_CONFIG.fontSize / 2
     ctx.textBaseline = 'middle'
     ctx.fillStyle = AXIS_CONFIG.color
