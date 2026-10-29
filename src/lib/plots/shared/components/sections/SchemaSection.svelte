@@ -63,19 +63,22 @@
     rows: SectionField[][]
     fields: SectionField[]
   }
+  const captionOf = (f: SectionField | undefined): string | null =>
+    (typeof f?.group === 'function' ? f.group(ctx) : f?.group) ?? null
+
   const blocks: RenderBlock[] = $derived.by(() => {
     const built: RenderBlock[] = []
     let block: RenderBlock | null = null
     const fields = entry.fields
     for (let i = 0; i < fields.length; i++) {
       const f = fields[i]
-      const caption = f.group ?? null
+      const caption = captionOf(f)
       if (!block || block.caption !== caption) {
         block = { caption, rows: [], fields: [] }
         built.push(block)
       }
       block.fields.push(f)
-      if (f.pair && fields[i + 1]?.pair && (fields[i + 1].group ?? null) === caption) {
+      if (f.pair && fields[i + 1]?.pair && captionOf(fields[i + 1]) === caption) {
         block.fields.push(fields[i + 1])
         block.rows.push([f, fields[i + 1]])
         i++

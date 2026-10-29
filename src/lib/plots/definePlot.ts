@@ -230,8 +230,9 @@ export type SectionFieldAction = {
  */
 export type SectionFieldPresentation = {
   /** Caption group: consecutive fields with the same caption render under it;
-   *  the caption hides when every member is hidden. */
-  group?: string
+   *  the caption hides when every member is hidden. Function form for a field
+   *  captioned in one mode only. */
+  group?: string | ((ctx: SectionFieldCtx) => string | undefined)
   /** Share a 1fr/1fr row with the adjacent `pair` field. Consecutive paired
    *  fields chunk left-to-right, two per row. */
   pair?: boolean

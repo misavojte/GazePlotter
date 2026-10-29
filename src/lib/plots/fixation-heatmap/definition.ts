@@ -101,6 +101,12 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
           summary: true,
         },
         {
+          kind: 'color',
+          key: 'maskColor',
+          label: 'Mask color',
+          showWhen: viewIs('opacity'),
+        },
+        {
           kind: 'colorScale',
           key: 'colorScale',
           group: 'Color scale',
@@ -109,16 +115,10 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
           showWhen: viewIs('heatmap'),
         },
         {
-          kind: 'color',
-          key: 'maskColor',
-          group: 'Color scale',
-          label: 'Mask color',
-          showWhen: viewIs('opacity'),
-        },
-        {
           kind: 'number',
           key: 'scaleMax',
-          group: 'Color scale',
+          // The opacity map has no colour scale to caption.
+          group: ctx => (viewIs('heatmap')(ctx) ? 'Color scale' : undefined),
           label: ctx => {
             const unit = scaleUnit(ctx)
             return unit ? `Scale max / ${unit} (0 = Auto)` : 'Scale max (0 = Auto)'
@@ -141,7 +141,6 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
         {
           kind: 'number',
           key: 'maskOpacity',
-          group: 'Color scale',
           label: 'Mask opacity / %',
           min: 0,
           max: 100,
