@@ -15,15 +15,17 @@
     participantIndexAxisWidth,
     PLOT_BORDER_PX,
     PLOT_EDGE_PAD_TOP,
+    PLOT_LEGEND_GAP,
+    resolveFrameLayout,
     trackOnlyHit,
     intervalAt,
     type CanvasExportProps,
     type PlotFrame,
     type FrameAxes,
+    type FrameGutters,
     type FrameHit,
   } from '$lib/plots/shared'
   import { cursorGuides, type PlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
-  import { measureTextHeight } from '$lib/shared/textMeasure'
   import { percentileSorted } from '$lib/shared/stats'
   import { samplePalette } from '$lib/color'
   import { INACTIVE_COLOR, PRESET_PALETTES, resolvePalette } from '$lib/color/palettes'
@@ -31,8 +33,6 @@
   import {
     AXIS_CONFIG,
     drawParticipantRowAxis,
-    getXAxisHeight,
-    maxAxisTitleHeight,
     truncatedRowLabels,
   } from '$lib/plots/shared/axisUtils'
   import {
@@ -74,34 +74,35 @@
 
   const X_AXIS_LABEL = $derived(data.xAxisLabel)
 
-  const tickLabelHeight = $derived.by(() => {
-    let maxHeight = 0
-    for (const t of data.timeline.ticks) {
-      const h = measureTextHeight(t.label, AXIS_CONFIG.fontSize, AXIS_CONFIG.fontFamily)
-      if (h > maxHeight) maxHeight = h
-    }
-    return maxHeight
+  // ── Axis chrome (all pixel-independent) ──
+  const xAxisTicks = $derived(niceTimelineTicks(data.timeline))
+  const timeAxes = $derived<FrameAxes>({
+    bottom: { ticks: xAxisTicks, title: X_AXIS_LABEL },
+    top: { ticks: { positions: xAxisTicks.positions } },
   })
-  // Bottom-reserve estimate for the COMPACT PROBE ONLY. Mirrors what the resolver
-  // carves for the x-axis (ticks + worst-case 2-line title) plus the legend
-  // block, but GAP-FREE: the resolver abuts the legend block to the x-axis gutter
-  // with no PLOT_LEGEND_GAP, so including the gap here would flip isCompact ~14px
-  // early. Worst-case title height avoids a wrap-width cycle; the draw wraps for real.
-  const bottomReserveEstimate = $derived.by(() =>
-    getXAxisHeight(
-      tickLabelHeight,
-      X_AXIS_LABEL ? maxAxisTitleHeight(AXIS_CONFIG.fontSize) : 0,
-      AXIS_CONFIG.tickLabelOffset
-    ) + plot.gradientLegendHeight
-  )
+  const gutters = (left?: number): FrameGutters => ({
+    pad: { top: PLOT_EDGE_PAD_TOP, right: PLOT_BORDER_PX, left },
+  })
 
-  // Compact-mode probe height — derived from the PRE-gutter content area
-  // (plot.plotAreaHeight), NOT plot.frame.height, to break the cycle
-  // (frame.height ← axes.left ← isCompact ← probeHeight). LOAD-BEARING: do not
-  // switch this to frame.height or the $derived graph cycles / settles stale.
-  const probeHeight = $derived.by((): number =>
-    Math.max(0, plot.plotAreaHeight - PLOT_EDGE_PAD_TOP - bottomReserveEstimate)
-  )
+  // The heatmap's row height for the compact verdict. It cannot be
+  // `plot.frame.height`: compact mode decides the left gutter, which closes a
+  // loop through the width the resolver wraps the axis title to. So it resolves
+  // the SAME declaration on the pre-gutter content area, with the left inset
+  // pinned at its widest (a row-label column never passes 40% of the canvas):
+  // the title wraps at its tallest, so the probe is never taller than the frame.
+  // The gradient band is added as usePlot adds it.
+  const probeHeight = $derived.by((): number => {
+    const band = plot.gradientLegendHeight
+    const { rect } = resolveFrameLayout(
+      {
+        ...gutters(Math.max(participantIndexAxisWidth(data.participants.length), width * 0.4)),
+        legendHeight: band > 0 ? PLOT_LEGEND_GAP + band : 0,
+      },
+      { left: 0, top: 0, right: plot.plotAreaWidth, bottom: plot.plotAreaHeight },
+      timeAxes
+    )
+    return rect.height
+  })
   const COMPACT_THRESHOLD = AXIS_CONFIG.fontSize + 2
   const isCompact: boolean = $derived(
     alignment === 'heatmap' &&
@@ -109,8 +110,6 @@
       probeHeight / data.participants.length < COMPACT_THRESHOLD
   )
 
-  // ── Axis chrome (all pixel-independent) ──
-  const xAxisTicks = $derived(niceTimelineTicks(data.timeline))
   const yTimeline = $derived.by(() =>
     alignment !== 'overlay' ? null : createAdaptiveTimeline(0, data.valueMax, 6)
   )
@@ -139,12 +138,10 @@
   // offsets). No axes without participants: the empty result's timeline is fabricated.
   const axes = $derived.by<FrameAxes | null>(() => {
     if (data.participants.length === 0) return null
-    const bottom = { ticks: xAxisTicks, title: X_AXIS_LABEL }
-    const top = { ticks: { positions: xAxisTicks.positions } }
     if (alignment === 'overlay') {
-      return { bottom, top, left: { ticks: yTicks ?? undefined, title: data.yAxisLabel } }
+      return { ...timeAxes, left: { ticks: yTicks ?? undefined, title: data.yAxisLabel } }
     }
-    return isCompact ? { bottom, top } : { bottom, top, left: { reserve: participantLabels } }
+    return isCompact ? timeAxes : { ...timeAxes, left: { reserve: participantLabels } }
   })
 
   const plot = usePlot<{ t: number; x: number; participantIdx: number | null }>({
@@ -159,13 +156,8 @@
       ])
     },
     axes: () => axes,
-    gutters: () => ({
-      pad: {
-        top: PLOT_EDGE_PAD_TOP,
-        right: PLOT_BORDER_PX,
-        left: isCompact ? participantIndexAxisWidth(data.participants.length) : undefined,
-      },
-    }),
+    gutters: () =>
+      gutters(isCompact ? participantIndexAxisWidth(data.participants.length) : undefined),
     gradientLegend: () =>
       alignment !== 'heatmap'
         ? null
