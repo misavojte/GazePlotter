@@ -15,7 +15,7 @@
  *
  * Deliberately NOT in this barrel, imported by their own paths instead: the
  * figure seam (`./figure` names a component) and the screen-side sync
- * (`./screen.svelte`, `./valueAxisSync.svelte` carry runes).
+ * (`./screen.svelte` carries runes).
  *
  * Not re-exported through `$lib/plots/shared` — import this layer as
  * `$lib/plots/shared/distribution`, and note two import rules that ARE

@@ -57,7 +57,7 @@ export type PlotView = {
  * Host layout context for plots whose view depends on their on-screen size —
  * width-windowed plots derive a display budget from `itemWidth`. Most plots
  * ignore it. Cross-plot coordination does NOT live here: sync values are
- * resolved by the on-screen container (via the `PlotSyncRegistry` instances)
+ * resolved by the on-screen container (via `useSyncedMax` channels)
  * and merged into the settings before deriving; export derives from the raw
  * settings and never syncs.
  */
@@ -99,7 +99,7 @@ export type PlotViewConfig<TSettings> = {
 /**
  * Screen-only behavior, declared as a factory the generic `PlotContainer`
  * invokes ONCE during component init — so it may use runes and `$effect`-based
- * helpers (`usePlotSync`, `usePlotData`); recipes that do live in
+ * helpers (`useSyncedMax`, `usePlotData`); recipes that do live in
  * `<plot>/core/screen.svelte.ts`. Everything a per-plot container used to do
  * fits in the three optional slots:
  *

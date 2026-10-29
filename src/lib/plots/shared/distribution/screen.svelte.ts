@@ -1,14 +1,15 @@
 import type { PlotScreenFactory } from '$lib/plots/definePlot'
 import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
-import { usePlotSync } from '$lib/plots/shared/PlotSyncRegistry.svelte'
-import { distributionValueAxisSync } from './valueAxisSync.svelte'
+import { useSyncedMax } from '$lib/plots/shared/plotSync.svelte'
 import type { DistributionViewMeta } from './types'
 
 /**
  * Screen recipe: value-axis sync for a distribution plot. Registers the plot's
  * data max under (its type, its metric instance, its grid size) and overlays a
- * synced timeline on the figure when a sibling's max is larger. A user-set
- * `scaleRange` opts out; export renders the raw (unsynced) view.
+ * synced timeline on the figure when a sibling's max is larger. The plot type
+ * is in the key: an AOI Comparison and an Eye-movement Comparison count
+ * different things per slot, so they never pool axes. A user-set `scaleRange`
+ * opts out; export renders the raw (unsynced) view.
  *
  * Every distribution view carries the `DistributionViewMeta` this reads, so a
  * plot opts in with one line in its definition — `screen:
@@ -18,8 +19,6 @@ export function distributionValueAxisScreen<
   S extends { scaleRange?: [number, number] },
 >(): PlotScreenFactory<S> {
   return ctx => {
-    const axisSync = distributionValueAxisSync()
-
     const hasCustomScale = () => {
       const s = ctx.item.settings
       return (
@@ -28,35 +27,21 @@ export function distributionValueAxisScreen<
       )
     }
 
-    usePlotSync(
-      axisSync,
-      () => ctx.item.id,
-      () => {
-        const meta = (ctx.view()?.meta ?? null) as DistributionViewMeta | null
-        if (!meta || meta.syncKey === null || hasCustomScale()) return null
-        return {
-          plotType: ctx.item.type,
-          metricInstanceId: meta.syncKey,
-          w: ctx.item.w,
-          h: ctx.item.h,
-          dataMax: meta.dataMax,
-        }
+    const syncedMax = useSyncedMax(ctx, 'distribution-value-axis', () => {
+      const meta = ctx.view()?.meta as DistributionViewMeta | undefined
+      if (!meta || meta.syncKey === null || hasCustomScale()) return null
+      return {
+        key: [ctx.item.type, meta.syncKey, ctx.item.w, ctx.item.h],
+        own: meta.dataMax,
       }
-    )
+    })
 
     return {
       props: view => {
-        const meta = view.meta as DistributionViewMeta
-        if (hasCustomScale() || meta.syncKey === null) return {}
-        const syncedMax = axisSync.getSyncedMax(
-          ctx.item.type,
-          meta.syncKey,
-          ctx.item.w,
-          ctx.item.h
-        )
-        if (syncedMax <= meta.dataMax) return {}
+        const max = syncedMax()
+        if (max === null) return {}
         const raw = view.props.timeline as { minValue: number }
-        return { timeline: createAdaptiveTimeline(raw.minValue, syncedMax, 6) }
+        return { timeline: createAdaptiveTimeline(raw.minValue, max, 6) }
       },
     }
   }

@@ -27,7 +27,7 @@
  *
  * Vocabulary: PLOT CURSOR (this shared position) vs CROSSHAIR (a plot's own
  * pointer feedback) vs guide/outline (the marks). Never "sync" — that is
- * `PlotSyncRegistry`, a monotone max, and `0` is a real cursor position.
+ * `useSyncedMax`, a monotone max, and `0` is a real cursor position.
  *
  * No effects: publish from `onHover`, repaint by declaring `overlayDeps`. The
  * port retracts itself on destroy, so no recipe can forget to.

@@ -1,13 +1,9 @@
 import type { PlotScreenFactory, PlotView } from '$lib/plots/definePlot'
-import { usePlotSync } from '$lib/plots/shared/PlotSyncRegistry.svelte'
+import { useSyncedMax } from '$lib/plots/shared/plotSync.svelte'
 import { getParticipantsMaxEndTime } from '$lib/data/engine'
 import { toggleSettingEntry } from '$lib/plots/shared'
 import { plotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
 import { computeMTop } from './ridgeline'
-import {
-  aoiStreamTimelineSync,
-  aoiStreamRidgelineSync,
-} from './sync.svelte'
 import { RIDGELINE_SCALE } from '../const'
 import type { AoiStreamPlotResult, AoiStreamPlotSettings } from '../types'
 
@@ -41,20 +37,17 @@ export const aoiStreamScreen: PlotScreenFactory<AoiStreamPlotSettings> = ctx => 
     return getParticipantsMaxEndTime(ctx.engine, s, s.stimulusId)
   })
 
-  const timelineSync = aoiStreamTimelineSync()
-  const ridgelineSync = aoiStreamRidgelineSync()
-
-  usePlotSync(
-    timelineSync,
-    () => ctx.item.id,
-    () => {
-      if (!isFullyAuto || ownDataMax <= 0) return null
-      return { w: ctx.item.w, dataMax: ownDataMax }
-    }
+  // Same-width plots with a fully-auto timeline share their timeline max, so
+  // they compare directly. Customizing any range opts the plot out.
+  const syncedTimelineMax = useSyncedMax(ctx, 'aoi-stream-timeline', () =>
+    isFullyAuto ? { key: [ctx.item.w], own: ownDataMax } : null
   )
 
-  // Ridgeline mTop sync: registered from the plot's OWN result; the synced
-  // value affects strip rendering only, never the transform (no feedback loop).
+  // Ridgelines of the same height, scale and series count share the most
+  // constraining mTop, so their strips read on one data scale. Registered from
+  // the plot's OWN result; the synced value affects strip rendering only, never
+  // the transform (no feedback loop). The scale is rounded below its 0.1 pane
+  // step, so float noise in the setting never splits a group.
   const resultOf = (view: PlotView) => view.props.data as AoiStreamPlotResult
   const scaleOf = () => ctx.item.settings.ridgelineScale ?? RIDGELINE_SCALE
   const ownMTopOf = (view: PlotView): number | null => {
@@ -64,22 +57,13 @@ export const aoiStreamScreen: PlotScreenFactory<AoiStreamPlotSettings> = ctx => 
     return computeMTop(result, true)
   }
 
-  usePlotSync(
-    ridgelineSync,
-    () => ctx.item.id,
-    () => {
-      const view = ctx.view()
-      if (!view) return null
-      const mTop = ownMTopOf(view)
-      if (mTop === null) return null
-      return {
-        h: ctx.item.h,
-        scale: scaleOf(),
-        seriesCount: resultOf(view).series.length,
-        dataMax: mTop,
-      }
-    }
-  )
+  const syncedMTop = useSyncedMax(ctx, 'aoi-stream-ridgeline', () => {
+    const view = ctx.view()
+    const mTop = view ? ownMTopOf(view) : null
+    if (mTop === null) return null
+    const scale = Math.round(scaleOf() * 1000)
+    return { key: [ctx.item.h, scale, resultOf(view!).series.length], own: mTop }
+  })
 
   const handleLegendClick = (aoiId: number) =>
     toggleSettingEntry(ctx, 'highlights', aoiId.toString())
@@ -88,29 +72,14 @@ export const aoiStreamScreen: PlotScreenFactory<AoiStreamPlotSettings> = ctx => 
     // Screen settings: the synced timeline max merged in. Export derives from
     // the raw item settings and therefore never syncs.
     settings: () => {
-      const s = ctx.item.settings
-      if (!isFullyAuto) return s
-      const syncedMax = timelineSync.getSyncedMax(ctx.item.w)
-      if (syncedMax <= ownDataMax) return s
-      return { ...s, timelineEnd: syncedMax }
+      const max = syncedTimelineMax()
+      return max === null ? ctx.item.settings : { ...ctx.item.settings, timelineEnd: max }
     },
-    props: view => {
-      const mTop = ownMTopOf(view)
-      let syncedMTopOverride: number | null = null
-      if (mTop !== null) {
-        const synced = ridgelineSync.getSyncedMTop(
-          ctx.item.h,
-          scaleOf(),
-          resultOf(view).series.length
-        )
-        syncedMTopOverride = synced > mTop ? synced : null
-      }
-      return {
-        highlights: ctx.item.settings.highlights ?? [],
-        onLegendClick: handleLegendClick,
-        syncedMTopOverride,
-        plotCursor,
-      }
-    },
+    props: () => ({
+      highlights: ctx.item.settings.highlights ?? [],
+      onLegendClick: handleLegendClick,
+      syncedMTopOverride: syncedMTop(),
+      plotCursor,
+    }),
   }
 }

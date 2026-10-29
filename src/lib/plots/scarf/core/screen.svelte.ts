@@ -1,13 +1,12 @@
 import type { PlotScreenFactory } from '$lib/plots/definePlot'
 import { toggleSettingEntry } from '$lib/plots/shared'
-import { usePlotSync } from '$lib/plots/shared/PlotSyncRegistry.svelte'
+import { useSyncedMax } from '$lib/plots/shared/plotSync.svelte'
 import { plotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
 import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 import { getParticipantsIds } from '$lib/data/engine'
 import { buildScarfTooltipContent } from './tooltip'
 import { scarfDataMax, scarfRange } from './transformer'
 import { visibleHighlights } from './view'
-import { scarfTimelineSync } from './sync.svelte'
 import type { ScarfPlotSettings } from '../types'
 
 type DragOverrides = Partial<
@@ -35,8 +34,6 @@ export const absoluteTimeScope = (settings: ScarfPlotSettings): number | null =>
  * the raw view with noop handlers, no sync and no cursor.
  */
 export const scarfScreen: PlotScreenFactory<ScarfPlotSettings> = ctx => {
-  const timelineSync = scarfTimelineSync()
-
   // Transient drag-only overrides. The view derives from the overridden
   // settings so the timeline redraws while the user drags; release commits once.
   let dragOverrides = $state<DragOverrides | null>(null)
@@ -67,17 +64,14 @@ export const scarfScreen: PlotScreenFactory<ScarfPlotSettings> = ctx => {
     return !(start > 0 || end > 0) && !(Array.isArray(limits) && limits[1] > 0)
   })
 
-  usePlotSync(
-    timelineSync,
-    () => ctx.item.id,
-    () => {
-      if (!isDefaultRange) return null
-      return {
-        timeline: effectiveSettings.timeline as 'absolute' | 'ordinal',
-        w: ctx.item.w,
-        dataMax: ownDataMax,
-      }
-    }
+  // Same-width scarfs of one timeline mode ('absolute' | 'ordinal') share their
+  // timeline max: the axis's pixel scale depends on width alone, so height is
+  // not in the key. 'relative' is a fixed 0-100 scale and never syncs; any
+  // customized range opts the plot out.
+  const syncedMax = useSyncedMax(ctx, 'scarf-timeline', () =>
+    isDefaultRange
+      ? { key: [effectiveSettings.timeline, ctx.item.w], own: ownDataMax }
+      : null
   )
 
   const currentData = () =>
@@ -126,11 +120,9 @@ export const scarfScreen: PlotScreenFactory<ScarfPlotSettings> = ctx => {
     // Screen settings: drag overrides + cross-plot timeline sync merged in.
     // Export derives from the raw item settings (no drag, no sync).
     settings: () => {
-      if (!isDefaultRange) return effectiveSettings
-      const timeline = effectiveSettings.timeline as 'absolute' | 'ordinal'
-      const syncedMax = timelineSync.getSyncedMax(timeline, ctx.item.w)
-      if (syncedMax <= ownDataMax) return effectiveSettings
-      return { ...effectiveSettings, [scarfRange(effectiveSettings).endKey]: syncedMax }
+      const max = syncedMax()
+      if (max === null) return effectiveSettings
+      return { ...effectiveSettings, [scarfRange(effectiveSettings).endKey]: max }
     },
     props: () => ({
       highlights: visibleHighlights(ctx.engine, ctx.item.settings),

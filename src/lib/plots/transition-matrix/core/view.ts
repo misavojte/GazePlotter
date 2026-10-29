@@ -4,7 +4,6 @@ import { formatCompact, MatrixPlotFigure, resolvePickedInstance, type CanvasExpo
 import type { PlotView } from '$lib/plots/definePlot'
 import { METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
 import { getTransitionMatrixData } from './transformer'
-import { colorScaleToKey } from './sync.svelte'
 import { getLegendTitle, TRANSITION_MATRIX_DEFAULTS } from '../const'
 import type { TransitionMatrixPlotSettings } from '../types'
 
@@ -96,7 +95,7 @@ export function deriveTransitionMatrixView(
     meta: {
       ownDataMax,
       syncGroupKey: String(resolvedInstance?.id ?? 'none'),
-      colorScaleKey: colorScaleToKey(effectiveColorScale),
+      colorScaleKey: effectiveColorScale.join('|'),
       isDefaultColorRange:
         currentStimulusColorRange[0] === 0 && currentStimulusColorRange[1] === 0,
     } satisfies TransitionViewMeta,
