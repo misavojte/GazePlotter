@@ -188,85 +188,85 @@ export const SIDEBAR: readonly SidebarItem[] = [
         name: 'Eye-tracking Visualizations',
         breadcrumbName: 'Visualizations',
         href: '/docs/visualizations',
-        description: 'Interactive visualization suite. Compare scarf timelines, 2D scanpaths, transition matrices, and correlation SPLOMs.'
+        description: 'The interactive plots GazePlotter draws from eye-tracking data, from scarf plots and scanpaths to fixation heatmaps and metric correlations.'
       },
       {
         name: 'Scarf Plot',
         href: '/docs/visualizations/scarf-plot',
         seoTitle: 'Scarf Plot: Eye-Tracking Timeline Chart',
-        description: 'Timeline visualization mapping gaze sequences over time. Overlays time-coded events, highlights specific categories, and compares participant rows.'
+        description: 'Scarf plot for eye-tracking data: which AOI each participant looked at and when, one row per participant, with event channels for video and dynamic AOIs.'
       },
       {
         name: 'AOI Comparison',
         href: '/docs/visualizations/aoi-comparison',
-        seoTitle: 'AOI Comparison: Eye-Tracking Bar Charts',
-        description: 'Generate comparative bar charts of dwell times, fixation counts, and latencies across Areas of Interest, filtered by participant selections.'
+        seoTitle: 'AOI Comparison: Eye-Tracking Metrics per AOI',
+        description: 'Compare one eye-tracking metric, such as dwell time, visit count, or time to first fixation, across AOIs: one dot per participant, with the mean and 95% CI.'
       },
       {
         name: 'Eye-movement Comparison',
         href: '/docs/visualizations/eye-movement-comparison',
         seoTitle: 'Compare Fixations, Saccades & Blinks',
-        description: 'Compare eye-movement types side by side: per-type counts, time budgets, segment durations, and saccadic latency, with distribution overlays across participants.'
+        description: 'Compare fixations, saccades, blinks, and other eye-movement types on one metric, such as count, time share, or duration, across participants.'
       },
       {
         name: 'Event Comparison',
         href: '/docs/visualizations/event-comparison',
         seoTitle: 'Compare Event Channels Across Participants',
-        description: 'Compare event channels side by side: occurrence counts, active time, time shares, durations, and onset latencies, with distribution overlays across participants.'
+        description: 'Compare event channels, such as dynamic AOI visibility or task markers, on one metric: counts, active time, durations, or onset latency across participants.'
       },
       {
         name: 'Transition Matrix',
         href: '/docs/visualizations/transition-matrix',
         seoTitle: 'AOI Transition Matrix for Eye Tracking',
-        description: 'Model visual search paths with probability matrices. Visualizes gaze shift frequencies and Markov transition rates between Areas of Interest.'
+        description: 'AOI transition matrix for eye-tracking data: how often gaze moves from one AOI to another, as counts or Markov transition probabilities.'
       },
       {
         name: 'AOI Timeline',
         href: '/docs/visualizations/aoi-timeline',
         seoTitle: 'AOI Timeline: Attention Over Time',
-        description: 'Trace temporal attention trends with stacked distributions, ridgelines, and heatmaps showing participant gaze distribution across AOIs over time.'
+        description: 'How attention is split between AOIs over the course of a stimulus, pooled across participants, drawn as a stream, distribution, ridgeline, or heatmap.'
       },
       {
         name: 'Recurrence Plot',
         href: '/docs/visualizations/recurrence-plot',
         seoTitle: 'Recurrence Plot for Eye-Tracking Scanpaths',
-        description: 'N×N recurrence matrices mapping temporal self-similarity in individual scanpaths. Reveals repeating visual check patterns and search loops.'
+        description: "Recurrence plot of one participant's fixations: when gaze returns to a region it already visited, with RQA measures available in the Metric Library."
       },
       {
         name: 'Scanpath',
         href: '/docs/visualizations/scanpath',
         seoTitle: 'Scanpath Plot: Fixations & Saccades',
-        description: 'Plot 2D spatial scanpaths on coordinate axes. Visualizes fixation coordinates, chronological sequence, durations (via circle radius), and saccade paths, with animated playback over reference imagery or video.'
+        description: 'Scanpath of one participant over the stimulus image or video: fixations as circles sized by duration, joined in order, with playback.'
       },
       {
         name: 'Fixation Heatmap',
         href: '/docs/visualizations/fixation-heatmap',
         seoTitle: 'Fixation Heatmap for Eye Tracking',
-        description: 'Pool the fixations of a participant selection into a Gaussian heat map over the stimulus image, by fixation duration or count, shared per participant or averaged, with a self-documenting legend and Tobii Pro Lab settings mapping.'
+        description: 'Fixation heatmap for eye-tracking data: where a group of participants fixated on a stimulus, by duration or count, with a mapping to Tobii Pro Lab settings.'
       },
       {
         name: 'Scanpath Similarity',
         href: '/docs/visualizations/scanpath-similarity',
         seoTitle: 'Scanpath Similarity Matrix & Network',
-        description: 'Compute scanpath alignments using Levenshtein distance and Needleman-Wunsch. Visualizes networks to cluster similar search behaviors.'
+        description: 'How alike the AOI sequences of every participant pair are, scored by Levenshtein or Needleman-Wunsch, shown as a matrix or a ScanGraph network.'
       },
       {
         name: 'Metric Timeline',
         href: '/docs/visualizations/metric-timeline',
         seoTitle: 'Eye-Tracking Metrics Over Time',
-        description: 'Analyze how eye-tracking metrics (such as fixation duration or count) change over time using rolling windowed charts and heatmaps.'
+        description: 'How an eye-tracking metric, such as average fixation duration, changes over a stimulus, computed in a moving time window for each participant.'
       },
       {
         name: 'Metric Correlation',
         href: '/docs/visualizations/metric-correlation',
         seoTitle: 'Correlate Eye-Tracking Metrics (SPLOM)',
-        description: 'Evaluate correlations between eye-tracking metrics using Pearson/Spearman correlation heatmaps and Scatter Plot Matrices (SPLOM).'
+        description: 'Spearman or Pearson correlations between eye-tracking metrics across participants, as a heatmap or a scatter plot matrix (SPLOM).'
       },
       {
         name: 'Metric Matrix',
         href: '/docs/visualizations/metric-matrix',
         seoTitle: 'Metric Matrix: Eye-Tracking Data Quality',
-        description: 'Scan a participants × stimuli grid of scalar metric values per recording. Spot missing recordings and capture failures for data-quality screening.'
+        description: 'One eye-tracking metric for every participant and stimulus in a grid, to compare recordings and spot missing or failed ones.'
       },
     ],
   },
