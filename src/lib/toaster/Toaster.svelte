@@ -160,14 +160,15 @@
     color: var(--c-white);
     margin-top: 8px;
     width: 280px;
-    font-size: var(--text-lg);
-    padding: 12px 16px;
+    font-size: var(--text-md);
+    /* Tighter on the right: the close button's ring already carries its own air. */
+    padding: 12px 12px 12px 16px;
     border: 1px solid var(--c-border);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
     display: grid;
     grid-template-columns: 1fr auto;
-    gap: var(--spacing-sm);
+    gap: var(--spacing-xs);
     align-items: start;
     box-sizing: border-box;
   }
@@ -205,6 +206,8 @@
   .toast-message {
     line-height: var(--leading-normal);
     word-break: break-word;
+    /* No lone word stranded on the last line. */
+    text-wrap: pretty;
     color: var(--c-white);
   }
 

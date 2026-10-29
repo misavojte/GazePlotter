@@ -68,7 +68,7 @@
     if (session.ingest.status !== 'ready' || session.ingest.isUserDataset) return
     demoAnnounced = true
     session.toastState.addInfo(
-      `You're looking at demo data. Drop your own files anywhere, or ${withShortcut('use Import', 'open')}, to replace it.`
+      `This is demo data. Drop your own files anywhere, or ${withShortcut('use Import', 'open')}.`
     )
   })
 
