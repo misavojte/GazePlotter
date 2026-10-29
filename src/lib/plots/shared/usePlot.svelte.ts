@@ -2,18 +2,16 @@ import { getContext, untrack } from 'svelte'
 import type { Action } from 'svelte/action'
 import { getGazePlotterSession } from '$lib/session'
 import {
-  createCanvasState,
   createRenderScheduler,
-  refreshCanvasLifecycle,
   getScaledMousePosition,
   getTooltipPosition,
-  canvasLifecycleAction,
+  sizeCanvas,
   beginCanvasDrawing,
   finishCanvasDrawing,
   createScratchLayer,
   type CanvasState,
-  type CanvasLifecycleActionOptions,
 } from './canvasUtils'
+import { useDisplayPixelRatio } from './displayPixelRatio.svelte'
 import {
   EXPORT_SOURCE_CONTEXT,
   type ExportSourceRegistrar,
@@ -549,8 +547,8 @@ export function resolveFrameLayout(
 
 // ── The composable ──
 
-/** Props that size the canvas; a change refreshes it rather than counting as data. */
-const SIZE_PROPS = new Set(['width', 'height', 'margin'])
+/** Props that size the canvas; a change resizes it rather than counting as data. */
+const SIZE_PROPS = new Set(['width', 'height'])
 
 export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotHandle<THit> {
   const props = options.props
@@ -558,19 +556,25 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   const height = options.height ?? (() => props().height)
   const margin = () => props().margin ?? 0
 
-  // ---- canvas state + DPI-aware lifecycle ----
-  let canvasState = $state<CanvasState>(createCanvasState())
+  // ---- canvas + DPI-aware sizing ----
+  // A plain object: only renders and event handlers read it. `canvasEl` is the
+  // reactive twin that lets the sizing effect run once the canvas mounts.
+  const canvasState: CanvasState = { canvas: null, context: null, pixelRatio: 1 }
+  let canvasEl = $state<HTMLCanvasElement | null>(null)
   const exportRegistrar = getContext<ExportSourceRegistrar | undefined>(EXPORT_SOURCE_CONTEXT)
 
-  const getDpiOverride = () => exportRegistrar?.dpiOverride ?? null
-  const getDimensions = () => ({
-    width: Math.max(1, width()),
-    height: Math.max(1, height()),
-  })
-  const getState = () => canvasState
-  const setState = (next: CanvasState) => {
-    canvasState = next
+  let display: { readonly current: number }
+  try {
+    display = useDisplayPixelRatio()
+  } catch {
+    // Outside a session tree (bare test mounts): the ratio at mount.
+    display = { current: browser ? window.devicePixelRatio || 1 : 1 }
   }
+  // Export renders at its own DPI (96 = 1x); on screen the canvas follows the display.
+  const pixelRatio = $derived.by(() => {
+    const dpi = exportRegistrar?.dpiOverride ?? null
+    return dpi !== null ? dpi / 96 : display.current
+  })
 
   // Cached data layer (everything a full render draws EXCEPT `drawOverlay`),
   // kept at device resolution so an overlay-only repaint can blit it back 1:1
@@ -647,23 +651,6 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   // an overlay fall back to a full render.
   const scheduleHoverRepaint = () =>
     options.drawOverlay ? scheduleOverlayRender() : scheduleRender()
-
-  const registerExportSource = (getCanvas: () => HTMLCanvasElement | null) =>
-    registerCanvasExportSource(exportRegistrar, getCanvas)
-
-  const actionOptions: CanvasLifecycleActionOptions = $derived({
-    getState,
-    setState,
-    getDimensions,
-    getDpiOverride,
-    render: () => guarded(() => untrack(render)),
-    scheduleRender,
-    registerExportSource: el => registerExportSource(() => el),
-  })
-
-  function refresh() {
-    refreshCanvasLifecycle({ getState, setState, getDimensions, getDpiOverride, scheduleRender })
-  }
 
   // ---- plot bounds (content area = total minus export margins) ----
   const plotAreaWidth = $derived(Math.max(1, width() - margin() * 2))
@@ -1012,11 +999,12 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   })
 
   // ---- reactive redraw triggers ----
+  // Canvas mounted, CSS size or pixel ratio changed: resize the backing store
+  // (a no-op when its device size is unchanged) and repaint for the new frame.
   $effect(() => {
-    // Establish dependencies on layout properties, then refresh untracked.
-    const _ = [width(), height(), margin(), getDpiOverride()]
-    void _
-    untrack(refresh)
+    if (!canvasEl) return
+    sizeCanvas(canvasState, width(), height(), pixelRatio)
+    untrack(scheduleRender)
   })
   $effect(() => {
     const all = props() as unknown as Record<string, unknown>
@@ -1040,7 +1028,14 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   const scaled = (e: MouseEvent) => getScaledMousePosition(canvasState, e)
 
   const plotAction: Action<HTMLCanvasElement> = (node) => {
-    const life = canvasLifecycleAction(node, actionOptions)
+    canvasState.canvas = node
+    canvasState.context = node.getContext('2d')
+    canvasEl = node
+    const unregisterExport = registerCanvasExportSource(exportRegistrar, () => node)
+    // The browser may discard the bitmap (a backgrounded tab, a GPU reset) and
+    // hand back a blank one.
+    const onContextRestored = () => scheduleRender()
+    node.addEventListener('contextrestored', onContextRestored)
     // Read per mouse move, so the getter always hands over the current regions.
     const blockSelect = canvasBlockSelect(node, {
       get regions() {
@@ -1119,10 +1114,12 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     if (pointer?.onDrag) node.addEventListener('pointerdown', claimDrag)
 
     return {
-      update() {
-        life?.update?.(actionOptions)
-      },
       destroy() {
+        node.removeEventListener('contextrestored', onContextRestored)
+        unregisterExport?.()
+        canvasEl = null
+        canvasState.canvas = null
+        canvasState.context = null
         if (wantsHover) {
           node.removeEventListener('mousemove', rawMouseMove)
           node.removeEventListener('mouseleave', rawMouseLeave)
@@ -1139,7 +1136,6 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
         // `mouseleave`, so it retracts itself.
         if (tooltipShown) hideTooltip(0)
         blockSelect?.destroy?.()
-        life?.destroy?.()
       },
     }
   }

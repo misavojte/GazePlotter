@@ -1,100 +1,43 @@
 /**
- * Canvas utility functions for handling DPI scaling, mouse position calculations,
- * and optimized rendering for high-resolution displays.
+ * Canvas utility functions for DPI-aware sizing, mouse position calculations,
+ * and crisp rendering on high-resolution displays.
  */
 
 const browser = typeof document !== 'undefined'
 import { UI_COLORS } from '$lib/color'
-import type { Action } from 'svelte/action'
 
-/**
- * Tracks canvas state for DPI-aware rendering
- */
+/** A plot's canvas and its device pixels per CSS pixel. */
 export interface CanvasState {
   canvas: HTMLCanvasElement | null
   context: CanvasRenderingContext2D | null
   pixelRatio: number
-  renderScheduled: boolean
-  dpiOverride: number | null
-}
-
-interface CanvasDimensions {
-  width: number
-  height: number
 }
 
 /**
- * Creates an initial canvas state object
+ * Sizes the canvas to `width` x `height` CSS px at `pixelRatio`. The backing
+ * store is only reassigned when its device-pixel size changes, because that
+ * clears the bitmap.
  */
-export function createCanvasState(): CanvasState {
-  return {
-    canvas: null,
-    context: null,
-    pixelRatio: browser ? window.devicePixelRatio || 1 : 1,
-    renderScheduled: false,
-    dpiOverride: null,
-  }
-}
-
-/**
- * Sets up the canvas with proper DPI scaling
- * @param state - Current canvas state
- * @param canvas - Canvas element to set up
- * @param dpiOverride - Optional DPI override (for export functionality)
- * @returns Updated canvas state
- */
-function setupCanvas(
-  state: CanvasState,
-  canvas: HTMLCanvasElement,
-  dpiOverride: number | null
-): CanvasState {
-  if (!browser) return state
-
-  // Use DPI override if provided, otherwise use device pixel ratio
-  const pixelRatio =
-    dpiOverride !== null ? dpiOverride / 96 : window.devicePixelRatio || 1
-
-  // Get and save the context
-  const context = canvas.getContext('2d')
-
-  return {
-    ...state,
-    canvas,
-    context,
-    pixelRatio,
-    dpiOverride,
-  }
-}
-
-/**
- * Resizes the canvas to match device pixel ratio for crisp rendering
- * @param state - Current canvas state
- * @param width - Desired width in CSS pixels
- * @param height - Desired height in CSS pixels
- * @returns Updated canvas state
- */
-function resizeCanvas(
+export function sizeCanvas(
   state: CanvasState,
   width: number,
-  height: number
-): CanvasState {
-  const { canvas, pixelRatio } = state
-  if (!canvas || !browser) return state
+  height: number,
+  pixelRatio: number
+): void {
+  const { canvas } = state
+  if (!canvas) return
 
-  const safePixelRatio =
-    Number.isFinite(pixelRatio) && pixelRatio > 0 ? pixelRatio : 1
-  const safeWidth = Number.isFinite(width) ? Math.max(1, width) : 1
-  const safeHeight = Number.isFinite(height) ? Math.max(1, height) : 1
+  const ratio = Number.isFinite(pixelRatio) && pixelRatio > 0 ? pixelRatio : 1
+  const w = Number.isFinite(width) ? Math.max(1, width) : 1
+  const h = Number.isFinite(height) ? Math.max(1, height) : 1
+  const deviceW = Math.round(w * ratio)
+  const deviceH = Math.round(h * ratio)
 
-  // Set actual canvas dimensions (scaled for high DPI)
-  canvas.width = Math.round(safeWidth * safePixelRatio)
-  canvas.height = Math.round(safeHeight * safePixelRatio)
-
-  // Set display size (css pixels)
-  canvas.style.width = `${safeWidth}px`
-  canvas.style.height = `${safeHeight}px`
-
-  return state
+  if (canvas.width !== deviceW) canvas.width = deviceW
+  if (canvas.height !== deviceH) canvas.height = deviceH
+  canvas.style.width = `${w}px`
+  canvas.style.height = `${h}px`
+  state.pixelRatio = ratio
 }
 
 /**
@@ -166,197 +109,6 @@ export function getTooltipPosition(
 }
 
 /**
- * Force a complete redraw of the canvas
- * @param state - Current canvas state
- * @param width - Width to set for the canvas
- * @param height - Height to set for the canvas
- * @param renderCallback - Function to call to re-render canvas
- */
-function forceCanvasRedraw(
-  state: CanvasState,
-  width: number,
-  height: number,
-  renderCallback: () => void
-): CanvasState {
-  const { canvas, dpiOverride } = state
-  if (!canvas || !browser) return state
-
-  // Get the current DPI or use override
-  const pixelRatio =
-    dpiOverride !== null ? dpiOverride / 96 : window.devicePixelRatio || 1
-
-  // Create a new state with updated values
-  const newState = {
-    ...state,
-    pixelRatio,
-  }
-
-  // First resize the canvas with new dimensions
-  const resizedState = resizeCanvas(newState, width, height)
-
-  // Force a complete redraw
-  renderCallback()
-
-  return resizedState
-}
-
-/**
- * Updates the DPI-dependent state when display parameters change.
- * @param getState - Function to get the current state (ensures we always use fresh state)
- * @param setStateFn - Function to set the updated state
- * @param getDpiOverride - Optional DPI override getter (for export functionality)
- * @param renderCallback - Function to call to re-render canvas after update
- */
-function updateDpiAndRect(
-  getState: () => CanvasState,
-  setStateFn: (newState: CanvasState) => void,
-  dpiOverride: number | null = null,
-  renderCallback: () => void
-): void {
-  if (!browser) return
-
-  const state = getState()
-  const { canvas } = state
-  if (!canvas) return
-
-  // Check if dpiOverride changed
-  const dpiChanged = state.dpiOverride !== dpiOverride
-
-  // If dpiOverride is provided, use it to calculate pixelRatio
-  const newPixelRatio =
-    dpiOverride !== null ? dpiOverride / 96 : window.devicePixelRatio || 1
-
-  // Update if DPI changed or dpiOverride changed
-  if (newPixelRatio !== state.pixelRatio || dpiChanged) {
-    // Update the state with new pixel ratio and dpiOverride
-    const newState = {
-      ...state,
-      pixelRatio: newPixelRatio,
-      dpiOverride,
-    }
-
-    // Set the new state
-    setStateFn(newState)
-
-    // Execute render callback to update canvas
-    renderCallback()
-  }
-}
-
-/**
- * Sets up event listeners to handle monitor changes and maintain accurate rendering
- * @param getState - Function to get the current state (ensures we always use fresh state)
- * @param setStateFn - Function to set the updated state
- * @param dpiOverride - Optional DPI override (for export functionality)
- * @param renderCallback - Function to call to re-render canvas after update
- * @returns Cleanup function to remove event listeners
- */
-function setupDpiChangeListeners(
-  getState: () => CanvasState,
-  setStateFn: (newState: CanvasState) => void,
-  getDpiOverride: () => number | null,
-  renderCallback: () => void
-): () => void {
-  if (!browser) return () => {}
-
-  // Initially update with the current DPI override
-  updateDpiAndRect(getState, setStateFn, getDpiOverride(), renderCallback)
-
-  // Update handler that always gets fresh state
-  const handleUpdate = () => {
-    updateDpiAndRect(getState, setStateFn, getDpiOverride(), renderCallback)
-  }
-
-  // Force redraw handler for window movement
-  const handleWindowMove = () => {
-    const state = getState()
-    if (state.canvas) {
-      // Get current canvas size. Prefer layout-measured size to avoid NaN when
-      // style width/height are temporarily empty.
-      const rect = state.canvas.getBoundingClientRect()
-      const width = rect.width
-      const height = rect.height
-
-      // Force a complete redraw with current dimensions
-      const newState = forceCanvasRedraw(state, width, height, renderCallback)
-
-      setStateFn(newState)
-    }
-  }
-
-  // Resize covers most DPI changes; focus catches a window dragged to
-  // another display while backgrounded. ('devicePixelRatio'/'move' are not
-  // real DOM events — the matchMedia queries below handle those cases.)
-  window.addEventListener('resize', handleUpdate)
-  window.addEventListener('focus', handleWindowMove)
-
-  // MutationObserver to detect when the canvas might have been hidden and shown again
-  let observer: MutationObserver | null = null
-  const state = getState()
-
-  if (state.canvas && state.canvas.parentElement) {
-    observer = new MutationObserver(mutations => {
-      for (const mutation of mutations) {
-        if (
-          mutation.type === 'attributes' &&
-          (mutation.attributeName === 'style' ||
-            mutation.attributeName === 'class')
-        ) {
-          handleWindowMove()
-          break
-        }
-      }
-    })
-
-    // Watch for style/class changes on the parent element.
-    // Observing the canvas itself can create a feedback loop because resizing
-    // updates `canvas.style.*`, which would trigger another redraw.
-    observer.observe(state.canvas.parentElement, { attributes: true })
-  }
-
-  // Extra event listener for when the window moves between displays
-  let mediaQueryList: MediaQueryList[] = []
-  if (window.matchMedia) {
-    // Watch for resolution changes (DPI changes)
-    const resolutionQuery = window.matchMedia('(resolution: 1dppx)')
-    resolutionQuery.addEventListener('change', handleUpdate)
-    mediaQueryList.push(resolutionQuery)
-
-    // Watch for color scheme changes (which can indicate display changes)
-    const colorSchemeQuery = window.matchMedia('(prefers-color-scheme: dark)')
-    colorSchemeQuery.addEventListener('change', handleWindowMove)
-    mediaQueryList.push(colorSchemeQuery)
-  }
-
-  // Return cleanup function
-  return () => {
-    window.removeEventListener('resize', handleUpdate)
-    window.removeEventListener('focus', handleWindowMove)
-
-    if (observer) {
-      observer.disconnect()
-    }
-
-    mediaQueryList.forEach(query => {
-      if (query === mediaQueryList[0]) {
-        query.removeEventListener('change', handleUpdate)
-      } else {
-        query.removeEventListener('change', handleWindowMove)
-      }
-    })
-  }
-}
-
-// resizeCanvas clamps non-finite / sub-1 sizes itself.
-function resizeStateToDimensions(
-  state: CanvasState,
-  getDimensions: () => CanvasDimensions
-): CanvasState {
-  const { width, height } = getDimensions()
-  return resizeCanvas(state, width, height)
-}
-
-/**
  * Creates a throttled render scheduler to optimize canvas rendering
  * @param renderFn - Function to execute for rendering
  * @returns A function that schedules rendering with throttling
@@ -375,128 +127,6 @@ export function createRenderScheduler(renderFn: () => void): () => void {
         scheduled = false
       }
     })
-  }
-}
-
-interface CanvasLifecycleOptions {
-  getCanvas: () => HTMLCanvasElement | null
-  getState: () => CanvasState
-  setState: (newState: CanvasState) => void
-  getDimensions: () => CanvasDimensions
-  getDpiOverride: () => number | null
-  render: () => void
-}
-
-interface CanvasRefreshOptions {
-  getState: () => CanvasState
-  setState: (newState: CanvasState) => void
-  getDimensions: () => CanvasDimensions
-  getDpiOverride: () => number | null
-  scheduleRender: () => void
-}
-
-export interface CanvasLifecycleActionOptions
-  extends Omit<CanvasLifecycleOptions, 'getCanvas'>, CanvasRefreshOptions {
-  registerExportSource?: (canvasElement: HTMLCanvasElement | null) => void
-}
-
-/**
- * Initializes canvas state, resizes it to current layout dimensions, and attaches DPI listeners.
- * Returns a cleanup function for the listeners.
- */
-function mountCanvasLifecycle(
-  options: CanvasLifecycleOptions
-): () => void {
-  if (!browser) return () => {}
-
-  const canvas = options.getCanvas()
-  if (!canvas) return () => {}
-
-  let nextState = setupCanvas(
-    options.getState(),
-    canvas,
-    options.getDpiOverride()
-  )
-  nextState = resizeStateToDimensions(nextState, options.getDimensions)
-  options.setState(nextState)
-  options.render()
-
-  return setupDpiChangeListeners(
-    options.getState,
-    dpiState => {
-      const resized = resizeStateToDimensions(dpiState, options.getDimensions)
-      options.setState(resized)
-      options.render()
-    },
-    options.getDpiOverride,
-    options.render
-  )
-}
-
-/**
- * Applies reactive canvas updates: optional DPI re-setup, resize, then scheduled redraw.
- */
-export function refreshCanvasLifecycle(options: CanvasRefreshOptions): void {
-  const state = options.getState()
-  if (!state.canvas || !state.context) return
-  const canvas = state.canvas
-
-  let nextState = state
-  const dpiOverride = options.getDpiOverride()
-
-  if (nextState.dpiOverride !== dpiOverride) {
-    nextState = setupCanvas(nextState, canvas, dpiOverride)
-  }
-
-  nextState = resizeStateToDimensions(nextState, options.getDimensions)
-  options.setState(nextState)
-  options.scheduleRender()
-}
-
-/**
- * Action that mounts and keeps a canvas lifecycle in sync with reactive updates.
- */
-export const canvasLifecycleAction: Action<
-  HTMLCanvasElement,
-  CanvasLifecycleActionOptions
-> = (node, initialOptions) => {
-  let options = initialOptions
-
-  // Register canvas as an export source on mount
-  initialOptions.registerExportSource?.(node)
-
-  const getState = () => options.getState()
-  const setState = (nextState: CanvasState) => options.setState(nextState)
-  const getDimensions = () => options.getDimensions()
-  const getDpiOverride = () => options.getDpiOverride()
-  const render = () => options.render()
-  const scheduleRender = () => options.scheduleRender()
-
-  const cleanup = mountCanvasLifecycle({
-    getCanvas: () => node,
-    getState,
-    setState,
-    getDimensions,
-    getDpiOverride,
-    render,
-  })
-
-  return {
-    update(nextOptions) {
-      options = nextOptions
-      refreshCanvasLifecycle({
-        getState,
-        setState,
-        getDimensions,
-        getDpiOverride,
-        scheduleRender,
-      })
-    },
-    destroy() {
-      // Unregister canvas as an export source on destroy
-      options.registerExportSource?.(null)
-      cleanup()
-    },
   }
 }
 
