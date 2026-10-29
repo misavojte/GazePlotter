@@ -13,7 +13,7 @@
     type FrameHit,
   } from '$lib/plots/shared'
   import { cursorGuides, type PlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
-  import { desaturateToWhite, INACTIVE_COLOR } from '$lib/color'
+  import { desaturateToWhite } from '$lib/color'
   import { PRESET_PALETTES, resolvePalette } from '$lib/color/palettes'
 
   import {
@@ -36,8 +36,7 @@
   } from '$lib/plots/shared/legendRendering'
   import { AXIS_CONFIG, drawRowLabels, truncatedRowLabels } from '$lib/plots/shared/axisUtils'
   import {
-    drawRowDividers,
-    fillPlotAreaBackground,
+    paintRowCells,
     niceTimelineTicks,
     bottomOriginYTicks,
     centeredYTicks,
@@ -306,25 +305,21 @@
     const { xPositions, seriesBuckets } = buckets
     const renderBinCount = data.binCount + 2
 
+    // Heatmap: one row per AOI, one cell per bin (render index i is bin i − 1).
     if (alignment === 'heatmap') {
-      fillPlotAreaBackground(ctx, frame.x, frame.y, frame.width, frame.height, INACTIVE_COLOR)
+      return paintRowCells(ctx, frame, data.series.length, [0, data.binCount], (s, put) => {
+        const colors = seriesPaint[s].heatmapBinColors!
+        for (let i = 1; i <= data.binCount; i++) {
+          if (colors[i] !== 'transparent') put(i - 1, i, colors[i])
+        }
+      })
     }
 
     for (let s = 0; s < data.series.length; s++) {
       const bucket = seriesBuckets[s]
       const paint = seriesPaint[s]
 
-      if (paint.heatmapBinColors) {
-        const binWidth = frame.width / data.binCount
-        for (let i = 1; i <= data.binCount; i++) {
-          const color = paint.heatmapBinColors[i]
-          if (color === 'transparent') continue
-          const x = frame.x + (i - 1) * binWidth
-          const y = bucket.topY[i]
-          ctx.fillStyle = color
-          ctx.fillRect(x, y, binWidth + 0.5, bucket.bottomY[i] - y)
-        }
-      } else if (alignment === 'distribution' && seriesRanks) {
+      if (alignment === 'distribution' && seriesRanks) {
         const binWidth = frame.width / data.binCount
         ctx.fillStyle = paint.color
         ctx.strokeStyle = AREA_DIVIDER.COLOR
@@ -362,13 +357,11 @@
         ctx.closePath()
         ctx.fillStyle = paint.color
         ctx.fill()
-        if (alignment !== 'heatmap') {
-          ctx.strokeStyle = AREA_DIVIDER.COLOR
-          ctx.lineWidth = AREA_DIVIDER.WIDTH
-          ctx.lineJoin = 'round'
-          ctx.lineCap = 'round'
-          ctx.stroke()
-        }
+        ctx.strokeStyle = AREA_DIVIDER.COLOR
+        ctx.lineWidth = AREA_DIVIDER.WIDTH
+        ctx.lineJoin = 'round'
+        ctx.lineCap = 'round'
+        ctx.stroke()
       }
 
       if (alignment === 'ridgeline' && paint.stripBottom !== undefined) {
@@ -414,10 +407,6 @@
     // Hover highlight (window/step bands) and the cursor line are drawn in
     // drawStreamOverlay on the overlay layer, so a bin hover blits the cached
     // stream instead of re-running this whole render.
-
-    if (alignment === 'heatmap') {
-      drawRowDividers(ctx, frame.x, frame.y, frame.width, frame.height, data.series.length)
-    }
   }
 
   // The gutter marks the axes don't draw: heatmap AOI row labels, the ridgeline

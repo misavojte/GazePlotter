@@ -36,8 +36,7 @@
     truncatedRowLabels,
   } from '$lib/plots/shared/axisUtils'
   import {
-    drawRowDividers,
-    fillPlotAreaBackground,
+    paintRowCells,
     niceTimelineTicks,
     bottomOriginYTicks,
   } from '$lib/plots/shared/plotArea'
@@ -440,47 +439,19 @@
     frame: PlotFrame,
     participantCount: number
   ) {
-    const rowHeight = frame.height / participantCount
     const valueRange = data.valueMax - data.valueMin
     const invValueRange = valueRange > 0 ? 1 / valueRange : 0
     const timelineMin = data.timeline.minValue
     const duration = Math.max(1, data.timeline.maxValue - timelineMin)
-    const invMsPerPx = frame.width / duration
     const lut = heatmapColorLut
     const lutMax = HEATMAP_LUT_SIZE - 1
-
-    fillPlotAreaBackground(ctx, frame.x, frame.y, frame.width, frame.height, INACTIVE_COLOR)
-
-    // Track the last LUT index so an unchanged colour doesn't re-assign fillStyle.
-    let lastIdx = -1
-    for (let p = 0; p < participantCount; p++) {
-      const rowY = frame.y + p * rowHeight
-      const wins = data.participants[p].windows
-      for (let i = 0; i < wins.length; i++) {
-        const w = wins[i]
+    paintRowCells(ctx, frame, participantCount, [timelineMin, timelineMin + duration], (p, put) => {
+      for (const w of data.participants[p].windows) {
         if (!Number.isFinite(w.value)) continue
-        const xStart = frame.x + (w.startMs - timelineMin) * invMsPerPx
-        const xEnd = frame.x + (w.endMs - timelineMin) * invMsPerPx
-        if (xEnd <= frame.x || xStart >= frame.right) continue
         const normalized = Math.max(0, Math.min(1, (w.value - data.valueMin) * invValueRange))
-        const idx = (normalized * lutMax + 0.5) | 0
-        // Snap bin edges to whole logical pixels. A fractional shared edge between
-        // two bins is anti-aliased on both sides, so the plot background bleeds
-        // through as a faint vertical seam. Contiguous bins share the same edge
-        // value, so rounding both sides gives a gap-free, overlap-free tiling.
-        const x0 = Math.round(Math.max(frame.x, xStart))
-        const x1 = Math.round(Math.min(frame.right, xEnd))
-        if (x1 > x0) {
-          if (idx !== lastIdx) {
-            ctx.fillStyle = lut[idx]
-            lastIdx = idx
-          }
-          ctx.fillRect(x0, rowY, x1 - x0, rowHeight)
-        }
+        put(w.startMs, w.endMs, lut[(normalized * lutMax + 0.5) | 0])
       }
-    }
-
-    drawRowDividers(ctx, frame.x, frame.y, frame.width, frame.height, participantCount)
+    })
     // Hover highlight is drawn in `drawEvolvingOverlay` (overlay layer) so a
     // mouse move blits the cached heatmap instead of re-running this loop.
   }

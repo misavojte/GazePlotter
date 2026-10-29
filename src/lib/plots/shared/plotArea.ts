@@ -18,6 +18,7 @@ import {
   strokeCrispRect,
   strokeParallelLines,
 } from '$lib/plots/shared/canvasUtils'
+import { INACTIVE_COLOR } from '$lib/color/palettes'
 import { AREA_DIVIDER, GRIDLINE_PRIMARY, FONT_PRIMARY } from './const'
 import type { AdaptiveTimeline } from './timelineUtils'
 
@@ -72,26 +73,44 @@ export function fillPlotAreaBackground(
 }
 
 /**
- * The dividers between `count` equal rows across the plot area, each on a
- * crisp pixel row (row heatmaps: AOI timeline, metric timeline).
+ * A row heatmap (AOI timeline, metric timeline): the inactive background, then
+ * per row the cells `cells(row, put)` hands to `put(start, end, color)` in
+ * `domain` units, then the row dividers on crisp pixel rows. Cell edges snap to
+ * whole pixels: a fractional shared edge is anti-aliased on both sides and lets
+ * the background bleed through as a seam; snapped contiguous cells tile exactly.
  */
-export function drawRowDividers(
+export function paintRowCells(
   ctx: CanvasRenderingContext2D,
-  x: number,
-  y: number,
-  width: number,
-  height: number,
-  count: number
+  frame: { x: number; y: number; width: number; height: number },
+  rowCount: number,
+  domain: [number, number],
+  cells: (row: number, put: (start: number, end: number, color: string) => void) => void
 ): void {
-  if (count < 2) return
-  const rowHeight = height / count
+  fillPlotAreaBackground(ctx, frame.x, frame.y, frame.width, frame.height, INACTIVE_COLOR)
+  const right = frame.x + frame.width
+  const rowHeight = frame.height / rowCount
+  const pxPerUnit = frame.width / (domain[1] - domain[0])
+  let rowY = 0
+  let last = ''
+  const put = (start: number, end: number, color: string) => {
+    const x0 = Math.round(Math.max(frame.x, frame.x + (start - domain[0]) * pxPerUnit))
+    const x1 = Math.round(Math.min(right, frame.x + (end - domain[0]) * pxPerUnit))
+    if (x1 <= x0) return
+    // An unchanged colour skips the fillStyle parse.
+    if (color !== last) ctx.fillStyle = last = color
+    ctx.fillRect(x0, rowY, x1 - x0, rowHeight)
+  }
+  for (let r = 0; r < rowCount; r++) {
+    rowY = frame.y + r * rowHeight
+    cells(r, put)
+  }
   ctx.save()
   ctx.strokeStyle = AREA_DIVIDER.COLOR
   ctx.lineWidth = AREA_DIVIDER.WIDTH
   strokeParallelLines(
-    ctx, true, count - 1,
-    i => alignToPixelCenter(y + (i + 1) * rowHeight),
-    x, x + width
+    ctx, true, rowCount - 1,
+    i => alignToPixelCenter(frame.y + (i + 1) * rowHeight),
+    frame.x, right
   )
   ctx.restore()
 }
