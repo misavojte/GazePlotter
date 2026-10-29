@@ -211,7 +211,7 @@
   class:is-ghosted={isGhosted}
   class:selected={isSelected}
   style={itemStyle}
-  transition:fade={{ duration: 150 }}
+  transition:fade={{ duration: 120 }}
   role="figure"
   use:contextMenuAction={{
     trigger: 'pointer',
@@ -310,7 +310,8 @@
     width: 100%;
     height: 100%;
     transform-origin: center center;
-    transition: transform var(--transition-fast) cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    /* Settles without overshoot: a spring past 1.0 softens the plot text. */
+    transition: transform var(--transition-fast) cubic-bezier(0.2, 0, 0, 1);
     will-change: transform;
   }
 
@@ -407,6 +408,10 @@
     ),
   .grid-item-frame.menu-target:not(.selected) {
     outline-color: color-mix(in srgb, var(--c-info) 25%, var(--c-grey));
+    /* Only the hover ring eases in. A transition on the frame itself would
+       also run on deselect, where width and style snap (dashed group member
+       to solid) while the colour fades: a blue ring flashing out. */
+    transition: outline-color var(--transition-fast) ease-out;
   }
 
   .grid-item-frame.selected {
@@ -513,6 +518,19 @@
     box-sizing: border-box;
     z-index: 7;
     transition: background var(--transition-fast) ease;
+    animation: handle-in var(--transition-fast) ease-out;
+  }
+
+  @keyframes handle-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .corner-handle {
+      animation: none;
+    }
   }
   .corner-handle:hover {
     background: var(--c-info);

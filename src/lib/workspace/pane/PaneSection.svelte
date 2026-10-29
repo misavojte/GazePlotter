@@ -111,7 +111,9 @@ import { getContext, untrack } from 'svelte'
     padding: 12px 16px 10px;
     color: var(--c-black);
     font-size: var(--text-md);
-    font-weight: 600;
+    /* A step under the pane title's 600, so the title leads. */
+    font-weight: 500;
+    letter-spacing: -0.005em;
     text-align: left;
     background: none;
     border: none;
@@ -133,8 +135,16 @@ import { getContext, untrack } from 'svelte'
        shrinking the click target of the heading itself */
     margin-left: -4px;
     line-height: 0;
-    transition: transform var(--transition-fast) ease;
+    /* Muted until the heading is reached for: the cue that it opens. */
+    color: var(--c-darkgrey);
+    transition:
+      transform var(--transition-fast) ease,
+      color var(--transition-fast) ease;
     transform: rotate(-90deg); /* points right when collapsed */
+  }
+
+  .heading:hover .icon {
+    color: var(--c-black);
   }
 
   .icon.expanded {
