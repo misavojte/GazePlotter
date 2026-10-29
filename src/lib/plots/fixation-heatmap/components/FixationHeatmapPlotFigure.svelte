@@ -4,7 +4,6 @@
     cachedRaster,
     trackOnlyHit,
     strokeCrosshairRing,
-    PLOT_BORDER_PX,
     type CanvasExportProps,
     type FrameHit,
     type PlotFrame,
@@ -15,8 +14,8 @@
   import { estimateTextWidth } from '$lib/shared/textMeasure'
   import { PRESET_PALETTES, resolvePalette } from '$lib/color/palettes'
   import type { Rect } from '$lib/data/media/mediaAlignment'
-  import { drawStimulusBackground, stimulusSpace, worldAspect, type StimulusBackground } from '$lib/plots/shared/stimulusBackground'
-  import { useMediaElements } from '../../shared/mediaElements.svelte'
+  import type { StimulusBackground } from '$lib/plots/shared/stimulusBackground'
+  import { useStimulusSpace } from '$lib/plots/shared/stimulusSpace.svelte'
   import type { StimulusMedia } from '$lib/data/types'
   import { bucketFixations, cellCentreOf, fixationsWithin, type FixationBuckets } from '../core/density'
   import { heatLut, legendRamp, paintHeat } from '../core/heatImage'
@@ -72,39 +71,26 @@
     plotCursor = null,
   } = $derived(props)
 
-  const mediaElements = useMediaElements()
-  const mediaElement = $derived.by(() => {
-    if (!media || mediaStimulusId === undefined) return null
-    void mediaElements.version
-    return mediaElements.getReadyElement(mediaStimulusId, media)
-  })
-
   const stops = $derived(resolvePalette(colorScale, PRESET_PALETTES.YL_OR_RD.colors))
   const lut = $derived(heatLut(stops, opacity))
   const ramp = $derived(legendRamp(lut))
 
-  // Frame size mirror for the equal-aspect fit (Scanpath's pattern): written in
-  // an effect so the derived never reads `plot` during init.
-  let frameW = $state(0)
-  let frameH = $state(0)
-  $effect(() => {
-    frameW = plot.frame.width
-    frameH = plot.frame.height
-  })
-
   /** Gaze rect framed by the plot: the media, or the fixation extent with its kernel margin. */
   const world = $derived.by((): Rect | null => {
-    if (!data) return null
+    if (unavailableMessage || !data) return null
     if (data.clip) return data.clip
     const r = data.radius
     const e = data.extent
     return { x: e.x - r, y: e.y - r, width: e.width + 2 * r, height: e.height + 2 * r }
   })
 
-  const space = $derived(world ? stimulusSpace(world, frameW, frameH, L.tickCount) : null)
-
-  const projX = (x: number, frame: PlotFrame) => frame.x + x * space!.view.scale + space!.view.offsetX
-  const projY = (y: number, frame: PlotFrame) => frame.y + y * space!.view.scale + space!.view.offsetY
+  const stim = useStimulusSpace({
+    world: () => world,
+    tickCount: L.tickCount,
+    media: () => media,
+    mediaStimulusId: () => mediaStimulusId,
+    frame: () => plot.frame,
+  })
 
   // ── Cached heat texture: one pixel per grid cell, rebuilt only when the data
   // or its colouring changes; resizes just re-blit it (the recurrence pattern).
@@ -116,18 +102,17 @@
     )
 
   function clipToRect(ctx: CanvasRenderingContext2D, r: Rect, frame: PlotFrame) {
-    const s = space!.view.scale
+    const s = stim.space!.view.scale
     ctx.beginPath()
-    ctx.rect(projX(r.x, frame), projY(r.y, frame), r.width * s, r.height * s)
+    ctx.rect(stim.x(r.x, frame), stim.y(r.y, frame), r.width * s, r.height * s)
     ctx.clip()
   }
 
   function drawHeatmap(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
-    if (!data || !space) return
-    const s = space.view.scale
+    if (!data || !stim.space) return
+    const s = stim.space.view.scale
     // The clip is the media rect; without an image there (None, a video, still decoding) it is white, as the legend assumes.
-    const c = data.clip
-    if (c) drawStimulusBackground(ctx, mediaElement, projX(c.x, frame), projY(c.y, frame), c.width * s, c.height * s, background)
+    if (data.clip) stim.drawMedia(ctx, frame, data.clip, background)
 
     const layer = heatTexture(data)
     if (layer) {
@@ -137,7 +122,7 @@
       ctx.imageSmoothingEnabled = true
       ctx.imageSmoothingQuality = 'high'
       // Texel edges on cell edges, so texel centres land on the cell centres the splat used.
-      ctx.drawImage(layer.canvas, projX(g.x0, frame), projY(g.y0, frame), g.cols * g.cell * s, g.rows * g.cell * s)
+      ctx.drawImage(layer.canvas, stim.x(g.x0, frame), stim.y(g.y0, frame), g.cols * g.cell * s, g.rows * g.cell * s)
       ctx.restore()
     }
 
@@ -145,7 +130,7 @@
   }
 
   function drawFixationDots(ctx: CanvasRenderingContext2D, frame: PlotFrame, d: FixationHeatmapData) {
-    const { scale, offsetX, offsetY } = space!.view
+    const { scale, offsetX, offsetY } = stim.space!.view
     const ox = frame.x + offsetX
     const oy = frame.y + offsetY
     const { xs, ys } = d
@@ -239,9 +224,9 @@
   }
 
   function cellAt(x: number, y: number, frame: PlotFrame): number {
-    if (!data || !space) return -1
-    const wx = (x - frame.x - space.view.offsetX) / space.view.scale
-    const wy = (y - frame.y - space.view.offsetY) / space.view.scale
+    if (!data || !stim.space) return -1
+    const wx = (x - frame.x - stim.space.view.offsetX) / stim.space.view.scale
+    const wy = (y - frame.y - stim.space.view.offsetY) / stim.space.view.scale
     const c = data.clip
     if (c && (wx < c.x || wx > c.x + c.width || wy < c.y || wy > c.y + c.height)) return -1
     const g = data.grid
@@ -252,38 +237,29 @@
 
   function cellCentre(cell: number, frame: PlotFrame): { x: number; y: number } {
     const c = cellCentreOf(data!.grid, cell)
-    return { x: projX(c.x, frame), y: projY(c.y, frame) }
+    return { x: stim.x(c.x, frame), y: stim.y(c.y, frame) }
   }
 
   function drawHeatmapOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
     const cell = plot.hover.data?.cell ?? -1
-    if (cell < 0 || !data || !space) return
+    if (cell < 0 || !data || !stim.space) return
     const c = cellCentre(cell, frame)
     // The overlay is unclipped: keep the ring inside the plot area, off the axes.
     ctx.save()
     ctx.beginPath()
     ctx.rect(frame.x, frame.y, frame.width, frame.height)
     ctx.clip()
-    strokeCrosshairRing(ctx, c.x, c.y, data.radius * space.view.scale)
+    strokeCrosshairRing(ctx, c.x, c.y, data.radius * stim.space.view.scale)
     ctx.restore()
   }
 
-  const hasPlot = $derived(!unavailableMessage && data !== null)
-
   const plot = usePlot<HeatmapHit>({
     props: () => props,
-    deps: (): unknown[] => [mediaElement, space],
+    deps: (): unknown[] => [stim.mediaElement, stim.space],
     placeholder: () => unavailableMessage,
-    gutters: () => {
-      if (!hasPlot || !space) return {}
-      return {
-        pad: { right: PLOT_BORDER_PX },
-        // The data rect takes the world's shape, so the axes span exactly the image (or extent).
-        aspect: worldAspect(world!),
-      }
-    },
+    gutters: stim.gutters,
     gradientLegend: () =>
-      !hasPlot || !space
+      !stim.space
         ? null
         : {
             colorScale: ramp,
@@ -301,7 +277,7 @@
       if (cell < 0 || !(data.values[cell] > 0)) return trackOnlyHit({ cell })
       const c = cellCentre(cell, frame)
       // The ring's bottom-right corner, as other plots anchor at their mark's.
-      const r = data.radius * space!.view.scale
+      const r = data.radius * stim.space!.view.scale
       return {
         content: cellInfo(data, cell).rows,
         anchorX: c.x + r,
@@ -330,13 +306,7 @@
       void plot.hover.data?.cell
       return null
     },
-    axes: () => {
-      if (!hasPlot || !space) return {}
-      return {
-        bottom: { ticks: space.xTicks, title: 'X' },
-        left: { ticks: space.yTicks, title: 'Y' },
-      }
-    },
+    axes: stim.axes,
   })
 </script>
 

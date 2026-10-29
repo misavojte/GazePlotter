@@ -3,7 +3,6 @@
     usePlot,
     trackOnlyHit,
     intervalAt,
-    PLOT_BORDER_PX,
     type CanvasExportProps,
     type FrameHit,
     type PlotFrame,
@@ -20,10 +19,10 @@
   import { SCANPATH_COLORS, SCANPATH_LAYOUT } from '../const'
   import { getColorForValue, interpolateColor } from '$lib/color'
   import { PRESET_PALETTES, resolvePalette } from '$lib/color/palettes'
-  import { useMediaElements } from '../../shared/mediaElements.svelte'
   import { mediaRegionOf } from '$lib/data/media/stimulusMedia'
   import type { Rect } from '$lib/data/media/mediaAlignment'
-  import { drawStimulusBackground, stimulusSpace, worldAspect, type StimulusBackground } from '$lib/plots/shared/stimulusBackground'
+  import type { StimulusBackground } from '$lib/plots/shared/stimulusBackground'
+  import { useStimulusSpace } from '$lib/plots/shared/stimulusSpace.svelte'
   import type { StimulusMedia } from '$lib/data/types'
   import type { ScanpathData, ScanpathFixation } from '../types'
   import type { ScanpathPlayback } from '../core/screen.svelte'
@@ -87,29 +86,24 @@
     playback = null,
   } = $derived(props)
 
-  const mediaElements = useMediaElements()
-  /** The decoded background element, or null while it loads. Depends on the
-      cache version so the canvas repaints when decoding finishes (videos are
-      parked on their first frame, so no black background flashes). */
-  const mediaElement = $derived.by(() => {
-    if (!media || mediaStimulusId === undefined) return null
-    void mediaElements.version
-    return mediaElements.getReadyElement(mediaStimulusId, media)
-  })
-  /** The browser can't decode the medium: playback falls back to the
-      fixation clock and the bar says why the background is missing. */
-  const mediaFailed = $derived.by(() => {
-    if (!media || mediaStimulusId === undefined) return false
-    void mediaElements.version
-    return mediaElements.failed(mediaStimulusId)
+  // The decoded background (null while it loads; videos are parked on their
+  // first frame, so no black background flashes), the equal-aspect fit of
+  // `world` and the projection. A medium the browser can't decode falls back to
+  // the fixation clock, and the bar says why the background is missing.
+  const stim = useStimulusSpace({
+    world: () => world,
+    tickCount: SCANPATH_LAYOUT.tickCount,
+    media: () => media,
+    mediaStimulusId: () => mediaStimulusId,
+    frame: () => plot.frame,
   })
 
   // ── Playback: a PLAYER on a playback clock (playbackClock.svelte.ts).
   // `playTime` null shows every fixation: an image's idle state and exports.
   // A video idles at its first full trail, so the frame and fixations agree.
   const videoElement = $derived(
-    media?.kind === 'video' && mediaElement instanceof HTMLVideoElement
-      ? mediaElement
+    media?.kind === 'video' && stim.mediaElement instanceof HTMLVideoElement
+      ? stim.mediaElement
       : null
   )
   const videoOffset = $derived(media?.startOffset ?? 0)
@@ -195,16 +189,6 @@
     return intervalAt(fx.length, i => fx[i].start, i => fx[i].start + fx[i].duration, t)
   }
 
-  // Frame size mirror for the equal-aspect domain below. Written in an effect
-  // (not read directly in `scale`) so the derived never touches `plot` during
-  // component init, before `usePlot` returns.
-  let frameW = $state(0)
-  let frameH = $state(0)
-  $effect(() => {
-    frameW = plot.frame.width
-    frameH = plot.frame.height
-  })
-
   /** Visible fixations active at the cursor's times (another plot's hover,
       a playing shared clock) or at our own playing time. */
   const cursorFixations = $derived.by(() => {
@@ -224,14 +208,14 @@
     if (!data) return
     for (const i of cursorFixations) {
       const f = data.fixations[i]
-      markCrosshairNode(ctx, projectX(f.x, frame), projectY(f.y, frame), displayRadiusFor(f) + 3)
+      markCrosshairNode(ctx, stim.x(f.x, frame), stim.y(f.y, frame), displayRadiusFor(f) + 3)
     }
     const hovered = plot.hover.data?.fixationIndex
     if (hovered == null) return
     const f = data.fixations[hovered]
     if (!f) return
-    const cx = projectX(f.x, frame)
-    const cy = projectY(f.y, frame)
+    const cx = stim.x(f.x, frame)
+    const cy = stim.y(f.y, frame)
     const r = displayRadiusFor(f)
     ctx.save()
     // White gap ring first, accent ring on top — legible on any background.
@@ -252,7 +236,7 @@
 
   /** Gaze rect the plot frames: the media, grown to any fixation off it, else the padded fixation extent. */
   const world = $derived.by((): Rect | null => {
-    if (!data) return null
+    if (unavailableMessage || !data) return null
     const { minX, maxX, minY, maxY } = data.bbox
     if (media) {
       const r = mediaRegionOf(media)
@@ -265,7 +249,6 @@
     return { x: minX - padX, y: minY - padY, width: maxX - minX + 2 * padX, height: maxY - minY + 2 * padY }
   })
 
-  const space = $derived(world ? stimulusSpace(world, frameW, frameH, L.tickCount) : null)
 
   /** The bar gets its own row below the canvas, on screen only. Not keyed
       on async media readiness, so the height never jumps. */
@@ -286,8 +269,8 @@
       const f = data.fixations[i]
       if (f.start > timeCutoff) break // hidden by playback
       if (!isVisible(f)) continue // aged out of the trail
-      const dx = x - projectX(f.x, frame)
-      const dy = y - projectY(f.y, frame)
+      const dx = x - stim.x(f.x, frame)
+      const dy = y - stim.y(f.y, frame)
       const dist = Math.hypot(dx, dy)
       const grab = Math.max(displayRadiusFor(f), 6) + 2
       if (dist <= grab && dist <= bestDist) {
@@ -308,15 +291,9 @@
   const plot = usePlot<ScanpathHit>({
     props: () => props,
     height: () => (hasPlayBar ? Math.max(60, height - PLAY_BAR_HEIGHT) : height),
-    deps: () => [mediaElement, clock?.frame, timeCutoff, trail, space],
+    deps: () => [stim.mediaElement, clock?.frame, timeCutoff, trail, stim.space],
     placeholder: () => unavailableMessage,
-    gutters: () => {
-      if (unavailableMessage || !space) return {}
-      return {
-        pad: { right: PLOT_BORDER_PX },
-        aspect: worldAspect(world!),
-      }
-    },
+    gutters: stim.gutters,
     drawData: drawScanpath,
     // Marks may slightly overflow the plot area (edge fixations); the axis
     // frame is drawn on top afterwards, matching the pre-frame behaviour.
@@ -334,8 +311,8 @@
       const f = data!.fixations[index]
       return {
         content: buildScanpathTooltipContent(f),
-        anchorX: projectX(f.x, frame),
-        anchorY: projectY(f.y, frame) + displayRadiusFor(f),
+        anchorX: stim.x(f.x, frame),
+        anchorY: stim.y(f.y, frame) + displayRadiusFor(f),
         tooltipWidth: L.tooltipWidth,
         data: { fixationIndex: index },
       }
@@ -357,23 +334,8 @@
       void plot.hover.data?.fixationIndex
       return cursorFixations.join(',')
     },
-    axes: () => {
-      if (unavailableMessage || !space) return {}
-      return {
-        bottom: { ticks: space.xTicks, title: 'X' },
-        left: { ticks: space.yTicks, title: 'Y' },
-      }
-    },
+    axes: stim.axes,
   })
-
-  function projectX(x: number, frame: PlotFrame): number {
-    return frame.x + x * space!.view.scale + space!.view.offsetX
-  }
-
-  // Eye-tracker y already grows downward, as does canvas y: no flip.
-  function projectY(y: number, frame: PlotFrame): number {
-    return frame.y + y * space!.view.scale + space!.view.offsetY
-  }
 
   // ── Time-extent coloring: fill sampled from the colorScale by onset.
   const gradientStops = $derived(resolvePalette(colorScale, PRESET_PALETTES.VIRIDIS.colors))
@@ -508,9 +470,9 @@
     ctx.lineCap = 'round'
     if (!fading && fixations.length > 1) {
       ctx.beginPath()
-      ctx.moveTo(projectX(fixations[0].x, frame), projectY(fixations[0].y, frame))
+      ctx.moveTo(stim.x(fixations[0].x, frame), stim.y(fixations[0].y, frame))
       for (let i = 1; i < fixations.length; i++) {
-        ctx.lineTo(projectX(fixations[i].x, frame), projectY(fixations[i].y, frame))
+        ctx.lineTo(stim.x(fixations[i].x, frame), stim.y(fixations[i].y, frame))
       }
       ctx.globalAlpha = L.polylineAlpha
       strokeBoth()
@@ -519,8 +481,8 @@
         const a = fixations[i - 1]
         const b = fixations[i]
         ctx.beginPath()
-        ctx.moveTo(projectX(a.x, frame), projectY(a.y, frame))
-        ctx.lineTo(projectX(b.x, frame), projectY(b.y, frame))
+        ctx.moveTo(stim.x(a.x, frame), stim.y(a.y, frame))
+        ctx.lineTo(stim.x(b.x, frame), stim.y(b.y, frame))
         ctx.globalAlpha = L.polylineAlpha * ageAlpha(b)
         strokeBoth()
       }
@@ -553,9 +515,9 @@
       const w = ctx.measureText(label).width
       // Right of the marker, flipped to its left where that would leave the plot;
       // held inside it vertically, so an edge fixation's number is never cut.
-      const cx = projectX(f.x, frame)
+      const cx = stim.x(f.x, frame)
       const tx = cx + r + L.numberOffset + w > frame.right ? cx - r - L.numberOffset - w : cx + r + L.numberOffset
-      const ty = Math.min(frame.bottom - h, Math.max(frame.y + h, projectY(f.y, frame) - r * 0.4))
+      const ty = Math.min(frame.bottom - h, Math.max(frame.y + h, stim.y(f.y, frame) - r * 0.4))
       const right = tx + w
       const cells: number[] = []
       for (let cx = Math.floor(tx / CELL); cx <= right / CELL; cx++) {
@@ -576,11 +538,7 @@
     if (!data) return
     const fixations = visibleFixations()
     // The stimulus (image or the video's current frame) under everything, at its projected rect.
-    if (media) {
-      const r = mediaRegionOf(media)
-      const s = space!.view.scale
-      drawStimulusBackground(ctx, mediaElement, projectX(r.x, frame), projectY(r.y, frame), r.width * s, r.height * s, background)
-    }
+    if (media) stim.drawMedia(ctx, frame, mediaRegionOf(media), background)
 
     // Order line (under the circles), on a white halo so the path stays
     // readable across busy reference imagery.
@@ -590,8 +548,8 @@
     // stroke; older trail members fade.
     ctx.save()
     for (const f of fixations) {
-      const cx = projectX(f.x, frame)
-      const cy = projectY(f.y, frame)
+      const cx = stim.x(f.x, frame)
+      const cy = stim.y(f.y, frame)
       const r = displayRadiusFor(f)
       const age = ageAlpha(f)
       ctx.beginPath()
@@ -701,7 +659,7 @@
   {#if hasPlayBar}
     <!-- Disabled only while a set video is still decoding; a plain image or
          no media plays off the fixations' recording-time extent directly. -->
-    {@const barDisabled = spanMs <= 0 || !clock || (media?.kind === 'video' && !videoElement && !mediaFailed)}
+    {@const barDisabled = spanMs <= 0 || !clock || (media?.kind === 'video' && !videoElement && !stim.mediaFailed)}
     {@const fromPct = railPos(trailFrom) * 100}
     {@const nowPct = railPos(shownTime) * 100}
     <div class="video-pill" style:height={`${PLAY_BAR_HEIGHT}px`}>
@@ -754,7 +712,7 @@
           ></button>
         {/if}
       </div>
-      {#if mediaFailed}
+      {#if stim.mediaFailed}
         <span class="pill-note" title="Reattach it as MP4 (H.264) or WebM in Edit stimuli &amp; selections.">
           {media?.kind === 'video' ? 'Video' : 'Image'} can't be decoded in this browser
         </span>
