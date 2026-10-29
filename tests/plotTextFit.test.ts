@@ -118,8 +118,9 @@ describe('frame resolver vertical edge', () => {
   it('a title-less tick edge reserves the tick gap and the labels, nothing more', () => {
     const labels = ['0', '250', '1000']
     const { rect } = resolveFrameLayout(
-      { left: { tickLabels: labels } },
-      { left: 0, top: 0, right: 500, bottom: 300 }
+      {},
+      { left: 0, top: 0, right: 500, bottom: 300 },
+      { left: { ticks: { positions: [0, 0.5, 1], labels } } }
     )
     expect(rect.x).toBe(Math.floor(PLOT_TICK_LABEL_GAP + Math.max(...labels.map(l => width(l)))))
   })

@@ -2,11 +2,10 @@
   import { SYSTEM_SANS_SERIF_SMALL_STACK } from '$lib/shared/textMeasure'
   import { UI_COLORS } from '$lib/color'
   import {
-    drawPlotArea,
+    PLOT_BORDER_PX,
     usePlot,
     trackOnlyHit,
     type CanvasExportProps,
-    type PlotFrame,
     type FrameHit,
   } from '$lib/plots/shared'
   import {
@@ -90,11 +89,14 @@
         'Reduce the number of participants in Plot Settings > Participants',
       ])
     },
-    // No gutters: the frame IS the content area (canvas minus export margins),
-    // which the force layout fills edge to edge.
-    gutters: () => ({}),
+    // No axes, only the outline: the frame IS the content area (canvas minus
+    // export margins) less the border pixel on the right and bottom, which a
+    // full-size rect would crop. The force layout fills it edge to edge.
+    axes: () => ({}),
+    gutters: () => ({ pad: { right: PLOT_BORDER_PX, bottom: PLOT_BORDER_PX } }),
     clipData: false,
     drawData: drawGraph,
+    drawAboveAxes: drawGraphLabels,
     drawOverlay: drawNodeMarks,
     hitTest: computeHit,
     // Live reads of the hovered INDICES, like every other publisher: an undo under
@@ -368,7 +370,7 @@
   const nodeEmphasised = (ni: number): boolean =>
     cliqueSet.has(ni) || highlightSet.has(ni) || connectedToHighlight.has(ni)
 
-  function drawGraph(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+  function drawGraph(ctx: CanvasRenderingContext2D) {
     const { nodes, links } = layoutResult
     const r = nodeRadius
     const hasHighlights = highlightSet.size > 0
@@ -446,18 +448,14 @@
       ctx.stroke()
     }
     ctx.globalAlpha = 1
+  }
 
-    // Outline around the content area. Inset by 1px right/bottom: the graph fills
-    // the canvas with no axis margin, so a full-size rect would crop its stroke.
-    drawPlotArea(ctx, {
-      x: frame.x,
-      y: frame.y,
-      width: frame.width - 1,
-      height: frame.height - 1,
-    })
-
-    // Labels — last, on top; emphasised nodes place first and keep full
-    // strength, the rest recede with their nodes while a clique is active.
+  // Labels — on top of the outline; emphasised nodes place first and keep full
+  // strength, the rest recede with their nodes while a clique is active.
+  function drawGraphLabels(ctx: CanvasRenderingContext2D) {
+    const { nodes } = layoutResult
+    const r = nodeRadius
+    const hasClique = cliqueSet.size > 0
     const priority = new Set<number>([...cliqueSet, ...highlightSet])
     const fontSize = Math.max(8, Math.min(11, Math.round(r * 1.6)))
     ctx.font = `${fontSize}px ${SYSTEM_SANS_SERIF_SMALL_STACK}`

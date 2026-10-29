@@ -69,7 +69,7 @@ const RENDER_FAILED_PLACEHOLDER: PlotPlaceholderContent = {
  * hit-test → tooltip/cursor plumbing, and a generic pointer/drag lifecycle.
  *
  * A figure hands over its `props` and DECLARES its plot — `placeholder`,
- * `gutters`, `drawData`, `axes`, optional `legend`/`gradientLegend`/
+ * `axes`, `gutters`, `drawData`, optional `legend`/`gradientLegend`/
  * `drawOverlay`/`hitTest`/`pointer` — and writes only the
  * genuinely plot-specific marks, hit-test geometry and tooltip content. The
  * lower-level surface (`plotAreaWidth`, `canvasState`, …) is on
@@ -78,23 +78,8 @@ const RENDER_FAILED_PLACEHOLDER: PlotPlaceholderContent = {
 
 // ── Frame spec types ──
 
-/** Per-edge gutter declaration: what to measure to reserve space on that edge. */
-export interface FrameGutterEdge {
-  /**
-   * The tick labels that WILL be drawn on this edge. The frame measures them
-   * (height on top/bottom, width on left/right) to reserve the gutter. Pass the
-   * same array you feed the edge's `axes.ticks.labels` so the two never drift.
-   */
-  tickLabels?: string[]
-  /** Axis title text on this edge. Its measured size reserves extra gutter. */
-  title?: string
-}
-
+/** The fixed part of the frame; the axis gutters are measured from `axes`. */
 export interface FrameGutters {
-  bottom?: FrameGutterEdge
-  top?: FrameGutterEdge
-  left?: FrameGutterEdge
-  right?: FrameGutterEdge
   /** Extra fixed inset per edge, ADDED on top of the measured gutter (px). */
   pad?: { top?: number; right?: number; bottom?: number; left?: number }
   /** Height reserved for a legend block at the bottom of the canvas (px). */
@@ -108,10 +93,17 @@ export interface FrameGutters {
   aspect?: number
 }
 
-/** Axis chrome declaration. The frame maps this onto `drawPlotArea` + titles. */
+/**
+ * One edge's axis chrome. The frame measures its tick labels, `reserve` and
+ * title (height on top/bottom, width on left/right) to reserve the gutter, and
+ * draws the ticks through `drawPlotArea`. Titles are drawn on the bottom and left.
+ */
 export interface FrameAxis {
   ticks?: PlotAreaTicks
   title?: string
+  /** Labels the figure draws itself on this edge (row labels, a scale bar, an
+   *  extra origin): measured with the tick labels, never drawn by the frame. */
+  reserve?: string[]
 }
 
 export interface FrameAxes {
@@ -269,17 +261,17 @@ export interface UsePlotOptions<THit = unknown> {
    */
   fit?: (frame: PlotFrame) => PlotPlaceholderContent | null
 
-  // ---- chrome gutters → data rect + legend reservation ----
-  gutters: () => FrameGutters
+  // ---- axis chrome (drawPlotArea + axis titles); its labels size the gutters ----
+  /** Null draws no chrome and reserves nothing (an empty result with no real axis). */
+  axes?: () => FrameAxes | null
+  /** Fixed insets, legend block, aspect and height cap around the measured axes. */
+  gutters?: () => FrameGutters
 
   // ---- marks only (begun + optionally clipped to the data rect) ----
   drawData: (ctx: CanvasRenderingContext2D, frame: PlotFrame) => void
   /** Clip drawData to the data rect. Default true; set false for matrices that
    * draw their own labels outside the cell grid. */
   clipData?: boolean
-
-  // ---- axis chrome (drawPlotArea + axis titles) ----
-  axes?: () => FrameAxes
 
   /**
    * Marks that belong ON TOP of the axis chrome. `drawPlotArea` strokes a border
@@ -382,6 +374,12 @@ interface EdgeMetrics {
   titleOffset: number
 }
 
+/** Every label the edge must fit: its tick labels plus what the figure draws itself. */
+function edgeLabels(edge: FrameAxis): string[] {
+  const ticks = edge.ticks?.labels ?? []
+  return edge.reserve ? [...ticks, ...edge.reserve] : ticks
+}
+
 function maxLabelHeight(labels: string[]): number {
   let h = 0
   for (const l of labels) {
@@ -393,9 +391,10 @@ function maxLabelHeight(labels: string[]): number {
 
 /** Reserve a horizontal (top/bottom) edge: tick labels stack + optional title.
  *  `wrapWidth` is the plot width the title wraps to (`Infinity` for a 1-line pass). */
-function resolveHorizontalEdge(edge: FrameGutterEdge | undefined, wrapWidth: number): EdgeMetrics {
+function resolveHorizontalEdge(edge: FrameAxis | undefined, wrapWidth: number): EdgeMetrics {
   if (!edge) return { space: 0, titleOffset: 0 }
-  const tickH = edge.tickLabels?.length ? maxLabelHeight(edge.tickLabels) : 0
+  const labels = edgeLabels(edge)
+  const tickH = labels.length ? maxLabelHeight(labels) : 0
   const titleH = edge.title ? measureAxisTitleHeight(edge.title, wrapWidth) : 0
   const titleOffset = tickH ? getXAxisLabelOffset(tickH) : PLOT_AXIS_TITLE_GAP
   let space = 0
@@ -407,9 +406,10 @@ function resolveHorizontalEdge(edge: FrameGutterEdge | undefined, wrapWidth: num
 
 /** Reserve a vertical (left/right) edge: tick label width + rotated title.
  *  `wrapHeight` is the plot height the rotated title wraps to. */
-function resolveVerticalEdge(edge: FrameGutterEdge | undefined, wrapHeight: number): EdgeMetrics {
+function resolveVerticalEdge(edge: FrameAxis | undefined, wrapHeight: number): EdgeMetrics {
   if (!edge) return { space: 0, titleOffset: 0 }
-  const tickW = edge.tickLabels?.length ? calculateTextMetrics(edge.tickLabels, FONT_PRIMARY.SIZE, FONT_PRIMARY.FAMILY).maxWidth : 0
+  const labels = edgeLabels(edge)
+  const tickW = labels.length ? calculateTextMetrics(labels, FONT_PRIMARY.SIZE, FONT_PRIMARY.FAMILY).maxWidth : 0
   const titleH = edge.title ? measureAxisTitleHeight(edge.title, wrapHeight) : 0
   const titleOffset = tickW ? getYAxisLabelOffset(tickW) : PLOT_AXIS_TITLE_GAP
   // Same carve as the horizontal edge: the title gap only exists between two things.
@@ -445,13 +445,14 @@ export interface ResolvedFrameLayout {
 
 /**
  * Pure gutter resolver — carves the data rect out of the content bounds by
- * measuring the declared tick labels + titles per edge, then reserving the
+ * measuring each axis's labels + title, then reserving the
  * legend block and (optionally) centring a rect of a fixed aspect. Exported for unit testing;
  * the reactive `$derived` inside `usePlot` is a thin wrapper over it.
  */
 export function resolveFrameLayout(
   gutters: FrameGutters,
-  bounds: FrameContentBounds
+  bounds: FrameContentBounds,
+  axes: FrameAxes = {}
 ): ResolvedFrameLayout {
   const pad = gutters.pad ?? {}
   // top/right reserve gutter from their tick labels (mirrored matrix edges);
@@ -466,10 +467,10 @@ export function resolveFrameLayout(
   // extent (bottom/top → width, left/right → height) so a long title reserves its
   // real (≤2-line) gutter — no overflow, and no wasted whitespace for short ones.
   const reserve = (wrapW: number, wrapH: number) => {
-    const left = resolveVerticalEdge(gutters.left, wrapH)
-    const right = resolveVerticalEdge(gutters.right, wrapH)
-    const top = resolveHorizontalEdge(gutters.top, wrapW)
-    const bottom = resolveHorizontalEdge(gutters.bottom, wrapW)
+    const left = resolveVerticalEdge(axes.left, wrapH)
+    const right = resolveVerticalEdge(axes.right, wrapH)
+    const top = resolveHorizontalEdge(axes.top, wrapW)
+    const bottom = resolveHorizontalEdge(axes.bottom, wrapW)
     return {
       left,
       bottom,
@@ -693,13 +694,15 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
       : 0
   )
 
-  // ---- frame: gutters → data rect ----
+  // ---- frame: axes + gutters → data rect ----
+  const axes = $derived(options.axes?.() ?? null)
   const resolved = $derived.by(() => {
-    const gutters = options.gutters()
+    const gutters = options.gutters?.() ?? {}
     const gradientBand = gradientHeight > 0 ? PLOT_LEGEND_GAP + gradientHeight : 0
     return resolveFrameLayout(
       { ...gutters, legendHeight: (gutters.legendHeight ?? 0) + gradientBand },
-      { left: plotLeft, top: plotTop, right: plotRight, bottom: plotBottom }
+      { left: plotLeft, top: plotTop, right: plotRight, bottom: plotBottom },
+      axes ?? {}
     )
   })
   const frame = $derived.by<PlotFrame>(() => ({
@@ -754,7 +757,6 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
       options.drawData(ctx, f)
     }
 
-    const axes = options.axes?.()
     if (axes) {
       drawPlotArea(ctx, {
         x: r.x,

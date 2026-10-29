@@ -174,21 +174,16 @@
         : warning,
     gutters: () => {
       if (N < 2) return {}
-      return {
-        aspect: 1,
-        // '1' reserves room for the origin label in both gutters.
-        left: { tickLabels: [...(yTicks.labels ?? []), '1'], title: 'Fixation i' },
-        bottom: { tickLabels: [...(xTicks.labels ?? []), '1'], title: 'Fixation j' },
-        pad: { top: L.edgePadPx, right: L.edgePadPx },
-      }
+      return { aspect: 1, pad: { top: L.edgePadPx, right: L.edgePadPx } }
     },
     drawData: drawMatrix,
     axes: () => {
       if (N < 2) return {}
-      // The opposite edges mirror the ticks without labels.
+      // The opposite edges mirror the ticks without labels. '1' reserves room for
+      // the origin label drawAboveAxes puts in both gutters.
       return {
-        bottom: { ticks: xTicks, title: 'Fixation j' },
-        left: { ticks: yTicks, title: 'Fixation i' },
+        bottom: { ticks: xTicks, title: 'Fixation j', reserve: ['1'] },
+        left: { ticks: yTicks, title: 'Fixation i', reserve: ['1'] },
         top: { ticks: { positions: xTicks.positions } },
         right: { ticks: { positions: yTicks.positions } },
       }

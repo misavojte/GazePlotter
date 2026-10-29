@@ -115,14 +115,22 @@ describe('resolveFrameLayout', () => {
   })
 
   it('measures tick labels + title to size the bottom gutter', () => {
-    const withAxis = resolveFrameLayout(
-      { bottom: { tickLabels: ['0', '100'], title: 'Time [ms]' } },
-      bounds
-    )
+    const withAxis = resolveFrameLayout({}, bounds, {
+      bottom: { ticks: { positions: [0, 1], labels: ['0', '100'] }, title: 'Time [ms]' },
+    })
     const bare = resolveFrameLayout({}, bounds)
     // an axis with labels + title must reserve real vertical space
     expect(withAxis.rect.height).toBeLessThan(bare.rect.height)
     expect(withAxis.bottomTitleOffset).toBeGreaterThan(0)
+  })
+
+  it('measures reserved labels the figure draws itself with the tick labels', () => {
+    const ticks = { positions: [0, 1], labels: ['0', '9'] }
+    const tickOnly = resolveFrameLayout({}, bounds, { left: { ticks } })
+    const reserved = resolveFrameLayout({}, bounds, { left: { ticks, reserve: ['1000000'] } })
+    const reserveOnly = resolveFrameLayout({}, bounds, { left: { reserve: ['1000000'] } })
+    expect(reserved.rect.x).toBeGreaterThan(tickOnly.rect.x)
+    expect(reserveOnly.rect.x).toBe(reserved.rect.x)
   })
 
   it('never produces negative dimensions when gutters exceed the bounds', () => {

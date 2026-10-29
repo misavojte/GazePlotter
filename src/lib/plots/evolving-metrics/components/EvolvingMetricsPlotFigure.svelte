@@ -19,6 +19,7 @@
     trackOnlyHit,
     type CanvasExportProps,
     type PlotFrame,
+    type FrameAxes,
     type FrameHit,
   } from '$lib/plots/shared'
   import {
@@ -36,14 +37,11 @@
   import {
     AXIS_CONFIG,
     drawParticipantRowAxis,
-    drawXAxisLabel,
-    drawYAxisMainLabel,
     getXAxisHeight,
     maxAxisTitleHeight,
     truncatedRowLabels,
   } from '$lib/plots/shared/axisUtils'
   import {
-    drawPlotArea,
     fillPlotAreaBackground,
     niceTimelineTicks,
     bottomOriginYTicks,
@@ -104,19 +102,19 @@
 
   // Compact-mode probe height — derived from the PRE-gutter content area
   // (plot.plotAreaHeight), NOT plot.frame.height, to break the cycle
-  // (frame.height ← gutters.left ← isCompact ← probeHeight). LOAD-BEARING: do not
+  // (frame.height ← axes.left ← isCompact ← probeHeight). LOAD-BEARING: do not
   // switch this to frame.height or the $derived graph cycles / settles stale.
-  const probeHeight = $derived.by(() =>
+  const probeHeight = $derived.by((): number =>
     Math.max(0, plot.plotAreaHeight - PLOT_EDGE_PAD_TOP - bottomReserveEstimate)
   )
   const COMPACT_THRESHOLD = AXIS_CONFIG.fontSize + 2
-  const isCompact = $derived(
+  const isCompact: boolean = $derived(
     alignment === 'heatmap' &&
       data.participants.length > 0 &&
       probeHeight / data.participants.length < COMPACT_THRESHOLD
   )
 
-  // ── Axis chrome fed to the measured gutter (all pixel-independent) ──
+  // ── Axis chrome (all pixel-independent) ──
   const xAxisTicks = $derived(niceTimelineTicks(data.timeline))
   const yTimeline = $derived.by(() =>
     alignment !== 'overlay' ? null : createAdaptiveTimeline(0, data.valueMax, 6)
@@ -140,6 +138,20 @@
       : []
   )
 
+  // Overlay: value ticks + rotated metric title. Heatmap: the participant row
+  // labels, or in compact mode the index axis, which reserves its fixed width
+  // as pad.left (a 2-line "Participants / [order indices]" title at fixed
+  // offsets). No axes without participants: the empty result's timeline is fabricated.
+  const axes = $derived.by<FrameAxes | null>(() => {
+    if (data.participants.length === 0) return null
+    const bottom = { ticks: xAxisTicks, title: X_AXIS_LABEL }
+    const top = { ticks: { positions: xAxisTicks.positions } }
+    if (alignment === 'overlay') {
+      return { bottom, top, left: { ticks: yTicks ?? undefined, title: data.yAxisLabel } }
+    }
+    return isCompact ? { bottom, top } : { bottom, top, left: { reserve: participantLabels } }
+  })
+
   const plot = usePlot<{ t: number; x: number; participantIdx: number | null }>({
     props: () => props,
     placeholder: () => (data.noMetric ? METRIC_MISSING_MESSAGE : null),
@@ -151,30 +163,14 @@
         'Switch to Overlay mode in Plot Settings > Visualization',
       ])
     },
-    // Declarative measured gutters: the resolver measures the left/bottom edge
-    // tick labels + titles and returns the title offsets (frame.leftTitleOffset /
-    // bottomTitleOffset) the figure draws with. Compact heatmap keeps a fixed
-    // pad.left — it draws a 2-line "Participants / [order indices]" label + index
-    // ticks at fixed offsets, so there's no measured title to reserve against.
-    gutters: () => {
-      const pad: { top: number; right: number; left?: number } = {
+    axes: () => axes,
+    gutters: () => ({
+      pad: {
         top: PLOT_EDGE_PAD_TOP,
         right: PLOT_BORDER_PX,
-      }
-      let left: { title?: string; tickLabels?: string[] } | undefined
-      if (alignment === 'overlay') {
-        left = { title: data.yAxisLabel, tickLabels: yTicks?.labels ?? [] }
-      } else if (isCompact) {
-        pad.left = participantIndexAxisWidth(data.participants.length)
-      } else {
-        left = { tickLabels: participantLabels }
-      }
-      return {
-        left,
-        bottom: { title: X_AXIS_LABEL, tickLabels: xAxisTicks.labels ?? [] },
-        pad,
-      }
-    },
+        left: isCompact ? participantIndexAxisWidth(data.participants.length) : undefined,
+      },
+    }),
     gradientLegend: () =>
       alignment !== 'heatmap'
         ? null
@@ -188,8 +184,8 @@
             title: data.yAxisLabel,
             belowMinColor: INACTIVE_COLOR,
           },
-    clipData: false,
     drawData: drawEvolving,
+    drawAboveAxes: drawRowLabels,
     drawOverlay: drawEvolvingOverlay,
     hitTest: computeHit,
     // Live reads of the hovered PIXEL and ROW, so a resize or an undo under a
@@ -314,23 +310,28 @@
   function drawEvolving(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
     const participantCount = data.participants.length
     if (frame.width <= 0 || frame.height <= 0 || participantCount === 0) return
-
-    ctx.save()
-    ctx.beginPath()
-    ctx.rect(frame.x, frame.y, frame.width, frame.height)
-    ctx.clip()
     if (alignment === 'overlay') {
       renderOverlay(ctx, frame, participantCount)
     } else {
       renderHeatmap(ctx, frame, participantCount)
     }
-    ctx.restore()
+  }
 
-    if (alignment === 'overlay') {
-      renderOverlayAxes(ctx, frame)
-    } else {
-      renderHeatmapLabels(ctx, frame, participantCount)
-    }
+  // Heatmap rows: names, or the index axis in compact mode. Pre-truncated to the
+  // same budget the axis reserved (single source).
+  function drawRowLabels(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+    const participantCount = data.participants.length
+    if (alignment !== 'heatmap' || participantCount === 0 || frame.height <= 0) return
+    ctx.save()
+    drawParticipantRowAxis(
+      ctx,
+      participantCount,
+      isCompact ? null : participantLabels,
+      frame.x,
+      frame.y,
+      frame.height / participantCount
+    )
+    ctx.restore()
   }
 
   // ── HOVER OVERLAY ──
@@ -512,30 +513,6 @@
     // mouse move blits the cached heatmap instead of re-running this loop.
   }
 
-  function renderHeatmapLabels(
-    ctx: CanvasRenderingContext2D,
-    frame: PlotFrame,
-    participantCount: number
-  ) {
-    const rowHeight = frame.height / participantCount
-
-    ctx.save()
-    // Labels pre-truncated to the same budget the gutter reserved (single source).
-    const labels = isCompact ? null : participantLabels
-    drawParticipantRowAxis(ctx, participantCount, labels, frame.x, frame.y, rowHeight)
-    ctx.restore()
-
-    const xTicks = xAxisTicks
-    drawPlotArea(ctx, {
-      x: frame.x,
-      y: frame.y,
-      width: frame.width,
-      height: frame.height,
-      ticks: { bottom: xTicks, top: { positions: xTicks.positions } },
-    })
-    drawXAxisLabel(ctx, X_AXIS_LABEL, frame.x, frame.width, frame.bottom, frame.bottomTitleOffset, AXIS_CONFIG)
-  }
-
   // ── OVERLAY ──
   function renderOverlay(
     ctx: CanvasRenderingContext2D,
@@ -667,19 +644,6 @@
     for (let i = to; i >= from; i--) ctx.lineTo(sampleToX(i), valueToY(p25[i]))
     ctx.closePath()
     ctx.fill()
-  }
-
-  function renderOverlayAxes(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
-    const xTicks = xAxisTicks
-    drawPlotArea(ctx, {
-      x: frame.x,
-      y: frame.y,
-      width: frame.width,
-      height: frame.height,
-      ticks: { bottom: xTicks, top: { positions: xTicks.positions }, left: yTicks ?? undefined },
-    })
-    drawXAxisLabel(ctx, X_AXIS_LABEL, frame.x, frame.width, frame.bottom, frame.bottomTitleOffset, AXIS_CONFIG)
-    drawYAxisMainLabel(ctx, data.yAxisLabel, frame.x, frame.y, frame.height, frame.leftTitleOffset, AXIS_CONFIG)
   }
 
   // ── HOVER ──

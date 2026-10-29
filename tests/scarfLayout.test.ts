@@ -69,15 +69,9 @@ describe('scarf row band vs the resolved frame', () => {
   const bounds = { left: 0, top: 0, right: W, bottom: H }
 
   const resolveWith = (leftLabelWidth: number, title: string, legendSpace: number) =>
-    resolveFrameLayout(
-      scarfFrameGutters({
-        tickLabels: ['0', '2500', '5000'],
-        axisTitle: title,
-        leftLabelWidth,
-        legendSpace,
-      }),
-      bounds
-    )
+    resolveFrameLayout(scarfFrameGutters({ leftLabelWidth, legendSpace }), bounds, {
+      bottom: { ticks: { positions: [0, 0.5, 1], labels: ['0', '2500', '5000'] }, title },
+    })
 
   /** What the figure computes as `rowBandHeight`. */
   const rowBand = (title: string, legendSpace: number) =>

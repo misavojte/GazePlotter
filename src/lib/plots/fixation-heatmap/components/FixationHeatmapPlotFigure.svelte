@@ -277,8 +277,6 @@
     gutters: () => {
       if (!hasPlot || !space) return {}
       return {
-        left: { tickLabels: space.yTicks.labels, title: 'Y' },
-        bottom: { tickLabels: space.xTicks.labels, title: 'X' },
         pad: { right: PLOT_BORDER_PX },
         // The data rect takes the world's shape, so the axes span exactly the image (or extent).
         aspect: worldAspect(world!),

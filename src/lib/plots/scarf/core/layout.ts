@@ -14,10 +14,10 @@ import { SCARF_LAYOUT } from '../const'
 import type { ScarfStyling } from '../types'
 
 /**
- * The scarf's frame declaration: the left label column and the border pixel as
- * padding (drawPlotArea clamps the last tick label inside the border), the timeline ticks + title on the bottom edge, and the legend as a
- * reserved bottom block. So `frame.x`/`frame.width` come out as the plot columns
- * and the resolver owns all of the edge measuring.
+ * The scarf's frame declaration around its timeline axis: the left label column
+ * and the border pixel as padding (drawPlotArea clamps the last tick label inside
+ * the border), and the legend as a reserved bottom block. So `frame.x`/`frame.width`
+ * come out as the plot columns and the resolver owns all of the edge measuring.
  *
  * ONE owner, called twice. The figure passes the real `leftLabelWidth` for the
  * frame it draws in, and `LEFT_LABEL_MAX_WIDTH` to probe the row band: pinning
@@ -26,8 +26,6 @@ import type { ScarfStyling } from '../types'
  * probe never reserves less than the real frame does.
  */
 export function scarfFrameGutters(opts: {
-  tickLabels: string[]
-  axisTitle: string
   leftLabelWidth: number
   legendSpace: number
   /** Row-stack height: rows stop growing at MAX_BAR_SCALE, so on a tall canvas
@@ -35,7 +33,6 @@ export function scarfFrameGutters(opts: {
   maxHeight?: number
 }): FrameGutters {
   return {
-    bottom: { tickLabels: opts.tickLabels, title: opts.axisTitle },
     pad: {
       top: PLOT_EDGE_PAD_TOP,
       left: opts.leftLabelWidth,

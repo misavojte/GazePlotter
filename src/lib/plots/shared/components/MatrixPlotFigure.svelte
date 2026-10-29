@@ -276,7 +276,6 @@
         : cannotFitPlaceholder('size', fitSteps),
     // The matrix owns its own layout (computeMatrixLayout) and draws its
     // labels outside the cell grid, so the frame is scaffold-only here.
-    gutters: () => ({}),
     clipData: false,
     drawData: ctx => {
       renderMatrixContent(ctx, renderConfig)

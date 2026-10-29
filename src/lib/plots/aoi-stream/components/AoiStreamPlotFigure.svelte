@@ -9,6 +9,7 @@
     withQualifiers,
     type CanvasExportProps,
     type PlotFrame,
+    type FrameAxes,
     type FrameHit,
   } from '$lib/plots/shared'
   import {
@@ -38,20 +39,13 @@
     type LegendGeometry,
     type LegendItemGeometry,
   } from '$lib/plots/shared/legendRendering'
+  import { AXIS_CONFIG, truncatedRowLabels } from '$lib/plots/shared/axisUtils'
   import {
-    AXIS_CONFIG,
-    drawXAxisLabel,
-    drawYAxisMainLabel,
-    truncatedRowLabels,
-  } from '$lib/plots/shared/axisUtils'
-  import {
-    drawPlotArea,
     fillPlotAreaBackground,
     niceTimelineTicks,
     bottomOriginYTicks,
     centeredYTicks,
     TICK_LENGTH,
-    type PlotAreaTicks,
   } from '$lib/plots/shared/plotArea'
   import {
     METRIC_MISSING_MESSAGE,
@@ -111,6 +105,8 @@
   const MIN_STREAM_HEIGHT = 40
 
   let renderBuckets = $state<RenderBuckets | null>(null)
+  /** The last drawData pass's coordinates, for the marks drawn above the axes. */
+  let streamCoords: ReturnType<typeof transformStreamDataToCoordinates> | null = null
 
   const usedHighlights = $derived(highlights)
 
@@ -145,11 +141,9 @@
       : calculateFlatLegendHeight(legendItems, Math.max(0, plot.plotAreaWidth), LEGEND_CONFIG)
   )
 
-  // ── Axis chrome: tick-label strings fed to the measured gutter ──
-  // The X (time) axis and the Y (metric/value) domain are both pixel-independent,
-  // so their tick-label strings are available here. The resolver measures their
-  // extent + the titles, reserves the gutters, and returns the title offsets
-  // (frame.leftTitleOffset / bottomTitleOffset) the figure draws with.
+  // ── Axis chrome ──
+  // The X (time) axis and the Y (metric/value) domain are both pixel-independent:
+  // the same `computeAoiStreamYAxis` the stream coordinates are scaled by.
   const xAxisTicks = $derived(niceTimelineTicks(data.timeline))
   const yDomain = $derived(computeAoiStreamYAxis(data, alignment))
 
@@ -162,20 +156,30 @@
       : []
   )
 
-  // Left edge per mode: value ticks + rotated metric title (stream/distribution),
-  // the scale-bar strip + title (ridgeline), or truncated AOI row labels with no
-  // title (heatmap — the metric name lives in the gradient legend).
-  const leftTickLabels = $derived.by<string[]>(() => {
-    if (alignment === 'stream') return centeredYTicks(yDomain.axisTicks, yDomain.axisHalfRange).labels ?? []
-    if (alignment === 'distribution') return bottomOriginYTicks(yDomain.axisTicks, yDomain.yAxisMax).labels ?? []
-    if (alignment === 'ridgeline') return ['0', '100'] // reserve the scale-bar strip
-    return heatmapAoiLabels
+  // Left edge per mode: value ticks + rotated metric title mirrored on the right
+  // (stream/distribution), the scale-bar strip + title (ridgeline), or truncated
+  // AOI row labels with no title (heatmap — the metric name lives in the gradient
+  // legend). No axes without bins: the empty result's timeline is fabricated.
+  const axes = $derived.by<FrameAxes | null>(() => {
+    if (data.binCount <= 0) return null
+    const bottom = { ticks: xAxisTicks, title: X_AXIS_LABEL }
+    const top = { ticks: { positions: xAxisTicks.positions } }
+    if (alignment === 'heatmap') return { bottom, top, left: { reserve: heatmapAoiLabels } }
+    if (alignment === 'ridgeline') {
+      // Whole percents only, so '100' is the widest scale-bar label.
+      return { bottom, top, left: { title: data.yAxisLabel, reserve: ['0', '100'] } }
+    }
+    const left =
+      alignment === 'stream'
+        ? centeredYTicks(yDomain.axisTicks, yDomain.axisHalfRange)
+        : bottomOriginYTicks(yDomain.axisTicks, yDomain.yAxisMax)
+    return {
+      bottom,
+      top,
+      left: { ticks: left, title: data.yAxisLabel },
+      right: { ticks: { positions: left.positions } },
+    }
   })
-  const leftEdge = $derived(
-    alignment === 'heatmap'
-      ? { tickLabels: leftTickLabels }
-      : { title: data.yAxisLabel, tickLabels: leftTickLabels }
-  )
 
   const plot = usePlot<{
     kind: 'legend' | 'bin'
@@ -200,20 +204,16 @@
           : []
       )
     },
-    // Declarative measured gutters: the resolver measures the left/bottom edge
-    // tick labels + titles and returns the title offsets (frame.leftTitleOffset /
-    // bottomTitleOffset). The figure still draws its own chrome (clipData:false)
-    // but places its titles at those offsets. The legend is reserved as a bottom
-    // block; PLOT_LEGEND_GAP is folded in (the resolver abuts the block to the
-    // x-axis gutter), and the draw anchors at frame.legendY + PLOT_LEGEND_GAP.
+    axes: () => axes,
+    // The legend is reserved as a bottom block; PLOT_LEGEND_GAP is folded in (the
+    // resolver abuts the block to the x-axis gutter), and the draw anchors at
+    // frame.legendY + PLOT_LEGEND_GAP.
     gutters: () => ({
-      left: leftEdge,
-      bottom: { title: X_AXIS_LABEL, tickLabels: xAxisTicks.labels ?? [] },
       pad: { top: PLOT_EDGE_PAD_TOP, right: effectiveRightMargin },
       legendHeight: legendHeight > 0 ? PLOT_LEGEND_GAP + legendHeight : 0,
     }),
-    clipData: false,
     drawData: drawStream,
+    drawAboveAxes: drawStreamChrome,
     drawOverlay: drawStreamOverlay,
     legend: {
       geometry: () =>
@@ -282,37 +282,33 @@
   // The frame arrives already floored (resolveFrameLayout floors the rect), so
   // draws read it directly — no re-flooring preamble.
   function drawStream(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+    streamCoords = null
     if (frame.width <= 0 || frame.height <= 0 || data.binCount <= 0) return
 
-    const { buckets, yAxisMax, axisTicks, seriesPaint, axisHalfRange, seriesRanks } =
-      transformStreamDataToCoordinates(
-        {
-          data,
-          alignment,
-          floorLeft: frame.x,
-          floorTop: frame.y,
-          floorWidth: frame.width,
-          floorHeight: frame.height,
-          floorBottom: frame.bottom,
-          syncedMTopOverride,
-          highlightMaskById,
-          ridgelineScale,
-          colorScale: effectiveColorScale,
-          colorValueRange,
-          belowMinColor,
-          aboveMaxColor,
-        },
-        renderBuckets
-      )
+    streamCoords = transformStreamDataToCoordinates(
+      {
+        data,
+        alignment,
+        floorLeft: frame.x,
+        floorTop: frame.y,
+        floorWidth: frame.width,
+        floorHeight: frame.height,
+        floorBottom: frame.bottom,
+        syncedMTopOverride,
+        highlightMaskById,
+        ridgelineScale,
+        colorScale: effectiveColorScale,
+        colorValueRange,
+        belowMinColor,
+        aboveMaxColor,
+      },
+      renderBuckets
+    )
+    const { buckets, seriesPaint, seriesRanks } = streamCoords
 
     renderBuckets = buckets
     const { xPositions, seriesBuckets } = buckets
     const renderBinCount = data.binCount + 2
-
-    ctx.save()
-    ctx.beginPath()
-    ctx.rect(frame.x, frame.y, frame.width, frame.height)
-    ctx.clip()
 
     if (alignment === 'heatmap') {
       fillPlotAreaBackground(ctx, frame.x, frame.y, frame.width, frame.height, INACTIVE_COLOR)
@@ -423,42 +419,44 @@
     // drawStreamOverlay on the overlay layer, so a bin hover blits the cached
     // stream instead of re-running this whole render.
 
-    ctx.restore()
+    if (alignment === 'heatmap') {
+      ctx.strokeStyle = AREA_DIVIDER.COLOR
+      ctx.lineWidth = AREA_DIVIDER.WIDTH
+      for (let s = 0; s < data.series.length - 1; s++) {
+        const stripBottom = seriesPaint[s].stripBottom
+        if (stripBottom === undefined) continue
+        ctx.beginPath()
+        ctx.moveTo(frame.x, stripBottom)
+        ctx.lineTo(frame.right, stripBottom)
+        ctx.stroke()
+      }
+    }
+  }
 
-    // AOI labels for heatmap (outside clip)
+  // The gutter marks the axes don't draw: heatmap AOI row labels, the ridgeline
+  // scale bar, and the interactive legend.
+  function drawStreamChrome(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
+    if (!streamCoords) return
+    const { seriesPaint } = streamCoords
+    setUpFont(ctx)
+
     if (alignment === 'heatmap') {
       ctx.save()
-      ctx.font = `${AXIS_CONFIG.fontSize}px ${FONT_PRIMARY.FAMILY}`
-      ctx.fillStyle = AXIS_CONFIG.color
       ctx.textAlign = 'right'
       ctx.textBaseline = 'middle'
       for (let s = 0; s < data.series.length; s++) {
         const paint = seriesPaint[s]
-        if (paint.stripBottom !== undefined && paint.stripHeight !== undefined) {
-          const labelY = paint.stripBottom - paint.stripHeight / 2
-          // Pre-truncated to the same budget the gutter reserved (single source).
-          ctx.fillText(heatmapAoiLabels[s], frame.x - 10, labelY)
-        }
-        const stripBottom = paint.stripBottom
-        if (s < data.series.length - 1 && stripBottom !== undefined) {
-          ctx.beginPath()
-          ctx.strokeStyle = AREA_DIVIDER.COLOR
-          ctx.lineWidth = AREA_DIVIDER.WIDTH
-          ctx.moveTo(frame.x, stripBottom)
-          ctx.lineTo(frame.right, stripBottom)
-          ctx.stroke()
-        }
+        if (paint.stripBottom === undefined || paint.stripHeight === undefined) continue
+        // Pre-truncated to the same budget the gutter reserved (single source).
+        ctx.fillText(heatmapAoiLabels[s], frame.x - 10, paint.stripBottom - paint.stripHeight / 2)
       }
       ctx.restore()
     }
 
-    setUpFont(ctx)
-
-    // Ridgeline scale bar
     if (alignment === 'ridgeline') {
       const centerY = frame.y + frame.height / 2
       const referenceHeight = seriesPaint[0]?.referenceHeight ?? 0
-      // Whole percents only: the left gutter reserves '100', the widest label.
+      // Whole percents only: the left axis reserves '100', the widest label.
       const heightAt = (v: number) => (referenceHeight * RIDGELINE_CONTENT_FILL * v) / 100
       let scaleMaxValue = 100
       while (heightAt(scaleMaxValue) > frame.height && scaleMaxValue > 1) {
@@ -473,7 +471,6 @@
       ctx.textAlign = 'right'
       ctx.textBaseline = 'middle'
       ctx.font = `${AXIS_CONFIG.fontSize - 2}px ${FONT_PRIMARY.FAMILY}`
-      ctx.fillStyle = AXIS_CONFIG.color
       ctx.fillText('0', tickXStart - 3, scaleBottom)
       ctx.fillText(scaleMaxValue.toString(), tickXStart - 3, scaleTop)
       ctx.beginPath()
@@ -489,33 +486,8 @@
       ctx.restore()
     }
 
-    // Plot-area chrome
-    const xTicks = xAxisTicks
-    let leftTicks: PlotAreaTicks | undefined
-    let rightTicks: PlotAreaTicks | undefined
-    if (alignment === 'stream') {
-      leftTicks = centeredYTicks(axisTicks, axisHalfRange)
-      rightTicks = centeredYTicks(axisTicks, axisHalfRange, String, false)
-    } else if (alignment === 'distribution') {
-      leftTicks = bottomOriginYTicks(axisTicks, yAxisMax)
-      rightTicks = { positions: leftTicks.positions }
-    }
-    drawPlotArea(ctx, {
-      x: frame.x,
-      y: frame.y,
-      width: frame.width,
-      height: frame.height,
-      ticks: { bottom: xTicks, top: { positions: xTicks.positions }, left: leftTicks, right: rightTicks },
-    })
-
-    if (alignment !== 'heatmap') {
-      drawYAxisMainLabel(ctx, data.yAxisLabel, frame.x, frame.y, frame.height, frame.leftTitleOffset, AXIS_CONFIG)
-    }
-    drawXAxisLabel(ctx, X_AXIS_LABEL, frame.x, frame.width, frame.bottom, frame.bottomTitleOffset, AXIS_CONFIG)
-
-    // Legend (the heatmap's gradient legend is drawn by the harness)
+    // The heatmap's gradient legend is drawn by the harness.
     if (alignment !== 'heatmap' && legendGeometry.items.length > 0 && legendHeight > 0) {
-      setUpFont(ctx)
       drawLegend(ctx, legendGeometry, LEGEND_CONFIG, usedHighlights)
     }
   }

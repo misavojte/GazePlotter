@@ -22,6 +22,7 @@
     type LegendGroup,
     type LegendItemGeometry,
     type PlotFrame,
+    type FrameAxes,
     type FrameGutters,
     type PlotPlaceholderContent,
     PLOT_LEGEND_GAP,
@@ -116,16 +117,12 @@
   const legendGap = PLOT_LEGEND_GAP + SCARF_LAYOUT.LEGEND_GAP_DELTA
   const legendSpace = $derived(legendHeight > 0 ? legendGap + legendHeight : 0)
 
-  const xAxisTicks = $derived(niceTimelineTicks(data.timeline))
+  const axes = $derived<FrameAxes>({
+    bottom: { title: xAxisLabel, ticks: niceTimelineTicks(data.timeline) },
+  })
 
   const guttersFor = (leftLabelWidth: number, maxHeight?: number): FrameGutters =>
-    scarfFrameGutters({
-      tickLabels: xAxisTicks.labels ?? [],
-      axisTitle: xAxisLabel,
-      leftLabelWidth,
-      legendSpace,
-      maxHeight,
-    })
+    scarfFrameGutters({ leftLabelWidth, legendSpace, maxHeight })
 
   // ── The row band: the ONE height the scarf's layout reads ──
   // It cannot be `plot.frame.height`, because compact mode decides the left label
@@ -139,12 +136,11 @@
   // passing the row-stack cap (it derives from the layout this band feeds), so
   // the probe is always uncapped: the full band the rows may grow into.
   const rowBandHeight = $derived.by(() => {
-    const { rect } = resolveFrameLayout(guttersFor(SCARF_LAYOUT.LEFT_LABEL_MAX_WIDTH), {
-      left: 0,
-      top: 0,
-      right: plot.plotAreaWidth,
-      bottom: plot.plotAreaHeight,
-    })
+    const { rect } = resolveFrameLayout(
+      guttersFor(SCARF_LAYOUT.LEFT_LABEL_MAX_WIDTH),
+      { left: 0, top: 0, right: plot.plotAreaWidth, bottom: plot.plotAreaHeight },
+      axes
+    )
     return Math.max(1, rect.height)
   })
 
@@ -202,9 +198,7 @@
           ? Math.ceil(participantBarsHeight)
           : undefined
       ),
-    axes: () => ({
-      bottom: { title: xAxisLabel, ticks: xAxisTicks },
-    }),
+    axes: () => axes,
     clipData: false,
     drawData: renderScarf,
     drawOverlay: drawScarfOverlay,

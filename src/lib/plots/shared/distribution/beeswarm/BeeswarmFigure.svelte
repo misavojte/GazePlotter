@@ -9,7 +9,6 @@
     getTimelinePositionRatio,
     usePlot,
     fillPlotAreaBackground,
-    niceTimelineTicks,
     valueAxisTicks,
     type CanvasExportProps,
     type PlotFrame,
@@ -98,7 +97,6 @@
   } = $derived(props)
 
   const isVertical = $derived(orientation === 'vertical')
-  const niceTickLabels = $derived(niceTimelineTicks(timeline).labels ?? [])
 
   const categoryLabelHeight = $derived.by(() => {
     let max = 0
@@ -135,25 +133,20 @@
       if (rowThickness >= MIN_ROW_DOT_WIDTHS * DOT_PITCH) return null
       return cannotFitPlaceholder(isVertical ? 'width' : 'height', cannotFitHints)
     },
-    gutters: () =>
-      isVertical
-        ? {
-            left: { tickLabels: niceTickLabels, title: axisLabel },
-            bottom: { tickLabels: data.map(d => d.label) },
-            pad: edgePad,
-          }
-        : {
-            bottom: { tickLabels: niceTickLabels, title: axisLabel },
-            pad: edgePad,
-          },
+    gutters: () => ({ pad: edgePad }),
     drawData: drawUnderlay,
     clipData: false, // data layers self-clip; category labels live in the gutter
     drawAboveAxes: drawMarks,
     axes: () => {
       const labelled = valueAxisTicks(timeline, { invert: isVertical })
       const mirror = valueAxisTicks(timeline, { invert: isVertical, ticksOnly: true })
+      // Vertical: the category labels under the columns are drawUnderlay's own.
       return isVertical
-        ? { left: { ticks: labelled, title: axisLabel }, right: { ticks: mirror } }
+        ? {
+            left: { ticks: labelled, title: axisLabel },
+            right: { ticks: mirror },
+            bottom: { reserve: data.map(d => d.label) },
+          }
         : { bottom: { ticks: labelled, title: axisLabel }, top: { ticks: mirror } }
     },
     drawOverlay: drawCrosshairHighlight,

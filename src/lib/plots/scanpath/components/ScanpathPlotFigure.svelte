@@ -320,8 +320,6 @@
     gutters: () => {
       if (unavailableMessage || !space) return {}
       return {
-        left: { tickLabels: space.yTicks.labels, title: 'Y' },
-        bottom: { tickLabels: space.xTicks.labels, title: 'X' },
         pad: { right: PLOT_BORDER_PX },
         aspect: worldAspect(world!),
       }
