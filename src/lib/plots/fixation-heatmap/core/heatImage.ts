@@ -1,7 +1,8 @@
 /**
  * The heat image's colour encoding, canvas-free: one RGBA lookup table maps a
- * map value to colour + alpha, and the legend ramp is sampled from the SAME
- * table, so the key can never disagree with the map.
+ * map value to colour + alpha (the heat, or the opacity map's mask), and the
+ * legend ramp is sampled from the SAME table, so the key can never disagree
+ * with the map.
  */
 import { hexToRgb, rgbToHex, samplePalette } from '$lib/color'
 import { FIXATION_HEATMAP_LAYOUT as L } from '../const'
@@ -24,13 +25,24 @@ export function heatLut(stops: readonly string[], opacity: number, size: number 
   return lut
 }
 
-/** Paint grid values into `out` pixels; values at or above `top` take the top colour, 0 is clear. */
-export function paintHeat(values: Float32Array, top: number, lut: Uint32Array, out: Uint32Array): void {
+/** The opacity map's table: the mask colour at `opacity` for 0, clearing linearly to nothing at the top. */
+export function maskLut(color: string, opacity: number, size: number = L.lutSize): Uint32Array {
+  const lut = new Uint32Array(size)
+  const { r, g, b } = hexToRgb(color)
+  for (let i = 0; i < size; i++) {
+    const a = Math.round(255 * opacity * (1 - i / (size - 1)))
+    lut[i] = ((a << 24) | (b << 16) | (g << 8) | r) >>> 0
+  }
+  return lut
+}
+
+/** Paint grid values into `out` pixels; values at or above `top` take the top colour, 0 takes `zero` (clear for the heat). */
+export function paintHeat(values: Float32Array, top: number, lut: Uint32Array, out: Uint32Array, zero: number = 0): void {
   const last = lut.length - 1
   const scale = top > 0 ? last / top : 0
   for (let k = 0; k < values.length; k++) {
     const v = values[k]
-    out[k] = v > 0 ? lut[v >= top ? last : (v * scale) | 0] : 0
+    out[k] = v > 0 ? lut[v >= top ? last : (v * scale) | 0] : zero
   }
 }
 

@@ -5,7 +5,8 @@ import type { ParticipantScope } from '$lib/data/types'
 
 export type FixationHeatmapAccumulate = 'duration' | 'count'
 export type FixationHeatmapNormalization = 'share' | 'mean'
-/** What lies under the heat when the stimulus has an image. */
+/** Heatmap: colour rises with the value. Opacity map: a mask that clears as it rises. */
+export type FixationHeatmapViewKind = 'heatmap' | 'opacity'
 export type FixationHeatmapPlotSettings = ParticipantScope & {
   stimulusId: number
   /** What a fixation adds: its (clipped) duration, or 1 when its midpoint is in range. */
@@ -15,11 +16,15 @@ export type FixationHeatmapPlotSettings = ParticipantScope & {
   normalization: FixationHeatmapNormalization
   /** Kernel radius in gaze units (sigma = R / 3); 0 = Auto. */
   radius: number
+  view: FixationHeatmapViewKind
   colorScale: string[]
   /** Value at the top colour, in the map's unit; 0 = Auto (the map's own peak). */
   scaleMax: number
   /** Heat overlay opacity [%]. */
   opacity: number
+  /** Opacity map: the mask's colour, and its opacity [%] where the map is 0. */
+  maskColor: string
+  maskOpacity: number
   showFixations: boolean
   /** The image as is, desaturated, desaturated and faded, or not drawn (Pro Lab's White). */
   background: StimulusBackground

@@ -1,6 +1,6 @@
 # Fixation Heatmap
 
-The Fixation Heatmap pools the eye-tracking fixations of a participant selection on one stimulus into one smoothed map. Every fixation adds its duration, or a count of one, through a Gaussian kernel, so regions that collected much fixation time read as hot. When the stimulus has an image as [reference media](/docs/workspace/stimuli-library/#reference-media), the map is drawn over it and clipped to it.
+The Fixation Heatmap pools the eye-tracking fixations of a participant selection on one stimulus into one smoothed map. Every fixation adds its duration, or a count of one, through a Gaussian kernel, so regions that collected much fixation time read as hot. When the stimulus has an image as [reference media](/docs/workspace/stimuli-library/#reference-media), the map is drawn over it and clipped to it. The same map can also be drawn as an opacity map: a dark mask over the stimulus that clears where people looked, so only the viewed parts of the image show.
 
 The map is built from fixations as classified in the source file. GazePlotter stores one coordinate per fixation (for Tobii Pro Lab: `Mapped fixation X/Y` or `Fixation point X/Y`), not raw gaze samples, so there is no raw-gaze variant of the map.
 
@@ -17,6 +17,7 @@ The map is built from fixations as classified in the source file. GazePlotter st
 ## When to Use It
 
 - **Where a group looked**: see which regions of a stimulus collected the most fixation time across participants.
+- **What people saw**: the opacity map hides what nobody looked at and leaves the viewed regions in their own colors, which reads at a glance in a presentation.
 - **Group comparison**: put two participant selections side by side on a shared color scale, see [Comparing Heatmaps](#comparing-heatmaps).
 - **Figures for a paper**: the legend and data summary travel with the exported figure, see [Report These Settings](#report-these-settings).
 
@@ -24,7 +25,7 @@ The map is built from fixations as classified in the source file. GazePlotter st
 
 Below the map, the legend and a data summary state everything needed to read and reproduce it. Both are part of exported figures.
 
-- **Legend**: The color bar from 0 to the scale maximum, drawn with the map's opacity and fade as they look on a white background (over an image, the colors mix with it). Its title says what the color means, for example `Fixation duration share / % · max auto · mean of 12 participants · t ≥ 1000 ms`: the quantity and unit, whether the maximum is automatic or fixed, the N it averages over, and the time range.
+- **Legend**: The color bar from 0 to the scale maximum, drawn with the map's opacity and fade as they look on a white background (over an image, the colors mix with it). In the opacity map, the bar runs from the mask color, where nobody looked, to white, where the mask is clear. Its title says what the color means, for example `Fixation duration share / % · max auto · mean of 12 participants · t ≥ 1000 ms`: the quantity and unit, whether the maximum is automatic or fixed, the N it averages over, and the time range.
 - **Data summary**: The participant selection and the kernel (`R = 94 auto · σ = 31`), then only the warnings that apply: a peak above an explicit **Scale max** (`peak 9,040 ms > max 1,000 ms`), a video background that was not drawn, a radius below the grid resolution (peaks then read low), fixations outside the media (or outside the view, without media), fixations without coordinates, and participants without located fixations. The number of mapped fixations comes last. The summary wraps onto up to three lines instead of cutting clauses.
 
 Without reference media, the view frames all fixations on the stimulus, plus a margin of R, the same frame for every participant selection and time range. A few fixations far outside the bulk (more than half its size past its edges) are left outside the view; they still count, and the data summary lists them.
@@ -60,12 +61,18 @@ The settings that decide the numbers on the map. The collapsed section header re
 - **Radius R (0 = Auto: …)**: The kernel radius R in gaze-coordinate units (pixels for Tobii Pro Lab data); the kernel's σ is R / 3. 0 = Auto: 5 % of the longer side of the central 98 % of all fixations in the dataset, shown in the label. One auto radius applies to every stimulus and participant selection of the dataset.
 
 ### Visualization
+The collapsed section header shows the view.
+- **View**: How the map is drawn. Both views show the same map, so switching never changes the numbers.
+  - *Heatmap*: Colors over the stimulus that rise with the map value (default).
+  - *Opacity map*: A mask over the stimulus that is at its strongest where the map is 0 and clears linearly toward the scale maximum.
 - **Color scale**: How map values become colors.
   - **Color scale picker**: The gradient stops (default *Yellow to Red*).
-  - **Scale max / ms (0 = Auto)**: The value that takes the top color, in the map's unit (the label shows *ms*, *fixations*, or *%*). 0 = Auto: this map's own peak, rounded up at the third significant digit. Values above an explicit maximum take the top color, shown as a cap at the end of the legend. Changing **Accumulate** or **Normalization** resets it to 0.
-  - **Opacity / %**: Heat opacity, 0 to 100 (default 70). Values in the lowest 5 % of the scale fade in from transparent, so blobs have soft edges.
+  - **Scale max / ms (0 = Auto)**: The value that takes the top color, in the map's unit (the label shows *ms*, *fixations*, or *%*). 0 = Auto: this map's own peak, rounded up at the third significant digit. In the opacity map, Auto is half the peak, so the most viewed regions show fully clear rather than only the single peak. Values above an explicit maximum take the top color, shown as a cap at the end of the legend. Changing **Accumulate** or **Normalization** resets it to 0.
+  - **Opacity / %**: Heat opacity, 0 to 100 (default 70). Values in the lowest 5 % of the scale fade in from transparent, so blobs have soft edges. Heatmap only.
+  - **Mask color**: The opacity map's mask (default black). Opacity map only.
+  - **Mask opacity / %**: The mask's opacity where the map is 0, from 0 to 100 (default 90). Opacity map only.
 - **Show fixations**: Draws every mapped fixation as a small dark dot over the heat, exposing how many fixations, and which outliers, the map rests on.
-- **Background**: What lies under the heat. Offered when the stimulus has a reference image.
+- **Background**: What lies under the heat or the mask. Offered when the stimulus has a reference image.
   - *Image*: The reference image as it is (default).
   - *Grayscale image*: The image without color, so the heat colors stand out on a colorful stimulus.
   - *Dimmed grayscale image*: The grayscale image faded halfway toward white, for the strongest heat contrast.
@@ -143,6 +150,9 @@ The legends then read *max fixed*, and exported figures keep the shared scale. W
 | Radius (100 px) | **Radius**: the kernel's reach; σ = R / 3, FWHM about 0.78 R (about R in Pro Lab). |
 | Scale max value | **Scale max** |
 | Opacity (80 %) | **Opacity / %** (70) |
+| Opacity map | **View**: *Opacity map* |
+| Opacity map: Color (black), Opacity (90 %) | **Mask color** (black), **Mask opacity / %** (90) |
+| Opacity map: Scale max value (0.5) | **Scale max**: Auto is half the map's peak. |
 | Color: green, yellow, red | **Color scale**: the *Green to Red* preset gives the Pro Lab look, but its light middle makes it diverging rather than sequential, and it is not color-blind safe. |
 | Time of interest | **Time range** |
 | Background: Media / White | **Background**: *Image* / *None* (plus *Grayscale image* and *Dimmed grayscale image*); Black and Transparent are not offered. |

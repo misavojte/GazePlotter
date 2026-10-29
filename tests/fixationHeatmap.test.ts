@@ -12,7 +12,7 @@ import {
   splatFixations,
 } from '../src/lib/plots/fixation-heatmap/core/density'
 import { autoRadius, getFixationHeatmapData } from '../src/lib/plots/fixation-heatmap/core/transformer'
-import { fadeIn, heatLut, legendRamp, paintHeat } from '../src/lib/plots/fixation-heatmap/core/heatImage'
+import { fadeIn, heatLut, legendRamp, maskLut, paintHeat } from '../src/lib/plots/fixation-heatmap/core/heatImage'
 import {
   deriveFixationHeatmapView,
   formatAmount,
@@ -48,9 +48,12 @@ const settings = (over: Partial<FixationHeatmapPlotSettings> = {}): FixationHeat
   accumulate: 'duration',
   normalization: 'share',
   radius: 30,
+  view: 'heatmap',
   colorScale: ['#ffeda0', '#fd8d3c', '#bd0026'],
   scaleMax: 0,
   opacity: 70,
+  maskColor: '#000000',
+  maskOpacity: 90,
   showFixations: false,
   background: 'image',
   ...over,
@@ -288,7 +291,7 @@ describe('getFixationHeatmapData', () => {
   it('reuses the map across view-only edits and recomputes when its inputs change', () => {
     const e = engine()
     const first = ok(getFixationHeatmapData(e, settings()))
-    expect(ok(getFixationHeatmapData(e, settings({ opacity: 40, scaleMax: 3, colorScale: ['#000000', '#ffffff'] })))).toBe(first)
+    expect(ok(getFixationHeatmapData(e, settings({ view: 'opacity', opacity: 40, scaleMax: 3, colorScale: ['#000000', '#ffffff'] })))).toBe(first)
     expect(ok(getFixationHeatmapData(e, settings({ normalization: 'mean' })))).not.toBe(first)
     e.metadata!.participants.data[0][1] = 'Renamed'
     const renamed = ok(getFixationHeatmapData(e, settings()))
@@ -349,6 +352,18 @@ describe('heat image', () => {
     expect(ramp[4]).toBe('#ffffff')
     const dark = legendRamp(heatLut(['#000000', '#000000'], 0.5), 2)
     expect(dark[1]).toBe('#7f7f7f')
+  })
+
+  it('masks fully where nobody looked and clears linearly to the top', () => {
+    const lut = maskLut('#102030', 0.9)
+    expect(lut[0]).toBe(((Math.round(0.9 * 255) << 24) | (0x30 << 16) | (0x20 << 8) | 0x10) >>> 0)
+    expect(lut[lut.length - 1] >>> 24).toBe(0)
+    const out = new Uint32Array(3)
+    paintHeat(Float32Array.from([0, 50, 500]), 100, lut, out, lut[0])
+    expect(out[0]).toBe(lut[0])
+    expect(out[1] >>> 24).toBeCloseTo(0.45 * 255, -1)
+    expect(out[2]).toBe(lut[lut.length - 1])
+    expect(legendRamp(maskLut('#000000', 1), 2)).toEqual(['#000000', '#ffffff'])
   })
 })
 
@@ -427,6 +442,14 @@ describe('color sync', () => {
     expect(meta({ accumulate: 'count' })!.syncGroupKey).not.toBe(auto.syncGroupKey)
     expect(meta({ radius: 99 })!.syncGroupKey).not.toBe(auto.syncGroupKey)
     expect(meta({ opacity: 20 })!.syncGroupKey).toBe(auto.syncGroupKey)
+  })
+
+  it('tops the opacity map at half the peak and keeps it out of heatmap sync', () => {
+    const heat = meta({})!
+    const mask = meta({ view: 'opacity' })!
+    expect(mask.ownScaleTop).toBeCloseTo(niceCeil(heat.ownScaleTop / 2), 1)
+    expect(mask.syncGroupKey).not.toBe(heat.syncGroupKey)
+    expect(meta({ view: 'opacity', maskOpacity: 50 })!.syncGroupKey).toBe(mask.syncGroupKey)
   })
 
   it('leaves a set Scale max out of sync', () => {

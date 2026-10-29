@@ -4,6 +4,7 @@ import { formatGaze, formatQuantity, timeRangeQualifier, withQualifiers } from '
 import type { PlotPlaceholderContent } from '$lib/plots/shared/drawCanvasPlaceholder'
 import FixationHeatmapPlotFigure from '../components/FixationHeatmapPlotFigure.svelte'
 import { getFixationHeatmapData } from './transformer'
+import { FIXATION_HEATMAP_LAYOUT as L } from '../const'
 import type {
   FixationHeatmapData,
   FixationHeatmapPlotSettings,
@@ -111,20 +112,28 @@ export function deriveFixationHeatmapView(
   // Only an image is drawn: a video's shared element is the playback clock, so
   // its frame under a static map would move with any Scanpath of the stimulus.
   const image = media?.kind === 'image' && settings.background !== 'none' ? media : null
-  const autoTop = niceCeil(data.max)
+  const opacityMap = settings.view === 'opacity'
+  const autoTop = niceCeil(opacityMap ? data.max * L.maskAutoTopShare : data.max)
   const meta: FixationHeatmapViewMeta | undefined =
     settings.scaleMax > 0
       ? undefined
       : {
           ownScaleTop: autoTop,
-          syncGroupKey: [settings.accumulate, settings.normalization, data.radius, settings.colorScale.join('|')].join(';'),
+          syncGroupKey: [
+            settings.accumulate,
+            settings.normalization,
+            data.radius,
+            opacityMap ? `mask ${settings.maskColor}` : settings.colorScale.join('|'),
+          ].join(';'),
         }
+  const opacity = opacityMap ? settings.maskOpacity : settings.opacity
   return figureView(
     FixationHeatmapPlotFigure,
     {
       data,
       colorScale: settings.colorScale,
-      opacity: Math.min(100, Math.max(0, settings.opacity)) / 100,
+      mask: opacityMap ? settings.maskColor : null,
+      opacity: Math.min(100, Math.max(0, opacity)) / 100,
       scaleTop: settings.scaleMax > 0 ? settings.scaleMax : autoTop,
       fixedMax: settings.scaleMax > 0,
       showFixations: settings.showFixations,

@@ -18,7 +18,7 @@
   import { useStimulusSpace } from '$lib/plots/shared/stimulusSpace.svelte'
   import type { StimulusMedia } from '$lib/data/types'
   import { bucketFixations, cellCentreOf, fixationsWithin, type FixationBuckets } from '../core/density'
-  import { heatLut, legendRamp, paintHeat } from '../core/heatImage'
+  import { heatLut, legendRamp, maskLut, paintHeat } from '../core/heatImage'
   import { buildHeatmapTooltipContent } from '../core/tooltip'
   import { FIXATION_HEATMAP_COLORS as C, FIXATION_HEATMAP_LAYOUT as L } from '../const'
   import type {
@@ -30,7 +30,9 @@
   interface Props extends CanvasExportProps {
     data: FixationHeatmapData | null
     colorScale?: string[]
-    /** Heat overlay opacity, 0..1. */
+    /** Opacity map: the mask colour, painted over the stimulus and clearing as the value rises; null draws the heat. */
+    mask?: string | null
+    /** Heat overlay opacity, or the mask's where the map is 0, 0..1. */
     opacity?: number
     /** Value at the top colour (the rounded peak when auto). */
     scaleTop?: number
@@ -56,6 +58,7 @@
   const {
     data,
     colorScale = undefined,
+    mask = null,
     opacity = 0.7,
     scaleTop = 0,
     fixedMax = false,
@@ -72,7 +75,7 @@
   } = $derived(props)
 
   const stops = $derived(resolvePalette(colorScale, PRESET_PALETTES.YL_OR_RD.colors))
-  const lut = $derived(heatLut(stops, opacity))
+  const lut = $derived(mask ? maskLut(mask, opacity) : heatLut(stops, opacity))
   const ramp = $derived(legendRamp(lut))
 
   /** Gaze rect framed by the plot: the media, or the fixation extent with its kernel margin. */
@@ -98,7 +101,8 @@
 
   const heatTexture = (d: FixationHeatmapData) =>
     heatRaster([d, lut, scaleTop], d.grid.cols, d.grid.rows, layer =>
-      paintHeat(d.values, scaleTop, lut, layer.pixels)
+      // Where nobody looked the heat is clear and the mask is at its fullest.
+      paintHeat(d.values, scaleTop, lut, layer.pixels, mask ? lut[0] : 0)
     )
 
   function clipToRect(ctx: CanvasRenderingContext2D, r: Rect, frame: PlotFrame) {

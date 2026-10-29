@@ -5,6 +5,9 @@ export const FIXATION_HEATMAP_LAYOUT = {
   /** The low end fades in over this share of the scale (smoothstep), so blobs
       have soft edges and a lone fixation under a dominant hot spot stays visible. */
   fadeTop: 0.05,
+  /** Opacity map's auto scale top as a share of the peak: Pro Lab's default
+      Scale max of 0.5, so the most-viewed areas show clear, not just the peak. */
+  maskAutoTopShare: 0.5,
   /** LUT entries: fine enough that the fade ramp has ~50 alpha steps. */
   lutSize: 1024,
   /** Legend bar samples of the LUT, composited over white like the map. */
@@ -23,4 +26,6 @@ export const FIXATION_HEATMAP_COLORS = {
   dot: UI_COLORS.INK,
   dotHalo: '#ffffff',
   dotAlpha: 0.7,
+  /** Opacity map mask, Pro Lab's default. */
+  mask: '#000000',
 } as const

@@ -1,11 +1,15 @@
 import { deriveFixationHeatmapView, heatmapUnit, type FixationHeatmapView } from './core/view'
 import { autoRadiusFor } from './core/transformer'
 import { fixationHeatmapScreen } from './core/screen.svelte'
-import { definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
+import { commonIs, definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
 import { formatGaze, stimulusParticipantsSubtitle } from '$lib/plots/shared'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import { stimulusBackgroundField } from '$lib/plots/shared/stimulusBackground'
+import { FIXATION_HEATMAP_COLORS as C } from './const'
 import type { FixationHeatmapPlotSettings } from './types'
+
+// View-gated controls hide while `view` diverges across a bulk selection.
+const viewIs = (view: string) => commonIs(s => s.view, view)
 
 /** The unit a Scale max is typed in, or null when the edited plots disagree. */
 function scaleUnit(ctx: SectionFieldCtx): string | null {
@@ -82,14 +86,34 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
     {
       key: 'fixationHeatmap:visualization',
       title: 'Visualization',
-      summary: () => 'Heatmap',
       fields: [
+        {
+          kind: 'enum',
+          key: 'view',
+          options: [
+            { label: 'Heatmap', value: 'heatmap', detail: 'Colors rise with the map value' },
+            {
+              label: 'Opacity map',
+              value: 'opacity',
+              detail: 'A mask over the stimulus that clears where people looked',
+            },
+          ],
+          summary: true,
+        },
         {
           kind: 'colorScale',
           key: 'colorScale',
           group: 'Color scale',
           defaultMin: PRESET_PALETTES.YL_OR_RD.colors[0],
           defaultMax: PRESET_PALETTES.YL_OR_RD.colors[2],
+          showWhen: viewIs('heatmap'),
+        },
+        {
+          kind: 'color',
+          key: 'maskColor',
+          group: 'Color scale',
+          label: 'Mask color',
+          showWhen: viewIs('opacity'),
         },
         {
           kind: 'number',
@@ -112,6 +136,18 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
           max: 100,
           step: 5,
           default: 70,
+          showWhen: viewIs('heatmap'),
+        },
+        {
+          kind: 'number',
+          key: 'maskOpacity',
+          group: 'Color scale',
+          label: 'Mask opacity / %',
+          min: 0,
+          max: 100,
+          step: 5,
+          default: 90,
+          showWhen: viewIs('opacity'),
         },
         stimulusBackgroundField(['image']),
         { kind: 'boolean', key: 'showFixations', label: 'Show fixations' },
@@ -142,9 +178,12 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
     accumulate: 'duration',
     normalization: 'share',
     radius: 0,
+    view: 'heatmap',
     colorScale: [...PRESET_PALETTES.YL_OR_RD.colors],
     scaleMax: 0,
     opacity: 70,
+    maskColor: C.mask,
+    maskOpacity: 90,
     showFixations: false,
     background: 'image',
   }),
