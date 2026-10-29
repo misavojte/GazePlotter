@@ -60,7 +60,7 @@
 
 <div class="color-gradient-picker">
   <div class="preview-container">
-    <div class="gradient-bar" style:background={gradientStyle}>
+    <div class="gradient-bar" style:background-image={gradientStyle}>
       {@render dot(minPicker, colorMin, 'Min')}
       {@render dot(middlePicker, colorMiddle, 'Middle')}
       {@render dot(maxPicker, colorMax, 'Max')}
@@ -72,7 +72,7 @@
       <button
         type="button"
         class="preset-btn"
-        style:background={`linear-gradient(to right, ${preset.colors.join(', ')})`}
+        style:background-image={`linear-gradient(to right, ${preset.colors.join(', ')})`}
         onclick={() => applyPreset(preset.colors)}
         title={preset.name}
       ></button>
@@ -132,6 +132,12 @@
     height: 16px;
     position: relative;
     margin: 4px 6px;
+  }
+  /* Gradients span the border box: sized to the padding box they repeat
+     under the translucent border, edging each end with the other end's color. */
+  .gradient-bar,
+  .preset-btn {
+    background-origin: border-box;
   }
   .gradient-bar {
     width: 100%;

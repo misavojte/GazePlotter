@@ -92,7 +92,7 @@
       class:compact={compact}
       onclick={() => picker.toggle()}
       aria-label={ariaLabel ?? (!showLabel ? label : undefined)}
-      class:mixed
+      class:mixed={mixed && !stripes}
       style:background-color={mixed ? 'var(--c-lightgrey)' : formatColorValue}
       style:background-image={stripes}
       style:width="{actualWidth}px"
@@ -146,6 +146,8 @@
     height: 34px;
     cursor: pointer;
     background-color: white;
+    /* Mixed stripes span the border box, or they repeat under the border. */
+    background-origin: border-box;
     transition: all var(--transition-normal);
   }
 
