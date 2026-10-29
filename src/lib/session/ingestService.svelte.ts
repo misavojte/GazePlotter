@@ -91,7 +91,6 @@ function createEmptyDataset(): DataType {
   return {
     ...blankDataset(),
     metricInstances: createDefaultMetricInstances(),
-    noAoiTreatment: { color: '#cbd5e1', displayedName: 'No AOI' },
   }
 }
 
