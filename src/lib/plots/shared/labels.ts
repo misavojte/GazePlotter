@@ -204,6 +204,12 @@ export function timeRangeQualifier(start = 0, end = 0): string | null {
 /** Gaze units: whole numbers at pixel scale, three significant digits for normalized data. */
 export const formatGaze = (v: number) => (Math.abs(v) >= 10 ? String(Math.round(v)) : String(Number(v.toPrecision(3))))
 
+/** One tooltip row for a gaze point, shared so every plot words it the same. */
+export const gazePositionRow = (x: number, y: number) => ({
+  key: 'Position (x, y)',
+  value: `${formatGaze(x)}, ${formatGaze(y)}`,
+})
+
 /** Integers bare, else one decimal; a `unit` trails after a space. */
 export function formatCompact(v: number, unit = ''): string {
   const num = Number.isInteger(v) ? String(v) : v.toFixed(1)

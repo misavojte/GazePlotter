@@ -7,7 +7,7 @@ export const FIXATION_HEATMAP_LAYOUT = {
   lutSize: 1024,
   /** Legend bar samples of the LUT, composited over white like the map. */
   legendStops: 32,
-  tooltipWidth: 220,
+  tooltipWidth: 170,
   /** Auto radius as a share of the longer side of the robust fixation extent. */
   autoRadiusShare: 0.05,
   /** Robust extent bounds: 1st and 99th percentile per axis. */

@@ -26,8 +26,7 @@
   import type { StimulusMedia } from '$lib/data/types'
   import { bucketFixations, cellCentreOf, fixationsWithin, type FixationBuckets } from '../core/density'
   import { heatLut, legendRamp, paintHeat } from '../core/heatImage'
-  import { formatAmount } from '../core/view'
-  import { formatGaze } from '$lib/plots/shared/labels'
+  import { buildHeatmapTooltipContent } from '../core/tooltip'
   import { FIXATION_HEATMAP_COLORS as C, FIXATION_HEATMAP_LAYOUT as L } from '../const'
   import type {
     FixationHeatmapAccumulate,
@@ -258,28 +257,22 @@
       contribution += sums[p]
       if (top < 0 || sums[p] > sums[top]) top = p
     }
-    const N = d.participants.length
-    const duration = accumulate === 'duration'
-    const unit = share ? ' %' : duration ? ' ms per participant' : ' fixations per participant'
-    const rows = [
-      { key: 'Map value', value: `${formatAmount(d.values[cell])}${unit}` },
+    const rows = buildHeatmapTooltipContent(
       {
-        key: `Within R = ${formatGaze(d.radius)}`,
-        value: `${n} fixation${n === 1 ? '' : 's'}${duration ? `, ${formatAmount(rawSum)} ms` : ''}`,
+        value: d.values[cell],
+        x: cx,
+        y: cy,
+        radius: d.radius,
+        fixations: n,
+        rawSum,
+        share: shareSum / d.participants.length,
+        participants: ids.length,
+        ofParticipants: d.participants.length,
+        top: top >= 0 ? { name: d.participants[top].name, share: sums[top] / contribution } : null,
       },
-      {
-        key: duration ? 'Share of fixation time' : 'Share of fixations',
-        value: `${formatAmount((100 * shareSum) / N)} %`,
-      },
-      { key: 'Participants', value: `${ids.length} of ${N}` },
-    ]
-    if (top >= 0) {
-      rows.push({
-        key: 'Largest contributor',
-        value: `${d.participants[top].name}, ${Math.round((100 * sums[top]) / contribution)} %`,
-      })
-    }
-    rows.push({ key: 'X', value: formatGaze(cx) }, { key: 'Y', value: formatGaze(cy) })
+      accumulate,
+      normalization
+    )
     const info = { rows, ids }
     memo = { data: d, cell, info }
     return info

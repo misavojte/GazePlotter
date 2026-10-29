@@ -1,4 +1,4 @@
-import { formatGaze } from '$lib/plots/shared/labels'
+import { gazePositionRow } from '$lib/plots/shared/labels'
 import type { ScanpathFixation } from '../types'
 
 /**
@@ -14,6 +14,5 @@ export const buildScanpathTooltipContent = (
   { key: 'Start', value: `${fixation.start.toFixed(1)} ms` },
   { key: 'End', value: `${(fixation.start + fixation.duration).toFixed(1)} ms` },
   { key: 'Duration', value: `${fixation.duration.toFixed(1)} ms` },
-  { key: 'X', value: formatGaze(fixation.x) },
-  { key: 'Y', value: formatGaze(fixation.y) },
+  gazePositionRow(fixation.x, fixation.y),
 ]
