@@ -1,4 +1,4 @@
-import { deriveAoiStreamView } from './core/view'
+import { deriveAoiStreamView, type AoiStreamView } from './core/view'
 import { aoiStreamScreen } from './core/screen.svelte'
 import { commonIs, definePlot } from '$lib/plots/definePlot'
 import { stimulusParticipantsSubtitle } from '$lib/plots/shared'
@@ -17,7 +17,8 @@ const alignmentIs = (mode: string) => commonIs(s => s.alignment ?? 'stream', mod
 
 export const aoiStreamPlotDefinition = definePlot<
   'aoiStreamPlot',
-  AoiStreamPlotSettings
+  AoiStreamPlotSettings,
+  AoiStreamView
 >({
   type: 'aoiStreamPlot',
   name: 'AOI Timeline',

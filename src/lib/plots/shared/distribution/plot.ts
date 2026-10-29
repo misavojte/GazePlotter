@@ -12,7 +12,7 @@ import type { DistributionAxis, DistributionResult, StatisticalOverlayType } fro
 // plot registry, which evaluates the other comparison definitions while this
 // module is still importing. Everything `defineDistributionPlot` reads at call
 // time must be bound above; the figure is only read lazily, inside `deriveView`.
-import { deriveDistributionFigure, type DistributionDisclosures } from './figure'
+import { deriveDistributionFigure, type DistributionDisclosures, type DistributionView } from './figure'
 
 /** The settings every comparison plot stores; `TOrder` is its category-order value. */
 export type DistributionPlotSettings<TOrder extends string = string> = ParticipantScope & {
@@ -65,7 +65,7 @@ export interface DistributionPlotSpec<TType extends string, S extends Distributi
   syncValueAxis?: boolean
 }
 
-export type DistributionPlotDefinition<TType extends string, S> = PlotDefinition<TType, S> & {
+export type DistributionPlotDefinition<TType extends string, S> = PlotDefinition<TType, S, DistributionView> & {
   /** The plot's distribution data, for tests and anything else that needs it without the figure. */
   collect: (engine: DataEngine, settings: DistributionDataSettings<S>) => DistributionResult
 }
@@ -88,7 +88,7 @@ export function defineDistributionPlot<TType extends string, S extends Distribut
       axis: () => spec.axis(engine, settings),
     })
 
-  const definition = definePlot<TType, S>({
+  const definition = definePlot<TType, S, DistributionView>({
     type: spec.type,
     name: spec.name,
     tagline: spec.tagline,

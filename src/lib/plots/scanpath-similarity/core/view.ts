@@ -1,5 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import type { PlotView } from '$lib/plots/definePlot'
+import { figureView, type FigureProps, type PlotView } from '$lib/plots/definePlot'
 import {
   MatrixPlotFigure,
   buildMetricLabel,
@@ -24,10 +24,15 @@ import type { ScanpathSimilaritySettings } from '../types'
  * included here so screen and export style links identically (export previously
  * fell back to the default).
  */
+/** The scangraph or the matrix, by the plot's `view` setting. */
+export type ScanpathSimilarityView =
+  | PlotView<FigureProps<typeof ScangraphFigure>>
+  | PlotView<FigureProps<typeof MatrixPlotFigure>>
+
 export function deriveScanpathSimilarityView(
   engine: DataEngine,
   settings: ScanpathSimilaritySettings
-): PlotView {
+): ScanpathSimilarityView {
   const similarityData = similarityDataFor(engine, settings)
   const noMetric = similarityData.noMetric ?? false
   const hasData = similarityData.size > 0 || noMetric
@@ -56,9 +61,9 @@ export function deriveScanpathSimilarityView(
     const manual = (settings.highlightedParticipants ?? [])
       .map(pid => nodeIndexByPid.get(pid))
       .filter((i): i is number => i !== undefined)
-    return {
-      component: ScangraphFigure,
-      props: {
+    return figureView(
+      ScangraphFigure,
+      {
         data: scangraphData ?? { nodes: [], links: [] },
         noMetric,
         threshold,
@@ -67,17 +72,17 @@ export function deriveScanpathSimilarityView(
         // Node index -> participant id, for the PLOT CURSOR's ring.
         participantIds: similarityData.participantIds,
       },
-      hasData,
-    }
+      { hasData }
+    )
   }
 
   const resolvedInstance = resolvePickedInstance(engine, settings.metricInstanceIds)
   const { matrix, labels } = similarityData
   // Bare quantity (no qualifiers) for the per-cell tooltip key.
   const valueLabel = formatInstanceLabel(resolvedInstance, 'Similarity')
-  return {
-    component: MatrixPlotFigure,
-    props: {
+  return figureView(
+    MatrixPlotFigure,
+    {
       matrix,
       labels,
       // Both axes are participants, so the PLOT CURSOR marks a row AND a column.
@@ -122,6 +127,6 @@ export function deriveScanpathSimilarityView(
         ]
       },
     },
-    hasData,
-  }
+    { hasData }
+  )
 }

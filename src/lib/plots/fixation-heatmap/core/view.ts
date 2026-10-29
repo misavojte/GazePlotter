@@ -1,5 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import type { PlotView } from '$lib/plots/definePlot'
+import { figureView, type FigureProps, type PlotView } from '$lib/plots/definePlot'
 import { formatGaze, formatQuantity, timeRangeQualifier, withQualifiers } from '$lib/plots/shared/labels'
 import type { PlotPlaceholderContent } from '$lib/plots/shared/drawCanvasPlaceholder'
 import FixationHeatmapPlotFigure from '../components/FixationHeatmapPlotFigure.svelte'
@@ -89,17 +89,22 @@ export interface FixationHeatmapViewMeta {
   syncGroupKey: string
 }
 
+export type FixationHeatmapView = PlotView<
+  FigureProps<typeof FixationHeatmapPlotFigure>,
+  FixationHeatmapViewMeta
+>
+
 /** Single source of truth for "what a fixation heatmap draws", screen and export alike. */
 export function deriveFixationHeatmapView(
   engine: DataEngine,
   settings: FixationHeatmapPlotSettings
-): PlotView {
+): FixationHeatmapView {
   const result = getFixationHeatmapData(engine, settings)
   if (result.kind !== 'ok') {
-    return {
-      component: FixationHeatmapPlotFigure,
-      props: { data: null, unavailableMessage: PLACEHOLDERS[result.reason] },
-    }
+    return figureView(FixationHeatmapPlotFigure, {
+      data: null,
+      unavailableMessage: PLACEHOLDERS[result.reason],
+    })
   }
   const { data } = result
   const media = engine.metadata?.stimuliMedia?.[settings.stimulusId] ?? null
@@ -114,10 +119,9 @@ export function deriveFixationHeatmapView(
           ownScaleTop: autoTop,
           syncGroupKey: [settings.accumulate, settings.normalization, data.radius, settings.colorScale.join('|')].join(';'),
         }
-  return {
-    component: FixationHeatmapPlotFigure,
-    meta,
-    props: {
+  return figureView(
+    FixationHeatmapPlotFigure,
+    {
       data,
       colorScale: settings.colorScale,
       opacity: Math.min(100, Math.max(0, settings.opacity)) / 100,
@@ -133,5 +137,6 @@ export function deriveFixationHeatmapView(
       media: image,
       mediaStimulusId: settings.stimulusId,
     },
-  }
+    { meta }
+  )
 }

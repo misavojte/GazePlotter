@@ -1,6 +1,6 @@
 import type { PlotScreenFactory } from '$lib/plots/definePlot'
 import { useSyncedMax } from '$lib/plots/shared/plotSync.svelte'
-import type { TransitionViewMeta } from './view'
+import type { TransitionMatrixView } from './view'
 import type { TransitionMatrixPlotSettings } from '../types'
 
 /**
@@ -10,10 +10,11 @@ import type { TransitionMatrixPlotSettings } from '../types'
  * out. Export renders the raw (unsynced) view.
  */
 export const transitionMatrixScreen: PlotScreenFactory<
-  TransitionMatrixPlotSettings
+  TransitionMatrixPlotSettings,
+  TransitionMatrixView
 > = ctx => {
   const syncedMax = useSyncedMax(ctx, 'transition-matrix-color', () => {
-    const meta = ctx.view()?.meta as TransitionViewMeta | undefined
+    const meta = ctx.view()?.meta
     if (!meta || !meta.isDefaultColorRange) return null
     return {
       key: [meta.syncGroupKey, meta.colorScaleKey, ctx.item.w, ctx.item.h],

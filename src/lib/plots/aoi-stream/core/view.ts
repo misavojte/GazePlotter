@@ -1,5 +1,10 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import type { PlotView, PlotViewContext } from '$lib/plots/definePlot'
+import {
+  figureView,
+  type FigureProps,
+  type PlotView,
+  type PlotViewContext,
+} from '$lib/plots/definePlot'
 import { getParticipantsMaxEndTime } from '$lib/data/engine'
 import { resolveColumnBudget } from '$lib/plots/shared/displayBudget'
 import { calculatePlotWidthPx } from '$lib/plots/shared/plotSizeUtility'
@@ -47,22 +52,21 @@ function computeAoiStreamData(
   })
 }
 
+export type AoiStreamView = PlotView<FigureProps<typeof AoiStreamPlotFigure>>
+
 export function deriveAoiStreamView(
   engine: DataEngine,
   settings: AoiStreamPlotSettings,
   ctx?: PlotViewContext
-): PlotView {
-  return {
-    component: AoiStreamPlotFigure,
-    props: {
-      data: computeAoiStreamData(engine, settings, ctx),
-      alignment: settings.alignment ?? 'stream',
-      highlights: settings.highlights ?? [],
-      ridgelineScale: settings.ridgelineScale,
-      colorScale: settings.colorScale,
-      colorValueRange: settings.stimuliColorValueRanges?.[settings.stimulusId] ?? [0, 0],
-      belowMinColor: settings.belowMinColor,
-      aboveMaxColor: settings.aboveMaxColor,
-    },
-  }
+): AoiStreamView {
+  return figureView(AoiStreamPlotFigure, {
+    data: computeAoiStreamData(engine, settings, ctx),
+    alignment: settings.alignment ?? 'stream',
+    highlights: settings.highlights ?? [],
+    ridgelineScale: settings.ridgelineScale,
+    colorScale: settings.colorScale,
+    colorValueRange: settings.stimuliColorValueRanges?.[settings.stimulusId] ?? [0, 0],
+    belowMinColor: settings.belowMinColor,
+    aboveMaxColor: settings.aboveMaxColor,
+  })
 }

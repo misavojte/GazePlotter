@@ -6,7 +6,7 @@ import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 import { getParticipantsIds } from '$lib/data/engine'
 import { buildScarfTooltipContent } from './tooltip'
 import { scarfDataMax, scarfRange } from './transformer'
-import { visibleHighlights } from './view'
+import { visibleHighlights, type ScarfView } from './view'
 import type { ScarfPlotSettings } from '../types'
 
 type DragOverrides = Partial<
@@ -15,8 +15,6 @@ type DragOverrides = Partial<
     'timelineStart' | 'timelineEnd' | 'ordinalStart' | 'ordinalEnd'
   >
 >
-
-type TimelineShape = { timeline: { minValue: number; maxValue: number } }
 
 /**
  * The plot's TIME-channel scope: only 'absolute' x is elapsed ms — 'ordinal' is a
@@ -33,7 +31,7 @@ export const absoluteTimeScope = (settings: ScarfPlotSettings): number | null =>
  * CURSOR, segment-tooltip content, and legend highlight toggling. Export renders
  * the raw view with noop handlers, no sync and no cursor.
  */
-export const scarfScreen: PlotScreenFactory<ScarfPlotSettings> = ctx => {
+export const scarfScreen: PlotScreenFactory<ScarfPlotSettings, ScarfView> = ctx => {
   // Transient drag-only overrides. The view derives from the overridden
   // settings so the timeline redraws while the user drags; release commits once.
   let dragOverrides = $state<DragOverrides | null>(null)
@@ -74,8 +72,7 @@ export const scarfScreen: PlotScreenFactory<ScarfPlotSettings> = ctx => {
       : null
   )
 
-  const currentData = () =>
-    (ctx.view()?.props.data ?? null) as TimelineShape | null
+  const currentData = () => ctx.view()?.props.data ?? null
 
   const handleLegendClick = (identifier: string) =>
     toggleSettingEntry(ctx, 'highlights', identifier)

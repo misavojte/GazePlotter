@@ -1,11 +1,12 @@
-import type { PlotScreenFactory, PlotView } from '$lib/plots/definePlot'
+import type { PlotScreenFactory } from '$lib/plots/definePlot'
+import type { AoiStreamView } from './view'
 import { useSyncedMax } from '$lib/plots/shared/plotSync.svelte'
 import { getParticipantsMaxEndTime } from '$lib/data/engine'
 import { toggleSettingEntry } from '$lib/plots/shared'
 import { plotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
 import { computeMTop } from './ridgeline'
 import { RIDGELINE_SCALE } from '../const'
-import type { AoiStreamPlotResult, AoiStreamPlotSettings } from '../types'
+import type { AoiStreamPlotSettings } from '../types'
 
 /**
  * Screen recipe: cross-plot timeline sync (same width, fully-auto timeline),
@@ -13,7 +14,7 @@ import type { AoiStreamPlotResult, AoiStreamPlotSettings } from '../types'
  * CURSOR and legend highlight toggling. Export renders the raw view — no sync,
  * no cursor, no handlers.
  */
-export const aoiStreamScreen: PlotScreenFactory<AoiStreamPlotSettings> = ctx => {
+export const aoiStreamScreen: PlotScreenFactory<AoiStreamPlotSettings, AoiStreamView> = ctx => {
   // x is always absolute ms here, in all four alignments. Retract on destroy: a
   // plot removed under the pointer gets no `mouseleave`.
   const plotCursor = plotCursorPort(ctx.item.id, { timeScope: () => ctx.item.settings.stimulusId })
@@ -48,11 +49,10 @@ export const aoiStreamScreen: PlotScreenFactory<AoiStreamPlotSettings> = ctx => 
   // the plot's OWN result; the synced value affects strip rendering only, never
   // the transform (no feedback loop). The scale is rounded below its 0.1 pane
   // step, so float noise in the setting never splits a group.
-  const resultOf = (view: PlotView) => view.props.data as AoiStreamPlotResult
   const scaleOf = () => ctx.item.settings.ridgelineScale ?? RIDGELINE_SCALE
-  const ownMTopOf = (view: PlotView): number | null => {
+  const ownMTopOf = (view: AoiStreamView): number | null => {
     if (ctx.item.settings.alignment !== 'ridgeline') return null
-    const result = resultOf(view)
+    const result = view.props.data
     if (!result || result.noMetric || result.series.length === 0) return null
     return computeMTop(result, true)
   }
@@ -62,7 +62,7 @@ export const aoiStreamScreen: PlotScreenFactory<AoiStreamPlotSettings> = ctx => 
     const mTop = view ? ownMTopOf(view) : null
     if (mTop === null) return null
     const scale = Math.round(scaleOf() * 1000)
-    return { key: [ctx.item.h, scale, resultOf(view!).series.length], own: mTop }
+    return { key: [ctx.item.h, scale, view!.props.data.series.length], own: mTop }
   })
 
   const handleLegendClick = (aoiId: number) =>

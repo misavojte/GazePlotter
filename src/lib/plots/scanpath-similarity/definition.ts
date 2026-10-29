@@ -1,4 +1,4 @@
-import { deriveScanpathSimilarityView } from './core/view'
+import { deriveScanpathSimilarityView, type ScanpathSimilarityView } from './core/view'
 import { scanpathSimilarityScreen } from './core/screen.svelte'
 import {
   cliquesOfMinSize,
@@ -79,7 +79,8 @@ const readSelectedClique = (
 
 export const scanpathSimilarityDefinition = definePlot<
   'scanpathSimilarity',
-  ScanpathSimilaritySettings
+  ScanpathSimilaritySettings,
+  ScanpathSimilarityView
 >({
   type: 'scanpathSimilarity',
   name: 'Scanpath Similarity',

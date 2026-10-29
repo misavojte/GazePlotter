@@ -1,5 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import type { PlotView, PlotViewContext } from '$lib/plots/definePlot'
+import { figureView, type PlotView, type PlotViewContext } from '$lib/plots/definePlot'
 import { getParticipantsMaxEndTime } from '$lib/data/engine'
 import { resolveColumnBudget } from '$lib/plots/shared/displayBudget'
 import { calculatePlotWidthPx } from '$lib/plots/shared/plotSizeUtility'
@@ -41,12 +41,9 @@ export function deriveEvolvingMetricsView(
   settings: EvolvingMetricsSettings,
   ctx?: PlotViewContext
 ): PlotView {
-  return {
-    component: EvolvingMetricsPlotFigure,
-    props: {
-      data: computeEvolvingData(engine, settings, ctx),
-      alignment: settings.presentation ?? 'heatmap',
-      colorScale: settings.colorScale,
-    },
-  }
+  return figureView(EvolvingMetricsPlotFigure, {
+    data: computeEvolvingData(engine, settings, ctx),
+    alignment: settings.presentation ?? 'heatmap',
+    colorScale: settings.colorScale,
+  })
 }

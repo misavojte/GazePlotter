@@ -1,7 +1,7 @@
 import type { PlotScreenFactory } from '$lib/plots/definePlot'
 import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
 import { useSyncedMax } from '$lib/plots/shared/plotSync.svelte'
-import type { DistributionViewMeta } from './types'
+import type { DistributionView } from './figure'
 
 /**
  * Screen recipe: value-axis sync for a distribution plot. Registers the plot's
@@ -17,7 +17,7 @@ import type { DistributionViewMeta } from './types'
  */
 export function distributionValueAxisScreen<
   S extends { scaleRange?: [number, number] },
->(): PlotScreenFactory<S> {
+>(): PlotScreenFactory<S, DistributionView> {
   return ctx => {
     const hasCustomScale = () => {
       const s = ctx.item.settings
@@ -28,7 +28,7 @@ export function distributionValueAxisScreen<
     }
 
     const syncedMax = useSyncedMax(ctx, 'distribution-value-axis', () => {
-      const meta = ctx.view()?.meta as DistributionViewMeta | undefined
+      const meta = ctx.view()?.meta
       if (!meta || meta.syncKey === null || hasCustomScale()) return null
       return {
         key: [ctx.item.type, meta.syncKey, ctx.item.w, ctx.item.h],
@@ -40,8 +40,7 @@ export function distributionValueAxisScreen<
       props: view => {
         const max = syncedMax()
         if (max === null) return {}
-        const raw = view.props.timeline as { minValue: number }
-        return { timeline: createAdaptiveTimeline(raw.minValue, max, 6) }
+        return { timeline: createAdaptiveTimeline(view.props.timeline.minValue, max, 6) }
       },
     }
   }

@@ -1,15 +1,11 @@
-import type { ComponentProps } from 'svelte'
-import type { CanvasExportProps } from '$lib/plots/shared'
+import type { FigureProps } from '$lib/plots/definePlot'
 import { getMetric, type MetricInstance } from '$lib/metrics'
 import BeeswarmFigure from './BeeswarmFigure.svelte'
 import { getDistributionAxisLabel } from '../labels'
 import type { DistributionResult, StatisticalOverlayType } from '../types'
 
 /** The figure's data/config props (everything bar the canvas-sizing props). */
-export type BeeswarmFigureProps = Omit<
-  ComponentProps<typeof BeeswarmFigure>,
-  keyof CanvasExportProps
->
+export type BeeswarmFigureProps = FigureProps<typeof BeeswarmFigure>
 
 /**
  * The settings this figure reads, declared HERE rather than Picked from one

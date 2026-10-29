@@ -1,4 +1,4 @@
-import { deriveFixationHeatmapView, heatmapUnit } from './core/view'
+import { deriveFixationHeatmapView, heatmapUnit, type FixationHeatmapView } from './core/view'
 import { autoRadiusFor } from './core/transformer'
 import { fixationHeatmapScreen } from './core/screen.svelte'
 import { definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
@@ -13,7 +13,7 @@ function scaleUnit(ctx: SectionFieldCtx): string | null {
   return v.mixed ? null : v.value || 'fixations'
 }
 
-export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationHeatmapPlotSettings>({
+export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationHeatmapPlotSettings, FixationHeatmapView>({
   type: 'fixationHeatmap',
   name: 'Fixation Heatmap',
   tagline: 'Pooled fixations on the stimulus',

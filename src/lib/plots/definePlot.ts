@@ -1,4 +1,5 @@
-import type { Component } from 'svelte'
+import type { Component, ComponentProps } from 'svelte'
+import type { CanvasExportProps } from './shared/types'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { DataCapabilityRequirements } from '$lib/data/types'
 import type { PlotMetricContract } from '$lib/metrics'
@@ -37,9 +38,9 @@ export type PlotItemContract<TType extends string, TSettings> = {
  * This is the single "what does this plot draw" view-model: the screen
  * container and the export modal both render from it, so they can never drift.
  */
-export type PlotView = {
+export type PlotView<P extends object = Record<string, unknown>, M = unknown> = {
   component: Component<any>
-  props: Record<string, unknown>
+  props: P
   /**
    * `false` when the plot has data-independent reasons to show the loading /
    * unavailable placeholder instead of the figure. Omitted means `true`.
@@ -48,9 +49,21 @@ export type PlotView = {
   /**
    * Screen-coordination surface: values a plot's screen recipe needs beyond
    * the figure props (sync keys, data maxima, default-range flags). Opaque to
-   * the host; the plot's own recipe casts it. Export ignores it.
+   * the host; the plot's own recipe reads it typed. Export ignores it.
    */
-  meta?: unknown
+  meta?: M
+}
+
+/** The props a view hands its figure: all of them but the host's canvas sizing. */
+export type FigureProps<C extends Component<any>> = Omit<ComponentProps<C>, keyof CanvasExportProps>
+
+/** A view of `component`, its props checked against the figure's own. */
+export function figureView<C extends Component<any>, M = undefined>(
+  component: C,
+  props: FigureProps<C>,
+  options: { meta?: M; hasData?: boolean } = {}
+): PlotView<FigureProps<C>, M> {
+  return { component, props, ...options }
 }
 
 /**
@@ -73,7 +86,7 @@ export type PlotViewContext = {
  * derives through it via `usePlotData`, and the generic download modal renders
  * it directly — no per-plot container or export component exists.
  */
-export type PlotViewConfig<TSettings> = {
+export type PlotViewConfig<TSettings, TView extends PlotView<object> = PlotView> = {
   /**
    * Returns the view-model, or `null` when the plot has nothing to draw (no
    * spatial data, no fixations) — the host then renders nothing. `ctx` carries
@@ -83,7 +96,7 @@ export type PlotViewConfig<TSettings> = {
     engine: DataEngine,
     settings: TSettings,
     ctx?: PlotViewContext
-  ) => PlotView | null
+  ) => TView | null
   /**
    * Set when `deriveView` reads `ctx.itemWidth` (display budget): the screen
    * container then re-derives on width resize. Height never re-derives.
@@ -110,7 +123,7 @@ export type PlotViewConfig<TSettings> = {
  *    handlers, sync overrides). Runs inside a `$derived`; reactive reads
  *    (sync registries, item settings) are tracked.
  */
-export type PlotScreenContext<TSettings> = {
+export type PlotScreenContext<TSettings, TView extends PlotView<object> = PlotView> = {
   /** The live grid item (reactive getter — do not capture the value). */
   readonly item: PlotItemContract<string, TSettings>
   engine: DataEngine
@@ -120,17 +133,18 @@ export type PlotScreenContext<TSettings> = {
    * handlers (it is bound after the container initializes) — do not call it
    * synchronously inside the factory body.
    */
-  view: () => PlotView | null
+  view: () => TView | null
 }
 
-export type PlotScreen<TSettings> = {
+export type PlotScreen<TSettings, TView extends PlotView<object> = PlotView> = {
   settings?: () => TSettings
-  props?: (view: PlotView) => Record<string, unknown>
+  props?: (view: TView) => Record<string, unknown>
 }
 
-export type PlotScreenFactory<TSettings> = (
-  ctx: PlotScreenContext<TSettings>
-) => PlotScreen<TSettings>
+/** `TView` is the plot's own view type, so a recipe reads its props and meta typed. */
+export type PlotScreenFactory<TSettings, TView extends PlotView<object> = PlotView> = (
+  ctx: PlotScreenContext<TSettings, TView>
+) => PlotScreen<TSettings, TView>
 
 /**
  * A single captioned value rendered in the grid-item header (e.g.
@@ -385,9 +399,11 @@ export function paneSectionKey(entry: PaneSectionEntry): string {
   return typeof entry === 'string' ? entry : entry.key
 }
 
+/** `TView`: the plot's own view type, named when its screen recipe reads props or meta. */
 export type PlotDefinition<
   TType extends string,
   TSettings,
+  TView extends PlotView<object> = PlotView,
   TParams extends DefaultPlotParams = DefaultPlotParams,
 > = {
   type: TType
@@ -417,9 +433,9 @@ export type PlotDefinition<
    * container component: the generic `PlotContainer` executes this (plus the
    * optional `screen` recipe) for every plot.
    */
-  view: PlotViewConfig<TSettings>
+  view: PlotViewConfig<TSettings, TView>
   /** Screen-only behavior (sync, interaction handlers); most plots need none. */
-  screen?: PlotScreenFactory<TSettings>
+  screen?: PlotScreenFactory<TSettings, TView>
   /**
    * The plot's settings pane, declared as an ordered list of sections. The
    * single-plot pane renders this list; a multi-selection of one type renders
@@ -464,7 +480,8 @@ export type PlotDefinition<
 export function definePlot<
   TType extends string,
   TSettings,
+  TView extends PlotView<object> = PlotView,
   TParams extends DefaultPlotParams = DefaultPlotParams,
->(definition: PlotDefinition<TType, TSettings, TParams>) {
+>(definition: PlotDefinition<TType, TSettings, TView, TParams>) {
   return definition
 }

@@ -1,5 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import type { PlotView } from '$lib/plots/definePlot'
+import { figureView, type PlotView } from '$lib/plots/definePlot'
 import { INACTIVE_COLOR } from '$lib/color'
 import {
   MatrixPlotFigure,
@@ -82,18 +82,15 @@ export function deriveMetricCorrelationView(
   }
 
   if (isSplom) {
-    return {
-      component: MatrixPlotFigure,
-      props: {
-        ...shared,
-        matrix: new Float64Array(0),
-        legendTitle: null,
-        minLegibleCellSize: MIN_LEGIBLE_SPLOM_CELL_SIZE,
-        tooltipWidth: 220,
-        drawCells: createSplomCellRenderer(result),
-        drawCellsCursor: createSplomCursorRing(result),
-      },
-    }
+    return figureView(MatrixPlotFigure, {
+      ...shared,
+      matrix: new Float64Array(0),
+      legendTitle: null,
+      minLegibleCellSize: MIN_LEGIBLE_SPLOM_CELL_SIZE,
+      tooltipWidth: 220,
+      drawCells: createSplomCellRenderer(result),
+      drawCellsCursor: createSplomCursorRing(result),
+    })
   }
 
   // Flat row-major matrix of r values. NaN marks "undefined" (null r) so the
@@ -104,16 +101,13 @@ export function deriveMetricCorrelationView(
     const c = result.cells[i]
     flatMatrix[i] = c.r === null ? Number.NaN : c.r
   }
-  return {
-    component: MatrixPlotFigure,
-    props: {
-      ...shared,
-      matrix: flatMatrix,
-      colorScale: HEATMAP_COLOR_SCALE,
-      colorValueRange: [-1, 1] as [number, number],
-      nonFiniteColor: INACTIVE_COLOR,
-      legendTitle: buildLegendTitle(result),
-      tooltipWidth: 200,
-    },
-  }
+  return figureView(MatrixPlotFigure, {
+    ...shared,
+    matrix: flatMatrix,
+    colorScale: HEATMAP_COLOR_SCALE,
+    colorValueRange: [-1, 1],
+    nonFiniteColor: INACTIVE_COLOR,
+    legendTitle: buildLegendTitle(result),
+    tooltipWidth: 200,
+  })
 }

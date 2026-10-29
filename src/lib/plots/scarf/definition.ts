@@ -1,4 +1,4 @@
-import { deriveScarfView } from './core/view'
+import { deriveScarfView, type ScarfView } from './core/view'
 import { scarfScreen } from './core/screen.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import { stimulusParticipantsSubtitle } from '$lib/plots/shared'
@@ -9,7 +9,7 @@ import type { ScarfPlotSettings } from './types'
 import { SCARF_IDENTIFIERS, isStimulusScopedHighlight } from './const'
 import { getAois, getEventChannels } from '$lib/data/engine'
 
-export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
+export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings, ScarfView>({
   type: 'scarf',
   name: 'Scarf Plot',
   tagline: 'AOI sequence of each participant',

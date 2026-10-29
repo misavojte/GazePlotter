@@ -1,4 +1,4 @@
-import { deriveTransitionMatrixView } from './core/view'
+import { deriveTransitionMatrixView, type TransitionMatrixView } from './core/view'
 import { transitionMatrixScreen } from './core/screen.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import { PRESET_PALETTES } from '$lib/color/palettes'
@@ -8,7 +8,8 @@ import type { TransitionMatrixPlotSettings } from './types'
 
 export const transitionMatrixDefinition = definePlot<
   'transitionMatrix',
-  TransitionMatrixPlotSettings
+  TransitionMatrixPlotSettings,
+  TransitionMatrixView
 >({
   type: 'transitionMatrix',
   name: 'Transition Matrix',

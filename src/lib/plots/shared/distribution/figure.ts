@@ -1,8 +1,9 @@
-import type { PlotView } from '$lib/plots/definePlot'
+import { figureView, type PlotView } from '$lib/plots/definePlot'
 import { resolvePickedInstance, type MetricResolutionEngine } from '$lib/plots/shared/metricResolver'
 import {
   BeeswarmFigure,
   buildBeeswarmFigureProps,
+  type BeeswarmFigureProps,
   type BeeswarmFigureSettings,
 } from './beeswarm'
 import type { DistributionResult, DistributionViewMeta } from './types'
@@ -18,6 +19,8 @@ export interface DistributionDisclosures {
   cannotFitHints: string[]
   ariaLabel: string
 }
+
+export type DistributionView = PlotView<BeeswarmFigureProps, DistributionViewMeta>
 
 /**
  * WHICH FIGURE draws the distribution, and the view-model to draw it with —
@@ -35,19 +38,11 @@ export function deriveDistributionFigure(
   result: DistributionResult,
   settings: BeeswarmFigureSettings & { metricInstanceIds: readonly string[] },
   disclosures: DistributionDisclosures
-): PlotView {
+): DistributionView {
   const instance = resolvePickedInstance(engine, settings.metricInstanceIds)
-  return {
-    component: BeeswarmFigure,
-    props: buildBeeswarmFigureProps(
-      result,
-      instance,
-      settings,
-      disclosures
-    ) as unknown as Record<string, unknown>,
-    meta: {
-      syncKey: instance?.id ?? null,
-      dataMax: result.dataMax,
-    } satisfies DistributionViewMeta,
-  }
+  return figureView(
+    BeeswarmFigure,
+    buildBeeswarmFigureProps(result, instance, settings, disclosures),
+    { meta: { syncKey: instance?.id ?? null, dataMax: result.dataMax } }
+  )
 }

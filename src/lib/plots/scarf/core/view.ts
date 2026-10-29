@@ -1,5 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import type { PlotView } from '$lib/plots/definePlot'
+import { figureView, type FigureProps, type PlotView } from '$lib/plots/definePlot'
 import { fixationLayerVisible, getParticipantsIds } from '$lib/data/engine'
 import ScarfPlotFigure from '../components/ScarfPlotFigure.svelte'
 import { transformDataToScarfPlot } from './transformer'
@@ -53,22 +53,21 @@ export function getScarfData(
   )
 }
 
+export type ScarfView = PlotView<FigureProps<typeof ScarfPlotFigure>>
+
 /** Export view-model — static (no drag/sync/tooltip interaction). */
 export function deriveScarfView(
   engine: DataEngine,
   settings: ScarfPlotSettings
-): PlotView | null {
+): ScarfView | null {
   const data = getScarfData(engine, settings)
   if (!data) return null
-  return {
-    component: ScarfPlotFigure,
-    props: {
-      data,
-      settings,
-      highlights: visibleHighlights(engine, settings),
-      onLegendClick: noop,
-      onDragStepX: noop,
-      onDragEnd: noop,
-    },
-  }
+  return figureView(ScarfPlotFigure, {
+    data,
+    settings,
+    highlights: visibleHighlights(engine, settings),
+    onLegendClick: noop,
+    onDragStepX: noop,
+    onDragEnd: noop,
+  })
 }

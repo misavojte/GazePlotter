@@ -1,14 +1,10 @@
-import type { ComponentProps } from 'svelte'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import type { CanvasExportProps } from '$lib/plots/shared'
-import type { PlotView } from '$lib/plots/definePlot'
+import { figureView, type PlotView } from '$lib/plots/definePlot'
 import type { PlotPlaceholderContent } from '$lib/plots/shared/drawCanvasPlaceholder'
 import ScanpathPlotFigure from '../components/ScanpathPlotFigure.svelte'
 import { getScanpathData } from './transformer'
 import { SCANPATH_LAYOUT } from '../const'
 import type { ScanpathPlotSettings, ScanpathUnavailableReason } from '../types'
-
-type ScanpathFigureProps = Omit<ComponentProps<typeof ScanpathPlotFigure>, keyof CanvasExportProps>
 
 const PLACEHOLDERS: Record<ScanpathUnavailableReason, PlotPlaceholderContent> = {
   'no-spatial-data': {
@@ -44,31 +40,32 @@ export function deriveScanpathView(
   const result = getScanpathData(engine, settings)
   const { showFixationOrder, showNumbers } = settings
   if (result.kind !== 'ok') {
-    const props = { data: null, showFixationOrder, showNumbers, unavailableMessage: PLACEHOLDERS[result.reason] }
-    return { component: ScanpathPlotFigure, props: props satisfies ScanpathFigureProps }
-  }
-  return {
-    component: ScanpathPlotFigure,
-    props: {
-      data: result.data,
+    return figureView(ScanpathPlotFigure, {
+      data: null,
       showFixationOrder,
       showNumbers,
-      // Unset settings fall to the figure's defaults.
-      colorMode: settings.colorMode,
-      colorScale: settings.colorScale,
-      solidColor: settings.solidColor,
-      background: settings.background,
-      trailLength: scanpathTrail(settings, engine),
-      playbackSpeed: settings.playbackSpeed,
-      timelineStart: settings.timelineStart,
-      timelineEnd: settings.timelineEnd,
-      unavailableMessage: null,
-      // Only on the drawable branch: a parked placeholder draws no overlay.
-      participantId: settings.participantId,
-      // The stimulus's reference medium (image/video), drawn as the plot
-      // background; its intrinsic pixel size becomes the coordinate domain.
-      media: engine.metadata?.stimuliMedia?.[settings.stimulusId] ?? null,
-      mediaStimulusId: settings.stimulusId,
-    } satisfies ScanpathFigureProps,
+      unavailableMessage: PLACEHOLDERS[result.reason],
+    })
   }
+  return figureView(ScanpathPlotFigure, {
+    data: result.data,
+    showFixationOrder,
+    showNumbers,
+    // Unset settings fall to the figure's defaults.
+    colorMode: settings.colorMode,
+    colorScale: settings.colorScale,
+    solidColor: settings.solidColor,
+    background: settings.background,
+    trailLength: scanpathTrail(settings, engine),
+    playbackSpeed: settings.playbackSpeed,
+    timelineStart: settings.timelineStart,
+    timelineEnd: settings.timelineEnd,
+    unavailableMessage: null,
+    // Only on the drawable branch: a parked placeholder draws no overlay.
+    participantId: settings.participantId,
+    // The stimulus's reference medium (image/video), drawn as the plot
+    // background; its intrinsic pixel size becomes the coordinate domain.
+    media: engine.metadata?.stimuliMedia?.[settings.stimulusId] ?? null,
+    mediaStimulusId: settings.stimulusId,
+  })
 }
