@@ -48,6 +48,14 @@ export const PRESET_PALETTES = {
   },
 } as const
 
+/** The plot's gradient stops, or its preset while fewer than two are set. */
+export function resolvePalette(
+  colorScale: readonly string[] | null | undefined,
+  preset: readonly string[]
+): string[] {
+  return [...(colorScale && colorScale.length >= 2 ? colorScale : preset)]
+}
+
 /**
  * Neutral grey scale (R = G = B) for everything drawn inside a plot. No hue tint,
  * so a grey never reads as a category colour or shifts the data colours next to

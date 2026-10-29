@@ -1,15 +1,10 @@
 <script lang="ts">
   import {
     usePlot,
-    canvasBlockSelect,
     pixelLayer,
     trackOnlyHit,
     strokeCrosshairRing,
-    bottomGradientLegendGeometry,
-    drawGradientLegend,
-    getGradientLegendRequiredHeight,
     PLOT_BORDER_PX,
-    PLOT_LEGEND_GAP,
     type CanvasExportProps,
     type FrameHit,
     type PlotFrame,
@@ -19,7 +14,7 @@
   import type { PlotPlaceholderContent } from '$lib/plots/shared/drawCanvasPlaceholder'
   import { AXIS_CONFIG, axisTitleLineHeight } from '$lib/plots/shared/axisUtils'
   import { estimateTextWidth } from '$lib/shared/textMeasure'
-  import { PRESET_PALETTES } from '$lib/color/palettes'
+  import { PRESET_PALETTES, resolvePalette } from '$lib/color/palettes'
   import type { Rect } from '$lib/data/media/mediaAlignment'
   import { drawStimulusBackground, stimulusSpace, worldAspect, type StimulusBackground } from '$lib/plots/shared/stimulusBackground'
   import { useMediaElements } from '../../shared/mediaElements.svelte'
@@ -59,7 +54,8 @@
     plotCursor?: PlotCursorPort | null
   }
 
-  let {
+  const props: Props = $props()
+  const {
     data,
     colorScale = undefined,
     opacity = 0.7,
@@ -71,14 +67,11 @@
     notes = [],
     accumulate = 'duration',
     normalization = 'share',
-    width = 400,
-    height = 400,
-    margin = 0,
     unavailableMessage = null,
     media = null,
     mediaStimulusId,
     plotCursor = null,
-  }: Props = $props()
+  } = $derived(props)
 
   const mediaElements = useMediaElements()
   const mediaElement = $derived.by(() => {
@@ -87,9 +80,7 @@
     return mediaElements.getReadyElement(mediaStimulusId, media)
   })
 
-  const stops = $derived(
-    colorScale && colorScale.length >= 2 ? colorScale : [...PRESET_PALETTES.YL_OR_RD.colors]
-  )
+  const stops = $derived(resolvePalette(colorScale, PRESET_PALETTES.YL_OR_RD.colors))
   const lut = $derived(heatLut(stops, opacity))
   const ramp = $derived(legendRamp(lut))
 
@@ -115,14 +106,6 @@
 
   const projX = (x: number, frame: PlotFrame) => frame.x + x * space!.view.scale + space!.view.offsetX
   const projY = (y: number, frame: PlotFrame) => frame.y + y * space!.view.scale + space!.view.offsetY
-
-  // Sized to the title's real line count, so a one-line title leaves no blank line.
-  const gradientHeight = $derived(getGradientLegendRequiredHeight(AXIS_CONFIG.fontSize, legendTitle, width - 2 * margin))
-  const legendBlockHeight = $derived(
-    data && !unavailableMessage
-      ? PLOT_LEGEND_GAP + gradientHeight
-      : 0
-  )
 
   // ── Cached heat texture: one pixel per grid cell, rebuilt only when the data
   // or its colouring changes; resizes just re-blit it (the recurrence pattern).
@@ -187,25 +170,9 @@
     ctx.restore()
   }
 
-  const legendGeometry = $derived.by(() =>
-    bottomGradientLegendGeometry(plot, margin, gradientHeight, {
-      colorScale: ramp,
-      // A non-zero range max is what turns on the above-max cap.
-      valueRange: [0, fixedMax ? scaleTop : 0],
-      effectiveMaxValue: scaleTop,
-      title: legendTitle,
-      aboveMaxColor: fixedMax ? ramp[ramp.length - 1] : null,
-    })
-  )
-
-  function drawLegend(ctx: CanvasRenderingContext2D) {
-    if (!data || unavailableMessage) return
-    drawGradientLegend(ctx, legendGeometry)
-  }
-
   /** The legend title's box, where hovering shows the notes. */
   function overLegendTitle(x: number, y: number): boolean {
-    const t = legendGeometry.title
+    const t = plot.gradientLegend?.title
     if (!t) return false
     const lineHeight = axisTitleLineHeight(AXIS_CONFIG.fontSize)
     let half = 0
@@ -311,10 +278,8 @@
   const hasPlot = $derived(!unavailableMessage && data !== null)
 
   const plot = usePlot<HeatmapHit>({
-    width: () => width,
-    height: () => height,
-    margin: () => margin,
-    deps: (): unknown[] => [data, lut, scaleTop, fixedMax, showFixations, background, legendTitle, notes, media, mediaElement, unavailableMessage, space],
+    props: () => props,
+    deps: (): unknown[] => [mediaElement, space],
     placeholder: () => unavailableMessage,
     gutters: () => {
       if (!hasPlot || !space) return {}
@@ -322,13 +287,22 @@
         left: { tickLabels: space.yTicks.labels, title: 'Y' },
         bottom: { tickLabels: space.xTicks.labels, title: 'X' },
         pad: { right: PLOT_BORDER_PX },
-        legendHeight: legendBlockHeight,
         // The data rect takes the world's shape, so the axes span exactly the image (or extent).
         aspect: worldAspect(world!),
       }
     },
+    gradientLegend: () =>
+      !hasPlot || !space
+        ? null
+        : {
+            colorScale: ramp,
+            // A non-zero range max is what turns on the above-max cap.
+            valueRange: [0, fixedMax ? scaleTop : 0],
+            effectiveMaxValue: scaleTop,
+            title: legendTitle,
+            aboveMaxColor: fixedMax ? ramp[ramp.length - 1] : null,
+          },
     drawData: drawHeatmap,
-    drawAboveAxes: drawLegend,
     drawOverlay: drawHeatmapOverlay,
     hitTest: (x, y, frame): FrameHit<HeatmapHit> | null => {
       if (!data) return null
@@ -350,7 +324,7 @@
       return {
         content: notes.map(value => ({ key: 'Note', value })),
         anchorX: x,
-        anchorY: legendGeometry.title!.y,
+        anchorY: plot.gradientLegend!.title!.y,
         tooltipWidth: L.tooltipWidth,
         cursor: 'help',
         data: { cell: -1 },
@@ -377,6 +351,5 @@
 
 <canvas
   use:plot.plotAction
-  use:canvasBlockSelect={{ regions: plot.blockedRegions }}
   aria-label="Fixation Heatmap visualization"
 ></canvas>

@@ -11,7 +11,7 @@ import { strokeCrispRect, strokeParallelLines } from '$lib/plots/shared/canvasUt
 // TYPES
 // ============================================================================
 
-import { GRIDLINE_PRIMARY, LEGEND_FONT, PLOT_LEGEND_GAP } from './const'
+import { GRIDLINE_PRIMARY, LEGEND_FONT } from './const'
 import { COLOR_FALLBACKS } from '$lib/color'
 import { estimateTextWidth, wrapTextToWidth } from '$lib/shared/textMeasure'
 
@@ -142,30 +142,6 @@ export function getGradientLegendRequiredHeight(
     GRADIENT_LEGEND_LABEL_GAP +
     fontSize                       // value-label text height
   )
-}
-
-/**
- * Gradient legend laid in the harness's bottom legend band: anchored at
- * `frame.legendY + PLOT_LEGEND_GAP`, spanning the plot area width. One owner
- * for that positioning; a matrix figure places its legend from its own layout
- * and calls {@link computeGradientLegendGeometry} directly.
- */
-export function bottomGradientLegendGeometry(
-  plot: { frame: { legendY: number }; plotAreaWidth: number },
-  margin: number,
-  legendHeight: number,
-  config: Omit<
-    GradientLegendConfig,
-    'x' | 'y' | 'availableWidth' | 'availableHeight'
-  >
-): GradientLegendGeometry {
-  return computeGradientLegendGeometry({
-    x: margin,
-    y: plot.frame.legendY + PLOT_LEGEND_GAP,
-    availableWidth: plot.plotAreaWidth,
-    availableHeight: legendHeight,
-    ...config,
-  })
 }
 
 // ============================================================================

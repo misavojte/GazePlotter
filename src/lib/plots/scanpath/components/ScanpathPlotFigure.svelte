@@ -1,7 +1,6 @@
 <script lang="ts">
   import {
     usePlot,
-    canvasBlockSelect,
     trackOnlyHit,
     PLOT_BORDER_PX,
     type CanvasExportProps,
@@ -19,7 +18,7 @@
   import { isTextEntryTarget } from '$lib/workspace/keys'
   import { SCANPATH_COLORS, SCANPATH_LAYOUT } from '../const'
   import { getColorForValue, interpolateColor } from '$lib/color'
-  import { PRESET_PALETTES } from '$lib/color/palettes'
+  import { PRESET_PALETTES, resolvePalette } from '$lib/color/palettes'
   import { useMediaElements } from '../../shared/mediaElements.svelte'
   import { mediaRegionOf } from '$lib/data/media/stimulusMedia'
   import type { Rect } from '$lib/data/media/mediaAlignment'
@@ -65,7 +64,8 @@
     playback?: ScanpathPlayback | null
   }
 
-  let {
+  const props: Props = $props()
+  const {
     data,
     showFixationOrder = true,
     showNumbers = true,
@@ -77,16 +77,14 @@
     playbackSpeed = 1,
     timelineStart = 0,
     timelineEnd = 0,
-    width = 400,
-    height = 400,
-    margin = 0,
+    height,
     unavailableMessage = null,
     participantId,
     media = null,
     mediaStimulusId,
     plotCursor = null,
     playback = null,
-  }: Props = $props()
+  } = $derived(props)
 
   const mediaElements = useMediaElements()
   /** The decoded background element, or null while it loads. Depends on the
@@ -315,10 +313,9 @@
   }
 
   const plot = usePlot<ScanpathHit>({
-    width: () => width,
+    props: () => props,
     height: () => (hasPlayBar ? Math.max(60, height - PLAY_BAR_HEIGHT) : height),
-    margin: () => margin,
-    deps: () => [data, showFixationOrder, showNumbers, colorMode, gradientStops, solidColor, background, trail, unavailableMessage, media, mediaElement, clock?.frame, timeCutoff, space],
+    deps: () => [mediaElement, clock?.frame, timeCutoff, trail, space],
     placeholder: () => unavailableMessage,
     gutters: () => {
       if (unavailableMessage || !space) return {}
@@ -388,11 +385,7 @@
   }
 
   // ── Time-extent coloring: fill sampled from the colorScale by onset.
-  const gradientStops = $derived(
-    colorScale && colorScale.length >= 2
-      ? colorScale
-      : [...PRESET_PALETTES.VIRIDIS.colors]
-  )
+  const gradientStops = $derived(resolvePalette(colorScale, PRESET_PALETTES.VIRIDIS.colors))
 
   /** The rendered onset span, fixed through playback: color always means
       "when"; age in the trail is opacity (`ageAlpha`). */
@@ -712,7 +705,6 @@
 >
   <canvas
     use:plot.plotAction
-    use:canvasBlockSelect={{ regions: plot.blockedRegions }}
     aria-label="Scanpath visualization"
   ></canvas>
   {#if hasPlayBar}

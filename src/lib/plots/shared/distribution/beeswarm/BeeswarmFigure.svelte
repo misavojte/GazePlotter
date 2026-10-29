@@ -9,7 +9,6 @@
     getTimelinePositionRatio,
     usePlot,
     fillPlotAreaBackground,
-    canvasBlockSelect,
     niceTimelineTicks,
     valueAxisTicks,
     type CanvasExportProps,
@@ -81,23 +80,22 @@
     ariaLabel?: string
   }
 
-  let {
+  const props: Props = $props()
+  const {
     width,
-    height,
     data,
     timeline,
     axisLabel,
     orientation,
     onDataHover,
     statisticalOverlay = 'none',
-    margin = 0,
     noMetric = false,
     proportion = false,
     unit = '',
     itemTooltipKey = 'Category',
     cannotFitHints = [],
     ariaLabel = 'Beeswarm plot',
-  }: Props = $props()
+  } = $derived(props)
 
   const isVertical = $derived(orientation === 'vertical')
   const niceTickLabels = $derived(niceTimelineTicks(timeline).labels ?? [])
@@ -128,10 +126,7 @@
   )
 
   const plot = usePlot<{ rowIndex: number; valuePx: number }>({
-    width: () => width,
-    height: () => height,
-    margin: () => margin,
-    deps: () => [data, timeline, axisLabel, orientation, statisticalOverlay, noMetric, proportion],
+    props: () => props,
     placeholder: () => (noMetric ? METRIC_MISSING_MESSAGE : null),
     fit: frame => {
       if (data.length === 0) return null
@@ -433,6 +428,5 @@
 
 <canvas
   use:plot.plotAction
-  use:canvasBlockSelect={{ regions: plot.blockedRegions }}
   aria-label={ariaLabel}
 ></canvas>

@@ -32,10 +32,7 @@
     usePlot,
     type FrameHit,
   } from '../usePlot.svelte'
-  import {
-    canvasBlockSelect,
-    type BlockedRegion,
-  } from '../canvasBlockSelect.action'
+  import type { BlockedRegion } from '../canvasBlockSelect.action'
   import type { CanvasExportProps } from '../types'
 
   /**
@@ -102,7 +99,7 @@
     /** Replaces the heat-cell fill pass; grid, labels and hover stay shared. */
     drawCells?: (ctx: CanvasRenderingContext2D, layout: MatrixLayout) => void
     /** `drawCells`' overlay twin: the PLOT CURSOR's participant INSIDE the cells
-     *  (a SPLOM dot). Opt-in, like the id arrays, and never a `deps` entry. */
+     *  (a SPLOM dot). Opt-in, like the id arrays. */
     drawCellsCursor?: (
       ctx: CanvasRenderingContext2D,
       layout: MatrixLayout,
@@ -110,7 +107,8 @@
     ) => void
   }
 
-  let {
+  const props: Props = $props()
+  const {
     matrix = new Float64Array(0),
     labels = [],
     rowLabels,
@@ -142,7 +140,7 @@
     width,
     height,
     margin = 0,
-  }: Props = $props()
+  } = $derived(props)
 
   // `labels` is the square shorthand; a rectangular consumer (metric matrix) sets
   // the two axes independently. Everything downstream reads rows/cols.
@@ -270,28 +268,7 @@
   }
 
   const plot = usePlot<{ row: number; col: number }>({
-    width: () => width,
-    height: () => height,
-    margin: () => margin,
-    deps: () => [
-      matrix,
-      rows,
-      cols,
-      xAxisTitle,
-      yAxisTitle,
-      colorScale,
-      colorValueRange,
-      belowMinColor,
-      aboveMaxColor,
-      nonFiniteColor,
-      showBelowMinLabels,
-      showAboveMaxLabels,
-      legendTitle,
-      placeholder,
-      formatCellValue,
-      getCellTooltip,
-      drawCells,
-    ],
+    props: () => props,
     placeholder: () => placeholder,
     fit: () =>
       layout.cellSize >= minLegibleCellSize
@@ -366,6 +343,5 @@
 
 <canvas
   use:plot.plotAction
-  use:canvasBlockSelect={{ regions: plot.blockedRegions }}
   aria-label="Matrix visualization"
 ></canvas>

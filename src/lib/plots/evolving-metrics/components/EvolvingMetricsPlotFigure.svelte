@@ -13,7 +13,6 @@
   } from '$lib/plots/shared/canvasUtils'
   import {
     usePlot,
-    canvasBlockSelect,
     participantIndexAxisWidth,
     PLOT_BORDER_PX,
     PLOT_EDGE_PAD_TOP,
@@ -31,14 +30,9 @@
   import { measureTextHeight } from '$lib/shared/textMeasure'
   import { percentileSorted } from '$lib/shared/stats'
   import { samplePalette } from '$lib/color'
-  import { INACTIVE_COLOR, PRESET_PALETTES } from '$lib/color/palettes'
+  import { INACTIVE_COLOR, PRESET_PALETTES, resolvePalette } from '$lib/color/palettes'
 
-  import { AREA_DIVIDER, PLOT_LEGEND_GAP } from '$lib/plots/shared/const'
-  import {
-    bottomGradientLegendGeometry,
-    drawGradientLegend,
-    getGradientLegendRequiredHeight,
-  } from '$lib/plots/shared/legendGradient'
+  import { AREA_DIVIDER } from '$lib/plots/shared/const'
   import {
     AXIS_CONFIG,
     drawParticipantRowAxis,
@@ -82,22 +76,10 @@
     plotCursor?: PlotCursorPort | null
   }
 
-  let {
-    width,
-    height,
-    data,
-    alignment = 'heatmap',
-    colorScale,
-    margin = 0,
-    plotCursor = null,
-  }: Props = $props()
+  const props: Props = $props()
+  const { width, data, alignment = 'heatmap', colorScale, plotCursor = null } = $derived(props)
 
   const X_AXIS_LABEL = $derived(data.xAxisLabel)
-
-
-  const legendHeight = $derived(
-    alignment === 'heatmap' ? getGradientLegendRequiredHeight(AXIS_CONFIG.fontSize) : 0
-  )
 
   const tickLabelHeight = $derived.by(() => {
     let maxHeight = 0
@@ -112,12 +94,12 @@
   // block, but GAP-FREE: the resolver abuts the legend block to the x-axis gutter
   // with no PLOT_LEGEND_GAP, so including the gap here would flip isCompact ~14px
   // early. Worst-case title height avoids a wrap-width cycle; the draw wraps for real.
-  const bottomReserveEstimate = $derived(
+  const bottomReserveEstimate = $derived.by(() =>
     getXAxisHeight(
       tickLabelHeight,
       X_AXIS_LABEL ? maxAxisTitleHeight(AXIS_CONFIG.fontSize) : 0,
       AXIS_CONFIG.tickLabelOffset
-    ) + legendHeight
+    ) + plot.gradientLegendHeight
   )
 
   // Compact-mode probe height — derived from the PRE-gutter content area
@@ -159,12 +141,7 @@
   )
 
   const plot = usePlot<{ t: number; x: number; participantIdx: number | null }>({
-    width: () => width,
-    height: () => height,
-    margin: () => margin,
-    // colorScale reaches the figure as its own prop (not through `data`), so
-    // it must be a dep — without it a palette edit left the heatmap stale.
-    deps: () => [data, alignment, colorScale],
+    props: () => props,
     placeholder: () => (data.noMetric ? METRIC_MISSING_MESSAGE : null),
     fit: frame => {
       if (alignment !== 'heatmap') return null
@@ -196,9 +173,21 @@
         left,
         bottom: { title: X_AXIS_LABEL, tickLabels: xAxisTicks.labels ?? [] },
         pad,
-        legendHeight: legendHeight > 0 ? PLOT_LEGEND_GAP + legendHeight : 0,
       }
     },
+    gradientLegend: () =>
+      alignment !== 'heatmap'
+        ? null
+        : {
+            colorScale: palette,
+            // Raw, not rounded: the legend must advertise the range the cells are
+            // actually coloured by. `formatLegendValue` already renders 0.2 as "0.2";
+            // rounding turned a 0.2–0.9 ramp into a "0–1" one and misread every cell.
+            valueRange: [data.valueMin, data.valueMax],
+            effectiveMaxValue: data.valueMax,
+            title: data.yAxisLabel,
+            belowMinColor: INACTIVE_COLOR,
+          },
     clipData: false,
     drawData: drawEvolving,
     drawOverlay: drawEvolvingOverlay,
@@ -248,9 +237,7 @@
     rowIds: () => participantIds,
   })
 
-  const palette = $derived<string[]>(
-    colorScale && colorScale.length >= 2 ? colorScale : [...PRESET_PALETTES.HEAT.colors]
-  )
+  const palette = $derived(resolvePalette(colorScale, PRESET_PALETTES.HEAT.colors))
 
   // 256-step colour LUT built once per palette change, so the heatmap draw loop
   // indexes a prebuilt string instead of interpolating (string concat + parse)
@@ -263,20 +250,6 @@
       lut[i] = samplePalette(palette, i / (HEATMAP_LUT_SIZE - 1))
     }
     return lut
-  })
-
-  const gradientLegendGeometry = $derived.by(() => {
-    if (alignment !== 'heatmap') return null
-    return bottomGradientLegendGeometry(plot, margin, legendHeight, {
-      colorScale: palette,
-      // Raw, not rounded: the legend must advertise the range the cells are
-      // actually coloured by. `formatLegendValue` already renders 0.2 as "0.2";
-      // rounding turned a 0.2–0.9 ramp into a "0–1" one and misread every cell.
-      valueRange: [data.valueMin, data.valueMax],
-      effectiveMaxValue: data.valueMax,
-      title: data.yAxisLabel,
-      belowMinColor: INACTIVE_COLOR,
-    })
   })
 
   // Overlay aggregates — sampled one position per pixel across the plot width.
@@ -561,10 +534,6 @@
       ticks: { bottom: xTicks, top: { positions: xTicks.positions } },
     })
     drawXAxisLabel(ctx, X_AXIS_LABEL, frame.x, frame.width, frame.bottom, frame.bottomTitleOffset, AXIS_CONFIG)
-
-    if (gradientLegendGeometry) {
-      drawGradientLegend(ctx, gradientLegendGeometry)
-    }
   }
 
   // ── OVERLAY ──
@@ -780,6 +749,5 @@
 
 <canvas
   use:plot.plotAction
-  use:canvasBlockSelect={{ regions: plot.blockedRegions }}
   aria-label="Metric Timeline visualization"
 ></canvas>

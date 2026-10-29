@@ -13,7 +13,6 @@
     niceTimelineTicks,
     LEGEND_CONFIG,
     usePlot,
-    canvasBlockSelect,
     type BlockedRegion,
     type CanvasExportProps,
     type FrameHit,
@@ -82,7 +81,8 @@
     plotCursor?: PlotCursorPort | null
   }
 
-  let {
+  const props: Props = $props()
+  const {
     data,
     settings,
     highlights = [],
@@ -91,10 +91,9 @@
     onDragStepX = () => {},
     onDragEnd = () => {},
     plotCursor = null,
-    width = 0,
-    height,
+    width,
     margin = 0,
-  }: Props = $props()
+  } = $derived(props)
 
   const isOverlayMode = $derived(data.isOverlay)
 
@@ -181,14 +180,7 @@
   type ScarfHover = { row: number; x: number }
 
   const plot = usePlot<ScarfHover>({
-    width: () => width,
-    height: () => height,
-    margin: () => margin,
-    // Every input to the resolved frame and to `plotTop` is already listed here
-    // (they derive from data/settings and the canvas box), so neither is a dep in
-    // its own right — and referencing one would make `plot`'s options depend on
-    // `plot`'s own type.
-    deps: () => [data, settings, highlights],
+    props: () => props,
     // The verdict is about the row band (see `rowBandHeight`), which the scarf
     // measures itself to keep the left gutter out of a cycle — hence the unused
     // frame argument. It is still a fit guard, not a data placeholder: it turns
@@ -568,7 +560,6 @@
 <canvas
   class="scarf-plot-figure"
   use:plot.plotAction
-  use:canvasBlockSelect={{ regions: plot.blockedRegions }}
   data-component="scarfplot"
   aria-label="Scarf plot visualization"
 ></canvas>

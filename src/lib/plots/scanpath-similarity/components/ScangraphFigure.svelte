@@ -4,7 +4,6 @@
   import {
     drawPlotArea,
     usePlot,
-    canvasBlockSelect,
     trackOnlyHit,
     type CanvasExportProps,
     type PlotFrame,
@@ -51,10 +50,9 @@
     plotCursor?: PlotCursorPort | null
   }
 
-  let {
+  const props: Props = $props()
+  const {
     data,
-    height = 500,
-    width = 500,
     threshold = 0.5,
     highlights = [],
     cliqueMembers = [],
@@ -62,8 +60,7 @@
     onNodeClick,
     participantIds,
     plotCursor = null,
-    margin = 0,
-  }: Props = $props()
+  } = $derived(props)
 
   /**
    * What the pointer is on. A NODE is one participant; an EDGE is a pair, exactly
@@ -74,10 +71,7 @@
     | { kind: 'edge'; source: number; target: number; value: number }
 
   const plot = usePlot<ScangraphHover>({
-    width: () => width,
-    height: () => height,
-    margin: () => margin,
-    deps: () => [data, threshold, highlights, cliqueMembers, noMetric],
+    props: () => props,
     placeholder: () =>
       noMetric
         ? METRIC_MISSING_MESSAGE
@@ -96,9 +90,8 @@
         'Reduce the number of participants in Plot Settings > Participants',
       ])
     },
-    // The force layout fills the whole canvas and insets nodes by the export
-    // margins itself, so the frame's rect (= content area) is used only for the
-    // outline + the default blocked region.
+    // No gutters: the frame IS the content area (canvas minus export margins),
+    // which the force layout fills edge to edge.
     gutters: () => ({}),
     clipData: false,
     drawData: drawGraph,
@@ -272,14 +265,13 @@
   const layoutResult = $derived.by((): LayoutResult => {
     const nl = normalizedLayout
     if (nl.nodes.length === 0) return nl
-    const contentW = Math.max(1, width - margin * 2)
-    const contentH = Math.max(1, height - margin * 2)
-    const sx = contentW / CANON
-    const sy = contentH / CANON
+    const f = plot.frame
+    const sx = Math.max(1, f.width) / CANON
+    const sy = Math.max(1, f.height) / CANON
     const nodes = nl.nodes.map(n => ({
       ...n,
-      x: margin + n.x * sx,
-      y: margin + n.y * sy,
+      x: f.x + n.x * sx,
+      y: f.y + n.y * sy,
     }))
     return { nodes, links: nl.links }
   })
@@ -338,11 +330,12 @@
 
       for (const rx of candidates) {
         const rect: Rect = { x: rx, y: baseY, w: labelW, h: labelH }
+        const f = plot.frame
         if (
-          rect.x < margin ||
-          rect.y < margin ||
-          rect.x + rect.w > width - margin ||
-          rect.y + rect.h > height - margin
+          rect.x < f.x ||
+          rect.y < f.y ||
+          rect.x + rect.w > f.right ||
+          rect.y + rect.h > f.bottom
         ) {
           continue
         }
@@ -616,7 +609,6 @@
 
 <canvas
   use:plot.plotAction
-  use:canvasBlockSelect={{ regions: plot.blockedRegions }}
   onclick={handleClick}
   aria-label="ScanGraph visualization"
 ></canvas>

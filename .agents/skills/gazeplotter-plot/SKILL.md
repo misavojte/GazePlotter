@@ -53,10 +53,13 @@ Generic host derives via `usePlotData` (`shared/plotData.svelte.ts`). Below it: 
 
 ## Figure (usePlot harness)
 
-Figure calls `usePlot(options)` once, applies `plot.plotAction` to its `<canvas>`.
+Figure calls `usePlot(options)` once, applies `plot.plotAction` to its `<canvas>` (which also wires the grid's block-select).
+
+- Props: `const props: Props = $props()`, then `const { data, mode = 'x', ... } = $derived(props)`, and pass `props: () => props`. The harness sizes the canvas from `width`/`height`/`margin` and redraws on ANY other prop change. `deps` is only for figure state the props don't cover (async media element, drag draft, frame-derived projection). Never hand-list props in `deps`.
+- Colorbar under the x-axis: declare `gradientLegend: () => config | null`; the harness reserves the band (title's real line count), places and draws it, and exposes `plot.gradientLegend` (geometry) for title hit-tests. Palette fallback: `resolvePalette(colorScale, PRESET_PALETTES.X.colors)` from `$lib/color`.
 
 - `drawData(ctx, frame)` required; `drawOverlay(ctx, frame)` for hover visuals. `frame: PlotFrame` = floored data rect + `mouseX/mouseY` + title offsets.
-- Placeholders DECLARED: `placeholder: () => ...` = data-level (noMetric → `METRIC_MISSING_MESSAGE`, empty data); `fit: frame => ...` = size guard, return `cannotFitPlaceholder(axis, extraSteps)` or null. Harness evaluates `fit` with resolved frame. NEVER read `plot.frame` to build placeholders; NEVER put placeholder values in `deps`.
+- Placeholders DECLARED: `placeholder: () => ...` = data-level (noMetric → `METRIC_MISSING_MESSAGE`, empty data); `fit: frame => ...` = size guard, return `cannotFitPlaceholder(axis, extraSteps)` or null. Harness evaluates `fit` with resolved frame. NEVER read `plot.frame` to build placeholders; NEVER put computed placeholder values in `deps`.
 - Hover HARNESS-OWNED: `hitTest(x,y,frame)` returns `FrameHit` with typed `data` payload; read back via `plot.hover.data` in drawOverlay/click handlers (embed pointer coords in payload if overlay needs them). `hoverKey`/`onHover` = deduped side effect. NO per-figure $state mirrors of the hit. `onHoverChange` = escape hatch only; scarf's `pointer`-driven hover is custom by design.
 - PERF: with `drawOverlay`, hover repaints blit the cached data layer (`scheduleOverlayRender`). NEVER re-run drawData on mouse move (~2050ms regression once).
 - Draw via `canvasState.context` (property is `context`). Harness owns begin/finishCanvasDrawing (clear, dpr scale, save/restore) — never call them yourself.

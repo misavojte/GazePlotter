@@ -6,7 +6,6 @@
   } from '$lib/plots/shared/canvasUtils'
   import {
     usePlot,
-    canvasBlockSelect,
     withQualifiers,
     type CanvasExportProps,
     type PlotFrame,
@@ -19,7 +18,7 @@
     type PlotCursorPort,
   } from '$lib/plots/shared/plotCursor.svelte'
   import { desaturateToWhite, INACTIVE_COLOR } from '$lib/color'
-  import { PRESET_PALETTES } from '$lib/color/palettes'
+  import { PRESET_PALETTES, resolvePalette } from '$lib/color/palettes'
 
   import {
     AREA_DIVIDER,
@@ -39,11 +38,6 @@
     type LegendGeometry,
     type LegendItemGeometry,
   } from '$lib/plots/shared/legendRendering'
-  import {
-    bottomGradientLegendGeometry,
-    drawGradientLegend,
-    getGradientLegendRequiredHeight,
-  } from '$lib/plots/shared/legendGradient'
   import {
     AXIS_CONFIG,
     drawXAxisLabel,
@@ -90,9 +84,9 @@
     plotCursor?: PlotCursorPort | null
   }
 
-  let {
+  const props: Props = $props()
+  const {
     width,
-    height,
     data,
     highlights = [],
     alignment = 'stream',
@@ -105,13 +99,9 @@
     belowMinColor,
     aboveMaxColor,
     plotCursor = null,
-  }: Props = $props()
+  } = $derived(props)
 
-  // Mirror core/layout.ts's HEAT fallback so the gradient legend isn't empty
-  // before the user has picked a colorScale.
-  const effectiveColorScale = $derived(
-    colorScale && colorScale.length > 0 ? colorScale : [...PRESET_PALETTES.HEAT.colors]
-  )
+  const effectiveColorScale = $derived(resolvePalette(colorScale, PRESET_PALETTES.HEAT.colors))
 
   // Time is the main axis here, so the binning window is a mid-dot qualifier on
   // the time label (e.g. "Elapsed time / ms · 500 ms window / 100 ms step"); no
@@ -148,10 +138,12 @@
     }))
   )
 
-  const legendHeight: number = $derived.by(() => {
-    if (alignment === 'heatmap') return getGradientLegendRequiredHeight(AXIS_CONFIG.fontSize)
-    return calculateFlatLegendHeight(legendItems, Math.max(0, plot.plotAreaWidth), LEGEND_CONFIG)
-  })
+  // The heatmap's gradient legend is the harness's `gradientLegend` band.
+  const legendHeight: number = $derived.by(() =>
+    alignment === 'heatmap'
+      ? 0
+      : calculateFlatLegendHeight(legendItems, Math.max(0, plot.plotAreaWidth), LEGEND_CONFIG)
+  )
 
   // ── Axis chrome: tick-label strings fed to the measured gutter ──
   // The X (time) axis and the Y (metric/value) domain are both pixel-independent,
@@ -191,20 +183,7 @@
     binIndex?: number
     x?: number
   }>({
-    width: () => width,
-    height: () => height,
-    margin: () => margin,
-    deps: () => [
-      data,
-      alignment,
-      ridgelineScale,
-      syncedMTopOverride,
-      colorScale,
-      colorValueRange,
-      belowMinColor,
-      aboveMaxColor,
-      highlights,
-    ],
+    props: () => props,
     placeholder: () => (data.noMetric ? METRIC_MISSING_MESSAGE : null),
     fit: frame => {
       const n = data.series.length
@@ -243,6 +222,20 @@
       highlights: () => usedHighlights,
       hitData: item => ({ kind: 'legend' as const, item }),
     },
+    // Same resolver as the cells (core/layout.ts), so the colorbar's end labels
+    // are exactly the gradient's first and last stop. The legend itself hides
+    // the above-max cap while the max is auto.
+    gradientLegend: () =>
+      alignment !== 'heatmap'
+        ? null
+        : {
+            colorScale: effectiveColorScale,
+            valueRange: colorValueRange,
+            effectiveMaxValue: resolveHeatRange(colorValueRange, data.maxValue)[1],
+            title: data.yAxisLabel,
+            belowMinColor,
+            aboveMaxColor,
+          },
     hitTest: hitTestBin,
     // Published through the TIME map (the one the axis ticks and areas use), NOT
     // the bin-index map the hovered-bin bands use; they differ once
@@ -280,22 +273,6 @@
       Math.max(0, plot.plotAreaWidth)
     )
   )
-
-  const gradientLegendGeometry = $derived.by(() => {
-    if (alignment !== 'heatmap') return null
-    // Same resolver as the cells (core/layout.ts), so the colorbar's end labels
-    // are exactly the gradient's first and last stop. The legend itself hides
-    // the above-max cap while the max is auto.
-    const [, heatMax] = resolveHeatRange(colorValueRange, data.maxValue)
-    return bottomGradientLegendGeometry(plot, margin, legendHeight, {
-      colorScale: effectiveColorScale,
-      valueRange: colorValueRange,
-      effectiveMaxValue: heatMax,
-      title: data.yAxisLabel,
-      belowMinColor,
-      aboveMaxColor,
-    })
-  })
 
   function setUpFont(ctx: CanvasRenderingContext2D) {
     ctx.font = `${AXIS_CONFIG.fontSize}px ${AXIS_CONFIG.fontFamily}`
@@ -536,12 +513,8 @@
     }
     drawXAxisLabel(ctx, X_AXIS_LABEL, frame.x, frame.width, frame.bottom, frame.bottomTitleOffset, AXIS_CONFIG)
 
-    // Legend
-    if (alignment === 'heatmap') {
-      if (gradientLegendGeometry) {
-        drawGradientLegend(ctx, gradientLegendGeometry)
-      }
-    } else if (legendGeometry.items.length > 0 && legendHeight > 0) {
+    // Legend (the heatmap's gradient legend is drawn by the harness)
+    if (alignment !== 'heatmap' && legendGeometry.items.length > 0 && legendHeight > 0) {
       setUpFont(ctx)
       drawLegend(ctx, legendGeometry, LEGEND_CONFIG, usedHighlights)
     }
@@ -660,7 +633,6 @@
 
 <canvas
   use:plot.plotAction
-  use:canvasBlockSelect={{ regions: plot.blockedRegions }}
   onclick={handleClick}
   aria-label="AOI Timeline visualization"
 ></canvas>

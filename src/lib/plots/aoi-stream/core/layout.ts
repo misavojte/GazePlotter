@@ -7,7 +7,7 @@ import {
 } from '../const'
 import { calculateIdealStripHeight } from './ridgeline'
 import { desaturateToWhite, samplePalette } from '$lib/color'
-import { PRESET_PALETTES } from '$lib/color/palettes'
+import { PRESET_PALETTES, resolvePalette } from '$lib/color/palettes'
 import { ceilToNiceStep } from '$lib/plots/shared/timelineUtils'
 import type { OutOfBoundsColors } from '$lib/plots/shared/outOfBounds'
 import { computeNiceYAxis } from './axis'
@@ -289,7 +289,7 @@ export function transformStreamDataToCoordinates(
   }
 
   const groupTop = floorBottom - totalGroupHeight
-  const palette = colorScale || PRESET_PALETTES.HEAT.colors
+  const palette = resolvePalette(colorScale, PRESET_PALETTES.HEAT.colors)
 
   let seriesRanks: Int32Array | null = null
 

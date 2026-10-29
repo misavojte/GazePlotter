@@ -2,7 +2,6 @@
   import {
     usePlot,
     indexTicks,
-    canvasBlockSelect,
     pixelLayer,
     trackOnlyHit,
     packRgb,
@@ -47,7 +46,8 @@
     plotCursor?: PlotCursorPort | null
   }
 
-  let {
+  const props: Props = $props()
+  const {
     data,
     highlight = 'none',
     masking = 'diagonal',
@@ -55,10 +55,7 @@
     warning = null,
     participantId,
     plotCursor = null,
-    width = 400,
-    height = 400,
-    margin = 0,
-  }: Props = $props()
+  } = $derived(props)
 
   /**
    * The fixation the cursor's instant lands in, or -1.
@@ -170,10 +167,7 @@
   const isDense = (f: PlotFrame) => stepOf(f) < DOT_MODE_MIN
 
   const plot = usePlot<{ row: number; col: number }>({
-    width: () => width,
-    height: () => height,
-    margin: () => margin,
-    deps: () => [data, highlight, masking, highlightMask, warning],
+    props: () => props,
     // No fit guard: the recurrence matrix is rendered as a texture (drawRaster)
     // at any density, so hundreds of fixations stay legible as a pattern. The
     // placeholders are the "no data" case and a matrix that is recurrent everywhere.
@@ -477,6 +471,5 @@
 
 <canvas
   use:plot.plotAction
-  use:canvasBlockSelect={{ regions: plot.blockedRegions }}
   aria-label="Recurrence Plot visualization"
 ></canvas>

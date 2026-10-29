@@ -34,7 +34,7 @@ import {
   drawCanvasPlaceholder,
   type PlotPlaceholderContent,
 } from './drawCanvasPlaceholder'
-import type { BlockedRegion } from './canvasBlockSelect.action'
+import { canvasBlockSelect, type BlockedRegion } from './canvasBlockSelect.action'
 import {
   getLegendTooltipContent,
   getLegendTooltipPosition,
@@ -43,7 +43,15 @@ import {
   type LegendGeometry,
   type LegendItemGeometry,
 } from './legendRendering'
-import { FONT_PRIMARY, PLOT_AXIS_TITLE_GAP, PLOT_TICK_LABEL_GAP } from './const'
+import {
+  computeGradientLegendGeometry,
+  drawGradientLegend,
+  getGradientLegendRequiredHeight,
+  type GradientLegendConfig,
+  type GradientLegendGeometry,
+} from './legendGradient'
+import type { CanvasExportProps } from './types'
+import { FONT_PRIMARY, PLOT_AXIS_TITLE_GAP, PLOT_LEGEND_GAP, PLOT_TICK_LABEL_GAP } from './const'
 import { measureTextHeight, calculateTextMetrics } from '$lib/shared/textMeasure'
 
 const browser = typeof document !== 'undefined'
@@ -62,8 +70,9 @@ const RENDER_FAILED_PLACEHOLDER: PlotPlaceholderContent = {
  * render scaffold, the `drawPlotArea` + axis-title chrome, the mouse-move →
  * hit-test → tooltip/cursor plumbing, and a generic pointer/drag lifecycle.
  *
- * A figure DECLARES its plot — `placeholder`, `gutters`, `drawData`, `axes`,
- * optional `legend`/`drawOverlay`/`hitTest`/`pointer` — and writes only the
+ * A figure hands over its `props` and DECLARES its plot — `placeholder`,
+ * `gutters`, `drawData`, `axes`, optional `legend`/`gradientLegend`/
+ * `drawOverlay`/`hitTest`/`pointer` — and writes only the
  * genuinely plot-specific marks, hit-test geometry and tooltip content. The
  * lower-level surface (`showTooltip`, `plotAreaWidth`, `canvasState`, …) is on
  * the same handle for the rare figure that needs it.
@@ -218,13 +227,27 @@ export interface FramePointerHandlers {
   dragThreshold?: number
 }
 
+/** A bottom-band colorbar: the harness reserves, places and draws it. */
+export type GradientLegendSlot = Omit<
+  GradientLegendConfig,
+  'x' | 'y' | 'availableWidth' | 'availableHeight'
+>
+
 export interface UsePlotOptions<THit = unknown> {
-  // ---- sizing ----
-  width: () => number
-  height: () => number
-  margin: () => number
-  /** Reactive dependency getter — a redraw is scheduled whenever it changes. */
-  deps: () => unknown
+  // ---- sizing + redraw ----
+  /**
+   * The figure's `$props()` object. `width`/`height`/`margin` size the canvas;
+   * every other prop is a redraw dependency, so no prop can go missing from a
+   * hand-kept list (a palette edit once left a heatmap stale that way).
+   */
+  props: () => CanvasExportProps
+  /** Canvas height when it differs from the `height` prop (a DOM row below it). */
+  height?: () => number
+  /**
+   * Figure state the props don't cover (an async media element, a drag draft,
+   * a frame-derived projection): a change schedules a redraw.
+   */
+  deps?: () => unknown
   /**
    * `deps`' overlay-only twin, for view state the data layer doesn't depend on
    * (hover marks, a shared cursor): a change repaints `drawOverlay` over the
@@ -293,6 +316,13 @@ export interface UsePlotOptions<THit = unknown> {
     hitData?: (item: LegendItemGeometry) => THit
   }
 
+  /**
+   * Gradient legend in the bottom band, below the x-axis: reserved to its
+   * title's real line count, laid across the content width and drawn over the
+   * axis chrome. Return null while the plot shows none (another mode, no data).
+   */
+  gradientLegend?: () => GradientLegendSlot | null
+
   // ---- interaction ----
   hitTest?: (x: number, y: number, frame: PlotFrame) => FrameHit<THit> | null
   /** Hit-test for chrome OUTSIDE the data rect (a legend title's tooltip). */
@@ -321,9 +351,10 @@ export interface UsePlotOptions<THit = unknown> {
 }
 
 export interface UsePlotHandle<THit = unknown> {
-  /** Svelte action — wires canvas lifecycle, mouse listeners, pointer/drag. */
+  /** Svelte action — wires canvas lifecycle, mouse listeners, pointer/drag and
+   *  the grid's block-select over `blockedRegions`. */
   readonly plotAction: Action<HTMLCanvasElement>
-  /** Blocked-select regions for `use:canvasBlockSelect`. */
+  /** Where a click must not toggle grid-item selection. */
   readonly blockedRegions: BlockedRegion[]
   /** Resolved frame geometry (reactive). */
   readonly frame: PlotFrame
@@ -333,6 +364,11 @@ export interface UsePlotHandle<THit = unknown> {
    * per-figure `$state` mirrors of the hit.
    */
   readonly hover: { readonly data: THit | null }
+  /** The placed `gradientLegend` (null when none), for hit-testing its title. */
+  readonly gradientLegend: GradientLegendGeometry | null
+  /** Its band height without the gap (0 when none); frame-independent, so a
+   *  layout probe that must not read `frame` can count it. */
+  readonly gradientLegendHeight: number
   // Lower-level surface (for the rare figure that needs it directly)
   readonly canvasState: CanvasState
   readonly plotAreaWidth: number
@@ -513,15 +549,23 @@ export function resolveFrameLayout(
 
 // ── The composable ──
 
+/** Props that size the canvas; a change refreshes it rather than counting as data. */
+const SIZE_PROPS = new Set(['width', 'height', 'margin'])
+
 export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotHandle<THit> {
+  const props = options.props
+  const width = () => props().width
+  const height = options.height ?? (() => props().height)
+  const margin = () => props().margin ?? 0
+
   // ---- canvas state + DPI-aware lifecycle ----
   let canvasState = $state<CanvasState>(createCanvasState())
   const exportRegistrar = getContext<ExportSourceRegistrar | undefined>(EXPORT_SOURCE_CONTEXT)
 
   const getDpiOverride = () => exportRegistrar?.dpiOverride ?? null
   const getDimensions = () => ({
-    width: Math.max(1, options.width()),
-    height: Math.max(1, options.height()),
+    width: Math.max(1, width()),
+    height: Math.max(1, height()),
   })
   const getState = () => canvasState
   const setState = (next: CanvasState) => {
@@ -622,18 +666,14 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   }
 
   // ---- plot bounds (content area = total minus export margins) ----
-  const plotAreaWidth = $derived(
-    Math.max(1, options.width() - options.margin() * 2)
-  )
-  const plotAreaHeight = $derived(
-    Math.max(1, options.height() - options.margin() * 2)
-  )
-  const plotLeft = $derived(options.margin())
-  const plotRight = $derived(options.width() - options.margin())
-  const plotTop = $derived(options.margin())
-  const plotBottom = $derived(options.height() - options.margin())
-  const safeWidth = $derived(Math.max(1, options.width()))
-  const safeHeight = $derived(Math.max(1, options.height()))
+  const plotAreaWidth = $derived(Math.max(1, width() - margin() * 2))
+  const plotAreaHeight = $derived(Math.max(1, height() - margin() * 2))
+  const plotLeft = $derived(margin())
+  const plotRight = $derived(width() - margin())
+  const plotTop = $derived(margin())
+  const plotBottom = $derived(height() - margin())
+  const safeWidth = $derived(Math.max(1, width()))
+  const safeHeight = $derived(Math.max(1, height()))
 
   // ---- interaction state + helpers ----
   // Plain lets: only event handlers read these. Keeping them out of $state
@@ -676,20 +716,41 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     tooltip.update(null, delay)
   }
 
-  // ---- frame: gutters → data rect ----
-  const resolved = $derived.by(() =>
-    resolveFrameLayout(options.gutters(), {
-      left: plotLeft,
-      top: plotTop,
-      right: plotRight,
-      bottom: plotBottom,
-    })
+  // ---- gradient legend: its band height feeds the gutters ----
+  const gradientSlot = $derived(options.gradientLegend?.() ?? null)
+  const gradientHeight = $derived(
+    gradientSlot
+      ? getGradientLegendRequiredHeight(undefined, gradientSlot.title, plotAreaWidth)
+      : 0
   )
+
+  // ---- frame: gutters → data rect ----
+  const resolved = $derived.by(() => {
+    const gutters = options.gutters()
+    const gradientBand = gradientHeight > 0 ? PLOT_LEGEND_GAP + gradientHeight : 0
+    return resolveFrameLayout(
+      { ...gutters, legendHeight: (gutters.legendHeight ?? 0) + gradientBand },
+      { left: plotLeft, top: plotTop, right: plotRight, bottom: plotBottom }
+    )
+  })
   const frame = $derived.by<PlotFrame>(() => ({
     ...resolved.rect,
     leftTitleOffset: resolved.leftTitleOffset,
     bottomTitleOffset: resolved.bottomTitleOffset,
   }))
+
+  // The band directly below the x-axis gutter (`legendY`), across the content width.
+  const gradientLegend = $derived(
+    gradientSlot && gradientHeight > 0
+      ? computeGradientLegendGeometry({
+          x: plotLeft,
+          y: frame.legendY + PLOT_LEGEND_GAP,
+          availableWidth: plotAreaWidth,
+          availableHeight: gradientHeight,
+          ...gradientSlot,
+        })
+      : null
+  )
 
   // ---- render: begin → placeholder → clip+marks → axes → overlay → finish ----
   function render() {
@@ -705,7 +766,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     placeholderActive = msg !== null
     if (msg) {
       dataLayerValid = false
-      drawCanvasPlaceholder(ctx, options.width(), options.height(), msg)
+      drawCanvasPlaceholder(ctx, width(), height(), msg)
       finishCanvasDrawing(canvasState)
       return
     }
@@ -743,6 +804,8 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
       if (axes.left?.title)
         drawYAxisMainLabel(ctx, axes.left.title, r.x, r.y, r.height, resolved.leftTitleOffset)
     }
+
+    if (gradientLegend) drawGradientLegend(ctx, gradientLegend)
 
     // Marks that must sit over the axis border rather than be sliced by it.
     options.drawAboveAxes?.(ctx, f)
@@ -951,17 +1014,16 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   // ---- reactive redraw triggers ----
   $effect(() => {
     // Establish dependencies on layout properties, then refresh untracked.
-    const _ = [
-      options.width(),
-      options.height(),
-      options.margin(),
-      getDpiOverride(),
-    ]
+    const _ = [width(), height(), margin(), getDpiOverride()]
     void _
     untrack(refresh)
   })
   $effect(() => {
-    options.deps()
+    const all = props() as unknown as Record<string, unknown>
+    for (const key in all) {
+      if (!SIZE_PROPS.has(key)) void all[key]
+    }
+    options.deps?.()
     // New data or settings clear a parked render failure — natural retry.
     renderFailed = false
     untrack(scheduleRender)
@@ -979,6 +1041,12 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
 
   const plotAction: Action<HTMLCanvasElement> = (node) => {
     const life = canvasLifecycleAction(node, actionOptions)
+    // Read per mouse move, so the getter always hands over the current regions.
+    const blockSelect = canvasBlockSelect(node, {
+      get regions() {
+        return blockedRegions
+      },
+    })
     const pointer = options.pointer
     let winMove: ((e: MouseEvent) => void) | null = null
     let winUp: ((e: MouseEvent) => void) | null = null
@@ -1070,6 +1138,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
         // Like the plot cursor: a plot removed under the pointer gets no
         // `mouseleave`, so it retracts itself.
         if (tooltipShown) hideTooltip(0)
+        blockSelect?.destroy?.()
         life?.destroy?.()
       },
     }
@@ -1109,6 +1178,12 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
       get data() {
         return hoverData
       },
+    },
+    get gradientLegend() {
+      return gradientLegend
+    },
+    get gradientLegendHeight() {
+      return gradientHeight
     },
     get canvasState() {
       return canvasState
