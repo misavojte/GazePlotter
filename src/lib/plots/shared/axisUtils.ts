@@ -252,8 +252,27 @@ export function drawParticipantIndexAxis(
   ctx.restore()
 }
 
-/** Compact index axis without `labels`, else labels right-aligned ROW_LABEL_GAP left
- *  of the plot. Leaves the axis font, fill and baseline set (no save/restore). */
+/** Row labels right-aligned ROW_LABEL_GAP left of the plot, one per row of
+ *  `rowPitch`, pre-truncated by the caller (see {@link truncatedRowLabels}).
+ *  Leaves the axis font, fill, alignment and baseline set (no save/restore). */
+export function drawRowLabels(
+  ctx: CanvasRenderingContext2D,
+  labels: readonly string[],
+  plotLeft: number,
+  plotTop: number,
+  rowPitch: number
+): void {
+  ctx.font = `${AXIS_CONFIG.fontSize}px ${AXIS_CONFIG.fontFamily}`
+  ctx.fillStyle = AXIS_CONFIG.color
+  ctx.textBaseline = 'middle'
+  ctx.textAlign = 'right'
+  for (let i = 0; i < labels.length; i++) {
+    ctx.fillText(labels[i], plotLeft - ROW_LABEL_GAP, plotTop + i * rowPitch + rowPitch / 2)
+  }
+}
+
+/** Participant rows: the compact index axis without `labels`, else
+ *  {@link drawRowLabels}. Leaves the axis font, fill and baseline set. */
 export function drawParticipantRowAxis(
   ctx: CanvasRenderingContext2D,
   count: number,
@@ -262,14 +281,11 @@ export function drawParticipantRowAxis(
   plotTop: number,
   rowPitch: number
 ): void {
+  if (labels) return drawRowLabels(ctx, labels, plotLeft, plotTop, rowPitch)
   ctx.font = `${AXIS_CONFIG.fontSize}px ${AXIS_CONFIG.fontFamily}`
   ctx.fillStyle = AXIS_CONFIG.color
   ctx.textBaseline = 'middle'
-  if (!labels) return drawParticipantIndexAxis(ctx, count, plotLeft, plotTop, rowPitch)
-  ctx.textAlign = 'right'
-  for (let i = 0; i < labels.length; i++) {
-    ctx.fillText(labels[i], plotLeft - ROW_LABEL_GAP, plotTop + i * rowPitch + rowPitch / 2)
-  }
+  drawParticipantIndexAxis(ctx, count, plotLeft, plotTop, rowPitch)
 }
 
 /**

@@ -237,3 +237,27 @@ export function createAdaptiveTimeline(
     ticks,
   }
 }
+
+/**
+ * Index of the interval holding `t` among `count` sorted, disjoint half-open
+ * intervals `[startOf(i), endOf(i))`, or `-1` in a gap, outside them all, or
+ * for a `NaN` time (a live cursor read whose data shrank). Binary search, so a
+ * per-frame lookup (a fixation, a window) stays cheap.
+ */
+export function intervalAt(
+  count: number,
+  startOf: (i: number) => number,
+  endOf: (i: number) => number,
+  t: number
+): number {
+  let lo = 0
+  let hi = count - 1
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1
+    // Negated, so a NaN fails both and falls out of the search as -1.
+    if (!(t >= startOf(mid))) hi = mid - 1
+    else if (!(t < endOf(mid))) lo = mid + 1
+    else return mid
+  }
+  return -1
+}

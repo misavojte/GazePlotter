@@ -12,12 +12,7 @@
     type FrameAxes,
     type FrameHit,
   } from '$lib/plots/shared'
-  import {
-    cursorGuides,
-    drawTimeGuides,
-    timeAtX,
-    type PlotCursorPort,
-  } from '$lib/plots/shared/plotCursor.svelte'
+  import { cursorGuides, type PlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
   import { desaturateToWhite, INACTIVE_COLOR } from '$lib/color'
   import { PRESET_PALETTES, resolvePalette } from '$lib/color/palettes'
 
@@ -39,8 +34,9 @@
     type LegendGeometry,
     type LegendItemGeometry,
   } from '$lib/plots/shared/legendRendering'
-  import { AXIS_CONFIG, truncatedRowLabels } from '$lib/plots/shared/axisUtils'
+  import { AXIS_CONFIG, drawRowLabels, truncatedRowLabels } from '$lib/plots/shared/axisUtils'
   import {
+    drawRowDividers,
     fillPlotAreaBackground,
     niceTimelineTicks,
     bottomOriginYTicks,
@@ -247,11 +243,11 @@
       plotCursor?.publish(
         px === undefined
           ? null
-          : { times: () => [timeAtX(plot.frame, data.timeline, px)] }
+          : { times: cursorGuide.timesAt(px) }
       )
     },
     // Return type annotated: the guide reads `plot`, so inference would loop.
-    overlayDeps: (): string => cursorGuide.xsKey,
+    overlayDeps: (): string => cursorGuide.key,
   })
 
   // Gated on real bins: the empty result carries a fabricated 0–100 ms timeline
@@ -420,16 +416,7 @@
     // stream instead of re-running this whole render.
 
     if (alignment === 'heatmap') {
-      ctx.strokeStyle = AREA_DIVIDER.COLOR
-      ctx.lineWidth = AREA_DIVIDER.WIDTH
-      for (let s = 0; s < data.series.length - 1; s++) {
-        const stripBottom = seriesPaint[s].stripBottom
-        if (stripBottom === undefined) continue
-        ctx.beginPath()
-        ctx.moveTo(frame.x, stripBottom)
-        ctx.lineTo(frame.right, stripBottom)
-        ctx.stroke()
-      }
+      drawRowDividers(ctx, frame.x, frame.y, frame.width, frame.height, data.series.length)
     }
   }
 
@@ -441,15 +428,9 @@
     setUpFont(ctx)
 
     if (alignment === 'heatmap') {
+      // Pre-truncated to the same budget the axis reserved (single source).
       ctx.save()
-      ctx.textAlign = 'right'
-      ctx.textBaseline = 'middle'
-      for (let s = 0; s < data.series.length; s++) {
-        const paint = seriesPaint[s]
-        if (paint.stripBottom === undefined || paint.stripHeight === undefined) continue
-        // Pre-truncated to the same budget the gutter reserved (single source).
-        ctx.fillText(heatmapAoiLabels[s], frame.x - 10, paint.stripBottom - paint.stripHeight / 2)
-      }
+      drawRowLabels(ctx, heatmapAoiLabels, frame.x, frame.y, frame.height / data.series.length)
       ctx.restore()
     }
 
@@ -500,7 +481,7 @@
   // (which re-derives every series' coordinates).
   function drawStreamOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
     // Before the local-hover early return below: the remote mark must survive it.
-    drawTimeGuides(ctx, frame, cursorGuide.xs)
+    cursorGuide.draw(ctx)
     const tag = plot.hover.data
     const hoveredBinIndex = tag?.kind === 'bin' ? (tag.binIndex ?? null) : null
     const mouseXPx = tag?.kind === 'bin' ? (tag.x ?? null) : null

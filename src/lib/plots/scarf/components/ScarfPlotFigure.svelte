@@ -31,12 +31,7 @@
     resolveFrameLayout,
     trackOnlyHit,
   } from '$lib/plots/shared'
-  import {
-    cursorGuides,
-    drawTimeGuides,
-    timeAtX,
-    type PlotCursorPort,
-  } from '$lib/plots/shared/plotCursor.svelte'
+  import { cursorGuides, type PlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
   import { OVERLAY_EVENT_STRIDE, SCARF_LAYOUT } from '../const'
   import { buildScarfEventTooltipContent } from '../core/tooltip'
   import { findGazeSegmentAt } from '../core/hitTest'
@@ -215,16 +210,15 @@
       plotCursor?.publish(
         hover
           ? {
-              times: () => [timeAtX(rowBand, data.timeline, hover.x)],
+              times: cursorGuide.timesAt(hover.x),
               // Slice, not index: an undo that narrows the participants under a
               // resting pointer must read back EMPTY, never throw into a sibling.
               participants: () => participantIds.slice(hover.row, hover.row + 1),
             }
           : null
       ),
-    // Return type annotated, same cycle as `gutters`. The rows KEY, not the array:
-    // moving within one row must not repaint every sibling.
-    overlayDeps: (): string => `${cursorGuide.xsKey}:${cursorGuide.rowsKey}`,
+    // Return type annotated, same cycle as `gutters`.
+    overlayDeps: (): string => cursorGuide.key,
     blockedRegions: (): BlockedRegion[] => blockedRegions,
     pointer: {
       onDown: handlePointerDown,
@@ -386,7 +380,7 @@
   // renderScarf. Both channels come first — they must survive the local-hover
   // early return.
   function drawScarfOverlay(ctx: CanvasRenderingContext2D) {
-    drawTimeGuides(ctx, rowBand, cursorGuide.xs)
+    cursorGuide.draw(ctx)
     const hover = plot.hover.data
     const rows = hover ? [...cursorGuide.rows, hover.row] : cursorGuide.rows
     markCrosshairStrips(ctx, rowStrips(rows, rowBand, layout.heightOfBarWrap, 0.2))

@@ -8,7 +8,6 @@
     pixelLayer,
     rowStrips,
     strokeCrosshairGuides,
-    strokeParallelLines,
     type PixelLayer,
   } from '$lib/plots/shared/canvasUtils'
   import {
@@ -17,23 +16,18 @@
     PLOT_BORDER_PX,
     PLOT_EDGE_PAD_TOP,
     trackOnlyHit,
+    intervalAt,
     type CanvasExportProps,
     type PlotFrame,
     type FrameAxes,
     type FrameHit,
   } from '$lib/plots/shared'
-  import {
-    cursorGuides,
-    drawTimeGuides,
-    timeAtX,
-    type PlotCursorPort,
-  } from '$lib/plots/shared/plotCursor.svelte'
+  import { cursorGuides, type PlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
   import { measureTextHeight } from '$lib/shared/textMeasure'
   import { percentileSorted } from '$lib/shared/stats'
   import { samplePalette } from '$lib/color'
   import { INACTIVE_COLOR, PRESET_PALETTES, resolvePalette } from '$lib/color/palettes'
 
-  import { AREA_DIVIDER } from '$lib/plots/shared/const'
   import {
     AXIS_CONFIG,
     drawParticipantRowAxis,
@@ -42,6 +36,7 @@
     truncatedRowLabels,
   } from '$lib/plots/shared/axisUtils'
   import {
+    drawRowDividers,
     fillPlotAreaBackground,
     niceTimelineTicks,
     bottomOriginYTicks,
@@ -196,7 +191,7 @@
         hit === null
           ? null
           : {
-              times: () => [timeAtX(plot.frame, data.timeline, hit.x)],
+              times: cursorGuide.timesAt(hit.x),
               // Slice, not index: an undo that narrows the participants under a
               // resting pointer must read back EMPTY, never throw into a sibling.
               participants:
@@ -206,9 +201,8 @@
             }
       )
     },
-    // Annotated: `cursorX` reads `plot`, so inference would loop. The rows KEY, not
-    // the array: moving within one row must not repaint every sibling.
-    overlayDeps: (): string => `${cursorGuide.xsKey}:${cursorGuide.rowsKey}`,
+    // Annotated: the guide reads `plot`, so inference would loop.
+    overlayDeps: (): string => cursorGuide.key,
   })
 
   const hoveredMsTime = $derived(plot.hover.data?.t ?? null)
@@ -293,16 +287,8 @@
     windows: readonly EvolvingMetricsWindow[],
     t: number
   ): EvolvingMetricsWindow | null {
-    let lo = 0
-    let hi = windows.length - 1
-    while (lo <= hi) {
-      const mid = (lo + hi) >> 1
-      const w = windows[mid]
-      if (t < w.startMs) hi = mid - 1
-      else if (t >= w.endMs) lo = mid + 1
-      else return w
-    }
-    return null
+    const i = intervalAt(windows.length, j => windows[j].startMs, j => windows[j].endMs, t)
+    return i < 0 ? null : windows[i]
   }
 
   // The frame arrives already floored (resolveFrameLayout floors the rect), so
@@ -342,7 +328,7 @@
   function drawEvolvingOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
     // Both PLOT CURSOR channels first: they are independent of this plot's own
     // hover state, which the local chrome below drops out on.
-    drawTimeGuides(ctx, frame, cursorGuide.xs)
+    cursorGuide.draw(ctx)
     if (
       hoveredMsTime === null &&
       hoveredParticipantIndex === null &&
@@ -502,13 +488,7 @@
       }
     }
 
-    ctx.strokeStyle = AREA_DIVIDER.COLOR
-    ctx.lineWidth = AREA_DIVIDER.WIDTH
-    strokeParallelLines(
-      ctx, true, participantCount - 1,
-      p => alignToPixelCenter(frame.y + (p + 1) * rowHeight),
-      frame.x, frame.right
-    )
+    drawRowDividers(ctx, frame.x, frame.y, frame.width, frame.height, participantCount)
     // Hover highlight is drawn in `drawEvolvingOverlay` (overlay layer) so a
     // mouse move blits the cached heatmap instead of re-running this loop.
   }

@@ -5,6 +5,7 @@ import {
   getTimelinePositionRatio,
   createAdaptiveTimeline,
   getIntermediateTicks,
+  intervalAt,
 } from '$lib/plots/shared/timelineUtils'
 
 describe('timelineUtils', () => {
@@ -167,5 +168,29 @@ describe('timelineUtils', () => {
       expect(calculateNiceStepSize(3, 6)).toBe(0.5)
       expect(calculateNiceStepSize(15, 6)).toBe(2.5)
     })
+  })
+})
+
+describe('intervalAt', () => {
+  // [0, 100), gap, [150, 200), [200, 260)
+  const starts = [0, 150, 200]
+  const ends = [100, 200, 260]
+  const at = (t: number) => intervalAt(starts.length, i => starts[i], i => ends[i], t)
+
+  it('finds the interval holding t, start inclusive and end exclusive', () => {
+    expect(at(0)).toBe(0)
+    expect(at(99.9)).toBe(0)
+    expect(at(150)).toBe(1)
+    expect(at(200)).toBe(2)
+    expect(at(259)).toBe(2)
+  })
+
+  it('gives -1 in a gap, outside every interval, and for no intervals', () => {
+    expect(at(100)).toBe(-1)
+    expect(at(120)).toBe(-1)
+    expect(at(-1)).toBe(-1)
+    expect(at(260)).toBe(-1)
+    expect(at(NaN)).toBe(-1)
+    expect(intervalAt(0, () => 0, () => 1, 0)).toBe(-1)
   })
 })

@@ -3,6 +3,7 @@ import { resolveAoiSelectionVisibleIds } from '$lib/data/engine'
 import type { RecurrenceData, RecurrenceMethod, RecurrencePlotSettings, FixationRecord } from '../types'
 import { FIXATION_CATEGORY_ID } from '$lib/data/binary'
 import type { PlotPlaceholderContent } from '$lib/plots/shared/drawCanvasPlaceholder'
+import { intervalAt } from '$lib/plots/shared/timelineUtils'
 
 /**
  * Collect fixation records for a single participant on a stimulus.
@@ -76,19 +77,11 @@ export function collectFixations(
  *
  * `-1` during a saccade, in a tracking gap, and outside the recording: at those
  * instants they were fixating NOTHING, and snapping to the nearest fixation would
- * invent a position they never held. Binary search over the ascending onsets.
+ * invent a position they never held.
  */
 export function fixationAt(data: RecurrenceData, time: number): number {
   const { fixationStarts: starts, fixationEnds: ends } = data
-  let lo = 0
-  let hi = data.fixationCount - 1
-  while (lo <= hi) {
-    const mid = (lo + hi) >> 1
-    if (time < starts[mid]) hi = mid - 1
-    else if (time >= ends[mid]) lo = mid + 1
-    else return mid
-  }
-  return -1
+  return intervalAt(data.fixationCount, i => starts[i], i => ends[i], time)
 }
 
 /**

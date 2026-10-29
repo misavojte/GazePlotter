@@ -18,7 +18,7 @@ import {
   strokeCrispRect,
   strokeParallelLines,
 } from '$lib/plots/shared/canvasUtils'
-import { GRIDLINE_PRIMARY, FONT_PRIMARY } from './const'
+import { AREA_DIVIDER, GRIDLINE_PRIMARY, FONT_PRIMARY } from './const'
 import type { AdaptiveTimeline } from './timelineUtils'
 
 /** Tick-mark length (px) outward from the border; an edge with mirrored ticks reserves it. */
@@ -68,6 +68,31 @@ export function fillPlotAreaBackground(
   ctx.save()
   ctx.fillStyle = color
   ctx.fillRect(floorLeft, floorTop, floorWidth, floorHeight)
+  ctx.restore()
+}
+
+/**
+ * The dividers between `count` equal rows across the plot area, each on a
+ * crisp pixel row (row heatmaps: AOI timeline, metric timeline).
+ */
+export function drawRowDividers(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+  count: number
+): void {
+  if (count < 2) return
+  const rowHeight = height / count
+  ctx.save()
+  ctx.strokeStyle = AREA_DIVIDER.COLOR
+  ctx.lineWidth = AREA_DIVIDER.WIDTH
+  strokeParallelLines(
+    ctx, true, count - 1,
+    i => alignToPixelCenter(y + (i + 1) * rowHeight),
+    x, x + width
+  )
   ctx.restore()
 }
 

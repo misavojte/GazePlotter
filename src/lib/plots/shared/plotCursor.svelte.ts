@@ -307,13 +307,14 @@ export function cursorRows(
 }
 
 /**
- * The cursor's read-side, as one derived bundle: guide `xs` from the TIME
- * channel ({@link timeGuideXs} over `band`) and `rows` from the PARTICIPANTS
- * channel ({@link cursorRows} over `rowIds`), each with its `.join()` repaint
- * key for `overlayDeps`. All inputs are live accessors; `band` returning null
- * gates the time channel off (a plot whose empty result carries a fabricated
- * timeline must not project into it). Omit `rowIds` for a plot with no
- * participant rows.
+ * A time-axis plot's cursor wiring (scarf, AOI timeline, metric timeline), as
+ * one derived bundle: guide `xs` from the TIME channel ({@link timeGuideXs} over
+ * `band`) and `rows` from the PARTICIPANTS channel ({@link cursorRows} over
+ * `rowIds`), the `key` both repaint on for `overlayDeps`, `timesAt` to publish
+ * the instant under the pointer, and `draw` for the guides. All inputs are live
+ * accessors; `band` returning null gates the time channel off (a plot whose
+ * empty result carries a fabricated timeline must not project into it). Omit
+ * `rowIds` for a plot with no participant rows.
  */
 export function cursorGuides(opts: {
   cursor: () => PlotCursorPort | null
@@ -331,8 +332,21 @@ export function cursorGuides(opts: {
   )
   return {
     get xs() { return xs },
-    get xsKey() { return xs.join(',') },
     get rows() { return rows },
-    get rowsKey() { return rows.join(',') },
+    /** The marked positions, not the arrays: moving within one row or pixel
+     *  column must not repaint every sibling. */
+    get key() { return `${xs.join(',')}:${rows.join(',')}` },
+    /** The TIME channel's publish for canvas x: a live read, so a drag-pan or an
+     *  undo under a resting pointer re-derives the instant. */
+    timesAt: (px: number) => (): number[] => {
+      const band = opts.band()
+      return band === null ? [] : [timeAtX(band, opts.timeline(), px)]
+    },
+    /** The guides over the band. Self-clipping: safe as a `drawOverlay`'s first
+     *  line, which it must be to survive the figure's local-hover early return. */
+    draw: (ctx: CanvasRenderingContext2D) => {
+      const band = opts.band()
+      if (band !== null) drawTimeGuides(ctx, band, xs)
+    },
   }
 }

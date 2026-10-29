@@ -2,6 +2,7 @@
   import {
     usePlot,
     trackOnlyHit,
+    intervalAt,
     PLOT_BORDER_PX,
     type CanvasExportProps,
     type FrameHit,
@@ -191,15 +192,7 @@
   /** The fixation in progress at `t`, or -1 (a saccade or a gap). */
   function activeAt(t: number): number {
     const fx = data?.fixations ?? []
-    let lo = 0
-    let hi = fx.length
-    while (lo < hi) {
-      const mid = (lo + hi) >> 1
-      if (fx[mid].start <= t) lo = mid + 1
-      else hi = mid
-    }
-    const f = fx[lo - 1]
-    return f && t < f.start + f.duration ? lo - 1 : -1
+    return intervalAt(fx.length, i => fx[i].start, i => fx[i].start + fx[i].duration, t)
   }
 
   // Frame size mirror for the equal-aspect domain below. Written in an effect
