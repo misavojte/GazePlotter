@@ -58,20 +58,35 @@ describe('buildAllStimuliUnion', () => {
     expect(init.get('Face')).toEqual({
       displayedName: 'Face',
       color: '#ff0000',
+      mixedName: false,
     })
   })
 
-  it('labels n/total and flags * only when a later stimulus differs in name or color', () => {
+  it('labels n/total and lists the colors a row disagrees on', () => {
     const { rows } = buildAllStimuliUnion(divergent())
-    expect(rows.map(r => r.stimuliLabel)).toEqual(['2/3*', '1/3', '1/3'])
+    expect(rows.map(r => r.stimuliLabel)).toEqual(['2/3', '1/3', '1/3'])
+    expect(rows[0].mixedColors).toEqual(['#ff0000', '#0000ff'])
+    expect(rows[1].mixedColors).toBeUndefined()
+    expect(rows[0].mixedNames).toBeUndefined()
   })
 
-  it('does not flag * for a hex-case-only color difference', () => {
+  it('does not count a hex-case-only color difference as mixed', () => {
     const { rows } = buildAllStimuliUnion([
       stim(0, aoi(0, 'Face', '#FF0000')),
       stim(1, aoi(0, 'Face', '#ff0000')),
     ])
-    expect(rows[0].stimuliLabel).toBe('2/2')
+    expect(rows[0].mixedColors).toBeUndefined()
+  })
+
+  it('opens a row with differing names empty, keeping the first-seen name for selections', () => {
+    const { rows, init } = buildAllStimuliUnion([
+      stim(0, aoi(0, 'Face', '#ff0000', 'Face')),
+      stim(1, aoi(0, 'Face', '#ff0000', ' Face ')),
+      stim(2, aoi(0, 'Face', '#ff0000', 'Head')),
+    ])
+    expect(rows[0].displayedName).toBe('')
+    expect(rows[0].mixedNames).toEqual(['Face', 'Head'])
+    expect(init.get('Face')).toMatchObject({ displayedName: 'Face', mixedName: true })
   })
 
   it('collects every distinct trimmed displayed name per original name', () => {
@@ -115,6 +130,17 @@ describe('resolveAllStimuliEdits', () => {
     expect([
       ...resolveAllStimuliEdits(cleaned(), init, touch({ name: [1] })),
     ]).toEqual([['Nose', { displayedName: 'Nose' }]])
+  })
+
+  it('edits a mixed name only once it is non-empty', () => {
+    const mixed = [stim(0, aoi(0, 'Face', '#ff0000', 'Face')), stim(1, aoi(0, 'Face', '#ff0000', 'Head'))]
+    const union = buildAllStimuliUnion(mixed)
+    const rows = union.rows
+    expect(resolveAllStimuliEdits(rows, union.init, touch({ name: [0] })).size).toBe(0)
+    rows[0].displayedName = ' Face '
+    expect([...resolveAllStimuliEdits(rows, union.init, touch({ name: [0] }))]).toEqual([
+      ['Face', { displayedName: 'Face' }],
+    ])
   })
 
   it('ignores a hex-case-only color difference when untouched', () => {

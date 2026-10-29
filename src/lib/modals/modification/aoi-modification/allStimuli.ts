@@ -13,6 +13,9 @@ import type { ExtendedInterpretedDataType } from '$lib/data/types'
  * the first-seen value; an edited field is applied to every stimulus
  * containing that original name, unifying divergent per-stimulus values.
  * A field the user left alone keeps each stimulus's own value verbatim.
+ * A field whose value differs between stimuli opens "Mixed" (an empty name,
+ * a striped swatch): typing a name or picking a color applies it, and a name
+ * left or cleared empty keeps each stimulus's own.
  * Order reconciliation is opt-in by gesture (union rows rearranged).
  */
 
@@ -22,14 +25,22 @@ export interface StimulusAois {
 }
 
 export interface UnionRow extends ExtendedInterpretedDataType {
-  /** `n/total` stimuli containing the original name, `*` when its name or
-      color currently differs between stimuli. */
+  /** `n/total` stimuli containing the original name. */
   stimuliLabel: string
+  /** The distinct trimmed names, when they differ between stimuli; the row's
+      displayed name then opens empty ("Mixed"). */
+  mixedNames?: string[]
+  /** The distinct colors, when they differ between stimuli (striped swatch). */
+  mixedColors?: string[]
 }
 
 export interface UnionInit {
+  /** First-seen values: the open name selections are keyed by, and the color
+      the row opens with. */
   displayedName: string
   color: string
+  /** The name differs between stimuli: the row opens empty, and empty keeps each. */
+  mixedName: boolean
 }
 
 export interface AllStimuliUnion {
@@ -68,16 +79,24 @@ export function buildAllStimuliUnion(
   const init = new Map<string, UnionInit>()
   const openNames = new Map<string, Set<string>>()
   const counts = new Map<string, number>()
-  const varies = new Set<string>()
+  // Original name → distinct values in first-seen order (trimmed names, colors
+  // by lowercase hex), each mapped to the value as first seen.
+  const names = new Map<string, Map<string, string>>()
+  const colors = new Map<string, Map<string, string>>()
+  const note = (into: Map<string, Map<string, string>>, key: string, by: string, value: string) => {
+    let seen = into.get(key)
+    if (!seen) into.set(key, (seen = new Map()))
+    if (!seen.has(by)) seen.set(by, value)
+  }
 
   for (const { aois } of perStimulus) {
     const seen = new Set<string>()
     for (const a of aois) {
-      const first = init.get(a.originalName)
-      if (!first) {
+      if (!init.has(a.originalName)) {
         init.set(a.originalName, {
           displayedName: a.displayedName,
           color: a.color,
+          mixedName: false,
         })
         rows.push({
           id: rows.length,
@@ -86,12 +105,9 @@ export function buildAllStimuliUnion(
           color: a.color,
           stimuliLabel: '',
         })
-      } else if (
-        trimName(a.displayedName) !== trimName(first.displayedName) ||
-        !sameColor(a.color, first.color)
-      ) {
-        varies.add(a.originalName)
       }
+      note(names, a.originalName, trimName(a.displayedName), trimName(a.displayedName))
+      note(colors, a.originalName, trimName(a.color).toLowerCase(), a.color)
 
       const name = trimName(a.displayedName)
       if (name) {
@@ -108,8 +124,15 @@ export function buildAllStimuliUnion(
 
   const total = perStimulus.length
   for (const row of rows) {
-    const n = counts.get(row.originalName) ?? 0
-    row.stimuliLabel = `${n}/${total}${varies.has(row.originalName) ? '*' : ''}`
+    row.stimuliLabel = `${counts.get(row.originalName) ?? 0}/${total}`
+    const rowNames = [...names.get(row.originalName)!.values()]
+    const rowColors = [...colors.get(row.originalName)!.values()]
+    if (rowNames.length > 1) {
+      row.mixedNames = rowNames
+      row.displayedName = ''
+      init.get(row.originalName)!.mixedName = true
+    }
+    if (rowColors.length > 1) row.mixedColors = rowColors
   }
   return { rows, init, openNames }
 }
@@ -119,7 +142,8 @@ export function buildAllStimuliUnion(
  * (synthetic union ids); a field is edited iff `touched` holds the row id for
  * it OR its value differs from `init` (names trimmed both sides, colors
  * compared case-insensitively). Re-picking the shown value therefore IS an
- * edit — the only way to unify a divergent (`*`) row to what it shows.
+ * edit. A mixed name is edited only once non-empty: the row opens empty, and
+ * clearing it again keeps each stimulus's own name.
  */
 export function resolveAllStimuliEdits(
   cleaned: ExtendedInterpretedDataType[],
@@ -131,11 +155,13 @@ export function resolveAllStimuliEdits(
     const first = init.get(row.originalName)
     if (!first) continue
     const e: FieldEdits = {}
+    const name = trimName(row.displayedName)
     if (
-      touched.name.has(row.id) ||
-      trimName(row.displayedName) !== trimName(first.displayedName)
+      first.mixedName
+        ? name !== ''
+        : touched.name.has(row.id) || name !== trimName(first.displayedName)
     ) {
-      e.displayedName = trimName(row.displayedName)
+      e.displayedName = name
     }
     if (touched.color.has(row.id) || !sameColor(row.color, first.color)) {
       e.color = row.color

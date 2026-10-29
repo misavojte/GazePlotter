@@ -4,6 +4,7 @@
   import { getContrastTextColor, detectColorFormat } from '$lib/color'
   import { untrack } from 'svelte'
   import { fade } from 'svelte/transition'
+  import { useTooltipAction } from '$lib/tooltip'
 
   /**
    * Color picker input component wrapper.
@@ -21,6 +22,8 @@
     /** Multi-selection "Mixed": the bound plots disagree on this color. Shows a
      *  neutral "Mixed" swatch; picking a color applies it to all. */
     mixed?: boolean
+    /** The colors they disagree on: the Mixed swatch shows them as stripes. */
+    mixedColors?: readonly string[]
     oninput?: (event: CustomEvent<string>) => void
   }
 
@@ -33,8 +36,20 @@
     ariaLabel,
     compact = false,
     mixed = false,
+    mixedColors = [],
     oninput = () => {},
   }: Props = $props()
+
+  const tooltipAction = useTooltipAction()
+
+  /** Hard stops, one band per color: no in-between color nobody chose. */
+  const MAX_STRIPES = 6
+  const stripes = $derived.by(() => {
+    const colors = mixedColors.filter(c => detectColorFormat(c) !== 'invalid').slice(0, MAX_STRIPES)
+    if (!mixed || colors.length < 2) return null
+    const w = 100 / colors.length
+    return `linear-gradient(to right, ${colors.map((c, i) => `${c} ${i * w}% ${(i + 1) * w}%`).join(', ')})`
+  })
 
   // Controller for the color picker popup logic
   const picker = new ColorPickerState()
@@ -79,12 +94,18 @@
       aria-label={ariaLabel ?? (!showLabel ? label : undefined)}
       class:mixed
       style:background-color={mixed ? 'var(--c-lightgrey)' : formatColorValue}
+      style:background-image={stripes}
       style:width="{actualWidth}px"
       bind:this={picker.triggerElement}
+      use:tooltipAction={{
+        content: `Mixed: ${mixedColors.length} colors. Picking a color applies it to all.`,
+        disabled: !stripes,
+      }}
     >
-      {#if mixed}
+      <!-- Stripes speak for themselves; the label is for the plain grey swatch. -->
+      {#if mixed && !stripes}
         <span class="color-value mixed-label">Mixed</span>
-      {:else if showHexCode}
+      {:else if !mixed && showHexCode}
         <span class="color-value" style:color={contrastTextColor}>
           {formatColorValue}
         </span>

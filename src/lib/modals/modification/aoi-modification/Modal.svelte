@@ -31,6 +31,7 @@
     buildAllStimuliUnion,
     planAllStimuliUpdates,
     resolveAllStimuliEdits,
+    type AllStimuliUnion,
   } from './allStimuli'
 
   export interface Props {
@@ -88,8 +89,11 @@
   // a pushed step cannot leave the union stale.
   const perStimulus = () =>
     stimuli.map(s => ({ stimulusId: s.id, aois: getAllAois(engine, s.id) }))
+  // Selections key a row by its first-seen name, also when it opens "Mixed" (empty).
+  const openNamesOf = (union: AllStimuliUnion) =>
+    new Map(union.rows.map(r => [r.id, union.init.get(r.originalName)!.displayedName]))
   let all = buildAllStimuliUnion(perStimulus())
-  let allOpenById = new Map(all.rows.map(r => [r.id, r.displayedName]))
+  let allOpenById = openNamesOf(all)
   const allEditor = createGroupedEntityEditor({
     getItems: () => all.rows,
   })
@@ -118,8 +122,8 @@
   ]
   // Reordering here RECONCILES: rearranging the union (drag or sort) makes
   // every stimulus adopt the shared order on Apply. "Stimuli" = in how many
-  // stimuli the original name appears; "*" flags per-stimulus divergence an
-  // edit would unify.
+  // stimuli the original name appears; a name or color that differs between
+  // them shows as Mixed in its own field.
   const ALL_COLUMNS = [
     {
       label: 'Move',
@@ -138,7 +142,7 @@
       key: 'stimuliLabel',
       align: 'center' as const,
       tooltip:
-        'In how many of the stimuli this original AOI appears. * = its name or color currently differs between stimuli; a name or color you edit (even to the value shown) is applied to all of them, a field you leave alone keeps its per-stimulus values.',
+        "In how many of the stimuli this original AOI appears. A name or color you edit is applied to all of them. A field you leave alone keeps each stimulus's own value.",
     },
   ]
   const activeColumns = $derived(scope === 'all' ? ALL_COLUMNS : STIM_COLUMNS)
@@ -228,7 +232,7 @@
     session.clearTransient()
     if (next === 'all') {
       all = buildAllStimuliUnion(perStimulus())
-      allOpenById = new Map(all.rows.map(r => [r.id, r.displayedName]))
+      allOpenById = openNamesOf(all)
       allEditor.refresh()
     } else {
       const id = parseInt(next)

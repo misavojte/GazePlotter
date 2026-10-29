@@ -224,6 +224,7 @@
         width={40}
         value={state.value as string}
         mixed={state.mixed}
+        mixedColors={state.mixed ? bulk.distinct(s => (s as Record<string, unknown>)[f.key] as string) : undefined}
         oninput={e => bulk.update({ [f.key]: e.detail })}
       />
     {:else if f.kind === 'scaleRange'}

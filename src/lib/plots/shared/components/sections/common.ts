@@ -68,6 +68,11 @@ export function createBulkContext<S = Record<string, unknown>>(
     common<T>(read: (settings: S) => T): { value: T; mixed: boolean } {
       return computeCommonValue(targets().map(t => read(t.settings as S)))
     },
+    /** The distinct values of one field across the live selection, first-seen order. */
+    distinct<T>(read: (settings: S) => T): T[] {
+      const values = targets().map(t => read(t.settings as S))
+      return values.filter((v, i) => values.findIndex(w => valuesEqual(w, v)) === i)
+    },
     /** Broadcast the same scalar patch to every selected plot (one undo step). */
     update(patch: Partial<S>): void {
       workspace.updateItemsSettings(
