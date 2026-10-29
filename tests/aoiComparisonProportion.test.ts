@@ -7,9 +7,10 @@
 import { describe, it, expect } from 'vitest'
 import { makeTestEngine } from './helpers/testEngine'
 import type { DataEngine } from '../src/lib/data/engine/dataEngine.svelte'
-import { getAoiComparisonData } from '../src/lib/plots/aoi-comparison/core/transformer'
-import { deriveAoiComparisonView } from '../src/lib/plots/aoi-comparison/core/view'
-import type { AoiComparisonSettings } from '../src/lib/plots/aoi-comparison/types'
+import {
+  aoiComparisonDefinition,
+  type AoiComparisonSettings,
+} from '../src/lib/plots/aoi-comparison'
 import '../src/lib/metrics/init'
 
 const ID = { kind: 'identity-aoi-vector' as const }
@@ -29,7 +30,7 @@ function engineWith(perParticipant: number[][][]) {
 }
 
 function bar(engine: DataEngine, instanceId: string) {
-  return getAoiComparisonData(engine, {
+  return aoiComparisonDefinition.collect(engine, {
     stimulusId: 0, metricInstanceIds: [instanceId],
     orderBy: 'aoi', orderDirection: 'asc', scaleRange: [0, 0],
     statisticalOverlay: 'none',
@@ -78,7 +79,7 @@ describe('bar plot — proportion metric (noticed rate)', () => {
       metricInstanceIds: ['fixated'], scaleRange: [0, 0],
       statisticalOverlay: 'meanCi95', // set, but must be ignored for a proportion
     }
-    const view = deriveAoiComparisonView(engine, settings)
+    const view = aoiComparisonDefinition.view.deriveView(engine, settings)!
     // Full params on the plot (reproducible); the point here is NO statistic suffix.
     expect(view.props.axisLabel).toBe('Was fixated / % · Min fixations 1 · Min dwell 0 ms')
     expect(view.props.axisLabel).not.toMatch(/CI|SD|IQR/)
@@ -92,7 +93,7 @@ describe('bar plot — proportion metric (noticed rate)', () => {
       metricInstanceIds: ['absoluteTime'], scaleRange: [0, 0],
       statisticalOverlay: 'meanCi95',
     }
-    const view = deriveAoiComparisonView(engine, settings)
+    const view = aoiComparisonDefinition.view.deriveView(engine, settings)!
     expect(view.props.axisLabel).toMatch(/95% CI/)
   })
 

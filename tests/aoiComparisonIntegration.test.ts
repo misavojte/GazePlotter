@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { makeTwoAoiEngine } from './helpers/testEngine'
-import { getAoiComparisonData } from '../src/lib/plots/aoi-comparison/core/transformer'
+import { aoiComparisonDefinition } from '../src/lib/plots/aoi-comparison'
+
+const getAoiComparisonData = aoiComparisonDefinition.collect
 
 const ABSOLUTE_TIME_INSTANCE_ID = 'absoluteTime'
 

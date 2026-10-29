@@ -7,9 +7,11 @@ description: How plots are defined, fed data (metric library + binary readers), 
 
 Plot = folder `src/lib/plots/<name>/`: `definition.ts` (the complete recipe) + `core/` (transformer, view, optional screen.svelte.ts / layout / renderer) + `components/<Name>PlotFigure.svelte` — UNLESS a shared generic figure covers the plot family (square matrices use `shared/components/MatrixPlotFigure.svelte`; see Figure section). NO per-plot container components — generic host `shared/components/PlotContainer.svelte` executes every definition.
 
+Comparison plots (one distribution per category slot of a vector metric: `aoi-comparison`, `eye-movement-comparison`, `event-comparison`) are ONE `definition.ts` each: `defineDistributionPlot<Type, Settings>({ contract, axis, disclosures, categoryOrder, selectionSection, defaults, syncValueAxis? })` from `shared/distribution/plot.ts` (import it by that path, never the distribution barrel). The plot contributes only its contract and its category axis; pane section, defaults, collection, figure and sync are shared. `def.collect(engine, settings)` gives the data for tests.
+
 ## Definition = the plot
 
-`definePlot<Type, Settings>({...})` in `definition.ts`. Contract type: `PlotDefinition` in `definePlot.ts`. Example: `bar/definition.ts`.
+`definePlot<Type, Settings>({...})` in `definition.ts`. Contract type: `PlotDefinition` in `definePlot.ts`. Example: `transition-matrix/definition.ts`.
 
 - Required: `type, name, group, getDefaultSettings, paneSections, view`. Optional: `size` ({min?, w?, h?} in grid units — omit for the standard 11×10/12×12, see `DEFAULT_PLOT_SIZE`), `screen, requireCapabilities, getSubtitle, consumesMetrics, onCommand`. NO `component` field, NO sizing functions.
 - `view.deriveView(engine, settings, ctx?) → { component, props, hasData?, meta? } | null` — the ONE derivation for screen AND export. `ctx = {itemWidth, itemHeight}` (grid units; display budgets only).
@@ -32,7 +34,7 @@ Plot = folder `src/lib/plots/<name>/`: `definition.ts` (the complete recipe) + `
 ## Metric library
 
 - Settings carry `metricInstanceIds: string[]`; single-select plots read `[0]`.
-- Transformer: `const CONTRACT = {...} as const satisfies PlotMetricContract` then `resolveMetric({instances, id, contract})` (see `bar/core/transformer.ts`). `PlotMetricContract` (`metrics/filters.ts`): `{outputShape, windowing: 'forbidden'|'required'|'allowed', crossParticipant: 'reduce'|'distribution'|'per-participant'|'samples'|'group-axis', multiSelect?}`.
+- Transformer: `const CONTRACT = {...} as const satisfies PlotMetricContract` then `resolveMetric({instances, id, contract})` (see `transition-matrix/core/transformer.ts`). `PlotMetricContract` (`metrics/filters.ts`): `{outputShape, windowing: 'forbidden'|'required'|'allowed', crossParticipant: 'reduce'|'distribution'|'per-participant'|'samples'|'group-axis', multiSelect?}`.
 - Definition declares the same contract via `consumesMetrics` (drives pane + library filters).
 - Resolution failure → transformer returns `noMetric: true` → figure paints missing-metric placeholder.
 

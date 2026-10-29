@@ -14,8 +14,8 @@
  * their bundle.
  *
  * Deliberately NOT in this barrel, imported by their own paths instead: the
- * figure seam (`./figure` names a component) and the screen-side sync
- * (`./screen.svelte` carries runes).
+ * figure seam (`./figure` names a component), the screen-side sync
+ * (`./screen.svelte` carries runes) and the plot factory (`./plot` reaches both).
  *
  * Not re-exported through `$lib/plots/shared` — import this layer as
  * `$lib/plots/shared/distribution`, and note two import rules that ARE
@@ -24,12 +24,12 @@
  *  - modules here import NARROW paths (`shared/timelineUtils`,
  *    `shared/metricResolver`, `shared/labels`), never the `$lib/plots/shared`
  *    barrel — so consuming a distribution still pulls in no components;
- *  - a plot DEFINITION imports `distributionVisualizationSection` from
- *    `./paneSection` directly, never from this barrel. Transformers import the
- *    barrel, so it is already in-flight when the plot registry evaluates a
- *    definition — and a definition CALLS the factory at module-init, so through
- *    the barrel it reads an uninitialised binding
- *    ("distributionVisualizationSection is not a function").
+ *  - a plot DEFINITION imports `defineDistributionPlot` from `./plot`
+ *    directly, and uses this barrel only inside its lazy `axis`. A definition
+ *    CALLS the factory at module-init, while the plot registry's import cycle
+ *    may still be inside this barrel or `./plot`; a binding read there before
+ *    it is initialised throws ("Cannot access ... before initialization").
+ *    `./plot` therefore imports the figure last.
  */
 export * from './types'
 export * from './summaryStatistics'

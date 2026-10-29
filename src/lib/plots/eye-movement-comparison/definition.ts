@@ -1,25 +1,34 @@
-import { definePlot } from '$lib/plots/definePlot'
-import { stimulusParticipantsSubtitle } from '$lib/plots/shared'
-import { distributionDefaults, distributionVisualizationSection } from '$lib/plots/shared/distribution/paneSection'
-import { EYE_MOVEMENT_COMPARISON_CONTRACT } from './core/transformer'
-import { deriveEyeMovementComparisonView } from './core/view'
-import type { EyeMovementComparisonSettings } from './types'
+import { applyCategorySelection } from '$lib/data/engine'
+import { categoryGroups, type PlotMetricContract } from '$lib/metrics'
+import { distributionParticipants, entitySlots } from '$lib/plots/shared/distribution'
+import {
+  defineDistributionPlot,
+  type DistributionPlotSettings,
+} from '$lib/plots/shared/distribution/plot'
+
+/**
+ * Category-vector instances only: the metric IS the per-type vector, and this
+ * plot draws the whole vector as one distribution per type (identity
+ * projection). Single types are a `pick-category` projection concern on scalar
+ * plots, never a parameter.
+ */
+export const EYE_MOVEMENT_COMPARISON_CONTRACT = {
+  outputShape: 'category-vector',
+  windowing: 'forbidden',
+  crossParticipant: 'distribution',
+} as const satisfies PlotMetricContract
+
+export type EyeMovementComparisonSettings = DistributionPlotSettings<'type'> & {
+  /** Per-plot eye-movement-type SELECTION id; unset/0 = all types. */
+  categorySelectionId?: number
+}
 
 /**
  * Per-type comparison of eye-movement metrics (fixations vs saccades vs blinks
- * vs whatever the dataset records), rendered through the shared distribution
- * layer. The Metric section is the SAME library flow every metric plot uses;
- * the contract admits category-vector instances at identity, and the plot draws
- * the instance's whole vector — one distribution per type on the canonical
- * `categoryGroups` axis, narrowed by the per-plot eye-movement-type SELECTION.
- * Single types are a `pick-category` projection concern on scalar plots, never
- * anything this plot configures.
- *
- * No `screen` recipe: this plot does not sync its value axis across siblings
- * today. Its view already carries the meta for it, so opting in is adding
- * `screen: distributionValueAxisScreen()` and nothing else.
+ * vs whatever the dataset records): one distribution per type on the canonical
+ * `categoryGroups` axis, narrowed by the plot's eye-movement-type SELECTION.
  */
-export const eyeMovementComparisonDefinition = definePlot<
+export const eyeMovementComparisonDefinition = defineDistributionPlot<
   'eyeMovementComparison',
   EyeMovementComparisonSettings
 >({
@@ -27,24 +36,23 @@ export const eyeMovementComparisonDefinition = definePlot<
   name: 'Eye-movement Comparison',
   tagline: 'A metric per eye-movement type',
   group: 'gaze-behavior',
-  paneSections: [
-    'stimulus',
-    'participants',
-    'metric',
-    distributionVisualizationSection({
-      key: 'eyeMovementComparison:visualization',
-      categoryOrder: { label: 'Type order', value: 'type' },
-    }),
-    'timelineRange',
-    'eyeMovement',
-  ],
-  view: { deriveView: deriveEyeMovementComparisonView },
-  getSubtitle: stimulusParticipantsSubtitle,
-  getDefaultSettings: (params = {}) => ({
-    ...distributionDefaults(params),
-    metricInstanceIds: ['movementDuration'],
-    orderBy: 'type',
-  }),
+  contract: EYE_MOVEMENT_COMPARISON_CONTRACT,
+  categoryOrder: { label: 'Type order', value: 'type' },
+  selectionSection: 'eyeMovement',
+  defaults: { metricInstanceIds: ['movementDuration'] },
   requireCapabilities: ['segmented'],
-  consumesMetrics: EYE_MOVEMENT_COMPARISON_CONTRACT,
+  disclosures: {
+    itemTooltipKey: 'Type',
+    cannotFitHints: ['Select fewer types in Plot Settings > Eye-movement Types'],
+    ariaLabel: 'Eye-movement type comparison',
+  },
+  // The canonical `categoryGroups` order (the order the recipes' vectors are
+  // indexed by, so each group keeps its slot), narrowed by the same
+  // `applyCategorySelection` gate the scarf uses. Fixation is in the axis like
+  // any other group, so the seeded "Just fixations" row leaves exactly one slot.
+  axis: (engine, settings) => {
+    const axis = categoryGroups(engine).map((g, slot) => ({ ...g, slot }))
+    const { kept } = applyCategorySelection(engine, axis, settings.categorySelectionId)
+    return { slots: entitySlots(kept), ...distributionParticipants(engine, settings) }
+  },
 })

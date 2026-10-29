@@ -14,8 +14,10 @@
  */
 import { describe, it, expect } from 'vitest'
 import { makeTestEngine } from './helpers/testEngine'
-import { getEyeMovementComparisonData } from '../src/lib/plots/eye-movement-comparison'
+import { eyeMovementComparisonDefinition } from '../src/lib/plots/eye-movement-comparison'
 import { seededCategoriesSelection } from '../src/lib/data/types'
+
+const getEyeMovementComparisonData = eyeMovementComparisonDefinition.collect
 
 const STIM = 1
 
