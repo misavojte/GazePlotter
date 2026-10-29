@@ -4,8 +4,17 @@
  * Two independent channels, published together from one hover:
  *   TIMES        — absolute ms from the participant's first sample on the stimulus.
  *                  Comparable only WITHIN one stimulus, so it is scope-gated.
- *   PARTICIPANTS — the participant ids under the pointer. Comparable everywhere
- *                  (that is the point: one person across stimuli), so NOT gated.
+ *   PARTICIPANTS — the participant ids under the pointer. Gated by what the SET
+ *                  means, a property of the plot type (`ParticipantScope`):
+ *                  'identity': the pointer is on a person (a row, a node, a panel)
+ *                  or a named pair. A person is the same on every stimulus, so the
+ *                  set crosses stimuli; that is the point, one person across them.
+ *                  'stimulus': the set is DERIVED from a place on the stimulus
+ *                  ("who fixated near here", a heatmap cell). On another stimulus it
+ *                  reads as "these looked here", which is false, so only plots of
+ *                  the same stimulus mark it, and a plot spanning stimuli (the
+ *                  metric matrix) never does. Every future derived-set publisher
+ *                  (who entered this AOI) declares 'stimulus'.
  * A publisher may carry either, both, or neither. Two comparability rules in one
  * record is deliberate: a pointer position genuinely has independent channels.
  *
@@ -55,6 +64,16 @@ type PlotCursor = {
   times: { scope: () => number | null; at: () => readonly number[] } | null
   /** Null when the publisher has no participant under the pointer (an AOI stream). */
   participants: (() => readonly number[]) | null
+  /** The publisher's stimulus when its sets are 'stimulus'; null for 'identity'. */
+  participantsScope: (() => number | null) | null
+}
+
+/** How a plot sits on the PARTICIPANTS channel; see the file header. */
+export type ParticipantScope = {
+  /** This plot's stimulus; omitted only by a plot spanning stimuli. */
+  stimulus?: () => number | null
+  /** What the sets it publishes mean; 'identity' when omitted. */
+  publishes?: 'identity' | 'stimulus'
 }
 
 /** One shared empty set, so a cursor-less read is reference-stable. */
@@ -81,7 +100,8 @@ export interface PlotCursorPort {
   /** ANOTHER plot's instants when comparable here, plus a playing PLAYBACK
       CLOCK's time; empty when neither. */
   readonly times: readonly number[]
-  /** ANOTHER plot's participants under the pointer; empty when there are none. */
+  /** ANOTHER plot's participants under the pointer, less a 'stimulus' set from
+      another stimulus; empty when there are none. */
   readonly participants: readonly number[]
 }
 
@@ -94,7 +114,8 @@ export function createPlotCursorPort(
   state: PlotCursorState,
   plotId: number,
   timeScope: () => number | null = () => null,
-  clocks: PlaybackClocks | null = null
+  clocks: PlaybackClocks | null = null,
+  { stimulus = () => null, publishes = 'identity' }: ParticipantScope = {}
 ): PlotCursorPort {
   // Self-exclusion: the publisher's own CROSSHAIR already marks the pointer, and
   // it is what stops a reader ever re-entering its own projection.
@@ -114,6 +135,8 @@ export function createPlotCursorPort(
         plotId,
         times: at.times ? { scope: timeScope, at: at.times } : null,
         participants: at.participants ?? null,
+        // A 'stimulus' publisher with no stimulus reaches no one: it fails closed.
+        participantsScope: publishes === 'stimulus' ? stimulus : null,
       }
     },
     get times() {
@@ -126,7 +149,13 @@ export function createPlotCursorPort(
       return playing === null ? hovered : [...hovered, playing]
     },
     get participants() {
-      return others()?.participants?.() ?? NO_IDS
+      const c = others()
+      if (!c?.participants) return NO_IDS
+      if (c.participantsScope !== null) {
+        const mine = stimulus()
+        if (mine === null || c.participantsScope() !== mine) return NO_IDS
+      }
+      return c.participants()
     },
   }
 }
@@ -139,12 +168,17 @@ export function createPlotCursorPort(
  * `timeScope` is this plot's stimulus id, or `null` while its x axis is not
  * absolute time: one gate, both directions of the TIME channel. Omit it entirely
  * for a plot with no time axis (a matrix); the participant channel is unaffected.
+ *
+ * `stimulus` is this plot's stimulus id whatever its axes: it gates 'stimulus'
+ * participant sets both ways. Omit it only for a plot spanning stimuli.
+ * `publishes` is 'stimulus' for a plot whose participant set is derived from a
+ * place on the stimulus (the heatmap), never for one whose mark is a person.
  */
 export function plotCursorPort(
   plotId: number,
-  timeScope?: () => number | null
+  { timeScope, ...participants }: { timeScope?: () => number | null } & ParticipantScope = {}
 ): PlotCursorPort {
-  const port = createPlotCursorPort(usePlotCursor(), plotId, timeScope, usePlaybackClocks())
+  const port = createPlotCursorPort(usePlotCursor(), plotId, timeScope, usePlaybackClocks(), participants)
   onDestroy(() => port.publish(null))
   return port
 }
@@ -157,16 +191,21 @@ export function plotCursorPort(
  * own axes are not time: the scope gates reading as well as publishing, so a port
  * without it is permanently deaf to time (recurrence resolves a shared instant to
  * a fixation index while drawing ordinal axes). Omit it only when the plot neither
- * publishes nor reads a time.
+ * publishes nor reads a time. `stimulusOf` is omitted only by a plot spanning
+ * stimuli; these recipes all publish 'identity' sets.
  */
 export function plotCursorScreen<S>(
-  timeScopeOf?: (settings: S) => number | null
+  opts: {
+    timeScopeOf?: (settings: S) => number | null
+    stimulusOf?: (settings: S) => number
+  } = {}
 ): PlotScreenFactory<S> {
+  const { timeScopeOf, stimulusOf } = opts
   return ctx => {
-    const plotCursor = plotCursorPort(
-      ctx.item.id,
-      timeScopeOf && (() => timeScopeOf(ctx.item.settings))
-    )
+    const plotCursor = plotCursorPort(ctx.item.id, {
+      timeScope: timeScopeOf && (() => timeScopeOf(ctx.item.settings)),
+      stimulus: stimulusOf && (() => stimulusOf(ctx.item.settings)),
+    })
     return { props: () => ({ plotCursor }) }
   }
 }

@@ -23,7 +23,10 @@ export interface ScanpathPlayback {
  */
 export const scanpathScreen: PlotScreenFactory<ScanpathPlotSettings> = ctx => {
   const plotId = ctx.item.id
-  const plotCursor = plotCursorPort(plotId, () => ctx.item.settings.stimulusId)
+  const plotCursor = plotCursorPort(plotId, {
+    timeScope: () => ctx.item.settings.stimulusId,
+    stimulus: () => ctx.item.settings.stimulusId,
+  })
   const clocks = usePlaybackClocks()
 
   const clockKey = $derived(

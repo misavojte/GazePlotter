@@ -16,7 +16,7 @@ export const scanpathSimilarityScreen: PlotScreenFactory<
   ScanpathSimilaritySettings
 > = ctx => {
   // No time axis here, so no time scope.
-  const plotCursor = plotCursorPort(ctx.item.id)
+  const plotCursor = plotCursorPort(ctx.item.id, { stimulus: () => ctx.item.settings.stimulusId })
 
   const handleNodeClick = (nodeIndex: number) => {
     const ids = (ctx.view()?.props as { participantIds?: number[] } | undefined)

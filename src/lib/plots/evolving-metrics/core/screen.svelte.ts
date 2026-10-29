@@ -11,6 +11,9 @@ import type { EvolvingMetricsSettings } from '../types'
 export const evolvingMetricsScreen: PlotScreenFactory<
   EvolvingMetricsSettings
 > = ctx => {
-  const plotCursor = plotCursorPort(ctx.item.id, () => ctx.item.settings.stimulusId)
+  const plotCursor = plotCursorPort(ctx.item.id, {
+    timeScope: () => ctx.item.settings.stimulusId,
+    stimulus: () => ctx.item.settings.stimulusId,
+  })
   return { props: () => ({ plotCursor }) }
 }

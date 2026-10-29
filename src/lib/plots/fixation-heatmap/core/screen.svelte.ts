@@ -7,7 +7,11 @@ import type { FixationHeatmapPlotSettings } from '../types'
 
 /** Screen recipe: the PLOT CURSOR and color-scale sync (export renders the unsynced view). */
 export const fixationHeatmapScreen: PlotScreenFactory<FixationHeatmapPlotSettings> = ctx => {
-  const plotCursor = plotCursorPort(ctx.item.id)
+  // A cell's set is "who looked HERE", meaningless on another stimulus.
+  const plotCursor = plotCursorPort(ctx.item.id, {
+    stimulus: () => ctx.item.settings.stimulusId,
+    publishes: 'stimulus',
+  })
   const colorSync = fixationHeatmapColorSync()
 
   usePlotSync(

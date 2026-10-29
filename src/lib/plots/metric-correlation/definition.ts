@@ -56,7 +56,7 @@ export const metricCorrelationDefinition = definePlot<
     'aoi',
   ],
   view: { deriveView: deriveMetricCorrelationView },
-  screen: plotCursorScreen(),
+  screen: plotCursorScreen<MetricCorrelationSettings>({ stimulusOf: s => s.stimulusId }),
   getSubtitle: stimulusParticipantsSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,

@@ -91,7 +91,10 @@ export const recurrencePlotDefinition = definePlot<
   view: { deriveView: deriveRecurrenceView },
   // The time scope is load-bearing even though the axes are fixation indices: it
   // is what lets the plot READ a shared instant and resolve it to a fixation.
-  screen: plotCursorScreen<RecurrencePlotSettings>(s => s.stimulusId),
+  screen: plotCursorScreen<RecurrencePlotSettings>({
+    timeScopeOf: s => s.stimulusId,
+    stimulusOf: s => s.stimulusId,
+  }),
   getSubtitle: stimulusParticipantSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,

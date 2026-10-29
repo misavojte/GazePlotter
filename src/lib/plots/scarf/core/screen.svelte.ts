@@ -55,9 +55,10 @@ export const scarfScreen: PlotScreenFactory<ScarfPlotSettings> = ctx => {
     return scarfDataMax(ctx.engine, s.stimulusId, ids, s.timeline === 'ordinal')
   })
 
-  const plotCursor = plotCursorPort(ctx.item.id, () =>
-    absoluteTimeScope(effectiveSettings)
-  )
+  const plotCursor = plotCursorPort(ctx.item.id, {
+    timeScope: () => absoluteTimeScope(effectiveSettings),
+    stimulus: () => effectiveSettings.stimulusId,
+  })
 
   const isDefaultRange = $derived.by(() => {
     const s = effectiveSettings

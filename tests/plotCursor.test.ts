@@ -38,15 +38,22 @@ const WINDOW = { minValue: 1000, maxValue: 3000 }
 
 // One cursor per session (one pointer exists) — retract between cases.
 const cursorState = new PlotCursorState()
-const a = createPlotCursorPort(cursorState, 1, () => 7)
-const b = createPlotCursorPort(cursorState, 2, () => 7)
-const otherStimulus = createPlotCursorPort(cursorState, 3, () => 9)
-const notAbsolute = createPlotCursorPort(cursorState, 4, () => null)
+const a = createPlotCursorPort(cursorState, 1, () => 7, null, { stimulus: () => 7 })
+const b = createPlotCursorPort(cursorState, 2, () => 7, null, { stimulus: () => 7 })
+const otherStimulus = createPlotCursorPort(cursorState, 3, () => 9, null, { stimulus: () => 9 })
+/** An ordinal scarf: no time scope, still on stimulus 7. */
+const notAbsolute = createPlotCursorPort(cursorState, 4, () => null, null, { stimulus: () => 7 })
+/** A metric matrix: no time axis, spans stimuli. */
+const spanning = createPlotCursorPort(cursorState, 5)
+/** A heatmap on stimulus 7: its sets are "who looked here". */
+const heatmap = createPlotCursorPort(cursorState, 6, undefined, null, { stimulus: () => 7, publishes: 'stimulus' })
 afterEach(() => {
   a.publish(null)
   b.publish(null)
   otherStimulus.publish(null)
   notAbsolute.publish(null)
+  spanning.publish(null)
+  heatmap.publish(null)
 })
 
 describe('times channel', () => {
@@ -162,6 +169,26 @@ describe('participants channel', () => {
 
   it('reads a cursor-less empty set as one shared array, never a fresh one', () => {
     expect(b.participants).toBe(b.participants)
+  })
+
+  it("keeps a 'stimulus' set (a heatmap cell: who looked here) on its own stimulus", () => {
+    heatmap.publish({ participants: () => [12, 34] })
+    expect(a.participants).toEqual([12, 34])
+    expect(notAbsolute.participants).toEqual([12, 34])
+    expect(otherStimulus.participants).toEqual([])
+    expect(spanning.participants).toEqual([])
+  })
+
+  it('still lets an identity set reach a plot spanning stimuli', () => {
+    otherStimulus.publish({ participants: () => [12] })
+    expect(spanning.participants).toEqual([12])
+  })
+
+  it("fails closed for a 'stimulus' publisher that has lost its stimulus", () => {
+    const lost = createPlotCursorPort(cursorState, 7, undefined, null, { stimulus: () => null, publishes: 'stimulus' })
+    lost.publish({ participants: () => [12] })
+    expect(a.participants).toEqual([])
+    lost.publish(null)
   })
 })
 

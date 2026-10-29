@@ -20,7 +20,7 @@ import type { AoiStreamPlotResult, AoiStreamPlotSettings } from '../types'
 export const aoiStreamScreen: PlotScreenFactory<AoiStreamPlotSettings> = ctx => {
   // x is always absolute ms here, in all four alignments. Retract on destroy: a
   // plot removed under the pointer gets no `mouseleave`.
-  const plotCursor = plotCursorPort(ctx.item.id, () => ctx.item.settings.stimulusId)
+  const plotCursor = plotCursorPort(ctx.item.id, { timeScope: () => ctx.item.settings.stimulusId })
 
   // A plot participates in timeline sync only while its timeline is fully
   // auto: no global `timelineEnd` and no per-stimulus limits.
