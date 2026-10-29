@@ -1,14 +1,13 @@
 <script lang="ts">
   import {
     usePlot,
-    pixelLayer,
+    cachedRaster,
     trackOnlyHit,
     strokeCrosshairRing,
     PLOT_BORDER_PX,
     type CanvasExportProps,
     type FrameHit,
     type PlotFrame,
-    type PixelLayer,
   } from '$lib/plots/shared'
   import type { PlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
   import type { PlotPlaceholderContent } from '$lib/plots/shared/drawCanvasPlaceholder'
@@ -109,18 +108,12 @@
 
   // ── Cached heat texture: one pixel per grid cell, rebuilt only when the data
   // or its colouring changes; resizes just re-blit it (the recurrence pattern).
-  let tex: PixelLayer | null = null
-  let texKey: { data: FixationHeatmapData; lut: Uint32Array; top: number } | null = null
+  const heatRaster = cachedRaster()
 
-  function heatTexture(d: FixationHeatmapData): PixelLayer | null {
-    if (texKey && texKey.data === d && texKey.lut === lut && texKey.top === scaleTop && tex) return tex
-    tex = pixelLayer(tex, d.grid.cols, d.grid.rows)
-    if (!tex) return null
-    paintHeat(d.values, scaleTop, lut, tex.pixels)
-    tex.ctx.putImageData(tex.image, 0, 0)
-    texKey = { data: d, lut, top: scaleTop }
-    return tex
-  }
+  const heatTexture = (d: FixationHeatmapData) =>
+    heatRaster([d, lut, scaleTop], d.grid.cols, d.grid.rows, layer =>
+      paintHeat(d.values, scaleTop, lut, layer.pixels)
+    )
 
   function clipToRect(ctx: CanvasRenderingContext2D, r: Rect, frame: PlotFrame) {
     const s = space!.view.scale

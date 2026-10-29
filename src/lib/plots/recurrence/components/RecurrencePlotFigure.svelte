@@ -2,7 +2,7 @@
   import {
     usePlot,
     indexTicks,
-    pixelLayer,
+    cachedRaster,
     trackOnlyHit,
     packRgb,
     alignToPixelCenter,
@@ -12,7 +12,6 @@
     PLOT_TICK_LABEL_GAP,
     type CanvasExportProps,
     type PlotFrame,
-    type PixelLayer,
     type PlotPlaceholderContent,
   } from '$lib/plots/shared'
   import type { PlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
@@ -107,15 +106,10 @@
   const DIMMED_RGB = packRgb(hexToRgb(L.dimmedColor))
 
   // Cached recurrence texture: rebuilt only when the data/appearance change
-  // (see the invalidation guard in drawTexture), then scale-blitted on resize
+  // (the keys drawTexture passes), then scale-blitted on resize
   // so a drag never re-scans the matrix. Mirrors the evolving-metrics blit.
-  let tex: PixelLayer | null = null
+  const texRaster = cachedRaster()
   let texAlpha: Uint8Array | null = null
-  let texRes = 0
-  let texData: RecurrenceData | null = null
-  let texHighlight: RecurrenceHighlight | null = null
-  let texMasking: RecurrenceMasking | null = null
-  let texMask: Uint8Array | null = null
 
   const N = $derived(data?.fixationCount ?? 0)
   // Fixation k sits ON its tick: 1 at the axis line, N on the opposite border.
@@ -371,34 +365,20 @@
    * into a clean recurrence-density texture; upscaling stays crisp (nearest).
    */
   function drawTexture(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
-    if (!data) return
+    const d = data
+    if (!d) return
     const res = Math.max(1, Math.min(N, MAX_TEXTURE_PX))
     const activeMask =
       highlight !== 'none' && highlightMask !== null ? highlightMask : null
-    const stale =
-      texData !== data ||
-      texHighlight !== highlight ||
-      texMasking !== masking ||
-      texMask !== activeMask ||
-      texRes !== res ||
-      !tex
-
-    if (stale) {
-      // null = unsafe size or canvas-less environment (tests): skip the texture
-      const layer = pixelLayer(tex, res, res)
-      if (!layer) return
-      if (layer !== tex || !texAlpha) {
-        texAlpha = new Uint8Array(res * res)
-        texRes = res
-      }
-      tex = layer
-
+    // null = unsafe size or canvas-less environment (tests): skip the texture
+    const tex = texRaster([d, highlight, masking, activeMask], res, res, layer => {
+      if (texAlpha?.length !== res * res) texAlpha = new Uint8Array(res * res)
       const { rgb: colRgb, hasAoi } = columnColors
       rasterizeRecurrenceTexture(
         {
           n: N,
           res,
-          matrix: data.matrix,
+          matrix: d.matrix,
           columnRgb: colRgb,
           columnHasAoi: hasAoi,
           highlightMask: activeMask,
@@ -409,27 +389,22 @@
           maskDiagonal: masking === 'diagonal' || masking === 'diagonalLower',
           maskLower: masking === 'diagonalLower',
         },
-        tex.pixels,
+        layer.pixels,
         texAlpha
       )
-      tex.ctx.putImageData(tex.image, 0, 0)
-      texData = data
-      texHighlight = highlight
-      texMasking = masking
-      texMask = activeMask
-    }
+    })
     if (!tex) return
 
     const step = stepOf(frame)
     const side = frame.width + step // N spacings: N-1 inside plus half at each end
     const prevSmoothing = ctx.imageSmoothingEnabled
-    ctx.imageSmoothingEnabled = texRes > side // smooth on downscale only
+    ctx.imageSmoothingEnabled = res > side // smooth on downscale only
     ctx.drawImage(
       tex.canvas as CanvasImageSource,
       0,
       0,
-      texRes,
-      texRes,
+      res,
+      res,
       frame.x - step / 2,
       frame.y - step / 2,
       side,

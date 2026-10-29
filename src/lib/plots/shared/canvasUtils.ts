@@ -591,3 +591,35 @@ export function pixelLayer(
   const image = layer.ctx.createImageData(width, height)
   return { ...layer, image, pixels: new Uint32Array(image.data.buffer) }
 }
+
+/**
+ * A pixel layer that repaints only when its size or one of its keys changes
+ * (compared with `Object.is`); otherwise the last raster is handed back as is.
+ * `paint` fills `layer.pixels`; the cache puts them on the layer. Null as for
+ * createScratchLayer.
+ */
+export function cachedRaster(): (
+  keys: readonly unknown[],
+  width: number,
+  height: number,
+  paint: (layer: PixelLayer) => void
+) => PixelLayer | null {
+  let layer: PixelLayer | null = null
+  let painted: readonly unknown[] | null = null
+  return (keys, width, height, paint) => {
+    const next = pixelLayer(layer, width, height)
+    if (!next) return null
+    if (
+      next === layer &&
+      painted?.length === keys.length &&
+      keys.every((key, i) => Object.is(key, painted![i]))
+    )
+      return next
+    layer = next
+    painted = null
+    paint(next)
+    next.ctx.putImageData(next.image, 0, 0)
+    painted = keys
+    return next
+  }
+}
