@@ -72,7 +72,7 @@ const RENDER_FAILED_PLACEHOLDER: PlotPlaceholderContent = {
  * `gutters`, `drawData`, `axes`, optional `legend`/`gradientLegend`/
  * `drawOverlay`/`hitTest`/`pointer` — and writes only the
  * genuinely plot-specific marks, hit-test geometry and tooltip content. The
- * lower-level surface (`showTooltip`, `plotAreaWidth`, `canvasState`, …) is on
+ * lower-level surface (`plotAreaWidth`, `canvasState`, …) is on
  * the same handle for the rare figure that needs it.
  */
 
@@ -371,22 +371,6 @@ export interface UsePlotHandle<THit = unknown> {
   readonly canvasState: CanvasState
   readonly plotAreaWidth: number
   readonly plotAreaHeight: number
-  readonly plotLeft: number
-  readonly plotRight: number
-  readonly plotTop: number
-  readonly plotBottom: number
-  readonly safeWidth: number
-  readonly safeHeight: number
-  readonly setCursor: (cursor: string) => void
-  showTooltip: (
-    content: Array<{ key: string; value: string }>,
-    logicalX: number,
-    logicalY: number,
-    offset?: { x: number; y: number },
-    tooltipWidth?: number,
-    delay?: number
-  ) => void
-  hideTooltip: (delay?: number) => void
 }
 
 // ── Pure gutter resolver ──
@@ -659,8 +643,6 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   const plotRight = $derived(width() - margin())
   const plotTop = $derived(margin())
   const plotBottom = $derived(height() - margin())
-  const safeWidth = $derived(Math.max(1, width()))
-  const safeHeight = $derived(Math.max(1, height()))
 
   // ---- interaction state + helpers ----
   // Plain lets: only event handlers read these. Keeping them out of $state
@@ -1190,26 +1172,5 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
     get plotAreaHeight() {
       return plotAreaHeight
     },
-    get plotLeft() {
-      return plotLeft
-    },
-    get plotRight() {
-      return plotRight
-    },
-    get plotTop() {
-      return plotTop
-    },
-    get plotBottom() {
-      return plotBottom
-    },
-    get safeWidth() {
-      return safeWidth
-    },
-    get safeHeight() {
-      return safeHeight
-    },
-    setCursor,
-    showTooltip,
-    hideTooltip,
   }
 }
