@@ -1,19 +1,45 @@
 # Fixation Heatmap
 
-The Fixation Heatmap pools where a selection of participants fixated on one stimulus into one smoothed map. Every fixation adds its duration, or a count of one, through a Gaussian kernel, so regions that collected much fixation time read as hot. When the stimulus has an image as [reference media](/docs/workspace/stimuli-library/#reference-media), the map is drawn over it and clipped to it.
+The Fixation Heatmap pools the eye-tracking fixations of a participant selection on one stimulus into one smoothed map. Every fixation adds its duration, or a count of one, through a Gaussian kernel, so regions that collected much fixation time read as hot. When the stimulus has an image as [reference media](/docs/workspace/stimuli-library/#reference-media), the map is drawn over it and clipped to it.
 
 The map is built from fixations as classified in the source file. GazePlotter stores one coordinate per fixation (for Tobii Pro Lab: `Mapped fixation X/Y` or `Fixation point X/Y`), not raw gaze samples, so there is no raw-gaze variant of the map.
 
-> **Plot Operations**: For general canvas operations (moving, resizing, duplicating, or removing plots), see [Plot Manipulation](/docs/workspace/#plot-manipulation).
+![Fixation Heatmap card in the workspace: fixation duration share of all participants over the Yarbus Remember clothes painting.](/docs/images/fixation-heatmap.webp)
 
-## Metric Contract
+| | |
+| --- | --- |
+| **Scope** | One stimulus, a participant selection |
+| **Input** | Fixations with X/Y coordinates; the plot is offered when the dataset has them. The stimulus's reference image when attached. |
+| **Metric Library** | Not used, but the plot follows the library's time-range rules, so its totals agree with [Fixation count](/docs/metrics/counts-latency/) and [dwell time](/docs/metrics/durations/): a fixation's duration is clipped to the time range, and a fixation is counted when its midpoint lies in the range. |
 
-- **Metric Contract**: This visualization renders spatial coordinates directly and does not consume metrics from the Metric Library. It follows the library's time-range rules, so its totals agree with [Fixation count](/docs/metrics/counts-latency/) and [dwell time](/docs/metrics/durations/): a fixation's duration is clipped to the time range, and a fixation is counted when its midpoint lies in the range.
-- **Data**: Offered when the dataset carries spatial coordinates.
+> **Try it**: The [demo workspace](/) opens with this heatmap of all participants over the Yarbus Remember clothes painting.
 
-## Configuration via Pane
+## When to Use It
 
-Clicking the Fixation Heatmap plot card in the workspace selects the plot and opens its configuration options in the sidebar **Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
+- **Where a group looked**: see which regions of a stimulus collected the most fixation time across participants.
+- **Group comparison**: put two participant selections side by side on a shared color scale, see [Comparing Heatmaps](#comparing-heatmaps).
+- **Figures for a paper**: the legend and data summary travel with the exported figure, see [Report These Settings](#report-these-settings).
+
+## Reading the Plot
+
+Below the map, the legend and a data summary state everything needed to read and reproduce it. Both are part of exported figures.
+
+- **Legend**: The color bar from 0 to the scale maximum, drawn with the map's opacity and fade as they look on a white background (over an image, the colors mix with it). Its title says what the color means, for example `Fixation duration share / % · max auto · mean of 12 participants · t ≥ 1000 ms`: the quantity and unit, whether the maximum is automatic or fixed, the N it averages over, and the time range.
+- **Data summary**: The participant selection and the kernel (`R = 94 auto · σ = 31`), then only the warnings that apply: a peak above an explicit **Scale max** (`peak 9,040 ms > max 1,000 ms`), a video background that was not drawn, a radius below the grid resolution (peaks then read low), fixations outside the media (or outside the view, without media), fixations without coordinates, and participants without located fixations. The number of mapped fixations comes last. The summary wraps onto up to three lines instead of cutting clauses.
+
+Without reference media, the view frames all fixations on the stimulus, plus a margin of R, the same frame for every participant selection and time range. A few fixations far outside the bulk (more than half its size past its edges) are left outside the view; they still count, and the data summary lists them.
+
+## Add a Fixation Heatmap
+
+1. Load your data: drop the files anywhere on the page, or use **Import**. See [Uploading Data](/docs/upload-data/).
+2. In the rail on the left, click **Add Visualization**, then **Gaze behavior** > **Fixation Heatmap**. When another plot is selected, the new one opens on its stimulus and participants.
+3. The pane on the right opens with the plot's settings. Pick the **Stimulus** first.
+
+To move, resize, duplicate, or remove the card, see [Plot Manipulation](/docs/workspace/#plot-manipulation).
+
+## Settings
+
+Select the card to open its settings in the **Pane** (a bottom sheet on mobile). The sections, in pane order:
 
 ### Stimulus
 Select the stimulus whose fixations to map. With a reference image attached, the image is drawn under the map and the heat is clipped to it.
@@ -55,16 +81,8 @@ Located at the bottom of the Pane:
 - **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the heatmap as a PNG or JPG, with its legend and data summary.
 - **Download segments**: Opens the [Segmented Data](/docs/export/segmented-data/) export preset to this plot's stimulus and participant selection, over whole recordings.
 
-## Reading the Figure
+## Interactivity
 
-Below the map, the legend and a data summary state everything needed to read and reproduce it. Both are part of exported figures.
-
-- **Legend**: The color bar from 0 to the scale maximum, drawn with the map's opacity and fade as they look on a white background (over an image, the colors mix with it). Its title says what the color means, for example `Fixation duration share / % · max auto · mean of 12 participants · t ≥ 1000 ms`: the quantity and unit, whether the maximum is automatic or fixed, the N it averages over, and the time range.
-- **Data summary**: The participant selection and the kernel (`R = 94 auto · σ = 31`), then only the warnings that apply: a peak above an explicit **Scale max** (`peak 9,040 ms > max 1,000 ms`), a video background that was not drawn, a radius below the grid resolution (peaks then read low), fixations outside the media (or outside the view, without media), fixations without coordinates, and participants without located fixations. The number of mapped fixations comes last. The summary wraps onto up to three lines instead of cutting clauses.
-
-Without reference media, the view frames all fixations on the stimulus, plus a margin of R, the same frame for every participant selection and time range. A few fixations far outside the bulk (more than half its size past its edges) are left outside the view; they still count, and the data summary lists them.
-
-### Hover
 Hovering the map shows a dashed ring of radius R and a tooltip for the point under it:
 - **Map value**: The kernel-weighted value at the point, in the map's unit. It is not the time spent at that pixel.
 - **Within R**: The fixations inside the ring, with their total duration.
@@ -149,3 +167,9 @@ A methods sentence to adapt:
 
 - **Tobii Pro Lab snapshots**: A stimulus with its own `Mapped fixation X/Y [stimulus]` columns uses only those; an empty cell is a fixation that was not mapped onto the snapshot, and it has no coordinate. Each snapshot has its own pixel frame, so in snapshot studies consider setting R per stimulus. See [Tobii Pro Lab](/docs/upload-data/tobii-pro-lab/#spatial-coordinates).
 - **Custom CSV time series**: That layout splits rows by AOI changes, so each "fixation" is an AOI run located at its first sample, not a fixation centroid. Use a segmented layout with fixation rows for heatmaps. See [Custom CSV](/docs/upload-data/custom-csv/).
+
+## Related
+
+- [Scanpath](/docs/visualizations/scanpath/): the fixations of one participant, in order, over the stimulus.
+- [Scarf Plot](/docs/visualizations/scarf-plot/): when each participant looked at each AOI.
+- [AOI Comparison](/docs/visualizations/aoi-comparison/): fixation time and counts per AOI as numbers, with confidence intervals.

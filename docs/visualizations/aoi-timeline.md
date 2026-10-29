@@ -1,23 +1,42 @@
 # AOI Timeline
 
-AOI Timeline in GazePlotter provides a continuous visualization of how visual attention is distributed across Areas of Interest (AOIs) over time. By segmenting the timeline into discrete bins, this plot reveals the dynamic flow and density of participants' gaze, making it easier to identify peak attention periods and shifts between AOIs.
+An AOI Timeline shows how visual attention is distributed across Areas of Interest (AOIs) over the course of a stimulus, pooled across a participant selection. The timeline is cut into time bins, a windowed metric is computed for every AOI in every bin, and the result is drawn as a stream, a stacked area, a ridgeline, or a heatmap. Read it to find peak attention periods and the moments when attention shifts from one AOI to another.
 
-<!-- ![](/docs/images/eyetracking-aoi-stream-gazeplotter.jpg) -->
+![AOI Timeline card in the workspace: summed time on each AOI in a moving window across the Yarbus Remember clothes stimulus.](/docs/images/aoi-timeline.webp)
 
-> **Plot Operations**: For general canvas operations (moving, resizing, duplicating, or removing plots), see [Plot Manipulation](/docs/workspace/#plot-manipulation).
+| | |
+| --- | --- |
+| **Scope** | One stimulus, any participant selection, combined into one curve per AOI |
+| **Input** | Eye-movement segments with their AOI hits, within the time range |
+| **Metric Library** | One metric with the `aoi-vector` output shape (a value for each AOI), with windowing `required`: the metric's window and step sizes set the time bins. Default: *Time on AOI* in 500 ms windows |
 
-## Metric Contract
+## When to Use It
 
-To render a AOI Timeline plot, GazePlotter queries the workspace's metric library. This visualization requires a metric configuration that satisfies the following contract:
+- **Analyze attention shifts**: Observe when participants collectively move their gaze from one AOI to another.
+- **Identify peak engagement**: Pinpoint the exact moments when specific features receive maximum visual attention.
+- **Compare selection synchrony**: Assess whether different participant selections exhibit distinct or synchronized gaze behaviors over time.
+- **Evaluate temporal distribution**: Gauge whether an AOI receives sustained attention or quick, concentrated bursts.
 
-- **Output Shape**: `aoi-vector` (computes a value or distribution for each Area of Interest individually).
-- **Windowing**: `required` (must specify a window/bin size and step size to calculate the time course of attention).
+## Reading the Plot
 
-> **Metrics & Windowing Documentation**: For details on windowed calculations and Svelte-side frame math (like sub-bin overlap vs. midpoint-gating), see the [Metrics Library Overview](/docs/metrics), [Dwell Time & Fixation Durations](/docs/metrics/durations), and [Fixation Counts & Latency](/docs/metrics/counts-latency).
+- **Horizontal axis**: elapsed time in milliseconds; the axis title names the metric's window, and its step when the step differs.
+- **Bands, curves, or rows**: one per AOI, in the AOI's color. Their height (or, in *Heatmap*, their color) is the metric value in each bin.
+- **Vertical axis**: the metric and how participants were combined. In *Stream* the bands are stacked around a centered baseline, so the axis runs into negative values: read the thickness of a band, not its position.
+- **Legend**: one entry per AOI; *No AOI* is the time outside every AOI unless **Hide No AOI data** is on.
 
-## Configuration via Pane
+For windowed calculations and frame math (sub-bin overlap vs. midpoint gating), see the [Metrics Library Overview](/docs/metrics), [Dwell Time & Fixation Durations](/docs/metrics/durations), and [Fixation Counts & Latency](/docs/metrics/counts-latency).
 
-Clicking the AOI Timeline plot card in the workspace selects the plot and opens its configuration options in the sidebar **Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
+## Add an AOI Timeline
+
+1. Load your data: drop the files anywhere on the page, or use **Import**. See [Uploading Data](/docs/upload-data/) for the supported formats.
+2. In the rail on the left, click **Add Visualization**, then **Per AOI** > **AOI Timeline**. When another plot is selected, the new one opens on its stimulus and participants.
+3. The pane on the right opens with the plot's settings. Pick the **Stimulus** first.
+
+To move, resize, duplicate, or remove the card, see [Plot Manipulation](/docs/workspace/#plot-manipulation).
+
+## Settings
+
+Select the card to open its settings in the **Pane** (a bottom sheet on mobile). The sections, in pane order:
 
 ### Stimulus
 Choose the stimulus to analyze. Each stimulus contains its own set of Areas of Interest (AOIs) which will be displayed in the occupancy plot.
@@ -40,7 +59,7 @@ Configure the quantitative metric calculated inside each time bin.
 ### Visualization
 Configure the visual layout. The view decides which further controls the section shows; they are listed under the view that reveals them.
 - **Select view**: How the time-binned data is arrayed.
-  - *Stream*: A centered, flowing river-like visualization. Highlights the shifting volume of attention across AOIs without pinning data to a flat baseline, making broad temporal trends easily visible.
+  - *Stream* (default): A centered, flowing river-like visualization. Highlights the shifting volume of attention across AOIs without pinning data to a flat baseline, making broad temporal trends easily visible.
   - *Distribution*: A stacked area chart on a flat zero baseline, for reading the exact proportion or total occupancy of specific AOIs over time.
   - *Ridgeline*: Overlapping density curves per AOI, resembling a mountain range, for comparing peak attention times across AOIs independently.
     - **Ridge scale**: Vertical overlap (scale factor) between adjacent AOI curves, 1 to 10.
@@ -69,10 +88,14 @@ Located at the bottom of the Pane:
 - **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the timeline plot as a PNG or JPG.
 - **Download data**: Opens the [Metric Data](/docs/export/metric-data/) export preset to this plot's metrics, stimulus, participant selection, time range, AOI selection and **Hide No AOI data** setting.
 
-## Interpretation
+## Interactivity
 
-Use AOI Timeline to:
-- **Analyze attention shifts**: Observe when participants collectively move their gaze from one AOI to another.
-- **Identify peak engagement**: Pinpoint the exact moments when specific features receive maximum visual attention.
-- **Compare selection synchrony**: Assess whether different participant selections exhibit distinct or synchronized gaze behaviors over time.
-- **Evaluate temporal distribution**: Gauge whether an AOI receives sustained attention or quick, concentrated bursts.
+- **Window details**: Hovering the plot shows a tooltip for the time window under the pointer: its **Window** span in ms, its **Bin** number, and the value of every AOI with data in that window.
+- **Highlighting**: Clicking an AOI in the legend toggles a persistent highlight of that AOI.
+- **Linked hovering**: The hovered moment is marked in the other plots of the same stimulus, see [Linked Hovering Across Plots](/docs/visualizations/#linked-hovering-across-plots).
+
+## Related
+
+- [Scarf Plot](/docs/visualizations/scarf-plot/): the same AOI hits over time, one row per participant instead of pooled.
+- [AOI Comparison](/docs/visualizations/aoi-comparison/): AOI metrics over the whole time range, without time bins.
+- [Metric Timeline](/docs/visualizations/metric-timeline/): a windowed metric over time for each participant.

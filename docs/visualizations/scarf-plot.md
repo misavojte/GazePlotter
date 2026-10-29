@@ -1,19 +1,47 @@
 # Scarf Plot
 
-The Scarf Plot (or sequential graph) is a chronological visualization of eye movement data showing the sequence of fixations and saccades over time. Specific Areas of Interest (AOIs) in the stimulus are color-coded and displayed as contiguous horizontal strips. It is the primary visualization for detailed sequential analysis of visual search and scanpaths across participants or stimuli.
+In eye-tracking research, a scarf plot (also called a sequence chart) shows which Area of Interest (AOI) each participant looked at, and when. Every participant gets one row, time runs from left to right, and every fixation is a band in the color of the AOI it landed on. Read the rows together to see the order in which people work through a stimulus, where they agree, and who behaves differently.
 
-> **Plot Operations**: For general canvas operations (moving, resizing, duplicating, or removing plots), see [Plot Manipulation](/docs/workspace/#plot-manipulation).
+![Scarf Plot card in the workspace: AOI sequences of all participants on the Yarbus Remember clothes stimulus.](/docs/images/scarf-plot.webp)
 
-## Metric Contract
+| | |
+| --- | --- |
+| **Scope** | One stimulus, any participant selection |
+| **Input** | Fixations, saccades, and other eye-movement segments with their AOI hits; [event data](/docs/upload-data/events/) when the stimulus has it |
+| **Metric Library** | Not used: the plot draws the segments themselves |
 
-- **Metric Contract**: This visualization renders eye-tracking sequences directly and does not consume metrics from the Metric Library.
+> **Try it**: The [demo workspace](/) opens with two scarf plots, one on a still image and one on a video with dynamic AOIs.
 
-## Configuration via Pane
+## When to Use It
 
-Clicking the Scarf Plot card in the workspace selects the plot and opens its configuration options in the sidebar **Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
+- **Order of attention**: which AOI participants visit first, and whether they return to it.
+- **Agreement**: a column of one color across many rows means most participants looked at the same AOI at the same moment.
+- **Outliers and data quality**: participants who never visit an AOI, end early, or have long gaps where the tracker lost the eyes.
+- **Gaze against what was on screen**: with event channels, see whether participants looked at an AOI while it was visible, for example in video.
+
+## Reading the Plot
+
+- **Rows**: one per participant, labeled on the left.
+- **Horizontal axis**: elapsed time in milliseconds. *Relative* and *Ordinal* modes change it, see [Timeline mode](#visualization).
+- **Tall bands**: fixations, colored by AOI. *No AOI* (gray) is a fixation outside every AOI.
+- **Thin lines**: the other eye-movement types, such as saccades and *EyesNotFound*, each in its own shade of gray.
+- **Empty space**: no data for that time.
+- **Legend**: grouped into **Fixations** (one entry per AOI), **Non-fixations**, and **Event channels**. A time range set in the pane is noted in the axis title, for example *t ≤ 20087 ms*.
+
+## Add a Scarf Plot
+
+1. Load your data: drop the files anywhere on the page, or use **Import**. See [Uploading Data](/docs/upload-data/) for the supported formats.
+2. In the rail on the left, click **Add Visualization**, then **Gaze behavior** > **Scarf Plot**. When another plot is selected, the new one opens on its stimulus and participants.
+3. The pane on the right opens with the plot's settings. Pick the **Stimulus** first.
+
+To move, resize, duplicate, or remove the card, see [Plot Manipulation](/docs/workspace/#plot-manipulation).
+
+## Settings
+
+Select the card to open its settings in the **Pane** (a bottom sheet on mobile). The sections, in pane order:
 
 ### Stimulus
-Choose the stimulus to analyze. Each stimulus contains its own set of Areas of Interest (AOIs) which will be displayed in the scarf plot.
+Choose the stimulus to analyze. Each stimulus has its own set of AOIs.
 - **Edit stimuli & selections**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files.
 
 ### Participants
@@ -39,13 +67,13 @@ Narrows which AOIs this plot ranges over.
 - **Edit AOIs & selections**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
 
 ### Eye-movement Types
-Narrows which eye-movement types this plot draws — Fixation included: a selection without it hides the fixation layer (the full-height AOI bands).
+Narrows which eye-movement types this plot draws. Fixation is one of them: a selection without it hides the fixation layer (the tall AOI bands).
 - **Eye-movement type selection**: A dropdown containing *All* and the saved eye-movement type selections. The library ships *Just fixations*, which keeps the fixation layer and drops every other type; a selection with no members draws no gaze at all, leaving an events-only timeline.
 - **Edit eye-movement types & selections**: Opens the [Eye-movement Type Library](/docs/workspace/eye-movement-type-library/) to customize classification categories and selections.
 
 ### Events
-Narrows which event channels this plot overlays. Event channels render as an overlay — time-coded colored strips below each participant's gaze baseline — in *Absolute* and *Relative* modes whenever the stimulus has event data.
-- **Event selection**: A dropdown containing *All* and the saved event selections (matched by displayed channel name, portable across stimuli). The library ships *No events*, which holds no channels, so picking it hides the event overlay.
+Narrows which event channels this plot draws under each row, in *Absolute* and *Relative* modes, whenever the stimulus has event data.
+- **Event selection**: A dropdown containing *All* and the saved event selections (matched by displayed channel name, portable across stimuli). The library ships *No events*, which holds no channels, so picking it hides the event strips.
 - **Edit events & selections**: Opens the [Event Library](/docs/workspace/event-library/) to customize event names, colors, ordering, and selections.
 
 ### Export
@@ -55,10 +83,19 @@ Located at the bottom of the Pane:
 
 ## Interactivity
 
-The scarf plot is highly interactive:
 - **Sequence details**: Hovering over any fixation, saccade, or event strip displays a tooltip with details (e.g. duration, start/end times, and AOI or event name).
 - **Highlighting**: Hovering over a category (fixation, saccade, or specific AOI/event channel) in the legend temporarily highlights all matching segments across all participants and dims the rest. Clicking a legend category toggles a persistent highlight.
+- **Linked hovering**: The hovered moment and participant are marked in the other plots of the workspace, see [Linked Hovering Across Plots](/docs/visualizations/#linked-hovering-across-plots).
 
-## Event Data Layer
+## Event Channels and Dynamic AOIs
 
-GazePlotter supports event data (e.g., dynamic AOI visibility intervals) displayed under the participant gaze sequence. In **Overlay** mode, time-coded events hang below a shared baseline as colored strips. Overlapping events stack into lanes, and a thin gray line divides participants. Event data is displayed only in **Absolute** and **Relative** time views.
+When the stimulus has [event data](/docs/upload-data/events/), such as the visibility intervals of dynamic AOIs in a video, each event channel runs as a colored strip under every participant's gaze row. Overlapping events stack into lanes, and a thin gray line divides participants. Event strips are drawn only in *Absolute* and *Relative* modes.
+
+![Scarf Plot of the Promo video stimulus with dynamic AOIs: the visibility interval of each AOI runs as an event channel strip under every participant row.](/docs/images/scarf-plot-events.webp)
+
+## Related
+
+- [Scanpath](/docs/visualizations/scanpath/): the same fixations drawn over the stimulus, for one participant.
+- [AOI Timeline](/docs/visualizations/aoi-timeline/): how attention is split between AOIs over time, pooled across participants.
+- [Transition Matrix](/docs/visualizations/transition-matrix/): how often gaze moves from one AOI to another.
+- [Scanpath Similarity](/docs/visualizations/scanpath-similarity/): how alike the AOI sequences of participant pairs are.

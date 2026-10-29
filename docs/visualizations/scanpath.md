@@ -1,16 +1,43 @@
 # Scanpath
 
-The Scanpath plot provides a 2D spatial visualization of a participant's gaze trajectory. It displays fixations as circles (where the circle's radius corresponds to the fixation duration) and saccades as connecting lines, mapping the exact sequence of visual attention. When the stimulus has [reference media](/docs/workspace/stimuli-library/#reference-media) attached, the image or video is drawn behind the gaze data and its pixel size defines the coordinate space.
+A scanpath shows where one participant looked on a stimulus, and in what order. Each fixation is a circle at its position, sized by its duration, and a line joins consecutive fixations. When the stimulus has [reference media](/docs/workspace/stimuli-library/#reference-media) attached, the image or video is drawn behind the gaze data and its pixel size defines the coordinate space.
 
-> **Plot Operations**: For general canvas operations (moving, resizing, duplicating, or removing plots), see [Plot Manipulation](/docs/workspace/#plot-manipulation).
+![Scanpath card in the workspace: fixations of participant Astrid drawn over a frame of the Promo video stimulus, with the playback bar.](/docs/images/scanpath.webp)
 
-## Metric Contract
+| | |
+| --- | --- |
+| **Scope** | One stimulus, one participant |
+| **Input** | Fixations with X/Y coordinates; the stimulus's reference image or video when attached |
+| **Metric Library** | Not used: the plot draws the fixations themselves |
 
-- **Metric Contract**: This visualization renders spatial coordinates directly and does not consume metrics from the Metric Library.
+> **Try it**: The [demo workspace](/) opens with the scanpath of participant Astrid over the Promo video, ready to play.
 
-## Configuration via Pane
+## When to Use It
 
-Clicking the Scanpath plot card in the workspace selects the plot and opens its configuration options in the sidebar **Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
+- **Spatial trajectory**: see where a participant looked and trace the path they took through the stimulus.
+- **Duration density**: find regions of sustained visual processing by their larger fixation circles.
+- **Gaze over video**: play the scanpath with the video to see what was on screen at each fixation.
+- **Stimulus alignment**: with reference media attached, check whether fixations land on the expected regions of the image or video, and correct offsets with the [media alignment](/docs/workspace/stimuli-library/#aligning-media-on-fixations).
+
+## Reading the Plot
+
+- **Axes**: X and Y in gaze coordinates (the media's pixels when it is attached). Y grows downward, as on screen.
+- **Circles**: fixations, sized by duration.
+- **Color**: by default (**Time gradient**), a fixation's color shows when it began. The key at the bottom right maps the gradient to **Onset** time in seconds.
+- **Numbers and lines**: the fixation order. Where labels would overlap, the later fixation keeps its number.
+- **Play bar**: below the plot, see [Playback](#playback).
+
+## Add a Scanpath
+
+1. Load your data: drop the files anywhere on the page, or use **Import**. See [Uploading Data](/docs/upload-data/).
+2. In the rail on the left, click **Add Visualization**, then **Gaze behavior** > **Scanpath**. When another plot is selected, the new one opens on its stimulus.
+3. The pane on the right opens with the plot's settings. Pick the **Stimulus** and the **Participant**.
+
+To move, resize, duplicate, or remove the card, see [Plot Manipulation](/docs/workspace/#plot-manipulation).
+
+## Settings
+
+Select the card to open its settings in the **Pane** (a bottom sheet on mobile). The sections, in pane order:
 
 ### Stimulus
 Select the stimulus whose gaze data to plot. If the stimulus has reference media attached, it is drawn as the plot background.
@@ -56,11 +83,12 @@ With **Time gradient** coloring, the colors and the key stay fixed during playba
 
 A compact key at the bottom right of the plot, on the X axis title row, maps the gradient to time: **Onset**, the earliest onset in seconds, the gradient, and the latest. Figure exports include it. On a plot too narrow to fit it beside the axis title, the key is omitted.
 
-## Interpretation
+## Data Notes
 
-Use the Scanpath plot to:
-- **Analyze spatial trajectory**: See exactly where a participant looked and trace the path they took through the stimulus.
-- **Observe duration density**: Identify regions of sustained visual processing based on larger fixation circles.
-- **Verify stimulus alignment**: With reference media attached, check whether fixations land on the expected regions of the image or video, and correct offsets via the media's position mapping.
+- **Custom CSV time series**: That layout splits rows by AOI changes, so each plotted "fixation" is an AOI run located at its first sample. For a true scanpath, upload a segmented layout with one row per fixation. See [Custom CSV](/docs/upload-data/custom-csv/).
 
-> **Custom CSV time series**: That layout splits rows by AOI changes, so each plotted "fixation" is an AOI run located at its first sample. For a true scanpath, upload a segmented layout with one row per fixation. See [Custom CSV](/docs/upload-data/custom-csv/).
+## Related
+
+- [Scarf Plot](/docs/visualizations/scarf-plot/): the AOI sequence of every participant over time, without positions.
+- [Fixation Heatmap](/docs/visualizations/fixation-heatmap/): fixations of a participant selection pooled into one map, without order.
+- [Scanpath Similarity](/docs/visualizations/scanpath-similarity/): how alike the AOI sequences of participant pairs are.

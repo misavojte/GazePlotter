@@ -1,22 +1,40 @@
 # Metric Correlation
 
-Metric Correlation in GazePlotter provides statistical analysis of relationships between multiple eye-tracking metrics across participants. By calculating correlations between selected aggregate metrics (such as fixation durations, visit counts, or Recurrence Quantification Analysis (RQA) measures), this visualization displays relationships as a color-coded correlation heatmap matrix or a grid of scatter plots (Scatter Plot Matrix / SPLOM).
+Metric Correlation shows how strongly eye-tracking metrics move together across participants. Each selected metric yields one value per participant, for example fixation duration, visit count, or a Recurrence Quantification Analysis (RQA) measure, and every pair of metrics gets a Spearman or Pearson correlation coefficient. The result is drawn as a color-coded correlation matrix or as a grid of scatter plots (Scatter Plot Matrix, SPLOM).
 
-> **Plot Operations**: For general canvas operations (moving, resizing, duplicating, or removing plots), see [Plot Manipulation](/docs/workspace/#plot-manipulation).
+![Metric Correlation card in the workspace: Spearman correlation coefficients between the metrics in the Metric Library.](/docs/images/metric-correlation.webp)
 
-## Metric Contract
+| | |
+| --- | --- |
+| **Scope** | One stimulus, any participant selection; each participant is one sample |
+| **Input** | Fixations on the stimulus, within the time range and AOI selection |
+| **Metric Library** | Two or more `scalar` metrics, computed over the whole time range (no windows), one value per participant (see [Metrics](/docs/metrics)) |
 
-To render a Metric Correlation plot, GazePlotter queries the workspace's metric library. This visualization requires a metric configuration that satisfies the following contract:
+## When to Use It
 
-- **Output Shape**: `scalar` (each selected metric must compute a single numerical value per participant across the selected duration).
-- **Windowing**: `forbidden` (calculated across the selected time range as a single aggregate).
-- **Selection**: `multi-select` (must select at least two metrics to compute correlations).
+- **Discover behavioral trends**: For instance, a strong negative correlation between average fixation duration and visit count can reveal a scanning strategy of rapid, frequent visits vs. prolonged, deep inspections.
+- **Relate visual metrics to complexity**: Assess if repetitive gaze behaviors (RQA Recurrence Rate) correlate with longer average fixation durations, suggesting visual confusion or detailed visual processing.
+- **Identify outliers**: Scatter Plot Matrix (SPLOM) view plots individual participants as dots, helping identify anomalous participants who deviate from overall group trends.
+- **Compare cohort stats**: Select Spearman vs. Pearson correlation coefficients to assess the impact of extreme values or non-linearities on behavior trends.
 
-> **Metrics Documentation**: For details on how raw metric shapes translate to scalar projections (like matrix cell/aggregate or vector pick-aoi), see the [Metrics Library Overview](/docs/metrics) and category sub-pages.
+## Reading the Plot
 
-## Configuration via Pane
+- **Heatmap matrix**: rows and columns are the selected metrics. Each cell holds the correlation coefficient of the pair, printed in the cell and colored from blue (-1) through white (0) to red (+1). The diagonal is each metric against itself.
+- **Scatterplot matrix (SPLOM)**: the diagonal shows each metric's unit (or its label when it has none), the upper triangle prints the coefficient, and the lower triangle is a scatter of the pair with one dot per participant.
+- **Legend title**: the method and the number of participants, for example *Spearman correlation coefficient · N = 13*. When some participants lack a value for a metric, the smallest number of complete pairs behind any cell is added as *min pairwise n*.
+- **Missing coefficients**: a gray cell with *—* means no coefficient exists for the pair: too few participants have values for both metrics, or one metric has the same value for everyone.
 
-Clicking the Metric Correlation plot card in the workspace selects the plot and opens its configuration options in the sidebar **Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
+## Add a Metric Correlation
+
+1. Load your data: drop the files anywhere on the page, or use **Import**. See [Uploading Data](/docs/upload-data/) for the supported formats.
+2. In the rail on the left, click **Add Visualization**, then **Per participant** > **Metric Correlation**. When another plot is selected, the new one opens on its stimulus and participants.
+3. The pane on the right opens with the plot's settings. Pick the **Stimulus** first, then the **Metrics**.
+
+To move, resize, duplicate, or remove the card, see [Plot Manipulation](/docs/workspace/#plot-manipulation).
+
+## Settings
+
+Select the card to open its settings in the **Pane** (a bottom sheet on mobile). The sections, in pane order:
 
 ### Stimulus
 Choose the stimulus for which metrics are aggregated.
@@ -28,8 +46,8 @@ Filter the analysis to a participant selection. The correlation uses the values 
 - **Edit participants & selections**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
 
 ### Metrics
-Select which metrics to correlate.
-- **Select metrics**: A multi-select dropdown to choose two or more metric instances from the library. Standard aggregate metrics include:
+Select which metrics to correlate. Each must compute a single value per participant over the selected time range (output shape `scalar`, windowing `forbidden`); for how raw metric shapes become scalar projections (like matrix cell/aggregate or vector pick-aoi), see the [Metrics Library Overview](/docs/metrics) and its category pages.
+- **Select metrics**: A multi-select dropdown to choose two or more metric instances from the library. The default selection holds these standard aggregate metrics:
   - *Absolute dwell time* (`absoluteTime-any`): Total viewing time (see [Durations](/docs/metrics/durations)).
   - *Visit count* (`visitCount-any`): Total visits (see [Counts & Latency](/docs/metrics/counts-latency)).
   - *Visit duration* (`visitDuration-any`): Mean visit length (see [Durations](/docs/metrics/durations)).
@@ -45,13 +63,13 @@ Select which metrics to correlate.
 ### Visualization
 Configure the visual display format.
 - **Select view**:
-  - *Heatmap matrix*: Renders a square correlation matrix grid where rows and columns represent the selected metrics. Cell color intensity represents the correlation coefficient (ranging from -1.0 to +1.0).
-  - *Scatterplot matrix (SPLOM)*: Renders a Scatter Plot Matrix showing pairwise scatter plots with linear regression lines for each pair of metrics, highlighting outliers and individual distributions.
+  - *Heatmap matrix*: Renders a square correlation matrix grid where rows and columns represent the selected metrics. Cell color intensity represents the correlation coefficient (ranging from -1.0 to +1.0). This is the default.
+  - *Scatterplot matrix (SPLOM)*: Renders the coefficients above the diagonal and a pairwise scatter plot of participant values below it, highlighting outliers and individual distributions.
 
 ### Correlation method
 Select the statistical algorithm used to calculate correlation coefficients:
-- **Pearson**: Measures the linear relationship between metrics. Best for normally distributed, continuous data.
-- **Spearman**: Measures monotonic relationships using ranks. Resilient to non-linear associations and outliers.
+- **Spearman**: Measures monotonic relationships using ranks (ρ). Resilient to non-linear associations and outliers. This is the default.
+- **Pearson**: Measures the linear relationship between metrics (r). Best for normally distributed, continuous data; sensitive to outliers.
 
 ### Time range
 Filter the temporal range.
@@ -68,10 +86,12 @@ Located at the bottom of the Pane:
 - **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the correlation plot as a PNG or JPG.
 - **Download data**: Opens the [Metric Data](/docs/export/metric-data/) export preset to this plot's metrics, stimulus, participant selection, time range and AOI selection.
 
-## Interpretation
+## Interactivity
 
-Use Metric Correlation to:
-- **Discover behavioral trends**: For instance, a strong negative correlation between average fixation duration and visit count can reveal a scanning strategy of rapid, frequent visits vs. prolonged, deep inspections.
-- **Relate visual metrics to complexity**: Assess if repetitive gaze behaviors (RQA Recurrence Rate) correlate with longer average fixation durations, suggesting visual confusion or detailed visual processing.
-- **Identify outliers**: Scatter Plot Matrix (SPLOM) view plots individual participants as dots, helping identify anomalous participants who deviate from overall group trends.
-- **Compare cohort stats**: Select Spearman vs. Pearson correlation coefficients to assess the impact of extreme values or non-linearities on behavior trends.
+- **Linked hovering**: In the *Scatterplot matrix (SPLOM)* view, a participant hovered in another plot is marked as a ring on their dot, see [Linked Hovering Across Plots](/docs/visualizations/#linked-hovering-across-plots).
+
+## Related
+
+- [Metric Matrix](/docs/visualizations/metric-matrix/): the per-participant values of one metric across stimuli, before they are correlated.
+- [Metric Timeline](/docs/visualizations/metric-timeline/): one metric over moving time windows.
+- [Metric Data export](/docs/export/metric-data/): the values behind the coefficients, for your own statistics.
