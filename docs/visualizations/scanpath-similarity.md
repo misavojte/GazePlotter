@@ -61,9 +61,9 @@ Configure the rendering layout and thresholding. The view decides which further 
       - *Min*: Value mapped to the first gradient color (default 0).
       - *Max (0 = Auto)*: Value mapped to the last gradient color, or 0 to track the data maximum.
     - **Color scale picker**: Start, middle, and end colors of the gradient.
-    - **Out of bounds**: Fills for cells outside the range above; each also appears as an end cap on the color bar legend.
-      - *Below min*: Color (default gray) and a *Show text* toggle for cell values below Min.
-      - *Above max*: Color (default gray) and a *Show text* toggle for cell values above Max. Inert while Max is 0/Auto; its legend cap is hidden then too.
+    - **Out of bounds**: Fills for cells outside the range above; each also appears as an end cap on the color bar legend, and hovering the cap names the values it stands for. Each row is offered only while its end of the range is set.
+      - *Below min*: Color (default gray) and a *Show text* toggle for cell values below Min. Shown while Min is above 0.
+      - *Above max*: Color (default gray) and a *Show text* toggle for cell values above Max. Shown while Max is set (not 0/Auto).
   - *ScanGraph*: Renders a network graph (node-link diagram) where nodes represent participants, and lines (edges) connect participant pairs whose similarity score is above the threshold.
     - **Similarity threshold (0–1)**: The minimum similarity *p* required to draw an edge between two participant nodes (e.g. 0.50). Pairs below it are not connected.
     - **Edges (% of possible pairs)**: The same threshold seen from the other side: it always displays the share of participant pairs connected at the current *p*, so the two controls move together. Entering a percentage finds the *p* that draws at most that share of edges (ties round down, as in the ScanGraph article), and the field then shows the share actually achieved. The article's advised graph draws 5% of the possible edges.

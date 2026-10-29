@@ -68,9 +68,9 @@ Configure the visual layout. The view decides which further controls the section
       - *Min*: Value mapped to the first gradient color.
       - *Max (0 = Auto)*: Value mapped to the last gradient color, or 0 to track the data maximum.
     - **Color scale picker**: Minimum, middle, and maximum colors of the gradient.
-    - **Out of bounds**: Fills for bins outside the range above; each also appears as an end cap on the color bar legend. Bins are colored only, never printed, so there are no text-label toggles.
-      - *Below min*: Fill for a bin below Min (default gray). A bin with no data at all is always transparent, regardless of this setting.
-      - *Above max*: Fill for a bin above Max (default gray). Inert while Max is 0/Auto; its legend cap is hidden then too.
+    - **Out of bounds**: Fills for bins outside the range above; each also appears as an end cap on the color bar legend, and hovering the cap names the values it stands for. Bins are colored only, never printed, so there are no text-label toggles. Each fill is offered only while its end of the range is set.
+      - *Below min*: Fill for a bin below Min (default gray), shown while Min is above 0. A bin with no data at all is always transparent, regardless of this setting.
+      - *Above max*: Fill for a bin above Max (default gray), shown while Max is set (not 0/Auto).
 - **Hide No AOI data**: Drops the No AOI band (time outside every AOI), so only the named AOIs are shown.
 
 ### Time range

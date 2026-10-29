@@ -26,6 +26,7 @@
   import {
     computeGradientLegendGeometry,
     drawGradientLegend,
+    gradientCapHit,
   } from '../legendGradient'
   import { drawPlotArea } from '../plotArea'
   import {
@@ -325,6 +326,8 @@
     mx: number,
     my: number
   ): FrameHit<{ row: number; col: number }> | null {
+    const cap = gradientCapHit(legendGeometry, mx, my)
+    if (cap) return cap
     const cell = matrixCellAt(layout, mx, my, rows.length, cols.length)
     if (!cell) return null
     const { xOffset, yOffset, cellSize } = layout

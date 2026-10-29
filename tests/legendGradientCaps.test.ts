@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   computeGradientLegendGeometry,
   drawGradientLegend,
+  gradientCapHit,
   type GradientLegendConfig,
 } from '../src/lib/plots/shared/legendGradient'
 
@@ -27,8 +28,8 @@ describe('gradient legend out-of-bounds caps', () => {
     expect(g.width).toBe(g.gradientRect.width)
   })
 
-  it('puts the below-min cap left of the bar', () => {
-    const g = computeGradientLegendGeometry({ ...MINIMAL, belowMinColor: '#111111' })
+  it('puts the below-min cap left of the bar under a minimum above 0', () => {
+    const g = computeGradientLegendGeometry({ ...MINIMAL, valueRange: [1, 5], belowMinColor: '#111111' })
     expect(g.belowMinRect).toMatchObject({ x: g.x, width: CAP })
     expect(g.gradientRect.x).toBe(g.x + CAP)
     expect(g.width).toBe(g.gradientRect.width + CAP)
@@ -37,6 +38,7 @@ describe('gradient legend out-of-bounds caps', () => {
   it('puts the above-max cap right of the bar under an explicit max', () => {
     const g = computeGradientLegendGeometry({
       ...MINIMAL,
+      valueRange: [1, 5],
       belowMinColor: '#111111',
       aboveMaxColor: '#eeeeee',
     })
@@ -50,7 +52,7 @@ describe('gradient legend out-of-bounds caps', () => {
   it('hides the above-max cap while the max is auto (0)', () => {
     const g = computeGradientLegendGeometry({
       ...MINIMAL,
-      valueRange: [0, 0],
+      valueRange: [1, 0],
       belowMinColor: '#111111',
       aboveMaxColor: '#eeeeee',
     })
@@ -62,12 +64,34 @@ describe('gradient legend out-of-bounds caps', () => {
     const g = computeGradientLegendGeometry({
       ...MINIMAL,
       availableWidth: 200,
+      valueRange: [1, 5],
       fixedWidth: true,
       belowMinColor: '#111111',
       aboveMaxColor: '#eeeeee',
     })
     expect(g.width).toBeLessThanOrEqual(200)
     expect(g.gradientRect.width).toBe(200 - 2 * CAP)
+  })
+
+  it('hides the below-min cap while the minimum is 0: nothing falls below it', () => {
+    const g = computeGradientLegendGeometry({ ...MINIMAL, belowMinColor: '#111111', aboveMaxColor: '#eeeeee' })
+    expect(g.belowMinRect).toBeUndefined()
+    expect(g.aboveMaxRect).toBeDefined()
+    expect(g.gradientRect.x).toBe(g.x)
+  })
+
+  it('names the values each cap stands for on hover', () => {
+    const g = computeGradientLegendGeometry({
+      ...MINIMAL,
+      valueRange: [0.25, 5],
+      belowMinColor: '#111111',
+      aboveMaxColor: '#eeeeee',
+    })
+    const at = (r: { x: number; y: number; width: number; height: number }) =>
+      gradientCapHit(g, r.x + r.width / 2, r.y + r.height / 2)?.content
+    expect(at(g.belowMinRect!)).toEqual([{ key: 'Below min', value: 'Values below 0.25' }])
+    expect(at(g.aboveMaxRect!)).toEqual([{ key: 'Above max', value: 'Values above 5' }])
+    expect(at(g.gradientRect)).toBeUndefined()
   })
 
   it('in full mode the caps share the bar row and the labels sit at the bar ends', () => {

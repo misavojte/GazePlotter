@@ -44,7 +44,9 @@ export interface GradientLegendConfig {
   effectiveMaxValue: number
   /** Legend Title */
   title: string
-  /** Optional color for values below minimum (e.g. for "no data" or "zero") */
+  /** Optional color for values below the range minimum. Its cap is drawn only
+   *  while `valueRange[0]` is above 0: every colour-mapped value is a count,
+   *  duration, share or similarity, so nothing falls below 0. */
   belowMinColor?: string | null
   /** Optional color for values above the range maximum. Its cap is drawn only
    *  while `valueRange[1]` is explicit (non-zero): at auto nothing can exceed
@@ -78,6 +80,9 @@ export interface GradientLegendGeometry {
   colorScale: string[]
   belowMinColor?: string | null
   aboveMaxColor?: string | null
+  /** The range ends as printed, for the caps' hover notes. */
+  minText: string
+  maxText: string
 
   // Layout components. `title.lines` is the (1–2) wrapped title lines, drawn
   // stacked from `title.y`.
@@ -171,9 +176,10 @@ export function computeGradientLegendGeometry(
 
   const isMinimalist = availableHeight < GRADIENT_LEGEND_MINIMALIST_THRESHOLD
 
-  // Layout Width. Out-of-bounds caps flank the bar; the above-max cap exists
-  // only under an explicit maximum (auto IS the data max, nothing exceeds it).
-  const hasBelowMin = !!config.belowMinColor
+  // Layout Width. Out-of-bounds caps flank the bar, each only while something
+  // can fall past its end: a minimum above 0, an explicit maximum (auto IS the
+  // data max, nothing exceeds it).
+  const hasBelowMin = !!config.belowMinColor && valueRange[0] > 0
   const hasAboveMax = !!config.aboveMaxColor && valueRange[1] !== 0
   const capsWidth =
     (hasBelowMin ? GRADIENT_LEGEND_CAP_WIDTH : 0) +
@@ -222,6 +228,8 @@ export function computeGradientLegendGeometry(
       colorScale: config.colorScale,
       belowMinColor: config.belowMinColor,
       aboveMaxColor: config.aboveMaxColor,
+      minText,
+      maxText,
       gradientRect: {
         x: gradientX,
         y: barY,
@@ -297,6 +305,8 @@ export function computeGradientLegendGeometry(
     colorScale: config.colorScale,
     belowMinColor: config.belowMinColor,
     aboveMaxColor: config.aboveMaxColor,
+    minText,
+    maxText,
     title: titleObj,
     gradientRect: {
       x: gradientX,
@@ -307,6 +317,29 @@ export function computeGradientLegendGeometry(
     belowMinRect: hasBelowMin ? capRect(legendX, gradientY, BAR_HEIGHT) : undefined,
     aboveMaxRect: hasAboveMax ? capRect(aboveMaxX, gradientY, BAR_HEIGHT) : undefined,
     labels: labelsObj,
+  }
+}
+
+/** The hover note for an out-of-bounds cap under (x, y): which values take its colour. */
+export function gradientCapHit(
+  geometry: GradientLegendGeometry | null,
+  x: number,
+  y: number
+): { content: Array<{ key: string; value: string }>; anchorX: number; anchorY: number; cursor: string } | null {
+  if (!geometry) return null
+  const inside = (r: LegendRect | undefined): r is LegendRect =>
+    !!r && x >= r.x && x <= r.x + r.width && y >= r.y && y <= r.y + r.height
+  const below = inside(geometry.belowMinRect)
+  const rect = below ? geometry.belowMinRect! : geometry.aboveMaxRect
+  if (!below && !inside(rect)) return null
+  return {
+    content: below
+      ? [{ key: 'Below min', value: `Values below ${geometry.minText}` }]
+      : [{ key: 'Above max', value: `Values above ${geometry.maxText}` }],
+    // Below-right of the cap, as tooltips sit off their mark.
+    anchorX: rect!.x + rect!.width,
+    anchorY: rect!.y + rect!.height,
+    cursor: 'help',
   }
 }
 

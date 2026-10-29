@@ -46,7 +46,7 @@ export const metricMatrixDefinition = definePlot<
           defaultMin: PRESET_PALETTES.BLUE.colors[0],
           defaultMax: PRESET_PALETTES.BLUE.colors[2],
         },
-        ...outOfBoundsFields(),
+        ...outOfBoundsFields({ range: s => s.scaleRange }),
       ],
       summary: () => 'Matrix',
     },

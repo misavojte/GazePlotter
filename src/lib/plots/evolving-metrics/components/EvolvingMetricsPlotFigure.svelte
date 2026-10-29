@@ -28,7 +28,7 @@
   import { cursorGuides, type PlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
   import { percentileSorted } from '$lib/shared/stats'
   import { samplePalette } from '$lib/color'
-  import { INACTIVE_COLOR, PRESET_PALETTES, resolvePalette } from '$lib/color/palettes'
+  import { PRESET_PALETTES, resolvePalette } from '$lib/color/palettes'
 
   import {
     AXIS_CONFIG,
@@ -168,7 +168,6 @@
             valueRange: [data.valueMin, data.valueMax],
             effectiveMaxValue: data.valueMax,
             title: data.yAxisLabel,
-            belowMinColor: INACTIVE_COLOR,
           },
     drawData: drawEvolving,
     drawAboveAxes: drawRowLabels,

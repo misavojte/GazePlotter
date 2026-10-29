@@ -62,9 +62,9 @@ Configure cell scaling, colors, and outlier rendering.
   - *Min*: Set value mapped to the minimum color intensity.
   - *Max (0 = Auto)*: Set value mapped to the maximum color intensity or leave at 0 for automatic maximum scaling.
 - **Color scale picker**: Interactive color picker to select the start, middle, and end colors for the matrix gradient.
-- **Out of bounds**: Custom color settings for values that fall outside the range set above. Each color also appears as an end cap on the color bar legend.
-  - *Below min*: Choose color (default is gray) and toggle *Show text* labels for cell values below minimum.
-  - *Above max*: Choose color (default is gray) and toggle *Show text* labels for cell values above maximum. Inert while Max is left at 0/Auto, and its legend cap is hidden then too.
+- **Out of bounds**: Custom color settings for values that fall outside the range set above. Each color also appears as an end cap on the color bar legend, and hovering the cap names the values it stands for. Each row is offered only while its end of the range is set.
+  - *Below min*: Choose color (default is gray) and toggle *Show text* labels for cell values below minimum. Shown while Min is above 0.
+  - *Above max*: Choose color (default is gray) and toggle *Show text* labels for cell values above maximum. Shown while Max is set (not 0/Auto).
 - **Hide No AOI data**: Drops the No AOI row and column, so only transitions between named AOIs are shown.
 
 ### Time range

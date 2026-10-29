@@ -45,6 +45,7 @@ import {
   computeGradientLegendGeometry,
   drawGradientLegend,
   getGradientLegendRequiredHeight,
+  gradientCapHit,
   type GradientLegendConfig,
   type GradientLegendGeometry,
 } from './legendGradient'
@@ -909,7 +910,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
 
     if (hasHitLogic) {
       const r = resolved.rect
-      let hit = legendBandHit(x, y)
+      let hit: FrameHit<THit> | null = legendBandHit(x, y) ?? gradientCapHit(gradientLegend, x, y)
       if (!hit) {
         const inRect = x >= r.x && x <= r.right && y >= r.y && y <= r.bottom
         hit = (inRect ? options.hitTest : options.hitTestChrome)?.(x, y, frame) ?? null

@@ -7,11 +7,12 @@
  * literal otherwise hits the registry -> shared sections -> registry cycle.
  */
 import { INACTIVE_COLOR } from '$lib/color/palettes'
-import type { SectionField, SectionFieldCtx } from '$lib/plots/definePlot'
+import { commonIs, type SectionField, type SectionFieldCtx } from '$lib/plots/definePlot'
 
 export type OutOfBoundsColors = {
   /** Fill for a value below the range minimum. Distinct from the gradient's own
-   *  minimum color so a clipped cell never reads as a legitimate low value. */
+   *  minimum color so a clipped cell never reads as a legitimate low value.
+   *  Inert while the minimum is 0: no value falls below it. */
   belowMinColor: string
   /** Fill for a value above the range maximum. Inert while the maximum is left
    *  at 0 (auto): auto tracks the data max, which nothing exceeds. */
@@ -35,24 +36,37 @@ export const OUT_OF_BOUNDS_DEFAULTS: OutOfBoundsSettings = {
   showAboveMaxLabels: false,
 }
 
+/** The color range of a plot keyed per stimulus (`stimulusColorRange` field). */
+export const stimulusColorRange = (s: any): readonly number[] | undefined =>
+  s.stimuliColorValueRanges?.[s.stimulusId]
+
 /**
  * The "Out of bounds" caption group: a `Below min | Show text` row and an
- * `Above max | Show text` row. `labels: false` drops the toggles (the two colors
- * then share one row) for plots whose cells never print a value.
+ * `Above max | Show text` row, each shown only while that end of `range` is
+ * set (0 = Auto), when it can do anything. `labels: false` drops the toggles
+ * (the two colors then share one row) for plots whose cells never print a value.
  */
 export function outOfBoundsFields({
   labels = true,
+  range = stimulusColorRange,
   showWhen,
 }: {
   labels?: boolean
+  /** The plot's color range [min, max]. */
+  range?: (settings: any) => readonly number[] | undefined
   showWhen?: (ctx: SectionFieldCtx) => boolean
 } = {}): SectionField[] {
-  const shared = { group: 'Out of bounds', pair: true, showWhen }
+  const endSet = (end: 0 | 1) => {
+    const set = commonIs(s => (range(s)?.[end] ?? 0) > 0, true)
+    return { group: 'Out of bounds', pair: true, showWhen: (ctx: SectionFieldCtx) => (showWhen?.(ctx) ?? true) && set(ctx) }
+  }
+  const below = endSet(0)
+  const above = endSet(1)
   const fields: SectionField[] = [
-    { kind: 'color', key: 'belowMinColor', label: 'Below min', ...shared },
-    { kind: 'boolean', key: 'showBelowMinLabels', label: 'Show text', ...shared },
-    { kind: 'color', key: 'aboveMaxColor', label: 'Above max', ...shared },
-    { kind: 'boolean', key: 'showAboveMaxLabels', label: 'Show text', ...shared },
+    { kind: 'color', key: 'belowMinColor', label: 'Below min', ...below },
+    { kind: 'boolean', key: 'showBelowMinLabels', label: 'Show text', ...below },
+    { kind: 'color', key: 'aboveMaxColor', label: 'Above max', ...above },
+    { kind: 'boolean', key: 'showAboveMaxLabels', label: 'Show text', ...above },
   ]
   return labels ? fields : fields.filter(f => f.kind === 'color')
 }

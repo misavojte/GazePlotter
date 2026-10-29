@@ -68,9 +68,9 @@ Configure the color mapping:
   - *Min*: Set value mapped to the minimum color intensity.
   - *Max (0 = Auto)*: Set value mapped to the maximum color intensity, or leave at 0 for automatic scaling to the data maximum.
 - **Color scale picker**: Select the gradient stops (two or three colors) for the finite-value ramp; the default is a sequential blue ramp. The color bar legend beneath the figure is titled with the selected metric's full label and unit.
-- **Out of bounds**: Custom color settings for values that fall outside the range set above. Each color also appears as an end cap on the color bar legend.
-  - *Below min*: Choose color (default is gray) and toggle *Show text* labels for cell values below minimum.
-  - *Above max*: Choose color (default is gray) and toggle *Show text* labels for cell values above maximum. Inert while Max is left at 0/Auto, and its legend cap is hidden then too.
+- **Out of bounds**: Custom color settings for values that fall outside the range set above. Each color also appears as an end cap on the color bar legend, and hovering the cap names the values it stands for. Each row is offered only while its end of the range is set.
+  - *Below min*: Choose color (default is gray) and toggle *Show text* labels for cell values below minimum. Shown while Min is above 0.
+  - *Above max*: Choose color (default is gray) and toggle *Show text* labels for cell values above maximum. Shown while Max is set (not 0/Auto).
 
 ### Export
 Located at the bottom of the Pane:
