@@ -1,4 +1,4 @@
-import { PRESET_PALETTES } from '$lib/color'
+import { PRESET_PALETTES, UI_COLORS } from '$lib/color'
 
 export const SCANPATH_SIMILARITY_DEFAULTS = {
   threshold: 0.5,
@@ -9,7 +9,7 @@ export const SCANPATH_SIMILARITY_DEFAULTS = {
 
 export const SCANGRAPH_LAYOUT = {
   nodeRadius: 6,
-  linkColor: '#999',
+  linkColor: UI_COLORS.MUTED_MARK,
   linkOpacity: 0.6,
   chargeStrength: -120,
   linkDistance: 60,

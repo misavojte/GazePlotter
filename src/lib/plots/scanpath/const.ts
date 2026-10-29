@@ -1,3 +1,5 @@
+import { UI_COLORS } from '$lib/color'
+
 /** Layout constants: visual primitives only; the axis gutters are measured by usePlot. */
 export const SCANPATH_LAYOUT = {
   /** Trail length (ms) on a video when none is set: a moving frame needs a short window. */
@@ -37,8 +39,8 @@ export const SCANPATH_LAYOUT = {
 export const SCANPATH_COLORS = {
   fixationFill: '#e07a3a',
   fixationStroke: '#a04816',
-  polyline: '#5a5a5a',
-  numberLabel: '#1f1f1f',
+  polyline: UI_COLORS.CONNECTOR,
+  numberLabel: UI_COLORS.TEXT_PRIMARY,
   /** White separation halo behind marks and labels, for legibility over
       reference imagery. */
   halo: 'rgba(255, 255, 255, 0.85)',

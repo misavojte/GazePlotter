@@ -9,7 +9,7 @@ import {
   strokeParallelLines,
   type PixelLayer,
 } from '$lib/plots/shared/canvasUtils'
-import { desaturateToWhite, convertToHex, hexToRgb } from '$lib/color'
+import { desaturateToWhite, convertToHex, hexToRgb, UI_COLORS } from '$lib/color'
 import {
   OVERLAY_EVENT_STRIDE,
   SCARF_LAYOUT,
@@ -632,7 +632,7 @@ function paintEventStrips(
     const base =
       styleArray[styleIdx]?.normal?.fill ??
       styleArray[styleIdx]?.normal?.stroke ??
-      '#888888'
+      UI_COLORS.FALLBACK_MARK
     ctx.fillStyle = bandFill(base, isDimmed)
 
     const count = buffer.length / OVERLAY_EVENT_STRIDE

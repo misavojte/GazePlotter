@@ -13,6 +13,7 @@ import {
   applyCategorySelection,
   fixationLayerVisible,
 } from '$lib/data/engine'
+import { UI_COLORS } from '$lib/color'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { groupByDisplayedName } from '$lib/data/engine/utils/grouping'
 import {
@@ -834,8 +835,8 @@ export function createStyleArrays(
   eventBucketCount: number
 ) {
   const { indexToId } = identifierSystem
-  const rectFallback = { normal: { fill: '#ccc' } }
-  const eventFallback = { normal: { stroke: '#ccc', strokeWidth: 1 } }
+  const rectFallback = { normal: { fill: UI_COLORS.FALLBACK_MARK } }
+  const eventFallback = { normal: { stroke: UI_COLORS.FALLBACK_MARK, strokeWidth: 1 } }
 
   const rectStyles = new Array(rectBucketCount)
   for (let i = 0; i < rectBucketCount; i++) {

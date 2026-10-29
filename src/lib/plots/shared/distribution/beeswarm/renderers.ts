@@ -3,6 +3,7 @@ import {
   getTimelinePositionRatio,
 } from '$lib/plots/shared'
 import { alignToPixelCenter, strokeParallelLines } from '$lib/plots/shared/canvasUtils'
+import { UI_COLORS } from '$lib/color'
 import type { CategoryDistribution, StatisticalOverlayType } from '../types'
 
 // --- Layout types (this figure's resolved geometry) ---
@@ -53,7 +54,7 @@ const CELL_WIDTH = DOT_PITCH
 const DENSITY_SMOOTHING_CELLS = 1
 
 // Visual styling
-const DELIMITER_COLOR = '#e0e0e0'
+const DELIMITER_COLOR = UI_COLORS.BORDER_DEFAULT
 /**
  * The summary is the same size in every row, clamped only where a row is too
  * short to hold it. Spanning the row instead made its weight, and how much of the
@@ -61,7 +62,7 @@ const DELIMITER_COLOR = '#e0e0e0'
  */
 const MARKER_HALF_EXTENT = 8
 const MARKER_CAP_RATIO = 0.45
-const MARKER_COLOR = '#1a1a1a'
+const MARKER_COLOR = UI_COLORS.INK
 const MARKER_WIDTH_MEDIAN = 3 // median (boxplot) and mean (meanCi / meanSd)
 const MARKER_WIDTH_THIN = 1
 /**

@@ -1,5 +1,5 @@
 import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/textMeasure'
-import { UI_COLORS } from '$lib/color'
+import { INACTIVE_COLOR, UI_COLORS } from '$lib/color'
 import { markCrosshairNode, type MatrixLayout } from '$lib/plots/shared'
 import { cursorRows } from '$lib/plots/shared/plotCursor.svelte'
 import type { MetricCorrelationResult } from '../types'
@@ -47,7 +47,7 @@ function fitCellFont(
 }
 
 function cellBackground(r: number | null): string {
-  if (r === null) return '#fafafa'
+  if (r === null) return INACTIVE_COLOR
   const clamped = Math.max(-1, Math.min(1, r))
   const alpha = Math.abs(clamped) * 0.12
   if (clamped >= 0) return `rgba(202, 0, 32, ${alpha.toFixed(3)})`
@@ -55,7 +55,7 @@ function cellBackground(r: number | null): string {
 }
 
 function rColor(r: number): string {
-  if (Math.abs(r) < 0.5) return '#555'
+  if (Math.abs(r) < 0.5) return UI_COLORS.TEXT_SECONDARY
   return r > 0 ? '#a00015' : '#1a4a8a'
 }
 
@@ -144,7 +144,7 @@ export function createSplomCellRenderer(result: MetricCorrelationResult) {
         const y = yOffset + row * cellSize
 
         if (row === col) {
-          ctx.fillStyle = '#f0f0f0'
+          ctx.fillStyle = UI_COLORS.SURFACE_SUBTLE
           ctx.fillRect(x, y, cellSize, cellSize)
           const text = result.metrics[row].unit || result.metrics[row].label
           if (!fitCellFont(ctx, text, 500, scatterFontSize, cellSize - CELL_TEXT_INSET)) continue
@@ -162,7 +162,7 @@ export function createSplomCellRenderer(result: MetricCorrelationResult) {
           // Upper triangle: r value
           const label = cell.r === null ? '—' : cell.r.toFixed(2)
           if (!fitCellFont(ctx, label, 600, rFontSize, cellSize - CELL_TEXT_INSET)) continue
-          ctx.fillStyle = cell.r === null ? '#999' : rColor(cell.r)
+          ctx.fillStyle = cell.r === null ? UI_COLORS.TEXT_SECONDARY : rColor(cell.r)
           ctx.textAlign = 'center'
           ctx.textBaseline = 'middle'
           ctx.fillText(label, x + cellSize / 2, y + cellSize / 2)
@@ -171,7 +171,7 @@ export function createSplomCellRenderer(result: MetricCorrelationResult) {
           if (!cell.points || cell.points.length === 0) continue
           const proj = cellProjection(layout, ranges, row, col)
 
-          ctx.fillStyle = '#2c3e50'
+          ctx.fillStyle = UI_COLORS.INK
           ctx.globalAlpha = 0.65
           for (const point of cell.points) {
             ctx.beginPath()

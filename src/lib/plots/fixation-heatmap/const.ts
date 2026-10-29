@@ -1,3 +1,5 @@
+import { UI_COLORS } from '$lib/color'
+
 export const FIXATION_HEATMAP_LAYOUT = {
   tickCount: 5,
   /** The low end fades in over this share of the scale (smoothstep), so blobs
@@ -18,7 +20,7 @@ export const FIXATION_HEATMAP_LAYOUT = {
 } as const
 
 export const FIXATION_HEATMAP_COLORS = {
-  dot: '#1f1f1f',
+  dot: UI_COLORS.INK,
   dotHalo: '#ffffff',
   dotAlpha: 0.7,
 } as const

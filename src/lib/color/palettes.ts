@@ -49,30 +49,66 @@ export const PRESET_PALETTES = {
 } as const
 
 /**
- * Color used for inactive/empty/out-of-bounds cells, matching Transition Matrix.
+ * Neutral grey scale (R = G = B) for everything drawn inside a plot. No hue tint,
+ * so a grey never reads as a category colour or shifts the data colours next to
+ * it. The app chrome keeps its Slate tokens in DesignTokens.svelte.
+ *
+ * Steps are 8 apart in CIE L* (97 at 50 down to 17 at 950), so equal step gaps
+ * look like equal lightness gaps. Plots take greys through the roles in
+ * {@link UI_COLORS} and {@link INACTIVE_COLOR}, never a step directly.
  */
-export const INACTIVE_COLOR = '#e0e0e0'
+export const PLOT_GREY = {
+  50: '#f6f6f6',
+  100: '#dfdfdf',
+  200: '#c9c9c9',
+  300: '#b3b3b3',
+  400: '#9e9e9e',
+  500: '#898989',
+  600: '#747474',
+  700: '#616161',
+  800: '#4e4e4e',
+  900: '#3b3b3b',
+  950: '#2a2a2a',
+} as const
 
 /**
- * Common UI and Plot colors to ensure consistency across the application.
+ * Inactive, empty, non-finite and out-of-range cells or areas, in every plot,
+ * so "no value here" looks the same everywhere. Also the recurrence plot's
+ * trivial main diagonal, which no measure counts.
+ */
+export const INACTIVE_COLOR = PLOT_GREY[100]
+
+/**
+ * Colour roles for plots. Text roles meet WCAG AA (4.5:1) on white.
  */
 export const UI_COLORS = {
   /** Primary grid line color (slightly darker for contrast) */
-  GRID_PRIMARY: '#cbcbcb',
+  GRID_PRIMARY: PLOT_GREY[200],
   /** Secondary grid line color (light, for subtle subdivisions) */
-  GRID_SECONDARY: '#eee',
-  /** Primary text color for plot labels and axes */
-  TEXT_PRIMARY: '#222',
-  /** Secondary text color for less prominent UI elements */
-  TEXT_SECONDARY: '#666',
+  GRID_SECONDARY: PLOT_GREY[50],
+  /** Primary text color for plot labels and axes (14:1 on white) */
+  TEXT_PRIMARY: PLOT_GREY[950],
+  /** Secondary text for less prominent labels and placeholders (6.2:1 on white,
+      4.6:1 on INACTIVE_COLOR) */
+  TEXT_SECONDARY: PLOT_GREY[700],
   /** Default background for panels and modals */
   BG_PRIMARY: '#ffffff',
-  /** Standard border color for UI components */
-  BORDER_DEFAULT: '#ddd',
+  /** Borders and row dividers */
+  BORDER_DEFAULT: PLOT_GREY[100],
+  /** Faint fill behind header or label cells inside a plot */
+  SURFACE_SUBTLE: PLOT_GREY[50],
+  /** Data marks that carry no colour of their own (dots, summary markers) */
+  INK: PLOT_GREY[950],
+  /** Lines joining marks in sequence (scanpath saccades) */
+  CONNECTOR: PLOT_GREY[700],
+  /** De-emphasised marks: dimmed by a highlight, or background structure */
+  MUTED_MARK: PLOT_GREY[400],
+  /** Mark whose style is missing; should never show in a healthy plot */
+  FALLBACK_MARK: PLOT_GREY[500],
   /** Error or alert color */
   DANGER: '#d62728',
   /** Dark outline color for event markers and legend icons */
-  MARKER_OUTLINE: '#333333',
+  MARKER_OUTLINE: PLOT_GREY[900],
 } as const
 
 /**
@@ -107,15 +143,17 @@ export const DEFAULT_AOI_COLORS: readonly string[] = CATEGORICAL_PALETTE.filter(
 
 /**
  * Grayscale base color palette for categories (e.g. Saccades, Blinks) if none are specified.
+ * Every other step of {@link PLOT_GREY} (16 L* apart), leaving {@link DEFAULT_NO_AOI_COLOR}
+ * on the step between the two lightest.
  */
 export const DEFAULT_CATEGORY_COLORS = [
-  '#5b6375', // Slate dark
-  '#7d8597', // Slate medium dark
-  '#a3abb8', // Slate medium light
-  '#c8cee0', // Slate light
+  PLOT_GREY[700],
+  PLOT_GREY[500],
+  PLOT_GREY[300],
+  PLOT_GREY[100],
 ] as const
 
 /**
  * Default color for "No AOI" treatment.
  */
-export const DEFAULT_NO_AOI_COLOR = '#c0c0c0'
+export const DEFAULT_NO_AOI_COLOR = PLOT_GREY[200]

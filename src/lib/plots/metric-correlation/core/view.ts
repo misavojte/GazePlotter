@@ -1,5 +1,6 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotView } from '$lib/plots/definePlot'
+import { INACTIVE_COLOR } from '$lib/color'
 import {
   MatrixPlotFigure,
   MIN_LEGIBLE_SPLOM_CELL_SIZE,
@@ -110,7 +111,7 @@ export function deriveMetricCorrelationView(
       matrix: flatMatrix,
       colorScale: HEATMAP_COLOR_SCALE,
       colorValueRange: [-1, 1] as [number, number],
-      nonFiniteColor: '#f2f2f2',
+      nonFiniteColor: INACTIVE_COLOR,
       legendTitle: buildLegendTitle(result),
       tooltipWidth: 200,
     },

@@ -1,3 +1,4 @@
+import { INACTIVE_COLOR, UI_COLORS } from '$lib/color'
 import type {
   RecurrenceMethod,
   RecurrenceHighlight,
@@ -46,10 +47,10 @@ export const RECURRENCE_LAYOUT = {
       mirrored ticks and the label at the axis end need room inside the canvas. */
   edgePadPx: 7,
   dotColor: '#1a56db',
-  diagonalColor: '#e5e7eb',
+  diagonalColor: INACTIVE_COLOR,
   highlightDiagonal: '#e74c3c',
   highlightHorizontal: '#8e44ad',
   highlightVertical: '#0d9488',
-  dimmedColor: '#9ca3af',
+  dimmedColor: UI_COLORS.MUTED_MARK,
   dimmedAlpha: 0.15,
 } as const
