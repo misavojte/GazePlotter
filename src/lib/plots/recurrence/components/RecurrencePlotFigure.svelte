@@ -14,6 +14,7 @@
     type CanvasExportProps,
     type PlotFrame,
     type PixelLayer,
+    type PlotPlaceholderContent,
   } from '$lib/plots/shared'
   import type { PlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
   import { hexToRgb, convertToHex } from '$lib/color'
@@ -38,6 +39,8 @@
     highlight?: RecurrenceHighlight
     masking?: RecurrenceMasking
     highlightMask?: Uint8Array | null
+    /** Replaces the matrix when it carries no information (an AOI in every fixation). */
+    warning?: PlotPlaceholderContent | null
     /** The one participant this panel is about. */
     participantId?: number
     /** Shared PLOT CURSOR (screen-only; export renders without one). */
@@ -49,6 +52,7 @@
     highlight = 'none',
     masking = 'diagonal',
     highlightMask = null,
+    warning = null,
     participantId,
     plotCursor = null,
     width = 400,
@@ -169,17 +173,17 @@
     width: () => width,
     height: () => height,
     margin: () => margin,
-    deps: () => [data, highlight, masking, highlightMask],
+    deps: () => [data, highlight, masking, highlightMask, warning],
     // No fit guard: the recurrence matrix is rendered as a texture (drawRaster)
     // at any density, so hundreds of fixations stay legible as a pattern. The
-    // only placeholder is the genuine "no data" case.
+    // placeholders are the "no data" case and a matrix that is recurrent everywhere.
     placeholder: () =>
       N < 2
         ? {
             message: 'Fewer than 2 fixations to compare.',
             steps: ['Pick another Participant or Stimulus'],
           }
-        : null,
+        : warning,
     gutters: () => {
       if (N < 2) return {}
       return {

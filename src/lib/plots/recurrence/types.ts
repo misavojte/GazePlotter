@@ -38,6 +38,9 @@ export interface RecurrenceData {
    *  saccade, where this participant was fixating nothing. */
   fixationStarts: Float64Array
   fixationEnds: Float64Array
+  /** AOI mode: names of the AOIs every fixation hits, which make every pair
+   *  recurrent. Empty otherwise. */
+  aoisInEveryFixation: string[]
 }
 
 export interface FixationRecord {

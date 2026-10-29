@@ -2,6 +2,7 @@ import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { resolveAoiSelectionVisibleIds } from '$lib/data/engine'
 import type { RecurrenceData, RecurrenceMethod, RecurrencePlotSettings, FixationRecord } from '../types'
 import { FIXATION_CATEGORY_ID } from '$lib/data/binary'
+import type { PlotPlaceholderContent } from '$lib/plots/shared/drawCanvasPlaceholder'
 
 /**
  * Collect fixation records for a single participant on a stimulus.
@@ -178,6 +179,11 @@ export function collectRecurrenceData(
     fixationEnds[i] = fixations[i].start + fixations[i].duration
   }
 
+  const aoisInEveryFixation =
+    method === 'aoi'
+      ? [...new Set(aoiIdsInEveryFixation(fixations).map(id => aoiData[id]?.[1] ?? String(id)))]
+      : []
+
   return {
     matrix,
     durationMatrix,
@@ -185,6 +191,45 @@ export function collectRecurrenceData(
     fixationAoiColors,
     fixationStarts,
     fixationEnds,
+    aoisInEveryFixation,
+  }
+}
+
+/**
+ * Mapped AOI ids that every fixation hits while overlapping other AOIs: a
+ * whole-stimulus "All" AOI. A scanpath that simply stayed on one AOI (no other
+ * AOI hit anywhere) is a real, fully recurrent result and returns [].
+ */
+export function aoiIdsInEveryFixation(fixations: FixationRecord[]): number[] {
+  if (fixations.length === 0) return []
+  let shared = fixations[0].aoiIds
+  for (let i = 1; i < fixations.length && shared.length > 0; i++) {
+    const ids = fixations[i].aoiIds
+    shared = shared.filter(id => ids.includes(id))
+  }
+  const overlapsOthers = fixations.some(f => f.aoiIds.some(id => !shared.includes(id)))
+  return overlapsOthers ? [...new Set(shared)] : []
+}
+
+/**
+ * In AOI mode an AOI that every fixation hits makes every pair recurrent, so
+ * the matrix says nothing. Name it and say how to leave it out; the method
+ * step is offered only when the spatial methods exist.
+ */
+export function aoiInEveryFixationPlaceholder(
+  names: string[],
+  spatial: boolean
+): PlotPlaceholderContent | null {
+  if (names.length === 0) return null
+  const quoted = names.map(n => `"${n}"`)
+  const list =
+    quoted.length === 1 ? quoted[0] : `${quoted.slice(0, -1).join(', ')} and ${quoted.at(-1)}`
+  const subject = names.length === 1 ? `AOI ${list} contains` : `AOIs ${list} contain`
+  const steps = [`Choose an AOI selection without ${list} in Plot Settings > Areas of Interest`]
+  if (spatial) steps.push('Switch Method to Fixed distance or Fixed grid')
+  return {
+    message: `${subject} every fixation, so every pair is recurrent.${steps.length > 1 ? ' Either:' : ''}`,
+    steps,
   }
 }
 

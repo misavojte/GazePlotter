@@ -22,6 +22,7 @@ function data(
     fixationAoiColors: spans.map(() => null),
     fixationStarts: Float64Array.from(spans.map(s => s[0])),
     fixationEnds: Float64Array.from(spans.map(s => s[1])),
+    aoisInEveryFixation: [],
   }
 }
 

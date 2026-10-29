@@ -86,6 +86,7 @@ describe('buildRecurrenceTooltipContent', () => {
     fixationAoiColors: [null, null],
     fixationStarts: Float64Array.from([0, 300]),
     fixationEnds: Float64Array.from([100, 450]),
+    aoisInEveryFixation: [],
   })
 
   it('names the pair 1-based and whether it recurs', () => {
