@@ -377,6 +377,8 @@
     align-items: center;
     font-size: 0.8125rem;
     line-height: 1;
+    /* Opt out of the prose list spacing (.prose-wrapper li + li). */
+    margin: 0;
   }
 
   .breadcrumbs a {
@@ -461,6 +463,15 @@
     padding-left: 1.5rem;
   }
 
+  :global(.prose-wrapper li + li) {
+    margin-top: 0.375rem;
+  }
+
+  /* A nested option list sits tight under its parent bullet. */
+  :global(.prose-wrapper li > ul, .prose-wrapper li > ol) {
+    margin: 0.375rem 0 0;
+  }
+
   :global(.prose-wrapper ul li::before) {
     content: '•';
     color: var(--c-midgrey);
@@ -470,10 +481,15 @@
   }
 
   :global(.prose-wrapper img) {
+    display: block;
     max-width: 100%;
     height: auto;
     border: 1px solid var(--c-border);
     border-radius: 12px;
+  }
+
+  /* Markdown wraps an image in a <p>: that paragraph owns the spacing. */
+  :global(.prose-wrapper p:has(> img)) {
     margin: 2rem 0;
   }
 
@@ -500,10 +516,18 @@
   :global(.prose-wrapper blockquote) {
     border: 1px solid var(--c-border);
     background-color: var(--c-lightgrey);
-    margin: 2rem 0;
-    padding: 1.5rem;
+    margin: 1.5rem 0;
+    padding: 1rem 1.25rem;
     border-radius: 12px;
     color: var(--c-black);
+  }
+
+  :global(.prose-wrapper blockquote > :first-child) {
+    margin-top: 0;
+  }
+
+  :global(.prose-wrapper blockquote > :last-child) {
+    margin-bottom: 0;
   }
 
   :global(.prose-wrapper table) {
@@ -520,6 +544,15 @@
     border-bottom: 1px solid var(--c-border);
     color: var(--c-darkgrey);
     font-weight: 600;
+  }
+
+  /* A table with blank header cells is a key/value list: no header strip. */
+  :global(.prose-wrapper thead:not(:has(th:not(:empty)))) {
+    display: none;
+  }
+
+  :global(.prose-wrapper table:not(:has(thead th:not(:empty))) td:first-child) {
+    white-space: nowrap;
   }
 
   :global(.prose-wrapper td) {
