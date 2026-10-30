@@ -5,7 +5,8 @@
   readiness, so the height never jumps.
 -->
 <script module lang="ts">
-  export const PLAY_BAR_HEIGHT = 36
+  /** The row's height: the play button's 24 px, so the rail sits close under the plot and the card padding alone carries the bottom. */
+  export const PLAY_BAR_HEIGHT = 24
 </script>
 
 <script lang="ts">
