@@ -244,8 +244,11 @@ function computeHeatmap(
   const xs = new Float32Array(capacity)
   const ys = new Float32Array(capacity)
   const raw = new Float32Array(capacity)
+  const starts = new Float64Array(capacity)
+  const ends = new Float64Array(capacity)
   const owner = new Uint32Array(capacity)
   const totals = new Float64Array(ids.length)
+  let lastEnd = 0
   const byDuration = settings.accumulate === 'duration'
   const timeStart = settings.timelineStart ?? 0
   const timeEnd = settings.timelineEnd ?? 0
@@ -279,8 +282,11 @@ function computeHeatmap(
       xs[count] = x
       ys[count] = y
       raw[count] = w
+      starts[count] = start
+      ends[count] = end
       owner[count] = p
       totals[p] += w
+      if (end > lastEnd) lastEnd = end
       count++
     }
   }
@@ -345,6 +351,9 @@ function computeHeatmap(
       xs: xs.subarray(0, count),
       ys: ys.subarray(0, count),
       raw: raw.subarray(0, count),
+      starts: starts.subarray(0, count),
+      ends: ends.subarray(0, count),
+      lastEnd,
       participantIndex,
       participants,
       summary: {

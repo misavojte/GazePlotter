@@ -12,6 +12,7 @@ import {
   splatFixations,
 } from '../src/lib/plots/fixation-heatmap/core/density'
 import { autoRadius, getFixationHeatmapData } from '../src/lib/plots/fixation-heatmap/core/transformer'
+import { createFrameScratch, heatmapFrame } from '../src/lib/plots/fixation-heatmap/core/frame'
 import { fadeIn, heatLut, legendRamp, maskLut, paintHeat } from '../src/lib/plots/fixation-heatmap/core/heatImage'
 import {
   deriveFixationHeatmapView,
@@ -454,5 +455,89 @@ describe('color sync', () => {
 
   it('leaves a set Scale max out of sync', () => {
     expect(meta({ scaleMax: 5 })).toBeUndefined()
+  })
+})
+
+describe('playback frames', () => {
+  const engine = () => engineOf([[], [P0, P1]])
+  const parked = (over: Partial<FixationHeatmapPlotSettings> = {}) => ok(getFixationHeatmapData(engine(), settings(over)))
+  const close = (got: Float32Array, want: Float32Array, digits = 4) => {
+    expect(got.length).toBe(want.length)
+    for (let k = 0; k < want.length; k++) expect(got[k]).toBeCloseTo(want[k], digits)
+  }
+
+  it('carries each mapped fixation\'s times and the last end', () => {
+    const data = parked()
+    expect(Array.from(data.starts)).toEqual([0, 300, 500, 0, 200])
+    expect(Array.from(data.ends)).toEqual([300, 500, 1500, 200, 900])
+    expect(data.lastEnd).toBe(1500)
+    // The raw end of an overlapping fixation, not the clipped one.
+    expect(parked({ timelineEnd: 400 }).lastEnd).toBe(900)
+  })
+
+  it('the whole-range frame is the parked map, in every mode', () => {
+    for (const accumulate of ['duration', 'count'] as const) {
+      for (const normalization of ['share', 'mean'] as const) {
+        const data = parked({ accumulate, normalization })
+        const frame = heatmapFrame(data, 0, data.lastEnd, accumulate, normalization)
+        close(frame.values, data.values)
+        expect(frame.max).toBeCloseTo(data.max, 4)
+        expect(frame.xs.length).toBe(data.xs.length)
+      }
+    }
+  })
+
+  it('a window keeps only its fixations, clipped, and never exceeds the parked map', () => {
+    const data = parked()
+    const frame = heatmapFrame(data, 0, 400, 'duration', 'share')
+    expect(Array.from(frame.raw)).toEqual([300, 100, 200, 200])
+    expect(Array.from(frame.starts)).toEqual([0, 300, 0, 200])
+    expect(Array.from(frame.participantIndex)).toEqual([0, 0, 1, 1])
+    expect(frame.summary.fixations).toBe(4)
+    for (let k = 0; k < data.values.length; k++) expect(frame.values[k]).toBeLessThanOrEqual(data.values[k] + 1e-5)
+    expect(frame.max).toBeLessThan(data.max)
+    // Shared with the parent: the grid, the basis and the participants.
+    expect(frame.grid).toBe(data.grid)
+    expect(frame.participants).toBe(data.participants)
+  })
+
+  it('count frames take a fixation once its midpoint is inside the window', () => {
+    const data = parked({ accumulate: 'count' })
+    expect(heatmapFrame(data, 0, 400, 'count', 'share').xs.length).toBe(2)
+    expect(heatmapFrame(data, 0, 401, 'count', 'share').xs.length).toBe(3)
+  })
+
+  it('a mean frame equals the map of the same time range', () => {
+    const data = parked({ normalization: 'mean' })
+    const cut = parked({ normalization: 'mean', timelineEnd: 400 })
+    close(heatmapFrame(data, 0, 400, 'duration', 'mean').values, cut.values)
+  })
+
+  it('a share frame divides by the whole-range total, not the window\'s', () => {
+    const one = engineOf([[], [P0]])
+    const data = ok(getFixationHeatmapData(one, settings()))
+    const cut = ok(getFixationHeatmapData(one, settings({ timelineEnd: 400 })))
+    const frame = heatmapFrame(data, 0, 400, 'duration', 'share')
+    // P0 spent 400 of its 1500 ms inside the window.
+    close(frame.values, cut.values.map(v => (v * 400) / 1500) as Float32Array, 3)
+  })
+
+  it('an empty or reversed window maps nothing', () => {
+    const data = parked()
+    expect(heatmapFrame(data, 0, 0, 'duration', 'share').max).toBe(0)
+    expect(heatmapFrame(data, 500, 400, 'duration', 'share').xs.length).toBe(0)
+  })
+
+  it('reuses its scratch without carrying a frame into the next', () => {
+    const data = parked()
+    const scratch = createFrameScratch()
+    const full = heatmapFrame(data, 0, data.lastEnd, 'duration', 'share', scratch)
+    const early = heatmapFrame(data, 0, 400, 'duration', 'share', scratch)
+    const again = heatmapFrame(data, 0, data.lastEnd, 'duration', 'share', scratch)
+    close(again.values, data.values)
+    close(heatmapFrame(data, 0, 400, 'duration', 'share', scratch).values, early.values)
+    // Consecutive frames live in different buffers, so the one on screen is never overwritten.
+    expect(early.values).not.toBe(full.values)
+    expect(again.values).not.toBe(early.values)
   })
 })

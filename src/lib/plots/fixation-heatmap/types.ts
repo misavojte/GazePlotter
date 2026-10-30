@@ -72,6 +72,11 @@ export interface FixationHeatmapData {
   ys: Float32Array
   /** Accumulated weight before normalisation (ms or 1). */
   raw: Float32Array
+  /** Recording-time bounds of each mapped fixation, for playback frames. */
+  starts: Float64Array
+  ends: Float64Array
+  /** The latest end among the mapped fixations: the player's span end. */
+  lastEnd: number
   /** Index into `participants`. */
   participantIndex: Uint32Array
   participants: HeatmapParticipant[]
