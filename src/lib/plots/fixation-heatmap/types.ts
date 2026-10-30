@@ -2,12 +2,14 @@ import type { StimulusBackground } from '$lib/plots/shared/stimulusBackground'
 import type { Rect } from '$lib/data/media/mediaAlignment'
 import type { GridGeometry } from './core/density'
 import type { ParticipantScope } from '$lib/data/types'
+import type { PlaybackSettings } from '$lib/plots/shared/playbackFields'
 
 export type FixationHeatmapAccumulate = 'duration' | 'count'
 export type FixationHeatmapNormalization = 'share' | 'mean'
 /** Heatmap: colour rises with the value. Opacity map: a mask that clears as it rises. */
 export type FixationHeatmapViewKind = 'heatmap' | 'opacity'
-export type FixationHeatmapPlotSettings = ParticipantScope & {
+/** Playback: during it the map covers the trail ending at the playhead (All: from the range start). */
+export type FixationHeatmapPlotSettings = ParticipantScope & PlaybackSettings & {
   stimulusId: number
   /** What a fixation adds: its (clipped) duration, or 1 when its midpoint is in range. */
   accumulate: FixationHeatmapAccumulate

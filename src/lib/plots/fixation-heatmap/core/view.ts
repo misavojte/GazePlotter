@@ -2,6 +2,7 @@ import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { figureView, type FigureProps, type PlotView } from '$lib/plots/definePlot'
 import { formatGaze, formatQuantity, timeRangeQualifier, withQualifiers } from '$lib/plots/shared/labels'
 import type { PlotPlaceholderContent } from '$lib/plots/shared/drawCanvasPlaceholder'
+import { trailLengthOf } from '$lib/plots/shared/playbackFields'
 import FixationHeatmapPlotFigure from '../components/FixationHeatmapPlotFigure.svelte'
 import { getFixationHeatmapData } from './transformer'
 import { FIXATION_HEATMAP_LAYOUT as L } from '../const'
@@ -53,26 +54,34 @@ export function niceCeil(v: number): number {
   return Number((Math.ceil(v / step - 1e-9) * step).toPrecision(12))
 }
 
-/** Colorbar title in the labels.ts grammar: the quantity, then R, N and t in math notation. */
-export function heatmapLegendTitle(settings: FixationHeatmapPlotSettings, data: FixationHeatmapData): string {
+/** Colorbar title without its time qualifier: the quantity, then R and N in math notation. */
+export function heatmapLegendTitleBase(settings: FixationHeatmapPlotSettings, data: FixationHeatmapData): string {
   const quantity = settings.accumulate === 'duration' ? 'Fixation duration' : 'Fixation count'
   const share = settings.normalization === 'share'
   return withQualifiers(
     formatQuantity(share ? `${quantity} share` : quantity, heatmapUnit(settings)),
     `R = ${formatGaze(data.radius)}`,
-    `N = ${data.participants.length}`,
+    `N = ${data.participants.length}`
+  )
+}
+
+/** Colorbar title in the labels.ts grammar; a playback frame swaps the time qualifier for its window. */
+export function heatmapLegendTitle(settings: FixationHeatmapPlotSettings, data: FixationHeatmapData): string {
+  return withQualifiers(
+    heatmapLegendTitleBase(settings, data),
     timeRangeQualifier(settings.timelineStart ?? 0, settings.timelineEnd ?? 0)
   )
 }
 
 /**
  * What the map leaves out, for the legend title's tooltip: the background it
- * cannot draw, the resolution limit, and the fixations it could not place.
+ * draws only during playback, the resolution limit, and the fixations it
+ * could not place.
  */
 export function heatmapNotes(data: FixationHeatmapData, isVideo: boolean): string[] {
   const s = data.summary
   const notes = [
-    isVideo && 'Video background not drawn',
+    isVideo && 'Video frame drawn during playback only',
     data.coarse && 'R below grid resolution, peaks read low',
     s.outside > 0 && `${fixations(s.outside)} outside the ${data.clip ? 'media' : 'view'}`,
     s.withoutCoordinates > 0 && `${fixations(s.withoutCoordinates)} without coordinates`,
@@ -109,9 +118,10 @@ export function deriveFixationHeatmapView(
   }
   const { data } = result
   const media = engine.metadata?.stimuliMedia?.[settings.stimulusId] ?? null
-  // Only an image is drawn: a video's shared element is the playback clock, so
-  // its frame under a static map would move with any Scanpath of the stimulus.
-  const image = media?.kind === 'image' && settings.background !== 'none' ? media : null
+  // An image lies under the parked map. A video's frame is drawn only while
+  // the playback clock has a time: a static map over one arbitrary frame of a
+  // moving scene would mislead, so parked and exported maps sit on white.
+  const drawn = media && settings.background !== 'none' ? media : null
   const opacityMap = settings.view === 'opacity'
   const autoTop = niceCeil(opacityMap ? data.max * L.maskAutoTopShare : data.max)
   const meta: FixationHeatmapViewMeta | undefined =
@@ -137,14 +147,19 @@ export function deriveFixationHeatmapView(
       scaleTop: settings.scaleMax > 0 ? settings.scaleMax : autoTop,
       fixedMax: settings.scaleMax > 0,
       showFixations: settings.showFixations,
-      background: image ? settings.background : 'image',
+      background: drawn ? settings.background : 'image',
       legendTitle: heatmapLegendTitle(settings, data),
-      notes: heatmapNotes(data, media?.kind === 'video'),
+      legendTitleBase: heatmapLegendTitleBase(settings, data),
+      notes: heatmapNotes(data, drawn?.kind === 'video'),
       accumulate: settings.accumulate,
       normalization: settings.normalization,
       unavailableMessage: null,
-      media: image,
+      media: drawn,
       mediaStimulusId: settings.stimulusId,
+      trailLength: trailLengthOf(settings, engine),
+      playbackSpeed: settings.playbackSpeed,
+      timelineStart: settings.timelineStart,
+      timelineEnd: settings.timelineEnd,
     },
     { meta }
   )

@@ -57,6 +57,8 @@ const settings = (over: Partial<FixationHeatmapPlotSettings> = {}): FixationHeat
   maskOpacity: 90,
   showFixations: false,
   background: 'image',
+  playbackSpeed: 1,
+  syncPlayback: true,
   ...over,
 })
 
@@ -317,10 +319,15 @@ describe('background', () => {
     return deriveFixationHeatmapView(e, settings({ background })).props
   }
 
-  it('passes the image with its treatment, and no image for None or a video', () => {
+  it('passes the medium with its treatment, and none for None', () => {
     expect(props(image, 'dimmed')).toMatchObject({ media: image, background: 'dimmed' })
     expect(props(image, 'none')).toMatchObject({ media: null, background: 'image' })
-    expect(props({ ...image, kind: 'video', mimeType: 'video/mp4' }, 'grayscale')).toMatchObject({ media: null })
+    // A video reaches the figure for its playback frames; the note says the parked map sits on white.
+    const video = { ...image, kind: 'video' as const, mimeType: 'video/mp4' }
+    const played = props(video, 'grayscale')
+    expect(played).toMatchObject({ media: video, background: 'grayscale' })
+    expect(played.notes).toContain('Video frame drawn during playback only')
+    expect(props(video, 'none').notes).not.toContain('Video frame drawn during playback only')
   })
 
   it('falls back to plain drawing without an image', () => {
@@ -385,7 +392,7 @@ describe('labels', () => {
   it('notes only what the map leaves out', () => {
     const data = ok(getFixationHeatmapData(engineOf([[], [P0, P1]]), settings()))
     expect(heatmapNotes(data, false)).toEqual(['1 fixation without coordinates'])
-    expect(heatmapNotes(data, true)).toEqual(['Video background not drawn', '1 fixation without coordinates'])
+    expect(heatmapNotes(data, true)).toEqual(['Video frame drawn during playback only', '1 fixation without coordinates'])
   })
 
   it('formats amounts in plain digits, never grouping thousands', () => {

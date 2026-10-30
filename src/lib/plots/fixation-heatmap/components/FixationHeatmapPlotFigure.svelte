@@ -11,13 +11,17 @@
   import type { PlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
   import type { PlotPlaceholderContent } from '$lib/plots/shared/drawCanvasPlaceholder'
   import { AXIS_CONFIG, axisTitleLineHeight } from '$lib/plots/shared/axisUtils'
+  import { timeRangeQualifier, withQualifiers } from '$lib/plots/shared/labels'
   import { estimateTextWidth } from '$lib/shared/textMeasure'
   import { PRESET_PALETTES, resolvePalette } from '$lib/color/palettes'
   import type { Rect } from '$lib/data/media/mediaAlignment'
   import type { StimulusBackground } from '$lib/plots/shared/stimulusBackground'
   import { useStimulusSpace } from '$lib/plots/shared/stimulusSpace.svelte'
+  import PlaybackBar, { PLAY_BAR_HEIGHT } from '$lib/plots/shared/components/PlaybackBar.svelte'
+  import { usePlayer, type PlotPlayback } from '$lib/plots/shared/playback.svelte'
   import type { StimulusMedia } from '$lib/data/types'
   import { bucketFixations, cellCentreOf, fixationsWithin, type FixationBuckets } from '../core/density'
+  import { createFrameScratch, heatmapFrame } from '../core/frame'
   import { heatLut, legendRamp, maskLut, paintHeat } from '../core/heatImage'
   import { buildHeatmapTooltipContent } from '../core/tooltip'
   import { FIXATION_HEATMAP_COLORS as C, FIXATION_HEATMAP_LAYOUT as L } from '../const'
@@ -28,6 +32,7 @@
   } from '../types'
 
   interface Props extends CanvasExportProps {
+    /** The parked map: every fixation of the time range. */
     data: FixationHeatmapData | null
     colorScale?: string[]
     /** Opacity map: the mask colour, painted over the stimulus and clearing as the value rises; null draws the heat. */
@@ -39,19 +44,29 @@
     /** An explicit Scale max: values above it take the top colour, shown as the legend cap. */
     fixedMax?: boolean
     showFixations?: boolean
-    /** How the image is drawn; 'none' never reaches here (the view passes no image). */
+    /** How the image or video frame is drawn; 'none' never reaches here (the view passes no media). */
     background?: StimulusBackground
     legendTitle?: string
+    /** The title without its time qualifier; a playback frame appends its window's. */
+    legendTitleBase?: string
     /** What the map leaves out; shown on hovering the legend title. */
     notes?: string[]
     accumulate?: FixationHeatmapAccumulate
     normalization?: FixationHeatmapNormalization
     unavailableMessage?: PlotPlaceholderContent | null
-    /** The stimulus's reference image, drawn under the heat (videos are never passed). */
+    /** The stimulus's reference medium: an image under the map, a video's frame during playback only. */
     media?: StimulusMedia | null
     mediaStimulusId?: number
-    /** Shared PLOT CURSOR, publish-only: the participants with fixations within R. */
+    /** Trail length in ms; 0 = the whole range so far. */
+    trailLength?: number
+    playbackSpeed?: number
+    /** The time range the map was cut to; the play span follows it. */
+    timelineStart?: number
+    timelineEnd?: number
+    /** Shared PLOT CURSOR, publish-only: the participants with fixations within R, and the rail's time. */
     plotCursor?: PlotCursorPort | null
+    /** Screen-only; export has no clock and draws the parked map. */
+    playback?: PlotPlayback | null
   }
 
   const props: Props = $props()
@@ -65,13 +80,20 @@
     showFixations = false,
     background = 'image',
     legendTitle = '',
+    legendTitleBase = '',
     notes = [],
     accumulate = 'duration',
     normalization = 'share',
     unavailableMessage = null,
     media = null,
     mediaStimulusId,
+    trailLength = 0,
+    playbackSpeed = 1,
+    timelineStart = 0,
+    timelineEnd = 0,
+    height,
     plotCursor = null,
+    playback = null,
   } = $derived(props)
 
   const stops = $derived(resolvePalette(colorScale, PRESET_PALETTES.YL_OR_RD.colors))
@@ -95,6 +117,44 @@
     frame: () => plot.frame,
   })
 
+  // ── Playback: a PLAYER on a playback clock (playbackClock.svelte.ts).
+  // `playTime` null shows the parked map: an image's idle state and exports.
+  const player = usePlayer({
+    playback: () => playback,
+    media: () => media,
+    mediaElement: () => stim.mediaElement,
+    hasData: () => !!data,
+    dataEnd: () => data?.lastEnd ?? 0,
+    timelineStart: () => timelineStart,
+    timelineEnd: () => timelineEnd,
+    speed: () => playbackSpeed,
+    trailLength: () => trailLength,
+  })
+  const clock = $derived(player.clock)
+  const playTime = $derived(player.playTime)
+
+  /** A trail length being dragged on the bar, before it is committed. */
+  let windowDraft = $state<number | null>(null)
+  const trail = $derived(windowDraft ?? trailLength)
+
+  /** The frame's time window: the trail ending at the playhead, inside the time range. */
+  const window = $derived.by(() => {
+    if (playTime === null) return null
+    const end = timelineEnd > 0 ? Math.min(playTime, timelineEnd) : playTime
+    const start = Math.max(timelineStart, trail > 0 ? playTime - trail : -Infinity)
+    return { start, end }
+  })
+
+  // The map on screen: the parked one, or the window's frame on the parked
+  // grid and basis (so the colour scale holds, see core/frame.ts).
+  const scratch = createFrameScratch()
+  const shown = $derived(
+    window && data ? heatmapFrame(data, window.start, window.end, accumulate, normalization, scratch) : data
+  )
+  const title = $derived(
+    window ? withQualifiers(legendTitleBase, timeRangeQualifier(window.start, window.end)) : legendTitle
+  )
+
   // ── Cached heat texture: one pixel per grid cell, rebuilt only when the data
   // or its colouring changes; resizes just re-blit it (the recurrence pattern).
   const heatRaster = cachedRaster()
@@ -113,16 +173,17 @@
   }
 
   function drawHeatmap(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
-    if (!data || !stim.space) return
+    const d = shown
+    if (!d || !stim.space) return
     const s = stim.space.view.scale
-    // The clip is the media rect; without an image there (None, a video, still decoding) it is white, as the legend assumes.
-    if (data.clip) stim.drawMedia(ctx, frame, data.clip, background)
+    // The clip is the media rect; without an image there (None, a parked video, still decoding) it is white, as the legend assumes.
+    if (d.clip) stim.drawMedia(ctx, frame, d.clip, media?.kind === 'video' && playTime === null ? 'none' : background)
 
-    const layer = heatTexture(data)
+    const layer = heatTexture(d)
     if (layer) {
-      const g = data.grid
+      const g = d.grid
       ctx.save()
-      if (data.clip) clipToRect(ctx, data.clip, frame)
+      if (d.clip) clipToRect(ctx, d.clip, frame)
       ctx.imageSmoothingEnabled = true
       ctx.imageSmoothingQuality = 'high'
       // Texel edges on cell edges, so texel centres land on the cell centres the splat used.
@@ -130,7 +191,7 @@
       ctx.restore()
     }
 
-    if (showFixations) drawFixationDots(ctx, frame, data)
+    if (showFixations) drawFixationDots(ctx, frame, d)
   }
 
   function drawFixationDots(ctx: CanvasRenderingContext2D, frame: PlotFrame, d: FixationHeatmapData) {
@@ -228,38 +289,43 @@
   }
 
   function cellAt(x: number, y: number, frame: PlotFrame): number {
-    if (!data || !stim.space) return -1
+    const d = shown
+    if (!d || !stim.space) return -1
     const wx = (x - frame.x - stim.space.view.offsetX) / stim.space.view.scale
     const wy = (y - frame.y - stim.space.view.offsetY) / stim.space.view.scale
-    const c = data.clip
+    const c = d.clip
     if (c && (wx < c.x || wx > c.x + c.width || wy < c.y || wy > c.y + c.height)) return -1
-    const g = data.grid
+    const g = d.grid
     const i = Math.floor((wx - g.x0) / g.cell)
     const j = Math.floor((wy - g.y0) / g.cell)
     return i < 0 || j < 0 || i >= g.cols || j >= g.rows ? -1 : j * g.cols + i
   }
 
   function cellCentre(cell: number, frame: PlotFrame): { x: number; y: number } {
-    const c = cellCentreOf(data!.grid, cell)
+    const c = cellCentreOf(shown!.grid, cell)
     return { x: stim.x(c.x, frame), y: stim.y(c.y, frame) }
   }
 
   function drawHeatmapOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
     const cell = plot.hover.data?.cell ?? -1
-    if (cell < 0 || !data || !stim.space) return
+    if (cell < 0 || !shown || !stim.space) return
     const c = cellCentre(cell, frame)
     // The overlay is unclipped: keep the ring inside the plot area, off the axes.
     ctx.save()
     ctx.beginPath()
     ctx.rect(frame.x, frame.y, frame.width, frame.height)
     ctx.clip()
-    strokeCrosshairRing(ctx, c.x, c.y, data.radius * stim.space.view.scale)
+    strokeCrosshairRing(ctx, c.x, c.y, shown.radius * stim.space.view.scale)
     ctx.restore()
   }
 
+  /** The bar gets its own row below the canvas, on screen only. */
+  const hasPlayBar = $derived(!unavailableMessage && data !== null && playback !== null)
+
   const plot = usePlot<HeatmapHit>({
     props: () => props,
-    deps: (): unknown[] => [stim.mediaElement, stim.space],
+    height: () => (hasPlayBar ? Math.max(60, height - PLAY_BAR_HEIGHT) : height),
+    deps: (): unknown[] => [stim.mediaElement, clock?.frame, shown, stim.space],
     placeholder: () => unavailableMessage,
     gutters: stim.gutters,
     gradientLegend: () =>
@@ -270,20 +336,21 @@
             // A non-zero range max is what turns on the above-max cap.
             valueRange: [0, fixedMax ? scaleTop : 0],
             effectiveMaxValue: scaleTop,
-            title: legendTitle,
+            title,
             aboveMaxColor: fixedMax ? ramp[ramp.length - 1] : null,
           },
     drawData: drawHeatmap,
     drawOverlay: drawHeatmapOverlay,
     hitTest: (x, y, frame): FrameHit<HeatmapHit> | null => {
-      if (!data) return null
+      const d = shown
+      if (!d) return null
       const cell = cellAt(x, y, frame)
-      if (cell < 0 || !(data.values[cell] > 0)) return trackOnlyHit({ cell })
+      if (cell < 0 || !(d.values[cell] > 0)) return trackOnlyHit({ cell })
       const c = cellCentre(cell, frame)
       // The ring's bottom-right corner, as other plots anchor at their mark's.
-      const r = data.radius * stim.space!.view.scale
+      const r = d.radius * stim.space!.view.scale
       return {
-        content: cellInfo(data, cell).rows,
+        content: cellInfo(d, cell).rows,
         anchorX: c.x + r,
         anchorY: c.y + r,
         tooltipWidth: L.tooltipWidth,
@@ -291,7 +358,7 @@
       }
     },
     hitTestChrome: (x, y): FrameHit<HeatmapHit> | null => {
-      if (!data || notes.length === 0 || !overLegendTitle(x, y)) return null
+      if (!shown || notes.length === 0 || !overLegendTitle(x, y)) return null
       return {
         content: notes.map(value => ({ key: 'Note', value })),
         anchorX: x,
@@ -303,7 +370,8 @@
     },
     hoverKey: d => d.cell,
     onHover: hit => {
-      const ids = hit && hit.cell >= 0 && data && data.values[hit.cell] > 0 ? cellInfo(data, hit.cell).ids : []
+      const d = shown
+      const ids = hit && hit.cell >= 0 && d && d.values[hit.cell] > 0 ? cellInfo(d, hit.cell).ids : []
       plotCursor?.publish(ids.length ? { participants: () => ids } : null)
     },
     overlayDeps: () => {
@@ -312,9 +380,44 @@
     },
     axes: stim.axes,
   })
+
+  // ── Play bar: hovering its rail marks that moment on the stimulus's other plots.
+  let host = $state<HTMLDivElement | null>(null)
+
+  function onRailHover(t: number | null) {
+    if (t === null) return plotCursor?.publish(null)
+    plotCursor?.publish({ times: () => [t] })
+  }
 </script>
 
-<canvas
-  use:plot.plotAction
-  aria-label="Fixation Heatmap visualization"
-></canvas>
+<div class="heatmap-host" bind:this={host}>
+  <canvas
+    use:plot.plotAction
+    aria-label="Fixation Heatmap visualization"
+  ></canvas>
+  {#if hasPlayBar}
+    <PlaybackBar
+      {playback}
+      {clock}
+      span={player.span}
+      {playTime}
+      isPlaying={player.isPlaying}
+      {trailLength}
+      {media}
+      videoElement={player.videoElement}
+      mediaFailed={stim.mediaFailed}
+      {host}
+      onDraft={ms => (windowDraft = ms)}
+      onHoverTime={onRailHover}
+    />
+  {/if}
+</div>
+
+<style>
+  .heatmap-host {
+    display: flex;
+    flex-direction: column;
+    width: fit-content;
+    height: fit-content;
+  }
+</style>

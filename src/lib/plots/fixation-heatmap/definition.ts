@@ -5,6 +5,7 @@ import { commonIs, definePlot, type SectionFieldCtx } from '$lib/plots/definePlo
 import { formatGaze, stimulusParticipantsSubtitle } from '$lib/plots/shared'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import { stimulusBackgroundField } from '$lib/plots/shared/stimulusBackground'
+import { playbackPaneFields } from '$lib/plots/shared/playbackFields'
 import { FIXATION_HEATMAP_COLORS as C } from './const'
 import type { FixationHeatmapPlotSettings } from './types'
 
@@ -148,8 +149,9 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
           default: 90,
           showWhen: viewIs('opacity'),
         },
-        stimulusBackgroundField(['image']),
+        stimulusBackgroundField(['image', 'video']),
         { kind: 'boolean', key: 'showFixations', label: 'Show fixations' },
+        ...playbackPaneFields,
       ],
     },
     'timelineRange',
@@ -185,6 +187,9 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
     maskOpacity: 90,
     showFixations: false,
     background: 'image',
+    // Old workspaces lack these keys; the item factory merges the defaults in.
+    playbackSpeed: 1,
+    syncPlayback: true,
   }),
   size: { min: { w: 12, h: 10 }, w: 16, h: 13 },
   requireCapabilities: ['segmented', 'spatial'],
