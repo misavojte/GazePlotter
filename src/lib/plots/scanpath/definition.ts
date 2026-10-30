@@ -1,9 +1,10 @@
-import { deriveScanpathView, scanpathTrail } from './core/view'
+import { deriveScanpathView } from './core/view'
 import { scanpathScreen } from './core/screen.svelte'
 import { commonIs, definePlot } from '$lib/plots/definePlot'
 import { stimulusParticipantSubtitle } from '$lib/plots/shared'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import { stimulusBackgroundField } from '$lib/plots/shared/stimulusBackground'
+import { playbackPaneFields } from '$lib/plots/shared/playbackFields'
 import { SCANPATH_COLORS } from './const'
 import type { ScanpathPlotSettings } from './types'
 
@@ -48,41 +49,7 @@ export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSetting
         stimulusBackgroundField(['image', 'video']),
         { kind: 'boolean', key: 'showFixationOrder', label: 'Show fixation order line' },
         { kind: 'boolean', key: 'showNumbers', label: 'Show fixation numbers' },
-        {
-          kind: 'number',
-          key: 'trailLength',
-          group: 'Playback',
-          pair: true,
-          label: 'Trail length (ms)',
-          emptyLabel: 'All',
-          min: 0,
-          step: 500,
-          default: 0,
-          read: scanpathTrail,
-        },
-        {
-          kind: 'enum',
-          key: 'playbackSpeed',
-          group: 'Playback',
-          pair: true,
-          label: 'Speed',
-          valueKind: 'number',
-          options: [
-            { label: '0.25×', value: '0.25' },
-            { label: '0.5×', value: '0.5' },
-            { label: '1×', value: '1' },
-            { label: '1.25×', value: '1.25' },
-            { label: '1.5×', value: '1.5' },
-            { label: '2×', value: '2' },
-          ],
-        },
-        {
-          kind: 'boolean',
-          key: 'syncPlayback',
-          group: 'Playback',
-          label: 'Play with other plots of this stimulus',
-          default: true,
-        },
+        ...playbackPaneFields,
       ],
     },
     'timelineRange',

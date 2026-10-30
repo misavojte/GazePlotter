@@ -9,13 +9,11 @@
   } from '$lib/plots/shared'
   import type { PlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
   import { markCrosshairNode } from '$lib/plots/shared/canvasUtils'
-  import { untrack } from 'svelte'
-  import Play from 'lucide-svelte/icons/play'
-  import Pause from 'lucide-svelte/icons/pause'
   import { SYSTEM_SANS_SERIF_SMALL_STACK } from '$lib/shared/textMeasure'
   import { AXIS_CONFIG } from '$lib/plots/shared/axisUtils'
   import { drawGradientBar } from '$lib/plots/shared/legendGradient'
-  import { isTextEntryTarget } from '$lib/workspace/keys'
+  import PlaybackBar, { PLAY_BAR_HEIGHT } from '$lib/plots/shared/components/PlaybackBar.svelte'
+  import { usePlayer, type PlotPlayback } from '$lib/plots/shared/playback.svelte'
   import { SCANPATH_COLORS, SCANPATH_LAYOUT } from '../const'
   import { getColorForValue, interpolateColor } from '$lib/color'
   import { PRESET_PALETTES, resolvePalette } from '$lib/color/palettes'
@@ -25,7 +23,6 @@
   import { useStimulusSpace } from '$lib/plots/shared/stimulusSpace.svelte'
   import type { StimulusMedia } from '$lib/data/types'
   import type { ScanpathData, ScanpathFixation } from '../types'
-  import type { ScanpathPlayback } from '../core/screen.svelte'
   import { buildScanpathTooltipContent } from '../core/tooltip'
   import type { PlotPlaceholderContent } from '$lib/plots/shared/drawCanvasPlaceholder'
 
@@ -61,7 +58,7 @@
         whole-panel outline: lit from elsewhere it read as a stray focus border. */
     plotCursor?: PlotCursorPort | null
     /** Screen-only; export has no clock and draws every fixation. */
-    playback?: ScanpathPlayback | null
+    playback?: PlotPlayback | null
   }
 
   const props: Props = $props()
@@ -100,69 +97,27 @@
 
   // ── Playback: a PLAYER on a playback clock (playbackClock.svelte.ts).
   // `playTime` null shows every fixation: an image's idle state and exports.
-  // A video idles at its first full trail, so the frame and fixations agree.
-  const videoElement = $derived(
-    media?.kind === 'video' && stim.mediaElement instanceof HTMLVideoElement
-      ? stim.mediaElement
-      : null
-  )
-  const videoOffset = $derived(media?.startOffset ?? 0)
-  const clock = $derived(playback?.clock ?? null)
-  const playTime = $derived(clock?.time ?? null)
-  const isPlaying = $derived(clock?.playing ?? false)
+  const player = usePlayer({
+    playback: () => playback,
+    media: () => media,
+    mediaElement: () => stim.mediaElement,
+    hasData: () => !!data && data.fixations.length > 0,
+    dataEnd: () => {
+      const last = data?.fixations[data.fixations.length - 1]
+      return last ? last.start + last.duration : 0
+    },
+    timelineStart: () => timelineStart,
+    timelineEnd: () => timelineEnd,
+    speed: () => playbackSpeed,
+    trailLength: () => trailLength,
+  })
+  const clock = $derived(player.clock)
+  const playTime = $derived(player.playTime)
+  const isPlaying = $derived(player.isPlaying)
 
   /** A trail length being dragged on the bar, before it is committed. */
   let windowDraft = $state<number | null>(null)
   const trail = $derived(windowDraft ?? trailLength)
-
-  /** The time range, else 0 to the last fixation's or the video's end. A
-      ready video element already knows its duration. */
-  const ownSpan = $derived.by(() => {
-    if (!data || data.fixations.length === 0) return { start: 0, end: 0 }
-    const last = data.fixations[data.fixations.length - 1]
-    const videoEnd = videoElement ? videoOffset + (videoElement.duration || 0) * 1000 : 0
-    const end = timelineEnd || Math.max(last.start + last.duration, videoEnd)
-    return { start: timelineStart, end: Math.max(timelineStart, end) }
-  })
-
-  /** The clock's span (all players' union, so lockstep plots share a rail). */
-  const span = $derived(clock?.span ?? ownSpan)
-  const spanMs = $derived(span.end - span.start)
-
-  /** A video's idle time: the end of its first trail (All: the end). */
-  const rest = $derived(
-    media?.kind === 'video' && ownSpan.end > ownSpan.start
-      ? Math.min(ownSpan.end, trailLength > 0 ? ownSpan.start + trailLength : ownSpan.end)
-      : null
-  )
-
-  // Untracked writes: joining reads the clock's span, which must not re-run us.
-  $effect(() => {
-    const c = clock
-    if (!c || !playback) return
-    const player = { span: ownSpan, speed: playbackSpeed, rest }
-    untrack(() => c.join(playback.plotId, player))
-  })
-  $effect(() => {
-    const c = clock
-    if (!c || !playback) return
-    const el = videoElement
-    const offset = videoOffset
-    untrack(() => c.bindVideo(playback.plotId, el, offset))
-    return () => untrack(() => c.bindVideo(playback.plotId, null, 0))
-  })
-
-  const toggle = () => clock?.toggle(playback?.plotId ?? null)
-
-  /** Tenths under a minute (trials are often 3 to 10 s), m:ss beyond. */
-  function formatTime(ms: number): string {
-    const seconds = ms / 1000
-    if (!Number.isFinite(seconds) || seconds < 0) return '0.0 s'
-    if (seconds < 60) return `${seconds.toFixed(1)} s`
-    const m = Math.floor(seconds / 60)
-    const s = Math.floor(seconds % 60)
-    return `${m}:${String(s).padStart(2, '0')}`
-  }
 
   const timeCutoff = $derived(playTime !== null ? playTime : Infinity)
 
@@ -250,9 +205,7 @@
   })
 
 
-  /** The bar gets its own row below the canvas, on screen only. Not keyed
-      on async media readiness, so the height never jumps. */
-  const PLAY_BAR_HEIGHT = 36
+  /** The bar gets its own row below the canvas, on screen only. */
   const hasPlayBar = $derived(!unavailableMessage && data !== null && playback !== null)
 
   /** Hover payload: the hovered fixation's index, or null for a bare panel
@@ -573,158 +526,35 @@
     if (showNumbers) drawNumbers(ctx, frame, fixations)
   }
 
-  // ── Play bar ──────────────────────────────────────────────────────────
-
-  const railPos = (t: number) => (spanMs > 0 ? Math.min(1, Math.max(0, (t - span.start) / spanMs)) : 0)
-
-  /** Parked shows the end: everything is on screen. */
-  const shownTime = $derived(playTime ?? span.end)
-  const trailFrom = $derived(
-    playTime !== null && trail > 0 ? Math.max(span.start, playTime - trail) : span.start
-  )
-
-  let railEl = $state<HTMLDivElement | null>(null)
-
-  function timeAtRail(clientX: number): number {
-    if (!railEl) return span.start
-    const rect = railEl.getBoundingClientRect()
-    const f = rect.width > 0 ? (clientX - rect.left) / rect.width : 0
-    return span.start + Math.min(1, Math.max(0, f)) * spanMs
-  }
-
-  // Hovering the rail marks that moment on the stimulus's other plots.
-  function onRailHover(event: PointerEvent) {
-    if (spanMs <= 0 || participantId === undefined) return
-    const t = timeAtRail(event.clientX)
-    plotCursor?.publish({ times: () => [t], participants: () => [participantId] })
-  }
-
-  function onRailLeave() {
-    plotCursor?.publish(null)
-  }
-
-  // Dragging the trail's left edge sets its length (the rail start = All),
-  // committed once on release: one undo step.
-  function onHandleDown(event: PointerEvent) {
-    if (playTime === null) return
-    event.preventDefault()
-    event.stopPropagation()
-    const handle = event.currentTarget as HTMLElement
-    handle.setPointerCapture(event.pointerId)
-    windowDraft = trail
-  }
-
-  function onHandleMove(event: PointerEvent) {
-    if (windowDraft === null || playTime === null) return
-    const at = timeAtRail(event.clientX)
-    const allZone = span.start + spanMs * 0.01
-    windowDraft = at <= allZone ? 0 : Math.max(100, Math.round((playTime - at) / 10) * 10)
-  }
-
-  function onHandleUp() {
-    const next = windowDraft
-    if (next === null) return
-    if (next !== trailLength) playback?.commitWindow(next)
-    windowDraft = null
-  }
-
-  // Space plays/pauses the scanpath under the pointer (or holding focus).
+  // ── Play bar: hovering its rail marks that moment on the stimulus's other plots.
   let host = $state<HTMLDivElement | null>(null)
-  let hovered = false
 
-  function onWindowKeydown(event: KeyboardEvent) {
-    if (event.code !== 'Space' || event.ctrlKey || event.metaKey || event.altKey) return
-    if (!hasPlayBar || !clock || spanMs <= 0) return
-    const focusInside = !!host && host.contains(document.activeElement)
-    if (!hovered && !focusInside) return
-    if (isTextEntryTarget(event) && (event.target as HTMLInputElement).type !== 'range') return
-    event.preventDefault()
-    toggle()
+  function onRailHover(t: number | null) {
+    if (t === null || participantId === undefined) return plotCursor?.publish(null)
+    plotCursor?.publish({ times: () => [t], participants: () => [participantId] })
   }
 </script>
 
-<svelte:window onkeydown={onWindowKeydown} />
-
-<!-- svelte-ignore a11y_no_static_element_interactions -->
-<div
-  class="scanpath-host"
-  bind:this={host}
-  onmouseenter={() => (hovered = true)}
-  onmouseleave={() => (hovered = false)}
->
+<div class="scanpath-host" bind:this={host}>
   <canvas
     use:plot.plotAction
     aria-label="Scanpath visualization"
   ></canvas>
   {#if hasPlayBar}
-    <!-- Disabled only while a set video is still decoding; a plain image or
-         no media plays off the fixations' recording-time extent directly. -->
-    {@const barDisabled = spanMs <= 0 || !clock || (media?.kind === 'video' && !videoElement && !stim.mediaFailed)}
-    {@const fromPct = railPos(trailFrom) * 100}
-    {@const nowPct = railPos(shownTime) * 100}
-    <div class="video-pill" style:height={`${PLAY_BAR_HEIGHT}px`}>
-      <button
-        class="pill-toggle"
-        aria-label={isPlaying ? 'Pause' : 'Play'}
-        onclick={toggle}
-        disabled={barDisabled}
-      >
-        {#if isPlaying}
-          <Pause size={'1em'} fill="currentColor" strokeWidth={0} />
-        {:else}
-          <Play size={'1em'} fill="currentColor" strokeWidth={0} />
-        {/if}
-      </button>
-      <!-- The filled part is the trail: the fixations on screen. -->
-      <div
-        class="pill-rail"
-        bind:this={railEl}
-        data-owns-drag
-        onpointermove={onRailHover}
-        onpointerleave={onRailLeave}
-      >
-        <input
-          class="pill-seek"
-          type="range"
-          min={span.start}
-          max={span.end > span.start ? span.end : span.start + 1}
-          step="10"
-          value={shownTime}
-          oninput={e => clock?.seek(Number(e.currentTarget.value), playback?.plotId ?? null)}
-          disabled={barDisabled}
-          aria-label="Playback position"
-          style:--trail-from={`${fromPct}%`}
-          style:--seek-progress={`${nowPct}%`}
-        />
-        {#if playTime !== null && !barDisabled}
-          <!-- A button so the workspace never pans from it. Pointer only: the
-               pane's Trail length field is the keyboard route. -->
-          <button
-            type="button"
-            class="pill-trail-edge"
-            style:left={`${fromPct}%`}
-            tabindex="-1"
-            aria-label="Trail length"
-            onpointerdown={onHandleDown}
-            onpointermove={onHandleMove}
-            onpointerup={onHandleUp}
-            onpointercancel={onHandleUp}
-          ></button>
-        {/if}
-      </div>
-      {#if stim.mediaFailed}
-        <span class="pill-note" title="Reattach it as MP4 (H.264) or WebM in Edit stimuli &amp; selections.">
-          {media?.kind === 'video' ? 'Video' : 'Image'} can't be decoded in this browser
-        </span>
-      {/if}
-      <span class="pill-time">
-        {#if windowDraft !== null}
-          Trail {windowDraft > 0 ? formatTime(windowDraft) : 'All'}
-        {:else}
-          {formatTime(shownTime)} / {formatTime(span.end)}
-        {/if}
-      </span>
-    </div>
+    <PlaybackBar
+      {playback}
+      {clock}
+      span={player.span}
+      {playTime}
+      {isPlaying}
+      {trailLength}
+      {media}
+      videoElement={player.videoElement}
+      mediaFailed={stim.mediaFailed}
+      {host}
+      onDraft={ms => (windowDraft = ms)}
+      onHoverTime={onRailHover}
+    />
   {/if}
 </div>
 
@@ -734,136 +564,5 @@
     flex-direction: column;
     width: fit-content;
     height: fit-content;
-  }
-
-  /* Its own row below the canvas, spanning the plot's full width.
-     border-box so the padding never pushes it past the canvas edge. */
-  .video-pill {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    width: 100%;
-    box-sizing: border-box;
-    padding: 0 10px;
-  }
-
-  .pill-toggle {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex: none;
-    width: 24px;
-    height: 24px;
-    padding: 0;
-    border: none;
-    background: transparent;
-    color: var(--c-black);
-    cursor: pointer;
-    transition: color var(--transition-fast) ease;
-  }
-
-  .pill-toggle:hover:not(:disabled) {
-    color: var(--c-brand);
-  }
-
-  .pill-toggle:disabled {
-    opacity: 0.4;
-    cursor: default;
-  }
-
-  .pill-rail {
-    position: relative;
-    display: flex;
-    align-items: center;
-    flex: 1;
-    min-width: 0;
-    height: 100%;
-  }
-
-  /* Minimal seek bar: a thin rail with the trail filled solid and the rest a
-     bare grey line. No native track chrome, no borders. */
-  .pill-seek:focus-visible {
-    outline: 2px solid var(--c-brand);
-    outline-offset: 4px;
-  }
-
-  .pill-seek {
-    flex: 1;
-    min-width: 0;
-    appearance: none;
-    -webkit-appearance: none;
-    height: 4px;
-    margin: 0;
-    border: none;
-    outline: none;
-    border-radius: 2px;
-    background: linear-gradient(
-      to right,
-      var(--c-midgrey) var(--trail-from, 0%),
-      var(--c-brand) var(--trail-from, 0%),
-      var(--c-brand) var(--seek-progress, 0%),
-      var(--c-midgrey) var(--seek-progress, 0%)
-    );
-    cursor: pointer;
-  }
-
-  .pill-seek::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    width: 10px;
-    height: 10px;
-    border: none;
-    border-radius: 50%;
-    background: var(--c-brand);
-  }
-
-  .pill-seek::-moz-range-thumb {
-    width: 10px;
-    height: 10px;
-    border: none;
-    border-radius: 50%;
-    background: var(--c-brand);
-  }
-
-  .pill-seek::-moz-range-track {
-    background: transparent;
-  }
-
-  .pill-seek:disabled {
-    cursor: default;
-    opacity: 0.4;
-  }
-
-  /* The trail's left edge: a short grip on the rail, dragged sideways. */
-  .pill-trail-edge {
-    position: absolute;
-    top: 50%;
-    width: 4px;
-    height: 12px;
-    margin: -6px 0 0 -2px;
-    padding: 0;
-    border: none;
-    border-radius: 2px;
-    background: var(--c-brand);
-    cursor: ew-resize;
-    touch-action: none;
-  }
-
-  .pill-note {
-    flex: 0 1 auto;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    font-size: var(--text-xs);
-    color: var(--c-darkgrey);
-  }
-
-  .pill-time {
-    flex: none;
-    font-size: var(--text-xs);
-    font-family: var(--font-small);
-    font-variant-numeric: tabular-nums;
-    color: var(--c-black);
-    white-space: nowrap;
   }
 </style>

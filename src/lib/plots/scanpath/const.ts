@@ -2,8 +2,6 @@ import { UI_COLORS } from '$lib/color'
 
 /** Layout constants: visual primitives only; the axis gutters are measured by usePlot. */
 export const SCANPATH_LAYOUT = {
-  /** Trail length (ms) on a video when none is set: a moving frame needs a short window. */
-  videoTrailMs: 2000,
   /** Tick count per axis. */
   tickCount: 5,
 

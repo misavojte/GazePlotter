@@ -1,9 +1,9 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { figureView, type PlotView } from '$lib/plots/definePlot'
 import type { PlotPlaceholderContent } from '$lib/plots/shared/drawCanvasPlaceholder'
+import { trailLengthOf } from '$lib/plots/shared/playbackFields'
 import ScanpathPlotFigure from '../components/ScanpathPlotFigure.svelte'
 import { getScanpathData } from './transformer'
-import { SCANPATH_LAYOUT } from '../const'
 import type { ScanpathPlotSettings, ScanpathUnavailableReason } from '../types'
 
 const PLACEHOLDERS: Record<ScanpathUnavailableReason, PlotPlaceholderContent> = {
@@ -23,13 +23,6 @@ const PLACEHOLDERS: Record<ScanpathUnavailableReason, PlotPlaceholderContent> = 
     message: 'No fixations in the selected time range.',
     steps: ['Widen the Time range', 'Pick another Participant or Stimulus'],
   },
-}
-
-/** Trail length in ms: the set value, else a short one on a video and all on an image. */
-export function scanpathTrail(settings: Partial<ScanpathPlotSettings>, engine: DataEngine): number {
-  if (settings.trailLength !== undefined) return settings.trailLength
-  const media = engine.metadata?.stimuliMedia?.[settings.stimulusId ?? 0]
-  return media?.kind === 'video' ? SCANPATH_LAYOUT.videoTrailMs : 0
 }
 
 /** Single source of truth for "what a scanpath draws" from (engine, settings). */
@@ -56,7 +49,7 @@ export function deriveScanpathView(
     colorScale: settings.colorScale,
     solidColor: settings.solidColor,
     background: settings.background,
-    trailLength: scanpathTrail(settings, engine),
+    trailLength: trailLengthOf(settings, engine),
     playbackSpeed: settings.playbackSpeed,
     timelineStart: settings.timelineStart,
     timelineEnd: settings.timelineEnd,

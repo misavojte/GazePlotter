@@ -8,7 +8,7 @@ import { beforeAll, describe, expect, it, vi } from 'vitest'
 import { PlaybackClocks } from '$lib/plots/shared/playbackClock.svelte'
 import { PlotCursorState, createPlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
 import { getScanpathData } from '$lib/plots/scanpath/core/transformer'
-import { scanpathTrail } from '$lib/plots/scanpath/core/view'
+import { trailLengthOf } from '$lib/plots/shared/playbackFields'
 import { FIXATION_CATEGORY_ID } from '$lib/data/binary'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { ScanpathPlotSettings } from '$lib/plots/scanpath/types'
@@ -194,14 +194,14 @@ describe('scanpath time range', () => {
   })
 })
 
-describe('scanpath trail', () => {
+describe('trail length', () => {
   const engineWith = (kind: 'image' | 'video') =>
     ({ metadata: { stimuliMedia: { 0: { kind } } } }) as unknown as DataEngine
 
   it('defaults to 2 s on a video and All on an image; a set value wins', () => {
-    expect(scanpathTrail({ stimulusId: 0 }, engineWith('video'))).toBe(2000)
-    expect(scanpathTrail({ stimulusId: 0 }, engineWith('image'))).toBe(0)
-    expect(scanpathTrail({ stimulusId: 0, trailLength: 0 }, engineWith('video'))).toBe(0)
-    expect(scanpathTrail({ stimulusId: 0, trailLength: 500 }, engineWith('image'))).toBe(500)
+    expect(trailLengthOf({ stimulusId: 0 }, engineWith('video'))).toBe(2000)
+    expect(trailLengthOf({ stimulusId: 0 }, engineWith('image'))).toBe(0)
+    expect(trailLengthOf({ stimulusId: 0, trailLength: 0 }, engineWith('video'))).toBe(0)
+    expect(trailLengthOf({ stimulusId: 0, trailLength: 500 }, engineWith('image'))).toBe(500)
   })
 })
