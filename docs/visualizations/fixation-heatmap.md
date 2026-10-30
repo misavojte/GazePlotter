@@ -1,6 +1,6 @@
 # Fixation Heatmap
 
-The Fixation Heatmap pools the eye-tracking fixations of a participant selection on one stimulus into one smoothed map. Every fixation adds its duration, or a count of one, through a Gaussian kernel, so regions that collected much fixation time read as hot. When the stimulus has an image as [reference media](/docs/workspace/stimuli-library/#reference-media), the map is drawn over it and clipped to it. The same map can also be drawn as an opacity map: a dark mask over the stimulus that clears where people looked, so only the viewed parts of the image show.
+The Fixation Heatmap pools the eye-tracking fixations of a participant selection on one stimulus into one smoothed map. Every fixation adds its duration, or a count of one, through a Gaussian kernel, so regions that collected much fixation time read as hot. When the stimulus has an image as [reference media](/docs/workspace/stimuli-library/#reference-media), the map is drawn over it and clipped to it. The same map can also be drawn as an opacity map: a dark mask over the stimulus that clears where people looked, so only the viewed parts of the image show. A play bar under the plot animates the map over recording time, over the video frame when the stimulus is a video, see [Playback](#playback).
 
 The map is built from fixations as classified in the source file. GazePlotter stores one coordinate per fixation (for Tobii Pro Lab: `Mapped fixation X/Y` or `Fixation point X/Y`), not raw gaze samples, so there is no raw-gaze variant of the map.
 
@@ -9,7 +9,7 @@ The map is built from fixations as classified in the source file. GazePlotter st
 | | |
 | --- | --- |
 | **Scope** | One stimulus, a participant selection |
-| **Input** | Fixations with X/Y coordinates; the plot is offered when the dataset has them. The stimulus's reference image when attached. |
+| **Input** | Fixations with X/Y coordinates; the plot is offered when the dataset has them. The stimulus's reference image or video when attached. |
 | **Metric Library** | Not used, but the plot follows the library's time-range rules, so its totals agree with [Fixation count](/docs/metrics/counts-latency/) and [dwell time](/docs/metrics/durations/): a fixation's duration is clipped to the time range, and a fixation is counted when its midpoint lies in the range. |
 
 > **Try it**: The [demo workspace](/) opens with this heatmap of all participants over the Yarbus Remember clothes painting.
@@ -19,6 +19,7 @@ The map is built from fixations as classified in the source file. GazePlotter st
 - **Where a group looked**: see which regions of a stimulus collected the most fixation time across participants.
 - **What people saw**: the opacity map hides what nobody looked at and leaves the viewed regions in their own colors, which reads at a glance in a presentation.
 - **Group comparison**: put two participant selections side by side on a shared color scale, see [Comparing Heatmaps](#comparing-heatmaps).
+- **Attention over time**: play the map to watch where the group's attention builds up, or where it is within the last few seconds, over the video frame on a video stimulus. See [Playback](#playback).
 - **Figures for a paper**: the legend and data summary travel with the exported figure, see [Report These Settings](#report-these-settings).
 
 ## Reading the Plot
@@ -72,11 +73,15 @@ The collapsed section header shows the view.
   - **Mask color**: The opacity map's mask (default black). Opacity map only.
   - **Mask opacity / %**: The mask's opacity where the map is 0, from 0 to 100 (default 90). Opacity map only.
 - **Show fixations**: Draws every mapped fixation as a small dark dot over the heat, exposing how many fixations, and which outliers, the map rests on.
-- **Background**: What lies under the heat or the mask. Offered when the stimulus has a reference image.
+- **Background**: What lies under the heat or the mask. Offered when the stimulus has a reference image or video. A video frame is drawn only during playback; the parked map sits on white.
   - *Image*: The reference image as it is (default).
   - *Grayscale image*: The image without color, so the heat colors stand out on a colorful stimulus.
   - *Dimmed grayscale image*: The grayscale image faded halfway toward white, for the strongest heat contrast.
   - *None*: Heat only, on white, inside a thin outline of the image's extent. The only setting where the legend matches the map pixel for pixel, which suits reading values off the color bar.
+- **Playback**:
+  - **Trail length (ms)**: During playback the map covers only the last N milliseconds before the playhead. Leave it empty (**All**) to accumulate everything since the start of the range. On a video stimulus an unset trail is 2 s.
+  - **Speed**: Playback rate relative to recording time, from 0.25x to 2x. On a shared clock, the plot that started playback sets the rate.
+  - **Play with other plots of this stimulus**: On by default. The heatmap plays on the stimulus's shared clock with its scanpaths and other heatmaps, and the stimulus's time-axis plots show the playback time. Uncheck to play this plot on its own.
 
 ### Time range
 Limit the fixations the map is built from (Tobii Pro Lab's Time of interest).
@@ -85,8 +90,24 @@ Limit the fixations the map is built from (Tobii Pro Lab's Time of interest).
 
 ### Export
 Located at the bottom of the Pane:
-- **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the heatmap as a PNG or JPG, with its legend and data summary.
+- **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the heatmap as a PNG or JPG, with its legend and data summary. Exports always render the full parked map, not a playback frame.
 - **Download segments**: Opens the [Segmented Data](/docs/export/segmented-data/) export preset to this plot's stimulus and participant selection, over whole recordings.
+
+## Playback
+
+A control bar below the plot animates the map over recording time. At each moment the map covers a time window that ends at the playhead: everything since the start of the range with **Trail length** on *All*, or only the last N milliseconds with a set trail. Fixations enter the window by the same rules as the time range: a fixation adds its duration clipped to the window, or counts once its midpoint lies inside. The legend title shows the window instead of the time range, for example `t ≤ 2340 ms`.
+
+- **Play / Pause**: Also **Space** while the pointer is over the plot.
+- **Seek bar**: The filled part is the window. Drag its left edge to change the trail length; drop it at the start for **All**.
+- **Pause** holds the frame, so it can be hovered and read like the parked map.
+
+The colors do not rescale during playback. Each frame is normalized with the parked map's basis, each participant's total fixation time over the whole range and the same N, so a frame value can never exceed the parked value at that point. With **Trail length** on *All*, the map builds up frame by frame and the last frame is the parked map. With a set trail it slides: the window's share of the whole, not of the window itself, so a quiet second reads as cold rather than as a rescaled hot spot.
+
+Heatmaps and scanpaths of one stimulus play on one shared clock, and the stimulus's [Scarf Plot](/docs/visualizations/scarf-plot) (Absolute timeline), [AOI Timeline](/docs/visualizations/aoi-timeline), and [Metric Timeline](/docs/visualizations/metric-timeline) show the playback time with their dashed line. Hovering the seek bar marks that moment on them too.
+
+On a **video stimulus**, the current frame is drawn under the heat while the clock has a time, so the map shows what the group looked at in the scene on screen. Set **Video starts at** in the media's settings when the video does not start with the recording. The plot rests at the end of its first trail, frame and heat agreeing, and returns there when the run ends. With **Trail length** on *All* the parked plot is the full map on white, as a static map over one arbitrary frame of a moving scene would mislead. Exports always render the parked map.
+
+Playback recomputes the map on every frame. With the automatic radius this takes a few milliseconds; a very small radius on a large stimulus can lower the frame rate, while the clock keeps recording time.
 
 ## Interactivity
 
@@ -136,7 +157,7 @@ The legends then read *max fixed*, and exported figures keep the shared scale. W
 - **The radius shapes the picture**: A larger kernel merges neighboring spots, a smaller one splits them. Report it.
 - **Central bias**: The first fixation after stimulus onset often lands at the screen center or on a former fixation cross. Set the **Time range** Start to 500 to 1000 ms to leave it out.
 - **Calibration offset**: An offset shifts the whole map. Check it with **Show fixations** and the [media alignment](/docs/workspace/stimuli-library/#aligning-media-on-fixations).
-- **Dynamic stimuli**: A video background is not drawn (the map sits on white inside the video's outline): a static map over a moving scene is only meaningful for a time slice in which the scene stays put, and the video's frame follows playback in other plots. For screen recordings or scene camera video, map the gaze onto a snapshot in Tobii Pro Lab and attach the snapshot as an image.
+- **Dynamic stimuli**: The parked map of a video stimulus sits on white inside the video's outline: a static map over a moving scene is only meaningful for a time slice in which the scene stays put. Use [Playback](#playback) with a short trail to see the heat over the frame on screen at that moment, or narrow the **Time range** to such a slice. For screen recordings or scene camera video, map the gaze onto a snapshot in Tobii Pro Lab and attach the snapshot as an image.
 - **Descriptive, not inferential**: A heatmap shows where attention went; it does not test a difference.
 
 ## Coming from Tobii Pro Lab

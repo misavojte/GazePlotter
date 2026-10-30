@@ -7,6 +7,7 @@
 * *Unreleased*
 * **Participants**: *Non-empty* is now a **Hide participants without data** switch that combines with any participant selection. Saved workspaces open unchanged.
 * **Scanpath**: Scanpaths of a stimulus play in sync, and timeline plots show the playback time. Adds a trail on the seek bar, a Time range, and a video start offset. See [Synchronized time](/docs/visualizations/scanpath#synchronized-time).
+* **Fixation Heatmap**: The heatmap plays back over recording time on the stimulus's shared clock, accumulating from the start or over a sliding trail, with the video frame under the heat on a video stimulus. The color scale holds during the run, so frames compare with the parked map. See [Playback](/docs/visualizations/fixation-heatmap#playback).
 * **Recurrence Plot**: Each fixation is now a line rather than a cell, so a recurrence is a dot where two fixation lines cross, with fixation 1 on the axes. The cell grid is gone; the axes have whole-number ticks on all four edges and a diagonal guide line, and hovering marks the two fixations with dashed lines. New plots start without masking. See [Recurrence Plot](/docs/visualizations/recurrence-plot).
 
 ### 1.10.3

@@ -75,7 +75,7 @@ A control bar below the plot animates the scanpath over recording time: fixation
 
 ### Synchronized time
 
-Scanpaths of a stimulus play on one shared clock, so scanpaths of different participants move in lockstep. While it plays, the [Scarf Plot](/docs/visualizations/scarf-plot) (Absolute timeline), [AOI Timeline](/docs/visualizations/aoi-timeline), and [Metric Timeline](/docs/visualizations/metric-timeline) of the same stimulus show the playback time with the same dashed line they use for hovering, and the scanpath marks the fixation in progress.
+Scanpaths and [Fixation Heatmaps](/docs/visualizations/fixation-heatmap#playback) of a stimulus play on one shared clock, so scanpaths of different participants move in lockstep and a heatmap of the group builds up alongside them. While it plays, the [Scarf Plot](/docs/visualizations/scarf-plot) (Absolute timeline), [AOI Timeline](/docs/visualizations/aoi-timeline), and [Metric Timeline](/docs/visualizations/metric-timeline) of the same stimulus show the playback time with the same dashed line they use for hovering, and the scanpath marks the fixation in progress.
 
 Hovering works both ways without playback: hovering a fixation marks its time on those plots, and hovering them marks the fixation in progress at that time on the scanpath.
 
