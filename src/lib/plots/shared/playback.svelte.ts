@@ -138,6 +138,5 @@ export function usePlayer(opts: {
     get playTime() { return playTime },
     get isPlaying() { return isPlaying },
     get span() { return span },
-    get spanMs() { return span.end - span.start },
   }
 }
