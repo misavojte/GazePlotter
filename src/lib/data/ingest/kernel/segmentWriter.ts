@@ -188,6 +188,10 @@ export class SegmentWriter {
   private totalSegments = 0
   private totalAoiHits = 0
 
+  // Segments rejected by addSegmentBytes, by reason; see skippedSegmentWarnings.
+  private skippedNotFinite = 0
+  private skippedReversed = 0
+
   // Provisional groups in handle order: provisional[handle] is the bucket a
   // gating format opened and must commit to keep. Only ever appended to and
   // indexed; never per-row.
@@ -252,6 +256,19 @@ export class SegmentWriter {
     aoi: Uint8Array[] | null,
     spatial?: { x: number; y: number } | null
   ): void {
+    // Every format writes through here, so impossible times are caught once:
+    // rows out of time order, To before From, a negative Duration, an
+    // unparsable time. Checked before interning so a group made only of
+    // rejected segments never registers its names.
+    if (!Number.isFinite(start) || !Number.isFinite(end)) {
+      this.skippedNotFinite++
+      return
+    }
+    if (end < start) {
+      this.skippedReversed++
+      return
+    }
+
     const sIdx = this.internName(this.stimuli, stimulus, this.stimuliNames, true)
     const pIdx = this.internName(
       this.participants,
@@ -350,6 +367,20 @@ export class SegmentWriter {
     const start = Number(row.start)
     const end = Number(row.end)
     this.addSegmentBytes(start, end, cat, stimBytes, participantBytes, aoiBytes)
+  }
+
+  /** One import warning per reason a segment was rejected; empty when none. */
+  skippedSegmentWarnings(): string[] {
+    const warnings: string[] = []
+    const skipped = (count: number) =>
+      `${count} ${count === 1 ? 'segment' : 'segments'} skipped`
+    if (this.skippedNotFinite > 0) {
+      warnings.push(`${skipped(this.skippedNotFinite)}: start or end time is not a number`)
+    }
+    if (this.skippedReversed > 0) {
+      warnings.push(`${skipped(this.skippedReversed)}: end time before start time`)
+    }
+    return warnings
   }
 
   buildFinalData(): DataType {

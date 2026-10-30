@@ -10,6 +10,8 @@ export class VarjoRowParser extends RowParser {
   mTimeBase: number | null = null
   mActorLabelBytes: Uint8Array | null = null
   mParticipant: string
+  /** Rows whose Time is not yyyy:MM:dd:HH:mm:ss:SSS; reported once at the end. */
+  private malformedTimeRows = 0
   /** Reused per-row scratch for the seven timestamp parts (no allocation). */
   private readonly timeParts = new Int32Array(7)
   private readonly participantBytes: Uint8Array
@@ -35,11 +37,15 @@ export class VarjoRowParser extends RowParser {
     if (!timeBytes.length) return
 
     const timeNumber = this.convertTimeBytes(timeBytes)
+    if (Number.isNaN(timeNumber)) {
+      this.malformedTimeRows++
+      return
+    }
     const isNewSegment = !bytesEqual(actorLabelBytes, this.mActorLabelBytes)
 
     if (this.mTimeBase === null) this.mTimeBase = timeNumber
     if (isNewSegment) {
-      this.finalize()
+      this.emitSegment()
       this.mTimeStart = timeNumber
       this.mActorLabelBytes = actorLabelBytes.length ? actorLabelBytes : null
     }
@@ -47,6 +53,16 @@ export class VarjoRowParser extends RowParser {
   }
 
   override finalize(): void {
+    this.emitSegment()
+    const count = this.malformedTimeRows
+    if (count > 0) {
+      this.onWarning?.(
+        `${count} ${count === 1 ? 'row' : 'rows'} skipped: Time is not in yyyy:MM:dd:HH:mm:ss:SSS format`
+      )
+    }
+  }
+
+  private emitSegment(): void {
     const baseTime = this.mTimeBase
     if (baseTime === null) return
     if (!this.mActorLabelBytes || !this.mActorLabelBytes.length) return
@@ -73,6 +89,8 @@ export class VarjoRowParser extends RowParser {
    * Date.UTC keeps every delta identical to the former local-time
    * `new Date(...)` conversion except across a DST change mid-recording, where
    * the old code injected a spurious ±1 h jump into the gaze timeline.
+   * Returns NaN unless the cell is exactly seven digit groups split by colons,
+   * so a plain number is not read as a year.
    */
   private convertTimeBytes(bytes: Uint8Array): number {
     const parts = this.timeParts
@@ -80,14 +98,20 @@ export class VarjoRowParser extends RowParser {
     const stride = this.encoding === 'utf-8' ? 1 : 2
     const offset = this.encoding === 'utf-16be' ? 1 : 0
     let part = 0
+    let digits = 0
     for (let i = offset; i < bytes.length; i += stride) {
       const c = bytes[i]
       if (c >= 48 && c <= 57) {
         parts[part] = parts[part] * 10 + (c - 48)
-      } else if (c === 58 && part < 6) {
+        digits++
+      } else if (c === 58 && part < 6 && digits > 0) {
         part++
+        digits = 0
+      } else {
+        return Number.NaN
       }
     }
+    if (part !== 6 || digits === 0) return Number.NaN
     return Date.UTC(
       parts[0],
       parts[1] - 1, // Months are 0-indexed
