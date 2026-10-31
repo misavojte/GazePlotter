@@ -14,7 +14,7 @@ import { scanBatch } from './core/scanner'
 import { buildAoiSlots } from './core/aoiSlots'
 import { reduceFinite } from './core/aggregation'
 import type { GroupReduction } from './core/measurement'
-import type { Projection } from './core/projection'
+import { projectionOutputShape, type Projection } from './core/projection'
 import type { AoiSlotInfo, GroupScope } from './core/dsl'
 import { getAois } from '$lib/data/engine'
 import { resolveReduction, type MetricInstance } from './instances'
@@ -138,19 +138,27 @@ export function queryGroup(instance: MetricInstance, group: GroupScope): MetricR
     if (!projected) return emptyResult(instance, 'scalar', recipe.unit)
     return wrapProjectedResult(recipe.id, recipe.unit, instance, projected)
   }
-  const perParticipant = group.participantIds.map(pid =>
-    runRaw(recipe, instance, {
-      engine: group.engine, stimulusId: group.stimulusId, participantId: pid,
-      timeStart: group.timeStart, timeEnd: group.timeEnd,
-      aoiSelectionId: group.aoiSelectionId,
-    })
-  )
-  const reduced = reducePerSlot(perParticipant, method)
   const aoiNames = getAois(group.engine, group.stimulusId, group.aoiSelectionId).map(a => a.displayedName)
   const slots = buildAoiSlots(group.engine, group.stimulusId, group.aoiSelectionId)
   if (!slots) return emptyResult(instance, 'scalar', recipe.unit)
-  return wrapProjectedResult(recipe.id, recipe.unit, instance,
-    projectLeaf(recipe, instance.projection, group.engine, group.stimulusId, aoiNames, reduced, slots))
+  // Project WITHIN each participant first, then reduce: the group value is the
+  // per-participant mean (or cohort total) of what `query` gives each of them.
+  // Order matters for `aggregate-aoi`, whose winning AOI may differ between
+  // participants; the mean vector's extreme is not the mean of their extremes.
+  const perParticipant = group.participantIds.map(pid =>
+    projectLeaf(recipe, instance.projection, group.engine, group.stimulusId, aoiNames,
+      runRaw(recipe, instance, {
+        engine: group.engine, stimulusId: group.stimulusId, participantId: pid,
+        timeStart: group.timeStart, timeEnd: group.timeEnd,
+        aoiSelectionId: group.aoiSelectionId,
+      }), slots)
+  )
+  return wrapProjectedResult(recipe.id, recipe.unit, instance, {
+    shape: projectionOutputShape(instance.projection),
+    values: reducePerSlot(perParticipant.map(p => p.values), method),
+    slots,
+    refMissing: perParticipant.some(p => p.refMissing),
+  })
 }
 
 /** Per-event values by slot from ONE participant scan — the beeswarm's dots.

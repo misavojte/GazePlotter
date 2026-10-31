@@ -521,6 +521,31 @@ describe('transitionCount — count of AOI transitions (fixation pairs or visit 
   })
 })
 
+describe('queryGroup — aggregate-aoi reduces each participant\'s own extreme', () => {
+  // Participant A: AOI1 ×3, AOI2 ×1. Participant B: the reverse.
+  //   per-participant max across AOIs = 3 and 3 (the winning AOI differs)
+  //   mean of those = 3; the mean vector [2, 2] would wrongly give 2
+  //   sum of those = 6; the summed vector [4, 4] would wrongly give 4
+  const engine = makeMultiParticipantEngine([
+    [[0, 100, 0, 1], [100, 200, 0, 1], [200, 300, 0, 1], [300, 400, 0, 2]],
+    [[0, 100, 0, 2], [100, 200, 0, 2], [200, 300, 0, 2], [300, 400, 0, 1]],
+  ])
+  const groupScope: GroupScope = { engine, stimulusId: STIM, participantIds: [0, 1] }
+  const mostFixated = (over: Partial<MetricInstance> = {}) =>
+    testInstance('fixationCount', { kind: 'aggregate-aoi', reducer: 'max' }, over)
+
+  it('mean: the mean of per-participant maxima, not the maximum of the mean vector', () => {
+    const perParticipant = [0, 1].map(pid =>
+      scalar(query(mostFixated(), makeScope(engine, { participantId: pid }))))
+    expect(perParticipant).toEqual([3, 3])
+    expect(scalar(queryGroup(mostFixated(), groupScope))).toBe(3)
+  })
+
+  it('sum: the cohort total of per-participant maxima', () => {
+    expect(scalar(queryGroup(mostFixated({ reduction: 'sum' }), groupScope))).toBe(6)
+  })
+})
+
 // ─── transitionCount: high-AOI-cardinality stress ─────────────────────────
 
 describe('transitionCount — 130-AOI cascade (high cardinality stress)', () => {
