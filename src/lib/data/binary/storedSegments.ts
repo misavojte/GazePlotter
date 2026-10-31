@@ -22,7 +22,10 @@ type SegmentArrays = {
       ArrayBufferView | undefined
       ? K
       : never
-  ]-?: new (buffer: ArrayBuffer) => NonNullable<BinarySegmentBuffers[K]>
+  ]-?: {
+    new (buffer: ArrayBuffer): NonNullable<BinarySegmentBuffers[K]>
+    BYTES_PER_ELEMENT: number
+  }
 }
 
 const SEGMENT_ARRAYS: SegmentArrays = {
@@ -81,8 +84,13 @@ export async function readSegmentEntries(
   const views: Partial<BinarySegmentBuffers> = {}
   for (const key of segmentArrayKeys) {
     const bytes = await read(segmentEntryName(key))
+    if (!bytes) continue
+    const View = SEGMENT_ARRAYS[key]
+    if (bytes.byteLength % View.BYTES_PER_ELEMENT !== 0) {
+      throw new Error(`Invalid workspace file: the ${segmentEntryName(key)} entry is truncated`)
+    }
     // Computed key: the table types the view, the loop only carries it.
-    if (bytes) Object.assign(views, { [key]: new SEGMENT_ARRAYS[key](bytes) })
+    Object.assign(views, { [key]: new View(bytes) })
   }
   const { segmentBuffer, indexTable, aoiPool } = views
   if (!segmentBuffer || !indexTable || !aoiPool) {

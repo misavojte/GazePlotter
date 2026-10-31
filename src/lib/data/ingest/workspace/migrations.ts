@@ -461,12 +461,13 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
 
     // Normalize missing/null orderVectors to [] so the empty-array fallback
     // logic in selectors (empty → sequential 0,1,2,…) works correctly.
+    // A damaged file may hold a primitive here; the validator refuses it.
     for (const key of ['stimuli', 'participants', 'categories']) {
-      if (payload[key]) {
+      if (payload[key] && typeof payload[key] === 'object') {
         payload[key].orderVector = payload[key].orderVector ?? []
       }
     }
-    if (payload.aois) {
+    if (payload.aois && typeof payload.aois === 'object') {
       const rawAoiOv = payload.aois.orderVector
 
       if (rawAoiOv === null || rawAoiOv === undefined) {

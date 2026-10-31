@@ -1,4 +1,5 @@
 import type { WorkspaceFormatDefinition } from '../kernel/format'
+import type { IngestResult } from '../kernel/result'
 import type { StimulusMedia } from '$lib/data/types'
 import { readBlobZip, readZipEntry } from '$lib/data/zip/blobZip'
 import { readMediaEntries } from '$lib/data/media/mediaEntries'
@@ -31,35 +32,48 @@ export const workspaceZipFormat: WorkspaceFormatDefinition = {
   },
 
   async read(file) {
-    const entries = await readBlobZip(file)
-    const wsEntry = entries.get('workspace.json')
-    if (!wsEntry) {
-      throw new Error(
-        'Not a GazePlotter workspace archive: workspace.json entry is missing'
-      )
+    try {
+      return await readWorkspaceArchive(file)
+    } catch (error) {
+      // The zip reader meets a damaged directory or entry as an out-of-range
+      // read; say so instead of passing on the engine's RangeError.
+      if (error instanceof RangeError) {
+        throw new Error('Invalid workspace file: the archive is truncated or damaged')
+      }
+      throw error
     }
-
-    // Same lazy import as workspaceJson.ts: the migration chain pulls in the
-    // metric library, which must stay out of the worker's startup chunk.
-    const { processWorkspaceObject } = await import('../workspace/parser')
-    const raw = JSON.parse(await (await readZipEntry(file, wsEntry)).text())
-    // `.gazeplotter`: segment buffers are entries of their own.
-    if (isStoredSegments(raw?.data?.segments)) {
-      raw.data.segments = await readSegmentEntries(raw.data.segments, async name => {
-        const entry = entries.get(name)
-        return entry ? (await readZipEntry(file, entry)).arrayBuffer() : null
-      })
-    }
-    const result = processWorkspaceObject(raw)
-
-    // Stored media entries come back as slices of the archive: no copy.
-    const stimuliMedia = result.data.stimuliMedia as
-      | Record<number, StimulusMedia>
-      | undefined
-    const mediaBlobs = stimuliMedia
-      ? await readMediaEntries(file, entries.values(), stimuliMedia)
-      : {}
-
-    return { kind: 'workspace', ...result, mediaBlobs }
   },
+}
+
+async function readWorkspaceArchive(file: Blob): Promise<IngestResult> {
+  const entries = await readBlobZip(file)
+  const wsEntry = entries.get('workspace.json')
+  if (!wsEntry) {
+    throw new Error(
+      'Not a GazePlotter workspace archive: workspace.json entry is missing'
+    )
+  }
+
+  // Same lazy import as workspaceJson.ts: the migration chain pulls in the
+  // metric library, which must stay out of the worker's startup chunk.
+  const { processWorkspaceObject } = await import('../workspace/parser')
+  const raw = JSON.parse(await (await readZipEntry(file, wsEntry)).text())
+  // `.gazeplotter`: segment buffers are entries of their own.
+  if (isStoredSegments(raw?.data?.segments)) {
+    raw.data.segments = await readSegmentEntries(raw.data.segments, async name => {
+      const entry = entries.get(name)
+      return entry ? (await readZipEntry(file, entry)).arrayBuffer() : null
+    })
+  }
+  const result = processWorkspaceObject(raw)
+
+  // Stored media entries come back as slices of the archive: no copy.
+  const stimuliMedia = result.data.stimuliMedia as
+    | Record<number, StimulusMedia>
+    | undefined
+  const mediaBlobs = stimuliMedia
+    ? await readMediaEntries(file, entries.values(), stimuliMedia)
+    : {}
+
+  return { kind: 'workspace', ...result, mediaBlobs }
 }

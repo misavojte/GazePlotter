@@ -6,18 +6,56 @@ import {
 } from '$lib/data/types'
 import { SEGMENT_STRIDE } from '$lib/data/binary/schema'
 
+function refuse(what: string): never {
+  throw new Error(`Invalid workspace file: ${what}`)
+}
+
+const isRow = (row: unknown): boolean =>
+  Array.isArray(row) && row.length > 0 && row.every(cell => typeof cell === 'string')
+const isList = (value: unknown): value is unknown[] | null | undefined =>
+  value == null || Array.isArray(value)
+const listOf =
+  (item: (value: unknown) => boolean) =>
+  (list: unknown): boolean =>
+    Array.isArray(list) && list.every(item)
+
+/** Container, field, the field's expected shape, and that shape in words. */
+const SHAPES: [string, string, (value: unknown) => boolean, string][] = [
+  ['stimuli', 'data', listOf(isRow), 'a list of name rows'],
+  ['participants', 'data', listOf(isRow), 'a list of name rows'],
+  ['categories', 'data', listOf(isRow), 'a list of name rows'],
+  ['aois', 'data', listOf(listOf(isRow)), 'a list of name rows per stimulus'],
+  [
+    'eventData',
+    'data',
+    v => v == null || listOf(listOf(isRow))(v),
+    'a list of channel rows per stimulus',
+  ],
+  [
+    'eventData',
+    'events',
+    v => v == null || listOf(listOf(listOf(isList)))(v),
+    'a list of event buffers per stimulus, channel and participant',
+  ],
+]
+
 /**
- * Validates the basic structure of the data
+ * Refuses a file whose containers, rows or name cells have the wrong type
+ * before anything reads them: a damaged file would otherwise surface as the
+ * engine's TypeError instead of saying what is wrong.
  * @throws Error if the data structure is invalid
  */
-export function validateBasicStructure(data: RawIngestPayload): void {
-  if (!data.stimuli?.data || !Array.isArray(data.stimuli.data)) {
-    throw new Error('Invalid data structure: missing or invalid stimuli data')
+function validateBasicStructure(data: RawIngestPayload): void {
+  const raw = data as unknown as Record<string, Record<string, unknown> | null | undefined>
+  for (const [key, field, shape, words] of SHAPES) {
+    const container = raw[key]
+    if (container == null && key === 'eventData') continue
+    if (typeof container !== 'object' || container === null) refuse(`${key} is not an object`)
+    if (!shape(container[field])) refuse(`${key}.${field} is not ${words}`)
   }
-  if (!data.participants?.data || !Array.isArray(data.participants.data)) {
-    throw new Error(
-      'Invalid data structure: missing or invalid participants data'
-    )
+  const segmentLists = listOf(s => isList(s) && (s ?? []).every(isList))
+  if (Array.isArray(data.segments) && !segmentLists(data.segments)) {
+    refuse('segments is not a list of segment lists per stimulus and participant')
   }
 }
 
@@ -57,6 +95,7 @@ function assertSegmentTablesAgree(bins: BinarySegmentBuffers): void {
 export function processAndValidateData(
   data: RawIngestPayload
 ): DataType {
+  validateBasicStructure(data)
   const stimuliCount = data.stimuli.data.length
 
   // 1. Normalize basic metadata
@@ -129,7 +168,7 @@ export function processAndValidateData(
 
   // 2. Validate and sort segments
   if (!data.segments) {
-    throw new Error('Invalid data structure: missing segments data')
+    refuse('segments are missing')
   }
 
   if (Array.isArray(data.segments)) {
@@ -181,9 +220,7 @@ export function processAndValidateData(
       typeof bins.maxParticipants !== 'number' ||
       typeof bins.stimuliCount !== 'number'
     ) {
-      throw new Error(
-        'Invalid data structure: segments are not in valid array or binary buffer format'
-      )
+      refuse('segments are not a list or a binary table')
     }
 
     if (typeof bins.hasSpatialData !== 'boolean') {

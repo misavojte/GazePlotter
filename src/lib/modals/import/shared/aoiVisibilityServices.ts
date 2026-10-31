@@ -123,9 +123,11 @@ type TobiiJson = {
  * @param json JSON data to check
  * @returns true if the JSON is in the correct Tobii format, false otherwise
  */
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null
+
 export const isTobiiJson = (json: unknown): json is TobiiJson => {
-  if (typeof json !== 'object') return false
-  if (json === null) return false
+  if (!isRecord(json)) return false
   if (!('Aois' in json)) return false
 
   // Type assertion to inform TypeScript that json['Aois'] is an object
@@ -139,8 +141,8 @@ export const isTobiiJson = (json: unknown): json is TobiiJson => {
 
   const firstAoiKey = Object.keys(aois)[0]
   // Type assertion to inform TypeScript that aois[firstAoiKey] is an object
-  const firstAoi = aois[firstAoiKey] as Record<string, unknown>
-  if (!('KeyFrames' in firstAoi)) return false
+  const firstAoi = aois[firstAoiKey]
+  if (!isRecord(firstAoi) || !('KeyFrames' in firstAoi)) return false
 
   // Type assertion to inform TypeScript that firstAoi['KeyFrames'] is an object
   const keyFrames = firstAoi['KeyFrames'] as Record<string, unknown>
@@ -153,8 +155,8 @@ export const isTobiiJson = (json: unknown): json is TobiiJson => {
 
   const firstKeyFrameKey = Object.keys(keyFrames)[0]
   // Type assertion to inform TypeScript that keyFrames[firstKeyFrameKey] is an object
-  const firstKeyFrame = keyFrames[firstKeyFrameKey] as Record<string, unknown>
-  if (!('IsActive' in firstKeyFrame)) return false
+  const firstKeyFrame = keyFrames[firstKeyFrameKey]
+  if (!isRecord(firstKeyFrame) || !('IsActive' in firstKeyFrame)) return false
   if (!('Seconds' in firstKeyFrame)) return false
 
   return true
@@ -168,6 +170,9 @@ const processTobiiChannels = (tobiiJson: TobiiJson): AoiVisibilityResult => {
   const multipleAoiVisibilityArrays: number[][] = []
   for (const aoiId in tobiiJson.Aois) {
     const aoi = tobiiJson.Aois[aoiId]
+    if (!isRecord(aoi)) {
+      throw new Error(`Invalid AOI visibility file: AOI ${aoiId} is not an object`)
+    }
     multipleAoiNames.push(aoi.Name)
     multipleAoiVisibilityArrays.push(processTobiiKeyFrames(aoi.KeyFrames))
   }
@@ -208,6 +213,9 @@ export const processTobiiKeyFrames = (
   let isAoiCurrentlyVisible = false
   for (const keyFrameId in keyFrames) {
     const keyFrame = keyFrames[keyFrameId]
+    if (!isRecord(keyFrame)) {
+      throw new Error(`Invalid AOI visibility file: key frame ${keyFrameId} is not an object`)
+    }
     const isActive = !!keyFrame.IsActive
     if (isActive !== isAoiCurrentlyVisible) {
       visibilityArr.push(keyFrame.Seconds * 1000) // ms
