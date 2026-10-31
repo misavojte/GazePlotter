@@ -54,22 +54,26 @@ export const pupilCloudZipFormat: ArchiveFormatDefinition = {
 }
 
 /**
- * Reads a text file from a JSZip archive by partial filename match (case-insensitive).
+ * Reads a text file from a JSZip archive by its file name (case-insensitive),
+ * in any folder. The name must match whole: a substring match would resolve
+ * `fixations.csv` to `aoi_fixations.csv` whenever the archive lists that
+ * entry first, and the import would then fail with "No stimuli found".
  *
  * @param zip - Loaded JSZip instance
- * @param namePart - Substring to identify the entry (e.g., 'sections.csv')
+ * @param fileName - Entry file name without folders (e.g., 'sections.csv')
  * @throws If no matching file is found or the entry is a directory
  */
 async function readZipText(
   zip: JSZip,
-  namePart: string
+  fileName: string
 ): Promise<string> {
-  const key = Object.keys(zip.files).find(k =>
-    k.toLowerCase().includes(namePart.toLowerCase())
+  const wanted = fileName.toLowerCase()
+  const key = Object.keys(zip.files).find(
+    k => k.slice(k.lastIndexOf('/') + 1).toLowerCase() === wanted
   )
-  if (!key) throw new Error(`Missing ${namePart} in ZIP`)
+  if (!key) throw new Error(`Missing ${fileName} in ZIP`)
   const file = zip.files[key]
-  if (file.dir) throw new Error(`${namePart} is a directory, expected a file`)
+  if (file.dir) throw new Error(`${fileName} is a directory, expected a file`)
   return await file.async('text')
 }
 
