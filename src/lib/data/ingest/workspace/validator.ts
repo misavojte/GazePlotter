@@ -4,6 +4,7 @@ import {
   reservedFixationName,
   DEFAULT_NO_AOI_TREATMENT,
 } from '$lib/data/types'
+import { SEGMENT_STRIDE } from '$lib/data/binary/schema'
 
 /**
  * Validates the basic structure of the data
@@ -16,6 +17,35 @@ export function validateBasicStructure(data: RawIngestPayload): void {
   if (!data.participants?.data || !Array.isArray(data.participants.data)) {
     throw new Error(
       'Invalid data structure: missing or invalid participants data'
+    )
+  }
+}
+
+/**
+ * The stored counts size every loop over the tables, so a `.gazeplotter`
+ * file whose `stimuliCount` or index ranges were damaged would otherwise
+ * hang the reader (billions of iterations) instead of being refused.
+ * @throws Error when the counts and tables disagree
+ */
+function assertSegmentTablesAgree(bins: BinarySegmentBuffers): void {
+  const { stimuliCount, maxParticipants, segmentBuffer, indexTable } = bins
+  const tableLength = stimuliCount * maxParticipants * 2
+  const segmentCount = segmentBuffer.length / SEGMENT_STRIDE
+  let consistent =
+    Number.isInteger(stimuliCount) &&
+    stimuliCount >= 0 &&
+    Number.isInteger(maxParticipants) &&
+    maxParticipants >= 0 &&
+    Number.isInteger(segmentCount) &&
+    indexTable.length === tableLength &&
+    (bins.fixationIndexTable?.length ?? tableLength) === tableLength
+  for (let i = 0; consistent && i < indexTable.length; i += 2) {
+    consistent =
+      indexTable[i] <= indexTable[i + 1] && indexTable[i + 1] <= segmentCount
+  }
+  if (!consistent) {
+    throw new Error(
+      'Invalid workspace file: the segment tables do not match the stored stimulus and participant counts'
     )
   }
 }
@@ -159,10 +189,11 @@ export function processAndValidateData(
     if (typeof bins.hasSpatialData !== 'boolean') {
       bins.hasSpatialData = false
     }
+    assertSegmentTablesAgree(bins as BinarySegmentBuffers)
   }
 
   const bins = data.segments as DataType['segments']
-  const segmentCount = (bins.segmentBuffer?.length ?? 0) / 6
+  const segmentCount = (bins.segmentBuffer?.length ?? 0) / SEGMENT_STRIDE
   const normalizedCapabilities: DataCapabilities = {
     segmented: segmentCount > 0,
     spatial: bins.hasSpatialData ?? false,
