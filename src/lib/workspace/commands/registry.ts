@@ -474,10 +474,14 @@ export function createWorkspaceCommandRegistry(
     updateEntities: cmd => {
       const dataMeta = requireMetadata()
       const table = cmd.axis === 'participant' ? dataMeta.participants : dataMeta.stimuli
+      // Rows in CURRENT display order: the forward derives the order vector
+      // from the item sequence, so this is what restores a sort on undo.
+      const rows = interpretBaseRows(table.data || [])
+      const order = table.orderVector ?? []
       return {
         type: 'updateEntities',
         axis: cmd.axis,
-        items: interpretBaseRows(table.data || []),
+        items: order.length > 0 ? order.flatMap(id => rows[id] ?? []) : rows,
       }
     },
 
