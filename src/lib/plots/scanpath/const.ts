@@ -2,11 +2,9 @@ import { UI_COLORS } from '$lib/color'
 
 /** Layout constants: visual primitives only; the axis gutters are measured by usePlot. */
 export const SCANPATH_LAYOUT = {
-  /** Tick count per axis. */
   tickCount: 5,
 
-  /** Min/max fixation circle radius in CSS pixels. Area linear in duration;
-      long recordings put hundreds on screen, so the density damping below shrinks them. */
+  /** Marker radius range (CSS px); area is linear in duration. */
   minRadius: 4,
   maxRadius: 15,
   /** Above this many fixations the radius range shrinks progressively

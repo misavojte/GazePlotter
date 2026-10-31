@@ -118,48 +118,17 @@ type TobiiJson = {
   >
 }
 
-/**
- * Check if the JSON is in the correct Tobii format
- * @param json JSON data to check
- * @returns true if the JSON is in the correct Tobii format, false otherwise
- */
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null
 
+/** Whether the JSON is in the Tobii AOI visibility format. */
 export const isTobiiJson = (json: unknown): json is TobiiJson => {
-  if (!isRecord(json)) return false
-  if (!('Aois' in json)) return false
-
-  // Type assertion to inform TypeScript that json['Aois'] is an object
-  const aois = json['Aois'] as Record<string, unknown>
-  if (
-    typeof aois !== 'object' ||
-    aois === null ||
-    Object.keys(aois).length === 0
-  )
-    return false
-
-  const firstAoiKey = Object.keys(aois)[0]
-  // Type assertion to inform TypeScript that aois[firstAoiKey] is an object
-  const firstAoi = aois[firstAoiKey]
-  if (!isRecord(firstAoi) || !('KeyFrames' in firstAoi)) return false
-
-  // Type assertion to inform TypeScript that firstAoi['KeyFrames'] is an object
-  const keyFrames = firstAoi['KeyFrames'] as Record<string, unknown>
-  if (
-    typeof keyFrames !== 'object' ||
-    keyFrames === null ||
-    Object.keys(keyFrames).length === 0
-  )
-    return false
-
-  const firstKeyFrameKey = Object.keys(keyFrames)[0]
-  // Type assertion to inform TypeScript that keyFrames[firstKeyFrameKey] is an object
-  const firstKeyFrame = keyFrames[firstKeyFrameKey]
-  if (!isRecord(firstKeyFrame) || !('IsActive' in firstKeyFrame)) return false
-  if (!('Seconds' in firstKeyFrame)) return false
-
-  return true
+  // Only the first AOI and its first key frame are sampled.
+  if (!isRecord(json) || !isRecord(json.Aois)) return false
+  const firstAoi = Object.values(json.Aois)[0]
+  if (!isRecord(firstAoi) || !isRecord(firstAoi.KeyFrames)) return false
+  const firstKeyFrame = Object.values(firstAoi.KeyFrames)[0]
+  return isRecord(firstKeyFrame) && 'IsActive' in firstKeyFrame && 'Seconds' in firstKeyFrame
 }
 
 /**

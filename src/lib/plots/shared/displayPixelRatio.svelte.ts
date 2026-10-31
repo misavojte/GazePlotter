@@ -1,10 +1,9 @@
 import { sessionScoped } from '$lib/session/context'
 
 /**
- * The display's device pixel ratio as one reactive value shared by every plot
- * in a session. One `(resolution: Ndppx)` query is re-armed at each new ratio,
- * so any change fires (a window moved to another display, browser zoom), not
- * only a crossing of exactly 1x.
+ * The device pixel ratio as one reactive value per session. The `(resolution:
+ * Ndppx)` query is re-armed at each new ratio so any change fires, not only a
+ * crossing of exactly 1x.
  */
 class DisplayPixelRatio {
   current = $state(typeof window !== 'undefined' ? window.devicePixelRatio || 1 : 1)

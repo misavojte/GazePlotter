@@ -6,21 +6,15 @@ import { getTransitionMatrixData } from './transformer'
 import { getLegendTitle, TRANSITION_MATRIX_DEFAULTS } from '../const'
 import type { TransitionMatrixPlotSettings } from '../types'
 
-/** Screen-coordination surface carried on the view for the screen recipe. */
-export type TransitionViewMeta = {
-  /** Unsynced data maximum: the on-screen container uses it for color sync. */
-  ownDataMax: number
-  syncGroupKey: string
-  colorScaleKey: string
-  isDefaultColorRange: boolean
-}
-
-export type TransitionMatrixView = PlotView<FigureProps<typeof MatrixPlotFigure>, TransitionViewMeta>
+/** `meta` carries what the screen recipe's color sync keys on; export ignores it. */
+export type TransitionMatrixView = PlotView<
+  FigureProps<typeof MatrixPlotFigure>,
+  { ownDataMax: number; syncGroupKey: string; colorScaleKey: string; isDefaultColorRange: boolean }
+>
 
 /**
- * Single source of truth for "what a transition matrix draws", screen and export.
- * `props.colorValueRange` is the UNSYNCED per-stimulus range; the on-screen
- * container may swap in a synced range (export never syncs).
+ * What a transition matrix draws, screen and export. `props.colorValueRange` is
+ * the unsynced per-stimulus range; the screen recipe may swap in a synced one.
  */
 export function deriveTransitionMatrixView(
   engine: DataEngine,

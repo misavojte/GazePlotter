@@ -58,16 +58,12 @@ export function getMetricMatrixData(
     label: s.displayedName,
   }))
 
-  // Rows: the selection's participants, one row per id (displayed-name merge
-  // does NOT apply to participants); `hideEmptyParticipants` keeps those with
-  // a recording on at least one shown stimulus. Rows keep the
-  // global participant order, NOT first appearance across stimuli, so a
-  // participant's row never moves with the data.
+  // Rows: one per participant id (no displayed-name merge), in the global
+  // participant order rather than first appearance, so a row never moves with
+  // the data. `hideEmptyParticipants` keeps those recorded on any shown stimulus.
   const eligible = new Set<number>()
   for (const s of stimuli) {
-    for (const pid of getParticipantsIds(engine, settings, s.id)) {
-      eligible.add(pid)
-    }
+    for (const pid of getParticipantsIds(engine, settings, s.id)) eligible.add(pid)
   }
   const rowIds = getParticipantOrderVector(engine).filter(pid => eligible.has(pid))
   const rows = labelRows(engine, rowIds)

@@ -46,11 +46,7 @@ export type PlotView<P extends object = Record<string, unknown>, M = unknown> = 
    * unavailable placeholder instead of the figure. Omitted means `true`.
    */
   hasData?: boolean
-  /**
-   * Screen-coordination surface: values a plot's screen recipe needs beyond
-   * the figure props (sync keys, data maxima, default-range flags). Opaque to
-   * the host; the plot's own recipe reads it typed. Export ignores it.
-   */
+  /** Values the plot's screen recipe needs beyond the figure props (sync keys, data maxima); export ignores it. */
   meta?: M
 }
 
@@ -67,12 +63,9 @@ export function figureView<C extends Component<any>, M = undefined>(
 }
 
 /**
- * Host layout context for plots whose view depends on their on-screen size —
- * width-windowed plots derive a display budget from `itemWidth`. Most plots
- * ignore it. Cross-plot coordination does NOT live here: sync values are
- * resolved by the on-screen container (via `useSyncedMax` channels)
- * and merged into the settings before deriving; export derives from the raw
- * settings and never syncs.
+ * Host layout context for plots whose view depends on their on-screen size
+ * (width-windowed plots derive a display budget from `itemWidth`). Cross-plot
+ * sync does not live here: screen recipes merge it into the settings.
  */
 export type PlotViewContext = {
   /** This plot's grid cell size, in grid units. */
@@ -114,7 +107,7 @@ export type PlotViewConfig<TSettings, TView extends PlotView<object> = PlotView>
  * invokes ONCE during component init — so it may use runes and `$effect`-based
  * helpers (`useSyncedMax`, `usePlotData`); recipes that do live in
  * `<plot>/core/screen.svelte.ts`. Everything a per-plot container used to do
- * fits in the three optional slots:
+ * fits in the two optional slots:
  *
  *  - `settings` — the reactive settings the view derives from on screen
  *    (e.g. cross-plot sync merged in). Export always derives from the raw
@@ -141,7 +134,6 @@ export type PlotScreen<TSettings, TView extends PlotView<object> = PlotView> = {
   props?: (view: TView) => Record<string, unknown>
 }
 
-/** `TView` is the plot's own view type, so a recipe reads its props and meta typed. */
 export type PlotScreenFactory<TSettings, TView extends PlotView<object> = PlotView> = (
   ctx: PlotScreenContext<TSettings, TView>
 ) => PlotScreen<TSettings, TView>
@@ -400,7 +392,7 @@ export function paneSectionKey(entry: PaneSectionEntry): string {
   return typeof entry === 'string' ? entry : entry.key
 }
 
-/** `TView`: the plot's own view type, named when its screen recipe reads props or meta. */
+/** `TView`: the plot's own view type, so its screen recipe reads props and meta typed. */
 export type PlotDefinition<
   TType extends string,
   TSettings,

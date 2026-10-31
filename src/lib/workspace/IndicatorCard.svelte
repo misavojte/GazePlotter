@@ -12,8 +12,7 @@
   let { title, children }: Props = $props()
 </script>
 
-<!-- When one card replaces another, the old one is nearly gone before the
-     new one shows, so two states never read at once and nothing waits. -->
+<!-- A replaced card is nearly gone before the new one shows: never two states at once. -->
 <div
   class="workspace-indicator"
   in:fade={{ duration: prefersReducedMotion.current ? 0 : 300, easing: cubicIn }}

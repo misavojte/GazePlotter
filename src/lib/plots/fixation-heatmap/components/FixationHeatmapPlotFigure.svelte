@@ -35,7 +35,7 @@
     /** The parked map: every fixation of the time range. */
     data: FixationHeatmapData | null
     colorScale?: string[]
-    /** Opacity map: the mask colour, painted over the stimulus and clearing as the value rises; null draws the heat. */
+    /** The opacity map's mask colour; null draws the heat. */
     mask?: string | null
     /** Heat overlay opacity, or the mask's where the map is 0, 0..1. */
     opacity?: number
@@ -165,13 +165,6 @@
       paintHeat(d.values, scaleTop, lut, layer.pixels, mask ? lut[0] : 0)
     )
 
-  function clipToRect(ctx: CanvasRenderingContext2D, r: Rect, frame: PlotFrame) {
-    const s = stim.space!.view.scale
-    ctx.beginPath()
-    ctx.rect(stim.x(r.x, frame), stim.y(r.y, frame), r.width * s, r.height * s)
-    ctx.clip()
-  }
-
   function drawHeatmap(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
     const d = shown
     if (!d || !stim.space) return
@@ -183,7 +176,11 @@
     if (layer) {
       const g = d.grid
       ctx.save()
-      if (d.clip) clipToRect(ctx, d.clip, frame)
+      if (d.clip) {
+        ctx.beginPath()
+        ctx.rect(stim.x(d.clip.x, frame), stim.y(d.clip.y, frame), d.clip.width * s, d.clip.height * s)
+        ctx.clip()
+      }
       ctx.imageSmoothingEnabled = true
       ctx.imageSmoothingQuality = 'high'
       // Texel edges on cell edges, so texel centres land on the cell centres the splat used.
@@ -217,12 +214,8 @@
   function overLegendTitle(x: number, y: number): boolean {
     const t = plot.gradientLegend?.title
     if (!t) return false
-    const lineHeight = axisTitleLineHeight(AXIS_CONFIG.fontSize)
-    let half = 0
-    for (const line of t.lines) {
-      half = Math.max(half, estimateTextWidth(line, AXIS_CONFIG.fontSize, AXIS_CONFIG.fontFamily) / 2)
-    }
-    return Math.abs(x - t.x) <= half && y >= t.y && y <= t.y + t.lines.length * lineHeight
+    const half = Math.max(0, ...t.lines.map(l => estimateTextWidth(l, AXIS_CONFIG.fontSize, AXIS_CONFIG.fontFamily) / 2))
+    return Math.abs(x - t.x) <= half && y >= t.y && y <= t.y + t.lines.length * axisTitleLineHeight(AXIS_CONFIG.fontSize)
   }
 
   // ── Hover: what lies within R of the hovered cell's centre.

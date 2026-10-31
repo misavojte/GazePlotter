@@ -37,8 +37,7 @@ export interface LegendItem {
   /** Color for the icon */
   color: string
 
-  /** Icon: 'fixation' a filled block, 'nonFixation' a centred thin bar, 'event' a thin bar on the block's
-      bottom edge (the Scarf hangs event strips under the bar) */
+  /** 'fixation' a filled block, 'nonFixation' a centred thin bar, 'event' a thin bar under an outlined bar, as in the Scarf */
   type: 'fixation' | 'nonFixation' | 'event'
 }
 
@@ -139,7 +138,6 @@ export const LEGEND_CONFIG: LegendConfig = {
 // ============================================================================
 // GEOMETRY COMPUTATION FUNCTIONS
 // ============================================================================
-
 
 /** A column starting this close to a swatch or label line above reads as nearly aligned. */
 const ALMOST_ALIGNED_PX = 12
@@ -304,21 +302,12 @@ export function computeFlatLegendGeometry(
 }
 
 /**
- * Compute geometry for grouped legend items (the Scarf's AOIs, categories and
- * events), after the legend-design rules of Qin & Li (2014) and Vega's "each"
- * grid alignment:
- *
- * - Each group is a block: its title above a column-major grid of balanced
- *   columns (lengths differ by at most one, longer first), each column as wide
- *   as its own widest label.
- * - Blocks sit side by side in reading order, 2 * itemSpacing apart, filling
- *   the band's rows; they wrap into bands, every split into consecutive bands
- *   is tried and the lowest legend wins (ties: fewer bands, fuller early ones).
- * - A band under another sits wholly on the column lines above (each column on
- *   the next line, groups still a gap apart) or, when it cannot, packs at the
- *   usual spacing: alignment is all or nothing, never partial.
- * - A packed band ending less than a group gap short of the right edge widens
- *   its group gaps evenly to end flush with it.
+ * Grouped legend (the Scarf's AOIs, categories, events), after Qin & Li (2014)
+ * and Vega's "each" grid alignment. Each group is a titled block of balanced
+ * column-major columns, each as wide as its widest label. Blocks sit side by
+ * side and wrap into bands; every split is tried and `better` ranks them. A band
+ * under another sits wholly on the column lines above or packs clear of them:
+ * alignment is all or nothing.
  */
 export function computeGroupedLegendGeometry(
   groups: readonly LegendGroup[],
@@ -377,7 +366,7 @@ export function computeGroupedLegendGeometry(
     }
     return blocks
   }
-  /** Every column on the next column line above, each label clear of the following line and groups a gap apart; null when it cannot be. */
+  /** Every column on the next column line above, labels clear of the following line; null when impossible. */
   const onGrid = (band: readonly LegendGroup[], rows: number, lines: readonly number[]): Block[] | null => {
     const blocks: Block[] = []
     let next = 0
@@ -409,23 +398,14 @@ export function computeGroupedLegendGeometry(
     end: block.end + by,
     columns: block.columns.map(c => ({ ...c, x: c.x + by })),
   })
-  /**
-   * A packed band's group gaps flex evenly: they widen to end flush when the band
-   * falls short of the right edge by less than a group gap, and tighten down to
-   * minGroupGap rather than overflow. Null when even that does not fit.
-   */
+  /** Group gaps flex evenly: widen to end flush when less than a gap short, tighten to minGroupGap rather than overflow. */
   const fitted = (blocks: Block[]): Block[] | null => {
     const slack = limit - blocks[blocks.length - 1].end
     if (slack >= groupGap || (slack >= 0 && blocks.length < 2)) return blocks
     if (blocks.length < 2 || slack < -(groupGap - minGroupGap) * (blocks.length - 1)) return null
     return blocks.map((block, i) => shifted(block, Math.round((slack * i) / (blocks.length - 1))))
   }
-  /**
-   * In a packed band under another, every column start is checked, left to
-   * right, against the swatch and label lines above: within ALMOST_ALIGNED_PX
-   * left of a line it moves onto it, just right of one it moves clear of it.
-   * Gaps only grow, and later columns follow; null when the band then overflows.
-   */
+  /** Column starts nearly on a swatch or label line above snap onto it or clear of it; later columns follow. */
   const settledOn = (blocks: Block[], lines: readonly number[]): Block[] | null => {
     const targets = [...new Set(lines.flatMap(l => [l, l + config.iconWidth + config.textPadding]))].sort((p, q) => p - q)
     // Onto a line just ahead, back onto one just behind when allowed (`earliest`), else clear of it.
@@ -461,10 +441,7 @@ export function computeGroupedLegendGeometry(
     blocks.reduce((sum, b) => sum + b.columns.length * rowsOf(blocks) - b.group.items.length, 0)
   /** `clean`: no column nearly meets a line above anywhere in the plan. */
   type Plan = { height: number; empty: number; clean: boolean; bands: Block[][] }
-  /**
-   * A clean plan beats any other; then heights within a row gap of each other are
-   * a tie settled by fewer empty cells; then lower, then fewer bands.
-   */
+  /** Clean first; heights within a row gap tie and fewer empty cells win; then lower, then fewer bands. */
   const better = (a: Plan, b: Plan) => {
     if (a.clean !== b.clean) return a.clean
     if (Math.abs(a.height - b.height) > rowPadding) return a.height < b.height

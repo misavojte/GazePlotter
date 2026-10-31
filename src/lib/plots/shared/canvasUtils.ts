@@ -1,7 +1,4 @@
-/**
- * Canvas utility functions for DPI-aware sizing, mouse position calculations,
- * and crisp rendering on high-resolution displays.
- */
+/** Canvas helpers: DPI-aware sizing, pointer mapping, crisp strokes, crosshair marks. */
 
 const browser = typeof document !== 'undefined'
 import { UI_COLORS } from '$lib/color'
@@ -13,26 +10,15 @@ export interface CanvasState {
   pixelRatio: number
 }
 
-/**
- * Sizes the canvas to `width` x `height` CSS px at `pixelRatio`. The backing
- * store is only reassigned when its device-pixel size changes, because that
- * clears the bitmap.
- */
-export function sizeCanvas(
-  state: CanvasState,
-  width: number,
-  height: number,
-  pixelRatio: number
-): void {
+/** Sizes the canvas in CSS px; the backing store is only reassigned on change, as that clears it. */
+export function sizeCanvas(state: CanvasState, width: number, height: number, pixelRatio: number): void {
   const { canvas } = state
   if (!canvas) return
-
   const ratio = Number.isFinite(pixelRatio) && pixelRatio > 0 ? pixelRatio : 1
   const w = Number.isFinite(width) ? Math.max(1, width) : 1
   const h = Number.isFinite(height) ? Math.max(1, height) : 1
   const deviceW = Math.round(w * ratio)
   const deviceH = Math.round(h * ratio)
-
   if (canvas.width !== deviceW) canvas.width = deviceW
   if (canvas.height !== deviceH) canvas.height = deviceH
   canvas.style.width = `${w}px`
@@ -593,10 +579,8 @@ export function pixelLayer(
 }
 
 /**
- * A pixel layer that repaints only when its size or one of its keys changes
- * (compared with `Object.is`); otherwise the last raster is handed back as is.
- * `paint` fills `layer.pixels`; the cache puts them on the layer. Null as for
- * createScratchLayer.
+ * A pixel layer that `paint`s into `layer.pixels` only when its size or a key
+ * changes (`Object.is`); otherwise the last raster is returned as is.
  */
 export function cachedRaster(): (
   keys: readonly unknown[],

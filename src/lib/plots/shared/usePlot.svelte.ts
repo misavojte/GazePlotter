@@ -69,12 +69,9 @@ const RENDER_FAILED_PLACEHOLDER: PlotPlaceholderContent = {
  * render scaffold, the `drawPlotArea` + axis-title chrome, the mouse-move →
  * hit-test → tooltip/cursor plumbing, and a generic pointer/drag lifecycle.
  *
- * A figure hands over its `props` and DECLARES its plot — `placeholder`,
- * `axes`, `gutters`, `drawData`, optional `legend`/`gradientLegend`/
- * `drawOverlay`/`hitTest`/`pointer` — and writes only the
- * genuinely plot-specific marks, hit-test geometry and tooltip content. The
- * lower-level surface (`plotAreaWidth`, `canvasState`, …) is on
- * the same handle for the rare figure that needs it.
+ * A figure hands over its `props`, declares `axes`, `gutters`, `drawData` and
+ * the optional hooks below, and writes only its own marks, hit geometry and
+ * tooltip content.
  */
 
 // ── Frame spec types ──
@@ -94,16 +91,11 @@ export interface FrameGutters {
   aspect?: number
 }
 
-/**
- * One edge's axis chrome. The frame measures its tick labels, `reserve` and
- * title (height on top/bottom, width on left/right) to reserve the gutter, and
- * draws the ticks through `drawPlotArea`. Titles are drawn on the bottom and left.
- */
+/** One edge's axis chrome; its labels and title size the gutter. Titles draw on the bottom and left only. */
 export interface FrameAxis {
   ticks?: PlotAreaTicks
   title?: string
-  /** Labels the figure draws itself on this edge (row labels, a scale bar, an
-   *  extra origin): measured with the tick labels, never drawn by the frame. */
+  /** Labels the figure draws itself on this edge (row labels, an extra origin): measured, never drawn. */
   reserve?: string[]
 }
 
@@ -227,17 +219,14 @@ export type GradientLegendSlot = Omit<
 export interface UsePlotOptions<THit = unknown> {
   // ---- sizing + redraw ----
   /**
-   * The figure's `$props()` object. `width`/`height`/`margin` size the canvas;
-   * every other prop is a redraw dependency, so no prop can go missing from a
-   * hand-kept list (a palette edit once left a heatmap stale that way).
+   * The figure's `$props()`. `width`/`height`/`margin` size the canvas; every
+   * other prop is a redraw dependency, so none can be missed from a hand-kept
+   * list (a palette edit once left a heatmap stale that way).
    */
   props: () => CanvasExportProps
   /** Canvas height when it differs from the `height` prop (a DOM row below it). */
   height?: () => number
-  /**
-   * Figure state the props don't cover (an async media element, a drag draft,
-   * a frame-derived projection): a change schedules a redraw.
-   */
+  /** Figure state the props don't cover (an async media element, a drag draft): a change redraws. */
   deps?: () => unknown
   /**
    * `deps`' overlay-only twin, for view state the data layer doesn't depend on
@@ -307,11 +296,7 @@ export interface UsePlotOptions<THit = unknown> {
     hitData?: (item: LegendItemGeometry) => THit
   }
 
-  /**
-   * Gradient legend in the bottom band, below the x-axis: reserved to its
-   * title's real line count, laid across the content width and drawn over the
-   * axis chrome. Return null while the plot shows none (another mode, no data).
-   */
+  /** Colorbar in the band below the x-axis, reserved to its title's line count; null for none. */
   gradientLegend?: () => GradientLegendSlot | null
 
   // ---- interaction ----
@@ -342,11 +327,8 @@ export interface UsePlotOptions<THit = unknown> {
 }
 
 export interface UsePlotHandle<THit = unknown> {
-  /** Svelte action — wires canvas lifecycle, mouse listeners, pointer/drag and
-   *  the grid's block-select over `blockedRegions`. */
+  /** Svelte action: canvas lifecycle, mouse listeners, pointer/drag and the grid's block-select. */
   readonly plotAction: Action<HTMLCanvasElement>
-  /** Where a click must not toggle grid-item selection. */
-  readonly blockedRegions: BlockedRegion[]
   /** Resolved frame geometry (reactive). */
   readonly frame: PlotFrame
   /**
@@ -357,8 +339,7 @@ export interface UsePlotHandle<THit = unknown> {
   readonly hover: { readonly data: THit | null }
   /** The placed `gradientLegend` (null when none), for hit-testing its title. */
   readonly gradientLegend: GradientLegendGeometry | null
-  /** Its band height without the gap (0 when none); frame-independent, so a
-   *  layout probe that must not read `frame` can count it. */
+  /** Its band height without the gap; frame-independent, for layout probes that must not read `frame`. */
   readonly gradientLegendHeight: number
   // Lower-level surface (for the rare figure that needs it directly)
   readonly canvasState: CanvasState
@@ -445,10 +426,9 @@ export interface ResolvedFrameLayout {
 }
 
 /**
- * Pure gutter resolver — carves the data rect out of the content bounds by
- * measuring each axis's labels + title, then reserving the
- * legend block and (optionally) centring a rect of a fixed aspect. Exported for unit testing;
- * the reactive `$derived` inside `usePlot` is a thin wrapper over it.
+ * Pure gutter resolver: carves the data rect out of the content bounds by
+ * measuring each axis's labels and title, reserving the legend block and
+ * optionally centring a rect of a fixed aspect. `usePlot` wraps it in a `$derived`.
  */
 export function resolveFrameLayout(
   gutters: FrameGutters,
@@ -520,10 +500,8 @@ export function resolveFrameLayout(
       height: fh,
       right: x + fw,
       bottom: y + fh,
-      // The legend block sits directly below the bottom-edge gutter, so it
-      // follows the rect when a cap (maxHeight/square) shrinks + centres it,
-      // and the whole block centres as one. Uncapped, this lands at the
-      // reserved space at the bounds bottom as before.
+      // Directly below the bottom-edge gutter, so the legend follows the rect
+      // when maxHeight or aspect shrinks and centres it.
       legendY: y + fh + insetBottom,
     },
     leftTitleOffset: left.titleOffset,
@@ -543,8 +521,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   const margin = () => props().margin ?? 0
 
   // ---- canvas + DPI-aware sizing ----
-  // A plain object: only renders and event handlers read it. `canvasEl` is the
-  // reactive twin that lets the sizing effect run once the canvas mounts.
+  // Plain, as only renders and handlers read it; `canvasEl` lets the sizing effect run on mount.
   const canvasState: CanvasState = { canvas: null, context: null, pixelRatio: 1 }
   let canvasEl = $state<HTMLCanvasElement | null>(null)
   const exportRegistrar = getContext<ExportSourceRegistrar | undefined>(EXPORT_SOURCE_CONTEXT)
@@ -984,8 +961,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   })
 
   // ---- reactive redraw triggers ----
-  // Canvas mounted, CSS size or pixel ratio changed: resize the backing store
-  // (a no-op when its device size is unchanged) and repaint for the new frame.
+  // Canvas mounted, size or pixel ratio changed: resize the backing store and repaint.
   $effect(() => {
     if (!canvasEl) return
     sizeCanvas(canvasState, width(), height(), pixelRatio)
@@ -1149,9 +1125,6 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
 
   return {
     plotAction,
-    get blockedRegions() {
-      return blockedRegions
-    },
     get frame() {
       return frame
     },

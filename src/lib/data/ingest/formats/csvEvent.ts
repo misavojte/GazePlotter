@@ -98,8 +98,7 @@ export function parseCsvEventText(text: string): {
       warnings.push(`Row ${i + 1}: invalid start or duration, skipped`)
       continue
     }
-    // A negative duration would end the event before it starts; it is as
-    // impossible as a reversed segment, so it is skipped the same way.
+    // A negative duration ends the event before it starts, like a reversed segment.
     if (duration < 0) {
       warnings.push(`Row ${i + 1}: negative duration, skipped`)
       continue

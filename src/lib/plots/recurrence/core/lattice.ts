@@ -1,9 +1,7 @@
 /**
- * Fixation lattice geometry (pure, canvas-free).
- *
- * A fixation is a POSITION, not a cell: fixation k (0-based) sits exactly at
+ * A fixation is a POSITION, not a cell: fixation k (0-based) sits at
  * `k / (n - 1)` along each axis, so fixation 1 lies on the axis line and
- * fixation n on the opposite border. The square side spans n - 1 steps.
+ * fixation n on the opposite border.
  */
 
 /** Distance (px) between neighbouring fixations along a side of `side` px. */

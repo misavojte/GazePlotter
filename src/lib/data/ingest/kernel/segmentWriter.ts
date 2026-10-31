@@ -188,7 +188,7 @@ export class SegmentWriter {
   private totalSegments = 0
   private totalAoiHits = 0
 
-  // Segments rejected by addSegmentBytes, by reason; see skippedSegmentWarnings.
+  // Segments addSegmentBytes rejected, by reason.
   private skippedNotFinite = 0
   private skippedReversed = 0
 
@@ -256,10 +256,9 @@ export class SegmentWriter {
     aoi: Uint8Array[] | null,
     spatial?: { x: number; y: number } | null
   ): void {
-    // Every format writes through here, so impossible times are caught once:
-    // rows out of time order, To before From, a negative Duration, an
-    // unparsable time. Checked before interning so a group made only of
-    // rejected segments never registers its names.
+    // Every format writes through here, so impossible times (unparsable, or
+    // ending before they start) are caught once. Checked before interning so a
+    // group made only of rejected segments never registers its names.
     if (!Number.isFinite(start) || !Number.isFinite(end)) {
       this.skippedNotFinite++
       return
@@ -371,16 +370,12 @@ export class SegmentWriter {
 
   /** One import warning per reason a segment was rejected; empty when none. */
   skippedSegmentWarnings(): string[] {
-    const warnings: string[] = []
-    const skipped = (count: number) =>
-      `${count} ${count === 1 ? 'segment' : 'segments'} skipped`
-    if (this.skippedNotFinite > 0) {
-      warnings.push(`${skipped(this.skippedNotFinite)}: start or end time is not a number`)
-    }
-    if (this.skippedReversed > 0) {
-      warnings.push(`${skipped(this.skippedReversed)}: end time before start time`)
-    }
-    return warnings
+    const skipped = (count: number, why: string) =>
+      count > 0 ? [`${count} ${count === 1 ? 'segment' : 'segments'} skipped: ${why}`] : []
+    return [
+      ...skipped(this.skippedNotFinite, 'start or end time is not a number'),
+      ...skipped(this.skippedReversed, 'end time before start time'),
+    ]
   }
 
   buildFinalData(): DataType {

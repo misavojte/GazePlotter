@@ -7,32 +7,22 @@ const STALL_MS = 20_000
 const BACKOFF_MS = [1000, 2000, 4000, 8000]
 
 /**
- * Build a {@link DataLoader} that downloads a single file from a URL and feeds
- * it to GazePlotter's normal ingest job (extension-based detection,
- * worker parsing, error reporting).
+ * Build a {@link DataLoader} that downloads one file from a URL into
+ * GazePlotter's normal ingest job.
  *
  * @param url       URL to fetch.
- * @param fileName  Name attached to the resulting `File`. The extension drives
- *                  classification: use a meaningful one (`.json` for a
- *                  workspace, `.csv`, `.zip`, …). Defaults to the URL's last
- *                  path segment, falling back to `'data.json'`.
+ * @param fileName  Name of the resulting `File`; its extension drives format
+ *                  detection (`.json` for a workspace, `.csv`, `.zip`, …).
+ *                  Defaults to the URL's last path segment, else `'data.json'`.
  *
- * Built for bad networks and any server: progress per chunk against the
- * file's uncompressed size (from the response, or a HEAD side request when
- * the response hides it), a stalled connection is dropped, retries back off,
- * an offline browser waits for `online`, and a retry asks for the rest with a
- * plain `Range`. A load that still fails keeps its bytes, so calling the
- * loader again resumes.
+ * Reports progress against the uncompressed size (from the response, or a HEAD
+ * side request), drops stalled connections, backs off between retries, waits
+ * for `online` when offline, and resumes with a plain `Range`. A failed load
+ * keeps its bytes, so calling the loader again resumes; an abort drops them.
  *
- * Errors:
- * - HTTP 4xx (except 408/429) → thrown at once with status / statusText.
- * - Retries exhausted before a byte arrived → "Could not download …", naming
- *   CORS only for another site, with the last error as `cause`; after some
- *   bytes → how far it got.
- *
- * The host (`<GazePlotter>`) surfaces the thrown message verbatim on the
- * "Data load failed" screen. Aborts via the passed `signal` bail without
- * reporting and drop the received bytes.
+ * Throws at once on HTTP 4xx (except 408/429). When retries run out, the
+ * message says how far it got, or names CORS when another site sent nothing.
+ * `<GazePlotter>` shows it verbatim on the "Data load failed" screen.
  */
 export function fromUrl(url: string, fileName?: string): DataLoader {
   const name = fileName ?? deriveFileName(url)
@@ -120,7 +110,7 @@ async function fetchResilient(
         lastError = error
       }
       if (download.received > before) misses = 0
-      if (isOffline()) {
+      if (typeof navigator !== 'undefined' && navigator.onLine === false) {
         report('offline')
         await untilOnline(signal)
         continue
@@ -265,8 +255,6 @@ function failure(source: Source, download: Download, cause: unknown): Error {
     { cause }
   )
 }
-
-const isOffline = () => typeof navigator !== 'undefined' && navigator.onLine === false
 
 /** Settles when `arm` calls back, or rejects when the signal aborts first. */
 function until(

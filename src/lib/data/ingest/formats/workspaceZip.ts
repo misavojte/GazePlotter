@@ -31,17 +31,14 @@ export const workspaceZipFormat: WorkspaceFormatDefinition = {
     }
   },
 
-  async read(file) {
-    try {
-      return await readWorkspaceArchive(file)
-    } catch (error) {
-      // The zip reader meets a damaged directory or entry as an out-of-range
-      // read; say so instead of passing on the engine's RangeError.
-      if (error instanceof RangeError) {
-        throw new Error('Invalid workspace file: the archive is truncated or damaged')
-      }
-      throw error
-    }
+  read(file) {
+    // The zip reader meets a damaged directory or entry as an out-of-range
+    // read; say so instead of passing on the engine's RangeError.
+    return readWorkspaceArchive(file).catch(error => {
+      throw error instanceof RangeError
+        ? new Error('Invalid workspace file: the archive is truncated or damaged')
+        : error
+    })
   },
 }
 

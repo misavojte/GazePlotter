@@ -17,7 +17,7 @@ export function subtitleParts(...facts: [string, string | undefined][]): PlotSub
 /** The everyone-selection, spelled out: a bare "All" means nothing outside the pane. */
 const ALL_PARTICIPANTS_LABEL = `${ALL_SELECTION_LABEL} participants`
 
-/** The participants a plot ranges over: its selection's name (unknown = all participants), plus the empty-participant filter. */
+/** The participants a plot ranges over: its selection's name plus the empty-participant filter. */
 export function participantScopeLabel(engine: DataEngine, scope: ParticipantScope): string {
   const id = scope.participantSelectionId
   const name = (id && getParticipantsSelections(engine).find(s => s.id === id)?.name) || ALL_PARTICIPANTS_LABEL
@@ -27,8 +27,8 @@ export function participantScopeLabel(engine: DataEngine, scope: ParticipantScop
 /**
  * Shared grid-header subtitle builders — a plot's subtitle is its filter
  * facts, and the two variants mirror the 'participants' and 'participant' pane
- * sections (a participant selection, or one participant). Structurally typed so a definition can pass
- * them directly: `getSubtitle: stimulusParticipantsSubtitle`.
+ * sections. Structurally typed so a definition can pass them directly:
+ * `getSubtitle: stimulusParticipantsSubtitle`.
  */
 export function stimulusParticipantsSubtitle(params: {
   item: { settings: ParticipantScope & { stimulusId: number } }

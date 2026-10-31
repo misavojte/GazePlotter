@@ -27,10 +27,8 @@
     /** Open the modal on the representative's stimulus (stimulus-scoped
      *  modal surfaces: AOIs, events). */
     passSelectedStimulus?: boolean
-    /** A boolean setting surfaced beneath the picker ("Hide No AOI data",
-     *  "Hide participants without data"). Declared here as data so the section
-     *  stays generic. Shown only when an edit target has the `key` setting;
-     *  `summary` names the deviation in the collapsed header. */
+    /** A boolean setting beneath the picker, shown only when an edit target has
+     *  `key`; `summary` names the deviation in the collapsed header. */
     toggle?: { key: string; label: string; summary: string }
     /** Dataset capabilities the section needs — the plot definitions'
      *  `requireCapabilities` vocabulary, evaluated by `hasCapabilities`.
@@ -43,8 +41,8 @@
 <script lang="ts">
   /**
    * THE entity-axis pane section — one config per selection-bearing axis
-   * (participants, AOIs, stimuli, events, eye-movement types): picks which named SELECTION
-   * the plot narrows that axis to, plus the single edit link into the axis's
+   * (participants, AOIs, stimuli, events, eye-movement types): picks which named
+   * SELECTION the plot narrows that axis to, plus the single edit link into the axis's
    * modal (names, colors, merges, selections — one surface). Selections are
    * global, so the option list is stimulus-independent —
    * `config.getSelections(engine)` plus a leading "All" (unset / id 0 = no
@@ -88,10 +86,8 @@
     bulk.common(s => (s[config.settingsKey] as number | undefined) ?? 0)
   )
 
-  // Non-null when the toggle applies: the axis carries it (config) AND some
-  // edit target has its setting. Presence is checked over the SAME
-  // edit-target set `bulk` writes to (no parallel copy of createBulkContext's
-  // target resolution).
+  // Non-null when the axis carries a toggle and some edit target (the set
+  // `bulk` writes to) has its setting.
   const toggle = $derived.by(() => {
     const t = config.toggle
     if (!t) return null

@@ -94,7 +94,6 @@ export function withQualifiers(
  * `"<symbol> ≥ a <unit>"`, `"<symbol> ≤ b <unit>"`, or `null` when no bound is
  * set. The trailing unit is plain (`"100 ms"`) — this is an interval
  * expression, not an IUPAC quantity/unit, so it does NOT use the `/` separator.
- * Bounds print rounded to whole numbers.
  */
 export function rangeQualifier(
   symbol: string,

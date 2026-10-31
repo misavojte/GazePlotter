@@ -57,13 +57,10 @@ export function resolvePalette(
 }
 
 /**
- * Neutral grey scale (R = G = B) for everything drawn inside a plot. No hue tint,
- * so a grey never reads as a category colour or shifts the data colours next to
- * it. The app chrome keeps its Slate tokens in DesignTokens.svelte.
- *
- * Steps are 8 apart in CIE L* (97 at 50 down to 17 at 950), so equal step gaps
- * look like equal lightness gaps. Plots take greys through the roles in
- * {@link UI_COLORS} and {@link INACTIVE_COLOR}, never a step directly.
+ * Neutral greys (R = G = B) for everything drawn inside a plot, so a grey never
+ * reads as a category colour; the app chrome keeps its Slate tokens. Steps are
+ * 8 apart in CIE L* (97 at 50 to 17 at 950). Plots take greys through the roles
+ * in {@link UI_COLORS} and {@link INACTIVE_COLOR}, never a step directly.
  */
 export const PLOT_GREY = {
   50: '#f6f6f6',
@@ -79,16 +76,11 @@ export const PLOT_GREY = {
   950: '#2a2a2a',
 } as const
 
-/**
- * Inactive, empty, non-finite and out-of-range cells or areas, in every plot,
- * so "no value here" looks the same everywhere. Also the recurrence plot's
- * trivial main diagonal, which no measure counts.
- */
+/** "No value here" in every plot: inactive, empty, non-finite or out-of-range
+ *  cells, and the recurrence plot's trivial main diagonal. */
 export const INACTIVE_COLOR = PLOT_GREY[100]
 
-/**
- * Colour roles for plots. Text roles meet WCAG AA (4.5:1) on white.
- */
+/** Colour roles for plots. Text roles meet WCAG AA (4.5:1) on white. */
 export const UI_COLORS = {
   /** Primary grid line color (slightly darker for contrast) */
   GRID_PRIMARY: PLOT_GREY[200],

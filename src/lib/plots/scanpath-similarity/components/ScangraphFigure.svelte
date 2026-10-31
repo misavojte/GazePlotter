@@ -89,9 +89,8 @@
         'Reduce the number of participants in Plot Settings > Participants',
       ])
     },
-    // No axes, only the outline: the frame IS the content area (canvas minus
-    // export margins) less the border pixel on the right and bottom, which a
-    // full-size rect would crop. The force layout fills it edge to edge.
+    // No axes, only the outline. The border pixel is padded right and bottom,
+    // where a full-size rect would crop it; the force layout fills the frame.
     axes: () => ({}),
     gutters: () => ({ pad: { right: PLOT_BORDER_PX, bottom: PLOT_BORDER_PX } }),
     clipData: false,
@@ -270,11 +269,7 @@
     const f = plot.frame
     const sx = Math.max(1, f.width) / CANON
     const sy = Math.max(1, f.height) / CANON
-    const nodes = nl.nodes.map(n => ({
-      ...n,
-      x: f.x + n.x * sx,
-      y: f.y + n.y * sy,
-    }))
+    const nodes = nl.nodes.map(n => ({ ...n, x: f.x + n.x * sx, y: f.y + n.y * sy }))
     return { nodes, links: nl.links }
   })
 
@@ -333,14 +328,7 @@
       for (const rx of candidates) {
         const rect: Rect = { x: rx, y: baseY, w: labelW, h: labelH }
         const f = plot.frame
-        if (
-          rect.x < f.x ||
-          rect.y < f.y ||
-          rect.x + rect.w > f.right ||
-          rect.y + rect.h > f.bottom
-        ) {
-          continue
-        }
+        if (rect.x < f.x || rect.y < f.y || rect.x + rect.w > f.right || rect.y + rect.h > f.bottom) continue
         let blocked = false
         for (let j = 0; j < nodes.length; j++) {
           if (rectHitsCircle(rect, nodes[j].x, nodes[j].y, r + 1)) {
@@ -450,8 +438,8 @@
     ctx.globalAlpha = 1
   }
 
-  // Labels — on top of the outline; emphasised nodes place first and keep full
-  // strength, the rest recede with their nodes while a clique is active.
+  // Labels on top of the outline. Emphasised nodes place first and keep full
+  // strength; the rest recede with their nodes while a clique is active.
   function drawGraphLabels(ctx: CanvasRenderingContext2D) {
     const { nodes } = layoutResult
     const r = nodeRadius

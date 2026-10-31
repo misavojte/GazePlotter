@@ -53,8 +53,7 @@
     media?: StimulusMedia | null
     /** Key of `media`'s bytes in the session's media store. */
     mediaStimulusId?: number
-    /** Shared PLOT CURSOR: publishes this participant and the hovered
-        fixation's time; marks the fixation active at other plots' times. No
+    /** Publishes this participant and the hovered fixation's time. No
         whole-panel outline: lit from elsewhere it read as a stray focus border. */
     plotCursor?: PlotCursorPort | null
     /** Screen-only; export has no clock and draws every fixation. */
@@ -83,10 +82,8 @@
     playback = null,
   } = $derived(props)
 
-  // The decoded background (null while it loads; videos are parked on their
-  // first frame, so no black background flashes), the equal-aspect fit of
-  // `world` and the projection. A medium the browser can't decode falls back to
-  // the fixation clock, and the bar says why the background is missing.
+  // A medium the browser can't decode falls back to the fixation clock, and
+  // the bar says why the background is missing.
   const stim = useStimulusSpace({
     world: () => world,
     tickCount: SCANPATH_LAYOUT.tickCount,
@@ -138,22 +135,17 @@
     return 1 - 0.8 * Math.min(1, Math.max(0, age))
   }
 
-  /** The fixation in progress at `t`, or -1 (a saccade or a gap). */
-  function activeAt(t: number): number {
-    const fx = data?.fixations ?? []
-    return intervalAt(fx.length, i => fx[i].start, i => fx[i].start + fx[i].duration, t)
-  }
-
   /** Visible fixations active at the cursor's times (another plot's hover,
       a playing shared clock) or at our own playing time. */
   const cursorFixations = $derived.by(() => {
     const times = [...(plotCursor?.times ?? [])]
     if (isPlaying && playTime !== null) times.push(playTime)
     if (times.length === 0 || !data) return []
+    const fx = data.fixations
     const out: number[] = []
     for (const t of times) {
-      const i = activeAt(t)
-      if (i >= 0 && isVisible(data.fixations[i]) && !out.includes(i)) out.push(i)
+      const i = intervalAt(fx.length, i => fx[i].start, i => fx[i].start + fx[i].duration, t)
+      if (i >= 0 && isVisible(fx[i]) && !out.includes(i)) out.push(i)
     }
     return out
   })
@@ -222,9 +214,7 @@
       const f = data.fixations[i]
       if (f.start > timeCutoff) break // hidden by playback
       if (!isVisible(f)) continue // aged out of the trail
-      const dx = x - stim.x(f.x, frame)
-      const dy = y - stim.y(f.y, frame)
-      const dist = Math.hypot(dx, dy)
+      const dist = Math.hypot(x - stim.x(f.x, frame), y - stim.y(f.y, frame))
       const grab = Math.max(displayRadiusFor(f), 6) + 2
       if (dist <= grab && dist <= bestDist) {
         best = i
@@ -234,8 +224,7 @@
     return best
   }
 
-  /** The hovered fixation's midpoint (the recurrence plot's convention);
-      empty if the data changed under it. */
+  /** Midpoint, the recurrence plot's convention; empty if the data changed. */
   function fixationTimes(index: number): number[] {
     const f = data?.fixations[index]
     return f ? [f.start + f.duration / 2] : []
@@ -310,10 +299,6 @@
     return getColorForValue((f.start - t0) / (t1 - t0), 0, 1, gradientStops)
   }
 
-  function strokeFor(f: ScanpathFixation): string {
-    return interpolateColor(fillFor(f), '#000000', 0.35)
-  }
-
   /** Density damping: past the threshold, marker radii shrink with √ of the
       overcount (floored at half) so 1000 fixations stay a readable cloud
       instead of a solid blob. */
@@ -332,22 +317,11 @@
     return (L.minRadius + (L.maxRadius - L.minRadius) * t) * densityScale
   }
 
-  /** Marker radius as shown right now. Statically the final size; during
-      playback the bubble INFLATES over the fixation's own dwell — it appears
-      at the minimum size exactly at onset and grows to its final radius as
-      the elapsed dwell accumulates, so onset moments read directly off the
-      animation. */
+  /** During playback a marker inflates over its own dwell, from the minimum
+      at onset to its final radius, so onsets read off the animation. */
   function displayRadiusFor(f: ScanpathFixation): number {
     if (timeCutoff === Infinity) return radiusFor(f.duration)
     return radiusFor(Math.min(Math.max(0, timeCutoff - f.start), f.duration))
-  }
-
-  /** The fixations on screen right now: all of them, or (during playback)
-      those whose onset has passed and still sits inside the trail. */
-  function visibleFixations(): ScanpathFixation[] {
-    if (!data) return []
-    if (timeCutoff === Infinity) return data.fixations
-    return data.fixations.filter(isVisible)
   }
 
   /** Seconds with one decimal: fixation onsets are sub-second apart. */
@@ -384,14 +358,13 @@
     const top = frame.bottom + frame.bottomTitleOffset + 2
     const midY = top + AXIS_CONFIG.fontSize / 2
     ctx.textBaseline = 'middle'
+    ctx.textAlign = 'left'
     ctx.fillStyle = AXIS_CONFIG.color
     let x = frame.right - keyW - (withCaption ? captionW + GAP * 2 : 0)
     if (withCaption) {
-      ctx.textAlign = 'left'
       ctx.fillText(caption, x, midY)
       x += captionW + GAP * 2
     }
-    ctx.textAlign = 'left'
     ctx.fillText(from, x, midY)
     x += fromW + GAP
     const barX = Math.round(x)
@@ -471,9 +444,8 @@
       const cx = stim.x(f.x, frame)
       const tx = cx + r + L.numberOffset + w > frame.right ? cx - r - L.numberOffset - w : cx + r + L.numberOffset
       const ty = Math.min(frame.bottom - h, Math.max(frame.y + h, stim.y(f.y, frame) - r * 0.4))
-      const right = tx + w
       const cells: number[] = []
-      for (let cx = Math.floor(tx / CELL); cx <= right / CELL; cx++) {
+      for (let cx = Math.floor(tx / CELL); cx <= (tx + w) / CELL; cx++) {
         for (let cy = Math.floor((ty - h) / CELL); cy <= (ty + h) / CELL; cy++) {
           cells.push(cx * 100003 + cy)
         }
@@ -489,7 +461,7 @@
 
   function drawScanpath(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
     if (!data) return
-    const fixations = visibleFixations()
+    const fixations = timeCutoff === Infinity ? data.fixations : data.fixations.filter(isVisible)
     // The stimulus (image or the video's current frame) under everything, at its projected rect.
     if (media) stim.drawMedia(ctx, frame, mediaRegionOf(media), background)
 
@@ -505,13 +477,14 @@
       const cy = stim.y(f.y, frame)
       const r = displayRadiusFor(f)
       const age = ageAlpha(f)
+      const fill = fillFor(f)
       ctx.beginPath()
       ctx.arc(cx, cy, r, 0, Math.PI * 2)
       ctx.globalAlpha = L.fixationFillAlpha * age
-      ctx.fillStyle = fillFor(f)
+      ctx.fillStyle = fill
       ctx.fill()
       ctx.globalAlpha = age
-      ctx.strokeStyle = strokeFor(f)
+      ctx.strokeStyle = interpolateColor(fill, '#000000', 0.35)
       ctx.lineWidth = L.circleStrokeWidth
       ctx.stroke()
       // White halo just outside the outline, so a marker reads on any background.

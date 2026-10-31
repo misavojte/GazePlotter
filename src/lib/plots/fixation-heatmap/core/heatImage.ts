@@ -1,8 +1,7 @@
 /**
  * The heat image's colour encoding, canvas-free: one RGBA lookup table maps a
- * map value to colour + alpha (the heat, or the opacity map's mask), and the
- * legend ramp is sampled from the SAME table, so the key can never disagree
- * with the map.
+ * map value to colour + alpha (heat or mask), and the legend ramp samples the
+ * SAME table, so the key can never disagree with the map.
  */
 import { hexToRgb, rgbToHex, samplePalette } from '$lib/color'
 import { FIXATION_HEATMAP_LAYOUT as L } from '../const'

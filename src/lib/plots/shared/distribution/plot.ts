@@ -8,20 +8,15 @@ import { collectDistribution } from './collect'
 import { distributionDefaults, distributionVisualizationSection } from './paneSection'
 import { distributionValueAxisScreen } from './screen.svelte'
 import type { DistributionAxis, DistributionResult, StatisticalOverlayType } from './types'
-// LAST, load-bearing: the figure pulls in its component, and through it the
-// plot registry, which evaluates the other comparison definitions while this
-// module is still importing. Everything `defineDistributionPlot` reads at call
-// time must be bound above; the figure is only read lazily, inside `deriveView`.
+// LAST, load-bearing: the figure pulls in the plot registry, which evaluates the
+// other comparison definitions while this module is still importing, so
+// everything `defineDistributionPlot` reads at call time must be bound above.
 import { deriveDistributionFigure, type DistributionDisclosures, type DistributionView } from './figure'
 
 /** The settings every comparison plot stores; `TOrder` is its category-order value. */
 export type DistributionPlotSettings<TOrder extends string = string> = ParticipantScope & {
   stimulusId: number
-  /**
-   * Workspace metric-library reference, an array even for this single-select
-   * plot so persistence is uniform with multi-select plots: length 0 = none,
-   * length 1 = the chosen instance.
-   */
+  /** Metric-library reference; an array (0 or 1 long) so persistence matches multi-select plots. */
   metricInstanceIds: string[]
   orientation: 'vertical' | 'horizontal'
   orderBy: 'value' | TOrder
@@ -35,12 +30,7 @@ export type DistributionPlotSettings<TOrder extends string = string> = Participa
 /** What the data side reads: everything but the figure's orientation. */
 export type DistributionDataSettings<S> = Omit<S, 'orientation'>
 
-/**
- * What one comparison plot contributes: its identity, its metric contract, its
- * category axis and the words for it. Everything else (the Visualization
- * section, defaults, collection, figure, sync) is shared, so the comparison
- * plots cannot drift on any of it.
- */
+/** What one comparison plot contributes; everything else is shared, so they cannot drift. */
 export interface DistributionPlotSpec<TType extends string, S extends DistributionPlotSettings> {
   type: TType
   name: string
@@ -48,10 +38,7 @@ export interface DistributionPlotSpec<TType extends string, S extends Distributi
   group: PlotGroup
   /** Admits the vector instances this plot draws whole, one distribution per slot. */
   contract: PlotMetricContract
-  /**
-   * The category axis in drawn order, narrowed by the plot's selection: the
-   * only per-plot data input. Built only once a metric resolved.
-   */
+  /** The category axis in drawn order, narrowed by the selection; built once a metric resolved. */
   axis: (engine: DataEngine, settings: DistributionDataSettings<S>) => DistributionAxis
   disclosures: DistributionDisclosures
   /** The plot's own order option, e.g. `{ label: 'AOI order', value: 'aoi' }`; also the default order. */
@@ -66,17 +53,11 @@ export interface DistributionPlotSpec<TType extends string, S extends Distributi
 }
 
 export type DistributionPlotDefinition<TType extends string, S> = PlotDefinition<TType, S, DistributionView> & {
-  /** The plot's distribution data, for tests and anything else that needs it without the figure. */
+  /** The distribution data without the figure. */
   collect: (engine: DataEngine, settings: DistributionDataSettings<S>) => DistributionResult
 }
 
-/**
- * Defines a comparison plot: one distribution per category slot of a vector
- * metric, drawn by the shared distribution figure.
- *
- * Definitions call it at module init, while the registry's import cycle may
- * still be inside this module's imports: see the import order above.
- */
+/** A comparison plot: one distribution per category slot of a vector metric. See the import order above. */
 export function defineDistributionPlot<TType extends string, S extends DistributionPlotSettings>(
   spec: DistributionPlotSpec<TType, S>
 ): DistributionPlotDefinition<TType, S> {

@@ -1,6 +1,5 @@
-import type { ExtendedInterpretedDataType } from '$lib/data/types'
+import type { ExtendedInterpretedDataType, ParticipantScope } from '$lib/data/types'
 import type { OutOfBoundsSettings } from '$lib/plots/shared/outOfBounds'
-import type { ParticipantScope } from '$lib/data/types'
 
 export type TransitionMatrixPlotSettings = ParticipantScope & OutOfBoundsSettings & {
   stimulusId: number

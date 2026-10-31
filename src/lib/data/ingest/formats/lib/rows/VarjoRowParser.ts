@@ -85,7 +85,7 @@ export class VarjoRowParser extends RowParser {
    * Timestamp bytes "yyyy:MM:dd:HH:mm:ss:SSS" (e.g. "2022:11:11:15:50:18:30")
    * → milliseconds, parsed straight from the column bytes. KEEP hot: this runs
    * per row — no string decode, no split(), no Date object. Only DIFFERENCES
-   * of these values survive (finalize subtracts the file's base time), and
+   * of these values survive (emitSegment subtracts the file's base time), and
    * Date.UTC keeps every delta identical to the former local-time
    * `new Date(...)` conversion except across a DST change mid-recording, where
    * the old code injected a spurious ±1 h jump into the gaze timeline.

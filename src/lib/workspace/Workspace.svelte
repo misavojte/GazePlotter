@@ -537,9 +537,8 @@
     /* The frame never scrolls: the camera moves the grid inside it. */
     overflow: hidden;
     cursor: grab;
-    /* A desk halfway between white and the tint: the white plot bodies lift
-       off it, the tinted headers still read against it. It settles a breath
-       toward the full tint at the edges. */
+    /* Halfway between white and the tint, so white plot bodies lift off it and
+       tinted headers still read; a breath darker toward the edges. */
     background-color: color-mix(in srgb, var(--c-lightgrey) 50%, var(--c-white));
     background-image: radial-gradient(
       ellipse 120% 100% at 50% 35%,

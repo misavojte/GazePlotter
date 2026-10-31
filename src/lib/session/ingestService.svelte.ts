@@ -436,8 +436,7 @@ export class IngestService {
   input = $state<FileInputType | null>(null)
   /** The host loader's download while it reports one; null otherwise. */
   download = $state<LoadProgress | null>(null)
-  /** The files a parse is reading, while it runs: uploads are one at a time.
-   *  The total narrows to the files the parser reads once they are sorted. */
+  /** The files a running parse reads; its total narrows once they are sorted. */
   reading = $state<LoadProgress | null>(null)
   /** The layout the visible dataset opened with: what Reset Layout returns to. */
   loadedLayout = $state<GridItemSnapshot[] | null>(null)
@@ -537,11 +536,9 @@ export class IngestService {
     { fromHost = false }: { fromHost?: boolean } = {}
   ): Promise<boolean> {
     if (files.length === 0) return false
-    // One upload at a time: a second drop while a parse is running would
-    // spawn a competing worker racing to commit into the same session.
-    // There is deliberately no cancel — a started load always runs to
-    // success or failure and the outcome stays visible. Refused before the
-    // replace question, whose answer could not matter.
+    // One upload at a time: a second drop mid-parse would spawn a competing
+    // worker committing into the same session. A started load deliberately has
+    // no cancel, and a refused one is never asked the replace question.
     if (this.reading) {
       this.deps.toastState.addInfo(
         'Data is still loading. Try again when it has finished.'
@@ -570,17 +567,15 @@ export class IngestService {
       // history, and metadata all stay put. It never passes through
       // 'loading', which would take the grid down and replay its entrance.
       if (eyeFiles.length === 0 && eventFiles.length === 0) {
+        // Ready BEFORE the attach (a cancelled host download left 'loading'):
+        // it may open the assignment modal, which must not sit under the overlay.
+        this.explicitStatus = 'ready'
         if (!this.deps.engine.hasValidData) {
           this.deps.toastState.addWarning(
             'Reference images/videos attach to stimuli. Upload eye-tracking data first, or include it in the same upload.'
           )
-          this.explicitStatus = 'ready'
           return false
         }
-        // Ready BEFORE the attach (a cancelled host download left 'loading'):
-        // it may open the assignment modal, which must not sit under the
-        // loading overlay.
-        this.explicitStatus = 'ready'
         await this.attachMediaFiles(mediaFiles, { undoable: true })
         return true
       }

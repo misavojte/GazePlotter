@@ -14,10 +14,9 @@ import { SCARF_LAYOUT } from '../const'
 import type { ScarfStyling } from '../types'
 
 /**
- * The scarf's frame declaration around its timeline axis: the left label column
- * and the border pixel as padding (drawPlotArea clamps the last tick label inside
- * the border), and the legend as a reserved bottom block. So `frame.x`/`frame.width`
- * come out as the plot columns and the resolver owns all of the edge measuring.
+ * The scarf's frame declaration: the label column and border pixel as padding,
+ * the legend as a reserved bottom block, so `frame.x`/`frame.width` are the plot
+ * columns.
  *
  * ONE owner, called twice. The figure passes the real `leftLabelWidth` for the
  * frame it draws in, and `LEFT_LABEL_MAX_WIDTH` to probe the row band: pinning
@@ -67,10 +66,8 @@ export function calculateIsCompactMode(
 }
 
 /**
- * The left label column: participant names truncated so the widest one plus
- * the gap it is drawn at (ROW_LABEL_GAP) fits LEFT_LABEL_MAX_WIDTH, and the
- * width that column needs. Compact rows carry the index axis instead of names,
- * so the column is exactly what that axis draws into.
+ * The left label column: names truncated to fit LEFT_LABEL_MAX_WIDTH, or in
+ * compact mode no names and the index axis's width.
  */
 export function scarfLabelColumn(
   isCompact: boolean,

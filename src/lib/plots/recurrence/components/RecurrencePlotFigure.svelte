@@ -105,13 +105,13 @@
   const DIAGONAL_RGB = packRgb(hexToRgb(L.diagonalColor))
   const DIMMED_RGB = packRgb(hexToRgb(L.dimmedColor))
 
-  // Cached recurrence texture: rebuilt only when the data/appearance change
-  // (the keys drawTexture passes), then scale-blitted on resize
-  // so a drag never re-scans the matrix. Mirrors the evolving-metrics blit.
+  // Rebuilt only on the keys drawTexture passes; a resize just re-blits it.
   const texRaster = cachedRaster()
   let texAlpha: Uint8Array | null = null
 
   const N = $derived(data?.fixationCount ?? 0)
+  const maskDiagonal = $derived(masking === 'diagonal' || masking === 'diagonalLower')
+  const maskLower = $derived(masking === 'diagonalLower')
   // Fixation k sits ON its tick: 1 at the axis line, N on the opposite border.
   // The axes share fixation 1 at the origin, so neither labels it: one "1" sits
   // off the corner instead (drawOriginLabel).
@@ -162,9 +162,8 @@
 
   const plot = usePlot<{ row: number; col: number }>({
     props: () => props,
-    // No fit guard: the recurrence matrix is rendered as a texture (drawRaster)
-    // at any density, so hundreds of fixations stay legible as a pattern. The
-    // placeholders are the "no data" case and a matrix that is recurrent everywhere.
+    // No fit guard: a dense matrix draws as a texture. The placeholders are no
+    // data and a matrix that is recurrent everywhere.
     placeholder: () =>
       N < 2
         ? {
@@ -216,8 +215,6 @@
       const col = nearestFixation(N, side, x - frame.x, 0)
       const row = nearestFixation(N, side, frame.y + side - y, 0)
       if (col < 0 || row < 0) return null
-      const maskDiagonal = masking === 'diagonal' || masking === 'diagonalLower'
-      const maskLower = masking === 'diagonalLower'
       if ((maskLower && col >= row) || (maskDiagonal && col === row)) return MASKED_HIT
 
       return {
@@ -245,11 +242,8 @@
     }
   }
 
-  /**
-   * Under the axes: the line of identity as a guide, then the masking marks in
-   * the readable regime, or the whole matrix as a texture in the dense one. No
-   * cell grid: a fixation is a line through the lattice, not a cell.
-   */
+  /** Under the axes: the line of identity, then the lower-triangle mask or the
+      dense texture. No cell grid: a fixation is a lattice line, not a cell. */
   function drawMatrix(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
     if (!data) return
     const { x, y, width: side } = frame
@@ -299,8 +293,6 @@
     const plainRadius = Math.max(1.5, maxDotRadius * 0.75)
     const isHighlightActive = highlight !== 'none' && highlightMask !== null
     const accentColor = getHighlightColor()
-    const maskDiagonal = masking === 'diagonal' || masking === 'diagonalLower'
-    const maskLower = masking === 'diagonalLower'
 
     // Guard against redundant fillStyle string re-assignment (a per-run cost).
     let lastFill = ''
@@ -351,13 +343,10 @@
   }
 
   /**
-   * Dense regime: blit the cached recurrence texture, scaled to the (square)
-   * frame and widened half a fixation spacing past each edge, so every
-   * fixation's texels centre on its lattice line (the data clip trims the
-   * overhang). The texture is rebuilt (a single matrix scan) only when the data or
-   * appearance changes — a resize just re-scales it, so dragging a huge matrix
-   * costs one drawImage, not an N² rescan. Downscaling averages (smoothing on)
-   * into a clean recurrence-density texture; upscaling stays crisp (nearest).
+   * Dense regime: blit the cached texture widened half a fixation spacing past
+   * each edge, so every fixation's texels centre on its lattice line (the data
+   * clip trims the overhang). Downscaling smooths into a density texture;
+   * upscaling stays crisp.
    */
   function drawTexture(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
     const d = data
@@ -381,8 +370,8 @@
           diagonalRgb: DIAGONAL_RGB,
           dimmedRgb: DIMMED_RGB,
           dimmedByte: Math.round(L.dimmedAlpha * 255),
-          maskDiagonal: masking === 'diagonal' || masking === 'diagonalLower',
-          maskLower: masking === 'diagonalLower',
+          maskDiagonal,
+          maskLower,
         },
         layer.pixels,
         texAlpha
@@ -394,26 +383,12 @@
     const side = frame.width + step // N spacings: N-1 inside plus half at each end
     const prevSmoothing = ctx.imageSmoothingEnabled
     ctx.imageSmoothingEnabled = res > side // smooth on downscale only
-    ctx.drawImage(
-      tex.canvas as CanvasImageSource,
-      0,
-      0,
-      res,
-      res,
-      frame.x - step / 2,
-      frame.y - step / 2,
-      side,
-      side
-    )
+    ctx.drawImage(tex.canvas as CanvasImageSource, 0, 0, res, res, frame.x - step / 2, frame.y - step / 2, side, side)
     ctx.imageSmoothingEnabled = prevSmoothing
   }
 
-  /**
-   * A designated fixation is its line through the lattice, marked with the
-   * dashed guide the time plots use: the hovered pair's row i and column j, and
-   * the cursor's fixation as both its row and its column (every other fixation
-   * that recurred with it lies on them).
-   */
+  /** Dashed guides along the hovered pair's row i and column j, and along both
+      lines of the cursor's fixation (every fixation that recurred with it). */
   function drawRecurrenceOverlay(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
     const side = frame.width
     const segments: number[] = []

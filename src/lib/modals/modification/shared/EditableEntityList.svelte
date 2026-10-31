@@ -16,10 +16,9 @@
     tooltip?: string
   }
 
-  /** Rows may carry a color; a `color` column is only configured by editors
-      whose rows do (AOI, category, event channel). A row standing for several
-      entities (the AOI modal's all-stimuli scope) lists the names and colors
-      they disagree on, shown as "Mixed". */
+  /** Rows may carry a color (AOI, category, event channel editors). A row for
+      several entities (all-stimuli AOIs) lists the names and colors they
+      disagree on, shown as "Mixed". */
   export type EntityRow = BaseInterpretedDataType & {
     color?: string
     mixedNames?: readonly string[]

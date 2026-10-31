@@ -43,7 +43,7 @@ export function heatmapUnit(settings: Pick<FixationHeatmapPlotSettings, 'accumul
 
 const fixations = (n: number) => `${n} fixation${n === 1 ? '' : 's'}`
 
-/** Map values and amounts: whole from 100 up, one decimal from 1, two significant digits below; plain digits, no separators. */
+/** Map values and amounts: whole from 100 up, one decimal from 1, two significant digits below. */
 export const formatAmount = (v: number) =>
   Math.abs(v) >= 100 ? String(Math.round(v)) : Math.abs(v) >= 1 ? v.toFixed(1) : v.toPrecision(2)
 

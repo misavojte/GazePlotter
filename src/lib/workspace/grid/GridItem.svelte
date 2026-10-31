@@ -162,7 +162,8 @@
     transform: translate(${itemX}px, ${itemY}px);
     width: ${itemWidth}px;
     height: ${itemHeight}px;
-    --grid-item-body-padding: ${GRID_ITEM_BODY_PADDING}px;    --press-scale-x: ${pressScaleX};
+    --grid-item-body-padding: ${GRID_ITEM_BODY_PADDING}px;
+    --press-scale-x: ${pressScaleX};
     --press-scale-y: ${pressScaleY};
   `)
 
@@ -368,8 +369,7 @@
     box-sizing: border-box;
     background-color: var(--c-lightgrey);
     border-radius: var(--rounded-lg);
-    /* Flat on the desk: plots are the content, so no shadow; the border and
-       the tinted header set them apart. */
+    /* Flat on the desk, no shadow: the border and tinted header set it apart. */
     border: 1px solid var(--c-border);
     overflow: hidden;
     display: flex;
@@ -408,9 +408,8 @@
     ),
   .grid-item-frame.menu-target:not(.selected) {
     outline-color: color-mix(in srgb, var(--c-info) 25%, var(--c-grey));
-    /* Only the hover ring eases in. A transition on the frame itself would
-       also run on deselect, where width and style snap (dashed group member
-       to solid) while the colour fades: a blue ring flashing out. */
+    /* Only the hover ring eases in: on the frame itself the fade would also run
+       on deselect, flashing a blue ring out while width and style snap. */
     transition: outline-color var(--transition-fast) ease-out;
   }
 
@@ -464,8 +463,7 @@
     white-space: nowrap;
   }
 
-  /* Subtitle: the scope values on one quiet line, divided by hairlines;
-     each part names itself in its tooltip. */
+  /* Scope values on one line, divided by hairlines; each names itself in its tooltip. */
   .grid-item-subtitle {
     display: flex;
     align-items: center;

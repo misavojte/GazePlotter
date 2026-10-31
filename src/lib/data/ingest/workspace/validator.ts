@@ -39,12 +39,8 @@ const SHAPES: [string, string, (value: unknown) => boolean, string][] = [
   ],
 ]
 
-/**
- * Refuses a file whose containers, rows or name cells have the wrong type
- * before anything reads them: a damaged file would otherwise surface as the
- * engine's TypeError instead of saying what is wrong.
- * @throws Error if the data structure is invalid
- */
+/** Refuses wrong-typed containers, rows or name cells before anything reads
+ *  them; a damaged file would otherwise surface as the engine's TypeError. */
 function validateBasicStructure(data: RawIngestPayload): void {
   const raw = data as unknown as Record<string, Record<string, unknown> | null | undefined>
   for (const [key, field, shape, words] of SHAPES) {
@@ -59,12 +55,8 @@ function validateBasicStructure(data: RawIngestPayload): void {
   }
 }
 
-/**
- * The stored counts size every loop over the tables, so a `.gazeplotter`
- * file whose `stimuliCount` or index ranges were damaged would otherwise
- * hang the reader (billions of iterations) instead of being refused.
- * @throws Error when the counts and tables disagree
- */
+/** The stored counts size every loop over the tables: damaged counts or index
+ *  ranges would otherwise hang the reader (billions of iterations). */
 function assertSegmentTablesAgree(bins: BinarySegmentBuffers): void {
   const { stimuliCount, maxParticipants, segmentBuffer, indexTable } = bins
   const tableLength = stimuliCount * maxParticipants * 2
@@ -82,9 +74,7 @@ function assertSegmentTablesAgree(bins: BinarySegmentBuffers): void {
       indexTable[i] <= indexTable[i + 1] && indexTable[i + 1] <= segmentCount
   }
   if (!consistent) {
-    throw new Error(
-      'Invalid workspace file: the segment tables do not match the stored stimulus and participant counts'
-    )
+    refuse('the segment tables do not match the stored stimulus and participant counts')
   }
 }
 

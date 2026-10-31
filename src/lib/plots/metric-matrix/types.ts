@@ -2,11 +2,8 @@ import type { OutOfBoundsSettings } from '$lib/plots/shared/outOfBounds'
 import type { ParticipantScope } from '$lib/data/types'
 
 /**
- * Metric Matrix settings. Rows = participants (one selection), columns = every
- * stimulus, cell = one scalar `MetricInstance` value for that
- * (participant, stimulus). Deliberately has NO `stimulusId` — the plot spans
- * all stimuli, so the participants-only subtitle and the absence of a 'stimulus'
- * pane section follow from this shape.
+ * Rows = participants, columns = every stimulus, cell = one scalar metric value.
+ * Deliberately has no `stimulusId`: the plot spans all stimuli.
  */
 export type MetricMatrixPlotSettings = ParticipantScope & OutOfBoundsSettings & {
   /** Per-plot stimulus SELECTION id; unset/0 = all stimuli. */

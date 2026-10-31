@@ -8,15 +8,11 @@ import {
 } from '$lib/data/types'
 import type { DataEngine } from '../dataEngine.svelte'
 import type { GroupedByDisplayedName } from '../utils/grouping'
-import {
-  getParticipantOrderVector,
-  getStimuli,
-} from './entitySelectors'
+import { getParticipantOrderVector, getStimuli } from './entitySelectors'
 import { getNumberOfSegments, getParticipantEndTime } from './segmentSelectors'
 
-export const getParticipantsSelections = (
-  engine: DataEngine
-): ParticipantsSelection[] => engine.metadata?.participantsSelections ?? []
+export const getParticipantsSelections = (engine: DataEngine): ParticipantsSelection[] =>
+  engine.metadata?.participantsSelections ?? []
 
 // Unknown id resolves to null and callers fall back to All participants —
 // same self-healing contract as AOI selections (resolveAoiSelectionVisibleIds):
@@ -109,12 +105,11 @@ export const getStimuliInSelection = (
 }
 
 /**
- * Participant ids a plot ranges over under its participants axis: the single
- * definition of the narrowing policy. Unset/0 or an unknown selection id means
- * all participants (self-healing, like AOI selections). Stored selections may
- * hold merged-away (tombstoned) member ids for unmerge-reversibility, so they
- * resolve through the order vector; raw ids would render ghost participants.
- * `hideEmptyParticipants` then drops those with no recording on the stimulus.
+ * Participant ids a plot ranges over: the single narrowing policy. Unset/0 or
+ * an unknown selection id means all (self-healing, like AOI selections). Stored
+ * selections resolve through the order vector, since they may hold merged-away
+ * ids that would render as ghost participants. `hideEmptyParticipants` then
+ * drops those with no recording on the stimulus.
  */
 export const getParticipantsIds = (
   engine: DataEngine,
@@ -123,9 +118,7 @@ export const getParticipantsIds = (
 ): number[] => {
   const order = getParticipantOrderVector(engine)
   const id = scope.participantSelectionId
-  const selection = id
-    ? getParticipantsSelections(engine).find(s => s.id === id)
-    : undefined
+  const selection = id ? getParticipantsSelections(engine).find(s => s.id === id) : undefined
   const memberSet = selection ? new Set(selection.participantsIds) : null
   if (!memberSet && !scope.hideEmptyParticipants) return order
   return order.filter(

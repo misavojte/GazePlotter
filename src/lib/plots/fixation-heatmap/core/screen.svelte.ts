@@ -6,11 +6,10 @@ import type { FixationHeatmapView } from './view'
 import type { FixationHeatmapPlotSettings } from '../types'
 
 /**
- * Screen recipe: the PLOT CURSOR, color-scale sync and the PLAYBACK CLOCK
- * membership. Auto-scaled maps of the same measure (accumulate, normalization,
- * R, color scale) and grid footprint share the largest scale top, so their
- * colors compare; a set Scale max opts a plot out (its view carries no meta).
- * Export renders the unsynced, parked view.
+ * Screen recipe: plot cursor, color-scale sync and playback clock membership.
+ * Auto-scaled maps of the same measure and grid footprint share the largest
+ * scale top, so their colors compare; a set Scale max opts out. Export renders
+ * the unsynced, parked view.
  */
 export const fixationHeatmapScreen: PlotScreenFactory<
   FixationHeatmapPlotSettings,

@@ -27,12 +27,11 @@ export function processWorkspaceObject(rawParsed: unknown): JsonImportNewFormat 
     throw new Error('This workspace keeps its data in a .gazeplotter file. Open that file instead.')
   }
 
-  // 1. Pure data transformation isolates legacy support from modern logic
+  // Migrations isolate legacy support; validation then sees the modern shape.
   const modernData = runMigrations(rawParsed)
 
   return {
     version: modernData.version as JsonImportNewFormat['version'],
-    // 2. Validate the guaranteed modern structure
     data: processAndValidateData(modernData.data),
     // Absent gridItems stay absent: the ingest apply resolves the session's
     // default layout, so the fallback has exactly one owner.

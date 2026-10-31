@@ -41,10 +41,9 @@ export const stimulusColorRange = (s: any): readonly number[] | undefined =>
   s.stimuliColorValueRanges?.[s.stimulusId]
 
 /**
- * The "Out of bounds" caption group: a `Below min | Show text` row and an
- * `Above max | Show text` row, each shown only while that end of `range` is
- * set (0 = Auto), when it can do anything. `labels: false` drops the toggles
- * (the two colors then share one row) for plots whose cells never print a value.
+ * The "Out of bounds" caption group: `Below min | Show text` and `Above max |
+ * Show text` rows, each shown only while that end of `range` is set (0 = Auto).
+ * `labels: false` drops the toggles for plots whose cells never print a value.
  */
 export function outOfBoundsFields({
   labels = true,

@@ -64,10 +64,7 @@ export function truncatedRowLabels(
 /** Widest a row-label column (labels + ROW_LABEL_GAP) may grow. */
 const ROW_LABEL_MAX_COLUMN = 200
 
-/**
- * Row labels truncated so the column they need (widest label + ROW_LABEL_GAP,
- * the gap they are drawn at) never exceeds `maxColumnWidth`, plus that column.
- */
+/** Labels truncated so their column (widest label + ROW_LABEL_GAP) fits `maxColumnWidth`, plus that width. */
 export function rowLabelColumn(
   labels: readonly string[],
   maxColumnWidth: number
@@ -192,22 +189,13 @@ export function calculateTickStep(count: number): number {
 /** Gap (px) from the plot's left edge to the right-aligned index tick labels. */
 const INDEX_AXIS_TICK_GAP = 8
 
-/**
- * Distance (px) from the plot's left edge to the centre of the rotated
- * two-line participant-index title: the tick gap, the widest index label
- * (`count − 1`), the title gap, then half the two-line block.
- */
+/** Distance (px) from the plot's left edge to the centre of the rotated two-line index title. */
 function indexAxisTitleOffset(count: number, config: AxisConfig = AXIS_CONFIG): number {
   const widest = estimateTextWidth(String(Math.max(0, count - 1)), config.fontSize, config.fontFamily)
   return INDEX_AXIS_TICK_GAP + Math.ceil(widest) + PLOT_AXIS_TITLE_GAP + axisTitleLineHeight(config.fontSize)
 }
 
-/**
- * Left gutter (px) that {@link drawParticipantIndexAxis} needs for `count`
- * rows: the title's centre plus its outer line. Derived from what the draw
- * uses, so a figure reserving room for that axis never guesses a width
- * (scarf's compact label column, evolving-metrics' compact heatmap).
- */
+/** Left gutter (px) {@link drawParticipantIndexAxis} needs for `count` rows, derived from the draw. */
 export const participantIndexAxisWidth = (count: number): number =>
   indexAxisTitleOffset(count) + axisTitleLineHeight(AXIS_CONFIG.fontSize)
 
@@ -252,9 +240,7 @@ export function drawParticipantIndexAxis(
   ctx.restore()
 }
 
-/** Row labels right-aligned ROW_LABEL_GAP left of the plot, one per row of
- *  `rowPitch`, pre-truncated by the caller (see {@link truncatedRowLabels}).
- *  Leaves the axis font, fill, alignment and baseline set (no save/restore). */
+/** Pre-truncated row labels right-aligned ROW_LABEL_GAP left of the plot. Leaves the axis text state set. */
 export function drawRowLabels(
   ctx: CanvasRenderingContext2D,
   labels: readonly string[],
@@ -271,8 +257,7 @@ export function drawRowLabels(
   }
 }
 
-/** Participant rows: the compact index axis without `labels`, else
- *  {@link drawRowLabels}. Leaves the axis font, fill and baseline set. */
+/** The compact index axis without `labels`, else {@link drawRowLabels}. Leaves the axis text state set. */
 export function drawParticipantRowAxis(
   ctx: CanvasRenderingContext2D,
   count: number,

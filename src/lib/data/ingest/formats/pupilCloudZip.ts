@@ -54,10 +54,9 @@ export const pupilCloudZipFormat: ArchiveFormatDefinition = {
 }
 
 /**
- * Reads a text file from a JSZip archive by its file name (case-insensitive),
- * in any folder. The name must match whole: a substring match would resolve
- * `fixations.csv` to `aoi_fixations.csv` whenever the archive lists that
- * entry first, and the import would then fail with "No stimuli found".
+ * Reads a text file from a JSZip archive by its whole file name, in any folder,
+ * case-insensitively. A substring match would resolve `fixations.csv` to
+ * `aoi_fixations.csv` whenever that entry is listed first.
  *
  * @param zip - Loaded JSZip instance
  * @param fileName - Entry file name without folders (e.g., 'sections.csv')

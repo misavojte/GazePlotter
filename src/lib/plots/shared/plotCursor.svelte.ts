@@ -4,17 +4,12 @@
  * Two independent channels, published together from one hover:
  *   TIMES        — absolute ms from the participant's first sample on the stimulus.
  *                  Comparable only WITHIN one stimulus, so it is scope-gated.
- *   PARTICIPANTS — the participant ids under the pointer. Gated by what the SET
- *                  means, a property of the plot type (`ParticipantScope`):
- *                  'identity': the pointer is on a person (a row, a node, a panel)
- *                  or a named pair. A person is the same on every stimulus, so the
- *                  set crosses stimuli; that is the point, one person across them.
- *                  'stimulus': the set is DERIVED from a place on the stimulus
- *                  ("who fixated near here", a heatmap cell). On another stimulus it
- *                  reads as "these looked here", which is false, so only plots of
- *                  the same stimulus mark it, and a plot spanning stimuli (the
- *                  metric matrix) never does. Every future derived-set publisher
- *                  (who entered this AOI) declares 'stimulus'.
+ *   PARTICIPANTS: the participant ids under the pointer, gated by what the set
+ *                  means (`ParticipantScope`). 'identity' (a row, a node, a pair)
+ *                  crosses stimuli: one person across them is the point.
+ *                  'stimulus' sets are derived from a place on the stimulus (a
+ *                  heatmap cell) and would read falsely elsewhere, so only plots
+ *                  of the same stimulus mark them.
  * A publisher may carry either, both, or neither. Two comparability rules in one
  * record is deliberate: a pointer position genuinely has independent channels.
  *
@@ -97,11 +92,9 @@ type PlotCursorPosition = {
 export interface PlotCursorPort {
   /** Publish the pointer's position; `null` when it leaves. */
   publish: (at: PlotCursorPosition | null) => void
-  /** ANOTHER plot's instants when comparable here, plus a playing PLAYBACK
-      CLOCK's time; empty when neither. */
+  /** ANOTHER plot's instants when comparable here, plus a playing clock's time. */
   readonly times: readonly number[]
-  /** ANOTHER plot's participants under the pointer, less a 'stimulus' set from
-      another stimulus; empty when there are none. */
+  /** ANOTHER plot's participants under the pointer, less a 'stimulus' set from another stimulus. */
   readonly participants: readonly number[]
 }
 
@@ -167,12 +160,8 @@ export function createPlotCursorPort(
  *
  * `timeScope` is this plot's stimulus id, or `null` while its x axis is not
  * absolute time: one gate, both directions of the TIME channel. Omit it entirely
- * for a plot with no time axis (a matrix); the participant channel is unaffected.
- *
- * `stimulus` is this plot's stimulus id whatever its axes: it gates 'stimulus'
- * participant sets both ways. Omit it only for a plot spanning stimuli.
- * `publishes` is 'stimulus' for a plot whose participant set is derived from a
- * place on the stimulus (the heatmap), never for one whose mark is a person.
+ * for a plot with no time axis (a matrix). `stimulus` gates 'stimulus' participant
+ * sets both ways; omit it only for a plot spanning stimuli.
  */
 export function plotCursorPort(
   plotId: number,
@@ -191,16 +180,12 @@ export function plotCursorPort(
  * own axes are not time: the scope gates reading as well as publishing, so a port
  * without it is permanently deaf to time (recurrence resolves a shared instant to
  * a fixation index while drawing ordinal axes). Omit it only when the plot neither
- * publishes nor reads a time. `stimulusOf` is omitted only by a plot spanning
- * stimuli; these recipes all publish 'identity' sets.
+ * publishes nor reads a time. These recipes all publish 'identity' sets.
  */
-export function plotCursorScreen<S>(
-  opts: {
-    timeScopeOf?: (settings: S) => number | null
-    stimulusOf?: (settings: S) => number
-  } = {}
-): PlotScreenFactory<S> {
-  const { timeScopeOf, stimulusOf } = opts
+export function plotCursorScreen<S>({ timeScopeOf, stimulusOf }: {
+  timeScopeOf?: (settings: S) => number | null
+  stimulusOf?: (settings: S) => number
+} = {}): PlotScreenFactory<S> {
   return ctx => {
     const plotCursor = plotCursorPort(ctx.item.id, {
       timeScope: timeScopeOf && (() => timeScopeOf(ctx.item.settings)),
@@ -307,14 +292,10 @@ export function cursorRows(
 }
 
 /**
- * A time-axis plot's cursor wiring (scarf, AOI timeline, metric timeline), as
- * one derived bundle: guide `xs` from the TIME channel ({@link timeGuideXs} over
- * `band`) and `rows` from the PARTICIPANTS channel ({@link cursorRows} over
- * `rowIds`), the `key` both repaint on for `overlayDeps`, `timesAt` to publish
- * the instant under the pointer, and `draw` for the guides. All inputs are live
- * accessors; `band` returning null gates the time channel off (a plot whose
- * empty result carries a fabricated timeline must not project into it). Omit
- * `rowIds` for a plot with no participant rows.
+ * A time-axis plot's cursor wiring (scarf, AOI timeline, metric timeline): guide
+ * `xs` from the TIME channel, `rows` from the PARTICIPANTS channel, their repaint
+ * `key`, `timesAt` to publish and `draw` for the guides. `band` returning null
+ * gates time off (an empty result's fabricated timeline must not be projected into).
  */
 export function cursorGuides(opts: {
   cursor: () => PlotCursorPort | null
@@ -333,17 +314,14 @@ export function cursorGuides(opts: {
   return {
     get xs() { return xs },
     get rows() { return rows },
-    /** The marked positions, not the arrays: moving within one row or pixel
-     *  column must not repaint every sibling. */
+    /** Keyed on positions, not arrays: moving within one row or pixel column must not repaint siblings. */
     get key() { return `${xs.join(',')}:${rows.join(',')}` },
-    /** The TIME channel's publish for canvas x: a live read, so a drag-pan or an
-     *  undo under a resting pointer re-derives the instant. */
+    /** The TIME publish for canvas x, read live so a pan or undo under a resting pointer re-derives it. */
     timesAt: (px: number) => (): number[] => {
       const band = opts.band()
       return band === null ? [] : [timeAtX(band, opts.timeline(), px)]
     },
-    /** The guides over the band. Self-clipping: safe as a `drawOverlay`'s first
-     *  line, which it must be to survive the figure's local-hover early return. */
+    /** Self-clipping; must be a `drawOverlay`'s first line to survive its local-hover early return. */
     draw: (ctx: CanvasRenderingContext2D) => {
       const band = opts.band()
       if (band !== null) drawTimeGuides(ctx, band, xs)

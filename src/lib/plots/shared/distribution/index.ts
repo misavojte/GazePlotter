@@ -24,12 +24,9 @@
  *  - modules here import NARROW paths (`shared/timelineUtils`,
  *    `shared/metricResolver`, `shared/labels`), never the `$lib/plots/shared`
  *    barrel — so consuming a distribution still pulls in no components;
- *  - a plot DEFINITION imports `defineDistributionPlot` from `./plot`
- *    directly, and uses this barrel only inside its lazy `axis`. A definition
- *    CALLS the factory at module-init, while the plot registry's import cycle
- *    may still be inside this barrel or `./plot`; a binding read there before
- *    it is initialised throws ("Cannot access ... before initialization").
- *    `./plot` therefore imports the figure last.
+ *  - a plot DEFINITION imports `defineDistributionPlot` from `./plot` and uses
+ *    this barrel only inside its lazy `axis`: it calls the factory at module
+ *    init, mid registry import cycle, where an uninitialised binding throws.
  */
 export * from './types'
 export * from './summaryStatistics'

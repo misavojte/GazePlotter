@@ -7,6 +7,8 @@ const CACHE = 'gazeplotter-data'
  * `fromUrl` behind Cache Storage: the first visit downloads, later visits
  * open the stored copy with no network at all. Only for content-versioned
  * URLs, since a stored copy is never revalidated; storing one prunes the rest.
+ * Storage is best-effort (no `caches` outside secure contexts, private modes,
+ * quota): failing it only means downloading again next time.
  */
 export function cachedLoader(url: string, fileName: string): DataLoader {
   const download = fromUrl(url, fileName)
@@ -18,9 +20,6 @@ export function cachedLoader(url: string, fileName: string): DataLoader {
     return files
   }
 }
-
-// Storage is best-effort throughout (no `caches` outside secure contexts,
-// private modes, quota): failing it only means downloading again next time.
 
 async function readStored(url: string): Promise<Blob | null> {
   try {
@@ -40,6 +39,6 @@ async function store(url: string, file: File): Promise<void> {
       if (request.url !== current) await cache.delete(request)
     }
   } catch {
-    // Kept nothing: the next visit downloads again.
+    // Best-effort: the next visit downloads again.
   }
 }

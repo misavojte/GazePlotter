@@ -27,17 +27,15 @@
   const fraction = $derived(
     progress?.total && progress.loaded > 0 ? progress.loaded / progress.total : null
   )
-  const sizeUnknown = $derived(download?.total === null && !download.sizePending)
 
   const motion = (duration: number) => ({
     duration: prefersReducedMotion.current ? 0 : duration,
     easing: cubicOut,
   })
 
-  // The ring, its percent and the byte count glide to each new value at an
-  // even pace: linear over about one report interval (a parse reports every
-  // 200 ms), so they trail the truth without surging. A new phase, or a ring
-  // fading in, starts at its value instead of sweeping there.
+  // Ring, percent and byte count glide linearly over about one report interval
+  // (a parse reports every 200 ms), trailing the truth without surging. A new
+  // phase, or a ring fading in, snaps to its value instead of sweeping there.
   const glide = (snap: boolean) => ({ duration: snap || prefersReducedMotion.current ? 0 : 250 })
   const ring = new Tween(0)
   const bytes = new Tween(0)
@@ -64,7 +62,7 @@
     if (!progress) return ''
     // Only a download can lack a size.
     if (progress.total === null) {
-      return `${formatSizeProgress(bytes.current, null)} downloaded${sizeUnknown ? ', total size unknown' : ''}`
+      return `${formatSizeProgress(bytes.current, null)} downloaded${progress.sizePending ? '' : ', total size unknown'}`
     }
     // Before the first byte the total is just the size: "4.0 MB".
     if (fraction === null) return formatSizeProgress(progress.total, null)

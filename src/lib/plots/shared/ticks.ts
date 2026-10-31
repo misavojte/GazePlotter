@@ -70,12 +70,9 @@ export function categoryTicks(
 }
 
 /**
- * Nice ticks over a 1-based index axis whose ends ARE items 1 and `count`
- * (item k at `(k - 1) / (count - 1)`), e.g. recurrence's fixation lattice.
- * Item 1 always gets a tick, so the reader sees the axis starts at 1, then
- * every multiple of a whole-number nice step; `count` itself is not forced,
- * matching `linearTicks`. `labelFirst: false` keeps item 1's tick but drops its
- * label, for two axes meeting at a shared origin that should read "1" once.
+ * Nice ticks over a 1-based index axis whose ends are items 1 and `count`
+ * (recurrence's fixation lattice): item 1, then every multiple of a whole nice
+ * step. `labelFirst: false` drops item 1's label so a shared origin reads "1" once.
  */
 export function indexTicks(
   count: number,

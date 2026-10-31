@@ -108,19 +108,9 @@
   })
   const CATEGORY_LABEL_OFFSET = $derived(CATEGORY_LABEL_GAP + Math.ceil(categoryLabelHeight / 2))
 
-  // Horizontal-bar category labels go in the LEFT gutter, pre-truncated to a
-  // capped column so a long label can't eat the plot. (Vertical reserves left
-  // via the value axis.)
+  // Horizontal category labels, truncated to a capped left column so a long one can't eat the plot.
   const rowColumn = $derived(
     rowLabelColumn(data.map(d => d.label), Math.min(width * 0.4, 150))
-  )
-
-  // Value-axis ends: a dot on the axis min/max overhangs the border by its radius;
-  // the opposite edge carries the mirrored tick marks.
-  const edgePad = $derived(
-    isVertical
-      ? { top: DOT_RADIUS, right: TICK_LENGTH + PLOT_BORDER_PX }
-      : { top: TICK_LENGTH, left: rowColumn.width, right: DOT_RADIUS + PLOT_BORDER_PX }
   )
 
   const plot = usePlot<{ rowIndex: number; valuePx: number }>({
@@ -133,7 +123,13 @@
       if (rowThickness >= MIN_ROW_DOT_WIDTHS * DOT_PITCH) return null
       return cannotFitPlaceholder(isVertical ? 'width' : 'height', cannotFitHints)
     },
-    gutters: () => ({ pad: edgePad }),
+    // A dot on the value axis's min/max overhangs the border by its radius; the
+    // opposite edge carries the mirrored tick marks.
+    gutters: () => ({
+      pad: isVertical
+        ? { top: DOT_RADIUS, right: TICK_LENGTH + PLOT_BORDER_PX }
+        : { top: TICK_LENGTH, left: rowColumn.width, right: DOT_RADIUS + PLOT_BORDER_PX },
+    }),
     drawData: drawUnderlay,
     clipData: false, // data layers self-clip; category labels live in the gutter
     drawAboveAxes: drawMarks,

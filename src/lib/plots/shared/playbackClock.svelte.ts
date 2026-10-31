@@ -1,18 +1,9 @@
 /**
- * THE PLAYBACK CLOCK: one playhead per stimulus.
- *
- * Scanpath plots are PLAYERS: each joins its stimulus's clock with its play
- * span, so all of them show the same moment. Time-axis plots read the clock
- * through their plot cursor port: while it plays, its time joins the port's
- * time channel and they draw their usual time guide. They never move it, as
- * playback is not an undoable command.
- *
- * Time is recording ms, the cursor's basis. A reference video is slaved to
- * the clock: inside its span it plays and leads (frames never drift from the
- * fixations), outside it the clock runs on animation frames.
- *
- * A player can opt out into a private clock nobody reads. Clocks of one
- * stimulus share its video element, so starting one pauses the others.
+ * One playhead per stimulus, in recording ms. Scanpath plots join it as players
+ * so all show the same moment; time-axis plots only read it through the plot
+ * cursor port (playback is not undoable). A reference video leads the clock
+ * inside its span so frames never drift from the fixations. A player can opt
+ * into a private clock; clocks sharing a video pause each other.
  */
 import { SvelteMap } from 'svelte/reactivity'
 import { sessionScoped } from '$lib/session/context'

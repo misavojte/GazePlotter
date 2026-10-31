@@ -66,8 +66,9 @@ export interface ScarfStyling {
 
 /**
  * Style type for legend items, determining how the icon is rendered.
- * - 'fixation': Full-height rectangle (AOI fixations, event channels)
+ * - 'fixation': Full-height rectangle (AOI fixations)
  * - 'nonFixation': Thin rectangle (saccades, other events)
+ * - 'event': Thin strip hanging under the bar (event channels)
  */
 export type ScarfLegendStyleType = 'fixation' | 'nonFixation' | 'event'
 

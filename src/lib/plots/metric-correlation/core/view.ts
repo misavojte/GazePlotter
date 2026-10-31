@@ -16,10 +16,8 @@ import type { MetricCorrelationResult, MetricCorrelationSettings } from '../type
 const HEATMAP_COLOR_SCALE = ['#2166ac', '#ffffff', '#ca0020']
 
 /**
- * Legend N is the selection's participant count, but cells with missing data rest
- * on fewer complete pairs. Surface the smallest pairwise n among shown
- * (off-diagonal, non-null) cells so the figure — and its static export —
- * doesn't claim more support than any cell actually has.
+ * Cells with missing data rest on fewer pairs than the selection's N, so the
+ * title also names the smallest pairwise n among shown cells.
  */
 function buildLegendTitle(result: MetricCorrelationResult): string {
   const method =

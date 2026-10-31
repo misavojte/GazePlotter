@@ -14,11 +14,8 @@ import { getAoiStreamPlotData } from '.'
 import type { AoiStreamPlotResult, AoiStreamPlotSettings } from '../types'
 
 /**
- * Resolve the timeline window from settings alone. Cross-plot timeline sync
- * is the container's concern: the on-screen container merges the synced max
- * into `timelineEnd` before deriving (via `useSyncedMax`), so this
- * function — and therefore the export view — is a pure function of
- * (engine, settings). Export never syncs, like bar/transition-matrix.
+ * The timeline window from settings alone: the screen recipe merges the synced
+ * max into `timelineEnd` before deriving, so export never syncs.
  */
 function resolveTimeline(
   engine: DataEngine,

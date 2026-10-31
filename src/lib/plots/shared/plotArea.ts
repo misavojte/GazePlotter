@@ -73,11 +73,9 @@ export function fillPlotAreaBackground(
 }
 
 /**
- * A row heatmap (AOI timeline, metric timeline): the inactive background, then
- * per row the cells `cells(row, put)` hands to `put(start, end, color)` in
- * `domain` units, then the row dividers on crisp pixel rows. Cell edges snap to
- * whole pixels: a fractional shared edge is anti-aliased on both sides and lets
- * the background bleed through as a seam; snapped contiguous cells tile exactly.
+ * A row heatmap (AOI timeline, metric timeline): background, the cells each row
+ * `put`s in `domain` units, then row dividers. Cell edges snap to whole pixels,
+ * as a fractional shared edge anti-aliases on both sides and shows a seam.
  */
 export function paintRowCells(
   ctx: CanvasRenderingContext2D,

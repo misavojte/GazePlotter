@@ -44,11 +44,10 @@ export const aoiStreamScreen: PlotScreenFactory<AoiStreamPlotSettings, AoiStream
     isFullyAuto ? { key: [ctx.item.w], own: ownDataMax } : null
   )
 
-  // Ridgelines of the same height, scale and series count share the most
-  // constraining mTop, so their strips read on one data scale. Registered from
-  // the plot's OWN result; the synced value affects strip rendering only, never
-  // the transform (no feedback loop). The scale is rounded below its 0.1 pane
-  // step, so float noise in the setting never splits a group.
+  // Ridgelines of the same height, scale and series count share the largest
+  // mTop. Registered from the plot's OWN result and applied to strip rendering
+  // only, so there is no feedback loop. The scale is rounded so float noise never
+  // splits a group.
   const scaleOf = () => ctx.item.settings.ridgelineScale ?? RIDGELINE_SCALE
   const ownMTopOf = (view: AoiStreamView): number | null => {
     if (ctx.item.settings.alignment !== 'ridgeline') return null
@@ -61,16 +60,14 @@ export const aoiStreamScreen: PlotScreenFactory<AoiStreamPlotSettings, AoiStream
     const view = ctx.view()
     const mTop = view ? ownMTopOf(view) : null
     if (mTop === null) return null
-    const scale = Math.round(scaleOf() * 1000)
-    return { key: [ctx.item.h, scale, view!.props.data.series.length], own: mTop }
+    return { key: [ctx.item.h, Math.round(scaleOf() * 1000), view!.props.data.series.length], own: mTop }
   })
 
   const handleLegendClick = (aoiId: number) =>
     toggleSettingEntry(ctx, 'highlights', aoiId.toString())
 
   return {
-    // Screen settings: the synced timeline max merged in. Export derives from
-    // the raw item settings and therefore never syncs.
+    // Export derives from the raw settings, so it never syncs.
     settings: () => {
       const max = syncedTimelineMax()
       return max === null ? ctx.item.settings : { ...ctx.item.settings, timelineEnd: max }

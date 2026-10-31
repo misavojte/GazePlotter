@@ -38,8 +38,7 @@ export const RECURRENCE_MASKINGS: {
 export const RECURRENCE_LAYOUT = {
   /** Tick count per axis (nice whole-number steps). */
   tickCount: 5,
-  /** Upper bound on a recurrent dot's radius (px); below it the radius is a
-      share of the fixation spacing. */
+  /** Cap on a recurrent dot's radius (px). */
   maxDotRadius: 5,
   /** Dot radius as a share of the spacing between neighbouring fixations. */
   dotSpacingRatio: 0.45,

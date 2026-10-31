@@ -6,13 +6,10 @@ import { drawStimulusBackground, stimulusSpace, worldAspect, type StimulusBackgr
 import type { FrameAxes, FrameGutters, PlotFrame } from './usePlot.svelte'
 
 /**
- * A stimulus-space figure's frame (scanpath, fixation heatmap): the stimulus's
- * decoded media element, the equal-aspect fit of `world` (gaze px) into the plot
- * frame with its X/Y ticks, the projection to canvas px, and the frame
- * declaration (a data rect of the world's shape). `world` null means no plot.
- *
- * `frame` is read in an effect, never during init, so it may close over the
- * `usePlot` handle created after this; the fit follows a mirror of its size.
+ * A stimulus-space figure's frame (scanpath, fixation heatmap): the decoded
+ * media, the equal-aspect fit of `world` (gaze px) with its ticks, and the
+ * projection to canvas px. `frame` is only read in an effect, so it may close
+ * over the `usePlot` handle created after this.
  */
 export function useStimulusSpace(opts: {
   world: () => Rect | null

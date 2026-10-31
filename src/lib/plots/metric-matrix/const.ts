@@ -55,10 +55,7 @@ export function getMetricMatrixLegendTitle(
   })
 }
 
-/**
- * Participants-only grid-header subtitle. The metric matrix spans every
- * stimulus, so (unlike `stimulusParticipantsSubtitle`) it names only the participants.
- */
+/** Participants-only subtitle: the matrix spans every stimulus. */
 export function metricMatrixSubtitle(params: {
   item: { settings: MetricMatrixPlotSettings }
   engine: DataEngine

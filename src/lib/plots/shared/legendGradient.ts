@@ -45,8 +45,7 @@ export interface GradientLegendConfig {
   /** Legend Title */
   title: string
   /** Optional color for values below the range minimum. Its cap is drawn only
-   *  while `valueRange[0]` is above 0: every colour-mapped value is a count,
-   *  duration, share or similarity, so nothing falls below 0. */
+   *  while `valueRange[0]` is above 0, as no colour-mapped value is negative. */
   belowMinColor?: string | null
   /** Optional color for values above the range maximum. Its cap is drawn only
    *  while `valueRange[1]` is explicit (non-zero): at auto nothing can exceed
@@ -80,7 +79,7 @@ export interface GradientLegendGeometry {
   colorScale: string[]
   belowMinColor?: string | null
   aboveMaxColor?: string | null
-  /** The range ends as printed, for the caps' hover notes. */
+  /** Printed range ends, for the caps' hover notes. */
   minText: string
   maxText: string
 
@@ -176,19 +175,14 @@ export function computeGradientLegendGeometry(
 
   const isMinimalist = availableHeight < GRADIENT_LEGEND_MINIMALIST_THRESHOLD
 
-  // Layout Width. Out-of-bounds caps flank the bar, each only while something
-  // can fall past its end: a minimum above 0, an explicit maximum (auto IS the
-  // data max, nothing exceeds it).
+  // Out-of-bounds caps flank the bar, each only while a value can fall past its end.
   const hasBelowMin = !!config.belowMinColor && valueRange[0] > 0
   const hasAboveMax = !!config.aboveMaxColor && valueRange[1] !== 0
   const capsWidth =
     (hasBelowMin ? GRADIENT_LEGEND_CAP_WIDTH : 0) +
     (hasAboveMax ? GRADIENT_LEGEND_CAP_WIDTH : 0)
-  // `fixedWidth` keeps the bar at MAX_WIDTH (clamped only so bar + caps can't
-  // exceed the space) — no `* 0.8` grid-proportional shortening; otherwise the
-  // bar tracks the grid width as before.
-  // The value labels centre on the bar's ends: past whatever cap flanks an end,
-  // the rest of that half-label needs room inside the span or it leaves the canvas.
+  // `fixedWidth` skips the `* 0.8` shortening. The value labels centre on the
+  // bar's ends, so the half-label past each end's cap needs room or it leaves the canvas.
   const minText = formatLegendValue(valueRange[0])
   const maxText = formatLegendValue(effectiveMaxValue)
   const hasLabels = !isMinimalist && availableHeight > GRADIENT_LEGEND_LABELS_MIN_HEIGHT

@@ -118,8 +118,7 @@ export const scarfScreen: PlotScreenFactory<ScarfPlotSettings, ScarfView> = ctx 
     // Export derives from the raw item settings (no drag, no sync).
     settings: () => {
       const max = syncedMax()
-      if (max === null) return effectiveSettings
-      return { ...effectiveSettings, [scarfRange(effectiveSettings).endKey]: max }
+      return max === null ? effectiveSettings : { ...effectiveSettings, [scarfRange(effectiveSettings).endKey]: max }
     },
     props: () => ({
       highlights: visibleHighlights(ctx.engine, ctx.item.settings),

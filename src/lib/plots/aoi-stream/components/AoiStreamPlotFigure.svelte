@@ -136,9 +136,7 @@
       : calculateFlatLegendHeight(legendItems, Math.max(0, plot.plotAreaWidth), LEGEND_CONFIG)
   )
 
-  // ── Axis chrome ──
-  // The X (time) axis and the Y (metric/value) domain are both pixel-independent:
-  // the same `computeAoiStreamYAxis` the stream coordinates are scaled by.
+  // Pixel-independent axis domains; `yDomain` is the one the stream coordinates scale by.
   const xAxisTicks = $derived(niceTimelineTicks(data.timeline))
   const yDomain = $derived(computeAoiStreamYAxis(data, alignment))
 
@@ -151,10 +149,10 @@
       : []
   )
 
-  // Left edge per mode: value ticks + rotated metric title mirrored on the right
-  // (stream/distribution), the scale-bar strip + title (ridgeline), or truncated
-  // AOI row labels with no title (heatmap — the metric name lives in the gradient
-  // legend). No axes without bins: the empty result's timeline is fabricated.
+  // Left edge per mode: mirrored value ticks + title (stream/distribution), the
+  // scale-bar strip + title (ridgeline), or AOI row labels (heatmap; its metric
+  // name is in the gradient legend). No axes without bins: the empty result's
+  // timeline is fabricated.
   const axes = $derived.by<FrameAxes | null>(() => {
     if (data.binCount <= 0) return null
     const bottom = { ticks: xAxisTicks, title: X_AXIS_LABEL }
@@ -200,8 +198,7 @@
       )
     },
     axes: () => axes,
-    // The legend is reserved as a bottom block; PLOT_LEGEND_GAP is folded in (the
-    // resolver abuts the block to the x-axis gutter), and the draw anchors at
+    // PLOT_LEGEND_GAP is folded into the legend block; the draw anchors at
     // frame.legendY + PLOT_LEGEND_GAP.
     gutters: () => ({
       pad: { top: PLOT_EDGE_PAD_TOP, right: effectiveRightMargin },
@@ -217,9 +214,7 @@
       highlights: () => usedHighlights,
       hitData: item => ({ kind: 'legend' as const, item }),
     },
-    // Same resolver as the cells (core/layout.ts), so the colorbar's end labels
-    // are exactly the gradient's first and last stop. The legend itself hides
-    // the above-max cap while the max is auto.
+    // Same range resolver as the cells, so the colorbar ends match the gradient.
     gradientLegend: () =>
       alignment !== 'heatmap'
         ? null
@@ -239,11 +234,7 @@
     // no participant under the pointer to publish.
     onHover: hit => {
       const px = hit?.kind === 'bin' ? hit.x : undefined
-      plotCursor?.publish(
-        px === undefined
-          ? null
-          : { times: cursorGuide.timesAt(px) }
-      )
+      plotCursor?.publish(px === undefined ? null : { times: cursorGuide.timesAt(px) })
     },
     // Return type annotated: the guide reads `plot`, so inference would loop.
     overlayDeps: (): string => cursorGuide.key,
@@ -268,11 +259,6 @@
       Math.max(0, plot.plotAreaWidth)
     )
   )
-
-  function setUpFont(ctx: CanvasRenderingContext2D) {
-    ctx.font = `${AXIS_CONFIG.fontSize}px ${AXIS_CONFIG.fontFamily}`
-    ctx.fillStyle = AXIS_CONFIG.color
-  }
 
   // The frame arrives already floored (resolveFrameLayout floors the rect), so
   // draws read it directly — no re-flooring preamble.
@@ -409,15 +395,14 @@
     // stream instead of re-running this whole render.
   }
 
-  // The gutter marks the axes don't draw: heatmap AOI row labels, the ridgeline
-  // scale bar, and the interactive legend.
+  // Gutter marks the axes don't draw: heatmap row labels, ridgeline scale bar, legend.
   function drawStreamChrome(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
     if (!streamCoords) return
     const { seriesPaint } = streamCoords
-    setUpFont(ctx)
+    ctx.font = `${AXIS_CONFIG.fontSize}px ${AXIS_CONFIG.fontFamily}`
+    ctx.fillStyle = AXIS_CONFIG.color
 
     if (alignment === 'heatmap') {
-      // Pre-truncated to the same budget the axis reserved (single source).
       ctx.save()
       drawRowLabels(ctx, heatmapAoiLabels, frame.x, frame.y, frame.height / data.series.length)
       ctx.restore()
@@ -456,7 +441,6 @@
       ctx.restore()
     }
 
-    // The heatmap's gradient legend is drawn by the harness.
     if (alignment !== 'heatmap' && legendGeometry.items.length > 0 && legendHeight > 0) {
       drawLegend(ctx, legendGeometry, LEGEND_CONFIG, usedHighlights)
     }

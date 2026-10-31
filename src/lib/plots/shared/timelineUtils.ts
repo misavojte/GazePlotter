@@ -28,8 +28,7 @@ export function formatTimelineLabel(value: number): string {
   // Handle zero explicitly
   if (value === 0) return '0'
 
-  // Plain digits, never thousands separators: one number style across every
-  // plot, and no comma to misread as a decimal comma.
+  // No thousands separators: a comma could be misread as a decimal comma.
   if (Number.isInteger(value)) return value.toString()
 
   // Large numbers with decimals
@@ -239,10 +238,8 @@ export function createAdaptiveTimeline(
 }
 
 /**
- * Index of the interval holding `t` among `count` sorted, disjoint half-open
- * intervals `[startOf(i), endOf(i))`, or `-1` in a gap, outside them all, or
- * for a `NaN` time (a live cursor read whose data shrank). Binary search, so a
- * per-frame lookup (a fixation, a window) stays cheap.
+ * Binary search for the interval holding `t` among `count` sorted, disjoint
+ * half-open intervals; `-1` in a gap, outside them all, or for a `NaN` time.
  */
 export function intervalAt(
   count: number,

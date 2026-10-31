@@ -4,10 +4,8 @@ import type { TransitionMatrixView } from './view'
 import type { TransitionMatrixPlotSettings } from '../types'
 
 /**
- * Screen recipe: color-axis sync. Matrices sharing (metric, color scale, grid
- * size) with a default color range share the largest data max so their color
- * scales are directly comparable. Setting an explicit min or max opts the plot
- * out. Export renders the raw (unsynced) view.
+ * Color-axis sync: matrices sharing metric, color scale and grid size share the
+ * largest data max while their color range is default. Export never syncs.
  */
 export const transitionMatrixScreen: PlotScreenFactory<
   TransitionMatrixPlotSettings,
@@ -15,7 +13,7 @@ export const transitionMatrixScreen: PlotScreenFactory<
 > = ctx => {
   const syncedMax = useSyncedMax(ctx, 'transition-matrix-color', () => {
     const meta = ctx.view()?.meta
-    if (!meta || !meta.isDefaultColorRange) return null
+    if (!meta?.isDefaultColorRange) return null
     return {
       key: [meta.syncGroupKey, meta.colorScaleKey, ctx.item.w, ctx.item.h],
       own: meta.ownDataMax,

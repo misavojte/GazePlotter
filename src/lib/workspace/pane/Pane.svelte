@@ -71,9 +71,8 @@
     isBulk ? 'Bulk plot settings' : `${title} settings`
   )
 
-  // The data behind the plot, one click away (also in its right-click menu).
-  // Declared after paneItem/isBulk: SSR evaluates $derived eagerly, so a
-  // forward reference throws a TDZ ReferenceError on the server render.
+  // The plot's data (also in its right-click menu). Declared after paneItem and
+  // isBulk: SSR evaluates $derived eagerly, so a forward reference throws (TDZ).
   const dataExport = $derived.by(() =>
     isBulk || !paneItem ? null : plotDataExport(paneItem.settings, engine, modalState)
   )
@@ -186,8 +185,7 @@
     z-index: 2;
     box-sizing: border-box;
     border-left: 1px solid var(--c-border);
-    /* A sheet over the canvas: a soft shade falls on the plots it covers,
-       strong enough to read over busy figures. */
+    /* A sheet over the canvas: a shade strong enough to read over busy plots. */
     box-shadow: -8px 0 20px -6px color-mix(in srgb, var(--c-black) 14%, transparent);
     transition: background-color var(--transition-slow) ease;
   }

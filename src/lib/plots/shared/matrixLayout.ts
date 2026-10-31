@@ -49,8 +49,7 @@ export type MatrixLayoutInput = {
   /** Axis titles; the layout wraps them (≤2 lines) and reserves their height. */
   xAxisTitle: string
   yAxisTitle: string
-  /** Formatted values spanning the cell text (the range ends); the widest
-   *  decides whether values fit in a cell. */
+  /** Formatted range ends; the widest decides whether values fit in a cell. */
   cellValueLabels: string[]
   layoutConfig: MatrixLayoutConfig
   margin?: number
@@ -89,8 +88,7 @@ export type MatrixLayout = {
 const labelWidth = (text: string, fontSize: number) =>
   estimateTextWidth(text, fontSize, FONT_PRIMARY.FAMILY)
 
-/** A full (non-compact) axis label truncated to its budget: the ONE rule the
- *  layout measures and the renderer draws. */
+/** A full axis label truncated to its budget: the one rule both layout and renderer use. */
 export function truncatedAxisLabel(label: string, fontSize: number, maxLabelLength: number): string {
   return truncateTextToPixelWidth(label, maxLabelLength, fontSize, FONT_PRIMARY.FAMILY, '...')
 }
@@ -122,11 +120,7 @@ function compactThinFactor(
   return Math.max(1, Math.ceil((approxIndexWidth + 4) / cellSize))
 }
 
-/**
- * What one label mode (full names or compact indices) occupies around the grid:
- * the row-label column width, the column-label band height, and how far the
- * LAST column's label reaches right of that column's centre.
- */
+/** What one label mode occupies: row-label width, column-label height, and the last column label's reach right of its centre. */
 interface AxisLabelExtent {
   rowWidth: number
   colHeight: number
@@ -180,11 +174,9 @@ export function computeMatrixLayout(input: MatrixLayoutInput): MatrixLayout {
   const xSpaceFor = (labelH: number, titleH = titleLineHeight) =>
     margin + titleH + PLOT_AXIS_TITLE_GAP + labelH + PLOT_TICK_LABEL_GAP
 
-  // One fit rule for every pass: carve the axis spaces, the right reach and the
-  // legend out, fit square cells to the shorter axis (never negative). The right
-  // reach hangs from the last column's centre, so half a cell absorbs it: reserve
-  // it whole first, then refine by the cell that leaves. Cells only grow under
-  // the refinement, so the refined reservation still covers the label.
+  // One fit rule for every pass: square cells in what the axes, right reach and
+  // legend leave. Half a cell absorbs the reach, so reserve it whole, then refine
+  // by the resulting cell; cells only grow, so the label stays covered.
   const fit = (labels: AxisLabelExtent, ySpace: number, xSpace: number) => {
     const cellFor = (right: number) => {
       const availW = width - ySpace - margin - right

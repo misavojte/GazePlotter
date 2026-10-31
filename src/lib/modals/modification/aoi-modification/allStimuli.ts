@@ -27,16 +27,14 @@ export interface StimulusAois {
 export interface UnionRow extends ExtendedInterpretedDataType {
   /** `n/total` stimuli containing the original name. */
   stimuliLabel: string
-  /** The distinct trimmed names, when they differ between stimuli; the row's
-      displayed name then opens empty ("Mixed"). */
+  /** Distinct trimmed names when they differ between stimuli (name opens empty). */
   mixedNames?: string[]
-  /** The distinct colors, when they differ between stimuli (striped swatch). */
+  /** Distinct colors when they differ between stimuli (striped swatch). */
   mixedColors?: string[]
 }
 
 export interface UnionInit {
-  /** First-seen values: the open name selections are keyed by, and the color
-      the row opens with. */
+  /** First-seen values: the name selections are keyed by, the color the row opens with. */
   displayedName: string
   color: string
   /** The name differs between stimuli: the row opens empty, and empty keeps each. */
@@ -142,8 +140,7 @@ export function buildAllStimuliUnion(
  * (synthetic union ids); a field is edited iff `touched` holds the row id for
  * it OR its value differs from `init` (names trimmed both sides, colors
  * compared case-insensitively). Re-picking the shown value therefore IS an
- * edit. A mixed name is edited only once non-empty: the row opens empty, and
- * clearing it again keeps each stimulus's own name.
+ * edit. A mixed name counts as edited only once non-empty.
  */
 export function resolveAllStimuliEdits(
   cleaned: ExtendedInterpretedDataType[],

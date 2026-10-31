@@ -18,17 +18,14 @@ import {
 import { SCANPATH_SIMILARITY_DEFAULTS } from '../const'
 import type { ScanpathSimilaritySettings } from '../types'
 
-/**
- * Single source of truth for "what a scanpath-similarity plot draws" — picks the
- * matrix or scangraph figure by `settings.view`. The scangraph `threshold` is
- * included here so screen and export style links identically (export previously
- * fell back to the default).
- */
-/** The scangraph or the matrix, by the plot's `view` setting. */
 export type ScanpathSimilarityView =
   | PlotView<FigureProps<typeof ScangraphFigure>>
   | PlotView<FigureProps<typeof MatrixPlotFigure>>
 
+/**
+ * The matrix or scangraph figure, by `settings.view`. The scangraph `threshold`
+ * is set here so screen and export style links identically.
+ */
 export function deriveScanpathSimilarityView(
   engine: DataEngine,
   settings: ScanpathSimilaritySettings

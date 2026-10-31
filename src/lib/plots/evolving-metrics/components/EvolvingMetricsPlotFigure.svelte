@@ -71,25 +71,20 @@
   const props: Props = $props()
   const { width, data, alignment = 'heatmap', colorScale, plotCursor = null } = $derived(props)
 
-  const X_AXIS_LABEL = $derived(data.xAxisLabel)
-
   // ── Axis chrome (all pixel-independent) ──
   const xAxisTicks = $derived(niceTimelineTicks(data.timeline))
   const timeAxes = $derived<FrameAxes>({
-    bottom: { ticks: xAxisTicks, title: X_AXIS_LABEL },
+    bottom: { ticks: xAxisTicks, title: data.xAxisLabel },
     top: { ticks: { positions: xAxisTicks.positions } },
   })
   const gutters = (left?: number): FrameGutters => ({
     pad: { top: PLOT_EDGE_PAD_TOP, right: PLOT_BORDER_PX, left },
   })
 
-  // The heatmap's row height for the compact verdict. It cannot be
-  // `plot.frame.height`: compact mode decides the left gutter, which closes a
-  // loop through the width the resolver wraps the axis title to. So it resolves
-  // the SAME declaration on the pre-gutter content area, with the left inset
-  // pinned at its widest (a row-label column never passes 40% of the canvas):
-  // the title wraps at its tallest, so the probe is never taller than the frame.
-  // The gradient band is added as usePlot adds it.
+  // The heatmap height for the compact verdict. Not `plot.frame.height`: compact
+  // mode sets the left gutter, which loops back through the title wrap width. So
+  // it resolves the same layout with the left inset at its widest (row labels
+  // never pass 40% of the canvas), making the probe never taller than the frame.
   const probeHeight = $derived.by((): number => {
     const band = plot.gradientLegendHeight
     const { rect } = resolveFrameLayout(
@@ -131,10 +126,9 @@
       : []
   )
 
-  // Overlay: value ticks + rotated metric title. Heatmap: the participant row
-  // labels, or in compact mode the index axis, which reserves its fixed width
-  // as pad.left (a 2-line "Participants / [order indices]" title at fixed
-  // offsets). No axes without participants: the empty result's timeline is fabricated.
+  // Overlay: value ticks + title. Heatmap: row labels, or in compact mode the
+  // index axis, whose fixed width goes in pad.left. No axes without
+  // participants: the empty result's timeline is fabricated.
   const axes = $derived.by<FrameAxes | null>(() => {
     if (data.participants.length === 0) return null
     if (alignment === 'overlay') {
@@ -162,9 +156,7 @@
         ? null
         : {
             colorScale: palette,
-            // Raw, not rounded: the legend must advertise the range the cells are
-            // actually coloured by. `formatLegendValue` already renders 0.2 as "0.2";
-            // rounding turned a 0.2–0.9 ramp into a "0–1" one and misread every cell.
+            // Raw, not rounded: rounding turned a 0.2 to 0.9 ramp into "0 to 1".
             valueRange: [data.valueMin, data.valueMax],
             effectiveMaxValue: data.valueMax,
             title: data.yAxisLabel,
@@ -273,10 +265,7 @@
     return { meanValues, p25Values, p75Values, sampleCount }
   })
 
-  function findWindowAt(
-    windows: readonly EvolvingMetricsWindow[],
-    t: number
-  ): EvolvingMetricsWindow | null {
+  function findWindowAt(windows: readonly EvolvingMetricsWindow[], t: number) {
     const i = intervalAt(windows.length, j => windows[j].startMs, j => windows[j].endMs, t)
     return i < 0 ? null : windows[i]
   }
@@ -293,20 +282,12 @@
     }
   }
 
-  // Heatmap rows: names, or the index axis in compact mode. Pre-truncated to the
-  // same budget the axis reserved (single source).
+  // Heatmap rows: names, or the index axis in compact mode.
   function drawRowLabels(ctx: CanvasRenderingContext2D, frame: PlotFrame) {
-    const participantCount = data.participants.length
-    if (alignment !== 'heatmap' || participantCount === 0 || frame.height <= 0) return
+    const n = data.participants.length
+    if (alignment !== 'heatmap' || n === 0 || frame.height <= 0) return
     ctx.save()
-    drawParticipantRowAxis(
-      ctx,
-      participantCount,
-      isCompact ? null : participantLabels,
-      frame.x,
-      frame.y,
-      frame.height / participantCount
-    )
+    drawParticipantRowAxis(ctx, n, isCompact ? null : participantLabels, frame.x, frame.y, frame.height / n)
     ctx.restore()
   }
 

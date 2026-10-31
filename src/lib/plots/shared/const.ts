@@ -66,9 +66,5 @@ export const PLOT_TICK_LABEL_GAP = 10
  */
 export const PLOT_EDGE_PAD_TOP = 5
 
-/**
- * The plot border's own pixel: the crisp 1px stroke on the data rect's right
- * edge lands one pixel PAST the floored rect, so a right edge with nothing else
- * drawn on it reserves exactly this (never a hand-picked breathing margin).
- */
+/** The plot border's own pixel: the crisp 1px stroke lands one pixel past the floored rect's right edge. */
 export const PLOT_BORDER_PX = 1

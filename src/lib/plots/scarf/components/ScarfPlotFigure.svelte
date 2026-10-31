@@ -156,9 +156,7 @@
   const isCompactMode = $derived(layout.isCompact)
 
   // Names pre-truncated to the column the gutter reserves (single source).
-  const labelColumn = $derived(
-    scarfLabelColumn(isCompactMode, data.participants.map(p => p.label))
-  )
+  const labelColumn = $derived(scarfLabelColumn(isCompactMode, data.participants.map(p => p.label)))
   /** Row order for the PLOT CURSOR — rebuilt on a data change, not per frame. */
   const participantIds = $derived(data.participants.map(p => p.id))
   const LEFT_LABEL_WIDTH = $derived(labelColumn.width)

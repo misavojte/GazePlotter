@@ -26,11 +26,7 @@ const MIN_CELL_TEXT_SIZE = 7
 /** Horizontal room (px) kept clear inside a cell around its text. */
 const CELL_TEXT_INSET = 4
 
-/**
- * Sets the largest font ≤ `size` at which `text` fits `maxWidth` (measured, so
- * a long unit or a negative r never spills into the next cell); false when even
- * MIN_CELL_TEXT_SIZE would not fit.
- */
+/** Sets the largest font ≤ `size` at which `text` fits `maxWidth`; false when even the minimum would not. */
 function fitCellFont(
   ctx: CanvasRenderingContext2D,
   text: string,
