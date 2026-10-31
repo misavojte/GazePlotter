@@ -163,7 +163,7 @@ export function computeMatrixLayout(input: MatrixLayoutInput): MatrixLayout {
     rightReach: labelWidth(String(colCount), fontSize) / 2,
   }
 
-  const legendSpace = MATRIX_LEGEND_GAP + getGradientLegendRequiredHeight(fontSize) + margin
+  const legendSpace = MATRIX_LEGEND_GAP + getGradientLegendRequiredHeight() + margin
 
   // Axis space = outer margin + title + title gap + labels + label gap. Title
   // space defaults to one line; the second pass below re-reserves the real

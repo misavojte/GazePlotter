@@ -668,7 +668,7 @@ export function usePlot<THit = unknown>(options: UsePlotOptions<THit>): UsePlotH
   const gradientSlot = $derived(options.gradientLegend?.() ?? null)
   const gradientHeight = $derived(
     gradientSlot
-      ? getGradientLegendRequiredHeight(undefined, gradientSlot.title, plotAreaWidth)
+      ? getGradientLegendRequiredHeight(gradientSlot.title, plotAreaWidth)
       : 0
   )
 

@@ -120,31 +120,21 @@ const GRADIENT_LEGEND_MINIMALIST_THRESHOLD = 30
 const GRADIENT_LEGEND_LABELS_MIN_HEIGHT = 35
 
 /**
- * Compute the total vertical height the gradient legend needs in full mode
- * (title + bar + value labels).  The result is font-size–aware so the
- * layout stays correct even when the system font metrics differ.
- *
- * @param fontSize  The label / title font size in px (default: `LEGEND_FONT.SIZE`).
- * @param title     With `width`, reserves the lines this title wraps to; else the 2-line worst case.
+ * Height of the full gradient legend: title, bar and value labels. With
+ * `width`, reserves the lines `title` wraps to; else the 2-line worst case.
  */
-export function getGradientLegendRequiredHeight(
-  fontSize: number = LEGEND_FONT.SIZE,
-  title?: string,
-  width?: number
-): number {
-  // Title line height is ~1.25× the font size, approximated to the
-  // nearest integer so canvas pixel math stays sharp.
-  const titleLineHeight = Math.ceil(fontSize * 1.25)
+export function getGradientLegendRequiredHeight(title?: string, width?: number): number {
+  const { SIZE, FAMILY } = LEGEND_FONT
   const lines =
     title !== undefined && width !== undefined
-      ? wrapTextToWidth(title, width, LEGEND_FONT.SIZE, LEGEND_FONT.FAMILY, MAX_LEGEND_TITLE_LINES).length
+      ? wrapTextToWidth(title, width, SIZE, FAMILY, MAX_LEGEND_TITLE_LINES).length
       : MAX_LEGEND_TITLE_LINES
   return (
-    lines * titleLineHeight +
+    lines * Math.ceil(SIZE * 1.25) +
     (lines ? GRADIENT_LEGEND_TITLE_GAP : 0) +
     GRADIENT_LEGEND_BAR_HEIGHT +
     GRADIENT_LEGEND_LABEL_GAP +
-    fontSize                       // value-label text height
+    SIZE // value-label text height
   )
 }
 
