@@ -38,7 +38,7 @@ The number of times a participant entered and exited an AOI. A visit consists of
 
 - **Raw Shape**: `aoi-vector`
 - **Unit**: `count`
-- **Windowing**: Supported. Like fixation counts, visits are gated by the temporal midpoint of their component fixations to prevent boundary double-counting.
+- **Windowing**: Supported. A visit is counted in every window it overlaps, so a visit that runs across a window boundary appears in both windows. This keeps each window a complete picture of its own interval; per-window visit counts therefore do not add up to the whole-recording count.
 - **Invariants**: Consecutive fixations in the same AOI are collapsed into a single visit. Gaze must leave the AOI (either to another AOI or to off-AOI space) and return for a new visit to be counted.
 - **Measurement class**: Extensive (additive total). Across participants, show a per-participant mean or a cohort total (the group's combined visits).
 - **Scientific Meaning**: Reflects search-and-compare behaviors. A high visit count with short visit durations suggests the participant was toggling back and forth to compare information across regions.

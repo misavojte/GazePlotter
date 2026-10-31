@@ -68,7 +68,7 @@ GazePlotter projects fixations onto moving time windows with two independent sig
 2. **Membership (`windowMembership`)**:
    Which windows a fixation belongs to. Each metric declares its rule once, and a plain time range counts as a single window.
    - `'all'` (default): every window the fixation overlaps. Use it when a fixation can be split across windows, as clipped durations are, and for yes/no questions like "was this AOI looked at here".
-   - `'own'`: only the window holding the fixation's midpoint. Use it when counting things that cannot be split (`fixationCount`, `visitCount`, `movementCount`), so the per-window numbers still add up to the total when the windows do not overlap. A window that owns nothing reports 0, not missing data. Event Count deliberately uses `'all'` instead: it counts the occurrences ACTIVE in each window, a concurrency reading whose per-window values do not tile to a total.
+   - `'own'`: only the window holding the fixation's midpoint. Use it when counting things that cannot be split (`fixationCount`, `movementCount`), so the per-window numbers still add up to the total when the windows do not overlap. A window that owns nothing reports 0, not missing data. Event Count deliberately uses `'all'` instead: it counts the occurrences ACTIVE in each window, a concurrency reading whose per-window values do not tile to a total.
    Metrics reporting additive totals must state their rule explicitly, and a contradictory choice is rejected when the metric is registered. An average must never use `'own'`: it would report no data for a window a fixation plainly covers.
 
 ## Aggregating Across Participants
