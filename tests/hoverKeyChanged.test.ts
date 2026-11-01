@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { hoverKeyChanged } from '$lib/plots/shared/usePlot.svelte'
+import { hoverKeyChanged } from '$lib/plots/shared/frame'
 
 // The dedup gate in front of a figure's `onHover` (which publishes the shared
 // plot cursor). A missed change leaves another plot's highlight stuck on.

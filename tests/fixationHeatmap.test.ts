@@ -16,11 +16,11 @@ import { createFrameScratch, heatmapFrame } from '../src/lib/plots/fixation-heat
 import { fadeIn, heatLut, legendRamp, maskLut, paintHeat } from '../src/lib/plots/fixation-heatmap/core/heatImage'
 import {
   deriveFixationHeatmapView,
-  formatAmount,
   heatmapLegendTitle,
   heatmapNotes,
   niceCeil,
 } from '../src/lib/plots/fixation-heatmap/core/view'
+import { formatAmount } from '../src/lib/plots/fixation-heatmap/core/tooltip'
 import { fixationHeatmapDefinition } from '../src/lib/plots/fixation-heatmap/definition'
 import type {
   FixationHeatmapData,
@@ -316,22 +316,22 @@ describe('background', () => {
   const props = (media: StimulusMedia | null, background: FixationHeatmapPlotSettings['background']) => {
     const e = engineOf([[], [P0, P1]])
     if (media) e.metadata!.stimuliMedia = { 1: media }
-    return deriveFixationHeatmapView(e, settings({ background })).props
+    return deriveFixationHeatmapView(e, settings({ background })).input
   }
 
-  it('passes the medium with its treatment, and none for None', () => {
-    expect(props(image, 'dimmed')).toMatchObject({ media: image, background: 'dimmed' })
-    expect(props(image, 'none')).toMatchObject({ media: null, background: 'image' })
-    // A video reaches the figure for its playback frames; the note says the parked map sits on white.
+  it('passes the medium, and none for None', () => {
+    expect(props(image, 'dimmed').media).toBe(image)
+    expect(props(image, 'none').media).toBeNull()
+    // A video reaches the kit for its playback frames; the note says the parked map sits on white.
     const video = { ...image, kind: 'video' as const, mimeType: 'video/mp4' }
     const played = props(video, 'grayscale')
-    expect(played).toMatchObject({ media: video, background: 'grayscale' })
+    expect(played.media).toBe(video)
     expect(played.notes).toContain('Video frame drawn only under a map of its moment')
     expect(props(video, 'none').notes).not.toContain('Video frame drawn only under a map of its moment')
   })
 
   it('falls back to plain drawing without an image', () => {
-    expect(props(null, 'grayscale')).toMatchObject({ media: null, background: 'image' })
+    expect(props(null, 'grayscale').media).toBeNull()
   })
 
   it('keeps heat clipped to the media rect even when the image is not drawn', () => {

@@ -1,13 +1,12 @@
 /**
- * The stimulus under a gaze plot (Fixation Heatmap, Scanpath): its gaze-space
- * view, how its image or video frame is drawn, and the pane field choosing that.
+ * The stimulus under a gaze plot (Fixation Heatmap, Scanpath): how its image
+ * or video frame is drawn, and the pane field choosing that. Its gaze-space
+ * frame is `stimulusSpace.ts`.
  */
 import { commonIs, type SectionField } from '$lib/plots/definePlot'
-import { fitView, type Rect, type View } from '$lib/data/media/mediaAlignment'
 import type { StimulusMedia } from '$lib/data/types'
 import { strokeCrispRect } from './canvasUtils'
 import { GRIDLINE_PRIMARY } from './const'
-import { linearTicks } from './ticks'
 
 export type StimulusBackground = 'image' | 'grayscale' | 'dimmed' | 'none'
 
@@ -15,31 +14,6 @@ const PAPER = '#ffffff'
 /** Grey whose zero saturation, composited with 'saturation', desaturates the image. */
 const DESATURATE = '#808080'
 const DIM_ALPHA = 0.5
-
-/** Data rect width/height for `world`, held within 1:3..3:1 so a thin extent stays a usable plot. */
-export function worldAspect(world: Rect): number {
-  const a = world.height > 0 ? world.width / world.height : 1
-  return Math.min(3, Math.max(1 / 3, a))
-}
-
-/** Equal-aspect view of `world` in a frame-relative box, with ticks over the gaze range it shows. */
-export function stimulusSpace(
-  world: Rect,
-  frameW: number,
-  frameH: number,
-  tickCount: number
-): { view: View; xTicks: ReturnType<typeof linearTicks>; yTicks: ReturnType<typeof linearTicks> } {
-  const w = Math.max(1, frameW)
-  const h = Math.max(1, frameH)
-  const view = fitView(world, w, h, { top: 0, right: 0, bottom: 0, left: 0 })
-  const minX = -view.offsetX / view.scale
-  const minY = -view.offsetY / view.scale
-  return {
-    view,
-    xTicks: linearTicks(minX, minX + w / view.scale, tickCount),
-    yTicks: linearTicks(minY, minY + h / view.scale, tickCount),
-  }
-}
 
 /**
  * The stimulus at its projected rect (`x, y, w, h` in canvas px): the image or
@@ -84,6 +58,25 @@ export function drawStimulusBackground(
     }
   }
   ctx.restore()
+}
+
+/** How far (ms) a parked video's frame may sit from the drawn moment: a frame at 20 fps. */
+const FRAME_TOLERANCE_MS = 50
+
+/**
+ * A video is drawn only under the moment shown, never under everything. On a
+ * clock the clock seeks the element there; without one (export) only when the
+ * shared element already shows that frame (`frameAt`, recording ms), as another
+ * clock or a running playback may have moved it. Otherwise white.
+ */
+export function mediaBackground(
+  mode: StimulusBackground,
+  s: { isVideo: boolean; playTime: number | null; onClock: boolean; frameAt: number | null }
+): StimulusBackground {
+  if (!s.isVideo) return mode
+  if (s.playTime === null) return 'none'
+  if (s.onClock) return mode
+  return s.frameAt !== null && Math.abs(s.frameAt - s.playTime) <= FRAME_TOLERANCE_MS ? mode : 'none'
 }
 
 /** The Background pane field, shown while every edited plot's stimulus has a medium of `kinds`. */

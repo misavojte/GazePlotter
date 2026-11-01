@@ -1,15 +1,10 @@
-import {
-  computeGroupedLegendGeometry,
-  participantIndexAxisWidth,
-  PLOT_BORDER_PX,
-  PLOT_EDGE_PAD_TOP,
-  rowLabelColumn,
-  LEGEND_CONFIG,
-  withQualifiers,
-  timeRangeQualifier,
-  rangeQualifier,
-  type FrameGutters,
-} from '$lib/plots/shared'
+// Submodule paths, not the `$lib/plots/shared` barrel: the scarf kit reaches
+// this module and must reach no runes module (tests/plotKitBoundary.test.ts).
+import { participantIndexAxisWidth, rowLabelColumn } from '$lib/plots/shared/axisUtils'
+import { PLOT_BORDER_PX, PLOT_EDGE_PAD_TOP } from '$lib/plots/shared/const'
+import type { FrameGutters } from '$lib/plots/shared/frame'
+import { rangeQualifier, timeRangeQualifier, withQualifiers } from '$lib/plots/shared/labels'
+import { computeGroupedLegendGeometry, LEGEND_CONFIG } from '$lib/plots/shared/legendRendering'
 import { SCARF_LAYOUT } from '../const'
 import type { ScarfStyling } from '../types'
 
@@ -18,7 +13,7 @@ import type { ScarfStyling } from '../types'
  * the legend as a reserved bottom block, so `frame.x`/`frame.width` are the plot
  * columns.
  *
- * ONE owner, called twice. The figure passes the real `leftLabelWidth` for the
+ * ONE owner, called twice. The kit passes the real `leftLabelWidth` for the
  * frame it draws in, and `LEFT_LABEL_MAX_WIDTH` to probe the row band: pinning
  * the left inset at its cap keeps the probe independent of compact mode (which
  * is what the band decides) and wraps the axis title at its narrowest, so the
@@ -197,7 +192,7 @@ export function calculateOverlayLayout(
   // Overlay: a gaze row is never thinner than a single event lane — the gaze bar
   // must read as at least as tall as one event strip. Floor the scale there;
   // below it the plot asks for more height instead of squishing the gaze into a
-  // hairline (see calculateOverlayMinRowPitch + the figure's canRender/placeholder).
+  // hairline (see calculateOverlayMinRowPitch + the kit's fit guard).
   const barFloor = lanes > 0 ? SCARF_LAYOUT.MIN_EVENT_LANE_H : SCARF_LAYOUT.MIN_BAR_HEIGHT
   const minScale = barFloor / baseBar
   const maxScale = SCARF_LAYOUT.MAX_BAR_SCALE

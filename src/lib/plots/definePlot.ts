@@ -1,5 +1,4 @@
-import type { Component, ComponentProps } from 'svelte'
-import type { CanvasExportProps } from './shared/types'
+import type { Component } from 'svelte'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { DataCapabilityRequirements } from '$lib/data/types'
 import type { PlotMetricContract } from '$lib/metrics'
@@ -7,6 +6,7 @@ import type { WorkspaceCommand, WorkspaceCommandChain } from '$lib/workspace/com
 import type { WorkspaceCommandBus } from '$lib/workspace/commands/bus'
 import type { ModalState } from '$lib/modals/modalState.svelte'
 import type { PlotGroup } from './groups'
+import type { AnyPlotKit, PlotKit } from './shared/kit'
 
 export type DefaultPlotParams = {
   stimulusId?: number
@@ -32,40 +32,35 @@ export type PlotItemContract<TType extends string, TSettings> = {
 }
 
 /**
- * A figure component + the data/config props to render it with — everything
- * except the canvas-sizing props (`width`/`height`/`dpiOverride`/`margins`),
- * which the host supplies (the grid for screen, the download modal for export).
- * This is the single "what does this plot draw" view-model: the screen
- * container and the export modal both render from it, so they can never drift.
+ * What a plot draws: a kit and its plain input. The single "what does this plot
+ * draw" view-model: the screen container and the export modal both render it
+ * through the one canvas host, so they can never drift.
  */
-export type PlotView<P extends object = Record<string, unknown>, M = unknown> = {
-  component: Component<any>
-  props: P
+export type PlotView<I = any, M = unknown> = {
+  kit: AnyPlotKit
+  input: I
   /**
    * `false` when the plot has data-independent reasons to show the loading /
    * unavailable placeholder instead of the figure. Omitted means `true`.
    */
   hasData?: boolean
-  /** Values the plot's screen recipe needs beyond the figure props (sync keys, data maxima); export ignores it. */
+  /** Values the plot's sync offers need beyond the input (sync keys, data maxima); export ignores it. */
   meta?: M
 }
 
-/** The props a view hands its figure: all of them but the host's canvas sizing. */
-export type FigureProps<C extends Component<any>> = Omit<ComponentProps<C>, keyof CanvasExportProps>
-
-/** A view of `component`, its props checked against the figure's own. */
-export function figureView<C extends Component<any>, M = undefined>(
-  component: C,
-  props: FigureProps<C>,
+/** A view of `kit`, its input checked against the kit's own. */
+export function plotView<I, M = undefined>(
+  kit: PlotKit<I, any, any, any, any>,
+  input: I,
   options: { meta?: M; hasData?: boolean } = {}
-): PlotView<FigureProps<C>, M> {
-  return { component, props, ...options }
+): PlotView<I, M> {
+  return { kit, input, ...options }
 }
 
 /**
  * Host layout context for plots whose view depends on their on-screen size
  * (width-windowed plots derive a display budget from `itemWidth`). Cross-plot
- * sync does not live here: screen recipes merge it into the settings.
+ * sync does not live here: `sync` merges it into the settings.
  */
 export type PlotViewContext = {
   /** This plot's grid cell size, in grid units. */
@@ -96,47 +91,54 @@ export type PlotViewConfig<TSettings, TView extends PlotView<object> = PlotView>
    */
   viewDependsOnWidth?: boolean
   /**
-   * Settings keys `deriveView` provably never reads (view-only state such as
-   * `highlights`). Changes to them repaint but never re-derive.
+   * View-only settings (e.g. `highlights`): `settings` lists the keys
+   * `deriveView` never reads, so a change to them never re-derives; `input` maps
+   * them to the input part they feed, merged over `view.input` on screen and in
+   * export alike.
    */
-  viewOnlySettings?: readonly string[]
+  viewOnly?: {
+    settings: readonly string[]
+    input: (settings: TSettings, engine: DataEngine) => Partial<TView['input']>
+  }
 }
 
 /**
- * Screen-only behavior, declared as a factory the generic `PlotContainer`
- * invokes ONCE during component init — so it may use runes and `$effect`-based
- * helpers (`useSyncedMax`, `usePlotData`); recipes that do live in
- * `<plot>/core/screen.svelte.ts`. Everything a per-plot container used to do
- * fits in the two optional slots:
- *
- *  - `settings` — the reactive settings the view derives from on screen
- *    (e.g. cross-plot sync merged in). Export always derives from the raw
- *    item settings, so anything merged here is screen-only by construction.
- *  - `props`   — screen-only props overlaid on the view's props (interaction
- *    handlers, sync overrides). Runs inside a `$derived`; reactive reads
- *    (sync registries, item settings) are tracked.
+ * The PLOT CURSOR port the platform builds for a plot (`shared/plotCursor.svelte.ts`).
+ * The kit publishes through `act.publish` and reads the cursor in its overlay.
  */
-export type PlotScreenContext<TSettings, TView extends PlotView<object> = PlotView> = {
-  /** The live grid item (reactive getter — do not capture the value). */
-  readonly item: PlotItemContract<string, TSettings>
+export type PlotCursorSpec<TSettings> = {
+  /** This plot's stimulus while its x axis is absolute time, else null. Omit for a plot that neither shows nor reads time. */
+  time?: (settings: TSettings) => number | null
+  /** The stimulus that gates 'stimulus' participant sets, both ways. Omit only for a plot spanning stimuli. */
+  stimulus?: (settings: TSettings) => number | null
+  /** What the participant sets this plot publishes mean; 'identity' when omitted. */
+  publishes?: 'identity' | 'stimulus'
+}
+
+/** What a sync offer may read: the screen settings, the derived view, the grid item, the engine. */
+export type PlotSyncContext<TSettings, TView extends PlotView<object>> = {
+  settings: TSettings
+  view: TView | null
+  item: { readonly type: string; readonly w: number; readonly h: number }
   engine: DataEngine
-  workspace: WorkspaceCommandBus
+}
+
+/**
+ * One cross-plot sync channel (`shared/plotSync.svelte.ts`), screen only: export
+ * never syncs. Comparable plots share the largest `own` among equal `key`s;
+ * the group max, when it beats this plot's own, lands in its settings before
+ * deriving (`settings`) or over its input after (`input`).
+ */
+export type PlotSyncSpec<TSettings, TView extends PlotView<object>> = {
+  channel: string
   /**
-   * The current derived view. Valid inside effects, deriveds and event
-   * handlers (it is bound after the container initializes) — do not call it
-   * synchronously inside the factory body.
+   * This plot's offer to the group; null opts out (a user-set range wins). An
+   * offer whose max lands in `settings` must not read `view` (it derives from them).
    */
-  view: () => TView | null
+  offer: (ctx: PlotSyncContext<TSettings, TView>) => { key: unknown[]; own: number } | null
+  settings?: (settings: TSettings, max: number) => TSettings
+  input?: (view: TView, max: number) => Partial<TView['input']>
 }
-
-export type PlotScreen<TSettings, TView extends PlotView<object> = PlotView> = {
-  settings?: () => TSettings
-  props?: (view: TView) => Record<string, unknown>
-}
-
-export type PlotScreenFactory<TSettings, TView extends PlotView<object> = PlotView> = (
-  ctx: PlotScreenContext<TSettings, TView>
-) => PlotScreen<TSettings, TView>
 
 /**
  * A single captioned value rendered in the grid-item header (e.g.
@@ -392,7 +394,7 @@ export function paneSectionKey(entry: PaneSectionEntry): string {
   return typeof entry === 'string' ? entry : entry.key
 }
 
-/** `TView`: the plot's own view type, so its screen recipe reads props and meta typed. */
+/** `TView`: the plot's own view type, so its sync offers read input and meta typed. */
 export type PlotDefinition<
   TType extends string,
   TSettings,
@@ -423,12 +425,15 @@ export type PlotDefinition<
   requireCapabilities?: DataCapabilityRequirements
   /**
    * The single view derivation both hosts render from. There is no per-plot
-   * container component: the generic `PlotContainer` executes this (plus the
-   * optional `screen` recipe) for every plot.
+   * component: the generic `PlotContainer` executes this for every plot.
    */
   view: PlotViewConfig<TSettings, TView>
-  /** Screen-only behavior (sync, interaction handlers); most plots need none. */
-  screen?: PlotScreenFactory<TSettings, TView>
+  /** The plot's PLOT CURSOR port; omitted means the plot neither publishes nor reads one. */
+  cursor?: PlotCursorSpec<TSettings>
+  /** Cross-plot sync channels (screen only). */
+  sync?: PlotSyncSpec<TSettings, TView>[]
+  /** Joins the stimulus's playback clock and renders with the play bar (screen and export). */
+  playback?: boolean
   /**
    * The plot's settings pane, declared as an ordered list of sections. The
    * single-plot pane renders this list; a multi-selection of one type renders

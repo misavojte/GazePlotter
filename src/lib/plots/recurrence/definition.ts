@@ -1,6 +1,5 @@
 import { deriveRecurrenceView } from './core/view'
 import { effectiveMethod } from './core/collector'
-import { plotCursorScreen } from '$lib/plots/shared/plotCursor.svelte'
 import { commonIs, definePlot } from '$lib/plots/definePlot'
 import { stimulusParticipantSubtitle } from '$lib/plots/shared'
 import { RECURRENCE_HIGHLIGHTS, RECURRENCE_MASKINGS, RECURRENCE_METHODS } from './const'
@@ -89,12 +88,9 @@ export const recurrencePlotDefinition = definePlot<
     'aoi',
   ],
   view: { deriveView: deriveRecurrenceView },
-  // The time scope is load-bearing even though the axes are fixation indices: it
-  // is what lets the plot READ a shared instant and resolve it to a fixation.
-  screen: plotCursorScreen<RecurrencePlotSettings>({
-    timeScopeOf: s => s.stimulusId,
-    stimulusOf: s => s.stimulusId,
-  }),
+  // The time channel is load-bearing even though the axes are fixation indices:
+  // it is what lets the plot READ a shared instant and resolve it to a fixation.
+  cursor: { time: s => s.stimulusId, stimulus: s => s.stimulusId },
   getSubtitle: stimulusParticipantSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,

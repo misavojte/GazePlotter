@@ -7,6 +7,7 @@
   } from '$lib/plots/shared/figureExport'
   import type { PlotView } from '$lib/plots/definePlot'
   import type { PlotExportProps } from './types'
+  import PlotViewFigure from '$lib/plots/shared/components/PlotViewFigure.svelte'
 
   /**
    * Off-screen, single-figure render pass for the batch figure export. Mounts
@@ -18,16 +19,13 @@
    */
   interface Props {
     view: PlotView
+    /** The plot declares `playback`: render through the playback shell. */
+    playback: boolean
     exportProps: PlotExportProps
     onResult: (canvas: HTMLCanvasElement | null) => void
   }
 
-  let { view, exportProps, onResult }: Props = $props()
-
-  // The host lives for exactly one figure (the modal remounts it per job), so
-  // the view is intentionally captured once, not tracked.
-  // svelte-ignore state_referenced_locally
-  const Figure = view.component
+  let { view, playback, exportProps, onResult }: Props = $props()
 
   let source: ExportSource | null = null
   let settled = false
@@ -68,8 +66,9 @@
 
 <div class="render-host" aria-hidden="true">
   <svelte:boundary onerror={() => settle(null)}>
-    <Figure
-      {...view.props}
+    <PlotViewFigure
+      {view}
+      {playback}
       width={exportProps.width}
       height={exportProps.height}
       margin={exportProps.margin}

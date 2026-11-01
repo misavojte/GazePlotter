@@ -15,22 +15,30 @@ export function deriveItemView(
   engine: DataEngine,
   item: AllGridTypes
 ): PlotView | null {
-  // Resolved generically, so deriveView is cast to a loose signature (its
+  // Resolved generically, so the view config is cast to a loose signature (its
   // settings type is guaranteed to match `item` at runtime).
-  const deriveView = resolvePlotDefinition(item.type).view.deriveView as (
-    engine: DataEngine,
-    settings: unknown,
-    ctx?: PlotViewContext
-  ) => PlotView | null
+  const config = resolvePlotDefinition(item.type).view as {
+    deriveView: (engine: DataEngine, settings: unknown, ctx?: PlotViewContext) => PlotView | null
+    viewOnly?: { input: (settings: unknown, engine: DataEngine) => object }
+  }
   // Same reactive/plain boundary the on-screen containers apply (usePlotData):
   // deriveView receives a plain frozen snapshot, never a live `$state` proxy.
   const settings = snapshotSettings(
     (item as { settings: object }).settings
   ) as unknown
-  return deriveView(engine, settings, {
+  const view = config.deriveView(engine, settings, {
     itemWidth: item.w,
     itemHeight: item.h,
   })
+  // View-only settings feed the input on screen and in export alike.
+  return view && config.viewOnly
+    ? { ...view, input: { ...view.input, ...config.viewOnly.input(settings, engine) } }
+    : view
+}
+
+/** Whether the item's plot renders through the playback shell (it declares `playback`). */
+export function itemPlayback(item: AllGridTypes): boolean {
+  return (resolvePlotDefinition(item.type) as { playback?: boolean }).playback ?? false
 }
 
 /**

@@ -1,8 +1,11 @@
 import { formatGaze, gazePositionRow } from '$lib/plots/shared/labels'
-import { formatAmount } from './view'
 import type { FixationHeatmapAccumulate, FixationHeatmapNormalization } from '../types'
 
-/** What lies within R of a hovered cell's centre, already summed by the figure. */
+/** Map values and amounts: whole from 100 up, one decimal from 1, two significant digits below. */
+export const formatAmount = (v: number) =>
+  Math.abs(v) >= 100 ? String(Math.round(v)) : Math.abs(v) >= 1 ? v.toFixed(1) : v.toPrecision(2)
+
+/** What lies within R of a hovered cell's centre, already summed by the kit. */
 export interface HeatmapCellSummary {
   value: number
   x: number
@@ -19,10 +22,7 @@ export interface HeatmapCellSummary {
   top: { name: string; share: number } | null
 }
 
-/**
- * Pure content builder for the heatmap cell tooltip, embedded by the figure's
- * `hitTest` (same contract as the scarf's `buildScarfTooltipContent`).
- */
+/** The cell tooltip rows, embedded by the kit's `hit`. */
 export function buildHeatmapTooltipContent(
   c: HeatmapCellSummary,
   accumulate: FixationHeatmapAccumulate,

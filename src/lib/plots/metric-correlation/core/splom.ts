@@ -1,7 +1,8 @@
 import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/textMeasure'
 import { INACTIVE_COLOR, UI_COLORS } from '$lib/color'
-import { markCrosshairNode, type MatrixLayout } from '$lib/plots/shared'
-import { cursorRows } from '$lib/plots/shared/plotCursor.svelte'
+import { markCrosshairNode } from '$lib/plots/shared/canvasUtils'
+import type { MatrixLayout } from '$lib/plots/shared/matrixLayout'
+import { cursorRows } from '$lib/plots/shared/cursorMarks'
 import type { MetricCorrelationResult } from '../types'
 
 function rangeOf(values: number[]): { min: number; max: number } {
@@ -118,7 +119,7 @@ export function createSplomCursorRing(result: MetricCorrelationResult) {
 }
 
 /**
- * SPLOM cell painter for `MatrixPlotFigure.drawCells`: diagonal shows the
+ * SPLOM cell painter for the matrix kit's `drawCells`: diagonal shows the
  * metric unit, upper triangle the r value, lower triangle a scatter of the
  * per-participant value pairs. Per-metric value ranges place the scatter
  * points inside each cell.

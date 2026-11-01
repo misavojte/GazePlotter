@@ -1,5 +1,4 @@
 import { deriveScanpathView } from './core/view'
-import { scanpathScreen } from './core/screen.svelte'
 import { commonIs, definePlot } from '$lib/plots/definePlot'
 import { stimulusParticipantSubtitle } from '$lib/plots/shared'
 import { PRESET_PALETTES } from '$lib/color/palettes'
@@ -55,7 +54,8 @@ export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSetting
     'timelineRange',
   ],
   view: { deriveView: deriveScanpathView },
-  screen: scanpathScreen,
+  cursor: { time: s => s.stimulusId, stimulus: s => s.stimulusId },
+  playback: true,
   getSubtitle: stimulusParticipantSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,

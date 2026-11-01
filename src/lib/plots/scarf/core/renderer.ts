@@ -1,8 +1,5 @@
-import {
-  GRIDLINE_PRIMARY,
-  GRIDLINE_SECONDARY,
-  calculateTickStep,
-} from '$lib/plots/shared'
+import { calculateTickStep } from '$lib/plots/shared/axisUtils'
+import { GRIDLINE_PRIMARY, GRIDLINE_SECONDARY } from '$lib/plots/shared/const'
 import {
   alignToPixelCenter,
   pixelLayer,

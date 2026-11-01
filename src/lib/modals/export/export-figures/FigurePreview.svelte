@@ -1,7 +1,8 @@
 <script lang="ts">
   import { getGazePlotterSession } from '$lib/session'
   import type { AllGridTypes } from '$lib/workspace/grid'
-  import { deriveItemView, itemExportProps } from './view'
+  import { deriveItemView, itemExportProps, itemPlayback } from './view'
+  import PlotViewFigure from '$lib/plots/shared/components/PlotViewFigure.svelte'
 
   /**
    * Fit-to-box live preview of one figure exactly as it will export: the
@@ -22,7 +23,6 @@
 
   const view = $derived(deriveItemView(engine, item))
   const exportProps = $derived(itemExportProps(item, grid, null, margin))
-  const Figure = $derived(view?.component)
 
   const MAX_PREVIEW_HEIGHT = 380
 
@@ -44,7 +44,7 @@
   <!-- Unpadded measure target: clientWidth on the padded frame would include
        the padding and let the scaled figure overflow into it. -->
   <div class="preview-measure" bind:clientWidth={frameWidth}>
-    {#if view && Figure}
+    {#if view}
       {#if frameWidth > 0}
         <div
           class="stage"
@@ -56,8 +56,9 @@
             style="width: {exportProps.width}px; height: {exportProps.height}px; transform: scale({scale})"
           >
             <svelte:boundary>
-              <Figure
-                {...view.props}
+              <PlotViewFigure
+                {view}
+                playback={itemPlayback(item)}
                 width={exportProps.width}
                 height={exportProps.height}
                 margin={exportProps.margin}

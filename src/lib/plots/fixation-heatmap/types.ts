@@ -10,7 +10,6 @@ export type FixationHeatmapNormalization = 'share' | 'mean'
 export type FixationHeatmapViewKind = 'heatmap' | 'opacity'
 /** Playback: during it the map covers the trail ending at the playhead (All: from the range start). */
 export type FixationHeatmapPlotSettings = ParticipantScope & PlaybackSettings & {
-  stimulusId: number
   /** What a fixation adds: its (clipped) duration, or 1 when its midpoint is in range. */
   accumulate: FixationHeatmapAccumulate
   /** Share: each participant's weights over their own total, in %, then averaged.

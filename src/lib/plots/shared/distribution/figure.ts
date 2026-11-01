@@ -1,20 +1,14 @@
-import { figureView, type PlotView } from '$lib/plots/definePlot'
+import { plotView, type PlotView } from '$lib/plots/definePlot'
 import { resolvePickedInstance, type MetricResolutionEngine } from '$lib/plots/shared/metricResolver'
-import {
-  BeeswarmFigure,
-  buildBeeswarmFigureProps,
-  type BeeswarmFigureProps,
-  type BeeswarmFigureSettings,
-} from './beeswarm'
+import { beeswarmKit, type BeeswarmInput } from './beeswarm/kit'
+import { buildBeeswarmInput, type BeeswarmViewSettings } from './beeswarm/input'
 import type { PlotPlaceholderContent } from '$lib/plots/shared/drawCanvasPlaceholder'
 import type { DistributionResult, DistributionViewMeta } from './types'
 
 /**
  * The per-plot vocabulary the shared figure cannot know: what a category slot
  * IS (the tooltip's first-row key), how to make the figure fit, what to say
- * when the axis is empty, and how a
- * screen reader names it. Required, not optional — the figure serves several
- * plots, so it must never speak one consumer's language by default.
+ * when the axis is empty, and how a screen reader names it.
  */
 export interface DistributionDisclosures {
   itemTooltipKey: string
@@ -24,29 +18,25 @@ export interface DistributionDisclosures {
   ariaLabel: string
 }
 
-export type DistributionView = PlotView<BeeswarmFigureProps, DistributionViewMeta>
+export type DistributionView = PlotView<BeeswarmInput, DistributionViewMeta>
 
 /**
- * WHICH FIGURE draws the distribution, and the view-model to draw it with —
- * the single seam between the entity-agnostic measure layer and the marks. Both
- * comparison plots derive through here, so the axis label, the proportion rule,
- * the figure geometry and the sync meta cannot drift between them; only the
- * disclosure strings differ.
- *
- * One mark today (`./beeswarm`). When a second rendering lands — histogram rows
- * with a shared count scale — the plot's `visualization` setting is read HERE
- * and nowhere else: this stays the only file that names a figure component.
+ * WHICH FIGURE draws the distribution, and the view-model to draw it with: the
+ * single seam between the entity-agnostic measure layer and the marks, so the
+ * comparison plots cannot drift on the axis label, the proportion rule, the
+ * geometry or the sync meta. One mark today (`./beeswarm`); a second one reads
+ * the plot's `visualization` setting HERE, the only file that names a figure kit.
  */
 export function deriveDistributionFigure(
   engine: MetricResolutionEngine,
   result: DistributionResult,
-  settings: BeeswarmFigureSettings & { metricInstanceIds: readonly string[] },
+  settings: BeeswarmViewSettings & { metricInstanceIds: readonly string[] },
   disclosures: DistributionDisclosures
 ): DistributionView {
   const instance = resolvePickedInstance(engine, settings.metricInstanceIds)
-  return figureView(
-    BeeswarmFigure,
-    buildBeeswarmFigureProps(result, instance, settings, disclosures),
+  return plotView(
+    beeswarmKit,
+    buildBeeswarmInput(result, instance, settings, disclosures),
     { meta: { syncKey: instance?.id ?? null, dataMax: result.dataMax } }
   )
 }

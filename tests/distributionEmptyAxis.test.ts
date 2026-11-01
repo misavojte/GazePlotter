@@ -37,8 +37,8 @@ describe('distribution plots: empty category axis', () => {
     expect(result.noParticipants).toBeFalsy()
     expect(result.data).toEqual([])
     const view = def.view.deriveView(engine(), settings)!
-    expect(view.props.data).toEqual([])
-    expect(view.props.emptyPlaceholder).toMatchObject({ message: 'No event channels to show on this stimulus.' })
+    expect(view.input.data).toEqual([])
+    expect(view.input.emptyPlaceholder).toMatchObject({ message: 'No event channels to show on this stimulus.' })
   })
 
   it('AOI comparison with no AOIs and the No-AOI slot hidden yields empty data', () => {

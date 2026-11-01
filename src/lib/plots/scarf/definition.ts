@@ -1,5 +1,12 @@
-import { deriveScarfView, type ScarfView } from './core/view'
-import { scarfScreen } from './core/screen.svelte'
+import {
+  absoluteTimeScope,
+  deriveScarfView,
+  isAutoRange,
+  scarfOwnMax,
+  visibleHighlights,
+  type ScarfView,
+} from './core/view'
+import { scarfRange } from './core/transformer'
 import { definePlot } from '$lib/plots/definePlot'
 import { stimulusParticipantsSubtitle } from '$lib/plots/shared'
 // Called at definition time: import the module, not the barrel, which the
@@ -60,9 +67,25 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings, ScarfV
   ],
   view: {
     deriveView: deriveScarfView,
-    viewOnlySettings: ['highlights'],
+    viewOnly: {
+      settings: ['highlights'],
+      input: (s, engine) => ({ highlights: visibleHighlights(engine, s) }),
+    },
   },
-  screen: scarfScreen,
+  cursor: { time: absoluteTimeScope, stimulus: s => s.stimulusId },
+  // Same-width scarfs of one timeline mode share their timeline max: the axis's
+  // pixel scale depends on width alone, so height is not in the key. Any
+  // customized range opts the plot out.
+  sync: [
+    {
+      channel: 'scarf-timeline',
+      offer: ({ settings, item, engine }) =>
+        isAutoRange(settings)
+          ? { key: [settings.timeline, item.w], own: scarfOwnMax(engine, settings) }
+          : null,
+      settings: (s, max) => ({ ...s, [scarfRange(s).endKey]: max }),
+    },
+  ],
   getSubtitle: stimulusParticipantsSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,

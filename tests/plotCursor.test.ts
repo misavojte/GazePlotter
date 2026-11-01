@@ -1,20 +1,22 @@
 /**
  * PLOT CURSOR contract: both channels' scope/ownership algebra, the time
  * projection pair, the guide mark, the scarf's mode gate, and export inertness.
- * Not covered (node suite, nothing mounts): `usePlot`'s `overlayDeps` repaint and
- * the recipes' `onDestroy` retraction.
+ * Not covered (node suite, nothing mounts): the host's `overlay.key` repaint and
+ * the port's `onDestroy` retraction.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { PlotCursorState, createPlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
 import {
-  PlotCursorState,
-  createPlotCursorPort,
   cursorRows,
   drawTimeGuides,
   timeAtX,
+  timeCursor,
   timeGuideX,
   timeGuideXs,
-} from '$lib/plots/shared/plotCursor.svelte'
-import { absoluteTimeScope } from '$lib/plots/scarf/core/screen.svelte'
+  type CursorPosition,
+  type TimeAxis,
+} from '$lib/plots/shared/cursorMarks'
+import { absoluteTimeScope } from '$lib/plots/scarf/core/view'
 import {
   CROSSHAIR_COLOR,
   CROSSHAIR_DASH,
@@ -280,6 +282,48 @@ describe('time guide mark', () => {
   })
 })
 
+describe('time-axis cursor', () => {
+  const axis = (over: Partial<TimeAxis> = {}): { timeAxis: TimeAxis } => ({
+    timeAxis: { band: BAND, timeline: TIMELINE, rowIds: [11, 22, 33], ...over },
+  })
+
+  it('keys on guide pixels and marked rows, and draws the guides', () => {
+    // One pixel column and an unknown id: the same marks, the same key.
+    expect(timeCursor.key(axis(), { times: [500.01], participants: [33, 99] })).toBe('300.5:2')
+    const { points, ctx } = recorder()
+    expect(timeCursor.draw(ctx, axis(), { times: [500], participants: [22] })).toEqual([1])
+    expect(points).toEqual([300.5, 50, 300.5, 250])
+  })
+
+  it('gates time off without a band, keeping the rows', () => {
+    const gated = axis({ band: null })
+    expect(timeCursor.key(gated, { times: [500], participants: [11] })).toBe(':0')
+    const { points, ctx } = recorder()
+    timeCursor.draw(ctx, gated, { times: [500], participants: [] })
+    expect(points).toEqual([])
+  })
+
+  it('publishes live reads of the current axis, and retracts on null', () => {
+    const published: (CursorPosition | null)[] = []
+    let scene: { timeAxis: TimeAxis } | null = axis()
+    const act = { scene: () => scene, publish: (at: CursorPosition | null) => published.push(at) }
+    timeCursor.publish(act, 300, 2)
+    const at = published[0]!
+    expect(at.times!()).toEqual([500])
+    expect(at.participants!()).toEqual([33])
+    // A narrower set of rows, or no scene at all, reads back empty.
+    scene = axis({ rowIds: [11] })
+    expect(at.participants!()).toEqual([])
+    scene = null
+    expect(at.times!()).toEqual([])
+    // No row: no participant channel at all.
+    timeCursor.publish(act, 300)
+    expect(published[1]!.participants).toBeUndefined()
+    timeCursor.publish(act, null)
+    expect(published[2]).toBeNull()
+  })
+})
+
 // PARITY: nothing in a mark encodes WHO designated it. A plot's own CROSSHAIR and
 // the PLOT CURSOR hand the SAME helper their rects, so they differ only in which
 // rects they pass: one fill pass over the union, dashes along the union's OUTER
@@ -425,7 +469,7 @@ describe('scarf timeline-mode gate', () => {
 // ever reaches an exported figure.
 vi.mock('$lib/plots/registry', () => ({
   resolvePlotDefinition: () => ({
-    view: { deriveView: () => ({ component: null, props: { data: 'view-only' } }) },
+    view: { deriveView: () => ({ kit: null, input: { data: 'view-only' } }) },
     screen: () => {
       throw new Error('the export path must never build a screen recipe')
     },
@@ -440,7 +484,7 @@ describe('export inertness', () => {
     const item = { type: 'evolvingMetrics', settings: { stimulusId: 7 }, w: 12, h: 12 }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const view = deriveItemView({} as any, item as any)
-    expect(view?.props).toEqual({ data: 'view-only' })
-    expect(view?.props).not.toHaveProperty('plotCursor')
+    expect(view?.input).toEqual({ data: 'view-only' })
+    expect(view?.input).not.toHaveProperty('plotCursor')
   })
 })

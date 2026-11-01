@@ -1,12 +1,12 @@
-import { deriveAoiStreamView, type AoiStreamView } from './core/view'
-import { aoiStreamScreen } from './core/screen.svelte'
+import { deriveAoiStreamView, isAutoTimeline, type AoiStreamView } from './core/view'
+import { computeMTop } from './core/ridgeline'
 import { commonIs, definePlot } from '$lib/plots/definePlot'
 import { stimulusParticipantsSubtitle } from '$lib/plots/shared'
 // Called at definition time: import the module, not the barrel, which the
 // registry -> shared sections -> registry cycle leaves half-initialised.
 import { reconcileStimulusScopedHighlights } from '$lib/plots/shared/highlightReconcile'
 import { OUT_OF_BOUNDS_COLORS, outOfBoundsFields } from '$lib/plots/shared/outOfBounds'
-import { getAois } from '$lib/data/engine'
+import { getAois, getParticipantsMaxEndTime } from '$lib/data/engine'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import { RIDGELINE_SCALE } from './const'
 import type { AoiStreamPlotSettings } from './types'
@@ -78,9 +78,45 @@ export const aoiStreamPlotDefinition = definePlot<
   view: {
     deriveView: deriveAoiStreamView,
     viewDependsOnWidth: true,
-    viewOnlySettings: ['highlights'],
+    viewOnly: {
+      settings: ['highlights'],
+      input: s => ({ highlights: s.highlights ?? [] }),
+    },
   },
-  screen: aoiStreamScreen,
+  // x is absolute ms in all four alignments.
+  cursor: { time: s => s.stimulusId },
+  sync: [
+    // Same-width plots with a fully-auto timeline share their timeline max, so
+    // they compare directly. Customizing any range opts the plot out.
+    {
+      channel: 'aoi-stream-timeline',
+      offer: ({ settings, item, engine }) =>
+        isAutoTimeline(settings)
+          ? {
+              key: [item.w],
+              own: getParticipantsMaxEndTime(engine, settings, settings.stimulusId),
+            }
+          : null,
+      settings: (s, max) => ({ ...s, timelineEnd: max }),
+    },
+    // Ridgelines of the same height, scale and series count share the largest
+    // mTop. Offered from the plot's OWN result and applied to strip rendering
+    // only, so there is no feedback loop. The scale is rounded so float noise
+    // never splits a group.
+    {
+      channel: 'aoi-stream-ridgeline',
+      offer: ({ view, item }) => {
+        if (!view || view.input.settings.alignment !== 'ridgeline') return null
+        const { data, settings } = view.input
+        if (data.noMetric || data.series.length === 0) return null
+        return {
+          key: [item.h, Math.round((settings.ridgelineScale ?? RIDGELINE_SCALE) * 1000), data.series.length],
+          own: computeMTop(data, true),
+        }
+      },
+      input: (_view, max) => ({ syncedMTopOverride: max }),
+    },
+  ],
   getSubtitle: stimulusParticipantsSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,

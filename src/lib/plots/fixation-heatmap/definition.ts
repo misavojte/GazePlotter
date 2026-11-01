@@ -1,6 +1,5 @@
 import { deriveFixationHeatmapView, heatmapUnit, type FixationHeatmapView } from './core/view'
 import { autoRadiusFor } from './core/transformer'
-import { fixationHeatmapScreen } from './core/screen.svelte'
 import { commonIs, definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
 import { formatGaze, stimulusParticipantsSubtitle } from '$lib/plots/shared'
 import { PRESET_PALETTES } from '$lib/color/palettes'
@@ -157,7 +156,21 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
     'timelineRange',
   ],
   view: { deriveView: deriveFixationHeatmapView },
-  screen: fixationHeatmapScreen,
+  // A cell's set is "who looked HERE", meaningless on another stimulus.
+  cursor: { time: s => s.stimulusId, stimulus: s => s.stimulusId, publishes: 'stimulus' },
+  // Auto-scaled maps of the same measure and grid footprint share the largest
+  // scale top, so their colors compare; a set Scale max opts out.
+  sync: [
+    {
+      channel: 'fixation-heatmap-color',
+      offer: ({ view, item }) => {
+        const meta = view?.meta
+        return meta ? { key: [meta.syncGroupKey, item.w, item.h], own: meta.ownScaleTop } : null
+      },
+      input: (_view, max) => ({ scaleTop: max }),
+    },
+  ],
+  playback: true,
   getSubtitle: stimulusParticipantsSubtitle,
   // A Scale max is typed in the map's unit; when the unit changes it no longer
   // means anything (5000 ms as a count blanks the map), so it returns to Auto.

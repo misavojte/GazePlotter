@@ -1,7 +1,7 @@
 import {
   type AdaptiveTimeline,
   getTimelinePositionRatio,
-} from '$lib/plots/shared'
+} from '$lib/plots/shared/timelineUtils'
 import { alignToPixelCenter, strokeParallelLines } from '$lib/plots/shared/canvasUtils'
 import { UI_COLORS } from '$lib/color'
 import type { CategoryDistribution, StatisticalOverlayType } from '../types'
@@ -57,33 +57,22 @@ const DENSITY_SMOOTHING_CELLS = 1
 const DELIMITER_COLOR = UI_COLORS.BORDER_DEFAULT
 /**
  * The summary is the same size in every row, clamped only where a row is too
- * short to hold it. Spanning the row instead made its weight, and how much of the
- * swarm it covered, track the layout rather than the data.
+ * short to hold it, so its weight tracks the data, not the layout.
  */
 const MARKER_HALF_EXTENT = 8
 const MARKER_CAP_RATIO = 0.45
+/**
+ * The dots draw at FULL opacity and the marker has no casing. A white casing
+ * out-contrasts the line it serves on half the palette (up to 1.9x on violet).
+ * Any dot alpha below 1 pushes an anti-aliased circle's soft edge ring (~30%
+ * coverage) under the visibility threshold, so a 2px-radius dot reads 3px wide
+ * instead of 5px. Near-black measures 3.05:1 against the worst palette colour,
+ * clearing the 3:1 for a graphical object; past that, the lever is the marker's
+ * SHAPE, not the dots.
+ */
 const MARKER_COLOR = UI_COLORS.INK
 const MARKER_WIDTH_MEDIAN = 3 // median (boxplot) and mean (meanCi / meanSd)
 const MARKER_WIDTH_THIN = 1
-/**
- * The dots draw at FULL opacity, and the marker gets no casing either. Both of
- * those were tried and both cost more than they bought.
- *
- * A white casing under each marker line separated it, but against half the palette
- * the rim out-contrasted the line it was serving, by up to 1.9x on violet, and a
- * rim louder than its own line reads as a sticker.
- *
- * Muting the dots instead lifted the marker to 4.37:1 at 80% opacity, but it also
- * shrank the dots: the soft edge ring of an anti-aliased circle sits near 30%
- * coverage, so any alpha below 1 pushes it under the visibility threshold and a
- * 2px-radius dot reads 3px wide instead of 5px. That is a cliff, not a dial.
- *
- * So the dots keep their true weight and the marker stands on its own contrast:
- * near-black measures 3.05:1 against the worst palette colour, which clears the
- * 3:1 that applies to a graphical object such as a line. If it needs more, the
- * next lever is the marker's SHAPE — a compact glyph reads over texture far better
- * than a hairline does — not the dots.
- */
 
 // --- Helpers ---
 
@@ -350,7 +339,7 @@ export function drawSwarmPoints(
 
 // --- Statistical overlays ---
 
-/** One stroke, near-black. The dots are muted so it needs nothing under it. */
+/** One stroke, near-black, uncased (see `MARKER_COLOR`). */
 function inked(
   ctx: CanvasRenderingContext2D,
   lineWidth: number,

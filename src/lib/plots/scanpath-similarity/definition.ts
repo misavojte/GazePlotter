@@ -1,5 +1,4 @@
 import { deriveScanpathSimilarityView, type ScanpathSimilarityView } from './core/view'
-import { scanpathSimilarityScreen } from './core/screen.svelte'
 import {
   cliquesOfMinSize,
   edgeSharePercent,
@@ -175,8 +174,19 @@ export const scanpathSimilarityDefinition = definePlot<
     'timelineRange',
     'aoi',
   ],
-  view: { deriveView: deriveScanpathSimilarityView },
-  screen: scanpathSimilarityScreen,
+  view: {
+    deriveView: deriveScanpathSimilarityView,
+    // A node click only repaints: re-deriving would re-run the similarity and
+    // the force layout.
+    viewOnly: {
+      settings: ['highlightedParticipants'],
+      input: s =>
+        s.view === 'scangraph' ? { highlightedParticipants: s.highlightedParticipants ?? [] } : {},
+    },
+  },
+  // Both views mark participants (matrix rows and columns, graph nodes); no time
+  // axis, so no time channel.
+  cursor: { stimulus: s => s.stimulusId },
   getSubtitle: stimulusParticipantsSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,

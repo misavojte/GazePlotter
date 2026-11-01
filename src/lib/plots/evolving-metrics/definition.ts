@@ -1,5 +1,4 @@
 import { deriveEvolvingMetricsView } from './core/view'
-import { evolvingMetricsScreen } from './core/screen.svelte'
 import { commonIs, definePlot } from '$lib/plots/definePlot'
 import { stimulusParticipantsSubtitle } from '$lib/plots/shared'
 import { PRESET_PALETTES } from '$lib/color/palettes'
@@ -47,7 +46,8 @@ export const evolvingMetricsDefinition = definePlot<
     deriveView: deriveEvolvingMetricsView,
     viewDependsOnWidth: true,
   },
-  screen: evolvingMetricsScreen,
+  // x is absolute ms in both presentations.
+  cursor: { time: s => s.stimulusId, stimulus: s => s.stimulusId },
   getSubtitle: stimulusParticipantsSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,

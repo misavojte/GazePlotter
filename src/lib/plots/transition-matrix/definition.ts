@@ -1,5 +1,4 @@
 import { deriveTransitionMatrixView, type TransitionMatrixView } from './core/view'
-import { transitionMatrixScreen } from './core/screen.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import { stimulusParticipantsSubtitle } from '$lib/plots/shared'
@@ -43,7 +42,19 @@ export const transitionMatrixDefinition = definePlot<
     'aoi',
   ],
   view: { deriveView: deriveTransitionMatrixView },
-  screen: transitionMatrixScreen,
+  // Matrices sharing metric, color scale and grid size share the largest data
+  // max while their color range is default.
+  sync: [
+    {
+      channel: 'transition-matrix-color',
+      offer: ({ view, item }) => {
+        const meta = view?.meta
+        if (!meta?.isDefaultColorRange) return null
+        return { key: [meta.syncGroupKey, meta.colorScaleKey, item.w, item.h], own: meta.ownDataMax }
+      },
+      input: (_view, max) => ({ colorValueRange: [0, max] as [number, number] }),
+    },
+  ],
   getSubtitle: stimulusParticipantsSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,

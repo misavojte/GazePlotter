@@ -15,7 +15,7 @@ import {
   rowLabelColumn,
   truncatedAxisLabel,
 } from '$lib/plots/shared'
-import { resolveFrameLayout } from '$lib/plots/shared/usePlot.svelte'
+import { resolveFrameLayout } from '$lib/plots/shared/frame'
 import { estimateTextWidth } from '$lib/shared/textMeasure'
 
 const width = (text: string, size: number = FONT_PRIMARY.SIZE) =>

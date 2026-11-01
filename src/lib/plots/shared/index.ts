@@ -1,13 +1,11 @@
 /**
  * Shared Plot Utilities
  *
- * This module contains shared components, classes, types, and utilities
- * that are used across different plot types.
+ * This module contains shared classes, types, and utilities that are used
+ * across different plot types. Kits import submodules by path, never this
+ * barrel: it also re-exports runes modules.
  * The entire module is exported through the main '..' index.
  */
-
-// Export shared components
-export * from './components'
 
 // Export shared types
 export type * from './types'
@@ -35,6 +33,7 @@ export * from './labels'
 export * from './resultShapes'
 export * from './metricResolver'
 export * from './plotSync.svelte'
+export * from './frame'
 export * from './usePlot.svelte'
 export * from './plotData.svelte'
 export * from './ticks'

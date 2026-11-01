@@ -1,12 +1,11 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import { figureView, type FigureProps, type PlotView } from '$lib/plots/definePlot'
+import { plotView, type PlotView } from '$lib/plots/definePlot'
 import { fixationLayerVisible, getParticipantsIds } from '$lib/data/engine'
-import ScarfPlotFigure from '../components/ScarfPlotFigure.svelte'
-import { transformDataToScarfPlot } from './transformer'
+import { scarfKit } from './kit'
+import { buildScarfTooltipContent } from './tooltip'
+import { scarfDataMax, scarfRange, transformDataToScarfPlot } from './transformer'
 import { isAoiLayerHighlight } from '../const'
 import type { ScarfData, ScarfPlotSettings } from '../types'
-
-const noop = () => {}
 
 /**
  * The highlights the current view can honor. A gated fixation layer keeps its
@@ -15,8 +14,7 @@ const noop = () => {}
  * group omitted there is no affordance to un-toggle it. Fixation-layer
  * identifiers (AOI-prefixed, not category 'ac') are filtered whenever the
  * layer is gated; view-side only, so re-adding Fixation to the SELECTION
- * restores the highlight. Both highlight entry points (export here, the
- * screen recipe's live props) route through this.
+ * restores the highlight.
  */
 export function visibleHighlights(
   engine: DataEngine,
@@ -33,15 +31,33 @@ export function visibleHighlights(
 }
 
 /**
- * Shared data derivation: transform the engine data into scarf segments for the
- * given (possibly sync-adjusted) settings. Returns null when metadata isn't
- * ready. The on-screen container calls this with its synced settings; the
- * export view-model calls it with the raw settings.
+ * The PLOT CURSOR's TIME scope: only 'absolute' x is elapsed ms — 'ordinal' is a
+ * segment index and 'relative' a percent of each row's own session, so a shared
+ * ms would be a lie in both. `null` keeps the plot out of BOTH directions, which
+ * is why the kit carries no mode conditional.
  */
-export function getScarfData(
-  engine: DataEngine,
-  settings: ScarfPlotSettings
-): ScarfData | null {
+export const absoluteTimeScope = (settings: ScarfPlotSettings): number | null =>
+  settings.timeline === 'absolute' ? settings.stimulusId : null
+
+/**
+ * True while the range is fully auto (no start, no end, no stimulus limits):
+ * only then does the timeline sync. 'relative' is a fixed 0-100 scale.
+ */
+export function isAutoRange(settings: ScarfPlotSettings): boolean {
+  if (settings.timeline === 'relative') return false
+  const { start, end, limits } = scarfRange(settings)
+  return !(start > 0 || end > 0) && !(Array.isArray(limits) && limits[1] > 0)
+}
+
+/** The data's own extent on the x axis (segment count or end time); 0 for 'relative'. */
+export function scarfOwnMax(engine: DataEngine, settings: ScarfPlotSettings): number {
+  if (settings.timeline === 'relative') return 0
+  const ids = getParticipantsIds(engine, settings, settings.stimulusId)
+  return scarfDataMax(engine, settings.stimulusId, ids, settings.timeline === 'ordinal')
+}
+
+/** The scarf segments for the (drafted and synced) settings; null when metadata isn't ready. */
+export function getScarfData(engine: DataEngine, settings: ScarfPlotSettings): ScarfData | null {
   const meta = engine.metadata
   if (!meta) return null
   return transformDataToScarfPlot(
@@ -53,21 +69,28 @@ export function getScarfData(
   )
 }
 
-export type ScarfView = PlotView<FigureProps<typeof ScarfPlotFigure>>
-
-/** Export view-model — static (no drag/sync/tooltip interaction). */
-export function deriveScarfView(
-  engine: DataEngine,
-  settings: ScarfPlotSettings
-): ScarfView | null {
+/** What a scarf draws, screen and export; null when metadata isn't ready. */
+export function scarfInput(engine: DataEngine, settings: ScarfPlotSettings) {
   const data = getScarfData(engine, settings)
-  if (!data) return null
-  return figureView(ScarfPlotFigure, {
-    data,
-    settings,
-    highlights: visibleHighlights(engine, settings),
-    onLegendClick: noop,
-    onDragStepX: noop,
-    onDragEnd: noop,
-  })
+  return (
+    data && {
+      data,
+      settings,
+      /** The data's own x extent, before any range or sync: a released pan ending at or past it commits auto. */
+      dataMax: scarfOwnMax(engine, settings),
+      getTooltipContent: (participantId: number, segmentOrderId: number) =>
+        buildScarfTooltipContent(engine, settings.stimulusId, participantId, segmentOrderId),
+    }
+  )
+}
+
+/** Plus `highlights`, which the platform merges in (`view.viewOnly`). */
+export type ScarfInput = NonNullable<ReturnType<typeof scarfInput>> & {
+  highlights?: readonly string[]
+}
+export type ScarfView = PlotView<ScarfInput>
+
+export function deriveScarfView(engine: DataEngine, settings: ScarfPlotSettings): ScarfView | null {
+  const input = scarfInput(engine, settings)
+  return input && plotView(scarfKit, input)
 }

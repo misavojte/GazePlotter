@@ -6,7 +6,7 @@ import {
   scarfFrameGutters,
   SCARF_LAYOUT,
 } from '$lib/plots/scarf'
-import { resolveFrameLayout } from '$lib/plots/shared/usePlot.svelte'
+import { resolveFrameLayout } from '$lib/plots/shared/frame'
 import {
   axisTitleLineHeight,
   participantIndexAxisWidth,

@@ -1,49 +1,42 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import { figureView, type PlotView, type PlotViewContext } from '$lib/plots/definePlot'
+import { plotView, type PlotViewContext } from '$lib/plots/definePlot'
 import { getParticipantsMaxEndTime } from '$lib/data/engine'
 import { resolveColumnBudget } from '$lib/plots/shared/displayBudget'
 import { calculatePlotWidthPx } from '$lib/plots/shared/plotSizeUtility'
 import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid/const'
-import EvolvingMetricsPlotFigure from '../components/EvolvingMetricsPlotFigure.svelte'
+import { evolvingMetricsKit } from './kit'
 import { getEvolvingMetricsData } from '.'
-import type { EvolvingMetricsResult } from '../types'
 import type { EvolvingMetricsSettings } from '../types'
 
 /**
- * Shared data derivation: resolves the timeline max from participant end-times,
- * derives a display budget from the plot's on-screen width (`ctx.itemWidth`, so
- * only ~one window per pixel is evaluated/drawn), then transforms. Both the
- * on-screen container and the export view-model call this so they can't drift.
+ * What a Metric Timeline draws, screen and export. The display budget comes
+ * from the plot's on-screen width (`ctx.itemWidth`), so only ~one window per
+ * pixel is evaluated and drawn.
  */
-function computeEvolvingData(
+export function evolvingMetricsInput(
   engine: DataEngine,
   settings: EvolvingMetricsSettings,
   ctx?: PlotViewContext
-): EvolvingMetricsResult {
+) {
   const timelineMax =
     (settings.timelineEnd ?? 0) > 0
       ? settings.timelineEnd!
       : getParticipantsMaxEndTime(engine, settings, settings.stimulusId)
   const plotWidthPx =
-    ctx && ctx.itemWidth > 0
-      ? calculatePlotWidthPx(ctx.itemWidth, DEFAULT_GRID_CONFIG)
-      : undefined
-  return getEvolvingMetricsData(engine, {
+    ctx && ctx.itemWidth > 0 ? calculatePlotWidthPx(ctx.itemWidth, DEFAULT_GRID_CONFIG) : undefined
+  const data = getEvolvingMetricsData(engine, {
     ...settings,
     timelineMin: settings.timelineStart ?? 0,
     timelineMax,
     maxColumns: resolveColumnBudget(plotWidthPx),
   })
+  return { data, settings }
 }
 
-export function deriveEvolvingMetricsView(
+export type EvolvingMetricsInput = ReturnType<typeof evolvingMetricsInput>
+
+export const deriveEvolvingMetricsView = (
   engine: DataEngine,
   settings: EvolvingMetricsSettings,
   ctx?: PlotViewContext
-): PlotView {
-  return figureView(EvolvingMetricsPlotFigure, {
-    data: computeEvolvingData(engine, settings, ctx),
-    alignment: settings.presentation ?? 'heatmap',
-    colorScale: settings.colorScale,
-  })
-}
+) => plotView(evolvingMetricsKit, evolvingMetricsInput(engine, settings, ctx))

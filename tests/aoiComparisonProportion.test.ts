@@ -81,8 +81,8 @@ describe('bar plot — proportion metric (noticed rate)', () => {
     }
     const view = aoiComparisonDefinition.view.deriveView(engine, settings)!
     // Full params on the plot (reproducible); the point here is NO statistic suffix.
-    expect(view.props.axisLabel).toBe('Was fixated / % · Min fixations 1 · Min dwell 0 ms')
-    expect(view.props.axisLabel).not.toMatch(/CI|SD|IQR/)
+    expect(view.input.axisLabel).toBe('Was fixated / % · Min fixations 1 · Min dwell 0 ms')
+    expect(view.input.axisLabel).not.toMatch(/CI|SD|IQR/)
   })
 
   it('a duration metric keeps its overlay suffix in the axis label', () => {
@@ -94,7 +94,7 @@ describe('bar plot — proportion metric (noticed rate)', () => {
       statisticalOverlay: 'meanCi95',
     }
     const view = aoiComparisonDefinition.view.deriveView(engine, settings)!
-    expect(view.props.axisLabel).toMatch(/95% CI/)
+    expect(view.input.axisLabel).toMatch(/95% CI/)
   })
 
   it('a duration metric is NOT a proportion: native ms value, no scaling, no flag', () => {

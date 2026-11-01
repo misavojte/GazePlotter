@@ -2,8 +2,6 @@ import { UI_COLORS } from '$lib/color'
 
 /** Layout constants: visual primitives only; the axis gutters are measured by usePlot. */
 export const SCANPATH_LAYOUT = {
-  tickCount: 5,
-
   /** Marker radius range (CSS px); area is linear in duration. */
   minRadius: 4,
   maxRadius: 15,
@@ -24,7 +22,7 @@ export const SCANPATH_LAYOUT = {
   fixationFillAlpha: 0.85,
   polylineAlpha: 0.8,
 
-  /** Fixation tooltip width (px) — same convention as SCARF_LAYOUT.TOOLTIP_WIDTH. */
+  /** Fixation tooltip width (px). */
   tooltipWidth: 170,
 } as const
 

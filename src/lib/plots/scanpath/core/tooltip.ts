@@ -1,12 +1,7 @@
 import { gazePositionRow } from '$lib/plots/shared/labels'
 import type { ScanpathFixation } from '../types'
 
-/**
- * Pure content builder for the scanpath fixation tooltip. The figure's
- * `hitTest` embeds this into its `FrameHit`; the `usePlot` harness owns
- * showing, positioning, and hiding — same contract as every other plot
- * (see the scarf's `buildScarfTooltipContent`).
- */
+/** The fixation tooltip rows, embedded by the kit's `hit`. */
 export const buildScanpathTooltipContent = (
   fixation: ScanpathFixation
 ): Array<{ key: string; value: string }> => [

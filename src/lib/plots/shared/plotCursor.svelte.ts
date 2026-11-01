@@ -24,12 +24,13 @@
  * pointer feedback) vs guide/outline (the marks). Never "sync" — that is
  * `useSyncedMax`, a monotone max, and `0` is a real cursor position.
  *
- * No effects: publish from `onHover`, repaint by declaring `overlayDeps`. The
- * port retracts itself on destroy, so no recipe can forget to.
+ * No effects: a kit publishes from `onHover` and repaints through its
+ * `overlayKey`; the host reads the two channels into a plain `CursorRead`
+ * (`cursorMarks.ts`) for it. The port retracts itself on destroy, so no recipe
+ * can forget to.
  *
- * Props carry the PORT, never the cursor's value — a per-move `props()` would
- * churn every figure's prop identity (scarf's fresh `margin` alone forces a
- * full render).
+ * The input carries the PORT, never the cursor's value — a per-move `input()`
+ * would hand every plot a new input and rebuild its scene per pointer frame.
  *
  * Both channels are LIVE accessors, not snapshots: the pointer's pixel and row
  * are the ground truth, so a pan, an undo or a resize under a resting pointer
@@ -40,17 +41,13 @@
  * MARK PARITY: nothing in a mark encodes WHO designated the thing, so a plot's own
  * CROSSHAIR and this cursor draw the IDENTICAL mark and only their EXTENT differs.
  * One per shape: `markCrosshairStrip` (row/column), `markCrosshairNode` (a graph
- * node, a SPLOM dot), `drawTimeGuide` (the time channel). A plot that IS one
+ * node, a SPLOM dot), `drawTimeGuides` (the time channel). A plot that IS one
  * participant (scanpath) has no smaller part to mark, so it only publishes: a
  * whole-panel outline lit from elsewhere read as a stray focus border.
  */
 import { onDestroy } from 'svelte'
 import { sessionScoped } from '$lib/session/context'
-import type { PlotScreenFactory } from '$lib/plots/definePlot'
-import {
-  alignToPixelCenter,
-  strokeCrosshairGuides,
-} from './canvasUtils'
+import type { CursorPosition } from './cursorMarks'
 import { usePlaybackClocks, type PlaybackClocks } from './playbackClock.svelte'
 
 type PlotCursor = {
@@ -81,17 +78,10 @@ export class PlotCursorState {
 
 const usePlotCursor = sessionScoped(() => new PlotCursorState())
 
-/** What the pointer is over, as live reads. Omit a channel the plot lacks. */
-type PlotCursorPosition = {
-  /** The instants under the pointer; a recurrence cell designates two. */
-  times?: () => readonly number[]
-  /** The ids under the pointer; may read back empty if the rows are gone. */
-  participants?: () => readonly number[]
-}
 
 export interface PlotCursorPort {
   /** Publish the pointer's position; `null` when it leaves. */
-  publish: (at: PlotCursorPosition | null) => void
+  publish: (at: CursorPosition | null) => void
   /** ANOTHER plot's instants when comparable here, plus a playing clock's time. */
   readonly times: readonly number[]
   /** ANOTHER plot's participants under the pointer, less a 'stimulus' set from another stimulus. */
@@ -154,9 +144,9 @@ export function createPlotCursorPort(
 }
 
 /**
- * One plot's end of the cursor — build it ONCE in a screen-recipe body. It owns
- * its own retraction: a plot removed under the pointer gets no `mouseleave`, and
- * making that automatic is why this is the name recipes reach for.
+ * One plot's end of the cursor, built once per grid item by the platform from
+ * the plot's `cursor` declaration (`plotHost.svelte.ts`). It owns its own
+ * retraction: a plot removed under the pointer gets no `mouseleave`.
  *
  * `timeScope` is this plot's stimulus id, or `null` while its x axis is not
  * absolute time: one gate, both directions of the TIME channel. Omit it entirely
@@ -170,161 +160,4 @@ export function plotCursorPort(
   const port = createPlotCursorPort(usePlotCursor(), plotId, timeScope, usePlaybackClocks(), participants)
   onDestroy(() => port.publish(null))
   return port
-}
-
-/**
- * The whole screen recipe for a plot whose only screen state is this port — one
- * recipe instead of one per plot.
- *
- * `timeScopeOf` is needed by any plot that READS the time channel, even one whose
- * own axes are not time: the scope gates reading as well as publishing, so a port
- * without it is permanently deaf to time (recurrence resolves a shared instant to
- * a fixation index while drawing ordinal axes). Omit it only when the plot neither
- * publishes nor reads a time. These recipes all publish 'identity' sets.
- */
-export function plotCursorScreen<S>({ timeScopeOf, stimulusOf }: {
-  timeScopeOf?: (settings: S) => number | null
-  stimulusOf?: (settings: S) => number
-} = {}): PlotScreenFactory<S> {
-  return ctx => {
-    const plotCursor = plotCursorPort(ctx.item.id, {
-      timeScope: timeScopeOf && (() => timeScopeOf(ctx.item.settings)),
-      stimulus: stimulusOf && (() => stimulusOf(ctx.item.settings)),
-    })
-    return { props: () => ({ plotCursor }) }
-  }
-}
-
-/** Where the time guide spans. `PlotFrame` is assignable; scarf passes its row band. */
-export interface TimeGuideBand {
-  x: number
-  y: number
-  width: number
-  height: number
-}
-
-/**
- * Aligned canvas x for the time guide, or `null` when there is nothing honest to
- * draw: no cursor, degenerate window, or a time outside this plot's window.
- * Nobody clamps — a clamped guide would claim a time the plot isn't showing.
- * Also the repaint key.
- */
-export function timeGuideX(
-  band: TimeGuideBand,
-  timeline: { minValue: number; maxValue: number },
-  time: number | null
-): number | null {
-  if (time === null) return null
-  const { minValue, maxValue } = timeline
-  const range = maxValue - minValue
-  // One negated conjunction so NaN fails it too.
-  if (!(range > 0 && time >= minValue && time <= maxValue)) return null
-  return alignToPixelCenter(band.x + ((time - minValue) / range) * band.width)
-}
-
-/**
- * The drawable guide positions for a set of instants, in order, dropping any this
- * plot's window excludes. The `.join()` of the result is the repaint key.
- */
-export function timeGuideXs(
-  band: TimeGuideBand,
-  timeline: { minValue: number; maxValue: number },
-  times: readonly number[]
-): number[] {
-  const xs: number[] = []
-  for (const t of times) {
-    const x = timeGuideX(band, timeline, t)
-    if (x !== null) xs.push(x)
-  }
-  return xs
-}
-
-/** The inverse of {@link timeGuideX} (before its alignment), unclamped. */
-export function timeAtX(
-  band: TimeGuideBand,
-  timeline: { minValue: number; maxValue: number },
-  px: number
-): number {
-  const ratio = band.width > 0 ? (px - band.x) / band.width : 0
-  return timeline.minValue + ratio * (timeline.maxValue - timeline.minValue)
-}
-
-/**
- * The time guides, one per instant. Self-clipping, so it is safe as any
- * `drawOverlay`'s first line, and a no-op on an empty set.
- */
-export function drawTimeGuides(
-  ctx: CanvasRenderingContext2D,
-  band: TimeGuideBand,
-  xs: readonly number[]
-): void {
-  if (xs.length === 0) return
-  const segments: number[] = []
-  for (const x of xs) segments.push(x, band.y, x, band.y + band.height)
-  ctx.save()
-  ctx.beginPath()
-  ctx.rect(band.x, band.y, band.width, band.height)
-  ctx.clip()
-  strokeCrosshairGuides(ctx, segments)
-  ctx.restore()
-}
-
-/**
- * The cursor's participants as positions in THIS plot's participant order,
- * ascending — rows, columns or nodes, whatever that order indexes; empty when it
- * shows none of them. Pass an id array the plot derives from its data (rebuilt on
- * a data change, never per pointer frame).
- *
- * Derive a `.join()` key off the result for `overlayDeps`: the array's identity
- * changes every pointer frame, but the key only changes when the marked positions
- * do, which is what keeps a plot from repainting while the cursor moves inside one.
- */
-export function cursorRows(
-  ids: readonly number[],
-  participants: readonly number[]
-): number[] {
-  if (participants.length === 0) return []
-  const rows: number[] = []
-  for (let i = 0; i < ids.length; i++) {
-    if (participants.includes(ids[i])) rows.push(i)
-  }
-  return rows
-}
-
-/**
- * A time-axis plot's cursor wiring (scarf, AOI timeline, metric timeline): guide
- * `xs` from the TIME channel, `rows` from the PARTICIPANTS channel, their repaint
- * `key`, `timesAt` to publish and `draw` for the guides. `band` returning null
- * gates time off (an empty result's fabricated timeline must not be projected into).
- */
-export function cursorGuides(opts: {
-  cursor: () => PlotCursorPort | null
-  band: () => TimeGuideBand | null
-  timeline: () => { minValue: number; maxValue: number }
-  rowIds?: () => readonly number[]
-}) {
-  const xs = $derived.by(() => {
-    const band = opts.band()
-    if (band === null) return []
-    return timeGuideXs(band, opts.timeline(), opts.cursor()?.times ?? [])
-  })
-  const rows = $derived.by(() =>
-    opts.rowIds ? cursorRows(opts.rowIds(), opts.cursor()?.participants ?? []) : []
-  )
-  return {
-    get xs() { return xs },
-    get rows() { return rows },
-    /** Keyed on positions, not arrays: moving within one row or pixel column must not repaint siblings. */
-    get key() { return `${xs.join(',')}:${rows.join(',')}` },
-    /** The TIME publish for canvas x, read live so a pan or undo under a resting pointer re-derives it. */
-    timesAt: (px: number) => (): number[] => {
-      const band = opts.band()
-      return band === null ? [] : [timeAtX(band, opts.timeline(), px)]
-    },
-    /** Self-clipping; must be a `drawOverlay`'s first line to survive its local-hover early return. */
-    draw: (ctx: CanvasRenderingContext2D) => {
-      const band = opts.band()
-      if (band !== null) drawTimeGuides(ctx, band, xs)
-    },
-  }
 }

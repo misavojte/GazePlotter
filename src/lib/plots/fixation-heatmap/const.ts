@@ -1,7 +1,6 @@
 import { UI_COLORS } from '$lib/color'
 
 export const FIXATION_HEATMAP_LAYOUT = {
-  tickCount: 5,
   /** The low end fades in over this share of the scale (smoothstep), so blobs
       have soft edges and a lone fixation under a dominant hot spot stays visible. */
   fadeTop: 0.05,

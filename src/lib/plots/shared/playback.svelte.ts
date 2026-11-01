@@ -1,14 +1,14 @@
 /**
- * A PLAYER's end of the playback clock (playbackClock.svelte.ts), shared by
- * the stimulus-space figures (Scanpath, Fixation Heatmap): the clock
- * membership a screen recipe holds, and the figure-side state (span, rest
- * time, video binding). The pane fields live in playbackFields.ts, so plot
- * definitions import no clock code. Export has no clock: it draws the moment
- * saved with the plot (`playTime`), else the rest the screen parks at.
+ * A PLAYER's end of the playback clock (playbackClock.svelte.ts), for plots
+ * that declare `playback` (Scanpath, Fixation Heatmap): the clock membership
+ * the platform holds (`plotHost.svelte.ts`), and the shell-side state (span,
+ * rest time, video binding) that `components/PlaybackFigure.svelte` hands its
+ * kit. The pane fields live in playbackFields.ts, so plot definitions import
+ * no clock code. Export has no clock: it draws the moment saved with the plot
+ * (`playTime`), else the rest the screen parks at.
  */
 import { untrack } from 'svelte'
 import type { StimulusMedia } from '$lib/data/types'
-import type { StimulusBackground } from './stimulusBackground'
 import type { PlotItemContract } from '$lib/plots/definePlot'
 import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 import type { WorkspaceCommandBus } from '$lib/workspace/commands/bus'
@@ -26,9 +26,9 @@ export interface PlotPlayback {
 }
 
 /**
- * Screen-recipe side: membership of the stimulus's shared clock (or a private
+ * Host side: membership of the stimulus's shared clock (or a private
  * one). Joined at once with an empty span, as a memberless clock is dropped
- * before the figure joins with its real one. Only the key drives the effect.
+ * before its player joins with its real one. Only the key drives the effect.
  */
 export function usePlaybackMembership(ctx: {
   readonly item: PlotItemContract<string, PlaybackSettings>
@@ -96,10 +96,10 @@ export function usePlaybackMembership(ctx: {
 }
 
 /**
- * Figure side: the player's span, rest time and video binding on its clock.
+ * Shell side: the player's span, rest time and video binding on its clock.
  * `playTime` null shows everything: an image's idle state. A video idles at its
  * first full trail, so the frame and the fixations agree. Without a clock
- * (export) the figure shows the saved moment, else that same rest.
+ * (export) the plot shows the saved moment, else that same rest.
  */
 export function usePlayer(opts: {
   playback: () => PlotPlayback | null
@@ -166,37 +166,10 @@ export function usePlayer(opts: {
   })
 
   return {
-    /** How to draw the media under the moment shown (see {@link mediaBackground}). */
-    background: (mode: StimulusBackground) =>
-      mediaBackground(mode, {
-        isVideo: opts.media()?.kind === 'video',
-        playTime,
-        onClock: clock !== null,
-        frameAt: videoElement ? videoElement.currentTime * 1000 + videoOffset : null,
-      }),
     get videoElement() { return videoElement },
     get clock() { return clock },
     get playTime() { return playTime },
     get isPlaying() { return isPlaying },
     get span() { return span },
   }
-}
-
-/** How far (ms) a parked video's frame may sit from the drawn moment: a frame at 20 fps. */
-const FRAME_TOLERANCE_MS = 50
-
-/**
- * A video is drawn only under the moment shown, never under everything. On a
- * clock the clock seeks the element there; without one (export) only when the
- * shared element already shows that frame (`frameAt`, recording ms), as another
- * clock or a running playback may have moved it. Otherwise white.
- */
-export function mediaBackground(
-  mode: StimulusBackground,
-  s: { isVideo: boolean; playTime: number | null; onClock: boolean; frameAt: number | null }
-): StimulusBackground {
-  if (!s.isVideo) return mode
-  if (s.playTime === null) return 'none'
-  if (s.onClock) return mode
-  return s.frameAt !== null && Math.abs(s.frameAt - s.playTime) <= FRAME_TOLERANCE_MS ? mode : 'none'
 }

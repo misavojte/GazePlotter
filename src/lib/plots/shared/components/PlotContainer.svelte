@@ -3,13 +3,14 @@
   import { getGazePlotterSession } from '$lib/session'
   import { resolvePlotDefinition } from '$lib/plots/registry'
   import { usePlotData } from '$lib/plots/shared/plotData.svelte'
+  import { usePlotHost, type PlotHostDefinition } from '$lib/plots/shared/plotHost.svelte'
   import BasePlot from './BasePlot.svelte'
+  import PlotViewFigure from './PlotViewFigure.svelte'
   import type { PlotItemContract, PlotView } from '$lib/plots/definePlot'
   import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-  import type { WorkspaceCommandBus } from '$lib/workspace/commands/bus'
 
   interface Props {
-    item: PlotItemContract<string, object>
+    item: PlotItemContract<string, Record<string, unknown>>
   }
 
   let { item }: Props = $props()
@@ -19,9 +20,7 @@
   // resolving the definition once at init is deliberate. The registry value is
   // a union over all plots' settings types; this host is generic, so it works
   // through a loose view of the same contract (settings match at runtime).
-  const definition = untrack(() =>
-    resolvePlotDefinition(item.type)
-  ) as unknown as {
+  const definition = untrack(() => resolvePlotDefinition(item.type)) as unknown as PlotHostDefinition & {
     view: {
       deriveView: (
         engine: DataEngine,
@@ -29,27 +28,15 @@
         ctx?: { itemWidth: number; itemHeight: number }
       ) => PlotView | null
       viewDependsOnWidth?: boolean
-      viewOnlySettings?: readonly string[]
-    }
-    screen?: (ctx: {
-      item: PlotItemContract<string, object>
-      engine: DataEngine
-      workspace: WorkspaceCommandBus
-      view: () => PlotView | null
-    }) => {
-      settings?: () => object
-      props?: (view: PlotView) => Record<string, unknown>
     }
   }
 
-  // Bound after the data handle exists; recipes only call `view()` from
-  // effects, deriveds and event handlers, all of which run post-init.
+  // Bound after the data handle exists; the host reads it only from deriveds.
   let getView: () => PlotView | null = () => null
 
-  const screen = definition.screen?.({
-    get item() {
-      return item
-    },
+  const plotHost = usePlotHost({
+    definition,
+    item: () => item,
     engine,
     workspace,
     view: () => getView(),
@@ -57,8 +44,8 @@
 
   const handle = usePlotData({
     epoch: () => item.redrawTimestamp,
-    settings: screen?.settings ?? (() => item.settings as object),
-    viewOnly: definition.view.viewOnlySettings,
+    settings: plotHost.settings,
+    viewOnly: definition.view.viewOnly?.settings,
     watch: definition.view.viewDependsOnWidth ? () => item.w : undefined,
     derive: s =>
       definition.view.deriveView(engine, s, {
@@ -70,22 +57,22 @@
 
   const view = $derived(handle.current)
   const hasData = $derived(view !== null && view.hasData !== false)
-
-  // Screen-only props overlay the view's props; `screen.props` runs inside
-  // this $derived, so its reactive reads (sync registries, item settings for
-  // handler display state) are tracked.
-  const figureProps = $derived.by(() => {
-    if (!view) return null
-    return screen?.props ? { ...view.props, ...screen.props(view) } : view.props
-  })
+  // The view's input with view-only settings and synced values merged over it.
+  const input = $derived(view ? plotHost.input(view) : null)
 </script>
 
 <BasePlot {item} {hasData}>
   {#snippet figure({ width, height })}
-    {#if view && figureProps}
-      {@const Figure = view.component}
+    {#if view && input}
       <div class="figure-container">
-        <Figure {...figureProps} {width} {height} />
+        <PlotViewFigure
+          {view}
+          {input}
+          host={plotHost.host}
+          playback={definition.playback ?? false}
+          {width}
+          {height}
+        />
       </div>
     {/if}
   {/snippet}

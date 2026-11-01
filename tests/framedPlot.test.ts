@@ -6,7 +6,7 @@ import {
 import {
   resolveFrameLayout,
   type FrameGutters,
-} from '../src/lib/plots/shared/usePlot.svelte'
+} from '../src/lib/plots/shared/frame'
 import type { AdaptiveTimeline } from '../src/lib/plots/shared/timelineUtils'
 
 // A minimal AdaptiveTimeline stub: two nice ticks at the ends, one non-nice.

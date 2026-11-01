@@ -3,9 +3,9 @@ import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { FIXATION_CATEGORY_ID } from '$lib/data/binary'
 
 /**
- * Pure content builder for the scarf segment tooltip. The figure's `hitTest`
- * embeds this into its `FrameHit`; the `usePlot` harness owns showing,
- * positioning, and hiding — same contract as every other plot.
+ * Content builder for the scarf segment tooltip. The view closes it over the
+ * engine (the input's `getTooltipContent`), the kit's `hit` embeds it into its
+ * `FrameHit`, and the platform owns showing, positioning and hiding.
  */
 export const buildScarfTooltipContent = (
   engine: DataEngine,
@@ -40,7 +40,7 @@ export const buildScarfTooltipContent = (
 }
 
 /**
- * Content for an event-strip hover. Pure values: the figure already holds
+ * Content for an event-strip hover. Pure values: the kit's scene already holds
  * everything (a strip is a per-participant run of same-channel occurrences,
  * clipped to the visible range, exactly as drawn). An instant marker shows
  * its moment; an interval shows the span the strip covers.

@@ -1,8 +1,9 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import { figureView, type PlotView } from '$lib/plots/definePlot'
-import { formatCompact, MatrixPlotFigure } from '$lib/plots/shared'
+import { plotView, type PlotView } from '$lib/plots/definePlot'
+import { formatCompact } from '$lib/plots/shared/labels'
 import { METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
-import { resolvePickedInstance } from '$lib/plots/shared'
+import { resolvePickedInstance } from '$lib/plots/shared/metricResolver'
+import { matrixKit, type MatrixInput } from '$lib/plots/shared/matrixKit'
 import { INACTIVE_COLOR } from '$lib/color/palettes'
 import { getMetricMatrixData } from './transformer'
 import { getMetricMatrixLegendTitle, METRIC_MATRIX_DEFAULTS } from '../const'
@@ -17,15 +18,15 @@ const STATE_LABEL: Record<Exclude<CellState, null>, string> = {
 }
 
 /**
- * Single source of truth for "what a metric matrix draws" — a `MatrixPlotFigure`
- * spec. Rows = participants, columns = stimuli. Every NA bucket stores NaN, so
- * the shared figure paints it via `nonFiniteColor` and suppresses the cell
+ * Single source of truth for "what a metric matrix draws" — a `matrixKit`
+ * input. Rows = participants, columns = stimuli. Every NA bucket stores NaN, so
+ * the matrix kit paints it via `nonFiniteColor` and suppresses the cell
  * value; the tooltip (`STATE_LABEL`) still discloses the exact NA reason.
  */
 export function deriveMetricMatrixView(
   engine: DataEngine,
   settings: MetricMatrixPlotSettings
-): PlotView {
+): PlotView<MatrixInput> {
   const data = getMetricMatrixData(engine, settings)
   const rowLabels = data.rows.map(r => r.label)
   const colLabels = data.cols.map(c => c.label)
@@ -52,7 +53,7 @@ export function deriveMetricMatrixView(
   const colorValueRange: [number, number] = settings.scaleRange ?? [0, 0]
   const colorScale = settings.colorScale ?? []
 
-  return figureView(MatrixPlotFigure, {
+  return plotView(matrixKit, {
     matrix: data.values,
     rowLabels,
     colLabels,

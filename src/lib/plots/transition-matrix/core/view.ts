@@ -1,6 +1,8 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import { formatCompact, MatrixPlotFigure, resolvePickedInstance } from '$lib/plots/shared'
-import { figureView, type FigureProps, type PlotView } from '$lib/plots/definePlot'
+import { formatCompact } from '$lib/plots/shared/labels'
+import { resolvePickedInstance } from '$lib/plots/shared/metricResolver'
+import { plotView, type PlotView } from '$lib/plots/definePlot'
+import { matrixKit, type MatrixInput } from '$lib/plots/shared/matrixKit'
 import { METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
 import { getTransitionMatrixData } from './transformer'
 import { getLegendTitle, TRANSITION_MATRIX_DEFAULTS } from '../const'
@@ -8,12 +10,12 @@ import type { TransitionMatrixPlotSettings } from '../types'
 
 /** `meta` carries what the screen recipe's color sync keys on; export ignores it. */
 export type TransitionMatrixView = PlotView<
-  FigureProps<typeof MatrixPlotFigure>,
+  MatrixInput,
   { ownDataMax: number; syncGroupKey: string; colorScaleKey: string; isDefaultColorRange: boolean }
 >
 
 /**
- * What a transition matrix draws, screen and export. `props.colorValueRange` is
+ * What a transition matrix draws, screen and export. `input.colorValueRange` is
  * the unsynced per-stimulus range; the screen recipe may swap in a synced one.
  */
 export function deriveTransitionMatrixView(
@@ -41,8 +43,8 @@ export function deriveTransitionMatrixView(
   for (let i = 0; i < matrix.length; i++) if (matrix[i] > ownDataMax) ownDataMax = matrix[i]
   ownDataMax = Math.ceil(ownDataMax)
 
-  return figureView(
-    MatrixPlotFigure,
+  return plotView(
+    matrixKit,
     {
       matrix,
       labels: aoiLabels,

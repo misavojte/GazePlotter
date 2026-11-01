@@ -95,3 +95,44 @@ export function canvasRecorder() {
     ctx: ctx as unknown as CanvasRenderingContext2D,
   }
 }
+
+/**
+ * A permissive 2D context for kit draw tests: every method exists, is counted
+ * and records its arguments; every property assignment is kept, so a test reads
+ * back the last `fillStyle` like a real context. `measureText` answers 6 px per
+ * character so layout code runs without a canvas.
+ */
+export function recordingContext() {
+  const calls: { method: string; args: unknown[] }[] = []
+  const props: Record<string, unknown> = {}
+  const count = (method: string) => calls.filter(c => c.method === method).length
+  const ctx = new Proxy(props, {
+    get(target, key) {
+      if (typeof key === 'symbol') return undefined
+      if (key in target) return target[key]
+      if (key === 'measureText') {
+        return (text: string) => {
+          calls.push({ method: key, args: [text] })
+          return { width: text.length * 6, actualBoundingBoxAscent: 8, actualBoundingBoxDescent: 2 }
+        }
+      }
+      if (key === 'getLineDash') return () => []
+      if (key === 'canvas') return { width: 0, height: 0 }
+      if (key.startsWith('create')) {
+        // Gradients, patterns and image data: a stub that takes stops and pixels.
+        return (...args: unknown[]) => {
+          calls.push({ method: key, args })
+          return { addColorStop() {}, data: new Uint8ClampedArray(4) }
+        }
+      }
+      return (...args: unknown[]) => {
+        calls.push({ method: key, args })
+      }
+    },
+    set(target, key, value) {
+      if (typeof key === 'string') target[key] = value
+      return true
+    },
+  })
+  return { ctx: ctx as unknown as CanvasRenderingContext2D, calls, count }
+}

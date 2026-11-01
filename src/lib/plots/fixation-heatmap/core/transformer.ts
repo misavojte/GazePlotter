@@ -10,6 +10,7 @@ import type { Rect } from '$lib/data/media/mediaAlignment'
 import type { StimulusMedia } from '$lib/data/types'
 import { fillWindowFrame, type WindowFrame } from '$lib/metrics/core/dsl'
 import { percentileSorted } from '$lib/shared/stats'
+import { memoByRef } from '$lib/plots/shared/kit'
 import { blurGaussian, gridFor, isCoarseGrid, kernelTaps, splatFixations } from './density'
 import { FIXATION_HEATMAP_LAYOUT as L } from '../const'
 import type {
@@ -30,27 +31,17 @@ interface PointExtent {
 }
 
 /** Per-reader extents: the data under a reader never changes (an edit builds a new reader). */
-const readerCache = new WeakMap<
-  BinaryBufferReader,
-  {
+const cacheOf = memoByRef(
+  (_reader: BinaryBufferReader): {
     dataset?: PointExtent | null
     stimuli: Map<number, PointExtent | null>
     /** Recent maps by their compute key, so colour, opacity and scale edits never recompute. */
     maps: Map<string, FixationHeatmapTransformResult>
-  }
->()
+  } => ({ stimuli: new Map(), maps: new Map() })
+)
 
 /** Recent maps kept per reader: enough for a workspace of side-by-side heatmaps. */
 const MAP_CACHE_SIZE = 16
-
-function cacheOf(reader: BinaryBufferReader) {
-  let entry = readerCache.get(reader)
-  if (!entry) {
-    entry = { stimuli: new Map(), maps: new Map() }
-    readerCache.set(reader, entry)
-  }
-  return entry
-}
 
 /** Every participant's located fixations on `stimuli`, all times: one bbox + one robust extent. */
 function fixationExtent(reader: BinaryBufferReader, stimuli: number[]): PointExtent | null {
