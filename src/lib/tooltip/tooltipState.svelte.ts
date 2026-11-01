@@ -30,8 +30,13 @@ export const estimateTooltipWidth = (
   content: Array<{ key: string; value: string }>
 ): number => {
   if (content.length === 0) return 0
+  // Titles render at the value's size, so either can set the width.
   const longestValue = content.reduce(
-    (max, item) => (item.value.length > max.length ? item.value : max),
+    (max, { key, value }) =>
+      [key, value].reduce(
+        (m, text) => (text.length > m.length ? text : m),
+        max
+      ),
     ''
   )
   return Math.min(

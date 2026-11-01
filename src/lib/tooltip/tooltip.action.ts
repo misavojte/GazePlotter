@@ -34,22 +34,29 @@ const estimateTooltipHeight = (
   content: Array<{ key: string; value: string }>,
   width: number
 ): number => {
-  // One row is 11px over --leading-normal (15.4px), and the box adds 5px of
-  // padding and a 1px border top and bottom. Rounded up, since a short
-  // estimate is what lets the box cover its own trigger.
-  const ROW_HEIGHT = 16
-  const BASE_PADDING = 12
+  // One line is 11px over --leading-normal (15.4px); each item adds 3px of
+  // padding top and bottom, and the box 2px of padding and a 1px border.
+  // Rounded up, since a short estimate is what lets the box cover its own
+  // trigger.
+  const LINE_HEIGHT = 16
+  const ITEM_PADDING = 6
+  const BOX_EDGES = 6
   const usable = Math.max(width - WIDTH_ESTIMATION.PADDING, 20)
   let lines = 0
+  // A non-empty title is its own row at the value's size.
   for (const item of content) {
-    const textWidth = estimateTextWidth(
-      item.value,
-      WIDTH_ESTIMATION.FONT_SIZE,
-      SYSTEM_SANS_SERIF_SMALL_STACK
-    )
-    lines += Math.max(1, Math.ceil(textWidth / usable))
+    for (const text of item.key === ''
+      ? [item.value]
+      : [item.key, item.value]) {
+      const textWidth = estimateTextWidth(
+        text,
+        WIDTH_ESTIMATION.FONT_SIZE,
+        SYSTEM_SANS_SERIF_SMALL_STACK
+      )
+      lines += Math.max(1, Math.ceil(textWidth / usable))
+    }
   }
-  return lines * ROW_HEIGHT + BASE_PADDING
+  return lines * LINE_HEIGHT + content.length * ITEM_PADDING + BOX_EDGES
 }
 
 /** Session-bound action; resolve at init, use as `use:tooltipAction`. */
