@@ -76,7 +76,8 @@ export function collectDistribution(args: {
     getMetric(instance.baseId)?.meta.measurementClass === 'proportion'
 
   const axis = args.axis()
-  if (axis.scopes.length === 0) return emptyResult()
+  if (axis.slots.length === 0) return emptyResult()
+  if (axis.scopes.length === 0) return { ...emptyResult(), noParticipants: true }
 
   const pooled = queryPooledIndividuals(
     instance,

@@ -34,6 +34,10 @@ export const eventComparisonDefinition = defineDistributionPlot<
   disclosures: {
     itemTooltipKey: 'Event',
     cannotFitHints: ['Select fewer event channels in Plot Settings > Events'],
+    emptyPlaceholder: {
+      message: 'No event channels to show on this stimulus.',
+      steps: ['Pick another Stimulus or a selection in Events'],
+    },
     ariaLabel: 'Event channel comparison',
   },
   // Canonical `eventGroups` order, the vectors' index order, so each merge keeps

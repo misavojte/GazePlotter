@@ -26,7 +26,7 @@ export interface BeeswarmFigureSettings {
  * the axis label: those render as plain proportional bars, so the label must
  * not claim a mean ± CI / SD / boxplot statistic that isn't drawn. `extras`
  * carries the per-plot disclosure strings (tooltip noun, cannot-fit hints,
- * aria label) and is spread last.
+ * empty-axis card, aria label) and is spread last.
  */
 export function buildBeeswarmFigureProps(
   result: DistributionResult,
@@ -47,6 +47,7 @@ export function buildBeeswarmFigureProps(
     onDataHover: () => {},
     statisticalOverlay: settings.statisticalOverlay,
     noMetric: result.noMetric ?? false,
+    noParticipants: result.noParticipants ?? false,
     proportion: result.proportion ?? false,
     unit: resolvedInstance ? (getMetric(resolvedInstance.baseId)?.meta.unit ?? '') : '',
     ...extras,

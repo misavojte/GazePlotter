@@ -30,6 +30,10 @@ export const eyeMovementComparisonDefinition = defineDistributionPlot<
   disclosures: {
     itemTooltipKey: 'Type',
     cannotFitHints: ['Select fewer types in Plot Settings > Eye-movement Types'],
+    emptyPlaceholder: {
+      message: 'No eye-movement types to show on this stimulus.',
+      steps: ['Pick another Stimulus or a selection in Eye-movement Types'],
+    },
     ariaLabel: 'Eye-movement type comparison',
   },
   // Canonical `categoryGroups` order, the vectors' index order, so each group

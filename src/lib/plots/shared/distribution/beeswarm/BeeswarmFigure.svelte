@@ -26,6 +26,7 @@
   import {
     METRIC_MISSING_MESSAGE,
     cannotFitPlaceholder,
+    type PlotPlaceholderContent,
   } from '$lib/plots/shared/drawCanvasPlaceholder'
   import type { StatisticalOverlayType, CategoryDistribution } from '../types'
   import {
@@ -65,17 +66,21 @@
     ) => void
     statisticalOverlay?: StatisticalOverlayType
     noMetric?: boolean
+    /** No participant in the selection is on this stimulus. */
+    noParticipants?: boolean
     proportion?: boolean
     /** The metric's unit, trailing every value in the tooltip; '' for none. */
     unit?: string
     /**
      * The per-plot disclosure strings: what a category slot IS (tooltip's first
-     * row key), how to make the figure fit, and how a screen reader names it.
+     * row key), how to make the figure fit, what to say when the category axis
+     * is empty, and how a screen reader names it.
      * Neutral fallbacks only — each plot passes its own entity vocabulary, so
      * the shared figure never speaks one consumer's language by default.
      */
     itemTooltipKey?: string
     cannotFitHints?: string[]
+    emptyPlaceholder?: PlotPlaceholderContent
     ariaLabel?: string
   }
 
@@ -89,10 +94,12 @@
     onDataHover,
     statisticalOverlay = 'none',
     noMetric = false,
+    noParticipants = false,
     proportion = false,
     unit = '',
     itemTooltipKey = 'Category',
     cannotFitHints = [],
+    emptyPlaceholder = 'Nothing to compare on this stimulus',
     ariaLabel = 'Beeswarm plot',
   } = $derived(props)
 
@@ -115,7 +122,17 @@
 
   const plot = usePlot<{ rowIndex: number; valuePx: number }>({
     props: () => props,
-    placeholder: () => (noMetric ? METRIC_MISSING_MESSAGE : null),
+    placeholder: () =>
+      noMetric
+        ? METRIC_MISSING_MESSAGE
+        : noParticipants
+          ? {
+              message: 'No participants in this selection have data on this stimulus.',
+              steps: ['Pick another Stimulus or a selection in Participants'],
+            }
+          : data.length === 0
+            ? emptyPlaceholder
+            : null,
     fit: frame => {
       if (data.length === 0) return null
       const availableSpace = isVertical ? frame.width : frame.height

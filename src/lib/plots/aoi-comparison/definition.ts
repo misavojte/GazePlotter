@@ -31,6 +31,10 @@ export const aoiComparisonDefinition = defineDistributionPlot<
   disclosures: {
     itemTooltipKey: 'AOI',
     cannotFitHints: ['Merge some AOIs in Plot Settings > Areas of Interest'],
+    emptyPlaceholder: {
+      message: 'No AOIs to show on this stimulus.',
+      steps: ['Pick another Stimulus or a selection in Areas of Interest'],
+    },
     ariaLabel: 'AOI metrics visualization',
   },
   // Slot indices are the vector indices, so the No-AOI slot is always

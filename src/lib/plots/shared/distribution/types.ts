@@ -84,6 +84,8 @@ export interface DistributionResult {
   dataMax: number
   /** True when the plot's `metricInstanceIds[0]` points to a missing instance. */
   noMetric?: boolean
+  /** True when the slots exist but no participant in the selection is on the stimulus. */
+  noParticipants?: boolean
   /**
    * True when the metric aggregates as a `proportion` (e.g. `fixated`): the
    * figure renders a plain proportional bar, not a beeswarm. The value is

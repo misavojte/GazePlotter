@@ -6,17 +6,21 @@ import {
   type BeeswarmFigureProps,
   type BeeswarmFigureSettings,
 } from './beeswarm'
+import type { PlotPlaceholderContent } from '$lib/plots/shared/drawCanvasPlaceholder'
 import type { DistributionResult, DistributionViewMeta } from './types'
 
 /**
  * The per-plot vocabulary the shared figure cannot know: what a category slot
- * IS (the tooltip's first-row key), how to make the figure fit, and how a
+ * IS (the tooltip's first-row key), how to make the figure fit, what to say
+ * when the axis is empty, and how a
  * screen reader names it. Required, not optional — the figure serves several
  * plots, so it must never speak one consumer's language by default.
  */
 export interface DistributionDisclosures {
   itemTooltipKey: string
   cannotFitHints: string[]
+  /** The card shown when the category axis has no slots on this stimulus. */
+  emptyPlaceholder: PlotPlaceholderContent
   ariaLabel: string
 }
 
