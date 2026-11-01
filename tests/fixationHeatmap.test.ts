@@ -326,8 +326,8 @@ describe('background', () => {
     const video = { ...image, kind: 'video' as const, mimeType: 'video/mp4' }
     const played = props(video, 'grayscale')
     expect(played).toMatchObject({ media: video, background: 'grayscale' })
-    expect(played.notes).toContain('Video frame drawn during playback only')
-    expect(props(video, 'none').notes).not.toContain('Video frame drawn during playback only')
+    expect(played.notes).toContain('Video frame drawn only under a map of its moment')
+    expect(props(video, 'none').notes).not.toContain('Video frame drawn only under a map of its moment')
   })
 
   it('falls back to plain drawing without an image', () => {
@@ -392,7 +392,7 @@ describe('labels', () => {
   it('notes only what the map leaves out', () => {
     const data = ok(getFixationHeatmapData(engineOf([[], [P0, P1]]), settings()))
     expect(heatmapNotes(data, false)).toEqual(['1 fixation without coordinates'])
-    expect(heatmapNotes(data, true)).toEqual(['Video frame drawn during playback only', '1 fixation without coordinates'])
+    expect(heatmapNotes(data, true)).toEqual(['Video frame drawn only under a map of its moment', '1 fixation without coordinates'])
   })
 
   it('formats amounts in plain digits, never grouping thousands', () => {

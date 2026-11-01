@@ -51,6 +51,7 @@ export function deriveScanpathView(
     background: settings.background,
     trailLength: trailLengthOf(settings, engine),
     playbackSpeed: settings.playbackSpeed,
+    savedTime: settings.playTime ?? null,
     timelineStart: settings.timelineStart,
     timelineEnd: settings.timelineEnd,
     unavailableMessage: null,

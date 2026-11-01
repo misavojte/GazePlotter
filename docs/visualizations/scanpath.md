@@ -61,7 +61,7 @@ Select the individual participant whose gaze trajectory you want to visualize. T
 
 ### Export
 Located at the bottom of the Pane:
-- **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the 2D scanpath plot as a PNG or JPG. Exports always render the full (parked) scanpath, not a playback frame.
+- **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the 2D scanpath plot as a PNG or JPG. Exports render the plot as it shows in the workspace: the paused moment (or the rest moment) with its trail and, on a video, its frame. Pausing or releasing the play bar saves the moment with the workspace, so it also survives a reload and is undoable.
 - **Download segments**: Opens the [Segmented Data](/docs/export/segmented-data/) export preset to this plot's stimulus and participant, over whole recordings.
 
 ## Playback

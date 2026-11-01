@@ -73,7 +73,7 @@ The collapsed section header shows the view.
   - **Mask color**: The opacity map's mask (default black). Opacity map only.
   - **Mask opacity / %**: The mask's opacity where the map is 0, from 0 to 100 (default 90). Opacity map only.
 - **Show fixations**: Draws every mapped fixation as a small dark dot over the heat, exposing how many fixations, and which outliers, the map rests on.
-- **Background**: What lies under the heat or the mask. Offered when the stimulus has a reference image or video. A video frame is drawn only during playback; the parked map sits on white.
+- **Background**: What lies under the heat or the mask. Offered when the stimulus has a reference image or video. A video frame is drawn only under a map of the moment on the play bar; without one the map sits on white.
   - *Image*: The reference image as it is (default).
   - *Grayscale image*: The image without color, so the heat colors stand out on a colorful stimulus.
   - *Dimmed grayscale image*: The grayscale image faded halfway toward white, for the strongest heat contrast.
@@ -90,7 +90,7 @@ Limit the fixations the map is built from (Tobii Pro Lab's Time of interest).
 
 ### Export
 Located at the bottom of the Pane:
-- **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the heatmap as a PNG or JPG, with its legend and data summary. Exports always render the full parked map, not a playback frame.
+- **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the heatmap as a PNG or JPG, with its legend and data summary. Exports render the plot as it shows in the workspace: the paused moment (or the rest moment) with its trail and, on a video, its frame. Pausing or releasing the play bar saves the moment with the workspace, so it also survives a reload and is undoable.
 - **Download segments**: Opens the [Segmented Data](/docs/export/segmented-data/) export preset to this plot's stimulus and participant selection, over whole recordings.
 
 ## Playback
@@ -105,7 +105,7 @@ The colors do not rescale during playback. Each frame is normalized with the par
 
 Heatmaps and scanpaths of one stimulus play on one shared clock, and the stimulus's [Scarf Plot](/docs/visualizations/scarf-plot) (Absolute timeline), [AOI Timeline](/docs/visualizations/aoi-timeline), and [Metric Timeline](/docs/visualizations/metric-timeline) show the playback time with their dashed line. Hovering the seek bar marks that moment on them too.
 
-On a **video stimulus**, the current frame is drawn under the heat while the clock has a time, so the map shows what the group looked at in the scene on screen. Set **Video starts at** in the media's settings when the video does not start with the recording. The plot rests at the end of its first trail, frame and heat agreeing, and returns there when the run ends. With **Trail length** on *All* the parked plot is the full map on white, as a static map over one arbitrary frame of a moving scene would mislead. Exports always render the parked map.
+On a **video stimulus**, the current frame is drawn under the heat while the clock has a time, so the map shows what the group looked at in the scene on screen. Set **Video starts at** in the media's settings when the video does not start with the recording. The plot rests at the end of its first trail, frame and heat agreeing, and returns there when the run ends. With **Trail length** on *All* it rests at the end of the range. Exports render the moment on screen, frame included; a pause saves it with the workspace.
 
 Playback recomputes the map on every frame. With the automatic radius this takes a few milliseconds; a very small radius on a large stimulus can lower the frame rate, while the clock keeps recording time.
 
@@ -157,7 +157,7 @@ The legends then read *max fixed*, and exported figures keep the shared scale. W
 - **The radius shapes the picture**: A larger kernel merges neighboring spots, a smaller one splits them. Report it.
 - **Central bias**: The first fixation after stimulus onset often lands at the screen center or on a former fixation cross. Set the **Time range** Start to 500 to 1000 ms to leave it out.
 - **Calibration offset**: An offset shifts the whole map. Check it with **Show fixations** and the [media alignment](/docs/workspace/stimuli-library/#aligning-media-on-fixations).
-- **Dynamic stimuli**: The parked map of a video stimulus sits on white inside the video's outline: a static map over a moving scene is only meaningful for a time slice in which the scene stays put. Use [Playback](#playback) with a short trail to see the heat over the frame on screen at that moment, or narrow the **Time range** to such a slice. For screen recordings or scene camera video, map the gaze onto a snapshot in Tobii Pro Lab and attach the snapshot as an image.
+- **Dynamic stimuli**: A map over a moving scene is only meaningful for a time slice in which the scene stays put. Use [Playback](#playback) with a short trail to see the heat over the frame on screen at that moment, or narrow the **Time range** to such a slice. For screen recordings or scene camera video, map the gaze onto a snapshot in Tobii Pro Lab and attach the snapshot as an image.
 - **Descriptive, not inferential**: A heatmap shows where attention went; it does not test a difference.
 
 ## Coming from Tobii Pro Lab

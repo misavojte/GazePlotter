@@ -75,13 +75,13 @@ export function heatmapLegendTitle(settings: FixationHeatmapPlotSettings, data: 
 
 /**
  * What the map leaves out, for the legend title's tooltip: the background it
- * draws only during playback, the resolution limit, and the fixations it
+ * draws only at a shown moment, the resolution limit, and the fixations it
  * could not place.
  */
 export function heatmapNotes(data: FixationHeatmapData, isVideo: boolean): string[] {
   const s = data.summary
   const notes = [
-    isVideo && 'Video frame drawn during playback only',
+    isVideo && 'Video frame drawn only under a map of its moment',
     data.coarse && 'R below grid resolution, peaks read low',
     s.outside > 0 && `${fixations(s.outside)} outside the ${data.clip ? 'media' : 'view'}`,
     s.withoutCoordinates > 0 && `${fixations(s.withoutCoordinates)} without coordinates`,
@@ -118,9 +118,9 @@ export function deriveFixationHeatmapView(
   }
   const { data } = result
   const media = engine.metadata?.stimuliMedia?.[settings.stimulusId] ?? null
-  // An image lies under the parked map. A video's frame is drawn only while
-  // the playback clock has a time: a static map over one arbitrary frame of a
-  // moving scene would mislead, so parked and exported maps sit on white.
+  // An image lies under the parked map. A video's frame is drawn only under a
+  // map of the moment it shows (the playhead, or the moment saved for export):
+  // a whole-range map over one arbitrary frame of a moving scene would mislead.
   const drawn = media && settings.background !== 'none' ? media : null
   const opacityMap = settings.view === 'opacity'
   const autoTop = niceCeil(opacityMap ? data.max * L.maskAutoTopShare : data.max)
@@ -158,6 +158,7 @@ export function deriveFixationHeatmapView(
       mediaStimulusId: settings.stimulusId,
       trailLength: trailLengthOf(settings, engine),
       playbackSpeed: settings.playbackSpeed,
+      savedTime: settings.playTime ?? null,
       timelineStart: settings.timelineStart,
       timelineEnd: settings.timelineEnd,
     },

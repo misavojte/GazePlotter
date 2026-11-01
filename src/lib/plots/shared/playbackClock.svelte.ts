@@ -8,8 +8,9 @@
 import { SvelteMap } from 'svelte/reactivity'
 import { sessionScoped } from '$lib/session/context'
 
-/** `rest`: where the player parks the clock when idle (a video's first trail); absent = show all. */
-type Player = { span: { start: number; end: number }; speed: number; rest?: number | null }
+/** `rest`: where the player parks the clock when idle (a video's first trail); absent = show all.
+    `saved`: the moment saved with the plot; a paused clock moves there when it changes (load, undo). */
+type Player = { span: { start: number; end: number }; speed: number; rest?: number | null; saved?: number | null }
 
 type VideoBinding = { el: HTMLVideoElement; offset: number }
 
@@ -67,9 +68,20 @@ export class PlaybackClock {
     return this.videos.values().next().value ?? null
   }
 
+  /** The time it holds of its own; null when parked (at rest or showing everything). */
+  get moment(): number | null {
+    return this.atRest ? null : this.time
+  }
+
   join(plotId: number, player: Player): void {
+    const saved = player.saved ?? null
+    const changed = saved !== (this.players.get(plotId)?.saved ?? null)
     this.players.set(plotId, player)
-    if (!this.playing && (this.time === null || this.atRest)) return this.park()
+    if (!this.playing) {
+      // A new saved moment (load, undo) moves the clock; our own commit is already there.
+      if (changed && saved !== this.time) return saved === null ? this.park() : this.seek(saved)
+      if (this.time === null || this.atRest) return this.park()
+    }
     // A shrunken span must not strand the playhead outside it.
     const { start, end } = this.span
     if (this.time !== null && (this.time < start || this.time > end)) this.seek(this.time)

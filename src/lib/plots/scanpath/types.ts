@@ -22,6 +22,9 @@ export type ScanpathPlotSettings = {
   background: StimulusBackground
   /** Play on the stimulus's shared clock; off = a private one. */
   syncPlayback: boolean
+  /** The moment shown while paused (recording ms): restored on load, drawn by
+      export. Unset = parked: a video's first trail, an image's everything. */
+  playTime?: number
   /** Recording-time range (ms) of the fixations drawn; 0 end = to the end. */
   timelineStart?: number
   timelineEnd?: number

@@ -40,6 +40,8 @@
     /** Trail length in ms; 0 = all. */
     trailLength?: number
     playbackSpeed?: number
+    /** The moment saved with the plot: restores the clock on screen, drawn by export. */
+    savedTime?: number | null
     /** The time range the fixations were cut to; the play span follows it. */
     timelineStart?: number
     timelineEnd?: number
@@ -56,7 +58,7 @@
     /** Publishes this participant and the hovered fixation's time. No
         whole-panel outline: lit from elsewhere it read as a stray focus border. */
     plotCursor?: PlotCursorPort | null
-    /** Screen-only; export has no clock and draws every fixation. */
+    /** Screen-only; export has no clock and draws `savedTime`. */
     playback?: PlotPlayback | null
   }
 
@@ -71,6 +73,7 @@
     background = 'image',
     trailLength = 0,
     playbackSpeed = 1,
+    savedTime = null,
     timelineStart = 0,
     timelineEnd = 0,
     height,
@@ -93,7 +96,7 @@
   })
 
   // ── Playback: a PLAYER on a playback clock (playbackClock.svelte.ts).
-  // `playTime` null shows every fixation: an image's idle state and exports.
+  // `playTime` null shows every fixation: an image's idle state.
   const player = usePlayer({
     playback: () => playback,
     media: () => media,
@@ -107,6 +110,7 @@
     timelineEnd: () => timelineEnd,
     speed: () => playbackSpeed,
     trailLength: () => trailLength,
+    savedTime: () => savedTime,
   })
   const clock = $derived(player.clock)
   const playTime = $derived(player.playTime)
@@ -463,7 +467,7 @@
     if (!data) return
     const fixations = timeCutoff === Infinity ? data.fixations : data.fixations.filter(isVisible)
     // The stimulus (image or the video's current frame) under everything, at its projected rect.
-    if (media) stim.drawMedia(ctx, frame, mediaRegionOf(media), background)
+    if (media) stim.drawMedia(ctx, frame, mediaRegionOf(media), player.background(background))
 
     // Order line (under the circles), on a white halo so the path stays
     // readable across busy reference imagery.

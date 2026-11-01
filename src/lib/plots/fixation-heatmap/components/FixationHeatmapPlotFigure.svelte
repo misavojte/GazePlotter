@@ -54,18 +54,20 @@
     accumulate?: FixationHeatmapAccumulate
     normalization?: FixationHeatmapNormalization
     unavailableMessage?: PlotPlaceholderContent | null
-    /** The stimulus's reference medium: an image under the map, a video's frame during playback only. */
+    /** The stimulus's reference medium: an image under the map, a video's frame only at a shown moment. */
     media?: StimulusMedia | null
     mediaStimulusId?: number
     /** Trail length in ms; 0 = the whole range so far. */
     trailLength?: number
     playbackSpeed?: number
+    /** The moment saved with the plot: restores the clock on screen, drawn by export. */
+    savedTime?: number | null
     /** The time range the map was cut to; the play span follows it. */
     timelineStart?: number
     timelineEnd?: number
     /** Shared PLOT CURSOR, publish-only: the participants with fixations within R, and the rail's time. */
     plotCursor?: PlotCursorPort | null
-    /** Screen-only; export has no clock and draws the parked map. */
+    /** Screen-only; export has no clock and draws `savedTime`. */
     playback?: PlotPlayback | null
   }
 
@@ -89,6 +91,7 @@
     mediaStimulusId,
     trailLength = 0,
     playbackSpeed = 1,
+    savedTime = null,
     timelineStart = 0,
     timelineEnd = 0,
     height,
@@ -118,7 +121,7 @@
   })
 
   // ── Playback: a PLAYER on a playback clock (playbackClock.svelte.ts).
-  // `playTime` null shows the parked map: an image's idle state and exports.
+  // `playTime` null shows the parked map: an image's idle state.
   const player = usePlayer({
     playback: () => playback,
     media: () => media,
@@ -129,6 +132,7 @@
     timelineEnd: () => timelineEnd,
     speed: () => playbackSpeed,
     trailLength: () => trailLength,
+    savedTime: () => savedTime,
   })
   const clock = $derived(player.clock)
   const playTime = $derived(player.playTime)
@@ -169,8 +173,8 @@
     const d = shown
     if (!d || !stim.space) return
     const s = stim.space.view.scale
-    // The clip is the media rect; without an image there (None, a parked video, still decoding) it is white, as the legend assumes.
-    if (d.clip) stim.drawMedia(ctx, frame, d.clip, media?.kind === 'video' && playTime === null ? 'none' : background)
+    // The clip is the media rect; without an image there (None, a video off the shown moment, still decoding) it is white, as the legend assumes.
+    if (d.clip) stim.drawMedia(ctx, frame, d.clip, player.background(background))
 
     const layer = heatTexture(d)
     if (layer) {

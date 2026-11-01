@@ -5,7 +5,7 @@ import type { ScanpathPlotSettings } from '../types'
 
 /**
  * Screen recipe: the PLOT CURSOR, time-scoped to the stimulus, and the
- * PLAYBACK CLOCK membership. Export gets neither and draws every fixation.
+ * PLAYBACK CLOCK membership. Export gets neither and draws the saved moment.
  */
 export const scanpathScreen: PlotScreenFactory<ScanpathPlotSettings> = ctx => {
   const plotCursor = plotCursorPort(ctx.item.id, {

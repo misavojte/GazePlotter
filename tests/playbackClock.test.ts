@@ -9,6 +9,7 @@ import { PlaybackClocks } from '$lib/plots/shared/playbackClock.svelte'
 import { PlotCursorState, createPlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
 import { getScanpathData } from '$lib/plots/scanpath/core/transformer'
 import { trailLengthOf } from '$lib/plots/shared/playbackFields'
+import { mediaBackground } from '$lib/plots/shared/playback.svelte'
 import { FIXATION_CATEGORY_ID } from '$lib/data/binary'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { ScanpathPlotSettings } from '$lib/plots/scanpath/types'
@@ -98,6 +99,35 @@ describe('clock', () => {
     image.play(10)
     tickPast(image)
     expect([image.time, image.playing]).toEqual([8000, false])
+  })
+
+  it('moves a paused clock to a changed saved moment, and plays on from it', () => {
+    const c = new PlaybackClocks().clock(shared(1))
+    // The membership placeholder joins first, then the figure with its saved moment (a load).
+    c.join(10, player(0, 0))
+    c.join(10, { ...player(0, 8000), rest: 2000, saved: 5000 })
+    expect(c.moment).toBe(5000)
+    // An unchanged moment keeps a later seek.
+    c.seek(6000)
+    c.join(10, { ...player(0, 8000), rest: 2000, saved: 5000 })
+    expect(c.time).toBe(6000)
+    // A changed one (undo) moves it; cleared, it parks at rest.
+    c.join(10, { ...player(0, 8000), rest: 2000, saved: 4000 })
+    expect(c.time).toBe(4000)
+    c.join(10, { ...player(0, 8000), rest: 2000, saved: null })
+    expect([c.time, c.moment]).toEqual([2000, null])
+    c.join(10, { ...player(0, 8000), rest: 2000, saved: 4000 })
+    c.play(10)
+    expect(c.time).toBe(4000)
+  })
+
+  it('ignores a saved moment while playing', () => {
+    const c = new PlaybackClocks().clock(shared(1))
+    c.join(10, player(0, 8000))
+    c.play(10)
+    c.seek(1000)
+    c.join(10, { ...player(0, 8000), saved: 5000 })
+    expect(c.time).toBe(1000)
   })
 })
 
@@ -203,5 +233,36 @@ describe('trail length', () => {
     expect(trailLengthOf({ stimulusId: 0 }, engineWith('image'))).toBe(0)
     expect(trailLengthOf({ stimulusId: 0, trailLength: 0 }, engineWith('video'))).toBe(0)
     expect(trailLengthOf({ stimulusId: 0, trailLength: 500 }, engineWith('image'))).toBe(500)
+  })
+})
+
+describe('saved moment (export parity)', () => {
+  it('saves the paused time, and nothing while the clock rests', () => {
+    const c = new PlaybackClocks().clock(shared(1))
+    c.join(10, { ...player(0, 8000), rest: 2000 })
+    expect(c.moment).toBeNull()
+    c.seek(4500)
+    expect(c.moment).toBe(4500)
+    c.reset()
+    expect(c.moment).toBeNull()
+    const image = new PlaybackClocks().clock(shared(2))
+    image.join(10, player(0, 8000))
+    expect(image.moment).toBeNull()
+  })
+
+  it('draws a video only under the moment shown', () => {
+    const at = (s: Partial<Parameters<typeof mediaBackground>[1]>) =>
+      mediaBackground('image', { isVideo: true, playTime: 3000, onClock: false, frameAt: 3000, ...s })
+    // An image is always drawn.
+    expect(mediaBackground('image', { isVideo: false, playTime: null, onClock: false, frameAt: null })).toBe('image')
+    // A video under everything: white.
+    expect(at({ playTime: null, onClock: true })).toBe('none')
+    // On a clock, the clock has the element on its frame.
+    expect(at({ onClock: true, frameAt: 0 })).toBe('image')
+    // Export: only when the shared element shows the moment's frame.
+    expect(at({})).toBe('image')
+    expect(at({ frameAt: 3040 })).toBe('image')
+    expect(at({ frameAt: 0.001 })).toBe('none')
+    expect(at({ frameAt: null })).toBe('none')
   })
 })

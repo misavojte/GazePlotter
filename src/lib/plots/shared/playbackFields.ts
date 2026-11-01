@@ -19,6 +19,9 @@ export type PlaybackSettings = {
   playbackSpeed: number
   /** Play on the stimulus's shared clock; off = a private one. */
   syncPlayback: boolean
+  /** The moment shown while paused (recording ms): restored on load, drawn by
+      export. Unset = parked: a video's first trail, an image's everything. */
+  playTime?: number
 }
 
 /** Trail length in ms: the set value, else a short one on a video and all on an image. */

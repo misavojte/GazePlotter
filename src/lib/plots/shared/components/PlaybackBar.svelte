@@ -191,6 +191,7 @@
       step="10"
       value={shownTime}
       oninput={e => clock?.seek(Number(e.currentTarget.value), playback?.plotId ?? null)}
+      onchange={() => playback?.commitTime()}
       {disabled}
       aria-label="Playback position"
       style:--trail-from={`${fromPct}%`}
