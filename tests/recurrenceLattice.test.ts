@@ -101,10 +101,10 @@ describe('buildRecurrenceTooltipContent', () => {
     })
   })
 
-  it('adds the duration sum as a raw number', () => {
+  it('adds the duration sum in whole milliseconds', () => {
     expect(buildRecurrenceTooltipContent(data(true), 0, 1).at(-1)).toEqual({
       key: 'Duration sum',
-      value: '350.0',
+      value: '350 ms',
     })
   })
 })

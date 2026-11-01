@@ -14,7 +14,7 @@ export function buildRecurrenceTooltipContent(
     { key: 'Recurrent', value: isRecurrent ? 'Yes' : 'No' },
   ]
   if (isRecurrent && data.durationMatrix) {
-    content.push({ key: 'Duration sum', value: data.durationMatrix[idx].toFixed(1) })
+    content.push({ key: 'Duration sum', value: `${data.durationMatrix[idx].toFixed(0)} ms` })
   }
   return content
 }
