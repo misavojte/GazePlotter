@@ -32,10 +32,10 @@ export const workspaceZipFormat: WorkspaceFormatDefinition = {
   },
 
   read(file) {
-    // The zip reader meets a damaged directory or entry as an out-of-range
-    // read; say so instead of passing on the engine's RangeError.
+    // A cut-off file has lost its end record; a damaged directory or entry
+    // surfaces as an out-of-range read. Name both plainly.
     return readWorkspaceArchive(file).catch(error => {
-      throw error instanceof RangeError
+      throw error instanceof RangeError || error?.message === 'Not a ZIP archive'
         ? new Error('Invalid workspace file: the archive is truncated or damaged')
         : error
     })
