@@ -28,7 +28,7 @@ import {
 } from './projection'
 import type { ExtendedInterpretedDataType } from '$lib/data/types'
 import { fillWindowFrame, scopeDurationOf } from './dsl'
-import type { AoiSlotInfo, FixationEvent, GroupScope, InitCtx, MetricRecipe, OutputShape, WindowFrame } from './dsl'
+import type { AoiSlotInfo, FixationEvent, GroupResult, GroupScope, InitCtx, MetricRecipe, OutputShape, WindowFrame } from './dsl'
 import type { GroupReduction } from './measurement'
 import type { MetricInstance } from '../instances'
 
@@ -1110,6 +1110,27 @@ export function cacheGetRaw(engine: DataEngine, instance: MetricInstance, stimul
 
 export function cacheSetRaw(engine: DataEngine, instance: MetricInstance, stimulusId: number, participantId: number, tStart: number, tEnd: number, value: number[], aoiSelectionId?: AoiNarrowing): void {
   cacheMapFor(engine)?.set(rawCacheKey(engine, instance, stimulusId, participantId, tStart, tEnd, aoiSelectionId), value)
+}
+
+/**
+ * A participant-pair recipe's matrix, cached like every other result. The
+ * participant SET rides in the key, and a recipe reading fixation x/y also keys
+ * on its stimulus's media placement, which no AOI version sees. Cached results
+ * are shared and frozen, like windowed ones.
+ */
+export function runScanGroup(recipe: MetricRecipe<any, any>, instance: MetricInstance, group: GroupScope): GroupResult {
+  const sig = slotSignatures(group.engine, group.stimulusId, group.aoiSelectionId)
+  const media = recipe.needsCoordinates
+    ? JSON.stringify(group.engine.metadata?.stimuliMedia?.[group.stimulusId] ?? null)
+    : ''
+  const key = `g|o${sig.order}|${instance.baseId}|${paramsKey(instance.params)}|${group.stimulusId}|${group.participantIds.join(',')}|${group.timeStart ?? 0}|${group.timeEnd ?? 0}|${media}`
+  const map = cacheMapFor(group.engine)
+  const cached = map?.get(key) as GroupResult | undefined
+  if (cached) return cached
+  const result = recipe.scanGroup!(group, resolveParams(recipe.params, instance.params))
+  const frozen = { matrix: Object.freeze(result.matrix), participantIds: Object.freeze(result.participantIds) }
+  map?.set(key, frozen)
+  return frozen
 }
 
 /**

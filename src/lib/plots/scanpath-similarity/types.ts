@@ -48,9 +48,10 @@ export interface ScanpathSimilarityData {
   /** Participant labels (rows and columns) */
   labels: string[]
   /** Participant IDs matching labels */
-  participantIds: number[]
-  /** Flat row-major normalized similarity matrix (0-1, where 1 = identical) */
-  matrix: Float64Array
+  participantIds: readonly number[]
+  /** Flat row-major normalized similarity matrix (0-1, where 1 = identical).
+   *  Read-only: usually the metric engine's shared cached result. */
+  matrix: ArrayLike<number>
   /** Size of the square matrix */
   size: number
   /** True when the plot's `metricInstanceIds[0]` points to a missing instance. */

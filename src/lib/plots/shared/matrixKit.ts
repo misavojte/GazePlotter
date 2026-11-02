@@ -40,7 +40,7 @@ import { drawPlotArea } from './plotArea'
 
 export interface MatrixInput {
   /** Flat row-major values (rowCount × colCount); non-finite marks an undefined cell. */
-  matrix: Float64Array | number[]
+  matrix: ArrayLike<number>
   /** Shorthand for a square matrix: sets both `rowLabels` and `colLabels`. */
   labels?: string[]
   /** Row (y-axis) labels. Falls back to `labels` when omitted (square case). */
@@ -52,8 +52,8 @@ export interface MatrixInput {
    * a matrix whose axes are AOIs or metrics passes neither and takes no part in
    * the PLOT CURSOR's participant channel.
    */
-  rowParticipantIds?: number[]
-  colParticipantIds?: number[]
+  rowParticipantIds?: readonly number[]
+  colParticipantIds?: readonly number[]
   xAxisTitle: string
   yAxisTitle: string
   /** Gradient stops (2 or 3 colors) for the shared value→color mapping. */

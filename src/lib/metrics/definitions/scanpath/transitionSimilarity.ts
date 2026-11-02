@@ -1,4 +1,5 @@
 import { defineMetric, getRecipe } from '../../core/defineMetric'
+import { pairMatrix } from '../../core/pairMatrix'
 import { enumParam } from '../../core/params'
 import { runSingleWindow } from '../../core/runtime'
 import type { MetricInstance } from '../../instances'
@@ -46,7 +47,6 @@ defineMetric({
   params,
   scanGroup: (scope, { mode }) => {
     const participantIds = [...scope.participantIds]
-    const size = participantIds.length
     const counts = getRecipe('transitionCount')!
     const instance: MetricInstance = {
       id: 'transitionSimilarity:counts',
@@ -64,14 +64,6 @@ defineMetric({
         scope.timeEnd ?? 0
       )
     )
-    const matrix = new Array<number>(size * size).fill(NaN)
-    for (let i = 0; i < size; i++) {
-      for (let j = i; j < size; j++) {
-        const rounded = Math.round(cosine(vectors[i], vectors[j]) * 1000) / 1000
-        matrix[i * size + j] = rounded
-        matrix[j * size + i] = rounded
-      }
-    }
-    return { matrix, participantIds }
+    return { matrix: pairMatrix(vectors, cosine), participantIds }
   },
 })

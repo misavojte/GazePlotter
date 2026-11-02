@@ -1,14 +1,9 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { getParticipant, getParticipantsIds } from '$lib/data/engine'
-import {
-  SEGMENT_STRIDE,
-  SegmentField,
-  type BinaryBufferReader,
-} from '$lib/data/binary'
+import type { BinaryBufferReader } from '$lib/data/binary'
 import { mediaRegionOf } from '$lib/data/media/stimulusMedia'
 import type { Rect } from '$lib/data/media/mediaAlignment'
 import type { StimulusMedia } from '$lib/data/types'
-import { fillWindowFrame, type WindowFrame } from '$lib/metrics/core/dsl'
 import { memoByRef } from '$lib/plots/shared/kit'
 import {
   autoRadius,
@@ -17,6 +12,7 @@ import {
   gridFor,
   isCoarseGrid,
   kernelTaps,
+  scopedFixations,
   splatFixations,
 } from '$lib/metrics/core/fixationDensity'
 import type {
@@ -97,66 +93,26 @@ function computeHeatmap(
   names: string[]
 ): FixationHeatmapTransformResult {
   const { stimulusId } = settings
-  let capacity = 0
-  let recorded = 0
-  for (const id of ids) {
-    const { startIndex, endIndex } = reader.getFixationRange(stimulusId, id)
-    capacity += endIndex - startIndex
-    if (reader.getSegmentCount(stimulusId, id) > 0) recorded++
-  }
-  if (capacity === 0) return unavailable('no-fixations')
-
-  const xs = new Float32Array(capacity)
-  const ys = new Float32Array(capacity)
-  const raw = new Float32Array(capacity)
-  const starts = new Float64Array(capacity)
-  const ends = new Float64Array(capacity)
-  const owner = new Uint32Array(capacity)
-  const totals = new Float64Array(ids.length)
-  let lastEnd = 0
-  const byDuration = settings.accumulate === 'duration'
-  const timeStart = settings.timelineStart ?? 0
-  const timeEnd = settings.timelineEnd ?? 0
-  const frame: WindowFrame = { windowStart: 0, windowEnd: 0, start: 0, end: 0, duration: 0 }
-  const segBuf = reader.segmentBufferRaw
-  const fixIdx = reader.fixationIndexRaw
-  let count = 0
-  let inRange = 0
-  let withoutCoordinates = 0
-
-  for (let p = 0; p < ids.length; p++) {
-    const { startIndex, endIndex } = reader.getFixationRange(stimulusId, ids[p])
-    for (let k = startIndex; k < endIndex; k++) {
-      const i = fixIdx[k]
-      const base = i * SEGMENT_STRIDE
-      const start = segBuf[base + SegmentField.START_TIME]
-      const end = segBuf[base + SegmentField.END_TIME]
-      // KEEP IN SYNC with metrics/core/scanner.ts: its two skip lines + fillWindowFrame.
-      if (timeEnd > 0 && start >= timeEnd) break
-      if (end <= timeStart) continue
-      const midInScope = fillWindowFrame(frame, start, end, timeStart, timeEnd)
-      const w = byDuration ? frame.duration : midInScope ? 1 : 0
-      if (!(w > 0)) continue
-      inRange++
-      const x = spatial[i * 2]
-      const y = spatial[i * 2 + 1]
-      if (!Number.isFinite(x) || !Number.isFinite(y)) {
-        withoutCoordinates++
-        continue
-      }
-      xs[count] = x
-      ys[count] = y
-      raw[count] = w
-      starts[count] = start
-      ends[count] = end
-      owner[count] = p
-      totals[p] += w
-      if (end > lastEnd) lastEnd = end
-      count++
-    }
-  }
+  const recorded = ids.filter(id => reader.getSegmentCount(stimulusId, id) > 0).length
+  const { xs, ys, weights: raw, starts, ends, owner, total, inRange, withoutCoordinates } = scopedFixations(
+    reader,
+    spatial,
+    stimulusId,
+    ids,
+    settings.timelineStart ?? 0,
+    settings.timelineEnd ?? 0,
+    settings.accumulate
+  )
+  const count = xs.length
+  if (total === 0) return unavailable('no-fixations')
   if (inRange === 0) return unavailable('none-in-range')
   if (count === 0) return unavailable('no-coordinates')
+  const totals = new Float64Array(ids.length)
+  let lastEnd = 0
+  for (let k = 0; k < count; k++) {
+    totals[owner[k]] += raw[k]
+    if (ends[k] > lastEnd) lastEnd = ends[k]
+  }
 
   // N: the participants with a located fixation in range; the rest are skipped, never divided by.
   const participants: HeatmapParticipant[] = []
@@ -213,11 +169,11 @@ function computeHeatmap(
       coarse: isCoarseGrid(grid, radius),
       extent,
       clip: media ? extent : null,
-      xs: xs.subarray(0, count),
-      ys: ys.subarray(0, count),
-      raw: raw.subarray(0, count),
-      starts: starts.subarray(0, count),
-      ends: ends.subarray(0, count),
+      xs,
+      ys,
+      raw,
+      starts,
+      ends,
       lastEnd,
       participantIndex,
       participants,

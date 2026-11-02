@@ -1,5 +1,4 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import type { ParticipantScope } from '$lib/data/types'
 import { getParticipantsIds, getParticipant } from '$lib/data/engine'
 import {
   queryGroup,
@@ -23,56 +22,41 @@ const CONTRACT = { outputShape: 'participant-pair-matrix', windowing: 'forbidden
 
 /** A fresh empty result. */
 const empty = (extra?: { noMetric: true }): ScanpathSimilarityData =>
-  ({ labels: [], participantIds: [], matrix: new Float64Array(0), size: 0, ...extra })
+  ({ labels: [], participantIds: [], matrix: [], size: 0, ...extra })
 
 /**
- * Resolve the configured metric instance and run `queryGroup` to obtain the
- * participant-pair similarity matrix. Returns `noMetric: true` when the
- * configured metric instance is missing — the plot then renders a placeholder.
+ * The plot's similarity matrix: its metric instance over its stimulus,
+ * participants, time range and AOI selection. Cheap to call repeatedly: the
+ * metric engine caches the matrix, and only the labels are rebuilt, so a
+ * participant rename shows at once. `noMetric: true` when the configured
+ * instance is missing; the plot then renders a placeholder.
  */
-export function getScanpathSimilarityData(
+export function similarityDataFor(
   engine: DataEngine,
-  stimulusId: number,
-  participants: ParticipantScope,
-  metricInstanceId: string | null,
-  timeStart: number = 0,
-  timeEnd: number = 0,
-  aoiSelectionId?: number,
+  settings: ScanpathSimilaritySettings
 ): ScanpathSimilarityData {
   if (!engine.metadata) return empty()
-
-  const resolved = resolveMetric({
-    engine,
-    id: metricInstanceId,
-    contract: CONTRACT,
-  })
+  const resolved = resolveMetric({ engine, id: settings.metricInstanceIds[0] ?? null, contract: CONTRACT })
   if (!resolved.ok) return empty({ noMetric: true })
-
-  const participantIds = getParticipantsIds(engine, participants, stimulusId)
+  const participantIds = getParticipantsIds(engine, settings, settings.stimulusId)
   if (participantIds.length === 0) return empty()
 
   const scope: GroupScope = {
     engine,
-    stimulusId,
+    stimulusId: settings.stimulusId,
     participantIds,
-    timeStart,
-    timeEnd,
-    aoiSelectionId,
+    timeStart: settings.timelineStart ?? 0,
+    timeEnd: settings.timelineEnd ?? 0,
+    aoiSelectionId: settings.aoiSelectionId,
   }
   const result = asShape(queryGroup(resolved.instance, scope), 'participant-pair-matrix')
   if (!result) return empty({ noMetric: true })
-
-  const labels = labelsFor(engine, result.participantIds)
   return {
-    labels,
+    labels: result.participantIds.map(pid => getParticipant(engine, pid).displayedName),
     participantIds: result.participantIds,
-    matrix: Float64Array.from(result.matrix),
+    matrix: result.matrix,
     size: result.size,
   }
-}
-
-function labelsFor(engine: DataEngine, participantIds: readonly number[]): string[] {
-  return participantIds.map(pid => getParticipant(engine, pid).displayedName)
 }
 
 /**
@@ -136,55 +120,6 @@ export function resolvedThreshold(
   return closest > 0 ? closest : 1
 }
 
-/**
- * The plot's similarity matrix for its full settings tuple, memoized for ONE
- * microtask: within a single synchronous burst the pane's read overrides, the
- * clique picker, onCommand, and the view all ask for the same tuple, and the
- * O(P² · L²) alignment pass is far too heavy to repeat per caller. The memo
- * self-clears before the next event can mutate the engine, so there are no
- * invalidation semantics to get wrong.
- */
-let _simMemo: {
-  engine: DataEngine
-  key: string
-  data: ScanpathSimilarityData
-} | null = null
-
-function settingsKey(settings: ScanpathSimilaritySettings): string {
-  return [
-    settings.stimulusId,
-    `${settings.participantSelectionId ?? 0}:${!!settings.hideEmptyParticipants}`,
-    settings.metricInstanceIds[0] ?? '',
-    settings.timelineStart ?? 0,
-    settings.timelineEnd ?? 0,
-    settings.aoiSelectionId ?? 0,
-  ].join('|')
-}
-
-export function similarityDataFor(
-  engine: DataEngine,
-  settings: ScanpathSimilaritySettings
-): ScanpathSimilarityData {
-  const key = settingsKey(settings)
-  if (_simMemo && _simMemo.engine === engine && _simMemo.key === key) {
-    return _simMemo.data
-  }
-  const data = getScanpathSimilarityData(
-    engine,
-    settings.stimulusId,
-    settings,
-    settings.metricInstanceIds[0] ?? null,
-    settings.timelineStart ?? 0,
-    settings.timelineEnd ?? 0,
-    settings.aoiSelectionId
-  )
-  _simMemo = { engine, key, data }
-  queueMicrotask(() => {
-    _simMemo = null
-  })
-  return data
-}
-
 /** Share of COMPARABLE pairs drawn as edges at `threshold`, in percent (NaN
  *  pairs are out of both counts, mirroring thresholdForEdgeShare). One
  *  decimal, except a nonzero share never rounds to 0 — the readout must not
@@ -236,6 +171,11 @@ export function cliquesOfMinSize(
   return cliques.filter(c => c.nodeIndices.length >= floor)
 }
 
+/** Enumerated cliques per matrix and threshold. The engine hands out the same
+ *  frozen matrix until its inputs change, so the pane's picker, its label and
+ *  the view share one enumeration, and a changed matrix starts afresh. */
+const cliqueMemo = new WeakMap<object, Map<number, number[][] | null>>()
+
 /** Maximal cliques of the thresholded graph, largest first; null when the
  *  graph is too dense to enumerate. */
 export function scangraphCliques(
@@ -243,8 +183,12 @@ export function scangraphCliques(
   threshold: number
 ): ScangraphClique[] | null {
   if (simData.size < 2) return []
-  const { links } = buildScangraphData(simData, threshold)
-  const cliques = maximalCliques(simData.size, links)
+  let byThreshold = cliqueMemo.get(simData.matrix)
+  if (!byThreshold) cliqueMemo.set(simData.matrix, (byThreshold = new Map()))
+  if (!byThreshold.has(threshold)) {
+    byThreshold.set(threshold, maximalCliques(simData.size, buildScangraphData(simData, threshold).links))
+  }
+  const cliques = byThreshold.get(threshold)
   if (!cliques) return null
   return cliques.map(nodeIndices => {
     // Internal-agreement stats: all member pairs are edges (finite, >= p).
@@ -272,31 +216,13 @@ export function scangraphCliques(
   })
 }
 
-/** Engine-level wrapper for the pane's clique picker. Microtask-memoized like
- *  {@link similarityDataFor}: the picker's options and its displayed-value
- *  coercion both enumerate in the same render burst. */
-let _cliqueMemo: {
-  engine: DataEngine
-  key: string
-  cliques: ScangraphClique[] | null
-} | null = null
-
+/** The pane's clique picker: the plot's cliques at its resolved threshold. */
 export function getScangraphCliques(
   engine: DataEngine,
   settings: ScanpathSimilaritySettings
 ): ScangraphClique[] | null {
   const simData = similarityDataFor(engine, settings)
-  const threshold = resolvedThreshold(simData, settings)
-  const key = `${settingsKey(settings)}|${threshold}`
-  if (_cliqueMemo && _cliqueMemo.engine === engine && _cliqueMemo.key === key) {
-    return _cliqueMemo.cliques
-  }
-  const cliques = scangraphCliques(simData, threshold)
-  _cliqueMemo = { engine, key, cliques }
-  queueMicrotask(() => {
-    _cliqueMemo = null
-  })
-  return cliques
+  return scangraphCliques(simData, resolvedThreshold(simData, settings))
 }
 
 /**

@@ -45,9 +45,9 @@ export interface GroupScope {
  * participants (e.g. drop empty scanpaths) — the returned `participantIds` is
  * the authoritative axis labelling.
  */
-interface GroupResult {
-  matrix: number[]
-  participantIds: number[]
+export interface GroupResult {
+  matrix: readonly number[]
+  participantIds: readonly number[]
 }
 
 /**

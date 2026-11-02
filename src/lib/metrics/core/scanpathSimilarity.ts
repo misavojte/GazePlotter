@@ -94,32 +94,8 @@ function needlemanWunschSimilarity(a: string, b: string): number {
   return score / maxLen
 }
 
-const SIMILARITY_FN: Record<SimilarityMethod, (a: string, b: string) => number> = {
+/** The pair score per method, for `pairMatrix`. */
+export const SIMILARITY: Record<SimilarityMethod, (a: string, b: string) => number> = {
   levenshtein: levenshteinSimilarity,
   needlemanWunsch: needlemanWunschSimilarity,
-}
-
-/**
- * Compute a symmetric pairwise similarity matrix (flat row-major) over a set of
- * scanpaths using the chosen kernel. Diagonal = 1; off-diagonal cells are
- * rounded to three decimals to keep label readouts stable. A pair of empty
- * scanpaths carries NaN (no data), which survives the rounding.
- */
-export function computeSimilarityMatrix(
-  scanpaths: readonly string[],
-  method: SimilarityMethod,
-): number[] {
-  const size = scanpaths.length
-  const matrix = new Array<number>(size * size).fill(0)
-  const compute = SIMILARITY_FN[method]
-  for (let i = 0; i < size; i++) {
-    matrix[i * size + i] = 1
-    for (let j = i + 1; j < size; j++) {
-      const sim = compute(scanpaths[i], scanpaths[j])
-      const rounded = Math.round(sim * 1000) / 1000
-      matrix[i * size + j] = rounded
-      matrix[j * size + i] = rounded
-    }
-  }
-  return matrix
 }

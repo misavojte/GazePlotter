@@ -1,11 +1,11 @@
 import './init'
 import { getRecipe } from './core/defineMetric'
-import { resolveParams } from './core/params'
 import {
   projectLeaf,
   runProjected,
   runIndividualsAllSlots,
   runRaw,
+  runScanGroup,
   runWindowedGroup,
   type ProjectedResult,
   type Scope,
@@ -43,7 +43,7 @@ export type MetricResult =
       order (consumers derive names via `eventGroupNames(engine, stimulusId)`). */
   | { shape: 'event-vector';               metricId: string; unit: string; values: number[]; provenance: MetricProvenance }
   | { shape: 'aoi-pair-matrix';            metricId: string; unit: string; matrix: number[]; size: number; provenance: MetricProvenance }
-  | { shape: 'participant-pair-matrix';    metricId: string; unit: string; matrix: number[]; size: number; participantIds: number[]; provenance: MetricProvenance }
+  | { shape: 'participant-pair-matrix';    metricId: string; unit: string; matrix: readonly number[]; size: number; participantIds: readonly number[]; provenance: MetricProvenance }
   | { shape: 'scalar-timeseries';          metricId: string; unit: string; values: number[]; timeline: number[]; provenance: MetricProvenance }
   | { shape: 'aoi-vector-timeseries';      metricId: string; unit: string; vectors: number[][]; timeline: number[]; slots: AoiSlotInfo; provenance: MetricProvenance }
 
@@ -111,8 +111,7 @@ export function queryGroup(instance: MetricInstance, group: GroupScope): MetricR
   // so there is nothing to reduce across.
   if (recipe.rawShape === 'participant-pair-matrix') {
     if (!recipe.scanGroup) return emptyResult(instance, 'participant-pair-matrix', recipe.unit)
-    const params = resolveParams(recipe.params, instance.params)
-    const groupResult = recipe.scanGroup(group, params)
+    const groupResult = runScanGroup(recipe, instance, group)
     return {
       shape: 'participant-pair-matrix',
       metricId: recipe.id,

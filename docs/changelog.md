@@ -6,7 +6,7 @@
 
 * *Unreleased*
 * **Reference Media**: Stimuli with a video show a film icon in the stimuli list, and the alignment view says when a video is still loading. Cancelling the stimuli dialog now also discards media changes. When assigning uploaded media, stimuli that already have media say so.
-* **Scanpath Similarity**: New *Heatmap overlap* metric compares where participants looked, without AOIs, and *Transition similarity* compares their AOI-to-AOI moves. The matrix can be ordered by similarity to show groups. See [Scanpath Similarity Metrics](/docs/metrics/scanpath-similarity).
+* **Scanpath Similarity**: New *Heatmap overlap* metric compares where participants looked, without AOIs, and *Transition similarity* compares their AOI-to-AOI moves. The matrix can be ordered by similarity to show groups. A participant with an empty scanpath now has an empty diagonal cell instead of 1.00. See [Scanpath Similarity Metrics](/docs/metrics/scanpath-similarity).
 * **ScanGraph**: The threshold defaults to Auto, which connects the most similar 5% of pairs. Saved plots keep their threshold.
 
 ### 1.10.4

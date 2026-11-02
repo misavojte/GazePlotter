@@ -22,7 +22,7 @@ The ScanGraph view, including its similarity parameter *p*, the percentage-of-ed
 
 ## Reading the Plot
 
-- **Matrix** view (default): rows and columns are participants, and each cell holds the similarity of that pair, from 0 to 1. The diagonal compares each participant with themselves and reads 1.00. The color bar below names the metric.
+- **Matrix** view (default): rows and columns are participants, and each cell holds the similarity of that pair, from 0 to 1. The diagonal compares each participant with themselves and reads 1.00, or stays empty for a participant with nothing to compare. The color bar below names the metric.
 - **ScanGraph** view: nodes are participants, and an edge joins every pair whose similarity reaches the threshold *p*. Participants who are all pairwise connected form a clique.
 
 ## Add a Scanpath Similarity Plot

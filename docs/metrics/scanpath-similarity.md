@@ -19,7 +19,7 @@ To compare scanpaths, GazePlotter converts each participant's fixation sequence 
 ## Metrics
 
 ### Participant Pair Similarity
-Computes the similarity score for every pair of participant scanpaths. The resulting matrix is symmetric (similarity from participant i to j equals j to i) and has a diagonal of 1.0 (every participant is identical to themselves). A pair where **both** scanpaths are empty (no fixations in the analyzed range) carries no value: the matrix renders those cells as missing, and such pairs never form edges or cliques in the ScanGraph view. A pair where only one scanpath is empty scores 0, as the formulas define.
+Computes the similarity score for every pair of participant scanpaths. The resulting matrix is symmetric (similarity from participant i to j equals j to i) and has a diagonal of 1.0 (every participant is identical to themselves). A pair where **both** scanpaths are empty (no fixations in the analyzed range) carries no value, and so does the diagonal cell of a participant with an empty scanpath: the matrix renders those cells as missing, and such pairs never form edges or cliques in the ScanGraph view. A pair where only one scanpath is empty scores 0, as the formulas define.
 
 #### Parameters
 

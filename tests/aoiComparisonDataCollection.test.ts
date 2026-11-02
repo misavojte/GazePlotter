@@ -20,7 +20,7 @@ function inst(baseId: string): MetricInstance {
 const scope = (engine: DataEngine, participantId: number, tStart = 0, tEnd = 0): Scope =>
   makeScope(engine, { participantId, timeStart: tStart, timeEnd: tEnd })
 
-function values(result: ReturnType<typeof query>): number[] {
+function values(result: ReturnType<typeof query>): readonly number[] {
   if (result.shape === 'aoi-vector') return result.values
   if (result.shape === 'scalar') return [result.value]
   if (result.shape === 'aoi-pair-matrix') return result.matrix

@@ -5,12 +5,101 @@
  * Shared by the heat map and the heat map overlap metric, so both use one
  * kernel, one Auto radius and one map extent.
  */
-import type { BinaryBufferReader } from '$lib/data/binary'
+import { SEGMENT_STRIDE, SegmentField, type BinaryBufferReader } from '$lib/data/binary'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { Rect } from '$lib/data/media/mediaAlignment'
 import { mediaRegionOf } from '$lib/data/media/stimulusMedia'
 import type { StimulusMedia } from '$lib/data/types'
+import { fillWindowFrame, type WindowFrame } from './dsl'
 import { percentileSorted } from './numeric'
+
+/** The located fixations of some participants on one stimulus within a time range. */
+export interface ScopedFixations {
+  xs: Float32Array
+  ys: Float32Array
+  /** Duration clipped to the range ('duration'), or 1 when the midpoint is in range ('count'). */
+  weights: Float32Array
+  starts: Float64Array
+  ends: Float64Array
+  /** Index into the `participantIds` passed in. */
+  owner: Uint32Array
+  /** These participants' fixations on the stimulus at any time. */
+  total: number
+  /** Fixations with a weight in range, located or not. */
+  inRange: number
+  withoutCoordinates: number
+}
+
+/**
+ * The fixations a density map is built from, weighted by the metric library's
+ * dwell and count conventions, so a map's mass reconciles with them.
+ */
+export function scopedFixations(
+  reader: BinaryBufferReader,
+  spatial: Float32Array,
+  stimulusId: number,
+  participantIds: readonly number[],
+  timeStart: number,
+  timeEnd: number,
+  weight: 'duration' | 'count'
+): ScopedFixations {
+  let capacity = 0
+  for (const id of participantIds) {
+    const { startIndex, endIndex } = reader.getFixationRange(stimulusId, id)
+    capacity += endIndex - startIndex
+  }
+  const xs = new Float32Array(capacity)
+  const ys = new Float32Array(capacity)
+  const weights = new Float32Array(capacity)
+  const starts = new Float64Array(capacity)
+  const ends = new Float64Array(capacity)
+  const owner = new Uint32Array(capacity)
+  const frame: WindowFrame = { windowStart: 0, windowEnd: 0, start: 0, end: 0, duration: 0 }
+  const segBuf = reader.segmentBufferRaw
+  const fixIdx = reader.fixationIndexRaw
+  let count = 0
+  let inRange = 0
+  let withoutCoordinates = 0
+  for (let p = 0; p < participantIds.length; p++) {
+    const { startIndex, endIndex } = reader.getFixationRange(stimulusId, participantIds[p])
+    for (let k = startIndex; k < endIndex; k++) {
+      const i = fixIdx[k]
+      const base = i * SEGMENT_STRIDE
+      const start = segBuf[base + SegmentField.START_TIME]
+      const end = segBuf[base + SegmentField.END_TIME]
+      // KEEP IN SYNC with metrics/core/scanner.ts: its two skip lines + fillWindowFrame.
+      if (timeEnd > 0 && start >= timeEnd) break
+      if (end <= timeStart) continue
+      const midInScope = fillWindowFrame(frame, start, end, timeStart, timeEnd)
+      const w = weight === 'duration' ? frame.duration : midInScope ? 1 : 0
+      if (!(w > 0)) continue
+      inRange++
+      const x = spatial[i * 2]
+      const y = spatial[i * 2 + 1]
+      if (!Number.isFinite(x) || !Number.isFinite(y)) {
+        withoutCoordinates++
+        continue
+      }
+      xs[count] = x
+      ys[count] = y
+      weights[count] = w
+      starts[count] = start
+      ends[count] = end
+      owner[count++] = p
+    }
+  }
+  return {
+    xs: xs.subarray(0, count),
+    ys: ys.subarray(0, count),
+    weights: weights.subarray(0, count),
+    starts: starts.subarray(0, count),
+    ends: ends.subarray(0, count),
+    owner: owner.subarray(0, count),
+    total: capacity,
+    inRange,
+    withoutCoordinates,
+  }
+}
 
 /** A value grid in gaze units; cell (i, j) is centred at (x0 + (i + 0.5) cell, y0 + (j + 0.5) cell). */
 export interface GridGeometry {
