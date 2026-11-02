@@ -103,6 +103,17 @@ export const scanpathSimilarityDefinition = definePlot<
           summary: true,
         },
         {
+          kind: 'enum',
+          key: 'orderBy',
+          label: 'Order by',
+          options: [
+            { label: 'Participant order', value: 'participant' },
+            { label: 'Similarity', value: 'similarity', detail: 'Similar participants side by side' },
+          ],
+          default: 'participant',
+          showWhen: viewIs('matrix'),
+        },
+        {
           kind: 'number',
           key: 'threshold',
           // Like the heatmap's radius: 0 is Auto, and the label shows what Auto resolved to.
@@ -198,6 +209,7 @@ export const scanpathSimilarityDefinition = definePlot<
     hideEmptyParticipants: false,
     metricInstanceIds: ['participantPairSimilarity-lev'],
     view: 'matrix',
+    orderBy: 'participant',
     threshold: 0,
     edgePercent: 5,
     minCliqueSize: 2,

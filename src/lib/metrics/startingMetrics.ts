@@ -229,4 +229,9 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
     baseId: 'heatmapOverlap',
     params: { radius: 0 },
   },
+  {
+    id: 'participantPairSimilarity-transition',
+    baseId: 'transitionSimilarity',
+    params: { mode: 'visit' },
+  },
 ]

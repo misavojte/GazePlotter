@@ -1,6 +1,6 @@
 # Scanpath Similarity
 
-Scanpath similarity metrics score how alike every pair of participants looked. Levenshtein and Needleman-Wunsch compare the order of visited AOIs. [Heatmap overlap](#heatmap-overlap) compares where they looked, in any order.
+Scanpath similarity metrics score how alike every pair of participants looked. Levenshtein and Needleman-Wunsch compare the order of visited AOIs. [Transition similarity](#transition-similarity) compares which AOI-to-AOI moves they made. [Heatmap overlap](#heatmap-overlap) compares where they looked, in any order.
 
 ## Output
 
@@ -38,6 +38,17 @@ Computes the similarity score for every pair of participant scanpaths. The resul
    - **Off** (default): Consecutive fixations inside the same AOI are preserved. A participant who fixates AOI A three times before moving to B is encoded as "AAAB".
    - **On**: Consecutive identical AOI entries are collapsed into a single letter ("AAAB" → "AB"). This removes duration-based variance, isolating the analysis to focus purely on the structural order of visited regions.
 
+### Transition Similarity
+Compares the mix of AOI transitions two participants made, using the counts of the [Transitions](/docs/metrics/transitions) metric. The score is the cosine of the two count matrices:
+
+`Similarity = Σ (Count_1 × Count_2) / √(Σ Count_1² × Σ Count_2²)`
+
+1 means the same mix of transitions, 0 means none in common. Only the mix counts, not how many transitions or when. Also in GazeAlytics (Chen et al., 2023).
+
+1. **Count mode**: *Visit changes* (default) counts moves between AOIs. *Fixation pairs* also counts staying in an AOI, which pulls the score towards dwell.
+
+A participant without transitions has no value.
+
 ### Heatmap Overlap
 Compares **where** two participants looked, ignoring order. Needs fixation coordinates, not AOIs. Each participant gets a [Fixation Heatmap](/docs/visualizations/fixation-heatmap) of their share of fixation time, and the overlap sums the smaller share in every cell:
 
@@ -61,7 +72,7 @@ The Needleman-Wunsch scoring, the similarity parameter *p*, and the ScanGraph ne
 
 > Doležalová, J., & Popelka, S. (2016). ScanGraph: A novel scanpath comparison method using visualisation of graph cliques. *Journal of Eye Movement Research*, 9(4). [https://doi.org/10.16910/jemr.9.4.5](https://doi.org/10.16910/jemr.9.4.5)
 
-Heatmap overlap follows:
+Heatmap overlap and transition similarity follow:
 
 > Swain, M. J., & Ballard, D. H. (1991). Color indexing. *International Journal of Computer Vision*, 7(1), 11–32. [https://doi.org/10.1007/BF00130487](https://doi.org/10.1007/BF00130487)
 

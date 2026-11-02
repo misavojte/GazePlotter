@@ -18,6 +18,7 @@ The ScanGraph view, including its similarity parameter *p*, the percentage-of-ed
 - **Structural clusters**: the ScanGraph view pulls similar participants together, and **Highlight clique** names the exact groups in which every pair meets the similarity threshold.
 - **Algorithm choices**: compare *collapsed* Levenshtein (the order of visited AOIs) with standard Levenshtein (which keeps repeated fixations) to see how dwell affects who looks alike.
 - **Where, not when**: *Heatmap overlap* groups participants who looked at the same places, without AOIs.
+- **Hidden groups**: order the matrix by similarity to see groups as blocks along the diagonal.
 
 ## Reading the Plot
 
@@ -53,12 +54,14 @@ Select the sequence alignment algorithm from the Metric Library.
   - *Needleman-Wunsch similarity*: A global sequence alignment method scored exactly as in the ScanGraph article, so thresholds are comparable with the original tool.
   - *Needleman-Wunsch similarity (collapsed)*: Collapses consecutive same-AOI fixations before global alignment.
   - *Heatmap overlap*: How much two participants' heatmaps overlap. Needs fixation coordinates (see [Heatmap Overlap](/docs/metrics/scanpath-similarity#heatmap-overlap)).
+  - *Transition similarity*: How alike two participants' AOI-to-AOI moves are (see [Transition Similarity](/docs/metrics/scanpath-similarity#transition-similarity)).
 - **Edit metric library**: Opens the Metric Library, where you can adjust algorithm parameters or save your own variants.
 
 ### Visualization
 Configure the rendering layout and thresholding. The view decides which further controls appear; they are listed under the view that reveals them.
 - **Select view**:
   - *Matrix*: Renders a square heatmap matrix where rows and columns represent participants, and cell color intensity corresponds to their similarity score.
+    - **Order by**: *Participant order* (default) or *Similarity*, which seats similar participants side by side so groups show as blocks along the diagonal. It uses average-linkage hierarchical clustering, flipping groups so the closest participants meet. Pairs without a value count as least similar.
     - **Color scale**: Value range of the similarity gradient.
       - *Min*: Value mapped to the first gradient color (default 0).
       - *Max (0 = Auto)*: Value mapped to the last gradient color, or 0 to track the data maximum.

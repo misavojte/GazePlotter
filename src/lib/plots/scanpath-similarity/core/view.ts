@@ -12,6 +12,7 @@ import {
   NO_PARTICIPANTS_MESSAGE,
 } from '$lib/plots/shared/drawCanvasPlaceholder'
 import { scangraphKit } from './kit'
+import { reorderSimilarity, similarityOrder } from './order'
 import {
   similarityDataFor,
   buildScangraphData,
@@ -66,7 +67,11 @@ export function deriveScanpathSimilarityView(
   }
 
   const resolvedInstance = resolvePickedInstance(engine, settings.metricInstanceIds)
-  const { matrix, labels } = similarityData
+  const ordered =
+    settings.orderBy === 'similarity'
+      ? reorderSimilarity(similarityData, similarityOrder(similarityData.matrix, similarityData.size))
+      : similarityData
+  const { matrix, labels } = ordered
   // Bare quantity (no qualifiers) for the per-cell tooltip key.
   const valueLabel = formatInstanceLabel(resolvedInstance, 'Similarity')
   return plotView(
@@ -75,8 +80,8 @@ export function deriveScanpathSimilarityView(
       matrix,
       labels,
       // Both axes are participants, so the PLOT CURSOR marks a row AND a column.
-      rowParticipantIds: similarityData.participantIds,
-      colParticipantIds: similarityData.participantIds,
+      rowParticipantIds: ordered.participantIds,
+      colParticipantIds: ordered.participantIds,
       xAxisTitle: 'Participant',
       yAxisTitle: 'Participant',
       colorScale: settings.colorScale ?? [],

@@ -18,6 +18,9 @@ export type ScanpathSimilaritySettings = ParticipantScope & OutOfBoundsSettings 
   timelineStart?: number
   timelineEnd?: number
   view: ScanpathSimilarityView
+  /** Matrix row and column order: the participant list, or similar participants
+   *  side by side (see similarityOrder). Unset = participant order. */
+  orderBy?: 'participant' | 'similarity'
   /** Threshold parameter p for scangraph adjacency (0-1) — the single source
    *  the graph is built from. 0 = Auto: p follows `edgePercent` (see
    *  resolvedThreshold). */
