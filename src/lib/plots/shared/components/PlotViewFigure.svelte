@@ -30,6 +30,9 @@
 </script>
 
 {#key view.kit}
-  {@const Shell = playback ? PlaybackFigure : PlotCanvas}
-  <Shell kit={view.kit} input={input ?? view.input} {host} {width} {height} {margin} />
+  {#if playback}
+    <PlaybackFigure kit={view.kit} input={input ?? view.input} {host} {width} {height} {margin} />
+  {:else}
+    <PlotCanvas kit={view.kit} input={input ?? view.input} {host} {width} {height} {margin} />
+  {/if}
 {/key}
