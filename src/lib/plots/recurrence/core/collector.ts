@@ -158,6 +158,8 @@ export function collectRecurrenceData(
   const meta = engine.metadata
   const aoiData = meta?.aois?.data?.[stimulusId] ?? []
   const fixationAoiColors: (string | null)[] = new Array(N)
+  const aoiName = (id: number) => aoiData[id]?.[1] ?? String(id)
+  const fixationAois = aoiData.length > 0 ? fixations.map(f => f.aoiIds.map(aoiName).join(', ')) : null
   // Onsets and ends, so a shared TIME can be resolved to the fixation it lands in.
   const fixationStarts = new Float64Array(N)
   const fixationEnds = new Float64Array(N)
@@ -174,7 +176,7 @@ export function collectRecurrenceData(
 
   const aoisInEveryFixation =
     method === 'aoi'
-      ? [...new Set(aoiIdsInEveryFixation(fixations).map(id => aoiData[id]?.[1] ?? String(id)))]
+      ? [...new Set(aoiIdsInEveryFixation(fixations).map(aoiName))]
       : []
 
   return {
@@ -182,6 +184,7 @@ export function collectRecurrenceData(
     durationMatrix,
     fixationCount: N,
     fixationAoiColors,
+    fixationAois,
     fixationStarts,
     fixationEnds,
     aoisInEveryFixation,

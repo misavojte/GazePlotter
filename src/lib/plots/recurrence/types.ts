@@ -33,6 +33,8 @@ export interface RecurrenceData {
   fixationCount: number
   /** Per-fixation primary AOI color (hex string), null if no AOI */
   fixationAoiColors: (string | null)[]
+  /** Per-fixation AOI names, comma-joined ('' = none); null when the stimulus has no AOIs. */
+  fixationAois: string[] | null
   /** Per-fixation absolute onset / end (ms), ascending. Resolves a shared TIME to
    *  the fixation it falls in; the gap between `ends[i]` and `starts[i+1]` is the
    *  saccade, where this participant was fixating nothing. */

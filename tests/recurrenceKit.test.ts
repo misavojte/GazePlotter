@@ -23,6 +23,7 @@ function data(n: number, over: Partial<RecurrenceData> = {}): RecurrenceData {
     durationMatrix: null,
     fixationCount: n,
     fixationAoiColors: Array.from({ length: n }, () => null),
+    fixationAois: null,
     fixationStarts: Float64Array.from({ length: n }, (_, k) => k * 100),
     fixationEnds: Float64Array.from({ length: n }, (_, k) => k * 100 + 80),
     aoisInEveryFixation: [],
@@ -162,10 +163,7 @@ describe('recurrence kit', () => {
     // Fixation j = 2 (col 1) right of the origin, fixation i = 4 (row 3) up.
     const hit = recurrenceKit.hit!(scene, 50 + 104, 20 + 400 - 297, ctx.frame, i)
     expect(hit?.data).toEqual({ row: 3, col: 1 })
-    expect(hit?.content.slice(0, 2)).toEqual([
-      { key: 'Fixation j', value: '2' },
-      { key: 'Fixation i', value: '4' },
-    ])
+    expect(hit?.content[0]).toEqual({ key: 'Fixations', value: 'i 4, j 2' })
     expect(hit?.anchorX).toBe(50 + 100 + scene.dotRadius)
     expect(hit?.anchorY).toBe(20 + 400 - 300 + scene.dotRadius)
     // Past the axis line: nothing.

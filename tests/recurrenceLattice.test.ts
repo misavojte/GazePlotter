@@ -79,11 +79,12 @@ describe('fixation lattice', () => {
 })
 
 describe('buildRecurrenceTooltipContent', () => {
-  const data = (durations: boolean): RecurrenceData => ({
+  const data = (durations: boolean, fixationAois: string[] | null = null): RecurrenceData => ({
     matrix: Uint8Array.from([1, 1, 1, 0]),
     durationMatrix: durations ? Float32Array.from([200, 350, 350, 0]) : null,
     fixationCount: 2,
     fixationAoiColors: [null, null],
+    fixationAois,
     fixationStarts: Float64Array.from([0, 300]),
     fixationEnds: Float64Array.from([100, 450]),
     aoisInEveryFixation: [],
@@ -91,14 +92,23 @@ describe('buildRecurrenceTooltipContent', () => {
 
   it('names the pair 1-based and whether it recurs', () => {
     expect(buildRecurrenceTooltipContent(data(false), 1, 0)).toEqual([
-      { key: 'Fixation j', value: '1' },
-      { key: 'Fixation i', value: '2' },
+      { key: 'Fixations', value: 'i 2, j 1' },
       { key: 'Recurrent', value: 'Yes' },
     ])
     expect(buildRecurrenceTooltipContent(data(true), 1, 1).at(-1)).toEqual({
       key: 'Recurrent',
       value: 'No',
     })
+  })
+
+  it('names a shared AOI once, else both sides, and None for no AOI', () => {
+    const aoi = (names: string[], row: number, col: number) =>
+      buildRecurrenceTooltipContent(data(false, names), row, col).find(r => r.key === 'AOI')
+    expect(aoi(['Logo, Text', 'Logo, Text'], 0, 1)?.value).toBe('Logo, Text')
+    expect(aoi(['Logo', 'Text'], 1, 0)?.value).toBe('i Text; j Logo')
+    expect(aoi(['', 'Text'], 0, 1)?.value).toBe('i None; j Text')
+    // A stimulus without AOIs gets no AOI row.
+    expect(buildRecurrenceTooltipContent(data(false), 0, 1).some(r => r.key === 'AOI')).toBe(false)
   })
 
   it('adds the duration sum in whole milliseconds', () => {

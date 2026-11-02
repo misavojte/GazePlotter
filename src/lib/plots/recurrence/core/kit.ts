@@ -407,7 +407,7 @@ export const recurrenceKit = defineKit<RecurrenceInput, Cell>()({
       anchorX: xOf(scene, col) + scene.dotRadius,
       anchorY: yOf(scene, row) + scene.dotRadius,
       offset: { x: 10, y: 10 },
-      tooltipWidth: 140,
+      tooltipWidth: 180,
       data: { row, col },
     }
   },
