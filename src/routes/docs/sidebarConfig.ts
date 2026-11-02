@@ -165,7 +165,7 @@ export const SIDEBAR: readonly SidebarItem[] = [
         name: 'Scanpath Similarity',
         href: '/docs/metrics/scanpath-similarity',
         seoTitle: 'Eye-Tracking Scanpath Similarity Metrics',
-        description: 'Mathematical specifications for scanpath comparison algorithms, including Levenshtein edit distance and global Needleman-Wunsch alignments.'
+        description: 'Mathematical specifications for scanpath comparison algorithms: Levenshtein edit distance, global Needleman-Wunsch alignment, and heatmap overlap (SIM) of where participants looked.'
       },
       {
         name: 'Eye-movement Type Metrics',
@@ -248,7 +248,7 @@ export const SIDEBAR: readonly SidebarItem[] = [
         name: 'Scanpath Similarity',
         href: '/docs/visualizations/scanpath-similarity',
         seoTitle: 'Scanpath Similarity Matrix & Network',
-        description: 'How alike the AOI sequences of every participant pair are, scored by Levenshtein or Needleman-Wunsch, shown as a matrix or a ScanGraph network.'
+        description: 'How alike every participant pair is, by AOI sequence (Levenshtein, Needleman-Wunsch) or by heatmap overlap, shown as a matrix or a ScanGraph network.'
       },
       {
         name: 'Metric Timeline',

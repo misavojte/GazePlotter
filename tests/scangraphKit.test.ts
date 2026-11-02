@@ -36,6 +36,7 @@ function graph(): ScangraphData {
 function input(over: Partial<ScangraphInput> = {}): ScangraphInput {
   return {
     settings: { threshold: 0.5 } as ScanpathSimilaritySettings,
+    threshold: 0.5,
     data: graph(),
     noMetric: false,
     cliqueMembers: [],

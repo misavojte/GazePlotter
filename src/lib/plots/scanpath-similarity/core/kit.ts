@@ -21,7 +21,7 @@ import {
 } from '$lib/plots/shared/drawCanvasPlaceholder'
 import { trackOnlyHit, type FrameHit, type PlotFrame } from '$lib/plots/shared/frame'
 import { defineKit, memoByRef } from '$lib/plots/shared/kit'
-import { SCANGRAPH_LAYOUT, SCANPATH_SIMILARITY_DEFAULTS } from '../const'
+import { SCANGRAPH_LAYOUT } from '../const'
 import type { ScangraphData } from '../types'
 import {
   computeForceLayout,
@@ -246,7 +246,7 @@ function buildScene(input: ScangraphInput, frame: PlotFrame) {
     nodes,
     links: nl.links,
     nodeRadius,
-    threshold: input.settings.threshold ?? SCANPATH_SIMILARITY_DEFAULTS.threshold,
+    threshold: input.threshold,
     highlightSet,
     connectedToHighlight: neighboursOf(data, highlightSet),
     cliqueSet: new Set(input.cliqueMembers),

@@ -215,6 +215,7 @@ function toMeta(r: MetricRecipe<any, any>): MetricMeta {
     description: r.description,
     category: r.category,
     rawShape: r.rawShape,
+    needsCoordinates: r.needsCoordinates ?? false,
     windowUnit: r.windowUnit,
     params: r.params ?? [],
     searchTags: r.searchTags ?? [],

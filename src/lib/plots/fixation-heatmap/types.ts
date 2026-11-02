@@ -1,6 +1,6 @@
 import type { StimulusBackground } from '$lib/plots/shared/stimulusBackground'
 import type { Rect } from '$lib/data/media/mediaAlignment'
-import type { GridGeometry } from './core/density'
+import type { GridGeometry } from '$lib/metrics/core/fixationDensity'
 import type { ParticipantScope } from '$lib/data/types'
 import type { PlaybackSettings } from '$lib/plots/shared/playbackFields'
 

@@ -9,7 +9,7 @@ The ScanGraph view, including its similarity parameter *p*, the percentage-of-ed
 | | |
 | --- | --- |
 | **Scope** | One stimulus, a participant selection |
-| **Input** | The AOI sequence of each participant's fixations, encoded as a letter string |
+| **Input** | Each participant's AOI sequence as a letter string, or their fixation heatmap |
 | **Metric Library** | Any metric that produces a participant-by-participant similarity matrix, computed over the whole time range (sliding windows do not apply). See [Scanpath Similarity Metrics](/docs/metrics/scanpath-similarity) for the string encoding, Levenshtein distance, and Needleman-Wunsch alignment. |
 
 ## When to Use It
@@ -17,6 +17,7 @@ The ScanGraph view, including its similarity parameter *p*, the percentage-of-ed
 - **Scanning styles**: find groups of participants who looked at the stimulus in a similar order.
 - **Structural clusters**: the ScanGraph view pulls similar participants together, and **Highlight clique** names the exact groups in which every pair meets the similarity threshold.
 - **Algorithm choices**: compare *collapsed* Levenshtein (the order of visited AOIs) with standard Levenshtein (which keeps repeated fixations) to see how dwell affects who looks alike.
+- **Where, not when**: *Heatmap overlap* groups participants who looked at the same places, without AOIs.
 
 ## Reading the Plot
 
@@ -51,6 +52,7 @@ Select the sequence alignment algorithm from the Metric Library.
   - *Levenshtein similarity (collapsed)*: Collapses consecutive fixations within the same AOI into a single letter before comparing, focusing on the order of visited AOIs rather than dwell duration.
   - *Needleman-Wunsch similarity*: A global sequence alignment method scored exactly as in the ScanGraph article, so thresholds are comparable with the original tool.
   - *Needleman-Wunsch similarity (collapsed)*: Collapses consecutive same-AOI fixations before global alignment.
+  - *Heatmap overlap*: How much two participants' heatmaps overlap. Needs fixation coordinates (see [Heatmap Overlap](/docs/metrics/scanpath-similarity#heatmap-overlap)).
 - **Edit metric library**: Opens the Metric Library, where you can adjust algorithm parameters or save your own variants.
 
 ### Visualization
@@ -65,8 +67,8 @@ Configure the rendering layout and thresholding. The view decides which further 
       - *Below min*: Color (default gray) and a *Show text* toggle for cell values below Min. Shown while Min is above 0.
       - *Above max*: Color (default gray) and a *Show text* toggle for cell values above Max. Shown while Max is set (not 0/Auto).
   - *ScanGraph*: Renders a network graph (node-link diagram) where nodes represent participants, and lines (edges) connect participant pairs whose similarity score is above the threshold.
-    - **Similarity threshold (0–1)**: The minimum similarity *p* required to draw an edge between two participant nodes (e.g. 0.50). Pairs below it are not connected.
-    - **Edges (% of possible pairs)**: The same threshold seen from the other side: it always displays the share of participant pairs connected at the current *p*, so the two controls move together. Entering a percentage finds the *p* that draws at most that share of edges (ties round down, as in the ScanGraph article), and the field then shows the share actually achieved. The article's advised graph draws 5% of the possible edges.
+    - **Similarity threshold (0 = Auto)**: The minimum similarity *p* for an edge. At 0 (default), *p* is set so the most similar pairs fill the **Edges** share, and the label shows that *p*. This suits any metric, including *Heatmap overlap*, whose values sit high. Auto always connects at least the closest pair.
+    - **Edges (% of possible pairs)**: Shows the share of pairs connected at the current *p*. Under Auto it sets *p*. With a manual threshold, entering a share finds the *p* that draws at most that many edges (ties round down, as in the ScanGraph article). Default 5%, the article's advice.
     - **Min clique members**: The smallest clique the picker offers (default 2 = all cliques). Raising it hides the many small pairs a near-threshold graph produces, keeping the list focused on substantial groups.
     - **Highlight clique**: A clique is a group of participants that are **all pairwise similar** at the chosen threshold (the ScanGraph article's "groups of similar participants"). This dropdown lists every such group with at least the chosen number of members, largest first. Each option's secondary line reports the clique's internal agreement: the weakest pairwise similarity (`p ≥ …`, every member pair agrees at least this much) and the mean (`x̄`), followed by its members. Selecting one emphasizes its members and the edges **between** them while the rest of the graph recedes; edges leaving the clique stay plain, and members get first claim on label space. Nodes highlighted by clicking stay at full strength on top. On very dense graphs the clique list becomes unavailable and only *None* is offered; raise the threshold to bring it back.
 

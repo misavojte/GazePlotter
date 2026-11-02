@@ -6,6 +6,8 @@
 
 * *Unreleased*
 * **Reference Media**: Stimuli with a video show a film icon in the stimuli list, and the alignment view says when a video is still loading. Cancelling the stimuli dialog now also discards media changes.
+* **Scanpath Similarity**: New *Heatmap overlap* metric compares where participants looked, without AOIs. See [Heatmap Overlap](/docs/metrics/scanpath-similarity#heatmap-overlap).
+* **ScanGraph**: The threshold defaults to Auto, which connects the most similar 5% of pairs. Saved plots keep their threshold.
 
 ### 1.10.4
 

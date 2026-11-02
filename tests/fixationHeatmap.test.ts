@@ -10,8 +10,9 @@ import {
   isCoarseGrid,
   kernelTaps,
   splatFixations,
-} from '../src/lib/plots/fixation-heatmap/core/density'
-import { autoRadius, getFixationHeatmapData } from '../src/lib/plots/fixation-heatmap/core/transformer'
+  autoRadius,
+} from '../src/lib/metrics/core/fixationDensity'
+import { getFixationHeatmapData } from '../src/lib/plots/fixation-heatmap/core/transformer'
 import { createFrameScratch, heatmapFrame } from '../src/lib/plots/fixation-heatmap/core/frame'
 import { fadeIn, heatLut, legendRamp, maskLut, paintHeat } from '../src/lib/plots/fixation-heatmap/core/heatImage'
 import {

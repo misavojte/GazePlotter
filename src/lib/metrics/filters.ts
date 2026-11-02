@@ -117,14 +117,15 @@ export function metricLeafKindsInContract(m: Metric, c: PlotMetricContract): Lea
 /**
  * The dataset capability a metric consumes: event-vector recipes scan event
  * occurrence buffers, every other shape scans gaze segments (shape ⟺ scan
- * source is a registration invariant, so rawShape is the whole truth).
+ * source is a registration invariant), and a recipe reading fixation x/y
+ * also needs coordinates.
  * Without its capability a metric is hidden EVERYWHERE — library, pickers,
  * plots, exports — the same picker/compute parity the correlation gate pins.
  */
 export function metricRequiredCapability(
-  rawShape: OutputShape,
+  m: { rawShape: OutputShape; needsCoordinates?: boolean },
 ): keyof DataCapabilities {
-  return rawShape === 'event-vector' ? 'event' : 'segmented'
+  return m.rawShape === 'event-vector' ? 'event' : m.needsCoordinates ? 'spatial' : 'segmented'
 }
 
 /** The capability half of {@link instanceMatchesContract} alone — for lists
@@ -135,7 +136,7 @@ export function datasetCanFeed(
   caps: DataCapabilities,
 ): boolean {
   const recipe = getRecipe(inst.baseId)
-  return !!recipe && caps[metricRequiredCapability(recipe.rawShape)]
+  return !!recipe && caps[metricRequiredCapability(recipe)]
 }
 
 export function instanceMatchesContract(
@@ -157,7 +158,7 @@ export function metricIsCreatableInContract(
   c: PlotMetricContract,
   caps: DataCapabilities,
 ): boolean {
-  if (!caps[metricRequiredCapability(m.meta.rawShape)]) return false
+  if (!caps[metricRequiredCapability(m.meta)]) return false
   if (c.windowing === 'required' && m.meta.supportsWindowing === false) return false
   return contractLeafKinds(c).some(leaf =>
     PROJECTION_LEAVES[leaf].rawShapes.includes(m.meta.rawShape),

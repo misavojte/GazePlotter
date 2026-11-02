@@ -2,8 +2,15 @@
  * The fixation-density measure, canvas-free: weights splatted onto a grid in
  * gaze units, then blurred by a separable tapered Gaussian. Peak-normalised, so
  * a lone fixation of weight w peaks at w and the map keeps the weight's unit.
+ * Shared by the heat map and the heat map overlap metric, so both use one
+ * kernel, one Auto radius and one map extent.
  */
+import type { BinaryBufferReader } from '$lib/data/binary'
+import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { Rect } from '$lib/data/media/mediaAlignment'
+import { mediaRegionOf } from '$lib/data/media/stimulusMedia'
+import type { StimulusMedia } from '$lib/data/types'
+import { percentileSorted } from './numeric'
 
 /** A value grid in gaze units; cell (i, j) is centred at (x0 + (i + 0.5) cell, y0 + (j + 0.5) cell). */
 export interface GridGeometry {
@@ -26,12 +33,17 @@ const MAX_GRID_CELLS = 2048 * 2048
 const MAX_GRID_SIDE = 8192
 
 /** Grid over `extent` padded by `radius` on every side, so kernels at the edge stay whole. */
-export function gridFor(extent: Rect, radius: number): GridGeometry {
+export function gridFor(
+  extent: Rect,
+  radius: number,
+  cellsPerRadius = CELLS_PER_RADIUS,
+  maxCells = MAX_GRID_CELLS
+): GridGeometry {
   const width = extent.width + 2 * radius
   const height = extent.height + 2 * radius
   const cell = Math.max(
-    radius / CELLS_PER_RADIUS,
-    Math.sqrt((width * height) / MAX_GRID_CELLS),
+    radius / cellsPerRadius,
+    Math.sqrt((width * height) / maxCells),
     Math.max(width, height) / MAX_GRID_SIDE
   )
   return {
@@ -231,4 +243,162 @@ export function fixationsWithin(
     }
   }
   return n
+}
+
+/** Bound on the points a robust extent sorts: a deterministic stride sample beyond it. */
+const EXTENT_SAMPLE_CAP = 200_000
+/** Auto radius as a share of the longer side of the robust fixation extent. */
+const AUTO_RADIUS_SHARE = 0.05
+/** Robust extent bounds: 1st and 99th percentile per axis. */
+const ROBUST_QUANTILE = 0.01
+/** Without media the extent clamps outliers beyond this share of the robust
+    extent past each of its edges. */
+const OUTLIER_MARGIN = 0.5
+
+interface PointExtent {
+  /** Exact bounding box of every located fixation. */
+  bbox: Rect
+  /** 1st to 99th percentile per axis. */
+  robust: Rect
+}
+
+/** Every participant's located fixations on `stimuli`, all times: one bbox + one robust extent. */
+function fixationExtent(reader: BinaryBufferReader, stimuli: number[]): PointExtent | null {
+  const { spatialBuffer: xy, maxParticipants } = reader.getBuffers()
+  if (!xy) return null
+  const fixIdx = reader.fixationIndexRaw
+  let n = 0
+  let minX = Infinity
+  let minY = Infinity
+  let maxX = -Infinity
+  let maxY = -Infinity
+  for (const s of stimuli) {
+    for (let p = 0; p < maxParticipants; p++) {
+      const { startIndex, endIndex } = reader.getFixationRange(s, p)
+      for (let k = startIndex; k < endIndex; k++) {
+        const i = fixIdx[k] * 2
+        const x = xy[i]
+        const y = xy[i + 1]
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+        n++
+        if (x < minX) minX = x
+        if (x > maxX) maxX = x
+        if (y < minY) minY = y
+        if (y > maxY) maxY = y
+      }
+    }
+  }
+  if (n === 0) return null
+  // A deterministic stride sample bounds the sort on very large datasets.
+  const stride = Math.ceil(n / EXTENT_SAMPLE_CAP)
+  const sx = new Float64Array(Math.ceil(n / stride))
+  const sy = new Float64Array(sx.length)
+  let seen = 0
+  let m = 0
+  for (const s of stimuli) {
+    for (let p = 0; p < maxParticipants; p++) {
+      const { startIndex, endIndex } = reader.getFixationRange(s, p)
+      for (let k = startIndex; k < endIndex; k++) {
+        const i = fixIdx[k] * 2
+        const x = xy[i]
+        const y = xy[i + 1]
+        if (!Number.isFinite(x) || !Number.isFinite(y)) continue
+        if (seen++ % stride === 0 && m < sx.length) {
+          sx[m] = x
+          sy[m++] = y
+        }
+      }
+    }
+  }
+  const xsSorted = sx.subarray(0, m).sort()
+  const ysSorted = sy.subarray(0, m).sort()
+  const lo = (a: Float64Array) => percentileSorted(a, ROBUST_QUANTILE)
+  const hi = (a: Float64Array) => percentileSorted(a, 1 - ROBUST_QUANTILE)
+  return {
+    bbox: { x: minX, y: minY, width: maxX - minX, height: maxY - minY },
+    robust: {
+      x: lo(xsSorted),
+      y: lo(ysSorted),
+      width: hi(xsSorted) - lo(xsSorted),
+      height: hi(ysSorted) - lo(ysSorted),
+    },
+  }
+}
+
+/** Per-reader extents: the data under a reader never changes (an edit builds a new reader). */
+const extentCache = new WeakMap<
+  BinaryBufferReader,
+  { dataset?: PointExtent | null; stimuli: Map<number, PointExtent | null> }
+>()
+
+function cacheOf(reader: BinaryBufferReader) {
+  let cache = extentCache.get(reader)
+  if (!cache) extentCache.set(reader, (cache = { stimuli: new Map() }))
+  return cache
+}
+
+function datasetExtent(reader: BinaryBufferReader): PointExtent | null {
+  const cache = cacheOf(reader)
+  if (cache.dataset === undefined) {
+    const stimuli = Array.from({ length: reader.getBuffers().stimuliCount }, (_, s) => s)
+    cache.dataset = fixationExtent(reader, stimuli)
+  }
+  return cache.dataset
+}
+
+function stimulusExtent(reader: BinaryBufferReader, stimulusId: number): PointExtent | null {
+  const cache = cacheOf(reader)
+  if (!cache.stimuli.has(stimulusId)) {
+    cache.stimuli.set(stimulusId, fixationExtent(reader, [stimulusId]))
+  }
+  return cache.stimuli.get(stimulusId) ?? null
+}
+
+/**
+ * Auto kernel radius: a share of the robust extent of ALL fixations in the
+ * dataset, so every stimulus and selection of one study gets the same kernel
+ * (it describes the eye and tracker, not the picture). Falls back to the media
+ * size, then to 1, when the fixations have no extent.
+ */
+export function autoRadius(reader: BinaryBufferReader, media: StimulusMedia | null): number {
+  const robust = datasetExtent(reader)?.robust
+  const side = robust ? Math.max(robust.width, robust.height) : 0
+  if (side > 0) return side * AUTO_RADIUS_SHARE
+  if (media) {
+    const region = mediaRegionOf(media)
+    return Math.max(region.width, region.height) * AUTO_RADIUS_SHARE
+  }
+  return 1
+}
+
+/** The resolved auto radius for a stimulus, for the pane label; null without spatial data. */
+export function autoRadiusFor(engine: DataEngine, stimulusId: number): number | null {
+  const reader = engine.getReader()
+  if (!reader?.hasSpatialData) return null
+  return autoRadius(reader, engine.metadata?.stimuliMedia?.[stimulusId] ?? null)
+}
+
+/**
+ * The area a stimulus's map covers: the media region, or without media the
+ * fixations' bbox, clamped so far outliers cannot shrink the map to a stamp.
+ * Null without media and without located fixations.
+ */
+export function densityExtent(
+  reader: BinaryBufferReader,
+  stimulusId: number,
+  media: StimulusMedia | null
+): Rect | null {
+  if (media) return mediaRegionOf(media)
+  const extent = stimulusExtent(reader, stimulusId)
+  return extent && clampOutliers(extent)
+}
+
+function clampOutliers({ bbox, robust }: PointExtent): Rect {
+  const mx = robust.width * OUTLIER_MARGIN
+  const my = robust.height * OUTLIER_MARGIN
+  const x0 = Math.max(bbox.x, robust.x - mx)
+  const y0 = Math.max(bbox.y, robust.y - my)
+  const x1 = Math.min(bbox.x + bbox.width, robust.x + robust.width + mx)
+  const y1 = Math.min(bbox.y + bbox.height, robust.y + robust.height + my)
+  return { x: x0, y: y0, width: x1 - x0, height: y1 - y0 }
 }

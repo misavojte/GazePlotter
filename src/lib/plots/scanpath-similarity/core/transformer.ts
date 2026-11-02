@@ -113,6 +113,30 @@ export function thresholdForEdgeShare(
 }
 
 /**
+ * The p the graph is drawn at: `threshold`, or at 0 (Auto) the p drawing the
+ * `edgePercent` share of pairs. Auto ranks pairs instead of fixing a cut, so
+ * it suits metrics whose typical value sits high (heatmap overlap) as well as
+ * edit-distance scores. When the share rounds down to no pair (a small study
+ * at 5 %), Auto still links the closest pair rather than open on an empty graph.
+ */
+export function resolvedThreshold(
+  simData: ScanpathSimilarityData,
+  settings: Pick<ScanpathSimilaritySettings, 'threshold' | 'edgePercent'>
+): number {
+  const threshold = settings.threshold ?? SCANPATH_SIMILARITY_DEFAULTS.threshold
+  if (threshold > 0) return threshold
+  const percent = settings.edgePercent ?? SCANPATH_SIMILARITY_DEFAULTS.edgePercent
+  const p = thresholdForEdgeShare(simData, percent)
+  if (Number.isFinite(p)) return Math.min(p, 1)
+  const { size, matrix } = simData
+  let closest = 0
+  if (percent > 0)
+    for (let i = 0; i < size; i++)
+      for (let j = i + 1; j < size; j++) closest = Math.max(closest, matrix[i * size + j] || 0)
+  return closest > 0 ? closest : 1
+}
+
+/**
  * The plot's similarity matrix for its full settings tuple, memoized for ONE
  * microtask: within a single synchronous burst the pane's read overrides, the
  * clique picker, onCommand, and the view all ask for the same tuple, and the
@@ -261,13 +285,13 @@ export function getScangraphCliques(
   engine: DataEngine,
   settings: ScanpathSimilaritySettings
 ): ScangraphClique[] | null {
-  const threshold =
-    settings.threshold ?? SCANPATH_SIMILARITY_DEFAULTS.threshold
+  const simData = similarityDataFor(engine, settings)
+  const threshold = resolvedThreshold(simData, settings)
   const key = `${settingsKey(settings)}|${threshold}`
   if (_cliqueMemo && _cliqueMemo.engine === engine && _cliqueMemo.key === key) {
     return _cliqueMemo.cliques
   }
-  const cliques = scangraphCliques(similarityDataFor(engine, settings), threshold)
+  const cliques = scangraphCliques(simData, threshold)
   _cliqueMemo = { engine, key, cliques }
   queueMicrotask(() => {
     _cliqueMemo = null

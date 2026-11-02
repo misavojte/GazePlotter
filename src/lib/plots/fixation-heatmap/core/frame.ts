@@ -6,7 +6,7 @@
  * value exceeds the parked value at that point: the colour scale holds.
  */
 import { fillWindowFrame, type WindowFrame } from '$lib/metrics/core/dsl'
-import { blurGaussian, kernelTaps, splatFixations } from './density'
+import { blurGaussian, kernelTaps, splatFixations } from '$lib/metrics/core/fixationDensity'
 import type {
   FixationHeatmapAccumulate,
   FixationHeatmapData,

@@ -1,6 +1,6 @@
 # Scanpath Similarity
 
-Scanpath similarity metrics quantify the spatial and temporal similarity between the gaze trajectories of different participants. In GazePlotter, this comparison is computed pairwise, representing the alignment of scanpaths across the entire group.
+Scanpath similarity metrics score how alike every pair of participants looked. Levenshtein and Needleman-Wunsch compare the order of visited AOIs. [Heatmap overlap](#heatmap-overlap) compares where they looked, in any order.
 
 ## Output
 
@@ -8,7 +8,7 @@ All scanpath similarity metrics produce a participant-by-participant grid: one s
 
 ### Invariants
 - **Measurement class**: Group-level. The result is inherently a property of a *pair* of participants, where both the row and column axes are the participants themselves. There is no per-participant value to combine across the group; the matrix is already the across-participant result, so no further aggregation applies.
-- **Windowing**: Not available: the comparison always covers the whole selected time range. Cropping by a Time of Interest (the Start/End bounds in the Pane) is supported; a fixation is encoded into the scanpath string only if it begins within the range.
+- **Windowing**: Not available: the comparison always covers the whole selected time range. Cropping by a Time of Interest (the Start/End bounds in the Pane) is supported; a fixation is encoded into the scanpath string only if it begins within the range. Heatmap overlap counts the part of each fixation inside the range, like the Fixation Heatmap.
 
 ## Scanpath String Encoding
 
@@ -38,14 +38,33 @@ Computes the similarity score for every pair of participant scanpaths. The resul
    - **Off** (default): Consecutive fixations inside the same AOI are preserved. A participant who fixates AOI A three times before moving to B is encoded as "AAAB".
    - **On**: Consecutive identical AOI entries are collapsed into a single letter ("AAAB" → "AB"). This removes duration-based variance, isolating the analysis to focus purely on the structural order of visited regions.
 
+### Heatmap Overlap
+Compares **where** two participants looked, ignoring order. Needs fixation coordinates, not AOIs. Each participant gets a [Fixation Heatmap](/docs/visualizations/fixation-heatmap) of their share of fixation time, and the overlap sums the smaller share in every cell:
+
+`Similarity = Σ min(Share_1, Share_2)`
+
+1 means identical maps, 0 means no common area. This is SIM, or histogram intersection (Swain & Ballard, 1991; Bylinskii et al., 2019), as in GazeAlytics (Chen et al., 2023).
+
+1. **Radius R (0 = Auto)**: Kernel radius, as on the Fixation Heatmap. A larger radius raises every value, so report it.
+
+Most viewers look at the same central areas, so values sit well above 0. Compare pairs with each other, not with 0; the ScanGraph's Auto threshold does this for you.
+
 ## Visualizing the Similarity Matrix
 
 The resulting similarity scores can be explored in two ways under the [Scanpath Similarity](/docs/visualizations/scanpath-similarity) visualization:
 1. **Heatmap Matrix**: Displays the full participant-by-participant grid, colored by similarity strength, to identify clusters of participants with similar viewing strategies.
-2. **ScanGraph Network**: Represents participants as nodes in a graph. An edge is drawn between two participants only if their similarity score meets a user-defined threshold, helping visualize communities of shared attention.
+2. **ScanGraph Network**: Represents participants as nodes in a graph. An edge is drawn between two participants only if their similarity score meets a threshold, helping visualize communities of shared attention.
 
 ## Reference
 
 The Needleman-Wunsch scoring, the similarity parameter *p*, and the ScanGraph network are based on:
 
 > Doležalová, J., & Popelka, S. (2016). ScanGraph: A novel scanpath comparison method using visualisation of graph cliques. *Journal of Eye Movement Research*, 9(4). [https://doi.org/10.16910/jemr.9.4.5](https://doi.org/10.16910/jemr.9.4.5)
+
+Heatmap overlap follows:
+
+> Swain, M. J., & Ballard, D. H. (1991). Color indexing. *International Journal of Computer Vision*, 7(1), 11–32. [https://doi.org/10.1007/BF00130487](https://doi.org/10.1007/BF00130487)
+
+> Bylinskii, Z., Judd, T., Oliva, A., Torralba, A., & Durand, F. (2019). What do different evaluation metrics tell us about saliency models? *IEEE Transactions on Pattern Analysis and Machine Intelligence*, 41(3), 740–757. [https://doi.org/10.1109/TPAMI.2018.2815601](https://doi.org/10.1109/TPAMI.2018.2815601)
+
+> Chen, K.-T., Prouzeau, A., Langmead, J., Whitelock-Jones, R. T., Lawrence, L., Dwyer, T., Hurter, C., Weiskopf, D., & Goodwin, S. (2023). Gazealytics: A unified and flexible visual toolkit for exploratory and comparative gaze analysis. *Proceedings of the 2023 Symposium on Eye Tracking Research and Applications (ETRA)*. [https://doi.org/10.1145/3588015.3589844](https://doi.org/10.1145/3588015.3589844)

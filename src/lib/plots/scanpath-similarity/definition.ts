@@ -3,6 +3,7 @@ import {
   cliquesOfMinSize,
   edgeSharePercent,
   getScangraphCliques,
+  resolvedThreshold,
   similarityDataFor,
   thresholdForEdgeShare,
 } from './core/transformer'
@@ -24,10 +25,8 @@ const readEdgeShare = (
   engine: DataEngine
 ): number => {
   const s = settings as unknown as ScanpathSimilaritySettings
-  return edgeSharePercent(
-    similarityDataFor(engine, s),
-    s.threshold ?? SCANPATH_SIMILARITY_DEFAULTS.threshold
-  )
+  const simData = similarityDataFor(engine, s)
+  return edgeSharePercent(simData, resolvedThreshold(simData, s))
 }
 
 const NONE_CLIQUE = { label: 'None', value: 'none' }
@@ -106,11 +105,17 @@ export const scanpathSimilarityDefinition = definePlot<
         {
           kind: 'number',
           key: 'threshold',
-          label: 'Similarity threshold (0–1)',
+          // Like the heatmap's radius: 0 is Auto, and the label shows what Auto resolved to.
+          label: ctx => {
+            const s = ctx.settings as unknown as ScanpathSimilaritySettings
+            if ((s.threshold ?? SCANPATH_SIMILARITY_DEFAULTS.threshold) > 0) return 'Similarity threshold (0 = Auto)'
+            const p = resolvedThreshold(similarityDataFor(ctx.engine, s), s)
+            return `Similarity threshold (0 = Auto: ${p.toFixed(2)})`
+          },
           min: 0,
           max: 1,
           step: 0.01,
-          default: 0.5,
+          default: 0,
           showWhen: viewIs('scangraph'),
           pair: true,
         },
@@ -193,7 +198,7 @@ export const scanpathSimilarityDefinition = definePlot<
     hideEmptyParticipants: false,
     metricInstanceIds: ['participantPairSimilarity-lev'],
     view: 'matrix',
-    threshold: 0.5,
+    threshold: 0,
     edgePercent: 5,
     minCliqueSize: 2,
     selectedClique: 'none',
@@ -207,10 +212,11 @@ export const scanpathSimilarityDefinition = definePlot<
     windowing: 'forbidden',
     crossParticipant: 'group-axis',
   },
-  // An 'Edges (%)' edit is the threshold expressed in edge-share space:
-  // convert it to the p drawing at most that share (ties round down, per the
-  // ScanGraph paper). The share control then displays the share p actually
-  // achieves, so the user sees both sides of the one state move together.
+  // A manual threshold: an 'Edges (%)' edit is the threshold expressed in
+  // edge-share space, converted to the p drawing at most that share (ties
+  // round down, per the ScanGraph paper). The share control then displays the
+  // share p actually achieves, so the user sees both sides of the one state
+  // move together. Under Auto the edit needs nothing: p already follows it.
   onCommand: (command, item, engine, dispatch): void => {
     // Hooks only ever see root commands, and this hook's own child touches
     // `threshold`, not `edgePercent` — the patch-shape guard alone excludes it.
@@ -219,6 +225,8 @@ export const scanpathSimilarityDefinition = definePlot<
     if (!patch || !('edgePercent' in patch) || 'threshold' in patch) return
 
     const settings = item.settings
+    const current = settings.threshold ?? SCANPATH_SIMILARITY_DEFAULTS.threshold
+    if (!(current > 0)) return
     const simData = similarityDataFor(engine, settings)
     if (simData.size < 2) return
     const p = thresholdForEdgeShare(
@@ -229,8 +237,7 @@ export const scanpathSimilarityDefinition = definePlot<
     // identical scanpaths stay connected; the derived share readout then
     // shows what was actually achieved rather than the impossible request.
     const next = Math.min(Number.isFinite(p) ? p : 1, 1)
-    if (next === (settings.threshold ?? SCANPATH_SIMILARITY_DEFAULTS.threshold))
-      return
+    if (next === current) return
     dispatch({
       type: 'updateSettings',
       updates: [{ itemId: item.id, settings: { threshold: next } }],
