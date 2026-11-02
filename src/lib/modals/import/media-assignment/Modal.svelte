@@ -10,28 +10,34 @@
     stimuliOptions: SelectOption[]
     /** Stimulus id → the file name already matched to it by name. */
     nameMatched: Record<string, string>
+    /** Stimulus ids that already hold media in the workspace. */
+    withMedia: string[]
   }
 
   const props: Props = $props()
   // Modal props are fixed for the lifetime of one open; capturing the initial
   // values is intended, not a missed reactivity dependency.
   // svelte-ignore state_referenced_locally
-  const { fileNames, stimuliOptions, nameMatched } = props
+  const { fileNames, stimuliOptions, nameMatched, withMedia } = props
   const { modalState } = getGazePlotterSession()
 
   const SKIP = 'skip'
 
   let selections = $state<string[]>(fileNames.map(() => SKIP))
 
-  // A stimulus holds one medium: a pick replaces its name match (labelled),
-  // and a stimulus another row already picked is unavailable.
+  // A stimulus holds one medium: a pick replaces its name match or its current
+  // media (labelled), and a stimulus another row already picked is unavailable.
   function optionsFor(row: number): SelectOption[] {
     const taken = new Set(selections.filter((sel, i) => i !== row && sel !== SKIP))
     return [
       { label: "Don't attach", value: SKIP },
       ...stimuliOptions.map(o => ({
         ...o,
-        label: nameMatched[o.value] ? `${o.label} (replaces ${nameMatched[o.value]})` : o.label,
+        label: nameMatched[o.value]
+          ? `${o.label} (replaces ${nameMatched[o.value]})`
+          : withMedia.includes(o.value)
+            ? `${o.label} (replaces current media)`
+            : o.label,
         disabled: taken.has(o.value),
         detail: taken.has(o.value) ? 'Already chosen for another file' : o.detail,
       })),
