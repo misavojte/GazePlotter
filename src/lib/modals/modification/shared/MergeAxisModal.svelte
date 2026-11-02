@@ -10,8 +10,9 @@
     BaseInterpretedDataType,
     EntitySelection,
     ParticipantsSelection,
+    StimulusMedia,
   } from '$lib/data/types'
-  import type { WorkspaceCommand } from '$lib/workspace/commands'
+  import type { StimulusMediaUpdate, WorkspaceCommand } from '$lib/workspace/commands'
   import type { MergeAxisMessages } from './mergeAxisEditor.svelte'
   import type { SelectionLike } from './selectionSession.svelte'
   import type { TableColumn } from './EditableEntityList.svelte'
@@ -48,19 +49,21 @@
     /** Plural entity noun for the tray verbs and tooltips. */
     noun: string
     columns: TableColumn[]
-    /** Optional per-row icon button (leader rows), e.g. the stimulus axis'
-        reference-media column. `onclick` typically PUSHES a detail modal so
-        this modal (and its unsaved edits) stays alive underneath. */
+    /** Optional per-row icon button (leader rows): the stimulus axis'
+        reference-media column. `onclick` PUSHES the media modal so this modal
+        (and its unsaved edits) stays alive underneath; the update it resolves
+        with is held here, saved on Apply and dropped on Cancel. The other
+        callbacks get the row's media with that held update applied. */
     rowAction?: {
       column: TableColumn
       onclick: (
         item: BaseInterpretedDataType,
-        ctx: { engine: DataEngine; modalState: ModalState; source: string }
-      ) => void
-      isActive: (item: BaseInterpretedDataType, engine: DataEngine) => boolean
-      tooltip: (item: BaseInterpretedDataType, engine: DataEngine) => string
+        ctx: { modalState: ModalState; pending: StimulusMediaUpdate | undefined }
+      ) => Promise<StimulusMediaUpdate | null>
+      isActive: (media: StimulusMedia | null) => boolean
+      tooltip: (media: StimulusMedia | null) => string
       /** Per-row icon; the image icon when absent. */
-      icon?: (item: BaseInterpretedDataType, engine: DataEngine) => 'image' | 'film'
+      icon?: (media: StimulusMedia | null) => 'image' | 'film'
     }
   }
 
@@ -146,23 +149,18 @@
         tooltip:
           'Reference image/video drawn behind gaze data (scanpath background). Filled = attached; click to add, position, or remove it.',
       },
-      onclick: (item, { modalState, source }) => {
-        void modalState.push(stimulusMediaModal, {
+      onclick: (item, { modalState, pending }) =>
+        modalState.push(stimulusMediaModal, {
           stimulusId: item.id,
           stimulusName: item.displayedName || item.originalName,
-          source,
-        })
-      },
-      isActive: (item, engine) =>
-        engine.metadata?.stimuliMedia?.[item.id] !== undefined,
-      tooltip: (item, engine) => {
-        const media = engine.metadata?.stimuliMedia?.[item.id]
-        return media
+          pending,
+        }),
+      isActive: media => media !== null,
+      tooltip: media =>
+        media
           ? `${media.fileName}. Click to view, position, or remove.`
-          : 'No reference media. Click to add an image or video.'
-      },
-      icon: (item, engine) =>
-        engine.metadata?.stimuliMedia?.[item.id]?.kind === 'video' ? 'film' : 'image',
+          : 'No reference media. Click to add an image or video.',
+      icon: media => (media?.kind === 'video' ? 'film' : 'image'),
     },
     columns: [
       { label: 'Move', width: '28px', type: 'handle' },
@@ -242,8 +240,34 @@
 
   const chips = $derived(selectionChips(session, cfg.noun))
 
+  // ── Row edits (reference media), held until Apply ─────────────────────────
+  let pendingMedia = $state.raw<Record<number, StimulusMediaUpdate>>({})
+  const mediaOf = (id: number) =>
+    id in pendingMedia
+      ? pendingMedia[id].media
+      : (engine.metadata?.stimuliMedia?.[id] ?? null)
+
+  const onRowAction = async (item: BaseInterpretedDataType) => {
+    const update = await cfg.rowAction!.onclick(item, {
+      modalState,
+      pending: pendingMedia[item.id],
+    })
+    if (!update) return
+    // Removing media this session added (none saved) leaves nothing to save.
+    const { [item.id]: _, ...rest } = pendingMedia
+    const noop = update.media === null && !engine.metadata?.stimuliMedia?.[item.id]
+    pendingMedia = noop ? rest : { ...rest, [item.id]: update }
+  }
+
   // ── Save ──────────────────────────────────────────────────────────────────
   const onApply = () => {
+    // Media first, while stimulus ids are still the ones the rows showed.
+    const mediaUpdates = Object.values(pendingMedia)
+    if (mediaUpdates.length > 0) {
+      if (!workspace.apply({ type: 'updateStimulusMedia', updates: mediaUpdates, source })) return
+      pendingMedia = {}
+    }
+
     const items = editor.getCleanedItems()
 
     if (merge.itemsChanged(items)) {
@@ -287,14 +311,13 @@
       onNameInput: editor.handleNameInput,
       ...(cfg.rowAction
         ? {
-            onRowAction: (item: BaseInterpretedDataType) =>
-              cfg.rowAction!.onclick(item, { engine, modalState, source }),
+            onRowAction,
             rowActionActive: (item: BaseInterpretedDataType) =>
-              cfg.rowAction!.isActive(item, engine),
+              cfg.rowAction!.isActive(mediaOf(item.id)),
             rowActionTooltip: (item: BaseInterpretedDataType) =>
-              cfg.rowAction!.tooltip(item, engine),
+              cfg.rowAction!.tooltip(mediaOf(item.id)),
             rowActionIcon: (item: BaseInterpretedDataType) =>
-              cfg.rowAction!.icon?.(item, engine) ?? 'image',
+              cfg.rowAction!.icon?.(mediaOf(item.id)) ?? 'image',
           }
         : {}),
     }}

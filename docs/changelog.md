@@ -5,7 +5,7 @@
 ### 1.10.5
 
 * *Unreleased*
-* **Reference Media**: Stimuli with a video show a film icon in the stimuli list, and the alignment view says when a video is still loading.
+* **Reference Media**: Stimuli with a video show a film icon in the stimuli list, and the alignment view says when a video is still loading. Cancelling the stimuli dialog now also discards media changes.
 
 ### 1.10.4
 
