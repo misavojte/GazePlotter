@@ -58,7 +58,7 @@ Compares **where** two participants looked, ignoring order. Needs fixation coord
 
 1. **Radius R (0 = Auto)**: Kernel radius, as on the Fixation Heatmap. A larger radius raises every value, so report it.
 
-Most viewers look at the same central areas, so values sit well above 0. Compare pairs with each other, not with 0; the ScanGraph's Auto threshold does this for you.
+Most viewers look at the same central areas, so values sit well above 0. Compare pairs with each other, not with 0; the ScanGraph's Auto threshold does this for you. To see groups in the matrix, order it by similarity and raise the color scale's Min.
 
 ## Visualizing the Similarity Matrix
 
