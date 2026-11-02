@@ -1,59 +1,59 @@
 /**
  * The platform's per-plot services, built once per grid item from the plot's
- * declarations (`cursor`, `sync`, `playback`, `view.viewOnly`): the settings
- * the view derives from (a drag draft and sync merged in), the input overlay,
- * and the `PlotHost` a kit acts through. Every rune a plot needs lives here, so
- * plot folders stay plain TS. Call during component init (`PlotContainer`).
+ * declarations (`cursor`, `sync`, `playback`, `view.viewOnly`): the view derived
+ * from the settings (a drag draft and sync merged in), its input with the
+ * platform's overlays, and the `PlotHost` a kit acts through. Every rune a plot
+ * needs lives here, so plot folders stay plain TS and the container stays
+ * markup. Call during component init (`PlotContainer`).
  */
+import { untrack } from 'svelte'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import type { PlotItemContract, PlotSyncSpec, PlotView, PlotViewConfig, PlotCursorSpec } from '$lib/plots/definePlot'
+import type { PlotItemContract, PlotView } from '$lib/plots/definePlot'
+import { resolvePlotRuntime } from '$lib/plots/registry'
 import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 import type { WorkspaceCommandBus } from '$lib/workspace/commands/bus'
+import type { GridItemMap, PlotType } from '$lib/workspace/grid/types'
 import { toggleInArray } from './arrayUtils'
 import { NO_CURSOR } from './cursorMarks'
 import type { PlotHost } from './kit'
 import { usePlaybackMembership } from './playback.svelte'
 import type { PlaybackSettings } from './playbackFields'
+import { usePlotData, type PlotDataHandle } from './plotData.svelte'
 import { plotCursorPort } from './plotCursor.svelte'
 import { useSyncedMax } from './plotSync.svelte'
 
-type Settings = Record<string, unknown>
-
-/** The declarations a host reads, loosely typed: the container is generic over every plot. */
-export interface PlotHostDefinition {
-  view: Pick<PlotViewConfig<Settings, PlotView>, 'viewOnly'>
-  cursor?: PlotCursorSpec<Settings>
-  sync?: PlotSyncSpec<Settings, PlotView>[]
-  playback?: boolean
-}
-
-export interface PlotHostServices {
-  /** The settings the view derives from: committed or drafted, sync merged in. */
-  settings: () => Settings
+export interface PlotItemHost {
+  /** The derived view; null while the plot has nothing to draw. */
+  readonly view: PlotView | null
   /** The view's input with view-only settings and synced values merged over it. */
-  input: (view: PlotView) => object
-  host: PlotHost
+  readonly input: object | null
+  readonly host: PlotHost
+  /** The plot declares `playback`. */
+  readonly playback: boolean
 }
 
-export function usePlotHost(options: {
-  definition: PlotHostDefinition
-  item: () => PlotItemContract<string, Settings>
+export function usePlotHost<K extends PlotType>(options: {
+  item: () => GridItemMap[K]
   engine: DataEngine
   workspace: WorkspaceCommandBus
-  view: () => PlotView | null
-}): PlotHostServices {
-  const { definition, engine, workspace } = options
+}): PlotItemHost {
+  const { engine, workspace } = options
   const live = {
     get item() {
       return options.item()
     },
   }
+  // `item.type` is stable for the item's lifetime (the grid keys by id).
+  const definition = untrack(() => resolvePlotRuntime(live.item.type))
   const source = () => createCommandSourcePlotPattern(live.item, 'plot')
 
   // The committed settings, or a draft a drag assigns over them. A writable
   // derived: it IS the committed object until assigned, and drops the draft by
   // itself once the committed settings change (the commit, an undo).
   let settings = $derived(live.item.settings)
+
+  // Bound below; sync offers read the view only later, from deriveds.
+  let data: PlotDataHandle<PlotView | null> | null = null
 
   const syncs = (definition.sync ?? []).map(spec => ({
     spec,
@@ -65,7 +65,7 @@ export function usePlotHost(options: {
       return spec.offer({
         settings,
         get view() {
-          return options.view()
+          return data?.current ?? null
         },
         item: live.item,
         engine,
@@ -73,13 +73,39 @@ export function usePlotHost(options: {
     }),
   }))
 
-  const derivedSettings = $derived.by(() => {
+  const syncedSettings = $derived.by(() => {
     let s = settings
     for (const { spec, max } of syncs) {
       const m = spec.settings ? max() : null
       if (m !== null) s = spec.settings!(s, m)
     }
     return s
+  })
+
+  const view = usePlotData({
+    epoch: () => live.item.redrawTimestamp,
+    settings: () => syncedSettings,
+    viewOnly: definition.view.viewOnly?.settings,
+    watch: definition.view.viewDependsOnWidth ? () => live.item.w : undefined,
+    derive: s =>
+      definition.view.deriveView(engine, s, {
+        itemWidth: live.item.w,
+        itemHeight: live.item.h,
+      }),
+  })
+  data = view
+
+  const input = $derived.by(() => {
+    const v = view.current
+    if (!v) return null
+    const merged: Record<string, unknown> = { ...v.input }
+    const viewOnly = definition.view.viewOnly
+    if (viewOnly) Object.assign(merged, viewOnly.input(settings, engine))
+    for (const { spec, max } of syncs) {
+      const m = spec.input ? max() : null
+      if (m !== null) Object.assign(merged, spec.input!(v, m))
+    }
+    return merged
   })
 
   const cursorSpec = definition.cursor
@@ -100,31 +126,23 @@ export function usePlotHost(options: {
       })
     : null
 
-  function input(view: PlotView): object {
-    const merged: Record<string, unknown> = { ...view.input }
-    const viewOnly = definition.view.viewOnly
-    if (viewOnly) Object.assign(merged, viewOnly.input(settings, engine))
-    for (const { spec, max } of syncs) {
-      const m = spec.input ? max() : null
-      if (m !== null) Object.assign(merged, spec.input!(view, m))
-    }
-    return merged
-  }
-
   const host: PlotHost = {
     cursor: () => (port ? { times: port.times, participants: port.participants } : NO_CURSOR),
     publish: at => port?.publish(at),
     settings: () => settings,
     toggle(key, value) {
-      const current = (live.item.settings[key] ?? []) as (string | number)[]
-      workspace.updateItemSettings(live.item.id, { [key]: toggleInArray(current, value) }, source())
+      const current = (live.item.settings as Record<string, unknown>)[key] ?? []
+      workspace.updateItemSettings(
+        live.item.id,
+        { [key]: toggleInArray(current as (string | number)[], value) },
+        source()
+      )
     },
     draft(patch) {
       settings = { ...settings, ...patch }
     },
     commit(patch) {
-      const committed = live.item.settings
-      const changes = patch ?? draftChanges(settings, committed)
+      const changes = patch ?? draftChanges(settings, live.item.settings)
       // One settings command per gesture: one undo step.
       if (Object.keys(changes).length > 0) {
         workspace.updateItemSettings(live.item.id, changes, source())
@@ -135,13 +153,22 @@ export function usePlotHost(options: {
     playback,
   }
 
-  return { settings: () => derivedSettings, input, host }
+  return {
+    get view() {
+      return view.current
+    },
+    get input() {
+      return input
+    },
+    host,
+    playback: definition.playback ?? false,
+  }
 }
 
 /** The keys a draft changed against the committed settings. */
-function draftChanges(draft: Settings, committed: Settings): Settings {
-  const changes: Settings = {}
-  for (const key of Object.keys(draft)) {
+function draftChanges<S extends object>(draft: S, committed: S): Partial<S> {
+  const changes: Partial<S> = {}
+  for (const key of Object.keys(draft) as (keyof S)[]) {
     if (draft[key] !== committed[key]) changes[key] = draft[key]
   }
   return changes

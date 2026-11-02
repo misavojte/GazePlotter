@@ -475,6 +475,15 @@ export type PlotDefinition<
   ) => void
 }
 
+/**
+ * What the platform runs of a definition (screen container, export), over the
+ * plot's own settings: the settings stay exact, the view type is widened.
+ */
+export type PlotRuntime<TSettings> = Pick<
+  PlotDefinition<string, TSettings, PlotView<any, any>>,
+  'view' | 'cursor' | 'sync' | 'playback'
+>
+
 export function definePlot<
   TType extends string,
   TSettings,

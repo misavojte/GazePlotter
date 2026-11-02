@@ -3,8 +3,10 @@ import type {
   PlotSubtitleParts,
   PlotItemContract,
   PlotDefinition,
+  PlotRuntime,
   PaneSectionEntry,
 } from './definePlot'
+import type { PlotSettingsMap } from '$lib/workspace/grid/types'
 import { aoiStreamPlotDefinition } from './aoi-stream'
 import { aoiComparisonDefinition } from './aoi-comparison'
 import { scarfPlotDefinition } from './scarf'
@@ -120,6 +122,21 @@ function normalizeVisualizationType(
   return normalizedType in plotRegistry
     ? (normalizedType as VisualizationType)
     : null
+}
+
+/**
+ * Every plot's runtime over its own settings, as a mapped type: indexed by a
+ * generic `K`, a definition and its item's settings stay correlated, so the
+ * generic hosts call `deriveView` without a cast.
+ */
+type PlotRuntimeMap = { [K in VisualizationType]: PlotRuntime<PlotSettingsMap[K]> }
+const plotRuntimes: PlotRuntimeMap = plotRegistry
+
+export function resolvePlotRuntime<K extends VisualizationType>(type: K): PlotRuntimeMap[K] {
+  ensureSettingsSchemasValid()
+  const runtime = plotRuntimes[type]
+  if (!runtime) throw new Error(`Plot type "${type}" is not registered.`)
+  return runtime
 }
 
 export function getVizConfig<K extends VisualizationType>(

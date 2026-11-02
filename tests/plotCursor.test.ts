@@ -468,16 +468,19 @@ describe('scarf timeline-mode gate', () => {
 // Export safety: the export derivation never builds a screen recipe, so no port
 // ever reaches an exported figure.
 vi.mock('$lib/plots/registry', () => ({
-  resolvePlotDefinition: () => ({
+  resolvePlotRuntime: () => ({
     view: { deriveView: () => ({ kit: null, input: { data: 'view-only' } }) },
-    screen: () => {
-      throw new Error('the export path must never build a screen recipe')
+    get sync() {
+      throw new Error('export never syncs')
+    },
+    get cursor() {
+      throw new Error('export never builds a plot cursor')
     },
   }),
 }))
 
 describe('export inertness', () => {
-  it('derives export views without ever constructing a screen recipe', async () => {
+  it('derives export views without reading the screen-only declarations', async () => {
     const { deriveItemView } = await import(
       '$lib/modals/export/export-figures/view'
     )
