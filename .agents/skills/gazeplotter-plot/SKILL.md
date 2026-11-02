@@ -13,7 +13,7 @@ Comparison plots (one distribution per category slot of a vector metric: `aoi-co
 
 `definePlot<Type, Settings>({...})` in `definition.ts`. Contract type: `PlotDefinition` in `definePlot.ts`. Example: `transition-matrix/definition.ts`.
 
-- Required: `type, name, group, getDefaultSettings, paneSections, view`. Optional: `size` ({min?, w?, h?} in grid units — omit for the standard 11×10/12×12, see `DEFAULT_PLOT_SIZE`), `screen, requireCapabilities, getSubtitle, consumesMetrics, onCommand`. NO `component` field, NO sizing functions.
+- Required: `type, name, group, getDefaultSettings, paneSections, view`. Optional: `size` ({min?, w?, h?} in grid units — omit for the standard 11×10/12×12, see `DEFAULT_PLOT_SIZE`), `requireCapabilities, getSubtitle, consumesMetrics, onCommand`, and the declared behaviour below (`cursor`, `sync`, `playback`). NO `component` field, NO sizing functions.
 - `view.deriveView(engine, settings, ctx?) → plotView(kit, input, { hasData?, meta? }) | null` — the ONE derivation for screen AND export. `input` is ONE plain object the kit draws from; engine lookups a kit needs later (tooltip builders) are closures over the non-reactive engine built here. `ctx = {itemWidth, itemHeight}` (grid units; display budgets only).
 - `view.viewDependsOnWidth: true` → screen re-derives on width resize (aoi-stream, evolving-metrics). Height never re-derives.
 - `view.viewOnly = { settings: ['highlights'], input: (settings, engine) => ({ highlights }) }` — keys deriveView never reads: changes repaint, never re-derive; `input` maps them into the input on screen and in export (the view must not compute them itself).
@@ -38,18 +38,20 @@ Comparison plots (one distribution per category slot of a vector metric: `aoi-co
 - Definition declares the same contract via `consumesMetrics` (drives pane + library filters).
 - Resolution failure → transformer returns `noMetric: true` → the kit's chrome returns the missing-metric placeholder.
 
-## Host boundary (PlotContainer + usePlotData) — reactivity ends here
+## Host boundary (plotHost + usePlotData) — reactivity ends here
 
-Generic host derives via `usePlotData` (`shared/plotData.svelte.ts`). Below it: plain data only. Never re-create this wiring in plot code.
+`PlotContainer.svelte` is markup only. `usePlotHost` (`shared/plotHost.svelte.ts`) resolves the definition, runs its declarations and derives the view via `usePlotData` (`shared/plotData.svelte.ts`). Below it: plain data only. Never re-create this wiring in plot code.
+
+- Generic code over all plots resolves with `resolvePlotRuntime(item.type)` (`registry.ts`) and stays generic in `K extends PlotType` with `item: GridItemMap[K]`: the definition is then typed for that item's own settings. NEVER cast a definition to a hand-written shape (a cast hides renamed fields and wrong settings).
 
 - Dependency surface is EXACTLY: `epoch` (item.redrawTimestamp), settings snapshot, `item.w` iff `viewDependsOnWidth`. `derive` runs untracked — nothing discovered implicitly.
 - Settings reach deriveView as plain, deeply-frozen, deep-equal-gated snapshots. Transforms NEVER see a $state proxy. Mutating settings input throws.
 - NEVER watch `engine.metadata`: all metadata mutations are workspace commands (epoch bump); dataset loads rebuild all grid items after engine load.
-- Shared HOVER POSITION is NOT sync — it is THE PLOT CURSOR (`shared/plotCursor.svelte.ts`): two channels, TIME (scope-gated by stimulus) and PARTICIPANTS (a SET, because a similarity cell is a PAIR). Declare `cursor` on the definition (the platform builds the self-retracting port), publish LIVE accessors from the kit's `hover` via `act.publish` (read `act.scene()` when called, never index blindly — read back empty), repaint through the kit's `overlay.key` over a JOINED KEY of marked positions (the host reads the port into a plain `CursorRead`; `shared/cursorMarks.ts` has `timeCursorMarks`, `cursorRows`, `drawTimeGuides`), and mark with the dashed OUTLINE (`strokeCrosshairRect` / `strokeCrosshairRing` / `strokeCrosshairPanel`) — the local CROSSHAIR fills, the cursor outlines. NEVER `useSyncedMax`: that is a monotone max over SETTINGS, and `0` is a real cursor position.
+- Shared HOVER POSITION is NOT sync — it is THE PLOT CURSOR (`shared/plotCursor.svelte.ts`): two channels, TIME (scope-gated by stimulus) and PARTICIPANTS (a SET, because a similarity cell is a PAIR). Declare `cursor` on the definition (the platform builds the self-retracting port), publish LIVE accessors from the kit's `hover` via `act.publish` (read `act.scene()` when called, never index blindly — read back empty), repaint through the kit's `overlay.key` over a JOINED KEY of marked positions (the host reads the port into a plain `CursorRead`; `shared/cursorMarks.ts` has `timeCursor` (`key` / `draw` / `publish` for every time-axis plot), `cursorRows`, `drawTimeGuides`), and mark with the dashed OUTLINE (`strokeCrosshairRect` / `strokeCrosshairRing`) — the local CROSSHAIR fills, the cursor outlines. NEVER `useSyncedMax`: that is a monotone max over SETTINGS, and `0` is a real cursor position.
 - Cross-plot SETTINGS sync: declared `sync` on the definition (the platform runs `useSyncedMax`, `shared/plotSync.svelte.ts`); no per-plot registry files. `key` is the tuple comparable plots match on (grid size included), `null` opts out. The returned reader gives the group max when it beats `own`, else null; declare where it lands: `settings` (BEFORE deriving) or `input` (after). NEVER scan `grid.items` for sibling state. Export never syncs.
 - Metric-library edits = `updateMetricInstances` workspace command (full-array payload, one undo step, epoch bump on ALL items). Components use `metricInstanceHandlers` factories (take `workspace`); `engine.setMetricInstances` is reserved for the command handler.
 - NEVER hold transform results in `$state`/`$state.raw` or call transforms from raw `$derived`/`$effect`.
-- Export modal (`modals/export/export-figures/view.ts`) applies same boundary via `snapshotSettings`.
+- Export modal (`modals/export/export-figures/view.ts`) resolves the same way and applies the same boundary via `snapshotSettings`.
 
 ## Kit (pure drawing, one host)
 
