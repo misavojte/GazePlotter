@@ -16,6 +16,7 @@ import { PLOT_BORDER_PX } from '$lib/plots/shared/const'
 import { cursorRows } from '$lib/plots/shared/cursorMarks'
 import {
   METRIC_MISSING_MESSAGE,
+  NO_PARTICIPANTS_MESSAGE,
   cannotFitPlaceholder,
 } from '$lib/plots/shared/drawCanvasPlaceholder'
 import { trackOnlyHit, type FrameHit, type PlotFrame } from '$lib/plots/shared/frame'
@@ -284,10 +285,7 @@ export const scangraphKit = defineKit<ScangraphInput, ScangraphHover>()({
     placeholder: input.noMetric
       ? METRIC_MISSING_MESSAGE
       : input.data.nodes.length === 0
-        ? {
-            message: 'No participants in this selection have data on this stimulus.',
-            steps: ['Pick another Stimulus or a selection in Participants'],
-          }
+        ? NO_PARTICIPANTS_MESSAGE
         : null,
   }),
 
@@ -350,10 +348,7 @@ export const scangraphKit = defineKit<ScangraphInput, ScangraphHover>()({
       const t = nodes[link.target]
       if (!s || !t) continue
       ctx.lineWidth = linkWidth(threshold, link.value)
-      ctx.beginPath()
-      ctx.moveTo(s.x, s.y)
-      ctx.lineTo(t.x, t.y)
-      ctx.stroke()
+      strokeTrimmedLink(ctx, s, t, 0, 0)
     }
     ctx.globalAlpha = 1
 

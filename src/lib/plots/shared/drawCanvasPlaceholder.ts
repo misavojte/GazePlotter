@@ -11,6 +11,11 @@ import { SYSTEM_SANS_SERIF_STACK, wrapTextToWidth } from '$lib/shared/textMeasur
 export const METRIC_MISSING_MESSAGE = 'Select a metric in Plot Settings > Metric'
 export const METRIC_MISSING_MULTI_MESSAGE =
   'Select at least two metrics in Plot Settings > Metrics'
+/** The selection resolves to nobody with data on the stimulus. */
+export const NO_PARTICIPANTS_MESSAGE: PlotPlaceholderContent = {
+  message: 'No participants in this selection have data on this stimulus.',
+  steps: ['Pick another Stimulus or a selection in Participants'],
+}
 const PLOT_CANNOT_FIT_HEIGHT_MESSAGE = 'The plot cannot fit the current height. Either:'
 const PLOT_CANNOT_FIT_WIDTH_MESSAGE = 'The plot cannot fit the current width. Either:'
 const PLOT_CANNOT_FIT_SIZE_MESSAGE = 'The plot cannot fit the current size. Either:'

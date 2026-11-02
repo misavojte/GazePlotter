@@ -19,6 +19,7 @@ import {
 } from '$lib/plots/shared/axisUtils'
 import {
   alignToPixelCenter,
+  clipRect,
   CROSSHAIR_COLOR,
   CROSSHAIR_DASH,
   fillCrosshairBand,
@@ -324,9 +325,7 @@ export const evolvingMetricsKit = defineKit<EvolvingMetricsInput, EvolvingMetric
       const rowHeight = scene.overlay ? null : frame.height / participantCount
 
       ctx.save()
-      ctx.beginPath()
-      ctx.rect(frame.x, frame.y, frame.width, frame.height)
-      ctx.clip()
+      clipRect(ctx, frame)
       if (rowHeight === null) {
         for (const row of markedRows) drawStepLine(ctx, scene, row, frame, true)
       } else {

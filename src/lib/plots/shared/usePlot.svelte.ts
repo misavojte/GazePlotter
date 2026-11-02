@@ -19,11 +19,11 @@ import {
 } from './figureExport'
 import { useTooltip } from '$lib/tooltip'
 import { useContextMenu } from '$lib/context-menu'
-import type { PlotPlaceholderContent } from './drawCanvasPlaceholder'
+import { drawCanvasPlaceholder, type PlotPlaceholderContent } from './drawCanvasPlaceholder'
 import { canvasBlockSelect, type BlockedRegion } from './canvasBlockSelect.action'
 import { hoverKeyChanged, type CanvasSize, type FrameHit } from './frame'
 import type { KitChrome, PlotActions, PlotHost, PlotKit } from './kit'
-import { hitPlot, paintPlaceholder, paintPlot } from './plotRender'
+import { hitPlot, paintPlot } from './plotRender'
 import { usePlotStages } from './plotStages.svelte'
 
 const browser = typeof document !== 'undefined'
@@ -185,7 +185,7 @@ export function usePlot<I, C extends KitChrome, S, H, St>(
     placeholderActive = msg !== null || stages.build.scene === null
     if (placeholderActive) {
       dataLayerValid = false
-      paintPlaceholder(ctx, sources.size(), msg ?? '')
+      drawCanvasPlaceholder(ctx, width(), height(), msg ?? '')
       finishCanvasDrawing(canvasState)
       return
     }

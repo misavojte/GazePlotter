@@ -4,7 +4,7 @@
  * these; the reactive port that publishes and reads the cursor stays in
  * `plotCursor.svelte.ts`.
  */
-import { alignToPixelCenter, strokeCrosshairGuides } from './canvasUtils'
+import { alignToPixelCenter, clipRect, strokeCrosshairGuides } from './canvasUtils'
 
 /** The cursor as a kit sees it: the port's two channels as plain sets (`plotCursor.svelte.ts`). */
 export interface CursorRead {
@@ -92,9 +92,7 @@ export function drawTimeGuides(
   const segments: number[] = []
   for (const x of xs) segments.push(x, band.y, x, band.y + band.height)
   ctx.save()
-  ctx.beginPath()
-  ctx.rect(band.x, band.y, band.width, band.height)
-  ctx.clip()
+  clipRect(ctx, band)
   strokeCrosshairGuides(ctx, segments)
   ctx.restore()
 }

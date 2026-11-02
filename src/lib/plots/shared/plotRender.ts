@@ -5,6 +5,7 @@
  * `renderPlot` runs the whole pipeline once, with no Svelte (tests, headless).
  */
 import { drawXAxisLabel, drawYAxisMainLabel } from './axisUtils'
+import { clipRect } from './canvasUtils'
 import { PLOT_LEGEND_GAP } from './const'
 import { drawCanvasPlaceholder, type PlotPlaceholderContent } from './drawCanvasPlaceholder'
 import {
@@ -105,9 +106,7 @@ export function paintPlot<C extends KitChrome, S>(
   const f = layout.frame
   if (kit.clip !== false) {
     ctx.save()
-    ctx.beginPath()
-    ctx.rect(f.x, f.y, f.width, f.height)
-    ctx.clip()
+    clipRect(ctx, f)
     kit.draw(ctx, scene, f)
     ctx.restore()
   } else {
@@ -177,15 +176,6 @@ export function hitPlot<I, C extends KitChrome, S, H>(
     : (kit.hitChrome?.(scene, x, y, f, build.context) ?? null)
 }
 
-/** Paint a placeholder card over the whole canvas. */
-export function paintPlaceholder(
-  ctx: CanvasRenderingContext2D,
-  size: CanvasSize,
-  placeholder: PlotPlaceholderContent
-): void {
-  drawCanvasPlaceholder(ctx, size.width, size.height, placeholder)
-}
-
 /**
  * The whole pipeline once, into a context the caller has prepared (cleared,
  * scaled to its pixel ratio): the placeholder, else the data layer.
@@ -200,7 +190,7 @@ export function renderPlot<I, C extends KitChrome, S>(
   const layout = resolveLayout(kit, input, size)
   const build = buildScene(kit, input, layout, pixelRatio)
   if (build.placeholder || build.scene === null) {
-    paintPlaceholder(ctx, size, build.placeholder ?? '')
+    drawCanvasPlaceholder(ctx, size.width, size.height, build.placeholder ?? '')
   } else {
     paintPlot(ctx, kit, layout, build.scene)
   }

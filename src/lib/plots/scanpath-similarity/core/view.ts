@@ -7,7 +7,10 @@ import {
   resolvePickedInstance,
   timeRangeQualifier,
 } from '$lib/plots/shared'
-import { METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
+import {
+  METRIC_MISSING_MESSAGE,
+  NO_PARTICIPANTS_MESSAGE,
+} from '$lib/plots/shared/drawCanvasPlaceholder'
 import { scangraphKit } from './kit'
 import {
   similarityDataFor,
@@ -92,10 +95,7 @@ export function deriveScanpathSimilarityView(
       placeholder: noMetric
         ? METRIC_MISSING_MESSAGE
         : labels.length === 0
-          ? {
-              message: 'No participants in this selection have data on this stimulus.',
-              steps: ['Pick another Stimulus or a selection in Participants'],
-            }
+          ? NO_PARTICIPANTS_MESSAGE
           : null,
       fitSteps: [
         'Reduce the number of participants in Plot Settings > Participants',

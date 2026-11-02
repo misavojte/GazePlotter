@@ -158,6 +158,13 @@ export function alignToPixelCenter(val: number): number {
   return (val | 0) + 0.5
 }
 
+/** Clip to a rect (a frame, a band); the caller saves and restores around it. */
+export function clipRect(ctx: CanvasRenderingContext2D, r: { x: number; y: number; width: number; height: number }): void {
+  ctx.beginPath()
+  ctx.rect(r.x, r.y, r.width, r.height)
+  ctx.clip()
+}
+
 /** The one hover-crosshair color shared by every plot figure's hover chrome. */
 export const CROSSHAIR_COLOR = '#007acc'
 

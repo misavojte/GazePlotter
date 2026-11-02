@@ -378,20 +378,15 @@ export const scanpathKit = defineKit<ScanpathInput, ScanpathHit>()({
       if (hovered == null) return
       const f = data.fixations[hovered]
       if (!f) return
-      const cx = stimulusX(space, f.x, frame)
-      const cy = stimulusY(space, f.y, frame)
-      const r = displayRadiusFor(scene, f)
       ctx.save()
+      ctx.beginPath()
+      ctx.arc(stimulusX(space, f.x, frame), stimulusY(space, f.y, frame), displayRadiusFor(scene, f) + 2.5, 0, Math.PI * 2)
       // White gap ring first, accent ring on top — legible on any background.
       ctx.strokeStyle = '#ffffff'
       ctx.lineWidth = 4
-      ctx.beginPath()
-      ctx.arc(cx, cy, r + 2.5, 0, Math.PI * 2)
       ctx.stroke()
       ctx.strokeStyle = SCANPATH_COLORS.hoverRing
       ctx.lineWidth = 2
-      ctx.beginPath()
-      ctx.arc(cx, cy, r + 2.5, 0, Math.PI * 2)
       ctx.stroke()
       ctx.restore()
     },

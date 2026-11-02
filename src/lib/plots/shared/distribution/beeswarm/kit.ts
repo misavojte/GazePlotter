@@ -10,12 +10,14 @@ import { measureTextHeight, truncateTextToPixelWidth } from '$lib/shared/textMea
 import { rowLabelColumn } from '$lib/plots/shared/axisUtils'
 import {
   alignToPixelCenter,
+  clipRect,
   fillCrosshairBand,
   strokeCrosshairGuides,
 } from '$lib/plots/shared/canvasUtils'
 import { FONT_PRIMARY, PLOT_BORDER_PX, ROW_LABEL_GAP } from '$lib/plots/shared/const'
 import {
   METRIC_MISSING_MESSAGE,
+  NO_PARTICIPANTS_MESSAGE,
   cannotFitPlaceholder,
   type PlotPlaceholderContent,
 } from '$lib/plots/shared/drawCanvasPlaceholder'
@@ -46,11 +48,6 @@ import {
 const MIN_ROW_DOT_WIDTHS = 4
 const LABEL_FONT_SIZE = FONT_PRIMARY.SIZE
 const CATEGORY_LABEL_GAP = 6
-
-const NO_PARTICIPANTS_MESSAGE: PlotPlaceholderContent = {
-  message: 'No participants in this selection have data on this stimulus.',
-  steps: ['Pick another Stimulus or a selection in Participants'],
-}
 
 export interface BeeswarmInput {
   data: CategoryDistribution[]
@@ -222,9 +219,7 @@ export const beeswarmKit = defineKit<BeeswarmInput, BeeswarmHover>()({
     const { layout, isVertical } = scene
 
     ctx.save()
-    ctx.beginPath()
-    ctx.rect(frame.x, frame.y, frame.width, frame.height)
-    ctx.clip()
+    clipRect(ctx, frame)
     fillPlotAreaBackground(ctx, frame.x, frame.y, frame.width, frame.height, 'white')
     drawCategoryDelimiters(ctx, layout)
     if (scene.proportion) {
@@ -285,9 +280,7 @@ export const beeswarmKit = defineKit<BeeswarmInput, BeeswarmHover>()({
     // the axis is cut at the border, because a statistic reaching outside the plot
     // would claim a range the axis does not show.
     ctx.save()
-    ctx.beginPath()
-    ctx.rect(frame.x, frame.y, frame.width, frame.height)
-    ctx.clip()
+    clipRect(ctx, frame)
     drawStatisticalOverlay(ctx, layout, scene.statisticalOverlay)
     ctx.restore()
   },
@@ -359,29 +352,21 @@ export const beeswarmKit = defineKit<BeeswarmInput, BeeswarmHover>()({
     const tolerance = scene.proportion ? 0 : DOT_RADIUS
     const values = dataItem.individualValues
     const names = dataItem.individualParticipantNames
-    if (values && names && values.length > 0) {
-      const nearby = findNearbyParticipants(values, names, valuePx, tolerance, layout)
-      if (nearby.length > 0) {
-        const isMultiValue = names.length > new Set(names).size
-        const maxShow = 4
-        if (isMultiValue) {
-          const counts = new Map<string, number>()
-          for (const n of nearby) counts.set(n, (counts.get(n) ?? 0) + 1)
-          const sorted = [...counts.entries()].sort((a, b) => b[1] - a[1])
-          for (let i = 0; i < Math.min(maxShow, sorted.length); i++) {
-            content.push({ key: i === 0 ? 'Nearby' : '', value: `${sorted[i][0]} × ${sorted[i][1]}` })
-          }
-          if (sorted.length > maxShow) content.push({ key: '', value: `+${sorted.length - maxShow} others` })
-        } else {
-          const unique = [...new Set(nearby)]
-          for (let i = 0; i < Math.min(maxShow, unique.length); i++) {
-            content.push({ key: i === 0 ? 'Nearby' : '', value: unique[i] })
-          }
-          if (unique.length > maxShow) content.push({ key: '', value: `+${unique.length - maxShow} others` })
-        }
-      } else {
-        pushStats(content, dataItem.stats, unit)
-      }
+    const nearby =
+      values && names && values.length > 0
+        ? findNearbyParticipants(values, names, valuePx, tolerance, layout)
+        : []
+    if (nearby.length > 0) {
+      // A participant with several values in the category is listed once, with a count.
+      const isMultiValue = names!.length > new Set(names).size
+      const counts = new Map<string, number>()
+      for (const n of nearby) counts.set(n, (counts.get(n) ?? 0) + 1)
+      const listed = [...counts].sort((a, b) => b[1] - a[1])
+      const maxShow = 4
+      listed.slice(0, maxShow).forEach(([name, count], i) => {
+        content.push({ key: i === 0 ? 'Nearby' : '', value: isMultiValue ? `${name} × ${count}` : name })
+      })
+      if (listed.length > maxShow) content.push({ key: '', value: `+${listed.length - maxShow} others` })
     } else {
       pushStats(content, dataItem.stats, unit)
     }

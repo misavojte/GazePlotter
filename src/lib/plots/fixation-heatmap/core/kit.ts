@@ -10,7 +10,7 @@
 import { PRESET_PALETTES, resolvePalette } from '$lib/color/palettes'
 import type { Rect } from '$lib/data/media/mediaAlignment'
 import { AXIS_CONFIG, axisTitleLineHeight } from '$lib/plots/shared/axisUtils'
-import { cachedRaster, strokeCrosshairRing } from '$lib/plots/shared/canvasUtils'
+import { cachedRaster, clipRect, strokeCrosshairRing } from '$lib/plots/shared/canvasUtils'
 import { trackOnlyHit, type GradientLegendSlot, type PlotFrame } from '$lib/plots/shared/frame'
 import { defineKit, memoByRef } from '$lib/plots/shared/kit'
 import { timeRangeQualifier, withQualifiers } from '$lib/plots/shared/labels'
@@ -294,12 +294,7 @@ export const fixationHeatmapKit = defineKit<FixationHeatmapInput, HeatmapHit>()(
     if (layer) {
       const g = d.grid
       ctx.save()
-      if (d.clip) {
-        const c = stimulusRect(space, d.clip, frame)
-        ctx.beginPath()
-        ctx.rect(c.x, c.y, c.width, c.height)
-        ctx.clip()
-      }
+      if (d.clip) clipRect(ctx, stimulusRect(space, d.clip, frame))
       ctx.imageSmoothingEnabled = true
       ctx.imageSmoothingQuality = 'high'
       // Texel edges on cell edges, so texel centres land on the cell centres the splat used.
@@ -319,9 +314,7 @@ export const fixationHeatmapKit = defineKit<FixationHeatmapInput, HeatmapHit>()(
       const c = cellCentre(d, space, cell, frame)
       // The overlay is unclipped: keep the ring inside the plot area, off the axes.
       ctx.save()
-      ctx.beginPath()
-      ctx.rect(frame.x, frame.y, frame.width, frame.height)
-      ctx.clip()
+      clipRect(ctx, frame)
       strokeCrosshairRing(ctx, c.x, c.y, d.radius * space.view.scale)
       ctx.restore()
     },

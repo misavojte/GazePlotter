@@ -197,7 +197,7 @@ describe('AOI Timeline kit', () => {
     const i = input()
     const s = sceneOf(i)
     const last = kit.hit!(s.scene, s.frame.right - 1, s.frame.y + 5, s.frame, i)
-    expect(last?.data?.binIndex).toBe(3)
+    expect(last?.data).toMatchObject({ binIndex: 3 })
   })
 
   it('keys the overlay on guide pixels inside the window, not on the cursor arrays', () => {
@@ -220,7 +220,7 @@ describe('AOI Timeline kit', () => {
     expect(at.times()).toEqual([200])
     // No participant channel: every series is group-aggregated.
     expect(at.participants).toBeUndefined()
-    kit.hover!({ kind: 'legend' }, act)
+    kit.hover!({ kind: 'legend', item: kit.legend!.geometry(built.scene)!.items[0] }, act)
     expect(act.publish).toHaveBeenLastCalledWith(null)
   })
 

@@ -180,7 +180,7 @@ describe('scanpath kit', () => {
     expect(rec.calls.some(c => c.method === 'fillText' && c.args[0] === '0.0 s')).toBe(true)
     const before = rec.count('arc')
     scanpathKit.overlay!.draw(rec.ctx, scene, frame, { hover: { fixationIndex: 2 }, cursor: { times: [350], participants: [] }, input: i })
-    // The cursor's node mark, then the hover's two rings.
-    expect(rec.count('arc') - before).toBe(3)
+    // The cursor's node mark, then the hover's ring (one path, stroked white then accent).
+    expect(rec.count('arc') - before).toBe(2)
   })
 })

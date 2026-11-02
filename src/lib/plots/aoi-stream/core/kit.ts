@@ -9,6 +9,7 @@ import { PRESET_PALETTES, resolvePalette } from '$lib/color/palettes'
 import { AXIS_CONFIG, drawRowLabels, truncatedRowLabels } from '$lib/plots/shared/axisUtils'
 import {
   alignToPixelCenter,
+  clipRect,
   fillCrosshairBand,
   strokeCrosshairGuides,
 } from '$lib/plots/shared/canvasUtils'
@@ -57,12 +58,9 @@ import type { AoiStreamInput } from './view'
 
 type Alignment = NonNullable<AoiStreamPlotSettings['alignment']>
 
-export type AoiStreamHover = {
-  kind: 'legend' | 'bin'
-  item?: LegendItemGeometry
-  binIndex?: number
-  x?: number
-}
+export type AoiStreamHover =
+  | { kind: 'legend'; item: LegendItemGeometry }
+  | { kind: 'bin'; binIndex: number; x: number }
 
 const MIN_SERIES_ROW_HEIGHT = 8
 const MIN_STREAM_HEIGHT = 40
@@ -263,6 +261,14 @@ export const aoiStreamKit = defineKit<AoiStreamInput, AoiStreamHover, AoiStreamP
     const binCount = data.binCount
     const seriesCount = data.series.length
     const renderBinCount = binCount + 2
+    // A series' area as a closed path: the top edge out, the bottom edge back.
+    const traceArea = (b: (typeof seriesBuckets)[number]) => {
+      ctx.beginPath()
+      ctx.moveTo(xPositions[0], b.topY[0])
+      drawCatmullRom(ctx, xPositions, b.topY, true, renderBinCount)
+      drawCatmullRom(ctx, xPositions, b.bottomY, false, renderBinCount)
+      ctx.closePath()
+    }
 
     // Heatmap: one row per AOI, one cell per bin (render index i is bin i − 1).
     if (alignment === 'heatmap') {
@@ -309,11 +315,7 @@ export const aoiStreamKit = defineKit<AoiStreamInput, AoiStreamHover, AoiStreamP
           runStart = runEnd + 1
         }
       } else {
-        ctx.beginPath()
-        ctx.moveTo(xPositions[0], bucket.topY[0])
-        drawCatmullRom(ctx, xPositions, bucket.topY, true, renderBinCount)
-        drawCatmullRom(ctx, xPositions, bucket.bottomY, false, renderBinCount)
-        ctx.closePath()
+        traceArea(bucket)
         ctx.fillStyle = paint.color
         ctx.fill()
         ctx.strokeStyle = AREA_DIVIDER.COLOR
@@ -333,35 +335,21 @@ export const aoiStreamKit = defineKit<AoiStreamInput, AoiStreamHover, AoiStreamP
       }
     }
 
-    // Ridgeline relief effect
+    // Ridgeline relief: where a later ridge covers an earlier one, the earlier
+    // shows through in the cover's washed-out colour.
     if (alignment === 'ridgeline') {
-      ctx.save()
       for (let s = 0; s < seriesCount - 1; s++) {
-        const currentBucket = seriesBuckets[s]
         for (let cover = s + 1; cover < seriesCount; cover++) {
-          const coverBucket = seriesBuckets[cover]
-          const coverPaint = seriesPaint[cover]
           ctx.save()
-          ctx.beginPath()
-          ctx.moveTo(xPositions[0], coverBucket.topY[0])
-          drawCatmullRom(ctx, xPositions, coverBucket.topY, true, renderBinCount)
-          drawCatmullRom(ctx, xPositions, coverBucket.bottomY, false, renderBinCount)
-          ctx.closePath()
+          traceArea(seriesBuckets[cover])
           ctx.clip()
-          ctx.fillStyle = desaturateToWhite(coverPaint.color, 0.3)
-          ctx.beginPath()
-          ctx.moveTo(xPositions[0], currentBucket.topY[0])
-          drawCatmullRom(ctx, xPositions, currentBucket.topY, true, renderBinCount)
-          drawCatmullRom(ctx, xPositions, currentBucket.bottomY, false, renderBinCount)
-          ctx.closePath()
+          ctx.fillStyle = desaturateToWhite(seriesPaint[cover].color, 0.3)
+          traceArea(seriesBuckets[s])
           ctx.fill()
           ctx.restore()
         }
       }
-      ctx.restore()
     }
-
-    ctx.globalAlpha = 1.0
   },
 
   // Gutter marks the axes don't draw: heatmap row labels, ridgeline scale bar, legend.
@@ -422,39 +410,27 @@ export const aoiStreamKit = defineKit<AoiStreamInput, AoiStreamHover, AoiStreamP
       const { data } = scene
       // Before the local-hover early return below: the remote mark must survive it.
       timeCursor.draw(ctx, scene, cursor)
-      const hoveredBinIndex = hover?.kind === 'bin' ? (hover.binIndex ?? null) : null
-      const mouseXPx = hover?.kind === 'bin' ? (hover.x ?? null) : null
-      if (hoveredBinIndex === null && mouseXPx === null) return
+      if (hover?.kind !== 'bin') return
       if (frame.width <= 0 || frame.height <= 0 || data.binCount <= 0) return
 
       ctx.save()
-      ctx.beginPath()
-      ctx.rect(frame.x, frame.y, frame.width, frame.height)
-      ctx.clip()
+      clipRect(ctx, frame)
+      const binWidth = frame.width / data.binCount
+      const binX = frame.x + hover.binIndex * binWidth
 
-      if (hoveredBinIndex !== null) {
-        const binWidth = frame.width / data.binCount
-        const binX = frame.x + hoveredBinIndex * binWidth
+      // Window highlight stays in the SAME bin-index space as the step so the two
+      // stay concentric (time space would slide the band off the step for sliding
+      // windows). The window spans windowSize / stepSize bins, centred on the bin.
+      const windowBins = data.stepSize > 0 ? data.windowSize / data.stepSize : 1
+      const binCenterX = binX + binWidth / 2
+      const halfWindowPx = (windowBins * binWidth) / 2
+      const xStart = Math.max(frame.x, binCenterX - halfWindowPx)
+      const xEnd = Math.min(frame.x + frame.width, binCenterX + halfWindowPx)
+      if (xEnd > xStart) fillCrosshairBand(ctx, xStart, frame.y, xEnd - xStart, frame.height, 0.08)
+      fillCrosshairBand(ctx, binX, frame.y, binWidth, frame.height, 0.15)
 
-        // Window highlight stays in the SAME bin-index space as the step so the two
-        // stay concentric (time space would slide the band off the step for sliding
-        // windows). The window spans windowSize / stepSize bins, centred on the bin.
-        const windowBins = data.stepSize > 0 ? data.windowSize / data.stepSize : 1
-        const binCenterX = binX + binWidth / 2
-        const halfWindowPx = (windowBins * binWidth) / 2
-        const xStart = Math.max(frame.x, binCenterX - halfWindowPx)
-        const xEnd = Math.min(frame.x + frame.width, binCenterX + halfWindowPx)
-        const rectWidth = xEnd - xStart
-
-        if (rectWidth > 0) fillCrosshairBand(ctx, xStart, frame.y, rectWidth, frame.height, 0.08)
-        fillCrosshairBand(ctx, binX, frame.y, binWidth, frame.height, 0.15)
-      }
-
-      if (mouseXPx !== null) {
-        const x = alignToPixelCenter(mouseXPx)
-        strokeCrosshairGuides(ctx, [x, frame.y, x, frame.bottom])
-      }
-
+      const x = alignToPixelCenter(hover.x)
+      strokeCrosshairGuides(ctx, [x, frame.y, x, frame.bottom])
       ctx.restore()
     },
   },
@@ -507,11 +483,11 @@ export const aoiStreamKit = defineKit<AoiStreamInput, AoiStreamHover, AoiStreamP
   // Published through the TIME map (the one the axis ticks and areas use), NOT
   // the bin-index map the hovered-bin bands use; they differ once
   // stepSize !== windowSize. A legend hover clears it, like the local CROSSHAIR.
-  hover: (hover, act) => timeCursor.publish(act, hover?.kind === 'bin' ? (hover.x ?? null) : null),
+  hover: (hover, act) => timeCursor.publish(act, hover?.kind === 'bin' ? hover.x : null),
 
   // The host tracks the hovered legend item, so click needs no coords.
   click: (hover, act) => {
-    if (hover?.kind === 'legend' && hover.item) act.toggle('highlights', hover.item.identifier)
+    if (hover?.kind === 'legend') act.toggle('highlights', hover.item.identifier)
   },
 
   legend: {

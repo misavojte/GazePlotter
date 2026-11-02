@@ -93,11 +93,10 @@
 
   // A one-participant plot (a scanpath panel) marks that participant with it.
   function onRailHover(t: number | null) {
-    if (t === null) return host.publish(null)
     host.publish(
-      participantId === undefined
-        ? { times: () => [t] }
-        : { times: () => [t], participants: () => [participantId] }
+      t === null
+        ? null
+        : { times: () => [t], participants: participantId === undefined ? undefined : () => [participantId] }
     )
   }
 </script>
