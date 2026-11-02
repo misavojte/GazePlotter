@@ -4,7 +4,7 @@
 
 ### 1.10.4
 
-* *Unreleased*
+* *Released on November 2, 2026*
 * **Participants**: *Non-empty* is now a **Hide participants without data** switch that combines with any participant selection. Saved workspaces open unchanged.
 * **Scanpath**: Scanpaths of a stimulus play in sync, and timeline plots show the playback time. Adds a trail on the seek bar, a Time range, and a video start offset. See [Synchronized time](/docs/visualizations/scanpath#synchronized-time).
 * **Fixation Heatmap**: A play bar animates the heatmap over recording time, in step with the stimulus's scanpaths. Show everything looked at so far, or only the last few seconds, over the video frame on a video stimulus. See [Playback](/docs/visualizations/fixation-heatmap#playback). A new *Opacity map* view masks what nobody looked at.
