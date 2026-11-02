@@ -30,7 +30,7 @@ A small one, for a study with two renamed AOIs and one saved group:
 
 ```json
 {
-  "gazeplotter": "1.10.3",
+  "gazeplotter": "1.10.4",
   "schema": 1,
   "renames": {
     "stimuli": [], "participants": [], "categories": [],
@@ -78,10 +78,10 @@ plot settings; the metrics table always ranges over every AOI, with the
 Requires Node 20 or later. Pin the version you cite:
 
 ```bash
-npx gazeplotter@1.10.3 inspect  recordings/*.tsv
-npx gazeplotter@1.10.3 analysis study.gazeplotter > study.analysis.json
-npx gazeplotter@1.10.3 metrics  recordings/*.tsv --analysis study.analysis.json --out metrics.csv
-npx gazeplotter@1.10.3 catalog
+npx gazeplotter@1.10.4 inspect  recordings/*.tsv
+npx gazeplotter@1.10.4 analysis study.gazeplotter > study.analysis.json
+npx gazeplotter@1.10.4 metrics  recordings/*.tsv --analysis study.analysis.json --out metrics.csv
+npx gazeplotter@1.10.4 catalog
 ```
 
 | Command | Output |
@@ -143,14 +143,14 @@ From R or Python, call the command and read the table (on Windows the
 executable is `npx.cmd`):
 
 ```r
-status <- system2("npx", c("gazeplotter@1.10.3", "metrics", "rec.tsv", "--analysis", "study.analysis.json", "--out", "metrics.csv"))
+status <- system2("npx", c("gazeplotter@1.10.4", "metrics", "rec.tsv", "--analysis", "study.analysis.json", "--out", "metrics.csv"))
 stopifnot(status == 0)
 metrics <- read.csv("metrics.csv")
 ```
 
 ```python
 import subprocess, pandas as pd
-subprocess.run(["npx", "gazeplotter@1.10.3", "metrics", "rec.tsv", "--analysis", "study.analysis.json", "--out", "metrics.csv"], check=True)
+subprocess.run(["npx", "gazeplotter@1.10.4", "metrics", "rec.tsv", "--analysis", "study.analysis.json", "--out", "metrics.csv"], check=True)
 metrics = pd.read_csv("metrics.csv")
 ```
 

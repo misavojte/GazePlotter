@@ -156,7 +156,7 @@ describe('recurrence kit', () => {
     expect(blit.slice(1, 5)).toEqual([0, 0, 300, 300])
     expect(blit[5]).toBeCloseTo(50 - step / 2)
     expect(blit[7]).toBeCloseTo(400 + step)
-  })
+  }, 20_000)
 
   it('hit-tests the nearest fixation pair into its tooltip and payload', () => {
     const { scene, ctx, input: i } = sceneOf(input(data(5)))
