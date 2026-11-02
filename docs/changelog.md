@@ -2,6 +2,11 @@
 
 ## 1.10.x
 
+### 1.10.5
+
+* *Unreleased*
+* **Reference Media**: Stimuli with a video show a film icon in the stimuli list, and the alignment view says when a video is still loading.
+
 ### 1.10.4
 
 * *Released on November 2, 2026*

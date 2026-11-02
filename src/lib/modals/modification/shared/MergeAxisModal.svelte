@@ -59,6 +59,8 @@
       ) => void
       isActive: (item: BaseInterpretedDataType, engine: DataEngine) => boolean
       tooltip: (item: BaseInterpretedDataType, engine: DataEngine) => string
+      /** Per-row icon; the image icon when absent. */
+      icon?: (item: BaseInterpretedDataType, engine: DataEngine) => 'image' | 'film'
     }
   }
 
@@ -159,6 +161,8 @@
           ? `${media.fileName}. Click to view, position, or remove.`
           : 'No reference media. Click to add an image or video.'
       },
+      icon: (item, engine) =>
+        engine.metadata?.stimuliMedia?.[item.id]?.kind === 'video' ? 'film' : 'image',
     },
     columns: [
       { label: 'Move', width: '28px', type: 'handle' },
@@ -289,6 +293,8 @@
               cfg.rowAction!.isActive(item, engine),
             rowActionTooltip: (item: BaseInterpretedDataType) =>
               cfg.rowAction!.tooltip(item, engine),
+            rowActionIcon: (item: BaseInterpretedDataType) =>
+              cfg.rowAction!.icon?.(item, engine) ?? 'image',
           }
         : {}),
     }}
