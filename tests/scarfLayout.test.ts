@@ -1,15 +1,16 @@
 import { describe, expect, test } from 'vitest'
 import {
-  calculateLeftLabelWidth,
+  scarfLabelColumn,
   calculateOverlayLayout,
   calculateOverlayMinRowPitch,
   scarfFrameGutters,
   SCARF_LAYOUT,
 } from '$lib/plots/scarf'
-import { resolveFrameLayout } from '$lib/plots/shared/usePlot.svelte'
+import { resolveFrameLayout } from '$lib/plots/shared/frame'
 import {
   axisTitleLineHeight,
   participantIndexAxisWidth,
+  PLOT_BORDER_PX,
   PLOT_LEGEND_GAP,
 } from '$lib/plots/shared'
 
@@ -68,15 +69,9 @@ describe('scarf row band vs the resolved frame', () => {
   const bounds = { left: 0, top: 0, right: W, bottom: H }
 
   const resolveWith = (leftLabelWidth: number, title: string, legendSpace: number) =>
-    resolveFrameLayout(
-      scarfFrameGutters({
-        tickLabels: ['0', '2500', '5000'],
-        axisTitle: title,
-        leftLabelWidth,
-        legendSpace,
-      }),
-      bounds
-    )
+    resolveFrameLayout(scarfFrameGutters({ leftLabelWidth, legendSpace }), bounds, {
+      bottom: { ticks: { positions: [0, 0.5, 1], labels: ['0', '2500', '5000'] }, title },
+    })
 
   /** What the figure computes as `rowBandHeight`. */
   const rowBand = (title: string, legendSpace: number) =>
@@ -89,8 +84,8 @@ describe('scarf row band vs the resolved frame', () => {
   }
   /** Every label column the scarf can ask for: compact, a measured name, the cap. */
   const LEFT_WIDTHS = [
-    participantIndexAxisWidth(),
-    calculateLeftLabelWidth(false, ['P1', 'P2']),
+    participantIndexAxisWidth(1000),
+    scarfLabelColumn(false, ['P1', 'P2']).width,
     SCARF_LAYOUT.LEFT_LABEL_MAX_WIDTH,
   ]
 
@@ -111,10 +106,10 @@ describe('scarf row band vs the resolved frame', () => {
 
   test('the plot columns are the frame rect (label column + right margin are pad)', () => {
     // A measured label column is fractional; the frame floors to whole pixels.
-    const left = calculateLeftLabelWidth(false, ['P1', 'P2'])
+    const left = scarfLabelColumn(false, ['P1', 'P2']).width
     const { rect } = resolveWith(left, TITLES.short, 0)
     expect(rect.x).toBe(Math.floor(left))
-    expect(rect.width).toBe(Math.floor(W - left - SCARF_LAYOUT.RIGHT_MARGIN))
+    expect(rect.width).toBe(Math.floor(W - left - PLOT_BORDER_PX))
   })
 
   test('legendY − bottom IS the axis carve, with or without a legend block', () => {

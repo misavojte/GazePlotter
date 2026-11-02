@@ -1,13 +1,11 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import type { PlotView } from '$lib/plots/definePlot'
-import { ALL_SELECTION_LABEL } from '$lib/data/types'
-import { getParticipantsSelectionOptions } from '$lib/plots/shared/selectOptionsGetters'
-import { optionLabel } from '$lib/plots/shared/subtitles'
+import { plotView } from '$lib/plots/definePlot'
 import { formatGaze, formatQuantity, timeRangeQualifier, withQualifiers } from '$lib/plots/shared/labels'
 import type { PlotPlaceholderContent } from '$lib/plots/shared/drawCanvasPlaceholder'
-import FixationHeatmapPlotFigure from '../components/FixationHeatmapPlotFigure.svelte'
-import { SIGMA_PER_RADIUS } from './density'
+import { trailLengthOf } from '$lib/plots/shared/playbackFields'
+import { fixationHeatmapKit } from './kit'
 import { getFixationHeatmapData } from './transformer'
+import { FIXATION_HEATMAP_LAYOUT as L } from '../const'
 import type {
   FixationHeatmapData,
   FixationHeatmapPlotSettings,
@@ -43,11 +41,7 @@ export function heatmapUnit(settings: Pick<FixationHeatmapPlotSettings, 'accumul
   return settings.accumulate === 'duration' ? 'ms' : ''
 }
 
-const formatCount = (n: number) => n.toLocaleString('en-US')
-
-/** Map values and amounts: separators from 100 up, one decimal from 1, two significant digits below. */
-export const formatAmount = (v: number) =>
-  Math.abs(v) >= 100 ? Math.round(v).toLocaleString('en-US') : Math.abs(v) >= 1 ? v.toFixed(1) : v.toPrecision(2)
+const fixations = (n: number) => `${n} fixation${n === 1 ? '' : 's'}`
 
 /** Auto scale top: the peak rounded up at the third significant digit, so the key reads cleanly. */
 export function niceCeil(v: number): number {
@@ -56,84 +50,92 @@ export function niceCeil(v: number): number {
   return Number((Math.ceil(v / step - 1e-9) * step).toPrecision(12))
 }
 
-/** Colorbar title in the labels.ts grammar: what the colour means, short enough to fit two lines. */
-export function heatmapLegendTitle(settings: FixationHeatmapPlotSettings, data: FixationHeatmapData): string {
+/** Colorbar title without its time qualifier: the quantity, then R and N in math notation. */
+export function heatmapLegendTitleBase(settings: FixationHeatmapPlotSettings, data: FixationHeatmapData): string {
   const quantity = settings.accumulate === 'duration' ? 'Fixation duration' : 'Fixation count'
   const share = settings.normalization === 'share'
-  const n = data.participants.length
   return withQualifiers(
     formatQuantity(share ? `${quantity} share` : quantity, heatmapUnit(settings)),
-    settings.scaleMax > 0 ? 'max fixed' : 'max auto',
-    `mean of ${n} participant${n === 1 ? '' : 's'}`,
+    `R = ${formatGaze(data.radius)}`,
+    `N = ${data.participants.length}`
+  )
+}
+
+/** Colorbar title in the labels.ts grammar; a playback frame swaps the time qualifier for its window. */
+export function heatmapLegendTitle(settings: FixationHeatmapPlotSettings, data: FixationHeatmapData): string {
+  return withQualifiers(
+    heatmapLegendTitleBase(settings, data),
     timeRangeQualifier(settings.timelineStart ?? 0, settings.timelineEnd ?? 0)
   )
 }
 
 /**
- * The figure's self-documenting line, never removed: the selection and the
- * kernel first, then the warnings an export must keep, the fixation count last.
+ * What the map leaves out, for the legend title's tooltip: the background it
+ * draws only at a shown moment, the resolution limit, and the fixations it
+ * could not place.
  */
-export function heatmapSummary(
-  engine: DataEngine,
-  settings: FixationHeatmapPlotSettings,
-  data: FixationHeatmapData,
-  isVideo: boolean
-): string {
+export function heatmapNotes(data: FixationHeatmapData, isVideo: boolean): string[] {
   const s = data.summary
-  const selection =
-    optionLabel(getParticipantsSelectionOptions(engine, true, settings.stimulusId), settings.groupId) ?? ALL_SELECTION_LABEL
-  const unit = heatmapUnit(settings)
-  const amount = (v: number) => `${formatAmount(v)}${unit ? ` ${unit}` : ''}`
-  const clauses = [
-    selection,
-    `R = ${formatGaze(data.radius)}${data.radiusIsAuto ? ' auto' : ''}`,
-    `σ = ${formatGaze(data.radius * SIGMA_PER_RADIUS)}`,
-    settings.scaleMax > 0 && data.max > settings.scaleMax && `peak ${amount(data.max)} > max ${amount(settings.scaleMax)}`,
-    isVideo && 'video background not drawn',
-    data.coarse && 'R below grid resolution · peaks read low',
-    s.outside > 0 && `${formatCount(s.outside)} outside ${data.clip ? 'media' : 'view'}`,
-    s.withoutCoordinates > 0 && `${formatCount(s.withoutCoordinates)} without coordinates`,
+  const notes = [
+    isVideo && 'Video frame drawn only under a map of its moment',
+    data.coarse && 'R below grid resolution, peaks read low',
+    s.outside > 0 && `${fixations(s.outside)} outside the ${data.clip ? 'media' : 'view'}`,
+    s.withoutCoordinates > 0 && `${fixations(s.withoutCoordinates)} without coordinates`,
     s.participantsWithout > 0 &&
       `${s.participantsWithout} of ${s.selected} participants without located fixations`,
-    `${formatCount(s.fixations)} fixation${s.fixations === 1 ? '' : 's'}`,
   ]
-  return clauses.filter((c): c is string => typeof c === 'string').join(' · ')
+  return notes.filter((n): n is string => typeof n === 'string')
 }
 
-/** Single source of truth for "what a fixation heatmap draws", screen and export alike. */
-export function deriveFixationHeatmapView(
-  engine: DataEngine,
-  settings: FixationHeatmapPlotSettings
-): PlotView {
+/** What a fixation heatmap draws, screen and export. */
+export function fixationHeatmapInput(engine: DataEngine, settings: FixationHeatmapPlotSettings) {
   const result = getFixationHeatmapData(engine, settings)
-  if (result.kind !== 'ok') {
-    return {
-      component: FixationHeatmapPlotFigure,
-      props: { data: null, unavailableMessage: PLACEHOLDERS[result.reason] },
-    }
-  }
-  const { data } = result
+  const data = result.kind === 'ok' ? result.data : null
   const media = engine.metadata?.stimuliMedia?.[settings.stimulusId] ?? null
-  // Only an image is drawn: a video's shared element is the playback clock, so
-  // its frame under a static map would move with any Scanpath of the stimulus.
-  const image = media?.kind === 'image' && settings.background !== 'none' ? media : null
+  // An image lies under the parked map. A video's frame is drawn only under a
+  // map of the moment it shows (the playhead, or the moment saved for export):
+  // a whole-range map over one arbitrary frame of a moving scene would mislead.
+  const drawn = media && settings.background !== 'none' ? media : null
+  const autoTop = niceCeil((data?.max ?? 0) * (settings.view === 'opacity' ? L.maskAutoTopShare : 1))
   return {
-    component: FixationHeatmapPlotFigure,
-    props: {
-      data,
-      colorScale: settings.colorScale,
-      opacity: Math.min(100, Math.max(0, settings.opacity)) / 100,
-      scaleTop: settings.scaleMax > 0 ? settings.scaleMax : niceCeil(data.max),
-      fixedMax: settings.scaleMax > 0,
-      showFixations: settings.showFixations,
-      background: image ? settings.background : 'image',
-      legendTitle: heatmapLegendTitle(settings, data),
-      summaryText: heatmapSummary(engine, settings, data, media?.kind === 'video'),
-      accumulate: settings.accumulate,
-      normalization: settings.normalization,
-      unavailableMessage: null,
-      media: image,
-      mediaStimulusId: settings.stimulusId,
-    },
+    settings,
+    /** The parked map: every fixation of the time range. */
+    data,
+    dataEnd: data?.lastEnd ?? null,
+    unavailableMessage: result.kind === 'ok' ? null : PLACEHOLDERS[result.reason],
+    media: drawn,
+    trailLength: trailLengthOf(settings, engine),
+    /** Value at the top colour: a set Scale max, else the rounded peak (the color sync may raise it). */
+    scaleTop: settings.scaleMax > 0 ? settings.scaleMax : autoTop,
+    legendTitle: data ? heatmapLegendTitle(settings, data) : '',
+    /** The title without its time qualifier; a playback frame appends its window's. */
+    legendTitleBase: data ? heatmapLegendTitleBase(settings, data) : '',
+    /** What the map leaves out; shown on hovering the legend title. */
+    notes: data ? heatmapNotes(data, drawn?.kind === 'video') : [],
   }
 }
+
+export type FixationHeatmapInput = ReturnType<typeof fixationHeatmapInput>
+
+/** What a fixation heatmap draws; an auto-scaled map also offers its scale to the color sync. */
+export function deriveFixationHeatmapView(engine: DataEngine, settings: FixationHeatmapPlotSettings) {
+  const input = fixationHeatmapInput(engine, settings)
+  const { data } = input
+  const meta =
+    data && !(settings.scaleMax > 0)
+      ? {
+          /** Unsynced auto scale top. */
+          ownScaleTop: input.scaleTop,
+          /** Maps sharing it measure the same thing on the same colors. */
+          syncGroupKey: [
+            settings.accumulate,
+            settings.normalization,
+            data.radius,
+            settings.view === 'opacity' ? `mask ${settings.maskColor}` : settings.colorScale.join('|'),
+          ].join(';'),
+        }
+      : undefined
+  return plotView(fixationHeatmapKit, input, { meta })
+}
+
+export type FixationHeatmapView = ReturnType<typeof deriveFixationHeatmapView>

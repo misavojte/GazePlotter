@@ -227,7 +227,7 @@
     reservedIds: () =>
       referencedSelectionIds(
         grid.items,
-        cfg.axis === 'participant' ? 'groupId' : 'stimulusSelectionId'
+        cfg.axis === 'participant' ? 'participantSelectionId' : 'stimulusSelectionId'
       ),
     groups: () => editor.groups,
     ...sel.membership,

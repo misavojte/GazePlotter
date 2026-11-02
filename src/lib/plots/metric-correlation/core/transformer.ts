@@ -39,7 +39,7 @@ export function getMetricCorrelationData(
   const meta = engine.metadata
   if (!meta) return emptyResult(settings)
 
-  const participantIds = getParticipantsIds(engine, settings.groupId, settings.stimulusId)
+  const participantIds = getParticipantsIds(engine, settings, settings.stimulusId)
 
   const { metrics, instances } = resolveMetrics(
     settings.metricInstanceIds,

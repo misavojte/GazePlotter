@@ -18,10 +18,12 @@ import {
   strokeCrispRect,
   strokeParallelLines,
 } from '$lib/plots/shared/canvasUtils'
-import { GRIDLINE_PRIMARY, FONT_PRIMARY } from './const'
+import { INACTIVE_COLOR } from '$lib/color/palettes'
+import { AREA_DIVIDER, GRIDLINE_PRIMARY, FONT_PRIMARY } from './const'
 import type { AdaptiveTimeline } from './timelineUtils'
 
-const TICK_LENGTH = 5
+/** Tick-mark length (px) outward from the border; an edge with mirrored ticks reserves it. */
+export const TICK_LENGTH = 5
 const TICK_LABEL_GAP = 10 // gap from the edge baseline to the label
 
 export interface PlotAreaTicks {
@@ -67,6 +69,47 @@ export function fillPlotAreaBackground(
   ctx.save()
   ctx.fillStyle = color
   ctx.fillRect(floorLeft, floorTop, floorWidth, floorHeight)
+  ctx.restore()
+}
+
+/**
+ * A row heatmap (AOI timeline, metric timeline): background, the cells each row
+ * `put`s in `domain` units, then row dividers. Cell edges snap to whole pixels,
+ * as a fractional shared edge anti-aliases on both sides and shows a seam.
+ */
+export function paintRowCells(
+  ctx: CanvasRenderingContext2D,
+  frame: { x: number; y: number; width: number; height: number },
+  rowCount: number,
+  domain: [number, number],
+  cells: (row: number, put: (start: number, end: number, color: string) => void) => void
+): void {
+  fillPlotAreaBackground(ctx, frame.x, frame.y, frame.width, frame.height, INACTIVE_COLOR)
+  const right = frame.x + frame.width
+  const rowHeight = frame.height / rowCount
+  const pxPerUnit = frame.width / (domain[1] - domain[0])
+  let rowY = 0
+  let last = ''
+  const put = (start: number, end: number, color: string) => {
+    const x0 = Math.round(Math.max(frame.x, frame.x + (start - domain[0]) * pxPerUnit))
+    const x1 = Math.round(Math.min(right, frame.x + (end - domain[0]) * pxPerUnit))
+    if (x1 <= x0) return
+    // An unchanged colour skips the fillStyle parse.
+    if (color !== last) ctx.fillStyle = last = color
+    ctx.fillRect(x0, rowY, x1 - x0, rowHeight)
+  }
+  for (let r = 0; r < rowCount; r++) {
+    rowY = frame.y + r * rowHeight
+    cells(r, put)
+  }
+  ctx.save()
+  ctx.strokeStyle = AREA_DIVIDER.COLOR
+  ctx.lineWidth = AREA_DIVIDER.WIDTH
+  strokeParallelLines(
+    ctx, true, rowCount - 1,
+    i => alignToPixelCenter(frame.y + (i + 1) * rowHeight),
+    frame.x, right
+  )
   ctx.restore()
 }
 
@@ -222,20 +265,14 @@ function drawVerticalEdge(
   // Labels — right-aligned on the left edge, left-aligned on the right edge.
   if (!labels) return
   ctx.textAlign = isLeft ? 'right' : 'left'
+  ctx.textBaseline = 'middle'
+  // A label whose tick sits near an edge is held inside it, never spilling past the border.
+  const half = FONT_PRIMARY.SIZE / 2
   for (let i = 0; i < len; i++) {
     const label = labels[i]
     if (!label) continue
     const y = alignToPixelCenter(floorTop + Math.round(positions[i] * floorHeight))
-
-    // Clamp baseline near the edges so text doesn't spill over the border.
-    if (Math.abs(y - alignToPixelCenter(floorTop)) < 1) {
-      ctx.textBaseline = 'top'
-    } else if (Math.abs(y - alignToPixelCenter(floorBottom)) < 1) {
-      ctx.textBaseline = 'bottom'
-    } else {
-      ctx.textBaseline = 'middle'
-    }
-    ctx.fillText(label, labelX, y)
+    ctx.fillText(label, labelX, Math.min(floorBottom - half, Math.max(floorTop + half, y)))
   }
 }
 

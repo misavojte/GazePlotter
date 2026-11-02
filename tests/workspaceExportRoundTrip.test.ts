@@ -35,7 +35,6 @@ const gridItems = [
     h: 8,
     settings: {
       stimulusId: 0,
-      groupId: -1,
       metricInstanceIds: ['absoluteTime'],
       hideNoAoi: false,
     },
@@ -49,7 +48,6 @@ const gridItems = [
     h: 10,
     settings: {
       stimulusId: 0,
-      groupId: -1,
       metricInstanceIds: ['absoluteTime-aoi-windowed-500'],
       hideNoAoi: false,
     },

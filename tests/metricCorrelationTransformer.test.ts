@@ -50,7 +50,6 @@ function createEngine() {
 
 const settings = (ids: string[]): MetricCorrelationSettings => ({
   stimulusId: STIM,
-  groupId: -1,
   view: 'heatmap',
   correlationMethod: 'pearson',
   metricInstanceIds: ids,

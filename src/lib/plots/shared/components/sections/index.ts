@@ -7,11 +7,12 @@ import type {
   SectionFieldOption,
 } from '$lib/plots/definePlot'
 import type { ModalDefinition } from '$lib/modals/defineModal'
-import { getStimuliOptions, getParticipantOptions, getParticipantsSelectionOptions } from '$lib/plots/shared'
+import { getStimuliOptions, getParticipantOptions } from '$lib/plots/shared'
 import {
   getAoiSelections,
   getCategoriesSelections,
   getEventsSelections,
+  getParticipantsSelections,
   getStimuliSelections,
 } from '$lib/data/engine'
 import { resolvePlotDefinition } from '$lib/plots/registry'
@@ -41,8 +42,6 @@ const modalAction = (
     void ctx.modalState.open(modal, { source: ctx.source })
   },
 })
-
-const editParticipants = modalAction('Edit participants & selections', participantModificationModal)
 
 /** A single-id section: the numeric `<key>Id` picker with its library edit link. */
 const idSection = (
@@ -89,20 +88,20 @@ export const SHARED_SECTIONS: Record<string, SharedPaneSection> = {
     modalAction('Edit stimuli & selections', stimulusModificationModal),
     { defaultOpen: true }
   ),
-  participant: idSection('participant', 'Participant', ctx => getParticipantOptions(ctx.engine), editParticipants),
-  // Group options depend on a stimulus, but group ids are stimulus-independent,
-  // so the representative's stimulus is safe even across mixed stimuli.
-  group: idSection(
-    'group',
-    'Participants',
-    ctx => getParticipantsSelectionOptions(ctx.engine, true, (ctx.settings.stimulusId as number) ?? 0),
-    editParticipants,
-    { label: 'Participant selection' }
-  ),
+  participant: idSection('participant', 'Participant', ctx => getParticipantOptions(ctx.engine), modalAction('Edit participants & selections', participantModificationModal)),
   // ONE section shape per entity axis: the per-plot SELECTION picker + the
   // single edit link into that entity's modal (names, colors, merges,
-  // selections — one surface). All four are `EntitySelectionSection` with
+  // selections: one surface). All five are `EntitySelectionSection` with
   // that axis's config bound.
+  participants: entitySection({
+    title: 'Participants',
+    selectLabel: 'Participant selection',
+    settingsKey: 'participantSelectionId',
+    getSelections: getParticipantsSelections,
+    modal: participantModificationModal,
+    editLabel: 'Edit participants & selections',
+    toggle: { key: 'hideEmptyParticipants', label: 'Hide participants without data', summary: 'non-empty' },
+  }),
   aoi: entitySection({
     title: 'Areas of Interest',
     selectLabel: 'AOI selection',
@@ -111,7 +110,7 @@ export const SHARED_SECTIONS: Record<string, SharedPaneSection> = {
     modal: aoiModificationModal,
     editLabel: 'Edit AOIs & selections',
     passSelectedStimulus: true,
-    hideNoAoiToggle: true,
+    toggle: { key: 'hideNoAoi', label: 'Hide No AOI data', summary: 'No AOI' },
   }),
   stimuli: entitySection({
     title: 'Stimuli',

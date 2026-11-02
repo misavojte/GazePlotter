@@ -6,7 +6,6 @@ const TRANSITION_COUNT_INSTANCE_ID = 'transitionCount-fix'
 
 describe('Transition Matrix Plot Transformer (Integration)', () => {
   const stimulusId = 0
-  const groupId = -1
 
   it('transforms raw segments into a transition matrix with Outside', () => {
     const engine = makeTwoAoiEngine([
@@ -22,7 +21,7 @@ describe('Transition Matrix Plot Transformer (Integration)', () => {
     const result = getTransitionMatrixData(
       engine,
       stimulusId,
-      groupId,
+      {},
       TRANSITION_COUNT_INSTANCE_ID
     )
 
@@ -50,7 +49,7 @@ describe('Transition Matrix Plot Transformer (Integration)', () => {
     const result = getTransitionMatrixData(
       engine,
       stimulusId,
-      groupId,
+      {},
       TRANSITION_COUNT_INSTANCE_ID,
       0,
       0,

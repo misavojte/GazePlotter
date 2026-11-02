@@ -343,7 +343,7 @@
     display: flex;
     align-items: center;
     padding: 12px 16px;
-    background: var(--c-darkwhite);
+    background: var(--c-lightgrey);
     border: 1px solid var(--c-border);
     border-radius: var(--rounded);
     cursor: pointer;

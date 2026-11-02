@@ -52,8 +52,8 @@ export const METRIC_EXPORT_CONTRACT_WIDE: PlotMetricContract = {
 
 export type MetricDataExportOptions = {
   fileName: string
-  /** Explicit participant selection, in engine order. Participant groups are a
-   *  SELECTION tool in the modal, never an export parameter — the export
+  /** Explicit participant selection, in engine order. Participant selections are
+   *  presets in the modal, never an export parameter: the export
    *  receives exactly the participants it emits. */
   participantIds: number[]
   stimulusIds: number[]

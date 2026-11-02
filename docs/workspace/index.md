@@ -49,7 +49,7 @@ The central area of the screen where plots are arranged.
 A collapsible panel located on the **right side** of the screen.
 - **Pane Activation**: Opens automatically when you select any plot card on the canvas.
 - **Collapsible Settings**: Customize parameters (e.g. *Stimulus*, *Participant selection*, *Participant*, *Time Range*, *Areas of Interest*, *Events*, *Eye-movement Types*, *Metric*). See [Visualization Configuration Pane](/docs/visualizations/#visualization-configuration-pane) for details.
-- **Batch Editing**: Modify settings for multiple selected plots simultaneously (mixed plot types only expose shared options).
+- **Batch Editing**: Modify settings for multiple selected plots simultaneously (mixed plot types only expose shared options). A setting the selected plots disagree on shows *Mixed*, and a color shows each plot's color as a stripe; editing it applies the new value to all of them.
 - **On a phone**: the pane rises as a sheet along the bottom edge. Pull it down by the handle above its title, or tap the canvas behind it, to close it.
 
 ## Plot Manipulation

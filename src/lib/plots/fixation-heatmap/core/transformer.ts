@@ -10,6 +10,7 @@ import type { Rect } from '$lib/data/media/mediaAlignment'
 import type { StimulusMedia } from '$lib/data/types'
 import { fillWindowFrame, type WindowFrame } from '$lib/metrics/core/dsl'
 import { percentileSorted } from '$lib/shared/stats'
+import { memoByRef } from '$lib/plots/shared/kit'
 import { blurGaussian, gridFor, isCoarseGrid, kernelTaps, splatFixations } from './density'
 import { FIXATION_HEATMAP_LAYOUT as L } from '../const'
 import type {
@@ -30,27 +31,17 @@ interface PointExtent {
 }
 
 /** Per-reader extents: the data under a reader never changes (an edit builds a new reader). */
-const readerCache = new WeakMap<
-  BinaryBufferReader,
-  {
+const cacheOf = memoByRef(
+  (_reader: BinaryBufferReader): {
     dataset?: PointExtent | null
     stimuli: Map<number, PointExtent | null>
     /** Recent maps by their compute key, so colour, opacity and scale edits never recompute. */
     maps: Map<string, FixationHeatmapTransformResult>
-  }
->()
+  } => ({ stimuli: new Map(), maps: new Map() })
+)
 
 /** Recent maps kept per reader: enough for a workspace of side-by-side heatmaps. */
 const MAP_CACHE_SIZE = 16
-
-function cacheOf(reader: BinaryBufferReader) {
-  let entry = readerCache.get(reader)
-  if (!entry) {
-    entry = { stimuli: new Map(), maps: new Map() }
-    readerCache.set(reader, entry)
-  }
-  return entry
-}
 
 /** Every participant's located fixations on `stimuli`, all times: one bbox + one robust extent. */
 function fixationExtent(reader: BinaryBufferReader, stimuli: number[]): PointExtent | null {
@@ -192,9 +183,8 @@ export function getFixationHeatmapData(
 
   const { stimulusId } = settings
   const media = engine.metadata?.stimuliMedia?.[stimulusId] ?? null
-  const radiusIsAuto = !(settings.radius > 0)
-  const radius = radiusIsAuto ? autoRadius(reader, media) : settings.radius
-  const ids = getParticipantsIds(engine, settings.groupId, stimulusId)
+  const radius = settings.radius > 0 ? settings.radius : autoRadius(reader, media)
+  const ids = getParticipantsIds(engine, settings, stimulusId)
   const names = ids.map(id => getParticipant(engine, id).displayedName)
 
   // Everything the map depends on; view-only settings (colours, opacity, scale) are not in it.
@@ -204,7 +194,6 @@ export function getFixationHeatmapData(
     settings.accumulate,
     settings.normalization,
     radius,
-    radiusIsAuto,
     settings.timelineStart ?? 0,
     settings.timelineEnd ?? 0,
     ids,
@@ -218,7 +207,7 @@ export function getFixationHeatmapData(
     maps.set(key, cached)
     return cached
   }
-  const result = computeHeatmap(reader, spatial, settings, media, radius, radiusIsAuto, ids, names)
+  const result = computeHeatmap(reader, spatial, settings, media, radius, ids, names)
   maps.set(key, result)
   if (maps.size > MAP_CACHE_SIZE) maps.delete(maps.keys().next().value!)
   return result
@@ -230,7 +219,6 @@ function computeHeatmap(
   settings: FixationHeatmapPlotSettings,
   media: StimulusMedia | null,
   radius: number,
-  radiusIsAuto: boolean,
   ids: number[],
   names: string[]
 ): FixationHeatmapTransformResult {
@@ -247,8 +235,11 @@ function computeHeatmap(
   const xs = new Float32Array(capacity)
   const ys = new Float32Array(capacity)
   const raw = new Float32Array(capacity)
+  const starts = new Float64Array(capacity)
+  const ends = new Float64Array(capacity)
   const owner = new Uint32Array(capacity)
   const totals = new Float64Array(ids.length)
+  let lastEnd = 0
   const byDuration = settings.accumulate === 'duration'
   const timeStart = settings.timelineStart ?? 0
   const timeEnd = settings.timelineEnd ?? 0
@@ -282,8 +273,11 @@ function computeHeatmap(
       xs[count] = x
       ys[count] = y
       raw[count] = w
+      starts[count] = start
+      ends[count] = end
       owner[count] = p
       totals[p] += w
+      if (end > lastEnd) lastEnd = end
       count++
     }
   }
@@ -342,13 +336,15 @@ function computeHeatmap(
       values,
       max,
       radius,
-      radiusIsAuto,
       coarse: isCoarseGrid(grid, radius),
       extent,
       clip: media ? extent : null,
       xs: xs.subarray(0, count),
       ys: ys.subarray(0, count),
       raw: raw.subarray(0, count),
+      starts: starts.subarray(0, count),
+      ends: ends.subarray(0, count),
+      lastEnd,
       participantIndex,
       participants,
       summary: {

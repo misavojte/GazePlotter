@@ -1,8 +1,8 @@
 {
   "name": "gazeplotter",
-  "version": "1.10.3",
+  "version": "1.10.4",
   "license": "GPL-3.0-only",
-  "description": "Gazeplotter is a Svelte application for visualizing eye-tracking data.",
+  "description": "Eye-tracking analysis for Tobii Pro Lab, SMI BeGaze, GazePoint, Pupil Cloud, Varjo and OGAMA exports: AOI dwell time, fixation metrics, scarf plots, scanpaths and heatmaps. Web app and CLI, data stays local.",
   "repository": {
     "type": "github",
     "url": "https://github.com/misavojte/GazePlotter"
@@ -14,10 +14,27 @@
   "homepage": "https://gazeplotter.com",
   "keywords": [
     "eye-tracking",
-    "eye gaze",
-    "svelte",
+    "eye tracking",
+    "gaze",
+    "fixation",
+    "saccade",
+    "aoi",
+    "area of interest",
+    "dwell time",
+    "scarf plot",
     "sequence chart",
-    "scarf plot"
+    "scanpath",
+    "heatmap",
+    "transition matrix",
+    "tobii",
+    "tobii pro lab",
+    "smi begaze",
+    "gazepoint",
+    "pupil labs",
+    "varjo",
+    "ogama",
+    "cli",
+    "svelte"
   ],
   "scripts": {
     "dev": "vite dev",
@@ -48,7 +65,7 @@
     "!dist/**/*.spec.*"
   ],
   "peerDependencies": {
-    "svelte": "^5.0.0"
+    "svelte": "^5.25.0"
   },
   "devDependencies": {
     "@sveltejs/adapter-static": "^3.0.1",
@@ -61,7 +78,7 @@
     "prettier-plugin-svelte": "^3.2.0",
     "publint": "^0.1.9",
     "rehype-slug": "^6.0.0",
-    "svelte": "^5.0.0",
+    "svelte": "^5.25.0",
     "svelte-check": "^4.3.5",
     "typescript": "^5.0.0",
     "vite": "^8.0.0",

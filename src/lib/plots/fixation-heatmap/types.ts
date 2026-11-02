@@ -1,14 +1,15 @@
+import type { StimulusBackground } from '$lib/plots/shared/stimulusBackground'
 import type { Rect } from '$lib/data/media/mediaAlignment'
 import type { GridGeometry } from './core/density'
+import type { ParticipantScope } from '$lib/data/types'
+import type { PlaybackSettings } from '$lib/plots/shared/playbackFields'
 
 export type FixationHeatmapAccumulate = 'duration' | 'count'
 export type FixationHeatmapNormalization = 'share' | 'mean'
-/** What lies under the heat when the stimulus has an image. */
-export type FixationHeatmapBackground = 'image' | 'grayscale' | 'dimmed' | 'none'
-
-export type FixationHeatmapPlotSettings = {
-  stimulusId: number
-  groupId: number
+/** Heatmap: colour rises with the value. Opacity map: a mask that clears as it rises. */
+export type FixationHeatmapViewKind = 'heatmap' | 'opacity'
+/** Playback: during it the map covers the trail ending at the playhead (All: from the range start). */
+export type FixationHeatmapPlotSettings = ParticipantScope & PlaybackSettings & {
   /** What a fixation adds: its (clipped) duration, or 1 when its midpoint is in range. */
   accumulate: FixationHeatmapAccumulate
   /** Share: each participant's weights over their own total, in %, then averaged.
@@ -16,14 +17,18 @@ export type FixationHeatmapPlotSettings = {
   normalization: FixationHeatmapNormalization
   /** Kernel radius in gaze units (sigma = R / 3); 0 = Auto. */
   radius: number
+  view: FixationHeatmapViewKind
   colorScale: string[]
   /** Value at the top colour, in the map's unit; 0 = Auto (the map's own peak). */
   scaleMax: number
   /** Heat overlay opacity [%]. */
   opacity: number
+  /** Opacity map: the mask's colour, and its opacity [%] where the map is 0. */
+  maskColor: string
+  maskOpacity: number
   showFixations: boolean
   /** The image as is, desaturated, desaturated and faded, or not drawn (Pro Lab's White). */
-  background: FixationHeatmapBackground
+  background: StimulusBackground
   timelineStart?: number
   timelineEnd?: number
 }
@@ -57,7 +62,6 @@ export interface FixationHeatmapData {
   /** Peak over the shown cells: inside the media rect with media, else all. */
   max: number
   radius: number
-  radiusIsAuto: boolean
   /** True when the grid cell is too coarse for R and peaks read low (a small R on a large extent). */
   coarse: boolean
   /** The gaze rectangle the view frames: the media region, or the fixations' extent. */
@@ -69,6 +73,11 @@ export interface FixationHeatmapData {
   ys: Float32Array
   /** Accumulated weight before normalisation (ms or 1). */
   raw: Float32Array
+  /** Recording-time bounds of each mapped fixation, for playback frames. */
+  starts: Float64Array
+  ends: Float64Array
+  /** The latest end among the mapped fixations: the player's span end. */
+  lastEnd: number
   /** Index into `participants`. */
   participantIndex: Uint32Array
   participants: HeatmapParticipant[]

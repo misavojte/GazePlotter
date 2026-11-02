@@ -39,6 +39,8 @@ import { formatFileSize } from '$lib/shared/format'
 import type { DataType, ParsedData } from '$lib/data/types'
 import { createDefaultMetricInstances } from '$lib/metrics/instances'
 import type {
+  DataLoader,
+  LoadProgress,
   ParseSettings,
   FileInputType,
   FileMetadataFailureType,
@@ -78,6 +80,8 @@ type IngestDependencies = {
   openFiles: OpenFiles
   /** Asked before a user upload replaces the dataset; false keeps it. */
   confirmReplace?: () => boolean
+  /** No success toast for the host's own load: the host announces it. */
+  quietInitialLoad?: boolean
 }
 
 /** Fresh empty dataset per load. The engine takes ownership of what it loads
@@ -87,7 +91,6 @@ function createEmptyDataset(): DataType {
   return {
     ...blankDataset(),
     metricInstances: createDefaultMetricInstances(),
-    noAoiTreatment: { color: '#cbd5e1', displayedName: 'No AOI' },
   }
 }
 
@@ -139,8 +142,9 @@ class IngestWorkerClient {
   constructor(
     private readonly onData: (data: ParsedData) => void,
     private readonly onFail: (failureMetadata: FileMetadataFailureType) => void,
-    private readonly onProgress: (progressPercent: number) => void,
-    private readonly ui: IngestUiServices
+    private readonly onProgress: (loaded: number, total: number) => void,
+    private readonly ui: IngestUiServices,
+    private readonly quiet = false
   ) {
     this.worker = new IngestWorker()
     this.worker.onmessage = this.handleMessage.bind(this)
@@ -165,7 +169,7 @@ class IngestWorkerClient {
     this.totalFileSize = this.fileSizes.reduce((sum, size) => sum + size, 0)
     this.parsingSumTime = 0
     this.parsingAnchorTime = Date.now()
-    this.onProgress(0)
+    this.onProgress(0, this.totalFileSize)
 
     if (
       !this.postWorkerMessage(
@@ -243,7 +247,7 @@ class IngestWorkerClient {
   private handleWorkspaceDone(
     result: Extract<IngestResult, { kind: 'workspace' }>
   ): void {
-    if (this.settleWithSuccess('workspace loaded') === null) return
+    if (this.settleWithSuccess('Opened') === null) return
     for (const warning of result.warnings ?? []) this.ui.toastState.addWarning(warning)
     this.onData({
       version: result.version as ParsedData['version'],
@@ -262,7 +266,7 @@ class IngestWorkerClient {
     data: DataType
     classified: ParseSettings
   }): void {
-    const parseDuration = this.settleWithSuccess('parsed', formatEntityCounts(data))
+    const parseDuration = this.settleWithSuccess('Read', formatEntityCounts(data))
     if (parseDuration === null) return
     const fileMetadata: FileMetadataSuccessType = {
       status: 'success',
@@ -285,14 +289,17 @@ class IngestWorkerClient {
 
   /** Settle, then report success; null when already settled (a cancelled
    *  upload whose 'done' message was already queued must not toast success). */
-  private settleWithSuccess(outcome: string, counts = ''): number | null {
+  private settleWithSuccess(verb: 'Opened' | 'Read', counts = ''): number | null {
     if (!this.markSettled()) return null
     const duration = Date.now() - this.parsingAnchorTime + this.parsingSumTime
     const fileInfo = formatFileInfo(this.fileNames, this.fileSizes)
-    this.onProgress(100)
-    this.ui.toastState.addSuccess(
-      `${fileInfo} ${outcome} successfully in ${formatDuration(duration)}${counts ? `: ${counts}` : ''}`
-    )
+    this.onProgress(this.totalFileSize, this.totalFileSize)
+    // The duration is the reading only, never the download before it.
+    if (!this.quiet) {
+      this.ui.toastState.addSuccess(
+        `${verb} ${fileInfo} in ${formatDuration(duration)}${counts ? `: ${counts}` : ''}`
+      )
+    }
     return duration
   }
 
@@ -334,16 +341,8 @@ class IngestWorkerClient {
   }
 
   private handleProgress(processedBytes: number): void {
-    if (this.isSettled) return
-
-    if (typeof processedBytes !== 'number' || this.totalFileSize <= 0) {
-      this.onProgress(0)
-      return
-    }
-
-    const ratio = processedBytes / this.totalFileSize
-    const progressPercent = Math.floor(Math.min(Math.max(ratio, 0), 0.99) * 100)
-    this.onProgress(progressPercent)
+    if (this.isSettled || typeof processedBytes !== 'number') return
+    this.onProgress(Math.min(processedBytes, this.totalFileSize), this.totalFileSize)
   }
 
   private handleError(
@@ -435,7 +434,10 @@ export class IngestService {
   private explicitStatus = $state<IngestStatus>('loading')
   metadata = $state<FileMetadataType | null>(null)
   input = $state<FileInputType | null>(null)
-  progressPercent = $state(0)
+  /** The host loader's download while it reports one; null otherwise. */
+  download = $state<LoadProgress | null>(null)
+  /** The files a running parse reads; its total narrows once they are sorted. */
+  reading = $state<LoadProgress | null>(null)
   /** The layout the visible dataset opened with: what Reset Layout returns to. */
   loadedLayout = $state<GridItemSnapshot[] | null>(null)
 
@@ -443,9 +445,10 @@ export class IngestService {
    *  initial load (a demo, a shared link). */
   isUserDataset = $state(false)
 
-  /** True while a worker parse is running — uploads are one at a time. */
-  private uploadInFlight = false
   private nextLoadFromUser = true
+  private hostLoader: DataLoader | null = null
+  /** Set while the host loader runs, so a newer load can supersede it. */
+  private hostAbort: AbortController | null = null
 
   // Any `errorService.fatalLoad` — regardless of `origin` — implies the dataset
   // is unusable, so ingest reflects 'error' without each fatal-load reporter
@@ -463,6 +466,64 @@ export class IngestService {
     this.deps = deps
   }
 
+  /**
+   * Run the host's load (a demo, a shared link) through the normal ingest.
+   * A newer host load or a user upload supersedes it while it downloads.
+   */
+  async loadFromHost(loader: DataLoader): Promise<void> {
+    this.cancelHostLoad()
+    const controller = new AbortController()
+    const { signal } = controller
+    this.hostLoader = loader
+    this.hostAbort = controller
+    this.deps.errorService.clearFatalLoad()
+    this.explicitStatus = 'loading'
+
+    let files: File[]
+    try {
+      // Only while this load is current: a late report must not revive the bar.
+      files = await loader(signal, progress => {
+        if (this.hostAbort === controller) this.download = progress
+      })
+    } catch (cause) {
+      if (signal.aborted) return
+      this.deps.errorService.report({
+        origin: 'bootstrap',
+        severity: 'fatal-load',
+        userMessage:
+          cause instanceof Error && cause.message
+            ? cause.message
+            : 'Could not load initial workspace data.',
+        cause,
+      })
+      return
+    } finally {
+      if (this.hostAbort === controller) {
+        this.hostAbort = null
+        this.download = null
+      }
+    }
+    // A loader that ignores its signal still resolves after being superseded.
+    if (signal.aborted) return
+
+    if (files.length === 0) {
+      this.applyEmpty()
+    } else {
+      await this.loadFiles(files, { fromHost: true })
+    }
+  }
+
+  /** The "Data load failed" screen's Try again; a resumable loader resumes. */
+  retryHostLoad(): void {
+    if (this.hostLoader) void this.loadFromHost(this.hostLoader)
+  }
+
+  cancelHostLoad(): void {
+    this.hostAbort?.abort()
+    this.hostAbort = null
+    this.download = null
+  }
+
   /** Open the host's file source and load the pick; `[]` means cancelled. */
   async openAndLoadFiles(): Promise<boolean> {
     const files = await this.deps.openFiles()
@@ -475,49 +536,52 @@ export class IngestService {
     { fromHost = false }: { fromHost?: boolean } = {}
   ): Promise<boolean> {
     if (files.length === 0) return false
-    const replacesDataset = Array.from(files).some(file => mediaKindOf(file) === null)
-    if (!fromHost && replacesDataset && this.deps.confirmReplace?.() === false) return false
-
-    // One upload at a time: a second drop while a parse is running would
-    // spawn a competing worker racing to commit into the same session.
-    // There is deliberately no cancel — a started load always runs to
-    // success or failure and the outcome stays visible.
-    if (this.uploadInFlight) {
+    // One upload at a time: a second drop mid-parse would spawn a competing
+    // worker committing into the same session. A started load deliberately has
+    // no cancel, and a refused one is never asked the replace question.
+    if (this.reading) {
       this.deps.toastState.addInfo(
-        'A file upload is already in progress. Wait for it to finish.'
+        'Data is still loading. Try again when it has finished.'
       )
       return false
     }
-    this.uploadInFlight = true
-    this.nextLoadFromUser = !fromHost
+    const allFiles = Array.from(files)
+    const replacesDataset = allFiles.some(file => mediaKindOf(file) === null)
+    if (!fromHost && replacesDataset && this.deps.confirmReplace?.() === false) return false
 
-    this.deps.errorService.clearAll()
-    this.explicitStatus = 'loading'
-    this.progressPercent = 0
+    // The user's own data wins over a host download still in progress.
+    if (!fromHost) this.cancelHostLoad()
+    const first = allFiles[0].name
+    const source = allFiles.length === 1 ? first : `${first} and ${allFiles.length - 1} more`
+    const total = allFiles.reduce((sum, file) => sum + file.size, 0)
+    this.reading = { source, loaded: 0, total, waiting: null }
+    this.nextLoadFromUser = !fromHost
+    const quiet = fromHost && this.deps.quietInitialLoad === true
 
     try {
-      const allFiles = Array.from(files)
       const { eyeFiles, eventFiles, mediaFiles } =
         await partitionUploadFiles(allFiles)
 
       // Media-only upload: attach to the ALREADY-LOADED dataset (stimuli must
       // exist to match against) — never a dataset replacement, so the grid,
-      // history, and metadata all stay put.
+      // history, and metadata all stay put. It never passes through
+      // 'loading', which would take the grid down and replay its entrance.
       if (eyeFiles.length === 0 && eventFiles.length === 0) {
+        // Ready BEFORE the attach (a cancelled host download left 'loading'):
+        // it may open the assignment modal, which must not sit under the overlay.
+        this.explicitStatus = 'ready'
         if (!this.deps.engine.hasValidData) {
           this.deps.toastState.addWarning(
             'Reference images/videos attach to stimuli. Upload eye-tracking data first, or include it in the same upload.'
           )
-          this.explicitStatus = 'ready'
           return false
         }
-        // Ready BEFORE the attach: it may open the assignment modal, which
-        // must not sit under the loading overlay.
-        this.explicitStatus = 'ready'
-        this.progressPercent = 100
         await this.attachMediaFiles(mediaFiles, { undoable: true })
         return true
       }
+
+      this.deps.errorService.clearAll()
+      this.explicitStatus = 'loading'
 
       if (eyeFiles.length === 0 && eventFiles.length > 0) {
         // CSV event files carry their own stimulus/participant names, so they
@@ -525,7 +589,7 @@ export class IngestService {
         // native plot; gaze analysis hides off `segmented: false`). XML/JSON
         // event files map onto EXISTING stimuli via a modal, so those still
         // require eye-tracking data.
-        const loaded = await this.processStandaloneEventFiles(eventFiles)
+        const loaded = await this.processStandaloneEventFiles(eventFiles, quiet)
         if (loaded) await this.attachMediaFiles(mediaFiles)
         return loaded
       }
@@ -568,14 +632,15 @@ export class IngestService {
             this.applyFailure(failureMetadata)
             resolve(false)
           },
-          progressPercent => {
-            this.progressPercent = progressPercent
+          (loaded, total) => {
+            this.reading = { source, loaded, total, waiting: null }
           },
           {
             errorService: this.deps.errorService,
             modalState: this.deps.modalState,
             toastState: this.deps.toastState,
-          }
+          },
+          quiet
         )
         client.sendFiles(eyeFiles)
       })
@@ -592,7 +657,7 @@ export class IngestService {
       this.explicitStatus = 'error'
       return false
     } finally {
-      this.uploadInFlight = false
+      this.reading = null
     }
   }
 
@@ -609,7 +674,6 @@ export class IngestService {
    */
   applyEmpty(): void {
     this.deps.errorService.clearAll()
-    this.progressPercent = 0
     this.metadata = null
     this.input = null
     const empty = createEmptyDataset()
@@ -623,7 +687,6 @@ export class IngestService {
 
   applyParsedData(parsedData: ParsedData): void {
     this.deps.errorService.clearFatalLoad()
-    this.progressPercent = 100
     this.metadata =
       parsedData.version >= 3 ? (parsedData.fileMetadata ?? null) : null
     this.input = parsedData.current
@@ -665,7 +728,6 @@ export class IngestService {
    * dataset is the failed (empty) one, never a silently-restored old one.
    */
   applyFailure(failureMetadata: FileMetadataFailureType): void {
-    this.progressPercent = 0
     this.loadedLayout = null
     this.deps.grid.reset([])
     this.metadata = failureMetadata
@@ -790,7 +852,8 @@ export class IngestService {
    * CSV event file; lone XML/JSON uploads stay a fatal refusal.
    */
   private async processStandaloneEventFiles(
-    eventFiles: ClaimedEventFile[]
+    eventFiles: ClaimedEventFile[],
+    quiet: boolean
   ): Promise<boolean> {
     const csvFiles: File[] = []
     const legacyFiles: File[] = []
@@ -861,12 +924,14 @@ export class IngestService {
       freshDataset: true,
     })
     const counts = formatEntityCounts(built.data)
-    this.deps.toastState.addSuccess(
-      `Event data loaded: ${formatFileInfo(
-        csvFiles.map(f => f.name),
-        csvFiles.map(f => f.size)
-      )}${counts ? `: ${counts}` : ''}`
-    )
+    if (!quiet) {
+      this.deps.toastState.addSuccess(
+        `Event data loaded: ${formatFileInfo(
+          csvFiles.map(f => f.name),
+          csvFiles.map(f => f.size)
+        )}${counts ? `: ${counts}` : ''}`
+      )
+    }
     return true
   }
 

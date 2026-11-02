@@ -1,16 +1,12 @@
-import {
-  GRIDLINE_PRIMARY,
-  GRIDLINE_SECONDARY,
-  calculateTickStep,
-  drawParticipantRowAxis,
-} from '$lib/plots/shared'
+import { calculateTickStep } from '$lib/plots/shared/axisUtils'
+import { GRIDLINE_PRIMARY, GRIDLINE_SECONDARY } from '$lib/plots/shared/const'
 import {
   alignToPixelCenter,
   pixelLayer,
   strokeParallelLines,
   type PixelLayer,
 } from '$lib/plots/shared/canvasUtils'
-import { desaturateToWhite, convertToHex, hexToRgb } from '$lib/color'
+import { desaturateToWhite, convertToHex, hexToRgb, UI_COLORS } from '$lib/color'
 import {
   OVERLAY_EVENT_STRIDE,
   SCARF_LAYOUT,
@@ -58,25 +54,6 @@ export interface ScarfLayoutContext {
    * don't anti-alias ~0.5px past the bar — most visible on fractional-DPI
    * displays (e.g. Windows 125%/150%) where a tiny bar is only a few device px. */
   deviceScale: number
-}
-
-/**
- * Draws the participant labels on the left side of the plot.
- */
-export function drawScarfLabels(
-  ctx: CanvasRenderingContext2D,
-  data: ScarfData,
-  layout: ScarfLayoutContext
-) {
-  const { participants } = data
-  drawParticipantRowAxis(
-    ctx,
-    participants.length,
-    layout.isCompact ? null : participants.map(p => p.label),
-    layout.plotLeft,
-    layout.plotTop,
-    layout.heightOfBarWrap
-  )
 }
 
 /**
@@ -652,7 +629,7 @@ function paintEventStrips(
     const base =
       styleArray[styleIdx]?.normal?.fill ??
       styleArray[styleIdx]?.normal?.stroke ??
-      '#888888'
+      UI_COLORS.FALLBACK_MARK
     ctx.fillStyle = bandFill(base, isDimmed)
 
     const count = buffer.length / OVERLAY_EVENT_STRIDE

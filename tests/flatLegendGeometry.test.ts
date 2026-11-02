@@ -24,14 +24,15 @@ function items(names: string[], type: LegendItem['type']): LegendItem[] {
 const FOUR = items(['AAAA', 'BBBB', 'CCCC', 'DDDD'], 'fixation')
 
 describe('computeFlatLegendGeometry — grid placement', () => {
-  test('fills column-first into fixed-width columns', () => {
+  test('fills column-first into fixed, whole-pixel columns', () => {
     const geo = computeFlatLegendGeometry(FOUR, CFG, 0, 0, 600, 2)
 
-    // 2 columns x 2 rows; items 0,1 fill the first column top-down.
-    const colX = 54.4 + CFG.itemSpacing
-    expect(geo.items.map(i => i.x)).toEqual([0, 0, expect.closeTo(colX), expect.closeTo(colX)])
+    // 2 columns x 2 rows; items 0,1 fill the first column top-down. 54.4 rounds up to 55,
+    // so every swatch lands on a whole pixel.
+    const colX = 55 + CFG.itemSpacing
+    expect(geo.items.map(i => i.x)).toEqual([0, 0, colX, colX])
     expect(geo.items.map(i => i.y)).toEqual([0, CFG.itemHeight + CFG.rowPadding, 0, CFG.itemHeight + CFG.rowPadding])
-    expect(geo.items.every(i => Math.abs(i.width - 54.4) < 1e-6)).toBe(true)
+    expect(geo.items.every(i => i.width === 55)).toBe(true)
     expect(geo.itemsPerRow).toBe(2)
   })
 
@@ -59,12 +60,12 @@ describe('computeFlatLegendGeometry — grid placement', () => {
 })
 
 describe('computeFlatLegendGeometry — row heights', () => {
-  test('nonFixation rows still reserve text height', () => {
+  test('every row is one height, so a thin bar sits in a full row', () => {
     const geo = computeFlatLegendGeometry(items(['Saccade'], 'nonFixation'), CFG, 0, 0, 600)
-    // Icon is the thin 4px bar, but the row must fit the 12px label.
+    // Icon is the thin 4px bar; the row matches every other, so grids side by side share baselines.
     expect(geo.items[0].height).toBe(CFG.nonFixationHeight)
-    expect(geo.items[0].rowHeight).toBe(CFG.fontSize)
-    expect(geo.totalHeight).toBe(CFG.fontSize)
+    expect(geo.items[0].rowHeight).toBe(Math.max(CFG.itemHeight, CFG.fontSize))
+    expect(geo.totalHeight).toBe(Math.max(CFG.itemHeight, CFG.fontSize))
   })
 
   test('a row shared by fixation and nonFixation takes the taller height', () => {

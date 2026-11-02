@@ -84,6 +84,8 @@ export interface DistributionResult {
   dataMax: number
   /** True when the plot's `metricInstanceIds[0]` points to a missing instance. */
   noMetric?: boolean
+  /** True when the slots exist but no participant in the selection is on the stimulus. */
+  noParticipants?: boolean
   /**
    * True when the metric aggregates as a `proportion` (e.g. `fixated`): the
    * figure renders a plain proportional bar, not a beeswarm. The value is
@@ -93,10 +95,9 @@ export interface DistributionResult {
 }
 
 /**
- * The screen-coordination surface every distribution view carries on
- * `PlotView.meta`. Read by `distributionValueAxisScreen`, so a plot opts into
- * cross-plot value-axis sync with one line in its definition and nothing in its
- * derivation; plots without the recipe simply carry it unread.
+ * What every distribution view carries on `PlotView.meta` for the value-axis
+ * sync (`./plot`), so a plot opts in with one line in its definition and nothing
+ * in its derivation; plots that do not opt in carry it unread.
  */
 export interface DistributionViewMeta {
   /** Metric instance id used as the sync key, or null when nothing is picked. */

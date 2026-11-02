@@ -1,28 +1,47 @@
 # Scanpath Similarity
 
-Scanpath Similarity in GazePlotter enables pairwise comparison of participant gaze trajectories using string alignment algorithms. By encoding scanpaths as letter sequences based on visited Areas of Interest (AOIs), this visualization measures how similar participants' search patterns are, rendering results either as a similarity matrix or as a **ScanGraph** network.
+Scanpath Similarity compares the gaze sequences of every pair of participants. Each scanpath is encoded as a string of letters, one per visited Area of Interest (AOI), and a string alignment algorithm scores how alike two strings are. The scores are drawn as a similarity matrix or as a **ScanGraph** network.
 
 The ScanGraph view, including its similarity parameter *p*, the percentage-of-edges threshold, and the clique-based groups of similar participants, implements the scanpath comparison method of Doležalová and Popelka (2016); see the [Reference](#reference) below.
 
-> **Plot Operations**: For general canvas operations (moving, resizing, duplicating, or removing plots), see [Plot Manipulation](/docs/workspace/#plot-manipulation).
+![Scanpath Similarity card in the workspace: Levenshtein similarity between the AOI sequences of every participant pair on the Yarbus Remember clothes stimulus.](/docs/images/scanpath-similarity.webp)
 
-## What the plot needs
+| | |
+| --- | --- |
+| **Scope** | One stimulus, a participant selection |
+| **Input** | The AOI sequence of each participant's fixations, encoded as a letter string |
+| **Metric Library** | Any metric that produces a participant-by-participant similarity matrix, computed over the whole time range (sliding windows do not apply). See [Scanpath Similarity Metrics](/docs/metrics/scanpath-similarity) for the string encoding, Levenshtein distance, and Needleman-Wunsch alignment. |
 
-The plot draws its numbers from the workspace's [Metric Library](/docs/metrics). It accepts any metric that produces a participant-by-participant similarity matrix: one score for every pair of participants in the selected group, computed over the whole selected time range (sliding windows do not apply to this comparison).
+## When to Use It
 
-> **Scanpath Similarity Documentation**: For details on scanpath string encoding, Levenshtein edit distance, and Needleman-Wunsch global alignment, see the [Scanpath Similarity Metrics](/docs/metrics/scanpath-similarity) documentation.
+- **Scanning styles**: find groups of participants who looked at the stimulus in a similar order.
+- **Structural clusters**: the ScanGraph view pulls similar participants together, and **Highlight clique** names the exact groups in which every pair meets the similarity threshold.
+- **Algorithm choices**: compare *collapsed* Levenshtein (the order of visited AOIs) with standard Levenshtein (which keeps repeated fixations) to see how dwell affects who looks alike.
 
-## Configuration via Pane
+## Reading the Plot
 
-Clicking the Scanpath Similarity plot card in the workspace selects the plot and opens its configuration options in the sidebar **Pane** (or bottom sheet on mobile). The settings are organized into the following collapsible sections:
+- **Matrix** view (default): rows and columns are participants, and each cell holds the similarity of that pair, from 0 to 1. The diagonal compares each participant with themselves and reads 1.00. The color bar below names the metric.
+- **ScanGraph** view: nodes are participants, and an edge joins every pair whose similarity reaches the threshold *p*. Participants who are all pairwise connected form a clique.
+
+## Add a Scanpath Similarity Plot
+
+1. Load your data: drop the files anywhere on the page, or use **Import**. See [Uploading Data](/docs/upload-data/).
+2. In the rail on the left, click **Add Visualization**, then **Inter-participant** > **Scanpath Similarity**. When another plot is selected, the new one opens on its stimulus and participants.
+3. The pane on the right opens with the plot's settings. Pick the **Stimulus** first.
+
+To move, resize, duplicate, or remove the card, see [Plot Manipulation](/docs/workspace/#plot-manipulation).
+
+## Settings
+
+Select the card to open its settings in the **Pane** (a bottom sheet on mobile). The sections, in pane order:
 
 ### Stimulus
 Choose the stimulus to analyze. GazePlotter will compile the letter-coded scanpath sequences for participants based on this stimulus.
 - **Edit stimuli & selections**: Opens the [Stimuli Library](/docs/workspace/stimuli-library/) to manage stimulus files and build stimulus selections.
 
 ### Participants
-Filter the analysis to a specific participant group.
-- **Participant selection**: A dropdown containing *All*, *Non-empty*, and saved participant selections.
+Filter the analysis to a participant selection.
+- **Participant selection**: *All* or a saved participant selection. **Hide participants without data** leaves out those with no recording on the stimulus.
 - **Edit participants & selections**: Opens the [Participant Library](/docs/workspace/participant-library/) to rename, merge, and build [participant selections](/docs/workspace/participant-library/#participant-selections).
 
 ### Metric
@@ -42,19 +61,19 @@ Configure the rendering layout and thresholding. The view decides which further 
       - *Min*: Value mapped to the first gradient color (default 0).
       - *Max (0 = Auto)*: Value mapped to the last gradient color, or 0 to track the data maximum.
     - **Color scale picker**: Start, middle, and end colors of the gradient.
-    - **Out of bounds**: Fills for cells outside the range above; each also appears as an end cap on the color bar legend.
-      - *Below min*: Color (default gray) and a *Show text* toggle for cell values below Min.
-      - *Above max*: Color (default gray) and a *Show text* toggle for cell values above Max. Inert while Max is 0/Auto; its legend cap is hidden then too.
+    - **Out of bounds**: Fills for cells outside the range above; each also appears as an end cap on the color bar legend, and hovering the cap names the values it stands for. Each row is offered only while its end of the range is set.
+      - *Below min*: Color (default gray) and a *Show text* toggle for cell values below Min. Shown while Min is above 0.
+      - *Above max*: Color (default gray) and a *Show text* toggle for cell values above Max. Shown while Max is set (not 0/Auto).
   - *ScanGraph*: Renders a network graph (node-link diagram) where nodes represent participants, and lines (edges) connect participant pairs whose similarity score is above the threshold.
     - **Similarity threshold (0–1)**: The minimum similarity *p* required to draw an edge between two participant nodes (e.g. 0.50). Pairs below it are not connected.
     - **Edges (% of possible pairs)**: The same threshold seen from the other side: it always displays the share of participant pairs connected at the current *p*, so the two controls move together. Entering a percentage finds the *p* that draws at most that share of edges (ties round down, as in the ScanGraph article), and the field then shows the share actually achieved. The article's advised graph draws 5% of the possible edges.
     - **Min clique members**: The smallest clique the picker offers (default 2 = all cliques). Raising it hides the many small pairs a near-threshold graph produces, keeping the list focused on substantial groups.
     - **Highlight clique**: A clique is a group of participants that are **all pairwise similar** at the chosen threshold (the ScanGraph article's "groups of similar participants"). This dropdown lists every such group with at least the chosen number of members, largest first. Each option's secondary line reports the clique's internal agreement: the weakest pairwise similarity (`p ≥ …`, every member pair agrees at least this much) and the mean (`x̄`), followed by its members. Selecting one emphasizes its members and the edges **between** them while the rest of the graph recedes; edges leaving the clique stay plain, and members get first claim on label space. Nodes highlighted by clicking stay at full strength on top. On very dense graphs the clique list becomes unavailable and only *None* is offered; raise the threshold to bring it back.
 
-### Time range [ms]
+### Time range
 Limit the analysis to fixations that begin within this time range.
-- **Start**: Limit the minimum time boundary (ms).
-- **End (0 = Auto)**: Limit the maximum time boundary (ms) or leave at 0 for automatic duration matching.
+- **Start / ms**: Limit the minimum time boundary.
+- **End / ms (0 = Auto)**: Limit the maximum time boundary, or leave at 0 for automatic duration matching.
 
 ### Areas of Interest
 Filters which Areas of Interest (AOIs) get their own letter in the scanpath strings. Fixations outside every active AOI are encoded as `#` (no AOI), exactly as in the exported ScanGraph strings.
@@ -66,13 +85,6 @@ Located at the bottom of the Pane:
 - **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the similarity visualization as a PNG or JPG.
 - **Download data**: Opens the [Metric Data](/docs/export/metric-data/) export preset to this plot's metrics, stimulus, participant selection, time range and AOI selection.
 
-## Interpretation
-
-Use Scanpath Similarity to:
-- **Discover scanning styles**: Matrix view heat spots reveal groups of participants who looked at the stimulus in a similar sequence.
-- **Analyze structural clusters**: ScanGraph view visually groups similar participants together, and **Highlight clique** names the exact groups, where every pair of members meets the similarity threshold.
-- **Compare algorithm choices**: Toggle between *collapsed* Levenshtein (emphasizes the order of visited AOIs) and standard Levenshtein (retains fixation duration differences) to see how dwell time affects which participants look alike.
-
 ## Reference
 
 The ScanGraph view implements the scanpath comparison method introduced in:
@@ -80,3 +92,9 @@ The ScanGraph view implements the scanpath comparison method introduced in:
 > Doležalová, J., & Popelka, S. (2016). ScanGraph: A novel scanpath comparison method using visualisation of graph cliques. *Journal of Eye Movement Research*, 9(4). [https://doi.org/10.16910/jemr.9.4.5](https://doi.org/10.16910/jemr.9.4.5)
 
 The authors' original web tool is available at [eyetracking.upol.cz/scangraph](http://eyetracking.upol.cz/scangraph); GazePlotter can [export scanpath strings](/docs/export/scangraph/) in the format it accepts.
+
+## Related
+
+- [Scarf Plot](/docs/visualizations/scarf-plot/): the AOI sequences being compared, drawn over time.
+- [Scanpath](/docs/visualizations/scanpath/): one participant's fixations on the stimulus.
+- [ScanGraph export](/docs/export/scangraph/): the scanpath strings in the format of the original ScanGraph tool.

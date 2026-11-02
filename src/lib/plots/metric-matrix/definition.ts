@@ -1,5 +1,4 @@
 import { deriveMetricMatrixView } from './core/view'
-import { plotCursorScreen } from '$lib/plots/shared/plotCursor.svelte'
 import { definePlot } from '$lib/plots/definePlot'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import { OUT_OF_BOUNDS_DEFAULTS, outOfBoundsFields } from '$lib/plots/shared/outOfBounds'
@@ -15,8 +14,7 @@ import type { MetricMatrixPlotSettings } from './types'
  * metric value, with no-data / not-usable cells rendered visually distinct from
  * low values. The un-reduced, per-participant consumer of a scalar instance: a
  * researcher scans the whole grid to see which recordings are trustworthy.
- * Consumes the shared `MatrixPlotFigure` via its `drawCells` seam — no `.svelte`
- * of its own.
+ * Draws through the shared `matrixKit`; no figure of its own.
  */
 export const metricMatrixDefinition = definePlot<
   'metricMatrix',
@@ -27,7 +25,7 @@ export const metricMatrixDefinition = definePlot<
   tagline: 'Metric per participant × stimulus',
   group: 'per-participant',
   paneSections: [
-    'group',
+    'participants',
     'stimuli',
     'metric',
     {
@@ -46,16 +44,17 @@ export const metricMatrixDefinition = definePlot<
           defaultMin: PRESET_PALETTES.BLUE.colors[0],
           defaultMax: PRESET_PALETTES.BLUE.colors[2],
         },
-        ...outOfBoundsFields(),
+        ...outOfBoundsFields({ range: s => s.scaleRange }),
       ],
       summary: () => 'Matrix',
     },
   ],
   view: { deriveView: deriveMetricMatrixView },
-  screen: plotCursorScreen(),
+  // Rows are participants: an identity cursor across stimuli, no time axis.
+  cursor: {},
   getSubtitle: metricMatrixSubtitle,
   getDefaultSettings: (params = {}) => ({
-    groupId: params.groupId ?? -1,
+    hideEmptyParticipants: false,
     metricInstanceIds: [METRIC_MATRIX_DEFAULTS.defaultMetricId],
     colorScale: [...METRIC_MATRIX_DEFAULTS.colorScale],
     // `0 = Auto`; the scaleRange field writes an explicit [min, max] here. Must

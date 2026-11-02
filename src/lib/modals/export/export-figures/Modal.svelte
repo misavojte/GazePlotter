@@ -30,7 +30,7 @@
   import FigureRenderHost from './FigureRenderHost.svelte'
   import FigurePreview from './FigurePreview.svelte'
   import type { PlotExportProps } from './types'
-  import { deriveItemView, itemExportProps } from './view'
+  import { deriveItemView, itemExportProps, itemPlayback } from './view'
   import { buildFigureEntryName } from './naming'
   import { sanitizeFileName } from '$lib/data/export'
   import type { ExportFileType } from '$lib/plots/shared/figureExport'
@@ -151,6 +151,7 @@
   // ── Sequential off-screen rendering ─────────────────────────────────────────
   type RenderJob = {
     view: PlotView
+    playback: boolean
     exportProps: PlotExportProps
     resolve: (canvas: HTMLCanvasElement | null) => void
   }
@@ -174,11 +175,13 @@
 
   function renderFigure(
     view: PlotView,
+    playback: boolean,
     exportProps: PlotExportProps
   ): Promise<HTMLCanvasElement | null> {
     return new Promise(resolve => {
       renderJob = {
         view,
+        playback,
         exportProps,
         resolve: canvas => {
           renderJob = null
@@ -206,7 +209,7 @@
         try {
           const view = deriveItemView(engine, item)
           const canvas = view
-            ? await renderFigure(view, itemExportProps(item, grid, dpi, margin))
+            ? await renderFigure(view, itemPlayback(item), itemExportProps(item, grid, dpi, margin))
             : null
           if (cancelled) return
           if (!canvas) {
@@ -306,8 +309,8 @@
           options={IMAGE_TYPE_OPTIONS}
           bind:value={fileType}
         />
-        <InputNumber label="Margin [px]" bind:value={margin} min={0} />
-        <InputNumber label="Resolution [DPI]" bind:value={dpi} min={72} />
+        <InputNumber label="Margin / px" bind:value={margin} min={0} />
+        <InputNumber label="Resolution / DPI" bind:value={dpi} min={72} />
       </FieldGrid>
       <div class="dpi-presets">
         <span class="presets-label">DPI Presets:</span>
@@ -380,6 +383,7 @@
 {#if renderJob}
   <FigureRenderHost
     view={renderJob.view}
+    playback={renderJob.playback}
     exportProps={renderJob.exportProps}
     onResult={renderJob.resolve}
   />
@@ -444,7 +448,7 @@
 
   .pager-btn:hover:not(:disabled) {
     color: var(--c-brand);
-    background: var(--c-darkwhite);
+    background: var(--c-lightgrey);
   }
 
   .pager-btn:disabled {

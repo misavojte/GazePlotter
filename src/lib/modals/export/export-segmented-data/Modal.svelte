@@ -33,15 +33,15 @@
   import { defaultParticipantSelection } from '../shared/participants'
 
   export interface Props {
-    /** Prefill: one stimulus, and a group's members or one participant. */
+    /** Prefill: one stimulus, and a selection's members or one participant. */
     stimulusId?: number
-    groupId?: number
+    participantSelectionId?: number
     participantId?: number
     /** Prefill: a plot's AOI selection ticks its AOIs. */
     aoiSelectionId?: number
   }
 
-  let { stimulusId, groupId, participantId, aoiSelectionId }: Props = $props()
+  let { stimulusId, participantSelectionId, participantId, aoiSelectionId }: Props = $props()
   const { engine, exportService, workspaceFile } = getGazePlotterSession()
   // Named after the dataset, as the workspace and analysis exports are.
   const fileName = `${workspaceFile.suggestedName}-SegmentedData`
@@ -58,7 +58,7 @@
     untrack(() =>
       participantId != null
         ? new Set([participantId.toString()])
-        : defaultParticipantSelection(engine, groupId)
+        : defaultParticipantSelection(engine, participantSelectionId)
     )
   )
   

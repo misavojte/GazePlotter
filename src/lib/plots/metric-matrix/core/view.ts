@@ -1,8 +1,9 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import type { PlotView } from '$lib/plots/definePlot'
-import { formatCompact, MatrixPlotFigure } from '$lib/plots/shared'
+import { plotView, type PlotView } from '$lib/plots/definePlot'
+import { formatCompact } from '$lib/plots/shared/labels'
 import { METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
-import { resolvePickedInstance } from '$lib/plots/shared'
+import { resolvePickedInstance } from '$lib/plots/shared/metricResolver'
+import { matrixKit, type MatrixInput } from '$lib/plots/shared/matrixKit'
 import { INACTIVE_COLOR } from '$lib/color/palettes'
 import { getMetricMatrixData } from './transformer'
 import { getMetricMatrixLegendTitle, METRIC_MATRIX_DEFAULTS } from '../const'
@@ -17,15 +18,15 @@ const STATE_LABEL: Record<Exclude<CellState, null>, string> = {
 }
 
 /**
- * Single source of truth for "what a metric matrix draws" — a `MatrixPlotFigure`
- * spec. Rows = participants, columns = stimuli. Every NA bucket stores NaN, so
- * the shared figure paints it via `nonFiniteColor` and suppresses the cell
+ * Single source of truth for "what a metric matrix draws" — a `matrixKit`
+ * input. Rows = participants, columns = stimuli. Every NA bucket stores NaN, so
+ * the matrix kit paints it via `nonFiniteColor` and suppresses the cell
  * value; the tooltip (`STATE_LABEL`) still discloses the exact NA reason.
  */
 export function deriveMetricMatrixView(
   engine: DataEngine,
   settings: MetricMatrixPlotSettings
-): PlotView {
+): PlotView<MatrixInput> {
   const data = getMetricMatrixData(engine, settings)
   const rowLabels = data.rows.map(r => r.label)
   const colLabels = data.cols.map(c => c.label)
@@ -52,40 +53,37 @@ export function deriveMetricMatrixView(
   const colorValueRange: [number, number] = settings.scaleRange ?? [0, 0]
   const colorScale = settings.colorScale ?? []
 
-  return {
-    component: MatrixPlotFigure,
-    props: {
-      matrix: data.values,
-      rowLabels,
-      colLabels,
-      // Rows are participants (columns are stimuli), so only rows join the PLOT
-      // CURSOR's participant channel.
-      rowParticipantIds: data.rows.map(r => r.id),
-      xAxisTitle: METRIC_MATRIX_DEFAULTS.xAxisTitle,
-      yAxisTitle: METRIC_MATRIX_DEFAULTS.yAxisTitle,
-      colorScale,
-      colorValueRange,
-      // NA buckets (state !== null) store NaN — never the scale minimum: a
-      // missing recording must not read as a low value.
-      nonFiniteColor: INACTIVE_COLOR,
-      belowMinColor: settings.belowMinColor,
-      aboveMaxColor: settings.aboveMaxColor,
-      showBelowMinLabels: settings.showBelowMinLabels,
-      showAboveMaxLabels: settings.showAboveMaxLabels,
-      legendTitle: placeholder ? null : getMetricMatrixLegendTitle(instance),
-      // The grid width varies with the stimulus count; pin the gradient legend
-      // to one fixed length centered under the figure (no dynamic shortening).
-      legendFixedWidth: true,
-      placeholder,
-      fitSteps: [
-        'Reduce the number of participants or stimuli shown',
-        'Or extend the plot',
-      ],
-      tooltipWidth: 240,
-      formatCellValue: formatCompact,
-      getCellTooltip: (row: number, col: number) => buildTooltip(data, row, col),
-    },
-  }
+  return plotView(matrixKit, {
+    matrix: data.values,
+    rowLabels,
+    colLabels,
+    // Rows are participants (columns are stimuli), so only rows join the PLOT
+    // CURSOR's participant channel.
+    rowParticipantIds: data.rows.map(r => r.id),
+    xAxisTitle: METRIC_MATRIX_DEFAULTS.xAxisTitle,
+    yAxisTitle: METRIC_MATRIX_DEFAULTS.yAxisTitle,
+    colorScale,
+    colorValueRange,
+    // NA buckets (state !== null) store NaN — never the scale minimum: a
+    // missing recording must not read as a low value.
+    nonFiniteColor: INACTIVE_COLOR,
+    belowMinColor: settings.belowMinColor,
+    aboveMaxColor: settings.aboveMaxColor,
+    showBelowMinLabels: settings.showBelowMinLabels,
+    showAboveMaxLabels: settings.showAboveMaxLabels,
+    legendTitle: placeholder ? null : getMetricMatrixLegendTitle(instance),
+    // The grid width varies with the stimulus count; pin the gradient legend
+    // to one fixed length centered under the figure (no dynamic shortening).
+    legendFixedWidth: true,
+    placeholder,
+    fitSteps: [
+      'Reduce the number of participants or stimuli shown',
+      'Or extend the plot',
+    ],
+    tooltipWidth: 240,
+    formatCellValue: formatCompact,
+    getCellTooltip: (row: number, col: number) => buildTooltip(data, row, col),
+  })
 }
 
 function buildTooltip(

@@ -3,6 +3,7 @@ import type { ErrorService } from '../src/lib/errors'
 import { createWorkspaceCommandRegistry } from '../src/lib/workspace/commands/registry'
 import { WorkspaceCommandBus } from '../src/lib/workspace/commands/bus'
 import { DataEngine } from '../src/lib/data/engine/dataEngine.svelte'
+import { interpretBaseRows } from '../src/lib/data/engine/utils/interpreters'
 import type {
   WorkspaceCommand,
   WorkspaceCommandChain,
@@ -845,6 +846,34 @@ describe('Undo round-trip through the command bus', () => {
     expect(ws.undo()).toBe(true)
     expect(snapshot()).toEqual(before)
     expect(report).not.toHaveBeenCalled()
+  })
+})
+
+// A custom display order must survive apply -> undo: the inverse used to emit
+// rows in id order, so undoing a sort reset the order vector to identity.
+describe('updateEntities undo restores a custom order', () => {
+  it.each([
+    { axis: 'stimulus', table: 'stimuli', order: [3, 0, 1, 2] },
+    { axis: 'participant', table: 'participants', order: [2, 0, 1] },
+  ] as const)('$axis: sort then undo restores the order vector', ({ axis, table, order }) => {
+    const data = makeDataType(
+      Array.from({ length: 4 }, () => Array.from({ length: 3 }, () => [[0, 100, 0, 0]]))
+    )
+    data[table].orderVector = [...order]
+    const engine = new DataEngine()
+    engine.loadDataset(data)
+    const ws = new WorkspaceCommandBus({
+      engine,
+      errorService: { report: vi.fn() },
+      grid: new GridState({ getAvailableColumns: () => 24 }),
+      toastState: { addSuccess: vi.fn() },
+    })
+    const sorted = interpretBaseRows(data[table].data).sort((a, b) => a.id - b.id)
+
+    expect(ws.apply({ type: 'updateEntities', axis, items: sorted, source: 'test' })).toBe(true)
+    expect(engine.metadata![table].orderVector).toEqual(sorted.map(e => e.id))
+    expect(ws.undo()).toBe(true)
+    expect(engine.metadata![table].orderVector).toEqual(order)
   })
 })
 

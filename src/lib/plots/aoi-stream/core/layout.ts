@@ -7,7 +7,7 @@ import {
 } from '../const'
 import { calculateIdealStripHeight } from './ridgeline'
 import { desaturateToWhite, samplePalette } from '$lib/color'
-import { PRESET_PALETTES } from '$lib/color/palettes'
+import { PRESET_PALETTES, resolvePalette } from '$lib/color/palettes'
 import { ceilToNiceStep } from '$lib/plots/shared/timelineUtils'
 import type { OutOfBoundsColors } from '$lib/plots/shared/outOfBounds'
 import { computeNiceYAxis } from './axis'
@@ -25,45 +25,51 @@ export interface RenderBuckets {
   binCount: number
 }
 
+/** Render bins: one per data bin plus a sentinel at each end. */
+const renderBinCountOf = (data: AoiStreamPlotResult) => data.binCount + 2
+
 /**
- * Initialize or reallocate render buckets when binCount or seriesCount changes.
+ * Scratch buffers sized for `data`, for {@link transformStreamDataToCoordinates}
+ * to rewrite in place on every call (a caller keeps one set per result).
  */
-function ensureRenderBuckets(
-  renderBuckets: RenderBuckets | null,
-  binCount: number,
-  seriesCount: number
-): RenderBuckets {
-  const needsRealloc =
-    !renderBuckets ||
-    renderBuckets.binCount !== binCount ||
-    renderBuckets.seriesBuckets.length !== seriesCount
-
-  if (needsRealloc) {
-    const seriesBuckets = new Array(seriesCount)
-    const seriesPaint = new Array(seriesCount)
-    for (let i = 0; i < seriesCount; i++) {
-      seriesBuckets[i] = {
-        topY: new Float32Array(binCount),
-        bottomY: new Float32Array(binCount),
-        heatmapColors: new Array(binCount),
-      }
-      seriesPaint[i] = { color: '', isDimmed: false, id: -1 }
+export function createRenderBuckets(data: AoiStreamPlotResult): RenderBuckets {
+  const binCount = renderBinCountOf(data)
+  const seriesCount = data.series.length
+  const seriesBuckets = new Array(seriesCount)
+  const seriesPaint = new Array(seriesCount)
+  for (let i = 0; i < seriesCount; i++) {
+    seriesBuckets[i] = {
+      topY: new Float32Array(binCount),
+      bottomY: new Float32Array(binCount),
+      heatmapColors: new Array(binCount),
     }
-
-    return {
-      xPositions: new Float32Array(binCount),
-      seriesBuckets,
-      totals: new Float32Array(binCount),
-      cumulative: new Float32Array(binCount),
-      seriesPaint,
-      binCount,
-    }
+    seriesPaint[i] = { color: '', isDimmed: false, id: -1 }
   }
+  return {
+    xPositions: new Float32Array(binCount),
+    seriesBuckets,
+    totals: new Float32Array(binCount),
+    cumulative: new Float32Array(binCount),
+    seriesPaint,
+    binCount,
+  }
+}
 
-  // Clear transient buffers
-  renderBuckets.totals.fill(0)
-  renderBuckets.cumulative.fill(0)
-  return renderBuckets
+/** `existing` when it fits `data` (its transient sums cleared), else a fresh set. */
+function ensureRenderBuckets(
+  existing: RenderBuckets | null,
+  data: AoiStreamPlotResult
+): RenderBuckets {
+  if (
+    !existing ||
+    existing.binCount !== renderBinCountOf(data) ||
+    existing.seriesBuckets.length !== data.series.length
+  ) {
+    return createRenderBuckets(data)
+  }
+  existing.totals.fill(0)
+  existing.cumulative.fill(0)
+  return existing
 }
 
 export interface StreamCoordsParams extends OutOfBoundsColors {
@@ -189,7 +195,7 @@ export function transformStreamDataToCoordinates(
     windowSize,
     stepSize,
   } = data
-  const renderBinCount = dataBinCount + 2
+  const renderBinCount = renderBinCountOf(data)
   // Values arrive in the metric's native unit (ms / count / %). The y-axis
   // range is driven directly by the data; no per-participant percent conversion
   // happens here. `maxValue` is the largest single-cell value (the ridgeline
@@ -204,11 +210,7 @@ export function transformStreamDataToCoordinates(
   // land at `binIdx × step + window / 2` along that range.
   const plotRange = Math.max(1, (dataBinCount - 1) * stepSize + windowSize)
 
-  const buckets = ensureRenderBuckets(
-    existingBuckets,
-    renderBinCount,
-    series.length
-  )
+  const buckets = ensureRenderBuckets(existingBuckets, data)
   const { xPositions, seriesBuckets, totals, cumulative, seriesPaint } = buckets
 
   // 1. Static Geometry Calculation
@@ -289,7 +291,7 @@ export function transformStreamDataToCoordinates(
   }
 
   const groupTop = floorBottom - totalGroupHeight
-  const palette = colorScale || PRESET_PALETTES.HEAT.colors
+  const palette = resolvePalette(colorScale, PRESET_PALETTES.HEAT.colors)
 
   let seriesRanks: Int32Array | null = null
 

@@ -142,6 +142,7 @@ export class DatasetBuilder implements DatasetSink {
 
   buildFinalData(): DataType {
     const data = this.writer.buildFinalData()
+    this.warnings.push(...this.writer.skippedSegmentWarnings())
     // Events for an excluded (stimulus, participant) group are dropped too:
     // the group was excluded because its stimulus extent is invalid, so events
     // timed against it are meaningless. `'*'` (all-participant) events carry no

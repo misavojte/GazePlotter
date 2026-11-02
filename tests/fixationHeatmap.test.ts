@@ -12,13 +12,15 @@ import {
   splatFixations,
 } from '../src/lib/plots/fixation-heatmap/core/density'
 import { autoRadius, getFixationHeatmapData } from '../src/lib/plots/fixation-heatmap/core/transformer'
-import { fadeIn, heatLut, legendRamp, paintHeat } from '../src/lib/plots/fixation-heatmap/core/heatImage'
+import { createFrameScratch, heatmapFrame } from '../src/lib/plots/fixation-heatmap/core/frame'
+import { fadeIn, heatLut, legendRamp, maskLut, paintHeat } from '../src/lib/plots/fixation-heatmap/core/heatImage'
 import {
   deriveFixationHeatmapView,
   heatmapLegendTitle,
-  heatmapSummary,
+  heatmapNotes,
   niceCeil,
 } from '../src/lib/plots/fixation-heatmap/core/view'
+import { formatAmount } from '../src/lib/plots/fixation-heatmap/core/tooltip'
 import { fixationHeatmapDefinition } from '../src/lib/plots/fixation-heatmap/definition'
 import type {
   FixationHeatmapData,
@@ -44,15 +46,19 @@ function engineOf(stimuli: Fix[][][], extra: Parameters<typeof makeTestEngine>[1
 
 const settings = (over: Partial<FixationHeatmapPlotSettings> = {}): FixationHeatmapPlotSettings => ({
   stimulusId: 1,
-  groupId: -1,
   accumulate: 'duration',
   normalization: 'share',
   radius: 30,
+  view: 'heatmap',
   colorScale: ['#ffeda0', '#fd8d3c', '#bd0026'],
   scaleMax: 0,
   opacity: 70,
+  maskColor: '#000000',
+  maskOpacity: 90,
   showFixations: false,
   background: 'image',
+  playbackSpeed: 1,
+  syncPlayback: true,
   ...over,
 })
 
@@ -228,7 +234,7 @@ describe('getFixationHeatmapData', () => {
   it('frames the same domain and grid for every selection and time range', () => {
     const e = engineOf([[], [P0, P1]], { participantsSelections: [{ id: 5, name: 'Experts', participantsIds: [1] }] })
     const all = ok(getFixationHeatmapData(e, settings()))
-    const experts = ok(getFixationHeatmapData(e, settings({ groupId: 5 })))
+    const experts = ok(getFixationHeatmapData(e, settings({ participantSelectionId: 5 })))
     const late = ok(getFixationHeatmapData(e, settings({ timelineStart: 400 })))
     expect(experts.grid).toEqual(all.grid)
     expect(late.grid).toEqual(all.grid)
@@ -239,7 +245,6 @@ describe('getFixationHeatmapData', () => {
     const e = engineOf([[[[0, 100, 0, 0], [100, 200, 1000, 500]]], [P0, P1]])
     const s0 = ok(getFixationHeatmapData(e, settings({ stimulusId: 0, radius: 0 })))
     const s1 = ok(getFixationHeatmapData(e, settings({ stimulusId: 1, radius: 0 })))
-    expect(s0.radiusIsAuto).toBe(true)
     expect(s0.radius).toBe(s1.radius)
     expect(s1.radius).toBe(autoRadius(e.getReader()!, null))
   })
@@ -289,7 +294,7 @@ describe('getFixationHeatmapData', () => {
   it('reuses the map across view-only edits and recomputes when its inputs change', () => {
     const e = engine()
     const first = ok(getFixationHeatmapData(e, settings()))
-    expect(ok(getFixationHeatmapData(e, settings({ opacity: 40, scaleMax: 3, colorScale: ['#000000', '#ffffff'] })))).toBe(first)
+    expect(ok(getFixationHeatmapData(e, settings({ view: 'opacity', opacity: 40, scaleMax: 3, colorScale: ['#000000', '#ffffff'] })))).toBe(first)
     expect(ok(getFixationHeatmapData(e, settings({ normalization: 'mean' })))).not.toBe(first)
     e.metadata!.participants.data[0][1] = 'Renamed'
     const renamed = ok(getFixationHeatmapData(e, settings()))
@@ -311,17 +316,22 @@ describe('background', () => {
   const props = (media: StimulusMedia | null, background: FixationHeatmapPlotSettings['background']) => {
     const e = engineOf([[], [P0, P1]])
     if (media) e.metadata!.stimuliMedia = { 1: media }
-    return deriveFixationHeatmapView(e, settings({ background })).props
+    return deriveFixationHeatmapView(e, settings({ background })).input
   }
 
-  it('passes the image with its treatment, and no image for None or a video', () => {
-    expect(props(image, 'dimmed')).toMatchObject({ media: image, background: 'dimmed' })
-    expect(props(image, 'none')).toMatchObject({ media: null, background: 'image' })
-    expect(props({ ...image, kind: 'video', mimeType: 'video/mp4' }, 'grayscale')).toMatchObject({ media: null })
+  it('passes the medium, and none for None', () => {
+    expect(props(image, 'dimmed').media).toBe(image)
+    expect(props(image, 'none').media).toBeNull()
+    // A video reaches the kit for its playback frames; the note says the parked map sits on white.
+    const video = { ...image, kind: 'video' as const, mimeType: 'video/mp4' }
+    const played = props(video, 'grayscale')
+    expect(played.media).toBe(video)
+    expect(played.notes).toContain('Video frame drawn only under a map of its moment')
+    expect(props(video, 'none').notes).not.toContain('Video frame drawn only under a map of its moment')
   })
 
   it('falls back to plain drawing without an image', () => {
-    expect(props(null, 'grayscale')).toMatchObject({ media: null, background: 'image' })
+    expect(props(null, 'grayscale').media).toBeNull()
   })
 
   it('keeps heat clipped to the media rect even when the image is not drawn', () => {
@@ -351,29 +361,46 @@ describe('heat image', () => {
     const dark = legendRamp(heatLut(['#000000', '#000000'], 0.5), 2)
     expect(dark[1]).toBe('#7f7f7f')
   })
+
+  it('masks fully where nobody looked and clears linearly to the top', () => {
+    const lut = maskLut('#102030', 0.9)
+    expect(lut[0]).toBe(((Math.round(0.9 * 255) << 24) | (0x30 << 16) | (0x20 << 8) | 0x10) >>> 0)
+    expect(lut[lut.length - 1] >>> 24).toBe(0)
+    const out = new Uint32Array(3)
+    paintHeat(Float32Array.from([0, 50, 500]), 100, lut, out, lut[0])
+    expect(out[0]).toBe(lut[0])
+    expect(out[1] >>> 24).toBeCloseTo(0.45 * 255, -1)
+    expect(out[2]).toBe(lut[lut.length - 1])
+    expect(legendRamp(maskLut('#000000', 1), 2)).toEqual(['#000000', '#ffffff'])
+  })
 })
 
 describe('labels', () => {
-  it('titles the colour: quantity, scale mode, N, time range', () => {
+  it('titles the colour: quantity, R, N, time range', () => {
     const data = ok(getFixationHeatmapData(engineOf([[], [P0, P1]]), settings({ timelineStart: 1000 })))
     expect(heatmapLegendTitle(settings({ timelineStart: 1000 }), data)).toBe(
-      'Fixation duration share / % · max auto · mean of 1 participant · t ≥ 1000 ms'
+      'Fixation duration share / % · R = 30 · N = 1 · t ≥ 1000 ms'
     )
     const all = ok(getFixationHeatmapData(engineOf([[], [P0, P1]]), settings({ normalization: 'mean' })))
     expect(heatmapLegendTitle(settings({ normalization: 'mean', scaleMax: 5 }), all)).toBe(
-      'Fixation duration / ms · max fixed · mean of 2 participants'
+      'Fixation duration / ms · R = 30 · N = 2'
     )
+    const auto = ok(getFixationHeatmapData(engineOf([[], [P0, P1]]), settings({ radius: 0 })))
+    expect(heatmapLegendTitle(settings({ radius: 0 }), auto)).toMatch(/ · R = [\d.]+ · N = 2$/)
   })
 
-  it('summarises the selection and kernel first, warnings next, the count last', () => {
-    const e = engineOf([[], [P0, P1]])
-    const data = ok(getFixationHeatmapData(e, settings()))
-    expect(heatmapSummary(e, settings(), data, false)).toBe('All · R = 30 · σ = 10 · 1 without coordinates · 5 fixations')
-    expect(heatmapSummary(e, settings({ scaleMax: 1 }), data, true)).toMatch(
-      /^All · R = 30 · σ = 10 · peak [\d.,]+ % > max 1\.0 % · video background not drawn · 1 without coordinates · 5 fixations$/
-    )
-    const auto = ok(getFixationHeatmapData(e, settings({ radius: 0 })))
-    expect(heatmapSummary(e, settings({ radius: 0 }), auto, false)).toMatch(/^All · R = [\d.]+ auto · σ = [\d.]+ · /)
+  it('notes only what the map leaves out', () => {
+    const data = ok(getFixationHeatmapData(engineOf([[], [P0, P1]]), settings()))
+    expect(heatmapNotes(data, false)).toEqual(['1 fixation without coordinates'])
+    expect(heatmapNotes(data, true)).toEqual(['Video frame drawn only under a map of its moment', '1 fixation without coordinates'])
+  })
+
+  it('formats amounts in plain digits, never grouping thousands', () => {
+    expect(formatAmount(12345.6)).toBe('12346')
+    expect(formatAmount(1380)).toBe('1380')
+    expect(formatAmount(-2500)).toBe('-2500')
+    expect(formatAmount(8.32)).toBe('8.3')
+    expect(formatAmount(0.0123)).toBe('0.012')
   })
 
   it('rounds the auto top up at the third significant digit', () => {
@@ -408,5 +435,116 @@ describe('onCommand', () => {
     expect(run({ accumulate: 'count', scaleMax: 3 }, 500)).not.toHaveBeenCalled()
     expect(run({ accumulate: 'count' }, 0)).not.toHaveBeenCalled()
     expect(run({ opacity: 50 }, 500)).not.toHaveBeenCalled()
+  })
+})
+
+describe('color sync', () => {
+  const meta = (over: Partial<FixationHeatmapPlotSettings>) =>
+    deriveFixationHeatmapView(engineOf([[], [P0, P1]]), settings({ stimulusId: 1, ...over })).meta as
+      | { ownScaleTop: number; syncGroupKey: string }
+      | undefined
+
+  it('offers an auto scale for sync, keyed on what the colors measure', () => {
+    const auto = meta({})!
+    expect(auto.ownScaleTop).toBeGreaterThan(0)
+    expect(meta({ accumulate: 'count' })!.syncGroupKey).not.toBe(auto.syncGroupKey)
+    expect(meta({ radius: 99 })!.syncGroupKey).not.toBe(auto.syncGroupKey)
+    expect(meta({ opacity: 20 })!.syncGroupKey).toBe(auto.syncGroupKey)
+  })
+
+  it('tops the opacity map at half the peak and keeps it out of heatmap sync', () => {
+    const heat = meta({})!
+    const mask = meta({ view: 'opacity' })!
+    expect(mask.ownScaleTop).toBeCloseTo(niceCeil(heat.ownScaleTop / 2), 1)
+    expect(mask.syncGroupKey).not.toBe(heat.syncGroupKey)
+    expect(meta({ view: 'opacity', maskOpacity: 50 })!.syncGroupKey).toBe(mask.syncGroupKey)
+  })
+
+  it('leaves a set Scale max out of sync', () => {
+    expect(meta({ scaleMax: 5 })).toBeUndefined()
+  })
+})
+
+describe('playback frames', () => {
+  const engine = () => engineOf([[], [P0, P1]])
+  const parked = (over: Partial<FixationHeatmapPlotSettings> = {}) => ok(getFixationHeatmapData(engine(), settings(over)))
+  const close = (got: Float32Array, want: Float32Array, digits = 4) => {
+    expect(got.length).toBe(want.length)
+    for (let k = 0; k < want.length; k++) expect(got[k]).toBeCloseTo(want[k], digits)
+  }
+
+  it('carries each mapped fixation\'s times and the last end', () => {
+    const data = parked()
+    expect(Array.from(data.starts)).toEqual([0, 300, 500, 0, 200])
+    expect(Array.from(data.ends)).toEqual([300, 500, 1500, 200, 900])
+    expect(data.lastEnd).toBe(1500)
+    // The raw end of an overlapping fixation, not the clipped one.
+    expect(parked({ timelineEnd: 400 }).lastEnd).toBe(900)
+  })
+
+  it('the whole-range frame is the parked map, in every mode', () => {
+    for (const accumulate of ['duration', 'count'] as const) {
+      for (const normalization of ['share', 'mean'] as const) {
+        const data = parked({ accumulate, normalization })
+        const frame = heatmapFrame(data, 0, data.lastEnd, accumulate, normalization)
+        close(frame.values, data.values)
+        expect(frame.max).toBeCloseTo(data.max, 4)
+        expect(frame.xs.length).toBe(data.xs.length)
+      }
+    }
+  })
+
+  it('a window keeps only its fixations, clipped, and never exceeds the parked map', () => {
+    const data = parked()
+    const frame = heatmapFrame(data, 0, 400, 'duration', 'share')
+    expect(Array.from(frame.raw)).toEqual([300, 100, 200, 200])
+    expect(Array.from(frame.starts)).toEqual([0, 300, 0, 200])
+    expect(Array.from(frame.participantIndex)).toEqual([0, 0, 1, 1])
+    expect(frame.summary.fixations).toBe(4)
+    for (let k = 0; k < data.values.length; k++) expect(frame.values[k]).toBeLessThanOrEqual(data.values[k] + 1e-5)
+    expect(frame.max).toBeLessThan(data.max)
+    // Shared with the parent: the grid, the basis and the participants.
+    expect(frame.grid).toBe(data.grid)
+    expect(frame.participants).toBe(data.participants)
+  })
+
+  it('count frames take a fixation once its midpoint is inside the window', () => {
+    const data = parked({ accumulate: 'count' })
+    expect(heatmapFrame(data, 0, 400, 'count', 'share').xs.length).toBe(2)
+    expect(heatmapFrame(data, 0, 401, 'count', 'share').xs.length).toBe(3)
+  })
+
+  it('a mean frame equals the map of the same time range', () => {
+    const data = parked({ normalization: 'mean' })
+    const cut = parked({ normalization: 'mean', timelineEnd: 400 })
+    close(heatmapFrame(data, 0, 400, 'duration', 'mean').values, cut.values)
+  })
+
+  it('a share frame divides by the whole-range total, not the window\'s', () => {
+    const one = engineOf([[], [P0]])
+    const data = ok(getFixationHeatmapData(one, settings()))
+    const cut = ok(getFixationHeatmapData(one, settings({ timelineEnd: 400 })))
+    const frame = heatmapFrame(data, 0, 400, 'duration', 'share')
+    // P0 spent 400 of its 1500 ms inside the window.
+    close(frame.values, cut.values.map(v => (v * 400) / 1500) as Float32Array, 3)
+  })
+
+  it('an empty or reversed window maps nothing', () => {
+    const data = parked()
+    expect(heatmapFrame(data, 0, 0, 'duration', 'share').max).toBe(0)
+    expect(heatmapFrame(data, 500, 400, 'duration', 'share').xs.length).toBe(0)
+  })
+
+  it('reuses its scratch without carrying a frame into the next', () => {
+    const data = parked()
+    const scratch = createFrameScratch()
+    const full = heatmapFrame(data, 0, data.lastEnd, 'duration', 'share', scratch)
+    const early = heatmapFrame(data, 0, 400, 'duration', 'share', scratch)
+    const again = heatmapFrame(data, 0, data.lastEnd, 'duration', 'share', scratch)
+    close(again.values, data.values)
+    close(heatmapFrame(data, 0, 400, 'duration', 'share', scratch).values, early.values)
+    // Consecutive frames live in different buffers, so the one on screen is never overwritten.
+    expect(early.values).not.toBe(full.values)
+    expect(again.values).not.toBe(early.values)
   })
 })

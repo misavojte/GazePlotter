@@ -32,7 +32,6 @@ const NO_AOI = { displayedName: 'Outside', color: 'gray' }
 
 const SCARF_SETTINGS: ScarfPlotSettings = {
   stimulusId: STIM,
-  groupId: -1,
   timeline: 'absolute',
   absoluteStimuliLimits: [],
   ordinalStimuliLimits: [],

@@ -1,10 +1,15 @@
-import { deriveFixationHeatmapView, heatmapUnit } from './core/view'
+import { deriveFixationHeatmapView, heatmapUnit, type FixationHeatmapView } from './core/view'
 import { autoRadiusFor } from './core/transformer'
-import { plotCursorScreen } from '$lib/plots/shared/plotCursor.svelte'
 import { commonIs, definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
-import { formatGaze, stimulusGroupSubtitle } from '$lib/plots/shared'
+import { formatGaze, stimulusParticipantsSubtitle } from '$lib/plots/shared'
 import { PRESET_PALETTES } from '$lib/color/palettes'
+import { stimulusBackgroundField } from '$lib/plots/shared/stimulusBackground'
+import { playbackPaneFields } from '$lib/plots/shared/playbackFields'
+import { FIXATION_HEATMAP_COLORS as C } from './const'
 import type { FixationHeatmapPlotSettings } from './types'
+
+// View-gated controls hide while `view` diverges across a bulk selection.
+const viewIs = (view: string) => commonIs(s => s.view, view)
 
 /** The unit a Scale max is typed in, or null when the edited plots disagree. */
 function scaleUnit(ctx: SectionFieldCtx): string | null {
@@ -12,14 +17,14 @@ function scaleUnit(ctx: SectionFieldCtx): string | null {
   return v.mixed ? null : v.value || 'fixations'
 }
 
-export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationHeatmapPlotSettings>({
+export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationHeatmapPlotSettings, FixationHeatmapView>({
   type: 'fixationHeatmap',
   name: 'Fixation Heatmap',
   tagline: 'Pooled fixations on the stimulus',
   group: 'gaze-behavior',
   paneSections: [
     'stimulus',
-    'group',
+    'participants',
     {
       key: 'fixationHeatmap:method',
       title: 'Method',
@@ -51,7 +56,7 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
             {
               label: 'Share per participant',
               value: 'share',
-              detail: "Each participant's share of their own total, averaged [%]",
+              detail: "Each participant's share of their own total, averaged, in %",
             },
             {
               label: 'Mean per participant',
@@ -81,22 +86,42 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
     {
       key: 'fixationHeatmap:visualization',
       title: 'Visualization',
-      summary: () => 'Heatmap',
       fields: [
+        {
+          kind: 'enum',
+          key: 'view',
+          options: [
+            { label: 'Heatmap', value: 'heatmap', detail: 'Colors rise with the map value' },
+            {
+              label: 'Opacity map',
+              value: 'opacity',
+              detail: 'A mask over the stimulus that clears where people looked',
+            },
+          ],
+          summary: true,
+        },
+        {
+          kind: 'color',
+          key: 'maskColor',
+          label: 'Mask color',
+          showWhen: viewIs('opacity'),
+        },
         {
           kind: 'colorScale',
           key: 'colorScale',
           group: 'Color scale',
           defaultMin: PRESET_PALETTES.YL_OR_RD.colors[0],
           defaultMax: PRESET_PALETTES.YL_OR_RD.colors[2],
+          showWhen: viewIs('heatmap'),
         },
         {
           kind: 'number',
           key: 'scaleMax',
-          group: 'Color scale',
+          // The opacity map has no colour scale to caption.
+          group: ctx => (viewIs('heatmap')(ctx) ? 'Color scale' : undefined),
           label: ctx => {
             const unit = scaleUnit(ctx)
-            return unit ? `Scale max [${unit}] (0 = Auto)` : 'Scale max (0 = Auto)'
+            return unit ? `Scale max / ${unit} (0 = Auto)` : 'Scale max (0 = Auto)'
           },
           min: 0,
           step: ctx => (scaleUnit(ctx) === 'ms' ? 10 : 0.1),
@@ -106,33 +131,47 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
           kind: 'number',
           key: 'opacity',
           group: 'Color scale',
-          label: 'Opacity [%]',
+          label: 'Opacity / %',
           min: 0,
           max: 100,
           step: 5,
           default: 70,
+          showWhen: viewIs('heatmap'),
         },
         {
-          kind: 'enum',
-          key: 'background',
-          label: 'Background',
-          options: [
-            { label: 'Image', value: 'image', detail: 'Image in full color' },
-            { label: 'Grayscale image', value: 'grayscale', detail: 'Image without color, so heat colors stand out' },
-            { label: 'Dimmed grayscale image', value: 'dimmed', detail: 'Grayscale image faded toward white' },
-            { label: 'None', value: 'none', detail: 'Heat only, within the image outline' },
-          ],
-          // Every edited plot must show an image, or the control would be dead on some.
-          showWhen: commonIs((s, ctx) => ctx.engine.metadata?.stimuliMedia?.[s.stimulusId ?? 0]?.kind === 'image', true),
+          kind: 'number',
+          key: 'maskOpacity',
+          label: 'Mask opacity / %',
+          min: 0,
+          max: 100,
+          step: 5,
+          default: 90,
+          showWhen: viewIs('opacity'),
         },
+        stimulusBackgroundField(['image', 'video']),
         { kind: 'boolean', key: 'showFixations', label: 'Show fixations' },
+        ...playbackPaneFields,
       ],
     },
     'timelineRange',
   ],
   view: { deriveView: deriveFixationHeatmapView },
-  screen: plotCursorScreen(),
-  getSubtitle: stimulusGroupSubtitle,
+  // A cell's set is "who looked HERE", meaningless on another stimulus.
+  cursor: { time: s => s.stimulusId, stimulus: s => s.stimulusId, publishes: 'stimulus' },
+  // Auto-scaled maps of the same measure and grid footprint share the largest
+  // scale top, so their colors compare; a set Scale max opts out.
+  sync: [
+    {
+      channel: 'fixation-heatmap-color',
+      offer: ({ view, item }) => {
+        const meta = view?.meta
+        return meta ? { key: [meta.syncGroupKey, item.w, item.h], own: meta.ownScaleTop } : null
+      },
+      input: (_view, max) => ({ scaleTop: max }),
+    },
+  ],
+  playback: true,
+  getSubtitle: stimulusParticipantsSubtitle,
   // A Scale max is typed in the map's unit; when the unit changes it no longer
   // means anything (5000 ms as a count blanks the map), so it returns to Auto.
   onCommand: (command, item, _engine, dispatch): void => {
@@ -149,15 +188,21 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
   },
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
-    groupId: params.groupId ?? -1,
+    hideEmptyParticipants: false,
     accumulate: 'duration',
     normalization: 'share',
     radius: 0,
+    view: 'heatmap',
     colorScale: [...PRESET_PALETTES.YL_OR_RD.colors],
     scaleMax: 0,
     opacity: 70,
+    maskColor: C.mask,
+    maskOpacity: 90,
     showFixations: false,
     background: 'image',
+    // Old workspaces lack these keys; the item factory merges the defaults in.
+    playbackSpeed: 1,
+    syncPlayback: true,
   }),
   size: { min: { w: 12, h: 10 }, w: 16, h: 13 },
   requireCapabilities: ['segmented', 'spatial'],

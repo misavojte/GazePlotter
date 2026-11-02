@@ -342,7 +342,7 @@
   }
 
   .nav-button.prev:hover:not(:disabled) {
-    background: var(--c-darkwhite);
+    background: var(--c-lightgrey);
     border-color: var(--c-midgrey);
   }
 
@@ -424,7 +424,7 @@
   }
 
   .continue-button:hover {
-    background: var(--c-darkwhite);
+    background: var(--c-lightgrey);
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
   }

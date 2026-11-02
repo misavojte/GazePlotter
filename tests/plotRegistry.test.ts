@@ -27,21 +27,21 @@ describe('plotRegistry helpers', () => {
     expect(getPlotDisplayName('aoiComparison')).toBe('AOI Comparison')
   })
 
-  // These plots' screen recipes exist ONLY to build their PLOT CURSOR port,
-  // and `screen` is optional in the contract — dropping the line is type-legal
-  // and leaves the plot silently cursor-less.
+  // `cursor` is optional in the contract: dropping the declaration is
+  // type-legal and leaves the plot silently cursor-less.
   it.each([
+    'scarf',
+    'aoiStreamPlot',
     'evolvingMetrics',
     'metricMatrix',
+    'metricCorrelation',
     'recurrencePlot',
     'scanpath',
-    'metricCorrelation',
-  ])(
-    'registers the screen recipe that gives %s its plot cursor',
-    type => {
-      expect(resolvePlotDefinition(type).screen).toBeTypeOf('function')
-    }
-  )
+    'fixationHeatmap',
+    'scanpathSimilarity',
+  ])('declares the plot cursor of %s', type => {
+    expect(resolvePlotDefinition(type).cursor).toBeTypeOf('object')
+  })
 
   it('falls back to the raw plot type label and throws for unknown plot types', () => {
     expect(getPlotDisplayName('missing-plot')).toBe('missing-plot')

@@ -15,6 +15,7 @@
  * hands over.
  */
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import type { ParticipantScope } from '$lib/data/types'
 import {
   getParticipant,
   getParticipantsIds,
@@ -68,7 +69,8 @@ function emptyEvolvingMetricsResult(noMetric = false): EvolvingMetricsResult {
 
 export function getEvolvingMetricsData(
   engine: DataEngine,
-  settings: Pick<EvolvingMetricsSettings, 'stimulusId' | 'groupId' | 'metricInstanceIds' | 'aoiSelectionId'> & {
+  settings: ParticipantScope &
+    Pick<EvolvingMetricsSettings, 'stimulusId' | 'metricInstanceIds' | 'aoiSelectionId'> & {
     timelineMin?: number
     timelineMax?: number
     /**
@@ -94,8 +96,8 @@ export function getEvolvingMetricsData(
   const metric = getMetric(instance.baseId)
   if (!metric) return emptyEvolvingMetricsResult(true)
 
-  const { stimulusId, groupId } = settings
-  const participantIds = getParticipantsIds(engine, groupId, stimulusId)
+  const { stimulusId } = settings
+  const participantIds = getParticipantsIds(engine, settings, stimulusId)
   const numParticipants = participantIds.length
   if (numParticipants === 0) return emptyEvolvingMetricsResult()
 

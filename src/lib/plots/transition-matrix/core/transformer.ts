@@ -1,4 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
+import type { ParticipantScope } from '$lib/data/types'
 import { getAois, getParticipantsIds } from '$lib/data/engine'
 import {
   queryGroup,
@@ -13,7 +14,7 @@ const CONTRACT = { outputShape: 'aoi-pair-matrix', windowing: 'forbidden', cross
 export function getTransitionMatrixData(
   engine: DataEngine,
   stimulusId: number,
-  groupId: number,
+  participants: ParticipantScope,
   metricInstanceId: string | null,
   timeStart: number = 0,
   timeEnd: number = 0,
@@ -23,7 +24,7 @@ export function getTransitionMatrixData(
   const meta = engine.metadata
   if (!meta) throw new Error('Data engine metadata not available')
 
-  const participantIds = getParticipantsIds(engine, groupId, stimulusId)
+  const participantIds = getParticipantsIds(engine, participants, stimulusId)
   const aoiList = getAois(engine, stimulusId, aoiSelectionId)
   const aoiCount = aoiList.length
   const size = hideNoAoi ? aoiCount : aoiCount + 1

@@ -49,19 +49,19 @@ describe('budget is grounded in the real drawable pixel width', () => {
     const { cellSize, gap } = DEFAULT_GRID_CONFIG
     for (const w of [3, 12, 24]) {
       const totalPx = w * (cellSize.width + gap) - gap
-      // GRID_ITEM_BODY_PADDING (25) × 2 sides = 50px of chrome.
-      expect(calculatePlotWidthPx(w, DEFAULT_GRID_CONFIG)).toBe(totalPx - 50)
+      // GRID_ITEM_BODY_PADDING (20) × 2 sides = 40px of chrome.
+      expect(calculatePlotWidthPx(w, DEFAULT_GRID_CONFIG)).toBe(totalPx - 40)
     }
   })
 
   it('a small plot yields far fewer columns than the old 256 floor', () => {
-    // w=3 -> 3×50-10-50 = 90px -> 90 columns (was clamped up to 256 before).
-    expect(resolveColumnBudget(calculatePlotWidthPx(3, DEFAULT_GRID_CONFIG))).toBe(90)
+    // w=3 -> 3×50-10-40 = 100px -> 100 columns (was clamped up to 256 before).
+    expect(resolveColumnBudget(calculatePlotWidthPx(3, DEFAULT_GRID_CONFIG))).toBe(100)
   })
 
   it('a typical plot budgets its true width, not units×50', () => {
-    // w=12 -> 590-50 = 540px -> 540 columns (the old code gave 600).
-    expect(resolveColumnBudget(calculatePlotWidthPx(12, DEFAULT_GRID_CONFIG))).toBe(540)
+    // w=12 -> 590-40 = 550px -> 550 columns (the old code gave 600).
+    expect(resolveColumnBudget(calculatePlotWidthPx(12, DEFAULT_GRID_CONFIG))).toBe(550)
   })
 })
 

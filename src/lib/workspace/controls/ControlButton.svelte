@@ -118,11 +118,11 @@
   }
 
   .control:active:not(:disabled) {
-    background-color: var(--c-midgrey);
+    background-color: var(--c-grey);
   }
 
   .control:disabled {
-    opacity: 0.4;
+    opacity: 0.45;
     cursor: not-allowed;
   }
 

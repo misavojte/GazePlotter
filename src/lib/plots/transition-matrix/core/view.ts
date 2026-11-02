@@ -1,35 +1,31 @@
-import type { ComponentProps } from 'svelte'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import { formatCompact, MatrixPlotFigure, resolvePickedInstance, type CanvasExportProps } from '$lib/plots/shared'
-import type { PlotView } from '$lib/plots/definePlot'
+import { formatCompact } from '$lib/plots/shared/labels'
+import { resolvePickedInstance } from '$lib/plots/shared/metricResolver'
+import { plotView, type PlotView } from '$lib/plots/definePlot'
+import { matrixKit, type MatrixInput } from '$lib/plots/shared/matrixKit'
 import { METRIC_MISSING_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
 import { getTransitionMatrixData } from './transformer'
-import { colorScaleToKey } from './sync.svelte'
 import { getLegendTitle, TRANSITION_MATRIX_DEFAULTS } from '../const'
 import type { TransitionMatrixPlotSettings } from '../types'
 
-/** Screen-coordination surface carried on the view for the screen recipe. */
-export type TransitionViewMeta = {
-  /** Unsynced data maximum: the on-screen container uses it for color sync. */
-  ownDataMax: number
-  syncGroupKey: string
-  colorScaleKey: string
-  isDefaultColorRange: boolean
-}
+/** `meta` carries what the screen recipe's color sync keys on; export ignores it. */
+export type TransitionMatrixView = PlotView<
+  MatrixInput,
+  { ownDataMax: number; syncGroupKey: string; colorScaleKey: string; isDefaultColorRange: boolean }
+>
 
 /**
- * Single source of truth for "what a transition matrix draws", screen and export.
- * `props.colorValueRange` is the UNSYNCED per-stimulus range; the on-screen
- * container may swap in a synced range (export never syncs).
+ * What a transition matrix draws, screen and export. `input.colorValueRange` is
+ * the unsynced per-stimulus range; the screen recipe may swap in a synced one.
  */
 export function deriveTransitionMatrixView(
   engine: DataEngine,
   settings: TransitionMatrixPlotSettings
-): PlotView {
+): TransitionMatrixView {
   const transitionData = getTransitionMatrixData(
     engine,
     settings.stimulusId,
-    settings.groupId,
+    settings,
     settings.metricInstanceIds[0] ?? null,
     settings.timelineStart ?? 0,
     settings.timelineEnd ?? 0,
@@ -47,9 +43,9 @@ export function deriveTransitionMatrixView(
   for (let i = 0; i < matrix.length; i++) if (matrix[i] > ownDataMax) ownDataMax = matrix[i]
   ownDataMax = Math.ceil(ownDataMax)
 
-  return {
-    component: MatrixPlotFigure,
-    props: {
+  return plotView(
+    matrixKit,
+    {
       matrix,
       labels: aoiLabels,
       xAxisTitle: TRANSITION_MATRIX_DEFAULTS.xLabel,
@@ -92,13 +88,15 @@ export function deriveTransitionMatrixView(
           { key: 'Value', value: Number.isFinite(value) ? shown : 'Undefined, not zero' },
         ]
       },
-    } satisfies Omit<ComponentProps<typeof MatrixPlotFigure>, keyof CanvasExportProps>,
-    meta: {
-      ownDataMax,
-      syncGroupKey: String(resolvedInstance?.id ?? 'none'),
-      colorScaleKey: colorScaleToKey(effectiveColorScale),
-      isDefaultColorRange:
-        currentStimulusColorRange[0] === 0 && currentStimulusColorRange[1] === 0,
-    } satisfies TransitionViewMeta,
-  }
+    },
+    {
+      meta: {
+        ownDataMax,
+        syncGroupKey: String(resolvedInstance?.id ?? 'none'),
+        colorScaleKey: effectiveColorScale.join('|'),
+        isDefaultColorRange:
+          currentStimulusColorRange[0] === 0 && currentStimulusColorRange[1] === 0,
+      },
+    }
+  )
 }

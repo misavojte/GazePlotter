@@ -19,7 +19,7 @@
     items: CheckboxItem[]
     onItemChange: (key: string, checked: boolean) => void
     /** Optional row between the search bar and the list — selection presets
-     *  such as participant-group chips. */
+     *  such as participant selection chips. */
     presets?: Snippet
     hasError?: boolean
     errorMessage?: string

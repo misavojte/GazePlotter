@@ -63,19 +63,22 @@
     rows: SectionField[][]
     fields: SectionField[]
   }
+  const captionOf = (f: SectionField | undefined): string | null =>
+    (typeof f?.group === 'function' ? f.group(ctx) : f?.group) ?? null
+
   const blocks: RenderBlock[] = $derived.by(() => {
     const built: RenderBlock[] = []
     let block: RenderBlock | null = null
     const fields = entry.fields
     for (let i = 0; i < fields.length; i++) {
       const f = fields[i]
-      const caption = f.group ?? null
+      const caption = captionOf(f)
       if (!block || block.caption !== caption) {
         block = { caption, rows: [], fields: [] }
         built.push(block)
       }
       block.fields.push(f)
-      if (f.pair && fields[i + 1]?.pair && (fields[i + 1].group ?? null) === caption) {
+      if (f.pair && fields[i + 1]?.pair && captionOf(fields[i + 1]) === caption) {
         block.fields.push(fields[i + 1])
         block.rows.push([f, fields[i + 1]])
         i++
@@ -199,7 +202,11 @@
           id="{entry.key}-{f.key}"
           label={label ?? ''}
           compact
-          value={state.value as number}
+          value={f.emptyLabel !== undefined && state.value === f.default
+            ? undefined
+            : (state.value as number)}
+          placeholder={f.emptyLabel}
+          allowEmpty={f.emptyLabel !== undefined}
           mixed={state.mixed}
           min={f.min}
           max={f.max}
@@ -217,6 +224,7 @@
         width={40}
         value={state.value as string}
         mixed={state.mixed}
+        mixedColors={state.mixed ? bulk.distinct(s => (s as Record<string, unknown>)[f.key] as string) : undefined}
         oninput={e => bulk.update({ [f.key]: e.detail })}
       />
     {:else if f.kind === 'scaleRange'}

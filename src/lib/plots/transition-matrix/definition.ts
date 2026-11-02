@@ -1,14 +1,14 @@
-import { deriveTransitionMatrixView } from './core/view'
-import { transitionMatrixScreen } from './core/screen.svelte'
+import { deriveTransitionMatrixView, type TransitionMatrixView } from './core/view'
 import { definePlot } from '$lib/plots/definePlot'
 import { PRESET_PALETTES } from '$lib/color/palettes'
-import { stimulusGroupSubtitle } from '$lib/plots/shared'
+import { stimulusParticipantsSubtitle } from '$lib/plots/shared'
 import { OUT_OF_BOUNDS_DEFAULTS, outOfBoundsFields } from '$lib/plots/shared/outOfBounds'
 import type { TransitionMatrixPlotSettings } from './types'
 
 export const transitionMatrixDefinition = definePlot<
   'transitionMatrix',
-  TransitionMatrixPlotSettings
+  TransitionMatrixPlotSettings,
+  TransitionMatrixView
 >({
   type: 'transitionMatrix',
   name: 'Transition Matrix',
@@ -16,7 +16,7 @@ export const transitionMatrixDefinition = definePlot<
   group: 'inter-aoi',
   paneSections: [
     'stimulus',
-    'group',
+    'participants',
     'metric',
     {
       key: 'transitionMatrix:visualization',
@@ -42,11 +42,23 @@ export const transitionMatrixDefinition = definePlot<
     'aoi',
   ],
   view: { deriveView: deriveTransitionMatrixView },
-  screen: transitionMatrixScreen,
-  getSubtitle: stimulusGroupSubtitle,
+  // Matrices sharing metric, color scale and grid size share the largest data
+  // max while their color range is default.
+  sync: [
+    {
+      channel: 'transition-matrix-color',
+      offer: ({ view, item }) => {
+        const meta = view?.meta
+        if (!meta?.isDefaultColorRange) return null
+        return { key: [meta.syncGroupKey, meta.colorScaleKey, item.w, item.h], own: meta.ownDataMax }
+      },
+      input: (_view, max) => ({ colorValueRange: [0, max] as [number, number] }),
+    },
+  ],
+  getSubtitle: stimulusParticipantsSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
-    groupId: params.groupId ?? -1,
+    hideEmptyParticipants: false,
     stimuliColorValueRanges: [],
     metricInstanceIds: ['transitionCount-fix'],
     ...OUT_OF_BOUNDS_DEFAULTS,

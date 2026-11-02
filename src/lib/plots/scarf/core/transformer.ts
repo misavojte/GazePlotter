@@ -13,6 +13,7 @@ import {
   applyCategorySelection,
   fixationLayerVisible,
 } from '$lib/data/engine'
+import { UI_COLORS } from '$lib/color'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { groupByDisplayedName } from '$lib/data/engine/utils/grouping'
 import {
@@ -23,7 +24,7 @@ import { SEGMENT_STRIDE, SegmentField } from '$lib/data/binary/schema'
 import {
   createAdaptiveTimeline,
   type AdaptiveTimeline,
-} from '$lib/plots/shared'
+} from '$lib/plots/shared/timelineUtils'
 import { OVERLAY_EVENT_STRIDE, SCARF_IDENTIFIERS } from '../const'
 import type {
   ScarfData,
@@ -39,23 +40,20 @@ import type {
   ScarfRectStyle,
   ScarfEventStyle,
 } from '../types'
-import type { LegendGroup } from '$lib/plots/shared'
+import type { LegendGroup } from '$lib/plots/shared/legendRendering'
+import { memoByRef } from '$lib/plots/shared/kit'
+
+interface ResolvedSlices {
+  slotBase: Int32Array
+  sliceStart: Uint32Array
+  sliceStyles: Int16Array
+  occStart: Uint32Array
+  occSlot: Uint32Array
+}
 
 /** Resolved-slice caches per AoiGroupReader (see buildResolvedSlices): a new
  *  dataset replaces the group reader, so its caches drop with it. */
-const _resolvedSliceCache = new WeakMap<
-  object,
-  Map<
-    number,
-    {
-      slotBase: Int32Array
-      sliceStart: Uint32Array
-      sliceStyles: Int16Array
-      occStart: Uint32Array
-      occSlot: Uint32Array
-    }
-  >
->()
+const resolvedSliceCacheOf = memoByRef((_groupReader: object) => new Map<number, ResolvedSlices>())
 
 class Float32GrowBuffer {
   private buffer: Float32Array
@@ -270,10 +268,9 @@ function createScarfLegendData(
   addGroup('Fixations', fixationsVisible ? styling.aoi : [], 'fixation')
   addGroup('Non-fixations', styling.category, 'nonFixation')
 
-  // Overlaid events render as solid colour strips, so the legend swatch is a
-  // rectangle keyed by event type.
+  // Overlaid events render as thin strips hanging under the bar; their swatch says so.
   if (showEvents) {
-    addGroup('Event Channels', styling.event, 'fixation')
+    addGroup('Event channels', styling.event, 'event')
   }
 
   return { groups }
@@ -440,13 +437,7 @@ export function transformDataToScarfPlot(
     noAoiIdx: number,
     styleCount: number,
     fixVisible: boolean
-  ): {
-    slotBase: Int32Array
-    sliceStart: Uint32Array
-    sliceStyles: Int16Array
-    occStart: Uint32Array
-    occSlot: Uint32Array
-  } {
+  ): ResolvedSlices {
     const segBuf = segReader.segmentBufferRaw
     const slotBase = new Int32Array(pIds.length)
     let totalSegs = 0
@@ -583,11 +574,7 @@ export function transformDataToScarfPlot(
   for (let i = 0; i < categoryStyleIdxMap.length; i++) mix(categoryStyleIdxMap[i] + 2)
   for (let i = 0; i < participantIds.length; i++) mix(participantIds[i] + 1)
 
-  let perReader = _resolvedSliceCache.get(aoiGroupReader)
-  if (!perReader) {
-    perReader = new Map()
-    _resolvedSliceCache.set(aoiGroupReader, perReader)
-  }
+  const perReader = resolvedSliceCacheOf(aoiGroupReader)
   let resolvedSlices = perReader.get(sliceSig)
   if (!resolvedSlices) {
     resolvedSlices = buildResolvedSlices(
@@ -808,7 +795,7 @@ export function mapDataToLegendGroups(
  * Computes the highlight mask based on used highlights.
  */
 export function calculateHighlightMask(
-  usedHighlights: string[],
+  usedHighlights: readonly string[],
   identifierSystem: { idToIndex: Map<string, number>; totalIdentifiers: number }
 ): Uint8Array | null {
   if (!usedHighlights || usedHighlights.length === 0) return null
@@ -835,8 +822,8 @@ export function createStyleArrays(
   eventBucketCount: number
 ) {
   const { indexToId } = identifierSystem
-  const rectFallback = { normal: { fill: '#ccc' } }
-  const eventFallback = { normal: { stroke: '#ccc', strokeWidth: 1 } }
+  const rectFallback = { normal: { fill: UI_COLORS.FALLBACK_MARK } }
+  const eventFallback = { normal: { stroke: UI_COLORS.FALLBACK_MARK, strokeWidth: 1 } }
 
   const rectStyles = new Array(rectBucketCount)
   for (let i = 0; i < rectBucketCount; i++) {

@@ -6,7 +6,7 @@ import {
 import {
   resolveFrameLayout,
   type FrameGutters,
-} from '../src/lib/plots/shared/usePlot.svelte'
+} from '../src/lib/plots/shared/frame'
 import type { AdaptiveTimeline } from '../src/lib/plots/shared/timelineUtils'
 
 // A minimal AdaptiveTimeline stub: two nice ticks at the ends, one non-nice.
@@ -86,7 +86,7 @@ describe('resolveFrameLayout', () => {
 
   it('centres a square data rect within the available area', () => {
     // wide bounds → square uses the smaller (height) and centres horizontally
-    const { rect } = resolveFrameLayout({ square: true }, bounds)
+    const { rect } = resolveFrameLayout({ aspect: 1 }, bounds)
     expect(rect.width).toBe(300)
     expect(rect.height).toBe(300)
     expect(rect.x).toBe(50) // (400 − 300) / 2
@@ -115,14 +115,22 @@ describe('resolveFrameLayout', () => {
   })
 
   it('measures tick labels + title to size the bottom gutter', () => {
-    const withAxis = resolveFrameLayout(
-      { bottom: { tickLabels: ['0', '100'], title: 'Time [ms]' } },
-      bounds
-    )
+    const withAxis = resolveFrameLayout({}, bounds, {
+      bottom: { ticks: { positions: [0, 1], labels: ['0', '100'] }, title: 'Time [ms]' },
+    })
     const bare = resolveFrameLayout({}, bounds)
     // an axis with labels + title must reserve real vertical space
     expect(withAxis.rect.height).toBeLessThan(bare.rect.height)
     expect(withAxis.bottomTitleOffset).toBeGreaterThan(0)
+  })
+
+  it('measures reserved labels the figure draws itself with the tick labels', () => {
+    const ticks = { positions: [0, 1], labels: ['0', '9'] }
+    const tickOnly = resolveFrameLayout({}, bounds, { left: { ticks } })
+    const reserved = resolveFrameLayout({}, bounds, { left: { ticks, reserve: ['1000000'] } })
+    const reserveOnly = resolveFrameLayout({}, bounds, { left: { reserve: ['1000000'] } })
+    expect(reserved.rect.x).toBeGreaterThan(tickOnly.rect.x)
+    expect(reserveOnly.rect.x).toBe(reserved.rect.x)
   })
 
   it('never produces negative dimensions when gutters exceed the bounds', () => {

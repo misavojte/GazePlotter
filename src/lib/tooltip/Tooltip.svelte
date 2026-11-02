@@ -78,11 +78,17 @@
     box-shadow: var(--shadow-lg);
   }
 
-  .tooltip > div {
-    padding: 5px 7px;
+  /* 3px per item makes a 6px gap between groups; the box's own 2px keeps
+     the edge inset at 5px. */
+  .tooltip {
+    padding-block: 2px;
   }
+  .tooltip > div {
+    padding: 3px 7px;
+  }
+  /* No case transform: titles carry units and symbols ("/ ms", ρ) that
+     uppercasing corrupts. Same size as the value; contrast alone ranks it. */
   .tooltip-item-title {
-    font-size: 70%;
-    text-transform: uppercase;
+    color: color-mix(in srgb, var(--c-white) 65%, transparent);
   }
 </style>

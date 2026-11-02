@@ -1,5 +1,7 @@
-export type ScanpathPlotSettings = {
-  stimulusId: number
+import type { PlaybackSettings } from '$lib/plots/shared/playbackFields'
+import type { StimulusBackground } from '$lib/plots/shared/stimulusBackground'
+
+export type ScanpathPlotSettings = PlaybackSettings & {
   participantId: number
   showFixationOrder: boolean
   showNumbers: boolean
@@ -8,17 +10,18 @@ export type ScanpathPlotSettings = {
   colorMode: 'time' | 'solid'
   /** Gradient stops for the time-extent coloring (shared colorScale field). */
   colorScale: string[]
-  /** Trailing playback window in recording ms: while playing, only fixations
-      that began within the last N ms stay on screen. 0 keeps everything since
-      the start (the default). */
-  playbackWindow: number
-  /** Playback clock rate relative to recording time (1 = real time). Drives
-      the rAF clock and the video's playbackRate. */
-  playbackSpeed: number
+  /** Marker fill in 'solid' mode. */
+  solidColor: string
+  /** How the stimulus image or video frame is drawn under the path. */
+  background: StimulusBackground
+  /** Recording-time range (ms) of the fixations drawn; 0 end = to the end. */
+  timelineStart?: number
+  timelineEnd?: number
 }
 
 export interface ScanpathFixation {
-  /** 1-based chronological rank within the rendered set. */
+  /** 1-based rank among the recording's located fixations; a time range
+      never renumbers them. */
   rank: number
   x: number
   y: number
@@ -47,6 +50,7 @@ export type ScanpathUnavailableReason =
   | 'no-spatial-data'
   | 'no-fixations'
   | 'no-spatial-coords'
+  | 'none-in-range'
 
 export type ScanpathTransformResult =
   | { kind: 'ok'; data: ScanpathData }

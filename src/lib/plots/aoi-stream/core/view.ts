@@ -1,19 +1,16 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import type { PlotView, PlotViewContext } from '$lib/plots/definePlot'
-import { getGroupMaxEndTime } from '$lib/data/engine'
+import { plotView, type PlotView, type PlotViewContext } from '$lib/plots/definePlot'
+import { getParticipantsMaxEndTime } from '$lib/data/engine'
 import { resolveColumnBudget } from '$lib/plots/shared/displayBudget'
 import { calculatePlotWidthPx } from '$lib/plots/shared/plotSizeUtility'
 import { DEFAULT_GRID_CONFIG } from '$lib/workspace/grid/const'
-import AoiStreamPlotFigure from '../components/AoiStreamPlotFigure.svelte'
 import { getAoiStreamPlotData } from '.'
-import type { AoiStreamPlotResult, AoiStreamPlotSettings } from '../types'
+import { aoiStreamKit } from './kit'
+import type { AoiStreamPlotSettings } from '../types'
 
 /**
- * Resolve the timeline window from settings alone. Cross-plot timeline sync
- * is the container's concern: the on-screen container merges the synced max
- * into `timelineEnd` before deriving (via `aoiStreamTimelineSync`), so this
- * function — and therefore the export view — is a pure function of
- * (engine, settings). Export never syncs, like bar/transition-matrix.
+ * The timeline window from settings alone: the timeline sync merges the group
+ * max into `timelineEnd` before deriving, so export never syncs.
  */
 function resolveTimeline(
   engine: DataEngine,
@@ -25,44 +22,52 @@ function resolveTimeline(
   if ((settings.timelineEnd ?? 0) > 0) return { min, max: settings.timelineEnd! }
   const absMax = limits?.[1] ?? 0
   if (absMax !== 0) return { min, max: absMax }
-  return { min, max: getGroupMaxEndTime(engine, settings.groupId, settings.stimulusId) }
+  return { min, max: getParticipantsMaxEndTime(engine, settings, settings.stimulusId) }
 }
 
-/** Shared data derivation; `ctx.itemWidth` drives the display budget. */
-function computeAoiStreamData(
+/**
+ * True while the timeline is fully auto (no global end, no per-stimulus
+ * limits): only then does it join the timeline sync.
+ */
+export function isAutoTimeline(settings: AoiStreamPlotSettings): boolean {
+  const limits = settings.absoluteStimuliLimits?.[settings.stimulusId]
+  return (
+    (settings.timelineEnd ?? 0) === 0 && (limits?.[0] ?? 0) === 0 && (limits?.[1] ?? 0) === 0
+  )
+}
+
+/** What an AOI Timeline draws, screen and export; `ctx.itemWidth` drives the display budget. */
+export function aoiStreamInput(
   engine: DataEngine,
   settings: AoiStreamPlotSettings,
   ctx?: PlotViewContext
-): AoiStreamPlotResult {
+) {
   const { min, max } = resolveTimeline(engine, settings)
   const plotWidthPx =
-    ctx && ctx.itemWidth > 0
-      ? calculatePlotWidthPx(ctx.itemWidth, DEFAULT_GRID_CONFIG)
-      : undefined
-  return getAoiStreamPlotData(engine, {
+    ctx && ctx.itemWidth > 0 ? calculatePlotWidthPx(ctx.itemWidth, DEFAULT_GRID_CONFIG) : undefined
+  const data = getAoiStreamPlotData(engine, {
     ...settings,
     timelineMin: min,
     timelineMax: max,
     maxColumns: resolveColumnBudget(plotWidthPx),
   })
+  return {
+    data,
+    settings,
+    /** Heatmap gradient `[min, max]` of this stimulus; `max === 0` means auto (data max). */
+    colorValueRange: settings.stimuliColorValueRanges?.[settings.stimulusId] ?? [0, 0],
+  }
 }
 
-export function deriveAoiStreamView(
+/** Plus what the platform overlays: `highlights` (`view.viewOnly`) and the ridgeline sync's mTop. */
+export type AoiStreamInput = ReturnType<typeof aoiStreamInput> & {
+  highlights?: readonly string[]
+  syncedMTopOverride?: number | null
+}
+export type AoiStreamView = PlotView<AoiStreamInput>
+
+export const deriveAoiStreamView = (
   engine: DataEngine,
   settings: AoiStreamPlotSettings,
   ctx?: PlotViewContext
-): PlotView {
-  return {
-    component: AoiStreamPlotFigure,
-    props: {
-      data: computeAoiStreamData(engine, settings, ctx),
-      alignment: settings.alignment ?? 'stream',
-      highlights: settings.highlights ?? [],
-      ridgelineScale: settings.ridgelineScale,
-      colorScale: settings.colorScale,
-      colorValueRange: settings.stimuliColorValueRanges?.[settings.stimulusId] ?? [0, 0],
-      belowMinColor: settings.belowMinColor,
-      aboveMaxColor: settings.aboveMaxColor,
-    },
-  }
-}
+): AoiStreamView => plotView(aoiStreamKit, aoiStreamInput(engine, settings, ctx))

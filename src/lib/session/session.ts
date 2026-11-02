@@ -31,6 +31,9 @@ export type GazePlotterOptions = {
   openFiles?: OpenFiles
   /** Palette overrides; applied reactively, unlike the other fields. */
   colors?: GazePlotterColors
+  /** No success toast when `load` finishes, for a host that announces the
+   *  result itself. Failures and warnings still show. Default: false. */
+  quietInitialLoad?: boolean
 }
 
 export type GazePlotterSession = {
@@ -75,6 +78,7 @@ export function createGazePlotterSession(
     confirmReplace: (): boolean =>
       !workspaceFile.hasUnsavedWork ||
       window.confirm('You have unsaved changes. Discard them and open the new files?'),
+    quietInitialLoad: options.quietInitialLoad,
   })
   const saveFile = options.saveFile ?? triggerDownload
   const exportService = new ExportService({

@@ -53,6 +53,7 @@
   import {
     deriveItemView,
     itemExportProps,
+    itemPlayback,
   } from '$lib/modals/export/export-figures/view'
   import { DEFAULT_CANVAS_EXPORT_MARGIN } from '$lib/modals/export/shared/helpers'
 
@@ -302,6 +303,7 @@
   const COPY_DPI = 192
   let copyJob = $state.raw<{
     view: PlotView
+    playback: boolean
     exportProps: PlotExportProps
     resolve: (canvas: HTMLCanvasElement | null) => void
   } | null>(null)
@@ -314,6 +316,7 @@
       if (!view) return resolve(null)
       copyJob = {
         view,
+        playback: itemPlayback(item),
         exportProps: itemExportProps(item, grid, COPY_DPI, DEFAULT_CANVAS_EXPORT_MARGIN),
         resolve: result => {
           copyJob = null
@@ -566,6 +569,7 @@
 {#if copyJob}
   <FigureRenderHost
     view={copyJob.view}
+    playback={copyJob.playback}
     exportProps={copyJob.exportProps}
     onResult={copyJob.resolve}
   />

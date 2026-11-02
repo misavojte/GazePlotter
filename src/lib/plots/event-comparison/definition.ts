@@ -1,29 +1,22 @@
-import { definePlot } from '$lib/plots/definePlot'
-import { stimulusGroupSubtitle } from '$lib/plots/shared'
-import { distributionDefaults, distributionVisualizationSection } from '$lib/plots/shared/distribution/paneSection'
-import { EVENT_COMPARISON_CONTRACT } from './core/transformer'
-import { deriveEventComparisonView } from './core/view'
-import type { EventComparisonSettings } from './types'
+import { resolveEventSelectionNames } from '$lib/data/engine'
+import { eventGroups } from '$lib/metrics'
+import { distributionParticipants, entitySlots } from '$lib/plots/shared/distribution'
+import {
+  defineDistributionPlot,
+  type DistributionPlotSettings,
+} from '$lib/plots/shared/distribution/plot'
+
+export type EventComparisonSettings = DistributionPlotSettings<'channel'> & {
+  /** Per-plot event SELECTION id; unset/0 = all channels. */
+  eventSelectionId?: number
+}
 
 /**
- * Per-channel comparison of event metrics (task markers, dynamic-AOI
- * visibility, whatever the event files carry), rendered through the shared
- * distribution layer. The Metric section is the SAME library flow every
- * metric plot uses; the contract admits event-vector instances at identity,
- * and the plot draws the instance's whole vector — one distribution per
- * channel on the stimulus's canonical `eventGroups` axis, narrowed by the
- * per-plot event SELECTION. Single channels are a `pick-event` projection
- * concern on scalar plots, never anything this plot configures.
- *
- * Gated on the `event` capability ALONE: without event data the plot has no
- * axis, and gaze segments are not consumed anywhere in it — the event scan
- * reads occurrence buffers only — so an event-only dataset gets this plot as
- * its native (and default) visualization.
- *
- * No `screen` recipe: this plot does not sync its value axis across siblings
- * today, matching the Eye-movement Comparison.
+ * One distribution per event channel, narrowed by the plot's event SELECTION.
+ * Gated on the `event` capability alone: it reads no gaze segments, so an
+ * event-only dataset gets this plot as its native visualization.
  */
-export const eventComparisonDefinition = definePlot<
+export const eventComparisonDefinition = defineDistributionPlot<
   'eventComparison',
   EventComparisonSettings
 >({
@@ -31,24 +24,28 @@ export const eventComparisonDefinition = definePlot<
   name: 'Event Comparison',
   tagline: 'A metric per event channel',
   group: 'per-event',
-  paneSections: [
-    'stimulus',
-    'group',
-    'metric',
-    distributionVisualizationSection({
-      key: 'eventComparison:visualization',
-      categoryOrder: { label: 'Channel order', value: 'channel' },
-    }),
-    'timelineRange',
-    'event',
-  ],
-  view: { deriveView: deriveEventComparisonView },
-  getSubtitle: stimulusGroupSubtitle,
-  getDefaultSettings: (params = {}) => ({
-    ...distributionDefaults(params),
-    metricInstanceIds: ['eventDuration'],
-    orderBy: 'channel',
-  }),
+  // The metric IS the per-channel vector, drawn whole; single channels are a
+  // `pick-event` projection on scalar plots.
+  contract: { outputShape: 'event-vector', windowing: 'forbidden', crossParticipant: 'distribution' },
+  categoryOrder: { label: 'Channel order', value: 'channel' },
+  selectionSection: 'event',
+  defaults: { metricInstanceIds: ['eventDuration'] },
   requireCapabilities: ['event'],
-  consumesMetrics: EVENT_COMPARISON_CONTRACT,
+  disclosures: {
+    itemTooltipKey: 'Event',
+    cannotFitHints: ['Select fewer event channels in Plot Settings > Events'],
+    emptyPlaceholder: {
+      message: 'No event channels to show on this stimulus.',
+      steps: ['Pick another Stimulus or a selection in Events'],
+    },
+    ariaLabel: 'Event channel comparison',
+  },
+  // Canonical `eventGroups` order, the vectors' index order, so each merge keeps
+  // its slot; narrowed by the same name resolution as the scarf overlay.
+  axis: (engine, settings) => {
+    const axis = eventGroups(engine, settings.stimulusId).map((g, slot) => ({ ...g, slot }))
+    const names = resolveEventSelectionNames(engine, settings.eventSelectionId)
+    const kept = names ? axis.filter(g => names.has(g.displayedName)) : axis
+    return { slots: entitySlots(kept), ...distributionParticipants(engine, settings) }
+  },
 })

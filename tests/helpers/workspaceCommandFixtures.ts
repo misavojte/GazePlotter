@@ -17,7 +17,7 @@ import {
   calculateViewportGridColumns,
 } from '$lib/workspace/grid'
 import type { ScarfPlotSettings } from '$lib/plots/scarf/types'
-import type { AoiComparisonSettings } from '$lib/plots/aoi-comparison/types'
+import type { AoiComparisonSettings } from '$lib/plots/aoi-comparison'
 import type { AoiStreamPlotSettings } from '$lib/plots/aoi-stream/types'
 
 export type MockMetadata = Omit<DataType, 'segments' | 'participantsSelections'> & {

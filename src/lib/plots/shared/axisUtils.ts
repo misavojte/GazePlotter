@@ -58,15 +58,25 @@ export function truncatedRowLabels(
   labels: readonly string[],
   canvasWidth: number
 ): string[] {
+  return rowLabelColumn(labels, Math.min(ROW_LABEL_MAX_COLUMN, canvasWidth * 0.4)).labels
+}
+
+/** Widest a row-label column (labels + ROW_LABEL_GAP) may grow. */
+const ROW_LABEL_MAX_COLUMN = 200
+
+/** Labels truncated so their column (widest label + ROW_LABEL_GAP) fits `maxColumnWidth`, plus that width. */
+export function rowLabelColumn(
+  labels: readonly string[],
+  maxColumnWidth: number
+): { labels: string[]; width: number } {
+  const budget = Math.max(0, maxColumnWidth - ROW_LABEL_GAP)
   let max = 0
-  for (const label of labels) {
-    const w = estimateTextWidth(label, AXIS_CONFIG.fontSize, AXIS_CONFIG.fontFamily)
-    if (w > max) max = w
-  }
-  const budget = Math.min(200, max + 20, canvasWidth * 0.4)
-  return labels.map(label =>
-    truncateTextToPixelWidth(label, budget - 15, AXIS_CONFIG.fontSize, AXIS_CONFIG.fontFamily, '…')
-  )
+  const truncated = labels.map(label => {
+    const text = truncateTextToPixelWidth(label, budget, AXIS_CONFIG.fontSize, AXIS_CONFIG.fontFamily, '…')
+    max = Math.max(max, estimateTextWidth(text, AXIS_CONFIG.fontSize, AXIS_CONFIG.fontFamily))
+    return text
+  })
+  return { labels: truncated, width: labels.length ? Math.ceil(max) + ROW_LABEL_GAP : 0 }
 }
 
 /**
@@ -176,26 +186,18 @@ export function calculateTickStep(count: number): number {
   return NICE_STEPS.find(step => count / step <= 10) ?? 1000
 }
 
-/**
- * Distance (px) from the plot's left edge to the centre of the rotated
- * two-line participant-index title. It clears the index tick labels drawn at
- * {@link INDEX_AXIS_TICK_GAP} plus their own width.
- */
-const INDEX_AXIS_TITLE_OFFSET = 40
 /** Gap (px) from the plot's left edge to the right-aligned index tick labels. */
 const INDEX_AXIS_TICK_GAP = 8
 
-/**
- * Left gutter (px) that {@link drawParticipantIndexAxis} needs: the title's
- * centre plus its outer line, which sits half a line out and is itself half a
- * line tall (a half-line gutter cropped "Participants"). Derived from what
- * the draw actually uses, so a figure reserving room for that axis never has to
- * guess a width (scarf's compact label column, evolving-metrics' compact
- * heatmap).
- */
-export const participantIndexAxisWidth = (
-  fontSize: number = FONT_PRIMARY.SIZE
-): number => INDEX_AXIS_TITLE_OFFSET + axisTitleLineHeight(fontSize)
+/** Distance (px) from the plot's left edge to the centre of the rotated two-line index title. */
+function indexAxisTitleOffset(count: number, config: AxisConfig = AXIS_CONFIG): number {
+  const widest = estimateTextWidth(String(Math.max(0, count - 1)), config.fontSize, config.fontFamily)
+  return INDEX_AXIS_TICK_GAP + Math.ceil(widest) + PLOT_AXIS_TITLE_GAP + axisTitleLineHeight(config.fontSize)
+}
+
+/** Left gutter (px) {@link drawParticipantIndexAxis} needs for `count` rows, derived from the draw. */
+export const participantIndexAxisWidth = (count: number): number =>
+  indexAxisTitleOffset(count) + axisTitleLineHeight(AXIS_CONFIG.fontSize)
 
 /**
  * Rotated participant-index Y axis for compact participant-row plots (scarf,
@@ -218,7 +220,7 @@ export function drawParticipantIndexAxis(
 
   ctx.save()
   ctx.textAlign = 'center'
-  ctx.translate(plotLeft - INDEX_AXIS_TITLE_OFFSET, plotTop + (count * rowPitch) / 2)
+  ctx.translate(plotLeft - indexAxisTitleOffset(count, config), plotTop + (count * rowPitch) / 2)
   ctx.rotate(-Math.PI / 2)
   const lineHeight = axisTitleLineHeight(config.fontSize)
   ctx.fillText('Participants', 0, -lineHeight / 2)
@@ -238,8 +240,24 @@ export function drawParticipantIndexAxis(
   ctx.restore()
 }
 
-/** Compact index axis without `labels`, else labels right-aligned ROW_LABEL_GAP left
- *  of the plot. Leaves the axis font, fill and baseline set (no save/restore). */
+/** Pre-truncated row labels right-aligned ROW_LABEL_GAP left of the plot. Leaves the axis text state set. */
+export function drawRowLabels(
+  ctx: CanvasRenderingContext2D,
+  labels: readonly string[],
+  plotLeft: number,
+  plotTop: number,
+  rowPitch: number
+): void {
+  ctx.font = `${AXIS_CONFIG.fontSize}px ${AXIS_CONFIG.fontFamily}`
+  ctx.fillStyle = AXIS_CONFIG.color
+  ctx.textBaseline = 'middle'
+  ctx.textAlign = 'right'
+  for (let i = 0; i < labels.length; i++) {
+    ctx.fillText(labels[i], plotLeft - ROW_LABEL_GAP, plotTop + i * rowPitch + rowPitch / 2)
+  }
+}
+
+/** The compact index axis without `labels`, else {@link drawRowLabels}. Leaves the axis text state set. */
 export function drawParticipantRowAxis(
   ctx: CanvasRenderingContext2D,
   count: number,
@@ -248,14 +266,11 @@ export function drawParticipantRowAxis(
   plotTop: number,
   rowPitch: number
 ): void {
+  if (labels) return drawRowLabels(ctx, labels, plotLeft, plotTop, rowPitch)
   ctx.font = `${AXIS_CONFIG.fontSize}px ${AXIS_CONFIG.fontFamily}`
   ctx.fillStyle = AXIS_CONFIG.color
   ctx.textBaseline = 'middle'
-  if (!labels) return drawParticipantIndexAxis(ctx, count, plotLeft, plotTop, rowPitch)
-  ctx.textAlign = 'right'
-  for (let i = 0; i < labels.length; i++) {
-    ctx.fillText(labels[i], plotLeft - ROW_LABEL_GAP, plotTop + i * rowPitch + rowPitch / 2)
-  }
+  drawParticipantIndexAxis(ctx, count, plotLeft, plotTop, rowPitch)
 }
 
 /**

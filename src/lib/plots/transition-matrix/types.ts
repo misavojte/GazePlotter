@@ -1,9 +1,8 @@
-import type { ExtendedInterpretedDataType } from '$lib/data/types'
+import type { ExtendedInterpretedDataType, ParticipantScope } from '$lib/data/types'
 import type { OutOfBoundsSettings } from '$lib/plots/shared/outOfBounds'
 
-export type TransitionMatrixPlotSettings = OutOfBoundsSettings & {
+export type TransitionMatrixPlotSettings = ParticipantScope & OutOfBoundsSettings & {
   stimulusId: number
-  groupId: number
   /** Per-plot AOI SELECTION id; unset/0 = all AOIs. */
   aoiSelectionId?: number
   /**

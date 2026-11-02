@@ -95,7 +95,7 @@
     flex-direction: column;
     gap: 8px;
     padding: 12px 16px;
-    background: var(--c-darkwhite);
+    background: var(--c-lightgrey);
     border: 1px solid var(--c-border);
     border-radius: var(--rounded);
     transition: opacity var(--transition-normal) ease;

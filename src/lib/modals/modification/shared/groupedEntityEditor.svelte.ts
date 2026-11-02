@@ -254,6 +254,7 @@ export function createGroupedEntityEditor<
       }
       if (colors.has(item.id) && 'color' in was) {
         ;(item as T & ExtendedInterpretedDataType).color = was.color as string
+        delete (item as { mixedColors?: unknown }).mixedColors
         touched.color.add(item.id)
       }
     }
@@ -276,6 +277,8 @@ export function createGroupedEntityEditor<
     for (const i of items) {
       if (memberIds.has(i.id)) {
         ;(i as T & ExtendedInterpretedDataType).color = newColor
+        // A picked color is one color: a "Mixed" swatch turns solid.
+        delete (i as { mixedColors?: unknown }).mixedColors
         touched.color.add(i.id)
       }
     }

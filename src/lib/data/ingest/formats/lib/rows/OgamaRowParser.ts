@@ -5,7 +5,7 @@ export class OgamaRowParser extends RowParser {
   stimulusName: string
 
   private readonly stimulusBytes: Uint8Array
-  private readonly hashBytes: Uint8Array
+  private readonly decoder: TextDecoder
 
   private readonly pParticipant = 0
   private readonly pSegments = 1
@@ -21,7 +21,7 @@ export class OgamaRowParser extends RowParser {
     // this.stimulusName = fileName.split('.')[0].split('Similarity')[1]
     this.stimulusName = fileName.split('.')[0]
     this.stimulusBytes = encodeString(this.stimulusName, this.encoding)
-    this.hashBytes = encodeString('#', this.encoding)
+    this.decoder = new TextDecoder(this.encoding)
 
     this.setupColumns(
       this.requireColumns(header, ['Sequence Similarity', 'Scanpath string'])
@@ -33,12 +33,11 @@ export class OgamaRowParser extends RowParser {
     const participantBytes = this.getBytes(this.pParticipant)
     if (!segmentsBytes.length || !participantBytes.length) return
 
-    const step = this.encoding === 'utf-8' ? 1 : 2
+    // One AOI per code point: stepping by byte or UTF-16 unit splits a
+    // non-ASCII letter such as Ω or 漢 into broken, duplicate AOI names.
     let index = 0
-    for (let i = 0; i + step <= segmentsBytes.length; i += step) {
-      const slice = segmentsBytes.subarray(i, i + step)
-      const isHash = this.bytesEqual(slice, this.hashBytes)
-      const aoi = isHash ? null : [slice]
+    for (const letter of this.decoder.decode(segmentsBytes)) {
+      const aoi = letter === '#' ? null : [encodeString(letter, this.encoding)]
       this.onSegment?.(
         index,
         index + 1,
@@ -49,11 +48,5 @@ export class OgamaRowParser extends RowParser {
       )
       index++
     }
-  }
-
-  private bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
-    if (a.length !== b.length) return false
-    for (let i = 0; i < a.length; i++) if (a[i] !== b[i]) return false
-    return true
   }
 }

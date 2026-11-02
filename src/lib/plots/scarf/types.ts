@@ -6,10 +6,10 @@
  */
 
 import type { AdaptiveTimeline } from '$lib/plots/shared'
+import type { ParticipantScope } from '$lib/data/types'
 
-export type ScarfPlotSettings = {
+export type ScarfPlotSettings = ParticipantScope & {
   stimulusId: number
-  groupId: number
   /** Per-plot AOI SELECTION id; unset/0 = all AOIs. */
   aoiSelectionId?: number
   /** Per-plot eye-movement-type SELECTION id; unset/0 = all types. The fixation
@@ -66,10 +66,11 @@ export interface ScarfStyling {
 
 /**
  * Style type for legend items, determining how the icon is rendered.
- * - 'fixation': Full-height rectangle (AOI fixations, event channels)
+ * - 'fixation': Full-height rectangle (AOI fixations)
  * - 'nonFixation': Thin rectangle (saccades, other events)
+ * - 'event': Thin strip hanging under the bar (event channels)
  */
-export type ScarfLegendStyleType = 'fixation' | 'nonFixation'
+export type ScarfLegendStyleType = 'fixation' | 'nonFixation' | 'event'
 
 /**
  * A single legend item with its display properties.

@@ -37,9 +37,9 @@
   const consentCondition = createCondition() // Monitor for consent confirmation
   const stimulusCondition = createCondition() // Monitor for "Task 2" stimulus
   const timelineCondition = createCondition() // Monitor for "relative" timeline
-  const groupCondition = createCondition() // Monitor for "Group 1" selection
+  const selectionCondition = createCondition() // Monitor for the "Analytics" selection
   const duplicateCondition = createCondition() // Monitor for plot duplication
-  const group2Condition = createCondition() // Monitor for "Group 2" selection
+  const selection2Condition = createCondition() // Monitor for the "Holistics" selection
   const aoiCustomizationCondition = createCondition() // Monitor for AOI grouping
   const transitionMatrixCondition = createCondition() // Monitor for Transition Matrix aggregation
   const aoiComparisonCondition = createCondition() // Monitor for AOI Metrics aggregation
@@ -233,7 +233,7 @@
     ),
     autoTask(
       "On Scarf Plot, set group to 'Analytics'",
-      groupCondition,
+      selectionCondition,
       "Set group to 'Analytics'"
     ),
     autoTask(
@@ -244,7 +244,7 @@
     autoTask('Duplicate Scarf Plot', duplicateCondition),
     autoTask(
       "On the duplicated Scarf Plot, set group to 'Holistics'",
-      group2Condition
+      selection2Condition
     ),
     autoTask(
       "Find 'AOI Customization' and group XAxis and YAxis (in stimulus Task 2) by giving them the same name",
@@ -363,8 +363,8 @@
         s => 'timeline' in s && s.timeline === 'relative',
         timelineCondition,
       ],
-      ['scarf', s => 'groupId' in s && s.groupId === 1, groupCondition], // Analytics
-      ['scarf', s => 'groupId' in s && s.groupId === 2, group2Condition], // Holistics
+      ['scarf', s => 'participantSelectionId' in s && s.participantSelectionId === 1, selectionCondition], // Analytics
+      ['scarf', s => 'participantSelectionId' in s && s.participantSelectionId === 2, selection2Condition], // Holistics
     ])
 
     // Check for plot duplication (works from any plot type)

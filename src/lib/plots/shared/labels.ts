@@ -102,9 +102,12 @@ export function rangeQualifier(
   unit = ''
 ): string | null {
   const u = unit ? ` ${unit}` : ''
-  if (start > 0 && end > 0) return `${symbol} ∈ [${start}, ${end}]${u}`
-  if (start > 0) return `${symbol} ≥ ${start}${u}`
-  if (end > 0) return `${symbol} ≤ ${end}${u}`
+  // Whole numbers: a bound read off raw data (20086.5234375) is a label, not a readout.
+  const a = Math.round(start)
+  const b = Math.round(end)
+  if (start > 0 && end > 0) return `${symbol} ∈ [${a}, ${b}]${u}`
+  if (start > 0) return `${symbol} ≥ ${a}${u}`
+  if (end > 0) return `${symbol} ≤ ${b}${u}`
   return null
 }
 
@@ -199,6 +202,12 @@ export function timeRangeQualifier(start = 0, end = 0): string | null {
 
 /** Gaze units: whole numbers at pixel scale, three significant digits for normalized data. */
 export const formatGaze = (v: number) => (Math.abs(v) >= 10 ? String(Math.round(v)) : String(Number(v.toPrecision(3))))
+
+/** One tooltip row for a gaze point, shared so every plot words it the same. */
+export const gazePositionRow = (x: number, y: number) => ({
+  key: 'Position (x, y)',
+  value: `${formatGaze(x)}, ${formatGaze(y)}`,
+})
 
 /** Integers bare, else one decimal; a `unit` trails after a space. */
 export function formatCompact(v: number, unit = ''): string {

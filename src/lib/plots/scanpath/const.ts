@@ -1,33 +1,10 @@
-import { PLOT_AXIS_TITLE_GAP } from '../shared/const'
+import { UI_COLORS } from '$lib/color'
 
-/**
- * Layout costants. Margins are not declared here — they are *measured* per
- * render from the actual tick-label strings and the current font (see
- * `ScanpathPlotFigure.svelte`'s `layout` derived). The constants below are
- * either visual primitives (gaps, paddings, radii) or font configuration that
- * the measurement step needs.
- */
+/** Layout constants: visual primitives only; the axis gutters are measured by usePlot. */
 export const SCANPATH_LAYOUT = {
-  /** Top edge safety so the plot's 1-px border is fully visible. */
-  topSafetyPx: 2,
-  /** Right edge safety beyond the last-X-tick-label clamp inside drawPlotArea. */
-  rightSafetyPx: 4,
-  /** Bottom edge safety below the last line of the X axis title. */
-  bottomSafetyPx: 0,
-  /** Left edge safety beyond the left rotated edge of the Y axis title. */
-  leftSafetyPx: 2,
-
-  /** Visible breathing room between tick labels and the axis title text. */
-  titleTickGapPx: PLOT_AXIS_TITLE_GAP,
-
-  /** Tick count per axis. */
-  tickCount: 5,
-
-  /** Min/max fixation circle radius in CSS pixels. Area linear in duration.
-      Deliberately restrained: markers annotate the stimulus, they must not
-      dominate it, and long recordings put hundreds of them on screen. */
-  minRadius: 3,
-  maxRadius: 13,
+  /** Marker radius range (CSS px); area is linear in duration. */
+  minRadius: 4,
+  maxRadius: 15,
   /** Above this many fixations the radius range shrinks progressively
       (√ falloff, floored at half) so dense recordings stay readable. */
   densityThreshold: 150,
@@ -38,15 +15,14 @@ export const SCANPATH_LAYOUT = {
   numberFontSize: 10,
   numberOffset: 4,
 
-  polylineWidth: 1.25,
-  circleStrokeWidth: 1,
+  polylineWidth: 1.75,
+  circleStrokeWidth: 1.5,
 
-  /** Mark translucency: fills and the path stay under the stimulus imagery
-      in visual weight. */
-  fixationFillAlpha: 0.65,
-  polylineAlpha: 0.55,
+  /** Mark opacity: strong enough to read over a full-color image or video frame. */
+  fixationFillAlpha: 0.85,
+  polylineAlpha: 0.8,
 
-  /** Fixation tooltip width (px) — same convention as SCARF_LAYOUT.TOOLTIP_WIDTH. */
+  /** Fixation tooltip width (px). */
   tooltipWidth: 170,
 } as const
 
@@ -57,8 +33,8 @@ export const SCANPATH_LAYOUT = {
 export const SCANPATH_COLORS = {
   fixationFill: '#e07a3a',
   fixationStroke: '#a04816',
-  polyline: '#5a5a5a',
-  numberLabel: '#1f1f1f',
+  polyline: UI_COLORS.CONNECTOR,
+  numberLabel: UI_COLORS.TEXT_PRIMARY,
   /** White separation halo behind marks and labels, for legibility over
       reference imagery. */
   halo: 'rgba(255, 255, 255, 0.85)',

@@ -119,6 +119,19 @@ describe('parseCsvEventText', () => {
     expect(rows).toHaveLength(0)
   })
 
+  it('warns and skips rows with a negative duration', () => {
+    const csv = [
+      'stimulus,participant,eventName,start,duration',
+      'Image1,P01,AOI_Face,0,-500',
+      'Image1,P01,AOI_Face,100,200',
+    ].join('\n')
+
+    const { contributions: rows, warnings } = parseCsvEventText(csv)
+    expect(warnings).toEqual(['Row 2: negative duration, skipped'])
+    expect(rows).toHaveLength(1)
+    expect(rows[0].start).toBe(100)
+  })
+
   it('handles zero duration (instant events)', () => {
     const csv = [
       'stimulus,participant,eventName,start,duration',

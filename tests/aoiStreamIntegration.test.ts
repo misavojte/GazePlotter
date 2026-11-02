@@ -12,12 +12,11 @@ const partialSettings = (s: Partial<StreamSettings>) => s as StreamSettings
 
 describe('AOI Stream Plot Transformer (Integration)', () => {
   const stimulusId = 0
-  const groupId = -1
   // The settings every case shares; each passes only what it is about.
   const run = (engine: ReturnType<typeof makeTwoAoiEngine>, over: Partial<StreamSettings> = {}) =>
     getAoiStreamPlotData(
       engine,
-      partialSettings({ stimulusId, groupId, metricInstanceIds: [WINDOWED_TIME_INSTANCE_ID], ...over })
+      partialSettings({ stimulusId, metricInstanceIds: [WINDOWED_TIME_INSTANCE_ID], ...over })
     )
 
   it('transforms raw segments into time series binned occupancy', () => {

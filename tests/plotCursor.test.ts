@@ -1,20 +1,22 @@
 /**
  * PLOT CURSOR contract: both channels' scope/ownership algebra, the time
  * projection pair, the guide mark, the scarf's mode gate, and export inertness.
- * Not covered (node suite, nothing mounts): `usePlot`'s `overlayDeps` repaint and
- * the recipes' `onDestroy` retraction.
+ * Not covered (node suite, nothing mounts): the host's `overlay.key` repaint and
+ * the port's `onDestroy` retraction.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest'
+import { PlotCursorState, createPlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
 import {
-  PlotCursorState,
-  createPlotCursorPort,
   cursorRows,
   drawTimeGuides,
   timeAtX,
+  timeCursor,
   timeGuideX,
   timeGuideXs,
-} from '$lib/plots/shared/plotCursor.svelte'
-import { absoluteTimeScope } from '$lib/plots/scarf/core/screen.svelte'
+  type CursorPosition,
+  type TimeAxis,
+} from '$lib/plots/shared/cursorMarks'
+import { absoluteTimeScope } from '$lib/plots/scarf/core/view'
 import {
   CROSSHAIR_COLOR,
   CROSSHAIR_DASH,
@@ -38,15 +40,22 @@ const WINDOW = { minValue: 1000, maxValue: 3000 }
 
 // One cursor per session (one pointer exists) — retract between cases.
 const cursorState = new PlotCursorState()
-const a = createPlotCursorPort(cursorState, 1, () => 7)
-const b = createPlotCursorPort(cursorState, 2, () => 7)
-const otherStimulus = createPlotCursorPort(cursorState, 3, () => 9)
-const notAbsolute = createPlotCursorPort(cursorState, 4, () => null)
+const a = createPlotCursorPort(cursorState, 1, () => 7, null, { stimulus: () => 7 })
+const b = createPlotCursorPort(cursorState, 2, () => 7, null, { stimulus: () => 7 })
+const otherStimulus = createPlotCursorPort(cursorState, 3, () => 9, null, { stimulus: () => 9 })
+/** An ordinal scarf: no time scope, still on stimulus 7. */
+const notAbsolute = createPlotCursorPort(cursorState, 4, () => null, null, { stimulus: () => 7 })
+/** A metric matrix: no time axis, spans stimuli. */
+const spanning = createPlotCursorPort(cursorState, 5)
+/** A heatmap on stimulus 7: its sets are "who looked here". */
+const heatmap = createPlotCursorPort(cursorState, 6, undefined, null, { stimulus: () => 7, publishes: 'stimulus' })
 afterEach(() => {
   a.publish(null)
   b.publish(null)
   otherStimulus.publish(null)
   notAbsolute.publish(null)
+  spanning.publish(null)
+  heatmap.publish(null)
 })
 
 describe('times channel', () => {
@@ -163,6 +172,26 @@ describe('participants channel', () => {
   it('reads a cursor-less empty set as one shared array, never a fresh one', () => {
     expect(b.participants).toBe(b.participants)
   })
+
+  it("keeps a 'stimulus' set (a heatmap cell: who looked here) on its own stimulus", () => {
+    heatmap.publish({ participants: () => [12, 34] })
+    expect(a.participants).toEqual([12, 34])
+    expect(notAbsolute.participants).toEqual([12, 34])
+    expect(otherStimulus.participants).toEqual([])
+    expect(spanning.participants).toEqual([])
+  })
+
+  it('still lets an identity set reach a plot spanning stimuli', () => {
+    otherStimulus.publish({ participants: () => [12] })
+    expect(spanning.participants).toEqual([12])
+  })
+
+  it("fails closed for a 'stimulus' publisher that has lost its stimulus", () => {
+    const lost = createPlotCursorPort(cursorState, 7, undefined, null, { stimulus: () => null, publishes: 'stimulus' })
+    lost.publish({ participants: () => [12] })
+    expect(a.participants).toEqual([])
+    lost.publish(null)
+  })
 })
 
 describe('cursorRows', () => {
@@ -250,6 +279,48 @@ describe('time guide mark', () => {
     // A recurrence pair whose second moment the receiving plot has panned past.
     expect(timeGuideXs(BAND, WINDOW, [1000, 2000, 4000])).toEqual([100.5, 300.5])
     expect(timeGuideXs(BAND, WINDOW, [])).toEqual([])
+  })
+})
+
+describe('time-axis cursor', () => {
+  const axis = (over: Partial<TimeAxis> = {}): { timeAxis: TimeAxis } => ({
+    timeAxis: { band: BAND, timeline: TIMELINE, rowIds: [11, 22, 33], ...over },
+  })
+
+  it('keys on guide pixels and marked rows, and draws the guides', () => {
+    // One pixel column and an unknown id: the same marks, the same key.
+    expect(timeCursor.key(axis(), { times: [500.01], participants: [33, 99] })).toBe('300.5:2')
+    const { points, ctx } = recorder()
+    expect(timeCursor.draw(ctx, axis(), { times: [500], participants: [22] })).toEqual([1])
+    expect(points).toEqual([300.5, 50, 300.5, 250])
+  })
+
+  it('gates time off without a band, keeping the rows', () => {
+    const gated = axis({ band: null })
+    expect(timeCursor.key(gated, { times: [500], participants: [11] })).toBe(':0')
+    const { points, ctx } = recorder()
+    timeCursor.draw(ctx, gated, { times: [500], participants: [] })
+    expect(points).toEqual([])
+  })
+
+  it('publishes live reads of the current axis, and retracts on null', () => {
+    const published: (CursorPosition | null)[] = []
+    let scene: { timeAxis: TimeAxis } | null = axis()
+    const act = { scene: () => scene, publish: (at: CursorPosition | null) => published.push(at) }
+    timeCursor.publish(act, 300, 2)
+    const at = published[0]!
+    expect(at.times!()).toEqual([500])
+    expect(at.participants!()).toEqual([33])
+    // A narrower set of rows, or no scene at all, reads back empty.
+    scene = axis({ rowIds: [11] })
+    expect(at.participants!()).toEqual([])
+    scene = null
+    expect(at.times!()).toEqual([])
+    // No row: no participant channel at all.
+    timeCursor.publish(act, 300)
+    expect(published[1]!.participants).toBeUndefined()
+    timeCursor.publish(act, null)
+    expect(published[2]).toBeNull()
   })
 })
 
@@ -397,23 +468,26 @@ describe('scarf timeline-mode gate', () => {
 // Export safety: the export derivation never builds a screen recipe, so no port
 // ever reaches an exported figure.
 vi.mock('$lib/plots/registry', () => ({
-  resolvePlotDefinition: () => ({
-    view: { deriveView: () => ({ component: null, props: { data: 'view-only' } }) },
-    screen: () => {
-      throw new Error('the export path must never build a screen recipe')
+  resolvePlotRuntime: () => ({
+    view: { deriveView: () => ({ kit: null, input: { data: 'view-only' } }) },
+    get sync() {
+      throw new Error('export never syncs')
+    },
+    get cursor() {
+      throw new Error('export never builds a plot cursor')
     },
   }),
 }))
 
 describe('export inertness', () => {
-  it('derives export views without ever constructing a screen recipe', async () => {
+  it('derives export views without reading the screen-only declarations', async () => {
     const { deriveItemView } = await import(
       '$lib/modals/export/export-figures/view'
     )
     const item = { type: 'evolvingMetrics', settings: { stimulusId: 7 }, w: 12, h: 12 }
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const view = deriveItemView({} as any, item as any)
-    expect(view?.props).toEqual({ data: 'view-only' })
-    expect(view?.props).not.toHaveProperty('plotCursor')
+    expect(view?.input).toEqual({ data: 'view-only' })
+    expect(view?.input).not.toHaveProperty('plotCursor')
   })
 })

@@ -10,6 +10,6 @@
  * the statistics, the sort/scale policy, the pane vocabulary) is entity- and
  * figure-agnostic and lives one level up in `$lib/plots/shared/distribution`.
  */
-export { default as BeeswarmFigure } from './BeeswarmFigure.svelte'
-export * from './figureProps'
+export * from './kit'
+export * from './input'
 export * from './renderers'

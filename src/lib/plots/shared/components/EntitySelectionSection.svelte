@@ -6,8 +6,8 @@
 
   /**
    * Everything that distinguishes one entity axis's section from another's.
-   * The four axes (AOIs, stimuli, events, eye-movement types) are this ONE
-   * component with different configs bound in `SHARED_SECTIONS`.
+   * The five axes (participants, AOIs, stimuli, events, eye-movement types)
+   * are this ONE component with different configs bound in `SHARED_SECTIONS`.
    */
   export interface EntitySectionConfig {
     /** Section header, e.g. "Areas of Interest". */
@@ -27,11 +27,9 @@
     /** Open the modal on the representative's stimulus (stimulus-scoped
      *  modal surfaces: AOIs, events). */
     passSelectedStimulus?: boolean
-    /** Surface the plot-specific "Hide No AOI data" toggle beneath the picker
-     *  (only the AOI axis carries it). Declared here as data so the section
-     *  stays generic — no per-axis special-casing in the component body. Shown
-     *  only when an edit target actually has the `hideNoAoi` setting. */
-    hideNoAoiToggle?: boolean
+    /** A boolean setting beneath the picker, shown only when an edit target has
+     *  `key`; `summary` names the deviation in the collapsed header. */
+    toggle?: { key: string; label: string; summary: string }
     /** Dataset capabilities the section needs — the plot definitions'
      *  `requireCapabilities` vocabulary, evaluated by `hasCapabilities`.
      *  Only the event axis sets this (events are a dataset-level capability);
@@ -43,8 +41,8 @@
 <script lang="ts">
   /**
    * THE entity-axis pane section — one config per selection-bearing axis
-   * (AOIs, stimuli, events, eye-movement types): picks which named SELECTION
-   * the plot narrows that axis to, plus the single edit link into the axis's
+   * (participants, AOIs, stimuli, events, eye-movement types): picks which named
+   * SELECTION the plot narrows that axis to, plus the single edit link into the axis's
    * modal (names, colors, merges, selections — one surface). Selections are
    * global, so the option list is stimulus-independent —
    * `config.getSelections(engine)` plus a leading "All" (unset / id 0 = no
@@ -88,15 +86,14 @@
     bulk.common(s => (s[config.settingsKey] as number | undefined) ?? 0)
   )
 
-  // Non-null when the toggle applies: the axis carries it (config) AND some
-  // edit target has the `hideNoAoi` setting — presence is checked over the
-  // SAME edit-target set `bulk` writes to (no parallel copy of
-  // createBulkContext's target resolution).
-  const hideNoAoi = $derived.by(() => {
-    if (!config.hideNoAoiToggle) return null
-    const present = bulk.common(s => 'hideNoAoi' in s)
+  // Non-null when the axis carries a toggle and some edit target (the set
+  // `bulk` writes to) has its setting.
+  const toggle = $derived.by(() => {
+    const t = config.toggle
+    if (!t) return null
+    const present = bulk.common(s => t.key in s)
     if (!present.value && !present.mixed) return null
-    return bulk.common(s => (s.hideNoAoi as boolean | undefined) ?? false)
+    return { ...t, state: bulk.common(s => (s[t.key] as boolean | undefined) ?? false) }
   })
 
   const summary = $derived.by(() => {
@@ -105,8 +102,8 @@
       ? ALL_SELECTION_LABEL
       : (selections.find(s => s.id === state.value)?.name ?? ALL_SELECTION_LABEL)
     // Only deviations from the default surface in the summary.
-    if (hideNoAoi?.mixed) return `${baseName} (mixed No AOI)`
-    if (hideNoAoi?.value) return `${baseName} - No AOI`
+    if (toggle?.state.mixed) return `${baseName} (mixed ${toggle.summary})`
+    if (toggle?.state.value) return `${baseName} - ${toggle.summary}`
     return baseName
   })
 </script>
@@ -121,13 +118,13 @@
     mixed={state.mixed}
     onchange={e => bulk.update({ [config.settingsKey]: Number(e.detail) })}
   />
-  {#if hideNoAoi}
+  {#if toggle}
     <InputCheck
-      label="Hide No AOI data"
+      label={toggle.label}
       compact
-      checked={!!hideNoAoi.value}
-      mixed={hideNoAoi.mixed}
-      onchange={e => bulk.updateEach(s => ('hideNoAoi' in s ? { hideNoAoi: (e as CustomEvent<boolean>).detail } : null))}
+      checked={!!toggle.state.value}
+      mixed={toggle.state.mixed}
+      onchange={e => bulk.updateEach(s => (toggle.key in s ? { [toggle.key]: (e as CustomEvent<boolean>).detail } : null))}
     />
   {/if}
   <PaneEditRow>

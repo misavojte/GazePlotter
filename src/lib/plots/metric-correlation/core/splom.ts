@@ -1,7 +1,8 @@
 import { SYSTEM_SANS_SERIF_STACK } from '$lib/shared/textMeasure'
-import { UI_COLORS } from '$lib/color'
-import { markCrosshairNode, type MatrixLayout } from '$lib/plots/shared'
-import { cursorRows } from '$lib/plots/shared/plotCursor.svelte'
+import { INACTIVE_COLOR, UI_COLORS } from '$lib/color'
+import { markCrosshairNode } from '$lib/plots/shared/canvasUtils'
+import type { MatrixLayout } from '$lib/plots/shared/matrixLayout'
+import { cursorRows } from '$lib/plots/shared/cursorMarks'
 import type { MetricCorrelationResult } from '../types'
 
 function rangeOf(values: number[]): { min: number; max: number } {
@@ -21,8 +22,29 @@ function rangeOf(values: number[]): { min: number; max: number } {
   return { min, max }
 }
 
+/** Smallest in-cell text size still legible; below it the cell shows no text. */
+const MIN_CELL_TEXT_SIZE = 7
+/** Horizontal room (px) kept clear inside a cell around its text. */
+const CELL_TEXT_INSET = 4
+
+/** Sets the largest font ≤ `size` at which `text` fits `maxWidth`; false when even the minimum would not. */
+function fitCellFont(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  weight: number,
+  size: number,
+  maxWidth: number
+): boolean {
+  ctx.font = `${weight} ${size}px ${SYSTEM_SANS_SERIF_STACK}`
+  const w = ctx.measureText(text).width
+  const fitted = w > maxWidth ? Math.floor((size * maxWidth) / w) : size
+  if (fitted < MIN_CELL_TEXT_SIZE) return false
+  if (fitted !== size) ctx.font = `${weight} ${fitted}px ${SYSTEM_SANS_SERIF_STACK}`
+  return true
+}
+
 function cellBackground(r: number | null): string {
-  if (r === null) return '#fafafa'
+  if (r === null) return INACTIVE_COLOR
   const clamped = Math.max(-1, Math.min(1, r))
   const alpha = Math.abs(clamped) * 0.12
   if (clamped >= 0) return `rgba(202, 0, 32, ${alpha.toFixed(3)})`
@@ -30,7 +52,7 @@ function cellBackground(r: number | null): string {
 }
 
 function rColor(r: number): string {
-  if (Math.abs(r) < 0.5) return '#555'
+  if (Math.abs(r) < 0.5) return UI_COLORS.TEXT_SECONDARY
   return r > 0 ? '#a00015' : '#1a4a8a'
 }
 
@@ -97,7 +119,7 @@ export function createSplomCursorRing(result: MetricCorrelationResult) {
 }
 
 /**
- * SPLOM cell painter for `MatrixPlotFigure.drawCells`: diagonal shows the
+ * SPLOM cell painter for the matrix kit's `drawCells`: diagonal shows the
  * metric unit, upper triangle the r value, lower triangle a scatter of the
  * per-participant value pairs. Per-metric value ranges place the scatter
  * points inside each cell.
@@ -119,17 +141,14 @@ export function createSplomCellRenderer(result: MetricCorrelationResult) {
         const y = yOffset + row * cellSize
 
         if (row === col) {
-          ctx.fillStyle = '#f0f0f0'
+          ctx.fillStyle = UI_COLORS.SURFACE_SUBTLE
           ctx.fillRect(x, y, cellSize, cellSize)
+          const text = result.metrics[row].unit || result.metrics[row].label
+          if (!fitCellFont(ctx, text, 500, scatterFontSize, cellSize - CELL_TEXT_INSET)) continue
           ctx.fillStyle = UI_COLORS.TEXT_PRIMARY
-          ctx.font = `500 ${scatterFontSize}px ${SYSTEM_SANS_SERIF_STACK}`
           ctx.textAlign = 'center'
           ctx.textBaseline = 'middle'
-          ctx.fillText(
-            result.metrics[row].unit || result.metrics[row].label,
-            x + cellSize / 2,
-            y + cellSize / 2
-          )
+          ctx.fillText(text, x + cellSize / 2, y + cellSize / 2)
           continue
         }
 
@@ -139,8 +158,8 @@ export function createSplomCellRenderer(result: MetricCorrelationResult) {
         if (row < col) {
           // Upper triangle: r value
           const label = cell.r === null ? '—' : cell.r.toFixed(2)
-          ctx.font = `600 ${rFontSize}px ${SYSTEM_SANS_SERIF_STACK}`
-          ctx.fillStyle = cell.r === null ? '#999' : rColor(cell.r)
+          if (!fitCellFont(ctx, label, 600, rFontSize, cellSize - CELL_TEXT_INSET)) continue
+          ctx.fillStyle = cell.r === null ? UI_COLORS.TEXT_SECONDARY : rColor(cell.r)
           ctx.textAlign = 'center'
           ctx.textBaseline = 'middle'
           ctx.fillText(label, x + cellSize / 2, y + cellSize / 2)
@@ -149,7 +168,7 @@ export function createSplomCellRenderer(result: MetricCorrelationResult) {
           if (!cell.points || cell.points.length === 0) continue
           const proj = cellProjection(layout, ranges, row, col)
 
-          ctx.fillStyle = '#2c3e50'
+          ctx.fillStyle = UI_COLORS.INK
           ctx.globalAlpha = 0.65
           for (const point of cell.points) {
             ctx.beginPath()

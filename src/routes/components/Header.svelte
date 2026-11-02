@@ -55,6 +55,8 @@
     padding: 0 8px;
     background-color: var(--c-white);
     border-bottom: 1px solid var(--c-border);
+    /* A light shade: the bar rests over the page moving beneath it. */
+    box-shadow: 0 2px 5px -2px color-mix(in srgb, var(--c-black) 7%, transparent);
     position: relative;
     z-index: 100;
   }

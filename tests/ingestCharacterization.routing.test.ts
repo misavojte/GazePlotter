@@ -222,7 +222,7 @@ describe('IngestService routing', () => {
     expect(service.status).toBe('ready')
     expect(deps.engine.loadDataset).toHaveBeenCalledWith(sentinelData)
     expect(deps.toastState.addSuccess).toHaveBeenCalledWith(
-      expect.stringMatching(/^data\.csv .* parsed successfully in /)
+      expect.stringMatching(/^Read data\.csv .* in /)
     )
     expect(service.metadata).toEqual(
       expect.objectContaining({
@@ -238,5 +238,35 @@ describe('IngestService routing', () => {
     expect(Array.isArray(gridArg)).toBe(true)
     expect(gridArg.length).toBeGreaterThan(0)
     expect(workerInstances[0].terminate).toHaveBeenCalledTimes(1)
+  })
+
+  it('a quiet host load ends without a success toast; a user upload keeps it', async () => {
+    const { service, deps, posted, workerInstances } = loadHarness()
+    Object.assign(deps, { quietInitialLoad: true })
+    const finish = (worker: (typeof workerInstances)[number]) =>
+      worker.onmessage?.({
+        data: {
+          type: 'done',
+          result: {
+            kind: 'dataset',
+            data: { capabilities: { segmented: true, spatial: false, event: false } },
+            settings: { type: 'csv', rowDelimiter: '\n', columnDelimiter: ',', encoding: 'utf-8', userInputSetting: '', headerRowId: 0 },
+          },
+        },
+      })
+
+    const host = service.loadFromHost(async () => [fakeFile('data.csv', gazeCsv) as unknown as File])
+    await vi.waitFor(() => expect(posted.some(m => m.type === 'file')).toBe(true))
+    finish(workerInstances[0])
+    await host
+    expect(service.status).toBe('ready')
+    expect(deps.toastState.addSuccess).not.toHaveBeenCalled()
+
+    const upload = service.loadFiles(createFileList([fakeFile('own.csv', gazeCsv)]))
+    await vi.waitFor(() => expect(workerInstances).toHaveLength(2))
+    await vi.waitFor(() => expect(posted.filter(m => m.type === 'file')).toHaveLength(2))
+    finish(workerInstances[1])
+    await upload
+    expect(deps.toastState.addSuccess).toHaveBeenCalledWith(expect.stringMatching(/^Read own\.csv /))
   })
 })

@@ -52,4 +52,16 @@ describe('OGAMA Deserializer - Single data', () => {
       seg('Participant_2', 'A', 3),
     ])
   })
+
+  test('Non-ASCII letters are split by code point, not by byte', () => {
+    const sut = new OgamaRowParser(header, 'SimilarityXXX.txt', delim)
+    const { outputs, processRow } = createAdapterHarness(sut)
+    processRow('Participant_3,AΩ漢A')
+    expect(outputs).toEqual([
+      seg('Participant_3', 'A', 0),
+      seg('Participant_3', 'Ω', 1),
+      seg('Participant_3', '漢', 2),
+      seg('Participant_3', 'A', 3),
+    ])
+  })
 })

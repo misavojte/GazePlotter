@@ -14,15 +14,15 @@ To paste one figure straight into slides or a document, select the plot and pres
 
 ## Choose Figures
 
-The first step lists every plot in the workspace in reading order (top to bottom, left to right). Each entry shows the plot type and its subtitle (stimulus, participant group) to distinguish same-type plots.
+The first step lists every plot in the workspace in reading order (top to bottom, left to right). Each entry shows the plot type and its subtitle (stimulus, participant selection) to distinguish same-type plots.
 
 - **Select All** / **Deselect All** toggle the whole list; long lists gain a search field. Right-click an item for **Select only this** or **Select all but this**.
 
 ## Configure the Output
 
 - **Image format**: PNG (lossless, recommended) or JPG.
-- **Resolution [DPI]**: free entry from 72 DPI, with presets for 96 (screen), 150, 300 (print), and 600 DPI. The default is 300 DPI; after an export, the dialog reopens with that export's format, margin and resolution, remembered in this browser.
-- **Margin [px]**: uniform white margin carved out of each figure, applied to all figures. The default is 20 px.
+- **Resolution / DPI**: free entry from 72 DPI, with presets for 96 (screen), 150, 300 (print), and 600 DPI. The default is 300 DPI; after an export, the dialog reopens with that export's format, margin and resolution, remembered in this browser.
+- **Margin / px**: uniform white margin carved out of each figure, applied to all figures. The default is 20 px.
 
 Each figure is exported at its current workspace size and aspect ratio; the resolution setting scales the output pixel density (96 DPI equals on-screen size). To change a figure's exported size or proportions, resize the plot in the workspace.
 

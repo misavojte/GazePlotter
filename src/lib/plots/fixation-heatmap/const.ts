@@ -1,20 +1,17 @@
+import { UI_COLORS } from '$lib/color'
+
 export const FIXATION_HEATMAP_LAYOUT = {
-  topSafetyPx: 2,
-  rightSafetyPx: 4,
-  leftSafetyPx: 2,
-  tickCount: 5,
   /** The low end fades in over this share of the scale (smoothstep), so blobs
       have soft edges and a lone fixation under a dominant hot spot stays visible. */
   fadeTop: 0.05,
+  /** Opacity map's auto scale top as a share of the peak: Pro Lab's default
+      Scale max of 0.5, so the most-viewed areas show clear, not just the peak. */
+  maskAutoTopShare: 0.5,
   /** LUT entries: fine enough that the fade ramp has ~50 alpha steps. */
   lutSize: 1024,
   /** Legend bar samples of the LUT, composited over white like the map. */
   legendStops: 32,
-  /** Gap between the colour legend and the data summary. */
-  summaryGapPx: 4,
-  /** The data summary wraps instead of ellipsising, up to this many lines. */
-  summaryMaxLines: 3,
-  tooltipWidth: 220,
+  tooltipWidth: 170,
   /** Auto radius as a share of the longer side of the robust fixation extent. */
   autoRadiusShare: 0.05,
   /** Robust extent bounds: 1st and 99th percentile per axis. */
@@ -25,13 +22,9 @@ export const FIXATION_HEATMAP_LAYOUT = {
 } as const
 
 export const FIXATION_HEATMAP_COLORS = {
-  dot: '#1f1f1f',
+  dot: UI_COLORS.INK,
   dotHalo: '#ffffff',
   dotAlpha: 0.7,
-  /** Grey whose zero saturation, composited with 'saturation', desaturates the image. */
-  desaturate: '#808080',
-  /** White under and over the image: the underlay, the dimming veil, an undrawn image's fill. */
-  paper: '#ffffff',
-  dimAlpha: 0.5,
-  summaryText: '#666666',
+  /** Opacity map mask, Pro Lab's default. */
+  mask: '#000000',
 } as const

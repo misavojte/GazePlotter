@@ -78,7 +78,7 @@
 
   .prev-next-link:hover {
     border-color: color-mix(in srgb, var(--c-black) 22%, transparent);
-    background-color: var(--c-darkwhite);
+    background-color: var(--c-lightgrey);
   }
 
   .prev-next-label {

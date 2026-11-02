@@ -23,10 +23,6 @@ export const RIDGELINE_MIN_M_TOP = 0.2
  */
 export const STREAM_SYMMETRY_FACTOR = 0.5
 
-export const MARGIN = {
-  RIGHT: 1,
-}
-
 export const FLOW_CURVE_TENSION = 0
 
 export const Y_AXIS = {

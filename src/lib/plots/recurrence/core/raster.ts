@@ -3,7 +3,7 @@
  *
  * The recurrence matrix is N×N for N fixations, and N reaches the thousands, so
  * N² is tens of millions of cells. Building an N×N intermediate buffer or
- * re-scanning it on every resize is far too slow. Instead the figure rasterizes
+ * re-scanning it on every resize is far too slow. Instead the kit rasterizes
  * ONCE per data/appearance change into a fixed-resolution texture (this
  * function) and then just scales that texture on resize.
  *
@@ -16,7 +16,7 @@
  *
  * Duration weighting is intentionally NOT applied here (it is invisible once
  * cells fall below a pixel); the readable dot renderer still shows it. Colours
- * come pre-packed from the figure so this stays a tight numeric loop.
+ * come pre-packed from the kit so this stays a tight numeric loop.
  */
 export interface RecurrenceTextureInput {
   /** Fixation count (matrix is n×n). */

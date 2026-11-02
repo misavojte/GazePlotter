@@ -62,6 +62,21 @@
     overflow: hidden;
     z-index: 6;
     white-space: nowrap;
+    /* Eases in on select instead of popping. */
+    animation: chip-in var(--transition-fast) ease-out;
+  }
+
+  @keyframes chip-in {
+    from {
+      opacity: 0;
+      translate: 0 2px;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .action-chip {
+      animation: none;
+    }
   }
 
   /* A square each; the clip above gives them their ends. */

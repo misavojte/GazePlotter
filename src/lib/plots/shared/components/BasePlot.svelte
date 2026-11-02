@@ -43,7 +43,7 @@
 <div class="base-plot-container">
   <!-- Figure is plain selectable surface now: individual plot figures
        declare spatial blocked regions (plot area + interactive legend)
-       on their own canvas via `canvasBlockSelect`. That way the chrome
+       on their own canvas (`usePlot`'s `plotAction`). That way the chrome
        around the plot — title, axis labels, padding, non-interactive
        legend — is clickable-to-select, matching the user expectation
        that clicking a plot opens its Pane. -->

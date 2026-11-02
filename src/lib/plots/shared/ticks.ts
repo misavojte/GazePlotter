@@ -46,8 +46,7 @@ export interface CategoryTickOptions {
 }
 
 /**
- * Ticks centred on each of `count` equal categories/cells — the pattern used
- * by recurrence (per-fixation cells) and bar (per-AOI categories). Category
+ * Ticks centred on each of `count` equal categories/cells. Category
  * `i` sits at `(i + 0.5) / count`; only the labelled categories emit a tick so
  * `drawPlotArea` draws marks + labels solely where wanted.
  */
@@ -70,12 +69,39 @@ export function categoryTicks(
   return { positions, labels }
 }
 
-function formatLinearTick(v: number): string {
-  if (!Number.isFinite(v)) return ''
-  const abs = Math.abs(v)
-  if (abs >= 1000) return Math.round(v).toString()
-  if (abs >= 10) return v.toFixed(0)
-  return v.toFixed(2)
+/**
+ * Nice ticks over a 1-based index axis whose ends are items 1 and `count`
+ * (recurrence's fixation lattice): item 1, then every multiple of a whole nice
+ * step. `labelFirst: false` drops item 1's label so a shared origin reads "1" once.
+ */
+export function indexTicks(
+  count: number,
+  tickCount: number,
+  options: { invert?: boolean; labelFirst?: boolean } = {}
+): PlotAreaTicks {
+  if (count < 2) return { positions: [0], labels: ['1'] }
+  const span = count - 1
+  // Indices are whole: a 0.5 step collapses to 1, a 2.5 step to 2.
+  const step = Math.max(1, Math.floor(calculateNiceStepSize(span, tickCount)))
+  const positions: number[] = []
+  const labels: string[] = []
+  const push = (v: number) => {
+    const p = (v - 1) / span
+    positions.push(options.invert ? 1 - p : p)
+    labels.push(v === 1 && options.labelFirst === false ? '' : String(v))
+  }
+  push(1)
+  for (let v = step; v <= count; v += step) if (v > 1) push(v)
+  return { positions, labels }
+}
+
+/** Decimals a nice step needs to print exactly: 250 -> 0, 2.5 -> 1, 0.25 -> 2. */
+function stepDecimals(step: number): number {
+  let decimals = 0
+  while (decimals < 6 && Math.abs(Math.round(step * 10 ** decimals) - step * 10 ** decimals) > 1e-6) {
+    decimals++
+  }
+  return decimals
 }
 
 /**
@@ -84,16 +110,18 @@ function formatLinearTick(v: number): string {
  * step that fall inside the range. Unlike the timeline, min may be negative.
  */
 export function linearTicks(min: number, max: number, count: number): PlotAreaTicks {
-  if (!(max > min)) return { positions: [0.5], labels: [formatLinearTick(min)] }
+  if (!(max > min)) return { positions: [0.5], labels: [Number.isFinite(min) ? String(Number(min.toPrecision(3))) : ''] }
   const range = max - min
   const step = calculateNiceStepSize(range, count)
+  // One precision for the whole axis, from the step: never "0.00" beside "250".
+  const decimals = stepDecimals(step)
   const positions: number[] = []
   const labels: string[] = []
   for (let v = Math.ceil(min / step) * step; v <= max + step * 1e-4; v += step) {
     // Snap floating-point drift (0.30000000000000004) back to the grid.
     const value = Math.abs(v) < step * 1e-6 ? 0 : v
     positions.push((value - min) / range)
-    labels.push(formatLinearTick(value))
+    labels.push(value.toFixed(decimals))
   }
   return { positions, labels }
 }

@@ -1,5 +1,4 @@
-import { deriveScanpathSimilarityView } from './core/view'
-import { scanpathSimilarityScreen } from './core/screen.svelte'
+import { deriveScanpathSimilarityView, type ScanpathSimilarityView } from './core/view'
 import {
   cliquesOfMinSize,
   edgeSharePercent,
@@ -11,7 +10,7 @@ import { SCANPATH_SIMILARITY_DEFAULTS } from './const'
 import { commonIs, definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { PRESET_PALETTES } from '$lib/color/palettes'
-import { stimulusGroupSubtitle } from '$lib/plots/shared'
+import { stimulusParticipantsSubtitle } from '$lib/plots/shared'
 import { OUT_OF_BOUNDS_DEFAULTS, outOfBoundsFields } from '$lib/plots/shared/outOfBounds'
 import type { ScanpathSimilaritySettings } from './types'
 
@@ -79,7 +78,8 @@ const readSelectedClique = (
 
 export const scanpathSimilarityDefinition = definePlot<
   'scanpathSimilarity',
-  ScanpathSimilaritySettings
+  ScanpathSimilaritySettings,
+  ScanpathSimilarityView
 >({
   type: 'scanpathSimilarity',
   name: 'Scanpath Similarity',
@@ -87,7 +87,7 @@ export const scanpathSimilarityDefinition = definePlot<
   group: 'inter-participant',
   paneSections: [
     'stimulus',
-    'group',
+    'participants',
     'metric',
     {
       key: 'scanpathSimilarity:visualization',
@@ -174,12 +174,23 @@ export const scanpathSimilarityDefinition = definePlot<
     'timelineRange',
     'aoi',
   ],
-  view: { deriveView: deriveScanpathSimilarityView },
-  screen: scanpathSimilarityScreen,
-  getSubtitle: stimulusGroupSubtitle,
+  view: {
+    deriveView: deriveScanpathSimilarityView,
+    // A node click only repaints: re-deriving would re-run the similarity and
+    // the force layout.
+    viewOnly: {
+      settings: ['highlightedParticipants'],
+      input: s =>
+        s.view === 'scangraph' ? { highlightedParticipants: s.highlightedParticipants ?? [] } : {},
+    },
+  },
+  // Both views mark participants (matrix rows and columns, graph nodes); no time
+  // axis, so no time channel.
+  cursor: { stimulus: s => s.stimulusId },
+  getSubtitle: stimulusParticipantsSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
-    groupId: params.groupId ?? -1,
+    hideEmptyParticipants: false,
     metricInstanceIds: ['participantPairSimilarity-lev'],
     view: 'matrix',
     threshold: 0.5,

@@ -1,11 +1,9 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import type { PlotView } from '$lib/plots/definePlot'
-import {
-  MatrixPlotFigure,
-  MIN_LEGIBLE_SPLOM_CELL_SIZE,
-  withQualifiers,
-  timeRangeQualifier,
-} from '$lib/plots/shared'
+import { plotView, type PlotView } from '$lib/plots/definePlot'
+import { INACTIVE_COLOR } from '$lib/color'
+import { withQualifiers, timeRangeQualifier } from '$lib/plots/shared/labels'
+import { MIN_LEGIBLE_SPLOM_CELL_SIZE } from '$lib/plots/shared/matrixLayout'
+import { matrixKit, type MatrixInput } from '$lib/plots/shared/matrixKit'
 import { METRIC_MISSING_MULTI_MESSAGE } from '$lib/plots/shared/drawCanvasPlaceholder'
 import { getMetricCorrelationData } from './transformer'
 import { createSplomCellRenderer, createSplomCursorRing } from './splom'
@@ -15,10 +13,8 @@ import type { MetricCorrelationResult, MetricCorrelationSettings } from '../type
 const HEATMAP_COLOR_SCALE = ['#2166ac', '#ffffff', '#ca0020']
 
 /**
- * Legend N is the group's participant count, but cells with missing data rest
- * on fewer complete pairs. Surface the smallest pairwise n among shown
- * (off-diagonal, non-null) cells so the figure — and its static export —
- * doesn't claim more support than any cell actually has.
+ * Cells with missing data rest on fewer pairs than the selection's N, so the
+ * title also names the smallest pairwise n among shown cells.
  */
 function buildLegendTitle(result: MetricCorrelationResult): string {
   const method =
@@ -41,13 +37,13 @@ function buildLegendTitle(result: MetricCorrelationResult): string {
 
 /**
  * Single source of truth for "what a metric-correlation plot draws" — the
- * heatmap and SPLOM are both `MatrixPlotFigure` specs; `settings.view` picks
+ * heatmap and SPLOM are both `matrixKit` inputs; `settings.view` picks
  * which. Both screen and export render it.
  */
 export function deriveMetricCorrelationView(
   engine: DataEngine,
   settings: MetricCorrelationSettings
-): PlotView {
+): PlotView<MatrixInput> {
   const isSplom = settings.view === 'splom'
   const result = getMetricCorrelationData(engine, settings, { includePoints: isSplom })
   const labels = result.metrics.map(m => m.label)
@@ -81,38 +77,32 @@ export function deriveMetricCorrelationView(
   }
 
   if (isSplom) {
-    return {
-      component: MatrixPlotFigure,
-      props: {
-        ...shared,
-        matrix: new Float64Array(0),
-        legendTitle: null,
-        minLegibleCellSize: MIN_LEGIBLE_SPLOM_CELL_SIZE,
-        tooltipWidth: 220,
-        drawCells: createSplomCellRenderer(result),
-        drawCellsCursor: createSplomCursorRing(result),
-      },
-    }
+    return plotView(matrixKit, {
+      ...shared,
+      matrix: new Float64Array(0),
+      legendTitle: null,
+      minLegibleCellSize: MIN_LEGIBLE_SPLOM_CELL_SIZE,
+      tooltipWidth: 220,
+      drawCells: createSplomCellRenderer(result),
+      drawCellsCursor: createSplomCursorRing(result),
+    })
   }
 
   // Flat row-major matrix of r values. NaN marks "undefined" (null r) so the
-  // shared figure's numeric path handles both uniformly (gray fill, '—' text).
+  // matrix kit's numeric path handles both uniformly (gray fill, '—' text).
   const n = labels.length
   const flatMatrix = new Float64Array(n * n)
   for (let i = 0; i < result.cells.length; i++) {
     const c = result.cells[i]
     flatMatrix[i] = c.r === null ? Number.NaN : c.r
   }
-  return {
-    component: MatrixPlotFigure,
-    props: {
-      ...shared,
-      matrix: flatMatrix,
-      colorScale: HEATMAP_COLOR_SCALE,
-      colorValueRange: [-1, 1] as [number, number],
-      nonFiniteColor: '#f2f2f2',
-      legendTitle: buildLegendTitle(result),
-      tooltipWidth: 200,
-    },
-  }
+  return plotView(matrixKit, {
+    ...shared,
+    matrix: flatMatrix,
+    colorScale: HEATMAP_COLOR_SCALE,
+    colorValueRange: [-1, 1],
+    nonFiniteColor: INACTIVE_COLOR,
+    legendTitle: buildLegendTitle(result),
+    tooltipWidth: 200,
+  })
 }

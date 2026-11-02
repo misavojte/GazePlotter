@@ -20,15 +20,17 @@ export function addablePlots(engine: DataEngine): ControlVisualization[] {
 }
 
 // Added while one plot is selected, a plot opens on that plot's stimulus
-// and participant selection (selection ids are stimulus-independent).
+// and participants axis (selection ids are stimulus-independent).
 function inheritedSettings(grid: GridState, vizType: PlotType) {
   const source = grid.selectedItem?.settings as Record<string, unknown> | undefined
   if (!source) return undefined
-  const defaults = plotRegistry[vizType].getDefaultSettings()
-  const settings: Record<string, number> = {}
-  for (const key of ['stimulusId', 'groupId']) {
-    const value = source[key]
-    if (typeof value === 'number' && key in defaults) settings[key] = value
+  const def = plotRegistry[vizType]
+  const hasParticipants = def.paneSections.includes('participants')
+  const inherits = (key: string) =>
+    key === 'stimulusId' ? key in def.getDefaultSettings() : hasParticipants
+  const settings: Record<string, unknown> = {}
+  for (const key of ['stimulusId', 'participantSelectionId', 'hideEmptyParticipants']) {
+    if (source[key] !== undefined && inherits(key)) settings[key] = source[key]
   }
   return Object.keys(settings).length > 0 ? settings : undefined
 }

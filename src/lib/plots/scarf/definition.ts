@@ -1,7 +1,14 @@
-import { deriveScarfView } from './core/view'
-import { scarfScreen } from './core/screen.svelte'
+import {
+  absoluteTimeScope,
+  deriveScarfView,
+  isAutoRange,
+  scarfOwnMax,
+  visibleHighlights,
+  type ScarfView,
+} from './core/view'
+import { scarfRange } from './core/transformer'
 import { definePlot } from '$lib/plots/definePlot'
-import { stimulusGroupSubtitle } from '$lib/plots/shared'
+import { stimulusParticipantsSubtitle } from '$lib/plots/shared'
 // Called at definition time: import the module, not the barrel, which the
 // registry -> shared sections -> registry cycle leaves half-initialised.
 import { reconcileStimulusScopedHighlights } from '$lib/plots/shared/highlightReconcile'
@@ -9,14 +16,14 @@ import type { ScarfPlotSettings } from './types'
 import { SCARF_IDENTIFIERS, isStimulusScopedHighlight } from './const'
 import { getAois, getEventChannels } from '$lib/data/engine'
 
-export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
+export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings, ScarfView>({
   type: 'scarf',
   name: 'Scarf Plot',
   tagline: 'AOI sequence of each participant',
   group: 'gaze-behavior',
   paneSections: [
     'stimulus',
-    'group',
+    'participants',
     {
       key: 'scarf:visualization',
       title: 'Visualization',
@@ -60,13 +67,29 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings>({
   ],
   view: {
     deriveView: deriveScarfView,
-    viewOnlySettings: ['highlights'],
+    viewOnly: {
+      settings: ['highlights'],
+      input: (s, engine) => ({ highlights: visibleHighlights(engine, s) }),
+    },
   },
-  screen: scarfScreen,
-  getSubtitle: stimulusGroupSubtitle,
+  cursor: { time: absoluteTimeScope, stimulus: s => s.stimulusId },
+  // Same-width scarfs of one timeline mode share their timeline max: the axis's
+  // pixel scale depends on width alone, so height is not in the key. Any
+  // customized range opts the plot out.
+  sync: [
+    {
+      channel: 'scarf-timeline',
+      offer: ({ settings, item, engine }) =>
+        isAutoRange(settings)
+          ? { key: [settings.timeline, item.w], own: scarfOwnMax(engine, settings) }
+          : null,
+      settings: (s, max) => ({ ...s, [scarfRange(s).endKey]: max }),
+    },
+  ],
+  getSubtitle: stimulusParticipantsSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
-    groupId: params.groupId ?? -1,
+    hideEmptyParticipants: false,
     timeline: 'absolute',
     absoluteStimuliLimits: [],
     ordinalStimuliLimits: [],

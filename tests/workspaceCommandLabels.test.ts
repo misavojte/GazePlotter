@@ -13,9 +13,9 @@ describe('getCommandLabel', () => {
       'Undone: stimulus change'
     )
     expect(
-      getCommandLabel(settings({ stimulusId: 2, groupId: 1 }), 'undone')
+      getCommandLabel(settings({ stimulusId: 2, participantSelectionId: 1 }), 'undone')
     ).toBe('Undone: plot update')
-    expect(getCommandLabel(settings({ groupId: 1 }), 'redone')).toBe(
+    expect(getCommandLabel(settings({ participantSelectionId: 1 }), 'redone')).toBe(
       'Redone: plot update'
     )
   })

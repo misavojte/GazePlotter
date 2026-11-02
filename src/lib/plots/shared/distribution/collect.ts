@@ -17,11 +17,7 @@ import type {
   StatisticalOverlayType,
 } from './types'
 
-/**
- * The settings a distribution reads. Declared HERE rather than Picked from one
- * plot's settings type — this layer must not depend on either consumer; both
- * plots' settings satisfy it structurally.
- */
+/** The settings a distribution reads, declared here so this layer depends on no consumer's settings type. */
 export interface DistributionSettings {
   metricInstanceIds?: string[]
   /** `'value'` sorts by the bar value; anything else keeps the axis order. */
@@ -32,10 +28,9 @@ export interface DistributionSettings {
 }
 
 /**
- * THE distribution derivation — one distribution per category slot — shared by
- * every plot that renders one (AOI Comparison, Eye-movement Comparison). The
- * plot supplies only its contract and its axis; this owns the whole rest of the
- * pipeline, so the two plots cannot drift on any of it:
+ * THE distribution derivation, one distribution per category slot, shared by
+ * every comparison plot. The plot supplies only its contract and its axis; this
+ * owns the whole rest of the pipeline, so the plots cannot drift on any of it:
  *
  *  - metric resolution + the `noMetric` placeholder path;
  *  - the PROPORTION rule (a `[0,1]` rate renders as a plain proportional bar,
@@ -76,7 +71,8 @@ export function collectDistribution(args: {
     getMetric(instance.baseId)?.meta.measurementClass === 'proportion'
 
   const axis = args.axis()
-  if (axis.scopes.length === 0) return emptyResult()
+  if (axis.slots.length === 0) return emptyResult()
+  if (axis.scopes.length === 0) return { ...emptyResult(), noParticipants: true }
 
   const pooled = queryPooledIndividuals(
     instance,

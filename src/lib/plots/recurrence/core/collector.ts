@@ -2,6 +2,8 @@ import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { resolveAoiSelectionVisibleIds } from '$lib/data/engine'
 import type { RecurrenceData, RecurrenceMethod, RecurrencePlotSettings, FixationRecord } from '../types'
 import { FIXATION_CATEGORY_ID } from '$lib/data/binary'
+import type { PlotPlaceholderContent } from '$lib/plots/shared/drawCanvasPlaceholder'
+import { intervalAt } from '$lib/plots/shared/timelineUtils'
 
 /**
  * Collect fixation records for a single participant on a stimulus.
@@ -75,19 +77,11 @@ export function collectFixations(
  *
  * `-1` during a saccade, in a tracking gap, and outside the recording: at those
  * instants they were fixating NOTHING, and snapping to the nearest fixation would
- * invent a position they never held. Binary search over the ascending onsets.
+ * invent a position they never held.
  */
 export function fixationAt(data: RecurrenceData, time: number): number {
   const { fixationStarts: starts, fixationEnds: ends } = data
-  let lo = 0
-  let hi = data.fixationCount - 1
-  while (lo <= hi) {
-    const mid = (lo + hi) >> 1
-    if (time < starts[mid]) hi = mid - 1
-    else if (time >= ends[mid]) lo = mid + 1
-    else return mid
-  }
-  return -1
+  return intervalAt(data.fixationCount, i => starts[i], i => ends[i], time)
 }
 
 /**
@@ -164,6 +158,8 @@ export function collectRecurrenceData(
   const meta = engine.metadata
   const aoiData = meta?.aois?.data?.[stimulusId] ?? []
   const fixationAoiColors: (string | null)[] = new Array(N)
+  const aoiName = (id: number) => aoiData[id]?.[1] ?? String(id)
+  const fixationAois = aoiData.length > 0 ? fixations.map(f => f.aoiIds.map(aoiName).join(', ')) : null
   // Onsets and ends, so a shared TIME can be resolved to the fixation it lands in.
   const fixationStarts = new Float64Array(N)
   const fixationEnds = new Float64Array(N)
@@ -178,13 +174,58 @@ export function collectRecurrenceData(
     fixationEnds[i] = fixations[i].start + fixations[i].duration
   }
 
+  const aoisInEveryFixation =
+    method === 'aoi'
+      ? [...new Set(aoiIdsInEveryFixation(fixations).map(aoiName))]
+      : []
+
   return {
     matrix,
     durationMatrix,
     fixationCount: N,
     fixationAoiColors,
+    fixationAois,
     fixationStarts,
     fixationEnds,
+    aoisInEveryFixation,
+  }
+}
+
+/**
+ * Mapped AOI ids that every fixation hits while overlapping other AOIs: a
+ * whole-stimulus "All" AOI. A scanpath that simply stayed on one AOI (no other
+ * AOI hit anywhere) is a real, fully recurrent result and returns [].
+ */
+export function aoiIdsInEveryFixation(fixations: FixationRecord[]): number[] {
+  if (fixations.length === 0) return []
+  let shared = fixations[0].aoiIds
+  for (let i = 1; i < fixations.length && shared.length > 0; i++) {
+    const ids = fixations[i].aoiIds
+    shared = shared.filter(id => ids.includes(id))
+  }
+  const overlapsOthers = fixations.some(f => f.aoiIds.some(id => !shared.includes(id)))
+  return overlapsOthers ? [...new Set(shared)] : []
+}
+
+/**
+ * In AOI mode an AOI that every fixation hits makes every pair recurrent, so
+ * the matrix says nothing. Name it and say how to leave it out; the method
+ * step is offered only when the spatial methods exist.
+ */
+export function aoiInEveryFixationPlaceholder(
+  names: string[],
+  spatial: boolean
+): PlotPlaceholderContent | null {
+  if (names.length === 0) return null
+  const quoted = names.map(n => `"${n}"`)
+  const list =
+    quoted.length === 1 ? quoted[0] : `${quoted.slice(0, -1).join(', ')} and ${quoted.at(-1)}`
+  const subject = names.length === 1 ? `AOI ${list} contains` : `AOIs ${list} contain`
+  const steps = [`Choose an AOI selection without ${list} in Plot Settings > Areas of Interest`]
+  if (spatial) steps.push('Switch Method to Fixed distance or Fixed grid')
+  return {
+    message: `${subject} every fixation, so every pair is recurrent.${steps.length > 1 ? ' Either:' : ''}`,
+    steps,
   }
 }
 

@@ -212,7 +212,7 @@
   class:is-ghosted={isGhosted}
   class:selected={isSelected}
   style={itemStyle}
-  transition:fade={{ duration: 150 }}
+  transition:fade={{ duration: 120 }}
   role="figure"
   use:contextMenuAction={{
     trigger: 'pointer',
@@ -251,10 +251,7 @@
             {#if i > 0}
               <span class="grid-item-subtitle-divider" aria-hidden="true"></span>
             {/if}
-            <div class="grid-item-subtitle-part">
-              <span class="grid-item-subtitle-label">{part.label}</span>
-              <span class="grid-item-subtitle-value" title={part.value}>{part.value}</span>
-            </div>
+            <span class="grid-item-subtitle-value" title="{part.label}: {part.value}">{part.value}</span>
           {/each}
         </div>
       {/if}
@@ -314,7 +311,8 @@
     width: 100%;
     height: 100%;
     transform-origin: center center;
-    transition: transform var(--transition-fast) cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    /* Settles without overshoot: a spring past 1.0 softens the plot text. */
+    transition: transform var(--transition-fast) cubic-bezier(0.2, 0, 0, 1);
     will-change: transform;
   }
 
@@ -371,6 +369,7 @@
     box-sizing: border-box;
     background-color: var(--c-lightgrey);
     border-radius: var(--rounded-lg);
+    /* Flat on the desk, no shadow: the border and tinted header set it apart. */
     border: 1px solid var(--c-border);
     overflow: hidden;
     display: flex;
@@ -409,6 +408,9 @@
     ),
   .grid-item-frame.menu-target:not(.selected) {
     outline-color: color-mix(in srgb, var(--c-info) 25%, var(--c-grey));
+    /* Only the hover ring eases in: on the frame itself the fade would also run
+       on deselect, flashing a blue ring out while width and style snap. */
+    transition: outline-color var(--transition-fast) ease-out;
   }
 
   .grid-item-frame.selected {
@@ -430,12 +432,14 @@
     outline-style: dashed;
   }
 
+  /* Title and subtitle share a baseline; the larger top padding centres
+     the title's line box in the 47px band. */
   .grid-item-header {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     justify-content: space-between;
     gap: 12px;
-    padding: 10px 25px;
+    padding: 14px var(--grid-item-body-padding) 10px;
     min-height: 47px;
     box-sizing: border-box;
     background: var(--c-lightgrey);
@@ -459,50 +463,30 @@
     white-space: nowrap;
   }
 
-  /* Subtitle is a row of captioned parts divided by thin 1px separators
-     (same visual language as the ribbon / rail dividers elsewhere in
-     the workspace). Each part stacks a tiny uppercase label over a
-     slightly larger non-uppercase value. */
+  /* Scope values on one line, divided by hairlines; each names itself in its tooltip. */
   .grid-item-subtitle {
     display: flex;
-    align-items: stretch;
+    align-items: center;
     gap: 10px;
     flex-shrink: 0;
     max-width: 60%;
     min-width: 0;
   }
 
-  .grid-item-subtitle-part {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    min-width: 0;
-  }
-
-  .grid-item-subtitle-label {
-    font-size: var(--text-3xs);
-    font-family: var(--font-small);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: var(--c-darkgrey);
-    line-height: 1;
-  }
-
   .grid-item-subtitle-value {
-    font-size: var(--text-xs);
-    font-family: var(--font-small);
-    font-weight: 500;
+    font-size: var(--text-sm);
     color: var(--c-darkgrey);
     line-height: var(--leading-tight);
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
 
   .grid-item-subtitle-divider {
+    flex-shrink: 0;
     width: 1px;
-    align-self: stretch;
+    height: 12px;
     background-color: var(--c-border);
   }
 
@@ -532,6 +516,19 @@
     box-sizing: border-box;
     z-index: 7;
     transition: background var(--transition-fast) ease;
+    animation: handle-in var(--transition-fast) ease-out;
+  }
+
+  @keyframes handle-in {
+    from {
+      opacity: 0;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .corner-handle {
+      animation: none;
+    }
   }
   .corner-handle:hover {
     background: var(--c-info);

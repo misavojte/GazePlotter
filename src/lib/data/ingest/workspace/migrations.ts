@@ -318,6 +318,26 @@ function migrateLegacyVisibility(payload: any, gridItems: unknown[]): void {
   }
 }
 
+/** Version-independent: `groupId` → `participantSelectionId` (absent = All), `-2` → `hideEmptyParticipants`.
+ *  Rows with id <= 0 (1.x demos hold 0, now All) are renumbered, plots following. */
+function migrateParticipantAxis(rows: any[], gridItems: any[]): void {
+  const inUse = [...rows, ...gridItems.map(i => ({ id: Number(i?.settings?.groupId) || 0 }))]
+  const renumbered = new Map<number, number>()
+  for (const row of rows.filter(r => Number(r?.id) <= 0)) {
+    const id = nextSelectionId(inUse)
+    renumbered.set(Number(row.id), id)
+    row.id = id
+  }
+  for (const s of gridItems.map(i => i?.settings)) {
+    if (!s || typeof s !== 'object' || !('groupId' in s)) continue
+    const groupId = Number(s.groupId)
+    const id = renumbered.get(groupId) ?? groupId
+    delete s.groupId
+    if (id > 0) s.participantSelectionId = id
+    s.hideEmptyParticipants ??= groupId === -2
+  }
+}
+
 /**
  * Collapse the legacy WindowSpec `mode` field into an explicit `stepSize`.
  * Epoch was always `stepSize === windowSize`; sliding without a stepSize
@@ -441,12 +461,13 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
 
     // Normalize missing/null orderVectors to [] so the empty-array fallback
     // logic in selectors (empty → sequential 0,1,2,…) works correctly.
+    // A damaged file may hold a primitive here; the validator refuses it.
     for (const key of ['stimuli', 'participants', 'categories']) {
-      if (payload[key]) {
+      if (payload[key] && typeof payload[key] === 'object') {
         payload[key].orderVector = payload[key].orderVector ?? []
       }
     }
-    if (payload.aois) {
+    if (payload.aois && typeof payload.aois === 'object') {
       const rawAoiOv = payload.aois.orderVector
 
       if (rawAoiOv === null || rawAoiOv === undefined) {
@@ -793,6 +814,15 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
     version = CURRENT_SCHEMA_VERSION
   }
 
+  // Version-independent: Scanpath's `playbackWindow` became `trailLength`. Its stored 0 was
+  // the old default, not a choice, so only a set trail carries; the rest takes the medium's default.
+  mapItemSettings(data, (item, s) => {
+    if (!('playbackWindow' in s)) return item
+    const { playbackWindow, ...rest } = s
+    const carried = rest.trailLength ?? (playbackWindow > 0 ? playbackWindow : undefined)
+    return { ...item, settings: carried === undefined ? rest : { ...rest, trailLength: carried } }
+  })
+
   // Version-independent: the retired `-1` sentinel and `hideEvents` are legacy
   // VALUES, not a format step — in-branch builds stamped v6 while both were
   // still live. Runs after the passes above so a seeded row is already in place.
@@ -876,6 +906,10 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
     }
     delete selectionPayload.participantsGroups
   }
+
+  // After the rename above, so it sees the participant rows.
+  const participantRows = selectionPayload?.participantsSelections
+  migrateParticipantAxis(Array.isArray(participantRows) ? participantRows : [], Array.isArray(data.gridItems) ? data.gridItems : [])
 
   return data as MigratedJsonFormat
 }

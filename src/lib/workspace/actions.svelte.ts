@@ -54,10 +54,12 @@ export function createWorkspaceActions(
 ): WorkspaceActions {
   const { ingest, modalState, errorService, workspace, workspaceFile } = session
   const idle = () => !ingest.isLoading
+  // A host download yields to the user's own data (IngestService.loadFiles).
+  const canImport = () => idle() || ingest.download !== null
 
   return {
     get canImport() {
-      return idle()
+      return canImport()
     },
     get canExport() {
       return idle() && errorService.fatalLoad === null
@@ -82,7 +84,7 @@ export function createWorkspaceActions(
     },
 
     openImport() {
-      if (idle()) void ingest.openAndLoadFiles()
+      if (canImport()) void ingest.openAndLoadFiles()
     },
     openExport() {
       if (this.canExport) modalState.open(exportWorkspaceModal, {})

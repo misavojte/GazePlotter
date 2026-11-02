@@ -1,34 +1,25 @@
-import {
-  FONT_PRIMARY,
-  computeGroupedLegendGeometry,
-  participantIndexAxisWidth,
-  PLOT_EDGE_PAD_TOP,
-  ROW_LABEL_GAP,
-  LEGEND_CONFIG,
-  withQualifiers,
-  timeRangeQualifier,
-  rangeQualifier,
-  type FrameGutters,
-} from '$lib/plots/shared'
-import { calculateTextMetrics } from '$lib/shared/textMeasure'
+// Submodule paths, not the `$lib/plots/shared` barrel: the scarf kit reaches
+// this module and must reach no runes module (tests/plotKitBoundary.test.ts).
+import { participantIndexAxisWidth, rowLabelColumn } from '$lib/plots/shared/axisUtils'
+import { PLOT_BORDER_PX, PLOT_EDGE_PAD_TOP } from '$lib/plots/shared/const'
+import type { FrameGutters } from '$lib/plots/shared/frame'
+import { rangeQualifier, timeRangeQualifier, withQualifiers } from '$lib/plots/shared/labels'
+import { computeGroupedLegendGeometry, LEGEND_CONFIG } from '$lib/plots/shared/legendRendering'
 import { SCARF_LAYOUT } from '../const'
 import type { ScarfStyling } from '../types'
 
 /**
- * The scarf's frame declaration: the left label column and the right margin as
- * padding, the timeline ticks + title on the bottom edge, and the legend as a
- * reserved bottom block. So `frame.x`/`frame.width` come out as the plot columns
- * and the resolver owns all of the edge measuring.
+ * The scarf's frame declaration: the label column and border pixel as padding,
+ * the legend as a reserved bottom block, so `frame.x`/`frame.width` are the plot
+ * columns.
  *
- * ONE owner, called twice. The figure passes the real `leftLabelWidth` for the
+ * ONE owner, called twice. The kit passes the real `leftLabelWidth` for the
  * frame it draws in, and `LEFT_LABEL_MAX_WIDTH` to probe the row band: pinning
  * the left inset at its cap keeps the probe independent of compact mode (which
  * is what the band decides) and wraps the axis title at its narrowest, so the
  * probe never reserves less than the real frame does.
  */
 export function scarfFrameGutters(opts: {
-  tickLabels: string[]
-  axisTitle: string
   leftLabelWidth: number
   legendSpace: number
   /** Row-stack height: rows stop growing at MAX_BAR_SCALE, so on a tall canvas
@@ -36,11 +27,10 @@ export function scarfFrameGutters(opts: {
   maxHeight?: number
 }): FrameGutters {
   return {
-    bottom: { tickLabels: opts.tickLabels, title: opts.axisTitle },
     pad: {
       top: PLOT_EDGE_PAD_TOP,
       left: opts.leftLabelWidth,
-      right: SCARF_LAYOUT.RIGHT_MARGIN,
+      right: PLOT_BORDER_PX,
     },
     legendHeight: opts.legendSpace,
     maxHeight: opts.maxHeight,
@@ -71,26 +61,16 @@ export function calculateIsCompactMode(
 }
 
 /**
- * Computes the width of the left label area.
+ * The left label column: names truncated to fit LEFT_LABEL_MAX_WIDTH, or in
+ * compact mode no names and the index axis's width.
  */
-export function calculateLeftLabelWidth(
+export function scarfLabelColumn(
   isCompact: boolean,
-  participantLabels: string[]
-): number {
-  // Compact rows carry the index axis instead of names, so the column is exactly
-  // what that axis draws into.
-  if (isCompact) return participantIndexAxisWidth()
-  if (participantLabels.length === 0) return SCARF_LAYOUT.LEFT_LABEL_MAX_WIDTH
-
-  const { maxWidth: measuredMaxWidth } = calculateTextMetrics(
-    participantLabels,
-    FONT_PRIMARY.SIZE,
-    FONT_PRIMARY.FAMILY
-  )
-
-  // The widest name plus the gap it is drawn with (drawScarfLabels right-aligns
-  // at plotLeft − ROW_LABEL_GAP), capped so one long name cannot eat the plot.
-  return Math.min(SCARF_LAYOUT.LEFT_LABEL_MAX_WIDTH, measuredMaxWidth + ROW_LABEL_GAP)
+  participantLabels: readonly string[]
+): { labels: string[] | null; width: number } {
+  if (isCompact) return { labels: null, width: participantIndexAxisWidth(participantLabels.length) }
+  if (participantLabels.length === 0) return { labels: [], width: SCARF_LAYOUT.LEFT_LABEL_MAX_WIDTH }
+  return rowLabelColumn(participantLabels, SCARF_LAYOUT.LEFT_LABEL_MAX_WIDTH)
 }
 
 /**
@@ -212,7 +192,7 @@ export function calculateOverlayLayout(
   // Overlay: a gaze row is never thinner than a single event lane — the gaze bar
   // must read as at least as tall as one event strip. Floor the scale there;
   // below it the plot asks for more height instead of squishing the gaze into a
-  // hairline (see calculateOverlayMinRowPitch + the figure's canRender/placeholder).
+  // hairline (see calculateOverlayMinRowPitch + the kit's fit guard).
   const barFloor = lanes > 0 ? SCARF_LAYOUT.MIN_EVENT_LANE_H : SCARF_LAYOUT.MIN_BAR_HEIGHT
   const minScale = barFloor / baseBar
   const maxScale = SCARF_LAYOUT.MAX_BAR_SCALE
@@ -322,7 +302,7 @@ export function getScarfIdentifierSystem(styling?: ScarfStyling) {
 }
 
 /**
- * Calculates the static legend height based only on data.
+ * The legend's height from its data and the width it lays out in.
  */
 export function calculateLegendStructuralHeight(
   groups: {

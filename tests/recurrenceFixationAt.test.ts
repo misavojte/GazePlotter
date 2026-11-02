@@ -20,8 +20,10 @@ function data(
     durationMatrix: null,
     fixationCount: spans.length,
     fixationAoiColors: spans.map(() => null),
+    fixationAois: null,
     fixationStarts: Float64Array.from(spans.map(s => s[0])),
     fixationEnds: Float64Array.from(spans.map(s => s[1])),
+    aoisInEveryFixation: [],
   }
 }
 

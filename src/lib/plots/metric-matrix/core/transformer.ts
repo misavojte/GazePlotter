@@ -58,27 +58,14 @@ export function getMetricMatrixData(
     label: s.displayedName,
   }))
 
-  // Rows: the group's participants that have a recording on AT LEAST one stimulus
-  // (matters for the per-stimulus -2 "Non-empty" group), one row per id
-  // (displayed-name merge does NOT apply to participants). The ORDER is the
-  // group's natural order, NOT first-appearance across stimuli — the latter
-  // would make -2 rows jump around with the data (a participant first non-empty
-  // on a later stimulus would sort late), breaking the stability that lets an
-  // analyst rely on "participant X's row". Ids drive labels from the SAME source
-  // (`getParticipant` per id) so no ordering split can arise.
+  // Rows: one per participant id (no displayed-name merge), in the global
+  // participant order rather than first appearance, so a row never moves with
+  // the data. `hideEmptyParticipants` keeps those recorded on any shown stimulus.
   const eligible = new Set<number>()
   for (const s of stimuli) {
-    for (const pid of getParticipantsIds(engine, settings.groupId, s.id)) {
-      eligible.add(pid)
-    }
+    for (const pid of getParticipantsIds(engine, settings, s.id)) eligible.add(pid)
   }
-  // Canonical order: the global participant order backs both -1 and -2; a named
-  // group's stored order is stimulus-independent, so any stimulus yields it.
-  const orderSource =
-    settings.groupId === -2
-      ? getParticipantOrderVector(engine)
-      : getParticipantsIds(engine, settings.groupId, stimuli[0]?.id ?? 0)
-  const rowIds = orderSource.filter(pid => eligible.has(pid))
+  const rowIds = getParticipantOrderVector(engine).filter(pid => eligible.has(pid))
   const rows = labelRows(engine, rowIds)
 
   const colCount = cols.length

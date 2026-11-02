@@ -28,17 +28,11 @@ export function formatTimelineLabel(value: number): string {
   // Handle zero explicitly
   if (value === 0) return '0'
 
-  // For absolute integers >= 1, use simple string conversion or toLocaleString for grouping
-  if (Number.isInteger(value)) {
-    return Math.abs(value) < 1000
-      ? value.toString()
-      : value.toLocaleString('en-US')
-  }
+  // No thousands separators: a comma could be misread as a decimal comma.
+  if (Number.isInteger(value)) return value.toString()
 
   // Large numbers with decimals
-  if (Math.abs(value) >= 1000) {
-    return value.toLocaleString('en-US', { maximumFractionDigits: 0 })
-  }
+  if (Math.abs(value) >= 1000) return Math.round(value).toString()
 
   // Small numbers: determine precision based on magnitude
   const magnitude = Math.floor(Math.log10(Math.abs(value)))
@@ -47,6 +41,7 @@ export function formatTimelineLabel(value: number): string {
   return value.toLocaleString('en-US', {
     maximumFractionDigits: digitsAfterDecimal,
     minimumFractionDigits: 0,
+    useGrouping: false,
   })
 }
 
@@ -240,4 +235,26 @@ export function createAdaptiveTimeline(
     maxValue: max,
     ticks,
   }
+}
+
+/**
+ * Binary search for the interval holding `t` among `count` sorted, disjoint
+ * half-open intervals; `-1` in a gap, outside them all, or for a `NaN` time.
+ */
+export function intervalAt(
+  count: number,
+  startOf: (i: number) => number,
+  endOf: (i: number) => number,
+  t: number
+): number {
+  let lo = 0
+  let hi = count - 1
+  while (lo <= hi) {
+    const mid = (lo + hi) >> 1
+    // Negated, so a NaN fails both and falls out of the search as -1.
+    if (!(t >= startOf(mid))) hi = mid - 1
+    else if (!(t < endOf(mid))) lo = mid + 1
+    else return mid
+  }
+  return -1
 }

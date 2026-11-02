@@ -16,9 +16,22 @@
     tooltip?: string
   }
 
-  /** Rows may carry a color; a `color` column is only configured by editors
-      whose rows do (AOI, category, event channel). */
-  export type EntityRow = BaseInterpretedDataType & { color?: string }
+  /** Rows may carry a color (AOI, category, event channel editors). A row for
+      several entities (all-stimuli AOIs) lists the names and colors they
+      disagree on, shown as "Mixed". */
+  export type EntityRow = BaseInterpretedDataType & {
+    color?: string
+    mixedNames?: readonly string[]
+    mixedColors?: readonly string[]
+  }
+
+  /** Hover text of a "Mixed" name field: what differs, and what typing does. */
+  function mixedNameTip(row: EntityRow): string {
+    const names = row.mixedNames!.map(n => n || 'no name').join(', ')
+    return row.displayedName.trim()
+      ? `Used on all stimuli. Clear the field to keep each stimulus's own name (${names}).`
+      : `Differs between stimuli: ${names}. Type a name to use it on all of them.`
+  }
 </script>
 
 <script lang="ts">
@@ -502,14 +515,22 @@
                         {member.displayedName}
                       </div>
                     {:else}
-                      <InputText
-                        label="Displayed name"
-                        showLabel={false}
-                        fill={true}
-                        ariaLabel={`Displayed name for ${member.originalName}`}
-                        value={member.displayedName}
-                        oninput={e => grouped.onNameInput(member, e.detail, isLeader, group)}
-                      />
+                      <div
+                        use:tooltipAction={{
+                          content: member.mixedNames ? mixedNameTip(member) : '',
+                          disabled: !member.mixedNames,
+                        }}
+                      >
+                        <InputText
+                          label="Displayed name"
+                          showLabel={false}
+                          fill={true}
+                          ariaLabel={`Displayed name for ${member.originalName}`}
+                          placeholder={member.mixedNames ? 'Mixed' : undefined}
+                          value={member.displayedName}
+                          oninput={e => grouped.onNameInput(member, e.detail, isLeader, group)}
+                        />
+                      </div>
                     {/if}
                   </div>
                 {:else if col.type === 'color' && isLeader}
@@ -520,6 +541,8 @@
                       width={35}
                       ariaLabel={`Color for ${member.originalName}`}
                       value={member.color ?? '#000000'}
+                      mixed={!!member.mixedColors}
+                      mixedColors={member.mixedColors}
                       oninput={event => grouped.onColorInput?.(group, event.detail)}
                     />
                   </div>
@@ -670,7 +693,7 @@
     gap: 8px;
     align-items: center;
     padding: 8px 12px;
-    background-color: var(--c-darkwhite);
+    background-color: var(--c-lightgrey);
   }
 
   .entity-row.member {

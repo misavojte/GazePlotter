@@ -161,7 +161,6 @@ describe.skipIf(!RUN)('scarf throughput (base full-extent path)', () => {
     const engine = buildEngine()
     const settings: ScarfPlotSettings = {
       stimulusId: STIM,
-      groupId: -1,
       timeline: 'absolute',
       absoluteStimuliLimits: [],
       ordinalStimuliLimits: [],
