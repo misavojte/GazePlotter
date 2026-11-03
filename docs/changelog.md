@@ -7,9 +7,8 @@
 * *Released on November 3, 2026*
 * **Scanpath Similarity**: New *Heatmap overlap* and *Transition similarity* metrics, and the matrix can be ordered by similarity to show groups. A participant with an empty scanpath now gets an empty diagonal cell instead of 1.00. See [Scanpath Similarity Metrics](/docs/metrics/scanpath-similarity).
 * **ScanGraph**: The threshold defaults to Auto, which connects the most similar 5% of pairs. Saved plots keep their threshold.
-* **Reference Media**: Video stimuli show a film icon, Cancel discards media changes, and stimuli that already have media are marked when assigning. One Apply of the Stimuli or Participants dialog is one undo step.
+* **Stimuli and Participants**: Cancel now discards media changes too, and one Apply of the dialog is one undo step.
 * **Segmented Data Export**: Several AOIs on one segment are joined with `|` instead of `;`, so the file re-imports intact.
-* **Performance**: Levenshtein, Needleman-Wunsch, and recurrence measures compute 10 to 60 times faster with identical values.
 
 ### 1.10.4
 
