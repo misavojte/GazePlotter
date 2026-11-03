@@ -88,7 +88,7 @@ Located at the bottom of the Pane:
 
 ## Interactivity
 
-- **Cell details**: Hovering a cell shows its **Row** and **Col** metrics, the coefficient (**ρ** or **r**, 4 decimals), and **Pairs (n)**. Without a coefficient it gives the reason: *Too few pairs (n < 3)* or *Undefined: a metric is constant*.
+- **Cell details**: Hovering a cell shows its **Row** and **Col** metrics, the coefficient (**ρ** or **r**, 4 decimals), and **Pairs (n)**. Without a coefficient it gives the reason: *Too few pairs (n &lt; 3)* or *Undefined: a metric is constant*.
 - **Linked hovering**: In the *Scatterplot matrix (SPLOM)* view, a participant hovered in another plot is marked as a ring on their dot, see [Linked Hovering Across Plots](/docs/visualizations/#linked-hovering-across-plots).
 
 ## Related
