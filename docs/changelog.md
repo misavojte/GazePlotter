@@ -4,12 +4,12 @@
 
 ### 1.10.5
 
-* *Unreleased*
-* **Reference Media**: Stimuli with a video show a film icon in the stimuli list, and the alignment view says when a video is still loading. Cancelling the stimuli dialog now also discards media changes. When assigning uploaded media, stimuli that already have media say so. One Apply of the stimuli dialog is now one undo step.
-* **Scanpath Similarity**: New *Heatmap overlap* metric compares where participants looked, without AOIs, and *Transition similarity* compares their AOI-to-AOI moves. The matrix can be ordered by similarity to show groups. A participant with an empty scanpath now has an empty diagonal cell instead of 1.00. See [Scanpath Similarity Metrics](/docs/metrics/scanpath-similarity).
+* *Released on November 3, 2026*
+* **Scanpath Similarity**: New *Heatmap overlap* and *Transition similarity* metrics, and the matrix can be ordered by similarity to show groups. A participant with an empty scanpath now gets an empty diagonal cell instead of 1.00. See [Scanpath Similarity Metrics](/docs/metrics/scanpath-similarity).
 * **ScanGraph**: The threshold defaults to Auto, which connects the most similar 5% of pairs. Saved plots keep their threshold.
-* **Segmented Data Export**: Several AOIs on one segment are now joined with a pipe (`|`) instead of `;`, so the file re-imports intact.
-* **Performance**: Levenshtein and Needleman-Wunsch similarity compute 20 to 60 times faster, and the recurrence measures about 10 times faster on long recordings, with identical values. Large studies no longer freeze the page when the similarity plot opens.
+* **Reference Media**: Video stimuli show a film icon, Cancel discards media changes, and stimuli that already have media are marked when assigning. One Apply of the Stimuli or Participants dialog is one undo step.
+* **Segmented Data Export**: Several AOIs on one segment are joined with `|` instead of `;`, so the file re-imports intact.
+* **Performance**: Levenshtein, Needleman-Wunsch, and recurrence measures compute 10 to 60 times faster with identical values.
 
 ### 1.10.4
 
