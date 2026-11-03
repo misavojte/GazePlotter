@@ -77,7 +77,7 @@ Filter the temporal range.
 - **End / ms (0 = Auto)**: Limit the maximum time boundary, or leave at 0 for automatic duration matching.
 
 ### Areas of Interest
-Filters which Areas of Interest (AOIs) are active for the metric calculations. If AOIs are selected, only fixations landing within those boundaries are included in the scalar metric calculations.
+Filters which Areas of Interest (AOIs) are active for the metric calculations. No fixations are dropped, and whole-stimulus metrics (the `-any` instances) are unaffected.
 - **AOI selection**: A dropdown containing *All* and saved AOI selections; AOIs outside the picked selection count as no-AOI in this plot.
 - **Edit AOIs & selections**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
 
@@ -88,6 +88,7 @@ Located at the bottom of the Pane:
 
 ## Interactivity
 
+- **Cell details**: Hovering a cell shows its **Row** and **Col** metrics, the coefficient (**ρ** or **r**, 4 decimals), and **Pairs (n)**. Without a coefficient it gives the reason: *Too few pairs (n < 3)* or *Undefined: a metric is constant*.
 - **Linked hovering**: In the *Scatterplot matrix (SPLOM)* view, a participant hovered in another plot is marked as a ring on their dot, see [Linked Hovering Across Plots](/docs/visualizations/#linked-hovering-across-plots).
 
 ## Related

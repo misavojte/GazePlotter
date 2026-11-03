@@ -5,6 +5,7 @@
  */
 import { describe, expect, it, vi } from 'vitest'
 import { scangraphKit, type ScangraphHover } from '$lib/plots/scanpath-similarity/core/kit'
+import { buildScangraphData } from '$lib/plots/scanpath-similarity/core/transformer'
 import type { ScangraphInput } from '$lib/plots/scanpath-similarity/core/view'
 import type { ScangraphData, ScanpathSimilaritySettings } from '$lib/plots/scanpath-similarity/types'
 import type { SceneContext } from '$lib/plots/shared/kit'
@@ -275,5 +276,24 @@ describe('scangraph kit', () => {
     })
     expect(edge.count('arc')).toBe(2)
     expect(edge.count('fill')).toBe(2)
+  })
+})
+
+describe('scangraph layout reuse', () => {
+  it('reuses the layout for the same edge list and draws current labels', () => {
+    const first = graph()
+    const renamed: ScangraphData = { nodes: first.nodes.map(n => ({ ...n, label: `${n.label}*` })), links: first.links }
+    const a = sceneOf(input({ data: first })).scene
+    const b = sceneOf(input({ data: renamed })).scene
+    // Same edge list: same positions, no re-simulation; the labels follow the data.
+    expect(b.nodes.map(n => [n.x, n.y])).toEqual(a.nodes.map(n => [n.x, n.y]))
+    expect(b.nodes.map(n => n.label)).toEqual(['P1*', 'P2*', 'P3*', 'P4*'])
+  })
+
+  it('hands out one edge list per matrix and threshold', () => {
+    const sim = { labels: ['a', 'b', 'c'], participantIds: [0, 1, 2], matrix: [1, 0.9, 0.2, 0.9, 1, 0.5, 0.2, 0.5, 1], size: 3 }
+    expect(buildScangraphData(sim, 0.5).links).toBe(buildScangraphData(sim, 0.5).links)
+    expect(buildScangraphData(sim, 0.5).links).not.toBe(buildScangraphData(sim, 0.8).links)
+    expect(buildScangraphData(sim, 0.8).links).toEqual([{ source: 0, target: 1, value: 0.9 }])
   })
 })

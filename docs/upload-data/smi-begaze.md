@@ -31,7 +31,7 @@ Make sure that columns are separated by a tabulator (`tab`) and decimal separato
 
 Then click `Export` to export the data.
 
-The exported `.csv` file can be then simply uploaded to the workspace by clicking the `Upload data` button (see [Workspace & Setup overview](/docs/workspace/)) and selecting this file for upload.
+The exported `.csv` file can be then simply uploaded to the workspace by clicking the `Import` button (see [Workspace Overview](/docs/workspace/)) and selecting this file for upload.
 
 ### Data with overlaying AOIs
 
@@ -54,11 +54,11 @@ Then, in the SMI BeGaze software, select:
 | Event Details            | Event Start Trial Time [ms]                                               |
 |                          | Event End Trial Time [ms]                                                 |
 
-Make sure that columns are separated by a comma (`,`) and decimal separator is a point (`.`).
+Make sure that columns are separated by a tabulator (`tab`) and decimal separator is a point (`.`).
 
 Then click `Export` to export the data.
 
-After that, click the `Upload data` button (see [Workspace & Setup overview](/docs/workspace/)) and select both the first exported `.csv` file and the second one for starting the upload and visualization.
+After that, click the `Import` button (see [Workspace Overview](/docs/workspace/)) and select both the first exported `.csv` file and the second one for starting the upload and visualization.
 
 ## Event data
 

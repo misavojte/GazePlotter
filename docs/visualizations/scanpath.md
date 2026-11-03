@@ -49,6 +49,7 @@ Select the individual participant whose gaze trajectory you want to visualize. T
 
 ### Visualization
 - **Fixation color**: **Time gradient** samples each fixation's fill from a color scale by its onset within the shown fixations' time span; **Solid** uses one color, picked below. With **Time gradient**, the color scale picker below sets the gradient stops.
+- **Background**: How the stimulus image or video frame is drawn: *Full color* (default), *Grayscale*, *Dimmed grayscale*, or *None* (white within the stimulus outline). Shown only when the stimulus has an image or video.
 - **Show fixation order line**: Check to render connecting line segments (saccades) between sequential fixations.
 - **Show fixation numbers**: Check to print sequence indices (e.g. 1, 2, 3...) next to each fixation circle. Where labels would overlap, the later fixation keeps its number.
 - **Playback**:
@@ -56,8 +57,8 @@ Select the individual participant whose gaze trajectory you want to visualize. T
   - **Speed**: Playback rate relative to recording time, from 0.25x to 2x. On a shared clock, the plot that started playback sets the rate.
   - **Play with other plots of this stimulus**: On by default. Every scanpath of the stimulus plays on one shared clock, and its time-axis plots show the playback time. Uncheck to play this plot on its own.
 
-### Time Range
-- **Start** / **End (0 = Auto)**: Limits the scanpath to fixations overlapping this recording-time range, in ms. Fixation numbers stay those of the whole recording, and the play bar spans the range.
+### Time range
+- **Start / ms** / **End / ms (0 = Auto)**: Limits the scanpath to fixations overlapping this recording-time range. Fixation numbers stay those of the whole recording, and the play bar spans the range.
 
 ### Export
 Located at the bottom of the Pane:

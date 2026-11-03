@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { pairMatrix } from '../src/lib/metrics/core/pairMatrix'
-import { SIMILARITY } from '../src/lib/metrics/core/scanpathSimilarity'
+import { prepareScanpath, SIMILARITY } from '../src/lib/metrics/core/scanpathSimilarity'
 import {
   scangraphCliques,
   thresholdForEdgeShare,
@@ -17,29 +17,29 @@ const offDiagonal = (m: number[]) => m[1]
 
 describe('similarity kernels — paper example "gravitation" vs "gravidity"', () => {
   it('Levenshtein: distance 5, p = 1 - 5/11 = 0.545', () => {
-    const m = pairMatrix(['gravitation', 'gravidity'], SIMILARITY.levenshtein)
+    const m = pairMatrix(['gravitation', 'gravidity'].map(prepareScanpath), SIMILARITY.levenshtein)
     expect(offDiagonal(m)).toBe(0.545)
   })
 
   it('Needleman-Wunsch (match +1, gap 0, mismatch -1): score 6, p = 6/11 = 0.545', () => {
-    const m = pairMatrix(['gravitation', 'gravidity'], SIMILARITY.needlemanWunsch)
+    const m = pairMatrix(['gravitation', 'gravidity'].map(prepareScanpath), SIMILARITY.needlemanWunsch)
     expect(offDiagonal(m)).toBe(0.545)
   })
 
   it('NW: identical strings 1, disjoint alphabets 0', () => {
-    expect(offDiagonal(pairMatrix(['ABAB', 'ABAB'], SIMILARITY.needlemanWunsch))).toBe(1)
-    expect(offDiagonal(pairMatrix(['AAAA', 'BBBB'], SIMILARITY.needlemanWunsch))).toBe(0)
+    expect(offDiagonal(pairMatrix(['ABAB', 'ABAB'].map(prepareScanpath), SIMILARITY.needlemanWunsch))).toBe(1)
+    expect(offDiagonal(pairMatrix(['AAAA', 'BBBB'].map(prepareScanpath), SIMILARITY.needlemanWunsch))).toBe(0)
   })
 
   it('NW: subsequence pair scores min/max length', () => {
     // ABC inside ABCDEF: score 3, maxLen 6.
-    expect(offDiagonal(pairMatrix(['ABC', 'ABCDEF'], SIMILARITY.needlemanWunsch))).toBe(0.5)
+    expect(offDiagonal(pairMatrix(['ABC', 'ABCDEF'].map(prepareScanpath), SIMILARITY.needlemanWunsch))).toBe(0.5)
   })
 
   it('both-empty pairs carry no value; one-sided emptiness scores 0', () => {
     for (const method of ['levenshtein', 'needlemanWunsch'] as const) {
-      expect(offDiagonal(pairMatrix(['', ''], SIMILARITY[method]))).toBeNaN()
-      expect(offDiagonal(pairMatrix(['', 'ABC'], SIMILARITY[method]))).toBe(0)
+      expect(offDiagonal(pairMatrix(['', ''].map(prepareScanpath), SIMILARITY[method]))).toBeNaN()
+      expect(offDiagonal(pairMatrix(['', 'ABC'].map(prepareScanpath), SIMILARITY[method]))).toBe(0)
     }
   })
 })

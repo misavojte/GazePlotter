@@ -20,7 +20,7 @@ import {
   cannotFitPlaceholder,
 } from '$lib/plots/shared/drawCanvasPlaceholder'
 import { trackOnlyHit, type FrameHit, type PlotFrame } from '$lib/plots/shared/frame'
-import { defineKit, memoByRef } from '$lib/plots/shared/kit'
+import { defineKit } from '$lib/plots/shared/kit'
 import { SCANGRAPH_LAYOUT } from '../const'
 import type { ScangraphData } from '../types'
 import {
@@ -51,13 +51,17 @@ export type ScangraphHover =
 // is independent of the plot's pixel size.
 const CANON = 1000
 
-// The 500-iteration O(P²)/iter force simulation, keyed ONLY on the data
-// object, never on the frame: a resize only rescales (no re-simulation, no
-// re-scattered seed making nodes jump).
-const normalizedLayout = memoByRef(
-  (data: ScangraphData): LayoutResult =>
-    data.nodes.length === 0 ? { nodes: [], links: [] } : computeForceLayout(data, CANON, CANON, 500)
-)
+// The 500-iteration O(P²)/iter force simulation, keyed ONLY on the graph's
+// edge list (memoized per matrix and threshold), never on the frame or the
+// redraw: a resize only rescales, and a clique pick or rename reuses it.
+// Labels are read from the current data at draw time, so they never go stale.
+const layoutsByLinks = new WeakMap<ScangraphData['links'], LayoutResult>()
+function normalizedLayout(data: ScangraphData): LayoutResult {
+  if (data.nodes.length === 0) return { nodes: [], links: [] }
+  let layout = layoutsByLinks.get(data.links)
+  if (!layout) layoutsByLinks.set(data.links, (layout = computeForceLayout(data, CANON, CANON, 500)))
+  return layout
+}
 
 /** Nodes adjacent to `of`, itself excluded. */
 function neighboursOf(data: ScangraphData, of: ReadonlySet<number>): Set<number> {
@@ -237,7 +241,12 @@ function buildScene(input: ScangraphInput, frame: PlotFrame) {
   const nodes =
     nl.nodes.length === 0
       ? nl.nodes
-      : nl.nodes.map(node => ({ ...node, x: frame.x + node.x * sx, y: frame.y + node.y * sy }))
+      : nl.nodes.map((node, i) => ({
+          ...node,
+          label: data.nodes[i].label,
+          x: frame.x + node.x * sx,
+          y: frame.y + node.y * sy,
+        }))
 
   const { participantIds } = input
   const highlightSet = new Set(cursorRows(participantIds, input.highlightedParticipants ?? []))

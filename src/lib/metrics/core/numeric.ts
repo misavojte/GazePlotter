@@ -64,9 +64,7 @@ export function percentShare(values: ArrayLike<number>, total: number): number[]
 
 /**
  * Linear-interpolated percentile of an ASCENDING-sorted array (the standard
- * "linear"/R-7 method). Shared by the bar boxplot statistics, the
- * evolving-metrics overlay band and the fixation-density extent. Callers
- * guarantee `sorted.length >= 1`.
+ * "linear"/R-7 method). Callers guarantee `sorted.length >= 1`.
  *
  * @param sorted Values sorted ascending
  * @param p Percentile in [0, 1] (e.g. 0.25 for Q1)

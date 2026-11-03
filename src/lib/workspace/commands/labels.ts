@@ -60,7 +60,7 @@ const isStimulusSwitch = (command: WorkspaceCommand): boolean =>
  * `updateSelections` and `reconcileMerges` labels are per-axis (above).
  */
 const WORKSPACE_COMMAND_LABELS: Record<
-  Exclude<WorkspaceCommand['type'], 'updateSelections' | 'reconcileMerges'>,
+  Exclude<WorkspaceCommand['type'], 'updateSelections' | 'reconcileMerges' | 'applyAxisEdits'>,
   CommandLabels
 > = {
   // Data change commands
@@ -162,7 +162,7 @@ export function getCommandLabel(
   const labels =
     command.type === 'updateSelections'
       ? SELECTIONS_LABELS[command.axis]
-      : command.type === 'reconcileMerges'
+      : command.type === 'reconcileMerges' || command.type === 'applyAxisEdits'
         ? RECONCILE_LABELS[command.axis]
         : isStimulusSwitch(command)
           ? STIMULUS_CHANGE_LABELS

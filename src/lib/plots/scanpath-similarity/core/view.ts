@@ -11,6 +11,7 @@ import {
   METRIC_MISSING_MESSAGE,
   NO_PARTICIPANTS_MESSAGE,
 } from '$lib/plots/shared/drawCanvasPlaceholder'
+import { memoByRef } from '$lib/plots/shared/kit'
 import { scangraphKit } from './kit'
 import { reorderSimilarity, similarityOrder } from './order'
 import {
@@ -22,7 +23,7 @@ import {
 } from './transformer'
 import type { ScanpathSimilarityData, ScanpathSimilaritySettings } from '../types'
 
-/** The scangraph's input; the graph is built at the settings' threshold, which the kit styles links by. */
+/** The scangraph's input; the graph is built at the resolved threshold (Auto included), which the kit styles links by. */
 export function scangraphInput(settings: ScanpathSimilaritySettings, similarityData: ScanpathSimilarityData) {
   const threshold = resolvedThreshold(similarityData, settings)
   // Same min-members floor as the picker, so a selection the pane reads as
@@ -54,6 +55,9 @@ export type ScangraphInput = ReturnType<typeof scangraphInput> & {
 
 export type ScanpathSimilarityView = PlotView<ScangraphInput> | PlotView<MatrixInput>
 
+/** The clustering order, once per cached matrix: an edit that keeps the matrix (colours, a rename) does not recluster. */
+const orderOf = memoByRef((matrix: ArrayLike<number>) => similarityOrder(matrix, Math.round(Math.sqrt(matrix.length))))
+
 /** The matrix or scangraph figure, by `settings.view`. */
 export function deriveScanpathSimilarityView(
   engine: DataEngine,
@@ -69,7 +73,7 @@ export function deriveScanpathSimilarityView(
   const resolvedInstance = resolvePickedInstance(engine, settings.metricInstanceIds)
   const ordered =
     settings.orderBy === 'similarity'
-      ? reorderSimilarity(similarityData, similarityOrder(similarityData.matrix, similarityData.size))
+      ? reorderSimilarity(similarityData, orderOf(similarityData.matrix))
       : similarityData
   const { matrix, labels } = ordered
   // Bare quantity (no qualifiers) for the per-cell tooltip key.

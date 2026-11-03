@@ -43,9 +43,9 @@ Spaces in names become underscores (e.g. `Absolute_dwell_time_Face`), and a head
 #### Example CSV Output
 
 ```csv
-Participant_ID,Participant,Stimulus,Fixation_Count_Logo,Fixation_Count_No_AOI,Average_fixation_duration
-1,"P01","Stimulus1",3,1,250.5
-2,"P02","Stimulus1",5,0,220.1
+Participant_ID,Participant,Stimulus,Fixation_count_Logo,Fixation_count_No_AOI,Fixation_count_Any_Fixation,Recurrence_rate
+1,P01,Stimulus1,3,1,4,12.5
+2,P02,Stimulus1,5,0,5,8.3
 ```
 
 ## Missing Values

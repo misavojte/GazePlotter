@@ -22,7 +22,7 @@ An AOI Timeline shows how visual attention is distributed across Areas of Intere
 - **Horizontal axis**: elapsed time in milliseconds; the axis title names the metric's window, and its step when the step differs.
 - **Bands, curves, or rows**: one per AOI, in the AOI's color. Their height (or, in *Heatmap*, their color) is the metric value in each bin.
 - **Vertical axis**: the metric and how participants were combined. In *Stream* the bands are stacked around a centered baseline, so the axis runs into negative values: read the thickness of a band, not its position.
-- **Legend**: one entry per AOI; *No AOI* is the time outside every AOI unless **Hide No AOI data** is on.
+- **Legend**: one entry per AOI; *No AOI* is the time outside every AOI unless **Hide No AOI data** is on. *Heatmap* shows a color bar instead.
 
 For windowed calculations and frame math (sub-bin overlap vs. midpoint gating), see the [Metrics Library Overview](/docs/metrics), [Dwell Time & Fixation Durations](/docs/metrics/durations), and [Fixation Counts & Latency](/docs/metrics/counts-latency).
 
@@ -51,7 +51,7 @@ Filter the eye-tracking data by a participant selection.
 Configure the quantitative metric calculated inside each time bin.
 - **Select metric**: A dropdown of all metric instances in the library that satisfy the windowed `aoi-vector` contract. Standard metric templates include:
   - *Time on AOI* (`absoluteTime-aoi-windowed-500`): Total duration spent looking within the boundary per bin (see [Durations](/docs/metrics/durations)).
-  - *Relative time on AOI* (`relativeTime-aoi-windowed-500`): Proportion of time spent in each AOI relative to the bin size (see [Durations](/docs/metrics/durations)).
+  - *Relative time on AOI* (`relativeTime-aoi-windowed-500`): Each AOI's share of the fixation time in that bin (see [Durations](/docs/metrics/durations)).
   - *Fixation count per AOI* (`fixationCount-aoi-windowed-500`): Number of fixations registered in each AOI per bin (see [Counts & Latency](/docs/metrics/counts-latency)).
   - *Visit count per AOI* (`visitCount-aoi-windowed-500`): Number of visits registered in each AOI per bin (see [Counts & Latency](/docs/metrics/counts-latency)).
 - **Edit metric library**: Opens the Metric Library modal where you can customize bin sizes (window size and step size) or define **custom windowed metrics**.
@@ -71,7 +71,6 @@ Configure the visual layout. The view decides which further controls the section
     - **Out of bounds**: Fills for bins outside the range above; each also appears as an end cap on the color bar legend, and hovering the cap names the values it stands for. Bins are colored only, never printed, so there are no text-label toggles. Each fill is offered only while its end of the range is set.
       - *Below min*: Fill for a bin below Min (default gray), shown while Min is above 0. A bin with no data at all is always transparent, regardless of this setting.
       - *Above max*: Fill for a bin above Max (default gray), shown while Max is set (not 0/Auto).
-- **Hide No AOI data**: Drops the No AOI band (time outside every AOI), so only the named AOIs are shown.
 
 ### Time range
 Filter the temporal range from which data is fetched.
@@ -81,6 +80,7 @@ Filter the temporal range from which data is fetched.
 ### Areas of Interest
 Filters which Areas of Interest (AOIs) are rendered.
 - **AOI selection**: A dropdown containing *All* and saved AOI selections; AOIs outside the picked selection count as no-AOI in this plot.
+- **Hide No AOI data**: Drops the No AOI band (time outside every AOI), so only the named AOIs are shown.
 - **Edit AOIs & selections**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
 
 ### Export
@@ -90,8 +90,9 @@ Located at the bottom of the Pane:
 
 ## Interactivity
 
-- **Window details**: Hovering the plot shows a tooltip for the time window under the pointer: its **Window** span in ms, its **Bin** number, and the value of every AOI with data in that window.
-- **Highlighting**: Clicking an AOI in the legend toggles a persistent highlight of that AOI.
+- **Window details**: Hovering the plot shows a tooltip for the time window under the pointer: its **Window** span in ms, its **Bin** number, and the up to four AOIs with the highest values in that window; the rest are summed as **Other N AOIs**.
+- **Highlighting**: Clicking an AOI in the legend toggles a persistent highlight of that AOI. Not in *Heatmap*, which has no AOI legend.
+- **Shared axes**: AOI Timelines of the same card width share one timeline end while their time range is on Auto (Start and End at 0). Ridgelines with the same card height, **Ridge scale** and AOI count share one vertical scale.
 - **Linked hovering**: The hovered moment is marked in the other plots of the same stimulus, see [Linked Hovering Across Plots](/docs/visualizations/#linked-hovering-across-plots).
 
 ## Related

@@ -37,11 +37,9 @@ const unavailable = (reason: FixationHeatmapUnavailableReason): FixationHeatmapT
 })
 
 /**
- * The selection's fixation map on one stimulus. A fixation adds its duration
- * clipped to the time range, or 1 when its midpoint is in range: the metric
- * library's dwell and count conventions, so the map's mass reconciles with
- * them. Weights are normalised per participant (share, %) or averaged over
- * the N participants with a located fixation in range (mean).
+ * The selection's fixation map on one stimulus, weighted as `scopedFixations`
+ * documents. Weights are normalised per participant (share, %) or averaged
+ * over the N participants with a located fixation in range (mean).
  */
 export function getFixationHeatmapData(
   engine: DataEngine,

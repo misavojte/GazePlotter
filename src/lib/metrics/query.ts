@@ -162,7 +162,7 @@ export function queryGroup(instance: MetricInstance, group: GroupScope): MetricR
 
 /** Per-event values by slot from ONE participant scan — the beeswarm's dots.
  *  `null` for recipes with no `individuals`; use the aggregate `query`. */
-export function queryIndividualsAllSlots(instance: MetricInstance, scope: Scope): number[][] | null {
+export function queryIndividualsAllSlots(instance: MetricInstance, scope: Scope): readonly (readonly number[])[] | null {
   const recipe = getRecipe(instance.baseId)
   if (!recipe) return null
   return runIndividualsAllSlots(recipe, instance, scope)

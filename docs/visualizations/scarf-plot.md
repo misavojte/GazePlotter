@@ -64,6 +64,7 @@ Defines temporal or index boundaries. The section follows the active timeline mo
 ### Areas of Interest
 Narrows which AOIs this plot ranges over.
 - **AOI selection**: A dropdown containing *All* and saved AOI selections; AOIs outside the picked selection count as no-AOI in this plot.
+- **Hide No AOI data**: Leaves fixations outside every AOI undrawn and drops *No AOI* from the legend.
 - **Edit AOIs & selections**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
 
 ### Eye-movement Types

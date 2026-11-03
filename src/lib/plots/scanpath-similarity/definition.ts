@@ -1,6 +1,5 @@
 import { deriveScanpathSimilarityView, type ScanpathSimilarityView } from './core/view'
 import {
-  cliquesOfMinSize,
   edgeSharePercent,
   getScangraphCliques,
   resolvedThreshold,
@@ -38,11 +37,7 @@ const MAX_NAMES_IN_OPTION = 3
 // internal agreement (weakest and mean pairwise p) and its members. A
 // too-dense graph (enumeration skipped) offers only 'None'.
 const cliqueOptions = (ctx: SectionFieldCtx) => {
-  const settings = ctx.settings as unknown as ScanpathSimilaritySettings
-  const cliques = cliquesOfMinSize(
-    getScangraphCliques(ctx.engine, settings),
-    settings.minCliqueSize ?? 2
-  )
+  const cliques = getScangraphCliques(ctx.engine, ctx.settings as unknown as ScanpathSimilaritySettings)
   if (!cliques) return [NONE_CLIQUE]
   return [
     NONE_CLIQUE,
@@ -67,11 +62,7 @@ const readSelectedClique = (
 ): string => {
   const key = (settings.selectedClique as string) ?? 'none'
   if (key === 'none') return 'none'
-  const s = settings as unknown as ScanpathSimilaritySettings
-  const cliques = cliquesOfMinSize(
-    getScangraphCliques(engine, s),
-    s.minCliqueSize ?? 2
-  )
+  const cliques = getScangraphCliques(engine, settings as unknown as ScanpathSimilaritySettings)
   return cliques?.some(c => c.key === key) ? key : 'none'
 }
 
@@ -155,13 +146,8 @@ export const scanpathSimilarityDefinition = definePlot<
           kind: 'enum',
           key: 'selectedClique',
           label: ctx => {
-            const settings = ctx.settings as unknown as ScanpathSimilaritySettings
-            const cliques = cliquesOfMinSize(
-              getScangraphCliques(ctx.engine, settings),
-              settings.minCliqueSize ?? 2
-            )
-            const count = cliques?.length ?? 0
-            return `Highlight clique (${count} available)`
+            const cliques = getScangraphCliques(ctx.engine, ctx.settings as unknown as ScanpathSimilaritySettings)
+            return `Highlight clique (${cliques?.length ?? 0} available)`
           },
           options: cliqueOptions,
           default: 'none',

@@ -269,3 +269,39 @@ describe('reconcileMerges through the command bus', () => {
     })
   })
 })
+
+describe('applyAxisEdits: the Stimuli dialog Apply as one undo step', () => {
+  it('runs media and merge edits as children and undoes both at once', () => {
+    const engine = new DataEngine()
+    engine.loadDataset(makeStimulusData())
+    const ws = makeService(engine)
+    const media = { kind: 'image' as const, mimeType: 'image/png', fileName: 'a.png', naturalWidth: 10, naturalHeight: 10 }
+
+    ws.apply({
+      type: 'applyAxisEdits',
+      axis: 'stimulus',
+      steps: [
+        { type: 'updateStimulusMedia', updates: [{ stimulusId: 0, media, blob: new Blob([new Uint8Array([1])]) }], source: 'test.modal' },
+        {
+          type: 'reconcileMerges',
+          axis: 'stimulus',
+          items: withName(getStimuliWithMerged(engine), 1, 'S0'),
+          groups: [{ representativeId: 0, memberIds: [1], at: 100 }],
+          source: 'test.modal',
+        },
+      ],
+      source: 'test.modal',
+    })
+    expect(engine.metadata!.stimuliMedia![0].fileName).toBe('a.png')
+    expect(engine.metadata!.merges).toHaveLength(1)
+    expect(ws.history.undoStack).toHaveLength(1)
+
+    ws.undo()
+    expect(engine.metadata!.stimuliMedia?.[0]).toBeUndefined()
+    expect(engine.metadata!.merges ?? []).toHaveLength(0)
+
+    ws.redo()
+    expect(engine.metadata!.stimuliMedia![0].fileName).toBe('a.png')
+    expect(engine.metadata!.merges).toHaveLength(1)
+  })
+})

@@ -8,7 +8,7 @@ All scanpath similarity metrics produce a participant-by-participant grid: one s
 
 ### Invariants
 - **Measurement class**: Group-level. The result is inherently a property of a *pair* of participants, where both the row and column axes are the participants themselves. There is no per-participant value to combine across the group; the matrix is already the across-participant result, so no further aggregation applies.
-- **Windowing**: Not available: the comparison always covers the whole selected time range. Cropping by a Time of Interest (the Start/End bounds in the Pane) is supported; a fixation is encoded into the scanpath string only if it begins within the range. Heatmap overlap counts the part of each fixation inside the range, like the Fixation Heatmap.
+- **Windowing**: Not available: the comparison always covers the whole selected time range. Cropping by a Time of Interest (the Start/End bounds in the Pane) is supported; a fixation is encoded into the scanpath string only if it begins within the range. Transition similarity counts every fixation that overlaps the range, as the Transitions metrics do. Heatmap overlap counts the part of each fixation inside the range, like the Fixation Heatmap.
 
 ## Scanpath String Encoding
 
@@ -18,25 +18,25 @@ To compare scanpaths, GazePlotter converts each participant's fixation sequence 
 
 ## Metrics
 
-### Participant Pair Similarity
-Computes the similarity score for every pair of participant scanpaths. The resulting matrix is symmetric (similarity from participant i to j equals j to i) and has a diagonal of 1.0 (every participant is identical to themselves). A pair where **both** scanpaths are empty (no fixations in the analyzed range) carries no value, and so does the diagonal cell of a participant with an empty scanpath: the matrix renders those cells as missing, and such pairs never form edges or cliques in the ScanGraph view. A pair where only one scanpath is empty scores 0, as the formulas define.
+**Levenshtein similarity** and **Needleman-Wunsch similarity** compare the scanpath strings of every pair of participants. Each resulting matrix is symmetric (similarity from participant i to j equals j to i) and has a diagonal of 1.0 (every participant is identical to themselves). A pair where **both** scanpaths are empty (no fixations in the analyzed range) carries no value, and so does the diagonal cell of a participant with an empty scanpath: the matrix renders those cells as missing, and such pairs never form edges or cliques in the ScanGraph view. A pair where only one scanpath is empty scores 0, as the formulas define.
 
-#### Parameters
+Both have one parameter:
 
-1. **Similarity Method**:
-   - **Levenshtein**: Calculates the minimum edit distance (insertions, deletions, and substitutions) required to transform one scanpath string into the other. The score is normalized by the maximum length of the two scanpaths:
-     
-     `Similarity = 1 - (Edit Distance / max(Length_1, Length_2))`
-     
-   - **Needleman-Wunsch**: A dynamic programming algorithm for global sequence alignment. It scores alignments with the ScanGraph weights (Match = +1, Mismatch = -1, Gap = 0) and divides the alignment score by the maximum length of the two scanpaths:
-     
-     `Similarity = Alignment Score / max(Length_1, Length_2)`
-     
-     This is the similarity parameter *p* of the ScanGraph method (Doležalová & Popelka, 2016; see [Reference](#reference)), so thresholds chosen here are directly comparable with results from the standalone ScanGraph tool.
-
-2. **Collapsed Scanpaths**:
+1. **Collapse consecutive AOIs**:
    - **Off** (default): Consecutive fixations inside the same AOI are preserved. A participant who fixates AOI A three times before moving to B is encoded as "AAAB".
    - **On**: Consecutive identical AOI entries are collapsed into a single letter ("AAAB" → "AB"). This removes duration-based variance, isolating the analysis to focus purely on the structural order of visited regions.
+
+### Levenshtein Similarity
+Calculates the minimum edit distance (insertions, deletions, and substitutions) required to transform one scanpath string into the other. The score is normalized by the maximum length of the two scanpaths:
+
+`Similarity = 1 - (Edit Distance / max(Length_1, Length_2))`
+
+### Needleman-Wunsch Similarity
+A dynamic programming algorithm for global sequence alignment. It scores alignments with the ScanGraph weights (Match = +1, Mismatch = -1, Gap = 0) and divides the alignment score by the maximum length of the two scanpaths:
+
+`Similarity = Alignment Score / max(Length_1, Length_2)`
+
+This is the similarity parameter *p* of the ScanGraph method (Doležalová & Popelka, 2016; see [Reference](#reference)), so thresholds chosen here are directly comparable with results from the standalone ScanGraph tool.
 
 ### Transition Similarity
 Compares the mix of AOI transitions two participants made, using the counts of the [Transitions](/docs/metrics/transitions) metric. The score is the cosine of the two count matrices:
@@ -57,6 +57,8 @@ Compares **where** two participants looked, ignoring order. Needs fixation coord
 1 means identical maps, 0 means no common area. This is SIM, or histogram intersection (Swain & Ballard, 1991; Bylinskii et al., 2019), as in GazeAlytics (Chen et al., 2023).
 
 1. **Radius R (0 = Auto)**: Kernel radius, as on the Fixation Heatmap. A larger radius raises every value, so report it.
+
+A participant with no located fixation in the time range has no value: their whole row and column stay empty, diagonal included.
 
 Most viewers look at the same central areas, so values sit well above 0. Compare pairs with each other, not with 0; the ScanGraph's Auto threshold does this for you. To see groups in the matrix, order it by similarity and raise the color scale's Min.
 

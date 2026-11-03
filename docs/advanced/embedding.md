@@ -95,11 +95,18 @@ Every field is optional; every default is the plain web behavior.
 - `saveFile: (content, fileName, extension) => void`: delivers one export
   file. Default: browser download. `fileName` arrives with the extension
   applied; `extension` is separate for native save-dialog filters.
+- `pickSaveTarget: (suggestedName, extension) => Promise<SaveTarget | null>`:
+  the save-as dialog for the workspace file. Default: the browser's file
+  picker where it can write files. Elsewhere, or with `null`, workspaces are
+  downloaded through `saveFile`.
 - `openFiles: () => Promise<File[]>`: what the upload button opens. Default:
   browser file picker. `[]` means cancelled. Drag-and-drop is unaffected.
 - `colors: GazePlotterColors`: partial palette override; unset keys keep the
   builtin, borders and shadows follow `black`. Applies reactively, so themes
   switch without remounting.
+- `quietInitialLoad: boolean`: no success notification when `load` finishes,
+  for hosts that announce the result themselves. Failures and warnings still
+  show. Default: `false`.
 
 The web defaults are exported for wrapping instead of replacing:
 `triggerDownload`, `openFilesViaBrowser`, `INGEST_FILE_ACCEPT`.
@@ -156,9 +163,15 @@ with reactive flags for whether each action may run right now:
 
 - `openImport()`, `openExport()`, `openMetadata()`: the file picker (same
   pipeline as drag-and-drop), the export dialog, the dataset details.
+- `save()`, `saveAs()`: write the workspace file. `save()` asks where only the
+  first time, `saveAs()` always asks. Where the browser can only download,
+  both open the export dialog.
 - `undo()`, `redo()`, `zoomIn()`, `zoomOut()`, `resetZoom()`, `zoomToFit()`.
 - `canImport`, `canExport`, `canShowMetadata`, `canUndo`, `canRedo`, `zoom`:
   read them in markup or `$derived` and they stay current.
+- `hasUnsavedWork`: true when closing or a new upload would lose edits.
+- `saveIndicator`: `'unsaved'`, `'saved'`, or `'new'`, for a marker on your
+  export control; `null` while export is unavailable.
 
 ## Instance and session
 

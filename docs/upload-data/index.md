@@ -28,7 +28,7 @@ You can also select a GazePlotter workspace file to restore a saved session, whi
 
 ### Event files
 
-Include event files (`.xml`, or `.json` alongside other files) in the same selection. GazePlotter detects them and prompts you to map them to stimuli and participants after the eye-tracking data is parsed. See [Event Data](/docs/upload-data/events/) for details.
+Include event files (`.xml`, `.json`, or Custom CSV `.csv`) in the same selection. GazePlotter detects them and asks you to map XML and JSON files to stimuli and participants after the eye-tracking data is parsed. Custom CSV files name their own. See [Event Data](/docs/upload-data/events/) for details.
 
 ### Reference media files
 

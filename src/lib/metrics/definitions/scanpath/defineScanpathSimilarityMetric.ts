@@ -3,7 +3,7 @@ import { defineMetric } from '../../core/defineMetric'
 import { boolParam } from '../../core/params'
 import { collectAllScanpaths } from '../../core/scanpathEncoding'
 import { pairMatrix } from '../../core/pairMatrix'
-import { SIMILARITY, type SimilarityMethod } from '../../core/scanpathSimilarity'
+import { prepareScanpath, SIMILARITY, type SimilarityMethod } from '../../core/scanpathSimilarity'
 
 const params = [
   boolParam('collapsed', 'Collapse consecutive AOIs', false, {
@@ -55,7 +55,7 @@ export function defineScanpathSimilarityMetric(spec: {
         scope.timeEnd ?? 0,
       )
       return {
-        matrix: pairMatrix(entries.map(e => e.scanpath), SIMILARITY[spec.method]),
+        matrix: pairMatrix(entries.map(e => prepareScanpath(e.scanpath)), SIMILARITY[spec.method]),
         participantIds: entries.map(e => e.participantId),
       }
     },

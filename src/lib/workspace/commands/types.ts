@@ -161,8 +161,17 @@ export interface ReconcileMergesCommand extends BaseCommandInterface {
   groups: { representativeId: number; memberIds: number[]; at: number }[]
 }
 
+// The Stimuli or Participants dialog's Apply as ONE undo step: every edit
+// (media, merges, selections) runs as a child, in order, and the root's own
+// reverse is a noop, as for reconcileMerges.
+export interface ApplyAxisEditsCommand extends BaseCommandInterface {
+  type: 'applyAxisEdits'
+  axis: 'stimulus' | 'participant'
+  steps: WorkspaceCommand[]
+}
+
 // A command that does nothing. Used as the reverse of a pure orchestrator
-// (reconcileMerges) whose every effect lives in child commands: the bus
+// (reconcileMerges, applyAxisEdits) whose every effect lives in child commands: the bus
 // requires a non-null reverse, and the children's own reverses do the undo.
 export interface NoopCommand extends BaseCommandInterface {
   type: 'noop'
@@ -267,6 +276,7 @@ export type WorkspaceCommand =
   | MergeEntitiesCommand
   | UnmergeEntitiesCommand
   | ReconcileMergesCommand
+  | ApplyAxisEditsCommand
   | NoopCommand
   | UpdateCategoriesCommand
   | UpdateMetricInstancesCommand

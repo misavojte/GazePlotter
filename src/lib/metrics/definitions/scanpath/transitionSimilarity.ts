@@ -1,7 +1,7 @@
 import { defineMetric, getRecipe } from '../../core/defineMetric'
 import { pairMatrix } from '../../core/pairMatrix'
 import { enumParam } from '../../core/params'
-import { runSingleWindow } from '../../core/runtime'
+import { runRaw } from '../../core/runtime'
 import type { MetricInstance } from '../../instances'
 
 const params = [
@@ -55,15 +55,7 @@ defineMetric({
       label: '',
       projection: { kind: 'identity-aoi-pair-matrix' },
     }
-    const vectors = participantIds.map(participantId =>
-      runSingleWindow(
-        counts,
-        instance,
-        { ...scope, participantId },
-        scope.timeStart ?? 0,
-        scope.timeEnd ?? 0
-      )
-    )
+    const vectors = participantIds.map(participantId => runRaw(counts, instance, { ...scope, participantId }))
     return { matrix: pairMatrix(vectors, cosine), participantIds }
   },
 })

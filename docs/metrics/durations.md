@@ -16,7 +16,7 @@ You can pass the vector through directly to analyze the values for all Areas of 
 You can reduce the vector into a single numerical value:
 - **Pick AOI (`pick-aoi`)**: Extracts the duration value of a single target AOI (e.g. Absolute Dwell on AOI A).
 - **Pick Any Fixation (`pick-any-fixation`)**: Extracts the total stimulus-wide value from the `anyFixation` sentinel slot.
-- **Aggregate AOIs (`aggregate-aoi`)**: Reduces all active AOI cells into a single scalar using a reducer (`max` or `min`).
+- **Aggregate AOIs (`aggregate-aoi`)**: Reduces all active AOI cells into a single scalar using a reducer (`max` or `min`). Offered for Absolute and Relative Dwell Time only.
 
 > **Visualizer Compatibility**: Projecting a duration vector into a scalar allows you to select it in the [Metric Correlation](/docs/visualizations/metric-correlation) plot (non-windowed, aggregate) or the [Metric Timeline](/docs/visualizations/metric-timeline) plot (windowed, timeseries).
 
@@ -44,13 +44,13 @@ Dwell time per AOI expressed as a percentage of the participant's total fixation
 - **Measurement class**: Intensive (normalized). Each value is already a per-participant share (0–100%), so across participants it is averaged; a cohort total is not offered, because summing shares has no physical meaning. For a group total of attention, use Absolute Dwell Time with its cohort total instead.
 - **Scientific Meaning**: Normalises attention across participants with different overall scan durations, making comparison of spatial focus independent of scanning speed.
 
-### 3. Mean Fixation Duration (`fixationDuration`)
-The average length of individual fixations.
+### 3. Fixation Duration (`fixationDuration`)
+The typical length of individual fixations: their mean by default, or the median, max or min.
 
 - **Raw Shape**: `aoi-vector`
 - **Unit**: `ms`
 - **Windowing**: Supported.
-- **Summary statistic**: When you project down to one number (**One AOI** or **Whole stimulus**), a **Summary** control offers mean, median, max or min. Median is the robust choice for the long right tail typical of fixation-duration distributions. The per-AOI vector itself is always the mean — see the note below the table in the [Metrics Library Overview](/docs/metrics).
+- **Summary statistic**: When you project down to one number (**One AOI** or **Whole stimulus**), a **Summary** control offers mean, median, max or min. Median is the robust choice for the long right tail typical of fixation-duration distributions. The per-AOI vector itself is always the mean; see the note below the table in the [Metrics Library Overview](/docs/metrics).
 - **Invariants**: Every fixation overlapping the window counts, and each contributes its full length, not just the part inside the window. The value reads as the typical fixation length around that time.
 - **Measurement class**: Intensive (normalized). The value is already a per-participant average, so across participants it is averaged; a cohort total is not meaningful. For total dwell, use Absolute Dwell Time.
 - **Scientific Meaning**: Long average fixations are associated with high cognitive load, difficulty in extracting information, or detailed focus. Short average fixations suggest rapid visual exploration.
@@ -71,7 +71,7 @@ The average duration of distinct entries (visits) into an AOI boundary. A "visit
 - **Raw Shape**: `aoi-vector`
 - **Unit**: `ms`
 - **Windowing**: Supported.
-- **Summary statistic**: Same as Mean Fixation Duration above — mean, median, max or min, offered on the **One AOI** and **Whole stimulus** projections.
+- **Summary statistic**: As for Fixation Duration above: mean, median, max or min, offered on the **One AOI** and **Whole stimulus** projections.
 - **Invariants**: Collapses consecutive fixations within the same AOI first to calculate distinct visits. 
 - **Measurement class**: Intensive (normalized). A per-participant average visit length, averaged across participants. For total dwell, use Absolute Dwell Time.
 - **Scientific Meaning**: Measures the cohesion of visual processing. Longer average visit durations imply that once a participant enters a region, they stay to process it thoroughly, whereas short visit durations suggest repeated brief scanning visits.

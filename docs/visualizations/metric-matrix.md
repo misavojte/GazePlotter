@@ -33,7 +33,7 @@ Every cell is classified independently of the chosen metric, so a capture failur
 - **AOI not defined on this stimulus**: the metric references an AOI that this stimulus does not have (a benign configuration artifact, not a data problem).
 - **Value not computable**: the recording is present with fixations, yet the metric yields no finite value.
 
-Cells without a usable value use a neutral inactive fill, never the low end of the color scale, so a missing recording can never be misread as a low value. Hovering any cell shows a tooltip with the exact status, and for computed values also the number of fixations behind the value: the sample size a single number hides (a mean over 1 fixation vs. 500).
+Cells without a usable value use a neutral inactive fill, never the low end of the color scale, so a missing recording can never be misread as a low value. Hovering any cell shows a tooltip with the exact status, and for any cell with a recording also its number of fixations: the sample size a single number hides (a mean over 1 fixation vs. 500).
 
 ## Add a Metric Matrix
 
@@ -79,7 +79,7 @@ Located at the bottom of the Pane:
 
 ## Interactivity
 
-- **Cell details**: Hovering a cell shows its status and, for computed values, the number of fixations behind the value (see [Cell states](#cell-states)).
+- **Cell details**: Hovering a cell shows its status and, for any cell with a recording, its number of fixations (see [Cell states](#cell-states)).
 - **Linked hovering**: The hovered participant is marked in the other plots of the workspace, and a participant hovered elsewhere is marked here, see [Linked Hovering Across Plots](/docs/visualizations/#linked-hovering-across-plots).
 
 ## Related

@@ -15,8 +15,7 @@ export function similarityOrder(matrix: ArrayLike<number>, size: number): number
     return Number.isFinite(v) ? v : 0
   }
   // Mean similarity between live clusters, indexed by each cluster's first member.
-  const mean = new Float64Array(size * size)
-  for (let i = 0; i < size; i++) for (let j = 0; j < size; j++) mean[i * size + j] = sim(i, j)
+  const mean = Float64Array.from(matrix, v => (Number.isFinite(v) ? v : 0))
   const members = Array.from({ length: size }, (_, i) => [i])
   const alive = new Array<boolean>(size).fill(true)
 
@@ -45,7 +44,8 @@ export function similarityOrder(matrix: ArrayLike<number>, size: number): number
     members[a] = joinClosestEnds(members[a], members[b], sim)
     alive[b] = false
   }
-  return size > 0 ? members[alive.indexOf(true)] : []
+  // Merges keep the lower index, so cluster 0 is the one left.
+  return members[0] ?? []
 }
 
 /** `left` then `right`, each possibly reversed, so the two leaves that meet are the most similar. */

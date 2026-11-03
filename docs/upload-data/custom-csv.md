@@ -44,7 +44,7 @@ Each row is one segment defined by a start time and a duration. Timestamps are n
 
 - **Headers**: `stimulus`, `participant`, `timestamp`, `duration`, `eyemovementtype`, `AOI` (optional `X`, `Y`).
 - **timestamp** / **duration**: numeric start and length.
-- **eyemovementtype**: `0` = fixation, any other value = saccade.
+- **eyemovementtype**: `0` or `fixation` (any case) is a Fixation. Any other number, or an empty cell, is a Saccade. Other text (such as `Saccade` or `Unclassified`) becomes its own eye-movement type.
 
 ```csv
 stimulus,participant,timestamp,duration,eyemovementtype,AOI

@@ -1,6 +1,6 @@
 import { defineMetric } from '../../core/defineMetric'
 import { boolParam, integerParam, type ParamDef } from '../../core/params'
-import { rqaScalar, type RqaResult } from '../../core/rqa'
+import { rqaScalar, type RqaMeasure } from '../../core/rqa'
 
 /**
  * Shared scaffold for the AOI-sequence RQA scalars (REC/DET/LAM). All three
@@ -16,8 +16,8 @@ export function defineRqaMetric(spec: {
   label: string
   description: string
   searchTags: string[]
-  /** Which {@link RqaResult} scalar this metric reports. */
-  measure: (r: RqaResult) => number
+  /** Which RQA scalar this metric reports. */
+  measure: RqaMeasure
   /** Min-line-length param id (DET `l_min`, LAM `v_min`). Omitted for REC —
    *  pair counting needs no line length; 2 is passed through untouched. */
   minLineParam?: 'l_min' | 'v_min'

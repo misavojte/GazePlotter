@@ -1,13 +1,13 @@
 # Event data
 
-GazePlotter supports the upload of event data files that add time-based information layers to scarf plots. Event channels represent temporal intervals — for example, dynamic AOI visibility periods — and are rendered as colored lines beneath each participant's gaze sequence.
+GazePlotter supports the upload of event data files that add time-based information layers to scarf plots. Event channels represent temporal intervals, for example dynamic AOI visibility periods, and are rendered as colored lines beneath each participant's gaze sequence.
 
 ## Supported sources
 
 Event data can be exported from the following eye-tracking platforms:
 
-- **[SMI BeGaze](/docs/upload-data/smi-begaze/)** — XML export from the AOI Editor
-- **[Tobii Pro Lab](/docs/upload-data/tobii-pro-lab/)** — JSON export from the AOI tab
+- **[SMI BeGaze](/docs/upload-data/smi-begaze/)**: XML export from the AOI Editor
+- **[Tobii Pro Lab](/docs/upload-data/tobii-pro-lab/)**: JSON export from the AOI tab
 
 Additionally, GazePlotter accepts a **Custom CSV** format for manual event definitions. See [Custom CSV event format](#custom-csv-event-format) below. GazePlotter's own [Event Data export](/docs/export/event-data/) produces this format, so a single-file event export can be re-imported alongside its eye-tracking data.
 
@@ -75,7 +75,7 @@ Image1,*,Marker,2000,0
 
 The delimiter is auto-detected (`,` or `;`). Columns can appear in any order.
 
-Custom CSV event files are self-describing — they contain stimulus and participant information directly, so the **Map Event Files** modal does not appear for them. Rows referencing unrecognized stimulus or participant names are skipped with a warning.
+Custom CSV event files are self-describing. They contain stimulus and participant information directly, so the **Map Event Files** modal does not appear for them. Rows referencing unrecognized stimulus or participant names are skipped with a warning.
 
 Custom CSV event files can be uploaded together with SMI or Tobii event files in the same file selection. All sources are merged before being applied.
 
@@ -87,4 +87,4 @@ A file selection containing only Custom CSV event files loads as an event-only d
 
 Event channels appear as colored lines in the scarf plot beneath each participant's gaze row. To modify event channel names, colors, ordering, or visibility, use **Edit events & selections** in the scarf plot settings. See [Event Library](/docs/workspace/event-library/) for details.
 
-> **Note**: When multiple event files target the same stimulus, channels with the same name are merged — their event buffers are concatenated per participant rather than overwritten.
+> **Note**: When multiple event files target the same stimulus, channels with the same name are merged. Their event buffers are concatenated per participant rather than overwritten.

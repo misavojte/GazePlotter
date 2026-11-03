@@ -10,14 +10,13 @@
     BaseInterpretedDataType,
     EntitySelection,
     ParticipantsSelection,
-    StimulusMedia,
   } from '$lib/data/types'
   import type { StimulusMediaUpdate, WorkspaceCommand } from '$lib/workspace/commands'
   import type { MergeAxisMessages } from './mergeAxisEditor.svelte'
   import type { SelectionLike } from './selectionSession.svelte'
   import type { TableColumn } from './EditableEntityList.svelte'
-  import type { ModalState } from '$lib/modals/modalState.svelte'
   import { stimulusMediaModal } from '../stimulus-media/definition'
+  import { deepEqual } from '$lib/plots/shared/plotData.svelte'
 
   /**
    * Everything axis-specific about one MERGE-axis modal (participants,
@@ -49,22 +48,11 @@
     /** Plural entity noun for the tray verbs and tooltips. */
     noun: string
     columns: TableColumn[]
-    /** Optional per-row icon button (leader rows): the stimulus axis'
-        reference-media column. `onclick` PUSHES the media modal so this modal
-        (and its unsaved edits) stays alive underneath; the update it resolves
-        with is held here, saved on Apply and dropped on Cancel. The other
-        callbacks get the row's media with that held update applied. */
-    rowAction?: {
-      column: TableColumn
-      onclick: (
-        item: BaseInterpretedDataType,
-        ctx: { modalState: ModalState; pending: StimulusMediaUpdate | undefined }
-      ) => Promise<StimulusMediaUpdate | null>
-      isActive: (media: StimulusMedia | null) => boolean
-      tooltip: (media: StimulusMedia | null) => string
-      /** Per-row icon; the image icon when absent. */
-      icon?: (media: StimulusMedia | null) => 'image' | 'film'
-    }
+    /** The stimulus axis' reference-media column (leader rows). Its button
+        PUSHES the media modal so this modal (and its unsaved edits) stays alive
+        underneath; the update it resolves with is held here, saved on Apply
+        and dropped on Cancel. */
+    rowAction?: { column: TableColumn }
   }
 
   export const PARTICIPANT_MERGE_AXIS: MergeAxisModalConfig<
@@ -149,18 +137,6 @@
         tooltip:
           'Reference image/video drawn behind gaze data (scanpath background). Filled = attached; click to add, position, or remove it.',
       },
-      onclick: (item, { modalState, pending }) =>
-        modalState.push(stimulusMediaModal, {
-          stimulusId: item.id,
-          stimulusName: item.displayedName || item.originalName,
-          pending,
-        }),
-      isActive: media => media !== null,
-      tooltip: media =>
-        media
-          ? `${media.fileName}. Click to view, position, or remove.`
-          : 'No reference media. Click to add an image or video.',
-      icon: media => (media?.kind === 'video' ? 'film' : 'image'),
     },
     columns: [
       { label: 'Move', width: '28px', type: 'handle' },
@@ -248,48 +224,51 @@
       : (engine.metadata?.stimuliMedia?.[id] ?? null)
 
   const onRowAction = async (item: BaseInterpretedDataType) => {
-    const update = await cfg.rowAction!.onclick(item, {
-      modalState,
+    const update = await modalState.push(stimulusMediaModal, {
+      stimulusId: item.id,
+      stimulusName: item.displayedName || item.originalName,
       pending: pendingMedia[item.id],
     })
     if (!update) return
-    // Removing media this session added (none saved) leaves nothing to save.
+    // An edit that lands back on the saved media (same file and settings, or
+    // removing media that was never saved) leaves nothing to save.
     const { [item.id]: _, ...rest } = pendingMedia
-    const noop = update.media === null && !engine.metadata?.stimuliMedia?.[item.id]
+    const stored = engine.metadata?.stimuliMedia?.[item.id] ?? null
+    const noop =
+      update.media === null
+        ? stored === null
+        : stored !== null &&
+          (update.blob ?? null) === engine.media.getBlob(item.id) &&
+          deepEqual(update.media, stored)
     pendingMedia = noop ? rest : { ...rest, [item.id]: update }
   }
 
   // ── Save ──────────────────────────────────────────────────────────────────
+  // Every edit of one Apply is one undo step (applyAxisEdits runs them as children).
   const onApply = () => {
+    const steps: WorkspaceCommand[] = []
     // Media first, while stimulus ids are still the ones the rows showed.
     const mediaUpdates = Object.values(pendingMedia)
-    if (mediaUpdates.length > 0) {
-      if (!workspace.apply({ type: 'updateStimulusMedia', updates: mediaUpdates, source })) return
-      pendingMedia = {}
-    }
+    if (mediaUpdates.length > 0) steps.push({ type: 'updateStimulusMedia', updates: mediaUpdates, source })
 
     const items = editor.getCleanedItems()
-
-    if (merge.itemsChanged(items)) {
-      const reconciled = workspace.apply({
-        type: 'reconcileMerges',
-        axis: cfg.axis,
-        items,
-        groups: merge.planGroups(items),
-        source,
-      })
-      if (!reconciled) return
+    const reconcile = merge.itemsChanged(items)
+    if (reconcile) {
+      steps.push({ type: 'reconcileMerges', axis: cfg.axis, items, groups: merge.planGroups(items), source })
     }
 
     const committed = sel.commit(session.selections, editor.groups)
-    // Guard against the CURRENT engine state, not the modal-open snapshot:
-    // the reconcile step above may itself rewrite groups (an unmerge restores
-    // the merge-time membership snapshot), and comparing against the stale
-    // open snapshot would skip the re-commit and silently revert selections.
-    if (sel.canonical(committed) !== sel.canonical(cfg.getSelections(engine))) {
-      if (!workspace.apply(cfg.selectionsCommand(committed, source))) return
+    // A reconcile may itself rewrite groups (an unmerge restores the merge-time
+    // membership snapshot), so after one the selections are always re-committed;
+    // otherwise only when they differ from the CURRENT engine state.
+    if (reconcile || sel.canonical(committed) !== sel.canonical(cfg.getSelections(engine))) {
+      steps.push(cfg.selectionsCommand(committed, source))
     }
 
+    // A single edit keeps its own command (and toast); several become one container.
+    const command: WorkspaceCommand | null =
+      steps.length > 1 ? { type: 'applyAxisEdits', axis: cfg.axis, steps, source } : (steps[0] ?? null)
+    if (command && !workspace.apply(command)) return
     modalState.close()
   }
 </script>
@@ -312,12 +291,15 @@
       ...(cfg.rowAction
         ? {
             onRowAction,
-            rowActionActive: (item: BaseInterpretedDataType) =>
-              cfg.rowAction!.isActive(mediaOf(item.id)),
-            rowActionTooltip: (item: BaseInterpretedDataType) =>
-              cfg.rowAction!.tooltip(mediaOf(item.id)),
+            rowActionActive: (item: BaseInterpretedDataType) => mediaOf(item.id) !== null,
+            rowActionTooltip: (item: BaseInterpretedDataType) => {
+              const media = mediaOf(item.id)
+              return media
+                ? `${media.fileName}. Click to view, position, or remove.`
+                : 'No reference media. Click to add an image or video.'
+            },
             rowActionIcon: (item: BaseInterpretedDataType) =>
-              cfg.rowAction!.icon?.(mediaOf(item.id)) ?? 'image',
+              mediaOf(item.id)?.kind === 'video' ? 'film' : 'image',
           }
         : {}),
     }}

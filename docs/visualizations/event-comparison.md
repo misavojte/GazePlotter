@@ -15,7 +15,7 @@ The plot is offered only when the loaded dataset contains event data, since with
 - **Profile the stimulus timeline**: Read how long each dynamic AOI was visible, or how often each marker fired, per participant.
 - **Check event coverage**: A channel whose time share sits far below expectation, or whose count varies wildly across participants, usually signals a mapping or recording problem rather than behaviour.
 - **Compare cohorts**: Put two plots side by side with different participant selections to contrast their event exposure.
-- **Watch for overlap**: A time share above 100 means occurrences on that channel overlap (often channels merged under one name); the reading is honest, not an error.
+- **Watch for overlap**: A time share above 100 means occurrences on that channel overlap (often channels merged under one name) or an occurrence lasts longer than the gaze recording; the reading is honest, not an error.
 
 ## Reading the Plot
 

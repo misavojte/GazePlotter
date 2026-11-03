@@ -32,10 +32,10 @@ Click **Import** in the workspace and select the `.tsv` file.
 
 After parsing, GazePlotter asks how to split the recording into stimuli:
 
-- **Media Column** — Use the `Presented Stimulus name` column. For screen-based experiments.
-- **Interval Events** — Use `IntervalStart` / `IntervalEnd` markers in the Event column. For glasses experiments.
-- **Web Stimulus Events** — Treat each visited URL as its own stimulus.
-- **Custom Markers** — Define your own start/end marker strings (e.g. `_start;_end`).
+- **Media Column**: Use the `Presented Stimulus name` column. For screen-based experiments.
+- **Interval Events**: Use `IntervalStart` / `IntervalEnd` markers in the Event column. For glasses experiments.
+- **Web Stimulus Events**: Treat each visited URL as its own stimulus.
+- **Custom Markers**: Define your own start/end marker strings (e.g. `_start;_end`).
 
 Pick one and click **Load data**. Custom markers must be exactly a start and an end marker separated by `;`.
 

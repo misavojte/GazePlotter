@@ -18,7 +18,8 @@
   // Modal props are fixed for the lifetime of one open; capturing the initial
   // values is intended, not a missed reactivity dependency.
   // svelte-ignore state_referenced_locally
-  const { fileNames, stimuliOptions, nameMatched, withMedia } = props
+  const { fileNames, stimuliOptions, nameMatched, withMedia: withMediaIds } = props
+  const withMedia = new Set(withMediaIds)
   const { modalState } = getGazePlotterSession()
 
   const SKIP = 'skip'
@@ -35,7 +36,7 @@
         ...o,
         label: nameMatched[o.value]
           ? `${o.label} (replaces ${nameMatched[o.value]})`
-          : withMedia.includes(o.value)
+          : withMedia.has(o.value)
             ? `${o.label} (replaces current media)`
             : o.label,
         disabled: taken.has(o.value),

@@ -1,15 +1,8 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { getParticipantsIds, getParticipant } from '$lib/data/engine'
-import {
-  queryGroup,
-  type GroupScope,
-  type MetricResult,
-  type PlotMetricContract,
-} from '$lib/metrics'
-import {
-  asShape,
-  resolveMetric,
-} from '$lib/plots/shared'
+import { queryGroup, type GroupScope, type PlotMetricContract } from '$lib/metrics'
+import { asShape, resolveMetric } from '$lib/plots/shared'
+import { memoByRef } from '$lib/plots/shared/kit'
 import { maximalCliques } from './cliques'
 import { SCANPATH_SIMILARITY_DEFAULTS } from '../const'
 import type {
@@ -59,32 +52,39 @@ export function similarityDataFor(
   }
 }
 
+/** Finite pair similarities, sorted descending, once per matrix (the engine
+ *  hands out the same frozen matrix until its inputs change): the Auto
+ *  threshold, its closest-pair fallback and the Edges readout all read it. */
+const descendingSimilarities = memoByRef((matrix: ArrayLike<number>): Float64Array => {
+  const size = Math.round(Math.sqrt(matrix.length))
+  const finite: number[] = []
+  for (let i = 0; i < size; i++) {
+    for (let j = i + 1; j < size; j++) {
+      const v = matrix[i * size + j]
+      if (Number.isFinite(v)) finite.push(v)
+    }
+  }
+  return Float64Array.from(finite).sort().reverse()
+})
+
 /**
  * The p that draws at most the requested share of COMPARABLE pairs: pair
  * similarities sorted descending, p lands on the last pair kept. Ties are
- * rounded DOWN (fewer edges), per the ScanGraph paper. NaN pairs (both
- * scanpaths empty — no data) can never be edges, so they count in neither
- * the numerator nor the denominator. Returns Infinity when nothing
- * qualifies, so `sim >= p` stays false for every pair.
+ * rounded DOWN (fewer edges), per the ScanGraph paper. NaN pairs (no data to
+ * compare) can never be edges, so they count in neither the numerator nor the
+ * denominator. Returns Infinity when nothing qualifies, so `sim >= p` stays
+ * false for every pair.
  */
 export function thresholdForEdgeShare(
   simData: ScanpathSimilarityData,
   percent: number,
 ): number {
-  const { size, matrix } = simData
-  const sims: number[] = []
-  for (let i = 0; i < size; i++) {
-    for (let j = i + 1; j < size; j++) {
-      const v = matrix[i * size + j]
-      if (Number.isFinite(v)) sims.push(v)
-    }
-  }
+  const sims = descendingSimilarities(simData.matrix)
   // Multiply before dividing: 0.41 * 300 floats to 122.999…, and the floor
   // would silently drop an edge the exact share allows.
   const clamped = Math.min(Math.max(percent, 0), 100)
   const wanted = Math.floor((clamped * sims.length) / 100)
   if (wanted <= 0) return Infinity
-  sims.sort((a, b) => b - a)
   const candidate = sims[wanted - 1]
   if (wanted < sims.length && sims[wanted] === candidate) {
     // A tie crossing the cut would overshoot; step up to the next distinct value.
@@ -112,12 +112,8 @@ export function resolvedThreshold(
   const percent = settings.edgePercent ?? SCANPATH_SIMILARITY_DEFAULTS.edgePercent
   const p = thresholdForEdgeShare(simData, percent)
   if (Number.isFinite(p)) return Math.min(p, 1)
-  const { size, matrix } = simData
-  let closest = 0
-  if (percent > 0)
-    for (let i = 0; i < size; i++)
-      for (let j = i + 1; j < size; j++) closest = Math.max(closest, matrix[i * size + j] || 0)
-  return closest > 0 ? closest : 1
+  const closest = descendingSimilarities(simData.matrix)[0]
+  return percent > 0 && closest > 0 ? closest : 1
 }
 
 /** Share of COMPARABLE pairs drawn as edges at `threshold`, in percent (NaN
@@ -128,20 +124,11 @@ export function edgeSharePercent(
   simData: ScanpathSimilarityData,
   threshold: number
 ): number {
-  const { size, matrix } = simData
-  if (size < 2) return 0
+  const sims = descendingSimilarities(simData.matrix)
+  if (sims.length === 0) return 0
   let edges = 0
-  let comparable = 0
-  for (let i = 0; i < size; i++) {
-    for (let j = i + 1; j < size; j++) {
-      const v = matrix[i * size + j]
-      if (!Number.isFinite(v)) continue
-      comparable++
-      if (v >= threshold) edges++
-    }
-  }
-  if (comparable === 0) return 0
-  const pct = (edges / comparable) * 100
+  while (edges < sims.length && sims[edges] >= threshold) edges++
+  const pct = (edges / sims.length) * 100
   const rounded = Math.round(pct * 10) / 10
   return edges > 0 && rounded === 0 ? Math.round(pct * 100) / 100 : rounded
 }
@@ -171,10 +158,10 @@ export function cliquesOfMinSize(
   return cliques.filter(c => c.nodeIndices.length >= floor)
 }
 
-/** Enumerated cliques per matrix and threshold. The engine hands out the same
- *  frozen matrix until its inputs change, so the pane's picker, its label and
- *  the view share one enumeration, and a changed matrix starts afresh. */
-const cliqueMemo = new WeakMap<object, Map<number, number[][] | null>>()
+/** Enumerated cliques with their agreement stats, per edge list (itself
+ *  memoized per matrix and threshold), so the pane's picker, its label and
+ *  the view share one enumeration. Labels are added per call: renames show. */
+const cliquesByLinks = new WeakMap<ScangraphData['links'], Omit<ScangraphClique, 'memberLabels'>[] | null>()
 
 /** Maximal cliques of the thresholded graph, largest first; null when the
  *  graph is too dense to enumerate. */
@@ -182,47 +169,51 @@ export function scangraphCliques(
   simData: ScanpathSimilarityData,
   threshold: number
 ): ScangraphClique[] | null {
-  if (simData.size < 2) return []
-  let byThreshold = cliqueMemo.get(simData.matrix)
-  if (!byThreshold) cliqueMemo.set(simData.matrix, (byThreshold = new Map()))
-  if (!byThreshold.has(threshold)) {
-    byThreshold.set(threshold, maximalCliques(simData.size, buildScangraphData(simData, threshold).links))
+  const { size, matrix, participantIds, labels } = simData
+  if (size < 2) return []
+  const links = linksOf(simData, threshold)
+  if (!cliquesByLinks.has(links)) {
+    const found = maximalCliques(size, links)
+    cliquesByLinks.set(
+      links,
+      found &&
+        found.map(nodeIndices => {
+          // Internal-agreement stats: all member pairs are edges (finite, >= p).
+          let min = 1
+          let sum = 0
+          let pairs = 0
+          for (let a = 0; a < nodeIndices.length; a++) {
+            for (let b = a + 1; b < nodeIndices.length; b++) {
+              const v = matrix[nodeIndices[a] * size + nodeIndices[b]]
+              if (v < min) min = v
+              sum += v
+              pairs++
+            }
+          }
+          return {
+            key: nodeIndices.map(i => participantIds[i]).sort((a, b) => a - b).join('-'),
+            nodeIndices,
+            minSimilarity: min,
+            meanSimilarity: Math.round((sum / pairs) * 1000) / 1000,
+          }
+        })
+    )
   }
-  const cliques = byThreshold.get(threshold)
-  if (!cliques) return null
-  return cliques.map(nodeIndices => {
-    // Internal-agreement stats: all member pairs are edges (finite, >= p).
-    let min = 1
-    let sum = 0
-    let pairs = 0
-    for (let a = 0; a < nodeIndices.length; a++) {
-      for (let b = a + 1; b < nodeIndices.length; b++) {
-        const v = simData.matrix[nodeIndices[a] * simData.size + nodeIndices[b]]
-        if (v < min) min = v
-        sum += v
-        pairs++
-      }
-    }
-    return {
-      key: nodeIndices
-        .map(i => simData.participantIds[i])
-        .sort((a, b) => a - b)
-        .join('-'),
-      nodeIndices,
-      memberLabels: nodeIndices.map(i => simData.labels[i]),
-      minSimilarity: min,
-      meanSimilarity: Math.round((sum / pairs) * 1000) / 1000,
-    }
-  })
+  const cliques = cliquesByLinks.get(links)!
+  return cliques && cliques.map(c => ({ ...c, memberLabels: c.nodeIndices.map(i => labels[i]) }))
 }
 
-/** The pane's clique picker: the plot's cliques at its resolved threshold. */
+/** The pane's clique picker: the plot's cliques of at least its min members,
+ *  at its resolved threshold. */
 export function getScangraphCliques(
   engine: DataEngine,
   settings: ScanpathSimilaritySettings
 ): ScangraphClique[] | null {
   const simData = similarityDataFor(engine, settings)
-  return scangraphCliques(simData, resolvedThreshold(simData, settings))
+  return cliquesOfMinSize(
+    scangraphCliques(simData, resolvedThreshold(simData, settings)),
+    settings.minCliqueSize ?? 2
+  )
 }
 
 /**
@@ -233,26 +224,34 @@ export function buildScangraphData(
   simData: ScanpathSimilarityData,
   threshold: number,
 ): ScangraphData {
-  const { labels, size, matrix } = simData
-
-  const nodes: ScangraphData['nodes'] = labels.map((label, i) => ({
+  const nodes: ScangraphData['nodes'] = simData.labels.map((label, i) => ({
     id: i,
     label,
     group: 0,
   }))
+  return { nodes, links: linksOf(simData, threshold) }
+}
 
-  const links: ScangraphData['links'] = []
+/** Edge lists per matrix, for its four most recent thresholds. A redraw that
+ *  changes neither (a clique pick, a rename) gets the same array, which keys
+ *  the cliques and the force layout, so neither recomputes per redraw; typing
+ *  thresholds by hand does not pin a list and a layout per value typed. */
+const linksMemo = new WeakMap<object, Map<number, ScangraphData['links']>>()
+
+function linksOf(simData: ScanpathSimilarityData, threshold: number): ScangraphData['links'] {
+  const { size, matrix } = simData
+  let byThreshold = linksMemo.get(matrix)
+  if (!byThreshold) linksMemo.set(matrix, (byThreshold = new Map()))
+  let links = byThreshold.get(threshold)
+  if (links) return links
+  links = []
   for (let i = 0; i < size; i++) {
     for (let j = i + 1; j < size; j++) {
       const sim = matrix[i * size + j]
-      if (sim >= threshold) {
-        links.push({ source: i, target: j, value: sim })
-      }
+      if (sim >= threshold) links.push({ source: i, target: j, value: sim })
     }
   }
-
-  return { nodes, links }
+  if (byThreshold.size >= 4) byThreshold.delete(byThreshold.keys().next().value!)
+  byThreshold.set(threshold, links)
+  return links
 }
-
-// Re-export MetricResult for type consumers, in case callers need the raw shape.
-export type { MetricResult }
