@@ -18,12 +18,17 @@ export type ScanpathSimilaritySettings = ParticipantScope & OutOfBoundsSettings 
   timelineStart?: number
   timelineEnd?: number
   view: ScanpathSimilarityView
+  /** Matrix row and column order: the participant list, or similar participants
+   *  side by side (see similarityOrder). Unset = participant order. */
+  orderBy?: 'participant' | 'similarity'
   /** Threshold parameter p for scangraph adjacency (0-1) — the single source
-   *  the graph is built from. */
+   *  the graph is built from. 0 = Auto: p follows `edgePercent` (see
+   *  resolvedThreshold). */
   threshold: number
-  /** Edge-share input (%): a pane edit here is converted into the matching
-   *  `threshold` by onCommand; the DISPLAYED value is always derived from the
-   *  current graph, never read from this key. The paper's advised graph is 5. */
+  /** Edge-share input (%): under Auto it sets p directly; otherwise a pane
+   *  edit here is converted into the matching `threshold` by onCommand. The
+   *  DISPLAYED value is always derived from the current graph, never read
+   *  from this key. The paper's advised graph is 5. */
   edgePercent: number
   colorScale: string[]
   /** Per-stimulus color value ranges [min, max] */
@@ -43,9 +48,10 @@ export interface ScanpathSimilarityData {
   /** Participant labels (rows and columns) */
   labels: string[]
   /** Participant IDs matching labels */
-  participantIds: number[]
-  /** Flat row-major normalized similarity matrix (0-1, where 1 = identical) */
-  matrix: Float64Array
+  participantIds: readonly number[]
+  /** Flat row-major normalized similarity matrix (0-1, where 1 = identical).
+   *  Read-only: usually the metric engine's shared cached result. */
+  matrix: ArrayLike<number>
   /** Size of the square matrix */
   size: number
   /** True when the plot's `metricInstanceIds[0]` points to a missing instance. */

@@ -7,7 +7,7 @@ The [Segmented Duration CSV](/docs/upload-data/custom-csv/#format-3-segmented-du
 Any file you re-upload must use the [Segmented Duration CSV](/docs/upload-data/custom-csv/#format-3-segmented-duration-csv) columns: `stimulus`, `participant`, `timestamp`, `duration`, `eyemovementtype`, `AOI` (the `AOI` cell may be empty).
 
 - Keep rows in chronological order within each Participant × Stimulus block.
-- Don't recompute timestamps — GazePlotter renormalizes them on import. The first remaining segment of each Participant × Stimulus is reset to time `0`.
+- Don't recompute timestamps. GazePlotter renormalizes them on import. The first remaining segment of each Participant × Stimulus is reset to time `0`.
 - `participant` and `stimulus` must always have a value.
 
 ## Workflow 1: Crop the start of a recording

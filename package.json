@@ -1,11 +1,11 @@
 {
   "name": "gazeplotter",
-  "version": "1.10.4",
+  "version": "1.10.5",
   "license": "GPL-3.0-only",
   "description": "Eye-tracking analysis for Tobii Pro Lab, SMI BeGaze, GazePoint, Pupil Cloud, Varjo and OGAMA exports: AOI dwell time, fixation metrics, scarf plots, scanpaths and heatmaps. Web app and CLI, data stays local.",
   "repository": {
-    "type": "github",
-    "url": "https://github.com/misavojte/GazePlotter"
+    "type": "git",
+    "url": "git+https://github.com/misavojte/GazePlotter.git"
   },
   "author": {
     "name": "Michaela Vojtěchovská",

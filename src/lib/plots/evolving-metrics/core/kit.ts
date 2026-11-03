@@ -10,7 +10,7 @@
  */
 import { samplePalette } from '$lib/color'
 import { PRESET_PALETTES, resolvePalette } from '$lib/color/palettes'
-import { percentileSorted } from '$lib/shared/stats'
+import { percentileSorted } from '$lib/metrics/core/numeric'
 import {
   AXIS_CONFIG,
   drawParticipantRowAxis,

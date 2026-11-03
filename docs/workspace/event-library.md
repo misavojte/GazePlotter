@@ -15,11 +15,11 @@ Pick the stimulus to edit from the dropdown in the list header. Switching stimul
 
 Each channel is a row with the same controls as the [AOI Library](/docs/workspace/aoi-library/):
 
-- **Displayed name** — Rename the channel; the original name is preserved.
-- **Color** — Set the line color.
-- **Move handle** — Drag to reorder. Order sets the sequence in legends and in the event lines beneath each scarf row.
+- **Displayed name**: Rename the channel; the original name is preserved.
+- **Color**: Set the line color.
+- **Move handle**: Drag to reorder. Order sets the sequence in legends and in the event lines beneath each scarf row.
 
-The **Sort** and **Bulk actions** buttons above the list work the same as in the AOI Library (sort by name, regex rename). Select rows to merge or split them, or save them as a named selection in the tray below the list. Each plot picks a selection in its pane's **Events** section to narrow which channels it overlays — there is no separate hide toggle; pick the shipped *No events* selection, which holds no channels, to turn the overlay off, or a selection that leaves the unwanted channels out.
+The **Sort** and **Bulk actions** buttons above the list work the same as in the AOI Library (sort by name, regex rename). Select rows to merge or split them, or save them as a named selection in the tray below the list. Each plot picks a selection in its pane's **Events** section to narrow which channels it overlays. There is no separate hide toggle. Pick the shipped *No events* selection, which holds no channels, to turn the overlay off, or a selection that leaves the unwanted channels out.
 
 ## Grouping channels
 
@@ -27,8 +27,8 @@ Channels that share the same **Displayed name** merge into one group. The first 
 
 ## Creating interval channels
 
-**Create intervals…** derives new interval channels from existing event markers — for example, pairing start/end markers into visibility intervals. The original imported events are never modified; interval channels are added alongside them.
+**Create intervals…** derives new interval channels from existing event markers, for example by pairing start/end markers into visibility intervals. The original imported events are never modified; interval channels are added alongside them.
 
 ## Applying changes
 
-Click **Apply** to save, or **Cancel** to discard. Unlike the AOI Library, the Event Library applies only to the selected stimulus — there is no cross-stimulus propagation.
+Click **Apply** to save, or **Cancel** to discard. Unlike the AOI Library, the Event Library applies only to the selected stimulus. There is no cross-stimulus propagation.

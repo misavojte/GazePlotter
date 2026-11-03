@@ -1,6 +1,6 @@
 # Metrics Library Overview
 
-The **Metrics Library** is GazePlotter's central engine for configuring, calculating, and managing eye-tracking metrics. Rather than hardcoding metric logic into specific visualizers, GazePlotter uses a unified Domain-Specific Language (DSL) that decoupling mathematical calculations from the UI's display formats. 
+The **Metrics Library** is GazePlotter's central engine for configuring, calculating, and managing eye-tracking metrics. Rather than hardcoding metric logic into specific visualizers, GazePlotter uses a unified Domain-Specific Language (DSL) that decouples mathematical calculations from the UI's display formats. 
 
 This architecture allows you to instantiate, parameterize, and project quantitative eye-tracking metrics globally, making the same underlying data available to any compatible visualization or data export pipeline.
 
@@ -9,7 +9,7 @@ This architecture allows you to instantiate, parameterize, and project quantitat
 Every metric instance in GazePlotter is constructed from three distinct configuration layers:
 
 1. **Base Recipe**: The core mathematical calculation performed on raw fixation data (e.g., summing fixation durations, counting transitions, or aligning scanpaths).
-2. **Parameters**: Recipe-specific inputs that tune the calculation (e.g., transition mode, Markov step counts, or string alignment thresholds).
+2. **Parameters**: Recipe-specific inputs that tune the calculation (e.g., transition mode, Markov step counts, or collapse consecutive AOIs).
 3. **Data Projection**: Rules that reshape the raw outputs of a recipe into structures compatible with specific visualizations, including time-based windowing and binning.
 
 ## Output Shapes and Projections
@@ -49,7 +49,7 @@ Projections act as a transformation tree, using **Leaf Projections** to reshape 
 | `matrix-cell` | `aoi-pair-matrix` | `scalar` | Extracts a single transition cell (`fromAoi` &gt; `toAoi`) as a scalar. |
 | `matrix-aggregate` | `aoi-pair-matrix` | `scalar` | Reduces all cells to a scalar using a reducer (`sum`, `mean`, `max`, `min`). |
 
-> **Where the summary statistic lives**: For metrics built on a per-event sample (fixation duration, visit duration, eye-movement duration, event duration), the mean/median/max/min choice belongs to the projection that produces a **summary** — `pick-aoi`, `pick-any-fixation`, `pick-category` and `pick-event` each carry it, and it appears as a **Summary** control next to that projection's own settings. A vector projection carries no such choice: one value per AOI (or per eye-movement type) is always the mean of that slot's sample. If you need a median per AOI, project to **One AOI**; if you need the whole distribution, use AOI Comparison, whose beeswarm and overlay show it directly.
+> **Where the summary statistic lives**: For metrics built on a per-event sample (fixation duration, visit duration, eye-movement duration, event duration), the mean/median/max/min choice belongs to the projection that produces a **summary**. `pick-aoi`, `pick-any-fixation`, `pick-category` and `pick-event` each carry it, and it appears as a **Summary** control next to that projection's own settings. A vector projection carries no such choice: one value per AOI (or per eye-movement type) is always the mean of that slot's sample. If you need a median per AOI, project to **One AOI**; if you need the whole distribution, use AOI Comparison, whose beeswarm and overlay show it directly.
 
 ## Windowing and Binning Rules
 
@@ -73,14 +73,14 @@ GazePlotter projects fixations onto moving time windows with two independent sig
 
 ## Aggregating Across Participants
 
-When a plot summarizes a whole group, it must combine each participant's value into a single result. Whether a given combination is meaningful is decided by the metric's **measurement class** — a scientific property of the quantity itself, not a setting you have to reason about:
+When a plot summarizes a whole group, it must combine each participant's value into a single result. Whether a given combination is meaningful is decided by the metric's **measurement class**. This is a scientific property of the quantity itself, not a setting you have to reason about:
 
-- **Extensive (additive total)** — counts and durations (fixation count, dwell time, transition counts). These are physical totals, so across participants they can be shown as a **per-participant mean** or as a **cohort total** (a sum that grows with the group and tapers honestly as participants drop out of late time windows).
-- **Intensive (normalized)** — rates, shares, probabilities, and averages (relative dwell time, mean fixation duration, transition probability, RQA measures). Each value is already normalized per participant, so across participants it is shown as a **mean**; a cohort total is not meaningful, because adding percentages or averages together has no physical interpretation.
-- **Proportion** — a per-participant yes/no outcome (e.g. whether an AOI was fixated). Across participants this becomes the fraction of the group that met the condition (a rate), drawn as a proportional bar.
-- **Group-level** — a quantity defined by a *pair* of participants (scanpath similarity). There is no per-participant value to combine; the comparison matrix is itself the across-participant result.
+- **Extensive (additive total)**: counts and durations (fixation count, dwell time, transition counts). These are physical totals, so across participants they can be shown as a **per-participant mean** or as a **cohort total** (a sum that grows with the group and tapers honestly as participants drop out of late time windows).
+- **Intensive (normalized)**: rates, shares, probabilities, and averages (relative dwell time, mean fixation duration, transition probability, RQA measures). Each value is already normalized per participant, so across participants it is shown as a **mean**; a cohort total is not meaningful, because adding percentages or averages together has no physical interpretation.
+- **Proportion**: a per-participant yes/no outcome (e.g. whether an AOI was fixated). Across participants this becomes the fraction of the group that met the condition (a rate), drawn as a proportional bar.
+- **Group-level**: a quantity defined by a *pair* of participants (scanpath similarity). There is no per-participant value to combine; the comparison matrix is itself the across-participant result.
 
-The measurement class determines which options a plot exposes. In a plot that reduces the group to one value per cell (AOI Timeline, Transition Matrix), an additive metric lets you pick a per-participant mean or a cohort total, while a normalized metric simply averages. You never have to choose an unsound combination — only the meaningful options are offered.
+The measurement class determines which options a plot exposes. In a plot that reduces the group to one value per cell (AOI Timeline, Transition Matrix), an additive metric lets you pick a per-participant mean or a cohort total, while a normalized metric simply averages. You never have to choose an unsound combination, because only the meaningful options are offered.
 
 ## Customizing the Metric Library
 
@@ -88,6 +88,6 @@ To manage the Metric Library, click **Edit metric library** in any collapsible P
 
 ### Editing Metric Instances
 1. **Select or Duplicate**: Select an existing metric in the left sidebar, or click **Duplicate** to use it as a template for a new custom metric.
-2. **Set Parameters**: Configure recipe-specific fields (e.g., toggle transition modes, edit Markov step limits, or modify RQA thresholds).
+2. **Set Parameters**: Configure recipe-specific fields (e.g., toggle transition modes, edit Markov step limits, or change the RQA minimum line length).
 3. **Choose Projection**: Select the target projection and determine whether it is non-windowed (Aggregate) or windowed (Binned). If windowed, configure the window and step sizes.
 4. **Label and Save**: Provide a unique, descriptive label for the instance (e.g., "Absolute Dwell (1000ms bins / 200ms step)") and click **Save changes**. The new metric will instantly appear in all compatible dropdown selections in the workspace.

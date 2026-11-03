@@ -54,7 +54,7 @@ Three places produce it:
 
 - **Export** then **Analysis (JSON)** in the app.
 - The ZIP of a [Metric Data export](/docs/export/metric-data/#sidecar-codebook) with the codebook enabled, beside the codebook.
-- The command line writes it beside every table it exports.
+- The command line writes it beside every table it exports (with `--out`).
 
 Replaying an Analysis renames by source name, then merges and selects by
 displayed name, then installs the metric library through the same
@@ -115,7 +115,7 @@ Options for `metrics`:
 | `--stimuli <names>` | A saved stimuli selection, or stimulus names, comma-separated. Default: all |
 | `--format long` or `wide` | Table layout, as in the app. Default: long |
 | `--start <ms>`, `--end <ms>` | Time range in milliseconds of recording time. Omitting `--end` means the recording end; `--start` alone is allowed |
-| `--codebook` | Also write the codebook beside the table |
+| `--codebook` | Also write the codebook beside the table (with `--out`) |
 | `--decimal ,` | Decimal comma instead of point |
 | `--out <file.csv>` | Write there; the Analysis that was applied goes beside it as `<stem>.analysis.json`, and `<stem>.run.json` records the run |
 | `--prompt <id=value>` | Answer a format prompt. Tobii exports with an Event column ask `tobii-parsing-input`; see below |
@@ -134,10 +134,13 @@ Warnings go to stderr, prefixed `warning:`. Exit codes:
 | 1 | An error: a file could not be read or parsed, an option is invalid, a metric id is unknown |
 | 2 | The run completed but not over what was asked for: a name in the Analysis or an option matched nothing, or the table has no rows |
 
-The Tobii prompt takes a JSON parsing configuration: `""` for stimuli from
-the media column, `{"stimulusStartSuffix":"_start","stimulusEndSuffix":"_end"}`
-for interval markers in the Event column, `{"stimulusWeb":true}` for web
-recordings. Headlessly it must be answered; the app asks in a dialog.
+The Tobii prompt takes a JSON parsing configuration, matching the app's
+options: an empty value (`--prompt tobii-parsing-input=`) for Media Column,
+`{"stimulusStartSuffix":"IntervalStart","stimulusEndSuffix":"IntervalEnd"}`
+for Interval Events, the same keys with your own suffixes (such as `_start`
+and `_end`) for Custom Markers, and `{"stimulusWeb":true}` for Web Stimulus
+Events. A literal `""` is not an empty value and fails. Headlessly the prompt
+must be answered; the app asks in a dialog.
 
 From R or Python, call the command and read the table (on Windows the
 executable is `npx.cmd`):

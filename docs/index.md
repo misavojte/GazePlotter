@@ -33,7 +33,7 @@ GazePlotter is a free, open-source tool for eye-tracking visualization and analy
 - [AOI timeline](/docs/visualizations/aoi-timeline/): how attention shifts between AOIs over time
 - [Recurrence plot](/docs/visualizations/recurrence-plot/): where a scanpath returns to itself
 - [Scanpath similarity](/docs/visualizations/scanpath-similarity/): which participants looked in a similar order
-- [AOI comparison](/docs/visualizations/aoi-comparison/): bar charts of any metric across AOIs
+- [AOI comparison](/docs/visualizations/aoi-comparison/): any metric across AOIs, one dot per participant with the mean and its spread
 - [Metric correlation](/docs/visualizations/metric-correlation/): correlation heatmaps and scatter plot matrices
 - [All visualizations](/docs/visualizations/), including metric timelines and eye-movement and event comparisons
 
@@ -43,7 +43,7 @@ GazePlotter is a free, open-source tool for eye-tracking visualization and analy
 - [Fixation counts and time to first fixation (TTFF)](/docs/metrics/counts-latency/)
 - [AOI transitions and Markov probabilities](/docs/metrics/transitions/)
 - [Recurrence quantification analysis (RQA)](/docs/metrics/rqa/)
-- [Scanpath similarity](/docs/metrics/scanpath-similarity/): Levenshtein distance and Needleman-Wunsch alignment
+- [Scanpath similarity](/docs/metrics/scanpath-similarity/): Levenshtein distance, Needleman-Wunsch alignment, transition similarity, and heatmap overlap
 - [Fixations, saccades, and blinks](/docs/metrics/eye-movement/)
 - [Event metrics](/docs/metrics/events/): key presses, stimulus changes, and other logged events
 

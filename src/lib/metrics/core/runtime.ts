@@ -28,7 +28,7 @@ import {
 } from './projection'
 import type { ExtendedInterpretedDataType } from '$lib/data/types'
 import { fillWindowFrame, scopeDurationOf } from './dsl'
-import type { AoiSlotInfo, FixationEvent, GroupScope, InitCtx, MetricRecipe, OutputShape, WindowFrame } from './dsl'
+import type { AoiSlotInfo, FixationEvent, GroupResult, GroupScope, InitCtx, MetricRecipe, OutputShape, WindowFrame } from './dsl'
 import type { GroupReduction } from './measurement'
 import type { MetricInstance } from '../instances'
 
@@ -221,18 +221,29 @@ export function runRaw(recipe: MetricRecipe<any, any>, instance: MetricInstance,
  * Per-event values for EVERY slot from ONE participant scan. No per-slot
  * variant exists on purpose: it would invite a full rescan per (slot ×
  * participant). `null` for recipes with no `individuals` — the caller falls
- * back to the cached aggregate.
+ * back to the cached aggregate. Cached beside the raw result it samples (same
+ * inputs, same key), so a distribution plot's redraw does not rescan every
+ * participant. Read-only by type, like the raw entries.
  */
 export function runIndividualsAllSlots(
   recipe: MetricRecipe<any, any>,
   instance: MetricInstance,
   scope: Scope,
-): number[][] | null {
+): readonly (readonly number[])[] | null {
   if (!recipe.individuals) return null
-  const out = scanAccumulator(recipe, instance, scope, scope.timeStart ?? 0, scope.timeEnd ?? 0)
+  const tStart = scope.timeStart ?? 0
+  const tEnd = scope.timeEnd ?? 0
+  const map = cacheMapFor(scope.engine)
+  // The sample is the same whatever summary statistic the projection asks for.
+  const key = `i|${rawCacheKey(scope.engine, instance, scope.stimulusId, scope.participantId, tStart, tEnd, scope.aoiSelectionId, false)}`
+  const cached = map?.get(key) as readonly (readonly number[])[] | undefined
+  if (cached) return cached
+  const out = scanAccumulator(recipe, instance, scope, tStart, tEnd)
   if (!out) return null
   recipe.flush?.(out.acc, out.ctx.slots)
-  return recipe.individuals(out.acc)
+  const sample = recipe.individuals(out.acc)
+  map?.set(key, sample)
+  return sample
 }
 
 // ─── Windowed dispatch ────────────────────────────────────────────────────────
@@ -1072,7 +1083,7 @@ function getAoiNames(scope: Scope): string[] {
 
 // ─── Cache (per-reader bucket, keyed on baseId+params+scope+time range) ──────
 
-function rawCacheKey(engine: DataEngine, instance: MetricInstance, stimulusId: number, participantId: number, tStart: number, tEnd: number, aoiSelectionId?: AoiNarrowing): string {
+function rawCacheKey(engine: DataEngine, instance: MetricInstance, stimulusId: number, participantId: number, tStart: number, tEnd: number, aoiSelectionId?: AoiNarrowing, withStatistic = true): string {
   // The ORDER signature comes from the selection-narrowed getAois, so it
   // already discriminates selections (and two resolving to the same visible
   // set share, which is correct). No separate selection token.
@@ -1080,8 +1091,8 @@ function rawCacheKey(engine: DataEngine, instance: MetricInstance, stimulusId: n
   // A non-mean summary statistic changes a sample-summarizing recipe's
   // finalize output, so it keys its own entry; 'mean' shares with
   // identity-vector raws, since both ARE the mean vector.
-  const st = projectionSummaryStatistic(instance.projection)
-  return `r|${categoryCacheToken(engine, instance.baseId)}${eventCacheToken(engine, instance.baseId, stimulusId)}o${sig.order}|${instance.baseId}|${paramsKey(instance.params)}${st === 'mean' ? '' : `|st:${st}`}|${stimulusId}|${participantId}|${tStart}|${tEnd}`
+  const st = withStatistic ? projectionSummaryStatistic(instance.projection) : 'mean'
+  return `r|${inputTokens(engine, instance.baseId, stimulusId)}o${sig.order}|${instance.baseId}|${paramsKey(instance.params)}${st === 'mean' ? '' : `|st:${st}`}|${stimulusId}|${participantId}|${tStart}|${tEnd}`
 }
 
 function windowedCacheKey(instance: MetricInstance, scope: Scope, projection: WindowedProjection): string {
@@ -1091,7 +1102,17 @@ function windowedCacheKey(instance: MetricInstance, scope: Scope, projection: Wi
   // thing, free to drift from the one the projection layer exports.
   const proj = projectionCacheKey(projection)
   const sig = slotSignatures(scope.engine, scope.stimulusId, scope.aoiSelectionId)
-  return `w|${categoryCacheToken(scope.engine, instance.baseId)}${eventCacheToken(scope.engine, instance.baseId, scope.stimulusId)}o${sig.order}|n${sig.names}|${proj}|${instance.baseId}|${paramsKey(instance.params)}|${scope.stimulusId}|${scope.participantId}|${scope.timeStart ?? 0}|${scope.timeEnd ?? 0}`
+  return `w|${inputTokens(scope.engine, instance.baseId, scope.stimulusId)}o${sig.order}|n${sig.names}|${proj}|${instance.baseId}|${paramsKey(instance.params)}|${scope.stimulusId}|${scope.participantId}|${scope.timeStart ?? 0}|${scope.timeEnd ?? 0}`
+}
+
+/** The inputs a recipe reads beyond the segments, which no AOI version sees:
+ *  the category or event table it scans, and for a recipe reading fixation
+ *  x/y the stimulus's media placement. One prefix for every cache key. */
+function inputTokens(engine: DataEngine, baseId: string, stimulusId: number): string {
+  const media = getRecipe(baseId)?.needsCoordinates
+    ? `m${JSON.stringify(engine.metadata?.stimuliMedia?.[stimulusId] ?? null)}|`
+    : ''
+  return `${categoryCacheToken(engine, baseId)}${eventCacheToken(engine, baseId, stimulusId)}${media}`
 }
 
 function paramsKey(params: Record<string, unknown> | undefined): string {
@@ -1110,6 +1131,23 @@ export function cacheGetRaw(engine: DataEngine, instance: MetricInstance, stimul
 
 export function cacheSetRaw(engine: DataEngine, instance: MetricInstance, stimulusId: number, participantId: number, tStart: number, tEnd: number, value: number[], aoiSelectionId?: AoiNarrowing): void {
   cacheMapFor(engine)?.set(rawCacheKey(engine, instance, stimulusId, participantId, tStart, tEnd, aoiSelectionId), value)
+}
+
+/**
+ * A participant-pair recipe's matrix, cached like every other result. The
+ * participant SET rides in the key. Cached results are shared and frozen,
+ * like windowed ones.
+ */
+export function runScanGroup(recipe: MetricRecipe<any, any>, instance: MetricInstance, group: GroupScope): GroupResult {
+  const sig = slotSignatures(group.engine, group.stimulusId, group.aoiSelectionId)
+  const key = `g|${inputTokens(group.engine, instance.baseId, group.stimulusId)}o${sig.order}|${instance.baseId}|${paramsKey(instance.params)}|${group.stimulusId}|${group.participantIds.join(',')}|${group.timeStart ?? 0}|${group.timeEnd ?? 0}`
+  const map = cacheMapFor(group.engine)
+  const cached = map?.get(key) as GroupResult | undefined
+  if (cached) return cached
+  const result = recipe.scanGroup!(group, resolveParams(recipe.params, instance.params))
+  const frozen = { matrix: Object.freeze(result.matrix), participantIds: Object.freeze(result.participantIds) }
+  map?.set(key, frozen)
+  return frozen
 }
 
 /**

@@ -22,7 +22,7 @@ You can reduce the vector into a single numerical value:
 
 ## Metric Recipes
 
-GazePlotter supports three core recipes for counts and latencies:
+GazePlotter supports four core recipes for counts, detection and latencies:
 
 ### 1. Fixation Count (`fixationCount`)
 The total number of separate fixations landing within each Area of Interest (AOI).
@@ -38,7 +38,7 @@ The number of times a participant entered and exited an AOI. A visit consists of
 
 - **Raw Shape**: `aoi-vector`
 - **Unit**: `count`
-- **Windowing**: Supported. A visit is counted in every window it overlaps, so a visit that runs across a window boundary appears in both windows. This keeps each window a complete picture of its own interval; per-window visit counts therefore do not add up to the whole-recording count.
+- **Windowing**: Supported. A window counts the visits among the fixations whose midpoint falls inside it. A visit whose fixations fall on both sides of a window boundary counts in each of those windows, so per-window visit counts can add up to more than the whole-recording count.
 - **Invariants**: Consecutive fixations in the same AOI are collapsed into a single visit. Gaze must leave the AOI (either to another AOI or to off-AOI space) and return for a new visit to be counted.
 - **Measurement class**: Extensive (additive total). Across participants, show a per-participant mean or a cohort total (the group's combined visits).
 - **Scientific Meaning**: Reflects search-and-compare behaviors. A high visit count with short visit durations suggests the participant was toggling back and forth to compare information across regions.
@@ -49,6 +49,16 @@ The elapsed time (in milliseconds) from stimulus onset (time = 0) until the onse
 - **Raw Shape**: `aoi-vector`
 - **Unit**: `ms`
 - **Windowing**: Forbidden (`supportsWindowing: false`). Latency is a stimulus-lifetime concept. A rolling window would calculate "time to first fixation within this window" (which is just relative entry latency), which violates the standard eye-tracking definition.
-- **Invariants**: AOIs never fixated return `NaN`. Callers that require a numeric fallback (like CSV export pipelines) represent unvisited slots as `-1`.
+- **Invariants**: AOIs never fixated return `NaN`, which CSV export writes as an empty cell.
 - **Measurement class**: Intensive (normalized). A per-participant latency, averaged across participants; latencies do not add into a cohort total.
 - **Scientific Meaning**: A measure of visual salience. AOIs with low TTFF values are highly salient and captured the participant's attention first, either due to bottom-up visual features (e.g., high contrast, bright colors) or top-down task goals.
+
+### 4. Was Fixated (`fixated`)
+Whether the participant fixated each AOI: 100 if they did, 0 if they did not.
+
+- **Raw Shape**: `aoi-vector`
+- **Unit**: `%`
+- **Windowing**: Supported. Every fixation overlapping the window counts, and both thresholds apply within the window.
+- **Parameters**: **Min fixations** (default 1) and **Min dwell** (ms, default 0). An AOI counts as fixated only when it meets both.
+- **Measurement class**: Proportion. Across participants the mean is the share of participants who fixated the AOI, drawn as a proportional bar.
+- **Scientific Meaning**: Also called hit ratio or noticed rate. Shows whether an AOI was noticed at all, regardless of how long it was looked at.

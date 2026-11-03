@@ -107,3 +107,36 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v4
+
+  # Publishes the npm package when main carries a version npm does not have
+  # yet, so a release is the merge alone. Auth is npm trusted publishing (OIDC
+  # via id-token: write, no token secret), configured on npmjs.com for this
+  # repo and this workflow file; it needs npm 11.5.1+, hence the npm install.
+  publish:
+    if: github.ref == 'refs/heads/main'
+    needs: [check, test, build, package]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          registry-url: 'https://registry.npmjs.org'
+          cache: npm
+          cache-dependency-path: package.json
+      - run: npm install -g npm@11
+      - name: Check whether this version is already on npm
+        id: version
+        run: |
+          version=$(node -p "require('./package.json').version")
+          if npm view "gazeplotter@$version" version >/dev/null 2>&1; then
+            echo "gazeplotter@$version is already published"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.version.outputs.publish == 'true'
+        run: npm i
+      - if: steps.version.outputs.publish == 'true'
+        run: npm publish

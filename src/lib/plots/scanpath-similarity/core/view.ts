@@ -11,19 +11,21 @@ import {
   METRIC_MISSING_MESSAGE,
   NO_PARTICIPANTS_MESSAGE,
 } from '$lib/plots/shared/drawCanvasPlaceholder'
+import { memoByRef } from '$lib/plots/shared/kit'
 import { scangraphKit } from './kit'
+import { reorderSimilarity, similarityOrder } from './order'
 import {
   similarityDataFor,
   buildScangraphData,
   cliquesOfMinSize,
+  resolvedThreshold,
   scangraphCliques,
 } from './transformer'
-import { SCANPATH_SIMILARITY_DEFAULTS } from '../const'
 import type { ScanpathSimilarityData, ScanpathSimilaritySettings } from '../types'
 
-/** The scangraph's input; the graph is built at the settings' threshold, which the kit styles links by. */
+/** The scangraph's input; the graph is built at the resolved threshold (Auto included), which the kit styles links by. */
 export function scangraphInput(settings: ScanpathSimilaritySettings, similarityData: ScanpathSimilarityData) {
-  const threshold = settings.threshold ?? SCANPATH_SIMILARITY_DEFAULTS.threshold
+  const threshold = resolvedThreshold(similarityData, settings)
   // Same min-members floor as the picker, so a selection the pane reads as
   // 'none' never silently keeps highlighting.
   const cliqueKey = settings.selectedClique ?? 'none'
@@ -35,6 +37,8 @@ export function scangraphInput(settings: ScanpathSimilaritySettings, similarityD
         ).find(c => c.key === cliqueKey)
   return {
     settings,
+    /** The resolved p (Auto included): links clear it, their width encodes the excess. */
+    threshold,
     data: buildScangraphData(similarityData, threshold),
     noMetric: similarityData.noMetric ?? false,
     /** The selected clique's nodes (indices): members and their intra-clique edges pop, everything else dims. */
@@ -51,6 +55,9 @@ export type ScangraphInput = ReturnType<typeof scangraphInput> & {
 
 export type ScanpathSimilarityView = PlotView<ScangraphInput> | PlotView<MatrixInput>
 
+/** The clustering order, once per cached matrix: an edit that keeps the matrix (colours, a rename) does not recluster. */
+const orderOf = memoByRef((matrix: ArrayLike<number>) => similarityOrder(matrix, Math.round(Math.sqrt(matrix.length))))
+
 /** The matrix or scangraph figure, by `settings.view`. */
 export function deriveScanpathSimilarityView(
   engine: DataEngine,
@@ -64,7 +71,11 @@ export function deriveScanpathSimilarityView(
   }
 
   const resolvedInstance = resolvePickedInstance(engine, settings.metricInstanceIds)
-  const { matrix, labels } = similarityData
+  const ordered =
+    settings.orderBy === 'similarity'
+      ? reorderSimilarity(similarityData, orderOf(similarityData.matrix))
+      : similarityData
+  const { matrix, labels } = ordered
   // Bare quantity (no qualifiers) for the per-cell tooltip key.
   const valueLabel = formatInstanceLabel(resolvedInstance, 'Similarity')
   return plotView(
@@ -73,8 +84,8 @@ export function deriveScanpathSimilarityView(
       matrix,
       labels,
       // Both axes are participants, so the PLOT CURSOR marks a row AND a column.
-      rowParticipantIds: similarityData.participantIds,
-      colParticipantIds: similarityData.participantIds,
+      rowParticipantIds: ordered.participantIds,
+      colParticipantIds: ordered.participantIds,
       xAxisTitle: 'Participant',
       yAxisTitle: 'Participant',
       colorScale: settings.colorScale ?? [],
@@ -106,8 +117,8 @@ export function deriveScanpathSimilarityView(
         return [
           { key: 'Row', value: labels[row] },
           { key: 'Column', value: labels[col] },
-          // NaN = both scanpaths empty: no data to compare, not a score.
-          { key: valueLabel, value: Number.isFinite(v) ? v.toFixed(3) : 'No data: both scanpaths empty' },
+          // NaN = no data to compare (both scanpaths empty, or no located fixation), not a score.
+          { key: valueLabel, value: Number.isFinite(v) ? v.toFixed(3) : 'No data to compare' },
         ]
       },
     },

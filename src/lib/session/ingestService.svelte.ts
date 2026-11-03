@@ -777,6 +777,7 @@ export class IngestService {
           nameMatched: Object.fromEntries(
             [...matches].map(([id, file]) => [String(id), file.name])
           ),
+          withMedia: Object.keys(meta.stimuliMedia ?? {}),
         }
       )
       if (assignments) {

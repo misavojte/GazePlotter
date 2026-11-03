@@ -1,6 +1,6 @@
 # Stimuli Library
 
-The Stimuli Library renames stimuli and sets their order across all plots and dropdowns. Renaming changes only the displayed label; the original source name is preserved.
+The Stimuli Library renames, reorders, and merges stimuli, and manages [stimulus selections](#stimulus-selections). Renaming changes only the displayed label; the original source name is preserved.
 
 ## Opening the library
 
@@ -14,11 +14,21 @@ Each stimulus is a row showing its original name, an editable **Displayed name**
 - **Sort**: Order by original or displayed name, ascending or descending. Sorting uses natural ordering, so `Stimulus_2` comes before `Stimulus_10`.
 - **Bulk actions**: Opens **Rename items…** for pattern-based renaming.
 
+Rows are selected as in the [Participant Library](/docs/workspace/participant-library/#selecting-rows).
+
+## Merging stimuli
+
+Stimuli that share the same **Displayed name** merge into one stimulus: their recordings are combined, and the merge stays reversible (rename a row apart to restore the original). Select rows and click **Merge** in the tray, or type matching names. Merging is refused when a participant has recordings on more than one of the stimuli. The row explains why and offers **Undo rename**.
+
+## Stimulus selections
+
+Named stimulus subsets work like [participant selections](/docs/workspace/participant-library/#participant-selections). The [Metric Matrix](/docs/visualizations/metric-matrix/) uses them in its **Stimuli** section.
+
 ## Reference media
 
-Each stimulus can carry one reference image or video, drawn behind gaze data as the [Scanpath](/docs/visualizations/scanpath/) background. The [Fixation Heatmap](/docs/visualizations/fixation-heatmap/) draws an image under its map; a video only sets its frame. The **Media** button at the end of a row shows the state: an outlined button means no media, a filled button means media is attached. Click it to open the **Reference Media** dialog.
+Each stimulus can carry one reference image or video, drawn behind gaze data as the [Scanpath](/docs/visualizations/scanpath/) background. The [Fixation Heatmap](/docs/visualizations/fixation-heatmap/) draws an image under its map; a video only sets its frame. The **Media** button at the end of a row shows the state: an outlined button means no media, a filled button means media is attached. Click it to open the **Reference Media** dialog. Media changes are saved together with the other stimulus edits when you click **Apply** in the stimuli dialog, and **Cancel** there discards them.
 
-- **No media yet**: Click **Choose image or video…** to attach a file. Media files included in an Upload data selection attach automatically when named after a stimulus; unmatched files prompt for manual assignment.
+- **No media yet**: Click **Choose image or video…** to attach a file. Media files imported with **Import** attach automatically when named after a stimulus; unmatched files prompt for manual assignment.
 - **Media attached**: The dialog shows the file details and a **Replace…** button. A replacement keeps the current position and width; its height follows the new file's proportions. **Remove media** detaches the file.
 - **Position in gaze coordinates**: By default, gaze coordinates are assumed to equal media pixels. When the stimulus was offset on screen or recorded at a different scale, set the media's top-left corner (**Left (gaze X)**, **Top (gaze Y)**) and its size (**Width**, **Height**) in gaze units. **Reset to media size** restores the default mapping.
 

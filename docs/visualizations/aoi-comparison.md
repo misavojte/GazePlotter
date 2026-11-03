@@ -56,6 +56,7 @@ Configure the quantitative metric displayed on the value axis. For how these met
   - *Visit duration* (`visitDuration`): Average duration of visits (consecutive fixations) (see [Durations](/docs/metrics/durations)).
   - *Fixation count* (`fixationCount`): Number of fixations within the boundary (see [Counts & Latency](/docs/metrics/counts-latency)).
   - *Fixation duration* (`fixationDuration`): Mean length of individual fixations (see [Durations](/docs/metrics/durations)).
+  - *Was fixated* (`fixated`): Whether each AOI was fixated, drawn as one bar per AOI (see [Counts & Latency](/docs/metrics/counts-latency)).
   - *Time to first fixation* (`timeToFirstFixation`): Average latency until initial entry (see [Counts & Latency](/docs/metrics/counts-latency)).
   - *First fixation duration* (`firstFixationDuration`): Mean length of the first fixation (see [Durations](/docs/metrics/durations)).
 - **Edit metric library**: Opens the Metric Library modal where you can customize parameters or define entirely new **custom metrics** to calculate across the AOIs.
@@ -70,7 +71,7 @@ Configure the layout and the statistical summary.
 - **Orientation**: Select *Horizontal* (default) or *Vertical* layout.
 - **Order by**: Sort AOIs by *Value* or by *AOI order* (default).
 - **Direction**: Sort *Ascending* or *Descending*.
-- **Scale range**: Explicitly set the value axis minimum and maximum (*0 = Auto*).
+- **Scale range**: Explicitly set the value axis minimum and maximum (*0 = Auto*). While it is Auto, AOI Comparisons with the same metric and card size share their value axis.
 
 ### Time range
 Filter the temporal range from which fixations and saccades are fetched.

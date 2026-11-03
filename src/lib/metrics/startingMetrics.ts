@@ -224,4 +224,14 @@ export const STARTING_METRICS: readonly StartingMetricSpec[] = [
     baseId: 'scanpathNeedlemanWunschSimilarity',
     params: { collapsed: true },
   },
+  {
+    id: 'participantPairSimilarity-heatmap',
+    baseId: 'heatmapOverlap',
+    params: { radius: 0 },
+  },
+  {
+    id: 'participantPairSimilarity-transition',
+    baseId: 'transitionSimilarity',
+    params: { mode: 'visit' },
+  },
 ]

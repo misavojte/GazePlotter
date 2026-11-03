@@ -66,17 +66,17 @@ The collapsed section header shows the view.
 - **View**: How the map is drawn. Both views show the same map, so switching never changes the numbers.
   - *Heatmap*: Colors over the stimulus that rise with the map value (default).
   - *Opacity map*: A mask over the stimulus that is at its strongest where the map is 0 and clears linearly toward the scale maximum.
-- **Color scale**: How map values become colors.
+- **Color scale**: How map values become colors. Heatmap only; the opacity map shows **Scale max** on its own, between the two mask fields.
   - **Color scale picker**: The gradient stops (default *Yellow to Red*).
   - **Scale max / ms (0 = Auto)**: The value that takes the top color, in the map's unit (the label shows *ms*, *fixations*, or *%*). 0 = Auto: this map's own peak, rounded up at the third significant digit. In the opacity map, Auto is half the peak, so the most viewed regions show fully clear rather than only the single peak. Values above an explicit maximum take the top color, shown as a cap at the end of the legend. Changing **Accumulate** or **Normalization** resets it to 0.
-  - **Opacity / %**: Heat opacity, 0 to 100 (default 70). Values in the lowest 5 % of the scale fade in from transparent, so blobs have soft edges. Heatmap only.
-  - **Mask color**: The opacity map's mask (default black). Opacity map only.
-  - **Mask opacity / %**: The mask's opacity where the map is 0, from 0 to 100 (default 90). Opacity map only.
+  - **Opacity / %**: Heat opacity, 0 to 100 (default 70). Values in the lowest 5 % of the scale fade in from transparent, so blobs have soft edges.
+- **Mask color**: The opacity map's mask (default black). Opacity map only.
+- **Mask opacity / %**: The mask's opacity where the map is 0, from 0 to 100 (default 90). Opacity map only.
 - **Show fixations**: Draws every mapped fixation as a small dark dot over the heat, exposing how many fixations, and which outliers, the map rests on.
 - **Background**: What lies under the heat or the mask. Offered when the stimulus has a reference image or video. A video frame is drawn only under a map of the moment on the play bar; without one the map sits on white.
-  - *Image*: The reference image as it is (default).
-  - *Grayscale image*: The image without color, so the heat colors stand out on a colorful stimulus.
-  - *Dimmed grayscale image*: The grayscale image faded halfway toward white, for the strongest heat contrast.
+  - *Full color*: The reference image as it is (default).
+  - *Grayscale*: The image without color, so the heat colors stand out on a colorful stimulus.
+  - *Dimmed grayscale*: The grayscale image faded halfway toward white, for the strongest heat contrast.
   - *None*: Heat only, on white, inside a thin outline of the image's extent. The only setting where the legend matches the map pixel for pixel, which suits reading values off the color bar.
 - **Playback**:
   - **Trail length (ms)**: During playback the map covers only the last N milliseconds before the playhead. Leave it empty (**All**) to accumulate everything since the start of the range. On a video stimulus an unset trail is 2 s.
@@ -176,7 +176,7 @@ The legends then read *max fixed*, and exported figures keep the shared scale. W
 | Opacity map: Scale max value (0.5) | **Scale max**: Auto is half the map's peak. |
 | Color: green, yellow, red | **Color scale**: the *Green to Red* preset gives the Pro Lab look, but its light middle makes it diverging rather than sequential, and it is not color-blind safe. |
 | Time of interest | **Time range** |
-| Background: Media / White | **Background**: *Image* / *None* (plus *Grayscale image* and *Dimmed grayscale image*); Black and Transparent are not offered. |
+| Background: Media / White | **Background**: *Full color* / *None* (plus *Grayscale* and *Dimmed grayscale*); Black and Transparent are not offered. |
 | Gaze filter | Fixations as classified in the exported file. |
 
 ## Report These Settings

@@ -2,7 +2,6 @@
  * Recurrence Quantification Analysis (RQA) primitives.
  *
  * Everything needed to compute RQA scalars and visualize recurrence plots:
- *   • scalar metrics from a binary recurrence matrix;
  *   • scalar metrics directly from a categorical fixation sequence;
  *   • line masks for highlighting diagonal / horizontal / vertical runs.
  *
@@ -10,97 +9,86 @@
  * this file depends on the plot layer.
  */
 
-export interface RqaResult {
-  /** Raw upper-triangle sum (count of recurrences, or duration sum if weighted). */
-  R: number
-  /** Recurrence rate (%). */
-  REC: number
-  /** Determinism (%): fraction of recurrent pairs on diagonal lines ≥ L. */
-  DET: number
-  /** Laminarity (%): fraction of recurrent pairs on horizontal/vertical lines ≥ L. */
-  LAM: number
-  /** Centre of recurrent mass (%): temporal concentration of recurrences. */
-  CORM: number
-}
-
-const EMPTY: RqaResult = { R: 0, REC: 0, DET: 0, LAM: 0, CORM: 0 }
-
-// ─── Scalar metrics from a binary recurrence matrix ─────────────────────────
+export type RqaMeasure = 'REC' | 'DET' | 'LAM'
 
 /**
- * Compute RQA from a flat NxN binary recurrence matrix. Only the upper triangle
- * (i < j) is considered (excluding the main diagonal i === j).
- */
-function computeRqa(matrix: Uint8Array, N: number, minLineLength: number): RqaResult {
-  if (N < 2) return EMPTY
-
-  let R = 0
-  let weightedDistanceSum = 0
-  for (let i = 0; i < N - 1; i++) {
-    const rowOffset = i * N
-    for (let j = i + 1; j < N; j++) {
-      if (matrix[rowOffset + j]) {
-        R++
-        weightedDistanceSum += j - i
-      }
-    }
-  }
-
-  if (R === 0) return EMPTY
-
-  const REC = (200 * R) / (N * (N - 1))
-  const DL = countDiagonalLinePoints(matrix, N, minLineLength)
-  const DET = (100 * DL) / R
-  const { HL, VL } = countHorizontalVerticalLinePoints(matrix, N, minLineLength)
-  const LAM = (100 * (HL + VL)) / (2 * R)
-  const CORM = (100 * weightedDistanceSum) / ((N - 1) * R)
-
-  return { R, REC, DET, LAM, CORM }
-}
-
-// ─── Scalar metrics from a categorical sequence ─────────────────────────────
-
-/**
- * Compute RQA from a categorical sequence (e.g. AOI slots). Two positions are
- * recurrent iff they share the same category. Returns null when the sequence
- * is too short to have any recurrence pairs.
- */
-function computeRqaFromSequence(seq: readonly number[], minLineLength: number): RqaResult | null {
-  const N = seq.length
-  if (N < 2) return null
-  const matrix = buildCategoricalRecurrenceMatrix(seq)
-  return computeRqa(matrix, N, minLineLength)
-}
-
-/**
- * Evaluate RQA on a sequence, returning a single scalar selected by the caller.
- *   • Returns `Number.NaN` when the sequence is too short for any recurrence (N < 2).
- *   • Returns `scalarOnNoRecurrence` (default NaN) when the matrix has no recurrent
- *     pairs (R = 0) — the denominator-zero case for DET/LAM. REC callers pass 0
- *     because 0 recurrences = 0% recurrence rate.
+ * One RQA scalar of a categorical sequence (e.g. AOI slots), where two
+ * positions recur iff they share a category. Only the upper triangle counts
+ * (i < j), and no N x N matrix is built:
+ *   • R, the recurrent pairs, is a count per category;
+ *   • DET compares the sequence with itself shifted by each offset;
+ *   • LAM sums runs of one category, since a row's horizontal lines are the
+ *     later runs of its own category (its own run cut at the row) and a
+ *     column's vertical lines the earlier ones.
+ * Returns NaN when N < 2 (no pairs), and `scalarOnNoRecurrence` (default NaN)
+ * when R = 0, the zero denominator of DET and LAM. REC callers pass 0, since
+ * 0 recurrences is a 0% rate.
  */
 export function rqaScalar(
   seq: readonly number[],
   minLineLength: number,
-  selector: (result: RqaResult) => number,
+  measure: RqaMeasure,
   scalarOnNoRecurrence: number = Number.NaN,
 ): number {
-  const result = computeRqaFromSequence(seq, minLineLength)
-  if (!result) return Number.NaN
-  if (result.R === 0) return scalarOnNoRecurrence
-  return selector(result)
+  const N = seq.length
+  if (N < 2) return Number.NaN
+  const R = recurrentPairs(seq)
+  if (R === 0) return scalarOnNoRecurrence
+  if (measure === 'REC') return (200 * R) / (N * (N - 1))
+  if (measure === 'DET') return (100 * diagonalLinePoints(seq, minLineLength)) / R
+  return (100 * (lineRunPoints(seq, minLineLength, 'after') + lineRunPoints(seq, minLineLength, 'before'))) / (2 * R)
 }
 
-/** Build a binary recurrence matrix from a categorical sequence (upper triangle only). */
-function buildCategoricalRecurrenceMatrix(seq: readonly number[]): Uint8Array {
+function recurrentPairs(seq: readonly number[]): number {
+  const counts = new Map<number, number>()
+  for (const c of seq) counts.set(c, (counts.get(c) ?? 0) + 1)
+  let R = 0
+  for (const k of counts.values()) R += (k * (k - 1)) / 2
+  return R
+}
+
+/** Points on diagonal lines of length ≥ L: offset k pairs i with i + k. */
+function diagonalLinePoints(seq: readonly number[], L: number): number {
   const N = seq.length
-  const matrix = new Uint8Array(N * N)
-  for (let i = 0; i < N - 1; i++) {
-    for (let j = i + 1; j < N; j++) {
-      if (seq[i] === seq[j]) matrix[i * N + j] = 1
+  let count = 0
+  for (let k = 1; k < N; k++) {
+    let run = 0
+    for (let i = 0; i + k < N; i++) {
+      if (seq[i] === seq[i + k]) run++
+      else {
+        if (run >= L) count += run
+        run = 0
+      }
     }
+    if (run >= L) count += run
   }
-  return matrix
+  return count
+}
+
+/**
+ * Points on horizontal ('after': row i, its category's runs at j > i) or
+ * vertical ('before': column j, runs at i < j) lines of length ≥ L. A run of
+ * length n contributes n × (qualifying runs of its category on the far side)
+ * for its rows, plus its own cut part: lengths 0 .. n - 1, those ≥ L.
+ */
+function lineRunPoints(seq: readonly number[], L: number, side: 'after' | 'before'): number {
+  const N = seq.length
+  const qualifying = new Map<number, number>()
+  let total = 0
+  let s = side === 'after' ? N - 1 : 0
+  const step = side === 'after' ? -1 : 1
+  while (s >= 0 && s < N) {
+    const c = seq[s]
+    let n = 0
+    while (s >= 0 && s < N && seq[s] === c) {
+      n++
+      s += step
+    }
+    const far = qualifying.get(c) ?? 0
+    total += n * far + (n - 1 >= L ? ((n - 1 + L) * (n - L)) / 2 : 0)
+    if (n >= L) qualifying.set(c, far + n)
+  }
+  return total
 }
 
 // ─── Line masks (used for recurrence-plot highlighting) ─────────────────────
@@ -177,55 +165,4 @@ export function buildVerticalLineMask(matrix: Uint8Array, N: number, L: number):
     }
   }
   return mask
-}
-
-// ─── Internal helpers for the scalar computations ───────────────────────────
-
-function countDiagonalLinePoints(matrix: Uint8Array, N: number, L: number): number {
-  let count = 0
-  for (let k = 1; k < N; k++) {
-    let runLength = 0
-    for (let i = 0; i + k < N; i++) {
-      if (matrix[i * N + (i + k)]) {
-        runLength++
-      } else {
-        if (runLength >= L) count += runLength
-        runLength = 0
-      }
-    }
-    if (runLength >= L) count += runLength
-  }
-  return count
-}
-
-function countHorizontalVerticalLinePoints(matrix: Uint8Array, N: number, L: number): { HL: number; VL: number } {
-  let HL = 0
-  let VL = 0
-
-  for (let i = 0; i < N - 1; i++) {
-    let runLength = 0
-    const rowOffset = i * N
-    for (let j = i + 1; j < N; j++) {
-      if (matrix[rowOffset + j]) runLength++
-      else {
-        if (runLength >= L) HL += runLength
-        runLength = 0
-      }
-    }
-    if (runLength >= L) HL += runLength
-  }
-
-  for (let j = 1; j < N; j++) {
-    let runLength = 0
-    for (let i = 0; i < j; i++) {
-      if (matrix[i * N + j]) runLength++
-      else {
-        if (runLength >= L) VL += runLength
-        runLength = 0
-      }
-    }
-    if (runLength >= L) VL += runLength
-  }
-
-  return { HL, VL }
 }

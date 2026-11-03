@@ -26,7 +26,7 @@ import {
   type StimulusSpace,
 } from '$lib/plots/shared/stimulusSpace'
 import { estimateTextWidth } from '$lib/shared/textMeasure'
-import { bucketFixations, cellCentreOf, fixationsWithin, type FixationBuckets } from './density'
+import { bucketFixations, cellCentreOf, fixationsWithin, type FixationBuckets } from '$lib/metrics/core/fixationDensity'
 import { createFrameScratch, heatmapFrame, type FrameScratch } from './frame'
 import { heatLut, legendRamp, maskLut, paintHeat } from './heatImage'
 import { buildHeatmapTooltipContent } from './tooltip'

@@ -1,5 +1,5 @@
 import { deriveFixationHeatmapView, heatmapUnit, type FixationHeatmapView } from './core/view'
-import { autoRadiusFor } from './core/transformer'
+import { autoRadiusFor } from '$lib/metrics/core/fixationDensity'
 import { commonIs, definePlot, type SectionFieldCtx } from '$lib/plots/definePlot'
 import { formatGaze, stimulusParticipantsSubtitle } from '$lib/plots/shared'
 import { PRESET_PALETTES } from '$lib/color/palettes'

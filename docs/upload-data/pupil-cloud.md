@@ -36,7 +36,7 @@ Before uploading to GazePlotter, you need to prepare your data in Pupil Cloud:
 
 ### Single Surface Upload
 
-1. Click **"Import workspace or data"** button
+1. Click **Import**
 2. Select your Pupil Cloud ZIP file
 3. GazePlotter will automatically:
    - Extract the three CSV files
@@ -46,7 +46,7 @@ Before uploading to GazePlotter, you need to prepare your data in Pupil Cloud:
 
 ### Multiple Surfaces Upload
 
-1. Click **"Import workspace or data"** button
+1. Click **Import**
 2. **Multi-select** multiple ZIP files (each representing a different surface/condition)
 3. GazePlotter will:
    - Process each ZIP as a separate stimulus

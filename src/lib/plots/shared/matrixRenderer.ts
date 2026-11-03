@@ -18,7 +18,7 @@ export type MatrixRenderConfig = {
   /** Column (x-axis) labels, left-to-right. length === layout.colCount. */
   colLabels: string[]
   /** Flat row-major values (rowCount × colCount). */
-  matrix: Float64Array | number[]
+  matrix: ArrayLike<number>
   maxLabelLength: number
   formatCellValue: (value: number) => string
   getCellColor: (value: number) => string

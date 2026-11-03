@@ -45,9 +45,9 @@ export interface GroupScope {
  * participants (e.g. drop empty scanpaths) — the returned `participantIds` is
  * the authoritative axis labelling.
  */
-interface GroupResult {
-  matrix: number[]
-  participantIds: number[]
+export interface GroupResult {
+  matrix: readonly number[]
+  participantIds: readonly number[]
 }
 
 /**
@@ -199,6 +199,8 @@ export interface MetricMeta {
   readonly category: string
   /** Shape produced by the recipe's `finalize` call — before any projection. */
   readonly rawShape: OutputShape
+  /** See {@link MetricRecipe.needsCoordinates}. */
+  readonly needsCoordinates: boolean
   readonly windowUnit: WindowUnit
   readonly params: readonly ParamDef<any>[]
   readonly searchTags: readonly string[]
@@ -240,6 +242,9 @@ export interface MetricRecipe<P, A> {
   description: string
   category: string
   rawShape: OutputShape
+  /** Reads fixation x/y, so datasets without coordinates hide it like an
+   *  event metric without events. */
+  needsCoordinates?: boolean
   windowUnit: WindowUnit
   /**
    * WHICH windows a fixation belongs to. The driver enforces it once, so no

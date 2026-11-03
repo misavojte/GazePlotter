@@ -15,6 +15,7 @@
   } from '$lib/data/media/mediaAlignment'
   import { getAllParticipants } from '$lib/data/engine'
   import type { StimulusMedia } from '$lib/data/types'
+  import type { StimulusMediaUpdate } from '$lib/workspace/commands'
   import AlignmentCanvas from './AlignmentCanvas.svelte'
   import { isTextEntryTarget } from '$lib/workspace/keys'
 
@@ -22,14 +23,20 @@
     stimulusId: number
     /** Displayed stimulus name, for the header readout. */
     stimulusName: string
-    source: string
+    /** This stimulus's not-yet-applied edit from the Stimuli modal below. */
+    pending?: StimulusMediaUpdate
   }
 
-  let { stimulusId, stimulusName, source }: Props = $props()
-  const { engine, workspace, modalState, toastState } = getGazePlotterSession()
+  let { stimulusId, stimulusName, pending }: Props = $props()
+  const { engine, modalState, toastState } = getGazePlotterSession()
 
-  const saved = $derived(engine.metadata?.stimuliMedia?.[stimulusId] ?? null)
+  // Apply and Remove hand the change back to the Stimuli modal, which saves
+  // it with its own Apply; until then a pending edit stands in for the saved media.
+  const saved = $derived(
+    pending ? pending.media : (engine.metadata?.stimuliMedia?.[stimulusId] ?? null)
+  )
   const savedBlob = $derived.by(() => {
+    if (pending) return pending.blob ?? null
     void engine.media.version
     return engine.media.getBlob(stimulusId)
   })
@@ -218,27 +225,15 @@
     const { region: _prev, startOffset: _prevOffset, ...rest } = media
     const timed =
       media.kind === 'video' && offsetValue !== 0 ? { ...rest, startOffset: offsetValue } : rest
-    workspace.apply({
-      type: 'updateStimulusMedia',
-      updates: [
-        {
-          stimulusId,
-          media: isNatural ? timed : { ...timed, region: { x, y, width, height } },
-          blob,
-        },
-      ],
-      source,
+    modalState.finish<StimulusMediaUpdate>({
+      stimulusId,
+      media: isNatural ? timed : { ...timed, region: { x, y, width, height } },
+      blob,
     })
-    modalState.close()
   }
 
   function onRemove() {
-    workspace.apply({
-      type: 'updateStimulusMedia',
-      updates: [{ stimulusId, media: null, blob: null }],
-      source,
-    })
-    modalState.close()
+    modalState.finish<StimulusMediaUpdate>({ stimulusId, media: null, blob: null })
   }
 </script>
 

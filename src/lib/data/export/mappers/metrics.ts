@@ -555,7 +555,7 @@ export async function exportMetrics(
       // read per row. `indexByPid` avoids an indexOf per cell.
       const relationalResults = new Map<
         string,
-        { matrix: number[]; size: number; indexByPid: Map<number, number> }
+        { matrix: readonly number[]; size: number; indexByPid: Map<number, number> }
       >()
       if (relationalInstances.length > 0) {
         const groupScope: GroupScope = {

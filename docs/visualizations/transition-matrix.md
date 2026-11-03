@@ -54,6 +54,7 @@ Configure the quantitative transition metric displayed in the matrix cells. For 
   - *Transition probability* (`transitionProbability-fix`): Conditional probability of transitioning TO an AOI given you are coming FROM a specific AOI (see [Transitions](/docs/metrics/transitions)).
   - *Mean transition dwell time*, fixation-based (`transitionDwellMean-fix`): Average fixation duration in the "FROM" AOI before a transition (see [Transitions](/docs/metrics/transitions)).
   - *Mean transition dwell time*, visit-based (`transitionDwellMean-visit`): Average total duration of consecutive fixations in the "FROM" AOI before transitioning (see [Transitions](/docs/metrics/transitions)).
+  - *Transition relative frequency* (`transitionRelativeFrequency-fix`): Each AOI pair's share of the participant's transitions, in % (see [Transitions](/docs/metrics/transitions)).
 - **Edit metric library**: Opens the Metric Library modal where you can customize transition calculation parameters or define **custom transition/matrix metrics**.
 
 ### Visualization
@@ -65,7 +66,6 @@ Configure cell scaling, colors, and outlier rendering.
 - **Out of bounds**: Custom color settings for values that fall outside the range set above. Each color also appears as an end cap on the color bar legend, and hovering the cap names the values it stands for. Each row is offered only while its end of the range is set.
   - *Below min*: Choose color (default is gray) and toggle *Show text* labels for cell values below minimum. Shown while Min is above 0.
   - *Above max*: Choose color (default is gray) and toggle *Show text* labels for cell values above maximum. Shown while Max is set (not 0/Auto).
-- **Hide No AOI data**: Drops the No AOI row and column, so only transitions between named AOIs are shown.
 
 ### Time range
 Filter the temporal range from which transitions are calculated.
@@ -75,12 +75,13 @@ Filter the temporal range from which transitions are calculated.
 ### Areas of Interest
 Filters which Areas of Interest (AOIs) are rendered as rows and columns in the matrix.
 - **AOI selection**: A dropdown containing *All* and saved AOI selections; AOIs outside the picked selection count as no-AOI in this plot.
+- **Hide No AOI data**: Drops the No AOI row and column, so only transitions between named AOIs are shown.
 - **Edit AOIs & selections**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
 
 ### Export
 Located at the bottom of the Pane:
 - **Download plot**: Opens the [Figure Export](/docs/export/figures/) dialog to save the transition matrix as a PNG or JPG.
-- **Download data**: Opens the [Metric Data](/docs/export/metric-data/) export preset to this plot's metrics, stimulus, participant selection, time range and AOI selection.
+- **Download data**: Opens the [Metric Data](/docs/export/metric-data/) export preset to this plot's metrics, stimulus, participant selection, time range, AOI selection and **Hide No AOI data** setting.
 
 ## Interactivity
 

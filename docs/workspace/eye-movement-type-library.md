@@ -6,18 +6,18 @@ For how to choose categories during data export, see [Segmented Data Export](/do
 
 ## Opening the library
 
-1. Select any plot to open its [Pane](/docs/visualizations/#visualization-configuration-pane).
+1. Select a [Scarf Plot](/docs/visualizations/scarf-plot/) or [Eye-movement Comparison](/docs/visualizations/eye-movement-comparison/) to open its [Pane](/docs/visualizations/#visualization-configuration-pane).
 2. In the **Eye-movement Types** section, click **Edit eye-movement types & selections**.
 
 ## Editing categories
 
 Each classification category is represented as a row in the library modal with the following controls:
 
-- **Displayed name** — Rename the category (e.g., changing raw source names like "0" or "Fix" to "Fixation"); the original imported name is preserved.
-- **Color** — Set the category's visualization color in scarf timelines and other charts.
-- **Move handle** — Drag to reorder categories. The order sets the sequence in plot legends and timeline stacks.
+- **Displayed name**: Rename the category (e.g., changing raw source names like "0" or "Fix" to "Fixation"); the original imported name is preserved.
+- **Color**: Set the category's visualization color in scarf timelines and other charts.
+- **Move handle**: Drag to reorder categories. The order sets the sequence in plot legends and timeline stacks.
 
-The **Sort** and **Bulk actions** buttons above the list work similarly to other libraries, allowing you to sort categories by name or rename items using regular expressions. Select rows to merge or split them, or save them as a named selection in the tray below the list. Each plot picks a selection in its pane's **Eye-movement Types** section to narrow which types it draws — Fixation included, so a selection without it hides the fixation layer too. There is no separate hide toggle; the library ships a *Just fixations* selection holding only the fixation baseline, and a selection with no members draws no gaze at all. Both are ordinary selections, so renaming or deleting them sticks. Fixation's displayed name is reserved (it anchors every AOI-based metric), so it can be recolored and selected but never renamed or merged.
+The **Sort** and **Bulk actions** buttons above the list work similarly to other libraries, allowing you to sort categories by name or rename items using regular expressions. Select rows to merge or split them, or save them as a named selection in the tray below the list. Each plot picks a selection in its pane's **Eye-movement Types** section to narrow which types it draws. Fixation is included, so a selection without it hides the fixation layer too. There is no separate hide toggle; the library ships a *Just fixations* selection holding only the fixation baseline, and a selection with no members draws no gaze at all. Both are ordinary selections, so renaming or deleting them sticks. Fixation's displayed name is reserved (it anchors every AOI-based metric), so it can be recolored and selected but never renamed or merged.
 
 ## Grouping categories
 

@@ -31,7 +31,7 @@ function createData(): DataType {
 describe('segment export naming', () => {
   it('displayed (default): renamed category, grouped+deduped AOIs, displayed stimulus/participant', () => {
     const lines = generateUnifiedCsv(createData()).split('\n')
-    expect(lines[1]).toBe('StimulusOne,ParticipantOne,0,100,Gaze,Region;Top Area')
+    expect(lines[1]).toBe('StimulusOne,ParticipantOne,0,100,Gaze,Region|Top Area')
   })
 
   it('raw: original category name, every AOI listed, no grouping, raw stimulus/participant', () => {
@@ -44,7 +44,7 @@ describe('segment export naming', () => {
       undefined,
       'raw'
     ).split('\n')
-    expect(lines[1]).toBe('S1,P1,0,100,Fixation,Left;Right;Top')
+    expect(lines[1]).toBe('S1,P1,0,100,Fixation,Left|Right|Top')
   })
 })
 
@@ -65,7 +65,7 @@ describe('segment export AOI narrowing', () => {
       undefined,
       'raw'
     ).split('\n')
-    expect(lines[1]).toBe('S1,P1,0,100,Fixation,Left;Right')
+    expect(lines[1]).toBe('S1,P1,0,100,Fixation,Left|Right')
   })
 
   it('a segment with no kept AOI stays, with an empty AOI cell', () => {
@@ -73,4 +73,15 @@ describe('segment export AOI narrowing', () => {
       .split('\n')
     expect(lines[1]).toBe('StimulusOne,ParticipantOne,0,100,Gaze,')
   })
+})
+
+describe('segment export round trip', () => {
+  it('re-imports a multi-AOI segment as separate AOIs', async () => {
+    const { ingest } = await import('../src/lib/data/ingest/ingest')
+    const { getAois } = await import('../src/lib/data/engine')
+    const csv = generateUnifiedCsv(createData(), undefined, undefined, false, undefined, undefined, 'raw')
+    const { engine } = await ingest([new File([csv], 'segments.csv')])
+    const names = getAois(engine, 0).map(a => a.displayedName).sort()
+    expect(names).toEqual(['Left', 'Right', 'Top'])
+  }, 30000)
 })

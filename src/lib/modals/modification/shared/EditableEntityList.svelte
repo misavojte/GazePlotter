@@ -45,6 +45,7 @@
   import SlidersHorizontal from 'lucide-svelte/icons/sliders-horizontal'
   import Replace from 'lucide-svelte/icons/replace'
   import ImageIcon from 'lucide-svelte/icons/image'
+  import FilmIcon from 'lucide-svelte/icons/film'
   import { useTooltipAction } from '$lib/tooltip'
 
   const tooltipAction = useTooltipAction()
@@ -84,6 +85,8 @@
     rowActionActive?: (item: BaseInterpretedDataType) => boolean
     /** Hover explanation of the 'action' button per row. */
     rowActionTooltip?: (item: BaseInterpretedDataType) => string
+    /** Icon of the 'action' button per row (a video gets the film icon). */
+    rowActionIcon?: (item: BaseInterpretedDataType) => 'image' | 'film'
   }
 
   interface GroupNotice {
@@ -560,7 +563,11 @@
                       }}
                       onclick={() => grouped.onRowAction?.(member)}
                     >
-                      <ImageIcon size={'1em'} />
+                      {#if grouped.rowActionIcon?.(member) === 'film'}
+                        <FilmIcon size={'1em'} />
+                      {:else}
+                        <ImageIcon size={'1em'} />
+                      {/if}
                     </button>
                   </div>
                 {:else if col.type === 'action' && !isLeader}

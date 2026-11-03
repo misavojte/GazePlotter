@@ -7,7 +7,7 @@ Recurrence Quantification Analysis (RQA) is a non-linear analysis method used to
 RQA metrics are computed from an underlying **Recurrence Plot**, which is a binary matrix `R` where:
 
 ```text
-R(i, j) = 1   if fixation i and fixation j land on the same area (AOI / Euclidean distance)
+R(i, j) = 1   if fixation i and fixation j land on the same AOI
 R(i, j) = 0   otherwise
 ```
 
@@ -38,7 +38,7 @@ The density of recurrence points in the recurrence plot, representing the percen
 - **Scientific Meaning**: A general index of how repetitive the scanpath is. Higher recurrence rates indicate a gaze pattern that repeatedly returns to previously visited regions.
 
 ### 2. Determinism (`rqaDet`)
-The percentage of recurrence points that form diagonal lines parallel to the main diagonal (with a minimum line length of 2).
+The percentage of recurrence points that form diagonal lines parallel to the main diagonal, at least **Min line** points long.
 
 - **Raw Shape**: `scalar`
 - **Unit**: `%`
@@ -46,7 +46,7 @@ The percentage of recurrence points that form diagonal lines parallel to the mai
 - **Scientific Meaning**: Measures the predictability or regularity of the scanpath. A high determinism score indicates that the participant repeatedly executes the same multi-step sequences of AOI visits (e.g., A &gt; B &gt; C &gt; A &gt; B &gt; C).
 
 ### 3. Laminarity (`rqaLam`)
-The percentage of recurrence points that form vertical line segments (with a minimum line length of 2).
+The percentage of recurrence points that form horizontal or vertical lines, at least **Min line** points long. Horizontal and vertical line points are averaged: `LAM = (HL + VL) / 2R`, where `R` is the number of recurrence points.
 
 - **Raw Shape**: `scalar`
 - **Unit**: `%`
@@ -57,9 +57,15 @@ The percentage of recurrence points that form vertical line segments (with a min
 
 All RQA metrics share a common parameter:
 
-- **Include Off-AOI Fixations (`include_no_aoi`)**: 
+- **Include off-AOI fixations (`include_no_aoi`)**: 
   - `false` (default): Off-AOI fixations (those not falling inside any defined AOI) are skipped entirely. The sequence contains only AOI visits.
   - `true`: Off-AOI fixations participate in the sequence, represented by the `noAoiSlot` sentinel. This allows the system to analyze recurrences that occur outside structured boundaries.
+
+Determinism and Laminarity also have **Min line** (default 2, range 2 to 20): the shortest line whose points count.
+
+A fixation that lands on several overlapping AOIs at once is left out of the sequence.
+
+With fewer than 2 fixations in the sequence, all three metrics have no value. With no recurrences, Recurrence Rate is 0, while Determinism and Laminarity have no value.
 
 ## Ordinal Windowing (`windowUnit: 'fixations'`)
 

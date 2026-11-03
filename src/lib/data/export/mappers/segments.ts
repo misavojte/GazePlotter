@@ -160,7 +160,8 @@ function segmentCells(
     formatNumberForCsv(item.timestamp, decimalSeparator),
     formatNumberForCsv(item.duration, decimalSeparator),
     item.eyemovementtype,
-    item.AOI ? item.AOI.join(';') : '',
+    // '|' is the import's multi-AOI separator (custom CSV), so the file re-imports.
+    item.AOI ? item.AOI.join('|') : '',
   ]
   if (includeSpatial) {
     cells.push(

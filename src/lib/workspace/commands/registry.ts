@@ -364,6 +364,11 @@ export function createWorkspaceCommandRegistry(
       gridStore.removeItem(command.itemId)
     },
 
+    applyAxisEdits: (command, context) => {
+      if (context.isUndoRedoOperation) return
+      for (const step of command.steps) context.dispatch(createChildCommand(step, command.chainId))
+    },
+
     removeGridItems: (command, context) => {
       if (context.isUndoRedoOperation) return
       for (const itemId of command.itemIds) {
@@ -556,6 +561,7 @@ export function createWorkspaceCommandRegistry(
     // The orchestrator itself mutates nothing; its child commands carry the
     // real reverses. A noop keeps the bus's reverse-before-execute contract.
     reconcileMerges: () => ({ type: 'noop' }),
+    applyAxisEdits: () => ({ type: 'noop' }),
 
     noop: () => ({ type: 'noop' }),
 

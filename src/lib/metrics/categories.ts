@@ -26,8 +26,9 @@ defineCategory({ id: 'binary',       label: 'Binary detection',       order: 3 }
 defineCategory({ id: 'rqa-aoi',      label: 'RQA (AOI-based)',        order: 4 })
 defineCategory({ id: 'transition',   label: 'Transitions',            order: 5 })
 defineCategory({ id: 'scanpath',     label: 'Scanpath structure',     order: 6 })
-defineCategory({ id: 'eye-movement', label: 'Eye movement',           order: 7 })
-defineCategory({ id: 'events',       label: 'Events',                 order: 8 })
+defineCategory({ id: 'spatial',      label: 'Spatial distribution',   order: 7 })
+defineCategory({ id: 'eye-movement', label: 'Eye movement',           order: 8 })
+defineCategory({ id: 'events',       label: 'Events',                 order: 9 })
 
 export function listCategories(): MetricCategoryDef[] {
   return [..._cats.values()].sort((a, b) => a.order - b.order)

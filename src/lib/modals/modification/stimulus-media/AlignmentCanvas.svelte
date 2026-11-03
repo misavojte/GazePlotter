@@ -266,19 +266,6 @@
       } else {
         ctx.fillStyle = '#e2e8f0' // --c-grey
         ctx.fillRect(r.x, r.y, r.w, r.h)
-        if (mediaFailed) {
-          ctx.save()
-          ctx.font = `11px ${SYSTEM_SANS_SERIF_SMALL_STACK}`
-          ctx.fillStyle = UI_COLORS.TEXT_SECONDARY
-          ctx.textAlign = 'center'
-          ctx.textBaseline = 'middle'
-          ctx.fillText(
-            "This browser can't decode this file",
-            r.x + r.w / 2,
-            r.y + r.h / 2
-          )
-          ctx.restore()
-        }
       }
     }
 
@@ -323,6 +310,19 @@
       ]) {
         ctx.fillRect(Math.round(cx - s / 2), Math.round(cy - s / 2), s, s)
         ctx.strokeRect(Math.round(cx - s / 2) + 0.5, Math.round(cy - s / 2) + 0.5, s - 1, s - 1)
+      }
+      // Over the dots, like the starting-position label: a long video can
+      // take seconds to decode its first frame.
+      if (!mediaEl) {
+        ctx.font = `11px ${SYSTEM_SANS_SERIF_SMALL_STACK}`
+        ctx.textBaseline = 'top'
+        const label = mediaFailed ? "This browser can't decode this file" : `Loading ${kind}…`
+        const lw = ctx.measureText(label).width
+        const ly = Math.round(r.y + r.h) - 17
+        ctx.fillStyle = SCANPATH_COLORS.halo
+        ctx.fillRect(Math.round(r.x) + 2, ly, lw + 6, 15)
+        ctx.fillStyle = UI_COLORS.TEXT_SECONDARY
+        ctx.fillText(label, Math.round(r.x) + 5, ly + 2)
       }
     }
     ctx.restore()

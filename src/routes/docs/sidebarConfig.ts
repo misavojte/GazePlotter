@@ -103,7 +103,7 @@ export const SIDEBAR: readonly SidebarItem[] = [
       {
         name: 'AOI Library',
         href: '/docs/workspace/aoi-library',
-        description: 'Manage Areas of Interest (AOIs). Customize display names, edit color palettes, hide specific AOIs, and configure No-AOI fallback treatment.'
+        description: 'Manage Areas of Interest (AOIs). Customize display names, edit color palettes, narrow plots with AOI selections, and configure No-AOI fallback treatment.'
       },
       {
         name: 'Event Library',
@@ -123,7 +123,7 @@ export const SIDEBAR: readonly SidebarItem[] = [
       {
         name: 'Stimuli Library',
         href: '/docs/workspace/stimuli-library',
-        description: 'Manage stimulus display records. Rename stimulus labels individually or in bulk using regex patterns, reorder or sort the active stimulus sequence, and attach reference images or videos.'
+        description: 'Manage stimulus display records. Rename stimulus labels individually or in bulk using regex patterns, reorder or sort them, merge stimuli, save stimulus selections, and attach reference images or videos.'
       },
     ],
   },
@@ -165,7 +165,7 @@ export const SIDEBAR: readonly SidebarItem[] = [
         name: 'Scanpath Similarity',
         href: '/docs/metrics/scanpath-similarity',
         seoTitle: 'Eye-Tracking Scanpath Similarity Metrics',
-        description: 'Mathematical specifications for scanpath comparison algorithms, including Levenshtein edit distance and global Needleman-Wunsch alignments.'
+        description: 'Mathematical specifications for scanpath comparison algorithms: Levenshtein edit distance, global Needleman-Wunsch alignment, transition similarity, and heatmap overlap (SIM) of where participants looked.'
       },
       {
         name: 'Eye-movement Type Metrics',
@@ -248,7 +248,7 @@ export const SIDEBAR: readonly SidebarItem[] = [
         name: 'Scanpath Similarity',
         href: '/docs/visualizations/scanpath-similarity',
         seoTitle: 'Scanpath Similarity Matrix & Network',
-        description: 'How alike the AOI sequences of every participant pair are, scored by Levenshtein or Needleman-Wunsch, shown as a matrix or a ScanGraph network.'
+        description: 'How alike every participant pair is, by AOI sequence, transitions or heatmap overlap, shown as a matrix ordered by similarity or a ScanGraph network.'
       },
       {
         name: 'Metric Timeline',
@@ -282,7 +282,7 @@ export const SIDEBAR: readonly SidebarItem[] = [
       {
         name: 'Workspace',
         href: '/docs/export/workspace',
-        description: 'Export session states in GazePlotter format. Save active plots, layout styles, groups, and stimulus libraries to resume work later.'
+        description: 'Export session states in GazePlotter format. Save active plots, layout styles, selections, and stimulus libraries to resume work later.'
       },
       {
         name: 'Figures',
@@ -338,7 +338,7 @@ export const SIDEBAR: readonly SidebarItem[] = [
       {
         name: 'Docs Dev Build',
         href: '/docs/advanced/docs-dev-build',
-        description: 'Guidelines for modifying documentation. Run the local docs dev server, edit Markdown content, and structure YAML frontmatter.'
+        description: 'Guidelines for modifying documentation. Run the local docs dev server and edit Markdown content.'
       },
       {
         name: 'Download GazePlotter',

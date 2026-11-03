@@ -69,7 +69,7 @@ function inst(baseId: string, params: Record<string, unknown> = {}): MetricInsta
       : { kind: 'identity-aoi-vector' }, { params })
 }
 
-function values(result: ReturnType<typeof query>): number[] {
+function values(result: ReturnType<typeof query>): readonly number[] {
   if (result.shape === 'aoi-vector') return result.values
   if (result.shape === 'scalar') return [result.value]
   if (result.shape === 'aoi-pair-matrix') return result.matrix

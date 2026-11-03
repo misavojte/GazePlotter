@@ -63,7 +63,7 @@ Filter the temporal range.
 - **End / ms (0 = Auto)**: Limit the maximum time boundary, or leave at 0 for automatic duration matching.
 
 ### Areas of Interest
-Filters which Areas of Interest (AOIs) are active for the metric calculation. If AOIs are selected, the metric is computed only using fixations that land within those active AOIs.
+Filters which Areas of Interest (AOIs) are active for the metric calculation. No fixations are dropped, and whole-stimulus metrics (the `-any` instances) are unaffected.
 - **AOI selection**: A dropdown containing *All* and saved AOI selections; AOIs outside the picked selection count as no-AOI in this plot.
 - **Edit AOIs & selections**: Opens the [AOI Library](/docs/workspace/aoi-library/) to customize names, colors, merges, and selections.
 
@@ -74,7 +74,7 @@ Located at the bottom of the Pane:
 
 ## Interactivity
 
-- **Window under the pointer**: Hovering marks the window and step at the pointer; in the *Overlay* view, the hovered participant's line is emphasised.
+- **Window under the pointer**: Hovering marks the window and step at the pointer; in the *Overlay* view, the hovered participant's line is emphasised. The tooltip shows the **Participant**, the **Window** (start to end in ms), and the value under the metric's axis label, or *No data*.
 - **Linked hovering**: The hovered moment and participant are marked in the other plots of the workspace, and moments and participants hovered elsewhere are marked here, see [Linked Hovering Across Plots](/docs/visualizations/#linked-hovering-across-plots).
 
 ## Related

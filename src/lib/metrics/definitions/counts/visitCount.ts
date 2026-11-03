@@ -24,8 +24,9 @@ defineMetric({
   measurementClass: 'extensive',
   searchTags: ['visit', 'entry', 'entries', 'count', 'aoi', 'number', 'transitions'],
   params: [] as const,
-  // Indivisible events; see fixationCount. The driver skips a non-owned fixation
-  // WITHOUT touching this accumulator's run state, so per-window counts still sum.
+  // Indivisible events; see fixationCount. Each window sees only the fixations
+  // it owns, so a visit with fixations on both sides of a boundary counts in each
+  // window: per-window visit counts are intentionally not additive.
   windowMembership: 'own',
   accumulation: 'stateful',
   init: ({ slots }): Acc => ({

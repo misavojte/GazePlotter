@@ -12,13 +12,6 @@ export const FIXATION_HEATMAP_LAYOUT = {
   /** Legend bar samples of the LUT, composited over white like the map. */
   legendStops: 32,
   tooltipWidth: 170,
-  /** Auto radius as a share of the longer side of the robust fixation extent. */
-  autoRadiusShare: 0.05,
-  /** Robust extent bounds: 1st and 99th percentile per axis. */
-  robustQuantile: 0.01,
-  /** Without media the view clamps outliers beyond this share of the robust
-      extent past each of its edges. */
-  outlierMargin: 0.5,
 } as const
 
 export const FIXATION_HEATMAP_COLORS = {
