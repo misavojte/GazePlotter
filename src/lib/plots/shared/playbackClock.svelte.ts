@@ -215,6 +215,10 @@ export class PlaybackClock {
         t = ready ? v.el.currentTime * 1000 + v.offset : this.time
       }
       this.syncVideo(v, t, false)
+    } else {
+      // Without a video of its own, a run member follows a mate's playing one, so they never drift.
+      const lead = this.runMates().find(c => c.playing && c.video && !c.video.el.paused)?.video
+      if (lead && !lead.el.seeking && lead.el.readyState >= 2) t = lead.el.currentTime * 1000 + lead.offset
     }
     const { end } = this.span
     this.time = Math.min(t, end)

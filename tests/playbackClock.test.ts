@@ -191,6 +191,23 @@ describe('playing together', () => {
     expect([heatmap.playing, scanpath.playing, scanpath.speed]).toEqual([false, true, 2])
   })
 
+  it("follows a mate's playing video rather than its own wall clock", () => {
+    const { heatmap, scanpath } = pair()
+    const el = {
+      paused: true, seeking: false, readyState: 4, currentTime: 0, duration: 30, playbackRate: 1,
+      addEventListener() {}, removeEventListener() {},
+      pause() { this.paused = true },
+      play() { this.paused = false; return Promise.resolve() },
+    }
+    scanpath.bindVideo(el as unknown as HTMLVideoElement, 500)
+    scanpath.toggle([heatmap])
+    // The scanpath's ticks started the video, which runs behind the wall clock: the heatmap reads it.
+    el.paused = false
+    el.currentTime = 1.2
+    ;(heatmap as unknown as { tick: (now: number) => void }).tick(performance.now() + 4000)
+    expect(heatmap.time).toBe(1700)
+  })
+
   it('skips mates with nothing to play', () => {
     const { clocks, heatmap } = pair()
     const empty = clockOf(clocks, 12)
