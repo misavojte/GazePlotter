@@ -432,7 +432,7 @@ export type PlotDefinition<
   cursor?: PlotCursorSpec<TSettings>
   /** Cross-plot sync channels (screen only). */
   sync?: PlotSyncSpec<TSettings, TView>[]
-  /** Joins the stimulus's playback clock and renders with the play bar (screen and export). */
+  /** Gets its own playback clock and renders with the play bar (screen and export). */
   playback?: boolean
   /**
    * The plot's settings pane, declared as an ordered list of sections. The

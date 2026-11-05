@@ -202,7 +202,6 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
     background: 'image',
     // Old workspaces lack these keys; the item factory merges the defaults in.
     playbackSpeed: 1,
-    syncPlayback: true,
   }),
   size: { min: { w: 12, h: 10 }, w: 16, h: 13 },
   requireCapabilities: ['segmented', 'spatial'],

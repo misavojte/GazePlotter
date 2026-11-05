@@ -14,11 +14,9 @@ export type PlaybackSettings = {
   /** Trail length in ms: during playback only fixations within it stay on
       screen. 0 = all; unset = 2 s on a video, all on an image. */
   trailLength?: number
-  /** Relative to recording time. On a shared clock, the plot that started
-      playback sets it. */
+  /** Relative to recording time. Plots played together run at the speed of
+      the one that started them. */
   playbackSpeed: number
-  /** Play on the stimulus's shared clock; off = a private one. */
-  syncPlayback: boolean
   /** The moment shown while paused (recording ms): restored on load, drawn by
       export. Unset = parked: a video's first trail, an image's everything. */
   playTime?: number
@@ -34,7 +32,7 @@ export function trailLengthOf(
   return media?.kind === 'video' ? VIDEO_TRAIL_MS : 0
 }
 
-/** The Playback pane fields: trail length and speed side by side, then the sync switch. */
+/** The Playback pane fields: trail length and speed side by side. */
 export const playbackPaneFields: SectionField[] = [
   {
     kind: 'number',
@@ -63,12 +61,5 @@ export const playbackPaneFields: SectionField[] = [
       { label: '1.5×', value: '1.5' },
       { label: '2×', value: '2' },
     ],
-  },
-  {
-    kind: 'boolean',
-    key: 'syncPlayback',
-    group: 'Playback',
-    label: 'Play with other plots of this stimulus',
-    default: true,
   },
 ]

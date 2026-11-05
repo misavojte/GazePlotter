@@ -139,7 +139,7 @@ function fillFor(scene: Scene, f: ScanpathFixation): string {
 }
 
 /** Visible fixations active at the cursor's times (another plot's hover,
-    a playing shared clock) or at our own playing time. */
+    a playing clock of the stimulus) or at our own playing time. */
 function cursorFixations(scene: Scene, cursor: CursorRead): number[] {
   const { data, player } = scene
   const times = [...cursor.times]

@@ -127,9 +127,9 @@ export function createPlotCursorPort(
       const mine = timeScope()
       if (mine === null) return NO_IDS
       const hovered = c?.times != null && c.times.scope() === mine ? c.times.at() : NO_IDS
-      // The playing clock rides this channel, so readers draw their usual guide.
-      const playing = clocks?.playingTime(mine) ?? null
-      return playing === null ? hovered : [...hovered, playing]
+      // Playing clocks ride this channel, so readers draw their usual guide.
+      const playing = clocks?.playingTimes(mine) ?? NO_IDS
+      return playing.length === 0 ? hovered : [...hovered, ...playing]
     },
     get participants() {
       const c = others()

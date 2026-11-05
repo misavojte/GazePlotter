@@ -69,7 +69,6 @@ export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSetting
     solidColor: SCANPATH_COLORS.fixationFill,
     background: 'image',
     playbackSpeed: 1,
-    syncPlayback: true,
   }),
   size: { min: { w: 12, h: 10 }, w: 16 },
   requireCapabilities: [['segmented', 'spatial']],

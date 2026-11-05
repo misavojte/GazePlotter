@@ -2,6 +2,10 @@
 
 ## 1.10.x
 
+### 1.10.6
+
+* **Scanpath** and **Fixation Heatmap**: Each plot plays on its own. Select several and press play on one to play them together, each to its own end. See [Playing together](/docs/visualizations/scanpath#playing-together).
+
 ### 1.10.5
 
 * *Released on November 3, 2026*
@@ -14,7 +18,7 @@
 
 * *Released on November 2, 2026*
 * **Participants**: *Non-empty* is now a **Hide participants without data** switch that combines with any participant selection. Saved workspaces open unchanged.
-* **Scanpath**: Scanpaths of a stimulus play in sync, and timeline plots show the playback time. Adds a trail on the seek bar, a Time range, and a video start offset. See [Synchronized time](/docs/visualizations/scanpath#synchronized-time).
+* **Scanpath**: Scanpaths of a stimulus play in sync, and timeline plots show the playback time. Adds a trail on the seek bar, a Time range, and a video start offset. See [Synchronized time](/docs/visualizations/scanpath#playing-together).
 * **Fixation Heatmap**: A play bar animates the heatmap over recording time, in step with the stimulus's scanpaths. Show everything looked at so far, or only the last few seconds, over the video frame on a video stimulus. See [Playback](/docs/visualizations/fixation-heatmap#playback). A new *Opacity map* view masks what nobody looked at.
 * **Recurrence Plot**: Each fixation is now a line rather than a cell, so a recurrence is a dot where two fixation lines cross, with fixation 1 on the axes. The cell grid is gone; the axes have whole-number ticks on all four edges and a diagonal guide line, and hovering marks the two fixations with dashed lines. New plots start without masking. See [Recurrence Plot](/docs/visualizations/recurrence-plot).
 * **AOIs**: Names and colors that differ across stimuli show as *Mixed*.

@@ -1,11 +1,12 @@
 /**
- * PLAYBACK CLOCK contract: span union, the driver's speed, seek clamping,
- * membership lifecycle, the playing time on the plot cursor's time channel
+ * PLAYBACK CLOCK contract: seek clamping, rest and saved moments, membership
+ * lifecycle, playing together (a run: one start, one speed, one pause, each on
+ * its own span), the playing times on the plot cursor's time channel
  * (scope-gated), and the scanpath's time range cut. Frame advance and video
  * slaving need a browser and are not covered here.
  */
 import { beforeAll, describe, expect, it, vi } from 'vitest'
-import { PlaybackClocks } from '$lib/plots/shared/playbackClock.svelte'
+import { PlaybackClocks, type PlaybackClock } from '$lib/plots/shared/playbackClock.svelte'
 import { PlotCursorState, createPlotCursorPort } from '$lib/plots/shared/plotCursor.svelte'
 import { getScanpathData } from '$lib/plots/scanpath/core/transformer'
 import { trailLengthOf } from '$lib/plots/shared/playbackFields'
@@ -14,8 +15,12 @@ import { FIXATION_CATEGORY_ID } from '$lib/data/binary'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { ScanpathPlotSettings } from '$lib/plots/scanpath/types'
 
-const shared = PlaybackClocks.sharedKey
 const player = (start: number, end: number, speed = 1) => ({ span: { start, end }, speed })
+/** A clock for plot 10 on stimulus 1, unless told otherwise. */
+const clockOf = (clocks = new PlaybackClocks(), plotId = 10, stimulusId = 1) =>
+  clocks.open(plotId, () => stimulusId)
+const tickPast = (c: PlaybackClock) =>
+  (c as unknown as { tick: (now: number) => void }).tick(performance.now() + 10_000)
 
 // Node has no animation frames; playing only needs a request id.
 beforeAll(() => {
@@ -24,27 +29,18 @@ beforeAll(() => {
 })
 
 describe('clock', () => {
-  it('unions the players and ignores empty spans', () => {
-    const c = new PlaybackClocks().clock(shared(1))
-    c.join(10, player(0, 4000))
-    c.join(11, player(500, 6000))
-    c.join(12, player(0, 0))
-    expect(c.span).toEqual({ start: 0, end: 6000 })
-  })
-
-  it("runs at the driver's speed", () => {
-    const c = new PlaybackClocks().clock(shared(1))
-    c.join(10, player(0, 4000, 0.5))
-    c.join(11, player(0, 4000, 2))
-    expect(c.speed).toBe(0.5)
-    c.play(11)
-    expect(c.speed).toBe(2)
+  it('has no span before its player, or with an empty one', () => {
+    const c = clockOf()
+    expect(c.span).toEqual({ start: 0, end: 0 })
+    c.setPlayer(player(0, 0))
+    c.play()
+    expect(c.playing).toBe(false)
   })
 
   it('starts from the top when parked and clamps seeks to the span', () => {
-    const c = new PlaybackClocks().clock(shared(1))
-    c.join(10, player(1000, 4000))
-    c.play(10)
+    const c = clockOf()
+    c.setPlayer(player(1000, 4000))
+    c.play()
     expect(c.time).toBe(1000)
     c.seek(-50)
     expect(c.time).toBe(1000)
@@ -53,110 +49,163 @@ describe('clock', () => {
   })
 
   it('pulls a stranded playhead back when the span shrinks', () => {
-    const c = new PlaybackClocks().clock(shared(1))
-    c.join(10, player(0, 8000))
+    const c = clockOf()
+    c.setPlayer(player(0, 8000))
     c.seek(7000)
-    c.join(10, player(0, 5000))
+    c.setPlayer(player(0, 5000))
     expect(c.time).toBe(5000)
   })
 
   it('reset parks the clock again', () => {
-    const c = new PlaybackClocks().clock(shared(1))
-    c.join(10, player(0, 4000))
-    c.play(10)
+    const c = clockOf()
+    c.setPlayer(player(0, 4000))
+    c.play()
     c.reset()
     expect(c.time).toBeNull()
     expect(c.playing).toBe(false)
   })
 
-  it('rests at the latest rest time, plays from the start, and resets back to rest', () => {
-    const c = new PlaybackClocks().clock(shared(1))
-    c.join(10, { ...player(0, 8000), rest: 2000 })
+  it('rests at its rest time, plays from the start, and resets back to rest', () => {
+    const c = clockOf()
+    c.setPlayer({ ...player(0, 8000), rest: 2000 })
     expect(c.time).toBe(2000)
-    c.join(11, { ...player(0, 8000), rest: 3000 })
-    expect(c.time).toBe(3000)
-    c.play(10)
+    c.play()
     expect(c.time).toBe(0)
     c.seek(5000)
-    c.join(10, { ...player(0, 8000), rest: 1000 })
+    c.setPlayer({ ...player(0, 8000), rest: 1000 })
     expect(c.time).toBe(5000)
     c.reset()
-    expect([c.time, c.playing]).toEqual([3000, false])
-    c.leave(11)
-    expect(c.time).toBe(1000)
+    expect([c.time, c.playing]).toEqual([1000, false])
   })
 
   it('returns to rest at the end, and holds the end without a rest time', () => {
-    const tickPast = (c: ReturnType<PlaybackClocks['clock']>) =>
-      (c as unknown as { tick: (now: number) => void }).tick(performance.now() + 10_000)
-    const video = new PlaybackClocks().clock(shared(1))
-    video.join(10, { ...player(0, 8000), rest: 2000 })
-    video.play(10)
+    const video = clockOf()
+    video.setPlayer({ ...player(0, 8000), rest: 2000 })
+    video.play()
     tickPast(video)
     expect([video.time, video.playing]).toEqual([2000, false])
-    const image = new PlaybackClocks().clock(shared(2))
-    image.join(10, player(0, 8000))
-    image.play(10)
+    const image = clockOf()
+    image.setPlayer(player(0, 8000))
+    image.play()
     tickPast(image)
     expect([image.time, image.playing]).toEqual([8000, false])
   })
 
   it('moves a paused clock to a changed saved moment, and plays on from it', () => {
-    const c = new PlaybackClocks().clock(shared(1))
-    // The membership placeholder joins first, then the figure with its saved moment (a load).
-    c.join(10, player(0, 0))
-    c.join(10, { ...player(0, 8000), rest: 2000, saved: 5000 })
+    const c = clockOf()
+    // The placeholder first, then the figure with its saved moment (a load).
+    c.setPlayer(player(0, 0))
+    c.setPlayer({ ...player(0, 8000), rest: 2000, saved: 5000 })
     expect(c.moment).toBe(5000)
     // An unchanged moment keeps a later seek.
     c.seek(6000)
-    c.join(10, { ...player(0, 8000), rest: 2000, saved: 5000 })
+    c.setPlayer({ ...player(0, 8000), rest: 2000, saved: 5000 })
     expect(c.time).toBe(6000)
     // A changed one (undo) moves it; cleared, it parks at rest.
-    c.join(10, { ...player(0, 8000), rest: 2000, saved: 4000 })
+    c.setPlayer({ ...player(0, 8000), rest: 2000, saved: 4000 })
     expect(c.time).toBe(4000)
-    c.join(10, { ...player(0, 8000), rest: 2000, saved: null })
+    c.setPlayer({ ...player(0, 8000), rest: 2000, saved: null })
     expect([c.time, c.moment]).toEqual([2000, null])
-    c.join(10, { ...player(0, 8000), rest: 2000, saved: 4000 })
-    c.play(10)
+    c.setPlayer({ ...player(0, 8000), rest: 2000, saved: 4000 })
+    c.play()
     expect(c.time).toBe(4000)
   })
 
   it('ignores a saved moment while playing', () => {
-    const c = new PlaybackClocks().clock(shared(1))
-    c.join(10, player(0, 8000))
-    c.play(10)
+    const c = clockOf()
+    c.setPlayer(player(0, 8000))
+    c.play()
     c.seek(1000)
-    c.join(10, { ...player(0, 8000), saved: 5000 })
+    c.setPlayer({ ...player(0, 8000), saved: 5000 })
     expect(c.time).toBe(1000)
   })
 })
 
 describe('membership', () => {
-  it('drops the clock with its last player', () => {
+  it('drops a closed clock, but not a newer one of the same plot', () => {
     const clocks = new PlaybackClocks()
-    clocks.clock(shared(1)).join(10, player(0, 4000))
-    clocks.clock(shared(1)).join(11, player(0, 4000))
-    const c = clocks.clock(shared(1))
-    clocks.leave(shared(1), 10)
-    expect(clocks.clock(shared(1))).toBe(c)
-    clocks.leave(shared(1), 11)
-    expect(clocks.clock(shared(1))).not.toBe(c)
+    const old = clockOf(clocks)
+    const fresh = clockOf(clocks)
+    clocks.close(old)
+    expect(clocks.get(10)).toBe(fresh)
+    clocks.close(fresh)
+    expect(clocks.get(10)).toBeUndefined()
   })
 
-  it('keeps private clocks out of the stimulus readers', () => {
+  it('stops a clock on close', () => {
     const clocks = new PlaybackClocks()
-    const own = clocks.clock(PlaybackClocks.privateKey(10))
-    own.join(10, player(0, 4000))
-    own.play(10)
-    expect(clocks.playingTime(1)).toBeNull()
+    const c = clockOf(clocks)
+    c.setPlayer(player(0, 4000))
+    c.play()
+    clocks.close(c)
+    expect(c.playing).toBe(false)
+  })
+})
+
+describe('playing together', () => {
+  const pair = () => {
+    const clocks = new PlaybackClocks()
+    const heatmap = clockOf(clocks, 10)
+    heatmap.setPlayer(player(0, 60_000))
+    const scanpath = clockOf(clocks, 11)
+    scanpath.setPlayer(player(0, 10_000, 2))
+    return { clocks, heatmap, scanpath }
+  }
+
+  it('plays alone without mates, each clock on its own span', () => {
+    const { heatmap, scanpath } = pair()
+    heatmap.toggle()
+    expect([heatmap.playing, scanpath.playing]).toEqual([true, false])
+    expect(heatmap.span).toEqual({ start: 0, end: 60_000 })
+    expect(scanpath.span).toEqual({ start: 0, end: 10_000 })
+  })
+
+  it("starts the mates at the starter's moment and speed", () => {
+    const { heatmap, scanpath } = pair()
+    heatmap.seek(4000)
+    heatmap.toggle([scanpath])
+    expect([heatmap.time, scanpath.time]).toEqual([4000, 4000])
+    expect([heatmap.playing, scanpath.playing]).toEqual([true, true])
+    expect(scanpath.speed).toBe(1)
+  })
+
+  it('ends a short member on its own and pauses the whole run together', () => {
+    const { heatmap, scanpath } = pair()
+    heatmap.toggle([scanpath])
+    tickPast(scanpath)
+    expect([heatmap.playing, scanpath.playing, scanpath.time]).toEqual([true, false, 10_000])
+    // A seek during the run brings an ended member back.
+    heatmap.scrub(3000)
+    expect([scanpath.playing, scanpath.time]).toEqual([true, 3000])
+    scanpath.toggle()
+    expect([heatmap.playing, scanpath.playing]).toEqual([false, false])
+  })
+
+  it('seeks alone while paused, and plays alone again without mates', () => {
+    const { heatmap, scanpath } = pair()
+    heatmap.toggle([scanpath])
+    heatmap.toggle()
+    heatmap.scrub(20_000)
+    expect(scanpath.time).not.toBe(20_000)
+    scanpath.toggle()
+    expect([heatmap.playing, scanpath.playing, scanpath.speed]).toEqual([false, true, 2])
+  })
+
+  it('skips mates with nothing to play', () => {
+    const { clocks, heatmap } = pair()
+    const empty = clockOf(clocks, 12)
+    heatmap.toggle([empty])
+    expect([heatmap.playing, empty.playing, heatmap.run]).toEqual([true, false, null])
   })
 })
 
 describe('plot cursor port', () => {
-  it('carries the playing time on the time channel of its own scope only', () => {
+  it('carries the playing times on the time channel of their stimulus only', () => {
     const clocks = new PlaybackClocks()
-    const c = clocks.clock(shared(7))
-    c.join(10, player(0, 4000))
+    const c = clockOf(clocks, 10, 7)
+    c.setPlayer(player(0, 4000))
+    const d = clockOf(clocks, 11, 7)
+    d.setPlayer(player(0, 4000))
     const state = new PlotCursorState()
     const same = createPlotCursorPort(state, 1, () => 7, clocks)
     const other = createPlotCursorPort(state, 2, () => 9, clocks)
@@ -164,10 +213,13 @@ describe('plot cursor port', () => {
     c.seek(1200)
     // Paused: nothing is drawn.
     expect(same.times).toEqual([])
-    c.play(10)
+    c.play()
     expect(same.times).toEqual([1200])
     expect(other.times).toEqual([])
     expect(off.times).toEqual([])
+    d.play(2500)
+    expect(same.times).toEqual([1200, 2500])
+    d.reset()
     // A hover elsewhere on the stimulus joins it.
     other.publish(null)
     const hover = createPlotCursorPort(state, 4, () => 7, clocks)
@@ -238,15 +290,15 @@ describe('trail length', () => {
 
 describe('saved moment (export parity)', () => {
   it('saves the paused time, and nothing while the clock rests', () => {
-    const c = new PlaybackClocks().clock(shared(1))
-    c.join(10, { ...player(0, 8000), rest: 2000 })
+    const c = clockOf()
+    c.setPlayer({ ...player(0, 8000), rest: 2000 })
     expect(c.moment).toBeNull()
     c.seek(4500)
     expect(c.moment).toBe(4500)
     c.reset()
     expect(c.moment).toBeNull()
-    const image = new PlaybackClocks().clock(shared(2))
-    image.join(10, player(0, 8000))
+    const image = clockOf()
+    image.setPlayer(player(0, 8000))
     expect(image.moment).toBeNull()
   })
 
