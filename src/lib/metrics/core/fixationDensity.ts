@@ -10,7 +10,7 @@ import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { Rect } from '$lib/data/media/mediaAlignment'
 import { mediaRegionOf } from '$lib/data/media/stimulusMedia'
 import type { StimulusMedia } from '$lib/data/types'
-import { fillWindowFrame, type WindowFrame } from './dsl'
+import { fillWindowFrame, segmentInRange, type WindowFrame } from './dsl'
 import { percentileSorted } from './numeric'
 
 /** The located fixations of some participants on one stimulus within a time range. */
@@ -62,14 +62,16 @@ export function scopedFixations(
   let withoutCoordinates = 0
   for (let p = 0; p < participantIds.length; p++) {
     const { startIndex, endIndex } = reader.getFixationRange(stimulusId, participantIds[p])
+    const rStart = reader.getParticipantStartTime(stimulusId, participantIds[p])
+    const rEnd = reader.getParticipantEndTime(stimulusId, participantIds[p])
     for (let k = startIndex; k < endIndex; k++) {
       const i = fixIdx[k]
       const base = i * SEGMENT_STRIDE
       const start = segBuf[base + SegmentField.START_TIME]
       const end = segBuf[base + SegmentField.END_TIME]
       // KEEP IN SYNC with metrics/core/scanner.ts: its two skip lines + fillWindowFrame.
-      if (timeEnd > 0 && start >= timeEnd) break
-      if (end <= timeStart) continue
+      if (timeEnd > 0 && start > timeEnd) break
+      if (!segmentInRange(start, end, timeStart, timeEnd, rStart, rEnd)) continue
       const midInScope = fillWindowFrame(frame, start, end, timeStart, timeEnd)
       const w = weight === 'duration' ? frame.duration : midInScope ? 1 : 0
       if (!(w > 0)) continue

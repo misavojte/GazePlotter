@@ -1,7 +1,7 @@
 import type { AoiNarrowing } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { type BinaryBufferReader, SEGMENT_STRIDE, SegmentField } from '$lib/data/binary'
-import { getAois, getParticipantEndTime } from '$lib/data/engine'
+import { getAois, getParticipantEndTime, getParticipantStartTime } from '$lib/data/engine'
 import { buildAoiSlots } from './aoiSlots'
 import {
   categoryCacheToken,
@@ -11,7 +11,6 @@ import {
 import {
   eventCacheToken,
   eventGroupNames,
-  occurrenceOverlapsRange,
   resolveEventScan,
   type EventScanStream,
 } from './eventScan'
@@ -27,7 +26,7 @@ import {
   type WindowedProjection,
 } from './projection'
 import type { ExtendedInterpretedDataType } from '$lib/data/types'
-import { fillWindowFrame, scopeDurationOf } from './dsl'
+import { fillWindowFrame, scopeDurationOf, segmentInRange } from './dsl'
 import type { AoiSlotInfo, FixationEvent, GroupResult, GroupScope, InitCtx, MetricRecipe, OutputShape, WindowFrame } from './dsl'
 import type { GroupReduction } from './measurement'
 import type { MetricInstance } from '../instances'
@@ -367,6 +366,8 @@ function computeTimeWindowedFused(
     scope.stimulusId,
     scope.participantId,
   )
+  const rStart = reader.getParticipantStartTime(scope.stimulusId, scope.participantId)
+  const rEnd = reader.getParticipantEndTime(scope.stimulusId, scope.participantId)
   const segBuf = reader.segmentBufferRaw
   const aoiPool = reader.aoiPoolRaw
 
@@ -375,8 +376,8 @@ function computeTimeWindowedFused(
     const base = i * SEGMENT_STRIDE
     const start = segBuf[base + SegmentField.START_TIME]
     const end = segBuf[base + SegmentField.END_TIME]
-    if (start >= tEnd) break
-    if (end <= tStart) continue
+    if (start > tEnd) break
+    if (!segmentInRange(start, end, tStart, tEnd, rStart, rEnd)) continue
 
     // KEEP IN SYNC with scanAccumulator/computeTimeWindowed/scanBatch (pinned
     // by the windowed==oracle suite) — same decode + resolve, with the dedupe
@@ -402,8 +403,8 @@ function computeTimeWindowedFused(
     let wHi = Math.ceil((end - tStart) / step)
     if (wLo < 0) wLo = 0
     if (wHi > W - 1) wHi = W - 1
-    while (wLo <= wHi && !(start < timeline[wLo] + windowSize && end > timeline[wLo])) wLo++
-    while (wHi >= wLo && !(start < timeline[wHi] + windowSize && end > timeline[wHi])) wHi--
+    while (wLo <= wHi && !segmentInRange(start, end, timeline[wLo], timeline[wLo] + windowSize, rStart, rEnd)) wLo++
+    while (wHi >= wLo && !segmentInRange(start, end, timeline[wHi], timeline[wHi] + windowSize, rStart, rEnd)) wHi--
 
     const mid = start + (end - start) * 0.5
     for (let w = wLo; w <= wHi; w++) {
@@ -411,7 +412,7 @@ function computeTimeWindowedFused(
       // The SAME declared membership the general driver enforces, so the two
       // engines cannot drift. Separate axis from the weighting below: membership
       // decides whether the fixation belongs here, weighting decides by how much.
-      if (ownWindowOnly && (mid < wStart || mid >= wStart + windowSize)) continue
+      if (ownWindowOnly && end > start && (mid < wStart || mid >= wStart + windowSize)) continue
       let v: number
       if (isDurationWeighted) {
         const s0 = start > wStart ? start : wStart
@@ -576,6 +577,8 @@ function computeTimeWindowed(
   // the full category walk otherwise.
   const { reader, rawToSlot } = resolved
   const { idx: scanIdx, start: sStart, end: sEnd, catSlots: scanCatSlots } = scan
+  const rStart = reader.getParticipantStartTime(scope.stimulusId, scope.participantId)
+  const rEnd = reader.getParticipantEndTime(scope.stimulusId, scope.participantId)
   const segBuf = reader.segmentBufferRaw
   const aoiPool = reader.aoiPoolRaw
   const resolvedSlots: number[] = []
@@ -589,12 +592,12 @@ function computeTimeWindowed(
     const start = segBuf[base + SegmentField.START_TIME]
     const end = segBuf[base + SegmentField.END_TIME]
     // Scanned segments are time-ordered by start; once past the scope none can overlap.
-    if (start >= tEnd) break
-    if (end <= tStart) continue
+    if (start > tEnd) break
+    if (!segmentInRange(start, end, tStart, tEnd, rStart, rEnd)) continue
 
     // Sweep: close every window the cursor has passed. `start` only grows, so a
-    // window with `wEnd <= start` can receive no further fixation → finalize+free.
-    while (nextClose < W && timeline[nextClose] + windowSize <= start) {
+    // window with `wEnd < start` can receive no further fixation → finalize+free.
+    while (nextClose < W && timeline[nextClose] + windowSize < start) {
       finalizeWindow(nextClose)
       nextClose++
     }
@@ -615,8 +618,7 @@ function computeTimeWindowed(
     const duration = end - start
     fixEvent.start = start
     fixEvent.duration = duration
-    // A fixation overlaps window w iff
-    // `start < timeline[w] + windowSize && end > timeline[w]`. Take a superset
+    // A fixation belongs to window w by `segmentInRange`. Take a superset
     // range arithmetically, then trim both edges with the exact predicate
     // (robust to float ms); satisfying windows are contiguous because
     // timeline[w] is monotonic.
@@ -625,8 +627,8 @@ function computeTimeWindowed(
     // Lower edge never precedes `nextClose` — those windows are already closed.
     if (wLo < nextClose) wLo = nextClose
     if (wHi > W - 1) wHi = W - 1
-    while (wLo <= wHi && !(start < timeline[wLo] + windowSize && end > timeline[wLo])) wLo++
-    while (wHi >= wLo && !(start < timeline[wHi] + windowSize && end > timeline[wHi])) wHi--
+    while (wLo <= wHi && !segmentInRange(start, end, timeline[wLo], timeline[wLo] + windowSize, rStart, rEnd)) wLo++
+    while (wHi >= wLo && !segmentInRange(start, end, timeline[wHi], timeline[wHi] + windowSize, rStart, rEnd)) wHi--
 
     const mid = start + duration * 0.5
     for (let w = wLo; w <= wHi; w++) {
@@ -639,7 +641,7 @@ function computeTimeWindowed(
       // THE membership gate, for every metric, written once. Declared per recipe
       // (`windowMembership`) instead of an `if` copied into each `onFixation`,
       // which is how three recipes ended up with the rule for a different family.
-      if (ownWindowOnly && !(mid >= wStart && mid < wEnd)) continue
+      if (ownWindowOnly && end > start && !(mid >= wStart && mid < wEnd)) continue
       // Inlined `fillWindowFrame`, bounded case (a windowed scope always is),
       // to avoid a call per dispatch in the hot loop.
       const fStartClip = start > wStart ? start : wStart
@@ -690,6 +692,8 @@ function computeTimeWindowedEvents(
   if (W === 0) return emptyTimeseries(false, slots)
 
   const stream = resolveEventScan(scope.engine, scope.stimulusId, scope.participantId)
+  const rStart = getParticipantStartTime(scope.engine, scope.stimulusId, scope.participantId)
+  const rEnd = getParticipantEndTime(scope.engine, scope.stimulusId, scope.participantId)
   // Every window of a run shares one extent (see InitCtx.scopeDurationMs).
   const ctx = scanCtx(recipe, instance, slots, windowSize, stream.slotCount)
   const ownWindowOnly = recipe.windowMembership === 'own'
@@ -708,7 +712,7 @@ function computeTimeWindowedEvents(
   for (let w = 0; w < W; w++) {
     const wStart = timeline[w]
     const acc = init(ctx)
-    scanEventRange(recipe, stream, acc, ctx, frame, fixEvent, wStart, wStart + windowSize, ownWindowOnly)
+    scanEventRange(recipe, stream, acc, ctx, frame, fixEvent, wStart, wStart + windowSize, rStart, rEnd, ownWindowOnly)
     projCtx.rawValues = finalize(acc, slots, ctx)
     const out = applyProjection(inner, projCtx)
     if (out.refMissing) refMissing = true
@@ -959,11 +963,9 @@ export function scanAccumulator(
   const { reader, rawToSlot } = slots
   // See InitCtx.scopeDurationMs. The GAZE recording extent for event recipes
   // too, so shares stay comparable with the fixation metrics' denominators.
-  const scopeDurationMs = scopeDurationOf(
-    timeStart,
-    timeEnd,
-    reader.getParticipantEndTime(scope.stimulusId, scope.participantId)
-  )
+  const rStart = reader.getParticipantStartTime(scope.stimulusId, scope.participantId)
+  const rEnd = reader.getParticipantEndTime(scope.stimulusId, scope.participantId)
+  const scopeDurationMs = scopeDurationOf(timeStart, timeEnd, rEnd)
   // Event recipes iterate the occurrence stream, never segment buffers. Same
   // ScanOutput contract, so callers and caches flow through unchanged;
   // `ctx.slots` still carries the AOI layout, though no event recipe reads it.
@@ -973,7 +975,7 @@ export function scanAccumulator(
     const acc = recipe.init(ctx)
     // No AOI axis on an event scan; the shared empty array is never written.
     const { frame, fixEvent } = makeScanCursor(EMPTY_NUMBER_ARRAY)
-    scanEventRange(recipe, stream, acc, ctx, frame, fixEvent, timeStart, timeEnd, ownWindowOnly)
+    scanEventRange(recipe, stream, acc, ctx, frame, fixEvent, timeStart, timeEnd, rStart, rEnd, ownWindowOnly)
     return { acc, ctx }
   }
   const scan = resolveScanIndex(
@@ -1000,8 +1002,8 @@ export function scanAccumulator(
     if (scanCatSlots !== null) fixEvent.axisSlot = scanCatSlots[k]
     const start = segBuf[base + SegmentField.START_TIME]
     const end = segBuf[base + SegmentField.END_TIME]
-    if (timeEnd > 0 && start >= timeEnd) break
-    if (end <= timeStart) continue
+    if (timeEnd > 0 && start > timeEnd) break
+    if (!segmentInRange(start, end, timeStart, timeEnd, rStart, rEnd)) continue
 
     // KEEP IN SYNC with computeTimeWindowed/scanBatch — this decode + resolve
     // + dedupe block is a scientific invariant, inlined in all three scans for
@@ -1035,9 +1037,8 @@ export function scanAccumulator(
 /**
  * THE bounded pass of an occurrence stream into `acc`, shared by the
  * unwindowed scan and the per-window driver so the two cannot drift.
- * Scope membership is `occurrenceOverlapsRange` (half-open, instants land in
- * exactly one window of a tiling); contribution and 'own' membership reuse
- * the segment scans' `fillWindowFrame` rules verbatim.
+ * Scope membership is the segment scans' `segmentInRange`; contribution and
+ * 'own' membership reuse their `fillWindowFrame` rules verbatim.
  */
 function scanEventRange(
   recipe: MetricRecipe<any, any>,
@@ -1048,6 +1049,8 @@ function scanEventRange(
   fixEvent: FixationEvent,
   timeStart: number,
   timeEnd: number,
+  recordingStart: number,
+  recordingEnd: number,
   ownWindowOnly: boolean,
 ): void {
   const hi = timeEnd > 0 ? timeEnd : Number.POSITIVE_INFINITY
@@ -1056,10 +1059,10 @@ function scanEventRange(
   for (let k = 0; k < stream.count; k++) {
     const start = stream.starts[k]
     // Sorted by start; once past the scope none can overlap.
-    if (start >= hi) break
+    if (start > hi) break
     const duration = stream.durations[k]
     const end = start + duration
-    if (!occurrenceOverlapsRange(start, end, timeStart, hi)) continue
+    if (!segmentInRange(start, end, timeStart, timeEnd, recordingStart, recordingEnd)) continue
     const midInScope = fillWindowFrame(frame, start, end, timeStart, timeEnd)
     if (ownWindowOnly && !midInScope) continue
     fixEvent.axisSlot = stream.slots[k]

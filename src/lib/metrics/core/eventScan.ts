@@ -123,20 +123,6 @@ export function resolveEventScan(
 }
 
 /**
- * THE half-open + instant membership rule: an interval overlaps `[lo, hi)`
- * by positive intersection; an instant `[t, t)` lies where `t` lies, so it
- * lands in exactly one window of a non-overlapping tiling.
- */
-export function occurrenceOverlapsRange(
-  start: number,
-  end: number,
-  lo: number,
-  hi: number
-): boolean {
-  return end > start ? start < hi && end > lo : start >= lo && start < hi
-}
-
-/**
  * Event results depend on state the reader-keyed bucket cannot see: the
  * occurrence buffers (`eventVersion` bumps on load, upload, create-intervals,
  * deletion — all via `updateEventDataBatch`) and the per-stimulus channel

@@ -111,3 +111,67 @@ describe('Start-only scope equals the bounded scope ending at the recording end'
     expect(share[0]).toBeCloseTo(28, 10)
   })
 })
+
+describe('zero-length segments on range edges', () => {
+  const one = (segments: number[][]) =>
+    makeTestEngine([[], [segments]], {
+      categories: [
+        ['Fixation', 'Fixation', '#000000'],
+        ['Saccade', 'Saccade', '#111111'],
+      ],
+    })
+  const count = (segs: number[][], baseId: string, kind: string, scope: Partial<Scope>) =>
+    valuesOf(one(segs), inst(baseId, baseId, kind), scope)
+  const scalarOf = (segs: number[][], baseId: string, scope: Partial<Scope>) =>
+    (query(inst(baseId, baseId, 'identity-scalar'), { engine: one(segs), stimulusId: STIM, participantId: 0, ...scope }) as { value: number }).value
+  const windowed = (segs: number[][], baseId: string, scope: Partial<Scope>): number[][] => {
+    const i = {
+      ...inst(baseId, baseId, 'windowed'),
+      projection: { kind: 'windowed', window: { windowSize: 540, stepSize: 540 }, inner: { kind: 'identity-aoi-vector' } },
+    } as MetricInstance
+    const r = query(i, { engine: one(segs), stimulusId: STIM, participantId: 0, timeStart: 0, timeEnd: 0, ...scope })
+    return (r as { vectors: number[][] }).vectors
+  }
+
+  it('an instant at the recording end belongs to a..R exactly like to a..0 (RQA)', () => {
+    // Two fixations on AOI 1; the second is a zero-length one at the recording end 6827.
+    const segs = [[6204, 6827, 0, 1], [6827, 6827, 0, 1]]
+    for (const baseId of ['rqaDet', 'rqaLam']) {
+      expect(scalarOf(segs, baseId, { timeStart: 6287, timeEnd: 0 }), baseId).toBe(0)
+      expect(scalarOf(segs, baseId, { timeStart: 6287, timeEnd: 6827 }), baseId).toBe(0)
+    }
+  })
+
+  it('a lone zero-length segment at 0 is counted by the whole-recording scope', () => {
+    // Slots: AOI1, AOI2, noAoi, anyFixation; categories: Fixation, Saccade.
+    expect(count([[0, 0, 0]], 'fixationCount', 'identity-aoi-vector', {})).toEqual([0, 0, 1, 1])
+    expect(count([[0, 0, 0]], 'movementCount', 'identity-category-vector', {})).toEqual([1, 0])
+    expect(count([[0, 0, 1]], 'movementCount', 'identity-category-vector', {})).toEqual([0, 1])
+  })
+
+  it('a one-instant recording is held by the range from its own start, wherever the clock starts', () => {
+    // The same recording shifted to 5000: the range from its start still holds it.
+    expect(count([[5000, 5000, 0]], 'fixationCount', 'identity-aoi-vector', { timeStart: 5000 })).toEqual([0, 0, 1, 1])
+    expect(count([[5000, 5000, 0]], 'fixationCount', 'identity-aoi-vector', {})).toEqual([0, 0, 1, 1])
+  })
+
+  it('an instant on a cut is counted by exactly one half (window additivity)', () => {
+    const fc = (segs: number[][], scope: Partial<Scope>) =>
+      count(segs, 'fixationCount', 'identity-aoi-vector', scope).at(-1)
+    const whole = { timeStart: 6287, timeEnd: 11955 }
+    const left = { timeStart: 6287, timeEnd: 6827 }
+    const right = { timeStart: 6827, timeEnd: 11955 }
+    // At the recording end 6827 the instant goes to the half reaching it, not to the half starting there.
+    const atEnd = [[6300, 6400, 0], [6827, 6827, 0]]
+    expect([fc(atEnd, whole), fc(atEnd, left), fc(atEnd, right)]).toEqual([2, 2, 0])
+    // Inside the recording it goes to the half starting on it, like a midpoint on the cut.
+    const inside = [[6827, 6827, 0], [6900, 7000, 0]]
+    expect([fc(inside, whole), fc(inside, left), fc(inside, right)]).toEqual([2, 0, 2])
+    // The windowed drivers tile [6287, 6827), [6827, 7367), ... the same way.
+    const noAoi = (segs: number[][], baseId: string) => windowed(segs, baseId, whole).slice(0, 2).map(v => v[2])
+    expect(noAoi(atEnd, 'fixationCount')).toEqual([2, 0])
+    expect(noAoi(inside, 'fixationCount')).toEqual([0, 2])
+    expect(noAoi(atEnd, 'visitCount')).toEqual([1, 0])
+    expect(noAoi(inside, 'visitCount')).toEqual([0, 1])
+  })
+})

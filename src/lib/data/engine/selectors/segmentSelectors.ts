@@ -31,6 +31,16 @@ export const getNumberOfFixations = (
   return endIndex - startIndex
 }
 
+export const getParticipantStartTime = (
+  engine: DataEngine,
+  stimulusId: number,
+  particIndex: number
+): number => {
+  const reader = engine.getReader()
+  if (!reader) throw new Error('Binary reader not available')
+  return reader.getParticipantStartTime(stimulusId, particIndex)
+}
+
 export const getParticipantEndTime = (
   engine: DataEngine,
   stimulusId: number,

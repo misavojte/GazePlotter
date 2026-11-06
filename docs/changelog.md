@@ -5,6 +5,7 @@
 ### 1.10.6
 
 * **Scanpath** and **Fixation Heatmap**: Each plot plays on its own. Select several and press play on one to play them together, each to its own end. See [Playing together](/docs/visualizations/scanpath#playing-together).
+* **Metrics**: A zero-length segment on the edge of a time range or window is now counted once instead of being dropped. Counts such as Fixation Count, Visit Count and Movement Count, the heatmap's fixation counts, and RQA can change where such a segment sits on an edge. See [Windowing](/docs/metrics#windowing-and-binning-rules).
 
 ### 1.10.5
 

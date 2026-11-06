@@ -119,7 +119,34 @@ export function fillWindowFrame(
   // A bounded scope IS one window, so membership applies here too. This returns the
   // FACT (is the midpoint inside?); the POLICY is the recipe's `windowMembership`,
   // applied by the caller — one fact per fixation, N recipes may judge it differently.
-  return bounded ? (start + end) / 2 >= windowStart && (start + end) / 2 < windowEnd : true
+  // An instant (`end === start`) has no midpoint rule: its membership IS the
+  // scope check (`segmentInRange`), which every scan applies before this.
+  return !bounded || end === start || ((start + end) / 2 >= windowStart && (start + end) / 2 < windowEnd)
+}
+
+/**
+ * THE scope membership of a segment in `[timeStart, timeEnd)` (`timeEnd` 0 =
+ * open end): a positive-length segment overlaps it; a zero-length segment lies
+ * where its instant lies, so an instant on a cut belongs to the window that
+ * starts there (as the half-open midpoint rule) and to exactly one window of
+ * a tiling. The recording end `R` closes the last range: the instant at `R`
+ * belongs to the range that reaches `R` (so `a..R` holds what `a..0` holds),
+ * not to one starting at `R`, past the recording, unless the recording is
+ * that one instant (`R` is also its start). Keyed on the recording's own
+ * start, not on 0, so shifting the clock changes no answer.
+ */
+export function segmentInRange(
+  start: number,
+  end: number,
+  timeStart: number,
+  timeEnd: number,
+  recordingStart: number,
+  recordingEnd: number
+): boolean {
+  const hi = timeEnd > 0 ? timeEnd : Number.POSITIVE_INFINITY
+  if (end > start) return start < hi && end > timeStart
+  if (start !== recordingEnd) return start >= timeStart && start < hi
+  return hi >= start && (timeStart < start || (timeStart === start && start === recordingStart))
 }
 
 /** `InitCtx.scopeDurationMs` of a scan range; `recordingEnd` closes an open end. */

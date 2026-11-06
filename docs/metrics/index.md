@@ -71,6 +71,9 @@ GazePlotter projects fixations onto moving time windows with two independent sig
    - `'own'`: only the window holding the fixation's midpoint. Use it when counting things that cannot be split (`fixationCount`, `movementCount`), so the per-window numbers still add up to the total when the windows do not overlap. A window that owns nothing reports 0, not missing data. Event Count deliberately uses `'all'` instead: it counts the occurrences ACTIVE in each window, a concurrency reading whose per-window values do not tile to a total.
    Metrics reporting additive totals must state their rule explicitly, and a contradictory choice is rejected when the metric is registered. An average must never use `'own'`: it would report no data for a window a fixation plainly covers.
 
+3. **Zero-length segments**:
+   A segment whose start equals its end (for example a one-sample AOI run in a time-series CSV) belongs to the window it lies in. On a cut between two windows it belongs to the window that starts there, so it is counted exactly once. At the recording's end it belongs to the range that reaches the end, so a range with **End** set to the recording's end counts what the same range with End on Auto counts. Event instants follow the same rule.
+
 ## Aggregating Across Participants
 
 When a plot summarizes a whole group, it must combine each participant's value into a single result. Whether a given combination is meaningful is decided by the metric's **measurement class**. This is a scientific property of the quantity itself, not a setting you have to reason about:
