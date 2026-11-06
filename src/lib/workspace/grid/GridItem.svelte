@@ -12,9 +12,11 @@
   import type { PlotSubtitleParts } from '$lib/plots/definePlot'
   import { responsive } from '../responsive.svelte'
   import { useContextMenuAction, type MenuItem } from '$lib/context-menu'
+  import { useTooltipAction } from '$lib/tooltip'
 
   const { grid } = getGazePlotterSession()
   const contextMenuAction = useContextMenuAction()
+  const tooltipAction = useTooltipAction()
 
   type GridRect = { id: number; x: number; y: number; w: number; h: number }
   type IdOnly = { id: number }
@@ -251,7 +253,10 @@
             {#if i > 0}
               <span class="grid-item-subtitle-divider" aria-hidden="true"></span>
             {/if}
-            <span class="grid-item-subtitle-value" title="{part.label}: {part.value}">{part.value}</span>
+            <span
+              class="grid-item-subtitle-value"
+              use:tooltipAction={{ content: [{ key: part.label, value: part.value }], position: 'bottom' }}
+            >{part.value}</span>
           {/each}
         </div>
       {/if}
@@ -481,6 +486,7 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    cursor: help;
   }
 
   .grid-item-subtitle-divider {

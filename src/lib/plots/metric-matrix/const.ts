@@ -60,5 +60,5 @@ export function metricMatrixSubtitle(params: {
   item: { settings: MetricMatrixPlotSettings }
   engine: DataEngine
 }): PlotSubtitleParts | undefined {
-  return subtitleParts(['Participants', participantScopeLabel(params.engine, params.item.settings)])
+  return subtitleParts(['Active participant selection', participantScopeLabel(params.engine, params.item.settings)])
 }

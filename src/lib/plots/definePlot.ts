@@ -142,7 +142,7 @@ export type PlotSyncSpec<TSettings, TView extends PlotView<object>> = {
 
 /**
  * A single captioned value rendered in the grid-item header (e.g.
- * `{ label: 'Stimulus', value: 'SMI Base' }`). Plots return an array of
+ * `{ label: 'Active stimulus', value: 'SMI Base' }`). Plots return an array of
  * these so the header can lay them out as a label/value grid divided by
  * thin separators, instead of a single joined string.
  */
