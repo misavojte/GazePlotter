@@ -59,7 +59,7 @@ export interface MatrixInput {
   /**
    * A square matrix's highlight identifier per label. Set, the axis labels
    * toggle `highlights` like legend items, and cells whose row and column are
-   * both un-highlighted fade.
+   * both un-highlighted turn a flat grey, keeping their values.
    */
   labelIds?: readonly string[]
   highlights?: readonly string[]

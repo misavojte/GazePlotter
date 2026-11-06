@@ -1,4 +1,4 @@
-import { desaturateToWhite, getContrastTextColor } from '$lib/color'
+import { getContrastTextColor } from '$lib/color'
 import { SYSTEM_SANS_SERIF_SMALL_STACK } from '$lib/shared/textMeasure'
 import { axisTitleLineHeight } from './axisUtils'
 import { FONT_PRIMARY } from './const'
@@ -23,7 +23,7 @@ export type MatrixRenderConfig = {
   formatCellValue: (value: number) => string
   getCellColor: (value: number) => string
   showCellValue?: (value: number) => boolean
-  /** Cells to fade (neither axis highlighted); unset fades none. */
+  /** Cells off the highlight (neither axis highlighted): a flat grey with muted values. Unset greys none. */
   dimCell?: (row: number, col: number) => boolean
   hasLastRowSentinel?: boolean
   /**
@@ -84,8 +84,8 @@ function drawMatrixCells(
       const value = config.matrix[rowOffset + col] ?? 0
       const x = xOffset + col * cellSize
       const y = yOffset + row * cellSize
-      const base = config.getCellColor(value)
-      const color = config.dimCell?.(row, col) ? desaturateToWhite(base, 0.85) : base
+      // Not INACTIVE_COLOR: that is the out-of-range fill, a different meaning.
+      const color = config.dimCell?.(row, col) ? UI_COLORS.SURFACE_SUBTLE : config.getCellColor(value)
       colors[rowOffset + col] = color
       ctx.fillStyle = color
       ctx.fillRect(x, y, cellSize, cellSize)
@@ -115,7 +115,9 @@ function drawMatrixCellsText(
       if (!showCellValue(value)) continue
 
       const displayValue = config.formatCellValue(value)
-      ctx.fillStyle = getContrastTextColor(colors[rowOffset + col] ?? config.getCellColor(value))
+      ctx.fillStyle = config.dimCell?.(row, col)
+        ? UI_COLORS.MUTED_MARK
+        : getContrastTextColor(colors[rowOffset + col] ?? config.getCellColor(value))
       const x = xOffset + col * cellSize
       const y = yOffset + row * cellSize
       ctx.fillText(displayValue, x + cellSize * 0.5, y + cellSize * 0.5 + 1)
