@@ -1,4 +1,4 @@
-import { getContrastTextColor } from '$lib/color'
+import { desaturateToWhite, getContrastTextColor } from '$lib/color'
 import { SYSTEM_SANS_SERIF_SMALL_STACK } from '$lib/shared/textMeasure'
 import { axisTitleLineHeight } from './axisUtils'
 import { FONT_PRIMARY } from './const'
@@ -23,6 +23,8 @@ export type MatrixRenderConfig = {
   formatCellValue: (value: number) => string
   getCellColor: (value: number) => string
   showCellValue?: (value: number) => boolean
+  /** Cells to fade (neither axis highlighted); unset fades none. */
+  dimCell?: (row: number, col: number) => boolean
   hasLastRowSentinel?: boolean
   /**
    * Custom cell-content painter (e.g. the SPLOM's scatter/r-value cells, or the
@@ -82,7 +84,8 @@ function drawMatrixCells(
       const value = config.matrix[rowOffset + col] ?? 0
       const x = xOffset + col * cellSize
       const y = yOffset + row * cellSize
-      const color = config.getCellColor(value)
+      const base = config.getCellColor(value)
+      const color = config.dimCell?.(row, col) ? desaturateToWhite(base, 0.85) : base
       colors[rowOffset + col] = color
       ctx.fillStyle = color
       ctx.fillRect(x, y, cellSize, cellSize)
@@ -364,4 +367,30 @@ export function matrixCellAt(
   const row = Math.floor((my - geom.yOffset) / geom.cellSize)
   if (row < 0 || row >= rowCount || col < 0 || col >= colCount) return null
   return { row, col }
+}
+
+/** The axis label under the pointer, as its row or column index; null off the labels. */
+export function matrixLabelAt(
+  layout: MatrixLayout,
+  mx: number,
+  my: number,
+  rowCount: number,
+  colCount: number
+): { axis: 'row' | 'col'; index: number } | null {
+  if (!layout.showAxisLabels) return null
+  const { xOffset, yOffset, cellSize, individualLabelMargin } = layout
+  const pick = (axis: 'row' | 'col', at: number, count: number, thin: number) => {
+    const index = Math.floor(at / cellSize)
+    return index < 0 || index >= count || shouldSkipLabel(index, thin, layout) ? null : { axis, index }
+  }
+  if (mx < xOffset && mx >= xOffset - individualLabelMargin - layout.yAxisLabelWidth) {
+    return pick('row', my - yOffset, rowCount, layout.rowThinFactor)
+  }
+  const base = yOffset - individualLabelMargin
+  if (my < yOffset && my >= base - layout.xAxisLabelHeight) {
+    // Full labels rise at 45 degrees from their column; compact ones stand upright.
+    const lift = layout.isCompactMode ? 0 : Math.max(0, base - my)
+    return pick('col', mx - lift - xOffset, colCount, layout.colThinFactor)
+  }
+  return null
 }

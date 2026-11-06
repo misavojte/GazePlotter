@@ -4,6 +4,10 @@ import { PRESET_PALETTES } from '$lib/color/palettes'
 import { stimulusParticipantsSubtitle } from '$lib/plots/shared'
 import { OUT_OF_BOUNDS_DEFAULTS, outOfBoundsFields } from '$lib/plots/shared/outOfBounds'
 import type { TransitionMatrixPlotSettings } from './types'
+import { getAois } from '$lib/data/engine'
+// Called at definition time: import the modules, not the barrel.
+import { reconcileStimulusScopedHighlights } from '$lib/plots/shared/highlightReconcile'
+import { prefixedHighlights } from '$lib/plots/shared/highlightLink'
 
 export const transitionMatrixDefinition = definePlot<
   'transitionMatrix',
@@ -41,7 +45,16 @@ export const transitionMatrixDefinition = definePlot<
     'timelineRange',
     'aoi',
   ],
-  view: { deriveView: deriveTransitionMatrixView },
+  view: {
+    deriveView: deriveTransitionMatrixView,
+    viewOnly: { settings: ['highlights'], input: s => ({ highlights: s.highlights ?? [] }) },
+  },
+  // Highlights are bare AOI ids, as in the AOI Timeline; No AOI is -1.
+  highlights: prefixedHighlights({ aoi: '', noAoi: '-1' }),
+  onCommand: reconcileStimulusScopedHighlights<TransitionMatrixPlotSettings>(
+    () => true,
+    (engine, s) => [...getAois(engine, s.stimulusId).map(a => String(a.id)), '-1']
+  ),
   // Matrices sharing metric, color scale and grid size share the largest data
   // max while their color range is default.
   sync: [

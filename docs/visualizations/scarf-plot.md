@@ -85,7 +85,7 @@ Located at the bottom of the Pane:
 ## Interactivity
 
 - **Sequence details**: Hovering over any fixation, saccade, or event strip displays a tooltip with details (e.g. duration, start/end times, and AOI or event name).
-- **Highlighting**: Hovering over a category (fixation, saccade, or specific AOI/event channel) in the legend temporarily highlights all matching segments across all participants and dims the rest. Clicking a legend category toggles a persistent highlight. With several plots selected, the click sets the same highlight in every selected Scarf Plot and [AOI Timeline](/docs/visualizations/aoi-timeline); AOIs, No AOI and event channels only carry over to plots on the same stimulus.
+- **Highlighting**: Hovering over a category (fixation, saccade, or specific AOI/event channel) in the legend temporarily highlights all matching segments across all participants and dims the rest. Clicking a legend category toggles a persistent highlight. With several plots selected, the click sets the same highlight in every selected Scarf Plot, [AOI Timeline](/docs/visualizations/aoi-timeline) and [Transition Matrix](/docs/visualizations/transition-matrix); AOIs, No AOI and event channels only carry over to plots on the same stimulus.
 - **Linked hovering**: The hovered moment and participant are marked in the other plots of the workspace, see [Linked Hovering Across Plots](/docs/visualizations/#linked-hovering-across-plots).
 
 ## Event Channels and Dynamic AOIs

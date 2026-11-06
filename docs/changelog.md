@@ -6,6 +6,7 @@
 
 * **Scanpath** and **Fixation Heatmap**: Each plot plays on its own. Select several and press play on one to play them together, each to its own end. See [Playing together](/docs/visualizations/scanpath#playing-together).
 * **Scarf Plot** and **AOI Timeline**: Select several and click a legend item to highlight it in all of them at once, in one undo step. AOIs carry over between plots on the same stimulus. A highlight a plot does not show no longer dims the whole plot, and No AOI can be highlighted in the AOI Timeline again. See [Interactivity](/docs/visualizations/scarf-plot#interactivity).
+* **Transition Matrix**: Click an AOI label to highlight it; transitions not involving it fade. It links with selected Scarf Plots and AOI Timelines too.
 * **Metrics**: A zero-length segment on the edge of a time range or window is now counted once instead of being dropped. Counts such as Fixation Count, Visit Count and Movement Count, the heatmap's fixation counts, and RQA can change where such a segment sits on an edge. See [Windowing](/docs/metrics#windowing-and-binning-rules).
 
 ### 1.10.5

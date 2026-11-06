@@ -32,7 +32,7 @@ export function deriveTransitionMatrixView(
     settings.hideNoAoi ?? false,
     settings.aoiSelectionId
   )
-  const { matrix, aoiLabels } = transitionData
+  const { matrix, aoiLabels, aoiList } = transitionData
   const noMetric = transitionData.noMetric ?? false
 
   const resolvedInstance = resolvePickedInstance(engine, settings.metricInstanceIds)
@@ -48,6 +48,8 @@ export function deriveTransitionMatrixView(
     {
       matrix,
       labels: aoiLabels,
+      // No AOI, when shown, is the last label.
+      labelIds: [...aoiList.map(a => String(a.id)), '-1'].slice(0, aoiLabels.length),
       xAxisTitle: TRANSITION_MATRIX_DEFAULTS.xLabel,
       yAxisTitle: TRANSITION_MATRIX_DEFAULTS.yLabel,
       colorScale: effectiveColorScale,

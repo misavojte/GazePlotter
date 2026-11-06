@@ -33,10 +33,12 @@ import {
   drawMatrixParticipantStrips,
   matrixCellAt,
   matrixCellParticipants,
+  matrixLabelAt,
   renderMatrixContent,
   type MatrixRenderConfig,
 } from './matrixRenderer'
 import { drawPlotArea } from './plotArea'
+import { highlightTooltip } from './legendRendering'
 
 export interface MatrixInput {
   /** Flat row-major values (rowCount × colCount); non-finite marks an undefined cell. */
@@ -54,6 +56,13 @@ export interface MatrixInput {
    */
   rowParticipantIds?: readonly number[]
   colParticipantIds?: readonly number[]
+  /**
+   * A square matrix's highlight identifier per label. Set, the axis labels
+   * toggle `highlights` like legend items, and cells whose row and column are
+   * both un-highlighted fade.
+   */
+  labelIds?: readonly string[]
+  highlights?: readonly string[]
   xAxisTitle: string
   yAxisTitle: string
   /** Gradient stops (2 or 3 colors) for the shared value→color mapping. */
@@ -98,6 +107,7 @@ export interface MatrixInput {
 }
 
 type Cell = { row: number; col: number }
+type Hover = Cell | { label: number }
 
 const defaultFormat = (v: number) => v.toFixed(2)
 
@@ -109,7 +119,7 @@ function cursorStrips(input: MatrixInput, cursor: CursorRead) {
   }
 }
 
-export const matrixKit = defineKit<MatrixInput, Cell>()({
+export const matrixKit = defineKit<MatrixInput, Hover>()({
   label: 'Matrix visualization',
   clip: false,
 
@@ -150,6 +160,10 @@ export const matrixKit = defineKit<MatrixInput, Cell>()({
     const showAbove = input.showAboveMaxLabels ?? false
     const isBelow = (v: number) => below !== undefined && v < min
     const isAbove = (v: number) => above !== undefined && v > max
+    // Whether each label is highlighted; none drawn here means nothing fades.
+    const highlights = input.highlights ?? []
+    const lit = input.labelIds?.map(id => highlights.includes(id)) ?? []
+    const fade = lit.includes(true)
     const render: MatrixRenderConfig = {
       layout,
       rowLabels: rows,
@@ -169,6 +183,7 @@ export const matrixKit = defineKit<MatrixInput, Cell>()({
         if (isAbove(v)) return showAbove
         return true
       },
+      dimCell: fade ? (row, col) => !lit[row] && !lit[col] : undefined,
       hasLastRowSentinel: input.hasLastRowSentinel ?? false,
       drawCells: input.drawCells,
     }
@@ -192,7 +207,7 @@ export const matrixKit = defineKit<MatrixInput, Cell>()({
             fixedWidth,
           })
 
-    return { input, layout, render, legend, rowCount: rows.length, colCount: cols.length }
+    return { input, layout, render, legend, lit, rowCount: rows.length, colCount: cols.length }
   },
 
   fit: scene =>
@@ -227,7 +242,7 @@ export const matrixKit = defineKit<MatrixInput, Cell>()({
       if (cursor.participants.length > 0) {
         scene.input.drawCellsCursor?.(ctx, scene.layout, cursor.participants)
       }
-      if (hover) drawMatrixCrosshair(ctx, scene.layout, hover)
+      if (hover && 'row' in hover) drawMatrixCrosshair(ctx, scene.layout, hover)
     },
   },
 
@@ -235,6 +250,19 @@ export const matrixKit = defineKit<MatrixInput, Cell>()({
     const cap = gradientCapHit(scene.legend, mx, my)
     if (cap) return cap
     const { layout } = scene
+    const label = scene.input.labelIds && matrixLabelAt(layout, mx, my, scene.rowCount, scene.colCount)
+    if (label) {
+      const { index } = label
+      const isRow = label.axis === 'row'
+      return {
+        content: highlightTooltip(scene.render.rowLabels[index], scene.lit[index]),
+        anchorX: isRow ? layout.xOffset - layout.individualLabelMargin : layout.xOffset + (index + 0.5) * layout.cellSize,
+        anchorY: isRow ? layout.yOffset + (index + 1) * layout.cellSize : layout.yOffset - layout.individualLabelMargin,
+        offset: { x: 0, y: 7 },
+        cursor: 'pointer',
+        data: { label: index },
+      }
+    }
     const cell = matrixCellAt(layout, mx, my, scene.rowCount, scene.colCount)
     if (!cell) return null
     return {
@@ -252,7 +280,8 @@ export const matrixKit = defineKit<MatrixInput, Cell>()({
   // x stimulus matrix, a PAIR on a participant x participant one. The other axis
   // (a stimulus, an AOI, a metric) is in no channel. Read live, so a data change
   // under a resting pointer re-derives who they are; nothing means retract.
-  hover: (cell, act) => {
+  hover: (hover, act) => {
+    const cell = hover && 'row' in hover ? hover : null
     const participantsAt = (c: Cell) => {
       const input = act.scene()?.input
       return input
@@ -266,10 +295,24 @@ export const matrixKit = defineKit<MatrixInput, Cell>()({
     )
   },
 
-  // The matrix body is the only blocked region; the legend below is static
-  // chrome (no clickable cells), so it stays selectable.
-  blockedRegions: ({ layout, rowCount, colCount }) =>
-    rowCount === 0 || colCount === 0
-      ? []
-      : [{ x: layout.xOffset, y: layout.yOffset, w: layout.gridWidth, h: layout.gridHeight }],
+  click: (hover, act) => {
+    const ids = act.input().labelIds
+    if (hover && 'label' in hover && ids) act.toggle('highlights', ids[hover.label])
+  },
+
+  // The matrix body is blocked, and so are clickable axis labels; the legend
+  // below is static chrome (no clickable cells), so it stays selectable.
+  blockedRegions: ({ input, layout, rowCount, colCount }) => {
+    if (rowCount === 0 || colCount === 0) return []
+    const { xOffset: x, yOffset: y, gridWidth: w, gridHeight: h } = layout
+    const body = { x, y, w, h }
+    if (!input.labelIds || !layout.showAxisLabels) return [body]
+    const rowBand = layout.individualLabelMargin + layout.yAxisLabelWidth
+    const colBand = layout.individualLabelMargin + layout.xAxisLabelHeight
+    return [
+      body,
+      { x: x - rowBand, y, w: rowBand, h },
+      { x, y: y - colBand, w: w + colBand, h: colBand },
+    ]
+  },
 })
