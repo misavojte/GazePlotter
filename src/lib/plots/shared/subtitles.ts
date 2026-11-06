@@ -1,5 +1,5 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
-import { getParticipantsSelections } from '$lib/data/engine'
+import { getParticipantsSelections, getStimuliSelections } from '$lib/data/engine'
 import { ALL_SELECTION_LABEL, type ParticipantScope } from '$lib/data/types'
 import type { PlotSubtitleParts } from '$lib/plots/definePlot'
 import { getStimuliOptions, getParticipantOptions } from './selectOptionsGetters'
@@ -22,6 +22,12 @@ export function participantScopeLabel(engine: DataEngine, scope: ParticipantScop
   const id = scope.participantSelectionId
   const name = (id && getParticipantsSelections(engine).find(s => s.id === id)?.name) || ALL_PARTICIPANTS_LABEL
   return scope.hideEmptyParticipants ? `${name}, non-empty` : name
+}
+
+/** The stimuli a plot spans: its selection's name, or the everyone-selection spelled out. */
+export function stimulusScopeLabel(engine: DataEngine, stimulusSelectionId: number | undefined): string {
+  const id = stimulusSelectionId
+  return (id && getStimuliSelections(engine).find(s => s.id === id)?.name) || `${ALL_SELECTION_LABEL} stimuli`
 }
 
 /**

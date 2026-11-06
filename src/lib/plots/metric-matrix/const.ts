@@ -1,6 +1,6 @@
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import type { PlotSubtitleParts } from '$lib/plots/definePlot'
-import { buildMetricLabel, participantScopeLabel, subtitleParts } from '$lib/plots/shared'
+import { buildMetricLabel, participantScopeLabel, stimulusScopeLabel, subtitleParts } from '$lib/plots/shared'
 import { type MetricInstance, type PlotMetricContract } from '$lib/metrics'
 import { PRESET_PALETTES } from '$lib/color/palettes'
 import type { MetricMatrixPlotSettings } from './types'
@@ -55,10 +55,14 @@ export function getMetricMatrixLegendTitle(
   })
 }
 
-/** Participants-only subtitle: the matrix spans every stimulus. */
+/** Both axes' selections: the matrix spans a stimulus selection × a participant selection. */
 export function metricMatrixSubtitle(params: {
   item: { settings: MetricMatrixPlotSettings }
   engine: DataEngine
 }): PlotSubtitleParts | undefined {
-  return subtitleParts(['Participants', participantScopeLabel(params.engine, params.item.settings)])
+  const { settings } = params.item
+  return subtitleParts(
+    ['Stimuli', stimulusScopeLabel(params.engine, settings.stimulusSelectionId)],
+    ['Participants', participantScopeLabel(params.engine, settings)]
+  )
 }
