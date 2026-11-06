@@ -255,7 +255,7 @@
             {/if}
             <span
               class="grid-item-subtitle-value"
-              use:tooltipAction={{ content: [{ key: part.label, value: part.value }], position: 'bottom' }}
+              use:tooltipAction={{ content: part.label, position: 'bottom' }}
             >{part.value}</span>
           {/each}
         </div>
@@ -468,7 +468,7 @@
     white-space: nowrap;
   }
 
-  /* Scope values on one line, divided by hairlines; each names itself in its tooltip. */
+  /* Scope values on one line, divided by hairlines; each names what it is in its tooltip. */
   .grid-item-subtitle {
     display: flex;
     align-items: center;
