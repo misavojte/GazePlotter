@@ -109,15 +109,14 @@ function streamAxes(
   }
 }
 
-/** Highlighted AOI ids; null when nothing is highlighted (nothing dims). */
-function highlightMask(highlights: readonly string[]): Map<number, boolean> | null {
-  if (highlights.length === 0) return null
+/** Highlighted series ids; null when none of them is drawn here (nothing dims). */
+function highlightMask(
+  highlights: readonly string[],
+  series: readonly { id: number }[]
+): Map<number, boolean> | null {
   const mask = new Map<number, boolean>()
-  for (const h of highlights) {
-    const id = parseInt(h)
-    if (!isNaN(id)) mask.set(id, true)
-  }
-  return mask
+  for (const s of series) if (highlights.includes(String(s.id))) mask.set(s.id, true)
+  return mask.size === 0 ? null : mask
 }
 
 export const aoiStreamKit = defineKit<AoiStreamInput, AoiStreamHover, AoiStreamPlotSettings>()({
@@ -208,7 +207,7 @@ export const aoiStreamKit = defineKit<AoiStreamInput, AoiStreamHover, AoiStreamP
           floorHeight: frame.height,
           floorBottom: frame.bottom,
           syncedMTopOverride: input.syncedMTopOverride ?? null,
-          highlightMaskById: highlightMask(highlights),
+          highlightMaskById: highlightMask(highlights, data.series),
           ridgelineScale: settings.ridgelineScale,
           colorScale: settings.colorScale,
           colorValueRange: input.colorValueRange,

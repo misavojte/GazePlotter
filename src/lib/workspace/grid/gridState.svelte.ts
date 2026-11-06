@@ -69,6 +69,11 @@ export class GridState {
       .filter((i): i is AllGridTypes => i != null)
   }
 
+  /** The other selected items when `id` belongs to the selection, else none. */
+  selectionMates(id: number): AllGridTypes[] {
+    return this.selectedItemIds.includes(id) ? this.selectedItems.filter(i => i.id !== id) : []
+  }
+
   constructor(options: GridStateOptions = {}) {
     this.getAvailableColumnsFn =
       options.getAvailableColumns ?? calculateViewportGridColumns

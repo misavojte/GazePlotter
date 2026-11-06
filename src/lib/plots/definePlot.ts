@@ -7,6 +7,7 @@ import type { WorkspaceCommandBus } from '$lib/workspace/commands/bus'
 import type { ModalState } from '$lib/modals/modalState.svelte'
 import type { PlotGroup } from './groups'
 import type { AnyPlotKit, PlotKit } from './shared/kit'
+import type { PlotHighlightSpec } from './shared/highlightLink'
 
 export type DefaultPlotParams = {
   stimulusId?: number
@@ -435,6 +436,12 @@ export type PlotDefinition<
   /** Gets its own playback clock and renders with the play bar (screen and export). */
   playback?: boolean
   /**
+   * Maps the legend's `highlights` identifiers to shared entities, so a legend
+   * click in a multi-selection highlights the same entity in the other
+   * selected plots (`shared/highlightLink.ts`).
+   */
+  highlights?: PlotHighlightSpec<TSettings>
+  /**
    * The plot's settings pane, declared as an ordered list of sections. The
    * single-plot pane renders this list; a multi-selection of one type renders
    * the same list (edits applied to all); a mixed-type selection renders the
@@ -481,7 +488,7 @@ export type PlotDefinition<
  */
 export type PlotRuntime<TSettings> = Pick<
   PlotDefinition<string, TSettings, PlotView<any, any>>,
-  'view' | 'cursor' | 'sync' | 'playback'
+  'view' | 'cursor' | 'sync' | 'playback' | 'highlights'
 >
 
 export function definePlot<

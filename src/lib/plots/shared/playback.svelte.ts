@@ -52,9 +52,10 @@ export function usePlaybackMembership(ctx: {
 
   /** The other players of a multi-selection this plot belongs to. */
   function mates(): PlaybackClock[] {
-    const ids = session.grid.selectedItemIds
-    if (!ids.includes(plotId)) return []
-    return ids.map(id => clocks.get(id)).filter((c): c is PlaybackClock => !!c && c !== clock)
+    return session.grid
+      .selectionMates(plotId)
+      .map(i => clocks.get(i.id))
+      .filter((c): c is PlaybackClock => !!c && c !== clock)
   }
 
   /** The paused clocks' moments, in one undo step; a parked one saves none. */
