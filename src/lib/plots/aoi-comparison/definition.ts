@@ -4,6 +4,11 @@ import {
   defineDistributionPlot,
   type DistributionPlotSettings,
 } from '$lib/plots/shared/distribution/plot'
+import { prefixedHighlights } from '$lib/plots/shared/highlightLink'
+import { reconcileStimulusScopedHighlights } from '$lib/plots/shared/highlightReconcile'
+
+/** No AOI's highlight id, as in the AOI Timeline and Transition Matrix. */
+const NO_AOI_ID = '-1'
 
 export type AoiComparisonSettings = DistributionPlotSettings<'aoi'> & {
   /** Per-plot AOI SELECTION id; unset/0 = all AOIs. */
@@ -28,6 +33,12 @@ export const aoiComparisonDefinition = defineDistributionPlot<
   defaults: { metricInstanceIds: ['absoluteTime'], hideNoAoi: false },
   requireCapabilities: ['segmented'],
   syncValueAxis: true,
+  // Highlights are bare AOI ids, as in the AOI Timeline.
+  highlights: prefixedHighlights({ aoi: '', noAoi: NO_AOI_ID }),
+  onCommand: reconcileStimulusScopedHighlights<AoiComparisonSettings>(
+    () => true,
+    (engine, s) => [...getAois(engine, s.stimulusId).map(a => String(a.id)), NO_AOI_ID]
+  ),
   disclosures: {
     itemTooltipKey: 'AOI',
     cannotFitHints: ['Merge some AOIs in Plot Settings > Areas of Interest'],
@@ -46,7 +57,7 @@ export const aoiComparisonDefinition = defineDistributionPlot<
     const slots = entitySlots(aois.map((aoi, slot) => ({ ...aoi, slot })))
     if (!settings.hideNoAoi) {
       const { displayedName: label, color } = meta.noAoiTreatment
-      slots.push({ slot: aois.length, label, color })
+      slots.push({ slot: aois.length, id: NO_AOI_ID, label, color })
     }
     return { slots, ...distributionParticipants(engine, settings) }
   },

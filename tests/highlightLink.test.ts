@@ -4,8 +4,41 @@ import { scarfPlotDefinition } from '$lib/plots/scarf/definition'
 import { aoiStreamPlotDefinition } from '$lib/plots/aoi-stream/definition'
 import { calculateHighlightMask } from '$lib/plots/scarf/core/transformer'
 
+import { aoiComparisonDefinition } from '$lib/plots/aoi-comparison/definition'
+import { eventComparisonDefinition } from '$lib/plots/event-comparison/definition'
+import { eyeMovementComparisonDefinition } from '$lib/plots/eye-movement-comparison/definition'
+
 const scarf = scarfPlotDefinition.highlights!
 const stream = aoiStreamPlotDefinition.highlights!
+const aoiComparison = aoiComparisonDefinition.highlights!
+const eventComparison = eventComparisonDefinition.highlights!
+const typeComparison = eyeMovementComparisonDefinition.highlights!
+
+describe('comparison plot highlights', () => {
+  const s = { stimulusId: 2 } as never
+  const viaScarf = (spec: HighlightTarget['spec'], id: string) => spec.local(scarf.share(id, s)!, s)
+  const toScarf = (spec: HighlightTarget['spec'], id: string) => scarf.local(spec.share(id, s)!, s)
+
+  it('link each comparison to the Scarf legend item of the same entity', () => {
+    expect(viaScarf(aoiComparison, 'a12')).toBe('12')
+    expect(viaScarf(aoiComparison, 'aN')).toBe('-1')
+    expect(toScarf(aoiComparison, '-1')).toBe('aN')
+    expect(viaScarf(eventComparison, 'e4')).toBe('4')
+    expect(toScarf(eventComparison, '4')).toBe('e4')
+    expect(viaScarf(typeComparison, 'ac3')).toBe('3')
+    expect(toScarf(typeComparison, '3')).toBe('ac3')
+  })
+
+  it('take only their own kind', () => {
+    expect(viaScarf(aoiComparison, 'e4')).toBeNull()
+    expect(viaScarf(eventComparison, 'a12')).toBeNull()
+    expect(viaScarf(eventComparison, 'aN')).toBeNull()
+    expect(viaScarf(typeComparison, 'a12')).toBeNull()
+    // Types are global; events stay on their stimulus.
+    expect(typeComparison.local({ entity: 'category:3', stimulusId: null }, { stimulusId: 9 } as never)).toBe('3')
+    expect(eventComparison.local({ entity: 'event:4', stimulusId: 2 }, { stimulusId: 9 } as never)).toBeNull()
+  })
+})
 
 const target = (
   id: number,

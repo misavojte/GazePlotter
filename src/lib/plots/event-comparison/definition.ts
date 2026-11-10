@@ -5,6 +5,8 @@ import {
   defineDistributionPlot,
   type DistributionPlotSettings,
 } from '$lib/plots/shared/distribution/plot'
+import { prefixedHighlights } from '$lib/plots/shared/highlightLink'
+import { reconcileStimulusScopedHighlights } from '$lib/plots/shared/highlightReconcile'
 
 export type EventComparisonSettings = DistributionPlotSettings<'channel'> & {
   /** Per-plot event SELECTION id; unset/0 = all channels. */
@@ -31,6 +33,12 @@ export const eventComparisonDefinition = defineDistributionPlot<
   selectionSection: 'event',
   defaults: { metricInstanceIds: ['eventDuration'] },
   requireCapabilities: ['event'],
+  // Highlights are bare channel ids (a merge's first member), as the Scarf's event strips.
+  highlights: prefixedHighlights({ event: '' }),
+  onCommand: reconcileStimulusScopedHighlights<EventComparisonSettings>(
+    () => true,
+    (engine, s) => eventGroups(engine, s.stimulusId).map(g => String(g.id))
+  ),
   disclosures: {
     itemTooltipKey: 'Event',
     cannotFitHints: ['Select fewer event channels in Plot Settings > Events'],

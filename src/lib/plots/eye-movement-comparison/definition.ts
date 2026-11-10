@@ -5,6 +5,7 @@ import {
   defineDistributionPlot,
   type DistributionPlotSettings,
 } from '$lib/plots/shared/distribution/plot'
+import { prefixedHighlights } from '$lib/plots/shared/highlightLink'
 
 export type EyeMovementComparisonSettings = DistributionPlotSettings<'type'> & {
   /** Per-plot eye-movement-type SELECTION id; unset/0 = all types. */
@@ -27,6 +28,9 @@ export const eyeMovementComparisonDefinition = defineDistributionPlot<
   selectionSection: 'eyeMovement',
   defaults: { metricInstanceIds: ['movementDuration'] },
   requireCapabilities: ['segmented'],
+  // Highlights are bare type ids (a merge's first member), as the Scarf's
+  // eye-movement types; global, so nothing to reconcile on a stimulus switch.
+  highlights: prefixedHighlights({ category: '' }),
   disclosures: {
     itemTooltipKey: 'Type',
     cannotFitHints: ['Select fewer types in Plot Settings > Eye-movement Types'],

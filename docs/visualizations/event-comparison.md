@@ -90,6 +90,7 @@ Located at the bottom of the Pane:
 ## Interactivity
 
 - **Tooltip**: Hovering a row shows the channel and the axis value at the pointer. Over dots it lists the participants there (with a count when one participant has several dots); elsewhere in the row it shows n, mean, median, SD, and the 95% CI.
+- **Highlighting**: Clicking a channel label toggles a persistent highlight of that channel: its row keeps its color, and the other rows fade, labels included. With several plots selected, the click sets the same highlight in every selected Event Comparison and [Scarf Plot](/docs/visualizations/scarf-plot) on the same stimulus.
 
 ## The Channel Axis
 

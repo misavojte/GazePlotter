@@ -86,6 +86,7 @@ export function collectDistribution(args: {
     const stats = computeSummaryStatistics(values)
     return {
       value: formatDecimal(stats.mean),
+      id: slot.id,
       label: slot.label,
       color: slot.color,
       stats,

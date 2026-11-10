@@ -21,11 +21,12 @@ type Highlighted = { stimulusId: number; highlights?: string[] }
 /**
  * The spec for legends whose identifiers are `prefix + id`, one prefix per kind
  * (the longest matching prefix wins), plus one fixed identifier for No AOI.
- * AOIs, No AOI and events are per stimulus; eye-movement categories are global.
+ * A plot names only the kinds it draws. AOIs, No AOI and events are per
+ * stimulus; eye-movement categories are global.
  */
 export function prefixedHighlights<S extends Highlighted>(ids: {
-  aoi: string
-  noAoi: string
+  aoi?: string
+  noAoi?: string
   category?: string
   event?: string
 }): PlotHighlightSpec<S> {
@@ -33,7 +34,7 @@ export function prefixedHighlights<S extends Highlighted>(ids: {
   const kinds = Object.entries(prefixes).sort((a, b) => b[1].length - a[1].length)
   return {
     share(identifier, s) {
-      if (identifier === noAoi) return { entity: 'noAoi', stimulusId: s.stimulusId }
+      if (noAoi !== undefined && identifier === noAoi) return { entity: 'noAoi', stimulusId: s.stimulusId }
       const kind = kinds.find(([, prefix]) => identifier.startsWith(prefix))
       if (!kind) return null
       return {
@@ -43,7 +44,7 @@ export function prefixedHighlights<S extends Highlighted>(ids: {
     },
     local({ entity, stimulusId }, s) {
       if (stimulusId !== null && stimulusId !== s.stimulusId) return null
-      if (entity === 'noAoi') return noAoi
+      if (entity === 'noAoi') return noAoi ?? null
       const colon = entity.indexOf(':')
       const prefix = prefixes[entity.slice(0, colon) as keyof typeof prefixes]
       return prefix === undefined ? null : prefix + entity.slice(colon + 1)

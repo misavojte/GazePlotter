@@ -43,6 +43,8 @@ export interface SummaryStatistics {
 export interface DistributionSlot {
   /** Index into the metric's vector — the slot its result is indexed by. */
   slot: number
+  /** The plot's highlight identifier for this slot's entity. */
+  id: string
   label: string
   color: string
 }
@@ -66,6 +68,8 @@ export interface DistributionAxis {
 /** One category slot: its distribution, its summary, and its chrome. */
 export interface CategoryDistribution {
   value: number
+  /** Highlight identifier; unset, the slot's label does not toggle a highlight. */
+  id?: string
   label: string
   color: string
   stats: SummaryStatistics | null

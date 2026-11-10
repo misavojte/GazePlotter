@@ -91,7 +91,7 @@ Located at the bottom of the Pane:
 ## Interactivity
 
 - **Window details**: Hovering the plot shows a tooltip for the time window under the pointer: its **Window** span in ms, its **Bin** number, and the up to four AOIs with the highest values in that window; the rest are summed as **Other N AOIs**.
-- **Highlighting**: Clicking an AOI in the legend toggles a persistent highlight of that AOI. With several plots selected, the click sets the same highlight in every selected AOI Timeline, [Scarf Plot](/docs/visualizations/scarf-plot) and [Transition Matrix](/docs/visualizations/transition-matrix) on the same stimulus. Not in *Heatmap*, which has no AOI legend.
+- **Highlighting**: Clicking an AOI in the legend toggles a persistent highlight of that AOI. With several plots selected, the click sets the same highlight in every selected AOI Timeline, [Scarf Plot](/docs/visualizations/scarf-plot), [Transition Matrix](/docs/visualizations/transition-matrix) and [AOI Comparison](/docs/visualizations/aoi-comparison) on the same stimulus. Not in *Heatmap*, which has no AOI legend.
 - **Shared axes**: AOI Timelines of the same card width share one timeline end while their time range is on Auto (Start and End at 0). Ridgelines with the same card height, **Ridge scale** and AOI count share one vertical scale.
 - **Linked hovering**: The hovered moment is marked in the other plots of the same stimulus, see [Linked Hovering Across Plots](/docs/visualizations/#linked-hovering-across-plots).
 

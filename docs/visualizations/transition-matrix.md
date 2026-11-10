@@ -86,7 +86,7 @@ Located at the bottom of the Pane:
 ## Interactivity
 
 - **Cell details**: Hovering a cell shows a tooltip with its **From** AOI, **To** AOI, and **Value**. A value that cannot be computed reads *Undefined, not zero*.
-- **Highlighting**: Clicking an AOI label on either axis toggles a persistent highlight of that AOI: transitions from or to it keep their color, and the rest turn grey with their values still shown. With several plots selected, the click sets the same highlight in every selected Transition Matrix, [Scarf Plot](/docs/visualizations/scarf-plot) and [AOI Timeline](/docs/visualizations/aoi-timeline) on the same stimulus.
+- **Highlighting**: Clicking an AOI label on either axis toggles a persistent highlight of that AOI: transitions from or to it keep their color, and the rest turn grey with their values still shown. With several plots selected, the click sets the same highlight in every selected Transition Matrix, [Scarf Plot](/docs/visualizations/scarf-plot), [AOI Timeline](/docs/visualizations/aoi-timeline) and [AOI Comparison](/docs/visualizations/aoi-comparison) on the same stimulus.
 - **Shared color scale**: Transition matrices with the same metric, color scale, and card size share one color range while they keep the default range, so their colors compare directly.
 
 ## Related

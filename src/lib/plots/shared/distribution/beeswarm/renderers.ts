@@ -3,7 +3,7 @@ import {
   getTimelinePositionRatio,
 } from '$lib/plots/shared/timelineUtils'
 import { alignToPixelCenter, strokeParallelLines } from '$lib/plots/shared/canvasUtils'
-import { UI_COLORS } from '$lib/color'
+import { UI_COLORS, desaturateToWhite } from '$lib/color'
 import type { CategoryDistribution, StatisticalOverlayType } from '../types'
 
 // --- Layout types (this figure's resolved geometry) ---
@@ -22,7 +22,12 @@ export interface CategorySlotLayout {
   categoryCenter: number
   categoryWidth: number
   data: CategoryDistribution
+  /** Off the highlight: every mark and the label fade (`dimmedColor`). */
+  dimmed?: boolean
 }
+
+/** A slot off the highlight, faded as the Scarf's segments and the legend's items are. */
+export const dimmedColor = (color: string): string => desaturateToWhite(color, 0.85)
 
 // --- Constants ---
 
@@ -71,6 +76,7 @@ const MARKER_CAP_RATIO = 0.45
  * SHAPE, not the dots.
  */
 const MARKER_COLOR = UI_COLORS.INK
+const MARKER_COLOR_DIMMED = dimmedColor(MARKER_COLOR)
 const MARKER_WIDTH_MEDIAN = 3 // median (boxplot) and mean (meanCi / meanSd)
 const MARKER_WIDTH_THIN = 1
 
@@ -290,7 +296,7 @@ export function drawProportionalBars(
     const halfWidth = item.categoryWidth / 2
     const valuePx = valueToPixel(layout, item.data.value)
 
-    ctx.fillStyle = item.data.color
+    ctx.fillStyle = item.dimmed ? dimmedColor(item.data.color) : item.data.color
     if (isVertical) {
       const top = Math.min(valuePx, basePx)
       ctx.fillRect(center - halfWidth, top, halfWidth * 2, Math.abs(valuePx - basePx))
@@ -323,7 +329,7 @@ export function drawSwarmPoints(
     const points = computeSwarmPositions(layout, item, densities[i], reference)
     if (points.length === 0) continue
 
-    ctx.fillStyle = item.data.color
+    ctx.fillStyle = item.dimmed ? dimmedColor(item.data.color) : item.data.color
     // One path and one fill per slot: all the dots share a colour, and the
     // moveTo before each arc keeps a connecting chord from being drawn.
     ctx.beginPath()
@@ -339,14 +345,13 @@ export function drawSwarmPoints(
 
 // --- Statistical overlays ---
 
-/** One stroke, near-black, uncased (see `MARKER_COLOR`). */
+/** One stroke, uncased, in the slot's marker colour (set per slot by `drawStatisticalOverlay`). */
 function inked(
   ctx: CanvasRenderingContext2D,
   lineWidth: number,
   path: () => void
 ): void {
   ctx.lineWidth = lineWidth
-  ctx.strokeStyle = MARKER_COLOR
   ctx.beginPath()
   path()
   ctx.stroke()
@@ -431,6 +436,7 @@ export function drawStatisticalOverlay(
     const stats = item.data.stats
     if (!stats || stats.count === 0) continue
 
+    ctx.strokeStyle = item.dimmed ? MARKER_COLOR_DIMMED : MARKER_COLOR
     const center = item.categoryCenter
     const half = Math.min(MARKER_HALF_EXTENT, item.categoryWidth / 2)
     const capHalf = half * MARKER_CAP_RATIO
