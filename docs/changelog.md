@@ -4,12 +4,10 @@
 
 ### 1.10.6
 
-* **Scanpath** and **Fixation Heatmap**: Each plot plays on its own. Select several and press play on one to play them together, each to its own end. See [Playing together](/docs/visualizations/scanpath#playing-together).
-* **Scarf Plot** and **AOI Timeline**: Select several and click a legend item to highlight it in all of them at once, in one undo step. AOIs carry over between plots on the same stimulus. A highlight a plot does not show no longer dims the whole plot, and No AOI can be highlighted in the AOI Timeline again. See [Interactivity](/docs/visualizations/scarf-plot#interactivity).
-* **Transition Matrix**: Click an AOI label to highlight it; transitions not involving it turn grey, values kept. It links with selected Scarf Plots and AOI Timelines too.
-* **AOI**, **Event** and **Eye-movement Comparison**: Click a row label to highlight it; the other rows fade. They link with the selected plots showing the same AOI, channel or type.
-* **Add Visualization**: Plots are listed in three sections with a picture each, and a search box finds them by name or other terms such as "gaze plot" or "dwell time". Plots your data cannot feed are listed last with the reason. Scanpath is no longer offered for data without fixation coordinates.
-* **Metrics**: A zero-length segment on the edge of a time range or window is now counted once instead of being dropped. Counts such as Fixation Count, Visit Count and Movement Count, the heatmap's fixation counts, and RQA can change where such a segment sits on an edge. See [Windowing](/docs/metrics#windowing-and-binning-rules).
+* **Playback**: Select several Scanpaths or Fixation Heatmaps and press play on one to play them together. See [Playing together](/docs/visualizations/scanpath#playing-together).
+* **Highlights**: Click a legend item, AOI label or row label to highlight it; selected plots highlight it together. See [Interactivity](/docs/visualizations/scarf-plot#interactivity).
+* **Add Visualization**: Plots are listed in three sections with pictures and a search box; plots your data cannot use are listed last with the reason.
+* **Metrics**: A zero-length segment on the edge of a time range or window is now counted once instead of dropped, so counts and RQA can change there. See [Windowing](/docs/metrics#windowing-and-binning-rules).
 
 ### 1.10.5
 
