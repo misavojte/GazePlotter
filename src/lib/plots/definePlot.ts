@@ -7,6 +7,7 @@ import type { WorkspaceCommandBus } from '$lib/workspace/commands/bus'
 import type { ModalState } from '$lib/modals/modalState.svelte'
 import type { PlotGroup } from './groups'
 import type { AnyPlotKit, PlotKit } from './shared/kit'
+import type { PlotHighlightSpec } from './shared/highlightLink'
 
 export type DefaultPlotParams = {
   stimulusId?: number
@@ -142,7 +143,7 @@ export type PlotSyncSpec<TSettings, TView extends PlotView<object>> = {
 
 /**
  * A single captioned value rendered in the grid-item header (e.g.
- * `{ label: 'Stimulus', value: 'SMI Base' }`). Plots return an array of
+ * `{ label: 'Active stimulus', value: 'SMI Base' }`). Plots return an array of
  * these so the header can lay them out as a label/value grid divided by
  * thin separators, instead of a single joined string.
  */
@@ -405,12 +406,10 @@ export type PlotDefinition<
   name: string
   /** One line under the name in the add-visualization menu; read nowhere else. */
   tagline: string
-  /**
-   * Taxonomy bucket: the plot's unit of analysis. Read in exactly one place,
-   * the add-visualization menu, which groups plots by this field (group =
-   * parent item, its plots = submenu). Never surfaced in the plot's own chrome.
-   */
+  /** Add-visualization menu section; read nowhere else. */
   group: PlotGroup
+  /** Extra words the add-visualization search matches (synonyms, Pro Lab names). */
+  keywords?: string
   getDefaultSettings: (params?: TParams) => TSettings
   /**
    * Grid sizing in grid units — pure data. Omitted values fall back to
@@ -432,8 +431,14 @@ export type PlotDefinition<
   cursor?: PlotCursorSpec<TSettings>
   /** Cross-plot sync channels (screen only). */
   sync?: PlotSyncSpec<TSettings, TView>[]
-  /** Joins the stimulus's playback clock and renders with the play bar (screen and export). */
+  /** Gets its own playback clock and renders with the play bar (screen and export). */
   playback?: boolean
+  /**
+   * Maps the legend's `highlights` identifiers to shared entities, so a legend
+   * click in a multi-selection highlights the same entity in the other
+   * selected plots (`shared/highlightLink.ts`).
+   */
+  highlights?: PlotHighlightSpec<TSettings>
   /**
    * The plot's settings pane, declared as an ordered list of sections. The
    * single-plot pane renders this list; a multi-selection of one type renders
@@ -481,7 +486,7 @@ export type PlotDefinition<
  */
 export type PlotRuntime<TSettings> = Pick<
   PlotDefinition<string, TSettings, PlotView<any, any>>,
-  'view' | 'cursor' | 'sync' | 'playback'
+  'view' | 'cursor' | 'sync' | 'playback' | 'highlights'
 >
 
 export function definePlot<

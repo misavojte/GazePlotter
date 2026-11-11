@@ -5,6 +5,7 @@ import { definePlot, type PlotDefinition, type PlotSyncSpec } from '$lib/plots/d
 import type { PlotGroup } from '$lib/plots/groups'
 import { stimulusParticipantsSubtitle } from '$lib/plots/shared/subtitles'
 import { createAdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
+import type { PlotHighlightSpec } from '$lib/plots/shared/highlightLink'
 import { collectDistribution } from './collect'
 import { deriveDistributionFigure, type DistributionDisclosures, type DistributionView } from './figure'
 import { distributionDefaults, distributionVisualizationSection } from './paneSection'
@@ -22,6 +23,8 @@ export type DistributionPlotSettings<TOrder extends string = string> = Participa
   timelineStart?: number
   timelineEnd?: number
   statisticalOverlay: StatisticalOverlayType
+  /** Highlighted slots by their axis `id`; a row label toggles its own. */
+  highlights?: string[]
 }
 
 /** What the data side reads: everything but the figure's orientation. */
@@ -33,6 +36,7 @@ export interface DistributionPlotSpec<TType extends string, S extends Distributi
   name: string
   tagline: string
   group: PlotGroup
+  keywords?: string
   /** Admits the vector instances this plot draws whole, one distribution per slot. */
   contract: PlotMetricContract
   /** The category axis in drawn order, narrowed by the selection; built once a metric resolved. */
@@ -47,6 +51,10 @@ export interface DistributionPlotSpec<TType extends string, S extends Distributi
   requireCapabilities: DataCapabilityRequirements
   /** Share the value axis with same-type, same-metric, same-size plots on screen. */
   syncValueAxis?: boolean
+  /** Maps the slot ids to the entities other plots highlight (`prefixedHighlights`). */
+  highlights: PlotHighlightSpec<S>
+  /** Drops highlights of stimulus-scoped slots that no longer exist. */
+  onCommand?: PlotDefinition<TType, S>['onCommand']
 }
 
 export type DistributionPlotDefinition<TType extends string, S> = PlotDefinition<TType, S, DistributionView> & {
@@ -90,6 +98,7 @@ export function defineDistributionPlot<TType extends string, S extends Distribut
     name: spec.name,
     tagline: spec.tagline,
     group: spec.group,
+    keywords: spec.keywords,
     paneSections: [
       'stimulus',
       'participants',
@@ -104,7 +113,10 @@ export function defineDistributionPlot<TType extends string, S extends Distribut
     view: {
       deriveView: (engine, settings) =>
         deriveDistributionFigure(engine, collect(engine, settings), settings, spec.disclosures),
+      viewOnly: { settings: ['highlights'], input: s => ({ highlights: s.highlights ?? [] }) },
     },
+    highlights: spec.highlights,
+    ...(spec.onCommand ? { onCommand: spec.onCommand } : {}),
     ...(spec.syncValueAxis ? { sync: [valueAxisSync<S>()] } : {}),
     getSubtitle: stimulusParticipantsSubtitle,
     getDefaultSettings: (params = {}) => {

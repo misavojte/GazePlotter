@@ -12,6 +12,7 @@ import { stimulusParticipantsSubtitle } from '$lib/plots/shared'
 // Called at definition time: import the module, not the barrel, which the
 // registry -> shared sections -> registry cycle leaves half-initialised.
 import { reconcileStimulusScopedHighlights } from '$lib/plots/shared/highlightReconcile'
+import { prefixedHighlights } from '$lib/plots/shared/highlightLink'
 import type { ScarfPlotSettings } from './types'
 import { SCARF_IDENTIFIERS, isStimulusScopedHighlight } from './const'
 import { getAois, getEventChannels } from '$lib/data/engine'
@@ -20,7 +21,8 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings, ScarfV
   type: 'scarf',
   name: 'Scarf Plot',
   tagline: 'AOI sequence of each participant',
-  group: 'gaze-behavior',
+  group: 'sequence',
+  keywords: 'sequence chart timeline AOI hits order',
   paneSections: [
     'stimulus',
     'participants',
@@ -86,6 +88,12 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings, ScarfV
       settings: (s, max) => ({ ...s, [scarfRange(s).endKey]: max }),
     },
   ],
+  highlights: prefixedHighlights({
+    aoi: SCARF_IDENTIFIERS.AOI,
+    noAoi: `${SCARF_IDENTIFIERS.AOI}${SCARF_IDENTIFIERS.NOT_DEFINED}`,
+    category: SCARF_IDENTIFIERS.CATEGORY,
+    event: SCARF_IDENTIFIERS.EVENT,
+  }),
   getSubtitle: stimulusParticipantsSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,

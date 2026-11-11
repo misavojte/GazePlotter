@@ -1,6 +1,7 @@
 import type { AoiNarrowing } from '$lib/data/engine'
 import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { buildAoiSlots } from './aoiSlots'
+import { segmentInRange } from './dsl'
 import { FIXATION_CATEGORY_ID } from '$lib/data/binary'
 
 /**
@@ -53,10 +54,13 @@ export function extractFixationSequence(
   const timestamps: number[] = []
   const endTimestamps: number[] = []
   const aoiSet = new Set<number>()
+  const rStart = reader.getParticipantStartTime(stimulusId, participantId)
+  const rEnd = reader.getParticipantEndTime(stimulusId, participantId)
   for (let i = startIndex; i < endIndex; i++) {
     if (reader.getSegmentCategory(i) !== FIXATION_CATEGORY_ID) continue
-    if (timeEnd > 0 && reader.getSegmentStart(i) >= timeEnd) break
-    if (reader.getSegmentEnd(i) <= timeStart) continue
+    const start = reader.getSegmentStart(i)
+    if (timeEnd > 0 && start > timeEnd) break
+    if (!segmentInRange(start, reader.getSegmentEnd(i), timeStart, timeEnd, rStart, rEnd)) continue
     aoiSet.clear()
     const rawAois = reader.getRawAois(i)
     for (let r = 0; r < rawAois.length; r++) {

@@ -34,7 +34,7 @@ Without reference media, the view frames all fixations on the stimulus, plus a m
 ## Add a Fixation Heatmap
 
 1. Load your data: drop the files anywhere on the page, or use **Import**. See [Uploading Data](/docs/upload-data/).
-2. In the rail on the left, click **Add Visualization**, then **Gaze behavior** > **Fixation Heatmap**. When another plot is selected, the new one opens on its stimulus and participants.
+2. In the rail on the left, click **Add Visualization**, then **Fixation Heatmap** in the **Where they looked** section. When another plot is selected, the new one opens on its stimulus and participants.
 3. The pane on the right opens with the plot's settings. Pick the **Stimulus** first.
 
 To move, resize, duplicate, or remove the card, see [Plot Manipulation](/docs/workspace/#plot-manipulation).
@@ -80,8 +80,7 @@ The collapsed section header shows the view.
   - *None*: Heat only, on white, inside a thin outline of the image's extent. The only setting where the legend matches the map pixel for pixel, which suits reading values off the color bar.
 - **Playback**:
   - **Trail length (ms)**: During playback the map covers only the last N milliseconds before the playhead. Leave it empty (**All**) to accumulate everything since the start of the range. On a video stimulus an unset trail is 2 s.
-  - **Speed**: Playback rate relative to recording time, from 0.25x to 2x. On a shared clock, the plot that started playback sets the rate.
-  - **Play with other plots of this stimulus**: On by default. The heatmap plays on the stimulus's shared clock with its scanpaths and other heatmaps, and the stimulus's time-axis plots show the playback time. Uncheck to play this plot on its own.
+  - **Speed**: Playback rate relative to recording time, from 0.25x to 2x. Plots played together run at the rate of the one that started them.
 
 ### Time range
 Limit the fixations the map is built from (Tobii Pro Lab's Time of interest).
@@ -103,7 +102,7 @@ A control bar below the plot animates the map over recording time. At each momen
 
 The colors do not rescale during playback. Each frame is normalized with the parked map's basis, each participant's total fixation time over the whole range and the same N, so a frame value can never exceed the parked value at that point. With **Trail length** on *All*, the map builds up frame by frame and the last frame is the parked map. With a set trail it slides: the window's share of the whole, not of the window itself, so a quiet second reads as cold rather than as a rescaled hot spot.
 
-Heatmaps and scanpaths of one stimulus play on one shared clock, and the stimulus's [Scarf Plot](/docs/visualizations/scarf-plot) (Absolute timeline), [AOI Timeline](/docs/visualizations/aoi-timeline), and [Metric Timeline](/docs/visualizations/metric-timeline) show the playback time with their dashed line. Hovering the seek bar marks that moment on them too.
+Each heatmap plays on its own seek bar. To play it with other heatmaps or scanpaths, select them together and press play on one, see [Playing together](/docs/visualizations/scanpath#playing-together). While it plays, the stimulus's [Scarf Plot](/docs/visualizations/scarf-plot) (Absolute timeline), [AOI Timeline](/docs/visualizations/aoi-timeline), and [Metric Timeline](/docs/visualizations/metric-timeline) show the playback time with their dashed line. Hovering the seek bar marks that moment on them too.
 
 On a **video stimulus**, the current frame is drawn under the heat while the clock has a time, so the map shows what the group looked at in the scene on screen. Set **Video starts at** in the media's settings when the video does not start with the recording. The plot rests at the end of its first trail, frame and heat agreeing, and returns there when the run ends. With **Trail length** on *All* it rests at the end of the range. Exports render the moment on screen, frame included; a pause saves it with the workspace.
 

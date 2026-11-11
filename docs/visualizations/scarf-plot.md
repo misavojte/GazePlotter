@@ -31,7 +31,7 @@ In eye-tracking research, a scarf plot (also called a sequence chart) shows whic
 ## Add a Scarf Plot
 
 1. Load your data: drop the files anywhere on the page, or use **Import**. See [Uploading Data](/docs/upload-data/) for the supported formats.
-2. In the rail on the left, click **Add Visualization**, then **Gaze behavior** > **Scarf Plot**. When another plot is selected, the new one opens on its stimulus and participants.
+2. In the rail on the left, click **Add Visualization**, then **Scarf Plot** in the **Sequences** section. When another plot is selected, the new one opens on its stimulus and participants.
 3. The pane on the right opens with the plot's settings. Pick the **Stimulus** first.
 
 To move, resize, duplicate, or remove the card, see [Plot Manipulation](/docs/workspace/#plot-manipulation).
@@ -85,7 +85,7 @@ Located at the bottom of the Pane:
 ## Interactivity
 
 - **Sequence details**: Hovering over any fixation, saccade, or event strip displays a tooltip with details (e.g. duration, start/end times, and AOI or event name).
-- **Highlighting**: Hovering over a category (fixation, saccade, or specific AOI/event channel) in the legend temporarily highlights all matching segments across all participants and dims the rest. Clicking a legend category toggles a persistent highlight.
+- **Highlighting**: Hovering over a category (fixation, saccade, or specific AOI/event channel) in the legend temporarily highlights all matching segments across all participants and dims the rest. Clicking a legend category toggles a persistent highlight. With several plots selected, the click sets the same highlight in every selected Scarf Plot, [AOI Timeline](/docs/visualizations/aoi-timeline), [Transition Matrix](/docs/visualizations/transition-matrix), and the [AOI](/docs/visualizations/aoi-comparison), [Event](/docs/visualizations/event-comparison) and [Eye-movement](/docs/visualizations/eye-movement-comparison) Comparison that shows it; AOIs, No AOI and event channels only carry over to plots on the same stimulus.
 - **Linked hovering**: The hovered moment and participant are marked in the other plots of the workspace, see [Linked Hovering Across Plots](/docs/visualizations/#linked-hovering-across-plots).
 
 ## Event Channels and Dynamic AOIs

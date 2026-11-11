@@ -30,7 +30,7 @@ A scanpath shows where one participant looked on a stimulus, and in what order. 
 ## Add a Scanpath
 
 1. Load your data: drop the files anywhere on the page, or use **Import**. See [Uploading Data](/docs/upload-data/).
-2. In the rail on the left, click **Add Visualization**, then **Gaze behavior** > **Scanpath**. When another plot is selected, the new one opens on its stimulus.
+2. In the rail on the left, click **Add Visualization**, then **Scanpath** in the **Where they looked** section. When another plot is selected, the new one opens on its stimulus.
 3. The pane on the right opens with the plot's settings. Pick the **Stimulus** and the **Participant**.
 
 To move, resize, duplicate, or remove the card, see [Plot Manipulation](/docs/workspace/#plot-manipulation).
@@ -54,8 +54,7 @@ Select the individual participant whose gaze trajectory you want to visualize. T
 - **Show fixation numbers**: Check to print sequence indices (e.g. 1, 2, 3...) next to each fixation circle. Where labels would overlap, the later fixation keeps its number.
 - **Playback**:
   - **Trail length (ms)**: During playback, only fixations that began within the last N milliseconds stay on screen, fading as they age. Leave it empty (**All**) to keep everything since the start.
-  - **Speed**: Playback rate relative to recording time, from 0.25x to 2x. On a shared clock, the plot that started playback sets the rate.
-  - **Play with other plots of this stimulus**: On by default. Every scanpath of the stimulus plays on one shared clock, and its time-axis plots show the playback time. Uncheck to play this plot on its own.
+  - **Speed**: Playback rate relative to recording time, from 0.25x to 2x. Plots played together run at the rate of the one that started them.
 
 ### Time range
 - **Start / ms** / **End / ms (0 = Auto)**: Limits the scanpath to fixations overlapping this recording-time range. Fixation numbers stay those of the whole recording, and the play bar spans the range.
@@ -74,9 +73,11 @@ A control bar below the plot animates the scanpath over recording time: fixation
 - **Seek bar**: The filled part is the trail, the fixations currently on screen. Drag its left edge to change the trail length; drop it at the start for **All**.
 - **Time readout**: Seconds with tenths under a minute, minutes and seconds beyond.
 
-### Synchronized time
+### Playing together
 
-Scanpaths and [Fixation Heatmaps](/docs/visualizations/fixation-heatmap#playback) of a stimulus play on one shared clock, so scanpaths of different participants move in lockstep and a heatmap of the group builds up alongside them. While it plays, the [Scarf Plot](/docs/visualizations/scarf-plot) (Absolute timeline), [AOI Timeline](/docs/visualizations/aoi-timeline), and [Metric Timeline](/docs/visualizations/metric-timeline) of the same stimulus show the playback time with the same dashed line they use for hovering, and the scanpath marks the fixation in progress.
+Each scanpath plays on its own seek bar, over its own recording. To compare participants in lockstep, or watch a [Fixation Heatmap](/docs/visualizations/fixation-heatmap#playback) of the group build up alongside a scanpath, select the plots together (Ctrl, Cmd or Shift and click) and press play on one of them. They all start at its moment and speed, and pausing one, or seeking it while they play, moves them all. Each stops at the end of its own recording, so a 10 s scanpath finishes while a 60 s heatmap plays on.
+
+While a scanpath plays, the [Scarf Plot](/docs/visualizations/scarf-plot) (Absolute timeline), [AOI Timeline](/docs/visualizations/aoi-timeline), and [Metric Timeline](/docs/visualizations/metric-timeline) of the same stimulus show the playback time with the same dashed line they use for hovering, and the scanpath marks the fixation in progress.
 
 Hovering works both ways without playback: hovering a fixation marks its time on those plots, and hovering them marks the fixation in progress at that time on the scanpath.
 

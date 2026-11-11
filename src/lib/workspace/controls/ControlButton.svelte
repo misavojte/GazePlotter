@@ -23,6 +23,10 @@
     showLabel?: boolean
     /** Text in place of an icon (e.g. the zoom percentage). */
     text?: string
+    /** Menu search box placeholder; no search box when unset. */
+    search?: string
+    menuWidth?: number
+    menuMaxHeight?: number
   }
 
   let {
@@ -33,6 +37,9 @@
     side = 'right',
     showLabel = false,
     text,
+    search,
+    menuWidth,
+    menuMaxHeight,
   }: Props = $props()
 
   const menuItems = $derived.by((): MenuItem[] => actions.map(toMenuItem))
@@ -71,8 +78,11 @@
     position: side,
     horizontalAlign: side === 'top' ? 'center' : 'start',
     verticalAlign: side === 'top' ? 'end' : undefined,
-    offset: 10,
+    offset: 14,
     slideFrom: side === 'top' ? 'top' : 'left',
+    search,
+    width: menuWidth,
+    maxHeight: menuMaxHeight,
     disabled: disabled || !hasMenu,
   }}
 >

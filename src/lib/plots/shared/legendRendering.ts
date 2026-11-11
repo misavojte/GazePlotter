@@ -710,10 +710,10 @@ export function getLegendTooltipContent(
   item: LegendItemGeometry,
   isHighlighted: boolean
 ): Array<{ key: string; value: string }> {
-  return [
-    {
-      key: '',
-      value: `${isHighlighted ? 'Dehighlight' : 'Highlight'} ${item.name}`,
-    },
-  ]
+  return highlightTooltip(item.name, isHighlighted)
 }
+
+/** The Highlight tooltip of anything that toggles a highlight (legend items, matrix axis labels). */
+export const highlightTooltip = (name: string, isHighlighted: boolean) => [
+  { key: '', value: `${isHighlighted ? 'Dehighlight' : 'Highlight'} ${name}` },
+]

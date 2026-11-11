@@ -2,6 +2,14 @@
 
 ## 1.10.x
 
+### 1.10.6
+
+* *Released on November 11, 2026*
+* **Playback**: Select several Scanpaths or Fixation Heatmaps and press play on one to play them together. See [Playing together](/docs/visualizations/scanpath#playing-together).
+* **Highlights**: Click a legend item, AOI label or row label to highlight it; selected plots highlight it together. See [Interactivity](/docs/visualizations/scarf-plot#interactivity).
+* **Add Visualization**: Plots are listed in three sections with pictures and a search box; plots your data cannot use are listed last with the reason.
+* **Metrics**: A zero-length segment on the edge of a time range or window is now counted once instead of dropped, so counts and RQA can change there. See [Windowing](/docs/metrics#windowing-and-binning-rules).
+
 ### 1.10.5
 
 * *Released on November 3, 2026*
@@ -14,7 +22,7 @@
 
 * *Released on November 2, 2026*
 * **Participants**: *Non-empty* is now a **Hide participants without data** switch that combines with any participant selection. Saved workspaces open unchanged.
-* **Scanpath**: Scanpaths of a stimulus play in sync, and timeline plots show the playback time. Adds a trail on the seek bar, a Time range, and a video start offset. See [Synchronized time](/docs/visualizations/scanpath#synchronized-time).
+* **Scanpath**: Scanpaths of a stimulus play in sync, and timeline plots show the playback time. Adds a trail on the seek bar, a Time range, and a video start offset. See [Synchronized time](/docs/visualizations/scanpath#playing-together).
 * **Fixation Heatmap**: A play bar animates the heatmap over recording time, in step with the stimulus's scanpaths. Show everything looked at so far, or only the last few seconds, over the video frame on a video stimulus. See [Playback](/docs/visualizations/fixation-heatmap#playback). A new *Opacity map* view masks what nobody looked at.
 * **Recurrence Plot**: Each fixation is now a line rather than a cell, so a recurrence is a dot where two fixation lines cross, with fixation 1 on the axes. The cell grid is gone; the axes have whole-number ticks on all four edges and a diagonal guide line, and hovering marks the two fixations with dashed lines. New plots start without masking. See [Recurrence Plot](/docs/visualizations/recurrence-plot).
 * **AOIs**: Names and colors that differ across stimuli show as *Mixed*.

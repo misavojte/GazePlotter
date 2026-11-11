@@ -21,7 +21,8 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
   type: 'fixationHeatmap',
   name: 'Fixation Heatmap',
   tagline: 'Pooled fixations on the stimulus',
-  group: 'gaze-behavior',
+  group: 'stimulus',
+  keywords: 'heat map attention map opacity map density',
   paneSections: [
     'stimulus',
     'participants',
@@ -202,7 +203,6 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
     background: 'image',
     // Old workspaces lack these keys; the item factory merges the defaults in.
     playbackSpeed: 1,
-    syncPlayback: true,
   }),
   size: { min: { w: 12, h: 10 }, w: 16, h: 13 },
   requireCapabilities: ['segmented', 'spatial'],

@@ -15,7 +15,8 @@ export const metricCorrelationDefinition = definePlot<
   type: 'metricCorrelation',
   name: 'Metric Correlation',
   tagline: 'Correlations between metrics',
-  group: 'per-participant',
+  group: 'metric',
+  keywords: 'Spearman Pearson SPLOM scatterplot',
   paneSections: [
     'stimulus',
     'participants',

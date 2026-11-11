@@ -1,16 +1,48 @@
 <script lang="ts">
   import { useContextMenu } from './contextMenuState.svelte'
-  import { MENU_MAX_HEIGHT, MENU_WIDTH } from './const'
+  import { MENU_MAX_HEIGHT, MENU_WIDTH, SEARCH_HEIGHT } from './const'
   import { portal } from '$lib/shared/placement'
   import { scale } from 'svelte/transition'
   import { cubicOut } from 'svelte/easing'
   import MenuList from './MenuList.svelte'
+  import { filterMenuItems } from './search'
+  import Search from 'lucide-svelte/icons/search'
 
   const contextMenuState = useContextMenu()
 
   const onClose = () => contextMenuState.reset()
 
   let container: HTMLUListElement | null = $state(null)
+  let menuElement: HTMLDivElement | null = $state(null)
+  let searchInput: HTMLInputElement | null = $state(null)
+
+  // The search box's text, cleared whenever a different menu opens.
+  let query = $state('')
+  let queryOwner: symbol | null = null
+  $effect(() => {
+    const owner = contextMenuState.current?.ownerId ?? null
+    if (owner !== queryOwner) query = ''
+    queryOwner = owner
+  })
+  const shownItems = $derived.by(() => {
+    const menu = contextMenuState.current
+    if (!menu?.items) return []
+    return menu.search ? filterMenuItems(menu.items, query) : menu.items
+  })
+
+  // Focus the search box once the menu is up, except on touch screens,
+  // where focus would raise the keyboard over the list.
+  const focusSearch = (node: HTMLInputElement) => {
+    if (!window.matchMedia('(pointer: fine)').matches) return
+    requestAnimationFrame(() => node.focus({ preventScroll: true }))
+  }
+
+  // Enter in the search box adds the first match.
+  const onSearchKeydown = (ev: KeyboardEvent) => {
+    if (ev.key !== 'Enter') return
+    ev.preventDefault()
+    menuButtons()[0]?.click()
+  }
 
   // What had focus when the menu opened: Escape from inside hands focus back.
   let opener: HTMLElement | null = null
@@ -23,7 +55,7 @@
   // items are native buttons, which activate on those keys by themselves.
   const onKeydown = (ev: KeyboardEvent) => {
     if (ev.key === 'Escape') {
-      const back = container?.contains(document.activeElement) ? opener : null
+      const back = menuElement?.contains(document.activeElement) ? opener : null
       onClose()
       if (back?.isConnected) back.focus({ preventScroll: true })
     }
@@ -39,7 +71,9 @@
     const inField = !!target && (/^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName) || target.isContentEditable === true)
     const printable = ev.key.length === 1 && ev.key !== ' ' && !inField
     if (printable && container && !ev.ctrlKey && !ev.metaKey && !ev.altKey) {
-      focusTyped(ev.key)
+      // With a search box, typing goes there (the key lands in the box).
+      if (searchInput) searchInput.focus()
+      else focusTyped(ev.key)
     }
   }
 
@@ -97,21 +131,40 @@
       <div
         class="menu"
         role="menu"
+        bind:this={menuElement}
         style={`left:${menu.x}px; top:${menu.y}px; z-index:${menu.zIndex}; --menu-width: ${menu.width ?? MENU_WIDTH}px;`}
         in:scale={{ duration: 150, start: 0.96, easing: cubicOut }}
       >
+        {#if menu.search}
+          <div class="search">
+            <Search size={14} strokeWidth={1.75} aria-hidden="true" />
+            <input
+              type="text"
+              bind:value={query}
+              bind:this={searchInput}
+              placeholder={menu.search}
+              aria-label={menu.search}
+              autocomplete="off"
+              spellcheck="false"
+              use:focusSearch
+              onkeydown={onSearchKeydown}
+            />
+          </div>
+        {/if}
         <div
-          class="menu-content"
+          class="menu-content scroll-slim"
           onscroll={e => e.stopPropagation()}
-          style={`max-height:${MENU_MAX_HEIGHT}px;`}
+          style={`max-height:min(${menu.maxHeight ?? MENU_MAX_HEIGHT}px, calc(100dvh - ${menu.y + (menu.search ? SEARCH_HEIGHT : 0) + 16}px));`}
         >
-          {#if menu.items && menu.items.length}
+          {#if shownItems.length}
             <MenuList
-              items={menu.items}
+              items={shownItems}
               parentZIndex={menu.zIndex}
               selectionMode={menu.selectionMode}
               bind:list={container}
             />
+          {:else if menu.search && query}
+            <p class="no-match">Nothing matches "{query}"</p>
           {:else if menu.content}
             <div class="custom">{menu.content}</div>
           {/if}
@@ -159,5 +212,37 @@
 
   .custom {
     padding: 8px 12px;
+  }
+
+  .search {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+    height: 40px;
+    border-bottom: 1px solid var(--c-border);
+    color: var(--c-darkgrey);
+  }
+
+  .search input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: transparent;
+    font: inherit;
+    font-size: var(--text-md);
+    color: var(--c-black);
+  }
+
+  .search input::placeholder {
+    color: var(--c-darkgrey);
+  }
+
+  .no-match {
+    margin: 0;
+    padding: 12px 16px;
+    font-size: var(--text-md);
+    color: var(--c-darkgrey);
   }
 </style>

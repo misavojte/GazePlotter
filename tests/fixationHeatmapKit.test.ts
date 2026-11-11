@@ -55,7 +55,6 @@ function inputOf(over: Partial<FixationHeatmapPlotSettings> = {}, media: Stimulu
     showFixations: false,
     background: 'image',
     playbackSpeed: 1,
-    syncPlayback: true,
     ...over,
   }
   return deriveFixationHeatmapView(engine, settings).input

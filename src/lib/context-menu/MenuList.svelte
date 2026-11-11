@@ -1,5 +1,6 @@
 <script lang="ts">
   import Check from 'lucide-svelte/icons/check'
+  import CircleAlert from 'lucide-svelte/icons/circle-alert'
   import { highlightMenuItem, shouldCloseMenuOnAction } from './behavior'
   import { useContextMenu } from './contextMenuState.svelte'
   import {
@@ -70,7 +71,11 @@
 <ul bind:this={list}>
   {#each items as it}
     {#if isMenuDivider(it)}
-      <li class="divider" role="presentation"></li>
+      {#if it.label}
+        <li class="heading" role="presentation">{it.label}</li>
+      {:else}
+        <li class="divider" role="presentation"></li>
+      {/if}
     {:else if isMenuFlyoutItem(it)}
       <ContextSubMenu
         item={it}
@@ -104,11 +109,21 @@
                 <Check size={10} strokeWidth={2.5} />
               {/if}
             </span>
+          {:else if it.thumbnail}
+            <!-- Static SVG from the code base (MenuDisplayItem.thumbnail), never user data. -->
+            <span class="thumbnail" aria-hidden="true">{@html it.thumbnail}</span>
           {:else if it.icon}
             {@const Icon = it.icon}
             <Icon size={'1em'} strokeWidth={1} />
           {/if}
-          {#if it.detail}
+          {#if it.disabled && it.disabledReason}
+            <span class="item-body">
+              <span class="item-label" title={it.label}>{it.label}</span>
+              <span class="item-detail reason">
+                <CircleAlert size={11} strokeWidth={2} aria-hidden="true" />{it.disabledReason}
+              </span>
+            </span>
+          {:else if it.detail}
             <span class="item-body">
               <span class="item-label" title={it.label}>{it.label}</span>
               <span class="item-detail" title={it.detail}>{it.detail}</span>
@@ -152,6 +167,48 @@
     height: 1px;
     background: var(--c-border);
     margin: 4px 0;
+  }
+
+  /* A labelled divider: the heading of the items below it. */
+  li.heading {
+    padding: 8px 12px 4px;
+    font-size: var(--text-xs);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--c-darkgrey);
+  }
+
+  li.heading:first-child {
+    padding-top: 4px;
+  }
+
+  .thumbnail {
+    flex-shrink: 0;
+    display: flex;
+    width: 48px;
+    height: 32px;
+    border-radius: var(--rounded);
+    background: var(--c-white);
+    box-shadow: inset 0 0 0 1px var(--c-border);
+    overflow: hidden;
+  }
+
+  button:disabled .thumbnail {
+    opacity: 0.5;
+    filter: grayscale(1);
+  }
+
+  .item-detail.reason {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    color: var(--c-warning);
+  }
+
+  button:has(.thumbnail) {
+    gap: 10px;
+    padding: 4px 8px;
   }
 
   button[role='menuitem'] {

@@ -823,6 +823,13 @@ export function runMigrations(parsedJson: unknown): MigratedJsonFormat {
     return { ...item, settings: carried === undefined ? rest : { ...rest, trailLength: carried } }
   })
 
+  // Version-independent: every player has its own clock now, so the `syncPlayback` switch is gone.
+  mapItemSettings(data, (item, s) => {
+    if (!('syncPlayback' in s)) return item
+    const { syncPlayback: _, ...rest } = s
+    return { ...item, settings: rest }
+  })
+
   // Version-independent: the retired `-1` sentinel and `hideEvents` are legacy
   // VALUES, not a format step — in-branch builds stamped v6 while both were
   // still live. Runs after the passes above so a seeded row is already in place.

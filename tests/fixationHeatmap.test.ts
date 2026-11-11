@@ -59,7 +59,6 @@ const settings = (over: Partial<FixationHeatmapPlotSettings> = {}): FixationHeat
   showFixations: false,
   background: 'image',
   playbackSpeed: 1,
-  syncPlayback: true,
   ...over,
 })
 

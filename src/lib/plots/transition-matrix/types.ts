@@ -18,6 +18,8 @@ export type TransitionMatrixPlotSettings = ParticipantScope & OutOfBoundsSetting
   stimuliColorValueRanges: [number, number][]
   colorScale: string[]
   hideNoAoi?: boolean
+  /** Highlighted AOI ids (No AOI is -1), toggled on the axis labels. */
+  highlights?: string[]
 }
 
 export interface TransitionMatrixData {

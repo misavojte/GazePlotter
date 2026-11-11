@@ -106,7 +106,7 @@ const contextMenuAction = (
     const computedZIndex = computeZIndex(state.anchor)
 
     const hasContent = Boolean(options.content)
-    const baseSize = getMenuSize(options.items, hasContent)
+    const baseSize = getMenuSize(options.items, hasContent, options)
     const menuSize =
       options.width !== undefined
         ? { ...baseSize, width: options.width }
@@ -121,6 +121,8 @@ const contextMenuAction = (
       slideFrom: state.slideFrom,
       selectionMode: options.selectionMode,
       width: options.width,
+      search: options.search,
+      maxHeight: options.maxHeight,
       ownerId,
       zIndex: computedZIndex + 1,
       cleanup: finalizeClosure,

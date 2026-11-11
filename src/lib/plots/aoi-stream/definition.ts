@@ -5,6 +5,7 @@ import { stimulusParticipantsSubtitle } from '$lib/plots/shared'
 // Called at definition time: import the module, not the barrel, which the
 // registry -> shared sections -> registry cycle leaves half-initialised.
 import { reconcileStimulusScopedHighlights } from '$lib/plots/shared/highlightReconcile'
+import { prefixedHighlights } from '$lib/plots/shared/highlightLink'
 import { OUT_OF_BOUNDS_COLORS, outOfBoundsFields } from '$lib/plots/shared/outOfBounds'
 import { getAois, getParticipantsMaxEndTime } from '$lib/data/engine'
 import { PRESET_PALETTES } from '$lib/color/palettes'
@@ -23,7 +24,8 @@ export const aoiStreamPlotDefinition = definePlot<
   type: 'aoiStreamPlot',
   name: 'AOI Timeline',
   tagline: 'AOI metric over time bins',
-  group: 'per-aoi',
+  group: 'metric',
+  keywords: 'stream ridgeline over time',
   paneSections: [
     'stimulus',
     'participants',
@@ -117,6 +119,7 @@ export const aoiStreamPlotDefinition = definePlot<
       input: (_view, max) => ({ syncedMTopOverride: max }),
     },
   ],
+  highlights: prefixedHighlights({ aoi: '', noAoi: '-1' }),
   getSubtitle: stimulusParticipantsSubtitle,
   getDefaultSettings: (params = {}) => ({
     stimulusId: params.stimulusId ?? 0,
@@ -130,10 +133,10 @@ export const aoiStreamPlotDefinition = definePlot<
     hideNoAoi: false,
   }),
   requireCapabilities: ['segmented'],
-  // Highlights are bare AOI ids — every one is stimulus-scoped.
+  // Highlights are bare AOI ids, every one stimulus-scoped; No AOI is -1.
   onCommand: reconcileStimulusScopedHighlights<AoiStreamPlotSettings>(
     () => true,
-    (engine, s) => getAois(engine, s.stimulusId).map(a => String(a.id))
+    (engine, s) => [...getAois(engine, s.stimulusId).map(a => String(a.id)), '-1']
   ),
   consumesMetrics: {
     outputShape: 'aoi-vector',

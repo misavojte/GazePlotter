@@ -3,7 +3,7 @@ import type { DataEngine } from '$lib/data/engine/dataEngine.svelte'
 import { SEGMENT_STRIDE, SegmentField } from '$lib/data/binary'
 import { buildAoiSlots } from './aoiSlots'
 import { getRecipe } from './defineMetric'
-import { fillWindowFrame, scopeDurationOf } from './dsl'
+import { fillWindowFrame, scopeDurationOf, segmentInRange } from './dsl'
 import { cacheGetRaw, cacheSetRaw, makeScanCursor, runSingleWindow, scanCtx } from './runtime'
 import type { InitCtx, MetricRecipe } from './dsl'
 import type { MetricInstance } from '../instances'
@@ -27,11 +27,9 @@ export function scanBatch(
   const slots = buildAoiSlots(engine, stimulusId, aoiSelectionId)
   if (!slots) return new Map()
   // One scan, one extent, shared by every instance's ctx.
-  const scopeDurationMs = scopeDurationOf(
-    timeStart,
-    timeEnd,
-    slots.reader.getParticipantEndTime(stimulusId, participantId)
-  )
+  const rStart = slots.reader.getParticipantStartTime(stimulusId, participantId)
+  const rEnd = slots.reader.getParticipantEndTime(stimulusId, participantId)
+  const scopeDurationMs = scopeDurationOf(timeStart, timeEnd, rEnd)
 
   type ActiveInstance = {
     inst: MetricInstance
@@ -99,8 +97,8 @@ export function scanBatch(
     const base = i * SEGMENT_STRIDE
     const start = segBuf[base + SegmentField.START_TIME]
     const end = segBuf[base + SegmentField.END_TIME]
-    if (timeEnd > 0 && start >= timeEnd) break
-    if (end <= timeStart) continue
+    if (timeEnd > 0 && start > timeEnd) break
+    if (!segmentInRange(start, end, timeStart, timeEnd, rStart, rEnd)) continue
 
     // KEEP IN SYNC with scanAccumulator/computeTimeWindowed — inlined in all
     // three scans for speed (a shared per-fixation callback measured ~15%

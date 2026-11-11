@@ -1,9 +1,11 @@
 /**
- * One playhead per stimulus, in recording ms. Scanpath plots join it as players
- * so all show the same moment; time-axis plots only read it through the plot
+ * One playhead per player (Scanpath, Fixation Heatmap), in recording ms, on the
+ * player's own span. Plots selected together start, pause and seek together (a
+ * RUN), each keeping its span, so a short recording ends while a long one plays
+ * on. Time-axis plots of the stimulus read a playing clock through the plot
  * cursor port (playback is not undoable). A reference video leads the clock
- * inside its span so frames never drift from the fixations. A player can opt
- * into a private clock; clocks sharing a video pause each other.
+ * inside its span so frames never drift from the fixations; clocks sharing a
+ * video outside one run pause each other.
  */
 import { SvelteMap } from 'svelte/reactivity'
 import { sessionScoped } from '$lib/session/context'
@@ -14,58 +16,55 @@ type Player = { span: { start: number; end: number }; speed: number; rest?: numb
 
 type VideoBinding = { el: HTMLVideoElement; offset: number }
 
+/** Clocks started together, at the starter's speed; `saved` once their moments are committed. */
+export type PlaybackRun = { clocks: PlaybackClock[]; speed: number; saved: boolean }
+
+const EMPTY_SPAN = { start: 0, end: 0 }
+
 export class PlaybackClock {
-  /** Recording ms; null = parked without a rest time, players show everything. */
+  /** Recording ms; null = parked without a rest time, the player shows everything. */
   time = $state<number | null>(null)
   playing = $state(false)
   /** Repaint signal: a seeked video frame was decoded. */
   frame = $state(0)
-  /** Parked at the players' rest time rather than moved there by a seek or play. */
+  /** Until the figure sets it: an empty span, nothing to play. */
+  player = $state.raw<Player | null>(null)
+  /** The run it last played in, itself included; null when it played alone. */
+  run: PlaybackRun | null = null
+  readonly plotId: number
+  /** The plot's stimulus, for the time-axis plots that read it. */
+  readonly stimulusId: () => number
+  /** Parked at the player's rest time rather than moved there by a seek or play. */
   private atRest = false
-  /** The player that last played or seeked; its speed is the clock's. */
-  driver = $state<number | null>(null)
-  readonly players = new SvelteMap<number, Player>()
-
-  /** Per player; all bindings of one clock are the same element. */
-  private videos = new Map<number, VideoBinding>()
+  private video: VideoBinding | null = null
   private raf = 0
   private lastAt = 0
   /** play() was refused (autoplay policy): don't retry every frame. */
   private videoBlocked = false
   private readonly owner: PlaybackClocks
 
-  constructor(owner: PlaybackClocks) {
+  constructor(owner: PlaybackClocks, plotId: number, stimulusId: () => number) {
     this.owner = owner
+    this.plotId = plotId
+    this.stimulusId = stimulusId
   }
 
-  /** Union of the players' spans; an empty span (a placeholder) adds nothing. */
+  /** An empty span (a placeholder) is no span. */
   get span(): { start: number; end: number } {
-    let start = Infinity
-    let end = -Infinity
-    for (const { span } of this.players.values()) {
-      if (!(span.end > span.start)) continue
-      start = Math.min(start, span.start)
-      end = Math.max(end, span.end)
-    }
-    return end > start ? { start, end } : { start: 0, end: 0 }
+    const span = this.player?.span
+    return span && span.end > span.start ? span : EMPTY_SPAN
   }
 
   get speed(): number {
-    const driven = this.driver !== null ? this.players.get(this.driver) : undefined
-    return (driven ?? this.players.values().next().value)?.speed ?? 1
+    return this.run?.speed ?? this.player?.speed ?? 1
   }
 
-  /** The latest rest any player asks for, so every trail is full; null = none. */
   get rest(): number | null {
-    let rest: number | null = null
-    for (const p of this.players.values()) {
-      if (p.rest != null && (rest === null || p.rest > rest)) rest = p.rest
-    }
-    return rest
+    return this.player?.rest ?? null
   }
 
-  get video(): VideoBinding | null {
-    return this.videos.values().next().value ?? null
+  get videoElement(): HTMLVideoElement | null {
+    return this.video?.el ?? null
   }
 
   /** The time it holds of its own; null when parked (at rest or showing everything). */
@@ -73,10 +72,10 @@ export class PlaybackClock {
     return this.atRest ? null : this.time
   }
 
-  join(plotId: number, player: Player): void {
+  setPlayer(player: Player): void {
     const saved = player.saved ?? null
-    const changed = saved !== (this.players.get(plotId)?.saved ?? null)
-    this.players.set(plotId, player)
+    const changed = saved !== (this.player?.saved ?? null)
+    this.player = player
     if (!this.playing) {
       // A new saved moment (load, undo) moves the clock; our own commit is already there.
       if (changed && saved !== this.time) return saved === null ? this.park() : this.seek(saved)
@@ -87,26 +86,17 @@ export class PlaybackClock {
     if (this.time !== null && (this.time < start || this.time > end)) this.seek(this.time)
   }
 
-  leave(plotId: number): void {
-    this.players.delete(plotId)
-    this.bindVideo(plotId, null, 0)
-    if (this.driver === plotId) this.driver = null
-    if (this.players.size === 0 || this.atRest) this.reset()
-  }
-
-  bindVideo(plotId: number, el: HTMLVideoElement | null, offset: number): void {
+  bindVideo(el: HTMLVideoElement | null, offset: number): void {
     const before = this.video?.el
-    if (el) this.videos.set(plotId, { el, offset })
-    else this.videos.delete(plotId)
-    const after = this.video?.el
-    if (before === after) return
+    this.video = el ? { el, offset } : null
+    if (before === el) return
     if (before) {
       before.removeEventListener('seeked', this.onVideoSeeked)
       // Only our own run: another clock may be playing the element.
       if (this.playing) before.pause()
     }
-    if (after) {
-      after.addEventListener('seeked', this.onVideoSeeked)
+    if (el) {
+      el.addEventListener('seeked', this.onVideoSeeked)
       if (this.time !== null) this.parkVideo(this.time)
     }
   }
@@ -120,11 +110,12 @@ export class PlaybackClock {
     setTimeout(() => this.frame++, SEEK_REPAINT_FALLBACK_MS)
   }
 
-  play(plotId: number | null): void {
+  /** From `from` (clamped), else from where it stands, the top when parked or at the end. */
+  play(from?: number): void {
     const { start, end } = this.span
     if (end <= start) return
-    if (plotId !== null) this.driver = plotId
-    if (this.time === null || this.atRest || this.time >= end - 1) this.time = start
+    if (from !== undefined) this.seek(from)
+    else if (this.time === null || this.atRest || this.time >= end - 1) this.time = start
     this.atRest = false
     this.owner.claim(this)
     this.playing = true
@@ -135,21 +126,31 @@ export class PlaybackClock {
   }
 
   pause(): void {
-    // Only our own run: another clock may be playing the element.
-    if (this.playing) this.video?.el.pause()
+    if (this.playing && !this.videoShared()) this.video?.el.pause()
     this.playing = false
     this.stopTicking()
   }
 
-  toggle(plotId: number | null): void {
-    if (this.playing) this.pause()
-    else this.play(plotId)
+  /** Pause its run; else play with `mates` from its own moment, all at its speed. */
+  toggle(mates: PlaybackClock[] = []): void {
+    if (this.playing) {
+      for (const c of this.runMates()) c.pause()
+      this.pause()
+      return
+    }
+    const clocks = [this, ...mates.filter(m => m !== this && m.span.end > m.span.start)]
+    const run = clocks.length > 1 ? { clocks, speed: this.player?.speed ?? 1, saved: false } : null
+    for (const c of clocks) {
+      c.pause()
+      c.run = run
+    }
+    this.play()
+    if (this.time !== null) for (const m of clocks.slice(1)) m.play(this.time)
   }
 
   /** Clamped to the span; keeps playing if it was. */
-  seek(time: number, plotId: number | null = null): void {
+  seek(time: number): void {
     const { start, end } = this.span
-    if (plotId !== null) this.driver = plotId
     this.atRest = false
     this.time = Math.min(Math.max(time, start), Math.max(start, end))
     this.lastAt = performance.now()
@@ -158,10 +159,28 @@ export class PlaybackClock {
     else if (v) this.parkVideo(this.time)
   }
 
+  /** A seek from the play bar: a playing run moves with it, ended members included. */
+  scrub(time: number): void {
+    this.seek(time)
+    if (this.playing) for (const c of this.runMates()) c.play(time)
+  }
+
   /** Stop and park: at the rest time, else showing everything. */
   reset(): void {
     this.pause()
     this.park()
+  }
+
+  /** The other clocks still in its run. */
+  private runMates(): PlaybackClock[] {
+    const run = this.run
+    return run ? run.clocks.filter(c => c !== this && c.run === run) : []
+  }
+
+  /** A mate is playing the same element: leave it to that clock. */
+  private videoShared(): boolean {
+    const el = this.video?.el
+    return !!el && this.runMates().some(c => c.playing && c.video?.el === el)
   }
 
   private park(): void {
@@ -196,6 +215,10 @@ export class PlaybackClock {
         t = ready ? v.el.currentTime * 1000 + v.offset : this.time
       }
       this.syncVideo(v, t, false)
+    } else {
+      // Without a video of its own, a run member follows a mate's playing one, so they never drift.
+      const lead = this.runMates().find(c => c.playing && c.video && !c.video.el.paused)?.video
+      if (lead && !lead.el.seeking && lead.el.readyState >= 2) t = lead.el.currentTime * 1000 + lead.offset
     }
     const { end } = this.span
     this.time = Math.min(t, end)
@@ -224,7 +247,7 @@ export class PlaybackClock {
   /** Show the frame for `t`, or the edge frame outside the video's span. */
   private parkVideo(t: number): void {
     const v = this.video
-    if (!v) return
+    if (!v || this.videoShared()) return
     v.el.pause()
     const local = Math.min(Math.max(t - v.offset, 0), Math.max(0, durationMs(v.el) - 1))
     v.el.currentTime = Math.max(local / 1000, 0.001)
@@ -237,39 +260,45 @@ const SEEK_REPAINT_FALLBACK_MS = 250
 const durationMs = (el: HTMLVideoElement) =>
   Number.isFinite(el.duration) ? el.duration * 1000 : 0
 
-/** A session's clocks: one shared per stimulus, plus private ones. */
+/** A session's clocks, one per player plot. */
 export class PlaybackClocks {
-  private clocks = new SvelteMap<string, PlaybackClock>()
+  private clocks = new SvelteMap<number, PlaybackClock>()
 
-  static sharedKey = (stimulusId: number) => `stimulus:${stimulusId}`
-  static privateKey = (plotId: number) => `plot:${plotId}`
-
-  /** Created on first use. */
-  clock(key: string): PlaybackClock {
-    let c = this.clocks.get(key)
-    if (!c) this.clocks.set(key, (c = new PlaybackClock(this)))
+  /** A fresh clock for the plot, replacing any a remounted copy left behind. */
+  open(plotId: number, stimulusId: () => number): PlaybackClock {
+    const c = new PlaybackClock(this, plotId, stimulusId)
+    this.clocks.set(plotId, c)
     return c
   }
 
-  /** The clock goes with its last player. */
-  leave(key: string, plotId: number): void {
-    const c = this.clocks.get(key)
-    c?.leave(plotId)
-    if (c?.players.size === 0) this.clocks.delete(key)
+  get(plotId: number): PlaybackClock | undefined {
+    return this.clocks.get(plotId)
   }
 
-  /** The stimulus's shared clock time while it plays, else null. */
-  playingTime(stimulusId: number): number | null {
-    const c = this.clocks.get(PlaybackClocks.sharedKey(stimulusId))
-    return c?.playing ? c.time : null
+  /** Stops the clock; drops it unless a newer one holds the plot. */
+  close(clock: PlaybackClock): void {
+    clock.reset()
+    clock.bindVideo(null, 0)
+    if (this.clocks.get(clock.plotId) === clock) this.clocks.delete(clock.plotId)
   }
 
-  /** Starting a clock pauses any other one on the same video. */
+  /** The playing clocks' times on the stimulus. */
+  playingTimes(stimulusId: number): number[] {
+    const times: number[] = []
+    for (const c of this.clocks.values()) {
+      if (c.playing && c.time !== null && c.stimulusId() === stimulusId) times.push(c.time)
+    }
+    return times
+  }
+
+  /** Starting a clock pauses any other one on the same video, except its run's. */
   claim(clock: PlaybackClock): void {
-    const el = clock.video?.el
+    const el = clock.videoElement
     if (!el) return
     for (const other of this.clocks.values()) {
-      if (other !== clock && other.playing && other.video?.el === el) other.pause()
+      if (other === clock || !other.playing || other.videoElement !== el) continue
+      if (clock.run && other.run === clock.run) continue
+      other.pause()
     }
   }
 }

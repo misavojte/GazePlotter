@@ -28,7 +28,7 @@ Eye-movement Comparison puts one metric side by side for every eye-movement type
 ## Add an Eye-movement Comparison
 
 1. Load your data: drop the files anywhere on the page, or use **Import**. See [Uploading Data](/docs/upload-data/) for the supported formats.
-2. In the rail on the left, click **Add Visualization**, then **Gaze behavior** > **Eye-movement Comparison**. When another plot is selected, the new one opens on its stimulus and participants.
+2. In the rail on the left, click **Add Visualization**, then **Eye-movement Comparison** in the **Metrics** section. When another plot is selected, the new one opens on its stimulus and participants.
 3. The pane on the right opens with the plot's settings. Pick the **Stimulus**, then the metric under **Metric**.
 
 To move, resize, duplicate, or remove the card, see [Plot Manipulation](/docs/workspace/#plot-manipulation).
@@ -90,6 +90,7 @@ Located at the bottom of the Pane:
 ## Interactivity
 
 - **Tooltip**: Hovering a row shows the type and the axis value at the pointer. Over dots it lists the participants there (with a count when one participant has several dots); elsewhere in the row it shows n, mean, median, SD, and the 95% CI.
+- **Highlighting**: Clicking a type label toggles a persistent highlight of that type: its row keeps its color, and the other rows fade, labels included. With several plots selected, the click sets the same highlight in every selected Eye-movement Comparison and [Scarf Plot](/docs/visualizations/scarf-plot), on any stimulus. The Scarf Plot draws fixations by AOI, so a highlighted *Fixation* has nothing to mark there.
 
 ## The Type Axis
 

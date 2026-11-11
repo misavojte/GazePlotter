@@ -25,9 +25,7 @@
     $props()
 
   const menuWidth = $derived(
-    isMenuComponentItem(item) && item.componentWidth
-      ? item.componentWidth
-      : MENU_WIDTH
+    (isMenuComponentItem(item) ? item.componentWidth : item.childrenWidth) ?? MENU_WIDTH
   )
 </script>
 
@@ -40,7 +38,7 @@
   in:scale={{ duration: 150, start: 0.96, easing: cubicOut }}
 >
   <div
-    class="menu-content"
+    class="menu-content scroll-slim"
     onscroll={e => e.stopPropagation()}
     style={`max-height:${MENU_MAX_HEIGHT}px;`}
   >

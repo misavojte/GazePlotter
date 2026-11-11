@@ -37,6 +37,8 @@ export function distributionParticipants(
   }
 }
 
-/** One slot per entity, labelled with its displayed name. */
-export const entitySlots = (entities: readonly { slot: number; displayedName: string; color: string }[]): DistributionSlot[] =>
-  entities.map(e => ({ slot: e.slot, label: e.displayedName, color: e.color }))
+/** One slot per entity, labelled with its displayed name and highlighted by its id. */
+export const entitySlots = (
+  entities: readonly { slot: number; id: number; displayedName: string; color: string }[]
+): DistributionSlot[] =>
+  entities.map(e => ({ slot: e.slot, id: String(e.id), label: e.displayedName, color: e.color }))

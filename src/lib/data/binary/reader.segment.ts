@@ -110,6 +110,16 @@ export class BinaryBufferReader {
   }
 
   /**
+   * Get the start time of the first segment for a participant on a stimulus.
+   */
+  getParticipantStartTime(stimulusId: number, participantId: number): number {
+    const idx = (stimulusId * this.maxParticipants + participantId) * 2
+    const startIndex = this.indexTable[idx]
+    if (startIndex === this.indexTable[idx + 1]) return 0 // No segments
+    return this.segmentBuffer[startIndex * SEGMENT_STRIDE + SegmentField.START_TIME]
+  }
+
+  /**
    * Get the end time of the last segment for a participant on a stimulus.
    */
   getParticipantEndTime(stimulusId: number, participantId: number): number {

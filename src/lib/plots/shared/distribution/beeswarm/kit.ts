@@ -23,6 +23,7 @@ import {
 } from '$lib/plots/shared/drawCanvasPlaceholder'
 import type { FrameHit } from '$lib/plots/shared/frame'
 import { defineKit } from '$lib/plots/shared/kit'
+import { highlightTooltip } from '$lib/plots/shared/legendRendering'
 import { TICK_LENGTH, fillPlotAreaBackground } from '$lib/plots/shared/plotArea'
 import { valueAxisTicks } from '$lib/plots/shared/ticks'
 import type { AdaptiveTimeline } from '$lib/plots/shared/timelineUtils'
@@ -34,6 +35,7 @@ import {
   drawSwarmPoints,
   DOT_PITCH,
   DOT_RADIUS,
+  dimmedColor,
   valueToPixel,
   type BeeswarmLayout,
 } from './renderers'
@@ -70,13 +72,16 @@ export interface BeeswarmInput {
   cannotFitHints?: string[]
   emptyPlaceholder?: PlotPlaceholderContent
   ariaLabel?: string
+  /**
+   * Highlighted slot ids. The category labels are the legend: a label toggles
+   * its slot, and while a drawn slot is highlighted the others fade, label
+   * included, as legend items do.
+   */
+  highlights?: readonly string[]
 }
 
-/** The hovered row, and the pointer's position along the value axis for the guide. */
-export interface BeeswarmHover {
-  rowIndex: number
-  valuePx: number
-}
+/** The hovered row and the pointer's position along the value axis, or a hovered category label. */
+export type BeeswarmHover = { rowIndex: number; valuePx: number } | { label: number }
 
 function fmt(v: number, unit: string): string {
   const num = v % 1 === 0 ? v.toString() : v.toFixed(2)
@@ -153,6 +158,7 @@ export const beeswarmKit = defineKit<BeeswarmInput, BeeswarmHover>()({
           }
         : { bottom: { ticks: labelled, title: input.axisLabel }, top: { ticks: mirror } },
       rowLabels: rowColumn.labels,
+      rowLabelWidth: rowColumn.width,
     }
   },
 
@@ -164,10 +170,15 @@ export const beeswarmKit = defineKit<BeeswarmInput, BeeswarmHover>()({
     // Slots only: the swarm spaces itself by the dot size, and the
     // proportional-bar path derives its own rects from these slots.
     const fullCategoryWidth = data.length > 0 ? availableSpace / data.length : 0
+    // Whether each slot is highlighted; none drawn here means nothing fades.
+    const highlights = input.highlights ?? []
+    const lit = data.map(d => d.id !== undefined && highlights.includes(d.id))
+    const fade = lit.includes(true)
     const items = data.map((item, index) => ({
       categoryCenter: (isVertical ? frame.x : frame.y) + (index + 0.5) * fullCategoryWidth,
       categoryWidth: fullCategoryWidth,
       data: item,
+      dimmed: fade && !lit[index],
     }))
 
     const layout: BeeswarmLayout = {
@@ -190,8 +201,14 @@ export const beeswarmKit = defineKit<BeeswarmInput, BeeswarmHover>()({
       input,
       layout,
       isVertical,
+      lit,
       rowLabels: chrome.rowLabels,
       categoryLabelOffset: CATEGORY_LABEL_GAP + Math.ceil(categoryLabelHeight / 2),
+      // How far the category labels reach out of the frame: the left row-label
+      // column, or the label line under the columns.
+      labelDepth: isVertical
+        ? CATEGORY_LABEL_GAP + Math.ceil(categoryLabelHeight)
+        : chrome.rowLabelWidth,
       proportion: input.proportion ?? false,
       statisticalOverlay: input.statisticalOverlay ?? 'none',
       unit: input.unit ?? '',
@@ -231,13 +248,14 @@ export const beeswarmKit = defineKit<BeeswarmInput, BeeswarmHover>()({
     ctx.restore()
 
     ctx.font = `${LABEL_FONT_SIZE}px ${FONT_PRIMARY.FAMILY}`
-    ctx.fillStyle = FONT_PRIMARY.COLOR
     ctx.textAlign = isVertical ? 'center' : 'right'
     ctx.textBaseline = 'middle'
 
+    const dimmedLabel = dimmedColor(FONT_PRIMARY.COLOR)
     const items = layout.items
     for (let i = 0; i < items.length; i++) {
       const item = items[i]
+      ctx.fillStyle = item.dimmed ? dimmedLabel : FONT_PRIMARY.COLOR
       if (isVertical) {
         const text = truncateTextToPixelWidth(item.data.label, item.categoryWidth, LABEL_FONT_SIZE, FONT_PRIMARY.FAMILY, '…')
         ctx.fillText(
@@ -287,7 +305,7 @@ export const beeswarmKit = defineKit<BeeswarmInput, BeeswarmHover>()({
 
   overlay: {
     draw: (ctx, scene, frame, { hover }) => {
-      if (hover === null) return
+      if (hover === null || !('rowIndex' in hover)) return
       const { rowIndex: hoveredRowIndex, valuePx: mouseValuePx } = hover
       const item = scene.layout.items[hoveredRowIndex]
       if (!item) return
@@ -380,4 +398,58 @@ export const beeswarmKit = defineKit<BeeswarmInput, BeeswarmHover>()({
       data: { rowIndex, valuePx },
     }
   },
+
+  // A category label toggles its slot's highlight, as a legend item does.
+  hitChrome: (scene, x, y, frame) => {
+    const index = categoryLabelAt(scene, x, y, frame)
+    if (index === null) return null
+    const item = scene.layout.items[index]
+    return {
+      content: highlightTooltip(item.data.label, scene.lit[index]),
+      anchorX: scene.isVertical ? item.categoryCenter : frame.x - ROW_LABEL_GAP,
+      anchorY: scene.isVertical
+        ? frame.bottom + scene.labelDepth
+        : item.categoryCenter + LABEL_FONT_SIZE / 2,
+      offset: { x: 0, y: 7 },
+      cursor: 'pointer',
+      data: { label: index },
+    }
+  },
+
+  click: (hover, act) => {
+    if (hover === null || !('label' in hover)) return
+    const id = act.scene()?.layout.items[hover.label]?.data.id
+    if (id !== undefined) act.toggle('highlights', id)
+  },
+
+  // The data rect, plus the clickable label band beside it.
+  blockedRegions: (scene, frame) => {
+    const body = { x: frame.x, y: frame.y, w: frame.width, h: frame.height }
+    if (!scene.layout.items.some(item => item.data.id !== undefined)) return [body]
+    const band = scene.isVertical
+      ? { x: frame.x, y: frame.bottom, w: frame.width, h: scene.labelDepth }
+      : { x: frame.x - scene.labelDepth, y: frame.y, w: scene.labelDepth, h: frame.height }
+    return [body, band]
+  },
 })
+
+/** The slot whose category label is under the pointer, if it can toggle a highlight. */
+function categoryLabelAt(
+  scene: { isVertical: boolean; labelDepth: number; layout: BeeswarmLayout },
+  x: number,
+  y: number,
+  frame: { x: number; bottom: number }
+): number | null {
+  const { isVertical, labelDepth, layout } = scene
+  const across = isVertical ? y - frame.bottom : frame.x - x
+  if (across < 0 || across > labelDepth) return null
+  const along = isVertical ? x : y
+  for (let i = 0; i < layout.items.length; i++) {
+    const item = layout.items[i]
+    const half = item.categoryWidth / 2
+    if (along >= item.categoryCenter - half && along <= item.categoryCenter + half) {
+      return item.data.id === undefined ? null : i
+    }
+  }
+  return null
+}

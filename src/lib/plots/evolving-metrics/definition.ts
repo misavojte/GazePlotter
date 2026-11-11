@@ -11,7 +11,8 @@ export const evolvingMetricsDefinition = definePlot<
   type: 'evolvingMetrics',
   name: 'Metric Timeline',
   tagline: 'A metric over moving time windows',
-  group: 'per-participant',
+  group: 'metric',
+  keywords: 'moving window over time',
   paneSections: [
     'stimulus',
     'participants',

@@ -125,4 +125,29 @@ describe('matrix kit', () => {
     const card = recordingContext()
     expect(renderPlot(card.ctx, matrixKit, input({ placeholder: 'No AOIs' }), { width: 500, height: 500, margin: 0 }).scene).toBeNull()
   })
+
+  it('fades cells off the highlighted AOIs and toggles from an axis label', () => {
+    const { scene } = sceneOf(input({ labelIds: ['1', '-1'], highlights: ['1', '9'] }))
+    // Row or column A (id 1) keeps its colour; only B to B fades.
+    expect(scene.render.dimCell!(0, 1)).toBe(false)
+    expect(scene.render.dimCell!(1, 0)).toBe(false)
+    expect(scene.render.dimCell!(1, 1)).toBe(true)
+    // A highlight this matrix does not draw fades nothing.
+    expect(sceneOf(input({ labelIds: ['1', '-1'], highlights: ['9'] })).scene.render.dimCell).toBeUndefined()
+
+    const { layout } = scene
+    const rowLabel = matrixKit.hit!(scene, layout.xOffset - layout.individualLabelMargin - 2, layout.yOffset + layout.cellSize * 1.5, scene as never, scene.input)
+    expect(rowLabel?.data).toEqual({ label: 1 })
+    expect(rowLabel?.content).toEqual([{ key: '', value: 'Highlight B' }])
+    const toggled: unknown[] = []
+    matrixKit.click!({ label: 1 }, { input: () => scene.input, toggle: (k: string, v: string) => toggled.push(k, v) } as never)
+    expect(toggled).toEqual(['highlights', '-1'])
+    // A rotated column label: up and to the right of its column's foot.
+    const foot = layout.yOffset - layout.individualLabelMargin
+    const colLabel = matrixKit.hit!(scene, layout.xOffset + layout.cellSize * 0.5 + 6, foot - 6, scene as never, scene.input)
+    expect(colLabel?.data).toEqual({ label: 0 })
+    // Without ids the labels stay inert.
+    const plain = sceneOf(input()).scene
+    expect(matrixKit.hit!(plain, layout.xOffset - layout.individualLabelMargin - 2, layout.yOffset + layout.cellSize * 1.5, plain as never, plain.input)).toBeNull()
+  })
 })

@@ -792,7 +792,8 @@ export function mapDataToLegendGroups(
 }
 
 /**
- * Computes the highlight mask based on used highlights.
+ * Computes the highlight mask based on used highlights. Null when none of them
+ * is drawn here (an AOI outside the plot's selection): nothing dims then.
  */
 export function calculateHighlightMask(
   usedHighlights: readonly string[],
@@ -804,11 +805,13 @@ export function calculateHighlightMask(
 
   const mask = new Uint8Array(total)
   const { idToIndex } = identifierSystem
+  let any = false
   for (let i = 0; i < usedHighlights.length; i++) {
     const idx = idToIndex.get(usedHighlights[i])
     if (idx != null) mask[idx] = 1
+    any ||= idx != null
   }
-  return mask
+  return any ? mask : null
 }
 
 /**

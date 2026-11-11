@@ -11,7 +11,7 @@ describe('eye-movement comparison registration', () => {
   it('is registered with valid defaults', () => {
     const def = plotRegistry.eyeMovementComparison
     expect(def.name).toBe('Eye-movement Comparison')
-    expect(def.group).toBe('gaze-behavior')
+    expect(def.group).toBe('metric')
     const defaults = def.getDefaultSettings()
     // The library flow: default instance is the seeded movementDuration
     // starter (per-type counts are near-degenerate — saccades interleave

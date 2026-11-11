@@ -6,7 +6,8 @@
  */
 import { describe, expect, it } from 'vitest'
 import { beeswarmKit, type BeeswarmInput } from '$lib/plots/shared/distribution/beeswarm/kit'
-import { DOT_RADIUS, valueToPixel } from '$lib/plots/shared/distribution/beeswarm/renderers'
+import { DOT_RADIUS, dimmedColor, valueToPixel } from '$lib/plots/shared/distribution/beeswarm/renderers'
+import { FONT_PRIMARY } from '$lib/plots/shared/const'
 import { computeSummaryStatistics } from '$lib/plots/shared/distribution/summaryStatistics'
 import type { CategoryDistribution } from '$lib/plots/shared/distribution/types'
 import type { SceneContext } from '$lib/plots/shared/kit'
@@ -157,5 +158,50 @@ describe('beeswarm kit', () => {
     expect(rec.count('arc')).toBe(0)
     // The plot ground plus one bar per slot.
     expect(rec.count('fillRect')).toBeGreaterThanOrEqual(2)
+  })
+
+  const ided = () => [
+    { ...slot('AOI A', [10, 20, 30, 40]), id: '1' },
+    { ...slot('AOI B', [50, 60, 70]), id: '-1' },
+  ]
+
+  it('fades the slots off the highlight, label included, as a legend does', () => {
+    const { scene, ctx } = sceneOf(input({ data: ided(), highlights: ['1', '9'] }))
+    expect(scene.layout.items.map(i => i.dimmed)).toEqual([false, true])
+    // The labels take the legend's faded text colour.
+    const rec = recordingContext()
+    const labels: [string, unknown][] = []
+    rec.ctx.fillText = (text: string) => labels.push([text, rec.ctx.fillStyle])
+    beeswarmKit.draw(rec.ctx, scene, ctx.frame)
+    expect(labels[0]).toEqual(['AOI A', FONT_PRIMARY.COLOR])
+    expect(labels[1]).toEqual(['AOI B', dimmedColor(FONT_PRIMARY.COLOR)])
+    // A highlight this plot does not draw fades nothing.
+    const other = sceneOf(input({ data: ided(), highlights: ['9'] })).scene
+    expect(other.layout.items.map(i => i.dimmed)).toEqual([false, false])
+  })
+
+  it('toggles a highlight from a category label, in either orientation', () => {
+    for (const orientation of ['horizontal', 'vertical'] as const) {
+      const { scene, ctx } = sceneOf(input({ data: ided(), highlights: ['1'], orientation }))
+      const { frame } = ctx
+      const row = scene.layout.items[1]
+      const at =
+        orientation === 'horizontal'
+          ? ([frame.x - 10, row.categoryCenter] as const)
+          : ([row.categoryCenter, frame.bottom + 5] as const)
+      const hit = beeswarmKit.hitChrome!(scene, ...at, frame, ctx)
+      expect(hit?.data).toEqual({ label: 1 })
+      expect(hit?.content).toEqual([{ key: '', value: 'Highlight AOI B' }])
+      expect(hit?.cursor).toBe('pointer')
+      const toggled: unknown[] = []
+      beeswarmKit.click!(hit!.data!, { scene: () => scene, toggle: (k: string, v: string) => toggled.push(k, v) } as never)
+      expect(toggled).toEqual(['highlights', '-1'])
+      // The label band is blocked, so a press there selects the plot.
+      expect(beeswarmKit.blockedRegions!(scene, frame)).toHaveLength(2)
+    }
+    // Without ids the labels stay inert.
+    const { scene, ctx } = sceneOf(input())
+    expect(beeswarmKit.hitChrome!(scene, ctx.frame.x - 10, scene.layout.items[0].categoryCenter, ctx.frame, ctx)).toBeNull()
+    expect(beeswarmKit.blockedRegions!(scene, ctx.frame)).toHaveLength(1)
   })
 })

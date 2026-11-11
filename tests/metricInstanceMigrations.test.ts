@@ -836,4 +836,8 @@ describe('Scanpath playbackWindow → trailLength', () => {
   it('keeps an explicit All under the new key', () => {
     expect(settingsOf({ stimulusId: 0, trailLength: 0 })).toEqual({ stimulusId: 0, trailLength: 0 })
   })
+
+  it('drops the retired syncPlayback switch', () => {
+    expect(settingsOf({ stimulusId: 0, syncPlayback: false })).toEqual({ stimulusId: 0 })
+  })
 })

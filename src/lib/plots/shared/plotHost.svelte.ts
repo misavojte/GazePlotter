@@ -1,6 +1,6 @@
 /**
  * The platform's per-plot services, built once per grid item from the plot's
- * declarations (`cursor`, `sync`, `playback`, `view.viewOnly`): the view derived
+ * declarations (`cursor`, `sync`, `playback`, `highlights`, `view.viewOnly`): the view derived
  * from the settings (a drag draft and sync merged in), its input with the
  * platform's overlays, and the `PlotHost` a kit acts through. Every rune a plot
  * needs lives here, so plot folders stay plain TS and the container stays
@@ -13,7 +13,9 @@ import { resolvePlotRuntime } from '$lib/plots/registry'
 import { createCommandSourcePlotPattern } from '$lib/workspace/commands'
 import type { WorkspaceCommandBus } from '$lib/workspace/commands/bus'
 import type { GridItemMap, PlotType } from '$lib/workspace/grid/types'
+import { getGazePlotterSession } from '$lib/session/context'
 import { toggleInArray } from './arrayUtils'
+import { linkedHighlightUpdates, type HighlightTarget } from './highlightLink'
 import { NO_CURSOR } from './cursorMarks'
 import type { PlotHost } from './kit'
 import { usePlaybackMembership } from './playback.svelte'
@@ -126,11 +128,32 @@ export function usePlotHost<K extends PlotType>(options: {
       })
     : null
 
+  // A legend click in a multi-selection highlights the same entity in the other
+  // selected plots that declare `highlights`: one command, one undo step.
+  const { grid } = getGazePlotterSession()
+  function toggleHighlight(spec: HighlightTarget['spec'], identifier: string) {
+    const { id } = live.item
+    const settings = live.item.settings as HighlightTarget['settings']
+    const others = grid.selectionMates(id).flatMap(i => {
+      const other = resolvePlotRuntime(i.type).highlights
+      // Only plots with a stimulus declare `highlights`.
+      return other ? [{ id: i.id, settings: i.settings, spec: other } as HighlightTarget] : []
+    })
+    workspace.apply({
+      type: 'updateSettings',
+      updates: linkedHighlightUpdates({ id, settings, spec }, identifier, others),
+      source: source(),
+    })
+  }
+
   const host: PlotHost = {
     cursor: () => (port ? { times: port.times, participants: port.participants } : NO_CURSOR),
     publish: at => port?.publish(at),
     settings: () => settings,
     toggle(key, value) {
+      if (key === 'highlights' && definition.highlights) {
+        return toggleHighlight(definition.highlights as HighlightTarget['spec'], String(value))
+      }
       const current = (live.item.settings as Record<string, unknown>)[key] ?? []
       workspace.updateItemSettings(
         live.item.id,

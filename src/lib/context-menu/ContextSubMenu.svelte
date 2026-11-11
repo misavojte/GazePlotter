@@ -35,6 +35,7 @@
         menuSize = { width: w, height: h }
       } else {
         menuSize = getMenuSize(item.children, false)
+        if (item.childrenWidth) menuSize.width = item.childrenWidth
       }
 
       // Initial preferred position: 4px overlap from the right of the anchor

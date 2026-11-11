@@ -61,7 +61,7 @@
     spanMs <= 0 || !clock || (media?.kind === 'video' && !videoElement && !mediaFailed)
   )
 
-  const toggle = () => clock?.toggle(playback?.plotId ?? null)
+  const toggle = () => playback?.toggle()
 
   /** Tenths under a minute (trials are often 3 to 10 s), m:ss beyond. */
   function formatTime(ms: number): string {
@@ -190,7 +190,7 @@
       max={span.end > span.start ? span.end : span.start + 1}
       step="10"
       value={shownTime}
-      oninput={e => clock?.seek(Number(e.currentTarget.value), playback?.plotId ?? null)}
+      oninput={e => playback?.seek(Number(e.currentTarget.value))}
       onchange={() => playback?.commitTime()}
       {disabled}
       aria-label="Playback position"

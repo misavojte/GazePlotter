@@ -11,7 +11,7 @@ describe('event comparison registration', () => {
   it('is registered with valid defaults', () => {
     const def = plotRegistry.eventComparison
     expect(def.name).toBe('Event Comparison')
-    expect(def.group).toBe('per-event')
+    expect(def.group).toBe('metric')
     const defaults = def.getDefaultSettings()
     // The library flow: default instance is the seeded eventDuration starter.
     expect(defaults.metricInstanceIds).toEqual(['eventDuration'])

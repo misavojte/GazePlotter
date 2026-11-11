@@ -36,8 +36,8 @@ export function stimulusParticipantsSubtitle(params: {
 }): PlotSubtitleParts | undefined {
   const { settings } = params.item
   return subtitleParts(
-    ['Stimulus', optionLabel(getStimuliOptions(params.engine), settings.stimulusId)],
-    ['Participants', participantScopeLabel(params.engine, settings)]
+    ['Active stimulus', optionLabel(getStimuliOptions(params.engine), settings.stimulusId)],
+    ['Active participant selection', participantScopeLabel(params.engine, settings)]
   )
 }
 
@@ -47,7 +47,7 @@ export function stimulusParticipantSubtitle(params: {
 }): PlotSubtitleParts | undefined {
   const { settings } = params.item
   return subtitleParts(
-    ['Stimulus', optionLabel(getStimuliOptions(params.engine), settings.stimulusId)],
-    ['Participant', optionLabel(getParticipantOptions(params.engine), settings.participantId)]
+    ['Active stimulus', optionLabel(getStimuliOptions(params.engine), settings.stimulusId)],
+    ['Active participant', optionLabel(getParticipantOptions(params.engine), settings.participantId)]
   )
 }
