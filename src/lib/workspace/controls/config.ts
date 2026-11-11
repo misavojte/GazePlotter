@@ -2,6 +2,7 @@ import { Grid2x2Plus, Undo2, Redo2, Settings2 } from 'lucide-svelte'
 import type { LucideIconComponent } from '$lib/shared/icon'
 import type { MenuItem } from '$lib/context-menu'
 import { PLOT_GROUPS, type PlotGroup } from '$lib/plots/groups'
+import { PLOT_GLYPHS } from '$lib/plots/glyphs'
 import type { PlotType } from '$lib/workspace/grid/types'
 import { withShortcut } from '$lib/workspace/keys'
 
@@ -10,6 +11,9 @@ export interface ControlVisualization {
   label: string
   detail?: string
   group: PlotGroup
+  keywords?: string
+  /** Why the loaded dataset cannot feed this plot; unset when it can. */
+  unavailable?: string
 }
 
 export interface ControlAction {
@@ -18,9 +22,14 @@ export interface ControlAction {
   detail?: string
   run?: () => void
   /** When present, this action is a submenu parent: it carries no `run`, and
-   *  its children render as a nested menu. The add-visualization menu uses this
-   *  to group plots under their taxonomy bucket. */
+   *  its children render as a nested menu. */
   children?: ControlAction[]
+  /** A section heading over the actions that follow, not an action. */
+  heading?: boolean
+  thumbnail?: string
+  keywords?: string
+  disabled?: boolean
+  disabledReason?: string
 }
 
 export interface ControlConfig {
@@ -29,7 +38,16 @@ export interface ControlConfig {
   icon: LucideIconComponent
   actions: ControlAction[]
   disabled: boolean
+  /** Search box placeholder; the menu gets a search box when set. */
+  search?: string
+  menuWidth?: number
+  menuMaxHeight?: number
 }
+
+/** The add-visualization menu: wide enough for a thumbnail beside the
+ *  tagline; past the height cap the list scrolls and search finds the rest. */
+export const ADD_MENU_WIDTH = 280
+const ADD_MENU_MAX_HEIGHT = 440
 
 interface CreateToolControlsOptions {
   undoLabel: string | null
@@ -93,40 +111,55 @@ export function createToolControls(
       icon: controlIcons['add-visualization'],
       actions: addVisualizationActions(options.visualizations, options.onAddVisualization),
       disabled: options.isProcessing || !options.isValidData,
+      search: 'Search visualizations',
+      menuWidth: ADD_MENU_WIDTH,
+      menuMaxHeight: ADD_MENU_MAX_HEIGHT,
     },
   ]
 }
 
 /**
- * One submenu parent per non-empty taxonomy group, in PLOT_GROUPS order.
- * Capability filtering happens upstream, so an unavailable group simply
- * contributes no items and drops out here.
+ * One flat list: a heading per non-empty group in PLOT_GROUPS order, then
+ * its plots, each with its thumbnail. Plots the dataset cannot feed go to a
+ * last section, disabled, each with its reason, so the usable list above
+ * runs uninterrupted.
  */
 export function addVisualizationActions(
   visualizations: ControlVisualization[],
   onAdd: (id: PlotType) => void
 ): ControlAction[] {
-  return PLOT_GROUPS.flatMap(group => {
-    const items = visualizations.filter(v => v.group === group.key)
-    if (items.length === 0) return []
-    return [
-      {
-        label: group.label,
-        children: items.map(visualization => ({
-          label: visualization.label,
-          detail: visualization.detail,
-          run: () => onAdd(visualization.id),
-        })),
-      },
-    ]
+  const toAction = (v: ControlVisualization): ControlAction => ({
+    label: v.label,
+    detail: v.detail,
+    keywords: [v.detail, v.keywords].filter(Boolean).join(' '),
+    thumbnail: PLOT_GLYPHS[v.id],
+    disabled: v.unavailable !== undefined,
+    disabledReason: v.unavailable,
+    run: () => onAdd(v.id),
   })
+  const section = (label: string, items: ControlVisualization[]): ControlAction[] =>
+    items.length === 0 ? [] : [{ label, heading: true }, ...items.map(toAction)]
+  const available = visualizations.filter(v => v.unavailable === undefined)
+  return [
+    ...PLOT_GROUPS.flatMap(group => section(group.label, available.filter(v => v.group === group.key))),
+    ...section('Not available for this data', visualizations.filter(v => v.unavailable !== undefined)),
+  ]
 }
 
 export function toMenuItem(action: ControlAction): MenuItem {
+  if (action.heading) return { isDivider: true, label: action.label }
   if (action.children && action.children.length > 0) {
     return { label: action.label, children: action.children.map(toMenuItem) }
   }
-  return { label: action.label, detail: action.detail, onAction: action.run }
+  return {
+    label: action.label,
+    detail: action.detail,
+    thumbnail: action.thumbnail,
+    keywords: action.keywords,
+    disabled: action.disabled,
+    disabledReason: action.disabledReason,
+    onAction: action.run,
+  }
 }
 
 // Mobile-only: when a plot is selected but the settings sheet isn't open

@@ -11,7 +11,8 @@ export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSetting
   type: 'scanpath',
   name: 'Scanpath',
   tagline: 'Fixation path of one participant',
-  group: 'gaze-behavior',
+  group: 'stimulus',
+  keywords: 'gaze plot path fixations order',
   paneSections: [
     'stimulus',
     'participant',
@@ -71,5 +72,5 @@ export const scanpathPlotDefinition = definePlot<'scanpath', ScanpathPlotSetting
     playbackSpeed: 1,
   }),
   size: { min: { w: 12, h: 10 }, w: 16 },
-  requireCapabilities: [['segmented', 'spatial']],
+  requireCapabilities: ['segmented', 'spatial'],
 })

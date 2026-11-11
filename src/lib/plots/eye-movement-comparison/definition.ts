@@ -20,7 +20,8 @@ export const eyeMovementComparisonDefinition = defineDistributionPlot<
   type: 'eyeMovementComparison',
   name: 'Eye-movement Comparison',
   tagline: 'A metric per eye-movement type',
-  group: 'gaze-behavior',
+  group: 'metric',
+  keywords: 'saccades blinks fixations oculomotor',
   // The metric IS the per-type vector, drawn whole; single types are a
   // `pick-category` projection on scalar plots.
   contract: { outputShape: 'category-vector', windowing: 'forbidden', crossParticipant: 'distribution' },

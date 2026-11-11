@@ -406,12 +406,10 @@ export type PlotDefinition<
   name: string
   /** One line under the name in the add-visualization menu; read nowhere else. */
   tagline: string
-  /**
-   * Taxonomy bucket: the plot's unit of analysis. Read in exactly one place,
-   * the add-visualization menu, which groups plots by this field (group =
-   * parent item, its plots = submenu). Never surfaced in the plot's own chrome.
-   */
+  /** Add-visualization menu section; read nowhere else. */
   group: PlotGroup
+  /** Extra words the add-visualization search matches (synonyms, Pro Lab names). */
+  keywords?: string
   getDefaultSettings: (params?: TParams) => TSettings
   /**
    * Grid sizing in grid units — pure data. Omitted values fall back to

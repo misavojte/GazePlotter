@@ -25,7 +25,8 @@ export const eventComparisonDefinition = defineDistributionPlot<
   type: 'eventComparison',
   name: 'Event Comparison',
   tagline: 'A metric per event channel',
-  group: 'per-event',
+  group: 'metric',
+  keywords: 'events markers tasks intervals',
   // The metric IS the per-channel vector, drawn whole; single channels are a
   // `pick-event` projection on scalar plots.
   contract: { outputShape: 'event-vector', windowing: 'forbidden', crossParticipant: 'distribution' },

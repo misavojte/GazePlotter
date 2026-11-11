@@ -17,7 +17,8 @@ export const transitionMatrixDefinition = definePlot<
   type: 'transitionMatrix',
   name: 'Transition Matrix',
   tagline: 'Gaze transitions between AOIs',
-  group: 'inter-aoi',
+  group: 'sequence',
+  keywords: 'transitions Markov AOI pairs',
   paneSections: [
     'stimulus',
     'participants',

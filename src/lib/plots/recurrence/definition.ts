@@ -14,7 +14,8 @@ export const recurrencePlotDefinition = definePlot<
   type: 'recurrencePlot',
   name: 'Recurrence Plot',
   tagline: 'Revisits in one fixation sequence',
-  group: 'gaze-behavior',
+  group: 'sequence',
+  keywords: 'RQA revisits determinism laminarity',
   paneSections: [
     'stimulus',
     'participant',

@@ -24,7 +24,8 @@ export const aoiComparisonDefinition = defineDistributionPlot<
   type: 'aoiComparison',
   name: 'AOI Comparison',
   tagline: 'A metric per AOI across participants',
-  group: 'per-aoi',
+  group: 'metric',
+  keywords: 'dwell time TTFF time to first fixation visits',
   // The metric IS the per-AOI vector, drawn whole; single AOIs are a `pick-aoi`
   // projection on scalar plots.
   contract: { outputShape: 'aoi-vector', windowing: 'forbidden', crossParticipant: 'distribution' },

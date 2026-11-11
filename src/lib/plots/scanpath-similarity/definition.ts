@@ -74,7 +74,8 @@ export const scanpathSimilarityDefinition = definePlot<
   type: 'scanpathSimilarity',
   name: 'Scanpath Similarity',
   tagline: 'Pairwise scanpath similarity',
-  group: 'inter-participant',
+  group: 'sequence',
+  keywords: 'ScanGraph Levenshtein string edit distance clusters',
   paneSections: [
     'stimulus',
     'participants',

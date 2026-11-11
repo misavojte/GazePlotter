@@ -21,7 +21,8 @@ export const fixationHeatmapDefinition = definePlot<'fixationHeatmap', FixationH
   type: 'fixationHeatmap',
   name: 'Fixation Heatmap',
   tagline: 'Pooled fixations on the stimulus',
-  group: 'gaze-behavior',
+  group: 'stimulus',
+  keywords: 'heat map attention map opacity map density',
   paneSections: [
     'stimulus',
     'participants',

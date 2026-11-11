@@ -37,3 +37,29 @@ body > div {
 }
 
 /* Design tokens live in $lib/DesignTokens.svelte. */
+
+/* Slim scrollbar for floating panels (menus): a rounded thumb inset from the
+   edge, no track, no arrow buttons. Chrome ignores the ::-webkit-scrollbar
+   rules once scrollbar-width/-color are set, so those standard properties
+   apply only where the pseudo-elements are unsupported (Firefox). */
+.scroll-slim::-webkit-scrollbar {
+  width: 10px;
+}
+.scroll-slim::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-slim::-webkit-scrollbar-thumb {
+  background: var(--c-midgrey);
+  background-clip: padding-box;
+  border: 3px solid transparent;
+  border-radius: 999px;
+}
+.scroll-slim::-webkit-scrollbar-thumb:hover {
+  background-color: var(--c-darkgrey);
+}
+@supports not selector(::-webkit-scrollbar) {
+  .scroll-slim {
+    scrollbar-width: thin;
+    scrollbar-color: var(--c-midgrey) transparent;
+  }
+}

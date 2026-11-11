@@ -21,7 +21,8 @@ export const scarfPlotDefinition = definePlot<'scarf', ScarfPlotSettings, ScarfV
   type: 'scarf',
   name: 'Scarf Plot',
   tagline: 'AOI sequence of each participant',
-  group: 'gaze-behavior',
+  group: 'sequence',
+  keywords: 'sequence chart timeline AOI hits order',
   paneSections: [
     'stimulus',
     'participants',

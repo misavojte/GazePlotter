@@ -23,7 +23,8 @@ export const metricMatrixDefinition = definePlot<
   type: 'metricMatrix',
   name: 'Metric Matrix',
   tagline: 'Metric per participant × stimulus',
-  group: 'per-participant',
+  group: 'metric',
+  keywords: 'participants stimuli grid',
   paneSections: [
     'participants',
     'stimuli',

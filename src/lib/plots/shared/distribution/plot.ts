@@ -36,6 +36,7 @@ export interface DistributionPlotSpec<TType extends string, S extends Distributi
   name: string
   tagline: string
   group: PlotGroup
+  keywords?: string
   /** Admits the vector instances this plot draws whole, one distribution per slot. */
   contract: PlotMetricContract
   /** The category axis in drawn order, narrowed by the selection; built once a metric resolved. */
@@ -97,6 +98,7 @@ export function defineDistributionPlot<TType extends string, S extends Distribut
     name: spec.name,
     tagline: spec.tagline,
     group: spec.group,
+    keywords: spec.keywords,
     paneSections: [
       'stimulus',
       'participants',

@@ -104,6 +104,9 @@
         icon={tools.add.icon}
         actions={tools.add.actions}
         disabled={tools.add.disabled}
+        search={tools.add.search}
+        menuWidth={tools.add.menuWidth}
+        menuMaxHeight={tools.add.menuMaxHeight}
         {side}
       />
       <span class="divider" aria-hidden="true"></span>

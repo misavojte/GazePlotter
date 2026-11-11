@@ -15,7 +15,7 @@
   import { exportFiguresModal } from '$lib/modals/definitions'
   import { useContextMenuAction, type MenuItem } from '$lib/context-menu'
   import { addablePlots, addPlot } from './controls/addPlot'
-  import { addVisualizationActions, toMenuItem } from './controls/config'
+  import { ADD_MENU_WIDTH, addVisualizationActions, toMenuItem } from './controls/config'
 
   import {
     MIN_WORKSPACE_HEIGHT,
@@ -169,6 +169,7 @@
       // addPlot inherits from a sole selected plot; say so before the click.
       detail: grid.selectedItem ? "With the selected plot's stimulus and participants" : undefined,
       icon: Grid2x2Plus,
+      childrenWidth: ADD_MENU_WIDTH,
       children: addVisualizationActions(addablePlots(engine), vizType =>
         addPlot(session, vizType, menuCell)
       ).map(toMenuItem),

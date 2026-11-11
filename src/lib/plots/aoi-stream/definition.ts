@@ -24,7 +24,8 @@ export const aoiStreamPlotDefinition = definePlot<
   type: 'aoiStreamPlot',
   name: 'AOI Timeline',
   tagline: 'AOI metric over time bins',
-  group: 'per-aoi',
+  group: 'metric',
+  keywords: 'stream ridgeline over time',
   paneSections: [
     'stimulus',
     'participants',

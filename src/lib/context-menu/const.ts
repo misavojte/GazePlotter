@@ -5,6 +5,9 @@ export const DEFAULT_OFFSET = 4
 
 export const ITEM_HEIGHT = 32
 export const DIVIDER_HEIGHT = 9 // 1px line + 4px margin top + 4px margin bottom
+export const HEADING_HEIGHT = 26
+export const THUMBNAIL_ITEM_HEIGHT = 40
+export const SEARCH_HEIGHT = 41
 export const DEFAULT_COMPONENT_HEIGHT = 120
 
 export const MENU_SELECTOR = 'div.menu[role="menu"]'

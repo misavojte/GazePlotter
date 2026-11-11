@@ -22,19 +22,20 @@ import { eyeMovementComparisonDefinition } from './eye-movement-comparison'
 import { eventComparisonDefinition } from './event-comparison'
 
 export const plotRegistry = {
+  // Add-visualization menu order within each group.
+  fixationHeatmap: fixationHeatmapDefinition,
+  scanpath: scanpathPlotDefinition,
   scarf: scarfPlotDefinition,
   transitionMatrix: transitionMatrixDefinition,
+  recurrencePlot: recurrencePlotDefinition,
+  scanpathSimilarity: scanpathSimilarityDefinition,
   aoiComparison: aoiComparisonDefinition,
   aoiStreamPlot: aoiStreamPlotDefinition,
-  scanpathSimilarity: scanpathSimilarityDefinition,
-  scanpath: scanpathPlotDefinition,
-  fixationHeatmap: fixationHeatmapDefinition,
-  recurrencePlot: recurrencePlotDefinition,
-  evolvingMetrics: evolvingMetricsDefinition,
-  metricCorrelation: metricCorrelationDefinition,
-  metricMatrix: metricMatrixDefinition,
   eyeMovementComparison: eyeMovementComparisonDefinition,
   eventComparison: eventComparisonDefinition,
+  evolvingMetrics: evolvingMetricsDefinition,
+  metricMatrix: metricMatrixDefinition,
+  metricCorrelation: metricCorrelationDefinition,
 } as const
 
 /**
