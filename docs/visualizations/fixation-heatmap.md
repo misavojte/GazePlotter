@@ -34,7 +34,7 @@ Without reference media, the view frames all fixations on the stimulus, plus a m
 ## Add a Fixation Heatmap
 
 1. Load your data: drop the files anywhere on the page, or use **Import**. See [Uploading Data](/docs/upload-data/).
-2. In the rail on the left, click **Add Visualization**, then **Gaze behavior** > **Fixation Heatmap**. When another plot is selected, the new one opens on its stimulus and participants.
+2. In the rail on the left, click **Add Visualization**, then **Fixation Heatmap** in the **Where they looked** section. When another plot is selected, the new one opens on its stimulus and participants.
 3. The pane on the right opens with the plot's settings. Pick the **Stimulus** first.
 
 To move, resize, duplicate, or remove the card, see [Plot Manipulation](/docs/workspace/#plot-manipulation).

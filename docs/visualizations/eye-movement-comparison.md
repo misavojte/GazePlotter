@@ -28,7 +28,7 @@ Eye-movement Comparison puts one metric side by side for every eye-movement type
 ## Add an Eye-movement Comparison
 
 1. Load your data: drop the files anywhere on the page, or use **Import**. See [Uploading Data](/docs/upload-data/) for the supported formats.
-2. In the rail on the left, click **Add Visualization**, then **Gaze behavior** > **Eye-movement Comparison**. When another plot is selected, the new one opens on its stimulus and participants.
+2. In the rail on the left, click **Add Visualization**, then **Eye-movement Comparison** in the **Metrics** section. When another plot is selected, the new one opens on its stimulus and participants.
 3. The pane on the right opens with the plot's settings. Pick the **Stimulus**, then the metric under **Metric**.
 
 To move, resize, duplicate, or remove the card, see [Plot Manipulation](/docs/workspace/#plot-manipulation).
