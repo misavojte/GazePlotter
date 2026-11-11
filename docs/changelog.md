@@ -4,6 +4,7 @@
 
 ### 1.10.6
 
+* *Released on November 11, 2026*
 * **Playback**: Select several Scanpaths or Fixation Heatmaps and press play on one to play them together. See [Playing together](/docs/visualizations/scanpath#playing-together).
 * **Highlights**: Click a legend item, AOI label or row label to highlight it; selected plots highlight it together. See [Interactivity](/docs/visualizations/scarf-plot#interactivity).
 * **Add Visualization**: Plots are listed in three sections with pictures and a search box; plots your data cannot use are listed last with the reason.
